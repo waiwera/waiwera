@@ -1,0 +1,886 @@
+module timestepping_module
+
+  ! Time stepping methods for solving d/dt L(t,y) = R(t,y), where y is a parallel vector.
+
+  use kinds_module
+
+  implicit none
+
+  private
+
+#include <finclude/petscsys.h>
+#include <finclude/petscdef.h>
+#include <finclude/petscvec.h>
+#include <finclude/petscvec.h90>
+#include <finclude/petscsnes.h>
+#include <finclude/petscdm.h>
+
+  ! Timestepping methods
+     PetscInt, parameter, public :: TS_BEULER = 0, TS_BDF2 = 1, TS_DIRECTSS = 2
+
+  ! Timestep status
+     PetscInt, parameter, public :: TIMESTEP_OK = 0, TIMESTEP_NOT_CONVERGED = 1, &
+     TIMESTEP_TOO_SMALL = 2, TIMESTEP_TOO_BIG = 3
+
+  type timestepper_step_type
+     ! Results of a time step
+     private
+     PetscReal, public :: time, stepsize
+     Vec, public :: solution, lhs, rhs
+     PetscInt, public :: num_tries, num_iterations, status = TIMESTEP_OK
+   contains
+     private
+     procedure, public :: init => timestepper_step_init
+     procedure, public :: destroy => timestepper_step_destroy
+     procedure, public :: print => timestepper_step_print
+     procedure, public :: status_str => timestepper_step_status_str
+  end type timestepper_step_type
+
+  type ptimestepper_step_type
+     ! Pointer to timestepper_step_type
+     private
+     type(timestepper_step_type), pointer, public :: p
+  end type ptimestepper_step_type
+
+  type timestep_adaptor_type
+     ! For adaptive time step size control. Stepsize is increased if monitor value is
+     ! below monitor_min, decreased if it is above monitor_max.
+     private
+     logical, public :: on = .false.
+     procedure(monitor_function), pointer, nopass, public :: monitor => relative_change_monitor
+     PetscReal, public :: monitor_min = 0.01, monitor_max = 0.1
+     PetscReal, public :: reduction = 0.5, amplification = 2.0
+   contains
+     private
+     procedure :: increase => timestep_adaptor_increase
+     procedure :: reduce => timestep_adaptor_reduce
+  end type timestep_adaptor_type
+
+  type timestepper_steps_type
+     ! Storage for current and immediate past steps in timestepper.
+     private
+     type(timestepper_step_type), allocatable :: store(:)
+     type(ptimestepper_step_type), pointer :: pstore(:)
+     type(timestepper_step_type), pointer, public :: current, last
+     PetscBool :: finished
+     PetscInt, public :: num_stored, taken, max_num = 100
+     PetscReal, public :: next_stepsize, final_time
+     PetscReal, public :: termination_tol = 1.e-6_dp
+     type(timestep_adaptor_type), public :: adaptor
+     ! LHS and RHS functions are also stored here, as they need
+     ! to be passed in to the residual routines as well:
+     procedure(lhs_function), pointer, nopass, public :: lhs_func => NULL()
+     procedure(rhs_function), pointer, nopass, public :: rhs_func => NULL()
+   contains
+     private
+     procedure :: set_aliases => timestepper_steps_set_aliases
+     procedure :: set_pstore => timestepper_steps_set_pstore
+     procedure :: update => timestepper_steps_update
+     procedure :: rotate => timestepper_steps_rotate
+     procedure, public :: init => timestepper_steps_init
+     procedure, public :: destroy => timestepper_steps_destroy
+     procedure, public :: check_finished => timestepper_steps_check_finished
+     procedure, public :: set_current_status => timestepper_steps_set_current_status
+     procedure, public :: adapt => timestepper_steps_adapt
+  end type timestepper_steps_type
+
+  type timestepper_method_type
+     ! Timestepping method
+     private
+     character(20), public :: name
+     procedure(method_residual), pointer, nopass, public :: residual
+     PetscInt, public :: num_steps, num_stored_steps
+   contains
+     private
+     procedure, public :: init => timestepper_method_init
+  end type timestepper_method_type
+
+  type, public :: timestepper_type
+     ! Time stepper class
+     private
+     SNES :: solver
+     DM :: dm
+     Vec :: residual
+     Mat :: jacobian
+     type(timestepper_steps_type), public :: steps
+     type(timestepper_method_type), public :: method
+     procedure(step_output_routine), pointer, public :: &
+          step_output => step_output_default
+   contains
+     private
+     procedure :: setup_solver => timestepper_setup_solver
+     procedure :: step => timestepper_step
+     procedure, public :: init => timestepper_init
+     procedure, public :: destroy => timestepper_destroy
+     procedure, public :: run => timestepper_run
+  end type timestepper_type
+
+  interface
+
+     subroutine lhs_function(t, y, lhs)
+       ! LHS function lhs = L(t, y)
+       implicit none
+       PetscReal, intent(in) :: t
+       Vec, intent(in) :: y
+       Vec, intent(out) :: lhs
+     end subroutine lhs_function
+
+     subroutine rhs_function(t, y, rhs)
+       ! RHS function rhs = R(t, y)
+       implicit none
+       PetscReal, intent(in) :: t
+       Vec, intent(in) :: y
+       Vec, intent(out) :: rhs
+     end subroutine rhs_function
+
+     subroutine method_residual(solver, y, residual, steps, ierr)
+       ! Residual routine to be minimised by nonlinear solver.
+       import :: timestepper_steps_type
+       implicit none
+       SNES, intent(in) :: solver
+       Vec, intent(in) :: y
+       Vec, intent(out) :: residual
+       type(timestepper_steps_type), intent(in out) :: steps
+       PetscErrorCode, intent(out) :: ierr
+     end subroutine method_residual
+
+     PetscReal function monitor_function(current, last)
+       ! Function for monitoring timestep acceptability.
+       import :: timestepper_step_type
+       implicit none
+       type(timestepper_step_type), intent(in) :: current, last
+     end function monitor_function
+
+     subroutine step_output_routine(self)
+       ! Routine for producing output at each time step.
+       import :: timestepper_type
+       implicit none
+       class(timestepper_type), intent(in out) :: self
+     end subroutine step_output_routine
+
+  end interface
+
+  ! Subroutines to be available outside this module:
+  public :: lhs_function, rhs_function, lhs_identity
+  public :: iteration_monitor, relative_change_monitor
+  public :: step_output_routine, step_output_default, step_output_none
+
+contains
+
+!------------------------------------------------------------------------
+! LHS functions
+!------------------------------------------------------------------------
+
+  subroutine lhs_identity(t, y, lhs)
+
+    ! Default identity LHS function L(t,y) = y.
+
+    implicit none
+    PetscReal, intent(in) :: t
+    Vec, intent(in) :: y
+    Vec, intent(out) :: lhs
+    ! Locals:
+    PetscErrorCode :: ierr
+
+    call VecCopy(y, lhs, ierr); CHKERRQ(ierr)
+
+  end subroutine lhs_identity
+
+!------------------------------------------------------------------------
+! Monitoring functions
+!------------------------------------------------------------------------
+
+  PetscReal function iteration_monitor(current, last)
+
+    ! Monitors number of nonlinear iterations used to compute solution.
+
+    implicit none
+    type(timestepper_step_type), intent(in) :: current, last
+
+    iteration_monitor = real(current%num_iterations)
+
+  end function iteration_monitor
+
+!------------------------------------------------------------------------
+
+  PetscReal function relative_change_monitor(current, last)
+
+    ! Monitors relative change in solution. The parameter eps
+    ! avoids division by zero if last%lhs is zero.
+
+    implicit none
+    type(timestepper_step_type), intent(in) :: current, last
+    ! Locals:
+    PetscReal, parameter :: eps = 1.e-3_dp
+    NormType, parameter :: nt = NORM_2
+    Vec :: diff
+    PetscReal :: norm_diff, norm_current
+    PetscErrorCode :: ierr
+
+    call VecDuplicate(current%lhs, diff, ierr); CHKERRQ(ierr)
+    call VecCopy(current%lhs, diff, ierr); CHKERRQ(ierr)
+    call VecAXPY(diff, -1.0_dp, last%lhs, ierr); CHKERRQ(ierr)
+    call VecNorm(diff, nt, norm_diff, ierr); CHKERRQ(ierr)
+    call VecNorm(current%lhs, nt, norm_current, ierr); CHKERRQ(ierr)
+    call VecDestroy(diff, ierr); CHKERRQ(ierr)
+
+    relative_change_monitor = norm_diff / (norm_current + eps)
+
+  end function relative_change_monitor
+
+!------------------------------------------------------------------------
+! Step output routines
+!------------------------------------------------------------------------
+
+  subroutine step_output_default(self)
+
+    ! Default routine for printing diagnostic information at each
+    ! time step.
+
+    implicit none
+    class(timestepper_type), intent(in out) :: self
+    PetscMPIInt :: rank
+    PetscErrorCode :: ierr
+
+    call MPI_comm_rank(PETSC_COMM_WORLD, rank, ierr); CHKERRQ(ierr)
+
+    if (rank == 0) then
+       write(*, '(a, i4)'), 'step:', self%steps%taken
+       call self%steps%current%print()
+    end if
+
+  end subroutine step_output_default
+
+!------------------------------------------------------------------------
+
+  subroutine step_output_none(self)
+
+    ! Step output routine for no output.
+
+    implicit none
+    class(timestepper_type), intent(in out) :: self
+
+  end subroutine step_output_none
+
+!------------------------------------------------------------------------
+! Residual routines
+!------------------------------------------------------------------------
+
+  subroutine backwards_Euler_residual(solver, y, residual, steps, ierr)
+
+    ! Residual for backwards Euler method.
+    ! residual = L(1) - L(0)  - dt * R(1)
+
+    implicit none
+    SNES, intent(in) :: solver
+    Vec, intent(in) :: y
+    Vec, intent(out) :: residual
+    type(timestepper_steps_type), intent(in out) :: steps
+    PetscErrorCode, intent(out) :: ierr
+    ! Locals:
+    PetscReal :: t, dt
+
+    t = steps%current%time
+    dt = steps%current%stepsize
+
+    call steps%lhs_func(t, y, steps%current%lhs)
+    call VecCopy(steps%current%lhs, residual, ierr); CHKERRQ(ierr)
+    call VecAXPY(residual, -1.0_dp, steps%last%lhs, ierr); CHKERRQ(ierr)
+    call steps%rhs_func(t, y, steps%current%rhs)
+    call VecAXPY(residual, -dt, steps%current%rhs, ierr); CHKERRQ(ierr)
+
+  end subroutine backwards_Euler_residual
+
+!------------------------------------------------------------------------
+
+  subroutine BDF2_residual(solver, y, residual, steps, ierr)
+
+    ! Residual for variable-stepsize BDF2 method.
+    ! residual = (1 + 2r) * L(1) - (r+1)^2 * L(0) + r^2 * L(-1) - dt * (r+1) * R(1)
+    ! where r = dt / (last dt)
+
+    implicit none
+    SNES, intent(in) :: solver
+    Vec, intent(in) :: y
+    Vec, intent(out) :: residual
+    type(timestepper_steps_type), intent(in out) :: steps
+    PetscErrorCode, intent(out) :: ierr
+    ! Locals:
+    type(timestepper_step_type), pointer :: last2
+    PetscReal :: t, dt, dtlast
+    PetscReal :: r, r1
+
+    if (steps%taken == 0) then
+
+       ! Startup- use backwards Euler
+       call backwards_Euler_residual(solver, y, residual, steps, ierr)
+
+    else
+
+       t = steps%current%time
+       dt = steps%current%stepsize
+       dtlast = steps%last%stepsize
+       r = dt / dtlast
+       r1 = r + 1._dp
+
+       last2 => steps%pstore(3)%p
+
+       call steps%lhs_func(t, y, steps%current%lhs)
+       call VecCopy(steps%current%lhs, residual, ierr); CHKERRQ(ierr)
+       call VecScale(residual, 1._dp + 2._dp * r, ierr); CHKERRQ(ierr)
+       call VecAXPY(residual, -r1 * r1, steps%last%lhs, ierr); CHKERRQ(ierr)
+       call VecAXPY(residual, r * r, last2%lhs, ierr); CHKERRQ(ierr)
+       call steps%rhs_func(t, y, steps%current%rhs)
+       call VecAXPY(residual, -dt * r1, steps%current%rhs, ierr); CHKERRQ(ierr)
+
+    end if
+
+  end subroutine BDF2_residual
+
+!------------------------------------------------------------------------
+
+  subroutine direct_ss_residual(solver, y, residual, steps, ierr)
+
+    ! Residual for direct solution of steady state equations R(y) = 0.
+    ! Here we evaluate R() at the steps final time.
+
+    implicit none
+    SNES, intent(in) :: solver
+    Vec, intent(in) :: y
+    Vec, intent(out) :: residual
+    type(timestepper_steps_type), intent(in out) :: steps
+    PetscErrorCode, intent(out) :: ierr
+
+    call steps%rhs_func(steps%final_time, y, residual)
+
+  end subroutine direct_ss_residual
+
+!------------------------------------------------------------------------
+! Timestepper_step procedures
+!------------------------------------------------------------------------
+
+  subroutine timestepper_step_init(self, template_vec)
+
+    ! Initializes a timestep.
+
+    implicit none
+    class(timestepper_step_type), intent(inout) :: self
+    Vec, intent(in) :: template_vec
+    ! Locals:
+    PetscErrorCode :: ierr
+
+    call VecDuplicate(template_vec, self%solution, ierr); CHKERRQ(ierr)
+    call VecDuplicate(template_vec, self%lhs, ierr); CHKERRQ(ierr)
+    call VecDuplicate(template_vec, self%rhs, ierr); CHKERRQ(ierr)
+
+  end subroutine timestepper_step_init
+
+!------------------------------------------------------------------------
+
+  subroutine timestepper_step_destroy(self)
+
+    ! Destroys a timestep.
+
+    implicit none
+    class(timestepper_step_type), intent(inout) :: self
+    ! Locals:
+    PetscErrorCode :: ierr
+
+    call VecDestroy(self%solution,ierr); CHKERRQ(ierr)
+    call VecDestroy(self%lhs, ierr); CHKERRQ(ierr)
+    call VecDestroy(self%rhs, ierr); CHKERRQ(ierr)
+
+  end subroutine timestepper_step_destroy
+
+!------------------------------------------------------------------------
+
+  character(16) function timestepper_step_status_str(self)
+
+    ! Returns a string representing the timestep status.
+
+    implicit none
+    class(timestepper_step_type), intent(in) :: self
+
+    select case (self%status)
+       case (TIMESTEP_OK)
+          timestepper_step_status_str = 'OK'
+       case (TIMESTEP_NOT_CONVERGED)
+          timestepper_step_status_str = 'not converged'
+       case (TIMESTEP_TOO_SMALL)
+          timestepper_step_status_str = 'increase'
+       case (TIMESTEP_TOO_BIG)
+          timestepper_step_status_str = 'reduce'
+       case default
+          timestepper_step_status_str = 'unknown'
+    end select
+
+  end function timestepper_step_status_str
+
+!------------------------------------------------------------------------
+
+  subroutine timestepper_step_print(self)
+
+    ! Prints a timestep.
+
+    implicit none
+    class(timestepper_step_type), intent(in) :: self
+
+    write(*, '(a, e12.4, a, e12.4, a, i2, a, a)') &
+         'time: ', self%time, &
+         ' stepsize: ',self%stepsize, &
+         ' iters: ', self%num_iterations, &
+         ' status: ', self%status_str()
+
+  end subroutine timestepper_step_print
+
+!------------------------------------------------------------------------
+!  Timestep adaptor procedures
+!------------------------------------------------------------------------
+
+  PetscReal function timestep_adaptor_reduce(self, stepsize)
+
+    ! Reduces stepsize.
+
+    implicit none
+    class(timestep_adaptor_type), intent(in) :: self
+    PetscReal, intent(in) :: stepsize
+
+    timestep_adaptor_reduce = stepsize * self%reduction
+
+  end function timestep_adaptor_reduce
+
+!------------------------------------------------------------------------
+
+  PetscReal function timestep_adaptor_increase(self, stepsize)
+
+    ! Increases stepsize.
+
+    implicit none
+    class(timestep_adaptor_type), intent(in) :: self
+    PetscReal, intent(in) :: stepsize
+
+    timestep_adaptor_increase = stepsize * self%amplification
+
+  end function timestep_adaptor_increase
+
+!------------------------------------------------------------------------
+! Timestepper_steps procedures
+!------------------------------------------------------------------------
+
+  subroutine timestepper_steps_init(self, num_stored, &
+       initial_time, initial_conditions, initial_stepsize, &
+       final_time, max_num_steps, lhs_func, rhs_func)
+
+    ! Set up array of timesteps and pointers to them. This array stores the
+    ! current step and one or more previous steps. The number of stored
+    ! steps depends on the timestepping method (e.g. 2 for single-step methods,
+    ! > 2 for multistep methods). 
+
+    implicit none
+    class(timestepper_steps_type), intent(in out) :: self
+    PetscInt, intent(in) :: num_stored
+    PetscReal, intent(in) :: initial_time, initial_stepsize
+    Vec, intent(in) :: initial_conditions
+    PetscReal, intent(in) :: final_time
+    PetscInt, intent(in) :: max_num_steps
+    procedure(lhs_function) :: lhs_func
+    procedure(rhs_function) :: rhs_func
+    ! Locals:
+    PetscInt :: i
+    PetscErrorCode :: ierr
+
+    self%taken = 0
+    self%finished = .false.
+    self%num_stored = num_stored
+    allocate(self%store(num_stored), self%pstore(num_stored))
+
+    do i = 1, num_stored
+       call self%store(i)%init(initial_conditions)
+       call self%set_pstore(self%store, i, i)
+    end do
+
+    call self%set_aliases()
+
+    self%current%time = initial_time
+    self%next_stepsize = initial_stepsize
+    call VecCopy(initial_conditions, self%current%solution, ierr); CHKERRQ(ierr)
+
+    self%final_time = final_time
+    self%max_num = max_num_steps
+
+    self%lhs_func => lhs_func
+    self%rhs_func => rhs_func
+
+    call self%lhs_func(self%current%time, self%current%solution, self%current%lhs)
+
+  end subroutine timestepper_steps_init
+
+!------------------------------------------------------------------------
+
+  subroutine timestepper_steps_destroy(self)
+
+    ! Destroys store array and de-assigns pointers to them.
+
+    implicit none
+    class(timestepper_steps_type), intent(in out) :: self
+    ! Locals:
+    PetscInt :: i
+
+    self%current => NULL()
+    self%last => NULL()
+
+    do i = 1, self%num_stored
+       self%pstore(i)%p => NULL()
+       call self%store(i)%destroy()
+    end do
+
+    deallocate(self%store, self%pstore)
+
+  end subroutine timestepper_steps_destroy
+
+!------------------------------------------------------------------------
+
+  subroutine timestepper_steps_set_aliases(self)
+
+    ! Sets current and last pointers to store array.
+
+    implicit none
+    class(timestepper_steps_type), intent(in out) :: self
+
+    self%current => self%pstore(1)%p
+    if (self%num_stored > 1) then
+       self%last => self%pstore(2)%p
+    else
+       self%last => self%current
+    end if
+
+  end subroutine timestepper_steps_set_aliases
+
+!------------------------------------------------------------------------
+
+  subroutine timestepper_steps_set_pstore(self, store, i, j)
+
+    ! Sets pointer i to element j of steps array.
+    ! The store array is passed in so it can be given the target
+    ! attribute.
+
+    implicit none
+    class(timestepper_steps_type), intent(in out) :: self
+    type(timestepper_step_type), target :: store(:)
+    PetscInt, intent(in) :: i, j
+
+    self%pstore(i)%p => store(j)
+
+  end subroutine timestepper_steps_set_pstore
+
+!------------------------------------------------------------------------
+
+  subroutine timestepper_steps_update(self)
+
+    ! Updates pointers to store array, when timestep is advanced.
+
+    implicit none
+    class(timestepper_steps_type), intent(in out) :: self
+    ! Locals:
+    PetscErrorCode :: ierr
+
+    call self%rotate()
+    call self%set_aliases()
+
+    if (self%num_stored > 1) then
+       ! Last solution is initial guess for current solution:
+       call VecCopy(self%last%solution, self%current%solution, ierr); CHKERRQ(ierr)
+    end if
+
+    self%current%num_tries = 0
+
+  end subroutine timestepper_steps_update
+
+!------------------------------------------------------------------------
+
+  subroutine timestepper_steps_rotate(self)
+
+    ! Rotates pstore pointers to store array, so that e.g. current becomes
+    ! last, etc, when starting a new time step.
+
+    implicit none
+    class(timestepper_steps_type), intent(in out) :: self
+    ! Locals:
+    PetscInt :: i
+    type(ptimestepper_step_type) :: plast
+
+    plast%p => self%pstore(self%num_stored)%p
+
+    do i = self%num_stored, 2, -1
+       self%pstore(i)%p => self%pstore(i-1)%p
+    end do
+    self%pstore(1)%p => plast%p
+
+  end subroutine timestepper_steps_rotate
+
+!------------------------------------------------------------------------
+
+  subroutine timestepper_steps_check_finished(self)
+
+    ! Checks if any termination criteria have been met, and reduces
+    ! timestep if needed.
+
+    implicit none
+    class(timestepper_steps_type), intent(in out) :: self
+    
+    self%finished = .false.
+
+    if (self%current%time > self%final_time - self%termination_tol) then
+       self%current%stepsize = self%final_time - self%last%time
+       self%current%time = self%final_time
+       self%finished = .true.
+    end if
+
+    if (self%taken >= self%max_num) then
+       self%finished = .true.
+    end if
+
+  end subroutine timestepper_steps_check_finished
+
+!------------------------------------------------------------------------
+
+  subroutine timestepper_steps_set_current_status(self, converged)
+
+    ! Sets status of current step
+
+    implicit none
+    class(timestepper_steps_type), intent(in out) :: self
+    PetscBool, intent(in) :: converged
+    ! Locals:
+    PetscReal :: eta
+    PetscBool :: eta_low, eta_high
+
+    if (converged) then
+       eta = self%adaptor%monitor(self%current, self%last)
+       if (self%adaptor%on) then
+          if (eta < self%adaptor%monitor_min) then
+             self%current%status = TIMESTEP_TOO_SMALL
+          else if (eta > self%adaptor%monitor_max) then
+             self%current%status = TIMESTEP_TOO_BIG
+          else
+             self%current%status = TIMESTEP_OK
+          end if
+       else
+          ! Not quite sure what the desired behaviour is for 
+          ! non-adaptive stepping- this may not be it
+          self%current%status = TIMESTEP_OK
+       end if
+    else
+       self%current%status = TIMESTEP_NOT_CONVERGED
+    end if
+
+  end subroutine timestepper_steps_set_current_status
+
+!------------------------------------------------------------------------
+
+  subroutine timestepper_steps_adapt(self, accepted)
+
+    ! Checks current time stepsize for acceptability and adapts if 
+    ! necessary.
+
+    implicit none
+    class(timestepper_steps_type), intent(in out) :: self
+    PetscBool, intent(out) :: accepted
+
+    select case (self%current%status)
+    case (TIMESTEP_TOO_SMALL)
+       accepted = .true.
+       self%next_stepsize = self%adaptor%increase(self%current%stepsize)
+    case (TIMESTEP_TOO_BIG, TIMESTEP_NOT_CONVERGED)
+       accepted = .false.
+       self%next_stepsize = self%adaptor%reduce(self%current%stepsize)
+    case default
+       accepted = .true.
+       self%next_stepsize = self%current%stepsize
+    end select
+
+  end subroutine timestepper_steps_adapt
+
+!------------------------------------------------------------------------
+! Timestepper method procedures
+!------------------------------------------------------------------------
+
+  subroutine timestepper_method_init(self, method)
+
+    ! Sets the timestepping method.
+
+    implicit none
+    class(timestepper_method_type), intent(in out) :: self
+    PetscInt, intent(in) :: method
+
+    select case (method)
+    case (TS_BDF2)
+       self%residual => BDF2_residual
+       self%num_steps = 2
+       self%name = "BDF2"
+    case (TS_DIRECTSS)
+       self%residual => direct_ss_residual
+       self%num_steps = 0
+       self%name = "Direct steady state"
+    case default
+       self%residual => backwards_Euler_residual
+       self%num_steps = 1
+       self%name = "Backward Euler"
+    end select
+
+    ! Store current as well as previous steps:
+    self%num_stored_steps = self%num_steps + 1
+
+  end subroutine timestepper_method_init
+
+!------------------------------------------------------------------------
+! Timestepper procedures
+!------------------------------------------------------------------------
+
+  subroutine timestepper_setup_solver(self)
+
+    ! Sets up SNES nonlinear solver for the timestepper.
+
+    implicit none
+    class(timestepper_type), intent(in out) :: self
+    ! Locals:
+    PetscErrorCode :: ierr
+    KSP :: ksp
+
+    call SNESCreate(PETSC_COMM_WORLD, self%solver, ierr); CHKERRQ(ierr)
+    call SNESSetApplicationContext(self%solver, self%steps, ierr); CHKERRQ(ierr)
+    call SNESSetFunction(self%solver, self%residual, self%method%residual, &
+         self%steps, ierr); CHKERRQ(ierr)
+    call SNESSetJacobian(self%solver, self%jacobian, self%jacobian, &
+         PETSC_NULL_FUNCTION, PETSC_NULL_OBJECT, ierr); CHKERRQ(ierr)
+    call SNESSetDM(self%solver, self%dm, ierr); CHKERRQ(ierr)
+
+    ! Set nonlinear and linear solver options from command line options:
+    call SNESSetFromOptions(self%solver, ierr); CHKERRQ(ierr)
+    call SNESGetKSP(self%solver, ksp, ierr); CHKERRQ(ierr)
+    call KSPSetFromOptions(ksp, ierr); CHKERRQ(ierr)
+
+  end subroutine timestepper_setup_solver
+
+!------------------------------------------------------------------------
+
+  subroutine timestepper_init(self, method, dm, lhs_func, rhs_func, &
+       initial_time, initial_conditions, initial_stepsize, &
+       final_time, max_num_steps)
+
+    ! Initializes timestepper.
+
+    implicit none
+    class(timestepper_type), intent(in out) :: self
+    PetscInt, intent(in) :: method
+    DM, intent(in) :: dm
+    procedure(lhs_function) :: lhs_func
+    procedure(rhs_function) :: rhs_func
+    PetscReal, intent(in) :: initial_time, final_time
+    Vec, intent(in) :: initial_conditions
+    PetscReal, intent(in) :: initial_stepsize
+    PetscInt, intent(in) :: max_num_steps
+
+    ! Locals:
+    PetscErrorCode :: ierr
+
+    self%dm = dm
+    call VecDuplicate(initial_conditions, self%residual, ierr); CHKERRQ(ierr)
+    call DMSetMatType(self%dm, MATAIJ, ierr); CHKERRQ(ierr)
+    call DMCreateMatrix(self%dm, self%jacobian, ierr); CHKERRQ(ierr)
+    call MatSetFromOptions(self%jacobian, ierr); CHKERRQ(ierr)
+    call MatSetUp(self%jacobian, ierr); CHKERRQ(ierr)
+
+    call self%method%init(method)
+    call self%steps%init(self%method%num_stored_steps, &
+         initial_time, initial_conditions, initial_stepsize, &
+         final_time, max_num_steps, lhs_func, rhs_func)
+    call self%setup_solver()
+
+  end subroutine timestepper_init
+
+!------------------------------------------------------------------------
+
+  subroutine timestepper_destroy(self)
+
+    ! Destroys timestepper.
+
+    implicit none
+    class(timestepper_type), intent(in out) :: self
+    ! Locals:
+    PetscErrorCode :: ierr
+
+    call SNESDestroy(self%solver, ierr);  CHKERRQ(ierr)
+    call VecDestroy(self%residual, ierr); CHKERRQ(ierr)
+    call MatDestroy(self%jacobian, ierr); CHKERRQ(ierr)
+
+    call self%steps%destroy()
+
+  end subroutine timestepper_destroy
+
+!------------------------------------------------------------------------
+
+  subroutine timestepper_step(self)
+
+    ! Takes a single time step.
+
+    implicit none
+    class(timestepper_type), intent(in out) :: self
+    ! Locals:
+    PetscErrorCode :: ierr
+    PetscBool :: converged, accepted
+    SNESConvergedReason :: converged_reason
+    
+    call self%steps%update()
+    accepted = .false.
+
+    do while (.not. accepted)
+
+       self%steps%current%stepsize = self%steps%next_stepsize
+       self%steps%current%time = self%steps%last%time + self%steps%current%stepsize
+       call self%steps%check_finished()
+
+       call SNESSolve(self%solver, PETSC_NULL_OBJECT, self%steps%current%solution, &
+            ierr); CHKERRQ(ierr)
+       call SNESGetIterationNumber(self%solver, self%steps%current%num_iterations, &
+            ierr); CHKERRQ(ierr)
+       call SNESGetConvergedReason(self%solver, converged_reason, ierr); CHKERRQ(ierr)
+       converged = (converged_reason >= 0)
+
+       self%steps%current%num_tries = self%steps%current%num_tries + 1
+       call self%steps%set_current_status(converged)
+       call self%steps%adapt(accepted)
+
+    end do
+
+    self%steps%taken = self%steps%taken + 1
+
+    ! This may possibly be needed- to make sure current LHS corresponds exactly
+    ! to current solution:
+    ! call self%steps%lhs_func(self%steps%current%time, self%steps%current%solution, &
+    !      self%steps%current%lhs)
+
+  end subroutine timestepper_step
+
+!------------------------------------------------------------------------
+
+  subroutine timestepper_run(self)
+
+    ! Runs the timestepper until finished.
+
+    implicit none
+    class(timestepper_type), intent(in out) :: self
+    ! Locals:
+    PetscErrorCode :: ierr
+
+    self%steps%taken = 0
+    do while (.not. self%steps%finished)
+       call self%step()
+       call self%step_output()
+    end do
+
+  end subroutine timestepper_run
+
+!------------------------------------------------------------------------
+
+end module timestepping_module
