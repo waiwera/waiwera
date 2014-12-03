@@ -1,4 +1,6 @@
-build/*
+build/*.o
+build/*.mod
 dist/*
-test/build/*
-test/dist/*
+test/build/*.o
+test/build/*.mod
+test/dist/test_all*
