@@ -3,3 +3,4 @@ build/*.mod
 test/build/*.o
 test/build/*.mod
 test/dist/test_all*
+test/src/test_all.F90
