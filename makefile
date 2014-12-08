@@ -80,8 +80,7 @@ $(TEST)/$(BUILD)/%$(TESTSUF)$(OBJ): $(TEST)/$(SRC)/%$(TESTSUF)$(F90) $(BUILD)/%$
 	$(PETSC_FCOMPILE) $(TESTFMFLAGS) -I$(BUILD) $(TESTINCLS) -c $< -o $@
 
 clean::
-	$(RM) $(BUILD)/*
-	$(RM) $(DIST)/*
+	$(RM) $(BUILD)/*$(MOD) $(BUILD)/*$(OBJ)
 	$(RM) $(TEST)/$(SRC)/$(TESTPROG)$(F90)
-	$(RM) $(TEST)/$(BUILD)/*
-	$(RM) $(TEST)/$(DIST)/*
+	$(RM) $(TEST)/$(BUILD)/*$(MOD) $(TEST)/$(BUILD)/*$(OBJ)
+	$(RM) $(TEST)/$(DIST)/*test_all*
