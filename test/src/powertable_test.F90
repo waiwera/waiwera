@@ -9,7 +9,7 @@ module powertable_test
   implicit none
   private 
 
-#include <finclude/petscsys.h>
+#include <petsc-finclude/petscsys.h>
 
   real(dp), parameter :: tol = 1.e-9
 

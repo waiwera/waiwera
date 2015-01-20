@@ -10,14 +10,14 @@ module timestepping_test
 
   private
 
-#include <finclude/petscsys.h>
-#include <finclude/petscdef.h>
-#include <finclude/petscvec.h>
-#include <finclude/petscvec.h90>
-#include <finclude/petscsnes.h>
-#include <finclude/petscdm.h>
-#include <finclude/petscdmda.h>
-#include <finclude/petscdmda.h90>
+#include <petsc-finclude/petscsys.h>
+#include <petsc-finclude/petscdef.h>
+#include <petsc-finclude/petscvec.h>
+#include <petsc-finclude/petscvec.h90>
+#include <petsc-finclude/petscsnes.h>
+#include <petsc-finclude/petscdm.h>
+#include <petsc-finclude/petscdmda.h>
+#include <petsc-finclude/petscdmda.h90>
 
   PetscReal :: solution_tolerance, maxdiff
   Vec :: exact, diff

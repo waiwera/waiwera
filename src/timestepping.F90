@@ -8,12 +8,12 @@ module timestepping_module
 
   private
 
-#include <finclude/petscsys.h>
-#include <finclude/petscdef.h>
-#include <finclude/petscvec.h>
-#include <finclude/petscvec.h90>
-#include <finclude/petscsnes.h>
-#include <finclude/petscdm.h>
+#include <petsc-finclude/petscsys.h>
+#include <petsc-finclude/petscdef.h>
+#include <petsc-finclude/petscvec.h>
+#include <petsc-finclude/petscvec.h90>
+#include <petsc-finclude/petscsnes.h>
+#include <petsc-finclude/petscdm.h>
 
   ! Timestepping methods
      PetscInt, parameter, public :: TS_BEULER = 0, TS_BDF2 = 1, TS_DIRECTSS = 2
