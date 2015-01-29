@@ -14,10 +14,10 @@ module simulation_module
 #include <petsc-finclude/petscdef.h>
 #include <petsc-finclude/petscdm.h>
 
-  type simulation_type
+  type, public :: simulation_type
      private
-     type(timestepping_type) :: timestepper
-     type(thermodynamics_type) :: thermo
+     type(timestepper_type) :: timestepper
+     ! type(thermodynamics_type) :: thermo
      ! type(eos_type) :: eos  ... when EOS type defined
      ! output ?
      DM :: dm
@@ -53,7 +53,7 @@ contains
 
     class(simulation_type), intent(in out) :: self
 
-    call self%timestepper%run()
+    ! call self%timestepper%run()
 
     ! maybe some final output?
 
@@ -67,9 +67,9 @@ contains
     ! Locals:
     PetscErrorCode :: ierr
 
-    call self%timestepper%destroy()
-    call self%thermo%destroy()
-    call DMDestroy(self%dm, ierr); CHKERR(ierr)
+    ! call self%timestepper%destroy()
+    ! call self%thermo%destroy()
+    ! call DMDestroy(self%dm, ierr); CHKERRQ(ierr)
     ! etc.
 
   end subroutine simulation_destroy
