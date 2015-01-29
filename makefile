@@ -23,8 +23,9 @@ RM=rm -f
 # compiling and linking paths:
 LDFLAGS= $(PETSC_LIB)
 FMFLAGS = -J$(BUILD)
+INCLS=-I$(HOME)/include
 TESTLDFLAGS=-L$(HOME)/lib -lfruit $(PETSC_LIB)
-TESTINCLS=-I$(HOME)/include
+TESTINCLS=INCLS
 TESTFMFLAGS = -J$(TEST)/$(BUILD)
 
 # modules used by all other modules:
@@ -32,9 +33,10 @@ ESSENTIAL = kinds
 ESSENTIAL_OBJS = $(patsubst %, $(BUILD)/%$(OBJ), $(ESSENTIAL))
 
 # main source code:
-SOURCES = powertable thermodynamics IAPWS IFC67 timestepping
+SOURCES = powertable thermodynamics IAPWS IFC67 timestepping simulation
 OBJS = $(patsubst %, $(BUILD)/%$(OBJ), $(SOURCES))
 ALLOBJS = $(ESSENTIAL_OBJS) $(OBJS)
+PROG = supermodel
 
 # unit tests:
 TESTPROG = test_all
@@ -46,6 +48,7 @@ TESTS = setup $(SETUPTESTS) $(NONSETUPTESTS)
 SETUPOBJS = $(patsubst %, $(BUILD)/%$(OBJ), $(SETUPTESTS))
 TESTOBJS = $(patsubst %, $(TEST)/$(BUILD)/%$(TESTSUF)$(OBJ), $(TESTS))
 
+$(PROG): $(DIST)/$(PROG)$(EXE)
 tests: $(TEST)/$(DIST)/$(TESTPROG)$(EXE)
 
 # general dependency rules:
@@ -55,11 +58,16 @@ $(OBJS) $(TESTOBJS): $(ESSENTIAL_OBJS)
 $(TEST)/$(BUILD)/setup$(TESTSUF)$(OBJ): $(SETUPOBJS)
 $(BUILD)/IAPWS$(OBJ): $(BUILD)/thermodynamics$(OBJ) $(BUILD)/powertable$(OBJ)
 $(BUILD)/IFC67$(OBJ): $(BUILD)/thermodynamics$(OBJ) $(BUILD)/powertable$(OBJ)
+$(BUILD)/$(PROG)$(OBJ): $(BUILD)/simulation$(OBJ)
 
 # build rules:
 
 # main program:
-# (will go here)
+$(DIST)/$(PROG)$(EXE): $(BUILD)/$(PROG)$(OBJ) $(ALLOBJS)
+	$(FLINKER) $(LDFLAGS) -o $@ $^
+
+$(BUILD)/$(PROG)$(OBJ): $(SRC)/$(PROG)$(F90) $(ALLOBJS)
+	$(PETSC_FCOMPILE) -I$(BUILD) $(INCLS) -c $< -o $@
 
 # main objects:
 $(BUILD)/%$(OBJ): $(SRC)/%$(F90)
@@ -83,4 +91,5 @@ clean::
 	$(RM) $(BUILD)/*$(MOD) $(BUILD)/*$(OBJ)
 	$(RM) $(TEST)/$(SRC)/$(TESTPROG)$(F90)
 	$(RM) $(TEST)/$(BUILD)/*$(MOD) $(TEST)/$(BUILD)/*$(OBJ)
-	$(RM) $(TEST)/$(DIST)/*test_all*
+	$(RM) $(TEST)/$(DIST)/*$(TESTPROG)*
+	$(RM) $(DIST)/*$(PROG)*
