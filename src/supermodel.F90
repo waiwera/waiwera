@@ -9,9 +9,9 @@ program supermodel
 #include <petsc-finclude/petscsys.h>
 
   type(simulation_type) :: sim
-  PetscErrorCode :: ierr
-  PetscInt, parameter :: max_filename_length = 200
+  integer, parameter :: max_filename_length = 200
   character(max_filename_length) :: filename
+  PetscErrorCode :: ierr
 
   call PetscInitialize(PETSC_NULL_CHARACTER, ierr); CHKERRQ(ierr)
 
