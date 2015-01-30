@@ -116,7 +116,7 @@ module IFC67_module
      procedure, public :: destroy => IFC67_destroy
   end type IFC67_type
 
-  type(IFC67_type), public :: IFC67
+  type(IFC67_type), public, target :: IFC67
 
 !------------------------------------------------------------------------
 

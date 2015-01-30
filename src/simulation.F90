@@ -5,6 +5,8 @@ module simulation_module
   use kinds_module
   use timestepping_module
   use thermodynamics_module
+  use IAPWS_module
+  use IFC67_module
 
   implicit none
 
@@ -17,7 +19,7 @@ module simulation_module
   type, public :: simulation_type
      private
      type(timestepper_type) :: timestepper
-     ! type(thermodynamics_type) :: thermo
+     class(thermodynamics_type), pointer :: thermo
      ! type(eos_type) :: eos  ... when EOS type defined
      ! output ?
      DM :: dm
@@ -42,6 +44,9 @@ contains
 
     ! Open input file, read data and initialize simulation
     ! including self%timestepper, self%thermo, self%dm etc.
+    
+    self%thermo => IAPWS
+    call self%thermo%init()
 
   end subroutine simulation_init
 
@@ -68,7 +73,7 @@ contains
     PetscErrorCode :: ierr
 
     ! call self%timestepper%destroy()
-    ! call self%thermo%destroy()
+    call self%thermo%destroy()
     ! call DMDestroy(self%dm, ierr); CHKERRQ(ierr)
     ! etc.
 

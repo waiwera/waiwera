@@ -212,7 +212,7 @@ module IAPWS_module
      procedure, public :: viscosity => IAPWS_viscosity
   end type IAPWS_type
 
-  type(IAPWS_type), public :: IAPWS
+  type(IAPWS_type), public, target :: IAPWS
 
 !------------------------------------------------------------------------
 
