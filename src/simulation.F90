@@ -7,6 +7,7 @@ module simulation_module
   use thermodynamics_module
   use IAPWS_module
   use IFC67_module
+  use eos_module
 
   implicit none
 
@@ -20,7 +21,7 @@ module simulation_module
      private
      type(timestepper_type) :: timestepper
      class(thermodynamics_type), pointer :: thermo
-     ! type(eos_type) :: eos  ... when EOS type defined
+     class(eos_type), pointer :: eos
      ! output ?
      DM :: dm
    contains
@@ -43,10 +44,13 @@ contains
     character(*), intent(in) :: filename
 
     ! Open input file, read data and initialize simulation
-    ! including self%timestepper, self%thermo, self%dm etc.
+    ! including self%timestepper, self%dm etc.
     
     self%thermo => IAPWS
+
     call self%thermo%init()
+
+    ! self%eos => eos1
 
   end subroutine simulation_init
 

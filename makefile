@@ -33,7 +33,7 @@ ESSENTIAL = kinds
 ESSENTIAL_OBJS = $(patsubst %, $(BUILD)/%$(OBJ), $(ESSENTIAL))
 
 # main source code:
-SOURCES = powertable thermodynamics IAPWS IFC67 timestepping simulation
+SOURCES = powertable thermodynamics IAPWS IFC67 timestepping simulation eos
 OBJS = $(patsubst %, $(BUILD)/%$(OBJ), $(SOURCES))
 ALLOBJS = $(ESSENTIAL_OBJS) $(OBJS)
 PROG = supermodel
@@ -59,7 +59,7 @@ $(TEST)/$(BUILD)/setup$(TESTSUF)$(OBJ): $(SETUPOBJS)
 $(BUILD)/IAPWS$(OBJ): $(BUILD)/thermodynamics$(OBJ) $(BUILD)/powertable$(OBJ)
 $(BUILD)/IFC67$(OBJ): $(BUILD)/thermodynamics$(OBJ) $(BUILD)/powertable$(OBJ)
 $(BUILD)/simulation$(OBJ): $(BUILD)/timestepping$(OBJ) $(BUILD)/thermodynamics$(OBJ) \
-	 $(BUILD)/IAPWS$(OBJ) $(BUILD)/IFC67$(OBJ)
+	 $(BUILD)/IAPWS$(OBJ) $(BUILD)/IFC67$(OBJ) $(BUILD)/eos$(OBJ)
 
 $(BUILD)/$(PROG)$(OBJ): $(BUILD)/simulation$(OBJ)
 
