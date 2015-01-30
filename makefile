@@ -58,6 +58,9 @@ $(OBJS) $(TESTOBJS): $(ESSENTIAL_OBJS)
 $(TEST)/$(BUILD)/setup$(TESTSUF)$(OBJ): $(SETUPOBJS)
 $(BUILD)/IAPWS$(OBJ): $(BUILD)/thermodynamics$(OBJ) $(BUILD)/powertable$(OBJ)
 $(BUILD)/IFC67$(OBJ): $(BUILD)/thermodynamics$(OBJ) $(BUILD)/powertable$(OBJ)
+$(BUILD)/simulation$(OBJ): $(BUILD)/timestepping$(OBJ) $(BUILD)/thermodynamics$(OBJ) \
+	 $(BUILD)/IAPWS$(OBJ) $(BUILD)/IFC67$(OBJ)
+
 $(BUILD)/$(PROG)$(OBJ): $(BUILD)/simulation$(OBJ)
 
 # build rules:
