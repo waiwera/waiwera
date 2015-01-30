@@ -13,9 +13,9 @@ program supermodel
   PetscInt, parameter :: max_filename_length = 200
   character(max_filename_length) :: filename
 
-  call output_program_info()
-
   call PetscInitialize(PETSC_NULL_CHARACTER, ierr); CHKERRQ(ierr)
+
+  call output_program_info()
 
   call get_filename(filename)
 
@@ -33,7 +33,14 @@ contains
 
     ! Output program info.
 
-    write (*,*) 'Supermodel version 0.001'
+    PetscMPIInt :: rank
+    PetscErrorCode :: ierr
+
+    call MPI_comm_rank(PETSC_COMM_WORLD, rank, ierr); CHKERRQ(ierr)
+
+    if (rank == 0) then
+       write (*,*) 'Supermodel version 0.001'
+    end if
 
   end subroutine output_program_info
 
@@ -45,15 +52,23 @@ contains
 
     character(*), intent(out) :: filename
     ! Locals:
-    PetscInt :: num_args
-    
-    num_args = command_argument_count()
-    if (num_args == 0) then
-       write (*,*) 'Input file:'
-       read (*,'(a120)') filename
-    else 
-       call get_command_argument(1, filename)
-       filename = trim(filename)
+    PetscMPIInt :: rank
+    PetscErrorCode :: ierr
+    integer :: num_args
+
+    call MPI_comm_rank(PETSC_COMM_WORLD, rank, ierr); CHKERRQ(ierr)
+
+    if (rank == 0) then
+
+       num_args = command_argument_count()
+       if (num_args == 0) then
+          write (*,*) 'Input file:'
+          read (*,'(a120)') filename
+       else 
+          call get_command_argument(1, filename)
+          filename = trim(filename)
+       end if
+
     end if
 
   end subroutine get_filename
