@@ -7,8 +7,8 @@ module simulation_module
   use thermodynamics_module
   use IAPWS_module
   use IFC67_module
-  use eos_module
   use eos_w_module
+  use eos_module
 
   implicit none
 
