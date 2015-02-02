@@ -8,6 +8,7 @@ module simulation_module
   use IAPWS_module
   use IFC67_module
   use eos_module
+  use eos_w_module
 
   implicit none
 
@@ -50,7 +51,8 @@ contains
 
     call self%thermo%init()
 
-    ! self%eos => eos1
+    self%eos => eos_w
+    call self%eos%init(self%thermo)
 
   end subroutine simulation_init
 
