@@ -28,6 +28,7 @@ module thermodynamics_module
        procedure(region_init), public, deferred :: init
        procedure(region_destroy), public, deferred :: destroy
        procedure(region_properties), public, deferred :: properties
+       procedure(region_viscosity), public, deferred :: viscosity
   end type region_type
 
   ! Pointer to region:
@@ -70,6 +71,14 @@ module thermodynamics_module
        real(dp), intent(out) :: props(:)
        integer, intent(out) :: err
      end subroutine region_properties
+
+     subroutine region_viscosity(self, temperature, pressure, density, viscosity)
+       import :: region_type, dp
+       implicit none
+       class(region_type), intent(in out) :: self
+       real(dp), intent(in) :: temperature, pressure, density
+       real(dp), intent(out) :: viscosity
+     end subroutine region_viscosity
 
      subroutine thermodynamics_init_procedure(self)
        import :: thermodynamics_type

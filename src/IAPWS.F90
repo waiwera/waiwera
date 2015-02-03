@@ -53,6 +53,7 @@ module IAPWS_module
      procedure, public :: init => region1_init
      procedure, public :: destroy => region1_destroy
      procedure, public :: properties => region1_properties
+     procedure, public :: viscosity => region1_viscosity
   end type IAPWS_region1_type
 
 !------------------------------------------------------------------------
@@ -96,6 +97,7 @@ module IAPWS_module
      procedure, public :: init => region2_init
      procedure, public :: destroy => region2_destroy
      procedure, public :: properties => region2_properties
+     procedure, public :: viscosity => region2_viscosity
   end type IAPWS_region2_type
 
 !------------------------------------------------------------------------
@@ -132,6 +134,7 @@ module IAPWS_module
      procedure, public :: init => region3_init
      procedure, public :: destroy => region3_destroy
      procedure, public :: properties => region3_properties
+     procedure, public :: viscosity => region3_viscosity
   end type IAPWS_region3_type
 
 !------------------------------------------------------------------------
@@ -388,6 +391,21 @@ contains
   end subroutine region1_properties
 
 !------------------------------------------------------------------------
+
+  subroutine region1_viscosity(self, temperature, pressure, density, viscosity)
+
+    ! Water viscosity.
+
+    implicit none
+    class(IAPWS_region1_type), intent(in out) :: self
+    real(dp), intent(in) :: temperature, pressure, density
+    real(dp), intent(out) :: viscosity
+
+    viscosity = 1.e-6_dp
+
+  end subroutine region1_viscosity
+
+!------------------------------------------------------------------------
   ! Region 2 (steam)
 !------------------------------------------------------------------------
 
@@ -482,6 +500,21 @@ contains
   end subroutine region2_properties
 
 !------------------------------------------------------------------------
+
+  subroutine region2_viscosity(self, temperature, pressure, density, viscosity)
+
+    ! Steam viscosity.
+
+    implicit none
+    class(IAPWS_region2_type), intent(in out) :: self
+    real(dp), intent(in) :: temperature, pressure, density
+    real(dp), intent(out) :: viscosity
+
+    viscosity = 1.e-6_dp
+
+  end subroutine region2_viscosity
+
+!------------------------------------------------------------------------
   ! Region 3 (supercritical)
 !------------------------------------------------------------------------
 
@@ -562,6 +595,21 @@ contains
     end if
 
   end subroutine region3_properties
+
+!------------------------------------------------------------------------
+  
+  subroutine region3_viscosity(self, temperature, pressure, density, viscosity)
+
+    ! Supercritical viscosity.
+
+    implicit none
+    class(IAPWS_region3_type), intent(in out) :: self
+    real(dp), intent(in) :: temperature, pressure, density
+    real(dp), intent(out) :: viscosity
+
+    viscosity = 1.e-6_dp
+
+  end subroutine region3_viscosity
 
 !------------------------------------------------------------------------
   ! Viscosity
