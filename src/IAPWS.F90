@@ -401,7 +401,7 @@ contains
     real(dp), intent(in) :: temperature, pressure, density
     real(dp), intent(out) :: viscosity
 
-    viscosity = 1.e-6_dp
+    call IAPWS%viscosity(density, temperature, viscosity)
 
   end subroutine region1_viscosity
 
@@ -510,7 +510,7 @@ contains
     real(dp), intent(in) :: temperature, pressure, density
     real(dp), intent(out) :: viscosity
 
-    viscosity = 1.e-6_dp
+    call IAPWS%viscosity(density, temperature, viscosity)
 
   end subroutine region2_viscosity
 
@@ -607,7 +607,7 @@ contains
     real(dp), intent(in) :: temperature, pressure, density
     real(dp), intent(out) :: viscosity
 
-    viscosity = 1.e-6_dp
+    call IAPWS%viscosity(density, temperature, viscosity)
 
   end subroutine region3_viscosity
 
