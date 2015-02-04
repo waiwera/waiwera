@@ -92,7 +92,7 @@ module IFC67_test
 
     subroutine test_IFC67_saturation
 
-      ! IFC67 saturation curve tests
+      ! IFC-67 saturation curve tests
 
       integer, parameter :: n = 3
       real(dp), parameter ::  t(n) = [300._dp, 500._dp, 600._dp] - tc_k
@@ -121,7 +121,7 @@ module IFC67_test
 
     subroutine test_IFC67_viscosity
 
-      ! IFC67 viscosity tests
+      ! IFC-67 viscosity tests
 
       integer, parameter :: n1 = 2, n2 = 2
       ! region 1 tests:
