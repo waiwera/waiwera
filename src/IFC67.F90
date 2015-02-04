@@ -308,8 +308,19 @@ contains
     class(IFC67_region1_type), intent(in out) :: self
     real(dp), intent(in) :: temperature, pressure, density
     real(dp), intent(out) :: viscosity
+    ! Locals:
+    real(dp) :: ex, phi, am, ps
+    integer :: err
 
-    viscosity = 1.e-6_dp
+    ex = 247.8_dp / (temperature + 133.15_dp)
+    phi = 1.0467_dp * (temperature - 31.85_dp)
+    call IFC67%saturation%pressure(temperature, ps, err)
+    if (err == 0) then
+       am = 1.0_dp + phi * (pressure - ps) * 1.0e-11_dp
+       viscosity = 1.0e-7_dp * am * 241.4_dp * 10.0_dp ** ex
+    else
+       viscosity = 0.0_dp
+    end if
 
   end subroutine region1_viscosity
 
@@ -497,8 +508,17 @@ contains
     class(IFC67_region2_type), intent(in out) :: self
     real(dp), intent(in) :: temperature, pressure, density
     real(dp), intent(out) :: viscosity
+    ! Locals:
+    real(dp) :: v1
 
-    viscosity = 1.e-6_dp
+    v1 = 0.407_dp * temperature + 80.4_dp
+    if (temperature <= 350.0_dp) then
+       viscosity = 1.0e-7_dp * (v1 - density * \
+       (1858.0_dp - 5.9_dp * temperature) * 1.0e-3_dp)
+    else
+        viscosity = 1.0e-7_dp * (v1 + density * \
+        (0.353_dp + density * (676.5e-6_dp + density * 102.1e-9_dp)))
+    end if
 
   end subroutine region2_viscosity
 
