@@ -45,6 +45,7 @@ module thermodynamics_module
   type, public, abstract :: thermodynamics_type
      private
      integer, public :: num_regions
+     class(region_type), allocatable, public :: water, steam, supercritical
      type(pregion_type), allocatable, public :: region(:)
    contains
      private

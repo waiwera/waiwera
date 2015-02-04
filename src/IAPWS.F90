@@ -202,9 +202,9 @@ module IAPWS_module
 
   type, extends(thermodynamics_type), public :: IAPWS_type
      private
-     type(IAPWS_region1_type), public :: water
-     type(IAPWS_region2_type), public :: steam
-     type(IAPWS_region3_type), public :: supercritical
+     ! type(IAPWS_region1_type), public :: water
+     ! type(IAPWS_region2_type), public :: steam
+     ! type(IAPWS_region3_type), public :: supercritical
      type(IAPWS_viscosity_type), private :: visc
      type(IAPWS_saturation_type), public :: saturation
      type(IAPWS_boundary23_type), public :: boundary23
@@ -234,6 +234,9 @@ contains
     integer :: i
 
     self%num_regions = 3
+    allocate(IAPWS_region1_type :: self%water)
+    allocate(IAPWS_region2_type :: self%steam)
+    allocate(IAPWS_region3_type :: self%supercritical)
     allocate(self%region(self%num_regions))
 
     call self%region(1)%set(self%water)
@@ -262,6 +265,7 @@ contains
        call self%region(i)%ptr%destroy()
     end do
     deallocate(self%region)
+    deallocate(self%water, self%steam, self%supercritical)
 
     call self%visc%destroy()
 

@@ -109,8 +109,8 @@ module IFC67_module
 
   type, extends(thermodynamics_type), public :: IFC67_type
      private
-     type(IFC67_region1_type), public :: water
-     type(IFC67_region2_type), public :: steam
+     ! type(IFC67_region1_type), public :: water
+     ! type(IFC67_region2_type), public :: steam
      type(IFC67_saturation_type), public :: saturation
    contains
      private
@@ -137,7 +137,13 @@ contains
     integer :: i
 
     self%num_regions = 2
+    allocate(IFC67_region1_type :: self%water)
+    allocate(IFC67_region2_type :: self%steam)
     allocate(self%region(self%num_regions))
+
+    do i = 1, self%num_regions
+       call self%region(i)%ptr%init()
+    end do
 
     call self%region(1)%set(self%water)
     call self%region(2)%set(self%steam)
@@ -154,7 +160,12 @@ contains
     ! Locals:
     integer :: i
 
+    do i = 1, self%num_regions
+       call self%region(i)%ptr%destroy()
+    end do
+
     deallocate(self%region)
+    deallocate(self%water, self%steam)
 
   end subroutine IFC67_destroy
 

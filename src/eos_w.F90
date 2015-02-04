@@ -87,9 +87,9 @@ contains
     density => secondary(1)
     viscosity => secondary(3)
 
-    call self%thermo%region(1)%ptr%properties([pressure, self%temperature],\
+    call self%thermo%water%properties([pressure, self%temperature],\
     secondary(1:2), err)
-    call self%thermo%region(1)%ptr%viscosity(self%temperature, pressure, \
+    call self%thermo%water%viscosity(self%temperature, pressure, \
     density, viscosity)
 
   end subroutine eos_w_secondary
