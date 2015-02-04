@@ -38,7 +38,10 @@ module thermodynamics_module
      procedure, public :: set => pregion_set
   end type pregion_type
 
-  ! Thermodynamics type:
+!------------------------------------------------------------------------
+  ! Thermodynamics type
+!------------------------------------------------------------------------
+
   type, public, abstract :: thermodynamics_type
      private
      integer, public :: num_regions
@@ -48,6 +51,8 @@ module thermodynamics_module
      procedure(thermodynamics_init_procedure), public, deferred :: init
      procedure(thermodynamics_destroy_procedure), public, deferred :: destroy
   end type thermodynamics_type
+
+!------------------------------------------------------------------------
 
   abstract interface
 
