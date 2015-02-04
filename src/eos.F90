@@ -25,7 +25,6 @@ module eos_module
      subroutine eos_init_procedure(self, thermo)
        ! Initialise EOS object
        import :: eos_type, thermodynamics_type
-       implicit none
        class(eos_type), intent(in out) :: self
        class(thermodynamics_type), intent(in), target :: thermo
      end subroutine eos_init_procedure
@@ -34,7 +33,6 @@ module eos_module
           region1, region2, primary)
        ! Perform transitions between thermodynamic regions
        import :: eos_type, dp
-       implicit none
        class(eos_type), intent(in) :: self
        integer, intent(in) :: region1, region2
        real(dp), intent(in out), target :: primary(self%num_primary)
@@ -44,7 +42,6 @@ module eos_module
        ! Check primary variables for current region and make
        ! transition if needed
        import :: eos_type, dp
-       implicit none
        class(eos_type), intent(in) :: self
        integer, intent(in out) :: region
        real(dp), intent(in out), target :: primary(self%num_primary)
@@ -54,7 +51,6 @@ module eos_module
           primary, secondary)
        ! Calculate secondary variables from region and primary variables
        import :: eos_type, dp
-       implicit none
        class(eos_type), intent(in out) :: self
        integer, intent(in) :: region
        real(dp), intent(in), target :: primary(self%num_primary)

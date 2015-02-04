@@ -28,7 +28,7 @@ contains
 
   subroutine eos_w_init(self, thermo)
     ! Initialise isothermal pure water EOS
-    implicit none
+
     class(eos_w_type), intent(in out) :: self
     class(thermodynamics_type), intent(in), target :: thermo
 
@@ -44,7 +44,7 @@ contains
   subroutine eos_w_transition(self, region1, region2, primary)
     ! Perform transitions between thermodynamic regions for isothermal
     ! pure water 
-    implicit none
+
     class(eos_w_type), intent(in) :: self
     integer, intent(in) :: region1, region2
     real(dp), intent(in out), target :: primary(self%num_primary)
@@ -59,7 +59,7 @@ contains
   subroutine eos_w_check_primary(self, region, primary)
     ! Check primary variables for current region and make
     ! transition if needed for isothermal pure water
-    implicit none
+
     class(eos_w_type), intent(in) :: self
     integer, intent(in out) :: region
     real(dp), intent(in out), target :: primary(self%num_primary)
@@ -72,8 +72,9 @@ contains
 !------------------------------------------------------------------------
 
   subroutine eos_w_secondary(self, region, primary, secondary)
+
     ! Calculate secondary variables from region and primary variables
-    implicit none
+
     class(eos_w_type), intent(in out) :: self
     integer, intent(in) :: region
     real(dp), intent(in), target :: primary(self%num_primary)

@@ -44,7 +44,6 @@ contains
     ! Sets up product pointer into an array. The pointers fac1 and fac2 point
     ! to the factors in the array, and prod points to the resulting product.
 
-    implicit none
     class(product_pointer), intent(in out) :: self
     integer, intent(in) :: lower, upper
     real(dp), intent(in), target :: arr(lower:upper)
@@ -63,7 +62,6 @@ contains
     ! Returns true if product combination has already been computed
     ! for the specified power.
 
-    implicit none
     class(powertable), intent(in out) :: self
     integer, intent(in) :: i
 
@@ -79,7 +77,6 @@ contains
 
     ! Configures product combination for the specifed power.
 
-    implicit none
     class(powertable), intent(in out) :: self
     integer, intent(in) :: i
     ! Locals:
@@ -122,7 +119,6 @@ contains
     ! Works out the products for each of the required powers,
     ! and adds any extra powers needed for intermediate steps.
 
-    implicit none
     class(powertable), intent(in out) :: self
     integer, intent(in), dimension(:) :: powers
     ! Locals:
@@ -202,7 +198,6 @@ contains
     ! should be computed. (Powers 0,1 are not included, as they are always
     ! required, as is -1 if negative powers are required.)
 
-    implicit none
     class(powertable), intent(in out) :: self
     ! Locals:
     integer :: p, n, s, u
@@ -237,7 +232,6 @@ contains
 
     ! Destroy the powertable object.
 
-    implicit none
     class(powertable), intent(in out) :: self
 
     deallocate(self%power, self%product, self%powerlist, &
@@ -251,7 +245,6 @@ contains
 
     ! Computes the table of powers for the specified value.
 
-    implicit none
     class(powertable), intent(in out) :: self
     real(dp), intent(in) :: val
     ! Locals:

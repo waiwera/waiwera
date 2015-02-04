@@ -53,19 +53,16 @@ module thermodynamics_module
 
      subroutine region_init(self)
        import :: region_type
-       implicit none
        class(region_type), intent(in out) :: self
      end subroutine region_init
 
      subroutine region_destroy(self)
        import :: region_type
-       implicit none
        class(region_type), intent(in out) :: self
      end subroutine region_destroy
 
      subroutine region_properties(self, param, props, err)
        import :: region_type, dp
-       implicit none
        class(region_type), intent(in out) :: self
        real(dp), intent(in), target :: param(:)
        real(dp), intent(out) :: props(:)
@@ -74,7 +71,6 @@ module thermodynamics_module
 
      subroutine region_viscosity(self, temperature, pressure, density, viscosity)
        import :: region_type, dp
-       implicit none
        class(region_type), intent(in out) :: self
        real(dp), intent(in) :: temperature, pressure, density
        real(dp), intent(out) :: viscosity
@@ -82,13 +78,11 @@ module thermodynamics_module
 
      subroutine thermodynamics_init_procedure(self)
        import :: thermodynamics_type
-       implicit none
        class(thermodynamics_type), intent(in out) :: self
      end subroutine thermodynamics_init_procedure
 
      subroutine thermodynamics_destroy_procedure(self)
        import :: thermodynamics_type
-       implicit none
        class(thermodynamics_type), intent(in out) :: self
      end subroutine thermodynamics_destroy_procedure
 
@@ -108,7 +102,6 @@ contains
     ! tgt the 'target' attribute, which can't always be done as part of
     ! its declaration, e.g. if it's a component of a derived type.
 
-    implicit none
     class(pregion_type), intent(in out) :: self
     class(region_type), target, intent(in) :: tgt
 

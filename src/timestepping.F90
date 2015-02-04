@@ -119,7 +119,6 @@ module timestepping_module
 
      subroutine lhs_function(t, y, lhs)
        ! LHS function lhs = L(t, y)
-       implicit none
        PetscReal, intent(in) :: t
        Vec, intent(in) :: y
        Vec, intent(out) :: lhs
@@ -127,7 +126,6 @@ module timestepping_module
 
      subroutine rhs_function(t, y, rhs)
        ! RHS function rhs = R(t, y)
-       implicit none
        PetscReal, intent(in) :: t
        Vec, intent(in) :: y
        Vec, intent(out) :: rhs
@@ -136,7 +134,6 @@ module timestepping_module
      subroutine method_residual(solver, y, residual, steps, ierr)
        ! Residual routine to be minimised by nonlinear solver.
        import :: timestepper_steps_type
-       implicit none
        SNES, intent(in) :: solver
        Vec, intent(in) :: y
        Vec, intent(out) :: residual
@@ -147,14 +144,12 @@ module timestepping_module
      PetscReal function monitor_function(current, last)
        ! Function for monitoring timestep acceptability.
        import :: timestepper_step_type
-       implicit none
        type(timestepper_step_type), intent(in) :: current, last
      end function monitor_function
 
      subroutine step_output_routine(self)
        ! Routine for producing output at each time step.
        import :: timestepper_type
-       implicit none
        class(timestepper_type), intent(in out) :: self
      end subroutine step_output_routine
 
@@ -175,7 +170,6 @@ contains
 
     ! Default identity LHS function L(t,y) = y.
 
-    implicit none
     PetscReal, intent(in) :: t
     Vec, intent(in) :: y
     Vec, intent(out) :: lhs
@@ -194,7 +188,6 @@ contains
 
     ! Monitors number of nonlinear iterations used to compute solution.
 
-    implicit none
     type(timestepper_step_type), intent(in) :: current, last
 
     iteration_monitor = real(current%num_iterations)
@@ -208,7 +201,6 @@ contains
     ! Monitors relative change in solution. The parameter eps
     ! avoids division by zero if last%lhs is zero.
 
-    implicit none
     type(timestepper_step_type), intent(in) :: current, last
     ! Locals:
     PetscReal, parameter :: eps = 1.e-3_dp
@@ -237,7 +229,6 @@ contains
     ! Default routine for printing diagnostic information at each
     ! time step.
 
-    implicit none
     class(timestepper_type), intent(in out) :: self
     PetscMPIInt :: rank
     PetscErrorCode :: ierr
@@ -257,7 +248,6 @@ contains
 
     ! Step output routine for no output.
 
-    implicit none
     class(timestepper_type), intent(in out) :: self
 
   end subroutine step_output_none
@@ -271,7 +261,6 @@ contains
     ! Residual for backwards Euler method.
     ! residual = L(1) - L(0)  - dt * R(1)
 
-    implicit none
     SNES, intent(in) :: solver
     Vec, intent(in) :: y
     Vec, intent(out) :: residual
@@ -299,7 +288,6 @@ contains
     ! residual = (1 + 2r) * L(1) - (r+1)^2 * L(0) + r^2 * L(-1) - dt * (r+1) * R(1)
     ! where r = dt / (last dt)
 
-    implicit none
     SNES, intent(in) :: solver
     Vec, intent(in) :: y
     Vec, intent(out) :: residual
@@ -344,7 +332,6 @@ contains
     ! Residual for direct solution of steady state equations R(y) = 0.
     ! Here we evaluate R() at the steps final time.
 
-    implicit none
     SNES, intent(in) :: solver
     Vec, intent(in) :: y
     Vec, intent(out) :: residual
@@ -363,7 +350,6 @@ contains
 
     ! Initializes a timestep.
 
-    implicit none
     class(timestepper_step_type), intent(inout) :: self
     Vec, intent(in) :: template_vec
     ! Locals:
@@ -381,7 +367,6 @@ contains
 
     ! Destroys a timestep.
 
-    implicit none
     class(timestepper_step_type), intent(inout) :: self
     ! Locals:
     PetscErrorCode :: ierr
@@ -398,7 +383,6 @@ contains
 
     ! Returns a string representing the timestep status.
 
-    implicit none
     class(timestepper_step_type), intent(in) :: self
 
     select case (self%status)
@@ -422,7 +406,6 @@ contains
 
     ! Prints a timestep.
 
-    implicit none
     class(timestepper_step_type), intent(in) :: self
 
     write(*, '(a, e12.4, a, e12.4, a, i2, a, a)') &
@@ -441,7 +424,6 @@ contains
 
     ! Reduces stepsize.
 
-    implicit none
     class(timestep_adaptor_type), intent(in) :: self
     PetscReal, intent(in) :: stepsize
 
@@ -455,7 +437,6 @@ contains
 
     ! Increases stepsize.
 
-    implicit none
     class(timestep_adaptor_type), intent(in) :: self
     PetscReal, intent(in) :: stepsize
 
@@ -476,7 +457,6 @@ contains
     ! steps depends on the timestepping method (e.g. 2 for single-step methods,
     ! > 2 for multistep methods). 
 
-    implicit none
     class(timestepper_steps_type), intent(in out) :: self
     PetscInt, intent(in) :: num_stored
     PetscReal, intent(in) :: initial_time, initial_stepsize
@@ -521,7 +501,6 @@ contains
 
     ! Destroys store array and de-assigns pointers to them.
 
-    implicit none
     class(timestepper_steps_type), intent(in out) :: self
     ! Locals:
     PetscInt :: i
@@ -544,7 +523,6 @@ contains
 
     ! Sets current and last pointers to store array.
 
-    implicit none
     class(timestepper_steps_type), intent(in out) :: self
 
     self%current => self%pstore(1)%p
@@ -564,7 +542,6 @@ contains
     ! The store array is passed in so it can be given the target
     ! attribute.
 
-    implicit none
     class(timestepper_steps_type), intent(in out) :: self
     type(timestepper_step_type), target :: store(:)
     PetscInt, intent(in) :: i, j
@@ -579,7 +556,6 @@ contains
 
     ! Updates pointers to store array, when timestep is advanced.
 
-    implicit none
     class(timestepper_steps_type), intent(in out) :: self
     ! Locals:
     PetscErrorCode :: ierr
@@ -603,7 +579,6 @@ contains
     ! Rotates pstore pointers to store array, so that e.g. current becomes
     ! last, etc, when starting a new time step.
 
-    implicit none
     class(timestepper_steps_type), intent(in out) :: self
     ! Locals:
     PetscInt :: i
@@ -625,7 +600,6 @@ contains
     ! Checks if any termination criteria have been met, and reduces
     ! timestep if needed.
 
-    implicit none
     class(timestepper_steps_type), intent(in out) :: self
     
     self%finished = .false.
@@ -648,7 +622,6 @@ contains
 
     ! Sets status of current step
 
-    implicit none
     class(timestepper_steps_type), intent(in out) :: self
     PetscBool, intent(in) :: converged
     ! Locals:
@@ -683,7 +656,6 @@ contains
     ! Checks current time stepsize for acceptability and adapts if 
     ! necessary.
 
-    implicit none
     class(timestepper_steps_type), intent(in out) :: self
     PetscBool, intent(out) :: accepted
 
@@ -709,7 +681,6 @@ contains
 
     ! Sets the timestepping method.
 
-    implicit none
     class(timestepper_method_type), intent(in out) :: self
     PetscInt, intent(in) :: method
 
@@ -741,7 +712,6 @@ contains
 
     ! Sets up SNES nonlinear solver for the timestepper.
 
-    implicit none
     class(timestepper_type), intent(in out) :: self
     ! Locals:
     PetscErrorCode :: ierr
@@ -770,7 +740,6 @@ contains
 
     ! Initializes timestepper.
 
-    implicit none
     class(timestepper_type), intent(in out) :: self
     PetscInt, intent(in) :: method
     DM, intent(in) :: dm
@@ -805,7 +774,6 @@ contains
 
     ! Destroys timestepper.
 
-    implicit none
     class(timestepper_type), intent(in out) :: self
     ! Locals:
     PetscErrorCode :: ierr
@@ -824,7 +792,6 @@ contains
 
     ! Takes a single time step.
 
-    implicit none
     class(timestepper_type), intent(in out) :: self
     ! Locals:
     PetscErrorCode :: ierr
@@ -868,7 +835,6 @@ contains
 
     ! Runs the timestepper until finished.
 
-    implicit none
     class(timestepper_type), intent(in out) :: self
     ! Locals:
     PetscErrorCode :: ierr

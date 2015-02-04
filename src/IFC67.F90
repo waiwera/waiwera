@@ -132,7 +132,6 @@ contains
 
     ! Constructor for IFC67 object
 
-    implicit none
     class(IFC67_type), intent(in out) :: self
     ! Locals:
     integer :: i
@@ -151,7 +150,6 @@ contains
 
     ! Destroy IFC67 object
 
-    implicit none
     class(IFC67_type), intent(in out) :: self
     ! Locals:
     integer :: i
@@ -168,7 +166,6 @@ contains
 
     ! Initializes region 1 object.
 
-    implicit none
     class(IFC67_region1_type), intent(in out) :: self
 
   end subroutine region1_init
@@ -179,7 +176,6 @@ contains
 
     ! Destructor for region 1 object.
 
-    implicit none
     class(IFC67_region1_type), intent(in out) :: self
 
   end subroutine region1_destroy
@@ -193,7 +189,6 @@ contains
 
     ! Returns err = 1 if called outside its operating range (t<=350 deg C, p<=100 MPa).
 
-    implicit none
     class(IFC67_region1_type), intent(in out) :: self
     real(dp), intent(in), target :: param(:)
     real(dp), intent(out):: props(:)
@@ -304,7 +299,6 @@ contains
 
     ! Water viscosity.
 
-    implicit none
     class(IFC67_region1_type), intent(in out) :: self
     real(dp), intent(in) :: temperature, pressure, density
     real(dp), intent(out) :: viscosity
@@ -332,7 +326,6 @@ contains
 
     ! Initializes region 2 object.
 
-    implicit none
     class(IFC67_region2_type), intent(in out) :: self
 
   end subroutine region2_init
@@ -343,7 +336,6 @@ contains
 
     ! Destructor for region 2 object.
 
-    implicit none
     class(IFC67_region2_type), intent(in out) :: self
 
   end subroutine region2_destroy
@@ -357,7 +349,6 @@ contains
 
   ! Returns err = 1 if called outside its operating range (t<=1000 deg C, p<=100 MPa).
 
-    implicit none
     class(IFC67_region2_type), intent(in out) :: self
     real(dp), intent(in), target :: param(:)
     real(dp), intent(out):: props(:)
@@ -504,7 +495,6 @@ contains
 
     ! Water viscosity.
 
-    implicit none
     class(IFC67_region2_type), intent(in out) :: self
     real(dp), intent(in) :: temperature, pressure, density
     real(dp), intent(out) :: viscosity
@@ -532,7 +522,6 @@ subroutine saturation_pressure(self, t, p, err)
 
   ! Returns err = 1 if called outside its operating range (1 <= t <= critical temperature).
 
-  implicit none
   class(IFC67_saturation_type), intent(in) :: self
   real(dp), intent(in) :: t
   real(dp), intent(out):: p
@@ -566,7 +555,6 @@ subroutine saturation_temperature(self, p, t, err)
 
   ! Returns err = 1 if called outside its operating range (611.213 Pa <= p <= critical pressure).
 
-  implicit none
   class(IFC67_saturation_type), intent(in) :: self
   real(dp), intent(in) :: p
   real(dp), intent(out):: t

@@ -229,7 +229,6 @@ contains
 
     ! Constructor for IAPWS object
 
-    implicit none
     class(IAPWS_type), intent(in out) :: self
     ! Locals:
     integer :: i
@@ -255,7 +254,6 @@ contains
 
     ! Destroy IAPWS object
 
-    implicit none
     class(IAPWS_type), intent(in out) :: self
     ! Locals:
     integer :: i
@@ -278,7 +276,6 @@ contains
     ! Critical enhancement of viscosity near the critical point is not
     ! included.
 
-    implicit none
     class(IAPWS_type), intent(in out) :: self
     real(dp), intent(in) :: d, t
     real(dp), intent(out) :: visc
@@ -315,7 +312,6 @@ contains
 
     ! Initializes region 1 object.
 
-    implicit none
     class(IAPWS_region1_type), intent(in out) :: self
 
     self%nI = self%n * self%I
@@ -338,7 +334,6 @@ contains
 
     ! Destructor for region 1 object.
 
-    implicit none
     class(IAPWS_region1_type), intent(in out) :: self
 
     call self%pi%destroy()
@@ -355,7 +350,6 @@ contains
 
     ! Returns err = 1 if called outside its operating range (t<=350 deg C, p<=100 MPa).
 
-    implicit none
     class(IAPWS_region1_type), intent(in out) :: self
     real(dp), intent(in), target :: param(:)
     real(dp), intent(out):: props(:)
@@ -396,7 +390,6 @@ contains
 
     ! Water viscosity.
 
-    implicit none
     class(IAPWS_region1_type), intent(in out) :: self
     real(dp), intent(in) :: temperature, pressure, density
     real(dp), intent(out) :: viscosity
@@ -413,7 +406,6 @@ contains
 
     ! Initializes region 2 object.
 
-    implicit none
     class(IAPWS_region2_type), intent(in out) :: self
 
     self%n0J0 = self%n0 * self%J0
@@ -442,7 +434,6 @@ contains
 
     ! Destructor for region 2 object.
 
-    implicit none
     class(IAPWS_region2_type), intent(in out) :: self
 
     call self%pj0%destroy()
@@ -460,7 +451,6 @@ contains
     
     ! Returns err = 1 if called outside its operating range (t<=1000 deg C, p<=100 MPa).
     
-    implicit none
     class(IAPWS_region2_type), intent(in out) :: self
     real(dp), intent(in), target :: param(:)
     real(dp), intent(out):: props(:)
@@ -505,7 +495,6 @@ contains
 
     ! Steam viscosity.
 
-    implicit none
     class(IAPWS_region2_type), intent(in out) :: self
     real(dp), intent(in) :: temperature, pressure, density
     real(dp), intent(out) :: viscosity
@@ -522,7 +511,6 @@ contains
 
     ! Initializes region 3 object.
 
-    implicit none
     class(IAPWS_region3_type), intent(in out) :: self
  
     self%nI = self%n * self%I
@@ -545,7 +533,6 @@ contains
 
     ! Destructor for region 3 object.
 
-    implicit none
     class(IAPWS_region3_type), intent(in out) :: self
 
     call self%pi%destroy()
@@ -562,7 +549,6 @@ contains
 
     ! Returns err = 1 if resulting pressure is outside its operating range (p<=100 MPa).
 
-    implicit none
     class(IAPWS_region3_type), intent(in out) :: self
     real(dp), intent(in), target :: param(:)
     real(dp), intent(out):: props(:)
@@ -602,7 +588,6 @@ contains
 
     ! Supercritical viscosity.
 
-    implicit none
     class(IAPWS_region3_type), intent(in out) :: self
     real(dp), intent(in) :: temperature, pressure, density
     real(dp), intent(out) :: viscosity
@@ -619,7 +604,6 @@ contains
 
     ! Initializes viscosity object.
 
-    implicit none
     class(IAPWS_viscosity_type), intent(in out) :: self
 
     ! Configure power tables:
@@ -635,7 +619,6 @@ contains
 
     ! Destructor for viscosity object.
 
-    implicit none
     class(IAPWS_viscosity_type), intent(in out) :: self
 
     call self%pi%destroy()
@@ -654,7 +637,6 @@ subroutine saturation_pressure(self, t, p, err)
 
   ! Returns err = 1 if called outside its operating range (0 <= t <= critical temperature).
 
-  implicit none
   class(IAPWS_saturation_type), intent(in) :: self
   real(dp), intent(in) :: t
   real(dp), intent(out):: p
@@ -688,7 +670,6 @@ subroutine saturation_temperature(self, p, t, err)
 
   ! Returns err = 1 if called outside its operating range (611.213 Pa <= p <= critical pressure).
 
-  implicit none
   class(IAPWS_saturation_type), intent(in) :: self
   real(dp), intent(in) :: p
   real(dp), intent(out):: t
@@ -721,7 +702,6 @@ subroutine boundary23_pressure(self, t, p)
   ! Returns the pressure p (Pa) on the boundary between regions 2 and 3,
   ! given a temperature t (deg C).
 
-  implicit none
   class(IAPWS_boundary23_type), intent(in) :: self
   real(dp), intent(in) :: t
   real(dp), intent(out):: p
@@ -740,7 +720,6 @@ subroutine boundary23_temperature(self, p, t)
   ! Returns the temperature t (deg C) on the boundary between regions 2 and 3,
   ! given a pressure p (Pa).
 
-  implicit none
   class(IAPWS_boundary23_type), intent(in) :: self
   real(dp), intent(in) :: p  
   real(dp), intent(out):: t  
