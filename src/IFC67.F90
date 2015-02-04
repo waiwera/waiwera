@@ -310,12 +310,8 @@ contains
     ex = 247.8_dp / (temperature + 133.15_dp)
     phi = 1.0467_dp * (temperature - 31.85_dp)
     call IFC67%saturation%pressure(temperature, ps, err)
-    if (err == 0) then
-       am = 1.0_dp + phi * (pressure - ps) * 1.0e-11_dp
-       viscosity = 1.0e-7_dp * am * 241.4_dp * 10.0_dp ** ex
-    else
-       viscosity = 0.0_dp
-    end if
+    am = 1.0_dp + phi * (pressure - ps) * 1.0e-11_dp
+    viscosity = 1.0e-7_dp * am * 241.4_dp * 10.0_dp ** ex
 
   end subroutine region1_viscosity
 
