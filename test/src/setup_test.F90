@@ -16,7 +16,6 @@ contains
 
   subroutine setup
     
-    implicit none
     PetscErrorCode :: ierr
     
     call PetscInitialize(PETSC_NULL_CHARACTER, ierr); CHKERRQ(ierr)
@@ -30,7 +29,6 @@ contains
 
   subroutine teardown
 
-    implicit none
     PetscErrorCode :: ierr
 
     call IAPWS%destroy()

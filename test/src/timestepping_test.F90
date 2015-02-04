@@ -46,7 +46,6 @@ contains
 
     ! Sets local part of vector v with values from array.
 
-    implicit none
     Vec, intent(in out) :: v
     PetscReal, intent(in) :: arr(:)
     ! Locals:
@@ -69,7 +68,6 @@ contains
     ! Test ODE solver with specified dimension, methods, time parameters, initial
     ! conditions, solution tolerance, LHS / RHS functions and subroutine for output.
 
-    implicit none
     DM, intent(in) :: dm
     PetscInt, intent(in) :: methods(:)
     PetscReal, intent(in) :: t0, t1, dt(:)
@@ -118,7 +116,6 @@ contains
 
     ! Compare result with exact solution vector at each time
 
-    implicit none
     class(timestepper_type), intent(in out) :: self
     ! Locals:
     PetscReal, pointer :: y(:), yex(:), diffa(:)
@@ -148,7 +145,6 @@ contains
       PetscReal function relerr(exact, val)
         ! Calculates relative error of val with respect to exact, unless
         ! exact is near zero, in which case the absolute difference is returned.
-        implicit none
         PetscReal, intent(in) :: exact, val
         ! Locals:
         PetscReal, parameter :: tol = 1.e-6_dp
@@ -169,7 +165,6 @@ contains
 
     ! Linear function
 
-    implicit none
     PetscInt,  parameter :: dim = 8
     PetscReal, parameter :: k = -0.5_dp
     PetscReal, parameter :: t0 = 0._dp, t1 = 1._dp
@@ -205,7 +200,6 @@ contains
 
     subroutine rhs_const(t, y, rhs)
       ! rhs(t, y) = k
-      implicit none
       PetscReal, intent(in) :: t
       Vec, intent(in) :: y
       Vec, intent(out) :: rhs
@@ -216,7 +210,6 @@ contains
 
     subroutine exact_linear(t, v)
       ! Linear solution
-      implicit none
       PetscReal, intent(in) :: t
       Vec, intent(out) :: v
       call VecSetArray(v, initial + k * (t - t0))
@@ -230,7 +223,6 @@ contains
 
     ! Exponential function
 
-    implicit none
     PetscInt,  parameter :: dim = 8
     PetscReal, parameter :: k = -5._dp
     PetscReal, parameter :: t0 = 0._dp, t1 = 1._dp
@@ -266,7 +258,6 @@ contains
 
     subroutine rhs_linear(t, y, rhs)
       ! rhs(t, y) = k * y
-      implicit none
       PetscReal, intent(in) :: t
       Vec, intent(in) :: y
       Vec, intent(out) :: rhs
@@ -278,7 +269,6 @@ contains
 
     subroutine exact_exp(t, v)
       ! Exponential solution
-      implicit none
       PetscReal, intent(in) :: t
       Vec, intent(out) :: v
       call VecSetArray(v, initial * exp(k * (t - t0)))
@@ -292,7 +282,6 @@ contains
 
     ! Logistic equation
 
-    implicit none
     PetscInt,  parameter :: dim = 8
     PetscReal, parameter :: t0 = 0._dp, t1 = 1._dp
     PetscReal, parameter :: c(dim) = [0.0_dp, 0.5_dp, 1._dp, 1.5_dp, 2._dp, 2.5_dp, 3._dp, 3.5_dp]
@@ -328,7 +317,6 @@ contains
 
     subroutine rhs_logistic(t, y, rhs)
       ! rhs(t, y) = (3 - 2 * y) * y
-      implicit none
       PetscReal, intent(in) :: t
       Vec, intent(in) :: y
       Vec, intent(out) :: rhs
@@ -341,7 +329,6 @@ contains
 
     subroutine exact_logistic(t, v)
       ! Logistic solution 3 * c * exp(3 * t) / (1 + 2 * c * exp(3 * t))
-      implicit none
       PetscReal, intent(in) :: t
       Vec, intent(out) :: v
       ! Locals:
@@ -367,7 +354,6 @@ contains
 
     ! Nontrivial LHS
 
-    implicit none
     PetscInt,  parameter :: dim = 8
     PetscReal, parameter :: t0 = 1._dp, t1 = 10._dp
     PetscReal, parameter :: k = -1._dp
@@ -403,7 +389,6 @@ contains
 
     subroutine lhs_fn(t, y, rhs)
       ! lhs(t, y) = t * y
-      implicit none
       PetscReal, intent(in) :: t
       Vec, intent(in) :: y
       Vec, intent(out) :: rhs
@@ -415,7 +400,6 @@ contains
 
     subroutine rhs_fn(t, y, rhs)
       ! rhs(t, y) = k * y
-      implicit none
       PetscReal, intent(in) :: t
       Vec, intent(in) :: y
       Vec, intent(out) :: rhs
@@ -427,7 +411,6 @@ contains
 
     subroutine exact_fn(t, v)
       ! Solution y = y0 * t ** (k-1)
-      implicit none
       PetscReal, intent(in) :: t
       Vec, intent(out) :: v
       call VecSetArray(v, initial * t ** (k - 1._dp))
@@ -441,7 +424,6 @@ contains
 
     ! Nonlinear LHS
 
-    implicit none
     PetscInt,  parameter :: dim = 8
     PetscReal, parameter :: t0 = 0._dp, t1 = 1._dp
     PetscReal, parameter :: k = -1._dp
@@ -477,7 +459,6 @@ contains
 
     subroutine lhs_fn(t, y, rhs)
       ! lhs(t, y) = y * (y - 2)
-      implicit none
       PetscReal, intent(in) :: t
       Vec, intent(in) :: y
       Vec, intent(out) :: rhs
@@ -489,7 +470,6 @@ contains
 
     subroutine rhs_fn(t, y, rhs)
       ! rhs(t, y) = k * (y - 1)
-      implicit none
       PetscReal, intent(in) :: t
       Vec, intent(in) :: y
       Vec, intent(out) :: rhs
@@ -502,7 +482,6 @@ contains
 
     subroutine exact_fn(t, v)
       ! Linear solution y = y0 + k * t / 2
-      implicit none
       PetscReal, intent(in) :: t
       Vec, intent(out) :: v
       call VecSetArray(v, initial + 0.5_dp * k * t)
@@ -518,7 +497,6 @@ contains
     ! Solved in its usual form: dc/dt = d2c/dx2
     ! and also in a nonlinear form: d/dt(y2) = 2 y d2y/dx2
 
-    implicit none
     PetscInt,  parameter :: dim = 21
     PetscReal, parameter :: t0 = 0._dp, t1 = 0.2_dp
     PetscInt,  parameter :: num_methods = 2, methods(num_methods) = [TS_BEULER, TS_BDF2]
@@ -563,7 +541,6 @@ contains
   contains
 
     subroutine rhs_fn(t, y, rhs)
-      implicit none
       PetscReal, intent(in) :: t
       Vec, intent(in) :: y
       Vec, intent(out) :: rhs
@@ -591,7 +568,6 @@ contains
     end subroutine rhs_fn
 
     subroutine lhs_fn_nonlinear(t, y, lhs)
-      implicit none
       PetscReal, intent(in) :: t
       Vec, intent(in) :: y
       Vec, intent(out) :: lhs
@@ -615,7 +591,6 @@ contains
     end subroutine lhs_fn_nonlinear
 
     subroutine rhs_fn_nonlinear(t, y, rhs)
-      implicit none
       PetscReal, intent(in) :: t
       Vec, intent(in) :: y
       Vec, intent(out) :: rhs
@@ -643,7 +618,6 @@ contains
     end subroutine rhs_fn_nonlinear
 
     subroutine exact_fn(t, v)
-      implicit none
       PetscReal, intent(in) :: t
       Vec, intent(out) :: v
       ! Locals:
