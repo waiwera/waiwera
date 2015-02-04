@@ -297,7 +297,8 @@ contains
 
   subroutine region1_viscosity(self, temperature, pressure, density, viscosity)
 
-    ! Water viscosity.
+    ! Water viscosity. Density is not needed here, and is only included to
+    ! keep interfaces consistent.
 
     class(IFC67_region1_type), intent(in out) :: self
     real(dp), intent(in) :: temperature, pressure, density
@@ -493,7 +494,8 @@ contains
 
   subroutine region2_viscosity(self, temperature, pressure, density, viscosity)
 
-    ! Water viscosity.
+    ! Water viscosity. Pressure is not needed here, and is only included to
+    ! keep interfaces consistent.
 
     class(IFC67_region2_type), intent(in out) :: self
     real(dp), intent(in) :: temperature, pressure, density
