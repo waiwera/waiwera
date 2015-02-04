@@ -141,12 +141,12 @@ contains
     allocate(IFC67_region2_type :: self%steam)
     allocate(self%region(self%num_regions))
 
+    call self%region(1)%set(self%water)
+    call self%region(2)%set(self%steam)
+
     do i = 1, self%num_regions
        call self%region(i)%ptr%init()
     end do
-
-    call self%region(1)%set(self%water)
-    call self%region(2)%set(self%steam)
 
   end subroutine IFC67_init
 
