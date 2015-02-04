@@ -14,9 +14,10 @@ module IFC67_test
 
   real(dp), parameter :: density_tol = 1.e-5_dp, energy_tol = 1.e-2_dp
   real(dp), parameter :: pressure_tol = 1.e-1_dp, temperature_tol = 1.e-6_dp
-  real(dp), parameter :: viscosity_tol = 1.e-12_dp
+  real(dp), parameter :: viscosity_tol = 1.e-9_dp
 
-  public :: test_IFC67_region1, test_IFC67_region2, test_IFC67_saturation
+  public :: test_IFC67_region1, test_IFC67_region2
+  public :: test_IFC67_saturation, test_IFC67_viscosity
 
   contains
 
@@ -115,6 +116,40 @@ module IFC67_test
       end if
       
     end subroutine test_IFC67_saturation
+
+!------------------------------------------------------------------------
+
+    subroutine test_IFC67_viscosity
+
+      ! IFC67 viscosity tests
+
+      integer, parameter :: n1 = 2, n2 = 2
+      ! region 1 tests:
+      real(dp), parameter :: t1(n1) = [298.15_dp, 373.15_dp] - tc_k
+      real(dp), parameter :: p1(n1) = [1977563.58349_dp, 99834578.2816_dp]
+      real(dp), parameter :: visc1(n1) = [8.903129e-04_dp, 2.988268e-04_dp]
+      ! region 2 tests:
+      real(dp), parameter :: t2(n2) = [873.15_dp, 873.15_dp] - tc_k
+      real(dp), parameter :: d2(n2) = [1._dp, 100._dp]
+      real(dp), parameter :: visc2(n2) = [3.249537e-05_dp, 3.667671e-05_dp]
+      real(dp) :: v, p = 0.0_dp, d = 0.0_dp
+      integer :: i
+      PetscMPIInt :: rank
+      PetscErrorCode :: ierr
+
+      call MPI_comm_rank(PETSC_COMM_WORLD, rank, ierr); CHKERRQ(ierr)
+      if (rank == 0) then
+         do i = 1, n1
+            call IFC67%water%viscosity(t1(i), p1(i), d, v)
+            call assert_equals(visc1(i), v, viscosity_tol)
+         end do
+         do i = 1, n2
+            call IFC67%steam%viscosity(t2(i), p, d2(i), v)
+            call assert_equals(visc2(i), v, viscosity_tol)
+         end do
+      end if
+
+    end subroutine test_IFC67_viscosity
 
 !------------------------------------------------------------------------
 
