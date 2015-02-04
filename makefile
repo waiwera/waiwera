@@ -25,7 +25,7 @@ LDFLAGS= $(PETSC_LIB)
 FMFLAGS = -J$(BUILD)
 INCLS=-I$(HOME)/include
 TESTLDFLAGS=-L$(HOME)/lib -lfruit $(PETSC_LIB)
-TESTINCLS=INCLS
+TESTINCLS=$(INCLS)
 TESTFMFLAGS = -J$(TEST)/$(BUILD)
 
 # modules used by all other modules:
