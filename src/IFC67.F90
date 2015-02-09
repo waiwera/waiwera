@@ -109,8 +109,6 @@ module IFC67_module
 
   type, extends(thermodynamics_type), public :: IFC67_type
      private
-     ! type(IFC67_region1_type), public :: water
-     ! type(IFC67_region2_type), public :: steam
      type(IFC67_saturation_type), public :: saturation
    contains
      private

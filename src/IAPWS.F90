@@ -202,9 +202,6 @@ module IAPWS_module
 
   type, extends(thermodynamics_type), public :: IAPWS_type
      private
-     ! type(IAPWS_region1_type), public :: water
-     ! type(IAPWS_region2_type), public :: steam
-     ! type(IAPWS_region3_type), public :: supercritical
      type(IAPWS_viscosity_type), private :: visc
      type(IAPWS_saturation_type), public :: saturation
      type(IAPWS_boundary23_type), public :: boundary23
