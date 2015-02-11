@@ -349,7 +349,7 @@ contains
 
   subroutine region1_properties(self, param, props, err)
     !! Calculates density and internal energy of liquid water as a function of
-    !! pressure p (Pa) and temperature t (deg C).
+    !! pressure (Pa) and temperature (deg C).
     !!
     !! Returns err = 1 if called outside its operating range (t<=350 deg C, p<=100 MPa).
 
@@ -449,7 +449,7 @@ contains
 
   subroutine region2_properties(self, param, props, err)
     !! Calculates density and internal energy of dry steam as a function of
-    !! pressure p (Pa) and temperature t (deg C).
+    !! pressure (Pa) and temperature (deg C).
     !!
     !! Returns err = 1 if called outside its operating range (t<=1000 deg C, p<=100 MPa).
     
@@ -545,7 +545,7 @@ contains
 
   subroutine region3_properties(self, param, props, err)
     !! Calculates pressure and internal energy of supercritical water/steam
-    !! as a function of density d and temperature t (deg C).
+    !! as a function of density and temperature (deg C).
     !!
     !! Returns err = 1 if resulting pressure is outside its operating range (p<=100 MPa).
 

@@ -1,9 +1,8 @@
 module IFC67_module
-
-  !  IFC-67 industrial thermodynamic formulation, as described by:
-
-  ! "A formulation of the thermodynamic properties of ordinary water substance", International Formulation
-  ! Committee, Düsseldorf, Germany, 1967.
+  !!  IFC-67 industrial thermodynamic formulation, as described by:
+  !!
+  !! **"A formulation of the thermodynamic properties of ordinary water substance"**, *International Formulation
+  !! Committee*, D&uuml;sseldorf, Germany, 1967.
 
   ! These are higher-speed versions developed by Mike O'Sullivan for AUTOUGH2.
 
@@ -22,6 +21,7 @@ module IFC67_module
   !------------------------------------------------------------------------
 
   type, public, extends(region_type) :: IFC67_region1_type
+     !! IFC-67 region 1 (pure water) type.
      private
      real(dp) :: &
           A1 = 6.824687741e3_dp,    A2 = -5.422063673e2_dp, &
@@ -56,6 +56,7 @@ module IFC67_module
 !------------------------------------------------------------------------
 
   type, public, extends(region_type) :: IFC67_region2_type
+     !! IFC-67 region 2 (steam) type.
      private
      real(dp) :: &
           B0 = 16.83599274_dp,      B01 = 28.56067796_dp, &
@@ -91,6 +92,7 @@ module IFC67_module
 !------------------------------------------------------------------------
 
   type, public :: IFC67_saturation_type
+     !! IFC-67 saturation curve calculations.
      private
      real(dp) :: &
           A1 = -7.691234564_dp,   A2 = -2.608023696e1_dp, &
@@ -104,10 +106,11 @@ module IFC67_module
   end type IFC67_saturation_type
 
 !------------------------------------------------------------------------
-! IFC67 thermodynamics type
+! IFC-67 thermodynamics type
 !------------------------------------------------------------------------
 
   type, extends(thermodynamics_type), public :: IFC67_type
+     !! IFC-67 thermodynamics type.
      private
      type(IFC67_saturation_type), public :: saturation
    contains
@@ -127,8 +130,7 @@ contains
 !------------------------------------------------------------------------
 
   subroutine IFC67_init(self)
-
-    ! Constructor for IFC67 object
+    !! Constructs IFC-67 thermodynamics object.
 
     class(IFC67_type), intent(in out) :: self
     ! Locals:
@@ -151,8 +153,7 @@ contains
 !------------------------------------------------------------------------
 
   subroutine IFC67_destroy(self)
-
-    ! Destroy IFC67 object
+    !! Destroys IFC-67 thermodynamics object.
 
     class(IFC67_type), intent(in out) :: self
     ! Locals:
@@ -172,8 +173,7 @@ contains
 !------------------------------------------------------------------------
 
   subroutine region1_init(self)
-
-    ! Initializes region 1 object.
+    !! Initializes IFC-67 region 1 object.
 
     class(IFC67_region1_type), intent(in out) :: self
 
@@ -183,7 +183,7 @@ contains
 
   subroutine region1_destroy(self)
 
-    ! Destructor for region 1 object.
+    !! Destroys IFC-67 region 1 object.
 
     class(IFC67_region1_type), intent(in out) :: self
 
@@ -192,16 +192,15 @@ contains
 !------------------------------------------------------------------------
 
   subroutine region1_properties(self, param, props, err)
-
-    ! Density and internal energy of liquid water as a function of
-    ! pressure p (Pa) and temperature t (deg C).
-
-    ! Returns err = 1 if called outside its operating range (t<=350 deg C, p<=100 MPa).
+    !! Calculates density and internal energy of liquid water as a function of
+    !! pressure (Pa) and temperature (deg C).
+    !!
+    !! Returns err = 1 if called outside its operating range (t<=350 deg C, p<=100 MPa).
 
     class(IFC67_region1_type), intent(in out) :: self
-    real(dp), intent(in), target :: param(:)
-    real(dp), intent(out):: props(:)
-    integer, intent(out) :: err
+    real(dp), intent(in), target :: param(:) !! Primary variables (pressure, temperature)
+    real(dp), intent(out):: props(:) !! (density, internal energy)
+    integer, intent(out) :: err !! error code
     ! Locals:
     real(dp), pointer :: p, t
     real(dp) :: AA1, BB1, BB2, CC1, CC2, CC4, CC8, CC10
@@ -305,13 +304,13 @@ contains
 !------------------------------------------------------------------------
 
   subroutine region1_viscosity(self, temperature, pressure, density, viscosity)
-
-    ! Water viscosity. Density is not needed here, and is only included to
-    ! keep interfaces consistent.
+    !! Calculates water viscosity. Density is a dummy argument and is not used.
 
     class(IFC67_region1_type), intent(in out) :: self
-    real(dp), intent(in) :: temperature, pressure, density
-    real(dp), intent(out) :: viscosity
+    real(dp), intent(in) :: temperature  !! Fluid temperature (\(^\circ C\))
+    real(dp), intent(in) :: pressure     !! Fluid pressure (not used)
+    real(dp), intent(in) :: density      !! Fluid density (\(kg. m^{-3}\))
+    real(dp), intent(out) :: viscosity   !! Viscosity (\(kg.m^{-1}.s^{-1}\))
     ! Locals:
     real(dp) :: ex, phi, am, ps
     integer :: err
@@ -329,8 +328,7 @@ contains
 !------------------------------------------------------------------------
 
   subroutine region2_init(self)
-
-    ! Initializes region 2 object.
+    !! Initializes IFC-67 region 2 object.
 
     class(IFC67_region2_type), intent(in out) :: self
 
@@ -339,8 +337,7 @@ contains
 !------------------------------------------------------------------------
 
   subroutine region2_destroy(self)
-
-    ! Destructor for region 2 object.
+    !! Destroys IFC-67 region 2 object.
 
     class(IFC67_region2_type), intent(in out) :: self
 
@@ -349,16 +346,15 @@ contains
 !------------------------------------------------------------------------
 
   subroutine region2_properties(self, param, props, err)
-
-    ! Density and internal energy of dry steam as a function of
-    ! pressure p (Pa) and temperature t (deg C).
-
-  ! Returns err = 1 if called outside its operating range (t<=1000 deg C, p<=100 MPa).
+    !! Calculates density and internal energy of dry steam as a function of
+    !! pressure (Pa) and temperature (deg C).
+    !!
+    !! Returns err = 1 if called outside its operating range (t<=1000 deg C, p<=100 MPa).
 
     class(IFC67_region2_type), intent(in out) :: self
-    real(dp), intent(in), target :: param(:)
-    real(dp), intent(out):: props(:)
-    integer, intent(out) :: err
+    real(dp), intent(in), target :: param(:) !! Primary variables (pressure, temperature)
+    real(dp), intent(out):: props(:)  !! (density, internal energy)
+    integer, intent(out) :: err !! error code
     ! Locals:
     real(dp), pointer :: p, t
     real(dp) :: BETA, BETA2, BETA3, BETA4, BETA5, BETA6, BETA7, BETAL, CHI2
@@ -498,13 +494,13 @@ contains
 !------------------------------------------------------------------------
 
   subroutine region2_viscosity(self, temperature, pressure, density, viscosity)
-
-    ! Water viscosity. Pressure is not needed here, and is only included to
-    ! keep interfaces consistent.
+    !! Calculates water viscosity. Pressure is a dummy argument and is not used.
 
     class(IFC67_region2_type), intent(in out) :: self
-    real(dp), intent(in) :: temperature, pressure, density
-    real(dp), intent(out) :: viscosity
+    real(dp), intent(in) :: temperature !! Fluid temperature (\(^\circ C\))
+    real(dp), intent(in) :: pressure  !! Fluid pressure (not used)
+    real(dp), intent(in) :: density   !! Fluid density (\(kg. m^{-3}\))
+    real(dp), intent(out) :: viscosity !! Viscosity (\(kg.m^{-1}.s^{-1}\))
     ! Locals:
     real(dp) :: v1
 
@@ -524,15 +520,13 @@ contains
 !------------------------------------------------------------------------
 
 subroutine saturation_pressure(self, t, p, err)
-
-  ! Saturation pressure as a function of temperature.
-
-  ! Returns err = 1 if called outside its operating range (1 <= t <= critical temperature).
+  !! Calculates saturation pressure as a function of temperature.
+  !! Returns err = 1 if called outside its operating range (1 <= t <= critical temperature).
 
   class(IFC67_saturation_type), intent(in) :: self
-  real(dp), intent(in) :: t
-  real(dp), intent(out):: p
-  integer, intent(out) :: err
+  real(dp), intent(in) :: t  !! Fluid temperature (\(^\circ C\))
+  real(dp), intent(out):: p  !! Fluid pressure (\(kg. m. s^{-1}\))
+  integer, intent(out) :: err  !! Error code
   ! Locals:
   real(dp) :: PC, SC, TC, X1, X2
 
@@ -557,15 +551,13 @@ end subroutine saturation_pressure
 !------------------------------------------------------------------------
 
 subroutine saturation_temperature(self, p, t, err)
-
-  ! Saturation temperature (deg C) as a function of pressure.
-
-  ! Returns err = 1 if called outside its operating range (611.213 Pa <= p <= critical pressure).
+  !! Calculates saturation temperature (deg C) as a function of pressure.
+  !! Returns err = 1 if called outside its operating range (611.213 Pa <= p <= critical pressure).
 
   class(IFC67_saturation_type), intent(in) :: self
-  real(dp), intent(in) :: p
-  real(dp), intent(out):: t
-  integer, intent(out) :: err
+  real(dp), intent(in) :: p  !! Fluid pressure (\(kg. m. s^{-1}\))
+  real(dp), intent(out):: t  !! Fluid temperature (\(^\circ C\))
+  integer, intent(out) :: err !! Error code
   ! Locals:
   integer, parameter :: maxit = 200
   real(dp), parameter :: tol = 1.e-10_dp
