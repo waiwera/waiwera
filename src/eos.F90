@@ -1,6 +1,5 @@
 module eos_module
-
-  ! Abstract type for equation of state (EOS) objects
+  !! Abstract type for equation of state (EOS) objects.
 
   use kinds_module
   use thermodynamics_module
@@ -23,7 +22,7 @@ module eos_module
   abstract interface
 
      subroutine eos_init_procedure(self, thermo)
-       ! Initialise EOS object
+       !! Initialise EOS object
        import :: eos_type, thermodynamics_type
        class(eos_type), intent(in out) :: self
        class(thermodynamics_type), intent(in), target :: thermo
@@ -31,7 +30,7 @@ module eos_module
 
      subroutine eos_transition_procedure(self, &
           region1, region2, primary)
-       ! Perform transitions between thermodynamic regions
+       !! Perform transitions between thermodynamic regions
        import :: eos_type, dp
        class(eos_type), intent(in) :: self
        integer, intent(in) :: region1, region2
@@ -39,8 +38,8 @@ module eos_module
      end subroutine eos_transition_procedure
 
      subroutine eos_check_primary_procedure(self, region, primary)
-       ! Check primary variables for current region and make
-       ! transition if needed
+       !! Check primary variables for current region and make
+       !! transition if needed
        import :: eos_type, dp
        class(eos_type), intent(in) :: self
        integer, intent(in out) :: region
@@ -49,7 +48,7 @@ module eos_module
 
      subroutine eos_secondary_procedure(self, region, &
           primary, secondary)
-       ! Calculate secondary variables from region and primary variables
+       !! Calculate secondary variables from region and primary variables
        import :: eos_type, dp
        class(eos_type), intent(in out) :: self
        integer, intent(in) :: region
