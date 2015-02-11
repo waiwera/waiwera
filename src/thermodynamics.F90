@@ -13,8 +13,8 @@ module thermodynamics_module
   real(dp), parameter, public :: rconst     = 0.461526e3_dp     !! Gas constant
   real(dp), parameter, public :: tc_k       = 273.15_dp         !! Conversion from Celsius to Kelvin
   real(dp), parameter, public :: tcriticalk = 647.096_dp        !! Critical temperature (Kelvin)
-  real(dp), parameter, public :: tcritical  = tcriticalk - tc_k !! Critical temperature (Celcius)
-  real(dp), parameter, public :: dcritical  = 322.0_dp          !! Critical density (kg/m3)
+  real(dp), parameter, public :: tcritical  = tcriticalk - tc_k !! Critical temperature (\(^\circ C\))
+  real(dp), parameter, public :: dcritical  = 322.0_dp          !! Critical density (\(kg.m^{-3}\))
   real(dp), parameter, public :: pcritical  = 22.064e6_dp       !! Critical pressure (Pa)
 
 !------------------------------------------------------------------------
