@@ -1,6 +1,5 @@
 module timestepping_module
-
-  ! Time stepping methods for solving d/dt L(t,y) = R(t,y), where y is a parallel vector.
+  !! Time stepping methods for solving \(\frac{d}{dt} L(t,y) = R(t,y)\), where y is a parallel vector.
 
   use kinds_module
 
@@ -23,7 +22,7 @@ module timestepping_module
      TIMESTEP_TOO_SMALL = 2, TIMESTEP_TOO_BIG = 3
 
   type timestepper_step_type
-     ! Results of a time step
+     !! Results of a time step.
      private
      PetscReal, public :: time, stepsize
      Vec, public :: solution, lhs, rhs
@@ -37,14 +36,14 @@ module timestepping_module
   end type timestepper_step_type
 
   type ptimestepper_step_type
-     ! Pointer to timestepper_step_type
+     !! Pointer to timestepper_step_type.
      private
      type(timestepper_step_type), pointer, public :: p
   end type ptimestepper_step_type
 
   type timestep_adaptor_type
-     ! For adaptive time step size control. Stepsize is increased if monitor value is
-     ! below monitor_min, decreased if it is above monitor_max.
+     !! For adaptive time step size control. Stepsize is increased if monitor value is
+     !! below monitor_min, decreased if it is above monitor_max.
      private
      logical, public :: on = .false.
      procedure(monitor_function), pointer, nopass, public :: monitor => relative_change_monitor
@@ -57,7 +56,7 @@ module timestepping_module
   end type timestep_adaptor_type
 
   type timestepper_steps_type
-     ! Storage for current and immediate past steps in timestepper.
+     !! Storage for current and immediate past steps in timestepper.
      private
      type(timestepper_step_type), allocatable :: store(:)
      type(ptimestepper_step_type), pointer :: pstore(:)
@@ -85,7 +84,7 @@ module timestepping_module
   end type timestepper_steps_type
 
   type timestepper_method_type
-     ! Timestepping method
+     !! Timestepping method.
      private
      character(20), public :: name
      procedure(method_residual), pointer, nopass, public :: residual
@@ -96,7 +95,7 @@ module timestepping_module
   end type timestepper_method_type
 
   type, public :: timestepper_type
-     ! Time stepper class
+     !! Timestepper class.
      private
      SNES :: solver
      DM :: dm
@@ -118,21 +117,21 @@ module timestepping_module
   interface
 
      subroutine lhs_function(t, y, lhs)
-       ! LHS function lhs = L(t, y)
+       !! LHS function lhs = L(t, y)
        PetscReal, intent(in) :: t
        Vec, intent(in) :: y
        Vec, intent(out) :: lhs
      end subroutine lhs_function
 
      subroutine rhs_function(t, y, rhs)
-       ! RHS function rhs = R(t, y)
+       !! RHS function rhs = R(t, y)
        PetscReal, intent(in) :: t
        Vec, intent(in) :: y
        Vec, intent(out) :: rhs
      end subroutine rhs_function
 
      subroutine method_residual(solver, y, residual, steps, ierr)
-       ! Residual routine to be minimised by nonlinear solver.
+       !! Residual routine to be minimised by nonlinear solver.
        import :: timestepper_steps_type
        SNES, intent(in) :: solver
        Vec, intent(in) :: y
@@ -142,13 +141,13 @@ module timestepping_module
      end subroutine method_residual
 
      PetscReal function monitor_function(current, last)
-       ! Function for monitoring timestep acceptability.
+       !! Function for monitoring timestep acceptability.
        import :: timestepper_step_type
        type(timestepper_step_type), intent(in) :: current, last
      end function monitor_function
 
      subroutine step_output_routine(self)
-       ! Routine for producing output at each time step.
+       !! Routine for producing output at each time step.
        import :: timestepper_type
        class(timestepper_type), intent(in out) :: self
      end subroutine step_output_routine
@@ -167,8 +166,7 @@ contains
 !------------------------------------------------------------------------
 
   subroutine lhs_identity(t, y, lhs)
-
-    ! Default identity LHS function L(t,y) = y.
+    !! Default identity LHS function L(t,y) = y.
 
     PetscReal, intent(in) :: t
     Vec, intent(in) :: y
@@ -185,8 +183,7 @@ contains
 !------------------------------------------------------------------------
 
   PetscReal function iteration_monitor(current, last)
-
-    ! Monitors number of nonlinear iterations used to compute solution.
+    !! Monitors number of nonlinear iterations used to compute solution.
 
     type(timestepper_step_type), intent(in) :: current, last
 
@@ -198,8 +195,8 @@ contains
 
   PetscReal function relative_change_monitor(current, last)
 
-    ! Monitors relative change in solution. The parameter eps
-    ! avoids division by zero if last%lhs is zero.
+    !! Monitors relative change in solution. The parameter eps
+    !! avoids division by zero if last%lhs is zero.
 
     type(timestepper_step_type), intent(in) :: current, last
     ! Locals:
@@ -225,9 +222,8 @@ contains
 !------------------------------------------------------------------------
 
   subroutine step_output_default(self)
-
-    ! Default routine for printing diagnostic information at each
-    ! time step.
+    !! Default routine for printing diagnostic information at each
+    !! time step.
 
     class(timestepper_type), intent(in out) :: self
     PetscMPIInt :: rank
@@ -245,8 +241,7 @@ contains
 !------------------------------------------------------------------------
 
   subroutine step_output_none(self)
-
-    ! Step output routine for no output.
+    !! Step output routine for no output.
 
     class(timestepper_type), intent(in out) :: self
 
@@ -257,9 +252,8 @@ contains
 !------------------------------------------------------------------------
 
   subroutine backwards_Euler_residual(solver, y, residual, steps, ierr)
-
-    ! Residual for backwards Euler method.
-    ! residual = L(1) - L(0)  - dt * R(1)
+    !! Residual for backwards Euler method.
+    !! residual = L(1) - L(0)  - dt * R(1)
 
     SNES, intent(in) :: solver
     Vec, intent(in) :: y
@@ -283,10 +277,9 @@ contains
 !------------------------------------------------------------------------
 
   subroutine BDF2_residual(solver, y, residual, steps, ierr)
-
-    ! Residual for variable-stepsize BDF2 method.
-    ! residual = (1 + 2r) * L(1) - (r+1)^2 * L(0) + r^2 * L(-1) - dt * (r+1) * R(1)
-    ! where r = dt / (last dt)
+    !! Residual for variable-stepsize BDF2 method.
+    !! residual = (1 + 2r) * L(1) - (r+1)^2 * L(0) + r^2 * L(-1) - dt * (r+1) * R(1)
+    !! where r = dt / (last dt)
 
     SNES, intent(in) :: solver
     Vec, intent(in) :: y
@@ -328,9 +321,8 @@ contains
 !------------------------------------------------------------------------
 
   subroutine direct_ss_residual(solver, y, residual, steps, ierr)
-
-    ! Residual for direct solution of steady state equations R(y) = 0.
-    ! Here we evaluate R() at the steps final time.
+    !! Residual for direct solution of steady state equations R(y) = 0.
+    !! Here we evaluate R() at the steps final time.
 
     SNES, intent(in) :: solver
     Vec, intent(in) :: y
@@ -347,8 +339,7 @@ contains
 !------------------------------------------------------------------------
 
   subroutine timestepper_step_init(self, template_vec)
-
-    ! Initializes a timestep.
+    !! Initializes a timestep.
 
     class(timestepper_step_type), intent(inout) :: self
     Vec, intent(in) :: template_vec
@@ -364,8 +355,7 @@ contains
 !------------------------------------------------------------------------
 
   subroutine timestepper_step_destroy(self)
-
-    ! Destroys a timestep.
+    !! Destroys a timestep.
 
     class(timestepper_step_type), intent(inout) :: self
     ! Locals:
@@ -380,8 +370,7 @@ contains
 !------------------------------------------------------------------------
 
   character(16) function timestepper_step_status_str(self)
-
-    ! Returns a string representing the timestep status.
+    !! Returns a string representing the timestep status.
 
     class(timestepper_step_type), intent(in) :: self
 
@@ -403,8 +392,7 @@ contains
 !------------------------------------------------------------------------
 
   subroutine timestepper_step_print(self)
-
-    ! Prints a timestep.
+    !! Prints a timestep.
 
     class(timestepper_step_type), intent(in) :: self
 
@@ -421,8 +409,7 @@ contains
 !------------------------------------------------------------------------
 
   PetscReal function timestep_adaptor_reduce(self, stepsize)
-
-    ! Reduces stepsize.
+    !! Reduces stepsize.
 
     class(timestep_adaptor_type), intent(in) :: self
     PetscReal, intent(in) :: stepsize
@@ -434,8 +421,7 @@ contains
 !------------------------------------------------------------------------
 
   PetscReal function timestep_adaptor_increase(self, stepsize)
-
-    ! Increases stepsize.
+    !! Increases stepsize.
 
     class(timestep_adaptor_type), intent(in) :: self
     PetscReal, intent(in) :: stepsize
@@ -451,11 +437,10 @@ contains
   subroutine timestepper_steps_init(self, num_stored, &
        initial_time, initial_conditions, initial_stepsize, &
        final_time, max_num_steps, lhs_func, rhs_func)
-
-    ! Set up array of timesteps and pointers to them. This array stores the
-    ! current step and one or more previous steps. The number of stored
-    ! steps depends on the timestepping method (e.g. 2 for single-step methods,
-    ! > 2 for multistep methods). 
+    !! Sets up array of timesteps and pointers to them. This array stores the
+    !! current step and one or more previous steps. The number of stored
+    !! steps depends on the timestepping method (e.g. 2 for single-step methods,
+    !! > 2 for multistep methods). 
 
     class(timestepper_steps_type), intent(in out) :: self
     PetscInt, intent(in) :: num_stored
@@ -498,8 +483,7 @@ contains
 !------------------------------------------------------------------------
 
   subroutine timestepper_steps_destroy(self)
-
-    ! Destroys store array and de-assigns pointers to them.
+    !! Destroys store array and de-assigns pointers to them.
 
     class(timestepper_steps_type), intent(in out) :: self
     ! Locals:
@@ -520,8 +504,7 @@ contains
 !------------------------------------------------------------------------
 
   subroutine timestepper_steps_set_aliases(self)
-
-    ! Sets current and last pointers to store array.
+    !! Sets current and last pointers to store array.
 
     class(timestepper_steps_type), intent(in out) :: self
 
@@ -537,10 +520,9 @@ contains
 !------------------------------------------------------------------------
 
   subroutine timestepper_steps_set_pstore(self, store, i, j)
-
-    ! Sets pointer i to element j of steps array.
-    ! The store array is passed in so it can be given the target
-    ! attribute.
+    !! Sets pointer i to element j of steps array.
+    !! The store array is passed in so it can be given the target
+    !! attribute.
 
     class(timestepper_steps_type), intent(in out) :: self
     type(timestepper_step_type), target :: store(:)
@@ -553,8 +535,7 @@ contains
 !------------------------------------------------------------------------
 
   subroutine timestepper_steps_update(self)
-
-    ! Updates pointers to store array, when timestep is advanced.
+    !! Updates pointers to store array, when timestep is advanced.
 
     class(timestepper_steps_type), intent(in out) :: self
     ! Locals:
@@ -575,9 +556,8 @@ contains
 !------------------------------------------------------------------------
 
   subroutine timestepper_steps_rotate(self)
-
-    ! Rotates pstore pointers to store array, so that e.g. current becomes
-    ! last, etc, when starting a new time step.
+    !! Rotates pstore pointers to store array, so that e.g. current becomes
+    !! last, etc, when starting a new time step.
 
     class(timestepper_steps_type), intent(in out) :: self
     ! Locals:
@@ -596,9 +576,8 @@ contains
 !------------------------------------------------------------------------
 
   subroutine timestepper_steps_check_finished(self)
-
-    ! Checks if any termination criteria have been met, and reduces
-    ! timestep if needed.
+    !! Checks if any termination criteria have been met, and reduces
+    !! timestep if needed.
 
     class(timestepper_steps_type), intent(in out) :: self
     
@@ -619,8 +598,7 @@ contains
 !------------------------------------------------------------------------
 
   subroutine timestepper_steps_set_current_status(self, converged)
-
-    ! Sets status of current step
+    !! Sets status of current step.
 
     class(timestepper_steps_type), intent(in out) :: self
     PetscBool, intent(in) :: converged
@@ -652,9 +630,8 @@ contains
 !------------------------------------------------------------------------
 
   subroutine timestepper_steps_adapt(self, accepted)
-
-    ! Checks current time stepsize for acceptability and adapts if 
-    ! necessary.
+    !! Checks current time stepsize for acceptability and adapts if 
+    !! necessary.
 
     class(timestepper_steps_type), intent(in out) :: self
     PetscBool, intent(out) :: accepted
@@ -678,8 +655,7 @@ contains
 !------------------------------------------------------------------------
 
   subroutine timestepper_method_init(self, method)
-
-    ! Sets the timestepping method.
+    !! Sets the timestepping method.
 
     class(timestepper_method_type), intent(in out) :: self
     PetscInt, intent(in) :: method
@@ -709,8 +685,7 @@ contains
 !------------------------------------------------------------------------
 
   subroutine timestepper_setup_solver(self)
-
-    ! Sets up SNES nonlinear solver for the timestepper.
+    !! Sets up SNES nonlinear solver for the timestepper.
 
     class(timestepper_type), intent(in out) :: self
     ! Locals:
@@ -737,8 +712,7 @@ contains
   subroutine timestepper_init(self, method, dm, lhs_func, rhs_func, &
        initial_time, initial_conditions, initial_stepsize, &
        final_time, max_num_steps)
-
-    ! Initializes timestepper.
+    !! Initializes a timestepper.
 
     class(timestepper_type), intent(in out) :: self
     PetscInt, intent(in) :: method
@@ -771,8 +745,7 @@ contains
 !------------------------------------------------------------------------
 
   subroutine timestepper_destroy(self)
-
-    ! Destroys timestepper.
+    !! Destroys a timestepper.
 
     class(timestepper_type), intent(in out) :: self
     ! Locals:
@@ -789,8 +762,7 @@ contains
 !------------------------------------------------------------------------
 
   subroutine timestepper_step(self)
-
-    ! Takes a single time step.
+    !! Takes a single time step.
 
     class(timestepper_type), intent(in out) :: self
     ! Locals:
@@ -832,8 +804,7 @@ contains
 !------------------------------------------------------------------------
 
   subroutine timestepper_run(self)
-
-    ! Runs the timestepper until finished.
+    !! Runs the timestepper until finished.
 
     class(timestepper_type), intent(in out) :: self
     ! Locals:
