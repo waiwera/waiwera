@@ -122,9 +122,11 @@ contains
     class(powertable), intent(in out) :: self
     integer, intent(in), dimension(:) :: powers
     ! Locals:
-    integer :: min_power, max_power, i, old_lower = 0, old_upper = 0
+    integer :: min_power, max_power, i, old_lower, old_upper
     integer :: old_required(self%lower:self%upper), s, u
     logical :: enlarge
+
+    old_lower = 0; old_upper =0
 
     ! Always store zeroth and first powers: 
     min_power = min(minval(powers), 0)
