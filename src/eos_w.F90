@@ -1,6 +1,5 @@
 module eos_w_module
-
-  ! Isothermal pure water equation of state
+  !! Isothermal pure water equation of state.
 
   use kinds_module
   use eos_module
@@ -10,8 +9,9 @@ module eos_w_module
   private
 
   type, public, extends(eos_type) :: eos_w_type
+     !! Isothermal pure water equation of state type.
      private
-     real(dp), public :: temperature = 20._dp
+     real(dp), public :: temperature = 20._dp !! Constant temperature
    contains
      private
      procedure :: transition => eos_w_transition
@@ -27,10 +27,10 @@ contains
 !------------------------------------------------------------------------
 
   subroutine eos_w_init(self, thermo)
-    ! Initialise isothermal pure water EOS
+    !! Initialise isothermal pure water EOS.
 
     class(eos_w_type), intent(in out) :: self
-    class(thermodynamics_type), intent(in), target :: thermo
+    class(thermodynamics_type), intent(in), target :: thermo !! Thermodynamics object
 
     self%num_primary = 1
     self%num_secondary = 3
@@ -42,14 +42,13 @@ contains
 !------------------------------------------------------------------------
   
   subroutine eos_w_transition(self, region1, region2, primary)
-    ! Perform transitions between thermodynamic regions for isothermal
-    ! pure water 
+    !! Perform transitions between thermodynamic regions for isothermal
+    !! pure water: no transitions needed.
 
     class(eos_w_type), intent(in) :: self
     integer, intent(in) :: region1, region2
     real(dp), intent(in out), target :: primary(self%num_primary)
 
-    ! no transitions needed for isothermal pure water
     continue
 
   end subroutine eos_w_transition
@@ -57,14 +56,14 @@ contains
 !------------------------------------------------------------------------
 
   subroutine eos_w_check_primary(self, region, primary)
-    ! Check primary variables for current region and make
-    ! transition if needed for isothermal pure water
+    !! Check primary variables for current region and make
+    !! transition if needed for isothermal pure water: no
+    !! checks needed.
 
     class(eos_w_type), intent(in) :: self
     integer, intent(in out) :: region
     real(dp), intent(in out), target :: primary(self%num_primary)
 
-    ! no checks needed for isothermal pure water
     continue
 
   end subroutine eos_w_check_primary
@@ -73,12 +72,13 @@ contains
 
   subroutine eos_w_secondary(self, region, primary, secondary)
 
-    ! Calculate secondary variables from region and primary variables
+    !! Calculate secondary variables from region and primary variables
+    !! for isothermal pure water.
 
     class(eos_w_type), intent(in out) :: self
-    integer, intent(in) :: region
-    real(dp), intent(in), target :: primary(self%num_primary)
-    real(dp), intent(out), target :: secondary(self%num_secondary)
+    integer, intent(in) :: region !! Thermodynamic region index
+    real(dp), intent(in), target :: primary(self%num_primary) !! Primary thermodynamic variables
+    real(dp), intent(out), target :: secondary(self%num_secondary) !! Secondary thermodynamic variables
     ! Locals:
     integer :: err
     real(dp), pointer :: pressure, density, viscosity

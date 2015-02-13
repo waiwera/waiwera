@@ -92,6 +92,10 @@ $(TEST)/$(BUILD)/setup$(TESTSUF)$(OBJ): $(TEST)/$(SRC)/setup$(TESTSUF)$(F90)
 $(TEST)/$(BUILD)/%$(TESTSUF)$(OBJ): $(TEST)/$(SRC)/%$(TESTSUF)$(F90) $(BUILD)/%$(OBJ)
 	$(PETSC_FCOMPILE) $(TESTFMFLAGS) -I$(BUILD) $(TESTINCLS) -c $< -o $@
 
+# documentation:
+devdoc:
+	ford devdoc.md
+
 clean::
 	$(RM) $(BUILD)/*$(MOD) $(BUILD)/*$(OBJ)
 	$(RM) $(TEST)/$(SRC)/$(TESTPROG)$(F90)

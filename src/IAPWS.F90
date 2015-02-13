@@ -1,14 +1,14 @@
 module IAPWS_module
 
-  !  IAPWS-97 industrial thermodynamic formulation, as described by:
-
-  ! Wagner, W., Cooper, J.R., Dittman, A., Kijima, J., Kretzschmar, H.-J., Kruse, A., Mares, R., 
-  ! Oguchi, K., Sato, H., Stocker, I., Sifner, O., Takaishi, Y., Tanishita, I., Trubenbach, J. and
-  ! Willkommen, Th., 1997.  The IAPWS Industrial Formulation 1997 for the Thermodynamic Properties of
-  ! Water and Steam.  Trans. ASME 150(122), 150-182.
-
-  ! Viscosity function visc() is described by:
-  ! IAPWS, 2008.  Release on the IAPWS Formulation 2008 for the Viscosity of Ordinary Water Substance.
+  !! IAPWS-97 industrial thermodynamic formulation, as described by:
+  !!
+  !! Wagner, W., Cooper, J.R., Dittman, A., Kijima, J., Kretzschmar, H.-J., Kruse, A., Mares, R., 
+  !! Oguchi, K., Sato, H., Stocker, I., Sifner, O., Takaishi, Y., Tanishita, I., Trubenbach, J. and
+  !! Willkommen, Th., 1997.  **The IAPWS Industrial Formulation 1997 for the Thermodynamic Properties of
+  !! Water and Steam.**  *Trans. ASME* 150(122), 150-182.
+  !!
+  !! The viscosity function is described by:
+  !! IAPWS, 2008.  **Release on the IAPWS Formulation 2008 for the Viscosity of Ordinary Water Substance.**
 
   use kinds_module
   use powertable_module
@@ -22,6 +22,7 @@ module IAPWS_module
 !------------------------------------------------------------------------
 
   type, public, extends(region_type) :: IAPWS_region1_type
+     !! IAPWS-97 region 1 (liquid water) type.
      private
      real(dp) :: pstar = 16.53e6_dp, tstar = 1386._dp
      real(dp) :: n(34) = [ &                
@@ -61,6 +62,7 @@ module IAPWS_module
 !------------------------------------------------------------------------
 
   type, public, extends(region_type) :: IAPWS_region2_type
+     !! IAPWS-97 region 2 (steam) type.
      private
      real(dp) :: pstar = 1.0e6_dp, tstar = 540.0_dp
      real(dp) :: n0(9) = [ &
@@ -105,6 +107,7 @@ module IAPWS_module
 !------------------------------------------------------------------------
 
   type, public, extends(region_type) :: IAPWS_region3_type
+     !! IAPWS-97 region 3 (supercritical) type.
      private
      real(dp) :: dstar = dcritical, tstar = tcriticalk
      real(dp) :: n(40) = [ &
@@ -142,6 +145,7 @@ module IAPWS_module
 !------------------------------------------------------------------------
 
   type, public :: IAPWS_viscosity_type
+     !! IAPWS viscosity type.
      private
      real(dp) :: mustar = 1.0e-6_dp
      real(dp) :: h0(0:3) = [ &
@@ -167,6 +171,7 @@ module IAPWS_module
 !------------------------------------------------------------------------
 
   type, public :: IAPWS_saturation_type
+     !! IAPWS-97 saturation curve calculations.
      private
      real(dp) :: pstar = 1.0e6_dp
      real(dp) :: n(10) = [ &
@@ -185,6 +190,7 @@ module IAPWS_module
 !------------------------------------------------------------------------
 
   type, public :: IAPWS_boundary23_type
+     !! IAPWS-97 boundary between regions 2 and 3.
      private
      real(dp) :: pstar = 1.0e6_dp
      real(dp) :: n(5) = [ &
@@ -201,6 +207,7 @@ module IAPWS_module
 !------------------------------------------------------------------------
 
   type, extends(thermodynamics_type), public :: IAPWS_type
+     !! IAPWS thermodynamics type.
      private
      type(IAPWS_viscosity_type), private :: visc
      type(IAPWS_saturation_type), public :: saturation
@@ -223,8 +230,7 @@ contains
 !------------------------------------------------------------------------
 
   subroutine IAPWS_init(self)
-
-    ! Constructor for IAPWS object
+    !! Initializes IAPWS object.
 
     class(IAPWS_type), intent(in out) :: self
     ! Locals:
@@ -251,8 +257,7 @@ contains
 !------------------------------------------------------------------------
 
   subroutine IAPWS_destroy(self)
-
-    ! Destroy IAPWS object
+    !! Destroys IAPWS object.
 
     class(IAPWS_type), intent(in out) :: self
     ! Locals:
@@ -271,15 +276,15 @@ contains
 !------------------------------------------------------------------------
 
   subroutine IAPWS_viscosity(self, d, t, visc)
-
-    ! Calculates dynamic viscosity of water or steam, given the density
-    ! d and temperature t, using the IAPWS industrial formulation 2008.
-    ! Critical enhancement of viscosity near the critical point is not
-    ! included.
+    !! Calculates dynamic viscosity of water or steam, given the density
+    !! d and temperature t, using the IAPWS industrial formulation (2008).
+    !! Critical enhancement of viscosity near the critical point is not
+    !! included.
 
     class(IAPWS_type), intent(in out) :: self
-    real(dp), intent(in) :: d, t
-    real(dp), intent(out) :: visc
+    real(dp), intent(in) :: d !! Fluid density (\(kg. m^{-3}\))
+    real(dp), intent(in) :: t !! Fluid temperature (\(^\circ C\))
+    real(dp), intent(out) :: visc !! Viscosity (\(kg.m^{-1}.s^{-1}\))
 
     ! Locals:
     real(dp):: del, tk, tau
@@ -310,8 +315,7 @@ contains
 !------------------------------------------------------------------------
 
   subroutine region1_init(self)
-
-    ! Initializes region 1 object.
+    !! Initializes IAPWS region 1 object.
 
     class(IAPWS_region1_type), intent(in out) :: self
 
@@ -332,8 +336,7 @@ contains
 !------------------------------------------------------------------------
 
   subroutine region1_destroy(self)
-
-    ! Destructor for region 1 object.
+    !! Destroys IAPWS region 1 object.
 
     class(IAPWS_region1_type), intent(in out) :: self
 
@@ -345,16 +348,15 @@ contains
 !------------------------------------------------------------------------
 
   subroutine region1_properties(self, param, props, err)
-
-    ! Density and internal energy of liquid water as a function of
-    ! pressure p (Pa) and temperature t (deg C).
-
-    ! Returns err = 1 if called outside its operating range (t<=350 deg C, p<=100 MPa).
+    !! Calculates density and internal energy of liquid water as a function of
+    !! pressure (Pa) and temperature (deg C).
+    !!
+    !! Returns err = 1 if called outside its operating range (t<=350 deg C, p<=100 MPa).
 
     class(IAPWS_region1_type), intent(in out) :: self
-    real(dp), intent(in), target :: param(:)
-    real(dp), intent(out):: props(:)
-    integer, intent(out) :: err
+    real(dp), intent(in), target :: param(:) !! Primary variables (pressure, temperature)
+    real(dp), intent(out):: props(:) !! (density, internal energy)
+    integer, intent(out) :: err !! error code
     ! Locals:
     real(dp), pointer :: p, t
     real(dp):: tk, rt, pi, tau, gampi, gamt
@@ -388,12 +390,14 @@ contains
 !------------------------------------------------------------------------
 
   subroutine region1_viscosity(self, temperature, pressure, density, viscosity)
-
-    ! Water viscosity.
+    !! Calculates liquid water viscosity. Pressure is a dummy argument and is
+    !! not used.
 
     class(IAPWS_region1_type), intent(in out) :: self
-    real(dp), intent(in) :: temperature, pressure, density
-    real(dp), intent(out) :: viscosity
+    real(dp), intent(in) :: temperature  !! Fluid temperature (\(^\circ C\))
+    real(dp), intent(in) :: pressure     !! Fluid pressure (not used)
+    real(dp), intent(in) :: density      !! Fluid density (\(kg. m^{-3}\))
+    real(dp), intent(out) :: viscosity   !! Viscosity (\(kg.m^{-1}.s^{-1}\))
 
     call IAPWS%viscosity(density, temperature, viscosity)
 
@@ -404,8 +408,7 @@ contains
 !------------------------------------------------------------------------
 
   subroutine region2_init(self)
-
-    ! Initializes region 2 object.
+    !! Initializes IAPWS region 2 object.
 
     class(IAPWS_region2_type), intent(in out) :: self
 
@@ -432,8 +435,7 @@ contains
 !------------------------------------------------------------------------
 
   subroutine region2_destroy(self)
-
-    ! Destructor for region 2 object.
+    !! Destroys IAPWS region 2 object.
 
     class(IAPWS_region2_type), intent(in out) :: self
 
@@ -446,16 +448,15 @@ contains
 !------------------------------------------------------------------------
 
   subroutine region2_properties(self, param, props, err)
-
-    ! Density and internal energy of dry steam as a function of
-    ! pressure p (Pa) and temperature t (deg C).
-    
-    ! Returns err = 1 if called outside its operating range (t<=1000 deg C, p<=100 MPa).
+    !! Calculates density and internal energy of dry steam as a function of
+    !! pressure (Pa) and temperature (deg C).
+    !!
+    !! Returns err = 1 if called outside its operating range (t<=1000 deg C, p<=100 MPa).
     
     class(IAPWS_region2_type), intent(in out) :: self
-    real(dp), intent(in), target :: param(:)
-    real(dp), intent(out):: props(:)
-    integer, intent(out) :: err
+    real(dp), intent(in), target :: param(:) !! Primary variables (pressure, temperature)
+    real(dp), intent(out):: props(:)  !! (density, internal energy)
+    integer, intent(out) :: err  !! error code
     ! Locals:
     real(dp), pointer :: p, t
     real(dp):: tk, rt, pi, tau, gampir, gamt0, gamtr, gampi
@@ -493,12 +494,13 @@ contains
 !------------------------------------------------------------------------
 
   subroutine region2_viscosity(self, temperature, pressure, density, viscosity)
-
-    ! Steam viscosity.
+    !! Calculates steam viscosity. Pressure is a dummy argument and is not used.
 
     class(IAPWS_region2_type), intent(in out) :: self
-    real(dp), intent(in) :: temperature, pressure, density
-    real(dp), intent(out) :: viscosity
+    real(dp), intent(in) :: temperature !! Fluid temperature (\(^\circ C\))
+    real(dp), intent(in) :: pressure  !! Fluid pressure (not used)
+    real(dp), intent(in) :: density   !! Fluid density (\(kg. m^{-3}\))
+    real(dp), intent(out) :: viscosity !! Viscosity (\(kg.m^{-1}.s^{-1}\))
 
     call IAPWS%viscosity(density, temperature, viscosity)
 
@@ -509,8 +511,7 @@ contains
 !------------------------------------------------------------------------
 
   subroutine region3_init(self)
-
-    ! Initializes region 3 object.
+    !! Initializes IAPWS region 3 object.
 
     class(IAPWS_region3_type), intent(in out) :: self
  
@@ -531,8 +532,7 @@ contains
 !------------------------------------------------------------------------
 
   subroutine region3_destroy(self)
-
-    ! Destructor for region 3 object.
+    !! Destroyes IAPWS region 3 object.
 
     class(IAPWS_region3_type), intent(in out) :: self
 
@@ -544,16 +544,15 @@ contains
 !------------------------------------------------------------------------
 
   subroutine region3_properties(self, param, props, err)
-
-    ! Pressure and internal energy of supercritical water/steam
-    ! as a function of density d and temperature t (deg C).
-
-    ! Returns err = 1 if resulting pressure is outside its operating range (p<=100 MPa).
+    !! Calculates pressure and internal energy of supercritical water/steam
+    !! as a function of density and temperature (deg C).
+    !!
+    !! Returns err = 1 if resulting pressure is outside its operating range (p<=100 MPa).
 
     class(IAPWS_region3_type), intent(in out) :: self
-    real(dp), intent(in), target :: param(:)
-    real(dp), intent(out):: props(:)
-    integer, intent(out) :: err
+    real(dp), intent(in), target :: param(:) !! Primary variables (density, temperature)
+    real(dp), intent(out):: props(:)  !! (pressure, internal energy)
+    integer, intent(out) :: err   !! Error code
     ! Locals:
     real(dp), pointer :: d, t
     real(dp):: tk, rt, delta, tau
@@ -586,12 +585,14 @@ contains
 !------------------------------------------------------------------------
   
   subroutine region3_viscosity(self, temperature, pressure, density, viscosity)
-
-    ! Supercritical viscosity.
+    !! Calculates viscosity of supercritical fluid. Pressure is a dummy
+    !! argument and is not used.
 
     class(IAPWS_region3_type), intent(in out) :: self
-    real(dp), intent(in) :: temperature, pressure, density
-    real(dp), intent(out) :: viscosity
+    real(dp), intent(in) :: temperature  !! Fluid temperature (\(^\circ C\))
+    real(dp), intent(in) :: pressure     !! Fluid pressure (not used)
+    real(dp), intent(in) :: density      !! Fluid density (\(kg. m^{-3}\))
+    real(dp), intent(out) :: viscosity   !! Viscosity (\(kg.m^{-1}.s^{-1}\))
 
     call IAPWS%viscosity(density, temperature, viscosity)
 
@@ -602,8 +603,7 @@ contains
 !------------------------------------------------------------------------
 
   subroutine viscosity_init(self)
-
-    ! Initializes viscosity object.
+    !! Initializes viscosity object.
 
     class(IAPWS_viscosity_type), intent(in out) :: self
 
@@ -617,8 +617,7 @@ contains
 !------------------------------------------------------------------------
 
   subroutine viscosity_destroy(self)
-
-    ! Destructor for viscosity object.
+    !! Destroys viscosity object.
 
     class(IAPWS_viscosity_type), intent(in out) :: self
 
@@ -633,15 +632,13 @@ contains
 !------------------------------------------------------------------------
 
 subroutine saturation_pressure(self, t, p, err)
-
-  ! Saturation pressure as a function of temperature.
-
-  ! Returns err = 1 if called outside its operating range (0 <= t <= critical temperature).
+  !! Calculates saturation pressure as a function of temperature.
+  !! Returns err = 1 if called outside its operating range (0 <= t <= critical temperature).
 
   class(IAPWS_saturation_type), intent(in) :: self
-  real(dp), intent(in) :: t
-  real(dp), intent(out):: p
-  integer, intent(out) :: err
+  real(dp), intent(in) :: t  !! Fluid temperature (\(^\circ C\))
+  real(dp), intent(out):: p  !! Fluid pressure (\(kg. m. s^{-1}\))
+  integer, intent(out) :: err  !! Error code
   ! Locals:
   real(dp):: tk
   real(dp):: theta, theta2, a, b, c, x
@@ -666,15 +663,13 @@ end subroutine saturation_pressure
 !------------------------------------------------------------------------
 
 subroutine saturation_temperature(self, p, t, err)
-
-  ! Saturation temperature (deg C) as a function of pressure.
-
-  ! Returns err = 1 if called outside its operating range (611.213 Pa <= p <= critical pressure).
+  !! Calculates saturation temperature (deg C) as a function of pressure.
+  !! Returns err = 1 if called outside its operating range (611.213 Pa <= p <= critical pressure).
 
   class(IAPWS_saturation_type), intent(in) :: self
-  real(dp), intent(in) :: p
-  real(dp), intent(out):: t
-  integer, intent(out) :: err
+  real(dp), intent(in) :: p  !! Fluid pressure (\(kg. m. s^{-1}\))
+  real(dp), intent(out):: t  !! Fluid temperature (\(^\circ C\))
+  integer, intent(out) :: err !! Error code
   ! Locals:
   real(dp):: beta, beta2, d, e, f, g, x
 
@@ -699,13 +694,12 @@ end subroutine saturation_temperature
 !------------------------------------------------------------------------
 
 subroutine boundary23_pressure(self, t, p)
-
-  ! Returns the pressure p (Pa) on the boundary between regions 2 and 3,
-  ! given a temperature t (deg C).
+  !! Calculates the pressure p (Pa) on the boundary between regions 2 and 3,
+  !! given a temperature t (deg C).
 
   class(IAPWS_boundary23_type), intent(in) :: self
-  real(dp), intent(in) :: t
-  real(dp), intent(out):: p
+  real(dp), intent(in) :: t  !! Fluid temperature (\(^\circ C\))
+  real(dp), intent(out):: p  !! Fluid pressure (\(kg. m. s^{-1}\))
   ! Local variable:      
   real(dp):: tk
 
@@ -717,13 +711,12 @@ end subroutine boundary23_pressure
 !-----------------------------------------------------------------------
 
 subroutine boundary23_temperature(self, p, t)
-
-  ! Returns the temperature t (deg C) on the boundary between regions 2 and 3,
-  ! given a pressure p (Pa).
+  !! Calculates the temperature t (deg C) on the boundary between regions 2 and 3,
+  !! given a pressure p (Pa).
 
   class(IAPWS_boundary23_type), intent(in) :: self
-  real(dp), intent(in) :: p  
-  real(dp), intent(out):: t  
+  real(dp), intent(in) :: p  !! Fluid pressure (\(kg. m. s^{-1}\))
+  real(dp), intent(out):: t  !! Fluid temperature (\(^\circ C\))
 
   t = self%n(4) + dsqrt((p/self%pstar - self%n(5)) / self%n(3)) - tc_k 
 

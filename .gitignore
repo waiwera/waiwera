@@ -1,3 +1,6 @@
+*~
+src/*~
+test/src/*~
 build/*.o
 build/*.mod
 test/build/*.o
@@ -5,5 +8,5 @@ test/build/*.mod
 test/dist/test_all*
 dist/supermodel*
 test/src/test_all.F90
-src/*~
-test/src/*~
+doc/dev/*
+!doc/dev/readme

@@ -1,6 +1,5 @@
 module simulation_module
-
-  ! Type for representing a simulation.
+  !! Module for high-level representation of a simulation.
 
   use kinds_module
   use timestepping_module
@@ -19,6 +18,7 @@ module simulation_module
 #include <petsc-finclude/petscdm.h>
 
   type, public :: simulation_type
+     !! Simulation type.
      private
      type(timestepper_type) :: timestepper
      class(thermodynamics_type), pointer :: thermo
@@ -37,12 +37,11 @@ contains
 !------------------------------------------------------------------------
 
   subroutine simulation_init(self, filename)
-
-    ! Initializes a simulation using data from the input file with 
-    ! specified name.
+    !! Initializes a simulation using data from the input file with 
+    !! specified name.
 
     class(simulation_type), intent(in out) :: self
-    character(*), intent(in) :: filename
+    character(*), intent(in) :: filename !! Input file name
 
     ! Open input file, read data and initialize simulation
     ! including self%timestepper, self%dm etc.
@@ -59,8 +58,7 @@ contains
 !------------------------------------------------------------------------
 
   subroutine simulation_run(self)
-
-    ! Runs simulation.
+    !! Runs the simulation.
 
     class(simulation_type), intent(in out) :: self
 
@@ -73,6 +71,7 @@ contains
 !------------------------------------------------------------------------
 
   subroutine simulation_destroy(self)
+    !! Destroys the simulation.
 
     class(simulation_type), intent(in out) :: self
     ! Locals:

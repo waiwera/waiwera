@@ -1,8 +1,7 @@
 module powertable_module
-
-  ! Class for efficiently computing a table of powers of a real number.
-  ! It uses repeated squaring and a lookup table, and avoids calculating
-  ! any powers that are not needed.
+  !! Module for efficiently computing a table of powers of a real number.
+  !! The algorithm uses repeated squaring and a lookup table, and avoids calculating
+  !! any powers that are not needed.
 
   use kinds_module
 
@@ -18,11 +17,13 @@ module powertable_module
   end type product_pointer
 
   type, public :: powertable
+     !! Type for efficiently calculating a table of powers of a
+     !! double precision number.
      private
-     real(dp), allocatable, public :: power(:)
+     real(dp), allocatable, public :: power(:) !! Computed powers
      integer, allocatable :: product(:,:)
      type(product_pointer), allocatable :: powerlist(:)
-     integer, public :: lower = 0, upper = 0
+     integer, public :: lower = 0, upper = 0 !! Lower and upper bounds of powers
      integer, allocatable :: required(:)
      integer :: powerlist_size
    contains
@@ -40,9 +41,8 @@ contains
 !------------------------------------------------------------------------
 
   subroutine product_pointer_set(self, lower, upper, arr, i1, i2, iprod)
-
-    ! Sets up product pointer into an array. The pointers fac1 and fac2 point
-    ! to the factors in the array, and prod points to the resulting product.
+    !! Sets up product pointer into an array. The pointers fac1 and fac2 point
+    !! to the factors in the array, and prod points to the resulting product.
 
     class(product_pointer), intent(in out) :: self
     integer, intent(in) :: lower, upper
@@ -58,9 +58,8 @@ contains
 !------------------------------------------------------------------------
 
   logical function powertable_product_configured(self, i)
-
-    ! Returns true if product combination has already been computed
-    ! for the specified power.
+    !! Returns true if product combination has already been computed
+    !! for the specified power.
 
     class(powertable), intent(in out) :: self
     integer, intent(in) :: i
@@ -74,8 +73,7 @@ contains
 !------------------------------------------------------------------------
 
   recursive subroutine powertable_configure_product(self, i)
-
-    ! Configures product combination for the specifed power.
+    !! Configures product combination for the specifed power.
 
     class(powertable), intent(in out) :: self
     integer, intent(in) :: i
@@ -115,9 +113,8 @@ contains
 !------------------------------------------------------------------------
 
   subroutine powertable_configure(self, powers)
-
-    ! Works out the products for each of the required powers,
-    ! and adds any extra powers needed for intermediate steps.
+    !! Calculates the most efficient way of computing the required powers,
+    !! adding any extra powers needed for intermediate steps.
 
     class(powertable), intent(in out) :: self
     integer, intent(in), dimension(:) :: powers
@@ -195,10 +192,9 @@ contains
 !------------------------------------------------------------------------
 
   subroutine powertable_set_powerlist(self)
-
-    ! Generates list of which powers are required, in the order in which they
-    ! should be computed. (Powers 0,1 are not included, as they are always
-    ! required, as is -1 if negative powers are required.)
+    !! Generates list of which powers are required, in the order in which they
+    !! should be computed. (Powers 0,1 are not included, as they are always
+    !! required, as is -1 if negative powers are required.)
 
     class(powertable), intent(in out) :: self
     ! Locals:
@@ -231,8 +227,7 @@ contains
 !------------------------------------------------------------------------
 
   subroutine powertable_destroy(self)
-
-    ! Destroy the powertable object.
+    !! Destroys a powertable object.
 
     class(powertable), intent(in out) :: self
 
@@ -244,11 +239,10 @@ contains
 !------------------------------------------------------------------------
 
   subroutine powertable_compute(self, val)
-
-    ! Computes the table of powers for the specified value.
+    !! Computes the table of powers for the specified value.
 
     class(powertable), intent(in out) :: self
-    real(dp), intent(in) :: val
+    real(dp), intent(in) :: val !! value to compute powers of
     ! Locals:
     integer :: n
 

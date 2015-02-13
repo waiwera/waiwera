@@ -1,6 +1,5 @@
 program supermodel
-
-  ! Main supermodel driver code.
+  !! Main supermodel driver program.
 
   use simulation_module
 
@@ -8,9 +7,9 @@ program supermodel
 
 #include <petsc-finclude/petscsys.h>
 
-  type(simulation_type) :: sim
-  integer, parameter :: max_filename_length = 200
-  character(max_filename_length) :: filename
+  type(simulation_type) :: sim !! Simulation
+  integer, parameter :: max_filename_length = 200 !! maximum filename length
+  character(max_filename_length) :: filename !! filename
   PetscErrorCode :: ierr
 
   call PetscInitialize(PETSC_NULL_CHARACTER, ierr); CHKERRQ(ierr)
@@ -30,8 +29,7 @@ contains
 !------------------------------------------------------------------------
 
   subroutine output_program_info()
-
-    ! Output program info.
+    !! Outputs program information.
 
     PetscMPIInt :: rank
     PetscErrorCode :: ierr
@@ -47,8 +45,7 @@ contains
 !------------------------------------------------------------------------
 
   subroutine get_filename(filename)
-
-    ! Gets filename from program argument or input.
+    !! Gets filename from program argument or input.
 
     character(*), intent(out) :: filename
     ! Locals:
