@@ -48,11 +48,18 @@ contains
     character(*), intent(in) :: filename !! Input file name
     ! Locals:
     type(fson_value), pointer :: data
-    
-    data => fson_parse(filename)
+    PetscMPIInt :: rank
+    PetscErrorCode :: ierr
 
-    call fson_get(data, "title", self%title)
-    print *, self%title
+    call MPI_comm_rank(PETSC_COMM_WORLD, rank, ierr); CHKERRQ(ierr)
+
+    if (rank == 0) then
+    
+       data => fson_parse(filename)
+
+       call fson_get(data, "title", self%title)
+
+    end if
     
     self%thermo => IAPWS
 
@@ -61,7 +68,9 @@ contains
     self%eos => eos_w
     call self%eos%init(self%thermo)
 
-    call fson_destroy(data)
+    if (rank == 0) then
+       call fson_destroy(data)
+    end if
 
   end subroutine simulation_init
 
