@@ -19,8 +19,9 @@ EXE=
 
 # shell commands:
 RM=rm -f
+CP=cp
 
-# compiling and linking paths:
+# paths for compiling and linking etc.:
 LIBS= -L$(HOME)/lib
 LDFLAGS= $(LIBS) -lfson $(PETSC_LIB)
 FMFLAGS = -J$(BUILD)
@@ -28,6 +29,7 @@ INCLS=-I$(HOME)/include
 TESTLDFLAGS=$(LIBS) -lfruit $(PETSC_LIB)
 TESTINCLS=$(INCLS)
 TESTFMFLAGS = -J$(TEST)/$(BUILD)
+INSTALL_DIR = $(HOME)/bin
 
 # modules used by all other modules:
 ESSENTIAL = kinds
@@ -97,6 +99,8 @@ $(TEST)/$(BUILD)/%$(TESTSUF)$(OBJ): $(TEST)/$(SRC)/%$(TESTSUF)$(F90) $(BUILD)/%$
 devdoc:
 	ford devdoc.md
 
+install:
+	$(CP) $(DIST)/$(PROG) $(INSTALL_DIR)
 clean::
 	$(RM) $(BUILD)/*$(MOD) $(BUILD)/*$(OBJ)
 	$(RM) $(TEST)/$(SRC)/$(TESTPROG)$(F90)
