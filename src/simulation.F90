@@ -8,6 +8,7 @@ module simulation_module
   use IFC67_module
   use eos_w_module
   use eos_module
+  use fson
 
   implicit none
 
@@ -17,6 +18,8 @@ module simulation_module
 #include <petsc-finclude/petscdef.h>
 #include <petsc-finclude/petscdm.h>
 
+  integer, parameter :: max_title_length = 120
+
   type, public :: simulation_type
      !! Simulation type.
      private
@@ -25,6 +28,7 @@ module simulation_module
      class(eos_type), pointer :: eos
      ! output ?
      DM :: dm
+     character(max_title_length), public :: title
    contains
      private
      procedure, public :: init => simulation_init
@@ -42,9 +46,13 @@ contains
 
     class(simulation_type), intent(in out) :: self
     character(*), intent(in) :: filename !! Input file name
+    ! Locals:
+    type(fson_value), pointer :: data
+    
+    data => fson_parse(filename)
 
-    ! Open input file, read data and initialize simulation
-    ! including self%timestepper, self%dm etc.
+    call fson_get(data, "title", self%title)
+    print *, self%title
     
     self%thermo => IAPWS
 
@@ -52,6 +60,8 @@ contains
 
     self%eos => eos_w
     call self%eos%init(self%thermo)
+
+    call fson_destroy(data)
 
   end subroutine simulation_init
 
