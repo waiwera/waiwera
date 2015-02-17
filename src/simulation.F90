@@ -62,7 +62,7 @@ contains
     
 !------------------------------------------------------------------------
 
-  subroutine simulation_init(self, filename, comm, rank)
+  subroutine simulation_init(self, comm, rank, filename)
     !! Initializes a simulation using data from the input file with 
     !! specified name.
 

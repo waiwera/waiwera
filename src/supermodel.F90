@@ -22,7 +22,7 @@ program supermodel
 
   call get_filename(filename)
 
-  call sim%init(filename, comm, rank)
+  call sim%init(comm, rank, filename)
   call sim%run()
   call sim%destroy()
 
