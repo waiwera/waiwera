@@ -11,14 +11,16 @@ program supermodel
   integer, parameter :: max_filename_length = 200 !! maximum filename length
   character(max_filename_length) :: filename !! filename
   PetscErrorCode :: ierr
+  MPI_Comm :: comm
 
   call PetscInitialize(PETSC_NULL_CHARACTER, ierr); CHKERRQ(ierr)
+  comm = PETSC_COMM_WORLD
 
   call output_program_info()
 
   call get_filename(filename)
 
-  call sim%init(filename)
+  call sim%init(filename, comm)
   call sim%run()
   call sim%destroy()
 
@@ -34,7 +36,7 @@ contains
     PetscMPIInt :: rank
     PetscErrorCode :: ierr
 
-    call MPI_comm_rank(PETSC_COMM_WORLD, rank, ierr); CHKERRQ(ierr)
+    call MPI_comm_rank(comm, rank, ierr); CHKERRQ(ierr)
 
     if (rank == 0) then
        write (*,*) 'Supermodel version 0.001'
@@ -53,7 +55,7 @@ contains
     PetscErrorCode :: ierr
     integer :: num_args
 
-    call MPI_comm_rank(PETSC_COMM_WORLD, rank, ierr); CHKERRQ(ierr)
+    call MPI_comm_rank(comm, rank, ierr); CHKERRQ(ierr)
 
     if (rank == 0) then
 

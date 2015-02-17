@@ -26,11 +26,13 @@ module simulation_module
      type(timestepper_type) :: timestepper
      class(thermodynamics_type), pointer :: thermo
      class(eos_type), pointer :: eos
-     ! output ?
+     MPI_Comm :: comm
+     PetscMPIInt :: rank, io_rank = 0
      DM :: dm
      character(max_title_length), public :: title
    contains
      private
+     procedure :: read_title => simulation_read_title
      procedure, public :: init => simulation_init
      procedure, public :: run => simulation_run
      procedure, public :: destroy => simulation_destroy
@@ -40,27 +42,46 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine simulation_init(self, filename)
+  subroutine simulation_read_title(self, json)
+    !! Reads simulation title from JSON input file.
+
+    class(simulation_type), intent(in out) :: self
+    type(fson_value), pointer, intent(in) :: json
+    ! Locals:
+    PetscErrorCode :: ierr
+
+    if (self%rank == self%io_rank) then
+       call fson_get(json, "title", self%title)
+    end if
+
+    ! Broadcast to all processors:
+    call MPI_bcast(self%title, max_title_length, MPI_CHARACTER, &
+         self%io_rank, self%comm, ierr)
+
+  end subroutine simulation_read_title
+    
+!------------------------------------------------------------------------
+
+  subroutine simulation_init(self, filename, comm)
     !! Initializes a simulation using data from the input file with 
     !! specified name.
 
     class(simulation_type), intent(in out) :: self
     character(*), intent(in) :: filename !! Input file name
+    MPI_Comm, intent(in) :: comm !! MPI communicator
     ! Locals:
-    type(fson_value), pointer :: data
-    PetscMPIInt :: rank
+    type(fson_value), pointer :: json
     PetscErrorCode :: ierr
 
-    call MPI_comm_rank(PETSC_COMM_WORLD, rank, ierr); CHKERRQ(ierr)
+    self%comm = comm
+    call MPI_comm_rank(self%comm, self%rank, ierr); CHKERRQ(ierr)
 
-    if (rank == 0) then
-    
-       data => fson_parse(filename)
-
-       call fson_get(data, "title", self%title)
-
+    if (self%rank == self%io_rank) then
+       json => fson_parse(filename)
     end if
-    
+
+    call self%read_title(json)
+
     self%thermo => IAPWS
 
     call self%thermo%init()
@@ -68,8 +89,8 @@ contains
     self%eos => eos_w
     call self%eos%init(self%thermo)
 
-    if (rank == 0) then
-       call fson_destroy(data)
+    if (self%rank == self%io_rank) then
+       call fson_destroy(json)
     end if
 
   end subroutine simulation_init
