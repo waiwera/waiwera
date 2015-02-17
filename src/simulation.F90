@@ -2,6 +2,7 @@ module simulation_module
   !! Module for high-level representation of a simulation.
 
   use kinds_module
+  use mesh_module
   use timestepping_module
   use thermodynamics_module
   use IAPWS_module
@@ -24,12 +25,12 @@ module simulation_module
   type, public :: simulation_type
      !! Simulation type.
      private
+     type(mesh_type) :: mesh
      type(timestepper_type) :: timestepper
      class(thermodynamics_type), pointer :: thermo
      class(eos_type), pointer :: eos
      MPI_Comm :: comm
      PetscMPIInt :: rank, io_rank = 0
-     DM :: dm
      character(max_filename_length) :: input_filename
      character(max_title_length), public :: title
    contains
@@ -94,7 +95,7 @@ contains
     end if
 
     call self%read_title(json)
-    call self%mesh%read(json)
+    call self%mesh%init(self%comm, self%rank, self%io_rank, json)
 
     self%thermo => IAPWS
 
@@ -131,10 +132,9 @@ contains
     ! Locals:
     PetscErrorCode :: ierr
 
-    ! call self%timestepper%destroy()
+    call self%mesh%destroy()
     call self%thermo%destroy()
-    ! call DMDestroy(self%dm, ierr); CHKERRQ(ierr)
-    ! etc.
+    ! call self%timestepper%destroy()
 
   end subroutine simulation_destroy
 
