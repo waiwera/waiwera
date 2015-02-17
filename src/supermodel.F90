@@ -8,7 +8,6 @@ program supermodel
 #include <petsc-finclude/petscsys.h>
 
   type(simulation_type) :: sim !! Simulation
-  integer, parameter :: max_filename_length = 200 !! maximum filename length
   character(max_filename_length) :: filename !! filename
   PetscErrorCode :: ierr
   MPI_Comm :: comm

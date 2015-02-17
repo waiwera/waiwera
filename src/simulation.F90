@@ -19,6 +19,7 @@ module simulation_module
 #include <petsc-finclude/petscdm.h>
 
   integer, parameter :: max_title_length = 120
+  integer, parameter, public :: max_filename_length = 200
 
   type, public :: simulation_type
      !! Simulation type.
@@ -29,6 +30,7 @@ module simulation_module
      MPI_Comm :: comm
      PetscMPIInt :: rank, io_rank = 0
      DM :: dm
+     character(max_filename_length) :: input_filename
      character(max_title_length), public :: title
    contains
      private
@@ -43,7 +45,8 @@ contains
 !------------------------------------------------------------------------
 
   subroutine simulation_read_title(self, json)
-    !! Reads simulation title from JSON input file.
+    !! Reads simulation title from JSON input file. If not present,
+    !! a default value is assigned.
 
     class(simulation_type), intent(in out) :: self
     type(fson_value), pointer, intent(in) :: json
@@ -66,7 +69,7 @@ contains
          self%io_rank, self%comm, ierr)
 
   end subroutine simulation_read_title
-    
+
 !------------------------------------------------------------------------
 
   subroutine simulation_init(self, comm, rank, filename)
@@ -84,11 +87,14 @@ contains
     self%comm = comm
     self%rank = rank
 
+    self%input_filename = filename
+
     if (self%rank == self%io_rank) then
        json => fson_parse(filename)
     end if
 
     call self%read_title(json)
+    call self%mesh%read(json)
 
     self%thermo => IAPWS
 
