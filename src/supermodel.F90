@@ -12,15 +12,17 @@ program supermodel
   character(max_filename_length) :: filename !! filename
   PetscErrorCode :: ierr
   MPI_Comm :: comm
+  PetscMPIInt :: rank
 
   call PetscInitialize(PETSC_NULL_CHARACTER, ierr); CHKERRQ(ierr)
   comm = PETSC_COMM_WORLD
+  call MPI_comm_rank(comm, rank, ierr); CHKERRQ(ierr)
 
   call output_program_info()
 
   call get_filename(filename)
 
-  call sim%init(filename, comm)
+  call sim%init(filename, comm, rank)
   call sim%run()
   call sim%destroy()
 
@@ -32,9 +34,6 @@ contains
 
   subroutine output_program_info()
     !! Outputs program information.
-
-    PetscMPIInt :: rank
-    PetscErrorCode :: ierr
 
     call MPI_comm_rank(comm, rank, ierr); CHKERRQ(ierr)
 
@@ -51,11 +50,7 @@ contains
 
     character(*), intent(out) :: filename
     ! Locals:
-    PetscMPIInt :: rank
-    PetscErrorCode :: ierr
     integer :: num_args
-
-    call MPI_comm_rank(comm, rank, ierr); CHKERRQ(ierr)
 
     if (rank == 0) then
 

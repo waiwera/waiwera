@@ -62,19 +62,20 @@ contains
     
 !------------------------------------------------------------------------
 
-  subroutine simulation_init(self, filename, comm)
+  subroutine simulation_init(self, filename, comm, rank)
     !! Initializes a simulation using data from the input file with 
     !! specified name.
 
     class(simulation_type), intent(in out) :: self
     character(*), intent(in) :: filename !! Input file name
     MPI_Comm, intent(in) :: comm !! MPI communicator
+    PetscMPIInt, intent(in) :: rank !! MPI processor rank
     ! Locals:
     type(fson_value), pointer :: json
     PetscErrorCode :: ierr
 
     self%comm = comm
-    call MPI_comm_rank(self%comm, self%rank, ierr); CHKERRQ(ierr)
+    self%rank = rank
 
     if (self%rank == self%io_rank) then
        json => fson_parse(filename)
