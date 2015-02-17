@@ -32,6 +32,9 @@ contains
     class(eos_w_type), intent(in out) :: self
     class(thermodynamics_type), intent(in), target :: thermo !! Thermodynamics object
 
+    self%name = "W"
+    self%description = "Isothermal pure water"
+
     self%num_primary = 1
     self%num_secondary = 3
 

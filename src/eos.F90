@@ -7,8 +7,13 @@ module eos_module
   implicit none
   private
 
+  integer, parameter, public :: max_eos_name_length = 8
+  integer, parameter, public :: max_eos_description_length = 80
+
   type, public, abstract :: eos_type
      private
+     character(max_eos_name_length), public :: name
+     character(max_eos_description_length), public :: description
      integer, public :: num_primary, num_secondary
      class(thermodynamics_type), pointer, public :: thermo
    contains

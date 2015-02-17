@@ -124,7 +124,6 @@ contains
     ! Locals:
     PetscErrorCode :: ierr
     type(fson_value), pointer :: eos
-    integer, parameter :: max_eos_name_length = 8
     character(max_eos_name_length) :: eos_name
     character(max_eos_name_length), parameter :: &
          default_eos_name = "W"
