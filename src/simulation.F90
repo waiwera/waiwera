@@ -49,9 +49,16 @@ contains
     type(fson_value), pointer, intent(in) :: json
     ! Locals:
     PetscErrorCode :: ierr
+    type(fson_value), pointer :: title
+    character(len = 1), parameter :: default_title = ""
 
     if (self%rank == self%io_rank) then
-       call fson_get(json, "title", self%title)
+       call fson_get(json, "title", title)
+       if (associated(title)) then
+          call fson_get(title, ".", self%title)
+       else
+          self%title = default_title
+       end if
     end if
 
     ! Broadcast to all processors:
