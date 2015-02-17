@@ -36,6 +36,8 @@ module simulation_module
    contains
      private
      procedure :: read_title => simulation_read_title
+     procedure :: read_thermodynamics => simulation_read_thermodynamics
+     procedure :: read_eos => simulation_read_eos
      procedure, public :: init => simulation_init
      procedure, public :: run => simulation_run
      procedure, public :: destroy => simulation_destroy
@@ -73,17 +75,98 @@ contains
 
 !------------------------------------------------------------------------
 
+  subroutine simulation_read_thermodynamics(self, json)
+    !! Reads simulation thermodynamic formulation from JSON input file.
+    !! If not present, a default value is assigned.
+
+    class(simulation_type), intent(in out) :: self
+    type(fson_value), pointer, intent(in) :: json
+    ! Locals:
+    PetscErrorCode :: ierr
+    type(fson_value), pointer :: thermo
+    integer, parameter :: max_thermo_name_length = 8
+    character(max_thermo_name_length) :: thermo_name
+    character(max_thermo_name_length), parameter :: &
+         default_thermo_name = "IAPWS"
+
+    if (self%rank == self%io_rank) then
+       call fson_get(json, "thermodynamics", thermo)
+       if (associated(thermo)) then
+          call fson_get(thermo, ".", thermo_name)
+       else
+          thermo_name = default_thermo_name
+       end if
+    end if
+
+    ! Broadcast to all processors:
+    call MPI_bcast(thermo_name, max_thermo_name_length, &
+         MPI_CHARACTER, self%io_rank, self%comm, ierr)
+
+    select case (thermo_name)
+    case ("IFC67")
+       self%thermo => IFC67
+    case default
+       self%thermo => IAPWS
+    end select
+
+    call self%thermo%init()
+
+  end subroutine simulation_read_thermodynamics
+
+!------------------------------------------------------------------------
+
+  subroutine simulation_read_eos(self, json)
+    !! Reads simulation equation of state from JSON input file.
+    !! If not present, a default value is assigned.
+
+    class(simulation_type), intent(in out) :: self
+    type(fson_value), pointer, intent(in) :: json
+    ! Locals:
+    PetscErrorCode :: ierr
+    type(fson_value), pointer :: eos
+    integer, parameter :: max_eos_name_length = 8
+    character(max_eos_name_length) :: eos_name
+    character(max_eos_name_length), parameter :: &
+         default_eos_name = "W"
+
+    if (self%rank == self%io_rank) then
+       call fson_get(json, "eos", eos)
+       if (associated(eos)) then
+          call fson_get(eos, ".", eos_name)
+       else
+          eos_name = default_eos_name
+       end if
+    end if
+
+    ! Broadcast to all processors:
+    call MPI_bcast(eos_name, max_eos_name_length, &
+         MPI_CHARACTER, self%io_rank, self%comm, ierr)
+
+    select case (eos_name)
+    case ("EW")
+       self%eos => eos_w  ! change to eos_ew when it's ready
+    case default
+       self%eos => eos_w
+    end select
+
+    call self%eos%init(self%thermo)
+
+  end subroutine simulation_read_eos
+
+!------------------------------------------------------------------------
+
   subroutine simulation_init(self, comm, rank, filename)
     !! Initializes a simulation using data from the input file with 
     !! specified name.
 
     class(simulation_type), intent(in out) :: self
-    character(*), intent(in) :: filename !! Input file name
     MPI_Comm, intent(in) :: comm !! MPI communicator
     PetscMPIInt, intent(in) :: rank !! MPI processor rank
+    character(*), intent(in) :: filename !! Input file name
     ! Locals:
     type(fson_value), pointer :: json
     PetscErrorCode :: ierr
+    PetscInt :: dof
 
     self%comm = comm
     self%rank = rank
@@ -95,14 +178,12 @@ contains
     end if
 
     call self%read_title(json)
-    call self%mesh%init(self%comm, self%rank, self%io_rank, json)
 
-    self%thermo => IAPWS
+    call self%read_thermodynamics(json)
+    call self%read_eos(json)
 
-    call self%thermo%init()
-
-    self%eos => eos_w
-    call self%eos%init(self%thermo)
+    dof = self%eos%num_primary
+    call self%mesh%init(self%comm, self%rank, self%io_rank, json, dof)
 
     if (self%rank == self%io_rank) then
        call fson_destroy(json)
