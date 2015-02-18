@@ -137,8 +137,8 @@ contains
 
     call self%read_title(json)
 
-    ! call self%read_thermodynamics(json)
-    ! call self%read_eos(json)
+    call self%read_thermodynamics(json)
+    call self%read_eos(json)
 
     dof = self%eos%num_primary
     call self%mesh%init(json, dof)
