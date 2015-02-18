@@ -84,25 +84,25 @@ contains
     ! Locals:
     PetscErrorCode :: ierr
     type(fson_value), pointer :: thermo
-    integer, parameter :: max_thermo_name_length = 8
-    character(max_thermo_name_length) :: thermo_name
-    character(max_thermo_name_length), parameter :: &
-         default_thermo_name = "IAPWS"
+    integer, parameter :: max_thermo_ID_length = 8
+    character(max_thermo_ID_length) :: thermo_ID
+    character(max_thermo_ID_length), parameter :: &
+         default_thermo_ID = "IAPWS"
 
     if (self%rank == self%io_rank) then
        call fson_get(json, "thermodynamics", thermo)
        if (associated(thermo)) then
-          call fson_get(thermo, ".", thermo_name)
+          call fson_get(thermo, ".", thermo_ID)
        else
-          thermo_name = default_thermo_name
+          thermo_ID = default_thermo_ID
        end if
     end if
 
     ! Broadcast to all processors:
-    call MPI_bcast(thermo_name, max_thermo_name_length, &
+    call MPI_bcast(thermo_ID, max_thermo_ID_length, &
          MPI_CHARACTER, self%io_rank, self%comm, ierr)
 
-    select case (thermo_name)
+    select case (thermo_ID)
     case ("IFC67")
        self%thermo => IFC67
     case default
@@ -124,24 +124,24 @@ contains
     ! Locals:
     PetscErrorCode :: ierr
     type(fson_value), pointer :: eos
-    character(max_eos_name_length) :: eos_name
-    character(max_eos_name_length), parameter :: &
-         default_eos_name = "W"
+    character(max_eos_ID_length) :: eos_ID
+    character(max_eos_ID_length), parameter :: &
+         default_eos_ID = "W"
 
     if (self%rank == self%io_rank) then
        call fson_get(json, "eos", eos)
        if (associated(eos)) then
-          call fson_get(eos, ".", eos_name)
+          call fson_get(eos, ".", eos_ID)
        else
-          eos_name = default_eos_name
+          eos_ID = default_eos_ID
        end if
     end if
 
     ! Broadcast to all processors:
-    call MPI_bcast(eos_name, max_eos_name_length, &
+    call MPI_bcast(eos_ID, max_eos_ID_length, &
          MPI_CHARACTER, self%io_rank, self%comm, ierr)
 
-    select case (eos_name)
+    select case (eos_ID)
     case ("EW")
        self%eos => eos_w  ! change to eos_ew when it's ready
     case default
