@@ -2,6 +2,7 @@ module mesh_module
   !! Module for mesh type.
 
   use kinds_module
+  use mpi_module
   use fson
 
   implicit none
@@ -92,15 +93,12 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine mesh_init(self, comm, rank, io_rank, json, dof)
+  subroutine mesh_init(self, json, dof)
     !! Initializes mesh, reading filename from JSON input file.
     !! If the filename is not present, an error is raised.
     !! Otherwise, the PETSc DM is read in.
 
     class(mesh_type), intent(in out) :: self
-    MPI_Comm, intent(in) :: comm !! MPI communicator
-    PetscMPIInt, intent(in) :: rank !! MPI rank
-    PetscMPIInt, intent(in) :: io_rank !! MPI rank of I/O process
     type(fson_value), pointer, intent(in) :: json !! JSON file pointer
     PetscInt, intent(in) :: dof !! Degrees of freedom on cells
     ! Locals:
@@ -108,7 +106,7 @@ contains
     type(fson_value), pointer :: mesh
     PetscInt, parameter :: dim = 3
 
-    if (rank == io_rank) then
+    if (rank == input_rank) then
        call fson_get(json, "mesh", mesh)
        if (associated(mesh)) then
           call fson_get(mesh, ".", self%filename)
@@ -119,7 +117,7 @@ contains
     end if
 
     call MPI_bcast(self%filename, max_mesh_filename_length, MPI_CHARACTER, &
-         io_rank, comm, ierr)
+         input_rank, comm, ierr)
 
     ! Read in DM:
     call DMPlexCreateFromFile(comm, self%filename, PETSC_TRUE, self%dm, ierr)

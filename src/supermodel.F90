@@ -1,6 +1,7 @@
 program supermodel
   !! Main supermodel driver program.
 
+  use mpi_module
   use simulation_module
 
   implicit none
@@ -10,8 +11,6 @@ program supermodel
   type(simulation_type) :: sim !! Simulation
   character(max_filename_length) :: filename !! filename
   PetscErrorCode :: ierr
-  MPI_Comm :: comm
-  PetscMPIInt :: rank
 
   call PetscInitialize(PETSC_NULL_CHARACTER, ierr); CHKERRQ(ierr)
   comm = PETSC_COMM_WORLD
@@ -21,7 +20,7 @@ program supermodel
 
   call get_filename(filename)
 
-  call sim%init(comm, rank, filename)
+  call sim%init(filename)
   call sim%run()
   call sim%destroy()
 

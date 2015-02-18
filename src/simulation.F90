@@ -1,6 +1,7 @@
 module simulation_module
   !! Module for high-level representation of a simulation.
 
+  use mpi_module
   use kinds_module
   use mesh_module
   use timestepping_module
@@ -19,8 +20,8 @@ module simulation_module
 #include <petsc-finclude/petscdef.h>
 #include <petsc-finclude/petscdm.h>
 
-  integer, parameter :: max_title_length = 120
   integer, parameter, public :: max_filename_length = 200
+  integer, parameter, public :: max_title_length = 120
 
   type, public :: simulation_type
      !! Simulation type.
@@ -29,8 +30,6 @@ module simulation_module
      type(timestepper_type) :: timestepper
      class(thermodynamics_type), pointer :: thermo
      class(eos_type), pointer :: eos
-     MPI_Comm :: comm
-     PetscMPIInt :: rank, io_rank = 0
      character(max_filename_length) :: input_filename
      character(max_title_length), public :: title
    contains
@@ -48,17 +47,17 @@ contains
 !------------------------------------------------------------------------
 
   subroutine simulation_read_title(self, json)
-    !! Reads simulation title from JSON input file. If not present,
-    !! a default value is assigned.
+    !! Reads simulation title from JSON input file.
+    !! If not present, a default value is assigned.
 
     class(simulation_type), intent(in out) :: self
     type(fson_value), pointer, intent(in) :: json
     ! Locals:
-    PetscErrorCode :: ierr
     type(fson_value), pointer :: title
-    character(len = 1), parameter :: default_title = ""
+    character(len = max_title_length), parameter :: default_title = ""
+    PetscErrorCode :: ierr
 
-    if (self%rank == self%io_rank) then
+    if (rank == input_rank) then
        call fson_get(json, "title", title)
        if (associated(title)) then
           call fson_get(title, ".", self%title)
@@ -69,7 +68,7 @@ contains
 
     ! Broadcast to all processors:
     call MPI_bcast(self%title, max_title_length, MPI_CHARACTER, &
-         self%io_rank, self%comm, ierr)
+         input_rank, comm, ierr)
 
   end subroutine simulation_read_title
 
@@ -89,7 +88,7 @@ contains
     character(max_thermo_ID_length), parameter :: &
          default_thermo_ID = "IAPWS"
 
-    if (self%rank == self%io_rank) then
+    if (rank == input_rank) then
        call fson_get(json, "thermodynamics", thermo)
        if (associated(thermo)) then
           call fson_get(thermo, ".", thermo_ID)
@@ -100,7 +99,7 @@ contains
 
     ! Broadcast to all processors:
     call MPI_bcast(thermo_ID, max_thermo_ID_length, &
-         MPI_CHARACTER, self%io_rank, self%comm, ierr)
+         MPI_CHARACTER, input_rank, comm, ierr)
 
     select case (thermo_ID)
     case ("IFC67")
@@ -124,11 +123,12 @@ contains
     ! Locals:
     PetscErrorCode :: ierr
     type(fson_value), pointer :: eos
+    integer, parameter :: max_eos_ID_length = 12
     character(max_eos_ID_length) :: eos_ID
     character(max_eos_ID_length), parameter :: &
          default_eos_ID = "W"
 
-    if (self%rank == self%io_rank) then
+    if (rank == input_rank) then
        call fson_get(json, "eos", eos)
        if (associated(eos)) then
           call fson_get(eos, ".", eos_ID)
@@ -139,7 +139,7 @@ contains
 
     ! Broadcast to all processors:
     call MPI_bcast(eos_ID, max_eos_ID_length, &
-         MPI_CHARACTER, self%io_rank, self%comm, ierr)
+         MPI_CHARACTER, input_rank, comm, ierr)
 
     select case (eos_ID)
     case ("EW")
@@ -154,25 +154,20 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine simulation_init(self, comm, rank, filename)
+  subroutine simulation_init(self, filename)
     !! Initializes a simulation using data from the input file with 
     !! specified name.
 
     class(simulation_type), intent(in out) :: self
-    MPI_Comm, intent(in) :: comm !! MPI communicator
-    PetscMPIInt, intent(in) :: rank !! MPI processor rank
     character(*), intent(in) :: filename !! Input file name
     ! Locals:
     type(fson_value), pointer :: json
     PetscErrorCode :: ierr
     PetscInt :: dof
 
-    self%comm = comm
-    self%rank = rank
-
     self%input_filename = filename
 
-    if (self%rank == self%io_rank) then
+    if (rank == input_rank) then
        json => fson_parse(filename)
     end if
 
@@ -182,9 +177,9 @@ contains
     call self%read_eos(json)
 
     dof = self%eos%num_primary
-    call self%mesh%init(self%comm, self%rank, self%io_rank, json, dof)
+    call self%mesh%init(json, dof)
 
-    if (self%rank == self%io_rank) then
+    if (rank == input_rank) then
        call fson_destroy(json)
     end if
 

@@ -36,7 +36,7 @@ ESSENTIAL = kinds
 ESSENTIAL_OBJS = $(patsubst %, $(BUILD)/%$(OBJ), $(ESSENTIAL))
 
 # main source code:
-SOURCES = powertable thermodynamics IAPWS IFC67 timestepping mesh simulation eos eos_w
+SOURCES = mpi powertable thermodynamics IAPWS IFC67 timestepping mesh simulation eos eos_w
 OBJS = $(patsubst %, $(BUILD)/%$(OBJ), $(SOURCES))
 ALLOBJS = $(ESSENTIAL_OBJS) $(OBJS)
 PROG = supermodel
@@ -61,12 +61,13 @@ $(OBJS) $(TESTOBJS): $(ESSENTIAL_OBJS)
 $(TEST)/$(BUILD)/setup$(TESTSUF)$(OBJ): $(SETUPOBJS)
 $(BUILD)/IAPWS$(OBJ): $(BUILD)/thermodynamics$(OBJ) $(BUILD)/powertable$(OBJ)
 $(BUILD)/IFC67$(OBJ): $(BUILD)/thermodynamics$(OBJ) $(BUILD)/powertable$(OBJ)
-$(BUILD)/simulation$(OBJ): $(BUILD)/timestepping$(OBJ) $(BUILD)/thermodynamics$(OBJ) \
-	 $(BUILD)/IAPWS$(OBJ) $(BUILD)/IFC67$(OBJ) $(BUILD)/eos$(OBJ) \
-	$(BUILD)/eos_w$(OBJ) $(BUILD)/mesh$(OBJ) 
+$(BUILD)/simulation$(OBJ): $(BUILD)/mpi$(OBJ) $(BUILD)/timestepping$(OBJ) \
+	$(BUILD)/thermodynamics$(OBJ) $(BUILD)/IAPWS$(OBJ) \
+	$(BUILD)/IFC67$(OBJ) $(BUILD)/eos$(OBJ)	$(BUILD)/eos_w$(OBJ) \
+	$(BUILD)/mesh$(OBJ)
 $(BUILD)/eos$(OBJ): $(BUILD)/thermodynamics$(OBJ)
 $(BUILD)/eos_w$(OBJ): $(BUILD)/thermodynamics$(OBJ) $(BUILD)/eos$(OBJ)
-$(BUILD)/$(PROG)$(OBJ): $(BUILD)/simulation$(OBJ)
+$(BUILD)/$(PROG)$(OBJ): $(BUILD)/mpi$(OBJ) $(BUILD)/simulation$(OBJ)
 
 # build rules:
 
