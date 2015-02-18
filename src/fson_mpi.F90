@@ -8,7 +8,9 @@ module fson_mpi_module
 
   private
 
-  public :: fson_get_mpi
+#include <petsc-finclude/petscsys.h>
+
+  public :: fson_get_default, fson_get_mpi
 
   interface fson_get_default
      module procedure fson_get_default_integer
