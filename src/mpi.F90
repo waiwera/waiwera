@@ -5,7 +5,6 @@ module mpi_module
 
   private
 
-#include <petsc-finclude/petscsys.h>
 #include <petsc-finclude/petscdef.h>
 
   MPI_Comm, public :: comm !! MPI communicator
