@@ -2,6 +2,7 @@ module setup_module
 
   ! Setup and teardown routines for unit tests
 
+  use mpi_module
   use IAPWS_module
   use IFC67_module
 
@@ -19,6 +20,9 @@ contains
     PetscErrorCode :: ierr
     
     call PetscInitialize(PETSC_NULL_CHARACTER, ierr); CHKERRQ(ierr)
+
+    comm = PETSC_COMM_WORLD
+    call MPI_COMM_RANK(comm, rank, ierr)
     
     call IAPWS%init()
     call IFC67%init()

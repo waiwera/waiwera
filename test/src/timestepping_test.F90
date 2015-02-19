@@ -3,6 +3,7 @@ module timestepping_test
   ! Tests for timestepping module
 
   use kinds_module
+  use mpi_module
   use fruit
   use timestepping_module
 
@@ -81,9 +82,7 @@ contains
     PetscErrorCode :: ierr
     PetscReal, parameter :: time_tolerance = 1.e-6_dp
     PetscInt :: i
-    PetscMPIInt :: rank
 
-    call MPI_comm_rank(PETSC_COMM_WORLD, rank, ierr); CHKERRQ(ierr)
     call VecDuplicate(initial, exact, ierr); CHKERRQ(ierr)
     call VecDuplicate(initial, diff, ierr); CHKERRQ(ierr)
 
@@ -96,7 +95,7 @@ contains
        ts%steps%adaptor%monitor_min = eta_min(i)
        ts%steps%adaptor%monitor_max = eta_max(i)
        call ts%run()
-       if (rank == 0) then
+       if (rank == output_rank) then
           call assert_equals(t1, ts%steps%current%time, time_tolerance, &
                ts%method%name // 'final time')
           call assert_equals(0._dp, maxdiff, solution_tolerance, &

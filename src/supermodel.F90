@@ -33,9 +33,7 @@ contains
   subroutine output_program_info()
     !! Outputs program information.
 
-    call MPI_comm_rank(comm, rank, ierr); CHKERRQ(ierr)
-
-    if (rank == 0) then
+    if (rank == output_rank) then
        write (*,*) 'Supermodel version 0.001'
     end if
 

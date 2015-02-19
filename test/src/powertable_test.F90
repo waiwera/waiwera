@@ -3,6 +3,7 @@ module powertable_test
   ! Tests for powertable module
 
   use kinds_module
+  use mpi_module
   use fruit
   use powertable_module
 
@@ -29,11 +30,8 @@ module powertable_test
       real(dp) :: x
       real(dp), allocatable :: xp(:)
       integer :: lower, upper
-      PetscMPIInt :: rank
-      PetscErrorCode :: ierr
 
-      call MPI_comm_rank(PETSC_COMM_WORLD, rank, ierr); CHKERRQ(ierr)
-      if (rank == 0) then
+      if (rank == output_rank) then
 
          lower = min(minval(powers), 0)
          upper = max(maxval(powers), 1)
@@ -73,11 +71,8 @@ module powertable_test
       real(dp) :: x
       real(dp), allocatable :: xp(:)
       integer :: lower, upper
-      PetscMPIInt :: rank
-      PetscErrorCode :: ierr
 
-      call MPI_comm_rank(PETSC_COMM_WORLD, rank, ierr); CHKERRQ(ierr)
-      if (rank == 0) then
+      if (rank == output_rank) then
 
          lower = min(minval(powers), 0)
          upper = max(maxval(powers), 1)
@@ -117,11 +112,8 @@ module powertable_test
       real(dp) :: x
       real(dp), allocatable :: xp(:)
       integer :: lower, upper
-      PetscMPIInt :: rank
-      PetscErrorCode :: ierr
 
-      call MPI_comm_rank(PETSC_COMM_WORLD, rank, ierr); CHKERRQ(ierr)
-      if (rank == 0) then
+      if (rank == output_rank) then
          
          lower = min(minval(powers), 0)
          upper = max(maxval(powers), 1)
@@ -162,11 +154,8 @@ module powertable_test
       real(dp) :: x
       real(dp), allocatable :: xp(:)
       integer :: lower, upper
-      PetscMPIInt :: rank
-      PetscErrorCode :: ierr
 
-      call MPI_comm_rank(PETSC_COMM_WORLD, rank, ierr); CHKERRQ(ierr)
-      if (rank == 0) then
+      if (rank == output_rank) then
          
          allpowers = [powers1, powers2]
          lower = min(minval(allpowers), 0)

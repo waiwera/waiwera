@@ -3,6 +3,7 @@ module IFC67_test
   ! Tests for IAPWS thermodynamics module
 
   use kinds_module
+  use mpi_module
   use IFC67_module
   use thermodynamics_module, only: tc_k
   use fruit
@@ -37,11 +38,8 @@ module IFC67_test
            971985.91117384087_dp]
       integer :: i, err
       real(dp) :: param(2), props(2)
-      PetscMPIInt :: rank
-      PetscErrorCode :: ierr
 
-      call MPI_comm_rank(PETSC_COMM_WORLD, rank, ierr); CHKERRQ(ierr)
-      if (rank == 0) then
+      if (rank == output_rank) then
          params(:,2) = params(:,2) - tc_k  ! convert temperatures to Celcius
          do i = 1, n
             param = params(i,:)
@@ -71,11 +69,8 @@ module IFC67_test
       integer :: i, err
       real(dp) :: param(2), props(2)
       real(dp) :: rho_ref(n), u_ref(n)
-      PetscMPIInt :: rank
-      PetscErrorCode :: ierr
 
-      call MPI_comm_rank(PETSC_COMM_WORLD, rank, ierr); CHKERRQ(ierr)
-      if (rank == 0) then
+      if (rank == output_rank) then
          params(:,2) = params(:,2) - tc_k  ! convert temperatures to Celcius
          do i = 1, n
             param = params(i,:)
@@ -100,11 +95,8 @@ module IFC67_test
            0.123493902e8_dp]
       real(dp) :: ps, ts
       integer :: i, err
-      PetscMPIInt :: rank
-      PetscErrorCode :: ierr
 
-      call MPI_comm_rank(PETSC_COMM_WORLD, rank, ierr); CHKERRQ(ierr)
-      if (rank == 0) then
+      if (rank == output_rank) then
          do i = 1, n
             call IFC67%saturation%pressure(t(i), ps, err)
             call assert_equals(p(i), ps, pressure_tol, 'pressure')
@@ -134,11 +126,8 @@ module IFC67_test
       real(dp), parameter :: visc2(n2) = [3.249537e-05_dp, 3.667671e-05_dp]
       real(dp) :: v, p = 0.0_dp, d = 0.0_dp
       integer :: i
-      PetscMPIInt :: rank
-      PetscErrorCode :: ierr
 
-      call MPI_comm_rank(PETSC_COMM_WORLD, rank, ierr); CHKERRQ(ierr)
-      if (rank == 0) then
+      if (rank == output_rank) then
          do i = 1, n1
             call IFC67%water%viscosity(t1(i), p1(i), d, v)
             call assert_equals(visc1(i), v, viscosity_tol)

@@ -3,6 +3,7 @@ module IAPWS_test
   ! Tests for IAPWS thermodynamics module
 
   use kinds_module
+  use mpi_module
   use IAPWS_module
   use thermodynamics_module, only: tc_k
   use fruit
@@ -36,11 +37,8 @@ module IAPWS_test
       real(dp), parameter :: rho(n) = 1._dp / nu
       integer :: i, err
       real(dp) :: param(2), props(2)
-      PetscMPIInt :: rank
-      PetscErrorCode :: ierr
 
-      call MPI_comm_rank(PETSC_COMM_WORLD, rank, ierr); CHKERRQ(ierr)
-      if (rank == 0) then
+      if (rank == output_rank) then
          params(:,2) = params(:,2) - tc_k  ! convert temperatures to Celcius
          do i = 1, n
             param = params(i,:)
@@ -68,11 +66,8 @@ module IAPWS_test
       real(dp), parameter :: rho(n) = 1._dp / nu
       integer :: i, err
       real(dp) :: param(2), props(2)
-      PetscMPIInt :: rank
-      PetscErrorCode :: ierr
 
-      call MPI_comm_rank(PETSC_COMM_WORLD, rank, ierr); CHKERRQ(ierr)
-      if (rank == 0) then
+      if (rank == output_rank) then
          params(:,2) = params(:,2) - tc_k  ! convert temperatures to Celcius
          do i = 1, n
             param = params(i,:)
@@ -99,11 +94,8 @@ module IAPWS_test
       real(dp), parameter ::  u(n) = [0.181226279e7_dp, 0.226365868e7_dp, 0.210206932e7_dp]
       integer :: i, err
       real(dp) :: param(2), props(2)
-      PetscMPIInt :: rank
-      PetscErrorCode :: ierr
 
-      call MPI_comm_rank(PETSC_COMM_WORLD, rank, ierr); CHKERRQ(ierr)
-      if (rank == 0) then
+      if (rank == output_rank) then
          params(:,2) = params(:,2) - tc_k  ! convert temperatures to Celcius
          do i = 1, n
             param = params(i,:)
@@ -128,11 +120,8 @@ module IAPWS_test
            0.123443146e8_dp]
       real(dp) :: ps, ts
       integer :: i, err
-      PetscMPIInt :: rank
-      PetscErrorCode :: ierr
 
-      call MPI_comm_rank(PETSC_COMM_WORLD, rank, ierr); CHKERRQ(ierr)
-      if (rank == 0) then
+      if (rank == output_rank) then
          do i = 1, n
             call IAPWS%saturation%pressure(t(i), ps, err)
             call assert_equals(p(i), ps, pressure_tol, 'pressure')
@@ -161,11 +150,8 @@ module IAPWS_test
            44.217245_dp, 47.640433_dp, 64.154608_dp] * 1.e-6_dp
       real(dp) :: v
       integer :: i
-      PetscMPIInt :: rank
-      PetscErrorCode :: ierr
 
-      call MPI_comm_rank(PETSC_COMM_WORLD, rank, ierr); CHKERRQ(ierr)
-      if (rank == 0) then
+      if (rank == output_rank) then
          do i = 1, n
             call IAPWS%viscosity(d(i), t(i), v)
             call assert_equals(visc(i), v, viscosity_tol)
@@ -183,11 +169,8 @@ module IAPWS_test
       real(dp), parameter :: t0 = 0.62315e3_dp - tc_k
       real(dp), parameter :: p0 = 0.165291643e8_dp
       real(dp) :: p, t
-      PetscMPIInt :: rank
-      PetscErrorCode :: ierr
 
-      call MPI_comm_rank(PETSC_COMM_WORLD, rank, ierr); CHKERRQ(ierr)
-      if (rank == 0) then
+      if (rank == output_rank) then
          call IAPWS%boundary23%pressure(t0, p)
          call assert_equals(p0, p, pressure_tol, "Pressure")
          call IAPWS%boundary23%temperature(p0, t)

@@ -45,7 +45,7 @@ PROG = supermodel
 TESTPROG = test_all
 TESTSUF = _test
 # test modules that need setup/teardown:
-SETUPTESTS = IAPWS IFC67 timestepping fson_mpi
+SETUPTESTS = IAPWS IFC67 timestepping mpi fson_mpi
 NONSETUPTESTS = powertable
 TESTS = setup $(SETUPTESTS) $(NONSETUPTESTS)
 SETUPOBJS = $(patsubst %, $(BUILD)/%$(OBJ), $(SETUPTESTS))
@@ -68,6 +68,11 @@ $(BUILD)/simulation$(OBJ): $(BUILD)/mpi$(OBJ) $(BUILD)/timestepping$(OBJ) \
 $(BUILD)/eos$(OBJ): $(BUILD)/thermodynamics$(OBJ)
 $(BUILD)/eos_w$(OBJ): $(BUILD)/thermodynamics$(OBJ) $(BUILD)/eos$(OBJ)
 $(BUILD)/fson_mpi$(OBJ): $(BUILD)/mpi$(OBJ)
+$(BUILD)/timestepping$(OBJ): $(BUILD)/mpi$(OBJ)
+$(TEST)/$(BUILD)/IFC67$(TESTSUF)$(OBJ): $(BUILD)/mpi$(OBJ) 
+$(TEST)/$(BUILD)/IAPWS$(TESTSUF)$(OBJ): $(BUILD)/mpi$(OBJ) 
+$(TEST)/$(BUILD)/timestepping$(TESTSUF)$(OBJ): $(BUILD)/mpi$(OBJ) 
+$(TEST)/$(BUILD)/powertable$(TESTSUF)$(OBJ): $(BUILD)/mpi$(OBJ) 
 $(TEST)/$(BUILD)/fson_mpi$(TESTSUF)$(OBJ): $(BUILD)/mpi$(OBJ) 
 $(BUILD)/$(PROG)$(OBJ): $(BUILD)/mpi$(OBJ) $(BUILD)/simulation$(OBJ)
 

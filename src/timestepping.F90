@@ -2,6 +2,7 @@ module timestepping_module
   !! Time stepping methods for solving \(\frac{d}{dt} L(t,y) = R(t,y)\), where y is a parallel vector.
 
   use kinds_module
+  use mpi_module
 
   implicit none
 
@@ -226,12 +227,8 @@ contains
     !! time step.
 
     class(timestepper_type), intent(in out) :: self
-    PetscMPIInt :: rank
-    PetscErrorCode :: ierr
 
-    call MPI_comm_rank(PETSC_COMM_WORLD, rank, ierr); CHKERRQ(ierr)
-
-    if (rank == 0) then
+    if (rank == output_rank) then
        write(*, '(a, i4)'), 'step:', self%steps%taken
        call self%steps%current%print()
     end if
