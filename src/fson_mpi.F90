@@ -16,6 +16,7 @@ module fson_mpi_module
      module procedure fson_get_default_integer
      module procedure fson_get_default_real
      module procedure fson_get_default_double
+     module procedure fson_get_default_logical
      module procedure fson_get_default_character
   end interface fson_get_default
 
@@ -23,11 +24,14 @@ module fson_mpi_module
      module procedure fson_get_mpi_integer
      module procedure fson_get_mpi_real
      module procedure fson_get_mpi_double
+     module procedure fson_get_mpi_logical
      module procedure fson_get_mpi_character
   end interface fson_get_mpi
 
   contains
     
+!------------------------------------------------------------------------
+! fson_get_default routines
 !------------------------------------------------------------------------
 
     subroutine fson_get_default_integer(self, path, default, val)
@@ -93,6 +97,27 @@ module fson_mpi_module
 
 !------------------------------------------------------------------------
 
+    subroutine fson_get_default_logical(self, path, default, val)
+      !! Gets logical value with default if not present.
+
+        type(fson_value), pointer, intent(in) :: self
+        character(len=*), intent(in) :: path
+        logical, intent(in) :: default
+        logical, intent(out) :: val
+        ! Locals:
+        type(fson_value), pointer :: p
+
+        call fson_get(self, path, p)
+        if (associated(p)) then
+           call fson_get(p, ".", val)
+        else
+           val = default
+        end if
+
+      end subroutine fson_get_default_logical
+
+!------------------------------------------------------------------------
+
     subroutine fson_get_default_character(self, path, default, val)
       !! Gets character value with default if not present.
 
@@ -112,6 +137,8 @@ module fson_mpi_module
 
       end subroutine fson_get_default_character
 
+!------------------------------------------------------------------------
+! fson_get_mpi routines
 !------------------------------------------------------------------------
 
     subroutine fson_get_mpi_integer(self, path, default, val)
@@ -168,6 +195,25 @@ module fson_mpi_module
         call MPI_bcast(val, 1, MPI_DOUBLE, mpi%input_rank, comm, ierr)
 
       end subroutine fson_get_mpi_double
+
+!------------------------------------------------------------------------
+
+    subroutine fson_get_mpi_logical(self, path, default, val)
+      !! Gets logical value on all ranks, with default.
+
+        type(fson_value), pointer, intent(in) :: self
+        character(len=*), intent(in) :: path
+        logical, intent(in) :: default
+        logical, intent(out) :: val
+        ! Locals:
+        integer :: ierr
+
+        if (mpi%rank == mpi%input_rank) then
+           call fson_get_default(self, path, default, val)
+        end if
+        call MPI_bcast(val, 1, MPI_LOGICAL, mpi%input_rank, comm, ierr)
+
+      end subroutine fson_get_mpi_logical
 
 !------------------------------------------------------------------------
 
