@@ -9,6 +9,7 @@ module mpi_module
 
   type, public :: mpi_type
      MPI_Comm, public :: comm !! MPI communicator
+     PetscMPIInt, public :: size !! number of processors
      PetscMPIInt, public :: rank !! processor rank
      PetscMPIInt, public :: input_rank = 0 !! Processor rank for input handling
      PetscMPIInt, public :: output_rank = 0 !! Processor rank for output handling
