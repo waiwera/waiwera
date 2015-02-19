@@ -6,11 +6,10 @@ module fson_mpi_module
   use mpi_module
   use fson
 
+  implicit none
   private
 
 #include <petsc-finclude/petscsys.h>
-
-  public :: fson_get_default, fson_get_mpi
 
   interface fson_get_default
      module procedure fson_get_default_integer
@@ -27,6 +26,8 @@ module fson_mpi_module
      module procedure fson_get_mpi_logical
      module procedure fson_get_mpi_character
   end interface fson_get_mpi
+
+  public :: fson_get_default, fson_get_mpi
 
   contains
     
@@ -154,7 +155,7 @@ module fson_mpi_module
         if (mpi%rank == mpi%input_rank) then
            call fson_get_default(self, path, default, val)
         end if
-        call MPI_bcast(val, 1, MPI_INTEGER, mpi%input_rank, comm, ierr)
+        call MPI_bcast(val, 1, MPI_INTEGER, mpi%input_rank, mpi%comm, ierr)
 
     end subroutine fson_get_mpi_integer
 
@@ -173,7 +174,7 @@ module fson_mpi_module
         if (mpi%rank == mpi%input_rank) then
            call fson_get_default(self, path, default, val)
         end if
-        call MPI_bcast(val, 1, MPI_REAL, mpi%input_rank, comm, ierr)
+        call MPI_bcast(val, 1, MPI_REAL, mpi%input_rank, mpi%comm, ierr)
 
       end subroutine fson_get_mpi_real
 
@@ -192,7 +193,8 @@ module fson_mpi_module
         if (mpi%rank == mpi%input_rank) then
            call fson_get_default(self, path, default, val)
         end if
-        call MPI_bcast(val, 1, MPI_DOUBLE, mpi%input_rank, comm, ierr)
+        call MPI_bcast(val, 1, MPI_DOUBLE_PRECISION, mpi%input_rank, &
+             mpi%comm, ierr)
 
       end subroutine fson_get_mpi_double
 
@@ -211,7 +213,7 @@ module fson_mpi_module
         if (mpi%rank == mpi%input_rank) then
            call fson_get_default(self, path, default, val)
         end if
-        call MPI_bcast(val, 1, MPI_LOGICAL, mpi%input_rank, comm, ierr)
+        call MPI_bcast(val, 1, MPI_LOGICAL, mpi%input_rank, mpi%comm, ierr)
 
       end subroutine fson_get_mpi_logical
 
@@ -231,7 +233,7 @@ module fson_mpi_module
            call fson_get_default(self, path, default, val)
         end if
         count = len(val)
-        call MPI_bcast(val, count, MPI_CHARACTER, mpi%input_rank, comm, ierr)
+        call MPI_bcast(val, count, MPI_CHARACTER, mpi%input_rank, mpi%comm, ierr)
 
       end subroutine fson_get_mpi_character
 
