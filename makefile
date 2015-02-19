@@ -45,7 +45,7 @@ PROG = supermodel
 TESTPROG = test_all
 TESTSUF = _test
 # test modules that need setup/teardown:
-SETUPTESTS = IAPWS IFC67 timestepping mpi fson_mpi
+SETUPTESTS = IAPWS IFC67 timestepping fson_mpi
 NONSETUPTESTS = powertable
 TESTS = setup $(SETUPTESTS) $(NONSETUPTESTS)
 SETUPOBJS = $(patsubst %, $(BUILD)/%$(OBJ), $(SETUPTESTS))
@@ -58,7 +58,7 @@ tests: $(TEST)/$(DIST)/$(TESTPROG)$(EXE)
 $(OBJS) $(TESTOBJS): $(ESSENTIAL_OBJS)
 
 # specific dependency rules:
-$(TEST)/$(BUILD)/setup$(TESTSUF)$(OBJ): $(SETUPOBJS)
+$(TEST)/$(BUILD)/setup$(TESTSUF)$(OBJ): $(SETUPOBJS) $(BUILD)/mpi$(OBJ)
 $(BUILD)/IAPWS$(OBJ): $(BUILD)/thermodynamics$(OBJ) $(BUILD)/powertable$(OBJ)
 $(BUILD)/IFC67$(OBJ): $(BUILD)/thermodynamics$(OBJ) $(BUILD)/powertable$(OBJ)
 $(BUILD)/simulation$(OBJ): $(BUILD)/mpi$(OBJ) $(BUILD)/timestepping$(OBJ) \

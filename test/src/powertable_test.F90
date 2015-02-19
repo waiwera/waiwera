@@ -31,7 +31,7 @@ module powertable_test
       real(dp), allocatable :: xp(:)
       integer :: lower, upper
 
-      if (rank == output_rank) then
+      if (mpi%rank == mpi%output_rank) then
 
          lower = min(minval(powers), 0)
          upper = max(maxval(powers), 1)
@@ -72,7 +72,7 @@ module powertable_test
       real(dp), allocatable :: xp(:)
       integer :: lower, upper
 
-      if (rank == output_rank) then
+      if (mpi%rank == mpi%output_rank) then
 
          lower = min(minval(powers), 0)
          upper = max(maxval(powers), 1)
@@ -113,7 +113,7 @@ module powertable_test
       real(dp), allocatable :: xp(:)
       integer :: lower, upper
 
-      if (rank == output_rank) then
+      if (mpi%rank == mpi%output_rank) then
          
          lower = min(minval(powers), 0)
          upper = max(maxval(powers), 1)
@@ -155,7 +155,7 @@ module powertable_test
       real(dp), allocatable :: xp(:)
       integer :: lower, upper
 
-      if (rank == output_rank) then
+      if (mpi%rank == mpi%output_rank) then
          
          allpowers = [powers1, powers2]
          lower = min(minval(allpowers), 0)

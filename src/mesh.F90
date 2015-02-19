@@ -106,7 +106,7 @@ contains
     type(fson_value), pointer :: mesh
     PetscInt, parameter :: dim = 3
 
-    if (rank == input_rank) then
+    if (mpi%rank == mpi%input_rank) then
        call fson_get(json, "mesh", mesh)
        if (associated(mesh)) then
           call fson_get(mesh, ".", self%filename)
@@ -117,10 +117,10 @@ contains
     end if
 
     call MPI_bcast(self%filename, max_mesh_filename_length, MPI_CHARACTER, &
-         input_rank, comm, ierr)
+         mpi%input_rank, mpi%comm, ierr)
 
     ! Read in DM:
-    call DMPlexCreateFromFile(comm, self%filename, PETSC_TRUE, self%dm, ierr)
+    call DMPlexCreateFromFile(mpi%comm, self%filename, PETSC_TRUE, self%dm, ierr)
     CHKERRQ(ierr)
 
     ! Set up adjacency for finite volume mesh:
@@ -131,7 +131,7 @@ contains
 
     call self%construct_ghost_cells()
 
-    call self%setup_discretization(comm, dof, dim)
+    call self%setup_discretization(mpi%comm, dof, dim)
     
   end subroutine mesh_init
 

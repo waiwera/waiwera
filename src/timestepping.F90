@@ -228,7 +228,7 @@ contains
 
     class(timestepper_type), intent(in out) :: self
 
-    if (rank == output_rank) then
+    if (mpi%rank == mpi%output_rank) then
        write(*, '(a, i4)'), 'step:', self%steps%taken
        call self%steps%current%print()
     end if
@@ -689,7 +689,7 @@ contains
     PetscErrorCode :: ierr
     KSP :: ksp
 
-    call SNESCreate(PETSC_COMM_WORLD, self%solver, ierr); CHKERRQ(ierr)
+    call SNESCreate(mpi%comm, self%solver, ierr); CHKERRQ(ierr)
     call SNESSetApplicationContext(self%solver, self%steps, ierr); CHKERRQ(ierr)
     call SNESSetFunction(self%solver, self%residual, self%method%residual, &
          self%steps, ierr); CHKERRQ(ierr)

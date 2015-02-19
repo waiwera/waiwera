@@ -131,7 +131,7 @@ contains
 
     self%input_filename = filename
 
-    if (rank == input_rank) then
+    if (mpi%rank == mpi%input_rank) then
        json => fson_parse(filename)
     end if
 
@@ -143,7 +143,7 @@ contains
     dof = self%eos%num_primary
     call self%mesh%init(json, dof)
 
-    if (rank == input_rank) then
+    if (mpi%rank == mpi%input_rank) then
        call fson_destroy(json)
     end if
 

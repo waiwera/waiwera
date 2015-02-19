@@ -124,10 +124,10 @@ module fson_mpi_module
         ! Locals:
         integer :: ierr
 
-        if (rank == input_rank) then
+        if (mpi%rank == mpi%input_rank) then
            call fson_get_default(self, path, default, val)
         end if
-        call MPI_bcast(val, 1, MPI_INTEGER, input_rank, comm, ierr)
+        call MPI_bcast(val, 1, MPI_INTEGER, mpi%input_rank, comm, ierr)
 
     end subroutine fson_get_mpi_integer
 
@@ -143,10 +143,10 @@ module fson_mpi_module
         ! Locals:
         integer :: ierr
 
-        if (rank == input_rank) then
+        if (mpi%rank == mpi%input_rank) then
            call fson_get_default(self, path, default, val)
         end if
-        call MPI_bcast(val, 1, MPI_REAL, input_rank, comm, ierr)
+        call MPI_bcast(val, 1, MPI_REAL, mpi%input_rank, comm, ierr)
 
       end subroutine fson_get_mpi_real
 
@@ -162,10 +162,10 @@ module fson_mpi_module
         ! Locals:
         integer :: ierr
 
-        if (rank == input_rank) then
+        if (mpi%rank == mpi%input_rank) then
            call fson_get_default(self, path, default, val)
         end if
-        call MPI_bcast(val, 1, MPI_DOUBLE, input_rank, comm, ierr)
+        call MPI_bcast(val, 1, MPI_DOUBLE, mpi%input_rank, comm, ierr)
 
       end subroutine fson_get_mpi_double
 
@@ -181,11 +181,11 @@ module fson_mpi_module
         ! Locals:
         integer :: ierr, count
 
-        if (rank == input_rank) then
+        if (mpi%rank == mpi%input_rank) then
            call fson_get_default(self, path, default, val)
         end if
         count = len(val)
-        call MPI_bcast(val, count, MPI_CHARACTER, input_rank, comm, ierr)
+        call MPI_bcast(val, count, MPI_CHARACTER, mpi%input_rank, comm, ierr)
 
       end subroutine fson_get_mpi_character
 

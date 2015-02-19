@@ -13,8 +13,8 @@ program supermodel
   PetscErrorCode :: ierr
 
   call PetscInitialize(PETSC_NULL_CHARACTER, ierr); CHKERRQ(ierr)
-  comm = PETSC_COMM_WORLD
-  call MPI_comm_rank(comm, rank, ierr); CHKERRQ(ierr)
+  mpi%comm = PETSC_COMM_WORLD
+  call MPI_comm_rank(mpi%comm, mpi%rank, ierr); CHKERRQ(ierr)
 
   call output_program_info()
 
@@ -33,7 +33,7 @@ contains
   subroutine output_program_info()
     !! Outputs program information.
 
-    if (rank == output_rank) then
+    if (mpi%rank == mpi%output_rank) then
        write (*,*) 'Supermodel version 0.001'
     end if
 
@@ -48,7 +48,7 @@ contains
     ! Locals:
     integer :: num_args
 
-    if (rank == 0) then
+    if (mpi%rank == mpi%input_rank) then
 
        num_args = command_argument_count()
        if (num_args == 0) then

@@ -7,9 +7,13 @@ module mpi_module
 
 #include <petsc-finclude/petscdef.h>
 
-  MPI_Comm, public :: comm !! MPI communicator
-  PetscMPIInt, public :: rank !! processor rank
-  PetscMPIInt, public, parameter :: input_rank = 0 !! Processor rank for input handling
-  PetscMPIInt, public, parameter :: output_rank = input_rank !! Processor rank for output handling
+  type, public :: mpi_type
+     MPI_Comm, public :: comm !! MPI communicator
+     PetscMPIInt, public :: rank !! processor rank
+     PetscMPIInt, public :: input_rank = 0 !! Processor rank for input handling
+     PetscMPIInt, public :: output_rank = 0 !! Processor rank for output handling
+  end type mpi_type
+
+  type(mpi_type), public :: mpi
 
 end module mpi_module

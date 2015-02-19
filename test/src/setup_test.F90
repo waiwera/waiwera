@@ -21,8 +21,8 @@ contains
     
     call PetscInitialize(PETSC_NULL_CHARACTER, ierr); CHKERRQ(ierr)
 
-    comm = PETSC_COMM_WORLD
-    call MPI_COMM_RANK(comm, rank, ierr)
+    mpi%comm = PETSC_COMM_WORLD
+    call MPI_COMM_RANK(mpi%comm, mpi%rank, ierr)
     
     call IAPWS%init()
     call IFC67%init()
