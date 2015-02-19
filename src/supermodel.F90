@@ -13,8 +13,7 @@ program supermodel
   PetscErrorCode :: ierr
 
   call PetscInitialize(PETSC_NULL_CHARACTER, ierr); CHKERRQ(ierr)
-  mpi%comm = PETSC_COMM_WORLD
-  call MPI_comm_rank(mpi%comm, mpi%rank, ierr); CHKERRQ(ierr)
+  call mpi%setup(PETSC_COMM_WORLD)
 
   call output_program_info()
 

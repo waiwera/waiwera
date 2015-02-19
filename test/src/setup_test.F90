@@ -20,9 +20,7 @@ contains
     PetscErrorCode :: ierr
     
     call PetscInitialize(PETSC_NULL_CHARACTER, ierr); CHKERRQ(ierr)
-
-    mpi%comm = PETSC_COMM_WORLD
-    call MPI_COMM_RANK(mpi%comm, mpi%rank, ierr)
+    call mpi%setup(PETSC_COMM_WORLD)
     
     call IAPWS%init()
     call IFC67%init()
