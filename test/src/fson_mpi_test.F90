@@ -2,8 +2,9 @@ module fson_mpi_test
 
   ! Tests for fson_mpi module
 
-  use kinds_module
   use fruit
+  use fson
+  use kinds_module
   use mpi_module
   use fson_mpi_module
 
@@ -12,18 +13,67 @@ module fson_mpi_test
 
 #include <petsc-finclude/petscsys.h>
 
-  public :: test_fson_mpi_real
+  public :: test_fson_mpi
 
 contains
 
 !------------------------------------------------------------------------
 
-  subroutine test_fson_mpi_real
+  subroutine test_fson_mpi
 
-    ! Test real number routines
+    ! Test fson_get_mpi
 
+    type(fson_value), pointer :: json
+    character(len = 24), parameter :: filename = "data/test_fson_mpi.json"
+    integer, parameter :: char_len = 12
+    real, parameter :: real_tol = 1.e-7
+    real(dp), parameter :: double_tol = 1.e-10_dp
+    integer :: int_val
+    real :: real_val
+    real(dp) :: double_val
+    logical :: logical_val
+    character(len = char_len) :: char_val
+    integer, parameter :: expected_int = 7
+    real, parameter :: expected_real = 2.71818284
+    real(dp), parameter :: expected_double = 1.61803398875_dp
+    logical, parameter :: expected_logical = .false.
+    character(len = char_len), parameter :: expected_char = "etaoinshrdlu"
+    integer, parameter :: missing_int = -3
 
-  end subroutine test_fson_mpi_real
+    if (mpi%rank == mpi%input_rank) then
+       json => fson_parse(filename)
+    end if
+
+    call fson_get_mpi(json, "int", 0, int_val)
+    call assert_equals(expected_int, int_val, "int")
+    call fson_get_mpi(json, "missing_int", expected_int, int_val)
+    call assert_equals(expected_int, int_val, "int")
+
+    call fson_get_mpi(json, "real", 0.0, real_val)
+    call assert_equals(expected_real, real_val, real_tol, "real")
+    call fson_get_mpi(json, "missing_real", expected_real, real_val)
+    call assert_equals(expected_real, real_val, real_tol, "real")
+
+    call fson_get_mpi(json, "double", 0.0_dp, double_val)
+    call assert_equals(expected_double, double_val, double_tol, "double")
+    call fson_get_mpi(json, "missing_double", expected_double, double_val)
+    call assert_equals(expected_double, double_val, double_tol, "double")
+
+    call fson_get_mpi(json, "logical", .true., logical_val)
+    call assert_equals(expected_logical, logical_val, "logical")
+    call fson_get_mpi(json, "missing_logical", expected_logical, logical_val)
+    call assert_equals(expected_logical, logical_val, "logical")
+
+    call fson_get_mpi(json, "character", "", char_val)
+    call assert_equals(expected_char, char_val, "character")
+    call fson_get_mpi(json, "missing_character", expected_char, char_val)
+    call assert_equals(expected_char, char_val, "character")
+
+    if (mpi%rank == mpi%input_rank) then
+       call fson_destroy(json)
+    end if
+
+  end subroutine test_fson_mpi
 
 !------------------------------------------------------------------------
 
