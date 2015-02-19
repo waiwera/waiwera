@@ -26,7 +26,7 @@ LIBS= -L$(HOME)/lib
 LDFLAGS= $(LIBS) -lfson $(PETSC_LIB)
 FMFLAGS = -J$(BUILD)
 INCLS=-I$(HOME)/include
-TESTLDFLAGS=$(LIBS) -lfruit $(PETSC_LIB)
+TESTLDFLAGS=$(LIBS) -lfruit -lfson $(PETSC_LIB)
 TESTINCLS=$(INCLS)
 TESTFMFLAGS = -J$(TEST)/$(BUILD)
 INSTALL_DIR = $(HOME)/bin
@@ -85,7 +85,7 @@ $(BUILD)/%$(OBJ): $(SRC)/%$(F90)
 
 # test program:
 $(TEST)/$(DIST)/$(TESTPROG)$(EXE): $(TEST)/$(BUILD)/$(TESTPROG)$(OBJ) $(TESTOBJS) $(ALLOBJS)
-	$(FLINKER) $(TESTLDFLAGS) $^ -o $@
+	$(FLINKER) $^ $(TESTLDFLAGS) -o $@
 
 $(TEST)/$(BUILD)/$(TESTPROG)$(OBJ): $(TEST)/$(SRC)/$(TESTPROG)$(F90) $(TESTOBJS)
 	$(PETSC_FCOMPILE) -I$(TEST)/$(BUILD) $(TESTINCLS) -c $< -o $@
