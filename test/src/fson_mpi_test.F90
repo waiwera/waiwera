@@ -41,6 +41,8 @@ contains
     integer, parameter :: missing_int = -3
     integer, allocatable :: int_array(:)
     integer, parameter :: expected_int_array(6) = [3, -1, 4, -1, 5, -9]
+    real, allocatable :: real_array(:)
+    real, parameter :: expected_real_array(5) = [200.0, -1.8, 5.22004, 78.6, -1000.5]
 
     if (mpi%rank == mpi%input_rank) then
        json => fson_parse(filename)
@@ -58,6 +60,9 @@ contains
     call assert_equals(expected_real, real_val, real_tol, "real")
     call fson_get_mpi(json, "missing_real", expected_real, real_val)
     call assert_equals(expected_real, real_val, real_tol, "real")
+    call fson_get_mpi(json, "real_array", [0.0], real_array)
+    call assert_equals(expected_real_array, real_array, size(expected_real_array), "real array")
+    deallocate(real_array)
 
     call fson_get_mpi(json, "double", 0.0_dp, double_val)
     call assert_equals(expected_double, double_val, double_tol, "double")
