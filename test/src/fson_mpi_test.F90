@@ -46,6 +46,8 @@ contains
     real(dp), allocatable :: double_array(:)
     real(dp), parameter :: expected_double_array(5) = [-200.0_dp, &
          1.8_dp, -5.22004_dp, -78.6_dp, 1000.5_dp]
+    logical, allocatable :: logical_array(:)
+    logical, parameter :: expected_logical_array(4) = [.false., .false., .true., .true.]
 
     if (mpi%rank == mpi%input_rank) then
        json => fson_parse(filename)
@@ -82,6 +84,10 @@ contains
     call assert_equals(expected_logical, logical_val, "logical")
     call fson_get_mpi(json, "missing_logical", expected_logical, logical_val)
     call assert_equals(expected_logical, logical_val, "logical")
+    call fson_get_mpi(json, "logical_array", [.true.], logical_array)
+    call assert_equals(expected_logical_array, logical_array, &
+         size(expected_logical_array), "logical array")
+    deallocate(logical_array)
 
     call fson_get_mpi(json, "character", "", char_val)
     call assert_equals(expected_char, char_val, "character")
