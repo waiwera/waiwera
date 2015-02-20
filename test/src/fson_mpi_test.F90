@@ -39,6 +39,8 @@ contains
     logical, parameter :: expected_logical = .false.
     character(len = char_len), parameter :: expected_char = "etaoinshrdlu"
     integer, parameter :: missing_int = -3
+    integer, allocatable :: int_array(:)
+    integer, parameter :: expected_int_array(6) = [3, -1, 4, -1, 5, -9]
 
     if (mpi%rank == mpi%input_rank) then
        json => fson_parse(filename)
@@ -48,6 +50,9 @@ contains
     call assert_equals(expected_int, int_val, "int")
     call fson_get_mpi(json, "missing_int", expected_int, int_val)
     call assert_equals(expected_int, int_val, "int")
+    call fson_get_mpi(json, "int_array", [0], int_array)
+    call assert_equals(expected_int_array, int_array, size(expected_int_array), "int array")
+    deallocate(int_array)
 
     call fson_get_mpi(json, "real", 0.0, real_val)
     call assert_equals(expected_real, real_val, real_tol, "real")
