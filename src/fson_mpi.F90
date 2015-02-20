@@ -151,105 +151,105 @@ module fson_mpi_module
 
 !------------------------------------------------------------------------
 
-      subroutine fson_get_default_array_1d_integer(self, path, default, arr)
+      subroutine fson_get_default_array_1d_integer(self, path, default, val)
         !! Gets 1-D integer array with default if not present.
 
         type(fson_value), pointer, intent(in) :: self
         character(len=*), intent(in) :: path
         integer, intent(in) :: default(:)
-        integer, allocatable, intent(out) :: arr(:)
+        integer, allocatable, intent(out) :: val(:)
         ! Locals:
         type(fson_value), pointer :: p
 
         call fson_get(self, path, p)
         if (associated(p)) then
-           call fson_get(p, ".", arr)
+           call fson_get(p, ".", val)
         else
-           arr = default
+           val = default
         end if
 
       end subroutine fson_get_default_array_1d_integer
 
 !------------------------------------------------------------------------
 
-      subroutine fson_get_default_array_1d_real(self, path, default, arr)
+      subroutine fson_get_default_array_1d_real(self, path, default, val)
         !! Gets 1-D real array with default if not present.
 
         type(fson_value), pointer, intent(in) :: self
         character(len=*), intent(in) :: path
         real, intent(in) :: default(:)
-        real, allocatable, intent(out) :: arr(:)
+        real, allocatable, intent(out) :: val(:)
         ! Locals:
         type(fson_value), pointer :: p
 
         call fson_get(self, path, p)
         if (associated(p)) then
-           call fson_get(p, ".", arr)
+           call fson_get(p, ".", val)
         else
-           arr = default
+           val = default
         end if
 
       end subroutine fson_get_default_array_1d_real
 
 !------------------------------------------------------------------------
 
-      subroutine fson_get_default_array_1d_double(self, path, default, arr)
+      subroutine fson_get_default_array_1d_double(self, path, default, val)
         !! Gets 1-D double precision array with default if not present.
 
         type(fson_value), pointer, intent(in) :: self
         character(len=*), intent(in) :: path
         real(dp), intent(in) :: default(:)
-        real(dp), allocatable, intent(out) :: arr(:)
+        real(dp), allocatable, intent(out) :: val(:)
         ! Locals:
         type(fson_value), pointer :: p
 
         call fson_get(self, path, p)
         if (associated(p)) then
-           call fson_get(p, ".", arr)
+           call fson_get(p, ".", val)
         else
-           arr = default
+           val = default
         end if
 
       end subroutine fson_get_default_array_1d_double
 
 !------------------------------------------------------------------------
 
-      subroutine fson_get_default_array_1d_logical(self, path, default, arr)
+      subroutine fson_get_default_array_1d_logical(self, path, default, val)
         !! Gets 1-D logical array with default if not present.
 
         type(fson_value), pointer, intent(in) :: self
         character(len=*), intent(in) :: path
         logical, intent(in) :: default(:)
-        logical, allocatable, intent(out) :: arr(:)
+        logical, allocatable, intent(out) :: val(:)
         ! Locals:
         type(fson_value), pointer :: p
 
         call fson_get(self, path, p)
         if (associated(p)) then
-           call fson_get(p, ".", arr)
+           call fson_get(p, ".", val)
         else
-           arr = default
+           val = default
         end if
 
       end subroutine fson_get_default_array_1d_logical
 
 !------------------------------------------------------------------------
 
-      subroutine fson_get_default_array_2d_integer(self, path, default, arr)
+      subroutine fson_get_default_array_2d_integer(self, path, default, val)
         !! Gets 2-D integer array with default if not present.
 
         type(fson_value), pointer, intent(in) :: self
         character(len=*), intent(in) :: path
         integer, intent(in) :: default(:,:)
-        integer, allocatable, intent(out) :: arr(:,:)
+        integer, allocatable, intent(out) :: val(:,:)
         ! Locals:
         type(fson_value), pointer :: p
 
         call fson_get(self, path, p)
         if (associated(p)) then
-           call fson_get(p, ".", arr)
+           call fson_get(p, ".", val)
         else
-           arr = default
+           val = default
         end if
 
       end subroutine fson_get_default_array_2d_integer
@@ -259,17 +259,21 @@ module fson_mpi_module
 !------------------------------------------------------------------------
 
     subroutine fson_get_mpi_integer(self, path, default, val)
-      !! Gets integer value on all ranks, with default.
+      !! Gets integer value on all ranks, with optional default.
 
         type(fson_value), pointer, intent(in) :: self
         character(len=*), intent(in) :: path
-        integer, intent(in) :: default
+        integer, intent(in), optional :: default
         integer, intent(out) :: val
         ! Locals:
         integer :: ierr
 
         if (mpi%rank == mpi%input_rank) then
-           call fson_get_default(self, path, default, val)
+           if (present(default)) then
+              call fson_get_default(self, path, default, val)
+           else
+              call fson_get(self, path, val)
+           end if
         end if
         call MPI_bcast(val, 1, MPI_INTEGER, mpi%input_rank, mpi%comm, ierr)
 
@@ -278,17 +282,21 @@ module fson_mpi_module
 !------------------------------------------------------------------------
 
     subroutine fson_get_mpi_real(self, path, default, val)
-      !! Gets real value on all ranks, with default.
+      !! Gets real value on all ranks, with optional default.
 
         type(fson_value), pointer, intent(in) :: self
         character(len=*), intent(in) :: path
-        real, intent(in) :: default
+        real, intent(in), optional :: default
         real, intent(out) :: val
         ! Locals:
         integer :: ierr
 
         if (mpi%rank == mpi%input_rank) then
-           call fson_get_default(self, path, default, val)
+           if (present(default)) then
+              call fson_get_default(self, path, default, val)
+           else
+              call fson_get(self, path, val)
+           end if
         end if
         call MPI_bcast(val, 1, MPI_REAL, mpi%input_rank, mpi%comm, ierr)
 
@@ -297,17 +305,21 @@ module fson_mpi_module
 !------------------------------------------------------------------------
 
     subroutine fson_get_mpi_double(self, path, default, val)
-      !! Gets double precision value on all ranks, with default.
+      !! Gets double precision value on all ranks, with optional default.
 
         type(fson_value), pointer, intent(in) :: self
         character(len=*), intent(in) :: path
-        double precision, intent(in) :: default
+        double precision, intent(in), optional :: default
         double precision, intent(out) :: val
         ! Locals:
         integer :: ierr
 
         if (mpi%rank == mpi%input_rank) then
-           call fson_get_default(self, path, default, val)
+           if (present(default)) then
+              call fson_get_default(self, path, default, val)
+           else
+              call fson_get(self, path, val)
+           end if
         end if
         call MPI_bcast(val, 1, MPI_DOUBLE_PRECISION, mpi%input_rank, &
              mpi%comm, ierr)
@@ -317,17 +329,21 @@ module fson_mpi_module
 !------------------------------------------------------------------------
 
     subroutine fson_get_mpi_logical(self, path, default, val)
-      !! Gets logical value on all ranks, with default.
+      !! Gets logical value on all ranks, with optional default.
 
         type(fson_value), pointer, intent(in) :: self
         character(len=*), intent(in) :: path
-        logical, intent(in) :: default
+        logical, intent(in), optional :: default
         logical, intent(out) :: val
         ! Locals:
         integer :: ierr
 
         if (mpi%rank == mpi%input_rank) then
-           call fson_get_default(self, path, default, val)
+           if (present(default)) then
+              call fson_get_default(self, path, default, val)
+           else
+              call fson_get(self, path, val)
+           end if
         end if
         call MPI_bcast(val, 1, MPI_LOGICAL, mpi%input_rank, mpi%comm, ierr)
 
@@ -336,17 +352,21 @@ module fson_mpi_module
 !------------------------------------------------------------------------
 
     subroutine fson_get_mpi_character(self, path, default, val)
-      !! Gets character value on all ranks, with default.
+      !! Gets character value on all ranks, with optional default.
 
         type(fson_value), pointer, intent(in) :: self
         character(len=*), intent(in) :: path
-        character(len=*), intent(in) :: default
+        character(len=*), intent(in), optional :: default
         character(len=*), intent(out) :: val
         ! Locals:
         integer :: ierr, count
 
         if (mpi%rank == mpi%input_rank) then
-           call fson_get_default(self, path, default, val)
+           if (present(default)) then
+              call fson_get_default(self, path, default, val)
+           else
+              call fson_get(self, path, val)
+           end if
         end if
         count = len(val)
         call MPI_bcast(val, count, MPI_CHARACTER, mpi%input_rank, mpi%comm, ierr)
@@ -355,123 +375,143 @@ module fson_mpi_module
 
 !------------------------------------------------------------------------
 
-    subroutine fson_get_mpi_array_1d_integer(self, path, default, arr)
-      !! Gets 1-D integer array on all ranks, with default.
+    subroutine fson_get_mpi_array_1d_integer(self, path, default, val)
+      !! Gets 1-D integer array on all ranks, with optional default.
 
         type(fson_value), pointer, intent(in) :: self
         character(len=*), intent(in) :: path
-        integer, intent(in) :: default(:)
-        integer, allocatable, intent(out) :: arr(:)
+        integer, intent(in), optional :: default(:)
+        integer, allocatable, intent(out) :: val(:)
         ! Locals:
         integer :: ierr, count
 
         if (mpi%rank == mpi%input_rank) then
-           call fson_get_default(self, path, default, arr)
-           count = size(arr)
+           if (present(default)) then
+              call fson_get_default(self, path, default, val)
+           else
+              call fson_get(self, path, val)
+           end if
+           count = size(val)
         end if
         call MPI_bcast(count, 1, MPI_INTEGER, mpi%input_rank, mpi%comm, ierr)
         if (mpi%rank /= mpi%input_rank) then
-           allocate(arr(count))
+           allocate(val(count))
         end if
-        call MPI_bcast(arr, count, MPI_INTEGER, mpi%input_rank, mpi%comm, ierr)
+        call MPI_bcast(val, count, MPI_INTEGER, mpi%input_rank, mpi%comm, ierr)
 
       end subroutine fson_get_mpi_array_1d_integer
 
 !------------------------------------------------------------------------
 
-    subroutine fson_get_mpi_array_1d_real(self, path, default, arr)
-      !! Gets 1-D real array on all ranks, with default.
+    subroutine fson_get_mpi_array_1d_real(self, path, default, val)
+      !! Gets 1-D real array on all ranks, with optional default.
 
         type(fson_value), pointer, intent(in) :: self
         character(len=*), intent(in) :: path
-        real, intent(in) :: default(:)
-        real, allocatable, intent(out) :: arr(:)
+        real, intent(in), optional :: default(:)
+        real, allocatable, intent(out) :: val(:)
         ! Locals:
         integer :: ierr, count
 
         if (mpi%rank == mpi%input_rank) then
-           call fson_get_default(self, path, default, arr)
-           count = size(arr)
+           if (present(default)) then
+              call fson_get_default(self, path, default, val)
+           else
+              call fson_get(self, path, val)
+           end if
+           count = size(val)
         end if
         call MPI_bcast(count, 1, MPI_INTEGER, mpi%input_rank, mpi%comm, ierr)
         if (mpi%rank /= mpi%input_rank) then
-           allocate(arr(count))
+           allocate(val(count))
         end if
-        call MPI_bcast(arr, count, MPI_REAL, mpi%input_rank, mpi%comm, ierr)
+        call MPI_bcast(val, count, MPI_REAL, mpi%input_rank, mpi%comm, ierr)
 
       end subroutine fson_get_mpi_array_1d_real
 
 !------------------------------------------------------------------------
 
-    subroutine fson_get_mpi_array_1d_double(self, path, default, arr)
-      !! Gets 1-D double precision array on all ranks, with default.
+    subroutine fson_get_mpi_array_1d_double(self, path, default, val)
+      !! Gets 1-D double precision array on all ranks, with optional default.
 
         type(fson_value), pointer, intent(in) :: self
         character(len=*), intent(in) :: path
-        real(dp), intent(in) :: default(:)
-        real(dp), allocatable, intent(out) :: arr(:)
+        real(dp), intent(in), optional :: default(:)
+        real(dp), allocatable, intent(out) :: val(:)
         ! Locals:
         integer :: ierr, count
 
         if (mpi%rank == mpi%input_rank) then
-           call fson_get_default(self, path, default, arr)
-           count = size(arr)
+           if (present(default)) then
+              call fson_get_default(self, path, default, val)
+           else
+              call fson_get(self, path, val)
+           end if
+           count = size(val)
         end if
         call MPI_bcast(count, 1, MPI_INTEGER, mpi%input_rank, mpi%comm, ierr)
         if (mpi%rank /= mpi%input_rank) then
-           allocate(arr(count))
+           allocate(val(count))
         end if
-        call MPI_bcast(arr, count, MPI_DOUBLE_PRECISION, mpi%input_rank, &
+        call MPI_bcast(val, count, MPI_DOUBLE_PRECISION, mpi%input_rank, &
              mpi%comm, ierr)
 
       end subroutine fson_get_mpi_array_1d_double
 
 !------------------------------------------------------------------------
 
-    subroutine fson_get_mpi_array_1d_logical(self, path, default, arr)
-      !! Gets 1-D logical array on all ranks, with default.
+    subroutine fson_get_mpi_array_1d_logical(self, path, default, val)
+      !! Gets 1-D logical array on all ranks, with optional default.
 
         type(fson_value), pointer, intent(in) :: self
         character(len=*), intent(in) :: path
-        logical, intent(in) :: default(:)
-        logical, allocatable, intent(out) :: arr(:)
+        logical, intent(in), optional :: default(:)
+        logical, allocatable, intent(out) :: val(:)
         ! Locals:
         integer :: ierr, count
 
         if (mpi%rank == mpi%input_rank) then
-           call fson_get_default(self, path, default, arr)
-           count = size(arr)
+           if (present(default)) then
+              call fson_get_default(self, path, default, val)
+           else
+              call fson_get(self, path, val)
+           end if
+           count = size(val)
         end if
         call MPI_bcast(count, 1, MPI_INTEGER, mpi%input_rank, mpi%comm, ierr)
         if (mpi%rank /= mpi%input_rank) then
-           allocate(arr(count))
+           allocate(val(count))
         end if
-        call MPI_bcast(arr, count, MPI_LOGICAL, mpi%input_rank, mpi%comm, ierr)
+        call MPI_bcast(val, count, MPI_LOGICAL, mpi%input_rank, mpi%comm, ierr)
 
       end subroutine fson_get_mpi_array_1d_logical
 
 !------------------------------------------------------------------------
 
-    subroutine fson_get_mpi_array_2d_integer(self, path, default, arr)
-      !! Gets 2-D integer array on all ranks, with default.
+    subroutine fson_get_mpi_array_2d_integer(self, path, default, val)
+      !! Gets 2-D integer array on all ranks, with optional default.
 
         type(fson_value), pointer, intent(in) :: self
         character(len=*), intent(in) :: path
-        integer, intent(in) :: default(:,:)
-        integer, allocatable, intent(out) :: arr(:,:)
+        integer, intent(in), optional :: default(:,:)
+        integer, allocatable, intent(out) :: val(:,:)
         ! Locals:
         integer :: ierr, count(2), total_count
 
         if (mpi%rank == mpi%input_rank) then
-           call fson_get_default(self, path, default, arr)
-           count = shape(arr)
+           if (present(default)) then
+              call fson_get_default(self, path, default, val)
+           else
+              call fson_get(self, path, val)
+           end if
+           count = shape(val)
         end if
         call MPI_bcast(count, 2, MPI_INTEGER, mpi%input_rank, mpi%comm, ierr)
         if (mpi%rank /= mpi%input_rank) then
-           allocate(arr(count(1), count(2)))
+           allocate(val(count(1), count(2)))
         end if
         total_count = count(1) * count(2)
-        call MPI_bcast(arr, total_count, MPI_INTEGER, mpi%input_rank, mpi%comm, ierr)
+        call MPI_bcast(val, total_count, MPI_INTEGER, mpi%input_rank, mpi%comm, ierr)
 
       end subroutine fson_get_mpi_array_2d_integer
 

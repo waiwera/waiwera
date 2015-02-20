@@ -38,14 +38,14 @@ contains
        json => fson_parse(filename)
     end if
 
-    call fson_get_mpi(json, "int", 0, val)
+    call fson_get_mpi(json, "int", val=val)
     call assert_equals(expected, val, "int")
     call fson_get_mpi(json, "missing_int", expected, val)
     call assert_equals(expected, val, "int")
-    call fson_get_mpi(json, "int_array", [0], arr)
+    call fson_get_mpi(json, "int_array", val=arr)
     call assert_equals(expected_arr, arr, size(expected_arr), "int array")
     deallocate(arr)
-    call fson_get_mpi(json, "int_array_2d", reshape([0,0,0,0], [2,2]), arr_2d)
+    call fson_get_mpi(json, "int_array_2d", val=arr_2d)
     call assert_equals(expected_arr_2d, arr_2d, size(expected_arr_2d,1), &
          size(expected_arr_2d,2), "2d int array")
     deallocate(arr_2d)
@@ -73,11 +73,11 @@ contains
        json => fson_parse(filename)
     end if
 
-    call fson_get_mpi(json, "real", 0.0, val)
+    call fson_get_mpi(json, "real", val=val)
     call assert_equals(expected, val, tol, "real")
     call fson_get_mpi(json, "missing_real", expected, val)
     call assert_equals(expected, val, tol, "real")
-    call fson_get_mpi(json, "real_array", [0.0], arr)
+    call fson_get_mpi(json, "real_array", val=arr)
     call assert_equals(expected_arr, arr, size(expected_arr), "real array")
     deallocate(arr)
 
@@ -105,11 +105,11 @@ contains
        json => fson_parse(filename)
     end if
 
-    call fson_get_mpi(json, "double", 0.0_dp, val)
+    call fson_get_mpi(json, "double", val=val)
     call assert_equals(expected, val, tol, "double")
     call fson_get_mpi(json, "missing_double", expected, val)
     call assert_equals(expected, val, tol, "double")
-    call fson_get_mpi(json, "double_array", [0.0_dp], arr)
+    call fson_get_mpi(json, "double_array", val=arr)
     call assert_equals(expected_arr, arr, &
          size(expected_arr), "double array")
     deallocate(arr)
@@ -136,11 +136,11 @@ contains
        json => fson_parse(filename)
     end if
 
-    call fson_get_mpi(json, "logical", .true., val)
+    call fson_get_mpi(json, "logical", val=val)
     call assert_equals(expected, val, "logical")
     call fson_get_mpi(json, "missing_logical", expected, val)
     call assert_equals(expected, val, "logical")
-    call fson_get_mpi(json, "logical_array", [.true.], arr)
+    call fson_get_mpi(json, "logical_array", val=arr)
     call assert_equals(expected_arr, arr, &
          size(expected_arr), "logical array")
     deallocate(arr)
@@ -166,7 +166,7 @@ contains
        json => fson_parse(filename)
     end if
 
-    call fson_get_mpi(json, "character", "", val)
+    call fson_get_mpi(json, "character", val=val)
     call assert_equals(expected, val, "character")
     call fson_get_mpi(json, "missing_character", expected, val)
     call assert_equals(expected, val, "character")
