@@ -144,6 +144,10 @@ contains
     logical, parameter :: expected = .false.
     logical, allocatable :: arr(:)
     logical, parameter :: expected_arr(4) = [.false., .false., .true., .true.]
+    logical, allocatable :: arr_2d(:,:)
+    logical, parameter :: expected_arr_2d(3,2) = &
+         transpose(reshape([.true., .false., .false., .false., .true., .true.],&
+         [2,3]))
 
     if (mpi%rank == mpi%input_rank) then
        json => fson_parse(filename)
@@ -157,6 +161,10 @@ contains
     call assert_equals(expected_arr, arr, &
          size(expected_arr), "logical array")
     deallocate(arr)
+    call fson_get_mpi(json, "logical_array_2d", val=arr_2d)
+    call assert_equals(expected_arr_2d, arr_2d, size(expected_arr_2d,1), &
+         size(expected_arr_2d,2), "2d logical array")
+    deallocate(arr_2d)
 
     if (mpi%rank == mpi%input_rank) then
        call fson_destroy(json)
