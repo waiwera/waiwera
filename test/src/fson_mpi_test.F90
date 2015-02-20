@@ -107,7 +107,9 @@ contains
     real(dp), allocatable :: arr(:)
     real(dp), parameter :: expected_arr(5) = [-200.0_dp, &
          1.8_dp, -5.22004_dp, -78.6_dp, 1000.5_dp]
-
+    real(dp), allocatable :: arr_2d(:,:)
+    real(dp), parameter :: expected_arr_2d(2,2) = &
+         transpose(reshape([-1._dp, 1._dp, 2._dp, -3._dp], [2,2]))
     if (mpi%rank == mpi%input_rank) then
        json => fson_parse(filename)
     end if
@@ -120,6 +122,10 @@ contains
     call assert_equals(expected_arr, arr, &
          size(expected_arr), "double array")
     deallocate(arr)
+    call fson_get_mpi(json, "double_array_2d", val=arr_2d)
+    call assert_equals(expected_arr_2d, arr_2d, size(expected_arr_2d,1), &
+         size(expected_arr_2d,2), "2d double array")
+    deallocate(arr_2d)
 
     if (mpi%rank == mpi%input_rank) then
        call fson_destroy(json)
