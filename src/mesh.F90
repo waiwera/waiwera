@@ -70,11 +70,10 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine mesh_setup_discretization(self, comm, dof, dim)
+  subroutine mesh_setup_discretization(self, dof, dim)
     !! Sets up finite volume discretization for the mesh.
 
     class(mesh_type), intent(in out) :: self
-    MPI_Comm, intent(in) :: comm !! MPI communicator
     PetscInt, intent(in) :: dof !! Degrees of freedom
     PetscInt, intent(in) :: dim !! Spatial dimension
     ! Locals:
@@ -82,7 +81,7 @@ contains
     PetscDS :: ds
     PetscErrorCode :: ierr
 
-    call PetscFVCreate(comm, fvm, ierr); CHKERRQ(ierr)
+    call PetscFVCreate(mpi%comm, fvm, ierr); CHKERRQ(ierr)
     call PetscFVSetNumComponents(fvm, dof, ierr); CHKERRQ(ierr)
     call PetscFVSetSpatialDimension(fvm, dim, ierr); CHKERRQ(ierr)
 
@@ -131,7 +130,7 @@ contains
 
     call self%construct_ghost_cells()
 
-    call self%setup_discretization(mpi%comm, dof, dim)
+    call self%setup_discretization(dof, dim)
     
   end subroutine mesh_init
 
