@@ -14,7 +14,7 @@ module mpi_module
      PetscMPIInt, public :: output_rank = 0 !! Processor rank for output handling
    contains
      private
-     procedure, public :: setup => mpi_setup
+     procedure, public :: init => mpi_initialize
   end type mpi_type
 
   type(mpi_type), public :: mpi
@@ -23,8 +23,9 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine mpi_setup(self, comm)
-    !! Sets up MPI object.
+  subroutine mpi_initialize(self, comm)
+    !! Initializes MPI object. (Note this does not call MPI_INIT- that is
+    !! already done by PETSC_INITIALIZE.)
 
     class(mpi_type), intent(in out) :: self
     MPI_Comm, intent(in) :: comm !! MPI communicator
@@ -35,7 +36,7 @@ contains
     call MPI_COMM_RANK(self%comm, self%rank, ierr)
     call MPI_COMM_SIZE(self%comm, self%size, ierr)
     
-  end subroutine mpi_setup
+  end subroutine mpi_initialize
 
 !------------------------------------------------------------------------
 
