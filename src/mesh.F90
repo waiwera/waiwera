@@ -20,6 +20,8 @@ module mesh_module
      private
      character(max_mesh_filename_length), public :: filename
      DM, public :: dm
+     PetscInt, public :: start_cell, end_cell, end_interior_cells
+     PetscInt, public :: num_cells, num_interior_cells
    contains
      procedure :: distribute => mesh_distribute
      procedure :: construct_ghost_cells => mesh_construct_ghost_cells
@@ -92,6 +94,27 @@ contains
 
 !------------------------------------------------------------------------
 
+  subroutine mesh_get_bounds(self)
+    !! Gets cell bounds on current processor.
+
+    class(mesh_type), intent(in out) :: self
+
+    call DMPlexGetHybridBounds(self%dm, self%end_interior_cell, &
+         PETSC_NULL_INTEGER, PETSC_NULL_INTEGER, PETSC_NULL_INTEGER, &
+         ierr)
+    CHKERRQ(ierr)
+
+    call DMPlexGetHeightStratum(self%dm, 0, self%start_cell, &
+         self%end_cell, ierr)
+    CHKERRQ(ierr)
+
+    self%num_cells = self%end_cell - self%start_cell
+    self%num_interior_cells = self%end_interior_cell - self%start_cell
+
+  end subroutine mesh_get_bounds
+
+!------------------------------------------------------------------------
+
   subroutine mesh_init(self, json, dof)
     !! Initializes mesh, reading filename from JSON input file.
     !! If the filename is not present, an error is raised.
@@ -131,7 +154,9 @@ contains
     call self%construct_ghost_cells()
 
     call self%setup_discretization(dof, dim)
-    
+
+    call self%get_bounds()
+
   end subroutine mesh_init
 
 !------------------------------------------------------------------------
