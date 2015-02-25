@@ -20,12 +20,14 @@ module mesh_module
      private
      character(max_mesh_filename_length), public :: filename
      DM, public :: dm
-     PetscInt, public :: start_cell, end_cell, end_interior_cells
+     Vec, public :: cell_geom, face_geom
+     PetscInt, public :: start_cell, end_cell, end_interior_cell
      PetscInt, public :: num_cells, num_interior_cells
    contains
      procedure :: distribute => mesh_distribute
      procedure :: construct_ghost_cells => mesh_construct_ghost_cells
      procedure :: setup_discretization => mesh_setup_discretization
+     procedure :: get_bounds => mesh_get_bounds
      procedure, public :: init => mesh_init
      procedure, public :: destroy => mesh_destroy
   end type mesh_type
@@ -98,6 +100,8 @@ contains
     !! Gets cell bounds on current processor.
 
     class(mesh_type), intent(in out) :: self
+    ! Locals:
+    PetscErrorCode :: ierr
 
     call DMPlexGetHybridBounds(self%dm, self%end_interior_cell, &
          PETSC_NULL_INTEGER, PETSC_NULL_INTEGER, PETSC_NULL_INTEGER, &
@@ -154,6 +158,9 @@ contains
     call self%construct_ghost_cells()
 
     call self%setup_discretization(dof, dim)
+
+    call DMPlexTSGetGeometryFVM(self%dm, self%face_geom, self%cell_geom, &
+         PETSC_NULL_REAL, ierr); CHKERRQ(ierr)
 
     call self%get_bounds()
 
