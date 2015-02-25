@@ -123,10 +123,9 @@ contains
 
   subroutine simulation_read_initial(self, json)
     !! Reads initial conditions from JSON input. These may be specified
-    !! as a constant value or as an array. The array may be of length
-    !! equal to the number of primary variables (to apply the same initial
-    !! conditions in each cell) or as a complete specification of 
-    !! initial conditions for all cells.
+    !! as a constant value or as an array. The array may contain a complete
+    !! of initial conditions for all cells, or if a shorter array is 
+    !! given, this is repeated over initial conditions vector.
 
     use fson_value_m
 
@@ -191,13 +190,10 @@ contains
     call MPI_bcast(const, 1, MPI_LOGICAL, mpi%input_rank, mpi%comm, ierr)
     
     if (const) then
-
        call MPI_bcast(const_initial_value, 1, MPI_DOUBLE_PRECISION, &
             mpi%input_rank, mpi%comm, ierr)
        call VecSet(self%initial, const_initial_value, ierr); CHKERRQ(ierr)
-
     else
-
        if (mpi%rank /= mpi%input_rank) then
           allocate(initial_data(count))
        end if
@@ -212,10 +208,7 @@ contains
        call VecAssemblyBegin(self%initial, ierr); CHKERRQ(ierr)
        call VecAssemblyEnd(self%initial, ierr); CHKERRQ(ierr)
        deallocate(indices, initial_data)
-
     end if
-
-    call VecView(self%initial, PETSC_VIEWER_STDOUT_WORLD, ierr); CHKERRQ(ierr)
 
   end subroutine simulation_read_initial
 
