@@ -127,7 +127,7 @@ contains
     !! of initial conditions for all cells, or if a shorter array is 
     !! given, this is repeated over initial conditions vector.
 
-    use fson_value_m
+    use fson_value_m, only : TYPE_REAL, TYPE_INTEGER, TYPE_ARRAY
 
     class(simulation_type), intent(in out) :: self
     type(fson_value), pointer, intent(in) :: json
@@ -145,60 +145,36 @@ contains
     call DMCreateGlobalVector(self%mesh%dm, self%initial, ierr); CHKERRQ(ierr)
     call VecGetSize(self%initial, count, ierr); CHKERRQ(ierr)
 
-    if (mpi%rank == mpi%input_rank) then
-       
-       const = .true.
-       call fson_get(json, "initial", initial)
-       if (associated(initial)) then
+    const = .true.
 
-           ! if (initial%value_type == TYPE_STRING) then
-              ! interpret as filename and read from separate file,
-              ! then continue as below
-           ! end if
+    if (fson_has_mpi(json, "initial")) then
 
-          if (initial%value_type == TYPE_REAL) then
-
-             call fson_get(initial, ".", const_initial_value)
-
-          else if (initial%value_type == TYPE_INTEGER) then
-
-             call fson_get(initial, ".", int_const_initial_value)
+       select case (fson_type_mpi(json, "initial"))
+          case (TYPE_REAL)
+             call fson_get_mpi(json, "initial", val = const_initial_value)
+          case (TYPE_INTEGER)
+             call fson_get_mpi(json, "initial", val = int_const_initial_value)
              const_initial_value = real(int_const_initial_value)
-
-          else if (initial%value_type == TYPE_ARRAY) then
-
+          case (TYPE_ARRAY)
              const = .false.
-             call fson_get(initial, ".", initial_input)
+             call fson_get_mpi(json, "initial", val = initial_input)
              np = size(initial_input)
-             allocate(initial_data(count))
-             if (np == count) then
-                initial_data = initial_input
-             else
-                ! repeat input over array:
+             if (np >= count) then
+                initial_data = initial_input(1:count)
+             else ! repeat input over array:
                 do i = 1, np
                    initial_data(i:count:np) = initial_input(i)
                 end do
              end if
              deallocate(initial_input)
-
-          end if
-       else
-          const_initial_value = default_initial_value
-       end if
+       end select
+    else
+       const_initial_value = default_initial_value
     end if
 
-    call MPI_bcast(const, 1, MPI_LOGICAL, mpi%input_rank, mpi%comm, ierr)
-    
     if (const) then
-       call MPI_bcast(const_initial_value, 1, MPI_DOUBLE_PRECISION, &
-            mpi%input_rank, mpi%comm, ierr)
        call VecSet(self%initial, const_initial_value, ierr); CHKERRQ(ierr)
     else
-       if (mpi%rank /= mpi%input_rank) then
-          allocate(initial_data(count))
-       end if
-       call MPI_bcast(initial_data, count, MPI_DOUBLE_PRECISION, &
-            mpi%input_rank, mpi%comm, ierr)
        allocate(indices(count))
        do i = 1, count
           indices(i) = i-1
@@ -221,16 +197,15 @@ contains
     type(fson_value), pointer, intent(in) :: json
     ! Locals:
     type(fson_value), pointer :: time
-    PetscReal, parameter :: default_initial_time = 0.0_dp
-    PetscReal :: initial_time
+    PetscReal, parameter :: default_start_time = 0.0_dp
+    PetscReal :: start_time
 
-    if (mpi%rank == mpi%input_rank) then
-        call fson_get(json, "time", time)
-        if (associated(time)) then
-           call fson_get_default(time, "start", default_initial_time, &
-                initial_time)
-        end if
-       
+    if (fson_has_mpi(json, "time")) then
+
+       call fson_get_mpi(json, "time.start", default_start_time, start_time)
+
+    else
+       start_time = default_start_time
     end if
 
     ! call self%timestepper%init(method, self%mesh%dm, simulation_balance, &
