@@ -69,6 +69,8 @@ contains
     !! Reads simulation thermodynamic formulation from JSON input file.
     !! If not present, a default value is assigned.
 
+    use utils_module, only : str_to_lower
+
     class(simulation_type), intent(in out) :: self
     type(fson_value), pointer, intent(in) :: json
     ! Locals:
@@ -79,8 +81,9 @@ contains
          default_thermo_ID = "IAPWS"
 
     call fson_get_mpi(json, "thermodynamics", default_thermo_ID, thermo_ID)
+    thermo_ID = str_to_lower(thermo_ID)
 
-    select case (str_to_lower(thermo_ID))
+    select case (thermo_ID)
     case ("ifc67")
        self%thermo => IFC67
     case default
@@ -97,6 +100,8 @@ contains
     !! Reads simulation equation of state from JSON input file.
     !! If not present, a default value is assigned.
 
+    use utils_module, only : str_to_lower
+
     class(simulation_type), intent(in out) :: self
     type(fson_value), pointer, intent(in) :: json
     ! Locals:
@@ -107,8 +112,9 @@ contains
          default_eos_ID = "W"
 
     call fson_get_mpi(json, "eos", default_eos_ID, eos_ID)
+    eos_ID = str_to_lower(eos_ID)
 
-    select case (str_to_lower(eos_ID))
+    select case (eos_ID)
     case ("ew")
        self%eos => eos_w  ! change to eos_ew when it's ready
     case default
