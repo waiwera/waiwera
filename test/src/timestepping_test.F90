@@ -82,6 +82,7 @@ contains
     PetscErrorCode :: ierr
     PetscReal, parameter :: time_tolerance = 1.e-6_dp
     PetscInt :: i
+    PetscReal, parameter :: max_stepsize = 0._dp
 
     call VecDuplicate(initial, exact, ierr); CHKERRQ(ierr)
     call VecDuplicate(initial, diff, ierr); CHKERRQ(ierr)
@@ -89,7 +90,8 @@ contains
     do i = 1, size(methods)
        solution_tolerance = tol(i)
        maxdiff = 0._dp
-       call ts%init(methods(i), dm, lhs_func, rhs_func, t0, initial, dt(i), t1, max_steps(i))
+       call ts%init(methods(i), dm, lhs_func, rhs_func, t0, initial, dt(i), &
+            t1, max_steps(i), max_stepsize)
        ts%step_output => step_output_compare
        ts%steps%adaptor%on = adaptive
        ts%steps%adaptor%monitor_min = eta_min(i)

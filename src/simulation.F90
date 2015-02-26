@@ -193,23 +193,56 @@ contains
   subroutine simulation_read_timestepping(self, json)
     !! Reads time stepping data from JSON input.
 
+    use fson_value_m, only : TYPE_OBJECT, TYPE_NULL
+    use utils_module, only : str_to_lower
+
     class(simulation_type), intent(in out) :: self
     type(fson_value), pointer, intent(in) :: json
     ! Locals:
     type(fson_value), pointer :: time
-    PetscReal, parameter :: default_start_time = 0.0_dp
-    PetscReal :: start_time
+    PetscReal :: start_time, stop_time, initial_stepsize, max_stepsize
+    PetscReal, allocatable :: steps(:)
+    integer :: int_initial_stepsize, max_num_steps
+    PetscReal, parameter :: default_start_time = 0.0_dp, &
+         default_stop_time = 1.0_dp
+    PetscReal, parameter :: default_initial_stepsize = 0.1_dp
+    PetscReal, parameter :: default_max_stepsize = 1.0_dp
+    integer :: method
+    integer, parameter :: max_method_str_len = 12
+    character(max_method_str_len) :: method_str
+    character(max_method_str_len), parameter :: default_method_str = "beuler"
+    integer, parameter :: default_max_num_steps = 100
 
-    if (fson_has_mpi(json, "time")) then
+    !! TODO: steady state simulation input
 
-       call fson_get_mpi(json, "time.start", default_start_time, start_time)
+    call fson_get_mpi(json, "time.start", default_start_time, start_time)
+    call fson_get_mpi(json, "time.stop", default_stop_time, stop_time)
 
-    else
-       start_time = default_start_time
-    end if
+    call fson_get_mpi(json, "time.step.method", &
+         default_method_str, method_str)
+    select case (str_to_lower(method_str))
+    case ("beuler")
+       method = TS_BEULER
+    case ("bdf2")
+       method = TS_BDF2
+    case ("directss")
+       method = TS_DIRECTSS
+    case default
+       method = TS_BEULER
+    end select
 
-    ! call self%timestepper%init(method, self%mesh%dm, simulation_balance, &
-    !      simulation_inflow, initial_time, self%initial, 
+    call fson_get_mpi(json, "time.step.initial", &
+         default_initial_stepsize, initial_stepsize)
+    call fson_get_mpi(json, "time.step.maximum.size", &
+         default_max_stepsize, max_stepsize)
+    call fson_get_mpi(json, "time.step.maximum.number", &
+         default_max_num_steps, max_num_steps)
+
+    call self%timestepper%init(method, self%mesh%dm, simulation_cell_balances, &
+         simulation_cell_inflows, start_time, self%initial, initial_stepsize, &
+         stop_time, max_num_steps, max_stepsize)
+
+    if (allocated(steps)) deallocate(steps)
 
   end subroutine simulation_read_timestepping
 
@@ -281,7 +314,7 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine simulation_balance(t, primary, balance)
+  subroutine simulation_cell_balances(t, primary, balance)
     !! Computes mass and energy balance for each cell, for the given
     !! primary thermodynamic variables and time.
     PetscReal, intent(in) :: t !! time (s)
@@ -293,11 +326,11 @@ contains
     ! Dummy identity function:
     call VecCopy(primary, balance, ierr); CHKERRQ(ierr)
 
-  end subroutine simulation_balance
+  end subroutine simulation_cell_balances
 
 !------------------------------------------------------------------------
 
-  subroutine simulation_inflow(t, primary, inflow)
+  subroutine simulation_cell_inflows(t, primary, inflow)
     !! Computes net inflow into each cell, from flows through faces and
     !! source terms, for the given primary thermodynamic variables and
     !! time.
@@ -311,7 +344,7 @@ contains
     ! Dummy zero inflows:
     call VecSet(inflow, 0.0_dp, ierr); CHKERRQ(ierr)
 
-  end subroutine simulation_inflow
+  end subroutine simulation_cell_inflows
 
 !------------------------------------------------------------------------
 

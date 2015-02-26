@@ -48,8 +48,9 @@ module timestepping_module
      private
      logical, public :: on = .false.
      procedure(monitor_function), pointer, nopass, public :: monitor => relative_change_monitor
-     PetscReal, public :: monitor_min = 0.01, monitor_max = 0.1
-     PetscReal, public :: reduction = 0.5, amplification = 2.0
+     PetscReal, public :: monitor_min = 0.01_dp, monitor_max = 0.1_dp
+     PetscReal, public :: reduction = 0.5_dp, amplification = 2.0_dp
+     PetscReal, public :: max_stepsize = 0._dp
    contains
      private
      procedure :: increase => timestep_adaptor_increase
@@ -424,6 +425,10 @@ contains
     PetscReal, intent(in) :: stepsize
 
     timestep_adaptor_increase = stepsize * self%amplification
+    if (self%max_stepsize > 0._dp) then
+       timestep_adaptor_increase  = min(timestep_adaptor_increase, &
+            self%max_stepsize)
+    end if
 
   end function timestep_adaptor_increase
 
@@ -433,7 +438,7 @@ contains
 
   subroutine timestepper_steps_init(self, num_stored, &
        initial_time, initial_conditions, initial_stepsize, &
-       final_time, max_num_steps, lhs_func, rhs_func)
+       final_time, max_num_steps, max_stepsize, lhs_func, rhs_func)
     !! Sets up array of timesteps and pointers to them. This array stores the
     !! current step and one or more previous steps. The number of stored
     !! steps depends on the timestepping method (e.g. 2 for single-step methods,
@@ -445,6 +450,7 @@ contains
     Vec, intent(in) :: initial_conditions
     PetscReal, intent(in) :: final_time
     PetscInt, intent(in) :: max_num_steps
+    PetscReal, intent(in) :: max_stepsize
     procedure(lhs_function) :: lhs_func
     procedure(rhs_function) :: rhs_func
     ! Locals:
@@ -469,6 +475,7 @@ contains
 
     self%final_time = final_time
     self%max_num = max_num_steps
+    self%adaptor%max_stepsize = max_stepsize
 
     self%lhs_func => lhs_func
     self%rhs_func => rhs_func
@@ -708,7 +715,7 @@ contains
 
   subroutine timestepper_init(self, method, dm, lhs_func, rhs_func, &
        initial_time, initial_conditions, initial_stepsize, &
-       final_time, max_num_steps)
+       final_time, max_num_steps, max_stepsize)
     !! Initializes a timestepper.
 
     class(timestepper_type), intent(in out) :: self
@@ -718,7 +725,7 @@ contains
     procedure(rhs_function) :: rhs_func
     PetscReal, intent(in) :: initial_time, final_time
     Vec, intent(in) :: initial_conditions
-    PetscReal, intent(in) :: initial_stepsize
+    PetscReal, intent(in) :: initial_stepsize, max_stepsize
     PetscInt, intent(in) :: max_num_steps
 
     ! Locals:
@@ -734,7 +741,7 @@ contains
     call self%method%init(method)
     call self%steps%init(self%method%num_stored_steps, &
          initial_time, initial_conditions, initial_stepsize, &
-         final_time, max_num_steps, lhs_func, rhs_func)
+         final_time, max_num_steps, max_stepsize, lhs_func, rhs_func)
     call self%setup_solver()
 
   end subroutine timestepper_init
