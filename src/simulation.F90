@@ -80,8 +80,8 @@ contains
 
     call fson_get_mpi(json, "thermodynamics", default_thermo_ID, thermo_ID)
 
-    select case (thermo_ID)
-    case ("IFC67")
+    select case (str_to_lower(thermo_ID))
+    case ("ifc67")
        self%thermo => IFC67
     case default
        self%thermo => IAPWS
@@ -108,8 +108,8 @@ contains
 
     call fson_get_mpi(json, "eos", default_eos_ID, eos_ID)
 
-    select case (eos_ID)
-    case ("EW")
+    select case (str_to_lower(eos_ID))
+    case ("ew")
        self%eos => eos_w  ! change to eos_ew when it's ready
     case default
        self%eos => eos_w
