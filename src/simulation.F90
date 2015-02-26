@@ -308,7 +308,7 @@ contains
     call VecDestroy(self%initial, ierr); CHKERRQ(ierr)
     call self%mesh%destroy()
     call self%thermo%destroy()
-    ! call self%timestepper%destroy()
+    call self%timestepper%destroy()
 
   end subroutine simulation_destroy
 
