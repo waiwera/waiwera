@@ -44,7 +44,7 @@ module fson_mpi_module
      module procedure fson_get_mpi_array_2d_logical
   end interface fson_get_mpi
 
-  public :: fson_get_default, fson_get_mpi
+  public :: fson_get_default, fson_get_mpi, fson_has_mpi, fson_type_mpi
 
   contains
     
@@ -671,6 +671,54 @@ module fson_mpi_module
         call MPI_bcast(val, total_count, MPI_LOGICAL, mpi%input_rank, mpi%comm, ierr)
 
       end subroutine fson_get_mpi_array_2d_logical
+
+!------------------------------------------------------------------------
+
+      logical function fson_has_mpi(self, path) result(has)
+        !! Returns .true. on all ranks if fson object has the specified
+        !! path, and .false. otherwise.
+
+        type(fson_value), pointer, intent(in) :: self
+        character(len=*), intent(in) :: path
+        ! Locals:
+        type(fson_value), pointer :: p
+        integer :: ierr
+
+        if (mpi%rank == mpi%input_rank) then
+           call fson_get(self, path, p)
+           has = (associated(p))
+        end if
+
+        call MPI_bcast(has, 1, MPI_LOGICAL, mpi%input_rank, mpi%comm, ierr)
+
+      end function fson_has_mpi
+
+!------------------------------------------------------------------------
+
+      integer function fson_type_mpi(self, path) result(t)
+        !! Returns value type on all ranks of fson object with the specified
+        !! path (TYPE_NULL if the path does not exist).
+
+        use fson_value_m, only : TYPE_NULL
+
+        type(fson_value), pointer, intent(in) :: self
+        character(len=*), intent(in) :: path
+        ! Locals:
+        type(fson_value), pointer :: p
+        integer :: ierr
+
+        if (mpi%rank == mpi%input_rank) then
+           call fson_get(self, path, p)
+           if (associated(p)) then
+              t = p%value_type
+           else
+              t = TYPE_NULL
+           end if
+        end if
+
+        call MPI_bcast(t, 1, MPI_INTEGER, mpi%input_rank, mpi%comm, ierr)
+
+      end function fson_type_mpi
 
 !------------------------------------------------------------------------
 
