@@ -290,7 +290,7 @@ contains
 
     class(simulation_type), intent(in out) :: self
 
-    ! call self%timestepper%run()
+    call self%timestepper%run()
 
     ! maybe some final output?
 
