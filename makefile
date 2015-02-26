@@ -36,7 +36,8 @@ ESSENTIAL = kinds
 ESSENTIAL_OBJS = $(patsubst %, $(BUILD)/%$(OBJ), $(ESSENTIAL))
 
 # main source code:
-SOURCES = mpi fson_mpi powertable thermodynamics IAPWS IFC67 timestepping mesh simulation eos eos_w
+SOURCES = mpi fson_mpi utils powertable thermodynamics IAPWS IFC67 \
+	 timestepping mesh simulation eos eos_w
 OBJS = $(patsubst %, $(BUILD)/%$(OBJ), $(SOURCES))
 ALLOBJS = $(ESSENTIAL_OBJS) $(OBJS)
 PROG = supermodel
@@ -46,7 +47,7 @@ TESTPROG = test_all
 TESTSUF = _test
 # test modules that need setup/teardown:
 SETUPTESTS = IAPWS IFC67 timestepping fson_mpi
-NONSETUPTESTS = powertable
+NONSETUPTESTS = powertable utils
 TESTS = setup $(SETUPTESTS) $(NONSETUPTESTS)
 SETUPOBJS = $(patsubst %, $(BUILD)/%$(OBJ), $(SETUPTESTS))
 TESTOBJS = $(patsubst %, $(TEST)/$(BUILD)/%$(TESTSUF)$(OBJ), $(TESTS))
@@ -64,7 +65,7 @@ $(BUILD)/IFC67$(OBJ): $(BUILD)/thermodynamics$(OBJ) $(BUILD)/powertable$(OBJ)
 $(BUILD)/simulation$(OBJ): $(BUILD)/mpi$(OBJ) $(BUILD)/timestepping$(OBJ) \
 	$(BUILD)/thermodynamics$(OBJ) $(BUILD)/IAPWS$(OBJ) \
 	$(BUILD)/IFC67$(OBJ) $(BUILD)/eos$(OBJ)	$(BUILD)/eos_w$(OBJ) \
-	$(BUILD)/mesh$(OBJ) $(BUILD)/fson_mpi$(OBJ)
+	$(BUILD)/mesh$(OBJ) $(BUILD)/fson_mpi$(OBJ) $(BUILD)/utils$(OBJ)
 $(BUILD)/eos$(OBJ): $(BUILD)/thermodynamics$(OBJ)
 $(BUILD)/eos_w$(OBJ): $(BUILD)/thermodynamics$(OBJ) $(BUILD)/eos$(OBJ)
 $(BUILD)/fson_mpi$(OBJ): $(BUILD)/mpi$(OBJ)
