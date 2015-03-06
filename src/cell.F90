@@ -1,0 +1,83 @@
+module cell_module
+  !! Defines types for accessing local quantities defined on a cell- geometry, rock
+  !! and fluid properties.
+  !! The components of these types all point to values in arrays obtained from
+  !! global parallel vectors.
+
+  use rock_module
+  use fluid_module
+
+#include <petsc-finclude/petscdef.h>
+
+  implicit none
+  private
+
+  type cell_type
+     !! Type for accessing local cell geometry, rock and
+     !! fluid properties.
+     private
+     PetscReal, pointer, public :: volume       !! cell volume
+     PetscReal, pointer, public :: centroid(:)  !! cell centroid
+     type(rock_type), public :: rock   !! rock properties
+     type(fluid_type), public :: fluid !! fluid properties
+   contains
+     private
+     procedure, public :: init => cell_init
+     procedure, public :: populate => cell_populate
+     procedure, public :: destroy => cell_destroy
+  end type cell_type
+
+  public :: cell_type
+
+contains
+
+!------------------------------------------------------------------------
+
+  subroutine cell_init(self, num_components, num_phases)
+    !! Initialises a cell.
+
+    class(cell_type), intent(in out) :: self
+    PetscInt, intent(in) :: num_components !! Number of fluid components
+    PetscInt, intent(in) :: num_phases     !! Number of fluid phases
+
+    call self%fluid%init(num_components, num_phases)
+
+  end subroutine cell_init
+
+!------------------------------------------------------------------------
+
+  subroutine cell_populate(self, geom_data, geom_offset, &
+       rock_data, rock_offset, fluid_data, fluid_offset)
+    !! Populates a cell with values from the specified data array,
+    !! starting from the given offset.
+
+    class(cell_type), intent(in out) :: self
+    PetscReal, target, intent(in) :: geom_data(:)  !! array with geometry data
+    PetscInt, intent(in)  :: geom_offset  !! geometry array offset for this cell
+    PetscReal, target, intent(in) :: rock_data(:)  !! array with rock data
+    PetscInt, intent(in)  :: rock_offset  !! rock array offset for this cell
+    PetscReal, target, intent(in) :: fluid_data(:)  !! array with fluid data
+    PetscInt, intent(in)  :: fluid_offset  !! fluid array offset for this cell
+
+    self%volume => geom_data(geom_offset + 1)
+    self%centroid => geom_data(geom_offset + 2: geom_offset + 4)
+
+    call self%rock%populate(rock_data, rock_offset)
+    call self%fluid%populate(fluid_data, fluid_offset)
+
+  end subroutine cell_populate
+
+!------------------------------------------------------------------------
+
+  subroutine cell_destroy(self)
+    !! Destroys a cell.
+
+    class(cell_type), intent(in out) :: self
+    
+    call self%fluid%destroy()
+    
+  end subroutine cell_destroy
+
+!------------------------------------------------------------------------
+  
+end module cell_module

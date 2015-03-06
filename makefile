@@ -37,7 +37,7 @@ ESSENTIAL_OBJS = $(patsubst %, $(BUILD)/%$(OBJ), $(ESSENTIAL))
 
 # main source code:
 SOURCES = mpi fson_mpi utils powertable thermodynamics IAPWS IFC67 \
-	 timestepping mesh simulation eos eos_w
+	 timestepping rock fluid cell mesh simulation eos eos_w
 OBJS = $(patsubst %, $(BUILD)/%$(OBJ), $(SOURCES))
 ALLOBJS = $(ESSENTIAL_OBJS) $(OBJS)
 PROG = supermodel
@@ -66,6 +66,7 @@ $(BUILD)/simulation$(OBJ): $(BUILD)/mpi$(OBJ) $(BUILD)/timestepping$(OBJ) \
 	$(BUILD)/thermodynamics$(OBJ) $(BUILD)/IAPWS$(OBJ) \
 	$(BUILD)/IFC67$(OBJ) $(BUILD)/eos$(OBJ)	$(BUILD)/eos_w$(OBJ) \
 	$(BUILD)/mesh$(OBJ) $(BUILD)/fson_mpi$(OBJ) $(BUILD)/utils$(OBJ)
+$(BUILD)/cell$(OBJ): $(BUILD)/rock$(OBJ) $(BUILD)/fluid$(OBJ)
 $(BUILD)/eos$(OBJ): $(BUILD)/thermodynamics$(OBJ)
 $(BUILD)/eos_w$(OBJ): $(BUILD)/thermodynamics$(OBJ) $(BUILD)/eos$(OBJ)
 $(BUILD)/fson_mpi$(OBJ): $(BUILD)/mpi$(OBJ)
