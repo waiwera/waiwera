@@ -25,7 +25,6 @@ module fluid_module
      PetscReal, pointer, public :: pressure    !! Bulk pressure
      PetscReal, pointer, public :: temperature !! Temperature
      type(phase_type), allocatable, public :: phase(:)
-     PetscInt :: num_components
    contains
      private
      procedure, public :: init => fluid_init
