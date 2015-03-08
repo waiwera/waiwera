@@ -6,7 +6,7 @@ module fluid_module
   private
   
   type phase_type
-     !! Stores local fluid properties for a particular phase.
+     !! Type for accessing local fluid properties for a particular phase.
      PetscReal, pointer :: density    !! Phase density
      PetscReal, pointer :: viscosity  !! Viscosity
      PetscReal, pointer :: saturation !! Phase saturation
@@ -20,7 +20,7 @@ module fluid_module
   end type phase_type
 
   type fluid_type
-     !! Stores local fluid properties.
+     !! Type for accessing local fluid properties.
      private
      PetscReal, pointer, public :: pressure    !! Bulk pressure
      PetscReal, pointer, public :: temperature !! Temperature
