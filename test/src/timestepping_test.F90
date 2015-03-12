@@ -186,7 +186,7 @@ contains
     rhs_func => rhs_const
     exact_func => exact_linear
 
-    call DMDACreate1d(mpi%comm, DM_BOUNDARY_GHOSTED, dim, dof, stencil, &
+    call DMDACreate1d(mpi%comm, DM_BOUNDARY_NONE, dim, dof, stencil, &
          PETSC_NULL_INTEGER, dm, ierr); CHKERRQ(ierr)
     call DMCreateGlobalVector(dm, initialv, ierr); CHKERRQ(ierr)
     call VecSetArray(initialv, initial)
@@ -244,7 +244,7 @@ contains
     rhs_func => rhs_linear
     exact_func => exact_exp
 
-    call DMDACreate1d(mpi%comm, DM_BOUNDARY_GHOSTED, dim, dof, stencil, &
+    call DMDACreate1d(mpi%comm, DM_BOUNDARY_NONE, dim, dof, stencil, &
          PETSC_NULL_INTEGER, dm, ierr); CHKERRQ(ierr)
     call DMCreateGlobalVector(dm, initialv, ierr); CHKERRQ(ierr)
     call VecSetArray(initialv, initial)
@@ -303,7 +303,7 @@ contains
     rhs_func => rhs_logistic
     exact_func => exact_logistic
 
-    call DMDACreate1d(mpi%comm, DM_BOUNDARY_GHOSTED, dim, dof, stencil, &
+    call DMDACreate1d(mpi%comm, DM_BOUNDARY_NONE, dim, dof, stencil, &
          PETSC_NULL_INTEGER, dm, ierr); CHKERRQ(ierr)
     call DMCreateGlobalVector(dm, initialv, ierr); CHKERRQ(ierr)
     call VecSetArray(initialv, initial)
@@ -375,7 +375,7 @@ contains
     rhs_func => rhs_fn
     exact_func => exact_fn
 
-    call DMDACreate1d(mpi%comm, DM_BOUNDARY_GHOSTED, dim, dof, stencil, &
+    call DMDACreate1d(mpi%comm, DM_BOUNDARY_NONE, dim, dof, stencil, &
          PETSC_NULL_INTEGER, dm, ierr); CHKERRQ(ierr)
     call DMCreateGlobalVector(dm, initialv, ierr); CHKERRQ(ierr)
     call VecSetArray(initialv, initial)
@@ -445,7 +445,7 @@ contains
     rhs_func => rhs_fn
     exact_func => exact_fn
 
-    call DMDACreate1d(mpi%comm, DM_BOUNDARY_GHOSTED, dim, dof, stencil, &
+    call DMDACreate1d(mpi%comm, DM_BOUNDARY_NONE, dim, dof, stencil, &
          PETSC_NULL_INTEGER, dm, ierr); CHKERRQ(ierr)
     call DMCreateGlobalVector(dm, initialv, ierr); CHKERRQ(ierr)
     call VecSetArray(initialv, initial)
