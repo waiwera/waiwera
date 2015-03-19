@@ -17,6 +17,7 @@ module fluid_module
      private
      procedure, public :: init => phase_init
      procedure, public :: destroy => phase_destroy
+     procedure, public :: dof => phase_dof
   end type phase_type
 
   type fluid_type
@@ -30,6 +31,7 @@ module fluid_module
      procedure, public :: init => fluid_init
      procedure, public :: populate => fluid_populate
      procedure, public :: destroy => fluid_destroy
+     procedure, public :: dof => fluid_dof
   end type fluid_type
 
   public :: fluid_type
@@ -60,6 +62,19 @@ contains
     deallocate(self%mass_fraction)
     
   end subroutine phase_destroy
+
+!------------------------------------------------------------------------
+
+  PetscInt function phase_dof(self)
+    !! Returns number of degrees of freedom in the phase object.
+
+    class(phase_type), intent(in) :: self
+    ! Locals:
+    PetscInt, parameter :: fixed_dof = 5
+
+    phase_dof = fixed_dof + size(self%mass_fraction)
+
+  end function phase_dof
 
 !------------------------------------------------------------------------
 ! Fluid procedures
@@ -125,6 +140,23 @@ contains
     deallocate(self%phase)
 
   end subroutine fluid_destroy
+
+!------------------------------------------------------------------------
+
+  PetscInt function fluid_dof(self)
+    !! Returns number of degrees of freedom in a fluid object.
+
+    class(fluid_type), intent(in) :: self
+    ! Locals:
+    PetscInt, parameter :: fixed_dof = 2
+    PetscInt :: i
+
+    fluid_dof = fixed_dof
+    do i = 1, size(self%phase)
+       fluid_dof = fluid_dof + self%phase(i)%dof()
+    end do
+
+  end function fluid_dof
 
 !------------------------------------------------------------------------
 

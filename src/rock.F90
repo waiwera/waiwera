@@ -16,6 +16,7 @@ module rock_module
    contains
      private
      procedure, public :: populate => rock_populate
+     procedure, public :: dof => rock_dof
   end type rock_type
 
   public :: rock_type
@@ -40,6 +41,19 @@ contains
 
   end subroutine rock_populate
     
+!------------------------------------------------------------------------
+
+  PetscInt function rock_dof(self)
+    !! Returns degrees of freedom in a rock object.
+
+    class(rock_type), intent(in) :: self
+    ! Locals:
+    PetscInt, parameter :: fixed_dof = 7
+
+    rock_dof = fixed_dof
+
+  end function rock_dof
+
 !------------------------------------------------------------------------
 
 end module rock_module

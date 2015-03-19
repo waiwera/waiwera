@@ -25,6 +25,7 @@ module cell_module
      procedure, public :: init => cell_init
      procedure, public :: populate => cell_populate
      procedure, public :: destroy => cell_destroy
+     procedure, public :: dof => cell_dof
   end type cell_type
 
   public :: cell_type
@@ -77,6 +78,19 @@ contains
     call self%fluid%destroy()
     
   end subroutine cell_destroy
+
+!------------------------------------------------------------------------
+
+  PetscInt function cell_dof(self)
+    !! Returns number of degrees of freedom in a cell object.
+
+    class(cell_type), intent(in) :: self
+    ! Locals:
+    PetscInt, parameter :: fixed_dof = 4
+
+    cell_dof = fixed_dof
+
+  end function cell_dof
 
 !------------------------------------------------------------------------
   
