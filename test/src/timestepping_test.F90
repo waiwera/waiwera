@@ -576,7 +576,7 @@ contains
            img, PETSC_NULL_INTEGER, PETSC_NULL_INTEGER, ierr); CHKERRQ(ierr)
       i2g = i1g+img-1
       if (i1g == 0) ya(i1g) = fn(0._dp, t)
-      if (i2g == dim-1) ya(i2g) = fn(L, t)
+      if (i2g == dim-2) ya(i2g) = fn(L, t)
 
       do i = i1, i1+im-1
          rhsa(i) = a * (ya(i-1) - 2._dp * ya(i) + ya(i+1))
@@ -653,7 +653,7 @@ contains
            img, PETSC_NULL_INTEGER, PETSC_NULL_INTEGER, ierr); CHKERRQ(ierr)
       i2g = i1g+img-1
       if (i1g == 0) ya(i1g) = fn(0._dp, t)
-      if (i2g == dim-1) ya(i2g) = fn(L, t)
+      if (i2g == dim-2) ya(i2g) = fn(L, t)
 
       do i = i1, i1+im-1
          rhsa(i) = 2._dp * ya(i) * a * (ya(i-1) - 2._dp * ya(i) + ya(i+1))
