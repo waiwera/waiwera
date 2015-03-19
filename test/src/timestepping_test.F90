@@ -513,15 +513,16 @@ contains
     DM :: dm
     Vec :: initialv
     PetscReal, parameter :: dx = 1._dp / (dim - 1._dp), a = 1._dp / (dx*dx)
-    PetscReal, parameter :: pi = 4._dp * atan(1._dp)
 
     ! Usual form
     lhs_func => lhs_identity
     rhs_func => rhs_fn
     exact_func => exact_fn
 
-    call DMDACreate1d(mpi%comm, DM_BOUNDARY_NONE, dim, dof, stencil, &
+    call DMDACreate1d(mpi%comm, DM_BOUNDARY_GHOSTED, dim-2, dof, stencil, &
          PETSC_NULL_INTEGER, dm, ierr); CHKERRQ(ierr)
+    call DMDASetUniformCoordinates(dm, dx, 1._dp - dx, 0._dp, 0._dp, &
+         0._dp, 0._dp, ierr); CHKERRQ(ierr)
     call DMCreateGlobalVector(dm, initialv, ierr); CHKERRQ(ierr)
     call exact_fn(0._dp, initialv)
 
@@ -541,97 +542,163 @@ contains
 
   contains
 
+    real(dp) function fn(x, t)
+      PetscReal, intent(in) :: x, t
+      ! Locals:
+      PetscReal, parameter :: pi = 4._dp * atan(1._dp)
+      fn = sin(pi * x) * exp(-pi * pi * t)
+    end function fn
+
     subroutine rhs_fn(t, y, rhs)
+
       PetscReal, intent(in) :: t
       Vec, intent(in) :: y
       Vec, intent(out) :: rhs
       ! Locals:
       PetscErrorCode :: ierr
       PetscReal, pointer :: ya(:), rhsa(:)
-      PetscInt :: i1, i2, i
-      Vec :: ylocal
+      PetscInt :: i1, im, i, i1g, img
+      Vec :: ylocal, rlocal
+
       call DMGetLocalVector(dm, ylocal, ierr); CHKERRQ(ierr)
+      call DMGetLocalVector(dm, rlocal, ierr); CHKERRQ(ierr)
       call DMGlobalToLocalBegin(dm, y, INSERT_VALUES, ylocal, ierr); CHKERRQ(ierr)
       call DMGlobalToLocalEnd(dm, y, INSERT_VALUES, ylocal, ierr); CHKERRQ(ierr)
-      call VecGetOwnershipRange(y, i1, i2, ierr); CHKERRQ(ierr)
+
+      call DMDAGetCorners(dm, i1, PETSC_NULL_INTEGER, PETSC_NULL_INTEGER, &
+           im, PETSC_NULL_INTEGER, PETSC_NULL_INTEGER, ierr); CHKERRQ(ierr)
       call DMDAVecGetArrayF90(dm, ylocal, ya, ierr); CHKERRQ(ierr)
-      call DMDAVecGetArrayF90(dm, rhs, rhsa, ierr); CHKERRQ(ierr)
-      do i = i1, i2-1 ! NB 0-based indices from DMDAVecGetArrayF90()
-         if ((i == 0) .or. (i == dim-1)) then
-            rhsa(i) = 0._dp
-         else
-            rhsa(i) = a * (ya(i-1) - 2._dp * ya(i) + ya(i+1))
-         end if
+      call DMDAVecGetArrayF90(dm, rlocal, rhsa, ierr); CHKERRQ(ierr)
+
+      ! BCs:
+      call DMDAGetGhostCorners(dm, i1g, PETSC_NULL_INTEGER, PETSC_NULL_INTEGER, &
+           img, PETSC_NULL_INTEGER, PETSC_NULL_INTEGER, ierr); CHKERRQ(ierr)
+      if (mpi%rank == 0) then
+         ya(i1g) = fn(0._dp, t)
+      else if (mpi%rank == mpi%size-1) then
+         ya(i1g+img-1) = fn(1._dp, t)
+      end if
+
+      do i = i1, i1+im-1
+         rhsa(i) = a * (ya(i-1) - 2._dp * ya(i) + ya(i+1))
       end do
-      call DMDAVecRestoreArrayF90(dm, rhs, rhsa, ierr); CHKERRQ(ierr)
+
       call DMDAVecRestoreArrayF90(dm, ylocal, ya, ierr); CHKERRQ(ierr)
       call DMRestoreLocalVector(dm, ylocal, ierr); CHKERRQ(ierr)
+
+      call DMDAVecRestoreArrayF90(dm, rlocal, rhsa, ierr); CHKERRQ(ierr)
+      call DMLocalToGlobalBegin(dm, rlocal, INSERT_VALUES, rhs, ierr); CHKERRQ(ierr)
+      call DMLocalToGlobalEnd(dm, rlocal, INSERT_VALUES, rhs, ierr); CHKERRQ(ierr)
+      call DMRestoreLocalVector(dm, rlocal, ierr); CHKERRQ(ierr)
+
     end subroutine rhs_fn
 
     subroutine lhs_fn_nonlinear(t, y, lhs)
+
       PetscReal, intent(in) :: t
       Vec, intent(in) :: y
       Vec, intent(out) :: lhs
       ! Locals:
       PetscErrorCode :: ierr
       PetscReal, pointer :: ya(:), lhsa(:)
-      PetscInt :: i1, i2, i
-      Vec :: ylocal
+      PetscInt :: i1, im, i
+      Vec :: ylocal, llocal
+
       call DMGetLocalVector(dm, ylocal, ierr); CHKERRQ(ierr)
+      call DMGetLocalVector(dm, llocal, ierr); CHKERRQ(ierr)
       call DMGlobalToLocalBegin(dm, y, INSERT_VALUES, ylocal, ierr); CHKERRQ(ierr)
       call DMGlobalToLocalEnd(dm, y, INSERT_VALUES, ylocal, ierr); CHKERRQ(ierr)
-      call VecGetOwnershipRange(y, i1, i2, ierr); CHKERRQ(ierr)
+
+      call DMDAGetCorners(dm, i1, PETSC_NULL_INTEGER, PETSC_NULL_INTEGER, &
+           im, PETSC_NULL_INTEGER, PETSC_NULL_INTEGER, ierr); CHKERRQ(ierr)
       call DMDAVecGetArrayF90(dm, ylocal, ya, ierr); CHKERRQ(ierr)
-      call DMDAVecGetArrayF90(dm, lhs, lhsa, ierr); CHKERRQ(ierr)
-      do i = i1, i2-1
+      call DMDAVecGetArrayF90(dm, llocal, lhsa, ierr); CHKERRQ(ierr)
+
+      do i = i1, i1+im-1
          lhsa(i) = ya(i) * ya(i)
       end do
-      call DMDAVecRestoreArrayF90(dm, lhs, lhsa, ierr); CHKERRQ(ierr)
+
       call DMDAVecRestoreArrayF90(dm, ylocal, ya, ierr); CHKERRQ(ierr)
       call DMRestoreLocalVector(dm, ylocal, ierr); CHKERRQ(ierr)
+
+      call DMDAVecRestoreArrayF90(dm, llocal, lhsa, ierr); CHKERRQ(ierr)
+      call DMLocalToGlobalBegin(dm, llocal, INSERT_VALUES, lhs, ierr); CHKERRQ(ierr)
+      call DMLocalToGlobalEnd(dm, llocal, INSERT_VALUES, lhs, ierr); CHKERRQ(ierr)
+      call DMRestoreLocalVector(dm, llocal, ierr); CHKERRQ(ierr)
+
     end subroutine lhs_fn_nonlinear
 
     subroutine rhs_fn_nonlinear(t, y, rhs)
+
       PetscReal, intent(in) :: t
       Vec, intent(in) :: y
       Vec, intent(out) :: rhs
       ! Locals:
       PetscErrorCode :: ierr
       PetscReal, pointer :: ya(:), rhsa(:)
-      PetscInt :: i1, i2, i
-      Vec :: ylocal
+      PetscInt :: i1, im, i, i1g, img
+      Vec :: ylocal, rlocal
+
       call DMGetLocalVector(dm, ylocal, ierr); CHKERRQ(ierr)
+      call DMGetLocalVector(dm, rlocal, ierr); CHKERRQ(ierr)
       call DMGlobalToLocalBegin(dm, y, INSERT_VALUES, ylocal, ierr); CHKERRQ(ierr)
       call DMGlobalToLocalEnd(dm, y, INSERT_VALUES, ylocal, ierr); CHKERRQ(ierr)
-      call VecGetOwnershipRange(y, i1, i2, ierr); CHKERRQ(ierr)
+
+      call DMDAGetCorners(dm, i1, PETSC_NULL_INTEGER, PETSC_NULL_INTEGER, &
+           im, PETSC_NULL_INTEGER, PETSC_NULL_INTEGER, ierr); CHKERRQ(ierr)
       call DMDAVecGetArrayF90(dm, ylocal, ya, ierr); CHKERRQ(ierr)
-      call DMDAVecGetArrayF90(dm, rhs, rhsa, ierr); CHKERRQ(ierr)
-      do i = i1, i2-1
-         if ((i == 0) .or. (i == dim-1)) then
-            rhsa(i) = 0._dp
-         else
-            rhsa(i) = 2._dp * ya(i) * a * (ya(i-1) - 2._dp * ya(i) + ya(i+1))
-         end if
+      call DMDAVecGetArrayF90(dm, rlocal, rhsa, ierr); CHKERRQ(ierr)
+
+      ! BCs:
+      call DMDAGetGhostCorners(dm, i1g, PETSC_NULL_INTEGER, PETSC_NULL_INTEGER, &
+           img, PETSC_NULL_INTEGER, PETSC_NULL_INTEGER, ierr); CHKERRQ(ierr)
+      if (mpi%rank == 0) then
+         ya(i1g) = fn(0._dp, t)
+      else if (mpi%rank == mpi%size-1) then
+         ya(i1g+img-1) = fn(1._dp, t)
+      end if
+
+      do i = i1, i1+im-1
+         rhsa(i) = 2._dp * ya(i) * a * (ya(i-1) - 2._dp * ya(i) + ya(i+1))
       end do
-      call DMDAVecRestoreArrayF90(dm, rhs, rhsa, ierr); CHKERRQ(ierr)
+
       call DMDAVecRestoreArrayF90(dm, ylocal, ya, ierr); CHKERRQ(ierr)
       call DMRestoreLocalVector(dm, ylocal, ierr); CHKERRQ(ierr)
+
+      call DMDAVecRestoreArrayF90(dm, rlocal, rhsa, ierr); CHKERRQ(ierr)
+      call DMLocalToGlobalBegin(dm, rlocal, INSERT_VALUES, rhs, ierr); CHKERRQ(ierr)
+      call DMLocalToGlobalEnd(dm, rlocal, INSERT_VALUES, rhs, ierr); CHKERRQ(ierr)
+      call DMRestoreLocalVector(dm, rlocal, ierr); CHKERRQ(ierr)
+
     end subroutine rhs_fn_nonlinear
 
     subroutine exact_fn(t, v)
+
       PetscReal, intent(in) :: t
       Vec, intent(out) :: v
       ! Locals:
-      PetscReal, pointer :: va(:)
-      PetscInt :: i1, i2, i
+      DM :: cdm
+      Vec :: cv, vlocal
+      PetscReal, pointer :: va(:), coords(:)
+      PetscInt :: i1, im, i
       PetscReal :: x
-      call VecGetOwnershipRange(v, i1, i2, ierr); CHKERRQ(ierr)
-      call DMDAVecGetArrayF90(dm, v, va, ierr); CHKERRQ(ierr)
-      do i = i1, i2-1
-         x = i * dx
-         va(i) = sin(pi * x) * exp(-pi * pi * t)
+
+      call DMGetCoordinateDM(dm, cdm, ierr); CHKERRQ(ierr)
+      call DMGetCoordinatesLocal(dm, cv, ierr); CHKERRQ(ierr)
+      call DMDAVecGetArrayF90(cdm, cv, coords, ierr); CHKERRQ(ierr)
+      call DMGetLocalVector(dm, vlocal, ierr); CHKERRQ(ierr)
+      call DMDAVecGetArrayF90(dm, vlocal, va, ierr); CHKERRQ(ierr)
+      call DMDAGetCorners(dm, i1, PETSC_NULL_INTEGER, PETSC_NULL_INTEGER, &
+           im, PETSC_NULL_INTEGER, PETSC_NULL_INTEGER, ierr); CHKERRQ(ierr)
+      do i = i1, i1+im-1
+         x = coords(i)
+         va(i) = fn(x, t)
       end do
-      call DMDAVecRestoreArrayF90(dm, v, va, ierr); CHKERRQ(ierr)
+      call DMDAVecRestoreArrayF90(dm, vlocal, va, ierr); CHKERRQ(ierr)
+      call DMDAVecRestoreArrayF90(cdm, cv, coords, ierr); CHKERRQ(ierr)
+      call DMLocalToGlobalBegin(dm, vlocal, INSERT_VALUES, v, ierr); CHKERRQ(ierr)
+      call DMLocalToGlobalEnd(dm, vlocal, INSERT_VALUES, v, ierr); CHKERRQ(ierr)
+
     end subroutine exact_fn
 
   end subroutine test_heat1d
