@@ -512,7 +512,8 @@ contains
     PetscErrorCode :: ierr
     DM :: dm
     Vec :: initialv
-    PetscReal, parameter :: dx = 1._dp / (dim - 1._dp), a = 1._dp / (dx*dx)
+    PetscReal, parameter :: L = 1._dp
+    PetscReal, parameter :: dx = L / (dim - 1._dp), a = 1._dp / (dx*dx)
 
     ! Usual form
     lhs_func => lhs_identity
@@ -521,7 +522,7 @@ contains
 
     call DMDACreate1d(mpi%comm, DM_BOUNDARY_GHOSTED, dim-2, dof, stencil, &
          PETSC_NULL_INTEGER, dm, ierr); CHKERRQ(ierr)
-    call DMDASetUniformCoordinates(dm, dx, 1._dp - dx, 0._dp, 0._dp, &
+    call DMDASetUniformCoordinates(dm, dx, L - dx, 0._dp, 0._dp, &
          0._dp, 0._dp, ierr); CHKERRQ(ierr)
     call DMCreateGlobalVector(dm, initialv, ierr); CHKERRQ(ierr)
     call exact_fn(0._dp, initialv)
@@ -557,7 +558,7 @@ contains
       ! Locals:
       PetscErrorCode :: ierr
       PetscReal, pointer :: ya(:), rhsa(:)
-      PetscInt :: i1, im, i, i1g, img
+      PetscInt :: i1, im, i, i1g, img, i2g
       Vec :: ylocal, rlocal
 
       call DMGetLocalVector(dm, ylocal, ierr); CHKERRQ(ierr)
@@ -573,11 +574,9 @@ contains
       ! BCs:
       call DMDAGetGhostCorners(dm, i1g, PETSC_NULL_INTEGER, PETSC_NULL_INTEGER, &
            img, PETSC_NULL_INTEGER, PETSC_NULL_INTEGER, ierr); CHKERRQ(ierr)
-      if (mpi%rank == 0) then
-         ya(i1g) = fn(0._dp, t)
-      else if (mpi%rank == mpi%size-1) then
-         ya(i1g+img-1) = fn(1._dp, t)
-      end if
+      i2g = i1g+img-1
+      if (i1g == 0) ya(i1g) = fn(0._dp, t)
+      if (i2g == dim-1) ya(i2g) = fn(L, t)
 
       do i = i1, i1+im-1
          rhsa(i) = a * (ya(i-1) - 2._dp * ya(i) + ya(i+1))
@@ -636,7 +635,7 @@ contains
       ! Locals:
       PetscErrorCode :: ierr
       PetscReal, pointer :: ya(:), rhsa(:)
-      PetscInt :: i1, im, i, i1g, img
+      PetscInt :: i1, im, i, i1g, img, i2g
       Vec :: ylocal, rlocal
 
       call DMGetLocalVector(dm, ylocal, ierr); CHKERRQ(ierr)
@@ -652,11 +651,9 @@ contains
       ! BCs:
       call DMDAGetGhostCorners(dm, i1g, PETSC_NULL_INTEGER, PETSC_NULL_INTEGER, &
            img, PETSC_NULL_INTEGER, PETSC_NULL_INTEGER, ierr); CHKERRQ(ierr)
-      if (mpi%rank == 0) then
-         ya(i1g) = fn(0._dp, t)
-      else if (mpi%rank == mpi%size-1) then
-         ya(i1g+img-1) = fn(1._dp, t)
-      end if
+      i2g = i1g+img-1
+      if (i1g == 0) ya(i1g) = fn(0._dp, t)
+      if (i2g == dim-1) ya(i2g) = fn(L, t)
 
       do i = i1, i1+im-1
          rhsa(i) = 2._dp * ya(i) * a * (ya(i-1) - 2._dp * ya(i) + ya(i+1))
