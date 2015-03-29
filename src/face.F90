@@ -16,7 +16,7 @@ module face_module
      type(cell_type), public :: cell(2)
    contains
      private
-     procedure, public :: populate => face_populate
+     procedure, public :: assign => face_assign
      procedure, public :: dof => face_dof
   end type face_type
 
@@ -26,8 +26,8 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine face_populate(self, geom_data, geom_offset)
-    !! Populates a face with values from the specified data array,
+  subroutine face_assign(self, geom_data, geom_offset)
+    !! Assigns pointers in a face to elements of the specified data array,
     !! starting from the given offset.
 
     class(face_type), intent(in out) :: self
@@ -37,9 +37,9 @@ contains
     self%area => geom_data(geom_offset + 1)
     self%distance => geom_data(geom_offset + 2: geom_offset + 3)
 
-    ! TODO: populate self%cell(:) here
+    ! TODO: assign self%cell(:) here
 
-  end subroutine face_populate
+  end subroutine face_assign
 
 !------------------------------------------------------------------------
 

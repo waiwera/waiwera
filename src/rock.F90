@@ -15,7 +15,7 @@ module rock_module
      PetscReal, pointer :: specific_heat     !! specific heat
    contains
      private
-     procedure, public :: populate => rock_populate
+     procedure, public :: assign => rock_assign
      procedure, public :: dof => rock_dof
   end type rock_type
 
@@ -25,9 +25,9 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine rock_populate(self, data, offset)
-    !! Populates a rock object with values from the specified data array,
-    !! starting from the given offset.
+  subroutine rock_assign(self, data, offset)
+    !! Assigns pointers in a rock object to elements of the specified
+    !! data array, starting from the given offset.
 
     class(rock_type), intent(in out) :: self
     PetscReal, target, intent(in) :: data(:)  !! rock data array
@@ -39,7 +39,7 @@ contains
     self%density => data(offset + 6)
     self%specific_heat => data(offset + 7)
 
-  end subroutine rock_populate
+  end subroutine rock_assign
     
 !------------------------------------------------------------------------
 

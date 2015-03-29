@@ -23,7 +23,7 @@ module cell_module
    contains
      private
      procedure, public :: init => cell_init
-     procedure, public :: populate => cell_populate
+     procedure, public :: assign => cell_assign
      procedure, public :: destroy => cell_destroy
      procedure, public :: dof => cell_dof
   end type cell_type
@@ -47,9 +47,9 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine cell_populate(self, geom_data, geom_offset, &
+  subroutine cell_assign(self, geom_data, geom_offset, &
        rock_data, rock_offset, fluid_data, fluid_offset)
-    !! Populates a cell with values from the specified data array,
+    !! Assigns pointers in a cell to values from the specified data array,
     !! starting from the given offset.
 
     class(cell_type), intent(in out) :: self
@@ -63,10 +63,10 @@ contains
     self%volume => geom_data(geom_offset + 1)
     self%centroid => geom_data(geom_offset + 2: geom_offset + 4)
 
-    call self%rock%populate(rock_data, rock_offset)
-    call self%fluid%populate(fluid_data, fluid_offset)
+    call self%rock%assign(rock_data, rock_offset)
+    call self%fluid%assign(fluid_data, fluid_offset)
 
-  end subroutine cell_populate
+  end subroutine cell_assign
 
 !------------------------------------------------------------------------
 

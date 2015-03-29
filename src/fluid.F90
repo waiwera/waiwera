@@ -29,7 +29,7 @@ module fluid_module
    contains
      private
      procedure, public :: init => fluid_init
-     procedure, public :: populate => fluid_populate
+     procedure, public :: assign => fluid_assign
      procedure, public :: destroy => fluid_destroy
      procedure, public :: dof => fluid_dof
   end type fluid_type
@@ -98,9 +98,9 @@ contains
     
 !------------------------------------------------------------------------
 
-  subroutine fluid_populate(self, data, offset)
-    !! Populates a fluid objects from data array, starting from the 
-    !! specified offset.
+  subroutine fluid_assign(self, data, offset)
+    !! Assigns pointers in a fluid object to elements in the data array,
+    !! starting from the specified offset.
 
     class(fluid_type), intent(in out) :: self
     PetscReal, target, intent(in) :: data(:)  !! fluid data array
@@ -123,7 +123,7 @@ contains
        ofs = ofs + nc
     end do
 
-  end subroutine fluid_populate
+  end subroutine fluid_assign
 
 !------------------------------------------------------------------------
 
