@@ -49,22 +49,26 @@ contains
 
   subroutine cell_assign(self, geom_data, geom_offset, &
        rock_data, rock_offset, fluid_data, fluid_offset)
-    !! Assigns pointers in a cell to values from the specified data array,
+    !! Assigns pointers in a cell to values from the specified data arrays,
     !! starting from the given offset.
 
     class(cell_type), intent(in out) :: self
     PetscReal, target, intent(in) :: geom_data(:)  !! array with geometry data
     PetscInt, intent(in)  :: geom_offset  !! geometry array offset for this cell
-    PetscReal, target, intent(in) :: rock_data(:)  !! array with rock data
-    PetscInt, intent(in)  :: rock_offset  !! rock array offset for this cell
-    PetscReal, target, intent(in) :: fluid_data(:)  !! array with fluid data
-    PetscInt, intent(in)  :: fluid_offset  !! fluid array offset for this cell
+    PetscReal, target, intent(in), optional :: rock_data(:)  !! array with rock data
+    PetscInt, intent(in), optional  :: rock_offset  !! rock array offset for this cell
+    PetscReal, target, intent(in), optional :: fluid_data(:)  !! array with fluid data
+    PetscInt, intent(in), optional  :: fluid_offset  !! fluid array offset for this cell
 
     self%volume => geom_data(geom_offset + 1)
     self%centroid => geom_data(geom_offset + 2: geom_offset + 4)
 
-    call self%rock%assign(rock_data, rock_offset)
-    call self%fluid%assign(fluid_data, fluid_offset)
+    if ((present(rock_data)) .and. ((present(rock_offset)))) then
+       call self%rock%assign(rock_data, rock_offset)
+    end if
+    if ((present(fluid_data)) .and. ((present(fluid_offset)))) then
+       call self%fluid%assign(fluid_data, fluid_offset)
+    end if
 
   end subroutine cell_assign
 
