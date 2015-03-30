@@ -60,8 +60,8 @@ contains
     PetscReal, target, intent(in), optional :: fluid_data(:)  !! array with fluid data
     PetscInt, intent(in), optional  :: fluid_offset  !! fluid array offset for this cell
 
-    self%volume => geom_data(geom_offset + 1)
-    self%centroid => geom_data(geom_offset + 2: geom_offset + 4)
+    self%centroid => geom_data(geom_offset + 1: geom_offset + 3)
+    self%volume => geom_data(geom_offset + 4)
 
     if ((present(rock_data)) .and. ((present(rock_offset)))) then
        call self%rock%assign(rock_data, rock_offset)
