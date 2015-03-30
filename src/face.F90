@@ -14,6 +14,7 @@ module face_module
      PetscReal, pointer, public :: area !! face area
      PetscReal, pointer, public :: distance(:) !! cell centroid distances on either side of the face
      PetscReal, pointer, public :: normal(:) !! normal vector to face
+     PetscReal, pointer, public :: centroid(:) !! centroid of face
      type(cell_type), public :: cell(2)
    contains
      private
@@ -43,6 +44,7 @@ contains
     self%area => face_geom_data(face_geom_offset)
     self%distance => face_geom_data(face_geom_offset + 1: face_geom_offset + 2)
     self%normal => face_geom_data(face_geom_offset + 3: face_geom_offset + 5)
+    self%centroid => face_geom_data(face_geom_offset + 6: face_geom_offset + 8)
 
     do i = 1, 2 
        call self%cell(i)%assign(cell_geom_data, cell_geom_offsets(i))
