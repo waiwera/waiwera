@@ -28,7 +28,8 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine face_assign(self, face_geom_data, face_geom_offset, cell_geom_data)
+  subroutine face_assign(self, face_geom_data, face_geom_offset, cell_geom_data, &
+       cell_geom_offsets)
     !! Assigns pointers in a face to elements of the specified data array,
     !! starting from the given offset.
 
@@ -36,13 +37,18 @@ contains
     PetscReal, target, intent(in) :: face_geom_data(:)  !! array with face geometry data
     PetscInt, intent(in)  :: face_geom_offset  !! face geometry array offset for this cell
     PetscReal, target, intent(in) :: cell_geom_data(:)  !! array with cell geometry data
+    PetscInt, intent(in)  :: cell_geom_offsets(:)  !! cell geometry array offsets for the face cells
+    ! Locals:
+    PetscInt :: i
     
     self%area_normal => face_geom_data(face_geom_offset: face_geom_offset + 2)
     self%normal => face_geom_data(face_geom_offset + 3: face_geom_offset + 5)
     self%area => face_geom_data(face_geom_offset + 6)
     self%distance => face_geom_data(face_geom_offset + 7: face_geom_offset + 8)
 
-    ! TODO: assign self%cell(:) here
+    do i = 1, 2 
+       call self%cell(i)%assign(cell_geom_data, cell_geom_offsets(i))
+    end do
 
   end subroutine face_assign
 
@@ -53,7 +59,7 @@ contains
 
     class(face_type), intent(in) :: self
     ! Locals:
-    PetscInt, parameter :: fixed_dof = 3
+    PetscInt, parameter :: fixed_dof = 8
 
     face_dof = fixed_dof
 
