@@ -13,6 +13,8 @@ module face_module
      private
      PetscReal, pointer, public :: area !! face area
      PetscReal, pointer, public :: distance(:) !! cell centroid distances on either side of the face
+     PetscReal, pointer, public :: normal(:) !! normal vector to face
+     PetscReal, pointer, public :: area_normal(:) !! area-weighted normal vector (normal / area)
      type(cell_type), public :: cell(2)
    contains
      private
@@ -26,16 +28,19 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine face_assign(self, geom_data, geom_offset)
+  subroutine face_assign(self, face_geom_data, face_geom_offset, cell_geom_data)
     !! Assigns pointers in a face to elements of the specified data array,
     !! starting from the given offset.
 
     class(face_type), intent(in out) :: self
-    PetscReal, target, intent(in) :: geom_data(:)  !! array with face geometry data
-    PetscInt, intent(in)  :: geom_offset  !! face geometry array offset for this cell
+    PetscReal, target, intent(in) :: face_geom_data(:)  !! array with face geometry data
+    PetscInt, intent(in)  :: face_geom_offset  !! face geometry array offset for this cell
+    PetscReal, target, intent(in) :: cell_geom_data(:)  !! array with cell geometry data
     
-    self%area => geom_data(geom_offset + 1)
-    self%distance => geom_data(geom_offset + 2: geom_offset + 3)
+    self%area_normal => face_geom_data(face_geom_offset: face_geom_offset + 2)
+    self%normal => face_geom_data(face_geom_offset + 3: face_geom_offset + 5)
+    self%area => face_geom_data(face_geom_offset + 6)
+    self%distance => face_geom_data(face_geom_offset + 7: face_geom_offset + 8)
 
     ! TODO: assign self%cell(:) here
 
