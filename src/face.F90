@@ -59,7 +59,7 @@ contains
 
     class(face_type), intent(in) :: self
     ! Locals:
-    PetscInt, parameter :: fixed_dof = 8
+    PetscInt, parameter :: fixed_dof = 9
 
     face_dof = fixed_dof
 
