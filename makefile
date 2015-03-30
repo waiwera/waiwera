@@ -67,6 +67,7 @@ $(BUILD)/simulation$(OBJ): $(BUILD)/mpi$(OBJ) $(BUILD)/timestepping$(OBJ) \
 	$(BUILD)/IFC67$(OBJ) $(BUILD)/eos$(OBJ)	$(BUILD)/eos_w$(OBJ) \
 	$(BUILD)/mesh$(OBJ) $(BUILD)/fson_mpi$(OBJ) $(BUILD)/utils$(OBJ)
 $(BUILD)/cell$(OBJ): $(BUILD)/rock$(OBJ) $(BUILD)/fluid$(OBJ)
+$(BUILD)/face$(OBJ): $(BUILD)/cell$(OBJ)
 $(BUILD)/mesh$(OBJ): $(BUILD)/face$(OBJ)
 $(BUILD)/eos$(OBJ): $(BUILD)/thermodynamics$(OBJ)
 $(BUILD)/eos_w$(OBJ): $(BUILD)/thermodynamics$(OBJ) $(BUILD)/eos$(OBJ)
