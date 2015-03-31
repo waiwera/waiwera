@@ -112,11 +112,12 @@ contains
     DM :: dm_cell, dm_face, dm_face_petsc
     PetscSection :: face_section, face_section_petsc, cell_section
     PetscInt :: fstart, fend, f, face_dof, ghost, i
-    PetscInt :: face_offset, face_offset_petsc
+    PetscInt :: face_offset, petsc_face_offset
     PetscInt :: cell_offset(2)
     type(face_type) :: face
+    type(petsc_face_type) :: petsc_face
     PetscScalar, pointer :: face_geom_array(:), petsc_face_geom_array(:)
-    PetscScalar, pointer :: cell_geom_array(:), area_normal(:)
+    PetscScalar, pointer :: cell_geom_array(:)
     DMLabel :: ghost_label
     PetscInt, pointer :: cells(:)
 
@@ -158,9 +159,9 @@ contains
        if (ghost < 0) then
 
           call PetscSectionGetOffset(face_section, f, face_offset, ierr); CHKERRQ(ierr)
-          call PetscSectionGetOffset(face_section_petsc, f, face_offset_petsc, ierr)
+          call PetscSectionGetOffset(face_section_petsc, f, petsc_face_offset, ierr)
           CHKERRQ(ierr)
-          face_offset = face_offset + 1; face_offset_petsc = face_offset_petsc + 1
+          face_offset = face_offset + 1; petsc_face_offset = petsc_face_offset + 1
 
           call DMPlexGetSupport(self%dm, f, cells, ierr); CHKERRQ(ierr)
           do i = 1, 2
@@ -168,13 +169,13 @@ contains
              CHKERRQ(ierr)
           end do
           cell_offset = cell_offset + 1
+
+          call petsc_face%assign(petsc_face_geom_array, petsc_face_offset)
           call face%assign(face_geom_array, face_offset, cell_geom_array, cell_offset)
 
-          area_normal => petsc_face_geom_array(face_offset_petsc: face_offset_petsc + dim-1)
-          face%centroid = petsc_face_geom_array(face_offset_petsc + dim: &
-               face_offset_petsc + 2*dim-1)
-          face%area = norm2(area_normal)
-          face%normal = area_normal / face%area
+          face%centroid = petsc_face%centroid
+          face%area = norm2(petsc_face%area_normal)
+          face%normal = petsc_face%area_normal / face%area
           do i = 1, 2
              face%distance(i) = norm2(face%centroid - face%cell(i)%centroid)
           end do

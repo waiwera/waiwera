@@ -22,7 +22,18 @@ module face_module
      procedure, public :: dof => face_dof
   end type face_type
 
-  public :: face_type
+  type petsc_face_type
+     !! Type for accessing face geometry parameters calculated by
+     !! PETSc DMPlexTSGetGeometryFVM().
+     private
+     PetscReal, pointer, public :: area_normal(:) !! normal vector multiplied by area
+     PetscReal, pointer, public :: centroid(:) !! centroid of face
+   contains
+     private
+     procedure, public :: assign => petsc_face_assign
+  end type petsc_face_type
+
+  public :: face_type, petsc_face_type
 
 contains
 
@@ -35,7 +46,7 @@ contains
 
     class(face_type), intent(in out) :: self
     PetscReal, target, intent(in) :: face_geom_data(:)  !! array with face geometry data
-    PetscInt, intent(in)  :: face_geom_offset  !! face geometry array offset for this cell
+    PetscInt, intent(in)  :: face_geom_offset  !! face geometry array offset for this face
     PetscReal, target, intent(in) :: cell_geom_data(:)  !! array with cell geometry data
     PetscInt, intent(in)  :: cell_geom_offsets(:)  !! cell geometry array offsets for the face cells
     ! Locals:
@@ -64,6 +75,21 @@ contains
     face_dof = fixed_dof
 
   end function face_dof
+
+!------------------------------------------------------------------------
+
+  subroutine petsc_face_assign(self, face_geom_data, face_geom_offset)
+    !! Assigns pointers in a petsc_face to elements of the specified data
+    !! array, starting from the given offset.
+
+    class(petsc_face_type), intent(in out) :: self
+    PetscReal, target, intent(in) :: face_geom_data(:)  !! array with face geometry data
+    PetscInt, intent(in)  :: face_geom_offset  !! face geometry array offset for this face
+
+    self%area_normal => face_geom_data(face_geom_offset: face_geom_offset + 2)
+    self%centroid => face_geom_data(face_geom_offset + 3: face_geom_offset + 5)
+
+  end subroutine petsc_face_assign
 
 !------------------------------------------------------------------------
 
