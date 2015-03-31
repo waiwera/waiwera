@@ -109,8 +109,8 @@ contains
     PetscErrorCode :: ierr
     Vec :: petsc_face_geom, local_face_geom
     PetscInt :: dim
-    DM :: dm_cell, dm_face, dm_face_petsc
-    PetscSection :: face_section, face_section_petsc, cell_section
+    DM :: dm_cell, dm_face, petsc_dm_face
+    PetscSection :: face_section, petsc_face_section, cell_section
     PetscInt :: fstart, fend, f, face_dof, ghost, i
     PetscInt :: face_offset, petsc_face_offset
     PetscInt :: cell_offset(2)
@@ -140,8 +140,8 @@ contains
     call DMSetDefaultSection(dm_face, face_section, ierr); CHKERRQ(ierr)
     call DMCreateGlobalVector(dm_face, self%face_geom, ierr); CHKERRQ(ierr)
 
-    call VecGetDM(petsc_face_geom, dm_face_petsc, ierr); CHKERRQ(ierr)
-    call DMGetDefaultSection(dm_face_petsc, face_section_petsc, ierr); CHKERRQ(ierr)
+    call VecGetDM(petsc_face_geom, petsc_dm_face, ierr); CHKERRQ(ierr)
+    call DMGetDefaultSection(petsc_dm_face, petsc_face_section, ierr); CHKERRQ(ierr)
 
     call DMGetLocalVector(dm_face, local_face_geom, ierr); CHKERRQ(ierr)
     call VecGetArrayF90(local_face_geom, face_geom_array, ierr); CHKERRQ(ierr)
@@ -159,7 +159,7 @@ contains
        if (ghost < 0) then
 
           call PetscSectionGetOffset(face_section, f, face_offset, ierr); CHKERRQ(ierr)
-          call PetscSectionGetOffset(face_section_petsc, f, petsc_face_offset, ierr)
+          call PetscSectionGetOffset(petsc_face_section, f, petsc_face_offset, ierr)
           CHKERRQ(ierr)
           face_offset = face_offset + 1; petsc_face_offset = petsc_face_offset + 1
 
