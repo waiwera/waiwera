@@ -169,7 +169,7 @@ contains
           end do
           cell_offset = cell_offset + 1
           call face%assign(face_geom_array, face_offset, cell_geom_array, cell_offset)
-          
+
           area_normal => petsc_face_geom_array(face_offset_petsc: face_offset_petsc + dim-1)
           face%centroid = petsc_face_geom_array(face_offset_petsc + dim: &
                face_offset_petsc + 2*dim-1)
