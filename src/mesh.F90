@@ -76,19 +76,20 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine mesh_setup_discretization(self, dof, dim)
+  subroutine mesh_setup_discretization(self, dof)
     !! Sets up finite volume discretization for the mesh.
 
     class(mesh_type), intent(in out) :: self
     PetscInt, intent(in) :: dof !! Degrees of freedom
-    PetscInt, intent(in) :: dim !! Spatial dimension
     ! Locals:
+    PetscInt :: dim
     PetscFV :: fvm
     PetscDS :: ds
     PetscErrorCode :: ierr
 
     call PetscFVCreate(mpi%comm, fvm, ierr); CHKERRQ(ierr)
     call PetscFVSetNumComponents(fvm, dof, ierr); CHKERRQ(ierr)
+    call DMGetDimension(self%dm, dim, ierr); CHKERRQ(ierr)
     call PetscFVSetSpatialDimension(fvm, dim, ierr); CHKERRQ(ierr)
 
     call DMGetDS(self%dm, ds, ierr); CHKERRQ(ierr)
@@ -256,7 +257,6 @@ contains
     ! Locals:
     PetscErrorCode :: ierr
     type(fson_value), pointer :: mesh
-    PetscInt, parameter :: dim = 3
 
     if (mpi%rank == mpi%input_rank) then
        call fson_get(json, "mesh", mesh)
@@ -282,7 +282,7 @@ contains
     call self%distribute()
     call self%label_boundaries()
     call self%construct_ghost_cells()
-    call self%setup_discretization(dof, dim)
+    call self%setup_discretization(dof)
     call self%setup_geometry()
     call self%get_bounds()
 
