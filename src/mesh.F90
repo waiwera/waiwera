@@ -33,6 +33,8 @@ module mesh_module
      procedure, public :: destroy => mesh_destroy
   end type mesh_type
 
+  public :: set_dm_data_layout
+
 contains
 
 !------------------------------------------------------------------------
@@ -301,6 +303,59 @@ contains
     call DMDestroy(self%dm, ierr); CHKERRQ(ierr)
 
   end subroutine mesh_destroy
+
+!------------------------------------------------------------------------
+
+  subroutine set_dm_data_layout(dm, num_components, field_dim, &
+       field_name)
+    !! Sets data layout on default section of the given DM.
+
+    DM, intent(in out) :: dm
+    PetscInt, target, intent(in) :: num_components(:) !! Number of components in each field
+    PetscInt, intent(in) :: field_dim(:)  !! Dimension each field is defined on (0 = nodes, etc.)
+    character(*), intent(in) :: field_name(:) !! Name of each field
+    ! Locals:
+    PetscInt :: dim
+    PetscSection :: section
+    PetscInt :: num_fields, i, num_bc
+    PetscInt, allocatable, target :: num_dof(:)
+    PetscInt, pointer :: pnumcomp(:)
+    PetscInt, pointer :: pnumdof(:)
+    PetscInt, target :: bcfield(1)
+    PetscInt, pointer :: pbcfield(:)
+    IS, target :: bcpointIS(1)
+    IS, pointer :: pbcpointIS(:)
+    PetscErrorCode :: ierr
+
+    call DMGetDimension(dm, dim, ierr); CHKERRQ(ierr)
+    num_fields = size(num_components)
+    pnumcomp => num_components
+    allocate(num_dof(num_fields*(dim+1)))
+    num_dof = 0
+    do i = 1, num_fields
+       num_dof((i-1) * (dim+1) + field_dim(i) + 1) = num_components(i)
+    end do
+    pnumdof => num_dof
+
+    ! Boundary conditions (none):
+    num_bc = 0
+    bcfield = 0; pbcfield => bcfield
+    pbcpointIS => bcpointIS
+
+    call DMPlexCreateSection(dm, dim, num_fields, pnumcomp, &
+         pnumdof, num_bc, pbcfield, pBcPointIS, PETSC_NULL_OBJECT, &
+         section, ierr); CHKERRQ(ierr)
+
+    do i = 1, num_fields
+       call PetscSectionSetFieldName(section, i-1, field_name(i), ierr)
+       CHKERRQ(ierr)
+    end do
+
+    call DMSetDefaultSection(dm, section, ierr); CHKERRQ(ierr)
+    call PetscSectionDestroy(section, ierr); CHKERRQ(ierr)
+    deallocate(num_dof)
+
+  end subroutine set_dm_data_layout
 
 !------------------------------------------------------------------------
 
