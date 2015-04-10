@@ -313,7 +313,7 @@ contains
     DM, intent(in out) :: dm
     PetscInt, target, intent(in) :: num_components(:) !! Number of components in each field
     PetscInt, intent(in) :: field_dim(:)  !! Dimension each field is defined on (0 = nodes, etc.)
-    character(*), intent(in) :: field_name(:) !! Name of each field
+    character(*), intent(in), optional :: field_name(:) !! Name of each field
     ! Locals:
     PetscInt :: dim
     PetscSection :: section
@@ -346,10 +346,12 @@ contains
          pnumdof, num_bc, pbcfield, pBcPointIS, PETSC_NULL_OBJECT, &
          section, ierr); CHKERRQ(ierr)
 
-    do i = 1, num_fields
-       call PetscSectionSetFieldName(section, i-1, field_name(i), ierr)
-       CHKERRQ(ierr)
-    end do
+    if (present(field_name)) then
+       do i = 1, num_fields
+          call PetscSectionSetFieldName(section, i-1, field_name(i), ierr)
+          CHKERRQ(ierr)
+       end do
+    end if
 
     call DMSetDefaultSection(dm, section, ierr); CHKERRQ(ierr)
     call PetscSectionDestroy(section, ierr); CHKERRQ(ierr)
