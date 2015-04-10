@@ -12,6 +12,7 @@ module fluid_module
      PetscReal, pointer :: saturation !! Phase saturation
      PetscReal, pointer :: relative_permeability !! Relative permeability
      PetscReal, pointer :: specific_enthalpy !! Specific enthalpy
+     PetscReal, pointer :: internal_energy !! Internal energy
      PetscReal, pointer :: mass_fraction(:)
    contains
      private
