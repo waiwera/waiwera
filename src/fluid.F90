@@ -4,7 +4,11 @@ module fluid_module
 
   implicit none
   private
-  
+
+  PetscInt, parameter, public :: max_fluid_variable_name_length = 32
+  PetscInt, parameter, public :: num_phase_variables = 6
+  PetscInt, parameter, public :: num_fluid_variables = 2
+
   type phase_type
      !! Type for accessing local fluid properties for a particular phase.
      PetscReal, pointer :: density    !! Phase density
@@ -70,10 +74,8 @@ contains
     !! Returns number of degrees of freedom in the phase object.
 
     class(phase_type), intent(in) :: self
-    ! Locals:
-    PetscInt, parameter :: fixed_dof = 5
 
-    phase_dof = fixed_dof + size(self%mass_fraction)
+    phase_dof = num_phase_variables + size(self%mass_fraction)
 
   end function phase_dof
 
@@ -149,10 +151,9 @@ contains
 
     class(fluid_type), intent(in) :: self
     ! Locals:
-    PetscInt, parameter :: fixed_dof = 2
     PetscInt :: i
 
-    fluid_dof = fixed_dof
+    fluid_dof = num_fluid_variables
     do i = 1, size(self%phase)
        fluid_dof = fluid_dof + self%phase(i)%dof()
     end do
