@@ -85,7 +85,6 @@ contains
     character(*), intent(in) :: primary_variable_names(:) !! Names of primary thermodynamic variables
     ! Locals:
     PetscInt :: num_vars
-    PetscErrorCode :: ierr
     PetscInt, allocatable :: num_components(:), field_dim(:)
 
     num_vars = size(primary_variable_names)
