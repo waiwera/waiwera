@@ -5,7 +5,6 @@ module fluid_module
   implicit none
   private
 
-  PetscInt, parameter, public :: max_fluid_variable_name_length = 32
   PetscInt, parameter, public :: num_phase_variables = 6
   PetscInt, parameter, public :: num_fluid_variables = 2
 
