@@ -131,7 +131,6 @@ contains
          PETSC_NULL_REAL, ierr); CHKERRQ(ierr)
 
     ! Set up face geometry vector:
-    call DMGetDimension(self%dm, dim, ierr); CHKERRQ(ierr)
     call DMClone(self%dm, dm_face, ierr); CHKERRQ(ierr)
     call PetscSectionCreate(mpi%comm, face_section, ierr); CHKERRQ(ierr)
     call DMPlexGetHeightStratum(self%dm, 1, fStart, fEnd, ierr); CHKERRQ(ierr)
