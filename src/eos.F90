@@ -9,14 +9,16 @@ module eos_module
 
   integer, parameter, public :: max_eos_name_length = 8
   integer, parameter, public :: max_eos_description_length = 80
-  integer, parameter, public :: max_variable_name_length = 16
+  integer, parameter, public :: max_primary_variable_name_length = 16
 
   type, public, abstract :: eos_type
      private
      character(max_eos_name_length), public :: name
      character(max_eos_description_length), public :: description
-     character(max_variable_name_length), allocatable, public :: primary_variable_names(:)
+     character(max_primary_variable_name_length), allocatable, public :: primary_variable_names(:)
      integer, public :: num_primary_variables
+     integer, public :: num_phases
+     integer, public :: num_components
      class(thermodynamics_type), pointer, public :: thermo
    contains
      private
