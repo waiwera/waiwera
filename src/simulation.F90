@@ -29,6 +29,8 @@ module simulation_module
      private
      type(mesh_type) :: mesh
      Vec :: initial
+     Vec :: rock
+     Vec :: fluid
      type(timestepper_type) :: timestepper
      class(thermodynamics_type), pointer :: thermo
      class(eos_type), pointer :: eos
@@ -40,6 +42,7 @@ module simulation_module
      procedure :: read_thermodynamics => simulation_read_thermodynamics
      procedure :: read_eos => simulation_read_eos
      procedure :: read_initial => simulation_read_initial
+     procedure :: setup_fluid => simulation_setup_fluid
      procedure :: read_timestepping => simulation_read_timestepping
      procedure, public :: init => simulation_init
      procedure, public :: run => simulation_run
@@ -196,10 +199,43 @@ contains
 
 !------------------------------------------------------------------------
 
+  subroutine simulation_setup_fluid(self)
+    !! Sets up global vector for fluid properties.
+
+    use fluid_module, only: num_fluid_variables, num_phase_variables
+
+    class(simulation_type), intent(in out) :: self
+    ! Locals:
+    PetscInt :: num_vars
+    PetscInt, allocatable :: num_components(:), field_dim(:)
+    DM :: dm_fluid
+    PetscErrorCode :: ierr
+
+    num_vars = num_fluid_variables + self%eos%num_phases * &
+         (num_phase_variables + self%eos%num_components)
+
+    allocate(num_components(num_vars), field_dim(num_vars))
+
+    ! All fluid variables are scalars defined on cells:
+    num_components = 1
+    field_dim = 3
+
+    call DMClone(self%mesh%dm, dm_fluid, ierr); CHKERRQ(ierr)
+
+    call set_dm_data_layout(dm_fluid, num_components, field_dim)
+
+    call DMCreateGlobalVector(dm_fluid, self%fluid, ierr); CHKERRQ(ierr)
+
+    deallocate(num_components, field_dim)
+    call DMDestroy(dm_fluid, ierr); CHKERRQ(ierr)
+
+  end subroutine simulation_setup_fluid
+
+!------------------------------------------------------------------------
+
   subroutine simulation_read_timestepping(self, json)
     !! Reads time stepping data from JSON input.
 
-    use fson_value_m, only : TYPE_OBJECT, TYPE_NULL
     use utils_module, only : str_to_lower
 
     class(simulation_type), intent(in out) :: self
@@ -279,6 +315,8 @@ contains
 
     call self%read_initial(json)
 
+    call self%setup_fluid()
+
     call self%read_timestepping(json)
 
     if (mpi%rank == mpi%input_rank) then
@@ -310,6 +348,7 @@ contains
     PetscErrorCode :: ierr
 
     call VecDestroy(self%initial, ierr); CHKERRQ(ierr)
+    call VecDestroy(self%fluid, ierr); CHKERRQ(ierr)
     call self%mesh%destroy()
     call self%thermo%destroy()
     call self%timestepper%destroy()
