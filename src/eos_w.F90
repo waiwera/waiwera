@@ -17,7 +17,7 @@ module eos_w_module
      procedure :: transition => eos_w_transition
      procedure, public :: init => eos_w_init
      procedure, public :: check_primary => eos_w_check_primary
-     procedure, public :: secondary => eos_w_secondary
+     procedure, public :: fluid_properties => eos_w_fluid_properties
   end type eos_w_type
 
   type(eos_w_type), public, target :: eos_w
@@ -34,9 +34,9 @@ contains
 
     self%name = "W"
     self%description = "Isothermal pure water"
+    self%primary_variable_names = ["Pressure"]
 
-    self%num_primary = 1
-    self%num_secondary = 3
+    self%num_primary_variables = size(self%primary_variable_names)
 
     self%thermo => thermo
 
@@ -46,13 +46,13 @@ contains
   
   subroutine eos_w_transition(self, region1, region2, primary)
     !! Perform transitions between thermodynamic regions for isothermal
-    !! pure water: no transitions needed.
+    !! pure water
 
     class(eos_w_type), intent(in) :: self
     integer, intent(in) :: region1, region2
-    real(dp), intent(in out), target :: primary(self%num_primary)
+    real(dp), intent(in out), target :: primary(self%num_primary_variables)
 
-    continue
+    continue ! no transitions needed
 
   end subroutine eos_w_transition
 
@@ -60,42 +60,44 @@ contains
 
   subroutine eos_w_check_primary(self, region, primary)
     !! Check primary variables for current region and make
-    !! transition if needed for isothermal pure water: no
-    !! checks needed.
+    !! transition if needed for isothermal pure water
 
     class(eos_w_type), intent(in) :: self
     integer, intent(in out) :: region
-    real(dp), intent(in out), target :: primary(self%num_primary)
+    real(dp), intent(in out), target :: primary(self%num_primary_variables)
 
-    continue
+    continue ! no checks needed
 
   end subroutine eos_w_check_primary
 
 !------------------------------------------------------------------------
 
-  subroutine eos_w_secondary(self, region, primary, secondary)
-
-    !! Calculate secondary variables from region and primary variables
+  subroutine eos_w_fluid_properties(self, region, primary, fluid)
+    !! Calculate fluid properties from region and primary variables
     !! for isothermal pure water.
 
+    use fluid_module
     class(eos_w_type), intent(in out) :: self
     integer, intent(in) :: region !! Thermodynamic region index
-    real(dp), intent(in), target :: primary(self%num_primary) !! Primary thermodynamic variables
-    real(dp), intent(out), target :: secondary(self%num_secondary) !! Secondary thermodynamic variables
+    real(dp), intent(in), target :: primary(self%num_primary_variables) !! Primary thermodynamic variables
+    type(fluid_type), intent(out) :: fluid !! Fluid object
     ! Locals:
+    real(dp) :: properties(2)
     integer :: err
-    real(dp), pointer :: pressure, density, viscosity
 
-    pressure => primary(1)
-    density => secondary(1)
-    viscosity => secondary(3)
+    fluid%pressure = primary(1)
+    fluid%temperature = self%temperature
 
-    call self%thermo%water%properties([pressure, self%temperature],\
-    secondary(1:2), err)
-    call self%thermo%water%viscosity(self%temperature, pressure, \
-    density, viscosity)
+    call self%thermo%water%properties([fluid%pressure, fluid%temperature],\
+    properties, err)
 
-  end subroutine eos_w_secondary
+    fluid%phase(1)%density = properties(1)
+    fluid%phase(1)%internal_energy = properties(2)
+
+    call self%thermo%water%viscosity(fluid%temperature, fluid%pressure, \
+    fluid%phase(1)%density, fluid%phase(1)%viscosity)
+
+  end subroutine eos_w_fluid_properties
 
 !------------------------------------------------------------------------
 

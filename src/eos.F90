@@ -9,19 +9,21 @@ module eos_module
 
   integer, parameter, public :: max_eos_name_length = 8
   integer, parameter, public :: max_eos_description_length = 80
+  integer, parameter, public :: max_variable_name_length = 16
 
   type, public, abstract :: eos_type
      private
      character(max_eos_name_length), public :: name
      character(max_eos_description_length), public :: description
-     integer, public :: num_primary, num_secondary
+     character(max_variable_name_length), allocatable, public :: primary_variable_names(:)
+     integer, public :: num_primary_variables
      class(thermodynamics_type), pointer, public :: thermo
    contains
      private
      procedure(eos_transition_procedure), deferred :: transition
      procedure(eos_init_procedure), public, deferred :: init
      procedure(eos_check_primary_procedure), public, deferred :: check_primary
-     procedure(eos_secondary_procedure), public, deferred :: secondary
+     procedure(eos_fluid_procedure), public, deferred :: fluid_properties
   end type eos_type
 
   abstract interface
@@ -39,7 +41,7 @@ module eos_module
        import :: eos_type, dp
        class(eos_type), intent(in) :: self
        integer, intent(in) :: region1, region2
-       real(dp), intent(in out), target :: primary(self%num_primary)
+       real(dp), intent(in out), target :: primary(self%num_primary_variables)
      end subroutine eos_transition_procedure
 
      subroutine eos_check_primary_procedure(self, region, primary)
@@ -48,18 +50,18 @@ module eos_module
        import :: eos_type, dp
        class(eos_type), intent(in) :: self
        integer, intent(in out) :: region
-       real(dp), intent(in out), target :: primary(self%num_primary)
+       real(dp), intent(in out), target :: primary(self%num_primary_variables)
      end subroutine eos_check_primary_procedure
 
-     subroutine eos_secondary_procedure(self, region, &
-          primary, secondary)
-       !! Calculate secondary variables from region and primary variables
+     subroutine eos_fluid_procedure(self, region, primary, fluid)
+       !! Calculate fluid properties from region and primary variables
+       use fluid_module
        import :: eos_type, dp
        class(eos_type), intent(in out) :: self
        integer, intent(in) :: region
-       real(dp), intent(in), target :: primary(self%num_primary)
-       real(dp), intent(out), target :: secondary(self%num_secondary)
-     end subroutine eos_secondary_procedure
+       real(dp), intent(in), target :: primary(self%num_primary_variables)
+       type(fluid_type), intent(out) :: fluid
+     end subroutine eos_fluid_procedure
 
   end interface
 
