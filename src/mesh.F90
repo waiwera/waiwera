@@ -25,7 +25,7 @@ module mesh_module
    contains
      procedure :: distribute => mesh_distribute
      procedure :: construct_ghost_cells => mesh_construct_ghost_cells
-     procedure :: setup_discretization => mesh_setup_discretization
+     procedure :: setup_data_layout => mesh_setup_data_layout
      procedure :: setup_geometry => mesh_setup_geometry
      procedure :: label_boundaries => mesh_label_boundaries
      procedure :: get_bounds => mesh_get_bounds
@@ -78,26 +78,28 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine mesh_setup_discretization(self, dof)
-    !! Sets up finite volume discretization for the mesh.
+  subroutine mesh_setup_data_layout(self, primary_variable_names)
+    !! Sets up default section data layout for the mesh.
 
     class(mesh_type), intent(in out) :: self
-    PetscInt, intent(in) :: dof !! Degrees of freedom
+    character(*), intent(in) :: primary_variable_names(:) !! Names of primary thermodynamic variables
     ! Locals:
-    PetscInt :: dim
-    PetscFV :: fvm
-    PetscDS :: ds
+    PetscInt :: num_vars
     PetscErrorCode :: ierr
+    PetscInt, allocatable :: num_components(:), field_dim(:)
 
-    call PetscFVCreate(mpi%comm, fvm, ierr); CHKERRQ(ierr)
-    call PetscFVSetNumComponents(fvm, dof, ierr); CHKERRQ(ierr)
-    call DMGetDimension(self%dm, dim, ierr); CHKERRQ(ierr)
-    call PetscFVSetSpatialDimension(fvm, dim, ierr); CHKERRQ(ierr)
+    num_vars = size(primary_variable_names)
+    allocate(num_components(num_vars), field_dim(num_vars))
+    ! All primary variables are scalars defined on cells:
+    num_components = 1
+    field_dim = 3
 
-    call DMGetDS(self%dm, ds, ierr); CHKERRQ(ierr)
-    call PetscDSAddDiscretization(ds, fvm, ierr); CHKERRQ(ierr)
+    call set_dm_data_layout(self%dm, num_components, field_dim, &
+         primary_variable_names)
 
-  end subroutine mesh_setup_discretization
+    deallocate(num_components, field_dim)
+
+  end subroutine mesh_setup_data_layout
 
 !------------------------------------------------------------------------
 
@@ -248,14 +250,14 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine mesh_init(self, json, dof)
+  subroutine mesh_init(self, json, primary_variable_names)
     !! Initializes mesh, reading filename from JSON input file.
     !! If the filename is not present, an error is raised.
     !! Otherwise, the PETSc DM is read in.
 
     class(mesh_type), intent(in out) :: self
     type(fson_value), pointer, intent(in) :: json !! JSON file pointer
-    PetscInt, intent(in) :: dof !! Degrees of freedom on cells
+    character(*), intent(in) :: primary_variable_names(:) !! Names of primary thermodynamic variables
     ! Locals:
     PetscErrorCode :: ierr
     type(fson_value), pointer :: mesh
@@ -284,7 +286,7 @@ contains
     call self%distribute()
     call self%label_boundaries()
     call self%construct_ghost_cells()
-    call self%setup_discretization(dof)
+    call self%setup_data_layout(primary_variable_names)
     call self%setup_geometry()
     call self%get_bounds()
 
@@ -353,6 +355,8 @@ contains
 
     call DMSetDefaultSection(dm, section, ierr); CHKERRQ(ierr)
     call PetscSectionDestroy(section, ierr); CHKERRQ(ierr)
+    ! Create the global section:
+    call DMGetDefaultGlobalSection(dm, section, ierr); CHKERRQ(ierr)
     deallocate(num_dof)
 
   end subroutine set_dm_data_layout

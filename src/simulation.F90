@@ -263,7 +263,6 @@ contains
     ! Locals:
     type(fson_value), pointer :: json
     PetscErrorCode :: ierr
-    PetscInt :: dof
 
     self%input_filename = filename
 
@@ -276,8 +275,7 @@ contains
     call self%read_thermodynamics(json)
     call self%read_eos(json)
 
-    dof = self%eos%num_primary
-    call self%mesh%init(json, dof)
+    call self%mesh%init(json, self%eos%primary_variable_names)
 
     call self%read_initial(json)
 
