@@ -31,7 +31,7 @@ contains
     type(fson_value), pointer :: json
     type(mesh_type) :: mesh
     character(:), allocatable :: primary_variable_names(:)
-    Vec :: v
+    Vec :: x
     type(face_type) :: face
     PetscInt :: celldof, facedof, num_primary
     PetscErrorCode :: ierr
@@ -46,13 +46,13 @@ contains
 
     call mesh%init(json, primary_variable_names)
 
-    call DMCreateGlobalVector(mesh%dm, v, ierr)
-    call VecGetSize(v, celldof, ierr)
+    call DMCreateGlobalVector(mesh%dm, x, ierr)
+    call VecGetSize(x, celldof, ierr)
     if (mpi%rank == mpi%input_rank) then
        num_primary = size(primary_variable_names)
-       call assert_equals(num_cells * num_primary, celldof, "global cell dof")
+       call assert_equals(num_cells * num_primary, celldof, "global solution dof")
     end if
-    call VecDestroy(v, ierr)
+    call VecDestroy(x, ierr)
 
     call VecGetSize(mesh%face_geom, facedof, ierr)
     if (mpi%rank == mpi%input_rank) then
