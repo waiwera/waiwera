@@ -25,15 +25,17 @@ contains
     ! Mesh init test
 
     use eos_module, only: max_primary_variable_name_length
+    use face_module
 
     character(max_mesh_filename_length) :: filename = "data/mesh_test_init.json"
     type(fson_value), pointer :: json
     type(mesh_type) :: mesh
     character(:), allocatable :: primary_variable_names(:)
     Vec :: v
-    PetscInt :: celldof
+    type(face_type) :: face
+    PetscInt :: celldof, facedof, num_primary
     PetscErrorCode :: ierr
-    PetscInt, parameter :: num_cells = 3
+    PetscInt, parameter :: num_cells = 3, num_faces = 16
     
     primary_variable_names = [character(max_primary_variable_name_length) :: &
          "Pressure", "Temperature"]
@@ -47,10 +49,15 @@ contains
     call DMCreateGlobalVector(mesh%dm, v, ierr)
     call VecGetSize(v, celldof, ierr)
     if (mpi%rank == mpi%input_rank) then
-       call assert_equals(num_cells * size(primary_variable_names), celldof, &
-            "cell dof")
+       num_primary = size(primary_variable_names)
+       call assert_equals(num_cells * num_primary, celldof, "global cell dof")
     end if
     call VecDestroy(v, ierr)
+
+    call VecGetSize(mesh%face_geom, facedof, ierr)
+    if (mpi%rank == mpi%input_rank) then
+       call assert_equals(num_faces * face%dof(), facedof, "global face dof")
+    end if
 
     call mesh%destroy()
     deallocate(primary_variable_names)
