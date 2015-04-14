@@ -33,7 +33,7 @@ module mesh_module
      procedure, public :: destroy => mesh_destroy
   end type mesh_type
 
-  public :: set_dm_data_layout
+  public :: section_offset, set_dm_data_layout
 
 contains
 
