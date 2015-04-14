@@ -305,6 +305,24 @@ contains
   end subroutine mesh_destroy
 
 !------------------------------------------------------------------------
+! Utilities
+!------------------------------------------------------------------------
+
+  subroutine section_offset(section, p, offset, ierr)
+    !! Wrapper for PetscSectionGetOffset(), adding one to the result for
+    !! Fortran 1-based indexing.
+
+    PetscSection, intent(in) :: section !! PETSc section
+    PetscInt, intent(in) :: p !! Mesh point
+    PetscInt, intent(out) :: offset
+    PetscErrorCode, intent(out) :: ierr
+
+    call PetscSectionGetOffset(section, p, offset, ierr)
+    offset = offset + 1
+
+  end subroutine section_offset
+
+!------------------------------------------------------------------------
 
   subroutine set_dm_data_layout(dm, num_components, field_dim, &
        field_name)
