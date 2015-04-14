@@ -161,17 +161,15 @@ contains
        call DMLabelGetValue(ghost_label, f, ghost, ierr); CHKERRQ(ierr)
        if (ghost < 0) then
 
-          call PetscSectionGetOffset(face_section, f, face_offset, ierr); CHKERRQ(ierr)
-          call PetscSectionGetOffset(petsc_face_section, f, petsc_face_offset, ierr)
+          call section_offset(face_section, f, face_offset, ierr); CHKERRQ(ierr)
+          call section_offset(petsc_face_section, f, petsc_face_offset, ierr)
           CHKERRQ(ierr)
-          face_offset = face_offset + 1; petsc_face_offset = petsc_face_offset + 1
 
           call DMPlexGetSupport(self%dm, f, cells, ierr); CHKERRQ(ierr)
           do i = 1, 2
-             call PetscSectionGetOffset(cell_section, cells(i), cell_offset(i), ierr)
+             call section_offset(cell_section, cells(i), cell_offset(i), ierr)
              CHKERRQ(ierr)
           end do
-          cell_offset = cell_offset + 1
 
           call petsc_face%assign(petsc_face_geom_array, petsc_face_offset)
           call face%assign(face_geom_array, face_offset, cell_geom_array, cell_offset)
