@@ -47,8 +47,8 @@ contains
     class(face_type), intent(in out) :: self
     PetscReal, target, intent(in) :: face_geom_data(:)  !! array with face geometry data
     PetscInt, intent(in)  :: face_geom_offset  !! face geometry array offset for this face
-    PetscReal, target, intent(in) :: cell_geom_data(:)  !! array with cell geometry data
-    PetscInt, intent(in)  :: cell_geom_offsets(:)  !! cell geometry array offsets for the face cells
+    PetscReal, target, intent(in), optional :: cell_geom_data(:)  !! array with cell geometry data
+    PetscInt, intent(in), optional  :: cell_geom_offsets(:)  !! cell geometry array offsets for the face cells
     ! Locals:
     PetscInt :: i
     
@@ -57,9 +57,11 @@ contains
     self%normal => face_geom_data(face_geom_offset + 3: face_geom_offset + 5)
     self%centroid => face_geom_data(face_geom_offset + 6: face_geom_offset + 8)
 
-    do i = 1, 2 
-       call self%cell(i)%assign(cell_geom_data, cell_geom_offsets(i))
-    end do
+    if ((present(cell_geom_data)).and.(present(cell_geom_offsets))) then
+       do i = 1, 2 
+          call self%cell(i)%assign(cell_geom_data, cell_geom_offsets(i))
+       end do
+    end if
 
   end subroutine face_assign
 
