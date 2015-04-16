@@ -42,11 +42,15 @@ contains
     PetscSection :: section
     DMLabel :: ghost_label
     PetscReal, pointer :: fg(:)
-    PetscInt :: f, offset, fstart, fend, ghost_face
+    PetscInt :: f, offset, fstart, fend, ghost_face, ghost_cell
+    PetscReal :: dist(2)
     PetscErrorCode :: ierr
     character(len = 24) :: msg
     PetscInt, parameter :: expected_dim = 3, num_cells = 3, num_faces = 16
-    PetscReal, parameter :: area = 200._dp
+    PetscReal, parameter :: face_area = 200._dp
+    PetscReal, parameter :: face_distance(2, 19:20) = reshape([5._dp, 10._dp, 10._dp, 15._dp], [2,2])
+    PetscReal, parameter :: face_centroid(3, 19:20) = &
+         reshape([5._dp, 10._dp, 50._dp, 5._dp, 10._dp, 30._dp], [3,2])
     
     primary_variable_names = [character(max_primary_variable_name_length) :: &
          "Pressure", "Temperature"]
@@ -83,7 +87,16 @@ contains
        if (ghost_face < 0) then
           call section_offset(section, f, offset, ierr); CHKERRQ(ierr)
           call face%assign(fg, offset)
-          call assert_equals(area, face%area, tol, msg)
+          write(msg, '(a, i2)') 'face area ', f
+          call assert_equals(face_area, face%area, tol, msg)
+          dist = face%distance
+          if (face%normal(3) > 0._dp) then
+             dist = [dist(2), dist(1)]
+          end if
+          write(msg, '(a, i2)') 'face distance ', f
+          call assert_equals(0._dp, norm2(dist - face_distance(:,f)), tol, msg)
+          write(msg, '(a, i2)') 'face centroid ', f
+          call assert_equals(0._dp, norm2(face%centroid - face_centroid(:,f)), tol, msg)
        end if
     end do
     call VecRestoreArrayF90(mesh%face_geom, fg, ierr)
