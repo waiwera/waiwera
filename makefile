@@ -77,7 +77,7 @@ $(TEST)/$(BUILD)/IFC67$(TESTSUF)$(OBJ): $(BUILD)/mpi$(OBJ)
 $(TEST)/$(BUILD)/IAPWS$(TESTSUF)$(OBJ): $(BUILD)/mpi$(OBJ) 
 $(TEST)/$(BUILD)/timestepping$(TESTSUF)$(OBJ): $(BUILD)/mpi$(OBJ) 
 $(TEST)/$(BUILD)/powertable$(TESTSUF)$(OBJ): $(BUILD)/mpi$(OBJ) 
-$(TEST)/$(BUILD)/mesh$(TESTSUF)$(OBJ): $(BUILD)/eos$(OBJ) $(BUILD)/face$(OBJ)
+$(TEST)/$(BUILD)/mesh$(TESTSUF)$(OBJ): $(BUILD)/eos$(OBJ) $(BUILD)/cell$(OBJ) $(BUILD)/face$(OBJ)
 $(TEST)/$(BUILD)/fson_mpi$(TESTSUF)$(OBJ): $(BUILD)/mpi$(OBJ) 
 $(BUILD)/$(PROG)$(OBJ): $(BUILD)/mpi$(OBJ) $(BUILD)/simulation$(OBJ)
 
