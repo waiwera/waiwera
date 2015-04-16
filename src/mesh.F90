@@ -111,7 +111,7 @@ contains
     class(mesh_type), intent(in out) :: self
     ! Locals:
     PetscErrorCode :: ierr
-    Vec :: petsc_face_geom, local_face_geom
+    Vec :: petsc_face_geom
     PetscInt :: dim
     DM :: dm_cell, dm_face, petsc_dm_face
     PetscSection :: face_section, petsc_face_section, cell_section
@@ -132,8 +132,9 @@ contains
 
     ! Set up face geometry vector:
     call DMClone(self%dm, dm_face, ierr); CHKERRQ(ierr)
-    call PetscSectionCreate(mpi%comm, face_section, ierr); CHKERRQ(ierr)
     call DMPlexGetHeightStratum(self%dm, 1, fStart, fEnd, ierr); CHKERRQ(ierr)
+    ! replace this with set_dm_data_layout()?
+    call PetscSectionCreate(mpi%comm, face_section, ierr); CHKERRQ(ierr)
     call PetscSectionSetChart(face_section, fStart, fEnd, ierr); CHKERRQ(ierr)
     face_dof = face%dof()
     do f = fstart, fend - 1
@@ -141,13 +142,13 @@ contains
     end do
     call PetscSectionSetUp(face_section, ierr); CHKERRQ(ierr)
     call DMSetDefaultSection(dm_face, face_section, ierr); CHKERRQ(ierr)
-    call DMCreateGlobalVector(dm_face, self%face_geom, ierr); CHKERRQ(ierr)
+
+    call DMCreateLocalVector(dm_face, self%face_geom, ierr); CHKERRQ(ierr)
 
     call VecGetDM(petsc_face_geom, petsc_dm_face, ierr); CHKERRQ(ierr)
     call DMGetDefaultSection(petsc_dm_face, petsc_face_section, ierr); CHKERRQ(ierr)
 
-    call DMGetLocalVector(dm_face, local_face_geom, ierr); CHKERRQ(ierr)
-    call VecGetArrayF90(local_face_geom, face_geom_array, ierr); CHKERRQ(ierr)
+    call VecGetArrayF90(self%face_geom, face_geom_array, ierr); CHKERRQ(ierr)
     call VecGetArrayF90(petsc_face_geom, petsc_face_geom_array, ierr); CHKERRQ(ierr)
     call VecGetArrayF90(self%cell_geom, cell_geom_array, ierr); CHKERRQ(ierr)
 
@@ -186,14 +187,9 @@ contains
     end do
 
     call VecRestoreArrayF90(self%cell_geom, cell_geom_array, ierr); CHKERRQ(ierr)
-    call VecRestoreArrayF90(local_face_geom, face_geom_array, ierr); CHKERRQ(ierr)
+    call VecRestoreArrayF90(self%face_geom, face_geom_array, ierr); CHKERRQ(ierr)
     call VecRestoreArrayF90(petsc_face_geom, petsc_face_geom_array, ierr)
     CHKERRQ(ierr)
-    call DMLocalToGlobalBegin(dm_face, local_face_geom, INSERT_VALUES, &
-         self%face_geom, ierr); CHKERRQ(ierr)
-    call DMLocalToGlobalEnd(dm_face, local_face_geom, INSERT_VALUES, &
-         self%face_geom, ierr); CHKERRQ(ierr)
-    call DMRestoreLocalVector(dm_face, local_face_geom, ierr); CHKERRQ(ierr)
 
     call PetscSectionDestroy(face_section, ierr); CHKERRQ(ierr)
 

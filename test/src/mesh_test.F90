@@ -36,14 +36,13 @@ contains
     Vec :: x
     type(cell_type) :: cell
     type(face_type) :: face
-    PetscInt :: global_solution_dof, global_cell_dof, global_face_dof, num_primary
+    PetscInt :: global_solution_dof, num_primary
     PetscInt :: dim, facedof
     DM :: dm_face
     PetscSection :: section
     DMLabel :: ghost_label
     PetscReal, pointer :: fg(:)
-    PetscInt :: i, f, offset, fstart, fend, ghost_face, ghost_cell(2)
-    PetscInt, pointer :: cells(:)
+    PetscInt :: f, offset, fstart, fend, ghost_face
     PetscErrorCode :: ierr
     character(len = 24) :: msg
     PetscInt, parameter :: expected_dim = 3, num_cells = 3, num_faces = 16
@@ -72,10 +71,6 @@ contains
     call VecDestroy(x, ierr)
 
     facedof = face%dof()
-    call VecGetSize(mesh%face_geom, global_face_dof, ierr)
-    if (mpi%rank == mpi%output_rank) then
-       call assert_equals(num_faces * facedof, global_face_dof, "global face geometry dof")
-    end if
 
     ! Check face geometry:
     call VecGetDM(mesh%face_geom, dm_face, ierr)
@@ -86,19 +81,9 @@ contains
     do f = fstart, fend-1
        call DMLabelGetValue(ghost_label, f, ghost_face, ierr); CHKERRQ(ierr)
        if (ghost_face < 0) then
-          call DMPlexGetSupport(mesh%dm, f, cells, ierr)
-          do i = 1, 2
-             call DMLabelGetValue(ghost_label, cells(i), ghost_cell(i), ierr)
-          end do
-          if (all(ghost_cell < 0)) then
-             call section_offset(section, f, offset, ierr); CHKERRQ(ierr)
-             call face%assign(fg, offset)
-             write(*,'(/a, i1, a, i2, a, i2, a, i2, 1x, i2, a, f6.2, a, f6.2)') 'rank ', mpi%rank, &
-                  ' f ', f, ' offset ', offset, ' fstart, fend ', fstart, fend, &
-                  ' area ', face%area, ' z ', face%centroid(3)
-             write(msg, '(a, i2)') 'face area ', f
-             call assert_equals(area, face%area, tol, msg)
-          end if
+          call section_offset(section, f, offset, ierr); CHKERRQ(ierr)
+          call face%assign(fg, offset)
+          call assert_equals(area, face%area, tol, msg)
        end if
     end do
     call VecRestoreArrayF90(mesh%face_geom, fg, ierr)
