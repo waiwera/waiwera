@@ -380,6 +380,7 @@ contains
 
     call VecDestroy(self%initial, ierr); CHKERRQ(ierr)
     call VecDestroy(self%fluid, ierr); CHKERRQ(ierr)
+    call VecDestroy(self%rock, ierr); CHKERRQ(ierr)
     call self%mesh%destroy()
     call self%thermo%destroy()
     call self%timestepper%destroy()
