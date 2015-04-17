@@ -19,7 +19,22 @@ module rock_module
      procedure, public :: dof => rock_dof
   end type rock_type
 
-  public :: rock_type
+  PetscInt, parameter :: num_rock_variables = 5
+  PetscInt, parameter :: max_rock_variable_name_length = 32
+  character(max_rock_variable_name_length), parameter :: &
+       rock_variable_names(num_rock_variables) = &
+       [character(max_rock_variable_name_length):: &
+       "Permeability", "Heat conductivity", "Porosity", &
+       "Density", "Specific heat"]
+  PetscInt, parameter :: &
+       rock_variable_num_components(num_rock_variables) = &
+       [3, 1, 1, 1, 1]
+  PetscInt, parameter :: &
+       rock_variable_dim(num_rock_variables) = &
+       [3, 3, 3, 3, 3]
+
+  public :: rock_type, rock_variable_num_components, &
+         rock_variable_dim, rock_variable_names
 
 contains
 
