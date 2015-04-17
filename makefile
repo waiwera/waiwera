@@ -73,12 +73,8 @@ $(BUILD)/eos$(OBJ): $(BUILD)/thermodynamics$(OBJ) $(BUILD)/fluid$(OBJ)
 $(BUILD)/eos_w$(OBJ): $(BUILD)/thermodynamics$(OBJ) $(BUILD)/eos$(OBJ) $(BUILD)/fluid$(OBJ)
 $(BUILD)/fson_mpi$(OBJ): $(BUILD)/mpi$(OBJ)
 $(BUILD)/timestepping$(OBJ): $(BUILD)/mpi$(OBJ)
-$(TEST)/$(BUILD)/IFC67$(TESTSUF)$(OBJ): $(BUILD)/mpi$(OBJ) 
-$(TEST)/$(BUILD)/IAPWS$(TESTSUF)$(OBJ): $(BUILD)/mpi$(OBJ) 
-$(TEST)/$(BUILD)/timestepping$(TESTSUF)$(OBJ): $(BUILD)/mpi$(OBJ) 
-$(TEST)/$(BUILD)/powertable$(TESTSUF)$(OBJ): $(BUILD)/mpi$(OBJ) 
+$(TEST)/$(BUILD)/%$(TESTSUF)$(OBJ): $(BUILD)/mpi$(OBJ) 
 $(TEST)/$(BUILD)/mesh$(TESTSUF)$(OBJ): $(BUILD)/eos$(OBJ) $(BUILD)/cell$(OBJ) $(BUILD)/face$(OBJ)
-$(TEST)/$(BUILD)/fson_mpi$(TESTSUF)$(OBJ): $(BUILD)/mpi$(OBJ) 
 $(BUILD)/$(PROG)$(OBJ): $(BUILD)/mpi$(OBJ) $(BUILD)/simulation$(OBJ)
 
 # build rules:
