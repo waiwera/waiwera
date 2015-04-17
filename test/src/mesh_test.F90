@@ -42,7 +42,7 @@ contains
     PetscSection :: section
     DMLabel :: ghost_label
     PetscReal, pointer :: fg(:)
-    PetscInt :: f, offset, fstart, fend, ghost_face, ghost_cell
+    PetscInt :: f, offset, fstart, fend, ghost_face
     PetscReal :: dist(2)
     PetscErrorCode :: ierr
     character(len = 24) :: msg
