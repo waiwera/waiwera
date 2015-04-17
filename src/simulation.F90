@@ -43,6 +43,7 @@ module simulation_module
      procedure :: read_eos => simulation_read_eos
      procedure :: read_initial => simulation_read_initial
      procedure :: setup_fluid => simulation_setup_fluid
+     procedure :: read_rocks => simulation_read_rocks
      procedure :: read_timestepping => simulation_read_timestepping
      procedure, public :: init => simulation_init
      procedure, public :: run => simulation_run
@@ -233,6 +234,34 @@ contains
 
 !------------------------------------------------------------------------
 
+  subroutine simulation_read_rocks(self, json)
+    !! Reads rock properties from JSON input.
+
+    use rock_module, only: rock_variable_num_components, &
+         rock_variable_dim, rock_variable_names
+
+    class(simulation_type), intent(in out) :: self
+    type(fson_value), pointer, intent(in) :: json
+    ! Locals:
+    DM :: dm_rocks
+    PetscErrorCode :: ierr
+
+    call DMClone(self%mesh%dm, dm_rocks, ierr); CHKERRQ(ierr)
+
+    call set_dm_data_layout(dm_rocks, rock_variable_num_components, &
+         rock_variable_dim, rock_variable_names)
+
+    call DMCreateGlobalVector(dm_rocks, self%rock, ierr); CHKERRQ(ierr)
+
+    call DMDestroy(dm_rocks, ierr); CHKERRQ(ierr)
+
+    ! Populate rock vector from JSON file:
+    ! TBD
+
+  end subroutine simulation_read_rocks
+
+!------------------------------------------------------------------------
+
   subroutine simulation_read_timestepping(self, json)
     !! Reads time stepping data from JSON input.
 
@@ -316,6 +345,8 @@ contains
     call self%read_initial(json)
 
     call self%setup_fluid()
+
+    call self%read_rocks(json)
 
     call self%read_timestepping(json)
 
