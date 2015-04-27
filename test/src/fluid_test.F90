@@ -59,7 +59,7 @@ contains
           nc = size(fluid%phase(p)%mass_fraction)
           call assert_equals(0._dp, norm2(fluid_data(i+6:i+6+nc) - &
                fluid%phase(p)%mass_fraction), tol, "mass fraction")
-          i = i + fluid%phase(p)%dof()
+          i = i + fluid%phase(p)%dof() - 1
        end do
 
        deallocate(fluid_data)
