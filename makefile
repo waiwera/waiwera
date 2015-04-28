@@ -46,8 +46,8 @@ PROG = supermodel
 TESTPROG = test_all
 TESTSUF = _test
 # test modules that need setup/teardown:
-SETUPTESTS = IAPWS IFC67 timestepping fson_mpi cell mesh fluid
-NONSETUPTESTS = powertable utils rock
+SETUPTESTS = IAPWS IFC67 timestepping fson_mpi cell face mesh fluid rock
+NONSETUPTESTS = powertable utils
 TESTS = setup $(SETUPTESTS) $(NONSETUPTESTS)
 SETUPOBJS = $(patsubst %, $(BUILD)/%$(OBJ), $(SETUPTESTS))
 TESTOBJS = $(patsubst %, $(TEST)/$(BUILD)/%$(TESTSUF)$(OBJ), $(TESTS))
