@@ -48,11 +48,11 @@ contains
     PetscReal, target, intent(in) :: data(:)  !! rock data array
     PetscInt, intent(in) :: offset !! rock array offset
 
-    self%permeability => data(offset + 1: offset + 3)
-    self%heat_conductivity => data(offset + 4)
-    self%porosity => data(offset + 5)
-    self%density => data(offset + 6)
-    self%specific_heat => data(offset + 7)
+    self%permeability => data(offset: offset + 2)
+    self%heat_conductivity => data(offset + 3)
+    self%porosity => data(offset + 4)
+    self%density => data(offset + 5)
+    self%specific_heat => data(offset + 6)
 
   end subroutine rock_assign
     
