@@ -108,21 +108,22 @@ contains
     PetscReal, target, intent(in) :: data(:)  !! fluid data array
     PetscInt, intent(in) :: offset  !! fluid array offset
     ! Locals:
-    PetscInt :: i, ofs, nc
+    PetscInt :: i, p, nc, np
 
-    self%pressure => data(offset + 1)
-    self%temperature => data(offset + 2)
+    self%pressure => data(offset)
+    self%temperature => data(offset + 1)
     
-    ofs = offset + 3
-    do i = 1, size(self%phase)
-       self%phase(i)%density => data(ofs); ofs = ofs + 1
-       self%phase(i)%viscosity => data(ofs); ofs = ofs + 1
-       self%phase(i)%saturation => data(ofs); ofs = ofs + 1
-       self%phase(i)%relative_permeability => data(ofs); ofs = ofs + 1
-       self%phase(i)%specific_enthalpy => data(ofs); ofs = ofs + 1
+    i = offset + num_fluid_variables
+    np = size(self%phase)
+    do p = 1, np
+       self%phase(p)%density => data(i)
+       self%phase(p)%viscosity => data(i+1)
+       self%phase(p)%saturation => data(i+2)
+       self%phase(p)%relative_permeability => data(i+3)
+       self%phase(p)%specific_enthalpy => data(i+4)
        nc = size(self%phase(i)%mass_fraction)
-       self%phase(i)%mass_fraction => data(ofs: ofs + nc-1)
-       ofs = ofs + nc
+       self%phase(p)%mass_fraction => data(i+5: i + 5 + nc-1)
+       i = i + self%phase(p)%dof()
     end do
 
   end subroutine fluid_assign
