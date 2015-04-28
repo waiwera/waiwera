@@ -6,7 +6,7 @@ module fluid_module
   private
 
   PetscInt, parameter, public :: num_phase_variables = 6
-  PetscInt, parameter, public :: num_fluid_variables = 2
+  PetscInt, parameter, public :: num_fluid_variables = 3
 
   type phase_type
      !! Type for accessing local fluid properties for a particular phase.
@@ -29,6 +29,7 @@ module fluid_module
      private
      PetscReal, pointer, public :: pressure    !! Bulk pressure
      PetscReal, pointer, public :: temperature !! Temperature
+     PetscReal, pointer, public :: region      !! Thermodynamic region
      type(phase_type), allocatable, public :: phase(:)
    contains
      private
@@ -112,6 +113,7 @@ contains
 
     self%pressure => data(offset)
     self%temperature => data(offset + 1)
+    self%region => data(offset + 2)
     
     i = offset + num_fluid_variables
     np = size(self%phase)
