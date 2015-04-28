@@ -42,6 +42,7 @@ contains
 
        call assert_equals(fluid_data(offset), fluid%pressure, tol, "pressure")
        call assert_equals(fluid_data(offset+1), fluid%temperature, tol, "temperature")
+       call assert_equals(fluid_data(offset+2), fluid%region, tol, "region")
 
        i = offset + num_fluid_variables
        do p = 1, num_phases
