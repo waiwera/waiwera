@@ -9,5 +9,21 @@ project_github: https://github.com/johnburnell/supermodels-test
 project_dir: ./src
 output_dir: ./doc/dev
 extensions: F90
-
+extra_vartypes: PetscErrorCode
+                MPI_Comm
+                PetscMPIInt
+                PetscInt
+                PetscReal
+                PetscScalar
+                PetscBool
+                Vec
+                NormType
+                DM
+                DMLabel
+                PetscSection
+                IS
+                Mat
+                KSP
+                SNES
+                SNESConvergedReason
 A numerical simulator for modelling subsurface flow in geothermal systems.
