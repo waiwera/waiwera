@@ -62,10 +62,8 @@ contains
     !! Returns degrees of freedom in a rock object.
 
     class(rock_type), intent(in) :: self
-    ! Locals:
-    PetscInt, parameter :: fixed_dof = 7
 
-    rock_dof = fixed_dof
+    rock_dof = sum(rock_variable_num_components)
 
   end function rock_dof
 
