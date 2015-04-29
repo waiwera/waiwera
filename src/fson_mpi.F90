@@ -29,6 +29,7 @@ module fson_mpi_module
   end interface fson_get_default
 
   interface fson_get_mpi
+     module procedure fson_get_mpi_fson_value
      module procedure fson_get_mpi_integer
      module procedure fson_get_mpi_real
      module procedure fson_get_mpi_double
@@ -45,7 +46,7 @@ module fson_mpi_module
   end interface fson_get_mpi
 
   public :: fson_get_default, fson_get_mpi, fson_has_mpi
-  public :: fson_type_mpi, fson_value_count_mpi
+  public :: fson_type_mpi, fson_value_count_mpi, fson_value_get_mpi
 
   contains
     
@@ -326,6 +327,23 @@ module fson_mpi_module
 
 !------------------------------------------------------------------------
 ! fson_get_mpi routines
+!------------------------------------------------------------------------
+
+      subroutine fson_get_mpi_fson_value(self, path, val)
+        !! Gets fson_value on MPI input rank, and null on all other ranks.
+
+        type(fson_value), pointer, intent(in) :: self
+        character(len=*), intent(in) :: path
+        type(fson_value), pointer, intent(out) :: val
+
+        if (mpi%rank == mpi%input_rank) then
+           call fson_get(self, path, val)
+        else
+           val => NULL()
+        end if
+
+      end subroutine fson_get_mpi_fson_value
+
 !------------------------------------------------------------------------
 
     subroutine fson_get_mpi_integer(self, path, default, val)
@@ -747,6 +765,26 @@ module fson_mpi_module
         call MPI_bcast(count, 1, MPI_INTEGER, mpi%input_rank, mpi%comm, ierr)
 
       end function fson_value_count_mpi
+
+!------------------------------------------------------------------------
+
+      function fson_value_get_mpi(self, i) result(p)
+        !! Returns value i of fson object on MPI input rank, and null
+        !! on all other ranks.
+
+        use fson_value_m, only : fson_value_get
+
+        type(fson_value), pointer, intent(in) :: self
+        integer, intent(in) :: i
+        type(fson_value), pointer :: p
+
+        if (mpi%rank == mpi%input_rank) then
+           p => fson_value_get(self, i)
+        else
+           p => NULL()
+        end if
+
+      end function fson_value_get_mpi
 
 !------------------------------------------------------------------------
 
