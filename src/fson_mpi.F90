@@ -44,7 +44,8 @@ module fson_mpi_module
      module procedure fson_get_mpi_array_2d_logical
   end interface fson_get_mpi
 
-  public :: fson_get_default, fson_get_mpi, fson_has_mpi, fson_type_mpi
+  public :: fson_get_default, fson_get_mpi, fson_has_mpi
+  public :: fson_type_mpi, fson_value_count_mpi
 
   contains
     
@@ -719,6 +720,33 @@ module fson_mpi_module
         call MPI_bcast(t, 1, MPI_INTEGER, mpi%input_rank, mpi%comm, ierr)
 
       end function fson_type_mpi
+
+!------------------------------------------------------------------------
+
+      integer function fson_value_count_mpi(self, path) result(count)
+        !! Returns value count on all ranks of fson object with the specified
+        !! path (returns zero if the path does not exist).
+
+        use fson_value_m, only : fson_value_count
+
+        type(fson_value), pointer, intent(in) :: self
+        character(len=*), intent(in) :: path
+        ! Locals:
+        type(fson_value), pointer :: p
+        integer :: ierr
+
+        if (mpi%rank == mpi%input_rank) then
+           call fson_get(self, path, p)
+           if (associated(p)) then
+              count = fson_value_count(p)
+           else
+              count = 0
+           end if
+        end if
+
+        call MPI_bcast(count, 1, MPI_INTEGER, mpi%input_rank, mpi%comm, ierr)
+
+      end function fson_value_count_mpi
 
 !------------------------------------------------------------------------
 
