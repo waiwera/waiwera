@@ -20,6 +20,7 @@ module simulation_module
 #include <petsc-finclude/petscsys.h>
 #include <petsc-finclude/petscdef.h>
 #include <petsc-finclude/petscvec.h>
+#include <petsc-finclude/petscvec.h90>
 
   integer, parameter, public :: max_filename_length = 200
   integer, parameter, public :: max_title_length = 120
@@ -245,6 +246,23 @@ contains
     ! Locals:
     DM :: dm_rocks
     PetscErrorCode :: ierr
+    PetscScalar, pointer :: rock_array(:)
+    PetscInt :: num_rocktypes, num_cells, ir, ic, c
+    type(fson_value), pointer :: rocktypes, r
+    DMLabel :: label
+    PetscSection :: section
+    PetscInt, parameter :: max_rockname_length = 24
+    character(max_rockname_length) :: name
+    PetscReal :: porosity, density, specific_heat, heat_conductivity
+    PetscReal, allocatable :: permeability(:)
+    PetscInt, allocatable :: cells(:)
+    PetscInt, allocatable :: default_cells(:)
+    PetscReal, parameter :: default_porosity = 0.1_dp, default_density = 2200.0_dp
+    PetscReal, parameter :: default_specific_heat = 1000._dp
+    PetscReal, parameter :: default_heat_conductivity = 2.5_dp
+    PetscReal, parameter :: default_permeability(3) = [1.e-13_dp, 1.e-13_dp, 1.e-13_dp]
+
+    default_cells = [PetscInt::] ! empty integer array
 
     call DMClone(self%mesh%dm, dm_rocks, ierr); CHKERRQ(ierr)
 
@@ -253,10 +271,53 @@ contains
 
     call DMCreateGlobalVector(dm_rocks, self%rock, ierr); CHKERRQ(ierr)
 
-    call DMDestroy(dm_rocks, ierr); CHKERRQ(ierr)
+    call VecGetArrayF90(self%rock, rock_array, ierr); CHKERRQ(ierr)
+    call DMGetDefaultSection(dm_rocks, section, ierr); CHKERRQ(ierr)
+
+    ! TODO: set default rock properties everywhere here? in case of cells with
+    ! no properties specified
 
     ! Populate rock vector from JSON file:
-    ! TBD
+    if (fson_has_mpi(json, "rock")) then
+
+       if (fson_has_mpi(json, "rock.types")) then
+          call fson_get_mpi(json, "rock.types", rocktypes)
+          num_rocktypes = fson_value_count_mpi(rocktypes, ".")
+          do ir = 1, num_rocktypes
+             r => fson_value_get_mpi(rocktypes, ir)
+             call fson_get_mpi(r, "name", "", name)
+             call fson_get_mpi(r, "permeability", default_permeability, permeability)
+             call fson_get_mpi(r, "heat conductivity", default_heat_conductivity, heat_conductivity)
+             call fson_get_mpi(r, "porosity", default_porosity, porosity)
+             call fson_get_mpi(r, "density", default_density, density)
+             call fson_get_mpi(r, "specific heat", default_specific_heat, specific_heat)
+             call fson_get_mpi(r, "cells", default_cells, cells)
+             call DMPlexCreateLabel(self%mesh%dm, name, ierr); CHKERRQ(ierr)
+             num_cells = size(cells)
+             do ic = 1, num_cells
+                c = cells(ic)
+                call DMPlexSetLabelValue(self%mesh%dm, name, c, 1, ierr); CHKERRQ(ierr)
+                ! check if cell is on processor
+                ! call rock%assign(rock_array, offset)
+                ! rock%porosity = porosity etc.
+             end do
+          end do
+
+       else
+          ! other types of rock initialization here- TODO
+       end if
+
+    else
+       ! assign default rock properties- TODO
+    end if
+
+    call PetscViewerASCIISynchronizedAllow(PETSC_VIEWER_STDOUT_WORLD, PETSC_TRUE, ierr)
+    call DMPlexGetLabel(self%mesh%dm, name, label, ierr); CHKERRQ(ierr)
+    call DMLabelView(label, PETSC_VIEWER_STDOUT_WORLD, ierr); CHKERRQ(ierr)
+
+    call VecRestoreArrayF90(self%rock, rock_array, ierr); CHKERRQ(ierr)
+
+    call DMDestroy(dm_rocks, ierr); CHKERRQ(ierr)
 
   end subroutine simulation_read_rocks
 
