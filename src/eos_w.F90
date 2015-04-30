@@ -89,6 +89,7 @@ contains
 
     fluid%pressure = primary(1)
     fluid%temperature = self%temperature
+    fluid%region = 1
 
     call self%thermo%water%properties([fluid%pressure, fluid%temperature],\
     properties, err)
