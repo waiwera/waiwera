@@ -44,6 +44,7 @@ module simulation_module
      procedure :: read_eos => simulation_read_eos
      procedure :: read_initial => simulation_read_initial
      procedure :: setup_fluid => simulation_setup_fluid
+     procedure :: read_rock_types => simulation_read_rock_types
      procedure :: read_rock_properties => simulation_read_rock_properties
      procedure :: read_timestepping => simulation_read_timestepping
      procedure :: setup_rocktype_labels => simulation_setup_rocktype_labels
@@ -238,20 +239,17 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine simulation_read_rock_properties(self, json)
-    !! Reads rock properties from JSON input.
+  subroutine simulation_read_rock_types(self, json)
+    !! Reads rock properties from rock types in JSON input.
 
     use rock_module
 
     class(simulation_type), intent(in out) :: self
     type(fson_value), pointer, intent(in) :: json
     ! Locals:
-    DM :: dm_rocks
-    PetscErrorCode :: ierr
-    PetscScalar, pointer :: rock_array(:)
     PetscInt :: num_rocktypes, ir, ic, c, num_cells, offset
+    DM :: dm_rock
     type(fson_value), pointer :: rocktypes, r
-    PetscSection :: section
     PetscInt, parameter :: max_rockname_length = 24
     IS :: rock_IS
     PetscInt, pointer :: rock_cells(:)
@@ -259,16 +257,64 @@ contains
     character(max_rockname_length) :: name
     PetscReal :: porosity, density, specific_heat, heat_conductivity
     PetscReal, allocatable :: permeability(:)
+    PetscScalar, pointer :: rock_array(:)
+    PetscSection :: section
+    PetscErrorCode :: ierr
 
-    call DMClone(self%mesh%dm, dm_rocks, ierr); CHKERRQ(ierr)
+    call VecGetDM(self%rock, dm_rock, ierr); CHKERRQ(ierr)
+    call VecGetArrayF90(self%rock, rock_array, ierr); CHKERRQ(ierr)
+    call DMGetDefaultSection(dm_rock, section, ierr); CHKERRQ(ierr)
+    
+    call fson_get_mpi(json, "rock.types", rocktypes)
+    num_rocktypes = fson_value_count_mpi(rocktypes, ".")
+    do ir = 1, num_rocktypes
+       r => fson_value_get_mpi(rocktypes, ir)
+       call fson_get_mpi(r, "name", "", name)
+       call fson_get_mpi(r, "permeability", default_permeability, permeability)
+       call fson_get_mpi(r, "heat conductivity", default_heat_conductivity, heat_conductivity)
+       call fson_get_mpi(r, "porosity", default_porosity, porosity)
+       call fson_get_mpi(r, "density", default_density, density)
+       call fson_get_mpi(r, "specific heat", default_specific_heat, specific_heat)
+       call DMPlexGetStratumIS(self%mesh%dm, "Rock type", ir, rock_IS, ierr); CHKERRQ(ierr)
+       call ISGetIndicesF90(rock_IS, rock_cells, ierr); CHKERRQ(ierr)
+       num_cells = size(rock_cells)
+       do ic = 1, num_cells
+          c = rock_cells(ic)
+          call section_offset(section, c, offset, ierr); CHKERRQ(ierr)
+          call rock%assign(rock_array, offset)
+          rock%permeability = permeability
+          rock%heat_conductivity = heat_conductivity
+          rock%porosity = porosity
+          rock%density = density
+          rock%specific_heat = specific_heat
+       end do
+       call ISRestoreIndicesF90(rock_IS, rock_cells, ierr); CHKERRQ(ierr)
+    end do
 
-    call set_dm_data_layout(dm_rocks, rock_variable_num_components, &
+    call VecRestoreArrayF90(self%rock, rock_array, ierr); CHKERRQ(ierr)
+
+  end subroutine simulation_read_rock_types
+
+!------------------------------------------------------------------------
+
+  subroutine simulation_read_rock_properties(self, json)
+    !! Reads rock properties from JSON input.
+
+    use rock_module, only: rock_variable_num_components, &
+         rock_variable_dim, rock_variable_names
+
+    class(simulation_type), intent(in out) :: self
+    type(fson_value), pointer, intent(in) :: json
+    ! Locals:
+    DM :: dm_rock
+    PetscErrorCode :: ierr
+
+    call DMClone(self%mesh%dm, dm_rock, ierr); CHKERRQ(ierr)
+
+    call set_dm_data_layout(dm_rock, rock_variable_num_components, &
          rock_variable_dim, rock_variable_names)
 
-    call DMCreateGlobalVector(dm_rocks, self%rock, ierr); CHKERRQ(ierr)
-
-    call VecGetArrayF90(self%rock, rock_array, ierr); CHKERRQ(ierr)
-    call DMGetDefaultSection(dm_rocks, section, ierr); CHKERRQ(ierr)
+    call DMCreateGlobalVector(dm_rock, self%rock, ierr); CHKERRQ(ierr)
 
     ! TODO: set default rock properties everywhere here? in case of cells with
     ! no properties specified
@@ -278,43 +324,15 @@ contains
 
        if (fson_has_mpi(json, "rock.types")) then
 
-          call fson_get_mpi(json, "rock.types", rocktypes)
-          num_rocktypes = fson_value_count_mpi(rocktypes, ".")
-          do ir = 1, num_rocktypes
-             r => fson_value_get_mpi(rocktypes, ir)
-             call fson_get_mpi(r, "name", "", name)
-             call fson_get_mpi(r, "permeability", default_permeability, permeability)
-             call fson_get_mpi(r, "heat conductivity", default_heat_conductivity, heat_conductivity)
-             call fson_get_mpi(r, "porosity", default_porosity, porosity)
-             call fson_get_mpi(r, "density", default_density, density)
-             call fson_get_mpi(r, "specific heat", default_specific_heat, specific_heat)
-             call DMPlexGetStratumIS(self%mesh%dm, "Rock type", ir, rock_IS, ierr); CHKERRQ(ierr)
-             call ISGetIndicesF90(rock_IS, rock_cells, ierr); CHKERRQ(ierr)
-             num_cells = size(rock_cells)
-             do ic = 1, num_cells
-                c = rock_cells(ic)
-                call section_offset(section, c, offset, ierr); CHKERRQ(ierr)
-                call rock%assign(rock_array, offset)
-                rock%permeability = permeability
-                rock%heat_conductivity = heat_conductivity
-                rock%porosity = porosity
-                rock%density = density
-                rock%specific_heat = specific_heat
-             end do
-             call ISRestoreIndicesF90(rock_IS, rock_cells, ierr); CHKERRQ(ierr)
-          end do
+          call self%read_rock_types(json)
 
        else
           ! other types of rock initialization here- TODO
        end if
 
-    else
-       ! assign default rock properties- TODO
     end if
 
-    call VecRestoreArrayF90(self%rock, rock_array, ierr); CHKERRQ(ierr)
-
-    call DMDestroy(dm_rocks, ierr); CHKERRQ(ierr)
+    call DMDestroy(dm_rock, ierr); CHKERRQ(ierr)
 
   end subroutine simulation_read_rock_properties
 
