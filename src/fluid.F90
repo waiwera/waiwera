@@ -1,9 +1,9 @@
 module fluid_module
 
-#include <petsc-finclude/petscdef.h>
-
   implicit none
   private
+
+#include <petsc-finclude/petscdef.h>
 
   PetscInt, parameter, public :: num_phase_variables = 6
   PetscInt, parameter, public :: num_fluid_variables = 3

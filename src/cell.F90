@@ -7,10 +7,10 @@ module cell_module
   use rock_module
   use fluid_module
 
-#include <petsc-finclude/petscdef.h>
-
   implicit none
   private
+
+#include <petsc-finclude/petscdef.h>
 
   type cell_type
      !! Type for accessing local cell geometry, rock and

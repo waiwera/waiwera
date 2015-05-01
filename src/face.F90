@@ -1,12 +1,12 @@
 module face_module
   !! Defines type for accessing local quantities defined on a mesh face.
 
-#include <petsc-finclude/petscdef.h>
-
   use cell_module
 
   implicit none
   private
+
+#include <petsc-finclude/petscdef.h>
 
   type face_type
      !! Type for accessing local face properties.
