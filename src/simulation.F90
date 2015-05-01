@@ -250,7 +250,6 @@ contains
     PetscInt :: num_rocktypes, ir, ic, c, num_cells, offset
     DM :: dm_rock
     type(fson_value), pointer :: rocktypes, r
-    PetscInt, parameter :: max_rockname_length = 24
     IS :: rock_IS
     PetscInt, pointer :: rock_cells(:)
     type(rock_type) :: rock
