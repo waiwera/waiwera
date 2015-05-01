@@ -44,8 +44,11 @@ module simulation_module
      procedure :: read_eos => simulation_read_eos
      procedure :: read_initial => simulation_read_initial
      procedure :: setup_fluid => simulation_setup_fluid
-     procedure :: read_rocks => simulation_read_rocks
+     procedure :: read_rock_properties => simulation_read_rock_properties
      procedure :: read_timestepping => simulation_read_timestepping
+     procedure :: setup_rocktype_labels => simulation_setup_rocktype_labels
+     procedure :: setup_boundary_labels => simulation_setup_boundary_labels
+     procedure :: setup_labels => simulation_setup_labels
      procedure, public :: init => simulation_init
      procedure, public :: run => simulation_run
      procedure, public :: destroy => simulation_destroy
@@ -235,11 +238,10 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine simulation_read_rocks(self, json)
+  subroutine simulation_read_rock_properties(self, json)
     !! Reads rock properties from JSON input.
 
-    use rock_module, only: rock_variable_num_components, &
-         rock_variable_dim, rock_variable_names
+    use rock_module
 
     class(simulation_type), intent(in out) :: self
     type(fson_value), pointer, intent(in) :: json
@@ -247,22 +249,16 @@ contains
     DM :: dm_rocks
     PetscErrorCode :: ierr
     PetscScalar, pointer :: rock_array(:)
-    PetscInt :: num_rocktypes, num_cells, ir, ic, c
+    PetscInt :: num_rocktypes, ir, ic, c, num_cells, offset
     type(fson_value), pointer :: rocktypes, r
-    DMLabel :: label
     PetscSection :: section
     PetscInt, parameter :: max_rockname_length = 24
+    IS :: rock_IS
+    PetscInt, pointer :: rock_cells(:)
+    type(rock_type) :: rock
     character(max_rockname_length) :: name
     PetscReal :: porosity, density, specific_heat, heat_conductivity
     PetscReal, allocatable :: permeability(:)
-    PetscInt, allocatable :: cells(:)
-    PetscInt, allocatable :: default_cells(:)
-    PetscReal, parameter :: default_porosity = 0.1_dp, default_density = 2200.0_dp
-    PetscReal, parameter :: default_specific_heat = 1000._dp
-    PetscReal, parameter :: default_heat_conductivity = 2.5_dp
-    PetscReal, parameter :: default_permeability(3) = [1.e-13_dp, 1.e-13_dp, 1.e-13_dp]
-
-    default_cells = [PetscInt::] ! empty integer array
 
     call DMClone(self%mesh%dm, dm_rocks, ierr); CHKERRQ(ierr)
 
@@ -281,6 +277,7 @@ contains
     if (fson_has_mpi(json, "rock")) then
 
        if (fson_has_mpi(json, "rock.types")) then
+
           call fson_get_mpi(json, "rock.types", rocktypes)
           num_rocktypes = fson_value_count_mpi(rocktypes, ".")
           do ir = 1, num_rocktypes
@@ -291,16 +288,20 @@ contains
              call fson_get_mpi(r, "porosity", default_porosity, porosity)
              call fson_get_mpi(r, "density", default_density, density)
              call fson_get_mpi(r, "specific heat", default_specific_heat, specific_heat)
-             call fson_get_mpi(r, "cells", default_cells, cells)
-             call DMPlexCreateLabel(self%mesh%dm, name, ierr); CHKERRQ(ierr)
-             num_cells = size(cells)
+             call DMPlexGetStratumIS(self%mesh%dm, "Rock type", ir, rock_IS, ierr); CHKERRQ(ierr)
+             call ISGetIndicesF90(rock_IS, rock_cells, ierr); CHKERRQ(ierr)
+             num_cells = size(rock_cells)
              do ic = 1, num_cells
-                c = cells(ic)
-                call DMPlexSetLabelValue(self%mesh%dm, name, c, 1, ierr); CHKERRQ(ierr)
-                ! check if cell is on processor
-                ! call rock%assign(rock_array, offset)
-                ! rock%porosity = porosity etc.
+                c = rock_cells(ic)
+                call section_offset(section, c, offset, ierr); CHKERRQ(ierr)
+                call rock%assign(rock_array, offset)
+                rock%permeability = permeability
+                rock%heat_conductivity = heat_conductivity
+                rock%porosity = porosity
+                rock%density = density
+                rock%specific_heat = specific_heat
              end do
+             call ISRestoreIndicesF90(rock_IS, rock_cells, ierr); CHKERRQ(ierr)
           end do
 
        else
@@ -311,15 +312,11 @@ contains
        ! assign default rock properties- TODO
     end if
 
-    call PetscViewerASCIISynchronizedAllow(PETSC_VIEWER_STDOUT_WORLD, PETSC_TRUE, ierr)
-    call DMPlexGetLabel(self%mesh%dm, name, label, ierr); CHKERRQ(ierr)
-    call DMLabelView(label, PETSC_VIEWER_STDOUT_WORLD, ierr); CHKERRQ(ierr)
-
     call VecRestoreArrayF90(self%rock, rock_array, ierr); CHKERRQ(ierr)
 
     call DMDestroy(dm_rocks, ierr); CHKERRQ(ierr)
 
-  end subroutine simulation_read_rocks
+  end subroutine simulation_read_rock_properties
 
 !------------------------------------------------------------------------
 
@@ -380,6 +377,77 @@ contains
 
 !------------------------------------------------------------------------
 
+  subroutine simulation_setup_rocktype_labels(self, json)
+    !! Sets up rocktype label on the mesh. The values of the "Rock type"
+    !! label are the indices (1-based) of the rocktypes specified in the 
+    !! JSON input file.
+
+    class(simulation_type), intent(in out) :: self
+    type(fson_value), pointer, intent(in) :: json
+    ! Locals:
+    PetscErrorCode :: ierr
+    type(fson_value), pointer :: rocktypes, r
+    PetscInt :: num_rocktypes, num_cells, ir, ic, c
+    PetscInt, allocatable :: cells(:)
+    PetscInt, allocatable :: default_cells(:)
+
+    default_cells = [PetscInt::] ! empty integer array
+
+    if (fson_has_mpi(json, "rock.types")) then
+       call fson_get_mpi(json, "rock.types", rocktypes)
+       call DMPlexCreateLabel(self%mesh%dm, "Rock type", ierr); CHKERRQ(ierr)
+       num_rocktypes = fson_value_count_mpi(rocktypes, ".")
+       do ir = 1, num_rocktypes
+          r => fson_value_get_mpi(rocktypes, ir)
+          call fson_get_mpi(r, "cells", default_cells, cells)
+          num_cells = size(cells)
+          do ic = 1, num_cells
+             c = cells(ic)
+             call DMPlexSetLabelValue(self%mesh%dm, "Rock type", &
+                  c, ir, ierr); CHKERRQ(ierr)
+          end do
+       end do
+    end if
+
+  end subroutine simulation_setup_rocktype_labels
+
+!------------------------------------------------------------------------
+
+  subroutine simulation_setup_boundary_labels(self)
+    !! Sets up labels identifying boundaries of the mesh (for e.g.
+    !! applying boundary conditions.
+
+    class(simulation_type), intent(in out) :: self
+    ! Locals:
+    PetscErrorCode :: ierr
+    PetscBool :: has_label
+
+    call DMPlexHasLabel(self%mesh%dm, open_boundary_label_name, has_label, &
+         ierr); CHKERRQ(ierr)
+    if (.not.(has_label)) then
+       call DMPlexCreateLabel(self%mesh%dm, open_boundary_label_name, &
+            ierr); CHKERRQ(ierr)
+       ! could read boundary faces from input here if needed- i.e. if labels
+       ! not present in mesh file
+    end if
+
+  end subroutine simulation_setup_boundary_labels
+
+!------------------------------------------------------------------------
+
+  subroutine simulation_setup_labels(self, json)
+    !! Sets up labels on the mesh for a simulation.
+
+    class(simulation_type), intent(in out) :: self
+    type(fson_value), pointer, intent(in) :: json
+
+    call self%setup_rocktype_labels(json)
+    call self%setup_boundary_labels()
+
+  end subroutine simulation_setup_labels
+
+!------------------------------------------------------------------------
+
   subroutine simulation_init(self, filename)
     !! Initializes a simulation using data from the input file with 
     !! specified name.
@@ -401,13 +469,17 @@ contains
     call self%read_thermodynamics(json)
     call self%read_eos(json)
 
-    call self%mesh%init(json, self%eos%primary_variable_names)
+    call self%mesh%init(json)
+
+    call self%setup_labels(json)
+
+    call self%mesh%configure(self%eos%primary_variable_names)
 
     call self%read_initial(json)
 
     call self%setup_fluid()
 
-    call self%read_rocks(json)
+    call self%read_rock_properties(json)
 
     call self%read_timestepping(json)
 
