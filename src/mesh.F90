@@ -27,9 +27,9 @@ module mesh_module
      procedure :: construct_ghost_cells => mesh_construct_ghost_cells
      procedure :: setup_data_layout => mesh_setup_data_layout
      procedure :: setup_geometry => mesh_setup_geometry
-     procedure :: label_boundaries => mesh_label_boundaries
      procedure :: get_bounds => mesh_get_bounds
      procedure, public :: init => mesh_init
+     procedure, public :: configure => mesh_configure
      procedure, public :: destroy => mesh_destroy
   end type mesh_type
 
@@ -197,28 +197,6 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine mesh_label_boundaries(self)
-    !! Labels boundary faces as appropriate for assigning boundary
-    !! conditions.
-
-    class(mesh_type), intent(in out) :: self
-    ! Locals:
-    PetscErrorCode :: ierr
-    PetscBool :: has_label
-
-    call DMPlexHasLabel(self%dm, open_boundary_label_name, has_label, &
-         ierr); CHKERRQ(ierr)
-    if (.not.(has_label)) then
-       call DMPlexCreateLabel(self%dm, open_boundary_label_name, &
-            ierr); CHKERRQ(ierr)
-       ! could read boundary faces from input here if needed- i.e. if labels
-       ! not present in mesh file
-    end if
-
-  end subroutine mesh_label_boundaries
-
-!------------------------------------------------------------------------
-
   subroutine mesh_get_bounds(self)
     !! Gets cell bounds on current processor.
 
@@ -242,14 +220,13 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine mesh_init(self, json, primary_variable_names)
+  subroutine mesh_init(self, json)
     !! Initializes mesh, reading filename from JSON input file.
     !! If the filename is not present, an error is raised.
     !! Otherwise, the PETSc DM is read in.
 
     class(mesh_type), intent(in out) :: self
     type(fson_value), pointer, intent(in) :: json !! JSON file pointer
-    character(*), intent(in) :: primary_variable_names(:) !! Names of primary thermodynamic variables
     ! Locals:
     PetscErrorCode :: ierr
     type(fson_value), pointer :: mesh
@@ -271,18 +248,32 @@ contains
     call DMPlexCreateFromFile(mpi%comm, self%filename, PETSC_TRUE, self%dm, ierr)
     CHKERRQ(ierr)
 
+  end subroutine mesh_init
+
+!------------------------------------------------------------------------
+
+  subroutine mesh_configure(self, primary_variable_names)
+    !! Configures mesh.
+
+    class(mesh_type), intent(in out) :: self
+    character(*), intent(in) :: primary_variable_names(:) !! Names of primary thermodynamic variables
+    ! Locals:
+    PetscErrorCode :: ierr
+
     ! Set up adjacency for finite volume mesh:
     call DMPlexSetAdjacencyUseCone(self%dm, PETSC_TRUE, ierr); CHKERRQ(ierr)
     call DMPlexSetAdjacencyUseClosure(self%dm, PETSC_FALSE, ierr); CHKERRQ(ierr)
 
     call self%distribute()
-    call self%label_boundaries()
     call self%construct_ghost_cells()
-    call self%setup_data_layout(primary_variable_names)
-    call self%setup_geometry()
+
     call self%get_bounds()
 
-  end subroutine mesh_init
+    call self%setup_data_layout(primary_variable_names)
+
+    call self%setup_geometry()
+
+  end subroutine mesh_configure
 
 !------------------------------------------------------------------------
 
