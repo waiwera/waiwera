@@ -72,8 +72,6 @@ contains
     nullify(self%internal_energy)
     nullify(self%mass_fraction)
 
-    deallocate(self%mass_fraction)
-
   end subroutine phase_destroy
 
 !------------------------------------------------------------------------
