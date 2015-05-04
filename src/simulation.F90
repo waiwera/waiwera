@@ -253,7 +253,7 @@ contains
     character(max_rockname_length) :: name
     PetscReal :: porosity, density, specific_heat, heat_conductivity
     PetscReal, allocatable :: permeability(:)
-    PetscScalar, pointer :: rock_array(:)
+    PetscReal, pointer :: rock_array(:)
     PetscSection :: section
     PetscErrorCode :: ierr
 
@@ -493,7 +493,7 @@ contains
 
     call self%setup_fluid()
 
-    call self%read_rock_properties(json)
+    ! call self%read_rock_properties(json)
 
     call self%read_timestepping(json)
 

@@ -120,8 +120,8 @@ contains
     PetscInt :: cell_offset(2)
     type(face_type) :: face
     type(petsc_face_type) :: petsc_face
-    PetscScalar, pointer :: face_geom_array(:), petsc_face_geom_array(:)
-    PetscScalar, pointer :: cell_geom_array(:)
+    PetscReal, pointer :: face_geom_array(:), petsc_face_geom_array(:)
+    PetscReal, pointer :: cell_geom_array(:)
     DMLabel :: ghost_label
     PetscInt, pointer :: cells(:)
 
