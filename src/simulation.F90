@@ -17,10 +17,7 @@ module simulation_module
 
   private
 
-#include <petsc-finclude/petscsys.h>
-#include <petsc-finclude/petscdef.h>
-#include <petsc-finclude/petscvec.h>
-#include <petsc-finclude/petscvec.h90>
+#include <petsc-finclude/petsc.h90>
 
   integer, parameter, public :: max_filename_length = 200
   integer, parameter, public :: max_title_length = 120
