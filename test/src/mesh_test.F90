@@ -59,7 +59,9 @@ contains
        json => fson_parse(filename)
     end if
 
-    call mesh%init(json, primary_variable_names)
+    call mesh%init(json)
+    call DMPlexCreateLabel(mesh%dm, open_boundary_label_name, ierr); CHKERRQ(ierr)
+    call mesh%configure(primary_variable_names)
 
     call DMGetDimension(mesh%dm, dim, ierr)
     if (mpi%rank == mpi%output_rank) then
@@ -99,6 +101,7 @@ contains
           call assert_equals(0._dp, norm2(face%centroid - face_centroid(:,f)), tol, msg)
        end if
     end do
+    call face%destroy()
     call VecRestoreArrayF90(mesh%face_geom, fg, ierr)
 
     call mesh%destroy()

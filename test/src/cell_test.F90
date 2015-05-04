@@ -45,6 +45,7 @@ contains
        call assert_equals(volume, cell%volume, tol, "volume")
        call assert_equals(0._dp, norm2(cell%centroid - centroid), tol, "centroid")
 
+       call cell%destroy()
        deallocate(cell_data)
 
     end if

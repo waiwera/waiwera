@@ -46,6 +46,7 @@ contains
        call assert_equals(0._dp, norm2(face%normal - normal), tol, "normal")
        call assert_equals(0._dp, norm2(face%centroid - centroid), tol, "centroid")
 
+       call face%destroy()
        deallocate(face_data)
 
     end if
