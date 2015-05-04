@@ -78,7 +78,9 @@ contains
     !! Destroys a cell.
 
     class(cell_type), intent(in out) :: self
-    
+
+    nullify(self%volume)
+    nullify(self%centroid)
     call self%fluid%destroy()
     
   end subroutine cell_destroy

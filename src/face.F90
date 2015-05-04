@@ -21,6 +21,7 @@ module face_module
      procedure, public :: init => face_init
      procedure, public :: assign => face_assign
      procedure, public :: dof => face_dof
+     procedure, public :: destroy => face_destroy
   end type face_type
 
   type petsc_face_type
@@ -32,6 +33,7 @@ module face_module
    contains
      private
      procedure, public :: assign => petsc_face_assign
+     procedure, public :: destroy => petsc_face_destroy
   end type petsc_face_type
 
   public :: face_type, petsc_face_type
@@ -143,6 +145,22 @@ contains
 
 !------------------------------------------------------------------------
 
+  subroutine face_destroy(self)
+    !! Destroys a face (nullifies all pointer components).
+
+    class(face_type), intent(in out) :: self
+
+    nullify(self%area)
+    nullify(self%distance)
+    nullify(self%normal)
+    nullify(self%centroid)
+
+  end subroutine face_destroy
+
+!------------------------------------------------------------------------
+! petsc_face_type routines
+!------------------------------------------------------------------------
+
   subroutine petsc_face_assign(self, face_geom_data, face_geom_offset)
     !! Assigns pointers in a petsc_face to elements of the specified data
     !! array, starting from the given offset.
@@ -155,6 +173,18 @@ contains
     self%centroid => face_geom_data(face_geom_offset + 3: face_geom_offset + 5)
 
   end subroutine petsc_face_assign
+
+!------------------------------------------------------------------------
+
+  subroutine petsc_face_destroy(self)
+    !! Destroys a petsc_face (nullifies all pointer components).
+
+    class(petsc_face_type), intent(in out) :: self
+
+    nullify(self%area_normal)
+    nullify(self%centroid)
+
+  end subroutine petsc_face_destroy
 
 !------------------------------------------------------------------------
 

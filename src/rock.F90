@@ -19,6 +19,7 @@ module rock_module
      private
      procedure, public :: assign => rock_assign
      procedure, public :: dof => rock_dof
+     procedure, public :: destroy => rock_destroy
   end type rock_type
 
   PetscInt, parameter :: num_rock_variables = 5
@@ -75,6 +76,21 @@ contains
     rock_dof = sum(rock_variable_num_components)
 
   end function rock_dof
+
+!------------------------------------------------------------------------
+
+  subroutine rock_destroy(self)
+    !! Destroys a rock object (nullifies all pointer components).
+
+    class(rock_type), intent(in out) :: self
+
+    nullify(self%permeability)
+    nullify(self%heat_conductivity)
+    nullify(self%porosity)
+    nullify(self%density)
+    nullify(self%specific_heat)
+
+  end subroutine rock_destroy
 
 !------------------------------------------------------------------------
 

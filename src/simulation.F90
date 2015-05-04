@@ -286,7 +286,7 @@ contains
        end do
        call ISRestoreIndicesF90(rock_IS, rock_cells, ierr); CHKERRQ(ierr)
     end do
-
+    call rock%destroy()
     call VecRestoreArrayF90(self%rock, rock_array, ierr); CHKERRQ(ierr)
 
   end subroutine simulation_read_rock_types
@@ -530,6 +530,8 @@ contains
     call VecDestroy(self%rock, ierr); CHKERRQ(ierr)
     call self%mesh%destroy()
     call self%thermo%destroy()
+    nullify(self%thermo)
+    nullify(self%eos)
     call self%timestepper%destroy()
 
   end subroutine simulation_destroy

@@ -61,11 +61,19 @@ contains
 
   subroutine phase_destroy(self)
     !! Destroys a phase object.
-    
+
     class(phase_type), intent(in out) :: self
 
+    nullify(self%density)
+    nullify(self%viscosity)
+    nullify(self%saturation)
+    nullify(self%relative_permeability)
+    nullify(self%specific_enthalpy)
+    nullify(self%internal_energy)
+    nullify(self%mass_fraction)
+
     deallocate(self%mass_fraction)
-    
+
   end subroutine phase_destroy
 
 !------------------------------------------------------------------------
@@ -138,7 +146,11 @@ contains
     class(fluid_type), intent(in out) :: self
     ! Locals:
     PetscInt :: i
-    
+
+    nullify(self%pressure)
+    nullify(self%temperature)
+    nullify(self%region)
+
     do i = 1, size(self%phase)
        call self%phase(i)%destroy()
     end do

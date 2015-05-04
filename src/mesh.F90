@@ -186,6 +186,8 @@ contains
 
     end do
 
+    call face%destroy()
+    call petsc_face%destroy()
     call VecRestoreArrayF90(self%cell_geom, cell_geom_array, ierr); CHKERRQ(ierr)
     call VecRestoreArrayF90(self%face_geom, face_geom_array, ierr); CHKERRQ(ierr)
     call VecRestoreArrayF90(petsc_face_geom, petsc_face_geom_array, ierr)
