@@ -493,7 +493,7 @@ contains
 
     call self%setup_fluid()
 
-    ! call self%read_rock_properties(json)
+    call self%read_rock_properties(json)
 
     call self%read_timestepping(json)
 
