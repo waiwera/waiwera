@@ -480,7 +480,9 @@ contains
     type(fson_value), pointer :: json
     PetscErrorCode :: ierr
 
-    self%input_filename = filename
+    if (present(filename)) then
+       self%input_filename = filename
+    end if
 
     if (mpi%rank == mpi%input_rank) then
        if (present(json_str)) then
