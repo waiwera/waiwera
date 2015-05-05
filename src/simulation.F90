@@ -244,11 +244,12 @@ contains
     class(simulation_type), intent(in out) :: self
     type(fson_value), pointer, intent(in) :: json
     ! Locals:
-    PetscInt :: num_rocktypes, ir, ic, c, num_cells, offset
+    PetscInt :: num_rocktypes, ir, ic, c, num_cells, offset, ghost
     DM :: dm_rock
     type(fson_value), pointer :: rocktypes, r
     IS :: rock_IS
     PetscInt, pointer :: rock_cells(:)
+    DMLabel :: ghost_label
     type(rock_type) :: rock
     character(max_rockname_length) :: name
     PetscReal :: porosity, density, specific_heat, heat_conductivity
@@ -260,6 +261,7 @@ contains
     call VecGetDM(self%rock, dm_rock, ierr); CHKERRQ(ierr)
     call VecGetArrayF90(self%rock, rock_array, ierr); CHKERRQ(ierr)
     call DMGetDefaultSection(dm_rock, section, ierr); CHKERRQ(ierr)
+    call DMPlexGetLabel(self%mesh%dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
     
     call fson_get_mpi(json, "rock.types", rocktypes)
     num_rocktypes = fson_value_count_mpi(rocktypes, ".")
@@ -276,13 +278,16 @@ contains
        num_cells = size(rock_cells)
        do ic = 1, num_cells
           c = rock_cells(ic)
-          call section_offset(section, c, offset, ierr); CHKERRQ(ierr)
-          call rock%assign(rock_array, offset)
-          rock%permeability = permeability
-          rock%heat_conductivity = heat_conductivity
-          rock%porosity = porosity
-          rock%density = density
-          rock%specific_heat = specific_heat
+          call DMLabelGetValue(ghost_label, c, ghost, ierr); CHKERRQ(ierr)
+          if (ghost < 0) then
+             call section_offset(section, c, offset, ierr); CHKERRQ(ierr)
+             call rock%assign(rock_array, offset)
+             rock%permeability = permeability
+             rock%heat_conductivity = heat_conductivity
+             rock%porosity = porosity
+             rock%density = density
+             rock%specific_heat = specific_heat
+          end if
        end do
        call ISRestoreIndicesF90(rock_IS, rock_cells, ierr); CHKERRQ(ierr)
     end do
