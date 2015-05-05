@@ -49,7 +49,26 @@ module fson_mpi_module
   public :: fson_type_mpi, fson_value_count_mpi, fson_value_get_mpi
 
   contains
-    
+
+!------------------------------------------------------------------------
+
+    logical function assoc_non_null(self)
+      !! Returns .true. if fson_value self is associated and has value
+      !! type non-null.
+
+      use fson_value_m, only : TYPE_NULL
+
+      type(fson_value), pointer, intent(in) :: self
+
+      assoc_non_null = .false.
+      if (associated(self)) then
+         if (self%value_type /= TYPE_NULL) then
+            assoc_non_null = .true.
+         end if
+      end if
+      
+    end function assoc_non_null
+
 !------------------------------------------------------------------------
 ! fson_get_default routines
 !------------------------------------------------------------------------
@@ -65,7 +84,7 @@ module fson_mpi_module
         type(fson_value), pointer :: p
 
         call fson_get(self, path, p)
-        if (associated(p)) then
+        if (assoc_non_null(p)) then
            call fson_get(p, ".", val)
         else
            val = default
@@ -86,7 +105,7 @@ module fson_mpi_module
         type(fson_value), pointer :: p
 
         call fson_get(self, path, p)
-        if (associated(p)) then
+        if (assoc_non_null(p)) then
            call fson_get(p, ".", val)
         else
            val = default
@@ -107,7 +126,7 @@ module fson_mpi_module
         type(fson_value), pointer :: p
 
         call fson_get(self, path, p)
-        if (associated(p)) then
+        if (assoc_non_null(p)) then
            call fson_get(p, ".", val)
         else
            val = default
@@ -128,7 +147,7 @@ module fson_mpi_module
         type(fson_value), pointer :: p
 
         call fson_get(self, path, p)
-        if (associated(p)) then
+        if (assoc_non_null(p)) then
            call fson_get(p, ".", val)
         else
            val = default
@@ -149,7 +168,7 @@ module fson_mpi_module
         type(fson_value), pointer :: p
 
         call fson_get(self, path, p)
-        if (associated(p)) then
+        if (assoc_non_null(p)) then
            call fson_get(p, ".", val)
         else
            val = default
@@ -170,7 +189,7 @@ module fson_mpi_module
         type(fson_value), pointer :: p
 
         call fson_get(self, path, p)
-        if (associated(p)) then
+        if (assoc_non_null(p)) then
            call fson_get(p, ".", val)
         else
            val = default
@@ -191,7 +210,7 @@ module fson_mpi_module
         type(fson_value), pointer :: p
 
         call fson_get(self, path, p)
-        if (associated(p)) then
+        if (assoc_non_null(p)) then
            call fson_get(p, ".", val)
         else
            val = default
@@ -212,7 +231,7 @@ module fson_mpi_module
         type(fson_value), pointer :: p
 
         call fson_get(self, path, p)
-        if (associated(p)) then
+        if (assoc_non_null(p)) then
            call fson_get(p, ".", val)
         else
            val = default
@@ -233,7 +252,7 @@ module fson_mpi_module
         type(fson_value), pointer :: p
 
         call fson_get(self, path, p)
-        if (associated(p)) then
+        if (assoc_non_null(p)) then
            call fson_get(p, ".", val)
         else
            val = default
@@ -254,7 +273,7 @@ module fson_mpi_module
         type(fson_value), pointer :: p
 
         call fson_get(self, path, p)
-        if (associated(p)) then
+        if (assoc_non_null(p)) then
            call fson_get(p, ".", val)
         else
            val = default
@@ -275,7 +294,7 @@ module fson_mpi_module
         type(fson_value), pointer :: p
 
         call fson_get(self, path, p)
-        if (associated(p)) then
+        if (assoc_non_null(p)) then
            call fson_get(p, ".", val)
         else
            val = default
@@ -296,7 +315,7 @@ module fson_mpi_module
         type(fson_value), pointer :: p
 
         call fson_get(self, path, p)
-        if (associated(p)) then
+        if (assoc_non_null(p)) then
            call fson_get(p, ".", val)
         else
            val = default
@@ -317,7 +336,7 @@ module fson_mpi_module
         type(fson_value), pointer :: p
 
         call fson_get(self, path, p)
-        if (associated(p)) then
+        if (assoc_non_null(p)) then
            call fson_get(p, ".", val)
         else
            val = default
@@ -755,7 +774,7 @@ module fson_mpi_module
 
         if (mpi%rank == mpi%input_rank) then
            call fson_get(self, path, p)
-           if (associated(p)) then
+           if (assoc_non_null(p)) then
               count = fson_value_count(p)
            else
               count = 0
