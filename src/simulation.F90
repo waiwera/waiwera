@@ -469,12 +469,13 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine simulation_init(self, filename)
+  subroutine simulation_init(self, filename, json_str)
     !! Initializes a simulation using data from the input file with 
     !! specified name.
 
     class(simulation_type), intent(in out) :: self
-    character(*), intent(in) :: filename !! Input file name
+    character(*), intent(in), optional :: filename !! Input file name
+    character(*), intent(in), optional :: json_str !! JSON string for alternative input
     ! Locals:
     type(fson_value), pointer :: json
     PetscErrorCode :: ierr
@@ -482,7 +483,11 @@ contains
     self%input_filename = filename
 
     if (mpi%rank == mpi%input_rank) then
-       json => fson_parse(filename)
+       if (present(json_str)) then
+          json => fson_parse(str = json_str)
+       else
+          json => fson_parse(file = filename)
+       end if
     end if
 
     call self%read_title(json)
