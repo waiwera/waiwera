@@ -274,22 +274,24 @@ contains
        call fson_get_mpi(r, "density", default_density, density)
        call fson_get_mpi(r, "specific heat", default_specific_heat, specific_heat)
        call DMPlexGetStratumIS(self%mesh%dm, "Rock type", ir, rock_IS, ierr); CHKERRQ(ierr)
-       call ISGetIndicesF90(rock_IS, rock_cells, ierr); CHKERRQ(ierr)
-       num_cells = size(rock_cells)
-       do ic = 1, num_cells
-          c = rock_cells(ic)
-          call DMLabelGetValue(ghost_label, c, ghost, ierr); CHKERRQ(ierr)
-          if (ghost < 0) then
-             call section_offset(section, c, offset, ierr); CHKERRQ(ierr)
-             call rock%assign(rock_array, offset)
-             rock%permeability = permeability
-             rock%heat_conductivity = heat_conductivity
-             rock%porosity = porosity
-             rock%density = density
-             rock%specific_heat = specific_heat
-          end if
-       end do
-       call ISRestoreIndicesF90(rock_IS, rock_cells, ierr); CHKERRQ(ierr)
+       if (rock_IS /= 0) then
+          call ISGetIndicesF90(rock_IS, rock_cells, ierr); CHKERRQ(ierr)
+          num_cells = size(rock_cells)
+          do ic = 1, num_cells
+             c = rock_cells(ic)
+             call DMLabelGetValue(ghost_label, c, ghost, ierr); CHKERRQ(ierr)
+             if (ghost < 0) then
+                call section_offset(section, c, offset, ierr); CHKERRQ(ierr)
+                call rock%assign(rock_array, offset)
+                rock%permeability = permeability
+                rock%heat_conductivity = heat_conductivity
+                rock%porosity = porosity
+                rock%density = density
+                rock%specific_heat = specific_heat
+             end if
+          end do
+          call ISRestoreIndicesF90(rock_IS, rock_cells, ierr); CHKERRQ(ierr)
+       end if
     end do
     call rock%destroy()
     call VecRestoreArrayF90(self%rock, rock_array, ierr); CHKERRQ(ierr)
