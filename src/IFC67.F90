@@ -138,6 +138,8 @@ contains
 
     if (.not.(self%initialized)) then
 
+       self%name = 'IFC-67'
+
        self%num_regions = 2
        allocate(IFC67_region1_type :: self%water)
        allocate(IFC67_region2_type :: self%steam)
@@ -188,6 +190,8 @@ contains
     !! Initializes IFC-67 region 1 object.
 
     class(IFC67_region1_type), intent(in out) :: self
+
+    self%name = 'water'
 
   end subroutine region1_init
 
@@ -343,6 +347,8 @@ contains
     !! Initializes IFC-67 region 2 object.
 
     class(IFC67_region2_type), intent(in out) :: self
+
+    self%name = 'steam'
 
   end subroutine region2_init
 

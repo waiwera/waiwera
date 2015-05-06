@@ -6,6 +6,9 @@ module thermodynamics_module
   implicit none
   private
 
+  integer, parameter, public :: max_thermodynamics_name_length = 16
+  integer, parameter, public :: max_thermodynamic_region_name_length = 16
+
 !------------------------------------------------------------------------
   ! Physical constants
 !------------------------------------------------------------------------
@@ -23,12 +26,13 @@ module thermodynamics_module
 
   type, public, abstract :: region_type
      !! Thermodynamic region type.
-     contains
-       private
-       procedure(region_init), public, deferred :: init
-       procedure(region_destroy), public, deferred :: destroy
-       procedure(region_properties), public, deferred :: properties
-       procedure(region_viscosity), public, deferred :: viscosity
+     character(max_thermodynamic_region_name_length), public :: name
+   contains
+     private
+     procedure(region_init), public, deferred :: init
+     procedure(region_destroy), public, deferred :: destroy
+     procedure(region_properties), public, deferred :: properties
+     procedure(region_viscosity), public, deferred :: viscosity
   end type region_type
 
   ! Pointer to region:
@@ -39,13 +43,14 @@ module thermodynamics_module
      procedure, public :: set => pregion_set
   end type pregion_type
 
-!------------------------------------------------------------------------
+  !------------------------------------------------------------------------
   ! Thermodynamics type
-!------------------------------------------------------------------------
+  !------------------------------------------------------------------------
 
   type, public, abstract :: thermodynamics_type
      !! Thermodynamics type.
      private
+     character(max_thermodynamics_name_length), public :: name
      integer, public :: num_regions  !! Number of thermodynamic regions
      class(region_type), allocatable, public :: water !! Pure water region
      class(region_type), allocatable, public :: steam !! Steam region

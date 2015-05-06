@@ -238,6 +238,8 @@ contains
 
     if (.not.(self%initialized)) then
 
+       self%name = "IAPWS-97"
+
        self%num_regions = 3
        allocate(IAPWS_region1_type :: self%water)
        allocate(IAPWS_region2_type :: self%steam)
@@ -331,6 +333,8 @@ contains
 
     class(IAPWS_region1_type), intent(in out) :: self
 
+    self%name = 'water'
+
     self%nI = self%n * self%I
     self%nJ = self%n * self%J
     self%I_1 = self%I - 1
@@ -423,6 +427,8 @@ contains
     !! Initializes IAPWS region 2 object.
 
     class(IAPWS_region2_type), intent(in out) :: self
+
+    self%name = 'steam'
 
     self%n0J0 = self%n0 * self%J0
     self%nI = self%n * self%I
@@ -526,7 +532,9 @@ contains
     !! Initializes IAPWS region 3 object.
 
     class(IAPWS_region3_type), intent(in out) :: self
- 
+
+    self%name = 'supercritical'
+
     self%nI = self%n * self%I
     self%nJ = self%n * self%J
     self%I_1 = self%I - 1
