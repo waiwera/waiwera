@@ -13,7 +13,7 @@ module mesh_test
 
 #include <petsc-finclude/petsc.h90>
 
-public :: test_init
+public :: test_mesh_init
 
 PetscReal, parameter :: tol = 1.e-6_dp
 
@@ -21,7 +21,7 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine test_init
+  subroutine test_mesh_init
 
     ! Mesh init test
 
@@ -107,7 +107,7 @@ contains
     call mesh%destroy()
     deallocate(primary_variable_names)
 
-  end subroutine test_init
+  end subroutine test_mesh_init
 
 !------------------------------------------------------------------------
 
