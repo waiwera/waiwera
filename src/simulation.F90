@@ -273,7 +273,7 @@ contains
        call fson_get_mpi(r, "porosity", default_porosity, porosity)
        call fson_get_mpi(r, "density", default_density, density)
        call fson_get_mpi(r, "specific heat", default_specific_heat, specific_heat)
-       call DMPlexGetStratumIS(self%mesh%dm, "Rock type", ir, rock_IS, ierr); CHKERRQ(ierr)
+       call DMPlexGetStratumIS(self%mesh%dm, rocktype_label_name, ir, rock_IS, ierr); CHKERRQ(ierr)
        if (rock_IS /= 0) then
           call ISGetIndicesF90(rock_IS, rock_cells, ierr); CHKERRQ(ierr)
           num_cells = size(rock_cells)
@@ -399,9 +399,11 @@ contains
 !------------------------------------------------------------------------
 
   subroutine simulation_setup_rocktype_labels(self, json)
-    !! Sets up rocktype label on the mesh. The values of the "Rock type"
+    !! Sets up rocktype label on the mesh. The values of the rock type
     !! label are the indices (1-based) of the rocktypes specified in the 
     !! JSON input file.
+
+    use rock_module, only : rocktype_label_name
 
     class(simulation_type), intent(in out) :: self
     type(fson_value), pointer, intent(in) :: json
@@ -416,7 +418,7 @@ contains
 
     if (fson_has_mpi(json, "rock.types")) then
        call fson_get_mpi(json, "rock.types", rocktypes)
-       call DMPlexCreateLabel(self%mesh%dm, "Rock type", ierr); CHKERRQ(ierr)
+       call DMPlexCreateLabel(self%mesh%dm, rocktype_label_name, ierr); CHKERRQ(ierr)
        num_rocktypes = fson_value_count_mpi(rocktypes, ".")
        do ir = 1, num_rocktypes
           r => fson_value_get_mpi(rocktypes, ir)
@@ -424,7 +426,7 @@ contains
           num_cells = size(cells)
           do ic = 1, num_cells
              c = cells(ic)
-             call DMPlexSetLabelValue(self%mesh%dm, "Rock type", &
+             call DMPlexSetLabelValue(self%mesh%dm, rocktype_label_name, &
                   c, ir, ierr); CHKERRQ(ierr)
           end do
        end do

@@ -37,6 +37,10 @@ module rock_module
        [3, 3, 3, 3, 3]
   PetscInt, parameter, public :: max_rockname_length = 24
 
+  PetscInt, parameter, public :: max_rocktype_label_length = 9
+  character(max_rocktype_label_length), parameter, public :: &
+       rocktype_label_name = "Rock type"
+
   ! Default rock properties:
   PetscReal, parameter, public :: default_permeability(3) = [1.e-13_dp, 1.e-13_dp, 1.e-13_dp]
   PetscReal, parameter, public :: default_porosity = 0.1_dp
