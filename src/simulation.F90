@@ -25,14 +25,14 @@ module simulation_module
   type, public :: simulation_type
      !! Simulation type.
      private
-     type(mesh_type) :: mesh
-     Vec :: initial
-     Vec :: rock
-     Vec :: fluid
-     type(timestepper_type) :: timestepper
-     class(thermodynamics_type), pointer :: thermo
-     class(eos_type), pointer :: eos
-     character(max_filename_length) :: input_filename
+     type(mesh_type), public :: mesh
+     Vec, public :: initial
+     Vec, public :: rock
+     Vec, public :: fluid
+     type(timestepper_type), public :: timestepper
+     class(thermodynamics_type), pointer, public :: thermo
+     class(eos_type), pointer, public :: eos
+     character(max_filename_length), public :: input_filename
      character(max_title_length), public :: title
    contains
      private
