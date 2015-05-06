@@ -23,7 +23,8 @@ contains
 
   subroutine test_simulation_init
 
-    ! test reading simulation title
+    ! Test simulation init() method.
+    ! This uses a simple problem with a 12-cell rectangular mesh and two rock types.
 
     type(simulation_type) :: sim
     ! Locals:
