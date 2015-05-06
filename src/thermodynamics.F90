@@ -51,6 +51,7 @@ module thermodynamics_module
      class(region_type), allocatable, public :: steam !! Steam region
      class(region_type), allocatable, public :: supercritical !! Supercritical region
      type(pregion_type), allocatable, public :: region(:) !! Array of region pointers
+     logical, public :: initialized = .false.
    contains
      private
      procedure(thermodynamics_init_procedure), public, deferred :: init

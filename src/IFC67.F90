@@ -136,17 +136,23 @@ contains
     ! Locals:
     integer :: i
 
-    self%num_regions = 2
-    allocate(IFC67_region1_type :: self%water)
-    allocate(IFC67_region2_type :: self%steam)
-    allocate(self%region(self%num_regions))
+    if (.not.(self%initialized)) then
 
-    call self%region(1)%set(self%water)
-    call self%region(2)%set(self%steam)
+       self%num_regions = 2
+       allocate(IFC67_region1_type :: self%water)
+       allocate(IFC67_region2_type :: self%steam)
+       allocate(self%region(self%num_regions))
 
-    do i = 1, self%num_regions
-       call self%region(i)%ptr%init()
-    end do
+       call self%region(1)%set(self%water)
+       call self%region(2)%set(self%steam)
+
+       do i = 1, self%num_regions
+          call self%region(i)%ptr%init()
+       end do
+
+       self%initialized = .true.
+
+    end if
 
   end subroutine IFC67_init
 
@@ -159,12 +165,18 @@ contains
     ! Locals:
     integer :: i
 
-    do i = 1, self%num_regions
-       call self%region(i)%ptr%destroy()
-    end do
+    if (self%initialized) then
 
-    deallocate(self%region)
-    deallocate(self%water, self%steam)
+       do i = 1, self%num_regions
+          call self%region(i)%ptr%destroy()
+       end do
+
+       deallocate(self%region)
+       deallocate(self%water, self%steam)
+
+       self%initialized = .false.
+
+    end if
 
   end subroutine IFC67_destroy
 
