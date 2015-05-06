@@ -29,10 +29,14 @@ contains
     ! Locals:
     character(max_filename_length) :: filename = "data/simulation/init/test_init.json"
     character(20) :: title = "Test simulation init"
+    character(16) :: thermo = "IAPWS-97"
+    character(1)  :: eos = "W"
 
     call sim%init(filename)
 
     call assert_equals(title, sim%title, "Simulation title")
+    call assert_equals(thermo, sim%thermo%name, "Simulation thermodynamics")
+    call assert_equals(eos, sim%eos%name, "Simulation EOS")
 
     call sim%destroy()
 
