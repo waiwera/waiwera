@@ -27,6 +27,8 @@ contains
     ! This uses a simple problem with a 12-cell rectangular mesh and two rock types.
 
     use mesh_module, only : open_boundary_label_name
+    use rock_module, only : rocktype_label_name
+
     type(simulation_type) :: sim
     ! Locals:
     character(max_filename_length), parameter :: filename = "data/simulation/init/test_init.json"
@@ -62,8 +64,11 @@ contains
        call assert_equals(.true., open_bdy, "Simulation open boundary label")
     end if
 
-    call DMPlexHasLabel(sim%mesh%dm, open_boundary_label_name, open_bdy, &
+    call DMPlexHasLabel(sim%mesh%dm, rocktype_label_name, has_rock_label, &
          ierr); CHKERRQ(ierr)
+    if (mpi%rank == mpi%output_rank) then
+       call assert_equals(.true., has_rock_label, "Simulation rocktype label")
+    end if
 
     call sim%destroy()
 
