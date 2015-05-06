@@ -60,6 +60,7 @@ contains
                 nrc(ir) = nrc(ir) + 1
              end if
           end do
+          call ISRestoreIndicesF90(rock_IS, rock_cells, ierr); CHKERRQ(ierr)
        end if
        call MPI_reduce(nrc(ir), rock_count(ir), 1, MPI_INTEGER, MPI_SUM, &
             mpi%output_rank, mpi%comm, ierr)
