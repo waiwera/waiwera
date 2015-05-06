@@ -87,11 +87,14 @@ contains
     character(1), parameter  :: expected_eos = "W"
     PetscInt, parameter :: expected_dim = 3, num_cells = 12, num_primary = 1
     PetscInt, parameter :: expected_num_rocktypes = 2
-    PetscInt, parameter :: expected_num_rocktype_cells(2) = [9, 3]
-    PetscInt :: dim, global_solution_dof, num_rocktypes
+    PetscInt, parameter :: expected_num_rocktype_cells(expected_num_rocktypes) = [9, 3]
+    PetscReal, parameter :: expected_initial = 2.e5_dp
+    PetscInt :: dim, global_solution_dof, num_rocktypes, initial_size
     PetscInt, allocatable :: rock_count(:)
     Vec :: x
     PetscBool :: open_bdy, has_rock_label
+    PetscReal, pointer :: initial(:)
+    PetscReal, allocatable :: expected_initial_array(:)
     PetscErrorCode :: ierr
 
     call sim%init(filename)
@@ -116,6 +119,15 @@ contains
     if (mpi%rank == mpi%output_rank) then
        call assert_equals(.true., open_bdy, "Simulation open boundary label")
     end if
+
+    call VecGetArrayF90(sim%initial, initial, ierr); CHKERRQ(ierr)
+    initial_size = size(initial)
+    allocate(expected_initial_array(initial_size))
+    expected_initial_array = expected_initial
+    call assert_equals(expected_initial_array, initial, initial_size, &
+         "Simulation initial conditions")
+    deallocate(expected_initial_array)
+    call VecRestoreArrayF90(sim%initial, initial, ierr); CHKERRQ(ierr)
 
     call DMPlexHasLabel(sim%mesh%dm, rocktype_label_name, has_rock_label, &
          ierr); CHKERRQ(ierr)
