@@ -24,27 +24,27 @@ module rock_module
 
   PetscInt, parameter :: num_rock_variables = 5
   PetscInt, parameter :: max_rock_variable_name_length = 32
-  character(max_rock_variable_name_length), parameter :: &
+  character(max_rock_variable_name_length), parameter, public :: &
        rock_variable_names(num_rock_variables) = &
        [character(max_rock_variable_name_length):: &
        "Permeability", "Heat conductivity", "Porosity", &
        "Density", "Specific heat"]
-  PetscInt, parameter :: &
+  PetscInt, parameter, public :: &
        rock_variable_num_components(num_rock_variables) = &
        [3, 1, 1, 1, 1]
-  PetscInt, parameter :: &
+  PetscInt, parameter, public :: &
        rock_variable_dim(num_rock_variables) = &
        [3, 3, 3, 3, 3]
-  PetscInt, parameter :: max_rockname_length = 24
+  PetscInt, parameter, public :: max_rockname_length = 24
 
   ! Default rock properties:
-  PetscReal, parameter, public :: default_porosity = 0.1_dp, default_density = 2200.0_dp
+  PetscReal, parameter, public :: default_permeability(3) = [1.e-13_dp, 1.e-13_dp, 1.e-13_dp]
+  PetscReal, parameter, public :: default_porosity = 0.1_dp
+  PetscReal, parameter, public :: default_density = 2200.0_dp
   PetscReal, parameter, public :: default_specific_heat = 1000._dp
   PetscReal, parameter, public :: default_heat_conductivity = 2.5_dp
-  PetscReal, parameter, public :: default_permeability(3) = [1.e-13_dp, 1.e-13_dp, 1.e-13_dp]
 
-  public :: rock_type, rock_variable_num_components, &
-         rock_variable_dim, rock_variable_names, max_rockname_length
+  public :: rock_type
 
 contains
 
