@@ -1,6 +1,7 @@
 {
     "title": "Test simulation init",
-    "mesh": "data/simulation/init/test_init.exo", 
+    "mesh": "data/simulation/init/test_init.exo",
+    "initial": 2.0e5,
     "rock": {
         "types": [
             {
