@@ -27,17 +27,28 @@ contains
 
     type(simulation_type) :: sim
     ! Locals:
-    character(max_filename_length) :: filename = "data/simulation/init/test_init.json"
-    character(20) :: title = "Test simulation init"
-    character(16) :: thermo = "IAPWS-97"
-    character(1)  :: eos = "W"
+    character(max_filename_length), parameter :: filename = "data/simulation/init/test_init.json"
+    character(20), parameter :: expected_title = "Test simulation init"
+    character(16), parameter :: expected_thermo = "IAPWS-97"
+    character(1), parameter  :: expected_eos = "W"
+    PetscInt, parameter :: expected_dim = 3, num_cells = 12, num_primary = 1
+    PetscInt :: dim, global_solution_dof
+    Vec :: x
+    PetscErrorCode :: ierr
 
     call sim%init(filename)
 
+    call DMGetDimension(sim%mesh%dm, dim, ierr); CHKERRQ(ierr)
+    call DMCreateGlobalVector(sim%mesh%dm, x, ierr); CHKERRQ(ierr)
+    call VecGetSize(x, global_solution_dof, ierr); CHKERRQ(ierr)
+    call VecDestroy(x, ierr); CHKERRQ(ierr)
+
     if (mpi%rank == mpi%output_rank) then
-       call assert_equals(title, sim%title, "Simulation title")
-       call assert_equals(thermo, sim%thermo%name, "Simulation thermodynamics")
-       call assert_equals(eos, sim%eos%name, "Simulation EOS")
+       call assert_equals(expected_title, sim%title, "Simulation title")
+       call assert_equals(expected_thermo, sim%thermo%name, "Simulation thermodynamics")
+       call assert_equals(expected_eos, sim%eos%name, "Simulation EOS")
+       call assert_equals(expected_dim, dim, "Simulation mesh dimension")
+       call assert_equals(num_cells * num_primary, global_solution_dof, "Simulation mesh dof")
     end if
 
     call sim%destroy()
