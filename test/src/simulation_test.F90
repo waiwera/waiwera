@@ -26,6 +26,7 @@ contains
     ! Test simulation init() method.
     ! This uses a simple problem with a 12-cell rectangular mesh and two rock types.
 
+    use mesh_module, only : open_boundary_label_name
     type(simulation_type) :: sim
     ! Locals:
     character(max_filename_length), parameter :: filename = "data/simulation/init/test_init.json"
@@ -35,6 +36,7 @@ contains
     PetscInt, parameter :: expected_dim = 3, num_cells = 12, num_primary = 1
     PetscInt :: dim, global_solution_dof
     Vec :: x
+    PetscBool :: open_bdy, has_rock_label
     PetscErrorCode :: ierr
 
     call sim%init(filename)
@@ -46,11 +48,22 @@ contains
 
     if (mpi%rank == mpi%output_rank) then
        call assert_equals(expected_title, sim%title, "Simulation title")
-       call assert_equals(expected_thermo, sim%thermo%name, "Simulation thermodynamics")
+       call assert_equals(expected_thermo, sim%thermo%name, &
+            "Simulation thermodynamics")
        call assert_equals(expected_eos, sim%eos%name, "Simulation EOS")
        call assert_equals(expected_dim, dim, "Simulation mesh dimension")
-       call assert_equals(num_cells * num_primary, global_solution_dof, "Simulation mesh dof")
+       call assert_equals(num_cells * num_primary, global_solution_dof, &
+            "Simulation mesh dof")
     end if
+
+    call DMPlexHasLabel(sim%mesh%dm, open_boundary_label_name, open_bdy, &
+         ierr); CHKERRQ(ierr)
+    if (mpi%rank == mpi%output_rank) then
+       call assert_equals(.true., open_bdy, "Simulation open boundary label")
+    end if
+
+    call DMPlexHasLabel(sim%mesh%dm, open_boundary_label_name, open_bdy, &
+         ierr); CHKERRQ(ierr)
 
     call sim%destroy()
 
