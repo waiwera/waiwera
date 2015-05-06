@@ -29,7 +29,7 @@ contains
     use cell_module
     use face_module
 
-    character(max_mesh_filename_length) :: filename = "data/mesh_test_init.json"
+    character(max_mesh_filename_length) :: filename = "data/mesh/test_init.json"
     type(fson_value), pointer :: json
     type(mesh_type) :: mesh
     character(max_primary_variable_name_length), allocatable :: primary_variable_names(:)
