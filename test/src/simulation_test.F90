@@ -34,9 +34,11 @@ contains
 
     call sim%init(filename)
 
-    call assert_equals(title, sim%title, "Simulation title")
-    call assert_equals(thermo, sim%thermo%name, "Simulation thermodynamics")
-    call assert_equals(eos, sim%eos%name, "Simulation EOS")
+    if (mpi%rank == mpi%output_rank) then
+       call assert_equals(title, sim%title, "Simulation title")
+       call assert_equals(thermo, sim%thermo%name, "Simulation thermodynamics")
+       call assert_equals(eos, sim%eos%name, "Simulation EOS")
+    end if
 
     call sim%destroy()
 
