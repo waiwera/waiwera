@@ -20,6 +20,8 @@ PetscReal, parameter :: tol = 1.e-6_dp
 contains
 
 !------------------------------------------------------------------------
+! Utility routines:
+!------------------------------------------------------------------------
 
   subroutine get_rocktype_counts(sim, rock_count)
 
@@ -71,6 +73,42 @@ contains
 
 !------------------------------------------------------------------------
 
+  subroutine vec_diff_test(v, name, path)
+
+    ! Tests vec v against values from HDF5 file with specified base name,
+    ! at the given path.
+
+    Vec, intent(in) :: v
+    character(*), intent(in) :: name, path
+    ! Locals:
+    Vec :: vread, diff
+    PetscViewer :: viewer
+    PetscReal :: diffnorm
+    PetscErrorCode :: ierr
+
+    call VecCreate(mpi%comm, vread, ierr); CHKERRQ(ierr)
+    call PetscObjectSetName(vread, name, ierr); CHKERRQ(ierr)
+    call PetscViewerHDF5Open(mpi%comm, path // trim(name) // ".h5", &
+         FILE_MODE_READ, viewer, ierr)
+    CHKERRQ(ierr)
+    call PetscViewerHDF5PushGroup(viewer, "/", ierr); CHKERRQ(ierr)
+    call VecLoad(vread, viewer, ierr); CHKERRQ(ierr)
+    call PetscViewerHDF5PopGroup(viewer, ierr); CHKERRQ(ierr)
+    call PetscViewerDestroy(viewer, ierr); CHKERRQ(ierr)
+    call VecDuplicate(vread, diff, ierr); CHKERRQ(ierr)
+    call VecCopy(vread, diff, ierr); CHKERRQ(ierr)
+    call VecAXPY(diff, -1._dp, v, ierr); CHKERRQ(ierr)
+    call VecNorm(diff, NORM_2, diffnorm, ierr); CHKERRQ(ierr)
+    call assert_equals(0._dp, diffnorm, tol, &
+         "Simulation " // trim(name) // " vector")
+    call VecDestroy(vread, ierr); CHKERRQ(ierr)
+
+  end subroutine vec_diff_test
+
+!------------------------------------------------------------------------
+! Unit test routines:
+!------------------------------------------------------------------------
+
   subroutine test_simulation_init
 
     ! Test simulation init() method.
@@ -82,7 +120,6 @@ contains
     type(simulation_type) :: sim
     ! Locals:
     character(max_filename_length), parameter :: filename = "data/simulation/init/test_init.json"
-    character(max_filename_length), parameter :: rock_filename = "data/simulation/init/rock.h5"
     character(20), parameter :: expected_title = "Test simulation init"
     character(16), parameter :: expected_thermo = "IAPWS-97"
     character(1), parameter  :: expected_eos = "W"
@@ -92,12 +129,10 @@ contains
     PetscReal, parameter :: expected_initial = 2.e5_dp
     PetscInt :: dim, global_solution_dof, num_rocktypes, initial_size
     PetscInt, allocatable :: rock_count(:)
-    Vec :: x, rock, diff
+    Vec :: x
     PetscBool :: open_bdy, has_rock_label
     PetscReal, pointer :: initial(:)
     PetscReal, allocatable :: expected_initial_array(:)
-    PetscViewer :: viewer
-    PetscReal :: diffnorm
     PetscErrorCode :: ierr
 
     call sim%init(filename)
@@ -150,20 +185,7 @@ contains
        deallocate(rock_count)
     end if
 
-    call VecCreate(mpi%comm, rock, ierr); CHKERRQ(ierr)
-    call PetscObjectSetName(rock, "rock", ierr); CHKERRQ(ierr)
-    call PetscViewerHDF5Open(mpi%comm, rock_filename, FILE_MODE_READ, viewer, ierr)
-    CHKERRQ(ierr)
-    call PetscViewerHDF5PushGroup(viewer, "/", ierr); CHKERRQ(ierr)
-    call VecLoad(rock, viewer, ierr); CHKERRQ(ierr)
-    call PetscViewerHDF5PopGroup(viewer, ierr); CHKERRQ(ierr)
-    call PetscViewerDestroy(viewer, ierr); CHKERRQ(ierr)
-    call VecDuplicate(rock, diff, ierr); CHKERRQ(ierr)
-    call VecCopy(rock, diff, ierr); CHKERRQ(ierr)
-    call VecAXPY(diff, -1._dp, sim%rock, ierr); CHKERRQ(ierr)
-    call VecNorm(diff, NORM_2, diffnorm, ierr); CHKERRQ(ierr)
-    call assert_equals(0._dp, diffnorm, tol, "Simulation rock vector")
-    call VecDestroy(rock, ierr); CHKERRQ(ierr)
+    call vec_diff_test(sim%rock, "rock", "data/simulation/init/")
 
     ! test timestepper initialized
 
