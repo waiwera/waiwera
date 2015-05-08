@@ -102,6 +102,7 @@ contains
     call assert_equals(0._dp, diffnorm, tol, &
          "Simulation " // trim(name) // " vector")
     call VecDestroy(vread, ierr); CHKERRQ(ierr)
+    call VecDestroy(diff, ierr); CHKERRQ(ierr)
 
   end subroutine vec_diff_test
 
@@ -182,12 +183,12 @@ contains
 
   subroutine test_simulation_init
 
-    ! Test simulation init() method.
+    ! Test simulation init() method
     ! This uses a simple problem with a 12-cell rectangular mesh and two rock types.
 
     type(simulation_type) :: sim
     ! Locals:
-    character(:), allocatable :: path, filename
+    character(:), allocatable :: path
     PetscReal, parameter :: expected_initial = 2.e5_dp
     PetscInt :: initial_size
     PetscReal, pointer :: initial(:)
@@ -195,9 +196,8 @@ contains
     PetscErrorCode :: ierr
 
     path = "data/simulation/init/"
-    filename = path // "test_init.json"
 
-    call sim%init(filename)
+    call sim%init(path // "test_init.json")
 
     call simulation_basic_test(sim, title = "Test simulation init", &
          thermo = "IAPWS-97", eos = "W", dim = 3, dof = 12)
@@ -214,7 +214,6 @@ contains
     call VecRestoreArrayF90(sim%initial, initial, ierr); CHKERRQ(ierr)
 
     ! test fluid vector initialized
-
 
     call vec_diff_test(sim%rock, "rock", path)
 
