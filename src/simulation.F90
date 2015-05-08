@@ -156,6 +156,7 @@ contains
 
     call DMCreateGlobalVector(self%mesh%dm, self%initial, ierr); CHKERRQ(ierr)
     call VecGetSize(self%initial, count, ierr); CHKERRQ(ierr)
+    call PetscObjectSetName(self%initial, "initial", ierr); CHKERRQ(ierr)
 
     const = .true.
 
@@ -228,6 +229,7 @@ contains
     call set_dm_data_layout(dm_fluid, num_components, field_dim)
 
     call DMCreateGlobalVector(dm_fluid, self%fluid, ierr); CHKERRQ(ierr)
+    call PetscObjectSetName(self%fluid, "fluid", ierr); CHKERRQ(ierr)
 
     deallocate(num_components, field_dim)
     call DMDestroy(dm_fluid, ierr); CHKERRQ(ierr)
@@ -318,6 +320,7 @@ contains
          rock_variable_dim, rock_variable_names)
 
     call DMCreateGlobalVector(dm_rock, self%rock, ierr); CHKERRQ(ierr)
+    call PetscObjectSetName(self%rock, "rock", ierr); CHKERRQ(ierr)
 
     ! TODO: set default rock properties everywhere here? in case of cells with
     ! no properties specified
