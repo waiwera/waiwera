@@ -81,18 +81,23 @@ contains
     Vec, intent(in) :: v
     character(*), intent(in) :: name, path
     ! Locals:
+    DM :: dm
     Vec :: vread, diff
     PetscViewer :: viewer
     PetscReal :: diffnorm
     PetscErrorCode :: ierr
 
-    call VecCreate(mpi%comm, vread, ierr); CHKERRQ(ierr)
+    call VecGetDM(v, dm, ierr); CHKERRQ(ierr)
+    call DMGetGlobalVector(dm, vread, ierr); CHKERRQ(ierr)
+    call DMGetGlobalVector(dm, diff, ierr); CHKERRQ(ierr)
     call PetscObjectSetName(vread, name, ierr); CHKERRQ(ierr)
     call PetscViewerHDF5Open(mpi%comm, path // trim(name) // ".h5", &
          FILE_MODE_READ, viewer, ierr)
     CHKERRQ(ierr)
     call PetscViewerHDF5PushGroup(viewer, "/", ierr); CHKERRQ(ierr)
+    call PetscViewerHDF5PushGroup(viewer, "fields", ierr); CHKERRQ(ierr)
     call VecLoad(vread, viewer, ierr); CHKERRQ(ierr)
+    call PetscViewerHDF5PopGroup(viewer, ierr); CHKERRQ(ierr)
     call PetscViewerHDF5PopGroup(viewer, ierr); CHKERRQ(ierr)
     call PetscViewerDestroy(viewer, ierr); CHKERRQ(ierr)
     call VecDuplicate(vread, diff, ierr); CHKERRQ(ierr)
@@ -101,8 +106,8 @@ contains
     call VecNorm(diff, NORM_2, diffnorm, ierr); CHKERRQ(ierr)
     call assert_equals(0._dp, diffnorm, tol, &
          "Simulation " // trim(name) // " vector")
-    call VecDestroy(vread, ierr); CHKERRQ(ierr)
-    call VecDestroy(diff, ierr); CHKERRQ(ierr)
+    call DMRestoreGlobalVector(dm, diff, ierr); CHKERRQ(ierr)
+    call DMRestoreGlobalVector(dm, vread, ierr); CHKERRQ(ierr)
 
   end subroutine vec_diff_test
 
