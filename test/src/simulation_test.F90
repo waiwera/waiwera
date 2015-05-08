@@ -106,6 +106,35 @@ contains
   end subroutine vec_diff_test
 
 !------------------------------------------------------------------------
+
+  subroutine simulation_basic_test(sim, title, thermo, eos, dim, dof)
+
+    ! Tests basic simulation parameters.
+
+    type(simulation_type), intent(in) :: sim
+    character(*), intent(in) :: title, thermo, eos
+    PetscInt, intent(in) :: dim, dof
+    ! Locals:
+    PetscInt :: sim_dim, sim_dof
+    Vec :: x
+    PetscErrorCode :: ierr
+    
+    call DMGetDimension(sim%mesh%dm, sim_dim, ierr); CHKERRQ(ierr)
+    call DMCreateGlobalVector(sim%mesh%dm, x, ierr); CHKERRQ(ierr)
+    call VecGetSize(x, sim_dof, ierr); CHKERRQ(ierr)
+    call VecDestroy(x, ierr); CHKERRQ(ierr)
+
+    if (mpi%rank == mpi%output_rank) then
+       call assert_equals(title, sim%title, "Simulation title")
+       call assert_equals(thermo, sim%thermo%name, "Simulation thermodynamics")
+       call assert_equals(eos, sim%eos%name, "Simulation EOS")
+       call assert_equals(dim, sim_dim, "Simulation mesh dimension")
+       call assert_equals(dof, sim_dof, "Simulation mesh dof")
+    end if
+
+  end subroutine simulation_basic_test
+
+!------------------------------------------------------------------------
 ! Unit test routines:
 !------------------------------------------------------------------------
 
@@ -120,16 +149,11 @@ contains
     type(simulation_type) :: sim
     ! Locals:
     character(max_filename_length), parameter :: filename = "data/simulation/init/test_init.json"
-    character(20), parameter :: expected_title = "Test simulation init"
-    character(16), parameter :: expected_thermo = "IAPWS-97"
-    character(1), parameter  :: expected_eos = "W"
-    PetscInt, parameter :: expected_dim = 3, num_cells = 12, num_primary = 1
     PetscInt, parameter :: expected_num_rocktypes = 2
     PetscInt, parameter :: expected_num_rocktype_cells(expected_num_rocktypes) = [9, 3]
     PetscReal, parameter :: expected_initial = 2.e5_dp
     PetscInt :: dim, global_solution_dof, num_rocktypes, initial_size
     PetscInt, allocatable :: rock_count(:)
-    Vec :: x
     PetscBool :: open_bdy, has_rock_label
     PetscReal, pointer :: initial(:)
     PetscReal, allocatable :: expected_initial_array(:)
@@ -137,20 +161,8 @@ contains
 
     call sim%init(filename)
 
-    call DMGetDimension(sim%mesh%dm, dim, ierr); CHKERRQ(ierr)
-    call DMCreateGlobalVector(sim%mesh%dm, x, ierr); CHKERRQ(ierr)
-    call VecGetSize(x, global_solution_dof, ierr); CHKERRQ(ierr)
-    call VecDestroy(x, ierr); CHKERRQ(ierr)
-
-    if (mpi%rank == mpi%output_rank) then
-       call assert_equals(expected_title, sim%title, "Simulation title")
-       call assert_equals(expected_thermo, sim%thermo%name, &
-            "Simulation thermodynamics")
-       call assert_equals(expected_eos, sim%eos%name, "Simulation EOS")
-       call assert_equals(expected_dim, dim, "Simulation mesh dimension")
-       call assert_equals(num_cells * num_primary, global_solution_dof, &
-            "Simulation mesh dof")
-    end if
+    call simulation_basic_test(sim, title = "Test simulation init", &
+         thermo = "IAPWS-97", eos = "W", dim = 3, dof = 12)
 
     call DMPlexHasLabel(sim%mesh%dm, open_boundary_label_name, open_bdy, &
          ierr); CHKERRQ(ierr)
