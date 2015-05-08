@@ -135,6 +135,48 @@ contains
   end subroutine simulation_basic_test
 
 !------------------------------------------------------------------------
+
+  subroutine simulation_label_test(sim, rock_cells)
+
+    ! Tests simulation labels.
+
+    use mesh_module, only : open_boundary_label_name
+    use rock_module, only : rocktype_label_name
+
+    type(simulation_type), intent(in) :: sim
+    PetscInt, intent(in) :: rock_cells(:)
+    ! Locals:
+    PetscBool :: open_bdy, has_rock_label
+    PetscInt, allocatable :: sim_rock_cells(:)
+    PetscErrorCode :: ierr
+
+    ! Open boundary label:
+    call DMPlexHasLabel(sim%mesh%dm, open_boundary_label_name, open_bdy, &
+         ierr); CHKERRQ(ierr)
+    if (mpi%rank == mpi%output_rank) then
+       call assert_equals(.true., open_bdy, "Simulation open boundary label")
+    end if
+
+    ! Rock type label:
+    call DMPlexHasLabel(sim%mesh%dm, rocktype_label_name, has_rock_label, &
+         ierr); CHKERRQ(ierr)
+    if (mpi%rank == mpi%output_rank) then
+       call assert_equals(.true., has_rock_label, "Simulation rocktype label")
+    end if
+    if (has_rock_label) then
+       call get_rocktype_counts(sim, sim_rock_cells)
+       if (mpi%rank == mpi%output_rank) then
+          call assert_equals(size(rock_cells), size(sim_rock_cells), &
+               "Simulation num rocktypes")
+          call assert_equals(rock_cells, sim_rock_cells, &
+               size(rock_cells), "Simulation num rocktype cells")
+       end if
+       deallocate(sim_rock_cells)
+    end if
+
+  end subroutine simulation_label_test
+
+!------------------------------------------------------------------------
 ! Unit test routines:
 !------------------------------------------------------------------------
 
@@ -143,32 +185,24 @@ contains
     ! Test simulation init() method.
     ! This uses a simple problem with a 12-cell rectangular mesh and two rock types.
 
-    use mesh_module, only : open_boundary_label_name
-    use rock_module, only : rocktype_label_name
-
     type(simulation_type) :: sim
     ! Locals:
-    character(max_filename_length), parameter :: filename = "data/simulation/init/test_init.json"
-    PetscInt, parameter :: expected_num_rocktypes = 2
-    PetscInt, parameter :: expected_num_rocktype_cells(expected_num_rocktypes) = [9, 3]
+    character(:), allocatable :: path, filename
     PetscReal, parameter :: expected_initial = 2.e5_dp
-    PetscInt :: dim, global_solution_dof, num_rocktypes, initial_size
-    PetscInt, allocatable :: rock_count(:)
-    PetscBool :: open_bdy, has_rock_label
+    PetscInt :: initial_size
     PetscReal, pointer :: initial(:)
     PetscReal, allocatable :: expected_initial_array(:)
     PetscErrorCode :: ierr
+
+    path = "data/simulation/init/"
+    filename = path // "test_init.json"
 
     call sim%init(filename)
 
     call simulation_basic_test(sim, title = "Test simulation init", &
          thermo = "IAPWS-97", eos = "W", dim = 3, dof = 12)
 
-    call DMPlexHasLabel(sim%mesh%dm, open_boundary_label_name, open_bdy, &
-         ierr); CHKERRQ(ierr)
-    if (mpi%rank == mpi%output_rank) then
-       call assert_equals(.true., open_bdy, "Simulation open boundary label")
-    end if
+    call simulation_label_test(sim, rock_cells = [9, 3])
 
     call VecGetArrayF90(sim%initial, initial, ierr); CHKERRQ(ierr)
     initial_size = size(initial)
@@ -181,23 +215,8 @@ contains
 
     ! test fluid vector initialized
 
-    call DMPlexHasLabel(sim%mesh%dm, rocktype_label_name, has_rock_label, &
-         ierr); CHKERRQ(ierr)
-    if (mpi%rank == mpi%output_rank) then
-       call assert_equals(.true., has_rock_label, "Simulation rocktype label")
-    end if
-    if (has_rock_label) then
-       call get_rocktype_counts(sim, rock_count)
-       if (mpi%rank == mpi%output_rank) then
-          call assert_equals(expected_num_rocktypes, size(rock_count), &
-               "Simulation num rocktypes")
-          call assert_equals(expected_num_rocktype_cells, rock_count, &
-               expected_num_rocktypes, "Simulation num rocktype cells")
-       end if
-       deallocate(rock_count)
-    end if
 
-    call vec_diff_test(sim%rock, "rock", "data/simulation/init/")
+    call vec_diff_test(sim%rock, "rock", path)
 
     ! test timestepper initialized
 
