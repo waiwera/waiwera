@@ -325,7 +325,6 @@ contains
     ! TODO: set default rock properties everywhere here? in case of cells with
     ! no properties specified
 
-    ! Populate rock vector from JSON file:
     if (fson_has_mpi(json, "rock")) then
 
        if (fson_has_mpi(json, "rock.types")) then
@@ -334,6 +333,7 @@ contains
 
        else
           ! other types of rock initialization here- TODO
+          ! e.g. read from a rock section in initial conditions HDF5 file
        end if
 
     end if
