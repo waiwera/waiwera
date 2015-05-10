@@ -198,11 +198,6 @@ contains
     type(simulation_type) :: sim
     ! Locals:
     character(:), allocatable :: path
-    PetscReal, parameter :: expected_initial = 2.e5_dp
-    PetscInt :: initial_size
-    PetscReal, pointer :: initial(:)
-    PetscReal, allocatable :: expected_initial_array(:)
-    PetscErrorCode :: ierr
 
     path = "data/simulation/init/"
 
@@ -213,14 +208,7 @@ contains
 
     call simulation_label_test(sim, rock_cells = [9, 3])
 
-    call VecGetArrayF90(sim%initial, initial, ierr); CHKERRQ(ierr)
-    initial_size = size(initial)
-    allocate(expected_initial_array(initial_size))
-    expected_initial_array = expected_initial
-    call assert_equals(expected_initial_array, initial, initial_size, &
-         "Simulation initial conditions")
-    deallocate(expected_initial_array)
-    call VecRestoreArrayF90(sim%initial, initial, ierr); CHKERRQ(ierr)
+    call vec_diff_test(sim%initial, "initial", path)
 
     ! test fluid vector initialized
 
