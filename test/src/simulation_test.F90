@@ -77,6 +77,10 @@ contains
 
     ! Tests vec v against values from HDF5 file with specified base name,
     ! at the given path.
+    ! NB: at present this will only work if the number of processors is the
+    ! same as that used to write the HDF5 file.
+    ! This should be fixed when DMPlex supports a 'natural ordering' similar
+    ! to that used by DMDA. At that point the code here will need to be altered.
 
     Vec, intent(in) :: v
     character(*), intent(in) :: name, path
