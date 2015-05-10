@@ -62,6 +62,7 @@ contains
           i = i + fluid%phase(p)%dof()
        end do
 
+       call fluid%destroy()
        deallocate(fluid_data)
 
     end if

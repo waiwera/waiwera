@@ -236,21 +236,29 @@ contains
     ! Locals:
     integer :: i
 
-    self%num_regions = 3
-    allocate(IAPWS_region1_type :: self%water)
-    allocate(IAPWS_region2_type :: self%steam)
-    allocate(IAPWS_region3_type :: self%supercritical)
-    allocate(self%region(self%num_regions))
+    if (.not.(self%initialized)) then
 
-    call self%region(1)%set(self%water)
-    call self%region(2)%set(self%steam)
-    call self%region(3)%set(self%supercritical)
+       self%name = "IAPWS-97"
 
-    do i = 1, self%num_regions
-       call self%region(i)%ptr%init()
-    end do
+       self%num_regions = 3
+       allocate(IAPWS_region1_type :: self%water)
+       allocate(IAPWS_region2_type :: self%steam)
+       allocate(IAPWS_region3_type :: self%supercritical)
+       allocate(self%region(self%num_regions))
 
-    call self%visc%init()
+       call self%region(1)%set(self%water)
+       call self%region(2)%set(self%steam)
+       call self%region(3)%set(self%supercritical)
+
+       do i = 1, self%num_regions
+          call self%region(i)%ptr%init()
+       end do
+
+       call self%visc%init()
+
+       self%initialized = .true.
+
+    end if
 
   end subroutine IAPWS_init
 
@@ -263,13 +271,19 @@ contains
     ! Locals:
     integer :: i
 
-    do i = 1, self%num_regions
-       call self%region(i)%ptr%destroy()
-    end do
-    deallocate(self%region)
-    deallocate(self%water, self%steam, self%supercritical)
+    if (self%initialized) then
 
-    call self%visc%destroy()
+       do i = 1, self%num_regions
+          call self%region(i)%ptr%destroy()
+       end do
+       deallocate(self%region)
+       deallocate(self%water, self%steam, self%supercritical)
+
+       call self%visc%destroy()
+
+       self%initialized = .false.
+
+    end if
 
   end subroutine IAPWS_destroy
 
@@ -318,6 +332,8 @@ contains
     !! Initializes IAPWS region 1 object.
 
     class(IAPWS_region1_type), intent(in out) :: self
+
+    self%name = 'water'
 
     self%nI = self%n * self%I
     self%nJ = self%n * self%J
@@ -411,6 +427,8 @@ contains
     !! Initializes IAPWS region 2 object.
 
     class(IAPWS_region2_type), intent(in out) :: self
+
+    self%name = 'steam'
 
     self%n0J0 = self%n0 * self%J0
     self%nI = self%n * self%I
@@ -514,7 +532,9 @@ contains
     !! Initializes IAPWS region 3 object.
 
     class(IAPWS_region3_type), intent(in out) :: self
- 
+
+    self%name = 'supercritical'
+
     self%nI = self%n * self%I
     self%nJ = self%n * self%J
     self%I_1 = self%I - 1

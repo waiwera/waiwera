@@ -13,7 +13,7 @@ module mesh_test
 
 #include <petsc-finclude/petsc.h90>
 
-public :: test_init
+public :: test_mesh_init
 
 PetscReal, parameter :: tol = 1.e-6_dp
 
@@ -21,7 +21,7 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine test_init
+  subroutine test_mesh_init
 
     ! Mesh init test
 
@@ -29,7 +29,7 @@ contains
     use cell_module
     use face_module
 
-    character(max_mesh_filename_length) :: filename = "data/mesh_test_init.json"
+    character(max_mesh_filename_length) :: filename = "data/mesh/test_init.json"
     type(fson_value), pointer :: json
     type(mesh_type) :: mesh
     character(max_primary_variable_name_length), allocatable :: primary_variable_names(:)
@@ -59,7 +59,9 @@ contains
        json => fson_parse(filename)
     end if
 
-    call mesh%init(json, primary_variable_names)
+    call mesh%init(json)
+    call DMPlexCreateLabel(mesh%dm, open_boundary_label_name, ierr); CHKERRQ(ierr)
+    call mesh%configure(primary_variable_names)
 
     call DMGetDimension(mesh%dm, dim, ierr)
     if (mpi%rank == mpi%output_rank) then
@@ -99,12 +101,13 @@ contains
           call assert_equals(0._dp, norm2(face%centroid - face_centroid(:,f)), tol, msg)
        end if
     end do
+    call face%destroy()
     call VecRestoreArrayF90(mesh%face_geom, fg, ierr)
 
     call mesh%destroy()
     deallocate(primary_variable_names)
 
-  end subroutine test_init
+  end subroutine test_mesh_init
 
 !------------------------------------------------------------------------
 

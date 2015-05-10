@@ -49,6 +49,7 @@ contains
        call assert_equals(density, rock%density, tol, "rock density")
        call assert_equals(specific_heat, rock%specific_heat, tol, "rock specific heat")
        
+       call rock%destroy()
        deallocate(rock_data)
 
     end if

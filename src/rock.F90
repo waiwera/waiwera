@@ -1,10 +1,12 @@
 module rock_module
   !! Defines type for accessing local rock properties on cells and faces.
 
-#include <petsc-finclude/petscdef.h>
+  use kinds_module
 
   implicit none
   private
+
+#include <petsc-finclude/petscdef.h>
 
   type rock_type
      !! Local rock properties.
@@ -17,24 +19,36 @@ module rock_module
      private
      procedure, public :: assign => rock_assign
      procedure, public :: dof => rock_dof
+     procedure, public :: destroy => rock_destroy
   end type rock_type
 
   PetscInt, parameter :: num_rock_variables = 5
   PetscInt, parameter :: max_rock_variable_name_length = 32
-  character(max_rock_variable_name_length), parameter :: &
+  character(max_rock_variable_name_length), parameter, public :: &
        rock_variable_names(num_rock_variables) = &
        [character(max_rock_variable_name_length):: &
        "Permeability", "Heat conductivity", "Porosity", &
        "Density", "Specific heat"]
-  PetscInt, parameter :: &
+  PetscInt, parameter, public :: &
        rock_variable_num_components(num_rock_variables) = &
        [3, 1, 1, 1, 1]
-  PetscInt, parameter :: &
+  PetscInt, parameter, public :: &
        rock_variable_dim(num_rock_variables) = &
        [3, 3, 3, 3, 3]
+  PetscInt, parameter, public :: max_rockname_length = 24
 
-  public :: rock_type, rock_variable_num_components, &
-         rock_variable_dim, rock_variable_names
+  PetscInt, parameter, public :: max_rocktype_label_length = 9
+  character(max_rocktype_label_length), parameter, public :: &
+       rocktype_label_name = "Rock type"
+
+  ! Default rock properties:
+  PetscReal, parameter, public :: default_permeability(3) = [1.e-13_dp, 1.e-13_dp, 1.e-13_dp]
+  PetscReal, parameter, public :: default_porosity = 0.1_dp
+  PetscReal, parameter, public :: default_density = 2200.0_dp
+  PetscReal, parameter, public :: default_specific_heat = 1000._dp
+  PetscReal, parameter, public :: default_heat_conductivity = 2.5_dp
+
+  public :: rock_type
 
 contains
 
@@ -66,6 +80,21 @@ contains
     rock_dof = sum(rock_variable_num_components)
 
   end function rock_dof
+
+!------------------------------------------------------------------------
+
+  subroutine rock_destroy(self)
+    !! Destroys a rock object (nullifies all pointer components).
+
+    class(rock_type), intent(in out) :: self
+
+    nullify(self%permeability)
+    nullify(self%heat_conductivity)
+    nullify(self%porosity)
+    nullify(self%density)
+    nullify(self%specific_heat)
+
+  end subroutine rock_destroy
 
 !------------------------------------------------------------------------
 

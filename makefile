@@ -46,7 +46,8 @@ PROG = supermodel
 TESTPROG = test_all
 TESTSUF = _test
 # test modules that need setup/teardown:
-SETUPTESTS = IAPWS IFC67 timestepping fson_mpi cell face mesh fluid rock
+SETUPTESTS = IAPWS IFC67 timestepping fson_mpi cell face mesh fluid rock \
+	simulation
 NONSETUPTESTS = powertable utils
 TESTS = setup $(SETUPTESTS) $(NONSETUPTESTS)
 SETUPOBJS = $(patsubst %, $(BUILD)/%$(OBJ), $(SETUPTESTS))
@@ -57,6 +58,7 @@ tests: $(TEST)/$(DIST)/$(TESTPROG)$(EXE)
 
 # general dependency rules:
 $(OBJS) $(TESTOBJS): $(ESSENTIAL_OBJS)
+$(TEST)/$(BUILD)/%$(TESTSUF)$(OBJ): $(BUILD)/%$(OBJ) $(BUILD)/mpi$(OBJ)
 
 # specific dependency rules:
 $(TEST)/$(BUILD)/setup$(TESTSUF)$(OBJ): $(SETUPOBJS) $(BUILD)/mpi$(OBJ)
@@ -74,8 +76,8 @@ $(BUILD)/eos$(OBJ): $(BUILD)/thermodynamics$(OBJ) $(BUILD)/fluid$(OBJ)
 $(BUILD)/eos_w$(OBJ): $(BUILD)/thermodynamics$(OBJ) $(BUILD)/eos$(OBJ) $(BUILD)/fluid$(OBJ)
 $(BUILD)/fson_mpi$(OBJ): $(BUILD)/mpi$(OBJ)
 $(BUILD)/timestepping$(OBJ): $(BUILD)/mpi$(OBJ)
-$(TEST)/$(BUILD)/%$(TESTSUF)$(OBJ): $(BUILD)/mpi$(OBJ) 
 $(TEST)/$(BUILD)/mesh$(TESTSUF)$(OBJ): $(BUILD)/eos$(OBJ) $(BUILD)/cell$(OBJ) $(BUILD)/face$(OBJ)
+$(TEST)/$(BUILD)/simulation$(TESTSUF)$(OBJ): $(BUILD)/mesh$(OBJ) $(BUILD)/rock$(OBJ)
 $(BUILD)/$(PROG)$(OBJ): $(BUILD)/mpi$(OBJ) $(BUILD)/simulation$(OBJ)
 
 # build rules:
@@ -102,7 +104,7 @@ $(TEST)/$(BUILD)/$(TESTPROG)$(OBJ): $(TEST)/$(SRC)/$(TESTPROG)$(F90) $(TESTOBJS)
 $(TEST)/$(BUILD)/setup$(TESTSUF)$(OBJ): $(TEST)/$(SRC)/setup$(TESTSUF)$(F90)
 	$(PETSC_FCOMPILE) $(TESTFMFLAGS) -I$(BUILD) $(TESTINCLS) -c $< -o $@
 
-$(TEST)/$(BUILD)/%$(TESTSUF)$(OBJ): $(TEST)/$(SRC)/%$(TESTSUF)$(F90) $(BUILD)/%$(OBJ)
+$(TEST)/$(BUILD)/%$(TESTSUF)$(OBJ): $(TEST)/$(SRC)/%$(TESTSUF)$(F90)
 	$(PETSC_FCOMPILE) $(TESTFMFLAGS) -I$(BUILD) $(TESTINCLS) -c $< -o $@
 
 # documentation:

@@ -13,7 +13,7 @@ module fson_mpi_test
 
 #include <petsc-finclude/petscsys.h>
 
-  character(len = 24), parameter :: filename = "data/test_fson_mpi.json"
+  character(len = 32), parameter :: filename = "data/fson_mpi/test_fson_mpi.json"
   public :: test_fson_mpi_int, test_fson_mpi_real, test_fson_mpi_double
   public :: test_fson_mpi_logical, test_fson_mpi_char
 
