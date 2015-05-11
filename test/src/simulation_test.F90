@@ -7,6 +7,7 @@ module simulation_test
   use fruit
   use fson
   use simulation_module
+  use timestepping_module
 
   implicit none
   private
@@ -187,6 +188,30 @@ contains
   end subroutine simulation_label_test
 
 !------------------------------------------------------------------------
+
+subroutine timestepper_test(ts, method, initial_time, initial_stepsize, &
+     final_time, max_num_steps, max_stepsize)
+
+  ! Tests timestepper initialization.
+
+  type(timestepper_type), intent(in) :: ts
+  character(*), intent(in) :: method
+  PetscReal, intent(in) :: initial_time, initial_stepsize
+  PetscReal, intent(in) :: final_time, max_stepsize
+  PetscInt, intent(in)  :: max_num_steps
+
+  if (mpi%rank == mpi%output_rank) then
+     call assert_equals(method, ts%method%name, "Simulation timestepper method")
+     call assert_equals(initial_time, ts%steps%current%time, "Simulation initial time")
+     call assert_equals(initial_stepsize, ts%steps%next_stepsize, "Simulation initial stepsize")
+     call assert_equals(final_time, ts%steps%final_time, "Simulation final time")
+     call assert_equals(max_num_steps, ts%steps%max_num, "Simulation max num steps")
+     call assert_equals(max_stepsize, ts%steps%adaptor%max_stepsize, "Simulation max stepsize")
+  end if
+
+end subroutine timestepper_test
+
+!------------------------------------------------------------------------
 ! Unit test routines:
 !------------------------------------------------------------------------
 
@@ -214,7 +239,8 @@ contains
 
     call vec_diff_test(sim%rock, "rock", path)
 
-    ! test timestepper initialized
+    call timestepper_test(sim%timestepper, "Backward Euler", 0.0_dp, &
+         100._dp, 1000._dp, 15, 0.0_dp)
 
     call sim%destroy()
 

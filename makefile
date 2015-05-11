@@ -77,7 +77,8 @@ $(BUILD)/eos_w$(OBJ): $(BUILD)/thermodynamics$(OBJ) $(BUILD)/eos$(OBJ) $(BUILD)/
 $(BUILD)/fson_mpi$(OBJ): $(BUILD)/mpi$(OBJ)
 $(BUILD)/timestepping$(OBJ): $(BUILD)/mpi$(OBJ)
 $(TEST)/$(BUILD)/mesh$(TESTSUF)$(OBJ): $(BUILD)/eos$(OBJ) $(BUILD)/cell$(OBJ) $(BUILD)/face$(OBJ)
-$(TEST)/$(BUILD)/simulation$(TESTSUF)$(OBJ): $(BUILD)/mesh$(OBJ) $(BUILD)/rock$(OBJ)
+$(TEST)/$(BUILD)/simulation$(TESTSUF)$(OBJ): $(BUILD)/mesh$(OBJ) $(BUILD)/rock$(OBJ) \
+	$(BUILD)/timestepping$(OBJ)
 $(BUILD)/$(PROG)$(OBJ): $(BUILD)/mpi$(OBJ) $(BUILD)/simulation$(OBJ)
 
 # build rules:
