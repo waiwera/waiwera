@@ -359,7 +359,7 @@ contains
     PetscReal, parameter :: default_start_time = 0.0_dp, &
          default_stop_time = 1.0_dp
     PetscReal, parameter :: default_initial_stepsize = 0.1_dp
-    PetscReal, parameter :: default_max_stepsize = 1.0_dp
+    PetscReal, parameter :: default_max_stepsize = 0.0_dp
     integer :: method
     integer, parameter :: max_method_str_len = 12
     character(max_method_str_len) :: method_str
