@@ -34,8 +34,9 @@ procedure(lhs_function), pointer :: lhs_func
 procedure(rhs_function), pointer :: rhs_func
 procedure(exact_function), pointer :: exact_func
 
-public :: test_linear, test_exponential, test_logistic, &
-     test_nontrivial_lhs, test_nonlinear_lhs, test_heat1d
+public :: test_timestepping_linear, test_timestepping_exponential, &
+     test_timestepping_logistic, test_timestepping_nontrivial_lhs, &
+     test_timestepping_nonlinear_lhs, test_timestepping_heat1d
 
 contains
 
@@ -161,7 +162,7 @@ contains
 ! Test routines
 !------------------------------------------------------------------------
 
-  subroutine test_linear
+  subroutine test_timestepping_linear
 
     ! Linear function
 
@@ -217,11 +218,11 @@ contains
       call VecSetArray(v, initial + k * (t - t0))
     end subroutine exact_linear
 
-  end subroutine test_linear
+  end subroutine test_timestepping_linear
 
 !------------------------------------------------------------------------
 
-  subroutine test_exponential
+  subroutine test_timestepping_exponential
 
     ! Exponential function
 
@@ -278,11 +279,11 @@ contains
       call VecSetArray(v, initial * exp(k * (t - t0)))
     end subroutine exact_exp
 
-  end subroutine test_exponential
+  end subroutine test_timestepping_exponential
 
 !------------------------------------------------------------------------
 
-  subroutine test_logistic
+  subroutine test_timestepping_logistic
 
     ! Logistic equation
 
@@ -352,11 +353,11 @@ contains
       call VecRestoreArrayF90(v, va, ierr); CHKERRQ(ierr)
     end subroutine exact_logistic
 
-  end subroutine test_logistic
+  end subroutine test_timestepping_logistic
 
 !------------------------------------------------------------------------
 
-  subroutine test_nontrivial_lhs
+  subroutine test_timestepping_nontrivial_lhs
 
     ! Nontrivial LHS
 
@@ -424,11 +425,11 @@ contains
       call VecSetArray(v, initial * t ** (k - 1._dp))
     end subroutine exact_fn
 
-  end subroutine test_nontrivial_lhs
+  end subroutine test_timestepping_nontrivial_lhs
 
 !------------------------------------------------------------------------
 
-  subroutine test_nonlinear_lhs
+  subroutine test_timestepping_nonlinear_lhs
 
     ! Nonlinear LHS
 
@@ -497,11 +498,11 @@ contains
       call VecSetArray(v, initial + 0.5_dp * k * t)
     end subroutine exact_fn
 
-  end subroutine test_nonlinear_lhs
+  end subroutine test_timestepping_nonlinear_lhs
 
 !------------------------------------------------------------------------
 
-  subroutine test_heat1d
+  subroutine test_timestepping_heat1d
 
     ! 1-D heat equation PDE
     ! Solved in its usual form: dc/dt = d2c/dx2
@@ -707,7 +708,7 @@ contains
 
     end subroutine exact_fn
 
-  end subroutine test_heat1d
+  end subroutine test_timestepping_heat1d
 
 !------------------------------------------------------------------------
 
