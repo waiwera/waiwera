@@ -80,7 +80,6 @@ contains
     class(simulation_type), intent(in out) :: self
     type(fson_value), pointer, intent(in) :: json
     ! Locals:
-    PetscErrorCode :: ierr
     integer, parameter :: max_thermo_ID_length = 8
     character(max_thermo_ID_length) :: thermo_ID
     character(max_thermo_ID_length), parameter :: &
@@ -111,7 +110,6 @@ contains
     class(simulation_type), intent(in out) :: self
     type(fson_value), pointer, intent(in) :: json
     ! Locals:
-    PetscErrorCode :: ierr
     integer, parameter :: max_eos_ID_length = 12
     character(max_eos_ID_length) :: eos_ID
     character(max_eos_ID_length), parameter :: &
@@ -144,7 +142,6 @@ contains
     class(simulation_type), intent(in out) :: self
     type(fson_value), pointer, intent(in) :: json
     ! Locals:
-    type(fson_value), pointer :: initial
     PetscErrorCode :: ierr
     real(dp) :: const_initial_value
     integer :: int_const_initial_value
@@ -271,11 +268,13 @@ contains
        r => fson_value_get_mpi(rocktypes, ir)
        call fson_get_mpi(r, "name", "", name)
        call fson_get_mpi(r, "permeability", default_permeability, permeability)
-       call fson_get_mpi(r, "heat conductivity", default_heat_conductivity, heat_conductivity)
+       call fson_get_mpi(r, "heat conductivity", default_heat_conductivity, &
+            heat_conductivity)
        call fson_get_mpi(r, "porosity", default_porosity, porosity)
        call fson_get_mpi(r, "density", default_density, density)
        call fson_get_mpi(r, "specific heat", default_specific_heat, specific_heat)
-       call DMPlexGetStratumIS(self%mesh%dm, rocktype_label_name, ir, rock_IS, ierr); CHKERRQ(ierr)
+       call DMPlexGetStratumIS(self%mesh%dm, rocktype_label_name, ir, rock_IS, &
+            ierr); CHKERRQ(ierr)
        if (rock_IS /= 0) then
           call ISGetIndicesF90(rock_IS, rock_cells, ierr); CHKERRQ(ierr)
           num_cells = size(rock_cells)
@@ -352,10 +351,9 @@ contains
     class(simulation_type), intent(in out) :: self
     type(fson_value), pointer, intent(in) :: json
     ! Locals:
-    type(fson_value), pointer :: time
     PetscReal :: start_time, stop_time, initial_stepsize, max_stepsize
     PetscReal, allocatable :: steps(:)
-    integer :: int_initial_stepsize, max_num_steps
+    integer :: max_num_steps
     PetscReal, parameter :: default_start_time = 0.0_dp, &
          default_stop_time = 1.0_dp
     PetscReal, parameter :: default_initial_stepsize = 0.1_dp
@@ -483,7 +481,6 @@ contains
     character(*), intent(in), optional :: json_str !! JSON string for alternative input
     ! Locals:
     type(fson_value), pointer :: json
-    PetscErrorCode :: ierr
 
     if (present(filename)) then
        self%input_filename = filename

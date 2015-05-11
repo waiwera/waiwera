@@ -112,7 +112,6 @@ contains
     ! Locals:
     PetscErrorCode :: ierr
     Vec :: petsc_face_geom
-    PetscInt :: dim
     DM :: dm_cell, dm_face, petsc_dm_face
     PetscSection :: face_section, petsc_face_section, cell_section
     PetscInt :: fstart, fend, f, face_dof, ghost, i

@@ -608,7 +608,6 @@ contains
     PetscBool, intent(in) :: converged
     ! Locals:
     PetscReal :: eta
-    PetscBool :: eta_low, eta_high
 
     if (converged) then
        eta = self%adaptor%monitor(self%current, self%last)
@@ -811,8 +810,6 @@ contains
     !! Runs the timestepper until finished.
 
     class(timestepper_type), intent(in out) :: self
-    ! Locals:
-    PetscErrorCode :: ierr
 
     self%steps%taken = 0
     do while (.not. self%steps%finished)
