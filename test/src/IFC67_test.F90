@@ -68,7 +68,6 @@ module IFC67_test
            2474981.3799304822_dp]
       integer :: i, err
       real(dp) :: param(2), props(2)
-      real(dp) :: rho_ref(n), u_ref(n)
 
       if (mpi%rank == mpi%output_rank) then
          params(:,2) = params(:,2) - tc_k  ! convert temperatures to Celcius

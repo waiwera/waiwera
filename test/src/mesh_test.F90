@@ -34,7 +34,6 @@ contains
     type(mesh_type) :: mesh
     character(max_primary_variable_name_length), allocatable :: primary_variable_names(:)
     Vec :: x
-    type(cell_type) :: cell
     type(face_type) :: face
     PetscInt :: global_solution_dof, num_primary
     PetscInt :: dim, facedof
@@ -48,7 +47,8 @@ contains
     character(len = 24) :: msg
     PetscInt, parameter :: expected_dim = 3, num_cells = 3, num_faces = 16
     PetscReal, parameter :: face_area = 200._dp
-    PetscReal, parameter :: face_distance(2, 19:20) = reshape([5._dp, 10._dp, 10._dp, 15._dp], [2,2])
+    PetscReal, parameter :: face_distance(2, 19:20) = &
+         reshape([5._dp, 10._dp, 10._dp, 15._dp], [2,2])
     PetscReal, parameter :: face_centroid(3, 19:20) = &
          reshape([5._dp, 10._dp, 50._dp, 5._dp, 10._dp, 30._dp], [3,2])
     

@@ -50,7 +50,7 @@ contains
     Vec, intent(in out) :: v
     PetscReal, intent(in) :: arr(:)
     ! Locals:
-    PetscInt :: hi, low, i
+    PetscInt :: hi, low
     PetscErrorCode :: ierr
     PetscReal, pointer :: va(:)
 
@@ -122,7 +122,6 @@ contains
     PetscReal, pointer :: y(:), yex(:), diffa(:)
     PetscErrorCode :: ierr
     PetscReal :: t, normdiff
-    character(8) :: s
     PetscInt :: i, local_size, low, hi
 
     t = self%steps%current%time
@@ -169,8 +168,10 @@ contains
     PetscInt,  parameter :: dim = 8
     PetscReal, parameter :: k = -0.5_dp
     PetscReal, parameter :: t0 = 0._dp, t1 = 1._dp
-    PetscReal, parameter :: initial(dim) = [-4._dp, -3.0_dp, -2.0_dp, -1.0_dp, 0.0_dp, 1.0_dp, 2.0_dp, 3.0_dp]
-    PetscInt,  parameter :: num_methods = 2, methods(num_methods) = [TS_BEULER, TS_BDF2]
+    PetscReal, parameter :: initial(dim) = [-4._dp, -3.0_dp, -2.0_dp, -1.0_dp, &
+         0.0_dp, 1.0_dp, 2.0_dp, 3.0_dp]
+    PetscInt,  parameter :: num_methods = 2
+    PetscInt,  parameter :: methods(num_methods) = [TS_BEULER, TS_BDF2]
     PetscInt,  parameter :: max_steps(num_methods) = [20, 20]
     PetscReal, parameter :: tol(num_methods) = [1.e-6_dp, 1.e-6_dp]
     PetscReal, parameter :: dt(num_methods) = [0.1_dp, 0.1_dp]
@@ -227,8 +228,10 @@ contains
     PetscInt,  parameter :: dim = 8
     PetscReal, parameter :: k = -5._dp
     PetscReal, parameter :: t0 = 0._dp, t1 = 1._dp
-    PetscReal, parameter :: initial(dim) = [-4._dp, -3.0_dp, -2.0_dp, -1.0_dp, 0.0_dp, 1.0_dp, 2.0_dp, 3.0_dp]
-    PetscInt,  parameter :: num_methods = 2, methods(num_methods) = [TS_BEULER, TS_BDF2]
+    PetscReal, parameter :: initial(dim) = [-4._dp, -3.0_dp, -2.0_dp, -1.0_dp, &
+         0.0_dp, 1.0_dp, 2.0_dp, 3.0_dp]
+    PetscInt,  parameter :: num_methods = 2
+    PetscInt,  parameter :: methods(num_methods) = [TS_BEULER, TS_BDF2]
     PetscInt,  parameter :: max_steps(num_methods) = [200, 200]
     PetscReal, parameter :: tol(num_methods) = [0.15_dp, 0.05_dp]
     PetscReal, parameter :: dt(num_methods) = [0.01_dp, 0.05_dp]
@@ -285,9 +288,11 @@ contains
 
     PetscInt,  parameter :: dim = 8
     PetscReal, parameter :: t0 = 0._dp, t1 = 1._dp
-    PetscReal, parameter :: c(dim) = [0.0_dp, 0.5_dp, 1._dp, 1.5_dp, 2._dp, 2.5_dp, 3._dp, 3.5_dp]
+    PetscReal, parameter :: c(dim) = [0.0_dp, 0.5_dp, 1._dp, 1.5_dp, 2._dp, &
+         2.5_dp, 3._dp, 3.5_dp]
     PetscReal, parameter :: initial(dim) = 3._dp * c / (1._dp + 2._dp * c)
-    PetscInt,  parameter :: num_methods = 2, methods(num_methods) = [TS_BEULER, TS_BDF2]
+    PetscInt,  parameter :: num_methods = 2
+    PetscInt,  parameter :: methods(num_methods) = [TS_BEULER, TS_BDF2]
     PetscInt,  parameter :: max_steps(num_methods) = [100, 100]
     PetscReal, parameter :: tol(num_methods) = [0.05_dp, 0.006_dp]
     PetscReal, parameter :: dt(num_methods) = [0.1_dp, 0.1_dp]
@@ -358,8 +363,10 @@ contains
     PetscInt,  parameter :: dim = 8
     PetscReal, parameter :: t0 = 1._dp, t1 = 10._dp
     PetscReal, parameter :: k = -1._dp
-    PetscReal, parameter :: initial(dim) = [-4._dp, -3.0_dp, -2.0_dp, -1.0_dp, 0.0_dp, 1.0_dp, 2.0_dp, 3.0_dp]
-    PetscInt,  parameter :: num_methods = 2, methods(num_methods) = [TS_BEULER, TS_BDF2]
+    PetscReal, parameter :: initial(dim) = [-4._dp, -3.0_dp, -2.0_dp, -1.0_dp, &
+         0.0_dp, 1.0_dp, 2.0_dp, 3.0_dp]
+    PetscInt,  parameter :: num_methods = 2
+    PetscInt,  parameter :: methods(num_methods) = [TS_BEULER, TS_BDF2]
     PetscInt,  parameter :: max_steps(num_methods) = [100, 100]
     PetscReal, parameter :: tol(num_methods) = [0.1_dp, 0.02_dp]
     PetscReal, parameter :: dt(num_methods) = [0.01_dp, 1._dp]
@@ -428,8 +435,10 @@ contains
     PetscInt,  parameter :: dim = 8
     PetscReal, parameter :: t0 = 0._dp, t1 = 1._dp
     PetscReal, parameter :: k = -1._dp
-    PetscReal, parameter :: initial(dim) = [-4._dp, -3._dp, -2.0_dp, -1.0_dp, 0.0_dp, 2.0_dp, 3.0_dp, 4.0_dp]
-    PetscInt,  parameter :: num_methods = 2, methods(num_methods) = [TS_BEULER, TS_BDF2]
+    PetscReal, parameter :: initial(dim) = [-4._dp, -3._dp, -2.0_dp, -1.0_dp, &
+         0.0_dp, 2.0_dp, 3.0_dp, 4.0_dp]
+    PetscInt,  parameter :: num_methods = 2
+    PetscInt,  parameter :: methods(num_methods) = [TS_BEULER, TS_BDF2]
     PetscInt,  parameter :: max_steps(num_methods) = [200, 200]
     PetscReal, parameter :: tol(num_methods) = [0.15_dp, 0.05_dp]
     PetscReal, parameter :: dt(num_methods) = [0.01_dp, 0.04_dp]
@@ -500,7 +509,8 @@ contains
 
     PetscInt,  parameter :: dim = 21
     PetscReal, parameter :: t0 = 0._dp, t1 = 0.2_dp
-    PetscInt,  parameter :: num_methods = 2, methods(num_methods) = [TS_BEULER, TS_BDF2]
+    PetscInt,  parameter :: num_methods = 2
+    PetscInt,  parameter :: methods(num_methods) = [TS_BEULER, TS_BDF2]
     PetscInt             :: max_steps(num_methods) = [20, 20]
     PetscReal, parameter :: tol(num_methods) = [0.1_dp, 0.05_dp]
     PetscReal, parameter :: dt(num_methods) = [0.01_dp, 0.01_dp]
@@ -508,7 +518,6 @@ contains
     PetscReal, parameter :: eta_min(num_methods) = [0.01_dp, 0.01_dp]
     PetscReal, parameter :: eta_max(num_methods) = [0.1_dp, 0.2_dp]
     PetscInt,  parameter :: dof = 1, stencil = 1
-    PetscReal :: initial(dim)
     PetscErrorCode :: ierr
     DM :: dm
     Vec :: initialv
