@@ -3,8 +3,6 @@ module setup_module
   ! Setup and teardown routines for unit tests
 
   use mpi_module
-  use IAPWS_module
-  use IFC67_module
 
   implicit none
 
@@ -16,25 +14,23 @@ contains
 !------------------------------------------------------------------------
 
   subroutine setup
-    
+
+    ! Global setup routine
+
     PetscErrorCode :: ierr
     
     call PetscInitialize(PETSC_NULL_CHARACTER, ierr); CHKERRQ(ierr)
     call mpi%init(PETSC_COMM_WORLD)
     
-    call IAPWS%init()
-    call IFC67%init()
-
   end subroutine setup
 
 !------------------------------------------------------------------------
 
   subroutine teardown
 
-    PetscErrorCode :: ierr
+    ! Global teardown routine
 
-    call IAPWS%destroy()
-    call IFC67%destroy()
+    PetscErrorCode :: ierr
 
     call PetscFinalize(ierr); CHKERRQ(ierr)
 

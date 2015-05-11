@@ -62,7 +62,7 @@ $(OBJS) $(TESTOBJS): $(ESSENTIAL_OBJS)
 $(TEST)/$(BUILD)/%$(TESTSUF)$(OBJ): $(BUILD)/%$(OBJ) $(BUILD)/mpi$(OBJ)
 
 # specific dependency rules:
-$(TEST)/$(BUILD)/setup$(TESTSUF)$(OBJ): $(SETUPOBJS) $(BUILD)/mpi$(OBJ)
+$(TEST)/$(BUILD)/setup$(TESTSUF)$(OBJ): $(BUILD)/mpi$(OBJ)
 $(BUILD)/IAPWS$(OBJ): $(BUILD)/thermodynamics$(OBJ) $(BUILD)/powertable$(OBJ)
 $(BUILD)/IFC67$(OBJ): $(BUILD)/thermodynamics$(OBJ) $(BUILD)/powertable$(OBJ)
 $(BUILD)/simulation$(OBJ): $(BUILD)/mpi$(OBJ) $(BUILD)/timestepping$(OBJ) \
