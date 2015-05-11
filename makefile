@@ -30,6 +30,7 @@ TESTLDFLAGS=$(LIBS) -lfruit -lfson $(PETSC_LIB)
 TESTINCLS=$(INCLS)
 TESTFMFLAGS = -J$(TEST)/$(BUILD)
 INSTALL_DIR = $(HOME)/bin
+FC_FLAGS =  -fPIC -Wall -Wno-unused-dummy-argument -g -O0
 
 # modules used by all other modules:
 ESSENTIAL = kinds
