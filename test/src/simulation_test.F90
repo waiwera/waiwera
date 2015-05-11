@@ -96,7 +96,7 @@ contains
     call DMGetGlobalVector(dm, vread, ierr); CHKERRQ(ierr)
     call DMGetGlobalVector(dm, diff, ierr); CHKERRQ(ierr)
     call PetscObjectSetName(vread, name, ierr); CHKERRQ(ierr)
-    call PetscViewerHDF5Open(mpi%comm, path // trim(name) // ".h5", &
+    call PetscViewerHDF5Open(mpi%comm, trim(path) // trim(name) // ".h5", &
          FILE_MODE_READ, viewer, ierr)
     CHKERRQ(ierr)
     call PetscViewerHDF5PushGroup(viewer, "/", ierr); CHKERRQ(ierr)
@@ -222,11 +222,9 @@ end subroutine timestepper_test
 
     type(simulation_type) :: sim
     ! Locals:
-    character(:), allocatable :: path
+    character(24), parameter :: path = "data/simulation/init/"
 
-    path = "data/simulation/init/"
-
-    call sim%init(path // "test_init.json")
+    call sim%init(trim(path) // "test_init.json")
 
     call simulation_basic_test(sim, title = "Test simulation init", &
          thermo = "IAPWS-97", eos = "W", dim = 3, dof = 12)
