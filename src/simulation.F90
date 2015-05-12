@@ -36,14 +36,14 @@ module simulation_module
      character(max_title_length), public :: title
    contains
      private
-     procedure :: read_title => simulation_read_title
-     procedure :: read_thermodynamics => simulation_read_thermodynamics
-     procedure :: read_eos => simulation_read_eos
-     procedure :: read_initial => simulation_read_initial
+     procedure :: setup_title => simulation_setup_title
+     procedure :: setup_thermodynamics => simulation_setup_thermodynamics
+     procedure :: setup_eos => simulation_setup_eos
+     procedure :: setup_initial => simulation_setup_initial
      procedure :: setup_fluid => simulation_setup_fluid
-     procedure :: read_rock_types => simulation_read_rock_types
-     procedure :: read_rock_properties => simulation_read_rock_properties
-     procedure :: read_timestepping => simulation_read_timestepping
+     procedure :: setup_rock_types => simulation_setup_rock_types
+     procedure :: setup_rock_properties => simulation_setup_rock_properties
+     procedure :: setup_timestepping => simulation_setup_timestepping
      procedure :: setup_rocktype_labels => simulation_setup_rocktype_labels
      procedure :: setup_boundary_labels => simulation_setup_boundary_labels
      procedure :: setup_labels => simulation_setup_labels
@@ -56,7 +56,7 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine simulation_read_title(self, json)
+  subroutine simulation_setup_title(self, json)
     !! Reads simulation title from JSON input file.
     !! If not present, a default value is assigned.
 
@@ -67,11 +67,11 @@ contains
 
     call fson_get_mpi(json, "title", default_title, self%title)
 
-  end subroutine simulation_read_title
+  end subroutine simulation_setup_title
 
 !------------------------------------------------------------------------
 
-  subroutine simulation_read_thermodynamics(self, json)
+  subroutine simulation_setup_thermodynamics(self, json)
     !! Reads simulation thermodynamic formulation from JSON input file.
     !! If not present, a default value is assigned.
 
@@ -97,11 +97,11 @@ contains
 
     call self%thermo%init()
 
-  end subroutine simulation_read_thermodynamics
+  end subroutine simulation_setup_thermodynamics
 
 !------------------------------------------------------------------------
 
-  subroutine simulation_read_eos(self, json)
+  subroutine simulation_setup_eos(self, json)
     !! Reads simulation equation of state from JSON input file.
     !! If not present, a default value is assigned.
 
@@ -127,11 +127,11 @@ contains
 
     call self%eos%init(self%thermo)
 
-  end subroutine simulation_read_eos
+  end subroutine simulation_setup_eos
 
 !------------------------------------------------------------------------
 
-  subroutine simulation_read_initial(self, json)
+  subroutine simulation_setup_initial(self, json)
     !! Reads initial conditions from JSON input. These may be specified
     !! as a constant value or as an array. The array may contain a complete
     !! of initial conditions for all cells, or if a shorter array is 
@@ -196,7 +196,7 @@ contains
        deallocate(indices, initial_data)
     end if
 
-  end subroutine simulation_read_initial
+  end subroutine simulation_setup_initial
 
 !------------------------------------------------------------------------
 
@@ -235,7 +235,7 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine simulation_read_rock_types(self, json)
+  subroutine simulation_setup_rock_types(self, json)
     !! Reads rock properties from rock types in JSON input.
 
     use rock_module
@@ -297,11 +297,11 @@ contains
     call rock%destroy()
     call VecRestoreArrayF90(self%rock, rock_array, ierr); CHKERRQ(ierr)
 
-  end subroutine simulation_read_rock_types
+  end subroutine simulation_setup_rock_types
 
 !------------------------------------------------------------------------
 
-  subroutine simulation_read_rock_properties(self, json)
+  subroutine simulation_setup_rock_properties(self, json)
     !! Reads rock properties from JSON input.
 
     use rock_module, only: rock_variable_num_components, &
@@ -328,7 +328,7 @@ contains
 
        if (fson_has_mpi(json, "rock.types")) then
 
-          call self%read_rock_types(json)
+          call self%setup_rock_types(json)
 
        else
           ! other types of rock initialization here- TODO
@@ -339,11 +339,11 @@ contains
 
     call DMDestroy(dm_rock, ierr); CHKERRQ(ierr)
 
-  end subroutine simulation_read_rock_properties
+  end subroutine simulation_setup_rock_properties
 
 !------------------------------------------------------------------------
 
-  subroutine simulation_read_timestepping(self, json)
+  subroutine simulation_setup_timestepping(self, json)
     !! Reads time stepping data from JSON input.
 
     use utils_module, only : str_to_lower
@@ -395,7 +395,7 @@ contains
 
     if (allocated(steps)) deallocate(steps)
 
-  end subroutine simulation_read_timestepping
+  end subroutine simulation_setup_timestepping
 
 !------------------------------------------------------------------------
 
@@ -494,10 +494,10 @@ contains
        end if
     end if
 
-    call self%read_title(json)
+    call self%setup_title(json)
 
-    call self%read_thermodynamics(json)
-    call self%read_eos(json)
+    call self%setup_thermodynamics(json)
+    call self%setup_eos(json)
 
     call self%mesh%init(json)
 
@@ -505,13 +505,13 @@ contains
 
     call self%mesh%configure(self%eos%primary_variable_names)
 
-    call self%read_initial(json)
+    call self%setup_initial(json)
 
     call self%setup_fluid()
 
-    call self%read_rock_properties(json)
+    call self%setup_rock_properties(json)
 
-    call self%read_timestepping(json)
+    call self%setup_timestepping(json)
 
     if (mpi%rank == mpi%input_rank) then
        call fson_destroy(json)
