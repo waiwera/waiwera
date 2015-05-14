@@ -38,7 +38,8 @@ ESSENTIAL_OBJS = $(patsubst %, $(BUILD)/%$(OBJ), $(ESSENTIAL))
 
 # main source code:
 SOURCES = mpi fson_mpi utils powertable thermodynamics IAPWS IFC67 \
-	 timestepping rock fluid cell face mesh simulation eos eos_w
+	timestepping rock fluid cell face mesh simulation eos eos_w \
+	initial	
 OBJS = $(patsubst %, $(BUILD)/%$(OBJ), $(SOURCES))
 ALLOBJS = $(ESSENTIAL_OBJS) $(OBJS)
 PROG = supermodel
@@ -62,14 +63,8 @@ $(OBJS) $(TESTOBJS): $(ESSENTIAL_OBJS)
 $(TEST)/$(BUILD)/%$(TESTSUF)$(OBJ): $(BUILD)/%$(OBJ) $(BUILD)/mpi$(OBJ)
 
 # specific dependency rules:
-$(TEST)/$(BUILD)/setup$(TESTSUF)$(OBJ): $(BUILD)/mpi$(OBJ)
 $(BUILD)/IAPWS$(OBJ): $(BUILD)/thermodynamics$(OBJ) $(BUILD)/powertable$(OBJ)
 $(BUILD)/IFC67$(OBJ): $(BUILD)/thermodynamics$(OBJ) $(BUILD)/powertable$(OBJ)
-$(BUILD)/simulation$(OBJ): $(BUILD)/mpi$(OBJ) $(BUILD)/timestepping$(OBJ) \
-	$(BUILD)/thermodynamics$(OBJ) $(BUILD)/IAPWS$(OBJ) \
-	$(BUILD)/IFC67$(OBJ) $(BUILD)/eos$(OBJ)	$(BUILD)/eos_w$(OBJ) \
-	$(BUILD)/mesh$(OBJ) $(BUILD)/fluid$(OBJ) $(BUILD)/rock$(OBJ) \
-	$(BUILD)/fson_mpi$(OBJ) $(BUILD)/utils$(OBJ)
 $(BUILD)/cell$(OBJ): $(BUILD)/rock$(OBJ) $(BUILD)/fluid$(OBJ)
 $(BUILD)/face$(OBJ): $(BUILD)/cell$(OBJ)
 $(BUILD)/mesh$(OBJ): $(BUILD)/face$(OBJ)
@@ -77,6 +72,13 @@ $(BUILD)/eos$(OBJ): $(BUILD)/thermodynamics$(OBJ) $(BUILD)/fluid$(OBJ)
 $(BUILD)/eos_w$(OBJ): $(BUILD)/thermodynamics$(OBJ) $(BUILD)/eos$(OBJ) $(BUILD)/fluid$(OBJ)
 $(BUILD)/fson_mpi$(OBJ): $(BUILD)/mpi$(OBJ)
 $(BUILD)/timestepping$(OBJ): $(BUILD)/mpi$(OBJ)
+$(BUILD)/initial$(OBJ): $(BUILD)/mpi$(OBJ) $(BUILD)/fson_mpi$(OBJ)
+$(BUILD)/simulation$(OBJ): $(BUILD)/mpi$(OBJ) $(BUILD)/timestepping$(OBJ) \
+	$(BUILD)/thermodynamics$(OBJ) $(BUILD)/IAPWS$(OBJ) \
+	$(BUILD)/IFC67$(OBJ) $(BUILD)/eos$(OBJ)	$(BUILD)/eos_w$(OBJ) \
+	$(BUILD)/mesh$(OBJ) $(BUILD)/fluid$(OBJ) $(BUILD)/rock$(OBJ) \
+	$(BUILD)/fson_mpi$(OBJ) $(BUILD)/utils$(OBJ) $(BUILD)/initial$(OBJ)
+$(TEST)/$(BUILD)/setup$(TESTSUF)$(OBJ): $(BUILD)/mpi$(OBJ)
 $(TEST)/$(BUILD)/mesh$(TESTSUF)$(OBJ): $(BUILD)/eos$(OBJ) $(BUILD)/cell$(OBJ) $(BUILD)/face$(OBJ)
 $(TEST)/$(BUILD)/simulation$(TESTSUF)$(OBJ): $(BUILD)/mesh$(OBJ) $(BUILD)/rock$(OBJ) \
 	$(BUILD)/timestepping$(OBJ)

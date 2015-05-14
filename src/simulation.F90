@@ -10,6 +10,7 @@ module simulation_module
   use IFC67_module
   use eos_w_module
   use eos_module
+  use initial_module
   use fson
   use fson_mpi_module
 
@@ -39,7 +40,6 @@ module simulation_module
      procedure :: setup_title => simulation_setup_title
      procedure :: setup_thermodynamics => simulation_setup_thermodynamics
      procedure :: setup_eos => simulation_setup_eos
-     procedure :: setup_initial => simulation_setup_initial
      procedure :: setup_fluid => simulation_setup_fluid
      procedure :: setup_rock_types => simulation_setup_rock_types
      procedure :: setup_rock_properties => simulation_setup_rock_properties
@@ -130,75 +130,6 @@ contains
     call self%eos%init(self%thermo)
 
   end subroutine simulation_setup_eos
-
-!------------------------------------------------------------------------
-
-  subroutine simulation_setup_initial(self, json)
-    !! Reads initial conditions from JSON input. These may be specified
-    !! as a constant value or as an array. The array may contain a complete
-    !! of initial conditions for all cells, or if a shorter array is 
-    !! given, this is repeated over initial conditions vector.
-
-    use fson_value_m, only : TYPE_REAL, TYPE_INTEGER, TYPE_ARRAY
-
-    class(simulation_type), intent(in out) :: self
-    type(fson_value), pointer, intent(in) :: json
-    ! Locals:
-    PetscErrorCode :: ierr
-    real(dp) :: const_initial_value
-    integer :: int_const_initial_value
-    integer, allocatable :: indices(:)
-    real(dp), allocatable :: initial_input(:), initial_data(:)
-    integer :: i, np, count
-    logical :: const
-    real(dp), parameter :: default_initial_value = 0.0_dp
-
-    call DMCreateGlobalVector(self%mesh%dm, self%initial, ierr); CHKERRQ(ierr)
-    call VecGetSize(self%initial, count, ierr); CHKERRQ(ierr)
-    call PetscObjectSetName(self%initial, "initial", ierr); CHKERRQ(ierr)
-
-    const = .true.
-
-    if (fson_has_mpi(json, "initial")) then
-
-       select case (fson_type_mpi(json, "initial"))
-          case (TYPE_REAL)
-             call fson_get_mpi(json, "initial", val = const_initial_value)
-          case (TYPE_INTEGER)
-             call fson_get_mpi(json, "initial", val = int_const_initial_value)
-             const_initial_value = real(int_const_initial_value)
-          case (TYPE_ARRAY)
-             const = .false.
-             call fson_get_mpi(json, "initial", val = initial_input)
-             np = size(initial_input)
-             if (np >= count) then
-                initial_data = initial_input(1:count)
-             else ! repeat input over array:
-                do i = 1, np
-                   initial_data(i:count:np) = initial_input(i)
-                end do
-             end if
-             deallocate(initial_input)
-       end select
-    else
-       const_initial_value = default_initial_value
-    end if
-
-    if (const) then
-       call VecSet(self%initial, const_initial_value, ierr); CHKERRQ(ierr)
-    else
-       allocate(indices(count))
-       do i = 1, count
-          indices(i) = i-1
-       end do
-       call VecSetValues(self%initial, count, indices, &
-            initial_data, INSERT_VALUES, ierr); CHKERRQ(ierr)
-       call VecAssemblyBegin(self%initial, ierr); CHKERRQ(ierr)
-       call VecAssemblyEnd(self%initial, ierr); CHKERRQ(ierr)
-       deallocate(indices, initial_data)
-    end if
-
-  end subroutine simulation_setup_initial
 
 !------------------------------------------------------------------------
 
@@ -507,7 +438,7 @@ contains
 
     call self%mesh%configure(self%eos%primary_variable_names)
 
-    call self%setup_initial(json)
+    call setup_initial(json, self%mesh%dm, self%initial)
 
     call self%setup_fluid()
 
