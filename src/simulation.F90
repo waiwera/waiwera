@@ -39,7 +39,6 @@ module simulation_module
      procedure :: setup_title => simulation_setup_title
      procedure :: setup_thermodynamics => simulation_setup_thermodynamics
      procedure :: setup_eos => simulation_setup_eos
-     procedure :: setup_fluid => simulation_setup_fluid
      procedure :: setup_rock_types => simulation_setup_rock_types
      procedure :: setup_rock_properties => simulation_setup_rock_properties
      procedure :: setup_timestepping => simulation_setup_timestepping
@@ -129,42 +128,6 @@ contains
     call self%eos%init(self%thermo)
 
   end subroutine simulation_setup_eos
-
-!------------------------------------------------------------------------
-
-  subroutine simulation_setup_fluid(self)
-    !! Sets up global vector for fluid properties.
-
-    use dm_utils_module, only: set_dm_data_layout
-    use fluid_module, only: num_fluid_variables, num_phase_variables
-
-    class(simulation_type), intent(in out) :: self
-    ! Locals:
-    PetscInt :: num_vars
-    PetscInt, allocatable :: num_components(:), field_dim(:)
-    DM :: dm_fluid
-    PetscErrorCode :: ierr
-
-    num_vars = num_fluid_variables + self%eos%num_phases * &
-         (num_phase_variables + self%eos%num_components)
-
-    allocate(num_components(num_vars), field_dim(num_vars))
-
-    ! All fluid variables are scalars defined on cells:
-    num_components = 1
-    field_dim = 3
-
-    call DMClone(self%mesh%dm, dm_fluid, ierr); CHKERRQ(ierr)
-
-    call set_dm_data_layout(dm_fluid, num_components, field_dim)
-
-    call DMCreateGlobalVector(dm_fluid, self%fluid, ierr); CHKERRQ(ierr)
-    call PetscObjectSetName(self%fluid, "fluid", ierr); CHKERRQ(ierr)
-
-    deallocate(num_components, field_dim)
-    call DMDestroy(dm_fluid, ierr); CHKERRQ(ierr)
-
-  end subroutine simulation_setup_fluid
 
 !------------------------------------------------------------------------
 
