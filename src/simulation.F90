@@ -374,7 +374,7 @@ contains
     !! Initializes a simulation using data from the input file with 
     !! specified name.
 
-    use fluid_module, only: setup_fluid
+    use fluid_module, only: setup_fluid_vector
     use initial_module, only: setup_initial
 
     class(simulation_type), intent(in out) :: self
@@ -408,7 +408,7 @@ contains
 
     call setup_initial(json, self%mesh%dm, self%initial)
 
-    call setup_fluid(self%mesh%dm, self%eos%num_phases, &
+    call setup_fluid_vector(self%mesh%dm, self%eos%num_phases, &
          self%eos%num_components, self%fluid)
 
     call self%setup_rock_properties(json)

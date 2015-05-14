@@ -39,7 +39,7 @@ module fluid_module
      procedure, public :: dof => fluid_dof
   end type fluid_type
 
-  public :: fluid_type, setup_fluid
+  public :: fluid_type, setup_fluid_vector
 
 contains
 
@@ -176,7 +176,7 @@ contains
 ! Fluid vector setup routine
 !------------------------------------------------------------------------
 
-  subroutine setup_fluid(dm, num_phases, num_components, fluid)
+  subroutine setup_fluid_vector(dm, num_phases, num_components, fluid)
     !! Sets up global vector for fluid properties, with specified
     !! numbers of components and phases.
 
@@ -210,7 +210,7 @@ contains
     deallocate(num_field_components, field_dim)
     call DMDestroy(dm_fluid, ierr); CHKERRQ(ierr)
 
-  end subroutine setup_fluid
+  end subroutine setup_fluid_vector
 
 !------------------------------------------------------------------------
 
