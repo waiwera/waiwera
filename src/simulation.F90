@@ -10,7 +10,6 @@ module simulation_module
   use IFC67_module
   use eos_w_module
   use eos_module
-  use initial_module
   use fson
   use fson_mpi_module
 
@@ -136,6 +135,7 @@ contains
   subroutine simulation_setup_fluid(self)
     !! Sets up global vector for fluid properties.
 
+    use dm_utils_module, only: set_dm_data_layout
     use fluid_module, only: num_fluid_variables, num_phase_variables
 
     class(simulation_type), intent(in out) :: self
@@ -172,6 +172,7 @@ contains
     !! Reads rock properties from rock types in JSON input.
 
     use rock_module
+    use dm_utils_module, only: section_offset
 
     class(simulation_type), intent(in out) :: self
     type(fson_value), pointer, intent(in) :: json
@@ -237,6 +238,7 @@ contains
   subroutine simulation_setup_rock_properties(self, json)
     !! Reads rock properties from JSON input.
 
+    use dm_utils_module, only: set_dm_data_layout
     use rock_module, only: rock_variable_num_components, &
          rock_variable_dim, rock_variable_names
 
@@ -409,6 +411,9 @@ contains
     !! Initializes a simulation using data from the input file with 
     !! specified name.
 
+    use fluid_module, only: setup_fluid
+    use initial_module, only: setup_initial
+
     class(simulation_type), intent(in out) :: self
     character(*), intent(in), optional :: filename !! Input file name
     character(*), intent(in), optional :: json_str !! JSON string for alternative input
@@ -440,7 +445,8 @@ contains
 
     call setup_initial(json, self%mesh%dm, self%initial)
 
-    call self%setup_fluid()
+    call setup_fluid(self%mesh%dm, self%eos%num_phases, &
+         self%eos%num_components, self%fluid)
 
     call self%setup_rock_properties(json)
 

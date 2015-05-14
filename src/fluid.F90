@@ -3,7 +3,7 @@ module fluid_module
   implicit none
   private
 
-#include <petsc-finclude/petscdef.h>
+#include <petsc-finclude/petsc.h90>
 
   PetscInt, parameter, public :: num_phase_variables = 6
   PetscInt, parameter, public :: num_fluid_variables = 3
@@ -39,7 +39,7 @@ module fluid_module
      procedure, public :: dof => fluid_dof
   end type fluid_type
 
-  public :: fluid_type
+  public :: fluid_type, setup_fluid
 
 contains
 
@@ -171,6 +171,46 @@ contains
     end do
 
   end function fluid_dof
+
+!------------------------------------------------------------------------
+! Fluid vector setup routine
+!------------------------------------------------------------------------
+
+  subroutine setup_fluid(dm, num_phases, num_components, fluid)
+    !! Sets up global vector for fluid properties, with specified
+    !! numbers of components and phases.
+
+    use dm_utils_module, only: set_dm_data_layout
+
+    DM, intent(in) :: dm
+    PetscInt, intent(in) :: num_phases, num_components
+    Vec, intent(out) :: fluid
+    ! Locals:
+    PetscInt :: num_vars
+    PetscInt, allocatable :: num_field_components(:), field_dim(:)
+    DM :: dm_fluid
+    PetscErrorCode :: ierr
+
+    num_vars = num_fluid_variables + num_phases * &
+         (num_phase_variables + num_components)
+
+    allocate(num_field_components(num_vars), field_dim(num_vars))
+
+    ! All fluid variables are scalars defined on cells:
+    num_field_components = 1
+    field_dim = 3
+
+    call DMClone(dm, dm_fluid, ierr); CHKERRQ(ierr)
+
+    call set_dm_data_layout(dm_fluid, num_field_components, field_dim)
+
+    call DMCreateGlobalVector(dm_fluid, fluid, ierr); CHKERRQ(ierr)
+    call PetscObjectSetName(fluid, "fluid", ierr); CHKERRQ(ierr)
+
+    deallocate(num_field_components, field_dim)
+    call DMDestroy(dm_fluid, ierr); CHKERRQ(ierr)
+
+  end subroutine setup_fluid
 
 !------------------------------------------------------------------------
 
