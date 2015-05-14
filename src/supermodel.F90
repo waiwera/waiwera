@@ -8,7 +8,6 @@ program supermodel
 
 #include <petsc-finclude/petscsys.h>
 
-  type(simulation_type) :: sim !! Simulation
   character(max_filename_length) :: filename !! filename
   PetscErrorCode :: ierr
 

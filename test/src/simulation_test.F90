@@ -24,7 +24,7 @@ contains
 ! Utility routines:
 !------------------------------------------------------------------------
 
-  subroutine get_rocktype_counts(sim, rock_count)
+  subroutine get_rocktype_counts(rock_count)
 
     ! Returns an array on the output rank containing the total numbers
     ! (summed over all processors) of non-ghost cells with each rock
@@ -32,7 +32,6 @@ contains
 
     use rock_module, only : rocktype_label_name
 
-    type(simulation_type), intent(in) :: sim
     PetscInt, allocatable, intent(out) :: rock_count(:)
     ! Locals:
     PetscInt :: ir, ic, c, IS_size, ghost
@@ -118,11 +117,10 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine simulation_basic_test(sim, title, thermo, eos, dim, dof)
+  subroutine simulation_basic_test(title, thermo, eos, dim, dof)
 
     ! Tests basic simulation parameters.
 
-    type(simulation_type), intent(in) :: sim
     character(*), intent(in) :: title, thermo, eos
     PetscInt, intent(in) :: dim, dof
     ! Locals:
@@ -147,14 +145,13 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine simulation_label_test(sim, rock_cells)
+  subroutine simulation_label_test(rock_cells)
 
     ! Tests simulation labels.
 
     use mesh_module, only : open_boundary_label_name
     use rock_module, only : rocktype_label_name
 
-    type(simulation_type), intent(in) :: sim
     PetscInt, intent(in) :: rock_cells(:)
     ! Locals:
     PetscBool :: open_bdy, has_rock_label
@@ -175,7 +172,7 @@ contains
        call assert_equals(.true., has_rock_label, "Simulation rocktype label")
     end if
     if (has_rock_label) then
-       call get_rocktype_counts(sim, sim_rock_cells)
+       call get_rocktype_counts(sim_rock_cells)
        if (mpi%rank == mpi%output_rank) then
           call assert_equals(size(rock_cells), size(sim_rock_cells), &
                "Simulation num rocktypes")
@@ -220,16 +217,15 @@ end subroutine timestepper_test
     ! Test simulation init() method
     ! This uses a simple problem with a 12-cell rectangular mesh and two rock types.
 
-    type(simulation_type) :: sim
     ! Locals:
     character(24), parameter :: path = "data/simulation/init/"
 
     call sim%init(trim(path) // "test_init.json")
 
-    call simulation_basic_test(sim, title = "Test simulation init", &
+    call simulation_basic_test(title = "Test simulation init", &
          thermo = "IAPWS-97", eos = "W", dim = 3, dof = 12)
 
-    call simulation_label_test(sim, rock_cells = [9, 3])
+    call simulation_label_test(rock_cells = [9, 3])
 
     call vec_diff_test(sim%initial, "initial", path)
 

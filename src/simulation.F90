@@ -52,6 +52,8 @@ module simulation_module
      procedure, public :: destroy => simulation_destroy
   end type simulation_type
 
+  type(simulation_type), public :: sim
+
 contains
 
 !------------------------------------------------------------------------
