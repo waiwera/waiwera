@@ -43,6 +43,7 @@ SOURCES = mpi fson_mpi utils dm_utils powertable thermodynamics \
 OBJS = $(patsubst %, $(BUILD)/%$(OBJ), $(SOURCES))
 ALLOBJS = $(ESSENTIAL_OBJS) $(OBJS)
 PROG = supermodel
+PROGEXE = $(DIST)/$(PROG)$(EXE)
 
 # unit tests:
 TESTPROG = test_all
@@ -55,7 +56,8 @@ TESTS = setup $(SETUPTESTS) $(NONSETUPTESTS)
 SETUPOBJS = $(patsubst %, $(BUILD)/%$(OBJ), $(SETUPTESTS))
 TESTOBJS = $(patsubst %, $(TEST)/$(BUILD)/%$(TESTSUF)$(OBJ), $(TESTS))
 
-.DEFAULT_GOAL := $(DIST)/$(PROG)$(EXE)
+.DEFAULT_GOAL := $(PROGEXE)
+$(PROG): $(PROGEXE)
 tests: $(TEST)/$(DIST)/$(TESTPROG)$(EXE)
 
 # general dependency rules:
@@ -90,7 +92,7 @@ $(BUILD)/$(PROG)$(OBJ): $(BUILD)/mpi$(OBJ) $(BUILD)/simulation$(OBJ)
 # build rules:
 
 # main program:
-$(DIST)/$(PROG)$(EXE): $(BUILD)/$(PROG)$(OBJ) $(ALLOBJS)
+$(PROGEXE): $(BUILD)/$(PROG)$(OBJ) $(ALLOBJS)
 	$(FLINKER) $^ $(LDFLAGS) -o $@
 
 $(BUILD)/$(PROG)$(OBJ): $(SRC)/$(PROG)$(F90) $(ALLOBJS)
