@@ -62,13 +62,13 @@ tests: $(TEST)/$(DIST)/$(TESTPROG)$(EXE)
 
 # general dependency rules:
 $(OBJS) $(TESTOBJS): $(ESSENTIAL_OBJS)
-$(TEST)/$(BUILD)/%$(TESTSUF)$(OBJ): $(BUILD)/%$(OBJ) $(BUILD)/mpi$(OBJ)
 
 # specific dependency rules:
 $(BUILD)/IAPWS$(OBJ): $(BUILD)/thermodynamics$(OBJ) $(BUILD)/powertable$(OBJ)
 $(BUILD)/IFC67$(OBJ): $(BUILD)/thermodynamics$(OBJ) $(BUILD)/powertable$(OBJ)
 $(BUILD)/cell$(OBJ): $(BUILD)/rock$(OBJ) $(BUILD)/fluid$(OBJ)
 $(BUILD)/face$(OBJ): $(BUILD)/cell$(OBJ)
+$(BUILD)/rock$(OBJ): $(BUILD)/dm_utils$(OBJ)
 $(BUILD)/fluid$(OBJ): $(BUILD)/dm_utils$(OBJ)
 $(BUILD)/mesh$(OBJ): $(BUILD)/face$(OBJ) $(BUILD)/dm_utils$(OBJ) $(BUILD)/boundary$(OBJ)
 $(BUILD)/eos$(OBJ): $(BUILD)/thermodynamics$(OBJ) $(BUILD)/fluid$(OBJ)
@@ -113,7 +113,7 @@ $(TEST)/$(BUILD)/$(TESTPROG)$(OBJ): $(TEST)/$(SRC)/$(TESTPROG)$(F90) $(TESTOBJS)
 $(TEST)/$(BUILD)/setup$(TESTSUF)$(OBJ): $(TEST)/$(SRC)/setup$(TESTSUF)$(F90)
 	$(PETSC_FCOMPILE) $(TESTFMFLAGS) -I$(BUILD) $(TESTINCLS) -c $< -o $@
 
-$(TEST)/$(BUILD)/%$(TESTSUF)$(OBJ): $(TEST)/$(SRC)/%$(TESTSUF)$(F90)
+$(TEST)/$(BUILD)/%$(TESTSUF)$(OBJ): $(TEST)/$(SRC)/%$(TESTSUF)$(F90) $(BUILD)/%$(OBJ) $(BUILD)/mpi$(OBJ)
 	$(PETSC_FCOMPILE) $(TESTFMFLAGS) -I$(BUILD) $(TESTINCLS) -c $< -o $@
 
 # documentation:
