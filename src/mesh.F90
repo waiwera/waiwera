@@ -32,6 +32,8 @@ module mesh_module
      procedure, public :: destroy => mesh_destroy
   end type mesh_type
 
+  public :: setup_labels
+
 contains
 
 !------------------------------------------------------------------------
@@ -291,6 +293,22 @@ contains
     call DMDestroy(self%dm, ierr); CHKERRQ(ierr)
 
   end subroutine mesh_destroy
+
+!------------------------------------------------------------------------
+
+  subroutine setup_labels(json, dm)
+    !! Sets up labels on the mesh DM for a simulation.
+
+    use rock_module, only: setup_rocktype_labels
+    use boundary_module, only: setup_boundary_labels
+
+    type(fson_value), pointer, intent(in) :: json
+    DM, intent(in out) :: dm
+
+    call setup_rocktype_labels(json, dm)
+    call setup_boundary_labels(dm)
+
+  end subroutine setup_labels
 
 !------------------------------------------------------------------------
 

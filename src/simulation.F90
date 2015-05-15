@@ -39,7 +39,6 @@ module simulation_module
      procedure :: setup_title => simulation_setup_title
      procedure :: setup_thermodynamics => simulation_setup_thermodynamics
      procedure :: setup_eos => simulation_setup_eos
-     procedure :: setup_labels => simulation_setup_labels
      procedure, public :: init => simulation_init
      procedure, public :: run => simulation_run
      procedure, public :: destroy => simulation_destroy
@@ -126,22 +125,6 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine simulation_setup_labels(self, json)
-    !! Sets up labels on the mesh for a simulation.
-
-    use rock_module, only: setup_rocktype_labels
-    use boundary_module, only: setup_boundary_labels
-
-    class(simulation_type), intent(in out) :: self
-    type(fson_value), pointer, intent(in) :: json
-
-    call setup_rocktype_labels(json, self%mesh%dm)
-    call setup_boundary_labels(self%mesh%dm)
-
-  end subroutine simulation_setup_labels
-
-!------------------------------------------------------------------------
-
   subroutine simulation_init(self, filename, json_str)
     !! Initializes a simulation using data from the input file with 
     !! specified name.
@@ -172,7 +155,7 @@ contains
     call self%setup_thermodynamics(json)
     call self%setup_eos(json)
     call self%mesh%init(json)
-    call self%setup_labels(json)
+    call setup_labels(json, self%mesh%dm)
     call self%mesh%configure(self%eos%primary_variable_names)
     call setup_initial(json, self%mesh%dm, self%initial)
     call setup_fluid_vector(self%mesh%dm, self%eos%num_phases, &
