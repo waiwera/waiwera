@@ -6,8 +6,6 @@ module simulation_module
   use mesh_module
   use timestepping_module
   use thermodynamics_module
-  use IAPWS_module
-  use IFC67_module
   use eos_w_module
   use eos_module
   use fson
@@ -36,7 +34,6 @@ module simulation_module
      character(max_title_length), public :: title
    contains
      private
-     procedure :: setup_thermodynamics => simulation_setup_thermodynamics
      procedure :: setup_eos => simulation_setup_eos
      procedure, public :: init => simulation_init
      procedure, public :: run => simulation_run
@@ -46,36 +43,6 @@ module simulation_module
   type(simulation_type), public :: sim
 
 contains
-
-!------------------------------------------------------------------------
-
-  subroutine simulation_setup_thermodynamics(self, json)
-    !! Reads simulation thermodynamic formulation from JSON input file.
-    !! If not present, a default value is assigned.
-
-    use utils_module, only : str_to_lower
-
-    class(simulation_type), intent(in out) :: self
-    type(fson_value), pointer, intent(in) :: json
-    ! Locals:
-    integer, parameter :: max_thermo_ID_length = 8
-    character(max_thermo_ID_length) :: thermo_ID
-    character(max_thermo_ID_length), parameter :: &
-         default_thermo_ID = "IAPWS"
-
-    call fson_get_mpi(json, "thermodynamics", default_thermo_ID, thermo_ID)
-    thermo_ID = str_to_lower(thermo_ID)
-
-    select case (thermo_ID)
-    case ("ifc67")
-       self%thermo => IFC67
-    case default
-       self%thermo => IAPWS
-    end select
-
-    call self%thermo%init()
-
-  end subroutine simulation_setup_thermodynamics
 
 !------------------------------------------------------------------------
 
@@ -113,6 +80,7 @@ contains
     !! Initializes a simulation using data from the input file with 
     !! specified name.
 
+    use thermodynamics_setup_module
     use initial_module, only: setup_initial
     use fluid_module, only: setup_fluid_vector
     use rock_module, only: setup_rock_vector
@@ -137,7 +105,7 @@ contains
     end if
 
     call fson_get_mpi(json, "title", default_title, self%title)
-    call self%setup_thermodynamics(json)
+    call setup_thermodynamics(json, self%thermo)
     call self%setup_eos(json)
     call self%mesh%init(json)
     call setup_labels(json, self%mesh%dm)
