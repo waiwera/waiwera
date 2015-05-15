@@ -36,7 +36,6 @@ module simulation_module
      character(max_title_length), public :: title
    contains
      private
-     procedure :: setup_title => simulation_setup_title
      procedure :: setup_thermodynamics => simulation_setup_thermodynamics
      procedure :: setup_eos => simulation_setup_eos
      procedure, public :: init => simulation_init
@@ -47,21 +46,6 @@ module simulation_module
   type(simulation_type), public :: sim
 
 contains
-
-!------------------------------------------------------------------------
-
-  subroutine simulation_setup_title(self, json)
-    !! Reads simulation title from JSON input file.
-    !! If not present, a default value is assigned.
-
-    class(simulation_type), intent(in out) :: self
-    type(fson_value), pointer, intent(in) :: json
-    ! Locals:
-    character(len = max_title_length), parameter :: default_title = ""
-
-    call fson_get_mpi(json, "title", default_title, self%title)
-
-  end subroutine simulation_setup_title
 
 !------------------------------------------------------------------------
 
@@ -138,6 +122,7 @@ contains
     character(*), intent(in), optional :: json_str !! JSON string for alternative input
     ! Locals:
     type(fson_value), pointer :: json
+    character(len = max_title_length), parameter :: default_title = ""
 
     if (present(filename)) then
        self%input_filename = filename
@@ -151,7 +136,7 @@ contains
        end if
     end if
 
-    call self%setup_title(json)
+    call fson_get_mpi(json, "title", default_title, self%title)
     call self%setup_thermodynamics(json)
     call self%setup_eos(json)
     call self%mesh%init(json)
