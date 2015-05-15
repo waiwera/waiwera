@@ -39,8 +39,6 @@ module simulation_module
      procedure :: setup_title => simulation_setup_title
      procedure :: setup_thermodynamics => simulation_setup_thermodynamics
      procedure :: setup_eos => simulation_setup_eos
-     procedure :: setup_rock_types => simulation_setup_rock_types
-     procedure :: setup_rock_properties => simulation_setup_rock_properties
      procedure :: setup_timestepping => simulation_setup_timestepping
      procedure :: setup_rocktype_labels => simulation_setup_rocktype_labels
      procedure :: setup_boundary_labels => simulation_setup_boundary_labels
@@ -128,116 +126,6 @@ contains
     call self%eos%init(self%thermo)
 
   end subroutine simulation_setup_eos
-
-!------------------------------------------------------------------------
-
-  subroutine simulation_setup_rock_types(self, json)
-    !! Reads rock properties from rock types in JSON input.
-
-    use rock_module
-    use dm_utils_module, only: section_offset
-
-    class(simulation_type), intent(in out) :: self
-    type(fson_value), pointer, intent(in) :: json
-    ! Locals:
-    PetscInt :: num_rocktypes, ir, ic, c, num_cells, offset, ghost
-    DM :: dm_rock
-    type(fson_value), pointer :: rocktypes, r
-    IS :: rock_IS
-    PetscInt, pointer :: rock_cells(:)
-    DMLabel :: ghost_label
-    type(rock_type) :: rock
-    character(max_rockname_length) :: name
-    PetscReal :: porosity, density, specific_heat, heat_conductivity
-    PetscReal, allocatable :: permeability(:)
-    PetscReal, pointer :: rock_array(:)
-    PetscSection :: section
-    PetscErrorCode :: ierr
-
-    call VecGetDM(self%rock, dm_rock, ierr); CHKERRQ(ierr)
-    call VecGetArrayF90(self%rock, rock_array, ierr); CHKERRQ(ierr)
-    call DMGetDefaultSection(dm_rock, section, ierr); CHKERRQ(ierr)
-    call DMPlexGetLabel(self%mesh%dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
-    
-    call fson_get_mpi(json, "rock.types", rocktypes)
-    num_rocktypes = fson_value_count_mpi(rocktypes, ".")
-    do ir = 1, num_rocktypes
-       r => fson_value_get_mpi(rocktypes, ir)
-       call fson_get_mpi(r, "name", "", name)
-       call fson_get_mpi(r, "permeability", default_permeability, permeability)
-       call fson_get_mpi(r, "heat conductivity", default_heat_conductivity, &
-            heat_conductivity)
-       call fson_get_mpi(r, "porosity", default_porosity, porosity)
-       call fson_get_mpi(r, "density", default_density, density)
-       call fson_get_mpi(r, "specific heat", default_specific_heat, specific_heat)
-       call DMPlexGetStratumIS(self%mesh%dm, rocktype_label_name, ir, rock_IS, &
-            ierr); CHKERRQ(ierr)
-       if (rock_IS /= 0) then
-          call ISGetIndicesF90(rock_IS, rock_cells, ierr); CHKERRQ(ierr)
-          num_cells = size(rock_cells)
-          do ic = 1, num_cells
-             c = rock_cells(ic)
-             call DMLabelGetValue(ghost_label, c, ghost, ierr); CHKERRQ(ierr)
-             if (ghost < 0) then
-                call section_offset(section, c, offset, ierr); CHKERRQ(ierr)
-                call rock%assign(rock_array, offset)
-                rock%permeability = permeability
-                rock%heat_conductivity = heat_conductivity
-                rock%porosity = porosity
-                rock%density = density
-                rock%specific_heat = specific_heat
-             end if
-          end do
-          call ISRestoreIndicesF90(rock_IS, rock_cells, ierr); CHKERRQ(ierr)
-       end if
-    end do
-    call rock%destroy()
-    call VecRestoreArrayF90(self%rock, rock_array, ierr); CHKERRQ(ierr)
-
-  end subroutine simulation_setup_rock_types
-
-!------------------------------------------------------------------------
-
-  subroutine simulation_setup_rock_properties(self, json)
-    !! Reads rock properties from JSON input.
-
-    use dm_utils_module, only: set_dm_data_layout
-    use rock_module, only: rock_variable_num_components, &
-         rock_variable_dim, rock_variable_names
-
-    class(simulation_type), intent(in out) :: self
-    type(fson_value), pointer, intent(in) :: json
-    ! Locals:
-    DM :: dm_rock
-    PetscErrorCode :: ierr
-
-    call DMClone(self%mesh%dm, dm_rock, ierr); CHKERRQ(ierr)
-
-    call set_dm_data_layout(dm_rock, rock_variable_num_components, &
-         rock_variable_dim, rock_variable_names)
-
-    call DMCreateGlobalVector(dm_rock, self%rock, ierr); CHKERRQ(ierr)
-    call PetscObjectSetName(self%rock, "rock", ierr); CHKERRQ(ierr)
-
-    ! TODO: set default rock properties everywhere here? in case of cells with
-    ! no properties specified
-
-    if (fson_has_mpi(json, "rock")) then
-
-       if (fson_has_mpi(json, "rock.types")) then
-
-          call self%setup_rock_types(json)
-
-       else
-          ! other types of rock initialization here- TODO
-          ! e.g. read from a rock section in initial conditions HDF5 file
-       end if
-
-    end if
-
-    call DMDestroy(dm_rock, ierr); CHKERRQ(ierr)
-
-  end subroutine simulation_setup_rock_properties
 
 !------------------------------------------------------------------------
 
@@ -374,8 +262,9 @@ contains
     !! Initializes a simulation using data from the input file with 
     !! specified name.
 
-    use fluid_module, only: setup_fluid_vector
     use initial_module, only: setup_initial
+    use fluid_module, only: setup_fluid_vector
+    use rock_module, only: setup_rock_vector
 
     class(simulation_type), intent(in out) :: self
     character(*), intent(in), optional :: filename !! Input file name
@@ -396,23 +285,15 @@ contains
     end if
 
     call self%setup_title(json)
-
     call self%setup_thermodynamics(json)
     call self%setup_eos(json)
-
     call self%mesh%init(json)
-
     call self%setup_labels(json)
-
     call self%mesh%configure(self%eos%primary_variable_names)
-
     call setup_initial(json, self%mesh%dm, self%initial)
-
     call setup_fluid_vector(self%mesh%dm, self%eos%num_phases, &
          self%eos%num_components, self%fluid)
-
-    call self%setup_rock_properties(json)
-
+    call setup_rock_vector(json, self%mesh%dm, self%rock)
     call self%setup_timestepping(json)
 
     if (mpi%rank == mpi%input_rank) then

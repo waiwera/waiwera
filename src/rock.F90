@@ -6,7 +6,7 @@ module rock_module
   implicit none
   private
 
-#include <petsc-finclude/petscdef.h>
+#include <petsc-finclude/petsc.h90>
 
   type rock_type
      !! Local rock properties.
@@ -48,7 +48,7 @@ module rock_module
   PetscReal, parameter, public :: default_specific_heat = 1000._dp
   PetscReal, parameter, public :: default_heat_conductivity = 2.5_dp
 
-  public :: rock_type
+  public :: rock_type, setup_rock_vector
 
 contains
 
@@ -95,6 +95,119 @@ contains
     nullify(self%specific_heat)
 
   end subroutine rock_destroy
+
+!------------------------------------------------------------------------
+
+  subroutine setup_rock_vector_types(json, dm, rock_vector)
+    !! Sets up rock vector on DM from rock types in JSON input.
+
+    use dm_utils_module, only: section_offset
+    use fson
+    use fson_mpi_module
+
+    type(fson_value), pointer, intent(in) :: json
+    DM, intent(in) :: dm
+    Vec, intent(out) :: rock_vector
+    ! Locals:
+    PetscInt :: num_rocktypes, ir, ic, c, num_cells, offset, ghost
+    DM :: dm_rock
+    type(fson_value), pointer :: rocktypes, r
+    IS :: rock_IS
+    PetscInt, pointer :: rock_cells(:)
+    DMLabel :: ghost_label
+    type(rock_type) :: rock
+    character(max_rockname_length) :: name
+    PetscReal :: porosity, density, specific_heat, heat_conductivity
+    PetscReal, allocatable :: permeability(:)
+    PetscReal, pointer :: rock_array(:)
+    PetscSection :: section
+    PetscErrorCode :: ierr
+
+    call VecGetDM(rock_vector, dm_rock, ierr); CHKERRQ(ierr)
+    call VecGetArrayF90(rock_vector, rock_array, ierr); CHKERRQ(ierr)
+    call DMGetDefaultSection(dm_rock, section, ierr); CHKERRQ(ierr)
+    call DMPlexGetLabel(dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
+    
+    call fson_get_mpi(json, "rock.types", rocktypes)
+    num_rocktypes = fson_value_count_mpi(rocktypes, ".")
+    do ir = 1, num_rocktypes
+       r => fson_value_get_mpi(rocktypes, ir)
+       call fson_get_mpi(r, "name", "", name)
+       call fson_get_mpi(r, "permeability", default_permeability, permeability)
+       call fson_get_mpi(r, "heat conductivity", default_heat_conductivity, &
+            heat_conductivity)
+       call fson_get_mpi(r, "porosity", default_porosity, porosity)
+       call fson_get_mpi(r, "density", default_density, density)
+       call fson_get_mpi(r, "specific heat", default_specific_heat, specific_heat)
+       call DMPlexGetStratumIS(dm, rocktype_label_name, ir, rock_IS, &
+            ierr); CHKERRQ(ierr)
+       if (rock_IS /= 0) then
+          call ISGetIndicesF90(rock_IS, rock_cells, ierr); CHKERRQ(ierr)
+          num_cells = size(rock_cells)
+          do ic = 1, num_cells
+             c = rock_cells(ic)
+             call DMLabelGetValue(ghost_label, c, ghost, ierr); CHKERRQ(ierr)
+             if (ghost < 0) then
+                call section_offset(section, c, offset, ierr); CHKERRQ(ierr)
+                call rock%assign(rock_array, offset)
+                rock%permeability = permeability
+                rock%heat_conductivity = heat_conductivity
+                rock%porosity = porosity
+                rock%density = density
+                rock%specific_heat = specific_heat
+             end if
+          end do
+          call ISRestoreIndicesF90(rock_IS, rock_cells, ierr); CHKERRQ(ierr)
+       end if
+    end do
+    call rock%destroy()
+    call VecRestoreArrayF90(rock_vector, rock_array, ierr); CHKERRQ(ierr)
+
+  end subroutine setup_rock_vector_types
+
+!------------------------------------------------------------------------
+
+  subroutine setup_rock_vector(json, dm, rock_vector)
+    !! Sets up rock vector on specified DM from JSON input.
+
+    use dm_utils_module, only: set_dm_data_layout
+    use fson
+    use fson_mpi_module
+
+    type(fson_value), pointer, intent(in) :: json
+    DM, intent(in) :: dm
+    Vec, intent(out) :: rock_vector
+    ! Locals:
+    DM :: dm_rock
+    PetscErrorCode :: ierr
+
+    call DMClone(dm, dm_rock, ierr); CHKERRQ(ierr)
+
+    call set_dm_data_layout(dm_rock, rock_variable_num_components, &
+         rock_variable_dim, rock_variable_names)
+
+    call DMCreateGlobalVector(dm_rock, rock_vector, ierr); CHKERRQ(ierr)
+    call PetscObjectSetName(rock_vector, "rock", ierr); CHKERRQ(ierr)
+
+    ! TODO: set default rock properties everywhere here? in case of cells with
+    ! no properties specified
+
+    if (fson_has_mpi(json, "rock")) then
+
+       if (fson_has_mpi(json, "rock.types")) then
+
+          call setup_rock_vector_types(json, dm, rock_vector)
+
+       else
+          ! other types of rock initialization here- TODO
+          ! e.g. read from a rock section in initial conditions HDF5 file
+       end if
+
+    end if
+
+    call DMDestroy(dm_rock, ierr); CHKERRQ(ierr)
+
+  end subroutine setup_rock_vector
 
 !------------------------------------------------------------------------
 
