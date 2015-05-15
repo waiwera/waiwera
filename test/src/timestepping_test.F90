@@ -91,8 +91,8 @@ contains
     do i = 1, size(methods)
        solution_tolerance = tol(i)
        maxdiff = 0._dp
-       call ts%init(methods(i), dm, lhs_func, rhs_func, t0, initial, dt(i), &
-            t1, max_steps(i), max_stepsize)
+       call ts%init(methods(i), dm, t0, initial, dt(i), &
+            t1, max_steps(i), max_stepsize, lhs_func, rhs_func)
        ts%step_output => step_output_compare
        ts%steps%adaptor%on = adaptive
        ts%steps%adaptor%monitor_min = eta_min(i)

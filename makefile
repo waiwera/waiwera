@@ -74,7 +74,7 @@ $(BUILD)/mesh$(OBJ): $(BUILD)/face$(OBJ) $(BUILD)/dm_utils$(OBJ) $(BUILD)/bounda
 $(BUILD)/eos$(OBJ): $(BUILD)/thermodynamics$(OBJ) $(BUILD)/fluid$(OBJ)
 $(BUILD)/eos_w$(OBJ): $(BUILD)/thermodynamics$(OBJ) $(BUILD)/eos$(OBJ) $(BUILD)/fluid$(OBJ)
 $(BUILD)/fson_mpi$(OBJ): $(BUILD)/mpi$(OBJ)
-$(BUILD)/timestepping$(OBJ): $(BUILD)/mpi$(OBJ)
+$(BUILD)/timestepping$(OBJ): $(BUILD)/mpi$(OBJ) $(BUILD)/utils$(OBJ) $(BUILD)/fson_mpi$(OBJ)
 $(BUILD)/initial$(OBJ): $(BUILD)/mpi$(OBJ) $(BUILD)/fson_mpi$(OBJ)
 $(BUILD)/simulation$(OBJ): $(BUILD)/mpi$(OBJ) $(BUILD)/timestepping$(OBJ) \
 	$(BUILD)/thermodynamics$(OBJ) $(BUILD)/IAPWS$(OBJ) \

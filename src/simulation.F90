@@ -39,7 +39,6 @@ module simulation_module
      procedure :: setup_title => simulation_setup_title
      procedure :: setup_thermodynamics => simulation_setup_thermodynamics
      procedure :: setup_eos => simulation_setup_eos
-     procedure :: setup_timestepping => simulation_setup_timestepping
      procedure :: setup_labels => simulation_setup_labels
      procedure, public :: init => simulation_init
      procedure, public :: run => simulation_run
@@ -127,62 +126,6 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine simulation_setup_timestepping(self, json)
-    !! Reads time stepping data from JSON input.
-
-    use utils_module, only : str_to_lower
-
-    class(simulation_type), intent(in out) :: self
-    type(fson_value), pointer, intent(in) :: json
-    ! Locals:
-    PetscReal :: start_time, stop_time, initial_stepsize, max_stepsize
-    PetscReal, allocatable :: steps(:)
-    integer :: max_num_steps
-    PetscReal, parameter :: default_start_time = 0.0_dp, &
-         default_stop_time = 1.0_dp
-    PetscReal, parameter :: default_initial_stepsize = 0.1_dp
-    PetscReal, parameter :: default_max_stepsize = 0.0_dp
-    integer :: method
-    integer, parameter :: max_method_str_len = 12
-    character(max_method_str_len) :: method_str
-    character(max_method_str_len), parameter :: default_method_str = "beuler"
-    integer, parameter :: default_max_num_steps = 100
-
-    !! TODO: steady state simulation input
-
-    call fson_get_mpi(json, "time.start", default_start_time, start_time)
-    call fson_get_mpi(json, "time.stop", default_stop_time, stop_time)
-
-    call fson_get_mpi(json, "time.step.method", &
-         default_method_str, method_str)
-    select case (str_to_lower(method_str))
-    case ("beuler")
-       method = TS_BEULER
-    case ("bdf2")
-       method = TS_BDF2
-    case ("directss")
-       method = TS_DIRECTSS
-    case default
-       method = TS_BEULER
-    end select
-
-    call fson_get_mpi(json, "time.step.initial", &
-         default_initial_stepsize, initial_stepsize)
-    call fson_get_mpi(json, "time.step.maximum.size", &
-         default_max_stepsize, max_stepsize)
-    call fson_get_mpi(json, "time.step.maximum.number", &
-         default_max_num_steps, max_num_steps)
-
-    call self%timestepper%init(method, self%mesh%dm, simulation_cell_balances, &
-         simulation_cell_inflows, start_time, self%initial, initial_stepsize, &
-         stop_time, max_num_steps, max_stepsize)
-
-    if (allocated(steps)) deallocate(steps)
-
-  end subroutine simulation_setup_timestepping
-
-!------------------------------------------------------------------------
-
   subroutine simulation_setup_labels(self, json)
     !! Sets up labels on the mesh for a simulation.
 
@@ -235,7 +178,11 @@ contains
     call setup_fluid_vector(self%mesh%dm, self%eos%num_phases, &
          self%eos%num_components, self%fluid)
     call setup_rock_vector(json, self%mesh%dm, self%rock)
-    call self%setup_timestepping(json)
+    call setup_timestepper(json, self%mesh%dm, self%initial, &
+         self%timestepper)
+
+    self%timestepper%steps%lhs_func => simulation_cell_balances
+    self%timestepper%steps%rhs_func => simulation_cell_inflows
 
     if (mpi%rank == mpi%input_rank) then
        call fson_destroy(json)

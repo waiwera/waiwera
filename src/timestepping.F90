@@ -155,6 +155,7 @@ module timestepping_module
   public :: lhs_function, rhs_function, lhs_identity
   public :: iteration_monitor, relative_change_monitor
   public :: step_output_routine, step_output_default, step_output_none
+  public :: setup_timestepper
 
 contains
 
@@ -433,7 +434,7 @@ contains
 
   subroutine timestepper_steps_init(self, num_stored, &
        initial_time, initial_conditions, initial_stepsize, &
-       final_time, max_num_steps, max_stepsize, lhs_func, rhs_func)
+       final_time, max_num_steps, max_stepsize)
     !! Sets up array of timesteps and pointers to them. This array stores the
     !! current step and one or more previous steps. The number of stored
     !! steps depends on the timestepping method (e.g. 2 for single-step methods,
@@ -446,8 +447,6 @@ contains
     PetscReal, intent(in) :: final_time
     PetscInt, intent(in) :: max_num_steps
     PetscReal, intent(in) :: max_stepsize
-    procedure(lhs_function) :: lhs_func
-    procedure(rhs_function) :: rhs_func
     ! Locals:
     PetscInt :: i
     PetscErrorCode :: ierr
@@ -471,11 +470,6 @@ contains
     self%final_time = final_time
     self%max_num = max_num_steps
     self%adaptor%max_stepsize = max_stepsize
-
-    self%lhs_func => lhs_func
-    self%rhs_func => rhs_func
-
-    call self%lhs_func(self%current%time, self%current%solution, self%current%lhs)
 
   end subroutine timestepper_steps_init
 
@@ -707,20 +701,21 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine timestepper_init(self, method, dm, lhs_func, rhs_func, &
+  subroutine timestepper_init(self, method, dm, &
        initial_time, initial_conditions, initial_stepsize, &
-       final_time, max_num_steps, max_stepsize)
+       final_time, max_num_steps, max_stepsize, &
+       lhs_func, rhs_func)
     !! Initializes a timestepper.
 
     class(timestepper_type), intent(in out) :: self
     PetscInt, intent(in) :: method
     DM, intent(in) :: dm
-    procedure(lhs_function) :: lhs_func
-    procedure(rhs_function) :: rhs_func
     PetscReal, intent(in) :: initial_time, final_time
     Vec, intent(in) :: initial_conditions
     PetscReal, intent(in) :: initial_stepsize, max_stepsize
     PetscInt, intent(in) :: max_num_steps
+    procedure(lhs_function), optional :: lhs_func
+    procedure(rhs_function), optional :: rhs_func
 
     ! Locals:
     PetscErrorCode :: ierr
@@ -735,7 +730,10 @@ contains
     call self%method%init(method)
     call self%steps%init(self%method%num_stored_steps, &
          initial_time, initial_conditions, initial_stepsize, &
-         final_time, max_num_steps, max_stepsize, lhs_func, rhs_func)
+         final_time, max_num_steps, max_stepsize)
+    if (present(lhs_func)) self%steps%lhs_func => lhs_func
+    if (present(rhs_func)) self%steps%rhs_func => rhs_func
+       
     call self%setup_solver()
 
   end subroutine timestepper_init
@@ -807,12 +805,76 @@ contains
     class(timestepper_type), intent(in out) :: self
 
     self%steps%taken = 0
+    call self%steps%lhs_func(self%steps%current%time, &
+         self%steps%current%solution, self%steps%current%lhs)
+
     do while (.not. self%steps%finished)
        call self%step()
        call self%step_output()
     end do
 
   end subroutine timestepper_run
+
+!------------------------------------------------------------------------
+
+  subroutine setup_timestepper(json, dm, initial, timestepper)
+    !! Sets up timestepper from JSON input, DM and initial conditions
+    !! vector.
+
+    use utils_module, only : str_to_lower
+    use fson
+    use fson_mpi_module
+
+    type(fson_value), pointer, intent(in) :: json
+    DM, intent(in) :: dm
+    Vec ,intent(in) :: initial
+    type(timestepper_type), intent(in out) :: timestepper
+    ! Locals:
+    PetscReal :: start_time, stop_time, initial_stepsize, max_stepsize
+    PetscReal, allocatable :: steps(:)
+    integer :: max_num_steps
+    PetscReal, parameter :: default_start_time = 0.0_dp, &
+         default_stop_time = 1.0_dp
+    PetscReal, parameter :: default_initial_stepsize = 0.1_dp
+    PetscReal, parameter :: default_max_stepsize = 0.0_dp
+    integer :: method
+    integer, parameter :: max_method_str_len = 12
+    character(max_method_str_len) :: method_str
+    character(max_method_str_len), parameter :: default_method_str = "beuler"
+    integer, parameter :: default_max_num_steps = 100
+
+    !! TODO: steady state simulation input
+
+    call fson_get_mpi(json, "time.start", default_start_time, start_time)
+    call fson_get_mpi(json, "time.stop", default_stop_time, stop_time)
+
+    call fson_get_mpi(json, "time.step.method", &
+         default_method_str, method_str)
+    select case (str_to_lower(method_str))
+    case ("beuler")
+       method = TS_BEULER
+    case ("bdf2")
+       method = TS_BDF2
+    case ("directss")
+       method = TS_DIRECTSS
+    case default
+       method = TS_BEULER
+    end select
+
+    call fson_get_mpi(json, "time.step.initial", &
+         default_initial_stepsize, initial_stepsize)
+    call fson_get_mpi(json, "time.step.maximum.size", &
+         default_max_stepsize, max_stepsize)
+    call fson_get_mpi(json, "time.step.maximum.number", &
+         default_max_num_steps, max_num_steps)
+
+    call timestepper%init(method, dm, start_time, initial, &
+         initial_stepsize, stop_time, max_num_steps, &
+         max_stepsize)
+
+    if (allocated(steps)) deallocate(steps)
+
+  end subroutine setup_timestepper
 
 !------------------------------------------------------------------------
 
