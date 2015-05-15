@@ -40,7 +40,6 @@ module simulation_module
      procedure :: setup_thermodynamics => simulation_setup_thermodynamics
      procedure :: setup_eos => simulation_setup_eos
      procedure :: setup_timestepping => simulation_setup_timestepping
-     procedure :: setup_rocktype_labels => simulation_setup_rocktype_labels
      procedure :: setup_boundary_labels => simulation_setup_boundary_labels
      procedure :: setup_labels => simulation_setup_labels
      procedure, public :: init => simulation_init
@@ -185,44 +184,6 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine simulation_setup_rocktype_labels(self, json)
-    !! Sets up rocktype label on the mesh. The values of the rock type
-    !! label are the indices (1-based) of the rocktypes specified in the 
-    !! JSON input file.
-
-    use rock_module, only : rocktype_label_name
-
-    class(simulation_type), intent(in out) :: self
-    type(fson_value), pointer, intent(in) :: json
-    ! Locals:
-    PetscErrorCode :: ierr
-    type(fson_value), pointer :: rocktypes, r
-    PetscInt :: num_rocktypes, num_cells, ir, ic, c
-    PetscInt, allocatable :: cells(:)
-    PetscInt, allocatable :: default_cells(:)
-
-    default_cells = [PetscInt::] ! empty integer array
-
-    if (fson_has_mpi(json, "rock.types")) then
-       call fson_get_mpi(json, "rock.types", rocktypes)
-       call DMPlexCreateLabel(self%mesh%dm, rocktype_label_name, ierr); CHKERRQ(ierr)
-       num_rocktypes = fson_value_count_mpi(rocktypes, ".")
-       do ir = 1, num_rocktypes
-          r => fson_value_get_mpi(rocktypes, ir)
-          call fson_get_mpi(r, "cells", default_cells, cells)
-          num_cells = size(cells)
-          do ic = 1, num_cells
-             c = cells(ic)
-             call DMPlexSetLabelValue(self%mesh%dm, rocktype_label_name, &
-                  c, ir, ierr); CHKERRQ(ierr)
-          end do
-       end do
-    end if
-
-  end subroutine simulation_setup_rocktype_labels
-
-!------------------------------------------------------------------------
-
   subroutine simulation_setup_boundary_labels(self)
     !! Sets up labels identifying boundaries of the mesh (for e.g.
     !! applying boundary conditions.
@@ -248,10 +209,12 @@ contains
   subroutine simulation_setup_labels(self, json)
     !! Sets up labels on the mesh for a simulation.
 
+    use rock_module, only: setup_rocktype_labels
+
     class(simulation_type), intent(in out) :: self
     type(fson_value), pointer, intent(in) :: json
 
-    call self%setup_rocktype_labels(json)
+    call setup_rocktype_labels(json, self%mesh%dm)
     call self%setup_boundary_labels()
 
   end subroutine simulation_setup_labels

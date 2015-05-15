@@ -48,7 +48,7 @@ module rock_module
   PetscReal, parameter, public :: default_specific_heat = 1000._dp
   PetscReal, parameter, public :: default_heat_conductivity = 2.5_dp
 
-  public :: rock_type, setup_rock_vector
+  public :: rock_type, setup_rock_vector, setup_rocktype_labels
 
 contains
 
@@ -208,6 +208,45 @@ contains
     call DMDestroy(dm_rock, ierr); CHKERRQ(ierr)
 
   end subroutine setup_rock_vector
+
+!------------------------------------------------------------------------
+
+  subroutine setup_rocktype_labels(json, dm)
+    !! Sets up rocktype label on a DM. The values of the rock type
+    !! label are the indices (1-based) of the rocktypes specified in the 
+    !! JSON input file.
+
+    use fson
+    use fson_mpi_module
+
+    type(fson_value), pointer, intent(in) :: json
+    DM, intent(in out) :: dm
+    ! Locals:
+    PetscErrorCode :: ierr
+    type(fson_value), pointer :: rocktypes, r
+    PetscInt :: num_rocktypes, num_cells, ir, ic, c
+    PetscInt, allocatable :: cells(:)
+    PetscInt, allocatable :: default_cells(:)
+
+    default_cells = [PetscInt::] ! empty integer array
+
+    if (fson_has_mpi(json, "rock.types")) then
+       call fson_get_mpi(json, "rock.types", rocktypes)
+       call DMPlexCreateLabel(dm, rocktype_label_name, ierr); CHKERRQ(ierr)
+       num_rocktypes = fson_value_count_mpi(rocktypes, ".")
+       do ir = 1, num_rocktypes
+          r => fson_value_get_mpi(rocktypes, ir)
+          call fson_get_mpi(r, "cells", default_cells, cells)
+          num_cells = size(cells)
+          do ic = 1, num_cells
+             c = cells(ic)
+             call DMPlexSetLabelValue(dm, rocktype_label_name, &
+                  c, ir, ierr); CHKERRQ(ierr)
+          end do
+       end do
+    end if
+
+  end subroutine setup_rocktype_labels
 
 !------------------------------------------------------------------------
 
