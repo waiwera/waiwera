@@ -55,7 +55,7 @@ TESTS = setup $(SETUPTESTS) $(NONSETUPTESTS)
 SETUPOBJS = $(patsubst %, $(BUILD)/%$(OBJ), $(SETUPTESTS))
 TESTOBJS = $(patsubst %, $(TEST)/$(BUILD)/%$(TESTSUF)$(OBJ), $(TESTS))
 
-$(PROG): $(DIST)/$(PROG)$(EXE)
+.DEFAULT_GOAL := $(DIST)/$(PROG)$(EXE)
 tests: $(TEST)/$(DIST)/$(TESTPROG)$(EXE)
 
 # general dependency rules:
