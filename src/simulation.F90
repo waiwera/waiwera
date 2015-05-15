@@ -40,7 +40,6 @@ module simulation_module
      procedure :: setup_thermodynamics => simulation_setup_thermodynamics
      procedure :: setup_eos => simulation_setup_eos
      procedure :: setup_timestepping => simulation_setup_timestepping
-     procedure :: setup_boundary_labels => simulation_setup_boundary_labels
      procedure :: setup_labels => simulation_setup_labels
      procedure, public :: init => simulation_init
      procedure, public :: run => simulation_run
@@ -184,38 +183,17 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine simulation_setup_boundary_labels(self)
-    !! Sets up labels identifying boundaries of the mesh (for e.g.
-    !! applying boundary conditions.
-
-    class(simulation_type), intent(in out) :: self
-    ! Locals:
-    PetscErrorCode :: ierr
-    PetscBool :: has_label
-
-    call DMPlexHasLabel(self%mesh%dm, open_boundary_label_name, has_label, &
-         ierr); CHKERRQ(ierr)
-    if (.not.(has_label)) then
-       call DMPlexCreateLabel(self%mesh%dm, open_boundary_label_name, &
-            ierr); CHKERRQ(ierr)
-       ! could read boundary faces from input here if needed- i.e. if labels
-       ! not present in mesh file
-    end if
-
-  end subroutine simulation_setup_boundary_labels
-
-!------------------------------------------------------------------------
-
   subroutine simulation_setup_labels(self, json)
     !! Sets up labels on the mesh for a simulation.
 
     use rock_module, only: setup_rocktype_labels
+    use boundary_module, only: setup_boundary_labels
 
     class(simulation_type), intent(in out) :: self
     type(fson_value), pointer, intent(in) :: json
 
     call setup_rocktype_labels(json, self%mesh%dm)
-    call self%setup_boundary_labels()
+    call setup_boundary_labels(self%mesh%dm)
 
   end subroutine simulation_setup_labels
 

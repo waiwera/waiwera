@@ -12,7 +12,6 @@ module mesh_module
 #include <petsc-finclude/petsc.h90>
 
   integer, parameter, public :: max_mesh_filename_length = 200
-  character(len = 16), public :: open_boundary_label_name = "open boundary"
 
   type, public :: mesh_type
      !! Mesh type.
@@ -59,6 +58,8 @@ contains
 
   subroutine mesh_construct_ghost_cells(self)
     !! Constructs ghost cells on open boundary faces.
+
+    use boundary_module, only: open_boundary_label_name
 
     class(mesh_type), intent(in out) :: self
     ! Locals:

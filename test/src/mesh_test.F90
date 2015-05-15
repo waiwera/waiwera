@@ -27,6 +27,7 @@ contains
 
     use eos_module, only: max_primary_variable_name_length
     use dm_utils_module, only: section_offset
+    use boundary_module, only: open_boundary_label_name
     use cell_module
     use face_module
 
