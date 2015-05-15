@@ -37,9 +37,11 @@ ESSENTIAL = kinds
 ESSENTIAL_OBJS = $(patsubst %, $(BUILD)/%$(OBJ), $(ESSENTIAL))
 
 # main source code:
-SOURCES = mpi fson_mpi utils dm_utils powertable thermodynamics \
-	IAPWS IFC67 timestepping rock fluid cell face mesh \
-	simulation eos eos_w initial boundary thermodynamics_setup
+SOURCES = mpi fson_mpi utils dm_utils powertable \
+	thermodynamics thermodynamics_setup IAPWS IFC67 \
+	timestepping rock fluid cell face mesh \
+	eos eos_setup eos_w \
+	initial boundary simulation
 OBJS = $(patsubst %, $(BUILD)/%$(OBJ), $(SOURCES))
 ALLOBJS = $(ESSENTIAL_OBJS) $(OBJS)
 PROG = supermodel
@@ -80,12 +82,15 @@ $(BUILD)/initial$(OBJ): $(BUILD)/mpi$(OBJ) $(BUILD)/fson_mpi$(OBJ)
 $(BUILD)/thermodynamics_setup$(OBJ): $(BUILD)/mpi$(OBJ) $(BUILD)/fson_mpi$(OBJ) \
 	$(BUILD)/thermodynamics$(OBJ) $(BUILD)/IAPWS$(OBJ) $(BUILD)/IFC67$(OBJ) \
 	$(BUILD)/utils$(OBJ) 
-$(BUILD)/simulation$(OBJ): $(BUILD)/mpi$(OBJ) $(BUILD)/timestepping$(OBJ) \
-	$(BUILD)/thermodynamics$(OBJ) $(BUILD)/IAPWS$(OBJ) \
-	$(BUILD)/IFC67$(OBJ) $(BUILD)/eos$(OBJ)	$(BUILD)/eos_w$(OBJ) \
+$(BUILD)/eos_setup$(OBJ): $(BUILD)/mpi$(OBJ) $(BUILD)/fson_mpi$(OBJ) \
+	$(BUILD)/eos$(OBJ) $(BUILD)/eos_w$(OBJ)	$(BUILD)/utils$(OBJ) \
+	$(BUILD)/thermodynamics$(OBJ)
+$(BUILD)/simulation$(OBJ): $(BUILD)/mpi$(OBJ) $(BUILD)/fson_mpi$(OBJ) \
+	$(BUILD)/timestepping$(OBJ) \
+	$(BUILD)/thermodynamics$(OBJ) $(BUILD)/thermodynamics_setup$(OBJ) \
+	$(BUILD)/eos$(OBJ) $(BUILD)/eos_setup$(OBJ) \
 	$(BUILD)/mesh$(OBJ) $(BUILD)/fluid$(OBJ) $(BUILD)/rock$(OBJ) \
-	$(BUILD)/fson_mpi$(OBJ) $(BUILD)/utils$(OBJ) $(BUILD)/initial$(OBJ) \
-	$(BUILD)/boundary$(OBJ) $(BUILD)/dm_utils$(OBJ)
+	$(BUILD)/initial$(OBJ) $(BUILD)/boundary$(OBJ)
 $(TEST)/$(BUILD)/setup$(TESTSUF)$(OBJ): $(BUILD)/mpi$(OBJ)
 $(TEST)/$(BUILD)/mesh$(TESTSUF)$(OBJ): $(BUILD)/eos$(OBJ) $(BUILD)/cell$(OBJ) \
 	$(BUILD)/face$(OBJ) $(BUILD)/dm_utils$(OBJ) $(BUILD)/boundary$(OBJ)

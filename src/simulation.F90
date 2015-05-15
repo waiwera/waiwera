@@ -6,7 +6,6 @@ module simulation_module
   use mesh_module
   use timestepping_module
   use thermodynamics_module
-  use eos_w_module
   use eos_module
   use fson
   use fson_mpi_module
@@ -34,7 +33,6 @@ module simulation_module
      character(max_title_length), public :: title
    contains
      private
-     procedure :: setup_eos => simulation_setup_eos
      procedure, public :: init => simulation_init
      procedure, public :: run => simulation_run
      procedure, public :: destroy => simulation_destroy
@@ -46,41 +44,12 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine simulation_setup_eos(self, json)
-    !! Reads simulation equation of state from JSON input file.
-    !! If not present, a default value is assigned.
-
-    use utils_module, only : str_to_lower
-
-    class(simulation_type), intent(in out) :: self
-    type(fson_value), pointer, intent(in) :: json
-    ! Locals:
-    integer, parameter :: max_eos_ID_length = 12
-    character(max_eos_ID_length) :: eos_ID
-    character(max_eos_ID_length), parameter :: &
-         default_eos_ID = "W"
-
-    call fson_get_mpi(json, "eos", default_eos_ID, eos_ID)
-    eos_ID = str_to_lower(eos_ID)
-
-    select case (eos_ID)
-    case ("ew")
-       self%eos => eos_w  ! change to eos_ew when it's ready
-    case default
-       self%eos => eos_w
-    end select
-
-    call self%eos%init(self%thermo)
-
-  end subroutine simulation_setup_eos
-
-!------------------------------------------------------------------------
-
   subroutine simulation_init(self, filename, json_str)
     !! Initializes a simulation using data from the input file with 
     !! specified name.
 
     use thermodynamics_setup_module
+    use eos_setup_module
     use initial_module, only: setup_initial
     use fluid_module, only: setup_fluid_vector
     use rock_module, only: setup_rock_vector
@@ -106,7 +75,7 @@ contains
 
     call fson_get_mpi(json, "title", default_title, self%title)
     call setup_thermodynamics(json, self%thermo)
-    call self%setup_eos(json)
+    call setup_eos(json, self%thermo, self%eos)
     call self%mesh%init(json)
     call setup_labels(json, self%mesh%dm)
     call self%mesh%configure(self%eos%primary_variable_names)
