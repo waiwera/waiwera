@@ -115,17 +115,27 @@ module IFC67_test
       real(dp), parameter ::  t(n) = [300._dp, 500._dp, 600._dp] - tc_k
       real(dp), parameter :: p(n) = [0.35323426e4_dp, 0.263961572e7_dp, &
            0.123493902e8_dp]
-      real(dp) :: ps, ts
+      real(dp) :: ps, ts, ps1, ts1
       integer :: i, err
 
       if (mpi%rank == mpi%output_rank) then
          do i = 1, n
+
             call IFC67%saturation%pressure(t(i), ps, err)
             call assert_equals(p(i), ps, pressure_tol, 'pressure')
             call assert_equals(0, err, 'pressure error')
             call IFC67%saturation%temperature(ps, ts, err)
             call assert_equals(t(i), ts, temperature_tol, 'temperature')
             call assert_equals(0, err, 'temperature error')
+
+            ! Test region 1 saturation object:
+            call IFC67%region(1)%ptr%saturation%pressure(t(i), ps1, err)
+            call assert_equals(p(i), ps1, pressure_tol, 'region 1 pressure')
+            call assert_equals(0, err, 'region 1 pressure error')
+            call IFC67%region(1)%ptr%saturation%temperature(ps1, ts1, err)
+            call assert_equals(t(i), ts1, temperature_tol, 'region 1 temperature')
+            call assert_equals(0, err, 'region 1 temperature error')
+
          end do
       end if
       
