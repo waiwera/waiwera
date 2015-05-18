@@ -39,6 +39,7 @@ module thermodynamics_module
   type, public, abstract :: region_type
      !! Thermodynamic region type.
      character(max_thermodynamic_region_name_length), public :: name
+     class(saturation_type), allocatable :: saturation
    contains
      private
      procedure(region_init), public, deferred :: init
@@ -97,11 +98,10 @@ module thermodynamics_module
        integer, intent(out) :: err  !! Error code
      end subroutine saturation_pressure
 
-     subroutine region_init(self, saturation)
+     subroutine region_init(self)
        !! Initializes region.
-       import :: region_type, saturation_type
+       import :: region_type
        class(region_type), intent(in out) :: self
-       class(saturation_type), intent(in), target, optional :: saturation
      end subroutine region_init
 
      subroutine region_destroy(self)

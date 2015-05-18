@@ -61,7 +61,6 @@ module IFC67_module
           SA7 = 1.150e-6_dp,        SA8 = 1.51080e-5_dp, &
           SA9 = 1.41880e-1_dp,      SA10 = 7.002753165_dp, &
           SA11 = 2.995284926e-4_dp, SA12 = 2.040e-1_dp
-     type(IFC67_saturation_type), pointer, public :: saturation
    contains
      private
      procedure, public :: init => region1_init
@@ -146,8 +145,7 @@ contains
     call self%region(1)%set(self%water)
     call self%region(2)%set(self%steam)
 
-    call self%region(1)%ptr%init(self%saturation)
-    do i = 2, self%num_regions
+    do i = 1, self%num_regions
        call self%region(i)%ptr%init()
     end do
 
@@ -176,16 +174,13 @@ contains
 ! Region 1 (liquid water)
 !------------------------------------------------------------------------
 
-  subroutine region1_init(self, saturation)
+  subroutine region1_init(self)
     !! Initializes IFC-67 region 1 object.
 
     class(IFC67_region1_type), intent(in out) :: self
-    type(IFC67_saturation_type), intent(in), target, optional :: saturation
 
     self%name = 'water'
-    if (present(saturation)) then
-       self%saturation => saturation
-    end if
+    allocate(IFC67_saturation_type :: self%saturation)
 
   end subroutine region1_init
 
@@ -197,7 +192,7 @@ contains
 
     class(IFC67_region1_type), intent(in out) :: self
 
-    nullify(self%saturation)
+    deallocate(self%saturation)
 
   end subroutine region1_destroy
 
@@ -339,11 +334,10 @@ contains
 ! Region 2 (steam)
 !------------------------------------------------------------------------
 
-  subroutine region2_init(self, saturation)
+  subroutine region2_init(self)
     !! Initializes IFC-67 region 2 object.
 
     class(IFC67_region2_type), intent(in out) :: self
-    type(IFC67_saturation_type), intent(in), target, optional :: saturation
 
     self%name = 'steam'
 

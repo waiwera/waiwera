@@ -285,11 +285,10 @@ contains
   ! Abstract region type
 !------------------------------------------------------------------------
 
-  subroutine region_init(self, saturation)
+  subroutine region_init(self)
     !! Initializes abstract IAPWS-97 region object.
     
     class(IAPWS_region_type), intent(in out) :: self
-    type(IAPWS_saturation_type), intent(in), target, optional :: saturation
 
     call self%visc%init()
 
@@ -360,11 +359,10 @@ contains
   ! Region 1 (liquid water)
 !------------------------------------------------------------------------
 
-  subroutine region1_init(self, saturation)
+  subroutine region1_init(self)
     !! Initializes IAPWS region 1 object.
 
     class(IAPWS_region1_type), intent(in out) :: self
-    type(IAPWS_saturation_type), intent(in), target, optional :: saturation
 
     call self%IAPWS_region_type%init()
 
@@ -444,11 +442,10 @@ contains
   ! Region 2 (steam)
 !------------------------------------------------------------------------
 
-  subroutine region2_init(self, saturation)
+  subroutine region2_init(self)
     !! Initializes IAPWS region 2 object.
 
     class(IAPWS_region2_type), intent(in out) :: self
-    type(IAPWS_saturation_type), intent(in), target, optional :: saturation
 
     call self%IAPWS_region_type%init()
 
@@ -539,11 +536,10 @@ contains
   ! Region 3 (supercritical)
 !------------------------------------------------------------------------
 
-  subroutine region3_init(self, saturation)
+  subroutine region3_init(self)
     !! Initializes IAPWS region 3 object.
 
     class(IAPWS_region3_type), intent(in out) :: self
-    type(IAPWS_saturation_type), intent(in), target, optional :: saturation
 
     call self%IAPWS_region_type%init()
 
