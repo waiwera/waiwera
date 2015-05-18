@@ -18,7 +18,26 @@ module IAPWS_module
   private
 
 !------------------------------------------------------------------------
-  ! Viscosity type
+! Saturation curve type
+!------------------------------------------------------------------------
+
+  type, public, extends(saturation_type) :: IAPWS_saturation_type
+     !! IAPWS-97 saturation curve calculations.
+     private
+     real(dp) :: pstar = 1.0e6_dp
+     real(dp) :: n(10) = [ &
+           0.11670521452767e4_dp, -0.72421316703206e6_dp, -0.17073846940092e2_dp,  &
+           0.12020824702470e5_dp, -0.32325550322333e7_dp,  0.14915108613530e2_dp,  &
+          -0.48232657361591e4_dp,  0.40511340542057e6_dp, -0.23855557567849_dp, &
+           0.65017534844798e3_dp]
+     contains
+       private
+       procedure, public :: temperature => saturation_temperature
+       procedure, public :: pressure => saturation_pressure
+  end type IAPWS_saturation_type
+
+!------------------------------------------------------------------------
+! Viscosity type
 !------------------------------------------------------------------------
 
   type :: IAPWS_viscosity_type
@@ -179,25 +198,6 @@ module IAPWS_module
   end type IAPWS_region3_type
 
 !------------------------------------------------------------------------
-  ! Saturation curve type
-!------------------------------------------------------------------------
-
-  type, public :: IAPWS_saturation_type
-     !! IAPWS-97 saturation curve calculations.
-     private
-     real(dp) :: pstar = 1.0e6_dp
-     real(dp) :: n(10) = [ &
-           0.11670521452767e4_dp, -0.72421316703206e6_dp, -0.17073846940092e2_dp,  &
-           0.12020824702470e5_dp, -0.32325550322333e7_dp,  0.14915108613530e2_dp,  &
-          -0.48232657361591e4_dp,  0.40511340542057e6_dp, -0.23855557567849_dp, &
-           0.65017534844798e3_dp]
-     contains
-       private
-       procedure, public :: temperature => saturation_temperature
-       procedure, public :: pressure => saturation_pressure
-  end type IAPWS_saturation_type
-
-!------------------------------------------------------------------------
   ! Region 2/3 boundary type
 !------------------------------------------------------------------------
 
@@ -221,15 +221,12 @@ module IAPWS_module
   type, extends(thermodynamics_type), public :: IAPWS_type
      !! IAPWS thermodynamics type.
      private
-     type(IAPWS_saturation_type), public :: saturation
      type(IAPWS_boundary23_type), public :: boundary23
    contains
      private
      procedure, public :: init => IAPWS_init
      procedure, public :: destroy => IAPWS_destroy
   end type IAPWS_type
-
-  type(IAPWS_type), public, target :: IAPWS
 
 !------------------------------------------------------------------------
 
@@ -246,27 +243,23 @@ contains
     ! Locals:
     integer :: i
 
-    if (.not.(self%initialized)) then
+    self%name = "IAPWS-97"
 
-       self%name = "IAPWS-97"
+    allocate(IAPWS_saturation_type :: self%saturation)
 
-       self%num_regions = 3
-       allocate(IAPWS_region1_type :: self%water)
-       allocate(IAPWS_region2_type :: self%steam)
-       allocate(IAPWS_region3_type :: self%supercritical)
-       allocate(self%region(self%num_regions))
+    self%num_regions = 3
+    allocate(IAPWS_region1_type :: self%water)
+    allocate(IAPWS_region2_type :: self%steam)
+    allocate(IAPWS_region3_type :: self%supercritical)
+    allocate(self%region(self%num_regions))
 
-       call self%region(1)%set(self%water)
-       call self%region(2)%set(self%steam)
-       call self%region(3)%set(self%supercritical)
+    call self%region(1)%set(self%water)
+    call self%region(2)%set(self%steam)
+    call self%region(3)%set(self%supercritical)
 
-       do i = 1, self%num_regions
-          call self%region(i)%ptr%init()
-       end do
-
-       self%initialized = .true.
-
-    end if
+    do i = 1, self%num_regions
+       call self%region(i)%ptr%init()
+    end do
 
   end subroutine IAPWS_init
 
@@ -278,18 +271,13 @@ contains
     class(IAPWS_type), intent(in out) :: self
     ! Locals:
     integer :: i
-
-    if (self%initialized) then
-
-       do i = 1, self%num_regions
-          call self%region(i)%ptr%destroy()
-       end do
-       deallocate(self%region)
-       deallocate(self%water, self%steam, self%supercritical)
-
-       self%initialized = .false.
-
-    end if
+    
+    do i = 1, self%num_regions
+       call self%region(i)%ptr%destroy()
+    end do
+    deallocate(self%region)
+    deallocate(self%water, self%steam, self%supercritical)
+    deallocate(self%saturation)
 
   end subroutine IAPWS_destroy
 
@@ -297,10 +285,11 @@ contains
   ! Abstract region type
 !------------------------------------------------------------------------
 
-  subroutine region_init(self)
+  subroutine region_init(self, saturation)
     !! Initializes abstract IAPWS-97 region object.
     
     class(IAPWS_region_type), intent(in out) :: self
+    type(IAPWS_saturation_type), intent(in), target, optional :: saturation
 
     call self%visc%init()
 
@@ -371,10 +360,11 @@ contains
   ! Region 1 (liquid water)
 !------------------------------------------------------------------------
 
-  subroutine region1_init(self)
+  subroutine region1_init(self, saturation)
     !! Initializes IAPWS region 1 object.
 
     class(IAPWS_region1_type), intent(in out) :: self
+    type(IAPWS_saturation_type), intent(in), target, optional :: saturation
 
     call self%IAPWS_region_type%init()
 
@@ -454,10 +444,11 @@ contains
   ! Region 2 (steam)
 !------------------------------------------------------------------------
 
-  subroutine region2_init(self)
+  subroutine region2_init(self, saturation)
     !! Initializes IAPWS region 2 object.
 
     class(IAPWS_region2_type), intent(in out) :: self
+    type(IAPWS_saturation_type), intent(in), target, optional :: saturation
 
     call self%IAPWS_region_type%init()
 
@@ -548,10 +539,11 @@ contains
   ! Region 3 (supercritical)
 !------------------------------------------------------------------------
 
-  subroutine region3_init(self)
+  subroutine region3_init(self, saturation)
     !! Initializes IAPWS region 3 object.
 
     class(IAPWS_region3_type), intent(in out) :: self
+    type(IAPWS_saturation_type), intent(in), target, optional :: saturation
 
     call self%IAPWS_region_type%init()
 

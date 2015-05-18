@@ -17,6 +17,8 @@ module IAPWS_test
   real(dp), parameter :: pressure_tol = 1.e-1_dp, temperature_tol = 1.e-6_dp
   real(dp), parameter :: viscosity_tol = 1.e-12_dp
 
+  type(IAPWS_type) :: IAPWS
+
   public :: setup_IAPWS, teardown_IAPWS
   public :: test_IAPWS_region1, test_IAPWS_region2, test_IAPWS_region3, &
        test_IAPWS_saturation, test_IAPWS_viscosity, test_IAPWS_boundary23

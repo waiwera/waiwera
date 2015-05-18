@@ -10,7 +10,7 @@ module thermodynamics_module
   integer, parameter, public :: max_thermodynamic_region_name_length = 16
 
 !------------------------------------------------------------------------
-  ! Physical constants
+! Physical constants
 !------------------------------------------------------------------------
 
   real(dp), parameter, public :: rconst     = 0.461526e3_dp     !! Gas constant
@@ -21,7 +21,19 @@ module thermodynamics_module
   real(dp), parameter, public :: pcritical  = 22.064e6_dp       !! Critical pressure (Pa)
 
 !------------------------------------------------------------------------
-  ! Thermodynamic region type
+! Saturation curve type
+!------------------------------------------------------------------------
+
+  type, public, abstract :: saturation_type
+     !! Saturation curve type.
+   contains
+     private
+       procedure(saturation_temperature), public, deferred :: temperature
+       procedure(saturation_pressure), public, deferred :: pressure
+  end type saturation_type
+
+!------------------------------------------------------------------------
+! Thermodynamic region type
 !------------------------------------------------------------------------
 
   type, public, abstract :: region_type
@@ -43,20 +55,20 @@ module thermodynamics_module
      procedure, public :: set => pregion_set
   end type pregion_type
 
-  !------------------------------------------------------------------------
-  ! Thermodynamics type
-  !------------------------------------------------------------------------
+!------------------------------------------------------------------------
+! Thermodynamics type
+!------------------------------------------------------------------------
 
   type, public, abstract :: thermodynamics_type
      !! Thermodynamics type.
      private
      character(max_thermodynamics_name_length), public :: name
+     class(saturation_type), allocatable, public :: saturation !! Saturation curve
      integer, public :: num_regions  !! Number of thermodynamic regions
      class(region_type), allocatable, public :: water !! Pure water region
      class(region_type), allocatable, public :: steam !! Steam region
      class(region_type), allocatable, public :: supercritical !! Supercritical region
      type(pregion_type), allocatable, public :: region(:) !! Array of region pointers
-     logical, public :: initialized = .false.
    contains
      private
      procedure(thermodynamics_init_procedure), public, deferred :: init
@@ -67,10 +79,29 @@ module thermodynamics_module
 
   abstract interface
 
-     subroutine region_init(self)
+     subroutine saturation_temperature(self, p, t, err)
+       !! Calculates saturation temperature as a function of pressure.
+       import :: saturation_type, dp
+       class(saturation_type), intent(in) :: self
+       real(dp), intent(in) :: p  !! Fluid pressure (\(kg. m. s^{-1}\))
+       real(dp), intent(out):: t  !! Fluid temperature (\(^\circ C\))
+       integer, intent(out) :: err !! Error code
+     end subroutine saturation_temperature
+
+     subroutine saturation_pressure(self, t, p, err)
+       !! Calculates saturation pressure as a function of temperature.
+       import :: saturation_type, dp
+       class(saturation_type), intent(in) :: self
+       real(dp), intent(in) :: t  !! Fluid temperature (\(^\circ C\))
+       real(dp), intent(out):: p  !! Fluid pressure (\(kg. m. s^{-1}\))
+       integer, intent(out) :: err  !! Error code
+     end subroutine saturation_pressure
+
+     subroutine region_init(self, saturation)
        !! Initializes region.
-       import :: region_type
+       import :: region_type, saturation_type
        class(region_type), intent(in out) :: self
+       class(saturation_type), intent(in), target, optional :: saturation
      end subroutine region_init
 
      subroutine region_destroy(self)
@@ -115,7 +146,7 @@ module thermodynamics_module
 contains
 
 !------------------------------------------------------------------------
-  ! Region pointers
+! Region pointers
 !------------------------------------------------------------------------
 
   subroutine pregion_set(self, tgt)

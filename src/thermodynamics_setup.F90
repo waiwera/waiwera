@@ -38,9 +38,9 @@ contains
 
     select case (thermo_ID)
     case ("ifc67")
-       thermo => IFC67
+       allocate(IFC67_type :: thermo)
     case default
-       thermo => IAPWS
+       allocate(IAPWS_type :: thermo)
     end select
 
     call thermo%init()

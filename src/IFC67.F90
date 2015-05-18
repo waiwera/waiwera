@@ -16,6 +16,24 @@ module IFC67_module
   real(dp), parameter :: tcritical67 = tcriticalk67 - tc_k
   real(dp), parameter :: pcritical67  = 2.212e7_dp      ! Critical pressure (Pa)
 
+!------------------------------------------------------------------------
+  ! Saturation curve type
+!------------------------------------------------------------------------
+
+  type, public, extends(saturation_type) :: IFC67_saturation_type
+     !! IFC-67 saturation curve calculations.
+     private
+     real(dp) :: &
+          A1 = -7.691234564_dp,   A2 = -2.608023696e1_dp, &
+          A3 = -1.681706546e2_dp, A4 =  6.423285504e1_dp, &
+          A5 = -1.189646225e2_dp, A6 =  4.167117320_dp, &
+          A7 =  2.097506760e1_dp, A8 =  1.0e9_dp, A9 = 6.0_dp
+     contains
+       private
+       procedure, public :: temperature => saturation_temperature
+       procedure, public :: pressure => saturation_pressure
+  end type IFC67_saturation_type
+
   !------------------------------------------------------------------------
   ! Region 1 (liquid water) type
   !------------------------------------------------------------------------
@@ -43,6 +61,7 @@ module IFC67_module
           SA7 = 1.150e-6_dp,        SA8 = 1.51080e-5_dp, &
           SA9 = 1.41880e-1_dp,      SA10 = 7.002753165_dp, &
           SA11 = 2.995284926e-4_dp, SA12 = 2.040e-1_dp
+     type(IFC67_saturation_type), pointer, public :: saturation
    contains
      private
      procedure, public :: init => region1_init
@@ -88,38 +107,17 @@ module IFC67_module
   end type IFC67_region2_type
 
 !------------------------------------------------------------------------
-  ! Saturation curve type
-!------------------------------------------------------------------------
-
-  type, public :: IFC67_saturation_type
-     !! IFC-67 saturation curve calculations.
-     private
-     real(dp) :: &
-          A1 = -7.691234564_dp,   A2 = -2.608023696e1_dp, &
-          A3 = -1.681706546e2_dp, A4 =  6.423285504e1_dp, &
-          A5 = -1.189646225e2_dp, A6 =  4.167117320_dp, &
-          A7 =  2.097506760e1_dp, A8 =  1.0e9_dp, A9 = 6.0_dp
-     contains
-       private
-       procedure, public :: temperature => saturation_temperature
-       procedure, public :: pressure => saturation_pressure
-  end type IFC67_saturation_type
-
-!------------------------------------------------------------------------
 ! IFC-67 thermodynamics type
 !------------------------------------------------------------------------
 
   type, extends(thermodynamics_type), public :: IFC67_type
      !! IFC-67 thermodynamics type.
      private
-     type(IFC67_saturation_type), public :: saturation
    contains
      private
      procedure, public :: init => IFC67_init
      procedure, public :: destroy => IFC67_destroy
   end type IFC67_type
-
-  type(IFC67_type), public, target :: IFC67
 
 !------------------------------------------------------------------------
 
@@ -136,25 +134,22 @@ contains
     ! Locals:
     integer :: i
 
-    if (.not.(self%initialized)) then
+    self%name = 'IFC-67'
 
-       self%name = 'IFC-67'
+    allocate(IFC67_saturation_type :: self%saturation)
 
-       self%num_regions = 2
-       allocate(IFC67_region1_type :: self%water)
-       allocate(IFC67_region2_type :: self%steam)
-       allocate(self%region(self%num_regions))
+    self%num_regions = 2
+    allocate(IFC67_region1_type :: self%water)
+    allocate(IFC67_region2_type :: self%steam)
+    allocate(self%region(self%num_regions))
 
-       call self%region(1)%set(self%water)
-       call self%region(2)%set(self%steam)
+    call self%region(1)%set(self%water)
+    call self%region(2)%set(self%steam)
 
-       do i = 1, self%num_regions
-          call self%region(i)%ptr%init()
-       end do
-
-       self%initialized = .true.
-
-    end if
+    call self%region(1)%ptr%init(self%saturation)
+    do i = 2, self%num_regions
+       call self%region(i)%ptr%init()
+    end do
 
   end subroutine IFC67_init
 
@@ -167,18 +162,13 @@ contains
     ! Locals:
     integer :: i
 
-    if (self%initialized) then
+    do i = 1, self%num_regions
+       call self%region(i)%ptr%destroy()
+    end do
 
-       do i = 1, self%num_regions
-          call self%region(i)%ptr%destroy()
-       end do
-
-       deallocate(self%region)
-       deallocate(self%water, self%steam)
-
-       self%initialized = .false.
-
-    end if
+    deallocate(self%region)
+    deallocate(self%water, self%steam)
+    deallocate(self%saturation)
 
   end subroutine IFC67_destroy
 
@@ -186,12 +176,16 @@ contains
 ! Region 1 (liquid water)
 !------------------------------------------------------------------------
 
-  subroutine region1_init(self)
+  subroutine region1_init(self, saturation)
     !! Initializes IFC-67 region 1 object.
 
     class(IFC67_region1_type), intent(in out) :: self
+    type(IFC67_saturation_type), intent(in), target, optional :: saturation
 
     self%name = 'water'
+    if (present(saturation)) then
+       self%saturation => saturation
+    end if
 
   end subroutine region1_init
 
@@ -202,6 +196,8 @@ contains
     !! Destroys IFC-67 region 1 object.
 
     class(IFC67_region1_type), intent(in out) :: self
+
+    nullify(self%saturation)
 
   end subroutine region1_destroy
 
@@ -333,7 +329,7 @@ contains
 
     ex = 247.8_dp / (temperature + 133.15_dp)
     phi = 1.0467_dp * (temperature - 31.85_dp)
-    call IFC67%saturation%pressure(temperature, ps, err)
+    call self%saturation%pressure(temperature, ps, err)
     am = 1.0_dp + phi * (pressure - ps) * 1.0e-11_dp
     viscosity = 1.0e-7_dp * am * 241.4_dp * 10.0_dp ** ex
 
@@ -343,10 +339,11 @@ contains
 ! Region 2 (steam)
 !------------------------------------------------------------------------
 
-  subroutine region2_init(self)
+  subroutine region2_init(self, saturation)
     !! Initializes IFC-67 region 2 object.
 
     class(IFC67_region2_type), intent(in out) :: self
+    type(IFC67_saturation_type), intent(in), target, optional :: saturation
 
     self%name = 'steam'
 

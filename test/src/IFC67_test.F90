@@ -17,6 +17,8 @@ module IFC67_test
   real(dp), parameter :: pressure_tol = 1.e-1_dp, temperature_tol = 1.e-6_dp
   real(dp), parameter :: viscosity_tol = 1.e-9_dp
 
+  type(IFC67_type) :: IFC67
+
   public :: setup_IFC67, teardown_IFC67
   public :: test_IFC67_region1, test_IFC67_region2
   public :: test_IFC67_saturation, test_IFC67_viscosity

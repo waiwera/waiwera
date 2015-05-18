@@ -27,7 +27,7 @@ module simulation_module
      Vec, public :: rock
      Vec, public :: fluid
      type(timestepper_type), public :: timestepper
-     class(thermodynamics_type), pointer, public :: thermo
+     class(thermodynamics_type), allocatable, public :: thermo
      class(eos_type), pointer, public :: eos
      character(max_filename_length), public :: input_filename
      character(max_title_length), public :: title
@@ -122,7 +122,7 @@ contains
     call VecDestroy(self%rock, ierr); CHKERRQ(ierr)
     call self%mesh%destroy()
     call self%thermo%destroy()
-    nullify(self%thermo)
+    deallocate(self%thermo)
     nullify(self%eos)
     call self%timestepper%destroy()
 
