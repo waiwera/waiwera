@@ -77,6 +77,7 @@ module timestepping_module
      procedure :: rotate => timestepper_steps_rotate
      procedure, public :: init => timestepper_steps_init
      procedure, public :: destroy => timestepper_steps_destroy
+     procedure, public :: initial_function_calls => timestepper_steps_initial_function_calls
      procedure, public :: check_finished => timestepper_steps_check_finished
      procedure, public :: set_current_status => timestepper_steps_set_current_status
      procedure, public :: adapt => timestepper_steps_adapt
@@ -507,6 +508,24 @@ contains
 
 !------------------------------------------------------------------------
 
+  subroutine timestepper_steps_initial_function_calls(self)
+    !! Performs initial LHS function call at start of run (and pre-evaluation
+    !! procedure if needed).
+
+    class(timestepper_steps_type), intent(in out) :: self
+
+    if (associated(self%pre_eval_proc)) then
+       call self%pre_eval_proc(self%current%time, &
+            self%current%solution)
+    end if
+
+    call self%lhs_func(self%current%time, &
+         self%current%solution, self%current%lhs)
+
+  end subroutine timestepper_steps_initial_function_calls
+
+!------------------------------------------------------------------------
+
   subroutine timestepper_steps_destroy(self)
     !! Destroys store array and de-assigns pointers to them.
 
@@ -840,8 +859,7 @@ contains
     class(timestepper_type), intent(in out) :: self
 
     self%steps%taken = 0
-    call self%steps%lhs_func(self%steps%current%time, &
-         self%steps%current%solution, self%steps%current%lhs)
+    call self%steps%initial_function_calls()
 
     do while (.not. self%steps%finished)
        call self%step()
