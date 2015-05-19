@@ -88,6 +88,7 @@ contains
 
     self%timestepper%steps%lhs_func => simulation_cell_balances
     self%timestepper%steps%rhs_func => simulation_cell_inflows
+    self%timestepper%steps%pre_eval_proc => simulation_fluid_properties
 
     if (mpi%rank == mpi%input_rank) then
        call fson_destroy(json)
@@ -161,6 +162,19 @@ contains
     call VecSet(inflow, 0.0_dp, ierr); CHKERRQ(ierr)
 
   end subroutine simulation_cell_inflows
+
+!------------------------------------------------------------------------
+
+  subroutine simulation_fluid_properties(t, primary)
+    !! Computes fluid properties in all cells, based on the current time
+    !! and primary thermodynamic variables.
+
+    PetscReal, intent(in) :: t
+    Vec, intent(in) :: primary
+
+    continue
+
+  end subroutine simulation_fluid_properties
 
 !------------------------------------------------------------------------
 
