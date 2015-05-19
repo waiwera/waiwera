@@ -476,15 +476,15 @@ contains
 
   contains
 
-    subroutine lhs_fn(t, y, rhs)
+    subroutine lhs_fn(t, y, lhs)
       ! lhs(t, y) = y * (y - 2)
       PetscReal, intent(in) :: t
       Vec, intent(in) :: y
-      Vec, intent(out) :: rhs
+      Vec, intent(out) :: lhs
       ! Locals:
       PetscErrorCode :: ierr
-      call VecPointwiseMult(rhs, y, y, ierr); CHKERRQ(ierr)
-      call VecAXPY(rhs, -2._dp, y, ierr); CHKERRQ(ierr)
+      call VecPointwiseMult(lhs, y, y, ierr); CHKERRQ(ierr)
+      call VecAXPY(lhs, -2._dp, y, ierr); CHKERRQ(ierr)
     end subroutine lhs_fn
 
     subroutine rhs_fn(t, y, rhs)
