@@ -50,12 +50,8 @@ PROGEXE = $(DIST)/$(PROG)$(EXE)
 # unit tests:
 TESTPROG = test_all
 TESTSUF = _test
-# test modules that need setup/teardown:
-SETUPTESTS = IAPWS IFC67 timestepping fson_mpi cell face mesh fluid rock \
-	simulation
-NONSETUPTESTS = powertable utils
-TESTS = setup $(SETUPTESTS) $(NONSETUPTESTS)
-SETUPOBJS = $(patsubst %, $(BUILD)/%$(OBJ), $(SETUPTESTS))
+TESTS = setup powertable utils IAPWS IFC67 timestepping fson_mpi \
+	cell face mesh fluid rock simulation
 TESTOBJS = $(patsubst %, $(TEST)/$(BUILD)/%$(TESTSUF)$(OBJ), $(TESTS))
 
 .DEFAULT_GOAL := $(PROGEXE)
