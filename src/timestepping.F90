@@ -67,6 +67,8 @@ module timestepping_module
      ! to be passed in to the residual routines as well:
      procedure(lhs_function), pointer, nopass, public :: lhs_func => NULL()
      procedure(rhs_function), pointer, nopass, public :: rhs_func => NULL()
+     procedure(pre_eval_procedure), pointer, nopass, public :: pre_eval_proc => NULL()
+     procedure(method_residual), pointer, nopass, public :: residual => NULL()
    contains
      private
      procedure :: set_aliases => timestepper_steps_set_aliases
@@ -127,6 +129,13 @@ module timestepping_module
        Vec, intent(out) :: rhs
      end subroutine rhs_function
 
+     subroutine pre_eval_procedure(t, y)
+       !! Optional routine to be called before each evaluation
+       !! of LHS and RHS functions.
+       PetscReal, intent(in) :: t
+       Vec, intent(in) :: y
+     end subroutine pre_eval_procedure
+
      subroutine method_residual(solver, y, residual, steps, ierr)
        !! Residual routine to be minimised by nonlinear solver.
        import :: timestepper_steps_type
@@ -153,6 +162,7 @@ module timestepping_module
 
   ! Subroutines to be available outside this module:
   public :: lhs_function, rhs_function, lhs_identity
+  public :: pre_eval_procedure
   public :: iteration_monitor, relative_change_monitor
   public :: step_output_routine, step_output_default, step_output_none
   public :: setup_timestepper
@@ -327,6 +337,28 @@ contains
     call steps%rhs_func(steps%final_time, y, residual)
 
   end subroutine direct_ss_residual
+
+!------------------------------------------------------------------------
+
+  subroutine SNES_residual(solver, y, residual, &
+       steps, ierr)
+    !! Residual routine to be minimized by SNES solver. This calls the
+    !! pre-evaluation routine first (if needed) before calling the
+    !! timestepper method residual routine.
+
+    SNES, intent(in) :: solver
+    Vec, intent(in) :: y
+    Vec, intent(out) :: residual
+    type(timestepper_steps_type), intent(in out) :: steps
+    PetscErrorCode, intent(out) :: ierr
+
+    if (associated(steps%pre_eval_proc)) then
+       call steps%pre_eval_proc(steps%current%time, y)
+    end if
+
+    call steps%residual(solver, y, residual, steps, ierr)
+
+  end subroutine SNES_residual
 
 !------------------------------------------------------------------------
 ! Timestepper_step procedures
@@ -686,8 +718,8 @@ contains
 
     call SNESCreate(mpi%comm, self%solver, ierr); CHKERRQ(ierr)
     call SNESSetApplicationContext(self%solver, self%steps, ierr); CHKERRQ(ierr)
-    call SNESSetFunction(self%solver, self%residual, self%method%residual, &
-         self%steps, ierr); CHKERRQ(ierr)
+    call SNESSetFunction(self%solver, self%residual, &
+         SNES_residual, self%steps, ierr); CHKERRQ(ierr)
     call SNESSetJacobian(self%solver, self%jacobian, self%jacobian, &
          PETSC_NULL_FUNCTION, PETSC_NULL_OBJECT, ierr); CHKERRQ(ierr)
     call SNESSetDM(self%solver, self%dm, ierr); CHKERRQ(ierr)
@@ -704,7 +736,7 @@ contains
   subroutine timestepper_init(self, method, dm, &
        initial_time, initial_conditions, initial_stepsize, &
        final_time, max_num_steps, max_stepsize, &
-       lhs_func, rhs_func)
+       lhs_func, rhs_func, pre_eval_proc)
     !! Initializes a timestepper.
 
     class(timestepper_type), intent(in out) :: self
@@ -716,6 +748,7 @@ contains
     PetscInt, intent(in) :: max_num_steps
     procedure(lhs_function), optional :: lhs_func
     procedure(rhs_function), optional :: rhs_func
+    procedure(pre_eval_procedure), optional :: pre_eval_proc
 
     ! Locals:
     PetscErrorCode :: ierr
@@ -733,6 +766,8 @@ contains
          final_time, max_num_steps, max_stepsize)
     if (present(lhs_func)) self%steps%lhs_func => lhs_func
     if (present(rhs_func)) self%steps%rhs_func => rhs_func
+    if (present(pre_eval_proc)) self%steps%pre_eval_proc => pre_eval_proc
+    self%steps%residual => self%method%residual
        
     call self%setup_solver()
 
