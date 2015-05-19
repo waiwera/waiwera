@@ -37,9 +37,9 @@ module eos_setup_module
 
     select case (eos_ID)
     case ("ew")
-       eos => eos_w  ! change to eos_ew when it's ready
+       allocate(eos_w_type :: eos)  ! change to eos_ew when it's ready
     case default
-       eos => eos_w
+       allocate(eos_w_type :: eos)
     end select
 
     call eos%init(thermo)

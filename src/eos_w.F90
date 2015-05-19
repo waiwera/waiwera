@@ -20,8 +20,6 @@ module eos_w_module
      procedure, public :: fluid_properties => eos_w_fluid_properties
   end type eos_w_type
 
-  type(eos_w_type), public, target :: eos_w
-
 contains
 
 !------------------------------------------------------------------------

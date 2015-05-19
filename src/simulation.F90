@@ -28,7 +28,7 @@ module simulation_module
      Vec, public :: fluid
      type(timestepper_type), public :: timestepper
      class(thermodynamics_type), allocatable, public :: thermo
-     class(eos_type), pointer, public :: eos
+     class(eos_type), allocatable, public :: eos
      character(max_filename_length), public :: input_filename
      character(max_title_length), public :: title
    contains
@@ -123,7 +123,7 @@ contains
     call self%mesh%destroy()
     call self%thermo%destroy()
     deallocate(self%thermo)
-    nullify(self%eos)
+    deallocate(self%eos)
     call self%timestepper%destroy()
 
   end subroutine simulation_destroy
