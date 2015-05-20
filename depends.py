@@ -14,7 +14,9 @@ def line_unit_name(line, unit = 'module'):
         if imod >= 0:
             if not comment_line(lowerline, imod):
                 if 'end' not in lowerline[:imod]:
-                    name = line[imod:].strip().split()[1]
+                    items = line[imod:].strip().split()
+                    if items[1].lower() != 'procedure':
+                        name = items[1]
     return name
 
 def change_ext(filename, ext):
