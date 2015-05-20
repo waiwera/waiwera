@@ -33,7 +33,7 @@ INSTALL_DIR = $(HOME)/bin
 FC_FLAGS =  -fPIC -Wall -Wno-unused-dummy-argument -g -O0
 
 # main source code:
-SOURCES = mpi fson_mpi utils dm_utils powertable \
+SOURCES = kinds mpi fson_mpi utils dm_utils powertable \
 	thermodynamics thermodynamics_setup IAPWS IFC67 \
 	timestepping rock fluid cell face mesh \
 	eos eos_setup eos_w \
