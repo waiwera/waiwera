@@ -31,6 +31,7 @@ class module(object):
         self.name = None
         self.program = False
         self.depends = []
+        self.used = []
         self.parse(f)
 
     def __repr__(self): return self.name + ':' + str(self.depends)
@@ -128,6 +129,10 @@ class dependencies(object):
                 s = sourcefile(filename)
                 self.sourcefiles[s.filename] = s
                 for m in s.modules: self.modules[m.name] = m
+        for mname in self.modules:
+            m = self.modules[mname]
+            for d in m.depends:
+                if d in self.modules: self.modules[d].used.append(mname)
 
     def make_depends(self, objdirs = [], obj = '$(OBJ)', subst = [],
                      filename = 'depends.in'):
@@ -162,6 +167,27 @@ class dependencies(object):
                 outfile.write(line + '\n')
         outfile.close()
 
+    def write_module_dot(self, path = './', filename = 'depends.dot'):
+        """Writes DOT file describing the module dependency graph."""
+        outfile = open(filename, 'w')
+        top = 'depends'
+        for sourcename in self.sourcefiles:
+            s = self.sourcefiles[sourcename]
+            if s.path == path:
+                for m in s.modules:
+                    if len(m.used) == 0 and len(m.depends) > 0:
+                        top = m.name
+        outfile.write('digraph ' + top + '{\n')
+
+        for sourcename in self.sourcefiles:
+            s = self.sourcefiles[sourcename]
+            if s.path == path:
+                for m in s.modules:
+                    for d in m.depends:
+                        outfile.write('        ' + m.name + ' -> ' + d + '\n')
+        outfile.write('}')
+        outfile.close()
+
 if __name__ == '__main__':
 
     srcdirs = ['src', 'test/src']
@@ -170,3 +196,4 @@ if __name__ == '__main__':
 
     deps = dependencies(srcdirs)
     deps.make_depends(objdirs, subst = subst)
+    deps.write_module_dot(srcdirs[0], 'doc/depends.dot')
