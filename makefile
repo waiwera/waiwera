@@ -41,6 +41,7 @@ SOURCES = kinds mpi fson_mpi utils dm_utils powertable \
 OBJS = $(patsubst %, $(BUILD)/%$(OBJ), $(SOURCES))
 PROG = supermodel
 PROGEXE = $(DIST)/$(PROG)$(EXE)
+DEPENDS = depends.in
 
 # unit tests:
 TESTPROG = test_all
@@ -53,7 +54,7 @@ TESTOBJS = $(patsubst %, $(TEST)/$(BUILD)/%$(TESTSUF)$(OBJ), $(TESTS))
 $(PROG): $(PROGEXE)
 tests: $(TEST)/$(DIST)/$(TESTPROG)$(EXE)
 
-include depends.in
+include $(DEPENDS)
 
 # build rules:
 
@@ -61,29 +62,31 @@ include depends.in
 $(PROGEXE): $(BUILD)/$(PROG)$(OBJ) $(OBJS)
 	$(FLINKER) $^ $(LDFLAGS) -o $@
 
-$(BUILD)/$(PROG)$(OBJ): $(SRC)/$(PROG)$(F90) $(OBJS)
+$(BUILD)/$(PROG)$(OBJ): $(SRC)/$(PROG)$(F90) $(OBJS) $(DEPENDS)
 	$(PETSC_FCOMPILE) -I$(BUILD) $(INCLS) -c $< -o $@
 
 # main objects:
-$(BUILD)/%$(OBJ): $(SRC)/%$(F90)
+$(BUILD)/%$(OBJ): $(SRC)/%$(F90) $(DEPENDS)
 	$(PETSC_FCOMPILE) $(FMFLAGS) $(INCLS) -c $< -o $@
 
 # test program:
 $(TEST)/$(DIST)/$(TESTPROG)$(EXE): $(TEST)/$(BUILD)/$(TESTPROG)$(OBJ) $(TESTOBJS) $(OBJS)
 	$(FLINKER) $^ $(TESTLDFLAGS) -o $@
 
-$(TEST)/$(BUILD)/$(TESTPROG)$(OBJ): $(TEST)/$(SRC)/$(TESTPROG)$(F90) $(TESTOBJS)
+$(TEST)/$(BUILD)/$(TESTPROG)$(OBJ): $(TEST)/$(SRC)/$(TESTPROG)$(F90) $(TESTOBJS) $(DEPENDS)
 	$(PETSC_FCOMPILE) -I$(TEST)/$(BUILD) $(TESTINCLS) -c $< -o $@
 
 # test objects:
-$(TEST)/$(BUILD)/setup$(TESTSUF)$(OBJ): $(TEST)/$(SRC)/setup$(TESTSUF)$(F90)
+$(TEST)/$(BUILD)/setup$(TESTSUF)$(OBJ): $(TEST)/$(SRC)/setup$(TESTSUF)$(F90) $(DEPENDS)
 	$(PETSC_FCOMPILE) $(TESTFMFLAGS) -I$(BUILD) $(TESTINCLS) -c $< -o $@
 
-$(TEST)/$(BUILD)/%$(TESTSUF)$(OBJ): $(TEST)/$(SRC)/%$(TESTSUF)$(F90) $(BUILD)/%$(OBJ) $(BUILD)/mpi$(OBJ)
+$(TEST)/$(BUILD)/%$(TESTSUF)$(OBJ): $(TEST)/$(SRC)/%$(TESTSUF)$(F90) $(BUILD)/%$(OBJ) $(BUILD)/mpi$(OBJ) $(DEPENDS)
 	$(PETSC_FCOMPILE) $(TESTFMFLAGS) -I$(BUILD) $(TESTINCLS) -c $< -o $@
 
 # dependencies:
-depends:
+depends: $(DEPENDS)
+
+$(DEPENDS):
 	python depends.py
 
 # documentation:
