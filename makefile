@@ -33,22 +33,17 @@ INSTALL_DIR = $(HOME)/bin
 FC_FLAGS =  -fPIC -Wall -Wno-unused-dummy-argument -g -O0
 
 # main source code:
-SOURCES = kinds mpi fson_mpi utils dm_utils powertable \
-	thermodynamics thermodynamics_setup IAPWS IFC67 \
-	timestepping rock fluid cell face mesh \
-	eos eos_setup eos_w \
-	initial boundary simulation
-OBJS = $(patsubst %, $(BUILD)/%$(OBJ), $(SOURCES))
 PROG = supermodel
 PROGEXE = $(DIST)/$(PROG)$(EXE)
+SOURCES = $(filter-out $(SRC)/$(PROG)$(F90) , $(wildcard $(SRC)/*$(F90)))
+OBJS = $(patsubst $(SRC)/%$(F90), $(BUILD)/%$(OBJ), $(SOURCES))
 DEPENDS = depends.in
 
 # unit tests:
 TESTPROG = test_all
 TESTSUF = _test
-TESTS = setup powertable utils IAPWS IFC67 timestepping fson_mpi \
-	cell face mesh fluid rock simulation
-TESTOBJS = $(patsubst %, $(TEST)/$(BUILD)/%$(TESTSUF)$(OBJ), $(TESTS))
+TESTSOURCES = $(filter-out $(TEST)/$(SRC)/$(TESTPROG)$(F90) , $(wildcard $(TEST)/$(SRC)/*$(F90)))
+TESTOBJS = $(patsubst $(TEST)/$(SRC)/%$(F90), $(TEST)/$(BUILD)/%$(OBJ), $(TESTSOURCES))
 
 .DEFAULT_GOAL := $(PROGEXE)
 $(PROG): $(PROGEXE)
