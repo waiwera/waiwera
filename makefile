@@ -32,10 +32,6 @@ TESTFMFLAGS = -J$(TEST)/$(BUILD)
 INSTALL_DIR = $(HOME)/bin
 FC_FLAGS =  -fPIC -Wall -Wno-unused-dummy-argument -g -O0
 
-# modules used by all other modules:
-ESSENTIAL = kinds
-ESSENTIAL_OBJS = $(patsubst %, $(BUILD)/%$(OBJ), $(ESSENTIAL))
-
 # main source code:
 SOURCES = mpi fson_mpi utils dm_utils powertable \
 	thermodynamics thermodynamics_setup IAPWS IFC67 \
@@ -43,7 +39,6 @@ SOURCES = mpi fson_mpi utils dm_utils powertable \
 	eos eos_setup eos_w \
 	initial boundary simulation
 OBJS = $(patsubst %, $(BUILD)/%$(OBJ), $(SOURCES))
-ALLOBJS = $(ESSENTIAL_OBJS) $(OBJS)
 PROG = supermodel
 PROGEXE = $(DIST)/$(PROG)$(EXE)
 
@@ -58,49 +53,15 @@ TESTOBJS = $(patsubst %, $(TEST)/$(BUILD)/%$(TESTSUF)$(OBJ), $(TESTS))
 $(PROG): $(PROGEXE)
 tests: $(TEST)/$(DIST)/$(TESTPROG)$(EXE)
 
-# general dependency rules:
-$(OBJS) $(TESTOBJS): $(ESSENTIAL_OBJS)
-
-# specific dependency rules:
-$(BUILD)/IAPWS$(OBJ): $(BUILD)/thermodynamics$(OBJ) $(BUILD)/powertable$(OBJ)
-$(BUILD)/IFC67$(OBJ): $(BUILD)/thermodynamics$(OBJ) $(BUILD)/powertable$(OBJ)
-$(BUILD)/cell$(OBJ): $(BUILD)/rock$(OBJ) $(BUILD)/fluid$(OBJ)
-$(BUILD)/face$(OBJ): $(BUILD)/cell$(OBJ)
-$(BUILD)/rock$(OBJ): $(BUILD)/dm_utils$(OBJ)
-$(BUILD)/fluid$(OBJ): $(BUILD)/dm_utils$(OBJ)
-$(BUILD)/mesh$(OBJ): $(BUILD)/face$(OBJ) $(BUILD)/dm_utils$(OBJ) $(BUILD)/boundary$(OBJ) \
-	$(BUILD)/rock$(OBJ)
-$(BUILD)/eos$(OBJ): $(BUILD)/thermodynamics$(OBJ) $(BUILD)/fluid$(OBJ)
-$(BUILD)/eos_w$(OBJ): $(BUILD)/thermodynamics$(OBJ) $(BUILD)/eos$(OBJ) $(BUILD)/fluid$(OBJ)
-$(BUILD)/fson_mpi$(OBJ): $(BUILD)/mpi$(OBJ)
-$(BUILD)/timestepping$(OBJ): $(BUILD)/mpi$(OBJ) $(BUILD)/utils$(OBJ) $(BUILD)/fson_mpi$(OBJ)
-$(BUILD)/initial$(OBJ): $(BUILD)/mpi$(OBJ) $(BUILD)/fson_mpi$(OBJ)
-$(BUILD)/thermodynamics_setup$(OBJ): $(BUILD)/mpi$(OBJ) $(BUILD)/fson_mpi$(OBJ) \
-	$(BUILD)/thermodynamics$(OBJ) $(BUILD)/IAPWS$(OBJ) $(BUILD)/IFC67$(OBJ) \
-	$(BUILD)/utils$(OBJ) 
-$(BUILD)/eos_setup$(OBJ): $(BUILD)/mpi$(OBJ) $(BUILD)/fson_mpi$(OBJ) \
-	$(BUILD)/eos$(OBJ) $(BUILD)/eos_w$(OBJ)	$(BUILD)/utils$(OBJ) \
-	$(BUILD)/thermodynamics$(OBJ)
-$(BUILD)/simulation$(OBJ): $(BUILD)/mpi$(OBJ) $(BUILD)/fson_mpi$(OBJ) \
-	$(BUILD)/timestepping$(OBJ) \
-	$(BUILD)/thermodynamics$(OBJ) $(BUILD)/thermodynamics_setup$(OBJ) \
-	$(BUILD)/eos$(OBJ) $(BUILD)/eos_setup$(OBJ) \
-	$(BUILD)/mesh$(OBJ) $(BUILD)/fluid$(OBJ) $(BUILD)/rock$(OBJ) \
-	$(BUILD)/initial$(OBJ) $(BUILD)/boundary$(OBJ)
-$(TEST)/$(BUILD)/setup$(TESTSUF)$(OBJ): $(BUILD)/mpi$(OBJ)
-$(TEST)/$(BUILD)/mesh$(TESTSUF)$(OBJ): $(BUILD)/eos$(OBJ) $(BUILD)/cell$(OBJ) \
-	$(BUILD)/face$(OBJ) $(BUILD)/dm_utils$(OBJ) $(BUILD)/boundary$(OBJ)
-$(TEST)/$(BUILD)/simulation$(TESTSUF)$(OBJ): $(BUILD)/boundary$(OBJ) $(BUILD)/rock$(OBJ) \
-	$(BUILD)/timestepping$(OBJ)
-$(BUILD)/$(PROG)$(OBJ): $(BUILD)/mpi$(OBJ) $(BUILD)/simulation$(OBJ)
+include depends.in
 
 # build rules:
 
 # main program:
-$(PROGEXE): $(BUILD)/$(PROG)$(OBJ) $(ALLOBJS)
+$(PROGEXE): $(BUILD)/$(PROG)$(OBJ) $(OBJS)
 	$(FLINKER) $^ $(LDFLAGS) -o $@
 
-$(BUILD)/$(PROG)$(OBJ): $(SRC)/$(PROG)$(F90) $(ALLOBJS)
+$(BUILD)/$(PROG)$(OBJ): $(SRC)/$(PROG)$(F90) $(OBJS)
 	$(PETSC_FCOMPILE) -I$(BUILD) $(INCLS) -c $< -o $@
 
 # main objects:
@@ -108,7 +69,7 @@ $(BUILD)/%$(OBJ): $(SRC)/%$(F90)
 	$(PETSC_FCOMPILE) $(FMFLAGS) $(INCLS) -c $< -o $@
 
 # test program:
-$(TEST)/$(DIST)/$(TESTPROG)$(EXE): $(TEST)/$(BUILD)/$(TESTPROG)$(OBJ) $(TESTOBJS) $(ALLOBJS)
+$(TEST)/$(DIST)/$(TESTPROG)$(EXE): $(TEST)/$(BUILD)/$(TESTPROG)$(OBJ) $(TESTOBJS) $(OBJS)
 	$(FLINKER) $^ $(TESTLDFLAGS) -o $@
 
 $(TEST)/$(BUILD)/$(TESTPROG)$(OBJ): $(TEST)/$(SRC)/$(TESTPROG)$(F90) $(TESTOBJS)
@@ -120,6 +81,10 @@ $(TEST)/$(BUILD)/setup$(TESTSUF)$(OBJ): $(TEST)/$(SRC)/setup$(TESTSUF)$(F90)
 
 $(TEST)/$(BUILD)/%$(TESTSUF)$(OBJ): $(TEST)/$(SRC)/%$(TESTSUF)$(F90) $(BUILD)/%$(OBJ) $(BUILD)/mpi$(OBJ)
 	$(PETSC_FCOMPILE) $(TESTFMFLAGS) -I$(BUILD) $(TESTINCLS) -c $< -o $@
+
+# dependencies:
+depends:
+	python depends.py
 
 # documentation:
 devdoc:
