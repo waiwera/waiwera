@@ -163,16 +163,19 @@ class dependencies(object):
                 fname = subst_vars(s.filename)
                 objname = path + change_ext(fname, obj)
                 if objname not in omit:
-                    line = objname + ":"
+                    depends = []
                     for module_name in s.depends:
                         if module_name in self.modules:
                             dependfile = self.modules[module_name].filename
                             dependpath, fname = split(dependfile)
                             fname = subst_vars(fname)
                             dependobjdir = objdirdict[dependpath]
-                            line += " " + dependobjdir + sep
-                            line += change_ext(fname, obj)
-                    outfile.write(line + '\n')
+                            depend_objname = dependobjdir + sep + \
+                                change_ext(fname, obj)
+                            if depend_objname != objname:
+                                depends.append(depend_objname)
+                    if depends:
+                        outfile.write(objname + ":" + " ".join(depends) + '\n')
         outfile.close()
 
     def write_module_dot(self, path = './', filename = 'depends.dot'):
