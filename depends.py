@@ -134,37 +134,45 @@ class dependencies(object):
             for d in m.depends:
                 if d in self.modules: self.modules[d].used.append(mname)
 
-    def make_depends(self, objdirs = [], obj = '$(OBJ)', subst = [],
-                     filename = 'depends.in'):
+    def make_depends(self, objdirs = [], obj = '$(OBJ)', variables = [],
+                     filename = 'depends.in', omit = []):
         """Prints string with all source file dependencies written
-        one per line, suitable for an include file in a makefile."""
+        one per line, suitable for an include file in a makefile.
+        objdirs specifies the object directories corresponding to the
+        source directories. obj is the string to be used for object file
+        extensions. variables contains pairs of strings with variable
+        definitions declared in the makefile, to be substituted in the
+        dependency rules. filename is the name of the output include file.
+        omit is a list of targets to omit from the output."""
         from os.path import split, sep
         if objdirs == []: objdirs = self.srcdirs
         objdirdict = dict(zip(self.srcdirs, objdirs))
-        if len(subst) > 0:
-            def dosubst(f):
+        if len(variables) > 0:
+            def subst_vars(f):
                 newf = f
-                for (k,r) in subst:
+                for (k,r) in variables:
                     newf = newf.replace(r, k)
                 return newf
         else:
-            def dosubst(f): return f
+            def subst_vars(f): return f
         outfile = open(filename, 'w')
         for sourcename in self.sourcefiles:
             s = self.sourcefiles[sourcename]
             if len(s.depends) > 0:
-                line = objdirdict[s.path] + sep
-                fname = dosubst(s.filename)
-                line += change_ext(fname, obj) + ": "
-                for module_name in s.depends:
-                    if module_name in self.modules:
-                        dependfile = self.modules[module_name].filename
-                        dependpath, fname = split(dependfile)
-                        fname = dosubst(fname)
-                        dependobjdir = objdirdict[dependpath]
-                        line += dependobjdir + sep
-                        line += change_ext(fname, obj) + " "
-                outfile.write(line + '\n')
+                path = objdirdict[s.path] + sep
+                fname = subst_vars(s.filename)
+                objname = path + change_ext(fname, obj)
+                if objname not in omit:
+                    line = objname + ":"
+                    for module_name in s.depends:
+                        if module_name in self.modules:
+                            dependfile = self.modules[module_name].filename
+                            dependpath, fname = split(dependfile)
+                            fname = subst_vars(fname)
+                            dependobjdir = objdirdict[dependpath]
+                            line += " " + dependobjdir + sep
+                            line += change_ext(fname, obj)
+                    outfile.write(line + '\n')
         outfile.close()
 
     def write_module_dot(self, path = './', filename = 'depends.dot'):
@@ -192,8 +200,10 @@ if __name__ == '__main__':
 
     srcdirs = ['src', 'test/src']
     objdirs = ['$(BUILD)', '$(TEST)/$(BUILD)']
-    subst = [('$(TESTSUF)', '_test'), ('$(PROG)', 'supermodel')]
+    subst = [('$(TESTSUF)', '_test'), ('$(PROG)', 'supermodel'),
+             ('$(TESTPROG)', 'test_all')]
+    omit = ['$(BUILD)/$(PROG)$(OBJ)', '$(TEST)/$(BUILD)/$(TESTPROG)$(OBJ)']
 
     deps = dependencies(srcdirs)
-    deps.make_depends(objdirs, subst = subst)
+    deps.make_depends(objdirs, subst = subst, omit = omit)
     deps.write_module_dot(srcdirs[0], 'doc/depends.dot')
