@@ -31,7 +31,7 @@ contains
     PetscReal, parameter :: density = 2200._dp
     PetscReal, parameter :: specific_heat = 1000._dp
     PetscInt,  parameter :: offset = 5
-    PetscReal :: offset_padding(offset) = 0._dp
+    PetscReal :: offset_padding(offset-1) = 0._dp
     PetscReal, allocatable :: rock_data(:)
 
     if (mpi%rank == mpi%output_rank) then
@@ -39,7 +39,7 @@ contains
        rock_data = [offset_padding, permeability, heat_conductivity, porosity, &
             density, specific_heat]
 
-       call assert_equals(rock%dof(), size(rock_data) - offset, "rock dof")
+       call assert_equals(rock%dof(), size(rock_data) - (offset-1), "rock dof")
 
        call rock%assign(rock_data, offset)
 
@@ -49,6 +49,7 @@ contains
        call assert_equals(density, rock%density, tol, "rock density")
        call assert_equals(specific_heat, rock%specific_heat, tol, "rock specific heat")
        
+       call rock%destroy()
        deallocate(rock_data)
 
     end if

@@ -30,80 +30,59 @@ TESTLDFLAGS=$(LIBS) -lfruit -lfson $(PETSC_LIB)
 TESTINCLS=$(INCLS)
 TESTFMFLAGS = -J$(TEST)/$(BUILD)
 INSTALL_DIR = $(HOME)/bin
-
-# modules used by all other modules:
-ESSENTIAL = kinds
-ESSENTIAL_OBJS = $(patsubst %, $(BUILD)/%$(OBJ), $(ESSENTIAL))
+FC_FLAGS =  -fPIC -Wall -Wno-unused-dummy-argument -g -O0
 
 # main source code:
-SOURCES = mpi fson_mpi utils powertable thermodynamics IAPWS IFC67 \
-	 timestepping rock fluid cell face mesh simulation eos eos_w
-OBJS = $(patsubst %, $(BUILD)/%$(OBJ), $(SOURCES))
-ALLOBJS = $(ESSENTIAL_OBJS) $(OBJS)
 PROG = supermodel
+PROGEXE = $(DIST)/$(PROG)$(EXE)
+SOURCES = $(filter-out $(SRC)/$(PROG)$(F90) , $(wildcard $(SRC)/*$(F90)))
+OBJS = $(patsubst $(SRC)/%$(F90), $(BUILD)/%$(OBJ), $(SOURCES))
+DEPENDS = depends.in
 
 # unit tests:
 TESTPROG = test_all
 TESTSUF = _test
-# test modules that need setup/teardown:
-SETUPTESTS = IAPWS IFC67 timestepping fson_mpi mesh fluid
-NONSETUPTESTS = powertable utils rock
-TESTS = setup $(SETUPTESTS) $(NONSETUPTESTS)
-SETUPOBJS = $(patsubst %, $(BUILD)/%$(OBJ), $(SETUPTESTS))
-TESTOBJS = $(patsubst %, $(TEST)/$(BUILD)/%$(TESTSUF)$(OBJ), $(TESTS))
+TESTSOURCES = $(filter-out $(TEST)/$(SRC)/$(TESTPROG)$(F90) , $(wildcard $(TEST)/$(SRC)/*$(F90)))
+TESTOBJS = $(patsubst $(TEST)/$(SRC)/%$(F90), $(TEST)/$(BUILD)/%$(OBJ), $(TESTSOURCES))
 
-$(PROG): $(DIST)/$(PROG)$(EXE)
+.DEFAULT_GOAL := $(PROGEXE)
+$(PROG): $(PROGEXE)
 tests: $(TEST)/$(DIST)/$(TESTPROG)$(EXE)
 
-# general dependency rules:
-$(OBJS) $(TESTOBJS): $(ESSENTIAL_OBJS)
-
-# specific dependency rules:
-$(TEST)/$(BUILD)/setup$(TESTSUF)$(OBJ): $(SETUPOBJS) $(BUILD)/mpi$(OBJ)
-$(BUILD)/IAPWS$(OBJ): $(BUILD)/thermodynamics$(OBJ) $(BUILD)/powertable$(OBJ)
-$(BUILD)/IFC67$(OBJ): $(BUILD)/thermodynamics$(OBJ) $(BUILD)/powertable$(OBJ)
-$(BUILD)/simulation$(OBJ): $(BUILD)/mpi$(OBJ) $(BUILD)/timestepping$(OBJ) \
-	$(BUILD)/thermodynamics$(OBJ) $(BUILD)/IAPWS$(OBJ) \
-	$(BUILD)/IFC67$(OBJ) $(BUILD)/eos$(OBJ)	$(BUILD)/eos_w$(OBJ) \
-	$(BUILD)/mesh$(OBJ) $(BUILD)/fluid$(OBJ) $(BUILD)/rock$(OBJ) \
-	$(BUILD)/fson_mpi$(OBJ) $(BUILD)/utils$(OBJ)
-$(BUILD)/cell$(OBJ): $(BUILD)/rock$(OBJ) $(BUILD)/fluid$(OBJ)
-$(BUILD)/face$(OBJ): $(BUILD)/cell$(OBJ)
-$(BUILD)/mesh$(OBJ): $(BUILD)/face$(OBJ)
-$(BUILD)/eos$(OBJ): $(BUILD)/thermodynamics$(OBJ) $(BUILD)/fluid$(OBJ)
-$(BUILD)/eos_w$(OBJ): $(BUILD)/thermodynamics$(OBJ) $(BUILD)/eos$(OBJ) $(BUILD)/fluid$(OBJ)
-$(BUILD)/fson_mpi$(OBJ): $(BUILD)/mpi$(OBJ)
-$(BUILD)/timestepping$(OBJ): $(BUILD)/mpi$(OBJ)
-$(TEST)/$(BUILD)/%$(TESTSUF)$(OBJ): $(BUILD)/mpi$(OBJ) 
-$(TEST)/$(BUILD)/mesh$(TESTSUF)$(OBJ): $(BUILD)/eos$(OBJ) $(BUILD)/cell$(OBJ) $(BUILD)/face$(OBJ)
-$(BUILD)/$(PROG)$(OBJ): $(BUILD)/mpi$(OBJ) $(BUILD)/simulation$(OBJ)
+include $(DEPENDS)
 
 # build rules:
 
 # main program:
-$(DIST)/$(PROG)$(EXE): $(BUILD)/$(PROG)$(OBJ) $(ALLOBJS)
+$(PROGEXE): $(BUILD)/$(PROG)$(OBJ) $(OBJS)
 	$(FLINKER) $^ $(LDFLAGS) -o $@
 
-$(BUILD)/$(PROG)$(OBJ): $(SRC)/$(PROG)$(F90) $(ALLOBJS)
+$(BUILD)/$(PROG)$(OBJ): $(SRC)/$(PROG)$(F90) $(OBJS) $(DEPENDS)
 	$(PETSC_FCOMPILE) -I$(BUILD) $(INCLS) -c $< -o $@
 
 # main objects:
-$(BUILD)/%$(OBJ): $(SRC)/%$(F90)
+$(BUILD)/%$(OBJ): $(SRC)/%$(F90) $(DEPENDS)
 	$(PETSC_FCOMPILE) $(FMFLAGS) $(INCLS) -c $< -o $@
 
 # test program:
-$(TEST)/$(DIST)/$(TESTPROG)$(EXE): $(TEST)/$(BUILD)/$(TESTPROG)$(OBJ) $(TESTOBJS) $(ALLOBJS)
+$(TEST)/$(DIST)/$(TESTPROG)$(EXE): $(TEST)/$(BUILD)/$(TESTPROG)$(OBJ) $(TESTOBJS) $(OBJS)
 	$(FLINKER) $^ $(TESTLDFLAGS) -o $@
 
-$(TEST)/$(BUILD)/$(TESTPROG)$(OBJ): $(TEST)/$(SRC)/$(TESTPROG)$(F90) $(TESTOBJS)
+$(TEST)/$(BUILD)/$(TESTPROG)$(OBJ): $(TEST)/$(SRC)/$(TESTPROG)$(F90) $(TESTOBJS) $(DEPENDS)
 	$(PETSC_FCOMPILE) -I$(TEST)/$(BUILD) $(TESTINCLS) -c $< -o $@
 
 # test objects:
-$(TEST)/$(BUILD)/setup$(TESTSUF)$(OBJ): $(TEST)/$(SRC)/setup$(TESTSUF)$(F90)
+$(TEST)/$(BUILD)/setup$(TESTSUF)$(OBJ): $(TEST)/$(SRC)/setup$(TESTSUF)$(F90) $(DEPENDS)
 	$(PETSC_FCOMPILE) $(TESTFMFLAGS) -I$(BUILD) $(TESTINCLS) -c $< -o $@
 
-$(TEST)/$(BUILD)/%$(TESTSUF)$(OBJ): $(TEST)/$(SRC)/%$(TESTSUF)$(F90) $(BUILD)/%$(OBJ)
+$(TEST)/$(BUILD)/%$(TESTSUF)$(OBJ): $(TEST)/$(SRC)/%$(TESTSUF)$(F90) $(BUILD)/%$(OBJ) $(BUILD)/mpi$(OBJ) $(DEPENDS)
 	$(PETSC_FCOMPILE) $(TESTFMFLAGS) -I$(BUILD) $(TESTINCLS) -c $< -o $@
+
+# dependencies:
+depends: $(DEPENDS)
+
+$(DEPENDS):
+	python depends.py
 
 # documentation:
 devdoc:

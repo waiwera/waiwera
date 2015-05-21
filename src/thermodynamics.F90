@@ -6,8 +6,11 @@ module thermodynamics_module
   implicit none
   private
 
+  integer, parameter, public :: max_thermodynamics_name_length = 16
+  integer, parameter, public :: max_thermodynamic_region_name_length = 16
+
 !------------------------------------------------------------------------
-  ! Physical constants
+! Physical constants
 !------------------------------------------------------------------------
 
   real(dp), parameter, public :: rconst     = 0.461526e3_dp     !! Gas constant
@@ -18,17 +21,31 @@ module thermodynamics_module
   real(dp), parameter, public :: pcritical  = 22.064e6_dp       !! Critical pressure (Pa)
 
 !------------------------------------------------------------------------
-  ! Thermodynamic region type
+! Saturation curve type
+!------------------------------------------------------------------------
+
+  type, public, abstract :: saturation_type
+     !! Saturation curve type.
+   contains
+     private
+       procedure(saturation_temperature), public, deferred :: temperature
+       procedure(saturation_pressure), public, deferred :: pressure
+  end type saturation_type
+
+!------------------------------------------------------------------------
+! Thermodynamic region type
 !------------------------------------------------------------------------
 
   type, public, abstract :: region_type
      !! Thermodynamic region type.
-     contains
-       private
-       procedure(region_init), public, deferred :: init
-       procedure(region_destroy), public, deferred :: destroy
-       procedure(region_properties), public, deferred :: properties
-       procedure(region_viscosity), public, deferred :: viscosity
+     character(max_thermodynamic_region_name_length), public :: name
+     class(saturation_type), allocatable :: saturation
+   contains
+     private
+     procedure(region_init), public, deferred :: init
+     procedure(region_destroy), public, deferred :: destroy
+     procedure(region_properties), public, deferred :: properties
+     procedure(region_viscosity), public, deferred :: viscosity
   end type region_type
 
   ! Pointer to region:
@@ -40,12 +57,14 @@ module thermodynamics_module
   end type pregion_type
 
 !------------------------------------------------------------------------
-  ! Thermodynamics type
+! Thermodynamics type
 !------------------------------------------------------------------------
 
   type, public, abstract :: thermodynamics_type
      !! Thermodynamics type.
      private
+     character(max_thermodynamics_name_length), public :: name
+     class(saturation_type), allocatable, public :: saturation !! Saturation curve
      integer, public :: num_regions  !! Number of thermodynamic regions
      class(region_type), allocatable, public :: water !! Pure water region
      class(region_type), allocatable, public :: steam !! Steam region
@@ -60,6 +79,24 @@ module thermodynamics_module
 !------------------------------------------------------------------------
 
   abstract interface
+
+     subroutine saturation_temperature(self, p, t, err)
+       !! Calculates saturation temperature as a function of pressure.
+       import :: saturation_type, dp
+       class(saturation_type), intent(in) :: self
+       real(dp), intent(in) :: p  !! Fluid pressure (\(kg. m. s^{-1}\))
+       real(dp), intent(out):: t  !! Fluid temperature (\(^\circ C\))
+       integer, intent(out) :: err !! Error code
+     end subroutine saturation_temperature
+
+     subroutine saturation_pressure(self, t, p, err)
+       !! Calculates saturation pressure as a function of temperature.
+       import :: saturation_type, dp
+       class(saturation_type), intent(in) :: self
+       real(dp), intent(in) :: t  !! Fluid temperature (\(^\circ C\))
+       real(dp), intent(out):: p  !! Fluid pressure (\(kg. m. s^{-1}\))
+       integer, intent(out) :: err  !! Error code
+     end subroutine saturation_pressure
 
      subroutine region_init(self)
        !! Initializes region.
@@ -109,7 +146,7 @@ module thermodynamics_module
 contains
 
 !------------------------------------------------------------------------
-  ! Region pointers
+! Region pointers
 !------------------------------------------------------------------------
 
   subroutine pregion_set(self, tgt)

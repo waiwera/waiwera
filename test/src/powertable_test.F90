@@ -14,14 +14,15 @@ module powertable_test
 
   real(dp), parameter :: tol = 1.e-9
 
-  public :: test_positive_powers, test_negative_powers, test_mixed_powers, &
-       test_multiple_configure
+  public :: test_powertable_positive_powers, &
+       test_powertable_negative_powers, test_powertable_mixed_powers, &
+       test_powertable_multiple_configure
 
   contains
 
 !------------------------------------------------------------------------
 
-    subroutine test_positive_powers
+    subroutine test_powertable_positive_powers
 
       ! Powertable positive powers test
 
@@ -58,11 +59,11 @@ module powertable_test
 
       end if
 
-    end subroutine test_positive_powers
+    end subroutine test_powertable_positive_powers
 
 !------------------------------------------------------------------------
 
-    subroutine test_negative_powers
+    subroutine test_powertable_negative_powers
 
       ! Powertable negative powers test
 
@@ -99,11 +100,11 @@ module powertable_test
 
       end if
 
-    end subroutine test_negative_powers
+    end subroutine test_powertable_negative_powers
 
 !------------------------------------------------------------------------
 
-    subroutine test_mixed_powers
+    subroutine test_powertable_mixed_powers
 
       ! Powertable mixed powers test
 
@@ -140,11 +141,11 @@ module powertable_test
 
       end if
 
-    end subroutine test_mixed_powers
+    end subroutine test_powertable_mixed_powers
 
 !------------------------------------------------------------------------
 
-    subroutine test_multiple_configure
+    subroutine test_powertable_multiple_configure
 
       ! Powertable multiple configuration test
 
@@ -184,7 +185,7 @@ module powertable_test
 
       end if
 
-    end subroutine test_multiple_configure
+    end subroutine test_powertable_multiple_configure
 
 !------------------------------------------------------------------------
 

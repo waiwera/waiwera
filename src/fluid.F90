@@ -1,12 +1,12 @@
 module fluid_module
 
-#include <petsc-finclude/petscdef.h>
-
   implicit none
   private
 
+#include <petsc-finclude/petsc.h90>
+
   PetscInt, parameter, public :: num_phase_variables = 6
-  PetscInt, parameter, public :: num_fluid_variables = 2
+  PetscInt, parameter, public :: num_fluid_variables = 3
 
   type phase_type
      !! Type for accessing local fluid properties for a particular phase.
@@ -29,6 +29,7 @@ module fluid_module
      private
      PetscReal, pointer, public :: pressure    !! Bulk pressure
      PetscReal, pointer, public :: temperature !! Temperature
+     PetscReal, pointer, public :: region      !! Thermodynamic region
      type(phase_type), allocatable, public :: phase(:)
    contains
      private
@@ -38,7 +39,7 @@ module fluid_module
      procedure, public :: dof => fluid_dof
   end type fluid_type
 
-  public :: fluid_type
+  public :: fluid_type, setup_fluid_vector
 
 contains
 
@@ -60,11 +61,17 @@ contains
 
   subroutine phase_destroy(self)
     !! Destroys a phase object.
-    
+
     class(phase_type), intent(in out) :: self
 
-    deallocate(self%mass_fraction)
-    
+    nullify(self%density)
+    nullify(self%viscosity)
+    nullify(self%saturation)
+    nullify(self%relative_permeability)
+    nullify(self%specific_enthalpy)
+    nullify(self%internal_energy)
+    nullify(self%mass_fraction)
+
   end subroutine phase_destroy
 
 !------------------------------------------------------------------------
@@ -108,21 +115,23 @@ contains
     PetscReal, target, intent(in) :: data(:)  !! fluid data array
     PetscInt, intent(in) :: offset  !! fluid array offset
     ! Locals:
-    PetscInt :: i, ofs, nc
+    PetscInt :: i, p, nc, np
 
-    self%pressure => data(offset + 1)
-    self%temperature => data(offset + 2)
+    self%pressure => data(offset)
+    self%temperature => data(offset + 1)
+    self%region => data(offset + 2)
     
-    ofs = offset + 3
-    do i = 1, size(self%phase)
-       self%phase(i)%density => data(ofs); ofs = ofs + 1
-       self%phase(i)%viscosity => data(ofs); ofs = ofs + 1
-       self%phase(i)%saturation => data(ofs); ofs = ofs + 1
-       self%phase(i)%relative_permeability => data(ofs); ofs = ofs + 1
-       self%phase(i)%specific_enthalpy => data(ofs); ofs = ofs + 1
+    i = offset + num_fluid_variables
+    np = size(self%phase)
+    do p = 1, np
+       self%phase(p)%density => data(i)
+       self%phase(p)%viscosity => data(i+1)
+       self%phase(p)%saturation => data(i+2)
+       self%phase(p)%relative_permeability => data(i+3)
+       self%phase(p)%specific_enthalpy => data(i+4)
        nc = size(self%phase(i)%mass_fraction)
-       self%phase(i)%mass_fraction => data(ofs: ofs + nc-1)
-       ofs = ofs + nc
+       self%phase(p)%mass_fraction => data(i+5: i + 5 + nc-1)
+       i = i + self%phase(p)%dof()
     end do
 
   end subroutine fluid_assign
@@ -135,7 +144,11 @@ contains
     class(fluid_type), intent(in out) :: self
     ! Locals:
     PetscInt :: i
-    
+
+    nullify(self%pressure)
+    nullify(self%temperature)
+    nullify(self%region)
+
     do i = 1, size(self%phase)
        call self%phase(i)%destroy()
     end do
@@ -158,6 +171,46 @@ contains
     end do
 
   end function fluid_dof
+
+!------------------------------------------------------------------------
+! Fluid vector setup routine
+!------------------------------------------------------------------------
+
+  subroutine setup_fluid_vector(dm, num_phases, num_components, fluid)
+    !! Sets up global vector for fluid properties, with specified
+    !! numbers of components and phases.
+
+    use dm_utils_module, only: set_dm_data_layout
+
+    DM, intent(in) :: dm
+    PetscInt, intent(in) :: num_phases, num_components
+    Vec, intent(out) :: fluid
+    ! Locals:
+    PetscInt :: num_vars
+    PetscInt, allocatable :: num_field_components(:), field_dim(:)
+    DM :: dm_fluid
+    PetscErrorCode :: ierr
+
+    num_vars = num_fluid_variables + num_phases * &
+         (num_phase_variables + num_components)
+
+    allocate(num_field_components(num_vars), field_dim(num_vars))
+
+    ! All fluid variables are scalars defined on cells:
+    num_field_components = 1
+    field_dim = 3
+
+    call DMClone(dm, dm_fluid, ierr); CHKERRQ(ierr)
+
+    call set_dm_data_layout(dm_fluid, num_field_components, field_dim)
+
+    call DMCreateGlobalVector(dm_fluid, fluid, ierr); CHKERRQ(ierr)
+    call PetscObjectSetName(fluid, "fluid", ierr); CHKERRQ(ierr)
+
+    deallocate(num_field_components, field_dim)
+    call DMDestroy(dm_fluid, ierr); CHKERRQ(ierr)
+
+  end subroutine setup_fluid_vector
 
 !------------------------------------------------------------------------
 

@@ -17,10 +17,33 @@ module IAPWS_test
   real(dp), parameter :: pressure_tol = 1.e-1_dp, temperature_tol = 1.e-6_dp
   real(dp), parameter :: viscosity_tol = 1.e-12_dp
 
+  type(IAPWS_type) :: IAPWS
+
+  public :: setup_IAPWS, teardown_IAPWS
   public :: test_IAPWS_region1, test_IAPWS_region2, test_IAPWS_region3, &
        test_IAPWS_saturation, test_IAPWS_viscosity, test_IAPWS_boundary23
 
   contains
+
+!------------------------------------------------------------------------
+
+    subroutine setup_IAPWS
+
+      ! Sets up IAPWS tests
+
+      call IAPWS%init()
+
+    end subroutine setup_IAPWS
+
+!------------------------------------------------------------------------
+
+    subroutine teardown_IAPWS
+
+      ! Tears down IAPWS tests
+
+      call IAPWS%destroy()
+
+    end subroutine teardown_IAPWS
 
 !------------------------------------------------------------------------
 
@@ -148,12 +171,14 @@ module IAPWS_test
       real(dp), parameter :: visc(n) = [889.735100_dp, 1437.649467_dp, 307.883622_dp, &
            14.538324_dp, 217.685358_dp, 32.619287_dp, 35.802262_dp, 77.430195_dp, &
            44.217245_dp, 47.640433_dp, 64.154608_dp] * 1.e-6_dp
+      integer, parameter :: reg(n) = [1, 1, 1, 2, 1, 2, 2, 3, 2, 2, 2]
+      real(dp), parameter :: p = 1.e5 ! dummy pressure
       real(dp) :: v
       integer :: i
 
       if (mpi%rank == mpi%output_rank) then
          do i = 1, n
-            call IAPWS%viscosity(d(i), t(i), v)
+            call IAPWS%region(reg(i))%ptr%viscosity(t(i), p, d(i), v)
             call assert_equals(visc(i), v, viscosity_tol)
          end do
       end if

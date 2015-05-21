@@ -13,7 +13,7 @@ module mesh_test
 
 #include <petsc-finclude/petsc.h90>
 
-public :: test_init
+public :: test_mesh_init
 
 PetscReal, parameter :: tol = 1.e-6_dp
 
@@ -21,20 +21,21 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine test_init
+  subroutine test_mesh_init
 
     ! Mesh init test
 
     use eos_module, only: max_primary_variable_name_length
+    use dm_utils_module, only: section_offset
+    use boundary_module, only: open_boundary_label_name
     use cell_module
     use face_module
 
-    character(max_mesh_filename_length) :: filename = "data/mesh_test_init.json"
+    character(max_mesh_filename_length) :: filename = "data/mesh/test_init.json"
     type(fson_value), pointer :: json
     type(mesh_type) :: mesh
     character(max_primary_variable_name_length), allocatable :: primary_variable_names(:)
     Vec :: x
-    type(cell_type) :: cell
     type(face_type) :: face
     PetscInt :: global_solution_dof, num_primary
     PetscInt :: dim, facedof
@@ -48,7 +49,8 @@ contains
     character(len = 24) :: msg
     PetscInt, parameter :: expected_dim = 3, num_cells = 3, num_faces = 16
     PetscReal, parameter :: face_area = 200._dp
-    PetscReal, parameter :: face_distance(2, 19:20) = reshape([5._dp, 10._dp, 10._dp, 15._dp], [2,2])
+    PetscReal, parameter :: face_distance(2, 19:20) = &
+         reshape([5._dp, 10._dp, 10._dp, 15._dp], [2,2])
     PetscReal, parameter :: face_centroid(3, 19:20) = &
          reshape([5._dp, 10._dp, 50._dp, 5._dp, 10._dp, 30._dp], [3,2])
     
@@ -59,7 +61,9 @@ contains
        json => fson_parse(filename)
     end if
 
-    call mesh%init(json, primary_variable_names)
+    call mesh%init(json)
+    call DMPlexCreateLabel(mesh%dm, open_boundary_label_name, ierr); CHKERRQ(ierr)
+    call mesh%configure(primary_variable_names)
 
     call DMGetDimension(mesh%dm, dim, ierr)
     if (mpi%rank == mpi%output_rank) then
@@ -99,12 +103,13 @@ contains
           call assert_equals(0._dp, norm2(face%centroid - face_centroid(:,f)), tol, msg)
        end if
     end do
+    call face%destroy()
     call VecRestoreArrayF90(mesh%face_geom, fg, ierr)
 
     call mesh%destroy()
     deallocate(primary_variable_names)
 
-  end subroutine test_init
+  end subroutine test_mesh_init
 
 !------------------------------------------------------------------------
 

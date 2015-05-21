@@ -32,10 +32,13 @@ module timestepping_test
 
 procedure(lhs_function), pointer :: lhs_func
 procedure(rhs_function), pointer :: rhs_func
+procedure(pre_eval_procedure), pointer :: pre_eval_proc
 procedure(exact_function), pointer :: exact_func
 
-public :: test_linear, test_exponential, test_logistic, &
-     test_nontrivial_lhs, test_nonlinear_lhs, test_heat1d
+public :: test_timestepping_linear, test_timestepping_exponential, &
+     test_timestepping_logistic, test_timestepping_nontrivial_lhs, &
+     test_timestepping_nonlinear_lhs, test_timestepping_heat1d, &
+     test_timestepping_pre_eval
 
 contains
 
@@ -50,7 +53,7 @@ contains
     Vec, intent(in out) :: v
     PetscReal, intent(in) :: arr(:)
     ! Locals:
-    PetscInt :: hi, low, i
+    PetscInt :: hi, low
     PetscErrorCode :: ierr
     PetscReal, pointer :: va(:)
 
@@ -90,8 +93,9 @@ contains
     do i = 1, size(methods)
        solution_tolerance = tol(i)
        maxdiff = 0._dp
-       call ts%init(methods(i), dm, lhs_func, rhs_func, t0, initial, dt(i), &
-            t1, max_steps(i), max_stepsize)
+       call ts%init(methods(i), dm, t0, initial, dt(i), &
+            t1, max_steps(i), max_stepsize, &
+            lhs_func, rhs_func, pre_eval_proc)
        ts%step_output => step_output_compare
        ts%steps%adaptor%on = adaptive
        ts%steps%adaptor%monitor_min = eta_min(i)
@@ -122,7 +126,6 @@ contains
     PetscReal, pointer :: y(:), yex(:), diffa(:)
     PetscErrorCode :: ierr
     PetscReal :: t, normdiff
-    character(8) :: s
     PetscInt :: i, local_size, low, hi
 
     t = self%steps%current%time
@@ -162,15 +165,17 @@ contains
 ! Test routines
 !------------------------------------------------------------------------
 
-  subroutine test_linear
+  subroutine test_timestepping_linear
 
     ! Linear function
 
     PetscInt,  parameter :: dim = 8
     PetscReal, parameter :: k = -0.5_dp
     PetscReal, parameter :: t0 = 0._dp, t1 = 1._dp
-    PetscReal, parameter :: initial(dim) = [-4._dp, -3.0_dp, -2.0_dp, -1.0_dp, 0.0_dp, 1.0_dp, 2.0_dp, 3.0_dp]
-    PetscInt,  parameter :: num_methods = 2, methods(num_methods) = [TS_BEULER, TS_BDF2]
+    PetscReal, parameter :: initial(dim) = [-4._dp, -3.0_dp, -2.0_dp, -1.0_dp, &
+         0.0_dp, 1.0_dp, 2.0_dp, 3.0_dp]
+    PetscInt,  parameter :: num_methods = 2
+    PetscInt,  parameter :: methods(num_methods) = [TS_BEULER, TS_BDF2]
     PetscInt,  parameter :: max_steps(num_methods) = [20, 20]
     PetscReal, parameter :: tol(num_methods) = [1.e-6_dp, 1.e-6_dp]
     PetscReal, parameter :: dt(num_methods) = [0.1_dp, 0.1_dp]
@@ -184,6 +189,7 @@ contains
 
     lhs_func => lhs_identity
     rhs_func => rhs_const
+    pre_eval_proc => NULL()
     exact_func => exact_linear
 
     call DMDACreate1d(mpi%comm, DM_BOUNDARY_NONE, dim, dof, stencil, &
@@ -216,19 +222,21 @@ contains
       call VecSetArray(v, initial + k * (t - t0))
     end subroutine exact_linear
 
-  end subroutine test_linear
+  end subroutine test_timestepping_linear
 
 !------------------------------------------------------------------------
 
-  subroutine test_exponential
+  subroutine test_timestepping_exponential
 
     ! Exponential function
 
     PetscInt,  parameter :: dim = 8
     PetscReal, parameter :: k = -5._dp
     PetscReal, parameter :: t0 = 0._dp, t1 = 1._dp
-    PetscReal, parameter :: initial(dim) = [-4._dp, -3.0_dp, -2.0_dp, -1.0_dp, 0.0_dp, 1.0_dp, 2.0_dp, 3.0_dp]
-    PetscInt,  parameter :: num_methods = 2, methods(num_methods) = [TS_BEULER, TS_BDF2]
+    PetscReal, parameter :: initial(dim) = [-4._dp, -3.0_dp, -2.0_dp, -1.0_dp, &
+         0.0_dp, 1.0_dp, 2.0_dp, 3.0_dp]
+    PetscInt,  parameter :: num_methods = 2
+    PetscInt,  parameter :: methods(num_methods) = [TS_BEULER, TS_BDF2]
     PetscInt,  parameter :: max_steps(num_methods) = [200, 200]
     PetscReal, parameter :: tol(num_methods) = [0.15_dp, 0.05_dp]
     PetscReal, parameter :: dt(num_methods) = [0.01_dp, 0.05_dp]
@@ -242,6 +250,7 @@ contains
 
     lhs_func => lhs_identity
     rhs_func => rhs_linear
+    pre_eval_proc => NULL()
     exact_func => exact_exp
 
     call DMDACreate1d(mpi%comm, DM_BOUNDARY_NONE, dim, dof, stencil, &
@@ -275,19 +284,21 @@ contains
       call VecSetArray(v, initial * exp(k * (t - t0)))
     end subroutine exact_exp
 
-  end subroutine test_exponential
+  end subroutine test_timestepping_exponential
 
 !------------------------------------------------------------------------
 
-  subroutine test_logistic
+  subroutine test_timestepping_logistic
 
     ! Logistic equation
 
     PetscInt,  parameter :: dim = 8
     PetscReal, parameter :: t0 = 0._dp, t1 = 1._dp
-    PetscReal, parameter :: c(dim) = [0.0_dp, 0.5_dp, 1._dp, 1.5_dp, 2._dp, 2.5_dp, 3._dp, 3.5_dp]
+    PetscReal, parameter :: c(dim) = [0.0_dp, 0.5_dp, 1._dp, 1.5_dp, 2._dp, &
+         2.5_dp, 3._dp, 3.5_dp]
     PetscReal, parameter :: initial(dim) = 3._dp * c / (1._dp + 2._dp * c)
-    PetscInt,  parameter :: num_methods = 2, methods(num_methods) = [TS_BEULER, TS_BDF2]
+    PetscInt,  parameter :: num_methods = 2
+    PetscInt,  parameter :: methods(num_methods) = [TS_BEULER, TS_BDF2]
     PetscInt,  parameter :: max_steps(num_methods) = [100, 100]
     PetscReal, parameter :: tol(num_methods) = [0.05_dp, 0.006_dp]
     PetscReal, parameter :: dt(num_methods) = [0.1_dp, 0.1_dp]
@@ -301,6 +312,7 @@ contains
 
     lhs_func => lhs_identity
     rhs_func => rhs_logistic
+    pre_eval_proc => NULL()
     exact_func => exact_logistic
 
     call DMDACreate1d(mpi%comm, DM_BOUNDARY_NONE, dim, dof, stencil, &
@@ -347,19 +359,21 @@ contains
       call VecRestoreArrayF90(v, va, ierr); CHKERRQ(ierr)
     end subroutine exact_logistic
 
-  end subroutine test_logistic
+  end subroutine test_timestepping_logistic
 
 !------------------------------------------------------------------------
 
-  subroutine test_nontrivial_lhs
+  subroutine test_timestepping_nontrivial_lhs
 
     ! Nontrivial LHS
 
     PetscInt,  parameter :: dim = 8
     PetscReal, parameter :: t0 = 1._dp, t1 = 10._dp
     PetscReal, parameter :: k = -1._dp
-    PetscReal, parameter :: initial(dim) = [-4._dp, -3.0_dp, -2.0_dp, -1.0_dp, 0.0_dp, 1.0_dp, 2.0_dp, 3.0_dp]
-    PetscInt,  parameter :: num_methods = 2, methods(num_methods) = [TS_BEULER, TS_BDF2]
+    PetscReal, parameter :: initial(dim) = [-4._dp, -3.0_dp, -2.0_dp, -1.0_dp, &
+         0.0_dp, 1.0_dp, 2.0_dp, 3.0_dp]
+    PetscInt,  parameter :: num_methods = 2
+    PetscInt,  parameter :: methods(num_methods) = [TS_BEULER, TS_BDF2]
     PetscInt,  parameter :: max_steps(num_methods) = [100, 100]
     PetscReal, parameter :: tol(num_methods) = [0.1_dp, 0.02_dp]
     PetscReal, parameter :: dt(num_methods) = [0.01_dp, 1._dp]
@@ -373,6 +387,7 @@ contains
 
     lhs_func => lhs_fn
     rhs_func => rhs_fn
+    pre_eval_proc => NULL()
     exact_func => exact_fn
 
     call DMDACreate1d(mpi%comm, DM_BOUNDARY_NONE, dim, dof, stencil, &
@@ -388,15 +403,15 @@ contains
 
   contains
 
-    subroutine lhs_fn(t, y, rhs)
+    subroutine lhs_fn(t, y, lhs)
       ! lhs(t, y) = t * y
       PetscReal, intent(in) :: t
       Vec, intent(in) :: y
-      Vec, intent(out) :: rhs
+      Vec, intent(out) :: lhs
       ! Locals:
       PetscErrorCode :: ierr
-      call VecCopy(y, rhs, ierr); CHKERRQ(ierr)
-      call VecScale(rhs, t, ierr); CHKERRQ(ierr)
+      call VecCopy(y, lhs, ierr); CHKERRQ(ierr)
+      call VecScale(lhs, t, ierr); CHKERRQ(ierr)
     end subroutine lhs_fn
 
     subroutine rhs_fn(t, y, rhs)
@@ -417,19 +432,21 @@ contains
       call VecSetArray(v, initial * t ** (k - 1._dp))
     end subroutine exact_fn
 
-  end subroutine test_nontrivial_lhs
+  end subroutine test_timestepping_nontrivial_lhs
 
 !------------------------------------------------------------------------
 
-  subroutine test_nonlinear_lhs
+  subroutine test_timestepping_nonlinear_lhs
 
     ! Nonlinear LHS
 
     PetscInt,  parameter :: dim = 8
     PetscReal, parameter :: t0 = 0._dp, t1 = 1._dp
     PetscReal, parameter :: k = -1._dp
-    PetscReal, parameter :: initial(dim) = [-4._dp, -3._dp, -2.0_dp, -1.0_dp, 0.0_dp, 2.0_dp, 3.0_dp, 4.0_dp]
-    PetscInt,  parameter :: num_methods = 2, methods(num_methods) = [TS_BEULER, TS_BDF2]
+    PetscReal, parameter :: initial(dim) = [-4._dp, -3._dp, -2.0_dp, -1.0_dp, &
+         0.0_dp, 2.0_dp, 3.0_dp, 4.0_dp]
+    PetscInt,  parameter :: num_methods = 2
+    PetscInt,  parameter :: methods(num_methods) = [TS_BEULER, TS_BDF2]
     PetscInt,  parameter :: max_steps(num_methods) = [200, 200]
     PetscReal, parameter :: tol(num_methods) = [0.15_dp, 0.05_dp]
     PetscReal, parameter :: dt(num_methods) = [0.01_dp, 0.04_dp]
@@ -443,6 +460,7 @@ contains
 
     lhs_func => lhs_fn
     rhs_func => rhs_fn
+    pre_eval_proc => NULL()
     exact_func => exact_fn
 
     call DMDACreate1d(mpi%comm, DM_BOUNDARY_NONE, dim, dof, stencil, &
@@ -458,15 +476,15 @@ contains
 
   contains
 
-    subroutine lhs_fn(t, y, rhs)
+    subroutine lhs_fn(t, y, lhs)
       ! lhs(t, y) = y * (y - 2)
       PetscReal, intent(in) :: t
       Vec, intent(in) :: y
-      Vec, intent(out) :: rhs
+      Vec, intent(out) :: lhs
       ! Locals:
       PetscErrorCode :: ierr
-      call VecPointwiseMult(rhs, y, y, ierr); CHKERRQ(ierr)
-      call VecAXPY(rhs, -2._dp, y, ierr); CHKERRQ(ierr)
+      call VecPointwiseMult(lhs, y, y, ierr); CHKERRQ(ierr)
+      call VecAXPY(lhs, -2._dp, y, ierr); CHKERRQ(ierr)
     end subroutine lhs_fn
 
     subroutine rhs_fn(t, y, rhs)
@@ -488,11 +506,11 @@ contains
       call VecSetArray(v, initial + 0.5_dp * k * t)
     end subroutine exact_fn
 
-  end subroutine test_nonlinear_lhs
+  end subroutine test_timestepping_nonlinear_lhs
 
 !------------------------------------------------------------------------
 
-  subroutine test_heat1d
+  subroutine test_timestepping_heat1d
 
     ! 1-D heat equation PDE
     ! Solved in its usual form: dc/dt = d2c/dx2
@@ -500,7 +518,8 @@ contains
 
     PetscInt,  parameter :: dim = 21
     PetscReal, parameter :: t0 = 0._dp, t1 = 0.2_dp
-    PetscInt,  parameter :: num_methods = 2, methods(num_methods) = [TS_BEULER, TS_BDF2]
+    PetscInt,  parameter :: num_methods = 2
+    PetscInt,  parameter :: methods(num_methods) = [TS_BEULER, TS_BDF2]
     PetscInt             :: max_steps(num_methods) = [20, 20]
     PetscReal, parameter :: tol(num_methods) = [0.1_dp, 0.05_dp]
     PetscReal, parameter :: dt(num_methods) = [0.01_dp, 0.01_dp]
@@ -508,7 +527,6 @@ contains
     PetscReal, parameter :: eta_min(num_methods) = [0.01_dp, 0.01_dp]
     PetscReal, parameter :: eta_max(num_methods) = [0.1_dp, 0.2_dp]
     PetscInt,  parameter :: dof = 1, stencil = 1
-    PetscReal :: initial(dim)
     PetscErrorCode :: ierr
     DM :: dm
     Vec :: initialv
@@ -518,6 +536,7 @@ contains
     ! Usual form
     lhs_func => lhs_identity
     rhs_func => rhs_fn
+    pre_eval_proc => NULL()
     exact_func => exact_fn
 
     call DMDACreate1d(mpi%comm, DM_BOUNDARY_GHOSTED, dim-2, dof, stencil, &
@@ -533,6 +552,7 @@ contains
     ! Nonlinear form
     lhs_func => lhs_fn_nonlinear
     rhs_func => rhs_fn_nonlinear
+    pre_eval_proc => NULL()
     max_steps = [40, 40]
 
     call odetest(dm, methods, t0, t1, dt, initialv, max_steps, &
@@ -698,7 +718,94 @@ contains
 
     end subroutine exact_fn
 
-  end subroutine test_heat1d
+  end subroutine test_timestepping_heat1d
+
+!------------------------------------------------------------------------
+
+  subroutine test_timestepping_pre_eval
+
+    ! Pre-evaluation procedure problem
+    ! (This is just a re-casting of test_timestepping_nontrivial_lhs,
+    ! with the LHS function essentially computed in the pre-evaluation
+    ! routine, and just copied in the actual LHS function routine.)
+
+    PetscInt,  parameter :: dim = 8
+    PetscReal, parameter :: t0 = 1._dp, t1 = 10._dp
+    PetscReal, parameter :: k = -1._dp
+    PetscReal, parameter :: initial(dim) = [-4._dp, -3.0_dp, -2.0_dp, -1.0_dp, &
+         0.0_dp, 1.0_dp, 2.0_dp, 3.0_dp]
+    PetscInt,  parameter :: num_methods = 2
+    PetscInt,  parameter :: methods(num_methods) = [TS_BEULER, TS_BDF2]
+    PetscInt,  parameter :: max_steps(num_methods) = [100, 100]
+    PetscReal, parameter :: tol(num_methods) = [0.1_dp, 0.02_dp]
+    PetscReal, parameter :: dt(num_methods) = [0.01_dp, 1._dp]
+    PetscBool, parameter :: adaptive = .true.
+    PetscReal, parameter :: eta_min(num_methods) = [0.03_dp, 0.05_dp]
+    PetscReal, parameter :: eta_max(num_methods) = [0.1_dp, 0.1_dp]
+    PetscInt,  parameter :: dof = 1, stencil = 0
+    PetscErrorCode :: ierr
+    DM :: dm
+    Vec :: initialv, secondary
+
+    lhs_func => lhs_fn
+    rhs_func => rhs_fn
+    pre_eval_proc => calc_secondary
+    exact_func => exact_fn
+
+    call DMDACreate1d(mpi%comm, DM_BOUNDARY_NONE, dim, dof, stencil, &
+         PETSC_NULL_INTEGER, dm, ierr); CHKERRQ(ierr)
+    call DMCreateGlobalVector(dm, initialv, ierr); CHKERRQ(ierr)
+    call VecDuplicate(initialv, secondary, ierr); CHKERRQ(ierr)
+    call VecSetArray(initialv, initial)
+    
+    call odetest(dm, methods, t0, t1, dt, initialv, max_steps, &
+         tol, adaptive, eta_min, eta_max)
+
+    call VecDestroy(initialv, ierr); CHKERRQ(ierr)
+    call VecDestroy(secondary, ierr); CHKERRQ(ierr)
+    call DMDestroy(dm, ierr); CHKERRQ(ierr)
+
+  contains
+
+    subroutine calc_secondary(t, y)
+      ! Calculates secondary vector = t * y
+      PetscReal, intent(in) :: t
+      Vec, intent(in) :: y
+      ! Locals:
+      PetscErrorCode :: ierr
+      call VecCopy(y, secondary, ierr); CHKERRQ(ierr)
+      call VecScale(secondary, t, ierr); CHKERRQ(ierr)
+    end subroutine calc_secondary
+
+    subroutine lhs_fn(t, y, lhs)
+      ! lhs(t, y) = secondary
+      PetscReal, intent(in) :: t
+      Vec, intent(in) :: y
+      Vec, intent(out) :: lhs
+      ! Locals:
+      PetscErrorCode :: ierr
+      call VecCopy(secondary, lhs, ierr); CHKERRQ(ierr)
+    end subroutine lhs_fn
+
+    subroutine rhs_fn(t, y, rhs)
+      ! rhs(t, y) = k * y
+      PetscReal, intent(in) :: t
+      Vec, intent(in) :: y
+      Vec, intent(out) :: rhs
+      ! Locals:
+      PetscErrorCode :: ierr
+      call VecCopy(y, rhs, ierr); CHKERRQ(ierr)
+      call VecScale(rhs, k, ierr); CHKERRQ(ierr)
+    end subroutine rhs_fn
+
+    subroutine exact_fn(t, v)
+      ! Solution y = y0 * t ** (k-1)
+      PetscReal, intent(in) :: t
+      Vec, intent(out) :: v
+      call VecSetArray(v, initial * t ** (k - 1._dp))
+    end subroutine exact_fn
+
+  end subroutine test_timestepping_pre_eval
 
 !------------------------------------------------------------------------
 

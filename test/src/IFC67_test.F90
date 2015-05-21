@@ -17,10 +17,33 @@ module IFC67_test
   real(dp), parameter :: pressure_tol = 1.e-1_dp, temperature_tol = 1.e-6_dp
   real(dp), parameter :: viscosity_tol = 1.e-9_dp
 
+  type(IFC67_type) :: IFC67
+
+  public :: setup_IFC67, teardown_IFC67
   public :: test_IFC67_region1, test_IFC67_region2
   public :: test_IFC67_saturation, test_IFC67_viscosity
 
   contains
+
+!------------------------------------------------------------------------
+
+    subroutine setup_IFC67
+
+      ! Sets up IFC67 tests
+
+      call IFC67%init()
+
+    end subroutine setup_IFC67
+
+!------------------------------------------------------------------------
+
+    subroutine teardown_IFC67
+
+      ! Tears down IFC67 tests
+
+      call IFC67%destroy()
+
+    end subroutine teardown_IFC67
 
 !------------------------------------------------------------------------
 
@@ -68,7 +91,6 @@ module IFC67_test
            2474981.3799304822_dp]
       integer :: i, err
       real(dp) :: param(2), props(2)
-      real(dp) :: rho_ref(n), u_ref(n)
 
       if (mpi%rank == mpi%output_rank) then
          params(:,2) = params(:,2) - tc_k  ! convert temperatures to Celcius
@@ -93,17 +115,27 @@ module IFC67_test
       real(dp), parameter ::  t(n) = [300._dp, 500._dp, 600._dp] - tc_k
       real(dp), parameter :: p(n) = [0.35323426e4_dp, 0.263961572e7_dp, &
            0.123493902e8_dp]
-      real(dp) :: ps, ts
+      real(dp) :: ps, ts, ps1, ts1
       integer :: i, err
 
       if (mpi%rank == mpi%output_rank) then
          do i = 1, n
+
             call IFC67%saturation%pressure(t(i), ps, err)
             call assert_equals(p(i), ps, pressure_tol, 'pressure')
             call assert_equals(0, err, 'pressure error')
             call IFC67%saturation%temperature(ps, ts, err)
             call assert_equals(t(i), ts, temperature_tol, 'temperature')
             call assert_equals(0, err, 'temperature error')
+
+            ! Test region 1 saturation object:
+            call IFC67%region(1)%ptr%saturation%pressure(t(i), ps1, err)
+            call assert_equals(p(i), ps1, pressure_tol, 'region 1 pressure')
+            call assert_equals(0, err, 'region 1 pressure error')
+            call IFC67%region(1)%ptr%saturation%temperature(ps1, ts1, err)
+            call assert_equals(t(i), ts1, temperature_tol, 'region 1 temperature')
+            call assert_equals(0, err, 'region 1 temperature error')
+
          end do
       end if
       

@@ -6,9 +6,6 @@ module simulation_module
   use mesh_module
   use timestepping_module
   use thermodynamics_module
-  use IAPWS_module
-  use IFC67_module
-  use eos_w_module
   use eos_module
   use fson
   use fson_mpi_module
@@ -17,9 +14,7 @@ module simulation_module
 
   private
 
-#include <petsc-finclude/petscsys.h>
-#include <petsc-finclude/petscdef.h>
-#include <petsc-finclude/petscvec.h>
+#include <petsc-finclude/petsc.h90>
 
   integer, parameter, public :: max_filename_length = 200
   integer, parameter, public :: max_title_length = 120
@@ -27,328 +22,73 @@ module simulation_module
   type, public :: simulation_type
      !! Simulation type.
      private
-     type(mesh_type) :: mesh
-     Vec :: initial
-     Vec :: rock
-     Vec :: fluid
-     type(timestepper_type) :: timestepper
-     class(thermodynamics_type), pointer :: thermo
-     class(eos_type), pointer :: eos
-     character(max_filename_length) :: input_filename
+     type(mesh_type), public :: mesh
+     Vec, public :: initial
+     Vec, public :: rock
+     Vec, public :: fluid
+     type(timestepper_type), public :: timestepper
+     class(thermodynamics_type), allocatable, public :: thermo
+     class(eos_type), allocatable, public :: eos
+     character(max_filename_length), public :: input_filename
      character(max_title_length), public :: title
    contains
      private
-     procedure :: read_title => simulation_read_title
-     procedure :: read_thermodynamics => simulation_read_thermodynamics
-     procedure :: read_eos => simulation_read_eos
-     procedure :: read_initial => simulation_read_initial
-     procedure :: setup_fluid => simulation_setup_fluid
-     procedure :: read_rocks => simulation_read_rocks
-     procedure :: read_timestepping => simulation_read_timestepping
      procedure, public :: init => simulation_init
      procedure, public :: run => simulation_run
      procedure, public :: destroy => simulation_destroy
   end type simulation_type
 
+  type(simulation_type), public :: sim
+
 contains
 
 !------------------------------------------------------------------------
 
-  subroutine simulation_read_title(self, json)
-    !! Reads simulation title from JSON input file.
-    !! If not present, a default value is assigned.
-
-    class(simulation_type), intent(in out) :: self
-    type(fson_value), pointer, intent(in) :: json
-    ! Locals:
-    character(len = max_title_length), parameter :: default_title = ""
-
-    call fson_get_mpi(json, "title", default_title, self%title)
-
-  end subroutine simulation_read_title
-
-!------------------------------------------------------------------------
-
-  subroutine simulation_read_thermodynamics(self, json)
-    !! Reads simulation thermodynamic formulation from JSON input file.
-    !! If not present, a default value is assigned.
-
-    use utils_module, only : str_to_lower
-
-    class(simulation_type), intent(in out) :: self
-    type(fson_value), pointer, intent(in) :: json
-    ! Locals:
-    PetscErrorCode :: ierr
-    integer, parameter :: max_thermo_ID_length = 8
-    character(max_thermo_ID_length) :: thermo_ID
-    character(max_thermo_ID_length), parameter :: &
-         default_thermo_ID = "IAPWS"
-
-    call fson_get_mpi(json, "thermodynamics", default_thermo_ID, thermo_ID)
-    thermo_ID = str_to_lower(thermo_ID)
-
-    select case (thermo_ID)
-    case ("ifc67")
-       self%thermo => IFC67
-    case default
-       self%thermo => IAPWS
-    end select
-
-    call self%thermo%init()
-
-  end subroutine simulation_read_thermodynamics
-
-!------------------------------------------------------------------------
-
-  subroutine simulation_read_eos(self, json)
-    !! Reads simulation equation of state from JSON input file.
-    !! If not present, a default value is assigned.
-
-    use utils_module, only : str_to_lower
-
-    class(simulation_type), intent(in out) :: self
-    type(fson_value), pointer, intent(in) :: json
-    ! Locals:
-    PetscErrorCode :: ierr
-    integer, parameter :: max_eos_ID_length = 12
-    character(max_eos_ID_length) :: eos_ID
-    character(max_eos_ID_length), parameter :: &
-         default_eos_ID = "W"
-
-    call fson_get_mpi(json, "eos", default_eos_ID, eos_ID)
-    eos_ID = str_to_lower(eos_ID)
-
-    select case (eos_ID)
-    case ("ew")
-       self%eos => eos_w  ! change to eos_ew when it's ready
-    case default
-       self%eos => eos_w
-    end select
-
-    call self%eos%init(self%thermo)
-
-  end subroutine simulation_read_eos
-
-!------------------------------------------------------------------------
-
-  subroutine simulation_read_initial(self, json)
-    !! Reads initial conditions from JSON input. These may be specified
-    !! as a constant value or as an array. The array may contain a complete
-    !! of initial conditions for all cells, or if a shorter array is 
-    !! given, this is repeated over initial conditions vector.
-
-    use fson_value_m, only : TYPE_REAL, TYPE_INTEGER, TYPE_ARRAY
-
-    class(simulation_type), intent(in out) :: self
-    type(fson_value), pointer, intent(in) :: json
-    ! Locals:
-    type(fson_value), pointer :: initial
-    PetscErrorCode :: ierr
-    real(dp) :: const_initial_value
-    integer :: int_const_initial_value
-    integer, allocatable :: indices(:)
-    real(dp), allocatable :: initial_input(:), initial_data(:)
-    integer :: i, np, count
-    logical :: const
-    real(dp), parameter :: default_initial_value = 0.0_dp
-
-    call DMCreateGlobalVector(self%mesh%dm, self%initial, ierr); CHKERRQ(ierr)
-    call VecGetSize(self%initial, count, ierr); CHKERRQ(ierr)
-
-    const = .true.
-
-    if (fson_has_mpi(json, "initial")) then
-
-       select case (fson_type_mpi(json, "initial"))
-          case (TYPE_REAL)
-             call fson_get_mpi(json, "initial", val = const_initial_value)
-          case (TYPE_INTEGER)
-             call fson_get_mpi(json, "initial", val = int_const_initial_value)
-             const_initial_value = real(int_const_initial_value)
-          case (TYPE_ARRAY)
-             const = .false.
-             call fson_get_mpi(json, "initial", val = initial_input)
-             np = size(initial_input)
-             if (np >= count) then
-                initial_data = initial_input(1:count)
-             else ! repeat input over array:
-                do i = 1, np
-                   initial_data(i:count:np) = initial_input(i)
-                end do
-             end if
-             deallocate(initial_input)
-       end select
-    else
-       const_initial_value = default_initial_value
-    end if
-
-    if (const) then
-       call VecSet(self%initial, const_initial_value, ierr); CHKERRQ(ierr)
-    else
-       allocate(indices(count))
-       do i = 1, count
-          indices(i) = i-1
-       end do
-       call VecSetValues(self%initial, count, indices, &
-            initial_data, INSERT_VALUES, ierr); CHKERRQ(ierr)
-       call VecAssemblyBegin(self%initial, ierr); CHKERRQ(ierr)
-       call VecAssemblyEnd(self%initial, ierr); CHKERRQ(ierr)
-       deallocate(indices, initial_data)
-    end if
-
-  end subroutine simulation_read_initial
-
-!------------------------------------------------------------------------
-
-  subroutine simulation_setup_fluid(self)
-    !! Sets up global vector for fluid properties.
-
-    use fluid_module, only: num_fluid_variables, num_phase_variables
-
-    class(simulation_type), intent(in out) :: self
-    ! Locals:
-    PetscInt :: num_vars
-    PetscInt, allocatable :: num_components(:), field_dim(:)
-    DM :: dm_fluid
-    PetscErrorCode :: ierr
-
-    num_vars = num_fluid_variables + self%eos%num_phases * &
-         (num_phase_variables + self%eos%num_components)
-
-    allocate(num_components(num_vars), field_dim(num_vars))
-
-    ! All fluid variables are scalars defined on cells:
-    num_components = 1
-    field_dim = 3
-
-    call DMClone(self%mesh%dm, dm_fluid, ierr); CHKERRQ(ierr)
-
-    call set_dm_data_layout(dm_fluid, num_components, field_dim)
-
-    call DMCreateGlobalVector(dm_fluid, self%fluid, ierr); CHKERRQ(ierr)
-
-    deallocate(num_components, field_dim)
-    call DMDestroy(dm_fluid, ierr); CHKERRQ(ierr)
-
-  end subroutine simulation_setup_fluid
-
-!------------------------------------------------------------------------
-
-  subroutine simulation_read_rocks(self, json)
-    !! Reads rock properties from JSON input.
-
-    use rock_module, only: rock_variable_num_components, &
-         rock_variable_dim, rock_variable_names
-
-    class(simulation_type), intent(in out) :: self
-    type(fson_value), pointer, intent(in) :: json
-    ! Locals:
-    DM :: dm_rocks
-    PetscErrorCode :: ierr
-
-    call DMClone(self%mesh%dm, dm_rocks, ierr); CHKERRQ(ierr)
-
-    call set_dm_data_layout(dm_rocks, rock_variable_num_components, &
-         rock_variable_dim, rock_variable_names)
-
-    call DMCreateGlobalVector(dm_rocks, self%rock, ierr); CHKERRQ(ierr)
-
-    call DMDestroy(dm_rocks, ierr); CHKERRQ(ierr)
-
-    ! Populate rock vector from JSON file:
-    ! TBD
-
-  end subroutine simulation_read_rocks
-
-!------------------------------------------------------------------------
-
-  subroutine simulation_read_timestepping(self, json)
-    !! Reads time stepping data from JSON input.
-
-    use utils_module, only : str_to_lower
-
-    class(simulation_type), intent(in out) :: self
-    type(fson_value), pointer, intent(in) :: json
-    ! Locals:
-    type(fson_value), pointer :: time
-    PetscReal :: start_time, stop_time, initial_stepsize, max_stepsize
-    PetscReal, allocatable :: steps(:)
-    integer :: int_initial_stepsize, max_num_steps
-    PetscReal, parameter :: default_start_time = 0.0_dp, &
-         default_stop_time = 1.0_dp
-    PetscReal, parameter :: default_initial_stepsize = 0.1_dp
-    PetscReal, parameter :: default_max_stepsize = 1.0_dp
-    integer :: method
-    integer, parameter :: max_method_str_len = 12
-    character(max_method_str_len) :: method_str
-    character(max_method_str_len), parameter :: default_method_str = "beuler"
-    integer, parameter :: default_max_num_steps = 100
-
-    !! TODO: steady state simulation input
-
-    call fson_get_mpi(json, "time.start", default_start_time, start_time)
-    call fson_get_mpi(json, "time.stop", default_stop_time, stop_time)
-
-    call fson_get_mpi(json, "time.step.method", &
-         default_method_str, method_str)
-    select case (str_to_lower(method_str))
-    case ("beuler")
-       method = TS_BEULER
-    case ("bdf2")
-       method = TS_BDF2
-    case ("directss")
-       method = TS_DIRECTSS
-    case default
-       method = TS_BEULER
-    end select
-
-    call fson_get_mpi(json, "time.step.initial", &
-         default_initial_stepsize, initial_stepsize)
-    call fson_get_mpi(json, "time.step.maximum.size", &
-         default_max_stepsize, max_stepsize)
-    call fson_get_mpi(json, "time.step.maximum.number", &
-         default_max_num_steps, max_num_steps)
-
-    call self%timestepper%init(method, self%mesh%dm, simulation_cell_balances, &
-         simulation_cell_inflows, start_time, self%initial, initial_stepsize, &
-         stop_time, max_num_steps, max_stepsize)
-
-    if (allocated(steps)) deallocate(steps)
-
-  end subroutine simulation_read_timestepping
-
-!------------------------------------------------------------------------
-
-  subroutine simulation_init(self, filename)
+  subroutine simulation_init(self, filename, json_str)
     !! Initializes a simulation using data from the input file with 
     !! specified name.
 
+    use thermodynamics_setup_module
+    use eos_setup_module
+    use initial_module, only: setup_initial
+    use fluid_module, only: setup_fluid_vector
+    use rock_module, only: setup_rock_vector
+
     class(simulation_type), intent(in out) :: self
-    character(*), intent(in) :: filename !! Input file name
+    character(*), intent(in), optional :: filename !! Input file name
+    character(*), intent(in), optional :: json_str !! JSON string for alternative input
     ! Locals:
     type(fson_value), pointer :: json
-    PetscErrorCode :: ierr
+    character(len = max_title_length), parameter :: default_title = ""
 
-    self%input_filename = filename
-
-    if (mpi%rank == mpi%input_rank) then
-       json => fson_parse(filename)
+    if (present(filename)) then
+       self%input_filename = filename
     end if
 
-    call self%read_title(json)
+    if (mpi%rank == mpi%input_rank) then
+       if (present(json_str)) then
+          json => fson_parse(str = json_str)
+       else
+          json => fson_parse(file = filename)
+       end if
+    end if
 
-    call self%read_thermodynamics(json)
-    call self%read_eos(json)
+    call fson_get_mpi(json, "title", default_title, self%title)
+    call setup_thermodynamics(json, self%thermo)
+    call setup_eos(json, self%thermo, self%eos)
+    call self%mesh%init(json)
+    call setup_labels(json, self%mesh%dm)
+    call self%mesh%configure(self%eos%primary_variable_names)
+    call setup_initial(json, self%mesh%dm, self%initial)
+    call setup_fluid_vector(self%mesh%dm, self%eos%num_phases, &
+         self%eos%num_components, self%fluid)
+    call setup_rock_vector(json, self%mesh%dm, self%rock)
+    call setup_timestepper(json, self%mesh%dm, self%initial, &
+         self%timestepper)
 
-    call self%mesh%init(json, self%eos%primary_variable_names)
-
-    call self%read_initial(json)
-
-    call self%setup_fluid()
-
-    call self%read_rocks(json)
-
-    call self%read_timestepping(json)
+    self%timestepper%steps%lhs_func => simulation_cell_balances
+    self%timestepper%steps%rhs_func => simulation_cell_inflows
+    self%timestepper%steps%pre_eval_proc => simulation_fluid_properties
 
     if (mpi%rank == mpi%input_rank) then
        call fson_destroy(json)
@@ -383,6 +123,8 @@ contains
     call VecDestroy(self%rock, ierr); CHKERRQ(ierr)
     call self%mesh%destroy()
     call self%thermo%destroy()
+    deallocate(self%thermo)
+    deallocate(self%eos)
     call self%timestepper%destroy()
 
   end subroutine simulation_destroy
@@ -420,6 +162,19 @@ contains
     call VecSet(inflow, 0.0_dp, ierr); CHKERRQ(ierr)
 
   end subroutine simulation_cell_inflows
+
+!------------------------------------------------------------------------
+
+  subroutine simulation_fluid_properties(t, primary)
+    !! Computes fluid properties in all cells, based on the current time
+    !! and primary thermodynamic variables.
+
+    PetscReal, intent(in) :: t
+    Vec, intent(in) :: primary
+
+    continue
+
+  end subroutine simulation_fluid_properties
 
 !------------------------------------------------------------------------
 

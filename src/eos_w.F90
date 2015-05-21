@@ -20,8 +20,6 @@ module eos_w_module
      procedure, public :: fluid_properties => eos_w_fluid_properties
   end type eos_w_type
 
-  type(eos_w_type), public, target :: eos_w
-
 contains
 
 !------------------------------------------------------------------------
@@ -89,6 +87,7 @@ contains
 
     fluid%pressure = primary(1)
     fluid%temperature = self%temperature
+    fluid%region = 1
 
     call self%thermo%water%properties([fluid%pressure, fluid%temperature],\
     properties, err)

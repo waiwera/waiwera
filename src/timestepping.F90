@@ -8,12 +8,7 @@ module timestepping_module
 
   private
 
-#include <petsc-finclude/petscsys.h>
-#include <petsc-finclude/petscdef.h>
-#include <petsc-finclude/petscvec.h>
-#include <petsc-finclude/petscvec.h90>
-#include <petsc-finclude/petscsnes.h>
-#include <petsc-finclude/petscdm.h>
+#include <petsc-finclude/petsc.h90>
 
   ! Timestepping methods
      PetscInt, parameter, public :: TS_BEULER = 0, TS_BDF2 = 1, TS_DIRECTSS = 2
@@ -72,6 +67,8 @@ module timestepping_module
      ! to be passed in to the residual routines as well:
      procedure(lhs_function), pointer, nopass, public :: lhs_func => NULL()
      procedure(rhs_function), pointer, nopass, public :: rhs_func => NULL()
+     procedure(pre_eval_procedure), pointer, nopass, public :: pre_eval_proc => NULL()
+     procedure(method_residual), pointer, nopass, public :: residual => NULL()
    contains
      private
      procedure :: set_aliases => timestepper_steps_set_aliases
@@ -80,6 +77,7 @@ module timestepping_module
      procedure :: rotate => timestepper_steps_rotate
      procedure, public :: init => timestepper_steps_init
      procedure, public :: destroy => timestepper_steps_destroy
+     procedure, public :: initial_function_calls => timestepper_steps_initial_function_calls
      procedure, public :: check_finished => timestepper_steps_check_finished
      procedure, public :: set_current_status => timestepper_steps_set_current_status
      procedure, public :: adapt => timestepper_steps_adapt
@@ -132,6 +130,13 @@ module timestepping_module
        Vec, intent(out) :: rhs
      end subroutine rhs_function
 
+     subroutine pre_eval_procedure(t, y)
+       !! Optional routine to be called before each evaluation
+       !! of LHS and RHS functions.
+       PetscReal, intent(in) :: t
+       Vec, intent(in) :: y
+     end subroutine pre_eval_procedure
+
      subroutine method_residual(solver, y, residual, steps, ierr)
        !! Residual routine to be minimised by nonlinear solver.
        import :: timestepper_steps_type
@@ -158,8 +163,10 @@ module timestepping_module
 
   ! Subroutines to be available outside this module:
   public :: lhs_function, rhs_function, lhs_identity
+  public :: pre_eval_procedure
   public :: iteration_monitor, relative_change_monitor
   public :: step_output_routine, step_output_default, step_output_none
+  public :: setup_timestepper
 
 contains
 
@@ -333,6 +340,28 @@ contains
   end subroutine direct_ss_residual
 
 !------------------------------------------------------------------------
+
+  subroutine SNES_residual(solver, y, residual, &
+       steps, ierr)
+    !! Residual routine to be minimized by SNES solver. This calls the
+    !! pre-evaluation routine first (if needed) before calling the
+    !! timestepper method residual routine.
+
+    SNES, intent(in) :: solver
+    Vec, intent(in) :: y
+    Vec, intent(out) :: residual
+    type(timestepper_steps_type), intent(in out) :: steps
+    PetscErrorCode, intent(out) :: ierr
+
+    if (associated(steps%pre_eval_proc)) then
+       call steps%pre_eval_proc(steps%current%time, y)
+    end if
+
+    call steps%residual(solver, y, residual, steps, ierr)
+
+  end subroutine SNES_residual
+
+!------------------------------------------------------------------------
 ! Timestepper_step procedures
 !------------------------------------------------------------------------
 
@@ -438,7 +467,7 @@ contains
 
   subroutine timestepper_steps_init(self, num_stored, &
        initial_time, initial_conditions, initial_stepsize, &
-       final_time, max_num_steps, max_stepsize, lhs_func, rhs_func)
+       final_time, max_num_steps, max_stepsize)
     !! Sets up array of timesteps and pointers to them. This array stores the
     !! current step and one or more previous steps. The number of stored
     !! steps depends on the timestepping method (e.g. 2 for single-step methods,
@@ -451,8 +480,6 @@ contains
     PetscReal, intent(in) :: final_time
     PetscInt, intent(in) :: max_num_steps
     PetscReal, intent(in) :: max_stepsize
-    procedure(lhs_function) :: lhs_func
-    procedure(rhs_function) :: rhs_func
     ! Locals:
     PetscInt :: i
     PetscErrorCode :: ierr
@@ -477,12 +504,25 @@ contains
     self%max_num = max_num_steps
     self%adaptor%max_stepsize = max_stepsize
 
-    self%lhs_func => lhs_func
-    self%rhs_func => rhs_func
-
-    call self%lhs_func(self%current%time, self%current%solution, self%current%lhs)
-
   end subroutine timestepper_steps_init
+
+!------------------------------------------------------------------------
+
+  subroutine timestepper_steps_initial_function_calls(self)
+    !! Performs initial LHS function call at start of run (and pre-evaluation
+    !! procedure if needed).
+
+    class(timestepper_steps_type), intent(in out) :: self
+
+    if (associated(self%pre_eval_proc)) then
+       call self%pre_eval_proc(self%current%time, &
+            self%current%solution)
+    end if
+
+    call self%lhs_func(self%current%time, &
+         self%current%solution, self%current%lhs)
+
+  end subroutine timestepper_steps_initial_function_calls
 
 !------------------------------------------------------------------------
 
@@ -608,7 +648,6 @@ contains
     PetscBool, intent(in) :: converged
     ! Locals:
     PetscReal :: eta
-    PetscBool :: eta_low, eta_high
 
     if (converged) then
        eta = self%adaptor%monitor(self%current, self%last)
@@ -698,8 +737,8 @@ contains
 
     call SNESCreate(mpi%comm, self%solver, ierr); CHKERRQ(ierr)
     call SNESSetApplicationContext(self%solver, self%steps, ierr); CHKERRQ(ierr)
-    call SNESSetFunction(self%solver, self%residual, self%method%residual, &
-         self%steps, ierr); CHKERRQ(ierr)
+    call SNESSetFunction(self%solver, self%residual, &
+         SNES_residual, self%steps, ierr); CHKERRQ(ierr)
     call SNESSetJacobian(self%solver, self%jacobian, self%jacobian, &
          PETSC_NULL_FUNCTION, PETSC_NULL_OBJECT, ierr); CHKERRQ(ierr)
     call SNESSetDM(self%solver, self%dm, ierr); CHKERRQ(ierr)
@@ -713,20 +752,22 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine timestepper_init(self, method, dm, lhs_func, rhs_func, &
+  subroutine timestepper_init(self, method, dm, &
        initial_time, initial_conditions, initial_stepsize, &
-       final_time, max_num_steps, max_stepsize)
+       final_time, max_num_steps, max_stepsize, &
+       lhs_func, rhs_func, pre_eval_proc)
     !! Initializes a timestepper.
 
     class(timestepper_type), intent(in out) :: self
     PetscInt, intent(in) :: method
     DM, intent(in) :: dm
-    procedure(lhs_function) :: lhs_func
-    procedure(rhs_function) :: rhs_func
     PetscReal, intent(in) :: initial_time, final_time
     Vec, intent(in) :: initial_conditions
     PetscReal, intent(in) :: initial_stepsize, max_stepsize
     PetscInt, intent(in) :: max_num_steps
+    procedure(lhs_function), optional :: lhs_func
+    procedure(rhs_function), optional :: rhs_func
+    procedure(pre_eval_procedure), optional :: pre_eval_proc
 
     ! Locals:
     PetscErrorCode :: ierr
@@ -741,7 +782,12 @@ contains
     call self%method%init(method)
     call self%steps%init(self%method%num_stored_steps, &
          initial_time, initial_conditions, initial_stepsize, &
-         final_time, max_num_steps, max_stepsize, lhs_func, rhs_func)
+         final_time, max_num_steps, max_stepsize)
+    if (present(lhs_func)) self%steps%lhs_func => lhs_func
+    if (present(rhs_func)) self%steps%rhs_func => rhs_func
+    if (present(pre_eval_proc)) self%steps%pre_eval_proc => pre_eval_proc
+    self%steps%residual => self%method%residual
+       
     call self%setup_solver()
 
   end subroutine timestepper_init
@@ -811,16 +857,77 @@ contains
     !! Runs the timestepper until finished.
 
     class(timestepper_type), intent(in out) :: self
-    ! Locals:
-    PetscErrorCode :: ierr
 
     self%steps%taken = 0
+    call self%steps%initial_function_calls()
+
     do while (.not. self%steps%finished)
        call self%step()
        call self%step_output()
     end do
 
   end subroutine timestepper_run
+
+!------------------------------------------------------------------------
+
+  subroutine setup_timestepper(json, dm, initial, timestepper)
+    !! Sets up timestepper from JSON input, DM and initial conditions
+    !! vector.
+
+    use utils_module, only : str_to_lower
+    use fson
+    use fson_mpi_module
+
+    type(fson_value), pointer, intent(in) :: json
+    DM, intent(in) :: dm
+    Vec ,intent(in) :: initial
+    type(timestepper_type), intent(in out) :: timestepper
+    ! Locals:
+    PetscReal :: start_time, stop_time, initial_stepsize, max_stepsize
+    PetscReal, allocatable :: steps(:)
+    integer :: max_num_steps
+    PetscReal, parameter :: default_start_time = 0.0_dp, &
+         default_stop_time = 1.0_dp
+    PetscReal, parameter :: default_initial_stepsize = 0.1_dp
+    PetscReal, parameter :: default_max_stepsize = 0.0_dp
+    integer :: method
+    integer, parameter :: max_method_str_len = 12
+    character(max_method_str_len) :: method_str
+    character(max_method_str_len), parameter :: default_method_str = "beuler"
+    integer, parameter :: default_max_num_steps = 100
+
+    !! TODO: steady state simulation input
+
+    call fson_get_mpi(json, "time.start", default_start_time, start_time)
+    call fson_get_mpi(json, "time.stop", default_stop_time, stop_time)
+
+    call fson_get_mpi(json, "time.step.method", &
+         default_method_str, method_str)
+    select case (str_to_lower(method_str))
+    case ("beuler")
+       method = TS_BEULER
+    case ("bdf2")
+       method = TS_BDF2
+    case ("directss")
+       method = TS_DIRECTSS
+    case default
+       method = TS_BEULER
+    end select
+
+    call fson_get_mpi(json, "time.step.initial", &
+         default_initial_stepsize, initial_stepsize)
+    call fson_get_mpi(json, "time.step.maximum.size", &
+         default_max_stepsize, max_stepsize)
+    call fson_get_mpi(json, "time.step.maximum.number", &
+         default_max_num_steps, max_num_steps)
+
+    call timestepper%init(method, dm, start_time, initial, &
+         initial_stepsize, stop_time, max_num_steps, &
+         max_stepsize)
+
+    if (allocated(steps)) deallocate(steps)
+
+  end subroutine setup_timestepper
 
 !------------------------------------------------------------------------
 
