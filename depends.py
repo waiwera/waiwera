@@ -200,10 +200,10 @@ if __name__ == '__main__':
 
     srcdirs = ['src', 'test/src']
     objdirs = ['$(BUILD)', '$(TEST)/$(BUILD)']
-    subst = [('$(TESTSUF)', '_test'), ('$(PROG)', 'supermodel'),
+    variables = [('$(TESTSUF)', '_test'), ('$(PROG)', 'supermodel'),
              ('$(TESTPROG)', 'test_all')]
     omit = ['$(BUILD)/$(PROG)$(OBJ)', '$(TEST)/$(BUILD)/$(TESTPROG)$(OBJ)']
 
     deps = dependencies(srcdirs)
-    deps.make_depends(objdirs, subst = subst, omit = omit)
+    deps.make_depends(objdirs, variables = variables, omit = omit)
     deps.write_module_dot(srcdirs[0], 'doc/depends.dot')
