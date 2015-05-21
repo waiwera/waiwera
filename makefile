@@ -78,10 +78,13 @@ $(TEST)/$(BUILD)/setup$(TESTSUF)$(OBJ): $(TEST)/$(SRC)/setup$(TESTSUF)$(F90) $(D
 $(TEST)/$(BUILD)/%$(TESTSUF)$(OBJ): $(TEST)/$(SRC)/%$(TESTSUF)$(F90) $(BUILD)/%$(OBJ) $(BUILD)/mpi$(OBJ) $(DEPENDS)
 	$(PETSC_FCOMPILE) $(TESTFMFLAGS) -I$(BUILD) $(TESTINCLS) -c $< -o $@
 
-# dependencies:
-depends: $(DEPENDS)
+.PHONY: depends devdoc install clean
 
+# dependencies:
 $(DEPENDS):
+	depends
+
+depends:
 	python depends.py
 
 # documentation:
