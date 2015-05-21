@@ -136,7 +136,7 @@ class dependencies(object):
 
     def make_depends(self, objdirs = [], obj = '$(OBJ)', variables = [],
                      filename = 'depends.in', omit = []):
-        """Prints string with all source file dependencies written
+        """Writes file with all source file dependencies written
         one per line, suitable for an include file in a makefile.
         objdirs specifies the object directories corresponding to the
         source directories. obj is the string to be used for object file
@@ -179,7 +179,9 @@ class dependencies(object):
         outfile.close()
 
     def write_module_dot(self, path = './', filename = 'depends.dot'):
-        """Writes DOT file describing the module dependency graph."""
+        """Writes DOT file describing the module dependency graph.
+        This can be used to produce a module dependency diagram
+        using e.g. Graphviz."""
         outfile = open(filename, 'w')
         top = 'depends'
         for sourcename in self.sourcefiles:
