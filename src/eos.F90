@@ -57,7 +57,7 @@ module eos_module
 
      subroutine eos_fluid_procedure(self, region, primary, fluid)
        !! Calculate fluid properties from region and primary variables
-       use fluid_module
+       use fluid_module, only: fluid_type
        import :: eos_type, dp
        class(eos_type), intent(in out) :: self
        integer, intent(in) :: region

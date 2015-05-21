@@ -48,8 +48,8 @@ contains
     !! Initializes a simulation using data from the input file with 
     !! specified name.
 
-    use thermodynamics_setup_module
-    use eos_setup_module
+    use thermodynamics_setup_module, only: setup_thermodynamics
+    use eos_setup_module, only: setup_eos
     use initial_module, only: setup_initial
     use fluid_module, only: setup_fluid_vector
     use rock_module, only: setup_rock_vector

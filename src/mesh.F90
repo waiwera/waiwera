@@ -1,7 +1,6 @@
 module mesh_module
   !! Module for mesh type.
 
-  use kinds_module
   use mpi_module
   use fson
 

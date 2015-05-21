@@ -1,7 +1,6 @@
 module initial_module
   !! Module for setting up initial conditions.
 
-  use mpi_module
   use kinds_module
   use fson
   use fson_mpi_module

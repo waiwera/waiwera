@@ -76,7 +76,7 @@ contains
     !! Calculate fluid properties from region and primary variables
     !! for isothermal pure water.
 
-    use fluid_module
+    use fluid_module, only: fluid_type
     class(eos_w_type), intent(in out) :: self
     integer, intent(in) :: region !! Thermodynamic region index
     real(dp), intent(in), target :: primary(self%num_primary_variables) !! Primary thermodynamic variables
