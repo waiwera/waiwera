@@ -13,7 +13,7 @@ module powertable_test
 #include <petsc-finclude/petscsys.h>
 #include <petsc-finclude/petscdef.h>
 
-  real(dp), parameter :: tol = 1.e-9
+  PetscReal, parameter :: tol = 1.e-9
 
   public :: test_powertable_positive_powers, &
        test_powertable_negative_powers, test_powertable_mixed_powers, &
@@ -29,8 +29,8 @@ module powertable_test
 
       type(powertable) :: p
       PetscInt, parameter :: powers(4) = [1, 2, 3, 4]
-      real(dp) :: x
-      real(dp), allocatable :: xp(:)
+      PetscReal :: x
+      PetscReal, allocatable :: xp(:)
       PetscInt :: lower, upper
 
       if (mpi%rank == mpi%output_rank) then
@@ -70,8 +70,8 @@ module powertable_test
 
       type(powertable) :: p
       PetscInt, parameter :: powers(3) = [-6, -3, -2]
-      real(dp) :: x
-      real(dp), allocatable :: xp(:)
+      PetscReal :: x
+      PetscReal, allocatable :: xp(:)
       PetscInt :: lower, upper
 
       if (mpi%rank == mpi%output_rank) then
@@ -111,8 +111,8 @@ module powertable_test
 
       type(powertable) :: p
       PetscInt, parameter :: powers(4) = [-3, -1, 1, 4]
-      real(dp) :: x
-      real(dp), allocatable :: xp(:)
+      PetscReal :: x
+      PetscReal, allocatable :: xp(:)
       PetscInt :: lower, upper
 
       if (mpi%rank == mpi%output_rank) then
@@ -153,8 +153,8 @@ module powertable_test
       type(powertable) :: p
       PetscInt, parameter :: powers1(3) = [-4, -3, -1], powers2(2) = [3, 5]
       PetscInt, allocatable :: allpowers(:)
-      real(dp) :: x
-      real(dp), allocatable :: xp(:)
+      PetscReal :: x
+      PetscReal, allocatable :: xp(:)
       PetscInt :: lower, upper
 
       if (mpi%rank == mpi%output_rank) then

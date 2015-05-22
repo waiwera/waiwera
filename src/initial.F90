@@ -30,13 +30,13 @@ contains
     Vec, intent(out) :: initial
     ! Locals:
     PetscErrorCode :: ierr
-    real(dp) :: const_initial_value
+    PetscReal :: const_initial_value
     PetscInt :: int_const_initial_value
     PetscInt, allocatable :: indices(:)
-    real(dp), allocatable :: initial_input(:), initial_data(:)
+    PetscReal, allocatable :: initial_input(:), initial_data(:)
     PetscInt :: i, np, count
     PetscBool :: const
-    real(dp), parameter :: default_initial_value = 0.0_dp
+    PetscReal, parameter :: default_initial_value = 0.0_dp
 
     call DMCreateGlobalVector(dm, initial, ierr); CHKERRQ(ierr)
     call VecGetSize(initial, count, ierr); CHKERRQ(ierr)

@@ -563,7 +563,7 @@ contains
 
   contains
 
-    real(dp) function fn(x, t)
+    PetscReal function fn(x, t)
       PetscReal, intent(in) :: x, t
       ! Locals:
       PetscReal, parameter :: pi = 4._dp * atan(1._dp)

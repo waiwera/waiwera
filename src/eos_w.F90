@@ -13,7 +13,7 @@ module eos_w_module
   type, public, extends(eos_type) :: eos_w_type
      !! Isothermal pure water equation of state type.
      private
-     real(dp), public :: temperature = 20._dp !! Constant temperature
+     PetscReal, public :: temperature = 20._dp !! Constant temperature
    contains
      private
      procedure :: transition => eos_w_transition
@@ -52,7 +52,7 @@ contains
 
     class(eos_w_type), intent(in) :: self
     PetscInt, intent(in) :: region1, region2
-    real(dp), intent(in out), target :: primary(self%num_primary_variables)
+    PetscReal, intent(in out), target :: primary(self%num_primary_variables)
 
     continue ! no transitions needed
 
@@ -66,7 +66,7 @@ contains
 
     class(eos_w_type), intent(in) :: self
     PetscInt, intent(in out) :: region
-    real(dp), intent(in out), target :: primary(self%num_primary_variables)
+    PetscReal, intent(in out), target :: primary(self%num_primary_variables)
 
     continue ! no checks needed
 
@@ -81,10 +81,10 @@ contains
     use fluid_module, only: fluid_type
     class(eos_w_type), intent(in out) :: self
     PetscInt, intent(in) :: region !! Thermodynamic region index
-    real(dp), intent(in), target :: primary(self%num_primary_variables) !! Primary thermodynamic variables
+    PetscReal, intent(in), target :: primary(self%num_primary_variables) !! Primary thermodynamic variables
     type(fluid_type), intent(out) :: fluid !! Fluid object
     ! Locals:
-    real(dp) :: properties(2)
+    PetscReal :: properties(2)
     PetscInt :: err
 
     fluid%pressure = primary(1)

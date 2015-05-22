@@ -121,8 +121,8 @@ module fson_mpi_module
 
         type(fson_value), pointer, intent(in) :: self
         character(len=*), intent(in) :: path
-        real(dp), intent(in) :: default
-        real(dp), intent(out) :: val
+        PetscReal, intent(in) :: default
+        PetscReal, intent(out) :: val
         ! Locals:
         type(fson_value), pointer :: p
 
@@ -226,8 +226,8 @@ module fson_mpi_module
 
         type(fson_value), pointer, intent(in) :: self
         character(len=*), intent(in) :: path
-        real(dp), intent(in) :: default(:)
-        real(dp), allocatable, intent(out) :: val(:)
+        PetscReal, intent(in) :: default(:)
+        PetscReal, allocatable, intent(out) :: val(:)
         ! Locals:
         type(fson_value), pointer :: p
 
@@ -310,8 +310,8 @@ module fson_mpi_module
 
         type(fson_value), pointer, intent(in) :: self
         character(len=*), intent(in) :: path
-        real(dp), intent(in) :: default(:,:)
-        real(dp), allocatable, intent(out) :: val(:,:)
+        PetscReal, intent(in) :: default(:,:)
+        PetscReal, allocatable, intent(out) :: val(:,:)
         ! Locals:
         type(fson_value), pointer :: p
 
@@ -417,8 +417,8 @@ module fson_mpi_module
 
         type(fson_value), pointer, intent(in) :: self
         character(len=*), intent(in) :: path
-        real(dp), intent(in), optional :: default
-        real(dp), intent(out) :: val
+        PetscReal, intent(in), optional :: default
+        PetscReal, intent(out) :: val
         ! Locals:
         PetscInt :: ierr
 
@@ -544,8 +544,8 @@ module fson_mpi_module
 
         type(fson_value), pointer, intent(in) :: self
         character(len=*), intent(in) :: path
-        real(dp), intent(in), optional :: default(:)
-        real(dp), allocatable, intent(out) :: val(:)
+        PetscReal, intent(in), optional :: default(:)
+        PetscReal, allocatable, intent(out) :: val(:)
         ! Locals:
         PetscInt :: ierr, count
 
@@ -659,8 +659,8 @@ module fson_mpi_module
 
         type(fson_value), pointer, intent(in) :: self
         character(len=*), intent(in) :: path
-        real(dp), intent(in), optional :: default(:,:)
-        real(dp), allocatable, intent(out) :: val(:,:)
+        PetscReal, intent(in), optional :: default(:,:)
+        PetscReal, allocatable, intent(out) :: val(:,:)
         ! Locals:
         PetscInt :: ierr, count(2), total_count
 

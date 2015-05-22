@@ -15,12 +15,12 @@ module thermodynamics_module
 ! Physical constants
 !------------------------------------------------------------------------
 
-  real(dp), parameter, public :: rconst     = 0.461526e3_dp     !! Gas constant
-  real(dp), parameter, public :: tc_k       = 273.15_dp         !! Conversion from Celsius to Kelvin
-  real(dp), parameter, public :: tcriticalk = 647.096_dp        !! Critical temperature (Kelvin)
-  real(dp), parameter, public :: tcritical  = tcriticalk - tc_k !! Critical temperature (\(^\circ C\))
-  real(dp), parameter, public :: dcritical  = 322.0_dp          !! Critical density (\(kg.m^{-3}\))
-  real(dp), parameter, public :: pcritical  = 22.064e6_dp       !! Critical pressure (Pa)
+  PetscReal, parameter, public :: rconst     = 0.461526e3_dp     !! Gas constant
+  PetscReal, parameter, public :: tc_k       = 273.15_dp         !! Conversion from Celsius to Kelvin
+  PetscReal, parameter, public :: tcriticalk = 647.096_dp        !! Critical temperature (Kelvin)
+  PetscReal, parameter, public :: tcritical  = tcriticalk - tc_k !! Critical temperature (\(^\circ C\))
+  PetscReal, parameter, public :: dcritical  = 322.0_dp          !! Critical density (\(kg.m^{-3}\))
+  PetscReal, parameter, public :: pcritical  = 22.064e6_dp       !! Critical pressure (Pa)
 
 !------------------------------------------------------------------------
 ! Saturation curve type
@@ -86,8 +86,8 @@ module thermodynamics_module
        !! Calculates saturation temperature as a function of pressure.
        import :: saturation_type, dp
        class(saturation_type), intent(in) :: self
-       real(dp), intent(in) :: p  !! Fluid pressure (\(kg. m. s^{-1}\))
-       real(dp), intent(out):: t  !! Fluid temperature (\(^\circ C\))
+       PetscReal, intent(in) :: p  !! Fluid pressure (\(kg. m. s^{-1}\))
+       PetscReal, intent(out):: t  !! Fluid temperature (\(^\circ C\))
        PetscInt, intent(out) :: err !! Error code
      end subroutine saturation_temperature
 
@@ -95,8 +95,8 @@ module thermodynamics_module
        !! Calculates saturation pressure as a function of temperature.
        import :: saturation_type, dp
        class(saturation_type), intent(in) :: self
-       real(dp), intent(in) :: t  !! Fluid temperature (\(^\circ C\))
-       real(dp), intent(out):: p  !! Fluid pressure (\(kg. m. s^{-1}\))
+       PetscReal, intent(in) :: t  !! Fluid temperature (\(^\circ C\))
+       PetscReal, intent(out):: p  !! Fluid pressure (\(kg. m. s^{-1}\))
        PetscInt, intent(out) :: err  !! Error code
      end subroutine saturation_pressure
 
@@ -116,8 +116,8 @@ module thermodynamics_module
        !! Calculates fluid properties for region.
        import :: region_type, dp
        class(region_type), intent(in out) :: self
-       real(dp), intent(in), target :: param(:)
-       real(dp), intent(out) :: props(:)
+       PetscReal, intent(in), target :: param(:)
+       PetscReal, intent(out) :: props(:)
        PetscInt, intent(out) :: err
      end subroutine region_properties
 
@@ -125,8 +125,8 @@ module thermodynamics_module
        !! Calculates viscosity for region.
        import :: region_type, dp
        class(region_type), intent(in out) :: self
-       real(dp), intent(in) :: temperature, pressure, density
-       real(dp), intent(out) :: viscosity
+       PetscReal, intent(in) :: temperature, pressure, density
+       PetscReal, intent(out) :: viscosity
      end subroutine region_viscosity
 
      subroutine thermodynamics_init_procedure(self)

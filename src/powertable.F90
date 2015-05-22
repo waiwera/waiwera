@@ -12,8 +12,8 @@ module powertable_module
 
   type, private :: product_pointer
      private
-     real(dp), pointer :: fac1, fac2
-     real(dp), pointer :: prod
+     PetscReal, pointer :: fac1, fac2
+     PetscReal, pointer :: prod
    contains
      procedure, public :: set => product_pointer_set
   end type product_pointer
@@ -22,7 +22,7 @@ module powertable_module
      !! Type for efficiently calculating a table of powers of a
      !! double precision number.
      private
-     real(dp), allocatable, public :: power(:) !! Computed powers
+     PetscReal, allocatable, public :: power(:) !! Computed powers
      PetscInt, allocatable :: product(:,:)
      type(product_pointer), allocatable :: powerlist(:)
      PetscInt, public :: lower = 0, upper = 0 !! Lower and upper bounds of powers
@@ -48,7 +48,7 @@ contains
 
     class(product_pointer), intent(in out) :: self
     PetscInt, intent(in) :: lower, upper
-    real(dp), intent(in), target :: arr(lower:upper)
+    PetscReal, intent(in), target :: arr(lower:upper)
     PetscInt, intent(in) :: i1, i2, iprod
 
     self%fac1 => arr(i1)
@@ -244,7 +244,7 @@ contains
     !! Computes the table of powers for the specified value.
 
     class(powertable), intent(in out) :: self
-    real(dp), intent(in) :: val !! value to compute powers of
+    PetscReal, intent(in) :: val !! value to compute powers of
     ! Locals:
     PetscInt :: n
 

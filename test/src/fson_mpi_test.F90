@@ -102,14 +102,14 @@ contains
     ! Test fson_get_mpi double routines
 
     type(fson_value), pointer :: json
-    real(dp) :: val
-    real(dp), parameter :: tol = 1.e-10_dp
-    real(dp), parameter :: expected = 1.61803398875_dp
-    real(dp), allocatable :: arr(:)
-    real(dp), parameter :: expected_arr(5) = [-200.0_dp, &
+    PetscReal :: val
+    PetscReal, parameter :: tol = 1.e-10_dp
+    PetscReal, parameter :: expected = 1.61803398875_dp
+    PetscReal, allocatable :: arr(:)
+    PetscReal, parameter :: expected_arr(5) = [-200.0_dp, &
          1.8_dp, -5.22004_dp, -78.6_dp, 1000.5_dp]
-    real(dp), allocatable :: arr_2d(:,:)
-    real(dp), parameter :: expected_arr_2d(2,2) = &
+    PetscReal, allocatable :: arr_2d(:,:)
+    PetscReal, parameter :: expected_arr_2d(2,2) = &
          transpose(reshape([-1._dp, 1._dp, 2._dp, -3._dp], [2,2]))
     if (mpi%rank == mpi%input_rank) then
        json => fson_parse(filename)

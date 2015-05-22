@@ -45,7 +45,7 @@ module eos_module
        import :: eos_type, dp
        class(eos_type), intent(in) :: self
        PetscInt, intent(in) :: region1, region2
-       real(dp), intent(in out), target :: primary(self%num_primary_variables)
+       PetscReal, intent(in out), target :: primary(self%num_primary_variables)
      end subroutine eos_transition_procedure
 
      subroutine eos_check_primary_procedure(self, region, primary)
@@ -54,7 +54,7 @@ module eos_module
        import :: eos_type, dp
        class(eos_type), intent(in) :: self
        PetscInt, intent(in out) :: region
-       real(dp), intent(in out), target :: primary(self%num_primary_variables)
+       PetscReal, intent(in out), target :: primary(self%num_primary_variables)
      end subroutine eos_check_primary_procedure
 
      subroutine eos_fluid_procedure(self, region, primary, fluid)
@@ -63,7 +63,7 @@ module eos_module
        import :: eos_type, dp
        class(eos_type), intent(in out) :: self
        PetscInt, intent(in) :: region
-       real(dp), intent(in), target :: primary(self%num_primary_variables)
+       PetscReal, intent(in), target :: primary(self%num_primary_variables)
        type(fluid_type), intent(out) :: fluid
      end subroutine eos_fluid_procedure
 

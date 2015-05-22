@@ -26,8 +26,8 @@ module IAPWS_module
   type, public, extends(saturation_type) :: IAPWS_saturation_type
      !! IAPWS-97 saturation curve calculations.
      private
-     real(dp) :: pstar = 1.0e6_dp
-     real(dp) :: n(10) = [ &
+     PetscReal :: pstar = 1.0e6_dp
+     PetscReal :: n(10) = [ &
            0.11670521452767e4_dp, -0.72421316703206e6_dp, -0.17073846940092e2_dp,  &
            0.12020824702470e5_dp, -0.32325550322333e7_dp,  0.14915108613530e2_dp,  &
           -0.48232657361591e4_dp,  0.40511340542057e6_dp, -0.23855557567849_dp, &
@@ -45,10 +45,10 @@ module IAPWS_module
   type :: IAPWS_viscosity_type
      !! IAPWS viscosity type.
      private
-     real(dp) :: mustar = 1.0e-6_dp
-     real(dp) :: h0(0:3) = [ &
+     PetscReal :: mustar = 1.0e-6_dp
+     PetscReal :: h0(0:3) = [ &
           1.67752_dp, 2.20462_dp, 0.6366564_dp, -0.241605_dp]
-     real(dp) :: h1(21) = [ &
+     PetscReal :: h1(21) = [ &
            5.20094e-1_dp,  8.50895e-2_dp, -1.08374_dp,    -2.89555e-1_dp,  2.22531e-1_dp,  &
            9.99115e-1_dp,  1.88797_dp,     1.26613_dp,     1.20573e-1_dp, -2.81378e-1_dp,  &
           -9.06851e-1_dp, -7.72479e-1_dp, -4.89837e-1_dp, -2.57040e-1_dp,  1.61913e-1_dp, &
@@ -86,8 +86,8 @@ module IAPWS_module
   type, public, extends(IAPWS_region_type) :: IAPWS_region1_type
      !! IAPWS-97 region 1 (liquid water) type.
      private
-     real(dp) :: pstar = 16.53e6_dp, tstar = 1386._dp
-     real(dp) :: n(34) = [ &                
+     PetscReal :: pstar = 16.53e6_dp, tstar = 1386._dp
+     PetscReal :: n(34) = [ &                
            0.14632971213167_dp,     -0.84548187169114_dp,    -0.37563603672040e1_dp,   &
            0.33855169168385e1_dp,   -0.95791963387872_dp,     0.15772038513228_dp,     &
           -0.16616417199501e-1_dp,   0.81214629983568e-3_dp,  0.28319080123804e-3_dp,  &
@@ -108,7 +108,7 @@ module IAPWS_module
            -2, -1,   0,   1,   2,   3,   4,   5, -9, -7, -1,  0,  1, &
             3, -3,   0,   1,   3,  17,  -4,   0,  6, -5, -2, 10, -8,  &
           -11, -6, -29, -31, -38, -39, -40, -41]
-     real(dp) :: nI(34), nJ(34)
+     PetscReal :: nI(34), nJ(34)
      PetscInt :: I_1(34), J_1(34)
      type(powertable) :: pi, pj
    contains
@@ -125,12 +125,12 @@ module IAPWS_module
   type, public, extends(IAPWS_region_type) :: IAPWS_region2_type
      !! IAPWS-97 region 2 (steam) type.
      private
-     real(dp) :: pstar = 1.0e6_dp, tstar = 540.0_dp
-     real(dp) :: n0(9) = [ &
+     PetscReal :: pstar = 1.0e6_dp, tstar = 540.0_dp
+     PetscReal :: n0(9) = [ &
           -0.96927686500217e1_dp,   0.10086655968018e2_dp, -0.56087911283020e-2_dp, &
            0.71452738081455e-1_dp, -0.40710498223928_dp,    0.14240819171444e1_dp,  &
           -0.43839511319450e1_dp,  -0.28408632460772_dp,    0.21268463753307e-1_dp]
-     real(dp) :: n(43) = [ &
+     PetscReal :: n(43) = [ &
           -0.17731742473213e-2_dp,  -0.17834862292358e-1_dp,  -0.45996013696365e-1_dp,  -0.57581259083432e-1_dp,  &
           -0.50325278727930e-1_dp,  -0.33032641670203e-4_dp,  -0.18948987516315e-3_dp,  -0.39392777243355e-2_dp,  &
           -0.43797295650573e-1_dp,  -0.26674547914087e-4_dp,   0.20481737692309e-7_dp,   0.43870667284435e-6_dp,  &
@@ -152,7 +152,7 @@ module IAPWS_module
           35,  1,  2,  3,  7,  3, 16, 35,  0, 11, 25,  8, 36,  &
           13,  4, 10, 14, 29, 50, 57, 20, 35, 48, 21, 53,      &
           39, 26, 40, 58]
-     real(dp) :: n0J0(9), nI(43), nJ(43)
+     PetscReal :: n0J0(9), nI(43), nJ(43)
      PetscInt :: J0_1(9), I_1(43), J_1(43)
      type(powertable) :: pj0, pi, pj
    contains
@@ -169,8 +169,8 @@ module IAPWS_module
   type, public, extends(IAPWS_region_type) :: IAPWS_region3_type
      !! IAPWS-97 region 3 (supercritical) type.
      private
-     real(dp) :: dstar = dcritical, tstar = tcriticalk
-     real(dp) :: n(40) = [ &
+     PetscReal :: dstar = dcritical, tstar = tcriticalk
+     PetscReal :: n(40) = [ &
            0.10658070028513e1_dp, -0.15732845290239e2_dp,   0.20944396974307e2_dp,  -0.76867707878716e1_dp,  &
            0.26185947787954e1_dp, -0.28080781148620e1_dp,   0.12053369696517e1_dp,  -0.84566812812502e-2_dp, &
           -0.12654315477714e1_dp, -0.11524407806681e1_dp,   0.88521043984318_dp,    -0.64207765181607_dp,    &
@@ -189,7 +189,7 @@ module IAPWS_module
            0, 0,  1, 2,  7, 10, 12, 23, 2,  6, 15, 17,  0, 2, 6,  7, 22,  &
           26, 0,  2, 4, 16, 26,  0,  2, 4, 26,  1,  3, 26, 0, 2, 26,  2, &
           26, 2, 26, 0,  1, 26]
-     real(dp) :: nI(40), nJ(40)
+     PetscReal :: nI(40), nJ(40)
      PetscInt :: I_1(40), J_1(40)
      type(powertable) :: pi, pj
    contains
@@ -206,8 +206,8 @@ module IAPWS_module
   type, public :: IAPWS_boundary23_type
      !! IAPWS-97 boundary between regions 2 and 3.
      private
-     real(dp) :: pstar = 1.0e6_dp
-     real(dp) :: n(5) = [ &
+     PetscReal :: pstar = 1.0e6_dp
+     PetscReal :: n(5) = [ &
           0.34805185628969e3_dp, -0.11671859879975e1_dp, 0.10192970039326e-2_dp, &
           0.57254459862746e3_dp,  0.13918839778870e2_dp]
      contains
@@ -314,8 +314,8 @@ contains
     !! overridden for specific regions.
 
     class(IAPWS_region_type), intent(in out) :: self
-    real(dp), intent(in), target :: param(:) !! Primary variables
-    real(dp), intent(out):: props(:) !! Properties
+    PetscReal, intent(in), target :: param(:) !! Primary variables
+    PetscReal, intent(out):: props(:) !! Properties
     PetscInt, intent(out) :: err !! error code
 
     continue
@@ -328,14 +328,14 @@ contains
     !! IAPWS viscosity routine.
 
     class(IAPWS_region_type), intent(in out) :: self
-    real(dp), intent(in) :: temperature !! Temperature
-    real(dp), intent(in) :: pressure    !! Pressure (not used)
-    real(dp), intent(in) :: density     !! Density
-    real(dp), intent(out) :: viscosity  !! Viscosity
+    PetscReal, intent(in) :: temperature !! Temperature
+    PetscReal, intent(in) :: pressure    !! Pressure (not used)
+    PetscReal, intent(in) :: density     !! Density
+    PetscReal, intent(out) :: viscosity  !! Viscosity
 
     ! Locals:
-    real(dp):: del, tk, tau
-    real(dp):: mu0, mu1, s0, s1
+    PetscReal:: del, tk, tau
+    PetscReal:: mu0, mu1, s0, s1
 
     tk = temperature + tc_k
     tau = tk / tcriticalk
@@ -407,12 +407,12 @@ contains
     !! Returns err = 1 if called outside its operating range (t<=350 deg C, p<=100 MPa).
 
     class(IAPWS_region1_type), intent(in out) :: self
-    real(dp), intent(in), target :: param(:) !! Primary variables (pressure, temperature)
-    real(dp), intent(out):: props(:) !! (density, internal energy)
+    PetscReal, intent(in), target :: param(:) !! Primary variables (pressure, temperature)
+    PetscReal, intent(out):: props(:) !! (density, internal energy)
     PetscInt, intent(out) :: err !! error code
     ! Locals:
-    real(dp), pointer :: p, t
-    real(dp):: tk, rt, pi, tau, gampi, gamt
+    PetscReal, pointer :: p, t
+    PetscReal:: tk, rt, pi, tau, gampi, gamt
 
     p => param(1); t => param(2)
 
@@ -497,12 +497,12 @@ contains
     !! Returns err = 1 if called outside its operating range (t<=1000 deg C, p<=100 MPa).
     
     class(IAPWS_region2_type), intent(in out) :: self
-    real(dp), intent(in), target :: param(:) !! Primary variables (pressure, temperature)
-    real(dp), intent(out):: props(:)  !! (density, internal energy)
+    PetscReal, intent(in), target :: param(:) !! Primary variables (pressure, temperature)
+    PetscReal, intent(out):: props(:)  !! (density, internal energy)
     PetscInt, intent(out) :: err  !! error code
     ! Locals:
-    real(dp), pointer :: p, t
-    real(dp):: tk, rt, pi, tau, gampir, gamt0, gamtr, gampi
+    PetscReal, pointer :: p, t
+    PetscReal:: tk, rt, pi, tau, gampir, gamt0, gamtr, gampi
 
     p => param(1); t => param(2)
 
@@ -584,13 +584,13 @@ contains
     !! Returns err = 1 if resulting pressure is outside its operating range (p<=100 MPa).
 
     class(IAPWS_region3_type), intent(in out) :: self
-    real(dp), intent(in), target :: param(:) !! Primary variables (density, temperature)
-    real(dp), intent(out):: props(:)  !! (pressure, internal energy)
+    PetscReal, intent(in), target :: param(:) !! Primary variables (density, temperature)
+    PetscReal, intent(out):: props(:)  !! (pressure, internal energy)
     PetscInt, intent(out) :: err   !! Error code
     ! Locals:
-    real(dp), pointer :: d, t
-    real(dp):: tk, rt, delta, tau
-    real(dp):: phidelta, phitau
+    PetscReal, pointer :: d, t
+    PetscReal:: tk, rt, delta, tau
+    PetscReal:: phidelta, phitau
 
     d => param(1); t => param(2)
 
@@ -654,12 +654,12 @@ contains
     !! Returns err = 1 if called outside its operating range (0 <= t <= critical temperature).
 
     class(IAPWS_saturation_type), intent(in) :: self
-    real(dp), intent(in) :: t  !! Fluid temperature (\(^\circ C\))
-    real(dp), intent(out):: p  !! Fluid pressure (\(kg. m. s^{-1}\))
+    PetscReal, intent(in) :: t  !! Fluid temperature (\(^\circ C\))
+    PetscReal, intent(out):: p  !! Fluid pressure (\(kg. m. s^{-1}\))
     PetscInt, intent(out) :: err  !! Error code
     ! Locals:
-    real(dp):: tk
-    real(dp):: theta, theta2, a, b, c, x
+    PetscReal:: tk
+    PetscReal:: theta, theta2, a, b, c, x
 
     if ((t >= 0._dp).and.(t <= tcritical)) then
        tk = t + tc_k      
@@ -685,11 +685,11 @@ contains
     !! Returns err = 1 if called outside its operating range (611.213 Pa <= p <= critical pressure).
 
     class(IAPWS_saturation_type), intent(in) :: self
-    real(dp), intent(in) :: p  !! Fluid pressure (\(kg. m. s^{-1}\))
-    real(dp), intent(out):: t  !! Fluid temperature (\(^\circ C\))
+    PetscReal, intent(in) :: p  !! Fluid pressure (\(kg. m. s^{-1}\))
+    PetscReal, intent(out):: t  !! Fluid temperature (\(^\circ C\))
     PetscInt, intent(out) :: err !! Error code
     ! Locals:
-    real(dp):: beta, beta2, d, e, f, g, x
+    PetscReal:: beta, beta2, d, e, f, g, x
 
     if ((p >= 611.213_dp).and.(p <= pcritical)) then
        beta2 = dsqrt(p / self%pstar)
@@ -716,10 +716,10 @@ contains
     !! given a temperature t (deg C).
 
     class(IAPWS_boundary23_type), intent(in) :: self
-    real(dp), intent(in) :: t  !! Fluid temperature (\(^\circ C\))
-    real(dp), intent(out):: p  !! Fluid pressure (\(kg. m. s^{-1}\))
+    PetscReal, intent(in) :: t  !! Fluid temperature (\(^\circ C\))
+    PetscReal, intent(out):: p  !! Fluid pressure (\(kg. m. s^{-1}\))
     ! Local variable:      
-    real(dp):: tk
+    PetscReal:: tk
 
     tk = t + tc_k
     p  = self%pstar * (self%n(1) + tk * (self%n(2) + tk * self%n(3))) 
@@ -733,8 +733,8 @@ contains
     !! given a pressure p (Pa).
 
     class(IAPWS_boundary23_type), intent(in) :: self
-    real(dp), intent(in) :: p  !! Fluid pressure (\(kg. m. s^{-1}\))
-    real(dp), intent(out):: t  !! Fluid temperature (\(^\circ C\))
+    PetscReal, intent(in) :: p  !! Fluid pressure (\(kg. m. s^{-1}\))
+    PetscReal, intent(out):: t  !! Fluid temperature (\(^\circ C\))
 
     t = self%n(4) + dsqrt((p/self%pstar - self%n(5)) / self%n(3)) - tc_k 
 

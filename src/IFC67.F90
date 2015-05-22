@@ -14,9 +14,9 @@ module IFC67_module
 
 #include <petsc-finclude/petscsys.h>
 
-  real(dp), parameter :: tcriticalk67 = 647.3_dp        ! Critical temperature (Kelvin)
-  real(dp), parameter :: tcritical67 = tcriticalk67 - tc_k
-  real(dp), parameter :: pcritical67  = 2.212e7_dp      ! Critical pressure (Pa)
+  PetscReal, parameter :: tcriticalk67 = 647.3_dp        ! Critical temperature (Kelvin)
+  PetscReal, parameter :: tcritical67 = tcriticalk67 - tc_k
+  PetscReal, parameter :: pcritical67  = 2.212e7_dp      ! Critical pressure (Pa)
 
 !------------------------------------------------------------------------
   ! Saturation curve type
@@ -25,7 +25,7 @@ module IFC67_module
   type, public, extends(saturation_type) :: IFC67_saturation_type
      !! IFC-67 saturation curve calculations.
      private
-     real(dp) :: &
+     PetscReal :: &
           A1 = -7.691234564_dp,   A2 = -2.608023696e1_dp, &
           A3 = -1.681706546e2_dp, A4 =  6.423285504e1_dp, &
           A5 = -1.189646225e2_dp, A6 =  4.167117320_dp, &
@@ -43,7 +43,7 @@ module IFC67_module
   type, public, extends(region_type) :: IFC67_region1_type
      !! IFC-67 region 1 (pure water) type.
      private
-     real(dp) :: &
+     PetscReal :: &
           A1 = 6.824687741e3_dp,    A2 = -5.422063673e2_dp, &
           A3 = -2.096666205e4_dp,   A4 = 3.941286787e4_dp, &
           A5 = -13.466555478e4_dp,  A6 = 29.707143084e4_dp, &
@@ -56,7 +56,7 @@ module IFC67_module
           A19 = 2.174020350e-8_dp,  A20 = 1.105710498e-9_dp, &
           A21 = 1.293441934e1_dp,   A22 = 1.308119072e-5_dp, &
           A23 = 6.047626338e-14_dp
-     real(dp) :: &
+     PetscReal :: &
           SA1 = 8.438375405e-1_dp,  SA2 = 5.362162162e-4_dp, &
           SA3 = 1.72_dp,            SA4 = 7.342278489e-2_dp, &
           SA5 = 4.975858870e-2_dp,  SA6 = 6.537154300e-1_dp, &
@@ -78,7 +78,7 @@ module IFC67_module
   type, public, extends(region_type) :: IFC67_region2_type
      !! IFC-67 region 2 (steam) type.
      private
-     real(dp) :: &
+     PetscReal :: &
           B0 = 16.83599274_dp,      B01 = 28.56067796_dp, &
           B02 = -54.38923329_dp,    B03 = 0.4330662834_dp, &
           B04 = -0.6547711697_dp,   B05 = 8.565182058e-2_dp, &
@@ -95,7 +95,7 @@ module IFC67_module
           B92 = 4.126607219e3_dp,   B93 = -6.508211677e3_dp, &
           B94 = 5.745984054e3_dp,   B95 = -2.693088365e3_dp, &
           B96 = 5.235718623e2_dp
-     real(dp) :: &
+     PetscReal :: &
           SB = 7.633333333e-1_dp, SB61 = 4.006073948e-1_dp, &
           SB71 = 8.636081627e-2_dp, SB81 = -8.532322921e-1_dp, &
           SB82 = 3.460208861e-1_dp
@@ -207,18 +207,18 @@ contains
     !! Returns err = 1 if called outside its operating range (t<=350 deg C, p<=100 MPa).
 
     class(IFC67_region1_type), intent(in out) :: self
-    real(dp), intent(in), target :: param(:) !! Primary variables (pressure, temperature)
-    real(dp), intent(out):: props(:) !! (density, internal energy)
+    PetscReal, intent(in), target :: param(:) !! Primary variables (pressure, temperature)
+    PetscReal, intent(out):: props(:) !! (density, internal energy)
     PetscInt, intent(out) :: err !! error code
     ! Locals:
-    real(dp), pointer :: p, t
-    real(dp) :: AA1, BB1, BB2, CC1, CC2, CC4, CC8, CC10
-    real(dp) :: CZ, DD1, DD2, DD4, EE1, EE3, ENTR, H
-    real(dp) :: PAR1, PAR2, PAR3, PAR4, PAR5
-    real(dp) :: PNMR, PNMR2, PNMR3, PNMR4, PRT1, PRT2, PRT3, PRT4, PRT5
-    real(dp) :: SNUM, TKR, TKR2, TKR3, TKR4, TKR5, TKR6, TKR7, TKR8, TKR9, TKR10, &
+    PetscReal, pointer :: p, t
+    PetscReal :: AA1, BB1, BB2, CC1, CC2, CC4, CC8, CC10
+    PetscReal :: CZ, DD1, DD2, DD4, EE1, EE3, ENTR, H
+    PetscReal :: PAR1, PAR2, PAR3, PAR4, PAR5
+    PetscReal :: PNMR, PNMR2, PNMR3, PNMR4, PRT1, PRT2, PRT3, PRT4, PRT5
+    PetscReal :: SNUM, TKR, TKR2, TKR3, TKR4, TKR5, TKR6, TKR7, TKR8, TKR9, TKR10, &
          TKR11, TKR18, TKR19, TKR20
-    real(dp) :: V, VMKR, Y, YD, Z, ZP, D, U
+    PetscReal :: V, VMKR, Y, YD, Z, ZP, D, U
     
     p => param(1); t => param(2)
     
@@ -316,12 +316,12 @@ contains
     !! Calculates water viscosity. Density is a dummy argument and is not used.
 
     class(IFC67_region1_type), intent(in out) :: self
-    real(dp), intent(in) :: temperature  !! Fluid temperature (\(^\circ C\))
-    real(dp), intent(in) :: pressure     !! Fluid pressure (not used)
-    real(dp), intent(in) :: density      !! Fluid density (\(kg. m^{-3}\))
-    real(dp), intent(out) :: viscosity   !! Viscosity (\(kg.m^{-1}.s^{-1}\))
+    PetscReal, intent(in) :: temperature  !! Fluid temperature (\(^\circ C\))
+    PetscReal, intent(in) :: pressure     !! Fluid pressure (not used)
+    PetscReal, intent(in) :: density      !! Fluid density (\(kg. m^{-3}\))
+    PetscReal, intent(out) :: viscosity   !! Viscosity (\(kg.m^{-1}.s^{-1}\))
     ! Locals:
-    real(dp) :: ex, phi, am, ps
+    PetscReal :: ex, phi, am, ps
     PetscInt :: err
 
     ex = 247.8_dp / (temperature + 133.15_dp)
@@ -363,16 +363,16 @@ contains
     !! Returns err = 1 if called outside its operating range (t<=1000 deg C, p<=100 MPa).
 
     class(IFC67_region2_type), intent(in out) :: self
-    real(dp), intent(in), target :: param(:) !! Primary variables (pressure, temperature)
-    real(dp), intent(out):: props(:)  !! (density, internal energy)
+    PetscReal, intent(in), target :: param(:) !! Primary variables (pressure, temperature)
+    PetscReal, intent(out):: props(:)  !! (density, internal energy)
     PetscInt, intent(out) :: err !! error code
     ! Locals:
-    real(dp), pointer :: p, t
-    real(dp) :: BETA, BETA2, BETA3, BETA4, BETA5, BETA6, BETA7, BETAL, CHI2
-    real(dp) :: DBETAL, EPS2, H, OS1, OS2, OS5, OS6, OS7, R, R2, R4, R6, R10, RI1
-    real(dp) :: SC, SD1, SD12, SD2, SD22, SD3, SD32, SN, SN6, SN7, SN8
-    real(dp) ::  THETA, THETA2, THETA3, THETA4, V, D, U
-    real(dp) :: X, X2, X3, X4, X5, X6, X8, X10, X11, X14, X18, X19, X24, X27
+    PetscReal, pointer :: p, t
+    PetscReal :: BETA, BETA2, BETA3, BETA4, BETA5, BETA6, BETA7, BETAL, CHI2
+    PetscReal :: DBETAL, EPS2, H, OS1, OS2, OS5, OS6, OS7, R, R2, R4, R6, R10, RI1
+    PetscReal :: SC, SD1, SD12, SD2, SD22, SD3, SD32, SN, SN6, SN7, SN8
+    PetscReal ::  THETA, THETA2, THETA3, THETA4, V, D, U
+    PetscReal :: X, X2, X3, X4, X5, X6, X8, X10, X11, X14, X18, X19, X24, X27
 
     p => param(1); t => param(2)
 
@@ -508,12 +508,12 @@ contains
     !! Calculates water viscosity. Pressure is a dummy argument and is not used.
 
     class(IFC67_region2_type), intent(in out) :: self
-    real(dp), intent(in) :: temperature !! Fluid temperature (\(^\circ C\))
-    real(dp), intent(in) :: pressure  !! Fluid pressure (not used)
-    real(dp), intent(in) :: density   !! Fluid density (\(kg. m^{-3}\))
-    real(dp), intent(out) :: viscosity !! Viscosity (\(kg.m^{-1}.s^{-1}\))
+    PetscReal, intent(in) :: temperature !! Fluid temperature (\(^\circ C\))
+    PetscReal, intent(in) :: pressure  !! Fluid pressure (not used)
+    PetscReal, intent(in) :: density   !! Fluid density (\(kg. m^{-3}\))
+    PetscReal, intent(out) :: viscosity !! Viscosity (\(kg.m^{-1}.s^{-1}\))
     ! Locals:
-    real(dp) :: v1
+    PetscReal :: v1
 
     v1 = 0.407_dp * temperature + 80.4_dp
     if (temperature <= 350.0_dp) then
@@ -535,11 +535,11 @@ subroutine saturation_pressure(self, t, p, err)
   !! Returns err = 1 if called outside its operating range (1 <= t <= critical temperature).
 
   class(IFC67_saturation_type), intent(in) :: self
-  real(dp), intent(in) :: t  !! Fluid temperature (\(^\circ C\))
-  real(dp), intent(out):: p  !! Fluid pressure (\(kg. m. s^{-1}\))
+  PetscReal, intent(in) :: t  !! Fluid temperature (\(^\circ C\))
+  PetscReal, intent(out):: p  !! Fluid pressure (\(kg. m. s^{-1}\))
   PetscInt, intent(out) :: err  !! Error code
   ! Locals:
-  real(dp) :: PC, SC, TC, X1, X2
+  PetscReal :: PC, SC, TC, X1, X2
 
   if ((t >= 1._dp).and.(t <= tcritical67)) then
      TC = (t + tc_k) / tcriticalk67
@@ -566,13 +566,13 @@ subroutine saturation_temperature(self, p, t, err)
   !! Returns err = 1 if called outside its operating range (611.213 Pa <= p <= critical pressure).
 
   class(IFC67_saturation_type), intent(in) :: self
-  real(dp), intent(in) :: p  !! Fluid pressure (\(kg. m. s^{-1}\))
-  real(dp), intent(out):: t  !! Fluid temperature (\(^\circ C\))
+  PetscReal, intent(in) :: p  !! Fluid pressure (\(kg. m. s^{-1}\))
+  PetscReal, intent(out):: t  !! Fluid temperature (\(^\circ C\))
   PetscInt, intent(out) :: err !! Error code
   ! Locals:
   PetscInt, parameter :: maxit = 200
-  real(dp), parameter :: tol = 1.e-10_dp
-  real(dp) ::  dt, ps, psd, tsd
+  PetscReal, parameter :: tol = 1.e-10_dp
+  PetscReal ::  dt, ps, psd, tsd
   PetscInt :: i
   PetscBool :: found
 

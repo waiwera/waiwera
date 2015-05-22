@@ -14,9 +14,9 @@ module IAPWS_test
 #include <petsc-finclude/petscsys.h>
 #include <petsc-finclude/petscdef.h>
 
-  real(dp), parameter :: density_tol = 1.e-5_dp, energy_tol = 1.e-2_dp
-  real(dp), parameter :: pressure_tol = 1.e-1_dp, temperature_tol = 1.e-6_dp
-  real(dp), parameter :: viscosity_tol = 1.e-12_dp
+  PetscReal, parameter :: density_tol = 1.e-5_dp, energy_tol = 1.e-2_dp
+  PetscReal, parameter :: pressure_tol = 1.e-1_dp, temperature_tol = 1.e-6_dp
+  PetscReal, parameter :: viscosity_tol = 1.e-12_dp
 
   type(IAPWS_type) :: IAPWS
 
@@ -53,14 +53,14 @@ module IAPWS_test
       ! IAPWS-97 region 1 tests
 
       PetscInt, parameter :: n = 3 
-      real(dp) :: params(n,2) = reshape([ &
+      PetscReal :: params(n,2) = reshape([ &
            3.e6_dp, 80.e6_dp, 3.e6_dp, &
            300._dp, 300._dp,  500._dp], [n,2])
-      real(dp), parameter :: nu(n) = [0.100215168e-2_dp, 0.971180894e-3_dp, 0.120241800e-2_dp]
-      real(dp), parameter ::  u(n) = [0.112324818e6_dp,  0.106448356e6_dp,  0.971934985e6_dp]
-      real(dp), parameter :: rho(n) = 1._dp / nu
+      PetscReal, parameter :: nu(n) = [0.100215168e-2_dp, 0.971180894e-3_dp, 0.120241800e-2_dp]
+      PetscReal, parameter ::  u(n) = [0.112324818e6_dp,  0.106448356e6_dp,  0.971934985e6_dp]
+      PetscReal, parameter :: rho(n) = 1._dp / nu
       PetscInt :: i, err
-      real(dp) :: param(2), props(2)
+      PetscReal :: param(2), props(2)
 
       if (mpi%rank == mpi%output_rank) then
          params(:,2) = params(:,2) - tc_k  ! convert temperatures to Celcius
@@ -82,14 +82,14 @@ module IAPWS_test
       ! IAPWS-97 region 2 tests
 
       PetscInt, parameter :: n = 3 
-      real(dp) :: params(n,2) = reshape([ &
+      PetscReal :: params(n,2) = reshape([ &
            0.0035e6_dp, 0.0035e6_dp, 30.e6_dp, &
            300._dp, 700._dp,  700._dp], [n,2])
-      real(dp), parameter :: nu(n) = [0.394913866e2_dp, 0.923015898e2_dp, 0.542946619e-2_dp]
-      real(dp), parameter ::  u(n) = [0.241169160e7_dp, 0.301262819e7_dp, 0.246861076e7_dp]
-      real(dp), parameter :: rho(n) = 1._dp / nu
+      PetscReal, parameter :: nu(n) = [0.394913866e2_dp, 0.923015898e2_dp, 0.542946619e-2_dp]
+      PetscReal, parameter ::  u(n) = [0.241169160e7_dp, 0.301262819e7_dp, 0.246861076e7_dp]
+      PetscReal, parameter :: rho(n) = 1._dp / nu
       PetscInt :: i, err
-      real(dp) :: param(2), props(2)
+      PetscReal :: param(2), props(2)
 
       if (mpi%rank == mpi%output_rank) then
          params(:,2) = params(:,2) - tc_k  ! convert temperatures to Celcius
@@ -111,13 +111,13 @@ module IAPWS_test
       ! IAPWS-97 region 3 tests
 
       PetscInt, parameter :: n = 3 
-      real(dp) :: params(n,2) = reshape([ &
+      PetscReal :: params(n,2) = reshape([ &
            500._dp, 200._dp, 500._dp, &
            650._dp, 650._dp, 750._dp], [n,2])
-      real(dp), parameter :: p(n) = [0.255837018e8_dp, 0.222930643e8_dp, 0.783095639e8_dp]
-      real(dp), parameter ::  u(n) = [0.181226279e7_dp, 0.226365868e7_dp, 0.210206932e7_dp]
+      PetscReal, parameter :: p(n) = [0.255837018e8_dp, 0.222930643e8_dp, 0.783095639e8_dp]
+      PetscReal, parameter ::  u(n) = [0.181226279e7_dp, 0.226365868e7_dp, 0.210206932e7_dp]
       PetscInt :: i, err
-      real(dp) :: param(2), props(2)
+      PetscReal :: param(2), props(2)
 
       if (mpi%rank == mpi%output_rank) then
          params(:,2) = params(:,2) - tc_k  ! convert temperatures to Celcius
@@ -139,10 +139,10 @@ module IAPWS_test
       ! IAPWS-97 saturation curve tests
 
       PetscInt, parameter :: n = 3
-      real(dp), parameter ::  t(n) = [300._dp, 500._dp, 600._dp] - tc_k
-      real(dp), parameter :: p(n) = [0.353658941e4_dp, 0.263889776e7_dp, &
+      PetscReal, parameter ::  t(n) = [300._dp, 500._dp, 600._dp] - tc_k
+      PetscReal, parameter :: p(n) = [0.353658941e4_dp, 0.263889776e7_dp, &
            0.123443146e8_dp]
-      real(dp) :: ps, ts
+      PetscReal :: ps, ts
       PetscInt :: i, err
 
       if (mpi%rank == mpi%output_rank) then
@@ -165,16 +165,16 @@ module IAPWS_test
       ! IAPWS viscosity tests
 
       PetscInt, parameter :: n = 11
-      real(dp), parameter :: t(n) = [298.15_dp, 298.15_dp, 373.15_dp, 433.15_dp, 433.15_dp, &
+      PetscReal, parameter :: t(n) = [298.15_dp, 298.15_dp, 373.15_dp, 433.15_dp, 433.15_dp, &
            873.15_dp, 873.15_dp, 873.15_dp, 1173.15_dp, 1173.15_dp, 1173.15_dp] - tc_k
-      real(dp), parameter :: d(n) = [998._dp, 1200._dp, 1000._dp, 1._dp, &
+      PetscReal, parameter :: d(n) = [998._dp, 1200._dp, 1000._dp, 1._dp, &
            1000._dp, 1._dp, 100._dp, 600._dp, 1._dp, 100._dp, 400._dp]
-      real(dp), parameter :: visc(n) = [889.735100_dp, 1437.649467_dp, 307.883622_dp, &
+      PetscReal, parameter :: visc(n) = [889.735100_dp, 1437.649467_dp, 307.883622_dp, &
            14.538324_dp, 217.685358_dp, 32.619287_dp, 35.802262_dp, 77.430195_dp, &
            44.217245_dp, 47.640433_dp, 64.154608_dp] * 1.e-6_dp
       PetscInt, parameter :: reg(n) = [1, 1, 1, 2, 1, 2, 2, 3, 2, 2, 2]
-      real(dp), parameter :: p = 1.e5 ! dummy pressure
-      real(dp) :: v
+      PetscReal, parameter :: p = 1.e5 ! dummy pressure
+      PetscReal :: v
       PetscInt :: i
 
       if (mpi%rank == mpi%output_rank) then
@@ -192,9 +192,9 @@ module IAPWS_test
 
       ! Boundary 23 test
       
-      real(dp), parameter :: t0 = 0.62315e3_dp - tc_k
-      real(dp), parameter :: p0 = 0.165291643e8_dp
-      real(dp) :: p, t
+      PetscReal, parameter :: t0 = 0.62315e3_dp - tc_k
+      PetscReal, parameter :: p0 = 0.165291643e8_dp
+      PetscReal :: p, t
 
       if (mpi%rank == mpi%output_rank) then
          call IAPWS%boundary23%pressure(t0, p)
