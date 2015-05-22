@@ -1,14 +1,10 @@
 module simulation_module
   !! Module for high-level representation of a simulation.
 
-  use mpi_module
-  use kinds_module
   use mesh_module
   use timestepping_module
   use thermodynamics_module
   use eos_module
-  use fson
-  use fson_mpi_module
 
   implicit none
 
@@ -48,6 +44,9 @@ contains
     !! Initializes a simulation using data from the input file with 
     !! specified name.
 
+    use mpi_module
+    use fson
+    use fson_mpi_module
     use thermodynamics_setup_module, only: setup_thermodynamics
     use eos_setup_module, only: setup_eos
     use initial_module, only: setup_initial
