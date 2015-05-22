@@ -82,7 +82,7 @@ contains
     class(eos_w_type), intent(in out) :: self
     PetscInt, intent(in) :: region !! Thermodynamic region index
     PetscReal, intent(in), target :: primary(self%num_primary_variables) !! Primary thermodynamic variables
-    type(fluid_type), intent(out) :: fluid !! Fluid object
+    type(fluid_type), intent(in out) :: fluid !! Fluid object
     ! Locals:
     PetscReal :: properties(2)
     PetscInt :: err

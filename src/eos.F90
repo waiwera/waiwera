@@ -64,7 +64,7 @@ module eos_module
        class(eos_type), intent(in out) :: self
        PetscInt, intent(in) :: region
        PetscReal, intent(in), target :: primary(self%num_primary_variables)
-       type(fluid_type), intent(out) :: fluid
+       type(fluid_type), intent(in out) :: fluid
      end subroutine eos_fluid_procedure
 
   end interface
