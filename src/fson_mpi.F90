@@ -120,8 +120,8 @@ module fson_mpi_module
 
         type(fson_value), pointer, intent(in) :: self
         character(len=*), intent(in) :: path
-        double precision, intent(in) :: default
-        double precision, intent(out) :: val
+        real(dp), intent(in) :: default
+        real(dp), intent(out) :: val
         ! Locals:
         type(fson_value), pointer :: p
 
@@ -416,8 +416,8 @@ module fson_mpi_module
 
         type(fson_value), pointer, intent(in) :: self
         character(len=*), intent(in) :: path
-        double precision, intent(in), optional :: default
-        double precision, intent(out) :: val
+        real(dp), intent(in), optional :: default
+        real(dp), intent(out) :: val
         ! Locals:
         integer :: ierr
 
