@@ -129,12 +129,14 @@ contains
   end subroutine simulation_destroy
 
 !------------------------------------------------------------------------
+! Cell mass and energy balances
+!------------------------------------------------------------------------
 
   subroutine simulation_cell_balances(t, primary, balance)
     !! Computes mass and energy balance for each cell, for the given
     !! primary thermodynamic variables and time.
     PetscReal, intent(in) :: t !! time (s)
-    Vec, intent(in) :: primary
+    Vec, intent(in) :: primary !! global primary variables vector
     Vec, intent(out) :: balance
     ! Locals:
     PetscErrorCode :: ierr
@@ -145,14 +147,18 @@ contains
   end subroutine simulation_cell_balances
 
 !------------------------------------------------------------------------
+! Cell net inflows and sources
+!------------------------------------------------------------------------
 
   subroutine simulation_cell_inflows(t, primary, inflow)
     !! Computes net inflow into each cell, from flows through faces and
     !! source terms, for the given primary thermodynamic variables and
     !! time.
 
-    PetscReal, intent(in) :: t
-    Vec, intent(in) :: primary
+    use kinds_module
+
+    PetscReal, intent(in) :: t !! time
+    Vec, intent(in) :: primary !! global primary variables vector
     Vec, intent(out) :: inflow
     ! Locals:
     PetscErrorCode :: ierr
