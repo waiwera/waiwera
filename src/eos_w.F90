@@ -84,7 +84,7 @@ contains
     PetscReal, intent(in), target :: primary(self%num_primary_variables) !! Primary thermodynamic variables
     type(fluid_type), intent(in out) :: fluid !! Fluid object
     ! Locals:
-    PetscReal :: properties(self%num_primary_variables)
+    PetscReal :: properties(2)
     PetscInt :: err
 
     fluid%pressure = primary(1)
