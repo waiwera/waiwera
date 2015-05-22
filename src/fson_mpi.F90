@@ -53,7 +53,7 @@ module fson_mpi_module
 
 !------------------------------------------------------------------------
 
-    logical function assoc_non_null(self)
+    PetscBool function assoc_non_null(self)
       !! Returns .true. if fson_value self is associated and has value
       !! type non-null.
 
@@ -142,8 +142,8 @@ module fson_mpi_module
 
         type(fson_value), pointer, intent(in) :: self
         character(len=*), intent(in) :: path
-        logical, intent(in) :: default
-        logical, intent(out) :: val
+        PetscBool, intent(in) :: default
+        PetscBool, intent(out) :: val
         ! Locals:
         type(fson_value), pointer :: p
 
@@ -247,8 +247,8 @@ module fson_mpi_module
 
         type(fson_value), pointer, intent(in) :: self
         character(len=*), intent(in) :: path
-        logical, intent(in) :: default(:)
-        logical, allocatable, intent(out) :: val(:)
+        PetscBool, intent(in) :: default(:)
+        PetscBool, allocatable, intent(out) :: val(:)
         ! Locals:
         type(fson_value), pointer :: p
 
@@ -331,8 +331,8 @@ module fson_mpi_module
 
         type(fson_value), pointer, intent(in) :: self
         character(len=*), intent(in) :: path
-        logical, intent(in) :: default(:,:)
-        logical, allocatable, intent(out) :: val(:,:)
+        PetscBool, intent(in) :: default(:,:)
+        PetscBool, allocatable, intent(out) :: val(:,:)
         ! Locals:
         type(fson_value), pointer :: p
 
@@ -441,8 +441,8 @@ module fson_mpi_module
 
         type(fson_value), pointer, intent(in) :: self
         character(len=*), intent(in) :: path
-        logical, intent(in), optional :: default
-        logical, intent(out) :: val
+        PetscBool, intent(in), optional :: default
+        PetscBool, intent(out) :: val
         ! Locals:
         PetscInt :: ierr
 
@@ -573,8 +573,8 @@ module fson_mpi_module
 
         type(fson_value), pointer, intent(in) :: self
         character(len=*), intent(in) :: path
-        logical, intent(in), optional :: default(:)
-        logical, allocatable, intent(out) :: val(:)
+        PetscBool, intent(in), optional :: default(:)
+        PetscBool, allocatable, intent(out) :: val(:)
         ! Locals:
         PetscInt :: ierr, count
 
@@ -689,8 +689,8 @@ module fson_mpi_module
 
         type(fson_value), pointer, intent(in) :: self
         character(len=*), intent(in) :: path
-        logical, intent(in), optional :: default(:,:)
-        logical, allocatable, intent(out) :: val(:,:)
+        PetscBool, intent(in), optional :: default(:,:)
+        PetscBool, allocatable, intent(out) :: val(:,:)
         ! Locals:
         integer :: ierr, count(2), total_count
 
@@ -713,7 +713,7 @@ module fson_mpi_module
 
 !------------------------------------------------------------------------
 
-      logical function fson_has_mpi(self, path) result(has)
+      PetscBool function fson_has_mpi(self, path) result(has)
         !! Returns .true. on all ranks if fson object has the specified
         !! path, and .false. otherwise.
 

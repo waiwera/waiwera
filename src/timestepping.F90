@@ -41,7 +41,7 @@ module timestepping_module
      !! For adaptive time step size control. Stepsize is increased if monitor value is
      !! below monitor_min, decreased if it is above monitor_max.
      private
-     logical, public :: on = .false.
+     PetscBool, public :: on = .false.
      procedure(monitor_function), pointer, nopass, public :: monitor => relative_change_monitor
      PetscReal, public :: monitor_min = 0.01_dp, monitor_max = 0.1_dp
      PetscReal, public :: reduction = 0.5_dp, amplification = 2.0_dp

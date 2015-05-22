@@ -35,7 +35,7 @@ contains
     PetscInt, allocatable :: indices(:)
     real(dp), allocatable :: initial_input(:), initial_data(:)
     PetscInt :: i, np, count
-    logical :: const
+    PetscBool :: const
     real(dp), parameter :: default_initial_value = 0.0_dp
 
     call DMCreateGlobalVector(dm, initial, ierr); CHKERRQ(ierr)

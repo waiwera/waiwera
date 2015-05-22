@@ -574,7 +574,7 @@ subroutine saturation_temperature(self, p, t, err)
   real(dp), parameter :: tol = 1.e-10_dp
   real(dp) ::  dt, ps, psd, tsd
   PetscInt :: i
-  logical :: found
+  PetscBool :: found
 
   if ((p >= 0.0061e5_dp) .and. (p <= pcritical67)) then
 

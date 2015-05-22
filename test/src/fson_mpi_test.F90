@@ -141,12 +141,12 @@ contains
     ! Test fson_get_mpi logical routines
 
     type(fson_value), pointer :: json
-    logical :: val
-    logical, parameter :: expected = .false.
-    logical, allocatable :: arr(:)
-    logical, parameter :: expected_arr(4) = [.false., .false., .true., .true.]
-    logical, allocatable :: arr_2d(:,:)
-    logical, parameter :: expected_arr_2d(3,2) = &
+    PetscBool :: val
+    PetscBool, parameter :: expected = .false.
+    PetscBool, allocatable :: arr(:)
+    PetscBool, parameter :: expected_arr(4) = [.false., .false., .true., .true.]
+    PetscBool, allocatable :: arr_2d(:,:)
+    PetscBool, parameter :: expected_arr_2d(3,2) = &
          transpose(reshape([.true., .false., .false., .false., .true., .true.],&
          [2,3]))
 

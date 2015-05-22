@@ -59,7 +59,7 @@ contains
 
 !------------------------------------------------------------------------
 
-  logical function powertable_product_configured(self, i)
+  PetscBool function powertable_product_configured(self, i)
     !! Returns true if product combination has already been computed
     !! for the specified power.
 
@@ -123,7 +123,7 @@ contains
     ! Locals:
     PetscInt :: min_power, max_power, i, old_lower, old_upper
     PetscInt :: old_required(self%lower:self%upper), s, u
-    logical :: enlarge
+    PetscBool :: enlarge
 
     old_lower = 0; old_upper =0
 
