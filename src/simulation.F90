@@ -16,8 +16,8 @@ module simulation_module
 
 #include <petsc-finclude/petsc.h90>
 
-  integer, parameter, public :: max_filename_length = 200
-  integer, parameter, public :: max_title_length = 120
+  PetscInt, parameter, public :: max_filename_length = 200
+  PetscInt, parameter, public :: max_title_length = 120
 
   type, public :: simulation_type
      !! Simulation type.

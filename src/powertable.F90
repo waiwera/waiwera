@@ -8,6 +8,8 @@ module powertable_module
   implicit none
   private
 
+#include <petsc-finclude/petscdef.h>
+
   type, private :: product_pointer
      private
      real(dp), pointer :: fac1, fac2
@@ -21,11 +23,11 @@ module powertable_module
      !! double precision number.
      private
      real(dp), allocatable, public :: power(:) !! Computed powers
-     integer, allocatable :: product(:,:)
+     PetscInt, allocatable :: product(:,:)
      type(product_pointer), allocatable :: powerlist(:)
-     integer, public :: lower = 0, upper = 0 !! Lower and upper bounds of powers
-     integer, allocatable :: required(:)
-     integer :: powerlist_size
+     PetscInt, public :: lower = 0, upper = 0 !! Lower and upper bounds of powers
+     PetscInt, allocatable :: required(:)
+     PetscInt :: powerlist_size
    contains
      private
      procedure, public  :: configure => powertable_configure
@@ -45,9 +47,9 @@ contains
     !! to the factors in the array, and prod points to the resulting product.
 
     class(product_pointer), intent(in out) :: self
-    integer, intent(in) :: lower, upper
+    PetscInt, intent(in) :: lower, upper
     real(dp), intent(in), target :: arr(lower:upper)
-    integer, intent(in) :: i1, i2, iprod
+    PetscInt, intent(in) :: i1, i2, iprod
 
     self%fac1 => arr(i1)
     self%fac2 => arr(i2)
@@ -62,7 +64,7 @@ contains
     !! for the specified power.
 
     class(powertable), intent(in out) :: self
-    integer, intent(in) :: i
+    PetscInt, intent(in) :: i
 
     powertable_product_configured = &
          (abs(i) <= 1) .or. &
@@ -76,9 +78,9 @@ contains
     !! Configures product combination for the specifed power.
 
     class(powertable), intent(in out) :: self
-    integer, intent(in) :: i
+    PetscInt, intent(in) :: i
     ! Locals:
-    integer :: s, j, i2, c
+    PetscInt :: s, j, i2, c
 
     if ((abs(i) > 1) .and. (.not.(self%product_configured(i)))) then
        ! First look for combinations of existing powers:
@@ -117,10 +119,10 @@ contains
     !! adding any extra powers needed for intermediate steps.
 
     class(powertable), intent(in out) :: self
-    integer, intent(in), dimension(:) :: powers
+    PetscInt, intent(in), dimension(:) :: powers
     ! Locals:
-    integer :: min_power, max_power, i, old_lower, old_upper
-    integer :: old_required(self%lower:self%upper), s, u
+    PetscInt :: min_power, max_power, i, old_lower, old_upper
+    PetscInt :: old_required(self%lower:self%upper), s, u
     logical :: enlarge
 
     old_lower = 0; old_upper =0
@@ -198,7 +200,7 @@ contains
 
     class(powertable), intent(in out) :: self
     ! Locals:
-    integer :: p, n, s, u
+    PetscInt :: p, n, s, u
 
     if (allocated(self%powerlist)) then
        deallocate(self%powerlist)
@@ -244,7 +246,7 @@ contains
     class(powertable), intent(in out) :: self
     real(dp), intent(in) :: val !! value to compute powers of
     ! Locals:
-    integer :: n
+    PetscInt :: n
 
     self%power(1) = val
     if (self%lower < 0) then

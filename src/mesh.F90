@@ -10,7 +10,7 @@ module mesh_module
 
 #include <petsc-finclude/petsc.h90>
 
-  integer, parameter, public :: max_mesh_filename_length = 200
+  PetscInt, parameter, public :: max_mesh_filename_length = 200
 
   type, public :: mesh_type
      !! Mesh type.

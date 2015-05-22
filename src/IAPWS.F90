@@ -17,6 +17,8 @@ module IAPWS_module
   implicit none
   private
 
+#include <petsc-finclude/petscdef.h>
+
 !------------------------------------------------------------------------
 ! Saturation curve type
 !------------------------------------------------------------------------
@@ -52,9 +54,9 @@ module IAPWS_module
           -9.06851e-1_dp, -7.72479e-1_dp, -4.89837e-1_dp, -2.57040e-1_dp,  1.61913e-1_dp, &
            2.57399e-1_dp, -3.25372e-2_dp,  6.98452e-2_dp,  8.72102e-3_dp, -4.35673e-3_dp,  &
           -5.93264e-4_dp]
-     integer :: I(21) = [0,1,2,3,0,1,2,3,5,0,1,2,3,4,0,1,0,3,4,3,5]
-     integer :: J(21) = [0,0,0,0,1,1,1,1,1,2,2,2,2,2,3,3,4,4,5,6,6]
-     integer :: K(4)  = [0,1,2,3]
+     PetscInt :: I(21) = [0,1,2,3,0,1,2,3,5,0,1,2,3,4,0,1,0,3,4,3,5]
+     PetscInt :: J(21) = [0,0,0,0,1,1,1,1,1,2,2,2,2,2,3,3,4,4,5,6,6]
+     PetscInt :: K(4)  = [0,1,2,3]
      type(powertable) :: pi, pj, pk
    contains
      private
@@ -98,16 +100,16 @@ module IAPWS_module
           -0.17424871230634e-9_dp,  -0.68762131295531e-18_dp, 0.14478307828521e-19_dp, &
            0.26335781662795e-22_dp, -0.11947622640071e-22_dp, 0.18228094581404e-23_dp, &
           -0.93537087292458e-25_dp]
-     integer :: I(34) = [ &           
+     PetscInt :: I(34) = [ &           
            0,  0,  0,  0,  0,  0, 0, 0, 1, 1, 1, 1, 1, 1, &
            2,  2,  2,  2,  2,  3, 3, 3, 4, 4, 4, 5, 8, 8, &
           21, 23, 29, 30, 31, 32]
-     integer :: J(34) = [ &            
+     PetscInt :: J(34) = [ &            
            -2, -1,   0,   1,   2,   3,   4,   5, -9, -7, -1,  0,  1, &
             3, -3,   0,   1,   3,  17,  -4,   0,  6, -5, -2, 10, -8,  &
           -11, -6, -29, -31, -38, -39, -40, -41]
      real(dp) :: nI(34), nJ(34)
-     integer :: I_1(34), J_1(34)
+     PetscInt :: I_1(34), J_1(34)
      type(powertable) :: pi, pj
    contains
      private
@@ -140,18 +142,18 @@ module IAPWS_module
            0.10693031879409_dp,     -0.33662250574171_dp,      0.89185845355421e-24_dp,  0.30629316876232e-12_dp, &
           -0.42002467698208e-5_dp,  -0.59056029685639e-25_dp,  0.37826947613457e-5_dp,  -0.12768608934681e-14_dp, &
            0.73087610595061e-28_dp,  0.55414715350778e-16_dp, -0.94369707241210e-6_dp ]
-     integer :: J0(9) = [0, 1, -5, -4, -3, -2, -1, 2, 3]
-     integer :: I(43) = [ &
+     PetscInt :: J0(9) = [0, 1, -5, -4, -3, -2, -1, 2, 3]
+     PetscInt :: I(43) = [ &
            1,  1,  1,  1,  1,  2,  2,  2,  2,  2,  3,  3,  3,  3,  3, &
            4,  4,  4,  5,  6,  6,  6,  7,  7,  7,  8,  8,  9, 10, 10, &
           10, 16, 16, 18, 20, 20, 20, 21, 22, 23, 24, 24, 24]
-     integer :: J(43) = [ &
+     PetscInt :: J(43) = [ &
            0,  1,  2,  3,  6,  1,  2,  4,  7, 36,  0,  1,  3, 6,&
           35,  1,  2,  3,  7,  3, 16, 35,  0, 11, 25,  8, 36,  &
           13,  4, 10, 14, 29, 50, 57, 20, 35, 48, 21, 53,      &
           39, 26, 40, 58]
      real(dp) :: n0J0(9), nI(43), nJ(43)
-     integer :: J0_1(9), I_1(43), J_1(43)
+     PetscInt :: J0_1(9), I_1(43), J_1(43)
      type(powertable) :: pj0, pi, pj
    contains
      private
@@ -179,16 +181,16 @@ module IAPWS_module
           -0.32913623258954_dp,   -0.50871062041158_dp,    -0.22175400873096e-1_dp,  0.94260751665092e-1_dp, &
            0.16436278447961_dp,   -0.13503372241348e-1_dp, -0.14834345352472e-1_dp,  0.57922953628084e-3_dp, &
            0.32308904703711e-2_dp, 0.80964802996215e-4_dp, -0.16557679795037e-3_dp, -0.44923899061815e-4_dp]
-     integer :: I(40) = [ &
+     PetscInt :: I(40) = [ &
           0,  0,  0,   0, 0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, &
           3,  3,  3,   3, 3, 4, 4, 4, 4, 5, 5, 5, 6, 6, 6, 7, 8, 9, &
           9 , 10, 10, 11]
-     integer :: J(40) = [ &
+     PetscInt :: J(40) = [ &
            0, 0,  1, 2,  7, 10, 12, 23, 2,  6, 15, 17,  0, 2, 6,  7, 22,  &
           26, 0,  2, 4, 16, 26,  0,  2, 4, 26,  1,  3, 26, 0, 2, 26,  2, &
           26, 2, 26, 0,  1, 26]
      real(dp) :: nI(40), nJ(40)
-     integer :: I_1(40), J_1(40)
+     PetscInt :: I_1(40), J_1(40)
      type(powertable) :: pi, pj
    contains
      private
@@ -241,7 +243,7 @@ contains
 
     class(IAPWS_type), intent(in out) :: self
     ! Locals:
-    integer :: i
+    PetscInt :: i
 
     self%name = "IAPWS-97"
 
@@ -270,7 +272,7 @@ contains
 
     class(IAPWS_type), intent(in out) :: self
     ! Locals:
-    integer :: i
+    PetscInt :: i
     
     do i = 1, self%num_regions
        call self%region(i)%ptr%destroy()
@@ -314,7 +316,7 @@ contains
     class(IAPWS_region_type), intent(in out) :: self
     real(dp), intent(in), target :: param(:) !! Primary variables
     real(dp), intent(out):: props(:) !! Properties
-    integer, intent(out) :: err !! error code
+    PetscInt, intent(out) :: err !! error code
 
     continue
     
@@ -407,7 +409,7 @@ contains
     class(IAPWS_region1_type), intent(in out) :: self
     real(dp), intent(in), target :: param(:) !! Primary variables (pressure, temperature)
     real(dp), intent(out):: props(:) !! (density, internal energy)
-    integer, intent(out) :: err !! error code
+    PetscInt, intent(out) :: err !! error code
     ! Locals:
     real(dp), pointer :: p, t
     real(dp):: tk, rt, pi, tau, gampi, gamt
@@ -497,7 +499,7 @@ contains
     class(IAPWS_region2_type), intent(in out) :: self
     real(dp), intent(in), target :: param(:) !! Primary variables (pressure, temperature)
     real(dp), intent(out):: props(:)  !! (density, internal energy)
-    integer, intent(out) :: err  !! error code
+    PetscInt, intent(out) :: err  !! error code
     ! Locals:
     real(dp), pointer :: p, t
     real(dp):: tk, rt, pi, tau, gampir, gamt0, gamtr, gampi
@@ -584,7 +586,7 @@ contains
     class(IAPWS_region3_type), intent(in out) :: self
     real(dp), intent(in), target :: param(:) !! Primary variables (density, temperature)
     real(dp), intent(out):: props(:)  !! (pressure, internal energy)
-    integer, intent(out) :: err   !! Error code
+    PetscInt, intent(out) :: err   !! Error code
     ! Locals:
     real(dp), pointer :: d, t
     real(dp):: tk, rt, delta, tau
@@ -654,7 +656,7 @@ contains
     class(IAPWS_saturation_type), intent(in) :: self
     real(dp), intent(in) :: t  !! Fluid temperature (\(^\circ C\))
     real(dp), intent(out):: p  !! Fluid pressure (\(kg. m. s^{-1}\))
-    integer, intent(out) :: err  !! Error code
+    PetscInt, intent(out) :: err  !! Error code
     ! Locals:
     real(dp):: tk
     real(dp):: theta, theta2, a, b, c, x
@@ -685,7 +687,7 @@ contains
     class(IAPWS_saturation_type), intent(in) :: self
     real(dp), intent(in) :: p  !! Fluid pressure (\(kg. m. s^{-1}\))
     real(dp), intent(out):: t  !! Fluid temperature (\(^\circ C\))
-    integer, intent(out) :: err !! Error code
+    PetscInt, intent(out) :: err !! Error code
     ! Locals:
     real(dp):: beta, beta2, d, e, f, g, x
 

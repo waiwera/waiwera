@@ -4,6 +4,8 @@ module utils_module
   implicit none
   private
 
+#include <petsc-finclude/petscdef.h>
+
   public :: str_to_upper, str_to_lower
   
 contains
@@ -15,7 +17,7 @@ contains
 
     character(len=*), intent(in) :: strIn
     character(len=len(strIn)) :: strOut
-    integer :: i,j
+    PetscInt :: i,j
 
     do i = 1, len(strIn)
        j = iachar(strIn(i:i))
@@ -35,7 +37,7 @@ contains
 
     character(len=*), intent(in) :: strIn
     character(len=len(strIn)) :: strOut
-    integer :: i,j
+    PetscInt :: i,j
 
     do i = 1, len(strIn)
        j = iachar(strIn(i:i))

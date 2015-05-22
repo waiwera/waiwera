@@ -7,18 +7,20 @@ module eos_module
   implicit none
   private
 
-  integer, parameter, public :: max_eos_name_length = 8
-  integer, parameter, public :: max_eos_description_length = 80
-  integer, parameter, public :: max_primary_variable_name_length = 16
+#include <petsc-finclude/petscdef.h>
+
+  PetscInt, parameter, public :: max_eos_name_length = 8
+  PetscInt, parameter, public :: max_eos_description_length = 80
+  PetscInt, parameter, public :: max_primary_variable_name_length = 16
 
   type, public, abstract :: eos_type
      private
      character(max_eos_name_length), public :: name
      character(max_eos_description_length), public :: description
      character(max_primary_variable_name_length), allocatable, public :: primary_variable_names(:)
-     integer, public :: num_primary_variables
-     integer, public :: num_phases
-     integer, public :: num_components
+     PetscInt, public :: num_primary_variables
+     PetscInt, public :: num_phases
+     PetscInt, public :: num_components
      class(thermodynamics_type), pointer, public :: thermo
    contains
      private
@@ -42,7 +44,7 @@ module eos_module
        !! Perform transitions between thermodynamic regions
        import :: eos_type, dp
        class(eos_type), intent(in) :: self
-       integer, intent(in) :: region1, region2
+       PetscInt, intent(in) :: region1, region2
        real(dp), intent(in out), target :: primary(self%num_primary_variables)
      end subroutine eos_transition_procedure
 
@@ -51,7 +53,7 @@ module eos_module
        !! transition if needed
        import :: eos_type, dp
        class(eos_type), intent(in) :: self
-       integer, intent(in out) :: region
+       PetscInt, intent(in out) :: region
        real(dp), intent(in out), target :: primary(self%num_primary_variables)
      end subroutine eos_check_primary_procedure
 
@@ -60,7 +62,7 @@ module eos_module
        use fluid_module, only: fluid_type
        import :: eos_type, dp
        class(eos_type), intent(in out) :: self
-       integer, intent(in) :: region
+       PetscInt, intent(in) :: region
        real(dp), intent(in), target :: primary(self%num_primary_variables)
        type(fluid_type), intent(out) :: fluid
      end subroutine eos_fluid_procedure

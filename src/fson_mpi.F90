@@ -11,6 +11,7 @@ module fson_mpi_module
   private
 
 #include <petsc-finclude/petscsys.h>
+#include <petsc-finclude/petscdef.h>
 
   interface fson_get_default
      module procedure fson_get_default_integer
@@ -78,8 +79,8 @@ module fson_mpi_module
 
         type(fson_value), pointer, intent(in) :: self
         character(len=*), intent(in) :: path
-        integer, intent(in) :: default
-        integer, intent(out) :: val
+        PetscInt, intent(in) :: default
+        PetscInt, intent(out) :: val
         ! Locals:
         type(fson_value), pointer :: p
 
@@ -183,8 +184,8 @@ module fson_mpi_module
 
         type(fson_value), pointer, intent(in) :: self
         character(len=*), intent(in) :: path
-        integer, intent(in) :: default(:)
-        integer, allocatable, intent(out) :: val(:)
+        PetscInt, intent(in) :: default(:)
+        PetscInt, allocatable, intent(out) :: val(:)
         ! Locals:
         type(fson_value), pointer :: p
 
@@ -267,8 +268,8 @@ module fson_mpi_module
 
         type(fson_value), pointer, intent(in) :: self
         character(len=*), intent(in) :: path
-        integer, intent(in) :: default(:,:)
-        integer, allocatable, intent(out) :: val(:,:)
+        PetscInt, intent(in) :: default(:,:)
+        PetscInt, allocatable, intent(out) :: val(:,:)
         ! Locals:
         type(fson_value), pointer :: p
 
@@ -370,10 +371,10 @@ module fson_mpi_module
 
         type(fson_value), pointer, intent(in) :: self
         character(len=*), intent(in) :: path
-        integer, intent(in), optional :: default
-        integer, intent(out) :: val
+        PetscInt, intent(in), optional :: default
+        PetscInt, intent(out) :: val
         ! Locals:
-        integer :: ierr
+        PetscInt :: ierr
 
         if (mpi%rank == mpi%input_rank) then
            if (present(default)) then
@@ -396,7 +397,7 @@ module fson_mpi_module
         real, intent(in), optional :: default
         real, intent(out) :: val
         ! Locals:
-        integer :: ierr
+        PetscInt :: ierr
 
         if (mpi%rank == mpi%input_rank) then
            if (present(default)) then
@@ -419,7 +420,7 @@ module fson_mpi_module
         real(dp), intent(in), optional :: default
         real(dp), intent(out) :: val
         ! Locals:
-        integer :: ierr
+        PetscInt :: ierr
 
         if (mpi%rank == mpi%input_rank) then
            if (present(default)) then
@@ -443,7 +444,7 @@ module fson_mpi_module
         logical, intent(in), optional :: default
         logical, intent(out) :: val
         ! Locals:
-        integer :: ierr
+        PetscInt :: ierr
 
         if (mpi%rank == mpi%input_rank) then
            if (present(default)) then
@@ -466,7 +467,7 @@ module fson_mpi_module
         character(len=*), intent(in), optional :: default
         character(len=*), intent(out) :: val
         ! Locals:
-        integer :: ierr, count
+        PetscInt :: ierr, count
 
         if (mpi%rank == mpi%input_rank) then
            if (present(default)) then
@@ -487,10 +488,10 @@ module fson_mpi_module
 
         type(fson_value), pointer, intent(in) :: self
         character(len=*), intent(in) :: path
-        integer, intent(in), optional :: default(:)
-        integer, allocatable, intent(out) :: val(:)
+        PetscInt, intent(in), optional :: default(:)
+        PetscInt, allocatable, intent(out) :: val(:)
         ! Locals:
-        integer :: ierr, count
+        PetscInt :: ierr, count
 
         if (mpi%rank == mpi%input_rank) then
            if (present(default)) then
@@ -518,7 +519,7 @@ module fson_mpi_module
         real, intent(in), optional :: default(:)
         real, allocatable, intent(out) :: val(:)
         ! Locals:
-        integer :: ierr, count
+        PetscInt :: ierr, count
 
         if (mpi%rank == mpi%input_rank) then
            if (present(default)) then
@@ -546,7 +547,7 @@ module fson_mpi_module
         real(dp), intent(in), optional :: default(:)
         real(dp), allocatable, intent(out) :: val(:)
         ! Locals:
-        integer :: ierr, count
+        PetscInt :: ierr, count
 
         if (mpi%rank == mpi%input_rank) then
            if (present(default)) then
@@ -575,7 +576,7 @@ module fson_mpi_module
         logical, intent(in), optional :: default(:)
         logical, allocatable, intent(out) :: val(:)
         ! Locals:
-        integer :: ierr, count
+        PetscInt :: ierr, count
 
         if (mpi%rank == mpi%input_rank) then
            if (present(default)) then
@@ -600,10 +601,10 @@ module fson_mpi_module
 
         type(fson_value), pointer, intent(in) :: self
         character(len=*), intent(in) :: path
-        integer, intent(in), optional :: default(:,:)
-        integer, allocatable, intent(out) :: val(:,:)
+        PetscInt, intent(in), optional :: default(:,:)
+        PetscInt, allocatable, intent(out) :: val(:,:)
         ! Locals:
-        integer :: ierr, count(2), total_count
+        PetscInt :: ierr, count(2), total_count
 
         if (mpi%rank == mpi%input_rank) then
            if (present(default)) then
@@ -632,7 +633,7 @@ module fson_mpi_module
         real, intent(in), optional :: default(:,:)
         real, allocatable, intent(out) :: val(:,:)
         ! Locals:
-        integer :: ierr, count(2), total_count
+        PetscInt :: ierr, count(2), total_count
 
         if (mpi%rank == mpi%input_rank) then
            if (present(default)) then
@@ -661,7 +662,7 @@ module fson_mpi_module
         real(dp), intent(in), optional :: default(:,:)
         real(dp), allocatable, intent(out) :: val(:,:)
         ! Locals:
-        integer :: ierr, count(2), total_count
+        PetscInt :: ierr, count(2), total_count
 
         if (mpi%rank == mpi%input_rank) then
            if (present(default)) then
@@ -720,7 +721,7 @@ module fson_mpi_module
         character(len=*), intent(in) :: path
         ! Locals:
         type(fson_value), pointer :: p
-        integer :: ierr
+        PetscInt :: ierr
 
         if (mpi%rank == mpi%input_rank) then
            call fson_get(self, path, p)
@@ -733,7 +734,7 @@ module fson_mpi_module
 
 !------------------------------------------------------------------------
 
-      integer function fson_type_mpi(self, path) result(t)
+      PetscInt function fson_type_mpi(self, path) result(t)
         !! Returns value type on all ranks of fson object with the specified
         !! path (TYPE_NULL if the path does not exist).
 
@@ -743,7 +744,7 @@ module fson_mpi_module
         character(len=*), intent(in) :: path
         ! Locals:
         type(fson_value), pointer :: p
-        integer :: ierr
+        PetscInt :: ierr
 
         if (mpi%rank == mpi%input_rank) then
            call fson_get(self, path, p)
@@ -760,7 +761,7 @@ module fson_mpi_module
 
 !------------------------------------------------------------------------
 
-      integer function fson_value_count_mpi(self, path) result(count)
+      PetscInt function fson_value_count_mpi(self, path) result(count)
         !! Returns value count on all ranks of fson object with the specified
         !! path (returns zero if the path does not exist).
 
@@ -770,7 +771,7 @@ module fson_mpi_module
         character(len=*), intent(in) :: path
         ! Locals:
         type(fson_value), pointer :: p
-        integer :: ierr
+        PetscInt :: ierr
 
         if (mpi%rank == mpi%input_rank) then
            call fson_get(self, path, p)
@@ -794,7 +795,7 @@ module fson_mpi_module
         use fson_value_m, only : fson_value_get
 
         type(fson_value), pointer, intent(in) :: self
-        integer, intent(in) :: i
+        PetscInt, intent(in) :: i
         type(fson_value), pointer :: p
 
         if (mpi%rank == mpi%input_rank) then

@@ -12,6 +12,8 @@ module IFC67_module
   implicit none
   private
 
+#include <petsc-finclude/petscsys.h>
+
   real(dp), parameter :: tcriticalk67 = 647.3_dp        ! Critical temperature (Kelvin)
   real(dp), parameter :: tcritical67 = tcriticalk67 - tc_k
   real(dp), parameter :: pcritical67  = 2.212e7_dp      ! Critical pressure (Pa)
@@ -131,7 +133,7 @@ contains
 
     class(IFC67_type), intent(in out) :: self
     ! Locals:
-    integer :: i
+    PetscInt :: i
 
     self%name = 'IFC-67'
 
@@ -158,7 +160,7 @@ contains
 
     class(IFC67_type), intent(in out) :: self
     ! Locals:
-    integer :: i
+    PetscInt :: i
 
     do i = 1, self%num_regions
        call self%region(i)%ptr%destroy()
@@ -207,7 +209,7 @@ contains
     class(IFC67_region1_type), intent(in out) :: self
     real(dp), intent(in), target :: param(:) !! Primary variables (pressure, temperature)
     real(dp), intent(out):: props(:) !! (density, internal energy)
-    integer, intent(out) :: err !! error code
+    PetscInt, intent(out) :: err !! error code
     ! Locals:
     real(dp), pointer :: p, t
     real(dp) :: AA1, BB1, BB2, CC1, CC2, CC4, CC8, CC10
@@ -320,7 +322,7 @@ contains
     real(dp), intent(out) :: viscosity   !! Viscosity (\(kg.m^{-1}.s^{-1}\))
     ! Locals:
     real(dp) :: ex, phi, am, ps
-    integer :: err
+    PetscInt :: err
 
     ex = 247.8_dp / (temperature + 133.15_dp)
     phi = 1.0467_dp * (temperature - 31.85_dp)
@@ -363,7 +365,7 @@ contains
     class(IFC67_region2_type), intent(in out) :: self
     real(dp), intent(in), target :: param(:) !! Primary variables (pressure, temperature)
     real(dp), intent(out):: props(:)  !! (density, internal energy)
-    integer, intent(out) :: err !! error code
+    PetscInt, intent(out) :: err !! error code
     ! Locals:
     real(dp), pointer :: p, t
     real(dp) :: BETA, BETA2, BETA3, BETA4, BETA5, BETA6, BETA7, BETAL, CHI2
@@ -535,7 +537,7 @@ subroutine saturation_pressure(self, t, p, err)
   class(IFC67_saturation_type), intent(in) :: self
   real(dp), intent(in) :: t  !! Fluid temperature (\(^\circ C\))
   real(dp), intent(out):: p  !! Fluid pressure (\(kg. m. s^{-1}\))
-  integer, intent(out) :: err  !! Error code
+  PetscInt, intent(out) :: err  !! Error code
   ! Locals:
   real(dp) :: PC, SC, TC, X1, X2
 
@@ -566,12 +568,12 @@ subroutine saturation_temperature(self, p, t, err)
   class(IFC67_saturation_type), intent(in) :: self
   real(dp), intent(in) :: p  !! Fluid pressure (\(kg. m. s^{-1}\))
   real(dp), intent(out):: t  !! Fluid temperature (\(^\circ C\))
-  integer, intent(out) :: err !! Error code
+  PetscInt, intent(out) :: err !! Error code
   ! Locals:
-  integer, parameter :: maxit = 200
+  PetscInt, parameter :: maxit = 200
   real(dp), parameter :: tol = 1.e-10_dp
   real(dp) ::  dt, ps, psd, tsd
-  integer :: i
+  PetscInt :: i
   logical :: found
 
   if ((p >= 0.0061e5_dp) .and. (p <= pcritical67)) then

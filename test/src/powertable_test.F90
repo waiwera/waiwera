@@ -11,6 +11,7 @@ module powertable_test
   private 
 
 #include <petsc-finclude/petscsys.h>
+#include <petsc-finclude/petscdef.h>
 
   real(dp), parameter :: tol = 1.e-9
 
@@ -27,10 +28,10 @@ module powertable_test
       ! Powertable positive powers test
 
       type(powertable) :: p
-      integer, parameter :: powers(4) = [1, 2, 3, 4]
+      PetscInt, parameter :: powers(4) = [1, 2, 3, 4]
       real(dp) :: x
       real(dp), allocatable :: xp(:)
-      integer :: lower, upper
+      PetscInt :: lower, upper
 
       if (mpi%rank == mpi%output_rank) then
 
@@ -68,10 +69,10 @@ module powertable_test
       ! Powertable negative powers test
 
       type(powertable) :: p
-      integer, parameter :: powers(3) = [-6, -3, -2]
+      PetscInt, parameter :: powers(3) = [-6, -3, -2]
       real(dp) :: x
       real(dp), allocatable :: xp(:)
-      integer :: lower, upper
+      PetscInt :: lower, upper
 
       if (mpi%rank == mpi%output_rank) then
 
@@ -109,10 +110,10 @@ module powertable_test
       ! Powertable mixed powers test
 
       type(powertable) :: p
-      integer, parameter :: powers(4) = [-3, -1, 1, 4]
+      PetscInt, parameter :: powers(4) = [-3, -1, 1, 4]
       real(dp) :: x
       real(dp), allocatable :: xp(:)
-      integer :: lower, upper
+      PetscInt :: lower, upper
 
       if (mpi%rank == mpi%output_rank) then
          
@@ -150,11 +151,11 @@ module powertable_test
       ! Powertable multiple configuration test
 
       type(powertable) :: p
-      integer, parameter :: powers1(3) = [-4, -3, -1], powers2(2) = [3, 5]
-      integer, allocatable :: allpowers(:)
+      PetscInt, parameter :: powers1(3) = [-4, -3, -1], powers2(2) = [3, 5]
+      PetscInt, allocatable :: allpowers(:)
       real(dp) :: x
       real(dp), allocatable :: xp(:)
-      integer :: lower, upper
+      PetscInt :: lower, upper
 
       if (mpi%rank == mpi%output_rank) then
          

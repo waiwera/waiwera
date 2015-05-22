@@ -10,7 +10,9 @@ module eos_setup_module
   implicit none
   private
 
-  integer, parameter :: max_eos_ID_length = 12
+#include <petsc-finclude/petsc.h90>
+
+  PetscInt, parameter :: max_eos_ID_length = 12
   character(max_eos_ID_length), parameter :: &
        default_eos_ID = "W"
 

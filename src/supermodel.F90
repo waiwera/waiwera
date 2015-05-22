@@ -44,7 +44,7 @@ contains
 
     character(*), intent(out) :: filename
     ! Locals:
-    integer :: num_args
+    PetscInt :: num_args
 
     if (mpi%rank == mpi%input_rank) then
 

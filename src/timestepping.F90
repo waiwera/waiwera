@@ -885,16 +885,16 @@ contains
     ! Locals:
     PetscReal :: start_time, stop_time, initial_stepsize, max_stepsize
     PetscReal, allocatable :: steps(:)
-    integer :: max_num_steps
+    PetscInt :: max_num_steps
     PetscReal, parameter :: default_start_time = 0.0_dp, &
          default_stop_time = 1.0_dp
     PetscReal, parameter :: default_initial_stepsize = 0.1_dp
     PetscReal, parameter :: default_max_stepsize = 0.0_dp
-    integer :: method
-    integer, parameter :: max_method_str_len = 12
+    PetscInt :: method
+    PetscInt, parameter :: max_method_str_len = 12
     character(max_method_str_len) :: method_str
     character(max_method_str_len), parameter :: default_method_str = "beuler"
-    integer, parameter :: default_max_num_steps = 100
+    PetscInt, parameter :: default_max_num_steps = 100
 
     !! TODO: steady state simulation input
 

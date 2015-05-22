@@ -30,7 +30,7 @@ contains
     class(mpi_type), intent(in out) :: self
     MPI_Comm, intent(in) :: comm !! MPI communicator
     ! Locals:
-    integer :: ierr
+    PetscInt :: ierr
 
     self%comm = comm
     call MPI_COMM_RANK(self%comm, self%rank, ierr)

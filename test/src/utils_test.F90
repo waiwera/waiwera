@@ -8,6 +8,8 @@ module utils_test
   implicit none
   private 
 
+#include <petsc-finclude/petscdef.h>
+
   public :: test_str_to_upper, test_str_to_lower
 
 contains
@@ -18,7 +20,7 @@ contains
 
     ! Test str_to_upper() function
     
-    integer, parameter :: strlen = 8
+    PetscInt, parameter :: strlen = 8
     character(len = strlen) :: str, upper_str
     character(len = strlen), parameter :: expected = "ABCABC12"
     
@@ -34,7 +36,7 @@ contains
 
     ! Test str_to_lower() function
     
-    integer, parameter :: strlen = 8
+    PetscInt, parameter :: strlen = 8
     character(len = strlen) :: str, lower_str
     character(len = strlen), parameter :: expected = "abcabc12"
     
@@ -45,6 +47,5 @@ contains
   end subroutine test_str_to_lower
 
 !------------------------------------------------------------------------
-
 
 end module utils_test

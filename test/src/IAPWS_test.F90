@@ -12,6 +12,7 @@ module IAPWS_test
   private
 
 #include <petsc-finclude/petscsys.h>
+#include <petsc-finclude/petscdef.h>
 
   real(dp), parameter :: density_tol = 1.e-5_dp, energy_tol = 1.e-2_dp
   real(dp), parameter :: pressure_tol = 1.e-1_dp, temperature_tol = 1.e-6_dp
@@ -51,14 +52,14 @@ module IAPWS_test
 
       ! IAPWS-97 region 1 tests
 
-      integer, parameter :: n = 3 
+      PetscInt, parameter :: n = 3 
       real(dp) :: params(n,2) = reshape([ &
            3.e6_dp, 80.e6_dp, 3.e6_dp, &
            300._dp, 300._dp,  500._dp], [n,2])
       real(dp), parameter :: nu(n) = [0.100215168e-2_dp, 0.971180894e-3_dp, 0.120241800e-2_dp]
       real(dp), parameter ::  u(n) = [0.112324818e6_dp,  0.106448356e6_dp,  0.971934985e6_dp]
       real(dp), parameter :: rho(n) = 1._dp / nu
-      integer :: i, err
+      PetscInt :: i, err
       real(dp) :: param(2), props(2)
 
       if (mpi%rank == mpi%output_rank) then
@@ -80,14 +81,14 @@ module IAPWS_test
 
       ! IAPWS-97 region 2 tests
 
-      integer, parameter :: n = 3 
+      PetscInt, parameter :: n = 3 
       real(dp) :: params(n,2) = reshape([ &
            0.0035e6_dp, 0.0035e6_dp, 30.e6_dp, &
            300._dp, 700._dp,  700._dp], [n,2])
       real(dp), parameter :: nu(n) = [0.394913866e2_dp, 0.923015898e2_dp, 0.542946619e-2_dp]
       real(dp), parameter ::  u(n) = [0.241169160e7_dp, 0.301262819e7_dp, 0.246861076e7_dp]
       real(dp), parameter :: rho(n) = 1._dp / nu
-      integer :: i, err
+      PetscInt :: i, err
       real(dp) :: param(2), props(2)
 
       if (mpi%rank == mpi%output_rank) then
@@ -109,13 +110,13 @@ module IAPWS_test
 
       ! IAPWS-97 region 3 tests
 
-      integer, parameter :: n = 3 
+      PetscInt, parameter :: n = 3 
       real(dp) :: params(n,2) = reshape([ &
            500._dp, 200._dp, 500._dp, &
            650._dp, 650._dp, 750._dp], [n,2])
       real(dp), parameter :: p(n) = [0.255837018e8_dp, 0.222930643e8_dp, 0.783095639e8_dp]
       real(dp), parameter ::  u(n) = [0.181226279e7_dp, 0.226365868e7_dp, 0.210206932e7_dp]
-      integer :: i, err
+      PetscInt :: i, err
       real(dp) :: param(2), props(2)
 
       if (mpi%rank == mpi%output_rank) then
@@ -137,12 +138,12 @@ module IAPWS_test
 
       ! IAPWS-97 saturation curve tests
 
-      integer, parameter :: n = 3
+      PetscInt, parameter :: n = 3
       real(dp), parameter ::  t(n) = [300._dp, 500._dp, 600._dp] - tc_k
       real(dp), parameter :: p(n) = [0.353658941e4_dp, 0.263889776e7_dp, &
            0.123443146e8_dp]
       real(dp) :: ps, ts
-      integer :: i, err
+      PetscInt :: i, err
 
       if (mpi%rank == mpi%output_rank) then
          do i = 1, n
@@ -163,7 +164,7 @@ module IAPWS_test
 
       ! IAPWS viscosity tests
 
-      integer, parameter :: n = 11
+      PetscInt, parameter :: n = 11
       real(dp), parameter :: t(n) = [298.15_dp, 298.15_dp, 373.15_dp, 433.15_dp, 433.15_dp, &
            873.15_dp, 873.15_dp, 873.15_dp, 1173.15_dp, 1173.15_dp, 1173.15_dp] - tc_k
       real(dp), parameter :: d(n) = [998._dp, 1200._dp, 1000._dp, 1._dp, &
@@ -171,10 +172,10 @@ module IAPWS_test
       real(dp), parameter :: visc(n) = [889.735100_dp, 1437.649467_dp, 307.883622_dp, &
            14.538324_dp, 217.685358_dp, 32.619287_dp, 35.802262_dp, 77.430195_dp, &
            44.217245_dp, 47.640433_dp, 64.154608_dp] * 1.e-6_dp
-      integer, parameter :: reg(n) = [1, 1, 1, 2, 1, 2, 2, 3, 2, 2, 2]
+      PetscInt, parameter :: reg(n) = [1, 1, 1, 2, 1, 2, 2, 3, 2, 2, 2]
       real(dp), parameter :: p = 1.e5 ! dummy pressure
       real(dp) :: v
-      integer :: i
+      PetscInt :: i
 
       if (mpi%rank == mpi%output_rank) then
          do i = 1, n

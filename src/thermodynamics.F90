@@ -6,8 +6,10 @@ module thermodynamics_module
   implicit none
   private
 
-  integer, parameter, public :: max_thermodynamics_name_length = 16
-  integer, parameter, public :: max_thermodynamic_region_name_length = 16
+#include <petsc-finclude/petscdef.h>
+
+  PetscInt, parameter, public :: max_thermodynamics_name_length = 16
+  PetscInt, parameter, public :: max_thermodynamic_region_name_length = 16
 
 !------------------------------------------------------------------------
 ! Physical constants
@@ -65,7 +67,7 @@ module thermodynamics_module
      private
      character(max_thermodynamics_name_length), public :: name
      class(saturation_type), allocatable, public :: saturation !! Saturation curve
-     integer, public :: num_regions  !! Number of thermodynamic regions
+     PetscInt, public :: num_regions  !! Number of thermodynamic regions
      class(region_type), allocatable, public :: water !! Pure water region
      class(region_type), allocatable, public :: steam !! Steam region
      class(region_type), allocatable, public :: supercritical !! Supercritical region
@@ -86,7 +88,7 @@ module thermodynamics_module
        class(saturation_type), intent(in) :: self
        real(dp), intent(in) :: p  !! Fluid pressure (\(kg. m. s^{-1}\))
        real(dp), intent(out):: t  !! Fluid temperature (\(^\circ C\))
-       integer, intent(out) :: err !! Error code
+       PetscInt, intent(out) :: err !! Error code
      end subroutine saturation_temperature
 
      subroutine saturation_pressure(self, t, p, err)
@@ -95,7 +97,7 @@ module thermodynamics_module
        class(saturation_type), intent(in) :: self
        real(dp), intent(in) :: t  !! Fluid temperature (\(^\circ C\))
        real(dp), intent(out):: p  !! Fluid pressure (\(kg. m. s^{-1}\))
-       integer, intent(out) :: err  !! Error code
+       PetscInt, intent(out) :: err  !! Error code
      end subroutine saturation_pressure
 
      subroutine region_init(self)
@@ -116,7 +118,7 @@ module thermodynamics_module
        class(region_type), intent(in out) :: self
        real(dp), intent(in), target :: param(:)
        real(dp), intent(out) :: props(:)
-       integer, intent(out) :: err
+       PetscInt, intent(out) :: err
      end subroutine region_properties
 
      subroutine region_viscosity(self, temperature, pressure, density, viscosity)

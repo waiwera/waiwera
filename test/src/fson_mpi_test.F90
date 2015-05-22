@@ -12,6 +12,7 @@ module fson_mpi_test
   private 
 
 #include <petsc-finclude/petscsys.h>
+#include <petsc-finclude/petscdef.h>
 
   character(len = 32), parameter :: filename = "data/fson_mpi/test_fson_mpi.json"
   public :: test_fson_mpi_int, test_fson_mpi_real, test_fson_mpi_double
@@ -26,12 +27,12 @@ contains
     ! Test fson_get_mpi integer routines
 
     type(fson_value), pointer :: json
-    integer :: val
-    integer, parameter :: expected = 7
-    integer, allocatable :: arr(:)
-    integer, parameter :: expected_arr(6) = [3, -1, 4, -1, 5, -9]
-    integer, allocatable :: arr_2d(:,:)
-    integer, parameter :: expected_arr_2d(3,2) = &
+    PetscInt :: val
+    PetscInt, parameter :: expected = 7
+    PetscInt, allocatable :: arr(:)
+    PetscInt, parameter :: expected_arr(6) = [3, -1, 4, -1, 5, -9]
+    PetscInt, allocatable :: arr_2d(:,:)
+    PetscInt, parameter :: expected_arr_2d(3,2) = &
          transpose(reshape([1, 2, 3, 4, 5, 6], [2,3]))
 
     if (mpi%rank == mpi%input_rank) then
@@ -179,7 +180,7 @@ contains
     ! Test fson_get_mpi character routines
 
     type(fson_value), pointer :: json
-    integer, parameter :: char_len = 12
+    PetscInt, parameter :: char_len = 12
     character(len = char_len) :: val
     character(len = char_len), parameter :: expected = "etaoinshrdlu"
 

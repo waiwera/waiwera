@@ -8,6 +8,8 @@ module eos_w_module
   implicit none
   private
 
+#include <petsc-finclude/petsc.h90>
+
   type, public, extends(eos_type) :: eos_w_type
      !! Isothermal pure water equation of state type.
      private
@@ -49,7 +51,7 @@ contains
     !! pure water
 
     class(eos_w_type), intent(in) :: self
-    integer, intent(in) :: region1, region2
+    PetscInt, intent(in) :: region1, region2
     real(dp), intent(in out), target :: primary(self%num_primary_variables)
 
     continue ! no transitions needed
@@ -63,7 +65,7 @@ contains
     !! transition if needed for isothermal pure water
 
     class(eos_w_type), intent(in) :: self
-    integer, intent(in out) :: region
+    PetscInt, intent(in out) :: region
     real(dp), intent(in out), target :: primary(self%num_primary_variables)
 
     continue ! no checks needed
@@ -78,12 +80,12 @@ contains
 
     use fluid_module, only: fluid_type
     class(eos_w_type), intent(in out) :: self
-    integer, intent(in) :: region !! Thermodynamic region index
+    PetscInt, intent(in) :: region !! Thermodynamic region index
     real(dp), intent(in), target :: primary(self%num_primary_variables) !! Primary thermodynamic variables
     type(fluid_type), intent(out) :: fluid !! Fluid object
     ! Locals:
     real(dp) :: properties(2)
-    integer :: err
+    PetscInt :: err
 
     fluid%pressure = primary(1)
     fluid%temperature = self%temperature

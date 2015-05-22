@@ -31,10 +31,10 @@ contains
     ! Locals:
     PetscErrorCode :: ierr
     real(dp) :: const_initial_value
-    integer :: int_const_initial_value
-    integer, allocatable :: indices(:)
+    PetscInt :: int_const_initial_value
+    PetscInt, allocatable :: indices(:)
     real(dp), allocatable :: initial_input(:), initial_data(:)
-    integer :: i, np, count
+    PetscInt :: i, np, count
     logical :: const
     real(dp), parameter :: default_initial_value = 0.0_dp
 
