@@ -91,14 +91,14 @@ contains
     fluid%temperature = self%temperature
     fluid%region = 1
 
-    call self%thermo%water%properties([fluid%pressure, fluid%temperature],\
-    properties, err)
+    call self%thermo%water%properties([fluid%pressure, fluid%temperature], &
+         properties, err)
 
     fluid%phase(1)%density = properties(1)
     fluid%phase(1)%internal_energy = properties(2)
 
-    call self%thermo%water%viscosity(fluid%temperature, fluid%pressure, \
-    fluid%phase(1)%density, fluid%phase(1)%viscosity)
+    call self%thermo%water%viscosity(fluid%temperature, fluid%pressure, &
+         fluid%phase(1)%density, fluid%phase(1)%viscosity)
 
   end subroutine eos_w_fluid_properties
 
