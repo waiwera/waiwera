@@ -56,8 +56,10 @@ contains
                fluid%phase(p)%relative_permeability, tol, "relative permeability")
           call assert_equals(fluid_data(i+4), &
                fluid%phase(p)%specific_enthalpy, tol, "specific enthalpy")
+          call assert_equals(fluid_data(i+5), &
+               fluid%phase(p)%internal_energy, tol, "internal energy")
           nc = size(fluid%phase(p)%mass_fraction)
-          call assert_equals(0._dp, norm2(fluid_data(i+5: i + 5 + nc-1) - &
+          call assert_equals(0._dp, norm2(fluid_data(i+6: i + 6 + nc-1) - &
                fluid%phase(p)%mass_fraction), tol, "mass fraction")
           i = i + fluid%phase(p)%dof()
        end do
