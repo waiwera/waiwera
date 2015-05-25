@@ -203,10 +203,10 @@ contains
     call DMGetDefaultSection(dm_fluid, fluid_section, ierr); CHKERRQ(ierr)
     call VecGetArrayF90(sim%fluid, fluid_array, ierr); CHKERRQ(ierr)
 
+    call fluid%init(sim%eos%num_components, sim%eos%num_phases)
+
     call DMPlexGetLabel(sim%mesh%dm, "ghost", ghost_label, ierr)
     CHKERRQ(ierr)
-
-    call fluid%init(sim%eos%num_components, sim%eos%num_phases)
 
     do c = sim%mesh%start_cell, sim%mesh%end_interior_cell - 1
 
@@ -216,7 +216,7 @@ contains
           call section_offset(primary_section, c, primary_offset, ierr)
           CHKERRQ(ierr)
           cell_primary => primary_array(primary_offset : &
-               primary_offset + sim%eos%num_primary_variables -1)
+               primary_offset + sim%eos%num_primary_variables - 1)
 
           call section_offset(fluid_section, c, fluid_offset, ierr)
           CHKERRQ(ierr)
