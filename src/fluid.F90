@@ -129,8 +129,9 @@ contains
        self%phase(p)%saturation => data(i+2)
        self%phase(p)%relative_permeability => data(i+3)
        self%phase(p)%specific_enthalpy => data(i+4)
+       self%phase(p)%internal_energy => data(i+5)
        nc = size(self%phase(i)%mass_fraction)
-       self%phase(p)%mass_fraction => data(i+5: i + 5 + nc-1)
+       self%phase(p)%mass_fraction => data(i+6: i+6 + nc-1)
        i = i + self%phase(p)%dof()
     end do
 
