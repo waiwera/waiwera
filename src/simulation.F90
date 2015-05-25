@@ -190,6 +190,8 @@ contains
     PetscReal, pointer :: fluid_array(:)
     type(fluid_type) :: fluid
     PetscInt :: region
+    DMLabel :: ghost_label
+    PetscInt :: ghost
     PetscErrorCode :: ierr
 
     ! Need read-only access to primary as it is locked by the SNES:
@@ -201,21 +203,30 @@ contains
     call DMGetDefaultSection(dm_fluid, fluid_section, ierr); CHKERRQ(ierr)
     call VecGetArrayF90(sim%fluid, fluid_array, ierr); CHKERRQ(ierr)
 
+    call DMPlexGetLabel(sim%mesh%dm, "ghost", ghost_label, ierr)
+    CHKERRQ(ierr)
+
     call fluid%init(sim%eos%num_components, sim%eos%num_phases)
 
     do c = sim%mesh%start_cell, sim%mesh%end_interior_cell - 1
 
-       call section_offset(primary_section, c, primary_offset, ierr)
-       CHKERRQ(ierr)
-       cell_primary => primary_array(primary_offset : &
-            primary_offset + sim%eos%num_primary_variables -1)
+       call DMLabelGetValue(ghost_label, c, ghost, ierr); CHKERRQ(ierr)
+       if (ghost < 0) then
 
-       call section_offset(fluid_section, c, fluid_offset, ierr)
-       CHKERRQ(ierr)
-       call fluid%assign(fluid_array, fluid_offset)
-       region = nint(fluid%region)
+          call section_offset(primary_section, c, primary_offset, ierr)
+          CHKERRQ(ierr)
+          cell_primary => primary_array(primary_offset : &
+               primary_offset + sim%eos%num_primary_variables -1)
 
-       call sim%eos%fluid_properties(region, cell_primary, fluid)
+          call section_offset(fluid_section, c, fluid_offset, ierr)
+          CHKERRQ(ierr)
+
+          call fluid%assign(fluid_array, fluid_offset)
+          region = nint(fluid%region)
+
+          call sim%eos%fluid_properties(region, cell_primary, fluid)
+
+       end if
 
     end do
 
