@@ -169,15 +169,59 @@ contains
   end subroutine simulation_cell_inflows
 
 !------------------------------------------------------------------------
+! Fluid properties
+!------------------------------------------------------------------------
 
   subroutine simulation_fluid_properties(t, primary)
     !! Computes fluid properties in all cells, based on the current time
     !! and primary thermodynamic variables.
 
-    PetscReal, intent(in) :: t
-    Vec, intent(in) :: primary
+    use dm_utils_module, only: section_offset
+    use fluid_module, only: fluid_type
 
-    continue
+    PetscReal, intent(in) :: t !! time
+    Vec, intent(in) :: primary !! global primary variables vector
+    ! Locals:
+    PetscInt :: c
+    DM :: dm_fluid
+    PetscSection :: primary_section, fluid_section
+    PetscInt :: primary_offset, fluid_offset
+    PetscReal, pointer :: primary_array(:), cell_primary(:)
+    PetscReal, pointer :: fluid_array(:)
+    type(fluid_type) :: fluid
+    PetscInt :: region
+    PetscErrorCode :: ierr
+
+    ! Need read-only access to primary as it is locked by the SNES:
+    call VecGetArrayReadF90(primary, primary_array, ierr); CHKERRQ(ierr)
+    call DMGetDefaultSection(sim%mesh%dm, primary_section, ierr)
+    CHKERRQ(ierr)
+
+    call VecGetDM(sim%fluid, dm_fluid, ierr); CHKERRQ(ierr)
+    call DMGetDefaultSection(dm_fluid, fluid_section, ierr); CHKERRQ(ierr)
+    call VecGetArrayF90(sim%fluid, fluid_array, ierr); CHKERRQ(ierr)
+
+    call fluid%init(sim%eos%num_components, sim%eos%num_phases)
+
+    do c = sim%mesh%start_cell, sim%mesh%end_interior_cell - 1
+
+       call section_offset(primary_section, c, primary_offset, ierr)
+       CHKERRQ(ierr)
+       cell_primary => primary_array(primary_offset : &
+            primary_offset + sim%eos%num_primary_variables -1)
+
+       call section_offset(fluid_section, c, fluid_offset, ierr)
+       CHKERRQ(ierr)
+       call fluid%assign(fluid_array, fluid_offset)
+       region = nint(fluid%region)
+
+       call sim%eos%fluid_properties(region, cell_primary, fluid)
+
+    end do
+
+    call VecRestoreArrayF90(sim%fluid, fluid_array, ierr); CHKERRQ(ierr)
+    call VecRestoreArrayReadF90(primary, primary_array, ierr); CHKERRQ(ierr)
+    call fluid%destroy()
 
   end subroutine simulation_fluid_properties
 
