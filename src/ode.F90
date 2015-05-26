@@ -1,5 +1,8 @@
 module ode_module
-  !! Module for ordinary differential equations, to be solved by timestepper class.
+  !! Abstract base class for ordinary differential equations defined over a mesh,
+  !! to be solved by timestepper class.
+
+  use mesh_module
 
   implicit none
 
@@ -7,12 +10,10 @@ module ode_module
 
 #include <petsc-finclude/petsc.h90>
 
-  PetscInt, parameter, public :: max_title_length = 120
-
   type, public, abstract :: ode_type
      private
-     character(max_title_length), public :: title
      Vec, public :: initial
+     type(mesh_type),  public :: mesh
    contains
      private
      procedure(lhs_function), public, deferred :: lhs
@@ -50,5 +51,25 @@ module ode_module
      end subroutine pre_eval_procedure
 
   end interface
+
+  public :: lhs_function, rhs_function, lhs_identity
+  public :: pre_eval_procedure
+
+!------------------------------------------------------------------------
+
+  subroutine lhs_identity(t, y, lhs)
+    !! Default identity LHS function L(t,y) = y.
+
+    PetscReal, intent(in) :: t
+    Vec, intent(in) :: y
+    Vec, intent(out) :: lhs
+    ! Locals:
+    PetscErrorCode :: ierr
+
+    call VecCopy(y, lhs, ierr); CHKERRQ(ierr)
+
+  end subroutine lhs_identity
+
+!------------------------------------------------------------------------
 
 end module ode_module
