@@ -18,7 +18,6 @@ module flow_simulation_module
      !! Simulation type.
      private
      character(max_title_length), public :: title
-     type(mesh_type), public :: mesh
      Vec, public :: rock
      Vec, public :: fluid
      class(thermodynamics_type), allocatable, public :: thermo
