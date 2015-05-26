@@ -8,21 +8,23 @@ digraph supermodel{
         rock_module -> fson_mpi_module
         rock_module -> kinds_module
         powertable_module -> kinds_module
-        simulation_module -> eos_module
-        simulation_module -> eos_setup_module
-        simulation_module -> fluid_module
-        simulation_module -> fson
-        simulation_module -> fson_mpi_module
-        simulation_module -> initial_module
-        simulation_module -> kinds_module
-        simulation_module -> mesh_module
-        simulation_module -> mpi_module
-        simulation_module -> rock_module
-        simulation_module -> thermodynamics_module
-        simulation_module -> thermodynamics_setup_module
-        simulation_module -> timestepping_module
+        ode_module -> mesh_module
         cell_module -> fluid_module
         cell_module -> rock_module
+        flow_simulation_module -> dm_utils_module
+        flow_simulation_module -> eos_module
+        flow_simulation_module -> eos_setup_module
+        flow_simulation_module -> fluid_module
+        flow_simulation_module -> fson
+        flow_simulation_module -> fson_mpi_module
+        flow_simulation_module -> initial_module
+        flow_simulation_module -> kinds_module
+        flow_simulation_module -> mesh_module
+        flow_simulation_module -> mpi_module
+        flow_simulation_module -> ode_module
+        flow_simulation_module -> rock_module
+        flow_simulation_module -> thermodynamics_module
+        flow_simulation_module -> thermodynamics_setup_module
         thermodynamics_module -> kinds_module
         face_module -> cell_module
         initial_module -> fson
@@ -41,13 +43,10 @@ digraph supermodel{
         fson_mpi_module -> mpi_module
         IFC67_module -> kinds_module
         IFC67_module -> thermodynamics_module
+        supermodel -> flow_simulation_module
+        supermodel -> fson
         supermodel -> mpi_module
-        supermodel -> simulation_module
-        timestepping_module -> fson
-        timestepping_module -> fson_mpi_module
-        timestepping_module -> kinds_module
-        timestepping_module -> mpi_module
-        timestepping_module -> utils_module
+        supermodel -> timestepper_module
         eos_w_module -> eos_module
         eos_w_module -> fluid_module
         eos_w_module -> kinds_module
@@ -67,4 +66,10 @@ digraph supermodel{
         thermodynamics_setup_module -> fson_mpi_module
         thermodynamics_setup_module -> thermodynamics_module
         thermodynamics_setup_module -> utils_module
+        timestepper_module -> fson
+        timestepper_module -> fson_mpi_module
+        timestepper_module -> kinds_module
+        timestepper_module -> mpi_module
+        timestepper_module -> ode_module
+        timestepper_module -> utils_module
 }
