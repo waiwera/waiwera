@@ -38,7 +38,7 @@ procedure(exact_function), pointer :: exact_func
 public :: test_timestepper_linear, test_timestepper_exponential, &
      test_timestepper_logistic, test_timestepper_nontrivial_lhs, &
      test_timestepper_nonlinear_lhs, test_timestepper_heat1d, &
-     test_timestepper_pre_eval
+     test_timestepper_pre_eval !, timestepper_init
 
 contains
 
@@ -808,5 +808,27 @@ contains
   end subroutine test_timestepper_pre_eval
 
 !------------------------------------------------------------------------
+
+  ! subroutine timestepper_test(ts, method, initial_time, initial_stepsize, &
+  !      final_time, max_num_steps, max_stepsize)
+
+  !   ! Tests timestepper initialization.
+
+  !   type(timestepper_type), intent(in) :: ts
+  !   character(*), intent(in) :: method
+  !   PetscReal, intent(in) :: initial_time, initial_stepsize
+  !   PetscReal, intent(in) :: final_time, max_stepsize
+  !   PetscInt, intent(in)  :: max_num_steps
+
+  !   if (mpi%rank == mpi%output_rank) then
+  !      call assert_equals(method, ts%method%name, "Flow simulation timestepper method")
+  !      call assert_equals(initial_time, ts%steps%current%time, "Flow simulation initial time")
+  !      call assert_equals(initial_stepsize, ts%steps%next_stepsize, "Flow simulation initial stepsize")
+  !      call assert_equals(final_time, ts%steps%final_time, "Flow simulation final time")
+  !      call assert_equals(max_num_steps, ts%steps%max_num, "Flow simulation max num steps")
+  !      call assert_equals(max_stepsize, ts%steps%adaptor%max_stepsize, "Flow simulation max stepsize")
+  !   end if
+
+  ! end subroutine timestepper_test
 
 end module timestepper_test

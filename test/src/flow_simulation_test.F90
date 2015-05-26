@@ -1,22 +1,22 @@
-module simulation_test
+module flow_simulation_test
 
-  ! Tests for simulation module
+  ! Tests for flow_simulation module
 
   use kinds_module
   use mpi_module
   use fruit
   use fson
-  use simulation_module
-  use timestepper_module
+  use flow_simulation_module
 
   implicit none
   private
 
 #include <petsc-finclude/petsc.h90>
 
-public :: test_simulation_init
+public :: test_flow_simulation_init
 
 PetscReal, parameter :: tol = 1.e-6_dp
+type(flow_simulation) :: sim
 
 contains
 
@@ -109,7 +109,7 @@ contains
     call VecAXPY(diff, -1._dp, v, ierr); CHKERRQ(ierr)
     call VecNorm(diff, NORM_2, diffnorm, ierr); CHKERRQ(ierr)
     call assert_equals(0._dp, diffnorm, tol, &
-         "Simulation " // trim(name) // " vector")
+         "Flow simulation " // trim(name) // " vector")
     call DMRestoreGlobalVector(dm, diff, ierr); CHKERRQ(ierr)
     call DMRestoreGlobalVector(dm, vread, ierr); CHKERRQ(ierr)
 
@@ -117,9 +117,9 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine simulation_basic_test(title, thermo, eos, dim, dof)
+  subroutine flow_simulation_basic_test(title, thermo, eos, dim, dof)
 
-    ! Tests basic simulation parameters.
+    ! Tests basic flow simulation parameters.
 
     character(*), intent(in) :: title, thermo, eos
     PetscInt, intent(in) :: dim, dof
@@ -134,20 +134,20 @@ contains
     call VecDestroy(x, ierr); CHKERRQ(ierr)
 
     if (mpi%rank == mpi%output_rank) then
-       call assert_equals(title, sim%title, "Simulation title")
-       call assert_equals(thermo, sim%thermo%name, "Simulation thermodynamics")
-       call assert_equals(eos, sim%eos%name, "Simulation EOS")
-       call assert_equals(dim, sim_dim, "Simulation mesh dimension")
-       call assert_equals(dof, sim_dof, "Simulation mesh dof")
+       call assert_equals(title, sim%title, "Flow simulation title")
+       call assert_equals(thermo, sim%thermo%name, "Flow simulation thermodynamics")
+       call assert_equals(eos, sim%eos%name, "Flow simulation EOS")
+       call assert_equals(dim, sim_dim, "Flow simulation mesh dimension")
+       call assert_equals(dof, sim_dof, "Flow simulation mesh dof")
     end if
 
-  end subroutine simulation_basic_test
+  end subroutine flow_simulation_basic_test
 
 !------------------------------------------------------------------------
 
-  subroutine simulation_label_test(rock_cells)
+  subroutine flow_simulation_label_test(rock_cells)
 
-    ! Tests simulation labels.
+    ! Tests flow simulation labels.
 
     use boundary_module, only : open_boundary_label_name
     use rock_module, only : rocktype_label_name
@@ -162,70 +162,53 @@ contains
     call DMPlexHasLabel(sim%mesh%dm, open_boundary_label_name, open_bdy, &
          ierr); CHKERRQ(ierr)
     if (mpi%rank == mpi%output_rank) then
-       call assert_equals(.true., open_bdy, "Simulation open boundary label")
+       call assert_equals(.true., open_bdy, "Flow simulation open boundary label")
     end if
 
     ! Rock type label:
     call DMPlexHasLabel(sim%mesh%dm, rocktype_label_name, has_rock_label, &
          ierr); CHKERRQ(ierr)
     if (mpi%rank == mpi%output_rank) then
-       call assert_equals(.true., has_rock_label, "Simulation rocktype label")
+       call assert_equals(.true., has_rock_label, "Flow simulation rocktype label")
     end if
     if (has_rock_label) then
        call get_rocktype_counts(sim_rock_cells)
        if (mpi%rank == mpi%output_rank) then
           call assert_equals(size(rock_cells), size(sim_rock_cells), &
-               "Simulation num rocktypes")
+               "Flow simulation num rocktypes")
           call assert_equals(rock_cells, sim_rock_cells, &
-               size(rock_cells), "Simulation num rocktype cells")
+               size(rock_cells), "Flow simulation num rocktype cells")
        end if
        deallocate(sim_rock_cells)
     end if
 
-  end subroutine simulation_label_test
+  end subroutine flow_simulation_label_test
 
 !------------------------------------------------------------------------
-
-subroutine timestepper_test(ts, method, initial_time, initial_stepsize, &
-     final_time, max_num_steps, max_stepsize)
-
-  ! Tests timestepper initialization.
-
-  type(timestepper_type), intent(in) :: ts
-  character(*), intent(in) :: method
-  PetscReal, intent(in) :: initial_time, initial_stepsize
-  PetscReal, intent(in) :: final_time, max_stepsize
-  PetscInt, intent(in)  :: max_num_steps
-
-  if (mpi%rank == mpi%output_rank) then
-     call assert_equals(method, ts%method%name, "Simulation timestepper method")
-     call assert_equals(initial_time, ts%steps%current%time, "Simulation initial time")
-     call assert_equals(initial_stepsize, ts%steps%next_stepsize, "Simulation initial stepsize")
-     call assert_equals(final_time, ts%steps%final_time, "Simulation final time")
-     call assert_equals(max_num_steps, ts%steps%max_num, "Simulation max num steps")
-     call assert_equals(max_stepsize, ts%steps%adaptor%max_stepsize, "Simulation max stepsize")
-  end if
-
-end subroutine timestepper_test
 
 !------------------------------------------------------------------------
 ! Unit test routines:
 !------------------------------------------------------------------------
 
-  subroutine test_simulation_init
+  subroutine test_flow_simulation_init
 
-    ! Test simulation init() method
+    ! Test flow_simulation init() method
     ! This uses a simple problem with a 12-cell rectangular mesh and two rock types.
 
     ! Locals:
-    character(24), parameter :: path = "data/simulation/init/"
+    character(24), parameter :: path = "data/flow_simulation/init/"
+    type(fson_value), pointer :: json
 
-    call sim%init(trim(path) // "test_init.json")
+    if (mpi%rank == mpi%input_rank) then
+       json => fson_parse(trim(path) // "test_init.json")
+    end if
 
-    call simulation_basic_test(title = "Test simulation init", &
+    call sim%init(json)
+
+    call flow_simulation_basic_test(title = "Test flow simulation init", &
          thermo = "IAPWS-97", eos = "W", dim = 3, dof = 12)
 
-    call simulation_label_test(rock_cells = [9, 3])
+    call flow_simulation_label_test(rock_cells = [9, 3])
 
     call vec_diff_test(sim%initial, "initial", path)
 
@@ -238,7 +221,7 @@ end subroutine timestepper_test
 
     call sim%destroy()
 
-  end subroutine test_simulation_init
+  end subroutine test_flow_simulation_init
 
 !------------------------------------------------------------------------
 
