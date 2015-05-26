@@ -55,6 +55,8 @@ module ode_module
   public :: lhs_function, rhs_function, lhs_identity
   public :: pre_eval_procedure
 
+contains
+
 !------------------------------------------------------------------------
 
   subroutine lhs_identity(t, y, lhs)
