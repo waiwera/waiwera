@@ -323,7 +323,7 @@ contains
     PetscErrorCode, intent(out) :: ierr
 
     call context%ode%pre_eval(context%steps%current%time, y)
-    call context%residual(solver, y, residual, steps, ierr)
+    call context%residual(solver, y, residual, context, ierr)
 
   end subroutine SNES_residual
 
