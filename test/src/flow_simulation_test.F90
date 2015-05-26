@@ -212,8 +212,6 @@ contains
 
     call vec_diff_test(sim%initial, "initial", path)
 
-    ! test fluid vector initialized
-
     call vec_diff_test(sim%rock, "rock", path)
 
     call timestepper_test(sim%timestepper, "Backward Euler", 0.0_dp, &
@@ -225,4 +223,4 @@ contains
 
 !------------------------------------------------------------------------
 
-end module simulation_test
+end module flow_simulation_test
