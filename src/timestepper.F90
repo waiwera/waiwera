@@ -93,7 +93,7 @@ module timestepper_module
      private
      class(ode_type), pointer, public :: ode
      type(timestepper_steps_type), pointer, public :: steps
-     procedure(method_residual), pointer, public :: residual
+     procedure(method_residual), pointer, nopass, public :: residual
    contains
      private
      procedure, public :: init => timestepper_solver_context_init
