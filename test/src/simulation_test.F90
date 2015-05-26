@@ -7,7 +7,7 @@ module simulation_test
   use fruit
   use fson
   use simulation_module
-  use timestepping_module
+  use timestepper_module
 
   implicit none
   private

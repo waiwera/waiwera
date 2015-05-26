@@ -1,4 +1,4 @@
-module timestepping_module
+module timestepper_module
   !! Time stepping methods for solving \(\frac{d}{dt} L(t,y) = R(t,y)\), where y is a parallel vector.
 
   use kinds_module
@@ -63,12 +63,6 @@ module timestepping_module
      PetscReal, public :: next_stepsize, final_time
      PetscReal, public :: termination_tol = 1.e-6_dp
      type(timestep_adaptor_type), public :: adaptor
-     ! LHS and RHS functions are also stored here, as they need
-     ! to be passed in to the residual routines as well:
-     procedure(lhs_function), pointer, nopass, public :: lhs_func => NULL()
-     procedure(rhs_function), pointer, nopass, public :: rhs_func => NULL()
-     procedure(pre_eval_procedure), pointer, nopass, public :: pre_eval_proc => NULL()
-     procedure(method_residual), pointer, nopass, public :: residual => NULL()
    contains
      private
      procedure :: set_aliases => timestepper_steps_set_aliases
@@ -97,8 +91,8 @@ module timestepping_module
   type, public :: timestepper_type
      !! Timestepper class.
      private
+     class(ode_type), pointer :: ode
      SNES :: solver
-     DM :: dm
      Vec :: residual
      Mat :: jacobian
      type(timestepper_steps_type), public :: steps
@@ -116,34 +110,13 @@ module timestepping_module
 
   interface
 
-     subroutine lhs_function(t, y, lhs)
-       !! LHS function lhs = L(t, y)
-       PetscReal, intent(in) :: t
-       Vec, intent(in) :: y
-       Vec, intent(out) :: lhs
-     end subroutine lhs_function
-
-     subroutine rhs_function(t, y, rhs)
-       !! RHS function rhs = R(t, y)
-       PetscReal, intent(in) :: t
-       Vec, intent(in) :: y
-       Vec, intent(out) :: rhs
-     end subroutine rhs_function
-
-     subroutine pre_eval_procedure(t, y)
-       !! Optional routine to be called before each evaluation
-       !! of LHS and RHS functions.
-       PetscReal, intent(in) :: t
-       Vec, intent(in) :: y
-     end subroutine pre_eval_procedure
-
-     subroutine method_residual(solver, y, residual, steps, ierr)
+     subroutine method_residual(solver, y, residual, ode, ierr)
        !! Residual routine to be minimised by nonlinear solver.
-       import :: timestepper_steps_type
+       import :: ode_type
        SNES, intent(in) :: solver
        Vec, intent(in) :: y
        Vec, intent(out) :: residual
-       type(timestepper_steps_type), intent(in out) :: steps
+       class(ode_type), intent(in out) :: ode
        PetscErrorCode, intent(out) :: ierr
      end subroutine method_residual
 
@@ -162,30 +135,11 @@ module timestepping_module
   end interface
 
   ! Subroutines to be available outside this module:
-  public :: lhs_function, rhs_function, lhs_identity
-  public :: pre_eval_procedure
   public :: iteration_monitor, relative_change_monitor
   public :: step_output_routine, step_output_default, step_output_none
   public :: setup_timestepper
 
 contains
-
-!------------------------------------------------------------------------
-! LHS functions
-!------------------------------------------------------------------------
-
-  subroutine lhs_identity(t, y, lhs)
-    !! Default identity LHS function L(t,y) = y.
-
-    PetscReal, intent(in) :: t
-    Vec, intent(in) :: y
-    Vec, intent(out) :: lhs
-    ! Locals:
-    PetscErrorCode :: ierr
-
-    call VecCopy(y, lhs, ierr); CHKERRQ(ierr)
-
-  end subroutine lhs_identity
 
 !------------------------------------------------------------------------
 ! Monitoring functions
@@ -256,14 +210,14 @@ contains
 ! Residual routines
 !------------------------------------------------------------------------
 
-  subroutine backwards_Euler_residual(solver, y, residual, steps, ierr)
+  subroutine backwards_Euler_residual(solver, y, residual, ode, ierr)
     !! Residual for backwards Euler method.
     !! residual = L(1) - L(0)  - dt * R(1)
 
     SNES, intent(in) :: solver
     Vec, intent(in) :: y
     Vec, intent(out) :: residual
-    type(timestepper_steps_type), intent(in out) :: steps
+    class(ode_type), intent(in out) :: ode
     PetscErrorCode, intent(out) :: ierr
     ! Locals:
     PetscReal :: t, dt
@@ -271,17 +225,17 @@ contains
     t = steps%current%time
     dt = steps%current%stepsize
 
-    call steps%lhs_func(t, y, steps%current%lhs)
+    call ode%lhs_func(t, y, steps%current%lhs)
     call VecCopy(steps%current%lhs, residual, ierr); CHKERRQ(ierr)
     call VecAXPY(residual, -1.0_dp, steps%last%lhs, ierr); CHKERRQ(ierr)
-    call steps%rhs_func(t, y, steps%current%rhs)
+    call ode%rhs_func(t, y, steps%current%rhs)
     call VecAXPY(residual, -dt, steps%current%rhs, ierr); CHKERRQ(ierr)
 
   end subroutine backwards_Euler_residual
 
 !------------------------------------------------------------------------
 
-  subroutine BDF2_residual(solver, y, residual, steps, ierr)
+  subroutine BDF2_residual(solver, y, residual, ode, ierr)
     !! Residual for variable-stepsize BDF2 method.
     !! residual = (1 + 2r) * L(1) - (r+1)^2 * L(0) + r^2 * L(-1) - dt * (r+1) * R(1)
     !! where r = dt / (last dt)
@@ -289,7 +243,7 @@ contains
     SNES, intent(in) :: solver
     Vec, intent(in) :: y
     Vec, intent(out) :: residual
-    type(timestepper_steps_type), intent(in out) :: steps
+    class(ode_type), intent(in out) :: ode
     PetscErrorCode, intent(out) :: ierr
     ! Locals:
     type(timestepper_step_type), pointer :: last2
@@ -299,7 +253,7 @@ contains
     if (steps%taken == 0) then
 
        ! Startup- use backwards Euler
-       call backwards_Euler_residual(solver, y, residual, steps, ierr)
+       call backwards_Euler_residual(solver, y, residual, ode, ierr)
 
     else
 
@@ -311,12 +265,12 @@ contains
 
        last2 => steps%pstore(3)%p
 
-       call steps%lhs_func(t, y, steps%current%lhs)
+       call ode%lhs_func(t, y, steps%current%lhs)
        call VecCopy(steps%current%lhs, residual, ierr); CHKERRQ(ierr)
        call VecScale(residual, 1._dp + 2._dp * r, ierr); CHKERRQ(ierr)
        call VecAXPY(residual, -r1 * r1, steps%last%lhs, ierr); CHKERRQ(ierr)
        call VecAXPY(residual, r * r, last2%lhs, ierr); CHKERRQ(ierr)
-       call steps%rhs_func(t, y, steps%current%rhs)
+       call ode%rhs_func(t, y, steps%current%rhs)
        call VecAXPY(residual, -dt * r1, steps%current%rhs, ierr); CHKERRQ(ierr)
 
     end if
@@ -325,24 +279,24 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine direct_ss_residual(solver, y, residual, steps, ierr)
+  subroutine direct_ss_residual(solver, y, residual, ode, ierr)
     !! Residual for direct solution of steady state equations R(y) = 0.
     !! Here we evaluate R() at the steps final time.
 
     SNES, intent(in) :: solver
     Vec, intent(in) :: y
     Vec, intent(out) :: residual
-    type(timestepper_steps_type), intent(in out) :: steps
+    class(ode_type), intent(in out) :: ode
     PetscErrorCode, intent(out) :: ierr
 
-    call steps%rhs_func(steps%final_time, y, residual)
+    call ode%rhs_func(steps%final_time, y, residual)
 
   end subroutine direct_ss_residual
 
 !------------------------------------------------------------------------
 
   subroutine SNES_residual(solver, y, residual, &
-       steps, ierr)
+       ode, ierr)
     !! Residual routine to be minimized by SNES solver. This calls the
     !! pre-evaluation routine first (if needed) before calling the
     !! timestepper method residual routine.
@@ -350,12 +304,10 @@ contains
     SNES, intent(in) :: solver
     Vec, intent(in) :: y
     Vec, intent(out) :: residual
-    type(timestepper_steps_type), intent(in out) :: steps
+    class(ode_type), intent(in out) :: ode
     PetscErrorCode, intent(out) :: ierr
 
-    if (associated(steps%pre_eval_proc)) then
-       call steps%pre_eval_proc(steps%current%time, y)
-    end if
+    call ode%pre_eval(steps%current%time, y)
 
     call steps%residual(solver, y, residual, steps, ierr)
 
@@ -514,10 +466,7 @@ contains
 
     class(timestepper_steps_type), intent(in out) :: self
 
-    if (associated(self%pre_eval_proc)) then
-       call self%pre_eval_proc(self%current%time, &
-            self%current%solution)
-    end if
+    call self%pre_eval_proc(self%current%time, self%current%solution)
 
     call self%lhs_func(self%current%time, &
          self%current%solution, self%current%lhs)
@@ -736,12 +685,12 @@ contains
     KSP :: ksp
 
     call SNESCreate(mpi%comm, self%solver, ierr); CHKERRQ(ierr)
-    call SNESSetApplicationContext(self%solver, self%steps, ierr); CHKERRQ(ierr)
+    call SNESSetApplicationContext(self%solver, self%ode, ierr); CHKERRQ(ierr)
     call SNESSetFunction(self%solver, self%residual, &
-         SNES_residual, self%steps, ierr); CHKERRQ(ierr)
+         SNES_residual, self%ode, ierr); CHKERRQ(ierr)
     call SNESSetJacobian(self%solver, self%jacobian, self%jacobian, &
          PETSC_NULL_FUNCTION, PETSC_NULL_OBJECT, ierr); CHKERRQ(ierr)
-    call SNESSetDM(self%solver, self%dm, ierr); CHKERRQ(ierr)
+    call SNESSetDM(self%solver, self%ode%mesh%dm, ierr); CHKERRQ(ierr)
 
     ! Set nonlinear and linear solver options from command line options:
     call SNESSetFromOptions(self%solver, ierr); CHKERRQ(ierr)
@@ -752,40 +701,30 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine timestepper_init(self, method, dm, &
-       initial_time, initial_conditions, initial_stepsize, &
-       final_time, max_num_steps, max_stepsize, &
-       lhs_func, rhs_func, pre_eval_proc)
+  subroutine timestepper_init(self, json, ode)
+
     !! Initializes a timestepper.
 
     class(timestepper_type), intent(in out) :: self
-    PetscInt, intent(in) :: method
-    DM, intent(in) :: dm
-    PetscReal, intent(in) :: initial_time, final_time
-    Vec, intent(in) :: initial_conditions
-    PetscReal, intent(in) :: initial_stepsize, max_stepsize
-    PetscInt, intent(in) :: max_num_steps
-    procedure(lhs_function), optional :: lhs_func
-    procedure(rhs_function), optional :: rhs_func
-    procedure(pre_eval_procedure), optional :: pre_eval_proc
-
+    type(fson_value), pointer, intent(in) :: json
+    class(ode_type), intent(in), target :: ode
     ! Locals:
     PetscErrorCode :: ierr
 
-    self%dm = dm
-    call VecDuplicate(initial_conditions, self%residual, ierr); CHKERRQ(ierr)
-    call DMSetMatType(self%dm, MATAIJ, ierr); CHKERRQ(ierr)
-    call DMCreateMatrix(self%dm, self%jacobian, ierr); CHKERRQ(ierr)
+    self%ode => ode
+    call VecDuplicate(self%ode%initial, self%residual, ierr); CHKERRQ(ierr)
+    call DMSetMatType(self%ode%mesh%dm, MATAIJ, ierr); CHKERRQ(ierr)
+    call DMCreateMatrix(self%ode%mesh%dm, self%jacobian, ierr); CHKERRQ(ierr)
     call MatSetFromOptions(self%jacobian, ierr); CHKERRQ(ierr)
     call MatSetUp(self%jacobian, ierr); CHKERRQ(ierr)
 
+    ! TODO: read below data from JSON
+
     call self%method%init(method)
+
     call self%steps%init(self%method%num_stored_steps, &
          initial_time, initial_conditions, initial_stepsize, &
          final_time, max_num_steps, max_stepsize)
-    if (present(lhs_func)) self%steps%lhs_func => lhs_func
-    if (present(rhs_func)) self%steps%rhs_func => rhs_func
-    if (present(pre_eval_proc)) self%steps%pre_eval_proc => pre_eval_proc
     self%steps%residual => self%method%residual
        
     call self%setup_solver()
@@ -806,6 +745,8 @@ contains
     call MatDestroy(self%jacobian, ierr); CHKERRQ(ierr)
 
     call self%steps%destroy()
+
+    self%ode => NULL()
 
   end subroutine timestepper_destroy
 
@@ -931,4 +872,4 @@ contains
 
 !------------------------------------------------------------------------
 
-end module timestepping_module
+end module timestepper_module

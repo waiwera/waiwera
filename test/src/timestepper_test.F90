@@ -1,11 +1,11 @@
-module timestepping_test
+module timestepper_test
 
-  ! Tests for timestepping module
+  ! Tests for timestepper module
 
   use kinds_module
   use mpi_module
   use fruit
-  use timestepping_module
+  use timestepper_module
 
   implicit none
 
@@ -35,10 +35,10 @@ procedure(rhs_function), pointer :: rhs_func
 procedure(pre_eval_procedure), pointer :: pre_eval_proc
 procedure(exact_function), pointer :: exact_func
 
-public :: test_timestepping_linear, test_timestepping_exponential, &
-     test_timestepping_logistic, test_timestepping_nontrivial_lhs, &
-     test_timestepping_nonlinear_lhs, test_timestepping_heat1d, &
-     test_timestepping_pre_eval
+public :: test_timestepper_linear, test_timestepper_exponential, &
+     test_timestepper_logistic, test_timestepper_nontrivial_lhs, &
+     test_timestepper_nonlinear_lhs, test_timestepper_heat1d, &
+     test_timestepper_pre_eval
 
 contains
 
@@ -165,7 +165,7 @@ contains
 ! Test routines
 !------------------------------------------------------------------------
 
-  subroutine test_timestepping_linear
+  subroutine test_timestepper_linear
 
     ! Linear function
 
@@ -222,11 +222,11 @@ contains
       call VecSetArray(v, initial + k * (t - t0))
     end subroutine exact_linear
 
-  end subroutine test_timestepping_linear
+  end subroutine test_timestepper_linear
 
 !------------------------------------------------------------------------
 
-  subroutine test_timestepping_exponential
+  subroutine test_timestepper_exponential
 
     ! Exponential function
 
@@ -284,11 +284,11 @@ contains
       call VecSetArray(v, initial * exp(k * (t - t0)))
     end subroutine exact_exp
 
-  end subroutine test_timestepping_exponential
+  end subroutine test_timestepper_exponential
 
 !------------------------------------------------------------------------
 
-  subroutine test_timestepping_logistic
+  subroutine test_timestepper_logistic
 
     ! Logistic equation
 
@@ -359,11 +359,11 @@ contains
       call VecRestoreArrayF90(v, va, ierr); CHKERRQ(ierr)
     end subroutine exact_logistic
 
-  end subroutine test_timestepping_logistic
+  end subroutine test_timestepper_logistic
 
 !------------------------------------------------------------------------
 
-  subroutine test_timestepping_nontrivial_lhs
+  subroutine test_timestepper_nontrivial_lhs
 
     ! Nontrivial LHS
 
@@ -432,11 +432,11 @@ contains
       call VecSetArray(v, initial * t ** (k - 1._dp))
     end subroutine exact_fn
 
-  end subroutine test_timestepping_nontrivial_lhs
+  end subroutine test_timestepper_nontrivial_lhs
 
 !------------------------------------------------------------------------
 
-  subroutine test_timestepping_nonlinear_lhs
+  subroutine test_timestepper_nonlinear_lhs
 
     ! Nonlinear LHS
 
@@ -506,11 +506,11 @@ contains
       call VecSetArray(v, initial + 0.5_dp * k * t)
     end subroutine exact_fn
 
-  end subroutine test_timestepping_nonlinear_lhs
+  end subroutine test_timestepper_nonlinear_lhs
 
 !------------------------------------------------------------------------
 
-  subroutine test_timestepping_heat1d
+  subroutine test_timestepper_heat1d
 
     ! 1-D heat equation PDE
     ! Solved in its usual form: dc/dt = d2c/dx2
@@ -718,14 +718,14 @@ contains
 
     end subroutine exact_fn
 
-  end subroutine test_timestepping_heat1d
+  end subroutine test_timestepper_heat1d
 
 !------------------------------------------------------------------------
 
-  subroutine test_timestepping_pre_eval
+  subroutine test_timestepper_pre_eval
 
     ! Pre-evaluation procedure problem
-    ! (This is just a re-casting of test_timestepping_nontrivial_lhs,
+    ! (This is just a re-casting of test_timestepper_nontrivial_lhs,
     ! with the LHS function essentially computed in the pre-evaluation
     ! routine, and just copied in the actual LHS function routine.)
 
@@ -805,8 +805,8 @@ contains
       call VecSetArray(v, initial * t ** (k - 1._dp))
     end subroutine exact_fn
 
-  end subroutine test_timestepping_pre_eval
+  end subroutine test_timestepper_pre_eval
 
 !------------------------------------------------------------------------
 
-end module timestepping_test
+end module timestepper_test
