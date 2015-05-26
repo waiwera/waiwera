@@ -3,6 +3,7 @@ module timestepper_module
 
   use kinds_module
   use mpi_module
+  use ode_module
 
   implicit none
 
