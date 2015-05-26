@@ -696,13 +696,13 @@ contains
     class(timestepper_solver_context_type), intent(in out) :: self
     class(ode_type), intent(in), target :: ode
     type(timestepper_steps_type), target :: steps
-    procedure(method_residual), target :: residual
+    procedure(method_residual) :: residual
 
     self%ode => ode
     self%steps => steps
     self%residual => residual
 
-  end subroutine timestepper_setup_solver_context
+  end subroutine timestepper_solver_context_init
 
 !------------------------------------------------------------------------
 
