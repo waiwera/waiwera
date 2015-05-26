@@ -236,14 +236,14 @@ contains
     ! Locals:
     PetscReal :: t, dt
 
-    t = steps%current%time
-    dt = steps%current%stepsize
+    t = context%steps%current%time
+    dt = context%steps%current%stepsize
 
-    call context%lhs_func(t, y, steps%current%lhs)
-    call VecCopy(steps%current%lhs, residual, ierr); CHKERRQ(ierr)
-    call VecAXPY(residual, -1.0_dp, steps%last%lhs, ierr); CHKERRQ(ierr)
-    call context%rhs_func(t, y, steps%current%rhs)
-    call VecAXPY(residual, -dt, steps%current%rhs, ierr); CHKERRQ(ierr)
+    call context%ode%lhs(t, y, context%steps%current%lhs)
+    call VecCopy(context%steps%current%lhs, residual, ierr); CHKERRQ(ierr)
+    call VecAXPY(residual, -1.0_dp, context%steps%last%lhs, ierr); CHKERRQ(ierr)
+    call context%ode%rhs(t, y, context%steps%current%rhs)
+    call VecAXPY(residual, -dt, context%steps%current%rhs, ierr); CHKERRQ(ierr)
 
   end subroutine backwards_Euler_residual
 
@@ -271,21 +271,21 @@ contains
 
     else
 
-       t = steps%current%time
-       dt = steps%current%stepsize
-       dtlast = steps%last%stepsize
+       t  = context%steps%current%time
+       dt = context%steps%current%stepsize
+       dtlast = context%steps%last%stepsize
        r = dt / dtlast
        r1 = r + 1._dp
 
-       last2 => steps%pstore(3)%p
+       last2 => context%steps%pstore(3)%p
 
-       call context%lhs_func(t, y, steps%current%lhs)
-       call VecCopy(steps%current%lhs, residual, ierr); CHKERRQ(ierr)
+       call context%lhs_func(t, y, context%steps%current%lhs)
+       call VecCopy(context%steps%current%lhs, residual, ierr); CHKERRQ(ierr)
        call VecScale(residual, 1._dp + 2._dp * r, ierr); CHKERRQ(ierr)
-       call VecAXPY(residual, -r1 * r1, steps%last%lhs, ierr); CHKERRQ(ierr)
+       call VecAXPY(residual, -r1 * r1, context%steps%last%lhs, ierr); CHKERRQ(ierr)
        call VecAXPY(residual, r * r, last2%lhs, ierr); CHKERRQ(ierr)
-       call context%rhs_func(t, y, steps%current%rhs)
-       call VecAXPY(residual, -dt * r1, steps%current%rhs, ierr); CHKERRQ(ierr)
+       call context%rhs_func(t, y, context%steps%current%rhs)
+       call VecAXPY(residual, -dt * r1, context%steps%current%rhs, ierr); CHKERRQ(ierr)
 
     end if
 
@@ -303,7 +303,7 @@ contains
     class(timestepper_solver_context_type), intent(in out) :: context
     PetscErrorCode, intent(out) :: ierr
 
-    call context%rhs_func(steps%final_time, y, residual)
+    call context%rhs_func(context%steps%final_time, y, residual)
 
   end subroutine direct_ss_residual
 
@@ -321,7 +321,7 @@ contains
     class(timestepper_solver_context_type), intent(in out) :: context
     PetscErrorCode, intent(out) :: ierr
 
-    call context%pre_eval(steps%current%time, y)
+    call context%pre_eval(context%steps%current%time, y)
     call context%residual(solver, y, residual, steps, ierr)
 
   end subroutine SNES_residual
