@@ -13,7 +13,7 @@ program supermodel
   type(fson_value), pointer :: json
   type(flow_simulation_type) :: sim
   type(timestepper_type) :: ts
-  PetscInt, parameter, public :: max_filename_length = 200
+  PetscInt, parameter :: max_filename_length = 200
   character(max_filename_length) :: filename
   PetscErrorCode :: ierr
 
