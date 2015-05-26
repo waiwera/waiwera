@@ -2,13 +2,19 @@ program supermodel
   !! Main supermodel driver program.
 
   use mpi_module
-  use simulation_module
+  use fson
+  use flow_simulation_module
+  use timestepper_module
 
   implicit none
 
 #include <petsc-finclude/petscsys.h>
 
-  character(max_filename_length) :: filename !! filename
+  type(fson_value), pointer :: json
+  type(flow_simulation_type) :: sim
+  type(timestepper_type) :: ts
+  PetscInt, parameter, public :: max_filename_length = 200
+  character(max_filename_length) :: filename
   PetscErrorCode :: ierr
 
   call PetscInitialize(PETSC_NULL_CHARACTER, ierr); CHKERRQ(ierr)
@@ -17,9 +23,14 @@ program supermodel
   call output_program_info()
 
   call get_filename(filename)
+  if (mpi%rank == mpi%input_rank) json => fson_parse(filename)
+  call sim%init(json)
+  call ts%init(json, sim)
+  if (mpi%rank == mpi%input_rank) call fson_destroy(json)
 
-  call sim%init(filename)
-  call sim%run()
+  call ts%run()
+
+  call ts%destroy()
   call sim%destroy()
 
   call PetscFinalize(ierr); CHKERRQ(ierr)
