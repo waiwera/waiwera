@@ -264,7 +264,7 @@ contains
     PetscReal :: t, dt, dtlast
     PetscReal :: r, r1
 
-    if (steps%taken == 0) then
+    if (context%steps%taken == 0) then
 
        ! Startup- use backwards Euler
        call backwards_Euler_residual(solver, y, residual, context, ierr)
@@ -279,13 +279,14 @@ contains
 
        last2 => context%steps%pstore(3)%p
 
-       call context%lhs_func(t, y, context%steps%current%lhs)
+       call context%ode%lhs(t, y, context%steps%current%lhs)
        call VecCopy(context%steps%current%lhs, residual, ierr); CHKERRQ(ierr)
        call VecScale(residual, 1._dp + 2._dp * r, ierr); CHKERRQ(ierr)
        call VecAXPY(residual, -r1 * r1, context%steps%last%lhs, ierr); CHKERRQ(ierr)
        call VecAXPY(residual, r * r, last2%lhs, ierr); CHKERRQ(ierr)
-       call context%rhs_func(t, y, context%steps%current%rhs)
-       call VecAXPY(residual, -dt * r1, context%steps%current%rhs, ierr); CHKERRQ(ierr)
+       call context%ode%rhs(t, y, context%steps%current%rhs)
+       call VecAXPY(residual, -dt * r1, context%steps%current%rhs, ierr)
+       CHKERRQ(ierr)
 
     end if
 
@@ -303,7 +304,7 @@ contains
     class(timestepper_solver_context_type), intent(in out) :: context
     PetscErrorCode, intent(out) :: ierr
 
-    call context%rhs_func(context%steps%final_time, y, residual)
+    call context%ode%rhs(context%steps%final_time, y, residual)
 
   end subroutine direct_ss_residual
 
@@ -321,7 +322,7 @@ contains
     class(timestepper_solver_context_type), intent(in out) :: context
     PetscErrorCode, intent(out) :: ierr
 
-    call context%pre_eval(context%steps%current%time, y)
+    call context%ode%pre_eval(context%steps%current%time, y)
     call context%residual(solver, y, residual, steps, ierr)
 
   end subroutine SNES_residual
@@ -479,9 +480,9 @@ contains
 
     class(timestepper_steps_type), intent(in out) :: self
 
-    call self%pre_eval_proc(self%current%time, self%current%solution)
+    call self%ode%pre_eval(self%current%time, self%current%solution)
 
-    call self%lhs_func(self%current%time, &
+    call self%ode%lhs(self%current%time, &
          self%current%solution, self%current%lhs)
 
   end subroutine timestepper_steps_initial_function_calls
