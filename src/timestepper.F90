@@ -72,7 +72,6 @@ module timestepper_module
      procedure :: rotate => timestepper_steps_rotate
      procedure, public :: init => timestepper_steps_init
      procedure, public :: destroy => timestepper_steps_destroy
-     procedure, public :: initial_function_calls => timestepper_steps_initial_function_calls
      procedure, public :: check_finished => timestepper_steps_check_finished
      procedure, public :: set_current_status => timestepper_steps_set_current_status
      procedure, public :: adapt => timestepper_steps_adapt
@@ -119,6 +118,7 @@ module timestepper_module
      procedure :: step => timestepper_step
      procedure, public :: init => timestepper_init
      procedure, public :: destroy => timestepper_destroy
+     procedure, public :: initial_function_calls => timestepper_initial_function_calls
      procedure, public :: run => timestepper_run
   end type timestepper_type
 
@@ -474,18 +474,18 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine timestepper_steps_initial_function_calls(self)
+  subroutine timestepper_initial_function_calls(self)
     !! Performs initial LHS function call at start of run (and pre-evaluation
     !! procedure if needed).
 
-    class(timestepper_steps_type), intent(in out) :: self
+    class(timestepper_type), intent(in out) :: self
 
-    call self%ode%pre_eval(self%current%time, self%current%solution)
+    call self%ode%pre_eval(self%steps%current%time, self%steps%current%solution)
 
-    call self%ode%lhs(self%current%time, &
-         self%current%solution, self%current%lhs)
+    call self%ode%lhs(self%steps%current%time, &
+         self%steps%current%solution, self%steps%current%lhs)
 
-  end subroutine timestepper_steps_initial_function_calls
+  end subroutine timestepper_initial_function_calls
 
 !------------------------------------------------------------------------
 
@@ -848,7 +848,7 @@ contains
     class(timestepper_type), intent(in out) :: self
 
     self%steps%taken = 0
-    call self%steps%initial_function_calls()
+    call self%initial_function_calls()
 
     do while (.not. self%steps%finished)
        call self%step()
