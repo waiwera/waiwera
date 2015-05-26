@@ -151,7 +151,6 @@ module timestepper_module
   ! Subroutines to be available outside this module:
   public :: iteration_monitor, relative_change_monitor
   public :: step_output_routine, step_output_default, step_output_none
-  public :: setup_timestepper
 
 contains
 
@@ -752,26 +751,64 @@ contains
 
     !! Initializes a timestepper.
 
+    use utils_module, only : str_to_lower
+    use fson
+    use fson_mpi_module
+
     class(timestepper_type), intent(in out) :: self
     type(fson_value), pointer, intent(in) :: json
     class(ode_type), intent(in), target :: ode
     ! Locals:
+    PetscInt :: max_num_steps
+    PetscReal, parameter :: default_start_time = 0.0_dp, &
+         default_stop_time = 1.0_dp
+    PetscReal, parameter :: default_initial_stepsize = 0.1_dp
+    PetscReal :: initial_stepsize, max_stepsize
+    PetscReal :: start_time, stop_time
+    PetscReal, parameter :: default_max_stepsize = 0.0_dp
+    PetscInt :: method
+    PetscInt, parameter :: max_method_str_len = 12
+    character(max_method_str_len) :: method_str
+    character(max_method_str_len), parameter :: default_method_str = "beuler"
+    PetscInt, parameter :: default_max_num_steps = 100
     PetscErrorCode :: ierr
 
     self%ode => ode
+
     call VecDuplicate(self%ode%initial, self%residual, ierr); CHKERRQ(ierr)
     call DMSetMatType(self%ode%mesh%dm, MATAIJ, ierr); CHKERRQ(ierr)
     call DMCreateMatrix(self%ode%mesh%dm, self%jacobian, ierr); CHKERRQ(ierr)
     call MatSetFromOptions(self%jacobian, ierr); CHKERRQ(ierr)
     call MatSetUp(self%jacobian, ierr); CHKERRQ(ierr)
 
-    ! TODO: read below data from JSON
+    call fson_get_mpi(json, "time.start", default_start_time, start_time)
+    call fson_get_mpi(json, "time.stop", default_stop_time, stop_time)
+
+    call fson_get_mpi(json, "time.step.method", &
+         default_method_str, method_str)
+    select case (str_to_lower(method_str))
+    case ("beuler")
+       method = TS_BEULER
+    case ("bdf2")
+       method = TS_BDF2
+    case ("directss")
+       method = TS_DIRECTSS
+    case default
+       method = TS_BEULER
+    end select
 
     call self%method%init(method)
 
+    call fson_get_mpi(json, "time.step.initial", &
+         default_initial_stepsize, initial_stepsize)
+    call fson_get_mpi(json, "time.step.maximum.size", &
+         default_max_stepsize, max_stepsize)
+    call fson_get_mpi(json, "time.step.maximum.number", &
+         default_max_num_steps, max_num_steps)
+
     call self%steps%init(self%method%num_stored_steps, &
-         initial_time, initial_conditions, initial_stepsize, &
-         final_time, max_num_steps, max_stepsize)
+         start_time, self%ode%initial, initial_stepsize, &
+         stop_time, max_num_steps, max_stepsize)
        
     call self%setup_solver()
 
@@ -856,67 +893,6 @@ contains
     end do
 
   end subroutine timestepper_run
-
-!------------------------------------------------------------------------
-
-  subroutine setup_timestepper(json, dm, initial, timestepper)
-    !! Sets up timestepper from JSON input, DM and initial conditions
-    !! vector.
-
-    use utils_module, only : str_to_lower
-    use fson
-    use fson_mpi_module
-
-    type(fson_value), pointer, intent(in) :: json
-    DM, intent(in) :: dm
-    Vec ,intent(in) :: initial
-    type(timestepper_type), intent(in out) :: timestepper
-    ! Locals:
-    PetscReal :: start_time, stop_time, initial_stepsize, max_stepsize
-    PetscReal, allocatable :: steps(:)
-    PetscInt :: max_num_steps
-    PetscReal, parameter :: default_start_time = 0.0_dp, &
-         default_stop_time = 1.0_dp
-    PetscReal, parameter :: default_initial_stepsize = 0.1_dp
-    PetscReal, parameter :: default_max_stepsize = 0.0_dp
-    PetscInt :: method
-    PetscInt, parameter :: max_method_str_len = 12
-    character(max_method_str_len) :: method_str
-    character(max_method_str_len), parameter :: default_method_str = "beuler"
-    PetscInt, parameter :: default_max_num_steps = 100
-
-    !! TODO: steady state simulation input
-
-    call fson_get_mpi(json, "time.start", default_start_time, start_time)
-    call fson_get_mpi(json, "time.stop", default_stop_time, stop_time)
-
-    call fson_get_mpi(json, "time.step.method", &
-         default_method_str, method_str)
-    select case (str_to_lower(method_str))
-    case ("beuler")
-       method = TS_BEULER
-    case ("bdf2")
-       method = TS_BDF2
-    case ("directss")
-       method = TS_DIRECTSS
-    case default
-       method = TS_BEULER
-    end select
-
-    call fson_get_mpi(json, "time.step.initial", &
-         default_initial_stepsize, initial_stepsize)
-    call fson_get_mpi(json, "time.step.maximum.size", &
-         default_max_stepsize, max_stepsize)
-    call fson_get_mpi(json, "time.step.maximum.number", &
-         default_max_num_steps, max_num_steps)
-
-    call timestepper%init(method, dm, start_time, initial, &
-         initial_stepsize, stop_time, max_num_steps, &
-         max_stepsize)
-
-    if (allocated(steps)) deallocate(steps)
-
-  end subroutine setup_timestepper
 
 !------------------------------------------------------------------------
 
