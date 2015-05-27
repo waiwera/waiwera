@@ -52,25 +52,8 @@ module ode_module
 
   end interface
 
-  public :: lhs_function, rhs_function, lhs_identity
+  public :: lhs_function, rhs_function
   public :: pre_eval_procedure
-
-contains
-
-!------------------------------------------------------------------------
-
-  subroutine lhs_identity(t, y, lhs)
-    !! Default identity LHS function L(t,y) = y.
-
-    PetscReal, intent(in) :: t
-    Vec, intent(in) :: y
-    Vec, intent(out) :: lhs
-    ! Locals:
-    PetscErrorCode :: ierr
-
-    call VecCopy(y, lhs, ierr); CHKERRQ(ierr)
-
-  end subroutine lhs_identity
 
 !------------------------------------------------------------------------
 
