@@ -71,8 +71,10 @@ module IAPWS_module
   type, extends(region_type) :: IAPWS_region_type
      !! IAPWS-97 region type- just implements viscosity method, which is common
      !! to all regions
-     type(IAPWS_viscosity_type) :: visc
+     private
+     type(IAPWS_viscosity_type), public :: visc
    contains
+     private
      procedure, public :: init => region_init
      procedure, public :: destroy => region_destroy
      procedure, public :: properties => region_properties
