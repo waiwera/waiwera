@@ -318,7 +318,7 @@ contains
     SNES, intent(in) :: solver
     Vec, intent(in) :: y
     Vec, intent(out) :: residual
-    class(timestepper_solver_context_type), intent(in out) :: context
+    type(timestepper_solver_context_type), intent(in out) :: context
     PetscErrorCode, intent(out) :: ierr
 
     call context%ode%pre_eval(context%steps%current%time, y)
@@ -729,7 +729,7 @@ contains
     KSP :: ksp
 
     call self%context%init(self%ode, self%steps, self%method%residual)
-    
+
     call SNESCreate(mpi%comm, self%solver, ierr); CHKERRQ(ierr)
     call SNESSetApplicationContext(self%solver, self%context, ierr); CHKERRQ(ierr)
     call SNESSetFunction(self%solver, self%residual, &
