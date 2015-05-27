@@ -57,7 +57,7 @@ module IAPWS_module
      PetscInt :: I(21) = [0,1,2,3,0,1,2,3,5,0,1,2,3,4,0,1,0,3,4,3,5]
      PetscInt :: J(21) = [0,0,0,0,1,1,1,1,1,2,2,2,2,2,3,3,4,4,5,6,6]
      PetscInt :: K(4)  = [0,1,2,3]
-     type(powertable) :: pi, pj, pk
+     type(powertable_type) :: pi, pj, pk
    contains
      private
      procedure, public :: init => viscosity_init
@@ -110,7 +110,7 @@ module IAPWS_module
           -11, -6, -29, -31, -38, -39, -40, -41]
      PetscReal :: nI(34), nJ(34)
      PetscInt :: I_1(34), J_1(34)
-     type(powertable) :: pi, pj
+     type(powertable_type) :: pi, pj
    contains
      private
      procedure, public :: init => region1_init
@@ -154,7 +154,7 @@ module IAPWS_module
           39, 26, 40, 58]
      PetscReal :: n0J0(9), nI(43), nJ(43)
      PetscInt :: J0_1(9), I_1(43), J_1(43)
-     type(powertable) :: pj0, pi, pj
+     type(powertable_type) :: pj0, pi, pj
    contains
      private
      procedure, public :: init => region2_init
@@ -191,7 +191,7 @@ module IAPWS_module
           26, 2, 26, 0,  1, 26]
      PetscReal :: nI(40), nJ(40)
      PetscInt :: I_1(40), J_1(40)
-     type(powertable) :: pi, pj
+     type(powertable_type) :: pi, pj
    contains
      private
      procedure, public :: init => region3_init

@@ -10,21 +10,21 @@ module powertable_module
 
 #include <petsc-finclude/petscdef.h>
 
-  type, private :: product_pointer
+  type :: product_pointer_type
      private
      PetscReal, pointer :: fac1, fac2
      PetscReal, pointer :: prod
    contains
      procedure, public :: set => product_pointer_set
-  end type product_pointer
+  end type product_pointer_type
 
-  type, public :: powertable
+  type, public :: powertable_type
      !! Type for efficiently calculating a table of powers of a
      !! double precision number.
      private
      PetscReal, allocatable, public :: power(:) !! Computed powers
      PetscInt, allocatable :: product(:,:)
-     type(product_pointer), allocatable :: powerlist(:)
+     type(product_pointer_type), allocatable :: powerlist(:)
      PetscInt, public :: lower = 0, upper = 0 !! Lower and upper bounds of powers
      PetscInt, allocatable :: required(:)
      PetscInt :: powerlist_size
@@ -36,7 +36,7 @@ module powertable_module
      procedure :: product_configured => powertable_product_configured
      procedure :: configure_product => powertable_configure_product
      procedure :: set_powerlist => powertable_set_powerlist
-  end type powertable
+  end type powertable_type
 
 contains
 
@@ -46,7 +46,7 @@ contains
     !! Sets up product pointer into an array. The pointers fac1 and fac2 point
     !! to the factors in the array, and prod points to the resulting product.
 
-    class(product_pointer), intent(in out) :: self
+    class(product_pointer_type), intent(in out) :: self
     PetscInt, intent(in) :: lower, upper
     PetscReal, intent(in), target :: arr(lower:upper)
     PetscInt, intent(in) :: i1, i2, iprod
@@ -63,7 +63,7 @@ contains
     !! Returns true if product combination has already been computed
     !! for the specified power.
 
-    class(powertable), intent(in out) :: self
+    class(powertable_type), intent(in out) :: self
     PetscInt, intent(in) :: i
 
     powertable_product_configured = &
@@ -77,7 +77,7 @@ contains
   recursive subroutine powertable_configure_product(self, i)
     !! Configures product combination for the specifed power.
 
-    class(powertable), intent(in out) :: self
+    class(powertable_type), intent(in out) :: self
     PetscInt, intent(in) :: i
     ! Locals:
     PetscInt :: s, j, i2, c
@@ -118,7 +118,7 @@ contains
     !! Calculates the most efficient way of computing the required powers,
     !! adding any extra powers needed for intermediate steps.
 
-    class(powertable), intent(in out) :: self
+    class(powertable_type), intent(in out) :: self
     PetscInt, intent(in), dimension(:) :: powers
     ! Locals:
     PetscInt :: min_power, max_power, i, old_lower, old_upper
@@ -198,7 +198,7 @@ contains
     !! should be computed. (Powers 0,1 are not included, as they are always
     !! required, as is -1 if negative powers are required.)
 
-    class(powertable), intent(in out) :: self
+    class(powertable_type), intent(in out) :: self
     ! Locals:
     PetscInt :: p, n, s, u
 
@@ -231,7 +231,7 @@ contains
   subroutine powertable_destroy(self)
     !! Destroys a powertable object.
 
-    class(powertable), intent(in out) :: self
+    class(powertable_type), intent(in out) :: self
 
     deallocate(self%power, self%product, self%powerlist, &
          self%required)
@@ -243,7 +243,7 @@ contains
   subroutine powertable_compute(self, val)
     !! Computes the table of powers for the specified value.
 
-    class(powertable), intent(in out) :: self
+    class(powertable_type), intent(in out) :: self
     PetscReal, intent(in) :: val !! value to compute powers of
     ! Locals:
     PetscInt :: n

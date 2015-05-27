@@ -27,7 +27,7 @@ module powertable_test
 
       ! Powertable positive powers test
 
-      type(powertable) :: p
+      type(powertable_type) :: p
       PetscInt, parameter :: powers(4) = [1, 2, 3, 4]
       PetscReal :: x
       PetscReal, allocatable :: xp(:)
@@ -68,7 +68,7 @@ module powertable_test
 
       ! Powertable negative powers test
 
-      type(powertable) :: p
+      type(powertable_type) :: p
       PetscInt, parameter :: powers(3) = [-6, -3, -2]
       PetscReal :: x
       PetscReal, allocatable :: xp(:)
@@ -109,7 +109,7 @@ module powertable_test
 
       ! Powertable mixed powers test
 
-      type(powertable) :: p
+      type(powertable_type) :: p
       PetscInt, parameter :: powers(4) = [-3, -1, 1, 4]
       PetscReal :: x
       PetscReal, allocatable :: xp(:)
@@ -150,7 +150,7 @@ module powertable_test
 
       ! Powertable multiple configuration test
 
-      type(powertable) :: p
+      type(powertable_type) :: p
       PetscInt, parameter :: powers1(3) = [-4, -3, -1], powers2(2) = [3, 5]
       PetscInt, allocatable :: allpowers(:)
       PetscReal :: x
