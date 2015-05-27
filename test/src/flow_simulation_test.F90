@@ -16,7 +16,7 @@ module flow_simulation_test
 public :: test_flow_simulation_init
 
 PetscReal, parameter :: tol = 1.e-6_dp
-type(flow_simulation) :: sim
+type(flow_simulation_type) :: sim
 
 contains
 
@@ -196,7 +196,7 @@ contains
     ! This uses a simple problem with a 12-cell rectangular mesh and two rock types.
 
     ! Locals:
-    character(24), parameter :: path = "data/flow_simulation/init/"
+    character(26), parameter :: path = "data/flow_simulation/init/"
     type(fson_value), pointer :: json
 
     if (mpi%rank == mpi%input_rank) then
@@ -213,9 +213,6 @@ contains
     call vec_diff_test(sim%initial, "initial", path)
 
     call vec_diff_test(sim%rock, "rock", path)
-
-    call timestepper_test(sim%timestepper, "Backward Euler", 0.0_dp, &
-         100._dp, 1000._dp, 15, 0.0_dp)
 
     call sim%destroy()
 
