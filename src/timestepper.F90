@@ -130,7 +130,7 @@ module timestepper_module
        SNES, intent(in) :: solver
        Vec, intent(in) :: y
        Vec, intent(out) :: residual
-       class(timestepper_solver_context_type), intent(in out) :: context
+       type(timestepper_solver_context_type), intent(in out) :: context
        PetscErrorCode, intent(out) :: ierr
      end subroutine method_residual
 
@@ -230,7 +230,7 @@ contains
     SNES, intent(in) :: solver
     Vec, intent(in) :: y
     Vec, intent(out) :: residual
-    class(timestepper_solver_context_type), intent(in out) :: context
+    type(timestepper_solver_context_type), intent(in out) :: context
     PetscErrorCode, intent(out) :: ierr
     ! Locals:
     PetscReal :: t, dt
@@ -256,7 +256,7 @@ contains
     SNES, intent(in) :: solver
     Vec, intent(in) :: y
     Vec, intent(out) :: residual
-    class(timestepper_solver_context_type), intent(in out) :: context
+    type(timestepper_solver_context_type), intent(in out) :: context
     PetscErrorCode, intent(out) :: ierr
     ! Locals:
     type(timestepper_step_type), pointer :: last2
@@ -300,7 +300,7 @@ contains
     SNES, intent(in) :: solver
     Vec, intent(in) :: y
     Vec, intent(out) :: residual
-    class(timestepper_solver_context_type), intent(in out) :: context
+    type(timestepper_solver_context_type), intent(in out) :: context
     PetscErrorCode, intent(out) :: ierr
 
     call context%ode%rhs(context%steps%final_time, y, residual)
