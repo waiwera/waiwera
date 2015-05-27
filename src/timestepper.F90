@@ -14,6 +14,9 @@ module timestepper_module
   ! Timestepping methods
      PetscInt, parameter, public :: TS_BEULER = 0, TS_BDF2 = 1, TS_DIRECTSS = 2
 
+  ! Timestepping adaptor methods
+     PetscInt, parameter, public :: TS_ADAPT_CHANGE = 0, TS_ADAPT_ITERATION = 1
+
   ! Timestep status
      PetscInt, parameter, public :: TIMESTEP_OK = 0, TIMESTEP_NOT_CONVERGED = 1, &
      TIMESTEP_TOO_SMALL = 2, TIMESTEP_TOO_BIG = 3
@@ -432,7 +435,10 @@ contains
 
   subroutine timestepper_steps_init(self, num_stored, &
        initial_time, initial_conditions, initial_stepsize, &
-       final_time, max_num_steps, max_stepsize)
+       final_time, max_num_steps, max_stepsize, &
+       adapt_on, adapt_method, adapt_min, adapt_max, &
+       adapt_reduction, adapt_amplification)
+
     !! Sets up array of timesteps and pointers to them. This array stores the
     !! current step and one or more previous steps. The number of stored
     !! steps depends on the timestepping method (e.g. 2 for single-step methods,
@@ -445,6 +451,10 @@ contains
     PetscReal, intent(in) :: final_time
     PetscInt, intent(in) :: max_num_steps
     PetscReal, intent(in) :: max_stepsize
+    PetscBool, intent(in) :: adapt_on
+    PetscInt, intent(in) :: adapt_method
+    PetscReal, intent(in) :: adapt_min, adapt_max
+    PetscReal, intent(in) :: adapt_reduction, adapt_amplification
     ! Locals:
     PetscInt :: i
     PetscErrorCode :: ierr
@@ -467,6 +477,18 @@ contains
 
     self%final_time = final_time
     self%max_num = max_num_steps
+
+    self%adaptor%on = adapt_on
+    select case (adapt_method)
+    case (TS_ADAPT_CHANGE)
+       self%adaptor%monitor => relative_change_monitor
+    case (TS_ADAPT_ITERATION)
+       self%adaptor%monitor => iteration_monitor
+    end select
+    self%adaptor%monitor_min = adapt_min
+    self%adaptor%monitor_max = adapt_max
+    self%adaptor%reduction = adapt_reduction
+    self%adaptor%amplification = adapt_amplification
     self%adaptor%max_stepsize = max_stepsize
 
   end subroutine timestepper_steps_init
@@ -771,6 +793,19 @@ contains
     character(max_method_str_len) :: method_str
     character(max_method_str_len), parameter :: default_method_str = "beuler"
     PetscInt, parameter :: default_max_num_steps = 100
+    PetscBool, parameter :: default_adapt_on = .false.
+    PetscBool :: adapt_on
+    PetscInt, parameter :: max_adapt_method_str_len = 12
+    character(max_adapt_method_str_len) :: adapt_method_str
+    character(max_adapt_method_str_len), parameter :: &
+         default_adapt_method_str = "change"
+    PetscInt :: adapt_method
+    PetscReal, parameter :: default_adapt_min = 0.01_dp, &
+         default_adapt_max = 0.1_dp
+    PetscReal :: adapt_min, adapt_max
+    PetscReal, parameter :: default_adapt_reduction = 0.5_dp, &
+         default_adapt_amplification = 2.0_dp
+    PetscReal :: adapt_reduction, adapt_amplification
     PetscErrorCode :: ierr
 
     self%ode => ode
@@ -806,9 +841,35 @@ contains
     call fson_get_mpi(json, "time.step.maximum.number", &
          default_max_num_steps, max_num_steps)
 
+    call fson_get_mpi(json, "time.adapt.on", &
+         default_adapt_on, adapt_on)
+
+    call fson_get_mpi(json, "time.adapt.method", &
+         default_adapt_method_str, adapt_method_str)
+    select case (str_to_lower(adapt_method_str))
+    case ("change")
+       adapt_method = TS_ADAPT_CHANGE
+    case ("iteration")
+       adapt_method = TS_ADAPT_ITERATION
+    case default
+       adapt_method = TS_ADAPT_CHANGE
+    end select
+
+    call fson_get_mpi(json, "time.adapt.min", &
+         default_adapt_min, adapt_min)
+    call fson_get_mpi(json, "time.adapt.max", &
+         default_adapt_max, adapt_max)
+
+    call fson_get_mpi(json, "time.adapt.reduction", &
+         default_adapt_reduction, adapt_reduction)
+    call fson_get_mpi(json, "time.adapt.amplification", &
+         default_adapt_amplification, adapt_amplification)
+
     call self%steps%init(self%method%num_stored_steps, &
          start_time, self%ode%initial, initial_stepsize, &
-         stop_time, max_num_steps, max_stepsize)
+         stop_time, max_num_steps, max_stepsize, &
+         adapt_on, adapt_method, adapt_min, adapt_max, &
+         adapt_reduction, adapt_amplification)
        
     call self%setup_solver()
 
