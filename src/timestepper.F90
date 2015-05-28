@@ -45,11 +45,11 @@ module timestepper_module
      !! For adaptive time step size control. Stepsize is increased if monitor value is
      !! below monitor_min, decreased if it is above monitor_max.
      private
-     PetscBool, public :: on = .false.
+     PetscBool, public :: on
      procedure(monitor_function), pointer, nopass, public :: monitor => relative_change_monitor
-     PetscReal, public :: monitor_min = 0.01_dp, monitor_max = 0.1_dp
-     PetscReal, public :: reduction = 0.5_dp, amplification = 2.0_dp
-     PetscReal, public :: max_stepsize = 0._dp
+     PetscReal, public :: monitor_min, monitor_max
+     PetscReal, public :: reduction, amplification
+     PetscReal, public :: max_stepsize
    contains
      private
      procedure :: increase => timestep_adaptor_increase
@@ -63,7 +63,7 @@ module timestepper_module
      type(ptimestepper_step_type), pointer :: pstore(:)
      type(timestepper_step_type), pointer, public :: current, last
      PetscBool :: finished
-     PetscInt, public :: num_stored, taken, max_num = 100
+     PetscInt, public :: num_stored, taken, max_num
      PetscReal, public :: next_stepsize, final_time
      PetscReal, public :: termination_tol = 1.e-6_dp
      type(timestep_adaptor_type), public :: adaptor
