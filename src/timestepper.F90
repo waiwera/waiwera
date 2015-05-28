@@ -64,7 +64,7 @@ module timestepper_module
      type(timestepper_step_type), pointer, public :: current, last
      PetscBool :: finished
      PetscInt, public :: num_stored, taken, max_num
-     PetscReal, public :: next_stepsize, final_time
+     PetscReal, public :: next_stepsize, start_time, final_time
      PetscReal, public :: termination_tol = 1.e-6_dp
      type(timestep_adaptor_type), public :: adaptor
    contains
@@ -471,7 +471,8 @@ contains
 
     call self%set_aliases()
 
-    self%current%time = initial_time
+    self%start_time = initial_time
+    self%current%time = self%start_time
     self%next_stepsize = initial_stepsize
     call VecCopy(initial_conditions, self%current%solution, ierr); CHKERRQ(ierr)
 
