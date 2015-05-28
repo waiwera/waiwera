@@ -841,10 +841,10 @@ contains
     call fson_get_mpi(json, "time.step.maximum.number", &
          default_max_num_steps, max_num_steps)
 
-    call fson_get_mpi(json, "time.adapt.on", &
+    call fson_get_mpi(json, "time.step.adapt.on", &
          default_adapt_on, adapt_on)
 
-    call fson_get_mpi(json, "time.adapt.method", &
+    call fson_get_mpi(json, "time.step.adapt.method", &
          default_adapt_method_str, adapt_method_str)
     select case (str_to_lower(adapt_method_str))
     case ("change")
@@ -855,14 +855,14 @@ contains
        adapt_method = TS_ADAPT_CHANGE
     end select
 
-    call fson_get_mpi(json, "time.adapt.min", &
+    call fson_get_mpi(json, "time.step.adapt.min", &
          default_adapt_min, adapt_min)
-    call fson_get_mpi(json, "time.adapt.max", &
+    call fson_get_mpi(json, "time.step.adapt.max", &
          default_adapt_max, adapt_max)
 
-    call fson_get_mpi(json, "time.adapt.reduction", &
+    call fson_get_mpi(json, "time.step.adapt.reduction", &
          default_adapt_reduction, adapt_reduction)
-    call fson_get_mpi(json, "time.adapt.amplification", &
+    call fson_get_mpi(json, "time.step.adapt.amplification", &
          default_adapt_amplification, adapt_amplification)
 
     call self%steps%init(self%method%num_stored_steps, &
