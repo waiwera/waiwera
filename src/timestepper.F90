@@ -106,15 +106,15 @@ module timestepper_module
   type, public :: timestepper_type
      !! Timestepper class.
      private
-     class(ode_type), pointer :: ode
      SNES :: solver
      Vec :: residual
      Mat :: jacobian
+     class(ode_type), pointer :: ode
+     type(timestepper_solver_context_type) :: context
      type(timestepper_steps_type), public :: steps
      type(timestepper_method_type), public :: method
      procedure(step_output_routine), pointer, public :: &
           step_output => step_output_default
-     type(timestepper_solver_context_type) :: context
    contains
      private
      procedure :: setup_solver => timestepper_setup_solver
