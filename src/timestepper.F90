@@ -942,7 +942,7 @@ contains
 
     ! This may possibly be needed- to make sure current LHS corresponds exactly
     ! to current solution:
-    ! call self%steps%lhs_func(self%steps%current%time, self%steps%current%solution, &
+    ! call self%ode%lhs(self%steps%current%time, self%steps%current%solution, &
     !      self%steps%current%lhs)
 
   end subroutine timestepper_step
