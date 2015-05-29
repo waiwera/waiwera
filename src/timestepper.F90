@@ -16,6 +16,7 @@ module timestepper_module
 
   ! Timestepping adaptor methods
      PetscInt, parameter, public :: TS_ADAPT_CHANGE = 0, TS_ADAPT_ITERATION = 1
+     PetscInt, parameter, public :: timestepper_max_monitor_name_length = 12
 
   ! Timestep status
      PetscInt, parameter, public :: TIMESTEP_OK = 0, TIMESTEP_NOT_CONVERGED = 1, &
@@ -46,6 +47,7 @@ module timestepper_module
      !! below monitor_min, decreased if it is above monitor_max.
      private
      PetscBool, public :: on
+     character(timestepper_max_monitor_name_length), public :: name
      procedure(monitor_function), pointer, nopass, public :: monitor => relative_change_monitor
      PetscReal, public :: monitor_min, monitor_max
      PetscReal, public :: reduction, amplification
@@ -483,8 +485,13 @@ contains
     select case (adapt_method)
     case (TS_ADAPT_CHANGE)
        self%adaptor%monitor => relative_change_monitor
+       self%adaptor%name = "change"
     case (TS_ADAPT_ITERATION)
        self%adaptor%monitor => iteration_monitor
+       self%adaptor%name = "iteration"
+    case default
+       self%adaptor%monitor => relative_change_monitor
+       self%adaptor%name = "change"
     end select
     self%adaptor%monitor_min = adapt_min
     self%adaptor%monitor_max = adapt_max
