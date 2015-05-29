@@ -606,6 +606,7 @@ contains
        self%pstore(i)%p => self%pstore(i-1)%p
     end do
     self%pstore(1)%p => plast%p
+    nullify(plast%p)
 
   end subroutine timestepper_steps_rotate
 
