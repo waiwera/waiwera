@@ -51,6 +51,7 @@ contains
     type(fson_value), pointer, intent(in) :: json
     ! Locals:
     character(len = max_title_length), parameter :: default_title = ""
+    PetscErrorCode :: ierr
 
     call fson_get_mpi(json, "title", default_title, self%title)
     call setup_thermodynamics(json, self%thermo)
