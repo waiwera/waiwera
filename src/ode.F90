@@ -12,7 +12,7 @@ module ode_module
 
   type, public, abstract :: ode_type
      private
-     Vec, public :: initial
+     Vec, public :: solution
      type(mesh_type),  public :: mesh
    contains
      private
