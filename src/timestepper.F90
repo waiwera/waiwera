@@ -939,6 +939,8 @@ contains
     end do
 
     self%steps%taken = self%steps%taken + 1
+    call VecCopy(self%steps%current%solution, self%ode%solution, ierr)
+    CHKERRQ(ierr)
 
     ! This may possibly be needed- to make sure current LHS corresponds exactly
     ! to current solution:
