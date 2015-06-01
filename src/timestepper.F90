@@ -436,7 +436,7 @@ contains
 !------------------------------------------------------------------------
 
   subroutine timestepper_steps_init(self, num_stored, &
-       initial_time, initial_conditions, initial_stepsize, &
+       initial_time, solution, initial_stepsize, &
        final_time, max_num_steps, max_stepsize, &
        adapt_on, adapt_method, adapt_min, adapt_max, &
        adapt_reduction, adapt_amplification)
@@ -449,7 +449,7 @@ contains
     class(timestepper_steps_type), intent(in out) :: self
     PetscInt, intent(in) :: num_stored
     PetscReal, intent(in) :: initial_time, initial_stepsize
-    Vec, intent(in) :: initial_conditions
+    Vec, intent(in) :: solution
     PetscReal, intent(in) :: final_time
     PetscInt, intent(in) :: max_num_steps
     PetscReal, intent(in) :: max_stepsize
@@ -467,7 +467,7 @@ contains
     allocate(self%store(num_stored), self%pstore(num_stored))
 
     do i = 1, num_stored
-       call self%store(i)%init(initial_conditions)
+       call self%store(i)%init(solution)
        call self%set_pstore(self%store, i, i)
     end do
 
@@ -476,7 +476,7 @@ contains
     self%start_time = initial_time
     self%current%time = self%start_time
     self%next_stepsize = initial_stepsize
-    call VecCopy(initial_conditions, self%current%solution, ierr); CHKERRQ(ierr)
+    call VecCopy(solution, self%current%solution, ierr); CHKERRQ(ierr)
 
     self%final_time = final_time
     self%max_num = max_num_steps
@@ -819,7 +819,7 @@ contains
 
     self%ode => ode
 
-    call VecDuplicate(self%ode%initial, self%residual, ierr); CHKERRQ(ierr)
+    call VecDuplicate(self%ode%solution, self%residual, ierr); CHKERRQ(ierr)
     call DMSetMatType(self%ode%mesh%dm, MATAIJ, ierr); CHKERRQ(ierr)
     call DMCreateMatrix(self%ode%mesh%dm, self%jacobian, ierr); CHKERRQ(ierr)
     call MatSetFromOptions(self%jacobian, ierr); CHKERRQ(ierr)
@@ -875,7 +875,7 @@ contains
          default_adapt_amplification, adapt_amplification)
 
     call self%steps%init(self%method%num_stored_steps, &
-         start_time, self%ode%initial, initial_stepsize, &
+         start_time, self%ode%solution, initial_stepsize, &
          stop_time, max_num_steps, max_stepsize, &
          adapt_on, adapt_method, adapt_min, adapt_max, &
          adapt_reduction, adapt_amplification)
