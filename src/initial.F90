@@ -16,18 +16,17 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine setup_initial(json, dm, initial)
-    !! Reads initial conditions from JSON input and creates a Vec
-    !! 'initial'.  Conditions may be specified as a constant value or
-    !! as an array. The array may contain a complete of initial
-    !! conditions for all cells, or if a shorter array is given, this
-    !! is repeated over initial conditions vector.
+  subroutine setup_initial(json, v)
+    !! Initializes a Vec v with initial conditions read
+    !! from JSON input 'initial'.  Conditions may be specified as a
+    !! constant value or as an array. The array may contain a complete
+    !! set of initial conditions for all cells, or if a shorter array is
+    !! given, this is repeated over initial conditions vector.
 
     use fson_value_m, only : TYPE_REAL, TYPE_INTEGER, TYPE_ARRAY
 
     type(fson_value), pointer, intent(in) :: json
-    DM, intent(in) :: dm
-    Vec, intent(out) :: initial
+    Vec, intent(out) :: v
     ! Locals:
     PetscErrorCode :: ierr
     PetscReal :: const_initial_value
@@ -38,10 +37,7 @@ contains
     PetscBool :: const
     PetscReal, parameter :: default_initial_value = 0.0_dp
 
-    call DMCreateGlobalVector(dm, initial, ierr); CHKERRQ(ierr)
-    call VecGetSize(initial, count, ierr); CHKERRQ(ierr)
-    call PetscObjectSetName(initial, "initial", ierr); CHKERRQ(ierr)
-
+    call VecGetSize(v, count, ierr); CHKERRQ(ierr)
     const = .true.
 
     if (fson_has_mpi(json, "initial")) then
@@ -70,16 +66,16 @@ contains
     end if
 
     if (const) then
-       call VecSet(initial, const_initial_value, ierr); CHKERRQ(ierr)
+       call VecSet(v, const_initial_value, ierr); CHKERRQ(ierr)
     else
        allocate(indices(count))
        do i = 1, count
           indices(i) = i-1
        end do
-       call VecSetValues(initial, count, indices, &
+       call VecSetValues(v, count, indices, &
             initial_data, INSERT_VALUES, ierr); CHKERRQ(ierr)
-       call VecAssemblyBegin(initial, ierr); CHKERRQ(ierr)
-       call VecAssemblyEnd(initial, ierr); CHKERRQ(ierr)
+       call VecAssemblyBegin(v, ierr); CHKERRQ(ierr)
+       call VecAssemblyEnd(v, ierr); CHKERRQ(ierr)
        deallocate(indices, initial_data)
     end if
 

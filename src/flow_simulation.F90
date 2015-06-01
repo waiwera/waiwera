@@ -58,7 +58,10 @@ contains
     call self%mesh%init(json)
     call setup_labels(json, self%mesh%dm)
     call self%mesh%configure(self%eos%primary_variable_names)
-    call setup_initial(json, self%mesh%dm, self%initial)
+    call DMCreateGlobalVector(self%mesh%dm, self%solution, ierr)
+    CHKERRQ(ierr)
+    call PetscObjectSetName(self%solution, "primary", ierr); CHKERRQ(ierr)
+    call setup_initial(json, self%solution)
     call setup_fluid_vector(self%mesh%dm, self%eos%num_phases, &
          self%eos%num_components, self%fluid)
     call setup_rock_vector(json, self%mesh%dm, self%rock)
@@ -74,7 +77,7 @@ contains
     ! Locals:
     PetscErrorCode :: ierr
 
-    call VecDestroy(self%initial, ierr); CHKERRQ(ierr)
+    call VecDestroy(self%solution, ierr); CHKERRQ(ierr)
     call VecDestroy(self%fluid, ierr); CHKERRQ(ierr)
     call VecDestroy(self%rock, ierr); CHKERRQ(ierr)
     call self%mesh%destroy()
