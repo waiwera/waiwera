@@ -29,7 +29,9 @@ module timestepper_test
      procedure, public :: lhs => lhs_test_ode
      procedure, public :: rhs => rhs_test_ode
      procedure, public :: pre_eval => pre_eval_test_ode
+     procedure, public :: output => output_test_ode
      procedure, public :: exact => exact_test_ode
+     procedure, public :: run_cases => run_cases_test_ode
   end type test_ode_type
 
   type, extends(test_ode_type) :: linear_ode_type
@@ -106,7 +108,6 @@ module timestepper_test
 
   PetscInt, parameter :: max_json_len = 256
   PetscReal, parameter :: time_tolerance = 1.e-6_dp
-  class(test_ode_type), pointer :: ode
 
 public :: test_timestepper_linear, test_timestepper_exponential, &
      test_timestepper_logistic, test_timestepper_nontrivial_lhs, &
@@ -155,12 +156,12 @@ contains
 
     call DMDACreate1d(mpi%comm, DM_BOUNDARY_NONE, self%dim, self%dof, &
          self%stencil, PETSC_NULL_INTEGER, self%mesh%dm, ierr); CHKERRQ(ierr)
-    call DMCreateGlobalVector(self%mesh%dm, self%initial, ierr); CHKERRQ(ierr)
-    call VecDuplicate(self%initial, self%exact_solution, ierr); CHKERRQ(ierr)
-    call VecDuplicate(self%initial, self%diff, ierr); CHKERRQ(ierr)
+    call DMCreateGlobalVector(self%mesh%dm, self%solution, ierr); CHKERRQ(ierr)
+    call VecDuplicate(self%solution, self%exact_solution, ierr); CHKERRQ(ierr)
+    call VecDuplicate(self%solution, self%diff, ierr); CHKERRQ(ierr)
     if (present(initial_array)) then
        self%initial_values = initial_array
-       call VecSetArray(self%initial, initial_array)
+       call VecSetArray(self%solution, initial_array)
     end if
 
   end subroutine init_test_ode
@@ -170,7 +171,7 @@ contains
     class(test_ode_type), intent(in out) :: self
     ! Locals:
     PetscErrorCode :: ierr
-    call VecDestroy(self%initial, ierr); CHKERRQ(ierr)
+    call VecDestroy(self%solution, ierr); CHKERRQ(ierr)
     call VecDestroy(self%exact_solution, ierr); CHKERRQ(ierr)
     call VecDestroy(self%diff, ierr); CHKERRQ(ierr)
     call DMDestroy(self%mesh%dm, ierr); CHKERRQ(ierr)
@@ -215,6 +216,54 @@ contains
     PetscErrorCode :: ierr
     call VecSet(v, 0._dp, ierr); CHKERRQ(ierr)
   end subroutine exact_test_ode
+
+  subroutine output_test_ode(self, t)
+    ! Output from test ode- compute difference betweeen solution and
+    ! exact solution.
+    class(test_ode_type), intent(in out) :: self
+    PetscReal, intent(in) :: t
+    ! Locals:
+    PetscReal, pointer :: y(:), yex(:), diffa(:)
+    PetscErrorCode :: ierr
+    PetscReal :: normdiff
+    PetscInt :: i, local_size, low, hi
+
+    call self%exact(t, self%exact_solution)
+    call VecGetLocalSize(self%exact_solution, local_size, ierr)
+    CHKERRQ(ierr)
+    call VecGetOwnershipRange(self%exact_solution, low, hi, ierr)
+    CHKERRQ(ierr)
+    call VecGetArrayReadF90(self%solution, y, ierr); CHKERRQ(ierr)
+    call VecGetArrayReadF90(self%exact_solution, yex, ierr); CHKERRQ(ierr)
+    call VecGetArrayF90(self%diff, diffa, ierr); CHKERRQ(ierr)
+    do i = 1, local_size
+       diffa(i) = relerr(yex(i), y(i))
+    end do
+    call VecRestoreArrayF90(self%diff, diffa, ierr); CHKERRQ(ierr)
+    call VecRestoreArrayReadF90(self%exact_solution, yex, ierr)
+    CHKERRQ(ierr)
+    call VecRestoreArrayReadF90(self%solution, y, ierr)
+    CHKERRQ(ierr)
+    call VecNorm(self%diff, NORM_INFINITY, normdiff, ierr)
+    CHKERRQ(ierr)
+    self%maxdiff = max(self%maxdiff, normdiff)
+
+  contains
+
+    PetscReal function relerr(exact, val)
+      ! Calculates relative error of val with respect to exact, unless
+      ! exact is near zero, in which case the absolute difference is returned.
+      PetscReal, intent(in) :: exact, val
+      ! Locals:
+      PetscReal, parameter :: tol = 1.e-6_dp
+      if (abs(exact) > tol) then
+         relerr = abs((val - exact) / exact)
+      else
+         relerr = abs(val - exact)
+      end if
+    end function relerr
+
+  end subroutine output_test_ode
 
 !------------------------------------------------------------------------
 ! Specific test ode functions
@@ -425,12 +474,12 @@ contains
          ierr); CHKERRQ(ierr)
     call DMDASetUniformCoordinates(self%mesh%dm, dx, self%L - dx, &
          0._dp, 0._dp, 0._dp, 0._dp, ierr); CHKERRQ(ierr)
-    call DMCreateGlobalVector(self%mesh%dm, self%initial, ierr)
+    call DMCreateGlobalVector(self%mesh%dm, self%solution, ierr)
     CHKERRQ(ierr)
-    call VecDuplicate(self%initial, self%exact_solution, ierr)
+    call VecDuplicate(self%solution, self%exact_solution, ierr)
     CHKERRQ(ierr)
-    call VecDuplicate(self%initial, self%diff, ierr); CHKERRQ(ierr)
-    call self%exact(0.0_dp, self%initial)
+    call VecDuplicate(self%solution, self%diff, ierr); CHKERRQ(ierr)
+    call self%exact(0.0_dp, self%solution)
 
   end subroutine init_heat1d
 
@@ -595,7 +644,7 @@ contains
     ! Locals:
     PetscErrorCode :: ierr
     call self%test_ode_type%init(initial_array)
-    call VecDuplicate(self%initial, self%secondary, ierr); CHKERRQ(ierr)
+    call VecDuplicate(self%solution, self%secondary, ierr); CHKERRQ(ierr)
   end subroutine init_pre_eval
 
   subroutine destroy_pre_eval(self)
@@ -630,16 +679,18 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine run_cases(json_str, tol)
+  subroutine run_cases_test_ode(self, json_str, tol)
 
     ! Run tests on ODE, comparing results with exact solutions.
 
+    class(test_ode_type), intent(in out) :: self
     character(len = max_json_len), intent(in) :: json_str(:)
     PetscReal, intent(in) :: tol(:)
     ! Locals:
     PetscInt :: num_cases, i
     type(timestepper_type) :: ts
     type(fson_value), pointer :: json
+    PetscErrorCode :: ierr
 
     num_cases = size(json_str)
 
@@ -648,19 +699,22 @@ contains
        if (mpi%rank == mpi%input_rank) then
           json => fson_parse(str = trim(json_str(i)))
        end if
-       call ts%init(json, ode)
-       ode%start_time = ts%steps%start_time
+       call ts%init(json, self)
+       self%start_time = ts%steps%start_time
 
-       ts%step_output => step_output_compare
-       ode%maxdiff = 0._dp
+       ts%step_output => timestepper_step_output
+       self%maxdiff = 0._dp
 
        call ts%run()
 
+       call VecView(ts%steps%current%solution, PETSC_VIEWER_STDOUT_WORLD, ierr)
+
        if (mpi%rank == mpi%output_rank) then
+          print *, ts%method%name
           call assert_equals(ts%steps%final_time, &
                ts%steps%current%time, time_tolerance, &
                trim(ts%method%name) // ' final time')
-          call assert_equals(0._dp, ode%maxdiff, tol(i), &
+          call assert_equals(0._dp, self%maxdiff, tol(i), &
                trim(ts%method%name) // ' max. relative error')
        end if
 
@@ -671,53 +725,21 @@ contains
 
     end do
 
-  end subroutine run_cases
+  end subroutine run_cases_test_ode
 
 !------------------------------------------------------------------------
 
-  subroutine step_output_compare(self)
-
-    ! Compares result with exact solution vector at each time.
+  subroutine timestepper_step_output(self)
+    ! Output at each time.
 
     class(timestepper_type), intent(in out) :: self
     ! Locals:
-    PetscReal, pointer :: y(:), yex(:), diffa(:)
-    PetscErrorCode :: ierr
-    PetscReal :: t, normdiff
-    PetscInt :: i, local_size, low, hi
+    PetscReal :: t
 
     t = self%steps%current%time
-    call VecGetArrayF90(self%steps%current%solution, y, ierr); CHKERRQ(ierr)
-    call ode%exact(t, ode%exact_solution)
-    call VecGetArrayF90(ode%exact_solution, yex, ierr); CHKERRQ(ierr)
-    call VecGetArrayF90(ode%diff, diffa, ierr); CHKERRQ(ierr)
-    call VecGetLocalSize(ode%exact_solution, local_size, ierr); CHKERRQ(ierr)
-    call VecGetOwnershipRange(ode%exact_solution, low, hi, ierr); CHKERRQ(ierr)
-    do i = 1, local_size
-       diffa(i) = relerr(yex(i), y(i))
-    end do
-    call VecRestoreArrayF90(ode%diff, diffa, ierr); CHKERRQ(ierr)
-    call VecRestoreArrayF90(ode%exact_solution, yex, ierr); CHKERRQ(ierr)
-    call VecRestoreArrayF90(self%steps%current%solution, y, ierr); CHKERRQ(ierr)
-    call VecNorm(ode%diff, NORM_INFINITY, normdiff, ierr); CHKERRQ(ierr)
-    ode%maxdiff = max(ode%maxdiff, normdiff)
+    call self%ode%output(t)
 
-    contains
-
-      PetscReal function relerr(exact, val)
-        ! Calculates relative error of val with respect to exact, unless
-        ! exact is near zero, in which case the absolute difference is returned.
-        PetscReal, intent(in) :: exact, val
-        ! Locals:
-        PetscReal, parameter :: tol = 1.e-6_dp
-        if (abs(exact) > tol) then
-           relerr = abs((val - exact) / exact)
-        else
-           relerr = abs(val - exact)
-        end if
-      end function relerr
-
-  end subroutine step_output_compare
+  end subroutine timestepper_step_output
 
 !------------------------------------------------------------------------
 ! Test routines
@@ -783,7 +805,6 @@ contains
     PetscReal, parameter :: tol(num_cases) = [1.e-6_dp, 1.e-6_dp]
     PetscReal, allocatable :: initial(:)
 
-    ode => linear
     initial = [-4._dp, -3.0_dp, -2.0_dp, -1.0_dp, &
          0.0_dp, 1.0_dp, 2.0_dp, 3.0_dp]
     call linear%init(initial)
@@ -796,10 +817,9 @@ contains
          '"step": {"initial": 0.1, "maximum": {"number": 20}, ' // &
          '"method": "bdf2", "adapt": {"on": false}}}}'
 
-    call run_cases(json_str, tol)
+    call linear%run_cases(json_str, tol)
 
     call linear%destroy()
-    nullify(ode)
     deallocate(initial)
 
   end subroutine test_timestepper_linear
@@ -816,7 +836,6 @@ contains
     PetscReal, parameter :: tol(num_cases) = [0.15_dp, 0.05_dp]
     PetscReal, allocatable :: initial(:)
 
-    ode => exponential
     initial = [-4._dp, -3.0_dp, -2.0_dp, -1.0_dp, &
          0.0_dp, 1.0_dp, 2.0_dp, 3.0_dp]
     call exponential%init(initial)
@@ -831,10 +850,9 @@ contains
          '"method": "bdf2", ' // &
          '"adapt": {"on": true, "min": 0.01, "max": 0.2}}}}'
 
-    call run_cases(json_str, tol)
+    call exponential%run_cases(json_str, tol)
 
     call exponential%destroy()
-    nullify(ode)
     deallocate(initial)
 
   end subroutine test_timestepper_exponential
@@ -851,7 +869,6 @@ contains
     PetscReal, parameter :: tol(num_cases) = [0.05_dp, 0.006_dp]
     PetscReal, allocatable :: initial(:)
 
-    ode => logistic
     logistic%c = [0.0_dp, 0.5_dp, 1._dp, 1.5_dp, 2._dp, &
          2.5_dp, 3._dp, 3.5_dp]
     initial = 3._dp * logistic%c / (1._dp + 2._dp * logistic%c)
@@ -867,10 +884,9 @@ contains
          '"method": "bdf2", ' // &
          '"adapt": {"on": true, "min": 0.01, "max": 0.2}}}}'
 
-    call run_cases(json_str, tol)
+    call logistic%run_cases(json_str, tol)
 
     call logistic%destroy()
-    nullify(ode)
     deallocate(initial)
 
   end subroutine test_timestepper_logistic
@@ -887,7 +903,6 @@ contains
     PetscReal, parameter :: tol(num_cases) = [0.1_dp, 0.02_dp]
     PetscReal, allocatable :: initial(:)
 
-    ode => nontrivial_lhs
     nontrivial_lhs%k = -1._dp
     initial = [-4._dp, -3.0_dp, -2.0_dp, -1.0_dp, &
          0.0_dp, 1.0_dp, 2.0_dp, 3.0_dp]
@@ -903,10 +918,9 @@ contains
          '"method": "bdf2", ' // &
          '"adapt": {"on": true, "min": 0.05, "max": 0.1}}}}'
 
-    call run_cases(json_str, tol)
+    call nontrivial_lhs%run_cases(json_str, tol)
 
     call nontrivial_lhs%destroy()
-    nullify(ode)
     deallocate(initial)
 
   end subroutine test_timestepper_nontrivial_lhs
@@ -923,7 +937,6 @@ contains
     PetscReal, parameter :: tol(num_cases) = [0.15_dp, 0.05_dp]
     PetscReal, allocatable :: initial(:)
 
-    ode => nonlinear_lhs
     initial = [-4._dp, -3.0_dp, -2.0_dp, -1.0_dp, &
          0.0_dp, 2.0_dp, 3.0_dp, 4.0_dp]
     call nonlinear_lhs%init(initial)
@@ -938,10 +951,9 @@ contains
          '"method": "bdf2", ' // &
          '"adapt": {"on": true, "min": 0.05, "max": 0.1}}}}'
 
-    call run_cases(json_str, tol)
+    call nonlinear_lhs%run_cases(json_str, tol)
 
     call nonlinear_lhs%destroy()
-    nullify(ode)
     deallocate(initial)
 
   end subroutine test_timestepper_nonlinear_lhs
@@ -958,7 +970,6 @@ contains
     character(len = max_json_len) :: json_str(num_cases)
     PetscReal, parameter :: tol(num_cases) = [0.10_dp, 0.05_dp]
 
-    ode => heat1d
     call heat1d%init()
 
     json_str(1) = '{"time": {"start": 0.0, "stop": 0.2, ' // &
@@ -971,10 +982,9 @@ contains
          '"method": "bdf2", ' // &
          '"adapt": {"on": true, "min": 0.01, "max": 0.2}}}}'
 
-    call run_cases(json_str, tol)
+    call heat1d%run_cases(json_str, tol)
 
-    call ode%destroy()
-    nullify(ode)
+    call heat1d%destroy()
 
   end subroutine test_timestepper_heat1d
 
@@ -990,7 +1000,6 @@ contains
     character(len = max_json_len) :: json_str(num_cases)
     PetscReal, parameter :: tol(num_cases) = [0.10_dp, 0.05_dp]
 
-    ode => heat1d
     call heat1d%init()
 
     json_str(1) = '{"time": {"start": 0.0, "stop": 0.2, ' // &
@@ -1003,10 +1012,9 @@ contains
          '"method": "bdf2", ' // &
          '"adapt": {"on": true, "min": 0.01, "max": 0.2}}}}'
 
-    call run_cases(json_str, tol)
+    call heat1d%run_cases(json_str, tol)
 
-    call ode%destroy()
-    nullify(ode)
+    call heat1d%destroy()
 
   end subroutine test_timestepper_heat1d_nonlinear
 
@@ -1025,7 +1033,6 @@ contains
     PetscReal, parameter :: tol(num_cases) = [0.1_dp, 0.02_dp]
     PetscReal, allocatable :: initial(:)
 
-    ode => pre_eval
     pre_eval%k = -1._dp
     initial = [-4._dp, -3.0_dp, -2.0_dp, -1.0_dp, &
          0.0_dp, 1.0_dp, 2.0_dp, 3.0_dp]
@@ -1041,10 +1048,9 @@ contains
          '"method": "bdf2", ' // &
          '"adapt": {"on": true, "min": 0.05, "max": 0.1}}}}'
 
-    call run_cases(json_str, tol)
+    call pre_eval%run_cases(json_str, tol)
 
     call pre_eval%destroy()
-    nullify(ode)
     deallocate(initial)
 
   end subroutine test_timestepper_pre_eval
