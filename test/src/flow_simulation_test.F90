@@ -210,7 +210,7 @@ contains
 
     call flow_simulation_label_test(rock_cells = [9, 3])
 
-    call vec_diff_test(sim%initial, "initial", path)
+    call vec_diff_test(sim%solution, "primary", path)
 
     call vec_diff_test(sim%rock, "rock", path)
 
