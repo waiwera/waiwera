@@ -19,6 +19,7 @@ module ode_module
      procedure(lhs_function), public, deferred :: lhs
      procedure(rhs_function), public, deferred :: rhs
      procedure(pre_eval_procedure), public, deferred :: pre_eval
+     procedure(ode_output_procedure), public, deferred :: output
   end type ode_type
 
   abstract interface
@@ -50,10 +51,17 @@ module ode_module
        Vec, intent(in) :: y
      end subroutine pre_eval_procedure
 
+     subroutine ode_output_procedure(self, t)
+       !! Routine for output of ode solution.
+       import :: ode_type
+       class(ode_type), intent(in out) :: self
+       PetscReal, intent(in) :: t
+     end subroutine ode_output_procedure
+
   end interface
 
   public :: lhs_function, rhs_function
-  public :: pre_eval_procedure
+  public :: pre_eval_procedure, ode_output_procedure
 
 !------------------------------------------------------------------------
 

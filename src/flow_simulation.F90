@@ -29,6 +29,7 @@ module flow_simulation_module
      procedure, public :: lhs => flow_simulation_cell_balances
      procedure, public :: rhs => flow_simulation_cell_inflows
      procedure, public :: pre_eval => flow_simulation_fluid_properties
+     procedure, public :: output => flow_simulation_output
   end type flow_simulation_type
 
 contains
@@ -193,6 +194,18 @@ contains
     call fluid%destroy()
 
   end subroutine flow_simulation_fluid_properties
+
+!------------------------------------------------------------------------
+
+  subroutine flow_simulation_output(self, t)
+    !! Output from flow simulation at a given time.
+
+    class(flow_simulation_type), intent(in out) :: self
+    PetscReal, intent(in) :: t
+
+    continue
+
+  end subroutine flow_simulation_output
 
 !------------------------------------------------------------------------
 
