@@ -111,8 +111,8 @@ module timestepper_module
      SNES :: solver
      Vec :: residual
      Mat :: jacobian
-     class(ode_type), pointer :: ode
      type(timestepper_solver_context_type) :: context
+     class(ode_type), pointer, public :: ode
      type(timestepper_steps_type), public :: steps
      type(timestepper_method_type), public :: method
      procedure(step_output_routine), pointer, public :: &
@@ -155,7 +155,7 @@ module timestepper_module
 
   ! Subroutines to be available outside this module:
   public :: iteration_monitor, relative_change_monitor
-  public :: step_output_routine, step_output_default, step_output_none
+  public :: step_output_routine, step_output_default
 
 contains
 
@@ -214,15 +214,6 @@ contains
     end if
 
   end subroutine step_output_default
-
-!------------------------------------------------------------------------
-
-  subroutine step_output_none(self)
-    !! Step output routine for no output.
-
-    class(timestepper_type), intent(in out) :: self
-
-  end subroutine step_output_none
 
 !------------------------------------------------------------------------
 ! Residual routines
@@ -961,7 +952,9 @@ contains
 
     do while (.not. self%steps%finished)
        call self%step()
-       call self%step_output()
+       if (associated(self%step_output)) then
+          call self%step_output()
+       end if
     end do
 
   end subroutine timestepper_run
