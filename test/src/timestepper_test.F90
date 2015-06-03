@@ -771,10 +771,8 @@ contains
     call ts%init(json, test_ode)
 
     if (mpi%rank == mpi%output_rank) then
-       call assert_equals(0.0_dp, ts%steps%start_time, time_tolerance, &
-            "Timestepper start time")
-       call assert_equals(1.0_dp, ts%steps%final_time, time_tolerance, &
-            "Timestepper final time")
+       call assert_equals(1.0_dp, ts%steps%stop_time, time_tolerance, &
+            "Timestepper stop time")
        call assert_equals(0.01_dp, ts%steps%next_stepsize, &
             time_tolerance, "Timestepper initial stepsize")
        call assert_equals(200, ts%steps%max_num, "Timestepper max. num steps")
