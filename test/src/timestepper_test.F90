@@ -8,6 +8,7 @@ module timestepper_test
   use ode_module
   use timestepper_module
   use fson
+  use fson_mpi_module
 
   implicit none
 
@@ -19,7 +20,7 @@ module timestepper_test
      private
      PetscInt, public :: dim = 8, dof = 1, stencil = 0
      PetscReal, allocatable, public :: initial_values(:)
-     PetscReal, public :: start_time = 0.0_dp
+     PetscReal, public :: start_time
      PetscReal, public :: maxdiff
      Vec, public :: exact_solution, diff
    contains
@@ -32,6 +33,8 @@ module timestepper_test
      procedure, public :: output => output_test_ode
      procedure, public :: exact => exact_test_ode
      procedure, public :: run_cases => run_cases_test_ode
+     procedure, public :: read_start_time => read_start_time_test_ode
+     procedure, public :: set_initial_conditions => set_initial_conditions_test_ode
   end type test_ode_type
 
   type, extends(test_ode_type) :: linear_ode_type
@@ -161,7 +164,6 @@ contains
     call VecDuplicate(self%solution, self%diff, ierr); CHKERRQ(ierr)
     if (present(initial_array)) then
        self%initial_values = initial_array
-       call VecSetArray(self%solution, initial_array)
     end if
 
   end subroutine init_test_ode
@@ -217,18 +219,17 @@ contains
     call VecSet(v, 0._dp, ierr); CHKERRQ(ierr)
   end subroutine exact_test_ode
 
-  subroutine output_test_ode(self, t)
+  subroutine output_test_ode(self)
     ! Output from test ode- compute difference betweeen solution and
     ! exact solution.
     class(test_ode_type), intent(in out) :: self
-    PetscReal, intent(in) :: t
     ! Locals:
     PetscReal, pointer :: y(:), yex(:), diffa(:)
     PetscErrorCode :: ierr
     PetscReal :: normdiff
     PetscInt :: i, local_size, low, hi
 
-    call self%exact(t, self%exact_solution)
+    call self%exact(self%time, self%exact_solution)
     call VecGetLocalSize(self%exact_solution, local_size, ierr)
     CHKERRQ(ierr)
     call VecGetOwnershipRange(self%exact_solution, low, hi, ierr)
@@ -479,7 +480,6 @@ contains
     call VecDuplicate(self%solution, self%exact_solution, ierr)
     CHKERRQ(ierr)
     call VecDuplicate(self%solution, self%diff, ierr); CHKERRQ(ierr)
-    call self%exact(0.0_dp, self%solution)
 
   end subroutine init_heat1d
 
@@ -679,6 +679,33 @@ contains
 
 !------------------------------------------------------------------------
 
+  subroutine read_start_time_test_ode(self, json)
+    ! Reads start_time property from JSON.
+
+    class(test_ode_type), intent(in out) :: self
+    type(fson_value), pointer, intent(in) :: json
+    ! Locals:
+    PetscReal, parameter :: default_start_time = 0.0_dp
+
+    call fson_get_mpi(json, "time.start", default_start_time, &
+         self%start_time)
+
+  end subroutine read_start_time_test_ode
+
+!------------------------------------------------------------------------
+
+  subroutine set_initial_conditions_test_ode(self)
+    ! Sets initial conditions for ODE.
+
+    class(test_ode_type), intent(in out) :: self
+
+    self%time = self%start_time
+    call self%exact(self%time, self%solution)
+
+  end subroutine set_initial_conditions_test_ode
+
+!------------------------------------------------------------------------
+
   subroutine run_cases_test_ode(self, json_str, tol)
 
     ! Run tests on ODE, comparing results with exact solutions.
@@ -690,7 +717,6 @@ contains
     PetscInt :: num_cases, i
     type(timestepper_type) :: ts
     type(fson_value), pointer :: json
-    PetscErrorCode :: ierr
 
     num_cases = size(json_str)
 
@@ -699,21 +725,21 @@ contains
        if (mpi%rank == mpi%input_rank) then
           json => fson_parse(str = trim(json_str(i)))
        end if
-       call ts%init(json, self)
-       self%start_time = ts%steps%start_time
 
-       ts%step_output => timestepper_step_output
+       call self%read_start_time(json)
+       call self%set_initial_conditions()
        self%maxdiff = 0._dp
 
+       call ts%init(json, self)
+       ts%step_output => timestepper_step_output
+ 
        call ts%run()
-
-       call VecView(ts%steps%current%solution, PETSC_VIEWER_STDOUT_WORLD, ierr)
 
        if (mpi%rank == mpi%output_rank) then
           print *, ts%method%name
-          call assert_equals(ts%steps%final_time, &
+          call assert_equals(ts%steps%stop_time, &
                ts%steps%current%time, time_tolerance, &
-               trim(ts%method%name) // ' final time')
+               trim(ts%method%name) // ' stop time')
           call assert_equals(0._dp, self%maxdiff, tol(i), &
                trim(ts%method%name) // ' max. relative error')
        end if
