@@ -12,6 +12,7 @@ module ode_module
 
   type, public, abstract :: ode_type
      private
+     PetscReal, public :: time
      Vec, public :: solution
      type(mesh_type),  public :: mesh
    contains
@@ -51,11 +52,10 @@ module ode_module
        Vec, intent(in) :: y
      end subroutine pre_eval_procedure
 
-     subroutine ode_output_procedure(self, t)
+     subroutine ode_output_procedure(self)
        !! Routine for output of ode solution.
        import :: ode_type
        class(ode_type), intent(in out) :: self
-       PetscReal, intent(in) :: t
      end subroutine ode_output_procedure
 
   end interface

@@ -197,11 +197,10 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine flow_simulation_output(self, t)
-    !! Output from flow simulation at a given time.
+  subroutine flow_simulation_output(self)
+    !! Output from flow simulation.
 
     class(flow_simulation_type), intent(in out) :: self
-    PetscReal, intent(in) :: t
 
     continue
 
