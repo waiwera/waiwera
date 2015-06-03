@@ -758,7 +758,7 @@ contains
     initial = [-4._dp, -3.0_dp, -2.0_dp, -1.0_dp, &
          0.0_dp, 1.0_dp, 2.0_dp, 3.0_dp]
 
-    json_str = '{"time": {"start": 0.0, "stop": 1.0, ' // &
+    json_str = '{"time": {"stop": 1.0, ' // &
          '"step": {"initial": 0.01, "maximum": {"number": 200, ' // &
          '"size": 3.e6}, "method": "beuler", ' // &
          '"adapt": {"on": true, "method": "change", "min": 0.01, ' // &
