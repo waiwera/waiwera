@@ -733,11 +733,8 @@ contains
     ! Output at each time.
 
     class(timestepper_type), intent(in out) :: self
-    ! Locals:
-    PetscReal :: t
 
-    t = self%steps%current%time
-    call self%ode%output(t)
+    call self%ode%output()
 
   end subroutine timestepper_step_output
 
