@@ -63,7 +63,7 @@ contains
     call DMCreateGlobalVector(self%mesh%dm, self%solution, ierr)
     CHKERRQ(ierr)
     call PetscObjectSetName(self%solution, "primary", ierr); CHKERRQ(ierr)
-    call setup_initial(json, self%solution)
+    call setup_initial(json, self%time, self%solution)
     call setup_fluid_vector(self%mesh%dm, self%eos%num_phases, &
          self%eos%num_components, self%fluid)
     call setup_rock_vector(json, self%mesh%dm, self%rock)

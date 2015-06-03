@@ -16,8 +16,8 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine setup_initial(json, v)
-    !! Initializes a Vec v with initial conditions read
+  subroutine setup_initial(json, t, v)
+    !! Initializes time t and a Vec v with initial conditions read
     !! from JSON input 'initial'.  Conditions may be specified as a
     !! constant value or as an array. The array may contain a complete
     !! set of initial conditions for all cells, or if a shorter array is
@@ -26,6 +26,7 @@ contains
     use fson_value_m, only : TYPE_REAL, TYPE_INTEGER, TYPE_ARRAY
 
     type(fson_value), pointer, intent(in) :: json
+    PetscReal, intent(out) :: t
     Vec, intent(out) :: v
     ! Locals:
     PetscErrorCode :: ierr
@@ -35,7 +36,10 @@ contains
     PetscReal, allocatable :: initial_input(:), initial_data(:)
     PetscInt :: i, np, count
     PetscBool :: const
+    PetscReal, parameter :: default_start_time = 0.0_dp
     PetscReal, parameter :: default_initial_value = 0.0_dp
+
+    call fson_get_mpi(json, "time.start", default_start_time, t)
 
     call VecGetSize(v, count, ierr); CHKERRQ(ierr)
     const = .true.
