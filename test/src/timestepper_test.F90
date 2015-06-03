@@ -722,9 +722,7 @@ contains
 
     do i = 1, num_cases
 
-       if (mpi%rank == mpi%input_rank) then
-          json => fson_parse(str = trim(json_str(i)))
-       end if
+       json => fson_parse_mpi(str = trim(json_str(i)))
 
        call self%read_start_time(json)
        call self%set_initial_conditions()
@@ -745,9 +743,7 @@ contains
        end if
 
        call ts%destroy()
-       if (mpi%rank == mpi%input_rank) then
-          call fson_destroy(json)
-       end if
+       call fson_destroy_mpi(json)
 
     end do
 
@@ -787,9 +783,7 @@ contains
          '"adapt": {"on": true, "method": "change", "min": 0.01, ' // &
          '"max": 0.2, "reduction": 0.6, "amplification": 1.9}}}}'
 
-    if (mpi%rank == mpi%input_rank) then
-       json => fson_parse(str = trim(json_str))
-    end if
+    json => fson_parse_mpi(str = trim(json_str))
     call test_ode%init(initial)
     call ts%init(json, test_ode)
 
@@ -811,6 +805,7 @@ contains
 
     call ts%destroy()
     call test_ode%destroy()
+    call fson_destroy_mpi(json)
 
   end subroutine test_timestepper_read
 

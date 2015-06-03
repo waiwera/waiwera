@@ -3,6 +3,7 @@ program supermodel
 
   use mpi_module
   use fson
+  use fson_mpi_module
   use flow_simulation_module
   use timestepper_module
 
@@ -23,10 +24,10 @@ program supermodel
   call output_program_info()
 
   call get_filename(filename)
-  if (mpi%rank == mpi%input_rank) json => fson_parse(filename)
+  json => fson_parse_mpi(filename)
   call sim%init(json)
   call ts%init(json, sim)
-  if (mpi%rank == mpi%input_rank) call fson_destroy(json)
+  call fson_destroy_mpi(json)
 
   call ts%run()
 
