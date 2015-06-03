@@ -141,15 +141,13 @@ contains
     PetscReal, intent(in) :: t !! time
     Vec, intent(in) :: y !! global primary variables vector
     ! Locals:
-    PetscInt :: c
+    PetscInt :: c, ghost, region
     PetscSection :: y_section, fluid_section
     PetscInt :: y_offset, fluid_offset
     PetscReal, pointer :: y_array(:), cell_primary(:)
     PetscReal, pointer :: fluid_array(:)
     type(fluid_type) :: fluid
-    PetscInt :: region
     DMLabel :: ghost_label
-    PetscInt :: ghost
     PetscErrorCode :: ierr
 
     ! Need read-only access to primary as it is locked by the SNES:
