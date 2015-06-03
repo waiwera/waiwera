@@ -45,6 +45,7 @@ digraph supermodel{
         IFC67_module -> thermodynamics_module
         supermodel -> flow_simulation_module
         supermodel -> fson
+        supermodel -> fson_mpi_module
         supermodel -> mpi_module
         supermodel -> timestepper_module
         eos_w_module -> eos_module
