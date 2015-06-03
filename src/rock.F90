@@ -101,7 +101,7 @@ contains
   subroutine setup_rock_vector_types(json, dm, rock_vector)
     !! Sets up rock vector on DM from rock types in JSON input.
 
-    use dm_utils_module, only: section_offset
+    use dm_utils_module, only: section_offset, vec_section
     use fson
     use fson_mpi_module
 
@@ -110,7 +110,6 @@ contains
     Vec, intent(out) :: rock_vector
     ! Locals:
     PetscInt :: num_rocktypes, ir, ic, c, num_cells, offset, ghost
-    DM :: dm_rock
     type(fson_value), pointer :: rocktypes, r
     IS :: rock_IS
     PetscInt, pointer :: rock_cells(:)
@@ -123,9 +122,9 @@ contains
     PetscSection :: section
     PetscErrorCode :: ierr
 
-    call VecGetDM(rock_vector, dm_rock, ierr); CHKERRQ(ierr)
     call VecGetArrayF90(rock_vector, rock_array, ierr); CHKERRQ(ierr)
-    call DMGetDefaultSection(dm_rock, section, ierr); CHKERRQ(ierr)
+    call vec_section(rock_vector, section)
+
     call DMPlexGetLabel(dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
     
     call fson_get_mpi(json, "rock.types", rocktypes)

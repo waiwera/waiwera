@@ -109,13 +109,13 @@ contains
     !! cell centroids, face areas, face-to-centroid distances) for the mesh.
 
     use face_module
-    use dm_utils_module, only: section_offset
+    use dm_utils_module, only: section_offset, vec_section
 
     class(mesh_type), intent(in out) :: self
     ! Locals:
     PetscErrorCode :: ierr
     Vec :: petsc_face_geom
-    DM :: dm_cell, dm_face, petsc_dm_face
+    DM :: dm_face
     PetscSection :: face_section, petsc_face_section, cell_section
     PetscInt :: fstart, fend, f, face_dof, ghost, i
     PetscInt :: face_offset, petsc_face_offset
@@ -147,15 +147,12 @@ contains
 
     call DMCreateLocalVector(dm_face, self%face_geom, ierr); CHKERRQ(ierr)
 
-    call VecGetDM(petsc_face_geom, petsc_dm_face, ierr); CHKERRQ(ierr)
-    call DMGetDefaultSection(petsc_dm_face, petsc_face_section, ierr); CHKERRQ(ierr)
-
     call VecGetArrayF90(self%face_geom, face_geom_array, ierr); CHKERRQ(ierr)
     call VecGetArrayF90(petsc_face_geom, petsc_face_geom_array, ierr); CHKERRQ(ierr)
     call VecGetArrayF90(self%cell_geom, cell_geom_array, ierr); CHKERRQ(ierr)
-
-    call VecGetDM(self%cell_geom, dm_cell, ierr); CHKERRQ(ierr)
-    call DMGetDefaultSection(dm_cell, cell_section, ierr); CHKERRQ(ierr)
+    
+    call vec_section(petsc_face_geom, petsc_face_section)
+    call vec_section(self%cell_geom, cell_section)
 
     call DMPlexGetLabel(self%dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
 

@@ -6,7 +6,7 @@ module dm_utils_module
 
 #include <petsc-finclude/petsc.h90>
 
-  public :: set_dm_data_layout, section_offset
+  public :: set_dm_data_layout, section_offset, vec_section
 
 contains
 
@@ -82,6 +82,22 @@ contains
     offset = offset + 1
 
   end subroutine section_offset
+
+!------------------------------------------------------------------------
+
+  subroutine vec_section(v, section)
+    !! Gets default PETSc section from DM of a vector v.
+
+    Vec, intent(in) :: v
+    PetscSection, intent(out) :: section
+    ! Locals:
+    DM :: dm
+    PetscErrorCode :: ierr
+
+    call VecGetDM(v, dm, ierr); CHKERRQ(ierr)
+    call DMGetDefaultSection(dm, section, ierr); CHKERRQ(ierr)
+
+  end subroutine vec_section
 
 !------------------------------------------------------------------------
 

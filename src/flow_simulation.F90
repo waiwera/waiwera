@@ -134,7 +134,7 @@ contains
     !! Computes fluid properties in all cells, based on the current time
     !! and primary thermodynamic variables.
 
-    use dm_utils_module, only: section_offset
+    use dm_utils_module, only: section_offset, vec_section
     use fluid_module, only: fluid_type
 
     class(flow_simulation_type), intent(in out) :: self
@@ -142,7 +142,6 @@ contains
     Vec, intent(in) :: y !! global primary variables vector
     ! Locals:
     PetscInt :: c
-    DM :: dm_fluid
     PetscSection :: y_section, fluid_section
     PetscInt :: y_offset, fluid_offset
     PetscReal, pointer :: y_array(:), cell_primary(:)
@@ -155,12 +154,10 @@ contains
 
     ! Need read-only access to primary as it is locked by the SNES:
     call VecGetArrayReadF90(y, y_array, ierr); CHKERRQ(ierr)
-    call DMGetDefaultSection(self%mesh%dm, y_section, ierr)
-    CHKERRQ(ierr)
+    call vec_section(y, y_section)
 
-    call VecGetDM(self%fluid, dm_fluid, ierr); CHKERRQ(ierr)
-    call DMGetDefaultSection(dm_fluid, fluid_section, ierr); CHKERRQ(ierr)
     call VecGetArrayF90(self%fluid, fluid_array, ierr); CHKERRQ(ierr)
+    call vec_section(self%fluid, fluid_section)
 
     call fluid%init(self%eos%num_components, self%eos%num_phases)
 
