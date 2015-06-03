@@ -66,7 +66,7 @@ module timestepper_module
      type(timestepper_step_type), pointer, public :: current, last
      PetscBool :: finished
      PetscInt, public :: num_stored, taken, max_num
-     PetscReal, public :: next_stepsize, start_time, final_time
+     PetscReal, public :: next_stepsize, stop_time
      PetscReal, public :: termination_tol = 1.e-6_dp
      type(timestep_adaptor_type), public :: adaptor
    contains
@@ -299,7 +299,7 @@ contains
     type(timestepper_solver_context_type), intent(in out) :: context
     PetscErrorCode, intent(out) :: ierr
 
-    call context%ode%rhs(context%steps%final_time, y, residual)
+    call context%ode%rhs(context%steps%stop_time, y, residual)
 
   end subroutine direct_ss_residual
 
@@ -427,8 +427,8 @@ contains
 !------------------------------------------------------------------------
 
   subroutine timestepper_steps_init(self, num_stored, &
-       initial_time, solution, initial_stepsize, &
-       final_time, max_num_steps, max_stepsize, &
+       time, solution, initial_stepsize, &
+       stop_time, max_num_steps, max_stepsize, &
        adapt_on, adapt_method, adapt_min, adapt_max, &
        adapt_reduction, adapt_amplification)
 
@@ -439,9 +439,9 @@ contains
 
     class(timestepper_steps_type), intent(in out) :: self
     PetscInt, intent(in) :: num_stored
-    PetscReal, intent(in) :: initial_time, initial_stepsize
+    PetscReal, intent(in) :: time, initial_stepsize
     Vec, intent(in) :: solution
-    PetscReal, intent(in) :: final_time
+    PetscReal, intent(in) :: stop_time
     PetscInt, intent(in) :: max_num_steps
     PetscReal, intent(in) :: max_stepsize
     PetscBool, intent(in) :: adapt_on
@@ -464,12 +464,11 @@ contains
 
     call self%set_aliases()
 
-    self%start_time = initial_time
-    self%current%time = self%start_time
+    self%current%time = time
     self%next_stepsize = initial_stepsize
     call VecCopy(solution, self%current%solution, ierr); CHKERRQ(ierr)
 
-    self%final_time = final_time
+    self%stop_time = stop_time
     self%max_num = max_num_steps
 
     self%adaptor%on = adapt_on
@@ -611,9 +610,9 @@ contains
     
     self%finished = .false.
 
-    if (self%current%time > self%final_time - self%termination_tol) then
-       self%current%stepsize = self%final_time - self%last%time
-       self%current%time = self%final_time
+    if (self%current%time > self%stop_time - self%termination_tol) then
+       self%current%stepsize = self%stop_time - self%last%time
+       self%current%time = self%stop_time
        self%finished = .true.
     end if
 
@@ -785,8 +784,7 @@ contains
     PetscReal, parameter :: default_start_time = 0.0_dp, &
          default_stop_time = 1.0_dp
     PetscReal, parameter :: default_initial_stepsize = 0.1_dp
-    PetscReal :: initial_stepsize, max_stepsize
-    PetscReal :: start_time, stop_time
+    PetscReal :: initial_stepsize, max_stepsize, stop_time
     PetscReal, parameter :: default_max_stepsize = 0.0_dp
     PetscInt :: method
     PetscInt, parameter :: max_method_str_len = 12
@@ -816,9 +814,9 @@ contains
     call MatSetFromOptions(self%jacobian, ierr); CHKERRQ(ierr)
     call MatSetUp(self%jacobian, ierr); CHKERRQ(ierr)
 
-    call fson_get_mpi(json, "time.start", default_start_time, start_time)
+    call fson_get_mpi(json, "time.start", default_start_time, self%ode%time)
     call fson_get_mpi(json, "time.stop", default_stop_time, stop_time)
-
+       
     call fson_get_mpi(json, "time.step.method", &
          default_method_str, method_str)
     select case (str_to_lower(method_str))
@@ -866,11 +864,11 @@ contains
          default_adapt_amplification, adapt_amplification)
 
     call self%steps%init(self%method%num_stored_steps, &
-         start_time, self%ode%solution, initial_stepsize, &
+         self%ode%time, self%ode%solution, initial_stepsize, &
          stop_time, max_num_steps, max_stepsize, &
          adapt_on, adapt_method, adapt_min, adapt_max, &
          adapt_reduction, adapt_amplification)
-       
+
     call self%setup_solver()
 
   end subroutine timestepper_init
@@ -930,6 +928,7 @@ contains
     end do
 
     self%steps%taken = self%steps%taken + 1
+    self%ode%time = self%steps%current%time
     call VecCopy(self%steps%current%solution, self%ode%solution, ierr)
     CHKERRQ(ierr)
 
