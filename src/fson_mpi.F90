@@ -48,6 +48,7 @@ module fson_mpi_module
 
   public :: fson_get_default, fson_get_mpi, fson_has_mpi
   public :: fson_type_mpi, fson_value_count_mpi, fson_value_get_mpi
+  public :: fson_parse_mpi, fson_destroy_mpi
 
   contains
 
@@ -805,6 +806,37 @@ module fson_mpi_module
         end if
 
       end function fson_value_get_mpi
+
+!------------------------------------------------------------------------
+
+      function fson_parse_mpi(file, unit, str) result(p)
+        !! Returns parsed fson object corresponding to specified file
+        !! on MPI input rank, and null on all other ranks.
+
+        type(fson_value), pointer :: p
+        character(len = *), intent(in), optional :: file
+        PetscInt, intent(in out), optional :: unit
+        character(len = *), intent(in), optional :: str
+
+        if (mpi%rank == mpi%input_rank) then
+           p => fson_parse(file, unit, str)
+        else
+           nullify(p)
+        end if
+
+      end function fson_parse_mpi
+
+!------------------------------------------------------------------------
+
+      subroutine fson_destroy_mpi(self)
+        !! Destroys fson object on MPI input rank.
+        type(fson_value), pointer, intent(in out) :: self
+
+        if (mpi%rank == mpi%input_rank) then
+           nullify(self)
+        end if
+
+      end subroutine fson_destroy_mpi
 
 !------------------------------------------------------------------------
 
