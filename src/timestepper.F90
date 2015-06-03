@@ -781,8 +781,7 @@ contains
     class(ode_type), intent(in), target :: ode
     ! Locals:
     PetscInt :: max_num_steps
-    PetscReal, parameter :: default_start_time = 0.0_dp, &
-         default_stop_time = 1.0_dp
+    PetscReal, parameter :: default_stop_time = 1.0_dp
     PetscReal, parameter :: default_initial_stepsize = 0.1_dp
     PetscReal :: initial_stepsize, max_stepsize, stop_time
     PetscReal, parameter :: default_max_stepsize = 0.0_dp
@@ -814,7 +813,6 @@ contains
     call MatSetFromOptions(self%jacobian, ierr); CHKERRQ(ierr)
     call MatSetUp(self%jacobian, ierr); CHKERRQ(ierr)
 
-    call fson_get_mpi(json, "time.start", default_start_time, self%ode%time)
     call fson_get_mpi(json, "time.stop", default_stop_time, stop_time)
        
     call fson_get_mpi(json, "time.step.method", &
