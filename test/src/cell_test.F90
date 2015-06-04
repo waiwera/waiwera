@@ -12,9 +12,7 @@ module cell_test
 
 #include <petsc-finclude/petscdef.h>
 
-public :: test_cell_assign
-
-PetscReal, parameter :: tol = 1.e-6_dp
+public :: test_cell_assign, test_cell_balance
 
 contains
   
@@ -31,6 +29,7 @@ contains
     PetscInt, parameter :: offset = 6
     PetscReal :: offset_padding(offset-1) = 0._dp
     PetscReal, allocatable :: cell_data(:)
+    PetscReal, parameter :: tol = 1.e-6_dp
 
     if (mpi%rank == mpi%output_rank) then
 
@@ -51,6 +50,45 @@ contains
     end if
 
   end subroutine test_cell_assign
+
+!------------------------------------------------------------------------
+
+  subroutine test_cell_balance
+    !! Test cell mass and energy balance routines
+
+    type(cell_type) :: cell
+    PetscReal, allocatable :: rock_data(:), fluid_data(:)
+    PetscInt, parameter :: rock_offset = 1, fluid_offset = 1
+    PetscInt, parameter :: num_components = 2, num_phases = 2
+    PetscReal :: mb(num_components), eb
+    PetscReal, parameter :: expected_mb(num_components) = [52.372_dp, 22.458_dp]
+    PetscReal, parameter :: expected_eb = 2.8545448e8_dp
+    PetscReal, parameter :: tol = 1.e-6_dp
+
+    if (mpi%rank == mpi%output_rank) then
+
+       rock_data = [0._dp, 0._dp, 0._dp, 0._dp, 0.1_dp, 2200._dp, 950._dp]
+       fluid_data = [2.7e5_dp, 130._dp, 4._dp, &
+            935._dp, 0.0_dp, 0.8_dp, 0.0_dp, 0._dp, 5.461e5_dp, 0.7_dp, 0.3_dp, &
+            1.5_dp,  0.0_dp, 0.2_dp, 0.0_dp, 0._dp, 2.540e6_dp, 0.4_dp, 0.6_dp]
+
+       call cell%init(num_components, num_phases)
+
+       call cell%assign(rock_data = rock_data, rock_offset = rock_offset, &
+            fluid_data = fluid_data, fluid_offset = fluid_offset)
+
+       mb = cell%mass_balance()
+       eb = cell%energy_balance()
+
+       call assert_equals(expected_mb, mb, num_components, tol, "cell mass balance")
+       call assert_equals(expected_eb, eb, tol, "cell energy balance")
+
+       call cell%destroy()
+       deallocate(rock_data, fluid_data)
+
+    end if
+
+  end subroutine test_cell_balance
 
 !------------------------------------------------------------------------
 
