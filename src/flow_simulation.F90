@@ -143,9 +143,9 @@ contains
           call section_offset(rock_section, c, rock_offset, ierr)
           CHKERRQ(ierr)
 
-          call cell%assign(rock_data = rock_array, &
-               rock_offset = rock_offset, fluid_data = fluid_array, &
-               fluid_offset = fluid_offset)
+          call cell%assign( &
+               rock_data = rock_array, rock_offset = rock_offset, &
+               fluid_data = fluid_array, fluid_offset = fluid_offset)
 
           balance(1: nc) = cell%mass_balance()
 
