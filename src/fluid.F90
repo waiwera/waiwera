@@ -37,6 +37,7 @@ module fluid_module
      procedure, public :: assign => fluid_assign
      procedure, public :: destroy => fluid_destroy
      procedure, public :: dof => fluid_dof
+     procedure, public :: component_density => fluid_component_density
   end type fluid_type
 
   public :: fluid_type, setup_fluid_vector
@@ -115,15 +116,14 @@ contains
     PetscReal, target, intent(in) :: data(:)  !! fluid data array
     PetscInt, intent(in) :: offset  !! fluid array offset
     ! Locals:
-    PetscInt :: i, p, nc, np
+    PetscInt :: i, p, nc
 
     self%pressure => data(offset)
     self%temperature => data(offset + 1)
     self%region => data(offset + 2)
     
     i = offset + num_fluid_variables
-    np = size(self%phase)
-    do p = 1, np
+    do p = 1, size(self%phase)
        self%phase(p)%density => data(i)
        self%phase(p)%viscosity => data(i+1)
        self%phase(p)%saturation => data(i+2)
@@ -144,14 +144,14 @@ contains
     
     class(fluid_type), intent(in out) :: self
     ! Locals:
-    PetscInt :: i
+    PetscInt :: p
 
     nullify(self%pressure)
     nullify(self%temperature)
     nullify(self%region)
 
-    do i = 1, size(self%phase)
-       call self%phase(i)%destroy()
+    do p = 1, size(self%phase)
+       call self%phase(p)%destroy()
     end do
     deallocate(self%phase)
 
@@ -164,14 +164,34 @@ contains
 
     class(fluid_type), intent(in) :: self
     ! Locals:
-    PetscInt :: i
+    PetscInt :: p
 
     fluid_dof = num_fluid_variables
-    do i = 1, size(self%phase)
-       fluid_dof = fluid_dof + self%phase(i)%dof()
+    do p = 1, size(self%phase)
+       fluid_dof = fluid_dof + self%phase(p)%dof()
     end do
 
   end function fluid_dof
+
+!------------------------------------------------------------------------
+
+  PetscReal function fluid_component_density(self, comp) result(d)
+    !! Returns fluid density for a given mass component.
+
+    use kinds_module
+
+    class(fluid_type), intent(in) :: self
+    PetscInt, intent(in) :: comp !! Index of mass component
+    ! Locals:
+    PetscInt :: p
+
+    d = 0._dp
+    do p = 1, size(self%phase)
+       d = d + self%phase(p)%saturation * &
+            self%phase(p)%density * self%phase(p)%mass_fraction(comp)
+    end do
+
+  end function fluid_component_density
 
 !------------------------------------------------------------------------
 ! Fluid vector setup routine
