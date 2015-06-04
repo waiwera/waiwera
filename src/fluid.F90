@@ -183,7 +183,7 @@ contains
 !------------------------------------------------------------------------
 
   function fluid_component_density(self) result(d)
-    !! Returns total fluid density for a given mass component, in all
+    !! Returns total fluid density for each mass component, over all
     !! phases.
 
     class(fluid_type), intent(in) :: self
