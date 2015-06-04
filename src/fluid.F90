@@ -1,5 +1,7 @@
 module fluid_module
 
+  use kinds_module
+
   implicit none
   private
 
@@ -40,6 +42,7 @@ module fluid_module
      procedure, public :: destroy => fluid_destroy
      procedure, public :: dof => fluid_dof
      procedure, public :: component_density => fluid_component_density
+     procedure, public :: energy => fluid_energy
   end type fluid_type
 
   public :: fluid_type, setup_fluid_vector
@@ -183,8 +186,6 @@ contains
     !! Returns total fluid density for a given mass component, in all
     !! phases.
 
-    use kinds_module
-
     class(fluid_type), intent(in) :: self
     PetscReal :: d(self%num_components)
     ! Locals:
@@ -200,6 +201,24 @@ contains
     end do
 
   end function fluid_component_density
+
+!------------------------------------------------------------------------
+
+  PetscReal function fluid_energy(self) result(ef)
+    !! Returns total fluid energy density.
+
+    class(fluid_type), intent(in) :: self
+    ! Locals:
+    PetscInt :: p
+    PetscReal :: ds
+
+    ef = 0._dp
+    do p = 1, self%num_phases
+       ds = self%phase(p)%density * self%phase(p)%saturation
+       ef = ef + ds * self%phase(p)%internal_energy
+    end do
+
+  end function fluid_energy
 
 !------------------------------------------------------------------------
 ! Fluid vector setup routine
