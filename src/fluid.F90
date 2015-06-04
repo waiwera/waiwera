@@ -30,7 +30,9 @@ module fluid_module
      PetscReal, pointer, public :: pressure    !! Bulk pressure
      PetscReal, pointer, public :: temperature !! Temperature
      PetscReal, pointer, public :: region      !! Thermodynamic region
-     type(phase_type), allocatable, public :: phase(:)
+     type(phase_type), allocatable, public :: phase(:) !! Phase variables
+     PetscInt, public :: num_phases !! Number of phases
+     PetscInt, public :: num_components !! Number of mass components
    contains
      private
      procedure, public :: init => fluid_init
@@ -99,6 +101,8 @@ contains
     ! Locals:
     PetscInt :: i
 
+    self%num_phases = num_phases
+    self%num_components = num_components
     allocate(self%phase(num_phases))
     do i = 1, num_phases
        call self%phase(i)%init(num_components)
@@ -116,22 +120,22 @@ contains
     PetscReal, target, intent(in) :: data(:)  !! fluid data array
     PetscInt, intent(in) :: offset  !! fluid array offset
     ! Locals:
-    PetscInt :: i, p, nc
+    PetscInt :: i, p
 
     self%pressure => data(offset)
     self%temperature => data(offset + 1)
     self%region => data(offset + 2)
     
     i = offset + num_fluid_variables
-    do p = 1, size(self%phase)
+    do p = 1, self%num_phases
        self%phase(p)%density => data(i)
        self%phase(p)%viscosity => data(i+1)
        self%phase(p)%saturation => data(i+2)
        self%phase(p)%relative_permeability => data(i+3)
        self%phase(p)%specific_enthalpy => data(i+4)
        self%phase(p)%internal_energy => data(i+5)
-       nc = size(self%phase(i)%mass_fraction)
-       self%phase(p)%mass_fraction => data(i+6: i+6 + nc-1)
+       self%phase(p)%mass_fraction => data(i+6: i+6 + &
+            self%num_components-1)
        i = i + self%phase(p)%dof()
     end do
 
@@ -150,7 +154,7 @@ contains
     nullify(self%temperature)
     nullify(self%region)
 
-    do p = 1, size(self%phase)
+    do p = 1, self%num_phases
        call self%phase(p)%destroy()
     end do
     deallocate(self%phase)
@@ -167,7 +171,7 @@ contains
     PetscInt :: p
 
     fluid_dof = num_fluid_variables
-    do p = 1, size(self%phase)
+    do p = 1, self%num_phases
        fluid_dof = fluid_dof + self%phase(p)%dof()
     end do
 
