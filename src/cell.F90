@@ -82,6 +82,7 @@ contains
     nullify(self%volume)
     nullify(self%centroid)
     call self%fluid%destroy()
+    call self%rock%destroy()
     
   end subroutine cell_destroy
 
