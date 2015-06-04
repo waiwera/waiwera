@@ -26,6 +26,7 @@ module cell_module
      procedure, public :: assign => cell_assign
      procedure, public :: destroy => cell_destroy
      procedure, public :: dof => cell_dof
+     procedure, public :: mass_balance => cell_mass_balance
   end type cell_type
 
   public :: cell_type
@@ -100,6 +101,19 @@ contains
     cell_dof = fixed_dof
 
   end function cell_dof
+
+!------------------------------------------------------------------------
+
+  function cell_mass_balance(self) result(balance)
+    !! Returns array containing mass balance (per unit volume) for each
+    !! mass component in the cell.
+
+    class(cell_type), intent(in) :: self
+    PetscReal :: balance(self%fluid%num_components)
+
+    balance = self%rock%porosity * self%fluid%component_density()
+
+  end function cell_mass_balance
 
 !------------------------------------------------------------------------
   
