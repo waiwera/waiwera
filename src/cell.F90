@@ -4,6 +4,7 @@ module cell_module
   !! The components of these types all point to values in arrays obtained from
   !! global parallel vectors.
 
+  use kinds_module
   use rock_module
   use fluid_module
 
@@ -27,6 +28,7 @@ module cell_module
      procedure, public :: destroy => cell_destroy
      procedure, public :: dof => cell_dof
      procedure, public :: mass_balance => cell_mass_balance
+     procedure, public :: energy_balance => cell_energy_balance
   end type cell_type
 
   public :: cell_type
@@ -114,6 +116,22 @@ contains
     balance = self%rock%porosity * self%fluid%component_density()
 
   end function cell_mass_balance
+
+!------------------------------------------------------------------------
+
+  function cell_energy_balance(self) result(balance)
+    !! Returns total energy balance (per unit volume) in the cell.
+
+    class(cell_type), intent(in) :: self
+    PetscReal :: balance
+    ! Locals:
+    PetscReal :: er, ef
+
+    er = self%rock%energy(self%fluid%temperature)
+    ef = self%fluid%energy()
+    balance = self%rock%porosity * ef + (1._dp - self%rock%porosity) * er
+
+  end function cell_energy_balance
 
 !------------------------------------------------------------------------
   
