@@ -12,7 +12,7 @@ module fluid_test
 
 #include <petsc-finclude/petscdef.h>
 
-public :: test_fluid_assign, test_component_density
+public :: test_fluid_assign, test_fluid_component_density
 
 PetscReal, parameter :: tol = 1.e-6_dp
 
@@ -73,7 +73,7 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine test_component_density
+  subroutine test_fluid_component_density
     ! Test fluid component_density()
 
     type(fluid_type) :: fluid
@@ -103,7 +103,7 @@ contains
 
     end if
 
-  end subroutine test_component_density
+  end subroutine test_fluid_component_density
 
 !------------------------------------------------------------------------
 
