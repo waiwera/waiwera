@@ -179,20 +179,24 @@ contains
 
 !------------------------------------------------------------------------
 
-  PetscReal function fluid_component_density(self, comp) result(d)
-    !! Returns fluid density for a given mass component.
+  function fluid_component_density(self) result(d)
+    !! Returns total fluid density for a given mass component, in all
+    !! phases.
 
     use kinds_module
 
     class(fluid_type), intent(in) :: self
-    PetscInt, intent(in) :: comp !! Index of mass component
+    PetscReal :: d(self%num_components)
     ! Locals:
-    PetscInt :: p
+    PetscInt :: p, c
+    PetscReal :: ds
 
     d = 0._dp
-    do p = 1, size(self%phase)
-       d = d + self%phase(p)%saturation * &
-            self%phase(p)%density * self%phase(p)%mass_fraction(comp)
+    do p = 1, self%num_phases
+       ds = self%phase(p)%density * self%phase(p)%saturation
+       do c = 1, self%num_components
+          d(c) = d(c) + ds * self%phase(p)%mass_fraction(c)
+       end do
     end do
 
   end function fluid_component_density
