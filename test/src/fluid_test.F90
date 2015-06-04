@@ -12,7 +12,7 @@ module fluid_test
 
 #include <petsc-finclude/petscdef.h>
 
-public :: test_fluid_assign
+public :: test_fluid_assign, test_component_density
 
 PetscReal, parameter :: tol = 1.e-6_dp
 
@@ -70,6 +70,40 @@ contains
     end if
 
   end subroutine test_fluid_assign
+
+!------------------------------------------------------------------------
+
+  subroutine test_component_density
+    ! Test fluid component_density()
+
+    type(fluid_type) :: fluid
+    PetscInt, parameter :: num_components = 2, num_phases = 2
+    PetscInt,  parameter :: offset = 1
+    PetscReal, allocatable :: fluid_data(:)
+    PetscReal :: cd(num_components)
+    PetscReal, parameter :: expected_cd(num_components) = [523.72_dp, 224.58_dp]
+    PetscReal, parameter :: tol = 1.e-3_dp
+
+    if (mpi%rank == mpi%output_rank) then
+
+       call fluid%init(num_components, num_phases)
+
+       fluid_data = [2.7e5_dp, 130._dp, 4._dp, &
+            935._dp, 0.0_dp, 0.8_dp, 0.0_dp, 0._dp, 5.461e5_dp, 0.7_dp, 0.3_dp, &
+            1.5_dp,  0.0_dp, 0.2_dp, 0.0_dp, 0._dp, 2.540e6_dp, 0.4_dp, 0.6_dp]
+
+       call fluid%assign(fluid_data, offset)
+
+       cd = fluid%component_density()
+
+       call assert_equals(expected_cd, cd, num_components, tol, "Fluid component density")
+
+       call fluid%destroy()
+       deallocate(fluid_data)
+
+    end if
+
+  end subroutine test_component_density
 
 !------------------------------------------------------------------------
 
