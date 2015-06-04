@@ -53,15 +53,17 @@ contains
     !! starting from the given offset.
 
     class(cell_type), intent(in out) :: self
-    PetscReal, target, intent(in) :: geom_data(:)  !! array with geometry data
-    PetscInt, intent(in)  :: geom_offset  !! geometry array offset for this cell
+    PetscReal, target, intent(in), optional :: geom_data(:)  !! array with geometry data
+    PetscInt, intent(in), optional  :: geom_offset  !! geometry array offset for this cell
     PetscReal, target, intent(in), optional :: rock_data(:)  !! array with rock data
     PetscInt, intent(in), optional  :: rock_offset  !! rock array offset for this cell
     PetscReal, target, intent(in), optional :: fluid_data(:)  !! array with fluid data
     PetscInt, intent(in), optional  :: fluid_offset  !! fluid array offset for this cell
 
-    self%centroid => geom_data(geom_offset: geom_offset + 2)
-    self%volume => geom_data(geom_offset + 3)
+    if ((present(geom_data)) .and. ((present(geom_offset)))) then
+       self%centroid => geom_data(geom_offset: geom_offset + 2)
+       self%volume => geom_data(geom_offset + 3)
+    end if
 
     if ((present(rock_data)) .and. ((present(rock_offset)))) then
        call self%rock%assign(rock_data, rock_offset)
