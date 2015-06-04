@@ -95,15 +95,72 @@ contains
     !! Computes mass and energy balance for each cell, for the given
     !! primary thermodynamic variables and time.
 
+    use dm_utils_module, only: section_offset, vec_section
+    use fluid_module, only: fluid_type
+    use rock_module, only: rock_type
+
     class(flow_simulation_type), intent(in out) :: self
     PetscReal, intent(in) :: t !! time (s)
     Vec, intent(in) :: y !! global primary variables vector
     Vec, intent(out) :: lhs
     ! Locals:
+    PetscInt :: c, ghost, comp
+    PetscSection :: fluid_section, rock_section, lhs_section
+    PetscInt :: fluid_offset, rock_offset, lhs_offset
+    PetscReal, pointer :: fluid_array(:), rock_array(:), lhs_array(:)
+    PetscReal, pointer :: balance(:)
+    type(fluid_type) :: fluid
+    type(rock_type) :: rock
+    DMLabel :: ghost_label
     PetscErrorCode :: ierr
 
-    ! Dummy identity function:
-    call VecCopy(y, lhs, ierr); CHKERRQ(ierr)
+    call VecGetArrayF90(lhs, lhs_array, ierr); CHKERRQ(ierr)
+    call vec_section(lhs, lhs_section)
+
+    call VecGetArrayReadF90(self%fluid, fluid_array, ierr); CHKERRQ(ierr)
+    call vec_section(self%fluid, fluid_section)
+
+    call VecGetArrayReadF90(self%rock, rock_array, ierr); CHKERRQ(ierr)
+    call vec_section(self%rock, rock_section)
+
+    call fluid%init(self%eos%num_components, self%eos%num_phases)
+
+    call DMPlexGetLabel(self%mesh%dm, "ghost", ghost_label, ierr)
+    CHKERRQ(ierr)
+
+    do c = self%mesh%start_cell, self%mesh%end_interior_cell - 1
+
+       call DMLabelGetValue(ghost_label, c, ghost, ierr); CHKERRQ(ierr)
+       if (ghost < 0) then
+
+          call section_offset(lhs_section, c, lhs_offset, ierr)
+          CHKERRQ(ierr)
+          balance => lhs_array(lhs_offset : &
+               lhs_offset + self%eos%num_primary_variables - 1)
+
+          call section_offset(fluid_section, c, fluid_offset, ierr)
+          CHKERRQ(ierr)
+          call fluid%assign(fluid_array, fluid_offset)
+
+          call section_offset(rock_section, c, rock_offset, ierr)
+          CHKERRQ(ierr)
+          call rock%assign(rock_array, rock_offset)
+
+          do comp = 1, self%eos%num_components
+             balance(comp) = rock%porosity * fluid%component_density(comp)
+          end do
+          ! TODO: energy balance
+
+       end if
+
+    end do
+
+    call VecRestoreArrayReadF90(self%fluid, fluid_array, ierr); CHKERRQ(ierr)
+    call VecRestoreArrayReadF90(self%rock, rock_array, ierr); CHKERRQ(ierr)
+    call VecRestoreArrayF90(lhs, lhs_array, ierr); CHKERRQ(ierr)
+
+    call fluid%destroy()
+    call rock%destroy()
 
   end subroutine flow_simulation_cell_balances
 
