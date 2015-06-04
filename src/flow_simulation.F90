@@ -103,7 +103,7 @@ contains
     Vec, intent(in) :: y !! global primary variables vector
     Vec, intent(out) :: lhs
     ! Locals:
-    PetscInt :: c, ghost
+    PetscInt :: c, ghost, npr, nc
     PetscSection :: fluid_section, rock_section, lhs_section
     PetscInt :: fluid_offset, rock_offset, lhs_offset
     PetscReal, pointer :: fluid_array(:), rock_array(:), lhs_array(:)
@@ -111,6 +111,9 @@ contains
     type(cell_type) :: cell
     DMLabel :: ghost_label
     PetscErrorCode :: ierr
+
+    npr = self%eos%num_primary_variables
+    nc = self%eos%num_components
 
     call VecGetArrayF90(lhs, lhs_array, ierr); CHKERRQ(ierr)
     call vec_section(lhs, lhs_section)
@@ -121,7 +124,7 @@ contains
     call VecGetArrayReadF90(self%rock, rock_array, ierr); CHKERRQ(ierr)
     call vec_section(self%rock, rock_section)
 
-    call cell%init(self%eos%num_components, self%eos%num_phases)
+    call cell%init(nc, self%eos%num_phases)
 
     call DMPlexGetLabel(self%mesh%dm, "ghost", ghost_label, ierr)
     CHKERRQ(ierr)
@@ -133,24 +136,21 @@ contains
 
           call section_offset(lhs_section, c, lhs_offset, ierr)
           CHKERRQ(ierr)
-          balance => lhs_array(lhs_offset : &
-               lhs_offset + self%eos%num_primary_variables - 1)
+          balance => lhs_array(lhs_offset : lhs_offset + npr - 1)
 
           call section_offset(fluid_section, c, fluid_offset, ierr)
           CHKERRQ(ierr)
           call section_offset(rock_section, c, rock_offset, ierr)
           CHKERRQ(ierr)
+
           call cell%assign(rock_data = rock_array, &
                rock_offset = rock_offset, fluid_data = fluid_array, &
                fluid_offset = fluid_offset)
 
-          balance = cell%mass_balance()
+          balance(1: nc) = cell%mass_balance()
 
-          if (self%eos%num_primary_variables == &
-               self%eos%num_components + 1) then
-
-             ! balance(self%eos%num_primary_variables) = 
-
+          if (npr == nc + 1) then
+             balance(npr) = cell%energy_balance()
           end if
 
        end if
