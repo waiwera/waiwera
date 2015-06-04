@@ -12,7 +12,7 @@ module fluid_test
 
 #include <petsc-finclude/petscdef.h>
 
-public :: test_fluid
+public :: test_fluid_assign
 
 PetscReal, parameter :: tol = 1.e-6_dp
 
@@ -20,9 +20,9 @@ contains
   
 !------------------------------------------------------------------------
 
-  subroutine test_fluid
+  subroutine test_fluid_assign
 
-    ! Fluid test
+    ! Test fluid assign()
 
     type(fluid_type) :: fluid
     PetscInt, parameter :: num_components = 2, num_phases = 2
@@ -69,7 +69,7 @@ contains
 
     end if
 
-  end subroutine test_fluid
+  end subroutine test_fluid_assign
 
 !------------------------------------------------------------------------
 
