@@ -12,7 +12,7 @@ module rock_test
 
 #include <petsc-finclude/petscdef.h>
 
-public :: test_rock
+public :: test_rock_assign
 
 PetscReal, parameter :: tol = 1.e-6_dp
 
@@ -20,9 +20,9 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine test_rock
+  subroutine test_rock_assign
 
-    ! Rock test
+    ! Rock assign() test
 
     type(rock_type) :: rock
     PetscReal, parameter :: permeability(3) = [1.e-12_dp, 1.e-13_dp, 1.e-14_dp]
@@ -54,7 +54,7 @@ contains
 
     end if
 
-  end subroutine test_rock
+  end subroutine test_rock_assign
 
 !------------------------------------------------------------------------
 
