@@ -12,7 +12,7 @@ module cell_test
 
 #include <petsc-finclude/petscdef.h>
 
-public :: test_cell
+public :: test_cell_assign
 
 PetscReal, parameter :: tol = 1.e-6_dp
 
@@ -20,9 +20,9 @@ contains
   
 !------------------------------------------------------------------------
 
-  subroutine test_cell
+  subroutine test_cell_assign
 
-    ! Cell test
+    ! Cell assign() test
 
     type(cell_type) :: cell
     PetscInt, parameter :: num_components = 1, num_phases = 2
@@ -50,7 +50,7 @@ contains
 
     end if
 
-  end subroutine test_cell
+  end subroutine test_cell_assign
 
 !------------------------------------------------------------------------
 
