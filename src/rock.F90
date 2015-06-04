@@ -20,6 +20,7 @@ module rock_module
      procedure, public :: assign => rock_assign
      procedure, public :: dof => rock_dof
      procedure, public :: destroy => rock_destroy
+     procedure, public :: energy => rock_energy
   end type rock_type
 
   PetscInt, parameter :: num_rock_variables = 5
@@ -95,6 +96,18 @@ contains
     nullify(self%specific_heat)
 
   end subroutine rock_destroy
+
+!------------------------------------------------------------------------
+
+  PetscReal function rock_energy(self, temperature)
+    !! Returns rock energy density at a given temperature.
+
+    class(rock_type), intent(in) :: self
+    PetscReal, intent(in) :: temperature !! Temperature (deg C)
+
+    rock_energy = self%density * self%specific_heat * temperature
+
+  end function rock_energy
 
 !------------------------------------------------------------------------
 
