@@ -149,7 +149,7 @@ contains
 
           balance(1: nc) = cell%mass_balance()
 
-          if (np == nc + 1) then
+          if (.not.(self%eos%isothermal)) then
              balance(np) = cell%energy_balance()
           end if
 
