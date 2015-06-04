@@ -12,9 +12,7 @@ module rock_test
 
 #include <petsc-finclude/petscdef.h>
 
-public :: test_rock_assign
-
-PetscReal, parameter :: tol = 1.e-6_dp
+public :: test_rock_assign, test_rock_energy
 
 contains
 
@@ -31,6 +29,7 @@ contains
     PetscReal, parameter :: density = 2200._dp
     PetscReal, parameter :: specific_heat = 1000._dp
     PetscInt,  parameter :: offset = 5
+    PetscReal, parameter :: tol = 1.e-6_dp
     PetscReal :: offset_padding(offset-1) = 0._dp
     PetscReal, allocatable :: rock_data(:)
 
@@ -55,6 +54,35 @@ contains
     end if
 
   end subroutine test_rock_assign
+
+!------------------------------------------------------------------------
+
+  subroutine test_rock_energy
+
+    ! Rock energy() test
+
+    type(rock_type) :: rock
+    PetscReal, allocatable :: rock_data(:)
+    PetscReal :: er
+    PetscReal, parameter :: temp = 130._dp
+    PetscReal, parameter :: expected_er = 2.717e8
+    PetscReal, parameter :: tol = 1.e-3_dp
+    PetscInt,  parameter :: offset = 1
+
+    if (mpi%rank == mpi%output_rank) then
+
+       rock_data = [0._dp, 0._dp, 0._dp, 0._dp, 0.1_dp, 2200._dp, 950._dp]
+       call rock%assign(rock_data, offset)
+
+       er = rock%energy(temp)
+       call assert_equals(expected_er, er, tol, "rock energy")
+
+       call rock%destroy()
+       deallocate(rock_data)
+
+    end if
+
+  end subroutine test_rock_energy
 
 !------------------------------------------------------------------------
 
