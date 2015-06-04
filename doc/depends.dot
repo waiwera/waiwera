@@ -1,5 +1,6 @@
 digraph supermodel{
         fluid_module -> dm_utils_module
+        fluid_module -> kinds_module
         eos_module -> fluid_module
         eos_module -> kinds_module
         eos_module -> thermodynamics_module
