@@ -103,7 +103,7 @@ contains
     Vec, intent(in) :: y !! global primary variables vector
     Vec, intent(out) :: lhs
     ! Locals:
-    PetscInt :: c, ghost, npr, nc
+    PetscInt :: c, ghost, np, nc
     PetscSection :: fluid_section, rock_section, lhs_section
     PetscInt :: fluid_offset, rock_offset, lhs_offset
     PetscReal, pointer :: fluid_array(:), rock_array(:), lhs_array(:)
@@ -112,7 +112,7 @@ contains
     DMLabel :: ghost_label
     PetscErrorCode :: ierr
 
-    npr = self%eos%num_primary_variables
+    np = self%eos%num_primary_variables
     nc = self%eos%num_components
 
     call VecGetArrayF90(lhs, lhs_array, ierr); CHKERRQ(ierr)
@@ -136,7 +136,7 @@ contains
 
           call section_offset(lhs_section, c, lhs_offset, ierr)
           CHKERRQ(ierr)
-          balance => lhs_array(lhs_offset : lhs_offset + npr - 1)
+          balance => lhs_array(lhs_offset : lhs_offset + np - 1)
 
           call section_offset(fluid_section, c, fluid_offset, ierr)
           CHKERRQ(ierr)
@@ -149,8 +149,8 @@ contains
 
           balance(1: nc) = cell%mass_balance()
 
-          if (npr == nc + 1) then
-             balance(npr) = cell%energy_balance()
+          if (np == nc + 1) then
+             balance(np) = cell%energy_balance()
           end if
 
        end if
@@ -199,7 +199,7 @@ contains
     PetscReal, intent(in) :: t !! time
     Vec, intent(in) :: y !! global primary variables vector
     ! Locals:
-    PetscInt :: c, ghost, region, npr, nc
+    PetscInt :: c, ghost, region, np, nc
     PetscSection :: y_section, fluid_section
     PetscInt :: y_offset, fluid_offset
     PetscReal, pointer :: y_array(:), cell_primary(:)
@@ -208,7 +208,7 @@ contains
     DMLabel :: ghost_label
     PetscErrorCode :: ierr
 
-    npr = self%eos%num_primary_variables
+    np = self%eos%num_primary_variables
     nc = self%eos%num_components
 
     ! Need read-only access to primary as it is locked by the SNES:
@@ -230,7 +230,7 @@ contains
 
           call section_offset(y_section, c, y_offset, ierr)
           CHKERRQ(ierr)
-          cell_primary => y_array(y_offset : y_offset + npr - 1)
+          cell_primary => y_array(y_offset : y_offset + np - 1)
 
           call section_offset(fluid_section, c, fluid_offset, ierr)
           CHKERRQ(ierr)
