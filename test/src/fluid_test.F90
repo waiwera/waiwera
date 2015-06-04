@@ -12,9 +12,8 @@ module fluid_test
 
 #include <petsc-finclude/petscdef.h>
 
-public :: test_fluid_assign, test_fluid_component_density
-
-PetscReal, parameter :: tol = 1.e-6_dp
+public :: test_fluid_assign, test_fluid_component_density, &
+     test_fluid_energy
 
 contains
   
@@ -29,6 +28,7 @@ contains
     PetscInt,  parameter :: offset = 7
     PetscReal, allocatable :: fluid_data(:)
     PetscInt :: i, p, nc
+    PetscReal, parameter :: tol = 1.e-6_dp
 
     if (mpi%rank == mpi%output_rank) then
 
@@ -104,6 +104,40 @@ contains
     end if
 
   end subroutine test_fluid_component_density
+
+!------------------------------------------------------------------------
+
+  subroutine test_fluid_energy
+    ! Test fluid energy()
+
+    type(fluid_type) :: fluid
+    PetscInt, parameter :: num_components = 2, num_phases = 2
+    PetscInt,  parameter :: offset = 1
+    PetscReal, allocatable :: fluid_data(:)
+    PetscReal :: ef
+    PetscReal, parameter :: expected_ef = 4.092448e8_dp
+    PetscReal, parameter :: tol = 1.e-3_dp
+
+    if (mpi%rank == mpi%output_rank) then
+
+       call fluid%init(num_components, num_phases)
+
+       fluid_data = [2.7e5_dp, 130._dp, 4._dp, &
+            935._dp, 0.0_dp, 0.8_dp, 0.0_dp, 0._dp, 5.461e5_dp, 0.7_dp, 0.3_dp, &
+            1.5_dp,  0.0_dp, 0.2_dp, 0.0_dp, 0._dp, 2.540e6_dp, 0.4_dp, 0.6_dp]
+
+       call fluid%assign(fluid_data, offset)
+
+       ef = fluid%energy()
+
+       call assert_equals(expected_ef, ef, tol, "Fluid energy")
+
+       call fluid%destroy()
+       deallocate(fluid_data)
+
+    end if
+
+  end subroutine test_fluid_energy
 
 !------------------------------------------------------------------------
 
