@@ -199,7 +199,7 @@ contains
     PetscReal, intent(in) :: t !! time
     Vec, intent(in) :: y !! global primary variables vector
     ! Locals:
-    PetscInt :: c, ghost, region
+    PetscInt :: c, ghost, region, npr, nc
     PetscSection :: y_section, fluid_section
     PetscInt :: y_offset, fluid_offset
     PetscReal, pointer :: y_array(:), cell_primary(:)
@@ -208,6 +208,9 @@ contains
     DMLabel :: ghost_label
     PetscErrorCode :: ierr
 
+    npr = self%eos%num_primary_variables
+    nc = self%eos%num_components
+
     ! Need read-only access to primary as it is locked by the SNES:
     call VecGetArrayReadF90(y, y_array, ierr); CHKERRQ(ierr)
     call vec_section(y, y_section)
@@ -215,7 +218,7 @@ contains
     call VecGetArrayF90(self%fluid, fluid_array, ierr); CHKERRQ(ierr)
     call vec_section(self%fluid, fluid_section)
 
-    call fluid%init(self%eos%num_components, self%eos%num_phases)
+    call fluid%init(nc, self%eos%num_phases)
 
     call DMPlexGetLabel(self%mesh%dm, "ghost", ghost_label, ierr)
     CHKERRQ(ierr)
@@ -227,8 +230,7 @@ contains
 
           call section_offset(y_section, c, y_offset, ierr)
           CHKERRQ(ierr)
-          cell_primary => y_array(y_offset : &
-               y_offset + self%eos%num_primary_variables - 1)
+          cell_primary => y_array(y_offset : y_offset + npr - 1)
 
           call section_offset(fluid_section, c, fluid_offset, ierr)
           CHKERRQ(ierr)
