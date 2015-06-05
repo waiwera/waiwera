@@ -74,6 +74,29 @@ contains
 
 !------------------------------------------------------------------------
 
+  subroutine vec_write(v, name, path)
+
+    ! Writes vec v to HDF file with specified name and path (for
+    ! generating reference values to test against).
+
+    Vec, intent(in) :: v
+    character(*), intent(in) :: name, path
+    ! Locals:
+    PetscErrorCode :: ierr
+    PetscViewer :: viewer
+
+    call PetscViewerHDF5Open(mpi%comm, &
+         trim(path) // trim(name) // ".h5", &
+         FILE_MODE_WRITE, viewer, ierr); CHKERRQ(ierr)
+    call PetscViewerHDF5PushGroup(viewer, "/", ierr); CHKERRQ(ierr)
+    call VecView(v, viewer, ierr); CHKERRQ(ierr)
+    call PetscViewerHDF5PopGroup(viewer, ierr); CHKERRQ(ierr)
+    call PetscViewerDestroy(viewer, ierr); CHKERRQ(ierr)
+
+  end subroutine vec_write
+
+!------------------------------------------------------------------------
+
   subroutine vec_diff_test(v, name, path)
 
     ! Tests vec v against values from HDF5 file with specified base name,
