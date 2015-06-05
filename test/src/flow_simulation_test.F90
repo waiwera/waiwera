@@ -195,13 +195,13 @@ contains
     ! Test flow_simulation init() method
     ! This uses a simple problem with a 12-cell rectangular mesh and two rock types.
 
+    use fson_mpi_module, only: fson_parse_mpi
+
     ! Locals:
     character(26), parameter :: path = "data/flow_simulation/init/"
     type(fson_value), pointer :: json
 
-    if (mpi%rank == mpi%input_rank) then
-       json => fson_parse(trim(path) // "test_init.json")
-    end if
+    json => fson_parse_mpi(trim(path) // "test_init.json")
 
     call sim%init(json)
 

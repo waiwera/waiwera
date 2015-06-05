@@ -11,7 +11,9 @@ digraph supermodel{
         powertable_module -> kinds_module
         ode_module -> mesh_module
         cell_module -> fluid_module
+        cell_module -> kinds_module
         cell_module -> rock_module
+        flow_simulation_module -> cell_module
         flow_simulation_module -> dm_utils_module
         flow_simulation_module -> eos_module
         flow_simulation_module -> eos_setup_module
