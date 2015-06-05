@@ -1,6 +1,7 @@
 {
     "title": "Test LHS function",
     "mesh": "data/flow_simulation/mesh/3x3_2d.exo",
+    "eos": {"name": "w", "temperature": 20.},
     "initial": 2.0e5,
     "rock": {
         "types": [
