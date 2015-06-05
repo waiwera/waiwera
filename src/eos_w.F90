@@ -14,7 +14,7 @@ module eos_w_module
   type, public, extends(eos_type) :: eos_w_type
      !! Isothermal pure water equation of state type.
      private
-     PetscReal, public :: temperature = 20._dp !! Constant temperature
+     PetscReal, public :: temperature  !! Constant temperature
    contains
      private
      procedure :: transition => eos_w_transition
@@ -30,9 +30,13 @@ contains
   subroutine eos_w_init(self, json, thermo)
     !! Initialise isothermal pure water EOS.
 
+    use fson_mpi_module, only: fson_get_mpi
+
     class(eos_w_type), intent(in out) :: self
     type(fson_value), pointer, intent(in) :: json !! JSON input object
     class(thermodynamics_type), intent(in), target :: thermo !! Thermodynamics object
+    ! Locals:
+    PetscReal, parameter :: default_temperature = 20._dp ! deg C
 
     self%name = "w"
     self%description = "Isothermal pure water"
@@ -44,6 +48,9 @@ contains
     self%isothermal = .true.
 
     self%thermo => thermo
+
+    call fson_get_mpi(json, "eos.temperature", default_temperature, &
+         self%temperature)
 
   end subroutine eos_w_init
 

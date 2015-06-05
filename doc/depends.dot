@@ -55,6 +55,7 @@ digraph supermodel{
         eos_w_module -> eos_module
         eos_w_module -> fluid_module
         eos_w_module -> fson
+        eos_w_module -> fson_mpi_module
         eos_w_module -> kinds_module
         eos_w_module -> thermodynamics_module
         eos_setup_module -> eos_module
