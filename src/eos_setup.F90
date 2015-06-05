@@ -12,10 +12,6 @@ module eos_setup_module
 
 #include <petsc-finclude/petsc.h90>
 
-  PetscInt, parameter :: max_eos_ID_length = 12
-  character(max_eos_ID_length), parameter :: &
-       default_eos_ID = "W"
-
   public :: setup_eos
 
   contains
@@ -32,19 +28,21 @@ module eos_setup_module
     class(thermodynamics_type), intent(in) :: thermo
     class(eos_type), pointer, intent(in out) :: eos
     ! Locals:
-    character(max_eos_ID_length) :: eos_ID
+    character(max_eos_name_length), parameter :: &
+         default_eos_name = "w"
+    character(max_eos_name_length) :: eos_name
 
-    call fson_get_mpi(json, "eos", default_eos_ID, eos_ID)
-    eos_ID = str_to_lower(eos_ID)
+    call fson_get_mpi(json, "eos.name", default_eos_name, eos_name)
+    eos_name = str_to_lower(eos_name)
 
-    select case (eos_ID)
+    select case (eos_name)
     case ("ew")
        allocate(eos_w_type :: eos)  ! change to eos_ew when it's ready
     case default
        allocate(eos_w_type :: eos)
     end select
 
-    call eos%init(thermo)
+    call eos%init(json, thermo)
 
   end subroutine setup_eos
 

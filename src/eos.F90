@@ -2,6 +2,7 @@ module eos_module
   !! Abstract type for equation of state (EOS) objects.
 
   use kinds_module
+  use fson
   use thermodynamics_module
 
   implicit none
@@ -33,10 +34,11 @@ module eos_module
 
   abstract interface
 
-     subroutine eos_init_procedure(self, thermo)
+     subroutine eos_init_procedure(self, json, thermo)
        !! Initialise EOS object
-       import :: eos_type, thermodynamics_type
+       import :: eos_type, thermodynamics_type, fson_value
        class(eos_type), intent(in out) :: self
+       type(fson_value), pointer, intent(in) :: json
        class(thermodynamics_type), intent(in), target :: thermo
      end subroutine eos_init_procedure
 

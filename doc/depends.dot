@@ -2,6 +2,7 @@ digraph supermodel{
         fluid_module -> dm_utils_module
         fluid_module -> kinds_module
         eos_module -> fluid_module
+        eos_module -> fson
         eos_module -> kinds_module
         eos_module -> thermodynamics_module
         rock_module -> dm_utils_module
@@ -53,6 +54,7 @@ digraph supermodel{
         supermodel -> timestepper_module
         eos_w_module -> eos_module
         eos_w_module -> fluid_module
+        eos_w_module -> fson
         eos_w_module -> kinds_module
         eos_w_module -> thermodynamics_module
         eos_setup_module -> eos_module

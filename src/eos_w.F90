@@ -3,6 +3,7 @@ module eos_w_module
 
   use kinds_module
   use eos_module
+  use fson
   use thermodynamics_module
 
   implicit none
@@ -26,13 +27,14 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine eos_w_init(self, thermo)
+  subroutine eos_w_init(self, json, thermo)
     !! Initialise isothermal pure water EOS.
 
     class(eos_w_type), intent(in out) :: self
+    type(fson_value), pointer, intent(in) :: json !! JSON input object
     class(thermodynamics_type), intent(in), target :: thermo !! Thermodynamics object
 
-    self%name = "W"
+    self%name = "w"
     self%description = "Isothermal pure water"
     self%primary_variable_names = ["Pressure"]
 
