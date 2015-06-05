@@ -13,7 +13,8 @@ module flow_simulation_test
 
 #include <petsc-finclude/petsc.h90>
 
-public :: test_flow_simulation_init
+public :: test_flow_simulation_init, &
+     test_flow_simulation_fluid_properties
 
 PetscReal, parameter :: tol = 1.e-6_dp
 type(flow_simulation_type) :: sim
@@ -185,8 +186,6 @@ contains
   end subroutine flow_simulation_label_test
 
 !------------------------------------------------------------------------
-
-!------------------------------------------------------------------------
 ! Unit test routines:
 !------------------------------------------------------------------------
 
@@ -195,7 +194,7 @@ contains
     ! Test flow_simulation init() method
     ! This uses a simple problem with a 12-cell rectangular mesh and two rock types.
 
-    use fson_mpi_module, only: fson_parse_mpi
+    use fson_mpi_module
 
     ! Locals:
     character(26), parameter :: path = "data/flow_simulation/init/"
@@ -204,6 +203,7 @@ contains
     json => fson_parse_mpi(trim(path) // "test_init.json")
 
     call sim%init(json)
+    call fson_destroy_mpi(json)
 
     call flow_simulation_basic_test(title = "Test flow simulation init", &
          thermo = "IAPWS-97", eos = "W", dim = 3, dof = 12)
@@ -217,6 +217,30 @@ contains
     call sim%destroy()
 
   end subroutine test_flow_simulation_init
+
+!------------------------------------------------------------------------
+
+  subroutine test_flow_simulation_fluid_properties
+    ! Test flow_simulation fluid_properties() method
+
+    use fson_mpi_module
+
+    ! Locals:
+    type(fson_value), pointer :: json
+    character(64), parameter :: path = "data/flow_simulation/fluid_properties/"
+    PetscReal :: time = 0._dp
+
+    json => fson_parse_mpi(trim(path) // "test_fluid_properties.json")
+
+    call sim%init(json)
+    call fson_destroy_mpi(json)
+
+    call sim%pre_eval(time, sim%solution)
+    call vec_diff_test(sim%fluid, "fluid", path)
+    
+    call sim%destroy()
+
+  end subroutine test_flow_simulation_fluid_properties
 
 !------------------------------------------------------------------------
 
