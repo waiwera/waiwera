@@ -231,7 +231,7 @@ contains
     call fson_destroy_mpi(json)
 
     call flow_simulation_basic_test(title = "Test flow simulation init", &
-         thermo = "IAPWS-97", eos = "W", dim = 3, dof = 12)
+         thermo = "IAPWS-97", eos = "w", dim = 3, dof = 12)
 
     call flow_simulation_label_test(rock_cells = [9, 3])
 
