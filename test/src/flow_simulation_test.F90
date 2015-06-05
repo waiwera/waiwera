@@ -132,8 +132,10 @@ contains
     call VecCopy(vread, diff, ierr); CHKERRQ(ierr)
     call VecAXPY(diff, -1._dp, v, ierr); CHKERRQ(ierr)
     call VecNorm(diff, NORM_2, diffnorm, ierr); CHKERRQ(ierr)
-    call assert_equals(0._dp, diffnorm, tol, &
-         "Flow simulation " // trim(name) // " vector")
+    if (mpi%rank == mpi%output_rank) then
+       call assert_equals(0._dp, diffnorm, tol, &
+            "Flow simulation " // trim(name) // " vector")
+    end if
     call DMRestoreGlobalVector(dm, diff, ierr); CHKERRQ(ierr)
     call DMRestoreGlobalVector(dm, vread, ierr); CHKERRQ(ierr)
 
