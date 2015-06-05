@@ -1,6 +1,6 @@
 {
     "title": "Test flow simulation init",
-    "mesh": "data/flow_simulation/init/test_init.exo",
+    "mesh": "data/flow_simulation/mesh/3x3_2d.exo",
     "initial": 2.0e5,
     "rock": {
         "types": [
