@@ -15,7 +15,7 @@ module face_module
      PetscReal, pointer, public :: distance(:) !! cell centroid distances on either side of the face
      PetscReal, pointer, public :: normal(:) !! normal vector to face
      PetscReal, pointer, public :: centroid(:) !! centroid of face
-     type(cell_type), public :: cell(2)
+     type(cell_type), allocatable, public :: cell(:) !! cells on either side of face
    contains
      private
      procedure, public :: init => face_init
@@ -49,9 +49,11 @@ contains
     PetscInt, intent(in) :: num_components !! Number of fluid components
     PetscInt, intent(in) :: num_phases     !! Number of fluid phases
     ! Locals:
+    PetscInt, parameter :: num_cells = 2
     PetscInt :: i
 
-    do i = 1, 2
+    allocate(self%cell(num_cells))
+    do i = 1, num_cells
        call self%cell(i)%init(num_components, num_phases)
     end do
 
@@ -154,6 +156,9 @@ contains
     nullify(self%distance)
     nullify(self%normal)
     nullify(self%centroid)
+    if (allocated(self%cell)) then
+       deallocate(self%cell)
+    end if
 
   end subroutine face_destroy
 
