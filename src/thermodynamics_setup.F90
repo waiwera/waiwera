@@ -29,7 +29,7 @@ contains
     use utils_module, only : str_to_lower
 
     type(fson_value), pointer, intent(in) :: json
-    class(thermodynamics_type), pointer, intent(in out) :: thermo
+    class(thermodynamics_type), allocatable, intent(in out) :: thermo
     ! Locals:
     character(max_thermo_ID_length) :: thermo_ID
 

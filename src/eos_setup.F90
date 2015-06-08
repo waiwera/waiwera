@@ -26,7 +26,7 @@ module eos_setup_module
 
     type(fson_value), pointer, intent(in) :: json
     class(thermodynamics_type), intent(in) :: thermo
-    class(eos_type), pointer, intent(in out) :: eos
+    class(eos_type), allocatable, intent(in out) :: eos
     ! Locals:
     character(max_eos_name_length), parameter :: &
          default_eos_name = "w"
