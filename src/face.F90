@@ -46,16 +46,18 @@ contains
     !! Initialises a face.
 
     class(face_type), intent(in out) :: self
-    PetscInt, intent(in) :: num_components !! Number of fluid components
-    PetscInt, intent(in) :: num_phases     !! Number of fluid phases
+    PetscInt, intent(in), optional :: num_components !! Number of fluid components
+    PetscInt, intent(in), optional :: num_phases     !! Number of fluid phases
     ! Locals:
     PetscInt, parameter :: num_cells = 2
     PetscInt :: i
 
     allocate(self%cell(num_cells))
-    do i = 1, num_cells
-       call self%cell(i)%init(num_components, num_phases)
-    end do
+    if ((present(num_components)) .and. (present(num_phases))) then
+       do i = 1, num_cells
+          call self%cell(i)%init(num_components, num_phases)
+       end do
+    end if
 
   end subroutine face_init
 
