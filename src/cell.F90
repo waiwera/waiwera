@@ -11,7 +11,7 @@ module cell_module
   implicit none
   private
 
-#include <petsc-finclude/petscdef.h>
+#include <petsc/finclude/petscdef.h>
 
   type cell_type
      !! Type for accessing local cell geometry, rock and

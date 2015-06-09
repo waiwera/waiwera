@@ -9,7 +9,7 @@ module eos_w_module
   implicit none
   private
 
-#include <petsc-finclude/petsc.h90>
+#include <petsc/finclude/petsc.h90>
 
   type, public, extends(eos_type) :: eos_w_type
      !! Isothermal pure water equation of state type.

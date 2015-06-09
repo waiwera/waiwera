@@ -4,7 +4,7 @@ module mpi_module
   implicit none
   private
 
-#include <petsc-finclude/petscdef.h>
+#include <petsc/finclude/petscdef.h>
 
   type, public :: mpi_type
      MPI_Comm, public :: comm !! MPI communicator

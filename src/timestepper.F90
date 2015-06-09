@@ -9,7 +9,7 @@ module timestepper_module
 
   private
 
-#include <petsc-finclude/petsc.h90>
+#include <petsc/finclude/petsc.h90>
 
   ! Timestepping methods
      PetscInt, parameter, public :: TS_BEULER = 0, TS_BDF2 = 1, TS_DIRECTSS = 2

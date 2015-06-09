@@ -6,8 +6,8 @@ module setup_module
 
   implicit none
 
-#include <petsc-finclude/petscsys.h>
-#include <petsc-finclude/petscdef.h>
+#include <petsc/finclude/petscsys.h>
+#include <petsc/finclude/petscdef.h>
 
 contains
 

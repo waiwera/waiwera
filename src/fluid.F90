@@ -5,7 +5,7 @@ module fluid_module
   implicit none
   private
 
-#include <petsc-finclude/petsc.h90>
+#include <petsc/finclude/petsc.h90>
 
   PetscInt, parameter, public :: num_phase_variables = 6
   PetscInt, parameter, public :: num_fluid_variables = 3

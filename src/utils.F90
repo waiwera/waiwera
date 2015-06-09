@@ -4,7 +4,7 @@ module utils_module
   implicit none
   private
 
-#include <petsc-finclude/petscdef.h>
+#include <petsc/finclude/petscdef.h>
 
   public :: str_to_upper, str_to_lower
   

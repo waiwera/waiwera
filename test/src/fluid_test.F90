@@ -10,7 +10,7 @@ module fluid_test
   implicit none
   private
 
-#include <petsc-finclude/petscdef.h>
+#include <petsc/finclude/petscdef.h>
 
 public :: test_fluid_assign, test_fluid_component_density, &
      test_fluid_energy

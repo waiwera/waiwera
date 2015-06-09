@@ -9,7 +9,7 @@ program supermodel
 
   implicit none
 
-#include <petsc-finclude/petscsys.h>
+#include <petsc/finclude/petscsys.h>
 
   type(fson_value), pointer :: json
   type(flow_simulation_type) :: sim

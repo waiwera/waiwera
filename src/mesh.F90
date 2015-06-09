@@ -8,7 +8,7 @@ module mesh_module
 
   private
 
-#include <petsc-finclude/petsc.h90>
+#include <petsc/finclude/petsc.h90>
 
   PetscInt, parameter, public :: max_mesh_filename_length = 200
 

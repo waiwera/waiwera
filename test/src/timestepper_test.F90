@@ -14,7 +14,7 @@ module timestepper_test
 
   private
 
-#include <petsc-finclude/petsc.h90>
+#include <petsc/finclude/petsc.h90>
 
   type, extends(ode_type) :: test_ode_type
      private

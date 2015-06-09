@@ -11,8 +11,8 @@ module fson_mpi_test
   implicit none
   private 
 
-#include <petsc-finclude/petscsys.h>
-#include <petsc-finclude/petscdef.h>
+#include <petsc/finclude/petscsys.h>
+#include <petsc/finclude/petscdef.h>
 
   character(len = 32), parameter :: filename = "data/fson_mpi/test_fson_mpi.json"
   public :: test_fson_mpi_int, test_fson_mpi_real, test_fson_mpi_double

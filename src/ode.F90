@@ -8,7 +8,7 @@ module ode_module
 
   private
 
-#include <petsc-finclude/petsc.h90>
+#include <petsc/finclude/petsc.h90>
 
   type, public, abstract :: ode_type
      private

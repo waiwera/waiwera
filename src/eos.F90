@@ -8,7 +8,7 @@ module eos_module
   implicit none
   private
 
-#include <petsc-finclude/petscdef.h>
+#include <petsc/finclude/petscdef.h>
 
   PetscInt, parameter, public :: max_eos_name_length = 8
   PetscInt, parameter, public :: max_eos_description_length = 80

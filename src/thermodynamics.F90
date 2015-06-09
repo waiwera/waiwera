@@ -6,7 +6,7 @@ module thermodynamics_module
   implicit none
   private
 
-#include <petsc-finclude/petscdef.h>
+#include <petsc/finclude/petscdef.h>
 
   PetscInt, parameter, public :: max_thermodynamics_name_length = 16
   PetscInt, parameter, public :: max_thermodynamic_region_name_length = 16

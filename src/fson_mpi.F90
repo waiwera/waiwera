@@ -10,8 +10,8 @@ module fson_mpi_module
   implicit none
   private
 
-#include <petsc-finclude/petscsys.h>
-#include <petsc-finclude/petscdef.h>
+#include <petsc/finclude/petscsys.h>
+#include <petsc/finclude/petscdef.h>
 
   interface fson_get_default
      module procedure fson_get_default_integer

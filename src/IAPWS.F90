@@ -17,7 +17,7 @@ module IAPWS_module
   implicit none
   private
 
-#include <petsc-finclude/petscdef.h>
+#include <petsc/finclude/petscdef.h>
 
 !------------------------------------------------------------------------
 ! Saturation curve type

@@ -11,8 +11,8 @@ module IAPWS_test
   implicit none
   private
 
-#include <petsc-finclude/petscsys.h>
-#include <petsc-finclude/petscdef.h>
+#include <petsc/finclude/petscsys.h>
+#include <petsc/finclude/petscdef.h>
 
   PetscReal, parameter :: density_tol = 1.e-5_dp, energy_tol = 1.e-2_dp
   PetscReal, parameter :: pressure_tol = 1.e-1_dp, temperature_tol = 1.e-6_dp

@@ -8,7 +8,7 @@ module utils_test
   implicit none
   private 
 
-#include <petsc-finclude/petscdef.h>
+#include <petsc/finclude/petscdef.h>
 
   public :: test_str_to_upper, test_str_to_lower
 

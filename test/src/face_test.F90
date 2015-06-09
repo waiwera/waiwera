@@ -10,7 +10,7 @@ module face_test
   implicit none
   private
 
-#include <petsc-finclude/petscdef.h>
+#include <petsc/finclude/petscdef.h>
 
 public :: test_face
 

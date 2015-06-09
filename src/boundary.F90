@@ -4,7 +4,7 @@ module boundary_module
   implicit none
   private
 
-#include <petsc-finclude/petsc.h90>
+#include <petsc/finclude/petsc.h90>
 
   character(len = 16), public :: open_boundary_label_name = "open boundary"
 

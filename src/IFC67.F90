@@ -12,7 +12,7 @@ module IFC67_module
   implicit none
   private
 
-#include <petsc-finclude/petscsys.h>
+#include <petsc/finclude/petscsys.h>
 
   PetscReal, parameter :: tcriticalk67 = 647.3_dp        ! Critical temperature (Kelvin)
   PetscReal, parameter :: tcritical67 = tcriticalk67 - tc_k

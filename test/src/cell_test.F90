@@ -10,7 +10,7 @@ module cell_test
   implicit none
   private
 
-#include <petsc-finclude/petscdef.h>
+#include <petsc/finclude/petscdef.h>
 
 public :: test_cell_assign, test_cell_balance
 

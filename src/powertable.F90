@@ -8,7 +8,7 @@ module powertable_module
   implicit none
   private
 
-#include <petsc-finclude/petscdef.h>
+#include <petsc/finclude/petscdef.h>
 
   type :: product_pointer_type
      private

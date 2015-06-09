@@ -4,7 +4,7 @@ module dm_utils_module
   implicit none
   private
 
-#include <petsc-finclude/petsc.h90>
+#include <petsc/finclude/petsc.h90>
 
   public :: set_dm_data_layout, section_offset, vec_section
 

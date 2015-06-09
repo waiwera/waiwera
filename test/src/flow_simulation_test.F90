@@ -11,7 +11,7 @@ module flow_simulation_test
   implicit none
   private
 
-#include <petsc-finclude/petsc.h90>
+#include <petsc/finclude/petsc.h90>
 
 public :: test_flow_simulation_init, &
      test_flow_simulation_fluid_properties, test_flow_simulation_lhs

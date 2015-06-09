@@ -10,7 +10,7 @@ module eos_setup_module
   implicit none
   private
 
-#include <petsc-finclude/petsc.h90>
+#include <petsc/finclude/petsc.h90>
 
   public :: setup_eos
 

@@ -10,7 +10,7 @@ module flow_simulation_module
 
   private
 
-#include <petsc-finclude/petsc.h90>
+#include <petsc/finclude/petsc.h90>
 
   PetscInt, parameter, public :: max_title_length = 120
 

@@ -11,7 +11,7 @@ module mesh_test
   implicit none
   private
 
-#include <petsc-finclude/petsc.h90>
+#include <petsc/finclude/petsc.h90>
 
 public :: test_mesh_init
 

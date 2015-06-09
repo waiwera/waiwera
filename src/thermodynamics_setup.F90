@@ -10,7 +10,7 @@ module thermodynamics_setup_module
   implicit none
   private
 
-#include <petsc-finclude/petscdef.h>
+#include <petsc/finclude/petscdef.h>
 
   PetscInt, parameter :: max_thermo_ID_length = 8
   character(max_thermo_ID_length), parameter :: &
