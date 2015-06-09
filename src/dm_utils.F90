@@ -25,32 +25,33 @@ contains
     PetscSection :: section
     PetscInt :: num_fields, i, num_bc
     PetscInt, allocatable, target :: num_dof(:)
-    PetscInt, pointer :: pnumcomp(:)
-    PetscInt, pointer :: pnumdof(:)
-    PetscInt, target :: bcfield(1)
-    PetscInt, pointer :: pbcfield(:)
-    IS, target :: bcpointIS(1)
-    IS, pointer :: pbcpointIS(:)
+    PetscInt, target :: bc_field(1)
+    IS, target :: bc_comps(1), bc_points(1)
+    PetscInt, pointer :: pnum_components(:), pnum_dof(:), pbc_field(:)
+    IS, pointer :: pbc_comps(:), pbc_points(:)
     PetscErrorCode :: ierr
 
     call DMGetDimension(dm, dim, ierr); CHKERRQ(ierr)
     num_fields = size(num_components)
-    pnumcomp => num_components
     allocate(num_dof(num_fields*(dim+1)))
     num_dof = 0
     do i = 1, num_fields
        num_dof((i-1) * (dim+1) + field_dim(i) + 1) = num_components(i)
     end do
-    pnumdof => num_dof
 
     ! Boundary conditions (none):
     num_bc = 0
-    bcfield = 0; pbcfield => bcfield
-    pbcpointIS => bcpointIS
+    bc_field(1) = 0
 
-    call DMPlexCreateSection(dm, dim, num_fields, pnumcomp, &
-         pnumdof, num_bc, pbcfield, pBcPointIS, PETSC_NULL_OBJECT, &
-         section, ierr); CHKERRQ(ierr)
+    pnum_components => num_components
+    pnum_dof => num_dof
+    pbc_field => bc_field
+    pbc_comps => bc_comps
+    pbc_points => bc_points
+
+    call DMPlexCreateSection(dm, dim, num_fields, pnum_components, &
+         pnum_dof, num_bc, pbc_field, pbc_comps, pbc_points, &
+         PETSC_NULL_OBJECT, section, ierr); CHKERRQ(ierr)
 
     if (present(field_name)) then
        do i = 1, num_fields
