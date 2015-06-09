@@ -138,6 +138,7 @@ contains
     ! replace this with set_dm_data_layout()?
     call PetscSectionCreate(mpi%comm, face_section, ierr); CHKERRQ(ierr)
     call PetscSectionSetChart(face_section, fStart, fEnd, ierr); CHKERRQ(ierr)
+    call face%init()
     face_dof = face%dof()
     do f = fstart, fend - 1
        call PetscSectionSetDof(face_section, f, face_dof, ierr); CHKERRQ(ierr)
