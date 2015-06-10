@@ -78,6 +78,7 @@ contains
     end if
     call VecDestroy(x, ierr)
 
+    call face%init()
     facedof = face%dof()
 
     ! Check face geometry:
