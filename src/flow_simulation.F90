@@ -196,8 +196,8 @@ contains
     PetscInt, pointer :: cells(:)
     PetscErrorCode :: ierr
 
-    call VecGetArrayF90(rhs, rhs_array, ierr); CHKERRQ(ierr)
     call vec_section(rhs, rhs_section)
+    call VecGetArrayF90(rhs, rhs_array, ierr); CHKERRQ(ierr)
     rhs_array = 0._dp
 
     call vec_section(self%mesh%cell_geom, cell_geom_section)
@@ -218,7 +218,7 @@ contains
     call DMPlexGetLabel(self%mesh%dm, "ghost", ghost_label, ierr)
     CHKERRQ(ierr)
 
-    do f = 1, self%mesh%start_face, self%mesh%end_face - 1
+    do f = self%mesh%start_face, self%mesh%end_face - 1
 
        call DMLabelGetValue(ghost_label, f, ghost, ierr); CHKERRQ(ierr)
        if (ghost < 0) then
