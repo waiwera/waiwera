@@ -173,16 +173,89 @@ contains
     !! time.
 
     use kinds_module
+    use dm_utils_module, only: section_offset, vec_section, &
+         local_vec_section
+    use face_module, only: face_type
 
     class(flow_simulation_type), intent(in out) :: self
     PetscReal, intent(in) :: t !! time
     Vec, intent(in) :: y !! global primary variables vector
     Vec, intent(out) :: rhs
     ! Locals:
+    PetscInt :: f, ghost, i
+    Vec :: local_fluid, local_rock
+    PetscReal, pointer :: rhs_array(:)
+    PetscReal, pointer :: cell_geom_array(:), face_geom_array(:)
+    PetscReal, pointer :: fluid_array(:), rock_array(:)
+    PetscSection :: rhs_section, rock_section, fluid_section
+    PetscSection :: cell_geom_section, face_geom_section
+    type(face_type) :: face
+    PetscInt :: face_geom_offset, cell_geom_offsets(2)
+    PetscInt :: rock_offsets(2), fluid_offsets(2), rhs_offsets(2)
+    DMLabel :: ghost_label
+    PetscInt, pointer :: cells(:)
     PetscErrorCode :: ierr
 
-    ! Dummy zero inflows:
-    call VecSet(rhs, 0.0_dp, ierr); CHKERRQ(ierr)
+    call VecGetArrayF90(rhs, rhs_array, ierr); CHKERRQ(ierr)
+    call vec_section(rhs, rhs_section)
+    rhs_array = 0._dp
+
+    call vec_section(self%mesh%cell_geom, cell_geom_section)
+    call VecGetArrayF90(self%mesh%cell_geom, cell_geom_array, ierr)
+    CHKERRQ(ierr)
+    call vec_section(self%mesh%face_geom, face_geom_section)
+    call VecGetArrayF90(self%mesh%face_geom, face_geom_array, ierr)
+    CHKERRQ(ierr)
+
+    call local_vec_section(self%fluid, local_fluid, fluid_section)
+    call VecGetArrayF90(local_fluid, fluid_array, ierr); CHKERRQ(ierr)
+
+    call local_vec_section(self%rock, local_rock, rock_section)
+    call VecGetArrayF90(local_rock, rock_array, ierr); CHKERRQ(ierr)
+
+    call face%init(self%eos%num_components, self%eos%num_phases)
+
+    call DMPlexGetLabel(self%mesh%dm, "ghost", ghost_label, ierr)
+    CHKERRQ(ierr)
+
+    do f = 1, self%mesh%start_face, self%mesh%end_face - 1
+
+       call DMLabelGetValue(ghost_label, f, ghost, ierr); CHKERRQ(ierr)
+       if (ghost < 0) then
+
+          call section_offset(face_geom_section, f, face_geom_offset, &
+               ierr); CHKERRQ(ierr)
+
+          call DMPlexGetSupport(self%mesh%dm, f, cells, ierr); CHKERRQ(ierr)
+          do i = 1, 2
+             call section_offset(cell_geom_section, cells(i), &
+                  cell_geom_offsets(i), ierr); CHKERRQ(ierr)
+             call section_offset(fluid_section, cells(i), &
+                  fluid_offsets(i), ierr); CHKERRQ(ierr)
+             call section_offset(rock_section, cells(i), &
+                  rock_offsets(i), ierr); CHKERRQ(ierr)
+             call section_offset(rhs_section, cells(i), rhs_offsets(i), &
+                  ierr); CHKERRQ(ierr)
+          end do
+
+          call face%assign(face_geom_array, face_geom_offset, &
+               cell_geom_array, cell_geom_offsets, &
+               rock_array, rock_offsets, fluid_array, fluid_offsets)
+
+       end if
+    end do
+
+
+    call VecRestoreArrayF90(local_rock, rock_array, ierr); CHKERRQ(ierr)
+    call VecRestoreArrayF90(local_fluid, fluid_array, ierr); CHKERRQ(ierr)
+
+    call VecRestoreArrayF90(self%mesh%face_geom, face_geom_array, ierr)
+    CHKERRQ(ierr)
+    call VecRestoreArrayF90(self%mesh%cell_geom, cell_geom_array, ierr)
+    CHKERRQ(ierr)
+    call VecRestoreArrayF90(rhs, rhs_array, ierr); CHKERRQ(ierr)
+
+    call face%destroy()
 
   end subroutine flow_simulation_cell_inflows
 
