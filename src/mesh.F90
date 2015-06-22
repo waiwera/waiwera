@@ -20,6 +20,7 @@ module mesh_module
      Vec, public :: cell_geom, face_geom
      PetscInt, public :: start_cell, end_cell, end_interior_cell
      PetscInt, public :: num_cells, num_interior_cells
+     PetscInt, public :: start_face, end_face
    contains
      procedure :: distribute => mesh_distribute
      procedure :: construct_ghost_cells => mesh_construct_ghost_cells
@@ -117,7 +118,7 @@ contains
     Vec :: petsc_face_geom
     DM :: dm_face
     PetscSection :: face_section, petsc_face_section, cell_section
-    PetscInt :: fstart, fend, f, face_dof, ghost, i
+    PetscInt :: f, face_dof, ghost, i
     PetscInt :: face_offset, petsc_face_offset
     PetscInt :: cell_offset(2)
     type(face_type) :: face
@@ -134,13 +135,13 @@ contains
 
     ! Set up face geometry vector:
     call DMClone(self%dm, dm_face, ierr); CHKERRQ(ierr)
-    call DMPlexGetHeightStratum(self%dm, 1, fStart, fEnd, ierr); CHKERRQ(ierr)
     ! replace this with set_dm_data_layout()?
     call PetscSectionCreate(mpi%comm, face_section, ierr); CHKERRQ(ierr)
-    call PetscSectionSetChart(face_section, fStart, fEnd, ierr); CHKERRQ(ierr)
+    call PetscSectionSetChart(face_section, self%start_face, &
+         self%end_face, ierr); CHKERRQ(ierr)
     call face%init()
     face_dof = face%dof()
-    do f = fstart, fend - 1
+    do f = self%start_face, self%end_face - 1
        call PetscSectionSetDof(face_section, f, face_dof, ierr); CHKERRQ(ierr)
     end do
     call PetscSectionSetUp(face_section, ierr); CHKERRQ(ierr)
@@ -157,7 +158,7 @@ contains
 
     call DMPlexGetLabel(self%dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
 
-    do f = fstart, fend - 1
+    do f = self%start_face, self%end_face - 1
 
        call DMLabelGetValue(ghost_label, f, ghost, ierr); CHKERRQ(ierr)
        if (ghost < 0) then
@@ -217,6 +218,9 @@ contains
 
     self%num_cells = self%end_cell - self%start_cell
     self%num_interior_cells = self%end_interior_cell - self%start_cell
+
+    call DMPlexGetHeightStratum(self%dm, 1, self%start_face, &
+         self%end_face, ierr); CHKERRQ(ierr)
 
   end subroutine mesh_get_bounds
 
