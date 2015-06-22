@@ -6,7 +6,8 @@ module dm_utils_module
 
 #include <petsc/finclude/petsc.h90>
 
-  public :: set_dm_data_layout, section_offset, vec_section
+  public :: set_dm_data_layout, section_offset
+  public :: vec_section, local_vec_section
 
 contains
 
@@ -99,6 +100,31 @@ contains
     call DMGetDefaultSection(dm, section, ierr); CHKERRQ(ierr)
 
   end subroutine vec_section
+
+!------------------------------------------------------------------------
+
+  subroutine local_vec_section(v, local_v, section)
+    !! Takes a global vector v and returns a local vector, with values
+    !! scattered from the global vector, and the default PETSc section
+    !! from the DM of the global vector.
+
+    Vec, intent(in) :: v
+    Vec, intent(out) :: local_v
+    PetscSection, intent(out) :: section
+    ! Locals:
+    DM :: dm
+    PetscErrorCode :: ierr
+
+    call VecGetDM(v, dm, ierr); CHKERRQ(ierr)
+    call DMGetDefaultSection(dm, section, ierr); CHKERRQ(ierr)
+
+    call DMGetLocalVector(dm, local_v, ierr); CHKERRQ(ierr)
+    call DMGlobalToLocalBegin(dm, v, INSERT_VALUES, local_v, ierr)
+    CHKERRQ(ierr)
+    call DMGlobalToLocalEnd(dm, v, INSERT_VALUES, local_v, ierr)
+    CHKERRQ(ierr)
+
+  end subroutine local_vec_section
 
 !------------------------------------------------------------------------
 
