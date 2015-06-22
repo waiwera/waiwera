@@ -157,11 +157,10 @@ contains
 
     end do
 
+    call cell%destroy()
     call VecRestoreArrayReadF90(self%fluid, fluid_array, ierr); CHKERRQ(ierr)
     call VecRestoreArrayReadF90(self%rock, rock_array, ierr); CHKERRQ(ierr)
     call VecRestoreArrayF90(lhs, lhs_array, ierr); CHKERRQ(ierr)
-
-    call cell%destroy()
 
   end subroutine flow_simulation_cell_balances
 
@@ -245,17 +244,14 @@ contains
        end if
     end do
 
-
+    call face%destroy()
     call VecRestoreArrayF90(local_rock, rock_array, ierr); CHKERRQ(ierr)
     call VecRestoreArrayF90(local_fluid, fluid_array, ierr); CHKERRQ(ierr)
-
     call VecRestoreArrayF90(self%mesh%face_geom, face_geom_array, ierr)
     CHKERRQ(ierr)
     call VecRestoreArrayF90(self%mesh%cell_geom, cell_geom_array, ierr)
     CHKERRQ(ierr)
     call VecRestoreArrayF90(rhs, rhs_array, ierr); CHKERRQ(ierr)
-
-    call face%destroy()
 
   end subroutine flow_simulation_cell_inflows
 
