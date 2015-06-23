@@ -168,9 +168,9 @@ contains
 !------------------------------------------------------------------------
 
   subroutine flow_simulation_cell_inflows(self, t, y, rhs)
-    !! Computes net inflow into each cell, from flows through faces and
-    !! source terms, for the given primary thermodynamic variables and
-    !! time.
+    !! Computes net inflow (per unit volume) into each cell, from
+    !! flows through faces and source terms, for the given primary
+    !! thermodynamic variables and time.
 
     use kinds_module
     use dm_utils_module, only: section_offset, vec_section, &
@@ -259,7 +259,7 @@ contains
                   ierr); CHKERRQ(ierr)
              if (ghost_cell < 0) then
                 inflow => rhs_array(rhs_offsets(i) : rhs_offsets(i) + np - 1)
-                inflow = inflow + flux_sign(i) * flux
+                inflow = inflow + flux_sign(i) * flux / face%cell(i)%volume
              end if
           end do
 
