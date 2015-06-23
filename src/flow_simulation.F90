@@ -182,7 +182,7 @@ contains
     Vec, intent(in) :: y !! global primary variables vector
     Vec, intent(out) :: rhs
     ! Locals:
-    PetscInt :: f, ghost, i
+    PetscInt :: f, ghost_face, ghost_cell, i, np, nc
     Vec :: local_fluid, local_rock
     PetscReal, pointer :: rhs_array(:)
     PetscReal, pointer :: cell_geom_array(:), face_geom_array(:)
@@ -194,7 +194,14 @@ contains
     PetscInt :: rock_offsets(2), fluid_offsets(2), rhs_offsets(2)
     DMLabel :: ghost_label
     PetscInt, pointer :: cells(:)
+    PetscReal, pointer :: inflow(:)
+    PetscReal, allocatable :: flux(:)
+    PetscReal, parameter :: flux_sign(2) = [1._dp, -1._dp]
     PetscErrorCode :: ierr
+
+    np = self%eos%num_primary_variables
+    nc = self%eos%num_components
+    allocate(flux(np))
 
     call vec_section(rhs, rhs_section)
     call VecGetArrayF90(rhs, rhs_array, ierr); CHKERRQ(ierr)
@@ -220,8 +227,8 @@ contains
 
     do f = self%mesh%start_face, self%mesh%end_face - 1
 
-       call DMLabelGetValue(ghost_label, f, ghost, ierr); CHKERRQ(ierr)
-       if (ghost < 0) then
+       call DMLabelGetValue(ghost_label, f, ghost_face, ierr); CHKERRQ(ierr)
+       if (ghost_face < 0) then
 
           call section_offset(face_geom_section, f, face_geom_offset, &
                ierr); CHKERRQ(ierr)
@@ -242,17 +249,36 @@ contains
                cell_geom_array, cell_geom_offsets, &
                rock_array, rock_offsets, fluid_array, fluid_offsets)
 
+          flux(1: nc) = face%mass_flux()
+          if (.not.(self%eos%isothermal)) then
+             flux(np) = face%energy_flux()
+          end if
+
+          do i = 1, 2
+             call DMLabelGetValue(ghost_label, cells(i), ghost_cell, &
+                  ierr); CHKERRQ(ierr)
+             if (ghost_cell < 0) then
+                inflow => rhs_array(rhs_offsets(i) : rhs_offsets(i) + np - 1)
+                inflow = inflow + flux_sign(i) * flux
+             end if
+          end do
+
        end if
     end do
 
     call face%destroy()
-    call VecRestoreArrayF90(local_rock, rock_array, ierr); CHKERRQ(ierr)
-    call VecRestoreArrayF90(local_fluid, fluid_array, ierr); CHKERRQ(ierr)
+    nullify(inflow)
     call VecRestoreArrayF90(self%mesh%face_geom, face_geom_array, ierr)
     CHKERRQ(ierr)
+
+    ! TODO: source term loop will go here
+
+    call VecRestoreArrayF90(local_rock, rock_array, ierr); CHKERRQ(ierr)
+    call VecRestoreArrayF90(local_fluid, fluid_array, ierr); CHKERRQ(ierr)
     call VecRestoreArrayF90(self%mesh%cell_geom, cell_geom_array, ierr)
     CHKERRQ(ierr)
     call VecRestoreArrayF90(rhs, rhs_array, ierr); CHKERRQ(ierr)
+    deallocate(flux)
 
   end subroutine flow_simulation_cell_inflows
 
