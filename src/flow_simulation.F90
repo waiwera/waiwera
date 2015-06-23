@@ -158,6 +158,7 @@ contains
     end do
 
     call cell%destroy()
+    nullify(balance)
     call VecRestoreArrayReadF90(self%fluid, fluid_array, ierr); CHKERRQ(ierr)
     call VecRestoreArrayReadF90(self%rock, rock_array, ierr); CHKERRQ(ierr)
     call VecRestoreArrayF90(lhs, lhs_array, ierr); CHKERRQ(ierr)
