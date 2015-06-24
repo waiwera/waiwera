@@ -22,6 +22,7 @@ module flow_simulation_module
      Vec, public :: fluid
      class(thermodynamics_type), allocatable, public :: thermo
      class(eos_type), allocatable, public :: eos
+     PetscReal, public :: gravity
    contains
      private
      procedure, public :: init => flow_simulation_init
@@ -39,6 +40,7 @@ contains
   subroutine flow_simulation_init(self, json)
     !! Initializes a flow simulation using data from the specified JSON object.
 
+    use kinds_module
     use mpi_module
     use fson
     use fson_mpi_module
@@ -52,6 +54,7 @@ contains
     type(fson_value), pointer, intent(in) :: json
     ! Locals:
     character(len = max_title_length), parameter :: default_title = ""
+    PetscReal, parameter :: default_gravity = 9.8_dp
     PetscErrorCode :: ierr
 
     call fson_get_mpi(json, "title", default_title, self%title)
@@ -67,6 +70,7 @@ contains
     call setup_fluid_vector(self%mesh%dm, self%eos%num_phases, &
          self%eos%num_components, self%fluid)
     call setup_rock_vector(json, self%mesh%dm, self%rock)
+    call fson_get_mpi(json, "gravity", default_gravity, self%gravity)
 
   end subroutine flow_simulation_init
 
@@ -249,7 +253,7 @@ contains
                cell_geom_array, cell_geom_offsets, &
                rock_array, rock_offsets, fluid_array, fluid_offsets)
 
-          flux(1: nc) = face%mass_flux()
+          flux(1: nc) = face%mass_flux(self%gravity)
           if (.not.(self%eos%isothermal)) then
              flux(np) = face%energy_flux()
           end if
