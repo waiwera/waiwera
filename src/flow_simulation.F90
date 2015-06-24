@@ -151,11 +151,7 @@ contains
                rock_data = rock_array, rock_offset = rock_offset, &
                fluid_data = fluid_array, fluid_offset = fluid_offset)
 
-          balance(1: nc) = cell%mass_balance()
-
-          if (.not.(self%eos%isothermal)) then
-             balance(np) = cell%energy_balance()
-          end if
+          balance = cell%balance(self%eos%isothermal)
 
        end if
 
