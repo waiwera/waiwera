@@ -280,11 +280,11 @@ contains
     class(face_type), intent(in) :: self
     ! Locals:
     PetscReal :: kcell(2)
-    PetscInt :: i, dirn
+    PetscInt :: i, direction
 
-    dirn = nint(self%permeability_direction)
+    direction = nint(self%permeability_direction)
     do i = 1, 2
-       kcell(i) = self%cell(i)%rock%permeability(dirn)
+       kcell(i) = self%cell(i)%rock%permeability(direction)
     end do
     K = self%harmonic_average(kcell)
 
