@@ -182,6 +182,7 @@ contains
           do i = 1, 2
              face%distance(i) = norm2(face%centroid - face%cell(i)%centroid)
           end do
+          call face%calculate_permeability_direction()
 
        end if
 

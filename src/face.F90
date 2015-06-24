@@ -25,6 +25,8 @@ module face_module
      procedure, public :: assign => face_assign
      procedure, public :: dof => face_dof
      procedure, public :: destroy => face_destroy
+     procedure, public :: calculate_permeability_direction => &
+          face_calculate_permeability_direction
      procedure, public :: normal_gradient => face_normal_gradient
      procedure, public :: pressure_gradient => face_pressure_gradient
      procedure, public :: temperature_gradient => face_temperature_gradient
@@ -154,7 +156,7 @@ contains
 
     class(face_type), intent(in) :: self
     ! Locals:
-    PetscInt, parameter :: fixed_dof = 9
+    PetscInt, parameter :: fixed_dof = 10
 
     face_dof = fixed_dof
 
@@ -176,6 +178,22 @@ contains
     end if
 
   end subroutine face_destroy
+
+!------------------------------------------------------------------------
+
+  subroutine face_calculate_permeability_direction(self)
+    !! Calculates permeability direction for the face, being the
+    !! coordinate axis most closely aligned with the face normal
+    !! vector.
+
+    class(face_type), intent(in out) :: self
+    ! Locals:
+    PetscInt :: index
+
+    index = maxloc(abs(self%normal), 1)
+    self%permeability_direction = dble(index)
+
+  end subroutine face_calculate_permeability_direction
 
 !------------------------------------------------------------------------
 
