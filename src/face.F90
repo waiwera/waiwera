@@ -312,14 +312,14 @@ contains
 
 !------------------------------------------------------------------------
 
-  function face_flux(self, gravity, isothermal) result(flux)
+  function face_flux(self, isothermal, gravity) result(flux)
     !! Returns array containing the mass fluxes for each component
     !! through the face, from cell(1) to cell(2). If isothermal is
     !! .false., the energy flux is also returned.
 
     class(face_type), intent(in) :: self
-    PetscReal, intent(in) :: gravity
     PetscBool, intent(in) :: isothermal
+    PetscReal, intent(in) :: gravity
     PetscReal :: flux(self%cell(1)%fluid%num_components)
     ! Locals:
     PetscInt :: nc

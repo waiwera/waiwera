@@ -248,7 +248,7 @@ contains
                cell_geom_array, cell_geom_offsets, &
                rock_array, rock_offsets, fluid_array, fluid_offsets)
 
-          flux = face%flux(self%gravity, self%eos%isothermal)
+          flux = face%flux(self%eos%isothermal, self%gravity)
 
           do i = 1, 2
              call DMLabelGetValue(ghost_label, cells(i), ghost_cell, &
