@@ -337,11 +337,13 @@ contains
        density = self%cell(iup)%fluid%phase(p)%density
        visc = self%cell(iup)%fluid%phase(p)%viscosity
 
+       ! Mass flows:
        F = -k * kr * density / visc * G
        phase_flux = F * self%cell(iup)%fluid%phase(p)%mass_fraction
        flux(1:nc) = flux(1:nc) + phase_flux
 
        if (.not.isothermal) then
+          ! Heat convection:
           h = self%cell(iup)%fluid%phase(p)%specific_enthalpy
           flux(nc+1) = flux(nc+1) + h * sum(phase_flux)
        end if
