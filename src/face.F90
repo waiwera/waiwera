@@ -98,6 +98,7 @@ contains
     self%distance => face_geom_data(face_geom_offset + 1: face_geom_offset + 2)
     self%normal => face_geom_data(face_geom_offset + 3: face_geom_offset + 5)
     self%centroid => face_geom_data(face_geom_offset + 6: face_geom_offset + 8)
+    self%permeability_direction => face_geom_data(face_geom_offset + 9)
 
     if ((present(cell_geom_data)).and.(present(cell_geom_offsets))) then
 
@@ -173,6 +174,7 @@ contains
     nullify(self%distance)
     nullify(self%normal)
     nullify(self%centroid)
+    nullify(self%permeability_direction)
     if (allocated(self%cell)) then
        deallocate(self%cell)
     end if
