@@ -25,6 +25,7 @@ module face_module
      procedure, public :: assign => face_assign
      procedure, public :: dof => face_dof
      procedure, public :: destroy => face_destroy
+     procedure, public :: normal_gradient => face_normal_gradient
      procedure, public :: pressure_gradient => face_pressure_gradient
      procedure, public :: temperature_gradient => face_temperature_gradient
      procedure, public :: average_phase_density => face_average_phase_density
@@ -178,13 +179,32 @@ contains
 
 !------------------------------------------------------------------------
 
+  PetscReal function face_normal_gradient(self, x) result(grad)
+    !! Returns gradient along normal vector of the two cell values
+    !! x. This assumes that the line joining the two cell centroids is
+    !! orthogonal to the face.
+
+    class(face_type), intent(in) :: self
+    PetscReal, intent(in) :: x(2)
+
+    grad = (x(2) - x(1)) / self%distance12
+
+  end function face_normal_gradient
+
+!------------------------------------------------------------------------
+
   PetscReal function face_pressure_gradient(self) result(dpdn)
     !! Returns pressure gradient across the face.
 
     class(face_type), intent(in) :: self
-
-    dpdn = (self%cell(2)%fluid%pressure - &
-         self%cell(1)%fluid%pressure) / self%distance12
+    ! Locals:
+    PetscReal :: p(2)
+    PetscInt :: i
+    
+    do i = 1, 2
+       p(i) = self%cell(i)%fluid%pressure
+    end do
+    dpdn = self%normal_gradient(p)
 
   end function face_pressure_gradient
 
@@ -194,9 +214,14 @@ contains
     !! Returns temperature gradient across the face.
 
     class(face_type), intent(in) :: self
+    ! Locals:
+    PetscReal :: t(2)
+    PetscInt :: i
 
-    dtdn = (self%cell(2)%fluid%temperature - &
-         self%cell(1)%fluid%temperature) / self%distance12
+    do i = 1, 2
+       t(i) = self%cell(i)%fluid%temperature
+    end do
+    dtdn = self%normal_gradient(t)
 
   end function face_temperature_gradient
 
