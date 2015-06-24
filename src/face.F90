@@ -1,6 +1,7 @@
 module face_module
   !! Defines type for accessing local quantities defined on a mesh face.
 
+  use kinds_module
   use cell_module
 
   implicit none
@@ -15,13 +16,22 @@ module face_module
      PetscReal, pointer, public :: distance(:) !! cell centroid distances on either side of the face
      PetscReal, pointer, public :: normal(:) !! normal vector to face
      PetscReal, pointer, public :: centroid(:) !! centroid of face
+     PetscReal, pointer, public :: permeability_direction !! direction of permeability (1.. 3)
      type(cell_type), allocatable, public :: cell(:) !! cells on either side of face
+     PetscReal, public :: distance12 !! distance between cell centroids
    contains
      private
      procedure, public :: init => face_init
      procedure, public :: assign => face_assign
      procedure, public :: dof => face_dof
      procedure, public :: destroy => face_destroy
+     procedure, public :: pressure_gradient => face_pressure_gradient
+     procedure, public :: temperature_gradient => face_temperature_gradient
+     procedure, public :: average_phase_density => face_average_phase_density
+     procedure, public :: harmonic_average => face_harmonic_average
+     procedure, public :: permeability => face_permeability
+     procedure, public :: heat_conductivity => face_heat_conductivity
+     procedure, public :: flux => face_flux
   end type face_type
 
   type petsc_face_type
@@ -130,6 +140,8 @@ contains
 
        end if
 
+       self%distance12 = sum(self%distance)
+
     end if
 
   end subroutine face_assign
@@ -163,6 +175,155 @@ contains
     end if
 
   end subroutine face_destroy
+
+!------------------------------------------------------------------------
+
+  PetscReal function face_pressure_gradient(self) result(dpdn)
+    !! Returns pressure gradient across the face.
+
+    class(face_type), intent(in) :: self
+
+    dpdn = (self%cell(2)%fluid%pressure - &
+         self%cell(1)%fluid%pressure) / self%distance12
+
+  end function face_pressure_gradient
+
+!------------------------------------------------------------------------
+
+  PetscReal function face_temperature_gradient(self) result(dtdn)
+    !! Returns temperature gradient across the face.
+
+    class(face_type), intent(in) :: self
+
+    dtdn = (self%cell(2)%fluid%temperature - &
+         self%cell(1)%fluid%temperature) / self%distance12
+
+  end function face_temperature_gradient
+
+!------------------------------------------------------------------------
+
+  PetscReal function face_average_phase_density(self, p) result(rho)
+    !! Returns phase density on the face for a given phase, arithmetically
+    !! averaged between the two cells.
+
+    class(face_type), intent(in) :: self
+    PetscInt, intent(in) :: p
+
+    rho = 0.5_dp * (self%cell(1)%fluid%phase(p)%density + &
+         self%cell(2)%fluid%phase(p)%density)
+
+  end function face_average_phase_density
+
+!------------------------------------------------------------------------
+
+  PetscReal function face_harmonic_average(self, x) result(xh)
+    !! Returns harmonic average of the two cell values x, based on the
+    !! distances of the cell centroids from the face.
+
+    class(face_type), intent(in) :: self
+    PetscReal, intent(in) :: x(2)
+
+    xh = self%distance12 * x(1) * x(2) / &
+         (self%distance(1) * x(2) + self%distance(2) * x(1))
+
+  end function face_harmonic_average
+
+!------------------------------------------------------------------------
+
+  PetscReal function face_permeability(self) result(k)
+    !! Returns effective permeability on the face, harmonically averaged
+    !! between the two cells.
+
+    class(face_type), intent(in) :: self
+    ! Locals:
+    PetscReal :: kcell(2)
+    PetscInt :: i, dirn
+
+    dirn = nint(self%permeability_direction)
+    do i = 1, 2
+       kcell(i) = self%cell(i)%rock%permeability(dirn)
+    end do
+    K = self%harmonic_average(kcell)
+
+  end function face_permeability
+
+!------------------------------------------------------------------------
+
+  PetscReal function face_heat_conductivity(self) result(K)
+    !! Returns effective heat conductivity on the face, harmonically
+    !! averaged between the two cells.
+
+    class(face_type), intent(in) :: self
+    ! Locals:
+    PetscReal :: kcell(2)
+    PetscInt :: i
+
+    do i = 1, 2
+       kcell(i) = self%cell(i)%rock%heat_conductivity
+    end do
+    K = self%harmonic_average(kcell)
+
+  end function face_heat_conductivity
+
+!------------------------------------------------------------------------
+
+  function face_flux(self, gravity, isothermal) result(flux)
+    !! Returns array containing the mass fluxes for each component
+    !! through the face, from cell(1) to cell(2). If isothermal is
+    !! .false., the energy flux is also returned.
+
+    class(face_type), intent(in) :: self
+    PetscReal, intent(in) :: gravity
+    PetscBool, intent(in) :: isothermal
+    PetscReal :: flux(self%cell(1)%fluid%num_components)
+    ! Locals:
+    PetscInt :: nc
+    PetscInt :: p, iup
+    PetscReal :: dpdn, dtdn, gn, G, average_density, F
+    PetscReal :: phase_flux(self%cell(1)%fluid%num_components)
+    PetscReal :: kr, visc, density, k, h, cond
+
+    nc = self%cell(1)%fluid%num_components
+    dpdn = self%pressure_gradient()
+    gn = gravity * self%normal(3)
+    k = self%permeability()
+
+    flux = 0._dp
+
+    if (.not.isothermal) then
+       ! Heat conduction:
+       cond = self%heat_conductivity()
+       dtdn = self%temperature_gradient()
+       flux(nc+1) = -cond * dtdn
+    end if
+
+    do p = 1, self%cell(1)%fluid%num_phases
+
+       average_density = self%average_phase_density(p)
+       G = dpdn + average_density * gn
+
+       ! Upstream weighting:
+       if (G <= 0._dp) then
+          iup = 1
+       else
+          iup = 2
+       end if
+       kr = self%cell(iup)%fluid%phase(p)%relative_permeability
+       density = self%cell(iup)%fluid%phase(p)%density
+       visc = self%cell(iup)%fluid%phase(p)%viscosity
+
+       F = -k * kr * density / visc * G
+       phase_flux = F * self%cell(iup)%fluid%phase(p)%mass_fraction
+       flux(1:nc) = flux(1:nc) + phase_flux
+
+       if (.not.isothermal) then
+          h = self%cell(iup)%fluid%phase(p)%specific_enthalpy
+          flux(nc+1) = flux(nc+1) + h * sum(phase_flux)
+       end if
+
+    end do
+
+  end function face_flux
 
 !------------------------------------------------------------------------
 ! petsc_face_type routines

@@ -186,7 +186,7 @@ contains
     Vec, intent(in) :: y !! global primary variables vector
     Vec, intent(out) :: rhs
     ! Locals:
-    PetscInt :: f, ghost_face, ghost_cell, i, np, nc
+    PetscInt :: f, ghost_face, ghost_cell, i, np
     Vec :: local_fluid, local_rock
     PetscReal, pointer :: rhs_array(:)
     PetscReal, pointer :: cell_geom_array(:), face_geom_array(:)
@@ -204,7 +204,6 @@ contains
     PetscErrorCode :: ierr
 
     np = self%eos%num_primary_variables
-    nc = self%eos%num_components
     allocate(flux(np))
 
     call vec_section(rhs, rhs_section)
@@ -253,10 +252,7 @@ contains
                cell_geom_array, cell_geom_offsets, &
                rock_array, rock_offsets, fluid_array, fluid_offsets)
 
-          flux(1: nc) = face%mass_flux(self%gravity)
-          if (.not.(self%eos%isothermal)) then
-             flux(np) = face%energy_flux()
-          end if
+          flux = face%flux(self%gravity, self%eos%isothermal)
 
           do i = 1, 2
              call DMLabelGetValue(ghost_label, cells(i), ghost_cell, &
