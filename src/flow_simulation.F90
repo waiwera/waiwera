@@ -207,17 +207,17 @@ contains
     rhs_array = 0._dp
 
     call vec_section(self%mesh%cell_geom, cell_geom_section)
-    call VecGetArrayF90(self%mesh%cell_geom, cell_geom_array, ierr)
+    call VecGetArrayReadF90(self%mesh%cell_geom, cell_geom_array, ierr)
     CHKERRQ(ierr)
     call vec_section(self%mesh%face_geom, face_geom_section)
-    call VecGetArrayF90(self%mesh%face_geom, face_geom_array, ierr)
+    call VecGetArrayReadF90(self%mesh%face_geom, face_geom_array, ierr)
     CHKERRQ(ierr)
 
     call local_vec_section(self%fluid, local_fluid, fluid_section)
-    call VecGetArrayF90(local_fluid, fluid_array, ierr); CHKERRQ(ierr)
+    call VecGetArrayReadF90(local_fluid, fluid_array, ierr); CHKERRQ(ierr)
 
     call local_vec_section(self%rock, local_rock, rock_section)
-    call VecGetArrayF90(local_rock, rock_array, ierr); CHKERRQ(ierr)
+    call VecGetArrayReadF90(local_rock, rock_array, ierr); CHKERRQ(ierr)
 
     call face%init(self%eos%num_components, self%eos%num_phases)
 
@@ -264,14 +264,14 @@ contains
 
     call face%destroy()
     nullify(inflow)
-    call VecRestoreArrayF90(self%mesh%face_geom, face_geom_array, ierr)
+    call VecRestoreArrayReadF90(self%mesh%face_geom, face_geom_array, ierr)
     CHKERRQ(ierr)
 
     ! TODO: source term loop will go here
 
-    call VecRestoreArrayF90(local_rock, rock_array, ierr); CHKERRQ(ierr)
-    call VecRestoreArrayF90(local_fluid, fluid_array, ierr); CHKERRQ(ierr)
-    call VecRestoreArrayF90(self%mesh%cell_geom, cell_geom_array, ierr)
+    call VecRestoreArrayReadF90(local_rock, rock_array, ierr); CHKERRQ(ierr)
+    call VecRestoreArrayReadF90(local_fluid, fluid_array, ierr); CHKERRQ(ierr)
+    call VecRestoreArrayReadF90(self%mesh%cell_geom, cell_geom_array, ierr)
     CHKERRQ(ierr)
     call VecRestoreArrayF90(rhs, rhs_array, ierr); CHKERRQ(ierr)
     deallocate(flux)
