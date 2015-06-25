@@ -54,15 +54,16 @@ contains
 !------------------------------------------------------------------------
 
   subroutine test_cell_balance
-    !! Test cell mass and energy balance routines
+    !! Test cell mass and energy balance routine
 
     type(cell_type) :: cell
     PetscReal, allocatable :: rock_data(:), fluid_data(:)
     PetscInt, parameter :: rock_offset = 1, fluid_offset = 1
     PetscInt, parameter :: num_components = 2, num_phases = 2
-    PetscReal :: mb(num_components), eb
-    PetscReal, parameter :: expected_mb(num_components) = [52.372_dp, 22.458_dp]
-    PetscReal, parameter :: expected_eb = 2.8545448e8_dp
+    PetscBool, parameter :: isothermal = .false.
+    PetscReal :: bal(num_components + 1)
+    PetscReal, parameter :: expected_bal(num_components + 1) = &
+         [52.372_dp, 22.458_dp, 2.8545448e8_dp]
     PetscReal, parameter :: tol = 1.e-6_dp
 
     if (mpi%rank == mpi%output_rank) then
@@ -77,11 +78,9 @@ contains
        call cell%assign(rock_data = rock_data, rock_offset = rock_offset, &
             fluid_data = fluid_data, fluid_offset = fluid_offset)
 
-       mb = cell%mass_balance()
-       eb = cell%energy_balance()
+       bal = cell%balance(isothermal)
 
-       call assert_equals(expected_mb, mb, num_components, tol, "cell mass balance")
-       call assert_equals(expected_eb, eb, tol, "cell energy balance")
+       call assert_equals(expected_bal, bal, num_components+1, tol, "cell balance")
 
        call cell%destroy()
        deallocate(rock_data, fluid_data)
