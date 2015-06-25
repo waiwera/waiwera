@@ -12,7 +12,7 @@ module face_test
 
 #include <petsc/finclude/petscdef.h>
 
-public :: test_face
+public :: test_face_assign
 
 PetscReal, parameter :: tol = 1.e-6_dp
 
@@ -20,9 +20,9 @@ contains
   
 !------------------------------------------------------------------------
 
-  subroutine test_face
+  subroutine test_face_assign
 
-    ! Face test
+    ! Face assign() test
 
     type(face_type) :: face
     PetscReal, parameter :: area = 300._dp
@@ -55,7 +55,7 @@ contains
 
     end if
 
-  end subroutine test_face
+  end subroutine test_face_assign
 
 !------------------------------------------------------------------------
 
