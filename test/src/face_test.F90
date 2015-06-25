@@ -12,7 +12,8 @@ module face_test
 
 #include <petsc/finclude/petscdef.h>
 
-public :: test_face_assign, test_face_permeability_direction
+public :: test_face_assign, test_face_permeability_direction, &
+     test_face_normal_gradient
 
 PetscReal, parameter :: tol = 1.e-6_dp
 
@@ -35,6 +36,8 @@ contains
     PetscReal, allocatable :: face_data(:)
 
     if (mpi%rank == mpi%output_rank) then
+
+       call face%init()
 
        face_data = [offset_padding, area, distance, normal, centroid, &
             permeability_direction]
@@ -82,6 +85,8 @@ contains
 
     if (mpi%rank == mpi%output_rank) then
 
+       call face%init()
+
        do i = 1, num_tests
 
           face_data = [area, distance, normal(:,i), centroid, &
@@ -101,6 +106,54 @@ contains
     end if
 
   end subroutine test_face_permeability_direction
+
+!------------------------------------------------------------------------
+
+  subroutine test_face_normal_gradient
+
+    ! Face normal_gradient() test
+
+    use cell_module
+
+    type(face_type) :: face
+    type(cell_type) :: cell
+    PetscInt :: face_dof, cell_dof
+    PetscReal, parameter :: distance(2) = [25._dp, 32._dp]
+    PetscReal, allocatable :: face_data(:)
+    PetscReal, allocatable :: cell_data(:)
+    PetscInt :: face_offset, cell_offsets(2)
+    PetscReal :: x(2), g, expected_d12, expected_g
+
+    if (mpi%rank == mpi%output_rank) then
+
+       call face%init()
+       face_dof = face%dof()
+       cell_dof = cell%dof()
+
+       allocate(face_data(face_dof), cell_data(cell_dof * 2))
+       face_offset = 1
+       cell_offsets = [1, 1 + cell_dof]
+       face_data = 0._dp
+       face_data(2:3) = distance
+       cell_data = 0._dp
+
+       call face%assign(face_data, face_offset, cell_data, cell_offsets)
+
+       x = [240._dp, 170._dp]
+
+       g = face%normal_gradient(x)
+
+       expected_d12 = sum(distance)
+       call assert_equals(expected_d12, face%distance12, tol, "face distance12")
+       
+       expected_g = (x(2) - x(1))/ expected_d12
+       call assert_equals(expected_g, g, tol, "face normal gradient")
+
+       deallocate(face_data, cell_data)
+
+    end if
+
+  end subroutine test_face_normal_gradient
 
 !------------------------------------------------------------------------
 
