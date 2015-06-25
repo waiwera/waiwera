@@ -29,13 +29,15 @@ contains
     PetscReal, parameter :: distance(2) = [20._dp, 30._dp]
     PetscReal, parameter :: normal(3) = [0.5_dp, -0.25_dp, 0.75_dp]
     PetscReal, parameter :: centroid(3) = [-1250._dp, 3560._dp, -2530._dp]
+    PetscReal, parameter :: permeability_direction = dble(2)
     PetscInt, parameter :: offset = 6
     PetscReal :: offset_padding(offset-1) = 0._dp
     PetscReal, allocatable :: face_data(:)
 
     if (mpi%rank == mpi%output_rank) then
 
-       face_data = [offset_padding, area, distance, normal, centroid]
+       face_data = [offset_padding, area, distance, normal, centroid, &
+            permeability_direction]
 
        call assert_equals(face%dof(), size(face_data) - (offset-1), "face dof")
 
@@ -45,6 +47,8 @@ contains
        call assert_equals(0._dp, norm2(face%distance - distance), tol, "distances")
        call assert_equals(0._dp, norm2(face%normal - normal), tol, "normal")
        call assert_equals(0._dp, norm2(face%centroid - centroid), tol, "centroid")
+       call assert_equals(permeability_direction, face%permeability_direction, &
+            tol, "permeability direction")
 
        call face%destroy()
        deallocate(face_data)
