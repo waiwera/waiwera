@@ -119,10 +119,13 @@ contains
     type(cell_type) :: cell
     PetscInt :: face_dof, cell_dof
     PetscReal, parameter :: distance(2) = [25._dp, 32._dp]
+    PetscReal, parameter :: x(2) = [240._dp, 170._dp]
+    PetscReal, parameter :: expected_d12 = 57._dp
+    PetscReal, parameter :: expected_g = -1.22807017544_dp
     PetscReal, allocatable :: face_data(:)
     PetscReal, allocatable :: cell_data(:)
     PetscInt :: face_offset, cell_offsets(2)
-    PetscReal :: x(2), g, expected_d12, expected_g
+    PetscReal :: g
 
     if (mpi%rank == mpi%output_rank) then
 
@@ -139,14 +142,9 @@ contains
 
        call face%assign(face_data, face_offset, cell_data, cell_offsets)
 
-       x = [240._dp, 170._dp]
-
        g = face%normal_gradient(x)
 
-       expected_d12 = sum(distance)
        call assert_equals(expected_d12, face%distance12, tol, "face distance12")
-       
-       expected_g = (x(2) - x(1))/ expected_d12
        call assert_equals(expected_g, g, tol, "face normal gradient")
 
        deallocate(face_data, cell_data)
