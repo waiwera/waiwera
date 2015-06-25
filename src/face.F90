@@ -37,6 +37,11 @@ module face_module
      procedure, public :: flux => face_flux
   end type face_type
 
+  PetscInt, parameter :: num_face_variables = 5
+  PetscInt, parameter, public :: &
+       face_variable_num_components(num_face_variables) = &
+       [1, 2, 3, 3, 1]
+
   type petsc_face_type
      !! Type for accessing face geometry parameters calculated by
      !! PETSc DMPlexTSGetGeometryFVM().
@@ -156,10 +161,8 @@ contains
     !! Returns number of degrees of freedom in a face object.
 
     class(face_type), intent(in) :: self
-    ! Locals:
-    PetscInt, parameter :: fixed_dof = 10
 
-    face_dof = fixed_dof
+    face_dof = sum(face_variable_num_components)
 
   end function face_dof
 
