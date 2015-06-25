@@ -18,6 +18,7 @@ digraph supermodel{
         flow_simulation_module -> dm_utils_module
         flow_simulation_module -> eos_module
         flow_simulation_module -> eos_setup_module
+        flow_simulation_module -> face_module
         flow_simulation_module -> fluid_module
         flow_simulation_module -> fson
         flow_simulation_module -> fson_mpi_module
@@ -31,6 +32,7 @@ digraph supermodel{
         flow_simulation_module -> thermodynamics_setup_module
         thermodynamics_module -> kinds_module
         face_module -> cell_module
+        face_module -> kinds_module
         initial_module -> fson
         initial_module -> fson_mpi_module
         initial_module -> fson_value_m
