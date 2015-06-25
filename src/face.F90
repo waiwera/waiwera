@@ -105,6 +105,8 @@ contains
     self%centroid => face_geom_data(face_geom_offset + 6: face_geom_offset + 8)
     self%permeability_direction => face_geom_data(face_geom_offset + 9)
 
+    self%distance12 = sum(self%distance)
+
     if ((present(cell_geom_data)).and.(present(cell_geom_offsets))) then
 
        if ((present(cell_fluid_data)).and.(present(cell_fluid_offsets))) then
@@ -148,8 +150,6 @@ contains
           end if
 
        end if
-
-       self%distance12 = sum(self%distance)
 
     end if
 
