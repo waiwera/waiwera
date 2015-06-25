@@ -30,6 +30,11 @@ module cell_module
      procedure, public :: balance => cell_balance
   end type cell_type
 
+  PetscInt, parameter :: num_cell_variables = 2
+  PetscInt, parameter, public :: &
+       cell_variable_num_components(num_cell_variables) = &
+       [1, 3]
+
   public :: cell_type
 
 contains
@@ -96,10 +101,8 @@ contains
     !! Returns number of degrees of freedom in a cell object.
 
     class(cell_type), intent(in) :: self
-    ! Locals:
-    PetscInt, parameter :: fixed_dof = 4
 
-    cell_dof = fixed_dof
+    cell_dof = sum(cell_variable_num_components)
 
   end function cell_dof
 
