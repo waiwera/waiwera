@@ -323,7 +323,7 @@ contains
     class(face_type), intent(in) :: self
     PetscBool, intent(in) :: isothermal
     PetscReal, intent(in) :: gravity
-    PetscReal :: flux(self%cell(1)%fluid%num_components)
+    PetscReal, allocatable :: flux(:)
     ! Locals:
     PetscInt :: nc
     PetscInt :: p, iup
@@ -336,14 +336,16 @@ contains
     gn = gravity * self%normal(3)
     k = self%permeability()
 
-    flux = 0._dp
-
-    if (.not.isothermal) then
+    if (isothermal) then
+       allocate(flux(nc))
+    else
+       allocate(flux(nc + 1))
        ! Heat conduction:
        cond = self%heat_conductivity()
        dtdn = self%temperature_gradient()
-       flux(nc+1) = -cond * dtdn
+       flux(nc + 1) = -cond * dtdn
     end if
+    flux(1: nc) = 0._dp
 
     do p = 1, self%cell(1)%fluid%num_phases
 
@@ -368,7 +370,7 @@ contains
        if (.not.isothermal) then
           ! Heat convection:
           h = self%cell(iup)%fluid%phase(p)%specific_enthalpy
-          flux(nc+1) = flux(nc+1) + h * sum(phase_flux)
+          flux(nc + 1) = flux(nc + 1) + h * sum(phase_flux)
        end if
 
     end do
