@@ -195,12 +195,12 @@ contains
     DMLabel :: ghost_label
     PetscInt, pointer :: cells(:)
     PetscReal, pointer :: inflow(:)
-    PetscReal, allocatable :: flux(:)
+    PetscReal, allocatable :: face_flow(:)
     PetscReal, parameter :: flux_sign(2) = [1._dp, -1._dp]
     PetscErrorCode :: ierr
 
     np = self%eos%num_primary_variables
-    allocate(flux(np))
+    allocate(face_flow(np))
 
     call vec_section(rhs, rhs_section)
     call VecGetArrayF90(rhs, rhs_array, ierr); CHKERRQ(ierr)
@@ -248,14 +248,16 @@ contains
                cell_geom_array, cell_geom_offsets, &
                rock_array, rock_offsets, fluid_array, fluid_offsets)
 
-          flux = face%flux(self%eos%isothermal, self%gravity)
+          face_flow = face%flux(self%eos%isothermal, self%gravity) * &
+               face%area
 
           do i = 1, 2
              call DMLabelGetValue(ghost_label, cells(i), ghost_cell, &
                   ierr); CHKERRQ(ierr)
              if (ghost_cell < 0) then
                 inflow => rhs_array(rhs_offsets(i) : rhs_offsets(i) + np - 1)
-                inflow = inflow + flux_sign(i) * flux / face%cell(i)%volume
+                inflow = inflow + flux_sign(i) * face_flow / &
+                     face%cell(i)%volume
              end if
           end do
 
@@ -274,7 +276,7 @@ contains
     call VecRestoreArrayReadF90(self%mesh%cell_geom, cell_geom_array, ierr)
     CHKERRQ(ierr)
     call VecRestoreArrayF90(rhs, rhs_array, ierr); CHKERRQ(ierr)
-    deallocate(flux)
+    deallocate(face_flow)
 
   end subroutine flow_simulation_cell_inflows
 
