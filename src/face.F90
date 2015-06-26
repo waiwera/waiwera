@@ -88,8 +88,8 @@ contains
     !! starting from the given offsets.
 
     class(face_type), intent(in out) :: self
-    PetscReal, target, intent(in) :: face_geom_data(:)  !! array with face geometry data
-    PetscInt, intent(in)  :: face_geom_offset  !! face geometry array offset for this face
+    PetscReal, target, intent(in), optional :: face_geom_data(:)  !! array with face geometry data
+    PetscInt, intent(in), optional  :: face_geom_offset  !! face geometry array offset for this face
     PetscReal, target, intent(in), optional :: cell_geom_data(:)  !! array with cell geometry data
     PetscInt, intent(in), optional  :: cell_geom_offsets(:)  !! cell geometry array offsets for the face cells
     PetscReal, target, intent(in), optional :: cell_rock_data(:)  !! array with cell rock data
@@ -98,59 +98,34 @@ contains
     PetscInt, intent(in), optional  :: cell_fluid_offsets(:)  !! cell fluid array offsets for the face cells
     ! Locals:
     PetscInt :: i
-    
-    self%area => face_geom_data(face_geom_offset)
-    self%distance => face_geom_data(face_geom_offset + 1: face_geom_offset + 2)
-    self%normal => face_geom_data(face_geom_offset + 3: face_geom_offset + 5)
-    self%centroid => face_geom_data(face_geom_offset + 6: face_geom_offset + 8)
-    self%permeability_direction => face_geom_data(face_geom_offset + 9)
 
-    self%distance12 = sum(self%distance)
+    if ((present(face_geom_data)).and.(present(face_geom_offset))) then
+       self%area => face_geom_data(face_geom_offset)
+       self%distance => face_geom_data(face_geom_offset + 1: face_geom_offset + 2)
+       self%normal => face_geom_data(face_geom_offset + 3: face_geom_offset + 5)
+       self%centroid => face_geom_data(face_geom_offset + 6: face_geom_offset + 8)
+       self%permeability_direction => face_geom_data(face_geom_offset + 9)
+       self%distance12 = sum(self%distance)
+    end if
 
     if ((present(cell_geom_data)).and.(present(cell_geom_offsets))) then
+       do i = 1, 2
+          call self%cell(i)%assign(cell_geom_data, cell_geom_offsets(i))
+       end do
+    end if
 
-       if ((present(cell_fluid_data)).and.(present(cell_fluid_offsets))) then
+    if ((present(cell_rock_data)).and.(present(cell_rock_offsets))) then
+       do i = 1, 2
+          call self%cell(i)%assign(rock_data = cell_rock_data, &
+               rock_offset = cell_rock_offsets(i))
+       end do
+    end if
 
-          if ((present(cell_rock_data)).and.(present(cell_rock_offsets))) then
-             ! Assign geometry, rock and fluid:
-
-             do i = 1, 2
-                call self%cell(i)%assign(cell_geom_data, cell_geom_offsets(i), &
-                     cell_rock_data, cell_rock_offsets(i), &
-                     cell_fluid_data, cell_fluid_offsets(i))
-             end do
-
-          else
-             ! Assign geometry and fluid:
-
-             do i = 1, 2
-                call self%cell(i)%assign(cell_geom_data, cell_geom_offsets(i), &
-                     fluid_data = cell_fluid_data, fluid_offset = cell_fluid_offsets(i))
-             end do
-
-          end if
-
-       else
-       
-          if ((present(cell_rock_data)).and.(present(cell_rock_offsets))) then
-             ! Assign geometry and rock:
-
-             do i = 1, 2
-                call self%cell(i)%assign(cell_geom_data, cell_geom_offsets(i), &
-                     cell_rock_data, cell_rock_offsets(i))
-             end do
-
-          else
-             ! Assign geometry:
-
-             do i = 1, 2
-                call self%cell(i)%assign(cell_geom_data, cell_geom_offsets(i))
-             end do
-
-          end if
-
-       end if
-
+    if ((present(cell_fluid_data)).and.(present(cell_fluid_offsets))) then
+       do i = 1, 2
+          call self%cell(i)%assign(fluid_data = cell_fluid_data, &
+               fluid_offset = cell_fluid_offsets(i))
+       end do
     end if
 
   end subroutine face_assign
