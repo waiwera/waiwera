@@ -345,6 +345,8 @@ contains
   subroutine test_face_flux_hydrostatic
 
     ! Face flux() test, vertical hydrostatic
+    ! Pressure in cell 2 is chosen (by solving a nonlinear equation)
+    ! to make the pressure gradient balance the gravity term exactly.
 
     use cell_module
     use rock_module
@@ -383,10 +385,10 @@ contains
             1.e-14_dp, 2.e-14_dp, 3.e-15_dp,  2.5_dp,  0.1_dp, &
             2200._dp, 1000._dp]
        fluid_data = [ &
-            2.e5_dp, 20._dp, 1._dp, & 
+            2.e5_dp, 20._dp, 1._dp, &                ! cell 1
             998.2512244888_dp, 0.00100156652270771_dp, 1._dp, 1._dp, &
             84105.9189422008_dp, 83905.5685743839_dp, 1._dp, &
-            7.87050606076185e5_dp, 20._dp, 1._dp, & 
+            7.87050606076185e5_dp, 20._dp, 1._dp, &  ! cell 2
             998.5195444779_dp, 0.00100138700807062_dp, 1._dp, 1._dp, &
             84658.2021844106_dp, 83869.9846573438_dp, 1._dp]
 
@@ -412,6 +414,7 @@ contains
   subroutine test_face_flux_two_phase_vertical
 
     ! Face flux() test, 2-phase vertical
+    ! The cells have different rock and two-phase fluid properties.
 
     use cell_module
     use rock_module
