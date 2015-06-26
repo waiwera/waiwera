@@ -13,9 +13,12 @@ module face_test
 #include <petsc/finclude/petscdef.h>
 
 public :: test_face_assign, test_face_permeability_direction, &
-     test_face_normal_gradient, test_face_harmonic_average
+     test_face_normal_gradient, test_face_harmonic_average, &
+     test_face_flux_zero_horizontal, test_face_flux_vertical_gravity, &
+     test_face_flux_two_phase_vertical
 
 PetscReal, parameter :: tol = 1.e-6_dp
+PetscReal, parameter :: mass_tol = 1.e-10_dp, heat_tol = 1.e-6
 
 contains
   
@@ -203,6 +206,212 @@ contains
     end if
 
   end subroutine test_face_harmonic_average
+
+!------------------------------------------------------------------------
+
+  subroutine test_face_flux_zero_horizontal
+
+    ! Face flux() test, 1-phase horizontal
+    ! Fluid properties in the two cells are identical, so the fluxes
+    ! should be zero.
+
+    use cell_module
+    use rock_module
+    use fluid_module
+
+    PetscInt, parameter :: nc = 1, np = 1
+    PetscBool, parameter :: isothermal = .false.
+    PetscReal, parameter :: gravity = 9.8_dp
+    type(face_type) :: face
+    type(cell_type) :: cell
+    type(rock_type) :: rock
+    type(fluid_type) :: fluid
+    PetscReal, allocatable :: face_data(:), cell_data(:)
+    PetscReal, allocatable :: rock_data(:), fluid_data(:)
+    PetscReal, allocatable :: flux(:)
+    PetscInt :: face_offset, cell_offsets(2)
+    PetscInt :: rock_offsets(2), fluid_offsets(2)
+    PetscReal, parameter :: expected_mass_flux = 0._dp
+    PetscReal, parameter :: expected_heat_flux = 0._dp
+
+    if (mpi%rank == mpi%output_rank) then
+
+       call face%init(nc, np)
+       call fluid%init(nc, np)
+       allocate(face_data(face%dof()), cell_data(cell%dof()))
+       allocate(rock_data(rock%dof()), fluid_data(fluid%dof()))
+       allocate(flux(nc + 1))
+       face_offset = 1
+       cell_offsets = [1, 1]
+       rock_offsets = [1, 1]
+       fluid_offsets = [1, 1]
+       face_data = [0._dp,  25._dp, 35._dp,  1._dp, 0._dp, 0._dp, &
+            0._dp, 0._dp, 0._dp, 1._dp]
+       cell_data = 0._dp ! not needed
+       rock_data = [ &
+            1.e-14_dp, 2.e-14_dp, 3.e-15_dp,  2.5_dp,  0.1_dp, &
+            2200._dp, 1000._dp]
+       fluid_data = [ &
+            1.e5_dp, 20._dp, 1._dp, & 
+            998.2_dp, 1.e-3_dp, 1._dp, 1._dp, &
+            84011.8_dp, 83911.6_dp, 1._dp]
+
+       call face%assign(face_data, face_offset, cell_data, cell_offsets, &
+            rock_data, rock_offsets, fluid_data, fluid_offsets)
+
+       flux = face%flux(isothermal, gravity)
+
+       call assert_equals(nc + 1, size(flux), "Flux array size")
+       call assert_equals(expected_mass_flux, flux(1), tol, "Mass flux")
+       call assert_equals(expected_heat_flux, flux(2), tol, "Heat flux")
+
+       call face%destroy()
+       deallocate(face_data, cell_data, rock_data, fluid_data)
+       deallocate(flux)
+       call fluid%destroy()
+
+    end if
+
+  end subroutine test_face_flux_zero_horizontal
+
+!------------------------------------------------------------------------
+
+  subroutine test_face_flux_vertical_gravity
+
+    ! Face flux() test, 1-phase vertical, gravity only
+    ! Fluid properties in both cells are identical, so the only flow
+    ! is from gravity.
+
+    use cell_module
+    use rock_module
+    use fluid_module
+
+    PetscInt, parameter :: nc = 1, np = 1
+    PetscBool, parameter :: isothermal = .false.
+    PetscReal, parameter :: gravity = 9.8_dp
+    type(face_type) :: face
+    type(cell_type) :: cell
+    type(rock_type) :: rock
+    type(fluid_type) :: fluid
+    PetscReal, allocatable :: face_data(:), cell_data(:)
+    PetscReal, allocatable :: rock_data(:), fluid_data(:)
+    PetscReal, allocatable :: flux(:)
+    PetscInt :: face_offset, cell_offsets(2)
+    PetscInt :: rock_offsets(2), fluid_offsets(2)
+    PetscReal, parameter :: expected_mass_flux = 2.9294255256e-5_dp
+    PetscReal, parameter :: expected_heat_flux = 2.4610631137_dp
+
+    if (mpi%rank == mpi%output_rank) then
+
+       call face%init(nc, np)
+       call fluid%init(nc, np)
+       allocate(face_data(face%dof()), cell_data(cell%dof()))
+       allocate(rock_data(rock%dof()), fluid_data(fluid%dof()))
+       allocate(flux(nc + 1))
+       face_offset = 1
+       cell_offsets = [1, 1]
+       rock_offsets = [1, 1]
+       fluid_offsets = [1, 1]
+       face_data = [0._dp,  25._dp, 35._dp,  0._dp, 0._dp, -1._dp, &
+            0._dp, 0._dp, 0._dp, 3._dp]
+       cell_data = 0._dp ! not needed
+       rock_data = [ &
+            1.e-14_dp, 2.e-14_dp, 3.e-15_dp,  2.5_dp,  0.1_dp, &
+            2200._dp, 1000._dp]
+       fluid_data = [ &
+            1.e5_dp, 20._dp, 1._dp, & 
+            998.2_dp, 1.e-3_dp, 1._dp, 1._dp, &
+            84011.8_dp, 83911.6_dp, 1._dp]
+
+       call face%assign(face_data, face_offset, cell_data, cell_offsets, &
+            rock_data, rock_offsets, fluid_data, fluid_offsets)
+
+       flux = face%flux(isothermal, gravity)
+
+       call assert_equals(expected_mass_flux, flux(1), mass_tol, "Mass flux")
+       call assert_equals(expected_heat_flux, flux(2), heat_tol, "Heat flux")
+
+       call face%destroy()
+       deallocate(face_data, cell_data, rock_data, fluid_data)
+       deallocate(flux)
+       call fluid%destroy()
+
+    end if
+
+  end subroutine test_face_flux_vertical_gravity
+
+!------------------------------------------------------------------------
+
+  subroutine test_face_flux_two_phase_vertical
+
+    ! Face flux() test, 2-phase vertical
+
+    use cell_module
+    use rock_module
+    use fluid_module
+
+    PetscInt, parameter :: nc = 1, np = 2
+    PetscBool, parameter :: isothermal = .false.
+    PetscReal, parameter :: gravity = 9.8_dp
+    type(face_type) :: face
+    type(cell_type) :: cell
+    type(rock_type) :: rock
+    type(fluid_type) :: fluid
+    PetscReal, allocatable :: face_data(:), cell_data(:)
+    PetscReal, allocatable :: rock_data(:), fluid_data(:)
+    PetscReal, allocatable :: flux(:)
+    PetscInt :: face_offset, cell_offsets(2)
+    PetscInt :: rock_offsets(2), fluid_offsets(2)
+    PetscReal, parameter :: expected_mass_flux = 9.16974670293235e-5_dp
+    PetscReal, parameter :: expected_heat_flux = 58.061787312_dp
+
+    if (mpi%rank == mpi%output_rank) then
+
+       call face%init(nc, np)
+       call fluid%init(nc, np)
+       allocate(face_data(face%dof()), cell_data(cell%dof()))
+       allocate(rock_data(rock%dof() * 2), fluid_data(fluid%dof() * 2))
+       allocate(flux(nc + 1))
+       face_offset = 1
+       cell_offsets = [1, 1]
+       rock_offsets = [1, 1 + rock%dof()]
+       fluid_offsets = [1, 1 + fluid%dof()]
+       face_data = [0._dp,  25._dp, 35._dp,  0._dp, 0._dp, -1._dp, 0._dp, &
+            0._dp, 0._dp, 3._dp]
+       cell_data = 0._dp ! not needed
+       rock_data = [ &
+            1.e-14_dp, 2.e-14_dp, 3.e-15_dp,  2.5_dp,  0.1_dp, &  ! cell 1
+            2200._dp, 1000._dp, &
+            2.e-14_dp, 3.e-14_dp, 6.e-15_dp,  2.7_dp,  0.05_dp, & ! cell 2
+            2300._dp, 995._dp]
+       fluid_data = [ &
+            6.2e5_dp, 160._dp, 4._dp, &               ! cell 1
+            907.45_dp, 1.7e-4_dp, 0.25_dp, 0.75_dp, & ! liquid
+            675574.7_dp, 674893.5_dp, 1._dp, &
+            3.26_dp, 1.43e-5_dp, 0.75_dp, 0.25_dp, &  ! vapour
+            2757430.53_dp, 2567774.0_dp, 1._dp, &
+            8.2e5_dp, 171.44_dp, 4._dp, &             ! cell 2
+            895.98_dp, 1.58e-4_dp, 0.4_dp, 0.6_dp, &  ! liquid
+            725517.1_dp, 724601.9_dp, 1._dp, &
+            4.26_dp, 1.47e-5_dp, 0.6_dp, 0.4_dp, &    ! vapour
+            2769308.8_dp, 2576807.25_dp, 1._dp]
+
+       call face%assign(face_data, face_offset, cell_data, cell_offsets, &
+            rock_data, rock_offsets, fluid_data, fluid_offsets)
+
+       flux = face%flux(isothermal, gravity)
+
+       call assert_equals(expected_mass_flux, flux(1), mass_tol, "Mass flux")
+       call assert_equals(expected_heat_flux, flux(2), heat_tol, "Heat flux")
+
+       call face%destroy()
+       deallocate(face_data, cell_data, rock_data, fluid_data)
+       deallocate(flux)
+       call fluid%destroy()
+
+    end if
+
+  end subroutine test_face_flux_two_phase_vertical
 
 !------------------------------------------------------------------------
 
