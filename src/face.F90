@@ -34,6 +34,7 @@ module face_module
      procedure, public :: harmonic_average => face_harmonic_average
      procedure, public :: permeability => face_permeability
      procedure, public :: heat_conductivity => face_heat_conductivity
+     procedure, public :: upstream_index => face_upstream_index
      procedure, public :: flux => face_flux
   end type face_type
 
@@ -290,6 +291,23 @@ contains
 
 !------------------------------------------------------------------------
 
+  PetscInt function face_upstream_index(self, gradient) result(index)
+    !! Returns index of upstream cell for a given effective pressure
+    !! gradient (including gravity term).
+
+    class(face_type), intent(in) :: self
+    PetscReal, intent(in) :: gradient
+
+    if (gradient <= 0._dp) then
+       index = 1
+    else
+       index = 2
+    end if
+
+  end function face_upstream_index
+
+!------------------------------------------------------------------------
+
   function face_flux(self, isothermal, gravity) result(flux)
     !! Returns array containing the mass fluxes for each component
     !! through the face, from cell(1) to cell(2). If isothermal is
@@ -327,12 +345,7 @@ contains
        average_density = self%average_phase_density(p)
        G = dpdn + average_density * gn
 
-       ! Upstream weighting:
-       if (G <= 0._dp) then
-          iup = 1
-       else
-          iup = 2
-       end if
+       iup = self%upstream_index(G)
        kr = self%cell(iup)%fluid%phase(p)%relative_permeability
        density = self%cell(iup)%fluid%phase(p)%density
        visc = self%cell(iup)%fluid%phase(p)%viscosity
