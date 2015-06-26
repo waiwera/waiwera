@@ -15,7 +15,7 @@ module face_test
 public :: test_face_assign, test_face_permeability_direction, &
      test_face_normal_gradient, test_face_harmonic_average, &
      test_face_flux_zero_horizontal, test_face_flux_vertical_gravity, &
-     test_face_flux_two_phase_vertical
+     test_face_flux_hydrostatic, test_face_flux_two_phase_vertical
 
 PetscReal, parameter :: tol = 1.e-6_dp
 PetscReal, parameter :: mass_tol = 1.e-10_dp, heat_tol = 1.e-6
@@ -339,6 +339,73 @@ contains
     end if
 
   end subroutine test_face_flux_vertical_gravity
+
+!------------------------------------------------------------------------
+
+  subroutine test_face_flux_hydrostatic
+
+    ! Face flux() test, vertical hydrostatic
+
+    use cell_module
+    use rock_module
+    use fluid_module
+
+    PetscInt, parameter :: nc = 1, np = 1
+    PetscBool, parameter :: isothermal = .false.
+    PetscReal, parameter :: gravity = 9.8_dp
+    type(face_type) :: face
+    type(cell_type) :: cell
+    type(rock_type) :: rock
+    type(fluid_type) :: fluid
+    PetscReal, allocatable :: face_data(:), cell_data(:)
+    PetscReal, allocatable :: rock_data(:), fluid_data(:)
+    PetscReal, allocatable :: flux(:)
+    PetscInt :: face_offset, cell_offsets(2)
+    PetscInt :: rock_offsets(2), fluid_offsets(2)
+    PetscReal, parameter :: expected_mass_flux = 0._dp
+    PetscReal, parameter :: expected_heat_flux = 0._dp
+
+    if (mpi%rank == mpi%output_rank) then
+
+       call face%init(nc, np)
+       call fluid%init(nc, np)
+       allocate(face_data(face%dof()), cell_data(cell%dof()))
+       allocate(rock_data(rock%dof()), fluid_data(fluid%dof()*2))
+       allocate(flux(nc + 1))
+       face_offset = 1
+       cell_offsets = [1, 1]
+       rock_offsets = [1, 1]
+       fluid_offsets = [1, 1 + fluid%dof()]
+       face_data = [0._dp,  25._dp, 35._dp,  0._dp, 0._dp, -1._dp, &
+            0._dp, 0._dp, 0._dp, 3._dp]
+       cell_data = 0._dp ! not needed
+       rock_data = [ &
+            1.e-14_dp, 2.e-14_dp, 3.e-15_dp,  2.5_dp,  0.1_dp, &
+            2200._dp, 1000._dp]
+       fluid_data = [ &
+            2.e5_dp, 20._dp, 1._dp, & 
+            998.2512244888_dp, 0.00100156652270771_dp, 1._dp, 1._dp, &
+            84105.9189422008_dp, 83905.5685743839_dp, 1._dp, &
+            7.87050606076185e5_dp, 20._dp, 1._dp, & 
+            998.5195444779_dp, 0.00100138700807062_dp, 1._dp, 1._dp, &
+            84658.2021844106_dp, 83869.9846573438_dp, 1._dp]
+
+       call face%assign(face_data, face_offset, cell_data, cell_offsets, &
+            rock_data, rock_offsets, fluid_data, fluid_offsets)
+
+       flux = face%flux(isothermal, gravity)
+
+       call assert_equals(expected_mass_flux, flux(1), mass_tol, "Mass flux")
+       call assert_equals(expected_heat_flux, flux(2), heat_tol, "Heat flux")
+
+       call face%destroy()
+       deallocate(face_data, cell_data, rock_data, fluid_data)
+       deallocate(flux)
+       call fluid%destroy()
+
+    end if
+
+  end subroutine test_face_flux_hydrostatic
 
 !------------------------------------------------------------------------
 
