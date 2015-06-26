@@ -291,7 +291,7 @@ contains
     do i = 1, 2
        kcell(i) = self%cell(i)%rock%permeability(direction)
     end do
-    K = self%harmonic_average(kcell)
+    k = self%harmonic_average(kcell)
 
   end function face_permeability
 
