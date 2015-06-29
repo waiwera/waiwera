@@ -79,8 +79,11 @@ module timestepper_module
      procedure, public :: init => timestepper_steps_init
      procedure, public :: destroy => timestepper_steps_destroy
      procedure, public :: check_finished => timestepper_steps_check_finished
-     procedure, public :: set_current_status => timestepper_steps_set_current_status
+     procedure, public :: set_current_status => &
+          timestepper_steps_set_current_status
      procedure, public :: adapt => timestepper_steps_adapt
+     procedure, public :: get_next_fixed_stepsize => &
+          timestepper_steps_get_next_fixed_stepsize
      procedure, public :: set_next_stepsize => timestepper_steps_set_next_stepsize
   end type timestepper_steps_type
 
@@ -668,6 +671,21 @@ contains
 
 !------------------------------------------------------------------------
 
+  subroutine timestepper_steps_get_next_fixed_stepsize(self)
+    !! Gets next timestep size if using fixed time step sizes.
+
+    class(timestepper_steps_type), intent(in out) :: self
+
+    if (self%taken < size(self%sizes)) then
+       self%next_stepsize = self%sizes(self%taken + 1)
+    else
+       self%next_stepsize = self%current%stepsize
+    end if
+
+  end subroutine timestepper_steps_get_next_fixed_stepsize
+
+!------------------------------------------------------------------------
+
   subroutine timestepper_steps_set_next_stepsize(self, accepted)
 
     class(timestepper_steps_type), intent(in out) :: self
@@ -676,11 +694,13 @@ contains
     if (self%adaptor%on) then
        call self%adapt(accepted)
     else
-       accepted = .true.
-       if (self%taken < size(self%sizes)) then
-          self%next_stepsize = self%sizes(self%taken + 1)
+       if (self%current%status == TIMESTEP_OK) then
+          accepted = .true.
+          call self%get_next_fixed_stepsize()
        else
-          self%next_stepsize = self%current%stepsize
+          accepted = .false.
+          self%adaptor%on = .true.
+          self%next_stepsize = self%adaptor%reduce(self%current%stepsize)
        end if
     end if
 
@@ -947,12 +967,6 @@ end subroutine timestepper_steps_set_next_stepsize
     accepted = .false.
 
     do while (.not. accepted)
-
-       if ((.not.(self%steps%adaptor%on)) .and. &
-            (self%steps%current%num_tries > 0)) then
-          ! Turn off adaptor if a fixed step failed:
-          self%steps%adaptor%on = .true.
-       end if
 
        self%steps%current%stepsize = self%steps%next_stepsize
        self%steps%current%time = self%steps%last%time + self%steps%current%stepsize
