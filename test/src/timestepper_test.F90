@@ -816,9 +816,9 @@ contains
     ! Linear function
 
     type(linear_ode_type), target :: linear
-    PetscInt,  parameter :: num_cases = 2
+    PetscInt,  parameter :: num_cases = 3
     character(len = max_json_len) :: json_str(num_cases)
-    PetscReal, parameter :: tol(num_cases) = [1.e-6_dp, 1.e-6_dp]
+    PetscReal, parameter :: tol(num_cases) = [1.e-6_dp, 1.e-6_dp, 1.e-6_dp]
     PetscReal, allocatable :: initial(:)
 
     initial = [-4._dp, -3.0_dp, -2.0_dp, -1.0_dp, &
@@ -832,6 +832,11 @@ contains
     json_str(2) = '{"time": {"start": 0.0, "stop": 1.0, ' // &
          '"step": {"initial": 0.1, "maximum": {"number": 20}, ' // &
          '"method": "bdf2", "adapt": {"on": false}}}}'
+
+    json_str(3) = '{"time": {"start": 0.0, "stop": 1.0, ' // &
+         '"step": {"maximum": {"number": 10}, ' // &
+         '"method": "beuler", ' // &
+         '"sizes": [0.1, 0.1, 0.2, 0.2, 0.3]}}}'
 
     call linear%run_cases(json_str, tol)
 
