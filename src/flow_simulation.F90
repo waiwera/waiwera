@@ -196,7 +196,7 @@ contains
     PetscInt, pointer :: cells(:)
     PetscReal, pointer :: inflow(:)
     PetscReal, allocatable :: face_flow(:)
-    PetscReal, parameter :: flux_sign(2) = [1._dp, -1._dp]
+    PetscReal, parameter :: flux_sign(2) = [-1._dp, 1._dp]
     PetscErrorCode :: ierr
 
     np = self%eos%num_primary_variables
