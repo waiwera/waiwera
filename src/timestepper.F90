@@ -385,9 +385,10 @@ contains
 
     class(timestepper_step_type), intent(in) :: self
 
-    write(*, '(a, e12.4, a, e12.4, a, i2, a, a)') &
+    write(*, '(a, e12.4, a, e12.4, a, i2, a, i2, a, a)') &
          'time: ', self%time, &
-         ' stepsize: ',self%stepsize, &
+         ' stepsize: ', self%stepsize, &
+         ' tries:', self%num_tries, &
          ' iters: ', self%num_iterations, &
          ' status: ', self%status_str()
 
