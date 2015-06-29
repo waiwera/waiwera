@@ -350,8 +350,11 @@ contains
     !! Output from flow simulation.
 
     class(flow_simulation_type), intent(in out) :: self
+    ! Locals:
+    PetscErrorCode :: ierr
 
-    continue
+    call VecView(self%solution, PETSC_VIEWER_STDOUT_WORLD, ierr)
+    CHKERRQ(ierr)
 
   end subroutine flow_simulation_output
 
