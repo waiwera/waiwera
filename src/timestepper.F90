@@ -634,7 +634,7 @@ contains
        self%finished = .true.
     end if
 
-    if (self%taken >= self%max_num) then
+    if (self%taken + 1 >= self%max_num) then
        self%finished = .true.
     end if
 
