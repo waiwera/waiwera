@@ -174,7 +174,7 @@ contains
 
     use kinds_module
     use dm_utils_module, only: section_offset, vec_section, &
-         local_vec_section
+         local_vec_section, restore_local_vec
     use face_module, only: face_type
 
     class(flow_simulation_type), intent(in out) :: self
@@ -276,6 +276,8 @@ contains
     call VecRestoreArrayReadF90(self%mesh%cell_geom, cell_geom_array, ierr)
     CHKERRQ(ierr)
     call VecRestoreArrayF90(rhs, rhs_array, ierr); CHKERRQ(ierr)
+    call restore_local_vec(local_fluid)
+    call restore_local_vec(local_rock)
     deallocate(face_flow)
 
   end subroutine flow_simulation_cell_inflows
