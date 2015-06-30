@@ -7,7 +7,7 @@ module dm_utils_module
 #include <petsc/finclude/petsc.h90>
 
   public :: set_dm_data_layout, section_offset
-  public :: vec_section, local_vec_section, restore_local_vec
+  public :: vec_section, local_vec_section, restore_dm_local_vec
 
 contains
 
@@ -128,7 +128,7 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine restore_local_vec(local_v)
+  subroutine restore_dm_local_vec(local_v)
     !! Restores local vector to its DM.
 
     Vec, intent(out) :: local_v
@@ -139,7 +139,7 @@ contains
     call VecGetDM(local_v, dm, ierr); CHKERRQ(ierr)
     call DMRestoreLocalVector(dm, local_v, ierr); CHKERRQ(ierr)
 
-  end subroutine restore_local_vec
+  end subroutine restore_dm_local_vec
 
 !------------------------------------------------------------------------
 
