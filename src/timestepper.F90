@@ -677,9 +677,14 @@ contains
     !! Gets next timestep size if using fixed time step sizes.
 
     class(timestepper_steps_type), intent(in out) :: self
+    ! Locals:
+    PetscInt :: step_index, next_index
 
-    if (self%taken < size(self%sizes)) then
-       self%next_stepsize = self%sizes(self%taken + 1)
+    step_index = self%taken + 1
+    next_index = step_index + 1
+
+    if (next_index <= size(self%sizes)) then
+       self%next_stepsize = self%sizes(next_index)
     else
        self%next_stepsize = self%current%stepsize
     end if
