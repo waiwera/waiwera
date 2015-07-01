@@ -171,14 +171,23 @@ contains
     PetscReal, allocatable :: cell_data(:)
     PetscInt :: face_offset, cell_offsets(2)
     PetscReal :: xh
-    PetscReal, parameter :: x(2) = [240._dp, 170._dp]
-    PetscInt,  parameter :: num_tests = 3
+    PetscInt,  parameter :: num_tests = 6
+    PetscReal, parameter :: x(2, num_tests) = reshape( &
+         [240._dp, 170._dp, &
+          240._dp, 170._dp, &
+          240._dp, 170._dp, &
+            0._dp, 170._dp, &
+          240._dp,   0._dp, &
+            0._dp,   0._dp], [2, num_tests])
     PetscReal, parameter :: distance(2, num_tests) = reshape( &
          [25._dp, 32._dp, &
            0._dp, 10._dp, &
-          22._dp,  0._dp], [2, num_tests])
+          22._dp,  0._dp, &
+          25._dp, 32._dp, &
+          25._dp, 32._dp, &
+          25._dp, 32._dp], [2, num_tests])
     PetscReal, parameter :: expected_xh(num_tests) = &
-         [194.937133277_dp, 170._dp, 240._dp]
+         [194.937133277_dp, 170._dp, 240._dp, 0._dp, 0._dp, 0._dp]
     PetscInt :: i
     character(len = 32) :: msg
 
@@ -196,7 +205,7 @@ contains
        do i = 1, num_tests
           face_data(2:3) = distance(:, i)
           call face%assign(face_data, face_offset, cell_data, cell_offsets)
-          xh = face%harmonic_average(x)
+          xh = face%harmonic_average(x(:, i))
           write(msg, '(a, i2)') "Face harmonic average test ", i
           call assert_equals(expected_xh(i), xh, tol, msg)
        end do
