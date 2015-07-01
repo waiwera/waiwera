@@ -246,9 +246,17 @@ contains
 
     class(face_type), intent(in) :: self
     PetscReal, intent(in) :: x(2)
+    ! Locals:
+    PetscReal :: dx
+    PetscReal, parameter :: tol = 1.e-50_dp
 
-    xh = self%distance12 * x(1) * x(2) / &
-         (self%distance(1) * x(2) + self%distance(2) * x(1))
+    dx = self%distance(1) * x(2) + self%distance(2) * x(1)
+
+    if (abs(dx) > tol) then
+       xh = self%distance12 * x(1) * x(2) / dx
+    else
+       xh = 0._dp
+    end if
 
   end function face_harmonic_average
 
