@@ -305,7 +305,9 @@ contains
     type(timestepper_solver_context_type), intent(in out) :: context
     PetscErrorCode, intent(out) :: ierr
 
-    call context%ode%rhs(context%steps%stop_time, y, residual)
+    call context%ode%rhs(context%steps%stop_time, y, &
+         context%steps%current%rhs)
+    call VecCopy(context%steps%current%rhs, residual, ierr); CHKERRQ(ierr)
 
   end subroutine direct_ss_residual
 
