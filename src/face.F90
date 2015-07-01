@@ -247,13 +247,14 @@ contains
     class(face_type), intent(in) :: self
     PetscReal, intent(in) :: x(2)
     ! Locals:
-    PetscReal :: dx
-    PetscReal, parameter :: tol = 1.e-50_dp
+    PetscReal :: wx
+    PetscReal, parameter :: tol = 1.e-30_dp
 
-    dx = self%distance(1) * x(2) + self%distance(2) * x(1)
+    wx = (self%distance(1) * x(2) + self%distance(2) * x(1)) / &
+         self%distance12
 
-    if (abs(dx) > tol) then
-       xh = self%distance12 * x(1) * x(2) / dx
+    if (abs(wx) > tol) then
+       xh = x(1) * x(2) / wx
     else
        xh = 0._dp
     end if
