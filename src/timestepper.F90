@@ -997,11 +997,6 @@ end subroutine timestepper_steps_set_next_stepsize
     call VecCopy(self%steps%current%solution, self%ode%solution, ierr)
     CHKERRQ(ierr)
 
-    ! This may possibly be needed- to make sure current LHS corresponds exactly
-    ! to current solution:
-    ! call self%ode%lhs(self%steps%current%time, self%steps%current%solution, &
-    !      self%steps%current%lhs)
-
   end subroutine timestepper_step
 
 !------------------------------------------------------------------------
