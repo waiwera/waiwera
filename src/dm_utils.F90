@@ -143,4 +143,25 @@ contains
 
 !------------------------------------------------------------------------
 
+  subroutine write_vec_vtk(v, filename)
+    !! Writes vector v to VTK file.
+
+    use mpi_module
+
+    Vec, intent(in) :: v
+    character(len = *), intent(in) :: filename
+    ! Locals:
+    PetscViewer :: viewer
+    PetscErrorCode :: ierr
+
+    call PetscViewerCreate(mpi%comm, viewer, ierr); CHKERRQ(ierr)
+    call PetscViewerSetType(viewer, PETSCVIEWERVTK, ierr); CHKERRQ(ierr)
+    call PetscViewerFileSetName(viewer, filename, ierr); CHKERRQ(ierr)
+    call VecView(v, viewer, ierr); CHKERRQ(ierr)
+    call PetscViewerDestroy(viewer, ierr); CHKERRQ(ierr)
+
+  end subroutine write_vec_vtk
+
+!------------------------------------------------------------------------
+
 end module dm_utils_module
