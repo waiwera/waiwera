@@ -260,6 +260,7 @@ contains
              primary = self%mesh%bcs(2: np + 1, ibdy)
              call self%eos%fluid_properties(region, primary, &
                   face%cell(2)%fluid)
+             call face%cell(2)%rock%assign(rock_array, rock_offsets(1))
           end if
 
           face_flow = face%flux(self%eos%isothermal, self%gravity) * &
