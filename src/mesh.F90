@@ -16,6 +16,7 @@ module mesh_module
      !! Mesh type.
      private
      character(max_mesh_filename_length), public :: filename
+     PetscReal, allocatable :: bcs(:,:)
      DM, public :: dm
      Vec, public :: cell_geom, face_geom
      PetscInt, public :: start_cell, end_cell, end_interior_cell
@@ -29,10 +30,9 @@ module mesh_module
      procedure :: get_bounds => mesh_get_bounds
      procedure, public :: init => mesh_init
      procedure, public :: configure => mesh_configure
+     procedure, public :: setup_boundaries => mesh_setup_boundaries
      procedure, public :: destroy => mesh_destroy
   end type mesh_type
-
-  public :: setup_labels
 
 contains
 
@@ -294,23 +294,26 @@ contains
     call VecDestroy(self%face_geom, ierr); CHKERRQ(ierr)
     call DMDestroy(self%dm, ierr); CHKERRQ(ierr)
 
+    if (allocated(self%bcs)) then
+       deallocate(self%bcs)
+    end if
+
   end subroutine mesh_destroy
 
 !------------------------------------------------------------------------
 
-  subroutine setup_labels(json, dm)
-    !! Sets up labels on the mesh DM for a simulation.
+  subroutine mesh_setup_boundaries(self, num_primary, json)
+    !! Sets up boundary conditions on the mesh.
 
-    use rock_module, only: setup_rocktype_labels
-    use boundary_module, only: setup_boundary_labels
+    use boundary_module, only: setup_boundaries
 
+    class(mesh_type), intent(in out) :: self
+    PetscInt, intent(in) :: num_primary
     type(fson_value), pointer, intent(in) :: json
-    DM, intent(in out) :: dm
 
-    call setup_rocktype_labels(json, dm)
-    call setup_boundary_labels(dm)
+    call setup_boundaries(json, num_primary, self%dm, self%bcs)
 
-  end subroutine setup_labels
+  end subroutine mesh_setup_boundaries
 
 !------------------------------------------------------------------------
 

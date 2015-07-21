@@ -48,7 +48,7 @@ contains
     use eos_setup_module, only: setup_eos
     use initial_module, only: setup_initial
     use fluid_module, only: setup_fluid_vector
-    use rock_module, only: setup_rock_vector
+    use rock_module, only: setup_rock_vector, setup_rocktype_labels
 
     class(flow_simulation_type), intent(in out) :: self
     type(fson_value), pointer, intent(in) :: json
@@ -61,7 +61,8 @@ contains
     call setup_thermodynamics(json, self%thermo)
     call setup_eos(json, self%thermo, self%eos)
     call self%mesh%init(json)
-    call setup_labels(json, self%mesh%dm)
+    call setup_rocktype_labels(json, self%mesh%dm)
+    call self%mesh%setup_boundaries(self%eos%num_primary_variables, json)
     call self%mesh%configure(self%eos%primary_variable_names)
     call DMCreateGlobalVector(self%mesh%dm, self%solution, ierr)
     CHKERRQ(ierr)
