@@ -109,8 +109,10 @@ contains
     !! Sets up global vectors containing geometry data (e.g. cell volumes,
     !! cell centroids, face areas, face-to-centroid distances) for the mesh.
 
+    use kinds_module
     use face_module
     use dm_utils_module, only: section_offset, vec_section
+    use boundary_module, only: open_boundary_label_name
 
     class(mesh_type), intent(in out) :: self
     ! Locals:
@@ -118,15 +120,18 @@ contains
     Vec :: petsc_face_geom
     DM :: dm_face
     PetscSection :: face_section, petsc_face_section, cell_section
-    PetscInt :: f, face_dof, ghost, i
+    PetscInt :: f, face_dof, ghost_face, i, bdy_face, ibdy
+    PetscInt :: num_faces, iface
     PetscInt :: face_offset, petsc_face_offset
     PetscInt :: cell_offset(2)
     type(face_type) :: face
     type(petsc_face_type) :: petsc_face
     PetscReal, pointer :: face_geom_array(:), petsc_face_geom_array(:)
     PetscReal, pointer :: cell_geom_array(:)
-    DMLabel :: ghost_label
+    DMLabel :: ghost_label, bdy_label
     PetscInt, pointer :: cells(:)
+    IS :: bdy_IS
+    PetscInt, pointer :: bdy_faces(:)
 
     ! First call PETSc geometry routine- we use the cell geometry vector but need to 
     ! create our own face geometry vector, containing additional parameters:
@@ -156,12 +161,19 @@ contains
     call vec_section(petsc_face_geom, petsc_face_section)
     call vec_section(self%cell_geom, cell_section)
 
+    call DMView(self%dm, PETSC_VIEWER_STDOUT_WORLD, ierr); CHKERRQ(ierr)
+
     call DMPlexGetLabel(self%dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
+    call DMPlexGetLabel(self%dm, open_boundary_label_name, bdy_label, ierr)
+    CHKERRQ(ierr)
 
     do f = self%start_face, self%end_face - 1
 
-       call DMLabelGetValue(ghost_label, f, ghost, ierr); CHKERRQ(ierr)
-       if (ghost < 0) then
+       call DMLabelGetValue(ghost_label, f, ghost_face, ierr); CHKERRQ(ierr)
+
+       if (ghost_face < 0) then
+
+          call DMLabelGetValue(bdy_label, f, bdy_face, ierr); CHKERRQ(ierr)
 
           call section_offset(face_section, f, face_offset, ierr); CHKERRQ(ierr)
           call section_offset(petsc_face_section, f, petsc_face_offset, ierr)
@@ -186,6 +198,23 @@ contains
 
        end if
 
+    end do
+
+    ! Set external boundary face connection distances to zero:
+    do ibdy = 1, size(self%bcs, 2)
+       call DMPlexGetStratumIS(self%dm, open_boundary_label_name, ibdy, bdy_IS, &
+            ierr); CHKERRQ(ierr)
+       if (bdy_IS /= 0) then
+          call ISGetIndicesF90(bdy_IS, bdy_faces, ierr); CHKERRQ(ierr)
+          num_faces = size(bdy_faces)
+          do iface = 1, num_faces
+             f = bdy_faces(iface)
+             call section_offset(face_section, f, face_offset, ierr)
+             CHKERRQ(ierr)
+             call face%assign(face_geom_array, face_offset)
+             face%distance(2) = 0._dp
+          end do
+       end if
     end do
 
     call face%destroy()

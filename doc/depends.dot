@@ -14,6 +14,8 @@ digraph supermodel{
         cell_module -> fluid_module
         cell_module -> kinds_module
         cell_module -> rock_module
+        boundary_module -> fson
+        boundary_module -> fson_mpi_module
         flow_simulation_module -> cell_module
         flow_simulation_module -> dm_utils_module
         flow_simulation_module -> eos_module
@@ -41,8 +43,8 @@ digraph supermodel{
         mesh_module -> dm_utils_module
         mesh_module -> face_module
         mesh_module -> fson
+        mesh_module -> kinds_module
         mesh_module -> mpi_module
-        mesh_module -> rock_module
         fson_mpi_module -> fson
         fson_mpi_module -> fson_value_m
         fson_mpi_module -> kinds_module
