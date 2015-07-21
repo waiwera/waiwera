@@ -16,12 +16,12 @@ module mesh_module
      !! Mesh type.
      private
      character(max_mesh_filename_length), public :: filename
-     PetscReal, allocatable :: bcs(:,:)
      DM, public :: dm
      Vec, public :: cell_geom, face_geom
      PetscInt, public :: start_cell, end_cell, end_interior_cell
      PetscInt, public :: num_cells, num_interior_cells
      PetscInt, public :: start_face, end_face
+     PetscReal, allocatable, public :: bcs(:,:)
    contains
      procedure :: distribute => mesh_distribute
      procedure :: construct_ghost_cells => mesh_construct_ghost_cells
@@ -160,8 +160,6 @@ contains
     
     call vec_section(petsc_face_geom, petsc_face_section)
     call vec_section(self%cell_geom, cell_section)
-
-    call DMView(self%dm, PETSC_VIEWER_STDOUT_WORLD, ierr); CHKERRQ(ierr)
 
     call DMPlexGetLabel(self%dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
     call DMPlexGetLabel(self%dm, open_boundary_label_name, bdy_label, ierr)
