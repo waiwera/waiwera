@@ -177,13 +177,14 @@ contains
     use dm_utils_module, only: section_offset, vec_section, &
          local_vec_section, restore_dm_local_vec
     use face_module, only: face_type
+    use boundary_module, only: open_boundary_label_name
 
     class(flow_simulation_type), intent(in out) :: self
     PetscReal, intent(in) :: t !! time
     Vec, intent(in) :: y !! global primary variables vector
     Vec, intent(out) :: rhs
     ! Locals:
-    PetscInt :: f, ghost_face, ghost_cell, i, np
+    PetscInt :: f, ghost_face, ghost_cell, i, np, ibdy, region
     Vec :: local_fluid, local_rock
     PetscReal, pointer :: rhs_array(:)
     PetscReal, pointer :: cell_geom_array(:), face_geom_array(:)
@@ -193,15 +194,16 @@ contains
     type(face_type) :: face
     PetscInt :: face_geom_offset, cell_geom_offsets(2)
     PetscInt :: rock_offsets(2), fluid_offsets(2), rhs_offsets(2)
-    DMLabel :: ghost_label
+    DMLabel :: ghost_label, bdy_label
     PetscInt, pointer :: cells(:)
     PetscReal, pointer :: inflow(:)
     PetscReal, allocatable :: face_flow(:)
     PetscReal, parameter :: flux_sign(2) = [-1._dp, 1._dp]
+    PetscReal, allocatable :: primary(:)
     PetscErrorCode :: ierr
 
     np = self%eos%num_primary_variables
-    allocate(face_flow(np))
+    allocate(face_flow(np), primary(np))
 
     call vec_section(rhs, rhs_section)
     call VecGetArrayF90(rhs, rhs_array, ierr); CHKERRQ(ierr)
@@ -224,6 +226,8 @@ contains
 
     call DMPlexGetLabel(self%mesh%dm, "ghost", ghost_label, ierr)
     CHKERRQ(ierr)
+    call DMPlexGetLabel(self%mesh%dm, open_boundary_label_name, &
+         bdy_label, ierr); CHKERRQ(ierr)
 
     do f = self%mesh%start_face, self%mesh%end_face - 1
 
@@ -248,6 +252,15 @@ contains
           call face%assign(face_geom_array, face_geom_offset, &
                cell_geom_array, cell_geom_offsets, &
                rock_array, rock_offsets, fluid_array, fluid_offsets)
+
+          ! Boundary conditions:
+          call DMLabelGetValue(bdy_label, f, ibdy, ierr); CHKERRQ(ierr)
+          if (ibdy > 0) then
+             region = nint(self%mesh%bcs(1, ibdy))
+             primary = self%mesh%bcs(2: np + 1, ibdy)
+             call self%eos%fluid_properties(region, primary, &
+                  face%cell(2)%fluid)
+          end if
 
           face_flow = face%flux(self%eos%isothermal, self%gravity) * &
                face%area
@@ -279,7 +292,7 @@ contains
     call VecRestoreArrayF90(rhs, rhs_array, ierr); CHKERRQ(ierr)
     call restore_dm_local_vec(local_fluid)
     call restore_dm_local_vec(local_rock)
-    deallocate(face_flow)
+    deallocate(face_flow, primary)
 
   end subroutine flow_simulation_cell_inflows
 
