@@ -47,9 +47,10 @@ contains
     PetscReal, pointer:: y_array(:), rock_array(:), cell_primary(:)
     PetscSection :: y_section, rock_section
     PetscInt :: ibdy, f, iface, num_faces
-    PetscInt :: rock_offsets(2), rock_dof, y_offset
+    PetscInt :: y_offset, rock_offsets(2), n
     PetscInt, pointer :: bdy_faces(:), cells(:)
     type(rock_type) :: rock
+    PetscReal, pointer :: rock1(:), rock2(:)
     PetscReal, parameter :: default_start_time = 0.0_dp
     PetscReal, parameter :: default_initial_value = 0.0_dp
 
@@ -122,9 +123,10 @@ contains
              cell_primary => y_array(y_offset : y_offset + num_primary - 1)
              cell_primary = mesh%bcs(2: num_primary + 1, ibdy)
              ! Copy rock type data from interior cell to boundary ghost cell:
-             rock_dof = rock%dof()
-             rock_array(rock_offsets(2) : rock_offsets(2) + rock_dof) = &
-                  rock_array(rock_offsets(1) : rock_offsets(1) + rock_dof)
+             n = rock%dof() - 1
+             rock1 => rock_array(rock_offsets(1) : rock_offsets(1) + n)
+             rock2 => rock_array(rock_offsets(2) : rock_offsets(2) + n)
+             rock2 = rock1
           end do
        end if
     end do
