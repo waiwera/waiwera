@@ -185,7 +185,7 @@ contains
     Vec, intent(in) :: y !! global primary variables vector
     Vec, intent(out) :: rhs
     ! Locals:
-    PetscInt :: f, ghost_face, i, np
+    PetscInt :: f, ghost_cell, ghost_face, i, np
     Vec :: local_fluid, local_rock
     PetscReal, pointer :: rhs_array(:)
     PetscReal, pointer :: cell_geom_array(:), face_geom_array(:)
@@ -256,7 +256,10 @@ contains
                face%area
 
           do i = 1, 2
-             if (cells(i) <= self%mesh%end_interior_cell - 1) then
+             call DMLabelGetValue(ghost_label, cells(i), ghost_cell, &
+                  ierr); CHKERRQ(ierr)
+             if ((ghost_cell < 0) .and. &
+                  (cells(i) <= self%mesh%end_interior_cell - 1)) then
                 inflow => rhs_array(rhs_offsets(i) : rhs_offsets(i) + np - 1)
                 inflow = inflow + flux_sign(i) * face_flow / &
                      face%cell(i)%volume
