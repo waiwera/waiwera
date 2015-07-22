@@ -67,10 +67,11 @@ contains
     call DMCreateGlobalVector(self%mesh%dm, self%solution, ierr)
     CHKERRQ(ierr)
     call PetscObjectSetName(self%solution, "primary", ierr); CHKERRQ(ierr)
-    call setup_initial(json, self%time, self%solution)
+    call setup_rock_vector(json, self%mesh%dm, self%rock)
+    call setup_initial(json, self%mesh, self%eos%num_primary_variables, &
+         self%time, self%solution, self%rock)
     call setup_fluid_vector(self%mesh%dm, self%eos%num_phases, &
          self%eos%num_components, self%fluid)
-    call setup_rock_vector(json, self%mesh%dm, self%rock)
     call fson_get_mpi(json, "gravity", default_gravity, self%gravity)
 
   end subroutine flow_simulation_init
@@ -134,9 +135,10 @@ contains
     call DMPlexGetLabel(self%mesh%dm, "ghost", ghost_label, ierr)
     CHKERRQ(ierr)
 
-    do c = self%mesh%start_cell, self%mesh%end_interior_cell - 1
+    do c = self%mesh%start_cell, self%mesh%end_cell - 1
 
        call DMLabelGetValue(ghost_label, c, ghost, ierr); CHKERRQ(ierr)
+
        if (ghost < 0) then
 
           call section_offset(lhs_section, c, lhs_offset, ierr)
@@ -177,14 +179,13 @@ contains
     use dm_utils_module, only: section_offset, vec_section, &
          local_vec_section, restore_dm_local_vec
     use face_module, only: face_type
-    use boundary_module, only: open_boundary_label_name
 
     class(flow_simulation_type), intent(in out) :: self
     PetscReal, intent(in) :: t !! time
     Vec, intent(in) :: y !! global primary variables vector
     Vec, intent(out) :: rhs
     ! Locals:
-    PetscInt :: f, ghost_face, ghost_cell, i, np, ibdy, region
+    PetscInt :: f, ghost_face, i, np
     Vec :: local_fluid, local_rock
     PetscReal, pointer :: rhs_array(:)
     PetscReal, pointer :: cell_geom_array(:), face_geom_array(:)
@@ -194,7 +195,7 @@ contains
     type(face_type) :: face
     PetscInt :: face_geom_offset, cell_geom_offsets(2)
     PetscInt :: rock_offsets(2), fluid_offsets(2), rhs_offsets(2)
-    DMLabel :: ghost_label, bdy_label
+    DMLabel :: ghost_label
     PetscInt, pointer :: cells(:)
     PetscReal, pointer :: inflow(:)
     PetscReal, allocatable :: face_flow(:)
@@ -226,8 +227,6 @@ contains
 
     call DMPlexGetLabel(self%mesh%dm, "ghost", ghost_label, ierr)
     CHKERRQ(ierr)
-    call DMPlexGetLabel(self%mesh%dm, open_boundary_label_name, &
-         bdy_label, ierr); CHKERRQ(ierr)
 
     do f = self%mesh%start_face, self%mesh%end_face - 1
 
@@ -253,23 +252,11 @@ contains
                cell_geom_array, cell_geom_offsets, &
                rock_array, rock_offsets, fluid_array, fluid_offsets)
 
-          ! Boundary conditions:
-          call DMLabelGetValue(bdy_label, f, ibdy, ierr); CHKERRQ(ierr)
-          if (ibdy > 0) then
-             region = nint(self%mesh%bcs(1, ibdy))
-             primary = self%mesh%bcs(2: np + 1, ibdy)
-             call self%eos%fluid_properties(region, primary, &
-                  face%cell(2)%fluid)
-             call face%cell(2)%rock%assign(rock_array, rock_offsets(1))
-          end if
-
           face_flow = face%flux(self%eos%isothermal, self%gravity) * &
                face%area
 
           do i = 1, 2
-             call DMLabelGetValue(ghost_label, cells(i), ghost_cell, &
-                  ierr); CHKERRQ(ierr)
-             if (ghost_cell < 0) then
+             if (cells(i) <= self%mesh%end_interior_cell - 1) then
                 inflow => rhs_array(rhs_offsets(i) : rhs_offsets(i) + np - 1)
                 inflow = inflow + flux_sign(i) * face_flow / &
                      face%cell(i)%volume
@@ -310,7 +297,7 @@ contains
     PetscReal, intent(in) :: t !! time
     Vec, intent(in) :: y !! global primary variables vector
     ! Locals:
-    PetscInt :: c, ghost, region, np, nc
+    PetscInt :: c, region, np, nc, ghost
     PetscSection :: y_section, fluid_section
     PetscInt :: y_offset, fluid_offset
     PetscReal, pointer :: y_array(:), cell_primary(:)
@@ -334,7 +321,7 @@ contains
     call DMPlexGetLabel(self%mesh%dm, "ghost", ghost_label, ierr)
     CHKERRQ(ierr)
 
-    do c = self%mesh%start_cell, self%mesh%end_interior_cell - 1
+    do c = self%mesh%start_cell, self%mesh%end_cell - 1
 
        call DMLabelGetValue(ghost_label, c, ghost, ierr); CHKERRQ(ierr)
        if (ghost < 0) then
@@ -366,12 +353,21 @@ contains
   subroutine flow_simulation_output(self)
     !! Output from flow simulation.
 
+    use mpi_module
+
     class(flow_simulation_type), intent(in out) :: self
     ! Locals:
+    PetscViewer :: viewer
     PetscErrorCode :: ierr
 
     call VecView(self%solution, PETSC_VIEWER_STDOUT_WORLD, ierr)
     CHKERRQ(ierr)
+
+    call PetscViewerCreate(mpi%comm, viewer, ierr); CHKERRQ(ierr)
+    call PetscViewerSetType(viewer, PETSCVIEWERVTK, ierr); CHKERRQ(ierr)
+    call PetscViewerFileSetName(viewer, "solution.vtu", ierr); CHKERRQ(ierr)
+    call VecView(self%solution, viewer, ierr); CHKERRQ(ierr)
+    call PetscViewerDestroy(viewer, ierr); CHKERRQ(ierr)
 
   end subroutine flow_simulation_output
 
