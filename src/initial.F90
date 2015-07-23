@@ -27,7 +27,7 @@ contains
     use mesh_module
     use boundary_module, only: open_boundary_label_name
     use rock_module
-    use dm_utils_module, only: vec_section, section_offset
+    use dm_utils_module, only: global_vec_section, section_offset
 
     type(fson_value), pointer, intent(in) :: json
     type(mesh_type), intent(in) :: mesh
@@ -99,10 +99,10 @@ contains
     end if
 
     ! Boundary conditions:
+    call global_vec_section(y, y_section)
     call VecGetArrayF90(y, y_array, ierr); CHKERRQ(ierr)
-    call vec_section(y, y_section)
+    call global_vec_section(rock_vector, rock_section)
     call VecGetArrayF90(rock_vector, rock_array, ierr); CHKERRQ(ierr)
-    call vec_section(rock_vector, rock_section)
     call DMPlexGetLabel(mesh%dm, open_boundary_label_name, &
          bdy_label, ierr); CHKERRQ(ierr)
     do ibdy = 1, size(mesh%bcs, 1)

@@ -19,7 +19,6 @@ module mesh_module
      DM, public :: dm
      Vec, public :: cell_geom, face_geom
      PetscInt, public :: start_cell, end_cell, end_interior_cell
-     PetscInt, public :: num_cells, num_interior_cells
      PetscInt, public :: start_face, end_face
      PetscReal, allocatable, public :: bcs(:,:)
    contains
@@ -111,7 +110,7 @@ contains
 
     use kinds_module
     use face_module
-    use dm_utils_module, only: section_offset, vec_section
+    use dm_utils_module, only: section_offset, local_vec_section
     use boundary_module, only: open_boundary_label_name
 
     class(mesh_type), intent(in out) :: self
@@ -153,13 +152,13 @@ contains
     call DMSetDefaultSection(dm_face, face_section, ierr); CHKERRQ(ierr)
 
     call DMCreateLocalVector(dm_face, self%face_geom, ierr); CHKERRQ(ierr)
-
     call VecGetArrayF90(self%face_geom, face_geom_array, ierr); CHKERRQ(ierr)
-    call VecGetArrayF90(petsc_face_geom, petsc_face_geom_array, ierr); CHKERRQ(ierr)
+
+    call local_vec_section(self%cell_geom, cell_section)
     call VecGetArrayF90(self%cell_geom, cell_geom_array, ierr); CHKERRQ(ierr)
-    
-    call vec_section(petsc_face_geom, petsc_face_section)
-    call vec_section(self%cell_geom, cell_section)
+
+    call local_vec_section(petsc_face_geom, petsc_face_section)
+    call VecGetArrayF90(petsc_face_geom, petsc_face_geom_array, ierr); CHKERRQ(ierr)
 
     call DMPlexGetLabel(self%dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
     call DMPlexGetLabel(self%dm, open_boundary_label_name, bdy_label, ierr)
@@ -243,9 +242,6 @@ contains
     call DMPlexGetHeightStratum(self%dm, 0, self%start_cell, &
          self%end_cell, ierr)
     CHKERRQ(ierr)
-
-    self%num_cells = self%end_cell - self%start_cell
-    self%num_interior_cells = self%end_interior_cell - self%start_cell
 
     call DMPlexGetHeightStratum(self%dm, 1, self%start_face, &
          self%end_face, ierr); CHKERRQ(ierr)

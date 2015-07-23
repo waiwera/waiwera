@@ -101,7 +101,7 @@ contains
     !! Computes mass and energy balance for each cell, for the given
     !! primary thermodynamic variables and time.
 
-    use dm_utils_module, only: section_offset, vec_section
+    use dm_utils_module, only: section_offset, global_vec_section
     use cell_module, only: cell_type
 
     class(flow_simulation_type), intent(in out) :: self
@@ -121,14 +121,14 @@ contains
     np = self%eos%num_primary_variables
     nc = self%eos%num_components
 
+    call global_vec_section(lhs, lhs_section)
     call VecGetArrayF90(lhs, lhs_array, ierr); CHKERRQ(ierr)
-    call vec_section(lhs, lhs_section)
 
+    call global_vec_section(self%fluid, fluid_section)
     call VecGetArrayReadF90(self%fluid, fluid_array, ierr); CHKERRQ(ierr)
-    call vec_section(self%fluid, fluid_section)
 
+    call global_vec_section(self%rock, rock_section)
     call VecGetArrayReadF90(self%rock, rock_array, ierr); CHKERRQ(ierr)
-    call vec_section(self%rock, rock_section)
 
     call cell%init(nc, self%eos%num_phases)
 
@@ -138,7 +138,6 @@ contains
     do c = self%mesh%start_cell, self%mesh%end_cell - 1
 
        call DMLabelGetValue(ghost_label, c, ghost, ierr); CHKERRQ(ierr)
-
        if (ghost < 0) then
 
           call section_offset(lhs_section, c, lhs_offset, ierr)
@@ -176,8 +175,7 @@ contains
     !! thermodynamic variables and time.
 
     use kinds_module
-    use dm_utils_module, only: section_offset, vec_section, &
-         local_vec_section, restore_dm_local_vec
+    use dm_utils_module
     use face_module, only: face_type
 
     class(flow_simulation_type), intent(in out) :: self
@@ -206,21 +204,21 @@ contains
     np = self%eos%num_primary_variables
     allocate(face_flow(np), primary(np))
 
-    call vec_section(rhs, rhs_section)
+    call global_vec_section(rhs, rhs_section)
     call VecGetArrayF90(rhs, rhs_array, ierr); CHKERRQ(ierr)
     rhs_array = 0._dp
 
-    call vec_section(self%mesh%cell_geom, cell_geom_section)
+    call local_vec_section(self%mesh%cell_geom, cell_geom_section)
     call VecGetArrayReadF90(self%mesh%cell_geom, cell_geom_array, ierr)
     CHKERRQ(ierr)
-    call vec_section(self%mesh%face_geom, face_geom_section)
+    call local_vec_section(self%mesh%face_geom, face_geom_section)
     call VecGetArrayReadF90(self%mesh%face_geom, face_geom_array, ierr)
     CHKERRQ(ierr)
 
-    call local_vec_section(self%fluid, local_fluid, fluid_section)
+    call global_to_local_vec_section(self%fluid, local_fluid, fluid_section)
     call VecGetArrayReadF90(local_fluid, fluid_array, ierr); CHKERRQ(ierr)
 
-    call local_vec_section(self%rock, local_rock, rock_section)
+    call global_to_local_vec_section(self%rock, local_rock, rock_section)
     call VecGetArrayReadF90(local_rock, rock_array, ierr); CHKERRQ(ierr)
 
     call face%init(self%eos%num_components, self%eos%num_phases)
@@ -293,8 +291,9 @@ contains
     !! Computes fluid properties in all cells, based on the current time
     !! and primary thermodynamic variables.
 
-    use dm_utils_module, only: section_offset, vec_section
+    use dm_utils_module, only: section_offset, global_vec_section
     use fluid_module, only: fluid_type
+    use mpi_module ! debug only
 
     class(flow_simulation_type), intent(in out) :: self
     PetscReal, intent(in) :: t !! time
@@ -312,12 +311,11 @@ contains
     np = self%eos%num_primary_variables
     nc = self%eos%num_components
 
-    ! Need read-only access to primary as it is locked by the SNES:
+    call global_vec_section(y, y_section)
     call VecGetArrayReadF90(y, y_array, ierr); CHKERRQ(ierr)
-    call vec_section(y, y_section)
 
+    call global_vec_section(self%fluid, fluid_section)
     call VecGetArrayF90(self%fluid, fluid_array, ierr); CHKERRQ(ierr)
-    call vec_section(self%fluid, fluid_section)
 
     call fluid%init(nc, self%eos%num_phases)
 
@@ -331,6 +329,11 @@ contains
 
           call section_offset(y_section, c, y_offset, ierr)
           CHKERRQ(ierr)
+          if (y_offset + np - 1 > size(y_array)) then
+             print *, 'off end, rank', mpi%rank, c, y_offset + np - 1, size(y_array)
+          else
+             print *, '     ok, rank', mpi%rank, c, y_offset + np - 1, size(y_array)
+          end if
           cell_primary => y_array(y_offset : y_offset + np - 1)
 
           call section_offset(fluid_section, c, fluid_offset, ierr)
@@ -341,6 +344,8 @@ contains
 
           call self%eos%fluid_properties(region, cell_primary, fluid)
 
+       else
+          print *, '  ghost, rank', mpi%rank, c
        end if
 
     end do

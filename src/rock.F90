@@ -114,7 +114,7 @@ contains
   subroutine setup_rock_vector_types(json, dm, rock_vector)
     !! Sets up rock vector on DM from rock types in JSON input.
 
-    use dm_utils_module, only: section_offset, vec_section
+    use dm_utils_module, only: section_offset, global_vec_section
     use fson
     use fson_mpi_module
 
@@ -136,7 +136,7 @@ contains
     PetscErrorCode :: ierr
 
     call VecGetArrayF90(rock_vector, rock_array, ierr); CHKERRQ(ierr)
-    call vec_section(rock_vector, section)
+    call global_vec_section(rock_vector, section)
 
     call DMPlexGetLabel(dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
     

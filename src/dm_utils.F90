@@ -7,7 +7,8 @@ module dm_utils_module
 #include <petsc/finclude/petsc.h90>
 
   public :: set_dm_data_layout, section_offset
-  public :: vec_section, local_vec_section, restore_dm_local_vec
+  public :: global_vec_section, local_vec_section
+  public :: global_to_local_vec_section, restore_dm_local_vec
 
 contains
 
@@ -87,8 +88,24 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine vec_section(v, section)
-    !! Gets default PETSc section from DM of a vector v.
+  subroutine global_vec_section(v, section)
+    !! Gets default global PETSc section from DM of a vector v.
+
+    Vec, intent(in) :: v
+    PetscSection, intent(out) :: section
+    ! Locals:
+    DM :: dm
+    PetscErrorCode :: ierr
+
+    call VecGetDM(v, dm, ierr); CHKERRQ(ierr)
+    call DMGetDefaultGlobalSection(dm, section, ierr); CHKERRQ(ierr)
+
+  end subroutine global_vec_section
+
+!------------------------------------------------------------------------
+
+  subroutine local_vec_section(v, section)
+    !! Gets default local PETSc section from DM of a vector v.
 
     Vec, intent(in) :: v
     PetscSection, intent(out) :: section
@@ -99,14 +116,14 @@ contains
     call VecGetDM(v, dm, ierr); CHKERRQ(ierr)
     call DMGetDefaultSection(dm, section, ierr); CHKERRQ(ierr)
 
-  end subroutine vec_section
+  end subroutine local_vec_section
 
 !------------------------------------------------------------------------
 
-  subroutine local_vec_section(v, local_v, section)
+  subroutine global_to_local_vec_section(v, local_v, section)
     !! Takes a global vector v and returns a local vector, with values
-    !! scattered from the global vector, and the default PETSc section
-    !! from the DM of the global vector.
+    !! scattered from the global vector, and the default local PETSc
+    !! section from the DM of the global vector.
 
     Vec, intent(in) :: v
     Vec, intent(out) :: local_v
@@ -124,7 +141,7 @@ contains
     call DMGlobalToLocalEnd(dm, v, INSERT_VALUES, local_v, ierr)
     CHKERRQ(ierr)
 
-  end subroutine local_vec_section
+  end subroutine global_to_local_vec_section
 
 !------------------------------------------------------------------------
 
