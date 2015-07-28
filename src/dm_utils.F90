@@ -6,7 +6,7 @@ module dm_utils_module
 
 #include <petsc/finclude/petsc.h90>
 
-  public :: set_dm_data_layout, section_offset
+  public :: set_dm_data_layout, section_offset, global_section_offset
   public :: global_vec_section, local_vec_section
   public :: global_to_local_vec_section, restore_dm_local_vec
 
@@ -85,6 +85,34 @@ contains
     offset = offset + 1
 
   end subroutine section_offset
+
+!------------------------------------------------------------------------
+
+  subroutine global_section_offset(section, p, offset, ierr)
+    !! Wrapper for PetscSectionGetOffset(), adding one to the result for
+    !! Fortran 1-based indexing. For global sections, we also need to
+    !! subtract the layout range start to get indices suitable for
+    !! indexing into arrays.
+
+    use mpi_module
+
+    PetscSection, intent(in) :: section !! PETSc section
+    PetscInt, intent(in) :: p !! Mesh point
+    PetscInt, intent(out) :: offset
+    PetscErrorCode, intent(out) :: ierr
+    ! Locals:
+    PetscLayout :: layout
+    PetscInt :: range_start, range_end
+
+    call PetscSectionGetValueLayout(mpi%comm, section, layout, ierr)
+    CHKERRQ(ierr)
+    call PetscLayoutGetRange(layout, range_start, range_end, ierr)
+    CHKERRQ(ierr)
+
+    call PetscSectionGetOffset(section, p, offset, ierr)
+    offset = offset + 1 - range_start
+
+  end subroutine global_section_offset
 
 !------------------------------------------------------------------------
 

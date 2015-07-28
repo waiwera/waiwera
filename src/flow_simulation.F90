@@ -101,7 +101,7 @@ contains
     !! Computes mass and energy balance for each cell, for the given
     !! primary thermodynamic variables and time.
 
-    use dm_utils_module, only: section_offset, global_vec_section
+    use dm_utils_module, only: global_section_offset, global_vec_section
     use cell_module, only: cell_type
 
     class(flow_simulation_type), intent(in out) :: self
@@ -140,13 +140,13 @@ contains
        call DMLabelGetValue(ghost_label, c, ghost, ierr); CHKERRQ(ierr)
        if (ghost < 0) then
 
-          call section_offset(lhs_section, c, lhs_offset, ierr)
+          call global_section_offset(lhs_section, c, lhs_offset, ierr)
           CHKERRQ(ierr)
           balance => lhs_array(lhs_offset : lhs_offset + np - 1)
 
-          call section_offset(fluid_section, c, fluid_offset, ierr)
+          call global_section_offset(fluid_section, c, fluid_offset, ierr)
           CHKERRQ(ierr)
-          call section_offset(rock_section, c, rock_offset, ierr)
+          call global_section_offset(rock_section, c, rock_offset, ierr)
           CHKERRQ(ierr)
 
           call cell%assign( &
@@ -242,8 +242,8 @@ contains
                   fluid_offsets(i), ierr); CHKERRQ(ierr)
              call section_offset(rock_section, cells(i), &
                   rock_offsets(i), ierr); CHKERRQ(ierr)
-             call section_offset(rhs_section, cells(i), rhs_offsets(i), &
-                  ierr); CHKERRQ(ierr)
+             call global_section_offset(rhs_section, cells(i), &
+                  rhs_offsets(i), ierr); CHKERRQ(ierr)
           end do
 
           call face%assign(face_geom_array, face_geom_offset, &
@@ -291,9 +291,9 @@ contains
     !! Computes fluid properties in all cells, based on the current time
     !! and primary thermodynamic variables.
 
-    use dm_utils_module, only: section_offset, global_vec_section
+    use dm_utils_module, only: global_section_offset, global_vec_section
     use fluid_module, only: fluid_type
-    use mpi_module ! debug only
+    use mpi_module
 
     class(flow_simulation_type), intent(in out) :: self
     PetscReal, intent(in) :: t !! time
@@ -327,16 +327,11 @@ contains
        call DMLabelGetValue(ghost_label, c, ghost, ierr); CHKERRQ(ierr)
        if (ghost < 0) then
 
-          call section_offset(y_section, c, y_offset, ierr)
+          call global_section_offset(y_section, c, y_offset, ierr)
           CHKERRQ(ierr)
-          if (y_offset + np - 1 > size(y_array)) then
-             print *, 'off end, rank', mpi%rank, c, y_offset + np - 1, size(y_array)
-          else
-             print *, '     ok, rank', mpi%rank, c, y_offset + np - 1, size(y_array)
-          end if
           cell_primary => y_array(y_offset : y_offset + np - 1)
 
-          call section_offset(fluid_section, c, fluid_offset, ierr)
+          call global_section_offset(fluid_section, c, fluid_offset, ierr)
           CHKERRQ(ierr)
 
           call fluid%assign(fluid_array, fluid_offset)
@@ -344,8 +339,6 @@ contains
 
           call self%eos%fluid_properties(region, cell_primary, fluid)
 
-       else
-          print *, '  ghost, rank', mpi%rank, c
        end if
 
     end do
