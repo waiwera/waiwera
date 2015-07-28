@@ -27,7 +27,7 @@ contains
     use mesh_module
     use boundary_module, only: open_boundary_label_name
     use rock_module
-    use dm_utils_module, only: global_vec_section, section_offset
+    use dm_utils_module, only: global_vec_section, global_section_offset
 
     type(fson_value), pointer, intent(in) :: json
     type(mesh_type), intent(in) :: mesh
@@ -46,6 +46,7 @@ contains
     IS :: bdy_IS
     PetscReal, pointer:: y_array(:), rock_array(:), cell_primary(:)
     PetscSection :: y_section, rock_section
+    PetscInt :: y_range_start, rock_range_start
     PetscInt :: ibdy, f, iface, num_faces
     PetscInt :: y_offset, rock_offsets(2), n
     PetscInt, pointer :: bdy_faces(:), cells(:)
@@ -99,9 +100,9 @@ contains
     end if
 
     ! Boundary conditions:
-    call global_vec_section(y, y_section)
+    call global_vec_section(y, y_section, y_range_start)
     call VecGetArrayF90(y, y_array, ierr); CHKERRQ(ierr)
-    call global_vec_section(rock_vector, rock_section)
+    call global_vec_section(rock_vector, rock_section, rock_range_start)
     call VecGetArrayF90(rock_vector, rock_array, ierr); CHKERRQ(ierr)
     call DMPlexGetLabel(mesh%dm, open_boundary_label_name, &
          bdy_label, ierr); CHKERRQ(ierr)
@@ -114,10 +115,12 @@ contains
           do iface = 1, num_faces
              f = bdy_faces(iface)
              call DMPlexGetSupport(mesh%dm, f, cells, ierr); CHKERRQ(ierr)
-             call section_offset(y_section, cells(2), y_offset, ierr)
+             call global_section_offset(y_section, cells(2), &
+                  y_range_start, y_offset, ierr); CHKERRQ(ierr)
              do i = 1, 2
-                call section_offset(rock_section, cells(i), &
-                     rock_offsets(i), ierr); CHKERRQ(ierr)
+                call global_section_offset(rock_section, cells(i), &
+                     rock_range_start, rock_offsets(i), ierr)
+                CHKERRQ(ierr)
              end do
              ! Set primary variables:
              cell_primary => y_array(y_offset : y_offset + num_primary - 1)

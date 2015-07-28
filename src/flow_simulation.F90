@@ -111,6 +111,7 @@ contains
     ! Locals:
     PetscInt :: c, ghost, np, nc
     PetscSection :: fluid_section, rock_section, lhs_section
+    PetscInt :: fluid_range_start, rock_range_start, lhs_range_start
     PetscInt :: fluid_offset, rock_offset, lhs_offset
     PetscReal, pointer :: fluid_array(:), rock_array(:), lhs_array(:)
     PetscReal, pointer :: balance(:)
@@ -121,13 +122,13 @@ contains
     np = self%eos%num_primary_variables
     nc = self%eos%num_components
 
-    call global_vec_section(lhs, lhs_section)
+    call global_vec_section(lhs, lhs_section, lhs_range_start)
     call VecGetArrayF90(lhs, lhs_array, ierr); CHKERRQ(ierr)
 
-    call global_vec_section(self%fluid, fluid_section)
+    call global_vec_section(self%fluid, fluid_section, fluid_range_start)
     call VecGetArrayReadF90(self%fluid, fluid_array, ierr); CHKERRQ(ierr)
 
-    call global_vec_section(self%rock, rock_section)
+    call global_vec_section(self%rock, rock_section, rock_range_start)
     call VecGetArrayReadF90(self%rock, rock_array, ierr); CHKERRQ(ierr)
 
     call cell%init(nc, self%eos%num_phases)
@@ -140,14 +141,14 @@ contains
        call DMLabelGetValue(ghost_label, c, ghost, ierr); CHKERRQ(ierr)
        if (ghost < 0) then
 
-          call global_section_offset(lhs_section, c, lhs_offset, ierr)
-          CHKERRQ(ierr)
+          call global_section_offset(lhs_section, c, lhs_range_start, &
+               lhs_offset, ierr); CHKERRQ(ierr)
           balance => lhs_array(lhs_offset : lhs_offset + np - 1)
 
-          call global_section_offset(fluid_section, c, fluid_offset, ierr)
-          CHKERRQ(ierr)
-          call global_section_offset(rock_section, c, rock_offset, ierr)
-          CHKERRQ(ierr)
+          call global_section_offset(fluid_section, c, fluid_range_start, &
+               fluid_offset, ierr); CHKERRQ(ierr)
+          call global_section_offset(rock_section, c, rock_range_start, &
+               rock_offset, ierr); CHKERRQ(ierr)
 
           call cell%assign( &
                rock_data = rock_array, rock_offset = rock_offset, &
@@ -190,6 +191,7 @@ contains
     PetscReal, pointer :: fluid_array(:), rock_array(:)
     PetscSection :: rhs_section, rock_section, fluid_section
     PetscSection :: cell_geom_section, face_geom_section
+    PetscInt :: rhs_range_start
     type(face_type) :: face
     PetscInt :: face_geom_offset, cell_geom_offsets(2)
     PetscInt :: rock_offsets(2), fluid_offsets(2), rhs_offsets(2)
@@ -204,7 +206,7 @@ contains
     np = self%eos%num_primary_variables
     allocate(face_flow(np), primary(np))
 
-    call global_vec_section(rhs, rhs_section)
+    call global_vec_section(rhs, rhs_section, rhs_range_start)
     call VecGetArrayF90(rhs, rhs_array, ierr); CHKERRQ(ierr)
     rhs_array = 0._dp
 
@@ -243,7 +245,7 @@ contains
              call section_offset(rock_section, cells(i), &
                   rock_offsets(i), ierr); CHKERRQ(ierr)
              call global_section_offset(rhs_section, cells(i), &
-                  rhs_offsets(i), ierr); CHKERRQ(ierr)
+                  rhs_range_start, rhs_offsets(i), ierr); CHKERRQ(ierr)
           end do
 
           call face%assign(face_geom_array, face_geom_offset, &
@@ -301,6 +303,7 @@ contains
     ! Locals:
     PetscInt :: c, region, np, nc, ghost
     PetscSection :: y_section, fluid_section
+    PetscInt :: y_range_start, fluid_range_start
     PetscInt :: y_offset, fluid_offset
     PetscReal, pointer :: y_array(:), cell_primary(:)
     PetscReal, pointer :: fluid_array(:)
@@ -311,10 +314,10 @@ contains
     np = self%eos%num_primary_variables
     nc = self%eos%num_components
 
-    call global_vec_section(y, y_section)
+    call global_vec_section(y, y_section, y_range_start)
     call VecGetArrayReadF90(y, y_array, ierr); CHKERRQ(ierr)
 
-    call global_vec_section(self%fluid, fluid_section)
+    call global_vec_section(self%fluid, fluid_section, fluid_range_start)
     call VecGetArrayF90(self%fluid, fluid_array, ierr); CHKERRQ(ierr)
 
     call fluid%init(nc, self%eos%num_phases)
@@ -327,12 +330,12 @@ contains
        call DMLabelGetValue(ghost_label, c, ghost, ierr); CHKERRQ(ierr)
        if (ghost < 0) then
 
-          call global_section_offset(y_section, c, y_offset, ierr)
-          CHKERRQ(ierr)
+          call global_section_offset(y_section, c, y_range_start, &
+               y_offset, ierr); CHKERRQ(ierr)
           cell_primary => y_array(y_offset : y_offset + np - 1)
 
-          call global_section_offset(fluid_section, c, fluid_offset, ierr)
-          CHKERRQ(ierr)
+          call global_section_offset(fluid_section, c, fluid_range_start, &
+               fluid_offset, ierr); CHKERRQ(ierr)
 
           call fluid%assign(fluid_array, fluid_offset)
           region = nint(fluid%region)

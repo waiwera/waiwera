@@ -114,7 +114,7 @@ contains
   subroutine setup_rock_vector_types(json, dm, rock_vector)
     !! Sets up rock vector on DM from rock types in JSON input.
 
-    use dm_utils_module, only: section_offset, global_vec_section
+    use dm_utils_module, only: global_section_offset, global_vec_section
     use fson
     use fson_mpi_module
 
@@ -133,10 +133,11 @@ contains
     PetscReal, allocatable :: permeability(:)
     PetscReal, pointer :: rock_array(:)
     PetscSection :: section
+    PetscInt :: rock_range_start
     PetscErrorCode :: ierr
 
     call VecGetArrayF90(rock_vector, rock_array, ierr); CHKERRQ(ierr)
-    call global_vec_section(rock_vector, section)
+    call global_vec_section(rock_vector, section, rock_range_start)
 
     call DMPlexGetLabel(dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
     
@@ -160,7 +161,8 @@ contains
              c = rock_cells(ic)
              call DMLabelGetValue(ghost_label, c, ghost, ierr); CHKERRQ(ierr)
              if (ghost < 0) then
-                call section_offset(section, c, offset, ierr); CHKERRQ(ierr)
+                call global_section_offset(section, c, rock_range_start, &
+                     offset, ierr); CHKERRQ(ierr)
                 call rock%assign(rock_array, offset)
                 rock%permeability = permeability
                 rock%heat_conductivity = heat_conductivity

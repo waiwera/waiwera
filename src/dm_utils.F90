@@ -88,26 +88,18 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine global_section_offset(section, p, offset, ierr)
+  subroutine global_section_offset(section, p, range_start, offset, ierr)
     !! Wrapper for PetscSectionGetOffset(), adding one to the result for
     !! Fortran 1-based indexing. For global sections, we also need to
     !! subtract the layout range start to get indices suitable for
     !! indexing into arrays.
 
-    use mpi_module
-
     PetscSection, intent(in) :: section !! PETSc section
     PetscInt, intent(in) :: p !! Mesh point
+    PetscInt, intent(in) :: range_start !! Start of PetscLayout range
     PetscInt, intent(out) :: offset
     PetscErrorCode, intent(out) :: ierr
     ! Locals:
-    PetscLayout :: layout
-    PetscInt :: range_start, range_end
-
-    call PetscSectionGetValueLayout(mpi%comm, section, layout, ierr)
-    CHKERRQ(ierr)
-    call PetscLayoutGetRange(layout, range_start, range_end, ierr)
-    CHKERRQ(ierr)
 
     call PetscSectionGetOffset(section, p, offset, ierr)
     offset = offset + 1 - range_start
@@ -116,17 +108,30 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine global_vec_section(v, section)
-    !! Gets default global PETSc section from DM of a vector v.
+  subroutine global_vec_section(v, section, range_start)
+    !! Gets default global PETSc section from DM of a vector v, and
+    !! range_start from the PetscLayout of the section.
+
+    use mpi_module
 
     Vec, intent(in) :: v
     PetscSection, intent(out) :: section
+    PetscInt, intent(out) :: range_start
     ! Locals:
     DM :: dm
+    PetscLayout :: layout
+    PetscInt :: range_end
     PetscErrorCode :: ierr
 
     call VecGetDM(v, dm, ierr); CHKERRQ(ierr)
     call DMGetDefaultGlobalSection(dm, section, ierr); CHKERRQ(ierr)
+
+    call PetscSectionGetValueLayout(mpi%comm, section, layout, ierr)
+    CHKERRQ(ierr)
+    call PetscLayoutGetRange(layout, range_start, range_end, ierr)
+    CHKERRQ(ierr)
+    call PetscLayoutDestroy(layout, ierr)
+    CHKERRQ(ierr)
 
   end subroutine global_vec_section
 
