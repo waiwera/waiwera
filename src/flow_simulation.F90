@@ -21,6 +21,7 @@ module flow_simulation_module
      character(max_title_length), public :: title
      Vec, public :: rock
      Vec, public :: fluid
+     Vec, public :: source
      class(thermodynamics_type), allocatable, public :: thermo
      class(eos_type), allocatable, public :: eos
      PetscReal, public :: gravity
@@ -69,6 +70,7 @@ contains
     use initial_module, only: setup_initial
     use fluid_module, only: setup_fluid_vector
     use rock_module, only: setup_rock_vector, setup_rocktype_labels
+    use source_module, only: setup_source_vector
 
     class(flow_simulation_type), intent(in out) :: self
     type(fson_value), pointer, intent(in) :: json
@@ -91,6 +93,8 @@ contains
          self%rock_range_start)
     call setup_fluid_vector(self%mesh%dm, self%eos%num_phases, &
          self%eos%num_components, self%fluid, self%fluid_range_start)
+    call setup_source_vector(json, self%eos%num_primary_variables, &
+         self%source)
     call fson_get_mpi(json, "gravity", default_gravity, self%gravity)
 
   end subroutine flow_simulation_init
