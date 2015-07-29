@@ -93,8 +93,8 @@ contains
          self%rock_range_start)
     call setup_fluid_vector(self%mesh%dm, self%eos%num_phases, &
          self%eos%num_components, self%fluid, self%fluid_range_start)
-    call setup_source_vector(json, self%eos%num_primary_variables, &
-         self%source)
+    call setup_source_vector(json, self%mesh%dm, &
+         self%eos%num_primary_variables, self%source)
     call fson_get_mpi(json, "gravity", default_gravity, self%gravity)
 
   end subroutine flow_simulation_init
@@ -111,6 +111,7 @@ contains
     call VecDestroy(self%solution, ierr); CHKERRQ(ierr)
     call VecDestroy(self%fluid, ierr); CHKERRQ(ierr)
     call VecDestroy(self%rock, ierr); CHKERRQ(ierr)
+    call VecDestroy(self%source, ierr); CHKERRQ(ierr)
     call self%mesh%destroy()
     call self%thermo%destroy()
     deallocate(self%thermo)
