@@ -12,7 +12,8 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine setup_source_vector(json, dm, num_primary, source)
+  subroutine setup_source_vector(json, dm, num_primary, isothermal, &
+       source)
     !! Sets up sinks and sources. Source strengths are stored (for
     !! now) in the source vector, with values for all components in
     !! all cells.
@@ -24,16 +25,19 @@ contains
     type(fson_value), pointer, intent(in) :: json
     DM, intent(in) :: dm
     PetscInt, intent(in) :: num_primary
+    PetscBool, intent(in) :: isothermal
     Vec, intent(in out) :: source
     ! Locals:
     PetscErrorCode :: ierr
     PetscInt :: c, isrc, i
     type(fson_value), pointer :: sources, src
-    PetscInt :: num_sources, cell, count
-    PetscReal :: val
+    PetscInt :: num_sources, cell, count, offset
+    PetscReal :: q
     PetscReal, allocatable :: values(:)
     PetscInt, allocatable :: indices(:)
     PetscInt, parameter :: default_component = 1
+    PetscReal :: enthalpy
+    PetscReal, parameter :: default_enthalpy = 83.9e3
 
     call DMCreateGlobalVector(dm, source, ierr); CHKERRQ(ierr)
     call PetscObjectSetName(source, "source", ierr); CHKERRQ(ierr)
@@ -50,8 +54,15 @@ contains
           src => fson_value_get_mpi(sources, isrc)
           call fson_get_mpi(src, "cell", val = cell)
           call fson_get_mpi(src, "component", default_component, c)
-          call fson_get_mpi(src, "value", val = val)
-          values(cell * num_primary + c) = val
+          call fson_get_mpi(src, "value", val = q)
+          offset = cell * num_primary
+          values(offset + c) = q
+          if ((.not.(isothermal)) .and. (q > 0._dp)) then
+             ! add energy from injection
+             call fson_get_mpi(src, "enthalpy", default_enthalpy, &
+                  enthalpy)
+             values(offset + num_primary) = enthalpy * q
+          end if
        end do
 
        do i = 1, count

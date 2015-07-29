@@ -94,7 +94,7 @@ contains
     call setup_fluid_vector(self%mesh%dm, self%eos%num_phases, &
          self%eos%num_components, self%fluid, self%fluid_range_start)
     call setup_source_vector(json, self%mesh%dm, &
-         self%eos%num_primary_variables, self%source)
+         self%eos%num_primary_variables, self%eos%isothermal, self%source)
     call fson_get_mpi(json, "gravity", default_gravity, self%gravity)
 
   end subroutine flow_simulation_init
