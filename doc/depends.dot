@@ -9,6 +9,12 @@ digraph supermodel{
         rock_module -> fson
         rock_module -> fson_mpi_module
         rock_module -> kinds_module
+        eos_we_module -> eos_module
+        eos_we_module -> fluid_module
+        eos_we_module -> fson
+        eos_we_module -> fson_mpi_module
+        eos_we_module -> kinds_module
+        eos_we_module -> thermodynamics_module
         powertable_module -> kinds_module
         ode_module -> mesh_module
         dm_utils_module -> mpi_module
@@ -73,6 +79,7 @@ digraph supermodel{
         source_module -> kinds_module
         eos_setup_module -> eos_module
         eos_setup_module -> eos_w_module
+        eos_setup_module -> eos_we_module
         eos_setup_module -> fson
         eos_setup_module -> fson_mpi_module
         eos_setup_module -> thermodynamics_module

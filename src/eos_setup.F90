@@ -2,6 +2,7 @@ module eos_setup_module
   !! Module for setting up EOS from input data.
 
   use eos_w_module
+  use eos_we_module
   use eos_module
   use fson
   use fson_mpi_module
@@ -29,17 +30,19 @@ module eos_setup_module
     class(eos_type), allocatable, intent(in out) :: eos
     ! Locals:
     character(max_eos_name_length), parameter :: &
-         default_eos_name = "w"
+         default_eos_name = "we"
     character(max_eos_name_length) :: eos_name
 
     call fson_get_mpi(json, "eos.name", default_eos_name, eos_name)
     eos_name = str_to_lower(eos_name)
 
     select case (eos_name)
-    case ("ew")
-       allocate(eos_w_type :: eos)  ! change to eos_ew when it's ready
-    case default
+    case ("w")
        allocate(eos_w_type :: eos)
+    case ("we")
+       allocate(eos_we_type :: eos)
+    case default
+       allocate(eos_we_type :: eos)
     end select
 
     call eos%init(json, thermo)
