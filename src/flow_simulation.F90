@@ -200,6 +200,7 @@ contains
 
     use kinds_module
     use dm_utils_module
+    use cell_module, only: cell_type
     use face_module, only: face_type
 
     class(flow_simulation_type), intent(in out) :: self
@@ -207,19 +208,23 @@ contains
     Vec, intent(in) :: y !! global primary variables vector
     Vec, intent(out) :: rhs
     ! Locals:
-    PetscInt :: f, ghost_cell, ghost_face, i, np
+    PetscInt :: f, c, ghost_cell, ghost_face, i, np, nc
     Vec :: local_fluid, local_rock
     PetscReal, pointer :: rhs_array(:)
     PetscReal, pointer :: cell_geom_array(:), face_geom_array(:)
     PetscReal, pointer :: fluid_array(:), rock_array(:)
+    PetscReal, pointer :: source_array(:)
     PetscSection :: rhs_section, rock_section, fluid_section
+    PetscSection :: source_section
     PetscSection :: cell_geom_section, face_geom_section
+    type(cell_type) :: cell
     type(face_type) :: face
     PetscInt :: face_geom_offset, cell_geom_offsets(2)
     PetscInt :: rock_offsets(2), fluid_offsets(2), rhs_offsets(2)
+    PetscInt :: cell_geom_offset, rhs_offset, source_offset
     DMLabel :: ghost_label
     PetscInt, pointer :: cells(:)
-    PetscReal, pointer :: inflow(:)
+    PetscReal, pointer :: inflow(:), source(:)
     PetscReal, allocatable :: face_flow(:)
     PetscReal, parameter :: flux_sign(2) = [-1._dp, 1._dp]
     PetscReal, allocatable :: primary(:)
@@ -297,10 +302,32 @@ contains
     call VecRestoreArrayReadF90(self%mesh%face_geom, face_geom_array, ierr)
     CHKERRQ(ierr)
 
-    ! TODO: source term loop will go here
+    ! Source/ sink terms:
+    nc = self%eos%num_components
+    call cell%init(nc, self%eos%num_phases)
+    call VecGetArrayReadF90(self%source, source_array, ierr); CHKERRQ(ierr)
+    call global_vec_section(self%source, source_section)
+
+    do c = self%mesh%start_cell, self%mesh%end_interior_cell - 1
+
+       call global_section_offset(rhs_section, c, &
+            self%solution_range_start, rhs_offset, ierr)
+       CHKERRQ(ierr)
+       call section_offset(cell_geom_section, c, &
+            cell_geom_offset, ierr); CHKERRQ(ierr)
+       call cell%assign(cell_geom_array, cell_geom_offset)
+       call global_section_offset(source_section, c, &
+            self%solution_range_start, source_offset, ierr)
+       CHKERRQ(ierr)
+       inflow => rhs_array(rhs_offset : rhs_offset + np - 1)
+       source => source_array(source_offset : source_offset + np - 1)
+       inflow = inflow + source / cell%volume
+
+    end do
 
     call VecRestoreArrayReadF90(local_rock, rock_array, ierr); CHKERRQ(ierr)
     call VecRestoreArrayReadF90(local_fluid, fluid_array, ierr); CHKERRQ(ierr)
+    call VecRestoreArrayReadF90(self%source, source_array, ierr); CHKERRQ(ierr)
     call VecRestoreArrayReadF90(self%mesh%cell_geom, cell_geom_array, ierr)
     CHKERRQ(ierr)
     call VecRestoreArrayF90(rhs, rhs_array, ierr); CHKERRQ(ierr)
