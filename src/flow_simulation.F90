@@ -298,7 +298,6 @@ contains
     end do
 
     call face%destroy()
-    nullify(inflow)
     call VecRestoreArrayReadF90(self%mesh%face_geom, face_geom_array, ierr)
     CHKERRQ(ierr)
 
@@ -325,6 +324,9 @@ contains
 
     end do
 
+    nullify(inflow)
+    nullify(source)
+    call cell%destroy()
     call VecRestoreArrayReadF90(local_rock, rock_array, ierr); CHKERRQ(ierr)
     call VecRestoreArrayReadF90(local_fluid, fluid_array, ierr); CHKERRQ(ierr)
     call VecRestoreArrayReadF90(self%source, source_array, ierr); CHKERRQ(ierr)
