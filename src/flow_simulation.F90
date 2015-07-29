@@ -21,6 +21,7 @@ module flow_simulation_module
      character(max_title_length), public :: title
      Vec, public :: rock
      Vec, public :: fluid
+     Vec, public :: source
      class(thermodynamics_type), allocatable, public :: thermo
      class(eos_type), allocatable, public :: eos
      PetscReal, public :: gravity
@@ -69,6 +70,7 @@ contains
     use initial_module, only: setup_initial
     use fluid_module, only: setup_fluid_vector
     use rock_module, only: setup_rock_vector, setup_rocktype_labels
+    use source_module, only: setup_source_vector
 
     class(flow_simulation_type), intent(in out) :: self
     type(fson_value), pointer, intent(in) :: json
@@ -91,6 +93,8 @@ contains
          self%rock_range_start)
     call setup_fluid_vector(self%mesh%dm, self%eos%num_phases, &
          self%eos%num_components, self%fluid, self%fluid_range_start)
+    call setup_source_vector(json, self%mesh%dm, &
+         self%eos%num_primary_variables, self%eos%isothermal, self%source)
     call fson_get_mpi(json, "gravity", default_gravity, self%gravity)
 
   end subroutine flow_simulation_init
@@ -107,6 +111,7 @@ contains
     call VecDestroy(self%solution, ierr); CHKERRQ(ierr)
     call VecDestroy(self%fluid, ierr); CHKERRQ(ierr)
     call VecDestroy(self%rock, ierr); CHKERRQ(ierr)
+    call VecDestroy(self%source, ierr); CHKERRQ(ierr)
     call self%mesh%destroy()
     call self%thermo%destroy()
     deallocate(self%thermo)
@@ -195,6 +200,7 @@ contains
 
     use kinds_module
     use dm_utils_module
+    use cell_module, only: cell_type
     use face_module, only: face_type
 
     class(flow_simulation_type), intent(in out) :: self
@@ -202,19 +208,23 @@ contains
     Vec, intent(in) :: y !! global primary variables vector
     Vec, intent(out) :: rhs
     ! Locals:
-    PetscInt :: f, ghost_cell, ghost_face, i, np
+    PetscInt :: f, c, ghost_cell, ghost_face, i, np, nc
     Vec :: local_fluid, local_rock
     PetscReal, pointer :: rhs_array(:)
     PetscReal, pointer :: cell_geom_array(:), face_geom_array(:)
     PetscReal, pointer :: fluid_array(:), rock_array(:)
+    PetscReal, pointer :: source_array(:)
     PetscSection :: rhs_section, rock_section, fluid_section
+    PetscSection :: source_section
     PetscSection :: cell_geom_section, face_geom_section
+    type(cell_type) :: cell
     type(face_type) :: face
     PetscInt :: face_geom_offset, cell_geom_offsets(2)
     PetscInt :: rock_offsets(2), fluid_offsets(2), rhs_offsets(2)
+    PetscInt :: cell_geom_offset, rhs_offset, source_offset
     DMLabel :: ghost_label
     PetscInt, pointer :: cells(:)
-    PetscReal, pointer :: inflow(:)
+    PetscReal, pointer :: inflow(:), source(:)
     PetscReal, allocatable :: face_flow(:)
     PetscReal, parameter :: flux_sign(2) = [-1._dp, 1._dp]
     PetscReal, allocatable :: primary(:)
@@ -288,14 +298,38 @@ contains
     end do
 
     call face%destroy()
-    nullify(inflow)
     call VecRestoreArrayReadF90(self%mesh%face_geom, face_geom_array, ierr)
     CHKERRQ(ierr)
 
-    ! TODO: source term loop will go here
+    ! Source/ sink terms:
+    nc = self%eos%num_components
+    call cell%init(nc, self%eos%num_phases)
+    call VecGetArrayReadF90(self%source, source_array, ierr); CHKERRQ(ierr)
+    call global_vec_section(self%source, source_section)
 
+    do c = self%mesh%start_cell, self%mesh%end_interior_cell - 1
+
+       call global_section_offset(rhs_section, c, &
+            self%solution_range_start, rhs_offset, ierr)
+       CHKERRQ(ierr)
+       call section_offset(cell_geom_section, c, &
+            cell_geom_offset, ierr); CHKERRQ(ierr)
+       call cell%assign(cell_geom_array, cell_geom_offset)
+       call global_section_offset(source_section, c, &
+            self%solution_range_start, source_offset, ierr)
+       CHKERRQ(ierr)
+       inflow => rhs_array(rhs_offset : rhs_offset + np - 1)
+       source => source_array(source_offset : source_offset + np - 1)
+       inflow = inflow + source / cell%volume
+
+    end do
+
+    nullify(inflow)
+    nullify(source)
+    call cell%destroy()
     call VecRestoreArrayReadF90(local_rock, rock_array, ierr); CHKERRQ(ierr)
     call VecRestoreArrayReadF90(local_fluid, fluid_array, ierr); CHKERRQ(ierr)
+    call VecRestoreArrayReadF90(self%source, source_array, ierr); CHKERRQ(ierr)
     call VecRestoreArrayReadF90(self%mesh%cell_geom, cell_geom_array, ierr)
     CHKERRQ(ierr)
     call VecRestoreArrayF90(rhs, rhs_array, ierr); CHKERRQ(ierr)

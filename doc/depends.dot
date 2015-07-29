@@ -31,6 +31,7 @@ digraph supermodel{
         flow_simulation_module -> mpi_module
         flow_simulation_module -> ode_module
         flow_simulation_module -> rock_module
+        flow_simulation_module -> source_module
         flow_simulation_module -> thermodynamics_module
         flow_simulation_module -> thermodynamics_setup_module
         thermodynamics_module -> kinds_module
@@ -67,6 +68,9 @@ digraph supermodel{
         eos_w_module -> fson_mpi_module
         eos_w_module -> kinds_module
         eos_w_module -> thermodynamics_module
+        source_module -> fson
+        source_module -> fson_mpi_module
+        source_module -> kinds_module
         eos_setup_module -> eos_module
         eos_setup_module -> eos_w_module
         eos_setup_module -> fson
