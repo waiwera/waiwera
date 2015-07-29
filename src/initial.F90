@@ -16,7 +16,8 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine setup_initial(json, mesh, num_primary, t, y, rock_vector)
+  subroutine setup_initial(json, mesh, num_primary, t, y, rock_vector, &
+       y_range_start, rock_range_start)
     !! Initializes time t and a Vec y with initial conditions read
     !! from JSON input 'initial'.  Conditions may be specified as a
     !! constant value or as an array. The array may contain a complete
@@ -34,6 +35,7 @@ contains
     PetscInt, intent(in) :: num_primary
     PetscReal, intent(out) :: t
     Vec, intent(in out) :: y, rock_vector
+    PetscInt, intent(in) :: y_range_start, rock_range_start
     ! Locals:
     PetscErrorCode :: ierr
     PetscReal :: const_initial_value
@@ -46,7 +48,6 @@ contains
     IS :: bdy_IS
     PetscReal, pointer:: y_array(:), rock_array(:), cell_primary(:)
     PetscSection :: y_section, rock_section
-    PetscInt :: y_range_start, rock_range_start
     PetscInt :: ibdy, f, iface, num_faces
     PetscInt :: y_offset, rock_offsets(2), n
     PetscInt, pointer :: bdy_faces(:), cells(:)
@@ -100,9 +101,9 @@ contains
     end if
 
     ! Boundary conditions:
-    call global_vec_section(y, y_section, y_range_start)
+    call global_vec_section(y, y_section)
     call VecGetArrayF90(y, y_array, ierr); CHKERRQ(ierr)
-    call global_vec_section(rock_vector, rock_section, rock_range_start)
+    call global_vec_section(rock_vector, rock_section)
     call VecGetArrayF90(rock_vector, rock_array, ierr); CHKERRQ(ierr)
     call DMPlexGetLabel(mesh%dm, open_boundary_label_name, &
          bdy_label, ierr); CHKERRQ(ierr)

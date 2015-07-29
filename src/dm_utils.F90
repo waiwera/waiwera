@@ -9,6 +9,7 @@ module dm_utils_module
   public :: set_dm_data_layout, section_offset, global_section_offset
   public :: global_vec_section, local_vec_section
   public :: global_to_local_vec_section, restore_dm_local_vec
+  public :: global_vec_range_start
 
 contains
 
@@ -72,6 +73,33 @@ contains
 
 !------------------------------------------------------------------------
 
+  subroutine global_vec_range_start(v, range_start)
+    !! Gets global start of global range from PetscLayout of global section
+    !! on DM that vector v is defined on.
+
+    use mpi_module
+
+    Vec, intent(in) :: v
+    PetscInt, intent(out) :: range_start
+    ! Locals:
+    PetscSection :: section
+    PetscLayout :: layout
+    PetscInt :: range_end
+    PetscErrorCode :: ierr
+
+    call global_vec_section(v, section)
+
+    call PetscSectionGetValueLayout(mpi%comm, section, layout, ierr)
+    CHKERRQ(ierr)
+    call PetscLayoutGetRange(layout, range_start, range_end, ierr)
+    CHKERRQ(ierr)
+    call PetscLayoutDestroy(layout, ierr)
+    CHKERRQ(ierr)
+
+  end subroutine global_vec_range_start
+
+!------------------------------------------------------------------------
+
   subroutine section_offset(section, p, offset, ierr)
     !! Wrapper for PetscSectionGetOffset(), adding one to the result for
     !! Fortran 1-based indexing.
@@ -108,30 +136,18 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine global_vec_section(v, section, range_start)
+  subroutine global_vec_section(v, section)
     !! Gets default global PETSc section from DM of a vector v, and
     !! range_start from the PetscLayout of the section.
 
-    use mpi_module
-
     Vec, intent(in) :: v
     PetscSection, intent(out) :: section
-    PetscInt, intent(out) :: range_start
     ! Locals:
     DM :: dm
-    PetscLayout :: layout
-    PetscInt :: range_end
     PetscErrorCode :: ierr
 
     call VecGetDM(v, dm, ierr); CHKERRQ(ierr)
     call DMGetDefaultGlobalSection(dm, section, ierr); CHKERRQ(ierr)
-
-    call PetscSectionGetValueLayout(mpi%comm, section, layout, ierr)
-    CHKERRQ(ierr)
-    call PetscLayoutGetRange(layout, range_start, range_end, ierr)
-    CHKERRQ(ierr)
-    call PetscLayoutDestroy(layout, ierr)
-    CHKERRQ(ierr)
 
   end subroutine global_vec_section
 

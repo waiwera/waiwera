@@ -111,7 +111,7 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine setup_rock_vector_types(json, dm, rock_vector)
+  subroutine setup_rock_vector_types(json, dm, rock_vector, range_start)
     !! Sets up rock vector on DM from rock types in JSON input.
 
     use dm_utils_module, only: global_section_offset, global_vec_section
@@ -121,6 +121,7 @@ contains
     type(fson_value), pointer, intent(in) :: json
     DM, intent(in) :: dm
     Vec, intent(out) :: rock_vector
+    PetscInt, intent(in) :: range_start
     ! Locals:
     PetscInt :: num_rocktypes, ir, ic, c, num_cells, offset, ghost
     type(fson_value), pointer :: rocktypes, r
@@ -133,11 +134,10 @@ contains
     PetscReal, allocatable :: permeability(:)
     PetscReal, pointer :: rock_array(:)
     PetscSection :: section
-    PetscInt :: rock_range_start
     PetscErrorCode :: ierr
 
     call VecGetArrayF90(rock_vector, rock_array, ierr); CHKERRQ(ierr)
-    call global_vec_section(rock_vector, section, rock_range_start)
+    call global_vec_section(rock_vector, section)
 
     call DMPlexGetLabel(dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
     
@@ -161,7 +161,7 @@ contains
              c = rock_cells(ic)
              call DMLabelGetValue(ghost_label, c, ghost, ierr); CHKERRQ(ierr)
              if (ghost < 0) then
-                call global_section_offset(section, c, rock_range_start, &
+                call global_section_offset(section, c, range_start, &
                      offset, ierr); CHKERRQ(ierr)
                 call rock%assign(rock_array, offset)
                 rock%permeability = permeability
@@ -181,16 +181,17 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine setup_rock_vector(json, dm, rock_vector)
+  subroutine setup_rock_vector(json, dm, rock_vector, range_start)
     !! Sets up rock vector on specified DM from JSON input.
 
-    use dm_utils_module, only: set_dm_data_layout
+    use dm_utils_module, only: set_dm_data_layout, global_vec_range_start
     use fson
     use fson_mpi_module
 
     type(fson_value), pointer, intent(in) :: json
     DM, intent(in) :: dm
     Vec, intent(out) :: rock_vector
+    PetscInt, intent(out) :: range_start
     ! Locals:
     DM :: dm_rock
     PetscErrorCode :: ierr
@@ -202,6 +203,7 @@ contains
 
     call DMCreateGlobalVector(dm_rock, rock_vector, ierr); CHKERRQ(ierr)
     call PetscObjectSetName(rock_vector, "rock", ierr); CHKERRQ(ierr)
+    call global_vec_range_start(rock_vector, range_start)
 
     ! TODO: set default rock properties everywhere here? in case of cells with
     ! no properties specified
@@ -210,7 +212,7 @@ contains
 
        if (fson_has_mpi(json, "rock.types")) then
 
-          call setup_rock_vector_types(json, dm, rock_vector)
+          call setup_rock_vector_types(json, dm, rock_vector, range_start)
 
        else
           ! other types of rock initialization here- TODO

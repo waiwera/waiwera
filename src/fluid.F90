@@ -224,15 +224,17 @@ contains
 ! Fluid vector setup routine
 !------------------------------------------------------------------------
 
-  subroutine setup_fluid_vector(dm, num_phases, num_components, fluid)
+  subroutine setup_fluid_vector(dm, num_phases, num_components, fluid, &
+       range_start)
     !! Sets up global vector for fluid properties, with specified
     !! numbers of components and phases.
 
-    use dm_utils_module, only: set_dm_data_layout
+    use dm_utils_module, only: set_dm_data_layout, global_vec_range_start
 
     DM, intent(in) :: dm
     PetscInt, intent(in) :: num_phases, num_components
     Vec, intent(out) :: fluid
+    PetscInt, intent(out) :: range_start
     ! Locals:
     PetscInt :: num_vars
     PetscInt, allocatable :: num_field_components(:), field_dim(:)
@@ -254,6 +256,7 @@ contains
 
     call DMCreateGlobalVector(dm_fluid, fluid, ierr); CHKERRQ(ierr)
     call PetscObjectSetName(fluid, "fluid", ierr); CHKERRQ(ierr)
+    call global_vec_range_start(fluid, range_start)
 
     deallocate(num_field_components, field_dim)
     call DMDestroy(dm_fluid, ierr); CHKERRQ(ierr)
