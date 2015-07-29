@@ -19,8 +19,8 @@ module mesh_module
      DM, public :: dm
      Vec, public :: cell_geom, face_geom
      PetscInt, public :: start_cell, end_cell, end_interior_cell
-     PetscInt, public :: num_cells, num_interior_cells
      PetscInt, public :: start_face, end_face
+     PetscReal, allocatable, public :: bcs(:,:)
    contains
      procedure :: distribute => mesh_distribute
      procedure :: construct_ghost_cells => mesh_construct_ghost_cells
@@ -29,10 +29,9 @@ module mesh_module
      procedure :: get_bounds => mesh_get_bounds
      procedure, public :: init => mesh_init
      procedure, public :: configure => mesh_configure
+     procedure, public :: setup_boundaries => mesh_setup_boundaries
      procedure, public :: destroy => mesh_destroy
   end type mesh_type
-
-  public :: setup_labels
 
 contains
 
@@ -109,8 +108,10 @@ contains
     !! Sets up global vectors containing geometry data (e.g. cell volumes,
     !! cell centroids, face areas, face-to-centroid distances) for the mesh.
 
+    use kinds_module
     use face_module
-    use dm_utils_module, only: section_offset, vec_section
+    use dm_utils_module, only: section_offset, local_vec_section
+    use boundary_module, only: open_boundary_label_name
 
     class(mesh_type), intent(in out) :: self
     ! Locals:
@@ -118,15 +119,18 @@ contains
     Vec :: petsc_face_geom
     DM :: dm_face
     PetscSection :: face_section, petsc_face_section, cell_section
-    PetscInt :: f, face_dof, ghost, i
+    PetscInt :: f, face_dof, ghost_face, i, bdy_face, ibdy
+    PetscInt :: num_faces, iface
     PetscInt :: face_offset, petsc_face_offset
     PetscInt :: cell_offset(2)
     type(face_type) :: face
     type(petsc_face_type) :: petsc_face
     PetscReal, pointer :: face_geom_array(:), petsc_face_geom_array(:)
     PetscReal, pointer :: cell_geom_array(:)
-    DMLabel :: ghost_label
+    DMLabel :: ghost_label, bdy_label
     PetscInt, pointer :: cells(:)
+    IS :: bdy_IS
+    PetscInt, pointer :: bdy_faces(:)
 
     ! First call PETSc geometry routine- we use the cell geometry vector but need to 
     ! create our own face geometry vector, containing additional parameters:
@@ -148,20 +152,25 @@ contains
     call DMSetDefaultSection(dm_face, face_section, ierr); CHKERRQ(ierr)
 
     call DMCreateLocalVector(dm_face, self%face_geom, ierr); CHKERRQ(ierr)
-
     call VecGetArrayF90(self%face_geom, face_geom_array, ierr); CHKERRQ(ierr)
-    call VecGetArrayF90(petsc_face_geom, petsc_face_geom_array, ierr); CHKERRQ(ierr)
+
+    call local_vec_section(self%cell_geom, cell_section)
     call VecGetArrayF90(self%cell_geom, cell_geom_array, ierr); CHKERRQ(ierr)
-    
-    call vec_section(petsc_face_geom, petsc_face_section)
-    call vec_section(self%cell_geom, cell_section)
+
+    call local_vec_section(petsc_face_geom, petsc_face_section)
+    call VecGetArrayF90(petsc_face_geom, petsc_face_geom_array, ierr); CHKERRQ(ierr)
 
     call DMPlexGetLabel(self%dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
+    call DMPlexGetLabel(self%dm, open_boundary_label_name, bdy_label, ierr)
+    CHKERRQ(ierr)
 
     do f = self%start_face, self%end_face - 1
 
-       call DMLabelGetValue(ghost_label, f, ghost, ierr); CHKERRQ(ierr)
-       if (ghost < 0) then
+       call DMLabelGetValue(ghost_label, f, ghost_face, ierr); CHKERRQ(ierr)
+
+       if (ghost_face < 0) then
+
+          call DMLabelGetValue(bdy_label, f, bdy_face, ierr); CHKERRQ(ierr)
 
           call section_offset(face_section, f, face_offset, ierr); CHKERRQ(ierr)
           call section_offset(petsc_face_section, f, petsc_face_offset, ierr)
@@ -186,6 +195,23 @@ contains
 
        end if
 
+    end do
+
+    ! Set external boundary face connection distances to zero:
+    do ibdy = 1, size(self%bcs, 2)
+       call DMPlexGetStratumIS(self%dm, open_boundary_label_name, ibdy, bdy_IS, &
+            ierr); CHKERRQ(ierr)
+       if (bdy_IS /= 0) then
+          call ISGetIndicesF90(bdy_IS, bdy_faces, ierr); CHKERRQ(ierr)
+          num_faces = size(bdy_faces)
+          do iface = 1, num_faces
+             f = bdy_faces(iface)
+             call section_offset(face_section, f, face_offset, ierr)
+             CHKERRQ(ierr)
+             call face%assign(face_geom_array, face_offset)
+             face%distance(2) = 0._dp
+          end do
+       end if
     end do
 
     call face%destroy()
@@ -216,9 +242,6 @@ contains
     call DMPlexGetHeightStratum(self%dm, 0, self%start_cell, &
          self%end_cell, ierr)
     CHKERRQ(ierr)
-
-    self%num_cells = self%end_cell - self%start_cell
-    self%num_interior_cells = self%end_interior_cell - self%start_cell
 
     call DMPlexGetHeightStratum(self%dm, 1, self%start_face, &
          self%end_face, ierr); CHKERRQ(ierr)
@@ -294,23 +317,26 @@ contains
     call VecDestroy(self%face_geom, ierr); CHKERRQ(ierr)
     call DMDestroy(self%dm, ierr); CHKERRQ(ierr)
 
+    if (allocated(self%bcs)) then
+       deallocate(self%bcs)
+    end if
+
   end subroutine mesh_destroy
 
 !------------------------------------------------------------------------
 
-  subroutine setup_labels(json, dm)
-    !! Sets up labels on the mesh DM for a simulation.
+  subroutine mesh_setup_boundaries(self, num_primary, json)
+    !! Sets up boundary conditions on the mesh.
 
-    use rock_module, only: setup_rocktype_labels
-    use boundary_module, only: setup_boundary_labels
+    use boundary_module, only: setup_boundaries
 
+    class(mesh_type), intent(in out) :: self
+    PetscInt, intent(in) :: num_primary
     type(fson_value), pointer, intent(in) :: json
-    DM, intent(in out) :: dm
 
-    call setup_rocktype_labels(json, dm)
-    call setup_boundary_labels(dm)
+    call setup_boundaries(json, num_primary, self%dm, self%bcs)
 
-  end subroutine setup_labels
+  end subroutine mesh_setup_boundaries
 
 !------------------------------------------------------------------------
 

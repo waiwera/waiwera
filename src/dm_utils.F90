@@ -6,8 +6,10 @@ module dm_utils_module
 
 #include <petsc/finclude/petsc.h90>
 
-  public :: set_dm_data_layout, section_offset
-  public :: vec_section, local_vec_section, restore_dm_local_vec
+  public :: set_dm_data_layout, section_offset, global_section_offset
+  public :: global_vec_section, local_vec_section
+  public :: global_to_local_vec_section, restore_dm_local_vec
+  public :: global_vec_range_start
 
 contains
 
@@ -71,6 +73,33 @@ contains
 
 !------------------------------------------------------------------------
 
+  subroutine global_vec_range_start(v, range_start)
+    !! Gets global start of global range from PetscLayout of global section
+    !! on DM that vector v is defined on.
+
+    use mpi_module
+
+    Vec, intent(in) :: v
+    PetscInt, intent(out) :: range_start
+    ! Locals:
+    PetscSection :: section
+    PetscLayout :: layout
+    PetscInt :: range_end
+    PetscErrorCode :: ierr
+
+    call global_vec_section(v, section)
+
+    call PetscSectionGetValueLayout(mpi%comm, section, layout, ierr)
+    CHKERRQ(ierr)
+    call PetscLayoutGetRange(layout, range_start, range_end, ierr)
+    CHKERRQ(ierr)
+    call PetscLayoutDestroy(layout, ierr)
+    CHKERRQ(ierr)
+
+  end subroutine global_vec_range_start
+
+!------------------------------------------------------------------------
+
   subroutine section_offset(section, p, offset, ierr)
     !! Wrapper for PetscSectionGetOffset(), adding one to the result for
     !! Fortran 1-based indexing.
@@ -87,8 +116,45 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine vec_section(v, section)
-    !! Gets default PETSc section from DM of a vector v.
+  subroutine global_section_offset(section, p, range_start, offset, ierr)
+    !! Wrapper for PetscSectionGetOffset(), adding one to the result for
+    !! Fortran 1-based indexing. For global sections, we also need to
+    !! subtract the layout range start to get indices suitable for
+    !! indexing into arrays.
+
+    PetscSection, intent(in) :: section !! PETSc section
+    PetscInt, intent(in) :: p !! Mesh point
+    PetscInt, intent(in) :: range_start !! Start of PetscLayout range
+    PetscInt, intent(out) :: offset
+    PetscErrorCode, intent(out) :: ierr
+    ! Locals:
+
+    call PetscSectionGetOffset(section, p, offset, ierr)
+    offset = offset + 1 - range_start
+
+  end subroutine global_section_offset
+
+!------------------------------------------------------------------------
+
+  subroutine global_vec_section(v, section)
+    !! Gets default global PETSc section from DM of a vector v, and
+    !! range_start from the PetscLayout of the section.
+
+    Vec, intent(in) :: v
+    PetscSection, intent(out) :: section
+    ! Locals:
+    DM :: dm
+    PetscErrorCode :: ierr
+
+    call VecGetDM(v, dm, ierr); CHKERRQ(ierr)
+    call DMGetDefaultGlobalSection(dm, section, ierr); CHKERRQ(ierr)
+
+  end subroutine global_vec_section
+
+!------------------------------------------------------------------------
+
+  subroutine local_vec_section(v, section)
+    !! Gets default local PETSc section from DM of a vector v.
 
     Vec, intent(in) :: v
     PetscSection, intent(out) :: section
@@ -99,14 +165,14 @@ contains
     call VecGetDM(v, dm, ierr); CHKERRQ(ierr)
     call DMGetDefaultSection(dm, section, ierr); CHKERRQ(ierr)
 
-  end subroutine vec_section
+  end subroutine local_vec_section
 
 !------------------------------------------------------------------------
 
-  subroutine local_vec_section(v, local_v, section)
+  subroutine global_to_local_vec_section(v, local_v, section)
     !! Takes a global vector v and returns a local vector, with values
-    !! scattered from the global vector, and the default PETSc section
-    !! from the DM of the global vector.
+    !! scattered from the global vector, and the default local PETSc
+    !! section from the DM of the global vector.
 
     Vec, intent(in) :: v
     Vec, intent(out) :: local_v
@@ -124,7 +190,7 @@ contains
     call DMGlobalToLocalEnd(dm, v, INSERT_VALUES, local_v, ierr)
     CHKERRQ(ierr)
 
-  end subroutine local_vec_section
+  end subroutine global_to_local_vec_section
 
 !------------------------------------------------------------------------
 
@@ -140,6 +206,27 @@ contains
     call DMRestoreLocalVector(dm, local_v, ierr); CHKERRQ(ierr)
 
   end subroutine restore_dm_local_vec
+
+!------------------------------------------------------------------------
+
+  subroutine write_vec_vtk(v, filename)
+    !! Writes vector v to VTK file.
+
+    use mpi_module
+
+    Vec, intent(in) :: v
+    character(len = *), intent(in) :: filename
+    ! Locals:
+    PetscViewer :: viewer
+    PetscErrorCode :: ierr
+
+    call PetscViewerCreate(mpi%comm, viewer, ierr); CHKERRQ(ierr)
+    call PetscViewerSetType(viewer, PETSCVIEWERVTK, ierr); CHKERRQ(ierr)
+    call PetscViewerFileSetName(viewer, filename, ierr); CHKERRQ(ierr)
+    call VecView(v, viewer, ierr); CHKERRQ(ierr)
+    call PetscViewerDestroy(viewer, ierr); CHKERRQ(ierr)
+
+  end subroutine write_vec_vtk
 
 !------------------------------------------------------------------------
 
