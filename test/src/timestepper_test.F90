@@ -426,17 +426,16 @@ contains
     Vec, intent(out) :: v
     ! Locals:
     DM :: cdm
-    Vec :: cv, vlocal
+    Vec :: cv
     PetscReal, pointer :: va(:), coords(:)
     PetscInt :: i1, im, i
     PetscReal :: x
     PetscErrorCode :: ierr
 
     call DMGetCoordinateDM(self%mesh%dm, cdm, ierr); CHKERRQ(ierr)
-    call DMGetCoordinatesLocal(self%mesh%dm, cv, ierr); CHKERRQ(ierr)
+    call DMGetCoordinates(self%mesh%dm, cv, ierr); CHKERRQ(ierr)
     call DMDAVecGetArrayF90(cdm, cv, coords, ierr); CHKERRQ(ierr)
-    call DMGetLocalVector(self%mesh%dm, vlocal, ierr); CHKERRQ(ierr)
-    call DMDAVecGetArrayF90(self%mesh%dm, vlocal, va, ierr); CHKERRQ(ierr)
+    call DMDAVecGetArrayF90(self%mesh%dm, v, va, ierr); CHKERRQ(ierr)
     call DMDAGetCorners(self%mesh%dm, i1, PETSC_NULL_INTEGER, &
          PETSC_NULL_INTEGER, im, PETSC_NULL_INTEGER, &
          PETSC_NULL_INTEGER, ierr); CHKERRQ(ierr)
@@ -444,13 +443,9 @@ contains
        x = coords(i)
        va(i) = self%fn(x, t)
     end do
-    call DMDAVecRestoreArrayF90(self%mesh%dm, vlocal, va, ierr)
+    call DMDAVecRestoreArrayF90(self%mesh%dm, v, va, ierr)
     CHKERRQ(ierr)
     call DMDAVecRestoreArrayF90(cdm, cv, coords, ierr); CHKERRQ(ierr)
-    call DMLocalToGlobalBegin(self%mesh%dm, vlocal, INSERT_VALUES, v, ierr)
-    CHKERRQ(ierr)
-    call DMLocalToGlobalEnd(self%mesh%dm, vlocal, INSERT_VALUES, v, ierr)
-    CHKERRQ(ierr)
 
   end subroutine exact_heat1d
 
@@ -493,10 +488,9 @@ contains
     PetscErrorCode :: ierr
     PetscReal, pointer :: ya(:), rhsa(:)
     PetscInt :: i1, im, i, i1g, img, i2g
-    Vec :: ylocal, rlocal
+    Vec :: ylocal
 
     call DMGetLocalVector(self%mesh%dm, ylocal, ierr); CHKERRQ(ierr)
-    call DMGetLocalVector(self%mesh%dm, rlocal, ierr); CHKERRQ(ierr)
     call DMGlobalToLocalBegin(self%mesh%dm, y, INSERT_VALUES, ylocal, &
          ierr); CHKERRQ(ierr)
     call DMGlobalToLocalEnd(self%mesh%dm, y, INSERT_VALUES, ylocal, &
@@ -507,7 +501,7 @@ contains
          PETSC_NULL_INTEGER, ierr); CHKERRQ(ierr)
     call DMDAVecGetArrayF90(self%mesh%dm, ylocal, ya, ierr)
     CHKERRQ(ierr)
-    call DMDAVecGetArrayF90(self%mesh%dm, rlocal, rhsa, ierr)
+    call DMDAVecGetArrayF90(self%mesh%dm, rhs, rhsa, ierr)
     CHKERRQ(ierr)
 
     ! BCs:
@@ -526,13 +520,8 @@ contains
     CHKERRQ(ierr)
     call DMRestoreLocalVector(self%mesh%dm, ylocal, ierr); CHKERRQ(ierr)
 
-    call DMDAVecRestoreArrayF90(self%mesh%dm, rlocal, rhsa, ierr)
+    call DMDAVecRestoreArrayF90(self%mesh%dm, rhs, rhsa, ierr)
     CHKERRQ(ierr)
-    call DMLocalToGlobalBegin(self%mesh%dm, rlocal, INSERT_VALUES, &
-         rhs, ierr); CHKERRQ(ierr)
-    call DMLocalToGlobalEnd(self%mesh%dm, rlocal, INSERT_VALUES, &
-         rhs, ierr); CHKERRQ(ierr)
-    call DMRestoreLocalVector(self%mesh%dm, rlocal, ierr); CHKERRQ(ierr)
 
   end subroutine rhs_heat1d
 
@@ -548,10 +537,9 @@ contains
     PetscErrorCode :: ierr
     PetscReal, pointer :: ya(:), lhsa(:)
     PetscInt :: i1, im, i
-    Vec :: ylocal, llocal
+    Vec :: ylocal
 
     call DMGetLocalVector(self%mesh%dm, ylocal, ierr); CHKERRQ(ierr)
-    call DMGetLocalVector(self%mesh%dm, llocal, ierr); CHKERRQ(ierr)
     call DMGlobalToLocalBegin(self%mesh%dm, y, INSERT_VALUES, ylocal, &
          ierr); CHKERRQ(ierr)
     call DMGlobalToLocalEnd(self%mesh%dm, y, INSERT_VALUES, ylocal, &
@@ -562,7 +550,7 @@ contains
          PETSC_NULL_INTEGER, ierr); CHKERRQ(ierr)
     call DMDAVecGetArrayF90(self%mesh%dm, ylocal, ya, ierr)
     CHKERRQ(ierr)
-    call DMDAVecGetArrayF90(self%mesh%dm, llocal, lhsa, ierr)
+    call DMDAVecGetArrayF90(self%mesh%dm, lhs, lhsa, ierr)
     CHKERRQ(ierr)
 
     do i = i1, i1+im-1
@@ -573,13 +561,8 @@ contains
     CHKERRQ(ierr)
     call DMRestoreLocalVector(self%mesh%dm, ylocal, ierr); CHKERRQ(ierr)
 
-    call DMDAVecRestoreArrayF90(self%mesh%dm, llocal, lhsa, ierr)
+    call DMDAVecRestoreArrayF90(self%mesh%dm, lhs, lhsa, ierr)
     CHKERRQ(ierr)
-    call DMLocalToGlobalBegin(self%mesh%dm, llocal, INSERT_VALUES, &
-         lhs, ierr); CHKERRQ(ierr)
-    call DMLocalToGlobalEnd(self%mesh%dm, llocal, INSERT_VALUES, &
-         lhs, ierr); CHKERRQ(ierr)
-    call DMRestoreLocalVector(self%mesh%dm, llocal, ierr); CHKERRQ(ierr)
 
   end subroutine lhs_heat1d_nonlinear
   
@@ -593,10 +576,9 @@ contains
     PetscErrorCode :: ierr
     PetscReal, pointer :: ya(:), rhsa(:)
     PetscInt :: i1, im, i, i1g, img, i2g
-    Vec :: ylocal, rlocal
+    Vec :: ylocal
 
     call DMGetLocalVector(self%mesh%dm, ylocal, ierr); CHKERRQ(ierr)
-    call DMGetLocalVector(self%mesh%dm, rlocal, ierr); CHKERRQ(ierr)
     call DMGlobalToLocalBegin(self%mesh%dm, y, INSERT_VALUES, &
          ylocal, ierr); CHKERRQ(ierr)
     call DMGlobalToLocalEnd(self%mesh%dm, y, INSERT_VALUES, ylocal, &
@@ -607,7 +589,7 @@ contains
          PETSC_NULL_INTEGER, ierr); CHKERRQ(ierr)
     call DMDAVecGetArrayF90(self%mesh%dm, ylocal, ya, ierr)
     CHKERRQ(ierr)
-    call DMDAVecGetArrayF90(self%mesh%dm, rlocal, rhsa, ierr)
+    call DMDAVecGetArrayF90(self%mesh%dm, rhs, rhsa, ierr)
     CHKERRQ(ierr)
 
     ! BCs:
@@ -626,13 +608,8 @@ contains
     CHKERRQ(ierr)
     call DMRestoreLocalVector(self%mesh%dm, ylocal, ierr); CHKERRQ(ierr)
 
-    call DMDAVecRestoreArrayF90(self%mesh%dm, rlocal, rhsa, ierr)
+    call DMDAVecRestoreArrayF90(self%mesh%dm, rhs, rhsa, ierr)
     CHKERRQ(ierr)
-    call DMLocalToGlobalBegin(self%mesh%dm, rlocal, INSERT_VALUES, &
-         rhs, ierr); CHKERRQ(ierr)
-    call DMLocalToGlobalEnd(self%mesh%dm, rlocal, INSERT_VALUES, &
-         rhs, ierr); CHKERRQ(ierr)
-    call DMRestoreLocalVector(self%mesh%dm, rlocal, ierr); CHKERRQ(ierr)
 
   end subroutine rhs_heat1d_nonlinear
 
@@ -816,9 +793,9 @@ contains
     ! Linear function
 
     type(linear_ode_type), target :: linear
-    PetscInt,  parameter :: num_cases = 2
+    PetscInt,  parameter :: num_cases = 3
     character(len = max_json_len) :: json_str(num_cases)
-    PetscReal, parameter :: tol(num_cases) = [1.e-6_dp, 1.e-6_dp]
+    PetscReal, parameter :: tol(num_cases) = [1.e-6_dp, 1.e-6_dp, 1.e-6_dp]
     PetscReal, allocatable :: initial(:)
 
     initial = [-4._dp, -3.0_dp, -2.0_dp, -1.0_dp, &
@@ -832,6 +809,11 @@ contains
     json_str(2) = '{"time": {"start": 0.0, "stop": 1.0, ' // &
          '"step": {"initial": 0.1, "maximum": {"number": 20}, ' // &
          '"method": "bdf2", "adapt": {"on": false}}}}'
+
+    json_str(3) = '{"time": {"start": 0.0, "stop": 1.0, ' // &
+         '"step": {"maximum": {"number": 10}, ' // &
+         '"method": "beuler", ' // &
+         '"sizes": [0.1, 0.1, 0.2, 0.2, 0.3]}}}'
 
     call linear%run_cases(json_str, tol)
 

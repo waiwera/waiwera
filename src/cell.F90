@@ -27,9 +27,13 @@ module cell_module
      procedure, public :: assign => cell_assign
      procedure, public :: destroy => cell_destroy
      procedure, public :: dof => cell_dof
-     procedure, public :: mass_balance => cell_mass_balance
-     procedure, public :: energy_balance => cell_energy_balance
+     procedure, public :: balance => cell_balance
   end type cell_type
+
+  PetscInt, parameter :: num_cell_variables = 2
+  PetscInt, parameter, public :: &
+       cell_variable_num_components(num_cell_variables) = &
+       [1, 3]
 
   public :: cell_type
 
@@ -97,41 +101,38 @@ contains
     !! Returns number of degrees of freedom in a cell object.
 
     class(cell_type), intent(in) :: self
-    ! Locals:
-    PetscInt, parameter :: fixed_dof = 4
 
-    cell_dof = fixed_dof
+    cell_dof = sum(cell_variable_num_components)
 
   end function cell_dof
 
 !------------------------------------------------------------------------
 
-  function cell_mass_balance(self) result(balance)
+  function cell_balance(self, isothermal) result(balance)
     !! Returns array containing mass balance (per unit volume) for each
     !! mass component in the cell.
 
     class(cell_type), intent(in) :: self
+    PetscBool, intent(in) :: isothermal
     PetscReal :: balance(self%fluid%num_components)
-
-    balance = self%rock%porosity * self%fluid%component_density()
-
-  end function cell_mass_balance
-
-!------------------------------------------------------------------------
-
-  function cell_energy_balance(self) result(balance)
-    !! Returns total energy balance (per unit volume) in the cell.
-
-    class(cell_type), intent(in) :: self
-    PetscReal :: balance
     ! Locals:
+    PetscInt :: nc
     PetscReal :: er, ef
 
-    er = self%rock%energy(self%fluid%temperature)
-    ef = self%fluid%energy()
-    balance = self%rock%porosity * ef + (1._dp - self%rock%porosity) * er
+    nc = self%fluid%num_components
 
-  end function cell_energy_balance
+    ! Mass balances:
+    balance(1: nc) = self%rock%porosity * self%fluid%component_density()
+
+    if (.not.isothermal) then
+       ! Energy balance:
+       er = self%rock%energy(self%fluid%temperature)
+       ef = self%fluid%energy()
+       balance(nc + 1) = self%rock%porosity * ef + &
+            (1._dp - self%rock%porosity) * er
+    end if
+
+  end function cell_balance
 
 !------------------------------------------------------------------------
   

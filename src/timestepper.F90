@@ -68,6 +68,7 @@ module timestepper_module
      PetscInt, public :: num_stored, taken, max_num
      PetscReal, public :: next_stepsize, stop_time
      PetscReal, public :: termination_tol = 1.e-6_dp
+     PetscReal, allocatable, public :: sizes(:)
      type(timestep_adaptor_type), public :: adaptor
    contains
      private
@@ -78,8 +79,12 @@ module timestepper_module
      procedure, public :: init => timestepper_steps_init
      procedure, public :: destroy => timestepper_steps_destroy
      procedure, public :: check_finished => timestepper_steps_check_finished
-     procedure, public :: set_current_status => timestepper_steps_set_current_status
+     procedure, public :: set_current_status => &
+          timestepper_steps_set_current_status
      procedure, public :: adapt => timestepper_steps_adapt
+     procedure, public :: get_next_fixed_stepsize => &
+          timestepper_steps_get_next_fixed_stepsize
+     procedure, public :: set_next_stepsize => timestepper_steps_set_next_stepsize
   end type timestepper_steps_type
 
   type timestepper_method_type
@@ -212,6 +217,7 @@ contains
        write(*, '(a, i4)'), 'step:', self%steps%taken
        call self%steps%current%print()
     end if
+    call self%ode%output()
 
   end subroutine step_output_default
 
@@ -299,7 +305,9 @@ contains
     type(timestepper_solver_context_type), intent(in out) :: context
     PetscErrorCode, intent(out) :: ierr
 
-    call context%ode%rhs(context%steps%stop_time, y, residual)
+    call context%ode%rhs(context%steps%stop_time, y, &
+         context%steps%current%rhs)
+    call VecCopy(context%steps%current%rhs, residual, ierr); CHKERRQ(ierr)
 
   end subroutine direct_ss_residual
 
@@ -384,9 +392,10 @@ contains
 
     class(timestepper_step_type), intent(in) :: self
 
-    write(*, '(a, e12.4, a, e12.4, a, i2, a, a)') &
+    write(*, '(a, e12.4, a, e12.4, a, i2, a, i2, a, a)') &
          'time: ', self%time, &
-         ' stepsize: ',self%stepsize, &
+         ' stepsize: ', self%stepsize, &
+         ' tries:', self%num_tries, &
          ' iters: ', self%num_iterations, &
          ' status: ', self%status_str()
 
@@ -430,7 +439,7 @@ contains
        time, solution, initial_stepsize, &
        stop_time, max_num_steps, max_stepsize, &
        adapt_on, adapt_method, adapt_min, adapt_max, &
-       adapt_reduction, adapt_amplification)
+       adapt_reduction, adapt_amplification, step_sizes)
 
     !! Sets up array of timesteps and pointers to them. This array stores the
     !! current step and one or more previous steps. The number of stored
@@ -448,6 +457,7 @@ contains
     PetscInt, intent(in) :: adapt_method
     PetscReal, intent(in) :: adapt_min, adapt_max
     PetscReal, intent(in) :: adapt_reduction, adapt_amplification
+    PetscReal, intent(in), optional :: step_sizes(:)
     ! Locals:
     PetscInt :: i
     PetscErrorCode :: ierr
@@ -489,6 +499,13 @@ contains
     self%adaptor%amplification = adapt_amplification
     self%adaptor%max_stepsize = max_stepsize
 
+    if ((present(step_sizes) .and. (size(step_sizes) > 0))) then
+       ! Fixed time step sizes override adaptor:
+       self%sizes = step_sizes
+       self%adaptor%on = .false.
+       self%next_stepsize = step_sizes(1)
+    end if
+
   end subroutine timestepper_steps_init
 
 !------------------------------------------------------------------------
@@ -524,6 +541,9 @@ contains
     end do
 
     deallocate(self%store, self%pstore)
+    if (allocated(self%sizes)) then
+       deallocate(self%sizes)
+    end if
 
   end subroutine timestepper_steps_destroy
 
@@ -616,7 +636,7 @@ contains
        self%finished = .true.
     end if
 
-    if (self%taken >= self%max_num) then
+    if (self%taken + 1 >= self%max_num) then
        self%finished = .true.
     end if
 
@@ -643,8 +663,6 @@ contains
              self%current%status = TIMESTEP_OK
           end if
        else
-          ! Not quite sure what the desired behaviour is for 
-          ! non-adaptive stepping- this may not be it
           self%current%status = TIMESTEP_OK
        end if
     else
@@ -652,6 +670,48 @@ contains
     end if
 
   end subroutine timestepper_steps_set_current_status
+
+!------------------------------------------------------------------------
+
+  subroutine timestepper_steps_get_next_fixed_stepsize(self)
+    !! Gets next timestep size if using fixed time step sizes.
+
+    class(timestepper_steps_type), intent(in out) :: self
+    ! Locals:
+    PetscInt :: step_index, next_index
+
+    step_index = self%taken + 1
+    next_index = step_index + 1
+
+    if (next_index <= size(self%sizes)) then
+       self%next_stepsize = self%sizes(next_index)
+    else
+       self%next_stepsize = self%current%stepsize
+    end if
+
+  end subroutine timestepper_steps_get_next_fixed_stepsize
+
+!------------------------------------------------------------------------
+
+  subroutine timestepper_steps_set_next_stepsize(self, accepted)
+
+    class(timestepper_steps_type), intent(in out) :: self
+    PetscBool, intent(out) :: accepted
+    
+    if (self%adaptor%on) then
+       call self%adapt(accepted)
+    else
+       if (self%current%status == TIMESTEP_OK) then
+          accepted = .true.
+          call self%get_next_fixed_stepsize()
+       else
+          accepted = .false.
+          self%adaptor%on = .true.
+          self%next_stepsize = self%adaptor%reduce(self%current%stepsize)
+       end if
+    end if
+
+end subroutine timestepper_steps_set_next_stepsize
 
 !------------------------------------------------------------------------
 
@@ -803,6 +863,8 @@ contains
     PetscReal, parameter :: default_adapt_reduction = 0.5_dp, &
          default_adapt_amplification = 2.0_dp
     PetscReal :: adapt_reduction, adapt_amplification
+    PetscReal, allocatable :: step_sizes(:)
+    PetscReal, parameter :: default_step_sizes(0) = [PetscReal::]
     PetscErrorCode :: ierr
 
     self%ode => ode
@@ -861,13 +923,18 @@ contains
     call fson_get_mpi(json, "time.step.adapt.amplification", &
          default_adapt_amplification, adapt_amplification)
 
+    call fson_get_mpi(json, "time.step.sizes", &
+         default_step_sizes, step_sizes)
+
     call self%steps%init(self%method%num_stored_steps, &
          self%ode%time, self%ode%solution, initial_stepsize, &
          stop_time, max_num_steps, max_stepsize, &
          adapt_on, adapt_method, adapt_min, adapt_max, &
-         adapt_reduction, adapt_amplification)
+         adapt_reduction, adapt_amplification, step_sizes)
 
     call self%setup_solver()
+
+    deallocate(step_sizes)
 
   end subroutine timestepper_init
 
@@ -921,7 +988,7 @@ contains
 
        self%steps%current%num_tries = self%steps%current%num_tries + 1
        call self%steps%set_current_status(converged)
-       call self%steps%adapt(accepted)
+       call self%steps%set_next_stepsize(accepted)
 
     end do
 
@@ -929,11 +996,6 @@ contains
     self%ode%time = self%steps%current%time
     call VecCopy(self%steps%current%solution, self%ode%solution, ierr)
     CHKERRQ(ierr)
-
-    ! This may possibly be needed- to make sure current LHS corresponds exactly
-    ! to current solution:
-    ! call self%ode%lhs(self%steps%current%time, self%steps%current%solution, &
-    !      self%steps%current%lhs)
 
   end subroutine timestepper_step
 

@@ -1,6 +1,7 @@
 module face_module
   !! Defines type for accessing local quantities defined on a mesh face.
 
+  use kinds_module
   use cell_module
 
   implicit none
@@ -15,14 +16,32 @@ module face_module
      PetscReal, pointer, public :: distance(:) !! cell centroid distances on either side of the face
      PetscReal, pointer, public :: normal(:) !! normal vector to face
      PetscReal, pointer, public :: centroid(:) !! centroid of face
+     PetscReal, pointer, public :: permeability_direction !! direction of permeability (1.. 3)
      type(cell_type), allocatable, public :: cell(:) !! cells on either side of face
+     PetscReal, public :: distance12 !! distance between cell centroids
    contains
      private
      procedure, public :: init => face_init
      procedure, public :: assign => face_assign
      procedure, public :: dof => face_dof
      procedure, public :: destroy => face_destroy
+     procedure, public :: calculate_permeability_direction => &
+          face_calculate_permeability_direction
+     procedure, public :: normal_gradient => face_normal_gradient
+     procedure, public :: pressure_gradient => face_pressure_gradient
+     procedure, public :: temperature_gradient => face_temperature_gradient
+     procedure, public :: average_phase_density => face_average_phase_density
+     procedure, public :: harmonic_average => face_harmonic_average
+     procedure, public :: permeability => face_permeability
+     procedure, public :: heat_conductivity => face_heat_conductivity
+     procedure, public :: upstream_index => face_upstream_index
+     procedure, public :: flux => face_flux
   end type face_type
+
+  PetscInt, parameter :: num_face_variables = 5
+  PetscInt, parameter, public :: &
+       face_variable_num_components(num_face_variables) = &
+       [1, 2, 3, 3, 1]
 
   type petsc_face_type
      !! Type for accessing face geometry parameters calculated by
@@ -70,8 +89,8 @@ contains
     !! starting from the given offsets.
 
     class(face_type), intent(in out) :: self
-    PetscReal, target, intent(in) :: face_geom_data(:)  !! array with face geometry data
-    PetscInt, intent(in)  :: face_geom_offset  !! face geometry array offset for this face
+    PetscReal, target, intent(in), optional :: face_geom_data(:)  !! array with face geometry data
+    PetscInt, intent(in), optional  :: face_geom_offset  !! face geometry array offset for this face
     PetscReal, target, intent(in), optional :: cell_geom_data(:)  !! array with cell geometry data
     PetscInt, intent(in), optional  :: cell_geom_offsets(:)  !! cell geometry array offsets for the face cells
     PetscReal, target, intent(in), optional :: cell_rock_data(:)  !! array with cell rock data
@@ -80,56 +99,34 @@ contains
     PetscInt, intent(in), optional  :: cell_fluid_offsets(:)  !! cell fluid array offsets for the face cells
     ! Locals:
     PetscInt :: i
-    
-    self%area => face_geom_data(face_geom_offset)
-    self%distance => face_geom_data(face_geom_offset + 1: face_geom_offset + 2)
-    self%normal => face_geom_data(face_geom_offset + 3: face_geom_offset + 5)
-    self%centroid => face_geom_data(face_geom_offset + 6: face_geom_offset + 8)
+
+    if ((present(face_geom_data)).and.(present(face_geom_offset))) then
+       self%area => face_geom_data(face_geom_offset)
+       self%distance => face_geom_data(face_geom_offset + 1: face_geom_offset + 2)
+       self%normal => face_geom_data(face_geom_offset + 3: face_geom_offset + 5)
+       self%centroid => face_geom_data(face_geom_offset + 6: face_geom_offset + 8)
+       self%permeability_direction => face_geom_data(face_geom_offset + 9)
+       self%distance12 = sum(self%distance)
+    end if
 
     if ((present(cell_geom_data)).and.(present(cell_geom_offsets))) then
+       do i = 1, 2
+          call self%cell(i)%assign(cell_geom_data, cell_geom_offsets(i))
+       end do
+    end if
 
-       if ((present(cell_fluid_data)).and.(present(cell_fluid_offsets))) then
+    if ((present(cell_rock_data)).and.(present(cell_rock_offsets))) then
+       do i = 1, 2
+          call self%cell(i)%assign(rock_data = cell_rock_data, &
+               rock_offset = cell_rock_offsets(i))
+       end do
+    end if
 
-          if ((present(cell_rock_data)).and.(present(cell_rock_offsets))) then
-             ! Assign geometry, rock and fluid:
-
-             do i = 1, 2
-                call self%cell(i)%assign(cell_geom_data, cell_geom_offsets(i), &
-                     cell_rock_data, cell_rock_offsets(i), &
-                     cell_fluid_data, cell_fluid_offsets(i))
-             end do
-
-          else
-             ! Assign geometry and fluid:
-
-             do i = 1, 2
-                call self%cell(i)%assign(cell_geom_data, cell_geom_offsets(i), &
-                     fluid_data = cell_fluid_data, fluid_offset = cell_fluid_offsets(i))
-             end do
-
-          end if
-
-       else
-       
-          if ((present(cell_rock_data)).and.(present(cell_rock_offsets))) then
-             ! Assign geometry and rock:
-
-             do i = 1, 2
-                call self%cell(i)%assign(cell_geom_data, cell_geom_offsets(i), &
-                     cell_rock_data, cell_rock_offsets(i))
-             end do
-
-          else
-             ! Assign geometry:
-
-             do i = 1, 2
-                call self%cell(i)%assign(cell_geom_data, cell_geom_offsets(i))
-             end do
-
-          end if
-
-       end if
-
+    if ((present(cell_fluid_data)).and.(present(cell_fluid_offsets))) then
+       do i = 1, 2
+          call self%cell(i)%assign(fluid_data = cell_fluid_data, &
+               fluid_offset = cell_fluid_offsets(i))
+       end do
     end if
 
   end subroutine face_assign
@@ -140,10 +137,8 @@ contains
     !! Returns number of degrees of freedom in a face object.
 
     class(face_type), intent(in) :: self
-    ! Locals:
-    PetscInt, parameter :: fixed_dof = 9
 
-    face_dof = fixed_dof
+    face_dof = sum(face_variable_num_components)
 
   end function face_dof
 
@@ -158,11 +153,226 @@ contains
     nullify(self%distance)
     nullify(self%normal)
     nullify(self%centroid)
+    nullify(self%permeability_direction)
     if (allocated(self%cell)) then
        deallocate(self%cell)
     end if
 
   end subroutine face_destroy
+
+!------------------------------------------------------------------------
+
+  subroutine face_calculate_permeability_direction(self)
+    !! Calculates permeability direction for the face, being the
+    !! coordinate axis most closely aligned with the face normal
+    !! vector.
+
+    class(face_type), intent(in out) :: self
+    ! Locals:
+    PetscInt :: index
+
+    index = maxloc(abs(self%normal), 1)
+    self%permeability_direction = dble(index)
+
+  end subroutine face_calculate_permeability_direction
+
+!------------------------------------------------------------------------
+
+  PetscReal function face_normal_gradient(self, x) result(grad)
+    !! Returns gradient along normal vector of the two cell values
+    !! x. This assumes that the line joining the two cell centroids is
+    !! orthogonal to the face.
+
+    class(face_type), intent(in) :: self
+    PetscReal, intent(in) :: x(2)
+
+    grad = (x(2) - x(1)) / self%distance12
+
+  end function face_normal_gradient
+
+!------------------------------------------------------------------------
+
+  PetscReal function face_pressure_gradient(self) result(dpdn)
+    !! Returns pressure gradient across the face.
+
+    class(face_type), intent(in) :: self
+    ! Locals:
+    PetscReal :: p(2)
+    PetscInt :: i
+    
+    do i = 1, 2
+       p(i) = self%cell(i)%fluid%pressure
+    end do
+    dpdn = self%normal_gradient(p)
+
+  end function face_pressure_gradient
+
+!------------------------------------------------------------------------
+
+  PetscReal function face_temperature_gradient(self) result(dtdn)
+    !! Returns temperature gradient across the face.
+
+    class(face_type), intent(in) :: self
+    ! Locals:
+    PetscReal :: t(2)
+    PetscInt :: i
+
+    do i = 1, 2
+       t(i) = self%cell(i)%fluid%temperature
+    end do
+    dtdn = self%normal_gradient(t)
+
+  end function face_temperature_gradient
+
+!------------------------------------------------------------------------
+
+  PetscReal function face_average_phase_density(self, p) result(rho)
+    !! Returns phase density on the face for a given phase, arithmetically
+    !! averaged between the two cells.
+
+    class(face_type), intent(in) :: self
+    PetscInt, intent(in) :: p
+
+    rho = 0.5_dp * (self%cell(1)%fluid%phase(p)%density + &
+         self%cell(2)%fluid%phase(p)%density)
+
+  end function face_average_phase_density
+
+!------------------------------------------------------------------------
+
+  PetscReal function face_harmonic_average(self, x) result(xh)
+    !! Returns harmonic average of the two cell values x, based on the
+    !! distances of the cell centroids from the face.
+
+    class(face_type), intent(in) :: self
+    PetscReal, intent(in) :: x(2)
+    ! Locals:
+    PetscReal :: wx
+    PetscReal, parameter :: tol = 1.e-30_dp
+
+    wx = (self%distance(1) * x(2) + self%distance(2) * x(1)) / &
+         self%distance12
+
+    if (abs(wx) > tol) then
+       xh = x(1) * x(2) / wx
+    else
+       xh = 0._dp
+    end if
+
+  end function face_harmonic_average
+
+!------------------------------------------------------------------------
+
+  PetscReal function face_permeability(self) result(k)
+    !! Returns effective permeability on the face, harmonically averaged
+    !! between the two cells.
+
+    class(face_type), intent(in) :: self
+    ! Locals:
+    PetscReal :: kcell(2)
+    PetscInt :: i, direction
+
+    direction = nint(self%permeability_direction)
+    do i = 1, 2
+       kcell(i) = self%cell(i)%rock%permeability(direction)
+    end do
+    k = self%harmonic_average(kcell)
+
+  end function face_permeability
+
+!------------------------------------------------------------------------
+
+  PetscReal function face_heat_conductivity(self) result(K)
+    !! Returns effective heat conductivity on the face, harmonically
+    !! averaged between the two cells.
+
+    class(face_type), intent(in) :: self
+    ! Locals:
+    PetscReal :: kcell(2)
+    PetscInt :: i
+
+    do i = 1, 2
+       kcell(i) = self%cell(i)%rock%heat_conductivity
+    end do
+    K = self%harmonic_average(kcell)
+
+  end function face_heat_conductivity
+
+!------------------------------------------------------------------------
+
+  PetscInt function face_upstream_index(self, gradient) result(index)
+    !! Returns index of upstream cell for a given effective pressure
+    !! gradient (including gravity term).
+
+    class(face_type), intent(in) :: self
+    PetscReal, intent(in) :: gradient
+
+    if (gradient <= 0._dp) then
+       index = 1
+    else
+       index = 2
+    end if
+
+  end function face_upstream_index
+
+!------------------------------------------------------------------------
+
+  function face_flux(self, isothermal, gravity) result(flux)
+    !! Returns array containing the mass fluxes for each component
+    !! through the face, from cell(1) to cell(2). If isothermal is
+    !! .false., the energy flux is also returned.
+
+    class(face_type), intent(in) :: self
+    PetscBool, intent(in) :: isothermal
+    PetscReal, intent(in) :: gravity
+    PetscReal, allocatable :: flux(:)
+    ! Locals:
+    PetscInt :: nc
+    PetscInt :: p, iup
+    PetscReal :: dpdn, dtdn, gn, G, average_density, F
+    PetscReal :: phase_flux(self%cell(1)%fluid%num_components)
+    PetscReal :: kr, visc, density, k, h, cond
+
+    nc = self%cell(1)%fluid%num_components
+    dpdn = self%pressure_gradient()
+    gn = gravity * self%normal(3)
+    k = self%permeability()
+
+    if (isothermal) then
+       allocate(flux(nc))
+    else
+       allocate(flux(nc + 1))
+       ! Heat conduction:
+       cond = self%heat_conductivity()
+       dtdn = self%temperature_gradient()
+       flux(nc + 1) = -cond * dtdn
+    end if
+    flux(1: nc) = 0._dp
+
+    do p = 1, self%cell(1)%fluid%num_phases
+
+       average_density = self%average_phase_density(p)
+       G = dpdn + average_density * gn
+
+       iup = self%upstream_index(G)
+       kr = self%cell(iup)%fluid%phase(p)%relative_permeability
+       density = self%cell(iup)%fluid%phase(p)%density
+       visc = self%cell(iup)%fluid%phase(p)%viscosity
+
+       ! Mass flows:
+       F = -k * kr * density / visc * G
+       phase_flux = F * self%cell(iup)%fluid%phase(p)%mass_fraction
+       flux(1:nc) = flux(1:nc) + phase_flux
+
+       if (.not.isothermal) then
+          ! Heat convection:
+          h = self%cell(iup)%fluid%phase(p)%specific_enthalpy
+          flux(nc + 1) = flux(nc + 1) + h * sum(phase_flux)
+       end if
+
+    end do
+
+  end function face_flux
 
 !------------------------------------------------------------------------
 ! petsc_face_type routines
