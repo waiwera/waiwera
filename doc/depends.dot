@@ -1,6 +1,8 @@
-digraph supermodel{
+digraph eos_w_module{
         fluid_module -> dm_utils_module
         fluid_module -> kinds_module
+        fluid_module -> mesh_module
+        fluid_module -> thermodynamics_module
         eos_module -> fluid_module
         eos_module -> fson
         eos_module -> kinds_module
@@ -78,7 +80,6 @@ digraph supermodel{
         source_module -> fson_mpi_module
         source_module -> kinds_module
         eos_setup_module -> eos_module
-        eos_setup_module -> eos_w_module
         eos_setup_module -> eos_we_module
         eos_setup_module -> fson
         eos_setup_module -> fson_mpi_module

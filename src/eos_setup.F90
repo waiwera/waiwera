@@ -1,8 +1,10 @@
 module eos_setup_module
   !! Module for setting up EOS from input data.
 
-  use eos_w_module
   use eos_we_module
+  ! temporarily disable eos_w to workaround gfortran 4.7 compiler error
+  ! (free_pi_tree(): Unresolved fixup)
+  ! use eos_w_module
   use eos_module
   use fson
   use fson_mpi_module
@@ -37,8 +39,8 @@ module eos_setup_module
     eos_name = str_to_lower(eos_name)
 
     select case (eos_name)
-    case ("w")
-       allocate(eos_w_type :: eos)
+    ! case ("w")
+    !    allocate(eos_w_type :: eos)
     case ("we")
        allocate(eos_we_type :: eos)
     case default
