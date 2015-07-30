@@ -68,7 +68,7 @@ contains
     use thermodynamics_setup_module, only: setup_thermodynamics
     use eos_setup_module, only: setup_eos
     use initial_module, only: setup_initial
-    use fluid_module, only: setup_fluid_vector
+    use fluid_module, only: setup_fluid_vector, initialise_fluid_regions
     use rock_module, only: setup_rock_vector, setup_rocktype_labels
     use source_module, only: setup_source_vector
 
@@ -93,6 +93,9 @@ contains
          self%rock_range_start)
     call setup_fluid_vector(self%mesh%dm, self%eos%num_phases, &
          self%eos%num_components, self%fluid, self%fluid_range_start)
+    call initialise_fluid_regions(self%mesh, self%fluid, &
+         self%fluid_range_start, self%eos%num_phases, &
+         self%eos%num_components)
     call setup_source_vector(json, self%mesh%dm, &
          self%eos%num_primary_variables, self%eos%isothermal, self%source)
     call fson_get_mpi(json, "gravity", default_gravity, self%gravity)
