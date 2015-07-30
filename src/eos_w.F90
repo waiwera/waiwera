@@ -93,27 +93,12 @@ contains
     PetscInt, intent(in) :: region !! Thermodynamic region index
     PetscReal, intent(in), target :: primary(self%num_primary_variables) !! Primary thermodynamic variables
     type(fluid_type), intent(in out) :: fluid !! Fluid object
-    ! Locals:
-    PetscReal :: properties(2)
-    PetscInt :: err
 
     fluid%pressure = primary(1)
     fluid%temperature = self%temperature
     fluid%region = 1
 
-    call self%thermo%water%properties([fluid%pressure, fluid%temperature], &
-         properties, err)
-
-    fluid%phase(1)%saturation = 1._dp
-    fluid%phase(1)%relative_permeability = 1._dp
-    fluid%phase(1)%density = properties(1)
-    fluid%phase(1)%internal_energy = properties(2)
-    fluid%phase(1)%specific_enthalpy = fluid%phase(1)%internal_energy + &
-         fluid%pressure / fluid%phase(1)%density
-    fluid%phase(1)%mass_fraction(1) = 1._dp
-
-    call self%thermo%water%viscosity(fluid%temperature, fluid%pressure, &
-         fluid%phase(1)%density, fluid%phase(1)%viscosity)
+    call fluid%phase_properties(self%thermo)
 
   end subroutine eos_w_fluid_properties
 
