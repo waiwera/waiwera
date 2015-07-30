@@ -43,9 +43,10 @@ module fluid_module
      procedure, public :: dof => fluid_dof
      procedure, public :: component_density => fluid_component_density
      procedure, public :: energy => fluid_energy
+     procedure, public :: phase_properties => fluid_phase_properties
   end type fluid_type
 
-  public :: fluid_type, setup_fluid_vector
+  public :: fluid_type, setup_fluid_vector, initialise_fluid_regions
 
 contains
 
@@ -221,6 +222,46 @@ contains
   end function fluid_energy
 
 !------------------------------------------------------------------------
+
+  subroutine fluid_phase_properties(self, thermo)
+    !! Calculates fluid phase properties. It is assumed that the bulk
+    !! fluid properties (pressure, temperature and region) have already
+    !! been assigned.
+
+    use thermodynamics_module
+
+    class(fluid_type), intent(in out) :: self
+    class(thermodynamics_type), intent(in out) :: thermo
+    ! Locals:
+    PetscInt :: p ! phase
+    PetscReal :: properties(2)
+    PetscInt :: ierr
+
+    ! For now it's assumed that the phase corresponds to the region,
+    ! i.e. phase 1 (liquid) is region 1, phase 2 (vapour) is region 2.
+    ! Obviously this won't work for two-phase (or supercritical).
+    p = nint(self%region)
+
+    call thermo%region(p)%ptr%properties( &
+         [self%pressure, self%temperature], &
+         properties, ierr)
+
+    self%phase(p)%density = properties(1)
+    self%phase(p)%internal_energy = properties(2)
+    self%phase(p)%specific_enthalpy = self%phase(p)%internal_energy + &
+         self%pressure / self%phase(p)%density
+    ! These are all temporary:
+    self%phase(p)%saturation = 1._dp
+    self%phase(p)%relative_permeability = 1._dp
+    self%phase(p)%mass_fraction(1) = 1._dp
+
+    call thermo%region(p)%ptr%viscosity( &
+         self%temperature, self%pressure, &
+         self%phase(p)%density, self%phase(p)%viscosity)
+
+  end subroutine fluid_phase_properties
+
+!------------------------------------------------------------------------
 ! Fluid vector setup routine
 !------------------------------------------------------------------------
 
@@ -262,6 +303,49 @@ contains
     call DMDestroy(dm_fluid, ierr); CHKERRQ(ierr)
 
   end subroutine setup_fluid_vector
+
+!------------------------------------------------------------------------
+
+  subroutine initialise_fluid_regions(mesh, fluid, range_start, &
+       num_components, num_phases)
+    !! Initialise fluid regions in each cell. For now, just assume all
+    !! cells are initially region 1 (liquid).
+
+    use mesh_module
+    use dm_utils_module, only: global_vec_section, global_section_offset
+
+    type(mesh_type), intent(in) :: mesh
+    Vec, intent(in out) :: fluid
+    PetscInt, intent(in) :: range_start
+    PetscInt, intent(in) :: num_components, num_phases
+    ! Locals:
+    PetscSection :: fluid_section
+    PetscReal, pointer :: fluid_array(:)
+    type(fluid_type) :: f
+    DMLabel :: ghost_label
+    PetscInt :: ghost, fluid_offset, c
+    PetscErrorCode :: ierr
+
+    call global_vec_section(fluid, fluid_section)
+    call VecGetArrayF90(fluid, fluid_array, ierr); CHKERRQ(ierr)
+    call f%init(num_components, num_phases)
+
+    call DMPlexGetLabel(mesh%dm, "ghost", ghost_label, ierr)
+    CHKERRQ(ierr)
+
+    do c = mesh%start_cell, mesh%end_cell - 1
+       call DMLabelGetValue(ghost_label, c, ghost, ierr); CHKERRQ(ierr)
+       if (ghost < 0) then
+          call global_section_offset(fluid_section, c, &
+               range_start, fluid_offset, ierr); CHKERRQ(ierr)
+          call f%assign(fluid_array, fluid_offset)
+          f%region = 1
+       end if
+    end do
+
+    call VecRestoreArrayF90(fluid, fluid_array, ierr); CHKERRQ(ierr)
+
+  end subroutine initialise_fluid_regions
 
 !------------------------------------------------------------------------
 
