@@ -343,6 +343,7 @@ contains
        end if
     end do
 
+    call f%destroy()
     call VecRestoreArrayF90(fluid, fluid_array, ierr); CHKERRQ(ierr)
 
   end subroutine initialise_fluid_regions
