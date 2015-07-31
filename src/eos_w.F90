@@ -96,7 +96,7 @@ contains
 
     fluid%pressure = primary(1)
     fluid%temperature = self%temperature
-    fluid%region = 1
+    fluid%region = region
 
     call fluid%phase_properties(self%thermo)
 
