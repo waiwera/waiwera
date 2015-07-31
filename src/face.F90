@@ -317,35 +317,34 @@ contains
 
 !------------------------------------------------------------------------
 
-  function face_flux(self, isothermal, gravity) result(flux)
+  function face_flux(self, num_primary, gravity) result(flux)
     !! Returns array containing the mass fluxes for each component
-    !! through the face, from cell(1) to cell(2). If isothermal is
-    !! .false., the energy flux is also returned.
+    !! through the face, from cell(1) to cell(2), and energy flux
+    !! for non-isothermal simulations.
 
     class(face_type), intent(in) :: self
-    PetscBool, intent(in) :: isothermal
+    PetscInt, intent(in) :: num_primary
     PetscReal, intent(in) :: gravity
-    PetscReal, allocatable :: flux(:)
+    PetscReal :: flux(num_primary)
     ! Locals:
     PetscInt :: nc
+    PetscBool :: isothermal
     PetscInt :: p, iup
     PetscReal :: dpdn, dtdn, gn, G, average_density, F
     PetscReal :: phase_flux(self%cell(1)%fluid%num_components)
     PetscReal :: kr, visc, density, k, h, cond
 
     nc = self%cell(1)%fluid%num_components
+    isothermal = (num_primary == nc)
     dpdn = self%pressure_gradient()
     gn = gravity * self%normal(3)
     k = self%permeability()
 
-    if (isothermal) then
-       allocate(flux(nc))
-    else
-       allocate(flux(nc + 1))
+    if (.not. isothermal) then
        ! Heat conduction:
        cond = self%heat_conductivity()
        dtdn = self%temperature_gradient()
-       flux(nc + 1) = -cond * dtdn
+       flux(num_primary) = -cond * dtdn
     end if
     flux(1: nc) = 0._dp
 
@@ -367,7 +366,7 @@ contains
        if (.not.isothermal) then
           ! Heat convection:
           h = self%cell(iup)%fluid%phase(p)%specific_enthalpy
-          flux(nc + 1) = flux(nc + 1) + h * sum(phase_flux)
+          flux(num_primary) = flux(num_primary) + h * sum(phase_flux)
        end if
 
     end do

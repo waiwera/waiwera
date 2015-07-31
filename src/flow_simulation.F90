@@ -180,7 +180,7 @@ contains
                rock_data = rock_array, rock_offset = rock_offset, &
                fluid_data = fluid_array, fluid_offset = fluid_offset)
 
-          balance = cell%balance(self%eos%isothermal)
+          balance = cell%balance(np)
 
        end if
 
@@ -283,8 +283,7 @@ contains
                cell_geom_array, cell_geom_offsets, &
                rock_array, rock_offsets, fluid_array, fluid_offsets)
 
-          face_flow = face%flux(self%eos%isothermal, self%gravity) * &
-               face%area
+          face_flow = face%flux(np, self%gravity) * face%area
 
           do i = 1, 2
              call DMLabelGetValue(ghost_label, cells(i), ghost_cell, &
