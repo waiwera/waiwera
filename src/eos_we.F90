@@ -34,15 +34,13 @@ contains
     class(eos_we_type), intent(in out) :: self
     type(fson_value), pointer, intent(in) :: json !! JSON input object
     class(thermodynamics_type), intent(in), target :: thermo !! Thermodynamics object
-    ! Locals:
-    PetscReal, parameter :: default_temperature = 20._dp ! deg C
 
     self%name = "we"
     self%description = "Pure water and energy"
     self%primary_variable_names = ["Pressure   ", "Temperature"]
 
     self%num_primary_variables = size(self%primary_variable_names)
-    self%num_phases = 2
+    self%num_phases = 1  ! until phase-changing implemented
     self%num_components = 1
 
     self%thermo => thermo
