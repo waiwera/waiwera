@@ -93,7 +93,8 @@ contains
          self%rock_range_start)
     call setup_fluid_vector(self%mesh%dm, self%eos%num_phases, &
          self%eos%num_components, self%fluid, self%fluid_range_start)
-    call initialise_fluid_regions(self%mesh, self%fluid, &
+    call initialise_fluid_regions(self%mesh%dm, self%fluid, &
+         self%mesh%start_cell, self%mesh%end_cell, &
          self%fluid_range_start, self%eos%num_phases, &
          self%eos%num_components)
     call setup_source_vector(json, self%mesh%dm, &

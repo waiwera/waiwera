@@ -1,7 +1,6 @@
 digraph eos_w_module{
         fluid_module -> dm_utils_module
         fluid_module -> kinds_module
-        fluid_module -> mesh_module
         fluid_module -> thermodynamics_module
         eos_module -> fluid_module
         eos_module -> fson

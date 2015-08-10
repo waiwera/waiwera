@@ -306,16 +306,16 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine initialise_fluid_regions(mesh, fluid, range_start, &
-       num_components, num_phases)
+  subroutine initialise_fluid_regions(dm, fluid, start_cell, end_cell, &
+       range_start, num_components, num_phases)
     !! Initialise fluid regions in each cell. For now, just assume all
     !! cells are initially region 1 (liquid).
 
-    use mesh_module
     use dm_utils_module, only: global_vec_section, global_section_offset
 
-    type(mesh_type), intent(in) :: mesh
+    DM, intent(in) :: dm
     Vec, intent(in out) :: fluid
+    PetscInt, intent(in) :: start_cell, end_cell
     PetscInt, intent(in) :: range_start
     PetscInt, intent(in) :: num_components, num_phases
     ! Locals:
@@ -330,10 +330,10 @@ contains
     call VecGetArrayF90(fluid, fluid_array, ierr); CHKERRQ(ierr)
     call f%init(num_components, num_phases)
 
-    call DMPlexGetLabel(mesh%dm, "ghost", ghost_label, ierr)
+    call DMPlexGetLabel(dm, "ghost", ghost_label, ierr)
     CHKERRQ(ierr)
 
-    do c = mesh%start_cell, mesh%end_cell - 1
+    do c = start_cell, end_cell - 1
        call DMLabelGetValue(ghost_label, c, ghost, ierr); CHKERRQ(ierr)
        if (ghost < 0) then
           call global_section_offset(fluid_section, c, &
