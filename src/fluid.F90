@@ -276,10 +276,10 @@ contains
     PetscReal, pointer :: q, qenergy
 
     if (.not. isothermal) then
-       np = size(source)
        ! Single-component, single-phase only for now:
        q => source(1)
        if (q < 0._dp) then
+          np = size(source)
           qenergy => source(np)
           qenergy = self%phase(1)%specific_enthalpy * q
        end if
