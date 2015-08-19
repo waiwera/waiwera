@@ -328,7 +328,7 @@ contains
        CHKERRQ(ierr)
        inflow => rhs_array(rhs_offset : rhs_offset + np - 1)
        source = source_array(source_offset : source_offset + np - 1)
-       call cell%fluid%heat_production(source, self%eos%isothermal)
+       call cell%fluid%energy_production(source, self%eos%isothermal)
        inflow = inflow + source / cell%volume
 
     end do

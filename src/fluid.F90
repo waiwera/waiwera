@@ -44,7 +44,7 @@ module fluid_module
      procedure, public :: component_density => fluid_component_density
      procedure, public :: energy => fluid_energy
      procedure, public :: phase_properties => fluid_phase_properties
-     procedure, public :: heat_production => fluid_heat_production
+     procedure, public :: energy_production => fluid_energy_production
   end type fluid_type
 
   public :: fluid_type, setup_fluid_vector, initialise_fluid_regions
@@ -264,9 +264,9 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine fluid_heat_production(self, source, isothermal)
+  subroutine fluid_energy_production(self, source, isothermal)
     !! If source array represents production, and EOS is
-    !! non-isothermal, calculate associated heat production.
+    !! non-isothermal, calculate associated energy production.
 
     class(fluid_type), intent(in) :: self
     PetscReal, target, intent(in out) :: source(:)
@@ -285,7 +285,7 @@ contains
        end if
     end if
 
-  end subroutine fluid_heat_production
+  end subroutine fluid_energy_production
 
 !------------------------------------------------------------------------
 ! Fluid vector setup routine
