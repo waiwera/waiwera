@@ -44,6 +44,7 @@ module fluid_module
      procedure, public :: component_density => fluid_component_density
      procedure, public :: energy => fluid_energy
      procedure, public :: phase_properties => fluid_phase_properties
+     procedure, public :: heat_production => fluid_heat_production
   end type fluid_type
 
   public :: fluid_type, setup_fluid_vector, initialise_fluid_regions
@@ -250,7 +251,7 @@ contains
     self%phase(p)%internal_energy = properties(2)
     self%phase(p)%specific_enthalpy = self%phase(p)%internal_energy + &
          self%pressure / self%phase(p)%density
-    ! These are all temporary:
+    ! Single-phase only for now:
     self%phase(p)%saturation = 1._dp
     self%phase(p)%relative_permeability = 1._dp
     self%phase(p)%mass_fraction(1) = 1._dp
@@ -260,6 +261,31 @@ contains
          self%phase(p)%density, self%phase(p)%viscosity)
 
   end subroutine fluid_phase_properties
+
+!------------------------------------------------------------------------
+
+  subroutine fluid_heat_production(self, source, isothermal)
+    !! If source array represents production, and EOS is
+    !! non-isothermal, calculate associated heat production.
+
+    class(fluid_type), intent(in) :: self
+    PetscReal, target, intent(in out) :: source(:)
+    PetscBool, intent(in) :: isothermal
+    ! Locals:
+    PetscInt :: np
+    PetscReal, pointer :: q, qenergy
+
+    if (.not. isothermal) then
+       np = size(source)
+       ! Single-component, single-phase only for now:
+       q => source(1)
+       if (q < 0._dp) then
+          qenergy => source(np)
+          qenergy = self%phase(1)%specific_enthalpy * q
+       end if
+    end if
+
+  end subroutine fluid_heat_production
 
 !------------------------------------------------------------------------
 ! Fluid vector setup routine
