@@ -66,7 +66,7 @@ contains
     use fson
     use fson_mpi_module
     use thermodynamics_setup_module, only: setup_thermodynamics
-    use eos_setup_module, only: setup_eos
+    use eos_module, only: setup_eos
     use initial_module, only: setup_initial
     use fluid_module, only: setup_fluid_vector, initialise_fluid_regions
     use rock_module, only: setup_rock_vector, setup_rocktype_labels
