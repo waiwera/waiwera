@@ -824,7 +824,30 @@ end subroutine timestepper_steps_set_next_stepsize
     call SNESGetKSP(self%solver, ksp, ierr); CHKERRQ(ierr)
     call KSPSetFromOptions(ksp, ierr); CHKERRQ(ierr)
 
+    call SNESMonitorSet(self%solver, SNES_monitor, self%context, &
+         PETSC_NULL_FUNCTION, ierr); CHKERRQ(ierr)
+
   end subroutine timestepper_setup_solver
+
+!------------------------------------------------------------------------
+
+  subroutine SNES_monitor(solver, num_iterations, fnorm, context, ierr)
+
+    !! SNES monitor routine for output at each nonlinear iteration.
+
+    SNES, intent(in) :: solver
+    PetscInt, intent(in) :: num_iterations
+    PetscReal, intent(in) :: fnorm
+    type(timestepper_solver_context_type), intent(in out) :: context
+    PetscErrorCode :: ierr
+    ! Locals:
+    character(120) :: str
+
+    write(str, '(a, i2, a, e10.4, a)') 'iter: ', num_iterations, &
+         ' residual norm: ', fnorm, new_line('a')
+    call PetscPrintf(mpi%comm, str, ierr); CHKERRQ(ierr)
+
+  end subroutine SNES_monitor
 
 !------------------------------------------------------------------------
 
