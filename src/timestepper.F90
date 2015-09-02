@@ -28,6 +28,7 @@ module timestepper_module
      PetscReal, public :: time, stepsize
      Vec, public :: solution, lhs, rhs
      PetscInt, public :: num_tries, num_iterations, status = TIMESTEP_OK
+     PetscReal, public :: max_residual
    contains
      private
      procedure, public :: init => timestepper_step_init
@@ -824,6 +825,8 @@ end subroutine timestepper_steps_set_next_stepsize
     call SNESGetKSP(self%solver, ksp, ierr); CHKERRQ(ierr)
     call KSPSetFromOptions(ksp, ierr); CHKERRQ(ierr)
 
+    call SNESSetConvergenceTest(self%solver, SNES_convergence, self%context, &
+         PETSC_NULL_FUNCTION, ierr); CHKERRQ(ierr)
     call SNESMonitorSet(self%solver, SNES_monitor, self%context, &
          PETSC_NULL_FUNCTION, ierr); CHKERRQ(ierr)
 
@@ -832,7 +835,6 @@ end subroutine timestepper_steps_set_next_stepsize
 !------------------------------------------------------------------------
 
   subroutine SNES_monitor(solver, num_iterations, fnorm, context, ierr)
-
     !! SNES monitor routine for output at each nonlinear iteration.
 
     SNES, intent(in) :: solver
@@ -843,11 +845,55 @@ end subroutine timestepper_steps_set_next_stepsize
     ! Locals:
     character(120) :: str
 
-    write(str, '(a, i2, a, e10.4, a)') 'iter: ', num_iterations, &
-         ' residual norm: ', fnorm, new_line('a')
-    call PetscPrintf(mpi%comm, str, ierr); CHKERRQ(ierr)
+    if (num_iterations > 0) then
+       write(str, '(a, i2, a, e12.6, a)') 'iter: ', num_iterations, &
+            ' max. residual: ', context%steps%current%max_residual, &
+            new_line('a')
+       call PetscPrintf(mpi%comm, str, ierr); CHKERRQ(ierr)
+    end if
 
   end subroutine SNES_monitor
+
+!------------------------------------------------------------------------
+
+  subroutine SNES_convergence(solver, num_iterations, xnorm, pnorm, &
+       fnorm, reason, context, ierr)
+    !! Tests for convergence of nonlinear solver.
+
+    SNES, intent(in) :: solver
+    PetscInt, intent(in) :: num_iterations
+    PetscReal, intent(in) :: xnorm, pnorm, fnorm
+    SNESConvergedReason, intent(out) :: reason
+    type(timestepper_solver_context_type), intent(in out) :: context
+    PetscErrorCode :: ierr
+    ! Locals:
+    Vec :: unscaled_residual, residual
+    PetscReal :: atol, rtol, stol
+    PetscInt :: maxit, maxf
+
+    call SNESGetFunction(solver, unscaled_residual, PETSC_NULL_OBJECT, &
+         PETSC_NULL_INTEGER, ierr); CHKERRQ(ierr)
+    call DMGetGlobalVector(context%ode%mesh%dm, residual, ierr)
+    CHKERRQ(ierr)
+    ! TODO: add absolute convergence test when LHS terms are small
+    call VecPointwiseDivide(residual, unscaled_residual, &
+         context%steps%current%lhs, ierr); CHKERRQ(ierr)
+    call VecNorm(residual, NORM_INFINITY, &
+         context%steps%current%max_residual, ierr); CHKERRQ(ierr)
+    call DMRestoreGlobalVector(context%ode%mesh%dm, residual, ierr)
+    CHKERRQ(ierr)
+
+    call SNESGetTolerances(solver, atol, rtol, stol, maxit, maxf, ierr)
+    CHKERRQ(ierr)
+
+    if (context%steps%current%max_residual < atol) then
+       reason = SNES_CONVERGED_FNORM_ABS
+    else
+       call SNESConvergedDefault(solver, num_iterations, xnorm, pnorm, &
+            fnorm, reason, PETSC_NULL_OBJECT, ierr); CHKERRQ(ierr)
+    end if
+
+  end subroutine SNES_convergence
 
 !------------------------------------------------------------------------
 
