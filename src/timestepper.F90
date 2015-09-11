@@ -945,7 +945,6 @@ end subroutine timestepper_steps_set_next_stepsize
     call DMSetMatType(self%ode%mesh%dm, MATAIJ, ierr); CHKERRQ(ierr)
     call DMCreateMatrix(self%ode%mesh%dm, self%jacobian, ierr); CHKERRQ(ierr)
     call MatSetFromOptions(self%jacobian, ierr); CHKERRQ(ierr)
-    call MatSetUp(self%jacobian, ierr); CHKERRQ(ierr)
 
     call fson_get_mpi(json, "time.stop", default_stop_time, stop_time)
        
