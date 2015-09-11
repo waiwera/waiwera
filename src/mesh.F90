@@ -79,27 +79,23 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine mesh_setup_data_layout(self, primary_variable_names)
+  subroutine mesh_setup_data_layout(self, dof)
     !! Sets up default section data layout for the mesh.
 
     use dm_utils_module, only: set_dm_data_layout
 
     class(mesh_type), intent(in out) :: self
-    character(*), intent(in) :: primary_variable_names(:) !! Names of primary thermodynamic variables
+    PetscInt, intent(in) :: dof !! Degrees of freedom
     ! Locals:
-    PetscInt :: num_vars
-    PetscInt, allocatable :: num_components(:), field_dim(:)
+    PetscInt :: num_components(1), field_dim(1)
+    character(7) :: field_names(1)
 
-    num_vars = size(primary_variable_names)
-    allocate(num_components(num_vars), field_dim(num_vars))
-    ! All primary variables are scalars defined on cells:
-    num_components = 1
+    num_components = dof
     field_dim = 3
+    field_names(1) = "Primary"
 
     call set_dm_data_layout(self%dm, num_components, field_dim, &
-         primary_variable_names)
-
-    deallocate(num_components, field_dim)
+         field_names)
 
   end subroutine mesh_setup_data_layout
 
@@ -322,7 +318,7 @@ contains
 
     call self%get_bounds()
 
-    call self%setup_data_layout(primary_variable_names)
+    call self%setup_data_layout(dof)
 
     call self%setup_geometry()
 
