@@ -313,11 +313,6 @@ contains
     character(*), intent(in) :: primary_variable_names(:) !! Names of primary thermodynamic variables
     ! Locals:
     PetscInt :: dof
-    PetscErrorCode :: ierr
-
-    ! Set up adjacency for finite volume mesh:
-    call DMPlexSetAdjacencyUseCone(self%dm, PETSC_TRUE, ierr); CHKERRQ(ierr)
-    call DMPlexSetAdjacencyUseClosure(self%dm, PETSC_FALSE, ierr); CHKERRQ(ierr)
 
     call self%distribute()
     call self%construct_ghost_cells()
