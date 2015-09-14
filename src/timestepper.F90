@@ -893,11 +893,7 @@ end subroutine timestepper_steps_set_next_stepsize
 
     call VecGetOwnershipRange(unscaled_residual, low, hi, ierr); CHKERRQ(ierr)
     do i = 1, hi - low
-       if (abs(lhs_array(i)) >= context%steps%nonlinear_solver_abs_tol) then
-          scale = lhs_array(i)
-       else
-          scale = context%steps%nonlinear_solver_abs_tol
-       end if
+       scale = max(abs(lhs_array(i)), context%steps%nonlinear_solver_abs_tol)
        residual_array(i) = unscaled_residual_array(i) / scale
     end do
 
