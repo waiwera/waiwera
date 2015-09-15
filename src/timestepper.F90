@@ -897,14 +897,15 @@ end subroutine timestepper_steps_set_next_stepsize
        residual_array(i) = unscaled_residual_array(i) / scale
     end do
 
-    call VecNorm(residual, NORM_INFINITY, &
-         context%steps%current%max_residual, ierr); CHKERRQ(ierr)
-
     call VecRestoreArrayF90(unscaled_residual, unscaled_residual_array, ierr)
     CHKERRQ(ierr)
     call VecRestoreArrayF90(residual, residual_array, ierr); CHKERRQ(ierr)
     call VecRestoreArrayF90(context%steps%current%lhs, lhs_array, ierr)
     CHKERRQ(ierr)
+
+    call VecNorm(residual, NORM_INFINITY, &
+         context%steps%current%max_residual, ierr); CHKERRQ(ierr)
+
     call DMRestoreGlobalVector(context%ode%mesh%dm, residual, ierr)
     CHKERRQ(ierr)
 
