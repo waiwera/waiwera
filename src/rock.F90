@@ -253,12 +253,15 @@ contains
        do ir = 1, num_rocktypes
           r => fson_value_get_mpi(rocktypes, ir)
           call fson_get_mpi(r, "cells", default_cells, cells)
-          num_cells = size(cells)
-          do ic = 1, num_cells
-             c = cells(ic)
-             call DMPlexSetLabelValue(dm, rocktype_label_name, &
-                  c, ir, ierr); CHKERRQ(ierr)
-          end do
+          if (allocated(cells)) then
+             num_cells = size(cells)
+             do ic = 1, num_cells
+                c = cells(ic)
+                call DMPlexSetLabelValue(dm, rocktype_label_name, &
+                     c, ir, ierr); CHKERRQ(ierr)
+             end do
+             deallocate(cells)
+          end if
        end do
     end if
 
