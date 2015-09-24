@@ -48,6 +48,7 @@ contains
 
        call VecGetSize(source, count, ierr); CHKERRQ(ierr)
        allocate(values(count), indices(count))
+       values = 0._dp
        call fson_get_mpi(json, "source", sources)
        num_sources = fson_value_count_mpi(sources, ".")
        do isrc = 1, num_sources
