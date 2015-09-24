@@ -1,10 +1,13 @@
 digraph supermodel{
         fluid_module -> dm_utils_module
         fluid_module -> kinds_module
+        fluid_module -> thermodynamics_module
         eos_module -> fluid_module
         eos_module -> fson
+        eos_module -> fson_mpi_module
         eos_module -> kinds_module
         eos_module -> thermodynamics_module
+        eos_module -> utils_module
         rock_module -> dm_utils_module
         rock_module -> fson
         rock_module -> fson_mpi_module
@@ -20,7 +23,6 @@ digraph supermodel{
         flow_simulation_module -> cell_module
         flow_simulation_module -> dm_utils_module
         flow_simulation_module -> eos_module
-        flow_simulation_module -> eos_setup_module
         flow_simulation_module -> face_module
         flow_simulation_module -> fluid_module
         flow_simulation_module -> fson
@@ -62,21 +64,9 @@ digraph supermodel{
         supermodel -> fson_mpi_module
         supermodel -> mpi_module
         supermodel -> timestepper_module
-        eos_w_module -> eos_module
-        eos_w_module -> fluid_module
-        eos_w_module -> fson
-        eos_w_module -> fson_mpi_module
-        eos_w_module -> kinds_module
-        eos_w_module -> thermodynamics_module
         source_module -> fson
         source_module -> fson_mpi_module
         source_module -> kinds_module
-        eos_setup_module -> eos_module
-        eos_setup_module -> eos_w_module
-        eos_setup_module -> fson
-        eos_setup_module -> fson_mpi_module
-        eos_setup_module -> thermodynamics_module
-        eos_setup_module -> utils_module
         IAPWS_module -> kinds_module
         IAPWS_module -> powertable_module
         IAPWS_module -> thermodynamics_module

@@ -66,9 +66,9 @@ contains
     use fson
     use fson_mpi_module
     use thermodynamics_setup_module, only: setup_thermodynamics
-    use eos_setup_module, only: setup_eos
+    use eos_module, only: setup_eos
     use initial_module, only: setup_initial
-    use fluid_module, only: setup_fluid_vector
+    use fluid_module, only: setup_fluid_vector, initialise_fluid_regions
     use rock_module, only: setup_rock_vector, setup_rocktype_labels
     use source_module, only: setup_source_vector
 
@@ -93,6 +93,10 @@ contains
          self%rock_range_start)
     call setup_fluid_vector(self%mesh%dm, self%eos%num_phases, &
          self%eos%num_components, self%fluid, self%fluid_range_start)
+    call initialise_fluid_regions(self%mesh%dm, self%fluid, &
+         self%mesh%start_cell, self%mesh%end_cell, &
+         self%fluid_range_start, self%eos%num_phases, &
+         self%eos%num_components)
     call setup_source_vector(json, self%mesh%dm, &
          self%eos%num_primary_variables, self%eos%isothermal, self%source)
     call fson_get_mpi(json, "gravity", default_gravity, self%gravity)
@@ -177,7 +181,7 @@ contains
                rock_data = rock_array, rock_offset = rock_offset, &
                fluid_data = fluid_array, fluid_offset = fluid_offset)
 
-          balance = cell%balance(self%eos%isothermal)
+          balance = cell%balance(np)
 
        end if
 
@@ -222,10 +226,11 @@ contains
     PetscInt :: face_geom_offset, cell_geom_offsets(2)
     PetscInt :: rock_offsets(2), fluid_offsets(2), rhs_offsets(2)
     PetscInt :: cell_geom_offset, rhs_offset, source_offset
+    PetscInt :: fluid_offset
     DMLabel :: ghost_label
     PetscInt, pointer :: cells(:)
-    PetscReal, pointer :: inflow(:), source(:)
-    PetscReal, allocatable :: face_flow(:)
+    PetscReal, pointer :: inflow(:)
+    PetscReal, allocatable :: face_flow(:), source(:)
     PetscReal, parameter :: flux_sign(2) = [-1._dp, 1._dp]
     PetscReal, allocatable :: primary(:)
     PetscErrorCode :: ierr
@@ -280,8 +285,7 @@ contains
                cell_geom_array, cell_geom_offsets, &
                rock_array, rock_offsets, fluid_array, fluid_offsets)
 
-          face_flow = face%flux(self%eos%isothermal, self%gravity) * &
-               face%area
+          face_flow = face%flux(np, self%gravity) * face%area
 
           do i = 1, 2
              call DMLabelGetValue(ghost_label, cells(i), ghost_cell, &
@@ -306,6 +310,7 @@ contains
     call cell%init(nc, self%eos%num_phases)
     call VecGetArrayReadF90(self%source, source_array, ierr); CHKERRQ(ierr)
     call global_vec_section(self%source, source_section)
+    allocate(source(np))
 
     do c = self%mesh%start_cell, self%mesh%end_interior_cell - 1
 
@@ -314,18 +319,22 @@ contains
        CHKERRQ(ierr)
        call section_offset(cell_geom_section, c, &
             cell_geom_offset, ierr); CHKERRQ(ierr)
-       call cell%assign(cell_geom_array, cell_geom_offset)
+       call section_offset(fluid_section, c, &
+            fluid_offset, ierr); CHKERRQ(ierr)
+       call cell%assign(cell_geom_array, cell_geom_offset, &
+            fluid_data = fluid_array, fluid_offset = fluid_offset)
        call global_section_offset(source_section, c, &
             self%solution_range_start, source_offset, ierr)
        CHKERRQ(ierr)
        inflow => rhs_array(rhs_offset : rhs_offset + np - 1)
-       source => source_array(source_offset : source_offset + np - 1)
+       source = source_array(source_offset : source_offset + np - 1)
+       call cell%fluid%energy_production(source, self%eos%isothermal)
        inflow = inflow + source / cell%volume
 
     end do
 
     nullify(inflow)
-    nullify(source)
+    deallocate(source)
     call cell%destroy()
     call VecRestoreArrayReadF90(local_rock, rock_array, ierr); CHKERRQ(ierr)
     call VecRestoreArrayReadF90(local_fluid, fluid_array, ierr); CHKERRQ(ierr)

@@ -76,6 +76,7 @@ contains
              if (np >= count) then
                 initial_data = initial_input(1:count)
              else ! repeat input over array:
+                allocate(initial_data(count))
                 do i = 1, np
                    initial_data(i:count:np) = initial_input(i)
                 end do

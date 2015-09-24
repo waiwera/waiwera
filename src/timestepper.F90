@@ -28,6 +28,7 @@ module timestepper_module
      PetscReal, public :: time, stepsize
      Vec, public :: solution, lhs, rhs
      PetscInt, public :: num_tries, num_iterations, status = TIMESTEP_OK
+     PetscReal, public :: max_residual
    contains
      private
      procedure, public :: init => timestepper_step_init
@@ -67,6 +68,7 @@ module timestepper_module
      PetscBool :: finished
      PetscInt, public :: num_stored, taken, max_num
      PetscReal, public :: next_stepsize, stop_time
+     PetscReal, public :: nonlinear_solver_relative_tol, nonlinear_solver_abs_tol
      PetscReal, public :: termination_tol = 1.e-6_dp
      PetscReal, allocatable, public :: sizes(:)
      type(timestep_adaptor_type), public :: adaptor
@@ -439,7 +441,8 @@ contains
        time, solution, initial_stepsize, &
        stop_time, max_num_steps, max_stepsize, &
        adapt_on, adapt_method, adapt_min, adapt_max, &
-       adapt_reduction, adapt_amplification, step_sizes)
+       adapt_reduction, adapt_amplification, step_sizes, &
+       nonlinear_solver_relative_tol, nonlinear_solver_abs_tol)
 
     !! Sets up array of timesteps and pointers to them. This array stores the
     !! current step and one or more previous steps. The number of stored
@@ -458,6 +461,8 @@ contains
     PetscReal, intent(in) :: adapt_min, adapt_max
     PetscReal, intent(in) :: adapt_reduction, adapt_amplification
     PetscReal, intent(in), optional :: step_sizes(:)
+    PetscReal, intent(in) :: nonlinear_solver_relative_tol, &
+         nonlinear_solver_abs_tol
     ! Locals:
     PetscInt :: i
     PetscErrorCode :: ierr
@@ -498,6 +503,9 @@ contains
     self%adaptor%reduction = adapt_reduction
     self%adaptor%amplification = adapt_amplification
     self%adaptor%max_stepsize = max_stepsize
+
+    self%nonlinear_solver_relative_tol = nonlinear_solver_relative_tol
+    self%nonlinear_solver_abs_tol = nonlinear_solver_abs_tol
 
     if ((present(step_sizes) .and. (size(step_sizes) > 0))) then
        ! Fixed time step sizes override adaptor:
@@ -824,7 +832,93 @@ end subroutine timestepper_steps_set_next_stepsize
     call SNESGetKSP(self%solver, ksp, ierr); CHKERRQ(ierr)
     call KSPSetFromOptions(ksp, ierr); CHKERRQ(ierr)
 
+    call SNESSetConvergenceTest(self%solver, SNES_convergence, self%context, &
+         PETSC_NULL_FUNCTION, ierr); CHKERRQ(ierr)
+    call SNESMonitorSet(self%solver, SNES_monitor, self%context, &
+         PETSC_NULL_FUNCTION, ierr); CHKERRQ(ierr)
+
   end subroutine timestepper_setup_solver
+
+!------------------------------------------------------------------------
+
+  subroutine SNES_monitor(solver, num_iterations, fnorm, context, ierr)
+    !! SNES monitor routine for output at each nonlinear iteration.
+
+    SNES, intent(in) :: solver
+    PetscInt, intent(in) :: num_iterations
+    PetscReal, intent(in) :: fnorm
+    type(timestepper_solver_context_type), intent(in out) :: context
+    PetscErrorCode :: ierr
+    ! Locals:
+    character(120) :: str
+
+    if (num_iterations > 0) then
+       write(str, '(a, i2, a, e12.6, a)') 'iter: ', num_iterations, &
+            ' max. residual: ', context%steps%current%max_residual, &
+            new_line('a')
+       call PetscPrintf(mpi%comm, str, ierr); CHKERRQ(ierr)
+    end if
+
+  end subroutine SNES_monitor
+
+!------------------------------------------------------------------------
+
+  subroutine SNES_convergence(solver, num_iterations, xnorm, pnorm, &
+       fnorm, reason, context, ierr)
+    !! Tests for convergence of nonlinear solver.
+
+    SNES, intent(in) :: solver
+    PetscInt, intent(in) :: num_iterations
+    PetscReal, intent(in) :: xnorm, pnorm, fnorm
+    SNESConvergedReason, intent(out) :: reason
+    type(timestepper_solver_context_type), intent(in out) :: context
+    PetscErrorCode :: ierr
+    ! Locals:
+    Vec :: unscaled_residual, residual
+    PetscReal, pointer :: unscaled_residual_array(:), residual_array(:), &
+         lhs_array(:)
+    PetscInt :: low, hi, i
+    PetscReal :: scale
+
+    call SNESGetFunction(solver, unscaled_residual, PETSC_NULL_OBJECT, &
+         PETSC_NULL_INTEGER, ierr); CHKERRQ(ierr)
+    call DMGetGlobalVector(context%ode%mesh%dm, residual, ierr)
+    CHKERRQ(ierr)
+
+    call VecGetArrayF90(unscaled_residual, unscaled_residual_array, ierr)
+    CHKERRQ(ierr)
+    call VecGetArrayF90(residual, residual_array, ierr); CHKERRQ(ierr)
+    call VecGetArrayF90(context%steps%current%lhs, lhs_array, ierr)
+    CHKERRQ(ierr)
+
+    call VecGetOwnershipRange(unscaled_residual, low, hi, ierr); CHKERRQ(ierr)
+    do i = 1, hi - low
+       scale = max(abs(lhs_array(i)), context%steps%nonlinear_solver_abs_tol)
+       residual_array(i) = unscaled_residual_array(i) / scale
+    end do
+
+    call VecRestoreArrayF90(unscaled_residual, unscaled_residual_array, ierr)
+    CHKERRQ(ierr)
+    call VecRestoreArrayF90(residual, residual_array, ierr); CHKERRQ(ierr)
+    call VecRestoreArrayF90(context%steps%current%lhs, lhs_array, ierr)
+    CHKERRQ(ierr)
+
+    call VecNorm(residual, NORM_INFINITY, &
+         context%steps%current%max_residual, ierr); CHKERRQ(ierr)
+
+    call DMRestoreGlobalVector(context%ode%mesh%dm, residual, ierr)
+    CHKERRQ(ierr)
+
+    if (context%steps%current%max_residual < &
+         context%steps%nonlinear_solver_relative_tol) then
+       reason = SNES_CONVERGED_FNORM_ABS
+    else
+       call SNESConvergedDefault(solver, num_iterations, xnorm, pnorm, &
+            fnorm, reason, PETSC_NULL_OBJECT, ierr); CHKERRQ(ierr)
+    end if
+
+
+  end subroutine SNES_convergence
 
 !------------------------------------------------------------------------
 
@@ -865,6 +959,9 @@ end subroutine timestepper_steps_set_next_stepsize
     PetscReal :: adapt_reduction, adapt_amplification
     PetscReal, allocatable :: step_sizes(:)
     PetscReal, parameter :: default_step_sizes(0) = [PetscReal::]
+    PetscReal, parameter :: default_nonlinear_solver_relative_tol = 1.e-6_dp
+    PetscReal, parameter :: default_nonlinear_solver_abs_tol = 1._dp
+    PetscReal :: nonlinear_solver_relative_tol, nonlinear_solver_abs_tol
     PetscErrorCode :: ierr
 
     self%ode => ode
@@ -873,7 +970,6 @@ end subroutine timestepper_steps_set_next_stepsize
     call DMSetMatType(self%ode%mesh%dm, MATAIJ, ierr); CHKERRQ(ierr)
     call DMCreateMatrix(self%ode%mesh%dm, self%jacobian, ierr); CHKERRQ(ierr)
     call MatSetFromOptions(self%jacobian, ierr); CHKERRQ(ierr)
-    call MatSetUp(self%jacobian, ierr); CHKERRQ(ierr)
 
     call fson_get_mpi(json, "time.stop", default_stop_time, stop_time)
        
@@ -926,11 +1022,20 @@ end subroutine timestepper_steps_set_next_stepsize
     call fson_get_mpi(json, "time.step.sizes", &
          default_step_sizes, step_sizes)
 
+    call fson_get_mpi(json, &
+         "time.step.solver.nonlinear.tolerance.relative", &
+         default_nonlinear_solver_relative_tol, &
+         nonlinear_solver_relative_tol)
+    call fson_get_mpi(json, &
+         "time.step.solver.nonlinear.tolerance.absolute", &
+         default_nonlinear_solver_abs_tol, nonlinear_solver_abs_tol)
+
     call self%steps%init(self%method%num_stored_steps, &
          self%ode%time, self%ode%solution, initial_stepsize, &
          stop_time, max_num_steps, max_stepsize, &
          adapt_on, adapt_method, adapt_min, adapt_max, &
-         adapt_reduction, adapt_amplification, step_sizes)
+         adapt_reduction, adapt_amplification, step_sizes, &
+         nonlinear_solver_relative_tol, nonlinear_solver_abs_tol)
 
     call self%setup_solver()
 

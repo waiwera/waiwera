@@ -228,8 +228,7 @@ contains
     use rock_module
     use fluid_module
 
-    PetscInt, parameter :: nc = 1, np = 1
-    PetscBool, parameter :: isothermal = .false.
+    PetscInt, parameter :: nc = 1, np = 1, num_primary = 2
     PetscReal, parameter :: gravity = 9.8_dp
     type(face_type) :: face
     type(cell_type) :: cell
@@ -249,7 +248,7 @@ contains
        call fluid%init(nc, np)
        allocate(face_data(face%dof()), cell_data(cell%dof()))
        allocate(rock_data(rock%dof()), fluid_data(fluid%dof()))
-       allocate(flux(nc + 1))
+       allocate(flux(num_primary))
        face_offset = 1
        cell_offsets = [1, 1]
        rock_offsets = [1, 1]
@@ -268,9 +267,9 @@ contains
        call face%assign(face_data, face_offset, cell_data, cell_offsets, &
             rock_data, rock_offsets, fluid_data, fluid_offsets)
 
-       flux = face%flux(isothermal, gravity)
+       flux = face%flux(num_primary, gravity)
 
-       call assert_equals(nc + 1, size(flux), "Flux array size")
+       call assert_equals(num_primary, size(flux), "Flux array size")
        call assert_equals(expected_mass_flux, flux(1), tol, "Mass flux")
        call assert_equals(expected_heat_flux, flux(2), tol, "Heat flux")
 
@@ -295,8 +294,7 @@ contains
     use rock_module
     use fluid_module
 
-    PetscInt, parameter :: nc = 1, np = 1
-    PetscBool, parameter :: isothermal = .false.
+    PetscInt, parameter :: nc = 1, np = 1, num_primary = 2
     PetscReal, parameter :: gravity = 9.8_dp
     type(face_type) :: face
     type(cell_type) :: cell
@@ -316,7 +314,7 @@ contains
        call fluid%init(nc, np)
        allocate(face_data(face%dof()), cell_data(cell%dof()))
        allocate(rock_data(rock%dof()), fluid_data(fluid%dof()))
-       allocate(flux(nc + 1))
+       allocate(flux(num_primary))
        face_offset = 1
        cell_offsets = [1, 1]
        rock_offsets = [1, 1]
@@ -335,7 +333,7 @@ contains
        call face%assign(face_data, face_offset, cell_data, cell_offsets, &
             rock_data, rock_offsets, fluid_data, fluid_offsets)
 
-       flux = face%flux(isothermal, gravity)
+       flux = face%flux(num_primary, gravity)
 
        call assert_equals(expected_mass_flux, flux(1), mass_tol, "Mass flux")
        call assert_equals(expected_heat_flux, flux(2), heat_tol, "Heat flux")
@@ -361,8 +359,7 @@ contains
     use rock_module
     use fluid_module
 
-    PetscInt, parameter :: nc = 1, np = 1
-    PetscBool, parameter :: isothermal = .false.
+    PetscInt, parameter :: nc = 1, np = 1, num_primary = 2
     PetscReal, parameter :: gravity = 9.8_dp
     type(face_type) :: face
     type(cell_type) :: cell
@@ -382,7 +379,7 @@ contains
        call fluid%init(nc, np)
        allocate(face_data(face%dof()), cell_data(cell%dof()))
        allocate(rock_data(rock%dof()), fluid_data(fluid%dof()*2))
-       allocate(flux(nc + 1))
+       allocate(flux(num_primary))
        face_offset = 1
        cell_offsets = [1, 1]
        rock_offsets = [1, 1]
@@ -404,7 +401,7 @@ contains
        call face%assign(face_data, face_offset, cell_data, cell_offsets, &
             rock_data, rock_offsets, fluid_data, fluid_offsets)
 
-       flux = face%flux(isothermal, gravity)
+       flux = face%flux(num_primary, gravity)
 
        call assert_equals(expected_mass_flux, flux(1), mass_tol, "Mass flux")
        call assert_equals(expected_heat_flux, flux(2), heat_tol, "Heat flux")
@@ -429,8 +426,7 @@ contains
     use rock_module
     use fluid_module
 
-    PetscInt, parameter :: nc = 1, np = 2
-    PetscBool, parameter :: isothermal = .false.
+    PetscInt, parameter :: nc = 1, np = 2, num_primary = 2
     PetscReal, parameter :: gravity = 9.8_dp
     type(face_type) :: face
     type(cell_type) :: cell
@@ -450,7 +446,7 @@ contains
        call fluid%init(nc, np)
        allocate(face_data(face%dof()), cell_data(cell%dof()))
        allocate(rock_data(rock%dof() * 2), fluid_data(fluid%dof() * 2))
-       allocate(flux(nc + 1))
+       allocate(flux(num_primary))
        face_offset = 1
        cell_offsets = [1, 1]
        rock_offsets = [1, 1 + rock%dof()]
@@ -478,7 +474,7 @@ contains
        call face%assign(face_data, face_offset, cell_data, cell_offsets, &
             rock_data, rock_offsets, fluid_data, fluid_offsets)
 
-       flux = face%flux(isothermal, gravity)
+       flux = face%flux(num_primary, gravity)
 
        call assert_equals(expected_mass_flux, flux(1), mass_tol, "Mass flux")
        call assert_equals(expected_heat_flux, flux(2), heat_tol, "Heat flux")

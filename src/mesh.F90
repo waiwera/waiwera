@@ -26,6 +26,7 @@ module mesh_module
      procedure :: construct_ghost_cells => mesh_construct_ghost_cells
      procedure :: setup_data_layout => mesh_setup_data_layout
      procedure :: setup_geometry => mesh_setup_geometry
+     procedure :: setup_discretization => mesh_setup_discretization
      procedure :: get_bounds => mesh_get_bounds
      procedure, public :: init => mesh_init
      procedure, public :: configure => mesh_configure
@@ -78,29 +79,48 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine mesh_setup_data_layout(self, primary_variable_names)
+  subroutine mesh_setup_data_layout(self, dof)
     !! Sets up default section data layout for the mesh.
 
     use dm_utils_module, only: set_dm_data_layout
 
     class(mesh_type), intent(in out) :: self
-    character(*), intent(in) :: primary_variable_names(:) !! Names of primary thermodynamic variables
+    PetscInt, intent(in) :: dof !! Degrees of freedom
     ! Locals:
-    PetscInt :: num_vars
-    PetscInt, allocatable :: num_components(:), field_dim(:)
+    PetscInt :: num_components(1), field_dim(1)
+    character(7) :: field_names(1)
 
-    num_vars = size(primary_variable_names)
-    allocate(num_components(num_vars), field_dim(num_vars))
-    ! All primary variables are scalars defined on cells:
-    num_components = 1
+    num_components = dof
     field_dim = 3
+    field_names(1) = "Primary"
 
     call set_dm_data_layout(self%dm, num_components, field_dim, &
-         primary_variable_names)
-
-    deallocate(num_components, field_dim)
+         field_names)
 
   end subroutine mesh_setup_data_layout
+
+!------------------------------------------------------------------------
+
+  subroutine mesh_setup_discretization(self, dof)
+    !! Sets up finite volume discretization on the DM.
+
+    class(mesh_type), intent(in out) :: self
+    PetscInt, intent(in) :: dof
+    ! Locals:
+    PetscFV :: fvm
+    PetscDS :: ds
+    PetscInt :: dim
+    PetscErrorCode :: ierr
+
+    call PetscFVCreate(mpi%comm, fvm, ierr); CHKERRQ(ierr)
+    call PetscFVSetFromOptions(fvm, ierr); CHKERRQ(ierr)
+    call PetscFVSetNumComponents(fvm, dof, ierr); CHKERRQ(ierr)
+    call DMGetDimension(self%dm, dim, ierr); CHKERRQ(ierr)
+    call PetscFVSetSpatialDimension(fvm, dim, ierr); CHKERRQ(ierr)
+    call DMGetDS(self%dm, ds, ierr); CHKERRQ(ierr)
+    call PetscDSAddDiscretization(ds, fvm, ierr); CHKERRQ(ierr)
+
+  end subroutine mesh_setup_discretization
 
 !------------------------------------------------------------------------
 
@@ -288,18 +308,17 @@ contains
     class(mesh_type), intent(in out) :: self
     character(*), intent(in) :: primary_variable_names(:) !! Names of primary thermodynamic variables
     ! Locals:
-    PetscErrorCode :: ierr
-
-    ! Set up adjacency for finite volume mesh:
-    call DMPlexSetAdjacencyUseCone(self%dm, PETSC_TRUE, ierr); CHKERRQ(ierr)
-    call DMPlexSetAdjacencyUseClosure(self%dm, PETSC_FALSE, ierr); CHKERRQ(ierr)
+    PetscInt :: dof
 
     call self%distribute()
     call self%construct_ghost_cells()
 
+    dof = size(primary_variable_names)
+    call self%setup_discretization(dof)
+
     call self%get_bounds()
 
-    call self%setup_data_layout(primary_variable_names)
+    call self%setup_data_layout(dof)
 
     call self%setup_geometry()
 
