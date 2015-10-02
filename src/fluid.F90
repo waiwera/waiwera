@@ -224,46 +224,6 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine fluid_phase_properties(self, thermo)
-    !! Calculates fluid phase properties. It is assumed that the bulk
-    !! fluid properties (pressure, temperature and region) have already
-    !! been assigned.
-
-    use thermodynamics_module
-
-    class(fluid_type), intent(in out) :: self
-    class(thermodynamics_type), intent(in out) :: thermo
-    ! Locals:
-    PetscInt :: p ! phase
-    PetscReal :: properties(2)
-    PetscInt :: ierr
-
-    ! For now it's assumed that the phase corresponds to the region,
-    ! i.e. phase 1 (liquid) is region 1, phase 2 (vapour) is region 2.
-    ! Obviously this won't work for two-phase (or supercritical).
-    p = nint(self%region)
-
-    call thermo%region(p)%ptr%properties( &
-         [self%pressure, self%temperature], &
-         properties, ierr)
-
-    self%phase(p)%density = properties(1)
-    self%phase(p)%internal_energy = properties(2)
-    self%phase(p)%specific_enthalpy = self%phase(p)%internal_energy + &
-         self%pressure / self%phase(p)%density
-    ! Single-phase only for now:
-    self%phase(p)%saturation = 1._dp
-    self%phase(p)%relative_permeability = 1._dp
-    self%phase(p)%mass_fraction(1) = 1._dp
-
-    call thermo%region(p)%ptr%viscosity( &
-         self%temperature, self%pressure, &
-         self%phase(p)%density, self%phase(p)%viscosity)
-
-  end subroutine fluid_phase_properties
-
-!------------------------------------------------------------------------
-
   subroutine fluid_energy_production(self, source, isothermal)
     !! If source array represents production, and EOS is
     !! non-isothermal, calculate associated energy production.
