@@ -230,6 +230,7 @@ module IAPWS_module
      private
      procedure, public :: init => IAPWS_init
      procedure, public :: destroy => IAPWS_destroy
+     procedure, public :: phase_composition => IAPWS_phase_composition
   end type IAPWS_type
 
 !------------------------------------------------------------------------
@@ -284,6 +285,40 @@ contains
     deallocate(self%saturation)
 
   end subroutine IAPWS_destroy
+
+!------------------------------------------------------------------------
+
+  PetscInt function IAPWS_phase_composition(self, region, pressure, &
+       temperature) result(phase_composition)
+    !! Returns phase composition integer for given region, pressure
+    !! and temperature. Here the bits represent:
+    !! 0: liquid
+    !! 1: vapour
+    !! 2: supercritical
+
+    class(IAPWS_type), intent(in) :: self
+    PetscInt, intent(in) :: region
+    PetscReal, intent(in) :: pressure, temperature
+
+    if (region == 4) then
+       phase_composition = b'011'
+    else
+       if (temperature <= tcritical) then
+          if (region == 1) then
+             phase_composition = b'001'
+          else
+             phase_composition = b'010'
+          end if
+       else
+          if (pressure <= pcritical) then
+             phase_composition = b'010'
+          else
+             phase_composition = b'100'
+          end if
+       end if
+    end if
+
+  end function IAPWS_phase_composition
 
 !------------------------------------------------------------------------
   ! Abstract region type

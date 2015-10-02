@@ -118,6 +118,7 @@ module IFC67_module
      private
      procedure, public :: init => IFC67_init
      procedure, public :: destroy => IFC67_destroy
+     procedure, public :: phase_composition => IFC67_phase_composition
   end type IFC67_type
 
 !------------------------------------------------------------------------
@@ -171,6 +172,32 @@ contains
     deallocate(self%saturation)
 
   end subroutine IFC67_destroy
+
+!------------------------------------------------------------------------
+
+  PetscInt function IFC67_phase_composition(self, region, pressure, &
+       temperature) result(phase_composition)
+    !! Returns phase composition integer for given region, pressure
+    !! and temperature. Here the bits represent:
+    !! 0: liquid
+    !! 1: vapour
+
+    class(IFC67_type), intent(in) :: self
+    PetscInt, intent(in) :: region
+    PetscReal, intent(in) :: pressure, temperature
+
+    select case(region)
+    case(1)   ! liquid water
+       phase_composition = b'01'
+    case(2)   ! dry steam
+       phase_composition = b'10'
+    case(4)   ! two-phase
+       phase_composition = b'11'
+    case default
+       phase_composition = b'00'
+    end select
+
+  end function IFC67_phase_composition
 
 !------------------------------------------------------------------------
 ! Region 1 (liquid water)
