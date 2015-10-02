@@ -19,7 +19,6 @@ module eos_module
   PetscInt, parameter, public :: max_eos_name_length = 8
   PetscInt, parameter, public :: max_eos_description_length = 80
   PetscInt, parameter, public :: max_primary_variable_name_length = 16
-  PetscInt, parameter, public :: max_phase_name_length = 6
 
   type, public, abstract :: eos_type
      !! Abstract type for equation of state (EOS) objects.
@@ -27,7 +26,6 @@ module eos_module
      character(max_eos_name_length), public :: name
      character(max_eos_description_length), public :: description
      character(max_primary_variable_name_length), allocatable, public :: primary_variable_names(:)
-     character(max_phase_name_length), allocatable, public :: phase_names(:)
      PetscInt, allocatable, public :: phase_index(:)
      PetscInt, public :: num_primary_variables
      PetscInt, public :: num_phases
@@ -170,11 +168,10 @@ contains
     self%name = "w"
     self%description = "Isothermal pure water"
     self%primary_variable_names = ["Pressure"]
-    self%phase_names = ["Liquid"]
-    self%phase_index = [1]
 
     self%num_primary_variables = size(self%primary_variable_names)
     self%num_phases = 1
+    self%phase_index = [1]
     self%num_components = 1
     self%isothermal = .true.
 
@@ -193,7 +190,7 @@ contains
     class(eos_w_type), intent(in out) :: self
 
     deallocate(self%primary_variable_names)
-    deallocate(self%phase_names, self%phase_index)
+    deallocate(self%phase_index)
 
   end subroutine eos_w_destroy
 
@@ -236,12 +233,35 @@ contains
     PetscInt, intent(in) :: region !! Thermodynamic region index
     PetscReal, intent(in), target :: primary(self%num_primary_variables) !! Primary thermodynamic variables
     type(fluid_type), intent(in out) :: fluid !! Fluid object
+    ! Locals:
+    PetscInt :: phase_composition, ip, ierr
+    PetscReal :: properties(2)
 
     fluid%pressure = primary(1)
     fluid%temperature = self%temperature
     fluid%region = region
 
-    call fluid%phase_properties(self%thermo)
+    phase_composition = b'01'
+    fluid%phase_composition = dble(phase_composition)
+    ip = self%phase_index(phase_composition)
+
+    call self%thermo%region(region)%ptr%properties( &
+         [fluid%pressure, fluid%temperature], &
+         properties, ierr)
+
+    fluid%phase(ip)%density = properties(1)
+    fluid%phase(ip)%internal_energy = properties(2)
+    fluid%phase(ip)%specific_enthalpy = &
+         fluid%phase(ip)%internal_energy + &
+         fluid%pressure / fluid%phase(ip)%density
+
+    fluid%phase(ip)%saturation = 1._dp
+    fluid%phase(ip)%relative_permeability = 1._dp
+    fluid%phase(ip)%mass_fraction(1) = 1._dp
+
+    call self%thermo%region(region)%ptr%viscosity( &
+         fluid%temperature, fluid%pressure, &
+         fluid%phase(ip)%density, fluid%phase(ip)%viscosity)
 
   end subroutine eos_w_fluid_properties
 
@@ -261,11 +281,10 @@ contains
     self%name = "we"
     self%description = "Pure water and energy"
     self%primary_variable_names = ["Pressure   ", "Temperature"]
-    self%phase_names = ["Liquid", "Vapour"]
-    self%phase_index = [1, 2]
 
     self%num_primary_variables = size(self%primary_variable_names)
     self%num_phases = 2
+    self%phase_index = [1, 2]
     self%num_components = 1
 
     self%thermo => thermo
@@ -309,12 +328,59 @@ contains
     PetscInt, intent(in) :: region !! Thermodynamic region index
     PetscReal, intent(in), target :: primary(self%num_primary_variables) !! Primary thermodynamic variables
     type(fluid_type), intent(in out) :: fluid !! Fluid object
+    ! Locals:
+    PetscInt :: p, ip, ierr, phase_composition
+    PetscReal :: properties(2), saturation(2)
 
-    fluid%pressure = primary(1)
-    fluid%temperature = primary(2)
     fluid%region = region
+    fluid%temperature = primary(2)
 
-    call fluid%phase_properties(self%thermo)
+    if (region == 4) then
+       ! Two-phase
+       call self%thermo%saturation%pressure(fluid%temperature, &
+            fluid%pressure, ierr)
+       saturation = [1._dp - primary(1), primary(1)]
+    else
+       ! Single-phase
+       fluid%pressure = primary(1)
+       if (region == 1) then
+          saturation = [1._dp, 0._dp]
+       else
+          saturation = [0._dp, 1._dp]
+       end if
+    end if
+
+    phase_composition = self%thermo%phase_composition(region, &
+         fluid%pressure, fluid%temperature)
+    fluid%phase_composition = dble(phase_composition)
+
+    do p = 1, self%num_phases
+
+       if (btest(phase_composition, p - 1)) then
+
+          ip = self%phase_index(p)
+
+          call self%thermo%region(p)%ptr%properties( &
+               [fluid%pressure, fluid%temperature], &
+               properties, ierr)
+
+          fluid%phase(ip)%density = properties(1)
+          fluid%phase(ip)%internal_energy = properties(2)
+          fluid%phase(ip)%specific_enthalpy = &
+               fluid%phase(ip)%internal_energy + &
+               fluid%pressure / fluid%phase(ip)%density
+
+          fluid%phase(ip)%saturation = saturation(p)
+          fluid%phase(ip)%relative_permeability = 1._dp ! ** TODO **
+          fluid%phase(ip)%mass_fraction(1) = 1._dp
+
+          call self%thermo%region(p)%ptr%viscosity( &
+               fluid%temperature, fluid%pressure, &
+               fluid%phase(ip)%density, fluid%phase(ip)%viscosity)
+
+       end if
+
+    end do
 
   end subroutine eos_we_fluid_properties
 
