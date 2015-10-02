@@ -56,14 +56,13 @@ module eos_module
      procedure, public :: fluid_properties => eos_w_fluid_properties
   end type eos_w_type
 
-  type, public, extends(eos_type) :: eos_we_type
+  type, public, extends(eos_w_type) :: eos_we_type
      !! Pure water and energy equation of state type.
      private
    contains
      private
      procedure :: transition => eos_we_transition
      procedure, public :: init => eos_we_init
-     procedure, public :: destroy => eos_we_destroy
      procedure, public :: check_primary => eos_we_check_primary
      procedure, public :: fluid_properties => eos_we_fluid_properties
   end type eos_we_type
@@ -272,18 +271,6 @@ contains
     self%thermo => thermo
 
   end subroutine eos_we_init
-
-!------------------------------------------------------------------------
-
-  subroutine eos_we_destroy(self)
-    !! Destroy pure water and energy EOS.
-
-    class(eos_we_type), intent(in out) :: self
-
-    deallocate(self%primary_variable_names)
-    deallocate(self%phase_names, self%phase_index)
-
-  end subroutine eos_we_destroy
 
 !------------------------------------------------------------------------
   
