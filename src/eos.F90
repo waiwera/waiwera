@@ -339,7 +339,7 @@ contains
        ! Two-phase
        call self%thermo%saturation%pressure(fluid%temperature, &
             fluid%pressure, ierr)
-       saturation = [1._dp - primary(1), primary(1)]
+       saturation = [1._dp - primary(2), primary(2)]
     else
        ! Single-phase
        fluid%pressure = primary(1)
