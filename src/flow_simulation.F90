@@ -118,6 +118,7 @@ contains
     call VecDestroy(self%source, ierr); CHKERRQ(ierr)
     call self%mesh%destroy()
     call self%thermo%destroy()
+    call self%eos%destroy()
     deallocate(self%thermo)
     deallocate(self%eos)
 

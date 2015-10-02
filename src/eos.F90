@@ -19,6 +19,7 @@ module eos_module
   PetscInt, parameter, public :: max_eos_name_length = 8
   PetscInt, parameter, public :: max_eos_description_length = 80
   PetscInt, parameter, public :: max_primary_variable_name_length = 16
+  PetscInt, parameter, public :: max_phase_name_length = 6
 
   type, public, abstract :: eos_type
      !! Abstract type for equation of state (EOS) objects.
@@ -26,6 +27,8 @@ module eos_module
      character(max_eos_name_length), public :: name
      character(max_eos_description_length), public :: description
      character(max_primary_variable_name_length), allocatable, public :: primary_variable_names(:)
+     character(max_phase_name_length), allocatable, public :: phase_names(:)
+     PetscInt, allocatable, public :: phase_index(:)
      PetscInt, public :: num_primary_variables
      PetscInt, public :: num_phases
      PetscInt, public :: num_components
@@ -35,6 +38,7 @@ module eos_module
      private
      procedure(eos_transition_procedure), deferred :: transition
      procedure(eos_init_procedure), public, deferred :: init
+     procedure(eos_destroy_procedure), public, deferred :: destroy
      procedure(eos_check_primary_procedure), public, deferred :: check_primary
      procedure(eos_fluid_procedure), public, deferred :: fluid_properties
   end type eos_type
@@ -47,6 +51,7 @@ module eos_module
      private
      procedure :: transition => eos_w_transition
      procedure, public :: init => eos_w_init
+     procedure, public :: destroy => eos_w_destroy
      procedure, public :: check_primary => eos_w_check_primary
      procedure, public :: fluid_properties => eos_w_fluid_properties
   end type eos_w_type
@@ -58,6 +63,7 @@ module eos_module
      private
      procedure :: transition => eos_we_transition
      procedure, public :: init => eos_we_init
+     procedure, public :: destroy => eos_we_destroy
      procedure, public :: check_primary => eos_we_check_primary
      procedure, public :: fluid_properties => eos_we_fluid_properties
   end type eos_we_type
@@ -71,6 +77,12 @@ module eos_module
        type(fson_value), pointer, intent(in) :: json
        class(thermodynamics_type), intent(in), target :: thermo
      end subroutine eos_init_procedure
+
+     subroutine eos_destroy_procedure(self)
+       !! Destroy EOS object
+       import :: eos_type
+       class(eos_type), intent(in out) :: self
+     end subroutine eos_destroy_procedure
 
      subroutine eos_transition_procedure(self, &
           region1, region2, primary)
@@ -159,6 +171,8 @@ contains
     self%name = "w"
     self%description = "Isothermal pure water"
     self%primary_variable_names = ["Pressure"]
+    self%phase_names = ["Liquid"]
+    self%phase_index = [1]
 
     self%num_primary_variables = size(self%primary_variable_names)
     self%num_phases = 1
@@ -171,6 +185,18 @@ contains
          self%temperature)
 
   end subroutine eos_w_init
+
+!------------------------------------------------------------------------
+
+  subroutine eos_w_destroy(self)
+    !! Destroy isothermal pure water EOS.
+
+    class(eos_w_type), intent(in out) :: self
+
+    deallocate(self%primary_variable_names)
+    deallocate(self%phase_names, self%phase_index)
+
+  end subroutine eos_w_destroy
 
 !------------------------------------------------------------------------
   
@@ -236,14 +262,28 @@ contains
     self%name = "we"
     self%description = "Pure water and energy"
     self%primary_variable_names = ["Pressure   ", "Temperature"]
+    self%phase_names = ["Liquid", "Vapour"]
+    self%phase_index = [1, 2]
 
     self%num_primary_variables = size(self%primary_variable_names)
-    self%num_phases = 1  ! until phase-changing implemented
+    self%num_phases = 2
     self%num_components = 1
 
     self%thermo => thermo
 
   end subroutine eos_we_init
+
+!------------------------------------------------------------------------
+
+  subroutine eos_we_destroy(self)
+    !! Destroy pure water and energy EOS.
+
+    class(eos_we_type), intent(in out) :: self
+
+    deallocate(self%primary_variable_names)
+    deallocate(self%phase_names, self%phase_index)
+
+  end subroutine eos_we_destroy
 
 !------------------------------------------------------------------------
   
