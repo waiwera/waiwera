@@ -8,7 +8,7 @@ module fluid_module
 #include <petsc/finclude/petsc.h90>
 
   PetscInt, parameter, public :: num_phase_variables = 6
-  PetscInt, parameter, public :: num_fluid_variables = 3
+  PetscInt, parameter, public :: num_fluid_variables = 4
 
   type phase_type
      !! Type for accessing local fluid properties for a particular phase.
@@ -32,6 +32,7 @@ module fluid_module
      PetscReal, pointer, public :: pressure    !! Bulk pressure
      PetscReal, pointer, public :: temperature !! Temperature
      PetscReal, pointer, public :: region      !! Thermodynamic region
+     PetscReal, pointer, public :: phase_composition   !! Phase composition
      type(phase_type), allocatable, public :: phase(:) !! Phase variables
      PetscInt, public :: num_phases !! Number of phases
      PetscInt, public :: num_components !! Number of mass components
@@ -43,7 +44,6 @@ module fluid_module
      procedure, public :: dof => fluid_dof
      procedure, public :: component_density => fluid_component_density
      procedure, public :: energy => fluid_energy
-     procedure, public :: phase_properties => fluid_phase_properties
      procedure, public :: energy_production => fluid_energy_production
   end type fluid_type
 
@@ -130,6 +130,7 @@ contains
     self%pressure => data(offset)
     self%temperature => data(offset + 1)
     self%region => data(offset + 2)
+    self%phase_composition => data(offset + 3)
     
     i = offset + num_fluid_variables
     do p = 1, self%num_phases
@@ -158,6 +159,7 @@ contains
     nullify(self%pressure)
     nullify(self%temperature)
     nullify(self%region)
+    nullify(self%phase_composition)
 
     do p = 1, self%num_phases
        call self%phase(p)%destroy()
