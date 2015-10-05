@@ -234,16 +234,16 @@ contains
     PetscInt, intent(in) :: p
     ! Locals:
     PetscInt :: i
-    PetscReal :: mass, volume, v
+    PetscReal :: weight
 
-    mass = 0._dp
-    volume = 0._dp
+    rho = 0._dp
+    weight = 0._dp
     do i = 1, 2
-       v = self%cell(i)%fluid%phase(p)%saturation * self%cell(i)%volume
-       volume = volume + v
-       mass = mass + v * self%cell(i)%fluid%phase(p)%density
+       rho = rho + self%cell(i)%fluid%phase(p)%saturation * &
+            self%cell(i)%fluid%phase(p)%density
+       weight = weight + self%cell(i)%fluid%phase(p)%saturation
     end do
-    rho = mass / volume
+    rho = rho / weight
 
   end function face_phase_density
 
