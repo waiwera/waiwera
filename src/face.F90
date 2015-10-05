@@ -226,17 +226,26 @@ contains
 
 !------------------------------------------------------------------------
 
-  PetscReal function face_average_phase_density(self, p) result(rho)
-    !! Returns phase density on the face for a given phase, arithmetically
-    !! averaged between the two cells.
+  PetscReal function face_phase_density(self, p) result(rho)
+    !! Returns phase density on the face for a given phase. It is
+    !! assumed that the phase is present in at least one of the cells.
 
     class(face_type), intent(in) :: self
     PetscInt, intent(in) :: p
+    ! Locals:
+    PetscInt :: i
+    PetscReal :: mass, volume, v
 
-    rho = 0.5_dp * (self%cell(1)%fluid%phase(p)%density + &
-         self%cell(2)%fluid%phase(p)%density)
+    mass = 0._dp
+    volume = 0._dp
+    do i = 1, 2
+       v = self%cell(i)%fluid%phase(p)%saturation * self%cell(i)%volume
+       volume = volume + v
+       mass = mass + v * self%cell(i)%fluid%phase(p)%density
+    end do
+    rho = mass / volume
 
-  end function face_average_phase_density
+  end function face_phase_density
 
 !------------------------------------------------------------------------
 
