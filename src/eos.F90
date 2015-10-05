@@ -329,7 +329,7 @@ contains
     PetscReal, intent(in), target :: primary(self%num_primary_variables) !! Primary thermodynamic variables
     type(fluid_type), intent(in out) :: fluid !! Fluid object
     ! Locals:
-    PetscInt :: p, ip, ierr, phase_composition
+    PetscInt :: p, ip, ierr, phases
     PetscReal :: properties(2), saturation(2)
 
     fluid%region = region
@@ -350,15 +350,17 @@ contains
        end if
     end if
 
-    phase_composition = self%thermo%phase_composition(region, &
-         fluid%pressure, fluid%temperature)
-    fluid%phase_composition = dble(phase_composition)
+    phases = self%thermo%phase_composition(region, fluid%pressure, &
+         fluid%temperature)
+    fluid%phase_composition = dble(phases)
 
     do p = 1, self%num_phases
 
-       if (btest(phase_composition, p - 1)) then
+       ip = self%phase_index(p)
+       fluid%phase(ip)%saturation = saturation(p)
+       fluid%phase(ip)%mass_fraction(1) = 1._dp
 
-          ip = self%phase_index(p)
+       if (btest(phases, p - 1)) then
 
           call self%thermo%region(p)%ptr%properties( &
                [fluid%pressure, fluid%temperature], &
@@ -370,14 +372,18 @@ contains
                fluid%phase(ip)%internal_energy + &
                fluid%pressure / fluid%phase(ip)%density
 
-          fluid%phase(ip)%saturation = saturation(p)
           fluid%phase(ip)%relative_permeability = 1._dp ! ** TODO **
-          fluid%phase(ip)%mass_fraction(1) = 1._dp
 
           call self%thermo%region(p)%ptr%viscosity( &
                fluid%temperature, fluid%pressure, &
                fluid%phase(ip)%density, fluid%phase(ip)%viscosity)
 
+       else
+          fluid%phase(ip)%density = 0._dp
+          fluid%phase(ip)%internal_energy = 0._dp
+          fluid%phase(ip)%specific_enthalpy = 0._dp
+          fluid%phase(ip)%relative_permeability = 0._dp
+          fluid%phase(ip)%viscosity = 0._dp
        end if
 
     end do
