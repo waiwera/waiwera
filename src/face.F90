@@ -30,7 +30,7 @@ module face_module
      procedure, public :: normal_gradient => face_normal_gradient
      procedure, public :: pressure_gradient => face_pressure_gradient
      procedure, public :: temperature_gradient => face_temperature_gradient
-     procedure, public :: average_phase_density => face_average_phase_density
+     procedure, public :: phase_density => face_phase_density
      procedure, public :: harmonic_average => face_harmonic_average
      procedure, public :: permeability => face_permeability
      procedure, public :: heat_conductivity => face_heat_conductivity
@@ -338,10 +338,11 @@ contains
     ! Locals:
     PetscInt :: nc
     PetscBool :: isothermal
-    PetscInt :: p, iup
-    PetscReal :: dpdn, dtdn, gn, G, average_density, F
+    PetscInt :: i, p, iup
+    PetscReal :: dpdn, dtdn, gn, G, face_density, F
     PetscReal :: phase_flux(self%cell(1)%fluid%num_components)
     PetscReal :: kr, visc, density, k, h, cond
+    PetscInt :: phases(2), phase_present
 
     nc = self%cell(1)%fluid%num_components
     isothermal = (num_primary == nc)
@@ -357,25 +358,34 @@ contains
     end if
     flux(1: nc) = 0._dp
 
+    do i = 1, 2
+       phases(i) = nint(self%cell(i)%fluid%phase_composition)
+    end do
+    phase_present = ior(phases(1), phases(2))
+
     do p = 1, self%cell(1)%fluid%num_phases
 
-       average_density = self%average_phase_density(p)
-       G = dpdn + average_density * gn
+       if (btest(phase_present, p - 1)) then
 
-       iup = self%upstream_index(G)
-       kr = self%cell(iup)%fluid%phase(p)%relative_permeability
-       density = self%cell(iup)%fluid%phase(p)%density
-       visc = self%cell(iup)%fluid%phase(p)%viscosity
+          face_density = self%phase_density(p)
+          G = dpdn + face_density * gn
 
-       ! Mass flows:
-       F = -k * kr * density / visc * G
-       phase_flux = F * self%cell(iup)%fluid%phase(p)%mass_fraction
-       flux(1:nc) = flux(1:nc) + phase_flux
+          iup = self%upstream_index(G)
+          kr = self%cell(iup)%fluid%phase(p)%relative_permeability
+          density = self%cell(iup)%fluid%phase(p)%density
+          visc = self%cell(iup)%fluid%phase(p)%viscosity
 
-       if (.not.isothermal) then
-          ! Heat convection:
-          h = self%cell(iup)%fluid%phase(p)%specific_enthalpy
-          flux(num_primary) = flux(num_primary) + h * sum(phase_flux)
+          ! Mass flows:
+          F = -k * kr * density / visc * G
+          phase_flux = F * self%cell(iup)%fluid%phase(p)%mass_fraction
+          flux(1:nc) = flux(1:nc) + phase_flux
+
+          if (.not.isothermal) then
+             ! Heat convection:
+             h = self%cell(iup)%fluid%phase(p)%specific_enthalpy
+             flux(num_primary) = flux(num_primary) + h * F
+          end if
+
        end if
 
     end do
