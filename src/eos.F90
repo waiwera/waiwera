@@ -333,16 +333,16 @@ contains
     PetscReal :: properties(2), saturation(2)
 
     fluid%region = region
-    fluid%temperature = primary(2)
+    fluid%pressure = primary(1)
 
     if (region == 4) then
        ! Two-phase
-       call self%thermo%saturation%pressure(fluid%temperature, &
-            fluid%pressure, ierr)
+       call self%thermo%saturation%temperature(fluid%pressure, &
+            fluid%temperature, ierr)
        saturation = [1._dp - primary(2), primary(2)]
     else
        ! Single-phase
-       fluid%pressure = primary(1)
+       fluid%temperature = primary(2)
        if (region == 1) then
           saturation = [1._dp, 0._dp]
        else
