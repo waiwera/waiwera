@@ -437,8 +437,8 @@ contains
     PetscReal, allocatable :: flux(:)
     PetscInt :: face_offset, cell_offsets(2)
     PetscInt :: rock_offsets(2), fluid_offsets(2)
-    PetscReal, parameter :: expected_mass_flux = 9.16974670293235e-5_dp
-    PetscReal, parameter :: expected_heat_flux = 58.061787312_dp
+    PetscReal, parameter :: expected_mass_flux = 9.14772841429594e-5_dp
+    PetscReal, parameter :: expected_heat_flux = 57.9124776818_dp
 
     if (mpi%rank == mpi%output_rank) then
 
