@@ -460,12 +460,12 @@ contains
             2.e-14_dp, 3.e-14_dp, 6.e-15_dp,  2.7_dp,  0.05_dp, & ! cell 2
             2300._dp, 995._dp]
        fluid_data = [ &
-            6.2e5_dp, 160._dp, 4._dp, &               ! cell 1
+            6.2e5_dp, 160._dp, 4._dp, 3._dp, &        ! cell 1
             907.45_dp, 1.7e-4_dp, 0.25_dp, 0.75_dp, & ! liquid
             675574.7_dp, 674893.5_dp, 1._dp, &
             3.26_dp, 1.43e-5_dp, 0.75_dp, 0.25_dp, &  ! vapour
             2757430.53_dp, 2567774.0_dp, 1._dp, &
-            8.2e5_dp, 171.44_dp, 4._dp, &             ! cell 2
+            8.2e5_dp, 171.44_dp, 4._dp, 3._dp, &      ! cell 2
             895.98_dp, 1.58e-4_dp, 0.4_dp, 0.6_dp, &  ! liquid
             725517.1_dp, 724601.9_dp, 1._dp, &
             4.26_dp, 1.47e-5_dp, 0.6_dp, 0.4_dp, &    ! vapour
