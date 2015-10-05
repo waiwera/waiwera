@@ -193,15 +193,18 @@ contains
     class(fluid_type), intent(in) :: self
     PetscReal :: d(self%num_components)
     ! Locals:
-    PetscInt :: p, c
+    PetscInt :: p, c, phases
     PetscReal :: ds
 
+    phases = nint(self%phase_composition)
     d = 0._dp
     do p = 1, self%num_phases
-       ds = self%phase(p)%density * self%phase(p)%saturation
-       do c = 1, self%num_components
-          d(c) = d(c) + ds * self%phase(p)%mass_fraction(c)
-       end do
+       if (btest(phases, p - 1)) then
+          ds = self%phase(p)%density * self%phase(p)%saturation
+          do c = 1, self%num_components
+             d(c) = d(c) + ds * self%phase(p)%mass_fraction(c)
+          end do
+       end if
     end do
 
   end function fluid_component_density
@@ -213,13 +216,16 @@ contains
 
     class(fluid_type), intent(in) :: self
     ! Locals:
-    PetscInt :: p
+    PetscInt :: p, phases
     PetscReal :: ds
 
+    phases = nint(self%phase_composition)
     ef = 0._dp
     do p = 1, self%num_phases
-       ds = self%phase(p)%density * self%phase(p)%saturation
-       ef = ef + ds * self%phase(p)%internal_energy
+       if (btest(phases, p - 1)) then
+          ds = self%phase(p)%density * self%phase(p)%saturation
+          ef = ef + ds * self%phase(p)%internal_energy
+       end if
     end do
 
   end function fluid_energy
