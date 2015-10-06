@@ -363,7 +363,7 @@ contains
     PetscReal, intent(in) :: t !! time
     Vec, intent(in) :: y !! global primary variables vector
     ! Locals:
-    PetscInt :: c, region, np, nc, ghost
+    PetscInt :: c, np, nc, ghost
     PetscSection :: y_section, fluid_section
     PetscInt :: y_offset, fluid_offset
     PetscReal, pointer :: y_array(:), cell_primary(:)
@@ -399,9 +399,8 @@ contains
                self%fluid_range_start, fluid_offset, ierr); CHKERRQ(ierr)
 
           call fluid%assign(fluid_array, fluid_offset)
-          region = nint(fluid%region)
 
-          call self%eos%fluid_properties(region, cell_primary, fluid)
+          call self%eos%fluid_properties(cell_primary, fluid)
 
        end if
 
