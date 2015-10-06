@@ -342,7 +342,7 @@ contains
 
        if (((region == 1) .and. (pressure < saturation_pressure)) .or. &
             ((region == 2) .and. (pressure > saturation_pressure))) then
-          call self%transition(region, 2, primary)
+          call self%transition(region, 4, primary)
        end if
 
     end if
