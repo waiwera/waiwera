@@ -82,11 +82,12 @@ module eos_module
      end subroutine eos_destroy_procedure
 
      subroutine eos_transition_procedure(self, &
-          region1, region2, primary)
+          region, new_region, primary)
        !! Perform transitions between thermodynamic regions
        import :: eos_type, dp
        class(eos_type), intent(in) :: self
-       PetscInt, intent(in) :: region1, region2
+       PetscInt, intent(in out) :: region
+       PetscInt, intent(in) :: new_region
        PetscReal, intent(in out), target :: primary(self%num_primary_variables)
      end subroutine eos_transition_procedure
 
@@ -196,12 +197,13 @@ contains
 
 !------------------------------------------------------------------------
   
-  subroutine eos_w_transition(self, region1, region2, primary)
+  subroutine eos_w_transition(self, region, new_region, primary)
     !! Perform transitions between thermodynamic regions for isothermal
     !! pure water
 
     class(eos_w_type), intent(in) :: self
-    PetscInt, intent(in) :: region1, region2
+    PetscInt, intent(in out) :: region
+    PetscInt, intent(in) :: new_region
     PetscReal, intent(in out), target :: primary(self%num_primary_variables)
 
     continue ! no transitions needed
@@ -293,11 +295,12 @@ contains
 
 !------------------------------------------------------------------------
   
-  subroutine eos_we_transition(self, region1, region2, primary)
+  subroutine eos_we_transition(self, region, new_region, primary)
     !! Perform transitions between thermodynamic regions.
 
     class(eos_we_type), intent(in) :: self
-    PetscInt, intent(in) :: region1, region2
+    PetscInt, intent(in out) :: region
+    PetscInt, intent(in) :: new_region
     PetscReal, intent(in out), target :: primary(self%num_primary_variables)
 
     continue ! TODO
