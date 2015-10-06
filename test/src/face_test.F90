@@ -19,6 +19,7 @@ public :: test_face_assign, test_face_permeability_direction, &
 
 PetscReal, parameter :: tol = 1.e-6_dp
 PetscReal, parameter :: mass_tol = 1.e-10_dp, heat_tol = 1.e-6
+PetscReal, parameter :: density_tol = 1.e-6_dp
 
 contains
   
@@ -437,6 +438,9 @@ contains
     PetscReal, allocatable :: flux(:)
     PetscInt :: face_offset, cell_offsets(2)
     PetscInt :: rock_offsets(2), fluid_offsets(2)
+    PetscReal :: density
+    PetscReal, parameter :: expected_liquid_density = 900.3915384615_dp
+    PetscReal, parameter :: expected_vapour_density = 3.7044444444_dp
     PetscReal, parameter :: expected_mass_flux = 9.14772841429594e-5_dp
     PetscReal, parameter :: expected_heat_flux = 57.9124776818_dp
 
@@ -474,6 +478,10 @@ contains
        call face%assign(face_data, face_offset, cell_data, cell_offsets, &
             rock_data, rock_offsets, fluid_data, fluid_offsets)
 
+       density = face%phase_density(1)
+       call assert_equals(expected_liquid_density, density, density_tol, "Liquid density")
+       density = face%phase_density(2)
+       call assert_equals(expected_vapour_density, density, density_tol, "Vapour density")
        flux = face%flux(num_primary, gravity)
 
        call assert_equals(expected_mass_flux, flux(1), mass_tol, "Mass flux")
