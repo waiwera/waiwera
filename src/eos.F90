@@ -316,8 +316,36 @@ contains
     class(eos_we_type), intent(in) :: self
     PetscInt, intent(in out) :: region
     PetscReal, intent(in out), target :: primary(self%num_primary_variables)
+    ! Locals:
+    PetscReal, pointer :: pressure, temperature, vapour_saturation
+    PetscReal :: saturation_pressure
+    PetscInt :: ierr
 
-    continue ! TODO
+    pressure => primary(1)
+
+    if (region == 4) then  ! Two-phase
+
+       vapour_saturation => primary(2)
+
+       if (vapour_saturation < 0._dp) then
+          call self%transition(region, 1, primary)
+       else if (vapour_saturation > 1._dp) then
+          call self%transition(region, 2, primary)
+       end if
+
+    else  ! Single-phase
+
+       temperature => primary(2)
+
+       call self%thermo%saturation%pressure(temperature, &
+            saturation_pressure, ierr)
+
+       if (((region == 1) .and. (pressure < saturation_pressure)) .or. &
+            ((region == 2) .and. (pressure > saturation_pressure))) then
+          call self%transition(region, 2, primary)
+       end if
+
+    end if
 
   end subroutine eos_we_check_primary
 
