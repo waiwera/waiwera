@@ -96,12 +96,12 @@ contains
     character(60), intent(in) :: message
     ! Locals:
     PetscInt :: n, i
-    character(3) :: istr
+    character(4) :: istr
     PetscReal, parameter :: tol = 1.e-6_dp
 
     n = size(primary)
     do i = 1, n
-       write(istr, '(1x, i2)') i
+       write(istr, '(1x, a1, i2)') '#', i
        call assert_equals(expected_primary(1), primary(1), tol, &
             trim(message) // istr)
     end do
@@ -120,7 +120,7 @@ contains
     PetscInt, parameter :: num_components = 1, num_phases = 1
     PetscInt,  parameter :: offset = 1
     PetscReal, allocatable :: fluid_data(:)
-    PetscReal :: primary(2), expected_primary(2)
+    PetscReal :: primary(2), expected_primary(2), temperature
     PetscInt :: expected_region
     type(eos_we_type) :: eos
     type(IAPWS_type) :: thermo
@@ -167,11 +167,42 @@ contains
        call transition_compare(expected_primary, expected_region, &
             primary, fluid, title)
 
+       title = "Region 2 to 4"
+       expected_region = 4
+       expected_primary = [85.e5_dp, 1._dp - small]
+       fluid%region = dble(2)
+       primary = [85.01e5_dp, 299.27215502281706_dp]
+       call eos%transition(primary, fluid)
+       call transition_compare(expected_primary, expected_region, &
+            primary, fluid, title)
+
        title = "Region 4 null transition"
        expected_region = 4
        expected_primary = [1.e5_dp, 0.5_dp]
        fluid%region = dble(expected_region)
        primary = expected_primary
+       call eos%transition(primary, fluid)
+       call transition_compare(expected_primary, expected_region, &
+            primary, fluid, title)
+
+       title = "Region 4 to 1"
+       expected_region = 1
+       temperature = 299.27215502281706_dp
+       expected_primary = [85.000085e5_dp, temperature]
+       fluid%region = dble(4)
+       fluid%temperature = temperature
+       primary = [85.e5_dp, -0.01_dp]
+       call eos%transition(primary, fluid)
+       call transition_compare(expected_primary, expected_region, &
+            primary, fluid, title)
+
+       title = "Region 4 to 2"
+       expected_region = 2
+       temperature = 212.38453531849041_dp
+       expected_primary = [19.99998e5_dp, temperature]
+       fluid%region = dble(4)
+       fluid%temperature = temperature
+       primary = [20.e5_dp, 1.02_dp]
        call eos%transition(primary, fluid)
        call transition_compare(expected_primary, expected_region, &
             primary, fluid, title)
