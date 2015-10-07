@@ -304,10 +304,10 @@ contains
        phase_composition = b'011'
     else
        if (temperature <= tcritical) then
-          if (region == 1) then
-             phase_composition = b'001'
-          else
+          if (region == 2) then
              phase_composition = b'010'
+          else
+             phase_composition = b'001'
           end if
        else
           if (pressure <= pcritical) then
