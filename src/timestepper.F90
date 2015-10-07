@@ -333,6 +333,23 @@ contains
   end subroutine SNES_residual
 
 !------------------------------------------------------------------------
+
+  PetscErrorCode function SNES_pre_iteration_update(solver, step)
+    !! Function to be called before each nonlinear solver iteration.
+
+    SNES, intent(in out) :: solver
+    PetscInt, intent(in) :: step
+    ! Locals:
+    type(timestepper_solver_context_type) :: context
+    PetscErrorCode :: ierr
+
+    call SNESGetApplicationContext(solver, context, ierr); CHKERRQ(ierr)
+    call context%ode%pre_iteration(ierr)
+    SNES_pre_iteration_update = ierr
+
+  end function SNES_pre_iteration_update
+
+!------------------------------------------------------------------------
 ! Timestepper_step procedures
 !------------------------------------------------------------------------
 
@@ -836,6 +853,10 @@ end subroutine timestepper_steps_set_next_stepsize
          PETSC_NULL_FUNCTION, ierr); CHKERRQ(ierr)
     call SNESMonitorSet(self%solver, SNES_monitor, self%context, &
          PETSC_NULL_FUNCTION, ierr); CHKERRQ(ierr)
+
+    ! Set function to be called at start of each solver iteration:
+    call SNESSetUpdate(self%solver, SNES_pre_iteration_update, ierr)
+    CHKERRQ(ierr)
 
   end subroutine timestepper_setup_solver
 
