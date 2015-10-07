@@ -366,7 +366,7 @@ contains
   subroutine timestepper_step_init(self, template_vec)
     !! Initializes a timestep.
 
-    class(timestepper_step_type), intent(inout) :: self
+    class(timestepper_step_type), intent(in out) :: self
     Vec, intent(in) :: template_vec
     ! Locals:
     PetscErrorCode :: ierr
@@ -382,7 +382,7 @@ contains
   subroutine timestepper_step_destroy(self)
     !! Destroys a timestep.
 
-    class(timestepper_step_type), intent(inout) :: self
+    class(timestepper_step_type), intent(in out) :: self
     ! Locals:
     PetscErrorCode :: ierr
 
