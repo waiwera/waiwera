@@ -1,4 +1,4 @@
-$(BUILD)/fluid$(OBJ):$(BUILD)/dm_utils$(OBJ) $(BUILD)/kinds$(OBJ) $(BUILD)/thermodynamics$(OBJ)
+$(BUILD)/fluid$(OBJ):$(BUILD)/dm_utils$(OBJ) $(BUILD)/kinds$(OBJ)
 $(BUILD)/eos$(OBJ):$(BUILD)/fluid$(OBJ) $(BUILD)/fson_mpi$(OBJ) $(BUILD)/kinds$(OBJ) $(BUILD)/thermodynamics$(OBJ) $(BUILD)/utils$(OBJ)
 $(BUILD)/rock$(OBJ):$(BUILD)/dm_utils$(OBJ) $(BUILD)/fson_mpi$(OBJ) $(BUILD)/kinds$(OBJ)
 $(BUILD)/powertable$(OBJ):$(BUILD)/kinds$(OBJ)
