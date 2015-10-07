@@ -23,6 +23,7 @@ module IFC67_test
   public :: setup_IFC67, teardown_IFC67
   public :: test_IFC67_region1, test_IFC67_region2
   public :: test_IFC67_saturation, test_IFC67_viscosity
+  public :: test_IFC67_phase_composition
 
   contains
 
@@ -172,6 +173,35 @@ module IFC67_test
       end if
 
     end subroutine test_IFC67_viscosity
+
+!------------------------------------------------------------------------
+
+    subroutine test_IFC67_phase_composition
+
+      ! IFC-67 phase composition tests
+
+      PetscInt :: phases, expected_phases
+
+      if (mpi%rank == mpi%output_rank) then
+
+         phases = IFC67%phase_composition(1, 1.e5_dp, 20._dp)
+         expected_phases = b'01'
+         call assert_equals(expected_phases, phases, &
+              "Region 1 liquid")
+
+         phases = IFC67%phase_composition(2, 1.e5_dp, 110._dp)
+         expected_phases = b'10'
+         call assert_equals(expected_phases, phases, &
+              "Region 2 steam")
+
+         phases = IFC67%phase_composition(4, 33.466518715101621e5_dp, 240._dp)
+         expected_phases = b'11'
+         call assert_equals(expected_phases, phases, &
+              "Two-phase at 240 deg C")
+
+      end if
+
+    end subroutine test_IFC67_phase_composition
 
 !------------------------------------------------------------------------
 
