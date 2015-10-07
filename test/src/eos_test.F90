@@ -15,7 +15,8 @@ module eos_test
 
 #include <petsc/finclude/petscdef.h>
 
-public :: test_eos_w_fluid_properties
+public :: test_eos_w_fluid_properties, &
+     test_eos_we_transition
 
 contains
 
@@ -81,6 +82,109 @@ contains
     end if
 
   end subroutine test_eos_w_fluid_properties
+
+!------------------------------------------------------------------------
+
+  subroutine transition_compare(expected_primary, expected_region, &
+       primary, fluid, message)
+
+    ! Runs asserts to test transition
+
+    PetscReal, intent(in) :: expected_primary(:), primary(:)
+    PetscInt, intent(in) :: expected_region
+    type(fluid_type), intent(in) :: fluid
+    character(60), intent(in) :: message
+    ! Locals:
+    PetscInt :: n, i
+    character(3) :: istr
+    PetscReal, parameter :: tol = 1.e-6_dp
+
+    n = size(primary)
+    do i = 1, n
+       write(istr, '(1x, i2)') i
+       call assert_equals(expected_primary(1), primary(1), tol, &
+            trim(message) // istr)
+    end do
+    call assert_equals(expected_region, nint(fluid%region), &
+         trim(message) // " region")
+
+  end subroutine transition_compare
+
+!------------------------------------------------------------------------
+
+  subroutine test_eos_we_transition
+
+    ! eos_we_transition() test
+
+    type(fluid_type) :: fluid
+    PetscInt, parameter :: num_components = 1, num_phases = 1
+    PetscInt,  parameter :: offset = 1
+    PetscReal, allocatable :: fluid_data(:)
+    PetscReal :: primary(2), expected_primary(2)
+    PetscInt :: expected_region
+    type(eos_we_type) :: eos
+    type(IAPWS_type) :: thermo
+    type(fson_value), pointer :: json
+    character(2) :: json_str = '{}'
+    character(60) :: title
+    PetscReal, parameter :: small = 1.e-6_dp
+
+    if (mpi%rank == mpi%output_rank) then
+
+       json => fson_parse(str = json_str)
+       call thermo%init()
+       call eos%init(json, thermo)
+
+       call fluid%init(num_components, num_phases)
+       allocate(fluid_data(fluid%dof()))
+       fluid_data = 0._dp
+       call fluid%assign(fluid_data, offset)
+
+       title = "Region 1 null transition"
+       expected_region = 1
+       expected_primary = [1.e5_dp, 20._dp]
+       fluid%region = dble(expected_region)
+       primary = expected_primary
+       call eos%transition(primary, fluid)
+       call transition_compare(expected_primary, expected_region, &
+            primary, fluid, title)
+
+       title = "Region 1 to 4"
+       expected_region = 4
+       expected_primary = [15.546718682698252e5_dp, small]
+       primary = [15.e5_dp, 200._dp]
+       fluid%region = dble(1)
+       call eos%transition(primary, fluid)
+       call transition_compare(expected_primary, expected_region, &
+            primary, fluid, title)
+
+       title = "Region 2 null transition"
+       expected_region = 2
+       expected_primary = [1.e5_dp, 120._dp]
+       fluid%region = dble(expected_region)
+       primary = expected_primary
+       call eos%transition(primary, fluid)
+       call transition_compare(expected_primary, expected_region, &
+            primary, fluid, title)
+
+       title = "Region 4 null transition"
+       expected_region = 4
+       expected_primary = [1.e5_dp, 0.5_dp]
+       fluid%region = dble(expected_region)
+       primary = expected_primary
+       call eos%transition(primary, fluid)
+       call transition_compare(expected_primary, expected_region, &
+            primary, fluid, title)
+
+       call fluid%destroy()
+       deallocate(fluid_data)
+       call eos%destroy()
+       call thermo%destroy()
+       call fson_destroy(json)
+
+    end if
+
+  end subroutine test_eos_we_transition
 
 !------------------------------------------------------------------------
 
