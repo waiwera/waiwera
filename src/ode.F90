@@ -53,14 +53,6 @@ module ode_module
        Vec, intent(in) :: y
      end subroutine pre_eval_procedure
 
-     subroutine pre_iteration_procedure(self, ierr)
-       !! Optional routine to be called before each nonlinear solver
-       !! iteration during solution at each time step.
-       import :: ode_type
-       class(ode_type), intent(in out) :: self
-       PetscErrorCode, intent(out) :: ierr
-     end subroutine pre_iteration_procedure
-
      subroutine ode_output_procedure(self)
        !! Routine for output of ode solution.
        import :: ode_type
@@ -70,7 +62,7 @@ module ode_module
   end interface
 
   public :: lhs_function, rhs_function
-  public :: pre_eval_procedure, pre_iteration_procedure
+  public :: pre_eval_procedure
   public :: ode_output_procedure
 
 !------------------------------------------------------------------------
