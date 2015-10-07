@@ -19,7 +19,7 @@ module ode_module
      private
      procedure(lhs_function), public, deferred :: lhs
      procedure(rhs_function), public, deferred :: rhs
-     procedure(pre_eval_procedure), public, deferred :: pre_eval
+     procedure, public :: pre_eval => ode_pre_eval
      procedure, public :: pre_iteration => ode_pre_iteration
      procedure(ode_output_procedure), public, deferred :: output
   end type ode_type
@@ -44,15 +44,6 @@ module ode_module
        Vec, intent(out) :: rhs
      end subroutine rhs_function
 
-     subroutine pre_eval_procedure(self, t, y)
-       !! Optional routine to be called before each evaluation
-       !! of LHS and RHS functions.
-       import :: ode_type
-       class(ode_type), intent(in out) :: self
-       PetscReal, intent(in) :: t
-       Vec, intent(in) :: y
-     end subroutine pre_eval_procedure
-
      subroutine ode_output_procedure(self)
        !! Routine for output of ode solution.
        import :: ode_type
@@ -62,7 +53,6 @@ module ode_module
   end interface
 
   public :: lhs_function, rhs_function
-  public :: pre_eval_procedure
   public :: ode_output_procedure
 
 !------------------------------------------------------------------------
@@ -71,8 +61,23 @@ contains
 
 !------------------------------------------------------------------------
 
+  subroutine ode_pre_eval(self, t, y)
+    !! Default routine to be called before each evaluation
+    !! of LHS and RHS functions.
+
+    class(ode_type), intent(in out) :: self
+    PetscReal, intent(in) :: t
+    Vec, intent(in) :: y
+
+    ! Do nothing
+
+  end subroutine ode_pre_eval
+
+!------------------------------------------------------------------------
+
   subroutine ode_pre_iteration(self, ierr)
-    !! Default ODE pre-iteration procedure.
+    !! Default routine to be called before each nonlinear solver
+    !! iteration during solution at each time step.
 
     class(ode_type), intent(in out) :: self
     PetscErrorCode, intent(out) :: ierr
