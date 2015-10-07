@@ -33,6 +33,7 @@ module flow_simulation_module
      procedure, public :: lhs => flow_simulation_cell_balances
      procedure, public :: rhs => flow_simulation_cell_inflows
      procedure, public :: pre_eval => flow_simulation_fluid_properties
+     procedure, public :: pre_iteration => flow_simulation_fluid_transitions
      procedure, public :: output => flow_simulation_output
   end type flow_simulation_type
 
@@ -410,6 +411,66 @@ contains
     call fluid%destroy()
 
   end subroutine flow_simulation_fluid_properties
+
+!------------------------------------------------------------------------
+
+  subroutine flow_simulation_fluid_transitions(self, ierr)
+    !! Checks primary variables and thermodynamic regions in all mesh
+    !! cells and updates if region transitions have occurred.
+
+    use dm_utils_module, only: global_section_offset, global_vec_section
+    use fluid_module, only: fluid_type
+
+    class(flow_simulation_type), intent(in out) :: self
+    PetscErrorCode, intent(out) :: ierr
+    ! Locals:
+    PetscInt :: c, np, nc, ghost
+    PetscSection :: primary_section, fluid_section
+    PetscInt :: primary_offset, fluid_offset
+    PetscReal, pointer :: primary_array(:), cell_primary(:)
+    PetscReal, pointer :: fluid_array(:)
+    type(fluid_type) :: fluid
+    DMLabel :: ghost_label
+
+    np = self%eos%num_primary_variables
+    nc = self%eos%num_components
+
+    call global_vec_section(self%solution, primary_section)
+    call VecGetArrayReadF90(self%solution, primary_array, ierr); CHKERRQ(ierr)
+
+    call global_vec_section(self%fluid, fluid_section)
+    call VecGetArrayF90(self%fluid, fluid_array, ierr); CHKERRQ(ierr)
+
+    call fluid%init(nc, self%eos%num_phases)
+
+    call DMPlexGetLabel(self%mesh%dm, "ghost", ghost_label, ierr)
+    CHKERRQ(ierr)
+
+    do c = self%mesh%start_cell, self%mesh%end_cell - 1
+
+       call DMLabelGetValue(ghost_label, c, ghost, ierr); CHKERRQ(ierr)
+       if (ghost < 0) then
+
+          call global_section_offset(primary_section, c, &
+               self%solution_range_start, primary_offset, ierr); CHKERRQ(ierr)
+          cell_primary => primary_array(primary_offset : primary_offset + np - 1)
+
+          call global_section_offset(fluid_section, c, &
+               self%fluid_range_start, fluid_offset, ierr); CHKERRQ(ierr)
+
+          call fluid%assign(fluid_array, fluid_offset)
+
+          call self%eos%transition(cell_primary, fluid)
+
+       end if
+
+    end do
+
+    call VecRestoreArrayF90(self%fluid, fluid_array, ierr); CHKERRQ(ierr)
+    call VecRestoreArrayReadF90(self%solution, primary_array, ierr); CHKERRQ(ierr)
+    call fluid%destroy()
+
+  end subroutine flow_simulation_fluid_transitions
 
 !------------------------------------------------------------------------
 
