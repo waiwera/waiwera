@@ -357,7 +357,6 @@ contains
 
     use dm_utils_module, only: global_section_offset, global_vec_section
     use fluid_module, only: fluid_type
-    use mpi_module
 
     class(flow_simulation_type), intent(in out) :: self
     PetscReal, intent(in) :: t !! time
