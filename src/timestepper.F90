@@ -158,6 +158,16 @@ module timestepper_module
        class(timestepper_type), intent(in out) :: self
      end subroutine step_output_routine
 
+     subroutine SNESGetApplicationContext(solver, context, ierr)
+       !! Interface for getting context from SNES solver- to cast it
+       !! as the correct type.
+       import :: timestepper_solver_context_type
+       SNES, intent(in) :: solver
+       type(timestepper_solver_context_type), pointer, &
+            intent(out) :: context
+       PetscErrorCode, intent(out) :: ierr
+     end subroutine SNESGetApplicationContext
+
   end interface
 
   ! Subroutines to be available outside this module:
@@ -340,7 +350,7 @@ contains
     SNES, intent(in out) :: solver
     PetscInt, intent(in) :: step
     ! Locals:
-    type(timestepper_solver_context_type) :: context
+    type(timestepper_solver_context_type), pointer :: context
     PetscErrorCode :: ierr
 
     call SNESGetApplicationContext(solver, context, ierr); CHKERRQ(ierr)
