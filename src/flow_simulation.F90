@@ -32,8 +32,9 @@ module flow_simulation_module
      procedure, public :: destroy => flow_simulation_destroy
      procedure, public :: lhs => flow_simulation_cell_balances
      procedure, public :: rhs => flow_simulation_cell_inflows
-     procedure, public :: pre_eval => flow_simulation_fluid_properties
+     procedure, public :: pre_solve => flow_simulation_fluid_init
      procedure, public :: pre_iteration => flow_simulation_fluid_transitions
+     procedure, public :: pre_eval => flow_simulation_fluid_properties
      procedure, public :: output => flow_simulation_output
   end type flow_simulation_type
 
@@ -352,9 +353,78 @@ contains
 
 !------------------------------------------------------------------------
 
+  subroutine flow_simulation_fluid_init(self, t, y)
+    !! Computes fluid properties in all cells, including phase
+    !! composition, based on the current time and primary
+    !! thermodynamic variables. This is called before the timestepper
+    !! starts to run.
+
+    use dm_utils_module, only: global_section_offset, global_vec_section
+    use fluid_module, only: fluid_type
+
+    class(flow_simulation_type), intent(in out) :: self
+    PetscReal, intent(in) :: t !! time
+    Vec, intent(in) :: y !! global primary variables vector
+    ! Locals:
+    PetscInt :: c, np, nc, ghost
+    PetscSection :: y_section, fluid_section
+    PetscInt :: y_offset, fluid_offset
+    PetscReal, pointer :: y_array(:), cell_primary(:)
+    PetscReal, pointer :: fluid_array(:)
+    type(fluid_type) :: fluid
+    DMLabel :: ghost_label
+    PetscErrorCode :: ierr
+
+    np = self%eos%num_primary_variables
+    nc = self%eos%num_components
+
+    call global_vec_section(y, y_section)
+    call VecGetArrayReadF90(y, y_array, ierr); CHKERRQ(ierr)
+
+    call global_vec_section(self%fluid, fluid_section)
+    call VecGetArrayF90(self%fluid, fluid_array, ierr); CHKERRQ(ierr)
+
+    call fluid%init(nc, self%eos%num_phases)
+
+    call DMPlexGetLabel(self%mesh%dm, "ghost", ghost_label, ierr)
+    CHKERRQ(ierr)
+
+    do c = self%mesh%start_cell, self%mesh%end_cell - 1
+
+       call DMLabelGetValue(ghost_label, c, ghost, ierr); CHKERRQ(ierr)
+       if (ghost < 0) then
+
+          call global_section_offset(y_section, c, &
+               self%solution_range_start, y_offset, ierr); CHKERRQ(ierr)
+          cell_primary => y_array(y_offset : y_offset + np - 1)
+
+          call global_section_offset(fluid_section, c, &
+               self%fluid_range_start, fluid_offset, ierr); CHKERRQ(ierr)
+
+          call fluid%assign(fluid_array, fluid_offset)
+
+          call self%eos%fluid_properties(cell_primary, fluid)
+          call fluid%update_phase_composition(self%thermo)
+
+       end if
+
+    end do
+
+    call VecRestoreArrayF90(self%fluid, fluid_array, ierr); CHKERRQ(ierr)
+    call VecRestoreArrayReadF90(y, y_array, ierr); CHKERRQ(ierr)
+    call fluid%destroy()
+
+    call VecView(self%fluid, PETSC_VIEWER_STDOUT_WORLD, ierr)
+
+  end subroutine flow_simulation_fluid_init
+
+!------------------------------------------------------------------------
+
   subroutine flow_simulation_fluid_properties(self, t, y)
-    !! Computes fluid properties in all cells, based on the current time
-    !! and primary thermodynamic variables.
+    !! Computes fluid properties in all cells, excluding phase
+    !! composition, based on the current time and primary
+    !! thermodynamic variables. This is called at each function
+    !! evaluation during the nonlinear solve at each time step.
 
     use dm_utils_module, only: global_section_offset, global_vec_section
     use fluid_module, only: fluid_type
