@@ -371,19 +371,24 @@ contains
           G = dpdn + face_density * gn
 
           iup = self%upstream_index(G)
-          kr = self%cell(iup)%fluid%phase(p)%relative_permeability
-          density = self%cell(iup)%fluid%phase(p)%density
-          visc = self%cell(iup)%fluid%phase(p)%viscosity
 
-          ! Mass flows:
-          F = -k * kr * density / visc * G
-          phase_flux = F * self%cell(iup)%fluid%phase(p)%mass_fraction
-          flux(1:nc) = flux(1:nc) + phase_flux
+          if (btest(phases(iup), p - 1)) then
 
-          if (.not.isothermal) then
-             ! Heat convection:
-             h = self%cell(iup)%fluid%phase(p)%specific_enthalpy
-             flux(num_primary) = flux(num_primary) + h * F
+             kr = self%cell(iup)%fluid%phase(p)%relative_permeability
+             density = self%cell(iup)%fluid%phase(p)%density
+             visc = self%cell(iup)%fluid%phase(p)%viscosity
+
+             ! Mass flows:
+             F = -k * kr * density / visc * G
+             phase_flux = F * self%cell(iup)%fluid%phase(p)%mass_fraction
+             flux(1:nc) = flux(1:nc) + phase_flux
+
+             if (.not.isothermal) then
+                ! Heat convection:
+                h = self%cell(iup)%fluid%phase(p)%specific_enthalpy
+                flux(num_primary) = flux(num_primary) + h * F
+             end if
+
           end if
 
        end if
