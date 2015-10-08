@@ -105,6 +105,7 @@ module timestepper_test
      private
      procedure, public :: init => init_pre_eval
      procedure, public :: destroy => destroy_pre_eval
+     procedure, public :: pre_solve => calculate_secondary_pre_eval
      procedure, public :: pre_eval => calculate_secondary_pre_eval
      procedure, public :: lhs => lhs_pre_eval
   end type pre_eval_ode_type

@@ -19,8 +19,9 @@ module ode_module
      private
      procedure(lhs_function), public, deferred :: lhs
      procedure(rhs_function), public, deferred :: rhs
-     procedure, public :: pre_eval => ode_pre_eval
+     procedure, public :: pre_solve => ode_pre_eval
      procedure, public :: pre_iteration => ode_pre_iteration
+     procedure, public :: pre_eval => ode_pre_eval
      procedure(ode_output_procedure), public, deferred :: output
   end type ode_type
 
@@ -61,6 +62,19 @@ contains
 
 !------------------------------------------------------------------------
 
+  subroutine ode_pre_iteration(self, ierr)
+    !! Default routine to be called before each nonlinear solver
+    !! iteration during solution at each time step.
+
+    class(ode_type), intent(in out) :: self
+    PetscErrorCode, intent(out) :: ierr
+
+    ierr = 0
+
+  end subroutine ode_pre_iteration
+
+!------------------------------------------------------------------------
+
   subroutine ode_pre_eval(self, t, y)
     !! Default routine to be called before each evaluation
     !! of LHS and RHS functions.
@@ -72,19 +86,6 @@ contains
     ! Do nothing
 
   end subroutine ode_pre_eval
-
-!------------------------------------------------------------------------
-
-  subroutine ode_pre_iteration(self, ierr)
-    !! Default routine to be called before each nonlinear solver
-    !! iteration during solution at each time step.
-
-    class(ode_type), intent(in out) :: self
-    PetscErrorCode, intent(out) :: ierr
-
-    ierr = 0
-
-  end subroutine ode_pre_iteration
 
 !------------------------------------------------------------------------
 

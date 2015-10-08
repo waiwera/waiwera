@@ -551,7 +551,8 @@ contains
 
     class(timestepper_type), intent(in out) :: self
 
-    call self%ode%pre_eval(self%steps%current%time, self%steps%current%solution)
+    call self%ode%pre_solve(self%steps%current%time, &
+         self%steps%current%solution)
 
     call self%ode%lhs(self%steps%current%time, &
          self%steps%current%solution, self%steps%current%lhs)
