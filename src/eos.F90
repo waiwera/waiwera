@@ -37,7 +37,9 @@ module eos_module
      procedure(eos_init_procedure), public, deferred :: init
      procedure(eos_destroy_procedure), public, deferred :: destroy
      procedure(eos_transition_procedure), public, deferred :: transition
-     procedure(eos_fluid_procedure), public, deferred :: fluid_properties
+     procedure(eos_bulk_properties_procedure), public, deferred :: bulk_properties
+     procedure(eos_phase_composition_procedure), public, deferred :: phase_composition
+     procedure(eos_phase_properties_procedure), public, deferred :: phase_properties
   end type eos_type
 
   type, public, extends(eos_type) :: eos_w_type
@@ -49,7 +51,9 @@ module eos_module
      procedure, public :: init => eos_w_init
      procedure, public :: destroy => eos_w_destroy
      procedure, public :: transition => eos_w_transition
-     procedure, public :: fluid_properties => eos_w_fluid_properties
+     procedure, public :: bulk_properties => eos_w_bulk_properties
+     procedure, public :: phase_composition => eos_w_phase_composition
+     procedure, public :: phase_properties => eos_w_phase_properties
   end type eos_w_type
 
   type, public, extends(eos_w_type) :: eos_we_type
@@ -59,9 +63,11 @@ module eos_module
      private
      procedure, public :: init => eos_we_init
      procedure, public :: transition => eos_we_transition
-     procedure, public :: fluid_properties => eos_we_fluid_properties
      procedure, public :: transition_to_single_phase => eos_we_transition_to_single_phase
      procedure, public :: transition_to_two_phase => eos_we_transition_to_two_phase
+     procedure, public :: bulk_properties => eos_we_bulk_properties
+     procedure, public :: phase_properties => eos_we_phase_properties
+     procedure :: phase_saturations => eos_we_phase_saturations
   end type eos_we_type
 
   abstract interface
@@ -85,19 +91,36 @@ module eos_module
        !! region transitions if needed.
        use fluid_module, only: fluid_type
        import :: eos_type, dp
-       class(eos_type), intent(in) :: self
+       class(eos_type), intent(in out) :: self
        PetscReal, intent(in out), target :: primary(self%num_primary_variables)
        type(fluid_type), intent(in out) :: fluid
      end subroutine eos_transition_procedure
 
-     subroutine eos_fluid_procedure(self, primary, fluid)
-       !! Calculate fluid properties from updated fluid region and primary variables
+     subroutine eos_bulk_properties_procedure(self, primary, fluid)
+       !! Calculate bulk fluid properties from primary variables.
        use fluid_module, only: fluid_type
        import :: eos_type, dp
        class(eos_type), intent(in out) :: self
        PetscReal, intent(in), target :: primary(self%num_primary_variables)
        type(fluid_type), intent(in out) :: fluid
-     end subroutine eos_fluid_procedure
+     end subroutine eos_bulk_properties_procedure
+
+     subroutine eos_phase_composition_procedure(self, fluid)
+       !! Calculate fluid phase composition from bulk properties.
+       use fluid_module, only: fluid_type
+       import :: eos_type, dp
+       class(eos_type), intent(in out) :: self
+       type(fluid_type), intent(in out) :: fluid
+     end subroutine eos_phase_composition_procedure
+
+     subroutine eos_phase_properties_procedure(self, primary, fluid)
+       !! Calculate phase fluid properties from primary variables.
+       use fluid_module, only: fluid_type
+       import :: eos_type, dp
+       class(eos_type), intent(in out) :: self
+       PetscReal, intent(in), target :: primary(self%num_primary_variables)
+       type(fluid_type), intent(in out) :: fluid
+     end subroutine eos_phase_properties_procedure
 
   end interface
 
@@ -193,7 +216,7 @@ contains
 
     use fluid_module, only: fluid_type
 
-    class(eos_w_type), intent(in) :: self
+    class(eos_w_type), intent(in out) :: self
     PetscReal, intent(in out), target :: primary(self%num_primary_variables)
     type(fluid_type), intent(in out) :: fluid
 
@@ -203,8 +226,45 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine eos_w_fluid_properties(self, primary, fluid)
-    !! Calculate fluid properties from region and primary variables
+  subroutine eos_w_bulk_properties(self, primary, fluid)
+    !! Calculate fluid bulk properties from region and primary variables
+    !! for isothermal pure water.
+
+    use fluid_module, only: fluid_type
+
+    class(eos_w_type), intent(in out) :: self
+    PetscReal, intent(in), target :: primary(self%num_primary_variables) !! Primary thermodynamic variables
+    type(fluid_type), intent(in out) :: fluid !! Fluid object
+
+    fluid%pressure = primary(1)
+    fluid%temperature = self%temperature
+
+  end subroutine eos_w_bulk_properties
+
+!------------------------------------------------------------------------
+
+  subroutine eos_w_phase_composition(self, fluid)
+    !! Determines fluid phase composition from bulk properties and
+    !! thermodynamic region.
+
+    use fluid_module, only: fluid_type
+
+    class(eos_w_type), intent(in out) :: self
+    type(fluid_type), intent(in out) :: fluid !! Fluid object
+    ! Locals:
+    PetscInt :: region, phases
+
+    region = nint(fluid%region)
+    phases = self%thermo%phase_composition(region, fluid%pressure, &
+         fluid%temperature)
+    fluid%phase_composition = dble(phases)
+
+  end subroutine eos_w_phase_composition
+
+!------------------------------------------------------------------------
+
+  subroutine eos_w_phase_properties(self, primary, fluid)
+    !! Calculate fluid phase properties from region and primary variables
     !! for isothermal pure water.
 
     use fluid_module, only: fluid_type
@@ -216,8 +276,6 @@ contains
     PetscInt :: region, phase_composition, ip, ierr
     PetscReal :: properties(2)
 
-    fluid%pressure = primary(1)
-    fluid%temperature = self%temperature
     region = nint(fluid%region)
 
     phase_composition = b'01'
@@ -242,7 +300,7 @@ contains
          fluid%temperature, fluid%pressure, &
          fluid%phase(ip)%density, fluid%phase(ip)%viscosity)
 
-  end subroutine eos_w_fluid_properties
+  end subroutine eos_w_phase_properties
 
 !------------------------------------------------------------------------
 ! eos_we
@@ -279,7 +337,7 @@ contains
 
     use fluid_module, only: fluid_type
 
-    class(eos_we_type), intent(in) :: self
+    class(eos_we_type), intent(in out) :: self
     PetscReal, intent(in out), target :: primary(self%num_primary_variables)
     type(fluid_type), intent(in out) :: fluid
     PetscInt, intent(in) :: new_region
@@ -305,7 +363,7 @@ contains
     temperature = fluid%temperature
 
     fluid%region = dble(new_region)
-    call fluid%update_phase_composition(self%thermo)
+    call self%phase_composition(fluid)
 
   end subroutine eos_we_transition_to_single_phase
 
@@ -317,7 +375,7 @@ contains
 
     use fluid_module, only: fluid_type
 
-    class(eos_we_type), intent(in) :: self
+    class(eos_we_type), intent(in out) :: self
     PetscReal, intent(in out), target :: primary(self%num_primary_variables)
     type(fluid_type), intent(in out) :: fluid
     PetscReal, intent(in) :: saturation_pressure
@@ -339,7 +397,7 @@ contains
     end if
 
     fluid%region = dble(4)
-    call fluid%update_phase_composition(self%thermo)
+    call self%phase_composition(fluid)
 
   end subroutine eos_we_transition_to_two_phase
 
@@ -351,7 +409,7 @@ contains
 
     use fluid_module, only: fluid_type
 
-    class(eos_we_type), intent(in) :: self
+    class(eos_we_type), intent(in out) :: self
     PetscReal, intent(in out), target :: primary(self%num_primary_variables)
     type(fluid_type), intent(in out) :: fluid
     ! Locals:
@@ -397,8 +455,57 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine eos_we_fluid_properties(self, primary, fluid)
-    !! Calculate fluid properties from updated fluid region and primary variables.
+  subroutine eos_we_bulk_properties(self, primary, fluid)
+    !! Calculate fluid bulk properties from region and primary variables
+    !! for non-isothermal pure water.
+
+    use fluid_module, only: fluid_type
+    class(eos_we_type), intent(in out) :: self
+    PetscReal, intent(in), target :: primary(self%num_primary_variables) !! Primary thermodynamic variables
+    type(fluid_type), intent(in out) :: fluid !! Fluid object
+    ! Locals:
+    PetscInt :: region, ierr
+
+    fluid%pressure = primary(1)
+    region = nint(fluid%region)
+
+    if (region == 4) then
+       ! Two-phase
+       call self%thermo%saturation%temperature(fluid%pressure, &
+            fluid%temperature, ierr)
+    else
+       ! Single-phase
+       fluid%temperature = primary(2)
+    end if
+
+  end subroutine eos_we_bulk_properties
+
+!------------------------------------------------------------------------
+
+  subroutine eos_we_phase_saturations(self, region, primary, saturation)
+    !! Calculates fluid phase saturations from region and primary variables.
+
+    use fluid_module, only: fluid_type
+    class(eos_we_type), intent(in out) :: self
+    PetscInt, intent(in) :: region
+    PetscReal, intent(in), target :: primary(self%num_primary_variables) !! Primary thermodynamic variables
+    PetscReal, intent(out), target :: saturation(self%num_primary_variables) !! Phase saturation
+
+    select case (region)
+    case (1)
+       saturation = [1._dp, 0._dp]
+    case (2)
+       saturation = [0._dp, 1._dp]
+    case (4)
+       saturation = [1._dp - primary(2), primary(2)]
+    end select
+
+  end subroutine eos_we_phase_saturations
+
+!------------------------------------------------------------------------
+
+  subroutine eos_we_phase_properties(self, primary, fluid)
+    !! Calculate fluid phase properties from updated fluid region and primary variables.
 
     use fluid_module, only: fluid_type
     class(eos_we_type), intent(in out) :: self
@@ -408,25 +515,10 @@ contains
     PetscInt :: p, ip, ierr, phases, region
     PetscReal :: properties(2), saturation(2)
 
-    fluid%pressure = primary(1)
     region = nint(fluid%region)
-
-    if (region == 4) then
-       ! Two-phase
-       call self%thermo%saturation%temperature(fluid%pressure, &
-            fluid%temperature, ierr)
-       saturation = [1._dp - primary(2), primary(2)]
-    else
-       ! Single-phase
-       fluid%temperature = primary(2)
-       if (region == 1) then
-          saturation = [1._dp, 0._dp]
-       else
-          saturation = [0._dp, 1._dp]
-       end if
-    end if
-
     phases = nint(fluid%phase_composition)
+
+    call self%phase_saturations(region, primary, saturation)
 
     do p = 1, self%num_phases
 
@@ -462,7 +554,7 @@ contains
 
     end do
 
-  end subroutine eos_we_fluid_properties
+  end subroutine eos_we_phase_properties
 
 !------------------------------------------------------------------------
 

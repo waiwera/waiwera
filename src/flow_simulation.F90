@@ -403,8 +403,10 @@ contains
 
           call fluid%assign(fluid_array, fluid_offset)
 
-          call self%eos%fluid_properties(cell_primary, fluid)
-          call fluid%update_phase_composition(self%thermo)
+          call self%eos%bulk_properties(cell_primary, fluid)
+          call self%eos%transition(cell_primary, fluid)
+          call self%eos%phase_composition(fluid)
+          call self%eos%phase_properties(cell_primary, fluid)
 
        end if
 
@@ -414,8 +416,6 @@ contains
     call VecRestoreArrayReadF90(y, y_array, ierr); CHKERRQ(ierr)
     call fluid%destroy()
 
-    call VecView(self%fluid, PETSC_VIEWER_STDOUT_WORLD, ierr)
-
   end subroutine flow_simulation_fluid_init
 
 !------------------------------------------------------------------------
@@ -423,8 +423,8 @@ contains
   subroutine flow_simulation_fluid_properties(self, t, y)
     !! Computes fluid properties in all cells, excluding phase
     !! composition, based on the current time and primary
-    !! thermodynamic variables. This is called at each function
-    !! evaluation during the nonlinear solve at each time step.
+    !! thermodynamic variables. This is called before each function
+    !! evaluation during the nonlinear solve during each time step.
 
     use dm_utils_module, only: global_section_offset, global_vec_section
     use fluid_module, only: fluid_type
@@ -470,7 +470,8 @@ contains
 
           call fluid%assign(fluid_array, fluid_offset)
 
-          call self%eos%fluid_properties(cell_primary, fluid)
+          call self%eos%bulk_properties(cell_primary, fluid)
+          call self%eos%phase_properties(cell_primary, fluid)
 
        end if
 
@@ -486,7 +487,9 @@ contains
 
   subroutine flow_simulation_fluid_transitions(self, ierr)
     !! Checks primary variables and thermodynamic regions in all mesh
-    !! cells and updates if region transitions have occurred.
+    !! cells and updates if region transitions have occurred. This is
+    !! called at the start of each nonlinear solver iteration during
+    !! each time step.
 
     use dm_utils_module, only: global_section_offset, global_vec_section
     use fluid_module, only: fluid_type
