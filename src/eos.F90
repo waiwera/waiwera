@@ -305,6 +305,7 @@ contains
     temperature = fluid%temperature
 
     fluid%region = dble(new_region)
+    call fluid%update_phase_composition(self%thermo)
 
   end subroutine eos_we_transition_to_single_phase
 
@@ -338,6 +339,7 @@ contains
     end if
 
     fluid%region = dble(4)
+    call fluid%update_phase_composition(self%thermo)
 
   end subroutine eos_we_transition_to_two_phase
 
@@ -424,9 +426,7 @@ contains
        end if
     end if
 
-    phases = self%thermo%phase_composition(region, fluid%pressure, &
-         fluid%temperature)
-    fluid%phase_composition = dble(phases)
+    phases = nint(fluid%phase_composition)
 
     do p = 1, self%num_phases
 
