@@ -57,7 +57,7 @@ contains
     primary_variable_names = [character(max_primary_variable_name_length) :: &
          "Pressure", "Temperature"]
 
-    if (mpi%rank == mpi%output_rank) then
+    if (mpi%rank == mpi%input_rank) then
        json => fson_parse(filename)
     end if
 
