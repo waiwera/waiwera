@@ -181,6 +181,7 @@ contains
 
     deallocate(self%primary_variable_names)
     deallocate(self%phase_index)
+    nullify(self%thermo)
 
   end subroutine eos_w_destroy
 
