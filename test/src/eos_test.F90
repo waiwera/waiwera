@@ -9,6 +9,7 @@ module eos_test
   use fluid_module
   use IAPWS_module
   use fson
+  use fson_mpi_module
 
   implicit none
   private
@@ -41,20 +42,20 @@ contains
     PetscReal, parameter :: expected_specific_enthalpy = 84011.811167136271_dp
     PetscReal, parameter :: expected_viscosity = 1.0015972622270245e-3_dp
 
+    json => fson_parse_mpi(str = json_str)
+    call thermo%init()
+    call eos%init(json, thermo)
+
+    call fluid%init(num_components, num_phases)
+    allocate(fluid_data(fluid%dof()))
+    fluid_data = 0._dp
+    call fluid%assign(fluid_data, offset)
+
+    primary = pressure
+    fluid%region = dble(region)
+    call eos%fluid_properties(primary, fluid)
+
     if (mpi%rank == mpi%output_rank) then
-
-       json => fson_parse(str = json_str)
-       call thermo%init()
-       call eos%init(json, thermo)
-
-       call fluid%init(num_components, num_phases)
-       allocate(fluid_data(fluid%dof()))
-       fluid_data = 0._dp
-       call fluid%assign(fluid_data, offset)
-
-       primary = pressure
-       fluid%region = dble(region)
-       call eos%fluid_properties(primary, fluid)
 
        call assert_equals(pressure, fluid%pressure, tol, "Pressure")
        call assert_equals(eos%temperature, fluid%temperature, tol, "Temperature")
@@ -73,13 +74,13 @@ contains
        call assert_equals(1._dp, fluid%phase(1)%relative_permeability, tol, "Relative permeability")
        call assert_equals(1._dp, fluid%phase(1)%mass_fraction(1), tol, "Mass fraction")
 
-       call fluid%destroy()
-       deallocate(fluid_data)
-       call eos%destroy()
-       call thermo%destroy()
-       call fson_destroy(json)
-
     end if
+
+    call fluid%destroy()
+    deallocate(fluid_data)
+    call eos%destroy()
+    call thermo%destroy()
+    call fson_destroy_mpi(json)
 
   end subroutine test_eos_w_fluid_properties
 
@@ -129,16 +130,15 @@ contains
     character(60) :: title
     PetscReal, parameter :: small = 1.e-6_dp
 
+    json => fson_parse_mpi(str = json_str)
+    call thermo%init()
+    call eos%init(json, thermo)
+    call fluid%init(num_components, num_phases)
+    allocate(fluid_data(fluid%dof()))
+    fluid_data = 0._dp
+    call fluid%assign(fluid_data, offset)
+
     if (mpi%rank == mpi%output_rank) then
-
-       json => fson_parse(str = json_str)
-       call thermo%init()
-       call eos%init(json, thermo)
-
-       call fluid%init(num_components, num_phases)
-       allocate(fluid_data(fluid%dof()))
-       fluid_data = 0._dp
-       call fluid%assign(fluid_data, offset)
 
        title = "Region 1 null transition"
        expected_region = 1
@@ -207,13 +207,13 @@ contains
        call transition_compare(expected_primary, expected_region, &
             primary, fluid, title)
 
-       call fluid%destroy()
-       deallocate(fluid_data)
-       call eos%destroy()
-       call thermo%destroy()
-       call fson_destroy(json)
-
     end if
+
+    call fluid%destroy()
+    deallocate(fluid_data)
+    call eos%destroy()
+    call thermo%destroy()
+    call fson_destroy_mpi(json)
 
   end subroutine test_eos_we_transition
 
