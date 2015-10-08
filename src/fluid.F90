@@ -45,6 +45,8 @@ module fluid_module
      procedure, public :: component_density => fluid_component_density
      procedure, public :: energy => fluid_energy
      procedure, public :: energy_production => fluid_energy_production
+     procedure, public :: update_phase_composition => &
+          fluid_update_phase_composition
   end type fluid_type
 
   public :: fluid_type, setup_fluid_vector, initialise_fluid_regions
@@ -254,6 +256,27 @@ contains
     end if
 
   end subroutine fluid_energy_production
+
+!------------------------------------------------------------------------
+
+  subroutine fluid_update_phase_composition(self, thermo)
+    !! Updates fluid phase composition from thermodynamic region,
+    !! pressure and temperature, according to specified thermodynamic
+    !! formulation.
+
+    use thermodynamics_module
+
+    class(fluid_type), intent(in out) :: self
+    class(thermodynamics_type), intent(in) :: thermo
+    ! Locals:
+    PetscInt :: region, phases
+
+    region = nint(self%region)
+    phases = thermo%phase_composition(region, self%pressure, &
+         self%temperature)
+    self%phase_composition = dble(phases)
+
+  end subroutine fluid_update_phase_composition
 
 !------------------------------------------------------------------------
 ! Fluid vector setup routine
