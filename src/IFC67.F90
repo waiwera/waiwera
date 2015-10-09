@@ -176,7 +176,7 @@ contains
 !------------------------------------------------------------------------
 
   PetscInt function IFC67_phase_composition(self, region, pressure, &
-       temperature) result(phase_composition)
+       temperature) result(phases)
     !! Returns phase composition integer for given region, pressure
     !! and temperature. Here the bits represent:
     !! 0: liquid
@@ -188,13 +188,13 @@ contains
 
     select case(region)
     case(1)   ! liquid water
-       phase_composition = b'01'
+       phases = b'01'
     case(2)   ! dry steam
-       phase_composition = b'10'
+       phases = b'10'
     case(4)   ! two-phase
-       phase_composition = b'11'
+       phases = b'11'
     case default
-       phase_composition = b'00'
+       phases = b'00'
     end select
 
   end function IFC67_phase_composition
