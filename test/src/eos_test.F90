@@ -120,7 +120,7 @@ contains
     ! eos_we_transition() test
 
     type(fluid_type) :: fluid
-    PetscInt, parameter :: num_components = 1, num_phases = 1
+    PetscInt, parameter :: num_components = 1, num_phases = 2
     PetscInt,  parameter :: offset = 1
     PetscReal, allocatable :: fluid_data(:)
     PetscReal :: primary(2), expected_primary(2), temperature
