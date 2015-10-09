@@ -423,13 +423,9 @@ contains
        vapour_saturation => primary(2)
 
        if (vapour_saturation < 0._dp) then
-
           call self%transition_to_single_phase(primary, fluid, 1)
-
        else if (vapour_saturation > 1._dp) then
-
           call self%transition_to_single_phase(primary, fluid, 2)
-
        end if
 
     else  ! Single-phase
@@ -442,10 +438,8 @@ contains
 
        if (((region == 1) .and. (pressure < saturation_pressure)) .or. &
             ((region == 2) .and. (pressure > saturation_pressure))) then
-
           call self%transition_to_two_phase(primary, fluid, &
                saturation_pressure)
-
        end if
 
     end if
