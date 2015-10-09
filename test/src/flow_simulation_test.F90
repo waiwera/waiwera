@@ -260,7 +260,7 @@ contains
     call sim%init(json)
     call fson_destroy_mpi(json)
 
-    call sim%pre_eval(time, sim%solution)
+    call sim%pre_solve(time, sim%solution)
     call vec_diff_test(sim%fluid, "fluid", path)
     
     call sim%destroy()
@@ -289,7 +289,7 @@ contains
     call DMGetGlobalVector(sim%mesh%dm, lhs, ierr); CHKERRQ(ierr)
     call PetscObjectSetName(lhs, "lhs", ierr); CHKERRQ(ierr)
 
-    call sim%pre_eval(time, sim%solution)
+    call sim%pre_solve(time, sim%solution)
     call sim%lhs(time, sim%solution, lhs)
     call vec_diff_test(lhs, "lhs", path)
 
