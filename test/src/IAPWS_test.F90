@@ -241,10 +241,15 @@ module IAPWS_test
          call assert_equals(expected_phases, phases, &
               "High temperature region 2 steam")
 
+         phases = IAPWS%phase_composition(3, 180.e5_dp, 360._dp)
+         expected_phases = b'010'
+         call assert_equals(expected_phases, phases, &
+              "Region 3 steam below critical temperature")
+
          phases = IAPWS%phase_composition(3, 210.e5_dp, 380._dp)
          expected_phases = b'010'
          call assert_equals(expected_phases, phases, &
-              "Region 3 steam")
+              "Region 3 steam above critical temperature")
 
          phases = IAPWS%phase_composition(4, 33.466518715101621e5_dp, 240._dp)
          expected_phases = b'011'
