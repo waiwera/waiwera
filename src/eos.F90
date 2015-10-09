@@ -273,14 +273,13 @@ contains
     PetscReal, intent(in), target :: primary(self%num_primary_variables) !! Primary thermodynamic variables
     type(fluid_type), intent(in out) :: fluid !! Fluid object
     ! Locals:
-    PetscInt :: region, phase_composition, ip, ierr
+    PetscInt :: region, phases, ip, ierr
     PetscReal :: properties(2)
 
     region = nint(fluid%region)
+    phases = nint(fluid%phase_composition)
 
-    phase_composition = b'01'
-    fluid%phase_composition = dble(phase_composition)
-    ip = self%phase_index(phase_composition)
+    ip = self%phase_index(phases)
 
     call self%thermo%region(region)%ptr%properties( &
          [fluid%pressure, fluid%temperature], &
