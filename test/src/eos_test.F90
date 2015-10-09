@@ -17,9 +17,36 @@ module eos_test
 #include <petsc/finclude/petscdef.h>
 
 public :: test_eos_w_fluid_properties, &
-     test_eos_we_transition
+     test_eos_we_fluid_properties, test_eos_we_transition
 
 contains
+
+!------------------------------------------------------------------------
+
+  subroutine transition_compare(expected_primary, expected_region, &
+       primary, fluid, message)
+
+    ! Runs asserts to test transition
+
+    PetscReal, intent(in) :: expected_primary(:), primary(:)
+    PetscInt, intent(in) :: expected_region
+    type(fluid_type), intent(in) :: fluid
+    character(60), intent(in) :: message
+    ! Locals:
+    PetscInt :: n, i
+    character(4) :: istr
+    PetscReal, parameter :: tol = 1.e-6_dp
+
+    n = size(primary)
+    do i = 1, n
+       write(istr, '(1x, a1, i2)') '#', i
+       call assert_equals(expected_primary(1), primary(1), tol, &
+            trim(message) // istr)
+    end do
+    call assert_equals(expected_region, nint(fluid%region), &
+         trim(message) // " region")
+
+  end subroutine transition_compare
 
 !------------------------------------------------------------------------
 
@@ -31,7 +58,7 @@ contains
     PetscInt, parameter :: num_components = 1, num_phases = 1
     PetscInt,  parameter :: offset = 1, region = 1, phase_composition = b'01'
     PetscReal, allocatable :: fluid_data(:)
-    PetscReal :: primary(1)
+    PetscReal :: primary(num_components)
     type(eos_w_type) :: eos
     type(IAPWS_type) :: thermo
     type(fson_value), pointer :: json
@@ -88,30 +115,92 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine transition_compare(expected_primary, expected_region, &
-       primary, fluid, message)
+  subroutine test_eos_we_fluid_properties
 
-    ! Runs asserts to test transition
+    ! eos_we fluid_properties() test
 
-    PetscReal, intent(in) :: expected_primary(:), primary(:)
-    PetscInt, intent(in) :: expected_region
-    type(fluid_type), intent(in) :: fluid
-    character(60), intent(in) :: message
-    ! Locals:
-    PetscInt :: n, i
-    character(4) :: istr
-    PetscReal, parameter :: tol = 1.e-6_dp
+    type(fluid_type) :: fluid
+    PetscInt, parameter :: num_components = 1, num_phases = 2
+    PetscInt,  parameter :: offset = 1, region = 4, phase_composition = b'011'
+    PetscReal, allocatable :: fluid_data(:)
+    PetscReal :: primary(num_components + 1)
+    type(eos_we_type) :: eos
+    type(IAPWS_type) :: thermo
+    type(fson_value), pointer :: json
+    character(40) :: json_str = '{}'
+    PetscReal, parameter :: temperature = 230._dp
+    PetscReal, parameter :: pressure = 27.967924557686445e5_dp
+    PetscReal, parameter :: vapour_saturation = 0.25
+    PetscReal, parameter :: tol = 1.e-8_dp
+    PetscReal, parameter :: expected_liquid_density = 827.12247049977032_dp
+    PetscReal, parameter :: expected_liquid_internal_energy = 986828.18916209263_dp
+    PetscReal, parameter :: expected_liquid_specific_enthalpy = 990209.54144729744_dp
+    PetscReal, parameter :: expected_liquid_viscosity = 1.1619412513757267e-4_dp
+    PetscReal, parameter :: expected_vapour_density = 13.984012253728331_dp
+    PetscReal, parameter :: expected_vapour_internal_energy = 2603010.010356456_dp
+    PetscReal, parameter :: expected_vapour_specific_enthalpy = 2803009.2956133024_dp
+    PetscReal, parameter :: expected_vapour_viscosity = 1.6704837258831552e-5_dp
 
-    n = size(primary)
-    do i = 1, n
-       write(istr, '(1x, a1, i2)') '#', i
-       call assert_equals(expected_primary(1), primary(1), tol, &
-            trim(message) // istr)
-    end do
-    call assert_equals(expected_region, nint(fluid%region), &
-         trim(message) // " region")
+    json => fson_parse_mpi(str = json_str)
+    call thermo%init()
+    call eos%init(json, thermo)
 
-  end subroutine transition_compare
+    call fluid%init(num_components, num_phases)
+    allocate(fluid_data(fluid%dof()))
+    fluid_data = 0._dp
+    call fluid%assign(fluid_data, offset)
+
+    primary = [pressure, vapour_saturation]
+    fluid%region = dble(region)
+    call eos%bulk_properties(primary, fluid)
+    call eos%phase_composition(fluid)
+    call eos%phase_properties(primary, fluid)
+
+    if (mpi%rank == mpi%output_rank) then
+
+       call assert_equals(pressure, fluid%pressure, tol, "Pressure")
+       call assert_equals(temperature, fluid%temperature, tol, "Temperature")
+       call assert_equals(phase_composition, nint(fluid%phase_composition), "Phase composition")
+
+       call assert_equals(expected_liquid_density, fluid%phase(1)%density, &
+            tol, "Liquid density")
+       call assert_equals(expected_liquid_internal_energy, &
+            fluid%phase(1)%internal_energy, tol, "Liquid internal energy")
+       call assert_equals(expected_liquid_specific_enthalpy, &
+            fluid%phase(1)%specific_enthalpy, tol, "Liquid specific enthalpy")
+       call assert_equals(expected_liquid_viscosity, fluid%phase(1)%viscosity, &
+            tol, "Liquid viscosity")
+       call assert_equals(1._dp - vapour_saturation, &
+            fluid%phase(1)%saturation, tol, "Liquid saturation")
+       call assert_equals(1._dp, fluid%phase(1)%relative_permeability, &
+            tol, "Liquid relative permeability")
+       call assert_equals(1._dp, fluid%phase(1)%mass_fraction(1), &
+            tol, "Liquid mass fraction")
+
+       call assert_equals(expected_vapour_density, fluid%phase(2)%density, &
+            tol, "Vapour density")
+       call assert_equals(expected_vapour_internal_energy, &
+            fluid%phase(2)%internal_energy, tol, "Vapour internal energy")
+       call assert_equals(expected_vapour_specific_enthalpy, &
+            fluid%phase(2)%specific_enthalpy, tol, "Vapour specific enthalpy")
+       call assert_equals(expected_vapour_viscosity, fluid%phase(2)%viscosity, &
+            tol, "Vapour viscosity")
+       call assert_equals(vapour_saturation, fluid%phase(2)%saturation, &
+            tol, "Vapour saturation")
+       call assert_equals(1._dp, fluid%phase(2)%relative_permeability, &
+            tol, "Vapour relative permeability")
+       call assert_equals(1._dp, fluid%phase(2)%mass_fraction(1), &
+            tol, "Vapour mass fraction")
+
+    end if
+
+    call fluid%destroy()
+    deallocate(fluid_data)
+    call eos%destroy()
+    call thermo%destroy()
+    call fson_destroy_mpi(json)
+
+  end subroutine test_eos_we_fluid_properties
 
 !------------------------------------------------------------------------
 
