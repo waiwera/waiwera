@@ -29,7 +29,7 @@ contains
 
     type(fluid_type) :: fluid
     PetscInt, parameter :: num_components = 1, num_phases = 1
-    PetscInt,  parameter :: offset = 1, region = 1
+    PetscInt,  parameter :: offset = 1, region = 1, phase_composition = b'01'
     PetscReal, allocatable :: fluid_data(:)
     PetscReal :: primary(1)
     type(eos_w_type) :: eos
@@ -53,13 +53,15 @@ contains
 
     primary = pressure
     fluid%region = dble(region)
-    call eos%fluid_properties(primary, fluid)
+    call eos%bulk_properties(primary, fluid)
+    call eos%phase_composition(fluid)
+    call eos%phase_properties(primary, fluid)
 
     if (mpi%rank == mpi%output_rank) then
 
        call assert_equals(pressure, fluid%pressure, tol, "Pressure")
        call assert_equals(eos%temperature, fluid%temperature, tol, "Temperature")
-       call assert_equals(region, nint(fluid%phase_composition), "Phase composition")
+       call assert_equals(phase_composition, nint(fluid%phase_composition), "Phase composition")
 
        call assert_equals(expected_density, fluid%phase(1)%density, &
             tol, "Density")
