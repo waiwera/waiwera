@@ -289,7 +289,7 @@ contains
 !------------------------------------------------------------------------
 
   PetscInt function IAPWS_phase_composition(self, region, pressure, &
-       temperature) result(phase_composition)
+       temperature) result(phases)
     !! Returns phase composition integer for given region, pressure
     !! and temperature. Here the bits represent:
     !! 0: liquid
@@ -299,21 +299,35 @@ contains
     class(IAPWS_type), intent(in) :: self
     PetscInt, intent(in) :: region
     PetscReal, intent(in) :: pressure, temperature
+    ! Locals:
+    PetscReal :: saturation_pressure
+    PetscInt :: ierr
+
+    phases = b'00'
 
     if (region == 4) then
-       phase_composition = b'011'
+       phases = b'011'
     else
        if (temperature <= tcritical) then
-          if (region == 2) then
-             phase_composition = b'010'
-          else
-             phase_composition = b'001'
-          end if
+          select case(region)
+             case (1)
+                phases = b'001'
+             case (2)
+                phases = b'010'
+             case (3)
+                call self%saturation%pressure(temperature, &
+                     saturation_pressure, ierr)
+                if (pressure >= saturation_pressure) then
+                   phases = b'001'
+                else
+                   phases = b'010'
+                end if
+             end select
        else
           if (pressure <= pcritical) then
-             phase_composition = b'010'
+             phases = b'010'
           else
-             phase_composition = b'100'
+             phases = b'100'
           end if
        end if
     end if
