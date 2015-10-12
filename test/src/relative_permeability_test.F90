@@ -22,13 +22,32 @@ contains
 
 !------------------------------------------------------------------------
 
+  subroutine relative_permeability_case(sl, relp, expected)
+
+    ! Test one case
+
+    PetscReal, intent(in) :: sl
+    class(relative_permeability_type), intent(in) :: relp
+    PetscReal, intent(in) :: expected(2)
+    ! Locals:
+    PetscReal :: rp(2)
+    character(12) :: msg
+
+    rp = relp%values(sl)
+    write(msg, '(a, f4.2)') ' sl = ', sl
+    call assert_equals(expected(1), rp(1), tol, "Liquid" // trim(msg))
+    call assert_equals(expected(2), rp(2), tol, "Vapour" // trim(msg))
+
+  end subroutine relative_permeability_case
+
+!------------------------------------------------------------------------
+
   subroutine test_relative_permeability_linear
 
     ! Linear relative permeability functions
 
     type(relative_permeability_linear_type) :: linear
     ! Locals:
-    PetscReal :: sl, rp(2)
     PetscReal, dimension(2), parameter :: &
          liquid_limits = [0.1_dp, 0.8_dp], &
          vapour_limits = [0.3_dp, 0.75_dp]
@@ -39,25 +58,10 @@ contains
 
        call assert_equals("Linear", linear%name, "Name")
 
-       sl = 0.01_dp
-       rp = linear%values(sl)
-       call assert_equals(0._dp, rp(1), tol, "Liquid sl = 0.01")
-       call assert_equals(1._dp, rp(2), tol, "Vapour sl = 0.01")
-
-       sl = 0.2_dp
-       rp = linear%values(sl)
-       call assert_equals(1._dp / 7._dp, rp(1), tol, "Liquid sl = 0.2")
-       call assert_equals(1._dp, rp(2), tol, "Vapour sl = 0.2")
-
-       sl = 0.5_dp
-       rp = linear%values(sl)
-       call assert_equals(4._dp / 7._dp, rp(1), tol, "Liquid sl = 0.5")
-       call assert_equals(4._dp / 9._dp, rp(2), tol, "Vapour sl = 0.5")
-
-       sl = 0.9_dp
-       rp = linear%values(sl)
-       call assert_equals(1._dp, rp(1), tol, "Liquid sl = 0.9")
-       call assert_equals(0._dp, rp(2), tol, "Vapour sl = 0.9")
+       call relative_permeability_case(0.01_dp, linear, [0._dp, 1._dp])
+       call relative_permeability_case(0.2_dp, linear, [1._dp / 7._dp, 1._dp])
+       call relative_permeability_case(0.5_dp, linear, [4._dp / 7._dp, 4._dp / 9._dp])
+       call relative_permeability_case(0.9_dp, linear, [1._dp, 0._dp])
 
     end if
 
@@ -72,7 +76,6 @@ contains
     type(relative_permeability_corey_type) :: corey
     ! Locals:
     PetscReal, parameter :: slr = 0.3_dp, ssr = 0.1_dp
-    PetscReal :: sl, rp(2)
 
     call corey%init(slr, ssr)
 
@@ -80,20 +83,9 @@ contains
 
        call assert_equals("Corey", corey%name, "Name")
 
-       sl = 0.01_dp
-       rp = corey%values(sl)
-       call assert_equals(0._dp, rp(1), tol, "Liquid sl = 0.01")
-       call assert_equals(1._dp, rp(2), tol, "Vapour sl = 0.01")
-
-       sl = 0.5_dp
-       rp = corey%values(sl)
-       call assert_equals(1._dp / 81._dp, rp(1), tol, "Liquid sl = 0.5")
-       call assert_equals(32._dp/ 81._dp, rp(2), tol, "Vapour sl = 0.5")
-
-       sl = 0.95_dp
-       rp = corey%values(sl)
-       call assert_equals(1._dp, rp(1), tol, "Liquid sl = 0.5")
-       call assert_equals(0._dp, rp(2), tol, "Vapour sl = 0.5")
+       call relative_permeability_case(0.01_dp, corey, [0._dp, 1._dp])
+       call relative_permeability_case(0.5_dp, corey, [1._dp / 81._dp, 32._dp/ 81._dp])
+       call relative_permeability_case(0.95_dp, corey, [1._dp, 0._dp])
 
     end if
 
@@ -108,7 +100,6 @@ contains
     type(relative_permeability_grant_type) :: grant
     ! Locals:
     PetscReal, parameter :: slr = 0.3_dp, ssr = 0.1_dp
-    PetscReal :: sl, rp(2)
 
     call grant%init(slr, ssr)
 
@@ -116,20 +107,9 @@ contains
 
        call assert_equals("Grant", grant%name, "Name")
 
-       sl = 0.01_dp
-       rp = grant%values(sl)
-       call assert_equals(0._dp, rp(1), tol, "Liquid sl = 0.01")
-       call assert_equals(1._dp, rp(2), tol, "Vapour sl = 0.01")
-
-       sl = 0.5_dp
-       rp = grant%values(sl)
-       call assert_equals(1._dp / 81._dp, rp(1), tol, "Liquid sl = 0.5")
-       call assert_equals(80._dp/ 81._dp, rp(2), tol, "Vapour sl = 0.5")
-
-       sl = 0.95_dp
-       rp = grant%values(sl)
-       call assert_equals(1._dp, rp(1), tol, "Liquid sl = 0.5")
-       call assert_equals(0._dp, rp(2), tol, "Vapour sl = 0.5")
+       call relative_permeability_case(0.01_dp, grant, [0._dp, 1._dp])
+       call relative_permeability_case(0.5_dp, grant, [1._dp / 81._dp, 80._dp/ 81._dp])
+       call relative_permeability_case(0.95_dp, grant, [1._dp, 0._dp])
 
     end if
 
