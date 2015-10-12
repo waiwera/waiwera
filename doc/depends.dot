@@ -82,4 +82,5 @@ digraph supermodel{
         timestepper_module -> mpi_module
         timestepper_module -> ode_module
         timestepper_module -> utils_module
+        relative_permeability_module -> kinds_module
 }
