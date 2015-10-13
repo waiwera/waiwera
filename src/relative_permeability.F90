@@ -48,6 +48,16 @@ module relative_permeability_module
 !------------------------------------------------------------------------
 
   type, extends(relative_permeability_type), &
+       public :: relative_permeability_fully_mobile_type
+     !! Fully mobile relative permeability curves.
+   contains
+     procedure, public :: init => relative_permeability_fully_mobile_init
+     procedure, public :: values => relative_permeability_fully_mobile_values
+  end type relative_permeability_fully_mobile_type
+
+!------------------------------------------------------------------------
+
+  type, extends(relative_permeability_type), &
        public :: relative_permeability_linear_type
      !! Linear relative permeability functions.
      private
@@ -57,6 +67,18 @@ module relative_permeability_module
      procedure, public :: init => relative_permeability_linear_init
      procedure, public :: values => relative_permeability_linear_values
   end type relative_permeability_linear_type
+
+!------------------------------------------------------------------------
+
+  type, extends(relative_permeability_type), &
+       public :: relative_permeability_pickens_type
+     !! Pickens relative permeability curves.
+     private
+     PetscReal, public :: power
+   contains
+     procedure, public :: init => relative_permeability_pickens_init
+     procedure, public :: values => relative_permeability_pickens_values
+  end type relative_permeability_pickens_type
 
 !------------------------------------------------------------------------
 
@@ -86,6 +108,36 @@ module relative_permeability_module
   public :: setup_relative_permeabilities
 
 contains
+
+!------------------------------------------------------------------------
+! Fully mobile
+!------------------------------------------------------------------------
+
+  subroutine relative_permeability_fully_mobile_init(self, json)
+    !! Initialize fully mobile relative permeability function.
+
+    use fson_mpi_module
+
+    class(relative_permeability_fully_mobile_type), intent(in out) :: self
+    type(fson_value), pointer, intent(in) :: json
+
+    self%name = "Fully mobile"
+
+  end subroutine relative_permeability_fully_mobile_init
+
+!------------------------------------------------------------------------
+
+  function relative_permeability_fully_mobile_values(self, sl) result(rp)
+    !! Evaluate fully mobile relative permeability function.
+
+    class(relative_permeability_fully_mobile_type), intent(in) :: self
+    PetscReal, intent(in) :: sl !! Liquid saturation
+    PetscReal, dimension(2) :: rp !! Relative permeabilities
+
+    rp(1) = 1._dp
+    rp(2) = 1._dp
+
+  end function relative_permeability_fully_mobile_values
 
 !------------------------------------------------------------------------
 ! Linear functions
@@ -151,6 +203,40 @@ contains
   end function relative_permeability_linear_values
 
 !------------------------------------------------------------------------
+! Pickens curves
+!------------------------------------------------------------------------
+
+  subroutine relative_permeability_pickens_init(self, json)
+    !! Initialize Pickens relative permeability function.
+
+    use fson_mpi_module
+
+    class(relative_permeability_pickens_type), intent(in out) :: self
+    type(fson_value), pointer, intent(in) :: json
+    ! Locals:
+    PetscReal, parameter :: default_power = 1._dp
+
+    self%name = "Pickens"
+
+    call fson_get_mpi(json, "power", default_power, self%power)
+
+  end subroutine relative_permeability_pickens_init
+
+!------------------------------------------------------------------------
+
+  function relative_permeability_pickens_values(self, sl) result(rp)
+    !! Evaluate Pickens relative permeability function.
+
+    class(relative_permeability_pickens_type), intent(in) :: self
+    PetscReal, intent(in) :: sl !! Liquid saturation
+    PetscReal, dimension(2) :: rp !! Relative permeabilities
+
+    rp(1) = sl ** self%power
+    rp(2) = 1._dp
+
+  end function relative_permeability_pickens_values
+
+!------------------------------------------------------------------------
 ! Corey's curves
 !------------------------------------------------------------------------
 
@@ -167,7 +253,7 @@ contains
     self%name = "Corey"
 
     call fson_get_mpi(json, "slr", default_slr, self%slr)
-    call fson_get_mpi(json, "ssr", default_ssr, self%slr)
+    call fson_get_mpi(json, "ssr", default_ssr, self%ssr)
 
   end subroutine relative_permeability_corey_init
 
@@ -226,7 +312,7 @@ contains
     self%name = "Grant"
 
     call fson_get_mpi(json, "slr", default_slr, self%slr)
-    call fson_get_mpi(json, "ssr", default_ssr, self%slr)
+    call fson_get_mpi(json, "ssr", default_ssr, self%ssr)
 
   end subroutine relative_permeability_grant_init
 
@@ -256,6 +342,8 @@ contains
   end function relative_permeability_grant_values
 
 !------------------------------------------------------------------------
+! Setup procedures
+!------------------------------------------------------------------------
 
   subroutine setup_relative_permeability(json, rp)
     !! Sets up single relative permeability object from JSON object
@@ -274,8 +362,12 @@ contains
     call fson_get_mpi(json, "type", default_relperm_type, relperm_type)
 
     select case (str_to_lower(relperm_type))
+    case ("fully mobile")
+       allocate(relative_permeability_fully_mobile_type :: rp)
     case ("linear")
        allocate(relative_permeability_linear_type :: rp)
+    case ("pickens")
+       allocate(relative_permeability_pickens_type :: rp)
     case ("corey")
        allocate(relative_permeability_corey_type :: rp)
     case ("grant")

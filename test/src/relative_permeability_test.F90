@@ -6,6 +6,7 @@ module relative_permeability_test
   use mpi_module
   use fruit
   use relative_permeability_module
+  use fson
 
   implicit none
   private
@@ -15,8 +16,10 @@ module relative_permeability_test
   PetscReal, parameter :: tol = 1.e-6_dp
 
 public :: test_relative_permeability_linear, &
+     test_relative_permeability_pickens, &
      test_relative_permeability_corey, &
-     test_relative_permeability_grant
+     test_relative_permeability_grant, &
+     test_relative_permeability_fully_mobile
 
 contains
 
@@ -48,11 +51,13 @@ contains
 
     type(relative_permeability_linear_type) :: linear
     ! Locals:
-    PetscReal, dimension(2), parameter :: &
-         liquid_limits = [0.1_dp, 0.8_dp], &
-         vapour_limits = [0.3_dp, 0.75_dp]
+    type(fson_value), pointer :: json
+    character(100), parameter :: json_str = &
+         '{"type": "linear", "liquid": [0.1, 0.8], "vapour": [0.3, 0.75]}'
 
-    call linear%init(liquid_limits, vapour_limits)
+    json => fson_parse(str = json_str)
+    call linear%init(json)
+    call fson_destroy(json)
 
     if (mpi%rank == mpi%output_rank) then
 
@@ -69,15 +74,47 @@ contains
 
 !------------------------------------------------------------------------
 
+  subroutine test_relative_permeability_pickens
+
+    ! Pickens relative permeability functions
+
+    type(relative_permeability_pickens_type) :: pickens
+    ! Locals:
+    type(fson_value), pointer :: json
+    character(100), parameter :: json_str = &
+         '{"type": "Pickens", "power": 2.0}'
+
+    json => fson_parse(str = json_str)
+    call pickens%init(json)
+    call fson_destroy(json)
+
+    if (mpi%rank == mpi%output_rank) then
+
+       call assert_equals("Pickens", pickens%name, "Name")
+
+       call relative_permeability_case(0.01_dp, pickens, [1.e-4_dp, 1._dp])
+       call relative_permeability_case(0.5_dp, pickens, [0.25_dp, 1._dp])
+       call relative_permeability_case(0.9_dp, pickens, [0.81_dp, 1._dp])
+
+    end if
+
+  end subroutine test_relative_permeability_pickens
+
+!------------------------------------------------------------------------
+
   subroutine test_relative_permeability_corey
 
     ! Corey's relative permeability functions
 
     type(relative_permeability_corey_type) :: corey
     ! Locals:
-    PetscReal, parameter :: slr = 0.3_dp, ssr = 0.1_dp
+    type(fson_value), pointer :: json
+    character(100), parameter :: json_str = &
+    '{"type": "Corey", "slr": 0.3, "ssr": 0.1}'
 
-    call corey%init(slr, ssr)
+    json => fson_parse(str = json_str)
+    call corey%init(json)
+    call fson_destroy(json)
 
     if (mpi%rank == mpi%output_rank) then
 
@@ -99,9 +136,13 @@ contains
 
     type(relative_permeability_grant_type) :: grant
     ! Locals:
-    PetscReal, parameter :: slr = 0.3_dp, ssr = 0.1_dp
+    type(fson_value), pointer :: json
+    character(100), parameter :: json_str = &
+    '{"type": "Grant", "slr": 0.3, "ssr": 0.1}'
 
-    call grant%init(slr, ssr)
+    json => fson_parse(str = json_str)
+    call grant%init(json)
+    call fson_destroy(json)
 
     if (mpi%rank == mpi%output_rank) then
 
@@ -115,6 +156,33 @@ contains
 
   end subroutine test_relative_permeability_grant
 
+!------------------------------------------------------------------------
+
+  subroutine test_relative_permeability_fully_mobile
+
+    ! Fully mobile relative permeability functions
+
+    type(relative_permeability_fully_mobile_type) :: mobile
+    ! Locals:
+    type(fson_value), pointer :: json
+    character(100), parameter :: json_str = &
+    '{"type": "Fully mobile"}'
+
+    json => fson_parse(str = json_str)
+    call mobile%init(json)
+    call fson_destroy(json)
+
+    if (mpi%rank == mpi%output_rank) then
+
+       call assert_equals("Fully mobile", mobile%name, "Name")
+
+       call relative_permeability_case(0.2_dp, mobile, [1._dp, 1._dp])
+       call relative_permeability_case(0.9_dp, mobile, [1._dp, 1._dp])
+
+    end if
+
+  end subroutine test_relative_permeability_fully_mobile
+  
 !-----------------------------------------------------------------------
 
 end module relative_permeability_test
