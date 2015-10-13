@@ -7,6 +7,8 @@ module eos_test
   use fruit
   use eos_module
   use fluid_module
+  use rock_module
+  use relative_permeability_module
   use IAPWS_module
   use fson
   use fson_mpi_module
@@ -55,6 +57,7 @@ contains
     ! eos_w fluid_properties() test
 
     type(fluid_type) :: fluid
+    type(rock_type) :: rock
     PetscInt, parameter :: num_components = 1, num_phases = 1
     PetscInt,  parameter :: offset = 1, region = 1, phase_composition = b'01'
     PetscReal, allocatable :: fluid_data(:)
@@ -82,7 +85,7 @@ contains
     fluid%region = dble(region)
     call eos%bulk_properties(primary, fluid)
     call eos%phase_composition(fluid)
-    call eos%phase_properties(primary, fluid)
+    call eos%phase_properties(primary, rock, fluid)
 
     if (mpi%rank == mpi%output_rank) then
 
@@ -106,6 +109,7 @@ contains
     end if
 
     call fluid%destroy()
+    call rock%destroy()
     deallocate(fluid_data)
     call eos%destroy()
     call thermo%destroy()
@@ -120,14 +124,17 @@ contains
     ! eos_we fluid_properties() test
 
     type(fluid_type) :: fluid
+    type(rock_type) :: rock
     PetscInt, parameter :: num_components = 1, num_phases = 2
     PetscInt,  parameter :: offset = 1, region = 4, phase_composition = b'011'
     PetscReal, allocatable :: fluid_data(:)
     PetscReal :: primary(num_components + 1)
     type(eos_we_type) :: eos
     type(IAPWS_type) :: thermo
+    class(relative_permeability_type), allocatable, target :: rp
     type(fson_value), pointer :: json
-    character(40) :: json_str = '{}'
+    character(120) :: json_str = &
+         '{"rock": {"relative permeability": {"type": "linear", "liquid": [0.2, 0.8], "vapour": [0.2, 0.8]}}}'
     PetscReal, parameter :: temperature = 230._dp
     PetscReal, parameter :: pressure = 27.967924557686445e5_dp
     PetscReal, parameter :: vapour_saturation = 0.25
@@ -136,25 +143,30 @@ contains
     PetscReal, parameter :: expected_liquid_internal_energy = 986828.18916209263_dp
     PetscReal, parameter :: expected_liquid_specific_enthalpy = 990209.54144729744_dp
     PetscReal, parameter :: expected_liquid_viscosity = 1.1619412513757267e-4_dp
+    PetscReal, parameter :: expected_liquid_relative_permeability = 11._dp / 12._dp
     PetscReal, parameter :: expected_vapour_density = 13.984012253728331_dp
     PetscReal, parameter :: expected_vapour_internal_energy = 2603010.010356456_dp
     PetscReal, parameter :: expected_vapour_specific_enthalpy = 2803009.2956133024_dp
     PetscReal, parameter :: expected_vapour_viscosity = 1.6704837258831552e-5_dp
+    PetscReal, parameter :: expected_vapour_relative_permeability = 1._dp / 12._dp
 
     json => fson_parse_mpi(str = json_str)
     call thermo%init()
     call eos%init(json, thermo)
+    call setup_relative_permeabilities(json, rp)
 
     call fluid%init(num_components, num_phases)
     allocate(fluid_data(fluid%dof()))
     fluid_data = 0._dp
     call fluid%assign(fluid_data, offset)
 
+    rock%relative_permeability => rp
+
     primary = [pressure, vapour_saturation]
     fluid%region = dble(region)
     call eos%bulk_properties(primary, fluid)
     call eos%phase_composition(fluid)
-    call eos%phase_properties(primary, fluid)
+    call eos%phase_properties(primary, rock, fluid)
 
     if (mpi%rank == mpi%output_rank) then
 
@@ -172,7 +184,8 @@ contains
             tol, "Liquid viscosity")
        call assert_equals(1._dp - vapour_saturation, &
             fluid%phase(1)%saturation, tol, "Liquid saturation")
-       call assert_equals(1._dp, fluid%phase(1)%relative_permeability, &
+       call assert_equals(expected_liquid_relative_permeability, &
+            fluid%phase(1)%relative_permeability, &
             tol, "Liquid relative permeability")
        call assert_equals(1._dp, fluid%phase(1)%mass_fraction(1), &
             tol, "Liquid mass fraction")
@@ -187,8 +200,9 @@ contains
             tol, "Vapour viscosity")
        call assert_equals(vapour_saturation, fluid%phase(2)%saturation, &
             tol, "Vapour saturation")
-       call assert_equals(1._dp, fluid%phase(2)%relative_permeability, &
-            tol, "Vapour relative permeability")
+       call assert_equals(expected_vapour_relative_permeability, &
+            fluid%phase(2)%relative_permeability, tol, &
+            "Vapour relative permeability")
        call assert_equals(1._dp, fluid%phase(2)%mass_fraction(1), &
             tol, "Vapour mass fraction")
 
@@ -199,6 +213,7 @@ contains
     call eos%destroy()
     call thermo%destroy()
     call fson_destroy_mpi(json)
+    deallocate(rp)
 
   end subroutine test_eos_we_fluid_properties
 
