@@ -113,12 +113,14 @@ module eos_module
        type(fluid_type), intent(in out) :: fluid
      end subroutine eos_phase_composition_procedure
 
-     subroutine eos_phase_properties_procedure(self, primary, fluid)
+     subroutine eos_phase_properties_procedure(self, primary, rock, fluid)
        !! Calculate phase fluid properties from primary variables.
+       use rock_module, only: rock_type
        use fluid_module, only: fluid_type
        import :: eos_type, dp
        class(eos_type), intent(in out) :: self
        PetscReal, intent(in), target :: primary(self%num_primary_variables)
+       type(rock_type), intent(in out) :: rock
        type(fluid_type), intent(in out) :: fluid
      end subroutine eos_phase_properties_procedure
 
@@ -263,14 +265,16 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine eos_w_phase_properties(self, primary, fluid)
+  subroutine eos_w_phase_properties(self, primary, rock, fluid)
     !! Calculate fluid phase properties from region and primary variables
     !! for isothermal pure water.
 
     use fluid_module, only: fluid_type
+    use rock_module, only: rock_type
 
     class(eos_w_type), intent(in out) :: self
     PetscReal, intent(in), target :: primary(self%num_primary_variables) !! Primary thermodynamic variables
+    type(rock_type), intent(in out) :: rock !! Rock object
     type(fluid_type), intent(in out) :: fluid !! Fluid object
     ! Locals:
     PetscInt :: region, phases, ip, ierr
@@ -497,21 +501,25 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine eos_we_phase_properties(self, primary, fluid)
+  subroutine eos_we_phase_properties(self, primary, rock, fluid)
     !! Calculate fluid phase properties from updated fluid region and primary variables.
 
+    use rock_module, only: rock_type
     use fluid_module, only: fluid_type
+
     class(eos_we_type), intent(in out) :: self
     PetscReal, intent(in), target :: primary(self%num_primary_variables) !! Primary thermodynamic variables
+    type(rock_type), intent(in out) :: rock !! Rock object
     type(fluid_type), intent(in out) :: fluid !! Fluid object
     ! Locals:
     PetscInt :: p, ip, ierr, phases, region
-    PetscReal :: properties(2), saturation(2)
+    PetscReal :: properties(2), saturation(2), relative_permeability(2)
 
     region = nint(fluid%region)
     phases = nint(fluid%phase_composition)
 
     call self%phase_saturations(region, primary, saturation)
+    relative_permeability = rock%relative_permeability%values(saturation(1))
 
     do p = 1, self%num_phases
 
@@ -531,7 +539,7 @@ contains
                fluid%phase(ip)%internal_energy + &
                fluid%pressure / fluid%phase(ip)%density
 
-          fluid%phase(ip)%relative_permeability = 1._dp ! ** TODO **
+          fluid%phase(ip)%relative_permeability = relative_permeability(p)
 
           call self%thermo%region(p)%ptr%viscosity( &
                fluid%temperature, fluid%pressure, &
