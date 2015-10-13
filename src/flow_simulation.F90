@@ -5,6 +5,7 @@ module flow_simulation_module
   use mesh_module
   use thermodynamics_module
   use eos_module
+  use relative_permeability_module
 
   implicit none
 
@@ -25,6 +26,7 @@ module flow_simulation_module
      class(thermodynamics_type), allocatable, public :: thermo
      class(eos_type), allocatable, public :: eos
      PetscReal, public :: gravity
+     class(relative_permeability_type), allocatable, public :: relative_permeability
    contains
      private
      procedure :: setup_solution_vector => flow_simulation_setup_solution_vector
@@ -88,6 +90,7 @@ contains
     call self%mesh%setup_boundaries(self%eos%num_primary_variables, json)
     call self%mesh%configure(self%eos%primary_variable_names)
     call self%setup_solution_vector()
+    call setup_relative_permeabilities(json, self%relative_permeability)
     call setup_rock_vector(json, self%mesh%dm, self%rock, &
          self%rock_range_start)
     call setup_initial(json, self%mesh, self%eos%num_primary_variables, &
@@ -123,6 +126,7 @@ contains
     call self%eos%destroy()
     deallocate(self%thermo)
     deallocate(self%eos)
+    deallocate(self%relative_permeability)
 
   end subroutine flow_simulation_destroy
 
@@ -361,17 +365,19 @@ contains
 
     use dm_utils_module, only: global_section_offset, global_vec_section
     use fluid_module, only: fluid_type
+    use rock_module, only: rock_type
 
     class(flow_simulation_type), intent(in out) :: self
     PetscReal, intent(in) :: t !! time
     Vec, intent(in) :: y !! global primary variables vector
     ! Locals:
     PetscInt :: c, np, nc, ghost
-    PetscSection :: y_section, fluid_section
-    PetscInt :: y_offset, fluid_offset
+    PetscSection :: y_section, fluid_section, rock_section
+    PetscInt :: y_offset, fluid_offset, rock_offset
     PetscReal, pointer :: y_array(:), cell_primary(:)
-    PetscReal, pointer :: fluid_array(:)
+    PetscReal, pointer :: fluid_array(:), rock_array(:)
     type(fluid_type) :: fluid
+    type(rock_type) :: rock
     DMLabel :: ghost_label
     PetscErrorCode :: ierr
 
@@ -383,6 +389,9 @@ contains
 
     call global_vec_section(self%fluid, fluid_section)
     call VecGetArrayF90(self%fluid, fluid_array, ierr); CHKERRQ(ierr)
+
+    call global_vec_section(self%rock, rock_section)
+    call VecGetArrayF90(self%rock, rock_array, ierr); CHKERRQ(ierr)
 
     call fluid%init(nc, self%eos%num_phases)
 
@@ -403,17 +412,25 @@ contains
 
           call fluid%assign(fluid_array, fluid_offset)
 
+          call global_section_offset(rock_section, c, &
+               self%rock_range_start, rock_offset, ierr); CHKERRQ(ierr)
+
+          call rock%assign(rock_array, rock_offset, &
+               self%relative_permeability)
+
           call self%eos%bulk_properties(cell_primary, fluid)
           call self%eos%transition(cell_primary, fluid)
           call self%eos%phase_composition(fluid)
-          call self%eos%phase_properties(cell_primary, fluid)
+          call self%eos%phase_properties(cell_primary, rock, fluid)
 
        end if
 
     end do
 
+    call VecRestoreArrayF90(self%rock, rock_array, ierr); CHKERRQ(ierr)
     call VecRestoreArrayF90(self%fluid, fluid_array, ierr); CHKERRQ(ierr)
     call VecRestoreArrayReadF90(y, y_array, ierr); CHKERRQ(ierr)
+    call rock%destroy()
     call fluid%destroy()
 
   end subroutine flow_simulation_fluid_init
@@ -428,17 +445,19 @@ contains
 
     use dm_utils_module, only: global_section_offset, global_vec_section
     use fluid_module, only: fluid_type
+    use rock_module, only: rock_type
 
     class(flow_simulation_type), intent(in out) :: self
     PetscReal, intent(in) :: t !! time
     Vec, intent(in) :: y !! global primary variables vector
     ! Locals:
     PetscInt :: c, np, nc, ghost
-    PetscSection :: y_section, fluid_section
-    PetscInt :: y_offset, fluid_offset
+    PetscSection :: y_section, fluid_section, rock_section
+    PetscInt :: y_offset, fluid_offset, rock_offset
     PetscReal, pointer :: y_array(:), cell_primary(:)
-    PetscReal, pointer :: fluid_array(:)
+    PetscReal, pointer :: fluid_array(:), rock_array(:)
     type(fluid_type) :: fluid
+    type(rock_type) :: rock
     DMLabel :: ghost_label
     PetscErrorCode :: ierr
 
@@ -450,6 +469,9 @@ contains
 
     call global_vec_section(self%fluid, fluid_section)
     call VecGetArrayF90(self%fluid, fluid_array, ierr); CHKERRQ(ierr)
+
+    call global_vec_section(self%rock, rock_section)
+    call VecGetArrayF90(self%rock, rock_array, ierr); CHKERRQ(ierr)
 
     call fluid%init(nc, self%eos%num_phases)
 
@@ -470,15 +492,23 @@ contains
 
           call fluid%assign(fluid_array, fluid_offset)
 
+          call global_section_offset(rock_section, c, &
+               self%rock_range_start, rock_offset, ierr); CHKERRQ(ierr)
+
+          call rock%assign(rock_array, rock_offset, &
+               self%relative_permeability)
+
           call self%eos%bulk_properties(cell_primary, fluid)
-          call self%eos%phase_properties(cell_primary, fluid)
+          call self%eos%phase_properties(cell_primary, rock, fluid)
 
        end if
 
     end do
 
+    call VecRestoreArrayF90(self%rock, rock_array, ierr); CHKERRQ(ierr)
     call VecRestoreArrayF90(self%fluid, fluid_array, ierr); CHKERRQ(ierr)
     call VecRestoreArrayReadF90(y, y_array, ierr); CHKERRQ(ierr)
+    call rock%destroy()
     call fluid%destroy()
 
   end subroutine flow_simulation_fluid_properties
