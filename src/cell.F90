@@ -108,30 +108,31 @@ contains
 
 !------------------------------------------------------------------------
 
-  function cell_balance(self, eos) result(balance)
+  function cell_balance(self, num_primary, phase_index) result(balance)
     !! Returns array containing mass balance (per unit volume) for each
     !! mass component in the cell, and energy balance for non-isothermal
     !! simulations.
 
-    use eos_module, only: eos_type
-
     class(cell_type), intent(in) :: self
-    class(eos_type), intent(in) :: eos
-    PetscReal :: balance(eos%num_primary_variables)
+    PetscInt, intent(in) :: num_primary, phase_index(:)
+    PetscReal :: balance(num_primary)
     ! Locals:
     PetscInt :: nc
     PetscReal :: er, ef
+    PetscBool :: isothermal
 
     nc = self%fluid%num_components
+    isothermal = (num_primary == nc)
 
     ! Mass balances:
-    balance(1: nc) = self%rock%porosity * self%fluid%component_density(eos)
+    balance(1: nc) = self%rock%porosity * &
+         self%fluid%component_density(phase_index)
 
-    if (.not. eos%isothermal) then
+    if (.not. isothermal) then
        ! Energy balance:
        er = self%rock%energy(self%fluid%temperature)
-       ef = self%fluid%energy(eos)
-       balance(eos%num_primary_variables) = self%rock%porosity * ef + &
+       ef = self%fluid%energy(phase_index)
+       balance(num_primary) = self%rock%porosity * ef + &
             (1._dp - self%rock%porosity) * er
     end if
 

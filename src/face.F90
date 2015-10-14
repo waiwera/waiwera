@@ -326,35 +326,35 @@ contains
 
 !------------------------------------------------------------------------
 
-  function face_flux(self, eos, gravity) result(flux)
+  function face_flux(self, num_primary, phase_index, gravity) result(flux)
     !! Returns array containing the mass fluxes for each component
     !! through the face, from cell(1) to cell(2), and energy flux
     !! for non-isothermal simulations.
 
-    use eos_module, only: eos_type
-
     class(face_type), intent(in) :: self
-    class(eos_type), intent(in) :: eos
+    PetscInt, intent(in) :: num_primary, phase_index(:)
     PetscReal, intent(in) :: gravity
-    PetscReal :: flux(eos%num_primary_variables)
+    PetscReal :: flux(num_primary)
     ! Locals:
     PetscInt :: nc
     PetscInt :: i, p, ip, up
+    PetscBool :: isothermal
     PetscReal :: dpdn, dtdn, gn, G, face_density, F
     PetscReal :: phase_flux(self%cell(1)%fluid%num_components)
     PetscReal :: k, h, cond, mobility
     PetscInt :: phases(2), phase_present
 
     nc = self%cell(1)%fluid%num_components
+    isothermal = (num_primary == nc)
     dpdn = self%pressure_gradient()
     gn = gravity * self%normal(3)
     k = self%permeability()
 
-    if (.not. eos%isothermal) then
+    if (.not. isothermal) then
        ! Heat conduction:
        cond = self%heat_conductivity()
        dtdn = self%temperature_gradient()
-       flux(eos%num_primary_variables) = -cond * dtdn
+       flux(num_primary) = -cond * dtdn
     end if
     flux(1: nc) = 0._dp
 
@@ -367,7 +367,7 @@ contains
 
        if (btest(phase_present, p - 1)) then
 
-          ip = eos%phase_index(p)
+          ip = phase_index(p)
           face_density = self%phase_density(ip)
           G = dpdn + face_density * gn
 
@@ -382,11 +382,10 @@ contains
              phase_flux = F * self%cell(up)%fluid%phase(ip)%mass_fraction
              flux(1:nc) = flux(1:nc) + phase_flux
 
-             if (.not.eos%isothermal) then
+             if (.not.isothermal) then
                 ! Heat convection:
                 h = self%cell(up)%fluid%phase(ip)%specific_enthalpy
-                flux(eos%num_primary_variables) = &
-                     flux(eos%num_primary_variables) + h * F
+                flux(num_primary) = flux(num_primary) + h * F
              end if
 
           end if

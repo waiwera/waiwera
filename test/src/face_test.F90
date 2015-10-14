@@ -230,6 +230,7 @@ contains
     use fluid_module
 
     PetscInt, parameter :: nc = 1, np = 1, num_primary = 2
+    PetscInt, parameter :: phase_index(np) = [1]
     PetscReal, parameter :: gravity = 9.8_dp
     type(face_type) :: face
     type(cell_type) :: cell
@@ -268,7 +269,7 @@ contains
        call face%assign(face_data, face_offset, cell_data, cell_offsets, &
             rock_data, rock_offsets, fluid_data, fluid_offsets)
 
-       flux = face%flux(num_primary, gravity)
+       flux = face%flux(num_primary, phase_index, gravity)
 
        call assert_equals(num_primary, size(flux), "Flux array size")
        call assert_equals(expected_mass_flux, flux(1), tol, "Mass flux")
@@ -296,6 +297,7 @@ contains
     use fluid_module
 
     PetscInt, parameter :: nc = 1, np = 1, num_primary = 2
+    PetscInt, parameter :: phase_index(np) = [1]
     PetscReal, parameter :: gravity = 9.8_dp
     type(face_type) :: face
     type(cell_type) :: cell
@@ -334,7 +336,7 @@ contains
        call face%assign(face_data, face_offset, cell_data, cell_offsets, &
             rock_data, rock_offsets, fluid_data, fluid_offsets)
 
-       flux = face%flux(num_primary, gravity)
+       flux = face%flux(num_primary, phase_index, gravity)
 
        call assert_equals(expected_mass_flux, flux(1), mass_tol, "Mass flux")
        call assert_equals(expected_heat_flux, flux(2), heat_tol, "Heat flux")
@@ -361,6 +363,7 @@ contains
     use fluid_module
 
     PetscInt, parameter :: nc = 1, np = 1, num_primary = 2
+    PetscInt, parameter :: phase_index(np) = [1]
     PetscReal, parameter :: gravity = 9.8_dp
     type(face_type) :: face
     type(cell_type) :: cell
@@ -402,7 +405,7 @@ contains
        call face%assign(face_data, face_offset, cell_data, cell_offsets, &
             rock_data, rock_offsets, fluid_data, fluid_offsets)
 
-       flux = face%flux(num_primary, gravity)
+       flux = face%flux(num_primary, phase_index, gravity)
 
        call assert_equals(expected_mass_flux, flux(1), mass_tol, "Mass flux")
        call assert_equals(expected_heat_flux, flux(2), heat_tol, "Heat flux")
@@ -428,6 +431,7 @@ contains
     use fluid_module
 
     PetscInt, parameter :: nc = 1, np = 2, num_primary = 2
+    PetscInt, parameter :: phase_index(np) = [1, 2]
     PetscReal, parameter :: gravity = 9.8_dp
     type(face_type) :: face
     type(cell_type) :: cell
@@ -482,7 +486,7 @@ contains
        call assert_equals(expected_liquid_density, density, density_tol, "Liquid density")
        density = face%phase_density(2)
        call assert_equals(expected_vapour_density, density, density_tol, "Vapour density")
-       flux = face%flux(num_primary, gravity)
+       flux = face%flux(num_primary, phase_index, gravity)
 
        call assert_equals(expected_mass_flux, flux(1), mass_tol, "Mass flux")
        call assert_equals(expected_heat_flux, flux(2), heat_tol, "Heat flux")

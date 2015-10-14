@@ -79,6 +79,7 @@ contains
 
     type(fluid_type) :: fluid
     PetscInt, parameter :: num_components = 2, num_phases = 2
+    PetscInt, parameter :: phase_index(num_phases) = [1, 2]
     PetscInt,  parameter :: offset = 1
     PetscReal, allocatable :: fluid_data(:)
     PetscReal :: cd(num_components)
@@ -95,7 +96,7 @@ contains
 
        call fluid%assign(fluid_data, offset)
 
-       cd = fluid%component_density()
+       cd = fluid%component_density(phase_index)
 
        call assert_equals(expected_cd, cd, num_components, tol, "Fluid component density")
 
@@ -113,6 +114,7 @@ contains
 
     type(fluid_type) :: fluid
     PetscInt, parameter :: num_components = 2, num_phases = 2
+    PetscInt, parameter :: phase_index(num_phases) = [1, 2]
     PetscInt,  parameter :: offset = 1
     PetscReal, allocatable :: fluid_data(:)
     PetscReal :: ef
@@ -129,7 +131,7 @@ contains
 
        call fluid%assign(fluid_data, offset)
 
-       ef = fluid%energy()
+       ef = fluid%energy(phase_index)
 
        call assert_equals(expected_ef, ef, tol, "Fluid energy")
 

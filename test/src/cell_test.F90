@@ -61,6 +61,7 @@ contains
     PetscInt, parameter :: rock_offset = 1, fluid_offset = 1
     PetscInt, parameter :: num_components = 2, num_phases = 2
     PetscInt, parameter :: num_primary = 3
+    PetscInt, parameter :: phase_index(num_phases) = [1, 2]
     PetscReal :: bal(num_primary)
     PetscReal, parameter :: expected_bal(num_components + 1) = &
          [52.372_dp, 22.458_dp, 2.8545448e8_dp]
@@ -78,7 +79,7 @@ contains
        call cell%assign(rock_data = rock_data, rock_offset = rock_offset, &
             fluid_data = fluid_data, fluid_offset = fluid_offset)
 
-       bal = cell%balance(num_primary)
+       bal = cell%balance(num_primary, phase_index)
 
        call assert_equals(expected_bal, bal, num_primary, tol, "cell balance")
 
