@@ -226,12 +226,12 @@ contains
 
 !------------------------------------------------------------------------
 
-  PetscReal function face_phase_density(self, p) result(rho)
+  PetscReal function face_phase_density(self, ip) result(rho)
     !! Returns phase density on the face for a given phase. It is
     !! assumed that the phase is present in at least one of the cells.
 
     class(face_type), intent(in) :: self
-    PetscInt, intent(in) :: p
+    PetscInt, intent(in) :: ip !! Stored index of phase
     ! Locals:
     PetscInt :: i
     PetscReal :: weight
@@ -239,9 +239,9 @@ contains
     rho = 0._dp
     weight = 0._dp
     do i = 1, 2
-       rho = rho + self%cell(i)%fluid%phase(p)%saturation * &
-            self%cell(i)%fluid%phase(p)%density
-       weight = weight + self%cell(i)%fluid%phase(p)%saturation
+       rho = rho + self%cell(i)%fluid%phase(ip)%saturation * &
+            self%cell(i)%fluid%phase(ip)%density
+       weight = weight + self%cell(i)%fluid%phase(ip)%saturation
     end do
     rho = rho / weight
 
@@ -326,35 +326,35 @@ contains
 
 !------------------------------------------------------------------------
 
-  function face_flux(self, num_primary, gravity) result(flux)
+  function face_flux(self, eos, gravity) result(flux)
     !! Returns array containing the mass fluxes for each component
     !! through the face, from cell(1) to cell(2), and energy flux
     !! for non-isothermal simulations.
 
+    use eos_module, only: eos_type
+
     class(face_type), intent(in) :: self
-    PetscInt, intent(in) :: num_primary
+    class(eos_type), intent(in) :: eos
     PetscReal, intent(in) :: gravity
-    PetscReal :: flux(num_primary)
+    PetscReal :: flux(eos%num_primary_variables)
     ! Locals:
     PetscInt :: nc
-    PetscBool :: isothermal
-    PetscInt :: i, p, iup
+    PetscInt :: i, p, ip, up
     PetscReal :: dpdn, dtdn, gn, G, face_density, F
     PetscReal :: phase_flux(self%cell(1)%fluid%num_components)
-    PetscReal :: kr, visc, density, k, h, cond
+    PetscReal :: k, h, cond, mobility
     PetscInt :: phases(2), phase_present
 
     nc = self%cell(1)%fluid%num_components
-    isothermal = (num_primary == nc)
     dpdn = self%pressure_gradient()
     gn = gravity * self%normal(3)
     k = self%permeability()
 
-    if (.not. isothermal) then
+    if (.not. eos%isothermal) then
        ! Heat conduction:
        cond = self%heat_conductivity()
        dtdn = self%temperature_gradient()
-       flux(num_primary) = -cond * dtdn
+       flux(eos%num_primary_variables) = -cond * dtdn
     end if
     flux(1: nc) = 0._dp
 
@@ -367,26 +367,26 @@ contains
 
        if (btest(phase_present, p - 1)) then
 
-          face_density = self%phase_density(p)
+          ip = eos%phase_index(p)
+          face_density = self%phase_density(ip)
           G = dpdn + face_density * gn
 
-          iup = self%upstream_index(G)
+          up = self%upstream_index(G)
 
-          if (btest(phases(iup), p - 1)) then
+          if (btest(phases(up), p - 1)) then
 
-             kr = self%cell(iup)%fluid%phase(p)%relative_permeability
-             density = self%cell(iup)%fluid%phase(p)%density
-             visc = self%cell(iup)%fluid%phase(p)%viscosity
+             mobility = self%cell(up)%fluid%phase(ip)%mobility()
 
              ! Mass flows:
-             F = -k * kr * density / visc * G
-             phase_flux = F * self%cell(iup)%fluid%phase(p)%mass_fraction
+             F = -k * mobility * G
+             phase_flux = F * self%cell(up)%fluid%phase(ip)%mass_fraction
              flux(1:nc) = flux(1:nc) + phase_flux
 
-             if (.not.isothermal) then
+             if (.not.eos%isothermal) then
                 ! Heat convection:
-                h = self%cell(iup)%fluid%phase(p)%specific_enthalpy
-                flux(num_primary) = flux(num_primary) + h * F
+                h = self%cell(up)%fluid%phase(ip)%specific_enthalpy
+                flux(eos%num_primary_variables) = &
+                     flux(eos%num_primary_variables) + h * F
              end if
 
           end if

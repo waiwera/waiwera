@@ -188,23 +188,27 @@ contains
 
 !------------------------------------------------------------------------
 
-  function fluid_component_density(self) result(d)
+  function fluid_component_density(self, eos) result(d)
     !! Returns total fluid density for each mass component, over all
     !! phases.
 
+    use eos_module, only: eos_type
+
     class(fluid_type), intent(in) :: self
+    class(eos_type), intent(in) :: eos
     PetscReal :: d(self%num_components)
     ! Locals:
-    PetscInt :: p, c, phases
+    PetscInt :: p, ip, c, phases
     PetscReal :: ds
 
     phases = nint(self%phase_composition)
     d = 0._dp
     do p = 1, self%num_phases
        if (btest(phases, p - 1)) then
-          ds = self%phase(p)%density * self%phase(p)%saturation
+          ip = eos%phase_index(p)
+          ds = self%phase(ip)%density * self%phase(ip)%saturation
           do c = 1, self%num_components
-             d(c) = d(c) + ds * self%phase(p)%mass_fraction(c)
+             d(c) = d(c) + ds * self%phase(ip)%mass_fraction(c)
           end do
        end if
     end do
@@ -213,20 +217,24 @@ contains
 
 !------------------------------------------------------------------------
 
-  PetscReal function fluid_energy(self) result(ef)
+  PetscReal function fluid_energy(self, eos) result(ef)
     !! Returns total fluid energy density.
 
+    use eos_module, only: eos_type
+
     class(fluid_type), intent(in) :: self
+    class(eos_type), intent(in) :: eos
     ! Locals:
-    PetscInt :: p, phases
+    PetscInt :: p, ip, phases
     PetscReal :: ds
 
     phases = nint(self%phase_composition)
     ef = 0._dp
     do p = 1, self%num_phases
        if (btest(phases, p - 1)) then
-          ds = self%phase(p)%density * self%phase(p)%saturation
-          ef = ef + ds * self%phase(p)%internal_energy
+          ip = eos%phase_index(p)
+          ds = self%phase(ip)%density * self%phase(ip)%saturation
+          ef = ef + ds * self%phase(ip)%internal_energy
        end if
     end do
 
