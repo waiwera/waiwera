@@ -153,9 +153,11 @@ contains
     PetscBool, parameter :: isothermal = .false.
     PetscInt, parameter :: offset = 1
     PetscReal, allocatable :: fluid_data(:)
-    PetscReal :: source(num_components + 1)
+    PetscReal :: source(num_components + 1), ff(num_phases)
     PetscReal, parameter :: tol = 1.e-6_dp
-    PetscReal, parameter :: expected = -3190284.011514185_dp
+    PetscReal, parameter :: expected_production = -3190284.011514185_dp
+    PetscReal, parameter :: expected_flow_fractions(num_phases) = &
+         [0.98532727106605555_dp, 0.014672728933944498_dp]
 
     if (mpi%rank == mpi%output_rank) then
 
@@ -169,11 +171,15 @@ contains
 
        call fluid%assign(fluid_data, offset)
 
+       ff = fluid%flow_fractions(phase_index)
+       call assert_equals(expected_flow_fractions(1), ff(1), tol, "Flow fraction 1")
+       call assert_equals(expected_flow_fractions(2), ff(2), tol, "Flow fraction 2")
+
        source = [-3._dp, 0._dp]
        call fluid%energy_production(source, phase_index, isothermal)
 
-       call assert_equals(expected, source(num_components + 1), tol, &
-            "Energy production")
+       call assert_equals(expected_production, source(num_components + 1), &
+            tol, "Energy production")
 
        call fluid%destroy()
        deallocate(fluid_data)
