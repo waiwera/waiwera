@@ -45,10 +45,10 @@ module fluid_module
      procedure, public :: dof => fluid_dof
      procedure, public :: component_density => fluid_component_density
      procedure, public :: energy => fluid_energy
+     procedure, public :: flow_fractions => fluid_flow_fractions
      procedure, public :: energy_production => fluid_energy_production
      procedure, public :: update_phase_composition => &
           fluid_update_phase_composition
-     procedure, public :: flow_fractions => fluid_flow_fractions
   end type fluid_type
 
   public :: fluid_type, setup_fluid_vector, initialise_fluid_regions
@@ -252,52 +252,6 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine fluid_energy_production(self, source, isothermal)
-    !! If source array represents production, and EOS is
-    !! non-isothermal, calculate associated energy production.
-
-    class(fluid_type), intent(in) :: self
-    PetscReal, target, intent(in out) :: source(:)
-    PetscBool, intent(in) :: isothermal
-    ! Locals:
-    PetscInt :: np
-    PetscReal, pointer :: q, qenergy
-
-    if (.not. isothermal) then
-       ! Single-component, single-phase only for now:
-       q => source(1)
-       if (q < 0._dp) then
-          np = size(source)
-          qenergy => source(np)
-          qenergy = self%phase(1)%specific_enthalpy * q
-       end if
-    end if
-
-  end subroutine fluid_energy_production
-
-!------------------------------------------------------------------------
-
-  subroutine fluid_update_phase_composition(self, thermo)
-    !! Updates fluid phase composition from thermodynamic region,
-    !! pressure and temperature, according to specified thermodynamic
-    !! formulation.
-
-    use thermodynamics_module
-
-    class(fluid_type), intent(in out) :: self
-    class(thermodynamics_type), intent(in) :: thermo
-    ! Locals:
-    PetscInt :: region, phases
-
-    region = nint(self%region)
-    phases = thermo%phase_composition(region, self%pressure, &
-         self%temperature)
-    self%phase_composition = dble(phases)
-
-  end subroutine fluid_update_phase_composition
-
-!------------------------------------------------------------------------
-
   function fluid_flow_fractions(self, phase_index) result(f)
     !! Returns array containing the flow fractions for each
     !! phase. There are in proportion to the mobility of each phase,
@@ -322,6 +276,69 @@ contains
     f = f / sum(f)
 
   end function fluid_flow_fractions
+
+!------------------------------------------------------------------------
+
+  subroutine fluid_energy_production(self, source, phase_index, isothermal)
+    !! If source array contains production, and EOS is
+    !! non-isothermal, calculate associated energy production.
+
+    class(fluid_type), intent(in) :: self
+    PetscReal, target, intent(in out) :: source(:)
+    PetscInt, intent(in) :: phase_index(:)
+    PetscBool, intent(in) :: isothermal
+    ! Locals:
+    PetscInt :: p, ip, np, phases, c
+    PetscReal :: flow_fractions(self%num_phases), hc
+    PetscReal, pointer :: q, qenergy
+
+    if (.not. isothermal) then
+
+       np = size(source)
+       qenergy => source(np)
+       phases = nint(self%phase_composition)
+       flow_fractions = self%flow_fractions(phase_index)
+
+       do c = 1, self%num_components
+          q => source(c)
+          if (q < 0._dp) then
+             hc = 0._dp
+             do p = 1, self%num_phases
+                if (btest(phases, p - 1)) then
+                   ip = phase_index(p)
+                   hc = hc + flow_fractions(p) * &
+                        self%phase(ip)%specific_enthalpy * &
+                        self%phase(ip)%mass_fraction(c)
+                end if
+             end do
+             qenergy = qenergy + q * hc
+          end if
+       end do
+
+    end if
+
+  end subroutine fluid_energy_production
+
+!------------------------------------------------------------------------
+
+  subroutine fluid_update_phase_composition(self, thermo)
+    !! Updates fluid phase composition from thermodynamic region,
+    !! pressure and temperature, according to specified thermodynamic
+    !! formulation.
+
+    use thermodynamics_module
+
+    class(fluid_type), intent(in out) :: self
+    class(thermodynamics_type), intent(in) :: thermo
+    ! Locals:
+    PetscInt :: region, phases
+
+    region = nint(self%region)
+    phases = thermo%phase_composition(region, self%pressure, &
+         self%temperature)
+    self%phase_composition = dble(phases)
+
+  end subroutine fluid_update_phase_composition
 
 !------------------------------------------------------------------------
 ! Fluid vector setup routine
