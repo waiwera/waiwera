@@ -246,8 +246,8 @@ contains
 
     if (mpi%rank == mpi%output_rank) then
 
-       call face%init(nc, np)
-       call fluid%init(nc, np)
+       call face%init(nc, np, np)
+       call fluid%init(nc, np, np)
        allocate(face_data(face%dof()), cell_data(cell%dof()))
        allocate(rock_data(rock%dof()), fluid_data(fluid%dof()))
        allocate(flux(num_primary))
@@ -313,8 +313,8 @@ contains
 
     if (mpi%rank == mpi%output_rank) then
 
-       call face%init(nc, np)
-       call fluid%init(nc, np)
+       call face%init(nc, np, np)
+       call fluid%init(nc, np, np)
        allocate(face_data(face%dof()), cell_data(cell%dof()))
        allocate(rock_data(rock%dof()), fluid_data(fluid%dof()))
        allocate(flux(num_primary))
@@ -379,8 +379,8 @@ contains
 
     if (mpi%rank == mpi%output_rank) then
 
-       call face%init(nc, np)
-       call fluid%init(nc, np)
+       call face%init(nc, np, np)
+       call fluid%init(nc, np, np)
        allocate(face_data(face%dof()), cell_data(cell%dof()))
        allocate(rock_data(rock%dof()), fluid_data(fluid%dof()*2))
        allocate(flux(num_primary))
@@ -450,8 +450,8 @@ contains
 
     if (mpi%rank == mpi%output_rank) then
 
-       call face%init(nc, np)
-       call fluid%init(nc, np)
+       call face%init(nc, np, np)
+       call fluid%init(nc, np, np)
        allocate(face_data(face%dof()), cell_data(cell%dof()))
        allocate(rock_data(rock%dof() * 2), fluid_data(fluid%dof() * 2))
        allocate(flux(num_primary))

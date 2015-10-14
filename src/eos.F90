@@ -28,7 +28,7 @@ module eos_module
      character(max_primary_variable_name_length), allocatable, public :: primary_variable_names(:)
      PetscInt, allocatable, public :: phase_index(:)
      PetscInt, public :: num_primary_variables
-     PetscInt, public :: num_phases
+     PetscInt, public :: num_phases, num_concurrent_phases
      PetscInt, public :: num_components
      PetscBool, public :: isothermal = .false.
      class(thermodynamics_type), pointer, public :: thermo
@@ -187,6 +187,7 @@ contains
     self%num_primary_variables = size(self%primary_variable_names)
     self%num_phases = 1
     self%phase_index = [1]
+    self%num_concurrent_phases = 1
     self%num_components = 1
     self%isothermal = .true.
 
@@ -325,6 +326,7 @@ contains
     self%num_primary_variables = size(self%primary_variable_names)
     self%num_phases = 2
     self%phase_index = [1, 2]
+    self%num_concurrent_phases = 2
     self%num_components = 1
 
     self%thermo => thermo

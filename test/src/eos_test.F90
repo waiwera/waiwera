@@ -76,7 +76,7 @@ contains
     call thermo%init()
     call eos%init(json, thermo)
 
-    call fluid%init(num_components, num_phases)
+    call fluid%init(num_components, num_phases, num_phases)
     allocate(fluid_data(fluid%dof()))
     fluid_data = 0._dp
     call fluid%assign(fluid_data, offset)
@@ -155,7 +155,7 @@ contains
     call eos%init(json, thermo)
     call setup_relative_permeabilities(json, rp)
 
-    call fluid%init(num_components, num_phases)
+    call fluid%init(num_components, num_phases, num_phases)
     allocate(fluid_data(fluid%dof()))
     fluid_data = 0._dp
     call fluid%assign(fluid_data, offset)
@@ -239,7 +239,7 @@ contains
     json => fson_parse_mpi(str = json_str)
     call thermo%init()
     call eos%init(json, thermo)
-    call fluid%init(num_components, num_phases)
+    call fluid%init(num_components, num_phases, num_phases)
     allocate(fluid_data(fluid%dof()))
     fluid_data = 0._dp
     call fluid%assign(fluid_data, offset)

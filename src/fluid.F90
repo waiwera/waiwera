@@ -36,6 +36,7 @@ module fluid_module
      PetscReal, pointer, public :: phase_composition   !! Phase composition
      type(phase_type), allocatable, public :: phase(:) !! Phase variables
      PetscInt, public :: num_phases !! Number of phases
+     PetscInt, public :: num_concurrent_phases !! Number of phases that can be present at once
      PetscInt, public :: num_components !! Number of mass components
    contains
      private
@@ -113,20 +114,23 @@ contains
 ! Fluid procedures
 !------------------------------------------------------------------------
 
-  subroutine fluid_init(self, num_components, num_phases)
+  subroutine fluid_init(self, num_components, num_phases, &
+       num_concurrent_phases)
     !! Initialises a fluid object.
     
     class(fluid_type), intent(in out) :: self
     PetscInt, intent(in) :: num_components !! Number of fluid components
     PetscInt, intent(in) :: num_phases     !! Number of fluid phases
+    PetscInt, intent(in) :: num_concurrent_phases !! Number of phases that can be present at once
     ! Locals:
-    PetscInt :: i
+    PetscInt :: ip
 
     self%num_phases = num_phases
+    self%num_concurrent_phases = num_concurrent_phases
     self%num_components = num_components
-    allocate(self%phase(num_phases))
-    do i = 1, num_phases
-       call self%phase(i)%init(num_components)
+    allocate(self%phase(num_concurrent_phases))
+    do ip = 1, num_concurrent_phases
+       call self%phase(ip)%init(num_components)
     end do
 
   end subroutine fluid_init
@@ -141,7 +145,7 @@ contains
     PetscReal, target, intent(in) :: data(:)  !! fluid data array
     PetscInt, intent(in) :: offset  !! fluid array offset
     ! Locals:
-    PetscInt :: i, p
+    PetscInt :: i, ip
 
     self%pressure => data(offset)
     self%temperature => data(offset + 1)
@@ -149,16 +153,16 @@ contains
     self%phase_composition => data(offset + 3)
     
     i = offset + num_fluid_variables
-    do p = 1, self%num_phases
-       self%phase(p)%density => data(i)
-       self%phase(p)%viscosity => data(i+1)
-       self%phase(p)%saturation => data(i+2)
-       self%phase(p)%relative_permeability => data(i+3)
-       self%phase(p)%specific_enthalpy => data(i+4)
-       self%phase(p)%internal_energy => data(i+5)
-       self%phase(p)%mass_fraction => data(i+6: i+6 + &
+    do ip = 1, self%num_concurrent_phases
+       self%phase(ip)%density => data(i)
+       self%phase(ip)%viscosity => data(i+1)
+       self%phase(ip)%saturation => data(i+2)
+       self%phase(ip)%relative_permeability => data(i+3)
+       self%phase(ip)%specific_enthalpy => data(i+4)
+       self%phase(ip)%internal_energy => data(i+5)
+       self%phase(ip)%mass_fraction => data(i+6: i+6 + &
             self%num_components-1)
-       i = i + self%phase(p)%dof()
+       i = i + self%phase(ip)%dof()
     end do
 
   end subroutine fluid_assign
@@ -170,15 +174,15 @@ contains
     
     class(fluid_type), intent(in out) :: self
     ! Locals:
-    PetscInt :: p
+    PetscInt :: ip
 
     nullify(self%pressure)
     nullify(self%temperature)
     nullify(self%region)
     nullify(self%phase_composition)
 
-    do p = 1, self%num_phases
-       call self%phase(p)%destroy()
+    do ip = 1, self%num_concurrent_phases
+       call self%phase(ip)%destroy()
     end do
     deallocate(self%phase)
 
@@ -191,11 +195,11 @@ contains
 
     class(fluid_type), intent(in) :: self
     ! Locals:
-    PetscInt :: p
+    PetscInt :: ip
 
     fluid_dof = num_fluid_variables
-    do p = 1, self%num_phases
-       fluid_dof = fluid_dof + self%phase(p)%dof()
+    do ip = 1, self%num_concurrent_phases
+       fluid_dof = fluid_dof + self%phase(ip)%dof()
     end do
 
   end function fluid_dof
@@ -259,7 +263,7 @@ contains
 
     class(fluid_type), intent(in) :: self
     PetscInt, intent(in) :: phase_index(:)
-    PetscReal :: f(self%num_phases)
+    PetscReal :: f(self%num_concurrent_phases)
     ! Locals:
     PetscInt :: p, ip, phases
 
@@ -268,9 +272,9 @@ contains
     do p = 1, self%num_phases
        if (btest(phases, p - 1)) then
           ip = phase_index(p)
-          f(p) = self%phase(ip)%mobility()
+          f(ip) = self%phase(ip)%mobility()
        else
-          f(p) = 0._dp
+          f(ip) = 0._dp
        end if
     end do
     f = f / sum(f)
@@ -289,7 +293,7 @@ contains
     PetscBool, intent(in) :: isothermal
     ! Locals:
     PetscInt :: p, ip, np, phases, c
-    PetscReal :: flow_fractions(self%num_phases), hc
+    PetscReal :: flow_fractions(self%num_concurrent_phases), hc
     PetscReal, pointer :: q, qenergy
 
     if (.not. isothermal) then
@@ -306,7 +310,7 @@ contains
              do p = 1, self%num_phases
                 if (btest(phases, p - 1)) then
                    ip = phase_index(p)
-                   hc = hc + flow_fractions(p) * &
+                   hc = hc + flow_fractions(ip) * &
                         self%phase(ip)%specific_enthalpy * &
                         self%phase(ip)%mass_fraction(c)
                 end if
@@ -344,15 +348,15 @@ contains
 ! Fluid vector setup routine
 !------------------------------------------------------------------------
 
-  subroutine setup_fluid_vector(dm, num_phases, num_components, fluid, &
-       range_start)
+  subroutine setup_fluid_vector(dm, num_concurrent_phases, num_components, &
+       fluid, range_start)
     !! Sets up global vector for fluid properties, with specified
     !! numbers of components and phases.
 
     use dm_utils_module, only: set_dm_data_layout, global_vec_range_start
 
     DM, intent(in) :: dm
-    PetscInt, intent(in) :: num_phases, num_components
+    PetscInt, intent(in) :: num_concurrent_phases, num_components
     Vec, intent(out) :: fluid
     PetscInt, intent(out) :: range_start
     ! Locals:
@@ -361,7 +365,7 @@ contains
     DM :: dm_fluid
     PetscErrorCode :: ierr
 
-    num_vars = num_fluid_variables + num_phases * &
+    num_vars = num_fluid_variables + num_concurrent_phases * &
          (num_phase_variables + num_components)
 
     allocate(num_field_components(num_vars), field_dim(num_vars))
@@ -386,7 +390,7 @@ contains
 !------------------------------------------------------------------------
 
   subroutine initialise_fluid_regions(dm, fluid, start_cell, end_cell, &
-       range_start, num_components, num_phases)
+       range_start, num_components, num_phases, num_concurrent_phases)
     !! Initialise fluid regions in each cell. For now, just assume all
     !! cells are initially region 1 (liquid).
 
@@ -396,7 +400,8 @@ contains
     Vec, intent(in out) :: fluid
     PetscInt, intent(in) :: start_cell, end_cell
     PetscInt, intent(in) :: range_start
-    PetscInt, intent(in) :: num_components, num_phases
+    PetscInt, intent(in) :: num_components
+    PetscInt, intent(in) :: num_phases, num_concurrent_phases
     ! Locals:
     PetscSection :: fluid_section
     PetscReal, pointer :: fluid_array(:)
@@ -407,7 +412,7 @@ contains
 
     call global_vec_section(fluid, fluid_section)
     call VecGetArrayF90(fluid, fluid_array, ierr); CHKERRQ(ierr)
-    call f%init(num_components, num_phases)
+    call f%init(num_components, num_phases, num_concurrent_phases)
 
     call DMPlexGetLabel(dm, "ghost", ghost_label, ierr)
     CHKERRQ(ierr)

@@ -61,20 +61,23 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine face_init(self, num_components, num_phases)
+  subroutine face_init(self, num_components, num_phases, num_concurrent_phases)
     !! Initialises a face.
 
     class(face_type), intent(in out) :: self
     PetscInt, intent(in), optional :: num_components !! Number of fluid components
     PetscInt, intent(in), optional :: num_phases     !! Number of fluid phases
+    PetscInt, intent(in), optional :: num_concurrent_phases !! Number of phases that can be present at once
     ! Locals:
     PetscInt, parameter :: num_cells = 2
     PetscInt :: i
 
     allocate(self%cell(num_cells))
-    if ((present(num_components)) .and. (present(num_phases))) then
+    if ((present(num_components)) .and. (present(num_phases)) .and. &
+         present(num_concurrent_phases)) then
        do i = 1, num_cells
-          call self%cell(i)%init(num_components, num_phases)
+          call self%cell(i)%init(num_components, num_phases, &
+               num_concurrent_phases)
        end do
     end if
 

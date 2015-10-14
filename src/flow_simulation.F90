@@ -96,12 +96,12 @@ contains
     call setup_initial(json, self%mesh, self%eos%num_primary_variables, &
          self%time, self%solution, self%rock, self%solution_range_start, &
          self%rock_range_start)
-    call setup_fluid_vector(self%mesh%dm, self%eos%num_phases, &
+    call setup_fluid_vector(self%mesh%dm, self%eos%num_concurrent_phases, &
          self%eos%num_components, self%fluid, self%fluid_range_start)
     call initialise_fluid_regions(self%mesh%dm, self%fluid, &
          self%mesh%start_cell, self%mesh%end_cell, &
          self%fluid_range_start, self%eos%num_phases, &
-         self%eos%num_components)
+         self%eos%num_concurrent_phases, self%eos%num_components)
     call setup_source_vector(json, self%mesh%dm, &
          self%eos%num_primary_variables, self%eos%isothermal, self%source)
     call fson_get_mpi(json, "gravity", default_gravity, self%gravity)
@@ -165,7 +165,7 @@ contains
     call global_vec_section(self%rock, rock_section)
     call VecGetArrayReadF90(self%rock, rock_array, ierr); CHKERRQ(ierr)
 
-    call cell%init(nc, self%eos%num_phases)
+    call cell%init(nc, self%eos%num_phases, self%eos%num_concurrent_phases)
 
     call DMPlexGetLabel(self%mesh%dm, "ghost", ghost_label, ierr)
     CHKERRQ(ierr)
@@ -262,7 +262,8 @@ contains
     call global_to_local_vec_section(self%rock, local_rock, rock_section)
     call VecGetArrayReadF90(local_rock, rock_array, ierr); CHKERRQ(ierr)
 
-    call face%init(self%eos%num_components, self%eos%num_phases)
+    call face%init(self%eos%num_components, self%eos%num_phases, &
+         self%eos%num_concurrent_phases)
 
     call DMPlexGetLabel(self%mesh%dm, "ghost", ghost_label, ierr)
     CHKERRQ(ierr)
@@ -315,7 +316,7 @@ contains
 
     ! Source/ sink terms:
     nc = self%eos%num_components
-    call cell%init(nc, self%eos%num_phases)
+    call cell%init(nc, self%eos%num_phases, self%eos%num_concurrent_phases)
     call VecGetArrayReadF90(self%source, source_array, ierr); CHKERRQ(ierr)
     call global_vec_section(self%source, source_section)
     allocate(source(np))
@@ -395,7 +396,7 @@ contains
     call global_vec_section(self%rock, rock_section)
     call VecGetArrayF90(self%rock, rock_array, ierr); CHKERRQ(ierr)
 
-    call fluid%init(nc, self%eos%num_phases)
+    call fluid%init(nc, self%eos%num_phases, self%eos%num_concurrent_phases)
 
     call DMPlexGetLabel(self%mesh%dm, "ghost", ghost_label, ierr)
     CHKERRQ(ierr)
@@ -475,7 +476,7 @@ contains
     call global_vec_section(self%rock, rock_section)
     call VecGetArrayF90(self%rock, rock_array, ierr); CHKERRQ(ierr)
 
-    call fluid%init(nc, self%eos%num_phases)
+    call fluid%init(nc, self%eos%num_phases, self%eos%num_concurrent_phases)
 
     call DMPlexGetLabel(self%mesh%dm, "ghost", ghost_label, ierr)
     CHKERRQ(ierr)
@@ -546,7 +547,7 @@ contains
     call global_vec_section(self%fluid, fluid_section)
     call VecGetArrayF90(self%fluid, fluid_array, ierr); CHKERRQ(ierr)
 
-    call fluid%init(nc, self%eos%num_phases)
+    call fluid%init(nc, self%eos%num_phases, self%eos%num_concurrent_phases)
 
     call DMPlexGetLabel(self%mesh%dm, "ghost", ghost_label, ierr)
     CHKERRQ(ierr)

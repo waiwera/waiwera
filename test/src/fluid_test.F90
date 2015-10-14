@@ -27,12 +27,12 @@ contains
     PetscInt, parameter :: num_components = 2, num_phases = 2
     PetscInt,  parameter :: offset = 7
     PetscReal, allocatable :: fluid_data(:)
-    PetscInt :: i, p, nc
+    PetscInt :: i, ip, nc
     PetscReal, parameter :: tol = 1.e-6_dp
 
     if (mpi%rank == mpi%output_rank) then
 
-       call fluid%init(num_components, num_phases)
+       call fluid%init(num_components, num_phases, num_phases)
 
        allocate(fluid_data(offset-1 + fluid%dof()))
        do i = 1, size(fluid_data)
@@ -46,23 +46,23 @@ contains
        call assert_equals(fluid_data(offset+3), fluid%phase_composition, tol, "phase composition")
 
        i = offset + num_fluid_variables
-       do p = 1, num_phases
+       do ip = 1, num_phases
           call assert_equals(fluid_data(i), &
-               fluid%phase(p)%density, tol, "density")
+               fluid%phase(ip)%density, tol, "density")
           call assert_equals(fluid_data(i+1), &
-               fluid%phase(p)%viscosity, tol, "viscosity")
+               fluid%phase(ip)%viscosity, tol, "viscosity")
           call assert_equals(fluid_data(i+2), &
-               fluid%phase(p)%saturation, tol, "saturation")
+               fluid%phase(ip)%saturation, tol, "saturation")
           call assert_equals(fluid_data(i+3), &
-               fluid%phase(p)%relative_permeability, tol, "relative permeability")
+               fluid%phase(ip)%relative_permeability, tol, "relative permeability")
           call assert_equals(fluid_data(i+4), &
-               fluid%phase(p)%specific_enthalpy, tol, "specific enthalpy")
+               fluid%phase(ip)%specific_enthalpy, tol, "specific enthalpy")
           call assert_equals(fluid_data(i+5), &
-               fluid%phase(p)%internal_energy, tol, "internal energy")
-          nc = size(fluid%phase(p)%mass_fraction)
+               fluid%phase(ip)%internal_energy, tol, "internal energy")
+          nc = size(fluid%phase(ip)%mass_fraction)
           call assert_equals(0._dp, norm2(fluid_data(i+6: i + 6 + nc-1) - &
-               fluid%phase(p)%mass_fraction), tol, "mass fraction")
-          i = i + fluid%phase(p)%dof()
+               fluid%phase(ip)%mass_fraction), tol, "mass fraction")
+          i = i + fluid%phase(ip)%dof()
        end do
 
        call fluid%destroy()
@@ -88,7 +88,7 @@ contains
 
     if (mpi%rank == mpi%output_rank) then
 
-       call fluid%init(num_components, num_phases)
+       call fluid%init(num_components, num_phases, num_phases)
 
        fluid_data = [2.7e5_dp, 130._dp, 4._dp, 3._dp, &
             935._dp, 0.0_dp, 0.8_dp, 0.0_dp, 0._dp, 5.461e5_dp, 0.7_dp, 0.3_dp, &
@@ -123,7 +123,7 @@ contains
 
     if (mpi%rank == mpi%output_rank) then
 
-       call fluid%init(num_components, num_phases)
+       call fluid%init(num_components, num_phases, num_phases)
 
        fluid_data = [2.7e5_dp, 130._dp, 4._dp, 3._dp, &
             935._dp, 0.0_dp, 0.8_dp, 0.0_dp, 0._dp, 5.461e5_dp, 0.7_dp, 0.3_dp, &
@@ -161,7 +161,7 @@ contains
 
     if (mpi%rank == mpi%output_rank) then
 
-       call fluid%init(num_components, num_phases)
+       call fluid%init(num_components, num_phases, num_phases)
 
        fluid_data = [3346651.871510162_dp, 240._dp, 4._dp, 3._dp, &
             813.36485916981576_dp, 0.00011105570007981882_dp, 0.8_dp, &
