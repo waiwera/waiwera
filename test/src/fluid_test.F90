@@ -13,7 +13,7 @@ module fluid_test
 #include <petsc/finclude/petscdef.h>
 
 public :: test_fluid_assign, test_fluid_component_density, &
-     test_fluid_energy
+     test_fluid_energy, test_fluid_energy_production
 
 contains
   
@@ -141,6 +141,46 @@ contains
     end if
 
   end subroutine test_fluid_energy
+
+!------------------------------------------------------------------------
+
+  subroutine test_fluid_energy_production
+    ! Test fluid energy_production()
+
+    type(fluid_type) :: fluid
+    PetscInt, parameter :: num_components = 1, num_phases = 2
+    PetscInt, parameter :: phase_index(num_phases) = [1, 2]
+    PetscBool, parameter :: isothermal = .false.
+    PetscInt, parameter :: offset = 1
+    PetscReal, allocatable :: fluid_data(:)
+    PetscReal :: source(num_components + 1)
+    PetscReal, parameter :: tol = 1.e-6_dp
+    PetscReal, parameter :: expected = -3190284.011514185_dp
+
+    if (mpi%rank == mpi%output_rank) then
+
+       call fluid%init(num_components, num_phases)
+
+       fluid_data = [3346651.871510162_dp, 240._dp, 4._dp, 3._dp, &
+            813.36485916981576_dp, 0.00011105570007981882_dp, 0.8_dp, &
+            0.9_dp, 1037522.7548256445_dp, 1033408.1784042757_dp, 1._dp, &
+            16.747578872158215_dp, 1.7062182385337129e-05_dp, 0.2_dp, &
+            0.1_dp, 2803059.9721381501_dp, 2603230.9761348078_dp, 1._dp]
+
+       call fluid%assign(fluid_data, offset)
+
+       source = [-3._dp, 0._dp]
+       call fluid%energy_production(source, phase_index, isothermal)
+
+       call assert_equals(expected, source(num_components + 1), tol, &
+            "Energy production")
+
+       call fluid%destroy()
+       deallocate(fluid_data)
+
+    end if
+
+  end subroutine test_fluid_energy_production
 
 !------------------------------------------------------------------------
 
