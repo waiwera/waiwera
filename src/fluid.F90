@@ -24,6 +24,7 @@ module fluid_module
      procedure, public :: init => phase_init
      procedure, public :: destroy => phase_destroy
      procedure, public :: dof => phase_dof
+     procedure, public :: mobility => phase_mobility
   end type phase_type
 
   type fluid_type
@@ -47,6 +48,7 @@ module fluid_module
      procedure, public :: energy_production => fluid_energy_production
      procedure, public :: update_phase_composition => &
           fluid_update_phase_composition
+     procedure, public :: flow_fractions => fluid_flow_fractions
   end type fluid_type
 
   public :: fluid_type, setup_fluid_vector, initialise_fluid_regions
@@ -94,6 +96,18 @@ contains
     phase_dof = num_phase_variables + size(self%mass_fraction)
 
   end function phase_dof
+
+!------------------------------------------------------------------------
+
+  PetscReal function phase_mobility(self)
+    !! Returns mobility of the phase.
+
+    class(phase_type), intent(in) :: self
+
+    phase_mobility = self%relative_permeability * self%density / &
+         self%viscosity
+
+  end function phase_mobility
 
 !------------------------------------------------------------------------
 ! Fluid procedures
@@ -285,6 +299,35 @@ contains
     self%phase_composition = dble(phases)
 
   end subroutine fluid_update_phase_composition
+
+!------------------------------------------------------------------------
+
+  function fluid_flow_fractions(self, eos) result(f)
+    !! Returns array containing the flow fractions for each
+    !! phase. There are in proportion to the mobility of each phase,
+    !! scaled to sum to 1.
+
+    use eos_module, only: eos_type
+
+    class(fluid_type), intent(in) :: self
+    class(eos_type), intent(in) :: eos
+    PetscReal :: f(self%num_phases)
+    ! Locals:
+    PetscInt :: p, ip, phases
+
+    phases = nint(self%phase_composition)
+
+    do p = 1, self%num_phases
+       if (btest(phases, p - 1)) then
+          ip = eos%phase_index(p)
+          f(p) = self%phase(ip)%mobility()
+       else
+          f(p) = 0._dp
+       end if
+    end do
+    f = f / sum(f)
+
+  end function fluid_flow_fractions
 
 !------------------------------------------------------------------------
 ! Fluid vector setup routine
