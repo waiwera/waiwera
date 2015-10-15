@@ -384,7 +384,7 @@ contains
     nc = self%eos%num_components
 
     call global_vec_section(y, y_section)
-    call VecGetArrayReadF90(y, y_array, ierr); CHKERRQ(ierr)
+    call VecGetArrayF90(y, y_array, ierr); CHKERRQ(ierr)
 
     call global_vec_section(self%fluid, fluid_section)
     call VecGetArrayF90(self%fluid, fluid_array, ierr); CHKERRQ(ierr)
@@ -428,7 +428,7 @@ contains
 
     call VecRestoreArrayF90(self%rock, rock_array, ierr); CHKERRQ(ierr)
     call VecRestoreArrayF90(self%fluid, fluid_array, ierr); CHKERRQ(ierr)
-    call VecRestoreArrayReadF90(y, y_array, ierr); CHKERRQ(ierr)
+    call VecRestoreArrayF90(y, y_array, ierr); CHKERRQ(ierr)
     call rock%destroy()
     call fluid%destroy()
 
@@ -538,7 +538,7 @@ contains
     nc = self%eos%num_components
 
     call global_vec_section(self%solution, primary_section)
-    call VecGetArrayReadF90(self%solution, primary_array, ierr); CHKERRQ(ierr)
+    call VecGetArrayF90(self%solution, primary_array, ierr); CHKERRQ(ierr)
 
     call global_vec_section(self%fluid, fluid_section)
     call VecGetArrayF90(self%fluid, fluid_array, ierr); CHKERRQ(ierr)
@@ -569,7 +569,7 @@ contains
     end do
 
     call VecRestoreArrayF90(self%fluid, fluid_array, ierr); CHKERRQ(ierr)
-    call VecRestoreArrayReadF90(self%solution, primary_array, ierr); CHKERRQ(ierr)
+    call VecRestoreArrayF90(self%solution, primary_array, ierr); CHKERRQ(ierr)
     call fluid%destroy()
 
   end subroutine flow_simulation_fluid_transitions
