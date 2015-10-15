@@ -62,11 +62,12 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine ode_pre_iteration(self, ierr)
+  subroutine ode_pre_iteration(self, y, ierr)
     !! Default routine to be called before each nonlinear solver
     !! iteration during solution at each time step.
 
     class(ode_type), intent(in out) :: self
+    Vec, intent(in out) :: y
     PetscErrorCode, intent(out) :: ierr
 
     ierr = 0

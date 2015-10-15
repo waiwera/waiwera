@@ -514,7 +514,7 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine flow_simulation_fluid_transitions(self, ierr)
+  subroutine flow_simulation_fluid_transitions(self, y, ierr)
     !! Checks primary variables and thermodynamic regions in all mesh
     !! cells and updates if region transitions have occurred. This is
     !! called at the start of each nonlinear solver iteration during
@@ -524,7 +524,8 @@ contains
     use fluid_module, only: fluid_type
 
     class(flow_simulation_type), intent(in out) :: self
-    PetscErrorCode, intent(out) :: ierr
+    Vec, intent(in out) :: y !! Global primary variables vector
+    PetscErrorCode, intent(out) :: ierr !! Error code
     ! Locals:
     PetscInt :: c, np, nc, ghost
     PetscSection :: primary_section, fluid_section
@@ -537,8 +538,8 @@ contains
     np = self%eos%num_primary_variables
     nc = self%eos%num_components
 
-    call global_vec_section(self%solution, primary_section)
-    call VecGetArrayF90(self%solution, primary_array, ierr); CHKERRQ(ierr)
+    call global_vec_section(y, primary_section)
+    call VecGetArrayF90(y, primary_array, ierr); CHKERRQ(ierr)
 
     call global_vec_section(self%fluid, fluid_section)
     call VecGetArrayF90(self%fluid, fluid_array, ierr); CHKERRQ(ierr)
@@ -569,7 +570,7 @@ contains
     end do
 
     call VecRestoreArrayF90(self%fluid, fluid_array, ierr); CHKERRQ(ierr)
-    call VecRestoreArrayF90(self%solution, primary_array, ierr); CHKERRQ(ierr)
+    call VecRestoreArrayF90(y, primary_array, ierr); CHKERRQ(ierr)
     call fluid%destroy()
 
   end subroutine flow_simulation_fluid_transitions

@@ -354,7 +354,7 @@ contains
     PetscErrorCode :: ierr
 
     call SNESGetApplicationContext(solver, context, ierr); CHKERRQ(ierr)
-    call context%ode%pre_iteration(ierr)
+    call context%ode%pre_iteration(context%steps%current%solution, ierr)
     SNES_pre_iteration_update = ierr
 
   end function SNES_pre_iteration_update
