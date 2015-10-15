@@ -36,6 +36,7 @@ module fluid_module
      PetscReal, pointer, public :: phase_composition   !! Phase composition
      type(phase_type), allocatable, public :: phase(:) !! Phase variables
      PetscInt, public :: num_phases !! Number of phases
+     PetscInt, allocatable, public :: phase_index(:) !! Storage index of each phase
      PetscInt, public :: num_concurrent_phases !! Number of phases that can be present at once
      PetscInt, public :: num_components !! Number of mass components
    contains
@@ -114,22 +115,21 @@ contains
 ! Fluid procedures
 !------------------------------------------------------------------------
 
-  subroutine fluid_init(self, num_components, num_phases, &
-       num_concurrent_phases)
+  subroutine fluid_init(self, num_components, phase_index)
     !! Initialises a fluid object.
     
     class(fluid_type), intent(in out) :: self
     PetscInt, intent(in) :: num_components !! Number of fluid components
-    PetscInt, intent(in) :: num_phases     !! Number of fluid phases
-    PetscInt, intent(in) :: num_concurrent_phases !! Number of phases that can be present at once
+    PetscInt, intent(in) :: phase_index(:) !! Phase storage indices
     ! Locals:
     PetscInt :: ip
 
-    self%num_phases = num_phases
-    self%num_concurrent_phases = num_concurrent_phases
+    self%phase_index = phase_index
+    self%num_phases = maxval(phase_index)
+    self%num_concurrent_phases = size(phase_index)
     self%num_components = num_components
-    allocate(self%phase(num_concurrent_phases))
-    do ip = 1, num_concurrent_phases
+    allocate(self%phase(self%num_concurrent_phases))
+    do ip = 1, self%num_concurrent_phases
        call self%phase(ip)%init(num_components)
     end do
 
@@ -185,6 +185,7 @@ contains
        call self%phase(ip)%destroy()
     end do
     deallocate(self%phase)
+    deallocate(self%phase_index)
 
   end subroutine fluid_destroy
 
@@ -206,12 +207,11 @@ contains
 
 !------------------------------------------------------------------------
 
-  function fluid_component_density(self, phase_index) result(d)
+  function fluid_component_density(self) result(d)
     !! Returns total fluid density for each mass component, over all
     !! phases.
 
     class(fluid_type), intent(in) :: self
-    PetscInt, intent(in) :: phase_index(:)
     PetscReal :: d(self%num_components)
     ! Locals:
     PetscInt :: p, ip, c, phases
@@ -221,7 +221,7 @@ contains
     d = 0._dp
     do p = 1, self%num_phases
        if (btest(phases, p - 1)) then
-          ip = phase_index(p)
+          ip = self%phase_index(p)
           ds = self%phase(ip)%density * self%phase(ip)%saturation
           do c = 1, self%num_components
              d(c) = d(c) + ds * self%phase(ip)%mass_fraction(c)
@@ -233,11 +233,10 @@ contains
 
 !------------------------------------------------------------------------
 
-  PetscReal function fluid_energy(self, phase_index) result(ef)
+  PetscReal function fluid_energy(self) result(ef)
     !! Returns total fluid energy density.
 
     class(fluid_type), intent(in) :: self
-    PetscInt, intent(in) :: phase_index(:)
     ! Locals:
     PetscInt :: p, ip, phases
     PetscReal :: ds
@@ -246,7 +245,7 @@ contains
     ef = 0._dp
     do p = 1, self%num_phases
        if (btest(phases, p - 1)) then
-          ip = phase_index(p)
+          ip = self%phase_index(p)
           ds = self%phase(ip)%density * self%phase(ip)%saturation
           ef = ef + ds * self%phase(ip)%internal_energy
        end if
@@ -256,13 +255,12 @@ contains
 
 !------------------------------------------------------------------------
 
-  function fluid_flow_fractions(self, phase_index) result(f)
+  function fluid_flow_fractions(self) result(f)
     !! Returns array containing the flow fractions for each
     !! phase. There are in proportion to the mobility of each phase,
     !! scaled to sum to 1.
 
     class(fluid_type), intent(in) :: self
-    PetscInt, intent(in) :: phase_index(:)
     PetscReal :: f(self%num_concurrent_phases)
     ! Locals:
     PetscInt :: p, ip, phases
@@ -271,7 +269,7 @@ contains
 
     do p = 1, self%num_phases
        if (btest(phases, p - 1)) then
-          ip = phase_index(p)
+          ip = self%phase_index(p)
           f(ip) = self%phase(ip)%mobility()
        else
           f(ip) = 0._dp
@@ -283,13 +281,12 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine fluid_energy_production(self, source, phase_index, isothermal)
+  subroutine fluid_energy_production(self, source, isothermal)
     !! If source array contains production, and EOS is
     !! non-isothermal, calculate associated energy production.
 
     class(fluid_type), intent(in) :: self
     PetscReal, target, intent(in out) :: source(:)
-    PetscInt, intent(in) :: phase_index(:)
     PetscBool, intent(in) :: isothermal
     ! Locals:
     PetscInt :: p, ip, np, phases, c
@@ -301,7 +298,7 @@ contains
        np = size(source)
        qenergy => source(np)
        phases = nint(self%phase_composition)
-       flow_fractions = self%flow_fractions(phase_index)
+       flow_fractions = self%flow_fractions()
 
        do c = 1, self%num_components
           q => source(c)
@@ -309,7 +306,7 @@ contains
              hc = 0._dp
              do p = 1, self%num_phases
                 if (btest(phases, p - 1)) then
-                   ip = phase_index(p)
+                   ip = self%phase_index(p)
                    hc = hc + flow_fractions(ip) * &
                         self%phase(ip)%specific_enthalpy * &
                         self%phase(ip)%mass_fraction(c)
@@ -390,7 +387,7 @@ contains
 !------------------------------------------------------------------------
 
   subroutine initialise_fluid_regions(dm, fluid, start_cell, end_cell, &
-       range_start, num_components, num_phases, num_concurrent_phases)
+       range_start, num_components, phase_index)
     !! Initialise fluid regions in each cell. For now, just assume all
     !! cells are initially region 1 (liquid).
 
@@ -401,7 +398,7 @@ contains
     PetscInt, intent(in) :: start_cell, end_cell
     PetscInt, intent(in) :: range_start
     PetscInt, intent(in) :: num_components
-    PetscInt, intent(in) :: num_phases, num_concurrent_phases
+    PetscInt, intent(in) :: phase_index(:)
     ! Locals:
     PetscSection :: fluid_section
     PetscReal, pointer :: fluid_array(:)
@@ -412,7 +409,7 @@ contains
 
     call global_vec_section(fluid, fluid_section)
     call VecGetArrayF90(fluid, fluid_array, ierr); CHKERRQ(ierr)
-    call f%init(num_components, num_phases, num_concurrent_phases)
+    call f%init(num_components, phase_index)
 
     call DMPlexGetLabel(dm, "ghost", ghost_label, ierr)
     CHKERRQ(ierr)

@@ -61,23 +61,20 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine face_init(self, num_components, num_phases, num_concurrent_phases)
+  subroutine face_init(self, num_components, phase_index)
     !! Initialises a face.
 
     class(face_type), intent(in out) :: self
     PetscInt, intent(in), optional :: num_components !! Number of fluid components
-    PetscInt, intent(in), optional :: num_phases     !! Number of fluid phases
-    PetscInt, intent(in), optional :: num_concurrent_phases !! Number of phases that can be present at once
+    PetscInt, intent(in), optional :: phase_index(:) !! Phase storage indices
     ! Locals:
     PetscInt, parameter :: num_cells = 2
     PetscInt :: i
 
     allocate(self%cell(num_cells))
-    if ((present(num_components)) .and. (present(num_phases)) .and. &
-         present(num_concurrent_phases)) then
+    if ((present(num_components)) .and. (present(phase_index))) then
        do i = 1, num_cells
-          call self%cell(i)%init(num_components, num_phases, &
-               num_concurrent_phases)
+          call self%cell(i)%init(num_components, phase_index)
        end do
     end if
 
@@ -329,13 +326,13 @@ contains
 
 !------------------------------------------------------------------------
 
-  function face_flux(self, num_primary, phase_index, gravity) result(flux)
+  function face_flux(self, num_primary, gravity) result(flux)
     !! Returns array containing the mass fluxes for each component
     !! through the face, from cell(1) to cell(2), and energy flux
     !! for non-isothermal simulations.
 
     class(face_type), intent(in) :: self
-    PetscInt, intent(in) :: num_primary, phase_index(:)
+    PetscInt, intent(in) :: num_primary
     PetscReal, intent(in) :: gravity
     PetscReal :: flux(num_primary)
     ! Locals:
@@ -370,7 +367,7 @@ contains
 
        if (btest(phase_present, p - 1)) then
 
-          ip = phase_index(p)
+          ip = self%cell(1)%fluid%phase_index(p)
           face_density = self%phase_density(ip)
           G = dpdn + face_density * gn
 

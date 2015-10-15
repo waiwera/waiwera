@@ -25,6 +25,7 @@ contains
 
     type(fluid_type) :: fluid
     PetscInt, parameter :: num_components = 2, num_phases = 2
+    PetscInt, parameter :: phase_index(num_phases) = [1, 2]
     PetscInt,  parameter :: offset = 7
     PetscReal, allocatable :: fluid_data(:)
     PetscInt :: i, ip, nc
@@ -32,7 +33,7 @@ contains
 
     if (mpi%rank == mpi%output_rank) then
 
-       call fluid%init(num_components, num_phases, num_phases)
+       call fluid%init(num_components, phase_index)
 
        allocate(fluid_data(offset-1 + fluid%dof()))
        do i = 1, size(fluid_data)
@@ -88,7 +89,7 @@ contains
 
     if (mpi%rank == mpi%output_rank) then
 
-       call fluid%init(num_components, num_phases, num_phases)
+       call fluid%init(num_components, phase_index)
 
        fluid_data = [2.7e5_dp, 130._dp, 4._dp, 3._dp, &
             935._dp, 0.0_dp, 0.8_dp, 0.0_dp, 0._dp, 5.461e5_dp, 0.7_dp, 0.3_dp, &
@@ -96,7 +97,7 @@ contains
 
        call fluid%assign(fluid_data, offset)
 
-       cd = fluid%component_density(phase_index)
+       cd = fluid%component_density()
 
        call assert_equals(expected_cd, cd, num_components, tol, "Fluid component density")
 
@@ -123,7 +124,7 @@ contains
 
     if (mpi%rank == mpi%output_rank) then
 
-       call fluid%init(num_components, num_phases, num_phases)
+       call fluid%init(num_components, phase_index)
 
        fluid_data = [2.7e5_dp, 130._dp, 4._dp, 3._dp, &
             935._dp, 0.0_dp, 0.8_dp, 0.0_dp, 0._dp, 5.461e5_dp, 0.7_dp, 0.3_dp, &
@@ -131,7 +132,7 @@ contains
 
        call fluid%assign(fluid_data, offset)
 
-       ef = fluid%energy(phase_index)
+       ef = fluid%energy()
 
        call assert_equals(expected_ef, ef, tol, "Fluid energy")
 
@@ -161,7 +162,7 @@ contains
 
     if (mpi%rank == mpi%output_rank) then
 
-       call fluid%init(num_components, num_phases, num_phases)
+       call fluid%init(num_components, phase_index)
 
        fluid_data = [3346651.871510162_dp, 240._dp, 4._dp, 3._dp, &
             813.36485916981576_dp, 0.00011105570007981882_dp, 0.8_dp, &
@@ -171,12 +172,12 @@ contains
 
        call fluid%assign(fluid_data, offset)
 
-       ff = fluid%flow_fractions(phase_index)
+       ff = fluid%flow_fractions()
        call assert_equals(expected_flow_fractions(1), ff(1), tol, "Flow fraction 1")
        call assert_equals(expected_flow_fractions(2), ff(2), tol, "Flow fraction 2")
 
        source = [-3._dp, 0._dp]
-       call fluid%energy_production(source, phase_index, isothermal)
+       call fluid%energy_production(source, isothermal)
 
        call assert_equals(expected_production, source(num_components + 1), &
             tol, "Energy production")

@@ -41,16 +41,14 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine cell_init(self, num_components, num_phases, &
-       num_concurrent_phases)
+  subroutine cell_init(self, num_components, phase_index)
     !! Initialises a cell.
 
     class(cell_type), intent(in out) :: self
     PetscInt, intent(in) :: num_components !! Number of fluid components
-    PetscInt, intent(in) :: num_phases     !! Number of fluid phases
-    PetscInt, intent(in) :: num_concurrent_phases !! Number of phases that can be present at once
+    PetscInt, intent(in) :: phase_index(:) !! Phase storage indices
 
-    call self%fluid%init(num_components, num_phases, num_concurrent_phases)
+    call self%fluid%init(num_components, phase_index)
 
   end subroutine cell_init
 
@@ -110,13 +108,13 @@ contains
 
 !------------------------------------------------------------------------
 
-  function cell_balance(self, num_primary, phase_index) result(balance)
+  function cell_balance(self, num_primary) result(balance)
     !! Returns array containing mass balance (per unit volume) for each
     !! mass component in the cell, and energy balance for non-isothermal
     !! simulations.
 
     class(cell_type), intent(in) :: self
-    PetscInt, intent(in) :: num_primary, phase_index(:)
+    PetscInt, intent(in) :: num_primary
     PetscReal :: balance(num_primary)
     ! Locals:
     PetscInt :: nc
@@ -128,12 +126,12 @@ contains
 
     ! Mass balances:
     balance(1: nc) = self%rock%porosity * &
-         self%fluid%component_density(phase_index)
+         self%fluid%component_density()
 
     if (.not. isothermal) then
        ! Energy balance:
        er = self%rock%energy(self%fluid%temperature)
-       ef = self%fluid%energy(phase_index)
+       ef = self%fluid%energy()
        balance(num_primary) = self%rock%porosity * ef + &
             (1._dp - self%rock%porosity) * er
     end if

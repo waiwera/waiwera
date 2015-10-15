@@ -246,8 +246,8 @@ contains
 
     if (mpi%rank == mpi%output_rank) then
 
-       call face%init(nc, np, np)
-       call fluid%init(nc, np, np)
+       call face%init(nc, phase_index)
+       call fluid%init(nc, phase_index)
        allocate(face_data(face%dof()), cell_data(cell%dof()))
        allocate(rock_data(rock%dof()), fluid_data(fluid%dof()))
        allocate(flux(num_primary))
@@ -269,7 +269,7 @@ contains
        call face%assign(face_data, face_offset, cell_data, cell_offsets, &
             rock_data, rock_offsets, fluid_data, fluid_offsets)
 
-       flux = face%flux(num_primary, phase_index, gravity)
+       flux = face%flux(num_primary, gravity)
 
        call assert_equals(num_primary, size(flux), "Flux array size")
        call assert_equals(expected_mass_flux, flux(1), tol, "Mass flux")
@@ -313,8 +313,8 @@ contains
 
     if (mpi%rank == mpi%output_rank) then
 
-       call face%init(nc, np, np)
-       call fluid%init(nc, np, np)
+       call face%init(nc, phase_index)
+       call fluid%init(nc, phase_index)
        allocate(face_data(face%dof()), cell_data(cell%dof()))
        allocate(rock_data(rock%dof()), fluid_data(fluid%dof()))
        allocate(flux(num_primary))
@@ -336,7 +336,7 @@ contains
        call face%assign(face_data, face_offset, cell_data, cell_offsets, &
             rock_data, rock_offsets, fluid_data, fluid_offsets)
 
-       flux = face%flux(num_primary, phase_index, gravity)
+       flux = face%flux(num_primary, gravity)
 
        call assert_equals(expected_mass_flux, flux(1), mass_tol, "Mass flux")
        call assert_equals(expected_heat_flux, flux(2), heat_tol, "Heat flux")
@@ -379,8 +379,8 @@ contains
 
     if (mpi%rank == mpi%output_rank) then
 
-       call face%init(nc, np, np)
-       call fluid%init(nc, np, np)
+       call face%init(nc, phase_index)
+       call fluid%init(nc, phase_index)
        allocate(face_data(face%dof()), cell_data(cell%dof()))
        allocate(rock_data(rock%dof()), fluid_data(fluid%dof()*2))
        allocate(flux(num_primary))
@@ -405,7 +405,7 @@ contains
        call face%assign(face_data, face_offset, cell_data, cell_offsets, &
             rock_data, rock_offsets, fluid_data, fluid_offsets)
 
-       flux = face%flux(num_primary, phase_index, gravity)
+       flux = face%flux(num_primary, gravity)
 
        call assert_equals(expected_mass_flux, flux(1), mass_tol, "Mass flux")
        call assert_equals(expected_heat_flux, flux(2), heat_tol, "Heat flux")
@@ -450,8 +450,8 @@ contains
 
     if (mpi%rank == mpi%output_rank) then
 
-       call face%init(nc, np, np)
-       call fluid%init(nc, np, np)
+       call face%init(nc, phase_index)
+       call fluid%init(nc, phase_index)
        allocate(face_data(face%dof()), cell_data(cell%dof()))
        allocate(rock_data(rock%dof() * 2), fluid_data(fluid%dof() * 2))
        allocate(flux(num_primary))
@@ -486,7 +486,7 @@ contains
        call assert_equals(expected_liquid_density, density, density_tol, "Liquid density")
        density = face%phase_density(2)
        call assert_equals(expected_vapour_density, density, density_tol, "Vapour density")
-       flux = face%flux(num_primary, phase_index, gravity)
+       flux = face%flux(num_primary, gravity)
 
        call assert_equals(expected_mass_flux, flux(1), mass_tol, "Mass flux")
        call assert_equals(expected_heat_flux, flux(2), heat_tol, "Heat flux")
