@@ -267,12 +267,11 @@ contains
 
     phases = nint(self%phase_composition)
 
+    f = 0._dp
     do p = 1, self%num_phases
        if (btest(phases, p - 1)) then
           ip = self%phase_index(p)
           f(ip) = self%phase(ip)%mobility()
-       else
-          f(ip) = 0._dp
        end if
     end do
     f = f / sum(f)
