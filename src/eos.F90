@@ -527,7 +527,6 @@ contains
 
        ip = self%phase_index(p)
        fluid%phase(ip)%saturation = saturation(p)
-       fluid%phase(ip)%mass_fraction(1) = 1._dp
 
        if (btest(phases, p - 1)) then
 
@@ -541,6 +540,7 @@ contains
                fluid%phase(ip)%internal_energy + &
                fluid%pressure / fluid%phase(ip)%density
 
+          fluid%phase(ip)%mass_fraction(1) = 1._dp
           fluid%phase(ip)%relative_permeability = relative_permeability(p)
 
           call self%thermo%region(p)%ptr%viscosity( &
@@ -553,6 +553,7 @@ contains
           fluid%phase(ip)%specific_enthalpy = 0._dp
           fluid%phase(ip)%relative_permeability = 0._dp
           fluid%phase(ip)%viscosity = 0._dp
+          fluid%phase(ip)%mass_fraction(1) = 0._dp
        end if
 
     end do
