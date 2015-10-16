@@ -14,7 +14,7 @@ module flow_simulation_module
 #include <petsc/finclude/petsc.h90>
 
   PetscInt, parameter, public :: max_title_length = 120
-  PetscInt, parameter, public :: max_output_filename_length = 200
+  PetscInt, parameter :: max_output_filename_length = 200
 
   type, public, extends(ode_type) :: flow_simulation_type
      !! Simulation type.
@@ -33,6 +33,8 @@ module flow_simulation_module
    contains
      private
      procedure :: setup_solution_vector => flow_simulation_setup_solution_vector
+     procedure :: setup_output => flow_simulation_setup_output
+     procedure :: destroy_output => flow_simulation_destroy_output
      procedure, public :: init => flow_simulation_init
      procedure, public :: destroy => flow_simulation_destroy
      procedure, public :: lhs => flow_simulation_cell_balances
@@ -65,6 +67,45 @@ contains
 
 !------------------------------------------------------------------------
 
+  subroutine flow_simulation_setup_output(self, json)
+    !! Sets up simulation output.
+
+    use mpi_module
+    use fson
+    use fson_mpi_module
+
+    class(flow_simulation_type), intent(in out) :: self
+    type(fson_value), pointer, intent(in) :: json
+    ! Locals:
+    character(len = max_output_filename_length), parameter :: &
+         default_output_filename = "output.h5"
+    PetscErrorCode :: ierr
+
+    call fson_get_mpi(json, "output.filename", default_output_filename, &
+         self%output_filename)
+    call PetscViewerHDF5Open(mpi%comm, self%output_filename, &
+         FILE_MODE_WRITE, self%hdf5_viewer, ierr); CHKERRQ(ierr)
+    call PetscViewerHDF5PushGroup(self%hdf5_viewer, "/", ierr)
+    CHKERRQ(ierr)
+
+  end subroutine flow_simulation_setup_output
+
+!------------------------------------------------------------------------
+
+  subroutine flow_simulation_destroy_output(self)
+    !! Finalizes simulation output.
+
+    class(flow_simulation_type), intent(in out) :: self
+    ! Locals:
+    PetscErrorCode :: ierr
+
+    call PetscViewerHDF5PopGroup(self%hdf5_viewer, ierr); CHKERRQ(ierr)
+    call PetscViewerDestroy(self%hdf5_viewer, ierr); CHKERRQ(ierr)
+
+  end subroutine flow_simulation_destroy_output
+
+!------------------------------------------------------------------------
+
   subroutine flow_simulation_init(self, json)
     !! Initializes a flow simulation using data from the specified JSON object.
 
@@ -83,8 +124,6 @@ contains
     type(fson_value), pointer, intent(in) :: json
     ! Locals:
     character(len = max_title_length), parameter :: default_title = ""
-    character(len = max_output_filename_length), parameter :: &
-         default_output_filename = "output.h5"
     PetscReal, parameter :: default_gravity = 9.8_dp
 
     call fson_get_mpi(json, "title", default_title, self%title)
@@ -109,14 +148,7 @@ contains
     call setup_source_vector(json, self%mesh%dm, &
          self%eos%num_primary_variables, self%eos%isothermal, self%source)
     call fson_get_mpi(json, "gravity", default_gravity, self%gravity)
-
-    call fson_get_mpi(json, "output.filename", default_output_filename, &
-         self%output_filename)
-    call PetscViewerHDF5Open(mpi%comm, self%output_filename, &
-         FILE_MODE_WRITE, self%hdf5_viewer, ierr); CHKERRQ(ierr)
-    call PetscViewerHDF5PushGroup(self%hdf5_viewer, "/", ierr)
-
-    CHKERRQ(ierr)
+    call self%setup_output(json)
 
   end subroutine flow_simulation_init
 
@@ -129,8 +161,7 @@ contains
     ! Locals:
     PetscErrorCode :: ierr
 
-    call PetscViewerHDF5PopGroup(self%hdf5_viewer, ierr); CHKERRQ(ierr)
-    call PetscViewerDestroy(self%hdf5_viewer, ierr); CHKERRQ(ierr)
+    call self%destroy_output()
 
     call VecDestroy(self%solution, ierr); CHKERRQ(ierr)
     call VecDestroy(self%fluid, ierr); CHKERRQ(ierr)
