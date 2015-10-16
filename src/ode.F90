@@ -45,10 +45,20 @@ module ode_module
        Vec, intent(out) :: rhs
      end subroutine rhs_function
 
-     subroutine ode_output_procedure(self)
+     subroutine pre_eval_procedure(self, t, y)
+       !! Optional routine to be called before each evaluation
+       !! of LHS and RHS functions.
+       import :: ode_type
+       class(ode_type), intent(in out) :: self
+       PetscReal, intent(in) :: t
+       Vec, intent(in) :: y
+     end subroutine pre_eval_procedure
+
+     subroutine ode_output_procedure(self, time_index)
        !! Routine for output of ode solution.
        import :: ode_type
        class(ode_type), intent(in out) :: self
+       PetscInt, intent(in) :: time_index
      end subroutine ode_output_procedure
 
   end interface

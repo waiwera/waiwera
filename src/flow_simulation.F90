@@ -14,6 +14,7 @@ module flow_simulation_module
 #include <petsc/finclude/petsc.h90>
 
   PetscInt, parameter, public :: max_title_length = 120
+  PetscInt, parameter, public :: max_output_filename_length = 200
 
   type, public, extends(ode_type) :: flow_simulation_type
      !! Simulation type.
@@ -27,6 +28,8 @@ module flow_simulation_module
      class(eos_type), allocatable, public :: eos
      PetscReal, public :: gravity
      class(relative_permeability_type), allocatable, public :: relative_permeability
+     character(max_output_filename_length), public :: output_filename
+     PetscViewer :: hdf5_viewer
    contains
      private
      procedure :: setup_solution_vector => flow_simulation_setup_solution_vector
@@ -80,6 +83,8 @@ contains
     type(fson_value), pointer, intent(in) :: json
     ! Locals:
     character(len = max_title_length), parameter :: default_title = ""
+    character(len = max_output_filename_length), parameter :: &
+         default_output_filename = "output.h5"
     PetscReal, parameter :: default_gravity = 9.8_dp
 
     call fson_get_mpi(json, "title", default_title, self%title)
@@ -105,6 +110,14 @@ contains
          self%eos%num_primary_variables, self%eos%isothermal, self%source)
     call fson_get_mpi(json, "gravity", default_gravity, self%gravity)
 
+    call fson_get_mpi(json, "output.filename", default_output_filename, &
+         self%output_filename)
+    call PetscViewerHDF5Open(mpi%comm, self%output_filename, &
+         FILE_MODE_WRITE, self%hdf5_viewer, ierr); CHKERRQ(ierr)
+    call PetscViewerHDF5PushGroup(self%hdf5_viewer, "/", ierr)
+
+    CHKERRQ(ierr)
+
   end subroutine flow_simulation_init
 
 !------------------------------------------------------------------------
@@ -115,6 +128,9 @@ contains
     class(flow_simulation_type), intent(in out) :: self
     ! Locals:
     PetscErrorCode :: ierr
+
+    call PetscViewerHDF5PopGroup(self%hdf5_viewer, ierr); CHKERRQ(ierr)
+    call PetscViewerDestroy(self%hdf5_viewer, ierr); CHKERRQ(ierr)
 
     call VecDestroy(self%solution, ierr); CHKERRQ(ierr)
     call VecDestroy(self%fluid, ierr); CHKERRQ(ierr)
@@ -577,18 +593,20 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine flow_simulation_output(self)
+  subroutine flow_simulation_output(self, time_index)
     !! Output from flow simulation.
 
     use mpi_module
 
     class(flow_simulation_type), intent(in out) :: self
+    PetscInt, intent(in) :: time_index
     ! Locals:
     PetscViewer :: viewer
     PetscErrorCode :: ierr
 
-    call VecView(self%solution, PETSC_VIEWER_STDOUT_WORLD, ierr)
-    CHKERRQ(ierr)
+    call PetscViewerHDF5SetTimestep(self%hdf5_viewer, time_index-1, &
+         ierr); CHKERRQ(ierr)
+    call VecView(self%solution, self%hdf5_viewer, ierr); CHKERRQ(ierr)
 
     call PetscViewerCreate(mpi%comm, viewer, ierr); CHKERRQ(ierr)
     call PetscViewerSetType(viewer, PETSCVIEWERVTK, ierr); CHKERRQ(ierr)
