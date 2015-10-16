@@ -72,6 +72,7 @@ contains
 
     use mpi_module
     use fson
+    use fson_value_m, only : TYPE_LOGICAL
     use fson_mpi_module
 
     class(flow_simulation_type), intent(in out) :: self
@@ -80,13 +81,25 @@ contains
     character(len = max_output_filename_length), parameter :: &
          default_output_filename = "output.h5"
     PetscErrorCode :: ierr
+    PetscBool :: output
 
-    call fson_get_mpi(json, "output.filename", default_output_filename, &
-         self%output_filename)
-    call PetscViewerHDF5Open(mpi%comm, self%output_filename, &
-         FILE_MODE_WRITE, self%hdf5_viewer, ierr); CHKERRQ(ierr)
-    call PetscViewerHDF5PushGroup(self%hdf5_viewer, "/", ierr)
-    CHKERRQ(ierr)
+    output = .true.
+    if (fson_has_mpi(json, "output")) then
+       if (fson_type_mpi(json, "output") == TYPE_LOGICAL) then
+          call fson_get_mpi(json, "output", val = output)
+       end if
+    end if
+
+    if (output) then
+       call fson_get_mpi(json, "output.filename", default_output_filename, &
+            self%output_filename)
+       call PetscViewerHDF5Open(mpi%comm, self%output_filename, &
+            FILE_MODE_WRITE, self%hdf5_viewer, ierr); CHKERRQ(ierr)
+       call PetscViewerHDF5PushGroup(self%hdf5_viewer, "/", ierr)
+       CHKERRQ(ierr)
+    else
+       self%output_filename = ""
+    end if
 
   end subroutine flow_simulation_setup_output
 
@@ -99,8 +112,10 @@ contains
     ! Locals:
     PetscErrorCode :: ierr
 
-    call PetscViewerHDF5PopGroup(self%hdf5_viewer, ierr); CHKERRQ(ierr)
-    call PetscViewerDestroy(self%hdf5_viewer, ierr); CHKERRQ(ierr)
+    if (self%output_filename /= "") then
+       call PetscViewerHDF5PopGroup(self%hdf5_viewer, ierr); CHKERRQ(ierr)
+       call PetscViewerDestroy(self%hdf5_viewer, ierr); CHKERRQ(ierr)
+    end if
 
   end subroutine flow_simulation_destroy_output
 

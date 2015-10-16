@@ -32,5 +32,6 @@
             "maximum": {"number": 15, "size": null }
         }, 
         "stop": 1000.0
-    }
+    },
+    "output": false
 }
