@@ -225,7 +225,7 @@ contains
 
     class(timestepper_type), intent(in out) :: self
 
-    if (mpi%rank == mpi%output_rank) then
+    if ((mpi%rank == mpi%output_rank) .and. (self%steps%taken > 0)) then
        write(*, '(a, i4)'), 'step:', self%steps%taken
        call self%steps%current%print()
     end if
@@ -1145,6 +1145,9 @@ end subroutine timestepper_steps_set_next_stepsize
 
     self%steps%taken = 0
     call self%initial_function_calls()
+    if (associated(self%step_output)) then
+       call self%step_output()
+    end if
 
     do while (.not. self%steps%finished)
        call self%step()
