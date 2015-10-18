@@ -220,11 +220,12 @@ contains
     call VecSet(v, 0._dp, ierr); CHKERRQ(ierr)
   end subroutine exact_test_ode
 
-  subroutine output_test_ode(self, time_index)
+  subroutine output_test_ode(self, time_index, time)
     ! Output from test ode- compute difference betweeen solution and
     ! exact solution.
     class(test_ode_type), intent(in out) :: self
     PetscInt, intent(in) :: time_index
+    PetscReal, intent(in) :: time
     ! Locals:
     PetscReal, pointer :: y(:), yex(:), diffa(:)
     PetscErrorCode :: ierr
@@ -735,7 +736,7 @@ contains
 
     class(timestepper_type), intent(in out) :: self
 
-    call self%ode%output(self%steps%taken)
+    call self%ode%output(self%steps%taken, self%steps%current%time)
 
   end subroutine timestepper_step_output
 

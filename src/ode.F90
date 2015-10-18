@@ -54,11 +54,12 @@ module ode_module
        Vec, intent(in) :: y
      end subroutine pre_eval_procedure
 
-     subroutine ode_output_procedure(self, time_index)
+     subroutine ode_output_procedure(self, time_index, time)
        !! Routine for output of ode solution.
        import :: ode_type
        class(ode_type), intent(in out) :: self
        PetscInt, intent(in) :: time_index
+       PetscReal, intent(in) :: time
      end subroutine ode_output_procedure
 
   end interface

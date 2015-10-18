@@ -229,7 +229,7 @@ contains
        write(*, '(a, i4)'), 'step:', self%steps%taken
        call self%steps%current%print()
     end if
-    call self%ode%output(self%steps%taken)
+    call self%ode%output(self%steps%taken, self%steps%current%time)
 
   end subroutine step_output_default
 

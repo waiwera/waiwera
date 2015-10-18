@@ -639,18 +639,19 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine flow_simulation_output(self, time_index)
+  subroutine flow_simulation_output(self, time_index, time)
     !! Output from flow simulation.
 
     use mpi_module
 
     class(flow_simulation_type), intent(in out) :: self
     PetscInt, intent(in) :: time_index
+    PetscReal, intent(in) :: time
     ! Locals:
     PetscViewer :: viewer
     PetscErrorCode :: ierr
 
-    call PetscViewerHDF5SetTimestep(self%hdf5_viewer, time_index-1, &
+    call DMSetOutputSequenceNumber(self%mesh%dm, time_index, time, &
          ierr); CHKERRQ(ierr)
     call VecView(self%solution, self%hdf5_viewer, ierr); CHKERRQ(ierr)
 
