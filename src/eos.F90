@@ -17,15 +17,17 @@ module eos_module
 #include <petsc/finclude/petscdef.h>
 
   PetscInt, parameter, public :: max_eos_name_length = 8
-  PetscInt, parameter, public :: max_eos_descrption_length = 80
+  PetscInt, parameter, public :: max_eos_description_length = 80
   PetscInt, parameter, public :: max_primary_variable_name_length = 16
+  PetscInt, parameter, public :: max_phase_name_length = 13
 
   type, public, abstract :: eos_type
      !! Abstract type for equation of state (EOS) objects.
      private
      character(max_eos_name_length), public :: name
-     character(max_eos_descrption_length), public :: descrption
+     character(max_eos_description_length), public :: description
      character(max_primary_variable_name_length), allocatable, public :: primary_variable_names(:)
+     character(max_phase_name_length), allocatable, public :: phase_names(:)
      PetscInt, public :: num_primary_variables
      PetscInt, public :: num_phases
      PetscInt, public :: num_components
@@ -180,11 +182,12 @@ contains
     PetscReal, parameter :: default_temperature = 20._dp ! deg C
 
     self%name = "w"
-    self%descrption = "Isothermal pure water"
+    self%description = "Isothermal pure water"
     self%primary_variable_names = ["Pressure"]
 
     self%num_primary_variables = size(self%primary_variable_names)
     self%num_phases = 1
+    self%phase_names = ["Liquid"]
     self%num_components = 1
     self%isothermal = .true.
 
@@ -202,7 +205,7 @@ contains
 
     class(eos_w_type), intent(in out) :: self
 
-    deallocate(self%primary_variable_names)
+    deallocate(self%primary_variable_names, self%phase_names)
     nullify(self%thermo)
 
   end subroutine eos_w_destroy
@@ -316,11 +319,12 @@ contains
     class(thermodynamics_type), intent(in), target :: thermo !! Thermodynamics object
 
     self%name = "we"
-    self%descrption = "Pure water and energy"
+    self%description = "Pure water and energy"
     self%primary_variable_names = ["Pressure   ", "Temperature"]
 
     self%num_primary_variables = size(self%primary_variable_names)
     self%num_phases = 2
+    self%phase_names = ["Liquid", "Vapour"]
     self%num_components = 1
 
     self%thermo => thermo
