@@ -345,8 +345,8 @@ contains
 !------------------------------------------------------------------------
 
   subroutine setup_fluid_vector(dm, num_concurrent_phases, num_components, &
-       fluid, range_start)
-    !! Sets up global vector for fluid properties, with specified
+       fluid, range_start, fluid_dm)
+    !! Sets up global vector and DM for fluid properties, with specified
     !! numbers of components and phases.
 
     use dm_utils_module, only: set_dm_data_layout, global_vec_range_start
@@ -355,10 +355,10 @@ contains
     PetscInt, intent(in) :: num_concurrent_phases, num_components
     Vec, intent(out) :: fluid
     PetscInt, intent(out) :: range_start
+    DM, intent(out) :: fluid_dm
     ! Locals:
     PetscInt :: num_vars
     PetscInt, allocatable :: num_field_components(:), field_dim(:)
-    DM :: dm_fluid
     PetscErrorCode :: ierr
 
     num_vars = num_fluid_variables + num_concurrent_phases * &
@@ -370,16 +370,15 @@ contains
     num_field_components = 1
     field_dim = 3
 
-    call DMClone(dm, dm_fluid, ierr); CHKERRQ(ierr)
+    call DMClone(dm, fluid_dm, ierr); CHKERRQ(ierr)
 
-    call set_dm_data_layout(dm_fluid, num_field_components, field_dim)
+    call set_dm_data_layout(fluid_dm, num_field_components, field_dim)
 
-    call DMCreateGlobalVector(dm_fluid, fluid, ierr); CHKERRQ(ierr)
+    call DMCreateGlobalVector(fluid_dm, fluid, ierr); CHKERRQ(ierr)
     call PetscObjectSetName(fluid, "fluid", ierr); CHKERRQ(ierr)
     call global_vec_range_start(fluid, range_start)
 
     deallocate(num_field_components, field_dim)
-    call DMDestroy(dm_fluid, ierr); CHKERRQ(ierr)
 
   end subroutine setup_fluid_vector
 
