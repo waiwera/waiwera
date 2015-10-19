@@ -59,7 +59,6 @@ contains
     type(fluid_type) :: fluid
     type(rock_type) :: rock
     PetscInt, parameter :: num_components = 1, num_phases = 1
-    PetscInt, parameter :: phase_index(num_phases) = [1]
     PetscInt,  parameter :: offset = 1, region = 1, phase_composition = b'01'
     PetscReal, allocatable :: fluid_data(:)
     PetscReal :: primary(num_components)
@@ -77,7 +76,7 @@ contains
     call thermo%init()
     call eos%init(json, thermo)
 
-    call fluid%init(num_components, phase_index)
+    call fluid%init(num_components, num_phases)
     allocate(fluid_data(fluid%dof()))
     fluid_data = 0._dp
     call fluid%assign(fluid_data, offset)
@@ -127,7 +126,6 @@ contains
     type(fluid_type) :: fluid
     type(rock_type) :: rock
     PetscInt, parameter :: num_components = 1, num_phases = 2
-    PetscInt, parameter :: phase_index(num_phases) = [1, 2]
     PetscInt,  parameter :: offset = 1, region = 4, phase_composition = b'011'
     PetscReal, allocatable :: fluid_data(:)
     PetscReal :: primary(num_components + 1)
@@ -157,7 +155,7 @@ contains
     call eos%init(json, thermo)
     call setup_relative_permeabilities(json, rp)
 
-    call fluid%init(num_components, phase_index)
+    call fluid%init(num_components, num_phases)
     allocate(fluid_data(fluid%dof()))
     fluid_data = 0._dp
     call fluid%assign(fluid_data, offset)
@@ -227,7 +225,6 @@ contains
 
     type(fluid_type) :: fluid
     PetscInt, parameter :: num_components = 1, num_phases = 2
-    PetscInt, parameter :: phase_index(num_phases) = [1, 2]
     PetscInt,  parameter :: offset = 1
     PetscReal, allocatable :: fluid_data(:)
     PetscReal :: primary(2), expected_primary(2), temperature
@@ -242,7 +239,7 @@ contains
     json => fson_parse_mpi(str = json_str)
     call thermo%init()
     call eos%init(json, thermo)
-    call fluid%init(num_components, phase_index)
+    call fluid%init(num_components, num_phases)
     allocate(fluid_data(fluid%dof()))
     fluid_data = 0._dp
     call fluid%assign(fluid_data, offset)

@@ -17,18 +17,17 @@ module eos_module
 #include <petsc/finclude/petscdef.h>
 
   PetscInt, parameter, public :: max_eos_name_length = 8
-  PetscInt, parameter, public :: max_eos_description_length = 80
+  PetscInt, parameter, public :: max_eos_descrption_length = 80
   PetscInt, parameter, public :: max_primary_variable_name_length = 16
 
   type, public, abstract :: eos_type
      !! Abstract type for equation of state (EOS) objects.
      private
      character(max_eos_name_length), public :: name
-     character(max_eos_description_length), public :: description
+     character(max_eos_descrption_length), public :: descrption
      character(max_primary_variable_name_length), allocatable, public :: primary_variable_names(:)
-     PetscInt, allocatable, public :: phase_index(:)
      PetscInt, public :: num_primary_variables
-     PetscInt, public :: num_phases, num_concurrent_phases
+     PetscInt, public :: num_phases
      PetscInt, public :: num_components
      PetscBool, public :: isothermal = .false.
      class(thermodynamics_type), pointer, public :: thermo
@@ -181,13 +180,11 @@ contains
     PetscReal, parameter :: default_temperature = 20._dp ! deg C
 
     self%name = "w"
-    self%description = "Isothermal pure water"
+    self%descrption = "Isothermal pure water"
     self%primary_variable_names = ["Pressure"]
 
     self%num_primary_variables = size(self%primary_variable_names)
     self%num_phases = 1
-    self%phase_index = [1]
-    self%num_concurrent_phases = 1
     self%num_components = 1
     self%isothermal = .true.
 
@@ -206,7 +203,6 @@ contains
     class(eos_w_type), intent(in out) :: self
 
     deallocate(self%primary_variable_names)
-    deallocate(self%phase_index)
     nullify(self%thermo)
 
   end subroutine eos_w_destroy
@@ -278,31 +274,31 @@ contains
     type(rock_type), intent(in out) :: rock !! Rock object
     type(fluid_type), intent(in out) :: fluid !! Fluid object
     ! Locals:
-    PetscInt :: region, phases, ip, ierr
+    PetscInt :: region, phases, p, ierr
     PetscReal :: properties(2)
 
     region = nint(fluid%region)
     phases = nint(fluid%phase_composition)
 
-    ip = self%phase_index(phases)
+    p = region
 
     call self%thermo%region(region)%ptr%properties( &
          [fluid%pressure, fluid%temperature], &
          properties, ierr)
 
-    fluid%phase(ip)%density = properties(1)
-    fluid%phase(ip)%internal_energy = properties(2)
-    fluid%phase(ip)%specific_enthalpy = &
-         fluid%phase(ip)%internal_energy + &
-         fluid%pressure / fluid%phase(ip)%density
+    fluid%phase(p)%density = properties(1)
+    fluid%phase(p)%internal_energy = properties(2)
+    fluid%phase(p)%specific_enthalpy = &
+         fluid%phase(p)%internal_energy + &
+         fluid%pressure / fluid%phase(p)%density
 
-    fluid%phase(ip)%saturation = 1._dp
-    fluid%phase(ip)%relative_permeability = 1._dp
-    fluid%phase(ip)%mass_fraction(1) = 1._dp
+    fluid%phase(p)%saturation = 1._dp
+    fluid%phase(p)%relative_permeability = 1._dp
+    fluid%phase(p)%mass_fraction(1) = 1._dp
 
     call self%thermo%region(region)%ptr%viscosity( &
          fluid%temperature, fluid%pressure, &
-         fluid%phase(ip)%density, fluid%phase(ip)%viscosity)
+         fluid%phase(p)%density, fluid%phase(p)%viscosity)
 
   end subroutine eos_w_phase_properties
 
@@ -320,13 +316,11 @@ contains
     class(thermodynamics_type), intent(in), target :: thermo !! Thermodynamics object
 
     self%name = "we"
-    self%description = "Pure water and energy"
+    self%descrption = "Pure water and energy"
     self%primary_variable_names = ["Pressure   ", "Temperature"]
 
     self%num_primary_variables = size(self%primary_variable_names)
     self%num_phases = 2
-    self%phase_index = [1, 2]
-    self%num_concurrent_phases = 2
     self%num_components = 1
 
     self%thermo => thermo
@@ -514,7 +508,7 @@ contains
     type(rock_type), intent(in out) :: rock !! Rock object
     type(fluid_type), intent(in out) :: fluid !! Fluid object
     ! Locals:
-    PetscInt :: p, ip, ierr, phases, region
+    PetscInt :: p, ierr, phases, region
     PetscReal :: properties(2), saturation(2), relative_permeability(2)
 
     region = nint(fluid%region)
@@ -525,8 +519,7 @@ contains
 
     do p = 1, self%num_phases
 
-       ip = self%phase_index(p)
-       fluid%phase(ip)%saturation = saturation(p)
+       fluid%phase(p)%saturation = saturation(p)
 
        if (btest(phases, p - 1)) then
 
@@ -534,26 +527,26 @@ contains
                [fluid%pressure, fluid%temperature], &
                properties, ierr)
 
-          fluid%phase(ip)%density = properties(1)
-          fluid%phase(ip)%internal_energy = properties(2)
-          fluid%phase(ip)%specific_enthalpy = &
-               fluid%phase(ip)%internal_energy + &
-               fluid%pressure / fluid%phase(ip)%density
+          fluid%phase(p)%density = properties(1)
+          fluid%phase(p)%internal_energy = properties(2)
+          fluid%phase(p)%specific_enthalpy = &
+               fluid%phase(p)%internal_energy + &
+               fluid%pressure / fluid%phase(p)%density
 
-          fluid%phase(ip)%mass_fraction(1) = 1._dp
-          fluid%phase(ip)%relative_permeability = relative_permeability(p)
+          fluid%phase(p)%mass_fraction(1) = 1._dp
+          fluid%phase(p)%relative_permeability = relative_permeability(p)
 
           call self%thermo%region(p)%ptr%viscosity( &
                fluid%temperature, fluid%pressure, &
-               fluid%phase(ip)%density, fluid%phase(ip)%viscosity)
+               fluid%phase(p)%density, fluid%phase(p)%viscosity)
 
        else
-          fluid%phase(ip)%density = 0._dp
-          fluid%phase(ip)%internal_energy = 0._dp
-          fluid%phase(ip)%specific_enthalpy = 0._dp
-          fluid%phase(ip)%relative_permeability = 0._dp
-          fluid%phase(ip)%viscosity = 0._dp
-          fluid%phase(ip)%mass_fraction(1) = 0._dp
+          fluid%phase(p)%density = 0._dp
+          fluid%phase(p)%internal_energy = 0._dp
+          fluid%phase(p)%specific_enthalpy = 0._dp
+          fluid%phase(p)%relative_permeability = 0._dp
+          fluid%phase(p)%viscosity = 0._dp
+          fluid%phase(p)%mass_fraction(1) = 0._dp
        end if
 
     end do

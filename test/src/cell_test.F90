@@ -24,7 +24,6 @@ contains
 
     type(cell_type) :: cell
     PetscInt, parameter :: num_components = 1, num_phases = 2
-    PetscInt, parameter :: phase_index(num_phases) = [1, 2]
     PetscReal, parameter :: volume = 1.e3_dp
     PetscReal, parameter :: centroid(3) = [20._dp, 30._dp, 75._dp]
     PetscInt, parameter :: offset = 6
@@ -36,7 +35,7 @@ contains
 
        cell_data = [offset_padding, centroid, volume]
 
-       call cell%init(num_components, phase_index)
+       call cell%init(num_components, num_phases)
 
        call assert_equals(cell%dof(), size(cell_data) - (offset-1), "cell dof")
 
@@ -62,7 +61,6 @@ contains
     PetscInt, parameter :: rock_offset = 1, fluid_offset = 1
     PetscInt, parameter :: num_components = 2, num_phases = 2
     PetscInt, parameter :: num_primary = 3
-    PetscInt, parameter :: phase_index(num_phases) = [1, 2]
     PetscReal :: bal(num_primary)
     PetscReal, parameter :: expected_bal(num_components + 1) = &
          [52.372_dp, 22.458_dp, 2.8545448e8_dp]
@@ -75,7 +73,7 @@ contains
             935._dp, 0.0_dp, 0.8_dp, 0.0_dp, 0._dp, 5.461e5_dp, 0.7_dp, 0.3_dp, &
             1.5_dp,  0.0_dp, 0.2_dp, 0.0_dp, 0._dp, 2.540e6_dp, 0.4_dp, 0.6_dp]
 
-       call cell%init(num_components, phase_index)
+       call cell%init(num_components, num_phases)
 
        call cell%assign(rock_data = rock_data, rock_offset = rock_offset, &
             fluid_data = fluid_data, fluid_offset = fluid_offset)

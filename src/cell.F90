@@ -41,14 +41,14 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine cell_init(self, num_components, phase_index)
+  subroutine cell_init(self, num_components, num_phases)
     !! Initialises a cell.
 
     class(cell_type), intent(in out) :: self
     PetscInt, intent(in) :: num_components !! Number of fluid components
-    PetscInt, intent(in) :: phase_index(:) !! Phase storage indices
+    PetscInt, intent(in) :: num_phases  !! Number of fluid phases
 
-    call self%fluid%init(num_components, phase_index)
+    call self%fluid%init(num_components, num_phases)
 
   end subroutine cell_init
 

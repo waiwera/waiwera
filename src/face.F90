@@ -61,20 +61,20 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine face_init(self, num_components, phase_index)
+  subroutine face_init(self, num_components, num_phases)
     !! Initialises a face.
 
     class(face_type), intent(in out) :: self
     PetscInt, intent(in), optional :: num_components !! Number of fluid components
-    PetscInt, intent(in), optional :: phase_index(:) !! Phase storage indices
+    PetscInt, intent(in), optional :: num_phases !! Number of fluid phases
     ! Locals:
     PetscInt, parameter :: num_cells = 2
     PetscInt :: i
 
     allocate(self%cell(num_cells))
-    if ((present(num_components)) .and. (present(phase_index))) then
+    if ((present(num_components)) .and. (present(num_phases))) then
        do i = 1, num_cells
-          call self%cell(i)%init(num_components, phase_index)
+          call self%cell(i)%init(num_components, num_phases)
        end do
     end if
 
@@ -337,7 +337,7 @@ contains
     PetscReal :: flux(num_primary)
     ! Locals:
     PetscInt :: nc
-    PetscInt :: i, p, ip, up
+    PetscInt :: i, p, up
     PetscBool :: isothermal
     PetscReal :: dpdn, dtdn, gn, G, face_density, F
     PetscReal :: phase_flux(self%cell(1)%fluid%num_components)
@@ -367,24 +367,23 @@ contains
 
        if (btest(phase_present, p - 1)) then
 
-          ip = self%cell(1)%fluid%phase_index(p)
-          face_density = self%phase_density(ip)
+          face_density = self%phase_density(p)
           G = dpdn + face_density * gn
 
           up = self%upstream_index(G)
 
           if (btest(phases(up), p - 1)) then
 
-             mobility = self%cell(up)%fluid%phase(ip)%mobility()
+             mobility = self%cell(up)%fluid%phase(p)%mobility()
 
              ! Mass flows:
              F = -k * mobility * G
-             phase_flux = F * self%cell(up)%fluid%phase(ip)%mass_fraction
+             phase_flux = F * self%cell(up)%fluid%phase(p)%mass_fraction
              flux(1:nc) = flux(1:nc) + phase_flux
 
              if (.not.isothermal) then
                 ! Heat convection:
-                h = self%cell(up)%fluid%phase(ip)%specific_enthalpy
+                h = self%cell(up)%fluid%phase(p)%specific_enthalpy
                 flux(num_primary) = flux(num_primary) + h * F
              end if
 

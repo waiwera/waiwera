@@ -229,8 +229,7 @@ contains
     use rock_module
     use fluid_module
 
-    PetscInt, parameter :: nc = 1, np = 1, num_primary = 2
-    PetscInt, parameter :: phase_index(np) = [1]
+    PetscInt, parameter :: nc = 1, num_phases = 1, num_primary = 2
     PetscReal, parameter :: gravity = 9.8_dp
     type(face_type) :: face
     type(cell_type) :: cell
@@ -246,8 +245,8 @@ contains
 
     if (mpi%rank == mpi%output_rank) then
 
-       call face%init(nc, phase_index)
-       call fluid%init(nc, phase_index)
+       call face%init(nc, num_phases)
+       call fluid%init(nc, num_phases)
        allocate(face_data(face%dof()), cell_data(cell%dof()))
        allocate(rock_data(rock%dof()), fluid_data(fluid%dof()))
        allocate(flux(num_primary))
@@ -296,8 +295,7 @@ contains
     use rock_module
     use fluid_module
 
-    PetscInt, parameter :: nc = 1, np = 1, num_primary = 2
-    PetscInt, parameter :: phase_index(np) = [1]
+    PetscInt, parameter :: nc = 1, num_phases = 1, num_primary = 2
     PetscReal, parameter :: gravity = 9.8_dp
     type(face_type) :: face
     type(cell_type) :: cell
@@ -313,8 +311,8 @@ contains
 
     if (mpi%rank == mpi%output_rank) then
 
-       call face%init(nc, phase_index)
-       call fluid%init(nc, phase_index)
+       call face%init(nc, num_phases)
+       call fluid%init(nc, num_phases)
        allocate(face_data(face%dof()), cell_data(cell%dof()))
        allocate(rock_data(rock%dof()), fluid_data(fluid%dof()))
        allocate(flux(num_primary))
@@ -362,8 +360,7 @@ contains
     use rock_module
     use fluid_module
 
-    PetscInt, parameter :: nc = 1, np = 1, num_primary = 2
-    PetscInt, parameter :: phase_index(np) = [1]
+    PetscInt, parameter :: nc = 1, num_phases = 1, num_primary = 2
     PetscReal, parameter :: gravity = 9.8_dp
     type(face_type) :: face
     type(cell_type) :: cell
@@ -379,8 +376,8 @@ contains
 
     if (mpi%rank == mpi%output_rank) then
 
-       call face%init(nc, phase_index)
-       call fluid%init(nc, phase_index)
+       call face%init(nc, num_phases)
+       call fluid%init(nc, num_phases)
        allocate(face_data(face%dof()), cell_data(cell%dof()))
        allocate(rock_data(rock%dof()), fluid_data(fluid%dof()*2))
        allocate(flux(num_primary))
@@ -430,8 +427,7 @@ contains
     use rock_module
     use fluid_module
 
-    PetscInt, parameter :: nc = 1, np = 2, num_primary = 2
-    PetscInt, parameter :: phase_index(np) = [1, 2]
+    PetscInt, parameter :: nc = 1, num_phases = 2, num_primary = 2
     PetscReal, parameter :: gravity = 9.8_dp
     type(face_type) :: face
     type(cell_type) :: cell
@@ -450,8 +446,8 @@ contains
 
     if (mpi%rank == mpi%output_rank) then
 
-       call face%init(nc, phase_index)
-       call fluid%init(nc, phase_index)
+       call face%init(nc, num_phases)
+       call fluid%init(nc, num_phases)
        allocate(face_data(face%dof()), cell_data(cell%dof()))
        allocate(rock_data(rock%dof() * 2), fluid_data(fluid%dof() * 2))
        allocate(flux(num_primary))
