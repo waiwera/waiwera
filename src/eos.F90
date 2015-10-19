@@ -20,6 +20,7 @@ module eos_module
   PetscInt, parameter, public :: max_eos_description_length = 80
   PetscInt, parameter, public :: max_primary_variable_name_length = 16
   PetscInt, parameter, public :: max_phase_name_length = 13
+  PetscInt, parameter, public :: max_component_name_length = 8
 
   type, public, abstract :: eos_type
      !! Abstract type for equation of state (EOS) objects.
@@ -28,6 +29,7 @@ module eos_module
      character(max_eos_description_length), public :: description
      character(max_primary_variable_name_length), allocatable, public :: primary_variable_names(:)
      character(max_phase_name_length), allocatable, public :: phase_names(:)
+     character(max_component_name_length), allocatable, public :: component_names(:)
      PetscInt, public :: num_primary_variables
      PetscInt, public :: num_phases
      PetscInt, public :: num_components
@@ -189,6 +191,7 @@ contains
     self%num_phases = 1
     self%phase_names = ["Liquid"]
     self%num_components = 1
+    self%component_names = ["Water"]
     self%isothermal = .true.
 
     self%thermo => thermo
@@ -205,7 +208,8 @@ contains
 
     class(eos_w_type), intent(in out) :: self
 
-    deallocate(self%primary_variable_names, self%phase_names)
+    deallocate(self%primary_variable_names)
+    deallocate(self%phase_names, self%component_names)
     nullify(self%thermo)
 
   end subroutine eos_w_destroy
@@ -326,6 +330,7 @@ contains
     self%num_phases = 2
     self%phase_names = ["Liquid", "Vapour"]
     self%num_components = 1
+    self%component_names = ["Water"]
 
     self%thermo => thermo
 
