@@ -189,9 +189,9 @@ contains
 
     self%num_primary_variables = size(self%primary_variable_names)
     self%num_phases = 1
-    self%phase_names = ["Liquid"]
+    self%phase_names = ["liquid"]
     self%num_components = 1
-    self%component_names = ["Water"]
+    self%component_names = ["water"]
     self%isothermal = .true.
 
     self%thermo => thermo
@@ -328,9 +328,9 @@ contains
 
     self%num_primary_variables = size(self%primary_variable_names)
     self%num_phases = 2
-    self%phase_names = ["Liquid", "Vapour"]
+    self%phase_names = ["liquid", "vapour"]
     self%num_components = 1
-    self%component_names = ["Water"]
+    self%component_names = ["water"]
 
     self%thermo => thermo
 
