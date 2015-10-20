@@ -7,8 +7,19 @@ module fluid_module
 
 #include <petsc/finclude/petsc.h90>
 
-  PetscInt, parameter, public :: num_phase_variables = 6
   PetscInt, parameter, public :: num_fluid_variables = 4
+  PetscInt, parameter, public :: num_phase_variables = 6  ! (excluding mass fractions)
+  PetscInt, parameter, public :: max_fluid_variable_name_length = 11
+  character(max_fluid_variable_name_length), public :: &
+       fluid_variable_names(num_fluid_variables) = [ &
+       "pressure   ", "temperature", &
+       "region     ", "phases     "]
+  PetscInt, parameter, public :: max_phase_variable_name_length = 21
+  character(max_phase_variable_name_length), public :: &
+       phase_variable_names(num_phase_variables) = [ &
+       "density              ", "viscosity            ", &
+       "saturation           ", "relative permeability", &
+       "specific enthalpy    ", "internal energy      "]
 
   type phase_type
      !! Type for accessing local fluid properties for a particular phase.
@@ -335,7 +346,8 @@ contains
 ! Fluid vector setup routine
 !------------------------------------------------------------------------
 
-  subroutine setup_fluid_vector(dm, num_components, num_phases, &
+  subroutine setup_fluid_vector(dm, max_component_name_length, &
+       component_names, max_phase_name_length, phase_names, &
        fluid, range_start, fluid_dm)
     !! Sets up global vector and DM for fluid properties, with specified
     !! numbers of components and phases.
@@ -343,35 +355,58 @@ contains
     use dm_utils_module, only: set_dm_data_layout, global_vec_range_start
 
     DM, intent(in) :: dm
-    PetscInt, intent(in) :: num_components, num_phases
+    PetscInt, intent(in) :: max_component_name_length
+    character(max_component_name_length), intent(in) :: component_names(:)
+    PetscInt, intent(in) :: max_phase_name_length
+    character(max_phase_name_length), intent(in) :: phase_names(:)
     Vec, intent(out) :: fluid
     PetscInt, intent(out) :: range_start
     DM, intent(out) :: fluid_dm
     ! Locals:
-    type(fluid_type) :: f
-    PetscInt :: num_vars
+    PetscInt :: num_components, num_phases, num_vars
+    PetscInt :: p, i, j, phase_dof
     PetscInt, allocatable :: num_field_components(:), field_dim(:)
     PetscErrorCode :: ierr
+    PetscInt, parameter :: max_field_name_length = 40
+    character(max_field_name_length), allocatable :: field_names(:)
 
-    call f%init(num_components, num_phases)
-    num_vars = f%dof()
-    call f%destroy()
+    num_components = size(component_names)
+    num_phases = size(phase_names)
+    phase_dof = num_phase_variables + num_components
+    num_vars = num_fluid_variables + num_phases * phase_dof
 
-    allocate(num_field_components(num_vars), field_dim(num_vars))
+    allocate(num_field_components(num_vars), field_dim(num_vars), &
+         field_names(num_vars))
 
-    ! All fluid variables are scalars defined on cells:
     num_field_components = 1
     field_dim = 3
 
+    ! Assemble field names:
+    field_names(1: num_fluid_variables) = fluid_variable_names
+    i = num_fluid_variables + 1
+    do p = 1, num_phases
+       do j = 1, num_phase_variables
+          field_names(i) = trim(phase_names(p)) &
+               // ' ' // trim(phase_variable_names(j))
+          i = i + 1
+       end do
+       do j = 1, num_components
+          field_names(i) = trim(phase_names(p)) &
+               // ' ' // trim(component_names(j)) // ' mass fraction'
+          i = i + 1
+       end do
+    end do
+
     call DMClone(dm, fluid_dm, ierr); CHKERRQ(ierr)
 
-    call set_dm_data_layout(fluid_dm, num_field_components, field_dim)
+    call set_dm_data_layout(fluid_dm, num_field_components, field_dim, &
+         field_names)
 
     call DMCreateGlobalVector(fluid_dm, fluid, ierr); CHKERRQ(ierr)
     call PetscObjectSetName(fluid, "fluid", ierr); CHKERRQ(ierr)
     call global_vec_range_start(fluid, range_start)
 
-    deallocate(num_field_components, field_dim)
+    deallocate(num_field_components, field_dim, field_names)
 
   end subroutine setup_fluid_vector
 

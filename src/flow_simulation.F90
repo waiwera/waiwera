@@ -130,7 +130,8 @@ contains
     use fson
     use fson_mpi_module
     use thermodynamics_setup_module, only: setup_thermodynamics
-    use eos_module, only: setup_eos
+    use eos_module, only: setup_eos, max_component_name_length, &
+         max_phase_name_length
     use initial_module, only: setup_initial
     use fluid_module, only: setup_fluid_vector, initialise_fluid_regions
     use rock_module, only: setup_rock_vector, setup_rocktype_labels
@@ -156,8 +157,9 @@ contains
     call setup_initial(json, self%mesh, self%eos%num_primary_variables, &
          self%time, self%solution, self%rock, self%solution_range_start, &
          self%rock_range_start)
-    call setup_fluid_vector(self%mesh%dm, self%eos%num_components, &
-         self%eos%num_phases, self%fluid, self%fluid_range_start, &
+    call setup_fluid_vector(self%mesh%dm, max_component_name_length, &
+         self%eos%component_names, max_phase_name_length, &
+         self%eos%phase_names, self%fluid, self%fluid_range_start, &
          self%fluid_dm)
     call initialise_fluid_regions(self%mesh%dm, self%fluid, &
          self%mesh%start_cell, self%mesh%end_cell, &
