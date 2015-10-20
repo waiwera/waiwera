@@ -837,10 +837,11 @@ end subroutine timestepper_steps_set_next_stepsize
 ! Timestepper procedures
 !------------------------------------------------------------------------
 
-  subroutine timestepper_setup_solver(self)
+  subroutine timestepper_setup_solver(self, max_iterations)
     !! Sets up SNES nonlinear solver for the timestepper.
 
     class(timestepper_type), intent(in out) :: self
+    PetscInt, intent(in) :: max_iterations
     ! Locals:
     PetscErrorCode :: ierr
     KSP :: ksp
@@ -860,6 +861,9 @@ end subroutine timestepper_steps_set_next_stepsize
     call SNESGetKSP(self%solver, ksp, ierr); CHKERRQ(ierr)
     call KSPSetFromOptions(ksp, ierr); CHKERRQ(ierr)
 
+    call SNESSetTolerances(self%solver, PETSC_DEFAULT_REAL, &
+         PETSC_DEFAULT_REAL, PETSC_DEFAULT_REAL, max_iterations, &
+         PETSC_DEFAULT_INTEGER, ierr); CHKERRQ(ierr)
     call SNESSetConvergenceTest(self%solver, SNES_convergence, self%context, &
          PETSC_NULL_FUNCTION, ierr); CHKERRQ(ierr)
     call SNESMonitorSet(self%solver, SNES_monitor, self%context, &
@@ -991,8 +995,10 @@ end subroutine timestepper_steps_set_next_stepsize
     PetscReal :: adapt_reduction, adapt_amplification
     PetscReal, allocatable :: step_sizes(:)
     PetscReal, parameter :: default_step_sizes(0) = [PetscReal::]
+    PetscInt, parameter :: default_nonlinear_solver_max_iterations = 8
     PetscReal, parameter :: default_nonlinear_solver_relative_tol = 1.e-6_dp
     PetscReal, parameter :: default_nonlinear_solver_abs_tol = 1._dp
+    PetscInt :: nonlinear_solver_max_iterations
     PetscReal :: nonlinear_solver_relative_tol, nonlinear_solver_abs_tol
     PetscErrorCode :: ierr
 
@@ -1055,6 +1061,10 @@ end subroutine timestepper_steps_set_next_stepsize
          default_step_sizes, step_sizes)
 
     call fson_get_mpi(json, &
+         "time.step.solver.nonlinear.maximum.iterations", &
+         default_nonlinear_solver_max_iterations, &
+         nonlinear_solver_max_iterations)
+    call fson_get_mpi(json, &
          "time.step.solver.nonlinear.tolerance.relative", &
          default_nonlinear_solver_relative_tol, &
          nonlinear_solver_relative_tol)
@@ -1069,7 +1079,7 @@ end subroutine timestepper_steps_set_next_stepsize
          adapt_reduction, adapt_amplification, step_sizes, &
          nonlinear_solver_relative_tol, nonlinear_solver_abs_tol)
 
-    call self%setup_solver()
+    call self%setup_solver(nonlinear_solver_max_iterations)
 
     deallocate(step_sizes)
 
