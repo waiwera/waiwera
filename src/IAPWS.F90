@@ -303,7 +303,7 @@ contains
     PetscReal :: saturation_pressure
     PetscInt :: ierr
 
-    phases = b'00'
+    phases = b'000'
 
     if (region == 4) then
        phases = b'011'
@@ -317,10 +317,12 @@ contains
              case (3)
                 call self%saturation%pressure(temperature, &
                      saturation_pressure, ierr)
-                if (pressure >= saturation_pressure) then
-                   phases = b'001'
-                else
-                   phases = b'010'
+                if (ierr == 0) then
+                   if (pressure >= saturation_pressure) then
+                      phases = b'001'
+                   else
+                      phases = b'010'
+                   end if
                 end if
              end select
        else
