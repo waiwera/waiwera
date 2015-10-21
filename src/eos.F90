@@ -281,11 +281,10 @@ contains
     type(rock_type), intent(in out) :: rock !! Rock object
     type(fluid_type), intent(in out) :: fluid !! Fluid object
     ! Locals:
-    PetscInt :: region, phases, p, ierr
+    PetscInt :: region, p, ierr
     PetscReal :: properties(2)
 
     region = nint(fluid%region)
-    phases = nint(fluid%phase_composition)
 
     p = region
 
