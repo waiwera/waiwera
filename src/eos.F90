@@ -360,17 +360,23 @@ contains
     call self%thermo%saturation%pressure(fluid%temperature, &
          old_saturation_pressure, ierr)
 
-    if (new_region == 1) then
-       factor = 1._dp + small
+    if (ierr >= 0) then
+
+       if (new_region == 1) then
+          factor = 1._dp + small
+       else
+          factor = 1._dp - small
+       end if
+
+       pressure = factor * old_saturation_pressure
+       temperature = fluid%temperature
+
+       fluid%region = dble(new_region)
+       call self%phase_composition(fluid)
+
     else
-       factor = 1._dp - small
+       fluid%phase_composition = -1
     end if
-
-    pressure = factor * old_saturation_pressure
-    temperature = fluid%temperature
-
-    fluid%region = dble(new_region)
-    call self%phase_composition(fluid)
 
   end subroutine eos_we_transition_to_single_phase
 
@@ -444,10 +450,16 @@ contains
        call self%thermo%saturation%pressure(temperature, &
             saturation_pressure, ierr)
 
-       if (((region == 1) .and. (pressure < saturation_pressure)) .or. &
-            ((region == 2) .and. (pressure > saturation_pressure))) then
-          call self%transition_to_two_phase(primary, fluid, &
-               saturation_pressure)
+       if (ierr >= 0) then
+
+          if (((region == 1) .and. (pressure < saturation_pressure)) .or. &
+               ((region == 2) .and. (pressure > saturation_pressure))) then
+             call self%transition_to_two_phase(primary, fluid, &
+                  saturation_pressure)
+          end if
+
+       else
+          fluid%phase_composition = -1
        end if
 
     end if
@@ -522,42 +534,48 @@ contains
     region = nint(fluid%region)
     phases = nint(fluid%phase_composition)
 
-    call self%phase_saturations(region, primary, saturation)
-    relative_permeability = rock%relative_permeability%values(saturation(1))
+    if (phases >= 0) then
 
-    do p = 1, self%num_phases
+       call self%phase_saturations(region, primary, saturation)
+       relative_permeability = rock%relative_permeability%values(saturation(1))
 
-       fluid%phase(p)%saturation = saturation(p)
+       do p = 1, self%num_phases
 
-       if (btest(phases, p - 1)) then
+          fluid%phase(p)%saturation = saturation(p)
 
-          call self%thermo%region(p)%ptr%properties( &
-               [fluid%pressure, fluid%temperature], &
-               properties, ierr)
+          if (btest(phases, p - 1)) then
 
-          fluid%phase(p)%density = properties(1)
-          fluid%phase(p)%internal_energy = properties(2)
-          fluid%phase(p)%specific_enthalpy = &
-               fluid%phase(p)%internal_energy + &
-               fluid%pressure / fluid%phase(p)%density
+             call self%thermo%region(p)%ptr%properties( &
+                  [fluid%pressure, fluid%temperature], &
+                  properties, ierr)
 
-          fluid%phase(p)%mass_fraction(1) = 1._dp
-          fluid%phase(p)%relative_permeability = relative_permeability(p)
+             fluid%phase(p)%density = properties(1)
+             fluid%phase(p)%internal_energy = properties(2)
+             fluid%phase(p)%specific_enthalpy = &
+                  fluid%phase(p)%internal_energy + &
+                  fluid%pressure / fluid%phase(p)%density
 
-          call self%thermo%region(p)%ptr%viscosity( &
-               fluid%temperature, fluid%pressure, &
-               fluid%phase(p)%density, fluid%phase(p)%viscosity)
+             fluid%phase(p)%mass_fraction(1) = 1._dp
+             fluid%phase(p)%relative_permeability = relative_permeability(p)
 
-       else
-          fluid%phase(p)%density = 0._dp
-          fluid%phase(p)%internal_energy = 0._dp
-          fluid%phase(p)%specific_enthalpy = 0._dp
-          fluid%phase(p)%relative_permeability = 0._dp
-          fluid%phase(p)%viscosity = 0._dp
-          fluid%phase(p)%mass_fraction(1) = 0._dp
-       end if
+             call self%thermo%region(p)%ptr%viscosity( &
+                  fluid%temperature, fluid%pressure, &
+                  fluid%phase(p)%density, fluid%phase(p)%viscosity)
 
-    end do
+          else
+             fluid%phase(p)%density = 0._dp
+             fluid%phase(p)%internal_energy = 0._dp
+             fluid%phase(p)%specific_enthalpy = 0._dp
+             fluid%phase(p)%relative_permeability = 0._dp
+             fluid%phase(p)%viscosity = 0._dp
+             fluid%phase(p)%mass_fraction(1) = 0._dp
+          end if
+
+       end do
+
+    else
+       fluid%pressure = qnan_dp
+    end if
 
   end subroutine eos_we_phase_properties
 

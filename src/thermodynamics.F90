@@ -148,7 +148,7 @@ module thermodynamics_module
        !! Returns phase composition for given region, pressure and
        !! temperature. This is an integer with each binary bit
        !! representing the presence or absence of a particular phase.
-       !! A zero value is returned if the routine fails.
+       !! A negative value is returned if the routine fails.
        import :: thermodynamics_type
        class(thermodynamics_type), intent(in) :: self
        PetscInt, intent(in) :: region
