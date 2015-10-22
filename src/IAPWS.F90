@@ -323,6 +323,8 @@ contains
                    else
                       phases = b'010'
                    end if
+                else
+                   phases = -1 ! error in saturation pressure
                 end if
              end select
        else
@@ -489,6 +491,7 @@ contains
 
     else
        err = 1
+       props = qnan_dp
     end if
 
   end subroutine region1_properties
@@ -583,6 +586,7 @@ contains
 
     else
        err = 1
+       props = qnan_dp
     end if
 
   end subroutine region2_properties
@@ -665,6 +669,7 @@ contains
        err = 1
     else
        err = 0
+       props = qnan_dp
     end if
 
   end subroutine region3_properties
@@ -726,6 +731,7 @@ contains
        p = self%pstar * x * x
        err = 0
     else
+       p = qnan_dp
        err = 1
     end if
 
@@ -755,6 +761,7 @@ contains
        t = 0.5_dp * (self%n(10) + d - dsqrt(x*x - 4._dp * (self%n(9) + self%n(10) * d))) - tc_k
        err = 0
     else
+       t = qnan_dp
        err = 1
     end if
 
