@@ -20,7 +20,7 @@ module timestepper_module
 
   ! Timestep status
      PetscInt, parameter, public :: TIMESTEP_OK = 0, TIMESTEP_NOT_CONVERGED = 1, &
-     TIMESTEP_TOO_SMALL = 2, TIMESTEP_TOO_BIG = 3
+     TIMESTEP_TOO_SMALL = 2, TIMESTEP_TOO_BIG = 3, TIMESTEP_ABORTED = 4
 
   type timestepper_step_type
      !! Results of a time step.
@@ -66,7 +66,7 @@ module timestepper_module
      type(ptimestepper_step_type), pointer :: pstore(:)
      type(timestepper_step_type), pointer, public :: current, last
      PetscBool :: finished
-     PetscInt, public :: num_stored, taken, max_num
+     PetscInt, public :: num_stored, taken, max_num, max_num_tries
      PetscReal, public :: next_stepsize, stop_time
      PetscReal, public :: nonlinear_solver_relative_tol, nonlinear_solver_abs_tol
      PetscReal, public :: termination_tol = 1.e-6_dp
@@ -469,7 +469,8 @@ contains
        stop_time, max_num_steps, max_stepsize, &
        adapt_on, adapt_method, adapt_min, adapt_max, &
        adapt_reduction, adapt_amplification, step_sizes, &
-       nonlinear_solver_relative_tol, nonlinear_solver_abs_tol)
+       nonlinear_solver_relative_tol, nonlinear_solver_abs_tol, &
+       max_num_tries)
 
     !! Sets up array of timesteps and pointers to them. This array stores the
     !! current step and one or more previous steps. The number of stored
@@ -490,6 +491,7 @@ contains
     PetscReal, intent(in), optional :: step_sizes(:)
     PetscReal, intent(in) :: nonlinear_solver_relative_tol, &
          nonlinear_solver_abs_tol
+    PetscInt, intent(in) :: max_num_tries
     ! Locals:
     PetscInt :: i
     PetscErrorCode :: ierr
@@ -512,6 +514,7 @@ contains
 
     self%stop_time = stop_time
     self%max_num = max_num_steps
+    self%max_num_tries = max_num_tries
 
     self%adaptor%on = adapt_on
     select case (adapt_method)
@@ -688,7 +691,10 @@ contains
     ! Locals:
     PetscReal :: eta
 
-    if (converged) then
+    if (self%current%num_tries > self%max_num_tries) then
+       self%current%status = TIMESTEP_ABORTED
+       self%finished = .true.
+    else if (converged) then
        eta = self%adaptor%monitor(self%current, self%last)
        if (self%adaptor%on) then
           if (eta < self%adaptor%monitor_min) then
@@ -1000,6 +1006,8 @@ end subroutine timestepper_steps_set_next_stepsize
     PetscReal, parameter :: default_nonlinear_solver_abs_tol = 1._dp
     PetscInt :: nonlinear_solver_max_iterations
     PetscReal :: nonlinear_solver_relative_tol, nonlinear_solver_abs_tol
+    PetscInt :: max_num_tries
+    PetscInt, parameter :: default_max_num_tries = 10
     PetscErrorCode :: ierr
 
     self%ode => ode
@@ -1032,6 +1040,8 @@ end subroutine timestepper_steps_set_next_stepsize
          default_max_stepsize, max_stepsize)
     call fson_get_mpi(json, "time.step.maximum.number", &
          default_max_num_steps, max_num_steps)
+    call fson_get_mpi(json, "time.step.maximum.tries", &
+         default_max_num_tries, max_num_tries)
 
     call fson_get_mpi(json, "time.step.adapt.on", &
          default_adapt_on, adapt_on)
@@ -1077,7 +1087,8 @@ end subroutine timestepper_steps_set_next_stepsize
          stop_time, max_num_steps, max_stepsize, &
          adapt_on, adapt_method, adapt_min, adapt_max, &
          adapt_reduction, adapt_amplification, step_sizes, &
-         nonlinear_solver_relative_tol, nonlinear_solver_abs_tol)
+         nonlinear_solver_relative_tol, nonlinear_solver_abs_tol, &
+         max_num_tries)
 
     call self%setup_solver(nonlinear_solver_max_iterations)
 
@@ -1120,7 +1131,7 @@ end subroutine timestepper_steps_set_next_stepsize
     call self%steps%update()
     accepted = .false.
 
-    do while (.not. accepted)
+    do while (.not. (accepted .or. (self%steps%current%status == TIMESTEP_ABORTED)))
 
        self%steps%current%stepsize = self%steps%next_stepsize
        self%steps%current%time = self%steps%last%time + self%steps%current%stepsize
