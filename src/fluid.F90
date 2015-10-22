@@ -32,7 +32,6 @@ module fluid_module
      PetscReal, pointer :: mass_fraction(:)
    contains
      private
-     procedure, public :: init => phase_init
      procedure, public :: destroy => phase_destroy
      procedure, public :: dof => phase_dof
      procedure, public :: mobility => phase_mobility
@@ -68,18 +67,6 @@ contains
 
 !------------------------------------------------------------------------
 ! Phase procedures
-!------------------------------------------------------------------------
-
-  subroutine phase_init(self, num_components)
-    !! Initialises a phase object.
-    
-    class(phase_type), intent(in out) :: self
-    PetscInt, intent(in) :: num_components !! Number of fluid components
-
-    allocate(self%mass_fraction(num_components))
-    
-  end subroutine phase_init
-
 !------------------------------------------------------------------------
 
   subroutine phase_destroy(self)
@@ -130,15 +117,10 @@ contains
     class(fluid_type), intent(in out) :: self
     PetscInt, intent(in) :: num_components !! Number of fluid components
     PetscInt, intent(in) :: num_phases !! Number of fluid phases
-    ! Locals:
-    PetscInt :: p
 
     self%num_phases = num_phases
     self%num_components = num_components
     allocate(self%phase(num_phases))
-    do p = 1, self%num_phases
-       call self%phase(p)%init(num_components)
-    end do
 
   end subroutine fluid_init
     
