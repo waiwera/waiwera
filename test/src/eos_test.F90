@@ -16,10 +16,11 @@ module eos_test
   implicit none
   private
 
-#include <petsc/finclude/petscdef.h>
+#include <petsc/finclude/petsc.h90>
 
 public :: test_eos_w_fluid_properties, &
-     test_eos_we_fluid_properties, test_eos_we_transition
+     test_eos_we_fluid_properties, test_eos_we_transition, &
+     test_eos_we_errors
 
 contains
 
@@ -322,6 +323,65 @@ contains
     call fson_destroy_mpi(json)
 
   end subroutine test_eos_we_transition
+
+!------------------------------------------------------------------------
+
+  subroutine test_eos_we_errors
+
+    ! eos_we error handling
+
+    PetscInt, parameter :: n = 2
+    type(fluid_type) :: fluid
+    type(rock_type) :: rock
+    PetscInt, parameter :: num_components = 1, num_phases = 2
+    PetscInt,  parameter :: offset = 1
+    PetscReal, allocatable :: fluid_data(:)
+    PetscReal, parameter :: data(n, num_components + 1) = reshape([ &
+           20.e6_dp, 101.e6_dp, &
+           360._dp, 20._dp], [n, num_components + 1])
+    PetscInt, parameter :: region(n) = [1, 2]
+    PetscReal :: primary(num_components + 1)
+    type(eos_we_type) :: eos
+    type(IAPWS_type) :: thermo
+    class(relative_permeability_type), allocatable, target :: rp
+    type(fson_value), pointer :: json
+    character(120) :: json_str = &
+         '{"rock": {"relative permeability": {"type": "linear", "liquid": [0.2, 0.8], "vapour": [0.2, 0.8]}}}'
+    PetscReal, parameter :: tol = 1.e-8_dp
+    PetscInt :: i, p
+
+    json => fson_parse_mpi(str = json_str)
+    call thermo%init()
+    call eos%init(json, thermo)
+    call setup_relative_permeabilities(json, rp)
+
+    call fluid%init(num_components, num_phases)
+    allocate(fluid_data(fluid%dof()))
+    fluid_data = 0._dp
+    call fluid%assign(fluid_data, offset)
+
+    rock%relative_permeability => rp
+
+    do i = 1, n
+       p = i
+       primary = data(i, :)
+       fluid%region = dble(region(i))
+       call eos%bulk_properties(primary, fluid)
+       call eos%phase_composition(fluid)
+       call eos%phase_properties(primary, rock, fluid)
+       if (mpi%rank == mpi%output_rank) then
+          call assert_equals(.true., PetscIsInfOrNanReal(fluid%phase(p)%density), "Density")
+       end if
+    end do
+
+    call fluid%destroy()
+    deallocate(fluid_data)
+    call eos%destroy()
+    call thermo%destroy()
+    call fson_destroy_mpi(json)
+    deallocate(rp)
+
+  end subroutine test_eos_we_errors
 
 !------------------------------------------------------------------------
 
