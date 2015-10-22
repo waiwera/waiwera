@@ -1130,6 +1130,7 @@ end subroutine timestepper_steps_set_next_stepsize
     
     call self%steps%update()
     accepted = .false.
+    self%steps%current%status = TIMESTEP_OK
 
     do while (.not. (accepted .or. (self%steps%current%status == TIMESTEP_ABORTED)))
 
