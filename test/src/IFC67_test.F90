@@ -53,7 +53,7 @@ module IFC67_test
 
       ! IFC-67 region 1 tests
 
-      PetscInt, parameter :: n = 3 
+      PetscInt, parameter :: n = 3, nerr = 2
       PetscReal :: params(n,2) = reshape([ &
            3.e6_dp, 80.e6_dp, 3.e6_dp, &
            300._dp, 300._dp,  500._dp], [n,2])
@@ -63,6 +63,9 @@ module IFC67_test
            971985.91117384087_dp]
       PetscInt :: i, err
       PetscReal :: param(2), props(2)
+      PetscReal :: err_params(nerr,2) = reshape([ &
+           20.e6_dp, 101.e6_dp, &
+            360._dp,    60._dp], [nerr,2])
 
       if (mpi%rank == mpi%output_rank) then
          params(:,2) = params(:,2) - tc_k  ! convert temperatures to Celcius
@@ -72,6 +75,13 @@ module IFC67_test
             call assert_equals(rho(i), props(1), density_tol, 'density')
             call assert_equals(u(i), props(2), energy_tol, 'energy')
             call assert_equals(0, err, 'error')
+         end do
+         do i = 1, nerr
+            param = err_params(i,:)
+            call IFC67%water%properties(param, props, err)
+            call assert_equals(.true., PetscIsInfOrNanReal(props(1)), 'density error')
+            call assert_equals(.true., PetscIsInfOrNanReal(props(2)), 'energy error')
+            call assert_equals(1, err, 'error')
          end do
       end if
 
@@ -83,7 +93,7 @@ module IFC67_test
 
       ! IFC-67 region 2 tests
 
-      PetscInt, parameter :: n = 3 
+      PetscInt, parameter :: n = 3, nerr = 2
       PetscReal :: params(n,2) = reshape([ &
            0.0035e6_dp, 0.0035e6_dp, 30.e6_dp, &
            300._dp, 700._dp,  700._dp], [n,2])
@@ -93,6 +103,9 @@ module IFC67_test
            2474981.3799304822_dp]
       PetscInt :: i, err
       PetscReal :: param(2), props(2)
+      PetscReal :: err_params(nerr,2) = reshape([ &
+           20.e6_dp, 101.e6_dp, &
+           1001._dp,    60._dp], [nerr,2])
 
       if (mpi%rank == mpi%output_rank) then
          params(:,2) = params(:,2) - tc_k  ! convert temperatures to Celcius
@@ -102,6 +115,13 @@ module IFC67_test
             call assert_equals(rho(i), props(1), density_tol, 'density')
             call assert_equals(u(i), props(2), energy_tol, 'energy')
             call assert_equals(0, err, 'error')
+         end do
+         do i = 1, nerr
+            param = err_params(i,:)
+            call IFC67%steam%properties(param, props, err)
+            call assert_equals(.true., PetscIsInfOrNanReal(props(1)), 'density error')
+            call assert_equals(.true., PetscIsInfOrNanReal(props(2)), 'energy error')
+            call assert_equals(1, err, 'error')
          end do
       end if
 
@@ -113,12 +133,13 @@ module IFC67_test
 
       ! IFC-67 saturation curve tests
 
-      PetscInt, parameter :: n = 3
+      PetscInt, parameter :: n = 3, nerr = 1
       PetscReal, parameter ::  t(n) = [300._dp, 500._dp, 600._dp] - tc_k
       PetscReal, parameter :: p(n) = [0.35323426e4_dp, 0.263961572e7_dp, &
            0.123493902e8_dp]
       PetscReal :: ps, ts, ps1, ts1
       PetscInt :: i, err
+      PetscReal :: terr(nerr) = [380._dp], perr(nerr) = [30.e6_dp]
 
       if (mpi%rank == mpi%output_rank) then
          do i = 1, n
@@ -139,6 +160,15 @@ module IFC67_test
             call assert_equals(0, err, 'region 1 temperature error')
 
          end do
+         do i = 1, nerr
+            call IFC67%saturation%pressure(terr(i), ps, err)
+            call assert_equals(.true., PetscIsInfOrNanReal(ps), 'NaN pressure')
+            call assert_equals(1, err, 'error')
+            call IFC67%saturation%temperature(perr(i), ts, err)
+            call assert_equals(.true., PetscIsInfOrNanReal(ts), 'NaN temperature')
+            call assert_equals(1, err, 'temperature error')
+         end do
+
       end if
       
     end subroutine test_IFC67_saturation

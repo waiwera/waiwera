@@ -53,7 +53,7 @@ module IAPWS_test
 
       ! IAPWS-97 region 1 tests
 
-      PetscInt, parameter :: n = 3 
+      PetscInt, parameter :: n = 3, nerr = 2
       PetscReal :: params(n,2) = reshape([ &
            3.e6_dp, 80.e6_dp, 3.e6_dp, &
            300._dp, 300._dp,  500._dp], [n,2])
@@ -62,6 +62,9 @@ module IAPWS_test
       PetscReal, parameter :: rho(n) = 1._dp / nu
       PetscInt :: i, err
       PetscReal :: param(2), props(2)
+      PetscReal :: err_params(nerr,2) = reshape([ &
+           20.e6_dp, 101.e6_dp, &
+            360._dp,    60._dp], [nerr,2])
 
       if (mpi%rank == mpi%output_rank) then
          params(:,2) = params(:,2) - tc_k  ! convert temperatures to Celcius
@@ -70,7 +73,14 @@ module IAPWS_test
             call IAPWS%water%properties(param, props, err)
             call assert_equals(rho(i), props(1), density_tol, 'density')
             call assert_equals(u(i), props(2), energy_tol, 'energy')
-            call assert_equals(0, err, 'error')
+            call assert_equals(0, err, 'no error')
+         end do
+         do i = 1, nerr
+            param = err_params(i,:)
+            call IAPWS%water%properties(param, props, err)
+            call assert_equals(.true., PetscIsInfOrNanReal(props(1)), 'density error')
+            call assert_equals(.true., PetscIsInfOrNanReal(props(2)), 'energy error')
+            call assert_equals(1, err, 'error')
          end do
       end if
 
@@ -82,7 +92,7 @@ module IAPWS_test
 
       ! IAPWS-97 region 2 tests
 
-      PetscInt, parameter :: n = 3 
+      PetscInt, parameter :: n = 3, nerr = 2
       PetscReal :: params(n,2) = reshape([ &
            0.0035e6_dp, 0.0035e6_dp, 30.e6_dp, &
            300._dp, 700._dp,  700._dp], [n,2])
@@ -91,6 +101,9 @@ module IAPWS_test
       PetscReal, parameter :: rho(n) = 1._dp / nu
       PetscInt :: i, err
       PetscReal :: param(2), props(2)
+      PetscReal :: err_params(nerr,2) = reshape([ &
+           20.e6_dp, 101.e6_dp, &
+           1001._dp,    60._dp], [nerr,2])
 
       if (mpi%rank == mpi%output_rank) then
          params(:,2) = params(:,2) - tc_k  ! convert temperatures to Celcius
@@ -100,6 +113,13 @@ module IAPWS_test
             call assert_equals(rho(i), props(1), density_tol, 'density')
             call assert_equals(u(i), props(2), energy_tol, 'energy')
             call assert_equals(0, err, 'error')
+         end do
+         do i = 1, nerr
+            param = err_params(i,:)
+            call IAPWS%steam%properties(param, props, err)
+            call assert_equals(.true., PetscIsInfOrNanReal(props(1)), 'density error')
+            call assert_equals(.true., PetscIsInfOrNanReal(props(2)), 'energy error')
+            call assert_equals(1, err, 'error')
          end do
       end if
 
@@ -111,7 +131,7 @@ module IAPWS_test
 
       ! IAPWS-97 region 3 tests
 
-      PetscInt, parameter :: n = 3 
+      PetscInt, parameter :: n = 3, nerr = 1
       PetscReal :: params(n,2) = reshape([ &
            500._dp, 200._dp, 500._dp, &
            650._dp, 650._dp, 750._dp], [n,2])
@@ -119,6 +139,9 @@ module IAPWS_test
       PetscReal, parameter ::  u(n) = [0.181226279e7_dp, 0.226365868e7_dp, 0.210206932e7_dp]
       PetscInt :: i, err
       PetscReal :: param(2), props(2)
+      PetscReal :: err_params(nerr,2) = reshape([ &
+           800._dp, &
+           400._dp], [nerr,2])
 
       if (mpi%rank == mpi%output_rank) then
          params(:,2) = params(:,2) - tc_k  ! convert temperatures to Celcius
@@ -128,6 +151,13 @@ module IAPWS_test
             call assert_equals(p(i), props(1), pressure_tol, 'pressure')
             call assert_equals(u(i), props(2), energy_tol, 'energy')
             call assert_equals(0, err, 'error')
+         end do
+         do i = 1, nerr
+            param = err_params(i,:)
+            call IAPWS%supercritical%properties(param, props, err)
+            call assert_equals(.true., PetscIsInfOrNanReal(props(1)), 'density error')
+            call assert_equals(.true., PetscIsInfOrNanReal(props(2)), 'energy error')
+            call assert_equals(1, err, 'error')
          end do
       end if
 
@@ -139,21 +169,30 @@ module IAPWS_test
 
       ! IAPWS-97 saturation curve tests
 
-      PetscInt, parameter :: n = 3
+      PetscInt, parameter :: n = 3, nerr = 1
       PetscReal, parameter ::  t(n) = [300._dp, 500._dp, 600._dp] - tc_k
       PetscReal, parameter :: p(n) = [0.353658941e4_dp, 0.263889776e7_dp, &
            0.123443146e8_dp]
       PetscReal :: ps, ts
       PetscInt :: i, err
+      PetscReal :: terr(nerr) = [380._dp], perr(nerr) = [30.e6_dp]
 
       if (mpi%rank == mpi%output_rank) then
          do i = 1, n
             call IAPWS%saturation%pressure(t(i), ps, err)
             call assert_equals(p(i), ps, pressure_tol, 'pressure')
-            call assert_equals(0, err, 'pressure error')
+            call assert_equals(0, err, 'pressure no error')
             call IAPWS%saturation%temperature(ps, ts, err)
             call assert_equals(t(i), ts, temperature_tol, 'temperature')
-            call assert_equals(0, err, 'temperature error')
+            call assert_equals(0, err, 'temperature no error')
+         end do
+         do i = 1, nerr
+            call IAPWS%saturation%pressure(terr(i), ps, err)
+            call assert_equals(.true., PetscIsInfOrNanReal(ps), 'NaN pressure')
+            call assert_equals(1, err, 'pressure error')
+            call IAPWS%saturation%temperature(perr(i), ts, err)
+            call assert_equals(.true., PetscIsInfOrNanReal(ts), 'NaN temperature')
+            call assert_equals(1, err, 'temperature error')
          end do
       end if
 

@@ -667,9 +667,9 @@ contains
     props(2) = rt * tau * phitau         ! internal energy
     if (props(1) > 100.0e6_dp) then
        err = 1
+       props = qnan_dp
     else
        err = 0
-       props = qnan_dp
     end if
 
   end subroutine region3_properties
