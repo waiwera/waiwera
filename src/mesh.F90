@@ -119,6 +119,7 @@ contains
     call PetscFVSetSpatialDimension(fvm, dim, ierr); CHKERRQ(ierr)
     call DMGetDS(self%dm, ds, ierr); CHKERRQ(ierr)
     call PetscDSAddDiscretization(ds, fvm, ierr); CHKERRQ(ierr)
+    call PetscFVDestroy(fvm, ierr); CHKERRQ(ierr)
 
   end subroutine mesh_setup_discretization
 
