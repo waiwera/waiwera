@@ -65,13 +65,13 @@ module timestepper_module
      type(timestepper_step_type), allocatable :: store(:)
      type(ptimestepper_step_type), pointer :: pstore(:)
      type(timestepper_step_type), pointer, public :: current, last
-     PetscBool :: finished
      PetscInt, public :: num_stored, taken, max_num, max_num_tries
      PetscReal, public :: next_stepsize, stop_time
      PetscReal, public :: nonlinear_solver_relative_tol, nonlinear_solver_abs_tol
      PetscReal, public :: termination_tol = 1.e-6_dp
      PetscReal, allocatable, public :: sizes(:)
      type(timestep_adaptor_type), public :: adaptor
+     PetscBool :: finished
    contains
      private
      procedure :: set_aliases => timestepper_steps_set_aliases
