@@ -233,6 +233,7 @@ contains
              face%distance(2) = 0._dp
           end do
        end if
+       call ISDestroy(bdy_IS, ierr); CHKERRQ(ierr)
     end do
 
     call face%destroy()
