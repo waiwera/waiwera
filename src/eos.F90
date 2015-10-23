@@ -33,8 +33,8 @@ module eos_module
      PetscInt, public :: num_primary_variables
      PetscInt, public :: num_phases
      PetscInt, public :: num_components
-     PetscBool, public :: isothermal = .false.
      class(thermodynamics_type), pointer, public :: thermo
+     PetscBool, public :: isothermal = .false.
    contains
      private
      procedure(eos_init_procedure), public, deferred :: init
