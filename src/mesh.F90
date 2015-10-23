@@ -242,6 +242,7 @@ contains
     CHKERRQ(ierr)
 
     call PetscSectionDestroy(face_section, ierr); CHKERRQ(ierr)
+    call DMDestroy(dm_face, ierr); CHKERRQ(ierr)
 
   end subroutine mesh_setup_geometry
 
