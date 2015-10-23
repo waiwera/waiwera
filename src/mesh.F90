@@ -119,6 +119,7 @@ contains
     call PetscFVSetSpatialDimension(fvm, dim, ierr); CHKERRQ(ierr)
     call DMGetDS(self%dm, ds, ierr); CHKERRQ(ierr)
     call PetscDSAddDiscretization(ds, fvm, ierr); CHKERRQ(ierr)
+    call PetscFVDestroy(fvm, ierr); CHKERRQ(ierr)
 
   end subroutine mesh_setup_discretization
 
@@ -232,6 +233,7 @@ contains
              face%distance(2) = 0._dp
           end do
        end if
+       call ISDestroy(bdy_IS, ierr); CHKERRQ(ierr)
     end do
 
     call face%destroy()

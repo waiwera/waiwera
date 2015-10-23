@@ -833,6 +833,7 @@ contains
     type(fson_value), pointer, intent(in out) :: self
 
     if (mpi%rank == mpi%input_rank) then
+       call fson_destroy(self)
        nullify(self)
     end if
 

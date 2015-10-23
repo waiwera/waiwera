@@ -134,6 +134,7 @@ contains
              rock2 = rock1
           end do
        end if
+       call ISDestroy(bdy_IS, ierr); CHKERRQ(ierr)
     end do
     call VecRestoreArrayF90(y, y_array, ierr); CHKERRQ(ierr)
     call VecRestoreArrayF90(rock_vector, rock_array, ierr); CHKERRQ(ierr)
