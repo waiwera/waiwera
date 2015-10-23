@@ -104,7 +104,7 @@ module eos_module
        use fluid_module, only: fluid_type
        import :: eos_type, dp
        class(eos_type), intent(in out) :: self
-       PetscReal, intent(in), target :: primary(self%num_primary_variables)
+       PetscReal, intent(in) :: primary(self%num_primary_variables)
        type(fluid_type), intent(in out) :: fluid
      end subroutine eos_bulk_properties_procedure
 
@@ -239,7 +239,7 @@ contains
     use fluid_module, only: fluid_type
 
     class(eos_w_type), intent(in out) :: self
-    PetscReal, intent(in), target :: primary(self%num_primary_variables) !! Primary thermodynamic variables
+    PetscReal, intent(in) :: primary(self%num_primary_variables) !! Primary thermodynamic variables
     type(fluid_type), intent(in out) :: fluid !! Fluid object
 
     fluid%pressure = primary(1)
@@ -474,7 +474,7 @@ contains
 
     use fluid_module, only: fluid_type
     class(eos_we_type), intent(in out) :: self
-    PetscReal, intent(in), target :: primary(self%num_primary_variables) !! Primary thermodynamic variables
+    PetscReal, intent(in) :: primary(self%num_primary_variables) !! Primary thermodynamic variables
     type(fluid_type), intent(in out) :: fluid !! Fluid object
     ! Locals:
     PetscInt :: region, ierr
