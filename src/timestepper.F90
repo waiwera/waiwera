@@ -408,6 +408,8 @@ contains
           timestepper_step_status_str = 'increase'
        case (TIMESTEP_TOO_BIG)
           timestepper_step_status_str = 'reduce'
+       case (TIMESTEP_ABORTED)
+          timestepper_step_status_str = 'aborted'
        case default
           timestepper_step_status_str = 'unknown'
     end select
