@@ -33,7 +33,6 @@ module fluid_module
    contains
      private
      procedure, public :: destroy => phase_destroy
-     procedure, public :: dof => phase_dof
      procedure, public :: mobility => phase_mobility
   end type phase_type
 
@@ -86,17 +85,6 @@ contains
 
 !------------------------------------------------------------------------
 
-  PetscInt function phase_dof(self)
-    !! Returns number of degrees of freedom in the phase object.
-
-    class(phase_type), intent(in) :: self
-
-    phase_dof = num_phase_variables + size(self%mass_fraction)
-
-  end function phase_dof
-
-!------------------------------------------------------------------------
-
   PetscReal function phase_mobility(self)
     !! Returns mobility of the phase.
 
@@ -134,7 +122,9 @@ contains
     PetscReal, target, intent(in) :: data(:)  !! fluid data array
     PetscInt, intent(in) :: offset  !! fluid array offset
     ! Locals:
-    PetscInt :: i, p
+    PetscInt :: i, p, phase_dof
+
+    phase_dof = num_phase_variables + self%num_components
 
     self%pressure => data(offset)
     self%temperature => data(offset + 1)
@@ -151,7 +141,7 @@ contains
        self%phase(p)%internal_energy => data(i+5)
        self%phase(p)%mass_fraction => data(i+6: i+6 + &
             self%num_components-1)
-       i = i + self%phase(p)%dof()
+       i = i + phase_dof
     end do
 
   end subroutine fluid_assign
@@ -184,12 +174,10 @@ contains
 
     class(fluid_type), intent(in) :: self
     ! Locals:
-    PetscInt :: p
+    PetscInt :: phase_dof
 
-    fluid_dof = num_fluid_variables
-    do p = 1, self%num_phases
-       fluid_dof = fluid_dof + self%phase(p)%dof()
-    end do
+    phase_dof = num_phase_variables + self%num_components
+    fluid_dof = num_fluid_variables + self%num_phases * phase_dof
 
   end function fluid_dof
 
