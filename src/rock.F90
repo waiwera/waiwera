@@ -182,6 +182,7 @@ contains
           end do
           call ISRestoreIndicesF90(rock_IS, rock_cells, ierr); CHKERRQ(ierr)
        end if
+       call ISDestroy(rock_IS, ierr); CHKERRQ(ierr)
     end do
     call rock%destroy()
     call VecRestoreArrayF90(rock_vector, rock_array, ierr); CHKERRQ(ierr)
