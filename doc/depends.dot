@@ -29,6 +29,7 @@ digraph supermodel{
         flow_simulation_module -> fluid_module
         flow_simulation_module -> fson
         flow_simulation_module -> fson_mpi_module
+        flow_simulation_module -> fson_value_m
         flow_simulation_module -> initial_module
         flow_simulation_module -> kinds_module
         flow_simulation_module -> mesh_module
@@ -42,8 +43,9 @@ digraph supermodel{
         thermodynamics_module -> kinds_module
         face_module -> cell_module
         face_module -> kinds_module
-        initial_module -> boundary_module
         initial_module -> dm_utils_module
+        initial_module -> eos_module
+        initial_module -> fluid_module
         initial_module -> fson
         initial_module -> fson_mpi_module
         initial_module -> fson_value_m
@@ -52,10 +54,12 @@ digraph supermodel{
         initial_module -> rock_module
         mesh_module -> boundary_module
         mesh_module -> dm_utils_module
+        mesh_module -> eos_module
         mesh_module -> face_module
         mesh_module -> fson
         mesh_module -> kinds_module
         mesh_module -> mpi_module
+        mesh_module -> rock_module
         fson_mpi_module -> fson
         fson_mpi_module -> fson_value_m
         fson_mpi_module -> kinds_module

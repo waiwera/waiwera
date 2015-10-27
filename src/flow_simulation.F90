@@ -154,13 +154,16 @@ contains
     call setup_relative_permeabilities(json, self%relative_permeability)
     call setup_rock_vector(json, self%mesh%dm, self%rock, &
          self%rock_range_start)
-    call setup_initial(json, self%mesh, self%eos%num_primary_variables, &
-         self%time, self%solution, self%rock, self%solution_range_start, &
-         self%rock_range_start)
     call setup_fluid_vector(self%mesh%dm, max_component_name_length, &
          self%eos%component_names, max_phase_name_length, &
          self%eos%phase_names, self%fluid, self%fluid_range_start, &
          self%fluid_dm)
+    call setup_initial(json, self%mesh, self%eos, &
+         self%time, self%solution, self%rock, self%fluid, &
+         self%solution_range_start,  self%rock_range_start, &
+         self%fluid_range_start)
+    call self%mesh%set_boundary_values(self%solution, self%rock, self%eos, &
+         self%solution_range_start, self%rock_range_start)
     call initialise_fluid_regions(self%mesh%dm, self%fluid, &
          self%mesh%start_cell, self%mesh%end_cell, &
          self%fluid_range_start, self%eos%num_components, self%eos%num_phases)
