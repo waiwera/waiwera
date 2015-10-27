@@ -33,6 +33,8 @@ module eos_module
      PetscInt, public :: num_primary_variables
      PetscInt, public :: num_phases
      PetscInt, public :: num_components
+     PetscReal, allocatable, public :: default_primary(:)
+     PetscInt, public :: default_region
      class(thermodynamics_type), pointer, public :: thermo
      PetscBool, public :: isothermal = .false.
    contains
@@ -181,6 +183,7 @@ contains
     type(fson_value), pointer, intent(in) :: json !! JSON input object
     class(thermodynamics_type), intent(in), target :: thermo !! Thermodynamics object
     ! Locals:
+    PetscReal, parameter :: default_pressure = 1.0e5_dp
     PetscReal, parameter :: default_temperature = 20._dp ! deg C
 
     self%name = "w"
@@ -193,6 +196,9 @@ contains
     self%num_components = 1
     self%component_names = ["water"]
     self%isothermal = .true.
+
+    self%default_primary = [default_pressure]
+    self%default_region = 1
 
     self%thermo => thermo
 
@@ -210,6 +216,7 @@ contains
 
     deallocate(self%primary_variable_names)
     deallocate(self%phase_names, self%component_names)
+    deallocate(self%default_primary)
     nullify(self%thermo)
 
   end subroutine eos_w_destroy
@@ -320,6 +327,9 @@ contains
     class(eos_we_type), intent(in out) :: self
     type(fson_value), pointer, intent(in) :: json !! JSON input object
     class(thermodynamics_type), intent(in), target :: thermo !! Thermodynamics object
+    ! Locals:
+    PetscReal, parameter :: default_pressure = 1.0e5_dp
+    PetscReal, parameter :: default_temperature = 20._dp ! deg C
 
     self%name = "we"
     self%description = "Pure water and energy"
@@ -330,6 +340,9 @@ contains
     self%phase_names = ["liquid", "vapour"]
     self%num_components = 1
     self%component_names = ["water"]
+
+    self%default_primary = [default_pressure, default_temperature]
+    self%default_region = 1
 
     self%thermo => thermo
 
