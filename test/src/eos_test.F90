@@ -62,7 +62,7 @@ contains
     PetscInt, parameter :: num_components = 1, num_phases = 1
     PetscInt,  parameter :: offset = 1, region = 1, phase_composition = b'01'
     PetscReal, allocatable :: fluid_data(:)
-    PetscReal :: primary(num_components)
+    PetscReal, dimension(num_components) :: primary, primary2
     type(eos_w_type) :: eos
     type(IAPWS_type) :: thermo
     type(fson_value), pointer :: json
@@ -87,6 +87,7 @@ contains
     call eos%bulk_properties(primary, fluid)
     call eos%phase_composition(fluid)
     call eos%phase_properties(primary, rock, fluid)
+    call eos%primary_variables(fluid, primary2)
 
     if (mpi%rank == mpi%output_rank) then
 
@@ -106,6 +107,8 @@ contains
        call assert_equals(1._dp, fluid%phase(1)%saturation, tol, "Saturation")
        call assert_equals(1._dp, fluid%phase(1)%relative_permeability, tol, "Relative permeability")
        call assert_equals(1._dp, fluid%phase(1)%mass_fraction(1), tol, "Mass fraction")
+
+       call assert_equals(pressure, primary2(1), tol, "Primary")
 
     end if
 
@@ -129,7 +132,7 @@ contains
     PetscInt, parameter :: num_components = 1, num_phases = 2
     PetscInt,  parameter :: offset = 1, region = 4, phase_composition = b'011'
     PetscReal, allocatable :: fluid_data(:)
-    PetscReal :: primary(num_components + 1)
+    PetscReal, dimension(num_components + 1) :: primary, primary2
     type(eos_we_type) :: eos
     type(IAPWS_type) :: thermo
     class(relative_permeability_type), allocatable, target :: rp
@@ -168,6 +171,7 @@ contains
     call eos%bulk_properties(primary, fluid)
     call eos%phase_composition(fluid)
     call eos%phase_properties(primary, rock, fluid)
+    call eos%primary_variables(fluid, primary2)
 
     if (mpi%rank == mpi%output_rank) then
 
@@ -206,6 +210,9 @@ contains
             "Vapour relative permeability")
        call assert_equals(1._dp, fluid%phase(2)%mass_fraction(1), &
             tol, "Vapour mass fraction")
+
+       call assert_equals(pressure, primary2(1), tol, "Primary 1")
+       call assert_equals(vapour_saturation, primary2(2), tol, "Primary 2")
 
     end if
 

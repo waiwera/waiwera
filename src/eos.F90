@@ -45,6 +45,7 @@ module eos_module
      procedure(eos_bulk_properties_procedure), public, deferred :: bulk_properties
      procedure(eos_phase_composition_procedure), public, deferred :: phase_composition
      procedure(eos_phase_properties_procedure), public, deferred :: phase_properties
+     procedure(eos_primary_variables_procedure), public, deferred :: primary_variables
   end type eos_type
 
   type, public, extends(eos_type) :: eos_w_type
@@ -59,6 +60,7 @@ module eos_module
      procedure, public :: bulk_properties => eos_w_bulk_properties
      procedure, public :: phase_composition => eos_w_phase_composition
      procedure, public :: phase_properties => eos_w_phase_properties
+     procedure, public :: primary_variables => eos_w_primary_variables
   end type eos_w_type
 
   type, public, extends(eos_w_type) :: eos_we_type
@@ -72,6 +74,7 @@ module eos_module
      procedure, public :: transition_to_two_phase => eos_we_transition_to_two_phase
      procedure, public :: bulk_properties => eos_we_bulk_properties
      procedure, public :: phase_properties => eos_we_phase_properties
+     procedure, public :: primary_variables => eos_we_primary_variables
      procedure :: phase_saturations => eos_we_phase_saturations
   end type eos_we_type
 
@@ -95,7 +98,7 @@ module eos_module
        !! Check primary variables for a cell and make thermodynamic
        !! region transitions if needed.
        use fluid_module, only: fluid_type
-       import :: eos_type, dp
+       import :: eos_type
        class(eos_type), intent(in out) :: self
        PetscReal, intent(in out), target :: primary(self%num_primary_variables)
        type(fluid_type), intent(in out) :: fluid
@@ -104,7 +107,7 @@ module eos_module
      subroutine eos_bulk_properties_procedure(self, primary, fluid)
        !! Calculate bulk fluid properties from primary variables.
        use fluid_module, only: fluid_type
-       import :: eos_type, dp
+       import :: eos_type
        class(eos_type), intent(in out) :: self
        PetscReal, intent(in) :: primary(self%num_primary_variables)
        type(fluid_type), intent(in out) :: fluid
@@ -113,7 +116,7 @@ module eos_module
      subroutine eos_phase_composition_procedure(self, fluid)
        !! Calculate fluid phase composition from bulk properties.
        use fluid_module, only: fluid_type
-       import :: eos_type, dp
+       import :: eos_type
        class(eos_type), intent(in out) :: self
        type(fluid_type), intent(in out) :: fluid
      end subroutine eos_phase_composition_procedure
@@ -122,12 +125,21 @@ module eos_module
        !! Calculate phase fluid properties from primary variables.
        use rock_module, only: rock_type
        use fluid_module, only: fluid_type
-       import :: eos_type, dp
+       import :: eos_type
        class(eos_type), intent(in out) :: self
        PetscReal, intent(in), target :: primary(self%num_primary_variables)
        type(rock_type), intent(in out) :: rock
        type(fluid_type), intent(in out) :: fluid
      end subroutine eos_phase_properties_procedure
+
+     subroutine eos_primary_variables_procedure(self, fluid, primary)
+       !! Determine primary variables from fluid properties.
+       use fluid_module, only: fluid_type
+       import :: eos_type
+       class(eos_type), intent(in) :: self
+       type(fluid_type), intent(in) :: fluid
+       PetscReal, intent(out) :: primary(self%num_primary_variables)
+     end subroutine eos_primary_variables_procedure
 
   end interface
 
@@ -314,6 +326,21 @@ contains
          fluid%phase(p)%density, fluid%phase(p)%viscosity)
 
   end subroutine eos_w_phase_properties
+
+!------------------------------------------------------------------------
+
+  subroutine eos_w_primary_variables(self, fluid, primary)
+    !! Determine primary variables from fluid properties.
+
+    use fluid_module, only: fluid_type
+
+    class(eos_w_type), intent(in) :: self
+    type(fluid_type), intent(in) :: fluid
+    PetscReal, intent(out) :: primary(self%num_primary_variables)
+
+    primary(1) = fluid%pressure
+
+  end subroutine eos_w_primary_variables
 
 !------------------------------------------------------------------------
 ! eos_we
@@ -591,6 +618,30 @@ contains
     end if
 
   end subroutine eos_we_phase_properties
+
+!------------------------------------------------------------------------
+
+  subroutine eos_we_primary_variables(self, fluid, primary)
+    !! Determine primary variables from fluid properties.
+
+    use fluid_module, only: fluid_type
+
+    class(eos_we_type), intent(in) :: self
+    type(fluid_type), intent(in) :: fluid
+    PetscReal, intent(out) :: primary(self%num_primary_variables)
+    ! Locals:
+    PetscInt :: region
+
+    primary(1) = fluid%pressure
+
+    region = nint(fluid%region)
+    if (region == 4) then
+       primary(2) = fluid%phase(2)%saturation
+    else
+       primary(2) = fluid%temperature
+    end if
+
+  end subroutine eos_we_primary_variables
 
 !------------------------------------------------------------------------
 
