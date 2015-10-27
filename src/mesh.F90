@@ -31,6 +31,7 @@ module mesh_module
      procedure, public :: init => mesh_init
      procedure, public :: configure => mesh_configure
      procedure, public :: setup_boundaries => mesh_setup_boundaries
+     procedure, public :: set_boundary_values => mesh_set_boundary_values
      procedure, public :: destroy => mesh_destroy
   end type mesh_type
 
@@ -361,5 +362,75 @@ contains
   end subroutine mesh_setup_boundaries
 
 !------------------------------------------------------------------------
+
+  subroutine mesh_set_boundary_values(self, y, rock_vector, eos, &
+       y_range_start, rock_range_start)
+    !! Sets primary variables (and rock properties) in boundary ghost cells.
+
+    use dm_utils_module, only: global_vec_section, global_section_offset
+    use boundary_module, only: open_boundary_label_name
+    use eos_module, only: eos_type
+    use rock_module, only: rock_type
+
+    class(mesh_type), intent(in) :: self
+    Vec, intent(in out) :: y, rock_vector
+    class(eos_type), intent(in) :: eos
+    PetscInt, intent(in) :: y_range_start, rock_range_start
+    ! Locals:
+    PetscInt :: ibdy, f, i, num_faces, iface, rock_dof, np, n
+    PetscReal, pointer :: y_array(:), rock_array(:)
+    PetscReal, pointer :: cell_primary(:), rock1(:), rock2(:)
+    PetscSection :: y_section, rock_section
+    IS :: bdy_IS
+    DMLabel :: bdy_label
+    type(rock_type) :: rock
+    PetscInt :: y_offset, rock_offsets(2)
+    PetscInt, pointer :: bdy_faces(:), cells(:)
+    PetscErrorCode :: ierr
+
+    call global_vec_section(y, y_section)
+    call VecGetArrayF90(y, y_array, ierr); CHKERRQ(ierr)
+    call global_vec_section(rock_vector, rock_section)
+    call VecGetArrayF90(rock_vector, rock_array, ierr); CHKERRQ(ierr)
+    call DMPlexGetLabel(self%dm, open_boundary_label_name, &
+         bdy_label, ierr); CHKERRQ(ierr)
+    rock_dof = rock%dof()
+    np = eos%num_primary_variables
+
+    do ibdy = 1, size(self%bcs, 1)
+       call DMPlexGetStratumIS(self%dm, open_boundary_label_name, &
+            ibdy, bdy_IS, ierr); CHKERRQ(ierr)
+       if (bdy_IS /= 0) then
+          call ISGetIndicesF90(bdy_IS, bdy_faces, ierr); CHKERRQ(ierr)
+          num_faces = size(bdy_faces)
+          do iface = 1, num_faces
+             f = bdy_faces(iface)
+             call DMPlexGetSupport(self%dm, f, cells, ierr); CHKERRQ(ierr)
+             call global_section_offset(y_section, cells(2), &
+                  y_range_start, y_offset, ierr); CHKERRQ(ierr)
+             do i = 1, 2
+                call global_section_offset(rock_section, cells(i), &
+                     rock_range_start, rock_offsets(i), ierr)
+                CHKERRQ(ierr)
+             end do
+             ! Set primary variables:
+             cell_primary => y_array(y_offset : y_offset + np - 1)
+             cell_primary = self%bcs(2: np + 1, ibdy)
+             ! Copy rock type data from interior cell to boundary ghost cell:
+             n = rock_dof - 1
+             rock1 => rock_array(rock_offsets(1) : rock_offsets(1) + n)
+             rock2 => rock_array(rock_offsets(2) : rock_offsets(2) + n)
+             rock2 = rock1
+          end do
+       end if
+       call ISDestroy(bdy_IS, ierr); CHKERRQ(ierr)
+    end do
+
+    call VecRestoreArrayF90(y, y_array, ierr); CHKERRQ(ierr)
+    call VecRestoreArrayF90(rock_vector, rock_array, ierr); CHKERRQ(ierr)
+
+  end subroutine mesh_set_boundary_values
+
+!-----------------------------------------------------------------------
 
 end module mesh_module
