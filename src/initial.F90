@@ -157,7 +157,6 @@ contains
     !! set of initial conditions for all cells, or if a shorter array is
     !! given, this is repeated over initial conditions vector.
 
-    use fson_value_m, only : TYPE_OBJECT, TYPE_STRING
     use mesh_module
     use eos_module
     use rock_module
@@ -180,9 +179,13 @@ contains
 
     if (fson_has_mpi(json, "initial")) then
 
-       select case (fson_type_mpi(json, "initial"))
+       if (fson_has_mpi(json, "initial.filename")) then
 
-       case (TYPE_OBJECT)
+          call fson_get_mpi(json, "initial.filename", val = filename)
+          call setup_initial_file(filename, mesh, eos, y, fluid_vector, &
+               y_range_start, fluid_range_start)
+
+       else
 
           call fson_get_mpi(json, "initial.primary", eos%default_primary, primary)
           call fson_get_mpi(json, "initial.region", eos%default_region, region)
@@ -191,18 +194,13 @@ contains
                fluid_vector, y_range_start, fluid_range_start)
           deallocate(primary)
 
-       case (TYPE_STRING)
-
-          call fson_get_mpi(json, "initial", val = filename)
-          call setup_initial_file(filename, mesh, eos, y, fluid_vector, &
-               y_range_start, fluid_range_start)
-
-       end select
-
+       end if
     else
+
        call setup_initial_constant(mesh, eos%default_primary, &
             eos%default_region, eos, y, fluid_vector, y_range_start, &
             fluid_range_start)
+
     end if
 
   end subroutine setup_initial
