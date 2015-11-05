@@ -124,7 +124,7 @@ module timestepper_module
      type(timestepper_method_type), public :: method
      procedure(step_output_routine), pointer, public :: &
           step_output => step_output_default
-     PetscInt, public :: output_frequency
+     PetscInt, public :: output_frequency, output_index
      PetscBool, public :: output_initial, output_final
    contains
      private
@@ -231,7 +231,7 @@ contains
        write(*, '(a, i4)'), 'step:', self%steps%taken
        call self%steps%current%print()
     end if
-    call self%ode%output(self%steps%taken, self%steps%current%time)
+    call self%ode%output(self%output_index, self%steps%current%time)
 
   end subroutine step_output_default
 
@@ -1179,33 +1179,36 @@ end subroutine timestepper_steps_set_next_stepsize
 
     class(timestepper_type), intent(in out) :: self
     ! Locals:
-    PetscInt :: output_index
+    PetscInt :: since_output
 
     self%steps%taken = 0
-    output_index = 0
+    self%output_index = 0
+    since_output = 0
 
     call self%initial_function_calls()
 
     if ((associated(self%step_output)) .and. &
          self%output_initial) then
        call self%step_output()
+       self%output_index = self%output_index + 1
     end if
 
     do while (.not. self%steps%finished)
 
        call self%step()
 
-       output_index = output_index + 1
+       since_output = since_output + 1
        if ((associated(self%step_output)) .and. &
-            (output_index == self%output_frequency)) then
+            (since_output == self%output_frequency)) then
           call self%step_output()
-          output_index = 0
+          self%output_index = self%output_index + 1
+          since_output = 0
        end if
 
     end do
 
     if ((associated(self%step_output)) .and. &
-         self%output_final .and. (output_index > 0)) then
+         self%output_final .and. (since_output > 0)) then
        call self%step_output()
     end if
 
