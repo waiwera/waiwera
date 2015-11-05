@@ -318,7 +318,7 @@ contains
 
   subroutine setup_fluid_vector(dm, max_component_name_length, &
        component_names, max_phase_name_length, phase_names, &
-       fluid, range_start, fluid_dm)
+       fluid, range_start)
     !! Sets up global vector and DM for fluid properties, with specified
     !! numbers of components and phases.
 
@@ -331,7 +331,6 @@ contains
     character(max_phase_name_length), intent(in) :: phase_names(:)
     Vec, intent(out) :: fluid
     PetscInt, intent(out) :: range_start
-    DM, intent(out) :: fluid_dm
     ! Locals:
     PetscInt :: num_components, num_phases, num_vars
     PetscInt :: p, i, j, phase_dof
@@ -339,6 +338,7 @@ contains
     PetscErrorCode :: ierr
     PetscInt, parameter :: max_field_name_length = 40
     character(max_field_name_length), allocatable :: field_names(:)
+    DM :: fluid_dm
 
     num_components = size(component_names)
     num_phases = size(phase_names)
@@ -377,6 +377,7 @@ contains
     call global_vec_range_start(fluid, range_start)
 
     deallocate(num_field_components, field_dim, field_names)
+    call DMDestroy(fluid_dm, ierr); CHKERRQ(ierr)
 
   end subroutine setup_fluid_vector
 

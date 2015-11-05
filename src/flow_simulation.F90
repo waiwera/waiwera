@@ -24,7 +24,6 @@ module flow_simulation_module
      Vec, public :: rock
      Vec, public :: fluid
      Vec, public :: source
-     DM :: fluid_dm
      class(thermodynamics_type), allocatable, public :: thermo
      class(eos_type), allocatable, public :: eos
      PetscReal, public :: gravity
@@ -156,8 +155,7 @@ contains
          self%rock_range_start)
     call setup_fluid_vector(self%mesh%dm, max_component_name_length, &
          self%eos%component_names, max_phase_name_length, &
-         self%eos%phase_names, self%fluid, self%fluid_range_start, &
-         self%fluid_dm)
+         self%eos%phase_names, self%fluid, self%fluid_range_start)
     call setup_initial(json, self%mesh, self%eos, &
          self%time, self%solution, self%rock, self%fluid, &
          self%solution_range_start,  self%rock_range_start, &
@@ -189,7 +187,6 @@ contains
     call VecDestroy(self%fluid, ierr); CHKERRQ(ierr)
     call VecDestroy(self%rock, ierr); CHKERRQ(ierr)
     call VecDestroy(self%source, ierr); CHKERRQ(ierr)
-    call DMDestroy(self%fluid_dm, ierr); CHKERRQ(ierr)
     call self%mesh%destroy()
     call self%thermo%destroy()
     call self%eos%destroy()
@@ -656,10 +653,12 @@ contains
     PetscInt, intent(in) :: time_index
     PetscReal, intent(in) :: time
     ! Locals:
+    DM :: fluid_dm
     PetscViewer :: viewer
     PetscErrorCode :: ierr
 
-    call DMSetOutputSequenceNumber(self%fluid_dm, time_index, time, &
+    call VecGetDM(self%fluid, fluid_dm, ierr); CHKERRQ(ierr)
+    call DMSetOutputSequenceNumber(fluid_dm, time_index, time, &
          ierr); CHKERRQ(ierr)
     call VecView(self%fluid, self%hdf5_viewer, ierr); CHKERRQ(ierr)
 
