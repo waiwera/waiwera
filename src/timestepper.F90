@@ -125,6 +125,7 @@ module timestepper_module
      procedure(step_output_routine), pointer, public :: &
           step_output => step_output_default
      PetscInt, public :: output_frequency
+     PetscBool, public :: output_initial, output_final
    contains
      private
      procedure :: setup_solver => timestepper_setup_solver
@@ -1013,6 +1014,8 @@ end subroutine timestepper_steps_set_next_stepsize
     PetscInt :: max_num_tries
     PetscInt, parameter :: default_max_num_tries = 10
     PetscInt, parameter :: default_output_frequency = 1
+    PetscBool, parameter :: default_output_initial = .true.
+    PetscBool, parameter :: default_output_final = .true.
     PetscErrorCode :: ierr
 
     self%ode => ode
@@ -1099,6 +1102,10 @@ end subroutine timestepper_steps_set_next_stepsize
 
     call fson_get_mpi(json, "output.frequency", &
          default_output_frequency, self%output_frequency)
+    call fson_get_mpi(json, "output.initial", &
+         default_output_initial, self%output_initial)
+    call fson_get_mpi(json, "output.final", &
+         default_output_final, self%output_final)
 
     deallocate(step_sizes)
 
@@ -1179,7 +1186,8 @@ end subroutine timestepper_steps_set_next_stepsize
 
     call self%initial_function_calls()
 
-    if (associated(self%step_output)) then
+    if ((associated(self%step_output)) .and. &
+         self%output_initial) then
        call self%step_output()
     end if
 
@@ -1195,6 +1203,12 @@ end subroutine timestepper_steps_set_next_stepsize
        end if
 
     end do
+
+    if ((associated(self%step_output)) .and. &
+         self%output_final .and. (output_index > 0)) then
+       call self%step_output()
+    end if
+
 
   end subroutine timestepper_run
 
