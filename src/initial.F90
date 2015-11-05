@@ -77,7 +77,7 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine setup_initial_file(filename, mesh, eos, y, fluid_vector, &
+  subroutine setup_initial_file(filename, mesh, eos, t, y, fluid_vector, &
        y_range_start, fluid_range_start)
     !! Initializes fluid vector and solution vector y from HDF5 file.
 
@@ -90,10 +90,12 @@ contains
     character(len = *), intent(in) :: filename
     type(mesh_type), intent(in) :: mesh
     class(eos_type), intent(in) :: eos
+    PetscReal, intent(in) :: t
     Vec, intent(in out) :: y, fluid_vector
     PetscInt, intent(in) :: y_range_start, fluid_range_start
     ! Locals:
     PetscViewer :: viewer
+    DM :: fluid_dm
     PetscSection :: y_section, fluid_section
     PetscReal, pointer :: y_array(:), fluid_array(:)
     PetscReal, pointer :: cell_primary(:)
@@ -106,9 +108,12 @@ contains
          viewer, ierr); CHKERRQ(ierr)
     call PetscViewerHDF5PushGroup(viewer, "/", ierr); CHKERRQ(ierr)
 
-    ! TODO :: navigate to last timestep:
-    ! call PetscViewerHDF5SetTimestep(viewer, -1, ierr); CHKERRQ(ierr)
+    ! TODO :: navigate to last timestep- currently this will work only
+    ! if the file has only results for one timestep in it.
+    ! call PetscViewerHDF5SetTimestep(viewer, ?, ierr); CHKERRQ(ierr)
 
+    call VecGetDM(fluid_vector, fluid_dm, ierr); CHKERRQ(ierr)
+    call DMSetOutputSequenceNumber(fluid_dm, 0, t,ierr); CHKERRQ(ierr)
     call VecLoad(fluid_vector, viewer, ierr); CHKERRQ(ierr)
 
     call PetscViewerHDF5PopGroup(viewer, ierr); CHKERRQ(ierr)
@@ -182,7 +187,7 @@ contains
        if (fson_has_mpi(json, "initial.filename")) then
 
           call fson_get_mpi(json, "initial.filename", val = filename)
-          call setup_initial_file(filename, mesh, eos, y, fluid_vector, &
+          call setup_initial_file(filename, mesh, eos, t, y, fluid_vector, &
                y_range_start, fluid_range_start)
 
        else
