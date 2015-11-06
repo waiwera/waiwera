@@ -60,7 +60,7 @@ module fluid_module
           fluid_update_phase_composition
   end type fluid_type
 
-  public :: fluid_type, setup_fluid_vector, initialise_fluid_regions
+  public :: fluid_type, setup_fluid_vector
 
 contains
 
@@ -380,51 +380,6 @@ contains
     call DMDestroy(fluid_dm, ierr); CHKERRQ(ierr)
 
   end subroutine setup_fluid_vector
-
-!------------------------------------------------------------------------
-
-  subroutine initialise_fluid_regions(dm, fluid, start_cell, end_cell, &
-       range_start, num_components, num_phases)
-    !! Initialise fluid regions in each cell. For now, just assume all
-    !! cells are initially region 1 (liquid).
-
-    use dm_utils_module, only: global_vec_section, global_section_offset
-
-    DM, intent(in) :: dm
-    Vec, intent(in out) :: fluid
-    PetscInt, intent(in) :: start_cell, end_cell
-    PetscInt, intent(in) :: range_start
-    PetscInt, intent(in) :: num_components
-    PetscInt, intent(in) :: num_phases
-    ! Locals:
-    PetscSection :: fluid_section
-    PetscReal, pointer :: fluid_array(:)
-    type(fluid_type) :: f
-    DMLabel :: ghost_label
-    PetscInt :: ghost, fluid_offset, c
-    PetscErrorCode :: ierr
-
-    call global_vec_section(fluid, fluid_section)
-    call VecGetArrayF90(fluid, fluid_array, ierr); CHKERRQ(ierr)
-    call f%init(num_components, num_phases)
-
-    call DMPlexGetLabel(dm, "ghost", ghost_label, ierr)
-    CHKERRQ(ierr)
-
-    do c = start_cell, end_cell - 1
-       call DMLabelGetValue(ghost_label, c, ghost, ierr); CHKERRQ(ierr)
-       if (ghost < 0) then
-          call global_section_offset(fluid_section, c, &
-               range_start, fluid_offset, ierr); CHKERRQ(ierr)
-          call f%assign(fluid_array, fluid_offset)
-          f%region = 1
-       end if
-    end do
-
-    call f%destroy()
-    call VecRestoreArrayF90(fluid, fluid_array, ierr); CHKERRQ(ierr)
-
-  end subroutine initialise_fluid_regions
 
 !------------------------------------------------------------------------
 

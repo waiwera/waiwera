@@ -132,7 +132,7 @@ contains
     use eos_module, only: setup_eos, max_component_name_length, &
          max_phase_name_length
     use initial_module, only: setup_initial
-    use fluid_module, only: setup_fluid_vector, initialise_fluid_regions
+    use fluid_module, only: setup_fluid_vector
     use rock_module, only: setup_rock_vector, setup_rocktype_labels
     use source_module, only: setup_source_vector
 
@@ -162,9 +162,6 @@ contains
          self%fluid_range_start)
     call self%mesh%set_boundary_values(self%solution, self%rock, self%eos, &
          self%solution_range_start, self%rock_range_start)
-    call initialise_fluid_regions(self%mesh%dm, self%fluid, &
-         self%mesh%start_cell, self%mesh%end_cell, &
-         self%fluid_range_start, self%eos%num_components, self%eos%num_phases)
     call setup_source_vector(json, self%mesh%dm, &
          self%eos%num_primary_variables, self%eos%isothermal, self%source)
     call fson_get_mpi(json, "gravity", default_gravity, self%gravity)
