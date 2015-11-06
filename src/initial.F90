@@ -157,10 +157,10 @@ contains
   subroutine setup_initial(json, mesh, eos, t, y, rock_vector, &
        fluid_vector, y_range_start, rock_range_start, fluid_range_start)
     !! Initializes time t and a Vec y with initial conditions read
-    !! from JSON input 'initial'.  Conditions may be specified as a
-    !! constant value or as an array. The array may contain a complete
-    !! set of initial conditions for all cells, or if a shorter array is
-    !! given, this is repeated over initial conditions vector.
+    !! from JSON input 'initial'.  A full set of initial conditions
+    !! may be read in from an HDF5 file, or a constant set of primary
+    !! variables can be read from the JSON input and applied to all
+    !! cells.
 
     use mesh_module
     use eos_module
