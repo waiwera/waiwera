@@ -226,12 +226,12 @@ contains
 
 !------------------------------------------------------------------------
 
-  PetscReal function face_phase_density(self, ip) result(rho)
-    !! Returns phase density on the face for a given phase. It is
+  PetscReal function face_phase_density(self, p) result(rho)
+    !! Returns phase density on the face for a given phase p. It is
     !! assumed that the phase is present in at least one of the cells.
 
     class(face_type), intent(in) :: self
-    PetscInt, intent(in) :: ip !! Stored index of phase
+    PetscInt, intent(in) :: p
     ! Locals:
     PetscInt :: i
     PetscReal :: weight
@@ -239,9 +239,9 @@ contains
     rho = 0._dp
     weight = 0._dp
     do i = 1, 2
-       rho = rho + self%cell(i)%fluid%phase(ip)%saturation * &
-            self%cell(i)%fluid%phase(ip)%density
-       weight = weight + self%cell(i)%fluid%phase(ip)%saturation
+       rho = rho + self%cell(i)%fluid%phase(p)%saturation * &
+            self%cell(i)%fluid%phase(p)%density
+       weight = weight + self%cell(i)%fluid%phase(p)%saturation
     end do
     rho = rho / weight
 
