@@ -856,6 +856,7 @@ end subroutine timestepper_steps_set_next_stepsize
     ! Locals:
     PetscErrorCode :: ierr
     KSP :: ksp
+    SNESLineSearch :: linesearch
 
     call self%context%init(self%ode, self%steps, self%method%residual)
 
@@ -884,6 +885,9 @@ end subroutine timestepper_steps_set_next_stepsize
     call SNESSetUpdate(self%solver, SNES_pre_iteration_update, ierr)
     CHKERRQ(ierr)
 
+    call SNESGetLineSearch(self%solver, linesearch, ierr); CHKERRQ(ierr)
+    call SNESLineSearchSetType(linesearch, SNESLINESEARCHBASIC, ierr);
+
   end subroutine timestepper_setup_solver
 
 !------------------------------------------------------------------------
@@ -904,6 +908,7 @@ end subroutine timestepper_steps_set_next_stepsize
             ' max. residual: ', context%steps%current%max_residual, &
             new_line('a')
        call PetscPrintf(mpi%comm, str, ierr); CHKERRQ(ierr)
+       call VecView(context%steps%current%solution, PETSC_VIEWER_STDOUT_WORLD, ierr)
     end if
 
   end subroutine SNES_monitor
