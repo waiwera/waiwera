@@ -39,9 +39,12 @@ module flow_simulation_module
      procedure, public :: destroy => flow_simulation_destroy
      procedure, public :: lhs => flow_simulation_cell_balances
      procedure, public :: rhs => flow_simulation_cell_inflows
-     procedure, public :: pre_solve => flow_simulation_fluid_init
-     procedure, public :: pre_iteration => flow_simulation_fluid_transitions
-     procedure, public :: pre_eval => flow_simulation_fluid_properties
+     procedure, public :: pre_solve => flow_simulation_pre_solve
+     procedure, public :: fluid_init => flow_simulation_fluid_init
+     procedure, public :: pre_iteration => flow_simulation_pre_iteration
+     procedure, public :: fluid_transitions => flow_simulation_fluid_transitions
+     procedure, public :: pre_eval => flow_simulation_pre_eval
+     procedure, public :: fluid_properties => flow_simulation_fluid_properties
      procedure, public :: pre_timestep => flow_simulation_pre_timestep
      procedure, public :: pre_retry_timestep => flow_simulation_pre_retry_timestep
      procedure, public :: output => flow_simulation_output
@@ -429,6 +432,22 @@ contains
 
 !------------------------------------------------------------------------
 
+  subroutine flow_simulation_pre_solve(self, t, y, err)
+    !! Routine to be called before the timestepper starts to run.
+    !! Here the initial fluid properties in all cells are computed.
+
+    class(flow_simulation_type), intent(in out) :: self
+    PetscReal, intent(in) :: t !! time
+    Vec, intent(in) :: y !! global primary variables vector
+    PetscErrorCode, intent(out) :: err
+
+    err = 0
+    call self%fluid_init(t, y, err)
+
+  end subroutine flow_simulation_pre_solve
+
+!------------------------------------------------------------------------
+
   subroutine flow_simulation_fluid_init(self, t, y, err)
     !! Computes fluid properties in all cells, including phase
     !! composition, based on the current time and primary
@@ -525,11 +544,27 @@ contains
 
 !------------------------------------------------------------------------
 
+  subroutine flow_simulation_pre_eval(self, t, y, err)
+    !! Routine to be called before each function evaluation during the
+    !! nonlinear solve at each time step. Here the fluid properties
+    !! (excluding phase composition) are updated.
+
+    class(flow_simulation_type), intent(in out) :: self
+    PetscReal, intent(in) :: t !! time
+    Vec, intent(in) :: y !! global primary variables vector
+    PetscErrorCode, intent(out) :: err !! error code
+
+    err = 0
+    call self%fluid_properties(t, y, err)
+
+  end subroutine flow_simulation_pre_eval
+
+!------------------------------------------------------------------------
+
   subroutine flow_simulation_fluid_properties(self, t, y, err)
     !! Computes fluid properties in all cells, excluding phase
     !! composition, based on the current time and primary
-    !! thermodynamic variables. This is called before each function
-    !! evaluation during the nonlinear solve during each time step.
+    !! thermodynamic variables.
 
     use dm_utils_module, only: global_section_offset, global_vec_section
     use fluid_module, only: fluid_type
@@ -610,11 +645,25 @@ contains
 
 !------------------------------------------------------------------------
 
+  subroutine flow_simulation_pre_iteration(self, y, err)
+    !! Routine to be called at the start of each nonlinear solver
+    !! iteration during each time step. Here any fluid region
+    !! transitions are made.
+
+    class(flow_simulation_type), intent(in out) :: self
+    Vec, intent(in out) :: y !! Global primary variables vector
+    PetscErrorCode, intent(out) :: err !! Error code
+
+    err = 0
+    call self%fluid_transitions(y, err)
+
+  end subroutine flow_simulation_pre_iteration
+
+!------------------------------------------------------------------------
+
   subroutine flow_simulation_fluid_transitions(self, y, err)
     !! Checks primary variables and thermodynamic regions in all mesh
-    !! cells and updates if region transitions have occurred. This is
-    !! called at the start of each nonlinear solver iteration during
-    !! each time step.
+    !! cells and updates if region transitions have occurred.
 
     use dm_utils_module, only: global_section_offset, global_vec_section
     use fluid_module, only: fluid_type
