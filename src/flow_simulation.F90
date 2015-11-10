@@ -195,7 +195,7 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine flow_simulation_cell_balances(self, t, y, lhs)
+  subroutine flow_simulation_cell_balances(self, t, y, lhs, err)
     !! Computes mass and energy balance for each cell, for the given
     !! primary thermodynamic variables and time.
 
@@ -206,6 +206,7 @@ contains
     PetscReal, intent(in) :: t !! time (s)
     Vec, intent(in) :: y !! global primary variables vector
     Vec, intent(out) :: lhs
+    PetscErrorCode, intent(out) :: err
     ! Locals:
     PetscInt :: c, ghost, np, nc
     PetscSection :: fluid_section, rock_section, lhs_section
@@ -216,6 +217,7 @@ contains
     DMLabel :: ghost_label
     PetscErrorCode :: ierr
 
+    err = 0
     np = self%eos%num_primary_variables
     nc = self%eos%num_components
 
@@ -267,7 +269,7 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine flow_simulation_cell_inflows(self, t, y, rhs)
+  subroutine flow_simulation_cell_inflows(self, t, y, rhs, err)
     !! Computes net inflow (per unit volume) into each cell, from
     !! flows through faces and source terms, for the given primary
     !! thermodynamic variables and time.
@@ -281,6 +283,7 @@ contains
     PetscReal, intent(in) :: t !! time
     Vec, intent(in) :: y !! global primary variables vector
     Vec, intent(out) :: rhs
+    PetscErrorCode, intent(out) :: err
     ! Locals:
     PetscInt :: f, c, ghost_cell, ghost_face, i, np, nc
     Vec :: local_fluid, local_rock
@@ -305,6 +308,7 @@ contains
     PetscReal, allocatable :: primary(:)
     PetscErrorCode :: ierr
 
+    err = 0
     np = self%eos%num_primary_variables
     allocate(face_flow(np), primary(np))
 
@@ -420,7 +424,7 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine flow_simulation_fluid_init(self, t, y)
+  subroutine flow_simulation_fluid_init(self, t, y, err)
     !! Computes fluid properties in all cells, including phase
     !! composition, based on the current time and primary
     !! thermodynamic variables. This is called before the timestepper
@@ -433,6 +437,7 @@ contains
     class(flow_simulation_type), intent(in out) :: self
     PetscReal, intent(in) :: t !! time
     Vec, intent(in) :: y !! global primary variables vector
+    PetscErrorCode, intent(out) :: err
     ! Locals:
     PetscInt :: c, np, nc, ghost
     PetscSection :: y_section, fluid_section, rock_section
@@ -444,6 +449,7 @@ contains
     DMLabel :: ghost_label
     PetscErrorCode :: ierr
 
+    err = 0
     np = self%eos%num_primary_variables
     nc = self%eos%num_components
 
@@ -481,10 +487,17 @@ contains
           call rock%assign(rock_array, rock_offset, &
                self%relative_permeability)
 
-          call self%eos%bulk_properties(cell_primary, fluid)
-          call self%eos%transition(cell_primary, fluid)
-          call self%eos%phase_composition(fluid)
-          call self%eos%phase_properties(cell_primary, rock, fluid)
+          call self%eos%bulk_properties(cell_primary, fluid, err)
+          if (err == 0) then
+             call self%eos%transition(cell_primary, fluid, err)
+             if (err == 0) then
+                call self%eos%phase_composition(fluid, err)
+                if (err == 0) then
+                   call self%eos%phase_properties(cell_primary, rock, &
+                        fluid, err)
+                end if
+             end if
+          end if
 
        end if
 
@@ -500,7 +513,7 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine flow_simulation_fluid_properties(self, t, y)
+  subroutine flow_simulation_fluid_properties(self, t, y, err)
     !! Computes fluid properties in all cells, excluding phase
     !! composition, based on the current time and primary
     !! thermodynamic variables. This is called before each function
@@ -513,6 +526,7 @@ contains
     class(flow_simulation_type), intent(in out) :: self
     PetscReal, intent(in) :: t !! time
     Vec, intent(in) :: y !! global primary variables vector
+    PetscErrorCode, intent(out) :: err !! error code
     ! Locals:
     PetscInt :: c, np, nc, ghost
     PetscSection :: y_section, fluid_section, rock_section
@@ -524,6 +538,7 @@ contains
     DMLabel :: ghost_label
     PetscErrorCode :: ierr
 
+    err = 0
     np = self%eos%num_primary_variables
     nc = self%eos%num_components
 
@@ -561,8 +576,13 @@ contains
           call rock%assign(rock_array, rock_offset, &
                self%relative_permeability)
 
-          call self%eos%bulk_properties(cell_primary, fluid)
-          call self%eos%phase_properties(cell_primary, rock, fluid)
+          call self%eos%bulk_properties(cell_primary, fluid, err)
+          if (err == 0) then
+             call self%eos%phase_properties(cell_primary, rock, fluid, err)
+             if (err > 0) exit
+          else
+             exit
+          end if
 
        end if
 
@@ -578,7 +598,7 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine flow_simulation_fluid_transitions(self, y, ierr)
+  subroutine flow_simulation_fluid_transitions(self, y, err)
     !! Checks primary variables and thermodynamic regions in all mesh
     !! cells and updates if region transitions have occurred. This is
     !! called at the start of each nonlinear solver iteration during
@@ -589,7 +609,7 @@ contains
 
     class(flow_simulation_type), intent(in out) :: self
     Vec, intent(in out) :: y !! Global primary variables vector
-    PetscErrorCode, intent(out) :: ierr !! Error code
+    PetscErrorCode, intent(out) :: err !! Error code
     ! Locals:
     PetscInt :: c, np, nc, ghost
     PetscSection :: primary_section, fluid_section
@@ -598,7 +618,9 @@ contains
     PetscReal, pointer :: fluid_array(:)
     type(fluid_type) :: fluid
     DMLabel :: ghost_label
+    PetscErrorCode :: ierr
 
+    err = 0
     np = self%eos%num_primary_variables
     nc = self%eos%num_components
 
@@ -627,7 +649,12 @@ contains
 
           call fluid%assign(fluid_array, fluid_offset)
 
-          call self%eos%transition(cell_primary, fluid)
+          err = self%eos%check_primary_variables(fluid, cell_primary)
+          if (err == 0) then
+             call self%eos%transition(cell_primary, fluid, err)
+          else
+             exit
+          end if
 
        end if
 
