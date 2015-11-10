@@ -495,8 +495,15 @@ contains
                 if (err == 0) then
                    call self%eos%phase_properties(cell_primary, rock, &
                         fluid, err)
+                   if (err > 0) exit
+                else
+                   exit
                 end if
+             else
+                exit
              end if
+          else
+             exit
           end if
 
        end if
