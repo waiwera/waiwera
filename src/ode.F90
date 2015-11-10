@@ -22,6 +22,8 @@ module ode_module
      procedure, public :: pre_solve => ode_pre_eval
      procedure, public :: pre_iteration => ode_pre_iteration
      procedure, public :: pre_eval => ode_pre_eval
+     procedure, public :: pre_timestep => ode_pre_timestep
+     procedure, public :: pre_retry_timestep => ode_pre_retry_timestep
      procedure(ode_output_procedure), public, deferred :: output
   end type ode_type
 
@@ -46,16 +48,6 @@ module ode_module
        Vec, intent(out) :: rhs
        PetscErrorCode, intent(out) :: err
      end subroutine rhs_function
-
-     subroutine pre_eval_procedure(self, t, y, err)
-       !! Optional routine to be called before each evaluation
-       !! of LHS and RHS functions.
-       import :: ode_type
-       class(ode_type), intent(in out) :: self
-       PetscReal, intent(in) :: t
-       Vec, intent(in) :: y
-       PetscErrorCode, intent(out) :: err
-     end subroutine pre_eval_procedure
 
      subroutine ode_output_procedure(self, time_index, time)
        !! Routine for output of ode solution.
@@ -104,6 +96,29 @@ contains
     err = 0
 
   end subroutine ode_pre_eval
+
+!------------------------------------------------------------------------
+
+  subroutine ode_pre_timestep(self)
+    !! Default routine to be called before starting each timestep.
+
+    class(ode_type), intent(in out) :: self
+
+    ! Do nothing
+
+  end subroutine ode_pre_timestep
+
+!------------------------------------------------------------------------
+
+  subroutine ode_pre_retry_timestep(self)
+    !! Default routine to be called before re-trying a timestep with a
+    !! reduced step size.
+
+    class(ode_type), intent(in out) :: self
+
+    ! Do nothing
+
+  end subroutine ode_pre_retry_timestep
 
 !------------------------------------------------------------------------
 
