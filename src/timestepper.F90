@@ -77,6 +77,7 @@ module timestepper_module
      procedure :: set_aliases => timestepper_steps_set_aliases
      procedure :: set_pstore => timestepper_steps_set_pstore
      procedure :: update => timestepper_steps_update
+     procedure :: initialize_try => timestepper_steps_initialize_try
      procedure :: rotate => timestepper_steps_rotate
      procedure, public :: init => timestepper_steps_init
      procedure, public :: destroy => timestepper_steps_destroy
@@ -660,20 +661,32 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine timestepper_steps_update(self)
-    !! Updates pointers to store array, when timestep is advanced.
+  subroutine timestepper_steps_initialize_try(self)
+    !! Initializes step try.
 
     class(timestepper_steps_type), intent(in out) :: self
     ! Locals:
     PetscErrorCode :: ierr
 
-    call self%rotate()
-    call self%set_aliases()
-
     if (self%num_stored > 1) then
        ! Last solution is initial guess for current solution:
        call VecCopy(self%last%solution, self%current%solution, ierr); CHKERRQ(ierr)
     end if
+
+    self%current%stepsize = self%next_stepsize
+    self%current%time = self%last%time + self%current%stepsize
+
+  end subroutine timestepper_steps_initialize_try
+
+!------------------------------------------------------------------------
+
+  subroutine timestepper_steps_update(self)
+    !! Updates pointers to store array, when timestep is advanced.
+
+    class(timestepper_steps_type), intent(in out) :: self
+
+    call self%rotate()
+    call self%set_aliases()
 
     self%current%num_tries = 0
     self%current%status = TIMESTEP_OK
@@ -733,7 +746,7 @@ contains
     ! Locals:
     PetscReal :: eta
 
-    if (self%current%num_tries > self%max_num_tries) then
+    if (self%current%num_tries >= self%max_num_tries) then
        self%current%status = TIMESTEP_ABORTED
        self%finished = .true.
     else if (converged) then
@@ -945,7 +958,6 @@ end subroutine timestepper_steps_set_next_stepsize
             ' max. residual: ', context%steps%current%max_residual, &
             new_line('a')
        call PetscPrintf(mpi%comm, str, ierr); CHKERRQ(ierr)
-       call VecView(context%steps%current%solution, PETSC_VIEWER_STDOUT_WORLD, ierr)
     end if
 
   end subroutine SNES_monitor
@@ -1184,16 +1196,16 @@ end subroutine timestepper_steps_set_next_stepsize
     PetscErrorCode :: ierr
     PetscBool :: converged, accepted
     SNESConvergedReason :: converged_reason
-    
+
     call self%steps%update()
     accepted = .false.
 
     do while (.not. (accepted .or. (self%steps%current%status == TIMESTEP_ABORTED)))
 
-       self%steps%current%stepsize = self%steps%next_stepsize
-       self%steps%current%time = self%steps%last%time + self%steps%current%stepsize
+       call self%steps%initialize_try()
        call self%steps%check_finished()
 
+       call VecView(self%steps%current%solution, PETSC_VIEWER_STDOUT_WORLD, ierr)
        call SNESSolve(self%solver, PETSC_NULL_OBJECT, self%steps%current%solution, &
             ierr); CHKERRQ(ierr)
        call SNESGetIterationNumber(self%solver, self%steps%current%num_iterations, &
