@@ -46,6 +46,7 @@ module eos_module
      procedure(eos_phase_composition_procedure), public, deferred :: phase_composition
      procedure(eos_phase_properties_procedure), public, deferred :: phase_properties
      procedure(eos_primary_variables_procedure), public, deferred :: primary_variables
+     procedure(eos_check_primary_variables_procedure), public, deferred :: check_primary_variables
   end type eos_type
 
   type, public, extends(eos_type) :: eos_w_type
@@ -61,6 +62,7 @@ module eos_module
      procedure, public :: phase_composition => eos_w_phase_composition
      procedure, public :: phase_properties => eos_w_phase_properties
      procedure, public :: primary_variables => eos_w_primary_variables
+     procedure, public :: check_primary_variables => eos_w_check_primary_variables
   end type eos_w_type
 
   type, public, extends(eos_w_type) :: eos_we_type
@@ -76,6 +78,7 @@ module eos_module
      procedure, public :: phase_properties => eos_we_phase_properties
      procedure, public :: primary_variables => eos_we_primary_variables
      procedure :: phase_saturations => eos_we_phase_saturations
+     procedure, public :: check_primary_variables => eos_we_check_primary_variables
   end type eos_we_type
 
   abstract interface
@@ -140,6 +143,16 @@ module eos_module
        type(fluid_type), intent(in) :: fluid
        PetscReal, intent(out) :: primary(self%num_primary_variables)
      end subroutine eos_primary_variables_procedure
+
+     PetscErrorCode function eos_check_primary_variables_procedure(self, fluid, primary)
+       !! Check if primary variables are in acceptable bounds, and return
+       !! error code accordingly.
+       use fluid_module, only: fluid_type
+       import :: eos_type
+       class(eos_type), intent(in) :: self
+       type(fluid_type), intent(in) :: fluid
+       PetscReal, intent(in), target :: primary(self%num_primary_variables)
+     end function eos_check_primary_variables_procedure
 
   end interface
 
@@ -341,6 +354,30 @@ contains
     primary(1) = fluid%pressure
 
   end subroutine eos_w_primary_variables
+
+!------------------------------------------------------------------------
+
+  PetscErrorCode function eos_w_check_primary_variables(self, fluid, &
+       primary) result(err)
+    !! Check if primary variables are in acceptable bounds, and return
+    !! error code accordingly.
+
+    use fluid_module, only: fluid_type
+
+    class(eos_w_type), intent(in) :: self
+    type(fluid_type), intent(in) :: fluid
+    PetscReal, intent(in), target :: primary(self%num_primary_variables)
+    ! Locals:
+    PetscReal, pointer :: p
+
+    p => primary(1)
+    if ((p < 0._dp) .or. (p > 100.e6_dp)) then
+       err = 1
+    else
+       err = 0
+    end if
+
+  end function eos_w_check_primary_variables
 
 !------------------------------------------------------------------------
 ! eos_we
@@ -642,6 +679,44 @@ contains
     end if
 
   end subroutine eos_we_primary_variables
+
+!------------------------------------------------------------------------
+
+  PetscErrorCode function eos_we_check_primary_variables(self, fluid, &
+       primary) result(err)
+    !! Check if primary variables are in acceptable bounds, and return error
+    !! code accordingly.
+
+    use fluid_module, only: fluid_type
+
+    class(eos_we_type), intent(in) :: self
+    type(fluid_type), intent(in) :: fluid
+    PetscReal, intent(in), target :: primary(self%num_primary_variables)
+    ! Locals:
+    PetscInt :: region
+    PetscReal, pointer :: p, t, vapour_saturation
+
+    err = 0
+    p => primary(1)
+    if ((p < 0._dp) .or. (p > 100.e6_dp)) then
+       err = 1
+    else
+       region = nint(fluid%region)
+       if (region == 4) then
+          vapour_saturation => primary(2)
+          if ((vapour_saturation < -1._dp) .or. &
+               (vapour_saturation > 2._dp)) then
+             err = 1
+          end if
+       else
+          t => primary(2)
+          if ((t < 0._dp) .or. (t > 800._dp)) then
+             err = 1
+          end if
+       end if
+    end if
+
+  end function eos_we_check_primary_variables
 
 !------------------------------------------------------------------------
 
