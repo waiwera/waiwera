@@ -105,7 +105,7 @@ module IFC67_test
       PetscReal :: param(2), props(2)
       PetscReal :: err_params(nerr,2) = reshape([ &
            20.e6_dp, 101.e6_dp, &
-           1001._dp,    60._dp], [nerr,2])
+           801._dp,    60._dp], [nerr,2])
 
       if (mpi%rank == mpi%output_rank) then
          params(:,2) = params(:,2) - tc_k  ! convert temperatures to Celcius
