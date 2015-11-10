@@ -67,6 +67,7 @@ contains
     type(IAPWS_type) :: thermo
     type(fson_value), pointer :: json
     character(40) :: json_str = '{"eos":{"temperature": 20.0}}'
+    PetscErrorCode :: err
     PetscReal, parameter :: pressure = 1.e5_dp, tol = 1.e-8_dp
     PetscReal, parameter :: expected_density = 998.20548637769673_dp
     PetscReal, parameter :: expected_internal_energy = 83911.631393167205_dp
@@ -84,9 +85,9 @@ contains
 
     primary = pressure
     fluid%region = dble(region)
-    call eos%bulk_properties(primary, fluid)
-    call eos%phase_composition(fluid)
-    call eos%phase_properties(primary, rock, fluid)
+    call eos%bulk_properties(primary, fluid, err)
+    call eos%phase_composition(fluid, err)
+    call eos%phase_properties(primary, rock, fluid, err)
     call eos%primary_variables(fluid, primary2)
 
     if (mpi%rank == mpi%output_rank) then
@@ -139,6 +140,7 @@ contains
     type(fson_value), pointer :: json
     character(120) :: json_str = &
          '{"rock": {"relative permeability": {"type": "linear", "liquid": [0.2, 0.8], "vapour": [0.2, 0.8]}}}'
+    PetscErrorCode :: err
     PetscReal, parameter :: temperature = 230._dp
     PetscReal, parameter :: pressure = 27.967924557686445e5_dp
     PetscReal, parameter :: vapour_saturation = 0.25
@@ -168,9 +170,9 @@ contains
 
     primary = [pressure, vapour_saturation]
     fluid%region = dble(region)
-    call eos%bulk_properties(primary, fluid)
-    call eos%phase_composition(fluid)
-    call eos%phase_properties(primary, rock, fluid)
+    call eos%bulk_properties(primary, fluid, err)
+    call eos%phase_composition(fluid, err)
+    call eos%phase_properties(primary, rock, fluid, err)
     call eos%primary_variables(fluid, primary2)
 
     if (mpi%rank == mpi%output_rank) then
@@ -242,6 +244,7 @@ contains
     type(fson_value), pointer :: json
     character(2) :: json_str = '{}'
     character(60) :: title
+    PetscErrorCode :: err
     PetscReal, parameter :: small = 1.e-6_dp
 
     json => fson_parse_mpi(str = json_str)
@@ -259,7 +262,7 @@ contains
        expected_primary = [1.e5_dp, 20._dp]
        fluid%region = dble(expected_region)
        primary = expected_primary
-       call eos%transition(primary, fluid)
+       call eos%transition(primary, fluid, err)
        call transition_compare(expected_primary, expected_region, &
             primary, fluid, title)
 
@@ -268,7 +271,7 @@ contains
        expected_primary = [15.546718682698252e5_dp, small]
        primary = [15.e5_dp, 200._dp]
        fluid%region = dble(1)
-       call eos%transition(primary, fluid)
+       call eos%transition(primary, fluid, err)
        call transition_compare(expected_primary, expected_region, &
             primary, fluid, title)
 
@@ -277,7 +280,7 @@ contains
        expected_primary = [1.e5_dp, 120._dp]
        fluid%region = dble(expected_region)
        primary = expected_primary
-       call eos%transition(primary, fluid)
+       call eos%transition(primary, fluid, err)
        call transition_compare(expected_primary, expected_region, &
             primary, fluid, title)
 
@@ -286,7 +289,7 @@ contains
        expected_primary = [85.e5_dp, 1._dp - small]
        fluid%region = dble(2)
        primary = [85.01e5_dp, 299.27215502281706_dp]
-       call eos%transition(primary, fluid)
+       call eos%transition(primary, fluid, err)
        call transition_compare(expected_primary, expected_region, &
             primary, fluid, title)
 
@@ -295,7 +298,7 @@ contains
        expected_primary = [1.e5_dp, 0.5_dp]
        fluid%region = dble(expected_region)
        primary = expected_primary
-       call eos%transition(primary, fluid)
+       call eos%transition(primary, fluid, err)
        call transition_compare(expected_primary, expected_region, &
             primary, fluid, title)
 
@@ -306,7 +309,7 @@ contains
        fluid%region = dble(4)
        fluid%temperature = temperature
        primary = [85.e5_dp, -0.01_dp]
-       call eos%transition(primary, fluid)
+       call eos%transition(primary, fluid, err)
        call transition_compare(expected_primary, expected_region, &
             primary, fluid, title)
 
@@ -317,7 +320,7 @@ contains
        fluid%region = dble(4)
        fluid%temperature = temperature
        primary = [20.e5_dp, 1.02_dp]
-       call eos%transition(primary, fluid)
+       call eos%transition(primary, fluid, err)
        call transition_compare(expected_primary, expected_region, &
             primary, fluid, title)
 
@@ -356,6 +359,7 @@ contains
          '{"rock": {"relative permeability": {"type": "linear", "liquid": [0.2, 0.8], "vapour": [0.2, 0.8]}}}'
     PetscReal, parameter :: tol = 1.e-8_dp
     PetscInt :: i, p
+    PetscErrorCode :: err
 
     json => fson_parse_mpi(str = json_str)
     call thermo%init()
@@ -373,11 +377,11 @@ contains
        p = i
        primary = data(i, :)
        fluid%region = dble(region(i))
-       call eos%bulk_properties(primary, fluid)
-       call eos%phase_composition(fluid)
-       call eos%phase_properties(primary, rock, fluid)
+       call eos%bulk_properties(primary, fluid, err)
+       call eos%phase_composition(fluid, err)
+       call eos%phase_properties(primary, rock, fluid, err)
        if (mpi%rank == mpi%output_rank) then
-          call assert_equals(.true., PetscIsInfOrNanReal(fluid%phase(p)%density), "Density")
+          call assert_equals(1, err, "error code")
        end if
     end do
 
