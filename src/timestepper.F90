@@ -138,14 +138,14 @@ module timestepper_module
 
   interface
 
-     subroutine method_residual(solver, y, residual, context, ierr)
+     subroutine method_residual(solver, y, residual, context, err)
        !! Residual routine to be minimised by nonlinear solver.
        import :: timestepper_solver_context_type
        SNES, intent(in) :: solver
        Vec, intent(in) :: y
        Vec, intent(out) :: residual
        type(timestepper_solver_context_type), intent(in out) :: context
-       PetscErrorCode, intent(out) :: ierr
+       PetscErrorCode, intent(out) :: err
      end subroutine method_residual
 
      PetscReal function monitor_function(current, last)
@@ -239,7 +239,7 @@ contains
 ! Residual routines
 !------------------------------------------------------------------------
 
-  subroutine backwards_Euler_residual(solver, y, residual, context, ierr)
+  subroutine backwards_Euler_residual(solver, y, residual, context, err)
     !! Residual for backwards Euler method.
     !! residual = L(1) - L(0)  - dt * R(1)
 
@@ -247,24 +247,31 @@ contains
     Vec, intent(in) :: y
     Vec, intent(out) :: residual
     type(timestepper_solver_context_type), intent(in out) :: context
-    PetscErrorCode, intent(out) :: ierr
+    PetscErrorCode, intent(out) :: err
     ! Locals:
     PetscReal :: t, dt
+    PetscErrorCode :: ierr
 
+    err = 0
     t = context%steps%current%time
     dt = context%steps%current%stepsize
 
-    call context%ode%lhs(t, y, context%steps%current%lhs)
-    call VecCopy(context%steps%current%lhs, residual, ierr); CHKERRQ(ierr)
-    call VecAXPY(residual, -1.0_dp, context%steps%last%lhs, ierr); CHKERRQ(ierr)
-    call context%ode%rhs(t, y, context%steps%current%rhs)
-    call VecAXPY(residual, -dt, context%steps%current%rhs, ierr); CHKERRQ(ierr)
+    call context%ode%lhs(t, y, context%steps%current%lhs, err)
+    if (err == 0) then
+       call VecCopy(context%steps%current%lhs, residual, ierr); CHKERRQ(ierr)
+       call VecAXPY(residual, -1.0_dp, context%steps%last%lhs, ierr); CHKERRQ(ierr)
+       call context%ode%rhs(t, y, context%steps%current%rhs, err)
+       if (err == 0) then
+          call VecAXPY(residual, -dt, context%steps%current%rhs, ierr)
+          CHKERRQ(ierr)
+       end if
+    end if
 
   end subroutine backwards_Euler_residual
 
 !------------------------------------------------------------------------
 
-  subroutine BDF2_residual(solver, y, residual, context, ierr)
+  subroutine BDF2_residual(solver, y, residual, context, err)
     !! Residual for variable-stepsize BDF2 method.
     !! residual = (1 + 2r) * L(1) - (r+1)^2 * L(0) + r^2 * L(-1) - dt * (r+1) * R(1)
     !! where r = dt / (last dt)
@@ -273,19 +280,21 @@ contains
     Vec, intent(in) :: y
     Vec, intent(out) :: residual
     type(timestepper_solver_context_type), intent(in out) :: context
-    PetscErrorCode, intent(out) :: ierr
+    PetscErrorCode, intent(out) :: err
     ! Locals:
     type(timestepper_step_type), pointer :: last2
     PetscReal :: t, dt, dtlast
     PetscReal :: r, r1
+    PetscErrorCode :: ierr
 
     if (context%steps%taken == 0) then
 
        ! Startup- use backwards Euler
-       call backwards_Euler_residual(solver, y, residual, context, ierr)
+       call backwards_Euler_residual(solver, y, residual, context, err)
 
     else
 
+       err = 0
        t  = context%steps%current%time
        dt = context%steps%current%stepsize
        dtlast = context%steps%last%stepsize
@@ -294,14 +303,19 @@ contains
 
        last2 => context%steps%pstore(3)%p
 
-       call context%ode%lhs(t, y, context%steps%current%lhs)
-       call VecCopy(context%steps%current%lhs, residual, ierr); CHKERRQ(ierr)
-       call VecScale(residual, 1._dp + 2._dp * r, ierr); CHKERRQ(ierr)
-       call VecAXPY(residual, -r1 * r1, context%steps%last%lhs, ierr); CHKERRQ(ierr)
-       call VecAXPY(residual, r * r, last2%lhs, ierr); CHKERRQ(ierr)
-       call context%ode%rhs(t, y, context%steps%current%rhs)
-       call VecAXPY(residual, -dt * r1, context%steps%current%rhs, ierr)
-       CHKERRQ(ierr)
+       call context%ode%lhs(t, y, context%steps%current%lhs, err)
+       if (err == 0) then
+          call VecCopy(context%steps%current%lhs, residual, ierr); CHKERRQ(ierr)
+          call VecScale(residual, 1._dp + 2._dp * r, ierr); CHKERRQ(ierr)
+          call VecAXPY(residual, -r1 * r1, context%steps%last%lhs, ierr)
+          CHKERRQ(ierr)
+          call VecAXPY(residual, r * r, last2%lhs, ierr); CHKERRQ(ierr)
+          call context%ode%rhs(t, y, context%steps%current%rhs, err)
+          if (err == 0) then
+             call VecAXPY(residual, -dt * r1, context%steps%current%rhs, ierr)
+             CHKERRQ(ierr)
+          end if
+       end if
 
     end if
 
@@ -309,7 +323,7 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine direct_ss_residual(solver, y, residual, context, ierr)
+  subroutine direct_ss_residual(solver, y, residual, context, err)
     !! Residual for direct solution of steady state equations R(y) = 0.
     !! Here we evaluate R() at the steps final time.
 
@@ -317,18 +331,23 @@ contains
     Vec, intent(in) :: y
     Vec, intent(out) :: residual
     type(timestepper_solver_context_type), intent(in out) :: context
-    PetscErrorCode, intent(out) :: ierr
+    PetscErrorCode, intent(out) :: err
+    ! Locals:
+    PetscErrorCode :: ierr
 
+    err = 0
     call context%ode%rhs(context%steps%stop_time, y, &
-         context%steps%current%rhs)
-    call VecCopy(context%steps%current%rhs, residual, ierr); CHKERRQ(ierr)
+         context%steps%current%rhs, err)
+    if (err == 0) then
+       call VecCopy(context%steps%current%rhs, residual, ierr)
+       CHKERRQ(ierr)
+    end if
 
   end subroutine direct_ss_residual
 
 !------------------------------------------------------------------------
 
-  subroutine SNES_residual(solver, y, residual, &
-       context, ierr)
+  subroutine SNES_residual(solver, y, residual, context, err)
     !! Residual routine to be minimized by SNES solver. This calls the
     !! pre-evaluation routine first (if needed) before calling the
     !! timestepper method residual routine.
@@ -337,10 +356,19 @@ contains
     Vec, intent(in) :: y
     Vec, intent(out) :: residual
     type(timestepper_solver_context_type), intent(in out) :: context
-    PetscErrorCode, intent(out) :: ierr
+    PetscErrorCode, intent(out) :: err
+    ! Locals:
+    PetscErrorCode :: ierr
 
-    call context%ode%pre_eval(context%steps%current%time, y)
-    call context%residual(solver, y, residual, context, ierr)
+    err = 0
+    call context%ode%pre_eval(context%steps%current%time, y, err)
+    if (err == 0) then
+       call context%residual(solver, y, residual, context, err)
+    end if
+
+    if (err > 0) then
+       call SNESSetFunctionDomainError(solver, ierr); CHKERRQ(ierr)
+    end if
 
   end subroutine SNES_residual
 
@@ -353,11 +381,15 @@ contains
     PetscInt, intent(in) :: step
     ! Locals:
     type(timestepper_solver_context_type), pointer :: context
-    PetscErrorCode :: ierr
+    PetscErrorCode :: ierr, err
 
     call SNESGetApplicationContext(solver, context, ierr); CHKERRQ(ierr)
-    call context%ode%pre_iteration(context%steps%current%solution, ierr)
-    SNES_pre_iteration_update = ierr
+    call context%ode%pre_iteration(context%steps%current%solution, err)
+
+    if (err > 0) then
+       call SNESSetFunctionDomainError(solver, ierr); CHKERRQ(ierr)
+    end if
+    SNES_pre_iteration_update = err
 
   end function SNES_pre_iteration_update
 
@@ -552,17 +584,22 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine timestepper_initial_function_calls(self)
+  subroutine timestepper_initial_function_calls(self, err)
     !! Performs initial LHS function call at start of run (and pre-evaluation
     !! procedure if needed).
 
     class(timestepper_type), intent(in out) :: self
+    PetscErrorCode, intent(out) :: err
+
+    err = 0
 
     call self%ode%pre_solve(self%steps%current%time, &
-         self%steps%current%solution)
+         self%steps%current%solution, err)
 
-    call self%ode%lhs(self%steps%current%time, &
-         self%steps%current%solution, self%steps%current%lhs)
+    if (err == 0) then
+       call self%ode%lhs(self%steps%current%time, &
+            self%steps%current%solution, self%steps%current%lhs, err)
+    end if
 
   end subroutine timestepper_initial_function_calls
 
@@ -1185,38 +1222,43 @@ end subroutine timestepper_steps_set_next_stepsize
     class(timestepper_type), intent(in out) :: self
     ! Locals:
     PetscInt :: since_output
+    PetscErrorCode :: err
 
+    err = 0
     self%steps%taken = 0
     self%output_index = 0
     since_output = 0
 
-    call self%initial_function_calls()
+    call self%initial_function_calls(err)
 
-    if ((associated(self%step_output)) .and. &
-         self%output_initial) then
-       call self%step_output()
-       self%output_index = self%output_index + 1
-    end if
+    if (err == 0) then
 
-    do while (.not. self%steps%finished)
-
-       call self%step()
-
-       since_output = since_output + 1
        if ((associated(self%step_output)) .and. &
-            (since_output == self%output_frequency)) then
+            self%output_initial) then
           call self%step_output()
           self%output_index = self%output_index + 1
-          since_output = 0
        end if
 
-    end do
+       do while (.not. self%steps%finished)
 
-    if ((associated(self%step_output)) .and. &
-         self%output_final .and. (since_output > 0)) then
-       call self%step_output()
+          call self%step()
+
+          since_output = since_output + 1
+          if ((associated(self%step_output)) .and. &
+               (since_output == self%output_frequency)) then
+             call self%step_output()
+             self%output_index = self%output_index + 1
+             since_output = 0
+          end if
+
+       end do
+
+       if ((associated(self%step_output)) .and. &
+            self%output_final .and. (since_output > 0)) then
+          call self%step_output()
+       end if
+
     end if
-
 
   end subroutine timestepper_run
 
