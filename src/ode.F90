@@ -27,31 +27,34 @@ module ode_module
 
   abstract interface
 
-     subroutine lhs_function(self, t, y, lhs)
+     subroutine lhs_function(self, t, y, lhs, err)
        !! LHS function lhs = L(t, y)
        import :: ode_type
        class(ode_type), intent(in out) :: self
        PetscReal, intent(in) :: t
        Vec, intent(in) :: y
        Vec, intent(out) :: lhs
+       PetscErrorCode, intent(out) :: err
      end subroutine lhs_function
 
-     subroutine rhs_function(self, t, y, rhs)
+     subroutine rhs_function(self, t, y, rhs, err)
        !! RHS function rhs = R(t, y)
        import :: ode_type
        class(ode_type), intent(in out) :: self
        PetscReal, intent(in) :: t
        Vec, intent(in) :: y
        Vec, intent(out) :: rhs
+       PetscErrorCode, intent(out) :: err
      end subroutine rhs_function
 
-     subroutine pre_eval_procedure(self, t, y)
+     subroutine pre_eval_procedure(self, t, y, err)
        !! Optional routine to be called before each evaluation
        !! of LHS and RHS functions.
        import :: ode_type
        class(ode_type), intent(in out) :: self
        PetscReal, intent(in) :: t
        Vec, intent(in) :: y
+       PetscErrorCode, intent(out) :: err
      end subroutine pre_eval_procedure
 
      subroutine ode_output_procedure(self, time_index, time)
@@ -73,29 +76,32 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine ode_pre_iteration(self, y, ierr)
+  subroutine ode_pre_iteration(self, y, err)
     !! Default routine to be called before each nonlinear solver
     !! iteration during solution at each time step.
 
     class(ode_type), intent(in out) :: self
     Vec, intent(in out) :: y
-    PetscErrorCode, intent(out) :: ierr
+    PetscErrorCode, intent(out) :: err
 
-    ierr = 0
+    ! Do nothing
+    err = 0
 
   end subroutine ode_pre_iteration
 
 !------------------------------------------------------------------------
 
-  subroutine ode_pre_eval(self, t, y)
+  subroutine ode_pre_eval(self, t, y, err)
     !! Default routine to be called before each evaluation
     !! of LHS and RHS functions.
 
     class(ode_type), intent(in out) :: self
     PetscReal, intent(in) :: t
     Vec, intent(in) :: y
+    PetscErrorCode, intent(out) :: err
 
     ! Do nothing
+    err = 0
 
   end subroutine ode_pre_eval
 
