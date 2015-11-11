@@ -1210,7 +1210,6 @@ end subroutine timestepper_steps_set_next_stepsize
 
        call self%steps%check_finished()
 
-       call VecView(self%steps%current%solution, PETSC_VIEWER_STDOUT_WORLD, ierr)
        call SNESSolve(self%solver, PETSC_NULL_OBJECT, self%steps%current%solution, &
             ierr); CHKERRQ(ierr)
        call SNESGetIterationNumber(self%solver, self%steps%current%num_iterations, &
