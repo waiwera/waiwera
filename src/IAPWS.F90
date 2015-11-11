@@ -491,7 +491,6 @@ contains
 
     else
        err = 1
-       props = qnan_dp
     end if
 
   end subroutine region1_properties
@@ -586,7 +585,6 @@ contains
 
     else
        err = 1
-       props = qnan_dp
     end if
 
   end subroutine region2_properties
@@ -667,7 +665,6 @@ contains
     props(2) = rt * tau * phitau         ! internal energy
     if (props(1) > 100.0e6_dp) then
        err = 1
-       props = qnan_dp
     else
        err = 0
     end if
@@ -731,7 +728,6 @@ contains
        p = self%pstar * x * x
        err = 0
     else
-       p = qnan_dp
        err = 1
     end if
 
@@ -761,7 +757,6 @@ contains
        t = 0.5_dp * (self%n(10) + d - dsqrt(x*x - 4._dp * (self%n(9) + self%n(10) * d))) - tc_k
        err = 0
     else
-       t = qnan_dp
        err = 1
     end if
 

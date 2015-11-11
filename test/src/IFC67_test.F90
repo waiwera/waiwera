@@ -79,8 +79,6 @@ module IFC67_test
          do i = 1, nerr
             param = err_params(i,:)
             call IFC67%water%properties(param, props, err)
-            call assert_equals(.true., PetscIsInfOrNanReal(props(1)), 'density error')
-            call assert_equals(.true., PetscIsInfOrNanReal(props(2)), 'energy error')
             call assert_equals(1, err, 'error')
          end do
       end if
@@ -119,8 +117,6 @@ module IFC67_test
          do i = 1, nerr
             param = err_params(i,:)
             call IFC67%steam%properties(param, props, err)
-            call assert_equals(.true., PetscIsInfOrNanReal(props(1)), 'density error')
-            call assert_equals(.true., PetscIsInfOrNanReal(props(2)), 'energy error')
             call assert_equals(1, err, 'error')
          end do
       end if
@@ -162,10 +158,8 @@ module IFC67_test
          end do
          do i = 1, nerr
             call IFC67%saturation%pressure(terr(i), ps, err)
-            call assert_equals(.true., PetscIsInfOrNanReal(ps), 'NaN pressure')
             call assert_equals(1, err, 'error')
             call IFC67%saturation%temperature(perr(i), ts, err)
-            call assert_equals(.true., PetscIsInfOrNanReal(ts), 'NaN temperature')
             call assert_equals(1, err, 'temperature error')
          end do
 

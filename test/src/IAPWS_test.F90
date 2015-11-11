@@ -78,8 +78,6 @@ module IAPWS_test
          do i = 1, nerr
             param = err_params(i,:)
             call IAPWS%water%properties(param, props, err)
-            call assert_equals(.true., PetscIsInfOrNanReal(props(1)), 'density error')
-            call assert_equals(.true., PetscIsInfOrNanReal(props(2)), 'energy error')
             call assert_equals(1, err, 'error')
          end do
       end if
@@ -117,8 +115,6 @@ module IAPWS_test
          do i = 1, nerr
             param = err_params(i,:)
             call IAPWS%steam%properties(param, props, err)
-            call assert_equals(.true., PetscIsInfOrNanReal(props(1)), 'density error')
-            call assert_equals(.true., PetscIsInfOrNanReal(props(2)), 'energy error')
             call assert_equals(1, err, 'error')
          end do
       end if
@@ -155,8 +151,6 @@ module IAPWS_test
          do i = 1, nerr
             param = err_params(i,:)
             call IAPWS%supercritical%properties(param, props, err)
-            call assert_equals(.true., PetscIsInfOrNanReal(props(1)), 'density error')
-            call assert_equals(.true., PetscIsInfOrNanReal(props(2)), 'energy error')
             call assert_equals(1, err, 'error')
          end do
       end if
@@ -188,10 +182,8 @@ module IAPWS_test
          end do
          do i = 1, nerr
             call IAPWS%saturation%pressure(terr(i), ps, err)
-            call assert_equals(.true., PetscIsInfOrNanReal(ps), 'NaN pressure')
             call assert_equals(1, err, 'pressure error')
             call IAPWS%saturation%temperature(perr(i), ts, err)
-            call assert_equals(.true., PetscIsInfOrNanReal(ts), 'NaN temperature')
             call assert_equals(1, err, 'temperature error')
          end do
       end if

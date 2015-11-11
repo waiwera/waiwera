@@ -329,11 +329,9 @@ contains
           err = 0
           
        else
-          props = qnan_dp
           err = 1
        end if
     else
-       props = qnan_dp
        err = 1
     end if
     
@@ -526,7 +524,6 @@ contains
       err = 0
 
     else
-       props = qnan_dp
        err = 1
     end if
 
@@ -584,7 +581,6 @@ subroutine saturation_pressure(self, t, p, err)
      p = PC * pcritical67
      err = 0
   else
-     p = qnan_dp
      err = 1
   end if
 
@@ -637,12 +633,10 @@ subroutine saturation_temperature(self, p, t, err)
 
      if ((err == 0).and.(.not.(found))) then
         err = 1
-        t = qnan_dp
      end if
 
   else
      err = 1
-     t = qnan_dp
   end if
 
 end subroutine saturation_temperature
