@@ -713,6 +713,7 @@ contains
           err = self%eos%check_primary_variables(fluid, cell_primary)
           if (err == 0) then
              call self%eos%transition(cell_primary, fluid, err)
+             if (err > 0) exit
           else
              exit
           end if
