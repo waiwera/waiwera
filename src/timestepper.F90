@@ -352,6 +352,9 @@ contains
     !! Residual routine to be minimized by SNES solver. This calls the
     !! pre-evaluation routine first (if needed) before calling the
     !! timestepper method residual routine.
+    !! If an error occurs a SNES function domain error is raised, but
+    !! this routine still returns a zero error code (err), otherwise
+    !! the SNES will stop.
 
     SNES, intent(in) :: solver
     Vec, intent(in) :: y
@@ -359,15 +362,15 @@ contains
     type(timestepper_solver_context_type), intent(in out) :: context
     PetscErrorCode, intent(out) :: err
     ! Locals:
-    PetscErrorCode :: ierr
+    PetscErrorCode :: ierr, ferr
 
-    err = 0
-    call context%ode%pre_eval(context%steps%current%time, y, err)
-    if (err == 0) then
-       call context%residual(solver, y, residual, context, err)
+    err = 0; ferr = 0
+    call context%ode%pre_eval(context%steps%current%time, y, ferr)
+    if (ferr == 0) then
+       call context%residual(solver, y, residual, context, ferr)
     end if
 
-    if (err > 0) then
+    if (ferr > 0) then
        call SNESSetFunctionDomainError(solver, ierr); CHKERRQ(ierr)
     end if
 
