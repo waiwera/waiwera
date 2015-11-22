@@ -232,7 +232,6 @@ contains
        write(*, '(a, i4)'), 'step:', self%steps%taken
        call self%steps%current%print()
     end if
-    call self%ode%output(self%output_index, self%steps%current%time)
 
   end subroutine step_output_default
 
@@ -1252,9 +1251,11 @@ end subroutine timestepper_steps_set_next_stepsize
 
     if (err == 0) then
 
-       if ((associated(self%step_output)) .and. &
-            self%output_initial) then
+       if (associated(self%step_output)) then
           call self%step_output()
+       end if
+       if (self%output_initial) then
+          call self%ode%output(self%output_index, self%steps%current%time)
           self%output_index = self%output_index + 1
        end if
 
@@ -1263,18 +1264,20 @@ end subroutine timestepper_steps_set_next_stepsize
           call self%step()
 
           since_output = since_output + 1
-          if ((associated(self%step_output)) .and. &
-               (since_output == self%output_frequency)) then
+
+          if (associated(self%step_output)) then
              call self%step_output()
+          end if
+          if (since_output == self%output_frequency) then
+             call self%ode%output(self%output_index, self%steps%current%time)
              self%output_index = self%output_index + 1
              since_output = 0
           end if
 
        end do
 
-       if ((associated(self%step_output)) .and. &
-            self%output_final .and. (since_output > 0)) then
-          call self%step_output()
+       if (self%output_final .and. (since_output > 0)) then
+          call self%ode%output(self%output_index, self%steps%current%time)
        end if
 
     end if
