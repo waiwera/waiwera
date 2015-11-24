@@ -397,6 +397,25 @@ contains
   end function SNES_pre_iteration_update
 
 !------------------------------------------------------------------------
+
+  PetscErrorCode function SNES_linesearch_post_check(linesearch, &
+       x_old, y, x, changed_y, changed_x, context)
+    !! Function to be called after each nonlinear solver line search.
+
+    SNESLineSearch, intent(in out) :: linesearch
+    Vec, intent(in) :: x_old
+    Vec, intent(in out) :: y, x
+    PetscBool, intent(out) :: changed_y, changed_x
+    type(timestepper_solver_context_type), pointer :: context
+    ! Locals:
+    PetscErrorCode :: err
+
+    call context%ode%post_linesearch(x_old, y, x, changed_y, changed_x, err)
+    SNES_linesearch_post_check = err
+
+  end function SNES_linesearch_post_check
+
+!------------------------------------------------------------------------
 ! Timestepper_step procedures
 !------------------------------------------------------------------------
 
@@ -937,8 +956,12 @@ end subroutine timestepper_steps_set_next_stepsize
     call SNESSetUpdate(self%solver, SNES_pre_iteration_update, ierr)
     CHKERRQ(ierr)
 
+    ! Nonlinear solver line search:
     call SNESGetLineSearch(self%solver, linesearch, ierr); CHKERRQ(ierr)
-    call SNESLineSearchSetType(linesearch, SNESLINESEARCHBASIC, ierr);
+    call SNESLineSearchSetType(linesearch, SNESLINESEARCHBASIC, ierr)
+    CHKERRQ(ierr)
+    call SNESLineSearchSetPostCheck(linesearch, SNES_linesearch_post_check, &
+         self%context, ierr); CHKERRQ(ierr)
 
   end subroutine timestepper_setup_solver
 
