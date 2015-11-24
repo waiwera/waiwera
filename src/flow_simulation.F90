@@ -22,7 +22,7 @@ module flow_simulation_module
      PetscInt :: solution_range_start, rock_range_start, fluid_range_start
      character(max_title_length), public :: title
      Vec, public :: rock
-     Vec, public :: fluid, last_fluid
+     Vec, public :: fluid, last_timestep_fluid
      Vec, public :: source
      class(thermodynamics_type), allocatable, public :: thermo
      class(eos_type), allocatable, public :: eos
@@ -162,7 +162,8 @@ contains
     call setup_fluid_vector(self%mesh%dm, max_component_name_length, &
          self%eos%component_names, max_phase_name_length, &
          self%eos%phase_names, self%fluid, self%fluid_range_start)
-    call VecDuplicate(self%fluid, self%last_fluid, ierr); CHKERRQ(ierr)
+    call VecDuplicate(self%fluid, self%last_timestep_fluid, ierr)
+    CHKERRQ(ierr)
     call setup_initial(json, self%mesh, self%eos, &
          self%time, self%solution, self%rock, self%fluid, &
          self%solution_range_start,  self%rock_range_start, &
@@ -189,7 +190,7 @@ contains
 
     call VecDestroy(self%solution, ierr); CHKERRQ(ierr)
     call VecDestroy(self%fluid, ierr); CHKERRQ(ierr)
-    call VecDestroy(self%last_fluid, ierr); CHKERRQ(ierr)
+    call VecDestroy(self%last_timestep_fluid, ierr); CHKERRQ(ierr)
     call VecDestroy(self%rock, ierr); CHKERRQ(ierr)
     call VecDestroy(self%source, ierr); CHKERRQ(ierr)
     call self%mesh%destroy()
@@ -732,15 +733,16 @@ contains
 
   subroutine flow_simulation_pre_timestep(self)
     !! Routine to be called before starting each time step. Here the
-    !! last_fluid vector is initialized from the fluid vector, to be
-    !! used to revert to the previous state when re-trying a timestep
-    !! with a smaller step size.
+    !! last_timestep_fluid vector is initialized from the fluid
+    !! vector, to be used to revert to the previous state when
+    !! re-trying a timestep with a smaller step size.
 
     class(flow_simulation_type), intent(in out) :: self
     ! Locals:
     PetscErrorCode :: ierr
 
-    call VecCopy(self%fluid, self%last_fluid, ierr); CHKERRQ(ierr)
+    call VecCopy(self%fluid, self%last_timestep_fluid, ierr)
+    CHKERRQ(ierr)
 
   end subroutine flow_simulation_pre_timestep
 
@@ -748,13 +750,14 @@ contains
 
   subroutine flow_simulation_pre_retry_timestep(self)
     !! Routine to be called before re-trying a time step. Here the
-    !! fluid vector is reset to the last_fluid vector.
+    !! fluid vector is reset to the last_timestep_fluid vector.
 
     class(flow_simulation_type), intent(in out) :: self
     ! Locals:
     PetscErrorCode :: ierr
 
-    call VecCopy(self%last_fluid, self%fluid, ierr); CHKERRQ(ierr)
+    call VecCopy(self%last_timestep_fluid, self%fluid, ierr)
+    CHKERRQ(ierr)
 
   end subroutine flow_simulation_pre_retry_timestep
 
