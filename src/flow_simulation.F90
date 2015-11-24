@@ -520,16 +520,16 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine flow_simulation_post_linesearch(self, x_old, y, x, &
-       changed_y, changed_x, err)
+  subroutine flow_simulation_post_linesearch(self, y_old, search, y, &
+       changed_search, changed_y, err)
     !! Routine to be called after each nonlinear solve line search.
     !! Here we check primary variables and make and necessary phase
     !! transitions.
 
     class(flow_simulation_type), intent(in out) :: self
-    Vec, intent(in) :: x_old
-    Vec, intent(in out) :: y, x
-    PetscBool, intent(out) :: changed_y, changed_x
+    Vec, intent(in) :: y_old
+    Vec, intent(in out) :: search, y
+    PetscBool, intent(out) :: changed_search, changed_y
     PetscErrorCode, intent(out) :: err
 
     ! do nothing yet

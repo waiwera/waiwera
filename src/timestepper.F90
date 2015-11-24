@@ -399,18 +399,19 @@ contains
 !------------------------------------------------------------------------
 
   PetscErrorCode function SNES_linesearch_post_check(linesearch, &
-       x_old, y, x, changed_y, changed_x, context)
+       y_old, search, y, changed_search, changed_y, context)
     !! Function to be called after each nonlinear solver line search.
 
     SNESLineSearch, intent(in out) :: linesearch
-    Vec, intent(in) :: x_old
-    Vec, intent(in out) :: y, x
-    PetscBool, intent(out) :: changed_y, changed_x
-    type(timestepper_solver_context_type), pointer :: context
+    Vec, intent(in) :: y_old
+    Vec, intent(in out) :: search, y
+    PetscBool, intent(out) :: changed_search, changed_y
+    type(timestepper_solver_context_type), intent(in out) :: context
     ! Locals:
     PetscErrorCode :: err
 
-    call context%ode%post_linesearch(x_old, y, x, changed_y, changed_x, err)
+    call context%ode%post_linesearch(y_old, search, y, changed_search, &
+         changed_y, err)
     SNES_linesearch_post_check = err
 
   end function SNES_linesearch_post_check

@@ -123,15 +123,15 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine ode_post_linesearch(self, x_old, y, x, &
-       changed_y, changed_x, err)
+  subroutine ode_post_linesearch(self, y_old, search, y, &
+       changed_search, changed_y, err)
     !! Default routine to be called after nonlinear solver line search
     !! at each time step.
 
     class(ode_type), intent(in out) :: self
-    Vec, intent(in) :: x_old
-    Vec, intent(in out) :: y, x
-    PetscBool, intent(out) :: changed_y, changed_x
+    Vec, intent(in) :: y_old
+    Vec, intent(in out) :: search, y
+    PetscBool, intent(out) :: changed_search, changed_y
     PetscErrorCode, intent(out) :: err
 
     ! Do nothing
