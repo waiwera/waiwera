@@ -392,7 +392,7 @@ contains
     if (err > 0) then
        call SNESSetFunctionDomainError(solver, ierr); CHKERRQ(ierr)
     end if
-    SNES_pre_iteration_update = err
+    SNES_pre_iteration_update = 0
 
   end function SNES_pre_iteration_update
 
