@@ -408,11 +408,17 @@ contains
     PetscBool, intent(out) :: changed_search, changed_y
     type(timestepper_solver_context_type), intent(in out) :: context
     ! Locals:
-    PetscErrorCode :: err
+    PetscErrorCode :: err, ierr
+    SNES :: solver
 
     call context%ode%post_linesearch(y_old, search, y, changed_search, &
          changed_y, err)
-    SNES_linesearch_post_check = err
+
+    if (err > 0) then
+       call SNESLineSearchGetSNES(linesearch, solver, ierr); CHKERRQ(ierr)
+       call SNESSetFunctionDomainError(solver, ierr); CHKERRQ(ierr)
+    end if
+    SNES_linesearch_post_check = 0
 
   end function SNES_linesearch_post_check
 
