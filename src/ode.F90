@@ -24,6 +24,7 @@ module ode_module
      procedure, public :: pre_eval => ode_pre_eval
      procedure, public :: pre_timestep => ode_pre_timestep
      procedure, public :: pre_retry_timestep => ode_pre_retry_timestep
+     procedure, public :: post_linesearch => ode_post_linesearch
      procedure(ode_output_procedure), public, deferred :: output
   end type ode_type
 
@@ -119,6 +120,24 @@ contains
     ! Do nothing
 
   end subroutine ode_pre_retry_timestep
+
+!------------------------------------------------------------------------
+
+  subroutine ode_post_linesearch(self, y_old, search, y, &
+       changed_search, changed_y, err)
+    !! Default routine to be called after nonlinear solver line search
+    !! at each time step.
+
+    class(ode_type), intent(in out) :: self
+    Vec, intent(in) :: y_old
+    Vec, intent(in out) :: search, y
+    PetscBool, intent(out) :: changed_search, changed_y
+    PetscErrorCode, intent(out) :: err
+
+    ! Do nothing
+    err = 0
+
+  end subroutine ode_post_linesearch
 
 !------------------------------------------------------------------------
 

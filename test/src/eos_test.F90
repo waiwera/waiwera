@@ -233,10 +233,10 @@ contains
 
     ! eos_we_transition() test
 
-    type(fluid_type) :: fluid
+    type(fluid_type) :: old_fluid, fluid
     PetscInt, parameter :: num_components = 1, num_phases = 2
     PetscInt,  parameter :: offset = 1
-    PetscReal, allocatable :: fluid_data(:)
+    PetscReal, allocatable :: old_fluid_data(:), fluid_data(:)
     PetscReal :: primary(2), expected_primary(2), temperature
     PetscInt :: expected_region
     type(eos_we_type) :: eos
@@ -250,84 +250,95 @@ contains
     json => fson_parse_mpi(str = json_str)
     call thermo%init()
     call eos%init(json, thermo)
+    call old_fluid%init(num_components, num_phases)
     call fluid%init(num_components, num_phases)
-    allocate(fluid_data(fluid%dof()))
+    allocate(old_fluid_data(old_fluid%dof()), fluid_data(fluid%dof()))
+    old_fluid_data = 0._dp
     fluid_data = 0._dp
+    call old_fluid%assign(old_fluid_data, offset)
     call fluid%assign(fluid_data, offset)
 
     if (mpi%rank == mpi%output_rank) then
 
        title = "Region 1 null transition"
+       old_fluid%region = dble(1)
+       fluid%region = old_fluid%region
        expected_region = 1
        expected_primary = [1.e5_dp, 20._dp]
-       fluid%region = dble(expected_region)
        primary = expected_primary
-       call eos%transition(primary, fluid, err)
+       call eos%transition(primary, old_fluid, fluid, err)
        call transition_compare(expected_primary, expected_region, &
             primary, fluid, title)
 
        title = "Region 1 to 4"
+       old_fluid%region = dble(1)
+       fluid%region = old_fluid%region
        expected_region = 4
        expected_primary = [15.546718682698252e5_dp, small]
        primary = [15.e5_dp, 200._dp]
-       fluid%region = dble(1)
-       call eos%transition(primary, fluid, err)
+       call eos%transition(primary, old_fluid, fluid, err)
        call transition_compare(expected_primary, expected_region, &
             primary, fluid, title)
 
        title = "Region 2 null transition"
+       old_fluid%region = dble(2)
+       fluid%region = old_fluid%region
        expected_region = 2
        expected_primary = [1.e5_dp, 120._dp]
-       fluid%region = dble(expected_region)
        primary = expected_primary
-       call eos%transition(primary, fluid, err)
+       call eos%transition(primary, old_fluid, fluid, err)
        call transition_compare(expected_primary, expected_region, &
             primary, fluid, title)
 
        title = "Region 2 to 4"
+       old_fluid%region = dble(2)
+       fluid%region = old_fluid%region
        expected_region = 4
        expected_primary = [85.e5_dp, 1._dp - small]
-       fluid%region = dble(2)
        primary = [85.01e5_dp, 299.27215502281706_dp]
-       call eos%transition(primary, fluid, err)
+       call eos%transition(primary, old_fluid, fluid, err)
        call transition_compare(expected_primary, expected_region, &
             primary, fluid, title)
 
        title = "Region 4 null transition"
+       old_fluid%region = dble(4)
+       fluid%region = old_fluid%region
        expected_region = 4
        expected_primary = [1.e5_dp, 0.5_dp]
-       fluid%region = dble(expected_region)
        primary = expected_primary
-       call eos%transition(primary, fluid, err)
+       call eos%transition(primary, old_fluid, fluid, err)
        call transition_compare(expected_primary, expected_region, &
             primary, fluid, title)
 
        title = "Region 4 to 1"
-       expected_region = 1
        temperature = 299.27215502281706_dp
+       old_fluid%region = dble(4)
+       old_fluid%temperature = temperature
+       fluid%region = old_fluid%region
+       expected_region = 1
        expected_primary = [85.000085e5_dp, temperature]
-       fluid%region = dble(4)
-       fluid%temperature = temperature
        primary = [85.e5_dp, -0.01_dp]
-       call eos%transition(primary, fluid, err)
+       call eos%transition(primary, old_fluid, fluid, err)
        call transition_compare(expected_primary, expected_region, &
             primary, fluid, title)
 
        title = "Region 4 to 2"
-       expected_region = 2
        temperature = 212.38453531849041_dp
+       old_fluid%region = dble(4)
+       old_fluid%temperature = temperature
+       fluid%region = old_fluid%region
+       expected_region = 2
        expected_primary = [19.99998e5_dp, temperature]
-       fluid%region = dble(4)
-       fluid%temperature = temperature
        primary = [20.e5_dp, 1.02_dp]
-       call eos%transition(primary, fluid, err)
+       call eos%transition(primary, old_fluid, fluid, err)
        call transition_compare(expected_primary, expected_region, &
             primary, fluid, title)
 
     end if
 
+    call old_fluid%destroy()
     call fluid%destroy()
-    deallocate(fluid_data)
+    deallocate(old_fluid_data, fluid_data)
     call eos%destroy()
     call thermo%destroy()
     call fson_destroy_mpi(json)

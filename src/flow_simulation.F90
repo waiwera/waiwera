@@ -22,7 +22,7 @@ module flow_simulation_module
      PetscInt :: solution_range_start, rock_range_start, fluid_range_start
      character(max_title_length), public :: title
      Vec, public :: rock
-     Vec, public :: fluid, last_fluid
+     Vec, public :: fluid, last_timestep_fluid, last_iteration_fluid
      Vec, public :: source
      class(thermodynamics_type), allocatable, public :: thermo
      class(eos_type), allocatable, public :: eos
@@ -40,13 +40,14 @@ module flow_simulation_module
      procedure, public :: lhs => flow_simulation_cell_balances
      procedure, public :: rhs => flow_simulation_cell_inflows
      procedure, public :: pre_solve => flow_simulation_pre_solve
-     procedure, public :: fluid_init => flow_simulation_fluid_init
-     procedure, public :: pre_iteration => flow_simulation_pre_iteration
-     procedure, public :: fluid_transitions => flow_simulation_fluid_transitions
-     procedure, public :: pre_eval => flow_simulation_pre_eval
-     procedure, public :: fluid_properties => flow_simulation_fluid_properties
      procedure, public :: pre_timestep => flow_simulation_pre_timestep
      procedure, public :: pre_retry_timestep => flow_simulation_pre_retry_timestep
+     procedure, public :: pre_iteration => flow_simulation_pre_iteration
+     procedure, public :: pre_eval => flow_simulation_pre_eval
+     procedure, public :: post_linesearch => flow_simulation_post_linesearch
+     procedure, public :: fluid_init => flow_simulation_fluid_init
+     procedure, public :: fluid_transitions => flow_simulation_fluid_transitions
+     procedure, public :: fluid_properties => flow_simulation_fluid_properties
      procedure, public :: output => flow_simulation_output
   end type flow_simulation_type
 
@@ -162,7 +163,10 @@ contains
     call setup_fluid_vector(self%mesh%dm, max_component_name_length, &
          self%eos%component_names, max_phase_name_length, &
          self%eos%phase_names, self%fluid, self%fluid_range_start)
-    call VecDuplicate(self%fluid, self%last_fluid, ierr); CHKERRQ(ierr)
+    call VecDuplicate(self%fluid, self%last_timestep_fluid, ierr)
+    CHKERRQ(ierr)
+    call VecDuplicate(self%fluid, self%last_iteration_fluid, ierr)
+    CHKERRQ(ierr)
     call setup_initial(json, self%mesh, self%eos, &
          self%time, self%solution, self%rock, self%fluid, &
          self%solution_range_start,  self%rock_range_start, &
@@ -189,7 +193,8 @@ contains
 
     call VecDestroy(self%solution, ierr); CHKERRQ(ierr)
     call VecDestroy(self%fluid, ierr); CHKERRQ(ierr)
-    call VecDestroy(self%last_fluid, ierr); CHKERRQ(ierr)
+    call VecDestroy(self%last_timestep_fluid, ierr); CHKERRQ(ierr)
+    call VecDestroy(self%last_iteration_fluid, ierr); CHKERRQ(ierr)
     call VecDestroy(self%rock, ierr); CHKERRQ(ierr)
     call VecDestroy(self%source, ierr); CHKERRQ(ierr)
     call self%mesh%destroy()
@@ -448,6 +453,92 @@ contains
 
 !------------------------------------------------------------------------
 
+  subroutine flow_simulation_pre_timestep(self)
+    !! Routine to be called before starting each time step. Here the
+    !! last_timestep_fluid vector is initialized from the fluid
+    !! vector, to be used to revert to the previous state when
+    !! re-trying a timestep with a smaller step size.
+
+    class(flow_simulation_type), intent(in out) :: self
+    ! Locals:
+    PetscErrorCode :: ierr
+
+    call VecCopy(self%fluid, self%last_timestep_fluid, ierr)
+    CHKERRQ(ierr)
+
+  end subroutine flow_simulation_pre_timestep
+
+!------------------------------------------------------------------------
+
+  subroutine flow_simulation_pre_retry_timestep(self)
+    !! Routine to be called before re-trying a time step. Here the
+    !! fluid vector is reset to the last_timestep_fluid vector.
+
+    class(flow_simulation_type), intent(in out) :: self
+    ! Locals:
+    PetscErrorCode :: ierr
+
+    call VecCopy(self%last_timestep_fluid, self%fluid, ierr)
+    CHKERRQ(ierr)
+
+  end subroutine flow_simulation_pre_retry_timestep
+
+!------------------------------------------------------------------------
+
+  subroutine flow_simulation_pre_iteration(self, y, err)
+    !! Routine to be called at the start of each nonlinear solver
+    !! iteration during each time step. Here the fluid vector for the
+    !! start of the current iteration is saved.
+
+    class(flow_simulation_type), intent(in out) :: self
+    Vec, intent(in out) :: y !! Global primary variables vector
+    PetscErrorCode, intent(out) :: err !! Error code
+    ! Locals:
+    PetscErrorCode :: ierr
+
+    err = 0
+    call VecCopy(self%fluid, self%last_iteration_fluid, ierr)
+
+  end subroutine flow_simulation_pre_iteration
+
+!------------------------------------------------------------------------
+
+  subroutine flow_simulation_pre_eval(self, t, y, err)
+    !! Routine to be called before each function evaluation during the
+    !! nonlinear solve at each time step. Here the fluid properties
+    !! (excluding phase composition) are updated.
+
+    class(flow_simulation_type), intent(in out) :: self
+    PetscReal, intent(in) :: t !! time
+    Vec, intent(in) :: y !! global primary variables vector
+    PetscErrorCode, intent(out) :: err !! error code
+
+    err = 0
+    call self%fluid_properties(t, y, err)
+
+  end subroutine flow_simulation_pre_eval
+
+!------------------------------------------------------------------------
+
+  subroutine flow_simulation_post_linesearch(self, y_old, search, y, &
+       changed_search, changed_y, err)
+    !! Routine to be called after each nonlinear solve line search.
+    !! Here we check primary variables and make and necessary region
+    !! transitions.
+
+    class(flow_simulation_type), intent(in out) :: self
+    Vec, intent(in) :: y_old
+    Vec, intent(in out) :: search, y
+    PetscBool, intent(out) :: changed_search, changed_y
+    PetscErrorCode, intent(out) :: err
+
+    err = 0
+    call self%fluid_transitions(y, err)
+
+  end subroutine flow_simulation_post_linesearch
+
+!------------------------------------------------------------------------
+
   subroutine flow_simulation_fluid_init(self, t, y, err)
     !! Computes fluid properties in all cells, including phase
     !! composition, based on the current time and primary
@@ -513,16 +604,11 @@ contains
 
           call self%eos%bulk_properties(cell_primary, fluid, err)
           if (err == 0) then
-             call self%eos%transition(cell_primary, fluid, err)
+             call self%eos%phase_composition(fluid, err)
              if (err == 0) then
-                call self%eos%phase_composition(fluid, err)
-                if (err == 0) then
-                   call self%eos%phase_properties(cell_primary, rock, &
-                        fluid, err)
-                   if (err > 0) exit
-                else
-                   exit
-                end if
+                call self%eos%phase_properties(cell_primary, rock, &
+                     fluid, err)
+                if (err > 0) exit
              else
                 exit
              end if
@@ -541,23 +627,6 @@ contains
     call fluid%destroy()
 
   end subroutine flow_simulation_fluid_init
-
-!------------------------------------------------------------------------
-
-  subroutine flow_simulation_pre_eval(self, t, y, err)
-    !! Routine to be called before each function evaluation during the
-    !! nonlinear solve at each time step. Here the fluid properties
-    !! (excluding phase composition) are updated.
-
-    class(flow_simulation_type), intent(in out) :: self
-    PetscReal, intent(in) :: t !! time
-    Vec, intent(in) :: y !! global primary variables vector
-    PetscErrorCode, intent(out) :: err !! error code
-
-    err = 0
-    call self%fluid_properties(t, y, err)
-
-  end subroutine flow_simulation_pre_eval
 
 !------------------------------------------------------------------------
 
@@ -645,22 +714,6 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine flow_simulation_pre_iteration(self, y, err)
-    !! Routine to be called at the start of each nonlinear solver
-    !! iteration during each time step. Here any fluid region
-    !! transitions are made.
-
-    class(flow_simulation_type), intent(in out) :: self
-    Vec, intent(in out) :: y !! Global primary variables vector
-    PetscErrorCode, intent(out) :: err !! Error code
-
-    err = 0
-    call self%fluid_transitions(y, err)
-
-  end subroutine flow_simulation_pre_iteration
-
-!------------------------------------------------------------------------
-
   subroutine flow_simulation_fluid_transitions(self, y, err)
     !! Checks primary variables and thermodynamic regions in all mesh
     !! cells and updates if region transitions have occurred.
@@ -676,8 +729,8 @@ contains
     PetscSection :: primary_section, fluid_section
     PetscInt :: primary_offset, fluid_offset
     PetscReal, pointer :: primary_array(:), cell_primary(:)
-    PetscReal, pointer :: fluid_array(:)
-    type(fluid_type) :: fluid
+    PetscReal, pointer :: old_fluid_array(:), fluid_array(:)
+    type(fluid_type) :: old_fluid, fluid
     DMLabel :: ghost_label
     PetscErrorCode :: ierr
 
@@ -690,7 +743,10 @@ contains
 
     call global_vec_section(self%fluid, fluid_section)
     call VecGetArrayF90(self%fluid, fluid_array, ierr); CHKERRQ(ierr)
+    call VecGetArrayReadF90(self%last_iteration_fluid, &
+         old_fluid_array, ierr); CHKERRQ(ierr)
 
+    call old_fluid%init(nc, self%eos%num_phases)
     call fluid%init(nc, self%eos%num_phases)
 
     call DMPlexGetLabel(self%mesh%dm, "ghost", ghost_label, ierr)
@@ -708,11 +764,12 @@ contains
           call global_section_offset(fluid_section, c, &
                self%fluid_range_start, fluid_offset, ierr); CHKERRQ(ierr)
 
+          call old_fluid%assign(old_fluid_array, fluid_offset)
           call fluid%assign(fluid_array, fluid_offset)
 
           err = self%eos%check_primary_variables(fluid, cell_primary)
           if (err == 0) then
-             call self%eos%transition(cell_primary, fluid, err)
+             call self%eos%transition(cell_primary, old_fluid, fluid, err)
              if (err > 0) exit
           else
              exit
@@ -722,41 +779,14 @@ contains
 
     end do
 
+    call VecRestoreArrayReadF90(self%last_iteration_fluid, &
+         old_fluid_array, ierr); CHKERRQ(ierr)
     call VecRestoreArrayF90(self%fluid, fluid_array, ierr); CHKERRQ(ierr)
     call VecRestoreArrayF90(y, primary_array, ierr); CHKERRQ(ierr)
+    call old_fluid%destroy()
     call fluid%destroy()
 
   end subroutine flow_simulation_fluid_transitions
-
-!------------------------------------------------------------------------
-
-  subroutine flow_simulation_pre_timestep(self)
-    !! Routine to be called before starting each time step. Here the
-    !! last_fluid vector is initialized from the fluid vector, to be
-    !! used to revert to the previous state when re-trying a timestep
-    !! with a smaller step size.
-
-    class(flow_simulation_type), intent(in out) :: self
-    ! Locals:
-    PetscErrorCode :: ierr
-
-    call VecCopy(self%fluid, self%last_fluid, ierr); CHKERRQ(ierr)
-
-  end subroutine flow_simulation_pre_timestep
-
-!------------------------------------------------------------------------
-
-  subroutine flow_simulation_pre_retry_timestep(self)
-    !! Routine to be called before re-trying a time step. Here the
-    !! fluid vector is reset to the last_fluid vector.
-
-    class(flow_simulation_type), intent(in out) :: self
-    ! Locals:
-    PetscErrorCode :: ierr
-
-    call VecCopy(self%last_fluid, self%fluid, ierr); CHKERRQ(ierr)
-
-  end subroutine flow_simulation_pre_retry_timestep
 
 !------------------------------------------------------------------------
 
