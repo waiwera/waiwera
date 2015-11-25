@@ -154,7 +154,7 @@ contains
     call setup_eos(json, self%thermo, self%eos)
     call self%mesh%init(json)
     call setup_rocktype_labels(json, self%mesh%dm)
-    call self%mesh%setup_boundaries(self%eos%num_primary_variables, json)
+    call self%mesh%setup_boundaries(json, self%eos)
     call self%mesh%configure(self%eos%primary_variable_names)
     call self%setup_solution_vector()
     call setup_relative_permeabilities(json, self%relative_permeability)

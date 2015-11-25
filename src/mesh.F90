@@ -348,16 +348,17 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine mesh_setup_boundaries(self, num_primary, json)
+  subroutine mesh_setup_boundaries(self, json, eos)
     !! Sets up boundary conditions on the mesh.
 
+    use eos_module, only: eos_type
     use boundary_module, only: setup_boundaries
 
     class(mesh_type), intent(in out) :: self
-    PetscInt, intent(in) :: num_primary
     type(fson_value), pointer, intent(in) :: json
+    class(eos_type), intent(in) :: eos
 
-    call setup_boundaries(json, num_primary, self%dm, self%bcs)
+    call setup_boundaries(json, eos, self%dm, self%bcs)
 
   end subroutine mesh_setup_boundaries
 
