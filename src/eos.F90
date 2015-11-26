@@ -97,7 +97,8 @@ module eos_module
        class(eos_type), intent(in out) :: self
      end subroutine eos_destroy_procedure
 
-     subroutine eos_transition_procedure(self, primary, old_fluid, fluid, err)
+     subroutine eos_transition_procedure(self, primary, old_fluid, fluid, &
+          transition, err)
        !! Check primary variables for a cell and make thermodynamic
        !! region transitions if needed.
        use fluid_module, only: fluid_type
@@ -106,6 +107,7 @@ module eos_module
        PetscReal, intent(in out), target :: primary(self%num_primary_variables)
        type(fluid_type), intent(in) :: old_fluid
        type(fluid_type), intent(in out) :: fluid
+       PetscBool, intent(out) :: transition
        PetscErrorCode, intent(out) :: err
      end subroutine eos_transition_procedure
 
@@ -253,7 +255,8 @@ contains
 
 !------------------------------------------------------------------------
   
-  subroutine eos_w_transition(self, primary, old_fluid, fluid, err)
+  subroutine eos_w_transition(self, primary, old_fluid, fluid, &
+       transition, err)
     !! For eos_w, check primary variables for a cell and make
     !! thermodynamic region transitions if needed
 
@@ -263,10 +266,12 @@ contains
     PetscReal, intent(in out), target :: primary(self%num_primary_variables)
     type(fluid_type), intent(in) :: old_fluid
     type(fluid_type), intent(in out) :: fluid
+    PetscBool, intent(out) :: transition
     PetscErrorCode, intent(out) :: err
 
     ! no transitions needed
     err = 0
+    transition = .false.
 
   end subroutine eos_w_transition
 
@@ -440,7 +445,7 @@ contains
 !------------------------------------------------------------------------
 
   subroutine eos_we_transition_to_single_phase(self, old_fluid, &
-       new_region, primary, fluid, err)
+       new_region, primary, fluid, transition, err)
     !! For eos_we, make transition from two-phase to single-phase with
     !! specified region.
 
@@ -451,6 +456,7 @@ contains
     PetscInt, intent(in) :: new_region
     PetscReal, intent(in out), target :: primary(self%num_primary_variables)
     type(fluid_type), intent(in out) :: fluid
+    PetscBool, intent(out) :: transition
     PetscErrorCode, intent(out) :: err
     ! Locals:
     PetscReal, pointer :: pressure, temperature
@@ -476,6 +482,7 @@ contains
        temperature = old_fluid%temperature
 
        fluid%region = dble(new_region)
+       transition = .true.
 
     end if
 
@@ -484,7 +491,7 @@ contains
 !------------------------------------------------------------------------
 
   subroutine eos_we_transition_to_two_phase(self, saturation_pressure, &
-       old_fluid, primary, fluid, err)
+       old_fluid, primary, fluid, transition, err)
     !! For eos_we, make transition from single-phase to two-phase.
 
     use fluid_module, only: fluid_type
@@ -494,6 +501,7 @@ contains
     type(fluid_type), intent(in) :: old_fluid
     PetscReal, intent(in out), target :: primary(self%num_primary_variables)
     type(fluid_type), intent(in out) :: fluid
+    PetscBool, intent(out) :: transition
     PetscErrorCode, intent(out) :: err
     ! Locals:
     PetscReal, pointer :: pressure, vapour_saturation
@@ -514,12 +522,14 @@ contains
     end if
 
     fluid%region = dble(4)
+    transition = .true.
 
   end subroutine eos_we_transition_to_two_phase
 
 !------------------------------------------------------------------------
 
-  subroutine eos_we_transition(self, primary, old_fluid, fluid, err)
+  subroutine eos_we_transition(self, primary, old_fluid, fluid, &
+       transition, err)
     !! For eos_we, check primary variables for a cell and make
     !! thermodynamic region transitions if needed.
 
@@ -529,6 +539,7 @@ contains
     PetscReal, intent(in out), target :: primary(self%num_primary_variables)
     type(fluid_type), intent(in) :: old_fluid
     type(fluid_type), intent(in out) :: fluid
+    PetscBool, intent(out) :: transition
     PetscErrorCode, intent(out) :: err
     ! Locals:
     PetscInt :: old_region
@@ -536,6 +547,7 @@ contains
     PetscReal :: saturation_pressure
 
     err = 0
+    transition = .false.
     old_region = nint(old_fluid%region)
 
     if (old_region == 4) then  ! Two-phase
@@ -544,10 +556,10 @@ contains
 
        if (vapour_saturation < 0._dp) then
           call self%transition_to_single_phase(old_fluid, 1, primary, &
-               fluid, err)
+               fluid, transition, err)
        else if (vapour_saturation > 1._dp) then
           call self%transition_to_single_phase(old_fluid, 2, primary, &
-               fluid, err)
+               fluid, transition, err)
        end if
 
     else  ! Single-phase
@@ -562,7 +574,7 @@ contains
           if (((old_region == 1) .and. (pressure < saturation_pressure)) .or. &
                ((old_region == 2) .and. (pressure > saturation_pressure))) then
              call self%transition_to_two_phase(saturation_pressure, old_fluid, &
-                  primary, fluid, err)
+                  primary, fluid, transition, err)
           end if
        end if
 
