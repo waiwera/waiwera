@@ -533,7 +533,8 @@ contains
     PetscErrorCode, intent(out) :: err
 
     err = 0
-    call self%fluid_transitions(y, err)
+    call self%fluid_transitions(y_old, search, y, changed_search, &
+         changed_y, err)
 
   end subroutine flow_simulation_post_linesearch
 
@@ -714,7 +715,8 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine flow_simulation_fluid_transitions(self, y, err)
+  subroutine flow_simulation_fluid_transitions(self, y_old, search, y, &
+       changed_search, changed_y, err)
     !! Checks primary variables and thermodynamic regions in all mesh
     !! cells and updates if region transitions have occurred.
 
@@ -722,31 +724,40 @@ contains
     use fluid_module, only: fluid_type
 
     class(flow_simulation_type), intent(in out) :: self
+    Vec, intent(in) :: y_old !! Previous global primary variables vector
     Vec, intent(in out) :: y !! Global primary variables vector
+    Vec, intent(in out) :: search !! Global nonlinear solver search direction vector
+    PetscBool, intent(out) :: changed_search, changed_y
     PetscErrorCode, intent(out) :: err !! Error code
     ! Locals:
     PetscInt :: c, np, nc, ghost
     PetscSection :: primary_section, fluid_section
     PetscInt :: primary_offset, fluid_offset
-    PetscReal, pointer :: primary_array(:), cell_primary(:)
-    PetscReal, pointer :: old_fluid_array(:), fluid_array(:)
-    type(fluid_type) :: old_fluid, fluid
+    PetscReal, pointer :: primary_array(:), old_primary_array(:), search_array(:)
+    PetscReal, pointer :: cell_primary(:), old_cell_primary(:), cell_search(:)
+    PetscReal, pointer :: last_iteration_fluid_array(:), fluid_array(:)
+    type(fluid_type) :: last_iteration_fluid, fluid
     DMLabel :: ghost_label
+    PetscBool :: transition
     PetscErrorCode :: ierr
 
     err = 0
+    changed_search = .false.
+    changed_y = .false.
     np = self%eos%num_primary_variables
     nc = self%eos%num_components
 
     call global_vec_section(y, primary_section)
     call VecGetArrayF90(y, primary_array, ierr); CHKERRQ(ierr)
+    call VecGetArrayReadF90(y_old, old_primary_array, ierr); CHKERRQ(ierr)
+    call VecGetArrayF90(search, search_array, ierr); CHKERRQ(ierr)
 
     call global_vec_section(self%fluid, fluid_section)
     call VecGetArrayF90(self%fluid, fluid_array, ierr); CHKERRQ(ierr)
     call VecGetArrayReadF90(self%last_iteration_fluid, &
-         old_fluid_array, ierr); CHKERRQ(ierr)
+         last_iteration_fluid_array, ierr); CHKERRQ(ierr)
 
-    call old_fluid%init(nc, self%eos%num_phases)
+    call last_iteration_fluid%init(nc, self%eos%num_phases)
     call fluid%init(nc, self%eos%num_phases)
 
     call DMPlexGetLabel(self%mesh%dm, "ghost", ghost_label, ierr)
@@ -760,17 +771,30 @@ contains
           call global_section_offset(primary_section, c, &
                self%solution_range_start, primary_offset, ierr); CHKERRQ(ierr)
           cell_primary => primary_array(primary_offset : primary_offset + np - 1)
+          old_cell_primary => old_primary_array(primary_offset : &
+               primary_offset + np - 1)
+          cell_search => search_array(primary_offset : primary_offset + np - 1)
 
           call global_section_offset(fluid_section, c, &
                self%fluid_range_start, fluid_offset, ierr); CHKERRQ(ierr)
 
-          call old_fluid%assign(old_fluid_array, fluid_offset)
+          call last_iteration_fluid%assign(last_iteration_fluid_array, &
+               fluid_offset)
           call fluid%assign(fluid_array, fluid_offset)
 
           err = self%eos%check_primary_variables(fluid, cell_primary)
           if (err == 0) then
-             call self%eos%transition(cell_primary, old_fluid, fluid, err)
-             if (err > 0) exit
+             call self%eos%transition(cell_primary, last_iteration_fluid, &
+                  fluid, transition, err)
+             if (err == 0) then
+                if (transition) then
+                   cell_search = old_cell_primary - cell_primary
+                   changed_y = .true.
+                   changed_search = .true.
+                end if
+             else
+                exit
+             end if
           else
              exit
           end if
@@ -780,10 +804,12 @@ contains
     end do
 
     call VecRestoreArrayReadF90(self%last_iteration_fluid, &
-         old_fluid_array, ierr); CHKERRQ(ierr)
+         last_iteration_fluid_array, ierr); CHKERRQ(ierr)
     call VecRestoreArrayF90(self%fluid, fluid_array, ierr); CHKERRQ(ierr)
     call VecRestoreArrayF90(y, primary_array, ierr); CHKERRQ(ierr)
-    call old_fluid%destroy()
+    call VecRestoreArrayReadF90(y_old, old_primary_array, ierr); CHKERRQ(ierr)
+    call VecRestoreArrayF90(search, search_array, ierr); CHKERRQ(ierr)
+    call last_iteration_fluid%destroy()
     call fluid%destroy()
 
   end subroutine flow_simulation_fluid_transitions
