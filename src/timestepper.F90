@@ -934,6 +934,7 @@ end subroutine timestepper_steps_set_next_stepsize
     ! Locals:
     PetscErrorCode :: ierr
     KSP :: ksp
+    PC :: pc
     SNESLineSearch :: linesearch
 
     call self%context%init(self%ode, self%steps, self%method%residual)
@@ -950,6 +951,8 @@ end subroutine timestepper_steps_set_next_stepsize
     call SNESSetFromOptions(self%solver, ierr); CHKERRQ(ierr)
     call SNESGetKSP(self%solver, ksp, ierr); CHKERRQ(ierr)
     call KSPSetFromOptions(ksp, ierr); CHKERRQ(ierr)
+    call KSPGetPC(ksp, pc, ierr); CHKERRQ(ierr)
+    call PCSetFromOptions(pc, ierr); CHKERRQ(ierr)
 
     call SNESSetTolerances(self%solver, PETSC_DEFAULT_REAL, &
          PETSC_DEFAULT_REAL, PETSC_DEFAULT_REAL, max_iterations, &
