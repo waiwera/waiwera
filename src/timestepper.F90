@@ -936,6 +936,9 @@ end subroutine timestepper_steps_set_next_stepsize
     KSP :: ksp
     PC :: pc
     SNESLineSearch :: linesearch
+    ! This tolerance needs to be set very small so it doesn't override
+    ! time step reduction when primary variables go out of bounds:
+    PetscReal, parameter :: stol = 1.e-99_dp
 
     call self%context%init(self%ode, self%steps, self%method%residual)
 
@@ -955,7 +958,7 @@ end subroutine timestepper_steps_set_next_stepsize
     call PCSetFromOptions(pc, ierr); CHKERRQ(ierr)
 
     call SNESSetTolerances(self%solver, PETSC_DEFAULT_REAL, &
-         PETSC_DEFAULT_REAL, PETSC_DEFAULT_REAL, max_iterations, &
+         PETSC_DEFAULT_REAL, stol, max_iterations, &
          PETSC_DEFAULT_INTEGER, ierr); CHKERRQ(ierr)
     call SNESSetConvergenceTest(self%solver, SNES_convergence, self%context, &
          PETSC_NULL_FUNCTION, ierr); CHKERRQ(ierr)
