@@ -37,6 +37,7 @@ contains
     PetscInt, allocatable :: indices(:)
     PetscInt, parameter :: default_component = 1
     PetscReal :: enthalpy
+    PetscBool :: mass_source
     PetscReal, parameter :: default_enthalpy = 83.9e3
 
     call DMCreateGlobalVector(dm, source, ierr); CHKERRQ(ierr)
@@ -58,8 +59,10 @@ contains
           call fson_get_mpi(src, "value", val = q)
           offset = cell * num_primary
           values(offset + c) = q
-          if ((.not.(isothermal)) .and. (q > 0._dp)) then
-             ! add energy from injection
+          mass_source = (c < num_primary)
+          if ((.not.(isothermal)) .and. mass_source .and. &
+               (q > 0._dp)) then
+             ! add energy from mass injection
              call fson_get_mpi(src, "enthalpy", default_enthalpy, &
                   enthalpy)
              values(offset + num_primary) = enthalpy * q
