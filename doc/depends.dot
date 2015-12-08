@@ -1,4 +1,4 @@
-digraph supermodel{
+digraph logfile_module{
         fluid_module -> dm_utils_module
         fluid_module -> kinds_module
         fluid_module -> thermodynamics_module
@@ -90,6 +90,7 @@ digraph supermodel{
         timestepper_module -> mpi_module
         timestepper_module -> ode_module
         timestepper_module -> utils_module
+        logfile_module -> mpi_module
         relative_permeability_module -> fson
         relative_permeability_module -> fson_mpi_module
         relative_permeability_module -> kinds_module
