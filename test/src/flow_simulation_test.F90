@@ -14,7 +14,8 @@ module flow_simulation_test
 #include <petsc/finclude/petsc.h90>
 
 public :: test_flow_simulation_init, &
-     test_flow_simulation_fluid_properties, test_flow_simulation_lhs
+     test_flow_simulation_fluid_properties, test_flow_simulation_lhs, &
+     vec_write, vec_diff_test
 
 PetscReal, parameter :: tol = 1.e-6_dp
 type(flow_simulation_type) :: sim
