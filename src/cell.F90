@@ -46,7 +46,7 @@ contains
 
     class(cell_type), intent(in out) :: self
     PetscInt, intent(in) :: num_components !! Number of fluid components
-    PetscInt, intent(in) :: num_phases     !! Number of fluid phases
+    PetscInt, intent(in) :: num_phases  !! Number of fluid phases
 
     call self%fluid%init(num_components, num_phases)
 
@@ -125,7 +125,8 @@ contains
     isothermal = (num_primary == nc)
 
     ! Mass balances:
-    balance(1: nc) = self%rock%porosity * self%fluid%component_density()
+    balance(1: nc) = self%rock%porosity * &
+         self%fluid%component_density()
 
     if (.not. isothermal) then
        ! Energy balance:

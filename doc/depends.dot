@@ -6,18 +6,21 @@ digraph supermodel{
         eos_module -> fson
         eos_module -> fson_mpi_module
         eos_module -> kinds_module
+        eos_module -> rock_module
         eos_module -> thermodynamics_module
         eos_module -> utils_module
         rock_module -> dm_utils_module
         rock_module -> fson
         rock_module -> fson_mpi_module
         rock_module -> kinds_module
+        rock_module -> relative_permeability_module
         powertable_module -> kinds_module
         ode_module -> mesh_module
         dm_utils_module -> mpi_module
         cell_module -> fluid_module
         cell_module -> kinds_module
         cell_module -> rock_module
+        boundary_module -> eos_module
         boundary_module -> fson
         boundary_module -> fson_mpi_module
         flow_simulation_module -> cell_module
@@ -27,11 +30,13 @@ digraph supermodel{
         flow_simulation_module -> fluid_module
         flow_simulation_module -> fson
         flow_simulation_module -> fson_mpi_module
+        flow_simulation_module -> fson_value_m
         flow_simulation_module -> initial_module
         flow_simulation_module -> kinds_module
         flow_simulation_module -> mesh_module
         flow_simulation_module -> mpi_module
         flow_simulation_module -> ode_module
+        flow_simulation_module -> relative_permeability_module
         flow_simulation_module -> rock_module
         flow_simulation_module -> source_module
         flow_simulation_module -> thermodynamics_module
@@ -39,20 +44,23 @@ digraph supermodel{
         thermodynamics_module -> kinds_module
         face_module -> cell_module
         face_module -> kinds_module
-        initial_module -> boundary_module
         initial_module -> dm_utils_module
+        initial_module -> eos_module
+        initial_module -> fluid_module
         initial_module -> fson
         initial_module -> fson_mpi_module
-        initial_module -> fson_value_m
         initial_module -> kinds_module
         initial_module -> mesh_module
+        initial_module -> mpi_module
         initial_module -> rock_module
         mesh_module -> boundary_module
         mesh_module -> dm_utils_module
+        mesh_module -> eos_module
         mesh_module -> face_module
         mesh_module -> fson
         mesh_module -> kinds_module
         mesh_module -> mpi_module
+        mesh_module -> rock_module
         fson_mpi_module -> fson
         fson_mpi_module -> fson_value_m
         fson_mpi_module -> kinds_module
@@ -82,4 +90,8 @@ digraph supermodel{
         timestepper_module -> mpi_module
         timestepper_module -> ode_module
         timestepper_module -> utils_module
+        relative_permeability_module -> fson
+        relative_permeability_module -> fson_mpi_module
+        relative_permeability_module -> kinds_module
+        relative_permeability_module -> utils_module
 }

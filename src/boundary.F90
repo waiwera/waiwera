@@ -14,30 +14,30 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine setup_boundaries(json, num_primary, dm, bcs)
+  subroutine setup_boundaries(json, eos, dm, bcs)
     !! Sets up labels identifying boundaries of the mesh, and returns
     !! array of boundary condition values for each boundary.
 
     use fson
     use fson_mpi_module
+    use eos_module
 
     type(fson_value), pointer, intent(in) :: json
-    PetscInt, intent(in) :: num_primary
+    class(eos_type), intent(in) :: eos
     DM, intent(in) :: dm
     PetscReal, allocatable, intent(out) :: bcs(:,:)
     ! Locals:
     PetscErrorCode :: ierr
     PetscBool :: has_label
     type(fson_value), pointer :: boundaries, bdy
-    PetscInt :: num_boundaries, num_faces, ibdy, iface, f
+    PetscInt :: num_boundaries, num_faces, ibdy, iface, f, np
     PetscInt, allocatable :: default_faces(:)
     PetscInt, allocatable :: faces(:)
-    PetscInt :: default_region = 1
     PetscInt :: region
-    PetscReal :: default_values(1) = [1.0e5]
-    PetscReal, allocatable :: values(:)
+    PetscReal, allocatable :: primary(:)
 
     default_faces = [PetscInt::] ! empty integer array
+    np = eos%num_primary_variables
 
     call DMPlexHasLabel(dm, open_boundary_label_name, has_label, &
          ierr); CHKERRQ(ierr)
@@ -50,7 +50,7 @@ contains
        if (fson_has_mpi(json, "boundaries")) then
           call fson_get_mpi(json, "boundaries", boundaries)
           num_boundaries = fson_value_count_mpi(boundaries, ".")
-          allocate(bcs(num_primary + 1, num_boundaries))
+          allocate(bcs(np + 1, num_boundaries))
           do ibdy = 1, num_boundaries
              bdy => fson_value_get_mpi(boundaries, ibdy)
              call fson_get_mpi(bdy, "faces", default_faces, faces)
@@ -60,10 +60,10 @@ contains
                 call DMPlexSetLabelValue(dm, open_boundary_label_name, &
                      f, ibdy, ierr); CHKERRQ(ierr)
              end do
-             call fson_get_mpi(bdy, "region", default_region, region)
-             call fson_get_mpi(bdy, "values", default_values, values)
+             call fson_get_mpi(bdy, "primary", eos%default_primary, primary)
+             call fson_get_mpi(bdy, "region", eos%default_region, region)
              bcs(1, ibdy) = dble(region)
-             bcs(2 : num_primary + 1, ibdy) = values(1 : num_primary)
+             bcs(2 : np + 1, ibdy) = primary(1 : np)
           end do
        end if
 

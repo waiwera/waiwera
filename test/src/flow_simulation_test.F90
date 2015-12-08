@@ -14,7 +14,8 @@ module flow_simulation_test
 #include <petsc/finclude/petsc.h90>
 
 public :: test_flow_simulation_init, &
-     test_flow_simulation_fluid_properties, test_flow_simulation_lhs
+     test_flow_simulation_fluid_properties, test_flow_simulation_lhs, &
+     vec_write, vec_diff_test
 
 PetscReal, parameter :: tol = 1.e-6_dp
 type(flow_simulation_type) :: sim
@@ -254,13 +255,14 @@ contains
     type(fson_value), pointer :: json
     character(64), parameter :: path = "data/flow_simulation/fluid_properties/"
     PetscReal :: time = 0._dp
+    PetscErrorCode :: err
 
     json => fson_parse_mpi(trim(path) // "test_fluid_properties.json")
 
     call sim%init(json)
     call fson_destroy_mpi(json)
 
-    call sim%pre_eval(time, sim%solution)
+    call sim%pre_solve(time, sim%solution, err)
     call vec_diff_test(sim%fluid, "fluid", path)
     
     call sim%destroy()
@@ -279,7 +281,7 @@ contains
     character(64), parameter :: path = "data/flow_simulation/lhs/"
     PetscReal :: time = 0._dp
     Vec :: lhs
-    PetscErrorCode :: ierr
+    PetscErrorCode :: ierr, err
 
     json => fson_parse_mpi(trim(path) // "test_lhs.json")
 
@@ -289,8 +291,8 @@ contains
     call DMGetGlobalVector(sim%mesh%dm, lhs, ierr); CHKERRQ(ierr)
     call PetscObjectSetName(lhs, "lhs", ierr); CHKERRQ(ierr)
 
-    call sim%pre_eval(time, sim%solution)
-    call sim%lhs(time, sim%solution, lhs)
+    call sim%pre_solve(time, sim%solution, err)
+    call sim%lhs(time, sim%solution, lhs, err)
     call vec_diff_test(lhs, "lhs", path)
 
     call DMRestoreGlobalVector(sim%mesh%dm, lhs, ierr); CHKERRQ(ierr)

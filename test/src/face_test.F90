@@ -19,6 +19,7 @@ public :: test_face_assign, test_face_permeability_direction, &
 
 PetscReal, parameter :: tol = 1.e-6_dp
 PetscReal, parameter :: mass_tol = 1.e-10_dp, heat_tol = 1.e-6
+PetscReal, parameter :: density_tol = 1.e-6_dp
 
 contains
   
@@ -228,7 +229,7 @@ contains
     use rock_module
     use fluid_module
 
-    PetscInt, parameter :: nc = 1, np = 1, num_primary = 2
+    PetscInt, parameter :: nc = 1, num_phases = 1, num_primary = 2
     PetscReal, parameter :: gravity = 9.8_dp
     type(face_type) :: face
     type(cell_type) :: cell
@@ -244,8 +245,8 @@ contains
 
     if (mpi%rank == mpi%output_rank) then
 
-       call face%init(nc, np)
-       call fluid%init(nc, np)
+       call face%init(nc, num_phases)
+       call fluid%init(nc, num_phases)
        allocate(face_data(face%dof()), cell_data(cell%dof()))
        allocate(rock_data(rock%dof()), fluid_data(fluid%dof()))
        allocate(flux(num_primary))
@@ -260,7 +261,7 @@ contains
             1.e-14_dp, 2.e-14_dp, 3.e-15_dp,  2.5_dp,  0.1_dp, &
             2200._dp, 1000._dp]
        fluid_data = [ &
-            1.e5_dp, 20._dp, 1._dp, & 
+            1.e5_dp, 20._dp, 1._dp, 1._dp, &
             998.2_dp, 1.e-3_dp, 1._dp, 1._dp, &
             84011.8_dp, 83911.6_dp, 1._dp]
 
@@ -294,7 +295,7 @@ contains
     use rock_module
     use fluid_module
 
-    PetscInt, parameter :: nc = 1, np = 1, num_primary = 2
+    PetscInt, parameter :: nc = 1, num_phases = 1, num_primary = 2
     PetscReal, parameter :: gravity = 9.8_dp
     type(face_type) :: face
     type(cell_type) :: cell
@@ -310,8 +311,8 @@ contains
 
     if (mpi%rank == mpi%output_rank) then
 
-       call face%init(nc, np)
-       call fluid%init(nc, np)
+       call face%init(nc, num_phases)
+       call fluid%init(nc, num_phases)
        allocate(face_data(face%dof()), cell_data(cell%dof()))
        allocate(rock_data(rock%dof()), fluid_data(fluid%dof()))
        allocate(flux(num_primary))
@@ -326,7 +327,7 @@ contains
             1.e-14_dp, 2.e-14_dp, 3.e-15_dp,  2.5_dp,  0.1_dp, &
             2200._dp, 1000._dp]
        fluid_data = [ &
-            1.e5_dp, 20._dp, 1._dp, & 
+            1.e5_dp, 20._dp, 1._dp, 1._dp, &
             998.2_dp, 1.e-3_dp, 1._dp, 1._dp, &
             84011.8_dp, 83911.6_dp, 1._dp]
 
@@ -359,7 +360,7 @@ contains
     use rock_module
     use fluid_module
 
-    PetscInt, parameter :: nc = 1, np = 1, num_primary = 2
+    PetscInt, parameter :: nc = 1, num_phases = 1, num_primary = 2
     PetscReal, parameter :: gravity = 9.8_dp
     type(face_type) :: face
     type(cell_type) :: cell
@@ -375,8 +376,8 @@ contains
 
     if (mpi%rank == mpi%output_rank) then
 
-       call face%init(nc, np)
-       call fluid%init(nc, np)
+       call face%init(nc, num_phases)
+       call fluid%init(nc, num_phases)
        allocate(face_data(face%dof()), cell_data(cell%dof()))
        allocate(rock_data(rock%dof()), fluid_data(fluid%dof()*2))
        allocate(flux(num_primary))
@@ -391,10 +392,10 @@ contains
             1.e-14_dp, 2.e-14_dp, 3.e-15_dp,  2.5_dp,  0.1_dp, &
             2200._dp, 1000._dp]
        fluid_data = [ &
-            2.e5_dp, 20._dp, 1._dp, &                ! cell 1
+            2.e5_dp, 20._dp, 1._dp, 1._dp, &                ! cell 1
             998.2512244888_dp, 0.00100156652270771_dp, 1._dp, 1._dp, &
             84105.9189422008_dp, 83905.5685743839_dp, 1._dp, &
-            7.87050606076185e5_dp, 20._dp, 1._dp, &  ! cell 2
+            7.87050606076185e5_dp, 20._dp, 1._dp, 1._dp, &  ! cell 2
             998.5195444779_dp, 0.00100138700807062_dp, 1._dp, 1._dp, &
             84658.2021844106_dp, 83869.9846573438_dp, 1._dp]
 
@@ -426,7 +427,7 @@ contains
     use rock_module
     use fluid_module
 
-    PetscInt, parameter :: nc = 1, np = 2, num_primary = 2
+    PetscInt, parameter :: nc = 1, num_phases = 2, num_primary = 2
     PetscReal, parameter :: gravity = 9.8_dp
     type(face_type) :: face
     type(cell_type) :: cell
@@ -437,13 +438,16 @@ contains
     PetscReal, allocatable :: flux(:)
     PetscInt :: face_offset, cell_offsets(2)
     PetscInt :: rock_offsets(2), fluid_offsets(2)
-    PetscReal, parameter :: expected_mass_flux = 9.16974670293235e-5_dp
-    PetscReal, parameter :: expected_heat_flux = 58.061787312_dp
+    PetscReal :: density
+    PetscReal, parameter :: expected_liquid_density = 900.3915384615_dp
+    PetscReal, parameter :: expected_vapour_density = 3.7044444444_dp
+    PetscReal, parameter :: expected_mass_flux = 9.14772841429594e-5_dp
+    PetscReal, parameter :: expected_heat_flux = 57.9124776818_dp
 
     if (mpi%rank == mpi%output_rank) then
 
-       call face%init(nc, np)
-       call fluid%init(nc, np)
+       call face%init(nc, num_phases)
+       call fluid%init(nc, num_phases)
        allocate(face_data(face%dof()), cell_data(cell%dof()))
        allocate(rock_data(rock%dof() * 2), fluid_data(fluid%dof() * 2))
        allocate(flux(num_primary))
@@ -460,12 +464,12 @@ contains
             2.e-14_dp, 3.e-14_dp, 6.e-15_dp,  2.7_dp,  0.05_dp, & ! cell 2
             2300._dp, 995._dp]
        fluid_data = [ &
-            6.2e5_dp, 160._dp, 4._dp, &               ! cell 1
+            6.2e5_dp, 160._dp, 4._dp, 3._dp, &        ! cell 1
             907.45_dp, 1.7e-4_dp, 0.25_dp, 0.75_dp, & ! liquid
             675574.7_dp, 674893.5_dp, 1._dp, &
             3.26_dp, 1.43e-5_dp, 0.75_dp, 0.25_dp, &  ! vapour
             2757430.53_dp, 2567774.0_dp, 1._dp, &
-            8.2e5_dp, 171.44_dp, 4._dp, &             ! cell 2
+            8.2e5_dp, 171.44_dp, 4._dp, 3._dp, &      ! cell 2
             895.98_dp, 1.58e-4_dp, 0.4_dp, 0.6_dp, &  ! liquid
             725517.1_dp, 724601.9_dp, 1._dp, &
             4.26_dp, 1.47e-5_dp, 0.6_dp, 0.4_dp, &    ! vapour
@@ -474,6 +478,10 @@ contains
        call face%assign(face_data, face_offset, cell_data, cell_offsets, &
             rock_data, rock_offsets, fluid_data, fluid_offsets)
 
+       density = face%phase_density(1)
+       call assert_equals(expected_liquid_density, density, density_tol, "Liquid density")
+       density = face%phase_density(2)
+       call assert_equals(expected_vapour_density, density, density_tol, "Vapour density")
        flux = face%flux(num_primary, gravity)
 
        call assert_equals(expected_mass_flux, flux(1), mass_tol, "Mass flux")

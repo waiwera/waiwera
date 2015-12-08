@@ -105,6 +105,7 @@ module timestepper_test
      private
      procedure, public :: init => init_pre_eval
      procedure, public :: destroy => destroy_pre_eval
+     procedure, public :: pre_solve => calculate_secondary_pre_eval
      procedure, public :: pre_eval => calculate_secondary_pre_eval
      procedure, public :: lhs => lhs_pre_eval
   end type pre_eval_ode_type
@@ -146,13 +147,15 @@ contains
 ! Default test ode functions
 !------------------------------------------------------------------------
 
-  subroutine init_test_ode(self, initial_array)
+  subroutine init_test_ode(self, initial_array, err)
     ! Default ode initialization.
     class(test_ode_type), intent(in out) :: self
     PetscReal, intent(in), optional :: initial_array(:)
+    PetscErrorCode, intent(out) :: err
     ! Locals:
     PetscErrorCode :: ierr
 
+    err = 0
     self%dim = 8
     self%dof = 1
     self%stencil = 0
@@ -179,33 +182,36 @@ contains
     call DMDestroy(self%mesh%dm, ierr); CHKERRQ(ierr)
   end subroutine destroy_test_ode
 
-  subroutine lhs_test_ode(self, t, y, lhs)
+  subroutine lhs_test_ode(self, t, y, lhs, err)
     ! Default identity LHS function.
     class(test_ode_type), intent(in out) :: self
     PetscReal, intent(in) :: t
     Vec, intent(in) :: y
     Vec, intent(out) :: lhs
+    PetscErrorCode, intent(out) :: err
     ! Locals:
     PetscErrorCode :: ierr
     call VecCopy(y, lhs, ierr); CHKERRQ(ierr)
   end subroutine lhs_test_ode
 
-  subroutine rhs_test_ode(self, t, y, rhs)
+  subroutine rhs_test_ode(self, t, y, rhs, err)
     ! Default zero RHS function.
     class(test_ode_type), intent(in out) :: self
     PetscReal, intent(in) :: t
     Vec, intent(in) :: y
     Vec, intent(out) :: rhs
+    PetscErrorCode, intent(out) :: err
     ! Locals:
     PetscErrorCode :: ierr
     call VecSet(rhs, 0._dp, ierr); CHKERRQ(ierr)
   end subroutine rhs_test_ode
 
-  subroutine pre_eval_test_ode(self, t, y)
+  subroutine pre_eval_test_ode(self, t, y, err)
     ! Default do-nothing pre-evaluation routine.
     class(test_ode_type), intent(in out) :: self
     PetscReal, intent(in) :: t
     Vec, intent(in) :: y
+    PetscErrorCode, intent(out) :: err
     continue
   end subroutine pre_eval_test_ode
 
@@ -219,10 +225,12 @@ contains
     call VecSet(v, 0._dp, ierr); CHKERRQ(ierr)
   end subroutine exact_test_ode
 
-  subroutine output_test_ode(self)
+  subroutine output_test_ode(self, time_index, time)
     ! Output from test ode- compute difference betweeen solution and
     ! exact solution.
     class(test_ode_type), intent(in out) :: self
+    PetscInt, intent(in) :: time_index
+    PetscReal, intent(in) :: time
     ! Locals:
     PetscReal, pointer :: y(:), yex(:), diffa(:)
     PetscErrorCode :: ierr
@@ -270,14 +278,16 @@ contains
 ! Specific test ode functions
 !------------------------------------------------------------------------
 
-  subroutine rhs_const(self, t, y, rhs)
+  subroutine rhs_const(self, t, y, rhs, err)
     ! rhs(t, y) = k
     class(linear_ode_type), intent(in out) :: self
     PetscReal, intent(in) :: t
     Vec, intent(in) :: y
     Vec, intent(out) :: rhs
+    PetscErrorCode, intent(out) :: err
     ! Locals:
     PetscErrorCode :: ierr
+    err = 0
     call VecSet(rhs, self%k, ierr); CHKERRQ(ierr)
   end subroutine rhs_const
 
@@ -292,14 +302,16 @@ contains
 
 !------------------------------------------------------------------------
   
-  subroutine rhs_linear(self, t, y, rhs)
+  subroutine rhs_linear(self, t, y, rhs, err)
     ! rhs(t, y) = k * y
     class(exponential_ode_type), intent(in out) :: self
     PetscReal, intent(in) :: t
     Vec, intent(in) :: y
     Vec, intent(out) :: rhs
+    PetscErrorCode, intent(out) :: err
     ! Locals:
     PetscErrorCode :: ierr
+    err = 0
     call VecCopy(y, rhs, ierr); CHKERRQ(ierr)
     call VecScale(rhs, self%k, ierr); CHKERRQ(ierr)
   end subroutine rhs_linear
@@ -317,14 +329,16 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine rhs_logistic(self, t, y, rhs)
+  subroutine rhs_logistic(self, t, y, rhs, err)
     ! rhs(t, y) = (3 - 2 * y) * y
     class(logistic_ode_type), intent(in out) :: self
     PetscReal, intent(in) :: t
     Vec, intent(in) :: y
     Vec, intent(out) :: rhs
+    PetscErrorCode, intent(out) :: err
     ! Locals:
     PetscErrorCode :: ierr
+    err = 0
     call VecSet(rhs, 3._dp, ierr); CHKERRQ(ierr)
     call VecAXPY(rhs, -2._dp, y, ierr); CHKERRQ(ierr)
     call VecPointwiseMult(rhs, rhs, y, ierr); CHKERRQ(ierr)
@@ -352,14 +366,16 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine lhs_nontrivial_lhs(self, t, y, lhs)
+  subroutine lhs_nontrivial_lhs(self, t, y, lhs, err)
     ! lhs(t, y) = t * y
     class(nontrivial_lhs_ode_type), intent(in out) :: self
     PetscReal, intent(in) :: t
     Vec, intent(in) :: y
     Vec, intent(out) :: lhs
+    PetscErrorCode, intent(out) :: err
     ! Locals:
     PetscErrorCode :: ierr
+    err = 0
     call VecCopy(y, lhs, ierr); CHKERRQ(ierr)
     call VecScale(lhs, t, ierr); CHKERRQ(ierr)
   end subroutine lhs_nontrivial_lhs
@@ -374,26 +390,30 @@ contains
 
 !------------------------------------------------------------------------
   
-  subroutine lhs_nonlinear_lhs(self, t, y, lhs)
+  subroutine lhs_nonlinear_lhs(self, t, y, lhs, err)
     ! lhs(t, y) = y * (y - 2)
     class(nonlinear_lhs_ode_type), intent(in out) :: self
     PetscReal, intent(in) :: t
     Vec, intent(in) :: y
     Vec, intent(out) :: lhs
+    PetscErrorCode, intent(out) :: err
     ! Locals:
     PetscErrorCode :: ierr
+    err = 0
     call VecPointwiseMult(lhs, y, y, ierr); CHKERRQ(ierr)
     call VecAXPY(lhs, -2._dp, y, ierr); CHKERRQ(ierr)
   end subroutine lhs_nonlinear_lhs
 
-  subroutine rhs_nonlinear_lhs(self, t, y, rhs)
+  subroutine rhs_nonlinear_lhs(self, t, y, rhs, err)
     ! rhs(t, y) = k * (y - 1)
     class(nonlinear_lhs_ode_type), intent(in out) :: self
     PetscReal, intent(in) :: t
     Vec, intent(in) :: y
     Vec, intent(out) :: rhs
+    PetscErrorCode, intent(out) :: err
     ! Locals:
     PetscErrorCode :: ierr
+    err = 0
     call VecSet(rhs, -1._dp, ierr); CHKERRQ(ierr)
     call VecAXPY(rhs, 1._dp, y, ierr); CHKERRQ(ierr)
     call VecScale(rhs, self%k, ierr); CHKERRQ(ierr)
@@ -449,14 +469,16 @@ contains
 
   end subroutine exact_heat1d
 
-  subroutine init_heat1d(self, initial_array)
+  subroutine init_heat1d(self, initial_array, err)
     ! Initialization for heat equation.
     class(heat1d_ode_type), intent(in out) :: self
     PetscReal, intent(in), optional :: initial_array(:)
+    PetscErrorCode, intent(out) :: err
     ! Locals:
     PetscReal :: dx
     PetscErrorCode :: ierr
 
+    err = 0
     self%L = 1._dp
     self%dim = 21
     self%dof = 1
@@ -478,18 +500,20 @@ contains
 
   end subroutine init_heat1d
 
-  subroutine rhs_heat1d(self, t, y, rhs)
+  subroutine rhs_heat1d(self, t, y, rhs, err)
     ! rhs = d2y/dx2
     class(heat1d_ode_type), intent(in out) :: self
     PetscReal, intent(in) :: t
     Vec, intent(in) :: y
     Vec, intent(out) :: rhs
+    PetscErrorCode, intent(out) :: err
     ! Locals:
     PetscErrorCode :: ierr
     PetscReal, pointer :: ya(:), rhsa(:)
     PetscInt :: i1, im, i, i1g, img, i2g
     Vec :: ylocal
 
+    err = 0
     call DMGetLocalVector(self%mesh%dm, ylocal, ierr); CHKERRQ(ierr)
     call DMGlobalToLocalBegin(self%mesh%dm, y, INSERT_VALUES, ylocal, &
          ierr); CHKERRQ(ierr)
@@ -527,18 +551,20 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine lhs_heat1d_nonlinear(self, t, y, lhs)
+  subroutine lhs_heat1d_nonlinear(self, t, y, lhs, err)
     ! lhs = y * y
     class(heat1d_nonlinear_ode_type), intent(in out) :: self
     PetscReal, intent(in) :: t
     Vec, intent(in) :: y
     Vec, intent(out) :: lhs
+    PetscErrorCode, intent(out) :: err
     ! Locals:
     PetscErrorCode :: ierr
     PetscReal, pointer :: ya(:), lhsa(:)
     PetscInt :: i1, im, i
     Vec :: ylocal
 
+    err = 0
     call DMGetLocalVector(self%mesh%dm, ylocal, ierr); CHKERRQ(ierr)
     call DMGlobalToLocalBegin(self%mesh%dm, y, INSERT_VALUES, ylocal, &
          ierr); CHKERRQ(ierr)
@@ -566,18 +592,20 @@ contains
 
   end subroutine lhs_heat1d_nonlinear
   
-  subroutine rhs_heat1d_nonlinear(self, t, y, rhs)
+  subroutine rhs_heat1d_nonlinear(self, t, y, rhs, err)
     ! rhs = 2 * y * d2y/dx2
     class(heat1d_nonlinear_ode_type), intent(in out) :: self
     PetscReal, intent(in) :: t
     Vec, intent(in) :: y
     Vec, intent(out) :: rhs
+    PetscErrorCode, intent(out) :: err
     ! Locals:
     PetscErrorCode :: ierr
     PetscReal, pointer :: ya(:), rhsa(:)
     PetscInt :: i1, im, i, i1g, img, i2g
     Vec :: ylocal
 
+    err = 0
     call DMGetLocalVector(self%mesh%dm, ylocal, ierr); CHKERRQ(ierr)
     call DMGlobalToLocalBegin(self%mesh%dm, y, INSERT_VALUES, &
          ylocal, ierr); CHKERRQ(ierr)
@@ -615,12 +643,14 @@ contains
 
 !------------------------------------------------------------------------
   
-  subroutine init_pre_eval(self, initial_array)
+  subroutine init_pre_eval(self, initial_array, err)
     class(pre_eval_ode_type), intent(in out) :: self
     PetscReal, intent(in), optional :: initial_array(:)
+    PetscErrorCode, intent(out) :: err
     ! Locals:
     PetscErrorCode :: ierr
-    call self%test_ode_type%init(initial_array)
+    err = 0
+    call self%test_ode_type%init(initial_array, err)
     call VecDuplicate(self%solution, self%secondary, ierr); CHKERRQ(ierr)
   end subroutine init_pre_eval
 
@@ -632,25 +662,29 @@ contains
     call self%test_ode_type%destroy()
   end subroutine destroy_pre_eval
 
-  subroutine calculate_secondary_pre_eval(self, t, y)
+  subroutine calculate_secondary_pre_eval(self, t, y, err)
     ! Calculates secondary vector = t * y
     class(pre_eval_ode_type), intent(in out) :: self
     PetscReal, intent(in) :: t
     Vec, intent(in) :: y
+    PetscErrorCode, intent(out) :: err
     ! Locals:
     PetscErrorCode :: ierr
+    err = 0
     call VecCopy(y, self%secondary, ierr); CHKERRQ(ierr)
     call VecScale(self%secondary, t, ierr); CHKERRQ(ierr)
   end subroutine calculate_secondary_pre_eval
 
-  subroutine lhs_pre_eval(self, t, y, lhs)
+  subroutine lhs_pre_eval(self, t, y, lhs, err)
     ! lhs(t, y) = secondary
     class(pre_eval_ode_type), intent(in out) :: self
     PetscReal, intent(in) :: t
     Vec, intent(in) :: y
     Vec, intent(out) :: lhs
+    PetscErrorCode, intent(out) :: err
     ! Locals:
     PetscErrorCode :: ierr
+    err = 0
     call VecCopy(self%secondary, lhs, ierr); CHKERRQ(ierr)
   end subroutine lhs_pre_eval
 
@@ -733,7 +767,7 @@ contains
 
     class(timestepper_type), intent(in out) :: self
 
-    call self%ode%output()
+    call self%ode%output(self%steps%taken, self%steps%current%time)
 
   end subroutine timestepper_step_output
 
@@ -750,6 +784,7 @@ contains
     type(timestepper_type) :: ts
     type(test_ode_type) :: test_ode
     PetscReal, allocatable :: initial(:)
+    PetscErrorCode :: err
 
     initial = [-4._dp, -3.0_dp, -2.0_dp, -1.0_dp, &
          0.0_dp, 1.0_dp, 2.0_dp, 3.0_dp]
@@ -761,7 +796,7 @@ contains
          '"max": 0.2, "reduction": 0.6, "amplification": 1.9}}}}'
 
     json => fson_parse_mpi(str = trim(json_str))
-    call test_ode%init(initial)
+    call test_ode%init(initial, err)
     call ts%init(json, test_ode)
 
     if (mpi%rank == mpi%output_rank) then
@@ -797,10 +832,11 @@ contains
     character(len = max_json_len) :: json_str(num_cases)
     PetscReal, parameter :: tol(num_cases) = [1.e-6_dp, 1.e-6_dp, 1.e-6_dp]
     PetscReal, allocatable :: initial(:)
+    PetscErrorCode :: err
 
     initial = [-4._dp, -3.0_dp, -2.0_dp, -1.0_dp, &
          0.0_dp, 1.0_dp, 2.0_dp, 3.0_dp]
-    call linear%init(initial)
+    call linear%init(initial, err)
 
     json_str(1) = '{"time": {"start": 0.0, "stop": 1.0, ' // &
          '"step": {"initial": 0.1, "maximum": {"number": 20}, ' // &
@@ -833,10 +869,11 @@ contains
     character(len = max_json_len) :: json_str(num_cases)
     PetscReal, parameter :: tol(num_cases) = [0.15_dp, 0.05_dp]
     PetscReal, allocatable :: initial(:)
+    PetscErrorCode :: err
 
     initial = [-4._dp, -3.0_dp, -2.0_dp, -1.0_dp, &
          0.0_dp, 1.0_dp, 2.0_dp, 3.0_dp]
-    call exponential%init(initial)
+    call exponential%init(initial, err)
 
     json_str(1) = '{"time": {"start": 0.0, "stop": 1.0, ' // &
          '"step": {"initial": 0.01, "maximum": {"number": 200}, ' // &
@@ -866,11 +903,12 @@ contains
     character(len = max_json_len) :: json_str(num_cases)
     PetscReal, parameter :: tol(num_cases) = [0.05_dp, 0.006_dp]
     PetscReal, allocatable :: initial(:)
+    PetscErrorCode :: err
 
     logistic%c = [0.0_dp, 0.5_dp, 1._dp, 1.5_dp, 2._dp, &
          2.5_dp, 3._dp, 3.5_dp]
     initial = 3._dp * logistic%c / (1._dp + 2._dp * logistic%c)
-    call logistic%init(initial)
+    call logistic%init(initial, err)
 
     json_str(1) = '{"time": {"start": 0.0, "stop": 1.0, ' // &
          '"step": {"initial": 0.1, "maximum": {"number": 100}, ' // &
@@ -900,11 +938,12 @@ contains
     character(len = max_json_len) :: json_str(num_cases)
     PetscReal, parameter :: tol(num_cases) = [0.1_dp, 0.02_dp]
     PetscReal, allocatable :: initial(:)
+    PetscErrorCode :: err
 
     nontrivial_lhs%k = -1._dp
     initial = [-4._dp, -3.0_dp, -2.0_dp, -1.0_dp, &
          0.0_dp, 1.0_dp, 2.0_dp, 3.0_dp]
-    call nontrivial_lhs%init(initial)
+    call nontrivial_lhs%init(initial, err)
 
     json_str(1) = '{"time": {"start": 1.0, "stop": 10.0, ' // &
          '"step": {"initial": 0.01, "maximum": {"number": 100}, ' // &
@@ -934,10 +973,11 @@ contains
     character(len = max_json_len) :: json_str(num_cases)
     PetscReal, parameter :: tol(num_cases) = [0.15_dp, 0.05_dp]
     PetscReal, allocatable :: initial(:)
+    PetscErrorCode :: err
 
     initial = [-4._dp, -3.0_dp, -2.0_dp, -1.0_dp, &
          0.0_dp, 2.0_dp, 3.0_dp, 4.0_dp]
-    call nonlinear_lhs%init(initial)
+    call nonlinear_lhs%init(initial, err)
 
     json_str(1) = '{"time": {"start": 0.0, "stop": 1.0, ' // &
          '"step": {"initial": 0.01, "maximum": {"number": 200}, ' // &
@@ -967,8 +1007,9 @@ contains
     PetscInt,  parameter :: num_cases = 2
     character(len = max_json_len) :: json_str(num_cases)
     PetscReal, parameter :: tol(num_cases) = [0.10_dp, 0.05_dp]
+    PetscErrorCode :: err
 
-    call heat1d%init()
+    call heat1d%init(err = err)
 
     json_str(1) = '{"time": {"start": 0.0, "stop": 0.2, ' // &
          '"step": {"initial": 0.01, "maximum": {"number": 20}, ' // &
@@ -997,8 +1038,9 @@ contains
     PetscInt,  parameter :: num_cases = 2
     character(len = max_json_len) :: json_str(num_cases)
     PetscReal, parameter :: tol(num_cases) = [0.10_dp, 0.05_dp]
+    PetscErrorCode :: err
 
-    call heat1d%init()
+    call heat1d%init(err = err)
 
     json_str(1) = '{"time": {"start": 0.0, "stop": 0.2, ' // &
          '"step": {"initial": 0.01, "maximum": {"number": 40}, ' // &
@@ -1030,11 +1072,12 @@ contains
     character(len = max_json_len) :: json_str(num_cases)
     PetscReal, parameter :: tol(num_cases) = [0.1_dp, 0.02_dp]
     PetscReal, allocatable :: initial(:)
+    PetscErrorCode :: err
 
     pre_eval%k = -1._dp
     initial = [-4._dp, -3.0_dp, -2.0_dp, -1.0_dp, &
          0.0_dp, 1.0_dp, 2.0_dp, 3.0_dp]
-    call pre_eval%init(initial)
+    call pre_eval%init(initial, err)
 
     json_str(1) = '{"time": {"start": 1.0, "stop": 10.0, ' // &
          '"step": {"initial": 0.01, "maximum": {"number": 100}, ' // &

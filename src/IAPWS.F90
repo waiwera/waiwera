@@ -230,6 +230,7 @@ module IAPWS_module
      private
      procedure, public :: init => IAPWS_init
      procedure, public :: destroy => IAPWS_destroy
+     procedure, public :: phase_composition => IAPWS_phase_composition
   end type IAPWS_type
 
 !------------------------------------------------------------------------
@@ -284,6 +285,58 @@ contains
     deallocate(self%saturation)
 
   end subroutine IAPWS_destroy
+
+!------------------------------------------------------------------------
+
+  PetscInt function IAPWS_phase_composition(self, region, pressure, &
+       temperature) result(phases)
+    !! Returns phase composition integer for given region, pressure
+    !! and temperature. Here the bits represent:
+    !! 0: liquid
+    !! 1: vapour
+    !! 2: supercritical
+
+    class(IAPWS_type), intent(in) :: self
+    PetscInt, intent(in) :: region
+    PetscReal, intent(in) :: pressure, temperature
+    ! Locals:
+    PetscReal :: saturation_pressure
+    PetscInt :: ierr
+
+    phases = b'000'
+
+    if (region == 4) then
+       phases = b'011'
+    else
+       if (temperature <= tcritical) then
+          select case(region)
+             case (1)
+                phases = b'001'
+             case (2)
+                phases = b'010'
+             case (3)
+                call self%saturation%pressure(temperature, &
+                     saturation_pressure, ierr)
+                if (ierr == 0) then
+                   if (pressure >= saturation_pressure) then
+                      phases = b'001'
+                   else
+                      phases = b'010'
+                   end if
+                else
+                   phases = -1 ! error in saturation pressure
+                end if
+             end select
+       else
+          if (pressure <= pcritical) then
+             phases = b'010'
+          else
+             phases = b'100'
+          end if
+       end if
+    end if
+
+  end function IAPWS_phase_composition
 
 !------------------------------------------------------------------------
   ! Abstract region type
@@ -496,7 +549,7 @@ contains
     !! Calculates density and internal energy of dry steam as a function of
     !! pressure (Pa) and temperature (deg C).
     !!
-    !! Returns err = 1 if called outside its operating range (t<=1000 deg C, p<=100 MPa).
+    !! Returns err = 1 if called outside its operating range (t<=800 deg C, p<=100 MPa).
     
     class(IAPWS_region2_type), intent(in out) :: self
     PetscReal, intent(in), target :: param(:) !! Primary variables (pressure, temperature)
@@ -509,7 +562,7 @@ contains
     p => param(1); t => param(2)
 
     ! Check input:
-    if ((t <= 1000.0_dp).and.(p <= 100.e6_dp)) then
+    if ((t <= 800.0_dp).and.(p <= 100.e6_dp)) then
 
        tk = t + tc_k
        rt = rconst * tk

@@ -2,6 +2,7 @@ module rock_module
   !! Defines type for accessing local rock properties on cells and faces.
 
   use kinds_module
+  use relative_permeability_module
 
   implicit none
   private
@@ -15,6 +16,7 @@ module rock_module
      PetscReal, pointer :: porosity          !! porosity
      PetscReal, pointer :: density           !! grain density
      PetscReal, pointer :: specific_heat     !! specific heat
+     class(relative_permeability_type), pointer :: relative_permeability
    contains
      private
      procedure, public :: assign => rock_assign
@@ -55,19 +57,25 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine rock_assign(self, data, offset)
+  subroutine rock_assign(self, data, offset, relative_permeability)
     !! Assigns pointers in a rock object to elements of the specified
     !! data array, starting from the given offset.
 
     class(rock_type), intent(in out) :: self
     PetscReal, target, intent(in) :: data(:)  !! rock data array
     PetscInt, intent(in) :: offset !! rock array offset
+    class(relative_permeability_type), intent(in), target, &
+         optional :: relative_permeability
 
     self%permeability => data(offset: offset + 2)
     self%heat_conductivity => data(offset + 3)
     self%porosity => data(offset + 4)
     self%density => data(offset + 5)
     self%specific_heat => data(offset + 6)
+
+    if (present(relative_permeability)) then
+       self%relative_permeability => relative_permeability
+    end if
 
   end subroutine rock_assign
     
@@ -94,6 +102,7 @@ contains
     nullify(self%porosity)
     nullify(self%density)
     nullify(self%specific_heat)
+    nullify(self%relative_permeability)
 
   end subroutine rock_destroy
 
@@ -173,6 +182,7 @@ contains
           end do
           call ISRestoreIndicesF90(rock_IS, rock_cells, ierr); CHKERRQ(ierr)
        end if
+       call ISDestroy(rock_IS, ierr); CHKERRQ(ierr)
     end do
     call rock%destroy()
     call VecRestoreArrayF90(rock_vector, rock_array, ierr); CHKERRQ(ierr)

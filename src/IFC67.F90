@@ -118,6 +118,7 @@ module IFC67_module
      private
      procedure, public :: init => IFC67_init
      procedure, public :: destroy => IFC67_destroy
+     procedure, public :: phase_composition => IFC67_phase_composition
   end type IFC67_type
 
 !------------------------------------------------------------------------
@@ -171,6 +172,32 @@ contains
     deallocate(self%saturation)
 
   end subroutine IFC67_destroy
+
+!------------------------------------------------------------------------
+
+  PetscInt function IFC67_phase_composition(self, region, pressure, &
+       temperature) result(phases)
+    !! Returns phase composition integer for given region, pressure
+    !! and temperature. Here the bits represent:
+    !! 0: liquid
+    !! 1: vapour
+
+    class(IFC67_type), intent(in) :: self
+    PetscInt, intent(in) :: region
+    PetscReal, intent(in) :: pressure, temperature
+
+    select case(region)
+    case(1)   ! liquid water
+       phases = b'01'
+    case(2)   ! dry steam
+       phases = b'10'
+    case(4)   ! two-phase
+       phases = b'11'
+    case default
+       phases = b'00'
+    end select
+
+  end function IFC67_phase_composition
 
 !------------------------------------------------------------------------
 ! Region 1 (liquid water)
@@ -360,7 +387,7 @@ contains
     !! Calculates density and internal energy of dry steam as a function of
     !! pressure (Pa) and temperature (deg C).
     !!
-    !! Returns err = 1 if called outside its operating range (t<=1000 deg C, p<=100 MPa).
+    !! Returns err = 1 if called outside its operating range (t<=800 deg C, p<=100 MPa).
 
     class(IFC67_region2_type), intent(in out) :: self
     PetscReal, intent(in), target :: param(:) !! Primary variables (pressure, temperature)
@@ -377,7 +404,7 @@ contains
     p => param(1); t => param(2)
 
     ! Check input:
-    if ((t <= 1000.0_dp).and.(p <= 100.e6_dp)) then
+    if ((t <= 800.0_dp).and.(p <= 100.e6_dp)) then
 
       THETA = (T + tc_k) / tcriticalk67
       BETA = P / pcritical67

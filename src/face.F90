@@ -30,7 +30,7 @@ module face_module
      procedure, public :: normal_gradient => face_normal_gradient
      procedure, public :: pressure_gradient => face_pressure_gradient
      procedure, public :: temperature_gradient => face_temperature_gradient
-     procedure, public :: average_phase_density => face_average_phase_density
+     procedure, public :: phase_density => face_phase_density
      procedure, public :: harmonic_average => face_harmonic_average
      procedure, public :: permeability => face_permeability
      procedure, public :: heat_conductivity => face_heat_conductivity
@@ -66,7 +66,7 @@ contains
 
     class(face_type), intent(in out) :: self
     PetscInt, intent(in), optional :: num_components !! Number of fluid components
-    PetscInt, intent(in), optional :: num_phases     !! Number of fluid phases
+    PetscInt, intent(in), optional :: num_phases !! Number of fluid phases
     ! Locals:
     PetscInt, parameter :: num_cells = 2
     PetscInt :: i
@@ -226,17 +226,26 @@ contains
 
 !------------------------------------------------------------------------
 
-  PetscReal function face_average_phase_density(self, p) result(rho)
-    !! Returns phase density on the face for a given phase, arithmetically
-    !! averaged between the two cells.
+  PetscReal function face_phase_density(self, p) result(rho)
+    !! Returns phase density on the face for a given phase p. It is
+    !! assumed that the phase is present in at least one of the cells.
 
     class(face_type), intent(in) :: self
     PetscInt, intent(in) :: p
+    ! Locals:
+    PetscInt :: i
+    PetscReal :: weight
 
-    rho = 0.5_dp * (self%cell(1)%fluid%phase(p)%density + &
-         self%cell(2)%fluid%phase(p)%density)
+    rho = 0._dp
+    weight = 0._dp
+    do i = 1, 2
+       rho = rho + self%cell(i)%fluid%phase(p)%saturation * &
+            self%cell(i)%fluid%phase(p)%density
+       weight = weight + self%cell(i)%fluid%phase(p)%saturation
+    end do
+    rho = rho / weight
 
-  end function face_average_phase_density
+  end function face_phase_density
 
 !------------------------------------------------------------------------
 
@@ -328,11 +337,12 @@ contains
     PetscReal :: flux(num_primary)
     ! Locals:
     PetscInt :: nc
+    PetscInt :: i, p, up
     PetscBool :: isothermal
-    PetscInt :: p, iup
-    PetscReal :: dpdn, dtdn, gn, G, average_density, F
+    PetscReal :: dpdn, dtdn, gn, G, face_density, F
     PetscReal :: phase_flux(self%cell(1)%fluid%num_components)
-    PetscReal :: kr, visc, density, k, h, cond
+    PetscReal :: k, h, cond, mobility
+    PetscInt :: phases(2), phase_present
 
     nc = self%cell(1)%fluid%num_components
     isothermal = (num_primary == nc)
@@ -348,25 +358,37 @@ contains
     end if
     flux(1: nc) = 0._dp
 
+    do i = 1, 2
+       phases(i) = nint(self%cell(i)%fluid%phase_composition)
+    end do
+    phase_present = ior(phases(1), phases(2))
+
     do p = 1, self%cell(1)%fluid%num_phases
 
-       average_density = self%average_phase_density(p)
-       G = dpdn + average_density * gn
+       if (btest(phase_present, p - 1)) then
 
-       iup = self%upstream_index(G)
-       kr = self%cell(iup)%fluid%phase(p)%relative_permeability
-       density = self%cell(iup)%fluid%phase(p)%density
-       visc = self%cell(iup)%fluid%phase(p)%viscosity
+          face_density = self%phase_density(p)
+          G = dpdn + face_density * gn
 
-       ! Mass flows:
-       F = -k * kr * density / visc * G
-       phase_flux = F * self%cell(iup)%fluid%phase(p)%mass_fraction
-       flux(1:nc) = flux(1:nc) + phase_flux
+          up = self%upstream_index(G)
 
-       if (.not.isothermal) then
-          ! Heat convection:
-          h = self%cell(iup)%fluid%phase(p)%specific_enthalpy
-          flux(num_primary) = flux(num_primary) + h * sum(phase_flux)
+          if (btest(phases(up), p - 1)) then
+
+             mobility = self%cell(up)%fluid%phase(p)%mobility()
+
+             ! Mass flows:
+             F = -k * mobility * G
+             phase_flux = F * self%cell(up)%fluid%phase(p)%mass_fraction
+             flux(1:nc) = flux(1:nc) + phase_flux
+
+             if (.not.isothermal) then
+                ! Heat convection:
+                h = self%cell(up)%fluid%phase(p)%specific_enthalpy
+                flux(num_primary) = flux(num_primary) + h * F
+             end if
+
+          end if
+
        end if
 
     end do

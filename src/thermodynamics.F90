@@ -76,6 +76,8 @@ module thermodynamics_module
      private
      procedure(thermodynamics_init_procedure), public, deferred :: init
      procedure(thermodynamics_destroy_procedure), public, deferred :: destroy
+     procedure(thermodynamics_phase_composition_procedure), public, deferred :: &
+          phase_composition
   end type thermodynamics_type
 
 !------------------------------------------------------------------------
@@ -140,6 +142,18 @@ module thermodynamics_module
        import :: thermodynamics_type
        class(thermodynamics_type), intent(in out) :: self
      end subroutine thermodynamics_destroy_procedure
+
+     PetscInt function thermodynamics_phase_composition_procedure(self, &
+          region, pressure, temperature)
+       !! Returns phase composition for given region, pressure and
+       !! temperature. This is an integer with each binary bit
+       !! representing the presence or absence of a particular phase.
+       !! A negative value is returned if the routine fails.
+       import :: thermodynamics_type
+       class(thermodynamics_type), intent(in) :: self
+       PetscInt, intent(in) :: region
+       PetscReal, intent(in) :: pressure, temperature
+     end function thermodynamics_phase_composition_procedure
 
   end interface
 
