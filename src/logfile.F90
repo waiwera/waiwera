@@ -10,10 +10,13 @@ module logfile_module
 
   PetscInt, parameter, public :: LOG_LEVEL_INFO  = 1, &
        LOG_LEVEL_WARN = 2, LOG_LEVEL_ERR = 3
+  PetscInt, parameter :: max_log_level_name_length = 7
+  character(max_log_level_name_length) :: log_level_name(3) = &
+       ['info   ', 'warning', 'error  ']
 
-  PetscInt, parameter :: max_logfile_name_length = 120
-  PetscInt, parameter :: max_message_length = 80
-  character(20), public :: message_format = '*'
+  PetscInt, parameter, public :: max_logfile_name_length = 120
+  PetscInt, parameter, public :: max_message_length = 80
+  character(20), public :: message_format = '(a, 1x, a, 1x, a)'
 
   type logfile_type
      private
@@ -70,7 +73,7 @@ contains
        do_echo = default_echo
     end if
 
-    write(msg, message_format) level, tag, content
+    write(msg, message_format) log_level_name(level), tag, content
 
     if (mpi%rank /= mpi%output_rank) then
 
