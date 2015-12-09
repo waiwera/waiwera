@@ -73,7 +73,7 @@ contains
        do_echo = default_echo
     end if
 
-    write(msg, message_format) log_level_name(level), tag, content
+    write(msg, message_format) trim(log_level_name(level)), trim(tag), trim(content)
 
     if (mpi%rank /= mpi%output_rank) then
 
