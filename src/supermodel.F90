@@ -15,7 +15,6 @@ program supermodel
   type(fson_value), pointer :: json
   type(flow_simulation_type) :: simulation
   type(timestepper_type) :: timestepper
-  type(logfile_type) :: logfile
   PetscInt, parameter :: max_filename_length = 200
   character(max_filename_length) :: filename
   PetscErrorCode :: ierr
@@ -28,7 +27,6 @@ program supermodel
   call get_filename(filename)
   json => fson_parse_mpi(filename)
 
-  call logfile%init()
   call simulation%init(json)
   call timestepper%init(json, simulation)
   call fson_destroy_mpi(json)
@@ -37,7 +35,6 @@ program supermodel
 
   call timestepper%destroy()
   call simulation%destroy()
-  call logfile%destroy()
 
   call PetscFinalize(ierr); CHKERRQ(ierr)
 
