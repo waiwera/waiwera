@@ -74,12 +74,14 @@ contains
 !------------------------------------------------------------------------
 
   subroutine flow_simulation_setup_output(self, json)
-    !! Sets up simulation output.
+    !! Sets up simulation output to HDF5 and logfile.
 
     use mpi_module
     use fson
     use fson_value_m, only : TYPE_LOGICAL
     use fson_mpi_module
+    use logfile_module, only: max_logfile_name_length
+    use utils_module, only: change_filename_extension
 
     class(flow_simulation_type), intent(in out) :: self
     type(fson_value), pointer, intent(in) :: json
@@ -88,6 +90,7 @@ contains
          default_output_filename = "output.h5"
     PetscErrorCode :: ierr
     PetscBool :: output
+    character(max_logfile_name_length) :: logfile_name, default_logfile_name
 
     output = .true.
     if (fson_has_mpi(json, "output")) then
@@ -103,9 +106,16 @@ contains
             FILE_MODE_WRITE, self%hdf5_viewer, ierr); CHKERRQ(ierr)
        call PetscViewerHDF5PushGroup(self%hdf5_viewer, "/", ierr)
        CHKERRQ(ierr)
+       default_logfile_name = &
+            change_filename_extension(self%output_filename, "log")
+       call fson_get_mpi(json, "output.log", default_logfile_name, &
+            logfile_name)
     else
        self%output_filename = ""
+       logfile_name = "output.log"
     end if
+
+    call self%logfile%init(logfile_name)
 
   end subroutine flow_simulation_setup_output
 
@@ -122,6 +132,8 @@ contains
        call PetscViewerHDF5PopGroup(self%hdf5_viewer, ierr); CHKERRQ(ierr)
        call PetscViewerDestroy(self%hdf5_viewer, ierr); CHKERRQ(ierr)
     end if
+
+    call self%logfile%destroy()
 
   end subroutine flow_simulation_destroy_output
 
@@ -150,6 +162,7 @@ contains
     PetscErrorCode :: ierr
 
     call fson_get_mpi(json, "title", default_title, self%title)
+    call self%setup_output(json)
     call setup_thermodynamics(json, self%thermo)
     call setup_eos(json, self%thermo, self%eos)
     call self%mesh%init(json)
@@ -176,7 +189,6 @@ contains
     call setup_source_vector(json, self%mesh%dm, &
          self%eos%num_primary_variables, self%eos%isothermal, self%source)
     call fson_get_mpi(json, "gravity", default_gravity, self%gravity)
-    call self%setup_output(json)
 
   end subroutine flow_simulation_init
 
