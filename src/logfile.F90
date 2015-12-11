@@ -1,5 +1,5 @@
 module logfile_module
-  !! Module for logging output messages to file on MPI output process.
+  !! Module for logging output messages to file.
 
   use mpi_module
 
@@ -11,11 +11,9 @@ module logfile_module
   PetscInt, parameter, public :: LOG_LEVEL_INFO  = 1, &
        LOG_LEVEL_WARN = 2, LOG_LEVEL_ERR = 3
   PetscInt, parameter :: max_log_level_name_length = 7
-  character(max_log_level_name_length) :: log_level_name(3) = &
-       ['info   ', 'warning', 'error  ']
-
+  character(max_log_level_name_length), parameter :: &
+       log_level_name(3) = ['info   ', 'warning', 'error  ']
   PetscInt, parameter, public :: max_logfile_name_length = 120
-  character(20), public :: message_format = '(a, 1x, a, 1x, a)'
 
   type logfile_type
      private
