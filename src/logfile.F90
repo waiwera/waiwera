@@ -45,7 +45,7 @@ contains
     self%filename = filename
     call PetscViewerASCIIOpen(mpi%comm, filename, self%viewer, ierr)
     CHKERRQ(ierr)
-    call PetscViewerASCIISynchronizedAllow(self%viewer, PETSC_TRUE, ierr)
+    call PetscViewerASCIIPushSynchronized(self%viewer, ierr)
     CHKERRQ(ierr)
 
   end subroutine logfile_init
@@ -95,6 +95,8 @@ contains
     PetscErrorCode :: ierr
 
     self%filename = ""
+    call PetscViewerASCIIPopSynchronized(self%viewer, ierr)
+    CHKERRQ(ierr)
     call PetscViewerDestroy(self%viewer, ierr); CHKERRQ(ierr)
 
   end subroutine logfile_destroy
