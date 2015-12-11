@@ -61,6 +61,7 @@ contains
     character(*), intent(in) :: content
     PetscBool, intent(in), optional :: echo
     ! Locals:
+    character, parameter :: lf = achar(10)
     PetscBool :: do_echo
     PetscBool, parameter :: default_echo = PETSC_FALSE
     character(:), allocatable ::  msg
@@ -72,7 +73,8 @@ contains
        do_echo = default_echo
     end if
 
-    msg = trim(log_level_name(level)) // ' ' // trim(tag) // ' ' // trim(content)
+    msg = trim(log_level_name(level)) // ' ' &
+         // trim(tag) // ' ' // trim(content) // lf
 
     call PetscViewerASCIISynchronizedPrintf(self%viewer, msg, ierr)
     CHKERRQ(ierr)
