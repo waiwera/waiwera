@@ -15,12 +15,11 @@ module logfile_module
        ['info   ', 'warning', 'error  ']
 
   PetscInt, parameter, public :: max_logfile_name_length = 120
-  PetscInt, parameter, public :: max_message_length = 80
   character(20), public :: message_format = '(a, 1x, a, 1x, a)'
 
   type logfile_type
      private
-     PetscInt :: unit
+     PetscViewer :: viewer
      character(max_logfile_name_length), public :: filename
    contains
      private
@@ -40,14 +39,14 @@ contains
 
     class(logfile_type), intent(in out) :: self
     character(*), intent(in) :: filename !! Log file name
+    ! Locals:
+    PetscErrorCode :: ierr
 
-    self%unit = 0
     self%filename = filename
-
-    if (mpi%rank == mpi%output_rank) then
-       open(newunit = self%unit, file = self%filename, &
-            status = 'replace')
-    end if
+    call PetscViewerASCIIOpen(mpi%comm, filename, self%viewer, ierr)
+    CHKERRQ(ierr)
+    call PetscViewerASCIISynchronizedAllow(self%viewer, PETSC_TRUE, ierr)
+    CHKERRQ(ierr)
 
   end subroutine logfile_init
 
@@ -64,8 +63,8 @@ contains
     ! Locals:
     PetscBool :: do_echo
     PetscBool, parameter :: default_echo = PETSC_FALSE
-    character(max_message_length) :: msg
-    PetscInt :: ierr
+    character(:), allocatable ::  msg
+    PetscErrorCode :: ierr
 
     if (present(echo)) then
        do_echo = echo
@@ -73,28 +72,15 @@ contains
        do_echo = default_echo
     end if
 
-    write(msg, message_format) trim(log_level_name(level)), trim(tag), trim(content)
+    msg = trim(log_level_name(level)) // ' ' // trim(tag) // ' ' // trim(content)
 
-    if (mpi%rank /= mpi%output_rank) then
+    call PetscViewerASCIISynchronizedPrintf(self%viewer, msg, ierr)
+    CHKERRQ(ierr)
 
-       call MPI_send(msg, max_message_length, MPI_CHARACTER, mpi%output_rank, 0, &
-            mpi%comm, ierr)
-       call MPI_send(do_echo, 1, MPI_LOGICAL, mpi%output_rank, 0, &
-            mpi%comm, ierr)
-
-    else
-
-       call MPI_recv(msg, max_message_length, MPI_CHARACTER, MPI_ANY_SOURCE, 0, &
-            mpi%comm, ierr)
-       call MPI_recv(do_echo, 1, MPI_LOGICAL, MPI_ANY_SOURCE, 0, &
-            mpi%comm, ierr)
-
-       write(self%unit, message_format) msg
-
-       if (do_echo) then
-          write(*, message_format) msg
-       end if
-
+    if (do_echo) then
+       call PetscSynchronizedPrintf(mpi%comm, msg, ierr); CHKERRQ(ierr)
+       call PetscSynchronizedFlush(mpi%comm, PETSC_STDOUT, &
+            ierr); CHKERRQ(ierr)
     end if
 
   end subroutine logfile_write
@@ -105,12 +91,11 @@ contains
     !! Destroy logfile.
 
     class(logfile_type), intent(in out) :: self
+    ! Locals:
+    PetscErrorCode :: ierr
 
-    if (mpi%rank == mpi%output_rank) then
-       close(self%unit)
-       self%unit = 0
-    end if
     self%filename = ""
+    call PetscViewerDestroy(self%viewer, ierr); CHKERRQ(ierr)
 
   end subroutine logfile_destroy
 
