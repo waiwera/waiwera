@@ -47,6 +47,8 @@ contains
     CHKERRQ(ierr)
     call PetscViewerASCIIPushSynchronized(self%viewer, ierr)
     CHKERRQ(ierr)
+    call PetscViewerASCIIPushSynchronized(PETSC_VIEWER_STDOUT_WORLD, &
+         ierr); CHKERRQ(ierr)
 
   end subroutine logfile_init
 
@@ -80,9 +82,8 @@ contains
     CHKERRQ(ierr)
 
     if (do_echo) then
-       call PetscSynchronizedPrintf(mpi%comm, msg, ierr); CHKERRQ(ierr)
-       call PetscSynchronizedFlush(mpi%comm, PETSC_STDOUT, &
-            ierr); CHKERRQ(ierr)
+       call PetscViewerASCIISynchronizedPrintf(PETSC_VIEWER_STDOUT_WORLD, &
+            msg, ierr); CHKERRQ(ierr)
     end if
 
   end subroutine logfile_write
