@@ -61,7 +61,7 @@ contains
     character(*), intent(in) :: content
     PetscBool, intent(in), optional :: echo
     ! Locals:
-    character, parameter :: lf = achar(10)
+    character, parameter :: lf = new_line('a')
     PetscBool :: do_echo
     PetscBool, parameter :: default_echo = PETSC_FALSE
     character(:), allocatable ::  msg
