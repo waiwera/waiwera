@@ -6,6 +6,8 @@ module flow_simulation_module
   use thermodynamics_module
   use eos_module
   use relative_permeability_module
+  use logfile_module
+  use mpi_module
 
   implicit none
 
@@ -76,11 +78,9 @@ contains
   subroutine flow_simulation_setup_output(self, json)
     !! Sets up simulation output to HDF5 and logfile.
 
-    use mpi_module
     use fson
     use fson_value_m, only : TYPE_LOGICAL
     use fson_mpi_module
-    use logfile_module
     use utils_module, only: change_filename_extension
 
     class(flow_simulation_type), intent(in out) :: self
@@ -167,7 +167,6 @@ contains
     !! Initializes a flow simulation using data from the specified JSON object.
 
     use kinds_module
-    use mpi_module
     use fson
     use fson_mpi_module
     use thermodynamics_setup_module, only: setup_thermodynamics
@@ -599,6 +598,7 @@ contains
     type(fluid_type) :: fluid
     type(rock_type) :: rock
     DMLabel :: ghost_label
+    character(120) :: msg
     PetscErrorCode :: ierr
 
     err = 0
@@ -645,11 +645,25 @@ contains
              if (err == 0) then
                 call self%eos%phase_properties(cell_primary, rock, &
                      fluid, err)
-                if (err > 0) exit
+                if (err > 0) then
+                   write(msg, '(a, i3, a, i6)') &
+                        "can't initialize phase properties on processor ", &
+                        mpi%rank, " cell ", c
+                   call self%logfile%write(LOG_LEVEL_ERR, 'init', msg)
+                   exit
+                end if
              else
+                write(msg, '(a, i3, a, i6)') &
+                     "can't initialize phase composition on processor ", &
+                     mpi%rank, " cell ", c
+                call self%logfile%write(LOG_LEVEL_ERR, 'init', msg)
                 exit
              end if
           else
+             write(msg, '(a, i3, a, i6)') &
+                  "can't initialize bulk fluid properties on processor ", &
+                  mpi%rank, " cell ", c
+             call self%logfile%write(LOG_LEVEL_ERR, 'init', msg)
              exit
           end if
 
@@ -689,6 +703,7 @@ contains
     type(fluid_type) :: fluid
     type(rock_type) :: rock
     DMLabel :: ghost_label
+    character(120) :: msg
     PetscErrorCode :: ierr
 
     err = 0
@@ -732,8 +747,18 @@ contains
           call self%eos%bulk_properties(cell_primary, fluid, err)
           if (err == 0) then
              call self%eos%phase_properties(cell_primary, rock, fluid, err)
-             if (err > 0) exit
+             if (err > 0) then
+                write(msg, '(a, i3, a, i6)') &
+                     "can't calculate phase properties on processor ", &
+                     mpi%rank, " cell ", c
+                call self%logfile%write(LOG_LEVEL_WARN, 'properties', msg)
+                exit
+             end if
           else
+             write(msg, '(a, i3, a, i6)') &
+                  "can't calculate bulk fluid properties on processor ", &
+                  mpi%rank, " cell ", c
+             call self%logfile%write(LOG_LEVEL_WARN, 'properties', msg)
              exit
           end if
 
@@ -775,6 +800,7 @@ contains
     type(fluid_type) :: last_iteration_fluid, fluid
     DMLabel :: ghost_label
     PetscBool :: transition
+    character(120) :: msg
     PetscErrorCode :: ierr
 
     err = 0
@@ -827,11 +853,24 @@ contains
                    cell_search = old_cell_primary - cell_primary
                    changed_y = .true.
                    changed_search = .true.
+                   write(msg, '(a, i1, a, i1, a, i3, a, i6)') 'region ', &
+                        nint(last_iteration_fluid%region), ' -> ', &
+                        nint(fluid%region), &
+                        " on processor ", mpi%rank, " cell ", c
+                   call self%logfile%write(LOG_LEVEL_INFO, 'transition', msg)
                 end if
              else
+                write(msg, '(a, i3, a, i6)') &
+                     "failed on processor ", &
+                     mpi%rank, " cell ", c
+                call self%logfile%write(LOG_LEVEL_WARN, 'transition', msg)
                 exit
              end if
           else
+             write(msg, '(a, i3, a, i6)') &
+                  "primary variables out of range on processor ", &
+                  mpi%rank, " cell ", c
+             call self%logfile%write(LOG_LEVEL_WARN, 'transition', msg)
              exit
           end if
 
@@ -854,8 +893,6 @@ contains
 
   subroutine flow_simulation_output(self, time_index, time)
     !! Output from flow simulation.
-
-    use mpi_module
 
     class(flow_simulation_type), intent(in out) :: self
     PetscInt, intent(in) :: time_index

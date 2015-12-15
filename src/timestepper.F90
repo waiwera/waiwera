@@ -1022,7 +1022,7 @@ end subroutine timestepper_steps_set_next_stepsize
        write(msg, '(i2, a, e12.6)') num_iterations, &
             ' max. residual: ', context%steps%current%max_residual
        if (allocated(context%ode%logfile)) then
-          call context%ode%logfile%write(LOG_LEVEL_INFO, 'iteration', &
+          call context%ode%logfile%write(LOG_LEVEL_INFO, 'iter', &
                msg, echo = PETSC_TRUE)
        end if
     end if
@@ -1263,6 +1263,7 @@ end subroutine timestepper_steps_set_next_stepsize
     PetscErrorCode :: ierr
     PetscBool :: converged, accepted
     SNESConvergedReason :: converged_reason
+    character(120) :: msg
 
     call self%steps%update()
     call self%ode%pre_timestep()
@@ -1287,6 +1288,12 @@ end subroutine timestepper_steps_set_next_stepsize
        self%steps%current%num_tries = self%steps%current%num_tries + 1
        call self%steps%set_current_status(converged)
        call self%steps%set_next_stepsize(accepted)
+
+       if ((.not. accepted) .and. (mpi%rank == mpi%output_rank)) then
+          write(msg, '(a, e12.4)') 'reduced to ', self%steps%next_stepsize
+          call self%ode%logfile%write(LOG_LEVEL_WARN, 'timestep', msg, &
+               echo = PETSC_TRUE)
+       end if
 
     end do
 
