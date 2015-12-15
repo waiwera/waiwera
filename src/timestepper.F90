@@ -4,6 +4,7 @@ module timestepper_module
   use kinds_module
   use mpi_module
   use ode_module
+  use logfile_module
 
   implicit none
 
@@ -227,10 +228,14 @@ contains
     !! time step.
 
     class(timestepper_type), intent(in out) :: self
+    ! Locals:
+    character(len = 80) :: msg
 
     if ((mpi%rank == mpi%output_rank) .and. (self%steps%taken > 0)) then
-       write(*, '(a, i4)'), 'step:', self%steps%taken
-       call self%steps%current%print()
+       write(msg, '(i6)'), self%steps%taken
+       call self%ode%logfile%write(LOG_LEVEL_INFO, 'step', msg, &
+            echo = PETSC_TRUE)
+       call self%steps%current%print(self%ode%logfile)
     end if
 
   end subroutine step_output_default
@@ -481,17 +486,24 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine timestepper_step_print(self)
+  subroutine timestepper_step_print(self, logfile)
     !! Prints a timestep.
 
     class(timestepper_step_type), intent(in) :: self
+    type(logfile_type), intent(in out) :: logfile
+    ! Locals:
+    character(len = 120) :: msg
 
-    write(*, '(a, e12.4, a, e12.4, a, i2, a, i2, a, a)') &
-         'time: ', self%time, &
-         ' stepsize: ', self%stepsize, &
-         ' tries:', self%num_tries, &
-         ' iters: ', self%num_iterations, &
-         ' status: ', self%status_str()
+    if (mpi%rank == mpi%output_rank) then
+       write(msg, '(a, e12.4, a, e12.4, a, i2, a, i2, a, a)') &
+            'time: ', self%time, &
+            ' stepsize: ', self%stepsize, &
+            ' tries:', self%num_tries, &
+            ' iters: ', self%num_iterations, &
+            ' status: ', self%status_str()
+       call logfile%write(LOG_LEVEL_INFO, 'step', msg, &
+            echo = PETSC_TRUE)
+    end if
 
   end subroutine timestepper_step_print
 
@@ -989,13 +1001,13 @@ end subroutine timestepper_steps_set_next_stepsize
     type(timestepper_solver_context_type), intent(in out) :: context
     PetscErrorCode :: ierr
     ! Locals:
-    character(120) :: str
+    character(80) :: msg
 
-    if (num_iterations > 0) then
-       write(str, '(a, i2, a, e12.6, a)') 'iter: ', num_iterations, &
-            ' max. residual: ', context%steps%current%max_residual, &
-            new_line('a')
-       call PetscPrintf(mpi%comm, str, ierr); CHKERRQ(ierr)
+    if ((num_iterations > 0) .and. (mpi%rank == mpi%output_rank)) then
+       write(msg, '(i2, a, e12.6)') num_iterations, &
+            ' max. residual: ', context%steps%current%max_residual
+       call context%ode%logfile%write(LOG_LEVEL_INFO, 'iteration', &
+            msg, echo = PETSC_TRUE)
     end if
 
   end subroutine SNES_monitor
