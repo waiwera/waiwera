@@ -80,41 +80,64 @@ contains
     use fson
     use fson_value_m, only : TYPE_LOGICAL
     use fson_mpi_module
-    use logfile_module, only: max_logfile_name_length
+    use logfile_module
     use utils_module, only: change_filename_extension
 
     class(flow_simulation_type), intent(in out) :: self
     type(fson_value), pointer, intent(in) :: json
     ! Locals:
-    character(len = max_output_filename_length), parameter :: &
+    character(max_output_filename_length), parameter :: &
          default_output_filename = "output.h5"
     PetscErrorCode :: ierr
-    PetscBool :: output
-    character(max_logfile_name_length) :: logfile_name, default_logfile_name
+    PetscBool :: output, output_log
+    character(max_logfile_name_length) :: logfile_name, assumed_logfile_name
+    character(max_logfile_name_length), parameter :: default_logfile_name = &
+         "output.log"
 
-    output = .true.
     if (fson_has_mpi(json, "output")) then
        if (fson_type_mpi(json, "output") == TYPE_LOGICAL) then
           call fson_get_mpi(json, "output", val = output)
+          if (output) then
+             self%output_filename = default_output_filename
+          else
+             self%output_filename = ""
+          end if
+       else
+          call fson_get_mpi(json, "output.filename", &
+               default_output_filename, self%output_filename)
        end if
+    else
+       self%output_filename = default_output_filename
     end if
 
-    if (output) then
-       call fson_get_mpi(json, "output.filename", default_output_filename, &
-            self%output_filename)
+    if (self%output_filename /= "") then
        call PetscViewerHDF5Open(mpi%comm, self%output_filename, &
             FILE_MODE_WRITE, self%hdf5_viewer, ierr); CHKERRQ(ierr)
        call PetscViewerHDF5PushGroup(self%hdf5_viewer, "/", ierr)
        CHKERRQ(ierr)
-       default_logfile_name = &
+       assumed_logfile_name = &
             change_filename_extension(self%output_filename, "log")
-       call fson_get_mpi(json, "output.log", default_logfile_name, &
-            logfile_name)
     else
-       self%output_filename = ""
-       logfile_name = "output.log"
+       assumed_logfile_name = default_logfile_name
     end if
 
+    if (fson_has_mpi(json, "logfile")) then
+       if (fson_type_mpi(json, "logfile") == TYPE_LOGICAL) then
+          call fson_get_mpi(json, "logfile", val = output_log)
+          if (output_log) then
+             logfile_name = assumed_logfile_name
+          else
+             logfile_name = ""
+          end if
+       else
+          call fson_get_mpi(json, "logfile.filename", &
+               assumed_logfile_name, logfile_name)
+       end if
+    else
+       logfile_name = assumed_logfile_name
+    end if
+
+    allocate(logfile_type :: self%logfile)
     call self%logfile%init(logfile_name)
 
   end subroutine flow_simulation_setup_output
