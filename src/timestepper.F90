@@ -124,8 +124,10 @@ module timestepper_module
      class(ode_type), pointer, public :: ode
      type(timestepper_steps_type), public :: steps
      type(timestepper_method_type), public :: method
-     procedure(step_header_routine), pointer, public :: &
-          step_header => step_header_default
+     procedure(step_output_routine), pointer, public :: &
+          before_step_output => before_step_output_default
+     procedure(step_output_routine), pointer, public :: &
+          after_step_output => after_step_output_default
      PetscInt, public :: output_frequency, output_index
      PetscBool, public :: output_initial, output_final
    contains
@@ -156,12 +158,11 @@ module timestepper_module
        type(timestepper_step_type), intent(in) :: current, last
      end function monitor_function
 
-     subroutine step_header_routine(self)
-       !! Routine for producing header output at the start of each
-       !! time step.
+     subroutine step_output_routine(self)
+       !! Routine for producing output before or after each time step.
        import :: timestepper_type
        class(timestepper_type), intent(in out) :: self
-     end subroutine step_header_routine
+     end subroutine step_output_routine
 
      subroutine SNESGetApplicationContext(solver, context, ierr)
        !! Interface for getting context from SNES solver- to cast it
@@ -177,7 +178,8 @@ module timestepper_module
 
   ! Subroutines to be available outside this module:
   public :: iteration_monitor, relative_change_monitor
-  public :: step_header_routine, step_header_default
+  public :: step_output_routine, before_step_output_default, &
+       after_step_output_default
 
 contains
 
@@ -224,7 +226,7 @@ contains
 ! Step output routines
 !------------------------------------------------------------------------
 
-  subroutine step_header_default(self)
+  subroutine before_step_output_default(self)
     !! Default routine for printing information at the start of each
     !! time step.
 
@@ -239,7 +241,19 @@ contains
             echo = PETSC_TRUE)
     end if
 
-  end subroutine step_header_default
+  end subroutine before_step_output_default
+
+!------------------------------------------------------------------------
+
+  subroutine after_step_output_default(self)
+    !! Default routine for printing information at the end of each
+    !! time step.
+
+    class(timestepper_type), intent(in out) :: self
+
+    call self%steps%current%print(self%ode%logfile)
+
+  end subroutine after_step_output_default
 
 !------------------------------------------------------------------------
 ! Residual routines
@@ -1307,15 +1321,17 @@ end subroutine timestepper_steps_set_next_stepsize
 
        do while (.not. self%steps%finished)
 
-          if (associated(self%step_header)) then
-             call self%step_header()
+          if (associated(self%before_step_output)) then
+             call self%before_step_output()
           end if
 
           call self%step()
 
           since_output = since_output + 1
 
-          call self%steps%current%print(self%ode%logfile)
+          if (associated(self%after_step_output)) then
+             call self%after_step_output()
+          end if
 
           if (since_output == self%output_frequency) then
              call self%ode%output(self%output_index, self%steps%current%time)
