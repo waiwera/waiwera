@@ -740,12 +740,12 @@ contains
        self%maxdiff = 0._dp
 
        call ts%init(json, self)
-       ts%step_output => timestepper_step_output
+       ts%before_step_output => NULL()
+       ts%after_step_output => timestepper_step_output
  
        call ts%run()
 
        if (mpi%rank == mpi%output_rank) then
-          print *, ts%method%name
           call assert_equals(ts%steps%stop_time, &
                ts%steps%current%time, time_tolerance, &
                trim(ts%method%name) // ' stop time')
