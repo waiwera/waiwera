@@ -124,8 +124,8 @@ module timestepper_module
      class(ode_type), pointer, public :: ode
      type(timestepper_steps_type), public :: steps
      type(timestepper_method_type), public :: method
-     procedure(step_output_routine), pointer, public :: &
-          step_output => step_output_default
+     procedure(step_header_routine), pointer, public :: &
+          step_header => step_header_default
      PetscInt, public :: output_frequency, output_index
      PetscBool, public :: output_initial, output_final
    contains
@@ -156,11 +156,12 @@ module timestepper_module
        type(timestepper_step_type), intent(in) :: current, last
      end function monitor_function
 
-     subroutine step_output_routine(self)
-       !! Routine for producing output at each time step.
+     subroutine step_header_routine(self)
+       !! Routine for producing header output at the start of each
+       !! time step.
        import :: timestepper_type
        class(timestepper_type), intent(in out) :: self
-     end subroutine step_output_routine
+     end subroutine step_header_routine
 
      subroutine SNESGetApplicationContext(solver, context, ierr)
        !! Interface for getting context from SNES solver- to cast it
@@ -176,7 +177,7 @@ module timestepper_module
 
   ! Subroutines to be available outside this module:
   public :: iteration_monitor, relative_change_monitor
-  public :: step_output_routine, step_output_default
+  public :: step_header_routine, step_header_default
 
 contains
 
@@ -223,22 +224,22 @@ contains
 ! Step output routines
 !------------------------------------------------------------------------
 
-  subroutine step_output_default(self)
-    !! Default routine for printing diagnostic information at each
+  subroutine step_header_default(self)
+    !! Default routine for printing information at the start of each
     !! time step.
 
     class(timestepper_type), intent(in out) :: self
     ! Locals:
     character(len = 80) :: msg
 
-    if ((mpi%rank == mpi%output_rank) .and. (self%steps%taken > 0)) then
-       write(msg, '(i6)'), self%steps%taken
+    if (mpi%rank == mpi%output_rank) then
+       write(msg, '(i7)'), self%steps%taken + 1
+       call self%ode%logfile%write_string(new_line('a'), PETSC_TRUE)
        call self%ode%logfile%write(LOG_LEVEL_INFO, 'step', msg, &
             echo = PETSC_TRUE)
-       call self%steps%current%print(self%ode%logfile)
     end if
 
-  end subroutine step_output_default
+  end subroutine step_header_default
 
 !------------------------------------------------------------------------
 ! Residual routines
@@ -1299,9 +1300,6 @@ end subroutine timestepper_steps_set_next_stepsize
 
     if (err == 0) then
 
-       if (associated(self%step_output)) then
-          call self%step_output()
-       end if
        if (self%output_initial) then
           call self%ode%output(self%output_index, self%steps%current%time)
           self%output_index = self%output_index + 1
@@ -1309,13 +1307,16 @@ end subroutine timestepper_steps_set_next_stepsize
 
        do while (.not. self%steps%finished)
 
+          if (associated(self%step_header)) then
+             call self%step_header()
+          end if
+
           call self%step()
 
           since_output = since_output + 1
 
-          if (associated(self%step_output)) then
-             call self%step_output()
-          end if
+          call self%steps%current%print(self%ode%logfile)
+
           if (since_output == self%output_frequency) then
              call self%ode%output(self%output_index, self%steps%current%time)
              self%output_index = self%output_index + 1

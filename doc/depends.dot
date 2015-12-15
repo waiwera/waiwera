@@ -1,4 +1,4 @@
-digraph logfile_module{
+digraph supermodel{
         fluid_module -> dm_utils_module
         fluid_module -> kinds_module
         fluid_module -> thermodynamics_module
@@ -15,6 +15,7 @@ digraph logfile_module{
         rock_module -> kinds_module
         rock_module -> relative_permeability_module
         powertable_module -> kinds_module
+        ode_module -> logfile_module
         ode_module -> mesh_module
         dm_utils_module -> mpi_module
         cell_module -> fluid_module
@@ -33,6 +34,7 @@ digraph logfile_module{
         flow_simulation_module -> fson_value_m
         flow_simulation_module -> initial_module
         flow_simulation_module -> kinds_module
+        flow_simulation_module -> logfile_module
         flow_simulation_module -> mesh_module
         flow_simulation_module -> mpi_module
         flow_simulation_module -> ode_module
@@ -41,6 +43,7 @@ digraph logfile_module{
         flow_simulation_module -> source_module
         flow_simulation_module -> thermodynamics_module
         flow_simulation_module -> thermodynamics_setup_module
+        flow_simulation_module -> utils_module
         thermodynamics_module -> kinds_module
         face_module -> cell_module
         face_module -> kinds_module
@@ -70,6 +73,7 @@ digraph logfile_module{
         supermodel -> flow_simulation_module
         supermodel -> fson
         supermodel -> fson_mpi_module
+        supermodel -> logfile_module
         supermodel -> mpi_module
         supermodel -> timestepper_module
         source_module -> fson
@@ -87,6 +91,7 @@ digraph logfile_module{
         timestepper_module -> fson
         timestepper_module -> fson_mpi_module
         timestepper_module -> kinds_module
+        timestepper_module -> logfile_module
         timestepper_module -> mpi_module
         timestepper_module -> ode_module
         timestepper_module -> utils_module
