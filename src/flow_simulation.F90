@@ -134,6 +134,7 @@ contains
     end if
 
     call self%logfile%destroy()
+    deallocate(self%logfile)
 
   end subroutine flow_simulation_destroy_output
 

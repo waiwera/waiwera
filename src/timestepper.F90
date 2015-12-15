@@ -1021,8 +1021,10 @@ end subroutine timestepper_steps_set_next_stepsize
     if ((num_iterations > 0) .and. (mpi%rank == mpi%output_rank)) then
        write(msg, '(i2, a, e12.6)') num_iterations, &
             ' max. residual: ', context%steps%current%max_residual
-       call context%ode%logfile%write(LOG_LEVEL_INFO, 'iteration', &
-            msg, echo = PETSC_TRUE)
+       if (allocated(context%ode%logfile)) then
+          call context%ode%logfile%write(LOG_LEVEL_INFO, 'iteration', &
+               msg, echo = PETSC_TRUE)
+       end if
     end if
 
   end subroutine SNES_monitor

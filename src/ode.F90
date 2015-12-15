@@ -16,7 +16,7 @@ module ode_module
      PetscReal, public :: time
      Vec, public :: solution
      type(mesh_type),  public :: mesh
-     type(logfile_type), public :: logfile
+     type(logfile_type), allocatable, public :: logfile
    contains
      private
      procedure(lhs_function), public, deferred :: lhs
