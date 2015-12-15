@@ -10,9 +10,9 @@ module logfile_module
 
   PetscInt, parameter, public :: LOG_LEVEL_INFO  = 1, &
        LOG_LEVEL_WARN = 2, LOG_LEVEL_ERR = 3
-  PetscInt, parameter :: max_log_level_name_length = 7
+  PetscInt, parameter :: max_log_level_name_length = 4
   character(max_log_level_name_length), parameter :: &
-       log_level_name(3) = ['info   ', 'warning', 'error  ']
+       log_level_name(3) = ['info', 'warn', 'err ']
   PetscInt, parameter, public :: max_logfile_name_length = 120
 
   type logfile_type
