@@ -22,6 +22,7 @@ module logfile_module
    contains
      private
      procedure, public :: init => logfile_init
+     procedure, public :: write_string => logfile_write_string
      procedure, public :: write => logfile_write
      procedure, public :: destroy => logfile_destroy
   end type logfile_type
@@ -52,6 +53,27 @@ contains
 
 !------------------------------------------------------------------------
 
+  subroutine logfile_write_string(self, string, echo)
+    !! Write string to logfile, optionally echoing to console output.
+
+    class(logfile_type), intent(in out) :: self
+    character(*), intent(in) :: string
+    PetscBool, intent(in) :: echo
+    ! Locals:
+    PetscErrorCode :: ierr
+
+    call PetscViewerASCIISynchronizedPrintf(self%viewer, string, ierr)
+    CHKERRQ(ierr)
+
+    if (echo) then
+       call PetscViewerASCIISynchronizedPrintf(PETSC_VIEWER_STDOUT_WORLD, &
+            string, ierr); CHKERRQ(ierr)
+    end if
+
+  end subroutine logfile_write_string
+
+!------------------------------------------------------------------------
+
   subroutine logfile_write(self, level, tag, content, echo)
     !! Write message to logfile, optionally echoing to console output.
 
@@ -61,11 +83,10 @@ contains
     character(*), intent(in) :: content
     PetscBool, intent(in), optional :: echo
     ! Locals:
-    character, parameter :: lf = new_line('a')
     PetscBool :: do_echo
     PetscBool, parameter :: default_echo = PETSC_FALSE
     character(:), allocatable ::  msg
-    PetscErrorCode :: ierr
+    character, parameter :: lf = new_line('a')
 
     if (present(echo)) then
        do_echo = echo
@@ -76,13 +97,7 @@ contains
     msg = trim(log_level_name(level)) // ' ' &
          // trim(tag) // ' ' // trim(content) // lf
 
-    call PetscViewerASCIISynchronizedPrintf(self%viewer, msg, ierr)
-    CHKERRQ(ierr)
-
-    if (do_echo) then
-       call PetscViewerASCIISynchronizedPrintf(PETSC_VIEWER_STDOUT_WORLD, &
-            msg, ierr); CHKERRQ(ierr)
-    end if
+    call self%write_string(msg, do_echo)
 
   end subroutine logfile_write
 
