@@ -34,7 +34,8 @@ contains
 !------------------------------------------------------------------------
 
   subroutine logfile_init(self, filename)
-    !! Initialise logfile.
+    !! Initialise logfile. If filename is empty, no disk file is
+    !! created, but echoing messages to console is still possible.
 
     class(logfile_type), intent(in out) :: self
     character(*), intent(in) :: filename !! Log file name
@@ -42,10 +43,12 @@ contains
     PetscErrorCode :: ierr
 
     self%filename = filename
-    call PetscViewerASCIIOpen(mpi%comm, filename, self%viewer, ierr)
-    CHKERRQ(ierr)
-    call PetscViewerASCIIPushSynchronized(self%viewer, ierr)
-    CHKERRQ(ierr)
+    if (self%filename /= "") then
+       call PetscViewerASCIIOpen(mpi%comm, filename, self%viewer, ierr)
+       CHKERRQ(ierr)
+       call PetscViewerASCIIPushSynchronized(self%viewer, ierr)
+       CHKERRQ(ierr)
+    end if
     call PetscViewerASCIIPushSynchronized(PETSC_VIEWER_STDOUT_WORLD, &
          ierr); CHKERRQ(ierr)
 
@@ -62,8 +65,10 @@ contains
     ! Locals:
     PetscErrorCode :: ierr
 
-    call PetscViewerASCIISynchronizedPrintf(self%viewer, string, ierr)
-    CHKERRQ(ierr)
+    if (self%filename /= "") then
+       call PetscViewerASCIISynchronizedPrintf(self%viewer, string, ierr)
+       CHKERRQ(ierr)
+    end if
 
     if (echo) then
        call PetscViewerASCIISynchronizedPrintf(PETSC_VIEWER_STDOUT_WORLD, &
@@ -110,12 +115,14 @@ contains
     ! Locals:
     PetscErrorCode :: ierr
 
+    if (self%filename /= "") then
+       call PetscViewerASCIIPopSynchronized(self%viewer, ierr)
+       CHKERRQ(ierr)
+       call PetscViewerDestroy(self%viewer, ierr); CHKERRQ(ierr)
+    end if
     self%filename = ""
-    call PetscViewerASCIIPopSynchronized(self%viewer, ierr)
-    CHKERRQ(ierr)
     call PetscViewerASCIIPopSynchronized(PETSC_VIEWER_STDOUT_WORLD, &
          ierr); CHKERRQ(ierr)
-    call PetscViewerDestroy(self%viewer, ierr); CHKERRQ(ierr)
 
   end subroutine logfile_destroy
 
