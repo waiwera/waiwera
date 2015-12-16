@@ -237,7 +237,7 @@ contains
     if (mpi%rank == mpi%output_rank) then
        write(msg, '(i7)'), self%steps%taken + 1
        call self%ode%logfile%write_string(new_line('a'), PETSC_TRUE)
-       call self%ode%logfile%write(LOG_LEVEL_INFO, 'step', msg, &
+       call self%ode%logfile%write(LOG_LEVEL_INFO, 'timestep', msg, &
             echo = PETSC_TRUE)
     end if
 
@@ -516,7 +516,7 @@ contains
             ' tries:', self%num_tries, &
             ' iters: ', self%num_iterations, &
             ' status: ', self%status_str()
-       call logfile%write(LOG_LEVEL_INFO, 'step', msg, &
+       call logfile%write(LOG_LEVEL_INFO, 'timestep', msg, &
             echo = PETSC_TRUE)
     end if
 
@@ -1022,7 +1022,7 @@ end subroutine timestepper_steps_set_next_stepsize
        write(msg, '(i2, a, e12.6)') num_iterations, &
             ' max. residual: ', context%steps%current%max_residual
        if (allocated(context%ode%logfile)) then
-          call context%ode%logfile%write(LOG_LEVEL_INFO, 'iter', &
+          call context%ode%logfile%write(LOG_LEVEL_INFO, 'iteration', &
                msg, echo = PETSC_TRUE)
        end if
     end if
@@ -1290,7 +1290,7 @@ end subroutine timestepper_steps_set_next_stepsize
        call self%steps%set_next_stepsize(accepted)
 
        if ((.not. accepted) .and. (mpi%rank == mpi%output_rank)) then
-          write(msg, '(a, e12.4)') 'reduced to ', self%steps%next_stepsize
+          write(msg, '(a, e12.4)') 'reduction, new size: ', self%steps%next_stepsize
           call self%ode%logfile%write(LOG_LEVEL_WARN, 'timestep', msg, &
                echo = PETSC_TRUE)
        end if

@@ -649,21 +649,21 @@ contains
                    write(msg, '(a, i3, a, i6)') &
                         "can't initialize phase properties on processor ", &
                         mpi%rank, " cell ", c
-                   call self%logfile%write(LOG_LEVEL_ERR, 'init', msg)
+                   call self%logfile%write(LOG_LEVEL_ERR, 'initialize', msg)
                    exit
                 end if
              else
                 write(msg, '(a, i3, a, i6)') &
                      "can't initialize phase composition on processor ", &
                      mpi%rank, " cell ", c
-                call self%logfile%write(LOG_LEVEL_ERR, 'init', msg)
+                call self%logfile%write(LOG_LEVEL_ERR, 'initialize', msg)
                 exit
              end if
           else
              write(msg, '(a, i3, a, i6)') &
                   "can't initialize bulk fluid properties on processor ", &
                   mpi%rank, " cell ", c
-             call self%logfile%write(LOG_LEVEL_ERR, 'init', msg)
+             call self%logfile%write(LOG_LEVEL_ERR, 'initialize', msg)
              exit
           end if
 
