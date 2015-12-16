@@ -231,14 +231,11 @@ contains
     !! time step.
 
     class(timestepper_type), intent(in out) :: self
-    ! Locals:
-    character(len = 80) :: msg
 
     if (mpi%rank == mpi%output_rank) then
-       write(msg, '(i7)'), self%steps%taken + 1
        call self%ode%logfile%write_string(new_line('a'), PETSC_TRUE)
-       call self%ode%logfile%write(LOG_LEVEL_INFO, 'timestep', msg, &
-            echo = PETSC_TRUE)
+       call self%ode%logfile%write(LOG_LEVEL_INFO, 'timestep', 'start', &
+            ['number          '], [self%steps%taken + 1], echo = PETSC_TRUE)
     end if
 
   end subroutine before_step_output_default
@@ -506,17 +503,13 @@ contains
 
     class(timestepper_step_type), intent(in) :: self
     type(logfile_type), intent(in out) :: logfile
-    ! Locals:
-    character(len = 120) :: msg
 
     if (mpi%rank == mpi%output_rank) then
-       write(msg, '(a, e12.4, a, e12.4, a, i2, a, i2, a, a)') &
-            'time: ', self%time, &
-            ' stepsize: ', self%stepsize, &
-            ' tries:', self%num_tries, &
-            ' iters: ', self%num_iterations, &
-            ' status: ', self%status_str()
-       call logfile%write(LOG_LEVEL_INFO, 'timestep', msg, &
+       call logfile%write(LOG_LEVEL_INFO, 'timestep', 'end', &
+            ['tries           ', 'iters           '], &
+            [self%num_tries, self%num_iterations], &
+            ['size            ', 'time            '], &
+            [self%stepsize, self%time], &
             echo = PETSC_TRUE)
     end if
 
@@ -1015,16 +1008,13 @@ end subroutine timestepper_steps_set_next_stepsize
     PetscReal, intent(in) :: fnorm
     type(timestepper_solver_context_type), intent(in out) :: context
     PetscErrorCode :: ierr
-    ! Locals:
-    character(80) :: msg
 
-    if ((num_iterations > 0) .and. (mpi%rank == mpi%output_rank)) then
-       write(msg, '(i2, a, e12.6)') num_iterations, &
-            ' max. residual: ', context%steps%current%max_residual
-       if (allocated(context%ode%logfile)) then
-          call context%ode%logfile%write(LOG_LEVEL_INFO, 'iteration', &
-               msg, echo = PETSC_TRUE)
-       end if
+    if ((num_iterations > 0) .and. (mpi%rank == mpi%output_rank) .and. &
+         (allocated(context%ode%logfile))) then
+       call context%ode%logfile%write(LOG_LEVEL_INFO, 'solver', 'iteration', &
+            ['number          '], [num_iterations], &
+            ['max_residual    '], [context%steps%current%max_residual], &
+            echo = PETSC_TRUE)
     end if
 
   end subroutine SNES_monitor
@@ -1263,7 +1253,6 @@ end subroutine timestepper_steps_set_next_stepsize
     PetscErrorCode :: ierr
     PetscBool :: converged, accepted
     SNESConvergedReason :: converged_reason
-    character(120) :: msg
 
     call self%steps%update()
     call self%ode%pre_timestep()
@@ -1290,8 +1279,9 @@ end subroutine timestepper_steps_set_next_stepsize
        call self%steps%set_next_stepsize(accepted)
 
        if ((.not. accepted) .and. (mpi%rank == mpi%output_rank)) then
-          write(msg, '(a, e12.4)') 'reduction, new size: ', self%steps%next_stepsize
-          call self%ode%logfile%write(LOG_LEVEL_WARN, 'timestep', msg, &
+          call self%ode%logfile%write(LOG_LEVEL_WARN, 'timestep', 'reduction', &
+               real_keys = ['new_size        '], &
+               real_values = [self%steps%next_stepsize], &
                echo = PETSC_TRUE)
        end if
 

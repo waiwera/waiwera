@@ -598,7 +598,6 @@ contains
     type(fluid_type) :: fluid
     type(rock_type) :: rock
     DMLabel :: ghost_label
-    character(120) :: msg
     PetscErrorCode :: ierr
 
     err = 0
@@ -646,24 +645,24 @@ contains
                 call self%eos%phase_properties(cell_primary, rock, &
                      fluid, err)
                 if (err > 0) then
-                   write(msg, '(a, i3, a, i6)') &
-                        "can't initialize phase properties on processor ", &
-                        mpi%rank, " cell ", c
-                   call self%logfile%write(LOG_LEVEL_ERR, 'initialize', msg)
+                   call self%logfile%write(LOG_LEVEL_ERR, 'initialize', &
+                        'fluid', &
+                        ['proc            ', 'cell            '], &
+                        [mpi%rank, c], echo = PETSC_TRUE)
                    exit
                 end if
              else
-                write(msg, '(a, i3, a, i6)') &
-                     "can't initialize phase composition on processor ", &
-                     mpi%rank, " cell ", c
-                call self%logfile%write(LOG_LEVEL_ERR, 'initialize', msg)
+                call self%logfile%write(LOG_LEVEL_ERR, 'initialize', &
+                     'fluid', &
+                     ['proc            ', 'cell            '], &
+                     [mpi%rank, c], echo = PETSC_TRUE)
                 exit
              end if
           else
-             write(msg, '(a, i3, a, i6)') &
-                  "can't initialize bulk fluid properties on processor ", &
-                  mpi%rank, " cell ", c
-             call self%logfile%write(LOG_LEVEL_ERR, 'initialize', msg)
+             call self%logfile%write(LOG_LEVEL_ERR, 'initialize', &
+                  'fluid', &
+                  ['proc            ', 'cell            '], &
+                  [mpi%rank, c], echo = PETSC_TRUE)
              exit
           end if
 
@@ -703,7 +702,6 @@ contains
     type(fluid_type) :: fluid
     type(rock_type) :: rock
     DMLabel :: ghost_label
-    character(120) :: msg
     PetscErrorCode :: ierr
 
     err = 0
@@ -748,17 +746,17 @@ contains
           if (err == 0) then
              call self%eos%phase_properties(cell_primary, rock, fluid, err)
              if (err > 0) then
-                write(msg, '(a, i3, a, i6)') &
-                     "can't calculate phase properties on processor ", &
-                     mpi%rank, " cell ", c
-                call self%logfile%write(LOG_LEVEL_WARN, 'properties', msg)
+                call self%logfile%write(LOG_LEVEL_WARN, 'fluid', &
+                     'properties not found', &
+                     ['proc            ', 'cell            '], &
+                     [mpi%rank, c])
                 exit
              end if
           else
-             write(msg, '(a, i3, a, i6)') &
-                  "can't calculate bulk fluid properties on processor ", &
-                  mpi%rank, " cell ", c
-             call self%logfile%write(LOG_LEVEL_WARN, 'properties', msg)
+             call self%logfile%write(LOG_LEVEL_WARN, 'fluid', &
+                  'properties not found', &
+                  ['proc            ', 'cell            '], &
+                  [mpi%rank, c])
              exit
           end if
 
@@ -800,7 +798,6 @@ contains
     type(fluid_type) :: last_iteration_fluid, fluid
     DMLabel :: ghost_label
     PetscBool :: transition
-    character(120) :: msg
     PetscErrorCode :: ierr
 
     err = 0
@@ -853,24 +850,24 @@ contains
                    cell_search = old_cell_primary - cell_primary
                    changed_y = .true.
                    changed_search = .true.
-                   write(msg, '(a, i1, a, i1, a, i3, a, i6)') 'region ', &
-                        nint(last_iteration_fluid%region), ' -> ', &
-                        nint(fluid%region), &
-                        " on processor ", mpi%rank, " cell ", c
-                   call self%logfile%write(LOG_LEVEL_INFO, 'transition', msg)
+                   call self%logfile%write(LOG_LEVEL_INFO, 'fluid', &
+                        'transition', &
+                        ['old_region      ', 'new_region      '], &
+                        [nint(last_iteration_fluid%region), nint(fluid%region)])
+
                 end if
              else
-                write(msg, '(a, i3, a, i6)') &
-                     "failed on processor ", &
-                     mpi%rank, " cell ", c
-                call self%logfile%write(LOG_LEVEL_WARN, 'transition', msg)
+                call self%logfile%write(LOG_LEVEL_WARN, 'fluid', &
+                     'transition failed', &
+                     ['proc            ', 'cell            '], &
+                     [mpi%rank, c])
                 exit
              end if
           else
-             write(msg, '(a, i3, a, i6)') &
-                  "primary variables out of range on processor ", &
-                  mpi%rank, " cell ", c
-             call self%logfile%write(LOG_LEVEL_WARN, 'transition', msg)
+             call self%logfile%write(LOG_LEVEL_WARN, 'fluid', &
+                  'out of range', &
+                  ['proc            ', 'cell            '], &
+                  [mpi%rank, c])
              exit
           end if
 
