@@ -235,7 +235,7 @@ contains
     if (mpi%rank == mpi%output_rank) then
        call self%ode%logfile%write_string(new_line('a'), PETSC_TRUE)
        call self%ode%logfile%write(LOG_LEVEL_INFO, 'timestep', 'start', &
-            ['number          '], [self%steps%taken + 1], echo = PETSC_TRUE)
+            ['count           '], [self%steps%taken + 1], echo = PETSC_TRUE)
     end if
 
   end subroutine before_step_output_default
@@ -1012,7 +1012,7 @@ end subroutine timestepper_steps_set_next_stepsize
     if ((num_iterations > 0) .and. (mpi%rank == mpi%output_rank) .and. &
          (allocated(context%ode%logfile))) then
        call context%ode%logfile%write(LOG_LEVEL_INFO, 'solver', 'iteration', &
-            ['number          '], [num_iterations], &
+            ['count           '], [num_iterations], &
             ['max_residual    '], [context%steps%current%max_residual], &
             echo = PETSC_TRUE)
     end if
