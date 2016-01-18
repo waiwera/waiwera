@@ -16,12 +16,14 @@ module flow_simulation_module
 #include <petsc/finclude/petsc.h90>
 
   PetscInt, parameter, public :: max_title_length = 120
+  PetscInt, parameter, public :: max_flow_simulation_filename_length = 200
   PetscInt, parameter :: max_output_filename_length = 200
 
   type, public, extends(ode_type) :: flow_simulation_type
      !! Simulation type.
      private
      PetscInt :: solution_range_start, rock_range_start, fluid_range_start
+     character(max_flow_simulation_filename_length), public :: filename
      character(max_title_length), public :: title
      Vec, public :: rock
      Vec, public :: fluid, last_timestep_fluid, last_iteration_fluid
@@ -163,7 +165,7 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine flow_simulation_init(self, json)
+  subroutine flow_simulation_init(self, json, filename)
     !! Initializes a flow simulation using data from the specified JSON object.
 
     use kinds_module
@@ -179,11 +181,15 @@ contains
 
     class(flow_simulation_type), intent(in out) :: self
     type(fson_value), pointer, intent(in) :: json
+    character(len = *), intent(in), optional :: filename
     ! Locals:
     character(len = max_title_length), parameter :: default_title = ""
     PetscReal, parameter :: default_gravity = 9.8_dp
     PetscErrorCode :: ierr
 
+    if (present(filename)) then
+       self%filename = filename
+    end if
     call fson_get_mpi(json, "title", default_title, self%title)
     call self%setup_output(json)
     call setup_thermodynamics(json, self%thermo)
