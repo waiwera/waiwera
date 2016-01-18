@@ -92,7 +92,7 @@ contains
     PetscBool :: output, output_log
     character(max_logfile_name_length) :: logfile_name, assumed_logfile_name
     character(max_logfile_name_length), parameter :: default_logfile_name = &
-         "output.log"
+         "output.yaml"
 
     if (fson_has_mpi(json, "output")) then
        if (fson_type_mpi(json, "output") == TYPE_LOGICAL) then
@@ -116,7 +116,7 @@ contains
        call PetscViewerHDF5PushGroup(self%hdf5_viewer, "/", ierr)
        CHKERRQ(ierr)
        assumed_logfile_name = &
-            change_filename_extension(self%output_filename, "log")
+            change_filename_extension(self%output_filename, "yaml")
     else
        assumed_logfile_name = default_logfile_name
     end if
