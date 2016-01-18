@@ -11,6 +11,7 @@ module logfile_module
   PetscInt, parameter, public :: LOG_LEVEL_INFO  = 1, &
        LOG_LEVEL_WARN = 2, LOG_LEVEL_ERR = 3
   PetscInt, parameter :: max_log_level_name_length = 4
+  PetscInt, parameter :: max_log_message_string_length = 24
   character(max_log_level_name_length), parameter :: &
        log_level_name(3) = ['info', 'warn', 'err ']
   PetscInt, parameter, public :: max_logfile_name_length = 120
@@ -81,29 +82,31 @@ contains
 !------------------------------------------------------------------------
 
   subroutine logfile_write(self, level, source, event, int_keys, &
-       int_values, real_keys, real_values, echo)
+       int_values, real_keys, real_values, str_keys, str_values, echo)
     !! Write message to logfile, optionally echoing to console output.
     !! Output is in YAML format: each message is formatted as an
     !! inline list, with the first three elements being the level,
-    !! source and event respectively. If there are additional integer
-    !! or real data, these are appended as an associative array.
+    !! source and event respectively. If there are additional integer,
+    !! real or string data, these are appended as an associative array.
 
     class(logfile_type), intent(in out) :: self
     PetscInt, intent(in) :: level
     character(*), intent(in) :: source, event
     character(max_log_key_length), intent(in), optional :: int_keys(:), &
-         real_keys(:)
+         real_keys(:), str_keys(:)
     PetscInt, intent(in), optional :: int_values(:)
     PetscReal, intent(in), optional :: real_values(:)
+    character(max_log_message_string_length), intent(in), &
+         optional :: str_values(:)
     PetscBool, intent(in), optional :: echo
     ! Locals:
-    PetscBool :: do_echo, has_int, has_real
+    PetscBool :: do_echo, has_int, has_real, has_str, has_data
     PetscBool, parameter :: default_echo = PETSC_FALSE
     character(:), allocatable ::  content, msg
-    PetscInt, parameter :: max_str_len = 12, num_real_digits = 6
-    character(max_str_len) :: int_str, real_str
+    PetscInt, parameter :: max_number_str_len = 12, num_real_digits = 6
+    character(max_number_str_len) :: int_str, real_str
     character(7) :: int_fmt, real_fmt
-    PetscInt :: i, num_int, num_real
+    PetscInt :: i, num_int, num_real, num_str
     character, parameter :: lf = new_line('a')
 
     if (present(echo)) then
@@ -115,10 +118,12 @@ contains
     content = ""
     has_int = (present(int_keys) .and. present(int_values))
     has_real = (present(real_keys) .and. present(real_values))
+    has_str = (present(str_keys) .and. present(str_values))
+    has_data = (has_int .or. has_real .or. has_str)
 
     if (has_int) then
        num_int = size(int_keys)
-       write(int_fmt, '(a,i2,a)') '(i', max_str_len, ')'
+       write(int_fmt, '(a,i2,a)') '(i', max_number_str_len, ')'
        do i = 1, num_int
           write(int_str, int_fmt) int_values(i)
           content = content  // trim(int_keys(i)) // &
@@ -131,9 +136,10 @@ contains
           content = content // ', '
        end if
     end if
+
     if (has_real) then
        num_real = size(real_keys)
-       write(real_fmt, '(a,i2,a,i1,a)') '(e', max_str_len, '.', &
+       write(real_fmt, '(a,i2,a,i1,a)') '(e', max_number_str_len, '.', &
             num_real_digits, ')'
        do i = 1, num_real
           write(real_str, real_fmt) real_values(i)
@@ -145,9 +151,20 @@ contains
        end do
     end if
 
+    if (has_str) then
+       num_str = size(str_keys)
+       do i = 1, num_str
+          content = content // trim(str_keys(i)) // &
+               trim(str_values(i))
+          if (i < num_str) then
+             content = content // ', '
+          end if
+       end do
+    end if
+
     msg = '- [' // trim(log_level_name(level)) // ', ' &
          // trim(source) // ', ' // trim(event)
-    if (has_int .or. has_real) then
+    if (has_data) then
        msg = msg // ', {' // trim(content) // '}]' // lf
     else
        msg = msg // ']' // lf
