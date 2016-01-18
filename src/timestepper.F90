@@ -1304,6 +1304,9 @@ end subroutine timestepper_steps_set_next_stepsize
     PetscInt :: since_output
     PetscErrorCode :: err
 
+    call self%ode%logfile%write(LOG_LEVEL_INFO, 'timestepper', 'start', &
+         echo = PETSC_TRUE)
+
     err = 0
     self%steps%taken = 0
     self%output_index = 0
@@ -1345,6 +1348,10 @@ end subroutine timestepper_steps_set_next_stepsize
        end if
 
     end if
+
+    call self%ode%logfile%write_string(new_line('a'), PETSC_TRUE)
+    call self%ode%logfile%write(LOG_LEVEL_INFO, 'timestepper', 'end', &
+         echo = PETSC_TRUE)
 
   end subroutine timestepper_run
 
