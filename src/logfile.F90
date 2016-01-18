@@ -93,7 +93,7 @@ contains
     PetscReal, intent(in), optional :: real_values(:)
     PetscBool, intent(in), optional :: echo
     ! Locals:
-    PetscBool :: do_echo
+    PetscBool :: do_echo, has_int, has_real
     PetscBool, parameter :: default_echo = PETSC_FALSE
     character(:), allocatable ::  content, msg
     PetscInt, parameter :: max_str_len = 12, num_real_digits = 6
@@ -109,7 +109,10 @@ contains
     end if
 
     content = ""
-    if (present(int_keys) .and. present(int_values)) then
+    has_int = (present(int_keys) .and. present(int_values))
+    has_real = (present(real_keys) .and. present(real_values))
+
+    if (has_int) then
        num_int = size(int_keys)
        write(int_fmt, '(a,i2,a)') '(i', max_str_len, ')'
        do i = 1, num_int
@@ -120,11 +123,11 @@ contains
              content = content // ', '
           end if
        end do
-       if (present(real_keys) .and. present(real_values)) then
+       if (has_real) then
           content = content // ', '
        end if
     end if
-    if (present(real_keys) .and. present(real_values)) then
+    if (has_real) then
        num_real = size(real_keys)
        write(real_fmt, '(a,i2,a,i1,a)') '(e', max_str_len, '.', &
             num_real_digits, ')'
@@ -138,10 +141,13 @@ contains
        end do
     end if
 
-    msg = trim(log_level_name(level)) // ' ' &
-         // trim(source) // ': ' &
-         // trim(event) // ' [' &
-         // trim(content) // ']' // lf
+    msg = '- [' // trim(log_level_name(level)) // ', ' &
+         // trim(source) // ', ' // trim(event)
+    if (has_int .or. has_real) then
+       msg = msg // ', {' // trim(content) // '}]' // lf
+    else
+       msg = msg // ']' // lf
+    end if
 
     call self%write_string(msg, do_echo)
 
