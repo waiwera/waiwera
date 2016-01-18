@@ -83,6 +83,10 @@ contains
   subroutine logfile_write(self, level, source, event, int_keys, &
        int_values, real_keys, real_values, echo)
     !! Write message to logfile, optionally echoing to console output.
+    !! Output is in YAML format: each message is formatted as an
+    !! inline list, with the first three elements being the level,
+    !! source and event respectively. If there are additional integer
+    !! or real data, these are appended as an associative array.
 
     class(logfile_type), intent(in out) :: self
     PetscInt, intent(in) :: level
