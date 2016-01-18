@@ -155,7 +155,7 @@ contains
        num_str = size(str_keys)
        do i = 1, num_str
           content = content // trim(str_keys(i)) // &
-               trim(str_values(i))
+               ': ' // trim(str_values(i))
           if (i < num_str) then
              content = content // ', '
           end if
