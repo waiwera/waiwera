@@ -189,6 +189,8 @@ contains
 
     if (present(filename)) then
        self%filename = filename
+    else
+       self%filename = ""
     end if
     call fson_get_mpi(json, "title", default_title, self%title)
     call self%setup_output(json)
