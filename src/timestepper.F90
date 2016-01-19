@@ -1305,12 +1305,10 @@ end subroutine timestepper_steps_set_next_stepsize
     ! Locals:
     PetscInt :: since_output
     PetscErrorCode :: err
-    character(max_log_message_string_length) :: str_values(1)
-    PetscInt :: t
 
-    t = time(); str_values(1) = '"' // ctime(t) // '"'
     call self%ode%logfile%write(LOG_LEVEL_INFO, 'timestepper', 'start', &
-         str_keys = ['time            '], str_values = str_values, &
+         str_key = 'time            ', &
+         str_value = '"' // ctime(time()) // '"', &
          echo = PETSC_TRUE)
 
     err = 0
@@ -1356,9 +1354,9 @@ end subroutine timestepper_steps_set_next_stepsize
     end if
 
     call self%ode%logfile%write_string(new_line('a'), PETSC_TRUE)
-    t = time(); str_values(1) = '"' // ctime(t) // '"'
     call self%ode%logfile%write(LOG_LEVEL_INFO, 'timestepper', 'end', &
-         str_keys = ['time            '], str_values = str_values, &
+         str_key = 'time', &
+         str_value = '"' // ctime(time()) // '"', &
          echo = PETSC_TRUE)
 
   end subroutine timestepper_run

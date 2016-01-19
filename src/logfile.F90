@@ -92,7 +92,7 @@ contains
     !! Append integer data to logfile content line.
 
     class(logfile_type), intent(in out) :: self
-    character(max_log_key_length), intent(in) :: int_keys(:)
+    character(*), intent(in) :: int_keys(:)
     PetscInt, intent(in) :: int_values(:)
     character(:), allocatable, intent(in out) ::  content
     ! Locals:
@@ -123,7 +123,7 @@ contains
     !! Append real data to logfile content line.
 
     class(logfile_type), intent(in out) :: self
-    character(max_log_key_length), intent(in) :: real_keys(:)
+    character(*), intent(in) :: real_keys(:)
     PetscReal, intent(in) :: real_values(:)
     character(:), allocatable, intent(in out) ::  content
     ! Locals:
@@ -157,7 +157,7 @@ contains
     !! can be appended.)
 
     class(logfile_type), intent(in out) :: self
-    character(max_log_key_length), intent(in) :: real_array_key
+    character(*), intent(in) :: real_array_key
     PetscReal, intent(in) :: real_array_value(:)
     character(:), allocatable, intent(in out) ::  content
     ! Locals:
@@ -187,35 +187,27 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine logfile_append_string_data(self, str_keys, str_values, content)
-    !! Append string data to logfile content line.
+  subroutine logfile_append_string_data(self, str_key, str_value, content)
+    !! Append string data to logfile content line. (Only one string
+    !! can be appended.)
 
     class(logfile_type), intent(in out) :: self
-    character(max_log_key_length), intent(in) :: str_keys(:)
-    character(max_log_message_string_length), intent(in) :: str_values(:)
+    character(*), intent(in) :: str_key
+    character(*), intent(in) :: str_value
     character(:), allocatable, intent(in out) ::  content
-    ! Locals:
-    PetscInt :: num_str, i
 
     if (len(content) > 0) then
        content = content // ', '
     end if
 
-    num_str = size(str_keys)
-    do i = 1, num_str
-       content = content // trim(str_keys(i)) // &
-            ': ' // trim(str_values(i))
-       if (i < num_str) then
-          content = content // ', '
-       end if
-    end do
+    content = content // trim(str_key) // ': ' // trim(str_value)
 
   end subroutine logfile_append_string_data
 
 !------------------------------------------------------------------------
 
   subroutine logfile_write(self, level, source, event, int_keys, &
-       int_values, real_keys, real_values, str_keys, str_values, &
+       int_values, real_keys, real_values, str_key, str_value, &
        real_array_key, real_array_value, echo)
     !! Write message to logfile, optionally echoing to console output.
     !! Output is in YAML format: each message is formatted as an
@@ -227,13 +219,11 @@ contains
     class(logfile_type), intent(in out) :: self
     PetscInt, intent(in) :: level
     character(*), intent(in) :: source, event
-    character(max_log_key_length), intent(in), optional :: int_keys(:), &
-         real_keys(:), str_keys(:)
+    character(*), intent(in), optional :: int_keys(:), &
+         real_keys(:), str_key, real_array_key
     PetscInt, intent(in), optional :: int_values(:)
     PetscReal, intent(in), optional :: real_values(:)
-    character(max_log_message_string_length), intent(in), &
-         optional :: str_values(:)
-    character(max_log_key_length), intent(in), optional :: real_array_key
+    character(*), intent(in), optional :: str_value
     PetscReal, intent(in), optional :: real_array_value(:)
     PetscBool, intent(in), optional :: echo
     ! Locals:
@@ -267,9 +257,9 @@ contains
             real_array_value, content)
     end if
 
-    if (present(str_keys) .and. present(str_values)) then
+    if (present(str_key) .and. present(str_value)) then
        has_data = PETSC_TRUE
-       call self%append_string_data(str_keys, str_values, content)
+       call self%append_string_data(str_key, str_value, content)
     end if
 
     msg = '- [' // trim(log_level_name(level)) // ', ' &

@@ -185,7 +185,6 @@ contains
     ! Locals:
     character(len = max_title_length), parameter :: default_title = ""
     PetscReal, parameter :: default_gravity = 9.8_dp
-    character(max_log_message_string_length) :: str_values(1)
     PetscErrorCode :: ierr
 
     if (present(filename)) then
@@ -195,15 +194,13 @@ contains
     end if
     call self%setup_output(json)
 
-    str_values(1) = trim(self%filename)
     call self%logfile%write(LOG_LEVEL_INFO, 'simulation', 'init', &
-         str_keys = ['filename        '], str_values = str_values, &
+         str_key = 'filename', str_value = self%filename, &
          echo = PETSC_TRUE)
 
     call fson_get_mpi(json, "title", default_title, self%title)
-    str_values(1) = trim(self%title)
     call self%logfile%write(LOG_LEVEL_INFO, 'simulation', 'init', &
-         str_keys = ['title           '], str_values = str_values, &
+         str_key = 'title', str_value = self%title, &
          echo = PETSC_TRUE)
 
     call setup_thermodynamics(json, self%thermo)
