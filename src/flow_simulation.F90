@@ -195,6 +195,11 @@ contains
     call self%setup_output(json)
 
     call self%logfile%write(LOG_LEVEL_INFO, 'simulation', 'init', &
+         str_key = 'time            ', &
+         str_value = '"' // ctime(time()) // '"', &
+         echo = PETSC_TRUE)
+
+    call self%logfile%write(LOG_LEVEL_INFO, 'simulation', 'init', &
          str_key = 'filename', str_value = self%filename, &
          echo = PETSC_TRUE)
 
@@ -204,8 +209,19 @@ contains
          echo = PETSC_TRUE)
 
     call setup_thermodynamics(json, self%thermo)
+    call self%logfile%write(LOG_LEVEL_INFO, 'simulation', 'init', &
+         str_key = 'thermodynamics', str_value = self%thermo%name, &
+         echo = PETSC_TRUE)
+
     call setup_eos(json, self%thermo, self%eos)
+    call self%logfile%write(LOG_LEVEL_INFO, 'simulation', 'init', &
+         str_key = 'EOS', str_value = self%eos%name, &
+         echo = PETSC_TRUE)
+
     call self%mesh%init(json)
+    call self%logfile%write(LOG_LEVEL_INFO, 'simulation', 'init', &
+         str_key = 'mesh', str_value = self%mesh%filename, &
+         echo = PETSC_TRUE)
     call setup_rocktype_labels(json, self%mesh%dm)
     call self%mesh%setup_boundaries(json, self%eos)
     call self%mesh%configure(self%eos%primary_variable_names)
