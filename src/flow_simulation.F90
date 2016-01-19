@@ -185,6 +185,7 @@ contains
     ! Locals:
     character(len = max_title_length), parameter :: default_title = ""
     PetscReal, parameter :: default_gravity = 9.8_dp
+    character(max_log_message_string_length) :: str_values(1)
     PetscErrorCode :: ierr
 
     if (present(filename)) then
@@ -192,8 +193,19 @@ contains
     else
        self%filename = ""
     end if
-    call fson_get_mpi(json, "title", default_title, self%title)
     call self%setup_output(json)
+
+    str_values(1) = trim(self%filename)
+    call self%logfile%write(LOG_LEVEL_INFO, 'simulation', 'init', &
+         str_keys = ['filename        '], str_values = str_values, &
+         echo = PETSC_TRUE)
+
+    call fson_get_mpi(json, "title", default_title, self%title)
+    str_values(1) = trim(self%title)
+    call self%logfile%write(LOG_LEVEL_INFO, 'simulation', 'init', &
+         str_keys = ['title           '], str_values = str_values, &
+         echo = PETSC_TRUE)
+
     call setup_thermodynamics(json, self%thermo)
     call setup_eos(json, self%thermo, self%eos)
     call self%mesh%init(json)
@@ -220,6 +232,8 @@ contains
     call setup_source_vector(json, self%mesh%dm, &
          self%eos%num_primary_variables, self%eos%isothermal, self%source)
     call fson_get_mpi(json, "gravity", default_gravity, self%gravity)
+
+    call self%logfile%write_string(new_line('a'), PETSC_TRUE)
 
   end subroutine flow_simulation_init
 
