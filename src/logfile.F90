@@ -18,7 +18,7 @@ module logfile_module
   PetscInt, parameter :: max_log_key_length = 16
   PetscInt, parameter :: max_log_number_str_len = 12
   PetscInt, parameter :: num_log_real_digits = 6
-  character, parameter :: log_linefeed = new_line('a')
+  character, parameter :: lf = new_line('a')
 
   type logfile_type
      private
@@ -266,9 +266,9 @@ contains
     msg = '- [' // trim(log_level_name(level)) // ', ' &
          // trim(source) // ', ' // trim(event)
     if (has_data) then
-       msg = msg // ', {' // trim(content) // '}]' // log_linefeed
+       msg = msg // ', {' // trim(content) // '}]' // lf
     else
-       msg = msg // ']' // log_linefeed
+       msg = msg // ']' // lf
     end if
 
     call self%write_string(msg, do_echo)
@@ -282,7 +282,7 @@ contains
 
     class(logfile_type), intent(in out) :: self
 
-    call self%write_string(log_linefeed, PETSC_TRUE)
+    call self%write_string(lf, PETSC_TRUE)
 
   end subroutine logfile_write_blank
 
