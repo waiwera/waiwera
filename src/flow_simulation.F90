@@ -874,9 +874,10 @@ contains
                    changed_search = .true.
                    call self%logfile%write(LOG_LEVEL_INFO, 'fluid', &
                         'transition', &
-                        ['old_region      ', 'new_region      '], &
-                        [nint(last_iteration_fluid%region), nint(fluid%region)])
-
+                        ['proc            ', 'cell            ', &
+                        'old_region      ', 'new_region      '], &
+                        [mpi%rank, c, &
+                        nint(last_iteration_fluid%region), nint(fluid%region)])
                 end if
              else
                 call self%logfile%write(LOG_LEVEL_WARN, 'fluid', &
@@ -887,7 +888,7 @@ contains
              end if
           else
              call self%logfile%write(LOG_LEVEL_WARN, 'fluid', &
-                  'out of range', &
+                  'out_of_range', &
                   ['proc            ', 'cell            '], &
                   [mpi%rank, c], &
                   real_array_key = 'primary         ', &
