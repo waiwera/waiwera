@@ -246,7 +246,7 @@ contains
          self%eos%num_primary_variables, self%eos%isothermal, self%source)
     call fson_get_mpi(json, "gravity", default_gravity, self%gravity)
 
-    call self%logfile%write_string(new_line('a'), PETSC_TRUE)
+    call self%logfile%write_blank()
 
   end subroutine flow_simulation_init
 

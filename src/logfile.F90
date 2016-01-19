@@ -18,6 +18,7 @@ module logfile_module
   PetscInt, parameter :: max_log_key_length = 16
   PetscInt, parameter :: max_log_number_str_len = 12
   PetscInt, parameter :: num_log_real_digits = 6
+  character, parameter :: log_linefeed = new_line('a')
 
   type logfile_type
      private
@@ -33,6 +34,7 @@ module logfile_module
           logfile_append_real_array_data
      procedure, public :: append_string_data => logfile_append_string_data
      procedure, public :: write => logfile_write
+     procedure, public :: write_blank => logfile_write_blank
      procedure, public :: destroy => logfile_destroy
   end type logfile_type
 
@@ -230,7 +232,6 @@ contains
     PetscBool :: do_echo, has_data
     PetscBool, parameter :: default_echo = PETSC_FALSE
     character(:), allocatable ::  content, msg
-    character, parameter :: lf = new_line('a')
 
     if (present(echo)) then
        do_echo = echo
@@ -265,14 +266,25 @@ contains
     msg = '- [' // trim(log_level_name(level)) // ', ' &
          // trim(source) // ', ' // trim(event)
     if (has_data) then
-       msg = msg // ', {' // trim(content) // '}]' // lf
+       msg = msg // ', {' // trim(content) // '}]' // log_linefeed
     else
-       msg = msg // ']' // lf
+       msg = msg // ']' // log_linefeed
     end if
 
     call self%write_string(msg, do_echo)
 
   end subroutine logfile_write
+
+!------------------------------------------------------------------------
+
+  subroutine logfile_write_blank(self)
+    !! Writes blank line to logfile. 
+
+    class(logfile_type), intent(in out) :: self
+
+    call self%write_string(log_linefeed, PETSC_TRUE)
+
+  end subroutine logfile_write_blank
 
 !------------------------------------------------------------------------
 
