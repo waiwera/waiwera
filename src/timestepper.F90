@@ -235,7 +235,9 @@ contains
     if (mpi%rank == mpi%output_rank) then
        call self%ode%logfile%write_string(new_line('a'), PETSC_TRUE)
        call self%ode%logfile%write(LOG_LEVEL_INFO, 'timestep', 'start', &
-            ['count           '], [self%steps%taken + 1], echo = PETSC_TRUE)
+            ['count           '], [self%steps%taken + 1], &
+            ['size            '], [self%steps%next_stepsize], &
+            echo = PETSC_TRUE)
     end if
 
   end subroutine before_step_output_default
