@@ -877,7 +877,9 @@ contains
                         ['proc            ', 'cell            ', &
                         'old_region      ', 'new_region      '], &
                         [mpi%rank, c, &
-                        nint(last_iteration_fluid%region), nint(fluid%region)])
+                        nint(last_iteration_fluid%region), nint(fluid%region)], &
+                        real_array_key = 'new_primary     ', &
+                        real_array_value = cell_primary)
                 end if
              else
                 call self%logfile%write(LOG_LEVEL_WARN, 'fluid', &
@@ -889,8 +891,9 @@ contains
           else
              call self%logfile%write(LOG_LEVEL_WARN, 'fluid', &
                   'out_of_range', &
-                  ['proc            ', 'cell            '], &
-                  [mpi%rank, c], &
+                  ['proc            ', 'cell            ', &
+                  'region          '], &
+                  [mpi%rank, c, nint(fluid%region)], &
                   real_array_key = 'primary         ', &
                   real_array_value = cell_primary)
              exit
