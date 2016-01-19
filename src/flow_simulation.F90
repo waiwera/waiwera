@@ -889,7 +889,9 @@ contains
              call self%logfile%write(LOG_LEVEL_WARN, 'fluid', &
                   'out of range', &
                   ['proc            ', 'cell            '], &
-                  [mpi%rank, c])
+                  [mpi%rank, c], &
+                  real_array_key = 'primary         ', &
+                  real_array_value = cell_primary)
              exit
           end if
 

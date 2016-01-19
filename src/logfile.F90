@@ -16,6 +16,8 @@ module logfile_module
        log_level_name(3) = ['info', 'warn', 'err ']
   PetscInt, parameter, public :: max_logfile_name_length = 120
   PetscInt, parameter :: max_log_key_length = 16
+  PetscInt, parameter :: max_log_number_str_len = 12
+  PetscInt, parameter :: num_log_real_digits = 6
 
   type logfile_type
      private
@@ -25,6 +27,11 @@ module logfile_module
      private
      procedure, public :: init => logfile_init
      procedure, public :: write_string => logfile_write_string
+     procedure, public :: append_int_data => logfile_append_int_data
+     procedure, public :: append_real_data => logfile_append_real_data
+     procedure, public :: append_real_array_data => &
+          logfile_append_real_array_data
+     procedure, public :: append_string_data => logfile_append_string_data
      procedure, public :: write => logfile_write
      procedure, public :: destroy => logfile_destroy
   end type logfile_type
@@ -81,13 +88,141 @@ contains
 
 !------------------------------------------------------------------------
 
+  subroutine logfile_append_int_data(self, int_keys, int_values, content)
+    !! Append integer data to logfile content line.
+
+    class(logfile_type), intent(in out) :: self
+    character(max_log_key_length), intent(in) :: int_keys(:)
+    PetscInt, intent(in) :: int_values(:)
+    character(:), allocatable, intent(in out) ::  content
+    ! Locals:
+    PetscInt :: num_int, i
+    character(7) :: int_fmt
+    character(max_log_number_str_len) :: int_str
+
+    if (len(content) > 0) then
+       content = content // ', '
+    end if
+
+    num_int = size(int_keys)
+    write(int_fmt, '(a,i2,a)') '(i', max_log_number_str_len, ')'
+    do i = 1, num_int
+       write(int_str, int_fmt) int_values(i)
+       content = content  // trim(int_keys(i)) // &
+            ': ' // trim(adjustl(int_str))
+       if (i < num_int) then
+          content = content // ', '
+       end if
+    end do
+
+  end subroutine logfile_append_int_data
+
+!------------------------------------------------------------------------
+
+  subroutine logfile_append_real_data(self, real_keys, real_values, content)
+    !! Append real data to logfile content line.
+
+    class(logfile_type), intent(in out) :: self
+    character(max_log_key_length), intent(in) :: real_keys(:)
+    PetscReal, intent(in) :: real_values(:)
+    character(:), allocatable, intent(in out) ::  content
+    ! Locals:
+    PetscInt :: num_real, i
+    character(7) :: real_fmt
+    character(max_log_number_str_len) :: real_str
+
+    if (len(content) > 0) then
+       content = content // ', '
+    end if
+
+    num_real = size(real_keys)
+    write(real_fmt, '(a,i2,a,i1,a)') '(e', max_log_number_str_len, &
+         '.', num_log_real_digits, ')'
+    do i = 1, num_real
+       write(real_str, real_fmt) real_values(i)
+       content = content // trim(real_keys(i)) // &
+            ': ' // trim(adjustl(real_str))
+       if (i < num_real) then
+          content = content // ', '
+       end if
+    end do
+
+  end subroutine logfile_append_real_data
+
+!------------------------------------------------------------------------
+
+  subroutine logfile_append_real_array_data(self, real_array_key, &
+       real_array_value, content)
+    !! Append real array data to logfile content line. (Only one array
+    !! can be appended.)
+
+    class(logfile_type), intent(in out) :: self
+    character(max_log_key_length), intent(in) :: real_array_key
+    PetscReal, intent(in) :: real_array_value(:)
+    character(:), allocatable, intent(in out) ::  content
+    ! Locals:
+    PetscInt :: num_real, i
+    character(7) :: real_fmt
+    character(max_log_number_str_len) :: real_str
+
+    if (len(content) > 0) then
+       content = content // ', '
+    end if
+
+    num_real = size(real_array_value)
+    write(real_fmt, '(a,i2,a,i1,a)') '(e', &
+         max_log_number_str_len, '.', num_log_real_digits, ')'
+    content = content // trim(real_array_key) // ': ['
+    do i = 1, num_real
+       write(real_str, real_fmt) real_array_value(i)
+       content = content // trim(adjustl(real_str))
+       if (i < num_real) then
+          content = content // ', '
+       end if
+    end do
+    content = content // ']'
+
+
+  end subroutine logfile_append_real_array_data
+
+!------------------------------------------------------------------------
+
+  subroutine logfile_append_string_data(self, str_keys, str_values, content)
+    !! Append string data to logfile content line.
+
+    class(logfile_type), intent(in out) :: self
+    character(max_log_key_length), intent(in) :: str_keys(:)
+    character(max_log_message_string_length), intent(in) :: str_values(:)
+    character(:), allocatable, intent(in out) ::  content
+    ! Locals:
+    PetscInt :: num_str, i
+
+    if (len(content) > 0) then
+       content = content // ', '
+    end if
+
+    num_str = size(str_keys)
+    do i = 1, num_str
+       content = content // trim(str_keys(i)) // &
+            ': ' // trim(str_values(i))
+       if (i < num_str) then
+          content = content // ', '
+       end if
+    end do
+
+  end subroutine logfile_append_string_data
+
+!------------------------------------------------------------------------
+
   subroutine logfile_write(self, level, source, event, int_keys, &
-       int_values, real_keys, real_values, str_keys, str_values, echo)
+       int_values, real_keys, real_values, str_keys, str_values, &
+       real_array_key, real_array_value, echo)
     !! Write message to logfile, optionally echoing to console output.
     !! Output is in YAML format: each message is formatted as an
     !! inline list, with the first three elements being the level,
     !! source and event respectively. If there are additional integer,
-    !! real or string data, these are appended as an associative array.
+    !! real, string or real array data, these are appended as an
+    !! associative array.
 
     class(logfile_type), intent(in out) :: self
     PetscInt, intent(in) :: level
@@ -98,15 +233,13 @@ contains
     PetscReal, intent(in), optional :: real_values(:)
     character(max_log_message_string_length), intent(in), &
          optional :: str_values(:)
+    character(max_log_key_length), intent(in), optional :: real_array_key
+    PetscReal, intent(in), optional :: real_array_value(:)
     PetscBool, intent(in), optional :: echo
     ! Locals:
-    PetscBool :: do_echo, has_int, has_real, has_str, has_data
+    PetscBool :: do_echo, has_data
     PetscBool, parameter :: default_echo = PETSC_FALSE
     character(:), allocatable ::  content, msg
-    PetscInt, parameter :: max_number_str_len = 12, num_real_digits = 6
-    character(max_number_str_len) :: int_str, real_str
-    character(7) :: int_fmt, real_fmt
-    PetscInt :: i, num_int, num_real, num_str
     character, parameter :: lf = new_line('a')
 
     if (present(echo)) then
@@ -116,50 +249,27 @@ contains
     end if
 
     content = ""
-    has_int = (present(int_keys) .and. present(int_values))
-    has_real = (present(real_keys) .and. present(real_values))
-    has_str = (present(str_keys) .and. present(str_values))
-    has_data = (has_int .or. has_real .or. has_str)
+    has_data = PETSC_FALSE
 
-    if (has_int) then
-       num_int = size(int_keys)
-       write(int_fmt, '(a,i2,a)') '(i', max_number_str_len, ')'
-       do i = 1, num_int
-          write(int_str, int_fmt) int_values(i)
-          content = content  // trim(int_keys(i)) // &
-               ': ' // trim(adjustl(int_str))
-          if (i < num_int) then
-             content = content // ', '
-          end if
-       end do
-       if (has_real) then
-          content = content // ', '
-       end if
+    if (present(int_keys) .and. present(int_values)) then
+       has_data = PETSC_TRUE
+       call self%append_int_data(int_keys, int_values, content)
     end if
 
-    if (has_real) then
-       num_real = size(real_keys)
-       write(real_fmt, '(a,i2,a,i1,a)') '(e', max_number_str_len, '.', &
-            num_real_digits, ')'
-       do i = 1, num_real
-          write(real_str, real_fmt) real_values(i)
-          content = content // trim(real_keys(i)) // &
-               ': ' // trim(adjustl(real_str))
-          if (i < num_real) then
-             content = content // ', '
-          end if
-       end do
+    if (present(real_keys) .and. present(real_values)) then
+       has_data = PETSC_TRUE
+       call self%append_real_data(real_keys, real_values, content)
     end if
 
-    if (has_str) then
-       num_str = size(str_keys)
-       do i = 1, num_str
-          content = content // trim(str_keys(i)) // &
-               ': ' // trim(str_values(i))
-          if (i < num_str) then
-             content = content // ', '
-          end if
-       end do
+    if (present(real_array_key) .and. present(real_array_value)) then
+       has_data = PETSC_TRUE
+       call self%append_real_array_data(real_array_key, &
+            real_array_value, content)
+    end if
+
+    if (present(str_keys) .and. present(str_values)) then
+       has_data = PETSC_TRUE
+       call self%append_string_data(str_keys, str_values, content)
     end if
 
     msg = '- [' // trim(log_level_name(level)) // ', ' &
