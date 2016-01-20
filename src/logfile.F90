@@ -16,23 +16,25 @@ module logfile_module
        log_level_name(3) = ['info', 'warn', 'err ']
   PetscInt, parameter, public :: max_logfile_name_length = 120
   PetscInt, parameter :: max_log_key_length = 16
-  PetscInt, parameter :: max_log_number_str_len = 12
-  PetscInt, parameter :: num_log_real_digits = 6
+  PetscInt, parameter :: max_real_format_length = 12
   character, parameter :: lf = new_line('a')
 
   type logfile_type
      private
      PetscViewer :: viewer
      character(max_logfile_name_length), public :: filename
+     PetscInt :: max_num_length, num_real_digits
+     character(max_real_format_length) :: real_format
    contains
      private
      procedure, public :: init => logfile_init
      procedure, public :: write_string => logfile_write_string
-     procedure, public :: append_int_data => logfile_append_int_data
-     procedure, public :: append_real_data => logfile_append_real_data
-     procedure, public :: append_real_array_data => &
+     procedure :: set_real_format => logfile_set_real_format
+     procedure :: append_int_data => logfile_append_int_data
+     procedure :: append_real_data => logfile_append_real_data
+     procedure :: append_real_array_data => &
           logfile_append_real_array_data
-     procedure, public :: append_string_data => logfile_append_string_data
+     procedure :: append_string_data => logfile_append_string_data
      procedure, public :: write => logfile_write
      procedure, public :: write_blank => logfile_write_blank
      procedure, public :: destroy => logfile_destroy
@@ -44,14 +46,17 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine logfile_init(self, filename)
+  subroutine logfile_init(self, filename, max_num_length, num_real_digits)
     !! Initialise logfile. If filename is empty, no disk file is
     !! created, but echoing messages to console is still possible.
 
     class(logfile_type), intent(in out) :: self
     character(*), intent(in) :: filename !! Log file name
+    PetscInt, intent(in), optional :: max_num_length, num_real_digits
     ! Locals:
     PetscErrorCode :: ierr
+    PetscInt, parameter :: default_max_num_length = 12
+    PetscInt, parameter :: default_num_real_digits = 6
 
     self%filename = filename
     if (self%filename /= "") then
@@ -62,6 +67,20 @@ contains
     end if
     call PetscViewerASCIIPushSynchronized(PETSC_VIEWER_STDOUT_WORLD, &
          ierr); CHKERRQ(ierr)
+
+    if (present(max_num_length)) then
+       self%max_num_length = max_num_length
+    else
+       self%max_num_length = default_max_num_length
+    end if
+
+    if (present(num_real_digits)) then
+       self%num_real_digits = num_real_digits
+    else
+       self%num_real_digits = default_num_real_digits
+    end if
+
+    call self%set_real_format()
 
   end subroutine logfile_init
 
@@ -90,6 +109,22 @@ contains
 
 !------------------------------------------------------------------------
 
+  subroutine logfile_set_real_format(self)
+    !! Sets Fortran format string for real output, based on maximum
+    !! number length and real digits.
+
+    class(logfile_type), intent(in out) :: self
+
+    ! Make sure length is big enough for number of digits specified:
+    self%max_num_length = max(self%max_num_length, self%num_real_digits + 5)
+
+    write(self%real_format, '(a,i2.2,a,i2.2,a)') '(e', self%max_num_length, &
+         '.', self%num_real_digits, ')'
+
+  end subroutine logfile_set_real_format
+
+!------------------------------------------------------------------------
+
   subroutine logfile_append_int_data(self, int_keys, int_values, content)
     !! Append integer data to logfile content line.
 
@@ -100,14 +135,14 @@ contains
     ! Locals:
     PetscInt :: num_int, i
     character(7) :: int_fmt
-    character(max_log_number_str_len) :: int_str
+    character(self%max_num_length) :: int_str
 
     if (len(content) > 0) then
        content = content // ', '
     end if
 
     num_int = size(int_keys)
-    write(int_fmt, '(a,i2,a)') '(i', max_log_number_str_len, ')'
+    write(int_fmt, '(a,i2,a)') '(i', self%max_num_length, ')'
     do i = 1, num_int
        write(int_str, int_fmt) int_values(i)
        content = content  // trim(int_keys(i)) // &
@@ -130,18 +165,15 @@ contains
     character(:), allocatable, intent(in out) ::  content
     ! Locals:
     PetscInt :: num_real, i
-    character(7) :: real_fmt
-    character(max_log_number_str_len) :: real_str
+    character(self%max_num_length) :: real_str
 
     if (len(content) > 0) then
        content = content // ', '
     end if
 
     num_real = size(real_keys)
-    write(real_fmt, '(a,i2,a,i1,a)') '(e', max_log_number_str_len, &
-         '.', num_log_real_digits, ')'
     do i = 1, num_real
-       write(real_str, real_fmt) real_values(i)
+       write(real_str, self%real_format) real_values(i)
        content = content // trim(real_keys(i)) // &
             ': ' // trim(adjustl(real_str))
        if (i < num_real) then
@@ -164,19 +196,16 @@ contains
     character(:), allocatable, intent(in out) ::  content
     ! Locals:
     PetscInt :: num_real, i
-    character(7) :: real_fmt
-    character(max_log_number_str_len) :: real_str
+    character(self%max_num_length) :: real_str
 
     if (len(content) > 0) then
        content = content // ', '
     end if
 
     num_real = size(real_array_value)
-    write(real_fmt, '(a,i2,a,i1,a)') '(e', &
-         max_log_number_str_len, '.', num_log_real_digits, ')'
     content = content // trim(real_array_key) // ': ['
     do i = 1, num_real
-       write(real_str, real_fmt) real_array_value(i)
+       write(real_str, self%real_format) real_array_value(i)
        content = content // trim(adjustl(real_str))
        if (i < num_real) then
           content = content // ', '

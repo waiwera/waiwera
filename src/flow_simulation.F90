@@ -95,6 +95,9 @@ contains
     character(max_logfile_name_length) :: logfile_name, assumed_logfile_name
     character(max_logfile_name_length), parameter :: default_logfile_name = &
          "output.yaml"
+    PetscInt, parameter :: default_max_num_length = 12
+    PetscInt, parameter :: default_num_log_real_digits = 6
+    PetscInt :: max_log_num_length, num_log_real_digits
 
     if (fson_has_mpi(json, "output")) then
        if (fson_type_mpi(json, "output") == TYPE_LOGICAL) then
@@ -139,8 +142,13 @@ contains
        logfile_name = assumed_logfile_name
     end if
 
+    call fson_get_mpi(json, "logfile.format.max_num_length", &
+         default_max_num_length, max_log_num_length)
+    call fson_get_mpi(json, "logfile.format.num_real_digits", &
+         default_num_log_real_digits, num_log_real_digits)
     allocate(logfile_type :: self%logfile)
-    call self%logfile%init(logfile_name)
+    call self%logfile%init(logfile_name, max_log_num_length, &
+         num_log_real_digits)
 
   end subroutine flow_simulation_setup_output
 
