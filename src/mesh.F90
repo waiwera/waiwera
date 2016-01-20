@@ -182,8 +182,8 @@ contains
     call local_vec_section(petsc_face_geom, petsc_face_section)
     call VecGetArrayF90(petsc_face_geom, petsc_face_geom_array, ierr); CHKERRQ(ierr)
 
-    call DMPlexGetLabel(self%dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
-    call DMPlexGetLabel(self%dm, open_boundary_label_name, bdy_label, ierr)
+    call DMGetLabel(self%dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
+    call DMGetLabel(self%dm, open_boundary_label_name, bdy_label, ierr)
     CHKERRQ(ierr)
 
     do f = self%start_face, self%end_face - 1
@@ -221,7 +221,7 @@ contains
 
     ! Set external boundary face connection distances to zero:
     do ibdy = 1, size(self%bcs, 2)
-       call DMPlexGetStratumIS(self%dm, open_boundary_label_name, ibdy, bdy_IS, &
+       call DMGetStratumIS(self%dm, open_boundary_label_name, ibdy, bdy_IS, &
             ierr); CHKERRQ(ierr)
        if (bdy_IS /= 0) then
           call ISGetIndicesF90(bdy_IS, bdy_faces, ierr); CHKERRQ(ierr)
@@ -393,13 +393,13 @@ contains
     call VecGetArrayF90(y, y_array, ierr); CHKERRQ(ierr)
     call global_vec_section(rock_vector, rock_section)
     call VecGetArrayF90(rock_vector, rock_array, ierr); CHKERRQ(ierr)
-    call DMPlexGetLabel(self%dm, open_boundary_label_name, &
+    call DMGetLabel(self%dm, open_boundary_label_name, &
          bdy_label, ierr); CHKERRQ(ierr)
     rock_dof = rock%dof()
     np = eos%num_primary_variables
 
     do ibdy = 1, size(self%bcs, 1)
-       call DMPlexGetStratumIS(self%dm, open_boundary_label_name, &
+       call DMGetStratumIS(self%dm, open_boundary_label_name, &
             ibdy, bdy_IS, ierr); CHKERRQ(ierr)
        if (bdy_IS /= 0) then
           call ISGetIndicesF90(bdy_IS, bdy_faces, ierr); CHKERRQ(ierr)

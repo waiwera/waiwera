@@ -323,7 +323,7 @@ contains
 
     call cell%init(nc, self%eos%num_phases)
 
-    call DMPlexGetLabel(self%mesh%dm, "ghost", ghost_label, ierr)
+    call DMGetLabel(self%mesh%dm, "ghost", ghost_label, ierr)
     CHKERRQ(ierr)
 
     do c = self%mesh%start_cell, self%mesh%end_cell - 1
@@ -422,7 +422,7 @@ contains
 
     call face%init(self%eos%num_components, self%eos%num_phases)
 
-    call DMPlexGetLabel(self%mesh%dm, "ghost", ghost_label, ierr)
+    call DMGetLabel(self%mesh%dm, "ghost", ghost_label, ierr)
     CHKERRQ(ierr)
 
     do f = self%mesh%start_face, self%mesh%end_face - 1
@@ -658,7 +658,7 @@ contains
 
     call fluid%init(nc, self%eos%num_phases)
 
-    call DMPlexGetLabel(self%mesh%dm, "ghost", ghost_label, ierr)
+    call DMGetLabel(self%mesh%dm, "ghost", ghost_label, ierr)
     CHKERRQ(ierr)
 
     do c = self%mesh%start_cell, self%mesh%end_cell - 1
@@ -762,7 +762,7 @@ contains
 
     call fluid%init(nc, self%eos%num_phases)
 
-    call DMPlexGetLabel(self%mesh%dm, "ghost", ghost_label, ierr)
+    call DMGetLabel(self%mesh%dm, "ghost", ghost_label, ierr)
     CHKERRQ(ierr)
 
     do c = self%mesh%start_cell, self%mesh%end_cell - 1
@@ -862,7 +862,7 @@ contains
     call last_iteration_fluid%init(nc, self%eos%num_phases)
     call fluid%init(nc, self%eos%num_phases)
 
-    call DMPlexGetLabel(self%mesh%dm, "ghost", ghost_label, ierr)
+    call DMGetLabel(self%mesh%dm, "ghost", ghost_label, ierr)
     CHKERRQ(ierr)
 
     do c = self%mesh%start_cell, self%mesh%end_cell - 1

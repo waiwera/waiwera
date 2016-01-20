@@ -52,7 +52,7 @@ contains
 
     call fluid%init(eos%num_components, eos%num_phases)
 
-    call DMPlexGetLabel(mesh%dm, "ghost", ghost_label, ierr)
+    call DMGetLabel(mesh%dm, "ghost", ghost_label, ierr)
     CHKERRQ(ierr)
 
     do c = mesh%start_cell, mesh%end_cell - 1
@@ -130,7 +130,7 @@ contains
     call fluid%init(eos%num_components, eos%num_phases)
     np = eos%num_primary_variables
 
-    call DMPlexGetLabel(mesh%dm, "ghost", ghost_label, ierr)
+    call DMGetLabel(mesh%dm, "ghost", ghost_label, ierr)
     CHKERRQ(ierr)
 
     do c = mesh%start_cell, mesh%end_cell - 1

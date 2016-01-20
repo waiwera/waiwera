@@ -148,7 +148,7 @@ contains
     call VecGetArrayF90(rock_vector, rock_array, ierr); CHKERRQ(ierr)
     call global_vec_section(rock_vector, section)
 
-    call DMPlexGetLabel(dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
+    call DMGetLabel(dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
     
     call fson_get_mpi(json, "rock.types", rocktypes)
     num_rocktypes = fson_value_count_mpi(rocktypes, ".")
@@ -161,7 +161,7 @@ contains
        call fson_get_mpi(r, "porosity", default_porosity, porosity)
        call fson_get_mpi(r, "density", default_density, density)
        call fson_get_mpi(r, "specific heat", default_specific_heat, specific_heat)
-       call DMPlexGetStratumIS(dm, rocktype_label_name, ir, rock_IS, &
+       call DMGetStratumIS(dm, rocktype_label_name, ir, rock_IS, &
             ierr); CHKERRQ(ierr)
        if (rock_IS /= 0) then
           call ISGetIndicesF90(rock_IS, rock_cells, ierr); CHKERRQ(ierr)
@@ -258,7 +258,7 @@ contains
 
     if (fson_has_mpi(json, "rock.types")) then
        call fson_get_mpi(json, "rock.types", rocktypes)
-       call DMPlexCreateLabel(dm, rocktype_label_name, ierr); CHKERRQ(ierr)
+       call DMCreateLabel(dm, rocktype_label_name, ierr); CHKERRQ(ierr)
        num_rocktypes = fson_value_count_mpi(rocktypes, ".")
        do ir = 1, num_rocktypes
           r => fson_value_get_mpi(rocktypes, ir)
@@ -267,7 +267,7 @@ contains
              num_cells = size(cells)
              do ic = 1, num_cells
                 c = cells(ic)
-                call DMPlexSetLabelValue(dm, rocktype_label_name, &
+                call DMSetLabelValue(dm, rocktype_label_name, &
                      c, ir, ierr); CHKERRQ(ierr)
              end do
              deallocate(cells)

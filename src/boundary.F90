@@ -39,12 +39,12 @@ contains
     default_faces = [PetscInt::] ! empty integer array
     np = eos%num_primary_variables
 
-    call DMPlexHasLabel(dm, open_boundary_label_name, has_label, &
+    call DMHasLabel(dm, open_boundary_label_name, has_label, &
          ierr); CHKERRQ(ierr)
 
     if (.not.(has_label)) then
 
-       call DMPlexCreateLabel(dm, open_boundary_label_name, &
+       call DMCreateLabel(dm, open_boundary_label_name, &
             ierr); CHKERRQ(ierr)
 
        if (fson_has_mpi(json, "boundaries")) then
@@ -57,7 +57,7 @@ contains
              num_faces = size(faces)
              do iface = 1, num_faces
                 f = faces(iface)
-                call DMPlexSetLabelValue(dm, open_boundary_label_name, &
+                call DMSetLabelValue(dm, open_boundary_label_name, &
                      f, ibdy, ierr); CHKERRQ(ierr)
              end do
              call fson_get_mpi(bdy, "primary", eos%default_primary, primary)
