@@ -4,9 +4,11 @@ module utils_module
   implicit none
   private
 
+#include <petsc/finclude/petscsys.h>
 #include <petsc/finclude/petscdef.h>
 
-  public :: str_to_upper, str_to_lower
+  public :: str_to_upper, str_to_lower, &
+       split_filename, change_filename_extension
   
 contains
 
@@ -49,6 +51,47 @@ contains
     end do
 
   end function str_to_lower
+
+!------------------------------------------------------------------------
+
+  subroutine split_filename(filename, base, ext)
+    !! Splits filename into base and extension.
+
+    character(*), intent(in) :: filename
+    character(:), allocatable, intent(out) :: base, ext
+    ! Locals:
+    PetscInt:: i, n, base_end, ext_start
+  
+    n = len(filename)
+    i = scan(filename, '.', PETSC_TRUE)
+    if ((i > 0) .and. (i < n)) then
+       base_end = i - 1
+       ext_start = i + 1
+       base = filename(1: base_end)
+       ext = filename(ext_start: n)
+    else
+       base = filename
+       ext = ""
+    end if
+
+  end subroutine split_filename
+
+!------------------------------------------------------------------------
+
+  function change_filename_extension(filename, ext) result(new_filename)
+    !! Changes filename extension.
+
+    character(*), intent(in) :: filename, ext
+    character(:), allocatable :: new_filename
+    ! Locals:
+    character(:), allocatable :: base, oldext
+
+    call split_filename(filename, base, oldext)
+    new_filename = trim(base) // '.' // trim(ext)
+
+    deallocate(base, oldext)
+
+  end function change_filename_extension
 
 !------------------------------------------------------------------------
 

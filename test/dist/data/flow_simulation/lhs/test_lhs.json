@@ -16,5 +16,5 @@
             }
         ]
     },
-    "output": false
+    "output": false, "logfile": false
 }

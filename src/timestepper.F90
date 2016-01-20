@@ -4,6 +4,7 @@ module timestepper_module
   use kinds_module
   use mpi_module
   use ode_module
+  use logfile_module
 
   implicit none
 
@@ -124,7 +125,9 @@ module timestepper_module
      type(timestepper_steps_type), public :: steps
      type(timestepper_method_type), public :: method
      procedure(step_output_routine), pointer, public :: &
-          step_output => step_output_default
+          before_step_output => before_step_output_default
+     procedure(step_output_routine), pointer, public :: &
+          after_step_output => after_step_output_default
      PetscInt, public :: output_frequency, output_index
      PetscBool, public :: output_initial, output_final
    contains
@@ -156,7 +159,7 @@ module timestepper_module
      end function monitor_function
 
      subroutine step_output_routine(self)
-       !! Routine for producing output at each time step.
+       !! Routine for producing output before or after each time step.
        import :: timestepper_type
        class(timestepper_type), intent(in out) :: self
      end subroutine step_output_routine
@@ -175,7 +178,8 @@ module timestepper_module
 
   ! Subroutines to be available outside this module:
   public :: iteration_monitor, relative_change_monitor
-  public :: step_output_routine, step_output_default
+  public :: step_output_routine, before_step_output_default, &
+       after_step_output_default
 
 contains
 
@@ -222,18 +226,33 @@ contains
 ! Step output routines
 !------------------------------------------------------------------------
 
-  subroutine step_output_default(self)
-    !! Default routine for printing diagnostic information at each
+  subroutine before_step_output_default(self)
+    !! Default routine for printing information at the start of each
     !! time step.
 
     class(timestepper_type), intent(in out) :: self
 
-    if ((mpi%rank == mpi%output_rank) .and. (self%steps%taken > 0)) then
-       write(*, '(a, i4)'), 'step:', self%steps%taken
-       call self%steps%current%print()
+    if (mpi%rank == mpi%output_rank) then
+       call self%ode%logfile%write_blank()
+       call self%ode%logfile%write(LOG_LEVEL_INFO, 'timestep', 'start', &
+            ['count           '], [self%steps%taken + 1], &
+            ['size            '], [self%steps%next_stepsize], &
+            echo = PETSC_TRUE)
     end if
 
-  end subroutine step_output_default
+  end subroutine before_step_output_default
+
+!------------------------------------------------------------------------
+
+  subroutine after_step_output_default(self)
+    !! Default routine for printing information at the end of each
+    !! time step.
+
+    class(timestepper_type), intent(in out) :: self
+
+    call self%steps%current%print(self%ode%logfile)
+
+  end subroutine after_step_output_default
 
 !------------------------------------------------------------------------
 ! Residual routines
@@ -481,17 +500,20 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine timestepper_step_print(self)
+  subroutine timestepper_step_print(self, logfile)
     !! Prints a timestep.
 
     class(timestepper_step_type), intent(in) :: self
+    type(logfile_type), intent(in out) :: logfile
 
-    write(*, '(a, e12.4, a, e12.4, a, i2, a, i2, a, a)') &
-         'time: ', self%time, &
-         ' stepsize: ', self%stepsize, &
-         ' tries:', self%num_tries, &
-         ' iters: ', self%num_iterations, &
-         ' status: ', self%status_str()
+    if (mpi%rank == mpi%output_rank) then
+       call logfile%write(LOG_LEVEL_INFO, 'timestep', 'end', &
+            ['tries           ', 'iters           '], &
+            [self%num_tries, self%num_iterations], &
+            ['size            ', 'time            '], &
+            [self%stepsize, self%time], &
+            echo = PETSC_TRUE)
+    end if
 
   end subroutine timestepper_step_print
 
@@ -988,14 +1010,13 @@ end subroutine timestepper_steps_set_next_stepsize
     PetscReal, intent(in) :: fnorm
     type(timestepper_solver_context_type), intent(in out) :: context
     PetscErrorCode :: ierr
-    ! Locals:
-    character(120) :: str
 
-    if (num_iterations > 0) then
-       write(str, '(a, i2, a, e12.6, a)') 'iter: ', num_iterations, &
-            ' max. residual: ', context%steps%current%max_residual, &
-            new_line('a')
-       call PetscPrintf(mpi%comm, str, ierr); CHKERRQ(ierr)
+    if ((num_iterations > 0) .and. (mpi%rank == mpi%output_rank) .and. &
+         (allocated(context%ode%logfile))) then
+       call context%ode%logfile%write(LOG_LEVEL_INFO, 'solver', 'iteration', &
+            ['count           '], [num_iterations], &
+            ['max_residual    '], [context%steps%current%max_residual], &
+            echo = PETSC_TRUE)
     end if
 
   end subroutine SNES_monitor
@@ -1259,6 +1280,13 @@ end subroutine timestepper_steps_set_next_stepsize
        call self%steps%set_current_status(converged)
        call self%steps%set_next_stepsize(accepted)
 
+       if ((.not. accepted) .and. (mpi%rank == mpi%output_rank)) then
+          call self%ode%logfile%write(LOG_LEVEL_WARN, 'timestep', 'reduction', &
+               real_keys = ['new_size        '], &
+               real_values = [self%steps%next_stepsize], &
+               echo = PETSC_TRUE)
+       end if
+
     end do
 
     self%steps%taken = self%steps%taken + 1
@@ -1278,6 +1306,11 @@ end subroutine timestepper_steps_set_next_stepsize
     PetscInt :: since_output
     PetscErrorCode :: err
 
+    call self%ode%logfile%write(LOG_LEVEL_INFO, 'timestepper', 'start', &
+         str_key = 'time            ', &
+         str_value = '"' // ctime(time()) // '"', &
+         echo = PETSC_TRUE)
+
     err = 0
     self%steps%taken = 0
     self%output_index = 0
@@ -1287,9 +1320,6 @@ end subroutine timestepper_steps_set_next_stepsize
 
     if (err == 0) then
 
-       if (associated(self%step_output)) then
-          call self%step_output()
-       end if
        if (self%output_initial) then
           call self%ode%output(self%output_index, self%steps%current%time)
           self%output_index = self%output_index + 1
@@ -1297,13 +1327,18 @@ end subroutine timestepper_steps_set_next_stepsize
 
        do while (.not. self%steps%finished)
 
+          if (associated(self%before_step_output)) then
+             call self%before_step_output()
+          end if
+
           call self%step()
 
           since_output = since_output + 1
 
-          if (associated(self%step_output)) then
-             call self%step_output()
+          if (associated(self%after_step_output)) then
+             call self%after_step_output()
           end if
+
           if (since_output == self%output_frequency) then
              call self%ode%output(self%output_index, self%steps%current%time)
              self%output_index = self%output_index + 1
@@ -1317,6 +1352,12 @@ end subroutine timestepper_steps_set_next_stepsize
        end if
 
     end if
+
+    call self%ode%logfile%write_blank()
+    call self%ode%logfile%write(LOG_LEVEL_INFO, 'timestepper', 'end', &
+         str_key = 'time', &
+         str_value = '"' // ctime(time()) // '"', &
+         echo = PETSC_TRUE)
 
   end subroutine timestepper_run
 

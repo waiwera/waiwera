@@ -6,6 +6,8 @@ module flow_simulation_module
   use thermodynamics_module
   use eos_module
   use relative_permeability_module
+  use logfile_module
+  use mpi_module
 
   implicit none
 
@@ -14,12 +16,14 @@ module flow_simulation_module
 #include <petsc/finclude/petsc.h90>
 
   PetscInt, parameter, public :: max_title_length = 120
+  PetscInt, parameter, public :: max_flow_simulation_filename_length = 200
   PetscInt, parameter :: max_output_filename_length = 200
 
   type, public, extends(ode_type) :: flow_simulation_type
      !! Simulation type.
      private
      PetscInt :: solution_range_start, rock_range_start, fluid_range_start
+     character(max_flow_simulation_filename_length), public :: filename
      character(max_title_length), public :: title
      Vec, public :: rock
      Vec, public :: fluid, last_timestep_fluid, last_iteration_fluid
@@ -74,38 +78,77 @@ contains
 !------------------------------------------------------------------------
 
   subroutine flow_simulation_setup_output(self, json)
-    !! Sets up simulation output.
+    !! Sets up simulation output to HDF5 and logfile.
 
-    use mpi_module
     use fson
     use fson_value_m, only : TYPE_LOGICAL
     use fson_mpi_module
+    use utils_module, only: change_filename_extension
 
     class(flow_simulation_type), intent(in out) :: self
     type(fson_value), pointer, intent(in) :: json
     ! Locals:
-    character(len = max_output_filename_length), parameter :: &
+    character(max_output_filename_length), parameter :: &
          default_output_filename = "output.h5"
     PetscErrorCode :: ierr
-    PetscBool :: output
+    PetscBool :: output, output_log
+    character(max_logfile_name_length) :: logfile_name, assumed_logfile_name
+    character(max_logfile_name_length), parameter :: default_logfile_name = &
+         "output.yaml"
+    PetscInt, parameter :: default_max_num_length = 12
+    PetscInt, parameter :: default_num_log_real_digits = 6
+    PetscInt :: max_log_num_length, num_log_real_digits
 
-    output = .true.
     if (fson_has_mpi(json, "output")) then
        if (fson_type_mpi(json, "output") == TYPE_LOGICAL) then
           call fson_get_mpi(json, "output", val = output)
+          if (output) then
+             self%output_filename = default_output_filename
+          else
+             self%output_filename = ""
+          end if
+       else
+          call fson_get_mpi(json, "output.filename", &
+               default_output_filename, self%output_filename)
        end if
+    else
+       self%output_filename = default_output_filename
     end if
 
-    if (output) then
-       call fson_get_mpi(json, "output.filename", default_output_filename, &
-            self%output_filename)
+    if (self%output_filename /= "") then
        call PetscViewerHDF5Open(mpi%comm, self%output_filename, &
             FILE_MODE_WRITE, self%hdf5_viewer, ierr); CHKERRQ(ierr)
        call PetscViewerHDF5PushGroup(self%hdf5_viewer, "/", ierr)
        CHKERRQ(ierr)
+       assumed_logfile_name = &
+            change_filename_extension(self%output_filename, "yaml")
     else
-       self%output_filename = ""
+       assumed_logfile_name = default_logfile_name
     end if
+
+    if (fson_has_mpi(json, "logfile")) then
+       if (fson_type_mpi(json, "logfile") == TYPE_LOGICAL) then
+          call fson_get_mpi(json, "logfile", val = output_log)
+          if (output_log) then
+             logfile_name = assumed_logfile_name
+          else
+             logfile_name = ""
+          end if
+       else
+          call fson_get_mpi(json, "logfile.filename", &
+               assumed_logfile_name, logfile_name)
+       end if
+    else
+       logfile_name = assumed_logfile_name
+    end if
+
+    call fson_get_mpi(json, "logfile.format.max_num_length", &
+         default_max_num_length, max_log_num_length)
+    call fson_get_mpi(json, "logfile.format.num_real_digits", &
+         default_num_log_real_digits, num_log_real_digits)
+    allocate(logfile_type :: self%logfile)
+    call self%logfile%init(logfile_name, max_log_num_length, &
+         num_log_real_digits)
 
   end subroutine flow_simulation_setup_output
 
@@ -123,15 +166,17 @@ contains
        call PetscViewerDestroy(self%hdf5_viewer, ierr); CHKERRQ(ierr)
     end if
 
+    call self%logfile%destroy()
+    deallocate(self%logfile)
+
   end subroutine flow_simulation_destroy_output
 
 !------------------------------------------------------------------------
 
-  subroutine flow_simulation_init(self, json)
+  subroutine flow_simulation_init(self, json, filename)
     !! Initializes a flow simulation using data from the specified JSON object.
 
     use kinds_module
-    use mpi_module
     use fson
     use fson_mpi_module
     use thermodynamics_setup_module, only: setup_thermodynamics
@@ -144,15 +189,47 @@ contains
 
     class(flow_simulation_type), intent(in out) :: self
     type(fson_value), pointer, intent(in) :: json
+    character(len = *), intent(in), optional :: filename
     ! Locals:
     character(len = max_title_length), parameter :: default_title = ""
     PetscReal, parameter :: default_gravity = 9.8_dp
     PetscErrorCode :: ierr
 
+    if (present(filename)) then
+       self%filename = filename
+    else
+       self%filename = ""
+    end if
+    call self%setup_output(json)
+
+    call self%logfile%write(LOG_LEVEL_INFO, 'simulation', 'init', &
+         str_key = 'time            ', &
+         str_value = '"' // ctime(time()) // '"', &
+         echo = PETSC_TRUE)
+
+    call self%logfile%write(LOG_LEVEL_INFO, 'simulation', 'init', &
+         str_key = 'filename', str_value = self%filename, &
+         echo = PETSC_TRUE)
+
     call fson_get_mpi(json, "title", default_title, self%title)
+    call self%logfile%write(LOG_LEVEL_INFO, 'simulation', 'init', &
+         str_key = 'title', str_value = self%title, &
+         echo = PETSC_TRUE)
+
     call setup_thermodynamics(json, self%thermo)
+    call self%logfile%write(LOG_LEVEL_INFO, 'simulation', 'init', &
+         str_key = 'thermodynamics', str_value = self%thermo%name, &
+         echo = PETSC_TRUE)
+
     call setup_eos(json, self%thermo, self%eos)
+    call self%logfile%write(LOG_LEVEL_INFO, 'simulation', 'init', &
+         str_key = 'EOS', str_value = self%eos%name, &
+         echo = PETSC_TRUE)
+
     call self%mesh%init(json)
+    call self%logfile%write(LOG_LEVEL_INFO, 'simulation', 'init', &
+         str_key = 'mesh', str_value = self%mesh%filename, &
+         echo = PETSC_TRUE)
     call setup_rocktype_labels(json, self%mesh%dm)
     call self%mesh%setup_boundaries(json, self%eos)
     call self%mesh%configure(self%eos%primary_variable_names)
@@ -176,7 +253,8 @@ contains
     call setup_source_vector(json, self%mesh%dm, &
          self%eos%num_primary_variables, self%eos%isothermal, self%source)
     call fson_get_mpi(json, "gravity", default_gravity, self%gravity)
-    call self%setup_output(json)
+
+    call self%logfile%write_blank()
 
   end subroutine flow_simulation_init
 
@@ -609,11 +687,25 @@ contains
              if (err == 0) then
                 call self%eos%phase_properties(cell_primary, rock, &
                      fluid, err)
-                if (err > 0) exit
+                if (err > 0) then
+                   call self%logfile%write(LOG_LEVEL_ERR, 'initialize', &
+                        'fluid', &
+                        ['proc            ', 'cell            '], &
+                        [mpi%rank, c], echo = PETSC_TRUE)
+                   exit
+                end if
              else
+                call self%logfile%write(LOG_LEVEL_ERR, 'initialize', &
+                     'fluid', &
+                     ['proc            ', 'cell            '], &
+                     [mpi%rank, c], echo = PETSC_TRUE)
                 exit
              end if
           else
+             call self%logfile%write(LOG_LEVEL_ERR, 'initialize', &
+                  'fluid', &
+                  ['proc            ', 'cell            '], &
+                  [mpi%rank, c], echo = PETSC_TRUE)
              exit
           end if
 
@@ -696,8 +788,18 @@ contains
           call self%eos%bulk_properties(cell_primary, fluid, err)
           if (err == 0) then
              call self%eos%phase_properties(cell_primary, rock, fluid, err)
-             if (err > 0) exit
+             if (err > 0) then
+                call self%logfile%write(LOG_LEVEL_WARN, 'fluid', &
+                     'properties_not_found', &
+                     ['proc            ', 'cell            '], &
+                     [mpi%rank, c])
+                exit
+             end if
           else
+             call self%logfile%write(LOG_LEVEL_WARN, 'fluid', &
+                  'properties_not_found', &
+                  ['proc            ', 'cell            '], &
+                  [mpi%rank, c])
              exit
           end if
 
@@ -791,11 +893,30 @@ contains
                    cell_search = old_cell_primary - cell_primary
                    changed_y = .true.
                    changed_search = .true.
+                   call self%logfile%write(LOG_LEVEL_INFO, 'fluid', &
+                        'transition', &
+                        ['proc            ', 'cell            ', &
+                        'old_region      ', 'new_region      '], &
+                        [mpi%rank, c, &
+                        nint(last_iteration_fluid%region), nint(fluid%region)], &
+                        real_array_key = 'new_primary     ', &
+                        real_array_value = cell_primary)
                 end if
              else
+                call self%logfile%write(LOG_LEVEL_WARN, 'fluid', &
+                     'transition_failed', &
+                     ['proc            ', 'cell            '], &
+                     [mpi%rank, c])
                 exit
              end if
           else
+             call self%logfile%write(LOG_LEVEL_WARN, 'fluid', &
+                  'out_of_range', &
+                  ['proc            ', 'cell            ', &
+                  'region          '], &
+                  [mpi%rank, c, nint(fluid%region)], &
+                  real_array_key = 'primary         ', &
+                  real_array_value = cell_primary)
              exit
           end if
 
@@ -818,8 +939,6 @@ contains
 
   subroutine flow_simulation_output(self, time_index, time)
     !! Output from flow simulation.
-
-    use mpi_module
 
     class(flow_simulation_type), intent(in out) :: self
     PetscInt, intent(in) :: time_index

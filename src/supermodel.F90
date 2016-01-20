@@ -6,16 +6,16 @@ program supermodel
   use fson_mpi_module
   use flow_simulation_module
   use timestepper_module
+  use logfile_module
 
   implicit none
 
 #include <petsc/finclude/petscsys.h>
 
   type(fson_value), pointer :: json
-  type(flow_simulation_type) :: sim
-  type(timestepper_type) :: ts
-  PetscInt, parameter :: max_filename_length = 200
-  character(max_filename_length) :: filename
+  type(flow_simulation_type) :: simulation
+  type(timestepper_type) :: timestepper
+  character(max_flow_simulation_filename_length) :: filename
   PetscErrorCode :: ierr
 
   call PetscInitialize(PETSC_NULL_CHARACTER, ierr); CHKERRQ(ierr)
@@ -25,14 +25,15 @@ program supermodel
 
   call get_filename(filename)
   json => fson_parse_mpi(filename)
-  call sim%init(json)
-  call ts%init(json, sim)
+
+  call simulation%init(json, filename)
+  call timestepper%init(json, simulation)
   call fson_destroy_mpi(json)
 
-  call ts%run()
+  call timestepper%run()
 
-  call ts%destroy()
-  call sim%destroy()
+  call timestepper%destroy()
+  call simulation%destroy()
 
   call PetscFinalize(ierr); CHKERRQ(ierr)
 
