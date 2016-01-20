@@ -790,14 +790,14 @@ contains
              call self%eos%phase_properties(cell_primary, rock, fluid, err)
              if (err > 0) then
                 call self%logfile%write(LOG_LEVEL_WARN, 'fluid', &
-                     'properties not found', &
+                     'properties_not_found', &
                      ['proc            ', 'cell            '], &
                      [mpi%rank, c])
                 exit
              end if
           else
              call self%logfile%write(LOG_LEVEL_WARN, 'fluid', &
-                  'properties not found', &
+                  'properties_not_found', &
                   ['proc            ', 'cell            '], &
                   [mpi%rank, c])
              exit
@@ -904,7 +904,7 @@ contains
                 end if
              else
                 call self%logfile%write(LOG_LEVEL_WARN, 'fluid', &
-                     'transition failed', &
+                     'transition_failed', &
                      ['proc            ', 'cell            '], &
                      [mpi%rank, c])
                 exit
