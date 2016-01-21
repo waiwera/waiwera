@@ -236,8 +236,7 @@ contains
        call self%ode%logfile%write_blank()
        call self%ode%logfile%write(LOG_LEVEL_INFO, 'timestep', 'start', &
             ['count           '], [self%steps%taken + 1], &
-            ['size            '], [self%steps%next_stepsize], &
-            echo = PETSC_TRUE)
+            ['size            '], [self%steps%next_stepsize])
     end if
 
   end subroutine before_step_output_default
@@ -511,8 +510,7 @@ contains
             ['tries           ', 'iters           '], &
             [self%num_tries, self%num_iterations], &
             ['size            ', 'time            '], &
-            [self%stepsize, self%time], &
-            echo = PETSC_TRUE)
+            [self%stepsize, self%time])
     end if
 
   end subroutine timestepper_step_print
@@ -1015,8 +1013,7 @@ end subroutine timestepper_steps_set_next_stepsize
          (allocated(context%ode%logfile))) then
        call context%ode%logfile%write(LOG_LEVEL_INFO, 'solver', 'iteration', &
             ['count           '], [num_iterations], &
-            ['max_residual    '], [context%steps%current%max_residual], &
-            echo = PETSC_TRUE)
+            ['max_residual    '], [context%steps%current%max_residual])
     end if
 
   end subroutine SNES_monitor
@@ -1283,8 +1280,7 @@ end subroutine timestepper_steps_set_next_stepsize
        if ((.not. accepted) .and. (mpi%rank == mpi%output_rank)) then
           call self%ode%logfile%write(LOG_LEVEL_WARN, 'timestep', 'reduction', &
                real_keys = ['new_size        '], &
-               real_values = [self%steps%next_stepsize], &
-               echo = PETSC_TRUE)
+               real_values = [self%steps%next_stepsize])
        end if
 
     end do
@@ -1306,10 +1302,11 @@ end subroutine timestepper_steps_set_next_stepsize
     PetscInt :: since_output
     PetscErrorCode :: err
 
-    call self%ode%logfile%write(LOG_LEVEL_INFO, 'timestepper', 'start', &
-         str_key = 'time            ', &
-         str_value = '"' // ctime(time()) // '"', &
-         echo = PETSC_TRUE)
+    if (mpi%rank == mpi%output_rank) then
+       call self%ode%logfile%write(LOG_LEVEL_INFO, 'timestepper', 'start', &
+            str_key = 'time            ', &
+            str_value = '"' // ctime(time()) // '"')
+    end if
 
     err = 0
     self%steps%taken = 0
@@ -1353,11 +1350,12 @@ end subroutine timestepper_steps_set_next_stepsize
 
     end if
 
-    call self%ode%logfile%write_blank()
-    call self%ode%logfile%write(LOG_LEVEL_INFO, 'timestepper', 'end', &
-         str_key = 'time', &
-         str_value = '"' // ctime(time()) // '"', &
-         echo = PETSC_TRUE)
+    if (mpi%rank == mpi%output_rank) then
+       call self%ode%logfile%write_blank()
+       call self%ode%logfile%write(LOG_LEVEL_INFO, 'timestepper', 'end', &
+            str_key = 'time', &
+            str_value = '"' // ctime(time()) // '"')
+    end if
 
   end subroutine timestepper_run
 
