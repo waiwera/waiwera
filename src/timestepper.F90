@@ -1009,8 +1009,7 @@ end subroutine timestepper_steps_set_next_stepsize
     type(timestepper_solver_context_type), intent(in out) :: context
     PetscErrorCode :: ierr
 
-    if ((num_iterations > 0) .and. (mpi%rank == mpi%output_rank) .and. &
-         (allocated(context%ode%logfile))) then
+    if ((num_iterations > 0) .and. (mpi%rank == mpi%output_rank)) then
        call context%ode%logfile%write(LOG_LEVEL_INFO, 'solver', 'iteration', &
             ['count           '], [num_iterations], &
             ['max_residual    '], [context%steps%current%max_residual])

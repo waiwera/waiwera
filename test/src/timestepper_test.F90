@@ -149,7 +149,6 @@ contains
 
   subroutine init_test_ode(self, initial_array, err)
     ! Default ode initialization.
-    use logfile_module, only: logfile_type
     class(test_ode_type), intent(in out) :: self
     PetscReal, intent(in), optional :: initial_array(:)
     PetscErrorCode, intent(out) :: err
@@ -170,7 +169,6 @@ contains
        self%initial_values = initial_array
     end if
 
-    allocate(logfile_type :: self%logfile)
     call self%logfile%init('', echo = PETSC_FALSE)
 
   end subroutine init_test_ode
@@ -185,7 +183,6 @@ contains
     call VecDestroy(self%diff, ierr); CHKERRQ(ierr)
     call DMDestroy(self%mesh%dm, ierr); CHKERRQ(ierr)
     call self%logfile%destroy()
-    deallocate(self%logfile)
   end subroutine destroy_test_ode
 
   subroutine lhs_test_ode(self, t, y, lhs, err)
@@ -477,7 +474,6 @@ contains
 
   subroutine init_heat1d(self, initial_array, err)
     ! Initialization for heat equation.
-    use logfile_module, only: logfile_type
     class(heat1d_ode_type), intent(in out) :: self
     PetscReal, intent(in), optional :: initial_array(:)
     PetscErrorCode, intent(out) :: err
@@ -505,7 +501,6 @@ contains
     CHKERRQ(ierr)
     call VecDuplicate(self%solution, self%diff, ierr); CHKERRQ(ierr)
 
-    allocate(logfile_type :: self%logfile)
     call self%logfile%init('', echo = PETSC_FALSE)
 
   end subroutine init_heat1d

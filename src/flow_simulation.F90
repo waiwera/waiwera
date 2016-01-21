@@ -151,7 +151,6 @@ contains
     call fson_get_mpi(json, "logfile.echo", &
          default_logfile_echo, echo)
 
-    allocate(logfile_type :: self%logfile)
     call self%logfile%init(logfile_name, max_log_num_length, &
          num_log_real_digits, echo)
 
@@ -172,7 +171,6 @@ contains
     end if
 
     call self%logfile%destroy()
-    deallocate(self%logfile)
 
   end subroutine flow_simulation_destroy_output
 
