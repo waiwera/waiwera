@@ -17,6 +17,7 @@ module logfile_module
   PetscInt, parameter :: max_log_key_length = 16
   PetscInt, parameter :: max_real_format_length = 12
   character, parameter :: lf = new_line('a')
+  PetscBool, parameter :: default_echo = PETSC_TRUE
 
   type logfile_type
      private
@@ -24,6 +25,7 @@ module logfile_module
      character(max_logfile_name_length), public :: filename
      PetscInt :: max_num_length, num_real_digits
      character(max_real_format_length) :: real_format
+     PetscBool, public :: echo
    contains
      private
      procedure, public :: init => logfile_init
@@ -45,13 +47,15 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine logfile_init(self, filename, max_num_length, num_real_digits)
+  subroutine logfile_init(self, filename, max_num_length, &
+       num_real_digits, echo)
     !! Initialise logfile. If filename is empty, no disk file is
     !! created, but echoing messages to console is still possible.
 
     class(logfile_type), intent(in out) :: self
     character(*), intent(in) :: filename !! Log file name
     PetscInt, intent(in), optional :: max_num_length, num_real_digits
+    PetscBool, intent(in), optional :: echo
     ! Locals:
     PetscErrorCode :: ierr
     PetscInt, parameter :: default_max_num_length = 12
@@ -81,6 +85,12 @@ contains
 
     call self%set_real_format()
 
+    if (present(echo)) then
+       self%echo = echo
+    else
+       self%echo = default_echo
+    end if
+
   end subroutine logfile_init
 
 !------------------------------------------------------------------------
@@ -90,16 +100,23 @@ contains
 
     class(logfile_type), intent(in out) :: self
     character(*), intent(in) :: string
-    PetscBool, intent(in) :: echo
+    PetscBool, intent(in), optional :: echo
     ! Locals:
     PetscErrorCode :: ierr
+    PetscBool :: do_echo
 
     if (self%filename /= "") then
        call PetscViewerASCIISynchronizedPrintf(self%viewer, string, ierr)
        CHKERRQ(ierr)
     end if
 
-    if (echo) then
+    if (present(echo)) then
+       do_echo = echo
+    else
+       do_echo = self%echo
+    end if
+
+    if (do_echo) then
        call PetscViewerASCIISynchronizedPrintf(PETSC_VIEWER_STDOUT_WORLD, &
             string, ierr); CHKERRQ(ierr)
     end if
@@ -258,13 +275,12 @@ contains
     PetscBool, intent(in), optional :: echo
     ! Locals:
     PetscBool :: do_echo, has_data
-    PetscBool, parameter :: default_echo = PETSC_FALSE
     character(:), allocatable ::  content, msg
 
     if (present(echo)) then
        do_echo = echo
     else
-       do_echo = default_echo
+       do_echo = self%echo
     end if
 
     content = ""
@@ -305,12 +321,21 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine logfile_write_blank(self)
+  subroutine logfile_write_blank(self, echo)
     !! Writes blank line to logfile. 
 
     class(logfile_type), intent(in out) :: self
+    PetscBool, intent(in), optional :: echo
+    ! Locals:
+    PetscBool :: do_echo
 
-    call self%write_string(lf, PETSC_TRUE)
+    if (present(echo)) then
+       do_echo = echo
+    else
+       do_echo = self%echo
+    end if
+
+    call self%write_string(lf, do_echo)
 
   end subroutine logfile_write_blank
 
