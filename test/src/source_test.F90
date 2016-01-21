@@ -50,7 +50,7 @@ contains
     json => fson_parse_mpi(trim(path) // "test_source.json")
 
     call mesh%init(json)
-    call DMPlexCreateLabel(mesh%dm, open_boundary_label_name, ierr); CHKERRQ(ierr)
+    call DMCreateLabel(mesh%dm, open_boundary_label_name, ierr); CHKERRQ(ierr)
     call mesh%configure(primary_variable_names)
 
     call setup_source_vector(json, mesh%dm, np, isothermal, source)

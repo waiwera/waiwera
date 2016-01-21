@@ -62,7 +62,7 @@ contains
     end if
 
     call mesh%init(json)
-    call DMPlexCreateLabel(mesh%dm, open_boundary_label_name, ierr); CHKERRQ(ierr)
+    call DMCreateLabel(mesh%dm, open_boundary_label_name, ierr); CHKERRQ(ierr)
     call mesh%configure(primary_variable_names)
 
     call DMGetDimension(mesh%dm, dim, ierr)
@@ -86,7 +86,7 @@ contains
     call VecGetArrayF90(mesh%face_geom, fg, ierr)
     call DMGetDefaultSection(dm_face, section, ierr)
     call DMPlexGetHeightStratum(mesh%dm, 1, fstart, fend, ierr)
-    call DMPlexGetLabel(mesh%dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
+    call DMGetLabel(mesh%dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
     do f = fstart, fend-1
        call DMLabelGetValue(ghost_label, f, ghost_face, ierr); CHKERRQ(ierr)
        if (ghost_face < 0) then

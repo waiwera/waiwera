@@ -44,15 +44,15 @@ contains
     PetscInt, pointer :: rock_cells(:)
     PetscErrorCode :: ierr
     
-    call DMPlexGetLabelSize(sim%mesh%dm, rocktype_label_name, &
+    call DMGetLabelSize(sim%mesh%dm, rocktype_label_name, &
          num_rocktypes, ierr); CHKERRQ(ierr)
     call MPI_allreduce(num_rocktypes, total_num_rocktypes, 1, MPI_INTEGER, &
          MPI_MAX, mpi%comm, ierr)
-    call DMPlexGetLabel(sim%mesh%dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
+    call DMGetLabel(sim%mesh%dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
     allocate(nrc(total_num_rocktypes), rock_count(total_num_rocktypes))
     do ir = 1, total_num_rocktypes
        nrc(ir) = 0 ! number of rocktype cells on processor
-       call DMPlexGetStratumIS(sim%mesh%dm, rocktype_label_name, ir, &
+       call DMGetStratumIS(sim%mesh%dm, rocktype_label_name, ir, &
             rock_IS, ierr); CHKERRQ(ierr)
        if (rock_IS /= 0) then
           call ISGetIndicesF90(rock_IS, rock_cells, ierr); CHKERRQ(ierr)
@@ -186,14 +186,14 @@ contains
     PetscErrorCode :: ierr
 
     ! Open boundary label:
-    call DMPlexHasLabel(sim%mesh%dm, open_boundary_label_name, open_bdy, &
+    call DMHasLabel(sim%mesh%dm, open_boundary_label_name, open_bdy, &
          ierr); CHKERRQ(ierr)
     if (mpi%rank == mpi%output_rank) then
        call assert_equals(.true., open_bdy, "Flow simulation open boundary label")
     end if
 
     ! Rock type label:
-    call DMPlexHasLabel(sim%mesh%dm, rocktype_label_name, has_rock_label, &
+    call DMHasLabel(sim%mesh%dm, rocktype_label_name, has_rock_label, &
          ierr); CHKERRQ(ierr)
     if (mpi%rank == mpi%output_rank) then
        call assert_equals(.true., has_rock_label, "Flow simulation rocktype label")
