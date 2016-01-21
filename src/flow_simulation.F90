@@ -98,6 +98,8 @@ contains
     PetscInt, parameter :: default_max_num_length = 12
     PetscInt, parameter :: default_num_log_real_digits = 6
     PetscInt :: max_log_num_length, num_log_real_digits
+    PetscBool, parameter :: default_logfile_echo = PETSC_TRUE
+    PetscBool :: echo
 
     if (fson_has_mpi(json, "output")) then
        if (fson_type_mpi(json, "output") == TYPE_LOGICAL) then
@@ -146,9 +148,12 @@ contains
          default_max_num_length, max_log_num_length)
     call fson_get_mpi(json, "logfile.format.num_real_digits", &
          default_num_log_real_digits, num_log_real_digits)
+    call fson_get_mpi(json, "logfile.echo", &
+         default_logfile_echo, echo)
+
     allocate(logfile_type :: self%logfile)
     call self%logfile%init(logfile_name, max_log_num_length, &
-         num_log_real_digits)
+         num_log_real_digits, echo)
 
   end subroutine flow_simulation_setup_output
 
