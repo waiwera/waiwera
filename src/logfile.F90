@@ -15,7 +15,7 @@ module logfile_module
        log_level_name(3) = ['info', 'warn', 'err ']
   PetscInt, parameter, public :: max_logfile_name_length = 120
   PetscInt, parameter :: max_log_key_length = 16
-  PetscInt, parameter :: max_real_format_length = 12
+  PetscInt, parameter :: max_real_format_length = 8
   character, parameter :: lf = new_line('a')
   PetscBool, parameter :: default_echo = PETSC_TRUE
 
@@ -130,12 +130,15 @@ contains
     !! number length and real digits.
 
     class(logfile_type), intent(in out) :: self
+    ! Locals:
+    character(len=2) :: lenstr, digstr
 
     ! Make sure length is big enough for number of digits specified:
     self%max_num_length = max(self%max_num_length, self%num_real_digits + 5)
 
-    write(self%real_format, '(a,i2.2,a,i2.2,a)') '(e', self%max_num_length, &
-         '.', self%num_real_digits, ')'
+    write(lenstr, '(i2.2)') self%max_num_length
+    write(digstr, '(i2.2)') self%num_real_digits
+    self%real_format = '(e' // lenstr // '.' // digstr // ')'
 
   end subroutine logfile_set_real_format
 
