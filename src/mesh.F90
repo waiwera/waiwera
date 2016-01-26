@@ -283,7 +283,7 @@ contains
 
     class(mesh_type), intent(in out) :: self
     type(fson_value), pointer, intent(in) :: json !! JSON file pointer
-    type(logfile_type), intent(in out) :: logfile
+    type(logfile_type), intent(in out), optional :: logfile
     ! Locals:
     PetscErrorCode :: ierr
     type(fson_value), pointer :: mesh
@@ -293,9 +293,11 @@ contains
        if (associated(mesh)) then
           call fson_get(mesh, ".", self%filename)
        else
-          call logfile%write(LOG_LEVEL_ERR, 'mesh', 'init', &
-               str_key = 'stop            ', &
-               str_value = 'mesh not found in input.')
+          if (present(logfile)) then
+             call logfile%write(LOG_LEVEL_ERR, 'mesh', 'init', &
+                  str_key = 'stop            ', &
+                  str_value = 'mesh not found in input.')
+          end if
           stop
        end if
     end if
