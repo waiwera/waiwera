@@ -274,13 +274,16 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine mesh_init(self, json)
+  subroutine mesh_init(self, json, logfile)
     !! Initializes mesh, reading filename from JSON input file.
     !! If the filename is not present, an error is raised.
     !! Otherwise, the PETSc DM is read in.
 
+    use logfile_module
+
     class(mesh_type), intent(in out) :: self
     type(fson_value), pointer, intent(in) :: json !! JSON file pointer
+    type(logfile_type), intent(in out) :: logfile
     ! Locals:
     PetscErrorCode :: ierr
     type(fson_value), pointer :: mesh
@@ -290,7 +293,9 @@ contains
        if (associated(mesh)) then
           call fson_get(mesh, ".", self%filename)
        else
-          write (*,'(a,a)') "Stopping: mesh not found in input."
+          call logfile%write(LOG_LEVEL_ERR, 'mesh', 'init', &
+               str_key = 'stop            ', &
+               str_value = 'mesh not found in input.')
           stop
        end if
     end if

@@ -224,7 +224,7 @@ contains
     call self%logfile%write(LOG_LEVEL_INFO, 'simulation', 'init', &
          str_key = 'EOS', str_value = self%eos%name)
 
-    call self%mesh%init(json)
+    call self%mesh%init(json, self%logfile)
     call self%logfile%write(LOG_LEVEL_INFO, 'simulation', 'init', &
          str_key = 'mesh', str_value = self%mesh%filename)
     call setup_rocktype_labels(json, self%mesh%dm)

@@ -62,6 +62,7 @@ digraph supermodel{
         mesh_module -> face_module
         mesh_module -> fson
         mesh_module -> kinds_module
+        mesh_module -> logfile_module
         mesh_module -> mpi_module
         mesh_module -> rock_module
         fson_mpi_module -> fson
