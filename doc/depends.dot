@@ -68,6 +68,7 @@ digraph supermodel{
         fson_mpi_module -> fson
         fson_mpi_module -> fson_value_m
         fson_mpi_module -> kinds_module
+        fson_mpi_module -> logfile_module
         fson_mpi_module -> mpi_module
         IFC67_module -> kinds_module
         IFC67_module -> thermodynamics_module

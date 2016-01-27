@@ -90,6 +90,7 @@ contains
     ! Locals:
     character(max_output_filename_length), parameter :: &
          default_output_filename = "output.h5"
+    character(max_output_filename_length) :: assumed_output_filename
     PetscErrorCode :: ierr
     PetscBool :: output, output_log
     character(max_logfile_name_length) :: logfile_name, assumed_logfile_name
@@ -99,22 +100,41 @@ contains
     PetscInt, parameter :: default_num_log_real_digits = 6
     PetscInt :: max_log_num_length, num_log_real_digits
     PetscBool, parameter :: default_logfile_echo = PETSC_TRUE
-    PetscBool :: echo
+    PetscBool :: echo, default_output, no_output, default_log, no_log, log_written
+
+    log_written = .false.
+    default_output = .false.
+    no_output = .false.
+
+    if (self%filename /= "") then
+       assumed_output_filename = &
+            change_filename_extension(self%filename, "h5")
+    else
+       assumed_output_filename = default_output_filename
+    end if
 
     if (fson_has_mpi(json, "output")) then
        if (fson_type_mpi(json, "output") == TYPE_LOGICAL) then
           call fson_get_mpi(json, "output", val = output)
           if (output) then
-             self%output_filename = default_output_filename
+             self%output_filename = assumed_output_filename
+             default_output = .true.
           else
              self%output_filename = ""
+             no_output = .true.
           end if
        else
-          call fson_get_mpi(json, "output.filename", &
-               default_output_filename, self%output_filename)
+          if (fson_has_mpi(json, "output.filename")) then
+             call fson_get_mpi(json, "output.filename", &
+                  val = self%output_filename)
+          else
+             self%output_filename = assumed_output_filename
+             default_output = .true.
+          end if
        end if
     else
-       self%output_filename = default_output_filename
+       self%output_filename = assumed_output_filename
+       default_output = .true.
     end if
 
     if (self%output_filename /= "") then
@@ -128,20 +148,31 @@ contains
        assumed_logfile_name = default_logfile_name
     end if
 
+    default_log = .false.
+    no_log = .false.
+
     if (fson_has_mpi(json, "logfile")) then
        if (fson_type_mpi(json, "logfile") == TYPE_LOGICAL) then
           call fson_get_mpi(json, "logfile", val = output_log)
           if (output_log) then
              logfile_name = assumed_logfile_name
+             default_log = .true.
           else
              logfile_name = ""
+             no_log = .true.
           end if
        else
-          call fson_get_mpi(json, "logfile.filename", &
-               assumed_logfile_name, logfile_name)
+          if (fson_has_mpi(json, "logfile.filename")) then
+             call fson_get_mpi(json, "logfile.filename", &
+                  val = logfile_name)
+          else
+             logfile_name = assumed_logfile_name
+             default_log = .true.
+          end if
        end if
     else
        logfile_name = assumed_logfile_name
+       default_log = .true.
     end if
 
     call fson_get_mpi(json, "logfile.format.max_num_length", &
@@ -153,6 +184,34 @@ contains
 
     call self%logfile%init(logfile_name, max_log_num_length, &
          num_log_real_digits, echo)
+
+    if (default_output) then
+       call self%logfile%write(LOG_LEVEL_INFO, 'filename', 'default', &
+            str_key = "output", &
+            str_value = self%output_filename)
+       log_written = .true.
+    end if
+
+    if (no_output) then
+       call self%logfile%write(LOG_LEVEL_WARN, 'output', 'none')
+       log_written = .true.
+    end if
+
+    if (default_log) then
+       call self%logfile%write(LOG_LEVEL_INFO, 'filename', 'default', &
+            str_key = "logfile", &
+            str_value = logfile_name)
+       log_written = .true.
+    end if
+
+    if (no_output) then
+       call self%logfile%write(LOG_LEVEL_WARN, 'logfile', 'none')
+       log_written = .true.
+    end if
+
+    if (log_written) then
+       call self%logfile%write_blank()
+    end if
 
   end subroutine flow_simulation_setup_output
 
