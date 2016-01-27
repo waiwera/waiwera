@@ -1258,7 +1258,7 @@ end subroutine timestepper_steps_set_next_stepsize
     call self%ode%pre_timestep()
     accepted = .false.
 
-    do while (.not. (accepted .or. (self%steps%current%status == TIMESTEP_ABORTED)))
+    do while (.not. (accepted .or. (self%steps%finished)))
 
        call self%steps%initialize_try()
        if (self%steps%current%num_tries > 0) then
