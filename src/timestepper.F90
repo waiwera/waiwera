@@ -510,7 +510,9 @@ contains
             ['tries           ', 'iters           '], &
             [self%num_tries, self%num_iterations], &
             ['size            ', 'time            '], &
-            [self%stepsize, self%time])
+            [self%stepsize, self%time], &
+            str_key = 'status          ', &
+            str_value = self%status_str())
     end if
 
   end subroutine timestepper_step_print
