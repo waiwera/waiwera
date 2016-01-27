@@ -23,8 +23,8 @@ module logfile_module
      private
      PetscViewer :: viewer
      character(max_logfile_name_length), public :: filename
-     PetscInt :: max_num_length, num_real_digits
-     character(max_format_length) :: int_format, real_format
+     PetscInt, public :: max_num_length, num_real_digits
+     character(max_format_length), public :: int_format, real_format
      PetscBool, public :: echo
    contains
      private
