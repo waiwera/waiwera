@@ -1276,12 +1276,13 @@ end subroutine timestepper_steps_set_next_stepsize
 
        self%steps%current%num_tries = self%steps%current%num_tries + 1
        call self%steps%set_current_status(converged)
-       call self%steps%set_next_stepsize(accepted)
-
-       if ((.not. accepted) .and. (mpi%rank == mpi%output_rank)) then
-          call self%ode%logfile%write(LOG_LEVEL_WARN, 'timestep', 'reduction', &
-               real_keys = ['new_size        '], &
-               real_values = [self%steps%next_stepsize])
+       if (self%steps%current%status /= TIMESTEP_ABORTED) then
+          call self%steps%set_next_stepsize(accepted)
+          if ((.not. accepted) .and. (mpi%rank == mpi%output_rank)) then
+             call self%ode%logfile%write(LOG_LEVEL_WARN, 'timestep', 'reduction', &
+                  real_keys = ['new_size        '], &
+                  real_values = [self%steps%next_stepsize])
+          end if
        end if
 
     end do
