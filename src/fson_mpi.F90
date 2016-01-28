@@ -362,7 +362,7 @@ contains
        if (present(logfile)) then
           if (size(val) > 0) then
              write(intstr, logfile%int_format) val(1,1)
-             str = '[' // intstr // ',...]'
+             str = '[[' // intstr // ',...]]'
           else
              str = '[]'
           end if
@@ -395,7 +395,7 @@ contains
        if (present(logfile)) then
           if (size(val) > 0) then
              write(realstr, logfile%real_format) val(1,1)
-             str = '[' // realstr // ',...]'
+             str = '[[' // realstr // ',...]]'
           else
              str = '[]'
           end if
@@ -428,7 +428,7 @@ contains
        if (present(logfile)) then
           if (size(val) > 0) then
              write(realstr, logfile%real_format) val(1,1)
-             str = '[' // realstr // ',...]'
+             str = '[[' // realstr // ',...]]'
           else
              str = '[]'
           end if
@@ -461,7 +461,7 @@ contains
        if (present(logfile)) then
           if (size(val) > 0) then
              write(logstr, '(L)') val(1,1)
-             str = '[' // logstr // ',...]'
+             str = '[[' // logstr // ',...]]'
           else
              str = '[]'
           end if
