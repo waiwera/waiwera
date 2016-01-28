@@ -28,6 +28,7 @@ digraph supermodel{
         boundary_module -> fson
         boundary_module -> fson_mpi_module
         boundary_module -> logfile_module
+        boundary_module -> utils_module
         flow_simulation_module -> cell_module
         flow_simulation_module -> dm_utils_module
         flow_simulation_module -> eos_module
