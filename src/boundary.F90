@@ -45,7 +45,7 @@ contains
          ierr); CHKERRQ(ierr)
 
     if (has_label) then
-       call logfile%write(LOG_LEVEL_INFO, 'input', 'boundaries from mesh')
+       call logfile%write(LOG_LEVEL_INFO, "input", "boundaries from mesh")
     else
        call DMCreateLabel(dm, open_boundary_label_name, &
             ierr); CHKERRQ(ierr)
@@ -69,6 +69,8 @@ contains
              bcs(1, ibdy) = dble(region)
              bcs(2 : np + 1, ibdy) = primary(1 : np)
           end do
+       else
+          call logfile%write(LOG_LEVEL_WARN, "input", "no boundaries")
        end if
 
     end if

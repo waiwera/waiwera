@@ -6,6 +6,7 @@ digraph supermodel{
         eos_module -> fson
         eos_module -> fson_mpi_module
         eos_module -> kinds_module
+        eos_module -> logfile_module
         eos_module -> rock_module
         eos_module -> thermodynamics_module
         eos_module -> utils_module
@@ -13,6 +14,7 @@ digraph supermodel{
         rock_module -> fson
         rock_module -> fson_mpi_module
         rock_module -> kinds_module
+        rock_module -> logfile_module
         rock_module -> relative_permeability_module
         powertable_module -> kinds_module
         ode_module -> logfile_module
@@ -24,6 +26,7 @@ digraph supermodel{
         boundary_module -> eos_module
         boundary_module -> fson
         boundary_module -> fson_mpi_module
+        boundary_module -> logfile_module
         flow_simulation_module -> cell_module
         flow_simulation_module -> dm_utils_module
         flow_simulation_module -> eos_module
@@ -82,6 +85,7 @@ digraph supermodel{
         source_module -> fson
         source_module -> fson_mpi_module
         source_module -> kinds_module
+        source_module -> logfile_module
         IAPWS_module -> kinds_module
         IAPWS_module -> powertable_module
         IAPWS_module -> thermodynamics_module
