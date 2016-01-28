@@ -128,6 +128,7 @@ contains
     use fson
     use fson_mpi_module
     use logfile_module
+    use utils_module, only : int_str_len
 
     type(fson_value), pointer, intent(in) :: json
     DM, intent(in) :: dm
@@ -147,6 +148,7 @@ contains
     PetscReal, pointer :: rock_array(:)
     PetscSection :: section
     PetscErrorCode :: ierr
+    character(len=:), allocatable :: rockstr, irstr
 
     call VecGetArrayF90(rock_vector, rock_array, ierr); CHKERRQ(ierr)
     call global_vec_section(rock_vector, section)
@@ -155,16 +157,22 @@ contains
     
     call fson_get_mpi(json, "rock.types", rocktypes)
     num_rocktypes = fson_value_count_mpi(rocktypes, ".")
+    irstr = repeat(' ', int_str_len(num_rocktypes))
     do ir = 1, num_rocktypes
+       write(irstr, '(i0)') ir - 1
+       rockstr = 'rock.types[' // trim(irstr) // '].'
        r => fson_value_get_mpi(rocktypes, ir)
-       call fson_get_mpi(r, "name", "", name, logfile)
+       call fson_get_mpi(r, "name", "", name, logfile, rockstr // "name")
        call fson_get_mpi(r, "permeability", default_permeability, &
-            permeability, logfile)
+            permeability, logfile, rockstr // "permeability")
        call fson_get_mpi(r, "heat conductivity", default_heat_conductivity, &
-            heat_conductivity, logfile)
-       call fson_get_mpi(r, "porosity", default_porosity, porosity, logfile)
-       call fson_get_mpi(r, "density", default_density, density, logfile)
-       call fson_get_mpi(r, "specific heat", default_specific_heat, specific_heat, logfile)
+            heat_conductivity, logfile, rockstr // "heat conductivity")
+       call fson_get_mpi(r, "porosity", default_porosity, porosity, logfile, &
+            rockstr // "porosity")
+       call fson_get_mpi(r, "density", default_density, density, logfile, &
+            rockstr // "density")
+       call fson_get_mpi(r, "specific heat", default_specific_heat, &
+            specific_heat, logfile, rockstr // "specific heat")
        call DMGetStratumIS(dm, rocktype_label_name, ir, rock_IS, &
             ierr); CHKERRQ(ierr)
        if (rock_IS /= 0) then
