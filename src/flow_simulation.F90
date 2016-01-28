@@ -279,7 +279,7 @@ contains
     call self%logfile%write(LOG_LEVEL_INFO, 'simulation', 'init', &
          str_key = 'thermodynamics', str_value = self%thermo%name)
 
-    call setup_eos(json, self%thermo, self%eos)
+    call setup_eos(json, self%thermo, self%eos, self%logfile)
     call self%logfile%write(LOG_LEVEL_INFO, 'simulation', 'init', &
          str_key = 'EOS', str_value = self%eos%name)
 

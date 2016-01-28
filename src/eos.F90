@@ -83,12 +83,14 @@ module eos_module
 
   abstract interface
 
-     subroutine eos_init_procedure(self, json, thermo)
+     subroutine eos_init_procedure(self, json, thermo, logfile)
        !! Initialise EOS object
+       use logfile_module
        import :: eos_type, thermodynamics_type, fson_value
        class(eos_type), intent(in out) :: self
        type(fson_value), pointer, intent(in) :: json
        class(thermodynamics_type), intent(in), target :: thermo
+       type(logfile_type), intent(in out), optional :: logfile
      end subroutine eos_init_procedure
 
      subroutine eos_destroy_procedure(self)
@@ -171,22 +173,25 @@ contains
 ! EOS setup routine
 !------------------------------------------------------------------------
 
-  subroutine setup_eos(json, thermo, eos)
+  subroutine setup_eos(json, thermo, eos, logfile)
     !! Reads equation of state from JSON input file.
     !! If not present, a default value is assigned.
 
     use utils_module, only : str_to_lower
     use fson_mpi_module, only: fson_get_mpi
+    use logfile_module
 
     type(fson_value), pointer, intent(in) :: json
     class(thermodynamics_type), intent(in) :: thermo
     class(eos_type), allocatable, intent(in out) :: eos
+    type(logfile_type), intent(in out) :: logfile
     ! Locals:
     character(max_eos_name_length), parameter :: &
          default_eos_name = "we"
     character(max_eos_name_length) :: eos_name
 
-    call fson_get_mpi(json, "eos.name", default_eos_name, eos_name)
+    call fson_get_mpi(json, "eos.name", default_eos_name, &
+         eos_name, logfile)
     eos_name = str_to_lower(eos_name)
 
     select case (eos_name)
@@ -206,14 +211,16 @@ contains
 ! eos_w
 !------------------------------------------------------------------------
 
-  subroutine eos_w_init(self, json, thermo)
+  subroutine eos_w_init(self, json, thermo, logfile)
     !! Initialise isothermal pure water EOS.
 
     use fson_mpi_module, only: fson_get_mpi
+    use logfile_module
 
     class(eos_w_type), intent(in out) :: self
     type(fson_value), pointer, intent(in) :: json !! JSON input object
     class(thermodynamics_type), intent(in), target :: thermo !! Thermodynamics object
+    type(logfile_type), intent(in out), optional :: logfile
     ! Locals:
     PetscReal, parameter :: default_pressure = 1.0e5_dp
     PetscReal, parameter :: default_temperature = 20._dp ! deg C
@@ -235,7 +242,7 @@ contains
     self%thermo => thermo
 
     call fson_get_mpi(json, "eos.temperature", default_temperature, &
-         self%temperature)
+         self%temperature, logfile)
 
   end subroutine eos_w_init
 
@@ -413,14 +420,15 @@ contains
 ! eos_we
 !------------------------------------------------------------------------
 
-  subroutine eos_we_init(self, json, thermo)
+  subroutine eos_we_init(self, json, thermo, logfile)
     !! Initialise pure water and energy EOS.
 
-    use fson_mpi_module, only: fson_get_mpi
+    use logfile_module
 
     class(eos_we_type), intent(in out) :: self
     type(fson_value), pointer, intent(in) :: json !! JSON input object
     class(thermodynamics_type), intent(in), target :: thermo !! Thermodynamics object
+    type(logfile_type), intent(in out), optional :: logfile
     ! Locals:
     PetscReal, parameter :: default_pressure = 1.0e5_dp
     PetscReal, parameter :: default_temperature = 20._dp ! deg C
