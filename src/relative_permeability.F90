@@ -164,9 +164,9 @@ contains
     self%name = "Linear"
 
     call fson_get_mpi(json, "liquid", default_liquid_limits, &
-         liquid_limits, logfile)
+         liquid_limits, logfile, "rock.relative permeability.liquid")
     call fson_get_mpi(json, "vapour", default_vapour_limits, &
-         vapour_limits, logfile)
+         vapour_limits, logfile, "rock.relative permeability.vapour")
 
     self%liquid_limits = liquid_limits
     self%vapour_limits = vapour_limits
@@ -228,7 +228,8 @@ contains
 
     self%name = "Pickens"
 
-    call fson_get_mpi(json, "power", default_power, self%power, logfile)
+    call fson_get_mpi(json, "power", default_power, self%power, &
+         logfile, "rock.relative permeability.power")
 
   end subroutine relative_permeability_pickens_init
 
@@ -264,8 +265,10 @@ contains
 
     self%name = "Corey"
 
-    call fson_get_mpi(json, "slr", default_slr, self%slr, logfile)
-    call fson_get_mpi(json, "ssr", default_ssr, self%ssr, logfile)
+    call fson_get_mpi(json, "slr", default_slr, self%slr, logfile, &
+         "rock.relative permeability.slr")
+    call fson_get_mpi(json, "ssr", default_ssr, self%ssr, logfile, &
+         "rock.relative permeability.ssr")
 
   end subroutine relative_permeability_corey_init
 
@@ -325,8 +328,10 @@ contains
 
     self%name = "Grant"
 
-    call fson_get_mpi(json, "slr", default_slr, self%slr, logfile)
-    call fson_get_mpi(json, "ssr", default_ssr, self%ssr, logfile)
+    call fson_get_mpi(json, "slr", default_slr, self%slr, logfile, &
+         "rock.relative permeability.slr")
+    call fson_get_mpi(json, "ssr", default_ssr, self%ssr, logfile, &
+         "rock.relative permeability.ssr")
 
   end subroutine relative_permeability_grant_init
 
@@ -376,7 +381,7 @@ contains
     character(max_relative_permeability_name_length) :: relperm_type
 
     call fson_get_mpi(json, "type", default_relperm_type, &
-         relperm_type, logfile)
+         relperm_type, logfile, "rock.relative permeability.type")
 
     select case (str_to_lower(relperm_type))
     case ("fully mobile")
