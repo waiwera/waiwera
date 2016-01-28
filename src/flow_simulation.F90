@@ -100,7 +100,7 @@ contains
     PetscInt, parameter :: default_num_log_real_digits = 6
     PetscInt :: max_log_num_length, num_log_real_digits
     PetscBool, parameter :: default_logfile_echo = PETSC_TRUE
-    PetscBool :: echo, default_output, no_output, default_log, no_log, log_written
+    PetscBool :: echo, default_output, no_output, default_log, log_written
 
     log_written = .false.
     default_output = .false.
@@ -149,7 +149,6 @@ contains
     end if
 
     default_log = .false.
-    no_log = .false.
 
     if (fson_has_mpi(json, "logfile")) then
        if (fson_type_mpi(json, "logfile") == TYPE_LOGICAL) then
@@ -159,7 +158,6 @@ contains
              default_log = .true.
           else
              logfile_name = ""
-             no_log = .true.
           end if
        else
           if (fson_has_mpi(json, "logfile.filename")) then
