@@ -271,7 +271,7 @@ contains
     call self%logfile%write(LOG_LEVEL_INFO, 'simulation', 'init', &
          str_key = 'filename', str_value = self%filename)
 
-    call fson_get_mpi(json, "title", default_title, self%title)
+    call fson_get_mpi(json, "title", default_title, self%title, self%logfile)
     call self%logfile%write(LOG_LEVEL_INFO, 'simulation', 'init', &
          str_key = 'title', str_value = self%title)
 
