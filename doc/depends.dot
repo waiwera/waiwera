@@ -53,6 +53,7 @@ digraph supermodel{
         initial_module -> fson
         initial_module -> fson_mpi_module
         initial_module -> kinds_module
+        initial_module -> logfile_module
         initial_module -> mesh_module
         initial_module -> mpi_module
         initial_module -> rock_module
@@ -88,6 +89,7 @@ digraph supermodel{
         thermodynamics_setup_module -> IFC67_module
         thermodynamics_setup_module -> fson
         thermodynamics_setup_module -> fson_mpi_module
+        thermodynamics_setup_module -> logfile_module
         thermodynamics_setup_module -> thermodynamics_module
         thermodynamics_setup_module -> utils_module
         timestepper_module -> fson

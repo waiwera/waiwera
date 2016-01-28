@@ -275,7 +275,7 @@ contains
     call self%logfile%write(LOG_LEVEL_INFO, 'simulation', 'init', &
          str_key = 'title', str_value = self%title)
 
-    call setup_thermodynamics(json, self%thermo)
+    call setup_thermodynamics(json, self%thermo, self%logfile)
     call self%logfile%write(LOG_LEVEL_INFO, 'simulation', 'init', &
          str_key = 'thermodynamics', str_value = self%thermo%name)
 
