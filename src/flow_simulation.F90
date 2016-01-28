@@ -308,7 +308,8 @@ contains
     call self%mesh%set_boundary_values(self%solution, self%rock, self%eos, &
          self%solution_range_start, self%rock_range_start)
     call setup_source_vector(json, self%mesh%dm, &
-         self%eos%num_primary_variables, self%eos%isothermal, self%source)
+         self%eos%num_primary_variables, self%eos%isothermal, &
+         self%source, self%logfile)
     call fson_get_mpi(json, "gravity", default_gravity, self%gravity, self%logfile)
 
     call self%logfile%write_blank()
