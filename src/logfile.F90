@@ -312,6 +312,9 @@ contains
 
     if ((self%filename /= "") .or. self%echo) then
 
+       msg = '- [' // trim(log_level_name(level)) // ', ' &
+            // trim(source) // ', ' // trim(event)
+
        has_data = PETSC_FALSE
 
        if (present(int_keys) .and. present(int_values)) then
@@ -340,8 +343,6 @@ contains
           call self%append_string_data(str_key, str_value, content)
        end if
 
-       msg = '- [' // trim(log_level_name(level)) // ', ' &
-            // trim(source) // ', ' // trim(event)
        if (has_data) then
           msg = msg // ', {' // trim(content) // '}]' // lf
        else
