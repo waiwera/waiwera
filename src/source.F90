@@ -13,7 +13,7 @@ contains
 !------------------------------------------------------------------------
 
   subroutine setup_source_vector(json, dm, np, isothermal, &
-       source)
+       source, logfile)
     !! Sets up sinks and sources. Source strengths are stored (for
     !! now) in the source vector, with values for all components in
     !! all cells.
@@ -21,12 +21,14 @@ contains
     use kinds_module
     use fson
     use fson_mpi_module
+    use logfile_module
 
     type(fson_value), pointer, intent(in) :: json
     DM, intent(in) :: dm
     PetscInt, intent(in) :: np ! Number of primary variables
     PetscBool, intent(in) :: isothermal
     Vec, intent(in out) :: source
+    type(logfile_type), intent(in out), optional :: logfile
     ! Locals:
     PetscErrorCode :: ierr
     PetscInt :: c, isrc, i
@@ -55,7 +57,7 @@ contains
        do isrc = 1, num_sources
           src => fson_value_get_mpi(sources, isrc)
           call fson_get_mpi(src, "cell", val = cell)
-          call fson_get_mpi(src, "component", default_component, c)
+          call fson_get_mpi(src, "component", default_component, c, logfile)
           call fson_get_mpi(src, "value", val = q)
           offset = cell * np
           values(offset + c) = values(offset + c) + q
@@ -78,6 +80,8 @@ contains
        call VecAssemblyEnd(source, ierr); CHKERRQ(ierr)
        deallocate(values, indices)
 
+    else
+       call logfile%write(LOG_LEVEL_INFO, "input", "no sources")
     end if
 
   end subroutine setup_source_vector
