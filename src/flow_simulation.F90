@@ -286,14 +286,14 @@ contains
     call self%mesh%init(json, self%logfile)
     call self%logfile%write(LOG_LEVEL_INFO, 'simulation', 'init', &
          str_key = 'mesh', str_value = self%mesh%filename)
-    call setup_rocktype_labels(json, self%mesh%dm)
+    call setup_rocktype_labels(json, self%mesh%dm, self%logfile)
     call self%mesh%setup_boundaries(json, self%eos)
     call self%mesh%configure(self%eos%primary_variable_names)
     call self%setup_solution_vector()
     call setup_relative_permeabilities(json, &
          self%relative_permeability, self%logfile)
     call setup_rock_vector(json, self%mesh%dm, self%rock, &
-         self%rock_range_start)
+         self%rock_range_start, self%logfile)
     call setup_fluid_vector(self%mesh%dm, max_component_name_length, &
          self%eos%component_names, max_phase_name_length, &
          self%eos%phase_names, self%fluid, self%fluid_range_start)
