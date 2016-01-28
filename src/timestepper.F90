@@ -1136,10 +1136,11 @@ end subroutine timestepper_steps_set_next_stepsize
     call DMCreateMatrix(self%ode%mesh%dm, self%jacobian, ierr); CHKERRQ(ierr)
     call MatSetFromOptions(self%jacobian, ierr); CHKERRQ(ierr)
 
-    call fson_get_mpi(json, "time.stop", default_stop_time, stop_time)
+    call fson_get_mpi(json, "time.stop", default_stop_time, stop_time, &
+         self%ode%logfile)
        
     call fson_get_mpi(json, "time.step.method", &
-         default_method_str, method_str)
+         default_method_str, method_str, self%ode%logfile)
     select case (str_to_lower(method_str))
     case ("beuler")
        method = TS_BEULER
@@ -1154,19 +1155,19 @@ end subroutine timestepper_steps_set_next_stepsize
     call self%method%init(method)
 
     call fson_get_mpi(json, "time.step.initial", &
-         default_initial_stepsize, initial_stepsize)
+         default_initial_stepsize, initial_stepsize, self%ode%logfile)
     call fson_get_mpi(json, "time.step.maximum.size", &
-         default_max_stepsize, max_stepsize)
+         default_max_stepsize, max_stepsize, self%ode%logfile)
     call fson_get_mpi(json, "time.step.maximum.number", &
-         default_max_num_steps, max_num_steps)
+         default_max_num_steps, max_num_steps, self%ode%logfile)
     call fson_get_mpi(json, "time.step.maximum.tries", &
-         default_max_num_tries, max_num_tries)
+         default_max_num_tries, max_num_tries, self%ode%logfile)
 
     call fson_get_mpi(json, "time.step.adapt.on", &
-         default_adapt_on, adapt_on)
+         default_adapt_on, adapt_on, self%ode%logfile)
 
     call fson_get_mpi(json, "time.step.adapt.method", &
-         default_adapt_method_str, adapt_method_str)
+         default_adapt_method_str, adapt_method_str, self%ode%logfile)
     select case (str_to_lower(adapt_method_str))
     case ("change")
        adapt_method = TS_ADAPT_CHANGE
@@ -1177,29 +1178,30 @@ end subroutine timestepper_steps_set_next_stepsize
     end select
 
     call fson_get_mpi(json, "time.step.adapt.min", &
-         default_adapt_min, adapt_min)
+         default_adapt_min, adapt_min, self%ode%logfile)
     call fson_get_mpi(json, "time.step.adapt.max", &
-         default_adapt_max, adapt_max)
+         default_adapt_max, adapt_max, self%ode%logfile)
 
     call fson_get_mpi(json, "time.step.adapt.reduction", &
-         default_adapt_reduction, adapt_reduction)
+         default_adapt_reduction, adapt_reduction, self%ode%logfile)
     call fson_get_mpi(json, "time.step.adapt.amplification", &
-         default_adapt_amplification, adapt_amplification)
+         default_adapt_amplification, adapt_amplification, self%ode%logfile)
 
     call fson_get_mpi(json, "time.step.sizes", &
-         default_step_sizes, step_sizes)
+         default_step_sizes, step_sizes, self%ode%logfile)
 
     call fson_get_mpi(json, &
          "time.step.solver.nonlinear.maximum.iterations", &
          default_nonlinear_solver_max_iterations, &
-         nonlinear_solver_max_iterations)
+         nonlinear_solver_max_iterations, self%ode%logfile)
     call fson_get_mpi(json, &
          "time.step.solver.nonlinear.tolerance.relative", &
          default_nonlinear_solver_relative_tol, &
-         nonlinear_solver_relative_tol)
+         nonlinear_solver_relative_tol, self%ode%logfile)
     call fson_get_mpi(json, &
          "time.step.solver.nonlinear.tolerance.absolute", &
-         default_nonlinear_solver_abs_tol, nonlinear_solver_abs_tol)
+         default_nonlinear_solver_abs_tol, nonlinear_solver_abs_tol, &
+         self%ode%logfile)
 
     call self%steps%init(self%method%num_stored_steps, &
          self%ode%time, self%ode%solution, initial_stepsize, &
@@ -1212,11 +1214,11 @@ end subroutine timestepper_steps_set_next_stepsize
     call self%setup_solver(nonlinear_solver_max_iterations)
 
     call fson_get_mpi(json, "output.frequency", &
-         default_output_frequency, self%output_frequency)
+         default_output_frequency, self%output_frequency, self%ode%logfile)
     call fson_get_mpi(json, "output.initial", &
-         default_output_initial, self%output_initial)
+         default_output_initial, self%output_initial, self%ode%logfile)
     call fson_get_mpi(json, "output.final", &
-         default_output_final, self%output_final)
+         default_output_final, self%output_final, self%ode%logfile)
 
     deallocate(step_sizes)
 
