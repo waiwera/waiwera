@@ -34,7 +34,7 @@ module relative_permeability_module
        import :: relative_permeability_type, fson_value
        class(relative_permeability_type), intent(in out) :: self
        type(fson_value), pointer, intent(in) :: json
-       type(logfile_type), intent(in out) :: logfile
+       type(logfile_type), intent(in out), optional :: logfile
      end subroutine relative_permeability_init_routine
 
      function relative_permeability_function(self, sl) result(rp)
@@ -123,7 +123,7 @@ contains
 
     class(relative_permeability_fully_mobile_type), intent(in out) :: self
     type(fson_value), pointer, intent(in) :: json
-    type(logfile_type), intent(in out) :: logfile
+    type(logfile_type), intent(in out), optional :: logfile
 
     self%name = "Fully mobile"
 
@@ -155,7 +155,7 @@ contains
 
     class(relative_permeability_linear_type), intent(in out) :: self
     type(fson_value), pointer, intent(in) :: json
-    type(logfile_type), intent(in out) :: logfile
+    type(logfile_type), intent(in out), optional :: logfile
     ! Locals:
     PetscReal, allocatable :: liquid_limits(:), vapour_limits(:)
     PetscReal, parameter :: default_liquid_limits(2) = [0._dp, 1._dp]
@@ -222,7 +222,7 @@ contains
 
     class(relative_permeability_pickens_type), intent(in out) :: self
     type(fson_value), pointer, intent(in) :: json
-    type(logfile_type), intent(in out) :: logfile
+    type(logfile_type), intent(in out), optional :: logfile
     ! Locals:
     PetscReal, parameter :: default_power = 1._dp
 
@@ -258,7 +258,7 @@ contains
 
     class(relative_permeability_corey_type), intent(in out) :: self
     type(fson_value), pointer, intent(in) :: json
-    type(logfile_type), intent(in out) :: logfile
+    type(logfile_type), intent(in out), optional :: logfile
     ! Locals:
     PetscReal, parameter :: default_slr = 0.3_dp, default_ssr = 0.6_dp
 
@@ -319,7 +319,7 @@ contains
 
     class(relative_permeability_grant_type), intent(in out) :: self
     type(fson_value), pointer, intent(in) :: json
-    type(logfile_type), intent(in out) :: logfile
+    type(logfile_type), intent(in out), optional :: logfile
     ! Locals:
     PetscReal, parameter :: default_slr = 0.3_dp, default_ssr = 0.6_dp
 
@@ -369,7 +369,7 @@ contains
 
     type(fson_value), pointer, intent(in) :: json
     class(relative_permeability_type), allocatable, intent(out) :: rp
-    type(logfile_type), intent(in out) :: logfile
+    type(logfile_type), intent(in out), optional :: logfile
     ! Locals:
     character(max_relative_permeability_name_length), parameter :: &
          default_relperm_type = "Linear"
@@ -407,7 +407,7 @@ contains
 
     type(fson_value), pointer, intent(in) :: json
     class(relative_permeability_type), allocatable, intent(out) :: rp
-    type(logfile_type), intent(in out) :: logfile
+    type(logfile_type), intent(in out), optional :: logfile
     ! Locals:
     type(fson_value), pointer :: relperm
     PetscBool :: default_present
