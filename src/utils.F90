@@ -9,7 +9,8 @@ module utils_module
 
   public :: str_to_upper, str_to_lower, &
        int_str_len, &
-       split_filename, change_filename_extension
+       split_filename, change_filename_extension, &
+       date_time_str
   
 contains
 
@@ -112,6 +113,22 @@ contains
     deallocate(base, oldext)
 
   end function change_filename_extension
+
+!------------------------------------------------------------------------
+
+  character(25) function date_time_str()
+    !! Returns string with current date and time.
+
+    ! Locals:
+    character(8) :: datestr
+    character(10) :: timestr
+    character(5) :: zonestr
+
+    call date_and_time(datestr, timestr, zonestr)
+
+    date_time_str = datestr // ' ' // timestr // ' ' // zonestr
+
+  end function date_time_str
 
 !------------------------------------------------------------------------
 

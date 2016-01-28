@@ -1303,6 +1303,8 @@ end subroutine timestepper_steps_set_next_stepsize
   subroutine timestepper_run(self)
     !! Runs the timestepper until finished.
 
+    use utils_module, only : date_time_str
+
     class(timestepper_type), intent(in out) :: self
     ! Locals:
     PetscInt :: since_output
@@ -1311,7 +1313,7 @@ end subroutine timestepper_steps_set_next_stepsize
     if (mpi%rank == mpi%output_rank) then
        call self%ode%logfile%write(LOG_LEVEL_INFO, 'timestepper', 'start', &
             str_key = 'time            ', &
-            str_value = '"' // ctime(time()) // '"')
+            str_value = '"' // date_time_str() // '"')
     end if
 
     err = 0
@@ -1360,7 +1362,7 @@ end subroutine timestepper_steps_set_next_stepsize
        call self%ode%logfile%write_blank()
        call self%ode%logfile%write(LOG_LEVEL_INFO, 'timestepper', 'end', &
             str_key = 'time', &
-            str_value = '"' // ctime(time()) // '"')
+            str_value = '"' // date_time_str() // '"')
     end if
 
   end subroutine timestepper_run

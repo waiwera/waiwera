@@ -77,7 +77,7 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine flow_simulation_setup_output(self, json)
+  subroutine flow_simulation_setup_output(self, json, datetimestr)
     !! Sets up simulation output to HDF5 and logfile.
 
     use fson
@@ -87,6 +87,7 @@ contains
 
     class(flow_simulation_type), intent(in out) :: self
     type(fson_value), pointer, intent(in) :: json
+    character(len = *), intent(in) :: datetimestr
     ! Locals:
     character(max_output_filename_length), parameter :: &
          default_output_filename = "output.h5"
@@ -182,24 +183,28 @@ contains
     call self%logfile%init(logfile_name, max_log_num_length, &
          num_log_real_digits, echo)
 
+    call self%logfile%write(LOG_LEVEL_INFO, 'input', 'start', &
+         str_key = 'time', str_value = '"' // datetimestr // '"')
+    call self%logfile%write_blank()
+
     if (default_output) then
-       call self%logfile%write(LOG_LEVEL_INFO, 'output', 'default', &
+       call self%logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
             str_key = "output", &
             str_value = self%output_filename)
     end if
 
     if (no_output) then
-       call self%logfile%write(LOG_LEVEL_WARN, 'output', 'no output')
+       call self%logfile%write(LOG_LEVEL_WARN, 'input', 'no output')
     end if
 
     if (default_log) then
-       call self%logfile%write(LOG_LEVEL_INFO, 'output', 'default', &
+       call self%logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
             str_key = 'logfile', &
             str_value = logfile_name)
     end if
 
     if (no_output) then
-       call self%logfile%write(LOG_LEVEL_WARN, 'output', 'no logfile')
+       call self%logfile%write(LOG_LEVEL_WARN, 'input', 'no logfile')
     end if
 
   end subroutine flow_simulation_setup_output
@@ -237,44 +242,34 @@ contains
     use fluid_module, only: setup_fluid_vector
     use rock_module, only: setup_rock_vector, setup_rocktype_labels
     use source_module, only: setup_source_vector
+    use utils_module, only: date_time_str
 
     class(flow_simulation_type), intent(in out) :: self
     type(fson_value), pointer, intent(in) :: json
     character(len = *), intent(in), optional :: filename
     ! Locals:
     character(len = max_title_length), parameter :: default_title = ""
+    character(25) :: datetimestr
     PetscReal, parameter :: default_gravity = 9.8_dp
     PetscErrorCode :: ierr
+
+    datetimestr = date_time_str()
 
     if (present(filename)) then
        self%filename = filename
     else
        self%filename = ""
     end if
-    call self%setup_output(json)
 
-    call self%logfile%write(LOG_LEVEL_INFO, 'simulation', 'init', &
-         str_key = 'time            ', &
-         str_value = '"' // ctime(time()) // '"')
-
-    call self%logfile%write(LOG_LEVEL_INFO, 'simulation', 'init', &
-         str_key = 'filename', str_value = self%filename)
+    call self%setup_output(json, datetimestr)
 
     call fson_get_mpi(json, "title", default_title, self%title, self%logfile)
-    call self%logfile%write(LOG_LEVEL_INFO, 'simulation', 'init', &
-         str_key = 'title', str_value = self%title)
 
     call setup_thermodynamics(json, self%thermo, self%logfile)
-    call self%logfile%write(LOG_LEVEL_INFO, 'simulation', 'init', &
-         str_key = 'thermodynamics', str_value = self%thermo%name)
 
     call setup_eos(json, self%thermo, self%eos, self%logfile)
-    call self%logfile%write(LOG_LEVEL_INFO, 'simulation', 'init', &
-         str_key = 'eos.name', str_value = self%eos%name)
 
     call self%mesh%init(json, self%logfile)
-    call self%logfile%write(LOG_LEVEL_INFO, 'simulation', 'init', &
-         str_key = 'mesh', str_value = self%mesh%filename)
     call setup_rocktype_labels(json, self%mesh%dm, self%logfile)
     call self%mesh%setup_boundaries(json, self%eos, self%logfile)
     call self%mesh%configure(self%eos%primary_variable_names)
