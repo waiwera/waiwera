@@ -287,7 +287,7 @@ contains
     call self%logfile%write(LOG_LEVEL_INFO, 'simulation', 'init', &
          str_key = 'mesh', str_value = self%mesh%filename)
     call setup_rocktype_labels(json, self%mesh%dm, self%logfile)
-    call self%mesh%setup_boundaries(json, self%eos)
+    call self%mesh%setup_boundaries(json, self%eos, self%logfile)
     call self%mesh%configure(self%eos%primary_variable_names)
     call self%setup_solution_vector()
     call setup_relative_permeabilities(json, &
