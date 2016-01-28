@@ -155,7 +155,8 @@ contains
 !------------------------------------------------------------------------
 
   subroutine setup_initial(json, mesh, eos, t, y, rock_vector, &
-       fluid_vector, y_range_start, rock_range_start, fluid_range_start)
+       fluid_vector, y_range_start, rock_range_start, fluid_range_start, &
+       logfile)
     !! Initializes time t and a Vec y with initial conditions read
     !! from JSON input 'initial'.  A full set of initial conditions
     !! may be read in from an HDF5 file, or a constant set of primary
@@ -166,6 +167,7 @@ contains
     use eos_module
     use rock_module
     use dm_utils_module, only: global_vec_section, global_section_offset
+    use logfile_module
 
     type(fson_value), pointer, intent(in) :: json
     type(mesh_type), intent(in) :: mesh
@@ -173,6 +175,7 @@ contains
     PetscReal, intent(out) :: t
     Vec, intent(in out) :: y, rock_vector, fluid_vector
     PetscInt, intent(in) :: y_range_start, rock_range_start, fluid_range_start
+    type(logfile_type), intent(in out) :: logfile
     ! Locals:
     PetscReal, parameter :: default_start_time = 0.0_dp
     PetscReal, allocatable :: primary(:)
@@ -180,7 +183,7 @@ contains
     PetscInt, parameter :: max_filename_length = 240
     character(len = max_filename_length) :: filename
 
-    call fson_get_mpi(json, "time.start", default_start_time, t)
+    call fson_get_mpi(json, "time.start", default_start_time, t, logfile)
 
     if (fson_has_mpi(json, "initial")) then
 
@@ -192,8 +195,10 @@ contains
 
        else
 
-          call fson_get_mpi(json, "initial.primary", eos%default_primary, primary)
-          call fson_get_mpi(json, "initial.region", eos%default_region, region)
+          call fson_get_mpi(json, "initial.primary", eos%default_primary, &
+               primary, logfile)
+          call fson_get_mpi(json, "initial.region", eos%default_region, &
+               region, logfile)
 
           call setup_initial_constant(mesh, primary, region, eos, y, &
                fluid_vector, y_range_start, fluid_range_start)
@@ -205,6 +210,12 @@ contains
        call setup_initial_constant(mesh, eos%default_primary, &
             eos%default_region, eos, y, fluid_vector, y_range_start, &
             fluid_range_start)
+       call logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
+            real_array_key = 'initial.primary', &
+            real_array_value = eos%default_primary)
+       call logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
+            int_keys = ['initial.region'], &
+            int_values = [eos%default_region])
 
     end if
 

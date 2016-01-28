@@ -303,7 +303,7 @@ contains
     call setup_initial(json, self%mesh, self%eos, &
          self%time, self%solution, self%rock, self%fluid, &
          self%solution_range_start,  self%rock_range_start, &
-         self%fluid_range_start)
+         self%fluid_range_start, self%logfile)
     call self%mesh%set_boundary_values(self%solution, self%rock, self%eos, &
          self%solution_range_start, self%rock_range_start)
     call setup_source_vector(json, self%mesh%dm, &
