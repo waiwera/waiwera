@@ -260,6 +260,7 @@ contains
     use fson
     use fson_mpi_module
     use logfile_module
+    use utils_module, only : int_str_len
 
     type(fson_value), pointer, intent(in) :: json
     DM, intent(in out) :: dm
@@ -270,6 +271,7 @@ contains
     PetscInt :: num_rocktypes, num_cells, ir, ic, c
     PetscInt, allocatable :: cells(:)
     PetscInt, allocatable :: default_cells(:)
+    character(len=:), allocatable :: rockstr, irstr
 
     default_cells = [PetscInt::] ! empty integer array
 
@@ -277,9 +279,13 @@ contains
        call fson_get_mpi(json, "rock.types", rocktypes)
        call DMCreateLabel(dm, rocktype_label_name, ierr); CHKERRQ(ierr)
        num_rocktypes = fson_value_count_mpi(rocktypes, ".")
+       irstr = repeat(' ', int_str_len(num_rocktypes))
        do ir = 1, num_rocktypes
+          write(irstr, '(i0)') ir - 1
+          rockstr = 'rock.types[' // trim(irstr) // '].'
           r => fson_value_get_mpi(rocktypes, ir)
-          call fson_get_mpi(r, "cells", default_cells, cells, logfile)
+          call fson_get_mpi(r, "cells", default_cells, cells, &
+               logfile, rockstr // "cells")
           if (allocated(cells)) then
              num_cells = size(cells)
              do ic = 1, num_cells
@@ -290,6 +296,8 @@ contains
              deallocate(cells)
           end if
        end do
+    else
+       call logfile%write(LOG_LEVEL_WARN, "input", "no rocktypes")
     end if
 
   end subroutine setup_rocktype_labels
