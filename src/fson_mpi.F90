@@ -93,9 +93,11 @@ contains
     else
        val = default
        if (present(logfile)) then
-          call logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
-               int_keys = [path], &
-               int_values = [default])
+          if (logfile%active) then
+             call logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
+                  int_keys = [path], &
+                  int_values = [default])
+          end if
        end if
     end if
 
@@ -120,9 +122,11 @@ contains
     else
        val = default
        if (present(logfile)) then
-          call logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
-               real_keys = [path], &
-               real_values = [dble(default)])
+          if (logfile%active) then
+             call logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
+                  real_keys = [path], &
+                  real_values = [dble(default)])
+          end if
        end if
     end if
 
@@ -147,9 +151,11 @@ contains
     else
        val = default
        if (present(logfile)) then
-          call logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
-               real_keys = [path], &
-               real_values = [default])
+          if (logfile%active) then
+             call logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
+                  real_keys = [path], &
+                  real_values = [default])
+          end if
        end if
     end if
 
@@ -201,8 +207,10 @@ contains
     else
        val = default
        if (present(logfile)) then
-          call logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
-               str_key = path, str_value = default)
+          if (logfile%active) then
+             call logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
+                  str_key = path, str_value = default)
+          end if
        end if
     end if
 
@@ -228,14 +236,16 @@ contains
     else
        val = default
        if (present(logfile)) then
-          if (size(val) > 0) then
-             write(intstr, logfile%int_format) val(1)
-             str = '[' // intstr // ',...]'
-          else
-             str = '[]'
+          if (logfile%active) then
+             if (size(val) > 0) then
+                write(intstr, logfile%int_format) val(1)
+                str = '[' // intstr // ',...]'
+             else
+                str = '[]'
+             end if
+             call logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
+                  str_key = path, str_value = str)
           end if
-          call logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
-               str_key = path, str_value = str)
        end if
     end if
 
@@ -261,14 +271,16 @@ contains
     else
        val = default
        if (present(logfile)) then
-          if (size(val) > 0) then
-             write(realstr, logfile%real_format) val(1)
-             str = '[' // realstr // ',...]'
-          else
-             str = '[]'
+          if (logfile%active) then
+             if (size(val) > 0) then
+                write(realstr, logfile%real_format) val(1)
+                str = '[' // realstr // ',...]'
+             else
+                str = '[]'
+             end if
+             call logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
+                  str_key = path, str_value = str)
           end if
-          call logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
-               str_key = path, str_value = str)
        end if
     end if
 
@@ -294,14 +306,16 @@ contains
     else
        val = default
        if (present(logfile)) then
-          if (size(val) > 0) then
-             write(realstr, logfile%real_format) val(1)
-             str = '[' // realstr // ',...]'
-          else
-             str = '[]'
+          if (logfile%active) then
+             if (size(val) > 0) then
+                write(realstr, logfile%real_format) val(1)
+                str = '[' // realstr // ',...]'
+             else
+                str = '[]'
+             end if
+             call logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
+                  str_key = path, str_value = str)
           end if
-          call logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
-               str_key = path, str_value = str)
        end if
     end if
 
@@ -327,14 +341,16 @@ contains
     else
        val = default
        if (present(logfile)) then
-          if (size(val) > 0) then
-             write(logstr, '(L)') val(1)
-             str = '[' // logstr // ',...]'
-          else
-             str = '[]'
+          if (logfile%active) then
+             if (size(val) > 0) then
+                write(logstr, '(L)') val(1)
+                str = '[' // logstr // ',...]'
+             else
+                str = '[]'
+             end if
+             call logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
+                  str_key = path, str_value = str)
           end if
-          call logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
-               str_key = path, str_value = str)
        end if
     end if
 
@@ -360,14 +376,16 @@ contains
     else
        val = default
        if (present(logfile)) then
-          if (size(val) > 0) then
-             write(intstr, logfile%int_format) val(1,1)
-             str = '[[' // intstr // ',...]]'
-          else
-             str = '[]'
+          if (logfile%active) then
+             if (size(val) > 0) then
+                write(intstr, logfile%int_format) val(1,1)
+                str = '[[' // intstr // ',...]]'
+             else
+                str = '[]'
+             end if
+             call logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
+                  str_key = path, str_value = str)
           end if
-          call logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
-               str_key = path, str_value = str)
        end if
     end if
 
@@ -393,14 +411,16 @@ contains
     else
        val = default
        if (present(logfile)) then
-          if (size(val) > 0) then
-             write(realstr, logfile%real_format) val(1,1)
-             str = '[[' // realstr // ',...]]'
-          else
-             str = '[]'
+          if (logfile%active) then
+             if (size(val) > 0) then
+                write(realstr, logfile%real_format) val(1,1)
+                str = '[[' // realstr // ',...]]'
+             else
+                str = '[]'
+             end if
+             call logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
+                  str_key = path, str_value = str)
           end if
-          call logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
-               str_key = path, str_value = str)
        end if
     end if
 
@@ -426,14 +446,16 @@ contains
     else
        val = default
        if (present(logfile)) then
-          if (size(val) > 0) then
-             write(realstr, logfile%real_format) val(1,1)
-             str = '[[' // realstr // ',...]]'
-          else
-             str = '[]'
+          if (logfile%active) then
+             if (size(val) > 0) then
+                write(realstr, logfile%real_format) val(1,1)
+                str = '[[' // realstr // ',...]]'
+             else
+                str = '[]'
+             end if
+             call logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
+                  str_key = path, str_value = str)
           end if
-          call logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
-               str_key = path, str_value = str)
        end if
     end if
 
@@ -459,14 +481,16 @@ contains
     else
        val = default
        if (present(logfile)) then
-          if (size(val) > 0) then
-             write(logstr, '(L)') val(1,1)
-             str = '[[' // logstr // ',...]]'
-          else
-             str = '[]'
+          if (logfile%active) then
+             if (size(val) > 0) then
+                write(logstr, '(L)') val(1,1)
+                str = '[[' // logstr // ',...]]'
+             else
+                str = '[]'
+             end if
+             call logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
+                  str_key = path, str_value = str)
           end if
-          call logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
-               str_key = path, str_value = str)
        end if
     end if
 
