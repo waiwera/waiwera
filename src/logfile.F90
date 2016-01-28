@@ -24,7 +24,7 @@ module logfile_module
      character(max_logfile_name_length), public :: filename
      PetscInt, public :: max_num_length, num_real_digits
      character(max_format_length), public :: int_format, real_format
-     PetscBool, public :: echo
+     PetscBool, public :: echo, active
    contains
      private
      procedure, public :: init => logfile_init
@@ -88,6 +88,7 @@ contains
        self%echo = default_echo
     end if
 
+    self%active = ((self%filename /= "") .or. self%echo)
     call self%set_number_formats()
 
     if (self%echo) then
@@ -128,7 +129,7 @@ contains
 
     class(logfile_type), intent(in out) :: self
 
-    if (self%echo .or. self%filename /= "") then
+    if (self%active) then
 
        ! Make sure length is big enough for number of digits specified:
        self%max_num_length = max(self%max_num_length, self%num_real_digits + 5)
@@ -310,7 +311,7 @@ contains
 
     content = ""
 
-    if ((self%filename /= "") .or. self%echo) then
+    if (self%active) then
 
        msg = '- [' // trim(log_level_name(level)) // ', ' &
             // trim(source) // ', ' // trim(event)
