@@ -76,7 +76,8 @@ contains
 ! fson_get_default routines
 !------------------------------------------------------------------------
 
-  subroutine fson_get_default_integer(self, path, default, val, logfile)
+  subroutine fson_get_default_integer(self, path, default, val, &
+       logfile, log_key)
     !! Gets integer value with default if not present.
 
     type(fson_value), pointer, intent(in) :: self
@@ -84,8 +85,10 @@ contains
     PetscInt, intent(in) :: default
     PetscInt, intent(out) :: val
     type(logfile_type), intent(in out), optional :: logfile
+    character(len=*), intent(in), optional :: log_key
     ! Locals:
     type(fson_value), pointer :: p
+    character(max_log_key_length) :: key
 
     call fson_get(self, path, p)
     if (assoc_non_null(p)) then
@@ -94,8 +97,13 @@ contains
        val = default
        if (present(logfile)) then
           if (logfile%active) then
+             if (present(log_key)) then
+                key = log_key
+             else
+                key = path
+             end if
              call logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
-                  int_keys = [path], &
+                  int_keys = [key], &
                   int_values = [default])
           end if
        end if
@@ -105,7 +113,8 @@ contains
   
 !------------------------------------------------------------------------
   
-  subroutine fson_get_default_real(self, path, default, val, logfile)
+  subroutine fson_get_default_real(self, path, default, val, logfile, &
+       log_key)
     !! Gets real value with default if not present.
 
     type(fson_value), pointer, intent(in) :: self
@@ -113,8 +122,10 @@ contains
     real, intent(in) :: default
     real, intent(out) :: val
     type(logfile_type), intent(in out), optional :: logfile
+    character(len=*), intent(in), optional :: log_key
     ! Locals:
     type(fson_value), pointer :: p
+    character(max_log_key_length) :: key
 
     call fson_get(self, path, p)
     if (assoc_non_null(p)) then
@@ -123,8 +134,13 @@ contains
        val = default
        if (present(logfile)) then
           if (logfile%active) then
+             if (present(log_key)) then
+                key = log_key
+             else
+                key = path
+             end if
              call logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
-                  real_keys = [path], &
+                  real_keys = [key], &
                   real_values = [dble(default)])
           end if
        end if
@@ -134,7 +150,8 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine fson_get_default_double(self, path, default, val, logfile)
+  subroutine fson_get_default_double(self, path, default, val, logfile, &
+       log_key)
     !! Gets double value with default if not present.
 
     type(fson_value), pointer, intent(in) :: self
@@ -142,8 +159,10 @@ contains
     PetscReal, intent(in) :: default
     PetscReal, intent(out) :: val
     type(logfile_type), intent(in out), optional :: logfile
+    character(len=*), intent(in), optional :: log_key
     ! Locals:
     type(fson_value), pointer :: p
+    character(max_log_key_length) :: key
 
     call fson_get(self, path, p)
     if (assoc_non_null(p)) then
@@ -152,8 +171,13 @@ contains
        val = default
        if (present(logfile)) then
           if (logfile%active) then
+             if (present(log_key)) then
+                key = log_key
+             else
+                key = path
+             end if
              call logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
-                  real_keys = [path], &
+                  real_keys = [key], &
                   real_values = [default])
           end if
        end if
@@ -163,7 +187,8 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine fson_get_default_logical(self, path, default, val, logfile)
+  subroutine fson_get_default_logical(self, path, default, val, &
+       logfile, log_key)
     !! Gets logical value with default if not present.
 
     type(fson_value), pointer, intent(in) :: self
@@ -171,35 +196,10 @@ contains
     PetscBool, intent(in) :: default
     PetscBool, intent(out) :: val
     type(logfile_type), intent(in out), optional :: logfile
+    character(len=*), intent(in), optional :: log_key
     ! Locals:
     type(fson_value), pointer :: p
-
-    call fson_get(self, path, p)
-    if (assoc_non_null(p)) then
-       call fson_get(p, ".", val)
-    else
-       val = default
-       if (present(logfile)) then
-          call logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
-               logical_keys = [path], &
-               logical_values = [default])
-       end if
-    end if
-
-  end subroutine fson_get_default_logical
-
-!------------------------------------------------------------------------
-
-  subroutine fson_get_default_character(self, path, default, val, logfile)
-    !! Gets character value with default if not present.
-
-    type(fson_value), pointer, intent(in) :: self
-    character(len=*), intent(in) :: path
-    character(len=*), intent(in) :: default
-    character(len=*), intent(out) :: val
-    type(logfile_type), intent(in out), optional :: logfile
-    ! Locals:
-    type(fson_value), pointer :: p
+    character(max_log_key_length) :: key
 
     call fson_get(self, path, p)
     if (assoc_non_null(p)) then
@@ -208,8 +208,50 @@ contains
        val = default
        if (present(logfile)) then
           if (logfile%active) then
+             if (present(log_key)) then
+                key = log_key
+             else
+                key = path
+             end if
              call logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
-                  str_key = path, str_value = default)
+                  logical_keys = [key], &
+                  logical_values = [default])
+          end if
+       end if
+    end if
+
+  end subroutine fson_get_default_logical
+
+!------------------------------------------------------------------------
+
+  subroutine fson_get_default_character(self, path, default, val, &
+       logfile, log_key)
+    !! Gets character value with default if not present.
+
+    type(fson_value), pointer, intent(in) :: self
+    character(len=*), intent(in) :: path
+    character(len=*), intent(in) :: default
+    character(len=*), intent(out) :: val
+    type(logfile_type), intent(in out), optional :: logfile
+    character(len=*), intent(in), optional :: log_key
+    ! Locals:
+    type(fson_value), pointer :: p
+    character(max_log_key_length) :: key
+
+    call fson_get(self, path, p)
+    if (assoc_non_null(p)) then
+       call fson_get(p, ".", val)
+    else
+       val = default
+       if (present(logfile)) then
+          if (logfile%active) then
+             if (present(log_key)) then
+                key = log_key
+             else
+                key = path
+             end if
+             call logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
+                  str_key = key, str_value = default)
           end if
        end if
     end if
@@ -218,7 +260,8 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine fson_get_default_array_1d_integer(self, path, default, val, logfile)
+  subroutine fson_get_default_array_1d_integer(self, path, default, &
+       val, logfile, log_key)
     !! Gets 1-D integer array with default if not present.
 
     type(fson_value), pointer, intent(in) :: self
@@ -226,9 +269,11 @@ contains
     PetscInt, intent(in) :: default(:)
     PetscInt, allocatable, intent(out) :: val(:)
     type(logfile_type), intent(in out), optional :: logfile
+    character(len=*), intent(in), optional :: log_key
     ! Locals:
     type(fson_value), pointer :: p
     character(:), allocatable :: intstr, str
+    character(max_log_key_length) :: key
 
     call fson_get(self, path, p)
     if (assoc_non_null(p)) then
@@ -237,6 +282,11 @@ contains
        val = default
        if (present(logfile)) then
           if (logfile%active) then
+             if (present(log_key)) then
+                key = log_key
+             else
+                key = path
+             end if
              if (size(val) > 0) then
                 write(intstr, logfile%int_format) val(1)
                 str = '[' // intstr // ',...]'
@@ -244,7 +294,7 @@ contains
                 str = '[]'
              end if
              call logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
-                  str_key = path, str_value = str)
+                  str_key = key, str_value = str)
           end if
        end if
     end if
@@ -253,7 +303,8 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine fson_get_default_array_1d_real(self, path, default, val, logfile)
+  subroutine fson_get_default_array_1d_real(self, path, default, val, &
+       logfile, log_key)
     !! Gets 1-D real array with default if not present.
 
     type(fson_value), pointer, intent(in) :: self
@@ -261,9 +312,11 @@ contains
     real, intent(in) :: default(:)
     real, allocatable, intent(out) :: val(:)
     type(logfile_type), intent(in out), optional :: logfile
+    character(len=*), intent(in), optional :: log_key
     ! Locals:
     type(fson_value), pointer :: p
     character(:), allocatable :: realstr, str
+    character(max_log_key_length) :: key
 
     call fson_get(self, path, p)
     if (assoc_non_null(p)) then
@@ -272,6 +325,11 @@ contains
        val = default
        if (present(logfile)) then
           if (logfile%active) then
+             if (present(log_key)) then
+                key = log_key
+             else
+                key = path
+             end if
              if (size(val) > 0) then
                 write(realstr, logfile%real_format) val(1)
                 str = '[' // realstr // ',...]'
@@ -279,7 +337,7 @@ contains
                 str = '[]'
              end if
              call logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
-                  str_key = path, str_value = str)
+                  str_key = key, str_value = str)
           end if
        end if
     end if
@@ -288,7 +346,8 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine fson_get_default_array_1d_double(self, path, default, val, logfile)
+  subroutine fson_get_default_array_1d_double(self, path, default, val, &
+       logfile, log_key)
     !! Gets 1-D double precision array with default if not present.
 
     type(fson_value), pointer, intent(in) :: self
@@ -296,9 +355,11 @@ contains
     PetscReal, intent(in) :: default(:)
     PetscReal, allocatable, intent(out) :: val(:)
     type(logfile_type), intent(in out), optional :: logfile
+    character(len=*), intent(in), optional :: log_key
     ! Locals:
     type(fson_value), pointer :: p
     character(:), allocatable :: realstr, str
+    character(max_log_key_length) :: key
 
     call fson_get(self, path, p)
     if (assoc_non_null(p)) then
@@ -307,6 +368,11 @@ contains
        val = default
        if (present(logfile)) then
           if (logfile%active) then
+             if (present(log_key)) then
+                key = log_key
+             else
+                key = path
+             end if
              if (size(val) > 0) then
                 write(realstr, logfile%real_format) val(1)
                 str = '[' // realstr // ',...]'
@@ -314,7 +380,7 @@ contains
                 str = '[]'
              end if
              call logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
-                  str_key = path, str_value = str)
+                  str_key = key, str_value = str)
           end if
        end if
     end if
@@ -323,7 +389,8 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine fson_get_default_array_1d_logical(self, path, default, val, logfile)
+  subroutine fson_get_default_array_1d_logical(self, path, default, &
+       val, logfile, log_key)
     !! Gets 1-D logical array with default if not present.
 
     type(fson_value), pointer, intent(in) :: self
@@ -331,9 +398,11 @@ contains
     PetscBool, intent(in) :: default(:)
     PetscBool, allocatable, intent(out) :: val(:)
     type(logfile_type), intent(in out), optional :: logfile
+    character(len=*), intent(in), optional :: log_key
     ! Locals:
     type(fson_value), pointer :: p
     character(:), allocatable :: logstr, str
+    character(max_log_key_length) :: key
 
     call fson_get(self, path, p)
     if (assoc_non_null(p)) then
@@ -342,6 +411,11 @@ contains
        val = default
        if (present(logfile)) then
           if (logfile%active) then
+             if (present(log_key)) then
+                key = log_key
+             else
+                key = path
+             end if
              if (size(val) > 0) then
                 write(logstr, '(L)') val(1)
                 str = '[' // logstr // ',...]'
@@ -349,7 +423,7 @@ contains
                 str = '[]'
              end if
              call logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
-                  str_key = path, str_value = str)
+                  str_key = key, str_value = str)
           end if
        end if
     end if
@@ -358,7 +432,8 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine fson_get_default_array_2d_integer(self, path, default, val, logfile)
+  subroutine fson_get_default_array_2d_integer(self, path, default, &
+       val, logfile, log_key)
     !! Gets 2-D integer array with default if not present.
 
     type(fson_value), pointer, intent(in) :: self
@@ -366,9 +441,11 @@ contains
     PetscInt, intent(in) :: default(:,:)
     PetscInt, allocatable, intent(out) :: val(:,:)
     type(logfile_type), intent(in out), optional :: logfile
+    character(len=*), intent(in), optional :: log_key
     ! Locals:
     type(fson_value), pointer :: p
     character(:), allocatable :: intstr, str
+    character(max_log_key_length) :: key
 
     call fson_get(self, path, p)
     if (assoc_non_null(p)) then
@@ -377,6 +454,11 @@ contains
        val = default
        if (present(logfile)) then
           if (logfile%active) then
+             if (present(log_key)) then
+                key = log_key
+             else
+                key = path
+             end if
              if (size(val) > 0) then
                 write(intstr, logfile%int_format) val(1,1)
                 str = '[[' // intstr // ',...]]'
@@ -384,7 +466,7 @@ contains
                 str = '[]'
              end if
              call logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
-                  str_key = path, str_value = str)
+                  str_key = key, str_value = str)
           end if
        end if
     end if
@@ -393,7 +475,8 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine fson_get_default_array_2d_real(self, path, default, val, logfile)
+  subroutine fson_get_default_array_2d_real(self, path, default, val, &
+       logfile, log_key)
     !! Gets 2-D real array with default if not present.
 
     type(fson_value), pointer, intent(in) :: self
@@ -401,9 +484,11 @@ contains
     real, intent(in) :: default(:,:)
     real, allocatable, intent(out) :: val(:,:)
     type(logfile_type), intent(in out), optional :: logfile
+    character(len=*), intent(in), optional :: log_key
     ! Locals:
     type(fson_value), pointer :: p
     character(:), allocatable :: realstr, str
+    character(max_log_key_length) :: key
 
     call fson_get(self, path, p)
     if (assoc_non_null(p)) then
@@ -412,6 +497,11 @@ contains
        val = default
        if (present(logfile)) then
           if (logfile%active) then
+             if (present(log_key)) then
+                key = log_key
+             else
+                key = path
+             end if
              if (size(val) > 0) then
                 write(realstr, logfile%real_format) val(1,1)
                 str = '[[' // realstr // ',...]]'
@@ -419,7 +509,7 @@ contains
                 str = '[]'
              end if
              call logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
-                  str_key = path, str_value = str)
+                  str_key = key, str_value = str)
           end if
        end if
     end if
@@ -428,7 +518,8 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine fson_get_default_array_2d_double(self, path, default, val, logfile)
+  subroutine fson_get_default_array_2d_double(self, path, default, val, &
+       logfile, log_key)
     !! Gets 2-D double array with default if not present.
 
     type(fson_value), pointer, intent(in) :: self
@@ -436,9 +527,11 @@ contains
     PetscReal, intent(in) :: default(:,:)
     PetscReal, allocatable, intent(out) :: val(:,:)
     type(logfile_type), intent(in out), optional :: logfile
+    character(len=*), intent(in), optional :: log_key
     ! Locals:
     type(fson_value), pointer :: p
     character(:), allocatable :: realstr, str
+    character(max_log_key_length) :: key
 
     call fson_get(self, path, p)
     if (assoc_non_null(p)) then
@@ -447,6 +540,11 @@ contains
        val = default
        if (present(logfile)) then
           if (logfile%active) then
+             if (present(log_key)) then
+                key = log_key
+             else
+                key = path
+             end if
              if (size(val) > 0) then
                 write(realstr, logfile%real_format) val(1,1)
                 str = '[[' // realstr // ',...]]'
@@ -454,7 +552,7 @@ contains
                 str = '[]'
              end if
              call logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
-                  str_key = path, str_value = str)
+                  str_key = key, str_value = str)
           end if
        end if
     end if
@@ -463,7 +561,8 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine fson_get_default_array_2d_logical(self, path, default, val, logfile)
+  subroutine fson_get_default_array_2d_logical(self, path, default, &
+       val, logfile, log_key)
     !! Gets 2-D logical array with default if not present.
 
     type(fson_value), pointer, intent(in) :: self
@@ -471,9 +570,11 @@ contains
     PetscBool, intent(in) :: default(:,:)
     PetscBool, allocatable, intent(out) :: val(:,:)
     type(logfile_type), intent(in out), optional :: logfile
+    character(len=*), intent(in), optional :: log_key
     ! Locals:
     type(fson_value), pointer :: p
     character(:), allocatable :: logstr, str
+    character(max_log_key_length) :: key
 
     call fson_get(self, path, p)
     if (assoc_non_null(p)) then
@@ -482,6 +583,11 @@ contains
        val = default
        if (present(logfile)) then
           if (logfile%active) then
+             if (present(log_key)) then
+                key = log_key
+             else
+                key = path
+             end if
              if (size(val) > 0) then
                 write(logstr, '(L)') val(1,1)
                 str = '[[' // logstr // ',...]]'
@@ -489,7 +595,7 @@ contains
                 str = '[]'
              end if
              call logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
-                  str_key = path, str_value = str)
+                  str_key = key, str_value = str)
           end if
        end if
     end if
@@ -517,7 +623,8 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine fson_get_mpi_integer(self, path, default, val, logfile)
+  subroutine fson_get_mpi_integer(self, path, default, val, logfile, &
+       log_key)
     !! Gets integer value on all ranks, with optional default.
 
     type(fson_value), pointer, intent(in) :: self
@@ -525,12 +632,14 @@ contains
     PetscInt, intent(in), optional :: default
     PetscInt, intent(out) :: val
     type(logfile_type), intent(in out), optional :: logfile
+    character(len=*), intent(in), optional :: log_key
     ! Locals:
     PetscInt :: ierr
 
     if (mpi%rank == mpi%input_rank) then
        if (present(default)) then
-          call fson_get_default(self, path, default, val, logfile)
+          call fson_get_default(self, path, default, val, logfile, &
+               log_key)
        else
           call fson_get(self, path, val)
        end if
@@ -541,7 +650,8 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine fson_get_mpi_real(self, path, default, val, logfile)
+  subroutine fson_get_mpi_real(self, path, default, val, logfile, &
+       log_key)
     !! Gets real value on all ranks, with optional default.
 
     type(fson_value), pointer, intent(in) :: self
@@ -549,12 +659,14 @@ contains
     real, intent(in), optional :: default
     real, intent(out) :: val
     type(logfile_type), intent(in out), optional :: logfile
+    character(len=*), intent(in), optional :: log_key
     ! Locals:
     PetscInt :: ierr
 
     if (mpi%rank == mpi%input_rank) then
        if (present(default)) then
-          call fson_get_default(self, path, default, val, logfile)
+          call fson_get_default(self, path, default, val, logfile, &
+               log_key)
        else
           call fson_get(self, path, val)
        end if
@@ -565,7 +677,8 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine fson_get_mpi_double(self, path, default, val, logfile)
+  subroutine fson_get_mpi_double(self, path, default, val, logfile, &
+       log_key)
     !! Gets double precision value on all ranks, with optional default.
 
     type(fson_value), pointer, intent(in) :: self
@@ -573,12 +686,14 @@ contains
     PetscReal, intent(in), optional :: default
     PetscReal, intent(out) :: val
     type(logfile_type), intent(in out), optional :: logfile
+    character(len=*), intent(in), optional :: log_key
     ! Locals:
     PetscInt :: ierr
 
     if (mpi%rank == mpi%input_rank) then
        if (present(default)) then
-          call fson_get_default(self, path, default, val, logfile)
+          call fson_get_default(self, path, default, val, logfile, &
+               log_key)
        else
           call fson_get(self, path, val)
        end if
@@ -590,7 +705,8 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine fson_get_mpi_logical(self, path, default, val, logfile)
+  subroutine fson_get_mpi_logical(self, path, default, val, logfile, &
+       log_key)
     !! Gets logical value on all ranks, with optional default.
 
     type(fson_value), pointer, intent(in) :: self
@@ -598,12 +714,14 @@ contains
     PetscBool, intent(in), optional :: default
     PetscBool, intent(out) :: val
     type(logfile_type), intent(in out), optional :: logfile
+    character(len=*), intent(in), optional :: log_key
     ! Locals:
     PetscInt :: ierr
 
     if (mpi%rank == mpi%input_rank) then
        if (present(default)) then
-          call fson_get_default(self, path, default, val, logfile)
+          call fson_get_default(self, path, default, val, logfile, &
+               log_key)
        else
           call fson_get(self, path, val)
        end if
@@ -614,7 +732,8 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine fson_get_mpi_character(self, path, default, val, logfile)
+  subroutine fson_get_mpi_character(self, path, default, val, logfile, &
+       log_key)
     !! Gets character value on all ranks, with optional default.
 
     type(fson_value), pointer, intent(in) :: self
@@ -622,24 +741,28 @@ contains
     character(len=*), intent(in), optional :: default
     character(len=*), intent(out) :: val
     type(logfile_type), intent(in out), optional :: logfile
+    character(len=*), intent(in), optional :: log_key
     ! Locals:
     PetscInt :: ierr, count
 
     if (mpi%rank == mpi%input_rank) then
        if (present(default)) then
-          call fson_get_default(self, path, default, val, logfile)
+          call fson_get_default(self, path, default, val, logfile, &
+               log_key)
        else
           call fson_get(self, path, val)
        end if
     end if
     count = len(val)
-    call MPI_bcast(val, count, MPI_CHARACTER, mpi%input_rank, mpi%comm, ierr)
+    call MPI_bcast(val, count, MPI_CHARACTER, mpi%input_rank, &
+         mpi%comm, ierr)
 
   end subroutine fson_get_mpi_character
 
 !------------------------------------------------------------------------
 
-  subroutine fson_get_mpi_array_1d_integer(self, path, default, val, logfile)
+  subroutine fson_get_mpi_array_1d_integer(self, path, default, val, &
+       logfile, log_key)
     !! Gets 1-D integer array on all ranks, with optional default.
 
     type(fson_value), pointer, intent(in) :: self
@@ -647,12 +770,14 @@ contains
     PetscInt, intent(in), optional :: default(:)
     PetscInt, allocatable, intent(out) :: val(:)
     type(logfile_type), intent(in out), optional :: logfile
+    character(len=*), intent(in), optional :: log_key
     ! Locals:
     PetscInt :: ierr, count
 
     if (mpi%rank == mpi%input_rank) then
        if (present(default)) then
-          call fson_get_default(self, path, default, val, logfile)
+          call fson_get_default(self, path, default, val, logfile, &
+               log_key)
        else
           call fson_get(self, path, val)
        end if
@@ -662,13 +787,15 @@ contains
     if (mpi%rank /= mpi%input_rank) then
        allocate(val(count))
     end if
-    call MPI_bcast(val, count, MPI_INTEGER, mpi%input_rank, mpi%comm, ierr)
+    call MPI_bcast(val, count, MPI_INTEGER, mpi%input_rank, mpi%comm, &
+         ierr)
 
   end subroutine fson_get_mpi_array_1d_integer
 
 !------------------------------------------------------------------------
 
-  subroutine fson_get_mpi_array_1d_real(self, path, default, val, logfile)
+  subroutine fson_get_mpi_array_1d_real(self, path, default, val, &
+       logfile, log_key)
     !! Gets 1-D real array on all ranks, with optional default.
 
     type(fson_value), pointer, intent(in) :: self
@@ -676,12 +803,14 @@ contains
     real, intent(in), optional :: default(:)
     real, allocatable, intent(out) :: val(:)
     type(logfile_type), intent(in out), optional :: logfile
+    character(len=*), intent(in), optional :: log_key
     ! Locals:
     PetscInt :: ierr, count
 
     if (mpi%rank == mpi%input_rank) then
        if (present(default)) then
-          call fson_get_default(self, path, default, val, logfile)
+          call fson_get_default(self, path, default, val, logfile, &
+               log_key)
        else
           call fson_get(self, path, val)
        end if
@@ -697,26 +826,30 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine fson_get_mpi_array_1d_double(self, path, default, val, logfile)
+  subroutine fson_get_mpi_array_1d_double(self, path, default, val, &
+       logfile, log_key)
     !! Gets 1-D double precision array on all ranks, with optional default.
 
     type(fson_value), pointer, intent(in) :: self
     character(len=*), intent(in) :: path
     PetscReal, intent(in), optional :: default(:)
     PetscReal, allocatable, intent(out) :: val(:)
-    type(logfile_type), intent(in out), optional :: logfile
-    ! Locals:
+    type(logfile_type), intent(in out), optional :: logfile 
+    character(len=*), intent(in), optional :: log_key
+   ! Locals:
     PetscInt :: ierr, count
 
     if (mpi%rank == mpi%input_rank) then
        if (present(default)) then
-          call fson_get_default(self, path, default, val, logfile)
+          call fson_get_default(self, path, default, val, &
+               logfile, log_key)
        else
           call fson_get(self, path, val)
        end if
        count = size(val)
     end if
-    call MPI_bcast(count, 1, MPI_INTEGER, mpi%input_rank, mpi%comm, ierr)
+    call MPI_bcast(count, 1, MPI_INTEGER, mpi%input_rank, mpi%comm, &
+         ierr)
     if (mpi%rank /= mpi%input_rank) then
        allocate(val(count))
     end if
@@ -727,7 +860,8 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine fson_get_mpi_array_1d_logical(self, path, default, val, logfile)
+  subroutine fson_get_mpi_array_1d_logical(self, path, default, val, &
+       logfile, log_key)
     !! Gets 1-D logical array on all ranks, with optional default.
 
     type(fson_value), pointer, intent(in) :: self
@@ -735,12 +869,14 @@ contains
     PetscBool, intent(in), optional :: default(:)
     PetscBool, allocatable, intent(out) :: val(:)
     type(logfile_type), intent(in out), optional :: logfile
+    character(len=*), intent(in), optional :: log_key
     ! Locals:
     PetscInt :: ierr, count
 
     if (mpi%rank == mpi%input_rank) then
        if (present(default)) then
-          call fson_get_default(self, path, default, val, logfile)
+          call fson_get_default(self, path, default, val, logfile, &
+               log_key)
        else
           call fson_get(self, path, val)
        end if
@@ -750,13 +886,15 @@ contains
     if (mpi%rank /= mpi%input_rank) then
        allocate(val(count))
     end if
-    call MPI_bcast(val, count, MPI_LOGICAL, mpi%input_rank, mpi%comm, ierr)
+    call MPI_bcast(val, count, MPI_LOGICAL, mpi%input_rank, mpi%comm, &
+         ierr)
 
   end subroutine fson_get_mpi_array_1d_logical
 
 !------------------------------------------------------------------------
 
-  subroutine fson_get_mpi_array_2d_integer(self, path, default, val, logfile)
+  subroutine fson_get_mpi_array_2d_integer(self, path, default, val, &
+       logfile, log_key)
     !! Gets 2-D integer array on all ranks, with optional default.
 
     type(fson_value), pointer, intent(in) :: self
@@ -764,12 +902,14 @@ contains
     PetscInt, intent(in), optional :: default(:,:)
     PetscInt, allocatable, intent(out) :: val(:,:)
     type(logfile_type), intent(in out), optional :: logfile
+    character(len=*), intent(in), optional :: log_key
     ! Locals:
     PetscInt :: ierr, count(2), total_count
 
     if (mpi%rank == mpi%input_rank) then
        if (present(default)) then
-          call fson_get_default(self, path, default, val, logfile)
+          call fson_get_default(self, path, default, val, logfile, &
+               log_key)
        else
           call fson_get(self, path, val)
        end if
@@ -780,13 +920,15 @@ contains
        allocate(val(count(1), count(2)))
     end if
     total_count = count(1) * count(2)
-    call MPI_bcast(val, total_count, MPI_INTEGER, mpi%input_rank, mpi%comm, ierr)
+    call MPI_bcast(val, total_count, MPI_INTEGER, mpi%input_rank, &
+         mpi%comm, ierr)
 
   end subroutine fson_get_mpi_array_2d_integer
 
 !------------------------------------------------------------------------
 
-  subroutine fson_get_mpi_array_2d_real(self, path, default, val, logfile)
+  subroutine fson_get_mpi_array_2d_real(self, path, default, val, &
+       logfile, log_key)
     !! Gets 2-D real array on all ranks, with optional default.
 
     type(fson_value), pointer, intent(in) :: self
@@ -794,12 +936,14 @@ contains
     real, intent(in), optional :: default(:,:)
     real, allocatable, intent(out) :: val(:,:)
     type(logfile_type), intent(in out), optional :: logfile
+    character(len=*), intent(in), optional :: log_key
     ! Locals:
     PetscInt :: ierr, count(2), total_count
 
     if (mpi%rank == mpi%input_rank) then
        if (present(default)) then
-          call fson_get_default(self, path, default, val, logfile)
+          call fson_get_default(self, path, default, val, logfile, &
+               log_key)
        else
           call fson_get(self, path, val)
        end if
@@ -810,13 +954,15 @@ contains
        allocate(val(count(1), count(2)))
     end if
     total_count = count(1) * count(2)
-    call MPI_bcast(val, total_count, MPI_REAL, mpi%input_rank, mpi%comm, ierr)
+    call MPI_bcast(val, total_count, MPI_REAL, mpi%input_rank, &
+         mpi%comm, ierr)
 
   end subroutine fson_get_mpi_array_2d_real
 
 !------------------------------------------------------------------------
 
-  subroutine fson_get_mpi_array_2d_double(self, path, default, val, logfile)
+  subroutine fson_get_mpi_array_2d_double(self, path, default, val, &
+       logfile, log_key)
     !! Gets 2-D double array on all ranks, with optional default.
 
     type(fson_value), pointer, intent(in) :: self
@@ -824,12 +970,14 @@ contains
     PetscReal, intent(in), optional :: default(:,:)
     PetscReal, allocatable, intent(out) :: val(:,:)
     type(logfile_type), intent(in out), optional :: logfile
+    character(len=*), intent(in), optional :: log_key
     ! Locals:
     PetscInt :: ierr, count(2), total_count
 
     if (mpi%rank == mpi%input_rank) then
        if (present(default)) then
-          call fson_get_default(self, path, default, val, logfile)
+          call fson_get_default(self, path, default, val, logfile, &
+               log_key)
        else
           call fson_get(self, path, val)
        end if
@@ -847,7 +995,8 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine fson_get_mpi_array_2d_logical(self, path, default, val, logfile)
+  subroutine fson_get_mpi_array_2d_logical(self, path, default, val, &
+       logfile, log_key)
     !! Gets 2-D logical array on all ranks, with optional default.
 
     type(fson_value), pointer, intent(in) :: self
@@ -855,12 +1004,14 @@ contains
     PetscBool, intent(in), optional :: default(:,:)
     PetscBool, allocatable, intent(out) :: val(:,:)
     type(logfile_type), intent(in out), optional :: logfile
+    character(len=*), intent(in), optional :: log_key
     ! Locals:
     integer :: ierr, count(2), total_count
 
     if (mpi%rank == mpi%input_rank) then
        if (present(default)) then
-          call fson_get_default(self, path, default, val, logfile)
+          call fson_get_default(self, path, default, val, logfile, &
+               log_key)
        else
           call fson_get(self, path, val)
        end if
@@ -871,7 +1022,8 @@ contains
        allocate(val(count(1), count(2)))
     end if
     total_count = count(1) * count(2)
-    call MPI_bcast(val, total_count, MPI_LOGICAL, mpi%input_rank, mpi%comm, ierr)
+    call MPI_bcast(val, total_count, MPI_LOGICAL, mpi%input_rank, &
+         mpi%comm, ierr)
 
   end subroutine fson_get_mpi_array_2d_logical
 
