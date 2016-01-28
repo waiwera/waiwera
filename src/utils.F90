@@ -8,6 +8,7 @@ module utils_module
 #include <petsc/finclude/petscdef.h>
 
   public :: str_to_upper, str_to_lower, &
+       int_str_len, &
        split_filename, change_filename_extension
   
 contains
@@ -51,6 +52,25 @@ contains
     end do
 
   end function str_to_lower
+
+!------------------------------------------------------------------------
+
+  recursive function int_str_len(i) result (w)
+    !! Returns minimum length of string needed to represent a given
+    !! integer i.
+
+    PetscInt, intent(in) :: i
+    PetscInt :: w
+
+    if (i == 0) then
+       w = 1
+    else if (i > 0) then
+       w = 1 + int(log10(real(i)))
+    else
+       w = 1 + int_str_len(-i)
+    end if
+
+  end function int_str_len
 
 !------------------------------------------------------------------------
 

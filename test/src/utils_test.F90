@@ -12,7 +12,8 @@ module utils_test
 #include <petsc/finclude/petscdef.h>
 
   public :: test_str_to_upper, test_str_to_lower, &
-       test_split_filename, test_change_filename_extension
+       test_split_filename, test_change_filename_extension, &
+       test_int_str_len
 
 contains
 
@@ -122,6 +123,24 @@ contains
     
 
   end subroutine test_change_filename_extension
+
+!------------------------------------------------------------------------
+
+  subroutine test_int_str_len
+
+    ! Test int_str_len()
+
+    if (mpi%rank == mpi%output_rank) then
+
+       call assert_equals(1, int_str_len(0), '0')
+       call assert_equals(1, int_str_len(5), '5')
+       call assert_equals(2, int_str_len(79), '79')
+       call assert_equals(4, int_str_len(2001), '2001')
+       call assert_equals(3, int_str_len(-47), '-47')
+
+    end if
+
+  end subroutine test_int_str_len
 
 !------------------------------------------------------------------------
 
