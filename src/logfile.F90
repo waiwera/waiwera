@@ -17,7 +17,6 @@ module logfile_module
   PetscInt, parameter :: max_log_key_length = 16
   PetscInt, parameter :: max_format_length = 8
   character, parameter :: lf = new_line('a')
-  PetscBool, parameter :: default_echo = PETSC_TRUE
 
   type logfile_type
      private
@@ -61,6 +60,7 @@ contains
     PetscErrorCode :: ierr
     PetscInt, parameter :: default_max_num_length = 12
     PetscInt, parameter :: default_num_real_digits = 6
+    PetscBool, parameter :: default_echo = PETSC_TRUE
 
     self%filename = filename
     if (self%filename /= "") then
