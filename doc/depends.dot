@@ -103,5 +103,6 @@ digraph supermodel{
         relative_permeability_module -> fson
         relative_permeability_module -> fson_mpi_module
         relative_permeability_module -> kinds_module
+        relative_permeability_module -> logfile_module
         relative_permeability_module -> utils_module
 }

@@ -290,7 +290,8 @@ contains
     call self%mesh%setup_boundaries(json, self%eos)
     call self%mesh%configure(self%eos%primary_variable_names)
     call self%setup_solution_vector()
-    call setup_relative_permeabilities(json, self%relative_permeability)
+    call setup_relative_permeabilities(json, &
+         self%relative_permeability, self%logfile)
     call setup_rock_vector(json, self%mesh%dm, self%rock, &
          self%rock_range_start)
     call setup_fluid_vector(self%mesh%dm, max_component_name_length, &
