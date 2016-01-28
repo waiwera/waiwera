@@ -14,7 +14,7 @@ module logfile_module
   character(max_log_level_name_length), parameter :: &
        log_level_name(3) = ['info', 'warn', 'err ']
   PetscInt, parameter, public :: max_logfile_name_length = 120
-  PetscInt, parameter :: max_log_key_length = 16
+  PetscInt, parameter, public :: max_log_key_length = 64
   PetscInt, parameter :: max_format_length = 8
   character, parameter :: lf = new_line('a')
 
