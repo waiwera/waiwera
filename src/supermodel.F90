@@ -29,6 +29,7 @@ program supermodel
   call simulation%init(json, filename)
   call timestepper%init(json, simulation)
   call fson_destroy_mpi(json)
+  call simulation%input_summary()
 
   call timestepper%run()
 

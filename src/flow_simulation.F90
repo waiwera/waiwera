@@ -39,6 +39,7 @@ module flow_simulation_module
      procedure :: setup_solution_vector => flow_simulation_setup_solution_vector
      procedure :: setup_output => flow_simulation_setup_output
      procedure :: destroy_output => flow_simulation_destroy_output
+     procedure, public :: input_summary => flow_simulation_input_summary
      procedure, public :: init => flow_simulation_init
      procedure, public :: destroy => flow_simulation_destroy
      procedure, public :: lhs => flow_simulation_cell_balances
@@ -226,6 +227,28 @@ contains
     call self%logfile%destroy()
 
   end subroutine flow_simulation_destroy_output
+
+!------------------------------------------------------------------------
+
+  subroutine flow_simulation_input_summary(self)
+    !! Writes summary of important inputs to logfile.
+
+    class(flow_simulation_type), intent(in out) :: self
+
+    call self%logfile%write(LOG_LEVEL_INFO, 'input', 'summary', &
+         str_key = 'filename', str_value = self%filename)
+    call self%logfile%write(LOG_LEVEL_INFO, 'input', 'summary', &
+         str_key = 'title', str_value = self%title)
+    call self%logfile%write(LOG_LEVEL_INFO, 'input', 'summary', &
+         str_key = 'mesh', str_value = self%mesh%filename)
+    call self%logfile%write(LOG_LEVEL_INFO, 'input', 'summary', &
+         str_key = 'thermodynamics', str_value = self%thermo%name)
+    call self%logfile%write(LOG_LEVEL_INFO, 'input', 'summary', &
+         str_key = 'eos.name', str_value = self%eos%name)
+
+    call self%logfile%write_blank()
+
+  end subroutine flow_simulation_input_summary
 
 !------------------------------------------------------------------------
 
