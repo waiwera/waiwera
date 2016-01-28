@@ -88,6 +88,7 @@ digraph supermodel{
         source_module -> fson_mpi_module
         source_module -> kinds_module
         source_module -> logfile_module
+        source_module -> utils_module
         IAPWS_module -> kinds_module
         IAPWS_module -> powertable_module
         IAPWS_module -> thermodynamics_module

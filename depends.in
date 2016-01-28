@@ -25,7 +25,7 @@ $(TEST)/$(BUILD)/timestepper$(TESTSUF)$(OBJ):$(BUILD)/fson_mpi$(OBJ) $(BUILD)/ki
 $(TEST)/$(BUILD)/IAPWS$(TESTSUF)$(OBJ):$(BUILD)/IAPWS$(OBJ) $(BUILD)/kinds$(OBJ) $(BUILD)/mpi$(OBJ) $(BUILD)/thermodynamics$(OBJ)
 $(BUILD)/IFC67$(OBJ):$(BUILD)/kinds$(OBJ) $(BUILD)/thermodynamics$(OBJ)
 $(TEST)/$(BUILD)/source$(TESTSUF)$(OBJ):$(BUILD)/boundary$(OBJ) $(BUILD)/eos$(OBJ) $(TEST)/$(BUILD)/flow_simulation$(TESTSUF)$(OBJ) $(BUILD)/fson_mpi$(OBJ) $(BUILD)/kinds$(OBJ) $(BUILD)/mesh$(OBJ) $(BUILD)/mpi$(OBJ) $(BUILD)/source$(OBJ)
-$(BUILD)/source$(OBJ):$(BUILD)/fson_mpi$(OBJ) $(BUILD)/kinds$(OBJ) $(BUILD)/logfile$(OBJ)
+$(BUILD)/source$(OBJ):$(BUILD)/fson_mpi$(OBJ) $(BUILD)/kinds$(OBJ) $(BUILD)/logfile$(OBJ) $(BUILD)/utils$(OBJ)
 $(TEST)/$(BUILD)/utils$(TESTSUF)$(OBJ):$(BUILD)/mpi$(OBJ) $(BUILD)/utils$(OBJ)
 $(BUILD)/IAPWS$(OBJ):$(BUILD)/kinds$(OBJ) $(BUILD)/powertable$(OBJ) $(BUILD)/thermodynamics$(OBJ)
 $(BUILD)/thermodynamics_setup$(OBJ):$(BUILD)/IAPWS$(OBJ) $(BUILD)/IFC67$(OBJ) $(BUILD)/fson_mpi$(OBJ) $(BUILD)/logfile$(OBJ) $(BUILD)/thermodynamics$(OBJ) $(BUILD)/utils$(OBJ)
