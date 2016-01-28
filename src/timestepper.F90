@@ -1220,6 +1220,8 @@ end subroutine timestepper_steps_set_next_stepsize
     call fson_get_mpi(json, "output.final", &
          default_output_final, self%output_final, self%ode%logfile)
 
+    call self%ode%logfile%write_blank()
+
     deallocate(step_sizes)
 
   end subroutine timestepper_init

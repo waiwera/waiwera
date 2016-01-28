@@ -100,9 +100,8 @@ contains
     PetscInt, parameter :: default_num_log_real_digits = 6
     PetscInt :: max_log_num_length, num_log_real_digits
     PetscBool, parameter :: default_logfile_echo = PETSC_TRUE
-    PetscBool :: echo, default_output, no_output, default_log, log_written
+    PetscBool :: echo, default_output, no_output, default_log
 
-    log_written = .false.
     default_output = .false.
     no_output = .false.
 
@@ -187,28 +186,20 @@ contains
        call self%logfile%write(LOG_LEVEL_INFO, 'filename', 'default', &
             str_key = "output", &
             str_value = self%output_filename)
-       log_written = .true.
     end if
 
     if (no_output) then
        call self%logfile%write(LOG_LEVEL_WARN, 'output', 'none')
-       log_written = .true.
     end if
 
     if (default_log) then
        call self%logfile%write(LOG_LEVEL_INFO, 'filename', 'default', &
             str_key = "logfile", &
             str_value = logfile_name)
-       log_written = .true.
     end if
 
     if (no_output) then
        call self%logfile%write(LOG_LEVEL_WARN, 'logfile', 'none')
-       log_written = .true.
-    end if
-
-    if (log_written) then
-       call self%logfile%write_blank()
     end if
 
   end subroutine flow_simulation_setup_output
@@ -309,8 +300,6 @@ contains
          self%eos%num_primary_variables, self%eos%isothermal, &
          self%source, self%logfile)
     call fson_get_mpi(json, "gravity", default_gravity, self%gravity, self%logfile)
-
-    call self%logfile%write_blank()
 
   end subroutine flow_simulation_init
 
