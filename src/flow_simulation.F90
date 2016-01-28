@@ -183,23 +183,23 @@ contains
          num_log_real_digits, echo)
 
     if (default_output) then
-       call self%logfile%write(LOG_LEVEL_INFO, 'filename', 'default', &
+       call self%logfile%write(LOG_LEVEL_INFO, 'output', 'default', &
             str_key = "output", &
             str_value = self%output_filename)
     end if
 
     if (no_output) then
-       call self%logfile%write(LOG_LEVEL_WARN, 'output', 'none')
+       call self%logfile%write(LOG_LEVEL_WARN, 'output', 'no output')
     end if
 
     if (default_log) then
-       call self%logfile%write(LOG_LEVEL_INFO, 'filename', 'default', &
-            str_key = "logfile", &
+       call self%logfile%write(LOG_LEVEL_INFO, 'output', 'default', &
+            str_key = 'logfile', &
             str_value = logfile_name)
     end if
 
     if (no_output) then
-       call self%logfile%write(LOG_LEVEL_WARN, 'logfile', 'none')
+       call self%logfile%write(LOG_LEVEL_WARN, 'output', 'no logfile')
     end if
 
   end subroutine flow_simulation_setup_output
@@ -270,7 +270,7 @@ contains
 
     call setup_eos(json, self%thermo, self%eos, self%logfile)
     call self%logfile%write(LOG_LEVEL_INFO, 'simulation', 'init', &
-         str_key = 'EOS', str_value = self%eos%name)
+         str_key = 'eos.name', str_value = self%eos%name)
 
     call self%mesh%init(json, self%logfile)
     call self%logfile%write(LOG_LEVEL_INFO, 'simulation', 'init', &
