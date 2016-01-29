@@ -1013,19 +1013,14 @@ contains
     PetscReal, intent(in) :: time
     ! Locals:
     DM :: fluid_dm
-    PetscViewer :: viewer
     PetscErrorCode :: ierr
 
-    call VecGetDM(self%fluid, fluid_dm, ierr); CHKERRQ(ierr)
-    call DMSetOutputSequenceNumber(fluid_dm, time_index, time, &
-         ierr); CHKERRQ(ierr)
-    call VecView(self%fluid, self%hdf5_viewer, ierr); CHKERRQ(ierr)
-
-    call PetscViewerCreate(mpi%comm, viewer, ierr); CHKERRQ(ierr)
-    call PetscViewerSetType(viewer, PETSCVIEWERVTK, ierr); CHKERRQ(ierr)
-    call PetscViewerFileSetName(viewer, "solution.vtu", ierr); CHKERRQ(ierr)
-    call VecView(self%solution, viewer, ierr); CHKERRQ(ierr)
-    call PetscViewerDestroy(viewer, ierr); CHKERRQ(ierr)
+    if (self%output_filename /= "") then
+       call VecGetDM(self%fluid, fluid_dm, ierr); CHKERRQ(ierr)
+       call DMSetOutputSequenceNumber(fluid_dm, time_index, time, &
+            ierr); CHKERRQ(ierr)
+       call VecView(self%fluid, self%hdf5_viewer, ierr); CHKERRQ(ierr)
+    end if
 
   end subroutine flow_simulation_output
 
