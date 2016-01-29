@@ -102,7 +102,7 @@ contains
     PetscInt, parameter :: default_num_log_real_digits = 6
     PetscInt :: max_log_num_length, num_log_real_digits
     PetscBool, parameter :: default_logfile_echo = PETSC_TRUE
-    PetscBool :: echo, default_output, no_output, default_log
+    PetscBool :: echo, default_output, no_output, default_log, no_logfile
 
     default_output = .false.
     no_output = .false.
@@ -128,6 +128,7 @@ contains
           if (fson_has_mpi(json, "output.filename")) then
              call fson_get_mpi(json, "output.filename", &
                   val = self%output_filename)
+             no_output = (self%output_filename == "")
           else
              self%output_filename = assumed_output_filename
              default_output = .true.
@@ -155,6 +156,7 @@ contains
     end if
 
     default_log = .false.
+    no_logfile = .false.
 
     if (fson_has_mpi(json, "logfile")) then
        if (fson_type_mpi(json, "logfile") == TYPE_LOGICAL) then
@@ -164,11 +166,13 @@ contains
              default_log = .true.
           else
              logfile_name = ""
+             no_logfile = .true.
           end if
        else
           if (fson_has_mpi(json, "logfile.filename")) then
              call fson_get_mpi(json, "logfile.filename", &
                   val = logfile_name)
+             no_logfile = (logfile_name == "")
           else
              logfile_name = assumed_logfile_name
              default_log = .true.
@@ -209,7 +213,7 @@ contains
             str_value = logfile_name)
     end if
 
-    if (no_output) then
+    if (no_logfile) then
        call self%logfile%write(LOG_LEVEL_WARN, 'input', 'no logfile')
     end if
 
