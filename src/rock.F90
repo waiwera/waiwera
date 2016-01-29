@@ -128,7 +128,6 @@ contains
     use fson
     use fson_mpi_module
     use logfile_module
-    use utils_module, only : int_str_len
 
     type(fson_value), pointer, intent(in) :: json
     DM, intent(in) :: dm
@@ -148,7 +147,8 @@ contains
     PetscReal, pointer :: rock_array(:)
     PetscSection :: section
     PetscErrorCode :: ierr
-    character(len=:), allocatable :: rockstr, irstr
+    character(len=64) :: rockstr
+    character(len=12) :: irstr
 
     call VecGetArrayF90(rock_vector, rock_array, ierr); CHKERRQ(ierr)
     call global_vec_section(rock_vector, section)
@@ -157,22 +157,21 @@ contains
     
     call fson_get_mpi(json, "rock.types", rocktypes)
     num_rocktypes = fson_value_count_mpi(rocktypes, ".")
-    irstr = repeat(' ', int_str_len(num_rocktypes))
     do ir = 1, num_rocktypes
        write(irstr, '(i0)') ir - 1
        rockstr = 'rock.types[' // trim(irstr) // '].'
        r => fson_value_get_mpi(rocktypes, ir)
-       call fson_get_mpi(r, "name", "", name, logfile, rockstr // "name")
+       call fson_get_mpi(r, "name", "", name, logfile, trim(rockstr) // "name")
        call fson_get_mpi(r, "permeability", default_permeability, &
-            permeability, logfile, rockstr // "permeability")
+            permeability, logfile, trim(rockstr) // "permeability")
        call fson_get_mpi(r, "heat conductivity", default_heat_conductivity, &
-            heat_conductivity, logfile, rockstr // "heat conductivity")
+            heat_conductivity, logfile, trim(rockstr) // "heat conductivity")
        call fson_get_mpi(r, "porosity", default_porosity, porosity, logfile, &
-            rockstr // "porosity")
+            trim(rockstr) // "porosity")
        call fson_get_mpi(r, "density", default_density, density, logfile, &
-            rockstr // "density")
+            trim(rockstr) // "density")
        call fson_get_mpi(r, "specific heat", default_specific_heat, &
-            specific_heat, logfile, rockstr // "specific heat")
+            specific_heat, logfile, trim(rockstr) // "specific heat")
        call DMGetStratumIS(dm, rocktype_label_name, ir, rock_IS, &
             ierr); CHKERRQ(ierr)
        if (rock_IS /= 0) then
@@ -260,7 +259,6 @@ contains
     use fson
     use fson_mpi_module
     use logfile_module
-    use utils_module, only : int_str_len
 
     type(fson_value), pointer, intent(in) :: json
     DM, intent(in out) :: dm
@@ -271,7 +269,8 @@ contains
     PetscInt :: num_rocktypes, num_cells, ir, ic, c
     PetscInt, allocatable :: cells(:)
     PetscInt, allocatable :: default_cells(:)
-    character(len=:), allocatable :: rockstr, irstr
+    character(len=64) :: rockstr
+    character(len=12) :: irstr
 
     default_cells = [PetscInt::] ! empty integer array
 
@@ -279,13 +278,12 @@ contains
        call fson_get_mpi(json, "rock.types", rocktypes)
        call DMCreateLabel(dm, rocktype_label_name, ierr); CHKERRQ(ierr)
        num_rocktypes = fson_value_count_mpi(rocktypes, ".")
-       irstr = repeat(' ', int_str_len(num_rocktypes))
        do ir = 1, num_rocktypes
           write(irstr, '(i0)') ir - 1
           rockstr = 'rock.types[' // trim(irstr) // '].'
           r => fson_value_get_mpi(rocktypes, ir)
           call fson_get_mpi(r, "cells", default_cells, cells, &
-               logfile, rockstr // "cells")
+               logfile, trim(rockstr) // "cells")
           if (allocated(cells)) then
              num_cells = size(cells)
              do ic = 1, num_cells

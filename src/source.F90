@@ -22,7 +22,6 @@ contains
     use fson
     use fson_mpi_module
     use logfile_module
-    use utils_module, only : int_str_len
 
     type(fson_value), pointer, intent(in) :: json
     DM, intent(in) :: dm
@@ -41,7 +40,8 @@ contains
     PetscInt, parameter :: default_component = 1
     PetscReal :: enthalpy
     PetscBool :: mass_source
-    character(len=:), allocatable :: srcstr, istr
+    character(len=64) :: srcstr
+    character(len=12) :: istr
     PetscReal, parameter :: default_enthalpy = 83.9e3
 
     call DMCreateGlobalVector(dm, source, ierr); CHKERRQ(ierr)
@@ -56,14 +56,13 @@ contains
        values = 0._dp
        call fson_get_mpi(json, "source", sources)
        num_sources = fson_value_count_mpi(sources, ".")
-       istr = repeat(' ', int_str_len(num_sources))
        do isrc = 1, num_sources
           write(istr, '(i0)') isrc - 1
           srcstr = 'source[' // trim(istr) // '].'
           src => fson_value_get_mpi(sources, isrc)
           call fson_get_mpi(src, "cell", val = cell)
           call fson_get_mpi(src, "component", default_component, c, &
-               logfile, srcstr // "component")
+               logfile, trim(srcstr) // "component")
           call fson_get_mpi(src, "value", val = q)
           offset = cell * np
           values(offset + c) = values(offset + c) + q
@@ -72,7 +71,7 @@ contains
                (q > 0._dp)) then
              ! add energy from mass injection
              call fson_get_mpi(src, "enthalpy", default_enthalpy, &
-                  enthalpy, logfile, srcstr // "enthalpy")
+                  enthalpy, logfile, trim(srcstr) // "enthalpy")
              values(offset + np) = values(offset + np) + enthalpy * q
           end if
        end do

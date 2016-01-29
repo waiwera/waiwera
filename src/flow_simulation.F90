@@ -242,9 +242,9 @@ contains
     call self%logfile%write(LOG_LEVEL_INFO, 'input', 'summary', &
          str_key = 'mesh', str_value = self%mesh%filename)
     call self%logfile%write(LOG_LEVEL_INFO, 'input', 'summary', &
-         str_key = 'thermodynamics', str_value = self%thermo%name)
-    call self%logfile%write(LOG_LEVEL_INFO, 'input', 'summary', &
          str_key = 'eos.name', str_value = self%eos%name)
+    call self%logfile%write(LOG_LEVEL_INFO, 'input', 'summary', &
+         str_key = 'thermodynamics', str_value = self%thermo%name)
 
     call self%logfile%write_blank()
 
