@@ -146,7 +146,12 @@ contains
        assumed_logfile_name = &
             change_filename_extension(self%output_filename, "yaml")
     else
-       assumed_logfile_name = default_logfile_name
+       if (self%filename /= "") then
+          assumed_logfile_name = &
+               change_filename_extension(self%filename, "yaml")
+       else
+          assumed_logfile_name = default_logfile_name
+       end if
     end if
 
     default_log = .false.
