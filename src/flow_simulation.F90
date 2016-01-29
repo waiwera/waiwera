@@ -194,7 +194,7 @@ contains
          num_log_real_digits, echo)
 
     call self%logfile%write(LOG_LEVEL_INFO, 'input', 'start', &
-         str_key = 'time', str_value = '"' // datetimestr // '"')
+         str_key = 'time', str_value = datetimestr)
     call self%logfile%write_blank()
 
     if (default_output) then
@@ -251,7 +251,7 @@ contains
     call self%logfile%write(LOG_LEVEL_INFO, 'input', 'summary', &
          str_key = 'logfile.filename', str_value = self%logfile%filename)
     call self%logfile%write(LOG_LEVEL_INFO, 'input', 'summary', &
-         str_key = 'title', str_value = '"' // trim(self%title) // '"')
+         str_key = 'title', str_value = trim(self%title))
     call self%logfile%write(LOG_LEVEL_INFO, 'input', 'summary', &
          str_key = 'mesh', str_value = self%mesh%filename)
     call self%logfile%write(LOG_LEVEL_INFO, 'input', 'summary', &

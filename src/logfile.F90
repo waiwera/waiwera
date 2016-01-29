@@ -162,8 +162,8 @@ contains
     num_int = size(int_keys)
     do i = 1, num_int
        write(int_str, self%int_format) int_values(i)
-       content = content  // trim(int_keys(i)) // &
-            ': ' // trim(adjustl(int_str))
+       content = content  // '"' // trim(int_keys(i)) // &
+            '": ' // trim(adjustl(int_str))
        if (i < num_int) then
           content = content // ', '
        end if
@@ -191,8 +191,8 @@ contains
     num_real = size(real_keys)
     do i = 1, num_real
        write(real_str, self%real_format) real_values(i)
-       content = content // trim(real_keys(i)) // &
-            ': ' // trim(adjustl(real_str))
+       content = content // '"' // trim(real_keys(i)) // &
+            '": ' // trim(adjustl(real_str))
        if (i < num_real) then
           content = content // ', '
        end if
@@ -221,8 +221,8 @@ contains
     num_logical = size(logical_keys)
     do i = 1, num_logical
        write(logical_str, '(L)') logical_values(i)
-       content = content // trim(logical_keys(i)) // &
-            ': ' // trim(adjustl(logical_str))
+       content = content // '"' // trim(logical_keys(i)) // &
+            '": ' // trim(adjustl(logical_str))
        if (i < num_logical) then
           content = content // ', '
        end if
@@ -250,7 +250,7 @@ contains
     end if
 
     num_real = size(real_array_value)
-    content = content // trim(real_array_key) // ': ['
+    content = content // '"' // trim(real_array_key) // '": ['
     do i = 1, num_real
        write(real_str, self%real_format) real_array_value(i)
        content = content // trim(adjustl(real_str))
@@ -278,7 +278,8 @@ contains
        content = content // ', '
     end if
 
-    content = content // trim(str_key) // ': ' // trim(str_value)
+    content = content // '"' // trim(str_key) // '": ' // '"' // &
+         trim(str_value) // '"'
 
   end subroutine logfile_append_string_data
 
