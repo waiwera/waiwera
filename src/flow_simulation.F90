@@ -37,6 +37,7 @@ module flow_simulation_module
    contains
      private
      procedure :: setup_solution_vector => flow_simulation_setup_solution_vector
+     procedure :: setup_logfile => flow_simulation_setup_logfile
      procedure :: setup_output => flow_simulation_setup_output
      procedure :: destroy_output => flow_simulation_destroy_output
      procedure, public :: input_summary => flow_simulation_input_summary
@@ -78,8 +79,8 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine flow_simulation_setup_output(self, json, datetimestr)
-    !! Sets up simulation output to HDF5 and logfile.
+  subroutine flow_simulation_setup_logfile(self, json, datetimestr)
+    !! Sets up logfile output.
 
     use fson
     use fson_value_m, only : TYPE_LOGICAL
@@ -90,69 +91,21 @@ contains
     type(fson_value), pointer, intent(in) :: json
     character(len = *), intent(in) :: datetimestr
     ! Locals:
-    character(max_output_filename_length), parameter :: &
-         default_output_filename = "output.h5"
-    character(max_output_filename_length) :: assumed_output_filename
-    PetscErrorCode :: ierr
-    PetscBool :: output, output_log
-    character(max_logfile_name_length) :: logfile_name, assumed_logfile_name
-    character(max_logfile_name_length), parameter :: default_logfile_name = &
-         "output.yaml"
+    character(max_logfile_name_length) :: logfile_name, &
+         assumed_logfile_name
+    character(max_logfile_name_length), parameter :: &
+         default_logfile_name = "output.yaml"
     PetscInt, parameter :: default_max_num_length = 12
     PetscInt, parameter :: default_num_log_real_digits = 6
     PetscInt :: max_log_num_length, num_log_real_digits
     PetscBool, parameter :: default_logfile_echo = PETSC_TRUE
-    PetscBool :: echo, default_output, no_output, default_log, no_logfile
-
-    default_output = .false.
-    no_output = .false.
+    PetscBool :: output_log, default_log, no_logfile, echo
 
     if (self%filename /= "") then
-       assumed_output_filename = &
-            change_filename_extension(self%filename, "h5")
-    else
-       assumed_output_filename = default_output_filename
-    end if
-
-    if (fson_has_mpi(json, "output")) then
-       if (fson_type_mpi(json, "output") == TYPE_LOGICAL) then
-          call fson_get_mpi(json, "output", val = output)
-          if (output) then
-             self%output_filename = assumed_output_filename
-             default_output = .true.
-          else
-             self%output_filename = ""
-             no_output = .true.
-          end if
-       else
-          if (fson_has_mpi(json, "output.filename")) then
-             call fson_get_mpi(json, "output.filename", &
-                  val = self%output_filename)
-             no_output = (self%output_filename == "")
-          else
-             self%output_filename = assumed_output_filename
-             default_output = .true.
-          end if
-       end if
-    else
-       self%output_filename = assumed_output_filename
-       default_output = .true.
-    end if
-
-    if (self%output_filename /= "") then
-       call PetscViewerHDF5Open(mpi%comm, self%output_filename, &
-            FILE_MODE_WRITE, self%hdf5_viewer, ierr); CHKERRQ(ierr)
-       call PetscViewerHDF5PushGroup(self%hdf5_viewer, "/", ierr)
-       CHKERRQ(ierr)
        assumed_logfile_name = &
-            change_filename_extension(self%output_filename, "yaml")
+            change_filename_extension(self%filename, "yaml")
     else
-       if (self%filename /= "") then
-          assumed_logfile_name = &
-               change_filename_extension(self%filename, "yaml")
-       else
-          assumed_logfile_name = default_logfile_name
-       end if
+       assumed_logfile_name = default_logfile_name
     end if
 
     default_log = .false.
@@ -197,16 +150,6 @@ contains
          str_key = 'time', str_value = datetimestr)
     call self%logfile%write_blank()
 
-    if (default_output) then
-       call self%logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
-            str_key = "output.filename", &
-            str_value = self%output_filename)
-    end if
-
-    if (no_output) then
-       call self%logfile%write(LOG_LEVEL_WARN, 'input', 'no output')
-    end if
-
     if (default_log) then
        call self%logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
             str_key = 'logfile.filename', &
@@ -215,6 +158,79 @@ contains
 
     if (no_logfile) then
        call self%logfile%write(LOG_LEVEL_WARN, 'input', 'no logfile')
+    end if
+
+  end subroutine flow_simulation_setup_logfile
+
+!------------------------------------------------------------------------
+
+  subroutine flow_simulation_setup_output(self, json)
+    !! Sets up simulation output to HDF5 file.
+
+    use fson
+    use fson_value_m, only : TYPE_LOGICAL
+    use fson_mpi_module
+    use utils_module, only: change_filename_extension
+
+    class(flow_simulation_type), intent(in out) :: self
+    type(fson_value), pointer, intent(in) :: json
+    ! Locals:
+    character(max_output_filename_length), parameter :: &
+         default_output_filename = "output.h5"
+    character(max_output_filename_length) :: assumed_output_filename
+    PetscErrorCode :: ierr
+    PetscBool :: output, default_output, no_output
+
+    default_output = .false.
+    no_output = .false.
+
+    if (self%filename /= "") then
+       assumed_output_filename = &
+            change_filename_extension(self%filename, "h5")
+    else
+       assumed_output_filename = default_output_filename
+    end if
+
+    if (fson_has_mpi(json, "output")) then
+       if (fson_type_mpi(json, "output") == TYPE_LOGICAL) then
+          call fson_get_mpi(json, "output", val = output)
+          if (output) then
+             self%output_filename = assumed_output_filename
+             default_output = .true.
+          else
+             self%output_filename = ""
+             no_output = .true.
+          end if
+       else
+          if (fson_has_mpi(json, "output.filename")) then
+             call fson_get_mpi(json, "output.filename", &
+                  val = self%output_filename)
+             no_output = (self%output_filename == "")
+          else
+             self%output_filename = assumed_output_filename
+             default_output = .true.
+          end if
+       end if
+    else
+       self%output_filename = assumed_output_filename
+       default_output = .true.
+    end if
+
+    if (self%output_filename /= "") then
+       call PetscViewerHDF5Open(mpi%comm, self%output_filename, &
+            FILE_MODE_WRITE, self%hdf5_viewer, ierr); CHKERRQ(ierr)
+       call PetscViewerHDF5PushGroup(self%hdf5_viewer, "/", ierr)
+       CHKERRQ(ierr)
+    end if
+
+    if (default_output) then
+       call self%logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
+            str_key = "output.filename", &
+            str_value = self%output_filename)
+    end if
+
+    if (no_output) then
+       call self%logfile%write(LOG_LEVEL_WARN, 'input', 'no output')
     end if
 
   end subroutine flow_simulation_setup_output
@@ -247,9 +263,9 @@ contains
     call self%logfile%write(LOG_LEVEL_INFO, 'input', 'summary', &
          str_key = 'input.filename', str_value = self%filename)
     call self%logfile%write(LOG_LEVEL_INFO, 'input', 'summary', &
-         str_key = 'output.filename', str_value = self%output_filename)
-    call self%logfile%write(LOG_LEVEL_INFO, 'input', 'summary', &
          str_key = 'logfile.filename', str_value = self%logfile%filename)
+    call self%logfile%write(LOG_LEVEL_INFO, 'input', 'summary', &
+         str_key = 'output.filename', str_value = self%output_filename)
     call self%logfile%write(LOG_LEVEL_INFO, 'input', 'summary', &
          str_key = 'title', str_value = trim(self%title))
     call self%logfile%write(LOG_LEVEL_INFO, 'input', 'summary', &
@@ -297,7 +313,8 @@ contains
        self%filename = ""
     end if
 
-    call self%setup_output(json, datetimestr)
+    call self%setup_logfile(json, datetimestr)
+    call self%setup_output(json)
 
     call fson_get_mpi(json, "title", default_title, self%title, self%logfile)
 
