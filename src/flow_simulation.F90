@@ -249,8 +249,6 @@ contains
        call PetscViewerDestroy(self%hdf5_viewer, ierr); CHKERRQ(ierr)
     end if
 
-    call self%logfile%destroy()
-
   end subroutine flow_simulation_destroy_output
 
 !------------------------------------------------------------------------
@@ -361,6 +359,7 @@ contains
     PetscErrorCode :: ierr
 
     call self%destroy_output()
+    call self%logfile%destroy()
 
     call VecDestroy(self%solution, ierr); CHKERRQ(ierr)
     call VecDestroy(self%fluid, ierr); CHKERRQ(ierr)
