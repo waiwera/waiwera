@@ -355,17 +355,19 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine mesh_setup_boundaries(self, json, eos)
+  subroutine mesh_setup_boundaries(self, json, eos, logfile)
     !! Sets up boundary conditions on the mesh.
 
     use eos_module, only: eos_type
     use boundary_module, only: setup_boundaries
+    use logfile_module
 
     class(mesh_type), intent(in out) :: self
     type(fson_value), pointer, intent(in) :: json
     class(eos_type), intent(in) :: eos
+    type(logfile_type), intent(in out), optional :: logfile
 
-    call setup_boundaries(json, eos, self%dm, self%bcs)
+    call setup_boundaries(json, eos, self%dm, self%bcs, logfile)
 
   end subroutine mesh_setup_boundaries
 

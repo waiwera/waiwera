@@ -14,18 +14,17 @@ module logfile_module
   character(max_log_level_name_length), parameter :: &
        log_level_name(3) = ['info', 'warn', 'err ']
   PetscInt, parameter, public :: max_logfile_name_length = 120
-  PetscInt, parameter :: max_log_key_length = 16
+  PetscInt, parameter, public :: max_log_key_length = 64
   PetscInt, parameter :: max_format_length = 8
   character, parameter :: lf = new_line('a')
-  PetscBool, parameter :: default_echo = PETSC_TRUE
 
   type logfile_type
      private
      PetscViewer :: viewer
      character(max_logfile_name_length), public :: filename
-     PetscInt :: max_num_length, num_real_digits
-     character(max_format_length) :: int_format, real_format
-     PetscBool, public :: echo
+     PetscInt, public :: max_num_length, num_real_digits
+     character(max_format_length), public :: int_format, real_format
+     PetscBool, public :: echo, active
    contains
      private
      procedure, public :: init => logfile_init
@@ -33,6 +32,7 @@ module logfile_module
      procedure :: set_number_formats => logfile_set_number_formats
      procedure :: append_int_data => logfile_append_int_data
      procedure :: append_real_data => logfile_append_real_data
+     procedure :: append_logical_data => logfile_append_logical_data
      procedure :: append_real_array_data => &
           logfile_append_real_array_data
      procedure :: append_string_data => logfile_append_string_data
@@ -60,6 +60,7 @@ contains
     PetscErrorCode :: ierr
     PetscInt, parameter :: default_max_num_length = 12
     PetscInt, parameter :: default_num_real_digits = 6
+    PetscBool, parameter :: default_echo = PETSC_TRUE
 
     self%filename = filename
     if (self%filename /= "") then
@@ -87,6 +88,7 @@ contains
        self%echo = default_echo
     end if
 
+    self%active = ((self%filename /= "") .or. self%echo)
     call self%set_number_formats()
 
     if (self%echo) then
@@ -127,7 +129,7 @@ contains
 
     class(logfile_type), intent(in out) :: self
 
-    if (self%echo .or. self%filename /= "") then
+    if (self%active) then
 
        ! Make sure length is big enough for number of digits specified:
        self%max_num_length = max(self%max_num_length, self%num_real_digits + 5)
@@ -160,8 +162,8 @@ contains
     num_int = size(int_keys)
     do i = 1, num_int
        write(int_str, self%int_format) int_values(i)
-       content = content  // trim(int_keys(i)) // &
-            ': ' // trim(adjustl(int_str))
+       content = content  // '"' // trim(int_keys(i)) // &
+            '": ' // trim(adjustl(int_str))
        if (i < num_int) then
           content = content // ', '
        end if
@@ -189,14 +191,44 @@ contains
     num_real = size(real_keys)
     do i = 1, num_real
        write(real_str, self%real_format) real_values(i)
-       content = content // trim(real_keys(i)) // &
-            ': ' // trim(adjustl(real_str))
+       content = content // '"' // trim(real_keys(i)) // &
+            '": ' // trim(adjustl(real_str))
        if (i < num_real) then
           content = content // ', '
        end if
     end do
 
   end subroutine logfile_append_real_data
+
+!------------------------------------------------------------------------
+
+  subroutine logfile_append_logical_data(self, logical_keys, &
+       logical_values, content)
+    !! Append logical data to logfile content line.
+
+    class(logfile_type), intent(in out) :: self
+    character(*), intent(in) :: logical_keys(:)
+    PetscBool, intent(in) :: logical_values(:)
+    character(:), allocatable, intent(in out) ::  content
+    ! Locals:
+    PetscInt :: num_logical, i
+    character(1) :: logical_str
+
+    if (len(content) > 0) then
+       content = content // ', '
+    end if
+
+    num_logical = size(logical_keys)
+    do i = 1, num_logical
+       write(logical_str, '(L)') logical_values(i)
+       content = content // '"' // trim(logical_keys(i)) // &
+            '": ' // trim(adjustl(logical_str))
+       if (i < num_logical) then
+          content = content // ', '
+       end if
+    end do
+
+  end subroutine logfile_append_logical_data
 
 !------------------------------------------------------------------------
 
@@ -218,7 +250,7 @@ contains
     end if
 
     num_real = size(real_array_value)
-    content = content // trim(real_array_key) // ': ['
+    content = content // '"' // trim(real_array_key) // '": ['
     do i = 1, num_real
        write(real_str, self%real_format) real_array_value(i)
        content = content // trim(adjustl(real_str))
@@ -246,30 +278,32 @@ contains
        content = content // ', '
     end if
 
-    content = content // trim(str_key) // ': ' // trim(str_value)
+    content = content // '"' // trim(str_key) // '": ' // '"' // &
+         trim(str_value) // '"'
 
   end subroutine logfile_append_string_data
 
 !------------------------------------------------------------------------
 
   subroutine logfile_write(self, level, source, event, int_keys, &
-       int_values, real_keys, real_values, str_key, str_value, &
-       real_array_key, real_array_value)
+       int_values, real_keys, real_values, logical_keys, logical_values, &
+       str_key, str_value, real_array_key, real_array_value)
     !! Write message to logfile, optionally echoing to console output
     !! according to self%echo property.
     !! Output is in YAML format: each message is formatted as an
     !! inline list, with the first three elements being the level,
     !! source and event respectively. If there are additional integer,
-    !! real, string or real array data, these are appended as an
+    !! real, logical, string or real array data, these are appended as an
     !! associative array.
 
     class(logfile_type), intent(in out) :: self
     PetscInt, intent(in) :: level
     character(*), intent(in) :: source, event
     character(*), intent(in), optional :: int_keys(:), &
-         real_keys(:), str_key, real_array_key
+         real_keys(:), logical_keys(:), str_key, real_array_key
     PetscInt, intent(in), optional :: int_values(:)
     PetscReal, intent(in), optional :: real_values(:)
+    PetscBool, intent(in), optional :: logical_values(:)
     character(*), intent(in), optional :: str_value
     PetscReal, intent(in), optional :: real_array_value(:)
     ! Locals:
@@ -278,7 +312,10 @@ contains
 
     content = ""
 
-    if ((self%filename /= "") .or. self%echo) then
+    if (self%active) then
+
+       msg = '- [' // trim(log_level_name(level)) // ', ' &
+            // trim(source) // ', ' // trim(event)
 
        has_data = PETSC_FALSE
 
@@ -292,6 +329,11 @@ contains
           call self%append_real_data(real_keys, real_values, content)
        end if
 
+       if (present(logical_keys) .and. present(logical_values)) then
+          has_data = PETSC_TRUE
+          call self%append_logical_data(logical_keys, logical_values, content)
+       end if
+
        if (present(real_array_key) .and. present(real_array_value)) then
           has_data = PETSC_TRUE
           call self%append_real_array_data(real_array_key, &
@@ -303,8 +345,6 @@ contains
           call self%append_string_data(str_key, str_value, content)
        end if
 
-       msg = '- [' // trim(log_level_name(level)) // ', ' &
-            // trim(source) // ', ' // trim(event)
        if (has_data) then
           msg = msg // ', {' // trim(content) // '}]' // lf
        else

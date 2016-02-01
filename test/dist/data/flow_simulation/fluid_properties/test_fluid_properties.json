@@ -16,5 +16,5 @@
             }
         ]
     },
-    "output": {"filename": ""}, "logfile": false
+    "output": {"filename": ""}, "logfile": {"filename": "", "echo": false}
 }

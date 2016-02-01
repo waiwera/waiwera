@@ -37,8 +37,10 @@ module flow_simulation_module
    contains
      private
      procedure :: setup_solution_vector => flow_simulation_setup_solution_vector
+     procedure :: setup_logfile => flow_simulation_setup_logfile
      procedure :: setup_output => flow_simulation_setup_output
      procedure :: destroy_output => flow_simulation_destroy_output
+     procedure, public :: input_summary => flow_simulation_input_summary
      procedure, public :: init => flow_simulation_init
      procedure, public :: destroy => flow_simulation_destroy
      procedure, public :: lhs => flow_simulation_cell_balances
@@ -77,8 +79,8 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine flow_simulation_setup_output(self, json)
-    !! Sets up simulation output to HDF5 and logfile.
+  subroutine flow_simulation_setup_logfile(self, json, datetimestr)
+    !! Sets up logfile output.
 
     use fson
     use fson_value_m, only : TYPE_LOGICAL
@@ -87,61 +89,51 @@ contains
 
     class(flow_simulation_type), intent(in out) :: self
     type(fson_value), pointer, intent(in) :: json
+    character(len = *), intent(in) :: datetimestr
     ! Locals:
-    character(max_output_filename_length), parameter :: &
-         default_output_filename = "output.h5"
-    PetscErrorCode :: ierr
-    PetscBool :: output, output_log
-    character(max_logfile_name_length) :: logfile_name, assumed_logfile_name
-    character(max_logfile_name_length), parameter :: default_logfile_name = &
-         "output.yaml"
+    character(max_logfile_name_length) :: logfile_name, &
+         assumed_logfile_name
+    character(max_logfile_name_length), parameter :: &
+         default_logfile_name = "output.yaml"
     PetscInt, parameter :: default_max_num_length = 12
     PetscInt, parameter :: default_num_log_real_digits = 6
     PetscInt :: max_log_num_length, num_log_real_digits
     PetscBool, parameter :: default_logfile_echo = PETSC_TRUE
-    PetscBool :: echo
+    PetscBool :: output_log, default_log, no_logfile, echo
 
-    if (fson_has_mpi(json, "output")) then
-       if (fson_type_mpi(json, "output") == TYPE_LOGICAL) then
-          call fson_get_mpi(json, "output", val = output)
-          if (output) then
-             self%output_filename = default_output_filename
-          else
-             self%output_filename = ""
-          end if
-       else
-          call fson_get_mpi(json, "output.filename", &
-               default_output_filename, self%output_filename)
-       end if
-    else
-       self%output_filename = default_output_filename
-    end if
-
-    if (self%output_filename /= "") then
-       call PetscViewerHDF5Open(mpi%comm, self%output_filename, &
-            FILE_MODE_WRITE, self%hdf5_viewer, ierr); CHKERRQ(ierr)
-       call PetscViewerHDF5PushGroup(self%hdf5_viewer, "/", ierr)
-       CHKERRQ(ierr)
+    if (self%filename /= "") then
        assumed_logfile_name = &
-            change_filename_extension(self%output_filename, "yaml")
+            change_filename_extension(self%filename, "yaml")
     else
        assumed_logfile_name = default_logfile_name
     end if
+
+    default_log = .false.
+    no_logfile = .false.
 
     if (fson_has_mpi(json, "logfile")) then
        if (fson_type_mpi(json, "logfile") == TYPE_LOGICAL) then
           call fson_get_mpi(json, "logfile", val = output_log)
           if (output_log) then
              logfile_name = assumed_logfile_name
+             default_log = .true.
           else
              logfile_name = ""
+             no_logfile = .true.
           end if
        else
-          call fson_get_mpi(json, "logfile.filename", &
-               assumed_logfile_name, logfile_name)
+          if (fson_has_mpi(json, "logfile.filename")) then
+             call fson_get_mpi(json, "logfile.filename", &
+                  val = logfile_name)
+             no_logfile = (logfile_name == "")
+          else
+             logfile_name = assumed_logfile_name
+             default_log = .true.
+          end if
        end if
     else
        logfile_name = assumed_logfile_name
+       default_log = .true.
     end if
 
     call fson_get_mpi(json, "logfile.format.max_num_length", &
@@ -153,6 +145,93 @@ contains
 
     call self%logfile%init(logfile_name, max_log_num_length, &
          num_log_real_digits, echo)
+
+    call self%logfile%write(LOG_LEVEL_INFO, 'input', 'start', &
+         str_key = 'time', str_value = datetimestr)
+    call self%logfile%write_blank()
+
+    if (default_log) then
+       call self%logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
+            str_key = 'logfile.filename', &
+            str_value = logfile_name)
+    end if
+
+    if (no_logfile) then
+       call self%logfile%write(LOG_LEVEL_WARN, 'input', 'no logfile')
+    end if
+
+  end subroutine flow_simulation_setup_logfile
+
+!------------------------------------------------------------------------
+
+  subroutine flow_simulation_setup_output(self, json)
+    !! Sets up simulation output to HDF5 file.
+
+    use fson
+    use fson_value_m, only : TYPE_LOGICAL
+    use fson_mpi_module
+    use utils_module, only: change_filename_extension
+
+    class(flow_simulation_type), intent(in out) :: self
+    type(fson_value), pointer, intent(in) :: json
+    ! Locals:
+    character(max_output_filename_length), parameter :: &
+         default_output_filename = "output.h5"
+    character(max_output_filename_length) :: assumed_output_filename
+    PetscErrorCode :: ierr
+    PetscBool :: output, default_output, no_output
+
+    default_output = .false.
+    no_output = .false.
+
+    if (self%filename /= "") then
+       assumed_output_filename = &
+            change_filename_extension(self%filename, "h5")
+    else
+       assumed_output_filename = default_output_filename
+    end if
+
+    if (fson_has_mpi(json, "output")) then
+       if (fson_type_mpi(json, "output") == TYPE_LOGICAL) then
+          call fson_get_mpi(json, "output", val = output)
+          if (output) then
+             self%output_filename = assumed_output_filename
+             default_output = .true.
+          else
+             self%output_filename = ""
+             no_output = .true.
+          end if
+       else
+          if (fson_has_mpi(json, "output.filename")) then
+             call fson_get_mpi(json, "output.filename", &
+                  val = self%output_filename)
+             no_output = (self%output_filename == "")
+          else
+             self%output_filename = assumed_output_filename
+             default_output = .true.
+          end if
+       end if
+    else
+       self%output_filename = assumed_output_filename
+       default_output = .true.
+    end if
+
+    if (self%output_filename /= "") then
+       call PetscViewerHDF5Open(mpi%comm, self%output_filename, &
+            FILE_MODE_WRITE, self%hdf5_viewer, ierr); CHKERRQ(ierr)
+       call PetscViewerHDF5PushGroup(self%hdf5_viewer, "/", ierr)
+       CHKERRQ(ierr)
+    end if
+
+    if (default_output) then
+       call self%logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
+            str_key = "output.filename", &
+            str_value = self%output_filename)
+    end if
+
+    if (no_output) then
+       call self%logfile%write(LOG_LEVEL_WARN, 'input', 'no output')
+    end if
 
   end subroutine flow_simulation_setup_output
 
@@ -170,9 +249,33 @@ contains
        call PetscViewerDestroy(self%hdf5_viewer, ierr); CHKERRQ(ierr)
     end if
 
-    call self%logfile%destroy()
-
   end subroutine flow_simulation_destroy_output
+
+!------------------------------------------------------------------------
+
+  subroutine flow_simulation_input_summary(self)
+    !! Writes summary of important inputs to logfile.
+
+    class(flow_simulation_type), intent(in out) :: self
+
+    call self%logfile%write(LOG_LEVEL_INFO, 'input', 'summary', &
+         str_key = 'input.filename', str_value = self%filename)
+    call self%logfile%write(LOG_LEVEL_INFO, 'input', 'summary', &
+         str_key = 'logfile.filename', str_value = self%logfile%filename)
+    call self%logfile%write(LOG_LEVEL_INFO, 'input', 'summary', &
+         str_key = 'output.filename', str_value = self%output_filename)
+    call self%logfile%write(LOG_LEVEL_INFO, 'input', 'summary', &
+         str_key = 'title', str_value = trim(self%title))
+    call self%logfile%write(LOG_LEVEL_INFO, 'input', 'summary', &
+         str_key = 'mesh', str_value = self%mesh%filename)
+    call self%logfile%write(LOG_LEVEL_INFO, 'input', 'summary', &
+         str_key = 'eos.name', str_value = self%eos%name)
+    call self%logfile%write(LOG_LEVEL_INFO, 'input', 'summary', &
+         str_key = 'thermodynamics', str_value = self%thermo%name)
+
+    call self%logfile%write_blank()
+
+  end subroutine flow_simulation_input_summary
 
 !------------------------------------------------------------------------
 
@@ -189,51 +292,43 @@ contains
     use fluid_module, only: setup_fluid_vector
     use rock_module, only: setup_rock_vector, setup_rocktype_labels
     use source_module, only: setup_source_vector
+    use utils_module, only: date_time_str
 
     class(flow_simulation_type), intent(in out) :: self
     type(fson_value), pointer, intent(in) :: json
     character(len = *), intent(in), optional :: filename
     ! Locals:
     character(len = max_title_length), parameter :: default_title = ""
+    character(25) :: datetimestr
     PetscReal, parameter :: default_gravity = 9.8_dp
     PetscErrorCode :: ierr
+
+    datetimestr = date_time_str()
 
     if (present(filename)) then
        self%filename = filename
     else
        self%filename = ""
     end if
+
+    call self%setup_logfile(json, datetimestr)
     call self%setup_output(json)
 
-    call self%logfile%write(LOG_LEVEL_INFO, 'simulation', 'init', &
-         str_key = 'time            ', &
-         str_value = '"' // ctime(time()) // '"')
+    call fson_get_mpi(json, "title", default_title, self%title, self%logfile)
 
-    call self%logfile%write(LOG_LEVEL_INFO, 'simulation', 'init', &
-         str_key = 'filename', str_value = self%filename)
+    call setup_thermodynamics(json, self%thermo, self%logfile)
 
-    call fson_get_mpi(json, "title", default_title, self%title)
-    call self%logfile%write(LOG_LEVEL_INFO, 'simulation', 'init', &
-         str_key = 'title', str_value = self%title)
-
-    call setup_thermodynamics(json, self%thermo)
-    call self%logfile%write(LOG_LEVEL_INFO, 'simulation', 'init', &
-         str_key = 'thermodynamics', str_value = self%thermo%name)
-
-    call setup_eos(json, self%thermo, self%eos)
-    call self%logfile%write(LOG_LEVEL_INFO, 'simulation', 'init', &
-         str_key = 'EOS', str_value = self%eos%name)
+    call setup_eos(json, self%thermo, self%eos, self%logfile)
 
     call self%mesh%init(json, self%logfile)
-    call self%logfile%write(LOG_LEVEL_INFO, 'simulation', 'init', &
-         str_key = 'mesh', str_value = self%mesh%filename)
-    call setup_rocktype_labels(json, self%mesh%dm)
-    call self%mesh%setup_boundaries(json, self%eos)
+    call setup_rocktype_labels(json, self%mesh%dm, self%logfile)
+    call self%mesh%setup_boundaries(json, self%eos, self%logfile)
     call self%mesh%configure(self%eos%primary_variable_names)
     call self%setup_solution_vector()
-    call setup_relative_permeabilities(json, self%relative_permeability)
+    call setup_relative_permeabilities(json, &
+         self%relative_permeability, self%logfile)
     call setup_rock_vector(json, self%mesh%dm, self%rock, &
-         self%rock_range_start)
+         self%rock_range_start, self%logfile)
     call setup_fluid_vector(self%mesh%dm, max_component_name_length, &
          self%eos%component_names, max_phase_name_length, &
          self%eos%phase_names, self%fluid, self%fluid_range_start)
@@ -244,14 +339,13 @@ contains
     call setup_initial(json, self%mesh, self%eos, &
          self%time, self%solution, self%rock, self%fluid, &
          self%solution_range_start,  self%rock_range_start, &
-         self%fluid_range_start)
+         self%fluid_range_start, self%logfile)
     call self%mesh%set_boundary_values(self%solution, self%rock, self%eos, &
          self%solution_range_start, self%rock_range_start)
     call setup_source_vector(json, self%mesh%dm, &
-         self%eos%num_primary_variables, self%eos%isothermal, self%source)
-    call fson_get_mpi(json, "gravity", default_gravity, self%gravity)
-
-    call self%logfile%write_blank()
+         self%eos%num_primary_variables, self%eos%isothermal, &
+         self%source, self%logfile)
+    call fson_get_mpi(json, "gravity", default_gravity, self%gravity, self%logfile)
 
   end subroutine flow_simulation_init
 
@@ -265,6 +359,7 @@ contains
     PetscErrorCode :: ierr
 
     call self%destroy_output()
+    call self%logfile%destroy()
 
     call VecDestroy(self%solution, ierr); CHKERRQ(ierr)
     call VecDestroy(self%fluid, ierr); CHKERRQ(ierr)
@@ -942,19 +1037,14 @@ contains
     PetscReal, intent(in) :: time
     ! Locals:
     DM :: fluid_dm
-    PetscViewer :: viewer
     PetscErrorCode :: ierr
 
-    call VecGetDM(self%fluid, fluid_dm, ierr); CHKERRQ(ierr)
-    call DMSetOutputSequenceNumber(fluid_dm, time_index, time, &
-         ierr); CHKERRQ(ierr)
-    call VecView(self%fluid, self%hdf5_viewer, ierr); CHKERRQ(ierr)
-
-    call PetscViewerCreate(mpi%comm, viewer, ierr); CHKERRQ(ierr)
-    call PetscViewerSetType(viewer, PETSCVIEWERVTK, ierr); CHKERRQ(ierr)
-    call PetscViewerFileSetName(viewer, "solution.vtu", ierr); CHKERRQ(ierr)
-    call VecView(self%solution, viewer, ierr); CHKERRQ(ierr)
-    call PetscViewerDestroy(viewer, ierr); CHKERRQ(ierr)
+    if (self%output_filename /= "") then
+       call VecGetDM(self%fluid, fluid_dm, ierr); CHKERRQ(ierr)
+       call DMSetOutputSequenceNumber(fluid_dm, time_index, time, &
+            ierr); CHKERRQ(ierr)
+       call VecView(self%fluid, self%hdf5_viewer, ierr); CHKERRQ(ierr)
+    end if
 
   end subroutine flow_simulation_output
 

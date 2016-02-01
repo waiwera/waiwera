@@ -8,7 +8,9 @@ module utils_module
 #include <petsc/finclude/petscdef.h>
 
   public :: str_to_upper, str_to_lower, &
-       split_filename, change_filename_extension
+       int_str_len, &
+       split_filename, change_filename_extension, &
+       date_time_str
   
 contains
 
@@ -54,6 +56,25 @@ contains
 
 !------------------------------------------------------------------------
 
+  recursive function int_str_len(i) result (w)
+    !! Returns minimum length of string needed to represent a given
+    !! integer i.
+
+    PetscInt, intent(in) :: i
+    PetscInt :: w
+
+    if (i == 0) then
+       w = 1
+    else if (i > 0) then
+       w = 1 + int(log10(real(i)))
+    else
+       w = 1 + int_str_len(-i)
+    end if
+
+  end function int_str_len
+
+!------------------------------------------------------------------------
+
   subroutine split_filename(filename, base, ext)
     !! Splits filename into base and extension.
 
@@ -92,6 +113,22 @@ contains
     deallocate(base, oldext)
 
   end function change_filename_extension
+
+!------------------------------------------------------------------------
+
+  character(25) function date_time_str()
+    !! Returns string with current date and time.
+
+    ! Locals:
+    character(8) :: datestr
+    character(10) :: timestr
+    character(5) :: zonestr
+
+    call date_and_time(datestr, timestr, zonestr)
+
+    date_time_str = datestr // ' ' // timestr // ' ' // zonestr
+
+  end function date_time_str
 
 !------------------------------------------------------------------------
 

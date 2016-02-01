@@ -33,5 +33,5 @@
         }, 
         "stop": 1000.0
     },
-    "output": false, "logfile": false
+    "output": false, "logfile": {"filename": "", "echo": false}
 }

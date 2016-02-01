@@ -120,17 +120,20 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine setup_rock_vector_types(json, dm, rock_vector, range_start)
+  subroutine setup_rock_vector_types(json, dm, rock_vector, range_start, &
+       logfile)
     !! Sets up rock vector on DM from rock types in JSON input.
 
     use dm_utils_module, only: global_section_offset, global_vec_section
     use fson
     use fson_mpi_module
+    use logfile_module
 
     type(fson_value), pointer, intent(in) :: json
     DM, intent(in) :: dm
     Vec, intent(out) :: rock_vector
     PetscInt, intent(in) :: range_start
+    type(logfile_type), intent(in out) :: logfile
     ! Locals:
     PetscInt :: num_rocktypes, ir, ic, c, num_cells, offset, ghost
     type(fson_value), pointer :: rocktypes, r
@@ -144,6 +147,8 @@ contains
     PetscReal, pointer :: rock_array(:)
     PetscSection :: section
     PetscErrorCode :: ierr
+    character(len=64) :: rockstr
+    character(len=12) :: irstr
 
     call VecGetArrayF90(rock_vector, rock_array, ierr); CHKERRQ(ierr)
     call global_vec_section(rock_vector, section)
@@ -153,14 +158,20 @@ contains
     call fson_get_mpi(json, "rock.types", rocktypes)
     num_rocktypes = fson_value_count_mpi(rocktypes, ".")
     do ir = 1, num_rocktypes
+       write(irstr, '(i0)') ir - 1
+       rockstr = 'rock.types[' // trim(irstr) // '].'
        r => fson_value_get_mpi(rocktypes, ir)
-       call fson_get_mpi(r, "name", "", name)
-       call fson_get_mpi(r, "permeability", default_permeability, permeability)
+       call fson_get_mpi(r, "name", "", name, logfile, trim(rockstr) // "name")
+       call fson_get_mpi(r, "permeability", default_permeability, &
+            permeability, logfile, trim(rockstr) // "permeability")
        call fson_get_mpi(r, "heat conductivity", default_heat_conductivity, &
-            heat_conductivity)
-       call fson_get_mpi(r, "porosity", default_porosity, porosity)
-       call fson_get_mpi(r, "density", default_density, density)
-       call fson_get_mpi(r, "specific heat", default_specific_heat, specific_heat)
+            heat_conductivity, logfile, trim(rockstr) // "heat conductivity")
+       call fson_get_mpi(r, "porosity", default_porosity, porosity, logfile, &
+            trim(rockstr) // "porosity")
+       call fson_get_mpi(r, "density", default_density, density, logfile, &
+            trim(rockstr) // "density")
+       call fson_get_mpi(r, "specific heat", default_specific_heat, &
+            specific_heat, logfile, trim(rockstr) // "specific heat")
        call DMGetStratumIS(dm, rocktype_label_name, ir, rock_IS, &
             ierr); CHKERRQ(ierr)
        if (rock_IS /= 0) then
@@ -191,17 +202,19 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine setup_rock_vector(json, dm, rock_vector, range_start)
+  subroutine setup_rock_vector(json, dm, rock_vector, range_start, logfile)
     !! Sets up rock vector on specified DM from JSON input.
 
     use dm_utils_module, only: set_dm_data_layout, global_vec_range_start
     use fson
     use fson_mpi_module
+    use logfile_module
 
     type(fson_value), pointer, intent(in) :: json
     DM, intent(in) :: dm
     Vec, intent(out) :: rock_vector
     PetscInt, intent(out) :: range_start
+    type(logfile_type), intent(in out) :: logfile
     ! Locals:
     DM :: dm_rock
     PetscErrorCode :: ierr
@@ -222,7 +235,8 @@ contains
 
        if (fson_has_mpi(json, "rock.types")) then
 
-          call setup_rock_vector_types(json, dm, rock_vector, range_start)
+          call setup_rock_vector_types(json, dm, rock_vector, range_start, &
+               logfile)
 
        else
           ! other types of rock initialization here- TODO
@@ -237,22 +251,26 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine setup_rocktype_labels(json, dm)
+  subroutine setup_rocktype_labels(json, dm, logfile)
     !! Sets up rocktype label on a DM. The values of the rock type
     !! label are the indices (1-based) of the rocktypes specified in the 
     !! JSON input file.
 
     use fson
     use fson_mpi_module
+    use logfile_module
 
     type(fson_value), pointer, intent(in) :: json
     DM, intent(in out) :: dm
+    type(logfile_type), intent(in out) :: logfile
     ! Locals:
     PetscErrorCode :: ierr
     type(fson_value), pointer :: rocktypes, r
     PetscInt :: num_rocktypes, num_cells, ir, ic, c
     PetscInt, allocatable :: cells(:)
     PetscInt, allocatable :: default_cells(:)
+    character(len=64) :: rockstr
+    character(len=12) :: irstr
 
     default_cells = [PetscInt::] ! empty integer array
 
@@ -261,8 +279,11 @@ contains
        call DMCreateLabel(dm, rocktype_label_name, ierr); CHKERRQ(ierr)
        num_rocktypes = fson_value_count_mpi(rocktypes, ".")
        do ir = 1, num_rocktypes
+          write(irstr, '(i0)') ir - 1
+          rockstr = 'rock.types[' // trim(irstr) // '].'
           r => fson_value_get_mpi(rocktypes, ir)
-          call fson_get_mpi(r, "cells", default_cells, cells)
+          call fson_get_mpi(r, "cells", default_cells, cells, &
+               logfile, trim(rockstr) // "cells")
           if (allocated(cells)) then
              num_cells = size(cells)
              do ic = 1, num_cells
@@ -273,6 +294,8 @@ contains
              deallocate(cells)
           end if
        end do
+    else
+       call logfile%write(LOG_LEVEL_WARN, "input", "no rocktypes")
     end if
 
   end subroutine setup_rocktype_labels
