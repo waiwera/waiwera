@@ -96,6 +96,7 @@ contains
     ! Locals:
     PetscViewer :: viewer
     DM :: fluid_dm
+    Vec :: output_cell_geom
     PetscSection :: y_section, fluid_section
     PetscReal, pointer :: y_array(:), fluid_array(:)
     PetscReal, pointer :: cell_primary(:)
@@ -108,6 +109,12 @@ contains
          viewer, ierr); CHKERRQ(ierr)
     call PetscViewerHDF5PushGroup(viewer, "/", ierr); CHKERRQ(ierr)
 
+    call VecDuplicate(mesh%cell_geom, output_cell_geom, ierr)
+    CHKERRQ(ierr)
+    call PetscObjectSetName(output_cell_geom, "cell_geometry", ierr)
+    CHKERRQ(ierr)
+    call VecLoad(output_cell_geom, viewer, ierr); CHKERRQ(ierr)
+
     ! TODO :: navigate to last timestep- currently this will work only
     ! if the file has only results for one timestep in it.
     ! call PetscViewerHDF5SetTimestep(viewer, ?, ierr); CHKERRQ(ierr)
@@ -118,6 +125,9 @@ contains
 
     call PetscViewerHDF5PopGroup(viewer, ierr); CHKERRQ(ierr)
     call PetscViewerDestroy(viewer, ierr); CHKERRQ(ierr)
+
+    call mesh%order_vector(output_cell_geom, fluid_vector)
+    call VecDestroy(output_cell_geom, ierr); CHKERRQ(ierr)
 
     ! Determine solution vector from fluid vector:
 

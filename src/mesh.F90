@@ -32,6 +32,7 @@ module mesh_module
      procedure, public :: configure => mesh_configure
      procedure, public :: setup_boundaries => mesh_setup_boundaries
      procedure, public :: set_boundary_values => mesh_set_boundary_values
+     procedure, public :: order_vector => mesh_order_vector
      procedure, public :: destroy => mesh_destroy
   end type mesh_type
 
@@ -443,5 +444,80 @@ contains
   end subroutine mesh_set_boundary_values
 
 !-----------------------------------------------------------------------
+
+  subroutine mesh_order_vector(self, geom, v)
+    !! Reorders vector v to correspond to the cell order of the mesh
+    !! DM, rather than that of the given cell geometry vector. This
+    !! works by taking the centroid of each cell in the geometry
+    !! vector and finding its location in the DM, to create an index
+    !! set and hence a vector scatter to do the reordering.
+
+    use cell_module, only: cell_type
+    use dm_utils_module, only: local_vec_section, section_offset, &
+         set_dm_data_layout
+
+    class(mesh_type), intent(in) :: self
+    Vec, intent(in) :: geom
+    Vec, intent(in out) :: v
+    ! Locals:
+    DM :: geom_dm, centroid_dm
+    Vec :: vinitial, centroids
+    type(cell_type) :: cell
+    IS :: cell_indices
+    VecScatter :: scatter
+    PetscReal, pointer :: geom_array(:), centroids_array(:)
+    PetscSection :: geom_section, centroid_section
+    PetscInt :: geom_offset, dim, c, centroid_offset
+    PetscErrorCode :: ierr
+
+    call VecDuplicate(v, vinitial, ierr); CHKERRQ(ierr)
+    call VecCopy(v, vinitial, ierr); CHKERRQ(ierr)
+
+    ! Extract centroids from geometry:
+    call local_vec_section(geom, geom_section)
+    call VecGetArrayReadF90(geom, geom_array, ierr); CHKERRQ(ierr)
+    call DMGetDimension(self%dm, dim, ierr); CHKERRQ(ierr)
+    call VecGetDM(geom, geom_dm, ierr); CHKERRQ(ierr)
+    call DMClone(geom_dm, centroid_dm, ierr); CHKERRQ(ierr)
+    call set_dm_data_layout(centroid_dm, [dim], [dim])
+    call DMCreateLocalVector(centroid_dm, centroids, ierr)
+    CHKERRQ(ierr)
+    call local_vec_section(centroids, centroid_section)
+    call VecGetArrayF90(centroids, centroids_array, ierr); CHKERRQ(ierr)
+    do c = self%start_cell, self%end_cell - 1
+       call section_offset(geom_section, c, geom_offset, ierr)
+       CHKERRQ(ierr)
+       call cell%assign(geom_array, geom_offset)
+       call section_offset(centroid_section, c, centroid_offset, ierr)
+       CHKERRQ(ierr)
+       centroids_array(centroid_offset: &
+            centroid_offset + dim - 1) = cell%centroid
+    end do
+    call VecRestoreArrayF90(centroids,centroids_array, ierr)
+    CHKERRQ(ierr)
+    call VecView(centroids, PETSC_VIEWER_STDOUT_WORLD, ierr)
+    call VecRestoreArrayReadF90(geom, geom_array, ierr); CHKERRQ(ierr)
+    call PetscSectionDestroy(centroid_section, ierr); CHKERRQ(ierr)
+
+    ! Locate centroids in DM, and scatter:
+    call DMLocatePoints(self%dm, centroids, cell_indices, ierr)
+    CHKERRQ(ierr)
+    call ISView(cell_indices, PETSC_VIEWER_STDOUT_WORLD, ierr)  ! debug
+    call VecScatterCreate(vinitial, cell_indices, &
+         v, PETSC_NULL_OBJECT, scatter, ierr); CHKERRQ(ierr)
+    call VecScatterBegin(scatter, vinitial, v, &
+         INSERT_VALUES, SCATTER_FORWARD, ierr); CHKERRQ(ierr)
+    call VecScatterEnd(scatter, vinitial, v, &
+         INSERT_VALUES, SCATTER_FORWARD, ierr); CHKERRQ(ierr)
+
+    call VecScatterDestroy(scatter, ierr); CHKERRQ(ierr)
+    call ISDestroy(cell_indices, ierr); CHKERRQ(ierr)
+    call VecDestroy(centroids, ierr); CHKERRQ(ierr)
+    call DMDestroy(centroid_dm, ierr); CHKERRQ(ierr)
+    call VecDestroy(vinitial, ierr); CHKERRQ(ierr)
+
+  end subroutine mesh_order_vector
+
+!------------------------------------------------------------------------
 
 end module mesh_module
