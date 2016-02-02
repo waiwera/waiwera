@@ -314,10 +314,12 @@ contains
     call self%setup_logfile(json, datetimestr)
     call self%setup_output(json)
 
-    call fson_get_mpi(json, "title", default_title, self%title, self%logfile)
+    call fson_get_mpi(json, "title", default_title, self%title, &
+         self%logfile)
+    call fson_get_mpi(json, "gravity", default_gravity, self%gravity, &
+         self%logfile)
 
     call setup_thermodynamics(json, self%thermo, self%logfile)
-
     call setup_eos(json, self%thermo, self%eos, self%logfile)
 
     call self%mesh%init(json, self%logfile)
@@ -325,11 +327,13 @@ contains
     call self%mesh%setup_boundaries(json, self%eos, self%logfile)
     call self%mesh%configure(self%eos%primary_variable_names)
     call VecView(self%mesh%cell_geom, self%hdf5_viewer, ierr); CHKERRQ(ierr)
+
     call self%setup_solution_vector()
     call setup_relative_permeabilities(json, &
          self%relative_permeability, self%logfile)
     call setup_rock_vector(json, self%mesh%dm, self%rock, &
          self%rock_range_start, self%logfile)
+
     call setup_fluid_vector(self%mesh%dm, max_component_name_length, &
          self%eos%component_names, max_phase_name_length, &
          self%eos%phase_names, self%fluid, self%fluid_range_start)
@@ -337,6 +341,7 @@ contains
     CHKERRQ(ierr)
     call VecDuplicate(self%fluid, self%last_iteration_fluid, ierr)
     CHKERRQ(ierr)
+
     call setup_initial(json, self%mesh, self%eos, &
          self%time, self%solution, self%rock, self%fluid, &
          self%solution_range_start,  self%rock_range_start, &
@@ -346,7 +351,6 @@ contains
     call setup_source_vector(json, self%mesh%dm, &
          self%eos%num_primary_variables, self%eos%isothermal, &
          self%source, self%logfile)
-    call fson_get_mpi(json, "gravity", default_gravity, self%gravity, self%logfile)
 
   end subroutine flow_simulation_init
 
