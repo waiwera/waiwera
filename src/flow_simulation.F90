@@ -324,6 +324,7 @@ contains
     call setup_rocktype_labels(json, self%mesh%dm, self%logfile)
     call self%mesh%setup_boundaries(json, self%eos, self%logfile)
     call self%mesh%configure(self%eos%primary_variable_names)
+    call VecView(self%mesh%cell_geom, self%hdf5_viewer, ierr); CHKERRQ(ierr)
     call self%setup_solution_vector()
     call setup_relative_permeabilities(json, &
          self%relative_permeability, self%logfile)
