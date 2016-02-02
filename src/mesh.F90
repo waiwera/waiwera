@@ -158,6 +158,7 @@ contains
     ! create our own face geometry vector, containing additional parameters:
     call DMPlexTSGetGeometryFVM(self%dm, petsc_face_geom, self%cell_geom, &
          PETSC_NULL_REAL, ierr); CHKERRQ(ierr)
+    call PetscObjectSetName(self%cell_geom, "cell_geometry", ierr); CHKERRQ(ierr)
 
     ! Set up face geometry vector:
     call DMClone(self%dm, dm_face, ierr); CHKERRQ(ierr)
