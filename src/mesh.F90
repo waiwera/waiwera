@@ -462,12 +462,14 @@ contains
     ! Locals:
     Vec :: vinitial, centroids
     type(cell_type) :: cell
-    IS :: cell_indices, cell_target_indices
+    IS :: from, to
     VecScatter :: scatter
     PetscReal, pointer :: geom_array(:), centroids_array(:)
+    PetscInt, allocatable :: from_array(:)
     PetscSection :: geom_section
-    PetscInt :: geom_offset, dim, c, num_cells, n, ghost
+    PetscInt :: geom_offset, dim, c, num_cells, n, i, ghost
     DMLabel :: ghost_label
+    ISLocalToGlobalMapping :: mapping
     PetscErrorCode :: ierr
 
     call VecDuplicate(v, vinitial, ierr); CHKERRQ(ierr)
@@ -485,43 +487,49 @@ contains
           num_cells = num_cells + 1
        end if
     end do
-    call VecCreateSeq(PETSC_COMM_SELF, num_cells * dim, centroids, ierr)
-    CHKERRQ(ierr)
+    call VecCreateMPI(mpi%comm, num_cells * dim, PETSC_DECIDE, &
+         centroids, ierr); CHKERRQ(ierr)
     call VecSetBlockSize(centroids, dim, ierr); CHKERRQ(ierr)
 
     call VecGetArrayF90(centroids, centroids_array, ierr); CHKERRQ(ierr)
     CHKERRQ(ierr)
-    n = 1
+    allocate(from_array(num_cells))
+    call DMGetLocalToGlobalMapping(self%dm, mapping, ierr); CHKERRQ(ierr)
+    i = 1
     do c = self%start_cell, self%end_interior_cell - 1
        call DMLabelGetValue(ghost_label, c, ghost, ierr); CHKERRQ(ierr)
        if (ghost < 0) then
           call section_offset(geom_section, c, geom_offset, ierr)
           CHKERRQ(ierr)
           call cell%assign(geom_array, geom_offset)
+          n = (i - 1) * dim + 1
           centroids_array(n: n + dim - 1) = cell%centroid
-          n = n + dim
+          from_array(i) = c - self%start_cell
+          i = i + 1
        end if
     end do
     call VecRestoreArrayF90(centroids,centroids_array, ierr)
     CHKERRQ(ierr)
     call VecRestoreArrayReadF90(geom, geom_array, ierr); CHKERRQ(ierr)
-    call ISCreateStride(mpi%comm, num_cells, 0, 1, cell_target_indices, &
-         ierr); CHKERRQ(ierr)
+    call ISLocalToGlobalMappingApply(mapping, num_cells, &
+         from_array, from_array, ierr)
+    CHKERRQ(ierr)
+    call ISCreateGeneral(mpi%comm, num_cells, from_array, &
+         PETSC_COPY_VALUES, from, ierr); CHKERRQ(ierr)
+    deallocate(from_array)
 
     ! Locate centroids in DM, and scatter:
-    call DMLocatePoints(self%dm, centroids, cell_indices, ierr)
+    call DMLocatePoints(self%dm, centroids, to, ierr); CHKERRQ(ierr)
+    call VecScatterCreate(vinitial, from, v, to, scatter, ierr)
     CHKERRQ(ierr)
-
-    call VecScatterCreate(vinitial, cell_indices, &
-         v, cell_target_indices, scatter, ierr); CHKERRQ(ierr)
-    call VecScatterBegin(scatter, vinitial, v, &
-         INSERT_VALUES, SCATTER_FORWARD, ierr); CHKERRQ(ierr)
-    call VecScatterEnd(scatter, vinitial, v, &
-         INSERT_VALUES, SCATTER_FORWARD, ierr); CHKERRQ(ierr)
+    call VecScatterBegin(scatter, vinitial, v, INSERT_VALUES, &
+         SCATTER_FORWARD, ierr); CHKERRQ(ierr)
+    call VecScatterEnd(scatter, vinitial, v, INSERT_VALUES, &
+         SCATTER_FORWARD, ierr); CHKERRQ(ierr)
 
     call VecScatterDestroy(scatter, ierr); CHKERRQ(ierr)
-    call ISDestroy(cell_indices, ierr); CHKERRQ(ierr)
-    call ISDestroy(cell_target_indices, ierr); CHKERRQ(ierr)
+    call ISDestroy(from, ierr); CHKERRQ(ierr)
+    call ISDestroy(to, ierr); CHKERRQ(ierr)
     call VecDestroy(centroids, ierr); CHKERRQ(ierr)
     call VecDestroy(vinitial, ierr); CHKERRQ(ierr)
 
