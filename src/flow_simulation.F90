@@ -147,17 +147,19 @@ contains
          num_log_real_digits, echo)
 
     call self%logfile%write(LOG_LEVEL_INFO, 'input', 'start', &
-         str_key = 'time', str_value = datetimestr)
+         str_key = 'time', str_value = datetimestr, &
+         output_rank_only = .true.)
     call self%logfile%write_blank()
 
     if (default_log) then
        call self%logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
             str_key = 'logfile.filename', &
-            str_value = logfile_name)
+            str_value = logfile_name, output_rank_only = .true.)
     end if
 
     if (no_logfile) then
-       call self%logfile%write(LOG_LEVEL_WARN, 'input', 'no logfile')
+       call self%logfile%write(LOG_LEVEL_WARN, 'input', 'no logfile', &
+            output_rank_only = .true.)
     end if
 
   end subroutine flow_simulation_setup_logfile
@@ -226,11 +228,13 @@ contains
     if (default_output) then
        call self%logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
             str_key = "output.filename", &
-            str_value = self%output_filename)
+            str_value = self%output_filename, &
+            output_rank_only = .true.)
     end if
 
     if (no_output) then
-       call self%logfile%write(LOG_LEVEL_WARN, 'input', 'no output')
+       call self%logfile%write(LOG_LEVEL_WARN, 'input', 'no output', &
+            output_rank_only = .true.)
     end if
 
   end subroutine flow_simulation_setup_output
@@ -259,19 +263,28 @@ contains
     class(flow_simulation_type), intent(in out) :: self
 
     call self%logfile%write(LOG_LEVEL_INFO, 'input', 'summary', &
-         str_key = 'input.filename', str_value = self%filename)
+         str_key = 'input.filename', str_value = self%filename, &
+         output_rank_only = .true.)
     call self%logfile%write(LOG_LEVEL_INFO, 'input', 'summary', &
-         str_key = 'logfile.filename', str_value = self%logfile%filename)
+         str_key = 'logfile.filename', &
+         str_value = self%logfile%filename, &
+         output_rank_only = .true.)
     call self%logfile%write(LOG_LEVEL_INFO, 'input', 'summary', &
-         str_key = 'output.filename', str_value = self%output_filename)
+         str_key = 'output.filename', &
+         str_value = self%output_filename, &
+         output_rank_only = .true.)
     call self%logfile%write(LOG_LEVEL_INFO, 'input', 'summary', &
-         str_key = 'title', str_value = trim(self%title))
+         str_key = 'title', str_value = trim(self%title), &
+         output_rank_only = .true.)
     call self%logfile%write(LOG_LEVEL_INFO, 'input', 'summary', &
-         str_key = 'mesh', str_value = self%mesh%filename)
+         str_key = 'mesh', str_value = self%mesh%filename, &
+         output_rank_only = .true.)
     call self%logfile%write(LOG_LEVEL_INFO, 'input', 'summary', &
-         str_key = 'eos.name', str_value = self%eos%name)
+         str_key = 'eos.name', str_value = self%eos%name, &
+         output_rank_only = .true.)
     call self%logfile%write(LOG_LEVEL_INFO, 'input', 'summary', &
-         str_key = 'thermodynamics', str_value = self%thermo%name)
+         str_key = 'thermodynamics', str_value = self%thermo%name, &
+         output_rank_only = .true.)
 
     call self%logfile%write_blank()
 
