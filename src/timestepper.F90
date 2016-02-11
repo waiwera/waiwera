@@ -21,7 +21,8 @@ module timestepper_module
 
   ! Timestep status
      PetscInt, parameter, public :: TIMESTEP_OK = 0, TIMESTEP_NOT_CONVERGED = 1, &
-     TIMESTEP_TOO_SMALL = 2, TIMESTEP_TOO_BIG = 3, TIMESTEP_ABORTED = 4
+     TIMESTEP_TOO_SMALL = 2, TIMESTEP_TOO_BIG = 3, TIMESTEP_ABORTED = 4, &
+     TIMESTEP_FINAL = 5
 
   type timestepper_step_type
      !! Results of a time step.
@@ -492,6 +493,8 @@ contains
           timestepper_step_status_str = 'reduce'
        case (TIMESTEP_ABORTED)
           timestepper_step_status_str = 'aborted'
+       case (TIMESTEP_FINAL)
+          timestepper_step_status_str = 'final'
        case default
           timestepper_step_status_str = 'unknown'
     end select
@@ -802,17 +805,22 @@ contains
        self%current%status = TIMESTEP_ABORTED
        self%finished = .true.
     else if (converged) then
-       eta = self%adaptor%monitor(self%current, self%last)
-       if (self%adaptor%on) then
-          if (eta < self%adaptor%monitor_min) then
-             self%current%status = TIMESTEP_TOO_SMALL
-          else if (eta > self%adaptor%monitor_max) then
-             self%current%status = TIMESTEP_TOO_BIG
+       if ((self%finished) .and. (self%current%status /= &
+            TIMESTEP_ABORTED)) then
+          self%current%status = TIMESTEP_FINAL
+       else
+          eta = self%adaptor%monitor(self%current, self%last)
+          if (self%adaptor%on) then
+             if (eta < self%adaptor%monitor_min) then
+                self%current%status = TIMESTEP_TOO_SMALL
+             else if (eta > self%adaptor%monitor_max) then
+                self%current%status = TIMESTEP_TOO_BIG
+             else
+                self%current%status = TIMESTEP_OK
+             end if
           else
              self%current%status = TIMESTEP_OK
           end if
-       else
-          self%current%status = TIMESTEP_OK
        end if
     else
        self%current%status = TIMESTEP_NOT_CONVERGED
