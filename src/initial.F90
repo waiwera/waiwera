@@ -222,10 +222,12 @@ contains
             fluid_range_start)
        call logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
             real_array_key = 'initial.primary', &
-            real_array_value = eos%default_primary)
+            real_array_value = eos%default_primary, &
+            output_rank_only = .true.)
        call logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
             int_keys = ['initial.region'], &
-            int_values = [eos%default_region])
+            int_values = [eos%default_region], &
+            output_rank_only = .true.)
 
     end if
 

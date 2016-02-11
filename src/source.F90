@@ -86,7 +86,8 @@ contains
        deallocate(values, indices)
 
     else
-       call logfile%write(LOG_LEVEL_INFO, "input", "no sources")
+       call logfile%write(LOG_LEVEL_INFO, "input", "no sources", &
+            output_rank_only = .true.)
     end if
 
   end subroutine setup_source_vector

@@ -295,7 +295,8 @@ contains
           end if
        end do
     else
-       call logfile%write(LOG_LEVEL_WARN, "input", "no rocktypes")
+       call logfile%write(LOG_LEVEL_WARN, "input", "no rocktypes", &
+            output_rank_only = .true.)
     end if
 
   end subroutine setup_rocktype_labels
