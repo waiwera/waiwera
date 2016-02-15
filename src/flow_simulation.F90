@@ -1052,10 +1052,23 @@ contains
     class(flow_simulation_type), intent(in out) :: self
     ! Locals:
     PetscErrorCode :: ierr
+    DM :: geom_dm
+    Vec :: global_cell_geom
 
-    call PetscViewerHDF5PushGroup(self%hdf5_viewer, "geometry", ierr)
-    call VecView(self%mesh%cell_geom, self%hdf5_viewer, ierr); CHKERRQ(ierr)
-    call PetscViewerHDF5PopGroup(self%hdf5_viewer, ierr); CHKERRQ(ierr)
+    call VecGetDM(self%mesh%cell_geom, geom_dm, ierr); CHKERRQ(ierr)
+    call DMGetGlobalVector(geom_dm, global_cell_geom, ierr); CHKERRQ(ierr)
+    call PetscObjectSetName(global_cell_geom, "cell_geometry", ierr)
+    CHKERRQ(ierr)
+
+    call DMLocalToGlobalBegin(geom_dm, self%mesh%cell_geom, &
+         INSERT_VALUES, global_cell_geom, ierr); CHKERRQ(ierr)
+    call DMLocalToGlobalEnd(geom_dm, self%mesh%cell_geom, &
+         INSERT_VALUES, global_cell_geom, ierr); CHKERRQ(ierr)
+
+    call VecView(global_cell_geom, self%hdf5_viewer, ierr); CHKERRQ(ierr)
+
+    call DMRestoreGlobalVector(geom_dm, global_cell_geom, ierr)
+    CHKERRQ(ierr)
 
   end subroutine flow_simulation_output_mesh_geometry
 

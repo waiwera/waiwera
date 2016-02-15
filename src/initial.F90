@@ -114,9 +114,7 @@ contains
     CHKERRQ(ierr)
     call PetscObjectSetName(output_cell_geom, "cell_geometry", ierr)
     CHKERRQ(ierr)
-    call PetscViewerHDF5PushGroup(viewer, "geometry", ierr); CHKERRQ(ierr)
     call VecLoad(output_cell_geom, viewer, ierr); CHKERRQ(ierr)
-    call PetscViewerHDF5PopGroup(viewer, ierr); CHKERRQ(ierr)
 
     ! TODO :: navigate to last timestep- currently this will work only
     ! if the file has only results for one timestep in it.
@@ -130,7 +128,7 @@ contains
     call PetscViewerDestroy(viewer, ierr); CHKERRQ(ierr)
 
     call mesh%order_vector(output_cell_geom, fluid_vector)
-    call DMRestoreGlobalVector(mesh%dm, output_cell_geom, ierr)
+    call DMRestoreGlobalVector(geom_dm, output_cell_geom, ierr)
     CHKERRQ(ierr)
 
     ! Determine solution vector from fluid vector:
