@@ -453,8 +453,8 @@ contains
     !! set and hence a vector scatter to do the reordering.
 
     use cell_module, only: cell_type
-    use dm_utils_module, only: local_vec_section, section_offset, &
-         set_dm_data_layout, global_vec_section
+    use dm_utils_module, only: global_section_offset, &
+         global_vec_section, global_vec_range_start
 
     class(mesh_type), intent(in) :: self
     Vec, intent(in) :: geom
@@ -467,7 +467,8 @@ contains
     PetscReal, pointer :: geom_array(:), centroids_array(:)
     PetscInt, allocatable :: from_array(:)
     PetscSection :: geom_section
-    PetscInt :: geom_offset, dim, c, num_cells, n, i, ghost
+    PetscInt :: geom_offset, dim, c, num_cells, i
+    PetscInt :: ghost, range_start, centroid_offset
     DMLabel :: ghost_label
     ISLocalToGlobalMapping :: mapping
     PetscErrorCode :: ierr
@@ -475,7 +476,8 @@ contains
     call VecDuplicate(v, vinitial, ierr); CHKERRQ(ierr)
     call VecCopy(v, vinitial, ierr); CHKERRQ(ierr)
 
-    call local_vec_section(geom, geom_section)
+    call global_vec_section(geom, geom_section)
+    call global_vec_range_start(geom, range_start)
     call VecGetArrayReadF90(geom, geom_array, ierr); CHKERRQ(ierr)
 
     call DMGetDimension(self%dm, dim, ierr); CHKERRQ(ierr)
@@ -499,12 +501,13 @@ contains
     do c = self%start_cell, self%end_interior_cell - 1
        call DMLabelGetValue(ghost_label, c, ghost, ierr); CHKERRQ(ierr)
        if (ghost < 0) then
-          call section_offset(geom_section, c, geom_offset, ierr)
-          CHKERRQ(ierr)
-          call cell%assign(geom_array, geom_offset)
-          n = (i - 1) * dim + 1
-          centroids_array(n: n + dim - 1) = cell%centroid
           from_array(i) = c - self%start_cell
+          call global_section_offset(geom_section, c, range_start, &
+               geom_offset, ierr); CHKERRQ(ierr)
+          call cell%assign(geom_array, geom_offset)
+          centroid_offset = (i - 1) * dim + 1
+          centroids_array(centroid_offset: centroid_offset + dim - 1) = &
+               cell%centroid
           i = i + 1
        end if
     end do
