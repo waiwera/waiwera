@@ -95,7 +95,7 @@ contains
     PetscInt, intent(in) :: y_range_start, fluid_range_start
     ! Locals:
     PetscViewer :: viewer
-    DM :: fluid_dm
+    DM :: geom_dm, fluid_dm
     Vec :: output_cell_geom
     PetscSection :: y_section, fluid_section
     PetscReal, pointer :: y_array(:), fluid_array(:)
@@ -109,7 +109,8 @@ contains
          viewer, ierr); CHKERRQ(ierr)
     call PetscViewerHDF5PushGroup(viewer, "/", ierr); CHKERRQ(ierr)
 
-    call VecDuplicate(mesh%cell_geom, output_cell_geom, ierr)
+    call VecGetDM(mesh%cell_geom, geom_dm, ierr); CHKERRQ(ierr)
+    call DMGetGlobalVector(geom_dm, output_cell_geom, ierr)
     CHKERRQ(ierr)
     call PetscObjectSetName(output_cell_geom, "cell_geometry", ierr)
     CHKERRQ(ierr)
@@ -127,7 +128,8 @@ contains
     call PetscViewerDestroy(viewer, ierr); CHKERRQ(ierr)
 
     call mesh%order_vector(output_cell_geom, fluid_vector)
-    call VecDestroy(output_cell_geom, ierr); CHKERRQ(ierr)
+    call DMRestoreGlobalVector(mesh%dm, output_cell_geom, ierr)
+    CHKERRQ(ierr)
 
     ! Determine solution vector from fluid vector:
 
