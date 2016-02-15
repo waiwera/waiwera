@@ -54,6 +54,7 @@ module flow_simulation_module
      procedure, public :: fluid_init => flow_simulation_fluid_init
      procedure, public :: fluid_transitions => flow_simulation_fluid_transitions
      procedure, public :: fluid_properties => flow_simulation_fluid_properties
+     procedure, public :: output_mesh_geometry => flow_simulation_output_mesh_geometry
      procedure, public :: output => flow_simulation_output
   end type flow_simulation_type
 
@@ -249,7 +250,6 @@ contains
     PetscErrorCode :: ierr
 
     if (self%output_filename /= "") then
-       call PetscViewerHDF5PopGroup(self%hdf5_viewer, ierr); CHKERRQ(ierr)
        call PetscViewerDestroy(self%hdf5_viewer, ierr); CHKERRQ(ierr)
     end if
 
@@ -339,7 +339,7 @@ contains
     call setup_rocktype_labels(json, self%mesh%dm, self%logfile)
     call self%mesh%setup_boundaries(json, self%eos, self%logfile)
     call self%mesh%configure(self%eos%primary_variable_names)
-    call VecView(self%mesh%cell_geom, self%hdf5_viewer, ierr); CHKERRQ(ierr)
+    call self%output_mesh_geometry()
 
     call self%setup_solution_vector()
     call setup_relative_permeabilities(json, &
@@ -1043,6 +1043,21 @@ contains
     call fluid%destroy()
 
   end subroutine flow_simulation_fluid_transitions
+
+!------------------------------------------------------------------------
+
+  subroutine flow_simulation_output_mesh_geometry(self)
+    !! Writes mesh geometry data to output.
+
+    class(flow_simulation_type), intent(in out) :: self
+    ! Locals:
+    PetscErrorCode :: ierr
+
+    call PetscViewerHDF5PushGroup(self%hdf5_viewer, "geometry", ierr)
+    call VecView(self%mesh%cell_geom, self%hdf5_viewer, ierr); CHKERRQ(ierr)
+    call PetscViewerHDF5PopGroup(self%hdf5_viewer, ierr); CHKERRQ(ierr)
+
+  end subroutine flow_simulation_output_mesh_geometry
 
 !------------------------------------------------------------------------
 
