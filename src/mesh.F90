@@ -469,8 +469,8 @@ contains
     PetscSection :: geom_section
     PetscInt :: geom_offset, dim, c, num_cells, i
     PetscInt :: ghost, range_start, centroid_offset
+    PetscInt :: blocksize, global_index
     DMLabel :: ghost_label
-    ISLocalToGlobalMapping :: mapping
     PetscErrorCode :: ierr
 
     call VecDuplicate(v, vinitial, ierr); CHKERRQ(ierr)
@@ -478,6 +478,7 @@ contains
 
     call global_vec_section(geom, geom_section)
     call global_vec_range_start(geom, range_start)
+    call VecGetBlocksize(geom, blocksize, ierr); CHKERRQ(ierr)
     call VecGetArrayReadF90(geom, geom_array, ierr); CHKERRQ(ierr)
 
     call DMGetDimension(self%dm, dim, ierr); CHKERRQ(ierr)
@@ -494,16 +495,16 @@ contains
     call VecSetBlockSize(centroids, dim, ierr); CHKERRQ(ierr)
 
     call VecGetArrayF90(centroids, centroids_array, ierr); CHKERRQ(ierr)
-    CHKERRQ(ierr)
     allocate(from_array(num_cells))
-    call DMGetLocalToGlobalMapping(self%dm, mapping, ierr); CHKERRQ(ierr)
     i = 1
     do c = self%start_cell, self%end_interior_cell - 1
        call DMLabelGetValue(ghost_label, c, ghost, ierr); CHKERRQ(ierr)
        if (ghost < 0) then
-          from_array(i) = c - self%start_cell
-          call global_section_offset(geom_section, c, range_start, &
-               geom_offset, ierr); CHKERRQ(ierr)
+          call PetscSectionGetOffset(geom_section, c, geom_offset, &
+               ierr); CHKERRQ(ierr)
+          global_index = geom_offset / blocksize
+          from_array(i) = global_index
+          geom_offset = geom_offset + 1 - range_start
           call cell%assign(geom_array, geom_offset)
           centroid_offset = (i - 1) * dim + 1
           centroids_array(centroid_offset: centroid_offset + dim - 1) = &
@@ -514,9 +515,6 @@ contains
     call VecRestoreArrayF90(centroids,centroids_array, ierr)
     CHKERRQ(ierr)
     call VecRestoreArrayReadF90(geom, geom_array, ierr); CHKERRQ(ierr)
-    call ISLocalToGlobalMappingApply(mapping, num_cells, &
-         from_array, from_array, ierr)
-    CHKERRQ(ierr)
     call ISCreateGeneral(mpi%comm, num_cells, from_array, &
          PETSC_COPY_VALUES, from, ierr); CHKERRQ(ierr)
     deallocate(from_array)
