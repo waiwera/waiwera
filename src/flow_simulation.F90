@@ -1054,6 +1054,7 @@ contains
     PetscErrorCode :: ierr
     DM :: geom_dm
     Vec :: global_cell_geom
+    IS :: global_ordering
 
     call VecGetDM(self%mesh%cell_geom, geom_dm, ierr); CHKERRQ(ierr)
     call DMGetGlobalVector(geom_dm, global_cell_geom, ierr); CHKERRQ(ierr)
@@ -1069,6 +1070,10 @@ contains
 
     call DMRestoreGlobalVector(geom_dm, global_cell_geom, ierr)
     CHKERRQ(ierr)
+
+    call self%mesh%global_ordering(global_ordering)
+    call ISView(global_ordering, self%hdf5_viewer, ierr); CHKERRQ(ierr)
+    call ISDestroy(global_ordering, ierr); CHKERRQ(ierr)
 
   end subroutine flow_simulation_output_mesh_geometry
 

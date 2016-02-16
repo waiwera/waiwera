@@ -33,6 +33,7 @@ module mesh_module
      procedure, public :: setup_boundaries => mesh_setup_boundaries
      procedure, public :: set_boundary_values => mesh_set_boundary_values
      procedure, public :: order_vector => mesh_order_vector
+     procedure, public :: global_ordering => mesh_global_ordering
      procedure, public :: destroy => mesh_destroy
   end type mesh_type
 
@@ -444,6 +445,62 @@ contains
   end subroutine mesh_set_boundary_values
 
 !-----------------------------------------------------------------------
+
+  subroutine mesh_global_ordering(self, global_ordering)
+    !! Returns an index set containing the global cell ordering sequence.
+
+    class(mesh_type), intent(in) :: self
+    IS, intent(out) :: global_ordering
+    ! Locals:
+    PetscInt :: blocksize
+    PetscSection :: section
+    Vec :: v
+    DMLabel :: ghost_label
+    PetscInt :: c, ghost, offset, num_cells, i, global_index
+    PetscInt, allocatable :: ordering_array(:)
+    PetscErrorCode :: ierr
+
+    call DMGetDefaultSection(self%dm, section, ierr); CHKERRQ(ierr)
+    call DMGetGlobalVector(self%dm, v, ierr); CHKERRQ(ierr)
+    call VecGetBlocksize(v, blocksize, ierr); CHKERRQ(ierr)
+    call DMRestoreGlobalVector(self%dm, v, ierr); CHKERRQ(ierr)
+
+    call DMGetLabel(self%dm, "ghost", ghost_label, ierr)
+    CHKERRQ(ierr)
+
+    ! Count non-ghost cells:
+    num_cells = 0
+    do c = self%start_cell, self%end_cell - 1
+       call DMLabelGetValue(ghost_label, c, ghost, ierr); CHKERRQ(ierr)
+       if (ghost < 0) then
+          num_cells = num_cells + 1
+       end if
+    end do
+    allocate(ordering_array(num_cells))
+
+    ! Populate ordering array:
+    i = 1
+    do c = self%start_cell, self%end_cell - 1
+       call DMLabelGetValue(ghost_label, c, ghost, ierr); CHKERRQ(ierr)
+       if (ghost < 0) then
+          call PetscSectionGetOffset(section, c, offset, ierr)
+          CHKERRQ(ierr)
+          global_index = offset / blocksize
+          ordering_array(i) = global_index
+          i = i + 1
+       end if
+    end do
+
+    call ISCreateGeneral(mpi%comm, num_cells, ordering_array, &
+         PETSC_COPY_VALUES, global_ordering, ierr); CHKERRQ(ierr)
+    call PetscObjectSetName(global_ordering, "global_ordering", ierr)
+    CHKERRQ(ierr)
+    
+    deallocate(ordering_array)
+
+  end subroutine mesh_global_ordering
+
+!------------------------------------------------------------------------
 
   subroutine mesh_order_vector(self, geom, v)
     !! Reorders vector v to correspond to the cell order of the mesh
