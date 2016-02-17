@@ -95,8 +95,8 @@ contains
     PetscInt, intent(in) :: y_range_start, fluid_range_start
     ! Locals:
     PetscViewer :: viewer
-    DM :: geom_dm, fluid_dm
-    Vec :: output_cell_geom
+    DM :: fluid_dm
+    IS :: output_natural_order
     PetscSection :: y_section, fluid_section
     PetscReal, pointer :: y_array(:), fluid_array(:)
     PetscReal, pointer :: cell_primary(:)
@@ -109,12 +109,10 @@ contains
          viewer, ierr); CHKERRQ(ierr)
     call PetscViewerHDF5PushGroup(viewer, "/", ierr); CHKERRQ(ierr)
 
-    call VecGetDM(mesh%cell_geom, geom_dm, ierr); CHKERRQ(ierr)
-    call DMGetGlobalVector(geom_dm, output_cell_geom, ierr)
+    call ISCreate(mpi%comm, output_natural_order, ierr); CHKERRQ(ierr)
+    call PetscObjectSetName(output_natural_order, "natural_order", ierr)
     CHKERRQ(ierr)
-    call PetscObjectSetName(output_cell_geom, "cell_geometry", ierr)
-    CHKERRQ(ierr)
-    call VecLoad(output_cell_geom, viewer, ierr); CHKERRQ(ierr)
+    call ISLoad(output_natural_order, viewer, ierr); CHKERRQ(ierr)
 
     ! TODO :: navigate to last timestep- currently this will work only
     ! if the file has only results for one timestep in it.
@@ -127,9 +125,8 @@ contains
     call PetscViewerHDF5PopGroup(viewer, ierr); CHKERRQ(ierr)
     call PetscViewerDestroy(viewer, ierr); CHKERRQ(ierr)
 
-    call mesh%order_vector(output_cell_geom, fluid_vector)
-    call DMRestoreGlobalVector(geom_dm, output_cell_geom, ierr)
-    CHKERRQ(ierr)
+    call mesh%order_vector(output_natural_order, fluid_vector)
+    call ISDestroy(output_natural_order, ierr); CHKERRQ(ierr)
 
     ! Determine solution vector from fluid vector:
 
