@@ -528,7 +528,7 @@ contains
 !------------------------------------------------------------------------
 
   subroutine mesh_order_vector(self, v, v_order)
-    !! Reorders vector v to correspond to the natural cell order of the mesh
+    !! Reorders vector v to correspond to the cell order of the mesh
     !! DM, rather than that of the given v_order index set.
 
     use cell_module, only: cell_type
