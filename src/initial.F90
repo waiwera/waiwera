@@ -125,7 +125,7 @@ contains
     call PetscViewerHDF5PopGroup(viewer, ierr); CHKERRQ(ierr)
     call PetscViewerDestroy(viewer, ierr); CHKERRQ(ierr)
 
-    call mesh%order_vector(output_natural_order, fluid_vector)
+    call mesh%order_vector(fluid_vector, output_natural_order)
     call ISDestroy(output_natural_order, ierr); CHKERRQ(ierr)
 
     ! Determine solution vector from fluid vector:

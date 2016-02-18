@@ -75,6 +75,7 @@ contains
 
   subroutine mesh_setup_natural_order(self)
     !! Sets up natural order index set from natural order label on DM.
+    !! This index set corresponds to a block size of 1.
 
     class(mesh_type), intent(in out) :: self
     ! Locals:
@@ -526,27 +527,44 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine mesh_order_vector(self, natural_order, v)
+  subroutine mesh_order_vector(self, v, v_order)
     !! Reorders vector v to correspond to the natural cell order of the mesh
-    !! DM, rather than that of the given natural_order index set.
+    !! DM, rather than that of the given v_order index set.
 
     use cell_module, only: cell_type
     use dm_utils_module, only: global_section_offset, &
          global_vec_section, global_vec_range_start
 
     class(mesh_type), intent(in) :: self
-    IS, intent(in) :: natural_order
     Vec, intent(in out) :: v
+    IS, intent(in) :: v_order
     ! Locals:
     Vec :: vinitial
     VecScatter :: scatter
+    PetscInt :: blocksize
+    IS :: v_order_block, self_order_block
+    PetscInt, pointer :: indices(:)
     PetscErrorCode :: ierr
 
     call VecDuplicate(v, vinitial, ierr); CHKERRQ(ierr)
     call VecCopy(v, vinitial, ierr); CHKERRQ(ierr)
+    call VecGetBlockSize(v, blocksize, ierr); CHKERRQ(ierr)
 
-    call VecScatterCreate(vinitial, natural_order, v, self%natural_order, &
+    ! Create index sets with the appropriate block size:
+    call ISGetIndicesF90(v_order, indices, ierr); CHKERRQ(ierr)
+    call ISCreateBlock(mpi%comm, blocksize, size(indices), indices, &
+         PETSC_COPY_VALUES, v_order_block, ierr); CHKERRQ(ierr)
+    call ISRestoreIndicesF90(v_order, indices, ierr); CHKERRQ(ierr)
+    call ISGetIndicesF90(self%natural_order, indices, ierr); CHKERRQ(ierr)
+    call ISCreateBlock(mpi%comm, blocksize, size(indices), indices, &
+         PETSC_COPY_VALUES, self_order_block, ierr); CHKERRQ(ierr)
+    call ISRestoreIndicesF90(self%natural_order, indices, ierr); CHKERRQ(ierr)
+
+    call VecScatterCreate(vinitial, v_order_block, v, self_order_block, &
          scatter, ierr); CHKERRQ(ierr)
+    call ISDestroy(v_order_block, ierr); CHKERRQ(ierr)
+    call ISDestroy(self_order_block, ierr); CHKERRQ(ierr)
+
     call VecScatterBegin(scatter, vinitial, v, INSERT_VALUES, &
          SCATTER_FORWARD, ierr); CHKERRQ(ierr)
     call VecScatterEnd(scatter, vinitial, v, INSERT_VALUES, &
