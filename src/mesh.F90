@@ -312,6 +312,7 @@ contains
              call face%assign(face_geom_array, face_offset)
              face%distance(2) = 0._dp
           end do
+          call ISRestoreIndicesF90(bdy_IS, bdy_faces, ierr); CHKERRQ(ierr)
        end if
        call ISDestroy(bdy_IS, ierr); CHKERRQ(ierr)
     end do
@@ -516,6 +517,7 @@ contains
              rock2 => rock_array(rock_offsets(2) : rock_offsets(2) + n)
              rock2 = rock1
           end do
+          call ISRestoreIndicesF90(bdy_IS, bdy_faces, ierr); CHKERRQ(ierr)
        end if
        call ISDestroy(bdy_IS, ierr); CHKERRQ(ierr)
     end do

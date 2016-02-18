@@ -87,6 +87,7 @@ contains
                    cell_source(np) = cell_source(np) + enthalpy * q
                 end if
              end do
+             call ISRestoreIndicesF90(cell_IS, cells, ierr); CHKERRQ(ierr)
           end if
           call ISDestroy(cell_IS, ierr); CHKERRQ(ierr)
        end do
