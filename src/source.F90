@@ -40,7 +40,7 @@ contains
     PetscInt, pointer :: cells(:)
     PetscReal :: q, enthalpy
     PetscReal, pointer :: source_array(:), cell_source(:)
-    PetscBool :: mass_source
+    PetscBool :: mass_inject
     PetscSection :: section
     IS :: cell_IS
     character(len=64) :: srcstr
@@ -67,6 +67,12 @@ contains
           call fson_get_mpi(src, "component", default_component, &
                component, logfile, trim(srcstr) // "component")
           call fson_get_mpi(src, "value", val = q)
+          mass_inject = ((.not.(isothermal)) .and. (component < np) &
+               .and. (q > 0._dp))
+          if (mass_inject) then
+             call fson_get_mpi(src, "enthalpy", default_enthalpy, &
+                  enthalpy, logfile, trim(srcstr) // "enthalpy")
+          end if
           call DMGetStratumIS(dm, cell_order_label_name, &
                cell, cell_IS, ierr); CHKERRQ(ierr)
           if (cell_IS /= 0) then
@@ -78,12 +84,7 @@ contains
                      offset, ierr)
                 cell_source => source_array(offset : offset + np - 1)
                 cell_source(component) = cell_source(component) + q
-                mass_source = (component < np)
-                if ((.not.(isothermal)) .and. mass_source .and. &
-                     (q > 0._dp)) then
-                   ! add energy from mass injection
-                   call fson_get_mpi(src, "enthalpy", default_enthalpy, &
-                        enthalpy, logfile, trim(srcstr) // "enthalpy")
+                if (mass_inject) then
                    cell_source(np) = cell_source(np) + enthalpy * q
                 end if
              end do
