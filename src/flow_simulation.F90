@@ -949,7 +949,7 @@ contains
     PetscReal, pointer :: last_iteration_fluid_array(:), fluid_array(:)
     type(fluid_type) :: last_iteration_fluid, fluid
     DMLabel :: ghost_label
-    PetscBool :: transition
+    PetscBool :: transition, any_changed_y, any_changed_search
     PetscErrorCode :: ierr
 
     err = 0
@@ -1041,6 +1041,20 @@ contains
     call VecRestoreArrayF90(search, search_array, ierr); CHKERRQ(ierr)
     call last_iteration_fluid%destroy()
     call fluid%destroy()
+
+    call MPI_reduce(changed_y, any_changed_y, 1, MPI_LOGICAL, MPI_LOR, &
+         mpi%input_rank, mpi%comm, ierr)
+    if (mpi%rank == mpi%input_rank) then
+       changed_y = any_changed_y
+    end if
+    call MPI_bcast(changed_y, 1, MPI_LOGICAL, mpi%input_rank, mpi%comm, ierr)
+
+    call MPI_reduce(changed_search, any_changed_search, 1, MPI_LOGICAL, MPI_LOR, &
+         mpi%input_rank, mpi%comm, ierr)
+    if (mpi%rank == mpi%input_rank) then
+       changed_search = any_changed_search
+    end if
+    call MPI_bcast(changed_search, 1, MPI_LOGICAL, mpi%input_rank, mpi%comm, ierr)
 
   end subroutine flow_simulation_fluid_transitions
 
