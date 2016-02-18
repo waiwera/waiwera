@@ -38,15 +38,14 @@ contains
     type(fson_value), pointer :: sources, src
     PetscInt :: num_sources, cell, offset, num_cells
     PetscInt, pointer :: cells(:)
-    PetscReal :: q
+    PetscReal :: q, enthalpy
     PetscReal, pointer :: source_array(:), cell_source(:)
-    PetscInt, parameter :: default_component = 1
-    PetscReal :: enthalpy
     PetscBool :: mass_source
     PetscSection :: section
     IS :: cell_IS
     character(len=64) :: srcstr
     character(len=12) :: istr
+    PetscInt, parameter ::  default_component = 1
     PetscReal, parameter :: default_enthalpy = 83.9e3
 
     call DMCreateGlobalVector(dm, source, ierr); CHKERRQ(ierr)
