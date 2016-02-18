@@ -362,7 +362,7 @@ contains
          self%solution_range_start, self%rock_range_start)
     call setup_source_vector(json, self%mesh%dm, &
          self%eos%num_primary_variables, self%eos%isothermal, &
-         self%source, self%logfile)
+         self%source, self%solution_range_start, self%logfile)
 
   end subroutine flow_simulation_init
 
