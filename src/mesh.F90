@@ -12,7 +12,7 @@ module mesh_module
 
   PetscInt, parameter, public :: max_mesh_filename_length = 200
   character(len = 13), parameter, public :: &
-       natural_order_label_name = "natural order"
+       cell_order_label_name = "cell order"
 
   type, public :: mesh_type
      !! Mesh type.
@@ -23,10 +23,10 @@ module mesh_module
      PetscInt, public :: start_cell, end_cell, end_interior_cell
      PetscInt, public :: start_face, end_face
      PetscReal, allocatable, public :: bcs(:,:)
-     IS, public :: natural_order
+     IS, public :: cell_order
    contains
-     procedure :: setup_natural_order_label => mesh_setup_natural_order_label
-     procedure :: setup_natural_order => mesh_setup_natural_order
+     procedure :: setup_cell_order_label => mesh_setup_cell_order_label
+     procedure :: setup_cell_order => mesh_setup_cell_order
      procedure :: distribute => mesh_distribute
      procedure :: construct_ghost_cells => mesh_construct_ghost_cells
      procedure :: setup_data_layout => mesh_setup_data_layout
@@ -45,8 +45,8 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine mesh_setup_natural_order_label(self)
-    !! Sets up natural ordering label on cells. This assumes the mesh
+  subroutine mesh_setup_cell_order_label(self)
+    !! Sets up cell ordering label on mesh cells. This assumes the mesh
     !! has not yet been distributed.
 
     class(mesh_type), intent(in out) :: self
@@ -55,26 +55,26 @@ contains
     PetscInt :: start_cell, end_cell, c
     PetscErrorCode :: ierr
 
-    call DMHasLabel(self%dm, natural_order_label_name, has_label, &
+    call DMHasLabel(self%dm, cell_order_label_name, has_label, &
          ierr); CHKERRQ(ierr)
 
     if (.not. has_label) then
-       call DMCreateLabel(self%dm, natural_order_label_name, ierr)
+       call DMCreateLabel(self%dm, cell_order_label_name, ierr)
        CHKERRQ(ierr)
        call DMPlexGetHeightStratum(self%dm, 0, start_cell, end_cell, &
             ierr); CHKERRQ(ierr)
        do c = start_cell, end_cell - 1
-          call DMSetLabelValue(self%dm, natural_order_label_name, c, &
+          call DMSetLabelValue(self%dm, cell_order_label_name, c, &
                c, ierr); CHKERRQ(ierr)
        end do
     end if
 
-  end subroutine mesh_setup_natural_order_label
+  end subroutine mesh_setup_cell_order_label
 
 !------------------------------------------------------------------------
 
-  subroutine mesh_setup_natural_order(self)
-    !! Sets up natural order index set from natural order label on DM.
+  subroutine mesh_setup_cell_order(self)
+    !! Sets up cell order index set from cell order label on DM.
     !! This index set corresponds to a block size of 1.
 
     class(mesh_type), intent(in out) :: self
@@ -94,7 +94,7 @@ contains
     end do
     allocate(order_array(n))
 
-    call DMGetLabel(self%dm, natural_order_label_name, order_label, ierr)
+    call DMGetLabel(self%dm, cell_order_label_name, order_label, ierr)
     CHKERRQ(ierr)
     i = 1
     do c = self%start_cell, self%end_interior_cell - 1
@@ -107,13 +107,13 @@ contains
     end do
 
     call ISCreateGeneral(mpi%comm, n, order_array, PETSC_COPY_VALUES, &
-         self%natural_order, ierr); CHKERRQ(ierr)
-    call PetscObjectSetName(self%natural_order, "natural_order", ierr)
+         self%cell_order, ierr); CHKERRQ(ierr)
+    call PetscObjectSetName(self%cell_order, "cell_order", ierr)
     CHKERRQ(ierr)
 
     deallocate(order_array)
 
-  end subroutine mesh_setup_natural_order
+  end subroutine mesh_setup_cell_order
 
 !------------------------------------------------------------------------
 
@@ -400,7 +400,7 @@ contains
     ! Locals:
     PetscInt :: dof
 
-    call self%setup_natural_order_label()
+    call self%setup_cell_order_label()
     call self%distribute()
     call self%construct_ghost_cells()
 
@@ -413,7 +413,7 @@ contains
 
     call self%setup_geometry()
 
-    call self%setup_natural_order()
+    call self%setup_cell_order()
 
   end subroutine mesh_configure
 
@@ -433,7 +433,7 @@ contains
        deallocate(self%bcs)
     end if
 
-    call ISDestroy(self%natural_order, ierr); CHKERRQ(ierr)
+    call ISDestroy(self%cell_order, ierr); CHKERRQ(ierr)
 
   end subroutine mesh_destroy
 
@@ -555,10 +555,10 @@ contains
     call ISCreateBlock(mpi%comm, blocksize, size(indices), indices, &
          PETSC_COPY_VALUES, v_order_block, ierr); CHKERRQ(ierr)
     call ISRestoreIndicesF90(v_order, indices, ierr); CHKERRQ(ierr)
-    call ISGetIndicesF90(self%natural_order, indices, ierr); CHKERRQ(ierr)
+    call ISGetIndicesF90(self%cell_order, indices, ierr); CHKERRQ(ierr)
     call ISCreateBlock(mpi%comm, blocksize, size(indices), indices, &
          PETSC_COPY_VALUES, self_order_block, ierr); CHKERRQ(ierr)
-    call ISRestoreIndicesF90(self%natural_order, indices, ierr); CHKERRQ(ierr)
+    call ISRestoreIndicesF90(self%cell_order, indices, ierr); CHKERRQ(ierr)
 
     call VecScatterCreate(vinitial, v_order_block, v, self_order_block, &
          scatter, ierr); CHKERRQ(ierr)

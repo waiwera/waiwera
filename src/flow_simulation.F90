@@ -1070,7 +1070,7 @@ contains
     call DMRestoreGlobalVector(geom_dm, global_cell_geom, ierr)
     CHKERRQ(ierr)
 
-    call ISView(self%mesh%natural_order, self%hdf5_viewer, ierr)
+    call ISView(self%mesh%cell_order, self%hdf5_viewer, ierr)
     CHKERRQ(ierr)
 
   end subroutine flow_simulation_output_mesh_geometry

@@ -96,7 +96,7 @@ contains
     ! Locals:
     PetscViewer :: viewer
     DM :: fluid_dm
-    IS :: output_natural_order
+    IS :: output_cell_order
     PetscSection :: y_section, fluid_section
     PetscReal, pointer :: y_array(:), fluid_array(:)
     PetscReal, pointer :: cell_primary(:)
@@ -109,10 +109,10 @@ contains
          viewer, ierr); CHKERRQ(ierr)
     call PetscViewerHDF5PushGroup(viewer, "/", ierr); CHKERRQ(ierr)
 
-    call ISCreate(mpi%comm, output_natural_order, ierr); CHKERRQ(ierr)
-    call PetscObjectSetName(output_natural_order, "natural_order", ierr)
+    call ISCreate(mpi%comm, output_cell_order, ierr); CHKERRQ(ierr)
+    call PetscObjectSetName(output_cell_order, "cell_order", ierr)
     CHKERRQ(ierr)
-    call ISLoad(output_natural_order, viewer, ierr); CHKERRQ(ierr)
+    call ISLoad(output_cell_order, viewer, ierr); CHKERRQ(ierr)
 
     ! TODO :: navigate to last timestep- currently this will work only
     ! if the file has only results for one timestep in it.
@@ -125,8 +125,8 @@ contains
     call PetscViewerHDF5PopGroup(viewer, ierr); CHKERRQ(ierr)
     call PetscViewerDestroy(viewer, ierr); CHKERRQ(ierr)
 
-    call mesh%order_vector(fluid_vector, output_natural_order)
-    call ISDestroy(output_natural_order, ierr); CHKERRQ(ierr)
+    call mesh%order_vector(fluid_vector, output_cell_order)
+    call ISDestroy(output_cell_order, ierr); CHKERRQ(ierr)
 
     ! Determine solution vector from fluid vector:
 
