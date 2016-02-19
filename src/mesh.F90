@@ -534,46 +534,13 @@ contains
     !! Reorders vector v to correspond to the cell order of the mesh
     !! DM, rather than that of the given v_order index set.
 
-    use dm_utils_module, only: global_section_offset, &
-         global_vec_section, global_vec_range_start
+    use dm_utils_module, only: vec_reorder
 
     class(mesh_type), intent(in) :: self
     Vec, intent(in out) :: v
     IS, intent(in) :: v_order
-    ! Locals:
-    Vec :: vinitial
-    VecScatter :: scatter
-    PetscInt :: blocksize
-    IS :: v_order_block, self_order_block
-    PetscInt, pointer :: indices(:)
-    PetscErrorCode :: ierr
 
-    call VecDuplicate(v, vinitial, ierr); CHKERRQ(ierr)
-    call VecCopy(v, vinitial, ierr); CHKERRQ(ierr)
-    call VecGetBlockSize(v, blocksize, ierr); CHKERRQ(ierr)
-
-    ! Create index sets with the appropriate block size:
-    call ISGetIndicesF90(v_order, indices, ierr); CHKERRQ(ierr)
-    call ISCreateBlock(mpi%comm, blocksize, size(indices), indices, &
-         PETSC_COPY_VALUES, v_order_block, ierr); CHKERRQ(ierr)
-    call ISRestoreIndicesF90(v_order, indices, ierr); CHKERRQ(ierr)
-    call ISGetIndicesF90(self%cell_order, indices, ierr); CHKERRQ(ierr)
-    call ISCreateBlock(mpi%comm, blocksize, size(indices), indices, &
-         PETSC_COPY_VALUES, self_order_block, ierr); CHKERRQ(ierr)
-    call ISRestoreIndicesF90(self%cell_order, indices, ierr); CHKERRQ(ierr)
-
-    call VecScatterCreate(vinitial, v_order_block, v, self_order_block, &
-         scatter, ierr); CHKERRQ(ierr)
-    call ISDestroy(v_order_block, ierr); CHKERRQ(ierr)
-    call ISDestroy(self_order_block, ierr); CHKERRQ(ierr)
-
-    call VecScatterBegin(scatter, vinitial, v, INSERT_VALUES, &
-         SCATTER_FORWARD, ierr); CHKERRQ(ierr)
-    call VecScatterEnd(scatter, vinitial, v, INSERT_VALUES, &
-         SCATTER_FORWARD, ierr); CHKERRQ(ierr)
-
-    call VecScatterDestroy(scatter, ierr); CHKERRQ(ierr)
-    call VecDestroy(vinitial, ierr); CHKERRQ(ierr)
+    call vec_reorder(v, self%cell_order, v_order)
 
   end subroutine mesh_order_vector
 
