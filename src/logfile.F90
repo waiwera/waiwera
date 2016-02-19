@@ -38,6 +38,7 @@ module logfile_module
      procedure :: append_string_data => logfile_append_string_data
      procedure, public :: write => logfile_write
      procedure, public :: write_blank => logfile_write_blank
+     procedure, public :: flush => logfile_flush
      procedure, public :: destroy => logfile_destroy
   end type logfile_type
 
@@ -372,6 +373,19 @@ contains
     call self%write_string('', rank)
 
   end subroutine logfile_write_blank
+
+!------------------------------------------------------------------------
+
+  subroutine logfile_flush(self)
+    !! Flushes lines written to logfile.
+
+    class(logfile_type), intent(in out) :: self
+    ! Locals:
+    PetscErrorCode :: ierr
+
+    call PetscViewerFlush(self%viewer, ierr); CHKERRQ(ierr)
+
+  end subroutine logfile_flush
 
 !------------------------------------------------------------------------
 
