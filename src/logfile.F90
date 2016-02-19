@@ -113,14 +113,18 @@ contains
        output_rank = mpi%output_rank
     end if
 
-    if (self%filename /= "") then
-       call PetscViewerASCIISynchronizedPrintf(self%viewer, &
-            string // lf, ierr)
-       CHKERRQ(ierr)
-    end if
+    if (mpi%rank == output_rank) then
 
-    if ((self%echo) .and. (mpi%rank == output_rank)) then
-       write(*, '(a)') string
+       if (self%filename /= "") then
+          call PetscViewerASCIISynchronizedPrintf(self%viewer, &
+               string // lf, ierr)
+          CHKERRQ(ierr)
+       end if
+
+       if (self%echo) then
+          write(*, '(a)') string
+       end if
+
     end if
 
   end subroutine logfile_write_string
