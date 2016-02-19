@@ -233,12 +233,10 @@ contains
 
     class(timestepper_type), intent(in out) :: self
 
-    if (mpi%rank == mpi%output_rank) then
-       call self%ode%logfile%write_blank(rank = mpi%rank)
-       call self%ode%logfile%write(LOG_LEVEL_INFO, 'timestep', 'start', &
-            ['count           '], [self%steps%taken + 1], &
-            ['size            '], [self%steps%next_stepsize])
-    end if
+    call self%ode%logfile%write_blank()
+    call self%ode%logfile%write(LOG_LEVEL_INFO, 'timestep', 'start', &
+         ['count           '], [self%steps%taken + 1], &
+         ['size            '], [self%steps%next_stepsize])
 
   end subroutine before_step_output_default
 
@@ -1361,7 +1359,7 @@ end subroutine timestepper_steps_set_next_stepsize
 
     end if
 
-    call self%ode%logfile%write_blank(rank = mpi%output_rank)
+    call self%ode%logfile%write_blank()
     call self%ode%logfile%write(LOG_LEVEL_INFO, 'timestepper', 'end', &
          str_key = 'time', str_value = date_time_str())
 
