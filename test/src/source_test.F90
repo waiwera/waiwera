@@ -31,13 +31,15 @@ contains
 
     character(16), parameter :: path = "data/source/"
     PetscInt, parameter :: nc = 2
-    PetscInt :: np
+    PetscInt :: np, range_start, range_end
     character(max_primary_variable_name_length), allocatable :: &
          primary_variable_names(:)
     PetscBool :: isothermal
     type(fson_value), pointer :: json
     type(mesh_type) :: mesh
     Vec :: source
+    PetscSection :: section
+    PetscLayout :: layout
     PetscErrorCode :: ierr
 
     primary_variable_names = &
@@ -53,7 +55,16 @@ contains
     call DMCreateLabel(mesh%dm, open_boundary_label_name, ierr); CHKERRQ(ierr)
     call mesh%configure(primary_variable_names)
 
-    call setup_source_vector(json, mesh%dm, np, isothermal, source)
+    call DMGetDefaultGlobalSection(mesh%dm, section, ierr); CHKERRQ(ierr)
+    call PetscSectionGetValueLayout(mpi%comm, section, layout, ierr)
+    CHKERRQ(ierr)
+    call PetscLayoutGetRange(layout, range_start, range_end, ierr)
+    CHKERRQ(ierr)
+    call PetscLayoutDestroy(layout, ierr)
+    CHKERRQ(ierr)
+
+    call setup_source_vector(json, mesh%dm, np, isothermal, source, &
+         range_start)
     call vec_diff_test(source, "source", path)
 
     call VecDestroy(source, ierr); CHKERRQ(ierr)
