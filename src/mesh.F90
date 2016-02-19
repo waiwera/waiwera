@@ -534,7 +534,6 @@ contains
     !! Reorders vector v to correspond to the cell order of the mesh
     !! DM, rather than that of the given v_order index set.
 
-    use cell_module, only: cell_type
     use dm_utils_module, only: global_section_offset, &
          global_vec_section, global_vec_range_start
 
