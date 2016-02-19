@@ -387,7 +387,9 @@ contains
     ! Locals:
     PetscErrorCode :: ierr
 
-    call PetscViewerFlush(self%viewer, ierr); CHKERRQ(ierr)
+    if (self%filename /= "") then
+       call PetscViewerFlush(self%viewer, ierr); CHKERRQ(ierr)
+    end if
 
   end subroutine logfile_flush
 
