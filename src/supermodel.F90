@@ -58,7 +58,7 @@ contains
 
     character(*), intent(out) :: filename
     ! Locals:
-    PetscInt :: num_args
+    PetscInt :: num_args, filename_length, ierr
 
     if (mpi%rank == mpi%input_rank) then
 
@@ -72,6 +72,9 @@ contains
        end if
 
     end if
+    filename_length = len_trim(filename)
+    call MPI_bcast(filename, filename_length, MPI_CHARACTER, &
+         mpi%input_rank, mpi%comm, ierr)
 
   end subroutine get_filename
 

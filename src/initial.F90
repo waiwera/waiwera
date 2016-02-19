@@ -96,6 +96,7 @@ contains
     ! Locals:
     PetscViewer :: viewer
     DM :: fluid_dm
+    IS :: output_cell_order
     PetscSection :: y_section, fluid_section
     PetscReal, pointer :: y_array(:), fluid_array(:)
     PetscReal, pointer :: cell_primary(:)
@@ -108,6 +109,11 @@ contains
          viewer, ierr); CHKERRQ(ierr)
     call PetscViewerHDF5PushGroup(viewer, "/", ierr); CHKERRQ(ierr)
 
+    call ISCreate(mpi%comm, output_cell_order, ierr); CHKERRQ(ierr)
+    call PetscObjectSetName(output_cell_order, "cell_order", ierr)
+    CHKERRQ(ierr)
+    call ISLoad(output_cell_order, viewer, ierr); CHKERRQ(ierr)
+
     ! TODO :: navigate to last timestep- currently this will work only
     ! if the file has only results for one timestep in it.
     ! call PetscViewerHDF5SetTimestep(viewer, ?, ierr); CHKERRQ(ierr)
@@ -118,6 +124,9 @@ contains
 
     call PetscViewerHDF5PopGroup(viewer, ierr); CHKERRQ(ierr)
     call PetscViewerDestroy(viewer, ierr); CHKERRQ(ierr)
+
+    call mesh%order_vector(fluid_vector, output_cell_order)
+    call ISDestroy(output_cell_order, ierr); CHKERRQ(ierr)
 
     ! Determine solution vector from fluid vector:
 
@@ -212,10 +221,12 @@ contains
             fluid_range_start)
        call logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
             real_array_key = 'initial.primary', &
-            real_array_value = eos%default_primary)
+            real_array_value = eos%default_primary, &
+            output_rank_only = .true.)
        call logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
             int_keys = ['initial.region'], &
-            int_values = [eos%default_region])
+            int_values = [eos%default_region], &
+            output_rank_only = .true.)
 
     end if
 

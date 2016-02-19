@@ -91,32 +91,41 @@ contains
     self%active = ((self%filename /= "") .or. self%echo)
     call self%set_number_formats()
 
-    if (self%echo) then
-       call PetscViewerASCIIPushSynchronized(PETSC_VIEWER_STDOUT_WORLD, &
-         ierr); CHKERRQ(ierr)
-    end if
-
   end subroutine logfile_init
 
 !------------------------------------------------------------------------
 
-  subroutine logfile_write_string(self, string)
+  subroutine logfile_write_string(self, string, output_rank_only)
     !! Write string to logfile, optionally echoing to console output
     !! according to the self%echo property.
 
     class(logfile_type), intent(in out) :: self
     character(*), intent(in) :: string
+    PetscBool, intent(in), optional :: output_rank_only
     ! Locals:
     PetscErrorCode :: ierr
+    PetscBool, parameter :: default_output_rank_only = .false.
+    PetscBool :: do_output_rank_only, output
+
+    if (present(output_rank_only)) then
+       do_output_rank_only = output_rank_only
+    else
+       do_output_rank_only = default_output_rank_only
+    end if
+    if (do_output_rank_only) then
+       output = (mpi%rank == mpi%output_rank)
+    else
+       output = .true.
+    end if
 
     if (self%filename /= "") then
-       call PetscViewerASCIISynchronizedPrintf(self%viewer, string, ierr)
+       call PetscViewerASCIISynchronizedPrintf(self%viewer, &
+            string // lf, ierr)
        CHKERRQ(ierr)
     end if
 
-    if (self%echo) then
-       call PetscViewerASCIISynchronizedPrintf(PETSC_VIEWER_STDOUT_WORLD, &
-            string, ierr); CHKERRQ(ierr)
+    if ((self%echo) .and. (output)) then
+       write(*, '(a)') string
     end if
 
   end subroutine logfile_write_string
@@ -287,7 +296,8 @@ contains
 
   subroutine logfile_write(self, level, source, event, int_keys, &
        int_values, real_keys, real_values, logical_keys, logical_values, &
-       str_key, str_value, real_array_key, real_array_value)
+       str_key, str_value, real_array_key, real_array_value, &
+       output_rank_only)
     !! Write message to logfile, optionally echoing to console output
     !! according to self%echo property.
     !! Output is in YAML format: each message is formatted as an
@@ -306,6 +316,7 @@ contains
     PetscBool, intent(in), optional :: logical_values(:)
     character(*), intent(in), optional :: str_value
     PetscReal, intent(in), optional :: real_array_value(:)
+    PetscBool, intent(in), optional :: output_rank_only
     ! Locals:
     PetscBool :: has_data
     character(:), allocatable ::  content, msg
@@ -346,12 +357,12 @@ contains
        end if
 
        if (has_data) then
-          msg = msg // ', {' // trim(content) // '}]' // lf
+          msg = msg // ', {' // trim(content) // '}]'
        else
-          msg = msg // ']' // lf
+          msg = msg // ']'
        end if
 
-       call self%write_string(msg)
+       call self%write_string(msg, output_rank_only)
 
     end if
 
@@ -359,12 +370,13 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine logfile_write_blank(self)
+  subroutine logfile_write_blank(self, output_rank_only)
     !! Writes blank line to logfile. 
 
     class(logfile_type), intent(in out) :: self
+    PetscBool, intent(in), optional :: output_rank_only
 
-    call self%write_string(lf)
+    call self%write_string('', output_rank_only)
 
   end subroutine logfile_write_blank
 
@@ -383,10 +395,6 @@ contains
        call PetscViewerDestroy(self%viewer, ierr); CHKERRQ(ierr)
     end if
     self%filename = ""
-    if (self%echo) then
-       call PetscViewerASCIIPopSynchronized(PETSC_VIEWER_STDOUT_WORLD, &
-            ierr); CHKERRQ(ierr)
-    end if
 
   end subroutine logfile_destroy
 

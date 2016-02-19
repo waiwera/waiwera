@@ -54,6 +54,7 @@ module flow_simulation_module
      procedure, public :: fluid_init => flow_simulation_fluid_init
      procedure, public :: fluid_transitions => flow_simulation_fluid_transitions
      procedure, public :: fluid_properties => flow_simulation_fluid_properties
+     procedure, public :: output_mesh_geometry => flow_simulation_output_mesh_geometry
      procedure, public :: output => flow_simulation_output
   end type flow_simulation_type
 
@@ -147,17 +148,19 @@ contains
          num_log_real_digits, echo)
 
     call self%logfile%write(LOG_LEVEL_INFO, 'input', 'start', &
-         str_key = 'time', str_value = datetimestr)
+         str_key = 'time', str_value = datetimestr, &
+         output_rank_only = .true.)
     call self%logfile%write_blank()
 
     if (default_log) then
        call self%logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
             str_key = 'logfile.filename', &
-            str_value = logfile_name)
+            str_value = logfile_name, output_rank_only = .true.)
     end if
 
     if (no_logfile) then
-       call self%logfile%write(LOG_LEVEL_WARN, 'input', 'no logfile')
+       call self%logfile%write(LOG_LEVEL_WARN, 'input', 'no logfile', &
+            output_rank_only = .true.)
     end if
 
   end subroutine flow_simulation_setup_logfile
@@ -226,11 +229,13 @@ contains
     if (default_output) then
        call self%logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
             str_key = "output.filename", &
-            str_value = self%output_filename)
+            str_value = self%output_filename, &
+            output_rank_only = .true.)
     end if
 
     if (no_output) then
-       call self%logfile%write(LOG_LEVEL_WARN, 'input', 'no output')
+       call self%logfile%write(LOG_LEVEL_WARN, 'input', 'no output', &
+            output_rank_only = .true.)
     end if
 
   end subroutine flow_simulation_setup_output
@@ -245,7 +250,6 @@ contains
     PetscErrorCode :: ierr
 
     if (self%output_filename /= "") then
-       call PetscViewerHDF5PopGroup(self%hdf5_viewer, ierr); CHKERRQ(ierr)
        call PetscViewerDestroy(self%hdf5_viewer, ierr); CHKERRQ(ierr)
     end if
 
@@ -259,19 +263,28 @@ contains
     class(flow_simulation_type), intent(in out) :: self
 
     call self%logfile%write(LOG_LEVEL_INFO, 'input', 'summary', &
-         str_key = 'input.filename', str_value = self%filename)
+         str_key = 'input.filename', str_value = self%filename, &
+         output_rank_only = .true.)
     call self%logfile%write(LOG_LEVEL_INFO, 'input', 'summary', &
-         str_key = 'logfile.filename', str_value = self%logfile%filename)
+         str_key = 'logfile.filename', &
+         str_value = self%logfile%filename, &
+         output_rank_only = .true.)
     call self%logfile%write(LOG_LEVEL_INFO, 'input', 'summary', &
-         str_key = 'output.filename', str_value = self%output_filename)
+         str_key = 'output.filename', &
+         str_value = self%output_filename, &
+         output_rank_only = .true.)
     call self%logfile%write(LOG_LEVEL_INFO, 'input', 'summary', &
-         str_key = 'title', str_value = trim(self%title))
+         str_key = 'title', str_value = trim(self%title), &
+         output_rank_only = .true.)
     call self%logfile%write(LOG_LEVEL_INFO, 'input', 'summary', &
-         str_key = 'mesh', str_value = self%mesh%filename)
+         str_key = 'mesh', str_value = self%mesh%filename, &
+         output_rank_only = .true.)
     call self%logfile%write(LOG_LEVEL_INFO, 'input', 'summary', &
-         str_key = 'eos.name', str_value = self%eos%name)
+         str_key = 'eos.name', str_value = self%eos%name, &
+         output_rank_only = .true.)
     call self%logfile%write(LOG_LEVEL_INFO, 'input', 'summary', &
-         str_key = 'thermodynamics', str_value = self%thermo%name)
+         str_key = 'thermodynamics', str_value = self%thermo%name, &
+         output_rank_only = .true.)
 
     call self%logfile%write_blank()
 
@@ -314,16 +327,20 @@ contains
     call self%setup_logfile(json, datetimestr)
     call self%setup_output(json)
 
-    call fson_get_mpi(json, "title", default_title, self%title, self%logfile)
+    call fson_get_mpi(json, "title", default_title, self%title, &
+         self%logfile)
+    call fson_get_mpi(json, "gravity", default_gravity, self%gravity, &
+         self%logfile)
 
     call setup_thermodynamics(json, self%thermo, self%logfile)
-
     call setup_eos(json, self%thermo, self%eos, self%logfile)
 
     call self%mesh%init(json, self%logfile)
     call setup_rocktype_labels(json, self%mesh%dm, self%logfile)
     call self%mesh%setup_boundaries(json, self%eos, self%logfile)
     call self%mesh%configure(self%eos%primary_variable_names)
+    call self%output_mesh_geometry()
+
     call self%setup_solution_vector()
     call setup_relative_permeabilities(json, &
          self%relative_permeability, self%logfile)
@@ -336,6 +353,7 @@ contains
     CHKERRQ(ierr)
     call VecDuplicate(self%fluid, self%last_iteration_fluid, ierr)
     CHKERRQ(ierr)
+
     call setup_initial(json, self%mesh, self%eos, &
          self%time, self%solution, self%rock, self%fluid, &
          self%solution_range_start,  self%rock_range_start, &
@@ -344,8 +362,7 @@ contains
          self%solution_range_start, self%rock_range_start)
     call setup_source_vector(json, self%mesh%dm, &
          self%eos%num_primary_variables, self%eos%isothermal, &
-         self%source, self%logfile)
-    call fson_get_mpi(json, "gravity", default_gravity, self%gravity, self%logfile)
+         self%source, self%solution_range_start, self%logfile)
 
   end subroutine flow_simulation_init
 
@@ -932,7 +949,7 @@ contains
     PetscReal, pointer :: last_iteration_fluid_array(:), fluid_array(:)
     type(fluid_type) :: last_iteration_fluid, fluid
     DMLabel :: ghost_label
-    PetscBool :: transition
+    PetscBool :: transition, any_changed_y, any_changed_search
     PetscErrorCode :: ierr
 
     err = 0
@@ -1025,7 +1042,52 @@ contains
     call last_iteration_fluid%destroy()
     call fluid%destroy()
 
+    call MPI_reduce(changed_y, any_changed_y, 1, MPI_LOGICAL, MPI_LOR, &
+         mpi%input_rank, mpi%comm, ierr)
+    if (mpi%rank == mpi%input_rank) then
+       changed_y = any_changed_y
+    end if
+    call MPI_bcast(changed_y, 1, MPI_LOGICAL, mpi%input_rank, mpi%comm, ierr)
+
+    call MPI_reduce(changed_search, any_changed_search, 1, MPI_LOGICAL, MPI_LOR, &
+         mpi%input_rank, mpi%comm, ierr)
+    if (mpi%rank == mpi%input_rank) then
+       changed_search = any_changed_search
+    end if
+    call MPI_bcast(changed_search, 1, MPI_LOGICAL, mpi%input_rank, mpi%comm, ierr)
+
   end subroutine flow_simulation_fluid_transitions
+
+!------------------------------------------------------------------------
+
+  subroutine flow_simulation_output_mesh_geometry(self)
+    !! Writes mesh geometry data to output.
+
+    class(flow_simulation_type), intent(in out) :: self
+    ! Locals:
+    PetscErrorCode :: ierr
+    DM :: geom_dm
+    Vec :: global_cell_geom
+
+    call VecGetDM(self%mesh%cell_geom, geom_dm, ierr); CHKERRQ(ierr)
+    call DMGetGlobalVector(geom_dm, global_cell_geom, ierr); CHKERRQ(ierr)
+    call PetscObjectSetName(global_cell_geom, "cell_geometry", ierr)
+    CHKERRQ(ierr)
+
+    call DMLocalToGlobalBegin(geom_dm, self%mesh%cell_geom, &
+         INSERT_VALUES, global_cell_geom, ierr); CHKERRQ(ierr)
+    call DMLocalToGlobalEnd(geom_dm, self%mesh%cell_geom, &
+         INSERT_VALUES, global_cell_geom, ierr); CHKERRQ(ierr)
+
+    call VecView(global_cell_geom, self%hdf5_viewer, ierr); CHKERRQ(ierr)
+
+    call DMRestoreGlobalVector(geom_dm, global_cell_geom, ierr)
+    CHKERRQ(ierr)
+
+    call ISView(self%mesh%cell_order, self%hdf5_viewer, ierr)
+    CHKERRQ(ierr)
+
+  end subroutine flow_simulation_output_mesh_geometry
 
 !------------------------------------------------------------------------
 

@@ -11,6 +11,8 @@ module mesh_module
 #include <petsc/finclude/petsc.h90>
 
   PetscInt, parameter, public :: max_mesh_filename_length = 200
+  character(len = 13), parameter, public :: &
+       cell_order_label_name = "cell order"
 
   type, public :: mesh_type
      !! Mesh type.
@@ -21,7 +23,10 @@ module mesh_module
      PetscInt, public :: start_cell, end_cell, end_interior_cell
      PetscInt, public :: start_face, end_face
      PetscReal, allocatable, public :: bcs(:,:)
+     IS, public :: cell_order
    contains
+     procedure :: setup_cell_order_label => mesh_setup_cell_order_label
+     procedure :: setup_cell_order => mesh_setup_cell_order
      procedure :: distribute => mesh_distribute
      procedure :: construct_ghost_cells => mesh_construct_ghost_cells
      procedure :: setup_data_layout => mesh_setup_data_layout
@@ -32,10 +37,83 @@ module mesh_module
      procedure, public :: configure => mesh_configure
      procedure, public :: setup_boundaries => mesh_setup_boundaries
      procedure, public :: set_boundary_values => mesh_set_boundary_values
+     procedure, public :: order_vector => mesh_order_vector
      procedure, public :: destroy => mesh_destroy
   end type mesh_type
 
 contains
+
+!------------------------------------------------------------------------
+
+  subroutine mesh_setup_cell_order_label(self)
+    !! Sets up cell ordering label on mesh cells. This assumes the mesh
+    !! has not yet been distributed.
+
+    class(mesh_type), intent(in out) :: self
+    ! Locals:
+    PetscBool :: has_label
+    PetscInt :: start_cell, end_cell, c
+    PetscErrorCode :: ierr
+
+    call DMHasLabel(self%dm, cell_order_label_name, has_label, &
+         ierr); CHKERRQ(ierr)
+
+    if (.not. has_label) then
+       call DMCreateLabel(self%dm, cell_order_label_name, ierr)
+       CHKERRQ(ierr)
+       call DMPlexGetHeightStratum(self%dm, 0, start_cell, end_cell, &
+            ierr); CHKERRQ(ierr)
+       do c = start_cell, end_cell - 1
+          call DMSetLabelValue(self%dm, cell_order_label_name, c, &
+               c, ierr); CHKERRQ(ierr)
+       end do
+    end if
+
+  end subroutine mesh_setup_cell_order_label
+
+!------------------------------------------------------------------------
+
+  subroutine mesh_setup_cell_order(self)
+    !! Sets up cell order index set from cell order label on DM.
+    !! This index set corresponds to a block size of 1.
+
+    class(mesh_type), intent(in out) :: self
+    ! Locals:
+    PetscInt :: n, c, i, ghost, order
+    DMLabel :: ghost_label, order_label
+    PetscInt, allocatable :: order_array(:)
+    PetscErrorCode :: ierr
+
+    call DMGetLabel(self%dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
+
+    ! Count interior cells:
+    n = 0
+    do c = self%start_cell, self%end_interior_cell - 1
+       call DMLabelGetValue(ghost_label, c, ghost, ierr); CHKERRQ(ierr)
+       if (ghost < 0) n = n + 1
+    end do
+    allocate(order_array(n))
+
+    call DMGetLabel(self%dm, cell_order_label_name, order_label, ierr)
+    CHKERRQ(ierr)
+    i = 1
+    do c = self%start_cell, self%end_interior_cell - 1
+       call DMLabelGetValue(ghost_label, c, ghost, ierr); CHKERRQ(ierr)
+       if (ghost < 0) then
+          call DMLabelGetValue(order_label, c, order, ierr); CHKERRQ(ierr)
+          order_array(i) = order
+          i = i + 1
+       end if
+    end do
+
+    call ISCreateGeneral(mpi%comm, n, order_array, PETSC_COPY_VALUES, &
+         self%cell_order, ierr); CHKERRQ(ierr)
+    call PetscObjectSetName(self%cell_order, "cell_order", ierr)
+    CHKERRQ(ierr)
+
+    deallocate(order_array)
+
+  end subroutine mesh_setup_cell_order
 
 !------------------------------------------------------------------------
 
@@ -158,6 +236,7 @@ contains
     ! create our own face geometry vector, containing additional parameters:
     call DMPlexTSGetGeometryFVM(self%dm, petsc_face_geom, self%cell_geom, &
          PETSC_NULL_REAL, ierr); CHKERRQ(ierr)
+    call PetscObjectSetName(self%cell_geom, "cell_geometry", ierr); CHKERRQ(ierr)
 
     ! Set up face geometry vector:
     call DMClone(self%dm, dm_face, ierr); CHKERRQ(ierr)
@@ -233,6 +312,7 @@ contains
              call face%assign(face_geom_array, face_offset)
              face%distance(2) = 0._dp
           end do
+          call ISRestoreIndicesF90(bdy_IS, bdy_faces, ierr); CHKERRQ(ierr)
        end if
        call ISDestroy(bdy_IS, ierr); CHKERRQ(ierr)
     end do
@@ -321,6 +401,7 @@ contains
     ! Locals:
     PetscInt :: dof
 
+    call self%setup_cell_order_label()
     call self%distribute()
     call self%construct_ghost_cells()
 
@@ -332,6 +413,8 @@ contains
     call self%setup_data_layout(dof)
 
     call self%setup_geometry()
+
+    call self%setup_cell_order()
 
   end subroutine mesh_configure
 
@@ -350,6 +433,8 @@ contains
     if (allocated(self%bcs)) then
        deallocate(self%bcs)
     end if
+
+    call ISDestroy(self%cell_order, ierr); CHKERRQ(ierr)
 
   end subroutine mesh_destroy
 
@@ -432,6 +517,7 @@ contains
              rock2 => rock_array(rock_offsets(2) : rock_offsets(2) + n)
              rock2 = rock1
           end do
+          call ISRestoreIndicesF90(bdy_IS, bdy_faces, ierr); CHKERRQ(ierr)
        end if
        call ISDestroy(bdy_IS, ierr); CHKERRQ(ierr)
     end do
@@ -441,6 +527,56 @@ contains
 
   end subroutine mesh_set_boundary_values
 
-!-----------------------------------------------------------------------
+!------------------------------------------------------------------------
+
+  subroutine mesh_order_vector(self, v, v_order)
+    !! Reorders vector v to correspond to the cell order of the mesh
+    !! DM, rather than that of the given v_order index set.
+
+    use cell_module, only: cell_type
+    use dm_utils_module, only: global_section_offset, &
+         global_vec_section, global_vec_range_start
+
+    class(mesh_type), intent(in) :: self
+    Vec, intent(in out) :: v
+    IS, intent(in) :: v_order
+    ! Locals:
+    Vec :: vinitial
+    VecScatter :: scatter
+    PetscInt :: blocksize
+    IS :: v_order_block, self_order_block
+    PetscInt, pointer :: indices(:)
+    PetscErrorCode :: ierr
+
+    call VecDuplicate(v, vinitial, ierr); CHKERRQ(ierr)
+    call VecCopy(v, vinitial, ierr); CHKERRQ(ierr)
+    call VecGetBlockSize(v, blocksize, ierr); CHKERRQ(ierr)
+
+    ! Create index sets with the appropriate block size:
+    call ISGetIndicesF90(v_order, indices, ierr); CHKERRQ(ierr)
+    call ISCreateBlock(mpi%comm, blocksize, size(indices), indices, &
+         PETSC_COPY_VALUES, v_order_block, ierr); CHKERRQ(ierr)
+    call ISRestoreIndicesF90(v_order, indices, ierr); CHKERRQ(ierr)
+    call ISGetIndicesF90(self%cell_order, indices, ierr); CHKERRQ(ierr)
+    call ISCreateBlock(mpi%comm, blocksize, size(indices), indices, &
+         PETSC_COPY_VALUES, self_order_block, ierr); CHKERRQ(ierr)
+    call ISRestoreIndicesF90(self%cell_order, indices, ierr); CHKERRQ(ierr)
+
+    call VecScatterCreate(vinitial, v_order_block, v, self_order_block, &
+         scatter, ierr); CHKERRQ(ierr)
+    call ISDestroy(v_order_block, ierr); CHKERRQ(ierr)
+    call ISDestroy(self_order_block, ierr); CHKERRQ(ierr)
+
+    call VecScatterBegin(scatter, vinitial, v, INSERT_VALUES, &
+         SCATTER_FORWARD, ierr); CHKERRQ(ierr)
+    call VecScatterEnd(scatter, vinitial, v, INSERT_VALUES, &
+         SCATTER_FORWARD, ierr); CHKERRQ(ierr)
+
+    call VecScatterDestroy(scatter, ierr); CHKERRQ(ierr)
+    call VecDestroy(vinitial, ierr); CHKERRQ(ierr)
+
+  end subroutine mesh_order_vector
+
+!------------------------------------------------------------------------
 
 end module mesh_module

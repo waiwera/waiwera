@@ -21,7 +21,8 @@ module timestepper_module
 
   ! Timestep status
      PetscInt, parameter, public :: TIMESTEP_OK = 0, TIMESTEP_NOT_CONVERGED = 1, &
-     TIMESTEP_TOO_SMALL = 2, TIMESTEP_TOO_BIG = 3, TIMESTEP_ABORTED = 4
+     TIMESTEP_TOO_SMALL = 2, TIMESTEP_TOO_BIG = 3, TIMESTEP_ABORTED = 4, &
+     TIMESTEP_FINAL = 5
 
   type timestepper_step_type
      !! Results of a time step.
@@ -233,10 +234,11 @@ contains
     class(timestepper_type), intent(in out) :: self
 
     if (mpi%rank == mpi%output_rank) then
-       call self%ode%logfile%write_blank()
+       call self%ode%logfile%write_blank(output_rank_only = .false.)
        call self%ode%logfile%write(LOG_LEVEL_INFO, 'timestep', 'start', &
             ['count           '], [self%steps%taken + 1], &
-            ['size            '], [self%steps%next_stepsize])
+            ['size            '], [self%steps%next_stepsize], &
+            output_rank_only = .false.)
     end if
 
   end subroutine before_step_output_default
@@ -491,6 +493,8 @@ contains
           timestepper_step_status_str = 'reduce'
        case (TIMESTEP_ABORTED)
           timestepper_step_status_str = 'aborted'
+       case (TIMESTEP_FINAL)
+          timestepper_step_status_str = 'final'
        case default
           timestepper_step_status_str = 'unknown'
     end select
@@ -512,7 +516,8 @@ contains
             ['size            ', 'time            '], &
             [self%stepsize, self%time], &
             str_key = 'status          ', &
-            str_value = self%status_str())
+            str_value = self%status_str(), &
+            output_rank_only = .false.)
     end if
 
   end subroutine timestepper_step_print
@@ -800,17 +805,22 @@ contains
        self%current%status = TIMESTEP_ABORTED
        self%finished = .true.
     else if (converged) then
-       eta = self%adaptor%monitor(self%current, self%last)
-       if (self%adaptor%on) then
-          if (eta < self%adaptor%monitor_min) then
-             self%current%status = TIMESTEP_TOO_SMALL
-          else if (eta > self%adaptor%monitor_max) then
-             self%current%status = TIMESTEP_TOO_BIG
+       if ((self%finished) .and. (self%current%status /= &
+            TIMESTEP_ABORTED)) then
+          self%current%status = TIMESTEP_FINAL
+       else
+          eta = self%adaptor%monitor(self%current, self%last)
+          if (self%adaptor%on) then
+             if (eta < self%adaptor%monitor_min) then
+                self%current%status = TIMESTEP_TOO_SMALL
+             else if (eta > self%adaptor%monitor_max) then
+                self%current%status = TIMESTEP_TOO_BIG
+             else
+                self%current%status = TIMESTEP_OK
+             end if
           else
              self%current%status = TIMESTEP_OK
           end if
-       else
-          self%current%status = TIMESTEP_OK
        end if
     else
        self%current%status = TIMESTEP_NOT_CONVERGED
@@ -1014,7 +1024,8 @@ end subroutine timestepper_steps_set_next_stepsize
     if ((num_iterations > 0) .and. (mpi%rank == mpi%output_rank)) then
        call context%ode%logfile%write(LOG_LEVEL_INFO, 'solver', 'iteration', &
             ['count           '], [num_iterations], &
-            ['max_residual    '], [context%steps%current%max_residual])
+            ['max_residual    '], [context%steps%current%max_residual], &
+            output_rank_only = .false.)
     end if
 
   end subroutine SNES_monitor
@@ -1220,7 +1231,7 @@ end subroutine timestepper_steps_set_next_stepsize
     call fson_get_mpi(json, "output.final", &
          default_output_final, self%output_final, self%ode%logfile)
 
-    call self%ode%logfile%write_blank()
+    call self%ode%logfile%write_blank(output_rank_only = .false.)
 
     deallocate(step_sizes)
 
@@ -1285,7 +1296,8 @@ end subroutine timestepper_steps_set_next_stepsize
           if ((.not. accepted) .and. (mpi%rank == mpi%output_rank)) then
              call self%ode%logfile%write(LOG_LEVEL_WARN, 'timestep', 'reduction', &
                   real_keys = ['new_size        '], &
-                  real_values = [self%steps%next_stepsize])
+                  real_values = [self%steps%next_stepsize], &
+                  output_rank_only = .false.)
           end if
        end if
 
@@ -1312,7 +1324,8 @@ end subroutine timestepper_steps_set_next_stepsize
 
     if (mpi%rank == mpi%output_rank) then
        call self%ode%logfile%write(LOG_LEVEL_INFO, 'timestepper', 'start', &
-            str_key = 'time            ', str_value = date_time_str())
+            str_key = 'time            ', str_value = date_time_str(), &
+            output_rank_only = .false.)
     end if
 
     err = 0
@@ -1358,9 +1371,10 @@ end subroutine timestepper_steps_set_next_stepsize
     end if
 
     if (mpi%rank == mpi%output_rank) then
-       call self%ode%logfile%write_blank()
+       call self%ode%logfile%write_blank(output_rank_only = .false.)
        call self%ode%logfile%write(LOG_LEVEL_INFO, 'timestepper', 'end', &
-            str_key = 'time', str_value = date_time_str())
+            str_key = 'time', str_value = date_time_str(), &
+            output_rank_only = .false.)
     end if
 
   end subroutine timestepper_run
