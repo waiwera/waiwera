@@ -376,7 +376,8 @@ contains
           if (present(logfile)) then
              call logfile%write(LOG_LEVEL_ERR, 'mesh', 'init', &
                   str_key = 'stop            ', &
-                  str_value = 'mesh not found in input.')
+                  str_value = 'mesh not found in input.', &
+                  rank = mpi%input_rank)
           end if
           stop
        end if

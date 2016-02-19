@@ -148,19 +148,17 @@ contains
          num_log_real_digits, echo)
 
     call self%logfile%write(LOG_LEVEL_INFO, 'input', 'start', &
-         str_key = 'time', str_value = datetimestr, &
-         output_rank_only = .true.)
+         str_key = 'time', str_value = datetimestr)
     call self%logfile%write_blank()
 
     if (default_log) then
        call self%logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
             str_key = 'logfile.filename', &
-            str_value = logfile_name, output_rank_only = .true.)
+            str_value = logfile_name)
     end if
 
     if (no_logfile) then
-       call self%logfile%write(LOG_LEVEL_WARN, 'input', 'no logfile', &
-            output_rank_only = .true.)
+       call self%logfile%write(LOG_LEVEL_WARN, 'input', 'no logfile')
     end if
 
   end subroutine flow_simulation_setup_logfile
@@ -229,13 +227,11 @@ contains
     if (default_output) then
        call self%logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
             str_key = "output.filename", &
-            str_value = self%output_filename, &
-            output_rank_only = .true.)
+            str_value = self%output_filename)
     end if
 
     if (no_output) then
-       call self%logfile%write(LOG_LEVEL_WARN, 'input', 'no output', &
-            output_rank_only = .true.)
+       call self%logfile%write(LOG_LEVEL_WARN, 'input', 'no output')
     end if
 
   end subroutine flow_simulation_setup_output
@@ -263,28 +259,21 @@ contains
     class(flow_simulation_type), intent(in out) :: self
 
     call self%logfile%write(LOG_LEVEL_INFO, 'input', 'summary', &
-         str_key = 'input.filename', str_value = self%filename, &
-         output_rank_only = .true.)
+         str_key = 'input.filename', str_value = self%filename)
     call self%logfile%write(LOG_LEVEL_INFO, 'input', 'summary', &
          str_key = 'logfile.filename', &
-         str_value = self%logfile%filename, &
-         output_rank_only = .true.)
+         str_value = self%logfile%filename)
     call self%logfile%write(LOG_LEVEL_INFO, 'input', 'summary', &
          str_key = 'output.filename', &
-         str_value = self%output_filename, &
-         output_rank_only = .true.)
+         str_value = self%output_filename)
     call self%logfile%write(LOG_LEVEL_INFO, 'input', 'summary', &
-         str_key = 'title', str_value = trim(self%title), &
-         output_rank_only = .true.)
+         str_key = 'title', str_value = trim(self%title))
     call self%logfile%write(LOG_LEVEL_INFO, 'input', 'summary', &
-         str_key = 'mesh', str_value = self%mesh%filename, &
-         output_rank_only = .true.)
+         str_key = 'mesh', str_value = self%mesh%filename)
     call self%logfile%write(LOG_LEVEL_INFO, 'input', 'summary', &
-         str_key = 'eos.name', str_value = self%eos%name, &
-         output_rank_only = .true.)
+         str_key = 'eos.name', str_value = self%eos%name)
     call self%logfile%write(LOG_LEVEL_INFO, 'input', 'summary', &
-         str_key = 'thermodynamics', str_value = self%thermo%name, &
-         output_rank_only = .true.)
+         str_key = 'thermodynamics', str_value = self%thermo%name)
 
     call self%logfile%write_blank()
 
@@ -800,21 +789,21 @@ contains
                    call self%logfile%write(LOG_LEVEL_ERR, 'initialize', &
                         'fluid', &
                         ['proc            ', 'cell            '], &
-                        [mpi%rank, c])
+                        [mpi%rank, c], rank = mpi%rank)
                    exit
                 end if
              else
                 call self%logfile%write(LOG_LEVEL_ERR, 'initialize', &
                      'fluid', &
                      ['proc            ', 'cell            '], &
-                     [mpi%rank, c])
+                     [mpi%rank, c], rank = mpi%rank)
                 exit
              end if
           else
              call self%logfile%write(LOG_LEVEL_ERR, 'initialize', &
                   'fluid', &
                   ['proc            ', 'cell            '], &
-                  [mpi%rank, c])
+                  [mpi%rank, c], rank = mpi%rank)
              exit
           end if
 
@@ -901,14 +890,14 @@ contains
                 call self%logfile%write(LOG_LEVEL_WARN, 'fluid', &
                      'properties_not_found', &
                      ['proc            ', 'cell            '], &
-                     [mpi%rank, c])
+                     [mpi%rank, c], rank = mpi%rank)
                 exit
              end if
           else
              call self%logfile%write(LOG_LEVEL_WARN, 'fluid', &
                   'properties_not_found', &
                   ['proc            ', 'cell            '], &
-                  [mpi%rank, c])
+                  [mpi%rank, c], rank = mpi%rank)
              exit
           end if
 
@@ -1009,13 +998,13 @@ contains
                         [mpi%rank, c, &
                         nint(last_iteration_fluid%region), nint(fluid%region)], &
                         real_array_key = 'new_primary     ', &
-                        real_array_value = cell_primary)
+                        real_array_value = cell_primary, rank = mpi%rank)
                 end if
              else
                 call self%logfile%write(LOG_LEVEL_WARN, 'fluid', &
                      'transition_failed', &
                      ['proc            ', 'cell            '], &
-                     [mpi%rank, c])
+                     [mpi%rank, c], rank = mpi%rank)
                 exit
              end if
           else
@@ -1025,7 +1014,7 @@ contains
                   'region          '], &
                   [mpi%rank, c, nint(fluid%region)], &
                   real_array_key = 'primary         ', &
-                  real_array_value = cell_primary)
+                  real_array_value = cell_primary, rank = mpi%rank)
              exit
           end if
 

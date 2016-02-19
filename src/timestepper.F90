@@ -234,11 +234,10 @@ contains
     class(timestepper_type), intent(in out) :: self
 
     if (mpi%rank == mpi%output_rank) then
-       call self%ode%logfile%write_blank(output_rank_only = .false.)
+       call self%ode%logfile%write_blank(rank = mpi%rank)
        call self%ode%logfile%write(LOG_LEVEL_INFO, 'timestep', 'start', &
             ['count           '], [self%steps%taken + 1], &
-            ['size            '], [self%steps%next_stepsize], &
-            output_rank_only = .false.)
+            ['size            '], [self%steps%next_stepsize])
     end if
 
   end subroutine before_step_output_default
@@ -509,16 +508,13 @@ contains
     class(timestepper_step_type), intent(in) :: self
     type(logfile_type), intent(in out) :: logfile
 
-    if (mpi%rank == mpi%output_rank) then
-       call logfile%write(LOG_LEVEL_INFO, 'timestep', 'end', &
-            ['tries           ', 'iters           '], &
-            [self%num_tries, self%num_iterations], &
-            ['size            ', 'time            '], &
-            [self%stepsize, self%time], &
-            str_key = 'status          ', &
-            str_value = self%status_str(), &
-            output_rank_only = .false.)
-    end if
+    call logfile%write(LOG_LEVEL_INFO, 'timestep', 'end', &
+         ['tries           ', 'iters           '], &
+         [self%num_tries, self%num_iterations], &
+         ['size            ', 'time            '], &
+         [self%stepsize, self%time], &
+         str_key = 'status          ', &
+         str_value = self%status_str())
 
   end subroutine timestepper_step_print
 
@@ -1021,11 +1017,10 @@ end subroutine timestepper_steps_set_next_stepsize
     type(timestepper_solver_context_type), intent(in out) :: context
     PetscErrorCode :: ierr
 
-    if ((num_iterations > 0) .and. (mpi%rank == mpi%output_rank)) then
+    if ((num_iterations > 0)) then
        call context%ode%logfile%write(LOG_LEVEL_INFO, 'solver', 'iteration', &
             ['count           '], [num_iterations], &
-            ['max_residual    '], [context%steps%current%max_residual], &
-            output_rank_only = .false.)
+            ['max_residual    '], [context%steps%current%max_residual])
     end if
 
   end subroutine SNES_monitor
@@ -1231,7 +1226,7 @@ end subroutine timestepper_steps_set_next_stepsize
     call fson_get_mpi(json, "output.final", &
          default_output_final, self%output_final, self%ode%logfile)
 
-    call self%ode%logfile%write_blank(output_rank_only = .false.)
+    call self%ode%logfile%write_blank()
 
     deallocate(step_sizes)
 
@@ -1293,11 +1288,10 @@ end subroutine timestepper_steps_set_next_stepsize
        call self%steps%set_current_status(converged)
        if (self%steps%current%status /= TIMESTEP_ABORTED) then
           call self%steps%set_next_stepsize(accepted)
-          if ((.not. accepted) .and. (mpi%rank == mpi%output_rank)) then
+          if (.not. accepted) then
              call self%ode%logfile%write(LOG_LEVEL_WARN, 'timestep', 'reduction', &
                   real_keys = ['new_size        '], &
-                  real_values = [self%steps%next_stepsize], &
-                  output_rank_only = .false.)
+                  real_values = [self%steps%next_stepsize])
           end if
        end if
 
@@ -1322,11 +1316,8 @@ end subroutine timestepper_steps_set_next_stepsize
     PetscInt :: since_output
     PetscErrorCode :: err
 
-    if (mpi%rank == mpi%output_rank) then
-       call self%ode%logfile%write(LOG_LEVEL_INFO, 'timestepper', 'start', &
-            str_key = 'time            ', str_value = date_time_str(), &
-            output_rank_only = .false.)
-    end if
+    call self%ode%logfile%write(LOG_LEVEL_INFO, 'timestepper', 'start', &
+         str_key = 'time            ', str_value = date_time_str())
 
     err = 0
     self%steps%taken = 0
@@ -1370,12 +1361,9 @@ end subroutine timestepper_steps_set_next_stepsize
 
     end if
 
-    if (mpi%rank == mpi%output_rank) then
-       call self%ode%logfile%write_blank(output_rank_only = .false.)
-       call self%ode%logfile%write(LOG_LEVEL_INFO, 'timestepper', 'end', &
-            str_key = 'time', str_value = date_time_str(), &
-            output_rank_only = .false.)
-    end if
+    call self%ode%logfile%write_blank(rank = mpi%output_rank)
+    call self%ode%logfile%write(LOG_LEVEL_INFO, 'timestepper', 'end', &
+         str_key = 'time', str_value = date_time_str())
 
   end subroutine timestepper_run
 

@@ -95,8 +95,7 @@ contains
        call VecRestoreArrayF90(source, source_array, ierr); CHKERRQ(ierr)
 
     else
-       call logfile%write(LOG_LEVEL_INFO, "input", "no sources", &
-            output_rank_only = .true.)
+       call logfile%write(LOG_LEVEL_INFO, "input", "no sources")
     end if
 
   end subroutine setup_source_vector
