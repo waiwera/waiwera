@@ -1020,6 +1020,7 @@ end subroutine timestepper_steps_set_next_stepsize
             ['count           '], [num_iterations], &
             ['max_residual    '], [context%steps%current%max_residual])
     end if
+    call context%ode%logfile%flush()
 
   end subroutine SNES_monitor
 
@@ -1299,6 +1300,7 @@ end subroutine timestepper_steps_set_next_stepsize
     self%ode%time = self%steps%current%time
     call VecCopy(self%steps%current%solution, self%ode%solution, ierr)
     CHKERRQ(ierr)
+    call self%ode%logfile%flush()
 
   end subroutine timestepper_step
 
@@ -1316,6 +1318,7 @@ end subroutine timestepper_steps_set_next_stepsize
 
     call self%ode%logfile%write(LOG_LEVEL_INFO, 'timestepper', 'start', &
          str_key = 'time            ', str_value = date_time_str())
+    call self%ode%logfile%flush()
 
     err = 0
     self%steps%taken = 0
@@ -1362,6 +1365,7 @@ end subroutine timestepper_steps_set_next_stepsize
     call self%ode%logfile%write_blank()
     call self%ode%logfile%write(LOG_LEVEL_INFO, 'timestepper', 'end', &
          str_key = 'time', str_value = date_time_str())
+    call self%ode%logfile%flush()
 
   end subroutine timestepper_run
 

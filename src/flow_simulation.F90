@@ -353,6 +353,8 @@ contains
          self%eos%num_primary_variables, self%eos%isothermal, &
          self%source, self%solution_range_start, self%logfile)
 
+    call self%logfile%flush()
+
   end subroutine flow_simulation_init
 
 !------------------------------------------------------------------------
