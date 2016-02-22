@@ -66,6 +66,7 @@ contains
           end do
           call ISRestoreIndicesF90(rock_IS, rock_cells, ierr); CHKERRQ(ierr)
        end if
+       call ISDestroy(rock_IS, ierr); CHKERRQ(ierr)
        call MPI_reduce(nrc(ir), rock_count(ir), 1, MPI_INTEGER, MPI_SUM, &
             mpi%output_rank, mpi%comm, ierr)
     end do
