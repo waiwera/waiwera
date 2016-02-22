@@ -1098,6 +1098,7 @@ end subroutine timestepper_steps_set_next_stepsize
     class(ode_type), intent(in), target :: ode
     ! Locals:
     PetscInt :: max_num_steps
+    MatType :: mat_type
     PetscReal, parameter :: default_stop_time = 1.0_dp
     PetscReal, parameter :: default_initial_stepsize = 0.1_dp
     PetscReal :: initial_stepsize, max_stepsize, stop_time
@@ -1137,7 +1138,12 @@ end subroutine timestepper_steps_set_next_stepsize
     self%ode => ode
 
     call VecDuplicate(self%ode%solution, self%residual, ierr); CHKERRQ(ierr)
-    call DMSetMatType(self%ode%mesh%dm, MATAIJ, ierr); CHKERRQ(ierr)
+    if (mpi%size == 1) then
+       mat_type = MATAIJ
+    else
+       mat_type = MATMPIBAIJ
+    end if
+    call DMSetMatType(self%ode%mesh%dm, mat_type, ierr); CHKERRQ(ierr)
     call DMCreateMatrix(self%ode%mesh%dm, self%jacobian, ierr); CHKERRQ(ierr)
     call MatSetFromOptions(self%jacobian, ierr); CHKERRQ(ierr)
 
