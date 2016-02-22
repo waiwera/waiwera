@@ -98,17 +98,16 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine vec_diff_test(v, name, path)
+  subroutine vec_diff_test(v, name, path, order)
 
     ! Tests vec v against values from HDF5 file with specified base name,
     ! at the given path.
-    ! NB: at present this will only work if the number of processors is the
-    ! same as that used to write the HDF5 file.
-    ! This should be fixed when DMPlex supports a 'natural ordering' similar
-    ! to that used by DMDA. At that point the code here will need to be altered.
+
+    use dm_utils_module, only: vec_reorder
 
     Vec, intent(in) :: v
     character(*), intent(in) :: name, path
+    IS, intent(in) :: order
     ! Locals:
     DM :: dm
     Vec :: vread, diff
@@ -129,6 +128,7 @@ contains
     call PetscViewerHDF5PopGroup(viewer, ierr); CHKERRQ(ierr)
     call PetscViewerHDF5PopGroup(viewer, ierr); CHKERRQ(ierr)
     call PetscViewerDestroy(viewer, ierr); CHKERRQ(ierr)
+    call vec_reorder(vread, order)
     call VecDuplicate(vread, diff, ierr); CHKERRQ(ierr)
     call VecCopy(vread, diff, ierr); CHKERRQ(ierr)
     call VecAXPY(diff, -1._dp, v, ierr); CHKERRQ(ierr)
@@ -236,9 +236,9 @@ contains
 
     call flow_simulation_label_test(rock_cells = [9, 3])
 
-    call vec_diff_test(sim%solution, "primary", path)
+    call vec_diff_test(sim%solution, "primary", path, sim%mesh%cell_order)
 
-    call vec_diff_test(sim%rock, "rock", path)
+    call vec_diff_test(sim%rock, "rock", path, sim%mesh%cell_order)
 
     call sim%destroy()
 
@@ -263,7 +263,7 @@ contains
     call fson_destroy_mpi(json)
 
     call sim%pre_solve(time, sim%solution, err)
-    call vec_diff_test(sim%fluid, "fluid", path)
+    call vec_diff_test(sim%fluid, "fluid", path, sim%mesh%cell_order)
     
     call sim%destroy()
 
@@ -293,7 +293,7 @@ contains
 
     call sim%pre_solve(time, sim%solution, err)
     call sim%lhs(time, sim%solution, lhs, err)
-    call vec_diff_test(lhs, "lhs", path)
+    call vec_diff_test(lhs, "lhs", path, sim%mesh%cell_order)
 
     call DMRestoreGlobalVector(sim%mesh%dm, lhs, ierr); CHKERRQ(ierr)
     call sim%destroy()
