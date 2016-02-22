@@ -538,7 +538,7 @@ contains
 
     class(mesh_type), intent(in) :: self
     Vec, intent(in out) :: v
-    IS, intent(in) :: order
+    IS, intent(in), optional :: order
 
     call vec_reorder(v, self%cell_order, order)
 
