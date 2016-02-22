@@ -230,18 +230,21 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine vec_reorder(v, old_order, new_order)
-    !! Reorders a vector from the specified old ordering to new ordering.
+  subroutine vec_reorder(v, new_order, old_order)
+    !! Reorders a vector from the specified old ordering to new
+    !! ordering.  If the old ordering is not specified, it is assumed
+    !! to be the identity ordering.
 
     use mpi_module
 
     Vec, intent(in out) :: v
-    IS, intent(in), optional :: old_order
     IS, intent(in) :: new_order
+    IS, intent(in), optional :: old_order
     ! Locals:
     Vec :: vinitial
+    IS :: old_order_stride
     VecScatter :: scatter
-    PetscInt :: blocksize
+    PetscInt :: n, blocksize
     IS :: old_order_block, new_order_block
     PetscInt, pointer :: indices(:)
     PetscErrorCode :: ierr
@@ -250,11 +253,26 @@ contains
     call VecCopy(v, vinitial, ierr); CHKERRQ(ierr)
     call VecGetBlockSize(v, blocksize, ierr); CHKERRQ(ierr)
 
-    ! Create index sets with the appropriate block size:
-    call ISGetIndicesF90(old_order, indices, ierr); CHKERRQ(ierr)
+    if (present(old_order)) then
+       call ISGetIndicesF90(old_order, indices, ierr); CHKERRQ(ierr)
+    else
+       call VecGetLocalSize(v, n, ierr); CHKERRQ(ierr)
+       call ISCreateStride(mpi%comm, n / blocksize, 0, 1, &
+            old_order_stride, ierr); CHKERRQ(ierr)
+       call ISGetIndicesF90(old_order_stride, indices, ierr)
+       CHKERRQ(ierr)
+    end if
+
     call ISCreateBlock(mpi%comm, blocksize, size(indices), indices, &
          PETSC_COPY_VALUES, old_order_block, ierr); CHKERRQ(ierr)
-    call ISRestoreIndicesF90(old_order, indices, ierr); CHKERRQ(ierr)
+
+    if (present(old_order)) then
+       call ISRestoreIndicesF90(old_order, indices, ierr); CHKERRQ(ierr)
+    else
+       call ISRestoreIndicesF90(old_order_stride, indices, ierr); CHKERRQ(ierr)
+       call ISDestroy(old_order_stride, ierr); CHKERRQ(ierr)
+    end if
+
     call ISGetIndicesF90(new_order, indices, ierr); CHKERRQ(ierr)
     call ISCreateBlock(mpi%comm, blocksize, size(indices), indices, &
          PETSC_COPY_VALUES, new_order_block, ierr); CHKERRQ(ierr)
