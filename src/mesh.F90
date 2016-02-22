@@ -530,17 +530,17 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine mesh_order_vector(self, v, v_order)
+  subroutine mesh_order_vector(self, v, order)
     !! Reorders vector v to correspond to the cell order of the mesh
-    !! DM, rather than that of the given v_order index set.
+    !! DM, rather than that of the given order index set.
 
     use dm_utils_module, only: vec_reorder
 
     class(mesh_type), intent(in) :: self
     Vec, intent(in out) :: v
-    IS, intent(in) :: v_order
+    IS, intent(in) :: order
 
-    call vec_reorder(v, self%cell_order, v_order)
+    call vec_reorder(v, self%cell_order, order)
 
   end subroutine mesh_order_vector
 
