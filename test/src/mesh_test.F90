@@ -33,7 +33,6 @@ contains
     use cell_module
     use face_module
 
-    character(max_mesh_filename_length) :: filename = "data/mesh/test_init.json"
     type(fson_value), pointer :: json
     type(mesh_type) :: mesh
     character(max_primary_variable_name_length), allocatable :: primary_variable_names(:)
@@ -59,7 +58,7 @@ contains
     primary_variable_names = [character(max_primary_variable_name_length) :: &
          "Pressure", "Temperature"]
 
-    json => fson_parse_mpi(filename)
+    json => fson_parse_mpi(str = '{"mesh": "data/mesh/block3.exo"}')
     call mesh%init(json)
     call fson_destroy_mpi(json)
 
