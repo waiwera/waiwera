@@ -28,6 +28,7 @@ contains
     use eos_module, only: max_primary_variable_name_length
     use dm_utils_module, only: section_offset
     use boundary_module, only: open_boundary_label_name
+    use fson_mpi_module
     use cell_module
     use face_module
 
@@ -57,35 +58,34 @@ contains
     primary_variable_names = [character(max_primary_variable_name_length) :: &
          "Pressure", "Temperature"]
 
-    if (mpi%rank == mpi%input_rank) then
-       json => fson_parse(filename)
-    end if
-
+    json => fson_parse_mpi(filename)
     call mesh%init(json)
+    call fson_destroy(json)
+
     call DMCreateLabel(mesh%dm, open_boundary_label_name, ierr); CHKERRQ(ierr)
     call mesh%configure(primary_variable_names)
 
-    call DMGetDimension(mesh%dm, dim, ierr)
+    call DMGetDimension(mesh%dm, dim, ierr); CHKERRQ(ierr)
     if (mpi%rank == mpi%output_rank) then
        call assert_equals(expected_dim, dim, "mesh dimension")
     end if
 
-    call DMCreateGlobalVector(mesh%dm, x, ierr)
-    call VecGetSize(x, global_solution_dof, ierr)
+    call DMCreateGlobalVector(mesh%dm, x, ierr); CHKERRQ(ierr)
+    call VecGetSize(x, global_solution_dof, ierr); CHKERRQ(ierr)
     if (mpi%rank == mpi%output_rank) then
        num_primary = size(primary_variable_names)
        call assert_equals(num_cells * num_primary, global_solution_dof, "global solution dof")
     end if
-    call VecDestroy(x, ierr)
+    call VecDestroy(x, ierr); CHKERRQ(ierr)
 
     call face%init()
     facedof = face%dof()
 
     ! Check face geometry:
-    call VecGetDM(mesh%face_geom, dm_face, ierr)
-    call VecGetArrayF90(mesh%face_geom, fg, ierr)
-    call DMGetDefaultSection(dm_face, section, ierr)
-    call DMPlexGetHeightStratum(mesh%dm, 1, fstart, fend, ierr)
+    call VecGetDM(mesh%face_geom, dm_face, ierr); CHKERRQ(ierr)
+    call VecGetArrayF90(mesh%face_geom, fg, ierr); CHKERRQ(ierr)
+    call DMGetDefaultSection(dm_face, section, ierr); CHKERRQ(ierr)
+    call DMPlexGetHeightStratum(mesh%dm, 1, fstart, fend, ierr); CHKERRQ(ierr)
     call DMGetLabel(mesh%dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
     do f = fstart, fend-1
        call DMLabelGetValue(ghost_label, f, ghost_face, ierr); CHKERRQ(ierr)
