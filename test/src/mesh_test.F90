@@ -35,7 +35,8 @@ contains
 
     type(fson_value), pointer :: json
     type(mesh_type) :: mesh
-    character(max_primary_variable_name_length), allocatable :: primary_variable_names(:)
+    character(max_primary_variable_name_length), allocatable :: &
+         primary_variable_names(:)
     Vec :: x
     type(face_type) :: face
     PetscInt :: global_solution_dof, num_primary
@@ -74,7 +75,8 @@ contains
     call VecGetSize(x, global_solution_dof, ierr); CHKERRQ(ierr)
     if (mpi%rank == mpi%output_rank) then
        num_primary = size(primary_variable_names)
-       call assert_equals(num_cells * num_primary, global_solution_dof, "global solution dof")
+       call assert_equals(num_cells * num_primary, global_solution_dof, &
+            "global solution dof")
     end if
     call DMRestoreGlobalVector(mesh%dm, x, ierr); CHKERRQ(ierr)
 
@@ -87,7 +89,7 @@ contains
     call DMGetDefaultSection(dm_face, section, ierr); CHKERRQ(ierr)
     call DMPlexGetHeightStratum(mesh%dm, 1, fstart, fend, ierr); CHKERRQ(ierr)
     call DMGetLabel(mesh%dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
-    do f = fstart, fend-1
+    do f = fstart, fend - 1
        call DMLabelGetValue(ghost_label, f, ghost_face, ierr); CHKERRQ(ierr)
        if (ghost_face < 0) then
           call section_offset(section, f, offset, ierr); CHKERRQ(ierr)
@@ -101,7 +103,8 @@ contains
           write(msg, '(a, i2)') 'face distance ', f
           call assert_equals(0._dp, norm2(dist - face_distance(:,f)), tol, msg)
           write(msg, '(a, i2)') 'face centroid ', f
-          call assert_equals(0._dp, norm2(face%centroid - face_centroid(:,f)), tol, msg)
+          call assert_equals(0._dp, norm2(face%centroid - face_centroid(:,f)), &
+               tol, msg)
        end if
     end do
     call face%destroy()
