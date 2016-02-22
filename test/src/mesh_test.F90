@@ -14,6 +14,7 @@ module mesh_test
 #include <petsc/finclude/petsc.h90>
 
 public :: test_mesh_init
+public :: test_mesh_order_vector
 
 PetscReal, parameter :: tol = 1.e-6_dp
 
@@ -111,6 +112,75 @@ contains
     deallocate(primary_variable_names)
 
   end subroutine test_mesh_init
+
+!------------------------------------------------------------------------
+
+  subroutine test_mesh_order_vector
+
+    use eos_module, only: max_primary_variable_name_length
+    use boundary_module, only: open_boundary_label_name
+    use fson_mpi_module
+    use dm_utils_module, only: global_vec_range_start, &
+         global_section_offset
+
+    type(fson_value), pointer :: json
+    type(mesh_type) :: mesh
+    character(max_primary_variable_name_length), allocatable :: &
+         primary_variable_names(:)
+    Vec :: v
+    PetscViewer :: viewer
+    PetscErrorCode :: ierr
+    PetscInt :: c, ghost, order, offset, range_start, diff
+    DMLabel :: ghost_label, order_label
+    PetscReal, pointer :: v_array(:)
+    PetscSection :: section
+    character(len = 32) :: msg
+
+    primary_variable_names = [character(max_primary_variable_name_length) :: &
+         "Pressure"]
+
+    json => fson_parse_mpi(str = '{"mesh": "data/mesh/col100.exo"}')
+    call mesh%init(json)
+    call fson_destroy_mpi(json)
+
+    call DMCreateLabel(mesh%dm, open_boundary_label_name, ierr); CHKERRQ(ierr)
+    call mesh%configure(primary_variable_names)
+
+    call DMGetGlobalVector(mesh%dm, v, ierr); CHKERRQ(ierr)
+    call PetscObjectSetName(v, "vec", ierr); CHKERRQ(ierr)
+
+    call PetscViewerHDF5Open(mpi%comm, "data/mesh/vec100.h5", FILE_MODE_READ, &
+         viewer, ierr); CHKERRQ(ierr)
+    call PetscViewerHDF5PushGroup(viewer, "/", ierr); CHKERRQ(ierr)
+    call VecLoad(v, viewer, ierr); CHKERRQ(ierr)
+    call PetscViewerDestroy(viewer, ierr); CHKERRQ(ierr)
+
+    call mesh%order_vector(v)
+
+    call DMGetLabel(mesh%dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
+    call DMGetLabel(mesh%dm, cell_order_label_name, order_label, ierr)
+    call VecGetArrayF90(v, v_array, ierr); CHKERRQ(ierr)
+    call DMGetDefaultGlobalSection(mesh%dm, section, ierr); CHKERRQ(ierr)
+    call global_vec_range_start(v, range_start)
+    diff = 0
+    do c = mesh%start_cell, mesh%end_interior_cell - 1
+       call DMLabelGetValue(ghost_label, c, ghost, ierr); CHKERRQ(ierr)
+       if (ghost < 0) then
+          call DMLabelGetValue(order_label, c, order, ierr); CHKERRQ(ierr)
+          call global_section_offset(section, c, range_start, offset, ierr)
+          diff = diff + abs(order - nint(v_array(offset)))
+       end if
+    end do
+    call VecGetArrayF90(v, v_array, ierr); CHKERRQ(ierr)
+    call DMRestoreGlobalVector(mesh%dm, v, ierr); CHKERRQ(ierr)
+
+    write(msg, '(a, i3)') 'order difference, rank ', mpi%rank
+    call assert_equals(0, diff, msg)
+
+    call mesh%destroy()
+    deallocate(primary_variable_names)
+
+  end subroutine test_mesh_order_vector
 
 !------------------------------------------------------------------------
 
