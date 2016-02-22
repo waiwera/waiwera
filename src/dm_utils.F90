@@ -242,9 +242,8 @@ contains
     IS, intent(in), optional :: old_order
     ! Locals:
     Vec :: vinitial
-    IS :: old_order_stride
     VecScatter :: scatter
-    PetscInt :: n, blocksize
+    PetscInt :: blocksize
     IS :: old_order_block, new_order_block
     PetscInt, pointer :: indices(:)
     PetscErrorCode :: ierr
@@ -253,41 +252,30 @@ contains
     call VecCopy(v, vinitial, ierr); CHKERRQ(ierr)
     call VecGetBlockSize(v, blocksize, ierr); CHKERRQ(ierr)
 
-    if (present(old_order)) then
-       call ISGetIndicesF90(old_order, indices, ierr); CHKERRQ(ierr)
-    else
-       call VecGetLocalSize(v, n, ierr); CHKERRQ(ierr)
-       call ISCreateStride(mpi%comm, n / blocksize, 0, 1, &
-            old_order_stride, ierr); CHKERRQ(ierr)
-       call ISGetIndicesF90(old_order_stride, indices, ierr)
-       CHKERRQ(ierr)
-    end if
-
-    call ISCreateBlock(mpi%comm, blocksize, size(indices), indices, &
-         PETSC_COPY_VALUES, old_order_block, ierr); CHKERRQ(ierr)
-
-    if (present(old_order)) then
-       call ISRestoreIndicesF90(old_order, indices, ierr); CHKERRQ(ierr)
-    else
-       call ISRestoreIndicesF90(old_order_stride, indices, ierr); CHKERRQ(ierr)
-       call ISDestroy(old_order_stride, ierr); CHKERRQ(ierr)
-    end if
-
     call ISGetIndicesF90(new_order, indices, ierr); CHKERRQ(ierr)
     call ISCreateBlock(mpi%comm, blocksize, size(indices), indices, &
          PETSC_COPY_VALUES, new_order_block, ierr); CHKERRQ(ierr)
     call ISRestoreIndicesF90(new_order, indices, ierr); CHKERRQ(ierr)
 
-    call VecScatterCreate(vinitial, old_order_block, v, new_order_block, &
-         scatter, ierr); CHKERRQ(ierr)
-    call ISDestroy(old_order_block, ierr); CHKERRQ(ierr)
-    call ISDestroy(new_order_block, ierr); CHKERRQ(ierr)
+    if (present(old_order)) then
+       call ISGetIndicesF90(old_order, indices, ierr); CHKERRQ(ierr)
+       call ISCreateBlock(mpi%comm, blocksize, size(indices), indices, &
+            PETSC_COPY_VALUES, old_order_block, ierr); CHKERRQ(ierr)
+       call ISRestoreIndicesF90(old_order, indices, ierr); CHKERRQ(ierr)
+       call VecScatterCreate(vinitial, old_order_block, v, &
+            new_order_block, scatter, ierr); CHKERRQ(ierr)
+       call ISDestroy(old_order_block, ierr); CHKERRQ(ierr)
+    else
+       call VecScatterCreate(vinitial, PETSC_NULL_OBJECT, v, &
+            new_order_block, scatter, ierr); CHKERRQ(ierr)
+    end if
 
     call VecScatterBegin(scatter, vinitial, v, INSERT_VALUES, &
          SCATTER_FORWARD, ierr); CHKERRQ(ierr)
     call VecScatterEnd(scatter, vinitial, v, INSERT_VALUES, &
          SCATTER_FORWARD, ierr); CHKERRQ(ierr)
 
+    call ISDestroy(new_order_block, ierr); CHKERRQ(ierr)
     call VecScatterDestroy(scatter, ierr); CHKERRQ(ierr)
     call VecDestroy(vinitial, ierr); CHKERRQ(ierr)
 
