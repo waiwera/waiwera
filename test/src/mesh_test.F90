@@ -60,7 +60,7 @@ contains
 
     json => fson_parse_mpi(filename)
     call mesh%init(json)
-    call fson_destroy(json)
+    call fson_destroy_mpi(json)
 
     call DMCreateLabel(mesh%dm, open_boundary_label_name, ierr); CHKERRQ(ierr)
     call mesh%configure(primary_variable_names)
