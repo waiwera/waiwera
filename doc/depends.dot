@@ -61,7 +61,6 @@ digraph supermodel{
         initial_module -> mpi_module
         initial_module -> rock_module
         mesh_module -> boundary_module
-        mesh_module -> cell_module
         mesh_module -> dm_utils_module
         mesh_module -> eos_module
         mesh_module -> face_module
