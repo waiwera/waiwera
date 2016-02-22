@@ -156,9 +156,9 @@ contains
     PetscErrorCode :: ierr
     
     call DMGetDimension(sim%mesh%dm, sim_dim, ierr); CHKERRQ(ierr)
-    call DMCreateGlobalVector(sim%mesh%dm, x, ierr); CHKERRQ(ierr)
+    call DMGetGlobalVector(sim%mesh%dm, x, ierr); CHKERRQ(ierr)
     call VecGetSize(x, sim_dof, ierr); CHKERRQ(ierr)
-    call VecDestroy(x, ierr); CHKERRQ(ierr)
+    call DMRestoreGlobalVector(sim%mesh%dm, x, ierr); CHKERRQ(ierr)
 
     if (mpi%rank == mpi%output_rank) then
        call assert_equals(title, sim%title, "Flow simulation title")
