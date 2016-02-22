@@ -26,7 +26,6 @@ contains
 
     ! Mesh init test
 
-    use eos_module, only: max_primary_variable_name_length
     use dm_utils_module, only: section_offset
     use boundary_module, only: open_boundary_label_name
     use fson_mpi_module
@@ -35,8 +34,7 @@ contains
 
     type(fson_value), pointer :: json
     type(mesh_type) :: mesh
-    character(max_primary_variable_name_length), allocatable :: &
-         primary_variable_names(:)
+    character(len = 11), allocatable :: primary(:)
     Vec :: x
     type(face_type) :: face
     PetscInt :: global_solution_dof, num_primary
@@ -56,15 +54,14 @@ contains
     PetscReal, parameter :: face_centroid(3, 19:20) = &
          reshape([5._dp, 10._dp, 50._dp, 5._dp, 10._dp, 30._dp], [3,2])
     
-    primary_variable_names = [character(max_primary_variable_name_length) :: &
-         "Pressure", "Temperature"]
+    primary = ["Pressure   ", "Temperature"]
 
     json => fson_parse_mpi(str = '{"mesh": "data/mesh/block3.exo"}')
     call mesh%init(json)
     call fson_destroy_mpi(json)
 
     call DMCreateLabel(mesh%dm, open_boundary_label_name, ierr); CHKERRQ(ierr)
-    call mesh%configure(primary_variable_names)
+    call mesh%configure(primary)
 
     call DMGetDimension(mesh%dm, dim, ierr); CHKERRQ(ierr)
     if (mpi%rank == mpi%output_rank) then
@@ -74,7 +71,7 @@ contains
     call DMGetGlobalVector(mesh%dm, x, ierr); CHKERRQ(ierr)
     call VecGetSize(x, global_solution_dof, ierr); CHKERRQ(ierr)
     if (mpi%rank == mpi%output_rank) then
-       num_primary = size(primary_variable_names)
+       num_primary = size(primary)
        call assert_equals(num_cells * num_primary, global_solution_dof, &
             "global solution dof")
     end if
@@ -111,7 +108,7 @@ contains
     call VecRestoreArrayF90(mesh%face_geom, fg, ierr)
 
     call mesh%destroy()
-    deallocate(primary_variable_names)
+    deallocate(primary)
 
   end subroutine test_mesh_init
 
@@ -119,7 +116,6 @@ contains
 
   subroutine test_mesh_order_vector
 
-    use eos_module, only: max_primary_variable_name_length
     use boundary_module, only: open_boundary_label_name
     use fson_mpi_module
     use dm_utils_module, only: global_vec_range_start, &
@@ -127,8 +123,7 @@ contains
 
     type(fson_value), pointer :: json
     type(mesh_type) :: mesh
-    character(max_primary_variable_name_length), allocatable :: &
-         primary_variable_names(:)
+    character(len = 8), allocatable :: primary(:)
     Vec :: v
     PetscViewer :: viewer
     PetscErrorCode :: ierr
@@ -138,15 +133,14 @@ contains
     PetscSection :: section
     character(len = 32) :: msg
 
-    primary_variable_names = [character(max_primary_variable_name_length) :: &
-         "Pressure"]
+    primary = ["Pressure"]
 
     json => fson_parse_mpi(str = '{"mesh": "data/mesh/col100.exo"}')
     call mesh%init(json)
     call fson_destroy_mpi(json)
 
     call DMCreateLabel(mesh%dm, open_boundary_label_name, ierr); CHKERRQ(ierr)
-    call mesh%configure(primary_variable_names)
+    call mesh%configure(primary)
 
     call DMGetGlobalVector(mesh%dm, v, ierr); CHKERRQ(ierr)
     call PetscObjectSetName(v, "vec", ierr); CHKERRQ(ierr)
@@ -180,7 +174,7 @@ contains
     call assert_equals(0, diff, msg)
 
     call mesh%destroy()
-    deallocate(primary_variable_names)
+    deallocate(primary)
 
   end subroutine test_mesh_order_vector
 
