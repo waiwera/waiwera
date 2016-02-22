@@ -70,13 +70,13 @@ contains
        call assert_equals(expected_dim, dim, "mesh dimension")
     end if
 
-    call DMCreateGlobalVector(mesh%dm, x, ierr); CHKERRQ(ierr)
+    call DMGetGlobalVector(mesh%dm, x, ierr); CHKERRQ(ierr)
     call VecGetSize(x, global_solution_dof, ierr); CHKERRQ(ierr)
     if (mpi%rank == mpi%output_rank) then
        num_primary = size(primary_variable_names)
        call assert_equals(num_cells * num_primary, global_solution_dof, "global solution dof")
     end if
-    call VecDestroy(x, ierr); CHKERRQ(ierr)
+    call DMRestoreGlobalVector(mesh%dm, x, ierr); CHKERRQ(ierr)
 
     call face%init()
     facedof = face%dof()
