@@ -733,14 +733,14 @@ contains
     Vec, intent(in) :: y !! global primary variables vector
     PetscErrorCode, intent(out) :: err
     ! Locals:
-    PetscInt :: c, np, nc, ghost
+    PetscInt :: c, np, nc, ghost, order
     PetscSection :: y_section, fluid_section, rock_section
     PetscInt :: y_offset, fluid_offset, rock_offset
     PetscReal, pointer :: y_array(:), cell_primary(:)
     PetscReal, pointer :: fluid_array(:), rock_array(:)
     type(fluid_type) :: fluid
     type(rock_type) :: rock
-    DMLabel :: ghost_label
+    DMLabel :: ghost_label, order_label
     PetscErrorCode :: ierr
 
     err = 0
@@ -759,6 +759,8 @@ contains
     call fluid%init(nc, self%eos%num_phases)
 
     call DMGetLabel(self%mesh%dm, "ghost", ghost_label, ierr)
+    CHKERRQ(ierr)
+    call DMGetLabel(self%mesh%dm, cell_order_label_name, order_label, ierr)
     CHKERRQ(ierr)
 
     do c = self%mesh%start_cell, self%mesh%end_cell - 1
@@ -781,7 +783,10 @@ contains
           call rock%assign(rock_array, rock_offset, &
                self%relative_permeability)
 
+          call DMLabelGetValue(order_label, c, order, ierr); CHKERRQ(ierr)
+
           call self%eos%bulk_properties(cell_primary, fluid, err)
+
           if (err == 0) then
              call self%eos%phase_composition(fluid, err)
              if (err == 0) then
@@ -789,23 +794,20 @@ contains
                      fluid, err)
                 if (err > 0) then
                    call self%logfile%write(LOG_LEVEL_ERR, 'initialize', &
-                        'fluid', &
-                        ['proc            ', 'cell            '], &
-                        [mpi%rank, c], rank = mpi%rank)
+                        'fluid', ['cell            '], [order], &
+                        rank = mpi%rank)
                    exit
                 end if
              else
                 call self%logfile%write(LOG_LEVEL_ERR, 'initialize', &
-                     'fluid', &
-                     ['proc            ', 'cell            '], &
-                     [mpi%rank, c], rank = mpi%rank)
+                     'fluid', ['cell            '], [order], &
+                     rank = mpi%rank)
                 exit
              end if
           else
              call self%logfile%write(LOG_LEVEL_ERR, 'initialize', &
-                  'fluid', &
-                  ['proc            ', 'cell            '], &
-                  [mpi%rank, c], rank = mpi%rank)
+                  'fluid', ['cell            '], [order], &
+                  rank = mpi%rank)
              exit
           end if
 
@@ -837,14 +839,14 @@ contains
     Vec, intent(in) :: y !! global primary variables vector
     PetscErrorCode, intent(out) :: err !! error code
     ! Locals:
-    PetscInt :: c, np, nc, ghost
+    PetscInt :: c, np, nc, ghost, order
     PetscSection :: y_section, fluid_section, rock_section
     PetscInt :: y_offset, fluid_offset, rock_offset
     PetscReal, pointer :: y_array(:), cell_primary(:)
     PetscReal, pointer :: fluid_array(:), rock_array(:)
     type(fluid_type) :: fluid
     type(rock_type) :: rock
-    DMLabel :: ghost_label
+    DMLabel :: ghost_label, order_label
     PetscErrorCode :: ierr
 
     err = 0
@@ -863,6 +865,8 @@ contains
     call fluid%init(nc, self%eos%num_phases)
 
     call DMGetLabel(self%mesh%dm, "ghost", ghost_label, ierr)
+    CHKERRQ(ierr)
+    call DMGetLabel(self%mesh%dm, cell_order_label_name, order_label, ierr)
     CHKERRQ(ierr)
 
     do c = self%mesh%start_cell, self%mesh%end_cell - 1
@@ -885,21 +889,22 @@ contains
           call rock%assign(rock_array, rock_offset, &
                self%relative_permeability)
 
+          call DMLabelGetValue(order_label, c, order, ierr); CHKERRQ(ierr)
+
           call self%eos%bulk_properties(cell_primary, fluid, err)
+
           if (err == 0) then
              call self%eos%phase_properties(cell_primary, rock, fluid, err)
              if (err > 0) then
                 call self%logfile%write(LOG_LEVEL_WARN, 'fluid', &
                      'properties_not_found', &
-                     ['proc            ', 'cell            '], &
-                     [mpi%rank, c], rank = mpi%rank)
+                     ['cell            '], [order], rank = mpi%rank)
                 exit
              end if
           else
              call self%logfile%write(LOG_LEVEL_WARN, 'fluid', &
                   'properties_not_found', &
-                  ['proc            ', 'cell            '], &
-                  [mpi%rank, c], rank = mpi%rank)
+                  ['cell            '], [order], rank = mpi%rank)
              exit
           end if
 
@@ -932,14 +937,14 @@ contains
     PetscBool, intent(out) :: changed_search, changed_y
     PetscErrorCode, intent(out) :: err !! Error code
     ! Locals:
-    PetscInt :: c, np, nc, ghost
+    PetscInt :: c, np, nc, ghost, order
     PetscSection :: primary_section, fluid_section
     PetscInt :: primary_offset, fluid_offset
     PetscReal, pointer :: primary_array(:), old_primary_array(:), search_array(:)
     PetscReal, pointer :: cell_primary(:), old_cell_primary(:), cell_search(:)
     PetscReal, pointer :: last_iteration_fluid_array(:), fluid_array(:)
     type(fluid_type) :: last_iteration_fluid, fluid
-    DMLabel :: ghost_label
+    DMLabel :: ghost_label, order_label
     PetscBool :: transition, any_changed_y, any_changed_search
     PetscErrorCode :: ierr
 
@@ -964,6 +969,8 @@ contains
 
     call DMGetLabel(self%mesh%dm, "ghost", ghost_label, ierr)
     CHKERRQ(ierr)
+    call DMGetLabel(self%mesh%dm, cell_order_label_name, order_label, ierr)
+    CHKERRQ(ierr)
 
     do c = self%mesh%start_cell, self%mesh%end_cell - 1
 
@@ -984,7 +991,10 @@ contains
                fluid_offset)
           call fluid%assign(fluid_array, fluid_offset)
 
+          call DMLabelGetValue(order_label, c, order, ierr); CHKERRQ(ierr)
+
           err = self%eos%check_primary_variables(fluid, cell_primary)
+
           if (err == 0) then
              call self%eos%transition(cell_primary, last_iteration_fluid, &
                   fluid, transition, err)
@@ -995,9 +1005,9 @@ contains
                    changed_search = .true.
                    call self%logfile%write(LOG_LEVEL_INFO, 'fluid', &
                         'transition', &
-                        ['proc            ', 'cell            ', &
+                        ['cell            ', &
                         'old_region      ', 'new_region      '], &
-                        [mpi%rank, c, &
+                        [order, &
                         nint(last_iteration_fluid%region), nint(fluid%region)], &
                         real_array_key = 'new_primary     ', &
                         real_array_value = cell_primary, rank = mpi%rank)
@@ -1005,16 +1015,14 @@ contains
              else
                 call self%logfile%write(LOG_LEVEL_WARN, 'fluid', &
                      'transition_failed', &
-                     ['proc            ', 'cell            '], &
-                     [mpi%rank, c], rank = mpi%rank)
+                     ['cell            '], [order], rank = mpi%rank)
                 exit
              end if
           else
              call self%logfile%write(LOG_LEVEL_WARN, 'fluid', &
                   'out_of_range', &
-                  ['proc            ', 'cell            ', &
-                  'region          '], &
-                  [mpi%rank, c, nint(fluid%region)], &
+                  ['cell            ', 'region          '], &
+                  [order, nint(fluid%region)], &
                   real_array_key = 'primary         ', &
                   real_array_value = cell_primary, rank = mpi%rank)
              exit
