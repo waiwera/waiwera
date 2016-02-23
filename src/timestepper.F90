@@ -133,6 +133,7 @@ module timestepper_module
      PetscBool, public :: output_initial, output_final
    contains
      private
+     procedure :: setup_jacobian => timestepper_setup_jacobian
      procedure :: setup_solver => timestepper_setup_solver
      procedure :: step => timestepper_step
      procedure, public :: init => timestepper_init
@@ -1085,6 +1086,37 @@ end subroutine timestepper_steps_set_next_stepsize
 
 !------------------------------------------------------------------------
 
+  subroutine timestepper_setup_jacobian(self)
+
+    class(timestepper_type), intent(in out) :: self
+    ! Locals:
+    PetscInt :: blocksize
+    MatType :: mat_type
+    PetscErrorCode :: ierr
+
+    call VecGetBlockSize(self%ode%solution, blocksize, ierr); CHKERRQ(ierr)
+    if (mpi%size == 1) then
+       if (blocksize == 1) then
+          mat_type = MATAIJ
+       else
+          ! mat_type = MATBAIJ  ! reinstate this when PETSc bug fixed
+          mat_type = MATAIJ
+       end if
+    else
+       if (blocksize == 1) then
+          mat_type = MATMPIAIJ
+       else
+          mat_type = MATMPIBAIJ
+       end if
+    end if
+    call DMSetMatType(self%ode%mesh%dm, mat_type, ierr); CHKERRQ(ierr)
+    call DMCreateMatrix(self%ode%mesh%dm, self%jacobian, ierr); CHKERRQ(ierr)
+    call MatSetFromOptions(self%jacobian, ierr); CHKERRQ(ierr)
+
+  end subroutine timestepper_setup_jacobian
+
+!------------------------------------------------------------------------
+
   subroutine timestepper_init(self, json, ode)
 
     !! Initializes a timestepper.
@@ -1098,7 +1130,6 @@ end subroutine timestepper_steps_set_next_stepsize
     class(ode_type), intent(in), target :: ode
     ! Locals:
     PetscInt :: max_num_steps
-    MatType :: mat_type
     PetscReal, parameter :: default_stop_time = 1.0_dp
     PetscReal, parameter :: default_initial_stepsize = 0.1_dp
     PetscReal :: initial_stepsize, max_stepsize, stop_time
@@ -1138,14 +1169,8 @@ end subroutine timestepper_steps_set_next_stepsize
     self%ode => ode
 
     call VecDuplicate(self%ode%solution, self%residual, ierr); CHKERRQ(ierr)
-    if (mpi%size == 1) then
-       mat_type = MATAIJ
-    else
-       mat_type = MATMPIBAIJ
-    end if
-    call DMSetMatType(self%ode%mesh%dm, mat_type, ierr); CHKERRQ(ierr)
-    call DMCreateMatrix(self%ode%mesh%dm, self%jacobian, ierr); CHKERRQ(ierr)
-    call MatSetFromOptions(self%jacobian, ierr); CHKERRQ(ierr)
+
+    call self%setup_jacobian()
 
     call fson_get_mpi(json, "time.stop", default_stop_time, stop_time, &
          self%ode%logfile)
