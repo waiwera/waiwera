@@ -1087,6 +1087,7 @@ end subroutine timestepper_steps_set_next_stepsize
 !------------------------------------------------------------------------
 
   subroutine timestepper_setup_jacobian(self)
+    !! Sets up Jacobian matrix for nonlinear solver.
 
     class(timestepper_type), intent(in out) :: self
     ! Locals:
@@ -1118,7 +1119,6 @@ end subroutine timestepper_steps_set_next_stepsize
 !------------------------------------------------------------------------
 
   subroutine timestepper_init(self, json, ode)
-
     !! Initializes a timestepper.
 
     use utils_module, only : str_to_lower
@@ -1167,9 +1167,7 @@ end subroutine timestepper_steps_set_next_stepsize
     PetscErrorCode :: ierr
 
     self%ode => ode
-
     call VecDuplicate(self%ode%solution, self%residual, ierr); CHKERRQ(ierr)
-
     call self%setup_jacobian()
 
     call fson_get_mpi(json, "time.stop", default_stop_time, stop_time, &
