@@ -105,7 +105,7 @@ contains
        end if
     end do
     call face%destroy()
-    call VecRestoreArrayF90(mesh%face_geom, fg, ierr)
+    call VecRestoreArrayF90(mesh%face_geom, fg, ierr); CHKERRQ(ierr)
 
     call mesh%destroy()
     deallocate(primary)
