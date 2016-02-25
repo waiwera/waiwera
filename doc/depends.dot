@@ -81,7 +81,6 @@ digraph supermodel{
         supermodel -> flow_simulation_module
         supermodel -> fson
         supermodel -> fson_mpi_module
-        supermodel -> logfile_module
         supermodel -> mpi_module
         supermodel -> timestepper_module
         source_module -> dm_utils_module

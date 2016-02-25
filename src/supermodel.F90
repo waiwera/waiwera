@@ -6,7 +6,6 @@ program supermodel
   use fson_mpi_module
   use flow_simulation_module
   use timestepper_module
-  use logfile_module
 
   implicit none
 
