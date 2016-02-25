@@ -41,6 +41,7 @@ module flow_simulation_module
      procedure :: setup_output => flow_simulation_setup_output
      procedure :: destroy_output => flow_simulation_destroy_output
      procedure, public :: input_summary => flow_simulation_input_summary
+     procedure, public :: run_info => flow_simulation_run_info
      procedure, public :: init => flow_simulation_init
      procedure, public :: destroy => flow_simulation_destroy
      procedure, public :: lhs => flow_simulation_cell_balances
@@ -146,6 +147,8 @@ contains
 
     call self%logfile%init(logfile_name, max_log_num_length, &
          num_log_real_digits, echo)
+
+    call self%run_info()
 
     call self%logfile%write(LOG_LEVEL_INFO, 'input', 'start', &
          str_key = 'time', str_value = datetimestr)
@@ -278,6 +281,28 @@ contains
     call self%logfile%write_blank()
 
   end subroutine flow_simulation_input_summary
+
+!------------------------------------------------------------------------
+
+subroutine flow_simulation_run_info(self)
+  !! Writes run information to logfile.
+
+  use iso_fortran_env
+  use version_module
+
+    class(flow_simulation_type), intent(in out) :: self
+
+    call self%logfile%write(LOG_LEVEL_INFO, 'run', 'information', &
+         str_key = 'software', str_value = 'Supermodel' // &
+         ' version ' // trim(supermodel_version))
+    call self%logfile%write(LOG_LEVEL_INFO, 'run', 'information', &
+         str_key = 'compiler', str_value = compiler_version())
+    call self%logfile%write(LOG_LEVEL_INFO, 'run', 'information', &
+         int_keys = ['num_processors'], int_values = [mpi%size])
+
+    call self%logfile%write_blank()
+
+end subroutine flow_simulation_run_info
 
 !------------------------------------------------------------------------
 

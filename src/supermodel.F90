@@ -21,8 +21,6 @@ program supermodel
   call PetscInitialize(PETSC_NULL_CHARACTER, ierr); CHKERRQ(ierr)
   call mpi%init(PETSC_COMM_WORLD)
 
-  call output_program_info()
-
   call get_filename(filename)
   json => fson_parse_mpi(filename)
 
@@ -39,17 +37,6 @@ program supermodel
   call PetscFinalize(ierr); CHKERRQ(ierr)
 
 contains
-
-!------------------------------------------------------------------------
-
-  subroutine output_program_info()
-    !! Outputs program information.
-
-    if (mpi%rank == mpi%output_rank) then
-       write (*,*) 'Supermodel version 0.001'
-    end if
-
-  end subroutine output_program_info
 
 !------------------------------------------------------------------------
 

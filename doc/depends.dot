@@ -36,6 +36,7 @@ digraph supermodel{
         flow_simulation_module -> fson_mpi_module
         flow_simulation_module -> fson_value_m
         flow_simulation_module -> initial_module
+        flow_simulation_module -> iso_fortran_env
         flow_simulation_module -> kinds_module
         flow_simulation_module -> logfile_module
         flow_simulation_module -> mesh_module
@@ -47,6 +48,7 @@ digraph supermodel{
         flow_simulation_module -> thermodynamics_module
         flow_simulation_module -> thermodynamics_setup_module
         flow_simulation_module -> utils_module
+        flow_simulation_module -> version_module
         thermodynamics_module -> kinds_module
         face_module -> cell_module
         face_module -> kinds_module
