@@ -25,7 +25,7 @@ contains
     use fson
     use fson_mpi_module
     use mesh_module
-    use flow_simulation_test, only: vec_write, vec_diff_test
+    use flow_simulation_test, only: vec_diff_test
     use eos_module, only: max_primary_variable_name_length
     use boundary_module, only: open_boundary_label_name
 
@@ -65,7 +65,7 @@ contains
 
     call setup_source_vector(json, mesh%dm, np, isothermal, source, &
          range_start)
-    call vec_diff_test(source, "source", path, mesh%cell_order)
+    call vec_diff_test(source, "source", path, mesh%cell_order_inv)
 
     call VecDestroy(source, ierr); CHKERRQ(ierr)
     call mesh%destroy()

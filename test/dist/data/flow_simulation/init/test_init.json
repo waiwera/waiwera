@@ -12,7 +12,7 @@
                 "specific heat": 900.0, 
                 "density": 2600.0, 
                 "heat conductivity": 1.5, 
-                "cells": [1, 2, 3, 5, 6, 7, 9, 10, 11]
+                "cells": [4, 5, 6, 7, 8, 9, 10, 11]
             }, 
             {
                 "name": "rock2", 
@@ -21,7 +21,7 @@
                 "specific heat": 890.0, 
                 "density": 2500.0, 
                 "heat conductivity": 1.4, 
-                "cells": [0, 4, 8]
+                "cells": [0, 1, 2, 3]
             }
         ]
     }, 
