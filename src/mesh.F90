@@ -23,7 +23,7 @@ module mesh_module
      PetscInt, public :: start_cell, end_cell, end_interior_cell
      PetscInt, public :: start_face, end_face
      PetscReal, allocatable, public :: bcs(:,:)
-     IS, public :: cell_order
+     IS, public :: cell_order, cell_order_inv
    contains
      procedure :: setup_cell_order_label => mesh_setup_cell_order_label
      procedure :: setup_cell_order => mesh_setup_cell_order
@@ -79,7 +79,7 @@ contains
 
     class(mesh_type), intent(in out) :: self
     ! Locals:
-    PetscInt :: n, c, i, ghost, order
+    PetscInt :: n, c, i, ghost, order, size
     DMLabel :: ghost_label, order_label
     PetscInt, allocatable :: order_array(:)
     PetscErrorCode :: ierr
@@ -108,10 +108,13 @@ contains
 
     call ISCreateGeneral(mpi%comm, n, order_array, PETSC_COPY_VALUES, &
          self%cell_order, ierr); CHKERRQ(ierr)
+    deallocate(order_array)
     call PetscObjectSetName(self%cell_order, "cell_order", ierr)
     CHKERRQ(ierr)
-
-    deallocate(order_array)
+    call ISSetPermutation(self%cell_order, ierr); CHKERRQ(ierr)
+    call ISGetLocalSize(self%cell_order, size, ierr); CHKERRQ(ierr)
+    call ISInvertPermutation(self%cell_order, size, &
+         self%cell_order_inv, ierr); CHKERRQ(ierr)
 
   end subroutine mesh_setup_cell_order
 
@@ -436,6 +439,7 @@ contains
     end if
 
     call ISDestroy(self%cell_order, ierr); CHKERRQ(ierr)
+    call ISDestroy(self%cell_order_inv, ierr); CHKERRQ(ierr)
 
   end subroutine mesh_destroy
 
@@ -540,7 +544,7 @@ contains
     Vec, intent(in out) :: v
     IS, intent(in), optional :: order
 
-    call vec_reorder(v, self%cell_order, order)
+    call vec_reorder(v, order, self%cell_order_inv)
 
   end subroutine mesh_order_vector
 
