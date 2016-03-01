@@ -846,6 +846,8 @@ end subroutine flow_simulation_run_info
     call rock%destroy()
     call fluid%destroy()
 
+    call mpi%broadcast_error_flag(err)
+
   end subroutine flow_simulation_fluid_init
 
 !------------------------------------------------------------------------
@@ -943,6 +945,8 @@ end subroutine flow_simulation_run_info
     call rock%destroy()
     call fluid%destroy()
 
+    call mpi%broadcast_error_flag(err)
+
   end subroutine flow_simulation_fluid_properties
 
 !------------------------------------------------------------------------
@@ -970,7 +974,7 @@ end subroutine flow_simulation_run_info
     PetscReal, pointer :: last_iteration_fluid_array(:), fluid_array(:)
     type(fluid_type) :: last_iteration_fluid, fluid
     DMLabel :: ghost_label, order_label
-    PetscBool :: transition, any_changed_y, any_changed_search
+    PetscBool :: transition
     PetscErrorCode :: ierr
 
     err = 0
@@ -1066,19 +1070,9 @@ end subroutine flow_simulation_run_info
     call last_iteration_fluid%destroy()
     call fluid%destroy()
 
-    call MPI_reduce(changed_y, any_changed_y, 1, MPI_LOGICAL, MPI_LOR, &
-         mpi%input_rank, mpi%comm, ierr)
-    if (mpi%rank == mpi%input_rank) then
-       changed_y = any_changed_y
-    end if
-    call MPI_bcast(changed_y, 1, MPI_LOGICAL, mpi%input_rank, mpi%comm, ierr)
-
-    call MPI_reduce(changed_search, any_changed_search, 1, MPI_LOGICAL, MPI_LOR, &
-         mpi%input_rank, mpi%comm, ierr)
-    if (mpi%rank == mpi%input_rank) then
-       changed_search = any_changed_search
-    end if
-    call MPI_bcast(changed_search, 1, MPI_LOGICAL, mpi%input_rank, mpi%comm, ierr)
+    call mpi%broadcast_error_flag(err)
+    call mpi%broadcast_logical(changed_y)
+    call mpi%broadcast_logical(changed_search)
 
   end subroutine flow_simulation_fluid_transitions
 
