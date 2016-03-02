@@ -9,7 +9,7 @@ module dm_utils_module
   public :: set_dm_data_layout, section_offset, global_section_offset
   public :: global_vec_section, local_vec_section
   public :: global_to_local_vec_section, restore_dm_local_vec
-  public :: global_vec_range_start
+  public :: global_vec_range_start, vec_reorder
 
 contains
 
@@ -227,6 +227,53 @@ contains
     call PetscViewerDestroy(viewer, ierr); CHKERRQ(ierr)
 
   end subroutine write_vec_vtk
+
+!------------------------------------------------------------------------
+
+  subroutine vec_reorder(v, old_index, new_index)
+    !! Reorders a vector from the specified old ordering to new
+    !! ordering.
+
+    use mpi_module
+
+    Vec, intent(in out) :: v
+    IS, intent(in) :: old_index, new_index
+    ! Locals:
+    Vec :: vinitial
+    VecScatter :: scatter
+    PetscInt :: blocksize
+    IS :: old_index_block, new_index_block
+    PetscInt, pointer :: indices(:)
+    PetscErrorCode :: ierr
+
+    call VecDuplicate(v, vinitial, ierr); CHKERRQ(ierr)
+    call VecCopy(v, vinitial, ierr); CHKERRQ(ierr)
+    call VecGetBlockSize(v, blocksize, ierr); CHKERRQ(ierr)
+
+    call ISGetIndicesF90(old_index, indices, ierr); CHKERRQ(ierr)
+    call ISCreateBlock(mpi%comm, blocksize, size(indices), indices, &
+         PETSC_COPY_VALUES, old_index_block, ierr); CHKERRQ(ierr)
+    call ISRestoreIndicesF90(old_index, indices, ierr); CHKERRQ(ierr)
+
+    call ISGetIndicesF90(new_index, indices, ierr); CHKERRQ(ierr)
+    call ISCreateBlock(mpi%comm, blocksize, size(indices), indices, &
+         PETSC_COPY_VALUES, new_index_block, ierr); CHKERRQ(ierr)
+    call ISRestoreIndicesF90(new_index, indices, ierr); CHKERRQ(ierr)
+
+    call VecScatterCreate(vinitial, old_index_block, v, &
+         new_index_block, scatter, ierr); CHKERRQ(ierr)
+    call ISDestroy(old_index_block, ierr); CHKERRQ(ierr)
+    call ISDestroy(new_index_block, ierr); CHKERRQ(ierr)
+
+    call VecScatterBegin(scatter, vinitial, v, INSERT_VALUES, &
+         SCATTER_FORWARD, ierr); CHKERRQ(ierr)
+    call VecScatterEnd(scatter, vinitial, v, INSERT_VALUES, &
+         SCATTER_FORWARD, ierr); CHKERRQ(ierr)
+
+    call VecScatterDestroy(scatter, ierr); CHKERRQ(ierr)
+    call VecDestroy(vinitial, ierr); CHKERRQ(ierr)
+
+  end subroutine vec_reorder
 
 !------------------------------------------------------------------------
 

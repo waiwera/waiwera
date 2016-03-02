@@ -109,7 +109,7 @@ contains
          viewer, ierr); CHKERRQ(ierr)
     call PetscViewerHDF5PushGroup(viewer, "/", ierr); CHKERRQ(ierr)
 
-    call ISCreate(mpi%comm, output_cell_order, ierr); CHKERRQ(ierr)
+    call ISDuplicate(mesh%cell_order, output_cell_order, ierr); CHKERRQ(ierr)
     call PetscObjectSetName(output_cell_order, "cell_order", ierr)
     CHKERRQ(ierr)
     call ISLoad(output_cell_order, viewer, ierr); CHKERRQ(ierr)
@@ -221,12 +221,10 @@ contains
             fluid_range_start)
        call logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
             real_array_key = 'initial.primary', &
-            real_array_value = eos%default_primary, &
-            output_rank_only = .true.)
+            real_array_value = eos%default_primary)
        call logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
             int_keys = ['initial.region'], &
-            int_values = [eos%default_region], &
-            output_rank_only = .true.)
+            int_values = [eos%default_region])
 
     end if
 

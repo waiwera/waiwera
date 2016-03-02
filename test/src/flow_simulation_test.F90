@@ -66,6 +66,7 @@ contains
           end do
           call ISRestoreIndicesF90(rock_IS, rock_cells, ierr); CHKERRQ(ierr)
        end if
+       call ISDestroy(rock_IS, ierr); CHKERRQ(ierr)
        call MPI_reduce(nrc(ir), rock_count(ir), 1, MPI_INTEGER, MPI_SUM, &
             mpi%output_rank, mpi%comm, ierr)
     end do
@@ -75,13 +76,14 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine vec_write(v, name, path)
+  subroutine vec_write(v, name, path, cell_index)
 
     ! Writes vec v to HDF file with specified name and path (for
     ! generating reference values to test against).
 
     Vec, intent(in) :: v
     character(*), intent(in) :: name, path
+    IS, intent(in) :: cell_index
     ! Locals:
     PetscErrorCode :: ierr
     PetscViewer :: viewer
@@ -91,6 +93,7 @@ contains
          FILE_MODE_WRITE, viewer, ierr); CHKERRQ(ierr)
     call PetscViewerHDF5PushGroup(viewer, "/", ierr); CHKERRQ(ierr)
     call VecView(v, viewer, ierr); CHKERRQ(ierr)
+    call ISView(cell_index, viewer, ierr); CHKERRQ(ierr)
     call PetscViewerHDF5PopGroup(viewer, ierr); CHKERRQ(ierr)
     call PetscViewerDestroy(viewer, ierr); CHKERRQ(ierr)
 
@@ -98,20 +101,20 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine vec_diff_test(v, name, path)
+  subroutine vec_diff_test(v, name, path, cell_index)
 
     ! Tests vec v against values from HDF5 file with specified base name,
     ! at the given path.
-    ! NB: at present this will only work if the number of processors is the
-    ! same as that used to write the HDF5 file.
-    ! This should be fixed when DMPlex supports a 'natural ordering' similar
-    ! to that used by DMDA. At that point the code here will need to be altered.
+
+    use dm_utils_module, only: vec_reorder
 
     Vec, intent(in) :: v
     character(*), intent(in) :: name, path
+    IS, intent(in) :: cell_index
     ! Locals:
     DM :: dm
     Vec :: vread, diff
+    IS :: output_cell_index
     PetscViewer :: viewer
     PetscReal :: diffnorm
     PetscErrorCode :: ierr
@@ -124,11 +127,15 @@ contains
          FILE_MODE_READ, viewer, ierr)
     CHKERRQ(ierr)
     call PetscViewerHDF5PushGroup(viewer, "/", ierr); CHKERRQ(ierr)
+    call ISDuplicate(cell_index, output_cell_index, ierr); CHKERRQ(ierr)
+    call PetscObjectSetName(output_cell_index, "cell_order", ierr)
+    CHKERRQ(ierr)
+    call ISLoad(output_cell_index, viewer, ierr); CHKERRQ(ierr)
+    call PetscViewerHDF5PopGroup(viewer, ierr); CHKERRQ(ierr)
     call PetscViewerHDF5PushGroup(viewer, "fields", ierr); CHKERRQ(ierr)
     call VecLoad(vread, viewer, ierr); CHKERRQ(ierr)
-    call PetscViewerHDF5PopGroup(viewer, ierr); CHKERRQ(ierr)
-    call PetscViewerHDF5PopGroup(viewer, ierr); CHKERRQ(ierr)
     call PetscViewerDestroy(viewer, ierr); CHKERRQ(ierr)
+    call vec_reorder(vread, output_cell_index, cell_index)
     call VecDuplicate(vread, diff, ierr); CHKERRQ(ierr)
     call VecCopy(vread, diff, ierr); CHKERRQ(ierr)
     call VecAXPY(diff, -1._dp, v, ierr); CHKERRQ(ierr)
@@ -156,9 +163,9 @@ contains
     PetscErrorCode :: ierr
     
     call DMGetDimension(sim%mesh%dm, sim_dim, ierr); CHKERRQ(ierr)
-    call DMCreateGlobalVector(sim%mesh%dm, x, ierr); CHKERRQ(ierr)
+    call DMGetGlobalVector(sim%mesh%dm, x, ierr); CHKERRQ(ierr)
     call VecGetSize(x, sim_dof, ierr); CHKERRQ(ierr)
-    call VecDestroy(x, ierr); CHKERRQ(ierr)
+    call DMRestoreGlobalVector(sim%mesh%dm, x, ierr); CHKERRQ(ierr)
 
     if (mpi%rank == mpi%output_rank) then
        call assert_equals(title, sim%title, "Flow simulation title")
@@ -234,11 +241,11 @@ contains
     call flow_simulation_basic_test(title = "Test flow simulation init", &
          thermo = "IAPWS-97", eos = "w", dim = 3, dof = 12)
 
-    call flow_simulation_label_test(rock_cells = [9, 3])
+    call flow_simulation_label_test(rock_cells = [8, 4])
 
-    call vec_diff_test(sim%solution, "primary", path)
+    call vec_diff_test(sim%solution, "primary", path, sim%mesh%cell_order_inv)
 
-    call vec_diff_test(sim%rock, "rock", path)
+    call vec_diff_test(sim%rock, "rock", path, sim%mesh%cell_order_inv)
 
     call sim%destroy()
 
@@ -263,7 +270,7 @@ contains
     call fson_destroy_mpi(json)
 
     call sim%pre_solve(time, sim%solution, err)
-    call vec_diff_test(sim%fluid, "fluid", path)
+    call vec_diff_test(sim%fluid, "fluid", path, sim%mesh%cell_order_inv)
     
     call sim%destroy()
 
@@ -293,7 +300,7 @@ contains
 
     call sim%pre_solve(time, sim%solution, err)
     call sim%lhs(time, sim%solution, lhs, err)
-    call vec_diff_test(lhs, "lhs", path)
+    call vec_diff_test(lhs, "lhs", path, sim%mesh%cell_order_inv)
 
     call DMRestoreGlobalVector(sim%mesh%dm, lhs, ierr); CHKERRQ(ierr)
     call sim%destroy()

@@ -41,6 +41,7 @@ module flow_simulation_module
      procedure :: setup_output => flow_simulation_setup_output
      procedure :: destroy_output => flow_simulation_destroy_output
      procedure, public :: input_summary => flow_simulation_input_summary
+     procedure, public :: run_info => flow_simulation_run_info
      procedure, public :: init => flow_simulation_init
      procedure, public :: destroy => flow_simulation_destroy
      procedure, public :: lhs => flow_simulation_cell_balances
@@ -147,20 +148,20 @@ contains
     call self%logfile%init(logfile_name, max_log_num_length, &
          num_log_real_digits, echo)
 
+    call self%run_info()
+
     call self%logfile%write(LOG_LEVEL_INFO, 'input', 'start', &
-         str_key = 'time', str_value = datetimestr, &
-         output_rank_only = .true.)
+         str_key = 'time', str_value = datetimestr)
     call self%logfile%write_blank()
 
     if (default_log) then
        call self%logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
             str_key = 'logfile.filename', &
-            str_value = logfile_name, output_rank_only = .true.)
+            str_value = logfile_name)
     end if
 
     if (no_logfile) then
-       call self%logfile%write(LOG_LEVEL_WARN, 'input', 'no logfile', &
-            output_rank_only = .true.)
+       call self%logfile%write(LOG_LEVEL_WARN, 'input', 'no logfile')
     end if
 
   end subroutine flow_simulation_setup_logfile
@@ -229,13 +230,11 @@ contains
     if (default_output) then
        call self%logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
             str_key = "output.filename", &
-            str_value = self%output_filename, &
-            output_rank_only = .true.)
+            str_value = self%output_filename)
     end if
 
     if (no_output) then
-       call self%logfile%write(LOG_LEVEL_WARN, 'input', 'no output', &
-            output_rank_only = .true.)
+       call self%logfile%write(LOG_LEVEL_WARN, 'input', 'no output')
     end if
 
   end subroutine flow_simulation_setup_output
@@ -263,32 +262,47 @@ contains
     class(flow_simulation_type), intent(in out) :: self
 
     call self%logfile%write(LOG_LEVEL_INFO, 'input', 'summary', &
-         str_key = 'input.filename', str_value = self%filename, &
-         output_rank_only = .true.)
+         str_key = 'input.filename', str_value = self%filename)
     call self%logfile%write(LOG_LEVEL_INFO, 'input', 'summary', &
          str_key = 'logfile.filename', &
-         str_value = self%logfile%filename, &
-         output_rank_only = .true.)
+         str_value = self%logfile%filename)
     call self%logfile%write(LOG_LEVEL_INFO, 'input', 'summary', &
          str_key = 'output.filename', &
-         str_value = self%output_filename, &
-         output_rank_only = .true.)
+         str_value = self%output_filename)
     call self%logfile%write(LOG_LEVEL_INFO, 'input', 'summary', &
-         str_key = 'title', str_value = trim(self%title), &
-         output_rank_only = .true.)
+         str_key = 'title', str_value = trim(self%title))
     call self%logfile%write(LOG_LEVEL_INFO, 'input', 'summary', &
-         str_key = 'mesh', str_value = self%mesh%filename, &
-         output_rank_only = .true.)
+         str_key = 'mesh', str_value = self%mesh%filename)
     call self%logfile%write(LOG_LEVEL_INFO, 'input', 'summary', &
-         str_key = 'eos.name', str_value = self%eos%name, &
-         output_rank_only = .true.)
+         str_key = 'eos.name', str_value = self%eos%name)
     call self%logfile%write(LOG_LEVEL_INFO, 'input', 'summary', &
-         str_key = 'thermodynamics', str_value = self%thermo%name, &
-         output_rank_only = .true.)
+         str_key = 'thermodynamics', str_value = self%thermo%name)
 
     call self%logfile%write_blank()
 
   end subroutine flow_simulation_input_summary
+
+!------------------------------------------------------------------------
+
+subroutine flow_simulation_run_info(self)
+  !! Writes run information to logfile.
+
+  use iso_fortran_env
+  use version_module
+
+    class(flow_simulation_type), intent(in out) :: self
+
+    call self%logfile%write(LOG_LEVEL_INFO, 'run', 'start', &
+         str_key = 'software', str_value = 'Supermodel' // &
+         ' version ' // trim(supermodel_version))
+    call self%logfile%write(LOG_LEVEL_INFO, 'run', 'start', &
+         str_key = 'compiler', str_value = compiler_version())
+    call self%logfile%write(LOG_LEVEL_INFO, 'run', 'start', &
+         int_keys = ['num_processors'], int_values = [mpi%size])
+
+    call self%logfile%write_blank()
+
+end subroutine flow_simulation_run_info
 
 !------------------------------------------------------------------------
 
@@ -363,6 +377,8 @@ contains
     call setup_source_vector(json, self%mesh%dm, &
          self%eos%num_primary_variables, self%eos%isothermal, &
          self%source, self%solution_range_start, self%logfile)
+
+    call self%logfile%flush()
 
   end subroutine flow_simulation_init
 
@@ -742,14 +758,14 @@ contains
     Vec, intent(in) :: y !! global primary variables vector
     PetscErrorCode, intent(out) :: err
     ! Locals:
-    PetscInt :: c, np, nc, ghost
+    PetscInt :: c, np, nc, ghost, order
     PetscSection :: y_section, fluid_section, rock_section
     PetscInt :: y_offset, fluid_offset, rock_offset
     PetscReal, pointer :: y_array(:), cell_primary(:)
     PetscReal, pointer :: fluid_array(:), rock_array(:)
     type(fluid_type) :: fluid
     type(rock_type) :: rock
-    DMLabel :: ghost_label
+    DMLabel :: ghost_label, order_label
     PetscErrorCode :: ierr
 
     err = 0
@@ -769,109 +785,7 @@ contains
 
     call DMGetLabel(self%mesh%dm, "ghost", ghost_label, ierr)
     CHKERRQ(ierr)
-
-    do c = self%mesh%start_cell, self%mesh%end_cell - 1
-
-       call DMLabelGetValue(ghost_label, c, ghost, ierr); CHKERRQ(ierr)
-       if (ghost < 0) then
-
-          call global_section_offset(y_section, c, &
-               self%solution_range_start, y_offset, ierr); CHKERRQ(ierr)
-          cell_primary => y_array(y_offset : y_offset + np - 1)
-
-          call global_section_offset(fluid_section, c, &
-               self%fluid_range_start, fluid_offset, ierr); CHKERRQ(ierr)
-
-          call fluid%assign(fluid_array, fluid_offset)
-
-          call global_section_offset(rock_section, c, &
-               self%rock_range_start, rock_offset, ierr); CHKERRQ(ierr)
-
-          call rock%assign(rock_array, rock_offset, &
-               self%relative_permeability)
-
-          call self%eos%bulk_properties(cell_primary, fluid, err)
-          if (err == 0) then
-             call self%eos%phase_composition(fluid, err)
-             if (err == 0) then
-                call self%eos%phase_properties(cell_primary, rock, &
-                     fluid, err)
-                if (err > 0) then
-                   call self%logfile%write(LOG_LEVEL_ERR, 'initialize', &
-                        'fluid', &
-                        ['proc            ', 'cell            '], &
-                        [mpi%rank, c])
-                   exit
-                end if
-             else
-                call self%logfile%write(LOG_LEVEL_ERR, 'initialize', &
-                     'fluid', &
-                     ['proc            ', 'cell            '], &
-                     [mpi%rank, c])
-                exit
-             end if
-          else
-             call self%logfile%write(LOG_LEVEL_ERR, 'initialize', &
-                  'fluid', &
-                  ['proc            ', 'cell            '], &
-                  [mpi%rank, c])
-             exit
-          end if
-
-       end if
-
-    end do
-
-    call VecRestoreArrayF90(self%rock, rock_array, ierr); CHKERRQ(ierr)
-    call VecRestoreArrayF90(self%fluid, fluid_array, ierr); CHKERRQ(ierr)
-    call VecRestoreArrayF90(y, y_array, ierr); CHKERRQ(ierr)
-    call rock%destroy()
-    call fluid%destroy()
-
-  end subroutine flow_simulation_fluid_init
-
-!------------------------------------------------------------------------
-
-  subroutine flow_simulation_fluid_properties(self, t, y, err)
-    !! Computes fluid properties in all cells, excluding phase
-    !! composition, based on the current time and primary
-    !! thermodynamic variables.
-
-    use dm_utils_module, only: global_section_offset, global_vec_section
-    use fluid_module, only: fluid_type
-    use rock_module, only: rock_type
-
-    class(flow_simulation_type), intent(in out) :: self
-    PetscReal, intent(in) :: t !! time
-    Vec, intent(in) :: y !! global primary variables vector
-    PetscErrorCode, intent(out) :: err !! error code
-    ! Locals:
-    PetscInt :: c, np, nc, ghost
-    PetscSection :: y_section, fluid_section, rock_section
-    PetscInt :: y_offset, fluid_offset, rock_offset
-    PetscReal, pointer :: y_array(:), cell_primary(:)
-    PetscReal, pointer :: fluid_array(:), rock_array(:)
-    type(fluid_type) :: fluid
-    type(rock_type) :: rock
-    DMLabel :: ghost_label
-    PetscErrorCode :: ierr
-
-    err = 0
-    np = self%eos%num_primary_variables
-    nc = self%eos%num_components
-
-    call global_vec_section(y, y_section)
-    call VecGetArrayReadF90(y, y_array, ierr); CHKERRQ(ierr)
-
-    call global_vec_section(self%fluid, fluid_section)
-    call VecGetArrayF90(self%fluid, fluid_array, ierr); CHKERRQ(ierr)
-
-    call global_vec_section(self%rock, rock_section)
-    call VecGetArrayF90(self%rock, rock_array, ierr); CHKERRQ(ierr)
-
-    call fluid%init(nc, self%eos%num_phases)
-
-    call DMGetLabel(self%mesh%dm, "ghost", ghost_label, ierr)
+    call DMGetLabel(self%mesh%dm, cell_order_label_name, order_label, ierr)
     CHKERRQ(ierr)
 
     do c = self%mesh%start_cell, self%mesh%end_cell - 1
@@ -894,21 +808,130 @@ contains
           call rock%assign(rock_array, rock_offset, &
                self%relative_permeability)
 
+          call DMLabelGetValue(order_label, c, order, ierr); CHKERRQ(ierr)
+
           call self%eos%bulk_properties(cell_primary, fluid, err)
+
+          if (err == 0) then
+             call self%eos%phase_composition(fluid, err)
+             if (err == 0) then
+                call self%eos%phase_properties(cell_primary, rock, &
+                     fluid, err)
+                if (err > 0) then
+                   call self%logfile%write(LOG_LEVEL_ERR, 'initialize', &
+                        'fluid', ['cell            '], [order], &
+                        rank = mpi%rank)
+                   exit
+                end if
+             else
+                call self%logfile%write(LOG_LEVEL_ERR, 'initialize', &
+                     'fluid', ['cell            '], [order], &
+                     rank = mpi%rank)
+                exit
+             end if
+          else
+             call self%logfile%write(LOG_LEVEL_ERR, 'initialize', &
+                  'fluid', ['cell            '], [order], &
+                  rank = mpi%rank)
+             exit
+          end if
+
+       end if
+
+    end do
+
+    call VecRestoreArrayF90(self%rock, rock_array, ierr); CHKERRQ(ierr)
+    call VecRestoreArrayF90(self%fluid, fluid_array, ierr); CHKERRQ(ierr)
+    call VecRestoreArrayF90(y, y_array, ierr); CHKERRQ(ierr)
+    call rock%destroy()
+    call fluid%destroy()
+
+    call mpi%broadcast_error_flag(err)
+
+  end subroutine flow_simulation_fluid_init
+
+!------------------------------------------------------------------------
+
+  subroutine flow_simulation_fluid_properties(self, t, y, err)
+    !! Computes fluid properties in all cells, excluding phase
+    !! composition, based on the current time and primary
+    !! thermodynamic variables.
+
+    use dm_utils_module, only: global_section_offset, global_vec_section
+    use fluid_module, only: fluid_type
+    use rock_module, only: rock_type
+
+    class(flow_simulation_type), intent(in out) :: self
+    PetscReal, intent(in) :: t !! time
+    Vec, intent(in) :: y !! global primary variables vector
+    PetscErrorCode, intent(out) :: err !! error code
+    ! Locals:
+    PetscInt :: c, np, nc, ghost, order
+    PetscSection :: y_section, fluid_section, rock_section
+    PetscInt :: y_offset, fluid_offset, rock_offset
+    PetscReal, pointer :: y_array(:), cell_primary(:)
+    PetscReal, pointer :: fluid_array(:), rock_array(:)
+    type(fluid_type) :: fluid
+    type(rock_type) :: rock
+    DMLabel :: ghost_label, order_label
+    PetscErrorCode :: ierr
+
+    err = 0
+    np = self%eos%num_primary_variables
+    nc = self%eos%num_components
+
+    call global_vec_section(y, y_section)
+    call VecGetArrayReadF90(y, y_array, ierr); CHKERRQ(ierr)
+
+    call global_vec_section(self%fluid, fluid_section)
+    call VecGetArrayF90(self%fluid, fluid_array, ierr); CHKERRQ(ierr)
+
+    call global_vec_section(self%rock, rock_section)
+    call VecGetArrayF90(self%rock, rock_array, ierr); CHKERRQ(ierr)
+
+    call fluid%init(nc, self%eos%num_phases)
+
+    call DMGetLabel(self%mesh%dm, "ghost", ghost_label, ierr)
+    CHKERRQ(ierr)
+    call DMGetLabel(self%mesh%dm, cell_order_label_name, order_label, ierr)
+    CHKERRQ(ierr)
+
+    do c = self%mesh%start_cell, self%mesh%end_cell - 1
+
+       call DMLabelGetValue(ghost_label, c, ghost, ierr); CHKERRQ(ierr)
+       if (ghost < 0) then
+
+          call global_section_offset(y_section, c, &
+               self%solution_range_start, y_offset, ierr); CHKERRQ(ierr)
+          cell_primary => y_array(y_offset : y_offset + np - 1)
+
+          call global_section_offset(fluid_section, c, &
+               self%fluid_range_start, fluid_offset, ierr); CHKERRQ(ierr)
+
+          call fluid%assign(fluid_array, fluid_offset)
+
+          call global_section_offset(rock_section, c, &
+               self%rock_range_start, rock_offset, ierr); CHKERRQ(ierr)
+
+          call rock%assign(rock_array, rock_offset, &
+               self%relative_permeability)
+
+          call DMLabelGetValue(order_label, c, order, ierr); CHKERRQ(ierr)
+
+          call self%eos%bulk_properties(cell_primary, fluid, err)
+
           if (err == 0) then
              call self%eos%phase_properties(cell_primary, rock, fluid, err)
              if (err > 0) then
                 call self%logfile%write(LOG_LEVEL_WARN, 'fluid', &
                      'properties_not_found', &
-                     ['proc            ', 'cell            '], &
-                     [mpi%rank, c])
+                     ['cell            '], [order], rank = mpi%rank)
                 exit
              end if
           else
              call self%logfile%write(LOG_LEVEL_WARN, 'fluid', &
                   'properties_not_found', &
-                  ['proc            ', 'cell            '], &
-                  [mpi%rank, c])
+                  ['cell            '], [order], rank = mpi%rank)
              exit
           end if
 
@@ -921,6 +944,8 @@ contains
     call VecRestoreArrayReadF90(y, y_array, ierr); CHKERRQ(ierr)
     call rock%destroy()
     call fluid%destroy()
+
+    call mpi%broadcast_error_flag(err)
 
   end subroutine flow_simulation_fluid_properties
 
@@ -941,15 +966,15 @@ contains
     PetscBool, intent(out) :: changed_search, changed_y
     PetscErrorCode, intent(out) :: err !! Error code
     ! Locals:
-    PetscInt :: c, np, nc, ghost
+    PetscInt :: c, np, nc, ghost, order
     PetscSection :: primary_section, fluid_section
     PetscInt :: primary_offset, fluid_offset
     PetscReal, pointer :: primary_array(:), old_primary_array(:), search_array(:)
     PetscReal, pointer :: cell_primary(:), old_cell_primary(:), cell_search(:)
     PetscReal, pointer :: last_iteration_fluid_array(:), fluid_array(:)
     type(fluid_type) :: last_iteration_fluid, fluid
-    DMLabel :: ghost_label
-    PetscBool :: transition, any_changed_y, any_changed_search
+    DMLabel :: ghost_label, order_label
+    PetscBool :: transition
     PetscErrorCode :: ierr
 
     err = 0
@@ -973,6 +998,8 @@ contains
 
     call DMGetLabel(self%mesh%dm, "ghost", ghost_label, ierr)
     CHKERRQ(ierr)
+    call DMGetLabel(self%mesh%dm, cell_order_label_name, order_label, ierr)
+    CHKERRQ(ierr)
 
     do c = self%mesh%start_cell, self%mesh%end_cell - 1
 
@@ -993,7 +1020,10 @@ contains
                fluid_offset)
           call fluid%assign(fluid_array, fluid_offset)
 
+          call DMLabelGetValue(order_label, c, order, ierr); CHKERRQ(ierr)
+
           err = self%eos%check_primary_variables(fluid, cell_primary)
+
           if (err == 0) then
              call self%eos%transition(cell_primary, last_iteration_fluid, &
                   fluid, transition, err)
@@ -1004,28 +1034,26 @@ contains
                    changed_search = .true.
                    call self%logfile%write(LOG_LEVEL_INFO, 'fluid', &
                         'transition', &
-                        ['proc            ', 'cell            ', &
+                        ['cell            ', &
                         'old_region      ', 'new_region      '], &
-                        [mpi%rank, c, &
+                        [order, &
                         nint(last_iteration_fluid%region), nint(fluid%region)], &
                         real_array_key = 'new_primary     ', &
-                        real_array_value = cell_primary)
+                        real_array_value = cell_primary, rank = mpi%rank)
                 end if
              else
                 call self%logfile%write(LOG_LEVEL_WARN, 'fluid', &
                      'transition_failed', &
-                     ['proc            ', 'cell            '], &
-                     [mpi%rank, c])
+                     ['cell            '], [order], rank = mpi%rank)
                 exit
              end if
           else
              call self%logfile%write(LOG_LEVEL_WARN, 'fluid', &
                   'out_of_range', &
-                  ['proc            ', 'cell            ', &
-                  'region          '], &
-                  [mpi%rank, c, nint(fluid%region)], &
+                  ['cell            ', 'region          '], &
+                  [order, nint(fluid%region)], &
                   real_array_key = 'primary         ', &
-                  real_array_value = cell_primary)
+                  real_array_value = cell_primary, rank = mpi%rank)
              exit
           end if
 
@@ -1042,19 +1070,9 @@ contains
     call last_iteration_fluid%destroy()
     call fluid%destroy()
 
-    call MPI_reduce(changed_y, any_changed_y, 1, MPI_LOGICAL, MPI_LOR, &
-         mpi%input_rank, mpi%comm, ierr)
-    if (mpi%rank == mpi%input_rank) then
-       changed_y = any_changed_y
-    end if
-    call MPI_bcast(changed_y, 1, MPI_LOGICAL, mpi%input_rank, mpi%comm, ierr)
-
-    call MPI_reduce(changed_search, any_changed_search, 1, MPI_LOGICAL, MPI_LOR, &
-         mpi%input_rank, mpi%comm, ierr)
-    if (mpi%rank == mpi%input_rank) then
-       changed_search = any_changed_search
-    end if
-    call MPI_bcast(changed_search, 1, MPI_LOGICAL, mpi%input_rank, mpi%comm, ierr)
+    call mpi%broadcast_error_flag(err)
+    call mpi%broadcast_logical(changed_y)
+    call mpi%broadcast_logical(changed_search)
 
   end subroutine flow_simulation_fluid_transitions
 
@@ -1069,23 +1087,27 @@ contains
     DM :: geom_dm
     Vec :: global_cell_geom
 
-    call VecGetDM(self%mesh%cell_geom, geom_dm, ierr); CHKERRQ(ierr)
-    call DMGetGlobalVector(geom_dm, global_cell_geom, ierr); CHKERRQ(ierr)
-    call PetscObjectSetName(global_cell_geom, "cell_geometry", ierr)
-    CHKERRQ(ierr)
+    if (self%output_filename /= "") then
 
-    call DMLocalToGlobalBegin(geom_dm, self%mesh%cell_geom, &
-         INSERT_VALUES, global_cell_geom, ierr); CHKERRQ(ierr)
-    call DMLocalToGlobalEnd(geom_dm, self%mesh%cell_geom, &
-         INSERT_VALUES, global_cell_geom, ierr); CHKERRQ(ierr)
+       call VecGetDM(self%mesh%cell_geom, geom_dm, ierr); CHKERRQ(ierr)
+       call DMGetGlobalVector(geom_dm, global_cell_geom, ierr); CHKERRQ(ierr)
+       call PetscObjectSetName(global_cell_geom, "cell_geometry", ierr)
+       CHKERRQ(ierr)
 
-    call VecView(global_cell_geom, self%hdf5_viewer, ierr); CHKERRQ(ierr)
+       call DMLocalToGlobalBegin(geom_dm, self%mesh%cell_geom, &
+            INSERT_VALUES, global_cell_geom, ierr); CHKERRQ(ierr)
+       call DMLocalToGlobalEnd(geom_dm, self%mesh%cell_geom, &
+            INSERT_VALUES, global_cell_geom, ierr); CHKERRQ(ierr)
 
-    call DMRestoreGlobalVector(geom_dm, global_cell_geom, ierr)
-    CHKERRQ(ierr)
+       call VecView(global_cell_geom, self%hdf5_viewer, ierr); CHKERRQ(ierr)
 
-    call ISView(self%mesh%cell_order, self%hdf5_viewer, ierr)
-    CHKERRQ(ierr)
+       call DMRestoreGlobalVector(geom_dm, global_cell_geom, ierr)
+       CHKERRQ(ierr)
+
+       call ISView(self%mesh%cell_order, self%hdf5_viewer, ierr)
+       CHKERRQ(ierr)
+
+    end if
 
   end subroutine flow_simulation_output_mesh_geometry
 

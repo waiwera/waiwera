@@ -23,7 +23,7 @@ module mesh_module
      PetscInt, public :: start_cell, end_cell, end_interior_cell
      PetscInt, public :: start_face, end_face
      PetscReal, allocatable, public :: bcs(:,:)
-     IS, public :: cell_order
+     IS, public :: cell_order, cell_order_inv
    contains
      procedure :: setup_cell_order_label => mesh_setup_cell_order_label
      procedure :: setup_cell_order => mesh_setup_cell_order
@@ -79,7 +79,7 @@ contains
 
     class(mesh_type), intent(in out) :: self
     ! Locals:
-    PetscInt :: n, c, i, ghost, order
+    PetscInt :: n, c, i, ghost, order, size
     DMLabel :: ghost_label, order_label
     PetscInt, allocatable :: order_array(:)
     PetscErrorCode :: ierr
@@ -108,10 +108,13 @@ contains
 
     call ISCreateGeneral(mpi%comm, n, order_array, PETSC_COPY_VALUES, &
          self%cell_order, ierr); CHKERRQ(ierr)
+    deallocate(order_array)
     call PetscObjectSetName(self%cell_order, "cell_order", ierr)
     CHKERRQ(ierr)
-
-    deallocate(order_array)
+    call ISSetPermutation(self%cell_order, ierr); CHKERRQ(ierr)
+    call ISGetLocalSize(self%cell_order, size, ierr); CHKERRQ(ierr)
+    call ISInvertPermutation(self%cell_order, size, &
+         self%cell_order_inv, ierr); CHKERRQ(ierr)
 
   end subroutine mesh_setup_cell_order
 
@@ -376,7 +379,8 @@ contains
           if (present(logfile)) then
              call logfile%write(LOG_LEVEL_ERR, 'mesh', 'init', &
                   str_key = 'stop            ', &
-                  str_value = 'mesh not found in input.')
+                  str_value = 'mesh not found in input.', &
+                  rank = mpi%input_rank)
           end if
           stop
        end if
@@ -435,6 +439,7 @@ contains
     end if
 
     call ISDestroy(self%cell_order, ierr); CHKERRQ(ierr)
+    call ISDestroy(self%cell_order_inv, ierr); CHKERRQ(ierr)
 
   end subroutine mesh_destroy
 
@@ -529,51 +534,17 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine mesh_order_vector(self, v, v_order)
+  subroutine mesh_order_vector(self, v, order)
     !! Reorders vector v to correspond to the cell order of the mesh
-    !! DM, rather than that of the given v_order index set.
+    !! DM, rather than that of the given order index set.
 
-    use cell_module, only: cell_type
-    use dm_utils_module, only: global_section_offset, &
-         global_vec_section, global_vec_range_start
+    use dm_utils_module, only: vec_reorder
 
     class(mesh_type), intent(in) :: self
     Vec, intent(in out) :: v
-    IS, intent(in) :: v_order
-    ! Locals:
-    Vec :: vinitial
-    VecScatter :: scatter
-    PetscInt :: blocksize
-    IS :: v_order_block, self_order_block
-    PetscInt, pointer :: indices(:)
-    PetscErrorCode :: ierr
+    IS, intent(in), optional :: order
 
-    call VecDuplicate(v, vinitial, ierr); CHKERRQ(ierr)
-    call VecCopy(v, vinitial, ierr); CHKERRQ(ierr)
-    call VecGetBlockSize(v, blocksize, ierr); CHKERRQ(ierr)
-
-    ! Create index sets with the appropriate block size:
-    call ISGetIndicesF90(v_order, indices, ierr); CHKERRQ(ierr)
-    call ISCreateBlock(mpi%comm, blocksize, size(indices), indices, &
-         PETSC_COPY_VALUES, v_order_block, ierr); CHKERRQ(ierr)
-    call ISRestoreIndicesF90(v_order, indices, ierr); CHKERRQ(ierr)
-    call ISGetIndicesF90(self%cell_order, indices, ierr); CHKERRQ(ierr)
-    call ISCreateBlock(mpi%comm, blocksize, size(indices), indices, &
-         PETSC_COPY_VALUES, self_order_block, ierr); CHKERRQ(ierr)
-    call ISRestoreIndicesF90(self%cell_order, indices, ierr); CHKERRQ(ierr)
-
-    call VecScatterCreate(vinitial, v_order_block, v, self_order_block, &
-         scatter, ierr); CHKERRQ(ierr)
-    call ISDestroy(v_order_block, ierr); CHKERRQ(ierr)
-    call ISDestroy(self_order_block, ierr); CHKERRQ(ierr)
-
-    call VecScatterBegin(scatter, vinitial, v, INSERT_VALUES, &
-         SCATTER_FORWARD, ierr); CHKERRQ(ierr)
-    call VecScatterEnd(scatter, vinitial, v, INSERT_VALUES, &
-         SCATTER_FORWARD, ierr); CHKERRQ(ierr)
-
-    call VecScatterDestroy(scatter, ierr); CHKERRQ(ierr)
-    call VecDestroy(vinitial, ierr); CHKERRQ(ierr)
+    call vec_reorder(v, order, self%cell_order_inv)
 
   end subroutine mesh_order_vector
 

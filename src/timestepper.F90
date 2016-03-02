@@ -133,6 +133,7 @@ module timestepper_module
      PetscBool, public :: output_initial, output_final
    contains
      private
+     procedure :: setup_jacobian => timestepper_setup_jacobian
      procedure :: setup_solver => timestepper_setup_solver
      procedure :: step => timestepper_step
      procedure, public :: init => timestepper_init
@@ -233,13 +234,10 @@ contains
 
     class(timestepper_type), intent(in out) :: self
 
-    if (mpi%rank == mpi%output_rank) then
-       call self%ode%logfile%write_blank(output_rank_only = .false.)
-       call self%ode%logfile%write(LOG_LEVEL_INFO, 'timestep', 'start', &
-            ['count           '], [self%steps%taken + 1], &
-            ['size            '], [self%steps%next_stepsize], &
-            output_rank_only = .false.)
-    end if
+    call self%ode%logfile%write_blank()
+    call self%ode%logfile%write(LOG_LEVEL_INFO, 'timestep', 'start', &
+         ['count           '], [self%steps%taken + 1], &
+         ['size            '], [self%steps%next_stepsize])
 
   end subroutine before_step_output_default
 
@@ -509,16 +507,13 @@ contains
     class(timestepper_step_type), intent(in) :: self
     type(logfile_type), intent(in out) :: logfile
 
-    if (mpi%rank == mpi%output_rank) then
-       call logfile%write(LOG_LEVEL_INFO, 'timestep', 'end', &
-            ['tries           ', 'iters           '], &
-            [self%num_tries, self%num_iterations], &
-            ['size            ', 'time            '], &
-            [self%stepsize, self%time], &
-            str_key = 'status          ', &
-            str_value = self%status_str(), &
-            output_rank_only = .false.)
-    end if
+    call logfile%write(LOG_LEVEL_INFO, 'timestep', 'end', &
+         ['tries           ', 'iters           '], &
+         [self%num_tries, self%num_iterations], &
+         ['size            ', 'time            '], &
+         [self%stepsize, self%time], &
+         str_key = 'status          ', &
+         str_value = self%status_str())
 
   end subroutine timestepper_step_print
 
@@ -1021,12 +1016,12 @@ end subroutine timestepper_steps_set_next_stepsize
     type(timestepper_solver_context_type), intent(in out) :: context
     PetscErrorCode :: ierr
 
-    if ((num_iterations > 0) .and. (mpi%rank == mpi%output_rank)) then
+    if ((num_iterations > 0)) then
        call context%ode%logfile%write(LOG_LEVEL_INFO, 'solver', 'iteration', &
             ['count           '], [num_iterations], &
-            ['max_residual    '], [context%steps%current%max_residual], &
-            output_rank_only = .false.)
+            ['max_residual    '], [context%steps%current%max_residual])
     end if
+    call context%ode%logfile%flush()
 
   end subroutine SNES_monitor
 
@@ -1091,8 +1086,39 @@ end subroutine timestepper_steps_set_next_stepsize
 
 !------------------------------------------------------------------------
 
-  subroutine timestepper_init(self, json, ode)
+  subroutine timestepper_setup_jacobian(self)
+    !! Sets up Jacobian matrix for nonlinear solver.
 
+    class(timestepper_type), intent(in out) :: self
+    ! Locals:
+    PetscInt :: blocksize
+    MatType :: mat_type
+    PetscErrorCode :: ierr
+
+    call VecGetBlockSize(self%ode%solution, blocksize, ierr); CHKERRQ(ierr)
+    if (mpi%size == 1) then
+       if (blocksize == 1) then
+          mat_type = MATAIJ
+       else
+          ! mat_type = MATBAIJ  ! reinstate this when PETSc bug fixed
+          mat_type = MATAIJ
+       end if
+    else
+       if (blocksize == 1) then
+          mat_type = MATMPIAIJ
+       else
+          mat_type = MATMPIBAIJ
+       end if
+    end if
+    call DMSetMatType(self%ode%mesh%dm, mat_type, ierr); CHKERRQ(ierr)
+    call DMCreateMatrix(self%ode%mesh%dm, self%jacobian, ierr); CHKERRQ(ierr)
+    call MatSetFromOptions(self%jacobian, ierr); CHKERRQ(ierr)
+
+  end subroutine timestepper_setup_jacobian
+
+!------------------------------------------------------------------------
+
+  subroutine timestepper_init(self, json, ode)
     !! Initializes a timestepper.
 
     use utils_module, only : str_to_lower
@@ -1141,11 +1167,8 @@ end subroutine timestepper_steps_set_next_stepsize
     PetscErrorCode :: ierr
 
     self%ode => ode
-
     call VecDuplicate(self%ode%solution, self%residual, ierr); CHKERRQ(ierr)
-    call DMSetMatType(self%ode%mesh%dm, MATAIJ, ierr); CHKERRQ(ierr)
-    call DMCreateMatrix(self%ode%mesh%dm, self%jacobian, ierr); CHKERRQ(ierr)
-    call MatSetFromOptions(self%jacobian, ierr); CHKERRQ(ierr)
+    call self%setup_jacobian()
 
     call fson_get_mpi(json, "time.stop", default_stop_time, stop_time, &
          self%ode%logfile)
@@ -1231,7 +1254,7 @@ end subroutine timestepper_steps_set_next_stepsize
     call fson_get_mpi(json, "output.final", &
          default_output_final, self%output_final, self%ode%logfile)
 
-    call self%ode%logfile%write_blank(output_rank_only = .false.)
+    call self%ode%logfile%write_blank()
 
     deallocate(step_sizes)
 
@@ -1293,11 +1316,10 @@ end subroutine timestepper_steps_set_next_stepsize
        call self%steps%set_current_status(converged)
        if (self%steps%current%status /= TIMESTEP_ABORTED) then
           call self%steps%set_next_stepsize(accepted)
-          if ((.not. accepted) .and. (mpi%rank == mpi%output_rank)) then
+          if (.not. accepted) then
              call self%ode%logfile%write(LOG_LEVEL_WARN, 'timestep', 'reduction', &
                   real_keys = ['new_size        '], &
-                  real_values = [self%steps%next_stepsize], &
-                  output_rank_only = .false.)
+                  real_values = [self%steps%next_stepsize])
           end if
        end if
 
@@ -1307,6 +1329,7 @@ end subroutine timestepper_steps_set_next_stepsize
     self%ode%time = self%steps%current%time
     call VecCopy(self%steps%current%solution, self%ode%solution, ierr)
     CHKERRQ(ierr)
+    call self%ode%logfile%flush()
 
   end subroutine timestepper_step
 
@@ -1322,11 +1345,9 @@ end subroutine timestepper_steps_set_next_stepsize
     PetscInt :: since_output
     PetscErrorCode :: err
 
-    if (mpi%rank == mpi%output_rank) then
-       call self%ode%logfile%write(LOG_LEVEL_INFO, 'timestepper', 'start', &
-            str_key = 'time            ', str_value = date_time_str(), &
-            output_rank_only = .false.)
-    end if
+    call self%ode%logfile%write(LOG_LEVEL_INFO, 'timestepper', 'start', &
+         str_key = 'time            ', str_value = date_time_str())
+    call self%ode%logfile%flush()
 
     err = 0
     self%steps%taken = 0
@@ -1370,12 +1391,10 @@ end subroutine timestepper_steps_set_next_stepsize
 
     end if
 
-    if (mpi%rank == mpi%output_rank) then
-       call self%ode%logfile%write_blank(output_rank_only = .false.)
-       call self%ode%logfile%write(LOG_LEVEL_INFO, 'timestepper', 'end', &
-            str_key = 'time', str_value = date_time_str(), &
-            output_rank_only = .false.)
-    end if
+    call self%ode%logfile%write_blank()
+    call self%ode%logfile%write(LOG_LEVEL_INFO, 'timestepper', 'end', &
+         str_key = 'time', str_value = date_time_str())
+    call self%ode%logfile%flush()
 
   end subroutine timestepper_run
 

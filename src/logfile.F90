@@ -38,6 +38,7 @@ module logfile_module
      procedure :: append_string_data => logfile_append_string_data
      procedure, public :: write => logfile_write
      procedure, public :: write_blank => logfile_write_blank
+     procedure, public :: flush => logfile_flush
      procedure, public :: destroy => logfile_destroy
   end type logfile_type
 
@@ -95,37 +96,35 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine logfile_write_string(self, string, output_rank_only)
+  subroutine logfile_write_string(self, string, rank)
     !! Write string to logfile, optionally echoing to console output
     !! according to the self%echo property.
 
     class(logfile_type), intent(in out) :: self
     character(*), intent(in) :: string
-    PetscBool, intent(in), optional :: output_rank_only
+    PetscMPIInt, intent(in), optional :: rank
     ! Locals:
+    PetscMPIInt :: output_rank
     PetscErrorCode :: ierr
-    PetscBool, parameter :: default_output_rank_only = .false.
-    PetscBool :: do_output_rank_only, output
 
-    if (present(output_rank_only)) then
-       do_output_rank_only = output_rank_only
+    if (present(rank)) then
+       output_rank = rank
     else
-       do_output_rank_only = default_output_rank_only
-    end if
-    if (do_output_rank_only) then
-       output = (mpi%rank == mpi%output_rank)
-    else
-       output = .true.
+       output_rank = mpi%output_rank
     end if
 
-    if (self%filename /= "") then
-       call PetscViewerASCIISynchronizedPrintf(self%viewer, &
-            string // lf, ierr)
-       CHKERRQ(ierr)
-    end if
+    if (mpi%rank == output_rank) then
 
-    if ((self%echo) .and. (output)) then
-       write(*, '(a)') string
+       if (self%filename /= "") then
+          call PetscViewerASCIISynchronizedPrintf(self%viewer, &
+               string // lf, ierr)
+          CHKERRQ(ierr)
+       end if
+
+       if (self%echo) then
+          write(*, '(a)') string
+       end if
+
     end if
 
   end subroutine logfile_write_string
@@ -296,8 +295,7 @@ contains
 
   subroutine logfile_write(self, level, source, event, int_keys, &
        int_values, real_keys, real_values, logical_keys, logical_values, &
-       str_key, str_value, real_array_key, real_array_value, &
-       output_rank_only)
+       str_key, str_value, real_array_key, real_array_value, rank)
     !! Write message to logfile, optionally echoing to console output
     !! according to self%echo property.
     !! Output is in YAML format: each message is formatted as an
@@ -316,7 +314,7 @@ contains
     PetscBool, intent(in), optional :: logical_values(:)
     character(*), intent(in), optional :: str_value
     PetscReal, intent(in), optional :: real_array_value(:)
-    PetscBool, intent(in), optional :: output_rank_only
+    PetscMPIInt, intent(in), optional :: rank
     ! Locals:
     PetscBool :: has_data
     character(:), allocatable ::  content, msg
@@ -362,7 +360,7 @@ contains
           msg = msg // ']'
        end if
 
-       call self%write_string(msg, output_rank_only)
+       call self%write_string(msg, rank)
 
     end if
 
@@ -370,15 +368,30 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine logfile_write_blank(self, output_rank_only)
+  subroutine logfile_write_blank(self, rank)
     !! Writes blank line to logfile. 
 
     class(logfile_type), intent(in out) :: self
-    PetscBool, intent(in), optional :: output_rank_only
+    PetscMPIInt, intent(in), optional :: rank
 
-    call self%write_string('', output_rank_only)
+    call self%write_string('', rank)
 
   end subroutine logfile_write_blank
+
+!------------------------------------------------------------------------
+
+  subroutine logfile_flush(self)
+    !! Flushes lines written to logfile.
+
+    class(logfile_type), intent(in out) :: self
+    ! Locals:
+    PetscErrorCode :: ierr
+
+    if (self%filename /= "") then
+       call PetscViewerFlush(self%viewer, ierr); CHKERRQ(ierr)
+    end if
+
+  end subroutine logfile_flush
 
 !------------------------------------------------------------------------
 

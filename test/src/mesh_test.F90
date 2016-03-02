@@ -25,69 +25,70 @@ contains
 
     ! Mesh init test
 
-    use eos_module, only: max_primary_variable_name_length
     use dm_utils_module, only: section_offset
     use boundary_module, only: open_boundary_label_name
+    use fson_mpi_module
     use cell_module
     use face_module
 
-    character(max_mesh_filename_length) :: filename = "data/mesh/test_init.json"
     type(fson_value), pointer :: json
     type(mesh_type) :: mesh
-    character(max_primary_variable_name_length), allocatable :: primary_variable_names(:)
+    character(len = 11), allocatable :: primary(:)
     Vec :: x
     type(face_type) :: face
     PetscInt :: global_solution_dof, num_primary
     PetscInt :: dim, facedof
     DM :: dm_face
     PetscSection :: section
-    DMLabel :: ghost_label
+    DMLabel :: ghost_label, cell_order_label
     PetscReal, pointer :: fg(:)
-    PetscInt :: f, offset, fstart, fend, ghost_face
+    PetscInt :: f, offset, fstart, fend, ghost_face, i, order(2), gf
+    PetscInt, pointer :: cells(:)
     PetscReal :: dist(2)
     PetscErrorCode :: ierr
     character(len = 24) :: msg
     PetscInt, parameter :: expected_dim = 3, num_cells = 3, num_faces = 16
     PetscReal, parameter :: face_area = 200._dp
-    PetscReal, parameter :: face_distance(2, 19:20) = &
+    PetscReal, parameter :: face_distance(2, 2) = &
          reshape([5._dp, 10._dp, 10._dp, 15._dp], [2,2])
-    PetscReal, parameter :: face_centroid(3, 19:20) = &
+    PetscReal, parameter :: face_centroid(3, 2) = &
          reshape([5._dp, 10._dp, 50._dp, 5._dp, 10._dp, 30._dp], [3,2])
     
-    primary_variable_names = [character(max_primary_variable_name_length) :: &
-         "Pressure", "Temperature"]
+    primary = ["Pressure   ", "Temperature"]
 
-    if (mpi%rank == mpi%input_rank) then
-       json => fson_parse(filename)
-    end if
-
+    json => fson_parse_mpi(str = '{"mesh": "data/mesh/block3.exo"}')
     call mesh%init(json)
-    call DMCreateLabel(mesh%dm, open_boundary_label_name, ierr); CHKERRQ(ierr)
-    call mesh%configure(primary_variable_names)
+    call fson_destroy_mpi(json)
 
-    call DMGetDimension(mesh%dm, dim, ierr)
+    call DMCreateLabel(mesh%dm, open_boundary_label_name, ierr); CHKERRQ(ierr)
+    call mesh%configure(primary)
+
+    call DMGetDimension(mesh%dm, dim, ierr); CHKERRQ(ierr)
     if (mpi%rank == mpi%output_rank) then
        call assert_equals(expected_dim, dim, "mesh dimension")
     end if
 
-    call DMCreateGlobalVector(mesh%dm, x, ierr)
-    call VecGetSize(x, global_solution_dof, ierr)
+    call DMGetGlobalVector(mesh%dm, x, ierr); CHKERRQ(ierr)
+    call VecGetSize(x, global_solution_dof, ierr); CHKERRQ(ierr)
     if (mpi%rank == mpi%output_rank) then
-       num_primary = size(primary_variable_names)
-       call assert_equals(num_cells * num_primary, global_solution_dof, "global solution dof")
+       num_primary = size(primary)
+       call assert_equals(num_cells * num_primary, global_solution_dof, &
+            "global solution dof")
     end if
-    call VecDestroy(x, ierr)
+    call DMRestoreGlobalVector(mesh%dm, x, ierr); CHKERRQ(ierr)
 
     call face%init()
     facedof = face%dof()
 
     ! Check face geometry:
-    call VecGetDM(mesh%face_geom, dm_face, ierr)
-    call VecGetArrayF90(mesh%face_geom, fg, ierr)
-    call DMGetDefaultSection(dm_face, section, ierr)
-    call DMPlexGetHeightStratum(mesh%dm, 1, fstart, fend, ierr)
+    call VecGetDM(mesh%face_geom, dm_face, ierr); CHKERRQ(ierr)
+    call VecGetArrayF90(mesh%face_geom, fg, ierr); CHKERRQ(ierr)
+    call DMGetDefaultSection(dm_face, section, ierr); CHKERRQ(ierr)
+    call DMPlexGetHeightStratum(mesh%dm, 1, fstart, fend, ierr); CHKERRQ(ierr)
     call DMGetLabel(mesh%dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
-    do f = fstart, fend-1
+    call DMGetLabel(mesh%dm, cell_order_label_name, cell_order_label, ierr)
+    CHKERRQ(ierr)
+    do f = fstart, fend - 1
        call DMLabelGetValue(ghost_label, f, ghost_face, ierr); CHKERRQ(ierr)
        if (ghost_face < 0) then
           call section_offset(section, f, offset, ierr); CHKERRQ(ierr)
@@ -95,20 +96,32 @@ contains
           write(msg, '(a, i2)') 'face area ', f
           call assert_equals(face_area, face%area, tol, msg)
           dist = face%distance
-          if (face%normal(3) > 0._dp) then
-             dist = [dist(2), dist(1)]
+          call DMPlexGetSupport(mesh%dm, f, cells, ierr); CHKERRQ(ierr)
+          do i = 1, 2
+             call DMLabelGetValue(cell_order_label, cells(i), order(i), ierr)
+             CHKERRQ(ierr)
+          end do
+          if ((order(1) == 0) .and. (order(2) == 1)) then
+             gf = 1
+          else if ((order(1) == 1) .and. (order(2) == 2)) then
+             gf = 2
+          else
+             gf = 0
           end if
-          write(msg, '(a, i2)') 'face distance ', f
-          call assert_equals(0._dp, norm2(dist - face_distance(:,f)), tol, msg)
-          write(msg, '(a, i2)') 'face centroid ', f
-          call assert_equals(0._dp, norm2(face%centroid - face_centroid(:,f)), tol, msg)
+          if (gf > 0) then
+             write(msg, '(a, i2)') 'face distance ', f
+             call assert_equals(0._dp, norm2(dist - face_distance(:, gf)), tol, msg)
+             write(msg, '(a, i2)') 'face centroid ', f
+             call assert_equals(0._dp, norm2(face%centroid - face_centroid(:, gf)), &
+                  tol, msg)
+          end if
        end if
     end do
     call face%destroy()
-    call VecRestoreArrayF90(mesh%face_geom, fg, ierr)
+    call VecRestoreArrayF90(mesh%face_geom, fg, ierr); CHKERRQ(ierr)
 
     call mesh%destroy()
-    deallocate(primary_variable_names)
+    deallocate(primary)
 
   end subroutine test_mesh_init
 
