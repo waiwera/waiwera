@@ -101,9 +101,9 @@ contains
              call DMLabelGetValue(cell_order_label, cells(i), order(i), ierr)
              CHKERRQ(ierr)
           end do
-          if ((order(1) == 0) .and. (order(2) == 1)) then
+          if (all(order == [0,1])) then
              gf = 1
-          else if ((order(1) == 1) .and. (order(2) == 2)) then
+          else if (all(order == [1,2])) then
              gf = 2
           else
              gf = 0
