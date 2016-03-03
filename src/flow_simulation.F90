@@ -372,8 +372,9 @@ end subroutine flow_simulation_run_info
          self%time, self%solution, self%rock, self%fluid, &
          self%solution_range_start,  self%rock_range_start, &
          self%fluid_range_start, self%logfile)
-    call self%mesh%set_boundary_values(self%solution, self%rock, self%eos, &
-         self%solution_range_start, self%rock_range_start)
+    call self%mesh%set_boundary_values(self%solution, self%fluid, &
+         self%rock, self%eos, self%solution_range_start, &
+         self%fluid_range_start, self%rock_range_start)
     call setup_source_vector(json, self%mesh%dm, &
          self%eos%num_primary_variables, self%eos%isothermal, &
          self%source, self%solution_range_start, self%logfile)
