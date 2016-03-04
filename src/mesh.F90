@@ -520,6 +520,7 @@ contains
                         f, ibdy, ierr); CHKERRQ(ierr)
                 end if
              end do
+             deallocate(faces)
              call fson_get_mpi(bdy, "primary", eos%default_primary, &
                   primary, logfile, trim(bdystr) // "primary")
              call fson_get_mpi(bdy, "region", eos%default_region, &
