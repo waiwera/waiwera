@@ -34,6 +34,7 @@ module mesh_module
      procedure :: setup_geometry => mesh_setup_geometry
      procedure :: setup_discretization => mesh_setup_discretization
      procedure :: get_bounds => mesh_get_bounds
+     procedure :: cell_normal_face => mesh_cell_normal_face
      procedure, public :: init => mesh_init
      procedure, public :: configure => mesh_configure
      procedure, public :: setup_boundaries => mesh_setup_boundaries
@@ -541,7 +542,6 @@ contains
     !! Sets primary variables (and rock properties) in boundary ghost cells.
 
     use dm_utils_module, only: global_vec_section, global_section_offset
-    use boundary_module, only: open_boundary_label_name
     use eos_module, only: eos_type
     use fluid_module, only: fluid_type
     use rock_module, only: rock_type
@@ -632,6 +632,63 @@ contains
     call vec_reorder(v, order, self%cell_order_inv)
 
   end subroutine mesh_order_vector
+
+!------------------------------------------------------------------------
+
+  subroutine mesh_cell_normal_face(self, c, normal, f)
+    !! Returns index of mesh face on the specified cell c, with
+    !! outward normal vector closest to the specified one.
+
+    use face_module
+    use dm_utils_module, only: local_vec_section, section_offset
+
+    class(mesh_type), intent(in) :: self
+    PetscInt, intent(in) :: c
+    PetscReal, intent(in) :: normal(:)
+    PetscInt, intent(out) :: f
+    ! Locals:
+    PetscInt :: i, num_faces, face_geom_offset, imax
+    PetscErrorCode :: ierr
+    PetscInt, pointer :: faces(:)
+    type(face_type) :: face
+    PetscSection :: face_geom_section
+    PetscReal, pointer :: face_geom_array(:)
+    PetscReal, allocatable :: cos_theta(:)
+    PetscReal :: normal_norm, face_normal_norm
+
+    if ((self%start_cell <= c) .and. (c < self%end_cell)) then
+
+       call DMPlexGetConeSize(self%dm, c, num_faces, ierr); CHKERRQ(ierr)
+       call DMPlexGetCone(self%dm, c, faces, ierr); CHKERRQ(ierr)
+       call local_vec_section(self%face_geom, face_geom_section)
+       call VecGetArrayReadF90(self%face_geom, face_geom_array, ierr)
+       CHKERRQ(ierr)
+       allocate(cos_theta(num_faces))
+       normal_norm = norm2(normal)
+
+       do i = 1, num_faces
+          call section_offset(face_geom_section, faces(i), &
+               face_geom_offset, ierr); CHKERRQ(ierr)
+          call face%assign(face_geom_array, face_geom_offset)
+          face_normal_norm = norm2(face%normal)
+          cos_theta(i) = dot_product(normal, face%normal) / &
+               (normal_norm * face_normal_norm)
+       end do
+
+       imax = maxloc(cos_theta, 1)
+       f = faces(imax)
+
+       call VecRestoreArrayReadF90(self%face_geom, face_geom_array, ierr)
+       CHKERRQ(ierr)
+       call DMPlexRestoreCone(self%dm, c, faces, ierr); CHKERRQ(ierr)
+       call face%destroy()
+       deallocate(cos_theta)
+
+    else
+       f = -1
+    end if
+
+  end subroutine mesh_cell_normal_face
 
 !------------------------------------------------------------------------
 
