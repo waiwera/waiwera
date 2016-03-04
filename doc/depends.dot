@@ -23,6 +23,7 @@ digraph supermodel{
         cell_module -> fluid_module
         cell_module -> kinds_module
         cell_module -> rock_module
+        boundary_module -> dm_utils_module
         boundary_module -> eos_module
         boundary_module -> fson
         boundary_module -> fson_mpi_module
@@ -66,6 +67,7 @@ digraph supermodel{
         mesh_module -> dm_utils_module
         mesh_module -> eos_module
         mesh_module -> face_module
+        mesh_module -> fluid_module
         mesh_module -> fson
         mesh_module -> kinds_module
         mesh_module -> logfile_module

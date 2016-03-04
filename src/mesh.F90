@@ -11,6 +11,7 @@ module mesh_module
 #include <petsc/finclude/petsc.h90>
 
   PetscInt, parameter, public :: max_mesh_filename_length = 200
+  character(len = 16), public :: open_boundary_label_name = "open boundary"
   character(len = 13), parameter, public :: &
        cell_order_label_name = "cell order"
 
@@ -143,8 +144,6 @@ contains
   subroutine mesh_construct_ghost_cells(self)
     !! Constructs ghost cells on open boundary faces.
 
-    use boundary_module, only: open_boundary_label_name
-
     class(mesh_type), intent(in out) :: self
     ! Locals:
     DM :: ghost_dm
@@ -214,7 +213,6 @@ contains
     use kinds_module
     use face_module
     use dm_utils_module, only: section_offset, local_vec_section
-    use boundary_module, only: open_boundary_label_name
 
     class(mesh_type), intent(in out) :: self
     ! Locals:
@@ -449,15 +447,90 @@ contains
     !! Sets up boundary conditions on the mesh.
 
     use eos_module, only: eos_type
-    use boundary_module, only: setup_boundaries
     use logfile_module
+    use fson
+    use fson_mpi_module
 
     class(mesh_type), intent(in out) :: self
     type(fson_value), pointer, intent(in) :: json
     class(eos_type), intent(in) :: eos
     type(logfile_type), intent(in out), optional :: logfile
+    ! Locals:
+    PetscErrorCode :: ierr
+    PetscBool :: has_label
+    type(fson_value), pointer :: boundaries, bdy
+    type(fson_value), pointer :: cell_normals, cell_normal, item
+    PetscInt :: num_boundaries, num_faces, ibdy, iface, f, np
+    PetscInt, allocatable :: default_faces(:)
+    PetscInt, allocatable :: faces(:)
+    PetscInt :: region, cell
+    PetscReal, allocatable :: primary(:), normal(:)
+    character(len=64) :: bdystr
+    character(len=12) :: istr
 
-    call setup_boundaries(json, eos, self%dm, self%bcs, logfile)
+    default_faces = [PetscInt::] ! empty integer array
+    np = eos%num_primary_variables
+
+    call DMHasLabel(self%dm, open_boundary_label_name, has_label, &
+         ierr); CHKERRQ(ierr)
+
+    if (has_label) then
+       call logfile%write(LOG_LEVEL_INFO, "input", &
+            "boundaries from mesh")
+    else
+       call DMCreateLabel(self%dm, open_boundary_label_name, &
+            ierr); CHKERRQ(ierr)
+       if (fson_has_mpi(json, "boundaries")) then
+          call fson_get_mpi(json, "boundaries", boundaries)
+          num_boundaries = fson_value_count_mpi(boundaries, ".")
+          allocate(self%bcs(np + 1, num_boundaries))
+          do ibdy = 1, num_boundaries
+             write(istr, '(i0)') ibdy - 1
+             bdystr = 'boundaries[' // trim(istr) // '].'
+             bdy => fson_value_get_mpi(boundaries, ibdy)
+             if (fson_has_mpi(bdy, "faces")) then
+                call fson_get_mpi(bdy, "faces", default_faces, faces, &
+                     logfile, trim(bdystr) // "faces")
+                num_faces = size(faces)
+             else if (fson_has_mpi(bdy, "cell normals")) then
+                call fson_get_mpi(json, "cell normals", cell_normals)
+                num_faces = fson_value_count_mpi(cell_normals, ".")
+                allocate(faces(num_faces))
+                do iface = 1, num_faces
+                   cell_normal => fson_value_get_mpi(cell_normals, iface)
+                   item => fson_value_get_mpi(cell_normal, 1)
+                   call fson_get_mpi(item, ".", val = cell)
+                   item => fson_value_get_mpi(cell_normal, 2)
+                   call fson_get_mpi(item, ".", val = normal)
+                   call self%cell_normal_face(cell, normal, f)
+                   if (f >= 0) then
+                      faces(iface) = f
+                   else
+                      call logfile%write(LOG_LEVEL_WARN, "input", &
+                           "can't find face for " // bdystr)
+                      faces(iface) = -1
+                   end if
+                end do
+             end if
+             do iface = 1, num_faces
+                f = faces(iface)
+                if (f >= 0) then
+                   call DMSetLabelValue(self%dm, open_boundary_label_name, &
+                        f, ibdy, ierr); CHKERRQ(ierr)
+                end if
+             end do
+             call fson_get_mpi(bdy, "primary", eos%default_primary, &
+                  primary, logfile, trim(bdystr) // "primary")
+             call fson_get_mpi(bdy, "region", eos%default_region, &
+                  region, logfile, trim(bdystr) // "region")
+             self%bcs(1, ibdy) = dble(region)
+             self%bcs(2 : np + 1, ibdy) = primary(1 : np)
+          end do
+       else
+          call logfile%write(LOG_LEVEL_WARN, "input", "no boundaries")
+       end if
+
+    end if
 
   end subroutine mesh_setup_boundaries
 
