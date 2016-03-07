@@ -487,14 +487,14 @@ contains
           allocate(self%bcs(np + 1, num_boundaries))
           do ibdy = 1, num_boundaries
              write(istr, '(i0)') ibdy - 1
-             bdystr = 'boundaries[' // trim(istr) // '].'
+             bdystr = 'boundaries[' // trim(istr) // ']'
              bdy => fson_value_get_mpi(boundaries, ibdy)
              if (fson_has_mpi(bdy, "faces")) then
                 call fson_get_mpi(bdy, "faces", default_faces, faces, &
-                     logfile, trim(bdystr) // "faces")
+                     logfile, trim(bdystr) // ".faces")
                 num_faces = size(faces)
              else if (fson_has_mpi(bdy, "cell normals")) then
-                call fson_get_mpi(json, "cell normals", cell_normals)
+                call fson_get_mpi(bdy, "cell normals", cell_normals)
                 num_faces = fson_value_count_mpi(cell_normals, ".")
                 allocate(faces(num_faces))
                 do iface = 1, num_faces
@@ -508,7 +508,8 @@ contains
                       faces(iface) = f
                    else
                       call logfile%write(LOG_LEVEL_WARN, "input", &
-                           "can't find face for " // bdystr)
+                           "faces_not_found", int_keys = ["boundary"], &
+                           int_values = [ibdy - 1])
                       faces(iface) = -1
                    end if
                 end do
@@ -522,9 +523,9 @@ contains
              end do
              deallocate(faces)
              call fson_get_mpi(bdy, "primary", eos%default_primary, &
-                  primary, logfile, trim(bdystr) // "primary")
+                  primary, logfile, trim(bdystr) // ".primary")
              call fson_get_mpi(bdy, "region", eos%default_region, &
-                  region, logfile, trim(bdystr) // "region")
+                  region, logfile, trim(bdystr) // ".region")
              self%bcs(1, ibdy) = dble(region)
              self%bcs(2 : np + 1, ibdy) = primary(1 : np)
           end do
