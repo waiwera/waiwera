@@ -34,7 +34,6 @@ module mesh_module
      procedure :: setup_geometry => mesh_setup_geometry
      procedure :: setup_discretization => mesh_setup_discretization
      procedure :: get_bounds => mesh_get_bounds
-     procedure :: cell_normal_face => mesh_cell_normal_face
      procedure, public :: init => mesh_init
      procedure, public :: configure => mesh_configure
      procedure, public :: setup_boundaries => mesh_setup_boundaries
@@ -451,6 +450,7 @@ contains
     use logfile_module
     use fson
     use fson_mpi_module
+    use dm_utils_module, only: dm_cell_normal_face
 
     class(mesh_type), intent(in out) :: self
     type(fson_value), pointer, intent(in) :: json
@@ -503,7 +503,7 @@ contains
                    call fson_get_mpi(item, ".", val = cell)
                    item => fson_value_get_mpi(cell_normal, 2)
                    call fson_get_mpi(item, ".", val = normal)
-                   call self%cell_normal_face(cell, normal, f)
+                   call dm_cell_normal_face(self%dm, cell, normal, f)
                    if (f >= 0) then
                       faces(iface) = f
                    else
@@ -634,62 +634,6 @@ contains
     call vec_reorder(v, order, self%cell_order_inv)
 
   end subroutine mesh_order_vector
-
-!------------------------------------------------------------------------
-
-  subroutine mesh_cell_normal_face(self, c, normal, f)
-    !! Returns index of mesh face on the specified cell c, with
-    !! outward normal vector closest to the specified one.  It is not
-    !! assumed that the mesh face_geometry vector has been computed
-    !! yet.
-
-    class(mesh_type), intent(in) :: self
-    PetscInt, intent(in) :: c
-    PetscReal, intent(in) :: normal(:)
-    PetscInt, intent(out) :: f
-    ! Locals:
-    PetscInt :: i, num_faces, imax
-    PetscInt :: dim, start_cell, end_cell
-    PetscErrorCode :: ierr
-    PetscInt, pointer :: faces(:)
-    PetscReal, allocatable, target :: centroid(:), face_normal(:)
-    PetscReal, pointer :: pcentroid(:), pface_normal(:)
-    PetscReal, allocatable :: cos_theta(:)
-    PetscReal :: area, normal_norm, face_normal_norm
-
-    call DMPlexGetHeightStratum(self%dm, 0, start_cell, &
-         end_cell, ierr); CHKERRQ(ierr)
-
-    if ((start_cell <= c) .and. (c < end_cell)) then
-
-       call DMGetDimension(self%dm, dim, ierr); CHKERRQ(ierr)
-       allocate(centroid(dim), face_normal(dim))
-       pcentroid => centroid
-       pface_normal => face_normal
-       call DMPlexGetConeSize(self%dm, c, num_faces, ierr); CHKERRQ(ierr)
-       call DMPlexGetCone(self%dm, c, faces, ierr); CHKERRQ(ierr)
-       allocate(cos_theta(num_faces))
-       normal_norm = norm2(normal)
-
-       do i = 1, num_faces
-          call DMPlexComputeCellGeometryFVM(self%dm, faces(i), area, &
-               pcentroid, pface_normal, ierr); CHKERRQ(ierr)
-          face_normal_norm = norm2(face_normal)
-          cos_theta(i) = dot_product(normal, face_normal) / &
-               (normal_norm * face_normal_norm)
-       end do
-
-       imax = maxloc(cos_theta, 1)
-       f = faces(imax)
-
-       nullify(pcentroid, pface_normal)
-       deallocate(cos_theta, centroid, face_normal)
-
-    else
-       f = -1
-    end if
-
-  end subroutine mesh_cell_normal_face
 
 !------------------------------------------------------------------------
 
