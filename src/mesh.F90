@@ -639,52 +639,51 @@ contains
 
   subroutine mesh_cell_normal_face(self, c, normal, f)
     !! Returns index of mesh face on the specified cell c, with
-    !! outward normal vector closest to the specified one.
-
-    use face_module
-    use dm_utils_module, only: local_vec_section, section_offset
+    !! outward normal vector closest to the specified one.  It is not
+    !! assumed that the mesh face_geometry vector has been computed
+    !! yet.
 
     class(mesh_type), intent(in) :: self
     PetscInt, intent(in) :: c
     PetscReal, intent(in) :: normal(:)
     PetscInt, intent(out) :: f
     ! Locals:
-    PetscInt :: i, num_faces, face_geom_offset, imax
+    PetscInt :: i, num_faces, imax
+    PetscInt :: dim, start_cell, end_cell
     PetscErrorCode :: ierr
     PetscInt, pointer :: faces(:)
-    type(face_type) :: face
-    PetscSection :: face_geom_section
-    PetscReal, pointer :: face_geom_array(:)
+    PetscReal, allocatable, target :: centroid(:), face_normal(:)
+    PetscReal, pointer :: pcentroid(:), pface_normal(:)
     PetscReal, allocatable :: cos_theta(:)
-    PetscReal :: normal_norm, face_normal_norm
+    PetscReal :: area, normal_norm, face_normal_norm
 
-    if ((self%start_cell <= c) .and. (c < self%end_cell)) then
+    call DMPlexGetHeightStratum(self%dm, 0, start_cell, &
+         end_cell, ierr); CHKERRQ(ierr)
 
+    if ((start_cell <= c) .and. (c < end_cell)) then
+
+       call DMGetDimension(self%dm, dim, ierr); CHKERRQ(ierr)
+       allocate(centroid(dim), face_normal(dim))
+       pcentroid => centroid
+       pface_normal => face_normal
        call DMPlexGetConeSize(self%dm, c, num_faces, ierr); CHKERRQ(ierr)
        call DMPlexGetCone(self%dm, c, faces, ierr); CHKERRQ(ierr)
-       call local_vec_section(self%face_geom, face_geom_section)
-       call VecGetArrayReadF90(self%face_geom, face_geom_array, ierr)
-       CHKERRQ(ierr)
        allocate(cos_theta(num_faces))
        normal_norm = norm2(normal)
 
        do i = 1, num_faces
-          call section_offset(face_geom_section, faces(i), &
-               face_geom_offset, ierr); CHKERRQ(ierr)
-          call face%assign(face_geom_array, face_geom_offset)
-          face_normal_norm = norm2(face%normal)
-          cos_theta(i) = dot_product(normal, face%normal) / &
+          call DMPlexComputeCellGeometryFVM(self%dm, faces(i), area, &
+               pcentroid, pface_normal, ierr); CHKERRQ(ierr)
+          face_normal_norm = norm2(face_normal)
+          cos_theta(i) = dot_product(normal, face_normal) / &
                (normal_norm * face_normal_norm)
        end do
 
        imax = maxloc(cos_theta, 1)
        f = faces(imax)
 
-       call VecRestoreArrayReadF90(self%face_geom, face_geom_array, ierr)
-       CHKERRQ(ierr)
-       call DMPlexRestoreCone(self%dm, c, faces, ierr); CHKERRQ(ierr)
-       call face%destroy()
-       deallocate(cos_theta)
+       nullify(pcentroid, pface_normal)
+       deallocate(cos_theta, centroid, face_normal)
 
     else
        f = -1
