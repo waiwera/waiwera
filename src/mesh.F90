@@ -24,7 +24,7 @@ module mesh_module
      PetscInt, public :: start_cell, end_cell, end_interior_cell
      PetscInt, public :: start_face, end_face
      PetscReal, allocatable, public :: bcs(:,:)
-     IS, public :: cell_order, cell_order_inv
+     IS, public :: cell_order, cell_index
    contains
      procedure :: setup_cell_order_label => mesh_setup_cell_order_label
      procedure :: setup_cell_order => mesh_setup_cell_order
@@ -115,7 +115,7 @@ contains
     call ISSetPermutation(self%cell_order, ierr); CHKERRQ(ierr)
     call ISGetLocalSize(self%cell_order, size, ierr); CHKERRQ(ierr)
     call ISInvertPermutation(self%cell_order, size, &
-         self%cell_order_inv, ierr); CHKERRQ(ierr)
+         self%cell_index, ierr); CHKERRQ(ierr)
 
   end subroutine mesh_setup_cell_order
 
@@ -437,7 +437,7 @@ contains
     end if
 
     call ISDestroy(self%cell_order, ierr); CHKERRQ(ierr)
-    call ISDestroy(self%cell_order_inv, ierr); CHKERRQ(ierr)
+    call ISDestroy(self%cell_index, ierr); CHKERRQ(ierr)
 
   end subroutine mesh_destroy
 
@@ -637,7 +637,7 @@ contains
     Vec, intent(in out) :: v
     IS, intent(in), optional :: order
 
-    call vec_reorder(v, order, self%cell_order_inv)
+    call vec_reorder(v, order, self%cell_index)
 
   end subroutine mesh_order_vector
 
