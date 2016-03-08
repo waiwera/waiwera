@@ -27,7 +27,6 @@ contains
     use mesh_module
     use flow_simulation_test, only: vec_diff_test
     use eos_module, only: max_primary_variable_name_length
-    use boundary_module, only: open_boundary_label_name
 
     character(16), parameter :: path = "data/source/"
     PetscInt, parameter :: nc = 2

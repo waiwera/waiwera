@@ -183,8 +183,8 @@ contains
 
     ! Tests flow simulation labels.
 
-    use boundary_module, only : open_boundary_label_name
     use rock_module, only : rocktype_label_name
+    use mesh_module, only : open_boundary_label_name
 
     PetscInt, intent(in) :: rock_cells(:)
     ! Locals:
