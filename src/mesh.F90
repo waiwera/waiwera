@@ -581,40 +581,42 @@ contains
     np = eos%num_primary_variables
     call fluid%init(eos%num_components, eos%num_phases)
 
-    do ibdy = 1, size(self%bcs, 1)
-       call DMGetStratumIS(self%dm, open_boundary_label_name, &
-            ibdy, bdy_IS, ierr); CHKERRQ(ierr)
-       if (bdy_IS /= 0) then
-          call ISGetIndicesF90(bdy_IS, bdy_faces, ierr); CHKERRQ(ierr)
-          num_faces = size(bdy_faces)
-          do iface = 1, num_faces
-             f = bdy_faces(iface)
-             call DMPlexGetSupport(self%dm, f, cells, ierr); CHKERRQ(ierr)
-             bdy_cell = cells(2)
-             call global_section_offset(y_section, bdy_cell, &
-                  y_range_start, y_offset, ierr); CHKERRQ(ierr)
-             call global_section_offset(fluid_section, bdy_cell, &
-                  fluid_range_start, fluid_offset, ierr); CHKERRQ(ierr)
-             do i = 1, 2
-                call global_section_offset(rock_section, cells(i), &
-                     rock_range_start, rock_offsets(i), ierr)
-                CHKERRQ(ierr)
+    if (allocated(self%bcs)) then
+       do ibdy = 1, size(self%bcs, 1)
+          call DMGetStratumIS(self%dm, open_boundary_label_name, &
+               ibdy, bdy_IS, ierr); CHKERRQ(ierr)
+          if (bdy_IS /= 0) then
+             call ISGetIndicesF90(bdy_IS, bdy_faces, ierr); CHKERRQ(ierr)
+             num_faces = size(bdy_faces)
+             do iface = 1, num_faces
+                f = bdy_faces(iface)
+                call DMPlexGetSupport(self%dm, f, cells, ierr); CHKERRQ(ierr)
+                bdy_cell = cells(2)
+                call global_section_offset(y_section, bdy_cell, &
+                     y_range_start, y_offset, ierr); CHKERRQ(ierr)
+                call global_section_offset(fluid_section, bdy_cell, &
+                     fluid_range_start, fluid_offset, ierr); CHKERRQ(ierr)
+                do i = 1, 2
+                   call global_section_offset(rock_section, cells(i), &
+                        rock_range_start, rock_offsets(i), ierr)
+                   CHKERRQ(ierr)
+                end do
+                ! Set primary variables and region:
+                cell_primary => y_array(y_offset : y_offset + np - 1)
+                call fluid%assign(fluid_array, fluid_offset)
+                cell_primary = self%bcs(2: np + 1, ibdy)
+                fluid%region = self%bcs(1, ibdy)
+                ! Copy rock type data from interior cell to boundary ghost cell:
+                n = rock_dof - 1
+                rock1 => rock_array(rock_offsets(1) : rock_offsets(1) + n)
+                rock2 => rock_array(rock_offsets(2) : rock_offsets(2) + n)
+                rock2 = rock1
              end do
-             ! Set primary variables and region:
-             cell_primary => y_array(y_offset : y_offset + np - 1)
-             call fluid%assign(fluid_array, fluid_offset)
-             cell_primary = self%bcs(2: np + 1, ibdy)
-             fluid%region = self%bcs(1, ibdy)
-             ! Copy rock type data from interior cell to boundary ghost cell:
-             n = rock_dof - 1
-             rock1 => rock_array(rock_offsets(1) : rock_offsets(1) + n)
-             rock2 => rock_array(rock_offsets(2) : rock_offsets(2) + n)
-             rock2 = rock1
-          end do
-          call ISRestoreIndicesF90(bdy_IS, bdy_faces, ierr); CHKERRQ(ierr)
-       end if
-       call ISDestroy(bdy_IS, ierr); CHKERRQ(ierr)
-    end do
+             call ISRestoreIndicesF90(bdy_IS, bdy_faces, ierr); CHKERRQ(ierr)
+          end if
+          call ISDestroy(bdy_IS, ierr); CHKERRQ(ierr)
+       end do
+    end if
 
     call VecRestoreArrayF90(y, y_array, ierr); CHKERRQ(ierr)
     call VecRestoreArrayF90(fluid_vector, fluid_array, ierr); CHKERRQ(ierr)
