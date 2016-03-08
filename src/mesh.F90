@@ -489,10 +489,12 @@ contains
              write(istr, '(i0)') ibdy - 1
              bdystr = 'boundaries[' // trim(istr) // ']'
              bdy => fson_value_get_mpi(boundaries, ibdy)
+
              if (fson_has_mpi(bdy, "faces")) then
                 call fson_get_mpi(bdy, "faces", default_faces, faces, &
                      logfile, trim(bdystr) // ".faces")
                 num_faces = size(faces)
+
              else if (fson_has_mpi(bdy, "cell normals")) then
                 call fson_get_mpi(bdy, "cell normals", cell_normals)
                 num_faces = fson_value_count_mpi(cell_normals, ".")
@@ -514,6 +516,7 @@ contains
                    end if
                 end do
              end if
+
              do iface = 1, num_faces
                 f = faces(iface)
                 if (f >= 0) then
@@ -522,6 +525,7 @@ contains
                 end if
              end do
              deallocate(faces)
+
              call fson_get_mpi(bdy, "primary", eos%default_primary, &
                   primary, logfile, trim(bdystr) // ".primary")
              call fson_get_mpi(bdy, "region", eos%default_region, &
