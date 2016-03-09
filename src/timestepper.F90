@@ -1329,6 +1329,7 @@ end subroutine timestepper_steps_set_next_stepsize
     self%ode%time = self%steps%current%time
     call VecCopy(self%steps%current%solution, self%ode%solution, ierr)
     CHKERRQ(ierr)
+    call self%ode%post_timestep()
     call self%ode%logfile%flush()
 
   end subroutine timestepper_step
