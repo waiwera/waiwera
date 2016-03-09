@@ -64,7 +64,7 @@ contains
 
     call setup_source_vector(json, mesh%dm, np, isothermal, source, &
          range_start)
-    call vec_diff_test(source, "source", path, mesh%cell_order_inv)
+    call vec_diff_test(source, "source", path, mesh%cell_index)
 
     call VecDestroy(source, ierr); CHKERRQ(ierr)
     call mesh%destroy()
