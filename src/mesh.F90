@@ -116,6 +116,7 @@ contains
     call ISGetLocalSize(self%cell_order, size, ierr); CHKERRQ(ierr)
     call ISInvertPermutation(self%cell_order, size, &
          self%cell_index, ierr); CHKERRQ(ierr)
+    call PetscObjectSetName(self%cell_index, "cell_index", ierr)
 
   end subroutine mesh_setup_cell_order
 

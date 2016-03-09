@@ -1107,6 +1107,8 @@ end subroutine flow_simulation_run_info
 
        call ISView(self%mesh%cell_order, self%hdf5_viewer, ierr)
        CHKERRQ(ierr)
+       call ISView(self%mesh%cell_index, self%hdf5_viewer, ierr)
+       CHKERRQ(ierr)
 
     end if
 
