@@ -78,7 +78,7 @@ contains
 !------------------------------------------------------------------------
 
   subroutine setup_initial_file(filename, mesh, eos, t, y, fluid_vector, &
-       y_range_start, fluid_range_start)
+       y_range_start, fluid_range_start, fluid_initialized)
     !! Initializes fluid vector and solution vector y from HDF5 file.
 
     use mpi_module
@@ -93,6 +93,7 @@ contains
     PetscReal, intent(in) :: t
     Vec, intent(in out) :: y, fluid_vector
     PetscInt, intent(in) :: y_range_start, fluid_range_start
+    PetscBool, intent(out) :: fluid_initialized
     ! Locals:
     PetscViewer :: viewer
     DM :: fluid_dm
@@ -127,6 +128,7 @@ contains
 
     call mesh%order_vector(fluid_vector, output_cell_order)
     call ISDestroy(output_cell_order, ierr); CHKERRQ(ierr)
+    fluid_initialized = PETSC_TRUE
 
     ! Determine solution vector from fluid vector:
 
@@ -165,7 +167,7 @@ contains
 
   subroutine setup_initial(json, mesh, eos, t, y, rock_vector, &
        fluid_vector, y_range_start, rock_range_start, fluid_range_start, &
-       logfile)
+       logfile, fluid_initialized)
     !! Initializes time t and a Vec y with initial conditions read
     !! from JSON input 'initial'.  A full set of initial conditions
     !! may be read in from an HDF5 file, or a constant set of primary
@@ -185,6 +187,7 @@ contains
     Vec, intent(in out) :: y, rock_vector, fluid_vector
     PetscInt, intent(in) :: y_range_start, rock_range_start, fluid_range_start
     type(logfile_type), intent(in out) :: logfile
+    PetscBool, intent(out) :: fluid_initialized
     ! Locals:
     PetscReal, parameter :: default_start_time = 0.0_dp
     PetscReal, allocatable :: primary(:)
@@ -200,7 +203,7 @@ contains
 
           call fson_get_mpi(json, "initial.filename", val = filename)
           call setup_initial_file(filename, mesh, eos, t, y, fluid_vector, &
-               y_range_start, fluid_range_start)
+               y_range_start, fluid_range_start, fluid_initialized)
 
        else
 
