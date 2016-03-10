@@ -183,8 +183,8 @@ contains
 
     ! Tests flow simulation labels.
 
-    use boundary_module, only : open_boundary_label_name
     use rock_module, only : rocktype_label_name
+    use mesh_module, only : open_boundary_label_name
 
     PetscInt, intent(in) :: rock_cells(:)
     ! Locals:
@@ -243,9 +243,9 @@ contains
 
     call flow_simulation_label_test(rock_cells = [8, 4])
 
-    call vec_diff_test(sim%solution, "primary", path, sim%mesh%cell_order_inv)
+    call vec_diff_test(sim%solution, "primary", path, sim%mesh%cell_index)
 
-    call vec_diff_test(sim%rock, "rock", path, sim%mesh%cell_order_inv)
+    call vec_diff_test(sim%rock, "rock", path, sim%mesh%cell_index)
 
     call sim%destroy()
 
@@ -270,7 +270,7 @@ contains
     call fson_destroy_mpi(json)
 
     call sim%pre_solve(time, sim%solution, err)
-    call vec_diff_test(sim%fluid, "fluid", path, sim%mesh%cell_order_inv)
+    call vec_diff_test(sim%fluid, "fluid", path, sim%mesh%cell_index)
     
     call sim%destroy()
 
@@ -300,7 +300,7 @@ contains
 
     call sim%pre_solve(time, sim%solution, err)
     call sim%lhs(time, sim%solution, lhs, err)
-    call vec_diff_test(lhs, "lhs", path, sim%mesh%cell_order_inv)
+    call vec_diff_test(lhs, "lhs", path, sim%mesh%cell_index)
 
     call DMRestoreGlobalVector(sim%mesh%dm, lhs, ierr); CHKERRQ(ierr)
     call sim%destroy()

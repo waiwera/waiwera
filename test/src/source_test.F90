@@ -27,7 +27,6 @@ contains
     use mesh_module
     use flow_simulation_test, only: vec_diff_test
     use eos_module, only: max_primary_variable_name_length
-    use boundary_module, only: open_boundary_label_name
 
     character(16), parameter :: path = "data/source/"
     PetscInt, parameter :: nc = 2
@@ -65,7 +64,7 @@ contains
 
     call setup_source_vector(json, mesh%dm, np, isothermal, source, &
          range_start)
-    call vec_diff_test(source, "source", path, mesh%cell_order_inv)
+    call vec_diff_test(source, "source", path, mesh%cell_index)
 
     call VecDestroy(source, ierr); CHKERRQ(ierr)
     call mesh%destroy()

@@ -11,6 +11,7 @@ module mesh_module
 #include <petsc/finclude/petsc.h90>
 
   PetscInt, parameter, public :: max_mesh_filename_length = 200
+  character(len = 16), public :: open_boundary_label_name = "open boundary"
   character(len = 13), parameter, public :: &
        cell_order_label_name = "cell order"
 
@@ -23,7 +24,7 @@ module mesh_module
      PetscInt, public :: start_cell, end_cell, end_interior_cell
      PetscInt, public :: start_face, end_face
      PetscReal, allocatable, public :: bcs(:,:)
-     IS, public :: cell_order, cell_order_inv
+     IS, public :: cell_order, cell_index
    contains
      procedure :: setup_cell_order_label => mesh_setup_cell_order_label
      procedure :: setup_cell_order => mesh_setup_cell_order
@@ -114,7 +115,8 @@ contains
     call ISSetPermutation(self%cell_order, ierr); CHKERRQ(ierr)
     call ISGetLocalSize(self%cell_order, size, ierr); CHKERRQ(ierr)
     call ISInvertPermutation(self%cell_order, size, &
-         self%cell_order_inv, ierr); CHKERRQ(ierr)
+         self%cell_index, ierr); CHKERRQ(ierr)
+    call PetscObjectSetName(self%cell_index, "cell_index", ierr)
 
   end subroutine mesh_setup_cell_order
 
@@ -142,8 +144,6 @@ contains
 
   subroutine mesh_construct_ghost_cells(self)
     !! Constructs ghost cells on open boundary faces.
-
-    use boundary_module, only: open_boundary_label_name
 
     class(mesh_type), intent(in out) :: self
     ! Locals:
@@ -214,7 +214,6 @@ contains
     use kinds_module
     use face_module
     use dm_utils_module, only: section_offset, local_vec_section
-    use boundary_module, only: open_boundary_label_name
 
     class(mesh_type), intent(in out) :: self
     ! Locals:
@@ -439,7 +438,7 @@ contains
     end if
 
     call ISDestroy(self%cell_order, ierr); CHKERRQ(ierr)
-    call ISDestroy(self%cell_order_inv, ierr); CHKERRQ(ierr)
+    call ISDestroy(self%cell_index, ierr); CHKERRQ(ierr)
 
   end subroutine mesh_destroy
 
@@ -449,15 +448,97 @@ contains
     !! Sets up boundary conditions on the mesh.
 
     use eos_module, only: eos_type
-    use boundary_module, only: setup_boundaries
     use logfile_module
+    use fson
+    use fson_mpi_module
+    use dm_utils_module, only: dm_cell_normal_face
 
     class(mesh_type), intent(in out) :: self
     type(fson_value), pointer, intent(in) :: json
     class(eos_type), intent(in) :: eos
     type(logfile_type), intent(in out), optional :: logfile
+    ! Locals:
+    PetscErrorCode :: ierr
+    PetscBool :: mesh_has_label
+    type(fson_value), pointer :: boundaries, bdy
+    type(fson_value), pointer :: cell_normals, cell_normal, item
+    PetscInt :: num_boundaries, num_faces, ibdy, iface, f, np
+    PetscInt, allocatable :: default_faces(:)
+    PetscInt, allocatable :: faces(:)
+    PetscInt :: region, cell
+    PetscReal, allocatable :: primary(:), normal(:)
+    character(len=64) :: bdystr
+    character(len=12) :: istr
 
-    call setup_boundaries(json, eos, self%dm, self%bcs, logfile)
+    default_faces = [PetscInt::] ! empty integer array
+    np = eos%num_primary_variables
+
+    call DMHasLabel(self%dm, open_boundary_label_name, mesh_has_label, &
+         ierr); CHKERRQ(ierr)
+    if (.not. mesh_has_label) then
+       call DMCreateLabel(self%dm, open_boundary_label_name, &
+            ierr); CHKERRQ(ierr)
+    end if
+
+    if (fson_has_mpi(json, "boundaries")) then
+
+       call fson_get_mpi(json, "boundaries", boundaries)
+       num_boundaries = fson_value_count_mpi(boundaries, ".")
+       allocate(self%bcs(np + 1, num_boundaries))
+
+       do ibdy = 1, num_boundaries
+          write(istr, '(i0)') ibdy - 1
+          bdystr = 'boundaries[' // trim(istr) // ']'
+          bdy => fson_value_get_mpi(boundaries, ibdy)
+
+          if (fson_has_mpi(bdy, "faces")) then
+             call fson_get_mpi(bdy, "faces", default_faces, faces, &
+                  logfile, trim(bdystr) // ".faces")
+             num_faces = size(faces)
+
+          else if (fson_has_mpi(bdy, "cell normals")) then
+             call fson_get_mpi(bdy, "cell normals", cell_normals)
+             num_faces = fson_value_count_mpi(cell_normals, ".")
+             allocate(faces(num_faces))
+             do iface = 1, num_faces
+                cell_normal => fson_value_get_mpi(cell_normals, iface)
+                item => fson_value_get_mpi(cell_normal, 1)
+                call fson_get_mpi(item, ".", val = cell)
+                item => fson_value_get_mpi(cell_normal, 2)
+                call fson_get_mpi(item, ".", val = normal)
+                call dm_cell_normal_face(self%dm, cell, normal, f)
+                if (f >= 0) then
+                   faces(iface) = f
+                else
+                   call logfile%write(LOG_LEVEL_WARN, "input", &
+                        "faces_not_found", int_keys = ["boundary"], &
+                        int_values = [ibdy - 1])
+                   faces(iface) = -1
+                end if
+             end do
+          else
+             num_faces = 0
+          end if
+
+          do iface = 1, num_faces
+             f = faces(iface)
+             if (f >= 0) then
+                call DMSetLabelValue(self%dm, open_boundary_label_name, &
+                     f, ibdy, ierr); CHKERRQ(ierr)
+             end if
+          end do
+          deallocate(faces)
+
+          call fson_get_mpi(bdy, "primary", eos%default_primary, &
+               primary, logfile, trim(bdystr) // ".primary")
+          call fson_get_mpi(bdy, "region", eos%default_region, &
+               region, logfile, trim(bdystr) // ".region")
+          self%bcs(1, ibdy) = dble(region)
+          self%bcs(2 : np + 1, ibdy) = primary(1 : np)
+       end do
+    else
+       call logfile%write(LOG_LEVEL_WARN, "input", "no_boundary_conditions")
+    end if
 
   end subroutine mesh_setup_boundaries
 
@@ -468,7 +549,6 @@ contains
     !! Sets primary variables (and rock properties) in boundary ghost cells.
 
     use dm_utils_module, only: global_vec_section, global_section_offset
-    use boundary_module, only: open_boundary_label_name
     use eos_module, only: eos_type
     use fluid_module, only: fluid_type
     use rock_module, only: rock_type
@@ -502,40 +582,42 @@ contains
     np = eos%num_primary_variables
     call fluid%init(eos%num_components, eos%num_phases)
 
-    do ibdy = 1, size(self%bcs, 1)
-       call DMGetStratumIS(self%dm, open_boundary_label_name, &
-            ibdy, bdy_IS, ierr); CHKERRQ(ierr)
-       if (bdy_IS /= 0) then
-          call ISGetIndicesF90(bdy_IS, bdy_faces, ierr); CHKERRQ(ierr)
-          num_faces = size(bdy_faces)
-          do iface = 1, num_faces
-             f = bdy_faces(iface)
-             call DMPlexGetSupport(self%dm, f, cells, ierr); CHKERRQ(ierr)
-             bdy_cell = cells(2)
-             call global_section_offset(y_section, bdy_cell, &
-                  y_range_start, y_offset, ierr); CHKERRQ(ierr)
-             call global_section_offset(fluid_section, bdy_cell, &
-                  fluid_range_start, fluid_offset, ierr); CHKERRQ(ierr)
-             do i = 1, 2
-                call global_section_offset(rock_section, cells(i), &
-                     rock_range_start, rock_offsets(i), ierr)
-                CHKERRQ(ierr)
+    if (allocated(self%bcs)) then
+       do ibdy = 1, size(self%bcs, 1)
+          call DMGetStratumIS(self%dm, open_boundary_label_name, &
+               ibdy, bdy_IS, ierr); CHKERRQ(ierr)
+          if (bdy_IS /= 0) then
+             call ISGetIndicesF90(bdy_IS, bdy_faces, ierr); CHKERRQ(ierr)
+             num_faces = size(bdy_faces)
+             do iface = 1, num_faces
+                f = bdy_faces(iface)
+                call DMPlexGetSupport(self%dm, f, cells, ierr); CHKERRQ(ierr)
+                bdy_cell = cells(2)
+                call global_section_offset(y_section, bdy_cell, &
+                     y_range_start, y_offset, ierr); CHKERRQ(ierr)
+                call global_section_offset(fluid_section, bdy_cell, &
+                     fluid_range_start, fluid_offset, ierr); CHKERRQ(ierr)
+                do i = 1, 2
+                   call global_section_offset(rock_section, cells(i), &
+                        rock_range_start, rock_offsets(i), ierr)
+                   CHKERRQ(ierr)
+                end do
+                ! Set primary variables and region:
+                cell_primary => y_array(y_offset : y_offset + np - 1)
+                call fluid%assign(fluid_array, fluid_offset)
+                cell_primary = self%bcs(2: np + 1, ibdy)
+                fluid%region = self%bcs(1, ibdy)
+                ! Copy rock type data from interior cell to boundary ghost cell:
+                n = rock_dof - 1
+                rock1 => rock_array(rock_offsets(1) : rock_offsets(1) + n)
+                rock2 => rock_array(rock_offsets(2) : rock_offsets(2) + n)
+                rock2 = rock1
              end do
-             ! Set primary variables and region:
-             cell_primary => y_array(y_offset : y_offset + np - 1)
-             call fluid%assign(fluid_array, fluid_offset)
-             cell_primary = self%bcs(2: np + 1, ibdy)
-             fluid%region = self%bcs(1, ibdy)
-             ! Copy rock type data from interior cell to boundary ghost cell:
-             n = rock_dof - 1
-             rock1 => rock_array(rock_offsets(1) : rock_offsets(1) + n)
-             rock2 => rock_array(rock_offsets(2) : rock_offsets(2) + n)
-             rock2 = rock1
-          end do
-          call ISRestoreIndicesF90(bdy_IS, bdy_faces, ierr); CHKERRQ(ierr)
-       end if
-       call ISDestroy(bdy_IS, ierr); CHKERRQ(ierr)
-    end do
+             call ISRestoreIndicesF90(bdy_IS, bdy_faces, ierr); CHKERRQ(ierr)
+          end if
+          call ISDestroy(bdy_IS, ierr); CHKERRQ(ierr)
+       end do
+    end if
 
     call VecRestoreArrayF90(y, y_array, ierr); CHKERRQ(ierr)
     call VecRestoreArrayF90(fluid_vector, fluid_array, ierr); CHKERRQ(ierr)
@@ -556,7 +638,7 @@ contains
     Vec, intent(in out) :: v
     IS, intent(in), optional :: order
 
-    call vec_reorder(v, order, self%cell_order_inv)
+    call vec_reorder(v, order, self%cell_index)
 
   end subroutine mesh_order_vector
 

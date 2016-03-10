@@ -34,6 +34,7 @@ module flow_simulation_module
      class(relative_permeability_type), allocatable, public :: relative_permeability
      character(max_output_filename_length), public :: output_filename
      PetscViewer :: hdf5_viewer
+     PetscBool :: fluid_initialized
    contains
      private
      procedure :: setup_solution_vector => flow_simulation_setup_solution_vector
@@ -371,7 +372,7 @@ end subroutine flow_simulation_run_info
     call setup_initial(json, self%mesh, self%eos, &
          self%time, self%solution, self%rock, self%fluid, &
          self%solution_range_start,  self%rock_range_start, &
-         self%fluid_range_start, self%logfile)
+         self%fluid_range_start, self%logfile, self%fluid_initialized)
     call self%mesh%set_boundary_values(self%solution, self%fluid, &
          self%rock, self%eos, self%solution_range_start, &
          self%fluid_range_start, self%rock_range_start)
@@ -651,7 +652,9 @@ end subroutine flow_simulation_run_info
     PetscErrorCode, intent(out) :: err
 
     err = 0
-    call self%fluid_init(t, y, err)
+    if (.not. self%fluid_initialized) then
+       call self%fluid_init(t, y, err)
+    end if
 
   end subroutine flow_simulation_pre_solve
 
@@ -1106,6 +1109,8 @@ end subroutine flow_simulation_run_info
        CHKERRQ(ierr)
 
        call ISView(self%mesh%cell_order, self%hdf5_viewer, ierr)
+       CHKERRQ(ierr)
+       call ISView(self%mesh%cell_index, self%hdf5_viewer, ierr)
        CHKERRQ(ierr)
 
     end if

@@ -26,7 +26,6 @@ contains
     ! Mesh init test
 
     use dm_utils_module, only: section_offset
-    use boundary_module, only: open_boundary_label_name
     use fson_mpi_module
     use cell_module
     use face_module

@@ -10,6 +10,7 @@ module dm_utils_module
   public :: global_vec_section, local_vec_section
   public :: global_to_local_vec_section, restore_dm_local_vec
   public :: global_vec_range_start, vec_reorder
+  public :: dm_cell_normal_face
 
 contains
 
@@ -274,6 +275,60 @@ contains
     call VecDestroy(vinitial, ierr); CHKERRQ(ierr)
 
   end subroutine vec_reorder
+
+!------------------------------------------------------------------------
+
+  subroutine dm_cell_normal_face(dm, c, normal, f)
+    !! Returns index of DM mesh face on the specified cell c, with
+    !! outward normal vector closest to the specified one.
+
+    DM, intent(in) :: dm
+    PetscInt, intent(in) :: c
+    PetscReal, intent(in) :: normal(:)
+    PetscInt, intent(out) :: f
+    ! Locals:
+    PetscInt :: i, num_faces, imax
+    PetscInt :: dim, start_cell, end_cell
+    PetscErrorCode :: ierr
+    PetscInt, pointer :: faces(:)
+    PetscReal, allocatable, target :: centroid(:), face_normal(:)
+    PetscReal, pointer :: pcentroid(:), pface_normal(:)
+    PetscReal, allocatable :: cos_theta(:)
+    PetscReal :: area, normal_norm, face_normal_norm
+
+    call DMPlexGetHeightStratum(dm, 0, start_cell, &
+         end_cell, ierr); CHKERRQ(ierr)
+
+    if ((start_cell <= c) .and. (c < end_cell)) then
+
+       call DMGetDimension(dm, dim, ierr); CHKERRQ(ierr)
+       allocate(centroid(dim), face_normal(dim))
+       pcentroid => centroid
+       pface_normal => face_normal
+       call DMPlexGetConeSize(dm, c, num_faces, ierr); CHKERRQ(ierr)
+       call DMPlexGetCone(dm, c, faces, ierr); CHKERRQ(ierr)
+       allocate(cos_theta(num_faces))
+       normal_norm = norm2(normal)
+
+       do i = 1, num_faces
+          call DMPlexComputeCellGeometryFVM(dm, faces(i), area, &
+               pcentroid, pface_normal, ierr); CHKERRQ(ierr)
+          face_normal_norm = norm2(face_normal)
+          cos_theta(i) = dot_product(normal, face_normal) / &
+               (normal_norm * face_normal_norm)
+       end do
+
+       imax = maxloc(cos_theta, 1)
+       f = faces(imax)
+
+       nullify(pcentroid, pface_normal)
+       deallocate(cos_theta, centroid, face_normal)
+
+    else
+       f = -1
+    end if
+
+  end subroutine dm_cell_normal_face
 
 !------------------------------------------------------------------------
 
