@@ -493,7 +493,7 @@ contains
 
           if (fson_has_mpi(bdy, "faces")) then
              call fson_get_mpi(bdy, "faces", default_faces, faces, &
-                  logfile, trim(bdystr) // ".faces")
+                  logfile, log_key = trim(bdystr) // ".faces")
              num_faces = size(faces)
 
           else if (fson_has_mpi(bdy, "cell normals")) then
@@ -509,7 +509,7 @@ contains
                 call dm_cell_normal_face(self%dm, cell, normal, f)
                 if (f >= 0) then
                    faces(iface) = f
-                else
+                else if (present(logfile)) then
                    call logfile%write(LOG_LEVEL_WARN, "input", &
                         "faces_not_found", int_keys = ["boundary"], &
                         int_values = [ibdy - 1])
@@ -530,13 +530,13 @@ contains
           deallocate(faces)
 
           call fson_get_mpi(bdy, "primary", eos%default_primary, &
-               primary, logfile, trim(bdystr) // ".primary")
+               primary, logfile, log_key = trim(bdystr) // ".primary")
           call fson_get_mpi(bdy, "region", eos%default_region, &
-               region, logfile, trim(bdystr) // ".region")
+               region, logfile, log_key = trim(bdystr) // ".region")
           self%bcs(1, ibdy) = dble(region)
           self%bcs(2 : np + 1, ibdy) = primary(1 : np)
        end do
-    else
+    else if (present(logfile)) then
        call logfile%write(LOG_LEVEL_WARN, "input", "no_boundary_conditions")
     end if
 
