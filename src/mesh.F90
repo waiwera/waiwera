@@ -509,10 +509,12 @@ contains
                 call dm_cell_normal_face(self%dm, cell, normal, f)
                 if (f >= 0) then
                    faces(iface) = f
-                else if (present(logfile)) then
-                   call logfile%write(LOG_LEVEL_WARN, "input", &
-                        "faces_not_found", int_keys = ["boundary"], &
-                        int_values = [ibdy - 1])
+                else
+                   if (present(logfile)) then
+                      call logfile%write(LOG_LEVEL_WARN, "input", &
+                           "faces_not_found", int_keys = ["boundary"], &
+                           int_values = [ibdy - 1])
+                   end if
                    faces(iface) = -1
                 end if
              end do
