@@ -136,6 +136,7 @@ module timestepper_module
      procedure :: setup_jacobian => timestepper_setup_jacobian
      procedure :: setup_solver => timestepper_setup_solver
      procedure :: step => timestepper_step
+     procedure :: log_step_status => timestepper_log_step_status
      procedure, public :: init => timestepper_init
      procedure, public :: destroy => timestepper_destroy
      procedure, public :: initial_function_calls => timestepper_initial_function_calls
@@ -788,18 +789,18 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine timestepper_steps_set_current_status(self, converged)
+  subroutine timestepper_steps_set_current_status(self, converged_reason)
     !! Sets status of current step.
 
     class(timestepper_steps_type), intent(in out) :: self
-    PetscBool, intent(in) :: converged
+    SNESConvergedReason, intent(in) :: converged_reason
     ! Locals:
     PetscReal :: eta
 
     if (self%current%num_tries >= self%max_num_tries) then
        self%current%status = TIMESTEP_ABORTED
        self%finished = .true.
-    else if (converged) then
+    else if (converged_reason >= 0 ) then
        if ((self%finished) .and. (self%current%status /= &
             TIMESTEP_ABORTED)) then
           self%current%status = TIMESTEP_FINAL
@@ -1017,7 +1018,8 @@ end subroutine timestepper_steps_set_next_stepsize
     PetscErrorCode :: ierr
 
     if ((num_iterations > 0)) then
-       call context%ode%logfile%write(LOG_LEVEL_INFO, 'solver', 'iteration', &
+       call context%ode%logfile%write(LOG_LEVEL_INFO, 'nonlinear_solver', &
+            'iteration', &
             ['count           '], [num_iterations], &
             ['max_residual    '], [context%steps%current%max_residual])
     end if
@@ -1289,7 +1291,7 @@ end subroutine timestepper_steps_set_next_stepsize
     class(timestepper_type), intent(in out) :: self
     ! Locals:
     PetscErrorCode :: ierr
-    PetscBool :: converged, accepted
+    PetscBool :: accepted
     SNESConvergedReason :: converged_reason
 
     call self%steps%update()
@@ -1310,18 +1312,11 @@ end subroutine timestepper_steps_set_next_stepsize
        call SNESGetIterationNumber(self%solver, self%steps%current%num_iterations, &
             ierr); CHKERRQ(ierr)
        call SNESGetConvergedReason(self%solver, converged_reason, ierr); CHKERRQ(ierr)
-       converged = (converged_reason >= 0)
 
        self%steps%current%num_tries = self%steps%current%num_tries + 1
-       call self%steps%set_current_status(converged)
-       if (self%steps%current%status /= TIMESTEP_ABORTED) then
-          call self%steps%set_next_stepsize(accepted)
-          if (.not. accepted) then
-             call self%ode%logfile%write(LOG_LEVEL_WARN, 'timestep', 'reduction', &
-                  real_keys = ['new_size        '], &
-                  real_values = [self%steps%next_stepsize])
-          end if
-       end if
+       call self%steps%set_current_status(converged_reason)
+       call self%steps%set_next_stepsize(accepted)
+       call self%log_step_status(accepted, converged_reason)
 
     end do
 
@@ -1333,6 +1328,90 @@ end subroutine timestepper_steps_set_next_stepsize
     call self%ode%logfile%flush()
 
   end subroutine timestepper_step
+
+!------------------------------------------------------------------------
+
+  subroutine timestepper_log_step_status(self, accepted, converged_reason)
+    !! Writes logfile messages about timestep status.
+
+    class(timestepper_type), intent(in out) :: self
+    PetscBool, intent(in) :: accepted
+    SNESConvergedReason, intent(in) :: converged_reason
+
+    if (self%steps%current%status == TIMESTEP_ABORTED) then
+       call self%ode%logfile%write(LOG_LEVEL_WARN, 'timestep', 'aborted', &
+            int_keys = ['num_tries'], &
+            int_values = [self%steps%current%num_tries])
+    end if
+
+    if (.not. accepted) then
+       if (converged_reason < 0) then
+          call log_SNES_divergence()
+       end if
+       call self%ode%logfile%write(LOG_LEVEL_WARN, 'timestep', 'reduction', &
+            real_keys = ['new_size        '], &
+            real_values = [self%steps%next_stepsize])
+    end if
+
+  contains
+
+    subroutine log_SNES_divergence()
+      character(len = 80) :: reason_str
+      select case (converged_reason)
+         case (SNES_DIVERGED_FUNCTION_DOMAIN)
+            reason_str = "function_domain"
+         case (SNES_DIVERGED_FUNCTION_COUNT)
+            reason_str = "function_count"
+         case (SNES_DIVERGED_LINEAR_SOLVE)
+            reason_str = "linear_solver"
+            call log_linear_solver_divergence()
+         case (SNES_DIVERGED_FNORM_NAN)
+            reason_str = "function_norm_NaN"
+         case (SNES_DIVERGED_MAX_IT)
+            reason_str = "max_iterations"
+         case (SNES_DIVERGED_LINE_SEARCH)
+            reason_str = "line_search"
+         case (SNES_DIVERGED_INNER)
+            reason_str = "inner_solve"
+         case (SNES_DIVERGED_LOCAL_MIN)
+            reason_str = "local_min"
+         case default
+            reason_str = "unknown"
+      end select
+      call self%ode%logfile%write(LOG_LEVEL_WARN, 'nonlinear_solver', &
+           'failed', str_key = 'reason', &
+           str_value = trim(reason_str))
+    end subroutine log_SNES_divergence
+
+    subroutine log_linear_solver_divergence()
+      ! Locals:
+      KSP :: linear_solver
+      KSPConvergedReason :: ksp_reason
+      character(len = 80) :: ksp_reason_str
+      PetscErrorCode :: ierr
+      call SNESGetKSP(self%solver, linear_solver, ierr); CHKERRQ(ierr)
+      call KSPGetConvergedReason(linear_solver, ksp_reason, ierr); CHKERRQ(ierr)
+      select case (ksp_reason)
+         case (KSP_DIVERGED_DTOL)
+            ksp_reason_str = "dtol"
+         case (KSP_DIVERGED_BREAKDOWN)
+            ksp_reason_str = "breakdown"
+         case (KSP_DIVERGED_ITS)
+            ksp_reason_str = "iterations"
+         case (KSP_DIVERGED_NANORINF)
+            ksp_reason_str = "NaN or Inf"
+         case(KSP_DIVERGED_BREAKDOWN_BICG)
+            ksp_reason_str = "BiCG breakdown"
+         case default
+            ksp_reason_str = "unknown"
+      end select
+      call self%ode%logfile%write(LOG_LEVEL_WARN, &
+           'linear_solver', 'failed', &
+           str_key = 'reason', &
+           str_value = ksp_reason_str)
+    end subroutine log_linear_solver_divergence
+
+  end subroutine timestepper_log_step_status
 
 !------------------------------------------------------------------------
 
