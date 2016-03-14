@@ -24,10 +24,10 @@ module mesh_module
      PetscInt, public :: start_cell, end_cell, end_interior_cell
      PetscInt, public :: start_face, end_face
      PetscReal, allocatable, public :: bcs(:,:)
-     IS, public :: cell_order, cell_index
+     IS, public :: cell_index
    contains
      procedure :: setup_cell_order_label => mesh_setup_cell_order_label
-     procedure :: setup_cell_order => mesh_setup_cell_order
+     procedure :: setup_cell_index => mesh_setup_cell_index
      procedure :: distribute => mesh_distribute
      procedure :: construct_ghost_cells => mesh_construct_ghost_cells
      procedure :: setup_data_layout => mesh_setup_data_layout
@@ -74,7 +74,7 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine mesh_setup_cell_order(self)
+  subroutine mesh_setup_cell_index(self)
     !! Sets up cell order index set from cell order label on DM.
     !! This index set corresponds to a block size of 1.
 
@@ -83,6 +83,7 @@ contains
     PetscInt :: n, c, i, ghost, order, size
     DMLabel :: ghost_label, order_label
     PetscInt, allocatable :: order_array(:)
+    IS :: cell_order
     PetscErrorCode :: ierr
 
     call DMGetLabel(self%dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
@@ -108,17 +109,18 @@ contains
     end do
 
     call ISCreateGeneral(mpi%comm, n, order_array, PETSC_COPY_VALUES, &
-         self%cell_order, ierr); CHKERRQ(ierr)
+         cell_order, ierr); CHKERRQ(ierr)
     deallocate(order_array)
-    call PetscObjectSetName(self%cell_order, "cell_order", ierr)
+    call PetscObjectSetName(cell_order, "cell_order", ierr)
     CHKERRQ(ierr)
-    call ISSetPermutation(self%cell_order, ierr); CHKERRQ(ierr)
-    call ISGetLocalSize(self%cell_order, size, ierr); CHKERRQ(ierr)
-    call ISInvertPermutation(self%cell_order, size, &
+    call ISSetPermutation(cell_order, ierr); CHKERRQ(ierr)
+    call ISGetLocalSize(cell_order, size, ierr); CHKERRQ(ierr)
+    call ISInvertPermutation(cell_order, size, &
          self%cell_index, ierr); CHKERRQ(ierr)
     call PetscObjectSetName(self%cell_index, "cell_index", ierr)
+    call ISDestroy(cell_order, ierr); CHKERRQ(ierr)
 
-  end subroutine mesh_setup_cell_order
+  end subroutine mesh_setup_cell_index
 
 !------------------------------------------------------------------------
 
@@ -417,7 +419,7 @@ contains
 
     call self%setup_geometry()
 
-    call self%setup_cell_order()
+    call self%setup_cell_index()
 
   end subroutine mesh_configure
 
@@ -437,7 +439,6 @@ contains
        deallocate(self%bcs)
     end if
 
-    call ISDestroy(self%cell_order, ierr); CHKERRQ(ierr)
     call ISDestroy(self%cell_index, ierr); CHKERRQ(ierr)
 
   end subroutine mesh_destroy
@@ -630,17 +631,17 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine mesh_order_vector(self, v, order)
-    !! Reorders vector v to correspond to the cell order of the mesh
+  subroutine mesh_order_vector(self, v, index)
+    !! Reorders vector v to correspond to the cell order index of the mesh
     !! DM, rather than that of the given order index set.
 
     use dm_utils_module, only: vec_reorder
 
     class(mesh_type), intent(in) :: self
     Vec, intent(in out) :: v
-    IS, intent(in), optional :: order
+    IS, intent(in), optional :: index
 
-    call vec_reorder(v, order, self%cell_index)
+    call vec_reorder(v, index, self%cell_index)
 
   end subroutine mesh_order_vector
 
