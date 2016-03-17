@@ -73,6 +73,7 @@ module timestepper_module
      PetscReal, public :: termination_tol = 1.e-6_dp
      PetscReal, allocatable, public :: sizes(:)
      type(timestep_adaptor_type), public :: adaptor
+     PetscBool, public :: stop_time_specified
      PetscBool :: finished
    contains
      private
@@ -553,7 +554,7 @@ contains
 !------------------------------------------------------------------------
 
   subroutine timestepper_steps_init(self, num_stored, &
-       time, solution, initial_stepsize, &
+       time, solution, initial_stepsize, stop_time_specified, &
        stop_time, max_num_steps, max_stepsize, &
        adapt_on, adapt_method, adapt_min, adapt_max, &
        adapt_reduction, adapt_amplification, step_sizes, &
@@ -568,6 +569,7 @@ contains
     class(timestepper_steps_type), intent(in out) :: self
     PetscInt, intent(in) :: num_stored
     PetscReal, intent(in) :: time, initial_stepsize
+    PetscBool, intent(in) :: stop_time_specified
     Vec, intent(in) :: solution
     PetscReal, intent(in) :: stop_time
     PetscInt, intent(in) :: max_num_steps
@@ -600,6 +602,7 @@ contains
     self%next_stepsize = initial_stepsize
     call VecCopy(solution, self%current%solution, ierr); CHKERRQ(ierr)
 
+    self%stop_time_specified = stop_time_specified
     self%stop_time = stop_time
     self%max_num = max_num_steps
     self%max_num_tries = max_num_tries
@@ -775,7 +778,8 @@ contains
     
     self%finished = .false.
 
-    if (self%current%time > self%stop_time - self%termination_tol) then
+    if (self%stop_time_specified .and. &
+         (self%current%time > self%stop_time - self%termination_tol)) then
        self%current%stepsize = self%stop_time - self%last%time
        self%current%time = self%stop_time
        self%finished = .true.
@@ -1126,6 +1130,7 @@ end subroutine timestepper_steps_set_next_stepsize
     use utils_module, only : str_to_lower
     use fson
     use fson_mpi_module
+    use fson_value_m, only : TYPE_NULL
 
     class(timestepper_type), intent(in out) :: self
     type(fson_value), pointer, intent(in) :: json
@@ -1164,16 +1169,31 @@ end subroutine timestepper_steps_set_next_stepsize
     PetscInt :: max_num_tries
     PetscInt, parameter :: default_max_num_tries = 10
     PetscInt, parameter :: default_output_frequency = 1
-    PetscBool, parameter :: default_output_initial = .true.
-    PetscBool, parameter :: default_output_final = .true.
+    PetscBool, parameter :: default_output_initial = PETSC_TRUE
+    PetscBool, parameter :: default_output_final = PETSC_TRUE
+    PetscBool :: stop_time_specified
     PetscErrorCode :: ierr
 
     self%ode => ode
     call VecDuplicate(self%ode%solution, self%residual, ierr); CHKERRQ(ierr)
     call self%setup_jacobian()
 
-    call fson_get_mpi(json, "time.stop", default_stop_time, stop_time, &
-         self%ode%logfile)
+    if (fson_has_mpi(json, "time.stop")) then
+       if (fson_type_mpi(json, "time.stop") == TYPE_NULL) then
+          stop_time_specified = PETSC_FALSE
+       else
+          stop_time_specified = PETSC_TRUE
+          call fson_get_mpi(json, "time.stop", default_stop_time, &
+               stop_time, self%ode%logfile)
+       end if
+    else
+       stop_time_specified = PETSC_FALSE
+    end if
+
+    if (.not. stop_time_specified) then
+       call self%ode%logfile%write(LOG_LEVEL_WARN, 'input', &
+            '"time.stop not specified"')
+    end if
        
     call fson_get_mpi(json, "time.step.method", &
          default_method_str, method_str, self%ode%logfile)
@@ -1241,7 +1261,7 @@ end subroutine timestepper_steps_set_next_stepsize
 
     call self%steps%init(self%method%num_stored_steps, &
          self%ode%time, self%ode%solution, initial_stepsize, &
-         stop_time, max_num_steps, max_stepsize, &
+         stop_time_specified, stop_time, max_num_steps, max_stepsize, &
          adapt_on, adapt_method, adapt_min, adapt_max, &
          adapt_reduction, adapt_amplification, step_sizes, &
          nonlinear_solver_relative_tol, nonlinear_solver_abs_tol, &
