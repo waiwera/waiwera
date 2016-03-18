@@ -1078,9 +1078,10 @@ contains
 !------------------------------------------------------------------------
 
   PetscInt function fson_mpi_array_rank(self, path) result(r)
-    !! Returns array rank of object: zero if the object does not
-    !! exist, is a scalar or zero-length array, 1 or 2 if it is a
-    !! non-empty array. (Arrays of rank higher than 2 are not detected.)
+    !! Returns array rank of object: -1 if the object does not exist,
+    !! zero if it is a scalar or zero-length array, 1 or 2 if it is a
+    !! non-empty array. (Arrays of rank higher than 2 are not
+    !! detected.)
 
     use fson_value_m, only : TYPE_ARRAY, fson_value_count, fson_value_get
 
@@ -1111,7 +1112,7 @@ contains
              r = 0
           end if
        else
-          r = 0
+          r = -1
        end if
     end if
 

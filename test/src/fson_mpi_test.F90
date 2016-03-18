@@ -193,7 +193,7 @@ contains
     json => fson_parse_mpi(filename)
 
     r = fson_mpi_array_rank(json, "missing")
-    call assert_equals(0, r, "missing")
+    call assert_equals(-1, r, "missing")
 
     r = fson_mpi_array_rank(json, "real")
     call assert_equals(0, r, "scalar")
