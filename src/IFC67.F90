@@ -609,14 +609,14 @@ subroutine saturation_temperature(self, p, t, err)
      t = max(4606.0_dp / (24.02_dp - dlog(p)) - tc_k, 5._dp)
      dt = t * 1.0e-8_dp
      tsd = t + dt
-     found = .false.
+     found = PETSC_FALSE
 
      ! Newton iteration:
      do i = 1, maxit
         call self%pressure(t, ps, err)
         if (err == 0) then
            if ((abs((p - ps) / p) <= tol) .and. (i > 1)) then
-              found = .true.
+              found = PETSC_TRUE
            else
               tsd = t + dt
               call self%pressure(tsd, psd, err)

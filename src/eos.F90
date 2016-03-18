@@ -15,6 +15,7 @@ module eos_module
   private
 
 #include <petsc/finclude/petscdef.h>
+#include <petsc/finclude/petscsys.h>
 
   PetscInt, parameter, public :: max_eos_name_length = 8
   PetscInt, parameter, public :: max_eos_description_length = 80
@@ -36,7 +37,7 @@ module eos_module
      PetscReal, allocatable, public :: default_primary(:)
      PetscInt, public :: default_region
      class(thermodynamics_type), pointer, public :: thermo
-     PetscBool, public :: isothermal = .false.
+     PetscBool, public :: isothermal = PETSC_FALSE
    contains
      private
      procedure(eos_init_procedure), public, deferred :: init
@@ -234,7 +235,7 @@ contains
     self%phase_names = ["liquid"]
     self%num_components = 1
     self%component_names = ["water"]
-    self%isothermal = .true.
+    self%isothermal = PETSC_TRUE
 
     self%default_primary = [default_pressure]
     self%default_region = 1
@@ -278,7 +279,7 @@ contains
 
     ! no transitions needed
     err = 0
-    transition = .false.
+    transition = PETSC_FALSE
 
   end subroutine eos_w_transition
 
@@ -490,7 +491,7 @@ contains
        temperature = old_fluid%temperature
 
        fluid%region = dble(new_region)
-       transition = .true.
+       transition = PETSC_TRUE
 
     end if
 
@@ -530,7 +531,7 @@ contains
     end if
 
     fluid%region = dble(4)
-    transition = .true.
+    transition = PETSC_TRUE
 
   end subroutine eos_we_transition_to_two_phase
 
@@ -555,7 +556,7 @@ contains
     PetscReal :: saturation_pressure
 
     err = 0
-    transition = .false.
+    transition = PETSC_FALSE
     old_region = nint(old_fluid%region)
 
     if (old_region == 4) then  ! Two-phase

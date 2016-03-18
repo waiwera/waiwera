@@ -63,10 +63,10 @@ contains
 
     type(fson_value), pointer, intent(in) :: self
 
-    assoc_non_null = .false.
+    assoc_non_null = PETSC_FALSE
     if (associated(self)) then
        if (self%value_type /= TYPE_NULL) then
-          assoc_non_null = .true.
+          assoc_non_null = PETSC_TRUE
        end if
     end if
 

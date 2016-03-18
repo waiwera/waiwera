@@ -587,7 +587,7 @@ contains
     PetscErrorCode :: ierr
 
     self%taken = 0
-    self%finished = .false.
+    self%finished = PETSC_FALSE
     self%num_stored = num_stored
     allocate(self%store(num_stored), self%pstore(num_stored))
 
@@ -631,7 +631,7 @@ contains
     if ((present(step_sizes) .and. (size(step_sizes) > 0))) then
        ! Fixed time step sizes override adaptor:
        self%sizes = step_sizes
-       self%adaptor%on = .false.
+       self%adaptor%on = PETSC_FALSE
        self%next_stepsize = step_sizes(1)
     end if
 
@@ -776,17 +776,17 @@ contains
 
     class(timestepper_steps_type), intent(in out) :: self
     
-    self%finished = .false.
+    self%finished = PETSC_FALSE
 
     if (self%stop_time_specified .and. &
          (self%current%time > self%stop_time - self%termination_tol)) then
        self%current%stepsize = self%stop_time - self%last%time
        self%current%time = self%stop_time
-       self%finished = .true.
+       self%finished = PETSC_TRUE
     end if
 
     if (self%taken + 1 >= self%max_num) then
-       self%finished = .true.
+       self%finished = PETSC_TRUE
     end if
 
   end subroutine timestepper_steps_check_finished
@@ -803,7 +803,7 @@ contains
 
     if (self%current%num_tries >= self%max_num_tries) then
        self%current%status = TIMESTEP_ABORTED
-       self%finished = .true.
+       self%finished = PETSC_TRUE
     else if (converged_reason >= 0 ) then
        if ((self%finished) .and. (self%current%status /= &
             TIMESTEP_ABORTED)) then
@@ -859,11 +859,11 @@ contains
        call self%adapt(accepted)
     else
        if (self%current%status == TIMESTEP_OK) then
-          accepted = .true.
+          accepted = PETSC_TRUE
           call self%get_next_fixed_stepsize()
        else
-          accepted = .false.
-          self%adaptor%on = .true.
+          accepted = PETSC_FALSE
+          self%adaptor%on = PETSC_TRUE
           self%next_stepsize = self%adaptor%reduce(self%current%stepsize)
        end if
     end if
@@ -881,13 +881,13 @@ end subroutine timestepper_steps_set_next_stepsize
 
     select case (self%current%status)
     case (TIMESTEP_TOO_SMALL)
-       accepted = .true.
+       accepted = PETSC_TRUE
        self%next_stepsize = self%adaptor%increase(self%current%stepsize)
     case (TIMESTEP_TOO_BIG, TIMESTEP_NOT_CONVERGED)
-       accepted = .false.
+       accepted = PETSC_FALSE
        self%next_stepsize = self%adaptor%reduce(self%current%stepsize)
     case default
-       accepted = .true.
+       accepted = PETSC_TRUE
        self%next_stepsize = self%current%stepsize
     end select
 
@@ -1146,7 +1146,7 @@ end subroutine timestepper_steps_set_next_stepsize
     character(max_method_str_len) :: method_str
     character(max_method_str_len), parameter :: default_method_str = "beuler"
     PetscInt, parameter :: default_max_num_steps = 100
-    PetscBool, parameter :: default_adapt_on = .false.
+    PetscBool, parameter :: default_adapt_on = PETSC_FALSE
     PetscBool :: adapt_on
     PetscInt, parameter :: max_adapt_method_str_len = 12
     character(max_adapt_method_str_len) :: adapt_method_str
@@ -1316,7 +1316,7 @@ end subroutine timestepper_steps_set_next_stepsize
 
     call self%steps%update()
     call self%ode%pre_timestep()
-    accepted = .false.
+    accepted = PETSC_FALSE
 
     do while (.not. (accepted .or. (self%steps%finished)))
 

@@ -8,6 +8,7 @@ module relative_permeability_module
   private
 
 #include <petsc/finclude/petscdef.h>
+#include <petsc/finclude/petscsys.h>
 
   PetscInt, parameter, public :: max_relative_permeability_name_length = 12
 
@@ -419,10 +420,10 @@ contains
 
     if (fson_has_mpi(json, "rock.relative permeability")) then
        call fson_get_mpi(json, "rock.relative permeability", relperm)
-       default_present = .true.
+       default_present = PETSC_TRUE
     else
        relperm => fson_parse(str = "{}")
-       default_present = .false.
+       default_present = PETSC_FALSE
     end if
 
     call setup_relative_permeability(relperm, rp, logfile)

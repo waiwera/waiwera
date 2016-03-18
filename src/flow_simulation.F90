@@ -111,18 +111,18 @@ contains
        assumed_logfile_name = default_logfile_name
     end if
 
-    default_log = .false.
-    no_logfile = .false.
+    default_log = PETSC_FALSE
+    no_logfile = PETSC_FALSE
 
     if (fson_has_mpi(json, "logfile")) then
        if (fson_type_mpi(json, "logfile") == TYPE_LOGICAL) then
           call fson_get_mpi(json, "logfile", val = output_log)
           if (output_log) then
              logfile_name = assumed_logfile_name
-             default_log = .true.
+             default_log = PETSC_TRUE
           else
              logfile_name = ""
-             no_logfile = .true.
+             no_logfile = PETSC_TRUE
           end if
        else
           if (fson_has_mpi(json, "logfile.filename")) then
@@ -131,12 +131,12 @@ contains
              no_logfile = (logfile_name == "")
           else
              logfile_name = assumed_logfile_name
-             default_log = .true.
+             default_log = PETSC_TRUE
           end if
        end if
     else
        logfile_name = assumed_logfile_name
-       default_log = .true.
+       default_log = PETSC_TRUE
     end if
 
     call fson_get_mpi(json, "logfile.format.max_num_length", &
@@ -186,8 +186,8 @@ contains
     PetscErrorCode :: ierr
     PetscBool :: output, default_output, no_output
 
-    default_output = .false.
-    no_output = .false.
+    default_output = PETSC_FALSE
+    no_output = PETSC_FALSE
 
     if (self%filename /= "") then
        assumed_output_filename = &
@@ -201,10 +201,10 @@ contains
           call fson_get_mpi(json, "output", val = output)
           if (output) then
              self%output_filename = assumed_output_filename
-             default_output = .true.
+             default_output = PETSC_TRUE
           else
              self%output_filename = ""
-             no_output = .true.
+             no_output = PETSC_TRUE
           end if
        else
           if (fson_has_mpi(json, "output.filename")) then
@@ -213,12 +213,12 @@ contains
              no_output = (self%output_filename == "")
           else
              self%output_filename = assumed_output_filename
-             default_output = .true.
+             default_output = PETSC_TRUE
           end if
        end if
     else
        self%output_filename = assumed_output_filename
-       default_output = .true.
+       default_output = PETSC_TRUE
     end if
 
     if (self%output_filename /= "") then
@@ -982,8 +982,8 @@ end subroutine flow_simulation_run_info
     PetscErrorCode :: ierr
 
     err = 0
-    changed_search = .false.
-    changed_y = .false.
+    changed_search = PETSC_FALSE
+    changed_y = PETSC_FALSE
     np = self%eos%num_primary_variables
     nc = self%eos%num_components
 
@@ -1034,8 +1034,8 @@ end subroutine flow_simulation_run_info
              if (err == 0) then
                 if (transition) then
                    cell_search = old_cell_primary - cell_primary
-                   changed_y = .true.
-                   changed_search = .true.
+                   changed_y = PETSC_TRUE
+                   changed_search = PETSC_TRUE
                    call self%logfile%write(LOG_LEVEL_INFO, 'fluid', &
                         'transition', &
                         ['cell            ', &
