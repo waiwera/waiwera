@@ -17,6 +17,7 @@ module fson_mpi_test
   character(len = 32), parameter :: filename = "data/fson_mpi/test_fson_mpi.json"
   public :: test_fson_mpi_int, test_fson_mpi_real, test_fson_mpi_double
   public :: test_fson_mpi_logical, test_fson_mpi_char
+  public :: test_fson_mpi_array_rank
 
 contains
 
@@ -35,9 +36,7 @@ contains
     PetscInt, parameter :: expected_arr_2d(3,2) = &
          transpose(reshape([1, 2, 3, 4, 5, 6], [2,3]))
 
-    if (mpi%rank == mpi%input_rank) then
-       json => fson_parse(filename)
-    end if
+    json => fson_parse_mpi(filename)
 
     call fson_get_mpi(json, "int", val=val)
     call assert_equals(expected, val, "int")
@@ -51,9 +50,7 @@ contains
          size(expected_arr_2d,2), "2d int array")
     deallocate(arr_2d)
 
-    if (mpi%rank == mpi%input_rank) then
-       call fson_destroy(json)
-    end if
+    call fson_destroy_mpi(json)
 
   end subroutine test_fson_mpi_int
 
@@ -73,9 +70,7 @@ contains
     real, parameter :: expected_arr_2d(2,3) = &
          transpose(reshape([1., 2., 3., 4., 5., 6.], [3,2]))
 
-    if (mpi%rank == mpi%input_rank) then
-       json => fson_parse(filename)
-    end if
+    json => fson_parse_mpi(filename)
 
     call fson_get_mpi(json, "real", val=val)
     call assert_equals(expected, val, tol, "real")
@@ -89,9 +84,7 @@ contains
          size(expected_arr_2d,2), "2d real array")
     deallocate(arr_2d)
 
-    if (mpi%rank == mpi%input_rank) then
-       call fson_destroy(json)
-    end if
+    call fson_destroy_mpi(json)
 
   end subroutine test_fson_mpi_real
 
@@ -111,9 +104,8 @@ contains
     PetscReal, allocatable :: arr_2d(:,:)
     PetscReal, parameter :: expected_arr_2d(2,2) = &
          transpose(reshape([-1._dp, 1._dp, 2._dp, -3._dp], [2,2]))
-    if (mpi%rank == mpi%input_rank) then
-       json => fson_parse(filename)
-    end if
+
+    json => fson_parse_mpi(filename)
 
     call fson_get_mpi(json, "double", val=val)
     call assert_equals(expected, val, tol, "double")
@@ -128,9 +120,7 @@ contains
          size(expected_arr_2d,2), "2d double array")
     deallocate(arr_2d)
 
-    if (mpi%rank == mpi%input_rank) then
-       call fson_destroy(json)
-    end if
+    call fson_destroy_mpi(json)
 
   end subroutine test_fson_mpi_double
 
@@ -150,9 +140,7 @@ contains
          transpose(reshape([.true., .false., .false., .false., .true., .true.],&
          [2,3]))
 
-    if (mpi%rank == mpi%input_rank) then
-       json => fson_parse(filename)
-    end if
+    json => fson_parse_mpi(filename)
 
     call fson_get_mpi(json, "logical", val=val)
     call assert_equals(expected, val, "logical")
@@ -167,9 +155,7 @@ contains
          size(expected_arr_2d,2), "2d logical array")
     deallocate(arr_2d)
 
-    if (mpi%rank == mpi%input_rank) then
-       call fson_destroy(json)
-    end if
+    call fson_destroy_mpi(json)
 
   end subroutine test_fson_mpi_logical
 
@@ -184,20 +170,43 @@ contains
     character(len = char_len) :: val
     character(len = char_len), parameter :: expected = "etaoinshrdlu"
 
-    if (mpi%rank == mpi%input_rank) then
-       json => fson_parse(filename)
-    end if
+    json => fson_parse_mpi(filename)
 
     call fson_get_mpi(json, "character", val=val)
     call assert_equals(expected, val, "character")
     call fson_get_mpi(json, "missing_character", expected, val)
     call assert_equals(expected, val, "character")
 
-    if (mpi%rank == mpi%input_rank) then
-       call fson_destroy(json)
-    end if
+    call fson_destroy_mpi(json)
 
   end subroutine test_fson_mpi_char
+
+!------------------------------------------------------------------------
+
+  subroutine test_fson_mpi_array_rank
+
+    ! Test fson_mpi_array_rank routine
+
+    type(fson_value), pointer :: json
+    PetscInt :: r
+
+    json => fson_parse_mpi(filename)
+
+    r = fson_mpi_array_rank(json, "missing")
+    call assert_equals(0, r, "missing")
+
+    r = fson_mpi_array_rank(json, "real")
+    call assert_equals(0, r, "scalar")
+
+    r = fson_mpi_array_rank(json, "int_array")
+    call assert_equals(1, r, "rank 1")
+
+    r = fson_mpi_array_rank(json, "double_array_2d")
+    call assert_equals(2, r, "rank 2")
+
+    call fson_destroy_mpi(json)
+
+  end subroutine test_fson_mpi_array_rank
 
 !------------------------------------------------------------------------
 
