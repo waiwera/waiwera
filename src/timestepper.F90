@@ -1417,11 +1417,11 @@ end subroutine timestepper_steps_set_next_stepsize
          case (KSP_DIVERGED_BREAKDOWN)
             ksp_reason_str = "breakdown"
          case (KSP_DIVERGED_ITS)
-            ksp_reason_str = "iterations"
+            ksp_reason_str = "max_iterations"
          case (KSP_DIVERGED_NANORINF)
-            ksp_reason_str = "NaN or Inf"
+            ksp_reason_str = "NaN_or_Inf"
          case(KSP_DIVERGED_BREAKDOWN_BICG)
-            ksp_reason_str = "BiCG breakdown"
+            ksp_reason_str = "BiCG_breakdown"
          case default
             ksp_reason_str = "unknown"
       end select
