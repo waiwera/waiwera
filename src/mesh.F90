@@ -566,10 +566,10 @@ contains
     PetscReal, pointer :: cell_primary(:), rock1(:), rock2(:)
     PetscSection :: y_section, fluid_section, rock_section
     IS :: bdy_IS
-    DMLabel :: bdy_label
+    DMLabel :: ghost_label
     type(fluid_type):: fluid
     type(rock_type) :: rock
-    PetscInt :: y_offset, fluid_offset, rock_offsets(2), bdy_cell
+    PetscInt :: y_offset, fluid_offset, rock_offsets(2), ghost
     PetscInt, pointer :: bdy_faces(:), cells(:)
     PetscErrorCode :: ierr
 
@@ -579,8 +579,7 @@ contains
     call VecGetArrayF90(fluid_vector, fluid_array, ierr); CHKERRQ(ierr)
     call global_vec_section(rock_vector, rock_section)
     call VecGetArrayF90(rock_vector, rock_array, ierr); CHKERRQ(ierr)
-    call DMGetLabel(self%dm, open_boundary_label_name, &
-         bdy_label, ierr); CHKERRQ(ierr)
+    call DMGetLabel(self%dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
     rock_dof = rock%dof()
     np = eos%num_primary_variables
     call fluid%init(eos%num_components, eos%num_phases)
@@ -595,26 +594,29 @@ contains
              do iface = 1, num_faces
                 f = bdy_faces(iface)
                 call DMPlexGetSupport(self%dm, f, cells, ierr); CHKERRQ(ierr)
-                bdy_cell = cells(2)
-                call global_section_offset(y_section, bdy_cell, &
-                     y_range_start, y_offset, ierr); CHKERRQ(ierr)
-                call global_section_offset(fluid_section, bdy_cell, &
-                     fluid_range_start, fluid_offset, ierr); CHKERRQ(ierr)
-                do i = 1, 2
-                   call global_section_offset(rock_section, cells(i), &
-                        rock_range_start, rock_offsets(i), ierr)
-                   CHKERRQ(ierr)
-                end do
-                ! Set primary variables and region:
-                cell_primary => y_array(y_offset : y_offset + np - 1)
-                call fluid%assign(fluid_array, fluid_offset)
-                cell_primary = self%bcs(2: np + 1, ibdy)
-                fluid%region = self%bcs(1, ibdy)
-                ! Copy rock type data from interior cell to boundary ghost cell:
-                n = rock_dof - 1
-                rock1 => rock_array(rock_offsets(1) : rock_offsets(1) + n)
-                rock2 => rock_array(rock_offsets(2) : rock_offsets(2) + n)
-                rock2 = rock1
+                call DMLabelGetValue(ghost_label, cells(1), ghost, ierr)
+                CHKERRQ(ierr)
+                if ((ghost < 0) .and. (size(cells) == 2)) then
+                   call global_section_offset(y_section, cells(2), &
+                        y_range_start, y_offset, ierr); CHKERRQ(ierr)
+                   call global_section_offset(fluid_section, cells(2), &
+                        fluid_range_start, fluid_offset, ierr); CHKERRQ(ierr)
+                   do i = 1, 2
+                      call global_section_offset(rock_section, cells(i), &
+                           rock_range_start, rock_offsets(i), ierr)
+                      CHKERRQ(ierr)
+                   end do
+                   ! Set primary variables and region:
+                   cell_primary => y_array(y_offset : y_offset + np - 1)
+                   call fluid%assign(fluid_array, fluid_offset)
+                   cell_primary = self%bcs(2: np + 1, ibdy)
+                   fluid%region = self%bcs(1, ibdy)
+                   ! Copy rock type data from interior cell to boundary ghost cell:
+                   n = rock_dof - 1
+                   rock1 => rock_array(rock_offsets(1) : rock_offsets(1) + n)
+                   rock2 => rock_array(rock_offsets(2) : rock_offsets(2) + n)
+                   rock2 = rock1
+                end if
              end do
              call ISRestoreIndicesF90(bdy_IS, bdy_faces, ierr); CHKERRQ(ierr)
           end if
