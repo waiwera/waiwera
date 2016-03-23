@@ -78,19 +78,21 @@ contains
     Vec, intent(in out) :: y
     PetscInt, intent(in) :: range_start
     ! Locals:
-    PetscInt :: num_cells, np, global_cell_index, i, c
-    PetscInt :: offset
+    PetscInt :: num_cells, np, global_cell_index, i
+    PetscInt :: offset, ghost
     PetscErrorCode :: ierr
     PetscReal, pointer :: cell_primary(:), y_array(:)
     PetscSection :: section
     IS :: cell_IS
     PetscInt, pointer :: cells(:)
+    DMLabel :: ghost_label
 
     num_cells = size(primary, 1)
     np = eos%num_primary_variables
 
     call global_vec_section(y, section)
     call VecGetArrayF90(y, y_array, ierr); CHKERRQ(ierr)
+    call DMGetLabel(mesh%dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
 
     do i = 1, num_cells
        global_cell_index = i - 1
@@ -99,11 +101,13 @@ contains
        if (cell_IS /= 0) then
           call ISGetIndicesF90(cell_IS, cells, ierr); CHKERRQ(ierr)
           if (size(cells) > 0) then
-             c = cells(1)
-             call global_section_offset(section, c, range_start, &
-                  offset, ierr)
-             cell_primary => y_array(offset : offset + np - 1)
-             cell_primary = primary(i, :)
+             call DMLabelGetValue(ghost_label, cells(1), ghost, ierr)
+             if (ghost < 0) then
+                call global_section_offset(section, cells(1), range_start, &
+                     offset, ierr)
+                cell_primary => y_array(offset : offset + np - 1)
+                cell_primary = primary(i, :)
+             end if
           end if
           call ISRestoreIndicesF90(cell_IS, cells, ierr); CHKERRQ(ierr)
        end if
@@ -181,7 +185,7 @@ contains
     Vec, intent(in out) :: fluid_vector
     PetscInt, intent(in) :: fluid_range_start
     ! Locals:
-    PetscInt :: num_cells, np, global_cell_index, i, c
+    PetscInt :: num_cells, np, global_cell_index, i, ghost
     PetscInt :: offset
     PetscErrorCode :: ierr
     type(fluid_type) :: fluid
@@ -189,6 +193,7 @@ contains
     PetscSection :: section
     IS :: cell_IS
     PetscInt, pointer :: cells(:)
+    DMLabel :: ghost_label
 
     num_cells = size(region, 1)
     np = eos%num_primary_variables
@@ -196,6 +201,7 @@ contains
     call global_vec_section(fluid_vector, section)
     call VecGetArrayF90(fluid_vector, fluid_array, ierr); CHKERRQ(ierr)
     call fluid%init(eos%num_components, eos%num_phases)
+    call DMGetLabel(mesh%dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
 
     do i = 1, num_cells
        global_cell_index = i - 1
@@ -204,11 +210,13 @@ contains
        if (cell_IS /= 0) then
           call ISGetIndicesF90(cell_IS, cells, ierr); CHKERRQ(ierr)
           if (size(cells) > 0) then
-             c = cells(1)
-             call global_section_offset(section, c, &
-                  fluid_range_start, offset, ierr); CHKERRQ(ierr)
-             call fluid%assign(fluid_array, offset)
-             fluid%region = dble(region(i))
+             call DMLabelGetValue(ghost_label, cells(1), ghost, ierr)
+             if (ghost < 0) then
+                call global_section_offset(section, cells(1), &
+                     fluid_range_start, offset, ierr); CHKERRQ(ierr)
+                call fluid%assign(fluid_array, offset)
+                fluid%region = dble(region(i))
+             end if
           end if
           call ISRestoreIndicesF90(cell_IS, cells, ierr); CHKERRQ(ierr)
        end if

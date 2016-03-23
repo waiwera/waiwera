@@ -36,13 +36,14 @@ contains
     PetscErrorCode :: ierr
     PetscInt :: c, isrc, i, component
     type(fson_value), pointer :: sources, src
-    PetscInt :: num_sources, cell, offset, num_cells
+    PetscInt :: num_sources, cell, offset, num_cells, ghost
     PetscInt, pointer :: cells(:)
     PetscReal :: q, enthalpy
     PetscReal, pointer :: source_array(:), cell_source(:)
     PetscBool :: mass_inject
     PetscSection :: section
     IS :: cell_IS
+    DMLabel :: ghost_label
     character(len=64) :: srcstr
     character(len=12) :: istr
     PetscInt, parameter ::  default_component = 1
@@ -56,6 +57,7 @@ contains
 
        call DMGetDefaultGlobalSection(dm, section, ierr); CHKERRQ(ierr)
        call VecGetArrayF90(source, source_array, ierr); CHKERRQ(ierr)
+       call DMGetLabel(dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
 
        call fson_get_mpi(json, "source", sources)
        num_sources = fson_value_count_mpi(sources, ".")
@@ -80,12 +82,16 @@ contains
              num_cells = size(cells)
              do i = 1, num_cells
                 c = cells(i)
-                call global_section_offset(section, c, range_start, &
-                     offset, ierr)
-                cell_source => source_array(offset : offset + np - 1)
-                cell_source(component) = cell_source(component) + q
-                if (mass_inject) then
-                   cell_source(np) = cell_source(np) + enthalpy * q
+                call DMLabelGetValue(ghost_label, c, ghost, ierr)
+                CHKERRQ(ierr)
+                if (ghost < 0) then
+                   call global_section_offset(section, c, range_start, &
+                        offset, ierr)
+                   cell_source => source_array(offset : offset + np - 1)
+                   cell_source(component) = cell_source(component) + q
+                   if (mass_inject) then
+                      cell_source(np) = cell_source(np) + enthalpy * q
+                   end if
                 end if
              end do
              call ISRestoreIndicesF90(cell_IS, cells, ierr); CHKERRQ(ierr)
