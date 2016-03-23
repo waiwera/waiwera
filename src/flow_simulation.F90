@@ -604,24 +604,27 @@ end subroutine flow_simulation_run_info
     call global_vec_section(self%source, source_section)
     allocate(source(np))
 
-    do c = self%mesh%start_cell, self%mesh%end_interior_cell - 1
+    do c = self%mesh%start_cell, self%mesh%end_cell - 1
 
-       call global_section_offset(rhs_section, c, &
-            self%solution_range_start, rhs_offset, ierr)
-       CHKERRQ(ierr)
-       call section_offset(cell_geom_section, c, &
-            cell_geom_offset, ierr); CHKERRQ(ierr)
-       call section_offset(fluid_section, c, &
-            fluid_offset, ierr); CHKERRQ(ierr)
-       call cell%assign(cell_geom_array, cell_geom_offset, &
-            fluid_data = fluid_array, fluid_offset = fluid_offset)
-       call global_section_offset(source_section, c, &
-            self%solution_range_start, source_offset, ierr)
-       CHKERRQ(ierr)
-       inflow => rhs_array(rhs_offset : rhs_offset + np - 1)
-       source = source_array(source_offset : source_offset + np - 1)
-       call cell%fluid%energy_production(source, self%eos%isothermal)
-       inflow = inflow + source / cell%volume
+       call DMLabelGetValue(ghost_label, c, ghost_cell, ierr); CHKERRQ(ierr)
+       if (ghost_cell < 0) then
+          call global_section_offset(rhs_section, c, &
+               self%solution_range_start, rhs_offset, ierr)
+          CHKERRQ(ierr)
+          call section_offset(cell_geom_section, c, &
+               cell_geom_offset, ierr); CHKERRQ(ierr)
+          call section_offset(fluid_section, c, &
+               fluid_offset, ierr); CHKERRQ(ierr)
+          call cell%assign(cell_geom_array, cell_geom_offset, &
+               fluid_data = fluid_array, fluid_offset = fluid_offset)
+          call global_section_offset(source_section, c, &
+               self%solution_range_start, source_offset, ierr)
+          CHKERRQ(ierr)
+          inflow => rhs_array(rhs_offset : rhs_offset + np - 1)
+          source = source_array(source_offset : source_offset + np - 1)
+          call cell%fluid%energy_production(source, self%eos%isothermal)
+          inflow = inflow + source / cell%volume
+       end if
 
     end do
 
