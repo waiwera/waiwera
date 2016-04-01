@@ -81,12 +81,11 @@ contains
     class(mesh_type), intent(in out) :: self
     ! Locals:
     PetscInt :: total_size, local_size, total_allocate_size
-    PetscInt :: local_IS_size
     PetscInt :: c, i, ghost, order
     DMLabel :: ghost_label, order_label
     PetscInt, allocatable :: global_index(:), natural_index(:)
     PetscInt, allocatable :: global_index_all(:), natural_index_all(:)
-    PetscInt, allocatable :: index_array(:)
+    PetscInt, allocatable :: index_array_all(:), index_array(:)
     Vec :: v
     PetscInt :: blocksize, start_global_index, i_global
     PetscErrorCode :: ierr
@@ -101,6 +100,7 @@ contains
     end do
     allocate(global_index(local_size), natural_index(local_size))
 
+    ! Get starting global index for each process:
     call DMGetGlobalVector(self%dm, v, ierr); CHKERRQ(ierr)
     call VecGetOwnershipRange(v, start_global_index, &
          PETSC_NULL_INTEGER, ierr); CHKERRQ(ierr)
@@ -128,7 +128,7 @@ contains
          mpi%input_rank, mpi%comm, ierr)
     if (mpi%rank == mpi%input_rank) then
        total_allocate_size = total_size
-    else
+    else ! have to allocate non-zero size, even if not actually used:
        total_allocate_size = 1
     end if
     allocate(global_index_all(total_allocate_size), &
@@ -141,21 +141,22 @@ contains
          mpi%input_rank, mpi%comm, ierr)
     deallocate(global_index, natural_index)
 
-    ! Set up index set on root process:
-    if (mpi%rank == mpi%input_rank) then
-       local_IS_size = total_size
-    else
-       local_IS_size = 0
-    end if
-    allocate(index_array(local_IS_size))
+    ! Set up index array on root process, and scatter:
+    allocate(index_array_all(total_allocate_size))
     if (mpi%rank == mpi%input_rank) then
        do i = 1, total_size
-          index_array(natural_index_all(i) + 1) = global_index_all(i)
+          index_array_all(natural_index_all(i) + 1) = global_index_all(i)
        end do
     end if
-    call ISCreateGeneral(mpi%comm, local_IS_size, index_array, &
+    deallocate(global_index_all, natural_index_all)
+    allocate(index_array(local_size))
+    call MPI_scatter(index_array_all, local_size, MPI_INTEGER, &
+         index_array, local_size, MPI_INTEGER, &
+         mpi%input_rank, mpi%comm, ierr)
+    deallocate(index_array_all)
+
+    call ISCreateGeneral(mpi%comm, local_size, index_array, &
          PETSC_COPY_VALUES, self%cell_index, ierr); CHKERRQ(ierr)
-    deallocate(global_index_all, natural_index_all, index_array)
     call PetscObjectSetName(self%cell_index, "cell_index", ierr)
 
   end subroutine mesh_setup_cell_index
