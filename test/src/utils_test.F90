@@ -81,7 +81,7 @@ contains
 
        filename = "/path/to/model"
        expected_base = "/path/to/model"
-       expected_ext = ""
+       expected_ext = " "
        call split_filename(filename, base, ext)
        call assert_equals(expected_base, base, 'base ' // filename)
        call assert_equals(expected_ext, ext, 'extension ' // filename)
