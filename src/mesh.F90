@@ -80,12 +80,13 @@ contains
 
     class(mesh_type), intent(in out) :: self
     ! Locals:
-    PetscInt :: total_size, local_size, total_allocate_size
+    PetscInt :: total_count, local_count, total_allocate_count
     PetscInt :: c, i, ghost, order
     DMLabel :: ghost_label, order_label
     PetscInt, allocatable :: global_index(:), natural_index(:)
     PetscInt, allocatable :: global_index_all(:), natural_index_all(:)
     PetscInt, allocatable :: index_array_all(:), index_array(:)
+    PetscInt, allocatable :: local_counts(:), displacements(:)
     Vec :: v
     PetscInt :: blocksize, start_global_index, i_global
     PetscErrorCode :: ierr
@@ -93,12 +94,12 @@ contains
     call DMGetLabel(self%dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
 
     ! Count interior cells:
-    local_size = 0
+    local_count = 0
     do c = self%start_cell, self%end_interior_cell - 1
        call DMLabelGetValue(ghost_label, c, ghost, ierr); CHKERRQ(ierr)
-       if (ghost < 0) local_size = local_size + 1
+       if (ghost < 0) local_count = local_count + 1
     end do
-    allocate(global_index(local_size), natural_index(local_size))
+    allocate(global_index(local_count), natural_index(local_count))
 
     ! Get starting global index for each process:
     call DMGetGlobalVector(self%dm, v, ierr); CHKERRQ(ierr)
@@ -124,38 +125,44 @@ contains
     end do
 
     ! Gather arrays to root process:
-    call MPI_reduce(local_size, total_size, 1, MPI_INTEGER, MPI_SUM, &
-         mpi%input_rank, mpi%comm, ierr)
+    allocate(local_counts(mpi%size), displacements(mpi%size))
+    call MPI_gather(local_count, 1, MPI_INTEGER, local_counts, 1, &
+         MPI_INTEGER, mpi%input_rank, mpi%comm, ierr)
     if (mpi%rank == mpi%input_rank) then
-       total_allocate_size = total_size
+       total_count = sum(local_counts)
+       displacements(1) = 0
+       do i = 2, mpi%size
+          displacements(i) = displacements(i-1) + local_counts(i-1)
+       end do
+       total_allocate_count = total_count
     else ! have to allocate non-zero size, even if not actually used:
-       total_allocate_size = 1
+       total_allocate_count = 1
     end if
-    allocate(global_index_all(total_allocate_size), &
-         natural_index_all(total_allocate_size))
-    call MPI_gather(global_index, local_size, MPI_INTEGER, &
-         global_index_all, local_size, MPI_INTEGER, &
+    allocate(global_index_all(total_allocate_count), &
+         natural_index_all(total_allocate_count))
+    call MPI_gatherv(global_index, local_count, MPI_INTEGER, &
+         global_index_all, local_counts, displacements, MPI_INTEGER, &
          mpi%input_rank, mpi%comm, ierr)
-    call MPI_gather(natural_index, local_size, MPI_INTEGER, &
-         natural_index_all, local_size, MPI_INTEGER, &
+    call MPI_gatherv(natural_index, local_count, MPI_INTEGER, &
+         natural_index_all, local_counts, displacements, MPI_INTEGER, &
          mpi%input_rank, mpi%comm, ierr)
     deallocate(global_index, natural_index)
 
     ! Set up index array on root process, and scatter:
-    allocate(index_array_all(total_allocate_size))
+    allocate(index_array_all(total_allocate_count))
     if (mpi%rank == mpi%input_rank) then
-       do i = 1, total_size
+       do i = 1, total_count
           index_array_all(natural_index_all(i) + 1) = global_index_all(i)
        end do
     end if
     deallocate(global_index_all, natural_index_all)
-    allocate(index_array(local_size))
-    call MPI_scatter(index_array_all, local_size, MPI_INTEGER, &
-         index_array, local_size, MPI_INTEGER, &
+    allocate(index_array(local_count))
+    call MPI_scatterv(index_array_all, local_counts, displacements, &
+         MPI_INTEGER, index_array, local_count, MPI_INTEGER, &
          mpi%input_rank, mpi%comm, ierr)
-    deallocate(index_array_all)
+    deallocate(index_array_all, local_counts, displacements)
 
-    call ISCreateGeneral(mpi%comm, local_size, index_array, &
+    call ISCreateGeneral(mpi%comm, local_count, index_array, &
          PETSC_COPY_VALUES, self%cell_index, ierr); CHKERRQ(ierr)
     call PetscObjectSetName(self%cell_index, "cell_index", ierr)
 
