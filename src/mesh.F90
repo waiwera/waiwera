@@ -80,7 +80,8 @@ contains
 
     class(mesh_type), intent(in out) :: self
     ! Locals:
-    PetscInt :: total_count, local_count, total_allocate_count
+    PetscInt :: total_count, local_count
+    PetscInt :: total_allocate_count, allocate_size
     PetscInt :: c, i, ghost, order
     DMLabel :: ghost_label, order_label
     PetscInt, allocatable :: global_index(:), natural_index(:)
@@ -125,7 +126,12 @@ contains
     end do
 
     ! Gather arrays to root process:
-    allocate(local_counts(mpi%size), displacements(mpi%size))
+    if (mpi%rank == mpi%input_rank) then
+       allocate_size = mpi%size
+    else ! have to allocate non-zero size, even if not actually used:
+       allocate_size = 1
+    end if
+    allocate(local_counts(allocate_size), displacements(allocate_size))
     call MPI_gather(local_count, 1, MPI_INTEGER, local_counts, 1, &
          MPI_INTEGER, mpi%input_rank, mpi%comm, ierr)
     if (mpi%rank == mpi%input_rank) then
@@ -135,7 +141,7 @@ contains
           displacements(i) = displacements(i-1) + local_counts(i-1)
        end do
        total_allocate_count = total_count
-    else ! have to allocate non-zero size, even if not actually used:
+    else
        total_allocate_count = 1
     end if
     allocate(global_index_all(total_allocate_count), &
