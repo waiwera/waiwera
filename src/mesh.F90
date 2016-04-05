@@ -80,22 +80,36 @@ contains
 
     class(mesh_type), intent(in out) :: self
     ! Locals:
-    PetscInt :: n, c, i, ghost, order, size
+    PetscInt :: total_count, local_count, total_allocate_count
+    PetscInt :: c, i, ghost, order
     DMLabel :: ghost_label, order_label
-    PetscInt, allocatable :: order_array(:)
-    IS :: cell_order
+    PetscInt, allocatable :: global_index(:), natural_index(:)
+    PetscInt, allocatable :: global_index_all(:), natural_index_all(:)
+    PetscInt, allocatable :: index_array_all(:), index_array(:)
+    PetscInt, allocatable :: local_counts(:), displacements(:)
+    Vec :: v
+    PetscInt :: blocksize, start_global_index, i_global
     PetscErrorCode :: ierr
 
     call DMGetLabel(self%dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
 
     ! Count interior cells:
-    n = 0
+    local_count = 0
     do c = self%start_cell, self%end_interior_cell - 1
        call DMLabelGetValue(ghost_label, c, ghost, ierr); CHKERRQ(ierr)
-       if (ghost < 0) n = n + 1
+       if (ghost < 0) local_count = local_count + 1
     end do
-    allocate(order_array(n))
+    allocate(global_index(local_count), natural_index(local_count))
 
+    ! Get starting global index for each process:
+    call DMGetGlobalVector(self%dm, v, ierr); CHKERRQ(ierr)
+    call VecGetOwnershipRange(v, start_global_index, &
+         PETSC_NULL_INTEGER, ierr); CHKERRQ(ierr)
+    call VecGetBlockSize(v, blocksize, ierr); CHKERRQ(ierr)
+    call DMRestoreGlobalVector(self%dm, v, ierr); CHKERRQ(ierr)
+    start_global_index = start_global_index / blocksize
+
+    ! Set up global and natural index arrays on each process:
     call DMGetLabel(self%dm, cell_order_label_name, order_label, ierr)
     CHKERRQ(ierr)
     i = 1
@@ -103,22 +117,54 @@ contains
        call DMLabelGetValue(ghost_label, c, ghost, ierr); CHKERRQ(ierr)
        if (ghost < 0) then
           call DMLabelGetValue(order_label, c, order, ierr); CHKERRQ(ierr)
-          order_array(i) = order
+          i_global = start_global_index + c - self%start_cell
+          global_index(i) = i_global
+          natural_index(i) = order
           i = i + 1
        end if
     end do
 
-    call ISCreateGeneral(mpi%comm, n, order_array, PETSC_COPY_VALUES, &
-         cell_order, ierr); CHKERRQ(ierr)
-    deallocate(order_array)
-    call PetscObjectSetName(cell_order, "cell_order", ierr)
-    CHKERRQ(ierr)
-    call ISSetPermutation(cell_order, ierr); CHKERRQ(ierr)
-    call ISGetLocalSize(cell_order, size, ierr); CHKERRQ(ierr)
-    call ISInvertPermutation(cell_order, size, &
-         self%cell_index, ierr); CHKERRQ(ierr)
+    ! Gather arrays to root process:
+    allocate(local_counts(mpi%size), displacements(mpi%size))
+    call MPI_gather(local_count, 1, MPI_INTEGER, local_counts, 1, &
+         MPI_INTEGER, mpi%input_rank, mpi%comm, ierr)
+    if (mpi%rank == mpi%input_rank) then
+       total_count = sum(local_counts)
+       displacements(1) = 0
+       do i = 2, mpi%size
+          displacements(i) = displacements(i-1) + local_counts(i-1)
+       end do
+       total_allocate_count = total_count
+    else ! have to allocate non-zero size, even if not actually used:
+       total_allocate_count = 1
+    end if
+    allocate(global_index_all(total_allocate_count), &
+         natural_index_all(total_allocate_count))
+    call MPI_gatherv(global_index, local_count, MPI_INTEGER, &
+         global_index_all, local_counts, displacements, MPI_INTEGER, &
+         mpi%input_rank, mpi%comm, ierr)
+    call MPI_gatherv(natural_index, local_count, MPI_INTEGER, &
+         natural_index_all, local_counts, displacements, MPI_INTEGER, &
+         mpi%input_rank, mpi%comm, ierr)
+    deallocate(global_index, natural_index)
+
+    ! Set up index array on root process, and scatter:
+    allocate(index_array_all(total_allocate_count))
+    if (mpi%rank == mpi%input_rank) then
+       do i = 1, total_count
+          index_array_all(natural_index_all(i) + 1) = global_index_all(i)
+       end do
+    end if
+    deallocate(global_index_all, natural_index_all)
+    allocate(index_array(local_count))
+    call MPI_scatterv(index_array_all, local_counts, displacements, &
+         MPI_INTEGER, index_array, local_count, MPI_INTEGER, &
+         mpi%input_rank, mpi%comm, ierr)
+    deallocate(index_array_all, local_counts, displacements)
+
+    call ISCreateGeneral(mpi%comm, local_count, index_array, &
+         PETSC_COPY_VALUES, self%cell_index, ierr); CHKERRQ(ierr)
     call PetscObjectSetName(self%cell_index, "cell_index", ierr)
-    call ISDestroy(cell_order, ierr); CHKERRQ(ierr)
 
   end subroutine mesh_setup_cell_index
 

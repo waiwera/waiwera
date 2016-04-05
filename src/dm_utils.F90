@@ -11,6 +11,7 @@ module dm_utils_module
   public :: global_to_local_vec_section, restore_dm_local_vec
   public :: global_vec_range_start, vec_reorder
   public :: dm_cell_normal_face
+  public :: write_vec_vtk
 
 contains
 
