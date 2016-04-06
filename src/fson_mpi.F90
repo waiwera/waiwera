@@ -773,6 +773,7 @@ contains
     character(len=*), intent(in), optional :: log_key
     ! Locals:
     PetscInt :: ierr, count
+    PetscBool :: alloc
 
     if (mpi%rank == mpi%input_rank) then
        if (present(default)) then
@@ -781,14 +782,18 @@ contains
        else
           call fson_get(self, path, val)
        end if
+       alloc = allocated(val)
        count = size(val)
     end if
-    call MPI_bcast(count, 1, MPI_INTEGER, mpi%input_rank, mpi%comm, ierr)
-    if (mpi%rank /= mpi%input_rank) then
-       allocate(val(count))
+    call MPI_bcast(alloc, 1, MPI_LOGICAL, mpi%input_rank, mpi%comm, ierr)
+    if (alloc) then
+       call MPI_bcast(count, 1, MPI_INTEGER, mpi%input_rank, mpi%comm, ierr)
+       if (mpi%rank /= mpi%input_rank) then
+          allocate(val(count))
+       end if
+       call MPI_bcast(val, count, MPI_INTEGER, mpi%input_rank, mpi%comm, &
+            ierr)
     end if
-    call MPI_bcast(val, count, MPI_INTEGER, mpi%input_rank, mpi%comm, &
-         ierr)
 
   end subroutine fson_get_mpi_array_1d_integer
 
@@ -806,6 +811,7 @@ contains
     character(len=*), intent(in), optional :: log_key
     ! Locals:
     PetscInt :: ierr, count
+    PetscBool :: alloc
 
     if (mpi%rank == mpi%input_rank) then
        if (present(default)) then
@@ -814,13 +820,17 @@ contains
        else
           call fson_get(self, path, val)
        end if
+       alloc = allocated(val)
        count = size(val)
     end if
-    call MPI_bcast(count, 1, MPI_INTEGER, mpi%input_rank, mpi%comm, ierr)
-    if (mpi%rank /= mpi%input_rank) then
-       allocate(val(count))
+    call MPI_bcast(alloc, 1, MPI_LOGICAL, mpi%input_rank, mpi%comm, ierr)
+    if (alloc) then
+       call MPI_bcast(count, 1, MPI_INTEGER, mpi%input_rank, mpi%comm, ierr)
+       if (mpi%rank /= mpi%input_rank) then
+          allocate(val(count))
+       end if
+       call MPI_bcast(val, count, MPI_REAL, mpi%input_rank, mpi%comm, ierr)
     end if
-    call MPI_bcast(val, count, MPI_REAL, mpi%input_rank, mpi%comm, ierr)
 
   end subroutine fson_get_mpi_array_1d_real
 
@@ -838,6 +848,7 @@ contains
     character(len=*), intent(in), optional :: log_key
    ! Locals:
     PetscInt :: ierr, count
+    PetscBool :: alloc
 
     if (mpi%rank == mpi%input_rank) then
        if (present(default)) then
@@ -846,15 +857,19 @@ contains
        else
           call fson_get(self, path, val)
        end if
+       alloc = allocated(val)
        count = size(val)
     end if
-    call MPI_bcast(count, 1, MPI_INTEGER, mpi%input_rank, mpi%comm, &
-         ierr)
-    if (mpi%rank /= mpi%input_rank) then
-       allocate(val(count))
+    call MPI_bcast(alloc, 1, MPI_LOGICAL, mpi%input_rank, mpi%comm, ierr)
+    if (alloc) then
+       call MPI_bcast(count, 1, MPI_INTEGER, mpi%input_rank, mpi%comm, &
+            ierr)
+       if (mpi%rank /= mpi%input_rank) then
+          allocate(val(count))
+       end if
+       call MPI_bcast(val, count, MPI_DOUBLE_PRECISION, mpi%input_rank, &
+            mpi%comm, ierr)
     end if
-    call MPI_bcast(val, count, MPI_DOUBLE_PRECISION, mpi%input_rank, &
-         mpi%comm, ierr)
 
   end subroutine fson_get_mpi_array_1d_double
 
@@ -872,6 +887,7 @@ contains
     character(len=*), intent(in), optional :: log_key
     ! Locals:
     PetscInt :: ierr, count
+    PetscBool :: alloc
 
     if (mpi%rank == mpi%input_rank) then
        if (present(default)) then
@@ -880,14 +896,18 @@ contains
        else
           call fson_get(self, path, val)
        end if
+       alloc = allocated(val)
        count = size(val)
     end if
-    call MPI_bcast(count, 1, MPI_INTEGER, mpi%input_rank, mpi%comm, ierr)
-    if (mpi%rank /= mpi%input_rank) then
-       allocate(val(count))
+    call MPI_bcast(alloc, 1, MPI_LOGICAL, mpi%input_rank, mpi%comm, ierr)
+    if (alloc) then
+       call MPI_bcast(count, 1, MPI_INTEGER, mpi%input_rank, mpi%comm, ierr)
+       if (mpi%rank /= mpi%input_rank) then
+          allocate(val(count))
+       end if
+       call MPI_bcast(val, count, MPI_LOGICAL, mpi%input_rank, mpi%comm, &
+            ierr)
     end if
-    call MPI_bcast(val, count, MPI_LOGICAL, mpi%input_rank, mpi%comm, &
-         ierr)
 
   end subroutine fson_get_mpi_array_1d_logical
 
@@ -905,6 +925,7 @@ contains
     character(len=*), intent(in), optional :: log_key
     ! Locals:
     PetscInt :: ierr, count(2), total_count
+    PetscBool :: alloc
 
     if (mpi%rank == mpi%input_rank) then
        if (present(default)) then
@@ -913,15 +934,19 @@ contains
        else
           call fson_get(self, path, val)
        end if
+       alloc = allocated(val)
        count = shape(val)
     end if
-    call MPI_bcast(count, 2, MPI_INTEGER, mpi%input_rank, mpi%comm, ierr)
-    if (mpi%rank /= mpi%input_rank) then
-       allocate(val(count(1), count(2)))
+    call MPI_bcast(alloc, 1, MPI_LOGICAL, mpi%input_rank, mpi%comm, ierr)
+    if (alloc) then
+       call MPI_bcast(count, 2, MPI_INTEGER, mpi%input_rank, mpi%comm, ierr)
+       if (mpi%rank /= mpi%input_rank) then
+          allocate(val(count(1), count(2)))
+       end if
+       total_count = count(1) * count(2)
+       call MPI_bcast(val, total_count, MPI_INTEGER, mpi%input_rank, &
+            mpi%comm, ierr)
     end if
-    total_count = count(1) * count(2)
-    call MPI_bcast(val, total_count, MPI_INTEGER, mpi%input_rank, &
-         mpi%comm, ierr)
 
   end subroutine fson_get_mpi_array_2d_integer
 
@@ -939,6 +964,7 @@ contains
     character(len=*), intent(in), optional :: log_key
     ! Locals:
     PetscInt :: ierr, count(2), total_count
+    PetscBool :: alloc
 
     if (mpi%rank == mpi%input_rank) then
        if (present(default)) then
@@ -947,15 +973,19 @@ contains
        else
           call fson_get(self, path, val)
        end if
+       alloc = allocated(val)
        count = shape(val)
     end if
-    call MPI_bcast(count, 2, MPI_INTEGER, mpi%input_rank, mpi%comm, ierr)
-    if (mpi%rank /= mpi%input_rank) then
-       allocate(val(count(1), count(2)))
+    call MPI_bcast(alloc, 1, MPI_LOGICAL, mpi%input_rank, mpi%comm, ierr)
+    if (alloc) then
+       call MPI_bcast(count, 2, MPI_INTEGER, mpi%input_rank, mpi%comm, ierr)
+       if (mpi%rank /= mpi%input_rank) then
+          allocate(val(count(1), count(2)))
+       end if
+       total_count = count(1) * count(2)
+       call MPI_bcast(val, total_count, MPI_REAL, mpi%input_rank, &
+            mpi%comm, ierr)
     end if
-    total_count = count(1) * count(2)
-    call MPI_bcast(val, total_count, MPI_REAL, mpi%input_rank, &
-         mpi%comm, ierr)
 
   end subroutine fson_get_mpi_array_2d_real
 
@@ -973,6 +1003,7 @@ contains
     character(len=*), intent(in), optional :: log_key
     ! Locals:
     PetscInt :: ierr, count(2), total_count
+    PetscBool :: alloc
 
     if (mpi%rank == mpi%input_rank) then
        if (present(default)) then
@@ -981,15 +1012,19 @@ contains
        else
           call fson_get(self, path, val)
        end if
+       alloc = allocated(val)
        count = shape(val)
     end if
-    call MPI_bcast(count, 2, MPI_INTEGER, mpi%input_rank, mpi%comm, ierr)
-    if (mpi%rank /= mpi%input_rank) then
-       allocate(val(count(1), count(2)))
+    call MPI_bcast(alloc, 1, MPI_LOGICAL, mpi%input_rank, mpi%comm, ierr)
+    if (alloc) then
+       call MPI_bcast(count, 2, MPI_INTEGER, mpi%input_rank, mpi%comm, ierr)
+       if (mpi%rank /= mpi%input_rank) then
+          allocate(val(count(1), count(2)))
+       end if
+       total_count = count(1) * count(2)
+       call MPI_bcast(val, total_count, MPI_DOUBLE_PRECISION, &
+            mpi%input_rank, mpi%comm, ierr)
     end if
-    total_count = count(1) * count(2)
-    call MPI_bcast(val, total_count, MPI_DOUBLE_PRECISION, &
-         mpi%input_rank, mpi%comm, ierr)
 
   end subroutine fson_get_mpi_array_2d_double
 
@@ -1007,6 +1042,7 @@ contains
     character(len=*), intent(in), optional :: log_key
     ! Locals:
     integer :: ierr, count(2), total_count
+    PetscBool :: alloc
 
     if (mpi%rank == mpi%input_rank) then
        if (present(default)) then
@@ -1015,15 +1051,19 @@ contains
        else
           call fson_get(self, path, val)
        end if
+       alloc = allocated(val)
        count = shape(val)
     end if
-    call MPI_bcast(count, 2, MPI_INTEGER, mpi%input_rank, mpi%comm, ierr)
-    if (mpi%rank /= mpi%input_rank) then
-       allocate(val(count(1), count(2)))
+    call MPI_bcast(alloc, 1, MPI_LOGICAL, mpi%input_rank, mpi%comm, ierr)
+    if (alloc) then
+       call MPI_bcast(count, 2, MPI_INTEGER, mpi%input_rank, mpi%comm, ierr)
+       if (mpi%rank /= mpi%input_rank) then
+          allocate(val(count(1), count(2)))
+       end if
+       total_count = count(1) * count(2)
+       call MPI_bcast(val, total_count, MPI_LOGICAL, mpi%input_rank, &
+            mpi%comm, ierr)
     end if
-    total_count = count(1) * count(2)
-    call MPI_bcast(val, total_count, MPI_LOGICAL, mpi%input_rank, &
-         mpi%comm, ierr)
 
   end subroutine fson_get_mpi_array_2d_logical
 

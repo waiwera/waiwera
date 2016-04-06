@@ -49,6 +49,8 @@ contains
     call assert_equals(expected_arr_2d, arr_2d, size(expected_arr_2d,1), &
          size(expected_arr_2d,2), "2d int array")
     deallocate(arr_2d)
+    call fson_get_mpi(json, "empty_array", val=arr)
+    call assert_equals(PETSC_FALSE, allocated(arr), "empty array")
 
     call fson_destroy_mpi(json)
 
@@ -83,6 +85,8 @@ contains
     call assert_equals(expected_arr_2d, arr_2d, size(expected_arr_2d,1), &
          size(expected_arr_2d,2), "2d real array")
     deallocate(arr_2d)
+    call fson_get_mpi(json, "empty_array", val=arr)
+    call assert_equals(PETSC_FALSE, allocated(arr), "empty array")
 
     call fson_destroy_mpi(json)
 
@@ -119,6 +123,8 @@ contains
     call assert_equals(expected_arr_2d, arr_2d, size(expected_arr_2d,1), &
          size(expected_arr_2d,2), "2d double array")
     deallocate(arr_2d)
+    call fson_get_mpi(json, "empty_array", val=arr)
+    call assert_equals(PETSC_FALSE, allocated(arr), "empty array")
 
     call fson_destroy_mpi(json)
 
@@ -154,6 +160,8 @@ contains
     call assert_equals(expected_arr_2d, arr_2d, size(expected_arr_2d,1), &
          size(expected_arr_2d,2), "2d logical array")
     deallocate(arr_2d)
+    call fson_get_mpi(json, "empty_array", val=arr)
+    call assert_equals(PETSC_FALSE, allocated(arr), "empty array")
 
     call fson_destroy_mpi(json)
 
