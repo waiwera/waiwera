@@ -621,7 +621,7 @@ contains
     DMLabel :: ghost_label
     type(fluid_type):: fluid
     type(rock_type) :: rock
-    PetscInt :: y_offset, fluid_offset, rock_offsets(2), ghost
+    PetscInt :: y_offset, fluid_offset, rock_offsets(2), ghost, num_boundaries
     PetscInt, pointer :: bdy_faces(:), cells(:)
     PetscErrorCode :: ierr
 
@@ -637,7 +637,8 @@ contains
     call fluid%init(eos%num_components, eos%num_phases)
 
     if (allocated(self%bcs)) then
-       do ibdy = 1, size(self%bcs, 1)
+       num_boundaries = size(self%bcs, 2)
+       do ibdy = 1, num_boundaries
           call DMGetStratumIS(self%dm, open_boundary_label_name, &
                ibdy, bdy_IS, ierr); CHKERRQ(ierr)
           if (bdy_IS /= 0) then
