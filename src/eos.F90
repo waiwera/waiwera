@@ -19,7 +19,7 @@ module eos_module
 
   PetscInt, parameter, public :: max_eos_name_length = 8
   PetscInt, parameter, public :: max_eos_description_length = 80
-  PetscInt, parameter, public :: max_primary_variable_name_length = 16
+  PetscInt, parameter, public :: max_primary_variable_name_length = 32
   PetscInt, parameter, public :: max_phase_name_length = 13
   PetscInt, parameter, public :: max_component_name_length = 8
 
@@ -465,7 +465,8 @@ contains
 
     self%name = "we"
     self%description = "Pure water and energy"
-    self%primary_variable_names = ["Pressure   ", "Temperature"]
+    self%primary_variable_names = ["Pressure                     ", &
+         "Temperature/Vapour saturation"]
 
     self%num_primary_variables = size(self%primary_variable_names)
     self%num_phases = 2
