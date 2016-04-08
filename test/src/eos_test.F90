@@ -20,7 +20,7 @@ module eos_test
 
 public :: test_eos_w_fluid_properties, &
      test_eos_we_fluid_properties, test_eos_we_transition, &
-     test_eos_we_errors
+     test_eos_we_errors, test_eos_we_conductivity
 
 contains
 
@@ -64,10 +64,9 @@ contains
 
     type(fluid_type) :: fluid
     type(rock_type) :: rock
-    PetscInt, parameter :: num_components = 1, num_phases = 1
     PetscInt,  parameter :: offset = 1, region = 1, phase_composition = b'01'
     PetscReal, allocatable :: fluid_data(:)
-    PetscReal, dimension(num_components) :: primary, primary2
+    PetscReal, allocatable :: primary(:), primary2(:)
     type(eos_w_type) :: eos
     type(IAPWS_type) :: thermo
     type(fson_value), pointer :: json
@@ -83,8 +82,9 @@ contains
     call thermo%init()
     call eos%init(json, thermo)
 
-    call fluid%init(num_components, num_phases)
-    allocate(fluid_data(fluid%dof()))
+    call fluid%init(eos%num_components, eos%num_phases)
+    allocate(primary(eos%num_components), primary2(eos%num_components), &
+         fluid_data(fluid%dof()))
     fluid_data = 0._dp
     call fluid%assign(fluid_data, offset)
 
@@ -120,7 +120,7 @@ contains
 
     call fluid%destroy()
     call rock%destroy()
-    deallocate(fluid_data)
+    deallocate(primary, primary2, fluid_data)
     call eos%destroy()
     call thermo%destroy()
     call fson_destroy_mpi(json)
@@ -135,10 +135,9 @@ contains
 
     type(fluid_type) :: fluid
     type(rock_type) :: rock
-    PetscInt, parameter :: num_components = 1, num_phases = 2
     PetscInt,  parameter :: offset = 1, region = 4, phase_composition = b'011'
     PetscReal, allocatable :: fluid_data(:)
-    PetscReal, dimension(num_components + 1) :: primary, primary2
+    PetscReal, allocatable:: primary(:), primary2(:)
     type(eos_we_type) :: eos
     type(IAPWS_type) :: thermo
     class(relative_permeability_type), allocatable, target :: rp
@@ -166,7 +165,8 @@ contains
     call eos%init(json, thermo)
     call setup_relative_permeabilities(json, rp)
 
-    call fluid%init(num_components, num_phases)
+    call fluid%init(eos%num_components, eos%num_phases)
+    allocate(primary(eos%num_primary_variables), primary2(eos%num_primary_variables))
     allocate(fluid_data(fluid%dof()))
     fluid_data = 0._dp
     call fluid%assign(fluid_data, offset)
@@ -224,7 +224,7 @@ contains
     end if
 
     call fluid%destroy()
-    deallocate(fluid_data)
+    deallocate(primary, primary2, fluid_data)
     call eos%destroy()
     call thermo%destroy()
     call fson_destroy_mpi(json)
@@ -239,7 +239,6 @@ contains
     ! eos_we_transition() test
 
     type(fluid_type) :: old_fluid, fluid
-    PetscInt, parameter :: num_components = 1, num_phases = 2
     PetscInt,  parameter :: offset = 1
     PetscReal, allocatable :: old_fluid_data(:), fluid_data(:)
     PetscReal :: primary(2), expected_primary(2), temperature
@@ -256,8 +255,8 @@ contains
     json => fson_parse_mpi(str = json_str)
     call thermo%init()
     call eos%init(json, thermo)
-    call old_fluid%init(num_components, num_phases)
-    call fluid%init(num_components, num_phases)
+    call old_fluid%init(eos%num_components, eos%num_phases)
+    call fluid%init(eos%num_components, eos%num_phases)
     allocate(old_fluid_data(old_fluid%dof()), fluid_data(fluid%dof()))
     old_fluid_data = 0._dp
     fluid_data = 0._dp
@@ -367,7 +366,7 @@ contains
     PetscInt, parameter :: n = 2
     type(fluid_type) :: fluid
     type(rock_type) :: rock
-    PetscInt, parameter :: num_components = 1, num_phases = 2
+    PetscInt, parameter :: num_components = 1
     PetscInt,  parameter :: offset = 1
     PetscReal, allocatable :: fluid_data(:)
     PetscReal, parameter :: data(n, num_components + 1) = reshape([ &
@@ -390,7 +389,7 @@ contains
     call eos%init(json, thermo)
     call setup_relative_permeabilities(json, rp)
 
-    call fluid%init(num_components, num_phases)
+    call fluid%init(num_components, eos%num_phases)
     allocate(fluid_data(fluid%dof()))
     fluid_data = 0._dp
     call fluid%assign(fluid_data, offset)
@@ -417,6 +416,73 @@ contains
     deallocate(rp)
 
   end subroutine test_eos_we_errors
+
+!------------------------------------------------------------------------
+
+  subroutine test_eos_we_conductivity
+
+    ! Test eos_we heat conductivity
+
+    type(fson_value), pointer :: json
+    type(IAPWS_type) :: thermo
+    type(eos_we_type) :: eos
+    PetscReal, allocatable :: fluid_data(:), rock_data(:)
+    type(fluid_type) :: fluid
+    type(rock_type) :: rock
+    PetscInt :: offset = 1
+    PetscReal :: cond, expected_cond
+    PetscReal, parameter :: tol = 1.e-6_dp
+
+    json => fson_parse_mpi(str = '{}')
+    call thermo%init()
+    call eos%init(json, thermo)
+    call fluid%init(eos%num_components, eos%num_phases)
+    allocate(fluid_data(fluid%dof()), rock_data(rock%dof()))
+
+    fluid_data = 0._dp
+    rock_data = 0._dp
+    rock_data(4:5) = [1.5_dp, 1.0_dp]
+
+    call fluid%assign(fluid_data, offset)
+    call rock%assign(rock_data, offset)
+
+    if (mpi%rank == mpi%output_rank) then
+
+       fluid_data(7) = 0.0_dp
+       expected_cond = 1.0_dp
+       cond = eos%conductivity(rock, fluid)
+       call assert_equals(expected_cond, cond, tol, "sl = 0.0")
+
+       fluid_data(7) = 0.25_dp
+       expected_cond = 1.25_dp
+       cond = eos%conductivity(rock, fluid)
+       call assert_equals(expected_cond, cond, tol, "sl = 0.25")
+
+       fluid_data(7) = 0.5_dp
+       expected_cond = 1.3535534_dp
+       cond = eos%conductivity(rock, fluid)
+       call assert_equals(expected_cond, cond, tol, "sl = 0.5")
+
+       fluid_data(7) = 0.75_dp
+       expected_cond = 1.4330127_dp
+       cond = eos%conductivity(rock, fluid)
+       call assert_equals(expected_cond, cond, tol, "sl = 0.75")
+
+       fluid_data(7) = 1.0_dp
+       expected_cond = 1.5_dp
+       cond = eos%conductivity(rock, fluid)
+       call assert_equals(expected_cond, cond, tol, "sl = 1.0")
+
+    end if
+
+    call rock%destroy()
+    call fluid%destroy()
+    call eos%destroy()
+    call thermo%destroy()
+    call fson_destroy_mpi(json)
+    deallocate(fluid_data, rock_data)
+
+  end subroutine test_eos_we_conductivity
 
 !------------------------------------------------------------------------
 
