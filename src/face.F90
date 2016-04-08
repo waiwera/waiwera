@@ -33,6 +33,7 @@ module face_module
      procedure, public :: phase_density => face_phase_density
      procedure, public :: harmonic_average => face_harmonic_average
      procedure, public :: permeability => face_permeability
+     procedure, public :: mobility => face_mobility
      procedure, public :: heat_conductivity => face_heat_conductivity
      procedure, public :: upstream_index => face_upstream_index
      procedure, public :: flux => face_flux
@@ -272,22 +273,33 @@ contains
 
 !------------------------------------------------------------------------
 
-  PetscReal function face_permeability(self) result(k)
-    !! Returns effective permeability on the face, harmonically averaged
+  PetscReal function face_permeability(self, up) result(k)
+    !! Returns effective permeability on the face, upstream weighted
     !! between the two cells.
 
     class(face_type), intent(in) :: self
+    PetscInt, intent(in) :: up !! Upstream cell index
     ! Locals:
-    PetscReal :: kcell(2)
-    PetscInt :: i, direction
+    PetscInt :: direction
 
     direction = nint(self%permeability_direction)
-    do i = 1, 2
-       kcell(i) = self%cell(i)%rock%permeability(direction)
-    end do
-    k = self%harmonic_average(kcell)
+    k = self%cell(up)%rock%permeability(direction)
 
   end function face_permeability
+
+!------------------------------------------------------------------------
+
+  PetscReal function face_mobility(self, p, up) result(mobility)
+    !! Returns effective mobility of phase p on the face, upstream
+    !! weighted between the two cells.
+
+    class(face_type), intent(in) :: self
+    PetscInt, intent(in) :: p  !! Phase index
+    PetscInt, intent(in) :: up !! Upstream cell index
+
+    mobility = self%cell(up)%fluid%phase(p)%mobility()
+
+  end function face_mobility
 
 !------------------------------------------------------------------------
 
@@ -348,7 +360,6 @@ contains
     isothermal = (num_primary == nc)
     dpdn = self%pressure_gradient()
     gn = gravity * self%normal(3)
-    k = self%permeability()
 
     if (.not. isothermal) then
        ! Heat conduction:
@@ -374,7 +385,8 @@ contains
 
           if (btest(phases(up), p - 1)) then
 
-             mobility = self%cell(up)%fluid%phase(p)%mobility()
+             k = self%permeability(up)
+             mobility = self%mobility(p, up)
 
              ! Mass flows:
              F = -k * mobility * G
