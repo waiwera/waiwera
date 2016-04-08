@@ -204,7 +204,7 @@ contains
        allocate(eos_we_type :: eos)
     end select
 
-    call eos%init(json, thermo)
+    call eos%init(json, thermo, logfile)
 
   end subroutine setup_eos
 
