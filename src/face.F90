@@ -303,17 +303,21 @@ contains
 
 !------------------------------------------------------------------------
 
-  PetscReal function face_heat_conductivity(self) result(K)
+  PetscReal function face_heat_conductivity(self, eos) result(K)
     !! Returns effective heat conductivity on the face, harmonically
     !! averaged between the two cells.
 
+    use eos_module, only: eos_type
+
     class(face_type), intent(in) :: self
+    class(eos_type), intent(in) :: eos
+
     ! Locals:
     PetscReal :: kcell(2)
     PetscInt :: i
 
     do i = 1, 2
-       kcell(i) = self%cell(i)%rock%heat_conductivity
+       kcell(i) = eos%conductivity(self%cell(i)%rock, self%cell(i)%fluid)
     end do
     K = self%harmonic_average(kcell)
 
@@ -338,34 +342,35 @@ contains
 
 !------------------------------------------------------------------------
 
-  function face_flux(self, num_primary, gravity) result(flux)
+  function face_flux(self, eos, gravity) result(flux)
     !! Returns array containing the mass fluxes for each component
     !! through the face, from cell(1) to cell(2), and energy flux
     !! for non-isothermal simulations.
 
+    use eos_module, only: eos_type
+
     class(face_type), intent(in) :: self
-    PetscInt, intent(in) :: num_primary
+    class(eos_type), intent(in) :: eos
     PetscReal, intent(in) :: gravity
-    PetscReal :: flux(num_primary)
+    PetscReal :: flux(eos%num_primary_variables)
     ! Locals:
-    PetscInt :: nc
+    PetscInt :: nc, np
     PetscInt :: i, p, up
-    PetscBool :: isothermal
     PetscReal :: dpdn, dtdn, gn, G, face_density, F
     PetscReal :: phase_flux(self%cell(1)%fluid%num_components)
     PetscReal :: k, h, cond, mobility
     PetscInt :: phases(2), phase_present
 
-    nc = self%cell(1)%fluid%num_components
-    isothermal = (num_primary == nc)
+    nc = eos%num_components
+    np = eos%num_primary_variables
     dpdn = self%pressure_gradient()
     gn = gravity * self%normal(3)
 
-    if (.not. isothermal) then
+    if (.not. eos%isothermal) then
        ! Heat conduction:
-       cond = self%heat_conductivity()
+       cond = self%heat_conductivity(eos)
        dtdn = self%temperature_gradient()
-       flux(num_primary) = -cond * dtdn
+       flux(np) = -cond * dtdn
     end if
     flux(1: nc) = 0._dp
 
@@ -393,10 +398,10 @@ contains
              phase_flux = F * self%cell(up)%fluid%phase(p)%mass_fraction
              flux(1:nc) = flux(1:nc) + phase_flux
 
-             if (.not.isothermal) then
+             if (.not. eos%isothermal) then
                 ! Heat convection:
                 h = self%cell(up)%fluid%phase(p)%specific_enthalpy
-                flux(num_primary) = flux(num_primary) + h * F
+                flux(np) = flux(np) + h * F
              end if
 
           end if

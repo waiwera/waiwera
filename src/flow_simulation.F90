@@ -576,7 +576,7 @@ end subroutine flow_simulation_run_info
                cell_geom_array, cell_geom_offsets, &
                rock_array, rock_offsets, fluid_array, fluid_offsets)
 
-          face_flow = face%flux(np, self%gravity) * face%area
+          face_flow = face%flux(self%eos, self%gravity) * face%area
 
           do i = 1, 2
              call DMLabelGetValue(ghost_label, cells(i), ghost_cell, &

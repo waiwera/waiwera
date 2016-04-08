@@ -6,6 +6,9 @@ module face_test
   use mpi_module
   use fruit
   use face_module
+  use eos_module
+  use IAPWS_module
+  use fson
 
   implicit none
   private
@@ -235,6 +238,9 @@ contains
     type(cell_type) :: cell
     type(rock_type) :: rock
     type(fluid_type) :: fluid
+    type(eos_we_type) :: eos
+    type(IAPWS_type) :: thermo
+    type(fson_value), pointer :: json
     PetscReal, allocatable :: face_data(:), cell_data(:)
     PetscReal, allocatable :: rock_data(:), fluid_data(:)
     PetscReal, allocatable :: flux(:)
@@ -242,6 +248,10 @@ contains
     PetscInt :: rock_offsets(2), fluid_offsets(2)
     PetscReal, parameter :: expected_mass_flux = 0._dp
     PetscReal, parameter :: expected_heat_flux = 0._dp
+
+    call thermo%init()
+    json => fson_parse(str = '{}')
+    call eos%init(json, thermo)
 
     if (mpi%rank == mpi%output_rank) then
 
@@ -258,7 +268,7 @@ contains
             0._dp, 0._dp, 0._dp, 1._dp]
        cell_data = 0._dp ! not needed
        rock_data = [ &
-            1.e-14_dp, 2.e-14_dp, 3.e-15_dp,  2.5_dp,  0.1_dp, &
+            1.e-14_dp, 2.e-14_dp, 3.e-15_dp,  2.5_dp,  2.5_dp, 0.1_dp, &
             2200._dp, 1000._dp]
        fluid_data = [ &
             1.e5_dp, 20._dp, 1._dp, 1._dp, &
@@ -268,7 +278,7 @@ contains
        call face%assign(face_data, face_offset, cell_data, cell_offsets, &
             rock_data, rock_offsets, fluid_data, fluid_offsets)
 
-       flux = face%flux(num_primary, gravity)
+       flux = face%flux(eos, gravity)
 
        call assert_equals(num_primary, size(flux), "Flux array size")
        call assert_equals(expected_mass_flux, flux(1), tol, "Mass flux")
@@ -280,6 +290,10 @@ contains
        call fluid%destroy()
 
     end if
+
+    call eos%destroy()
+    call fson_destroy(json)
+    call thermo%destroy()
 
   end subroutine test_face_flux_zero_horizontal
 
@@ -301,6 +315,9 @@ contains
     type(cell_type) :: cell
     type(rock_type) :: rock
     type(fluid_type) :: fluid
+    type(eos_we_type) :: eos
+    type(IAPWS_type) :: thermo
+    type(fson_value), pointer :: json
     PetscReal, allocatable :: face_data(:), cell_data(:)
     PetscReal, allocatable :: rock_data(:), fluid_data(:)
     PetscReal, allocatable :: flux(:)
@@ -308,6 +325,10 @@ contains
     PetscInt :: rock_offsets(2), fluid_offsets(2)
     PetscReal, parameter :: expected_mass_flux = 2.9294255256e-5_dp
     PetscReal, parameter :: expected_heat_flux = 2.4610631137_dp
+
+    call thermo%init()
+    json => fson_parse(str = '{}')
+    call eos%init(json, thermo)
 
     if (mpi%rank == mpi%output_rank) then
 
@@ -324,7 +345,7 @@ contains
             0._dp, 0._dp, 0._dp, 3._dp]
        cell_data = 0._dp ! not needed
        rock_data = [ &
-            1.e-14_dp, 2.e-14_dp, 3.e-15_dp,  2.5_dp,  0.1_dp, &
+            1.e-14_dp, 2.e-14_dp, 3.e-15_dp,  2.5_dp,  2.5_dp, 0.1_dp, &
             2200._dp, 1000._dp]
        fluid_data = [ &
             1.e5_dp, 20._dp, 1._dp, 1._dp, &
@@ -334,7 +355,7 @@ contains
        call face%assign(face_data, face_offset, cell_data, cell_offsets, &
             rock_data, rock_offsets, fluid_data, fluid_offsets)
 
-       flux = face%flux(num_primary, gravity)
+       flux = face%flux(eos, gravity)
 
        call assert_equals(expected_mass_flux, flux(1), mass_tol, "Mass flux")
        call assert_equals(expected_heat_flux, flux(2), heat_tol, "Heat flux")
@@ -345,6 +366,10 @@ contains
        call fluid%destroy()
 
     end if
+
+    call eos%destroy()
+    call fson_destroy(json)
+    call thermo%destroy()
 
   end subroutine test_face_flux_vertical_gravity
 
@@ -366,6 +391,9 @@ contains
     type(cell_type) :: cell
     type(rock_type) :: rock
     type(fluid_type) :: fluid
+    type(eos_we_type) :: eos
+    type(IAPWS_type) :: thermo
+    type(fson_value), pointer :: json
     PetscReal, allocatable :: face_data(:), cell_data(:)
     PetscReal, allocatable :: rock_data(:), fluid_data(:)
     PetscReal, allocatable :: flux(:)
@@ -373,6 +401,10 @@ contains
     PetscInt :: rock_offsets(2), fluid_offsets(2)
     PetscReal, parameter :: expected_mass_flux = 0._dp
     PetscReal, parameter :: expected_heat_flux = 0._dp
+
+    call thermo%init()
+    json => fson_parse(str = '{}')
+    call eos%init(json, thermo)
 
     if (mpi%rank == mpi%output_rank) then
 
@@ -389,7 +421,7 @@ contains
             0._dp, 0._dp, 0._dp, 3._dp]
        cell_data = 0._dp ! not needed
        rock_data = [ &
-            1.e-14_dp, 2.e-14_dp, 3.e-15_dp,  2.5_dp,  0.1_dp, &
+            1.e-14_dp, 2.e-14_dp, 3.e-15_dp,  2.5_dp,  2.5_dp, 0.1_dp, &
             2200._dp, 1000._dp]
        fluid_data = [ &
             2.e5_dp, 20._dp, 1._dp, 1._dp, &                ! cell 1
@@ -402,7 +434,7 @@ contains
        call face%assign(face_data, face_offset, cell_data, cell_offsets, &
             rock_data, rock_offsets, fluid_data, fluid_offsets)
 
-       flux = face%flux(num_primary, gravity)
+       flux = face%flux(eos, gravity)
 
        call assert_equals(expected_mass_flux, flux(1), mass_tol, "Mass flux")
        call assert_equals(expected_heat_flux, flux(2), heat_tol, "Heat flux")
@@ -413,6 +445,10 @@ contains
        call fluid%destroy()
 
     end if
+
+    call eos%destroy()
+    call fson_destroy(json)
+    call thermo%destroy()
 
   end subroutine test_face_flux_hydrostatic
 
@@ -433,6 +469,9 @@ contains
     type(cell_type) :: cell
     type(rock_type) :: rock
     type(fluid_type) :: fluid
+    type(eos_we_type) :: eos
+    type(IAPWS_type) :: thermo
+    type(fson_value), pointer :: json
     PetscReal, allocatable :: face_data(:), cell_data(:)
     PetscReal, allocatable :: rock_data(:), fluid_data(:)
     PetscReal, allocatable :: flux(:)
@@ -441,8 +480,12 @@ contains
     PetscReal :: density
     PetscReal, parameter :: expected_liquid_density = 900.3915384615_dp
     PetscReal, parameter :: expected_vapour_density = 3.7044444444_dp
-    PetscReal, parameter :: expected_mass_flux = 9.14772841429594e-5_dp
-    PetscReal, parameter :: expected_heat_flux = 57.9124776818_dp
+    PetscReal, parameter :: expected_mass_flux = 6.36498506744602e-5_dp
+    PetscReal, parameter :: expected_heat_flux = 37.7008561806_dp
+
+    call thermo%init()
+    json => fson_parse(str = '{}')
+    call eos%init(json, thermo)
 
     if (mpi%rank == mpi%output_rank) then
 
@@ -459,9 +502,9 @@ contains
             0._dp, 0._dp, 3._dp]
        cell_data = 0._dp ! not needed
        rock_data = [ &
-            1.e-14_dp, 2.e-14_dp, 3.e-15_dp,  2.5_dp,  0.1_dp, &  ! cell 1
+            1.e-14_dp, 2.e-14_dp, 3.e-15_dp,  2.5_dp, 2.5_dp, 0.1_dp, &  ! cell 1
             2200._dp, 1000._dp, &
-            2.e-14_dp, 3.e-14_dp, 6.e-15_dp,  2.7_dp,  0.05_dp, & ! cell 2
+            2.e-14_dp, 3.e-14_dp, 6.e-15_dp,  2.7_dp, 2.7_dp, 0.05_dp, & ! cell 2
             2300._dp, 995._dp]
        fluid_data = [ &
             6.2e5_dp, 160._dp, 4._dp, 3._dp, &        ! cell 1
@@ -482,7 +525,7 @@ contains
        call assert_equals(expected_liquid_density, density, density_tol, "Liquid density")
        density = face%phase_density(2)
        call assert_equals(expected_vapour_density, density, density_tol, "Vapour density")
-       flux = face%flux(num_primary, gravity)
+       flux = face%flux(eos, gravity)
 
        call assert_equals(expected_mass_flux, flux(1), mass_tol, "Mass flux")
        call assert_equals(expected_heat_flux, flux(2), heat_tol, "Heat flux")
@@ -493,6 +536,10 @@ contains
        call fluid%destroy()
 
     end if
+
+    call eos%destroy()
+    call fson_destroy(json)
+    call thermo%destroy()
 
   end subroutine test_face_flux_two_phase_vertical
 

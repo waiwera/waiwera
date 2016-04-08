@@ -12,7 +12,7 @@ module rock_module
   type rock_type
      !! Local rock properties.
      PetscReal, pointer :: permeability(:)   !! permeability
-     PetscReal, pointer :: heat_conductivity !! heat conductivity
+     PetscReal, pointer :: wet_conductivity, dry_conductivity !! heat conductivities
      PetscReal, pointer :: porosity          !! porosity
      PetscReal, pointer :: density           !! grain density
      PetscReal, pointer :: specific_heat     !! specific heat
@@ -25,19 +25,19 @@ module rock_module
      procedure, public :: energy => rock_energy
   end type rock_type
 
-  PetscInt, parameter :: num_rock_variables = 5
+  PetscInt, parameter :: num_rock_variables = 6
   PetscInt, parameter :: max_rock_variable_name_length = 32
   character(max_rock_variable_name_length), parameter, public :: &
        rock_variable_names(num_rock_variables) = &
        [character(max_rock_variable_name_length):: &
-       "Permeability", "Heat conductivity", "Porosity", &
+       "Permeability", "Wet conductivity", "Dry conductivity", "Porosity", &
        "Density", "Specific heat"]
   PetscInt, parameter, public :: &
        rock_variable_num_components(num_rock_variables) = &
-       [3, 1, 1, 1, 1]
+       [3, 1, 1, 1, 1, 1]
   PetscInt, parameter, public :: &
        rock_variable_dim(num_rock_variables) = &
-       [3, 3, 3, 3, 3]
+       [3, 3, 3, 3, 3, 3]
   PetscInt, parameter, public :: max_rockname_length = 24
 
   PetscInt, parameter, public :: max_rocktype_label_length = 9
@@ -68,10 +68,11 @@ contains
          optional :: relative_permeability
 
     self%permeability => data(offset: offset + 2)
-    self%heat_conductivity => data(offset + 3)
-    self%porosity => data(offset + 4)
-    self%density => data(offset + 5)
-    self%specific_heat => data(offset + 6)
+    self%wet_conductivity => data(offset + 3)
+    self%dry_conductivity => data(offset + 4)
+    self%porosity => data(offset + 5)
+    self%density => data(offset + 6)
+    self%specific_heat => data(offset + 7)
 
     if (present(relative_permeability)) then
        self%relative_permeability => relative_permeability
@@ -98,7 +99,8 @@ contains
     class(rock_type), intent(in out) :: self
 
     nullify(self%permeability)
-    nullify(self%heat_conductivity)
+    nullify(self%wet_conductivity)
+    nullify(self%dry_conductivity)
     nullify(self%porosity)
     nullify(self%density)
     nullify(self%specific_heat)
@@ -142,7 +144,8 @@ contains
     DMLabel :: ghost_label
     type(rock_type) :: rock
     character(max_rockname_length) :: name
-    PetscReal :: porosity, density, specific_heat, heat_conductivity
+    PetscReal :: porosity, density, specific_heat
+    PetscReal :: wet_conductivity, dry_conductivity
     PetscReal, allocatable :: permeability(:)
     PetscReal, pointer :: rock_array(:)
     PetscSection :: section
@@ -164,8 +167,10 @@ contains
        call fson_get_mpi(r, "name", "", name, logfile, trim(rockstr) // "name")
        call fson_get_mpi(r, "permeability", default_permeability, &
             permeability, logfile, trim(rockstr) // "permeability")
-       call fson_get_mpi(r, "heat conductivity", default_heat_conductivity, &
-            heat_conductivity, logfile, trim(rockstr) // "heat conductivity")
+       call fson_get_mpi(r, "wet conductivity", default_heat_conductivity, &
+            wet_conductivity, logfile, trim(rockstr) // "wet conductivity")
+       call fson_get_mpi(r, "dry conductivity", wet_conductivity, &
+            dry_conductivity, logfile, trim(rockstr) // "dry conductivity")
        call fson_get_mpi(r, "porosity", default_porosity, porosity, logfile, &
             trim(rockstr) // "porosity")
        call fson_get_mpi(r, "density", default_density, density, logfile, &
@@ -185,7 +190,8 @@ contains
                      offset, ierr); CHKERRQ(ierr)
                 call rock%assign(rock_array, offset)
                 rock%permeability = permeability
-                rock%heat_conductivity = heat_conductivity
+                rock%wet_conductivity = wet_conductivity
+                rock%dry_conductivity = dry_conductivity
                 rock%porosity = porosity
                 rock%density = density
                 rock%specific_heat = specific_heat

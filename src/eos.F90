@@ -48,6 +48,7 @@ module eos_module
      procedure(eos_phase_properties_procedure), public, deferred :: phase_properties
      procedure(eos_primary_variables_procedure), public, deferred :: primary_variables
      procedure(eos_check_primary_variables_procedure), public, deferred :: check_primary_variables
+     procedure(eos_conductivity_procedure), public, deferred :: conductivity
   end type eos_type
 
   type, public, extends(eos_type) :: eos_w_type
@@ -64,6 +65,7 @@ module eos_module
      procedure, public :: phase_properties => eos_w_phase_properties
      procedure, public :: primary_variables => eos_w_primary_variables
      procedure, public :: check_primary_variables => eos_w_check_primary_variables
+     procedure, public :: conductivity => eos_w_conductivity
   end type eos_w_type
 
   type, public, extends(eos_w_type) :: eos_we_type
@@ -80,6 +82,7 @@ module eos_module
      procedure, public :: primary_variables => eos_we_primary_variables
      procedure :: phase_saturations => eos_we_phase_saturations
      procedure, public :: check_primary_variables => eos_we_check_primary_variables
+     procedure, public :: conductivity => eos_we_conductivity
   end type eos_we_type
 
   abstract interface
@@ -163,6 +166,16 @@ module eos_module
        type(fluid_type), intent(in) :: fluid
        PetscReal, intent(in), target :: primary(self%num_primary_variables)
      end function eos_check_primary_variables_procedure
+
+     PetscReal function eos_conductivity_procedure(self, rock, fluid)
+       !! Calculate effective rock heat conductivity for given fluid properties.
+       use rock_module, only: rock_type
+       use fluid_module, only: fluid_type
+       import :: eos_type
+       class(eos_type), intent(in) :: self
+       type(rock_type), intent(in) :: rock
+       type(fluid_type), intent(in) :: fluid
+     end function eos_conductivity_procedure
 
   end interface
 
@@ -416,6 +429,22 @@ contains
     end if
 
   end function eos_w_check_primary_variables
+
+!------------------------------------------------------------------------
+
+  PetscReal function eos_w_conductivity(self, rock, fluid) result(cond)
+    !! Returns effective rock heat conductivity for given fluid properties.
+
+    use rock_module, only: rock_type
+    use fluid_module, only: fluid_type
+
+    class(eos_w_type), intent(in) :: self
+    type(rock_type), intent(in) :: rock !! Rock object
+    type(fluid_type), intent(in) :: fluid !! Fluid object
+
+    cond = rock%wet_conductivity
+
+  end function eos_w_conductivity
 
 !------------------------------------------------------------------------
 ! eos_we
@@ -783,6 +812,26 @@ contains
     end if
 
   end function eos_we_check_primary_variables
+
+!------------------------------------------------------------------------
+
+  PetscReal function eos_we_conductivity(self, rock, fluid) result(cond)
+    !! Returns effective rock heat conductivity for given fluid properties.
+
+    use rock_module, only: rock_type
+    use fluid_module, only: fluid_type
+
+    class(eos_we_type), intent(in) :: self
+    type(rock_type), intent(in) :: rock !! Rock object
+    type(fluid_type), intent(in) :: fluid !! Fluid object
+    ! Locals:
+    PetscReal :: sl
+
+    sl = fluid%phase(1)%saturation
+    cond = rock%dry_conductivity + sqrt(sl) * &
+         (rock%wet_conductivity - rock%dry_conductivity)
+
+  end function eos_we_conductivity
 
 !------------------------------------------------------------------------
 
