@@ -128,7 +128,7 @@ contains
     CHKERRQ(ierr)
     call PetscViewerHDF5PushGroup(viewer, "/", ierr); CHKERRQ(ierr)
     call ISDuplicate(cell_index, output_cell_index, ierr); CHKERRQ(ierr)
-    call PetscObjectSetName(output_cell_index, "cell_order", ierr)
+    call PetscObjectSetName(output_cell_index, "cell_index", ierr)
     CHKERRQ(ierr)
     call ISLoad(output_cell_index, viewer, ierr); CHKERRQ(ierr)
     call PetscViewerHDF5PopGroup(viewer, ierr); CHKERRQ(ierr)
