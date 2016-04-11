@@ -1026,11 +1026,11 @@ end subroutine flow_simulation_run_info
 
           call DMLabelGetValue(order_label, c, order, ierr); CHKERRQ(ierr)
 
-          err = self%eos%check_primary_variables(fluid, cell_primary)
+          call self%eos%transition(cell_primary, last_iteration_fluid, &
+               fluid, transition, err)
 
           if (err == 0) then
-             call self%eos%transition(cell_primary, last_iteration_fluid, &
-                  fluid, transition, err)
+             err = self%eos%check_primary_variables(fluid, cell_primary)
              if (err == 0) then
                 if (transition) then
                    cell_search = old_cell_primary - cell_primary
@@ -1047,17 +1047,18 @@ end subroutine flow_simulation_run_info
                 end if
              else
                 call self%logfile%write(LOG_LEVEL_WARN, 'fluid', &
-                     'transition_failed', &
-                     ['cell            '], [order], rank = mpi%rank)
+                     'out_of_range', &
+                     ['cell            ', 'region          '], &
+                     [order, nint(fluid%region)], &
+                     real_array_key = 'primary         ', &
+                     real_array_value = cell_primary, rank = mpi%rank)
                 exit
              end if
+
           else
              call self%logfile%write(LOG_LEVEL_WARN, 'fluid', &
-                  'out_of_range', &
-                  ['cell            ', 'region          '], &
-                  [order, nint(fluid%region)], &
-                  real_array_key = 'primary         ', &
-                  real_array_value = cell_primary, rank = mpi%rank)
+                  'transition_failed', &
+                  ['cell            '], [order], rank = mpi%rank)
              exit
           end if
 
