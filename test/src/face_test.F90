@@ -480,8 +480,8 @@ contains
     PetscReal :: density
     PetscReal, parameter :: expected_liquid_density = 900.3915384615_dp
     PetscReal, parameter :: expected_vapour_density = 3.7044444444_dp
-    PetscReal, parameter :: expected_mass_flux = 6.36498506744602e-5_dp
-    PetscReal, parameter :: expected_heat_flux = 37.7008561806_dp
+    PetscReal, parameter :: expected_mass_flux = 9.14772841429594e-5_dp
+    PetscReal, parameter :: expected_heat_flux = 57.9124776818_dp
 
     call thermo%init()
     json => fson_parse(str = '{}')
