@@ -273,17 +273,20 @@ contains
 
 !------------------------------------------------------------------------
 
-  PetscReal function face_permeability(self, up) result(k)
-    !! Returns effective permeability on the face, upstream weighted
+  PetscReal function face_permeability(self) result(k)
+    !! Returns effective permeability on the face, harmonic weighted
     !! between the two cells.
 
     class(face_type), intent(in) :: self
-    PetscInt, intent(in) :: up !! Upstream cell index
     ! Locals:
-    PetscInt :: direction
+    PetscInt :: direction, i
+    PetscReal :: perm(2)
 
     direction = nint(self%permeability_direction)
-    k = self%cell(up)%rock%permeability(direction)
+    do i = 1, 2
+       perm(i) = self%cell(i)%rock%permeability(direction)
+    end do
+    k = self%harmonic_average(perm)
 
   end function face_permeability
 
@@ -390,7 +393,7 @@ contains
 
           if (btest(phases(up), p - 1)) then
 
-             k = self%permeability(up)
+             k = self%permeability()
              mobility = self%mobility(p, up)
 
              ! Mass flows:
