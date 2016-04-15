@@ -18,8 +18,8 @@ module fluid_module
   character(max_phase_variable_name_length), public :: &
        phase_variable_names(num_phase_variables) = [ &
        "density              ", "viscosity            ", &
-       "saturation           ", "relative permeability", &
-       "specific enthalpy    ", "internal energy      "]
+       "saturation           ", "relative_permeability", &
+       "specific_enthalpy    ", "internal_energy      "]
 
   type phase_type
      !! Type for accessing local fluid properties for a particular phase.
@@ -357,12 +357,12 @@ contains
     do p = 1, num_phases
        do j = 1, num_phase_variables
           field_names(i) = trim(phase_names(p)) &
-               // ' ' // trim(phase_variable_names(j))
+               // '_' // trim(phase_variable_names(j))
           i = i + 1
        end do
        do j = 1, num_components
           field_names(i) = trim(phase_names(p)) &
-               // ' ' // trim(component_names(j)) // ' mass fraction'
+               // '_' // trim(component_names(j)) // '_mass_fraction'
           i = i + 1
        end do
     end do

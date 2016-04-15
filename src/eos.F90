@@ -241,7 +241,7 @@ contains
 
     self%name = "w"
     self%description = "Isothermal pure water"
-    self%primary_variable_names = ["Pressure"]
+    self%primary_variable_names = ["pressure"]
 
     self%num_primary_variables = size(self%primary_variable_names)
     self%num_phases = 1
@@ -465,8 +465,8 @@ contains
 
     self%name = "we"
     self%description = "Pure water and energy"
-    self%primary_variable_names = ["Pressure                     ", &
-         "Temperature/Vapour saturation"]
+    self%primary_variable_names = ["pressure                     ", &
+         "temperature/vapour_saturation"]
 
     self%num_primary_variables = size(self%primary_variable_names)
     self%num_phases = 2

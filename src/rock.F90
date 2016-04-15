@@ -30,8 +30,8 @@ module rock_module
   character(max_rock_variable_name_length), parameter, public :: &
        rock_variable_names(num_rock_variables) = &
        [character(max_rock_variable_name_length):: &
-       "Permeability", "Wet conductivity", "Dry conductivity", "Porosity", &
-       "Density", "Specific heat"]
+       "permeability", "wet_conductivity", "dry_conductivity", "porosity", &
+       "density", "specific_heat"]
   PetscInt, parameter, public :: &
        rock_variable_num_components(num_rock_variables) = &
        [3, 1, 1, 1, 1, 1]
@@ -42,7 +42,7 @@ module rock_module
 
   PetscInt, parameter, public :: max_rocktype_label_length = 9
   character(max_rocktype_label_length), parameter, public :: &
-       rocktype_label_name = "Rock type"
+       rocktype_label_name = "rock_type"
 
   ! Default rock properties:
   PetscReal, parameter, public :: default_permeability(3) = [1.e-13_dp, 1.e-13_dp, 1.e-13_dp]
