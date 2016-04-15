@@ -352,7 +352,7 @@ end subroutine flow_simulation_run_info
     call self%mesh%init(json, self%logfile)
     call setup_rocktype_labels(json, self%mesh%dm, self%logfile)
     call self%mesh%setup_boundaries(json, self%eos, self%logfile)
-    call self%mesh%configure(self%eos%primary_variable_names)
+    call self%mesh%configure(self%eos%primary_variable_names, self%hdf5_viewer)
     call self%output_mesh_geometry()
 
     call self%setup_solution_vector()
@@ -1107,9 +1107,6 @@ end subroutine flow_simulation_run_info
        call VecView(global_cell_geom, self%hdf5_viewer, ierr); CHKERRQ(ierr)
 
        call DMRestoreGlobalVector(geom_dm, global_cell_geom, ierr)
-       CHKERRQ(ierr)
-
-       call ISView(self%mesh%cell_index, self%hdf5_viewer, ierr)
        CHKERRQ(ierr)
 
     end if

@@ -11,9 +11,9 @@ module mesh_module
 #include <petsc/finclude/petsc.h90>
 
   PetscInt, parameter, public :: max_mesh_filename_length = 200
-  character(len = 16), public :: open_boundary_label_name = "open boundary"
+  character(len = 16), public :: open_boundary_label_name = "open_boundary"
   character(len = 13), parameter, public :: &
-       cell_order_label_name = "cell order"
+       cell_order_label_name = "cell_order"
 
   type, public :: mesh_type
      !! Mesh type.
@@ -74,11 +74,16 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine mesh_setup_cell_index(self)
-    !! Sets up cell order index set from cell order label on DM.
-    !! This index set corresponds to a block size of 1.
+  subroutine mesh_setup_cell_index(self, viewer)
+    !! Sets up cell index set from cell order label on DM.  This index
+    !! set corresponds to a block size of 1.
+    !! Also writes the cell interior index set to HDF5 output. This is
+    !! used for post-processing and is similar to the cell index set
+    !! except that the global indices apply to vectors containing only
+    !! interior cells (not boundary ghost cells).
 
     class(mesh_type), intent(in out) :: self
+    PetscViewer, intent(in out), optional :: viewer
     ! Locals:
     PetscInt :: total_count, local_count
     PetscInt :: total_allocate_count, allocate_size
@@ -89,6 +94,7 @@ contains
     PetscInt, allocatable :: index_array_all(:), index_array(:)
     PetscInt, allocatable :: local_counts(:), displacements(:)
     Vec :: v
+    IS :: cell_interior_index
     PetscInt :: blocksize, start_global_index, i_global
     PetscErrorCode :: ierr
 
@@ -161,16 +167,39 @@ contains
           index_array_all(natural_index_all(i) + 1) = global_index_all(i)
        end do
     end if
-    deallocate(global_index_all, natural_index_all)
+    deallocate(global_index_all)
     allocate(index_array(local_count))
+    call MPI_scatterv(index_array_all, local_counts, displacements, &
+         MPI_INTEGER, index_array, local_count, MPI_INTEGER, &
+         mpi%input_rank, mpi%comm, ierr)
+    call ISCreateGeneral(mpi%comm, local_count, index_array, &
+         PETSC_COPY_VALUES, self%cell_index, ierr); CHKERRQ(ierr)
+    call PetscObjectSetName(self%cell_index, "cell_index", ierr)
+
+    ! Set up cell interior index set:
+    if (mpi%rank == mpi%input_rank) then
+       do i = 1, total_count
+          index_array_all(natural_index_all(i) + 1) = i - 1
+       end do
+    end if
+    deallocate(natural_index_all)
     call MPI_scatterv(index_array_all, local_counts, displacements, &
          MPI_INTEGER, index_array, local_count, MPI_INTEGER, &
          mpi%input_rank, mpi%comm, ierr)
     deallocate(index_array_all, local_counts, displacements)
 
     call ISCreateGeneral(mpi%comm, local_count, index_array, &
-         PETSC_COPY_VALUES, self%cell_index, ierr); CHKERRQ(ierr)
-    call PetscObjectSetName(self%cell_index, "cell_index", ierr)
+         PETSC_COPY_VALUES, cell_interior_index, ierr); CHKERRQ(ierr)
+    deallocate(index_array)
+    call PetscObjectSetName(cell_interior_index, &
+         "cell_interior_index", ierr)
+
+    if (present(viewer)) then
+       call ISView(self%cell_index, viewer, ierr); CHKERRQ(ierr)
+       call ISView(cell_interior_index, viewer, ierr); CHKERRQ(ierr)
+    end if
+
+    call ISDestroy(cell_interior_index, ierr); CHKERRQ(ierr)
 
   end subroutine mesh_setup_cell_index
 
@@ -450,11 +479,12 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine mesh_configure(self, primary_variable_names)
+  subroutine mesh_configure(self, primary_variable_names, viewer)
     !! Configures mesh.
 
     class(mesh_type), intent(in out) :: self
     character(*), intent(in) :: primary_variable_names(:) !! Names of primary thermodynamic variables
+    PetscViewer, intent(in out), optional :: viewer
     ! Locals:
     PetscInt :: dof
 
@@ -471,7 +501,7 @@ contains
 
     call self%setup_geometry()
 
-    call self%setup_cell_index()
+    call self%setup_cell_index(viewer)
 
   end subroutine mesh_configure
 
