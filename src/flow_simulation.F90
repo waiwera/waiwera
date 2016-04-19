@@ -929,13 +929,17 @@ end subroutine flow_simulation_run_info
              if (err > 0) then
                 call self%logfile%write(LOG_LEVEL_WARN, 'fluid', &
                      'properties_not_found', &
-                     ['cell            '], [order], rank = mpi%rank)
+                     ['cell            '], [order], &
+                     real_array_key = 'primary         ', &
+                     real_array_value = cell_primary, rank = mpi%rank)
                 exit
              end if
           else
              call self%logfile%write(LOG_LEVEL_WARN, 'fluid', &
                   'properties_not_found', &
-                  ['cell            '], [order], rank = mpi%rank)
+                  ['cell            '], [order], &
+                  real_array_key = 'primary         ', &
+                  real_array_value = cell_primary, rank = mpi%rank)
              exit
           end if
 
