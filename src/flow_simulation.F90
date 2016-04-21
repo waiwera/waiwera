@@ -321,7 +321,7 @@ end subroutine flow_simulation_run_info
     use rock_module, only: setup_rock_vector, setup_rocktype_labels
     use source_module, only: setup_source_vector
     use utils_module, only: date_time_str
-    use profiling_module, only: flops, simulation_init_event
+    use profiling_module, only: simulation_init_event
 
     class(flow_simulation_type), intent(in out) :: self
     type(fson_value), pointer, intent(in) :: json
@@ -386,7 +386,6 @@ end subroutine flow_simulation_run_info
 
     call self%logfile%flush()
 
-    call PetscLogFlops(flops, ierr); CHKERRQ(ierr)
     call PetscLogEventEnd(simulation_init_event, ierr); CHKERRQ(ierr)
 
   end subroutine flow_simulation_init
@@ -435,7 +434,7 @@ end subroutine flow_simulation_run_info
 
     use dm_utils_module, only: global_section_offset, global_vec_section
     use cell_module, only: cell_type
-    use profiling_module, only: flops, lhs_fn_event
+    use profiling_module, only: lhs_fn_event
 
     class(flow_simulation_type), intent(in out) :: self
     PetscReal, intent(in) :: t !! time (s)
@@ -502,7 +501,6 @@ end subroutine flow_simulation_run_info
     call VecRestoreArrayReadF90(self%rock, rock_array, ierr); CHKERRQ(ierr)
     call VecRestoreArrayF90(lhs, lhs_array, ierr); CHKERRQ(ierr)
 
-    call PetscLogFlops(flops, ierr); CHKERRQ(ierr)
     call PetscLogEventEnd(lhs_fn_event, ierr); CHKERRQ(ierr)
 
   end subroutine flow_simulation_cell_balances
@@ -518,7 +516,7 @@ end subroutine flow_simulation_run_info
     use dm_utils_module
     use cell_module, only: cell_type
     use face_module, only: face_type
-    use profiling_module, only: flops, rhs_fn_event
+    use profiling_module, only: rhs_fn_event
 
     class(flow_simulation_type), intent(in out) :: self
     PetscReal, intent(in) :: t !! time
@@ -666,7 +664,6 @@ end subroutine flow_simulation_run_info
     call restore_dm_local_vec(local_rock)
     deallocate(face_flow, primary)
 
-    call PetscLogFlops(flops, ierr); CHKERRQ(ierr)
     call PetscLogEventEnd(rhs_fn_event, ierr); CHKERRQ(ierr)
 
   end subroutine flow_simulation_cell_inflows
@@ -785,7 +782,7 @@ end subroutine flow_simulation_run_info
     use dm_utils_module, only: global_section_offset, global_vec_section
     use fluid_module, only: fluid_type
     use rock_module, only: rock_type
-    use profiling_module, only: flops, fluid_init_event
+    use profiling_module, only: fluid_init_event
 
     class(flow_simulation_type), intent(in out) :: self
     PetscReal, intent(in) :: t !! time
@@ -884,7 +881,6 @@ end subroutine flow_simulation_run_info
 
     call mpi%broadcast_error_flag(err)
 
-    call PetscLogFlops(flops, ierr); CHKERRQ(ierr)
     call PetscLogEventEnd(fluid_init_event, ierr); CHKERRQ(ierr)
 
   end subroutine flow_simulation_fluid_init
@@ -899,7 +895,7 @@ end subroutine flow_simulation_run_info
     use dm_utils_module, only: global_section_offset, global_vec_section
     use fluid_module, only: fluid_type
     use rock_module, only: rock_type
-    use profiling_module, only: flops, fluid_properties_event
+    use profiling_module, only: fluid_properties_event
 
     class(flow_simulation_type), intent(in out) :: self
     PetscReal, intent(in) :: t !! time
@@ -993,7 +989,6 @@ end subroutine flow_simulation_run_info
 
     call mpi%broadcast_error_flag(err)
 
-    call PetscLogFlops(flops, ierr); CHKERRQ(ierr)
     call PetscLogEventEnd(fluid_properties_event, ierr); CHKERRQ(ierr)
 
   end subroutine flow_simulation_fluid_properties
@@ -1007,7 +1002,7 @@ end subroutine flow_simulation_run_info
 
     use dm_utils_module, only: global_section_offset, global_vec_section
     use fluid_module, only: fluid_type
-    use profiling_module, only: flops, fluid_transitions_event
+    use profiling_module, only: fluid_transitions_event
 
     class(flow_simulation_type), intent(in out) :: self
     Vec, intent(in) :: y_old !! Previous global primary variables vector
@@ -1127,7 +1122,6 @@ end subroutine flow_simulation_run_info
     call mpi%broadcast_logical(changed_y)
     call mpi%broadcast_logical(changed_search)
 
-    call PetscLogFlops(flops, ierr); CHKERRQ(ierr)
     call PetscLogEventEnd(fluid_transitions_event, ierr); CHKERRQ(ierr)
 
   end subroutine flow_simulation_fluid_transitions
@@ -1169,7 +1163,7 @@ end subroutine flow_simulation_run_info
   subroutine flow_simulation_output(self, time_index, time)
     !! Output from flow simulation.
 
-    use profiling_module, only: flops, output_event
+    use profiling_module, only: output_event
 
     class(flow_simulation_type), intent(in out) :: self
     PetscInt, intent(in) :: time_index
@@ -1187,7 +1181,6 @@ end subroutine flow_simulation_run_info
        call VecView(self%fluid, self%hdf5_viewer, ierr); CHKERRQ(ierr)
     end if
 
-    call PetscLogFlops(flops, ierr); CHKERRQ(ierr)
     call PetscLogEventEnd(output_event, ierr); CHKERRQ(ierr)
 
   end subroutine flow_simulation_output

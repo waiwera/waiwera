@@ -77,6 +77,7 @@ digraph supermodel{
         fson_mpi_module -> logfile_module
         fson_mpi_module -> mpi_module
         IFC67_module -> kinds_module
+        IFC67_module -> profiling_module
         IFC67_module -> thermodynamics_module
         supermodel -> flow_simulation_module
         supermodel -> fson
@@ -92,6 +93,7 @@ digraph supermodel{
         source_module -> mesh_module
         IAPWS_module -> kinds_module
         IAPWS_module -> powertable_module
+        IAPWS_module -> profiling_module
         IAPWS_module -> thermodynamics_module
         thermodynamics_setup_module -> IAPWS_module
         thermodynamics_setup_module -> IFC67_module
