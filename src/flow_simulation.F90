@@ -785,6 +785,7 @@ end subroutine flow_simulation_run_info
     use dm_utils_module, only: global_section_offset, global_vec_section
     use fluid_module, only: fluid_type
     use rock_module, only: rock_type
+    use profiling_module, only: flops, fluid_init_event
 
     class(flow_simulation_type), intent(in out) :: self
     PetscReal, intent(in) :: t !! time
@@ -800,6 +801,8 @@ end subroutine flow_simulation_run_info
     type(rock_type) :: rock
     DMLabel :: ghost_label, order_label
     PetscErrorCode :: ierr
+
+    call PetscLogEventBegin(fluid_init_event, ierr); CHKERRQ(ierr)
 
     err = 0
     np = self%eos%num_primary_variables
@@ -880,6 +883,9 @@ end subroutine flow_simulation_run_info
     call fluid%destroy()
 
     call mpi%broadcast_error_flag(err)
+
+    call PetscLogFlops(flops, ierr); CHKERRQ(ierr)
+    call PetscLogEventEnd(fluid_init_event, ierr); CHKERRQ(ierr)
 
   end subroutine flow_simulation_fluid_init
 

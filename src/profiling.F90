@@ -9,6 +9,7 @@ module profiling_module
   PetscClassId, public ::  log_class
   PetscLogDouble, public :: flops
   PetscLogEvent, public :: simulation_init_event
+  PetscLogEvent, public :: fluid_init_event
   PetscLogEvent, public :: lhs_fn_event
   PetscLogEvent, public :: rhs_fn_event
 
@@ -28,6 +29,7 @@ contains
 
     ! Register log events:
     call PetscLogEventRegister("sim_init", log_class, simulation_init_event, ierr)
+    call PetscLogEventRegister("fluid_init", log_class, fluid_init_event, ierr)
     call PetscLogEventRegister("lhs_function", log_class, lhs_fn_event, ierr)
     call PetscLogEventRegister("rhs_function", log_class, rhs_fn_event, ierr)
 
