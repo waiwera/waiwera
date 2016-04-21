@@ -8,6 +8,7 @@ module profiling_module
 
   PetscClassId, public ::  log_class
   PetscLogDouble, public :: flops
+  PetscLogEvent, public :: simulation_init_event
   PetscLogEvent, public :: lhs_fn_event
   PetscLogEvent, public :: rhs_fn_event
 
@@ -20,11 +21,13 @@ contains
   subroutine init_profiling()
     !! Initialize code profiling.
 
+    ! Locals:
     PetscErrorCode :: ierr
 
     call PetscClassIdRegister("supermodel", log_class, ierr); CHKERRQ(ierr)
 
     ! Register log events:
+    call PetscLogEventRegister("sim_init", log_class, simulation_init_event, ierr)
     call PetscLogEventRegister("lhs_function", log_class, lhs_fn_event, ierr)
     call PetscLogEventRegister("rhs_function", log_class, rhs_fn_event, ierr)
 

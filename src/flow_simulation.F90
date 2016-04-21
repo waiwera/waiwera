@@ -321,6 +321,7 @@ end subroutine flow_simulation_run_info
     use rock_module, only: setup_rock_vector, setup_rocktype_labels
     use source_module, only: setup_source_vector
     use utils_module, only: date_time_str
+    use profiling_module, only: flops, simulation_init_event
 
     class(flow_simulation_type), intent(in out) :: self
     type(fson_value), pointer, intent(in) :: json
@@ -330,6 +331,8 @@ end subroutine flow_simulation_run_info
     character(25) :: datetimestr
     PetscReal, parameter :: default_gravity = 9.8_dp
     PetscErrorCode :: ierr
+
+    call PetscLogEventBegin(simulation_init_event, ierr); CHKERRQ(ierr)
 
     call PetscTime(self%start_wall_time, ierr); CHKERRQ(ierr)
     datetimestr = date_time_str()
@@ -382,6 +385,9 @@ end subroutine flow_simulation_run_info
          self%source, self%solution_range_start, self%logfile)
 
     call self%logfile%flush()
+
+    call PetscLogFlops(flops, ierr); CHKERRQ(ierr)
+    call PetscLogEventEnd(simulation_init_event, ierr); CHKERRQ(ierr)
 
   end subroutine flow_simulation_init
 
