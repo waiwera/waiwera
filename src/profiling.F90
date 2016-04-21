@@ -10,9 +10,9 @@ module profiling_module
   PetscLogDouble, public :: flops
   PetscLogEvent, public :: simulation_init_event
   PetscLogEvent, public :: fluid_init_event
-  PetscLogEvent, public :: fluid_properties_event
-  PetscLogEvent, public :: lhs_fn_event
-  PetscLogEvent, public :: rhs_fn_event
+  PetscLogEvent, public :: fluid_properties_event, fluid_transitions_event
+  PetscLogEvent, public :: lhs_fn_event, rhs_fn_event
+  PetscLogEvent, public :: output_event
 
   public :: init_profiling
 
@@ -32,8 +32,10 @@ contains
     call PetscLogEventRegister("sim_init", log_class, simulation_init_event, ierr)
     call PetscLogEventRegister("fluid_init", log_class, fluid_init_event, ierr)
     call PetscLogEventRegister("fluid_properties", log_class, fluid_properties_event, ierr)
+    call PetscLogEventRegister("fluid_transitions", log_class, fluid_transitions_event, ierr)
     call PetscLogEventRegister("lhs_function", log_class, lhs_fn_event, ierr)
     call PetscLogEventRegister("rhs_function", log_class, rhs_fn_event, ierr)
+    call PetscLogEventRegister("output", log_class, output_event, ierr)
 
   end subroutine init_profiling
 

@@ -1007,6 +1007,7 @@ end subroutine flow_simulation_run_info
 
     use dm_utils_module, only: global_section_offset, global_vec_section
     use fluid_module, only: fluid_type
+    use profiling_module, only: flops, fluid_transitions_event
 
     class(flow_simulation_type), intent(in out) :: self
     Vec, intent(in) :: y_old !! Previous global primary variables vector
@@ -1025,6 +1026,8 @@ end subroutine flow_simulation_run_info
     DMLabel :: ghost_label, order_label
     PetscBool :: transition
     PetscErrorCode :: ierr
+
+    call PetscLogEventBegin(fluid_transitions_event, ierr); CHKERRQ(ierr)
 
     err = 0
     changed_search = PETSC_FALSE
@@ -1124,6 +1127,9 @@ end subroutine flow_simulation_run_info
     call mpi%broadcast_logical(changed_y)
     call mpi%broadcast_logical(changed_search)
 
+    call PetscLogFlops(flops, ierr); CHKERRQ(ierr)
+    call PetscLogEventEnd(fluid_transitions_event, ierr); CHKERRQ(ierr)
+
   end subroutine flow_simulation_fluid_transitions
 
 !------------------------------------------------------------------------
@@ -1163,6 +1169,8 @@ end subroutine flow_simulation_run_info
   subroutine flow_simulation_output(self, time_index, time)
     !! Output from flow simulation.
 
+    use profiling_module, only: flops, output_event
+
     class(flow_simulation_type), intent(in out) :: self
     PetscInt, intent(in) :: time_index
     PetscReal, intent(in) :: time
@@ -1170,12 +1178,17 @@ end subroutine flow_simulation_run_info
     DM :: fluid_dm
     PetscErrorCode :: ierr
 
+    call PetscLogEventBegin(output_event, ierr); CHKERRQ(ierr)
+
     if (self%output_filename /= "") then
        call VecGetDM(self%fluid, fluid_dm, ierr); CHKERRQ(ierr)
        call DMSetOutputSequenceNumber(fluid_dm, time_index, time, &
             ierr); CHKERRQ(ierr)
        call VecView(self%fluid, self%hdf5_viewer, ierr); CHKERRQ(ierr)
     end if
+
+    call PetscLogFlops(flops, ierr); CHKERRQ(ierr)
+    call PetscLogEventEnd(output_event, ierr); CHKERRQ(ierr)
 
   end subroutine flow_simulation_output
 
