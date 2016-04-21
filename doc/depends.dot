@@ -17,6 +17,7 @@ digraph supermodel{
         rock_module -> logfile_module
         rock_module -> relative_permeability_module
         powertable_module -> kinds_module
+        powertable_module -> profiling_module
         ode_module -> logfile_module
         ode_module -> mesh_module
         dm_utils_module -> mpi_module

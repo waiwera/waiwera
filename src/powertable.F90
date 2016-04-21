@@ -8,7 +8,7 @@ module powertable_module
   implicit none
   private
 
-#include <petsc/finclude/petscdef.h>
+#include <petsc/finclude/petscsys.h>
 
   type :: product_pointer_type
      private
@@ -243,10 +243,15 @@ contains
   subroutine powertable_compute(self, val)
     !! Computes the table of powers for the specified value.
 
+    use profiling_module, only: powertable_compute_event
+
     class(powertable_type), intent(in out) :: self
     PetscReal, intent(in) :: val !! value to compute powers of
     ! Locals:
     PetscInt :: n
+    PetscErrorCode :: ierr
+
+    call PetscLogEventBegin(powertable_compute_event, ierr); CHKERRQ(ierr)
 
     self%power(1) = val
     if (self%lower < 0) then
@@ -256,6 +261,8 @@ contains
     do n = 1, self%powerlist_size
        self%powerlist(n)%prod = self%powerlist(n)%fac1 * self%powerlist(n)%fac2
     end do
+
+    call PetscLogEventEnd(powertable_compute_event, ierr); CHKERRQ(ierr)
 
   end subroutine powertable_compute
 

@@ -17,6 +17,7 @@ module profiling_module
   PetscLogEvent, public :: thermo_viscosity_event
   PetscLogEvent, public :: thermo_sat_pressure_event, &
        thermo_sat_temperature_event
+  PetscLogEvent, public :: powertable_compute_event
 
   public :: init_profiling
 
@@ -52,6 +53,8 @@ contains
          thermo_sat_pressure_event, ierr)
     call PetscLogEventRegister("thermo_sat_temperature", log_class, &
          thermo_sat_temperature_event, ierr)
+    call PetscLogEventRegister("powertable_compute", log_class, &
+         powertable_compute_event, ierr)
 
   end subroutine init_profiling
 
