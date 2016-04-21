@@ -34,6 +34,7 @@ module flow_simulation_module
      class(relative_permeability_type), allocatable, public :: relative_permeability
      character(max_output_filename_length), public :: output_filename
      PetscViewer :: hdf5_viewer
+     PetscLogDouble :: start_wall_time
    contains
      private
      procedure :: setup_solution_vector => flow_simulation_setup_solution_vector
@@ -150,7 +151,7 @@ contains
 
     call self%run_info()
 
-    call self%logfile%write(LOG_LEVEL_INFO, 'input', 'start', &
+    call self%logfile%write(LOG_LEVEL_INFO, 'simulation', 'init', &
          str_key = 'time', str_value = datetimestr)
     call self%logfile%write_blank()
 
@@ -330,6 +331,7 @@ end subroutine flow_simulation_run_info
     PetscReal, parameter :: default_gravity = 9.8_dp
     PetscErrorCode :: ierr
 
+    call PetscTime(self%start_wall_time, ierr); CHKERRQ(ierr)
     datetimestr = date_time_str()
 
     if (present(filename)) then
@@ -388,9 +390,12 @@ end subroutine flow_simulation_run_info
   subroutine flow_simulation_destroy(self)
     !! Destroys the simulation.
 
+    use utils_module, only : date_time_str
+
     class(flow_simulation_type), intent(in out) :: self
     ! Locals:
     PetscErrorCode :: ierr
+    PetscLogDouble :: end_wall_time, elapsed_time
 
     call self%destroy_output()
     call self%logfile%destroy()
@@ -407,6 +412,12 @@ end subroutine flow_simulation_run_info
     deallocate(self%thermo)
     deallocate(self%eos)
     deallocate(self%relative_permeability)
+
+    call PetscTime(end_wall_time, ierr); CHKERRQ(ierr)
+    elapsed_time = end_wall_time - self%start_wall_time
+    call self%logfile%write(LOG_LEVEL_INFO, 'simulation', 'destroy', &
+         real_keys = ['elapsed_seconds'], real_values = [elapsed_time], &
+         str_key = 'time', str_value = date_time_str())
 
   end subroutine flow_simulation_destroy
 
