@@ -38,6 +38,7 @@ digraph supermodel{
         flow_simulation_module -> mesh_module
         flow_simulation_module -> mpi_module
         flow_simulation_module -> ode_module
+        flow_simulation_module -> profiling_module
         flow_simulation_module -> relative_permeability_module
         flow_simulation_module -> rock_module
         flow_simulation_module -> source_module
@@ -81,6 +82,7 @@ digraph supermodel{
         supermodel -> fson
         supermodel -> fson_mpi_module
         supermodel -> mpi_module
+        supermodel -> profiling_module
         supermodel -> timestepper_module
         source_module -> dm_utils_module
         source_module -> fson

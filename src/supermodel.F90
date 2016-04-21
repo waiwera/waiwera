@@ -6,6 +6,7 @@ program supermodel
   use fson_mpi_module
   use flow_simulation_module
   use timestepper_module
+  use profiling_module
 
   implicit none
 
@@ -19,6 +20,8 @@ program supermodel
 
   call PetscInitialize(PETSC_NULL_CHARACTER, ierr); CHKERRQ(ierr)
   call mpi%init(PETSC_COMM_WORLD)
+
+  call init_profiling()
 
   call get_filename(filename)
   json => fson_parse_mpi(filename)

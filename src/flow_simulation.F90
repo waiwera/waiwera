@@ -429,6 +429,7 @@ end subroutine flow_simulation_run_info
 
     use dm_utils_module, only: global_section_offset, global_vec_section
     use cell_module, only: cell_type
+    use profiling_module, only: flops, lhs_fn_event
 
     class(flow_simulation_type), intent(in out) :: self
     PetscReal, intent(in) :: t !! time (s)
@@ -444,6 +445,8 @@ end subroutine flow_simulation_run_info
     type(cell_type) :: cell
     DMLabel :: ghost_label
     PetscErrorCode :: ierr
+
+    call PetscLogEventBegin(lhs_fn_event, ierr); CHKERRQ(ierr)
 
     err = 0
     np = self%eos%num_primary_variables
@@ -493,6 +496,9 @@ end subroutine flow_simulation_run_info
     call VecRestoreArrayReadF90(self%rock, rock_array, ierr); CHKERRQ(ierr)
     call VecRestoreArrayF90(lhs, lhs_array, ierr); CHKERRQ(ierr)
 
+    call PetscLogFlops(flops, ierr); CHKERRQ(ierr)
+    call PetscLogEventEnd(lhs_fn_event, ierr); CHKERRQ(ierr)
+
   end subroutine flow_simulation_cell_balances
 
 !------------------------------------------------------------------------
@@ -506,6 +512,7 @@ end subroutine flow_simulation_run_info
     use dm_utils_module
     use cell_module, only: cell_type
     use face_module, only: face_type
+    use profiling_module, only: flops, rhs_fn_event
 
     class(flow_simulation_type), intent(in out) :: self
     PetscReal, intent(in) :: t !! time
@@ -535,6 +542,8 @@ end subroutine flow_simulation_run_info
     PetscReal, parameter :: flux_sign(2) = [-1._dp, 1._dp]
     PetscReal, allocatable :: primary(:)
     PetscErrorCode :: ierr
+
+    call PetscLogEventBegin(rhs_fn_event, ierr); CHKERRQ(ierr)
 
     err = 0
     np = self%eos%num_primary_variables
@@ -650,6 +659,9 @@ end subroutine flow_simulation_run_info
     call restore_dm_local_vec(local_fluid)
     call restore_dm_local_vec(local_rock)
     deallocate(face_flow, primary)
+
+    call PetscLogFlops(flops, ierr); CHKERRQ(ierr)
+    call PetscLogEventEnd(rhs_fn_event, ierr); CHKERRQ(ierr)
 
   end subroutine flow_simulation_cell_inflows
 
