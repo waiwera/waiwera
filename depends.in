@@ -17,7 +17,7 @@ $(TEST)/$(BUILD)/powertable$(TESTSUF)$(OBJ):$(BUILD)/kinds$(OBJ) $(BUILD)/mpi$(O
 $(TEST)/$(BUILD)/dm_utils$(TESTSUF)$(OBJ):$(BUILD)/dm_utils$(OBJ) $(BUILD)/kinds$(OBJ) $(BUILD)/mpi$(OBJ)
 $(TEST)/$(BUILD)/fluid$(TESTSUF)$(OBJ):$(BUILD)/fluid$(OBJ) $(BUILD)/kinds$(OBJ) $(BUILD)/mpi$(OBJ)
 $(BUILD)/mesh$(OBJ):$(BUILD)/dm_utils$(OBJ) $(BUILD)/eos$(OBJ) $(BUILD)/face$(OBJ) $(BUILD)/fluid$(OBJ) $(BUILD)/fson_mpi$(OBJ) $(BUILD)/kinds$(OBJ) $(BUILD)/logfile$(OBJ) $(BUILD)/mpi$(OBJ) $(BUILD)/rock$(OBJ)
-$(TEST)/$(BUILD)/setup$(TESTSUF)$(OBJ):$(BUILD)/mpi$(OBJ)
+$(TEST)/$(BUILD)/setup$(TESTSUF)$(OBJ):$(BUILD)/mpi$(OBJ) $(BUILD)/profiling$(OBJ)
 $(TEST)/$(BUILD)/rock$(TESTSUF)$(OBJ):$(BUILD)/kinds$(OBJ) $(BUILD)/mpi$(OBJ) $(BUILD)/rock$(OBJ)
 $(TEST)/$(BUILD)/eos$(TESTSUF)$(OBJ):$(BUILD)/IAPWS$(OBJ) $(BUILD)/eos$(OBJ) $(BUILD)/fluid$(OBJ) $(BUILD)/fson_mpi$(OBJ) $(BUILD)/kinds$(OBJ) $(BUILD)/mpi$(OBJ) $(BUILD)/relative_permeability$(OBJ) $(BUILD)/rock$(OBJ)
 $(TEST)/$(BUILD)/cell$(TESTSUF)$(OBJ):$(BUILD)/cell$(OBJ) $(BUILD)/kinds$(OBJ) $(BUILD)/mpi$(OBJ)
