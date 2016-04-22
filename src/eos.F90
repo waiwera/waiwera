@@ -303,11 +303,16 @@ contains
     !! for isothermal pure water.
 
     use fluid_module, only: fluid_type
+    use profiling_module, only: eos_bulk_properties_event
 
     class(eos_w_type), intent(in out) :: self
     PetscReal, intent(in) :: primary(self%num_primary_variables) !! Primary thermodynamic variables
     type(fluid_type), intent(in out) :: fluid !! Fluid object
     PetscErrorCode, intent(out) :: err
+    ! Locals:
+    PetscErrorCode :: ierr
+
+    call PetscLogEventBegin(eos_bulk_properties_event, ierr); CHKERRQ(ierr)
 
     err = 0
     fluid%pressure = primary(1)
@@ -315,6 +320,8 @@ contains
 
     fluid%phase(1)%saturation = 1._dp
     call self%phase_composition(fluid, err)
+
+    call PetscLogEventEnd(eos_bulk_properties_event, ierr); CHKERRQ(ierr)
 
   end subroutine eos_w_bulk_properties
 
@@ -353,6 +360,7 @@ contains
 
     use fluid_module, only: fluid_type
     use rock_module, only: rock_type
+    use profiling_module, only: eos_phase_properties_event
 
     class(eos_w_type), intent(in out) :: self
     PetscReal, intent(in), target :: primary(self%num_primary_variables) !! Primary thermodynamic variables
@@ -362,6 +370,9 @@ contains
     ! Locals:
     PetscInt :: region, p
     PetscReal :: properties(2)
+    PetscErrorCode :: ierr
+
+    call PetscLogEventBegin(eos_phase_properties_event, ierr); CHKERRQ(ierr)
 
     err = 0
     region = nint(fluid%region)
@@ -388,6 +399,8 @@ contains
             fluid%phase(p)%density, fluid%phase(p)%viscosity)
 
     end if
+
+    call PetscLogEventEnd(eos_phase_properties_event, ierr); CHKERRQ(ierr)
 
   end subroutine eos_w_phase_properties
 
@@ -628,12 +641,17 @@ contains
     !! for non-isothermal pure water.
 
     use fluid_module, only: fluid_type
+    use profiling_module, only: eos_bulk_properties_event
+
     class(eos_we_type), intent(in out) :: self
     PetscReal, intent(in) :: primary(self%num_primary_variables) !! Primary thermodynamic variables
     type(fluid_type), intent(in out) :: fluid !! Fluid object
     PetscErrorCode, intent(out) :: err !! Error code
     ! Locals:
     PetscInt :: region
+    PetscErrorCode :: ierr
+
+    call PetscLogEventBegin(eos_bulk_properties_event, ierr); CHKERRQ(ierr)
 
     err = 0
     fluid%pressure = primary(1)
@@ -654,6 +672,8 @@ contains
           call self%phase_saturations(primary, fluid)
        end if
     end if
+
+    call PetscLogEventEnd(eos_bulk_properties_event, ierr); CHKERRQ(ierr)
 
   end subroutine eos_we_bulk_properties
 
@@ -693,6 +713,7 @@ contains
 
     use rock_module, only: rock_type
     use fluid_module, only: fluid_type
+    use profiling_module, only: eos_phase_properties_event
 
     class(eos_we_type), intent(in out) :: self
     PetscReal, intent(in), target :: primary(self%num_primary_variables) !! Primary thermodynamic variables
@@ -702,6 +723,9 @@ contains
     ! Locals:
     PetscInt :: p, phases, region
     PetscReal :: properties(2), sl, relative_permeability(2)
+    PetscErrorCode :: ierr
+
+    call PetscLogEventBegin(eos_phase_properties_event, ierr); CHKERRQ(ierr)
 
     err = 0
     region = nint(fluid%region)
@@ -749,6 +773,8 @@ contains
        end if
 
     end do
+
+    call PetscLogEventEnd(eos_phase_properties_event, ierr); CHKERRQ(ierr)
 
   end subroutine eos_we_phase_properties
 
