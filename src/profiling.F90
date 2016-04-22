@@ -22,6 +22,7 @@ module profiling_module
   PetscLogEvent, public :: powertable_compute_event
   PetscLogEvent, public :: assign_pointers_event
   PetscLogEvent, public :: face_flux_event
+  PetscLogEvent, public :: cell_inflows_event, sources_event
 
   public :: init_profiling
 
@@ -67,6 +68,10 @@ contains
          assign_pointers_event, ierr)
     call PetscLogEventRegister("face_flux", log_class, &
          face_flux_event, ierr)
+    call PetscLogEventRegister("cell_inflows", log_class, &
+         cell_inflows_event, ierr)
+    call PetscLogEventRegister("sources", log_class, &
+         sources_event, ierr)
 
   end subroutine init_profiling
 

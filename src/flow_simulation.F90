@@ -516,7 +516,8 @@ end subroutine flow_simulation_run_info
     use dm_utils_module
     use cell_module, only: cell_type
     use face_module, only: face_type
-    use profiling_module, only: rhs_fn_event
+    use profiling_module, only: rhs_fn_event, cell_inflows_event, &
+         sources_event
 
     class(flow_simulation_type), intent(in out) :: self
     PetscReal, intent(in) :: t !! time
@@ -549,6 +550,7 @@ end subroutine flow_simulation_run_info
 
     call PetscLogEventBegin(rhs_fn_event, ierr); CHKERRQ(ierr)
 
+    call PetscLogEventBegin(cell_inflows_event, ierr); CHKERRQ(ierr)
     err = 0
     np = self%eos%num_primary_variables
     allocate(face_flow(np), primary(np))
@@ -619,8 +621,10 @@ end subroutine flow_simulation_run_info
     call face%destroy()
     call VecRestoreArrayReadF90(self%mesh%face_geom, face_geom_array, ierr)
     CHKERRQ(ierr)
+    call PetscLogEventEnd(cell_inflows_event, ierr); CHKERRQ(ierr)
 
     ! Source/ sink terms:
+    call PetscLogEventBegin(sources_event, ierr); CHKERRQ(ierr)
     nc = self%eos%num_components
     call cell%init(nc, self%eos%num_phases)
     call VecGetArrayReadF90(self%source, source_array, ierr); CHKERRQ(ierr)
@@ -663,6 +667,7 @@ end subroutine flow_simulation_run_info
     call restore_dm_local_vec(local_fluid)
     call restore_dm_local_vec(local_rock)
     deallocate(face_flow, primary)
+    call PetscLogEventEnd(sources_event, ierr); CHKERRQ(ierr)
 
     call PetscLogEventEnd(rhs_fn_event, ierr); CHKERRQ(ierr)
 
