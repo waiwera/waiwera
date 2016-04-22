@@ -1072,8 +1072,6 @@ end subroutine flow_simulation_run_info
                fluid_offset)
           call fluid%assign(fluid_array, fluid_offset)
 
-          call DMLabelGetValue(order_label, c, order, ierr); CHKERRQ(ierr)
-
           call self%eos%transition(cell_primary, last_iteration_fluid, &
                fluid, transition, err)
 
@@ -1084,6 +1082,8 @@ end subroutine flow_simulation_run_info
                    cell_search = old_cell_primary - cell_primary
                    changed_y = PETSC_TRUE
                    changed_search = PETSC_TRUE
+                   call DMLabelGetValue(order_label, c, order, ierr)
+                   CHKERRQ(ierr)
                    call self%logfile%write(LOG_LEVEL_INFO, 'fluid', &
                         'transition', &
                         ['cell            ', &
@@ -1094,6 +1094,8 @@ end subroutine flow_simulation_run_info
                         real_array_value = cell_primary, rank = mpi%rank)
                 end if
              else
+                call DMLabelGetValue(order_label, c, order, ierr)
+                CHKERRQ(ierr)
                 call self%logfile%write(LOG_LEVEL_WARN, 'fluid', &
                      'out_of_range', &
                      ['cell            ', 'region          '], &
@@ -1104,6 +1106,7 @@ end subroutine flow_simulation_run_info
              end if
 
           else
+             call DMLabelGetValue(order_label, c, order, ierr); CHKERRQ(ierr)
              call self%logfile%write(LOG_LEVEL_WARN, 'fluid', &
                   'transition_failed', &
                   ['cell            '], [order], rank = mpi%rank)
