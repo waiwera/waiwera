@@ -954,13 +954,13 @@ end subroutine flow_simulation_run_info
           call rock%assign(rock_array, rock_offset, &
                self%relative_permeability)
 
-          call DMLabelGetValue(order_label, c, order, ierr); CHKERRQ(ierr)
-
           call self%eos%bulk_properties(cell_primary, fluid, err)
 
           if (err == 0) then
              call self%eos%phase_properties(cell_primary, rock, fluid, err)
              if (err > 0) then
+                call DMLabelGetValue(order_label, c, order, ierr)
+                CHKERRQ(ierr)
                 call self%logfile%write(LOG_LEVEL_WARN, 'fluid', &
                      'properties_not_found', &
                      ['cell            '], [order], &
@@ -969,6 +969,7 @@ end subroutine flow_simulation_run_info
                 exit
              end if
           else
+             call DMLabelGetValue(order_label, c, order, ierr); CHKERRQ(ierr)
              call self%logfile%write(LOG_LEVEL_WARN, 'fluid', &
                   'properties_not_found', &
                   ['cell            '], [order], &
