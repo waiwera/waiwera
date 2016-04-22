@@ -61,11 +61,17 @@ contains
     !! Assigns pointers in a rock object to elements of the specified
     !! data array, starting from the given offset.
 
+    use profiling_module, only: assign_pointers_event
+
     class(rock_type), intent(in out) :: self
     PetscReal, target, intent(in) :: data(:)  !! rock data array
     PetscInt, intent(in) :: offset !! rock array offset
     class(relative_permeability_type), intent(in), target, &
          optional :: relative_permeability
+    ! Locals:
+    PetscErrorCode :: ierr
+
+    call PetscLogEventBegin(assign_pointers_event, ierr); CHKERRQ(ierr)
 
     self%permeability => data(offset: offset + 2)
     self%wet_conductivity => data(offset + 3)
@@ -77,6 +83,8 @@ contains
     if (present(relative_permeability)) then
        self%relative_permeability => relative_permeability
     end if
+
+    call PetscLogEventEnd(assign_pointers_event, ierr); CHKERRQ(ierr)
 
   end subroutine rock_assign
     

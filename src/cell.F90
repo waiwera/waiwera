@@ -11,7 +11,7 @@ module cell_module
   implicit none
   private
 
-#include <petsc/finclude/petscdef.h>
+#include <petsc/finclude/petscsys.h>
 
   type cell_type
      !! Type for accessing local cell geometry, rock and
@@ -59,6 +59,8 @@ contains
     !! Assigns pointers in a cell to values from the specified data arrays,
     !! starting from the given offset.
 
+    use profiling_module, only: assign_pointers_event
+
     class(cell_type), intent(in out) :: self
     PetscReal, target, intent(in), optional :: geom_data(:)  !! array with geometry data
     PetscInt, intent(in), optional  :: geom_offset  !! geometry array offset for this cell
@@ -66,11 +68,17 @@ contains
     PetscInt, intent(in), optional  :: rock_offset  !! rock array offset for this cell
     PetscReal, target, intent(in), optional :: fluid_data(:)  !! array with fluid data
     PetscInt, intent(in), optional  :: fluid_offset  !! fluid array offset for this cell
+    ! Locals:
+    PetscErrorCode :: ierr
+
+    call PetscLogEventBegin(assign_pointers_event, ierr); CHKERRQ(ierr)
 
     if ((present(geom_data)) .and. ((present(geom_offset)))) then
        self%centroid => geom_data(geom_offset: geom_offset + 2)
        self%volume => geom_data(geom_offset + 3)
     end if
+
+    call PetscLogEventEnd(assign_pointers_event, ierr); CHKERRQ(ierr)
 
     if ((present(rock_data)) .and. ((present(rock_offset)))) then
        call self%rock%assign(rock_data, rock_offset)

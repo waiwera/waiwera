@@ -118,11 +118,16 @@ contains
     !! Assigns pointers in a fluid object to elements in the data array,
     !! starting from the specified offset.
 
+    use profiling_module, only: assign_pointers_event
+
     class(fluid_type), intent(in out) :: self
     PetscReal, target, intent(in) :: data(:)  !! fluid data array
     PetscInt, intent(in) :: offset  !! fluid array offset
     ! Locals:
     PetscInt :: i, p, phase_dof
+    PetscErrorCode :: ierr
+
+    call PetscLogEventBegin(assign_pointers_event, ierr); CHKERRQ(ierr)
 
     phase_dof = num_phase_variables + self%num_components
 
@@ -143,6 +148,8 @@ contains
             self%num_components-1)
        i = i + phase_dof
     end do
+
+    call PetscLogEventEnd(assign_pointers_event, ierr); CHKERRQ(ierr)
 
   end subroutine fluid_assign
 

@@ -7,7 +7,7 @@ module face_module
   implicit none
   private
 
-#include <petsc/finclude/petscdef.h>
+#include <petsc/finclude/petscsys.h>
 
   type face_type
      !! Type for accessing local face properties.
@@ -89,6 +89,8 @@ contains
     !! Assigns pointers in a face to elements of the specified data arrays,
     !! starting from the given offsets.
 
+    use profiling_module, only: assign_pointers_event
+
     class(face_type), intent(in out) :: self
     PetscReal, target, intent(in), optional :: face_geom_data(:)  !! array with face geometry data
     PetscInt, intent(in), optional  :: face_geom_offset  !! face geometry array offset for this face
@@ -100,6 +102,9 @@ contains
     PetscInt, intent(in), optional  :: cell_fluid_offsets(:)  !! cell fluid array offsets for the face cells
     ! Locals:
     PetscInt :: i
+    PetscErrorCode :: ierr
+
+    call PetscLogEventBegin(assign_pointers_event, ierr); CHKERRQ(ierr)
 
     if ((present(face_geom_data)).and.(present(face_geom_offset))) then
        self%area => face_geom_data(face_geom_offset)
@@ -109,6 +114,8 @@ contains
        self%permeability_direction => face_geom_data(face_geom_offset + 9)
        self%distance12 = sum(self%distance)
     end if
+
+    call PetscLogEventEnd(assign_pointers_event, ierr); CHKERRQ(ierr)
 
     if ((present(cell_geom_data)).and.(present(cell_geom_offsets))) then
        do i = 1, 2

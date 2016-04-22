@@ -20,6 +20,7 @@ module profiling_module
   PetscLogEvent, public :: eos_bulk_properties_event, &
        eos_phase_properties_event
   PetscLogEvent, public :: powertable_compute_event
+  PetscLogEvent, public :: assign_pointers_event
 
   public :: init_profiling
 
@@ -61,6 +62,8 @@ contains
          eos_phase_properties_event, ierr)
     call PetscLogEventRegister("powertable_comp", log_class, &
          powertable_compute_event, ierr)
+    call PetscLogEventRegister("assign_ptrs", log_class, &
+         assign_pointers_event, ierr)
 
   end subroutine init_profiling
 
