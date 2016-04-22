@@ -358,6 +358,7 @@ contains
     !! for non-isothermal simulations.
 
     use eos_module, only: eos_type
+    use profiling_module, only: face_flux_event
 
     class(face_type), intent(in) :: self
     class(eos_type), intent(in) :: eos
@@ -370,6 +371,9 @@ contains
     PetscReal :: phase_flux(self%cell(1)%fluid%num_components)
     PetscReal :: k, h, cond, mobility
     PetscInt :: phases(2), phase_present
+    PetscErrorCode :: ierr
+
+    call PetscLogEventBegin(face_flux_event, ierr); CHKERRQ(ierr)
 
     nc = eos%num_components
     np = eos%num_primary_variables
@@ -419,6 +423,8 @@ contains
        end if
 
     end do
+
+    call PetscLogEventEnd(face_flux_event, ierr); CHKERRQ(ierr)
 
   end function face_flux
 

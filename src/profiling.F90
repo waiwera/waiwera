@@ -21,6 +21,7 @@ module profiling_module
        eos_phase_properties_event
   PetscLogEvent, public :: powertable_compute_event
   PetscLogEvent, public :: assign_pointers_event
+  PetscLogEvent, public :: face_flux_event
 
   public :: init_profiling
 
@@ -64,6 +65,8 @@ contains
          powertable_compute_event, ierr)
     call PetscLogEventRegister("assign_ptrs", log_class, &
          assign_pointers_event, ierr)
+    call PetscLogEventRegister("face_flux", log_class, &
+         face_flux_event, ierr)
 
   end subroutine init_profiling
 
