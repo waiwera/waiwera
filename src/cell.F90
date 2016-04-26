@@ -24,7 +24,7 @@ module cell_module
    contains
      private
      procedure, public :: init => cell_init
-     procedure, public :: assign => cell_assign
+     procedure, public :: assign_geometry => cell_assign_geometry
      procedure, public :: destroy => cell_destroy
      procedure, public :: dof => cell_dof
      procedure, public :: balance => cell_balance
@@ -54,40 +54,26 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine cell_assign(self, geom_data, geom_offset, &
-       rock_data, rock_offset, fluid_data, fluid_offset)
-    !! Assigns pointers in a cell to values from the specified data arrays,
-    !! starting from the given offset.
+  subroutine cell_assign_geometry(self, geom_data, geom_offset)
+    !! Assigns cell geometry pointers to values from specified data
+    !! array, starting from the given offset.
 
     use profiling_module, only: assign_pointers_event
 
     class(cell_type), intent(in out) :: self
-    PetscReal, target, intent(in), optional :: geom_data(:)  !! array with geometry data
-    PetscInt, intent(in), optional  :: geom_offset  !! geometry array offset for this cell
-    PetscReal, target, intent(in), optional :: rock_data(:)  !! array with rock data
-    PetscInt, intent(in), optional  :: rock_offset  !! rock array offset for this cell
-    PetscReal, target, intent(in), optional :: fluid_data(:)  !! array with fluid data
-    PetscInt, intent(in), optional  :: fluid_offset  !! fluid array offset for this cell
+    PetscReal, target, intent(in) :: geom_data(:)  !! array with geometry data
+    PetscInt, intent(in)  :: geom_offset  !! geometry array offset for this cell
     ! Locals:
     PetscErrorCode :: ierr
 
-    call PetscLogEventBegin(assign_pointers_event, ierr); CHKERRQ(ierr)
+    Call PetscLogEventBegin(assign_pointers_event, ierr); CHKERRQ(ierr)
 
-    if ((present(geom_data)) .and. ((present(geom_offset)))) then
-       self%centroid => geom_data(geom_offset: geom_offset + 2)
-       self%volume => geom_data(geom_offset + 3)
-    end if
+    self%centroid => geom_data(geom_offset: geom_offset + 2)
+    self%volume => geom_data(geom_offset + 3)
 
     call PetscLogEventEnd(assign_pointers_event, ierr); CHKERRQ(ierr)
 
-    if ((present(rock_data)) .and. ((present(rock_offset)))) then
-       call self%rock%assign(rock_data, rock_offset)
-    end if
-    if ((present(fluid_data)) .and. ((present(fluid_offset)))) then
-       call self%fluid%assign(fluid_data, fluid_offset)
-    end if
-
-  end subroutine cell_assign
+  end subroutine cell_assign_geometry
 
 !------------------------------------------------------------------------
 

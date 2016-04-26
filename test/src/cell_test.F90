@@ -12,15 +12,15 @@ module cell_test
 
 #include <petsc/finclude/petscdef.h>
 
-public :: test_cell_assign, test_cell_balance
+public :: test_cell_assign_geometry, test_cell_balance
 
 contains
   
 !------------------------------------------------------------------------
 
-  subroutine test_cell_assign
+  subroutine test_cell_assign_geometry
 
-    ! Cell assign() test
+    ! Cell assign_geometry() test
 
     type(cell_type) :: cell
     PetscInt, parameter :: num_components = 1, num_phases = 2
@@ -39,7 +39,7 @@ contains
 
        call assert_equals(cell%dof(), size(cell_data) - (offset-1), "cell dof")
 
-       call cell%assign(cell_data, offset)
+       call cell%assign_geometry(cell_data, offset)
 
        call assert_equals(volume, cell%volume, tol, "volume")
        call assert_equals(0._dp, norm2(cell%centroid - centroid), tol, "centroid")
@@ -49,7 +49,7 @@ contains
 
     end if
 
-  end subroutine test_cell_assign
+  end subroutine test_cell_assign_geometry
 
 !------------------------------------------------------------------------
 
@@ -75,8 +75,8 @@ contains
 
        call cell%init(num_components, num_phases)
 
-       call cell%assign(rock_data = rock_data, rock_offset = rock_offset, &
-            fluid_data = fluid_data, fluid_offset = fluid_offset)
+       call cell%rock%assign(rock_data, rock_offset)
+       call cell%fluid%assign(fluid_data, fluid_offset)
 
        bal = cell%balance(num_primary)
 

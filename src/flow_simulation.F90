@@ -485,9 +485,8 @@ end subroutine flow_simulation_run_info
           call global_section_offset(rock_section, c, &
                self%rock_range_start, rock_offset, ierr); CHKERRQ(ierr)
 
-          call cell%assign( &
-               rock_data = rock_array, rock_offset = rock_offset, &
-               fluid_data = fluid_array, fluid_offset = fluid_offset)
+          call cell%rock%assign(rock_array, rock_offset)
+          call cell%fluid%assign(fluid_array, fluid_offset)
 
           balance = cell%balance(np)
 
@@ -598,9 +597,10 @@ end subroutine flow_simulation_run_info
              CHKERRQ(ierr)
           end do
 
-          call face%assign(face_geom_array, face_geom_offset, &
-               cell_geom_array, cell_geom_offsets, &
-               rock_array, rock_offsets, fluid_array, fluid_offsets)
+          call face%assign_geometry(face_geom_array, face_geom_offset)
+          call face%assign_cell_geometry(cell_geom_array, cell_geom_offsets)
+          call face%assign_cell_rock(rock_array, rock_offsets)
+          call face%assign_cell_fluid(fluid_array, fluid_offsets)
 
           face_flow = face%flux(self%eos, self%gravity) * face%area
 
@@ -642,8 +642,8 @@ end subroutine flow_simulation_run_info
                cell_geom_offset, ierr); CHKERRQ(ierr)
           call section_offset(fluid_section, c, &
                fluid_offset, ierr); CHKERRQ(ierr)
-          call cell%assign(cell_geom_array, cell_geom_offset, &
-               fluid_data = fluid_array, fluid_offset = fluid_offset)
+          call cell%assign_geometry(cell_geom_array, cell_geom_offset)
+          call cell%fluid%assign(fluid_array, fluid_offset)
           call global_section_offset(source_section, c, &
                self%solution_range_start, source_offset, ierr)
           CHKERRQ(ierr)
@@ -843,8 +843,8 @@ end subroutine flow_simulation_run_info
           call global_section_offset(rock_section, c, &
                self%rock_range_start, rock_offset, ierr); CHKERRQ(ierr)
 
-          call rock%assign(rock_array, rock_offset, &
-               self%relative_permeability)
+          call rock%assign(rock_array, rock_offset)
+          call rock%assign_relative_permeability(self%relative_permeability)
 
           call self%eos%bulk_properties(cell_primary, fluid, err)
 
@@ -960,8 +960,8 @@ end subroutine flow_simulation_run_info
           call global_section_offset(rock_section, c, &
                self%rock_range_start, rock_offset, ierr); CHKERRQ(ierr)
 
-          call rock%assign(rock_array, rock_offset, &
-               self%relative_permeability)
+          call rock%assign(rock_array, rock_offset)
+          call rock%assign_relative_permeability(self%relative_permeability)
 
           call self%eos%bulk_properties(cell_primary, fluid, err)
 

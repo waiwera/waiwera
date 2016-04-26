@@ -20,6 +20,8 @@ module rock_module
    contains
      private
      procedure, public :: assign => rock_assign
+     procedure, public :: assign_relative_permeability => &
+          rock_assign_relative_permeability
      procedure, public :: dof => rock_dof
      procedure, public :: destroy => rock_destroy
      procedure, public :: energy => rock_energy
@@ -57,7 +59,7 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine rock_assign(self, data, offset, relative_permeability)
+  subroutine rock_assign(self, data, offset)
     !! Assigns pointers in a rock object to elements of the specified
     !! data array, starting from the given offset.
 
@@ -66,8 +68,6 @@ contains
     class(rock_type), intent(in out) :: self
     PetscReal, target, intent(in) :: data(:)  !! rock data array
     PetscInt, intent(in) :: offset !! rock array offset
-    class(relative_permeability_type), intent(in), target, &
-         optional :: relative_permeability
     ! Locals:
     PetscErrorCode :: ierr
 
@@ -80,14 +80,31 @@ contains
     self%density => data(offset + 6)
     self%specific_heat => data(offset + 7)
 
-    if (present(relative_permeability)) then
-       self%relative_permeability => relative_permeability
-    end if
-
     call PetscLogEventEnd(assign_pointers_event, ierr); CHKERRQ(ierr)
 
   end subroutine rock_assign
     
+!------------------------------------------------------------------------
+
+  subroutine rock_assign_relative_permeability(self, relative_permeability)
+    !! Assigns relative permeability pointer for a rock object.
+
+    use profiling_module, only: assign_pointers_event
+
+    class(rock_type), intent(in out) :: self
+    class(relative_permeability_type), intent(in), &
+         target :: relative_permeability
+    ! Locals:
+    PetscErrorCode :: ierr
+
+    call PetscLogEventBegin(assign_pointers_event, ierr); CHKERRQ(ierr)
+
+    self%relative_permeability => relative_permeability
+
+    call PetscLogEventEnd(assign_pointers_event, ierr); CHKERRQ(ierr)
+
+  end subroutine rock_assign_relative_permeability
+
 !------------------------------------------------------------------------
 
   PetscInt function rock_dof(self)

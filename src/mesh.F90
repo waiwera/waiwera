@@ -368,8 +368,9 @@ contains
              CHKERRQ(ierr)
           end do
 
-          call petsc_face%assign(petsc_face_geom_array, petsc_face_offset)
-          call face%assign(face_geom_array, face_offset, cell_geom_array, cell_offset)
+          call petsc_face%assign_geometry(petsc_face_geom_array, petsc_face_offset)
+          call face%assign_geometry(face_geom_array, face_offset)
+          call face%assign_cell_geometry(cell_geom_array, cell_offset)
 
           face%centroid = petsc_face%centroid
           face%area = norm2(petsc_face%area_normal)
@@ -394,7 +395,7 @@ contains
              f = bdy_faces(iface)
              call section_offset(face_section, f, face_offset, ierr)
              CHKERRQ(ierr)
-             call face%assign(face_geom_array, face_offset)
+             call face%assign_geometry(face_geom_array, face_offset)
              face%distance(2) = 0._dp
           end do
           call ISRestoreIndicesF90(bdy_IS, bdy_faces, ierr); CHKERRQ(ierr)

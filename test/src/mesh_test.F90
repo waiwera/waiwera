@@ -91,7 +91,7 @@ contains
        call DMLabelGetValue(ghost_label, f, ghost_face, ierr); CHKERRQ(ierr)
        if (ghost_face < 0) then
           call section_offset(section, f, offset, ierr); CHKERRQ(ierr)
-          call face%assign(fg, offset)
+          call face%assign_geometry(fg, offset)
           write(msg, '(a, i2)') 'face area ', f
           call assert_equals(face_area, face%area, tol, msg)
           dist = face%distance
