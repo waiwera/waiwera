@@ -271,9 +271,10 @@ contains
     rho = 0._dp
     weight = 0._dp
     do i = 1, 2
-       rho = rho + self%cell(i)%fluid%phase(p)%saturation * &
-            self%cell(i)%fluid%phase(p)%density
-       weight = weight + self%cell(i)%fluid%phase(p)%saturation
+       associate(phase => self%cell(i)%fluid%phase(p))
+         rho = rho + phase%saturation * phase%density
+         weight = weight + phase%saturation
+       end associate
     end do
     rho = rho / weight
 
@@ -351,7 +352,9 @@ contains
     PetscInt :: i
 
     do i = 1, 2
-       kcell(i) = eos%conductivity(self%cell(i)%rock, self%cell(i)%fluid)
+       associate(cell => self%cell(i))
+         kcell(i) = eos%conductivity(cell%rock, cell%fluid)
+       end associate
     end do
     K = self%harmonic_average(kcell)
 
@@ -430,17 +433,17 @@ contains
 
              k = self%permeability()
              mobility = self%mobility(p, up)
-
-             ! Mass flows:
-             F = -k * mobility * G
-             phase_flux = F * self%cell(up)%fluid%phase(p)%mass_fraction
-             flux(1:nc) = flux(1:nc) + phase_flux
-
-             if (.not. eos%isothermal) then
-                ! Heat convection:
-                h = self%cell(up)%fluid%phase(p)%specific_enthalpy
-                flux(np) = flux(np) + h * F
-             end if
+             associate(upstream => self%cell(up)%fluid%phase(p))
+               ! Mass flows:
+               F = -k * mobility * G
+               phase_flux = F * upstream%mass_fraction
+               flux(1:nc) = flux(1:nc) + phase_flux
+               if (.not. eos%isothermal) then
+                  ! Heat convection:
+                  h = upstream%specific_enthalpy
+                  flux(np) = flux(np) + h * F
+               end if
+             end associate
 
           end if
 
