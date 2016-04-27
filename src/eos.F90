@@ -303,11 +303,16 @@ contains
     !! for isothermal pure water.
 
     use fluid_module, only: fluid_type
+    use profiling_module, only: eos_bulk_properties_event
 
     class(eos_w_type), intent(in out) :: self
     PetscReal, intent(in) :: primary(self%num_primary_variables) !! Primary thermodynamic variables
     type(fluid_type), intent(in out) :: fluid !! Fluid object
     PetscErrorCode, intent(out) :: err
+    ! Locals:
+    PetscErrorCode :: ierr
+
+    call PetscLogEventBegin(eos_bulk_properties_event, ierr); CHKERRQ(ierr)
 
     err = 0
     fluid%pressure = primary(1)
@@ -315,6 +320,8 @@ contains
 
     fluid%phase(1)%saturation = 1._dp
     call self%phase_composition(fluid, err)
+
+    call PetscLogEventEnd(eos_bulk_properties_event, ierr); CHKERRQ(ierr)
 
   end subroutine eos_w_bulk_properties
 
@@ -353,6 +360,7 @@ contains
 
     use fluid_module, only: fluid_type
     use rock_module, only: rock_type
+    use profiling_module, only: eos_phase_properties_event
 
     class(eos_w_type), intent(in out) :: self
     PetscReal, intent(in), target :: primary(self%num_primary_variables) !! Primary thermodynamic variables
@@ -360,36 +368,42 @@ contains
     type(fluid_type), intent(in out) :: fluid !! Fluid object
     PetscErrorCode, intent(out) :: err
     ! Locals:
-    PetscInt :: region, p
+    PetscInt :: p
     PetscReal :: properties(2)
+    PetscErrorCode :: ierr
+
+    call PetscLogEventBegin(eos_phase_properties_event, ierr); CHKERRQ(ierr)
 
     err = 0
-    region = nint(fluid%region)
+    p = nint(fluid%region)
 
-    p = region
+    associate(region => self%thermo%region(p)%ptr)
 
-    call self%thermo%region(region)%ptr%properties( &
-         [fluid%pressure, fluid%temperature], &
-         properties, err)
+      call region%properties([fluid%pressure, fluid%temperature], &
+           properties, err)
 
-    if (err == 0) then
+      if (err == 0) then
+         associate(phase => fluid%phase(p))
 
-       fluid%phase(p)%density = properties(1)
-       fluid%phase(p)%internal_energy = properties(2)
-       fluid%phase(p)%specific_enthalpy = &
-            fluid%phase(p)%internal_energy + &
-            fluid%pressure / fluid%phase(p)%density
+         phase%density = properties(1)
+         phase%internal_energy = properties(2)
+         phase%specific_enthalpy =  phase%internal_energy + &
+              fluid%pressure / phase%density
 
-       fluid%phase(p)%relative_permeability = 1._dp
-       fluid%phase(p)%mass_fraction(1) = 1._dp
+         phase%relative_permeability = 1._dp
+         phase%mass_fraction(1) = 1._dp
 
-       call self%thermo%region(region)%ptr%viscosity( &
-            fluid%temperature, fluid%pressure, &
-            fluid%phase(p)%density, fluid%phase(p)%viscosity)
+         call region%viscosity(fluid%temperature, fluid%pressure, &
+              phase%density, phase%viscosity)
 
+       end associate
     end if
 
-  end subroutine eos_w_phase_properties
+  end associate
+
+  call PetscLogEventEnd(eos_phase_properties_event, ierr); CHKERRQ(ierr)
+
+end subroutine eos_w_phase_properties
 
 !------------------------------------------------------------------------
 
@@ -628,12 +642,17 @@ contains
     !! for non-isothermal pure water.
 
     use fluid_module, only: fluid_type
+    use profiling_module, only: eos_bulk_properties_event
+
     class(eos_we_type), intent(in out) :: self
     PetscReal, intent(in) :: primary(self%num_primary_variables) !! Primary thermodynamic variables
     type(fluid_type), intent(in out) :: fluid !! Fluid object
     PetscErrorCode, intent(out) :: err !! Error code
     ! Locals:
     PetscInt :: region
+    PetscErrorCode :: ierr
+
+    call PetscLogEventBegin(eos_bulk_properties_event, ierr); CHKERRQ(ierr)
 
     err = 0
     fluid%pressure = primary(1)
@@ -654,6 +673,8 @@ contains
           call self%phase_saturations(primary, fluid)
        end if
     end if
+
+    call PetscLogEventEnd(eos_bulk_properties_event, ierr); CHKERRQ(ierr)
 
   end subroutine eos_we_bulk_properties
 
@@ -693,6 +714,7 @@ contains
 
     use rock_module, only: rock_type
     use fluid_module, only: fluid_type
+    use profiling_module, only: eos_phase_properties_event
 
     class(eos_we_type), intent(in out) :: self
     PetscReal, intent(in), target :: primary(self%num_primary_variables) !! Primary thermodynamic variables
@@ -700,55 +722,57 @@ contains
     type(fluid_type), intent(in out) :: fluid !! Fluid object
     PetscErrorCode, intent(out) :: err !! Error code
     ! Locals:
-    PetscInt :: p, phases, region
+    PetscInt :: p, phases
     PetscReal :: properties(2), sl, relative_permeability(2)
+    PetscErrorCode :: ierr
+
+    call PetscLogEventBegin(eos_phase_properties_event, ierr); CHKERRQ(ierr)
 
     err = 0
-    region = nint(fluid%region)
     phases = nint(fluid%phase_composition)
 
     sl = fluid%phase(1)%saturation
     relative_permeability = rock%relative_permeability%values(sl)
 
     do p = 1, self%num_phases
+       associate(phase => fluid%phase(p), &
+            region => self%thermo%region(p)%ptr)
 
-       if (btest(phases, p - 1)) then
+         if (btest(phases, p - 1)) then
 
-          call self%thermo%region(p)%ptr%properties( &
-               [fluid%pressure, fluid%temperature], &
-               properties, err)
+            call region%properties([fluid%pressure, fluid%temperature], &
+                 properties, err)
 
-          if (err == 0) then
+            if (err == 0) then
 
-             fluid%phase(p)%density = properties(1)
-             fluid%phase(p)%internal_energy = properties(2)
-             fluid%phase(p)%specific_enthalpy = &
-                  fluid%phase(p)%internal_energy + &
-                  fluid%pressure / fluid%phase(p)%density
+               phase%density = properties(1)
+               phase%internal_energy = properties(2)
+               phase%specific_enthalpy = phase%internal_energy + &
+                    fluid%pressure / phase%density
 
-             fluid%phase(p)%mass_fraction(1) = 1._dp
-             fluid%phase(p)%relative_permeability = relative_permeability(p)
+               phase%mass_fraction(1) = 1._dp
+               phase%relative_permeability = relative_permeability(p)
 
-             call self%thermo%region(p)%ptr%viscosity( &
-                  fluid%temperature, fluid%pressure, &
-                  fluid%phase(p)%density, fluid%phase(p)%viscosity)
+               call region%viscosity(fluid%temperature, fluid%pressure, &
+                    phase%density, phase%viscosity)
 
-          else
-             exit
-          end if
+            else
+               exit
+            end if
 
-       else
+         else
+            phase%density = 0._dp
+            phase%internal_energy = 0._dp
+            phase%specific_enthalpy = 0._dp
+            phase%relative_permeability = 0._dp
+            phase%viscosity = 0._dp
+            phase%mass_fraction(1) = 0._dp
+         end if
 
-          fluid%phase(p)%density = 0._dp
-          fluid%phase(p)%internal_energy = 0._dp
-          fluid%phase(p)%specific_enthalpy = 0._dp
-          fluid%phase(p)%relative_permeability = 0._dp
-          fluid%phase(p)%viscosity = 0._dp
-          fluid%phase(p)%mass_fraction(1) = 0._dp
-
-       end if
-
+       end associate
     end do
+
+    call PetscLogEventEnd(eos_phase_properties_event, ierr); CHKERRQ(ierr)
 
   end subroutine eos_we_phase_properties
 

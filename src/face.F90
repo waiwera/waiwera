@@ -7,7 +7,7 @@ module face_module
   implicit none
   private
 
-#include <petsc/finclude/petscdef.h>
+#include <petsc/finclude/petscsys.h>
 
   type face_type
      !! Type for accessing local face properties.
@@ -22,7 +22,10 @@ module face_module
    contains
      private
      procedure, public :: init => face_init
-     procedure, public :: assign => face_assign
+     procedure, public :: assign_geometry => face_assign_geometry
+     procedure, public :: assign_cell_geometry => face_assign_cell_geometry
+     procedure, public :: assign_cell_rock => face_assign_cell_rock
+     procedure, public :: assign_cell_fluid => face_assign_cell_fluid
      procedure, public :: dof => face_dof
      procedure, public :: destroy => face_destroy
      procedure, public :: calculate_permeability_direction => &
@@ -52,7 +55,7 @@ module face_module
      PetscReal, pointer, public :: centroid(:) !! centroid of face
    contains
      private
-     procedure, public :: assign => petsc_face_assign
+     procedure, public :: assign_geometry => petsc_face_assign_geometry
      procedure, public :: destroy => petsc_face_destroy
   end type petsc_face_type
 
@@ -83,54 +86,82 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine face_assign(self, face_geom_data, face_geom_offset, cell_geom_data, &
-       cell_geom_offsets, cell_rock_data, cell_rock_offsets, cell_fluid_data, &
-       cell_fluid_offsets)
-    !! Assigns pointers in a face to elements of the specified data arrays,
-    !! starting from the given offsets.
+  subroutine face_assign_geometry(self, face_geom_data, face_geom_offset)
+    !! Assigns geometry pointers in a face to elements of the specified data array,
+    !! starting from the given offset.
+
+    use profiling_module, only: assign_pointers_event
 
     class(face_type), intent(in out) :: self
     PetscReal, target, intent(in), optional :: face_geom_data(:)  !! array with face geometry data
     PetscInt, intent(in), optional  :: face_geom_offset  !! face geometry array offset for this face
+    ! Locals:
+    PetscErrorCode :: ierr
+
+    call PetscLogEventBegin(assign_pointers_event, ierr); CHKERRQ(ierr)
+    
+    self%area => face_geom_data(face_geom_offset)
+    self%distance => face_geom_data(face_geom_offset + 1: face_geom_offset + 2)
+    self%normal => face_geom_data(face_geom_offset + 3: face_geom_offset + 5)
+    self%centroid => face_geom_data(face_geom_offset + 6: face_geom_offset + 8)
+    self%permeability_direction => face_geom_data(face_geom_offset + 9)
+    self%distance12 = sum(self%distance)
+
+    call PetscLogEventEnd(assign_pointers_event, ierr); CHKERRQ(ierr)
+
+  end subroutine face_assign_geometry
+
+!------------------------------------------------------------------------
+
+  subroutine face_assign_cell_geometry(self, cell_geom_data, &
+       cell_geom_offsets)
+    !! Assigns cell geometry pointers for both cells on the face.
+
+    class(face_type), intent(in out) :: self
     PetscReal, target, intent(in), optional :: cell_geom_data(:)  !! array with cell geometry data
     PetscInt, intent(in), optional  :: cell_geom_offsets(:)  !! cell geometry array offsets for the face cells
-    PetscReal, target, intent(in), optional :: cell_rock_data(:)  !! array with cell rock data
-    PetscInt, intent(in), optional  :: cell_rock_offsets(:)  !! cell rock array offsets for the face cells
-    PetscReal, target, intent(in), optional :: cell_fluid_data(:)  !! array with cell fluid data
-    PetscInt, intent(in), optional  :: cell_fluid_offsets(:)  !! cell fluid array offsets for the face cells
     ! Locals:
     PetscInt :: i
 
-    if ((present(face_geom_data)).and.(present(face_geom_offset))) then
-       self%area => face_geom_data(face_geom_offset)
-       self%distance => face_geom_data(face_geom_offset + 1: face_geom_offset + 2)
-       self%normal => face_geom_data(face_geom_offset + 3: face_geom_offset + 5)
-       self%centroid => face_geom_data(face_geom_offset + 6: face_geom_offset + 8)
-       self%permeability_direction => face_geom_data(face_geom_offset + 9)
-       self%distance12 = sum(self%distance)
-    end if
+    do i = 1, 2
+       call self%cell(i)%assign_geometry(cell_geom_data, cell_geom_offsets(i))
+    end do
 
-    if ((present(cell_geom_data)).and.(present(cell_geom_offsets))) then
-       do i = 1, 2
-          call self%cell(i)%assign(cell_geom_data, cell_geom_offsets(i))
-       end do
-    end if
+  end subroutine face_assign_cell_geometry
 
-    if ((present(cell_rock_data)).and.(present(cell_rock_offsets))) then
-       do i = 1, 2
-          call self%cell(i)%assign(rock_data = cell_rock_data, &
-               rock_offset = cell_rock_offsets(i))
-       end do
-    end if
+!------------------------------------------------------------------------
 
-    if ((present(cell_fluid_data)).and.(present(cell_fluid_offsets))) then
-       do i = 1, 2
-          call self%cell(i)%assign(fluid_data = cell_fluid_data, &
-               fluid_offset = cell_fluid_offsets(i))
-       end do
-    end if
+  subroutine face_assign_cell_rock(self, rock_data, rock_offsets)
+    !! Assigns rock pointers for both cells on the face.
 
-  end subroutine face_assign
+    class(face_type), intent(in out) :: self
+    PetscReal, target, intent(in), optional :: rock_data(:)  !! array with rock data
+    PetscInt, intent(in), optional  :: rock_offsets(:)  !! rock array offsets for the face cells
+    ! Locals:
+    PetscInt :: i
+
+    do i = 1, 2
+       call self%cell(i)%rock%assign(rock_data, rock_offsets(i))
+    end do
+
+  end subroutine face_assign_cell_rock
+
+!------------------------------------------------------------------------
+
+  subroutine face_assign_cell_fluid(self, fluid_data, fluid_offsets)
+    !! Assigns fluid pointers for both cells on the face.
+
+    class(face_type), intent(in out) :: self
+    PetscReal, target, intent(in), optional :: fluid_data(:)  !! array with fluid data
+    PetscInt, intent(in), optional  :: fluid_offsets(:)  !! fluid array offsets for the face cells
+    ! Locals:
+    PetscInt :: i
+
+    do i = 1, 2
+       call self%cell(i)%fluid%assign(fluid_data, fluid_offsets(i))
+    end do
+
+  end subroutine face_assign_cell_fluid
 
 !------------------------------------------------------------------------
 
@@ -240,9 +271,10 @@ contains
     rho = 0._dp
     weight = 0._dp
     do i = 1, 2
-       rho = rho + self%cell(i)%fluid%phase(p)%saturation * &
-            self%cell(i)%fluid%phase(p)%density
-       weight = weight + self%cell(i)%fluid%phase(p)%saturation
+       associate(phase => self%cell(i)%fluid%phase(p))
+         rho = rho + phase%saturation * phase%density
+         weight = weight + phase%saturation
+       end associate
     end do
     rho = rho / weight
 
@@ -320,7 +352,9 @@ contains
     PetscInt :: i
 
     do i = 1, 2
-       kcell(i) = eos%conductivity(self%cell(i)%rock, self%cell(i)%fluid)
+       associate(cell => self%cell(i))
+         kcell(i) = eos%conductivity(cell%rock, cell%fluid)
+       end associate
     end do
     K = self%harmonic_average(kcell)
 
@@ -351,6 +385,7 @@ contains
     !! for non-isothermal simulations.
 
     use eos_module, only: eos_type
+    use profiling_module, only: face_flux_event
 
     class(face_type), intent(in) :: self
     class(eos_type), intent(in) :: eos
@@ -363,6 +398,9 @@ contains
     PetscReal :: phase_flux(self%cell(1)%fluid%num_components)
     PetscReal :: k, h, cond, mobility
     PetscInt :: phases(2), phase_present
+    PetscErrorCode :: ierr
+
+    call PetscLogEventBegin(face_flux_event, ierr); CHKERRQ(ierr)
 
     nc = eos%num_components
     np = eos%num_primary_variables
@@ -395,17 +433,17 @@ contains
 
              k = self%permeability()
              mobility = self%mobility(p, up)
-
-             ! Mass flows:
-             F = -k * mobility * G
-             phase_flux = F * self%cell(up)%fluid%phase(p)%mass_fraction
-             flux(1:nc) = flux(1:nc) + phase_flux
-
-             if (.not. eos%isothermal) then
-                ! Heat convection:
-                h = self%cell(up)%fluid%phase(p)%specific_enthalpy
-                flux(np) = flux(np) + h * F
-             end if
+             associate(upstream => self%cell(up)%fluid%phase(p))
+               ! Mass flows:
+               F = -k * mobility * G
+               phase_flux = F * upstream%mass_fraction
+               flux(1:nc) = flux(1:nc) + phase_flux
+               if (.not. eos%isothermal) then
+                  ! Heat convection:
+                  h = upstream%specific_enthalpy
+                  flux(np) = flux(np) + h * F
+               end if
+             end associate
 
           end if
 
@@ -413,15 +451,17 @@ contains
 
     end do
 
+    call PetscLogEventEnd(face_flux_event, ierr); CHKERRQ(ierr)
+
   end function face_flux
 
 !------------------------------------------------------------------------
 ! petsc_face_type routines
 !------------------------------------------------------------------------
 
-  subroutine petsc_face_assign(self, face_geom_data, face_geom_offset)
-    !! Assigns pointers in a petsc_face to elements of the specified data
-    !! array, starting from the given offset.
+  subroutine petsc_face_assign_geometry(self, face_geom_data, face_geom_offset)
+    !! Assigns geometry pointers in a petsc_face to elements of the
+    !! specified data array, starting from the given offset.
 
     class(petsc_face_type), intent(in out) :: self
     PetscReal, target, intent(in) :: face_geom_data(:)  !! array with face geometry data
@@ -430,7 +470,7 @@ contains
     self%area_normal => face_geom_data(face_geom_offset: face_geom_offset + 2)
     self%centroid => face_geom_data(face_geom_offset + 3: face_geom_offset + 5)
 
-  end subroutine petsc_face_assign
+  end subroutine petsc_face_assign_geometry
 
 !------------------------------------------------------------------------
 

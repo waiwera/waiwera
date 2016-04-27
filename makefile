@@ -4,6 +4,8 @@
 include ${PETSC_DIR}/lib/petsc/conf/variables
 include ${PETSC_DIR}/lib/petsc/conf/rules 
 
+DEBUG=true
+
 # project directories:
 SRC=src
 DIST=dist
@@ -30,7 +32,11 @@ TESTLDFLAGS=$(LIBS) -lfruit -lfson $(PETSC_LIB)
 TESTINCLS=$(INCLS)
 TESTFMFLAGS = -J$(TEST)/$(BUILD)
 INSTALL_DIR = $(HOME)/bin
-FC_FLAGS =  -fPIC -Wall -Wno-unused-dummy-argument -fcheck=all -g -O0
+ifeq ($(DEBUG),true)
+  FC_FLAGS =  -fPIC -Wall -Wno-unused-dummy-argument -fcheck=all -g -O0
+else
+  FC_FLAGS =  -fPIC -O3 -march=native -mtune=native
+endif
 
 # main source code:
 PROG = supermodel

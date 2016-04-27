@@ -51,7 +51,7 @@ contains
 
        call assert_equals(face%dof(), size(face_data) - (offset-1), "face dof")
 
-       call face%assign(face_data, offset)
+       call face%assign_geometry(face_data, offset)
 
        call assert_equals(area, face%area, tol, "area")
        call assert_equals(0._dp, norm2(face%distance - distance), tol, "distances")
@@ -98,7 +98,7 @@ contains
 
           face_data = [area, distance, normal(:,i), centroid, &
                initial_permeability_direction]
-          call face%assign(face_data, offset)
+          call face%assign_geometry(face_data, offset)
           call face%calculate_permeability_direction()
 
           write(msg, '(a, i2)') "Permeability direction test ", i
@@ -147,7 +147,8 @@ contains
        face_data(2:3) = distance
        cell_data = 0._dp
 
-       call face%assign(face_data, face_offset, cell_data, cell_offsets)
+       call face%assign_geometry(face_data, face_offset)
+       call face%assign_cell_geometry(cell_data, cell_offsets)
 
        g = face%normal_gradient(x)
 
@@ -208,7 +209,8 @@ contains
 
        do i = 1, num_tests
           face_data(2:3) = distance(:, i)
-          call face%assign(face_data, face_offset, cell_data, cell_offsets)
+          call face%assign_geometry(face_data, face_offset)
+          call face%assign_cell_geometry(cell_data, cell_offsets)
           xh = face%harmonic_average(x(:, i))
           write(msg, '(a, i2)') "Face harmonic average test ", i
           call assert_equals(expected_xh(i), xh, tol, msg)
@@ -275,8 +277,10 @@ contains
             998.2_dp, 1.e-3_dp, 1._dp, 1._dp, &
             84011.8_dp, 83911.6_dp, 1._dp]
 
-       call face%assign(face_data, face_offset, cell_data, cell_offsets, &
-            rock_data, rock_offsets, fluid_data, fluid_offsets)
+       call face%assign_geometry(face_data, face_offset)
+       call face%assign_cell_geometry(cell_data, cell_offsets)
+       call face%assign_cell_rock(rock_data, rock_offsets)
+       call face%assign_cell_fluid(fluid_data, fluid_offsets)
 
        flux = face%flux(eos, gravity)
 
@@ -352,8 +356,10 @@ contains
             998.2_dp, 1.e-3_dp, 1._dp, 1._dp, &
             84011.8_dp, 83911.6_dp, 1._dp]
 
-       call face%assign(face_data, face_offset, cell_data, cell_offsets, &
-            rock_data, rock_offsets, fluid_data, fluid_offsets)
+       call face%assign_geometry(face_data, face_offset)
+       call face%assign_cell_geometry(cell_data, cell_offsets)
+       call face%assign_cell_rock(rock_data, rock_offsets)
+       call face%assign_cell_fluid(fluid_data, fluid_offsets)
 
        flux = face%flux(eos, gravity)
 
@@ -431,8 +437,10 @@ contains
             998.5195444779_dp, 0.00100138700807062_dp, 1._dp, 1._dp, &
             84658.2021844106_dp, 83869.9846573438_dp, 1._dp]
 
-       call face%assign(face_data, face_offset, cell_data, cell_offsets, &
-            rock_data, rock_offsets, fluid_data, fluid_offsets)
+       call face%assign_geometry(face_data, face_offset)
+       call face%assign_cell_geometry(cell_data, cell_offsets)
+       call face%assign_cell_rock(rock_data, rock_offsets)
+       call face%assign_cell_fluid(fluid_data, fluid_offsets)
 
        flux = face%flux(eos, gravity)
 
@@ -518,8 +526,10 @@ contains
             4.26_dp, 1.47e-5_dp, 0.6_dp, 0.4_dp, &    ! vapour
             2769308.8_dp, 2576807.25_dp, 1._dp]
 
-       call face%assign(face_data, face_offset, cell_data, cell_offsets, &
-            rock_data, rock_offsets, fluid_data, fluid_offsets)
+       call face%assign_geometry(face_data, face_offset)
+       call face%assign_cell_geometry(cell_data, cell_offsets)
+       call face%assign_cell_rock(rock_data, rock_offsets)
+       call face%assign_cell_fluid(fluid_data, fluid_offsets)
 
        density = face%phase_density(1)
        call assert_equals(expected_liquid_density, density, density_tol, "Liquid density")

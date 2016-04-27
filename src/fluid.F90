@@ -118,11 +118,16 @@ contains
     !! Assigns pointers in a fluid object to elements in the data array,
     !! starting from the specified offset.
 
+    use profiling_module, only: assign_pointers_event
+
     class(fluid_type), intent(in out) :: self
     PetscReal, target, intent(in) :: data(:)  !! fluid data array
     PetscInt, intent(in) :: offset  !! fluid array offset
     ! Locals:
     PetscInt :: i, p, phase_dof
+    PetscErrorCode :: ierr
+
+    call PetscLogEventBegin(assign_pointers_event, ierr); CHKERRQ(ierr)
 
     phase_dof = num_phase_variables + self%num_components
 
@@ -133,16 +138,20 @@ contains
     
     i = offset + num_fluid_variables
     do p = 1, self%num_phases
-       self%phase(p)%density => data(i)
-       self%phase(p)%viscosity => data(i+1)
-       self%phase(p)%saturation => data(i+2)
-       self%phase(p)%relative_permeability => data(i+3)
-       self%phase(p)%specific_enthalpy => data(i+4)
-       self%phase(p)%internal_energy => data(i+5)
-       self%phase(p)%mass_fraction => data(i+6: i+6 + &
-            self%num_components-1)
-       i = i + phase_dof
+       associate(phase => self%phase(p))
+         phase%density => data(i)
+         phase%viscosity => data(i+1)
+         phase%saturation => data(i+2)
+         phase%relative_permeability => data(i+3)
+         phase%specific_enthalpy => data(i+4)
+         phase%internal_energy => data(i+5)
+         phase%mass_fraction => data(i+6: i+6 + &
+              self%num_components-1)
+         i = i + phase_dof
+       end associate
     end do
+
+    call PetscLogEventEnd(assign_pointers_event, ierr); CHKERRQ(ierr)
 
   end subroutine fluid_assign
 
@@ -197,10 +206,12 @@ contains
     d = 0._dp
     do p = 1, self%num_phases
        if (btest(phases, p - 1)) then
-          ds = self%phase(p)%density * self%phase(p)%saturation
-          do c = 1, self%num_components
-             d(c) = d(c) + ds * self%phase(p)%mass_fraction(c)
-          end do
+          associate(phase => self%phase(p))
+            ds = phase%density * phase%saturation
+            do c = 1, self%num_components
+               d(c) = d(c) + ds * phase%mass_fraction(c)
+            end do
+          end associate
        end if
     end do
 
@@ -220,8 +231,10 @@ contains
     ef = 0._dp
     do p = 1, self%num_phases
        if (btest(phases, p - 1)) then
-          ds = self%phase(p)%density * self%phase(p)%saturation
-          ef = ef + ds * self%phase(p)%internal_energy
+          associate(phase => self%phase(p))
+            ds = phase%density * phase%saturation
+            ef = ef + ds * phase%internal_energy
+          end associate
        end if
     end do
 
@@ -278,9 +291,10 @@ contains
              hc = 0._dp
              do p = 1, self%num_phases
                 if (btest(phases, p - 1)) then
-                   hc = hc + flow_fractions(p) * &
-                        self%phase(p)%specific_enthalpy * &
-                        self%phase(p)%mass_fraction(c)
+                   associate(phase => self%phase(p))
+                     hc = hc + flow_fractions(p) * &
+                          phase%specific_enthalpy * phase%mass_fraction(c)
+                   end associate
                 end if
              end do
              qenergy = qenergy + q * hc

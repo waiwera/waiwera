@@ -34,6 +34,7 @@ module flow_simulation_module
      class(relative_permeability_type), allocatable, public :: relative_permeability
      character(max_output_filename_length), public :: output_filename
      PetscViewer :: hdf5_viewer
+     PetscLogDouble :: start_wall_time
    contains
      private
      procedure :: setup_solution_vector => flow_simulation_setup_solution_vector
@@ -150,7 +151,7 @@ contains
 
     call self%run_info()
 
-    call self%logfile%write(LOG_LEVEL_INFO, 'input', 'start', &
+    call self%logfile%write(LOG_LEVEL_INFO, 'simulation', 'init', &
          str_key = 'time', str_value = datetimestr)
     call self%logfile%write_blank()
 
@@ -320,6 +321,7 @@ end subroutine flow_simulation_run_info
     use rock_module, only: setup_rock_vector, setup_rocktype_labels
     use source_module, only: setup_source_vector
     use utils_module, only: date_time_str
+    use profiling_module, only: simulation_init_event
 
     class(flow_simulation_type), intent(in out) :: self
     type(fson_value), pointer, intent(in) :: json
@@ -330,6 +332,9 @@ end subroutine flow_simulation_run_info
     PetscReal, parameter :: default_gravity = 9.8_dp
     PetscErrorCode :: ierr
 
+    call PetscLogEventBegin(simulation_init_event, ierr); CHKERRQ(ierr)
+
+    call PetscTime(self%start_wall_time, ierr); CHKERRQ(ierr)
     datetimestr = date_time_str()
 
     if (present(filename)) then
@@ -381,6 +386,8 @@ end subroutine flow_simulation_run_info
 
     call self%logfile%flush()
 
+    call PetscLogEventEnd(simulation_init_event, ierr); CHKERRQ(ierr)
+
   end subroutine flow_simulation_init
 
 !------------------------------------------------------------------------
@@ -388,9 +395,12 @@ end subroutine flow_simulation_run_info
   subroutine flow_simulation_destroy(self)
     !! Destroys the simulation.
 
+    use utils_module, only : date_time_str
+
     class(flow_simulation_type), intent(in out) :: self
     ! Locals:
     PetscErrorCode :: ierr
+    PetscLogDouble :: end_wall_time, elapsed_time
 
     call self%destroy_output()
     call self%logfile%destroy()
@@ -408,6 +418,12 @@ end subroutine flow_simulation_run_info
     deallocate(self%eos)
     deallocate(self%relative_permeability)
 
+    call PetscTime(end_wall_time, ierr); CHKERRQ(ierr)
+    elapsed_time = end_wall_time - self%start_wall_time
+    call self%logfile%write(LOG_LEVEL_INFO, 'simulation', 'destroy', &
+         real_keys = ['elapsed_seconds'], real_values = [elapsed_time], &
+         str_key = 'time', str_value = date_time_str())
+
   end subroutine flow_simulation_destroy
 
 !------------------------------------------------------------------------
@@ -418,6 +434,7 @@ end subroutine flow_simulation_run_info
 
     use dm_utils_module, only: global_section_offset, global_vec_section
     use cell_module, only: cell_type
+    use profiling_module, only: lhs_fn_event
 
     class(flow_simulation_type), intent(in out) :: self
     PetscReal, intent(in) :: t !! time (s)
@@ -433,6 +450,8 @@ end subroutine flow_simulation_run_info
     type(cell_type) :: cell
     DMLabel :: ghost_label
     PetscErrorCode :: ierr
+
+    call PetscLogEventBegin(lhs_fn_event, ierr); CHKERRQ(ierr)
 
     err = 0
     np = self%eos%num_primary_variables
@@ -466,9 +485,8 @@ end subroutine flow_simulation_run_info
           call global_section_offset(rock_section, c, &
                self%rock_range_start, rock_offset, ierr); CHKERRQ(ierr)
 
-          call cell%assign( &
-               rock_data = rock_array, rock_offset = rock_offset, &
-               fluid_data = fluid_array, fluid_offset = fluid_offset)
+          call cell%rock%assign(rock_array, rock_offset)
+          call cell%fluid%assign(fluid_array, fluid_offset)
 
           balance = cell%balance(np)
 
@@ -481,6 +499,8 @@ end subroutine flow_simulation_run_info
     call VecRestoreArrayReadF90(self%fluid, fluid_array, ierr); CHKERRQ(ierr)
     call VecRestoreArrayReadF90(self%rock, rock_array, ierr); CHKERRQ(ierr)
     call VecRestoreArrayF90(lhs, lhs_array, ierr); CHKERRQ(ierr)
+
+    call PetscLogEventEnd(lhs_fn_event, ierr); CHKERRQ(ierr)
 
   end subroutine flow_simulation_cell_balances
 
@@ -495,6 +515,8 @@ end subroutine flow_simulation_run_info
     use dm_utils_module
     use cell_module, only: cell_type
     use face_module, only: face_type
+    use profiling_module, only: rhs_fn_event, cell_inflows_event, &
+         sources_event
 
     class(flow_simulation_type), intent(in out) :: self
     PetscReal, intent(in) :: t !! time
@@ -525,6 +547,9 @@ end subroutine flow_simulation_run_info
     PetscReal, allocatable :: primary(:)
     PetscErrorCode :: ierr
 
+    call PetscLogEventBegin(rhs_fn_event, ierr); CHKERRQ(ierr)
+
+    call PetscLogEventBegin(cell_inflows_event, ierr); CHKERRQ(ierr)
     err = 0
     np = self%eos%num_primary_variables
     allocate(face_flow(np), primary(np))
@@ -572,9 +597,10 @@ end subroutine flow_simulation_run_info
              CHKERRQ(ierr)
           end do
 
-          call face%assign(face_geom_array, face_geom_offset, &
-               cell_geom_array, cell_geom_offsets, &
-               rock_array, rock_offsets, fluid_array, fluid_offsets)
+          call face%assign_geometry(face_geom_array, face_geom_offset)
+          call face%assign_cell_geometry(cell_geom_array, cell_geom_offsets)
+          call face%assign_cell_rock(rock_array, rock_offsets)
+          call face%assign_cell_fluid(fluid_array, fluid_offsets)
 
           face_flow = face%flux(self%eos, self%gravity) * face%area
 
@@ -595,8 +621,10 @@ end subroutine flow_simulation_run_info
     call face%destroy()
     call VecRestoreArrayReadF90(self%mesh%face_geom, face_geom_array, ierr)
     CHKERRQ(ierr)
+    call PetscLogEventEnd(cell_inflows_event, ierr); CHKERRQ(ierr)
 
     ! Source/ sink terms:
+    call PetscLogEventBegin(sources_event, ierr); CHKERRQ(ierr)
     nc = self%eos%num_components
     call cell%init(nc, self%eos%num_phases)
     call VecGetArrayReadF90(self%source, source_array, ierr); CHKERRQ(ierr)
@@ -614,8 +642,8 @@ end subroutine flow_simulation_run_info
                cell_geom_offset, ierr); CHKERRQ(ierr)
           call section_offset(fluid_section, c, &
                fluid_offset, ierr); CHKERRQ(ierr)
-          call cell%assign(cell_geom_array, cell_geom_offset, &
-               fluid_data = fluid_array, fluid_offset = fluid_offset)
+          call cell%assign_geometry(cell_geom_array, cell_geom_offset)
+          call cell%fluid%assign(fluid_array, fluid_offset)
           call global_section_offset(source_section, c, &
                self%solution_range_start, source_offset, ierr)
           CHKERRQ(ierr)
@@ -639,6 +667,9 @@ end subroutine flow_simulation_run_info
     call restore_dm_local_vec(local_fluid)
     call restore_dm_local_vec(local_rock)
     deallocate(face_flow, primary)
+    call PetscLogEventEnd(sources_event, ierr); CHKERRQ(ierr)
+
+    call PetscLogEventEnd(rhs_fn_event, ierr); CHKERRQ(ierr)
 
   end subroutine flow_simulation_cell_inflows
 
@@ -756,6 +787,7 @@ end subroutine flow_simulation_run_info
     use dm_utils_module, only: global_section_offset, global_vec_section
     use fluid_module, only: fluid_type
     use rock_module, only: rock_type
+    use profiling_module, only: fluid_init_event
 
     class(flow_simulation_type), intent(in out) :: self
     PetscReal, intent(in) :: t !! time
@@ -771,6 +803,8 @@ end subroutine flow_simulation_run_info
     type(rock_type) :: rock
     DMLabel :: ghost_label, order_label
     PetscErrorCode :: ierr
+
+    call PetscLogEventBegin(fluid_init_event, ierr); CHKERRQ(ierr)
 
     err = 0
     np = self%eos%num_primary_variables
@@ -809,10 +843,8 @@ end subroutine flow_simulation_run_info
           call global_section_offset(rock_section, c, &
                self%rock_range_start, rock_offset, ierr); CHKERRQ(ierr)
 
-          call rock%assign(rock_array, rock_offset, &
-               self%relative_permeability)
-
-          call DMLabelGetValue(order_label, c, order, ierr); CHKERRQ(ierr)
+          call rock%assign(rock_array, rock_offset)
+          call rock%assign_relative_permeability(self%relative_permeability)
 
           call self%eos%bulk_properties(cell_primary, fluid, err)
 
@@ -822,18 +854,24 @@ end subroutine flow_simulation_run_info
                 call self%eos%phase_properties(cell_primary, rock, &
                      fluid, err)
                 if (err > 0) then
+                   call DMLabelGetValue(order_label, c, order, ierr)
+                   CHKERRQ(ierr)
                    call self%logfile%write(LOG_LEVEL_ERR, 'initialize', &
                         'fluid', ['cell            '], [order], &
                         rank = mpi%rank)
                    exit
                 end if
              else
+                call DMLabelGetValue(order_label, c, order, ierr)
+                CHKERRQ(ierr)
                 call self%logfile%write(LOG_LEVEL_ERR, 'initialize', &
                      'fluid', ['cell            '], [order], &
                      rank = mpi%rank)
                 exit
              end if
           else
+             call DMLabelGetValue(order_label, c, order, ierr)
+             CHKERRQ(ierr)
              call self%logfile%write(LOG_LEVEL_ERR, 'initialize', &
                   'fluid', ['cell            '], [order], &
                   rank = mpi%rank)
@@ -852,6 +890,8 @@ end subroutine flow_simulation_run_info
 
     call mpi%broadcast_error_flag(err)
 
+    call PetscLogEventEnd(fluid_init_event, ierr); CHKERRQ(ierr)
+
   end subroutine flow_simulation_fluid_init
 
 !------------------------------------------------------------------------
@@ -864,6 +904,7 @@ end subroutine flow_simulation_run_info
     use dm_utils_module, only: global_section_offset, global_vec_section
     use fluid_module, only: fluid_type
     use rock_module, only: rock_type
+    use profiling_module, only: fluid_properties_event
 
     class(flow_simulation_type), intent(in out) :: self
     PetscReal, intent(in) :: t !! time
@@ -879,6 +920,8 @@ end subroutine flow_simulation_run_info
     type(rock_type) :: rock
     DMLabel :: ghost_label, order_label
     PetscErrorCode :: ierr
+
+    call PetscLogEventBegin(fluid_properties_event, ierr); CHKERRQ(ierr)
 
     err = 0
     np = self%eos%num_primary_variables
@@ -917,16 +960,16 @@ end subroutine flow_simulation_run_info
           call global_section_offset(rock_section, c, &
                self%rock_range_start, rock_offset, ierr); CHKERRQ(ierr)
 
-          call rock%assign(rock_array, rock_offset, &
-               self%relative_permeability)
-
-          call DMLabelGetValue(order_label, c, order, ierr); CHKERRQ(ierr)
+          call rock%assign(rock_array, rock_offset)
+          call rock%assign_relative_permeability(self%relative_permeability)
 
           call self%eos%bulk_properties(cell_primary, fluid, err)
 
           if (err == 0) then
              call self%eos%phase_properties(cell_primary, rock, fluid, err)
              if (err > 0) then
+                call DMLabelGetValue(order_label, c, order, ierr)
+                CHKERRQ(ierr)
                 call self%logfile%write(LOG_LEVEL_WARN, 'fluid', &
                      'properties_not_found', &
                      ['cell            '], [order], &
@@ -935,6 +978,7 @@ end subroutine flow_simulation_run_info
                 exit
              end if
           else
+             call DMLabelGetValue(order_label, c, order, ierr); CHKERRQ(ierr)
              call self%logfile%write(LOG_LEVEL_WARN, 'fluid', &
                   'properties_not_found', &
                   ['cell            '], [order], &
@@ -955,6 +999,8 @@ end subroutine flow_simulation_run_info
 
     call mpi%broadcast_error_flag(err)
 
+    call PetscLogEventEnd(fluid_properties_event, ierr); CHKERRQ(ierr)
+
   end subroutine flow_simulation_fluid_properties
 
 !------------------------------------------------------------------------
@@ -966,6 +1012,7 @@ end subroutine flow_simulation_run_info
 
     use dm_utils_module, only: global_section_offset, global_vec_section
     use fluid_module, only: fluid_type
+    use profiling_module, only: fluid_transitions_event
 
     class(flow_simulation_type), intent(in out) :: self
     Vec, intent(in) :: y_old !! Previous global primary variables vector
@@ -984,6 +1031,8 @@ end subroutine flow_simulation_run_info
     DMLabel :: ghost_label, order_label
     PetscBool :: transition
     PetscErrorCode :: ierr
+
+    call PetscLogEventBegin(fluid_transitions_event, ierr); CHKERRQ(ierr)
 
     err = 0
     changed_search = PETSC_FALSE
@@ -1028,8 +1077,6 @@ end subroutine flow_simulation_run_info
                fluid_offset)
           call fluid%assign(fluid_array, fluid_offset)
 
-          call DMLabelGetValue(order_label, c, order, ierr); CHKERRQ(ierr)
-
           call self%eos%transition(cell_primary, last_iteration_fluid, &
                fluid, transition, err)
 
@@ -1040,6 +1087,8 @@ end subroutine flow_simulation_run_info
                    cell_search = old_cell_primary - cell_primary
                    changed_y = PETSC_TRUE
                    changed_search = PETSC_TRUE
+                   call DMLabelGetValue(order_label, c, order, ierr)
+                   CHKERRQ(ierr)
                    call self%logfile%write(LOG_LEVEL_INFO, 'fluid', &
                         'transition', &
                         ['cell            ', &
@@ -1050,6 +1099,8 @@ end subroutine flow_simulation_run_info
                         real_array_value = cell_primary, rank = mpi%rank)
                 end if
              else
+                call DMLabelGetValue(order_label, c, order, ierr)
+                CHKERRQ(ierr)
                 call self%logfile%write(LOG_LEVEL_WARN, 'fluid', &
                      'out_of_range', &
                      ['cell            ', 'region          '], &
@@ -1060,6 +1111,7 @@ end subroutine flow_simulation_run_info
              end if
 
           else
+             call DMLabelGetValue(order_label, c, order, ierr); CHKERRQ(ierr)
              call self%logfile%write(LOG_LEVEL_WARN, 'fluid', &
                   'transition_failed', &
                   ['cell            '], [order], rank = mpi%rank)
@@ -1082,6 +1134,8 @@ end subroutine flow_simulation_run_info
     call mpi%broadcast_error_flag(err)
     call mpi%broadcast_logical(changed_y)
     call mpi%broadcast_logical(changed_search)
+
+    call PetscLogEventEnd(fluid_transitions_event, ierr); CHKERRQ(ierr)
 
   end subroutine flow_simulation_fluid_transitions
 
@@ -1122,6 +1176,8 @@ end subroutine flow_simulation_run_info
   subroutine flow_simulation_output(self, time_index, time)
     !! Output from flow simulation.
 
+    use profiling_module, only: output_event
+
     class(flow_simulation_type), intent(in out) :: self
     PetscInt, intent(in) :: time_index
     PetscReal, intent(in) :: time
@@ -1129,12 +1185,16 @@ end subroutine flow_simulation_run_info
     DM :: fluid_dm
     PetscErrorCode :: ierr
 
+    call PetscLogEventBegin(output_event, ierr); CHKERRQ(ierr)
+
     if (self%output_filename /= "") then
        call VecGetDM(self%fluid, fluid_dm, ierr); CHKERRQ(ierr)
        call DMSetOutputSequenceNumber(fluid_dm, time_index, time, &
             ierr); CHKERRQ(ierr)
        call VecView(self%fluid, self%hdf5_viewer, ierr); CHKERRQ(ierr)
     end if
+
+    call PetscLogEventEnd(output_event, ierr); CHKERRQ(ierr)
 
   end subroutine flow_simulation_output
 
