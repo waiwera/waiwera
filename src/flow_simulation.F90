@@ -374,9 +374,8 @@ end subroutine flow_simulation_run_info
     CHKERRQ(ierr)
 
     call setup_initial(json, self%mesh, self%eos, &
-         self%time, self%solution, self%rock, self%fluid, &
-         self%solution_range_start,  self%rock_range_start, &
-         self%fluid_range_start, self%logfile)
+         self%time, self%solution, self%fluid, &
+         self%solution_range_start, self%fluid_range_start, self%logfile)
     call self%mesh%set_boundary_values(self%solution, self%fluid, &
          self%rock, self%eos, self%solution_range_start, &
          self%fluid_range_start, self%rock_range_start)

@@ -315,9 +315,8 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine setup_initial(json, mesh, eos, t, y, rock_vector, &
-       fluid_vector, y_range_start, rock_range_start, fluid_range_start, &
-       logfile)
+  subroutine setup_initial(json, mesh, eos, t, y, fluid_vector, &
+       y_range_start, fluid_range_start, logfile)
     !! Initializes time t and a Vec y with initial conditions read
     !! from JSON input 'initial'.  A full set of initial conditions
     !! may be read in from an HDF5 file, or a constant set of primary
@@ -326,7 +325,6 @@ contains
 
     use mesh_module
     use eos_module
-    use rock_module
     use dm_utils_module, only: global_vec_section, global_section_offset
     use logfile_module
     use fson_value_m, only: TYPE_ARRAY
@@ -335,8 +333,8 @@ contains
     type(mesh_type), intent(in) :: mesh
     class(eos_type), intent(in) :: eos
     PetscReal, intent(out) :: t
-    Vec, intent(in out) :: y, rock_vector, fluid_vector
-    PetscInt, intent(in) :: y_range_start, rock_range_start, fluid_range_start
+    Vec, intent(in out) :: y, fluid_vector
+    PetscInt, intent(in) :: y_range_start, fluid_range_start
     type(logfile_type), intent(in out) :: logfile
     ! Locals:
     PetscReal, parameter :: default_start_time = 0.0_dp
