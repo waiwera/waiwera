@@ -20,19 +20,21 @@ module flow_simulation_module
   PetscInt, parameter :: max_output_filename_length = 200
 
   type, public, extends(ode_type) :: flow_simulation_type
-     !! Simulation type.
+     !! Type for simulation of fluid mass and energy flows in porous media.
      private
      PetscInt :: solution_range_start, rock_range_start, fluid_range_start
-     character(max_flow_simulation_filename_length), public :: filename
-     character(max_title_length), public :: title
-     Vec, public :: rock
-     Vec, public :: fluid, last_timestep_fluid, last_iteration_fluid
-     Vec, public :: source
-     class(thermodynamics_type), allocatable, public :: thermo
-     class(eos_type), allocatable, public :: eos
-     PetscReal, public :: gravity
-     class(relative_permeability_type), allocatable, public :: relative_permeability
-     character(max_output_filename_length), public :: output_filename
+     character(max_flow_simulation_filename_length), public :: filename !! JSON input filename
+     character(max_title_length), public :: title !! Descriptive title for the simulation
+     Vec, public :: rock !! Rock properties in each cell
+     Vec, public :: fluid !! Fluid properties in each cell
+     Vec, public :: last_timestep_fluid !! Fluid properties at previous timestep
+     Vec, public :: last_iteration_fluid !! Fluid properties at previous nonlinear solver iteration
+     Vec, public :: source !! Source/sink terms in each cell, for all mass and energy components
+     class(thermodynamics_type), allocatable, public :: thermo !! Fluid thermodynamic formulation
+     class(eos_type), allocatable, public :: eos !! Fluid equation of state
+     PetscReal, public :: gravity !! Acceleration of gravity (\(m.s^{-1}\))
+     class(relative_permeability_type), allocatable, public :: relative_permeability !! Rock relative permeability function
+     character(max_output_filename_length), public :: output_filename !! HDF5 output filename
      PetscViewer :: hdf5_viewer
      PetscLogDouble :: start_wall_time
    contains
@@ -286,7 +288,8 @@ contains
 !------------------------------------------------------------------------
 
 subroutine flow_simulation_run_info(self)
-  !! Writes run information to logfile.
+  !! Writes run information to logfile, e.g. software name and
+  !! version, compiler details, number of processors.
 
   use iso_fortran_env
   use version_module
@@ -760,7 +763,7 @@ end subroutine flow_simulation_run_info
   subroutine flow_simulation_post_linesearch(self, y_old, search, y, &
        changed_search, changed_y, err)
     !! Routine to be called after each nonlinear solve line search.
-    !! Here we check primary variables and make and necessary region
+    !! Here we check primary variables and make any necessary region
     !! transitions.
 
     class(flow_simulation_type), intent(in out) :: self
@@ -1166,7 +1169,7 @@ end subroutine flow_simulation_run_info
 !------------------------------------------------------------------------
 
   subroutine flow_simulation_output(self, time_index, time)
-    !! Output from flow simulation.
+    !! Checkpoint output from flow simulation at a particular time.
 
     use profiling_module, only: output_event
 
