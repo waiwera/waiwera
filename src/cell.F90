@@ -2,7 +2,7 @@ module cell_module
   !! Defines types for accessing local quantities defined on a cell- geometry, rock
   !! and fluid properties.
   !! The components of these types all point to values in arrays obtained from
-  !! global parallel vectors.
+  !! parallel vectors.
 
   use kinds_module
   use rock_module
@@ -33,7 +33,7 @@ module cell_module
   PetscInt, parameter :: num_cell_variables = 2
   PetscInt, parameter, public :: &
        cell_variable_num_components(num_cell_variables) = &
-       [1, 3]
+       [1, 3] !! Number of components in each cell variable
 
   public :: cell_type
 
@@ -42,7 +42,8 @@ contains
 !------------------------------------------------------------------------
 
   subroutine cell_init(self, num_components, num_phases)
-    !! Initialises a cell.
+    !! Initialises a cell. This actually just initializes the fluid
+    !! object for the cell.
 
     class(cell_type), intent(in out) :: self
     PetscInt, intent(in) :: num_components !! Number of fluid components
