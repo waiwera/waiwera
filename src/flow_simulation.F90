@@ -784,8 +784,7 @@ end subroutine flow_simulation_run_info
     !! starts to run.
 
     use dm_utils_module, only: global_section_offset, global_vec_section
-    use fluid_module, only: fluid_type
-    use rock_module, only: rock_type
+    use cell_module, only: cell_type
     use profiling_module, only: fluid_init_event
 
     class(flow_simulation_type), intent(in out) :: self
@@ -798,8 +797,7 @@ end subroutine flow_simulation_run_info
     PetscInt :: y_offset, fluid_offset, rock_offset
     PetscReal, pointer :: y_array(:), cell_primary(:)
     PetscReal, pointer :: fluid_array(:), rock_array(:)
-    type(fluid_type) :: fluid
-    type(rock_type) :: rock
+    type(cell_type) :: cell
     DMLabel :: ghost_label, order_label
     PetscErrorCode :: ierr
 
@@ -818,7 +816,7 @@ end subroutine flow_simulation_run_info
     call global_vec_section(self%rock, rock_section)
     call VecGetArrayF90(self%rock, rock_array, ierr); CHKERRQ(ierr)
 
-    call fluid%init(nc, self%eos%num_phases)
+    call cell%init(nc, self%eos%num_phases)
 
     call DMGetLabel(self%mesh%dm, "ghost", ghost_label, ierr)
     CHKERRQ(ierr)
@@ -837,21 +835,20 @@ end subroutine flow_simulation_run_info
           call global_section_offset(fluid_section, c, &
                self%fluid_range_start, fluid_offset, ierr); CHKERRQ(ierr)
 
-          call fluid%assign(fluid_array, fluid_offset)
-
           call global_section_offset(rock_section, c, &
                self%rock_range_start, rock_offset, ierr); CHKERRQ(ierr)
 
-          call rock%assign(rock_array, rock_offset)
-          call rock%assign_relative_permeability(self%relative_permeability)
+          call cell%rock%assign(rock_array, rock_offset)
+          call cell%rock%assign_relative_permeability(self%relative_permeability)
+          call cell%fluid%assign(fluid_array, fluid_offset)
 
-          call self%eos%bulk_properties(cell_primary, fluid, err)
+          call self%eos%bulk_properties(cell_primary, cell%fluid, err)
 
           if (err == 0) then
-             call self%eos%phase_composition(fluid, err)
+             call self%eos%phase_composition(cell%fluid, err)
              if (err == 0) then
-                call self%eos%phase_properties(cell_primary, rock, &
-                     fluid, err)
+                call self%eos%phase_properties(cell_primary, cell%rock, &
+                     cell%fluid, err)
                 if (err > 0) then
                    call DMLabelGetValue(order_label, c, order, ierr)
                    CHKERRQ(ierr)
@@ -884,8 +881,7 @@ end subroutine flow_simulation_run_info
     call VecRestoreArrayF90(self%rock, rock_array, ierr); CHKERRQ(ierr)
     call VecRestoreArrayF90(self%fluid, fluid_array, ierr); CHKERRQ(ierr)
     call VecRestoreArrayF90(y, y_array, ierr); CHKERRQ(ierr)
-    call rock%destroy()
-    call fluid%destroy()
+    call cell%destroy()
 
     call mpi%broadcast_error_flag(err)
 
@@ -901,8 +897,7 @@ end subroutine flow_simulation_run_info
     !! thermodynamic variables.
 
     use dm_utils_module, only: global_section_offset, global_vec_section
-    use fluid_module, only: fluid_type
-    use rock_module, only: rock_type
+    use cell_module, only: cell_type
     use profiling_module, only: fluid_properties_event
 
     class(flow_simulation_type), intent(in out) :: self
@@ -915,8 +910,7 @@ end subroutine flow_simulation_run_info
     PetscInt :: y_offset, fluid_offset, rock_offset
     PetscReal, pointer :: y_array(:), cell_primary(:)
     PetscReal, pointer :: fluid_array(:), rock_array(:)
-    type(fluid_type) :: fluid
-    type(rock_type) :: rock
+    type(cell_type) :: cell
     DMLabel :: ghost_label, order_label
     PetscErrorCode :: ierr
 
@@ -935,7 +929,7 @@ end subroutine flow_simulation_run_info
     call global_vec_section(self%rock, rock_section)
     call VecGetArrayF90(self%rock, rock_array, ierr); CHKERRQ(ierr)
 
-    call fluid%init(nc, self%eos%num_phases)
+    call cell%init(nc, self%eos%num_phases)
 
     call DMGetLabel(self%mesh%dm, "ghost", ghost_label, ierr)
     CHKERRQ(ierr)
@@ -954,18 +948,18 @@ end subroutine flow_simulation_run_info
           call global_section_offset(fluid_section, c, &
                self%fluid_range_start, fluid_offset, ierr); CHKERRQ(ierr)
 
-          call fluid%assign(fluid_array, fluid_offset)
-
           call global_section_offset(rock_section, c, &
                self%rock_range_start, rock_offset, ierr); CHKERRQ(ierr)
 
-          call rock%assign(rock_array, rock_offset)
-          call rock%assign_relative_permeability(self%relative_permeability)
+          call cell%rock%assign(rock_array, rock_offset)
+          call cell%rock%assign_relative_permeability(self%relative_permeability)
+          call cell%fluid%assign(fluid_array, fluid_offset)
 
-          call self%eos%bulk_properties(cell_primary, fluid, err)
+          call self%eos%bulk_properties(cell_primary, cell%fluid, err)
 
           if (err == 0) then
-             call self%eos%phase_properties(cell_primary, rock, fluid, err)
+             call self%eos%phase_properties(cell_primary, cell%rock, &
+                  cell%fluid, err)
              if (err > 0) then
                 call DMLabelGetValue(order_label, c, order, ierr)
                 CHKERRQ(ierr)
@@ -993,8 +987,7 @@ end subroutine flow_simulation_run_info
     call VecRestoreArrayF90(self%rock, rock_array, ierr); CHKERRQ(ierr)
     call VecRestoreArrayF90(self%fluid, fluid_array, ierr); CHKERRQ(ierr)
     call VecRestoreArrayReadF90(y, y_array, ierr); CHKERRQ(ierr)
-    call rock%destroy()
-    call fluid%destroy()
+    call cell%destroy()
 
     call mpi%broadcast_error_flag(err)
 
