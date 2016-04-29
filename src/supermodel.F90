@@ -12,11 +12,11 @@ program supermodel
 
 #include <petsc/finclude/petscsys.h>
 
-  type(fson_value), pointer :: json
-  type(flow_simulation_type) :: simulation
-  type(timestepper_type) :: timestepper
-  character(max_flow_simulation_filename_length) :: filename
-  PetscErrorCode :: ierr
+  type(fson_value), pointer :: json !! JSON object for simulation input
+  type(flow_simulation_type) :: simulation !! Flow simulation object
+  type(timestepper_type) :: timestepper !! Timestepper for time-stepping the simulation
+  character(max_flow_simulation_filename_length) :: filename !! JSON input filename
+  PetscErrorCode :: ierr !! Error code for PETSc
 
   call PetscInitialize(PETSC_NULL_CHARACTER, ierr); CHKERRQ(ierr)
   call mpi%init(PETSC_COMM_WORLD)
@@ -45,7 +45,7 @@ contains
   subroutine get_filename(filename)
     !! Gets filename from program argument or input.
 
-    character(*), intent(out) :: filename
+    character(*), intent(out) :: filename !! JSON input filename
     ! Locals:
     PetscInt :: num_args, filename_length, ierr
 
