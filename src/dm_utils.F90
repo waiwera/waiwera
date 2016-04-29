@@ -1,5 +1,5 @@
 module dm_utils_module
-  !! Module for PETSc DM utilities.
+  !! Module for utilities related to PETSc DMs (which handle data management on parallel meshes), and Vecs.
 
   implicit none
   private
@@ -21,7 +21,7 @@ contains
        field_name)
     !! Sets data layout on default section of the given DM.
 
-    DM, intent(in out) :: dm
+    DM, intent(in out) :: dm !! DM object
     PetscInt, target, intent(in) :: num_components(:) !! Number of components in each field
     PetscInt, intent(in) :: field_dim(:)  !! Dimension each field is defined on (0 = nodes, etc.)
     character(*), intent(in), optional :: field_name(:) !! Name of each field
@@ -81,8 +81,8 @@ contains
 
     use mpi_module
 
-    Vec, intent(in) :: v
-    PetscInt, intent(out) :: range_start
+    Vec, intent(in) :: v !! Global vector
+    PetscInt, intent(out) :: range_start !! Range start for global section
     ! Locals:
     PetscSection :: section
     PetscLayout :: layout
@@ -106,10 +106,10 @@ contains
     !! Wrapper for PetscSectionGetOffset(), adding one to the result for
     !! Fortran 1-based indexing.
 
-    PetscSection, intent(in) :: section !! PETSc section
-    PetscInt, intent(in) :: p !! Mesh point
-    PetscInt, intent(out) :: offset
-    PetscErrorCode, intent(out) :: ierr
+    PetscSection, intent(in) :: section !! Local section
+    PetscInt, intent(in) :: p !! Mesh point in DM
+    PetscInt, intent(out) :: offset !! Offset value
+    PetscErrorCode, intent(out) :: ierr !! Error flag
 
     call PetscSectionGetOffset(section, p, offset, ierr)
     offset = offset + 1
@@ -124,11 +124,11 @@ contains
     !! subtract the layout range start to get indices suitable for
     !! indexing into arrays.
 
-    PetscSection, intent(in) :: section !! PETSc section
+    PetscSection, intent(in) :: section !! Global section
     PetscInt, intent(in) :: p !! Mesh point
     PetscInt, intent(in) :: range_start !! Start of PetscLayout range
-    PetscInt, intent(out) :: offset
-    PetscErrorCode, intent(out) :: ierr
+    PetscInt, intent(out) :: offset !! Offset value
+    PetscErrorCode, intent(out) :: ierr !! Error flag
     ! Locals:
 
     call PetscSectionGetOffset(section, p, offset, ierr)
@@ -142,8 +142,8 @@ contains
     !! Gets default global PETSc section from DM of a vector v, and
     !! range_start from the PetscLayout of the section.
 
-    Vec, intent(in) :: v
-    PetscSection, intent(out) :: section
+    Vec, intent(in) :: v !! Global vector
+    PetscSection, intent(out) :: section !! Default global section
     ! Locals:
     DM :: dm
     PetscErrorCode :: ierr
@@ -158,8 +158,8 @@ contains
   subroutine local_vec_section(v, section)
     !! Gets default local PETSc section from DM of a vector v.
 
-    Vec, intent(in) :: v
-    PetscSection, intent(out) :: section
+    Vec, intent(in) :: v !! Local vector
+    PetscSection, intent(out) :: section !! Default local section
     ! Locals:
     DM :: dm
     PetscErrorCode :: ierr
@@ -176,9 +176,9 @@ contains
     !! scattered from the global vector, and the default local PETSc
     !! section from the DM of the global vector.
 
-    Vec, intent(in) :: v
-    Vec, intent(out) :: local_v
-    PetscSection, intent(out) :: section
+    Vec, intent(in) :: v !! Global vector
+    Vec, intent(out) :: local_v !! Local vector
+    PetscSection, intent(out) :: section !! Default local section
     ! Locals:
     DM :: dm
     PetscErrorCode :: ierr
@@ -199,7 +199,7 @@ contains
   subroutine restore_dm_local_vec(local_v)
     !! Restores local vector to its DM.
 
-    Vec, intent(out) :: local_v
+    Vec, intent(out) :: local_v !! Local vector
     ! Locals:
     DM :: dm
     PetscErrorCode :: ierr
@@ -216,8 +216,8 @@ contains
 
     use mpi_module
 
-    Vec, intent(in) :: v
-    character(len = *), intent(in) :: filename
+    Vec, intent(in) :: v !! Vector
+    character(len = *), intent(in) :: filename !! VTK output filename
     ! Locals:
     PetscViewer :: viewer
     PetscErrorCode :: ierr
@@ -238,8 +238,9 @@ contains
 
     use mpi_module
 
-    Vec, intent(in out) :: v
-    IS, intent(in) :: old_index, new_index
+    Vec, intent(in out) :: v !! Global vector to be reordered
+    IS, intent(in) :: old_index !! Index set for old ordering
+    IS, intent(in) :: new_index !! Index set for new ordering
     ! Locals:
     Vec :: vinitial
     VecScatter :: scatter
@@ -283,10 +284,10 @@ contains
     !! Returns index of DM mesh face on the specified cell c, with
     !! outward normal vector closest to the specified one.
 
-    DM, intent(in) :: dm
-    PetscInt, intent(in) :: c
-    PetscReal, intent(in) :: normal(:)
-    PetscInt, intent(out) :: f
+    DM, intent(in) :: dm !! DM
+    PetscInt, intent(in) :: c !! Cell mesh point in DM
+    PetscReal, intent(in) :: normal(:) !! Normal vector
+    PetscInt, intent(out) :: f !! Face mesh point in DM
     ! Locals:
     PetscInt :: i, num_faces, imax
     PetscInt :: dim, start_cell, end_cell
