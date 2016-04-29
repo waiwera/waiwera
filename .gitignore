@@ -1,8 +1,8 @@
 *~
 src/*~
+src/*.s
 test/src/*~
-build/*.o
-build/*.mod
+build/*
 test/build/*.o
 test/build/*.mod
 test/dist/test_all*
