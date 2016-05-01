@@ -369,7 +369,7 @@ contains
     !! overridden for specific regions.
 
     class(IAPWS_region_type), intent(in out) :: self
-    PetscReal, intent(in), target :: param(:) !! Primary variables
+    PetscReal, intent(in) :: param(:) !! Primary variables
     PetscReal, intent(out):: props(:) !! Properties
     PetscInt, intent(out) :: err !! error code
 
@@ -471,39 +471,40 @@ contains
     use profiling_module, only: thermo_region1_properties_event
 
     class(IAPWS_region1_type), intent(in out) :: self
-    PetscReal, intent(in), target :: param(:) !! Primary variables (pressure, temperature)
+    PetscReal, intent(in) :: param(:) !! Primary variables (pressure, temperature)
     PetscReal, intent(out):: props(:) !! (density, internal energy)
     PetscInt, intent(out) :: err !! error code
     ! Locals:
-    PetscReal, pointer :: p, t
     PetscReal:: tk, rt, pi, tau, gampi, gamt
     PetscErrorCode :: ierr
     
     call PetscLogEventBegin(thermo_region1_properties_event, ierr); CHKERRQ(ierr)
 
-    p => param(1); t => param(2)
+    associate (p => param(1), t => param(2))
 
-    ! Check input:
-    if ((t <= 350.0_dp).and.(p <= 100.e6_dp)) then
-       !      
-       tk = t + tc_k
-       rt = rconst * tk
-       pi = p / self%pstar
-       tau = self%tstar / tk
+      ! Check input:
+      if ((t <= 350.0_dp).and.(p <= 100.e6_dp)) then
+         !      
+         tk = t + tc_k
+         rt = rconst * tk
+         pi = p / self%pstar
+         tau = self%tstar / tk
 
-       call self%pi%compute(7.1_dp - pi)
-       call self%pj%compute(tau - 1.222_dp)
+         call self%pi%compute(7.1_dp - pi)
+         call self%pj%compute(tau - 1.222_dp)
 
-       gampi = -sum(self%nI * self%pi%power(self%I_1) * self%pj%power(self%J))
-       gamt = sum(self%nJ * self%pi%power(self%I) * self%pj%power(self%J_1))
-       
-       props(1) = self%pstar / (rt * gampi)      ! density
-       props(2) = rt * (tau * gamt - pi * gampi) ! internal energy
-       err = 0
+         gampi = -sum(self%nI * self%pi%power(self%I_1) * self%pj%power(self%J))
+         gamt = sum(self%nJ * self%pi%power(self%I) * self%pj%power(self%J_1))
 
-    else
-       err = 1
-    end if
+         props(1) = self%pstar / (rt * gampi)      ! density
+         props(2) = rt * (tau * gamt - pi * gampi) ! internal energy
+         err = 0
+
+      else
+         err = 1
+      end if
+
+    end associate
 
     call PetscLogEventEnd(thermo_region1_properties_event, ierr); CHKERRQ(ierr)
 
@@ -568,43 +569,44 @@ contains
     use profiling_module, only: thermo_region2_properties_event
 
     class(IAPWS_region2_type), intent(in out) :: self
-    PetscReal, intent(in), target :: param(:) !! Primary variables (pressure, temperature)
+    PetscReal, intent(in) :: param(:) !! Primary variables (pressure, temperature)
     PetscReal, intent(out):: props(:)  !! (density, internal energy)
     PetscInt, intent(out) :: err  !! error code
     ! Locals:
-    PetscReal, pointer :: p, t
     PetscReal:: tk, rt, pi, tau, gampir, gamt0, gamtr, gampi
     PetscErrorCode :: ierr
 
     call PetscLogEventBegin(thermo_region2_properties_event, ierr); CHKERRQ(ierr)
 
-    p => param(1); t => param(2)
+    associate (p => param(1), t => param(2))
 
-    ! Check input:
-    if ((t <= 800.0_dp).and.(p <= 100.e6_dp)) then
+      ! Check input:
+      if ((t <= 800.0_dp).and.(p <= 100.e6_dp)) then
 
-       tk = t + tc_k
-       rt = rconst * tk
-       pi = p / self%pstar
-       tau = self%tstar / tk
+         tk = t + tc_k
+         rt = rconst * tk
+         pi = p / self%pstar
+         tau = self%tstar / tk
 
-       call self%pj0%compute(tau)
-       call self%pi%compute(pi)
-       call self%pj%compute(tau - 0.5_dp)
+         call self%pj0%compute(tau)
+         call self%pi%compute(pi)
+         call self%pj%compute(tau - 0.5_dp)
 
-       gamt0  = sum(self%n0J0 * self%pj0%power(self%J0_1))
-       gampir = sum(self%nI * self%pi%power(self%I_1) * self%pj%power(self%J))
-       gamtr  = sum(self%nJ * self%pi%power(self%I)   * self%pj%power(self%J_1))
+         gamt0  = sum(self%n0J0 * self%pj0%power(self%J0_1))
+         gampir = sum(self%nI * self%pi%power(self%I_1) * self%pj%power(self%J))
+         gamtr  = sum(self%nJ * self%pi%power(self%I)   * self%pj%power(self%J_1))
 
-       gampi = self%pi%power(-1) + gampir
+         gampi = self%pi%power(-1) + gampir
 
-       props(1) = self%pstar / (rt * gampi)                 ! density
-       props(2) = rt * (tau * (gamt0 + gamtr) - pi * gampi) ! internal energy
-       err = 0
+         props(1) = self%pstar / (rt * gampi)                 ! density
+         props(2) = rt * (tau * (gamt0 + gamtr) - pi * gampi) ! internal energy
+         err = 0
 
-    else
-       err = 1
-    end if
+      else
+         err = 1
+      end if
+
+    end associate
 
     call PetscLogEventEnd(thermo_region2_properties_event, ierr); CHKERRQ(ierr)
 
@@ -662,38 +664,39 @@ contains
     use profiling_module, only: thermo_region3_properties_event
 
     class(IAPWS_region3_type), intent(in out) :: self
-    PetscReal, intent(in), target :: param(:) !! Primary variables (density, temperature)
+    PetscReal, intent(in) :: param(:) !! Primary variables (density, temperature)
     PetscReal, intent(out):: props(:)  !! (pressure, internal energy)
     PetscInt, intent(out) :: err   !! Error code
     ! Locals:
-    PetscReal, pointer :: d, t
     PetscReal:: tk, rt, delta, tau
     PetscReal:: phidelta, phitau
     PetscErrorCode :: ierr
 
     call PetscLogEventBegin(thermo_region3_properties_event, ierr); CHKERRQ(ierr)
 
-    d => param(1); t => param(2)
+    associate (d => param(1), t => param(2))
 
-    tk = t + tc_k
-    rt = rconst * tk
-    tau = self%tstar / tk
-    delta = d / self%dstar
+      tk = t + tc_k
+      rt = rconst * tk
+      tau = self%tstar / tk
+      delta = d / self%dstar
 
-    call self%pi%compute(delta)
-    call self%pj%compute(tau)
+      call self%pi%compute(delta)
+      call self%pj%compute(tau)
 
-    phidelta = self%n(1) * self%pi%power(-1) + &
-         sum(self%nI * self%pi%power(self%I_1) * self%pj%power(self%J))
-    phitau = sum(self%nJ * self%pi%power(self%I)   * self%pj%power(self%J_1))
+      phidelta = self%n(1) * self%pi%power(-1) + &
+           sum(self%nI * self%pi%power(self%I_1) * self%pj%power(self%J))
+      phitau = sum(self%nJ * self%pi%power(self%I)   * self%pj%power(self%J_1))
 
-    props(1) = d * rt * delta * phidelta ! pressure
-    props(2) = rt * tau * phitau         ! internal energy
-    if (props(1) > 100.0e6_dp) then
-       err = 1
-    else
-       err = 0
-    end if
+      props(1) = d * rt * delta * phidelta ! pressure
+      props(2) = rt * tau * phitau         ! internal energy
+      if (props(1) > 100.0e6_dp) then
+         err = 1
+      else
+         err = 0
+      end if
+
+    end associate
 
     call PetscLogEventEnd(thermo_region3_properties_event, ierr); CHKERRQ(ierr)
 

@@ -236,11 +236,10 @@ contains
     use profiling_module, only: thermo_region1_properties_event
 
     class(IFC67_region1_type), intent(in out) :: self
-    PetscReal, intent(in), target :: param(:) !! Primary variables (pressure, temperature)
+    PetscReal, intent(in) :: param(:) !! Primary variables (pressure, temperature)
     PetscReal, intent(out):: props(:) !! (density, internal energy)
     PetscInt, intent(out) :: err !! error code
     ! Locals:
-    PetscReal, pointer :: p, t
     PetscReal :: AA1, BB1, BB2, CC1, CC2, CC4, CC8, CC10
     PetscReal :: CZ, DD1, DD2, DD4, EE1, EE3, ENTR, H
     PetscReal :: PAR1, PAR2, PAR3, PAR4, PAR5
@@ -251,94 +250,96 @@ contains
     PetscErrorCode :: ierr
     
     call PetscLogEventBegin(thermo_region1_properties_event, ierr); CHKERRQ(ierr)
-
-    p => param(1); t => param(2)
     
-    if ((t <= 350.0_dp).and.(p <= 100.e6_dp)) then
-       
-       TKR = (t + tc_k) / tcriticalk67
-       TKR2 = TKR * TKR
-       TKR3 = TKR * TKR2
-       TKR4 = TKR2 * TKR2
-       TKR5 = TKR2 * TKR3
-       TKR6 = TKR4 * TKR2
-       TKR7 = TKR4 * TKR3
-       TKR8 = TKR4 * TKR4
-       TKR9 = TKR4 * TKR5
-       TKR10 = TKR4 * TKR6
-       TKR11 = TKR * TKR10
-       TKR18 = TKR8 * TKR10
-       TKR19 = TKR8 * TKR11
-       TKR20 = TKR10 * TKR10
-       PNMR = p / pcritical67
-       PNMR2 = PNMR * PNMR
-       PNMR3 = PNMR * PNMR2
-       PNMR4 = PNMR * PNMR3
-       Y = 1.0_dp - self%SA1 * TKR2 - self%SA2 / TKR6
-       ZP = self%SA3 * Y * Y - 2.0_dp * self%SA4 * TKR + &
-            2.0_dp * self%SA5 * PNMR
-       if (ZP >= 0._dp) then
-          Z = Y + sqrt(ZP)
-          CZ = Z ** (5.0_dp / 17.0_dp)
-          PAR1 = self%A12 * self%SA5 / CZ
-          CC1 = self%SA6 - TKR
-          CC2 = CC1 * CC1
-          CC4 = CC2 * CC2
-          CC8 = CC4 * CC4
-          CC10 = CC2 * CC8
-          AA1 = self%SA7 + TKR19
-          PAR2 = self%A13 + self%A14 * TKR + self%A15 * TKR2 + &
-               self%A16 * CC10 + self%A17 / AA1
-          PAR3 = (self%A18 + 2._dp * self%A19 * PNMR + &
-               3._dp * self%A20 * PNMR2) / (self%SA8 + TKR11)
-          DD1 = self%SA10 + PNMR
-          DD2 = DD1 * DD1
-          DD4 = DD2 * DD2
-          PAR4 = self%A21 * TKR18 * (self%SA9 + TKR2) * &
-               (-3.0_dp / DD4 + self%SA11)
-          PAR5 = 3.0_dp * self%A22 * (self%SA12 - TKR) * &
-               PNMR2 + 4.0_dp * self%A23 / TKR20 * PNMR3
-          VMKR = PAR1 + PAR2 - PAR3 - PAR4 + PAR5
-          V = VMKR * 3.17e-3_dp
-          D = 1.0_dp / V
-          YD = -2.0_dp * self%SA1 * TKR + 6.0_dp * self%SA2 / TKR7
-          SNUM =  self%A10 + self%A11 * TKR
-          SNUM = SNUM * TKR + self%A9
-          SNUM = SNUM * TKR + self%A8
-          SNUM = SNUM * TKR + self%A7
-          SNUM = SNUM * TKR + self%A6
-          SNUM = SNUM * TKR + self%A5
-          SNUM = SNUM * TKR + self%A4
-          SNUM = SNUM * TKR2 - self%A2
-          PRT1 = self%A12 * (Z * (17.0_dp * (Z / 29.0_dp - Y / 12.0_dp) + &
-               5.0_dp * TKR * YD / 12.0_dp) + &
-               self%SA4 * TKR - (self%SA3 - 1.0_dp) * TKR * Y * YD) / CZ
-          PRT2 = PNMR * (self%A13 - self%A15 * TKR2 + self%A16 * &
-               (9.0_dp * TKR + self%SA6) * CC8 * CC1 + &
-               self%A17 * (19.0_dp * TKR19 + AA1) / (AA1 * AA1))
-          BB1 = self%SA8 + TKR11
-          BB2 = BB1 * BB1
-          PRT3 = (11.0_dp * TKR11 + BB1) / BB2 * (self%A18 * PNMR + &
-               self%A19 * PNMR2 + self%A20 * PNMR3)
-          EE1 = self%SA10 + PNMR
-          EE3 = EE1 * EE1 * EE1
-          PRT4 = self%A21 * TKR18 * (17.0_dp * self%SA9 + 19.0_dp * TKR2) * &
-               (1.0_dp / EE3 + self%SA11 * PNMR)
-          PRT5 = self%A22 * self%SA12 * PNMR3 + 21.0_dp * self%A23 / TKR20 * PNMR4
-          ENTR = self%A1 * TKR - SNUM + PRT1 + PRT2 - PRT3 + PRT4 + PRT5
-          H = ENTR * 70120.4_dp
-          U = H - p * V
-          
-          props(1) = D ! density
-          props(2) = U ! internal energy
-          err = 0
-          
-       else
-          err = 1
-       end if
-    else
-       err = 1
-    end if
+    associate (p => param(1), t => param(2))
+
+      if ((t <= 350.0_dp).and.(p <= 100.e6_dp)) then
+
+         TKR = (t + tc_k) / tcriticalk67
+         TKR2 = TKR * TKR
+         TKR3 = TKR * TKR2
+         TKR4 = TKR2 * TKR2
+         TKR5 = TKR2 * TKR3
+         TKR6 = TKR4 * TKR2
+         TKR7 = TKR4 * TKR3
+         TKR8 = TKR4 * TKR4
+         TKR9 = TKR4 * TKR5
+         TKR10 = TKR4 * TKR6
+         TKR11 = TKR * TKR10
+         TKR18 = TKR8 * TKR10
+         TKR19 = TKR8 * TKR11
+         TKR20 = TKR10 * TKR10
+         PNMR = p / pcritical67
+         PNMR2 = PNMR * PNMR
+         PNMR3 = PNMR * PNMR2
+         PNMR4 = PNMR * PNMR3
+         Y = 1.0_dp - self%SA1 * TKR2 - self%SA2 / TKR6
+         ZP = self%SA3 * Y * Y - 2.0_dp * self%SA4 * TKR + &
+              2.0_dp * self%SA5 * PNMR
+         if (ZP >= 0._dp) then
+            Z = Y + sqrt(ZP)
+            CZ = Z ** (5.0_dp / 17.0_dp)
+            PAR1 = self%A12 * self%SA5 / CZ
+            CC1 = self%SA6 - TKR
+            CC2 = CC1 * CC1
+            CC4 = CC2 * CC2
+            CC8 = CC4 * CC4
+            CC10 = CC2 * CC8
+            AA1 = self%SA7 + TKR19
+            PAR2 = self%A13 + self%A14 * TKR + self%A15 * TKR2 + &
+                 self%A16 * CC10 + self%A17 / AA1
+            PAR3 = (self%A18 + 2._dp * self%A19 * PNMR + &
+                 3._dp * self%A20 * PNMR2) / (self%SA8 + TKR11)
+            DD1 = self%SA10 + PNMR
+            DD2 = DD1 * DD1
+            DD4 = DD2 * DD2
+            PAR4 = self%A21 * TKR18 * (self%SA9 + TKR2) * &
+                 (-3.0_dp / DD4 + self%SA11)
+            PAR5 = 3.0_dp * self%A22 * (self%SA12 - TKR) * &
+                 PNMR2 + 4.0_dp * self%A23 / TKR20 * PNMR3
+            VMKR = PAR1 + PAR2 - PAR3 - PAR4 + PAR5
+            V = VMKR * 3.17e-3_dp
+            D = 1.0_dp / V
+            YD = -2.0_dp * self%SA1 * TKR + 6.0_dp * self%SA2 / TKR7
+            SNUM =  self%A10 + self%A11 * TKR
+            SNUM = SNUM * TKR + self%A9
+            SNUM = SNUM * TKR + self%A8
+            SNUM = SNUM * TKR + self%A7
+            SNUM = SNUM * TKR + self%A6
+            SNUM = SNUM * TKR + self%A5
+            SNUM = SNUM * TKR + self%A4
+            SNUM = SNUM * TKR2 - self%A2
+            PRT1 = self%A12 * (Z * (17.0_dp * (Z / 29.0_dp - Y / 12.0_dp) + &
+                 5.0_dp * TKR * YD / 12.0_dp) + &
+                 self%SA4 * TKR - (self%SA3 - 1.0_dp) * TKR * Y * YD) / CZ
+            PRT2 = PNMR * (self%A13 - self%A15 * TKR2 + self%A16 * &
+                 (9.0_dp * TKR + self%SA6) * CC8 * CC1 + &
+                 self%A17 * (19.0_dp * TKR19 + AA1) / (AA1 * AA1))
+            BB1 = self%SA8 + TKR11
+            BB2 = BB1 * BB1
+            PRT3 = (11.0_dp * TKR11 + BB1) / BB2 * (self%A18 * PNMR + &
+                 self%A19 * PNMR2 + self%A20 * PNMR3)
+            EE1 = self%SA10 + PNMR
+            EE3 = EE1 * EE1 * EE1
+            PRT4 = self%A21 * TKR18 * (17.0_dp * self%SA9 + 19.0_dp * TKR2) * &
+                 (1.0_dp / EE3 + self%SA11 * PNMR)
+            PRT5 = self%A22 * self%SA12 * PNMR3 + 21.0_dp * self%A23 / TKR20 * PNMR4
+            ENTR = self%A1 * TKR - SNUM + PRT1 + PRT2 - PRT3 + PRT4 + PRT5
+            H = ENTR * 70120.4_dp
+            U = H - p * V
+
+            props(1) = D ! density
+            props(2) = U ! internal energy
+            err = 0
+
+         else
+            err = 1
+         end if
+      else
+         err = 1
+      end if
+
+    end associate
 
     call PetscLogEventEnd(thermo_region1_properties_event, ierr); CHKERRQ(ierr)
     
@@ -406,11 +407,10 @@ contains
     use profiling_module, only: thermo_region2_properties_event
 
     class(IFC67_region2_type), intent(in out) :: self
-    PetscReal, intent(in), target :: param(:) !! Primary variables (pressure, temperature)
+    PetscReal, intent(in) :: param(:) !! Primary variables (pressure, temperature)
     PetscReal, intent(out):: props(:)  !! (density, internal energy)
     PetscInt, intent(out) :: err !! error code
     ! Locals:
-    PetscReal, pointer :: p, t
     PetscReal :: BETA, BETA2, BETA3, BETA4, BETA5, BETA6, BETA7, BETAL, CHI2
     PetscReal :: DBETAL, EPS2, H, OS1, OS2, OS5, OS6, OS7, R, R2, R4, R6, R10, RI1
     PetscReal :: SC, SD1, SD12, SD2, SD22, SD3, SD32, SN, SN6, SN7, SN8
@@ -420,131 +420,139 @@ contains
 
     call PetscLogEventBegin(thermo_region2_properties_event, ierr); CHKERRQ(ierr)
 
-    p => param(1); t => param(2)
+    associate (p => param(1), t => param(2))
 
-    ! Check input:
-    if ((t <= 800.0_dp).and.(p <= 100.e6_dp)) then
+      ! Check input:
+      if ((t <= 800.0_dp).and.(p <= 100.e6_dp)) then
 
-      THETA = (T + tc_k) / tcriticalk67
-      BETA = P / pcritical67
-      RI1 = 4.260321148_dp
-      X = exp(self%SB * (1.0_dp - THETA))
-      X2 = X * X
-      X3 = X2 * X
-      X4 = X3 * X
-      X5 = X4 * X
-      X6 = X5 * X
-      X8 = X6 * X2
-      X10 = X6 * X4
-      X11 = X10 * X
-      X14 = X10 * X4
-      X18 = X14 * X4
-      X19 = X18 * X
-      X24 = X18 * X6
-      X27 = X24 * X3
+         THETA = (T + tc_k) / tcriticalk67
+         BETA = P / pcritical67
+         RI1 = 4.260321148_dp
+         X = exp(self%SB * (1.0_dp - THETA))
+         X2 = X * X
+         X3 = X2 * X
+         X4 = X3 * X
+         X5 = X4 * X
+         X6 = X5 * X
+         X8 = X6 * X2
+         X10 = X6 * X4
+         X11 = X10 * X
+         X14 = X10 * X4
+         X18 = X14 * X4
+         X19 = X18 * X
+         X24 = X18 * X6
+         X27 = X24 * X3
 
-      THETA2 = THETA * THETA
-      THETA3 = THETA2 * THETA
-      THETA4 = THETA3 * THETA
+         THETA2 = THETA * THETA
+         THETA3 = THETA2 * THETA
+         THETA4 = THETA3 * THETA
 
-      BETA2 = BETA * BETA
-      BETA3 = BETA2 * BETA
-      BETA4 = BETA3 * BETA
-      BETA5 = BETA4 * BETA
-      BETA6 = BETA5 * BETA
-      BETA7 = BETA6 * BETA
+         BETA2 = BETA * BETA
+         BETA3 = BETA2 * BETA
+         BETA4 = BETA3 * BETA
+         BETA5 = BETA4 * BETA
+         BETA6 = BETA5 * BETA
+         BETA7 = BETA6 * BETA
 
-      BETAL = 15.74373327_dp - 34.17061978_dp * THETA + 19.31380707_dp * THETA2
-      DBETAL = -34.17061978_dp + 38.62761414_dp * THETA
-      R = BETA / BETAL
-      R2 = R * R
-      R4 = R2 * R2
-      R6 = R4 * R2
-      R10 = R6 * R4
+         BETAL = 15.74373327_dp - 34.17061978_dp * THETA + 19.31380707_dp * THETA2
+         DBETAL = -34.17061978_dp + 38.62761414_dp * THETA
+         R = BETA / BETAL
+         R2 = R * R
+         R4 = R2 * R2
+         R6 = R4 * R2
+         R10 = R6 * R4
 
-      CHI2 = RI1 * THETA / BETA
-      SC = (self%B11 * X10 + self%B12) * X3
-      CHI2 = CHI2 - SC
-      SC = self%B21 * X18 + self%B22 * X2 + self%B23 * X
-      CHI2 = CHI2 - 2._dp * BETA * SC
-      SC = (self%B31 * X8 + self%B32) * X10
-      CHI2 = CHI2 - 3._dp * BETA2 * SC
-      SC = (self%B41 * X11 + self%B42) * X14
-      CHI2 = CHI2 - 4._dp * BETA3 * SC
-      SC = (self%B51 * X8 + self%B52 * X4 + self%B53) * X24
-      CHI2 = CHI2 - 5._dp * BETA4 * SC
+         CHI2 = RI1 * THETA / BETA
+         SC = (self%B11 * X10 + self%B12) * X3
+         CHI2 = CHI2 - SC
+         SC = self%B21 * X18 + self%B22 * X2 + self%B23 * X
+         CHI2 = CHI2 - 2._dp * BETA * SC
+         SC = (self%B31 * X8 + self%B32) * X10
+         CHI2 = CHI2 - 3._dp * BETA2 * SC
+         SC = (self%B41 * X11 + self%B42) * X14
+         CHI2 = CHI2 - 4._dp * BETA3 * SC
+         SC = (self%B51 * X8 + self%B52 * X4 + self%B53) * X24
+         CHI2 = CHI2 - 5._dp * BETA4 * SC
 
-      SD1 = 1.0_dp / BETA4 + self%SB61 * X14
-      SD2 = 1.0_dp / BETA5 + self%SB71 * X19
-      SD3 = 1.0_dp / BETA6 + (self%SB81 * X27 + self%SB82) * X27
-      SD12 = SD1 * SD1
-      SD22 = SD2 * SD2
-      SD32 = SD3 * SD3
+         SD1 = 1.0_dp / BETA4 + self%SB61 * X14
+         SD2 = 1.0_dp / BETA5 + self%SB71 * X19
+         SD3 = 1.0_dp / BETA6 + (self%SB81 * X27 + self%SB82) * X27
+         SD12 = SD1 * SD1
+         SD22 = SD2 * SD2
+         SD32 = SD3 * SD3
 
-      SN = (self%B61 * X + self%B62) * X11
-      CHI2 = CHI2 - SN / SD12 * 4._dp / BETA5
-      SN = (self%B71 * X6 + self%B72) * X18
-      CHI2 = CHI2 - SN / SD22 * 5._dp / BETA6
-      SN = (self%B81 * X10 + self%B82) * X14
-      CHI2 = CHI2 - SN / SD32 * 6._dp / BETA7
-      SC = self%B96
-      SC = SC * X + self%B95
-      SC = SC * X + self%B94
-      SC = SC * X + self%B93
-      SC = SC * X + self%B92
-      SC = SC * X + self%B91
-      SC = SC * X + self%B90
-      CHI2 = CHI2 + 11.0_dp * R10 * SC
-      V = CHI2 * 0.00317_dp
-      D = 1.0_dp / V
+         SN = (self%B61 * X + self%B62) * X11
+         CHI2 = CHI2 - SN / SD12 * 4._dp / BETA5
+         SN = (self%B71 * X6 + self%B72) * X18
+         CHI2 = CHI2 - SN / SD22 * 5._dp / BETA6
+         SN = (self%B81 * X10 + self%B82) * X14
+         CHI2 = CHI2 - SN / SD32 * 6._dp / BETA7
+         SC = self%B96
+         SC = SC * X + self%B95
+         SC = SC * X + self%B94
+         SC = SC * X + self%B93
+         SC = SC * X + self%B92
+         SC = SC * X + self%B91
+         SC = SC * X + self%B90
+         CHI2 = CHI2 + 11.0_dp * R10 * SC
+         V = CHI2 * 0.00317_dp
+         D = 1.0_dp / V
 
-      OS1 = self%SB * THETA
-      EPS2 = self%B0 * THETA - (-self%B01 + self%B03 * THETA2 + 2.0_dp * self%B04 * THETA3 + &
-           3.0_dp * self%B05 * THETA4)
-      SC = (self%B11 * (1.0_dp + 13.0_dp * OS1) * X10 + self%B12 * (1.0_dp + 3.0_dp * OS1)) * X3
-      EPS2 = EPS2 - BETA * SC
-      SC = self%B21 * (1.0_dp + 18.0_dp * OS1) * X18 + self%B22 * (1.0_dp + 2.0_dp * OS1) * X2 + &
-           self%B23 * (1.0_dp + OS1) * X
-      EPS2 = EPS2 - BETA2 * SC
-      SC = (self%B31 * (1.0_dp + 18.0_dp * OS1) * X8 + self%B32 * (1.0_dp + 10.0_dp * OS1)) * X10
-      EPS2 = EPS2 - BETA3 * SC
-      SC = (self%B41 * (1.0_dp + 25.0_dp * OS1) * X11 + self%B42 * (1.0_dp + 14.0_dp * OS1)) * X14
-      EPS2 = EPS2 - BETA4 * SC
-      SC = (self%B51 * (1.0_dp + 32.0_dp * OS1) * X8 + self%B52 * (1.0_dp + 28.0_dp * OS1) * X4 + &
-           self%B53 * (1.0_dp + 24.0_dp * OS1)) * X24
-      EPS2 = EPS2 - BETA5 * SC
+         OS1 = self%SB * THETA
+         EPS2 = self%B0 * THETA - (-self%B01 + self%B03 * THETA2 + &
+              2.0_dp * self%B04 * THETA3 + 3.0_dp * self%B05 * THETA4)
+         SC = (self%B11 * (1.0_dp + 13.0_dp * OS1) * X10 + self%B12 * &
+              (1.0_dp + 3.0_dp * OS1)) * X3
+         EPS2 = EPS2 - BETA * SC
+         SC = self%B21 * (1.0_dp + 18.0_dp * OS1) * X18 + self%B22 * &
+              (1.0_dp + 2.0_dp * OS1) * X2 + self%B23 * (1.0_dp + OS1) * X
+         EPS2 = EPS2 - BETA2 * SC
+         SC = (self%B31 * (1.0_dp + 18.0_dp * OS1) * X8 + self%B32 * &
+              (1.0_dp + 10.0_dp * OS1)) * X10
+         EPS2 = EPS2 - BETA3 * SC
+         SC = (self%B41 * (1.0_dp + 25.0_dp * OS1) * X11 + self%B42 * &
+              (1.0_dp + 14.0_dp * OS1)) * X14
+         EPS2 = EPS2 - BETA4 * SC
+         SC = (self%B51 * (1.0_dp + 32.0_dp * OS1) * X8 + self%B52 * &
+              (1.0_dp + 28.0_dp * OS1) * X4 + self%B53 * &
+              (1.0_dp + 24.0_dp * OS1)) * X24
+         EPS2 = EPS2 - BETA5 * SC
 
-      SN6 = 14.0_dp * self%SB61 * X14
-      SN7 = 19.0_dp * self%SB71 * X19
-      SN8 = (54.0_dp * self%SB81 * X27 + 27.0_dp * self%SB82) * X27
-      OS5 = 1.0_dp + 11.0_dp * OS1 - OS1 * SN6 / SD1
-      SC = (self%B61 * X * (OS1 + OS5) + self%B62 * OS5) * (X11 / SD1)
-      EPS2 = EPS2 - SC
-      OS6 = 1.0_dp + 24.0_dp * OS1 - OS1 * SN7 / SD2
-      SC = (self%B71 * X6 * OS6 + self%B72 * (OS6 - 6.0_dp * OS1)) * (X18 / SD2)
-      EPS2 = EPS2 - SC
-      OS7 = 1.0_dp + 24.0_dp * OS1 - OS1 * SN8 / SD3
-      SC = (self%B81 * X10 * OS7 + self%B82 * (OS7 - 10.0_dp *  OS1)) * (X14 / SD3)
-      EPS2 = EPS2 - SC
-      OS2 = 1.0_dp + THETA * 10.0_dp * DBETAL / BETAL
-      SC = (OS2 + 6.0_dp * OS1) * self%B96
-      SC = SC * X + (OS2 + 5.0_dp * OS1) * self%B95
-      SC = SC * X + (OS2 + 4.0_dp * OS1) * self%B94
-      SC = SC * X + (OS2 + 3.0_dp * OS1) * self%B93
-      SC = SC * X + (OS2 + 2.0_dp * OS1) * self%B92
-      SC = SC * X + (OS2 + OS1) * self%B91
-      SC = SC * X + OS2 * self%B90
-      EPS2 = EPS2 + BETA * R10 * SC
-      H = EPS2 * 70120.4_dp
-      U = H - P * V
+         SN6 = 14.0_dp * self%SB61 * X14
+         SN7 = 19.0_dp * self%SB71 * X19
+         SN8 = (54.0_dp * self%SB81 * X27 + 27.0_dp * self%SB82) * X27
+         OS5 = 1.0_dp + 11.0_dp * OS1 - OS1 * SN6 / SD1
+         SC = (self%B61 * X * (OS1 + OS5) + self%B62 * OS5) * (X11 / SD1)
+         EPS2 = EPS2 - SC
+         OS6 = 1.0_dp + 24.0_dp * OS1 - OS1 * SN7 / SD2
+         SC = (self%B71 * X6 * OS6 + self%B72 * (OS6 - 6.0_dp * OS1)) * &
+              (X18 / SD2)
+         EPS2 = EPS2 - SC
+         OS7 = 1.0_dp + 24.0_dp * OS1 - OS1 * SN8 / SD3
+         SC = (self%B81 * X10 * OS7 + self%B82 * (OS7 - 10.0_dp *  OS1)) * &
+              (X14 / SD3)
+         EPS2 = EPS2 - SC
+         OS2 = 1.0_dp + THETA * 10.0_dp * DBETAL / BETAL
+         SC = (OS2 + 6.0_dp * OS1) * self%B96
+         SC = SC * X + (OS2 + 5.0_dp * OS1) * self%B95
+         SC = SC * X + (OS2 + 4.0_dp * OS1) * self%B94
+         SC = SC * X + (OS2 + 3.0_dp * OS1) * self%B93
+         SC = SC * X + (OS2 + 2.0_dp * OS1) * self%B92
+         SC = SC * X + (OS2 + OS1) * self%B91
+         SC = SC * X + OS2 * self%B90
+         EPS2 = EPS2 + BETA * R10 * SC
+         H = EPS2 * 70120.4_dp
+         U = H - P * V
 
-      props(1) = D ! density
-      props(2) = U ! internal energy
-      err = 0
+         props(1) = D ! density
+         props(2) = U ! internal energy
+         err = 0
 
-    else
-       err = 1
-    end if
+      else
+         err = 1
+      end if
+
+    end associate
 
     call PetscLogEventEnd(thermo_region2_properties_event, ierr); CHKERRQ(ierr)
 
