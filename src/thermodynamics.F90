@@ -118,7 +118,7 @@ module thermodynamics_module
        !! Calculates fluid properties for region.
        import :: region_type, dp
        class(region_type), intent(in out) :: self
-       PetscReal, intent(in), target :: param(:)
+       PetscReal, intent(in) :: param(:)
        PetscReal, intent(out) :: props(:)
        PetscInt, intent(out) :: err
      end subroutine region_properties
