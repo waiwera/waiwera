@@ -276,31 +276,33 @@ contains
     ! Locals:
     PetscInt :: p, np, phases, c
     PetscReal :: flow_fractions(self%num_phases), hc
-    PetscReal, pointer :: q, qenergy
 
     if (.not. isothermal) then
+       associate (qenergy => source(np))
 
-       np = size(source)
-       qenergy => source(np)
-       phases = nint(self%phase_composition)
-       flow_fractions = self%flow_fractions()
+         np = size(source)
+         phases = nint(self%phase_composition)
+         flow_fractions = self%flow_fractions()
 
-       do c = 1, self%num_components
-          q => source(c)
-          if (q < 0._dp) then
-             hc = 0._dp
-             do p = 1, self%num_phases
-                if (btest(phases, p - 1)) then
-                   associate(phase => self%phase(p))
-                     hc = hc + flow_fractions(p) * &
-                          phase%specific_enthalpy * phase%mass_fraction(c)
-                   end associate
-                end if
-             end do
-             qenergy = qenergy + q * hc
-          end if
-       end do
+         do c = 1, self%num_components
+            associate(q => source(c))
+              if (q < 0._dp) then
+                 hc = 0._dp
+                 do p = 1, self%num_phases
+                    if (btest(phases, p - 1)) then
+                       associate(phase => self%phase(p))
+                         hc = hc + flow_fractions(p) * &
+                              phase%specific_enthalpy * &
+                              phase%mass_fraction(c)
+                       end associate
+                    end if
+                 end do
+                 qenergy = qenergy + q * hc
+              end if
+            end associate
+         end do
 
+       end associate
     end if
 
   end subroutine fluid_energy_production
