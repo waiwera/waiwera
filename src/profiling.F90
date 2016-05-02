@@ -31,7 +31,8 @@ contains
 !------------------------------------------------------------------------
 
   subroutine init_profiling()
-    !! Initialize code profiling.
+    !! Initialize code profiling, registering PETSc class ID and all
+    !! log events needed anywhere in the code.
 
     ! Locals:
     PetscErrorCode :: ierr
