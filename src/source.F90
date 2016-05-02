@@ -25,13 +25,13 @@ contains
     use mesh_module, only: cell_order_label_name
     use dm_utils_module, only: global_section_offset
 
-    type(fson_value), pointer, intent(in) :: json
-    DM, intent(in) :: dm
-    PetscInt, intent(in) :: np ! Number of primary variables
-    PetscBool, intent(in) :: isothermal
-    PetscInt, intent(in) :: range_start
-    Vec, intent(in out) :: source
-    type(logfile_type), intent(in out), optional :: logfile
+    type(fson_value), pointer, intent(in) :: json !! JSON file object
+    DM, intent(in) :: dm !! Mesh DM 
+    PetscInt, intent(in) :: np !! Number of primary variables
+    PetscBool, intent(in) :: isothermal !! Whether EOS is isothermal
+    PetscInt, intent(in) :: range_start !! Range start for global source vector
+    Vec, intent(in out) :: source !! Global source vector
+    type(logfile_type), intent(in out), optional :: logfile !! Logfile for log output
     ! Locals:
     PetscErrorCode :: ierr
     PetscInt :: c, isrc, i, component
