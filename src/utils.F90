@@ -1,5 +1,5 @@
 module utils_module
-  !! Various utilities
+  !! Utility functions for string handling, formatting, file names etc.
 
   implicit none
   private
@@ -19,8 +19,8 @@ contains
   function str_to_upper(strIn) result(strOut)
     !! Converts a string to all upper case.
 
-    character(len=*), intent(in) :: strIn
-    character(len=len(strIn)) :: strOut
+    character(len=*), intent(in) :: strIn !! Input string
+    character(len=len(strIn)) :: strOut !! Output uppercase string
     PetscInt :: i,j
 
     do i = 1, len(strIn)
@@ -39,8 +39,8 @@ contains
   function str_to_lower(strIn) result(strOut)
     !! Converts a string to all lower case.
 
-    character(len=*), intent(in) :: strIn
-    character(len=len(strIn)) :: strOut
+    character(len=*), intent(in) :: strIn !! Input string
+    character(len=len(strIn)) :: strOut !! Output lowercase string
     PetscInt :: i,j
 
     do i = 1, len(strIn)
@@ -60,8 +60,8 @@ contains
     !! Returns minimum length of string needed to represent a given
     !! integer i.
 
-    PetscInt, intent(in) :: i
-    PetscInt :: w
+    PetscInt, intent(in) :: i !! Input integer
+    PetscInt :: w !! Output string length
 
     if (i == 0) then
        w = 1
@@ -78,8 +78,9 @@ contains
   subroutine split_filename(filename, base, ext)
     !! Splits filename into base and extension.
 
-    character(*), intent(in) :: filename
-    character(:), allocatable, intent(out) :: base, ext
+    character(*), intent(in) :: filename !! File name
+    character(:), allocatable, intent(out) :: base !! Base part of filename
+    character(:), allocatable, intent(out) :: ext !! File extension
     ! Locals:
     PetscInt:: i, n, base_end, ext_start
   
@@ -102,8 +103,9 @@ contains
   function change_filename_extension(filename, ext) result(new_filename)
     !! Changes filename extension.
 
-    character(*), intent(in) :: filename, ext
-    character(:), allocatable :: new_filename
+    character(*), intent(in) :: filename !! File name
+    character(*), intent(in) :: ext !! New file extension
+    character(:), allocatable :: new_filename !! Output file name
     ! Locals:
     character(:), allocatable :: base, oldext
 
