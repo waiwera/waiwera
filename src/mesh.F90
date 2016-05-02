@@ -11,20 +11,24 @@ module mesh_module
 #include <petsc/finclude/petsc.h90>
 
   PetscInt, parameter, public :: max_mesh_filename_length = 200
-  character(len = 16), public :: open_boundary_label_name = "open_boundary"
+  character(len = 16), public :: open_boundary_label_name = "open_boundary" !! Name of DMLabel for identifying open boundaries
   character(len = 13), parameter, public :: &
-       cell_order_label_name = "cell_order"
+       cell_order_label_name = "cell_order" !! Name of DMLabel for generating cell index set
 
   type, public :: mesh_type
      !! Mesh type.
      private
-     character(max_mesh_filename_length), public :: filename
-     DM, public :: dm
-     Vec, public :: cell_geom, face_geom
-     PetscInt, public :: start_cell, end_cell, end_interior_cell
-     PetscInt, public :: start_face, end_face
-     PetscReal, allocatable, public :: bcs(:,:)
-     IS, public :: cell_index
+     character(max_mesh_filename_length), public :: filename !! Mesh file name
+     DM, public :: dm !! DM representing the mesh topology
+     Vec, public :: cell_geom !! Vector containing cell geometry data
+     Vec, public :: face_geom !! Vector containing face geometry data
+     PetscInt, public :: start_cell !! DM point containing first cell on this process
+     PetscInt, public :: end_cell !! DM point containing last cell on this process
+     PetscInt, public :: end_interior_cell !! DM point containing last interior (non-ghost) cell on this process
+     PetscInt, public :: start_face !! DM point containing first face on this process
+     PetscInt, public :: end_face !! DM point containing last face on this process
+     PetscReal, allocatable, public :: bcs(:,:) !! Array containing boundary conditions
+     IS, public :: cell_index !! Index set defining natural cell ordering
    contains
      procedure :: setup_cell_order_label => mesh_setup_cell_order_label
      procedure :: setup_cell_index => mesh_setup_cell_index
@@ -418,7 +422,7 @@ contains
 !------------------------------------------------------------------------
 
   subroutine mesh_get_bounds(self)
-    !! Gets cell bounds on current processor.
+    !! Gets cell and face bounds  on current processor.
 
     class(mesh_type), intent(in out) :: self
     ! Locals:
@@ -481,11 +485,13 @@ contains
 !------------------------------------------------------------------------
 
   subroutine mesh_configure(self, primary_variable_names, viewer)
-    !! Configures mesh.
+    !! Configures mesh, including distribution over processes and
+    !! construction of ghost cells, setup of data layout, geometry and
+    !! cell index set.
 
     class(mesh_type), intent(in out) :: self
     character(*), intent(in) :: primary_variable_names(:) !! Names of primary thermodynamic variables
-    PetscViewer, intent(in out), optional :: viewer
+    PetscViewer, intent(in out), optional :: viewer !! PetscViewer for output of cell index set to HDF5 file
     ! Locals:
     PetscInt :: dof
 
@@ -538,9 +544,9 @@ contains
     use dm_utils_module, only: dm_cell_normal_face
 
     class(mesh_type), intent(in out) :: self
-    type(fson_value), pointer, intent(in) :: json
-    class(eos_type), intent(in) :: eos
-    type(logfile_type), intent(in out), optional :: logfile
+    type(fson_value), pointer, intent(in) :: json !! JSON input file
+    class(eos_type), intent(in) :: eos !! EOS object
+    type(logfile_type), intent(in out), optional :: logfile !! Logfile for log output
     ! Locals:
     PetscErrorCode :: ierr
     PetscBool :: mesh_has_label
@@ -640,9 +646,13 @@ contains
     use rock_module, only: rock_type
 
     class(mesh_type), intent(in) :: self
-    Vec, intent(in out) :: y, fluid_vector, rock_vector
-    class(eos_type), intent(in) :: eos
-    PetscInt, intent(in) :: y_range_start, fluid_range_start, rock_range_start
+    Vec, intent(in out) :: y !! Primary variables vector
+    Vec, intent(in out) :: fluid_vector !! Fluid properties vector
+    Vec, intent(in out) :: rock_vector !! Rock properties vector
+    class(eos_type), intent(in) :: eos !! EOS module
+    PetscInt, intent(in) :: y_range_start !! Start of range for global primary variables vector
+    PetscInt, intent(in) :: fluid_range_start !! Start of range for global fluid vector
+    PetscInt, intent(in) :: rock_range_start !! Start of range for global rock vector
     ! Locals:
     PetscInt :: ibdy, f, i, num_faces, iface, rock_dof, np, n
     PetscReal, pointer :: y_array(:), fluid_array(:), rock_array(:)
@@ -726,8 +736,8 @@ contains
     use dm_utils_module, only: vec_reorder
 
     class(mesh_type), intent(in) :: self
-    Vec, intent(in out) :: v
-    IS, intent(in), optional :: index
+    Vec, intent(in out) :: v !! Global vector to re-order
+    IS, intent(in), optional :: index !! Cell order index set for original ordering of v
 
     call vec_reorder(v, index, self%cell_index)
 
