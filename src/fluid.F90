@@ -1,4 +1,5 @@
 module fluid_module
+  !! Module for accessing fluid properties.
 
   use kinds_module
 
@@ -145,8 +146,7 @@ contains
          phase%relative_permeability => data(i+3)
          phase%specific_enthalpy => data(i+4)
          phase%internal_energy => data(i+5)
-         phase%mass_fraction => data(i+6: i+6 + &
-              self%num_components-1)
+         phase%mass_fraction => data(i+6: i+6 + self%num_components-1)
          i = i + phase_dof
        end associate
     end do
