@@ -1,5 +1,7 @@
 module eos_module
-  !! Equations of state.
+  !! Equations of state for different fluid mass components. The
+  !! behaviour of each combination of fluid components is governed by
+  !! an EOS object.
 
   ! All EOSes are in here at present. This is to work around a
   ! gfortran 4.7 bug (free_pi_tree(): Unresolved fixup) which occurs
@@ -26,18 +28,18 @@ module eos_module
   type, public, abstract :: eos_type
      !! Abstract type for equation of state (EOS) objects.
      private
-     character(max_eos_name_length), public :: name
-     character(max_eos_description_length), public :: description
-     character(max_primary_variable_name_length), allocatable, public :: primary_variable_names(:)
-     character(max_phase_name_length), allocatable, public :: phase_names(:)
-     character(max_component_name_length), allocatable, public :: component_names(:)
-     PetscInt, public :: num_primary_variables
-     PetscInt, public :: num_phases
-     PetscInt, public :: num_components
-     PetscReal, allocatable, public :: default_primary(:)
-     PetscInt, public :: default_region
-     class(thermodynamics_type), pointer, public :: thermo
-     PetscBool, public :: isothermal = PETSC_FALSE
+     character(max_eos_name_length), public :: name !! EOS name
+     character(max_eos_description_length), public :: description !! EOS description
+     character(max_primary_variable_name_length), allocatable, public :: primary_variable_names(:) !! Names of primary variables
+     character(max_phase_name_length), allocatable, public :: phase_names(:) !! Names of fluid phases
+     character(max_component_name_length), allocatable, public :: component_names(:) !! Names of mass components
+     PetscInt, public :: num_primary_variables !! Number of primary variables
+     PetscInt, public :: num_phases !! Number of possible phases
+     PetscInt, public :: num_components !! Number of mass components
+     PetscReal, allocatable, public :: default_primary(:) !! Default primary variable values
+     PetscInt, public :: default_region !! Default thermodynamic region
+     class(thermodynamics_type), pointer, public :: thermo !! Thermodynamic formulation
+     PetscBool, public :: isothermal = PETSC_FALSE !! Whether the EOS is restricted to isothermal fluid conditions
    contains
      private
      procedure(eos_init_procedure), public, deferred :: init
@@ -88,7 +90,7 @@ module eos_module
   abstract interface
 
      subroutine eos_init_procedure(self, json, thermo, logfile)
-       !! Initialise EOS object
+       !! Initialises the EOS object
        use logfile_module
        import :: eos_type, thermodynamics_type, fson_value
        class(eos_type), intent(in out) :: self
@@ -98,7 +100,7 @@ module eos_module
      end subroutine eos_init_procedure
 
      subroutine eos_destroy_procedure(self)
-       !! Destroy EOS object
+       !! Destroy the EOS object
        import :: eos_type
        class(eos_type), intent(in out) :: self
      end subroutine eos_destroy_procedure
