@@ -19,12 +19,16 @@ module logfile_module
   character, parameter :: lf = new_line('a')
 
   type logfile_type
+     !! Type for representing log file.
      private
      PetscViewer :: viewer
-     character(max_logfile_name_length), public :: filename
-     PetscInt, public :: max_num_length, num_real_digits
-     character(max_format_length), public :: int_format, real_format
-     PetscBool, public :: echo, active
+     character(max_logfile_name_length), public :: filename !! File name
+     PetscInt, public :: max_num_length !! Maximum length of output numeric field
+     PetscInt, public :: num_real_digits !! Maximum number of digits in real output
+     character(max_format_length), public :: int_format !! Format string for integer output
+     character(max_format_length), public :: real_format !! Format string for real output
+     PetscBool, public :: echo !! Whether output is echoed to console
+     PetscBool, public :: active !! Whether logfile is active (outputting either to file or console)
    contains
      private
      procedure, public :: init => logfile_init
