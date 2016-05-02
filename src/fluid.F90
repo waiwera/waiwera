@@ -271,7 +271,7 @@ contains
     !! non-isothermal, calculate associated energy production.
 
     class(fluid_type), intent(in) :: self
-    PetscReal, target, intent(in out) :: source(:)
+    PetscReal, intent(in out) :: source(:)
     PetscBool, intent(in) :: isothermal
     ! Locals:
     PetscInt :: p, np, phases, c
