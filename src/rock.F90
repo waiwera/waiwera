@@ -11,12 +11,12 @@ module rock_module
 
   type rock_type
      !! Local rock properties.
-     PetscReal, pointer :: permeability(:)   !! permeability
-     PetscReal, pointer :: wet_conductivity, dry_conductivity !! heat conductivities
-     PetscReal, pointer :: porosity          !! porosity
-     PetscReal, pointer :: density           !! grain density
-     PetscReal, pointer :: specific_heat     !! specific heat
-     class(relative_permeability_type), pointer :: relative_permeability
+     PetscReal, pointer :: permeability(:)   !! Permeability
+     PetscReal, pointer :: wet_conductivity, dry_conductivity !! Heat conductivities
+     PetscReal, pointer :: porosity          !! Porosity
+     PetscReal, pointer :: density           !! Grain density
+     PetscReal, pointer :: specific_heat     !! Specific heat
+     class(relative_permeability_type), pointer :: relative_permeability !! Relative permeability functions
    contains
      private
      procedure, public :: assign => rock_assign
