@@ -27,10 +27,15 @@ module timestepper_module
   type timestepper_step_type
      !! Results of a time step.
      private
-     PetscReal, public :: time, stepsize
-     Vec, public :: solution, lhs, rhs
-     PetscInt, public :: num_tries, num_iterations, status = TIMESTEP_OK
-     PetscReal, public :: max_residual
+     PetscReal, public :: time !! End time for step
+     PetscReal, public :: stepsize !! Step size
+     Vec, public :: solution !! Global solution vector
+     Vec, public :: lhs !! Global left-hand side vector
+     Vec, public :: rhs !! Global right-hand side vector
+     PetscInt, public :: num_tries !! Number of attempts at carrying out the step (with step size reductions after first attempt)
+     PetscInt, public :: num_iterations !! Number of non-linear solver iterations
+     PetscInt, public :: status = TIMESTEP_OK !! Step status
+     PetscReal, public :: max_residual !! Maximum residual over the mesh cells
    contains
      private
      procedure, public :: init => timestepper_step_init
@@ -49,32 +54,40 @@ module timestepper_module
      !! For adaptive time step size control. Stepsize is increased if monitor value is
      !! below monitor_min, decreased if it is above monitor_max.
      private
-     PetscBool, public :: on
-     character(timestepper_max_monitor_name_length), public :: name
-     procedure(monitor_function), pointer, nopass, public :: monitor => relative_change_monitor
-     PetscReal, public :: monitor_min, monitor_max
-     PetscReal, public :: reduction, amplification
-     PetscReal, public :: max_stepsize
+     PetscBool, public :: on !! Whether the step size adaptor is active
+     character(timestepper_max_monitor_name_length), public :: name !! Name of adaptor type
+     procedure(monitor_function), pointer, nopass, public :: monitor => relative_change_monitor !! Monitor function
+     PetscReal, public :: monitor_min !! Minimum value of monitor function (below which step size is increased)
+     PetscReal, public :: monitor_max !! Maximum value of monitor function (above which step size is decreased)
+     PetscReal, public :: reduction !! Factor by which step size is reduced
+     PetscReal, public :: amplification !! Factor by which step size is increased
+     PetscReal, public :: max_stepsize !! Maximum allowable step size
    contains
      private
      procedure :: increase => timestep_adaptor_increase
      procedure :: reduce => timestep_adaptor_reduce
   end type timestep_adaptor_type
 
-  type timestepper_steps_type
+  type, public :: timestepper_steps_type
      !! Storage for current and immediate past steps in timestepper.
      private
      type(timestepper_step_type), allocatable :: store(:)
      type(ptimestepper_step_type), pointer :: pstore(:)
-     type(timestepper_step_type), pointer, public :: current, last
-     PetscInt, public :: num_stored, taken, max_num, max_num_tries
-     PetscReal, public :: next_stepsize, stop_time
-     PetscReal, public :: nonlinear_solver_relative_tol, nonlinear_solver_abs_tol
-     PetscReal, public :: termination_tol = 1.e-6_dp
-     PetscReal, allocatable, public :: sizes(:)
-     type(timestep_adaptor_type), public :: adaptor
-     PetscBool, public :: stop_time_specified
-     PetscBool :: finished
+     type(timestepper_step_type), pointer, public :: current !! Current time step
+     type(timestepper_step_type), pointer, public :: last !! Previous time step
+     PetscInt, public :: num_stored !! Number of steps stored
+     PetscInt, public :: taken !! Number of steps taken so far
+     PetscInt, public :: max_num !! Maximum allowable number of steps
+     PetscInt, public :: max_num_tries !! Maximum allowable number of tries per step
+     PetscReal, public :: next_stepsize !! Step size to be used for next step
+     PetscReal, public :: stop_time !! Maximum allowable time
+     PetscReal, public :: nonlinear_solver_relative_tol !! Relative tolerance for non-linear solver
+     PetscReal, public :: nonlinear_solver_abs_tol !! Absolute tolerance for non-linear solver
+     PetscReal, public :: termination_tol = 1.e-6_dp !! Tolerance for detecting stop time reached
+     PetscReal, allocatable, public :: sizes(:) !! Pre-specified time step sizes
+     type(timestep_adaptor_type), public :: adaptor !! Time step size adaptor
+     PetscBool, public :: stop_time_specified !! Whether stop time is specified or not
+     PetscBool :: finished !! Whether simulation has yet finished
    contains
      private
      procedure :: set_aliases => timestepper_steps_set_aliases
@@ -123,15 +136,17 @@ module timestepper_module
      Vec :: residual
      Mat :: jacobian
      type(timestepper_solver_context_type) :: context
-     class(ode_type), pointer, public :: ode
-     type(timestepper_steps_type), public :: steps
-     type(timestepper_method_type), public :: method
+     class(ode_type), pointer, public :: ode !! ODE to be solved
+     type(timestepper_steps_type), public :: steps !! Time steps object
+     type(timestepper_method_type), public :: method !! Time stepping method
      procedure(step_output_routine), pointer, public :: &
-          before_step_output => before_step_output_default
+          before_step_output => before_step_output_default !! Output function to be called before each step
      procedure(step_output_routine), pointer, public :: &
-          after_step_output => after_step_output_default
-     PetscInt, public :: output_frequency, output_index
-     PetscBool, public :: output_initial, output_final
+          after_step_output => after_step_output_default !! Output function to be called after each step
+     PetscInt, public :: output_frequency !! Time step frequency for main output of results
+     PetscInt, public :: output_index !! Counter for determining when main output is needed
+     PetscBool, public :: output_initial !! Whether to output initial conditions 
+     PetscBool, public :: output_final !! Whether to output final results
    contains
      private
      procedure :: setup_jacobian => timestepper_setup_jacobian
