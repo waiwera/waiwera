@@ -278,9 +278,9 @@ contains
     PetscReal :: flow_fractions(self%num_phases), hc
 
     if (.not. isothermal) then
+       np = size(source)
        associate (qenergy => source(np))
 
-         np = size(source)
          phases = nint(self%phase_composition)
          flow_fractions = self%flow_fractions()
 
