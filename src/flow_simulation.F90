@@ -848,23 +848,13 @@ end subroutine flow_simulation_run_info
           call self%eos%bulk_properties(cell_primary, cell%fluid, err)
 
           if (err == 0) then
-             call self%eos%phase_composition(cell%fluid, err)
-             if (err == 0) then
-                call self%eos%phase_properties(cell_primary, cell%rock, &
-                     cell%fluid, err)
-                if (err > 0) then
-                   call DMLabelGetValue(order_label, c, order, ierr)
-                   CHKERRQ(ierr)
-                   call self%logfile%write(LOG_LEVEL_ERR, 'initialize', &
-                        'fluid', ['cell            '], [order], &
-                        rank = mpi%rank)
-                   exit
-                end if
-             else
+             call self%eos%phase_properties(cell_primary, cell%rock, &
+                  cell%fluid, err)
+             if (err > 0) then
                 call DMLabelGetValue(order_label, c, order, ierr)
                 CHKERRQ(ierr)
                 call self%logfile%write(LOG_LEVEL_ERR, 'initialize', &
-                     'fluid', ['cell            '], [order], &
+                     'fluid_phase_properties', ['cell            '], [order], &
                      rank = mpi%rank)
                 exit
              end if
