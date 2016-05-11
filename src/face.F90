@@ -93,8 +93,8 @@ contains
     use profiling_module, only: assign_pointers_event
 
     class(face_type), intent(in out) :: self
-    PetscReal, target, intent(in), optional :: face_geom_data(:)  !! array with face geometry data
-    PetscInt, intent(in), optional  :: face_geom_offset  !! face geometry array offset for this face
+    PetscReal, target, intent(in) :: face_geom_data(:)  !! array with face geometry data
+    PetscInt, intent(in) :: face_geom_offset  !! face geometry array offset for this face
     ! Locals:
     PetscErrorCode :: ierr
 
@@ -118,8 +118,8 @@ contains
     !! Assigns cell geometry pointers for both cells on the face.
 
     class(face_type), intent(in out) :: self
-    PetscReal, target, intent(in), optional :: cell_geom_data(:)  !! array with cell geometry data
-    PetscInt, intent(in), optional  :: cell_geom_offsets(:)  !! cell geometry array offsets for the face cells
+    PetscReal, target, intent(in) :: cell_geom_data(:)  !! array with cell geometry data
+    PetscInt, intent(in) :: cell_geom_offsets(:)  !! cell geometry array offsets for the face cells
     ! Locals:
     PetscInt :: i
 
@@ -135,8 +135,8 @@ contains
     !! Assigns rock pointers for both cells on the face.
 
     class(face_type), intent(in out) :: self
-    PetscReal, target, intent(in), optional :: rock_data(:)  !! array with rock data
-    PetscInt, intent(in), optional  :: rock_offsets(:)  !! rock array offsets for the face cells
+    PetscReal, target, intent(in) :: rock_data(:)  !! array with rock data
+    PetscInt, intent(in) :: rock_offsets(:)  !! rock array offsets for the face cells
     ! Locals:
     PetscInt :: i
 
@@ -152,8 +152,8 @@ contains
     !! Assigns fluid pointers for both cells on the face.
 
     class(face_type), intent(in out) :: self
-    PetscReal, target, intent(in), optional :: fluid_data(:)  !! array with fluid data
-    PetscInt, intent(in), optional  :: fluid_offsets(:)  !! fluid array offsets for the face cells
+    PetscReal, target, intent(in) :: fluid_data(:)  !! array with fluid data
+    PetscInt, intent(in) :: fluid_offsets(:)  !! fluid array offsets for the face cells
     ! Locals:
     PetscInt :: i
 
