@@ -49,7 +49,7 @@ contains
        face_data = [offset_padding, area, distance, normal, centroid, &
             permeability_direction]
 
-       call assert_equals(face%dof(), size(face_data) - (offset-1), "face dof")
+       call assert_equals(face%dof, size(face_data) - (offset-1), "face dof")
 
        call face%assign_geometry(face_data, offset)
 
@@ -138,7 +138,7 @@ contains
 
        call cell%init(1,1) ! dummy argument values
        call face%init()
-       face_dof = face%dof()
+       face_dof = face%dof
        cell_dof = cell%dof
 
        allocate(face_data(face_dof), cell_data(cell_dof * 2))
@@ -203,7 +203,7 @@ contains
 
        call cell%init(1,1) ! dummy argument values
        call face%init()
-       face_dof = face%dof()
+       face_dof = face%dof
        cell_dof = cell%dof
        allocate(face_data(face_dof), cell_data(cell_dof * 2))
        face_offset = 1
@@ -266,7 +266,7 @@ contains
        call cell%init(nc, num_phases)
        call face%init(nc, num_phases)
        call fluid%init(nc, num_phases)
-       allocate(face_data(face%dof()), cell_data(cell%dof))
+       allocate(face_data(face%dof), cell_data(cell%dof))
        allocate(rock_data(rock%dof()), fluid_data(fluid%dof()))
        allocate(flux(num_primary))
        face_offset = 1
@@ -346,7 +346,7 @@ contains
        call cell%init(nc, num_phases)
        call face%init(nc, num_phases)
        call fluid%init(nc, num_phases)
-       allocate(face_data(face%dof()), cell_data(cell%dof))
+       allocate(face_data(face%dof), cell_data(cell%dof))
        allocate(rock_data(rock%dof()), fluid_data(fluid%dof()))
        allocate(flux(num_primary))
        face_offset = 1
@@ -425,7 +425,7 @@ contains
        call cell%init(nc, num_phases)
        call face%init(nc, num_phases)
        call fluid%init(nc, num_phases)
-       allocate(face_data(face%dof()), cell_data(cell%dof))
+       allocate(face_data(face%dof), cell_data(cell%dof))
        allocate(rock_data(rock%dof()), fluid_data(fluid%dof()*2))
        allocate(flux(num_primary))
        face_offset = 1
@@ -509,7 +509,7 @@ contains
        call cell%init(nc, num_phases)
        call face%init(nc, num_phases)
        call fluid%init(nc, num_phases)
-       allocate(face_data(face%dof()), cell_data(cell%dof))
+       allocate(face_data(face%dof), cell_data(cell%dof))
        allocate(rock_data(rock%dof() * 2), fluid_data(fluid%dof() * 2))
        allocate(flux(num_primary))
        face_offset = 1

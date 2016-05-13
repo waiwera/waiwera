@@ -308,7 +308,7 @@ contains
     Vec :: petsc_face_geom
     DM :: dm_face
     PetscSection :: face_section, petsc_face_section, cell_section
-    PetscInt :: f, face_dof, ghost_face, i, bdy_face, ibdy
+    PetscInt :: f, ghost_face, i, bdy_face, ibdy
     PetscInt :: num_faces, iface
     PetscInt :: face_offset, petsc_face_offset
     PetscInt :: cell_offset(2)
@@ -334,9 +334,8 @@ contains
     call PetscSectionSetChart(face_section, self%start_face, &
          self%end_face, ierr); CHKERRQ(ierr)
     call face%init()
-    face_dof = face%dof()
     do f = self%start_face, self%end_face - 1
-       call PetscSectionSetDof(face_section, f, face_dof, ierr); CHKERRQ(ierr)
+       call PetscSectionSetDof(face_section, f, face%dof, ierr); CHKERRQ(ierr)
     end do
     call PetscSectionSetUp(face_section, ierr); CHKERRQ(ierr)
     call DMSetDefaultSection(dm_face, face_section, ierr); CHKERRQ(ierr)

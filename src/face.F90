@@ -19,6 +19,7 @@ module face_module
      PetscReal, pointer, public :: permeability_direction !! direction of permeability (1.. 3)
      type(cell_type), allocatable, public :: cell(:) !! cells on either side of face
      PetscReal, public :: distance12 !! distance between cell centroids
+     PetscInt, public :: dof !! Number of degrees of freedom
    contains
      private
      procedure, public :: init => face_init
@@ -26,7 +27,6 @@ module face_module
      procedure, public :: assign_cell_geometry => face_assign_cell_geometry
      procedure, public :: assign_cell_rock => face_assign_cell_rock
      procedure, public :: assign_cell_fluid => face_assign_cell_fluid
-     procedure, public :: dof => face_dof
      procedure, public :: destroy => face_destroy
      procedure, public :: calculate_permeability_direction => &
           face_calculate_permeability_direction
@@ -81,6 +81,8 @@ contains
           call self%cell(i)%init(num_components, num_phases)
        end do
     end if
+
+    self%dof = sum(face_variable_num_components)
 
   end subroutine face_init
 
@@ -161,17 +163,6 @@ contains
     end do
 
   end subroutine face_assign_cell_fluid
-
-!------------------------------------------------------------------------
-
-  PetscInt function face_dof(self)
-    !! Returns number of degrees of freedom in a face object.
-
-    class(face_type), intent(in) :: self
-
-    face_dof = sum(face_variable_num_components)
-
-  end function face_dof
 
 !------------------------------------------------------------------------
 
