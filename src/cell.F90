@@ -62,7 +62,7 @@ contains
     use profiling_module, only: assign_pointers_event
 
     class(cell_type), intent(in out) :: self
-    PetscReal, target, intent(in) :: geom_data(:)  !! array with geometry data
+    PetscReal, pointer, contiguous, intent(in) :: geom_data(:)  !! array with geometry data
     PetscInt, intent(in)  :: geom_offset  !! geometry array offset for this cell
     ! Locals:
     PetscErrorCode :: ierr

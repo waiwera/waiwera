@@ -122,7 +122,7 @@ contains
     use profiling_module, only: assign_pointers_event
 
     class(fluid_type), intent(in out) :: self
-    PetscReal, target, intent(in) :: data(:)  !! fluid data array
+    PetscReal, pointer, contiguous, intent(in) :: data(:)  !! fluid data array
     PetscInt, intent(in) :: offset  !! fluid array offset
     ! Locals:
     PetscInt :: i, p, phase_dof

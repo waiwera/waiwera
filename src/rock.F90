@@ -66,7 +66,7 @@ contains
     use profiling_module, only: assign_pointers_event
 
     class(rock_type), intent(in out) :: self
-    PetscReal, target, intent(in) :: data(:)  !! rock data array
+    PetscReal, pointer, contiguous, intent(in) :: data(:)  !! rock data array
     PetscInt, intent(in) :: offset !! rock array offset
     ! Locals:
     PetscErrorCode :: ierr
@@ -172,7 +172,7 @@ contains
     PetscReal :: porosity, density, specific_heat
     PetscReal :: wet_conductivity, dry_conductivity
     PetscReal, allocatable :: permeability(:)
-    PetscReal, pointer :: rock_array(:)
+    PetscReal, pointer, contiguous :: rock_array(:)
     PetscSection :: section
     PetscErrorCode :: ierr
     character(len=64) :: rockstr
