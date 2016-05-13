@@ -55,22 +55,22 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine cell_assign_geometry(self, geom_data, geom_offset)
+  subroutine cell_assign_geometry(self, data, offset)
     !! Assigns cell geometry pointers to values from specified data
     !! array, starting from the given offset.
 
     use profiling_module, only: assign_pointers_event
 
     class(cell_type), intent(in out) :: self
-    PetscReal, target, intent(in) :: geom_data(:)  !! array with geometry data
-    PetscInt, intent(in)  :: geom_offset  !! geometry array offset for this cell
+    PetscReal, target, intent(in) :: data(:)  !! array with geometry data
+    PetscInt, intent(in)  :: offset  !! geometry array offset for this cell
     ! Locals:
     PetscErrorCode :: ierr
 
     Call PetscLogEventBegin(assign_pointers_event, ierr); CHKERRQ(ierr)
 
-    self%centroid => geom_data(geom_offset: geom_offset + 2)
-    self%volume => geom_data(geom_offset + 3)
+    self%centroid => data(offset: offset + 2)
+    self%volume => data(offset + 3)
 
     call PetscLogEventEnd(assign_pointers_event, ierr); CHKERRQ(ierr)
 
