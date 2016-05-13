@@ -124,7 +124,6 @@ contains
 
     type(face_type) :: face
     type(cell_type) :: cell
-    PetscInt :: face_dof, cell_dof
     PetscReal, parameter :: distance(2) = [25._dp, 32._dp]
     PetscReal, parameter :: x(2) = [240._dp, 170._dp]
     PetscReal, parameter :: expected_d12 = 57._dp
@@ -138,12 +137,10 @@ contains
 
        call cell%init(1,1) ! dummy argument values
        call face%init()
-       face_dof = face%dof
-       cell_dof = cell%dof
 
-       allocate(face_data(face_dof), cell_data(cell_dof * 2))
+       allocate(face_data(face%dof), cell_data(cell%dof * 2))
        face_offset = 1
-       cell_offsets = [1, 1 + cell_dof]
+       cell_offsets = [1, 1 + cell%dof]
        face_data = 0._dp
        face_data(2:3) = distance
        cell_data = 0._dp
@@ -174,7 +171,6 @@ contains
 
     type(face_type) :: face
     type(cell_type) :: cell
-    PetscInt :: face_dof, cell_dof
     PetscReal, allocatable :: face_data(:)
     PetscReal, allocatable :: cell_data(:)
     PetscInt :: face_offset, cell_offsets(2)
@@ -203,11 +199,9 @@ contains
 
        call cell%init(1,1) ! dummy argument values
        call face%init()
-       face_dof = face%dof
-       cell_dof = cell%dof
-       allocate(face_data(face_dof), cell_data(cell_dof * 2))
+       allocate(face_data(face%dof), cell_data(cell%dof * 2))
        face_offset = 1
-       cell_offsets = [1, 1 + cell_dof]
+       cell_offsets = [1, 1 + cell%dof]
        face_data = 0._dp
        cell_data = 0._dp
 
@@ -266,8 +260,9 @@ contains
        call cell%init(nc, num_phases)
        call face%init(nc, num_phases)
        call fluid%init(nc, num_phases)
+       call rock%init()
        allocate(face_data(face%dof), cell_data(cell%dof))
-       allocate(rock_data(rock%dof()), fluid_data(fluid%dof()))
+       allocate(rock_data(rock%dof), fluid_data(fluid%dof))
        allocate(flux(num_primary))
        face_offset = 1
        cell_offsets = [1, 1]
@@ -298,6 +293,7 @@ contains
        call cell%destroy()
        call face%destroy()
        call fluid%destroy()
+       call rock%destroy()
        deallocate(face_data, cell_data, rock_data, fluid_data, flux)
 
     end if
@@ -346,8 +342,9 @@ contains
        call cell%init(nc, num_phases)
        call face%init(nc, num_phases)
        call fluid%init(nc, num_phases)
+       call rock%init()
        allocate(face_data(face%dof), cell_data(cell%dof))
-       allocate(rock_data(rock%dof()), fluid_data(fluid%dof()))
+       allocate(rock_data(rock%dof), fluid_data(fluid%dof))
        allocate(flux(num_primary))
        face_offset = 1
        cell_offsets = [1, 1]
@@ -377,6 +374,7 @@ contains
        call cell%destroy()
        call face%destroy()
        call fluid%destroy()
+       call rock%destroy()
        deallocate(face_data, cell_data, rock_data, fluid_data, flux)
 
     end if
@@ -425,13 +423,14 @@ contains
        call cell%init(nc, num_phases)
        call face%init(nc, num_phases)
        call fluid%init(nc, num_phases)
+       call rock%init()
        allocate(face_data(face%dof), cell_data(cell%dof))
-       allocate(rock_data(rock%dof()), fluid_data(fluid%dof()*2))
+       allocate(rock_data(rock%dof), fluid_data(fluid%dof*2))
        allocate(flux(num_primary))
        face_offset = 1
        cell_offsets = [1, 1]
        rock_offsets = [1, 1]
-       fluid_offsets = [1, 1 + fluid%dof()]
+       fluid_offsets = [1, 1 + fluid%dof]
        face_data = [0._dp,  25._dp, 35._dp,  0._dp, 0._dp, -1._dp, &
             0._dp, 0._dp, 0._dp, 3._dp]
        cell_data = 0._dp ! not needed
@@ -459,6 +458,7 @@ contains
        call cell%destroy()
        call face%destroy()
        call fluid%destroy()
+       call rock%destroy()
        deallocate(face_data, cell_data, rock_data, fluid_data, flux)
 
     end if
@@ -509,13 +509,14 @@ contains
        call cell%init(nc, num_phases)
        call face%init(nc, num_phases)
        call fluid%init(nc, num_phases)
+       call rock%init()
        allocate(face_data(face%dof), cell_data(cell%dof))
-       allocate(rock_data(rock%dof() * 2), fluid_data(fluid%dof() * 2))
+       allocate(rock_data(rock%dof * 2), fluid_data(fluid%dof * 2))
        allocate(flux(num_primary))
        face_offset = 1
        cell_offsets = [1, 1]
-       rock_offsets = [1, 1 + rock%dof()]
-       fluid_offsets = [1, 1 + fluid%dof()]
+       rock_offsets = [1, 1 + rock%dof]
+       fluid_offsets = [1, 1 + fluid%dof]
        face_data = [0._dp,  25._dp, 35._dp,  0._dp, 0._dp, -1._dp, 0._dp, &
             0._dp, 0._dp, 3._dp]
        cell_data = 0._dp ! not needed
@@ -553,6 +554,7 @@ contains
        call cell%destroy()
        call face%destroy()
        call fluid%destroy()
+       call rock%destroy()
        deallocate(face_data, cell_data, rock_data, fluid_data, flux)
 
     end if

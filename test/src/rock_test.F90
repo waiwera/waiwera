@@ -36,10 +36,11 @@ contains
 
     if (mpi%rank == mpi%output_rank) then
 
+       call rock%init()
        rock_data = [offset_padding, permeability, wet_conductivity, &
             dry_conductivity, porosity, density, specific_heat]
 
-       call assert_equals(rock%dof(), size(rock_data) - (offset-1), "rock dof")
+       call assert_equals(rock%dof, size(rock_data) - (offset-1), "rock dof")
 
        call rock%assign(rock_data, offset)
 
@@ -73,6 +74,7 @@ contains
 
     if (mpi%rank == mpi%output_rank) then
 
+       call rock%init()
        rock_data = [0._dp, 0._dp, 0._dp, 0._dp, 0._dp, &
             0.1_dp, 2200._dp, 950._dp]
        call rock%assign(rock_data, offset)

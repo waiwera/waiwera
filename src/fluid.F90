@@ -47,12 +47,13 @@ module fluid_module
      type(phase_type), allocatable, public :: phase(:) !! Phase variables
      PetscInt, public :: num_phases !! Number of phases
      PetscInt, public :: num_components !! Number of mass components
+     PetscInt, public :: dof !! Number of degrees of freedom
+     PetscInt, public :: phase_dof !! Number of degrees of freedom per phase
    contains
      private
      procedure, public :: init => fluid_init
      procedure, public :: assign => fluid_assign
      procedure, public :: destroy => fluid_destroy
-     procedure, public :: dof => fluid_dof
      procedure, public :: component_density => fluid_component_density
      procedure, public :: energy => fluid_energy
      procedure, public :: flow_fractions => fluid_flow_fractions
@@ -111,6 +112,9 @@ contains
     self%num_components = num_components
     allocate(self%phase(num_phases))
 
+    self%phase_dof = num_phase_variables + self%num_components
+    self%dof = num_fluid_variables + self%num_phases * self%phase_dof
+
   end subroutine fluid_init
     
 !------------------------------------------------------------------------
@@ -125,12 +129,10 @@ contains
     PetscReal, target, intent(in) :: data(:)  !! fluid data array
     PetscInt, intent(in) :: offset  !! fluid array offset
     ! Locals:
-    PetscInt :: i, p, phase_dof
+    PetscInt :: i, p
     PetscErrorCode :: ierr
 
     call PetscLogEventBegin(assign_pointers_event, ierr); CHKERRQ(ierr)
-
-    phase_dof = num_phase_variables + self%num_components
 
     self%pressure => data(offset)
     self%temperature => data(offset + 1)
@@ -147,7 +149,7 @@ contains
          phase%specific_enthalpy => data(i+4)
          phase%internal_energy => data(i+5)
          phase%mass_fraction => data(i+6: i+6 + self%num_components-1)
-         i = i + phase_dof
+         i = i + self%phase_dof
        end associate
     end do
 
@@ -175,20 +177,6 @@ contains
     deallocate(self%phase)
 
   end subroutine fluid_destroy
-
-!------------------------------------------------------------------------
-
-  PetscInt function fluid_dof(self)
-    !! Returns number of degrees of freedom in a fluid object.
-
-    class(fluid_type), intent(in) :: self
-    ! Locals:
-    PetscInt :: phase_dof
-
-    phase_dof = num_phase_variables + self%num_components
-    fluid_dof = num_fluid_variables + self%num_phases * phase_dof
-
-  end function fluid_dof
 
 !------------------------------------------------------------------------
 
@@ -334,7 +322,7 @@ contains
 
   subroutine setup_fluid_vector(dm, max_component_name_length, &
        component_names, max_phase_name_length, phase_names, &
-       fluid, range_start)
+       fluid_vec, range_start)
     !! Sets up global vector and DM for fluid properties, with specified
     !! numbers of components and phases.
 
@@ -345,24 +333,24 @@ contains
     character(max_component_name_length), intent(in) :: component_names(:)
     PetscInt, intent(in) :: max_phase_name_length
     character(max_phase_name_length), intent(in) :: phase_names(:)
-    Vec, intent(out) :: fluid
+    Vec, intent(out) :: fluid_vec
     PetscInt, intent(out) :: range_start
     ! Locals:
-    PetscInt :: num_components, num_phases, num_vars
-    PetscInt :: p, i, j, phase_dof
+    PetscInt :: num_components, num_phases
+    PetscInt :: p, i, j
     PetscInt, allocatable :: num_field_components(:), field_dim(:)
     PetscErrorCode :: ierr
     PetscInt, parameter :: max_field_name_length = 40
     character(max_field_name_length), allocatable :: field_names(:)
     DM :: fluid_dm
+    type(fluid_type) :: fluid
 
     num_components = size(component_names)
     num_phases = size(phase_names)
-    phase_dof = num_phase_variables + num_components
-    num_vars = num_fluid_variables + num_phases * phase_dof
+    call fluid%init(num_components, num_phases)
 
-    allocate(num_field_components(num_vars), field_dim(num_vars), &
-         field_names(num_vars))
+    allocate(num_field_components(fluid%dof), field_dim(fluid%dof), &
+         field_names(fluid%dof))
 
     num_field_components = 1
     field_dim = 3
@@ -388,12 +376,13 @@ contains
     call set_dm_data_layout(fluid_dm, num_field_components, field_dim, &
          field_names)
 
-    call DMCreateGlobalVector(fluid_dm, fluid, ierr); CHKERRQ(ierr)
-    call PetscObjectSetName(fluid, "fluid", ierr); CHKERRQ(ierr)
-    call global_vec_range_start(fluid, range_start)
+    call DMCreateGlobalVector(fluid_dm, fluid_vec, ierr); CHKERRQ(ierr)
+    call PetscObjectSetName(fluid_vec, "fluid", ierr); CHKERRQ(ierr)
+    call global_vec_range_start(fluid_vec, range_start)
 
     deallocate(num_field_components, field_dim, field_names)
     call DMDestroy(fluid_dm, ierr); CHKERRQ(ierr)
+    call fluid%destroy()
 
   end subroutine setup_fluid_vector
 
