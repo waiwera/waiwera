@@ -410,7 +410,7 @@ contains
     end do
     phase_present = ior(phases(1), phases(2))
 
-    do p = 1, self%cell(1)%fluid%num_phases
+    do p = 1, eos%num_phases
 
        if (btest(phase_present, p - 1)) then
 
