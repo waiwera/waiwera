@@ -42,14 +42,14 @@ contains
 !------------------------------------------------------------------------
 
   subroutine cell_init(self, num_components, num_phases)
-    !! Initialises a cell. This actually just initializes the fluid
-    !! object for the cell.
+    !! Initialises a cell.
 
     class(cell_type), intent(in out) :: self
     PetscInt, intent(in) :: num_components !! Number of fluid components
     PetscInt, intent(in) :: num_phases  !! Number of fluid phases
 
     call self%fluid%init(num_components, num_phases)
+    call self%rock%init()
 
     self%dof = sum(cell_variable_num_components)
 

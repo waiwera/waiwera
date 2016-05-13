@@ -653,7 +653,7 @@ contains
     PetscInt, intent(in) :: fluid_range_start !! Start of range for global fluid vector
     PetscInt, intent(in) :: rock_range_start !! Start of range for global rock vector
     ! Locals:
-    PetscInt :: ibdy, f, i, num_faces, iface, rock_dof, np, n
+    PetscInt :: ibdy, f, i, num_faces, iface, np, n
     PetscReal, pointer :: y_array(:), fluid_array(:), rock_array(:)
     PetscReal, pointer :: cell_primary(:), rock1(:), rock2(:)
     PetscSection :: y_section, fluid_section, rock_section
@@ -672,9 +672,9 @@ contains
     call global_vec_section(rock_vector, rock_section)
     call VecGetArrayF90(rock_vector, rock_array, ierr); CHKERRQ(ierr)
     call DMGetLabel(self%dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
-    rock_dof = rock%dof()
     np = eos%num_primary_variables
     call fluid%init(eos%num_components, eos%num_phases)
+    call rock%init()
 
     if (allocated(self%bcs)) then
        num_boundaries = size(self%bcs, 2)
@@ -706,7 +706,7 @@ contains
                       cell_primary = self%bcs(2: np + 1, ibdy)
                       fluid%region = self%bcs(1, ibdy)
                       ! Copy rock type data from interior cell to boundary ghost cell:
-                      n = rock_dof - 1
+                      n = rock%dof - 1
                       rock1 => rock_array(rock_offsets(1) : rock_offsets(1) + n)
                       rock2 => rock_array(rock_offsets(2) : rock_offsets(2) + n)
                       rock2 = rock1
@@ -723,6 +723,7 @@ contains
     call VecRestoreArrayF90(fluid_vector, fluid_array, ierr); CHKERRQ(ierr)
     call VecRestoreArrayF90(rock_vector, rock_array, ierr); CHKERRQ(ierr)
     call fluid%destroy()
+    call rock%destroy()
 
   end subroutine mesh_set_boundary_values
 

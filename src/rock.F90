@@ -11,18 +11,21 @@ module rock_module
 
   type rock_type
      !! Local rock properties.
-     PetscReal, pointer :: permeability(:)   !! Permeability
-     PetscReal, pointer :: wet_conductivity, dry_conductivity !! Heat conductivities
-     PetscReal, pointer :: porosity          !! Porosity
-     PetscReal, pointer :: density           !! Grain density
-     PetscReal, pointer :: specific_heat     !! Specific heat
-     class(relative_permeability_type), pointer :: relative_permeability !! Relative permeability functions
+     private
+     PetscReal, pointer, public :: permeability(:)   !! Permeability
+     PetscReal, pointer, public :: wet_conductivity, dry_conductivity !! Heat conductivities
+     PetscReal, pointer, public :: porosity          !! Porosity
+     PetscReal, pointer, public :: density           !! Grain density
+     PetscReal, pointer, public :: specific_heat     !! Specific heat
+     class(relative_permeability_type), pointer, &
+          public :: relative_permeability !! Relative permeability functions
+     PetscInt, public :: dof !! Number of degrees of freedom
    contains
      private
+     procedure, public :: init => rock_init
      procedure, public :: assign => rock_assign
      procedure, public :: assign_relative_permeability => &
           rock_assign_relative_permeability
-     procedure, public :: dof => rock_dof
      procedure, public :: destroy => rock_destroy
      procedure, public :: energy => rock_energy
   end type rock_type
@@ -56,6 +59,17 @@ module rock_module
   public :: rock_type, setup_rock_vector, setup_rocktype_labels
 
 contains
+
+!------------------------------------------------------------------------
+
+  subroutine rock_init(self)
+    !! Initialises rock object.
+
+    class(rock_type), intent(in out) :: self
+
+    self%dof = sum(rock_variable_num_components)
+
+  end subroutine rock_init
 
 !------------------------------------------------------------------------
 
@@ -104,17 +118,6 @@ contains
     call PetscLogEventEnd(assign_pointers_event, ierr); CHKERRQ(ierr)
 
   end subroutine rock_assign_relative_permeability
-
-!------------------------------------------------------------------------
-
-  PetscInt function rock_dof(self)
-    !! Returns degrees of freedom in a rock object.
-
-    class(rock_type), intent(in) :: self
-
-    rock_dof = sum(rock_variable_num_components)
-
-  end function rock_dof
 
 !------------------------------------------------------------------------
 
@@ -177,6 +180,8 @@ contains
     PetscErrorCode :: ierr
     character(len=64) :: rockstr
     character(len=12) :: irstr
+
+    call rock%init()
 
     call VecGetArrayF90(rock_vector, rock_array, ierr); CHKERRQ(ierr)
     call global_vec_section(rock_vector, section)
