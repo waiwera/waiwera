@@ -37,7 +37,7 @@ contains
 
        call cell%init(num_components, num_phases)
 
-       call assert_equals(cell%dof(), size(cell_data) - (offset-1), "cell dof")
+       call assert_equals(cell%dof, size(cell_data) - (offset-1), "cell dof")
 
        call cell%assign_geometry(cell_data, offset)
 

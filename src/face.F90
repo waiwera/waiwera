@@ -19,6 +19,7 @@ module face_module
      PetscReal, pointer, public :: permeability_direction !! direction of permeability (1.. 3)
      type(cell_type), allocatable, public :: cell(:) !! cells on either side of face
      PetscReal, public :: distance12 !! distance between cell centroids
+     PetscInt, public :: dof !! Number of degrees of freedom
    contains
      private
      procedure, public :: init => face_init
@@ -26,7 +27,6 @@ module face_module
      procedure, public :: assign_cell_geometry => face_assign_cell_geometry
      procedure, public :: assign_cell_rock => face_assign_cell_rock
      procedure, public :: assign_cell_fluid => face_assign_cell_fluid
-     procedure, public :: dof => face_dof
      procedure, public :: destroy => face_destroy
      procedure, public :: calculate_permeability_direction => &
           face_calculate_permeability_direction
@@ -82,29 +82,31 @@ contains
        end do
     end if
 
+    self%dof = sum(face_variable_num_components)
+
   end subroutine face_init
 
 !------------------------------------------------------------------------
 
-  subroutine face_assign_geometry(self, face_geom_data, face_geom_offset)
+  subroutine face_assign_geometry(self, data, offset)
     !! Assigns geometry pointers in a face to elements of the specified data array,
     !! starting from the given offset.
 
     use profiling_module, only: assign_pointers_event
 
     class(face_type), intent(in out) :: self
-    PetscReal, pointer, contiguous, intent(in) :: face_geom_data(:)  !! array with face geometry data
-    PetscInt, intent(in) :: face_geom_offset  !! face geometry array offset for this face
+    PetscReal, pointer, contiguous, intent(in) :: data(:)  !! array with face geometry data
+    PetscInt, intent(in) :: offset  !! face geometry array offset for this face
     ! Locals:
     PetscErrorCode :: ierr
 
     call PetscLogEventBegin(assign_pointers_event, ierr); CHKERRQ(ierr)
     
-    self%area => face_geom_data(face_geom_offset)
-    self%distance => face_geom_data(face_geom_offset + 1: face_geom_offset + 2)
-    self%normal => face_geom_data(face_geom_offset + 3: face_geom_offset + 5)
-    self%centroid => face_geom_data(face_geom_offset + 6: face_geom_offset + 8)
-    self%permeability_direction => face_geom_data(face_geom_offset + 9)
+    self%area => data(offset)
+    self%distance => data(offset + 1: offset + 2)
+    self%normal => data(offset + 3: offset + 5)
+    self%centroid => data(offset + 6: offset + 8)
+    self%permeability_direction => data(offset + 9)
     self%distance12 = sum(self%distance)
 
     call PetscLogEventEnd(assign_pointers_event, ierr); CHKERRQ(ierr)
@@ -113,66 +115,54 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine face_assign_cell_geometry(self, cell_geom_data, &
-       cell_geom_offsets)
+  subroutine face_assign_cell_geometry(self, data, offsets)
     !! Assigns cell geometry pointers for both cells on the face.
 
     class(face_type), intent(in out) :: self
-    PetscReal, pointer, contiguous, intent(in) :: cell_geom_data(:)  !! array with cell geometry data
-    PetscInt, intent(in) :: cell_geom_offsets(:)  !! cell geometry array offsets for the face cells
+    PetscReal, pointer, contiguous, intent(in) :: data(:)  !! array with cell geometry data
+    PetscInt, intent(in) :: offsets(:)  !! cell geometry array offsets for the face cells
     ! Locals:
     PetscInt :: i
 
     do i = 1, 2
-       call self%cell(i)%assign_geometry(cell_geom_data, cell_geom_offsets(i))
+       call self%cell(i)%assign_geometry(data, offsets(i))
     end do
 
   end subroutine face_assign_cell_geometry
 
 !------------------------------------------------------------------------
 
-  subroutine face_assign_cell_rock(self, rock_data, rock_offsets)
+  subroutine face_assign_cell_rock(self, data, offsets)
     !! Assigns rock pointers for both cells on the face.
 
     class(face_type), intent(in out) :: self
-    PetscReal, pointer, contiguous, intent(in) :: rock_data(:)  !! array with rock data
-    PetscInt, intent(in) :: rock_offsets(:)  !! rock array offsets for the face cells
+    PetscReal, pointer, contiguous, intent(in) :: data(:)  !! array with rock data
+    PetscInt, intent(in) :: offsets(:)  !! rock array offsets for the face cells
     ! Locals:
     PetscInt :: i
 
     do i = 1, 2
-       call self%cell(i)%rock%assign(rock_data, rock_offsets(i))
+       call self%cell(i)%rock%assign(data, offsets(i))
     end do
 
   end subroutine face_assign_cell_rock
 
 !------------------------------------------------------------------------
 
-  subroutine face_assign_cell_fluid(self, fluid_data, fluid_offsets)
+  subroutine face_assign_cell_fluid(self, data, offsets)
     !! Assigns fluid pointers for both cells on the face.
 
     class(face_type), intent(in out) :: self
-    PetscReal, pointer, contiguous, intent(in) :: fluid_data(:)  !! array with fluid data
-    PetscInt, intent(in) :: fluid_offsets(:)  !! fluid array offsets for the face cells
+    PetscReal, pointer, contiguous, intent(in) :: data(:)  !! array with fluid data
+    PetscInt, intent(in) :: offsets(:)  !! fluid array offsets for the face cells
     ! Locals:
     PetscInt :: i
 
     do i = 1, 2
-       call self%cell(i)%fluid%assign(fluid_data, fluid_offsets(i))
+       call self%cell(i)%fluid%assign(data, offsets(i))
     end do
 
   end subroutine face_assign_cell_fluid
-
-!------------------------------------------------------------------------
-
-  PetscInt function face_dof(self)
-    !! Returns number of degrees of freedom in a face object.
-
-    class(face_type), intent(in) :: self
-
-    face_dof = sum(face_variable_num_components)
-
-  end function face_dof
 
 !------------------------------------------------------------------------
 
@@ -459,16 +449,16 @@ contains
 ! petsc_face_type routines
 !------------------------------------------------------------------------
 
-  subroutine petsc_face_assign_geometry(self, face_geom_data, face_geom_offset)
+  subroutine petsc_face_assign_geometry(self, data, offset)
     !! Assigns geometry pointers in a petsc_face to elements of the
     !! specified data array, starting from the given offset.
 
     class(petsc_face_type), intent(in out) :: self
-    PetscReal, pointer, contiguous, intent(in) :: face_geom_data(:)  !! array with face geometry data
-    PetscInt, intent(in)  :: face_geom_offset  !! face geometry array offset for this face
+    PetscReal, pointer, contiguous, intent(in) :: data(:)  !! array with face geometry data
+    PetscInt, intent(in)  :: offset  !! face geometry array offset for this face
 
-    self%area_normal => face_geom_data(face_geom_offset: face_geom_offset + 2)
-    self%centroid => face_geom_data(face_geom_offset + 3: face_geom_offset + 5)
+    self%area_normal => data(offset: offset + 2)
+    self%centroid => data(offset + 3: offset + 5)
 
   end subroutine petsc_face_assign_geometry
 

@@ -34,7 +34,7 @@ contains
 
        call fluid%init(num_components, num_phases)
 
-       allocate(fluid_data(offset-1 + fluid%dof()))
+       allocate(fluid_data(offset-1 + fluid%dof))
        do i = 1, size(fluid_data)
           fluid_data(i) = dble(i)
        end do

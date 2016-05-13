@@ -83,8 +83,9 @@ contains
     call eos%init(json, thermo)
 
     call fluid%init(eos%num_components, eos%num_phases)
+    call rock%init()
     allocate(primary(eos%num_components), primary2(eos%num_components), &
-         fluid_data(fluid%dof()))
+         fluid_data(fluid%dof))
     fluid_data = 0._dp
     call fluid%assign(fluid_data, offset)
 
@@ -166,8 +167,9 @@ contains
     call setup_relative_permeabilities(json, rp)
 
     call fluid%init(eos%num_components, eos%num_phases)
+    call rock%init()
     allocate(primary(eos%num_primary_variables), primary2(eos%num_primary_variables))
-    allocate(fluid_data(fluid%dof()))
+    allocate(fluid_data(fluid%dof))
     fluid_data = 0._dp
     call fluid%assign(fluid_data, offset)
 
@@ -224,6 +226,7 @@ contains
     end if
 
     call fluid%destroy()
+    call rock%destroy()
     deallocate(primary, primary2, fluid_data)
     call eos%destroy()
     call thermo%destroy()
@@ -257,7 +260,7 @@ contains
     call eos%init(json, thermo)
     call old_fluid%init(eos%num_components, eos%num_phases)
     call fluid%init(eos%num_components, eos%num_phases)
-    allocate(old_fluid_data(old_fluid%dof()), fluid_data(fluid%dof()))
+    allocate(old_fluid_data(old_fluid%dof), fluid_data(fluid%dof))
     old_fluid_data = 0._dp
     fluid_data = 0._dp
     call old_fluid%assign(old_fluid_data, offset)
@@ -390,7 +393,8 @@ contains
     call setup_relative_permeabilities(json, rp)
 
     call fluid%init(num_components, eos%num_phases)
-    allocate(fluid_data(fluid%dof()))
+    call rock%init()
+    allocate(fluid_data(fluid%dof))
     fluid_data = 0._dp
     call fluid%assign(fluid_data, offset)
 
@@ -409,6 +413,7 @@ contains
     end do
 
     call fluid%destroy()
+    call rock%destroy()
     deallocate(fluid_data)
     call eos%destroy()
     call thermo%destroy()
@@ -437,7 +442,8 @@ contains
     call thermo%init()
     call eos%init(json, thermo)
     call fluid%init(eos%num_components, eos%num_phases)
-    allocate(fluid_data(fluid%dof()), rock_data(rock%dof()))
+    call rock%init()
+    allocate(fluid_data(fluid%dof), rock_data(rock%dof))
 
     fluid_data = 0._dp
     rock_data = 0._dp

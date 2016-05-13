@@ -21,12 +21,12 @@ module cell_module
      PetscReal, pointer, public :: centroid(:)  !! cell centroid
      type(rock_type), public :: rock   !! rock properties
      type(fluid_type), public :: fluid !! fluid properties
+     PetscInt, public :: dof !! Number of degrees of freedom
    contains
      private
      procedure, public :: init => cell_init
      procedure, public :: assign_geometry => cell_assign_geometry
      procedure, public :: destroy => cell_destroy
-     procedure, public :: dof => cell_dof
      procedure, public :: balance => cell_balance
   end type cell_type
 
@@ -42,35 +42,37 @@ contains
 !------------------------------------------------------------------------
 
   subroutine cell_init(self, num_components, num_phases)
-    !! Initialises a cell. This actually just initializes the fluid
-    !! object for the cell.
+    !! Initialises a cell.
 
     class(cell_type), intent(in out) :: self
     PetscInt, intent(in) :: num_components !! Number of fluid components
     PetscInt, intent(in) :: num_phases  !! Number of fluid phases
 
     call self%fluid%init(num_components, num_phases)
+    call self%rock%init()
+
+    self%dof = sum(cell_variable_num_components)
 
   end subroutine cell_init
 
 !------------------------------------------------------------------------
 
-  subroutine cell_assign_geometry(self, geom_data, geom_offset)
+  subroutine cell_assign_geometry(self, data, offset)
     !! Assigns cell geometry pointers to values from specified data
     !! array, starting from the given offset.
 
     use profiling_module, only: assign_pointers_event
 
     class(cell_type), intent(in out) :: self
-    PetscReal, pointer, contiguous, intent(in) :: geom_data(:)  !! array with geometry data
-    PetscInt, intent(in)  :: geom_offset  !! geometry array offset for this cell
+    PetscReal, pointer, contiguous, intent(in) :: data(:)  !! array with geometry data
+    PetscInt, intent(in)  :: offset  !! geometry array offset for this cell
     ! Locals:
     PetscErrorCode :: ierr
 
     Call PetscLogEventBegin(assign_pointers_event, ierr); CHKERRQ(ierr)
 
-    self%centroid => geom_data(geom_offset: geom_offset + 2)
-    self%volume => geom_data(geom_offset + 3)
+    self%centroid => data(offset: offset + 2)
+    self%volume => data(offset + 3)
 
     call PetscLogEventEnd(assign_pointers_event, ierr); CHKERRQ(ierr)
 
@@ -89,17 +91,6 @@ contains
     call self%rock%destroy()
     
   end subroutine cell_destroy
-
-!------------------------------------------------------------------------
-
-  PetscInt function cell_dof(self)
-    !! Returns number of degrees of freedom in a cell object.
-
-    class(cell_type), intent(in) :: self
-
-    cell_dof = sum(cell_variable_num_components)
-
-  end function cell_dof
 
 !------------------------------------------------------------------------
 

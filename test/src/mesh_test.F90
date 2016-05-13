@@ -36,7 +36,7 @@ contains
     Vec :: x
     type(face_type) :: face
     PetscInt :: global_solution_dof, num_primary
-    PetscInt :: dim, facedof
+    PetscInt :: dim
     DM :: dm_face
     PetscSection :: section
     DMLabel :: ghost_label, cell_order_label
@@ -77,7 +77,6 @@ contains
     call DMRestoreGlobalVector(mesh%dm, x, ierr); CHKERRQ(ierr)
 
     call face%init()
-    facedof = face%dof()
 
     ! Check face geometry:
     call VecGetDM(mesh%face_geom, dm_face, ierr); CHKERRQ(ierr)

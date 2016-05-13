@@ -49,7 +49,7 @@ contains
        face_data = [offset_padding, area, distance, normal, centroid, &
             permeability_direction]
 
-       call assert_equals(face%dof(), size(face_data) - (offset-1), "face dof")
+       call assert_equals(face%dof, size(face_data) - (offset-1), "face dof")
 
        call face%assign_geometry(face_data, offset)
 
@@ -124,7 +124,6 @@ contains
 
     type(face_type) :: face
     type(cell_type) :: cell
-    PetscInt :: face_dof, cell_dof
     PetscReal, parameter :: distance(2) = [25._dp, 32._dp]
     PetscReal, parameter :: x(2) = [240._dp, 170._dp]
     PetscReal, parameter :: expected_d12 = 57._dp
@@ -136,13 +135,12 @@ contains
 
     if (mpi%rank == mpi%output_rank) then
 
+       call cell%init(1,1) ! dummy argument values
        call face%init()
-       face_dof = face%dof()
-       cell_dof = cell%dof()
 
-       allocate(face_data(face_dof), cell_data(cell_dof * 2))
+       allocate(face_data(face%dof), cell_data(cell%dof * 2))
        face_offset = 1
-       cell_offsets = [1, 1 + cell_dof]
+       cell_offsets = [1, 1 + cell%dof]
        face_data = 0._dp
        face_data(2:3) = distance
        cell_data = 0._dp
@@ -155,6 +153,8 @@ contains
        call assert_equals(expected_d12, face%distance12, tol, "face distance12")
        call assert_equals(expected_g, g, tol, "face normal gradient")
 
+       call cell%destroy()
+       call face%destroy()
        deallocate(face_data, cell_data)
 
     end if
@@ -171,7 +171,6 @@ contains
 
     type(face_type) :: face
     type(cell_type) :: cell
-    PetscInt :: face_dof, cell_dof
     PetscReal, allocatable :: face_data(:)
     PetscReal, allocatable :: cell_data(:)
     PetscInt :: face_offset, cell_offsets(2)
@@ -198,12 +197,11 @@ contains
 
     if (mpi%rank == mpi%output_rank) then
 
+       call cell%init(1,1) ! dummy argument values
        call face%init()
-       face_dof = face%dof()
-       cell_dof = cell%dof()
-       allocate(face_data(face_dof), cell_data(cell_dof * 2))
+       allocate(face_data(face%dof), cell_data(cell%dof * 2))
        face_offset = 1
-       cell_offsets = [1, 1 + cell_dof]
+       cell_offsets = [1, 1 + cell%dof]
        face_data = 0._dp
        cell_data = 0._dp
 
@@ -216,6 +214,8 @@ contains
           call assert_equals(expected_xh(i), xh, tol, msg)
        end do
 
+       call cell%destroy()
+       call face%destroy()
        deallocate(face_data, cell_data)
 
     end if
@@ -257,10 +257,12 @@ contains
 
     if (mpi%rank == mpi%output_rank) then
 
+       call cell%init(nc, num_phases)
        call face%init(nc, num_phases)
        call fluid%init(nc, num_phases)
-       allocate(face_data(face%dof()), cell_data(cell%dof()))
-       allocate(rock_data(rock%dof()), fluid_data(fluid%dof()))
+       call rock%init()
+       allocate(face_data(face%dof), cell_data(cell%dof))
+       allocate(rock_data(rock%dof), fluid_data(fluid%dof))
        allocate(flux(num_primary))
        face_offset = 1
        cell_offsets = [1, 1]
@@ -288,10 +290,11 @@ contains
        call assert_equals(expected_mass_flux, flux(1), tol, "Mass flux")
        call assert_equals(expected_heat_flux, flux(2), tol, "Heat flux")
 
+       call cell%destroy()
        call face%destroy()
-       deallocate(face_data, cell_data, rock_data, fluid_data)
-       deallocate(flux)
        call fluid%destroy()
+       call rock%destroy()
+       deallocate(face_data, cell_data, rock_data, fluid_data, flux)
 
     end if
 
@@ -336,10 +339,12 @@ contains
 
     if (mpi%rank == mpi%output_rank) then
 
+       call cell%init(nc, num_phases)
        call face%init(nc, num_phases)
        call fluid%init(nc, num_phases)
-       allocate(face_data(face%dof()), cell_data(cell%dof()))
-       allocate(rock_data(rock%dof()), fluid_data(fluid%dof()))
+       call rock%init()
+       allocate(face_data(face%dof), cell_data(cell%dof))
+       allocate(rock_data(rock%dof), fluid_data(fluid%dof))
        allocate(flux(num_primary))
        face_offset = 1
        cell_offsets = [1, 1]
@@ -366,10 +371,11 @@ contains
        call assert_equals(expected_mass_flux, flux(1), mass_tol, "Mass flux")
        call assert_equals(expected_heat_flux, flux(2), heat_tol, "Heat flux")
 
+       call cell%destroy()
        call face%destroy()
-       deallocate(face_data, cell_data, rock_data, fluid_data)
-       deallocate(flux)
        call fluid%destroy()
+       call rock%destroy()
+       deallocate(face_data, cell_data, rock_data, fluid_data, flux)
 
     end if
 
@@ -414,15 +420,17 @@ contains
 
     if (mpi%rank == mpi%output_rank) then
 
+       call cell%init(nc, num_phases)
        call face%init(nc, num_phases)
        call fluid%init(nc, num_phases)
-       allocate(face_data(face%dof()), cell_data(cell%dof()))
-       allocate(rock_data(rock%dof()), fluid_data(fluid%dof()*2))
+       call rock%init()
+       allocate(face_data(face%dof), cell_data(cell%dof))
+       allocate(rock_data(rock%dof), fluid_data(fluid%dof*2))
        allocate(flux(num_primary))
        face_offset = 1
        cell_offsets = [1, 1]
        rock_offsets = [1, 1]
-       fluid_offsets = [1, 1 + fluid%dof()]
+       fluid_offsets = [1, 1 + fluid%dof]
        face_data = [0._dp,  25._dp, 35._dp,  0._dp, 0._dp, -1._dp, &
             0._dp, 0._dp, 0._dp, 3._dp]
        cell_data = 0._dp ! not needed
@@ -447,10 +455,11 @@ contains
        call assert_equals(expected_mass_flux, flux(1), mass_tol, "Mass flux")
        call assert_equals(expected_heat_flux, flux(2), heat_tol, "Heat flux")
 
+       call cell%destroy()
        call face%destroy()
-       deallocate(face_data, cell_data, rock_data, fluid_data)
-       deallocate(flux)
        call fluid%destroy()
+       call rock%destroy()
+       deallocate(face_data, cell_data, rock_data, fluid_data, flux)
 
     end if
 
@@ -497,15 +506,17 @@ contains
 
     if (mpi%rank == mpi%output_rank) then
 
+       call cell%init(nc, num_phases)
        call face%init(nc, num_phases)
        call fluid%init(nc, num_phases)
-       allocate(face_data(face%dof()), cell_data(cell%dof()))
-       allocate(rock_data(rock%dof() * 2), fluid_data(fluid%dof() * 2))
+       call rock%init()
+       allocate(face_data(face%dof), cell_data(cell%dof))
+       allocate(rock_data(rock%dof * 2), fluid_data(fluid%dof * 2))
        allocate(flux(num_primary))
        face_offset = 1
        cell_offsets = [1, 1]
-       rock_offsets = [1, 1 + rock%dof()]
-       fluid_offsets = [1, 1 + fluid%dof()]
+       rock_offsets = [1, 1 + rock%dof]
+       fluid_offsets = [1, 1 + fluid%dof]
        face_data = [0._dp,  25._dp, 35._dp,  0._dp, 0._dp, -1._dp, 0._dp, &
             0._dp, 0._dp, 3._dp]
        cell_data = 0._dp ! not needed
@@ -540,10 +551,11 @@ contains
        call assert_equals(expected_mass_flux, flux(1), mass_tol, "Mass flux")
        call assert_equals(expected_heat_flux, flux(2), heat_tol, "Heat flux")
 
+       call cell%destroy()
        call face%destroy()
-       deallocate(face_data, cell_data, rock_data, fluid_data)
-       deallocate(flux)
        call fluid%destroy()
+       call rock%destroy()
+       deallocate(face_data, cell_data, rock_data, fluid_data, flux)
 
     end if
 
