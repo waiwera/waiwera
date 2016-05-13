@@ -21,12 +21,12 @@ module cell_module
      PetscReal, pointer, public :: centroid(:)  !! cell centroid
      type(rock_type), public :: rock   !! rock properties
      type(fluid_type), public :: fluid !! fluid properties
+     PetscInt, public :: dof !! Number of degrees of freedom
    contains
      private
      procedure, public :: init => cell_init
      procedure, public :: assign_geometry => cell_assign_geometry
      procedure, public :: destroy => cell_destroy
-     procedure, public :: dof => cell_dof
      procedure, public :: balance => cell_balance
   end type cell_type
 
@@ -50,6 +50,8 @@ contains
     PetscInt, intent(in) :: num_phases  !! Number of fluid phases
 
     call self%fluid%init(num_components, num_phases)
+
+    self%dof = sum(cell_variable_num_components)
 
   end subroutine cell_init
 
@@ -89,17 +91,6 @@ contains
     call self%rock%destroy()
     
   end subroutine cell_destroy
-
-!------------------------------------------------------------------------
-
-  PetscInt function cell_dof(self)
-    !! Returns number of degrees of freedom in a cell object.
-
-    class(cell_type), intent(in) :: self
-
-    cell_dof = sum(cell_variable_num_components)
-
-  end function cell_dof
 
 !------------------------------------------------------------------------
 
