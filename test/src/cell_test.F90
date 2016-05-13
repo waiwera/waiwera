@@ -28,11 +28,12 @@ contains
     PetscReal, parameter :: centroid(3) = [20._dp, 30._dp, 75._dp]
     PetscInt, parameter :: offset = 6
     PetscReal :: offset_padding(offset-1) = 0._dp
-    PetscReal, allocatable :: cell_data(:)
+    PetscReal, pointer, contiguous :: cell_data(:)
     PetscReal, parameter :: tol = 1.e-6_dp
 
     if (mpi%rank == mpi%output_rank) then
 
+       allocate(cell_data(offset - 1 + sum(cell_variable_num_components)))
        cell_data = [offset_padding, centroid, volume]
 
        call cell%init(num_components, num_phases)
@@ -56,8 +57,10 @@ contains
   subroutine test_cell_balance
     !! Test cell mass and energy balance routine
 
+    use rock_module, only: rock_variable_num_components
+    use fluid_module, only: num_fluid_variables, num_phase_variables
     type(cell_type) :: cell
-    PetscReal, allocatable :: rock_data(:), fluid_data(:)
+    PetscReal, pointer, contiguous :: rock_data(:), fluid_data(:)
     PetscInt, parameter :: rock_offset = 1, fluid_offset = 1
     PetscInt, parameter :: num_components = 2, num_phases = 2
     PetscInt, parameter :: num_primary = 3
@@ -68,6 +71,9 @@ contains
 
     if (mpi%rank == mpi%output_rank) then
 
+       allocate(rock_data(sum(rock_variable_num_components)), &
+            fluid_data(num_fluid_variables + num_phases * &
+            (num_phase_variables + num_components)))
        rock_data = [0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0.1_dp, 2200._dp, 950._dp]
        fluid_data = [2.7e5_dp, 130._dp, 4._dp, 3._dp, &
             935._dp, 0.0_dp, 0.8_dp, 0.0_dp, 0._dp, 5.461e5_dp, 0.7_dp, 0.3_dp, &

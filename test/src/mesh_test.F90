@@ -40,7 +40,7 @@ contains
     DM :: dm_face
     PetscSection :: section
     DMLabel :: ghost_label, cell_order_label
-    PetscReal, pointer :: fg(:)
+    PetscReal, pointer, contiguous :: fg(:)
     PetscInt :: f, offset, fstart, fend, ghost_face, i, order(2), gf
     PetscInt, pointer :: cells(:)
     PetscReal :: dist(2)

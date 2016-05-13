@@ -40,12 +40,13 @@ contains
     PetscReal, parameter :: permeability_direction = dble(2)
     PetscInt, parameter :: offset = 6
     PetscReal :: offset_padding(offset-1) = 0._dp
-    PetscReal, allocatable :: face_data(:)
+    PetscReal, pointer, contiguous :: face_data(:)
 
     if (mpi%rank == mpi%output_rank) then
 
        call face%init()
 
+       allocate(face_data(offset - 1 + face%dof))
        face_data = [offset_padding, area, distance, normal, centroid, &
             permeability_direction]
 
@@ -85,7 +86,7 @@ contains
             1._dp,  -1.4_dp, -1.6_dp], [3, num_tests])
     PetscReal, parameter :: expected_permeability_direction(num_tests) = &
          [dble(1), dble(2), dble(3)]
-    PetscReal, allocatable :: face_data(:)
+    PetscReal, pointer, contiguous :: face_data(:)
     PetscInt :: i
     PetscInt :: offset = 1
     character(len = 32) :: msg
@@ -96,6 +97,7 @@ contains
 
        do i = 1, num_tests
 
+          allocate(face_data(offset - 1 + face%dof))
           face_data = [area, distance, normal(:,i), centroid, &
                initial_permeability_direction]
           call face%assign_geometry(face_data, offset)
@@ -128,8 +130,8 @@ contains
     PetscReal, parameter :: x(2) = [240._dp, 170._dp]
     PetscReal, parameter :: expected_d12 = 57._dp
     PetscReal, parameter :: expected_g = -1.22807017544_dp
-    PetscReal, allocatable :: face_data(:)
-    PetscReal, allocatable :: cell_data(:)
+    PetscReal, pointer, contiguous :: face_data(:)
+    PetscReal, pointer, contiguous :: cell_data(:)
     PetscInt :: face_offset, cell_offsets(2)
     PetscReal :: g
 
@@ -138,9 +140,10 @@ contains
        call cell%init(1,1) ! dummy argument values
        call face%init()
 
-       allocate(face_data(face%dof), cell_data(cell%dof * 2))
        face_offset = 1
        cell_offsets = [1, 1 + cell%dof]
+       allocate(face_data(face_offset - 1 + face%dof), &
+            cell_data(cell%dof * 2))
        face_data = 0._dp
        face_data(2:3) = distance
        cell_data = 0._dp
@@ -171,8 +174,8 @@ contains
 
     type(face_type) :: face
     type(cell_type) :: cell
-    PetscReal, allocatable :: face_data(:)
-    PetscReal, allocatable :: cell_data(:)
+    PetscReal, pointer, contiguous :: face_data(:)
+    PetscReal, pointer, contiguous :: cell_data(:)
     PetscInt :: face_offset, cell_offsets(2)
     PetscReal :: xh
     PetscInt,  parameter :: num_tests = 6
@@ -199,9 +202,10 @@ contains
 
        call cell%init(1,1) ! dummy argument values
        call face%init()
-       allocate(face_data(face%dof), cell_data(cell%dof * 2))
        face_offset = 1
        cell_offsets = [1, 1 + cell%dof]
+       allocate(face_data(face_offset - 1 + face%dof), &
+            cell_data(cell%dof * 2))
        face_data = 0._dp
        cell_data = 0._dp
 
@@ -243,8 +247,8 @@ contains
     type(eos_we_type) :: eos
     type(IAPWS_type) :: thermo
     type(fson_value), pointer :: json
-    PetscReal, allocatable :: face_data(:), cell_data(:)
-    PetscReal, allocatable :: rock_data(:), fluid_data(:)
+    PetscReal, pointer, contiguous :: face_data(:), cell_data(:)
+    PetscReal, pointer, contiguous :: rock_data(:), fluid_data(:)
     PetscReal, allocatable :: flux(:)
     PetscInt :: face_offset, cell_offsets(2)
     PetscInt :: rock_offsets(2), fluid_offsets(2)
@@ -325,8 +329,8 @@ contains
     type(eos_we_type) :: eos
     type(IAPWS_type) :: thermo
     type(fson_value), pointer :: json
-    PetscReal, allocatable :: face_data(:), cell_data(:)
-    PetscReal, allocatable :: rock_data(:), fluid_data(:)
+    PetscReal, pointer, contiguous :: face_data(:), cell_data(:)
+    PetscReal, pointer, contiguous :: rock_data(:), fluid_data(:)
     PetscReal, allocatable :: flux(:)
     PetscInt :: face_offset, cell_offsets(2)
     PetscInt :: rock_offsets(2), fluid_offsets(2)
@@ -406,8 +410,8 @@ contains
     type(eos_we_type) :: eos
     type(IAPWS_type) :: thermo
     type(fson_value), pointer :: json
-    PetscReal, allocatable :: face_data(:), cell_data(:)
-    PetscReal, allocatable :: rock_data(:), fluid_data(:)
+    PetscReal, pointer, contiguous :: face_data(:), cell_data(:)
+    PetscReal, pointer, contiguous :: rock_data(:), fluid_data(:)
     PetscReal, allocatable :: flux(:)
     PetscInt :: face_offset, cell_offsets(2)
     PetscInt :: rock_offsets(2), fluid_offsets(2)
@@ -489,8 +493,8 @@ contains
     type(eos_we_type) :: eos
     type(IAPWS_type) :: thermo
     type(fson_value), pointer :: json
-    PetscReal, allocatable :: face_data(:), cell_data(:)
-    PetscReal, allocatable :: rock_data(:), fluid_data(:)
+    PetscReal, pointer, contiguous :: face_data(:), cell_data(:)
+    PetscReal, pointer, contiguous :: rock_data(:), fluid_data(:)
     PetscReal, allocatable :: flux(:)
     PetscInt :: face_offset, cell_offsets(2)
     PetscInt :: rock_offsets(2), fluid_offsets(2)

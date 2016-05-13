@@ -32,11 +32,12 @@ contains
     PetscInt,  parameter :: offset = 5
     PetscReal, parameter :: tol = 1.e-6_dp
     PetscReal :: offset_padding(offset-1) = 0._dp
-    PetscReal, allocatable :: rock_data(:)
+    PetscReal, pointer, contiguous :: rock_data(:)
 
     if (mpi%rank == mpi%output_rank) then
 
        call rock%init()
+       allocate(rock_data(offset - 1 + rock%dof))
        rock_data = [offset_padding, permeability, wet_conductivity, &
             dry_conductivity, porosity, density, specific_heat]
 
@@ -65,7 +66,7 @@ contains
     ! Rock energy() test
 
     type(rock_type) :: rock
-    PetscReal, allocatable :: rock_data(:)
+    PetscReal, pointer, contiguous :: rock_data(:)
     PetscReal :: er
     PetscReal, parameter :: temp = 130._dp
     PetscReal, parameter :: expected_er = 2.717e8
@@ -75,6 +76,7 @@ contains
     if (mpi%rank == mpi%output_rank) then
 
        call rock%init()
+       allocate(rock_data(offset - 1 + rock%dof))
        rock_data = [0._dp, 0._dp, 0._dp, 0._dp, 0._dp, &
             0.1_dp, 2200._dp, 950._dp]
        call rock%assign(rock_data, offset)

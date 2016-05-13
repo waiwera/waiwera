@@ -26,7 +26,7 @@ contains
     type(fluid_type) :: fluid
     PetscInt, parameter :: num_components = 2, num_phases = 2
     PetscInt,  parameter :: offset = 7
-    PetscReal, allocatable :: fluid_data(:)
+    PetscReal, pointer, contiguous :: fluid_data(:)
     PetscInt :: i, ip, nc, phase_dof
     PetscReal, parameter :: tol = 1.e-6_dp
 
@@ -82,7 +82,7 @@ contains
     type(fluid_type) :: fluid
     PetscInt, parameter :: num_components = 2, num_phases = 2
     PetscInt,  parameter :: offset = 1
-    PetscReal, allocatable :: fluid_data(:)
+    PetscReal, pointer, contiguous :: fluid_data(:)
     PetscReal :: cd(num_components)
     PetscReal, parameter :: expected_cd(num_components) = [523.72_dp, 224.58_dp]
     PetscReal, parameter :: tol = 1.e-3_dp
@@ -90,6 +90,7 @@ contains
     if (mpi%rank == mpi%output_rank) then
 
        call fluid%init(num_components, num_phases)
+       allocate(fluid_data(offset - 1 + fluid%dof))
 
        fluid_data = [2.7e5_dp, 130._dp, 4._dp, 3._dp, &
             935._dp, 0.0_dp, 0.8_dp, 0.0_dp, 0._dp, 5.461e5_dp, 0.7_dp, 0.3_dp, &
@@ -116,7 +117,7 @@ contains
     type(fluid_type) :: fluid
     PetscInt, parameter :: num_components = 2, num_phases = 2
     PetscInt,  parameter :: offset = 1
-    PetscReal, allocatable :: fluid_data(:)
+    PetscReal, pointer, contiguous :: fluid_data(:)
     PetscReal :: ef
     PetscReal, parameter :: expected_ef = 4.092448e8_dp
     PetscReal, parameter :: tol = 1.e-3_dp
@@ -125,6 +126,7 @@ contains
 
        call fluid%init(num_components, num_phases)
 
+       allocate(fluid_data(offset - 1 + fluid%dof))
        fluid_data = [2.7e5_dp, 130._dp, 4._dp, 3._dp, &
             935._dp, 0.0_dp, 0.8_dp, 0.0_dp, 0._dp, 5.461e5_dp, 0.7_dp, 0.3_dp, &
             1.5_dp,  0.0_dp, 0.2_dp, 0.0_dp, 0._dp, 2.540e6_dp, 0.4_dp, 0.6_dp]
@@ -151,7 +153,7 @@ contains
     PetscInt, parameter :: num_components = 1, num_phases = 2
     PetscBool, parameter :: isothermal = .false.
     PetscInt, parameter :: offset = 1
-    PetscReal, allocatable :: fluid_data(:)
+    PetscReal, pointer, contiguous :: fluid_data(:)
     PetscReal :: source(num_components + 1), ff(num_phases)
     PetscReal, parameter :: tol = 1.e-6_dp
     PetscReal, parameter :: expected_production = -3190284.011514185_dp
@@ -162,6 +164,7 @@ contains
 
        call fluid%init(num_components, num_phases)
 
+       allocate(fluid_data(offset - 1 + fluid%dof))
        fluid_data = [3346651.871510162_dp, 240._dp, 4._dp, 3._dp, &
             813.36485916981576_dp, 0.00011105570007981882_dp, 0.8_dp, &
             0.9_dp, 1037522.7548256445_dp, 1033408.1784042757_dp, 1._dp, &

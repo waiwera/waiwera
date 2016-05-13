@@ -65,7 +65,7 @@ contains
     type(fluid_type) :: fluid
     type(rock_type) :: rock
     PetscInt,  parameter :: offset = 1, region = 1, phase_composition = b'01'
-    PetscReal, allocatable :: fluid_data(:)
+    PetscReal, pointer, contiguous :: fluid_data(:)
     PetscReal, allocatable :: primary(:), primary2(:)
     type(eos_w_type) :: eos
     type(IAPWS_type) :: thermo
@@ -137,7 +137,7 @@ contains
     type(fluid_type) :: fluid
     type(rock_type) :: rock
     PetscInt,  parameter :: offset = 1, region = 4, phase_composition = b'011'
-    PetscReal, allocatable :: fluid_data(:)
+    PetscReal, pointer, contiguous :: fluid_data(:)
     PetscReal, allocatable:: primary(:), primary2(:)
     type(eos_we_type) :: eos
     type(IAPWS_type) :: thermo
@@ -243,7 +243,7 @@ contains
 
     type(fluid_type) :: old_fluid, fluid
     PetscInt,  parameter :: offset = 1
-    PetscReal, allocatable :: old_fluid_data(:), fluid_data(:)
+    PetscReal, pointer, contiguous :: old_fluid_data(:), fluid_data(:)
     PetscReal :: primary(2), expected_primary(2), temperature
     PetscInt :: expected_region
     PetscBool :: transition, expected_transition
@@ -371,7 +371,7 @@ contains
     type(rock_type) :: rock
     PetscInt, parameter :: num_components = 1
     PetscInt,  parameter :: offset = 1
-    PetscReal, allocatable :: fluid_data(:)
+    PetscReal, pointer, contiguous :: fluid_data(:)
     PetscReal, parameter :: data(n, num_components + 1) = reshape([ &
            20.e6_dp, 101.e6_dp, &
            360._dp, 20._dp], [n, num_components + 1])
@@ -431,7 +431,7 @@ contains
     type(fson_value), pointer :: json
     type(IAPWS_type) :: thermo
     type(eos_we_type) :: eos
-    PetscReal, allocatable :: fluid_data(:), rock_data(:)
+    PetscReal, pointer, contiguous :: fluid_data(:), rock_data(:)
     type(fluid_type) :: fluid
     type(rock_type) :: rock
     PetscInt :: offset = 1
