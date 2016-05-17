@@ -13,9 +13,9 @@ module face_module
      !! Type for accessing local face properties.
      private
      PetscReal, pointer, public :: area !! face area
-     PetscReal, pointer, public :: distance(:) !! cell centroid distances on either side of the face
-     PetscReal, pointer, public :: normal(:) !! normal vector to face
-     PetscReal, pointer, public :: centroid(:) !! centroid of face
+     PetscReal, pointer, contiguous, public :: distance(:) !! cell centroid distances on either side of the face
+     PetscReal, pointer, contiguous, public :: normal(:) !! normal vector to face
+     PetscReal, pointer, contiguous, public :: centroid(:) !! centroid of face
      PetscReal, pointer, public :: permeability_direction !! direction of permeability (1.. 3)
      type(cell_type), allocatable, public :: cell(:) !! cells on either side of face
      PetscReal, public :: distance12 !! distance between cell centroids
@@ -51,8 +51,8 @@ module face_module
      !! Type for accessing face geometry parameters calculated by
      !! PETSc DMPlexTSGetGeometryFVM().
      private
-     PetscReal, pointer, public :: area_normal(:) !! normal vector multiplied by area
-     PetscReal, pointer, public :: centroid(:) !! centroid of face
+     PetscReal, pointer, contiguous, public :: area_normal(:) !! normal vector multiplied by area
+     PetscReal, pointer, contiguous, public :: centroid(:) !! centroid of face
    contains
      private
      procedure, public :: assign_geometry => petsc_face_assign_geometry
