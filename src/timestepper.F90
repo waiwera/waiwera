@@ -1117,19 +1117,10 @@ end subroutine timestepper_steps_set_next_stepsize
     PetscErrorCode :: ierr
 
     call VecGetBlockSize(self%ode%solution, blocksize, ierr); CHKERRQ(ierr)
-    if (mpi%size == 1) then
-       if (blocksize == 1) then
-          mat_type = MATAIJ
-       else
-          ! mat_type = MATBAIJ  ! reinstate this when PETSc bug fixed
-          mat_type = MATAIJ
-       end if
+    if (blocksize == 1) then
+       mat_type = MATAIJ
     else
-       if (blocksize == 1) then
-          mat_type = MATMPIAIJ
-       else
-          mat_type = MATMPIBAIJ
-       end if
+       mat_type = MATBAIJ
     end if
     call DMSetMatType(self%ode%mesh%dm, mat_type, ierr); CHKERRQ(ierr)
     call DMCreateMatrix(self%ode%mesh%dm, self%jacobian, ierr); CHKERRQ(ierr)
