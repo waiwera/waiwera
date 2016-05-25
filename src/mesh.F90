@@ -479,6 +479,9 @@ contains
     call DMPlexCreateFromFile(mpi%comm, self%filename, PETSC_TRUE, self%dm, ierr)
     CHKERRQ(ierr)
 
+    call DMPlexSetAdjacencyUseCone(self%dm, PETSC_TRUE, ierr); CHKERRQ(ierr)
+    call DMPlexSetAdjacencyUseClosure(self%dm, PETSC_FALSE, ierr); CHKERRQ(ierr)
+
   end subroutine mesh_init
 
 !------------------------------------------------------------------------
