@@ -39,7 +39,7 @@ contains
     PetscInt :: num_sources, cell, offset, num_cells, ghost
     PetscInt, pointer :: cells(:)
     PetscReal :: q, enthalpy
-    PetscReal, pointer :: source_array(:), cell_source(:)
+    PetscReal, pointer, contiguous :: source_array(:), cell_source(:)
     PetscBool :: mass_inject
     PetscSection :: section
     IS :: cell_IS

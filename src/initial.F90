@@ -34,7 +34,7 @@ contains
     PetscInt :: np, c, ghost
     PetscInt :: y_offset
     PetscErrorCode :: ierr
-    PetscReal, pointer :: cell_primary(:), y_array(:)
+    PetscReal, pointer, contiguous :: cell_primary(:), y_array(:)
     PetscSection :: y_section
     DMLabel :: ghost_label
 
@@ -81,7 +81,7 @@ contains
     PetscInt :: num_cells, np, global_cell_index, i
     PetscInt :: offset, ghost
     PetscErrorCode :: ierr
-    PetscReal, pointer :: cell_primary(:), y_array(:)
+    PetscReal, pointer, contiguous :: cell_primary(:), y_array(:)
     PetscSection :: section
     IS :: cell_IS
     PetscInt, pointer :: cells(:)

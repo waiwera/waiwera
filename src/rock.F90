@@ -12,7 +12,7 @@ module rock_module
   type rock_type
      !! Local rock properties.
      private
-     PetscReal, pointer, public :: permeability(:)   !! Permeability
+     PetscReal, pointer, contiguous, public :: permeability(:)   !! Permeability
      PetscReal, pointer, public :: wet_conductivity, dry_conductivity !! Heat conductivities
      PetscReal, pointer, public :: porosity          !! Porosity
      PetscReal, pointer, public :: density           !! Grain density

@@ -18,7 +18,7 @@ module cell_module
      !! fluid properties.
      private
      PetscReal, pointer, public :: volume       !! cell volume
-     PetscReal, pointer, public :: centroid(:)  !! cell centroid
+     PetscReal, pointer, contiguous, public :: centroid(:)  !! cell centroid
      type(rock_type), public :: rock   !! rock properties
      type(fluid_type), public :: fluid !! fluid properties
      PetscInt, public :: dof !! Number of degrees of freedom

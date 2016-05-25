@@ -30,7 +30,7 @@ module fluid_module
      PetscReal, pointer :: relative_permeability !! Relative permeability
      PetscReal, pointer :: specific_enthalpy !! Specific enthalpy
      PetscReal, pointer :: internal_energy !! Internal energy
-     PetscReal, pointer :: mass_fraction(:)
+     PetscReal, pointer, contiguous :: mass_fraction(:) !! Component mass fractions
    contains
      private
      procedure, public :: destroy => phase_destroy
