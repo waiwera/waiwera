@@ -80,8 +80,6 @@ contains
     class(rock_type), intent(in out) :: self
     PetscReal, pointer, contiguous, intent(in) :: data(:)  !! rock data array
     PetscInt, intent(in) :: offset !! rock array offset
-    ! Locals:
-    PetscErrorCode :: ierr
 
     self%permeability => data(offset: offset + 2)
     self%wet_conductivity => data(offset + 3)
@@ -100,8 +98,6 @@ contains
     class(rock_type), intent(in out) :: self
     class(relative_permeability_type), intent(in), &
          target :: relative_permeability
-    ! Locals:
-    PetscErrorCode :: ierr
 
     self%relative_permeability => relative_permeability
 
