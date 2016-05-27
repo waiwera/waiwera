@@ -444,13 +444,12 @@ end subroutine flow_simulation_run_info
     Vec, intent(out) :: lhs
     PetscErrorCode, intent(out) :: err
     ! Locals:
-    PetscInt :: c, ghost, np, nc
+    PetscInt :: c, np, nc
     PetscSection :: fluid_section, rock_section, lhs_section
     PetscInt :: fluid_offset, rock_offset, lhs_offset
     PetscReal, pointer, contiguous :: fluid_array(:), rock_array(:), lhs_array(:)
     PetscReal, pointer, contiguous :: balance(:)
     type(cell_type) :: cell
-    DMLabel :: ghost_label
     PetscErrorCode :: ierr
 
     call PetscLogEventBegin(lhs_fn_event, ierr); CHKERRQ(ierr)
@@ -470,13 +469,9 @@ end subroutine flow_simulation_run_info
 
     call cell%init(nc, self%eos%num_phases)
 
-    call DMGetLabel(self%mesh%dm, "ghost", ghost_label, ierr)
-    CHKERRQ(ierr)
-
     do c = self%mesh%start_cell, self%mesh%end_cell - 1
 
-       call DMLabelGetValue(ghost_label, c, ghost, ierr); CHKERRQ(ierr)
-       if (ghost < 0) then
+       if (self%mesh%ghost_cell(c) < 0) then
 
           call global_section_offset(lhs_section, c, &
                self%solution_range_start, lhs_offset, ierr); CHKERRQ(ierr)
@@ -526,7 +521,7 @@ end subroutine flow_simulation_run_info
     Vec, intent(out) :: rhs
     PetscErrorCode, intent(out) :: err
     ! Locals:
-    PetscInt :: f, c, ghost_cell, ghost_face, i, np, nc
+    PetscInt :: f, c, i, np, nc
     Vec :: local_fluid, local_rock
     PetscReal, pointer, contiguous :: rhs_array(:)
     PetscReal, pointer, contiguous :: cell_geom_array(:), face_geom_array(:)
@@ -541,7 +536,6 @@ end subroutine flow_simulation_run_info
     PetscInt :: rock_offsets(2), fluid_offsets(2), rhs_offsets(2)
     PetscInt :: cell_geom_offset, rhs_offset, source_offset
     PetscInt :: fluid_offset
-    DMLabel :: ghost_label
     PetscInt, pointer :: cells(:)
     PetscReal, pointer, contiguous :: inflow(:)
     PetscReal, allocatable :: face_flow(:), source(:)
@@ -575,13 +569,9 @@ end subroutine flow_simulation_run_info
 
     call face%init(self%eos%num_components, self%eos%num_phases)
 
-    call DMGetLabel(self%mesh%dm, "ghost", ghost_label, ierr)
-    CHKERRQ(ierr)
-
     do f = self%mesh%start_face, self%mesh%end_face - 1
 
-       call DMLabelGetValue(ghost_label, f, ghost_face, ierr); CHKERRQ(ierr)
-       if (ghost_face < 0) then
+       if (self%mesh%ghost_face(f) < 0) then
 
           call section_offset(face_geom_section, f, face_geom_offset, &
                ierr); CHKERRQ(ierr)
@@ -607,9 +597,7 @@ end subroutine flow_simulation_run_info
           face_flow = face%flux(self%eos, self%gravity) * face%area
 
           do i = 1, 2
-             call DMLabelGetValue(ghost_label, cells(i), ghost_cell, &
-                  ierr); CHKERRQ(ierr)
-             if ((ghost_cell < 0) .and. &
+             if ((self%mesh%ghost_cell(cells(i)) < 0) .and. &
                   (cells(i) <= self%mesh%end_interior_cell - 1)) then
                 inflow => rhs_array(rhs_offsets(i) : rhs_offsets(i) + np - 1)
                 inflow = inflow + flux_sign(i) * face_flow / &
@@ -635,8 +623,7 @@ end subroutine flow_simulation_run_info
 
     do c = self%mesh%start_cell, self%mesh%end_cell - 1
 
-       call DMLabelGetValue(ghost_label, c, ghost_cell, ierr); CHKERRQ(ierr)
-       if (ghost_cell < 0) then
+       if (self%mesh%ghost_cell(c) < 0) then
           call global_section_offset(rhs_section, c, &
                self%solution_range_start, rhs_offset, ierr)
           CHKERRQ(ierr)
@@ -795,13 +782,13 @@ end subroutine flow_simulation_run_info
     Vec, intent(in) :: y !! global primary variables vector
     PetscErrorCode, intent(out) :: err
     ! Locals:
-    PetscInt :: c, np, nc, ghost, order
+    PetscInt :: c, np, nc, order
     PetscSection :: y_section, fluid_section, rock_section
     PetscInt :: y_offset, fluid_offset, rock_offset
     PetscReal, pointer, contiguous :: y_array(:), cell_primary(:)
     PetscReal, pointer, contiguous :: fluid_array(:), rock_array(:)
     type(cell_type) :: cell
-    DMLabel :: ghost_label, order_label
+    DMLabel :: order_label
     PetscErrorCode :: ierr
 
     call PetscLogEventBegin(fluid_init_event, ierr); CHKERRQ(ierr)
@@ -821,15 +808,12 @@ end subroutine flow_simulation_run_info
 
     call cell%init(nc, self%eos%num_phases)
 
-    call DMGetLabel(self%mesh%dm, "ghost", ghost_label, ierr)
-    CHKERRQ(ierr)
     call DMGetLabel(self%mesh%dm, cell_order_label_name, order_label, ierr)
     CHKERRQ(ierr)
 
     do c = self%mesh%start_cell, self%mesh%end_cell - 1
 
-       call DMLabelGetValue(ghost_label, c, ghost, ierr); CHKERRQ(ierr)
-       if (ghost < 0) then
+       if (self%mesh%ghost_cell(c) < 0) then
 
           call global_section_offset(y_section, c, &
                self%solution_range_start, y_offset, ierr); CHKERRQ(ierr)
@@ -898,13 +882,13 @@ end subroutine flow_simulation_run_info
     Vec, intent(in) :: y !! global primary variables vector
     PetscErrorCode, intent(out) :: err !! error code
     ! Locals:
-    PetscInt :: c, np, nc, ghost, order
+    PetscInt :: c, np, nc, order
     PetscSection :: y_section, fluid_section, rock_section
     PetscInt :: y_offset, fluid_offset, rock_offset
     PetscReal, pointer, contiguous :: y_array(:), cell_primary(:)
     PetscReal, pointer, contiguous :: fluid_array(:), rock_array(:)
     type(cell_type) :: cell
-    DMLabel :: ghost_label, order_label
+    DMLabel :: order_label
     PetscErrorCode :: ierr
 
     call PetscLogEventBegin(fluid_properties_event, ierr); CHKERRQ(ierr)
@@ -924,15 +908,12 @@ end subroutine flow_simulation_run_info
 
     call cell%init(nc, self%eos%num_phases)
 
-    call DMGetLabel(self%mesh%dm, "ghost", ghost_label, ierr)
-    CHKERRQ(ierr)
     call DMGetLabel(self%mesh%dm, cell_order_label_name, order_label, ierr)
     CHKERRQ(ierr)
 
     do c = self%mesh%start_cell, self%mesh%end_cell - 1
 
-       call DMLabelGetValue(ghost_label, c, ghost, ierr); CHKERRQ(ierr)
-       if (ghost < 0) then
+       if (self%mesh%ghost_cell(c) < 0) then
 
           call global_section_offset(y_section, c, &
                self%solution_range_start, y_offset, ierr); CHKERRQ(ierr)
@@ -1006,14 +987,14 @@ end subroutine flow_simulation_run_info
     PetscBool, intent(out) :: changed_search, changed_y
     PetscErrorCode, intent(out) :: err !! Error code
     ! Locals:
-    PetscInt :: c, np, nc, ghost, order
+    PetscInt :: c, np, nc, order
     PetscSection :: primary_section, fluid_section
     PetscInt :: primary_offset, fluid_offset
     PetscReal, pointer, contiguous :: primary_array(:), old_primary_array(:), search_array(:)
     PetscReal, pointer, contiguous :: cell_primary(:), old_cell_primary(:), cell_search(:)
     PetscReal, pointer, contiguous :: last_iteration_fluid_array(:), fluid_array(:)
     type(fluid_type) :: last_iteration_fluid, fluid
-    DMLabel :: ghost_label, order_label
+    DMLabel :: order_label
     PetscBool :: transition
     PetscErrorCode :: ierr
 
@@ -1038,15 +1019,12 @@ end subroutine flow_simulation_run_info
     call last_iteration_fluid%init(nc, self%eos%num_phases)
     call fluid%init(nc, self%eos%num_phases)
 
-    call DMGetLabel(self%mesh%dm, "ghost", ghost_label, ierr)
-    CHKERRQ(ierr)
     call DMGetLabel(self%mesh%dm, cell_order_label_name, order_label, ierr)
     CHKERRQ(ierr)
 
     do c = self%mesh%start_cell, self%mesh%end_cell - 1
 
-       call DMLabelGetValue(ghost_label, c, ghost, ierr); CHKERRQ(ierr)
-       if (ghost < 0) then
+       if (self%mesh%ghost_cell(c) < 0) then
 
           call global_section_offset(primary_section, c, &
                self%solution_range_start, primary_offset, ierr); CHKERRQ(ierr)

@@ -29,6 +29,7 @@ module mesh_module
      PetscInt, public :: end_face !! DM point containing last face on this process
      PetscReal, allocatable, public :: bcs(:,:) !! Array containing boundary conditions
      IS, public :: cell_index !! Index set defining natural cell ordering
+     PetscInt, public, allocatable :: ghost_cell(:), ghost_face(:) !! Ghost label values for cells and faces
    contains
      procedure :: setup_cell_order_label => mesh_setup_cell_order_label
      procedure :: setup_cell_index => mesh_setup_cell_index
@@ -37,6 +38,7 @@ module mesh_module
      procedure :: setup_data_layout => mesh_setup_data_layout
      procedure :: setup_geometry => mesh_setup_geometry
      procedure :: setup_discretization => mesh_setup_discretization
+     procedure :: setup_ghost_arrays => mesh_setup_ghost_arrays
      procedure :: get_bounds => mesh_get_bounds
      procedure, public :: init => mesh_init
      procedure, public :: configure => mesh_configure
@@ -420,6 +422,37 @@ contains
 
 !------------------------------------------------------------------------
 
+  subroutine mesh_setup_ghost_arrays(self)
+    !! Sets up arrays of ghost label values on cells and faces. This
+    !! is just for faster access to these values in the rest of the
+    !! code.
+
+    class(mesh_type), intent(in out) :: self
+    ! Locals:
+    PetscInt :: c, f
+    DMLabel :: ghost_label
+    PetscErrorCode :: ierr
+
+    allocate(self%ghost_cell(self%start_cell: self%end_cell - 1))
+    allocate(self%ghost_face(self%start_face: self%end_face - 1))
+
+    call DMGetLabel(self%dm, "ghost", ghost_label, ierr)
+    CHKERRQ(ierr)
+
+    do c = self%start_cell, self%end_cell - 1
+       call DMLabelGetValue(ghost_label, c, self%ghost_cell(c), ierr)
+       CHKERRQ(ierr)
+    end do
+
+    do f = self%start_face, self%end_face - 1
+       call DMLabelGetValue(ghost_label, f, self%ghost_face(f), ierr)
+       CHKERRQ(ierr)
+    end do
+
+  end subroutine mesh_setup_ghost_arrays
+
+!------------------------------------------------------------------------
+
   subroutine mesh_get_bounds(self)
     !! Gets cell and face bounds  on current processor.
 
@@ -510,6 +543,8 @@ contains
 
     call self%setup_geometry()
 
+    call self%setup_ghost_arrays()
+
     call self%setup_cell_index(viewer)
 
   end subroutine mesh_configure
@@ -531,6 +566,13 @@ contains
     end if
 
     call ISDestroy(self%cell_index, ierr); CHKERRQ(ierr)
+
+    if (allocated(self%ghost_cell)) then
+       deallocate(self%ghost_cell)
+    end if
+    if (allocated(self%ghost_face)) then
+       deallocate(self%ghost_face)
+    end if
 
   end subroutine mesh_destroy
 
