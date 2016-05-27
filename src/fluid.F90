@@ -30,7 +30,7 @@ module fluid_module
      PetscReal, pointer :: relative_permeability !! Relative permeability
      PetscReal, pointer :: specific_enthalpy !! Specific enthalpy
      PetscReal, pointer :: internal_energy !! Internal energy
-     PetscReal, pointer :: mass_fraction(:)
+     PetscReal, pointer, contiguous :: mass_fraction(:) !! Component mass fractions
    contains
      private
      procedure, public :: destroy => phase_destroy
@@ -123,16 +123,11 @@ contains
     !! Assigns pointers in a fluid object to elements in the data array,
     !! starting from the specified offset.
 
-    use profiling_module, only: assign_pointers_event
-
     class(fluid_type), intent(in out) :: self
-    PetscReal, target, intent(in) :: data(:)  !! fluid data array
+    PetscReal, pointer, contiguous, intent(in) :: data(:)  !! fluid data array
     PetscInt, intent(in) :: offset  !! fluid array offset
     ! Locals:
     PetscInt :: i, p
-    PetscErrorCode :: ierr
-
-    call PetscLogEventBegin(assign_pointers_event, ierr); CHKERRQ(ierr)
 
     self%pressure => data(offset)
     self%temperature => data(offset + 1)
@@ -152,8 +147,6 @@ contains
          i = i + self%phase_dof
        end associate
     end do
-
-    call PetscLogEventEnd(assign_pointers_event, ierr); CHKERRQ(ierr)
 
   end subroutine fluid_assign
 

@@ -34,7 +34,7 @@ contains
     PetscInt :: np, c, ghost
     PetscInt :: y_offset
     PetscErrorCode :: ierr
-    PetscReal, pointer :: cell_primary(:), y_array(:)
+    PetscReal, pointer, contiguous :: cell_primary(:), y_array(:)
     PetscSection :: y_section
     DMLabel :: ghost_label
 
@@ -81,7 +81,7 @@ contains
     PetscInt :: num_cells, np, global_cell_index, i
     PetscInt :: offset, ghost
     PetscErrorCode :: ierr
-    PetscReal, pointer :: cell_primary(:), y_array(:)
+    PetscReal, pointer, contiguous :: cell_primary(:), y_array(:)
     PetscSection :: section
     IS :: cell_IS
     PetscInt, pointer :: cells(:)
@@ -140,7 +140,7 @@ contains
     PetscInt :: fluid_offset
     PetscErrorCode :: ierr
     type(fluid_type) :: fluid
-    PetscReal, pointer :: fluid_array(:)
+    PetscReal, pointer, contiguous :: fluid_array(:)
     PetscSection :: fluid_section
     DMLabel :: ghost_label
 
@@ -189,7 +189,7 @@ contains
     PetscInt :: offset
     PetscErrorCode :: ierr
     type(fluid_type) :: fluid
-    PetscReal, pointer :: fluid_array(:)
+    PetscReal, pointer, contiguous :: fluid_array(:)
     PetscSection :: section
     IS :: cell_IS
     PetscInt, pointer :: cells(:)
@@ -250,8 +250,8 @@ contains
     DM :: fluid_dm
     IS :: output_cell_index
     PetscSection :: y_section, fluid_section
-    PetscReal, pointer :: y_array(:), fluid_array(:)
-    PetscReal, pointer :: cell_primary(:)
+    PetscReal, pointer, contiguous :: y_array(:), fluid_array(:)
+    PetscReal, pointer, contiguous :: cell_primary(:)
     type(fluid_type) :: fluid
     DMLabel :: ghost_label
     PetscInt :: np, c, ghost, y_offset, fluid_offset

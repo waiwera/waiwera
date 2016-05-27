@@ -18,7 +18,7 @@ module cell_module
      !! fluid properties.
      private
      PetscReal, pointer, public :: volume       !! cell volume
-     PetscReal, pointer, public :: centroid(:)  !! cell centroid
+     PetscReal, pointer, contiguous, public :: centroid(:)  !! cell centroid
      type(rock_type), public :: rock   !! rock properties
      type(fluid_type), public :: fluid !! fluid properties
      PetscInt, public :: dof !! Number of degrees of freedom
@@ -61,20 +61,12 @@ contains
     !! Assigns cell geometry pointers to values from specified data
     !! array, starting from the given offset.
 
-    use profiling_module, only: assign_pointers_event
-
     class(cell_type), intent(in out) :: self
-    PetscReal, target, intent(in) :: data(:)  !! array with geometry data
+    PetscReal, pointer, contiguous, intent(in) :: data(:)  !! array with geometry data
     PetscInt, intent(in)  :: offset  !! geometry array offset for this cell
-    ! Locals:
-    PetscErrorCode :: ierr
-
-    Call PetscLogEventBegin(assign_pointers_event, ierr); CHKERRQ(ierr)
 
     self%centroid => data(offset: offset + 2)
     self%volume => data(offset + 3)
-
-    call PetscLogEventEnd(assign_pointers_event, ierr); CHKERRQ(ierr)
 
   end subroutine cell_assign_geometry
 

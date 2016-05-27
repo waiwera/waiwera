@@ -13,9 +13,9 @@ module face_module
      !! Type for accessing local face properties.
      private
      PetscReal, pointer, public :: area !! face area
-     PetscReal, pointer, public :: distance(:) !! cell centroid distances on either side of the face
-     PetscReal, pointer, public :: normal(:) !! normal vector to face
-     PetscReal, pointer, public :: centroid(:) !! centroid of face
+     PetscReal, pointer, contiguous, public :: distance(:) !! cell centroid distances on either side of the face
+     PetscReal, pointer, contiguous, public :: normal(:) !! normal vector to face
+     PetscReal, pointer, contiguous, public :: centroid(:) !! centroid of face
      PetscReal, pointer, public :: permeability_direction !! direction of permeability (1.. 3)
      type(cell_type), allocatable, public :: cell(:) !! cells on either side of face
      PetscReal, public :: distance12 !! distance between cell centroids
@@ -51,8 +51,8 @@ module face_module
      !! Type for accessing face geometry parameters calculated by
      !! PETSc DMPlexTSGetGeometryFVM().
      private
-     PetscReal, pointer, public :: area_normal(:) !! normal vector multiplied by area
-     PetscReal, pointer, public :: centroid(:) !! centroid of face
+     PetscReal, pointer, contiguous, public :: area_normal(:) !! normal vector multiplied by area
+     PetscReal, pointer, contiguous, public :: centroid(:) !! centroid of face
    contains
      private
      procedure, public :: assign_geometry => petsc_face_assign_geometry
@@ -92,24 +92,16 @@ contains
     !! Assigns geometry pointers in a face to elements of the specified data array,
     !! starting from the given offset.
 
-    use profiling_module, only: assign_pointers_event
-
     class(face_type), intent(in out) :: self
-    PetscReal, target, intent(in) :: data(:)  !! array with face geometry data
+    PetscReal, pointer, contiguous, intent(in) :: data(:)  !! array with face geometry data
     PetscInt, intent(in) :: offset  !! face geometry array offset for this face
-    ! Locals:
-    PetscErrorCode :: ierr
 
-    call PetscLogEventBegin(assign_pointers_event, ierr); CHKERRQ(ierr)
-    
     self%area => data(offset)
     self%distance => data(offset + 1: offset + 2)
     self%normal => data(offset + 3: offset + 5)
     self%centroid => data(offset + 6: offset + 8)
     self%permeability_direction => data(offset + 9)
     self%distance12 = sum(self%distance)
-
-    call PetscLogEventEnd(assign_pointers_event, ierr); CHKERRQ(ierr)
 
   end subroutine face_assign_geometry
 
@@ -119,7 +111,7 @@ contains
     !! Assigns cell geometry pointers for both cells on the face.
 
     class(face_type), intent(in out) :: self
-    PetscReal, target, intent(in) :: data(:)  !! array with cell geometry data
+    PetscReal, pointer, contiguous, intent(in) :: data(:)  !! array with cell geometry data
     PetscInt, intent(in) :: offsets(:)  !! cell geometry array offsets for the face cells
     ! Locals:
     PetscInt :: i
@@ -136,7 +128,7 @@ contains
     !! Assigns rock pointers for both cells on the face.
 
     class(face_type), intent(in out) :: self
-    PetscReal, target, intent(in) :: data(:)  !! array with rock data
+    PetscReal, pointer, contiguous, intent(in) :: data(:)  !! array with rock data
     PetscInt, intent(in) :: offsets(:)  !! rock array offsets for the face cells
     ! Locals:
     PetscInt :: i
@@ -153,7 +145,7 @@ contains
     !! Assigns fluid pointers for both cells on the face.
 
     class(face_type), intent(in out) :: self
-    PetscReal, target, intent(in) :: data(:)  !! array with fluid data
+    PetscReal, pointer, contiguous, intent(in) :: data(:)  !! array with fluid data
     PetscInt, intent(in) :: offsets(:)  !! fluid array offsets for the face cells
     ! Locals:
     PetscInt :: i
@@ -375,7 +367,6 @@ contains
     !! for non-isothermal simulations.
 
     use eos_module, only: eos_type
-    use profiling_module, only: face_flux_event
 
     class(face_type), intent(in) :: self
     class(eos_type), intent(in) :: eos
@@ -388,9 +379,6 @@ contains
     PetscReal :: phase_flux(self%cell(1)%fluid%num_components)
     PetscReal :: k, h, cond, mobility
     PetscInt :: phases(2), phase_present
-    PetscErrorCode :: ierr
-
-    call PetscLogEventBegin(face_flux_event, ierr); CHKERRQ(ierr)
 
     nc = eos%num_components
     np = eos%num_primary_variables
@@ -441,8 +429,6 @@ contains
 
     end do
 
-    call PetscLogEventEnd(face_flux_event, ierr); CHKERRQ(ierr)
-
   end function face_flux
 
 !------------------------------------------------------------------------
@@ -454,7 +440,7 @@ contains
     !! specified data array, starting from the given offset.
 
     class(petsc_face_type), intent(in out) :: self
-    PetscReal, target, intent(in) :: data(:)  !! array with face geometry data
+    PetscReal, pointer, contiguous, intent(in) :: data(:)  !! array with face geometry data
     PetscInt, intent(in)  :: offset  !! face geometry array offset for this face
 
     self%area_normal => data(offset: offset + 2)

@@ -1060,8 +1060,8 @@ end subroutine timestepper_steps_set_next_stepsize
     PetscErrorCode :: ierr
     ! Locals:
     Vec :: unscaled_residual, residual
-    PetscReal, pointer :: unscaled_residual_array(:), residual_array(:), &
-         lhs_array(:)
+    PetscReal, pointer, contiguous :: unscaled_residual_array(:), &
+         residual_array(:), lhs_array(:)
     PetscInt :: low, hi, i
     PetscReal :: scale
 

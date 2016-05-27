@@ -12,7 +12,7 @@ module rock_module
   type rock_type
      !! Local rock properties.
      private
-     PetscReal, pointer, public :: permeability(:)   !! Permeability
+     PetscReal, pointer, contiguous, public :: permeability(:)   !! Permeability
      PetscReal, pointer, public :: wet_conductivity, dry_conductivity !! Heat conductivities
      PetscReal, pointer, public :: porosity          !! Porosity
      PetscReal, pointer, public :: density           !! Grain density
@@ -77,15 +77,11 @@ contains
     !! Assigns pointers in a rock object to elements of the specified
     !! data array, starting from the given offset.
 
-    use profiling_module, only: assign_pointers_event
-
     class(rock_type), intent(in out) :: self
-    PetscReal, target, intent(in) :: data(:)  !! rock data array
+    PetscReal, pointer, contiguous, intent(in) :: data(:)  !! rock data array
     PetscInt, intent(in) :: offset !! rock array offset
     ! Locals:
     PetscErrorCode :: ierr
-
-    call PetscLogEventBegin(assign_pointers_event, ierr); CHKERRQ(ierr)
 
     self%permeability => data(offset: offset + 2)
     self%wet_conductivity => data(offset + 3)
@@ -94,8 +90,6 @@ contains
     self%density => data(offset + 6)
     self%specific_heat => data(offset + 7)
 
-    call PetscLogEventEnd(assign_pointers_event, ierr); CHKERRQ(ierr)
-
   end subroutine rock_assign
     
 !------------------------------------------------------------------------
@@ -103,19 +97,13 @@ contains
   subroutine rock_assign_relative_permeability(self, relative_permeability)
     !! Assigns relative permeability pointer for a rock object.
 
-    use profiling_module, only: assign_pointers_event
-
     class(rock_type), intent(in out) :: self
     class(relative_permeability_type), intent(in), &
          target :: relative_permeability
     ! Locals:
     PetscErrorCode :: ierr
 
-    call PetscLogEventBegin(assign_pointers_event, ierr); CHKERRQ(ierr)
-
     self%relative_permeability => relative_permeability
-
-    call PetscLogEventEnd(assign_pointers_event, ierr); CHKERRQ(ierr)
 
   end subroutine rock_assign_relative_permeability
 
@@ -175,7 +163,7 @@ contains
     PetscReal :: porosity, density, specific_heat
     PetscReal :: wet_conductivity, dry_conductivity
     PetscReal, allocatable :: permeability(:)
-    PetscReal, pointer :: rock_array(:)
+    PetscReal, pointer, contiguous :: rock_array(:)
     PetscSection :: section
     PetscErrorCode :: ierr
     character(len=64) :: rockstr

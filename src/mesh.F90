@@ -314,8 +314,8 @@ contains
     PetscInt :: cell_offset(2)
     type(face_type) :: face
     type(petsc_face_type) :: petsc_face
-    PetscReal, pointer :: face_geom_array(:), petsc_face_geom_array(:)
-    PetscReal, pointer :: cell_geom_array(:)
+    PetscReal, pointer, contiguous :: face_geom_array(:), petsc_face_geom_array(:)
+    PetscReal, pointer, contiguous :: cell_geom_array(:)
     DMLabel :: ghost_label, bdy_label
     PetscInt, pointer :: cells(:)
     IS :: bdy_IS
@@ -657,8 +657,8 @@ contains
     PetscInt, intent(in) :: rock_range_start !! Start of range for global rock vector
     ! Locals:
     PetscInt :: ibdy, f, i, num_faces, iface, np, n
-    PetscReal, pointer :: y_array(:), fluid_array(:), rock_array(:)
-    PetscReal, pointer :: cell_primary(:), rock1(:), rock2(:)
+    PetscReal, pointer, contiguous :: y_array(:), fluid_array(:), rock_array(:)
+    PetscReal, pointer, contiguous :: cell_primary(:), rock1(:), rock2(:)
     PetscSection :: y_section, fluid_section, rock_section
     IS :: bdy_IS
     DMLabel :: ghost_label

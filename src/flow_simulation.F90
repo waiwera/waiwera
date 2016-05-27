@@ -447,8 +447,8 @@ end subroutine flow_simulation_run_info
     PetscInt :: c, ghost, np, nc
     PetscSection :: fluid_section, rock_section, lhs_section
     PetscInt :: fluid_offset, rock_offset, lhs_offset
-    PetscReal, pointer :: fluid_array(:), rock_array(:), lhs_array(:)
-    PetscReal, pointer :: balance(:)
+    PetscReal, pointer, contiguous :: fluid_array(:), rock_array(:), lhs_array(:)
+    PetscReal, pointer, contiguous :: balance(:)
     type(cell_type) :: cell
     DMLabel :: ghost_label
     PetscErrorCode :: ierr
@@ -528,10 +528,10 @@ end subroutine flow_simulation_run_info
     ! Locals:
     PetscInt :: f, c, ghost_cell, ghost_face, i, np, nc
     Vec :: local_fluid, local_rock
-    PetscReal, pointer :: rhs_array(:)
-    PetscReal, pointer :: cell_geom_array(:), face_geom_array(:)
-    PetscReal, pointer :: fluid_array(:), rock_array(:)
-    PetscReal, pointer :: source_array(:)
+    PetscReal, pointer, contiguous :: rhs_array(:)
+    PetscReal, pointer, contiguous :: cell_geom_array(:), face_geom_array(:)
+    PetscReal, pointer, contiguous :: fluid_array(:), rock_array(:)
+    PetscReal, pointer, contiguous :: source_array(:)
     PetscSection :: rhs_section, rock_section, fluid_section
     PetscSection :: source_section
     PetscSection :: cell_geom_section, face_geom_section
@@ -543,7 +543,7 @@ end subroutine flow_simulation_run_info
     PetscInt :: fluid_offset
     DMLabel :: ghost_label
     PetscInt, pointer :: cells(:)
-    PetscReal, pointer :: inflow(:)
+    PetscReal, pointer, contiguous :: inflow(:)
     PetscReal, allocatable :: face_flow(:), source(:)
     PetscReal, parameter :: flux_sign(2) = [-1._dp, 1._dp]
     PetscReal, allocatable :: primary(:)
@@ -798,8 +798,8 @@ end subroutine flow_simulation_run_info
     PetscInt :: c, np, nc, ghost, order
     PetscSection :: y_section, fluid_section, rock_section
     PetscInt :: y_offset, fluid_offset, rock_offset
-    PetscReal, pointer :: y_array(:), cell_primary(:)
-    PetscReal, pointer :: fluid_array(:), rock_array(:)
+    PetscReal, pointer, contiguous :: y_array(:), cell_primary(:)
+    PetscReal, pointer, contiguous :: fluid_array(:), rock_array(:)
     type(cell_type) :: cell
     DMLabel :: ghost_label, order_label
     PetscErrorCode :: ierr
@@ -901,8 +901,8 @@ end subroutine flow_simulation_run_info
     PetscInt :: c, np, nc, ghost, order
     PetscSection :: y_section, fluid_section, rock_section
     PetscInt :: y_offset, fluid_offset, rock_offset
-    PetscReal, pointer :: y_array(:), cell_primary(:)
-    PetscReal, pointer :: fluid_array(:), rock_array(:)
+    PetscReal, pointer, contiguous :: y_array(:), cell_primary(:)
+    PetscReal, pointer, contiguous :: fluid_array(:), rock_array(:)
     type(cell_type) :: cell
     DMLabel :: ghost_label, order_label
     PetscErrorCode :: ierr
@@ -1009,9 +1009,9 @@ end subroutine flow_simulation_run_info
     PetscInt :: c, np, nc, ghost, order
     PetscSection :: primary_section, fluid_section
     PetscInt :: primary_offset, fluid_offset
-    PetscReal, pointer :: primary_array(:), old_primary_array(:), search_array(:)
-    PetscReal, pointer :: cell_primary(:), old_cell_primary(:), cell_search(:)
-    PetscReal, pointer :: last_iteration_fluid_array(:), fluid_array(:)
+    PetscReal, pointer, contiguous :: primary_array(:), old_primary_array(:), search_array(:)
+    PetscReal, pointer, contiguous :: cell_primary(:), old_cell_primary(:), cell_search(:)
+    PetscReal, pointer, contiguous :: last_iteration_fluid_array(:), fluid_array(:)
     type(fluid_type) :: last_iteration_fluid, fluid
     DMLabel :: ghost_label, order_label
     PetscBool :: transition
