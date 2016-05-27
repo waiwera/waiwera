@@ -92,24 +92,16 @@ contains
     !! Assigns geometry pointers in a face to elements of the specified data array,
     !! starting from the given offset.
 
-    use profiling_module, only: assign_pointers_event
-
     class(face_type), intent(in out) :: self
     PetscReal, pointer, contiguous, intent(in) :: data(:)  !! array with face geometry data
     PetscInt, intent(in) :: offset  !! face geometry array offset for this face
-    ! Locals:
-    PetscErrorCode :: ierr
 
-    call PetscLogEventBegin(assign_pointers_event, ierr); CHKERRQ(ierr)
-    
     self%area => data(offset)
     self%distance => data(offset + 1: offset + 2)
     self%normal => data(offset + 3: offset + 5)
     self%centroid => data(offset + 6: offset + 8)
     self%permeability_direction => data(offset + 9)
     self%distance12 = sum(self%distance)
-
-    call PetscLogEventEnd(assign_pointers_event, ierr); CHKERRQ(ierr)
 
   end subroutine face_assign_geometry
 
@@ -375,7 +367,6 @@ contains
     !! for non-isothermal simulations.
 
     use eos_module, only: eos_type
-    use profiling_module, only: face_flux_event
 
     class(face_type), intent(in) :: self
     class(eos_type), intent(in) :: eos
@@ -388,9 +379,6 @@ contains
     PetscReal :: phase_flux(self%cell(1)%fluid%num_components)
     PetscReal :: k, h, cond, mobility
     PetscInt :: phases(2), phase_present
-    PetscErrorCode :: ierr
-
-    call PetscLogEventBegin(face_flux_event, ierr); CHKERRQ(ierr)
 
     nc = eos%num_components
     np = eos%num_primary_variables
@@ -440,8 +428,6 @@ contains
        end if
 
     end do
-
-    call PetscLogEventEnd(face_flux_event, ierr); CHKERRQ(ierr)
 
   end function face_flux
 

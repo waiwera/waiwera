@@ -61,20 +61,12 @@ contains
     !! Assigns cell geometry pointers to values from specified data
     !! array, starting from the given offset.
 
-    use profiling_module, only: assign_pointers_event
-
     class(cell_type), intent(in out) :: self
     PetscReal, pointer, contiguous, intent(in) :: data(:)  !! array with geometry data
     PetscInt, intent(in)  :: offset  !! geometry array offset for this cell
-    ! Locals:
-    PetscErrorCode :: ierr
-
-    Call PetscLogEventBegin(assign_pointers_event, ierr); CHKERRQ(ierr)
 
     self%centroid => data(offset: offset + 2)
     self%volume => data(offset + 3)
-
-    call PetscLogEventEnd(assign_pointers_event, ierr); CHKERRQ(ierr)
 
   end subroutine cell_assign_geometry
 
