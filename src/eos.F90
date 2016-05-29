@@ -310,8 +310,6 @@ contains
     PetscReal, intent(in) :: primary(self%num_primary_variables) !! Primary thermodynamic variables
     type(fluid_type), intent(in out) :: fluid !! Fluid object
     PetscErrorCode, intent(out) :: err
-    ! Locals:
-    PetscErrorCode :: ierr
 
     err = 0
     fluid%pressure = primary(1)
@@ -366,7 +364,6 @@ contains
     ! Locals:
     PetscInt :: p
     PetscReal :: properties(2)
-    PetscErrorCode :: ierr
 
     err = 0
     p = nint(fluid%region)
@@ -640,7 +637,6 @@ end subroutine eos_w_phase_properties
     PetscErrorCode, intent(out) :: err !! Error code
     ! Locals:
     PetscInt :: region
-    PetscErrorCode :: ierr
 
     err = 0
     fluid%pressure = primary(1)
@@ -709,7 +705,6 @@ end subroutine eos_w_phase_properties
     ! Locals:
     PetscInt :: p, phases
     PetscReal :: properties(2), sl, relative_permeability(2)
-    PetscErrorCode :: ierr
 
     err = 0
     phases = nint(fluid%phase_composition)

@@ -247,7 +247,6 @@ contains
     PetscReal, intent(in) :: val !! value to compute powers of
     ! Locals:
     PetscInt :: n
-    PetscErrorCode :: ierr
 
     self%power(1) = val
     if (self%lower < 0) then

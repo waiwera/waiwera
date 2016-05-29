@@ -391,7 +391,6 @@ contains
     ! Locals:
     PetscReal:: del, tk, tau
     PetscReal:: mu0, mu1, s0, s1
-    PetscErrorCode :: ierr
 
     tk = temperature + tc_k
     tau = tk / tcriticalk
@@ -468,7 +467,6 @@ contains
     PetscInt, intent(out) :: err !! error code
     ! Locals:
     PetscReal:: tk, rt, pi, tau, gampi, gamt
-    PetscErrorCode :: ierr
     
     associate (p => param(1), t => param(2))
 
@@ -560,7 +558,6 @@ contains
     PetscInt, intent(out) :: err  !! error code
     ! Locals:
     PetscReal:: tk, rt, pi, tau, gampir, gamt0, gamtr, gampi
-    PetscErrorCode :: ierr
 
     associate (p => param(1), t => param(2))
 
@@ -650,7 +647,6 @@ contains
     ! Locals:
     PetscReal:: tk, rt, delta, tau
     PetscReal:: phidelta, phitau
-    PetscErrorCode :: ierr
 
     associate (d => param(1), t => param(2))
 
@@ -722,7 +718,6 @@ contains
     ! Locals:
     PetscReal:: tk
     PetscReal:: theta, theta2, a, b, c, x
-    PetscErrorCode :: ierr
 
     if ((t >= 0._dp).and.(t <= tcritical)) then
        tk = t + tc_k      
@@ -753,7 +748,6 @@ contains
     PetscInt, intent(out) :: err !! Error code
     ! Locals:
     PetscReal:: beta, beta2, d, e, f, g, x
-    PetscErrorCode :: ierr
 
     if ((p >= 611.213_dp).and.(p <= pcritical)) then
        beta2 = dsqrt(p / self%pstar)

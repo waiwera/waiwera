@@ -245,7 +245,6 @@ contains
     PetscReal :: SNUM, TKR, TKR2, TKR3, TKR4, TKR5, TKR6, TKR7, TKR8, TKR9, TKR10, &
          TKR11, TKR18, TKR19, TKR20
     PetscReal :: V, VMKR, Y, YD, Z, ZP, D, U
-    PetscErrorCode :: ierr
     
     associate (p => param(1), t => param(2))
 
@@ -352,7 +351,6 @@ contains
     ! Locals:
     PetscReal :: ex, phi, am, ps
     PetscInt :: err
-    PetscErrorCode :: ierr
 
     ex = 247.8_dp / (temperature + 133.15_dp)
     phi = 1.0467_dp * (temperature - 31.85_dp)
@@ -402,7 +400,6 @@ contains
     PetscReal :: SC, SD1, SD12, SD2, SD22, SD3, SD32, SN, SN6, SN7, SN8
     PetscReal ::  THETA, THETA2, THETA3, THETA4, V, D, U
     PetscReal :: X, X2, X3, X4, X5, X6, X8, X10, X11, X14, X18, X19, X24, X27
-    PetscErrorCode :: ierr
 
     associate (p => param(1), t => param(2))
 
@@ -552,7 +549,6 @@ contains
     PetscReal, intent(out) :: viscosity !! Viscosity (\(kg.m^{-1}.s^{-1}\))
     ! Locals:
     PetscReal :: v1
-    PetscErrorCode :: ierr
 
     v1 = 0.407_dp * temperature + 80.4_dp
     if (temperature <= 350.0_dp) then
@@ -579,7 +575,6 @@ subroutine saturation_pressure(self, t, p, err)
   PetscInt, intent(out) :: err  !! Error code
   ! Locals:
   PetscReal :: PC, SC, TC, X1, X2
-  PetscErrorCode :: ierr
 
   if ((t >= 1._dp).and.(t <= tcritical67)) then
      TC = (t + tc_k) / tcriticalk67
@@ -615,7 +610,6 @@ subroutine saturation_temperature(self, p, t, err)
   PetscReal ::  dt, ps, psd, tsd
   PetscInt :: i
   PetscBool :: found
-  PetscErrorCode :: ierr
 
   if ((p >= 0.0061e5_dp) .and. (p <= pcritical67)) then
 
