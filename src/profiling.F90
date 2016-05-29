@@ -10,9 +10,9 @@ module profiling_module
   PetscLogEvent, public :: simulation_init_event
   PetscLogEvent, public :: fluid_init_event
   PetscLogEvent, public :: fluid_properties_event, fluid_transitions_event
-  PetscLogEvent, public :: lhs_fn_event, rhs_fn_event
-  PetscLogEvent, public :: output_event
+  PetscLogEvent, public :: cell_balances_event
   PetscLogEvent, public :: cell_inflows_event, sources_event
+  PetscLogEvent, public :: output_event
 
   public :: init_profiling
 
@@ -36,8 +36,7 @@ contains
          fluid_properties_event, ierr)
     call PetscLogEventRegister("fluid_trans", log_class, &
          fluid_transitions_event, ierr)
-    call PetscLogEventRegister("lhs_function", log_class, lhs_fn_event, ierr)
-    call PetscLogEventRegister("rhs_function", log_class, rhs_fn_event, ierr)
+    call PetscLogEventRegister("cell_balances", log_class, cell_balances_event, ierr)
     call PetscLogEventRegister("output", log_class, output_event, ierr)
     call PetscLogEventRegister("cell_inflows", log_class, &
          cell_inflows_event, ierr)
