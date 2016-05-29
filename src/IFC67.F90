@@ -233,8 +233,6 @@ contains
     !!
     !! Returns err = 1 if called outside its operating range (t<=350 deg C, p<=100 MPa).
 
-    use profiling_module, only: thermo_region1_properties_event
-
     class(IFC67_region1_type), intent(in out) :: self
     PetscReal, intent(in) :: param(:) !! Primary variables (pressure, temperature)
     PetscReal, intent(out):: props(:) !! (density, internal energy)
@@ -248,8 +246,6 @@ contains
          TKR11, TKR18, TKR19, TKR20
     PetscReal :: V, VMKR, Y, YD, Z, ZP, D, U
     PetscErrorCode :: ierr
-    
-    call PetscLogEventBegin(thermo_region1_properties_event, ierr); CHKERRQ(ierr)
     
     associate (p => param(1), t => param(2))
 
@@ -341,16 +337,12 @@ contains
 
     end associate
 
-    call PetscLogEventEnd(thermo_region1_properties_event, ierr); CHKERRQ(ierr)
-    
   end subroutine region1_properties
 
 !------------------------------------------------------------------------
 
   subroutine region1_viscosity(self, temperature, pressure, density, viscosity)
     !! Calculates water viscosity. Density is a dummy argument and is not used.
-
-    use profiling_module, only: thermo_viscosity_event
 
     class(IFC67_region1_type), intent(in out) :: self
     PetscReal, intent(in) :: temperature  !! Fluid temperature (\(^\circ C\))
@@ -362,15 +354,11 @@ contains
     PetscInt :: err
     PetscErrorCode :: ierr
 
-    call PetscLogEventBegin(thermo_viscosity_event, ierr); CHKERRQ(ierr)
-
     ex = 247.8_dp / (temperature + 133.15_dp)
     phi = 1.0467_dp * (temperature - 31.85_dp)
     call self%saturation%pressure(temperature, ps, err)
     am = 1.0_dp + phi * (pressure - ps) * 1.0e-11_dp
     viscosity = 1.0e-7_dp * am * 241.4_dp * 10.0_dp ** ex
-
-    call PetscLogEventEnd(thermo_viscosity_event, ierr); CHKERRQ(ierr)
 
   end subroutine region1_viscosity
 
@@ -404,8 +392,6 @@ contains
     !!
     !! Returns err = 1 if called outside its operating range (t<=800 deg C, p<=100 MPa).
 
-    use profiling_module, only: thermo_region2_properties_event
-
     class(IFC67_region2_type), intent(in out) :: self
     PetscReal, intent(in) :: param(:) !! Primary variables (pressure, temperature)
     PetscReal, intent(out):: props(:)  !! (density, internal energy)
@@ -417,8 +403,6 @@ contains
     PetscReal ::  THETA, THETA2, THETA3, THETA4, V, D, U
     PetscReal :: X, X2, X3, X4, X5, X6, X8, X10, X11, X14, X18, X19, X24, X27
     PetscErrorCode :: ierr
-
-    call PetscLogEventBegin(thermo_region2_properties_event, ierr); CHKERRQ(ierr)
 
     associate (p => param(1), t => param(2))
 
@@ -554,16 +538,12 @@ contains
 
     end associate
 
-    call PetscLogEventEnd(thermo_region2_properties_event, ierr); CHKERRQ(ierr)
-
   end subroutine region2_properties
 
 !------------------------------------------------------------------------
 
   subroutine region2_viscosity(self, temperature, pressure, density, viscosity)
     !! Calculates water viscosity. Pressure is a dummy argument and is not used.
-
-    use profiling_module, only: thermo_viscosity_event
 
     class(IFC67_region2_type), intent(in out) :: self
     PetscReal, intent(in) :: temperature !! Fluid temperature (\(^\circ C\))
@@ -574,8 +554,6 @@ contains
     PetscReal :: v1
     PetscErrorCode :: ierr
 
-    call PetscLogEventBegin(thermo_viscosity_event, ierr); CHKERRQ(ierr)
-
     v1 = 0.407_dp * temperature + 80.4_dp
     if (temperature <= 350.0_dp) then
        viscosity = 1.0e-7_dp * (v1 - density * \
@@ -584,8 +562,6 @@ contains
         viscosity = 1.0e-7_dp * (v1 + density * \
         (0.353_dp + density * (676.5e-6_dp + density * 102.1e-9_dp)))
     end if
-
-    call PetscLogEventEnd(thermo_viscosity_event, ierr); CHKERRQ(ierr)
 
   end subroutine region2_viscosity
 
@@ -597,8 +573,6 @@ subroutine saturation_pressure(self, t, p, err)
   !! Calculates saturation pressure as a function of temperature.
   !! Returns err = 1 if called outside its operating range (1 <= t <= critical temperature).
 
-  use profiling_module, only: thermo_sat_pressure_event
-
   class(IFC67_saturation_type), intent(in) :: self
   PetscReal, intent(in) :: t  !! Fluid temperature (\(^\circ C\))
   PetscReal, intent(out):: p  !! Fluid pressure (\(kg. m. s^{-1}\))
@@ -606,8 +580,6 @@ subroutine saturation_pressure(self, t, p, err)
   ! Locals:
   PetscReal :: PC, SC, TC, X1, X2
   PetscErrorCode :: ierr
-
-  call PetscLogEventBegin(thermo_sat_pressure_event, ierr); CHKERRQ(ierr)
 
   if ((t >= 1._dp).and.(t <= tcritical67)) then
      TC = (t + tc_k) / tcriticalk67
@@ -625,8 +597,6 @@ subroutine saturation_pressure(self, t, p, err)
      err = 1
   end if
 
-  call PetscLogEventEnd(thermo_sat_pressure_event, ierr); CHKERRQ(ierr)
-
 end subroutine saturation_pressure
 
 !------------------------------------------------------------------------
@@ -634,8 +604,6 @@ end subroutine saturation_pressure
 subroutine saturation_temperature(self, p, t, err)
   !! Calculates saturation temperature (deg C) as a function of pressure.
   !! Returns err = 1 if called outside its operating range (611.213 Pa <= p <= critical pressure).
-
-  use profiling_module, only: thermo_sat_temperature_event
 
   class(IFC67_saturation_type), intent(in) :: self
   PetscReal, intent(in) :: p  !! Fluid pressure (\(kg. m. s^{-1}\))
@@ -648,8 +616,6 @@ subroutine saturation_temperature(self, p, t, err)
   PetscInt :: i
   PetscBool :: found
   PetscErrorCode :: ierr
-
-  call PetscLogEventBegin(thermo_sat_temperature_event, ierr); CHKERRQ(ierr)
 
   if ((p >= 0.0061e5_dp) .and. (p <= pcritical67)) then
 
@@ -686,8 +652,6 @@ subroutine saturation_temperature(self, p, t, err)
   else
      err = 1
   end if
-
-  call PetscLogEventEnd(thermo_sat_temperature_event, ierr); CHKERRQ(ierr)
 
 end subroutine saturation_temperature
 

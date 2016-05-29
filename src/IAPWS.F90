@@ -382,8 +382,6 @@ contains
   subroutine region_viscosity(self, temperature, pressure, density, viscosity)
     !! IAPWS viscosity routine.
 
-    use profiling_module, only: thermo_viscosity_event
-
     class(IAPWS_region_type), intent(in out) :: self
     PetscReal, intent(in) :: temperature !! Temperature
     PetscReal, intent(in) :: pressure    !! Pressure (not used)
@@ -394,8 +392,6 @@ contains
     PetscReal:: del, tk, tau
     PetscReal:: mu0, mu1, s0, s1
     PetscErrorCode :: ierr
-
-    call PetscLogEventBegin(thermo_viscosity_event, ierr); CHKERRQ(ierr)
 
     tk = temperature + tc_k
     tau = tk / tcriticalk
@@ -414,8 +410,6 @@ contains
     mu1 = exp(del*s1)
 
     viscosity = self%visc%mustar * mu0 * mu1
-
-    call PetscLogEventEnd(thermo_viscosity_event, ierr); CHKERRQ(ierr)
 
   end subroutine region_viscosity
 
@@ -468,8 +462,6 @@ contains
     !!
     !! Returns err = 1 if called outside its operating range (t<=350 deg C, p<=100 MPa).
 
-    use profiling_module, only: thermo_region1_properties_event
-
     class(IAPWS_region1_type), intent(in out) :: self
     PetscReal, intent(in) :: param(:) !! Primary variables (pressure, temperature)
     PetscReal, intent(out):: props(:) !! (density, internal energy)
@@ -478,8 +470,6 @@ contains
     PetscReal:: tk, rt, pi, tau, gampi, gamt
     PetscErrorCode :: ierr
     
-    call PetscLogEventBegin(thermo_region1_properties_event, ierr); CHKERRQ(ierr)
-
     associate (p => param(1), t => param(2))
 
       ! Check input:
@@ -505,8 +495,6 @@ contains
       end if
 
     end associate
-
-    call PetscLogEventEnd(thermo_region1_properties_event, ierr); CHKERRQ(ierr)
 
   end subroutine region1_properties
 
@@ -566,8 +554,6 @@ contains
     !!
     !! Returns err = 1 if called outside its operating range (t<=800 deg C, p<=100 MPa).
 
-    use profiling_module, only: thermo_region2_properties_event
-
     class(IAPWS_region2_type), intent(in out) :: self
     PetscReal, intent(in) :: param(:) !! Primary variables (pressure, temperature)
     PetscReal, intent(out):: props(:)  !! (density, internal energy)
@@ -575,8 +561,6 @@ contains
     ! Locals:
     PetscReal:: tk, rt, pi, tau, gampir, gamt0, gamtr, gampi
     PetscErrorCode :: ierr
-
-    call PetscLogEventBegin(thermo_region2_properties_event, ierr); CHKERRQ(ierr)
 
     associate (p => param(1), t => param(2))
 
@@ -607,8 +591,6 @@ contains
       end if
 
     end associate
-
-    call PetscLogEventEnd(thermo_region2_properties_event, ierr); CHKERRQ(ierr)
 
   end subroutine region2_properties
 
@@ -661,8 +643,6 @@ contains
     !!
     !! Returns err = 1 if resulting pressure is outside its operating range (p<=100 MPa).
 
-    use profiling_module, only: thermo_region3_properties_event
-
     class(IAPWS_region3_type), intent(in out) :: self
     PetscReal, intent(in) :: param(:) !! Primary variables (density, temperature)
     PetscReal, intent(out):: props(:)  !! (pressure, internal energy)
@@ -671,8 +651,6 @@ contains
     PetscReal:: tk, rt, delta, tau
     PetscReal:: phidelta, phitau
     PetscErrorCode :: ierr
-
-    call PetscLogEventBegin(thermo_region3_properties_event, ierr); CHKERRQ(ierr)
 
     associate (d => param(1), t => param(2))
 
@@ -697,8 +675,6 @@ contains
       end if
 
     end associate
-
-    call PetscLogEventEnd(thermo_region3_properties_event, ierr); CHKERRQ(ierr)
 
   end subroutine region3_properties
 
@@ -739,8 +715,6 @@ contains
     !! Calculates saturation pressure as a function of temperature.
     !! Returns err = 1 if called outside its operating range (0 <= t <= critical temperature).
 
-    use profiling_module, only: thermo_sat_pressure_event
-
     class(IAPWS_saturation_type), intent(in) :: self
     PetscReal, intent(in) :: t  !! Fluid temperature (\(^\circ C\))
     PetscReal, intent(out):: p  !! Fluid pressure (\(kg. m. s^{-1}\))
@@ -749,8 +723,6 @@ contains
     PetscReal:: tk
     PetscReal:: theta, theta2, a, b, c, x
     PetscErrorCode :: ierr
-
-    call PetscLogEventBegin(thermo_sat_pressure_event, ierr); CHKERRQ(ierr)
 
     if ((t >= 0._dp).and.(t <= tcritical)) then
        tk = t + tc_k      
@@ -767,8 +739,6 @@ contains
        err = 1
     end if
 
-    call PetscLogEventEnd(thermo_sat_pressure_event, ierr); CHKERRQ(ierr)
-
   end subroutine saturation_pressure
 
 !------------------------------------------------------------------------
@@ -777,8 +747,6 @@ contains
     !! Calculates saturation temperature (deg C) as a function of pressure.
     !! Returns err = 1 if called outside its operating range (611.213 Pa <= p <= critical pressure).
 
-    use profiling_module, only: thermo_sat_temperature_event
-
     class(IAPWS_saturation_type), intent(in) :: self
     PetscReal, intent(in) :: p  !! Fluid pressure (\(kg. m. s^{-1}\))
     PetscReal, intent(out):: t  !! Fluid temperature (\(^\circ C\))
@@ -786,8 +754,6 @@ contains
     ! Locals:
     PetscReal:: beta, beta2, d, e, f, g, x
     PetscErrorCode :: ierr
-
-    call PetscLogEventBegin(thermo_sat_temperature_event, ierr); CHKERRQ(ierr)
 
     if ((p >= 611.213_dp).and.(p <= pcritical)) then
        beta2 = dsqrt(p / self%pstar)
@@ -802,8 +768,6 @@ contains
     else
        err = 1
     end if
-
-    call PetscLogEventEnd(thermo_sat_temperature_event, ierr); CHKERRQ(ierr)
 
   end subroutine saturation_temperature
 
