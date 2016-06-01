@@ -7,7 +7,7 @@ website: https://unidirectory.auckland.ac.nz/profile/a-croucher
 github: https://github.com/acroucher
 project_github: https://github.com/johnburnell/supermodels-test
 project_dir: ./src
-output_dir: ./doc/dev
+output_dir: ./doc/ford
 extensions: F90
 extra_vartypes: PetscErrorCode
                 MPI_Comm
