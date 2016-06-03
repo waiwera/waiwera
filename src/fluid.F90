@@ -1,5 +1,11 @@
 module fluid_module
   !! Module for accessing fluid properties.
+  !!
+  !! A [[fluid_type(type)]] object has two kinds of properties:
+  !! **bulk** properties and **phase** properties. The bulk properties
+  !! relate to the fluid as a whole. The phase properties describe the
+  !! state of each fluid phase and are stored in an array component of
+  !! [[phase_type]] objects.
 
   use kinds_module
 
@@ -39,8 +45,16 @@ module fluid_module
 
   type fluid_type
      !! Type for accessing local fluid properties.
+     !!
+     !! The main bulk fluid properties are [[fluid_type:pressure]] and
+     !! [[fluid_type:temperature]]. The [[fluid_type:phase]] component
+     !! is an array of [[phase_type]] objects containing the fluid
+     !! properties of individual phases.  The thermodynamic
+     !! [[fluid_type:region]] and [[fluid_type:phase_composition]]
+     !! contain integer data (though stored as real in the underlying
+     !! data vector).
      private
-     PetscReal, pointer, public :: pressure    !! Bulk pressure
+     PetscReal, pointer, public :: pressure    !! Pressure
      PetscReal, pointer, public :: temperature !! Temperature
      PetscReal, pointer, public :: region      !! Thermodynamic region
      PetscReal, pointer, public :: phase_composition   !! Phase composition
@@ -62,7 +76,7 @@ module fluid_module
           fluid_update_phase_composition
   end type fluid_type
 
-  public :: fluid_type, setup_fluid_vector
+  public :: fluid_type, phase_type, setup_fluid_vector
 
 contains
 
@@ -88,7 +102,8 @@ contains
 !------------------------------------------------------------------------
 
   PetscReal function phase_mobility(self)
-    !! Returns mobility of the phase.
+    !! Returns mobility of the phase:
+    !! mobility = \(k_r \rho / \nu \)
 
     class(phase_type), intent(in) :: self
 
