@@ -1,3 +1,6 @@
 title: Developers' Guide
 
-Links to developer documentation subpages here.
+This guide contains:
+
+- the [code structure](code/index.html) guide
+- the [code implementation](impl/index.html) guide
