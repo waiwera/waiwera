@@ -1073,7 +1073,7 @@ end subroutine timestepper_steps_set_next_stepsize
     call VecGetArrayF90(unscaled_residual, unscaled_residual_array, ierr)
     CHKERRQ(ierr)
     call VecGetArrayF90(residual, residual_array, ierr); CHKERRQ(ierr)
-    call VecGetArrayF90(context%steps%current%lhs, lhs_array, ierr)
+    call VecGetArrayF90(context%steps%last%lhs, lhs_array, ierr)
     CHKERRQ(ierr)
 
     call VecGetOwnershipRange(unscaled_residual, low, hi, ierr); CHKERRQ(ierr)
@@ -1101,7 +1101,6 @@ end subroutine timestepper_steps_set_next_stepsize
        call SNESConvergedDefault(solver, num_iterations, xnorm, pnorm, &
             fnorm, reason, PETSC_NULL_OBJECT, ierr); CHKERRQ(ierr)
     end if
-
 
   end subroutine SNES_convergence
 
