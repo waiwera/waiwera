@@ -1,5 +1,5 @@
 project: Geothermal Supermodels
-version: 0.001
+version: 0.0.1
 author: Dr Adrian Croucher
 author_description: Senior Research Fellow, Department of Engineering Science, University of Auckland
 email: a.croucher@auckland.ac.nz
@@ -7,7 +7,8 @@ website: https://unidirectory.auckland.ac.nz/profile/a-croucher
 github: https://github.com/acroucher
 project_github: https://github.com/johnburnell/supermodels-test
 project_dir: ./src
-output_dir: ./doc/dev
+output_dir: ./doc/ford
+page_dir: ./doc/dev
 extensions: F90
 extra_vartypes: PetscErrorCode
                 MPI_Comm
