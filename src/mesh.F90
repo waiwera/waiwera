@@ -389,24 +389,26 @@ contains
 
     end do
 
-    ! Set external boundary face connection distances to zero:
-    do ibdy = 1, size(self%bcs, 2)
-       call DMGetStratumIS(self%dm, open_boundary_label_name, ibdy, bdy_IS, &
-            ierr); CHKERRQ(ierr)
-       if (bdy_IS /= 0) then
-          call ISGetIndicesF90(bdy_IS, bdy_faces, ierr); CHKERRQ(ierr)
-          num_faces = size(bdy_faces)
-          do iface = 1, num_faces
-             f = bdy_faces(iface)
-             call section_offset(face_section, f, face_offset, ierr)
-             CHKERRQ(ierr)
-             call face%assign_geometry(face_geom_array, face_offset)
-             face%distance(2) = 0._dp
-          end do
-          call ISRestoreIndicesF90(bdy_IS, bdy_faces, ierr); CHKERRQ(ierr)
-       end if
-       call ISDestroy(bdy_IS, ierr); CHKERRQ(ierr)
-    end do
+    if (allocated(self%bcs)) then
+       ! Set external boundary face connection distances to zero:
+       do ibdy = 1, size(self%bcs, 2)
+          call DMGetStratumIS(self%dm, open_boundary_label_name, ibdy, bdy_IS, &
+               ierr); CHKERRQ(ierr)
+          if (bdy_IS /= 0) then
+             call ISGetIndicesF90(bdy_IS, bdy_faces, ierr); CHKERRQ(ierr)
+             num_faces = size(bdy_faces)
+             do iface = 1, num_faces
+                f = bdy_faces(iface)
+                call section_offset(face_section, f, face_offset, ierr)
+                CHKERRQ(ierr)
+                call face%assign_geometry(face_geom_array, face_offset)
+                face%distance(2) = 0._dp
+             end do
+             call ISRestoreIndicesF90(bdy_IS, bdy_faces, ierr); CHKERRQ(ierr)
+          end if
+          call ISDestroy(bdy_IS, ierr); CHKERRQ(ierr)
+       end do
+    end if
 
     call face%destroy()
     call petsc_face%destroy()
