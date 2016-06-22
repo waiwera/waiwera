@@ -593,7 +593,7 @@ contains
     PetscInt, intent(in) :: adapt_method
     PetscReal, intent(in) :: adapt_min, adapt_max
     PetscReal, intent(in) :: adapt_reduction, adapt_amplification
-    PetscReal, intent(in), optional :: step_sizes(:)
+    PetscReal, intent(in), allocatable, optional :: step_sizes(:)
     PetscReal, intent(in) :: nonlinear_solver_relative_tol, &
          nonlinear_solver_abs_tol
     PetscInt, intent(in) :: max_num_tries
@@ -643,7 +643,7 @@ contains
     self%nonlinear_solver_relative_tol = nonlinear_solver_relative_tol
     self%nonlinear_solver_abs_tol = nonlinear_solver_abs_tol
 
-    if ((present(step_sizes) .and. (size(step_sizes) > 0))) then
+    if ((present(step_sizes) .and. (allocated(step_sizes)))) then
        ! Fixed time step sizes override adaptor:
        self%sizes = step_sizes
        self%adaptor%on = PETSC_FALSE
@@ -855,7 +855,7 @@ contains
     step_index = self%taken + 1
     next_index = step_index + 1
 
-    if (next_index <= size(self%sizes)) then
+    if ((allocated(self%sizes)) .and. (next_index <= size(self%sizes))) then
        self%next_stepsize = self%sizes(next_index)
     else
        self%next_stepsize = self%current%stepsize
@@ -1165,7 +1165,6 @@ end subroutine timestepper_steps_set_next_stepsize
          default_adapt_amplification = 2.0_dp
     PetscReal :: adapt_reduction, adapt_amplification
     PetscReal, allocatable :: step_sizes(:)
-    PetscReal, parameter :: default_step_sizes(0) = [PetscReal::]
     PetscInt, parameter :: default_nonlinear_solver_max_iterations = 8
     PetscReal, parameter :: default_nonlinear_solver_relative_tol = 1.e-6_dp
     PetscReal, parameter :: default_nonlinear_solver_abs_tol = 1._dp
@@ -1248,8 +1247,12 @@ end subroutine timestepper_steps_set_next_stepsize
     call fson_get_mpi(json, "time.step.adapt.amplification", &
          default_adapt_amplification, adapt_amplification, self%ode%logfile)
 
-    call fson_get_mpi(json, "time.step.sizes", &
-         default_step_sizes, step_sizes, self%ode%logfile)
+    if (fson_has_mpi(json, "time.step.sizes")) then
+       call fson_get_mpi(json, "time.step.sizes", val = step_sizes)
+       call self%ode%logfile%write(LOG_LEVEL_INFO, 'timestep', 'specified_step_sizes')
+    else
+       call self%ode%logfile%write(LOG_LEVEL_INFO, 'timestep', 'adaptive_step_sizes')
+    end if
 
     call fson_get_mpi(json, &
          "time.step.solver.nonlinear.maximum.iterations", &
@@ -1282,8 +1285,6 @@ end subroutine timestepper_steps_set_next_stepsize
          default_output_final, self%output_final, self%ode%logfile)
 
     call self%ode%logfile%write_blank()
-
-    deallocate(step_sizes)
 
   end subroutine timestepper_init
 
