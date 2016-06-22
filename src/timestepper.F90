@@ -1249,9 +1249,9 @@ end subroutine timestepper_steps_set_next_stepsize
 
     if (fson_has_mpi(json, "time.step.sizes")) then
        call fson_get_mpi(json, "time.step.sizes", val = step_sizes)
-       call self%ode%logfile%write(LOG_LEVEL_INFO, 'timestep', 'specified_step_sizes')
     else
-       call self%ode%logfile%write(LOG_LEVEL_INFO, 'timestep', 'adaptive_step_sizes')
+       call self%ode%logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
+            str_key = "time.step.sizes", str_value = "adaptive")
     end if
 
     call fson_get_mpi(json, &
