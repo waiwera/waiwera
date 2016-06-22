@@ -302,7 +302,7 @@ contains
 
     use kinds_module
     use face_module
-    use dm_utils_module, only: section_offset, local_vec_section
+    use dm_utils_module, only: section_offset, local_vec_section, set_dm_data_layout
 
     class(mesh_type), intent(in out) :: self
     ! Locals:
@@ -323,6 +323,8 @@ contains
     IS :: bdy_IS
     PetscInt, pointer :: bdy_faces(:)
 
+    call face%init()
+
     ! First call PETSc geometry routine- we use the cell geometry vector but need to 
     ! create our own face geometry vector, containing additional parameters:
     call DMPlexTSGetGeometryFVM(self%dm, petsc_face_geom, self%cell_geom, &
@@ -331,18 +333,12 @@ contains
 
     ! Set up face geometry vector:
     call DMClone(self%dm, dm_face, ierr); CHKERRQ(ierr)
-    ! replace this with set_dm_data_layout()?
-    call PetscSectionCreate(mpi%comm, face_section, ierr); CHKERRQ(ierr)
-    call PetscSectionSetChart(face_section, self%start_face, &
-         self%end_face, ierr); CHKERRQ(ierr)
-    call face%init()
-    do f = self%start_face, self%end_face - 1
-       call PetscSectionSetDof(face_section, f, face%dof, ierr); CHKERRQ(ierr)
-    end do
-    call PetscSectionSetUp(face_section, ierr); CHKERRQ(ierr)
-    call DMSetDefaultSection(dm_face, face_section, ierr); CHKERRQ(ierr)
+    call set_dm_data_layout(dm_face, face_variable_num_components, face_variable_dim, &
+         face_variable_names)
 
     call DMCreateLocalVector(dm_face, self%face_geom, ierr); CHKERRQ(ierr)
+    call PetscObjectSetName(self%face_geom, "face_geometry", ierr); CHKERRQ(ierr)
+    call local_vec_section(self%face_geom, face_section)
     call VecGetArrayF90(self%face_geom, face_geom_array, ierr); CHKERRQ(ierr)
 
     call local_vec_section(self%cell_geom, cell_section)

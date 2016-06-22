@@ -66,7 +66,6 @@ contains
     end if
 
     call DMSetDefaultSection(dm, section, ierr); CHKERRQ(ierr)
-    call PetscSectionDestroy(section, ierr); CHKERRQ(ierr)
     ! Create the global section:
     call DMGetDefaultGlobalSection(dm, section, ierr); CHKERRQ(ierr)
     deallocate(num_dof)
