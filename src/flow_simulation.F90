@@ -360,7 +360,12 @@ end subroutine flow_simulation_run_info
     call self%mesh%init(json, self%logfile)
     call setup_rocktype_labels(json, self%mesh%dm, self%logfile)
     call self%mesh%setup_boundaries(json, self%eos, self%logfile)
-    call self%mesh%configure(self%eos%primary_variable_names, self%hdf5_viewer)
+    if (self%output_filename == '') then
+       call self%mesh%configure(self%eos%primary_variable_names)
+    else
+       call self%mesh%configure(self%eos%primary_variable_names, &
+            self%hdf5_viewer)
+    end if
     call self%output_mesh_geometry()
 
     call self%setup_solution_vector()
