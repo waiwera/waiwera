@@ -1115,6 +1115,8 @@ end subroutine timestepper_steps_set_next_stepsize
     MatType :: mat_type
     PetscErrorCode :: ierr
 
+    call PetscOptionsSetValue(PETSC_NULL_OBJECT, "-mat_fd_type", "ds", ierr)
+    CHKERRQ(ierr)
     call VecGetBlockSize(self%ode%solution, blocksize, ierr); CHKERRQ(ierr)
     if (blocksize == 1) then
        mat_type = MATAIJ
