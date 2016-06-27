@@ -1168,7 +1168,7 @@ end subroutine timestepper_steps_set_next_stepsize
     PetscReal :: adapt_reduction, adapt_amplification
     PetscReal, allocatable :: step_sizes(:)
     PetscInt, parameter :: default_nonlinear_solver_max_iterations = 8
-    PetscReal, parameter :: default_nonlinear_solver_relative_tol = 1.e-6_dp
+    PetscReal, parameter :: default_nonlinear_solver_relative_tol = 1.e-5_dp
     PetscReal, parameter :: default_nonlinear_solver_abs_tol = 1._dp
     PetscInt :: nonlinear_solver_max_iterations
     PetscReal :: nonlinear_solver_relative_tol, nonlinear_solver_abs_tol
