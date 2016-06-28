@@ -838,7 +838,8 @@ end subroutine flow_simulation_run_info
                 call DMLabelGetValue(order_label, c, order, ierr)
                 CHKERRQ(ierr)
                 call self%logfile%write(LOG_LEVEL_ERR, 'initialize', &
-                     'fluid_phase_properties', ['cell            '], [order], &
+                     'fluid', ['cell  ', 'region'], [order, int(cell%fluid%region)], &
+                     real_array_key = 'primary', real_array_value = cell_primary, &
                      rank = mpi%rank)
                 exit
              end if
@@ -846,7 +847,8 @@ end subroutine flow_simulation_run_info
              call DMLabelGetValue(order_label, c, order, ierr)
              CHKERRQ(ierr)
              call self%logfile%write(LOG_LEVEL_ERR, 'initialize', &
-                  'fluid', ['cell            '], [order], &
+                  'fluid', ['cell  ', 'region'], [order, int(cell%fluid%region)], &
+                  real_array_key = 'primary', real_array_value = cell_primary, &
                   rank = mpi%rank)
              exit
           end if
