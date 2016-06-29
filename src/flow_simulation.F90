@@ -410,7 +410,6 @@ end subroutine flow_simulation_run_info
     PetscLogDouble :: end_wall_time, elapsed_time
 
     call self%destroy_output()
-    call self%logfile%destroy()
 
     call VecDestroy(self%solution, ierr); CHKERRQ(ierr)
     call VecDestroy(self%fluid, ierr); CHKERRQ(ierr)
@@ -430,6 +429,8 @@ end subroutine flow_simulation_run_info
     call self%logfile%write(LOG_LEVEL_INFO, 'simulation', 'destroy', &
          real_keys = ['elapsed_seconds'], real_values = [elapsed_time], &
          str_key = 'time', str_value = date_time_str())
+
+    call self%logfile%destroy()
 
   end subroutine flow_simulation_destroy
 
