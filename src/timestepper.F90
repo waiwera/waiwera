@@ -980,6 +980,9 @@ end subroutine timestepper_steps_set_next_stepsize
     PetscInt, intent(in) :: max_iterations
     ! Locals:
     PetscErrorCode :: ierr
+    MatColoring :: matrix_coloring
+    MatFDColoring ::  fd_coloring
+    ISColoring :: is_coloring
     KSP :: ksp
     PC :: pc
     SNESLineSearch :: linesearch
@@ -993,9 +996,23 @@ end subroutine timestepper_steps_set_next_stepsize
     call SNESSetApplicationContext(self%solver, self%context, ierr); CHKERRQ(ierr)
     call SNESSetFunction(self%solver, self%residual, &
          SNES_residual, self%context, ierr); CHKERRQ(ierr)
-    call SNESSetJacobian(self%solver, self%jacobian, self%jacobian, &
-         PETSC_NULL_FUNCTION, PETSC_NULL_OBJECT, ierr); CHKERRQ(ierr)
     call SNESSetDM(self%solver, self%ode%mesh%dm, ierr); CHKERRQ(ierr)
+
+    call MatColoringCreate(self%jacobian, matrix_coloring, ierr); CHKERRQ(ierr)
+    call MatColoringSetFromOptions(matrix_coloring, ierr); CHKERRQ(ierr)
+    call MatColoringApply(matrix_coloring, is_coloring, ierr); CHKERRQ(ierr)
+    call MatColoringDestroy(matrix_coloring, ierr); CHKERRQ(ierr)
+    call MatFDColoringCreate(self%jacobian, is_coloring, fd_coloring, ierr)
+    CHKERRQ(ierr)
+    call MatFDColoringSetFunction(fd_coloring, SNES_residual, self%context, ierr)
+    CHKERRQ(ierr)
+    call MatFDColoringSetFromOptions(fd_coloring, ierr); CHKERRQ(ierr)
+    call MatFDColoringSetUp(self%jacobian, is_coloring, fd_coloring, ierr)
+    CHKERRQ(ierr)
+    call ISColoringDestroy(is_coloring, ierr); CHKERRQ(ierr)
+
+    call SNESSetJacobian(self%solver, self%jacobian, self%jacobian, &
+         SNESComputeJacobianDefaultColor, fd_coloring, ierr); CHKERRQ(ierr)
 
     ! Set nonlinear and linear solver options from command line options:
     call SNESSetFromOptions(self%solver, ierr); CHKERRQ(ierr)
