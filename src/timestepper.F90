@@ -1006,6 +1006,7 @@ end subroutine timestepper_steps_set_next_stepsize
     CHKERRQ(ierr)
     call MatFDColoringSetFunction(fd_coloring, SNES_residual, self%context, ierr)
     CHKERRQ(ierr)
+    call MatFDColoringSetType(fd_coloring, MATMFFD_DS, ierr); CHKERRQ(ierr)
     call MatFDColoringSetFromOptions(fd_coloring, ierr); CHKERRQ(ierr)
     call MatFDColoringSetUp(self%jacobian, is_coloring, fd_coloring, ierr)
     CHKERRQ(ierr)
@@ -1132,8 +1133,6 @@ end subroutine timestepper_steps_set_next_stepsize
     MatType :: mat_type
     PetscErrorCode :: ierr
 
-    call PetscOptionsSetValue(PETSC_NULL_OBJECT, "-mat_fd_type", "ds", ierr)
-    CHKERRQ(ierr)
     call VecGetBlockSize(self%ode%solution, blocksize, ierr); CHKERRQ(ierr)
     if (blocksize == 1) then
        mat_type = MATAIJ
