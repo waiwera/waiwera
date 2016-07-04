@@ -989,6 +989,8 @@ end subroutine timestepper_steps_set_next_stepsize
     ! This tolerance needs to be set very small so it doesn't override
     ! time step reduction when primary variables go out of bounds:
     PetscReal, parameter :: stol = 1.e-99_dp
+    PetscReal, parameter :: default_mat_fd_err = 1.e-7_dp
+    PetscReal, parameter :: default_mat_fd_umin = 1.e-5_dp
 
     call self%context%init(self%ode, self%steps, self%method%residual)
 
@@ -1007,6 +1009,8 @@ end subroutine timestepper_steps_set_next_stepsize
     call MatFDColoringSetFunction(fd_coloring, SNES_residual, self%context, ierr)
     CHKERRQ(ierr)
     call MatFDColoringSetType(fd_coloring, MATMFFD_DS, ierr); CHKERRQ(ierr)
+    call MatFDColoringSetParameters(fd_coloring, default_mat_fd_err, &
+         default_mat_fd_umin, ierr); CHKERRQ(ierr)
     call MatFDColoringSetFromOptions(fd_coloring, ierr); CHKERRQ(ierr)
     call MatFDColoringSetUp(self%jacobian, is_coloring, fd_coloring, ierr)
     CHKERRQ(ierr)
