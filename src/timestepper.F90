@@ -785,11 +785,12 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine timestepper_steps_check_finished(self)
+  subroutine timestepper_steps_check_finished(self, logfile)
     !! Checks if any termination criteria have been met, and reduces
     !! timestep if needed.
 
     class(timestepper_steps_type), intent(in out) :: self
+    type(logfile_type), intent(in out) :: logfile
     
     self%finished = PETSC_FALSE
 
@@ -798,10 +799,13 @@ contains
        self%current%stepsize = self%stop_time - self%last%time
        self%current%time = self%stop_time
        self%finished = PETSC_TRUE
+       call logfile%write(LOG_LEVEL_INFO, 'timestep', 'end_time_reached', &
+            real_keys = ['size'], real_values = [self%current%stepsize])
     end if
 
     if (self%taken + 1 >= self%max_num) then
        self%finished = PETSC_TRUE
+       call logfile%write(LOG_LEVEL_INFO, 'timestep', 'max_timesteps_reached')
     end if
 
   end subroutine timestepper_steps_check_finished
@@ -1353,7 +1357,7 @@ end subroutine timestepper_steps_set_next_stepsize
           call self%ode%pre_retry_timestep()
        end if
 
-       call self%steps%check_finished()
+       call self%steps%check_finished(self%ode%logfile)
 
        call SNESSolve(self%solver, PETSC_NULL_OBJECT, self%steps%current%solution, &
             ierr); CHKERRQ(ierr)
