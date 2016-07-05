@@ -835,7 +835,7 @@ contains
     type(linear_ode_type), target :: linear
     PetscInt,  parameter :: num_cases = 3
     character(len = max_json_len) :: json_str(num_cases)
-    PetscReal, parameter :: tol(num_cases) = [1.e-6_dp, 1.e-6_dp, 1.e-6_dp]
+    PetscReal, parameter :: tol(num_cases) = [1.5e-6_dp, 1.5e-6_dp, 1.5e-6_dp]
     PetscReal, allocatable :: initial(:)
     PetscErrorCode :: err
 
