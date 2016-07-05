@@ -820,10 +820,7 @@ contains
     ! Locals:
     PetscReal :: eta
 
-    if (self%current%num_tries >= self%max_num_tries) then
-       self%current%status = TIMESTEP_ABORTED
-       self%finished = PETSC_TRUE
-    else if (converged_reason >= 0 ) then
+    if (converged_reason >= 0 ) then
        if ((self%finished) .and. (self%current%status /= &
             TIMESTEP_ABORTED)) then
           self%current%status = TIMESTEP_FINAL
@@ -841,8 +838,12 @@ contains
              self%current%status = TIMESTEP_OK
           end if
        end if
+    else if (self%current%num_tries >= self%max_num_tries) then
+       self%current%status = TIMESTEP_ABORTED
+       self%finished = PETSC_TRUE
     else
        self%current%status = TIMESTEP_NOT_CONVERGED
+       self%finished = PETSC_FALSE
     end if
 
   end subroutine timestepper_steps_set_current_status
