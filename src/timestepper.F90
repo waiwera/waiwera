@@ -88,6 +88,7 @@ module timestepper_module
      type(timestep_adaptor_type), public :: adaptor !! Time step size adaptor
      PetscBool, public :: stop_time_specified !! Whether stop time is specified or not
      PetscBool :: finished !! Whether simulation has yet finished
+     PetscBool :: steady_state !! If simulation is direct steady state or transient
    contains
      private
      procedure :: set_aliases => timestepper_steps_set_aliases
@@ -580,7 +581,7 @@ contains
        adapt_on, adapt_method, adapt_min, adapt_max, &
        adapt_reduction, adapt_amplification, step_sizes, &
        nonlinear_solver_relative_tol, nonlinear_solver_abs_tol, &
-       max_num_tries)
+       max_num_tries, steady_state)
 
     !! Sets up array of timesteps and pointers to them. This array stores the
     !! current step and one or more previous steps. The number of stored
@@ -603,6 +604,7 @@ contains
     PetscReal, intent(in) :: nonlinear_solver_relative_tol, &
          nonlinear_solver_abs_tol
     PetscInt, intent(in) :: max_num_tries
+    PetscBool, intent(in) :: steady_state
     ! Locals:
     PetscInt :: i
     PetscErrorCode :: ierr
@@ -655,6 +657,8 @@ contains
        self%adaptor%on = PETSC_FALSE
        self%next_stepsize = step_sizes(1)
     end if
+
+    self%steady_state = steady_state
 
   end subroutine timestepper_steps_init
 
@@ -800,18 +804,21 @@ contains
     
     self%finished = PETSC_FALSE
 
-    if (self%stop_time_specified .and. &
-         (self%current%time > self%stop_time - self%termination_tol)) then
-       self%current%stepsize = self%stop_time - self%last%time
-       self%current%time = self%stop_time
-       self%finished = PETSC_TRUE
-       call logfile%write(LOG_LEVEL_INFO, 'timestep', 'end_time_reached', &
-            real_keys = ['size'], real_values = [self%current%stepsize])
-    end if
-
-    if (self%taken + 1 >= self%max_num) then
-       self%finished = PETSC_TRUE
-       call logfile%write(LOG_LEVEL_INFO, 'timestep', 'max_timesteps_reached')
+    if (self%steady_state) then
+       self%finished = (self%taken == 1)
+    else
+       if (self%stop_time_specified .and. &
+            (self%current%time > self%stop_time - self%termination_tol)) then
+          self%current%stepsize = self%stop_time - self%last%time
+          self%current%time = self%stop_time
+          self%finished = PETSC_TRUE
+          call logfile%write(LOG_LEVEL_INFO, 'timestep', 'end_time_reached', &
+               real_keys = ['size'], real_values = [self%current%stepsize])
+       end if
+       if (self%taken + 1 >= self%max_num) then
+          self%finished = PETSC_TRUE
+          call logfile%write(LOG_LEVEL_INFO, 'timestep', 'max_timesteps_reached')
+       end if
     end if
 
   end subroutine timestepper_steps_check_finished
@@ -826,32 +833,40 @@ contains
     ! Locals:
     PetscReal :: eta
 
-    if (converged_reason >= 0 ) then
-       if ((self%finished) .and. (self%current%status /= &
-            TIMESTEP_ABORTED)) then
+    if (self%steady_state) then
+       if (converged_reason >= 0) then
           self%current%status = TIMESTEP_FINAL
        else
-          eta = self%adaptor%monitor(self%current, self%last)
-          if (self%adaptor%on) then
-             if (eta < self%adaptor%monitor_min) then
-                self%current%status = TIMESTEP_TOO_SMALL
-             else if (eta > self%adaptor%monitor_max) then
-                self%current%status = TIMESTEP_TOO_BIG
+          self%current%status = TIMESTEP_ABORTED
+       end if
+    else
+       if (converged_reason >= 0 ) then
+          if ((self%finished) .and. (self%current%status /= &
+               TIMESTEP_ABORTED)) then
+             self%current%status = TIMESTEP_FINAL
+          else
+             eta = self%adaptor%monitor(self%current, self%last)
+             if (self%adaptor%on) then
+                if (eta < self%adaptor%monitor_min) then
+                   self%current%status = TIMESTEP_TOO_SMALL
+                else if (eta > self%adaptor%monitor_max) then
+                   self%current%status = TIMESTEP_TOO_BIG
+                else
+                   self%current%status = TIMESTEP_OK
+                end if
              else
                 self%current%status = TIMESTEP_OK
              end if
-          else
-             self%current%status = TIMESTEP_OK
           end if
+       else if (self%current%num_tries >= self%max_num_tries) then
+          self%current%status = TIMESTEP_ABORTED
+          self%finished = PETSC_TRUE
+       else
+          self%current%status = TIMESTEP_NOT_CONVERGED
+          self%finished = PETSC_FALSE
        end if
-    else if (self%current%num_tries >= self%max_num_tries) then
-       self%current%status = TIMESTEP_ABORTED
-       self%finished = PETSC_TRUE
-    else
-       self%current%status = TIMESTEP_NOT_CONVERGED
-       self%finished = PETSC_FALSE
     end if
-
+    
   end subroutine timestepper_steps_set_current_status
 
 !------------------------------------------------------------------------
@@ -880,17 +895,21 @@ contains
 
     class(timestepper_steps_type), intent(in out) :: self
     PetscBool, intent(out) :: accepted
-    
-    if (self%adaptor%on) then
-       call self%adapt(accepted)
+
+    if (self%steady_state) then
+       accepted = (self%current%status == TIMESTEP_FINAL)
     else
-       if (self%current%status == TIMESTEP_OK) then
-          accepted = PETSC_TRUE
-          call self%get_next_fixed_stepsize()
+       if (self%adaptor%on) then
+          call self%adapt(accepted)
        else
-          accepted = PETSC_FALSE
-          self%adaptor%on = PETSC_TRUE
-          self%next_stepsize = self%adaptor%reduce(self%current%stepsize)
+          if (self%current%status == TIMESTEP_OK) then
+             accepted = PETSC_TRUE
+             call self%get_next_fixed_stepsize()
+          else
+             accepted = PETSC_FALSE
+             self%adaptor%on = PETSC_TRUE
+             self%next_stepsize = self%adaptor%reduce(self%current%stepsize)
+          end if
        end if
     end if
 
@@ -1208,7 +1227,7 @@ end subroutine timestepper_steps_set_next_stepsize
     PetscInt, parameter :: default_output_frequency = 1
     PetscBool, parameter :: default_output_initial = PETSC_TRUE
     PetscBool, parameter :: default_output_final = PETSC_TRUE
-    PetscBool :: stop_time_specified
+    PetscBool :: stop_time_specified, steady_state
     PetscErrorCode :: ierr
 
     self%ode => ode
@@ -1246,13 +1265,17 @@ end subroutine timestepper_steps_set_next_stepsize
 
     if (method == TS_DIRECTSS) then
 
+       steady_state = PETSC_TRUE
        initial_stepsize = 0._dp
        max_num_steps = 1
        max_num_tries = 1
        adapt_on = PETSC_FALSE
+       stop_time = 0._dp
        call self%ode%logfile%write(LOG_LEVEL_INFO, 'input', 'steady_state')
 
     else ! transient
+
+       steady_state = PETSC_FALSE
 
        if (fson_has_mpi(json, "time.stop")) then
           if (fson_type_mpi(json, "time.stop") == TYPE_NULL) then
@@ -1322,7 +1345,7 @@ end subroutine timestepper_steps_set_next_stepsize
          adapt_on, adapt_method, adapt_min, adapt_max, &
          adapt_reduction, adapt_amplification, step_sizes, &
          nonlinear_solver_relative_tol, nonlinear_solver_abs_tol, &
-         max_num_tries)
+         max_num_tries, steady_state)
 
     call fson_get_mpi(json, "output.initial", &
          default_output_initial, self%output_initial, self%ode%logfile)
