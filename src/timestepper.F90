@@ -1208,23 +1208,6 @@ end subroutine timestepper_steps_set_next_stepsize
     self%ode => ode
     call VecDuplicate(self%ode%solution, self%residual, ierr); CHKERRQ(ierr)
     call self%setup_jacobian()
-
-    if (fson_has_mpi(json, "time.stop")) then
-       if (fson_type_mpi(json, "time.stop") == TYPE_NULL) then
-          stop_time_specified = PETSC_FALSE
-       else
-          stop_time_specified = PETSC_TRUE
-          call fson_get_mpi(json, "time.stop", default_stop_time, &
-               stop_time, self%ode%logfile)
-       end if
-    else
-       stop_time_specified = PETSC_FALSE
-    end if
-
-    if (.not. stop_time_specified) then
-       call self%ode%logfile%write(LOG_LEVEL_WARN, 'input', &
-            '"time.stop not specified"')
-    end if
        
     call fson_get_mpi(json, "time.step.method", &
          default_method_str, method_str, self%ode%logfile)
@@ -1241,46 +1224,6 @@ end subroutine timestepper_steps_set_next_stepsize
 
     call self%method%init(method)
 
-    call fson_get_mpi(json, "time.step.initial", &
-         default_initial_stepsize, initial_stepsize, self%ode%logfile)
-    call fson_get_mpi(json, "time.step.maximum.size", &
-         default_max_stepsize, max_stepsize, self%ode%logfile)
-    call fson_get_mpi(json, "time.step.maximum.number", &
-         default_max_num_steps, max_num_steps, self%ode%logfile)
-    call fson_get_mpi(json, "time.step.maximum.tries", &
-         default_max_num_tries, max_num_tries, self%ode%logfile)
-
-    call fson_get_mpi(json, "time.step.adapt.on", &
-         default_adapt_on, adapt_on, self%ode%logfile)
-
-    call fson_get_mpi(json, "time.step.adapt.method", &
-         default_adapt_method_str, adapt_method_str, self%ode%logfile)
-    select case (str_to_lower(adapt_method_str))
-    case ("change")
-       adapt_method = TS_ADAPT_CHANGE
-    case ("iteration")
-       adapt_method = TS_ADAPT_ITERATION
-    case default
-       adapt_method = TS_ADAPT_CHANGE
-    end select
-
-    call fson_get_mpi(json, "time.step.adapt.min", &
-         default_adapt_min, adapt_min, self%ode%logfile)
-    call fson_get_mpi(json, "time.step.adapt.max", &
-         default_adapt_max, adapt_max, self%ode%logfile)
-
-    call fson_get_mpi(json, "time.step.adapt.reduction", &
-         default_adapt_reduction, adapt_reduction, self%ode%logfile)
-    call fson_get_mpi(json, "time.step.adapt.amplification", &
-         default_adapt_amplification, adapt_amplification, self%ode%logfile)
-
-    if (fson_has_mpi(json, "time.step.sizes")) then
-       call fson_get_mpi(json, "time.step.sizes", val = step_sizes)
-    else
-       call self%ode%logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
-            str_key = "time.step.sizes", str_value = "adaptive")
-    end if
-
     call fson_get_mpi(json, &
          "time.step.solver.nonlinear.maximum.iterations", &
          default_nonlinear_solver_max_iterations, &
@@ -1293,6 +1236,79 @@ end subroutine timestepper_steps_set_next_stepsize
          "time.step.solver.nonlinear.tolerance.absolute", &
          default_nonlinear_solver_abs_tol, nonlinear_solver_abs_tol, &
          self%ode%logfile)
+    call self%setup_solver(nonlinear_solver_max_iterations)
+
+    if (method == TS_DIRECTSS) then
+
+       initial_stepsize = 0._dp
+       max_num_steps = 1
+       max_num_tries = 1
+       adapt_on = PETSC_FALSE
+       call self%ode%logfile%write(LOG_LEVEL_INFO, 'input', 'steady_state')
+
+    else ! transient
+
+       if (fson_has_mpi(json, "time.stop")) then
+          if (fson_type_mpi(json, "time.stop") == TYPE_NULL) then
+             stop_time_specified = PETSC_FALSE
+          else
+             stop_time_specified = PETSC_TRUE
+             call fson_get_mpi(json, "time.stop", default_stop_time, &
+                  stop_time, self%ode%logfile)
+          end if
+       else
+          stop_time_specified = PETSC_FALSE
+       end if
+
+       if (.not. stop_time_specified) then
+          call self%ode%logfile%write(LOG_LEVEL_WARN, 'input', &
+               '"time.stop not specified"')
+       end if
+
+       call fson_get_mpi(json, "time.step.initial", &
+            default_initial_stepsize, initial_stepsize, self%ode%logfile)
+       call fson_get_mpi(json, "time.step.maximum.size", &
+            default_max_stepsize, max_stepsize, self%ode%logfile)
+       call fson_get_mpi(json, "time.step.maximum.number", &
+            default_max_num_steps, max_num_steps, self%ode%logfile)
+       call fson_get_mpi(json, "time.step.maximum.tries", &
+            default_max_num_tries, max_num_tries, self%ode%logfile)
+
+       call fson_get_mpi(json, "time.step.adapt.on", &
+            default_adapt_on, adapt_on, self%ode%logfile)
+
+       call fson_get_mpi(json, "time.step.adapt.method", &
+            default_adapt_method_str, adapt_method_str, self%ode%logfile)
+       select case (str_to_lower(adapt_method_str))
+       case ("change")
+          adapt_method = TS_ADAPT_CHANGE
+       case ("iteration")
+          adapt_method = TS_ADAPT_ITERATION
+       case default
+          adapt_method = TS_ADAPT_CHANGE
+       end select
+
+       call fson_get_mpi(json, "time.step.adapt.min", &
+            default_adapt_min, adapt_min, self%ode%logfile)
+       call fson_get_mpi(json, "time.step.adapt.max", &
+            default_adapt_max, adapt_max, self%ode%logfile)
+
+       call fson_get_mpi(json, "time.step.adapt.reduction", &
+            default_adapt_reduction, adapt_reduction, self%ode%logfile)
+       call fson_get_mpi(json, "time.step.adapt.amplification", &
+            default_adapt_amplification, adapt_amplification, self%ode%logfile)
+
+       if (fson_has_mpi(json, "time.step.sizes")) then
+          call fson_get_mpi(json, "time.step.sizes", val = step_sizes)
+       else
+          call self%ode%logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
+               str_key = "time.step.sizes", str_value = "adaptive")
+       end if
+
+       call fson_get_mpi(json, "output.frequency", &
+            default_output_frequency, self%output_frequency, self%ode%logfile)
+
+    end if
 
     call self%steps%init(self%method%num_stored_steps, &
          self%ode%time, self%ode%solution, initial_stepsize, &
@@ -1302,10 +1318,6 @@ end subroutine timestepper_steps_set_next_stepsize
          nonlinear_solver_relative_tol, nonlinear_solver_abs_tol, &
          max_num_tries)
 
-    call self%setup_solver(nonlinear_solver_max_iterations)
-
-    call fson_get_mpi(json, "output.frequency", &
-         default_output_frequency, self%output_frequency, self%ode%logfile)
     call fson_get_mpi(json, "output.initial", &
          default_output_initial, self%output_initial, self%ode%logfile)
     call fson_get_mpi(json, "output.final", &
