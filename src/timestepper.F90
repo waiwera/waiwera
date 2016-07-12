@@ -1435,9 +1435,11 @@ end subroutine timestepper_steps_set_next_stepsize
        if (converged_reason < 0) then
           call log_SNES_divergence()
        end if
-       call self%ode%logfile%write(LOG_LEVEL_WARN, 'timestep', 'reduction', &
-            real_keys = ['new_size        '], &
-            real_values = [self%steps%next_stepsize])
+       if (.not. self%steps%steady_state) then
+          call self%ode%logfile%write(LOG_LEVEL_WARN, 'timestep', 'reduction', &
+               real_keys = ['new_size        '], &
+               real_values = [self%steps%next_stepsize])
+       end if
     end if
 
   contains
