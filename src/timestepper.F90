@@ -891,9 +891,7 @@ contains
     class(timestepper_steps_type), intent(in out) :: self
     PetscBool, intent(out) :: accepted
 
-    if (self%steady_state) then
-       accepted = PETSC_TRUE
-    else
+    if (.not.(self%steady_state)) then
        if (self%adaptor%on) then
           call self%adapt(accepted)
        else
