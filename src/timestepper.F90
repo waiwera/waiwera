@@ -833,6 +833,7 @@ contains
        else
           self%current%status = TIMESTEP_ABORTED
        end if
+       self%finished = PETSC_TRUE
     else
        if (converged_reason >= 0 ) then
           if ((self%finished) .and. (self%current%status /= &
@@ -891,7 +892,7 @@ contains
     PetscBool, intent(out) :: accepted
 
     if (self%steady_state) then
-       accepted = (self%current%status == TIMESTEP_FINAL)
+       accepted = PETSC_TRUE
     else
        if (self%adaptor%on) then
           call self%adapt(accepted)
