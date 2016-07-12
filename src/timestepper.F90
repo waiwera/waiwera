@@ -362,8 +362,6 @@ contains
   subroutine direct_ss_residual(solver, y, residual, context, err)
     !! Residual for direct solution of steady state equations R(y) = 0.
     !! Here we evaluate R() at the steps final time.
-    !! L() is evaluated only so it can be used to scale the residuals
-    !! during the convergence check.
 
     SNES, intent(in) :: solver
     Vec, intent(in) :: y
@@ -374,15 +372,11 @@ contains
     PetscErrorCode :: ierr
 
     err = 0
-    call context%ode%lhs(context%steps%stop_time, y, &
-         context%steps%current%lhs, err)
+    call context%ode%rhs(context%steps%stop_time, y, &
+         context%steps%current%rhs, err)
     if (err == 0) then
-       call context%ode%rhs(context%steps%stop_time, y, &
-            context%steps%current%rhs, err)
-       if (err == 0) then
-          call VecCopy(context%steps%current%rhs, residual, ierr)
-          CHKERRQ(ierr)
-       end if
+       call VecCopy(context%steps%current%rhs, residual, ierr)
+       CHKERRQ(ierr)
     end if
 
   end subroutine direct_ss_residual
@@ -676,7 +670,7 @@ contains
     call self%ode%pre_solve(self%steps%current%time, &
          self%steps%current%solution, err)
 
-    if ((err == 0) .and. (.not.(self%steps%steady_state))) then
+    if (err == 0) then
        call self%ode%lhs(self%steps%current%time, &
             self%steps%current%solution, self%steps%current%lhs, err)
     end if
