@@ -676,7 +676,7 @@ contains
     call self%ode%pre_solve(self%steps%current%time, &
          self%steps%current%solution, err)
 
-    if (err == 0) then
+    if ((err == 0) .and. (.not.(self%steps%steady_state))) then
        call self%ode%lhs(self%steps%current%time, &
             self%steps%current%solution, self%steps%current%lhs, err)
     end if
