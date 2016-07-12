@@ -230,7 +230,7 @@ contains
 !------------------------------------------------------------------------
 
   subroutine setup_initial_file(filename, mesh, eos, t, y, fluid_vector, &
-       y_range_start, fluid_range_start)
+       y_range_start, fluid_range_start, index)
     !! Initializes fluid vector and solution vector y from HDF5 file.
 
     use mpi_module
@@ -245,6 +245,7 @@ contains
     PetscReal, intent(in) :: t
     Vec, intent(in out) :: y, fluid_vector
     PetscInt, intent(in) :: y_range_start, fluid_range_start
+    PetscInt, intent(in) :: index !! time index to fetch initial conditions from
     ! Locals:
     PetscViewer :: viewer
     DM :: fluid_dm
@@ -266,9 +267,7 @@ contains
     CHKERRQ(ierr)
     call ISLoad(output_cell_index, viewer, ierr); CHKERRQ(ierr)
 
-    ! TODO :: navigate to last timestep- currently this will work only
-    ! if the file has only results for one timestep in it.
-    ! call PetscViewerHDF5SetTimestep(viewer, ?, ierr); CHKERRQ(ierr)
+    call PetscViewerHDF5SetTimestep(viewer, index, ierr); CHKERRQ(ierr)
 
     call VecGetDM(fluid_vector, fluid_dm, ierr); CHKERRQ(ierr)
     call DMSetOutputSequenceNumber(fluid_dm, 0, t,ierr); CHKERRQ(ierr)
@@ -345,6 +344,8 @@ contains
     PetscInt :: primary_rank, region_rank
     PetscInt, parameter :: max_filename_length = 240
     character(len = max_filename_length) :: filename
+    PetscInt, parameter :: default_index = 0
+    PetscInt :: index
 
     call fson_get_mpi(json, "time.start", default_start_time, t, logfile)
 
@@ -353,8 +354,9 @@ contains
        if (fson_has_mpi(json, "initial.filename")) then
 
           call fson_get_mpi(json, "initial.filename", val = filename)
+          call fson_get_mpi(json, "initial.index", default_index, index, logfile)
           call setup_initial_file(filename, mesh, eos, t, y, fluid_vector, &
-               y_range_start, fluid_range_start)
+               y_range_start, fluid_range_start, index)
 
        else if (fson_has_mpi(json, "initial.primary")) then
 
