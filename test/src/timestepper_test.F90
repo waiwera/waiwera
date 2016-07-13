@@ -110,6 +110,14 @@ module timestepper_test
      procedure, public :: lhs => lhs_pre_eval
   end type pre_eval_ode_type
 
+  type, extends(test_ode_type) :: ss_ode_type
+   contains
+     private
+     procedure, public :: rhs => rhs_ss
+     procedure, public :: exact => exact_ss
+     procedure, public :: set_initial_conditions => set_initial_conditions_ss
+  end type ss_ode_type
+
   PetscInt, parameter :: max_json_len = 256
   PetscReal, parameter :: time_tolerance = 1.e-6_dp
 
@@ -117,7 +125,7 @@ public :: test_timestepper_linear, test_timestepper_exponential, &
      test_timestepper_logistic, test_timestepper_nontrivial_lhs, &
      test_timestepper_nonlinear_lhs, test_timestepper_heat1d, &
      test_timestepper_heat1d_nonlinear, test_timestepper_pre_eval, &
-     test_timestepper_read
+     test_timestepper_read, test_timestepper_steady
 
 contains
 
@@ -259,6 +267,7 @@ contains
     call VecNorm(self%diff, NORM_INFINITY, normdiff, ierr)
     CHKERRQ(ierr)
     self%maxdiff = max(self%maxdiff, normdiff)
+    print *, 'time index:', time_index, 'time:', time, 'diff:', normdiff
 
   contains
 
@@ -695,6 +704,44 @@ contains
 
 !------------------------------------------------------------------------
 
+  subroutine set_initial_conditions_ss(self)
+    class(ss_ode_type), intent(in out) :: self
+    ! Locals:
+    PetscErrorCode :: ierr
+    self%time = self%start_time
+    call VecSet(self%solution, 0.5_dp, ierr); CHKERRQ(ierr)
+  end subroutine set_initial_conditions_ss
+
+  subroutine rhs_ss(self, t, y, rhs, err)
+    ! rhs(t, y) = 1 - y * y
+    class(ss_ode_type), intent(in out) :: self
+    PetscReal, intent(in) :: t
+    Vec, intent(in) :: y
+    Vec, intent(out) :: rhs
+    PetscErrorCode, intent(out) :: err
+    ! Locals:
+    Vec :: y2
+    PetscErrorCode :: ierr
+    err = 0
+    call VecDuplicate(y, y2, ierr); CHKERRQ(ierr)
+    call VecPointwiseMult(y2, y, y, ierr); CHKERRQ(ierr)
+    call VecSet(rhs, 1._dp, ierr); CHKERRQ(ierr)
+    call VecAXPY(rhs, -1._dp, y2, ierr); CHKERRQ(ierr)
+    call VecDestroy(y2, ierr); CHKERRQ(ierr)
+  end subroutine rhs_ss
+
+  subroutine exact_ss(self, t, v)
+    ! Constant y = 1
+    class(ss_ode_type), intent(in out) :: self
+    PetscReal, intent(in) :: t
+    Vec, intent(out) :: v
+    ! Locals:
+    PetscErrorCode :: ierr
+    call VecSet(v, 1._dp, ierr); CHKERRQ(ierr)
+  end subroutine exact_ss
+
+!------------------------------------------------------------------------
+
   subroutine read_start_time_test_ode(self, json)
     ! Reads start_time property from JSON.
 
@@ -1101,6 +1148,31 @@ contains
 
   end subroutine test_timestepper_pre_eval
 
-!------------------------------------------------------------------------
+  !------------------------------------------------------------------------
+
+  subroutine test_timestepper_steady
+
+    ! Steady state solution of dy/dt = 1 - y2
+
+    type(ss_ode_type), target :: ss
+    PetscInt,  parameter :: num_cases = 1
+    character(len = max_json_len) :: json_str(num_cases)
+    PetscReal, parameter :: tol(num_cases) = [1.e-6_dp]
+    PetscReal, allocatable :: initial(:)
+    PetscErrorCode :: err
+
+    allocate(initial(8))
+    initial = 0._dp
+    call ss%init(initial, err)
+
+    json_str(1) = '{"time": {"step": {"method": "directss"}}, ' // &
+         '"output": {"initial": false}}'
+
+    call ss%run_cases(json_str, tol)
+
+    call ss%destroy()
+    deallocate(initial)
+
+  end subroutine test_timestepper_steady
 
 end module timestepper_test
