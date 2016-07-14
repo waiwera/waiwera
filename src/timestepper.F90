@@ -1324,7 +1324,6 @@ end subroutine timestepper_steps_set_next_stepsize
        max_num_tries = 1
        adapt_on = PETSC_FALSE
        stop_time = 0._dp
-       call self%ode%logfile%write(LOG_LEVEL_INFO, 'input', 'steady_state')
 
     else ! transient
 
@@ -1695,18 +1694,22 @@ end subroutine timestepper_steps_set_next_stepsize
     PCType :: pc_type
     PetscErrorCode :: ierr
 
+    call self%ode%logfile%write(LOG_LEVEL_INFO, 'input', 'summary', &
+         str_key = 'time.step.method', &
+         str_value = self%method%name)
+
     call SNESGetKSP(self%solver, ksp, ierr); CHKERRQ(ierr)
     call KSPGetType(ksp, ksp_type, ierr); CHKERRQ(ierr)
     ksp_type_str = ksp_type_str_from_type(ksp_type)
     call self%ode%logfile%write(LOG_LEVEL_INFO, 'input', 'summary', &
-         str_key = 'timestepper.step.solver.linear.type', &
+         str_key = 'time.step.solver.linear.type', &
          str_value = ksp_type_str)
 
     call KSPGetPC(ksp, pc, ierr); CHKERRQ(ierr)
     call PCGetType(pc, pc_type, ierr); CHKERRQ(ierr)
     pc_type_str = pc_type_str_from_type(pc_type)
     call self%ode%logfile%write(LOG_LEVEL_INFO, 'input', 'summary', &
-         str_key = 'timestepper.step.solver.linear.preconditioner.type', &
+         str_key = 'time.step.solver.linear.preconditioner.type', &
          str_value = pc_type_str)
 
     call self%ode%logfile%write_blank()
