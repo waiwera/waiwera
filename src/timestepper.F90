@@ -24,6 +24,8 @@ module timestepper_module
      TIMESTEP_TOO_SMALL = 2, TIMESTEP_TOO_BIG = 3, TIMESTEP_ABORTED = 4, &
      TIMESTEP_FINAL = 5
 
+     PetscInt, parameter :: max_ksp_type_str_len = 8, max_pc_type_str_len = 8
+
   type timestepper_step_type
      !! Results of a time step.
      private
@@ -159,6 +161,7 @@ module timestepper_module
      procedure, public :: destroy => timestepper_destroy
      procedure, public :: initial_function_calls => timestepper_initial_function_calls
      procedure, public :: run => timestepper_run
+     procedure, public :: input_summary => timestepper_input_summary
   end type timestepper_type
 
   interface
@@ -1244,11 +1247,9 @@ end subroutine timestepper_steps_set_next_stepsize
     PetscBool, parameter :: default_output_initial = PETSC_TRUE
     PetscBool, parameter :: default_output_final = PETSC_TRUE
     PetscBool :: stop_time_specified, steady_state
-    PetscInt, parameter :: max_ksp_type_str_len = 8
     character(max_ksp_type_str_len) :: ksp_type_str
     character(max_ksp_type_str_len), parameter :: default_ksp_type_str = "bcgsl"
     KSPType :: ksp_type
-    PetscInt, parameter :: max_pc_type_str_len = 8
     character(max_pc_type_str_len) :: pc_type_str
     character(max_pc_type_str_len), parameter :: default_pc_type_str = "asm"
     PCType :: pc_type
@@ -1678,6 +1679,77 @@ end subroutine timestepper_steps_set_next_stepsize
     call self%ode%logfile%flush()
 
   end subroutine timestepper_run
+
+!------------------------------------------------------------------------
+
+  subroutine timestepper_input_summary(self)
+    !! Writes summary of important inputs to the ODE logfile.
+
+    class(timestepper_type), intent(in out) :: self
+    ! Locals:
+    character(max_ksp_type_str_len) :: ksp_type_str
+    KSP :: ksp
+    KSPType :: ksp_type
+    character(max_pc_type_str_len) :: pc_type_str
+    PC :: pc
+    PCType :: pc_type
+    PetscErrorCode :: ierr
+
+    call SNESGetKSP(self%solver, ksp, ierr); CHKERRQ(ierr)
+    call KSPGetType(ksp, ksp_type, ierr); CHKERRQ(ierr)
+    ksp_type_str = ksp_type_str_from_type(ksp_type)
+    call self%ode%logfile%write(LOG_LEVEL_INFO, 'input', 'summary', &
+         str_key = 'timestepper.step.solver.linear.type', &
+         str_value = ksp_type_str)
+
+    call KSPGetPC(ksp, pc, ierr); CHKERRQ(ierr)
+    call PCGetType(pc, pc_type, ierr); CHKERRQ(ierr)
+    pc_type_str = pc_type_str_from_type(pc_type)
+    call self%ode%logfile%write(LOG_LEVEL_INFO, 'input', 'summary', &
+         str_key = 'timestepper.step.solver.linear.preconditioner.type', &
+         str_value = pc_type_str)
+
+    call self%ode%logfile%write_blank()
+
+  contains
+
+    function ksp_type_str_from_type(ksp_type) result(str)
+      character(max_ksp_type_str_len) :: str
+      KSPType, intent(in) :: ksp_type
+      select case (ksp_type)
+      case (KSPGMRES)
+         str = 'gmres'
+      case (KSPBCGS)
+         str = 'bcgs'
+      case (KSPBCGSL)
+         str = 'bcgsl'
+      case default
+         str = 'unknown'
+      end select
+    end function ksp_type_str_from_type
+
+    function pc_type_str_from_type(pc_type) result(str)
+      character(max_pc_type_str_len) :: str
+      PCType, intent(in) :: pc_type
+      select case (pc_type)
+      case (PCBJACOBI)
+         str = 'bjacobi'
+      case (PCASM)
+         str = 'asm'
+      case (PCGASM)
+         str = 'gasm'
+      case (PCILU)
+         str = 'ilu'
+      case (PCSOR)
+         str = 'sor'
+      case (PCSPAI)
+         str = 'spai'
+      case default
+         str = 'unknown'
+      end select
+    end function pc_type_str_from_type
+
+  end subroutine timestepper_input_summary
 
 !------------------------------------------------------------------------
 

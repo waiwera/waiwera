@@ -281,8 +281,6 @@ contains
     call self%logfile%write(LOG_LEVEL_INFO, 'input', 'summary', &
          str_key = 'thermodynamics', str_value = self%thermo%name)
 
-    call self%logfile%write_blank()
-
   end subroutine flow_simulation_input_summary
 
 !------------------------------------------------------------------------
