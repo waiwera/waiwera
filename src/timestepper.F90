@@ -151,7 +151,8 @@ module timestepper_module
    contains
      private
      procedure :: setup_jacobian => timestepper_setup_jacobian
-     procedure :: setup_solver => timestepper_setup_solver
+     procedure :: setup_nonlinear_solver => timestepper_setup_nonlinear_solver
+     procedure :: setup_linear_solver => timestepper_setup_linear_solver
      procedure :: step => timestepper_step
      procedure :: log_step_status => timestepper_log_step_status
      procedure, public :: init => timestepper_init
@@ -996,7 +997,7 @@ end subroutine timestepper_steps_set_next_stepsize
 ! Timestepper procedures
 !------------------------------------------------------------------------
 
-  subroutine timestepper_setup_solver(self, max_iterations)
+  subroutine timestepper_setup_nonlinear_solver(self, max_iterations)
     !! Sets up SNES nonlinear solver for the timestepper.
 
     class(timestepper_type), intent(in out) :: self
@@ -1006,8 +1007,6 @@ end subroutine timestepper_steps_set_next_stepsize
     MatColoring :: matrix_coloring
     MatFDColoring ::  fd_coloring
     ISColoring :: is_coloring
-    KSP :: ksp
-    PC :: pc
     SNESLineSearch :: linesearch
     ! This tolerance needs to be set very small so it doesn't override
     ! time step reduction when primary variables go out of bounds:
@@ -1044,10 +1043,6 @@ end subroutine timestepper_steps_set_next_stepsize
 
     ! Set nonlinear and linear solver options from command line options:
     call SNESSetFromOptions(self%solver, ierr); CHKERRQ(ierr)
-    call SNESGetKSP(self%solver, ksp, ierr); CHKERRQ(ierr)
-    call KSPSetFromOptions(ksp, ierr); CHKERRQ(ierr)
-    call KSPGetPC(ksp, pc, ierr); CHKERRQ(ierr)
-    call PCSetFromOptions(pc, ierr); CHKERRQ(ierr)
 
     call SNESSetTolerances(self%solver, PETSC_DEFAULT_REAL, &
          PETSC_DEFAULT_REAL, stol, max_iterations, &
@@ -1068,7 +1063,35 @@ end subroutine timestepper_steps_set_next_stepsize
     call SNESLineSearchSetPostCheck(linesearch, SNES_linesearch_post_check, &
          self%context, ierr); CHKERRQ(ierr)
 
-  end subroutine timestepper_setup_solver
+  end subroutine timestepper_setup_nonlinear_solver
+
+!------------------------------------------------------------------------
+
+  subroutine timestepper_setup_linear_solver(self, ksp_type, &
+       relative_tolerance, max_iterations, pc_type)
+    !! Sets up KSP linear solver and PC preconditioner for the timestepper.
+
+    class(timestepper_type), intent(in out) :: self
+    KSPType, intent(in) :: ksp_type
+    PetscReal, intent(in) :: relative_tolerance
+    PetscInt, intent(in) :: max_iterations
+    PCType, intent(in) :: pc_type
+    ! Locals:
+    KSP :: ksp
+    PC :: pc
+    PetscErrorCode :: ierr
+
+    call SNESGetKSP(self%solver, ksp, ierr); CHKERRQ(ierr)
+    call KSPSetType(ksp, ksp_type, ierr); CHKERRQ(ierr)
+    call KSPSetTolerances(ksp, relative_tolerance, PETSC_DEFAULT_REAL, &
+         PETSC_DEFAULT_REAL, max_iterations, ierr); CHKERRQ(ierr)
+    call KSPSetFromOptions(ksp, ierr); CHKERRQ(ierr)
+
+    call KSPGetPC(ksp, pc, ierr); CHKERRQ(ierr)
+    call PCSetType(pc, pc_type, ierr); CHKERRQ(ierr)
+    call PCSetFromOptions(pc, ierr); CHKERRQ(ierr)
+
+  end subroutine timestepper_setup_linear_solver
 
 !------------------------------------------------------------------------
 
@@ -1210,17 +1233,27 @@ end subroutine timestepper_steps_set_next_stepsize
          default_adapt_amplification = 2.0_dp
     PetscReal :: adapt_reduction, adapt_amplification
     PetscReal, allocatable :: step_sizes(:)
-    PetscInt, parameter :: default_nonlinear_solver_max_iterations = 8
-    PetscReal, parameter :: default_nonlinear_solver_relative_tol = 1.e-5_dp
-    PetscReal, parameter :: default_nonlinear_solver_abs_tol = 1._dp
-    PetscInt :: nonlinear_solver_max_iterations
-    PetscReal :: nonlinear_solver_relative_tol, nonlinear_solver_abs_tol
+    PetscInt, parameter :: default_nonlinear_max_iterations = 8
+    PetscReal, parameter :: default_nonlinear_relative_tol = 1.e-5_dp
+    PetscReal, parameter :: default_nonlinear_abs_tol = 1._dp
+    PetscInt :: nonlinear_max_iterations
+    PetscReal :: nonlinear_relative_tol, nonlinear_abs_tol
     PetscInt :: max_num_tries
     PetscInt, parameter :: default_max_num_tries = 10
     PetscInt, parameter :: default_output_frequency = 1
     PetscBool, parameter :: default_output_initial = PETSC_TRUE
     PetscBool, parameter :: default_output_final = PETSC_TRUE
     PetscBool :: stop_time_specified, steady_state
+    PetscInt, parameter :: max_ksp_type_str_len = 8
+    character(max_ksp_type_str_len) :: ksp_type_str
+    character(max_ksp_type_str_len), parameter :: default_ksp_type_str = "bcgsl"
+    KSPType :: ksp_type
+    PetscInt, parameter :: max_pc_type_str_len = 8
+    character(max_pc_type_str_len) :: pc_type_str
+    character(max_pc_type_str_len), parameter :: default_pc_type_str = "asm"
+    PCType :: pc_type
+    PetscReal :: linear_relative_tol
+    PetscInt :: linear_max_iterations
     PetscErrorCode :: ierr
 
     self%ode => ode
@@ -1229,32 +1262,58 @@ end subroutine timestepper_steps_set_next_stepsize
        
     call fson_get_mpi(json, "time.step.method", &
          default_method_str, method_str, self%ode%logfile)
-    select case (str_to_lower(method_str))
-    case ("beuler")
-       method = TS_BEULER
-    case ("bdf2")
-       method = TS_BDF2
-    case ("directss")
-       method = TS_DIRECTSS
-    case default
-       method = TS_BEULER
-    end select
+    method = time_step_method_from_str(method_str)
 
     call self%method%init(method)
 
     call fson_get_mpi(json, &
          "time.step.solver.nonlinear.maximum.iterations", &
-         default_nonlinear_solver_max_iterations, &
-         nonlinear_solver_max_iterations, self%ode%logfile)
+         default_nonlinear_max_iterations, &
+         nonlinear_max_iterations, self%ode%logfile)
     call fson_get_mpi(json, &
          "time.step.solver.nonlinear.tolerance.relative", &
-         default_nonlinear_solver_relative_tol, &
-         nonlinear_solver_relative_tol, self%ode%logfile)
+         default_nonlinear_relative_tol, &
+         nonlinear_relative_tol, self%ode%logfile)
     call fson_get_mpi(json, &
          "time.step.solver.nonlinear.tolerance.absolute", &
-         default_nonlinear_solver_abs_tol, nonlinear_solver_abs_tol, &
+         default_nonlinear_abs_tol, nonlinear_abs_tol, &
          self%ode%logfile)
-    call self%setup_solver(nonlinear_solver_max_iterations)
+    call fson_get_mpi(json, &
+         "time.step.solver.linear.type", &
+         default_ksp_type_str, ksp_type_str, self%ode%logfile)
+    if (fson_has_mpi(json, &
+         "time.step.solver.linear.tolerance.relative")) then
+       call fson_get_mpi(json, &
+         "time.step.solver.linear.tolerance.relative", &
+         val = linear_relative_tol)
+    else
+       linear_relative_tol = PETSC_DEFAULT_REAL
+       call self%ode%logfile%write(LOG_LEVEL_INFO, 'input', &
+            'default', str_key = &
+            'time.step.solver.linear.tolerance.relative', &
+            str_value = "PETSc_default")
+    end if
+    if (fson_has_mpi(json, &
+         "time.step.solver.linear.maximum.iterations")) then
+       call fson_get_mpi(json, &
+         "time.step.solver.linear.maximum.iterations", &
+         val = linear_max_iterations)
+    else
+       linear_max_iterations = PETSC_DEFAULT_INTEGER
+       call self%ode%logfile%write(LOG_LEVEL_INFO, 'input', &
+            'default', str_key = &
+            'time.step.solver.linear.maximum.iterations', &
+            str_value = "PETSc_default")
+    end if
+    ksp_type = ksp_type_from_str(ksp_type_str)
+    call fson_get_mpi(json, &
+         "time.step.solver.linear.preconditioner.type", &
+         default_pc_type_str, pc_type_str, self%ode%logfile)
+    pc_type = pc_type_from_str(pc_type_str)
+
+    call self%setup_nonlinear_solver(nonlinear_max_iterations)
+    call self%setup_linear_solver(ksp_type, linear_relative_tol, &
+         linear_max_iterations, pc_type)
 
     if (method == TS_DIRECTSS) then
 
@@ -1301,14 +1360,7 @@ end subroutine timestepper_steps_set_next_stepsize
 
        call fson_get_mpi(json, "time.step.adapt.method", &
             default_adapt_method_str, adapt_method_str, self%ode%logfile)
-       select case (str_to_lower(adapt_method_str))
-       case ("change")
-          adapt_method = TS_ADAPT_CHANGE
-       case ("iteration")
-          adapt_method = TS_ADAPT_ITERATION
-       case default
-          adapt_method = TS_ADAPT_CHANGE
-       end select
+       adapt_method = adapt_method_from_str(adapt_method_str)
 
        call fson_get_mpi(json, "time.step.adapt.min", &
             default_adapt_min, adapt_min, self%ode%logfile)
@@ -1337,7 +1389,7 @@ end subroutine timestepper_steps_set_next_stepsize
          stop_time_specified, stop_time, max_num_steps, max_stepsize, &
          adapt_on, adapt_method, adapt_min, adapt_max, &
          adapt_reduction, adapt_amplification, step_sizes, &
-         nonlinear_solver_relative_tol, nonlinear_solver_abs_tol, &
+         nonlinear_relative_tol, nonlinear_abs_tol, &
          max_num_tries, steady_state)
 
     call fson_get_mpi(json, "output.initial", &
@@ -1347,6 +1399,60 @@ end subroutine timestepper_steps_set_next_stepsize
 
     call self%ode%logfile%write_blank()
 
+  contains
+
+    PetscInt function time_step_method_from_str(method_str) result(method)
+      character(*), intent(in) :: method_str
+      select case (str_to_lower(method_str))
+      case ("beuler")
+         method = TS_BEULER
+      case ("bdf2")
+         method = TS_BDF2
+      case ("directss")
+         method = TS_DIRECTSS
+      case default
+         method = TS_BEULER
+      end select
+    end function time_step_method_from_str
+
+    PetscInt function adapt_method_from_str(adapt_method_str) result(method)
+      character(*), intent(in) :: adapt_method_str
+      select case (str_to_lower(adapt_method_str))
+      case ("change")
+         method = TS_ADAPT_CHANGE
+      case ("iteration")
+         method = TS_ADAPT_ITERATION
+      case default
+         method = TS_ADAPT_CHANGE
+      end select
+    end function adapt_method_from_str
+
+    KSPType function ksp_type_from_str(ksp_type_str) result(ksp_type)
+      character(*), intent(in) :: ksp_type_str
+      select case(str_to_lower(ksp_type_str))
+      case ("gmres")
+         ksp_type = KSPGMRES
+      case ("bcgs")
+         ksp_type = KSPBCGS
+      case ("bcgsl")
+         ksp_type = KSPBCGSL
+      case default
+         ksp_type = KSPBCGSL
+      end select
+    end function ksp_type_from_str
+
+    PCType function pc_type_from_str(pc_type_str) result(pc_type)
+      character(*), intent(in) :: pc_type_str
+      select case(str_to_lower(pc_type_str))
+      case ("bjacobi")
+         pc_type = PCBJACOBI
+      case ("asm")
+         pc_type = PCASM
+      case default
+         pc_type = PCASM
+      end select
+    end function pc_type_from_str
+    
   end subroutine timestepper_init
 
 !------------------------------------------------------------------------
