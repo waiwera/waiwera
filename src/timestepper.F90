@@ -381,6 +381,8 @@ contains
     if (err == 0) then
        call VecCopy(context%steps%current%rhs, residual, ierr)
        CHKERRQ(ierr)
+       call context%ode%boundary_residuals(y, context%steps%current%lhs, &
+            residual, err)
     end if
 
   end subroutine direct_ss_residual

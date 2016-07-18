@@ -60,6 +60,7 @@ module flow_simulation_module
      procedure, public :: fluid_properties => flow_simulation_fluid_properties
      procedure, public :: output_mesh_geometry => flow_simulation_output_mesh_geometry
      procedure, public :: output => flow_simulation_output
+     procedure, public :: boundary_residuals => flow_simulation_boundary_residuals
   end type flow_simulation_type
 
 contains
@@ -1161,6 +1162,76 @@ end subroutine flow_simulation_run_info
     call PetscLogEventEnd(output_event, ierr); CHKERRQ(ierr)
 
   end subroutine flow_simulation_output
+
+!------------------------------------------------------------------------
+
+  subroutine flow_simulation_boundary_residuals(self, y, lhs, residual, err)
+    !! Computes residual terms for boundary ghost cells.
+
+    use dm_utils_module, only: global_section_offset, global_vec_section
+    use cell_module, only: cell_type
+
+    class(flow_simulation_type), intent(in out) :: self
+    Vec, intent(in) :: y !! primary variables
+    Vec, intent(in) :: lhs !! initial LHS vector
+    Vec, intent(in out) :: residual !! residual vector
+    PetscErrorCode, intent(out) :: err !! error code
+    ! Locals:
+    PetscInt :: c, np, nc
+    PetscSection :: fluid_section, rock_section, lhs_section
+    PetscInt :: fluid_offset, rock_offset, lhs_offset
+    PetscReal, pointer, contiguous :: fluid_array(:), rock_array(:)
+    PetscReal, pointer, contiguous :: lhs_array(:), residual_array(:)
+    PetscReal, pointer, contiguous :: cell_lhs(:), cell_residual(:)
+    type(cell_type) :: cell
+    PetscErrorCode :: ierr
+
+    err = 0
+    np = self%eos%num_primary_variables
+    nc = self%eos%num_components
+
+    call global_vec_section(lhs, lhs_section)
+    call VecGetArrayReadF90(lhs, lhs_array, ierr); CHKERRQ(ierr)
+    call VecGetArrayF90(residual, residual_array, ierr); CHKERRQ(ierr)
+
+    call global_vec_section(self%fluid, fluid_section)
+    call VecGetArrayReadF90(self%fluid, fluid_array, ierr); CHKERRQ(ierr)
+
+    call global_vec_section(self%rock, rock_section)
+    call VecGetArrayReadF90(self%rock, rock_array, ierr); CHKERRQ(ierr)
+
+    call cell%init(nc, self%eos%num_phases)
+
+    do c = self%mesh%end_interior_cell, self%mesh%end_cell - 1
+
+       if (self%mesh%ghost_cell(c) < 0) then
+
+          call global_section_offset(lhs_section, c, &
+               self%solution_range_start, lhs_offset, ierr); CHKERRQ(ierr)
+          cell_lhs => lhs_array(lhs_offset : lhs_offset + np - 1)
+          cell_residual => residual_array(lhs_offset : lhs_offset + np - 1)
+
+          call global_section_offset(fluid_section, c, &
+               self%fluid_range_start, fluid_offset, ierr); CHKERRQ(ierr)
+          call global_section_offset(rock_section, c, &
+               self%rock_range_start, rock_offset, ierr); CHKERRQ(ierr)
+
+          call cell%rock%assign(rock_array, rock_offset)
+          call cell%fluid%assign(fluid_array, fluid_offset)
+
+          cell_residual = cell%balance(np) - cell_lhs
+
+       end if
+
+    end do
+
+    call cell%destroy()
+    call VecRestoreArrayReadF90(self%fluid, fluid_array, ierr); CHKERRQ(ierr)
+    call VecRestoreArrayReadF90(self%rock, rock_array, ierr); CHKERRQ(ierr)
+    call VecRestoreArrayReadF90(lhs, lhs_array, ierr); CHKERRQ(ierr)
+    call VecRestoreArrayF90(residual, residual_array, ierr); CHKERRQ(ierr)
+
+  end subroutine flow_simulation_boundary_residuals
 
 !------------------------------------------------------------------------
 
