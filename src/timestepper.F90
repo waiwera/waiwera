@@ -364,8 +364,9 @@ contains
 !------------------------------------------------------------------------
 
   subroutine direct_ss_residual(solver, y, residual, context, err)
-    !! Residual for direct solution of steady state equations R(y) = 0.
-    !! Here we evaluate R() at the steps final time.
+    !! Residual for direct solution of steady state equations R(y) =
+    !! 0.  Here we evaluate R() at the steps final time, and add
+    !! residuals for boundary ghost cells.
 
     SNES, intent(in) :: solver
     Vec, intent(in) :: y
