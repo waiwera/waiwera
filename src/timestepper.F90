@@ -1251,7 +1251,7 @@ end subroutine timestepper_steps_set_next_stepsize
     PetscBool, parameter :: default_output_final = PETSC_TRUE
     PetscBool :: stop_time_specified, steady_state
     character(max_ksp_type_str_len) :: ksp_type_str
-    character(max_ksp_type_str_len), parameter :: default_ksp_type_str = "bcgsl"
+    character(max_ksp_type_str_len), parameter :: default_ksp_type_str = "bcgs"
     KSPType :: ksp_type
     character(max_pc_type_str_len) :: pc_type_str
     character(max_pc_type_str_len), parameter :: default_pc_type_str = "asm"
@@ -1440,7 +1440,7 @@ end subroutine timestepper_steps_set_next_stepsize
       case ("bcgsl")
          ksp_type = KSPBCGSL
       case default
-         ksp_type = KSPBCGSL
+         ksp_type = KSPBCGS
       end select
     end function ksp_type_from_str
 
