@@ -13,7 +13,7 @@ def primary_to_region_we(primary):
     else: return region(primary[1], primary[0])
 
 primary_to_region_funcs = {'we': primary_to_region_we}
-    
+
 class t2data_export_json(t2data):
     """Modification of t2data class including ability to export to
     JSON for supercode."""
@@ -30,7 +30,7 @@ class t2data_export_json(t2data):
         jsonname = datbase + '.json'
         json.dump(json_data, file(jsonname, 'w'), indent = indent)
 
-    def json(self, geo, mesh_filename, atmos_volume = 1.e25, incons = None, 
+    def json(self, geo, mesh_filename, atmos_volume = 1.e25, incons = None,
                     eos = None, bdy_incons = None):
         """Takes a t2data object and mulgrid and returns a dictionary
         representing the corresponding JSON input."""
@@ -150,7 +150,7 @@ class t2data_export_json(t2data):
             jsondata['relative permeability'] = rp
         else: jsondata['relative permeability'] = {'type': 'fully mobile'}
         return jsondata
-    
+
     def initial_json(self, geo, incons, eos):
         """Converts initial condition specifications to JSON."""
         jsondata = {}
@@ -222,7 +222,7 @@ class t2data_export_json(t2data):
                         nz = -self.grid.connection[conname].dircos
                         if abs(nz) > 0.: normal = np.array([0., 0., nz])
                         else:
-                            raise Exception("Can't find normal vector for connection: " + 
+                            raise Exception("Can't find normal vector for connection: " +
                                             str(conname))
                     else:
                         normal = blk.centre - interior_blk.centre
