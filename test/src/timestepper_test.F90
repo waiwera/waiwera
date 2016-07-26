@@ -267,7 +267,6 @@ contains
     call VecNorm(self%diff, NORM_INFINITY, normdiff, ierr)
     CHKERRQ(ierr)
     self%maxdiff = max(self%maxdiff, normdiff)
-    print *, 'time index:', time_index, 'time:', time, 'diff:', normdiff
 
   contains
 
