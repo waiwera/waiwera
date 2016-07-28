@@ -118,6 +118,7 @@ class t2data_export_json(t2data):
                       'wet conductivity': rt.conductivity, 'specific heat': rt.specific_heat}
             dry_cond = rt.dry_conductivity
             if dry_cond is not None and dry_cond > 0.0: rtdata['dry conductivity'] = dry_cond
+            else: rtdata['dry conductivity'] = rt.conductivity
             rtdata['cells'] = []
             jsondata['rock']['types'].append(rtdata)
             rock_index[rt.name] = ir
