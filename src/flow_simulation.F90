@@ -155,7 +155,7 @@ contains
     call self%run_info()
 
     call self%logfile%write(LOG_LEVEL_INFO, 'simulation', 'init', &
-         str_key = 'time', str_value = datetimestr)
+         str_key = 'wall_time', str_value = datetimestr)
     call self%logfile%write_blank()
 
     if (default_log) then
@@ -427,7 +427,7 @@ end subroutine flow_simulation_run_info
     elapsed_time = end_wall_time - self%start_wall_time
     call self%logfile%write(LOG_LEVEL_INFO, 'simulation', 'destroy', &
          real_keys = ['elapsed_seconds'], real_values = [elapsed_time], &
-         str_key = 'time', str_value = date_time_str())
+         str_key = 'wall_time', str_value = date_time_str())
 
     call self%logfile%destroy()
 

@@ -1625,7 +1625,8 @@ end subroutine timestepper_steps_set_next_stepsize
     PetscLogDouble :: start_wall_time, end_wall_time, elapsed_time
 
     call self%ode%logfile%write(LOG_LEVEL_INFO, 'timestepper', 'start', &
-         str_key = 'time            ', str_value = date_time_str())
+         real_keys = ['time'], real_values = [self%steps%current%time], &
+         str_key = 'wall_time            ', str_value = date_time_str())
     call self%ode%logfile%flush()
     call PetscTime(start_wall_time, ierr); CHKERRQ(ierr)
 
@@ -1677,7 +1678,7 @@ end subroutine timestepper_steps_set_next_stepsize
     call self%ode%logfile%write_blank()
     call self%ode%logfile%write(LOG_LEVEL_INFO, 'timestepper', 'end', &
          real_keys = ['elapsed_seconds'], real_values = [elapsed_time], &
-         str_key = 'time', str_value = date_time_str())
+         str_key = 'wall_time', str_value = date_time_str())
     call self%ode%logfile%flush()
 
   end subroutine timestepper_run
