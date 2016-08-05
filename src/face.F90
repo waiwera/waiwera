@@ -36,7 +36,6 @@ module face_module
      procedure, public :: phase_density => face_phase_density
      procedure, public :: harmonic_average => face_harmonic_average
      procedure, public :: permeability => face_permeability
-     procedure, public :: mobility => face_mobility
      procedure, public :: heat_conductivity => face_heat_conductivity
      procedure, public :: upstream_index => face_upstream_index
      procedure, public :: flux => face_flux
@@ -315,20 +314,6 @@ contains
 
 !------------------------------------------------------------------------
 
-  PetscReal function face_mobility(self, p, up) result(mobility)
-    !! Returns effective mobility of phase p on the face, upstream
-    !! weighted between the two cells.
-
-    class(face_type), intent(in) :: self
-    PetscInt, intent(in) :: p  !! Phase index
-    PetscInt, intent(in) :: up !! Upstream cell index
-
-    mobility = self%cell(up)%fluid%phase(p)%mobility()
-
-  end function face_mobility
-
-!------------------------------------------------------------------------
-
   PetscReal function face_heat_conductivity(self, eos) result(K)
     !! Returns effective heat conductivity on the face, harmonically
     !! averaged between the two cells.
@@ -386,7 +371,7 @@ contains
     PetscInt :: i, p, up
     PetscReal :: dpdn, dtdn, gn, G, face_density, F
     PetscReal :: phase_flux(self%cell(1)%fluid%num_components)
-    PetscReal :: k, h, cond, mobility
+    PetscReal :: k, h, cond
     PetscInt :: phases(2), phase_present
 
     nc = eos%num_components
@@ -419,10 +404,9 @@ contains
           if (btest(phases(up), p - 1)) then
 
              k = self%permeability()
-             mobility = self%mobility(p, up)
              associate(upstream => self%cell(up)%fluid%phase(p))
                ! Mass flows:
-               F = -k * mobility * G
+               F = -k * upstream%mobility() * G
                phase_flux = F * upstream%mass_fraction
                flux(1:nc) = flux(1:nc) + phase_flux
                if (.not. eos%isothermal) then
