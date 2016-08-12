@@ -368,10 +368,28 @@ contains
     PetscReal, intent(in) :: gradient
     PetscInt, intent(in) :: up, down
     PetscReal, dimension(2) :: w
+    ! Locals:
+    PetscReal, parameter :: upstream_threshold = 1.e-6_dp
 
-    ! Upstream weighting:
-    w(up) = 1._dp
-    w(down) = 0._dp
+    if (abs(gradient) > upstream_threshold) then
+       ! Upstream weighting:
+       w(up) = 1._dp
+    else
+       ! Smoothed upstream weighting to avoid discontinous
+       ! mobilities etc. when gradient changes sign:
+       w(up) = cubic(gradient / upstream_threshold)
+    end if
+
+    w(down) = 1._dp - w(up)
+
+  contains
+
+    PetscReal function cubic(x) result(f)
+      !! Cubic interpolant with the properties:
+      !! f(-1) = 1; f(1) = 0; f'(-1) = f'(1) = 0
+      PetscReal, intent(in) :: x
+      f = 0.5_dp - 0.25_dp * x * (3._dp - x * x)
+    end function cubic
 
   end function face_cell_weights
 
