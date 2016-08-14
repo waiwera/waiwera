@@ -38,10 +38,8 @@ module face_module
      procedure, public :: permeability => face_permeability
      procedure, public :: heat_conductivity => face_heat_conductivity
      procedure, public :: flow_indices => face_flow_indices
-     procedure, public :: cell_weights => face_cell_weights
-     procedure, public :: mobility => face_mobility
-     procedure, public :: mass_fraction => face_mass_fraction
-     procedure, public :: specific_enthalpy => face_specific_enthalpy
+     procedure, public :: upstream_weight => face_upstream_weight
+     procedure, public :: transport => face_transport
      procedure, public :: flux => face_flux
   end type face_type
 
@@ -360,27 +358,23 @@ contains
 
 !------------------------------------------------------------------------
 
-  function face_cell_weights(self, gradient, up, down) result (w)
-    !! Returns cell weights for computing effective mobility etc.
+  PetscReal function face_upstream_weight(self, gradient) result (w)
+    !! Returns upstream weight for computing effective mobility etc.
     !! at the face.
 
     class(face_type), intent(in) :: self
     PetscReal, intent(in) :: gradient
-    PetscInt, intent(in) :: up, down
-    PetscReal, dimension(2) :: w
     ! Locals:
     PetscReal, parameter :: upstream_threshold = 1.e-6_dp
 
     if (abs(gradient) > upstream_threshold) then
        ! Upstream weighting:
-       w(up) = 1._dp
+       w = 1._dp
     else
        ! Smoothed upstream weighting to avoid discontinous
        ! mobilities etc. when gradient changes sign:
-       w(up) = cubic(gradient / upstream_threshold)
+       w = cubic(gradient / upstream_threshold)
     end if
-
-    w(down) = 1._dp - w(up)
 
   contains
 
@@ -391,65 +385,49 @@ contains
       f = 0.5_dp - 0.25_dp * x * (3._dp - x * x)
     end function cubic
 
-  end function face_cell_weights
+  end function face_upstream_weight
 
 !------------------------------------------------------------------------
 
-  PetscReal function face_mobility(self, p, w) result (mobility)
-    !! Returns effective mobility on the face, for phase p, according to
-    !! the given weights w.
+  subroutine face_transport(self, p, w_up, up, down, &
+       mobility, mass_fraction, h)
+    !! Returns effective transport quantities (mobility, mass_fractions
+    !! and enthalpy) on the face, for phase p, according to the given
+    !! upstream weight w_up.
 
     class(face_type), intent(in) :: self
     PetscInt, intent(in) :: p !! Phase index
-    PetscReal, dimension(2), intent(in) :: w !! Cell weights
+    PetscReal, intent(in) :: w_up !! Upstream weight
+    PetscInt, intent(in) :: up, down
+    PetscReal, intent(out) :: mobility !! Mobility
+    PetscReal, dimension(self%cell(1)%fluid%num_components), intent(out) &
+         :: mass_fraction
+    PetscReal, intent(out) :: h !! Enthalpy
     ! Locals:
     PetscInt :: i
+    PetscReal :: w(2)
+    PetscReal, parameter :: tol = 1.e-12_dp
 
-    mobility = 0._dp
-    do i = 1, 2
-       mobility = mobility + w(i) * self%cell(i)%fluid%phase(p)%mobility()
-    end do
+    if (w_up >= 1._dp - tol) then
+       associate(upstream => self%cell(up)%fluid%phase(p))
+         mobility = upstream%mobility()
+         mass_fraction = upstream%mass_fraction
+         h = upstream%specific_enthalpy
+       end associate
+    else
+       mobility = 0._dp
+       mass_fraction = 0._dp
+       h = 0._dp
+       w(up) = w_up; w(down) = 1._dp - w_up
+       do i = 1, 2
+          mobility = mobility + w(i) * self%cell(i)%fluid%phase(p)%mobility()
+          mass_fraction = mass_fraction + w(i) * &
+               self%cell(i)%fluid%phase(p)%mass_fraction
+          h = h + w(i) * self%cell(i)%fluid%phase(p)%specific_enthalpy
+       end do
+    end if
 
-  end function face_mobility
-
-!------------------------------------------------------------------------
-
-  function face_mass_fraction(self, p, w) result (mf)
-    !! Returns effective mass fraction array on the face, for phase p,
-    !! according to the given weights w.
-
-    class(face_type), intent(in) :: self
-    PetscInt, intent(in) :: p !! Phase index
-    PetscReal, dimension(2), intent(in) :: w !! Cell weights
-    PetscReal, dimension(self%cell(1)%fluid%num_components) :: mf
-    ! Locals:
-    PetscInt :: i
-
-    mf = 0._dp
-    do i = 1, 2
-       mf = mf + w(i) * self%cell(i)%fluid%phase(p)%mass_fraction
-    end do
-
-  end function face_mass_fraction
-
-!------------------------------------------------------------------------
-
-  PetscReal function face_specific_enthalpy(self, p, w) result (h)
-    !! Returns effective specific enthalpy on the face, for phase p,
-    !! according to the given weights w.
-
-    class(face_type), intent(in) :: self
-    PetscInt, intent(in) :: p !! Phase index
-    PetscReal, dimension(2), intent(in) :: w !! Cell weights
-    ! Locals:
-    PetscInt :: i
-
-    h = 0._dp
-    do i = 1, 2
-       h = h + w(i) * self%cell(i)%fluid%phase(p)%specific_enthalpy
-    end do
-
-  end function face_specific_enthalpy
+  end subroutine face_transport
 
 !------------------------------------------------------------------------
 
@@ -468,7 +446,7 @@ contains
     PetscInt :: nc, np
     PetscInt :: i, p, up, down
     PetscReal :: dpdn, dtdn, gn, G, face_density, F
-    PetscReal :: k, h, cond, w(2), mobility
+    PetscReal :: k, h, cond, w_up, mobility
     PetscReal :: mass_fraction(self%cell(1)%fluid%num_components)
     PetscInt :: phases(2), phase_present
 
@@ -499,22 +477,14 @@ contains
           call self%flow_indices(G, up, down)
 
           if (btest(phases(up), p - 1)) then
-
              k = self%permeability()
-
              if (btest(phases(down), p - 1)) then
-                w = self%cell_weights(G, up, down)
-                mobility = self%mobility(p, w)
-                mass_fraction = self%mass_fraction(p, w)
-                h = self%specific_enthalpy(p, w)
+                w_up = self%upstream_weight(G)
              else
-                associate(upstream => self%cell(up)%fluid%phase(p))
-                  mobility = upstream%mobility()
-                  mass_fraction = upstream%mass_fraction
-                  h = upstream%specific_enthalpy
-                end associate
+                w_up = 1.0_dp
              end if
-
+             call self%transport(p, w_up, up, down, &
+                  mobility, mass_fraction, h)
              ! Mass flows:
              F = -k * mobility * G
              flux(1:nc) = flux(1:nc) + F * mass_fraction
@@ -522,6 +492,7 @@ contains
                 ! Heat convection:
                 flux(np) = flux(np) + h * F
              end if
+
           end if
 
        end if
