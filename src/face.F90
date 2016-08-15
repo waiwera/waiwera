@@ -38,7 +38,7 @@ module face_module
      procedure, public :: permeability => face_permeability
      procedure, public :: heat_conductivity => face_heat_conductivity
      procedure, public :: flow_indices => face_flow_indices
-     procedure, public :: upstream_weight => face_upstream_weight
+     procedure, public :: weights => face_weights
      procedure, public :: transport => face_transport
      procedure, public :: flux => face_flux
   end type face_type
@@ -358,22 +358,26 @@ contains
 
 !------------------------------------------------------------------------
 
-  PetscReal function face_upstream_weight(self, gradient) result (w)
-    !! Returns upstream weight for computing effective mobility etc.
+  function face_weights(self, gradient, up, down, down_present) result (w)
+    !! Returns weights for computing effective mobility etc.
     !! at the face.
 
     class(face_type), intent(in) :: self
-    PetscReal, intent(in) :: gradient
+    PetscReal, intent(in) :: gradient !! Effective pressure gradient
+    PetscInt, intent(in) :: up, down  !! Up- and down-stream cell indices
+    PetscBool, intent(in) :: down_present !! Whether phase is present in the downstream cell
+    PetscReal, dimension(2) :: w
     ! Locals:
-    PetscReal, parameter :: upstream_threshold = 1.e-6_dp
+    PetscReal, parameter :: upstream_threshold = 1.e-3_dp
 
-    if (abs(gradient) > upstream_threshold) then
+    if ((.not. down_present) .or. (abs(gradient) > upstream_threshold)) then
        ! Upstream weighting:
-       w = 1._dp
+       w(up) = 1._dp; w(down) = 0._dp
     else
        ! Smoothed upstream weighting to avoid discontinous
        ! mobilities etc. when gradient changes sign:
-       w = cubic(gradient / upstream_threshold)
+       w(1) = cubic(gradient / upstream_threshold)
+       w(2) = 1._dp - w(1)
     end if
 
   contains
@@ -385,30 +389,40 @@ contains
       f = 0.5_dp - 0.25_dp * x * (3._dp - x * x)
     end function cubic
 
-  end function face_upstream_weight
+    PetscReal function john(x) result(f)
+      PetscReal, intent(in) :: x
+      PetscReal, parameter :: eps = 1.e-3_dp
+      if (x <= -eps) then
+         f = 1._dp - 0.5_dp / (1._dp - eps) - 0.5_dp / (1._dp - eps) * x
+      else if (x <= eps) then
+         f = 0.5_dp
+      else
+         f = 0.5_dp / (1._dp - eps) - 0.5_dp / (1._dp - eps) * x
+      end if
+    end function john
+
+  end function face_weights
 
 !------------------------------------------------------------------------
 
-  subroutine face_transport(self, p, w_up, up, down, &
-       mobility, mass_fraction, h)
+  subroutine face_transport(self, p, w, up, mobility, mass_fraction, h)
     !! Returns effective transport quantities (mobility, mass_fractions
     !! and enthalpy) on the face, for phase p, according to the given
-    !! upstream weight w_up.
+    !! cell weights w.
 
     class(face_type), intent(in) :: self
     PetscInt, intent(in) :: p !! Phase index
-    PetscReal, intent(in) :: w_up !! Upstream weight
-    PetscInt, intent(in) :: up, down
+    PetscReal, intent(in) :: w(2) !! Cell weights
+    PetscInt, intent(in) :: up !! Upstream index
     PetscReal, intent(out) :: mobility !! Mobility
     PetscReal, dimension(self%cell(1)%fluid%num_components), intent(out) &
          :: mass_fraction
     PetscReal, intent(out) :: h !! Enthalpy
     ! Locals:
     PetscInt :: i
-    PetscReal :: w(2)
     PetscReal, parameter :: tol = 1.e-12_dp
 
-    if (w_up >= 1._dp - tol) then
+    if (w(up) >= 1._dp - tol) then
        associate(upstream => self%cell(up)%fluid%phase(p))
          mobility = upstream%mobility()
          mass_fraction = upstream%mass_fraction
@@ -418,7 +432,6 @@ contains
        mobility = 0._dp
        mass_fraction = 0._dp
        h = 0._dp
-       w(up) = w_up; w(down) = 1._dp - w_up
        do i = 1, 2
           mobility = mobility + w(i) * self%cell(i)%fluid%phase(p)%mobility()
           mass_fraction = mass_fraction + w(i) * &
@@ -446,9 +459,10 @@ contains
     PetscInt :: nc, np
     PetscInt :: i, p, up, down
     PetscReal :: dpdn, dtdn, gn, G, face_density, F
-    PetscReal :: k, h, cond, w_up, mobility
+    PetscReal :: k, h, cond, w(2), mobility
     PetscReal :: mass_fraction(self%cell(1)%fluid%num_components)
     PetscInt :: phases(2), phase_present
+    PetscBool :: down_present
 
     nc = eos%num_components
     np = eos%num_primary_variables
@@ -478,12 +492,9 @@ contains
 
           if (btest(phases(up), p - 1)) then
              k = self%permeability()
-             if (btest(phases(down), p - 1)) then
-                w_up = self%upstream_weight(G)
-             else
-                w_up = 1.0_dp
-             end if
-             call self%transport(p, w_up, up, down, &
+             down_present = btest(phases(down), p - 1)
+             w = self%weights(G, up, down, down_present)
+             call self%transport(p, w, up, &
                   mobility, mass_fraction, h)
              ! Mass flows:
              F = -k * mobility * G
