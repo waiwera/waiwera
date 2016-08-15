@@ -360,7 +360,10 @@ contains
 
   function face_weights(self, gradient, up, down, down_present) result (w)
     !! Returns weights for computing effective mobility etc.
-    !! at the face.
+    !! at the face. If the phase is present in the downstream cell, and
+    !! the gradient is very small, a smoothed upstream weighting is used,
+    !! to avoid discontinuities in the mobilities etc. as the gradient
+    !! changes sign. Otherwise, ordinary upstream weighting is applied.
 
     class(face_type), intent(in) :: self
     PetscReal, intent(in) :: gradient !! Effective pressure gradient
@@ -370,14 +373,11 @@ contains
     ! Locals:
     PetscReal, parameter :: upstream_threshold = 1.e-3_dp
 
-    if ((.not. down_present) .or. (abs(gradient) > upstream_threshold)) then
-       ! Upstream weighting:
-       w(up) = 1._dp; w(down) = 0._dp
-    else
-       ! Smoothed upstream weighting to avoid discontinous
-       ! mobilities etc. when gradient changes sign:
+    if ((down_present) .and. (abs(gradient) < upstream_threshold)) then
        w(1) = cubic(gradient / upstream_threshold)
        w(2) = 1._dp - w(1)
+    else
+       w(up) = 1._dp; w(down) = 0._dp
     end if
 
   contains
@@ -388,18 +388,6 @@ contains
       PetscReal, intent(in) :: x
       f = 0.5_dp - 0.25_dp * x * (3._dp - x * x)
     end function cubic
-
-    PetscReal function john(x) result(f)
-      PetscReal, intent(in) :: x
-      PetscReal, parameter :: eps = 1.e-3_dp
-      if (x <= -eps) then
-         f = 1._dp - 0.5_dp / (1._dp - eps) - 0.5_dp / (1._dp - eps) * x
-      else if (x <= eps) then
-         f = 0.5_dp
-      else
-         f = 0.5_dp / (1._dp - eps) - 0.5_dp / (1._dp - eps) * x
-      end if
-    end function john
 
   end function face_weights
 
