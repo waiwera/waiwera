@@ -18,7 +18,8 @@ module face_test
 public :: test_face_assign, test_face_permeability_direction, &
      test_face_normal_gradient, test_face_harmonic_average, &
      test_face_flux_zero_horizontal, test_face_flux_vertical_gravity, &
-     test_face_flux_hydrostatic, test_face_flux_two_phase_vertical
+     test_face_flux_hydrostatic, test_face_flux_two_phase_vertical, &
+     test_face_weights
 
 PetscReal, parameter :: tol = 1.e-6_dp
 PetscReal, parameter :: mass_tol = 1.e-10_dp, heat_tol = 1.e-6
@@ -568,6 +569,64 @@ contains
     call thermo%destroy()
 
   end subroutine test_face_flux_two_phase_vertical
+
+!------------------------------------------------------------------------
+
+  subroutine test_face_weights
+    ! Test face weights()
+
+    type(face_type) :: face
+    ! Locals:
+    PetscReal :: g
+    PetscInt :: up, down
+    PetscBool :: down_present
+    PetscReal :: w(2)
+    PetscReal, parameter :: tol = 1.e-6_dp
+
+    if (mpi%rank == mpi%output_rank) then
+
+       down_present = .true.
+
+       g = -1.0_dp
+       call face%flow_indices(g, up, down)
+       call assert_equals(1, up, "up")
+       call assert_equals(2, down, "down")
+       w = face%weights(g, up, down, down_present)
+       call assert_equals(1._dp, w(1), tol, "w(1)")
+       call assert_equals(0._dp, w(2), tol, "w(2)")
+
+       g = 1.0_dp
+       call face%flow_indices(g, up, down)
+       call assert_equals(2, up, "up")
+       call assert_equals(1, down, "down")
+       w = face%weights(g, up, down, down_present)
+       call assert_equals(0._dp, w(1), tol, "w(1)")
+       call assert_equals(1._dp, w(2), tol, "w(2)")
+
+       g = -0.5e-3_dp
+       call face%flow_indices(g, up, down)
+       call assert_equals(1, up, "up")
+       call assert_equals(2, down, "down")
+       w = face%weights(g, up, down, down_present)
+       call assert_equals(27._dp / 32._dp, w(1), tol, "w(1)")
+       call assert_equals(5._dp / 32._dp, w(2), tol, "w(2)")
+
+       g = 1.e-4_dp
+       call face%flow_indices(g, up, down)
+       call assert_equals(2, up, "up")
+       call assert_equals(1, down, "down")
+       w = face%weights(g, up, down, down_present)
+       call assert_equals(1701._dp / 4000._dp, w(1), tol, "w(1)")
+       call assert_equals(2299._dp / 4000._dp, w(2), tol, "w(2)")
+
+       down_present = .false.
+       w = face%weights(g, up, down, down_present)
+       call assert_equals(0._dp, w(1), tol, "w(1)")
+       call assert_equals(1._dp, w(2), tol, "w(2)")
+
+    end if
+
+  end subroutine test_face_weights
 
 !------------------------------------------------------------------------
 
