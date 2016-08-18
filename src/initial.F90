@@ -267,10 +267,8 @@ contains
     CHKERRQ(ierr)
     call ISLoad(output_cell_index, viewer, ierr); CHKERRQ(ierr)
 
-    call PetscViewerHDF5SetTimestep(viewer, index, ierr); CHKERRQ(ierr)
-
     call VecGetDM(fluid_vector, fluid_dm, ierr); CHKERRQ(ierr)
-    call DMSetOutputSequenceNumber(fluid_dm, 0, t,ierr); CHKERRQ(ierr)
+    call DMSetOutputSequenceNumber(fluid_dm, index, t, ierr); CHKERRQ(ierr)
     call VecLoad(fluid_vector, viewer, ierr); CHKERRQ(ierr)
 
     call PetscViewerHDF5PopGroup(viewer, ierr); CHKERRQ(ierr)
