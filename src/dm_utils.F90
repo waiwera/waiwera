@@ -12,6 +12,7 @@ module dm_utils_module
   public :: global_vec_range_start, vec_reorder
   public :: dm_cell_normal_face
   public :: write_vec_vtk
+  public :: vec_max_pointwise_abs_scale
 
 contains
 
@@ -330,6 +331,52 @@ contains
     end if
 
   end subroutine dm_cell_normal_face
+
+!------------------------------------------------------------------------
+
+  PetscReal function vec_max_pointwise_abs_scale(v, scale, abs_tol) result(m)
+    !! Returns pointwise max absolute value of v / abs(scale), where
+    !! values of scale smaller in absolute value than abs_tol are replaced
+    !! by 1 (i.e. elements of v are not scaled when the corresponding
+    !! elements of scale are small).
+
+    Vec, intent(in) :: v, scale
+    PetscReal, intent(in) :: abs_tol
+    ! Locals:
+    DM :: dm
+    Vec :: scaled_abs_v
+    PetscReal, pointer, contiguous :: v_array(:), scale_array(:)
+    PetscReal, pointer, contiguous :: scaled_abs_v_array(:)
+    PetscInt :: i, low, hi
+    PetscReal :: abs_scale
+    PetscErrorCode :: ierr
+
+    call VecGetDM(v, dm, ierr); CHKERRQ(ierr)
+    call DMGetGlobalVector(dm, scaled_abs_v, ierr); CHKERRQ(ierr)
+
+    call VecGetArrayReadF90(v, v_array, ierr); CHKERRQ(ierr)
+    call VecGetArrayReadF90(scale, scale_array, ierr); CHKERRQ(ierr)
+    call VecGetArrayF90(scaled_abs_v, scaled_abs_v_array, ierr); CHKERRQ(ierr)
+
+    call VecGetOwnershipRange(v, low, hi, ierr); CHKERRQ(ierr)
+    do i = 1, hi - low
+       scaled_abs_v_array(i) = abs(v_array(i))
+       abs_scale = abs(scale_array(i))
+       if (abs_scale >= abs_tol) then
+          scaled_abs_v_array(i) = scaled_abs_v_array(i) / abs_scale
+       end if
+    end do
+
+    call VecRestoreArrayReadF90(v, v_array, ierr); CHKERRQ(ierr)
+    call VecRestoreArrayReadF90(scale, scale_array, ierr); CHKERRQ(ierr)
+    call VecRestoreArrayF90(scaled_abs_v, scaled_abs_v_array, ierr)
+    CHKERRQ(ierr)
+
+    call VecNorm(scaled_abs_v, NORM_INFINITY, m, ierr); CHKERRQ(ierr)
+
+    call DMRestoreGlobalVector(dm, scaled_abs_v, ierr); CHKERRQ(ierr)
+
+  end function vec_max_pointwise_abs_scale
 
 !------------------------------------------------------------------------
 
