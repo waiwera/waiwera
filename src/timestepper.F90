@@ -87,6 +87,7 @@ module timestepper_module
      PetscReal, public :: nonlinear_solver_abs_tol !! Absolute tolerance for non-linear solver function value
      PetscReal, public :: nonlinear_solver_update_relative_tol !! Relative tolerance for non-linear solver update
      PetscReal, public :: nonlinear_solver_update_abs_tol !! Absolute tolerance for non-linear solver update
+     PetscInt, public :: nonlinear_solver_minimum_iterations !! Minimum number of non-linear solver iterations to do before checking for convergence
      PetscReal, public :: termination_tol = 1.e-6_dp !! Tolerance for detecting stop time reached
      PetscReal, allocatable, public :: sizes(:) !! Pre-specified time step sizes
      type(timestep_adaptor_type), public :: adaptor !! Time step size adaptor
@@ -584,6 +585,7 @@ contains
        adapt_reduction, adapt_amplification, step_sizes, &
        nonlinear_solver_relative_tol, nonlinear_solver_abs_tol, &
        nonlinear_solver_update_relative_tol, nonlinear_solver_update_abs_tol, &
+       nonlinear_solver_minimum_iterations, &
        max_num_tries, steady_state)
 
     !! Sets up array of timesteps and pointers to them. This array stores the
@@ -608,6 +610,7 @@ contains
          nonlinear_solver_abs_tol
     PetscReal, intent(in) :: nonlinear_solver_update_relative_tol, &
          nonlinear_solver_update_abs_tol
+    PetscInt, intent(in) :: nonlinear_solver_minimum_iterations
     PetscInt, intent(in) :: max_num_tries
     PetscBool, intent(in) :: steady_state
     ! Locals:
@@ -657,6 +660,7 @@ contains
     self%nonlinear_solver_abs_tol = nonlinear_solver_abs_tol
     self%nonlinear_solver_update_relative_tol = nonlinear_solver_update_relative_tol
     self%nonlinear_solver_update_abs_tol = nonlinear_solver_update_abs_tol
+    self%nonlinear_solver_minimum_iterations = nonlinear_solver_minimum_iterations
 
     if ((present(step_sizes) .and. (allocated(step_sizes)))) then
        ! Fixed time step sizes override adaptor:
@@ -1144,33 +1148,38 @@ end subroutine timestepper_steps_set_next_stepsize
     Vec :: residual, solution, update
     PetscReal :: max_update
 
-    call SNESGetFunction(solver, residual, PETSC_NULL_OBJECT, &
-         PETSC_NULL_INTEGER, ierr); CHKERRQ(ierr)
+    if (num_iterations >= &
+         context%steps%nonlinear_solver_minimum_iterations) then
 
-    context%steps%current%max_residual = &
-         vec_max_pointwise_abs_scale(residual, &
-         context%steps%last%lhs, &
-         context%steps%nonlinear_solver_abs_tol)
+       call SNESGetFunction(solver, residual, PETSC_NULL_OBJECT, &
+            PETSC_NULL_INTEGER, ierr); CHKERRQ(ierr)
 
-    if (context%steps%current%max_residual < &
-         context%steps%nonlinear_solver_relative_tol) then
-       reason = SNES_CONVERGED_FNORM_RELATIVE
-    else
-       if (num_iterations > 0) then
-          call SNESGetSolutionUpdate(solver, update, ierr); CHKERRQ(ierr)
-          call SNESGetSolution(solver, solution, ierr); CHKERRQ(ierr)
-          max_update = vec_max_pointwise_abs_scale(update, solution, &
-               context%steps%nonlinear_solver_update_abs_tol)
-          if (max_update <= context%steps%nonlinear_solver_update_relative_tol) then
-             reason = SNES_CONVERGED_SNORM_RELATIVE
+       context%steps%current%max_residual = &
+            vec_max_pointwise_abs_scale(residual, &
+            context%steps%last%lhs, &
+            context%steps%nonlinear_solver_abs_tol)
+
+       if (context%steps%current%max_residual < &
+            context%steps%nonlinear_solver_relative_tol) then
+          reason = SNES_CONVERGED_FNORM_RELATIVE
+       else
+          if (num_iterations > 0) then
+             call SNESGetSolutionUpdate(solver, update, ierr); CHKERRQ(ierr)
+             call SNESGetSolution(solver, solution, ierr); CHKERRQ(ierr)
+             max_update = vec_max_pointwise_abs_scale(update, solution, &
+                  context%steps%nonlinear_solver_update_abs_tol)
+             if (max_update <= context%steps%nonlinear_solver_update_relative_tol) then
+                reason = SNES_CONVERGED_SNORM_RELATIVE
+             else
+                call SNESConvergedDefault(solver, num_iterations, xnorm, pnorm, &
+                     fnorm, reason, PETSC_NULL_OBJECT, ierr); CHKERRQ(ierr)
+             end if
           else
              call SNESConvergedDefault(solver, num_iterations, xnorm, pnorm, &
                   fnorm, reason, PETSC_NULL_OBJECT, ierr); CHKERRQ(ierr)
           end if
-       else
-          call SNESConvergedDefault(solver, num_iterations, xnorm, pnorm, &
-               fnorm, reason, PETSC_NULL_OBJECT, ierr); CHKERRQ(ierr)
        end if
+
     end if
 
   end subroutine SNES_convergence
@@ -1241,7 +1250,8 @@ end subroutine timestepper_steps_set_next_stepsize
     PetscReal, parameter :: default_nonlinear_abs_tol = 1._dp
     PetscReal, parameter :: default_nonlinear_update_relative_tol = 1.e-10_dp
     PetscReal, parameter :: default_nonlinear_update_abs_tol = 1._dp
-    PetscInt :: nonlinear_max_iterations
+    PetscInt, parameter :: default_nonlinear_min_iterations = 0
+    PetscInt :: nonlinear_max_iterations, nonlinear_min_iterations
     PetscReal :: nonlinear_relative_tol, nonlinear_abs_tol
     PetscReal :: nonlinear_update_relative_tol, nonlinear_update_abs_tol
     PetscInt :: max_num_tries
@@ -1290,6 +1300,10 @@ end subroutine timestepper_steps_set_next_stepsize
          "time.step.solver.nonlinear.tolerance.update_absolute", &
          default_nonlinear_update_abs_tol, nonlinear_update_abs_tol, &
          self%ode%logfile)
+    call fson_get_mpi(json, &
+         "time.step.solver.nonlinear.minimum.iterations", &
+         default_nonlinear_min_iterations, &
+         nonlinear_min_iterations, self%ode%logfile)
     call fson_get_mpi(json, &
          "time.step.solver.linear.type", &
          default_ksp_type_str, ksp_type_str, self%ode%logfile)
@@ -1402,7 +1416,7 @@ end subroutine timestepper_steps_set_next_stepsize
          adapt_reduction, adapt_amplification, step_sizes, &
          nonlinear_relative_tol, nonlinear_abs_tol, &
          nonlinear_update_relative_tol, nonlinear_update_abs_tol, &
-         max_num_tries, steady_state)
+         nonlinear_min_iterations, max_num_tries, steady_state)
 
     call fson_get_mpi(json, "output.initial", &
          default_output_initial, self%output_initial, self%ode%logfile)
