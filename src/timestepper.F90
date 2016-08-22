@@ -83,8 +83,10 @@ module timestepper_module
      PetscInt, public :: max_num_tries !! Maximum allowable number of tries per step
      PetscReal, public :: next_stepsize !! Step size to be used for next step
      PetscReal, public :: stop_time !! Maximum allowable time
-     PetscReal, public :: nonlinear_solver_relative_tol !! Relative tolerance for non-linear solver
-     PetscReal, public :: nonlinear_solver_abs_tol !! Absolute tolerance for non-linear solver
+     PetscReal, public :: nonlinear_solver_relative_tol !! Relative tolerance for non-linear solver function value
+     PetscReal, public :: nonlinear_solver_abs_tol !! Absolute tolerance for non-linear solver function value
+     PetscReal, public :: nonlinear_solver_update_relative_tol !! Relative tolerance for non-linear solver update
+     PetscReal, public :: nonlinear_solver_update_abs_tol !! Absolute tolerance for non-linear solver update
      PetscReal, public :: termination_tol = 1.e-6_dp !! Tolerance for detecting stop time reached
      PetscReal, allocatable, public :: sizes(:) !! Pre-specified time step sizes
      type(timestep_adaptor_type), public :: adaptor !! Time step size adaptor
@@ -533,8 +535,7 @@ contains
     type(logfile_type), intent(in out) :: logfile
 
     call logfile%write(LOG_LEVEL_INFO, 'timestep', 'end', &
-         ['tries           ', 'iters           '], &
-         [self%num_tries, self%num_iterations], &
+         ['tries'], [self%num_tries], &
          ['size            ', 'time            '], &
          [self%stepsize, self%time], &
          str_key = 'status          ', &
@@ -582,6 +583,7 @@ contains
        adapt_on, adapt_method, adapt_min, adapt_max, &
        adapt_reduction, adapt_amplification, step_sizes, &
        nonlinear_solver_relative_tol, nonlinear_solver_abs_tol, &
+       nonlinear_solver_update_relative_tol, nonlinear_solver_update_abs_tol, &
        max_num_tries, steady_state)
 
     !! Sets up array of timesteps and pointers to them. This array stores the
@@ -604,6 +606,8 @@ contains
     PetscReal, intent(in), allocatable, optional :: step_sizes(:)
     PetscReal, intent(in) :: nonlinear_solver_relative_tol, &
          nonlinear_solver_abs_tol
+    PetscReal, intent(in) :: nonlinear_solver_update_relative_tol, &
+         nonlinear_solver_update_abs_tol
     PetscInt, intent(in) :: max_num_tries
     PetscBool, intent(in) :: steady_state
     ! Locals:
@@ -651,6 +655,8 @@ contains
 
     self%nonlinear_solver_relative_tol = nonlinear_solver_relative_tol
     self%nonlinear_solver_abs_tol = nonlinear_solver_abs_tol
+    self%nonlinear_solver_update_relative_tol = nonlinear_solver_update_relative_tol
+    self%nonlinear_solver_update_abs_tol = nonlinear_solver_update_abs_tol
 
     if ((present(step_sizes) .and. (allocated(step_sizes)))) then
        ! Fixed time step sizes override adaptor:
@@ -1126,6 +1132,8 @@ end subroutine timestepper_steps_set_next_stepsize
        fnorm, reason, context, ierr)
     !! Tests for convergence of nonlinear solver.
 
+    use dm_utils_module, only: vec_max_pointwise_abs_scale
+
     SNES, intent(in) :: solver
     PetscInt, intent(in) :: num_iterations
     PetscReal, intent(in) :: xnorm, pnorm, fnorm
@@ -1133,47 +1141,36 @@ end subroutine timestepper_steps_set_next_stepsize
     type(timestepper_solver_context_type), intent(in out) :: context
     PetscErrorCode :: ierr
     ! Locals:
-    Vec :: unscaled_residual, residual
-    PetscReal, pointer, contiguous :: unscaled_residual_array(:), &
-         residual_array(:), lhs_array(:)
-    PetscInt :: low, hi, i
-    PetscReal :: scale
+    Vec :: residual, solution, update
+    PetscReal :: max_update
 
-    call SNESGetFunction(solver, unscaled_residual, PETSC_NULL_OBJECT, &
+    call SNESGetFunction(solver, residual, PETSC_NULL_OBJECT, &
          PETSC_NULL_INTEGER, ierr); CHKERRQ(ierr)
-    call DMGetGlobalVector(context%ode%mesh%dm, residual, ierr)
-    CHKERRQ(ierr)
 
-    call VecGetArrayF90(unscaled_residual, unscaled_residual_array, ierr)
-    CHKERRQ(ierr)
-    call VecGetArrayF90(residual, residual_array, ierr); CHKERRQ(ierr)
-    call VecGetArrayReadF90(context%steps%last%lhs, lhs_array, ierr)
-    CHKERRQ(ierr)
-
-    call VecGetOwnershipRange(unscaled_residual, low, hi, ierr); CHKERRQ(ierr)
-    do i = 1, hi - low
-       scale = max(abs(lhs_array(i)), context%steps%nonlinear_solver_abs_tol)
-       residual_array(i) = unscaled_residual_array(i) / scale
-    end do
-
-    call VecRestoreArrayF90(unscaled_residual, unscaled_residual_array, ierr)
-    CHKERRQ(ierr)
-    call VecRestoreArrayF90(residual, residual_array, ierr); CHKERRQ(ierr)
-    call VecRestoreArrayReadF90(context%steps%last%lhs, lhs_array, ierr)
-    CHKERRQ(ierr)
-
-    call VecNorm(residual, NORM_INFINITY, &
-         context%steps%current%max_residual, ierr); CHKERRQ(ierr)
-
-    call DMRestoreGlobalVector(context%ode%mesh%dm, residual, ierr)
-    CHKERRQ(ierr)
+    context%steps%current%max_residual = &
+         vec_max_pointwise_abs_scale(residual, &
+         context%steps%last%lhs, &
+         context%steps%nonlinear_solver_abs_tol)
 
     if (context%steps%current%max_residual < &
          context%steps%nonlinear_solver_relative_tol) then
-       reason = SNES_CONVERGED_FNORM_ABS
+       reason = SNES_CONVERGED_FNORM_RELATIVE
     else
-       call SNESConvergedDefault(solver, num_iterations, xnorm, pnorm, &
-            fnorm, reason, PETSC_NULL_OBJECT, ierr); CHKERRQ(ierr)
+       if (num_iterations > 0) then
+          call SNESGetSolutionUpdate(solver, update, ierr); CHKERRQ(ierr)
+          call SNESGetSolution(solver, solution, ierr); CHKERRQ(ierr)
+          max_update = vec_max_pointwise_abs_scale(update, solution, &
+               context%steps%nonlinear_solver_update_abs_tol)
+          if (max_update <= context%steps%nonlinear_solver_update_relative_tol) then
+             reason = SNES_CONVERGED_SNORM_RELATIVE
+          else
+             call SNESConvergedDefault(solver, num_iterations, xnorm, pnorm, &
+                  fnorm, reason, PETSC_NULL_OBJECT, ierr); CHKERRQ(ierr)
+          end if
+       else
+          call SNESConvergedDefault(solver, num_iterations, xnorm, pnorm, &
+               fnorm, reason, PETSC_NULL_OBJECT, ierr); CHKERRQ(ierr)
+       end if
     end if
 
   end subroutine SNES_convergence
@@ -1242,8 +1239,11 @@ end subroutine timestepper_steps_set_next_stepsize
     PetscInt, parameter :: default_nonlinear_max_iterations = 8
     PetscReal, parameter :: default_nonlinear_relative_tol = 1.e-5_dp
     PetscReal, parameter :: default_nonlinear_abs_tol = 1._dp
+    PetscReal, parameter :: default_nonlinear_update_relative_tol = 1.e-10_dp
+    PetscReal, parameter :: default_nonlinear_update_abs_tol = 1._dp
     PetscInt :: nonlinear_max_iterations
     PetscReal :: nonlinear_relative_tol, nonlinear_abs_tol
+    PetscReal :: nonlinear_update_relative_tol, nonlinear_update_abs_tol
     PetscInt :: max_num_tries
     PetscInt, parameter :: default_max_num_tries = 10
     PetscInt, parameter :: default_output_frequency = 1
@@ -1281,6 +1281,14 @@ end subroutine timestepper_steps_set_next_stepsize
     call fson_get_mpi(json, &
          "time.step.solver.nonlinear.tolerance.absolute", &
          default_nonlinear_abs_tol, nonlinear_abs_tol, &
+         self%ode%logfile)
+    call fson_get_mpi(json, &
+         "time.step.solver.nonlinear.tolerance.update_relative", &
+         default_nonlinear_update_relative_tol, &
+         nonlinear_update_relative_tol, self%ode%logfile)
+    call fson_get_mpi(json, &
+         "time.step.solver.nonlinear.tolerance.update_absolute", &
+         default_nonlinear_update_abs_tol, nonlinear_update_abs_tol, &
          self%ode%logfile)
     call fson_get_mpi(json, &
          "time.step.solver.linear.type", &
@@ -1393,6 +1401,7 @@ end subroutine timestepper_steps_set_next_stepsize
          adapt_on, adapt_method, adapt_min, adapt_max, &
          adapt_reduction, adapt_amplification, step_sizes, &
          nonlinear_relative_tol, nonlinear_abs_tol, &
+         nonlinear_update_relative_tol, nonlinear_update_abs_tol, &
          max_num_tries, steady_state)
 
     call fson_get_mpi(json, "output.initial", &
@@ -1533,6 +1542,32 @@ end subroutine timestepper_steps_set_next_stepsize
     class(timestepper_type), intent(in out) :: self
     PetscBool, intent(in) :: accepted
     SNESConvergedReason, intent(in) :: converged_reason
+    ! Locals:
+    PetscInt, parameter :: reason_str_len = 80
+    character(len = reason_str_len) :: reason_str
+    KSP :: linear_solver
+    PetscInt :: iterations
+    KSPConvergedReason :: ksp_reason
+    PetscErrorCode :: ierr
+
+    if (converged_reason == SNES_DIVERGED_LINEAR_SOLVE) then
+       call SNESGetKSP(self%solver, linear_solver, ierr); CHKERRQ(ierr)
+       call KSPGetIterationNumber(linear_solver, iterations, ierr); CHKERRQ(ierr)
+       call KSPGetConvergedReason(linear_solver, ksp_reason, ierr); CHKERRQ(ierr)
+       reason_str = KSP_reason_str(ksp_reason)
+       call self%ode%logfile%write(LOG_LEVEL_WARN, 'linear_solver', 'end', &
+            logical_keys = ['converged'], logical_values = [ksp_reason >= 0], &
+            int_keys = ['iterations'], int_values = [iterations], &
+            str_key = 'reason', str_value = trim(reason_str))
+    end if
+
+    reason_str = SNES_reason_str(converged_reason)
+
+    call self%ode%logfile%write(LOG_LEVEL_INFO, 'nonlinear_solver', 'end', &
+         logical_keys = ['converged'], logical_values = [converged_reason >= 0], &
+         int_keys = ['iterations'], &
+         int_values = [self%steps%current%num_iterations], &
+         str_key = 'reason', str_value = trim(reason_str))
 
     if (self%steps%current%status == TIMESTEP_ABORTED) then
        call self%ode%logfile%write(LOG_LEVEL_WARN, 'timestep', 'aborted', &
@@ -1540,74 +1575,67 @@ end subroutine timestepper_steps_set_next_stepsize
             int_values = [self%steps%current%num_tries])
     end if
 
-    if (.not. accepted) then
-       if (converged_reason < 0) then
-          call log_SNES_divergence()
-       end if
-       if (.not. self%steps%steady_state) then
-          call self%ode%logfile%write(LOG_LEVEL_WARN, 'timestep', 'reduction', &
-               real_keys = ['new_size        '], &
-               real_values = [self%steps%next_stepsize])
-       end if
+    if (.not. (accepted .or. self%steps%steady_state)) then
+       call self%ode%logfile%write(LOG_LEVEL_WARN, 'timestep', 'reduction', &
+            real_keys = ['new_size        '], &
+            real_values = [self%steps%next_stepsize])
     end if
 
   contains
 
-    subroutine log_SNES_divergence()
-      character(len = 80) :: reason_str
+    function SNES_reason_str(converged_reason) result (s)
+      SNESConvergedReason, intent(in) :: converged_reason
+      character(len = reason_str_len) :: s
       select case (converged_reason)
-         case (SNES_DIVERGED_FUNCTION_DOMAIN)
-            reason_str = "function_domain"
-         case (SNES_DIVERGED_FUNCTION_COUNT)
-            reason_str = "function_count"
-         case (SNES_DIVERGED_LINEAR_SOLVE)
-            reason_str = "linear_solver"
-            call log_linear_solver_divergence()
-         case (SNES_DIVERGED_FNORM_NAN)
-            reason_str = "function_norm_NaN"
-         case (SNES_DIVERGED_MAX_IT)
-            reason_str = "max_iterations"
-         case (SNES_DIVERGED_LINE_SEARCH)
-            reason_str = "line_search"
-         case (SNES_DIVERGED_INNER)
-            reason_str = "inner_solve"
-         case (SNES_DIVERGED_LOCAL_MIN)
-            reason_str = "local_min"
-         case default
-            reason_str = "unknown"
+      case (SNES_CONVERGED_FNORM_ABS)
+         s = "function_absolute"
+      case (SNES_CONVERGED_FNORM_RELATIVE)
+         s = "function_relative"
+      case (SNES_CONVERGED_SNORM_RELATIVE)
+         s = "update_relative"
+      case (SNES_CONVERGED_ITS)
+         s = "iterations"
+      case (SNES_CONVERGED_TR_DELTA)
+         s = "tr_delta"
+      case (SNES_DIVERGED_FUNCTION_DOMAIN)
+         s = "function_domain"
+      case (SNES_DIVERGED_FUNCTION_COUNT)
+         s = "function_count"
+      case (SNES_DIVERGED_LINEAR_SOLVE)
+         s = "linear_solver"
+      case (SNES_DIVERGED_FNORM_NAN)
+         s = "function_norm_NaN"
+      case (SNES_DIVERGED_MAX_IT)
+         s = "max_iterations"
+      case (SNES_DIVERGED_LINE_SEARCH)
+         s = "line_search"
+      case (SNES_DIVERGED_INNER)
+         s = "inner_solve"
+      case (SNES_DIVERGED_LOCAL_MIN)
+         s = "local_min"
+      case default
+         s = "unknown"
       end select
-      call self%ode%logfile%write(LOG_LEVEL_WARN, 'nonlinear_solver', &
-           'failed', str_key = 'reason', &
-           str_value = trim(reason_str))
-    end subroutine log_SNES_divergence
+    end function SNES_reason_str
 
-    subroutine log_linear_solver_divergence()
-      ! Locals:
-      KSP :: linear_solver
+    function KSP_reason_str(ksp_reason) result (s)
       KSPConvergedReason :: ksp_reason
-      character(len = 80) :: ksp_reason_str
-      PetscErrorCode :: ierr
-      call SNESGetKSP(self%solver, linear_solver, ierr); CHKERRQ(ierr)
-      call KSPGetConvergedReason(linear_solver, ksp_reason, ierr); CHKERRQ(ierr)
+      character(len = reason_str_len) :: s
       select case (ksp_reason)
          case (KSP_DIVERGED_DTOL)
-            ksp_reason_str = "dtol"
+            s = "dtol"
          case (KSP_DIVERGED_BREAKDOWN)
-            ksp_reason_str = "breakdown"
+            s = "breakdown"
          case (KSP_DIVERGED_ITS)
-            ksp_reason_str = "max_iterations"
+            s = "max_iterations"
          case (KSP_DIVERGED_NANORINF)
-            ksp_reason_str = "NaN_or_Inf"
+            s = "NaN_or_Inf"
          case(KSP_DIVERGED_BREAKDOWN_BICG)
-            ksp_reason_str = "BiCG_breakdown"
+            s = "BiCG_breakdown"
          case default
-            ksp_reason_str = "unknown"
+            s = "unknown"
       end select
-      call self%ode%logfile%write(LOG_LEVEL_WARN, &
-           'linear_solver', 'failed', &
-           str_key = 'reason', &
-           str_value = ksp_reason_str)
-    end subroutine log_linear_solver_divergence
+    end function KSP_reason_str
 
   end subroutine timestepper_log_step_status
 

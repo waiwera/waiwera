@@ -12,6 +12,7 @@ module dm_utils_module
   public :: global_vec_range_start, vec_reorder
   public :: dm_cell_normal_face
   public :: write_vec_vtk
+  public :: vec_max_pointwise_abs_scale
 
 contains
 
@@ -330,6 +331,48 @@ contains
     end if
 
   end subroutine dm_cell_normal_face
+
+!------------------------------------------------------------------------
+
+  PetscReal function vec_max_pointwise_abs_scale(v, scale, tol) result(m)
+    !! Returns pointwise max absolute value of v / abs(scale).  Where
+    !! the value of scale is less than tol, the value of tol is used
+    !! instead.
+
+    Vec, intent(in) :: v, scale
+    PetscReal, intent(in) :: tol
+    ! Locals:
+    DM :: dm
+    Vec :: scaled_v
+    PetscReal, pointer, contiguous :: v_array(:), scale_array(:)
+    PetscReal, pointer, contiguous :: scaled_v_array(:)
+    PetscInt :: i, low, hi
+    PetscReal :: scale_i
+    PetscErrorCode :: ierr
+
+    call VecGetDM(v, dm, ierr); CHKERRQ(ierr)
+    call DMGetGlobalVector(dm, scaled_v, ierr); CHKERRQ(ierr)
+
+    call VecGetArrayReadF90(v, v_array, ierr); CHKERRQ(ierr)
+    call VecGetArrayReadF90(scale, scale_array, ierr); CHKERRQ(ierr)
+    call VecGetArrayF90(scaled_v, scaled_v_array, ierr); CHKERRQ(ierr)
+
+    call VecGetOwnershipRange(v, low, hi, ierr); CHKERRQ(ierr)
+    do i = 1, hi - low
+       scale_i = max(abs(scale_array(i)), tol)
+       scaled_v_array(i) = v_array(i) / scale_i
+    end do
+
+    call VecRestoreArrayReadF90(v, v_array, ierr); CHKERRQ(ierr)
+    call VecRestoreArrayReadF90(scale, scale_array, ierr); CHKERRQ(ierr)
+    call VecRestoreArrayF90(scaled_v, scaled_v_array, ierr)
+    CHKERRQ(ierr)
+
+    call VecNorm(scaled_v, NORM_INFINITY, m, ierr); CHKERRQ(ierr)
+
+    call DMRestoreGlobalVector(dm, scaled_v, ierr); CHKERRQ(ierr)
+
+  end function vec_max_pointwise_abs_scale
 
 !------------------------------------------------------------------------
 
