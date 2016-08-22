@@ -1285,19 +1285,19 @@ end subroutine timestepper_steps_set_next_stepsize
          default_nonlinear_max_iterations, &
          nonlinear_max_iterations, self%ode%logfile)
     call fson_get_mpi(json, &
-         "time.step.solver.nonlinear.tolerance.relative", &
+         "time.step.solver.nonlinear.tolerance.function.relative", &
          default_nonlinear_relative_tol, &
          nonlinear_relative_tol, self%ode%logfile)
     call fson_get_mpi(json, &
-         "time.step.solver.nonlinear.tolerance.absolute", &
+         "time.step.solver.nonlinear.tolerance.function.absolute", &
          default_nonlinear_abs_tol, nonlinear_abs_tol, &
          self%ode%logfile)
     call fson_get_mpi(json, &
-         "time.step.solver.nonlinear.tolerance.update_relative", &
+         "time.step.solver.nonlinear.tolerance.update.relative", &
          default_nonlinear_update_relative_tol, &
          nonlinear_update_relative_tol, self%ode%logfile)
     call fson_get_mpi(json, &
-         "time.step.solver.nonlinear.tolerance.update_absolute", &
+         "time.step.solver.nonlinear.tolerance.update.absolute", &
          default_nonlinear_update_abs_tol, nonlinear_update_abs_tol, &
          self%ode%logfile)
     call fson_get_mpi(json, &

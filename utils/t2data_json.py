@@ -88,8 +88,8 @@ class t2data_export_json(t2data):
             {'maximum': {'size': self.parameter['max_timestep'],
                          'number': self.parameter['max_timesteps']},
              'method': 'beuler',
-             'solver': {'nonlinear': {'tolerance':
-                                          {'absolute': abstol, 'relative': reltol},
+             'solver': {'nonlinear': {'tolerance': {'function':
+                                          {'absolute': abstol, 'relative': reltol}},
                                       'maximum': {'iterations': maxit}}}}
         if self.parameter['const_timestep'] < 0. :
             jsondata['time']['step'].update({'sizes': self.parameter['timestep'],
