@@ -1240,7 +1240,7 @@ end subroutine timestepper_steps_set_next_stepsize
     PetscReal, parameter :: default_nonlinear_relative_tol = 1.e-5_dp
     PetscReal, parameter :: default_nonlinear_abs_tol = 1._dp
     PetscReal, parameter :: default_nonlinear_update_relative_tol = 1.e-10_dp
-    PetscReal, parameter :: default_nonlinear_update_abs_tol = 1.e-15_dp
+    PetscReal, parameter :: default_nonlinear_update_abs_tol = 1._dp
     PetscInt :: nonlinear_max_iterations
     PetscReal :: nonlinear_relative_tol, nonlinear_abs_tol
     PetscReal :: nonlinear_update_relative_tol, nonlinear_update_abs_tol
