@@ -74,6 +74,8 @@ contains
           if (mass_inject) then
              call fson_get_mpi(src, "enthalpy", default_enthalpy, &
                   enthalpy, logfile, trim(srcstr) // "enthalpy")
+          else
+             enthalpy = 0._dp
           end if
           call DMGetStratumIS(dm, cell_order_label_name, &
                cell, cell_IS, ierr); CHKERRQ(ierr)
