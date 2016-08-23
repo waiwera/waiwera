@@ -104,7 +104,7 @@ class t2data_export_json(t2data):
                     {'on': True, 'method': 'iteration',
                      'reduction': 1. / redlt,
                      'amplification': 2.,
-                     'min': float(self.parameter['option'][16]), 'max': float(maxit)}
+                     'minimum': float(self.parameter['option'][16]), 'maximum': float(maxit)}
         return jsondata
 
     def rocks_json(self, geo, atmos_volume):

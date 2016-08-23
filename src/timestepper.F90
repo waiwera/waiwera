@@ -1387,9 +1387,9 @@ end subroutine timestepper_steps_set_next_stepsize
             default_adapt_method_str, adapt_method_str, self%ode%logfile)
        adapt_method = adapt_method_from_str(adapt_method_str)
 
-       call fson_get_mpi(json, "time.step.adapt.min", &
+       call fson_get_mpi(json, "time.step.adapt.minimum", &
             default_adapt_min, adapt_min, self%ode%logfile)
-       call fson_get_mpi(json, "time.step.adapt.max", &
+       call fson_get_mpi(json, "time.step.adapt.maximum", &
             default_adapt_max, adapt_max, self%ode%logfile)
 
        call fson_get_mpi(json, "time.step.adapt.reduction", &
