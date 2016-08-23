@@ -334,13 +334,16 @@ contains
 
 !------------------------------------------------------------------------
 
-  PetscReal function vec_max_pointwise_abs_scale(v, scale, tol) result(m)
-    !! Returns pointwise max absolute value of v / abs(scale).  Where
-    !! the value of scale is less than tol, the value of tol is used
-    !! instead.
+  subroutine vec_max_pointwise_abs_scale(v, scale, tol, maxval, maxloc)
+    !! Returns pointwise max absolute value of v / abs(scale), and the
+    !! index at which the maximum occurs. Where the value of scale is
+    !! less than tol, the value of tol is used instead.
 
-    Vec, intent(in) :: v, scale
-    PetscReal, intent(in) :: tol
+    Vec, intent(in) :: v !! Value vector
+    Vec, intent(in) :: scale !! Scale vector
+    PetscReal, intent(in) :: tol !! Tolerance for small values
+    PetscReal, intent(out) :: maxval !! Maximum value
+    PetscInt, intent(out) :: maxloc !! Index of maximum value
     ! Locals:
     DM :: dm
     Vec :: scaled_v
@@ -360,7 +363,7 @@ contains
     call VecGetOwnershipRange(v, low, hi, ierr); CHKERRQ(ierr)
     do i = 1, hi - low
        scale_i = max(abs(scale_array(i)), tol)
-       scaled_v_array(i) = v_array(i) / scale_i
+       scaled_v_array(i) = abs(v_array(i)) / scale_i
     end do
 
     call VecRestoreArrayReadF90(v, v_array, ierr); CHKERRQ(ierr)
@@ -368,11 +371,11 @@ contains
     call VecRestoreArrayF90(scaled_v, scaled_v_array, ierr)
     CHKERRQ(ierr)
 
-    call VecNorm(scaled_v, NORM_INFINITY, m, ierr); CHKERRQ(ierr)
+    call VecMax(scaled_v, maxloc, maxval, ierr); CHKERRQ(ierr)
 
     call DMRestoreGlobalVector(dm, scaled_v, ierr); CHKERRQ(ierr)
 
-  end function vec_max_pointwise_abs_scale
+  end subroutine vec_max_pointwise_abs_scale
 
 !------------------------------------------------------------------------
 
