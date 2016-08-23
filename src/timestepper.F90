@@ -38,6 +38,8 @@ module timestepper_module
      PetscInt, public :: num_iterations !! Number of non-linear solver iterations
      PetscInt, public :: status = TIMESTEP_OK !! Step status
      PetscReal, public :: max_residual !! Maximum residual over the mesh cells
+     PetscInt, public :: max_residual_cell !! Cell index at which maximum residual occurs
+     PetscInt, public :: max_residual_equation !! Equation number at which maximum residual occurs
    contains
      private
      procedure, public :: init => timestepper_step_init
@@ -1122,9 +1124,10 @@ end subroutine timestepper_steps_set_next_stepsize
 
     if ((num_iterations > 0)) then
        call context%ode%logfile%write(LOG_LEVEL_INFO, 'nonlinear_solver', &
-            'iteration', &
-            ['count           '], [num_iterations], &
-            ['max_residual    '], [context%steps%current%max_residual])
+            'iteration', ['count   ', 'cell    ', 'equation'], &
+            [num_iterations, context%steps%current%max_residual_cell, &
+            context%steps%current%max_residual_equation], &
+            ['residual'], [context%steps%current%max_residual])
     end if
     call context%ode%logfile%flush()
 
@@ -1147,14 +1150,19 @@ end subroutine timestepper_steps_set_next_stepsize
     ! Locals:
     Vec :: residual, solution, update
     PetscReal :: max_update
+    PetscInt :: index, bs
 
     call SNESGetFunction(solver, residual, PETSC_NULL_OBJECT, &
          PETSC_NULL_INTEGER, ierr); CHKERRQ(ierr)
 
-    context%steps%current%max_residual = &
-         vec_max_pointwise_abs_scale(residual, &
+    call vec_max_pointwise_abs_scale(residual, &
          context%steps%last%lhs, &
-         context%steps%nonlinear_solver_abs_tol)
+         context%steps%nonlinear_solver_abs_tol, &
+         context%steps%current%max_residual, index)
+    call VecGetBlockSize(residual, bs, ierr); CHKERRQ(ierr)
+    context%steps%current%max_residual_cell = int(index / bs)
+    context%steps%current%max_residual_equation = 1 + index - &
+         context%steps%current%max_residual_cell * bs
 
     if (num_iterations >= &
          context%steps%nonlinear_solver_minimum_iterations) then
@@ -1166,8 +1174,9 @@ end subroutine timestepper_steps_set_next_stepsize
           if (num_iterations > 0) then
              call SNESGetSolutionUpdate(solver, update, ierr); CHKERRQ(ierr)
              call SNESGetSolution(solver, solution, ierr); CHKERRQ(ierr)
-             max_update = vec_max_pointwise_abs_scale(update, solution, &
-                  context%steps%nonlinear_solver_update_abs_tol)
+             call vec_max_pointwise_abs_scale(update, solution, &
+                  context%steps%nonlinear_solver_update_abs_tol, &
+                  max_update, index)
              if (max_update <= context%steps%nonlinear_solver_update_relative_tol) then
                 reason = SNES_CONVERGED_SNORM_RELATIVE
              else
