@@ -1560,7 +1560,8 @@ end subroutine timestepper_steps_set_next_stepsize
     PetscInt, parameter :: reason_str_len = 80
     character(len = reason_str_len) :: reason_str
     KSP :: linear_solver
-    PetscInt :: iterations
+    PetscInt :: iterations, log_level
+    PetscBool :: snes_converged
     KSPConvergedReason :: ksp_reason
     PetscErrorCode :: ierr
 
@@ -1576,9 +1577,15 @@ end subroutine timestepper_steps_set_next_stepsize
     end if
 
     reason_str = SNES_reason_str(converged_reason)
+    snes_converged = (converged_reason >= 0)
+    if (snes_converged) then
+       log_level = LOG_LEVEL_INFO
+    else
+       log_level = LOG_LEVEL_WARN
+    end if
 
-    call self%ode%logfile%write(LOG_LEVEL_INFO, 'nonlinear_solver', 'end', &
-         logical_keys = ['converged'], logical_values = [converged_reason >= 0], &
+    call self%ode%logfile%write(log_level, 'nonlinear_solver', 'end', &
+         logical_keys = ['converged'], logical_values = [snes_converged], &
          int_keys = ['iterations'], &
          int_values = [self%steps%current%num_iterations], &
          str_key = 'reason', str_value = trim(reason_str))
