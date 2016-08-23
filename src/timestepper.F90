@@ -1148,16 +1148,16 @@ end subroutine timestepper_steps_set_next_stepsize
     Vec :: residual, solution, update
     PetscReal :: max_update
 
+    call SNESGetFunction(solver, residual, PETSC_NULL_OBJECT, &
+         PETSC_NULL_INTEGER, ierr); CHKERRQ(ierr)
+
+    context%steps%current%max_residual = &
+         vec_max_pointwise_abs_scale(residual, &
+         context%steps%last%lhs, &
+         context%steps%nonlinear_solver_abs_tol)
+
     if (num_iterations >= &
          context%steps%nonlinear_solver_minimum_iterations) then
-
-       call SNESGetFunction(solver, residual, PETSC_NULL_OBJECT, &
-            PETSC_NULL_INTEGER, ierr); CHKERRQ(ierr)
-
-       context%steps%current%max_residual = &
-            vec_max_pointwise_abs_scale(residual, &
-            context%steps%last%lhs, &
-            context%steps%nonlinear_solver_abs_tol)
 
        if (context%steps%current%max_residual < &
             context%steps%nonlinear_solver_relative_tol) then
