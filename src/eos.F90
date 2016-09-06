@@ -3,12 +3,6 @@ module eos_module
   !! behaviour of each combination of fluid components is governed by
   !! an EOS object.
 
-  ! All EOSes are in here at present. This is to work around a
-  ! gfortran 4.7 bug (free_pi_tree(): Unresolved fixup) which occurs
-  ! when they are in their own modules. When stable compilers no
-  ! longer have this problem we can give each EOS its own module
-  ! again.
-
   use kinds_module
   use fson
   use thermodynamics_module
@@ -181,47 +175,7 @@ module eos_module
 
   end interface
 
-public :: setup_eos
-
 contains
-
-!------------------------------------------------------------------------
-! EOS setup routine
-!------------------------------------------------------------------------
-
-  subroutine setup_eos(json, thermo, eos, logfile)
-    !! Reads equation of state from JSON input file.
-    !! If not present, a default value is assigned.
-
-    use utils_module, only : str_to_lower
-    use fson_mpi_module, only: fson_get_mpi
-    use logfile_module
-
-    type(fson_value), pointer, intent(in) :: json
-    class(thermodynamics_type), intent(in) :: thermo
-    class(eos_type), allocatable, intent(in out) :: eos
-    type(logfile_type), intent(in out) :: logfile
-    ! Locals:
-    character(max_eos_name_length), parameter :: &
-         default_eos_name = "we"
-    character(max_eos_name_length) :: eos_name
-
-    call fson_get_mpi(json, "eos.name", default_eos_name, &
-         eos_name, logfile)
-    eos_name = str_to_lower(eos_name)
-
-    select case (eos_name)
-    case ("w")
-       allocate(eos_w_type :: eos)
-    case ("we")
-       allocate(eos_we_type :: eos)
-    case default
-       allocate(eos_we_type :: eos)
-    end select
-
-    call eos%init(json, thermo, logfile)
-
-  end subroutine setup_eos
 
 !------------------------------------------------------------------------
 ! eos_w

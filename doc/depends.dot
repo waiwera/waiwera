@@ -26,6 +26,7 @@ digraph supermodel{
         flow_simulation_module -> cell_module
         flow_simulation_module -> dm_utils_module
         flow_simulation_module -> eos_module
+        flow_simulation_module -> eos_setup_module
         flow_simulation_module -> face_module
         flow_simulation_module -> fluid_module
         flow_simulation_module -> fson
@@ -89,6 +90,12 @@ digraph supermodel{
         source_module -> kinds_module
         source_module -> logfile_module
         source_module -> mesh_module
+        eos_setup_module -> eos_module
+        eos_setup_module -> fson
+        eos_setup_module -> fson_mpi_module
+        eos_setup_module -> logfile_module
+        eos_setup_module -> thermodynamics_module
+        eos_setup_module -> utils_module
         IAPWS_module -> kinds_module
         IAPWS_module -> powertable_module
         IAPWS_module -> thermodynamics_module
