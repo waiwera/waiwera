@@ -1,4 +1,6 @@
 module eos_setup_module
+  !! Module for selecting and initialising equation of state (EOS)
+  !! modules.
 
   use fson
   use utils_module, only : str_to_lower
