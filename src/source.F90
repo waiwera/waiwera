@@ -6,9 +6,85 @@ module source_module
 
 #include <petsc/finclude/petsc.h90>
 
+  type, public :: source_type
+     !! Type for mass / energy source, applying specified values of
+     !! generation to each equation in a particular cell at the
+     !! current time.
+     private
+     PetscReal, allocatable, public :: flow(:) !! Generation flow rate for each equation
+     PetscInt, public :: cell_natural_index !! Natural index of cell the source is in
+     PetscInt, public :: cell_index !! Local index of cell the source is in
+   contains
+     private
+     procedure, public :: init => source_init
+     procedure, public :: destroy => source_destroy
+     ! procedure, public :: energy_production => source_energy_production
+  end type source_type
+
+  type, public, abstract :: source_control_type
+     !! Abstract type for mass / energy source control, controlling
+     !! generation values over time in one or more sources.
+     private
+     type(source_type), allocatable, public :: source(:)
+   contains
+     procedure(source_control_init_procedure), public, deferred :: init
+     procedure(source_control_destroy_procedure), public, deferred :: destroy
+     procedure(source_control_update_procedure), public, deferred :: update
+  end type source_control_type
+
+  abstract interface
+
+     subroutine source_control_init_procedure(self)
+       !! Initialises source control object
+       import :: source_control_type
+       class(source_control_type), intent(in out) :: self
+     end subroutine source_control_init_procedure
+
+     subroutine source_control_destroy_procedure(self)
+       !! Destroys source control object
+       import :: source_control_type
+       class(source_control_type), intent(in out) :: self
+     end subroutine source_control_destroy_procedure
+
+     subroutine source_control_update_procedure(self, time)
+       !! Updates sources at the specified time.
+       import :: source_control_type
+       class(source_control_type), intent(in out) :: self
+       PetscReal, intent(in) :: time
+     end subroutine source_control_update_procedure
+
+  end interface
+
   public :: setup_source_vector
 
 contains
+
+!------------------------------------------------------------------------
+
+  subroutine source_init(self, num_primary_variables, cell_natural_index)
+    !! Initialises a source object.
+
+    class(source_type), intent(in out) :: self
+    PetscInt, intent(in) :: num_primary_variables
+    PetscInt, intent(in) :: cell_natural_index
+
+    allocate(self%flow(num_primary_variables))
+    self%cell_natural_index = cell_natural_index
+    ! Determine local cell index? or determine before calling this
+    ! routine, and only init gener if cell on-process? (or in
+    ! coordinated distributed source)
+
+  end subroutine source_init
+
+!------------------------------------------------------------------------
+
+  subroutine source_destroy(self)
+    !! Destroys a source object.
+    class(source_type), intent(in out) :: self
+
+    deallocate(self%flow)
+
+  end subroutine source_destroy
 
 !------------------------------------------------------------------------
 
