@@ -3,7 +3,6 @@ module eos_we_module
 
   use kinds_module
   use eos_module
-  use eos_w_module
 
   implicit none
   private

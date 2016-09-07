@@ -15,7 +15,6 @@ digraph supermodel{
         rock_module -> logfile_module
         rock_module -> relative_permeability_module
         eos_we_module -> eos_module
-        eos_we_module -> eos_w_module
         eos_we_module -> fluid_module
         eos_we_module -> fson
         eos_we_module -> fson_mpi_module
