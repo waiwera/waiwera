@@ -19,6 +19,7 @@ digraph supermodel{
         eos_we_module -> fluid_module
         eos_we_module -> fson
         eos_we_module -> fson_mpi_module
+        eos_we_module -> kinds_module
         eos_we_module -> logfile_module
         eos_we_module -> rock_module
         eos_we_module -> thermodynamics_module
@@ -94,6 +95,7 @@ digraph supermodel{
         eos_w_module -> fluid_module
         eos_w_module -> fson
         eos_w_module -> fson_mpi_module
+        eos_w_module -> kinds_module
         eos_w_module -> logfile_module
         eos_w_module -> rock_module
         eos_w_module -> thermodynamics_module
