@@ -8,6 +8,8 @@ module eos_setup_module
   use logfile_module
   use thermodynamics_module
   use eos_module
+  use eos_w_module
+  use eos_we_module
 
   implicit none
   private
