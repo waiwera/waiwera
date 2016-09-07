@@ -11,7 +11,7 @@ module eos_we_module
 #include <petsc/finclude/petscdef.h>
 #include <petsc/finclude/petscsys.h>
 
-  type, public, extends(eos_w_type) :: eos_we_type
+  type, public, extends(eos_type) :: eos_we_type
      !! Pure water and energy equation of state type.
      private
    contains
@@ -25,7 +25,6 @@ module eos_we_module
      procedure, public :: primary_variables => eos_we_primary_variables
      procedure :: phase_saturations => eos_we_phase_saturations
      procedure, public :: check_primary_variables => eos_we_check_primary_variables
-     procedure, public :: conductivity => eos_we_conductivity
   end type eos_we_type
 
 contains
@@ -398,26 +397,6 @@ contains
   end associate
 
   end function eos_we_check_primary_variables
-
-!------------------------------------------------------------------------
-
-  PetscReal function eos_we_conductivity(self, rock, fluid) result(cond)
-    !! Returns effective rock heat conductivity for given fluid properties.
-
-    use rock_module, only: rock_type
-    use fluid_module, only: fluid_type
-
-    class(eos_we_type), intent(in) :: self
-    type(rock_type), intent(in) :: rock !! Rock object
-    type(fluid_type), intent(in) :: fluid !! Fluid object
-    ! Locals:
-    PetscReal :: sl
-
-    sl = fluid%phase(1)%saturation
-    cond = rock%dry_conductivity + sqrt(sl) * &
-         (rock%wet_conductivity - rock%dry_conductivity)
-
-  end function eos_we_conductivity
 
 !------------------------------------------------------------------------
 

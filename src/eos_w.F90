@@ -17,10 +17,8 @@ module eos_w_module
    contains
      private
      procedure, public :: init => eos_w_init
-     procedure, public :: destroy => eos_w_destroy
      procedure, public :: transition => eos_w_transition
      procedure, public :: bulk_properties => eos_w_bulk_properties
-     procedure, public :: phase_composition => eos_w_phase_composition
      procedure, public :: phase_properties => eos_w_phase_properties
      procedure, public :: primary_variables => eos_w_primary_variables
      procedure, public :: check_primary_variables => eos_w_check_primary_variables
@@ -69,20 +67,6 @@ contains
   end subroutine eos_w_init
 
 !------------------------------------------------------------------------
-
-  subroutine eos_w_destroy(self)
-    !! Destroy isothermal pure water EOS.
-
-    class(eos_w_type), intent(in out) :: self
-
-    deallocate(self%primary_variable_names)
-    deallocate(self%phase_names, self%component_names)
-    deallocate(self%default_primary)
-    nullify(self%thermo)
-
-  end subroutine eos_w_destroy
-
-!------------------------------------------------------------------------
   
   subroutine eos_w_transition(self, primary, old_fluid, fluid, &
        transition, err)
@@ -125,32 +109,6 @@ contains
     call self%phase_composition(fluid, err)
 
   end subroutine eos_w_bulk_properties
-
-!------------------------------------------------------------------------
-
-  subroutine eos_w_phase_composition(self, fluid, err)
-    !! Determines fluid phase composition from bulk properties and
-    !! thermodynamic region.
-
-    use fluid_module, only: fluid_type
-
-    class(eos_w_type), intent(in out) :: self
-    type(fluid_type), intent(in out) :: fluid !! Fluid object
-    PetscErrorCode, intent(out) :: err
-    ! Locals:
-    PetscInt :: region, phases
-
-    region = nint(fluid%region)
-    phases = self%thermo%phase_composition(region, fluid%pressure, &
-         fluid%temperature)
-    if (phases > 0) then
-       fluid%phase_composition = dble(phases)
-       err = 0
-    else
-       err = 1
-    end if
-
-  end subroutine eos_w_phase_composition
 
 !------------------------------------------------------------------------
 

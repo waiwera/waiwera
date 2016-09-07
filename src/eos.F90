@@ -37,14 +37,14 @@ module eos_module
    contains
      private
      procedure(eos_init_procedure), public, deferred :: init
-     procedure(eos_destroy_procedure), public, deferred :: destroy
+     procedure, public :: destroy => eos_destroy
      procedure(eos_transition_procedure), public, deferred :: transition
      procedure(eos_bulk_properties_procedure), public, deferred :: bulk_properties
-     procedure(eos_phase_composition_procedure), public, deferred :: phase_composition
+     procedure, public :: phase_composition => eos_phase_composition
      procedure(eos_phase_properties_procedure), public, deferred :: phase_properties
      procedure(eos_primary_variables_procedure), public, deferred :: primary_variables
      procedure(eos_check_primary_variables_procedure), public, deferred :: check_primary_variables
-     procedure(eos_conductivity_procedure), public, deferred :: conductivity
+     procedure, public :: conductivity => eos_conductivity
   end type eos_type
 
   abstract interface
@@ -58,12 +58,6 @@ module eos_module
        class(thermodynamics_type), intent(in), target :: thermo
        type(logfile_type), intent(in out), optional :: logfile
      end subroutine eos_init_procedure
-
-     subroutine eos_destroy_procedure(self)
-       !! Destroy the EOS object
-       import :: eos_type
-       class(eos_type), intent(in out) :: self
-     end subroutine eos_destroy_procedure
 
      subroutine eos_transition_procedure(self, primary, old_fluid, fluid, &
           transition, err)
@@ -88,15 +82,6 @@ module eos_module
        type(fluid_type), intent(in out) :: fluid
        PetscErrorCode, intent(out) :: err
      end subroutine eos_bulk_properties_procedure
-
-     subroutine eos_phase_composition_procedure(self, fluid, err)
-       !! Calculate fluid phase composition from bulk properties.
-       use fluid_module, only: fluid_type
-       import :: eos_type
-       class(eos_type), intent(in out) :: self
-       type(fluid_type), intent(in out) :: fluid
-       PetscErrorCode, intent(out) :: err
-     end subroutine eos_phase_composition_procedure
 
      subroutine eos_phase_properties_procedure(self, primary, rock, fluid, err)
        !! Calculate phase fluid properties from primary variables.
@@ -129,16 +114,71 @@ module eos_module
        PetscReal, intent(in) :: primary(self%num_primary_variables)
      end function eos_check_primary_variables_procedure
 
-     PetscReal function eos_conductivity_procedure(self, rock, fluid)
-       !! Calculate effective rock heat conductivity for given fluid properties.
-       use rock_module, only: rock_type
-       use fluid_module, only: fluid_type
-       import :: eos_type
-       class(eos_type), intent(in) :: self
-       type(rock_type), intent(in) :: rock
-       type(fluid_type), intent(in) :: fluid
-     end function eos_conductivity_procedure
-
   end interface
+
+contains
+
+!------------------------------------------------------------------------
+
+  subroutine eos_phase_composition(self, fluid, err)
+    !! Determines fluid phase composition from bulk properties and
+    !! thermodynamic region.
+
+    use fluid_module, only: fluid_type
+
+    class(eos_type), intent(in out) :: self
+    type(fluid_type), intent(in out) :: fluid !! Fluid object
+    PetscErrorCode, intent(out) :: err
+    ! Locals:
+    PetscInt :: region, phases
+
+    region = nint(fluid%region)
+    phases = self%thermo%phase_composition(region, fluid%pressure, &
+         fluid%temperature)
+    if (phases > 0) then
+       fluid%phase_composition = dble(phases)
+       err = 0
+    else
+       err = 1
+    end if
+
+  end subroutine eos_phase_composition
+
+!------------------------------------------------------------------------
+
+  PetscReal function eos_conductivity(self, rock, fluid) result(cond)
+    !! Returns effective rock heat conductivity for given fluid properties.
+    !! This uses a square-root dependence on liquid saturation.
+
+    use rock_module, only: rock_type
+    use fluid_module, only: fluid_type
+
+    class(eos_type), intent(in) :: self
+    type(rock_type), intent(in) :: rock !! Rock object
+    type(fluid_type), intent(in) :: fluid !! Fluid object
+    ! Locals:
+    PetscReal :: sl
+
+    sl = fluid%phase(1)%saturation
+    cond = rock%dry_conductivity + sqrt(sl) * &
+         (rock%wet_conductivity - rock%dry_conductivity)
+
+  end function eos_conductivity
+
+!------------------------------------------------------------------------
+
+  subroutine eos_destroy(self)
+    !! Destroys EOS.
+
+    class(eos_type), intent(in out) :: self
+
+    deallocate(self%primary_variable_names)
+    deallocate(self%phase_names, self%component_names)
+    deallocate(self%default_primary)
+    nullify(self%thermo)
+
+  end subroutine eos_destroy
+
+!------------------------------------------------------------------------
 
 end module eos_module
