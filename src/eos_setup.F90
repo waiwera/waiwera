@@ -2,20 +2,8 @@ module eos_setup_module
   !! Module for selecting and initialising equation of state (EOS)
   !! modules.
 
-  use fson
-  use utils_module, only : str_to_lower
-  use fson_mpi_module, only: fson_get_mpi
-  use logfile_module
-  use thermodynamics_module
-  use eos_module
-  use eos_w_module
-  use eos_we_module
-
   implicit none
   private
-
-#include <petsc/finclude/petscdef.h>
-#include <petsc/finclude/petscsys.h>
 
   public :: setup_eos
 
@@ -24,8 +12,17 @@ contains
 !------------------------------------------------------------------------
   
   subroutine setup_eos(json, thermo, eos, logfile)
-    !! Reads equation of state from JSON input file.
-    !! If not present, a default value is assigned.
+    !! Reads equation of state from JSON input file.  If not present,
+    !! a default value is assigned.
+
+    use fson
+    use fson_mpi_module, only: fson_get_mpi
+    use logfile_module
+    use thermodynamics_module
+    use utils_module, only : str_to_lower
+    use eos_module
+    use eos_w_module
+    use eos_we_module
 
     type(fson_value), pointer, intent(in) :: json
     class(thermodynamics_type), intent(in) :: thermo
