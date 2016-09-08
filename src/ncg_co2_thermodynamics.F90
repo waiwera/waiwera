@@ -199,7 +199,6 @@ contains
     ! Locals:
     PetscReal :: pbar, xx, T2, T3, T4
     PetscReal :: C(5)
-    PetscInt :: i
 
     err = 0
 
