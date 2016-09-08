@@ -19,6 +19,7 @@ module eos_w_module
      procedure, public :: init => eos_w_init
      procedure, public :: transition => eos_w_transition
      procedure, public :: bulk_properties => eos_w_bulk_properties
+     procedure, public :: phase_saturations => eos_w_phase_saturations
      procedure, public :: phase_properties => eos_w_phase_properties
      procedure, public :: primary_variables => eos_w_primary_variables
      procedure, public :: check_primary_variables => eos_w_check_primary_variables
@@ -109,6 +110,23 @@ contains
     call self%phase_composition(fluid, err)
 
   end subroutine eos_w_bulk_properties
+
+!------------------------------------------------------------------------
+
+  subroutine eos_w_phase_saturations(self, primary, fluid)
+    !! Assigns fluid phase saturations from fluid region and primary variables.
+
+    use fluid_module, only: fluid_type
+    class(eos_w_type), intent(in out) :: self
+    PetscReal, intent(in) :: primary(self%num_primary_variables) !! Primary thermodynamic variables
+    type(fluid_type), intent(in out) :: fluid !! Fluid object
+    ! Locals:
+    PetscInt :: region
+
+    region = nint(fluid%region)
+    fluid%phase(region)%saturation = 1._dp
+
+  end subroutine eos_w_phase_saturations
 
 !------------------------------------------------------------------------
 

@@ -22,7 +22,7 @@ module eos_we_module
      procedure, public :: bulk_properties => eos_we_bulk_properties
      procedure, public :: phase_properties => eos_we_phase_properties
      procedure, public :: primary_variables => eos_we_primary_variables
-     procedure :: phase_saturations => eos_we_phase_saturations
+     procedure, public :: phase_saturations => eos_we_phase_saturations
      procedure, public :: check_primary_variables => eos_we_check_primary_variables
   end type eos_we_type
 

@@ -40,6 +40,7 @@ module eos_module
      procedure, public :: destroy => eos_destroy
      procedure(eos_transition_procedure), public, deferred :: transition
      procedure(eos_bulk_properties_procedure), public, deferred :: bulk_properties
+     procedure, public :: phase_saturations => eos_phase_saturations
      procedure, public :: phase_composition => eos_phase_composition
      procedure(eos_phase_properties_procedure), public, deferred :: phase_properties
      procedure(eos_primary_variables_procedure), public, deferred :: primary_variables
@@ -164,6 +165,34 @@ contains
          (rock%wet_conductivity - rock%dry_conductivity)
 
   end function eos_conductivity
+
+!------------------------------------------------------------------------
+
+  subroutine eos_phase_saturations(self, primary, fluid)
+    !! Assigns fluid phase saturations from fluid region and primary variables.
+
+    use fluid_module, only: fluid_type
+    class(eos_type), intent(in out) :: self
+    PetscReal, intent(in) :: primary(self%num_primary_variables) !! Primary thermodynamic variables
+    type(fluid_type), intent(in out) :: fluid !! Fluid object
+    ! Locals:
+    PetscInt :: region
+
+    region = nint(fluid%region)
+
+    select case (region)
+    case (1)
+       fluid%phase(1)%saturation = 1._dp
+       fluid%phase(2)%saturation = 0._dp
+    case (2)
+       fluid%phase(1)%saturation = 0._dp
+       fluid%phase(2)%saturation = 1._dp
+    case (4)
+       fluid%phase(1)%saturation = 1._dp - primary(2)
+       fluid%phase(2)%saturation = primary(2)
+    end select
+
+  end subroutine eos_phase_saturations
 
 !------------------------------------------------------------------------
 
