@@ -206,9 +206,7 @@ contains
     pbar = partial_pressure * 1.0e-5_dp
     xx = 0.01_dp * pbar
     xx = min(xx, 1._dp)
-    do i = 1, 5
-       C(i) = self%viscosity_A(i) + xx * self%viscosity_BA(i)
-    end do
+    C = self%viscosity_A + xx * self%viscosity_BA
     T2 = temperature * temperature
     T3 = temperature * T2
     T4 = T2 * T2
