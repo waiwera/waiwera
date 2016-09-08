@@ -26,6 +26,21 @@ digraph supermodel{
         ode_module -> logfile_module
         ode_module -> mesh_module
         dm_utils_module -> mpi_module
+        eos_wce_module -> eos_wge_module
+        eos_wce_module -> fson
+        eos_wce_module -> fson_mpi_module
+        eos_wce_module -> logfile_module
+        eos_wce_module -> ncg_co2_thermodynamics_module
+        eos_wce_module -> thermodynamics_module
+        eos_wge_module -> eos_module
+        eos_wge_module -> fluid_module
+        eos_wge_module -> fson
+        eos_wge_module -> fson_mpi_module
+        eos_wge_module -> kinds_module
+        eos_wge_module -> logfile_module
+        eos_wge_module -> ncg_thermodynamics_module
+        eos_wge_module -> rock_module
+        eos_wge_module -> thermodynamics_module
         cell_module -> fluid_module
         cell_module -> kinds_module
         cell_module -> rock_module
@@ -72,6 +87,9 @@ digraph supermodel{
         mesh_module -> logfile_module
         mesh_module -> mpi_module
         mesh_module -> rock_module
+        ncg_co2_thermodynamics_module -> kinds_module
+        ncg_co2_thermodynamics_module -> ncg_thermodynamics_module
+        ncg_co2_thermodynamics_module -> thermodynamics_module
         initial_module -> dm_utils_module
         initial_module -> eos_module
         initial_module -> fluid_module
@@ -98,6 +116,7 @@ digraph supermodel{
         eos_w_module -> logfile_module
         eos_w_module -> rock_module
         eos_w_module -> thermodynamics_module
+        ncg_thermodynamics_module -> thermodynamics_module
         source_module -> dm_utils_module
         source_module -> fson
         source_module -> fson_mpi_module
@@ -106,6 +125,7 @@ digraph supermodel{
         source_module -> mesh_module
         eos_setup_module -> eos_module
         eos_setup_module -> eos_w_module
+        eos_setup_module -> eos_wce_module
         eos_setup_module -> eos_we_module
         eos_setup_module -> fson
         eos_setup_module -> fson_mpi_module
