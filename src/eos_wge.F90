@@ -315,6 +315,9 @@ contains
 
                       if (p == 2) then
                          call self%gas%energy_solution(fluid%temperature, h_solution, err)
+                         if (err > 0) then
+                            exit
+                         end if
                       else
                          h_solution = 0._dp
                       end if
@@ -333,8 +336,12 @@ contains
                       if (p == 2) then
                          call self%gas%viscosity(partial_pressure, fluid%temperature, &
                               region, xg, phase%density, gas_viscosity, err)
-                         phase%viscosity = phase%viscosity * (1._dp - xg) &
-                              + gas_viscosity * xg
+                         if (err == 0) then
+                            phase%viscosity = phase%viscosity * (1._dp - xg) &
+                                 + gas_viscosity * xg
+                         else
+                            exit
+                         end if
                       end if
 
                     end associate
