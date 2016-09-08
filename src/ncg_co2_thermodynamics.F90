@@ -95,7 +95,7 @@ contains
     subroutine co2_rho_h(PP, T, DC, HC, err)
 
       use thermodynamics_module, only: tc_k
-      
+
       implicit none
 
       PetscReal, intent(in)  :: T, PP
@@ -123,7 +123,7 @@ contains
 
   end subroutine ncg_co2_properties
 
-!------------------------------------------------------------------------  
+!------------------------------------------------------------------------
 
   subroutine ncg_co2_henrys_law(self, partial_pressure, temperature, xg, err)
     !! Henry's Law for CO2 NCG.

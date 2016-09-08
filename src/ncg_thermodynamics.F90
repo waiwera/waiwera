@@ -46,7 +46,7 @@ module ncg_thermodynamics_module
        PetscReal, intent(out) :: xg
        PetscErrorCode, intent(out) :: err
      end subroutine ncg_properties_procedure
-     
+
      subroutine ncg_henrys_law_procedure(self, partial_pressure, &
           temperature, xg, err)
        !! Calculate NCG mass fraction from Henry's Law.

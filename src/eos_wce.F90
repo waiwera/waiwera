@@ -44,7 +44,7 @@ contains
 
     allocate(ncg_co2_thermodynamics_type :: self%gas)
     call self%gas%init()
-    
+
   end subroutine eos_wce_init
 
 !------------------------------------------------------------------------
