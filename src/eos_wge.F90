@@ -286,89 +286,89 @@ contains
       do p = 1, self%num_phases
          associate(phase => fluid%phase(p), region => self%thermo%region(p)%ptr)
 
-         if (btest(phases, p - 1)) then
+           if (btest(phases, p - 1)) then
 
-            if (p == 1) then
-               ! for liquid use total pressure and ignore ncg for density and internal_energy
-               pressure = fluid%pressure
-            else
-               pressure = fluid%pressure - partial_pressure
-            end if
+              if (p == 1) then
+                 ! for liquid use total pressure and ignore ncg for density and internal_energy
+                 pressure = fluid%pressure
+              else
+                 pressure = fluid%pressure - partial_pressure
+              end if
             
-            call region%properties([pressure, fluid%temperature], &
-                 h2o_properties, err)
+              call region%properties([pressure, fluid%temperature], &
+                   h2o_properties, err)
 
-            if (err == 0) then
+              if (err == 0) then
 
-               associate(h2o_density => h2o_properties(1), &
-                    h2o_internal_energy => h2o_properties(2))
+                 associate(h2o_density => h2o_properties(1), &
+                      h2o_internal_energy => h2o_properties(2))
 
-                 call self%gas%properties(partial_pressure, fluid%temperature, &
-                      p, h2o_density, gas_properties, xg, err)
+                   call self%gas%properties(partial_pressure, fluid%temperature, &
+                        p, h2o_density, gas_properties, xg, err)
 
-                 if (err == 0) then
+                   if (err == 0) then
 
-                    associate(gas_density => gas_properties(1), &
-                         gas_internal_energy => gas_properties(2))
+                      associate(gas_density => gas_properties(1), &
+                           gas_internal_energy => gas_properties(2))
 
-                      phase%density = h2o_density + gas_density
+                        phase%density = h2o_density + gas_density
 
-                      if (p == 2) then
-                         call self%gas%energy_solution(fluid%temperature, h_solution, err)
-                         if (err > 0) then
-                            exit
-                         end if
-                      else
-                         h_solution = 0._dp
-                      end if
+                        if (p == 2) then
+                           call self%gas%energy_solution(fluid%temperature, h_solution, err)
+                           if (err > 0) then
+                              exit
+                           end if
+                        else
+                           h_solution = 0._dp
+                        end if
 
-                      phase%internal_energy = h2o_internal_energy
-                      phase%specific_enthalpy = (h2o_internal_energy &
-                           + fluid%pressure / h2o_density) * (1._dp - xg) &
-                           + (gas_internal_energy + h_solution) * xg
+                        phase%internal_energy = h2o_internal_energy
+                        phase%specific_enthalpy = (h2o_internal_energy &
+                             + fluid%pressure / h2o_density) * (1._dp - xg) &
+                             + (gas_internal_energy + h_solution) * xg
 
-                      phase%mass_fraction(1) = 1._dp - xg
-                      phase%mass_fraction(2) = xg
-                      phase%relative_permeability = relative_permeability(p)
+                        phase%mass_fraction(1) = 1._dp - xg
+                        phase%mass_fraction(2) = xg
+                        phase%relative_permeability = relative_permeability(p)
 
-                      call region%viscosity(fluid%temperature, fluid%pressure, &
-                           phase%density, phase%viscosity)
-                      if (p == 2) then
-                         call self%gas%viscosity(partial_pressure, fluid%temperature, &
-                              region, xg, phase%density, gas_viscosity, err)
-                         if (err == 0) then
-                            phase%viscosity = phase%viscosity * (1._dp - xg) &
-                                 + gas_viscosity * xg
-                         else
-                            exit
-                         end if
-                      end if
+                        call region%viscosity(fluid%temperature, fluid%pressure, &
+                             phase%density, phase%viscosity)
+                        if (p == 2) then
+                           call self%gas%viscosity(partial_pressure, fluid%temperature, &
+                                region, xg, phase%density, gas_viscosity, err)
+                           if (err == 0) then
+                              phase%viscosity = phase%viscosity * (1._dp - xg) &
+                                   + gas_viscosity * xg
+                           else
+                              exit
+                           end if
+                        end if
 
-                    end associate
-                 else
-                    exit
-                 end if
+                      end associate
+                   else
+                      exit
+                   end if
 
-               end associate
-            else
-               exit
-            end if
+                 end associate
+              else
+                 exit
+              end if
 
-         else
-            phase%density = 0._dp
-            phase%internal_energy = 0._dp
-            phase%specific_enthalpy = 0._dp
-            phase%relative_permeability = 0._dp
-            phase%viscosity = 0._dp
-            phase%mass_fraction = 0._dp
-         end if
+           else
+              phase%density = 0._dp
+              phase%internal_energy = 0._dp
+              phase%specific_enthalpy = 0._dp
+              phase%relative_permeability = 0._dp
+              phase%viscosity = 0._dp
+              phase%mass_fraction = 0._dp
+           end if
 
-       end associate
-    end do
+         end associate
+      end do
 
     end associate
 
-  end subroutine eos_wge_phase_properties
+end subroutine eos_wge_phase_properties
 
 !------------------------------------------------------------------------
 
