@@ -197,20 +197,22 @@ contains
     PetscReal, intent(out):: viscosity
     PetscInt, intent(out)  :: err
     ! Locals:
-    PetscReal :: pbar, xx, T2, T3, T4
+    PetscReal :: pbar, pscale, T2, T3, T4
     PetscReal :: C(5)
 
-    err = 0
-
     pbar = partial_pressure * 1.0e-5_dp
-    xx = 0.01_dp * pbar
-    xx = min(xx, 1._dp)
-    C = self%viscosity_A + xx * self%viscosity_BA
-    T2 = temperature * temperature
-    T3 = temperature * T2
-    T4 = T2 * T2
-    viscosity = 1.0e-8_dp * (C(1) + C(2) * temperature + &
-         C(3) * T2 + C(4) * T3 + C(5) * T4)
+    pscale = 0.01_dp * pbar
+    if (pscale <= 1._dp) then
+       C = self%viscosity_A + pscale * self%viscosity_BA
+       T2 = temperature * temperature
+       T3 = temperature * T2
+       T4 = T2 * T2
+       viscosity = 1.0e-8_dp * (C(1) + C(2) * temperature + &
+            C(3) * T2 + C(4) * T3 + C(5) * T4)
+       err = 0
+    else
+       err = 1
+    end if
 
   end subroutine ncg_co2_viscosity
 
