@@ -411,6 +411,7 @@ end subroutine eos_wge_phase_properties
     ! Locals:
     PetscInt :: region
     PetscReal :: p
+    PetscReal, parameter :: co2_partial_pressure_tol = 1.e-6_dp
 
     err = 0
     associate (total_pressure => primary(1), partial_pressure => primary(3))
@@ -434,7 +435,7 @@ end subroutine eos_wge_phase_properties
             end associate
          end if
          if (err == 0) then
-            if ((partial_pressure < 0._dp) .or. &
+            if ((partial_pressure < -co2_partial_pressure_tol) .or. &
                  (partial_pressure > total_pressure)) then
                err = 1
             end if
