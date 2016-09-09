@@ -50,8 +50,6 @@ contains
        phase, density_water, props, xg, err)
     !! Calculates density and internal energy of mixture of a fluid and and a ncg
     !! pressure (Pa) and temperature (deg C).
-    !!
-    !! Returns err = 1 if called outside its operating range (t<=350 deg C, p<=100 MPa).
 
     class(ncg_co2_thermodynamics_type), intent(in) :: self
     PetscReal, intent(in) :: partial_pressure
@@ -101,7 +99,7 @@ contains
       PetscReal, intent(in)  :: T, PP
       PetscReal, intent(out) :: DC, HC
       PetscInt, intent(out)  :: err
-
+      ! Locals:
       PetscReal :: PPb, TA, TB, TC
       PetscReal :: HCI, VC1, VC2
 
