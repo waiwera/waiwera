@@ -12,7 +12,12 @@ def primary_to_region_we(primary):
     if primary[1] < 1.: return 4
     else: return region(primary[1], primary[0])
 
-primary_to_region_funcs = {'we': primary_to_region_we}
+def primary_to_region_wce(primary):
+    """Returns thermodynamic region deduced from primary variables for EOS wce."""
+    pwater = primary[0] - primary[2]
+    return primary_to_region_we([pwater, primary[1]])
+
+primary_to_region_funcs = {'we': primary_to_region_we, 'wce': primary_to_region_wce}
 
 class t2data_export_json(t2data):
     """Modification of t2data class including ability to export to
@@ -63,7 +68,7 @@ class t2data_export_json(t2data):
                 eos_from_index = {1: 'EW', 2: 'EWC', 3: 'EWA', 4: 'EWAV'}
                 if eos in eos_from_index: aut2eosname = eos_from_index[eos]
             else: aut2eosname = eos
-        eosname = {'W': 'w', 'EW': 'we'}
+        eosname = {'W': 'w', 'EW': 'we', 'EWC': 'wce'}
         if aut2eosname in eosname:
             jsondata['eos'] = {'name': eosname[aut2eosname]}
             if eosname == 'w':
@@ -172,8 +177,7 @@ class t2data_export_json(t2data):
                 if len(set(jsondata['initial']['region'])) == 1:
                     jsondata['initial']['region'] = jsondata['initial']['region'][0]
             else:
-                raise Exception("Finding thermodynamic region from primary variables not yet supported for EOS:" +
-                                eos)
+                raise Exception("Finding thermodynamic region from primary variables not yet supported for EOS:" + eos)
         return jsondata
 
     def generators_json(self, geo):
