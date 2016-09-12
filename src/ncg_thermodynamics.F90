@@ -2,6 +2,7 @@ module ncg_thermodynamics_module
   !! Module for abstract non-condensible gas thermodynamics type, from
   !! which specific NCG thermodynamics types can be derived.
 
+  use kinds_module
   use thermodynamics_module
 
   implicit none
@@ -15,13 +16,16 @@ module ncg_thermodynamics_module
      !! Non-condensible gas thermodynamics type
      private
      character(max_ncg_name_length), public :: name !! NCG name
+     PetscReal, public :: molecular_weight !! NCG molecular weight
    contains
      private
      procedure(ncg_init_procedure), public, deferred :: init
      procedure(ncg_properties_procedure), public, deferred :: properties
-     procedure(ncg_henrys_law_procedure), public, deferred :: henrys_law
+     procedure(ncg_henrys_constant_procedure), public, deferred :: henrys_constant
      procedure(ncg_energy_solution_procedure), public, deferred :: energy_solution
      procedure(ncg_viscosity_procedure), public, deferred :: viscosity
+     procedure, public :: mass_fraction => ncg_thermodynamics_mass_fraction
+     procedure, public :: molar_mass_fraction => ncg_thermodynamics_molar_mass_fraction
    end type ncg_thermodynamics_type
 
   abstract interface
@@ -47,16 +51,17 @@ module ncg_thermodynamics_module
        PetscErrorCode, intent(out) :: err
      end subroutine ncg_properties_procedure
 
-     subroutine ncg_henrys_law_procedure(self, partial_pressure, &
-          temperature, xg, err)
-       !! Calculate NCG mass fraction from Henry's Law.
+     subroutine ncg_henrys_constant_procedure(self, partial_pressure, &
+          temperature, hc, err)
+       !! Calculate NCG Henry's constant, for calculating dissolution
+       !! of gas into water.
        import :: ncg_thermodynamics_type
        class(ncg_thermodynamics_type), intent(in) :: self
        PetscReal, intent(in) :: partial_pressure
        PetscReal, intent(in) :: temperature
-       PetscReal, intent(out) :: xg
+       PetscReal, intent(out) :: hc
        PetscErrorCode, intent(out) :: err
-     end subroutine ncg_henrys_law_procedure
+     end subroutine ncg_henrys_constant_procedure
 
      subroutine ncg_energy_solution_procedure(self, temperature, &
           h_solution, err)
@@ -84,5 +89,39 @@ module ncg_thermodynamics_module
      end subroutine ncg_viscosity_procedure
 
   end interface
+
+contains
+
+!------------------------------------------------------------------------
+
+  PetscReal function ncg_thermodynamics_mass_fraction(self, xmole) &
+       result(xg)
+    !! Calculates NCG mass fraction from molar mass fraction.
+    class(ncg_thermodynamics_type), intent(in) :: self
+    PetscReal, intent(in) :: xmole !! Molar mass fraction
+    ! Locals:
+    PetscReal :: w
+
+    w = xmole * self%molecular_weight
+    xg = w / (w + (1._dp - xmole) * h2o_molecular_weight)
+
+  end function ncg_thermodynamics_mass_fraction
+
+!------------------------------------------------------------------------
+
+  PetscReal function ncg_thermodynamics_molar_mass_fraction(self, xg) &
+       result(xmole)
+    !! Calculates molar mass fraction from NCG mass fraction.
+    class(ncg_thermodynamics_type), intent(in) :: self
+    PetscReal, intent(in) :: xg !! NCG mass fraction
+    ! Locals:
+    PetscReal :: w
+
+    w = xg / self%molecular_weight
+    xmole = w / (w + (1._dp - xg) / h2o_molecular_weight)
+
+  end function ncg_thermodynamics_molar_mass_fraction
+
+!------------------------------------------------------------------------
 
 end module ncg_thermodynamics_module

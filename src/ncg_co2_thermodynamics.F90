@@ -24,7 +24,7 @@ module ncg_co2_thermodynamics_module
      private
      procedure, public :: init => ncg_co2_init
      procedure, public :: properties => ncg_co2_properties
-     procedure, public :: henrys_law => ncg_co2_henrys_law
+     procedure, public :: henrys_constant => ncg_co2_henrys_constant
      procedure, public :: energy_solution => ncg_co2_energy_solution
      procedure, public :: viscosity => ncg_co2_viscosity
   end type ncg_co2_thermodynamics_type
@@ -39,7 +39,7 @@ contains
     class(ncg_co2_thermodynamics_type), intent(in out) :: self
 
     self%name = "CO2"
-
+    self%molecular_weight = co2_molecular_weight
     self%viscosity_BA = self%viscosity_B - self%viscosity_A
 
   end subroutine ncg_co2_init
@@ -60,7 +60,7 @@ contains
     PetscReal, intent(out):: xg !! Mass fraction of the ncg in this phase
     PetscErrorCode, intent(out) :: err !! Error code
     ! Locals:
-    PetscReal :: total_density
+    PetscReal :: total_density, hc, xmole
     PetscReal, parameter :: small = 1.e-30_dp
 
     err = 0
@@ -74,7 +74,9 @@ contains
          if (phase == 1) then
             ! liquid
             density_co2 = 0._dp    ! not used for mixture density
-            call self%henrys_law(partial_pressure, temperature, xg, err)
+            call self%henrys_constant(partial_pressure, temperature, hc, err)
+            xmole = hc * partial_pressure
+            xg = self%mass_fraction(xmole)
          else
             ! vapour
             total_density = density_co2 + density_water
@@ -123,36 +125,33 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine ncg_co2_henrys_law(self, partial_pressure, temperature, xg, err)
-    !! Henry's Law for CO2 NCG.
+  subroutine ncg_co2_henrys_constant(self, partial_pressure, temperature, &
+       hc, err)
+    !! Henry's constant for CO2 NCG.
 
     use thermodynamics_module, only: h2o_molecular_weight
 
     class(ncg_co2_thermodynamics_type), intent(in) :: self
     PetscReal, intent(in) :: partial_pressure
     PetscReal, intent(in) :: temperature
-    PetscReal, intent(out) :: xg
+    PetscReal, intent(out) :: hc
     PetscErrorCode, intent(out) :: err
     ! Locals:
-    PetscReal :: rkh, xmole
+    PetscReal :: xmole
     PetscReal :: T2, T3, T4, T5
 
     err = 0
 
-    T2 = temperature * temperature
-    T3 = T2 * temperature
-    T4 = T2 * T2
-    T5 = T2 * T3
+    associate(T => temperature)
+      T2 = T * T
+      T3 = T2 * T
+      T4 = T2 * T2
+      T5 = T2 * T3
+      hc = 1.e-5_dp / (783.666_dp + 19.6025_dp * T + 0.820574_dp * T2 &
+           - 7.40674e-3_dp * T3 + 2.18380e-5_dp * T4 - 2.20999e-8_dp * T5)
+    end associate
 
-    rkh = (783.666_dp + 19.6025_dp * temperature + 0.820574_dp * T2 &
-         - 7.40674e-3_dp * T3 + 2.18380e-5_dp * T4 - 2.20999e-8_dp * T5) &
-         * 1.e5_dp
-    xmole = partial_pressure / rkh
-
-    xg = xmole * co2_molecular_weight / &
-         (xmole * co2_molecular_weight + (1._dp - xmole) * h2o_molecular_weight)
-
-  end subroutine ncg_co2_henrys_law
+  end subroutine ncg_co2_henrys_constant
 
 !------------------------------------------------------------------------
 

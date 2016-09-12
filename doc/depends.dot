@@ -116,6 +116,7 @@ digraph supermodel{
         eos_w_module -> logfile_module
         eos_w_module -> rock_module
         eos_w_module -> thermodynamics_module
+        ncg_thermodynamics_module -> kinds_module
         ncg_thermodynamics_module -> thermodynamics_module
         source_module -> dm_utils_module
         source_module -> fson
