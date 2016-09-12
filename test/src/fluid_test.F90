@@ -121,9 +121,8 @@ contains
     PetscReal, pointer, contiguous :: fluid_data(:)
     PetscReal :: x
     PetscInt :: c
-    character(32) :: cstr
-    PetscReal, parameter :: expected_x(num_components) = &
-         [0.699879727382_dp, 0.300120272618_dp]
+    character(60) :: cstr
+    PetscReal :: expected_x(num_components)
     PetscReal, parameter :: tol = 1.e-6_dp
 
     if (mpi%rank == mpi%output_rank) then
@@ -136,11 +135,25 @@ contains
             1.5_dp,  0.0_dp, 0.2_dp, 0.0_dp, 0._dp, 2.540e6_dp, 0.4_dp, 0.6_dp]
 
        call fluid%assign(fluid_data, offset)
+       expected_x = [0.699879727382_dp, 0.300120272618_dp]
 
        do c = 1, num_components
-          write(cstr, '(a, i1)') "Fluid component mass fraction ", c
+          write(cstr, '(a, i1, a)') "Fluid component mass fraction ", c, " case 1"
           x = fluid%component_mass_fraction(c)
-          call assert_equals(expected_x(c), x, tol, cstr)
+          call assert_equals(expected_x(c), x, tol, trim(cstr))
+       end do
+
+       fluid_data = [2.7e5_dp, 130._dp, 4._dp, 3._dp, &
+            935._dp, 0.0_dp, 0.8_dp, 0.0_dp, 0._dp, 5.461e5_dp, 1.0_dp, 0.0_dp, &
+            1.5_dp,  0.0_dp, 0.2_dp, 0.0_dp, 0._dp, 2.540e6_dp, 1.0_dp, 0.0_dp]
+
+       call fluid%assign(fluid_data, offset)
+       expected_x = [1._dp, 0._dp]
+
+       do c = 1, num_components
+          write(cstr, '(a, i1, a)') "Fluid component mass fraction ", c, " case 2"
+          x = fluid%component_mass_fraction(c)
+          call assert_equals(expected_x(c), x, tol, trim(cstr))
        end do
 
        call fluid%destroy()
