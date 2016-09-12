@@ -25,7 +25,7 @@ module ncg_thermodynamics_module
      procedure(ncg_energy_solution_procedure), public, deferred :: energy_solution
      procedure(ncg_viscosity_procedure), public, deferred :: viscosity
      procedure, public :: mass_fraction => ncg_thermodynamics_mass_fraction
-     procedure, public :: molar_mass_fraction => ncg_thermodynamics_molar_mass_fraction
+     procedure, public :: mole_fraction => ncg_thermodynamics_mole_fraction
    end type ncg_thermodynamics_type
 
   abstract interface
@@ -93,32 +93,32 @@ contains
 !------------------------------------------------------------------------
 
   PetscReal function ncg_thermodynamics_mass_fraction(self, xmole) &
-       result(xg)
-    !! Calculates NCG mass fraction from molar mass fraction.
+       result(xmass)
+    !! Calculates NCG mass fraction from mole fraction.
     class(ncg_thermodynamics_type), intent(in) :: self
-    PetscReal, intent(in) :: xmole !! Molar mass fraction
+    PetscReal, intent(in) :: xmole !! NCG mole fraction
     ! Locals:
     PetscReal :: w
 
     w = xmole * self%molecular_weight
-    xg = w / (w + (1._dp - xmole) * h2o_molecular_weight)
+    xmass = w / (w + (1._dp - xmole) * h2o_molecular_weight)
 
   end function ncg_thermodynamics_mass_fraction
 
 !------------------------------------------------------------------------
 
-  PetscReal function ncg_thermodynamics_molar_mass_fraction(self, xg) &
+  PetscReal function ncg_thermodynamics_mole_fraction(self, xmass) &
        result(xmole)
-    !! Calculates molar mass fraction from NCG mass fraction.
+    !! Calculates NCG mole fraction from mass fraction.
     class(ncg_thermodynamics_type), intent(in) :: self
-    PetscReal, intent(in) :: xg !! NCG mass fraction
+    PetscReal, intent(in) :: xmass !! NCG mass fraction
     ! Locals:
     PetscReal :: w
 
-    w = xg / self%molecular_weight
-    xmole = w / (w + (1._dp - xg) / h2o_molecular_weight)
+    w = xmass / self%molecular_weight
+    xmole = w / (w + (1._dp - xmass) / h2o_molecular_weight)
 
-  end function ncg_thermodynamics_molar_mass_fraction
+  end function ncg_thermodynamics_mole_fraction
 
 !------------------------------------------------------------------------
 
