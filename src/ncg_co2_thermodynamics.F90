@@ -128,7 +128,10 @@ contains
 !------------------------------------------------------------------------
 
   subroutine ncg_co2_henrys_constant(self, temperature, hc, err)
-    !! Henry's constant for CO2 NCG.
+    !! Henry's constant for CO2 NCG.  From Cramer, S.D.: The
+    !! solubility of methane, carbon dioxide and oxygen in brines from
+    !! 0 to 300\(^\circ C\). Report of Investigations 8706, US
+    !! Department of the Interior, Bureau of Mines (1982).
 
     use thermodynamics_module, only: h2o_molecular_weight
 
