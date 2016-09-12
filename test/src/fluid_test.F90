@@ -12,8 +12,9 @@ module fluid_test
 
 #include <petsc/finclude/petscdef.h>
 
-public :: test_fluid_assign, test_fluid_component_density, &
-     test_fluid_energy, test_fluid_energy_production
+  public :: test_fluid_assign, test_fluid_component_density, &
+       test_fluid_component_mass_fraction, &
+       test_fluid_energy, test_fluid_energy_production
 
 contains
   
@@ -108,6 +109,46 @@ contains
     end if
 
   end subroutine test_fluid_component_density
+
+!------------------------------------------------------------------------
+
+  subroutine test_fluid_component_mass_fraction
+    ! Test fluid component_mass_fraction()
+
+    type(fluid_type) :: fluid
+    PetscInt, parameter :: num_components = 2, num_phases = 2
+    PetscInt,  parameter :: offset = 1
+    PetscReal, pointer, contiguous :: fluid_data(:)
+    PetscReal :: x
+    PetscInt :: c
+    character(32) :: cstr
+    PetscReal, parameter :: expected_x(num_components) = &
+         [0.699879727382_dp, 0.300120272618_dp]
+    PetscReal, parameter :: tol = 1.e-6_dp
+
+    if (mpi%rank == mpi%output_rank) then
+
+       call fluid%init(num_components, num_phases)
+       allocate(fluid_data(offset - 1 + fluid%dof))
+
+       fluid_data = [2.7e5_dp, 130._dp, 4._dp, 3._dp, &
+            935._dp, 0.0_dp, 0.8_dp, 0.0_dp, 0._dp, 5.461e5_dp, 0.7_dp, 0.3_dp, &
+            1.5_dp,  0.0_dp, 0.2_dp, 0.0_dp, 0._dp, 2.540e6_dp, 0.4_dp, 0.6_dp]
+
+       call fluid%assign(fluid_data, offset)
+
+       do c = 1, num_components
+          write(cstr, '(a, i1)') "Fluid component mass fraction ", c
+          x = fluid%component_mass_fraction(c)
+          call assert_equals(expected_x(c), x, tol, cstr)
+       end do
+
+       call fluid%destroy()
+       deallocate(fluid_data)
+
+    end if
+
+  end subroutine test_fluid_component_mass_fraction
 
 !------------------------------------------------------------------------
 

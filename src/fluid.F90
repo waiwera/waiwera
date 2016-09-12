@@ -69,6 +69,7 @@ module fluid_module
      procedure, public :: assign => fluid_assign
      procedure, public :: destroy => fluid_destroy
      procedure, public :: component_density => fluid_component_density
+     procedure, public :: component_mass_fraction => fluid_component_mass_fraction
      procedure, public :: energy => fluid_energy
      procedure, public :: flow_fractions => fluid_flow_fractions
      procedure, public :: energy_production => fluid_energy_production
@@ -212,6 +213,41 @@ contains
     end do
 
   end function fluid_component_density
+
+!------------------------------------------------------------------------
+
+  PetscReal function fluid_component_mass_fraction(self, c) result(xc)
+    !! Returns total mass fraction for specified component, with
+    !! contributions from all phases.
+
+    class(fluid_type), intent(in) :: self
+    PetscInt, intent(in) :: c !! Masss component
+    ! Locals:
+    PetscInt :: p, phases
+    PetscReal :: ds, total
+    PetscReal, parameter :: small = 1.e-30_dp
+
+    xc = 0._dp
+    total = 0._dp
+
+    phases = nint(self%phase_composition)
+    do p = 1, self%num_phases
+       if (btest(phases, p - 1)) then
+          associate(phase => self%phase(p))
+            ds = phase%density * phase%saturation
+            xc = xc + ds * phase%mass_fraction(c)
+            total = total + ds
+          end associate
+       end if
+    end do
+
+    if (total > small) then
+       xc = xc / total
+    else
+       xc = 0._dp
+    end if
+
+  end function fluid_component_mass_fraction
 
 !------------------------------------------------------------------------
 
