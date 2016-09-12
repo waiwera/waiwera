@@ -51,13 +51,11 @@ module ncg_thermodynamics_module
        PetscErrorCode, intent(out) :: err
      end subroutine ncg_properties_procedure
 
-     subroutine ncg_henrys_constant_procedure(self, partial_pressure, &
-          temperature, hc, err)
+     subroutine ncg_henrys_constant_procedure(self, temperature, hc, err)
        !! Calculate NCG Henry's constant, for calculating dissolution
        !! of gas into water.
        import :: ncg_thermodynamics_type
        class(ncg_thermodynamics_type), intent(in) :: self
-       PetscReal, intent(in) :: partial_pressure
        PetscReal, intent(in) :: temperature
        PetscReal, intent(out) :: hc
        PetscErrorCode, intent(out) :: err

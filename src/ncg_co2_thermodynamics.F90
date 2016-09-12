@@ -74,9 +74,11 @@ contains
          if (phase == 1) then
             ! liquid
             density_co2 = 0._dp    ! not used for mixture density
-            call self%henrys_constant(partial_pressure, temperature, hc, err)
-            xmole = hc * partial_pressure
-            xg = self%mass_fraction(xmole)
+            call self%henrys_constant(temperature, hc, err)
+            if (err == 0) then
+               xmole = hc * partial_pressure
+               xg = self%mass_fraction(xmole)
+            end if
          else
             ! vapour
             total_density = density_co2 + density_water
@@ -125,19 +127,16 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine ncg_co2_henrys_constant(self, partial_pressure, temperature, &
-       hc, err)
+  subroutine ncg_co2_henrys_constant(self, temperature, hc, err)
     !! Henry's constant for CO2 NCG.
 
     use thermodynamics_module, only: h2o_molecular_weight
 
     class(ncg_co2_thermodynamics_type), intent(in) :: self
-    PetscReal, intent(in) :: partial_pressure
     PetscReal, intent(in) :: temperature
     PetscReal, intent(out) :: hc
     PetscErrorCode, intent(out) :: err
     ! Locals:
-    PetscReal :: xmole
     PetscReal :: T2, T3, T4, T5
 
     err = 0
