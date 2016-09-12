@@ -382,6 +382,8 @@ end subroutine eos_wge_phase_properties
     PetscReal, intent(out) :: primary(self%num_primary_variables)
     ! Locals:
     PetscInt :: region
+    PetscReal :: xg, xmole, hc, partial_pressure
+    PetscErrorCode :: err
 
     primary(1) = fluid%pressure
 
@@ -392,7 +394,11 @@ end subroutine eos_wge_phase_properties
        primary(2) = fluid%temperature
     end if
 
-    primary(3) = 0._dp ! TODO: need to calculate
+    xg = fluid%component_mass_fraction(2)
+    xmole = self%gas%molar_mass_fraction(xg)
+    call self%gas%henrys_constant(fluid%temperature, hc, err)
+    partial_pressure = xmole / hc
+    primary(3) = partial_pressure
 
   end subroutine eos_wge_primary_variables
 
