@@ -204,11 +204,13 @@ contains
     pscale = 0.01_dp * pbar
     if (pscale <= 1._dp) then
        C = self%viscosity_A + pscale * self%viscosity_BA
-       T2 = temperature * temperature
-       T3 = temperature * T2
-       T4 = T2 * T2
-       viscosity = 1.0e-8_dp * (C(1) + C(2) * temperature + &
-            C(3) * T2 + C(4) * T3 + C(5) * T4)
+       associate(T => temperature)
+         T2 = T * T
+         T3 = T * T2
+         T4 = T2 * T2
+         viscosity = 1.0e-8_dp * (C(1) + C(2) * T + &
+              C(3) * T2 + C(4) * T3 + C(5) * T4)
+       end associate
        err = 0
     else
        err = 1
