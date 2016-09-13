@@ -6,7 +6,6 @@ module face_test
   use mpi_module
   use fruit
   use face_module
-  use eos_module
   use IAPWS_module
   use fson
 
@@ -237,6 +236,7 @@ contains
     use cell_module
     use rock_module
     use fluid_module
+    use eos_we_module
 
     PetscInt, parameter :: nc = 1, num_phases = 1, num_primary = 2
     PetscReal, parameter :: gravity = 9.8_dp
@@ -319,6 +319,7 @@ contains
     use cell_module
     use rock_module
     use fluid_module
+    use eos_we_module
 
     PetscInt, parameter :: nc = 1, num_phases = 1, num_primary = 2
     PetscReal, parameter :: gravity = 9.8_dp
@@ -400,6 +401,7 @@ contains
     use cell_module
     use rock_module
     use fluid_module
+    use eos_we_module
 
     PetscInt, parameter :: nc = 1, num_phases = 1, num_primary = 2
     PetscReal, parameter :: gravity = 9.8_dp
@@ -483,6 +485,7 @@ contains
     use cell_module
     use rock_module
     use fluid_module
+    use eos_we_module
 
     PetscInt, parameter :: nc = 1, num_phases = 2, num_primary = 2
     PetscReal, parameter :: gravity = 9.8_dp
