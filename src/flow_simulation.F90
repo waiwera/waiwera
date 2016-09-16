@@ -316,8 +316,9 @@ end subroutine flow_simulation_run_info
     use fson
     use fson_mpi_module
     use thermodynamics_setup_module, only: setup_thermodynamics
-    use eos_module, only: setup_eos, max_component_name_length, &
+    use eos_module, only: max_component_name_length, &
          max_phase_name_length
+    use eos_setup_module, only: setup_eos
     use initial_module, only: setup_initial
     use fluid_module, only: setup_fluid_vector
     use rock_module, only: setup_rock_vector, setup_rocktype_labels

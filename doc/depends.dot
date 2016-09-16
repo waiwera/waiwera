@@ -4,18 +4,24 @@ digraph supermodel{
         fluid_module -> thermodynamics_module
         eos_module -> fluid_module
         eos_module -> fson
-        eos_module -> fson_mpi_module
         eos_module -> kinds_module
         eos_module -> logfile_module
         eos_module -> rock_module
         eos_module -> thermodynamics_module
-        eos_module -> utils_module
         rock_module -> dm_utils_module
         rock_module -> fson
         rock_module -> fson_mpi_module
         rock_module -> kinds_module
         rock_module -> logfile_module
         rock_module -> relative_permeability_module
+        eos_we_module -> eos_module
+        eos_we_module -> fluid_module
+        eos_we_module -> fson
+        eos_we_module -> fson_mpi_module
+        eos_we_module -> kinds_module
+        eos_we_module -> logfile_module
+        eos_we_module -> rock_module
+        eos_we_module -> thermodynamics_module
         powertable_module -> kinds_module
         ode_module -> logfile_module
         ode_module -> mesh_module
@@ -26,6 +32,7 @@ digraph supermodel{
         flow_simulation_module -> cell_module
         flow_simulation_module -> dm_utils_module
         flow_simulation_module -> eos_module
+        flow_simulation_module -> eos_setup_module
         flow_simulation_module -> face_module
         flow_simulation_module -> fluid_module
         flow_simulation_module -> fson
@@ -83,12 +90,28 @@ digraph supermodel{
         supermodel -> mpi_module
         supermodel -> profiling_module
         supermodel -> timestepper_module
+        eos_w_module -> eos_module
+        eos_w_module -> fluid_module
+        eos_w_module -> fson
+        eos_w_module -> fson_mpi_module
+        eos_w_module -> kinds_module
+        eos_w_module -> logfile_module
+        eos_w_module -> rock_module
+        eos_w_module -> thermodynamics_module
         source_module -> dm_utils_module
         source_module -> fson
         source_module -> fson_mpi_module
         source_module -> kinds_module
         source_module -> logfile_module
         source_module -> mesh_module
+        eos_setup_module -> eos_module
+        eos_setup_module -> eos_w_module
+        eos_setup_module -> eos_we_module
+        eos_setup_module -> fson
+        eos_setup_module -> fson_mpi_module
+        eos_setup_module -> logfile_module
+        eos_setup_module -> thermodynamics_module
+        eos_setup_module -> utils_module
         IAPWS_module -> kinds_module
         IAPWS_module -> powertable_module
         IAPWS_module -> thermodynamics_module
