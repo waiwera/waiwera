@@ -71,7 +71,6 @@ module fluid_module
      procedure, public :: component_density => fluid_component_density
      procedure, public :: energy => fluid_energy
      procedure, public :: flow_fractions => fluid_flow_fractions
-     procedure, public :: energy_production => fluid_energy_production
      procedure, public :: update_phase_composition => &
           fluid_update_phase_composition
   end type fluid_type
@@ -259,49 +258,6 @@ contains
     f = f / sum(f)
 
   end function fluid_flow_fractions
-
-!------------------------------------------------------------------------
-
-  subroutine fluid_energy_production(self, source, isothermal)
-    !! If source array contains production, and EOS is
-    !! non-isothermal, calculate associated energy production.
-
-    class(fluid_type), intent(in) :: self
-    PetscReal, intent(in out) :: source(:)
-    PetscBool, intent(in) :: isothermal
-    ! Locals:
-    PetscInt :: p, np, phases, c
-    PetscReal :: flow_fractions(self%num_phases), hc
-
-    if (.not. isothermal) then
-       np = size(source)
-       associate (qenergy => source(np))
-
-         phases = nint(self%phase_composition)
-         flow_fractions = self%flow_fractions()
-
-         do c = 1, self%num_components
-            associate(q => source(c))
-              if (q < 0._dp) then
-                 hc = 0._dp
-                 do p = 1, self%num_phases
-                    if (btest(phases, p - 1)) then
-                       associate(phase => self%phase(p))
-                         hc = hc + flow_fractions(p) * &
-                              phase%specific_enthalpy * &
-                              phase%mass_fraction(c)
-                       end associate
-                    end if
-                 end do
-                 qenergy = qenergy + q * hc
-              end if
-            end associate
-         end do
-
-       end associate
-    end if
-
-  end subroutine fluid_energy_production
 
 !------------------------------------------------------------------------
 
