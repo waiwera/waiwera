@@ -163,7 +163,7 @@ contains
     !! this will also deallocate the data in the node.
 
     class(list_type), intent(in out) :: self
-    type(list_node_type), pointer :: node
+    type(list_node_type), pointer, intent(in out) :: node
     ! Locals:
     type(list_node_type), pointer :: previous, next
 
