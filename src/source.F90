@@ -1,6 +1,7 @@
 module source_module
  !! Module for handling sinks and sources.
 
+  use kinds_module
   use list_module
 
   implicit none
@@ -20,7 +21,7 @@ module source_module
      private
      procedure, public :: init => source_init
      procedure, public :: destroy => source_destroy
-     ! procedure, public :: energy_production => source_energy_production
+     procedure, public :: total_flow => source_total_flow
   end type source_type
 
   type, public, abstract :: source_control_type
@@ -57,26 +58,74 @@ module source_module
 
   end interface
 
-  public :: setup_source_vector
+  public :: setup_sources
 
 contains
 
 !------------------------------------------------------------------------
 
-  subroutine source_init(self, num_primary_variables, cell_natural_index)
+  subroutine source_init(self, num_primary_variables, &
+       cell_natural_index, cell_index)
     !! Initialises a source object.
 
     class(source_type), intent(in out) :: self
     PetscInt, intent(in) :: num_primary_variables
     PetscInt, intent(in) :: cell_natural_index
+    PetscInt, intent(in) :: cell_index
 
     allocate(self%flow(num_primary_variables))
+    self%flow = 0._dp
     self%cell_natural_index = cell_natural_index
-    ! Determine local cell index? or determine before calling this
-    ! routine, and only init gener if cell on-process? (or in
-    ! coordinated distributed source)
+    self%cell_index = cell_index
 
   end subroutine source_init
+
+!------------------------------------------------------------------------
+
+  subroutine source_total_flow(self, fluid, isothermal, q)
+    !! Returns array with total flow through the source, including any
+    !! energy production from mass production.
+
+    use fluid_module, only: fluid_type
+
+    class(source_type), intent(in) :: self
+    type(fluid_type), intent(in) :: fluid
+    PetscBool, intent(in) :: isothermal
+    PetscReal, intent(out) :: q(:)
+    ! Locals:
+    PetscInt :: p, np, phases, c
+    PetscReal :: flow_fractions(fluid%num_phases), hc
+
+    q = self%flow
+    if (.not. isothermal) then
+       np = size(self%flow)
+       associate (qenergy => q(np))
+
+         phases = nint(fluid%phase_composition)
+         flow_fractions = fluid%flow_fractions()
+
+         do c = 1, fluid%num_components
+            associate(f => self%flow(c))
+              if (f < 0._dp) then
+                 hc = 0._dp
+                 do p = 1, fluid%num_phases
+                    if (btest(phases, p - 1)) then
+                       associate(phase => fluid%phase(p))
+                         hc = hc + flow_fractions(p) * &
+                              phase%specific_enthalpy * &
+                              phase%mass_fraction(c)
+                       end associate
+                    end if
+                 end do
+                 qenergy = qenergy + f * hc
+              end if
+            end associate
+         end do
+
+       end associate
+    end if
+
+  end subroutine source_total_flow
 
 !------------------------------------------------------------------------
 
