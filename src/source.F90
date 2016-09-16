@@ -139,36 +139,31 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine setup_source_vector(json, dm, np, isothermal, &
-       source, range_start, logfile)
-    !! Sets up sinks and sources. Source strengths are stored (for
-    !! now) in the source vector, with values for all components in
-    !! all cells.
+  subroutine setup_sources(json, dm, np, isothermal, sources_list, logfile)
+    !! Sets up list of sinks and sources.
 
     use kinds_module
     use fson
     use fson_mpi_module
     use logfile_module
     use mesh_module, only: cell_order_label_name
-    use dm_utils_module, only: global_section_offset
 
     type(fson_value), pointer, intent(in) :: json !! JSON file object
     DM, intent(in) :: dm !! Mesh DM 
     PetscInt, intent(in) :: np !! Number of primary variables
     PetscBool, intent(in) :: isothermal !! Whether EOS is isothermal
-    PetscInt, intent(in) :: range_start !! Range start for global source vector
-    Vec, intent(in out) :: source !! Global source vector
+    type(list_type), intent(in out) :: sources_list !! List of sources
     type(logfile_type), intent(in out), optional :: logfile !! Logfile for log output
     ! Locals:
     PetscErrorCode :: ierr
     PetscInt :: c, isrc, i, component
     type(fson_value), pointer :: sources, src
-    PetscInt :: num_sources, cell, offset, num_cells, ghost
+    PetscInt :: num_sources, cell, num_cells, ghost
+    type(source_type), pointer :: s
     PetscInt, pointer :: cells(:)
     PetscReal :: q, enthalpy
-    PetscReal, pointer, contiguous :: source_array(:), cell_source(:)
     PetscBool :: mass_inject
-    PetscSection :: section
+    character(:), allocatable :: name
     IS :: cell_IS
     DMLabel :: ghost_label
     character(len=64) :: srcstr
@@ -176,22 +171,24 @@ contains
     PetscInt, parameter ::  default_component = 1
     PetscReal, parameter :: default_enthalpy = 83.9e3
 
-    call DMCreateGlobalVector(dm, source, ierr); CHKERRQ(ierr)
-    call PetscObjectSetName(source, "source", ierr); CHKERRQ(ierr)
-    call VecSet(source, 0._dp, ierr); CHKERRQ(ierr)
+    call sources_list%init(delete_deallocates = PETSC_TRUE)
 
     if (fson_has_mpi(json, "source")) then
 
-       call DMGetDefaultGlobalSection(dm, section, ierr); CHKERRQ(ierr)
-       call VecGetArrayF90(source, source_array, ierr); CHKERRQ(ierr)
        call DMGetLabel(dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
 
        call fson_get_mpi(json, "source", sources)
        num_sources = fson_value_count_mpi(sources, ".")
+
        do isrc = 1, num_sources
+
           write(istr, '(i0)') isrc - 1
           srcstr = 'source[' // trim(istr) // '].'
           src => fson_value_get_mpi(sources, isrc)
+          if (allocated(name)) deallocate(name)
+          if (fson_has_mpi(src, "name")) then
+             call fson_get_mpi(src, "name", val = name)
+          end if
           call fson_get_mpi(src, "cell", val = cell)
           call fson_get_mpi(src, "component", default_component, &
                component, logfile, trim(srcstr) // "component")
@@ -204,9 +201,12 @@ contains
           else
              enthalpy = 0._dp
           end if
+
           call DMGetStratumIS(dm, cell_order_label_name, &
                cell, cell_IS, ierr); CHKERRQ(ierr)
+
           if (cell_IS /= 0) then
+
              call ISGetIndicesF90(cell_IS, cells, ierr); CHKERRQ(ierr)
              num_cells = size(cells)
              do i = 1, num_cells
@@ -214,26 +214,31 @@ contains
                 call DMLabelGetValue(ghost_label, c, ghost, ierr)
                 CHKERRQ(ierr)
                 if (ghost < 0) then
-                   call global_section_offset(section, c, range_start, &
-                        offset, ierr)
-                   cell_source => source_array(offset : offset + np - 1)
-                   cell_source(component) = cell_source(component) + q
+                   allocate(s)
+                   call s%init(np, cell, c)
+                   s%flow(component) = q
                    if (mass_inject) then
-                      cell_source(np) = cell_source(np) + enthalpy * q
+                      s%flow(np) = s%flow(np) + enthalpy * q
+                   end if
+                   if (allocated(name)) then
+                      call sources_list%append(s, name)
+                   else
+                      call sources_list%append(s)
                    end if
                 end if
              end do
              call ISRestoreIndicesF90(cell_IS, cells, ierr); CHKERRQ(ierr)
+
           end if
           call ISDestroy(cell_IS, ierr); CHKERRQ(ierr)
+
        end do
-       call VecRestoreArrayF90(source, source_array, ierr); CHKERRQ(ierr)
 
     else
        call logfile%write(LOG_LEVEL_INFO, "input", "no_sources")
     end if
 
-  end subroutine setup_source_vector
+  end subroutine setup_sources
 
 !------------------------------------------------------------------------
 
