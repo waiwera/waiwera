@@ -179,6 +179,7 @@ contains
        node%next => null()
        node%previous => null()
        deallocate(node)
+       node => null()
 
        if (associated(previous)) then
           previous%next => next
