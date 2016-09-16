@@ -1,6 +1,8 @@
 module source_module
  !! Module for handling sinks and sources.
 
+  use list_module
+
   implicit none
   private
 
@@ -25,7 +27,7 @@ module source_module
      !! Abstract type for mass / energy source control, controlling
      !! generation values over time in one or more sources.
      private
-     type(source_type), allocatable, public :: source(:)
+     type(list_type), public :: sources
    contains
      procedure(source_control_init_procedure), public, deferred :: init
      procedure(source_control_destroy_procedure), public, deferred :: destroy

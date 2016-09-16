@@ -102,6 +102,7 @@ digraph supermodel{
         source_module -> fson
         source_module -> fson_mpi_module
         source_module -> kinds_module
+        source_module -> list_module
         source_module -> logfile_module
         source_module -> mesh_module
         eos_setup_module -> eos_module
