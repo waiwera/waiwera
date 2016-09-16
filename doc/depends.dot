@@ -41,6 +41,7 @@ digraph supermodel{
         flow_simulation_module -> initial_module
         flow_simulation_module -> iso_fortran_env
         flow_simulation_module -> kinds_module
+        flow_simulation_module -> list_module
         flow_simulation_module -> logfile_module
         flow_simulation_module -> mesh_module
         flow_simulation_module -> mpi_module
@@ -98,7 +99,7 @@ digraph supermodel{
         eos_w_module -> logfile_module
         eos_w_module -> rock_module
         eos_w_module -> thermodynamics_module
-        source_module -> dm_utils_module
+        source_module -> fluid_module
         source_module -> fson
         source_module -> fson_mpi_module
         source_module -> kinds_module
