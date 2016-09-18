@@ -9,6 +9,8 @@ module source_module
 
 #include <petsc/finclude/petsc.h90>
 
+  PetscInt, parameter :: max_source_name_length = 32
+
   type, public :: source_type
      !! Type for mass / energy source, applying specified values of
      !! generation to each equation in a particular cell at the
@@ -163,7 +165,7 @@ contains
     PetscInt, pointer :: cells(:)
     PetscReal :: q, enthalpy
     PetscBool :: mass_inject
-    character(:), allocatable :: name
+    character(max_source_name_length) :: name
     IS :: cell_IS
     DMLabel :: ghost_label
     character(len=64) :: srcstr
@@ -185,9 +187,10 @@ contains
           write(istr, '(i0)') isrc - 1
           srcstr = 'source[' // trim(istr) // '].'
           src => fson_value_get_mpi(sources, isrc)
-          if (allocated(name)) deallocate(name)
           if (fson_has_mpi(src, "name")) then
              call fson_get_mpi(src, "name", val = name)
+          else
+             name = ""
           end if
           call fson_get_mpi(src, "cell", val = cell)
           call fson_get_mpi(src, "component", default_component, &
@@ -220,10 +223,10 @@ contains
                    if (mass_inject) then
                       s%flow(np) = s%flow(np) + enthalpy * q
                    end if
-                   if (allocated(name)) then
-                      call sources_list%append(s, name)
-                   else
+                   if (name == "") then
                       call sources_list%append(s)
+                   else
+                      call sources_list%append(s, name)
                    end if
                 end if
              end do
