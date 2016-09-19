@@ -16,19 +16,24 @@ module source_module
      !! generation to each equation in a particular cell at the
      !! current time.
      private
-     PetscReal, allocatable, public :: flow(:) !! Generation flow rate for each equation
+     PetscReal, public :: rate !! Source flow rate
+     PetscInt, public :: component !! Which mass (or energy) component is being produced or injected
+     PetscReal, public :: enthalpy !! Enthalpy of produced or injected fluid
      PetscInt, public :: cell_natural_index !! Natural index of cell the source is in
      PetscInt, public :: cell_index !! Local index of cell the source is in
+     PetscReal, allocatable, public :: flow(:) !! Flows in each mass and energy component
    contains
      private
+     procedure :: update_injection_mass_flow => source_update_injection_mass_flow
+     procedure :: update_production_mass_flow => source_update_production_mass_flow
+     procedure :: update_energy_flow => source_update_energy_flow
      procedure, public :: init => source_init
-     procedure, public :: destroy => source_destroy
-     procedure, public :: total_flow => source_total_flow
+     procedure, public :: update_flow => source_update_flow
   end type source_type
 
   type, public, abstract :: source_control_type
-     !! Abstract type for mass / energy source control, controlling
-     !! generation values over time in one or more sources.
+     !! Abstract type for source control, controlling source
+     !! parameters over time, for one or more sources.
      private
      type(list_type), public :: sources
    contains
@@ -66,78 +71,117 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine source_init(self, num_primary_variables, &
-       cell_natural_index, cell_index)
+  subroutine source_init(self, cell_natural_index, cell_index, &
+       num_primary, component, rate, enthalpy)
     !! Initialises a source object.
 
     class(source_type), intent(in out) :: self
-    PetscInt, intent(in) :: num_primary_variables
-    PetscInt, intent(in) :: cell_natural_index
-    PetscInt, intent(in) :: cell_index
+    PetscInt, intent(in) :: cell_natural_index !! natural index of cell the source is in
+    PetscInt, intent(in) :: cell_index !! local index of cell the source is in
+    PetscInt, intent(in) :: num_primary !! Number of primary variables
+    PetscInt, intent(in) :: component !! mass (or energy) component the source is applied to
+    PetscReal, intent(in) :: rate !! source flow rate
+    PetscReal, intent(in) :: enthalpy !! enthalpy for injection
 
-    allocate(self%flow(num_primary_variables))
-    self%flow = 0._dp
     self%cell_natural_index = cell_natural_index
     self%cell_index = cell_index
+    allocate(self%flow(num_primary))
+    self%rate = rate
+    self%component = component
+    self%enthalpy = enthalpy
 
   end subroutine source_init
 
 !------------------------------------------------------------------------
 
-  subroutine source_total_flow(self, fluid, isothermal, q)
-    !! Returns array with total flow through the source, including any
-    !! energy production from mass production.
-
-    use fluid_module, only: fluid_type
-
-    class(source_type), intent(in) :: self
-    type(fluid_type), intent(in) :: fluid
+  subroutine source_update_injection_mass_flow(self, isothermal)
+    !! Updates the mass components of the flow array for
+    !! injection. Only to be called if self%rate >= 0.
+    
+    class(source_type), intent(in out) :: self
     PetscBool, intent(in) :: isothermal
-    PetscReal, intent(out) :: q(:)
-    ! Locals:
-    PetscInt :: p, np, phases, c
-    PetscReal :: flow_fractions(fluid%num_phases), hc
 
-    q = self%flow
-    if (.not. isothermal) then
-       np = size(self%flow)
-       associate (qenergy => q(np))
-
-         phases = nint(fluid%phase_composition)
-         flow_fractions = fluid%flow_fractions()
-
-         do c = 1, fluid%num_components
-            associate(f => self%flow(c))
-              if (f < 0._dp) then
-                 hc = 0._dp
-                 do p = 1, fluid%num_phases
-                    if (btest(phases, p - 1)) then
-                       associate(phase => fluid%phase(p))
-                         hc = hc + flow_fractions(p) * &
-                              phase%specific_enthalpy * &
-                              phase%mass_fraction(c)
-                       end associate
-                    end if
-                 end do
-                 qenergy = qenergy + f * hc
-              end if
-            end associate
-         end do
-
-       end associate
-    end if
-
-  end subroutine source_total_flow
+    self%flow = 0._dp
+    self%flow(self%component) = self%rate
+    
+  end subroutine source_update_injection_mass_flow
 
 !------------------------------------------------------------------------
 
-  subroutine source_destroy(self)
-    !! Destroys a source object.
+  subroutine source_update_production_mass_flow(self, isothermal, fluid)
+    !! Updates the mass components of the flow array (and the
+    !! enthalpy) for production. Only to be called if self%rate < 0.
+
+    use fluid_module, only: fluid_type
+
+    class(source_type), intent(in out) :: self
+    PetscBool, intent(in) :: isothermal
+    type(fluid_type), intent(in) :: fluid
+    ! Locals:
+    PetscReal :: flow_fractions(fluid%num_phases)
+
+    self%flow = 0._dp
+
+    associate(np => size(self%flow), nc => fluid%num_components)
+
+      if (self%component < np) then
+         flow_fractions = fluid%flow_fractions()
+         if (.not. isothermal) then
+            self%enthalpy = fluid%specific_enthalpy(flow_fractions)
+         end if
+      end if
+      
+      if (self%component <= 0) then
+         ! distribute production over all mass components:
+         self%flow(1: nc) = self%rate * &
+              fluid%component_flow_fractions(flow_fractions)
+      else
+         ! produce only specified mass or energy component:
+         self%flow(self%component) = self%rate
+      end if
+
+    end associate
+
+  end subroutine source_update_production_mass_flow
+
+!------------------------------------------------------------------------
+
+  subroutine source_update_energy_flow(self)
+    !! Updates energy flow from mass production or injection.
+
     class(source_type), intent(in out) :: self
 
-    deallocate(self%flow)
+    associate(np => size(self%flow))
+      self%flow(np) = self%flow(np) + self%enthalpy * self%rate
+    end associate
 
-  end subroutine source_destroy
+  end subroutine source_update_energy_flow
+
+!------------------------------------------------------------------------
+
+  subroutine source_update_flow(self, fluid, isothermal)
+    !! Updates the flow array, according to the source parameters and
+    !! fluid conditions.
+
+    use fluid_module, only: fluid_type
+
+    class(source_type), intent(in out) :: self
+    type(fluid_type), intent(in) :: fluid
+    PetscBool, intent(in) :: isothermal
+
+    if (self%rate >= 0._dp) then
+       call self%update_injection_mass_flow(isothermal)
+    else
+       call self%update_production_mass_flow(isothermal, fluid)
+    end if
+
+    associate(np => size(self%flow))
+      if ((.not.(isothermal)) .and. (self%component < np)) then
+         call self%update_energy_flow()
+      end if
+    end associate
+
+  end subroutine source_update_flow
 
 !------------------------------------------------------------------------
 
@@ -163,15 +207,19 @@ contains
     PetscInt :: num_sources, cell, num_cells, ghost
     type(source_type), pointer :: s
     PetscInt, pointer :: cells(:)
-    PetscReal :: q, enthalpy
-    PetscBool :: mass_inject
+    PetscReal :: rate, enthalpy
     character(max_source_name_length) :: name
+    character(max_source_name_length) :: default_name = ""
     IS :: cell_IS
     DMLabel :: ghost_label
     character(len=64) :: srcstr
     character(len=12) :: istr
-    PetscInt, parameter ::  default_component = 1
+    PetscInt :: default_component
+    PetscReal, parameter :: default_rate = 0._dp
+    PetscInt, parameter ::  default_injection_component = 1
     PetscReal, parameter :: default_enthalpy = 83.9e3
+    ! for production, default is to produce all components:
+    PetscInt, parameter ::  default_production_component = 0
 
     call sources_list%init(delete_deallocates = PETSC_TRUE)
 
@@ -187,24 +235,20 @@ contains
           write(istr, '(i0)') isrc - 1
           srcstr = 'source[' // trim(istr) // '].'
           src => fson_value_get_mpi(sources, isrc)
-          if (fson_has_mpi(src, "name")) then
-             call fson_get_mpi(src, "name", val = name)
-          else
-             name = ""
-          end if
+          call fson_get_mpi(src, "name", default_name, name)
           call fson_get_mpi(src, "cell", val = cell)
-          call fson_get_mpi(src, "component", default_component, &
-               component, logfile, trim(srcstr) // "component")
-          call fson_get_mpi(src, "value", val = q)
-          mass_inject = ((.not.(isothermal)) .and. (component < np) &
-               .and. (q > 0._dp))
-          if (mass_inject) then
+          call fson_get_mpi(src, "rate", default_rate, rate, logfile, &
+               trim(srcstr) // "rate")
+          if (rate >= 0._dp) then
+             default_component = default_injection_component
              call fson_get_mpi(src, "enthalpy", default_enthalpy, &
                   enthalpy, logfile, trim(srcstr) // "enthalpy")
           else
+             default_component = default_production_component
              enthalpy = 0._dp
           end if
-
+          call fson_get_mpi(src, "component", default_component, &
+               component, logfile, trim(srcstr) // "component")
           call DMGetStratumIS(dm, cell_order_label_name, &
                cell, cell_IS, ierr); CHKERRQ(ierr)
 
@@ -212,22 +256,21 @@ contains
 
              call ISGetIndicesF90(cell_IS, cells, ierr); CHKERRQ(ierr)
              num_cells = size(cells)
+             if (num_cells > 1) then
+                num_cells = 1
+                if (present(logfile)) then
+                   call logfile%write(LOG_LEVEL_WARN, 'source', &
+                        'multiple cells found for source: ' // trim(name))
+                end if
+             end if
              do i = 1, num_cells
                 c = cells(i)
                 call DMLabelGetValue(ghost_label, c, ghost, ierr)
                 CHKERRQ(ierr)
                 if (ghost < 0) then
                    allocate(s)
-                   call s%init(np, cell, c)
-                   s%flow(component) = q
-                   if (mass_inject) then
-                      s%flow(np) = s%flow(np) + enthalpy * q
-                   end if
-                   if (name == "") then
-                      call sources_list%append(s)
-                   else
-                      call sources_list%append(s, name)
-                   end if
+                   call s%init(cell, c, np, component, rate, enthalpy)
+                   call sources_list%append(s, name)
                 end if
              end do
              call ISRestoreIndicesF90(cell_IS, cells, ierr); CHKERRQ(ierr)
@@ -238,7 +281,9 @@ contains
        end do
 
     else
-       call logfile%write(LOG_LEVEL_INFO, "input", "no_sources")
+       if (present(logfile)) then
+          call logfile%write(LOG_LEVEL_INFO, "input", "no_sources")
+       end if
     end if
 
   end subroutine setup_sources
