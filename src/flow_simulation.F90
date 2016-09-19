@@ -642,7 +642,6 @@ end subroutine flow_simulation_run_info
       PetscBool, intent(out) :: stopped
       ! Locals:
       PetscInt :: c
-      PetscReal :: q(np)
 
       select type (source => node%data)
       type is (source_type)
@@ -653,17 +652,18 @@ end subroutine flow_simulation_run_info
             call global_section_offset(rhs_section, c, &
                  self%solution_range_start, rhs_offset, ierr)
             CHKERRQ(ierr)
-            call section_offset(cell_geom_section, c, &
-                 cell_geom_offset, ierr); CHKERRQ(ierr)
-            call section_offset(fluid_section, c, &
-                 fluid_offset, ierr); CHKERRQ(ierr)
             inflow => rhs_array(rhs_offset : rhs_offset + np - 1)
 
+            call section_offset(cell_geom_section, c, &
+                 cell_geom_offset, ierr); CHKERRQ(ierr)
             call cell%assign_geometry(cell_geom_array, cell_geom_offset)
+
+            call section_offset(fluid_section, c, &
+                 fluid_offset, ierr); CHKERRQ(ierr)
             call cell%fluid%assign(fluid_array, fluid_offset)
 
-            call source%total_flow(cell%fluid, self%eos%isothermal, q)
-            inflow = inflow + q / cell%volume
+            call source%update_flow(cell%fluid, self%eos%isothermal)
+            inflow = inflow + source%flow / cell%volume
 
          end if
 
