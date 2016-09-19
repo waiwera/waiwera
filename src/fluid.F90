@@ -71,6 +71,8 @@ module fluid_module
      procedure, public :: component_density => fluid_component_density
      procedure, public :: energy => fluid_energy
      procedure, public :: flow_fractions => fluid_flow_fractions
+     procedure, public :: component_flow_fractions => fluid_component_flow_fractions
+     procedure, public :: specific_enthalpy => fluid_specific_enthalpy
      procedure, public :: update_phase_composition => &
           fluid_update_phase_composition
   end type fluid_type
@@ -258,6 +260,56 @@ contains
     f = f / sum(f)
 
   end function fluid_flow_fractions
+
+!------------------------------------------------------------------------
+
+  function fluid_component_flow_fractions(self, flow_fractions) result(f)
+    !! Returns array containing the flow fractions for each
+    !! component, given the array of phase flow fractions (calculated
+    !! using the flow_fractions() method).
+
+    class(fluid_type), intent(in) :: self
+    PetscReal, intent(in) :: flow_fractions(self%num_phases)
+    PetscReal :: f(self%num_components)
+    ! Locals:
+    PetscInt :: c, p, phases
+
+    phases = nint(self%phase_composition)
+    do c = 1, self%num_components
+       f(c) = 0._dp
+       do p = 1, self%num_phases
+          if (btest(phases, p - 1)) then
+             f(c) = f(c) + flow_fractions(p) * self%phase(p)%mass_fraction(c)
+          end if
+       end do
+    end do
+    f = f / sum(f)
+
+  end function fluid_component_flow_fractions
+
+!------------------------------------------------------------------------
+
+  PetscReal function fluid_specific_enthalpy(self, flow_fractions) result(h)
+    !! Returns total specific enthalpy, with contributions from all
+    !! phases, given the array of phase flow fractions (calculated
+    !! using the flow_fractions() method).
+
+    class(fluid_type), intent(in) :: self
+    PetscReal, intent(in) :: flow_fractions(self%num_phases)
+    ! Locals:
+    PetscInt :: p, phases
+
+    h = 0._dp
+
+    phases = nint(self%phase_composition)
+    do p = 1, self%num_phases
+       if (btest(phases, p - 1)) then
+          h = h + flow_fractions(p) * &
+               self%phase(p)%specific_enthalpy
+       end if
+    end do
+
+  end function fluid_specific_enthalpy
 
 !------------------------------------------------------------------------
 
