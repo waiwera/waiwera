@@ -115,7 +115,9 @@ contains
     character(len = *), intent(in) :: tag
 
     call self%append(data)
-    allocate(self%tail%tag, source = tag)
+    if (tag /= "") then
+       allocate(self%tail%tag, source = tag)
+    end if
 
   end subroutine list_append_with_tag
 
@@ -152,7 +154,9 @@ contains
     character(len = *), intent(in) :: tag
 
     call self%prepend(data)
-    allocate(self%head%tag, source = tag)
+    if (tag /= "") then
+       allocate(self%head%tag, source = tag)
+    end if
 
   end subroutine list_prepend_with_tag
 
