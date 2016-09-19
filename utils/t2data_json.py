@@ -186,7 +186,7 @@ class t2data_export_json(t2data):
                 if gen.type in component:
                     cell_index = geo.block_name_index[gen.block] - geo.num_atmosphere_blocks
                     g = {'name': gen.name, 'cell': cell_index,
-                         'value': gen.gx, 'component': component[gen.type]}
+                         'rate': gen.gx, 'component': component[gen.type]}
                     if gen.gx > 0. and gen.type <> 'HEAT': g['enthalpy'] = gen.ex
                     jsondata['source'].append(g)
                 else: raise Exception('Generator type ' + gen.type + ' not supported.')
