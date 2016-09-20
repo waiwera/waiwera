@@ -102,7 +102,9 @@ contains
     PetscBool, intent(in) :: isothermal
 
     self%flow = 0._dp
-    self%flow(self%component) = self%rate
+    if (self%component > 0) then
+       self%flow(self%component) = self%rate
+    end if
     
   end subroutine source_update_injection_mass_flow
 
