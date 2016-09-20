@@ -216,7 +216,6 @@ contains
     DMLabel :: ghost_label
     character(len=64) :: srcstr
     character(len=12) :: istr
-    PetscInt :: default_component
     PetscReal, parameter :: default_rate = 0._dp
     PetscInt, parameter ::  default_injection_component = 1
     PetscReal, parameter :: default_enthalpy = 83.9e3
@@ -242,18 +241,20 @@ contains
           call fson_get_mpi(src, "rate", default_rate, rate, logfile, &
                trim(srcstr) // "rate")
           if (rate >= 0._dp) then
-             default_component = default_injection_component
-             call fson_get_mpi(src, "enthalpy", default_enthalpy, &
-                  enthalpy, logfile, trim(srcstr) // "enthalpy")
+             call fson_get_mpi(src, "component", default_injection_component, &
+                  component, logfile, trim(srcstr) // "component")
+             if (component < np) then
+                call fson_get_mpi(src, "enthalpy", default_enthalpy, &
+                     enthalpy, logfile, trim(srcstr) // "enthalpy")
+             end if
           else
-             default_component = default_production_component
+             call fson_get_mpi(src, "component", default_production_component, &
+                  component, logfile, trim(srcstr) // "component")
              enthalpy = 0._dp
           end if
-          call fson_get_mpi(src, "component", default_component, &
-               component, logfile, trim(srcstr) // "component")
+
           call DMGetStratumIS(dm, cell_order_label_name, &
                cell, cell_IS, ierr); CHKERRQ(ierr)
-
           if (cell_IS /= 0) then
 
              call ISGetIndicesF90(cell_IS, cells, ierr); CHKERRQ(ierr)
