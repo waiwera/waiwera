@@ -246,6 +246,8 @@ contains
              if (component < np) then
                 call fson_get_mpi(src, "enthalpy", default_enthalpy, &
                      enthalpy, logfile, trim(srcstr) // "enthalpy")
+             else
+                enthalpy = 0._dp
              end if
           else
              call fson_get_mpi(src, "component", default_production_component, &
