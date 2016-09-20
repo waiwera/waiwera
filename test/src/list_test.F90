@@ -12,19 +12,33 @@ module list_test
 
 #include <petsc/finclude/petscdef.h>
 
+  type :: thing_type
+     character(len = 5) :: name
+     PetscReal, allocatable :: x(:)
+   contains
+     procedure :: destroy => thing_destroy
+  end type thing_type
+
 public :: test_list
 
 contains
 
 !------------------------------------------------------------------------
 
+  subroutine thing_destroy(self)
+    !! Destroys a thing.
+
+    class(thing_type), intent(in out) :: self
+
+    deallocate(self%x)
+
+  end subroutine thing_destroy
+
+!------------------------------------------------------------------------
+
   subroutine test_list
     ! Test list operations
     
-    type :: thing_type
-       character(len = 5) :: name
-    end type thing_type
-
     type(list_type) :: list
     PetscInt :: i
     PetscReal :: x
@@ -39,6 +53,7 @@ contains
        x = -5.67_dp
        str = 'bob'
        thing%name = 'clive'
+       allocate(thing%x(10))
 
        call list%init()
        call list%append(i, 'int')
@@ -104,7 +119,7 @@ contains
        node => list%get(-8)
        call assert_false(associated(node), 'get(-8)')
 
-       call list%destroy()
+       call list%destroy(list_node_destroy_data)
        call assert_equals(0, list%count, 'list count after destroy')
        call assert_false(associated(list%head), 'head associated after destroy')
        call assert_false(associated(list%tail), 'tail associated after destroy')
@@ -131,6 +146,18 @@ contains
       stopped = .false.
 
     end subroutine list_node_adjust
+
+    subroutine list_node_destroy_data(node)
+      ! Destroy data in list node.
+      implicit none
+      type(list_node_type), pointer, intent(in out) :: node
+
+      select type(d => node%data)
+      type is (thing_type)
+         call d%destroy()
+      end select
+
+    end subroutine list_node_destroy_data
 
   end subroutine test_list
 

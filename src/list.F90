@@ -36,7 +36,10 @@ module list_module
      generic, public :: prepend => list_prepend, list_prepend_with_tag
      procedure :: list_delete
      procedure :: list_delete_tag
-     generic, public :: delete => list_delete, list_delete_tag
+     procedure :: list_delete_destroy
+     procedure :: list_delete_destroy_tag
+     generic, public :: delete => list_delete, list_delete_tag, &
+          list_delete_destroy, list_delete_destroy_tag
      procedure :: list_traverse
      procedure :: list_traverse_default
      generic, public :: traverse => list_traverse, list_traverse_default
@@ -44,15 +47,24 @@ module list_module
      procedure :: list_find_default
      generic, public :: find => list_find, list_find_default
      procedure, public :: get => list_get
-     procedure, public :: destroy => list_destroy
+     procedure :: list_destroy
+     procedure :: list_destroy_default
+     generic, public :: destroy => list_destroy, list_destroy_default
   end type list_type
 
   abstract interface
+
      subroutine list_iterator(node, stopped)
        import :: list_node_type
        type(list_node_type), pointer, intent(in out)  :: node
        PetscBool, intent(out) :: stopped
      end subroutine list_iterator
+
+     subroutine list_node_data_destroy_procedure(node)
+       import :: list_node_type
+       type(list_node_type), pointer, intent(in out)  :: node
+     end subroutine list_node_data_destroy_procedure
+
   end interface
 
 contains
@@ -173,12 +185,13 @@ contains
 
     if (associated(node)) then
 
-       previous => node%previous
-       next => node%next
-
        if (self%delete_deallocates) then
           deallocate(node%data)
        end if
+
+       previous => node%previous
+       next => node%next
+
        node%data => null()
        node%next => null()
        node%previous => null()
@@ -203,6 +216,19 @@ contains
 
   end subroutine list_delete
 
+  subroutine list_delete_destroy(self, node, node_data_destroy_procedure)
+    !! Delete specified list node and calls the given procedure to
+    !! destroy its data.
+
+    class(list_type), intent(in out) :: self
+    type(list_node_type), pointer, intent(in out) :: node
+    procedure(list_node_data_destroy_procedure) :: node_data_destroy_procedure
+
+    call node_data_destroy_procedure(node)
+    call self%delete(node)
+
+  end subroutine list_delete_destroy
+
   subroutine list_delete_tag(self, tag)
     !! Deletes first list node with specified tag, if one exists.
 
@@ -215,6 +241,19 @@ contains
     call self%delete(node)
     
   end subroutine list_delete_tag
+
+  subroutine list_delete_destroy_tag(self, tag, node_data_destroy_procedure)
+
+    class(list_type), intent(in out) :: self
+    character(len = *), intent(in) :: tag
+    procedure(list_node_data_destroy_procedure) :: node_data_destroy_procedure
+    ! Locals:
+    type(list_node_type), pointer :: node
+
+    node => self%find(tag)
+    call self%delete(node, node_data_destroy_procedure)
+
+  end subroutine list_delete_destroy_tag
 
 !------------------------------------------------------------------------
 
@@ -351,13 +390,26 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine list_destroy(self)
+  subroutine list_destroy_default(self)
     !! Destroys list.
 
     class(list_type), intent(in out) :: self
 
     do while (associated(self%head))
        call self%delete(self%head)
+    end do
+
+  end subroutine list_destroy_default
+
+  subroutine list_destroy(self, node_data_destroy_procedure)
+    !! Destroys list, applying specified procedure to destroy the data
+    !! in the given node.
+
+    class(list_type), intent(in out) :: self
+    procedure(list_node_data_destroy_procedure) :: node_data_destroy_procedure
+
+    do while (associated(self%head))
+       call self%delete(self%head, node_data_destroy_procedure)
     end do
 
   end subroutine list_destroy
