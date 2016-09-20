@@ -166,7 +166,9 @@ contains
     class(source_type), intent(in out) :: self
 
     associate(np => size(self%flow))
-      self%flow(np) = self%flow(np) + self%enthalpy * self%rate
+      if (self%component < np) then
+         self%flow(np) = self%flow(np) + self%enthalpy * self%rate
+      end if
     end associate
 
   end subroutine source_update_energy_flow
@@ -189,11 +191,9 @@ contains
        call self%update_production_mass_flow(isothermal, fluid)
     end if
 
-    associate(np => size(self%flow))
-      if ((.not.(isothermal)) .and. (self%component < np)) then
-         call self%update_energy_flow()
-      end if
-    end associate
+    if (.not.(isothermal)) then
+       call self%update_energy_flow()
+    end if
 
   end subroutine source_update_flow
 
