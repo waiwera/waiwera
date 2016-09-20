@@ -2,13 +2,12 @@
     "title": "Test source setup",
     "mesh": "data/flow_simulation/mesh/3x3_2d.exo",
     "source": [
-        {"cell": 0, "component": 1, "value": 10., "enthalpy": 83.9e3},
-        {"cell": 1, "component": 2, "value": 5.,  "enthalpy": 83.9e3},
-        {"cell": 1, "component": 2, "value": 5.,  "enthalpy": 83.9e3},
-        {"cell": 2, "component": 1, "value": 2.,  "enthalpy": 100.e3},
-        {"cell": 2, "component": 2, "value": 3.,  "enthalpy": 200.e3},
-        {"cell": 3, "component": 3, "value": 1000.},
-        {"cell": 4, "component": 1, "value": -5.},
-        {"cell": 5, "component": 3, "value": -500.}
+        {"name": "mass injection 1", "cell": 0, "component": 1, "rate": 10.,   "enthalpy": 83.9e3},
+        {"name": "mass injection 2", "cell": 1, "component": 2, "rate": 5.,    "enthalpy": 100.e3},
+        {"name": "heat injection", "cell": 2, "component": 3, "rate": 1000.},
+        {"name": "mass component production", "cell": 3, "component": 1, "rate": -2.},
+        {"name": "mass component production enthalpy", "cell": 4, "component": 1, "rate": -3.,  "enthalpy": 200.e3},
+        {"name": "mass production", "cell": 5, "rate": -5.},
+        {"name": "heat production", "cell": 6, "component": 3, "rate": -2000.}
     ]
 }
