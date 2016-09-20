@@ -77,7 +77,7 @@ contains
            trim(tag) // " rate")
       call assert_equals(component, source%component, &
            trim(tag) // " component")
-      call assert_equals(enthalpy, source%enthalpy, tol, &
+      call assert_equals(enthalpy, source%injection_enthalpy, tol, &
            trim(tag) // " enthalpy")
 
     end subroutine source_test
@@ -191,7 +191,7 @@ contains
       PetscReal, intent(in) :: flow(:)
       source%rate = rate
       source%component = component
-      source%enthalpy = enthalpy
+      source%injection_enthalpy = enthalpy
       call source%update_flow(fluid, isothermal)
       call assert_equals(flow, source%flow, &
            num_primary, tol, "Source update_flow() " // trim(tag))

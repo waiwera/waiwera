@@ -16,12 +16,13 @@ module source_module
      !! generation to each equation in a particular cell at the
      !! current time.
      private
-     PetscReal, public :: rate !! Source flow rate
-     PetscInt, public :: component !! Which mass (or energy) component is being produced or injected
-     PetscReal, public :: enthalpy !! Enthalpy of produced or injected fluid
      PetscInt, public :: cell_natural_index !! Natural index of cell the source is in
      PetscInt, public :: cell_index !! Local index of cell the source is in
+     PetscInt, public :: component !! Which mass (or energy) component is being produced or injected
+     PetscReal, public :: rate !! Flow rate
+     PetscReal, public :: injection_enthalpy !! Enthalpy to apply for injection
      PetscReal, allocatable, public :: flow(:) !! Flows in each mass and energy component
+     PetscReal, public :: enthalpy !! Enthalpy of produced or injected fluid
    contains
      private
      procedure :: update_injection_mass_flow => source_update_injection_mass_flow
@@ -73,7 +74,7 @@ contains
 !------------------------------------------------------------------------
 
   subroutine source_init(self, cell_natural_index, cell_index, &
-       num_primary, component, rate, enthalpy)
+       num_primary, component, rate, injection_enthalpy)
     !! Initialises a source object.
 
     class(source_type), intent(in out) :: self
@@ -82,14 +83,14 @@ contains
     PetscInt, intent(in) :: num_primary !! Number of primary variables
     PetscInt, intent(in) :: component !! mass (or energy) component the source is applied to
     PetscReal, intent(in) :: rate !! source flow rate
-    PetscReal, intent(in) :: enthalpy !! enthalpy for injection
+    PetscReal, intent(in) :: injection_enthalpy !! enthalpy for injection
 
     self%cell_natural_index = cell_natural_index
     self%cell_index = cell_index
     allocate(self%flow(num_primary))
     self%rate = rate
     self%component = component
-    self%enthalpy = enthalpy
+    self%injection_enthalpy = injection_enthalpy
 
   end subroutine source_init
 
@@ -107,14 +108,15 @@ contains
 !------------------------------------------------------------------------
 
   subroutine source_update_injection_mass_flow(self, isothermal)
-    !! Updates the mass components of the flow array for
-    !! injection. Only to be called if self%rate >= 0.
+    !! Updates the mass components of the flow array (and the
+    !! enthalpy) for injection. Only to be called if self%rate >= 0.
     
     class(source_type), intent(in out) :: self
     PetscBool, intent(in) :: isothermal
 
     self%flow = 0._dp
     if (self%component > 0) then
+       self%enthalpy = self%injection_enthalpy
        self%flow(self%component) = self%rate
     end if
     
