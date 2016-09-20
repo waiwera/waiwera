@@ -29,6 +29,7 @@ module source_module
      procedure :: update_energy_flow => source_update_energy_flow
      procedure, public :: init => source_init
      procedure, public :: update_flow => source_update_flow
+     procedure, public :: destroy => source_destroy
   end type source_type
 
   type, public, abstract :: source_control_type
@@ -91,6 +92,17 @@ contains
     self%enthalpy = enthalpy
 
   end subroutine source_init
+
+!------------------------------------------------------------------------
+
+  subroutine source_destroy(self)
+    !! Destroys a source object.
+
+    class(source_type), intent(in out) :: self
+
+    deallocate(self%flow)
+
+  end subroutine source_destroy
 
 !------------------------------------------------------------------------
 

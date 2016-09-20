@@ -55,7 +55,7 @@ contains
     call setup_sources(json, mesh%dm, np, isothermal, sources)
     call sources%traverse(source_test_iterator)
 
-    call sources%destroy()
+    call sources%destroy(source_list_node_data_destroy)
     call mesh%destroy()
     call fson_destroy_mpi(json)
 
@@ -97,7 +97,7 @@ contains
                  1, 5._dp, 2, 100.e3_dp)
          case ("heat injection")
             call source_test(node%tag, source, &
-                 2, 1000._dp, 3, 83.9e3_dp)
+                 2, 1000._dp, 3, 0._dp)
          case ("mass component production")
             call source_test(node%tag, source, &
                  3, -2._dp, 1, 0._dp)
@@ -116,6 +116,15 @@ contains
       stopped = PETSC_FALSE
 
     end subroutine source_test_iterator
+
+    subroutine source_list_node_data_destroy(node)
+      type(list_node_type), pointer, intent(in out) :: node
+
+      select type (source => node%data)
+      type is (source_type)
+         call source%destroy()
+      end select
+    end subroutine source_list_node_data_destroy
 
   end subroutine test_setup_sources
 

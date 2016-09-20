@@ -417,7 +417,7 @@ end subroutine flow_simulation_run_info
     call VecDestroy(self%last_timestep_fluid, ierr); CHKERRQ(ierr)
     call VecDestroy(self%last_iteration_fluid, ierr); CHKERRQ(ierr)
     call VecDestroy(self%rock, ierr); CHKERRQ(ierr)
-    call self%sources%destroy()
+    call self%sources%destroy(source_list_node_data_destroy)
     call self%mesh%destroy()
     call self%thermo%destroy()
     call self%eos%destroy()
@@ -432,6 +432,21 @@ end subroutine flow_simulation_run_info
          str_key = 'wall_time', str_value = date_time_str())
 
     call self%logfile%destroy()
+
+  contains
+
+    subroutine source_list_node_data_destroy(node)
+      ! Destroys source in each list node.
+
+      use source_module, only: source_type
+
+      type(list_node_type), pointer, intent(in out) :: node
+
+      select type (source => node%data)
+      type is (source_type)
+         call source%destroy()
+      end select
+    end subroutine source_list_node_data_destroy
 
   end subroutine flow_simulation_destroy
 
