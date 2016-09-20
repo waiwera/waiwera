@@ -179,17 +179,19 @@ class t2data_export_json(t2data):
     def generators_json(self, geo):
         """Converts TOUGH2 generator data to JSON."""
         jsondata = {}
-        component = {'MASS': 1, 'HEAT': 2, 'COM1': 1, 'COM2': 2}
+        component = {'MASS': 1, 'HEAT': 2, 'COM1': 1, 'COM2': 2, 'COM3': 3, 'COM4': 4,
+                     'COM5': 5, 'WATE': 1, 'AIR ': 2, 'CO2 ': 2, 'TRAC': 2}
         if self.generatorlist:
             jsondata['source'] = []
             for gen in self.generatorlist:
-                if gen.type in component:
-                    cell_index = geo.block_name_index[gen.block] - geo.num_atmosphere_blocks
-                    g = {'name': gen.name, 'cell': cell_index,
-                         'rate': gen.gx, 'component': component[gen.type]}
-                    if gen.gx > 0. and gen.type <> 'HEAT': g['enthalpy'] = gen.ex
-                    jsondata['source'].append(g)
-                else: raise Exception('Generator type ' + gen.type + ' not supported.')
+                cell_index = geo.block_name_index[gen.block] - geo.num_atmosphere_blocks
+                g = {'name': gen.name, 'cell': cell_index, 'rate': gen.gx}
+                if gen.gx >= 0.:
+                    if gen.type in component:
+                        g['component'] = component[gen.type]
+                        if gen.type != 'HEAT': g['enthalpy'] = gen.ex
+                    else: raise Exception('Generator type ' + gen.type + ' not supported.')
+                jsondata['source'].append(g)
         return jsondata
 
     def boundaries_json(self, geo, bdy_incons, atmos_volume, eos):
