@@ -12,33 +12,31 @@ module source_test
 
 #include <petsc/finclude/petsc.h90>
 
-public :: test_setup_source_vector
+public :: test_setup_sources, test_source_update_flow
 
 contains
-  
+
 !------------------------------------------------------------------------
 
-  subroutine test_setup_source_vector
+  subroutine test_setup_sources
 
-    ! setup_source_vector() test
+    ! setup_sources() test
 
     use fson
     use fson_mpi_module
     use mesh_module
-    use flow_simulation_test, only: vec_diff_test
+    use list_module
     use eos_module, only: max_primary_variable_name_length
 
     character(16), parameter :: path = "data/source/"
     PetscInt, parameter :: nc = 2
-    PetscInt :: np, range_start, range_end
+    PetscInt :: np
     character(max_primary_variable_name_length), allocatable :: &
          primary_variable_names(:)
     PetscBool :: isothermal
     type(fson_value), pointer :: json
     type(mesh_type) :: mesh
-    Vec :: source
-    PetscSection :: section
-    PetscLayout :: layout
+    type(list_type) :: sources
     PetscErrorCode :: ierr
 
     primary_variable_names = &
@@ -54,25 +52,144 @@ contains
     call DMCreateLabel(mesh%dm, open_boundary_label_name, ierr); CHKERRQ(ierr)
     call mesh%configure(primary_variable_names)
 
-    call DMGetDefaultGlobalSection(mesh%dm, section, ierr); CHKERRQ(ierr)
-    call PetscSectionGetValueLayout(mpi%comm, section, layout, ierr)
-    CHKERRQ(ierr)
-    call PetscLayoutGetRange(layout, range_start, range_end, ierr)
-    CHKERRQ(ierr)
-    call PetscLayoutDestroy(layout, ierr)
-    CHKERRQ(ierr)
+    call setup_sources(json, mesh%dm, np, isothermal, sources)
+    call sources%traverse(source_test_iterator)
 
-    call setup_source_vector(json, mesh%dm, np, isothermal, source, &
-         range_start)
-    call vec_diff_test(source, "source", path, mesh%cell_index)
-
-    call VecDestroy(source, ierr); CHKERRQ(ierr)
+    call sources%destroy()
     call mesh%destroy()
     call fson_destroy_mpi(json)
 
-  end subroutine test_setup_source_vector
+  contains
+
+    subroutine source_test(tag, source, index, rate, &
+         component, enthalpy)
+      !! Runs asserts for a single source.
+      character(*), intent(in) :: tag
+      type(source_type), intent(in) :: source
+      PetscInt, intent(in) :: index, component
+      PetscReal, intent(in) :: rate, enthalpy
+      ! Locals:
+      PetscReal, parameter :: tol = 1.e-6_dp
+
+      call assert_equals(index, source%cell_natural_index, &
+           trim(tag) // " natural index")
+      call assert_equals(rate, source%rate, tol, &
+           trim(tag) // " rate")
+      call assert_equals(component, source%component, &
+           trim(tag) // " component")
+      call assert_equals(enthalpy, source%enthalpy, tol, &
+           trim(tag) // " enthalpy")
+
+    end subroutine source_test
+
+    subroutine source_test_iterator(node, stopped)
+      type(list_node_type), pointer, intent(in out) :: node
+      PetscBool, intent(out) :: stopped
+
+      select type (source => node%data)
+      type is (source_type)
+         select case (node%tag)
+         case ("mass injection 1")
+            call source_test(node%tag, source, &
+                 0, 10._dp, 1, 83.9e3_dp)
+         case ("mass injection 2")
+            call source_test(node%tag, source, &
+                 1, 5._dp, 2, 100.e3_dp)
+         case ("heat injection")
+            call source_test(node%tag, source, &
+                 2, 1000._dp, 3, 83.9e3_dp)
+         case ("mass component production")
+            call source_test(node%tag, source, &
+                 3, -2._dp, 1, 0._dp)
+         case ("mass component production enthalpy")
+            call source_test(node%tag, source, &
+                 4, -3._dp, 1, 0._dp)
+         case ("mass production")
+            call source_test(node%tag, source, &
+                 5, -5._dp, 0, 0._dp)
+         case ("heat production")
+            call source_test(node%tag, source, &
+                 6, -2000._dp, 3, 0._dp)
+         end select
+      end select
+
+      stopped = PETSC_FALSE
+
+    end subroutine source_test_iterator
+
+  end subroutine test_setup_sources
+
+  !------------------------------------------------------------------------
+
+  subroutine test_source_update_flow
+    ! update_flow() test
+
+    use fluid_module, only: fluid_type
+
+    type(source_type) :: source
+    type(fluid_type) :: fluid
+    PetscBool :: isothermal = PETSC_FALSE
+    PetscInt, parameter :: num_components = 2, num_phases = 2
+    PetscInt, parameter :: num_primary = num_components + 1
+    PetscInt, parameter :: offset = 1
+    PetscReal, pointer, contiguous :: fluid_data(:)
+    PetscReal, parameter :: tol = 1.e-6_dp
+
+    if (mpi%rank == mpi%output_rank) then
+
+       call fluid%init(num_components, num_phases)
+
+       allocate(fluid_data(offset - 1 + fluid%dof))
+       fluid_data = [2.7e5_dp, 130._dp, 4._dp, 3._dp, &
+            935._dp, 1.e-6_dp, 0.8_dp, 0.7_dp, 83.9e3_dp, 5.461e5_dp, 0.7_dp, 0.3_dp, &
+            1.5_dp,  2.e-7_dp, 0.2_dp, 0.3_dp, 800.e3_dp, 2.540e6_dp, 0.4_dp, 0.6_dp]
+
+       call fluid%assign(fluid_data, offset)
+
+       call source%init(0, 0, num_primary, 0, 0._dp, 0._dp)
+
+       call source_flow_test("inject 1", 10._dp, 1, 200.e3_dp, &
+            [10._dp, 0._dp, 2.e6_dp])
+       call source_flow_test("inject 2", 5._dp, 2, 200.e3_dp, &
+            [0._dp, 5._dp, 1.e6_dp])
+       call source_flow_test("inject heat", 1000._dp, 3, 0._dp, &
+            [0._dp, 0._dp, 1000._dp])
+
+       call source_flow_test("produce all", -5._dp, 0, 0._dp, &
+            [-3.4948610582_dp, -1.5051389418_dp, -431766.653977922_dp])
+       call source_flow_test("produce 1", -5._dp, 1, 0._dp, &
+            [-5._dp, 0._dp, -431766.653977922_dp])
+       call source_flow_test("produce heat", -5000._dp, 3, 0._dp, &
+            [0._dp, 0._dp, -5000._dp])
+
+       call source_flow_test("no flow 1", 0._dp, 1, 100.e3_dp, &
+            [0._dp, 0._dp, 0._dp])
+       call source_flow_test("no flow all", 0._dp, 0, 100.e3_dp, &
+            [0._dp, 0._dp, 0._dp])
+
+       call fluid%destroy()
+       deallocate(fluid_data)
+
+    end if
+
+  contains
+
+    subroutine source_flow_test(tag, rate, component, enthalpy, flow)
+      !! Runs asserts for single flow update_source() test.
+      character(*), intent(in) :: tag
+      PetscInt, intent(in) :: component
+      PetscReal, intent(in) :: rate, enthalpy
+      PetscReal, intent(in) :: flow(:)
+      source%rate = rate
+      source%component = component
+      source%enthalpy = enthalpy
+      call source%update_flow(fluid, isothermal)
+      call assert_equals(flow, source%flow, &
+           num_primary, tol, "Source update_flow() " // trim(tag))
+    end subroutine source_flow_test
+
+  end subroutine test_source_update_flow
 
 !------------------------------------------------------------------------
 
 end module source_test
-
