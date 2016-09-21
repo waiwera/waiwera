@@ -61,24 +61,27 @@ contains
 
   contains
 
-    subroutine source_test(tag, source, index, rate, &
-         component, enthalpy)
+    subroutine source_test(tag, source, index, rate, enthalpy, &
+         injection_component, production_component)
       !! Runs asserts for a single source.
       character(*), intent(in) :: tag
       type(source_type), intent(in) :: source
-      PetscInt, intent(in) :: index, component
+      PetscInt, intent(in) :: index
+      PetscInt, intent(in) :: injection_component, production_component
       PetscReal, intent(in) :: rate, enthalpy
       ! Locals:
       PetscReal, parameter :: tol = 1.e-6_dp
 
       call assert_equals(index, source%cell_natural_index, &
-           trim(tag) // " natural index")
+           trim(tag) // ": natural index")
       call assert_equals(rate, source%rate, tol, &
-           trim(tag) // " rate")
-      call assert_equals(component, source%specified_component, &
-           trim(tag) // " component")
+           trim(tag) // ": rate")
       call assert_equals(enthalpy, source%injection_enthalpy, tol, &
-           trim(tag) // " enthalpy")
+           trim(tag) // ": enthalpy")
+      call assert_equals(injection_component, source%injection_component, &
+           trim(tag) // ": injection component")
+      call assert_equals(production_component, source%production_component, &
+           trim(tag) // ": production component")
 
     end subroutine source_test
 
@@ -91,34 +94,34 @@ contains
          select case (node%tag)
          case ("mass injection 1")
             call source_test(node%tag, source, &
-                 0, 10._dp, 0, 90.e3_dp)
+                 0, 10._dp, 90.e3_dp, 0, 0)
          case ("mass injection 2")
             call source_test(node%tag, source, &
-                 1, 5._dp, 2, 100.e3_dp)
+                 1, 5._dp, 100.e3_dp, 2, 0)
          case ("heat injection")
             call source_test(node%tag, source, &
-                 2, 1000._dp, 3, 0._dp)
+                 2, 1000._dp, 0._dp, 3, 3)
          case ("mass component production")
             call source_test(node%tag, source, &
-                 3, -2._dp, 1, 0._dp)
+                 3, -2._dp, 0._dp, 1, 0)
          case ("mass component production enthalpy")
             call source_test(node%tag, source, &
-                 4, -3._dp, 1, 200.e3_dp)
+                 4, -3._dp, 200.e3_dp, 1, 0)
          case ("mass production")
             call source_test(node%tag, source, &
-                 5, -5._dp, 0, 0._dp)
+                 5, -5._dp, 0._dp, 0, 0)
          case ("heat production")
             call source_test(node%tag, source, &
-                 6, -2000._dp, 3, 0._dp)
+                 6, -2000._dp, 0._dp, 3, 3)
          case ("no rate mass")
             call source_test(node%tag, source, &
-                 7, default_source_rate, 1, default_source_injection_enthalpy)
+                 7, default_source_rate, default_source_injection_enthalpy, 1, 0)
          case ("no rate mass enthalpy")
             call source_test(node%tag, source, &
-                 8, default_source_rate, 2, 1000.e3_dp)
+                 8, default_source_rate, 1000.e3_dp, 2, 0)
          case ("no rate heat")
             call source_test(node%tag, source, &
-                 0, default_source_rate, 3, 0._dp)
+                 0, default_source_rate, 0._dp, 3, 3)
          end select
       end select
 
@@ -164,23 +167,23 @@ contains
 
        call fluid%assign(fluid_data, offset)
 
-       call source_flow_test("inject 1", 10._dp, 1, 200.e3_dp, &
+       call source_flow_test("inject 1", 10._dp, 200.e3_dp, 1, 0, &
             [10._dp, 0._dp, 2.e6_dp])
-       call source_flow_test("inject 2", 5._dp, 2, 200.e3_dp, &
+       call source_flow_test("inject 2", 5._dp, 200.e3_dp, 2, 0, &
             [0._dp, 5._dp, 1.e6_dp])
-       call source_flow_test("inject heat", 1000._dp, 3, 0._dp, &
+       call source_flow_test("inject heat", 1000._dp, 0._dp, 3, 0, &
             [0._dp, 0._dp, 1000._dp])
 
-       call source_flow_test("produce all", -5._dp, 0, 0._dp, &
+       call source_flow_test("produce all", -5._dp, 0._dp, 0, 0, &
             [-3.4948610582_dp, -1.5051389418_dp, -431766.653977922_dp])
-       call source_flow_test("produce 1", -5._dp, 1, 0._dp, &
+       call source_flow_test("produce 1", -5._dp, 0._dp, 0, 1, &
             [-5._dp, 0._dp, -431766.653977922_dp])
-       call source_flow_test("produce heat", -5000._dp, 3, 0._dp, &
+       call source_flow_test("produce heat", -5000._dp, 0._dp, 0, 3, &
             [0._dp, 0._dp, -5000._dp])
 
-       call source_flow_test("no flow 1", 0._dp, 1, 100.e3_dp, &
+       call source_flow_test("no flow 1", 0._dp, 100.e3_dp, 1, 0, &
             [0._dp, 0._dp, 0._dp])
-       call source_flow_test("no flow all", 0._dp, 0, 100.e3_dp, &
+       call source_flow_test("no flow all", 0._dp, 100.e3_dp, 0, 0, &
             [0._dp, 0._dp, 0._dp])
 
        call fluid%destroy()
@@ -190,15 +193,17 @@ contains
 
   contains
 
-    subroutine source_flow_test(tag, rate, component, enthalpy, flow)
+    subroutine source_flow_test(tag, rate, enthalpy, injection_component, &
+         production_component, flow)
       !! Runs asserts for single flow update_source() test.
 
       character(*), intent(in) :: tag
-      PetscInt, intent(in) :: component
       PetscReal, intent(in) :: rate, enthalpy
+      PetscInt, intent(in) :: injection_component, production_component
       PetscReal, intent(in) :: flow(:)
 
-      call source%init(0, 0, num_primary, component, rate, enthalpy)
+      call source%init(0, 0, num_primary, rate, enthalpy, &
+           injection_component, production_component)
       call source%update_flow(fluid, isothermal)
       call assert_equals(flow, source%flow, &
            num_primary, tol, "Source update_flow() " // trim(tag))

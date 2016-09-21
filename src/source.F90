@@ -23,8 +23,9 @@ module source_module
      private
      PetscInt, public :: cell_natural_index !! Natural index of cell the source is in
      PetscInt, public :: cell_index !! Local index of cell the source is in
-     PetscInt, public :: component !! Which mass (or energy) component is being produced or injected
-     PetscInt, public :: specified_component !! Component specified (0 means default for either production or injection)
+     PetscInt, public :: component !! Mass (or energy) component being produced or injected
+     PetscInt, public :: injection_component !! Component for injection
+     PetscInt, public :: production_component !! Component for production (default 0 means all)
      PetscReal, public :: rate !! Flow rate
      PetscReal, public :: injection_enthalpy !! Enthalpy to apply for injection
      PetscReal, allocatable, public :: flow(:) !! Flows in each mass and energy component
@@ -80,23 +81,26 @@ contains
 !------------------------------------------------------------------------
 
   subroutine source_init(self, cell_natural_index, cell_index, &
-       num_primary, component, rate, injection_enthalpy)
+       num_primary, rate, injection_enthalpy, &
+       injection_component, production_component)
     !! Initialises a source object.
 
     class(source_type), intent(in out) :: self
     PetscInt, intent(in) :: cell_natural_index !! natural index of cell the source is in
     PetscInt, intent(in) :: cell_index !! local index of cell the source is in
     PetscInt, intent(in) :: num_primary !! Number of primary variables
-    PetscInt, intent(in) :: component !! mass (or energy) component the source is applied to
     PetscReal, intent(in) :: rate !! source flow rate
     PetscReal, intent(in) :: injection_enthalpy !! enthalpy for injection
+    PetscInt, intent(in) :: injection_component !! mass (or energy) component for injection
+    PetscInt, intent(in) :: production_component !! mass (or energy) component for production
 
     self%cell_natural_index = cell_natural_index
     self%cell_index = cell_index
     allocate(self%flow(num_primary))
     self%rate = rate
-    self%specified_component = component
     self%injection_enthalpy = injection_enthalpy
+    self%injection_component = injection_component
+    self%production_component = production_component
 
   end subroutine source_init
 
@@ -120,10 +124,10 @@ contains
     class(source_type), intent(in out) :: self
     PetscBool, intent(in) :: isothermal
 
-    if (self%specified_component <= 0) then
+    if (self%injection_component <= 0) then
        self%component = default_source_injection_component
     else
-       self%component = self%specified_component
+       self%component = self%injection_component
     end if
 
     self%flow = 0._dp
@@ -148,10 +152,10 @@ contains
     ! Locals:
     PetscReal :: flow_fractions(fluid%num_phases)
 
-    if (self%specified_component <= 0) then
+    if (self%production_component <= 0) then
        self%component = default_source_production_component
     else
-       self%component = self%specified_component
+       self%component = self%production_component
     end if
 
     self%flow = 0._dp
@@ -236,7 +240,7 @@ contains
     type(logfile_type), intent(in out), optional :: logfile !! Logfile for log output
     ! Locals:
     PetscErrorCode :: ierr
-    PetscInt :: c, isrc, i, component
+    PetscInt :: c, isrc, i, injection_component, production_component
     type(fson_value), pointer :: sources, src
     PetscInt :: num_sources, cell, num_cells, ghost
     type(source_type), pointer :: s
@@ -266,6 +270,7 @@ contains
           src => fson_value_get_mpi(sources, isrc)
           call fson_get_mpi(src, "name", default_name, name)
           call fson_get_mpi(src, "cell", val = cell)
+
           if (fson_has_mpi(src, "rate")) then
              call fson_get_mpi(src, "rate", val = rate)
              can_inject = (rate > 0._dp)
@@ -273,9 +278,21 @@ contains
              rate = default_source_rate
              can_inject = PETSC_TRUE
           end if
+
           call fson_get_mpi(src, "component", default_source_component, &
-               component, logfile, trim(srcstr) // "component")
-          if (can_inject .and. (component < np)) then
+               injection_component, logfile, trim(srcstr) // "component")
+          if (fson_has_mpi(src, "production_component")) then
+             call fson_get_mpi(src, "production_component", &
+                  val = production_component)
+          else
+             if ((.not. isothermal) .and. (injection_component == np)) then
+                production_component = injection_component
+             else
+                production_component = default_source_production_component
+             end if
+          end if
+
+          if (can_inject .and. (injection_component < np)) then
              call fson_get_mpi(src, "enthalpy", default_source_injection_enthalpy, &
                   enthalpy, logfile, trim(srcstr) // "enthalpy")
           else
@@ -301,7 +318,8 @@ contains
                 CHKERRQ(ierr)
                 if (ghost < 0) then
                    allocate(s)
-                   call s%init(cell, c, np, component, rate, enthalpy)
+                   call s%init(cell, c, np, rate, enthalpy, &
+                        injection_component, production_component)
                    call sources_list%append(s, name)
                 end if
              end do
