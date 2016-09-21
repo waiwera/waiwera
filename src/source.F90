@@ -9,7 +9,12 @@ module source_module
 
 #include <petsc/finclude/petsc.h90>
 
-  PetscInt, parameter :: max_source_name_length = 32
+  PetscInt, parameter, public :: max_source_name_length = 32
+  PetscInt, parameter, public :: default_source_component = 0
+  PetscInt, parameter, public :: default_source_injection_component = 1
+  PetscInt, parameter, public :: default_source_production_component = 0
+  PetscReal, parameter, public :: default_source_rate = 0._dp
+  PetscReal, parameter, public :: default_source_injection_enthalpy = 83.9e3
 
   type, public :: source_type
      !! Type for mass / energy source, applying specified values of
