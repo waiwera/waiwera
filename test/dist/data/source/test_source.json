@@ -11,6 +11,17 @@
         {"name": "heat production", "cell": 6, "component": 3, "rate": -2000.},
         {"name": "no rate mass", "cell": 7, "component": 1},
         {"name": "no rate mass enthalpy", "cell": 8, "component": 2, "enthalpy": 1000.e3},
-        {"name": "no rate heat", "cell": 0, "component": 3}
+        {"name": "no rate heat", "cell": 0, "component": 3},
+        {"name": "production component 1", "cell": 1, "component": 1,
+         "production_component": 1, "enthalpy": 150.e3, "rate": 3.},
+        {"name": "production component 2", "cell": 2, "component": 1, "production_component": 1},
+        {"name": "production component 3", "cell": 3, "component": 2,
+         "production_component": 2, "enthalpy": 80.e3},
+        {"name": "production component 4", "cell": 4, "component": 1,
+         "production_component": 2, "enthalpy": 90.e3},
+        {"name": "production component 5", "cell": 5, "component": 2,
+         "production_component": 3, "enthalpy": 500.e3},
+        {"name": "production component 6", "cell": 6, "production_component": 2,
+         "enthalpy": 100.e3}
     ]
 }

@@ -122,6 +122,24 @@ contains
          case ("no rate heat")
             call source_test(node%tag, source, &
                  0, default_source_rate, 0._dp, 3, 3)
+         case ("production component 1")
+            call source_test(node%tag, source, &
+                 1, 3._dp, 150.e3_dp, 1, 1)
+         case ("production component 2")
+            call source_test(node%tag, source, &
+                 2, default_source_rate, default_source_injection_enthalpy, 1, 1)
+         case ("production component 3")
+            call source_test(node%tag, source, &
+                 3, default_source_rate, 80.e3_dp, 2, 2)
+         case ("production component 4")
+            call source_test(node%tag, source, &
+                 4, default_source_rate, 90.e3_dp, 1, 2)
+         case ("production component 5")
+            call source_test(node%tag, source, &
+                 5, default_source_rate, 500.e3_dp, 2, 3)
+         case ("production component 6")
+            call source_test(node%tag, source, &
+                 6, default_source_rate, 100.e3_dp, default_source_component, 2)
          end select
       end select
 
@@ -170,6 +188,8 @@ contains
        call source_flow_test("inject 1", 10._dp, 200.e3_dp, 1, 0, &
             [10._dp, 0._dp, 2.e6_dp])
        call source_flow_test("inject 2", 5._dp, 200.e3_dp, 2, 0, &
+            [0._dp, 5._dp, 1.e6_dp])
+       call source_flow_test("inject 3", 5._dp, 200.e3_dp, 2, 2, &
             [0._dp, 5._dp, 1.e6_dp])
        call source_flow_test("inject heat", 1000._dp, 0._dp, 3, 0, &
             [0._dp, 0._dp, 1000._dp])
