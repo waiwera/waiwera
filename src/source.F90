@@ -24,6 +24,7 @@ module source_module
      PetscInt, public :: cell_natural_index !! Natural index of cell the source is in
      PetscInt, public :: cell_index !! Local index of cell the source is in
      PetscInt, public :: component !! Which mass (or energy) component is being produced or injected
+     PetscInt, public :: specified_component !! Component specified (0 means default for either production or injection)
      PetscReal, public :: rate !! Flow rate
      PetscReal, public :: injection_enthalpy !! Enthalpy to apply for injection
      PetscReal, allocatable, public :: flow(:) !! Flows in each mass and energy component
@@ -94,7 +95,7 @@ contains
     self%cell_index = cell_index
     allocate(self%flow(num_primary))
     self%rate = rate
-    self%component = component
+    self%specified_component = component
     self%injection_enthalpy = injection_enthalpy
 
   end subroutine source_init
@@ -119,6 +120,12 @@ contains
     class(source_type), intent(in out) :: self
     PetscBool, intent(in) :: isothermal
 
+    if (self%specified_component <= 0) then
+       self%component = default_source_injection_component
+    else
+       self%component = self%specified_component
+    end if
+
     self%flow = 0._dp
     if (self%component > 0) then
        self%enthalpy = self%injection_enthalpy
@@ -140,6 +147,12 @@ contains
     type(fluid_type), intent(in) :: fluid
     ! Locals:
     PetscReal :: flow_fractions(fluid%num_phases)
+
+    if (self%specified_component <= 0) then
+       self%component = default_source_production_component
+    else
+       self%component = self%specified_component
+    end if
 
     self%flow = 0._dp
 
