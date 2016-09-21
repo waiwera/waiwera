@@ -75,7 +75,7 @@ contains
            trim(tag) // " natural index")
       call assert_equals(rate, source%rate, tol, &
            trim(tag) // " rate")
-      call assert_equals(component, source%component, &
+      call assert_equals(component, source%specified_component, &
            trim(tag) // " component")
       call assert_equals(enthalpy, source%injection_enthalpy, tol, &
            trim(tag) // " enthalpy")
@@ -91,7 +91,7 @@ contains
          select case (node%tag)
          case ("mass injection 1")
             call source_test(node%tag, source, &
-                 0, 10._dp, 1, 83.9e3_dp)
+                 0, 10._dp, 0, 90.e3_dp)
          case ("mass injection 2")
             call source_test(node%tag, source, &
                  1, 5._dp, 2, 100.e3_dp)
@@ -103,13 +103,22 @@ contains
                  3, -2._dp, 1, 0._dp)
          case ("mass component production enthalpy")
             call source_test(node%tag, source, &
-                 4, -3._dp, 1, 0._dp)
+                 4, -3._dp, 1, 200.e3_dp)
          case ("mass production")
             call source_test(node%tag, source, &
                  5, -5._dp, 0, 0._dp)
          case ("heat production")
             call source_test(node%tag, source, &
                  6, -2000._dp, 3, 0._dp)
+         case ("no rate mass")
+            call source_test(node%tag, source, &
+                 7, default_source_rate, 1, default_source_injection_enthalpy)
+         case ("no rate mass enthalpy")
+            call source_test(node%tag, source, &
+                 8, default_source_rate, 2, 1000.e3_dp)
+         case ("no rate heat")
+            call source_test(node%tag, source, &
+                 0, default_source_rate, 3, 0._dp)
          end select
       end select
 
@@ -155,8 +164,6 @@ contains
 
        call fluid%assign(fluid_data, offset)
 
-       call source%init(0, 0, num_primary, 0, 0._dp, 0._dp)
-
        call source_flow_test("inject 1", 10._dp, 1, 200.e3_dp, &
             [10._dp, 0._dp, 2.e6_dp])
        call source_flow_test("inject 2", 5._dp, 2, 200.e3_dp, &
@@ -185,16 +192,18 @@ contains
 
     subroutine source_flow_test(tag, rate, component, enthalpy, flow)
       !! Runs asserts for single flow update_source() test.
+
       character(*), intent(in) :: tag
       PetscInt, intent(in) :: component
       PetscReal, intent(in) :: rate, enthalpy
       PetscReal, intent(in) :: flow(:)
-      source%rate = rate
-      source%component = component
-      source%injection_enthalpy = enthalpy
+
+      call source%init(0, 0, num_primary, component, rate, enthalpy)
       call source%update_flow(fluid, isothermal)
       call assert_equals(flow, source%flow, &
            num_primary, tol, "Source update_flow() " // trim(tag))
+      call source%destroy()
+
     end subroutine source_flow_test
 
   end subroutine test_source_update_flow
