@@ -248,11 +248,7 @@ contains
     DMLabel :: ghost_label
     character(len=64) :: srcstr
     character(len=12) :: istr
-    PetscReal, parameter :: default_rate = 0._dp
-    PetscInt, parameter ::  default_injection_component = 1
-    PetscReal, parameter :: default_enthalpy = 83.9e3
-    ! for production, default is to produce all components:
-    PetscInt, parameter ::  default_production_component = 0
+    PetscBool :: can_inject
 
     call sources_list%init(delete_deallocates = PETSC_TRUE)
 
@@ -270,20 +266,19 @@ contains
           src => fson_value_get_mpi(sources, isrc)
           call fson_get_mpi(src, "name", default_name, name)
           call fson_get_mpi(src, "cell", val = cell)
-          call fson_get_mpi(src, "rate", default_rate, rate, logfile, &
-               trim(srcstr) // "rate")
-          if (rate >= 0._dp) then
-             call fson_get_mpi(src, "component", default_injection_component, &
-                  component, logfile, trim(srcstr) // "component")
-             if (component < np) then
-                call fson_get_mpi(src, "enthalpy", default_enthalpy, &
-                     enthalpy, logfile, trim(srcstr) // "enthalpy")
-             else
-                enthalpy = 0._dp
-             end if
+          if (fson_has_mpi(src, "rate")) then
+             call fson_get_mpi(src, "rate", val = rate)
+             can_inject = (rate > 0._dp)
           else
-             call fson_get_mpi(src, "component", default_production_component, &
-                  component, logfile, trim(srcstr) // "component")
+             rate = default_source_rate
+             can_inject = PETSC_TRUE
+          end if
+          call fson_get_mpi(src, "component", default_source_component, &
+               component, logfile, trim(srcstr) // "component")
+          if (can_inject .and. (component < np)) then
+             call fson_get_mpi(src, "enthalpy", default_source_injection_enthalpy, &
+                  enthalpy, logfile, trim(srcstr) // "enthalpy")
+          else
              enthalpy = 0._dp
           end if
 
