@@ -46,12 +46,38 @@ module source_module
      private
      type(list_type), public :: sources
    contains
-     procedure, public :: init => source_control_init
-     procedure, public :: destroy => source_control_destroy
+     procedure(source_control_init_procedure), public, deferred :: init
+     procedure(source_control_destroy_procedure), public, deferred :: destroy
      procedure(source_control_update_procedure), public, deferred :: update
   end type source_control_type
 
+  type, public, extends(source_control_type) :: source_control_rate_table_type
+     !! Controls source rate via a table of values vs. time.
+     private
+     PetscReal, allocatable, public :: rate_table(:,:)
+     ! - add integer constants for interpolation type (in separate
+     ! interpolation module?), and have a property here determining
+     ! which type to use
+   contains
+     private
+     procedure, public :: init => source_control_rate_table_init
+     procedure, public :: destroy => source_control_rate_table_destroy
+     procedure, public :: update => source_control_rate_table_update
+  end type source_control_rate_table_type
+
   abstract interface
+
+     subroutine source_control_init_procedure(self)
+       !! Initialises a source control object.
+       import :: source_control_type
+       class(source_control_type), intent(in out) :: self
+     end subroutine source_control_init_procedure
+
+     subroutine source_control_destroy_procedure(self)
+       !! Destroys a source control object.
+       import :: source_control_type
+       class(source_control_type), intent(in out) :: self
+     end subroutine source_control_destroy_procedure
 
      subroutine source_control_update_procedure(self, time)
        !! Updates sources at the specified time.
@@ -212,32 +238,59 @@ contains
   end subroutine source_update_flow
 
 !------------------------------------------------------------------------
-! Source control type:
+! Source control rate table type:
 !------------------------------------------------------------------------
 
-  subroutine source_control_init(self)
-    !! Initialises source control object.
+  subroutine source_control_rate_table_init(self)
+    !! Initialises source_control_rate_table object.
 
-    class(source_control_type), intent(in out) :: self
+    class(source_control_rate_table_type), intent(in out) :: self
 
     call self%sources%init()
 
-  end subroutine source_control_init
+  end subroutine source_control_rate_table_init
 
 !------------------------------------------------------------------------
 
-  subroutine source_control_destroy(self)
-    !! Destroys source control object.
+  subroutine source_control_rate_table_destroy(self)
+    !! Destroys source_control_rate_table_type object.
 
-    class(source_control_type), intent(in out) :: self
+    class(source_control_rate_table_type), intent(in out) :: self
 
-    ! Eventually, probably first have to identify and destroy /
-    ! deallocate any ghost (i.e. off-process) sources in collective
-    ! source controls spanning more than one mesh partition
-
+    deallocate(self%rate_table)
     call self%sources%destroy()
 
-  end subroutine source_control_destroy
+  end subroutine source_control_rate_table_destroy
+
+!------------------------------------------------------------------------
+
+  subroutine source_control_rate_table_update(self, time)
+    !! Update flow rate for source_control_rate_table_type.
+
+    use interpolation_module, only: table_interpolate
+
+    class(source_control_rate_table_type), intent(in out) :: self
+    PetscReal, intent(in) :: time
+    ! Locals:
+    PetscReal :: rate
+
+    rate = table_interpolate(time, self%rate_table)
+    call self%sources%traverse(source_control_rate_table_update_iterator)
+
+  contains
+
+    subroutine source_control_rate_table_update_iterator(node, stopped)
+      !! Sets source rate at a list node.
+      type(list_node_type), pointer, intent(in out)  :: node
+      PetscBool, intent(out) :: stopped
+      select type (source => node%data)
+      type is (source_type)
+         source%rate = rate
+      end select
+      stopped = PETSC_FALSE
+    end subroutine source_control_rate_table_update_iterator
+
+  end subroutine source_control_rate_table_update
 
 !------------------------------------------------------------------------
 ! Source setup:
