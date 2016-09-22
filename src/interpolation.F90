@@ -16,6 +16,7 @@ module interpolation_module
      !! Interpolation table type.
      private
      PetscReal, allocatable, public :: data(:,:) !! Data array of (x,y) values
+     PetscInt :: size !! Number of x values in the data array
      PetscInt, public :: index !! Current index in the table
      procedure(interpolation_function), pointer, nopass, public :: interpolant
    contains
@@ -26,6 +27,7 @@ module interpolation_module
           interpolation_table_init_default
      procedure, public :: set_type => interpolation_table_set_type
      procedure, public :: destroy => interpolation_table_destroy
+     procedure, public :: find => interpolation_table_find
      procedure, public :: interpolate => interpolation_table_interpolate
   end type interpolation_table_type
 
@@ -104,6 +106,7 @@ contains
     PetscInt, intent(in) :: interpolation_type
 
     self%data = array
+    self%size = size(self%data, 1)
     self%index = 1
     call self%set_type(interpolation_type)
 
@@ -153,42 +156,68 @@ contains
 
 !------------------------------------------------------------------------
 
-  PetscReal function interpolation_table_interpolate(self, x) result(y)
-    !! Returns interpolated y value for the given x.
+  subroutine interpolation_table_find(self, x)
+    !! Updates index property so that data(index, 1) <= x < data(index + 1, 1).
+    !! If x is below the lower table limit, index = 0.
+    !! If x is above the upper table limit, index = size.
 
     class(interpolation_table_type), intent(in out) :: self
     PetscReal, intent(in) :: x !! x value to interpolate at
     ! Locals:
     PetscInt :: i, end_index, direction
 
-    associate(n => size(self%data, 1))
+    if (x <= self%data(1, 1)) then
+       ! Below lower table limit- use y value at lower end:
+       self%index = 0
+    else if (x >= self%data(self%size, 1)) then
+       ! Above upper table limit- use y value at upper end:
+       self%index = self%size
+    else
 
-      if (x <= self%data(1, 1)) then
-         ! Below lower table limit- use y value at lower end:
-         y = self%data(1, 2)
-         self%index = 1
-      else if (x >= self%data(n, 1)) then
-         ! Above upper table limit- use y value at upper end:
-         y = self%data(n, 2)
-         self%index = n
-      else
-         if (x < self%data(self%index, 1)) then ! search backwards:
-            end_index = 1
-            direction = -1
-         else ! search forwards:
-            end_index = n - 1
-            direction = 1
-         end if
-         do i = self%index, end_index, direction
-            if ((self%data(i, 1) <= x) .and. (x < self%data(i + 1, 1))) then
-               y = self%interpolant(self%data, x, i)
-               self%index = i
-               exit
-            end if
-         end do
-      end if
+       ! Check starting index:
+       if (self%index <= 0) then
+          self%index = 1
+       else if (self%index >= self%size) then
+          self%index = self%size - 1
+       end if
 
-    end associate
+       ! Determine search direction:
+       if (x < self%data(self%index, 1)) then
+          end_index = 1
+          direction = -1
+       else
+          end_index = self%size - 1
+          direction = 1
+       end if
+
+       do i = self%index, end_index, direction
+          if ((self%data(i, 1) <= x) .and. (x < self%data(i + 1, 1))) then
+             self%index = i
+             exit
+          end if
+       end do
+
+    end if
+
+  end subroutine interpolation_table_find
+
+!------------------------------------------------------------------------
+
+  PetscReal function interpolation_table_interpolate(self, x) result(y)
+    !! Returns interpolated y value for the given x.
+
+    class(interpolation_table_type), intent(in out) :: self
+    PetscReal, intent(in) :: x !! x value to interpolate at
+
+    call self%find(x)
+
+    if (self%index <= 0) then
+       y = self%data(1, 2)
+    else if (self%index >= self%size) then
+       y = self%data(self%size, 2)
+    else
+       y = self%interpolant(self%data, x, self%index)
+    end if
 
   end function interpolation_table_interpolate
 

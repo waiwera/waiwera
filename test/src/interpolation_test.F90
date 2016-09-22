@@ -36,10 +36,10 @@ contains
        call table%init(data5) ! default linear interpolation
 
        call assert_equals(1._dp, table%interpolate(-0.5_dp), tol, "-0.5")
-       call assert_equals(1, table%index, "-0.5 index")
+       call assert_equals(0, table%index, "-0.5 index")
 
        call assert_equals(1._dp, table%interpolate(0.0_dp), tol, "0.0")
-       call assert_equals(1, table%index, "0.0 index")
+       call assert_equals(0, table%index, "0.0 index")
 
        call assert_equals(1.4761904761904763_dp, table%interpolate(1.0_dp), tol, "1.0")
        call assert_equals(1, table%index, "1.0 index")
