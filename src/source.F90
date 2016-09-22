@@ -3,6 +3,7 @@ module source_module
 
   use kinds_module
   use list_module
+  use interpolation_module
 
   implicit none
   private
@@ -54,10 +55,7 @@ module source_module
   type, public, extends(source_control_type) :: source_control_rate_table_type
      !! Controls source rate via a table of values vs. time.
      private
-     PetscReal, allocatable, public :: rate_table(:,:)
-     ! - add integer constants for interpolation type (in separate
-     ! interpolation module?), and have a property here determining
-     ! which type to use
+     type(interpolation_table_type), public :: table !! Table of flow rates vs. time
    contains
      private
      procedure, public :: init => source_control_rate_table_init
@@ -257,7 +255,7 @@ contains
 
     class(source_control_rate_table_type), intent(in out) :: self
 
-    deallocate(self%rate_table)
+    call self%table%destroy()
     call self%sources%destroy()
 
   end subroutine source_control_rate_table_destroy
@@ -267,14 +265,12 @@ contains
   subroutine source_control_rate_table_update(self, time)
     !! Update flow rate for source_control_rate_table_type.
 
-    use interpolation_module, only: table_interpolate
-
     class(source_control_rate_table_type), intent(in out) :: self
     PetscReal, intent(in) :: time
     ! Locals:
     PetscReal :: rate
 
-    rate = table_interpolate(time, self%rate_table)
+    rate = self%table%interpolate(time)
     call self%sources%traverse(source_control_rate_table_update_iterator)
 
   contains

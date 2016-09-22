@@ -63,6 +63,7 @@ digraph supermodel{
         fson_mpi_module -> kinds_module
         fson_mpi_module -> logfile_module
         fson_mpi_module -> mpi_module
+        interpolation_module -> kinds_module
         mesh_module -> dm_utils_module
         mesh_module -> eos_module
         mesh_module -> face_module
@@ -102,6 +103,7 @@ digraph supermodel{
         source_module -> fluid_module
         source_module -> fson
         source_module -> fson_mpi_module
+        source_module -> interpolation_module
         source_module -> kinds_module
         source_module -> list_module
         source_module -> logfile_module
