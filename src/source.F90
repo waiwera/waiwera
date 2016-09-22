@@ -46,24 +46,12 @@ module source_module
      private
      type(list_type), public :: sources
    contains
-     procedure(source_control_init_procedure), public, deferred :: init
-     procedure(source_control_destroy_procedure), public, deferred :: destroy
+     procedure, public :: init => source_control_init
+     procedure, public :: destroy => source_control_destroy
      procedure(source_control_update_procedure), public, deferred :: update
   end type source_control_type
 
   abstract interface
-
-     subroutine source_control_init_procedure(self)
-       !! Initialises source control object
-       import :: source_control_type
-       class(source_control_type), intent(in out) :: self
-     end subroutine source_control_init_procedure
-
-     subroutine source_control_destroy_procedure(self)
-       !! Destroys source control object
-       import :: source_control_type
-       class(source_control_type), intent(in out) :: self
-     end subroutine source_control_destroy_procedure
 
      subroutine source_control_update_procedure(self, time)
        !! Updates sources at the specified time.
@@ -78,6 +66,8 @@ module source_module
 
 contains
 
+!------------------------------------------------------------------------
+! Source type:
 !------------------------------------------------------------------------
 
   subroutine source_init(self, cell_natural_index, cell_index, &
@@ -221,6 +211,36 @@ contains
 
   end subroutine source_update_flow
 
+!------------------------------------------------------------------------
+! Source control type:
+!------------------------------------------------------------------------
+
+  subroutine source_control_init(self)
+    !! Initialises source control object.
+
+    class(source_control_type), intent(in out) :: self
+
+    call self%sources%init()
+
+  end subroutine source_control_init
+
+!------------------------------------------------------------------------
+
+  subroutine source_control_destroy(self)
+    !! Destroys source control object.
+
+    class(source_control_type), intent(in out) :: self
+
+    ! Eventually, probably first have to identify and destroy /
+    ! deallocate any ghost (i.e. off-process) sources in collective
+    ! source controls spanning more than one mesh partition
+
+    call self%sources%destroy()
+
+  end subroutine source_control_destroy
+
+!------------------------------------------------------------------------
+! Source setup:
 !------------------------------------------------------------------------
 
   subroutine setup_sources(json, dm, np, isothermal, sources_list, logfile)
