@@ -31,6 +31,7 @@ module flow_simulation_module
      Vec, public :: last_timestep_fluid !! Fluid properties at previous timestep
      Vec, public :: last_iteration_fluid !! Fluid properties at previous nonlinear solver iteration
      type(list_type), public :: sources !! Source/sink terms
+     type(list_type), public :: source_controls !! Source/sink controls
      class(thermodynamics_type), allocatable, public :: thermo !! Fluid thermodynamic formulation
      class(eos_type), allocatable, public :: eos !! Fluid equation of state
      PetscReal, public :: gravity !! Acceleration of gravity (\(m.s^{-1}\))
@@ -390,7 +391,7 @@ end subroutine flow_simulation_run_info
          self%fluid_range_start, self%rock_range_start)
     call setup_sources(json, self%mesh%dm, &
          self%eos%num_primary_variables, self%eos%isothermal, &
-         self%sources, self%logfile)
+         self%sources, self%source_controls, self%logfile)
 
     call self%logfile%flush()
 
@@ -417,6 +418,7 @@ end subroutine flow_simulation_run_info
     call VecDestroy(self%last_timestep_fluid, ierr); CHKERRQ(ierr)
     call VecDestroy(self%last_iteration_fluid, ierr); CHKERRQ(ierr)
     call VecDestroy(self%rock, ierr); CHKERRQ(ierr)
+    call self%source_controls%destroy(source_control_list_node_data_destroy)
     call self%sources%destroy(source_list_node_data_destroy)
     call self%mesh%destroy()
     call self%thermo%destroy()
@@ -447,6 +449,19 @@ end subroutine flow_simulation_run_info
          call source%destroy()
       end select
     end subroutine source_list_node_data_destroy
+
+    subroutine source_control_list_node_data_destroy(node)
+      ! Destroys source control in each list node.
+
+      use source_module, only: source_control_type
+
+      type(list_node_type), pointer, intent(in out) :: node
+
+      select type (source_control => node%data)
+      class is (source_control_type)
+         call source_control%destroy()
+      end select
+    end subroutine source_control_list_node_data_destroy
 
   end subroutine flow_simulation_destroy
 
@@ -535,7 +550,7 @@ end subroutine flow_simulation_run_info
     use dm_utils_module
     use cell_module, only: cell_type
     use face_module, only: face_type
-    use source_module, only: source_type
+    use source_module, only: source_type, source_control_type
     use profiling_module, only: cell_inflows_event, sources_event
 
     class(flow_simulation_type), intent(in out) :: self
@@ -636,6 +651,7 @@ end subroutine flow_simulation_run_info
     ! Source / sink terms:
     call PetscLogEventBegin(sources_event, ierr); CHKERRQ(ierr)
     call cell%init(self%eos%num_components, self%eos%num_phases)
+    call self%source_controls%traverse(source_control_iterator)
     call self%sources%traverse(source_iterator)
     call PetscLogEventEnd(sources_event, ierr); CHKERRQ(ierr)
 
@@ -655,6 +671,7 @@ end subroutine flow_simulation_run_info
     subroutine source_iterator(node, stopped)
       !! Assembles source contribution from source list node to global
       !! RHS array.
+
       type(list_node_type), pointer, intent(in out) :: node
       PetscBool, intent(out) :: stopped
       ! Locals:
@@ -689,6 +706,19 @@ end subroutine flow_simulation_run_info
       stopped = PETSC_FALSE
 
     end subroutine source_iterator
+
+    subroutine source_control_iterator(node, stopped)
+      !! Applies source controls.
+
+      type(list_node_type), pointer, intent(in out) :: node
+      PetscBool, intent(out) :: stopped
+
+      select type (source_control => node%data)
+      class is (source_control_type)
+         call source_control%update(t, interval)
+      end select
+
+    end subroutine source_control_iterator
 
   end subroutine flow_simulation_cell_inflows
 

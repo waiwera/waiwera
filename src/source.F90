@@ -292,7 +292,8 @@ contains
 ! Source setup:
 !------------------------------------------------------------------------
 
-  subroutine setup_sources(json, dm, np, isothermal, sources_list, logfile)
+  subroutine setup_sources(json, dm, np, isothermal, sources_list, &
+       source_controls_list, logfile)
     !! Sets up list of sinks and sources.
 
     use kinds_module
@@ -306,6 +307,7 @@ contains
     PetscInt, intent(in) :: np !! Number of primary variables
     PetscBool, intent(in) :: isothermal !! Whether EOS is isothermal
     type(list_type), intent(in out) :: sources_list !! List of sources
+    type(list_type), intent(in out) :: source_controls_list !! List of source controls
     type(logfile_type), intent(in out), optional :: logfile !! Logfile for log output
     ! Locals:
     PetscErrorCode :: ierr
@@ -324,6 +326,7 @@ contains
     PetscBool :: can_inject
 
     call sources_list%init(delete_deallocates = PETSC_TRUE)
+    call source_controls_list%init(delete_deallocates = PETSC_TRUE)
 
     if (fson_has_mpi(json, "source")) then
 
