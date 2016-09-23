@@ -77,11 +77,11 @@ module source_module
        class(source_control_type), intent(in out) :: self
      end subroutine source_control_destroy_procedure
 
-     subroutine source_control_update_procedure(self, time1, time2)
+     subroutine source_control_update_procedure(self, t, interval)
        !! Updates sources at the specified time.
        import :: source_control_type
        class(source_control_type), intent(in out) :: self
-       PetscReal, intent(in) :: time1, time2
+       PetscReal, intent(in) :: t, interval(2)
      end subroutine source_control_update_procedure
 
   end interface
@@ -262,15 +262,15 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine source_control_rate_table_update(self, time1, time2)
+  subroutine source_control_rate_table_update(self, t, interval)
     !! Update flow rate for source_control_rate_table_type.
 
     class(source_control_rate_table_type), intent(in out) :: self
-    PetscReal, intent(in) :: time1, time2
+    PetscReal, intent(in) :: t, interval(2)
     ! Locals:
     PetscReal :: rate
 
-    rate = self%table%interpolate(time1, time2)
+    rate = self%table%interpolate(interval)
     call self%sources%traverse(source_control_rate_table_update_iterator)
 
   contains
