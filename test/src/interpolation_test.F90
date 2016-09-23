@@ -18,9 +18,10 @@ module interpolation_test
        [5,2])
   PetscReal, parameter :: tol = 1.e-9_dp
 
-  public :: test_interpolation_linear, test_interpolation_step, &
-       test_interpolation_step_average, test_interpolation_interval_linear, &
-       test_interpolation_interval_step, test_interpolation_interval_step_average
+  public :: test_interpolation_linear, test_interpolation_single, &
+       test_interpolation_step, test_interpolation_step_average, &
+       test_interpolation_interval_linear, test_interpolation_interval_step, &
+       test_interpolation_interval_step_average
 
 contains
 
@@ -28,7 +29,7 @@ contains
 
   subroutine test_interpolation_linear
 
-    ! Test interpolation_table_type with linear interpolation
+    ! Linear interpolation
 
     type(interpolation_table_type) :: table
 
@@ -65,9 +66,35 @@ contains
 
 !------------------------------------------------------------------------
 
+  subroutine test_interpolation_single
+
+    ! Single-value data table
+
+    type(interpolation_table_type) :: table
+    ! Locals:
+    PetscReal, dimension(1,2), parameter :: data1 = reshape(&
+         [0._dp, 2._dp], [1,2])
+
+    if (mpi%rank == mpi%output_rank) then
+
+       call table%init(data1)
+
+       call assert_equals(2._dp, table%interpolate(-0.5_dp), tol, "-0.5")
+
+       call assert_equals(2._dp, table%interpolate(0.0_dp), tol, "0.0")
+
+       call assert_equals(2._dp, table%interpolate(1.1_dp), tol, "1.1")
+
+       call table%destroy()
+    end if
+
+  end subroutine test_interpolation_single
+
+!------------------------------------------------------------------------
+
   subroutine test_interpolation_step
 
-    ! Test step interpolation
+    ! Step interpolation
 
     type(interpolation_table_type) :: table
 
@@ -99,7 +126,7 @@ contains
 
   subroutine test_interpolation_step_average
 
-    ! Test step average interpolation
+    ! Step average interpolation
 
     type(interpolation_table_type) :: table
 
@@ -131,7 +158,7 @@ contains
 
   subroutine test_interpolation_interval_linear
 
-    ! Test linear interval interpolation
+    ! Linear interval interpolation
 
     type(interpolation_table_type) :: table
 
@@ -161,7 +188,7 @@ contains
 
   subroutine test_interpolation_interval_step
 
-    ! Test step interval interpolation
+    ! Step interval interpolation
 
     type(interpolation_table_type) :: table
 
@@ -191,7 +218,7 @@ contains
 
   subroutine test_interpolation_interval_step_average
 
-    ! Test step average interval interpolation
+    ! Step average interval interpolation
 
     type(interpolation_table_type) :: table
 
