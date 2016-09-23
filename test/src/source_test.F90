@@ -36,7 +36,7 @@ contains
     PetscBool :: isothermal
     type(fson_value), pointer :: json
     type(mesh_type) :: mesh
-    type(list_type) :: sources
+    type(list_type) :: sources, source_controls
     PetscErrorCode :: ierr
 
     primary_variable_names = &
@@ -52,7 +52,7 @@ contains
     call DMCreateLabel(mesh%dm, open_boundary_label_name, ierr); CHKERRQ(ierr)
     call mesh%configure(primary_variable_names)
 
-    call setup_sources(json, mesh%dm, np, isothermal, sources)
+    call setup_sources(json, mesh%dm, np, isothermal, sources, source_controls)
     call sources%traverse(source_test_iterator)
 
     call sources%destroy(source_list_node_data_destroy)
