@@ -28,7 +28,11 @@ module interpolation_module
      procedure, public :: set_type => interpolation_table_set_type
      procedure, public :: destroy => interpolation_table_destroy
      procedure, public :: find => interpolation_table_find
-     procedure, public :: interpolate => interpolation_table_interpolate
+     procedure :: interpolate_at_index => interpolation_table_interpolate_at_index
+     procedure :: interpolation_table_interpolate
+     procedure :: interpolation_table_interpolate_interval
+     generic, public :: interpolate => interpolation_table_interpolate, &
+          interpolation_table_interpolate_interval
   end type interpolation_table_type
 
   interface
@@ -203,13 +207,11 @@ contains
 
 !------------------------------------------------------------------------
 
-  PetscReal function interpolation_table_interpolate(self, x) result(y)
-    !! Returns interpolated y value for the given x.
+  PetscReal function interpolation_table_interpolate_at_index(self, x) result(y)
+    !! Returns interpolated y value for the given x, using the current index.
 
     class(interpolation_table_type), intent(in out) :: self
     PetscReal, intent(in) :: x !! x value to interpolate at
-
-    call self%find(x)
 
     if (self%index <= 0) then
        y = self%data(1, 2)
@@ -219,7 +221,41 @@ contains
        y = self%interpolant(self%data, x, self%index)
     end if
 
+  end function interpolation_table_interpolate_at_index
+
+!------------------------------------------------------------------------
+
+  PetscReal function interpolation_table_interpolate(self, x) result(y)
+    !! Returns interpolated y value for the given x.
+
+    class(interpolation_table_type), intent(in out) :: self
+    PetscReal, intent(in) :: x !! x value to interpolate at
+
+    call self%find(x)
+    y = self%interpolate_at_index(x)
+
   end function interpolation_table_interpolate
+
+!------------------------------------------------------------------------
+
+  PetscReal function interpolation_table_interpolate_interval(self, x1, x2) &
+       result(y)
+    !! Returns interpolated y value over the interval [x1, x2]. Values
+    !! for x1 and x2 are interpolated first, then these two values are
+    !! averaged to give an average value over the interval.
+
+    class(interpolation_table_type), intent(in out) :: self
+    PetscReal, intent(in) :: x1 !! Lower bound for x interval
+    PetscReal, intent(in) :: x2 !! Upper bound for x interval
+    ! Locals:
+    PetscReal :: y1, y2
+
+    y1 = self%interpolate(x1)
+    y2 = self%interpolate(x2)
+
+    y = 0.5_dp * (y1 + y2)
+
+  end function interpolation_table_interpolate_interval
 
 !------------------------------------------------------------------------
 

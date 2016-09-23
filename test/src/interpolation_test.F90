@@ -19,7 +19,8 @@ module interpolation_test
   PetscReal, parameter :: tol = 1.e-9_dp
 
   public :: test_interpolation_linear, test_interpolation_step, &
-       test_interpolation_step_average
+       test_interpolation_step_average, test_interpolation_interval_linear, &
+       test_interpolation_interval_step, test_interpolation_interval_step_average
 
 contains
 
@@ -74,19 +75,19 @@ contains
 
        call table%init(data5, INTERP_STEP)
 
-       call assert_equals(1._dp, table%interpolate(-0.5_dp), tol, "-0.5 step")
+       call assert_equals(1._dp, table%interpolate(-0.5_dp), tol, "-0.5")
 
-       call assert_equals(1._dp, table%interpolate(0.0_dp), tol, "0.0 step")
+       call assert_equals(1._dp, table%interpolate(0.0_dp), tol, "0.0")
 
-       call assert_equals(1._dp, table%interpolate(1.0_dp), tol, "1.0 step")
+       call assert_equals(1._dp, table%interpolate(1.0_dp), tol, "1.0")
 
-       call assert_equals(0.5_dp, table%interpolate(4.5_dp), tol, "4.5 step")
+       call assert_equals(0.5_dp, table%interpolate(4.5_dp), tol, "4.5")
 
-       call assert_equals(2.0_dp, table%interpolate(3.6_dp), tol, "3.6 step")
+       call assert_equals(2.0_dp, table%interpolate(3.6_dp), tol, "3.6")
 
-       call assert_equals(-1.1_dp, table%interpolate(6.3_dp), tol, "6.3 step")
+       call assert_equals(-1.1_dp, table%interpolate(6.3_dp), tol, "6.3")
 
-       call assert_equals(-0.1_dp, table%interpolate(10.0_dp), tol, "10.0 step")
+       call assert_equals(-0.1_dp, table%interpolate(10.0_dp), tol, "10.0")
 
        call table%destroy()
 
@@ -106,25 +107,115 @@ contains
 
        call table%init(data5, INTERP_STEP_AVERAGE)
 
-       call assert_equals(1._dp, table%interpolate(-0.5_dp), tol, "-0.5 step")
+       call assert_equals(1._dp, table%interpolate(-0.5_dp), tol, "-0.5")
 
-       call assert_equals(1._dp, table%interpolate(0.0_dp), tol, "0.0 step")
+       call assert_equals(1._dp, table%interpolate(0.0_dp), tol, "0.0")
 
-       call assert_equals(1.5_dp, table%interpolate(1.0_dp), tol, "1.0 step")
+       call assert_equals(1.5_dp, table%interpolate(1.0_dp), tol, "1.0")
 
-       call assert_equals(-0.3_dp, table%interpolate(4.5_dp), tol, "4.5 step")
+       call assert_equals(-0.3_dp, table%interpolate(4.5_dp), tol, "4.5")
 
-       call assert_equals(1.25_dp, table%interpolate(3.6_dp), tol, "3.6 step")
+       call assert_equals(1.25_dp, table%interpolate(3.6_dp), tol, "3.6")
 
-       call assert_equals(-0.6_dp, table%interpolate(6.3_dp), tol, "6.3 step")
+       call assert_equals(-0.6_dp, table%interpolate(6.3_dp), tol, "6.3")
 
-       call assert_equals(-0.1_dp, table%interpolate(10.0_dp), tol, "10.0 step")
+       call assert_equals(-0.1_dp, table%interpolate(10.0_dp), tol, "10.0")
 
        call table%destroy()
 
     end if
 
   end subroutine test_interpolation_step_average
+
+!------------------------------------------------------------------------
+
+  subroutine test_interpolation_interval_linear
+
+    ! Test linear interval interpolation
+
+    type(interpolation_table_type) :: table
+
+    if (mpi%rank == mpi%output_rank) then
+
+       call table%init(data5)
+
+       call assert_equals(1._dp, table%interpolate(-0.5_dp, -0.1_dp), tol, "[-0.5, -0.1]")
+
+       call assert_equals(1.0238095238095237_dp, table%interpolate(-0.5_dp, 0.1_dp), tol, "[-0.5, 0.1]")
+
+       call assert_equals(1.5_dp, table%interpolate(0.1_dp, 2._dp), tol, "[0.1, 2.]")
+
+       call assert_equals(1.1019345238095237_dp, table%interpolate(0.1_dp, 3._dp), tol, "[0.1, 3.]")
+
+       call assert_equals(0.11586538461538454_dp, table%interpolate(3.1_dp, 7._dp), tol, "[3.1, 7.]")
+
+       call assert_equals(-0.27307692307692316_dp, table%interpolate(8._dp, 12._dp), tol, "[8., 12.]")
+
+       call table%destroy()
+
+    end if
+
+  end subroutine test_interpolation_interval_linear
+
+!------------------------------------------------------------------------
+
+  subroutine test_interpolation_interval_step
+
+    ! Test step interval interpolation
+
+    type(interpolation_table_type) :: table
+
+    if (mpi%rank == mpi%output_rank) then
+
+       call table%init(data5, INTERP_STEP)
+
+       call assert_equals(1._dp, table%interpolate(-0.5_dp, -0.1_dp), tol, "[-0.5, -0.1]")
+
+       call assert_equals(1._dp, table%interpolate(-0.5_dp, 0.1_dp), tol, "[-0.5, 0.1]")
+
+       call assert_equals(1._dp, table%interpolate(0.1_dp, 2._dp), tol, "[0.1, 2.]")
+
+       call assert_equals(1.5_dp, table%interpolate(0.1_dp, 3._dp), tol, "[0.1, 3.]")
+
+       call assert_equals(0.45_dp, table%interpolate(3.1_dp, 7._dp), tol, "[3.1, 7.]")
+
+       call assert_equals(-0.6_dp, table%interpolate(8._dp, 12._dp), tol, "[8., 12.]")
+
+       call table%destroy()
+
+    end if
+
+  end subroutine test_interpolation_interval_step
+
+!------------------------------------------------------------------------
+
+  subroutine test_interpolation_interval_step_average
+
+    ! Test step average interval interpolation
+
+    type(interpolation_table_type) :: table
+
+    if (mpi%rank == mpi%output_rank) then
+
+       call table%init(data5, INTERP_STEP_AVERAGE)
+
+       call assert_equals(1._dp, table%interpolate(-0.5_dp, -0.1_dp), tol, "[-0.5, -0.1]")
+
+       call assert_equals(1.25_dp, table%interpolate(-0.5_dp, 0.1_dp), tol, "[-0.5, 0.1]")
+
+       call assert_equals(1.5_dp, table%interpolate(0.1_dp, 2._dp), tol, "[0.1, 2.]")
+
+       call assert_equals(1.375_dp, table%interpolate(0.1_dp, 3._dp), tol, "[0.1, 3.]")
+
+       call assert_equals(0.325_dp, table%interpolate(3.1_dp, 7._dp), tol, "[3.1, 7.]")
+
+       call assert_equals(-0.35_dp, table%interpolate(8._dp, 12._dp), tol, "[8., 12.]")
+
+       call table%destroy()
+
+    end if
+
+  end subroutine test_interpolation_interval_step_average
 
 !------------------------------------------------------------------------
 
