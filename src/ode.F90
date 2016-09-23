@@ -34,21 +34,21 @@ module ode_module
 
   abstract interface
 
-     subroutine lhs_function(self, t, y, lhs, err)
+     subroutine lhs_function(self, t, interval, y, lhs, err)
        !! LHS function lhs = L(t, y)
        import :: ode_type
        class(ode_type), intent(in out) :: self
-       PetscReal, intent(in) :: t
+       PetscReal, intent(in) :: t, interval(2)
        Vec, intent(in) :: y
        Vec, intent(out) :: lhs
        PetscErrorCode, intent(out) :: err
      end subroutine lhs_function
 
-     subroutine rhs_function(self, t, y, rhs, err)
+     subroutine rhs_function(self, t, interval, y, rhs, err)
        !! RHS function rhs = R(t, y)
        import :: ode_type
        class(ode_type), intent(in out) :: self
-       PetscReal, intent(in) :: t
+       PetscReal, intent(in) :: t, interval(2)
        Vec, intent(in) :: y
        Vec, intent(out) :: rhs
        PetscErrorCode, intent(out) :: err

@@ -452,7 +452,7 @@ end subroutine flow_simulation_run_info
 
 !------------------------------------------------------------------------
 
-  subroutine flow_simulation_cell_balances(self, t, y, lhs, err)
+  subroutine flow_simulation_cell_balances(self, t, interval, y, lhs, err)
     !! Computes mass and energy balance for each cell, for the given
     !! primary thermodynamic variables and time.
 
@@ -462,6 +462,7 @@ end subroutine flow_simulation_run_info
 
     class(flow_simulation_type), intent(in out) :: self
     PetscReal, intent(in) :: t !! time (s)
+    PetscReal, intent(in) :: interval(2) !! time interval bounds
     Vec, intent(in) :: y !! global primary variables vector
     Vec, intent(out) :: lhs
     PetscErrorCode, intent(out) :: err
@@ -525,7 +526,7 @@ end subroutine flow_simulation_run_info
 
 !------------------------------------------------------------------------
 
-  subroutine flow_simulation_cell_inflows(self, t, y, rhs, err)
+  subroutine flow_simulation_cell_inflows(self, t, interval, y, rhs, err)
     !! Computes net inflow (per unit volume) into each cell, from
     !! flows through faces and source terms, for the given primary
     !! thermodynamic variables and time.
@@ -538,7 +539,8 @@ end subroutine flow_simulation_run_info
     use profiling_module, only: cell_inflows_event, sources_event
 
     class(flow_simulation_type), intent(in out) :: self
-    PetscReal, intent(in) :: t !! time
+    PetscReal, intent(in) :: t !! time (s)
+    PetscReal, intent(in) :: interval(2) !! time interval bounds
     Vec, intent(in) :: y !! global primary variables vector
     Vec, intent(out) :: rhs
     PetscErrorCode, intent(out) :: err
