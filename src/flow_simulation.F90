@@ -453,7 +453,7 @@ end subroutine flow_simulation_run_info
     subroutine source_control_list_node_data_destroy(node)
       ! Destroys source control in each list node.
 
-      use source_module, only: source_control_type
+      use source_control_module, only: source_control_type
 
       type(list_node_type), pointer, intent(in out) :: node
 
@@ -550,7 +550,8 @@ end subroutine flow_simulation_run_info
     use dm_utils_module
     use cell_module, only: cell_type
     use face_module, only: face_type
-    use source_module, only: source_type, source_control_type
+    use source_module, only: source_type
+    use source_control_module, only: source_control_type
     use profiling_module, only: cell_inflows_event, sources_event
 
     class(flow_simulation_type), intent(in out) :: self
