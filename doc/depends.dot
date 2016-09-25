@@ -50,6 +50,7 @@ digraph supermodel{
         flow_simulation_module -> relative_permeability_module
         flow_simulation_module -> rock_module
         flow_simulation_module -> source_module
+        flow_simulation_module -> source_setup_module
         flow_simulation_module -> thermodynamics_module
         flow_simulation_module -> thermodynamics_setup_module
         flow_simulation_module -> utils_module
@@ -63,6 +64,12 @@ digraph supermodel{
         fson_mpi_module -> kinds_module
         fson_mpi_module -> logfile_module
         fson_mpi_module -> mpi_module
+        source_setup_module -> fson
+        source_setup_module -> fson_mpi_module
+        source_setup_module -> kinds_module
+        source_setup_module -> logfile_module
+        source_setup_module -> mesh_module
+        source_setup_module -> source_module
         interpolation_module -> kinds_module
         mesh_module -> dm_utils_module
         mesh_module -> eos_module
@@ -101,13 +108,9 @@ digraph supermodel{
         eos_w_module -> rock_module
         eos_w_module -> thermodynamics_module
         source_module -> fluid_module
-        source_module -> fson
-        source_module -> fson_mpi_module
         source_module -> interpolation_module
         source_module -> kinds_module
         source_module -> list_module
-        source_module -> logfile_module
-        source_module -> mesh_module
         eos_setup_module -> eos_module
         eos_setup_module -> eos_w_module
         eos_setup_module -> eos_we_module

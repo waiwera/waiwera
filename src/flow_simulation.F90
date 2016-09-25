@@ -324,7 +324,7 @@ end subroutine flow_simulation_run_info
     use initial_module, only: setup_initial
     use fluid_module, only: setup_fluid_vector
     use rock_module, only: setup_rock_vector, setup_rocktype_labels
-    use source_module, only: setup_sources
+    use source_setup_module, only: setup_sources
     use utils_module, only: date_time_str
     use profiling_module, only: simulation_init_event
 
