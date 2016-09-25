@@ -29,10 +29,8 @@ module interpolation_module
      procedure, public :: destroy => interpolation_table_destroy
      procedure, public :: find => interpolation_table_find
      procedure :: interpolate_at_index => interpolation_table_interpolate_at_index
-     procedure :: interpolation_table_interpolate
-     procedure :: interpolation_table_interpolate_interval
-     generic, public :: interpolate => interpolation_table_interpolate, &
-          interpolation_table_interpolate_interval
+     procedure, public :: interpolate => interpolation_table_interpolate
+     procedure, public :: average => interpolation_table_average
   end type interpolation_table_type
 
   interface
@@ -238,11 +236,11 @@ contains
 
 !------------------------------------------------------------------------
 
-  PetscReal function interpolation_table_interpolate_interval(self, interval) &
+  PetscReal function interpolation_table_average(self, interval) &
        result(y)
-    !! Returns interpolated y value over the specified x interval. Values
+    !! Returns y value averaged over the specified x interval. Values
     !! at the end points are interpolated first, then these two values are
-    !! averaged to give a representative value over the interval.
+    !! averaged to give the result.
 
     class(interpolation_table_type), intent(in out) :: self
     PetscReal, intent(in) :: interval(2) !! x interval
@@ -254,7 +252,7 @@ contains
 
     y = 0.5_dp * sum(yend)
 
-  end function interpolation_table_interpolate_interval
+  end function interpolation_table_average
 
 !------------------------------------------------------------------------
 

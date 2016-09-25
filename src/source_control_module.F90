@@ -93,7 +93,7 @@ contains
     ! Locals:
     PetscReal :: rate
 
-    rate = self%table%interpolate(interval)
+    rate = self%table%average(interval)
     call self%sources%traverse(source_control_rate_table_update_iterator)
 
   contains
