@@ -11,6 +11,8 @@ module interpolation_module
 
   PetscInt, parameter, public :: INTERP_LINEAR = 0, INTERP_STEP = 1, &
        INTERP_STEP_AVERAGE = 2
+  PetscInt, parameter, public :: INTERP_AVERAGING_ENDPOINT = 0, &
+       INTERP_AVERAGING_INTEGRATE = 1
 
   type, public :: interpolation_table_type
      !! Interpolation table type.
@@ -19,18 +21,23 @@ module interpolation_module
      PetscInt :: size !! Number of x values in the data array
      PetscInt, public :: index !! Current index in the table
      procedure(interpolation_function), pointer, nopass, public :: interpolant
+     procedure(averaging_function), pointer, public :: average
    contains
      private
      procedure :: interpolation_table_init
-     procedure :: interpolation_table_init_default
+     procedure :: interpolation_table_init_default_averaging
+     procedure :: interpolation_table_init_default_all
      generic, public :: init => interpolation_table_init, &
-          interpolation_table_init_default
-     procedure, public :: set_type => interpolation_table_set_type
+          interpolation_table_init_default_averaging, &
+          interpolation_table_init_default_all
+     procedure, public :: set_interpolation_type => interpolation_table_set_interpolation_type
+     procedure, public :: set_averaging_type => interpolation_table_set_averaging_type
      procedure, public :: destroy => interpolation_table_destroy
      procedure, public :: find => interpolation_table_find
      procedure :: interpolate_at_index => interpolation_table_interpolate_at_index
      procedure, public :: interpolate => interpolation_table_interpolate
-     procedure, public :: average => interpolation_table_average
+     procedure :: interpolation_table_average_endpoint
+     procedure :: interpolation_table_average_integrate
   end type interpolation_table_type
 
   interface
@@ -42,6 +49,13 @@ module interpolation_module
        PetscReal, intent(in) :: x
        PetscInt, intent(in) :: index
      end function interpolation_function
+
+     PetscReal function averaging_function(self, interval)
+       !! Function for averaging data array over a given x interval.
+       import :: interpolation_table_type
+       class(interpolation_table_type), intent(in out) :: self
+       PetscReal, intent(in) :: interval(2) !! x interval
+     end function averaging_function
 
   end interface
 
@@ -97,7 +111,8 @@ contains
 ! interpolation_table_type:  
 !------------------------------------------------------------------------
   
-  subroutine interpolation_table_init(self, array, interpolation_type)
+  subroutine interpolation_table_init(self, array, interpolation_type, &
+       averaging_type)
     !! Initialises interpolation table.  The values of array(:,1) are
     !! the sorted x values to interpolate between, while array(:,2)
     !! are the corresponding y values. The array is assumed to have
@@ -106,27 +121,41 @@ contains
     class(interpolation_table_type), intent(in out) :: self
     PetscReal, intent(in) :: array(:,:)
     PetscInt, intent(in) :: interpolation_type
+    PetscInt, intent(in) :: averaging_type
 
     self%data = array
     self%size = size(self%data, 1)
     self%index = 1
-    call self%set_type(interpolation_type)
+    call self%set_interpolation_type(interpolation_type)
+    call self%set_averaging_type(averaging_type)
 
   end subroutine interpolation_table_init
 
-  subroutine interpolation_table_init_default(self, array)
-    !! Initialises with default linear interpolation.
+  subroutine interpolation_table_init_default_averaging(self, array, &
+       interpolation_type)
+    !! Initialises with default endpoint averaging.
+
+    class(interpolation_table_type), intent(in out) :: self
+    PetscReal, intent(in) :: array(:,:)
+    PetscInt, intent(in) :: interpolation_type
+
+    call self%init(array, interpolation_type, INTERP_AVERAGING_ENDPOINT)
+
+  end subroutine interpolation_table_init_default_averaging
+
+  subroutine interpolation_table_init_default_all(self, array)
+    !! Initialises with default linear interpolation and endpoint averaging.
 
     class(interpolation_table_type), intent(in out) :: self
     PetscReal, intent(in) :: array(:,:)
 
-    call self%init(array, INTERP_LINEAR)
+    call self%init(array, INTERP_LINEAR, INTERP_AVERAGING_ENDPOINT)
 
-  end subroutine interpolation_table_init_default
+  end subroutine interpolation_table_init_default_all
 
 !------------------------------------------------------------------------
 
-  subroutine interpolation_table_set_type(self, interpolation_type)
+  subroutine interpolation_table_set_interpolation_type(self, interpolation_type)
     !! Sets interpolation function for the table.
 
     class(interpolation_table_type), intent(in out) :: self
@@ -143,7 +172,26 @@ contains
        self%interpolant => interpolant_linear
     end select
 
-  end subroutine interpolation_table_set_type
+  end subroutine interpolation_table_set_interpolation_type
+
+!------------------------------------------------------------------------
+
+  subroutine interpolation_table_set_averaging_type(self, averaging_type)
+    !! Sets averaging function for the table.
+
+    class(interpolation_table_type), intent(in out) :: self
+    PetscInt, intent(in) :: averaging_type
+
+    select case (averaging_type)
+    case (INTERP_AVERAGING_ENDPOINT)
+       self%average => interpolation_table_average_endpoint
+    case (INTERP_AVERAGING_INTEGRATE)
+       self%average => interpolation_table_average_integrate
+    case default
+       self%average => interpolation_table_average_endpoint
+    end select
+
+  end subroutine interpolation_table_set_averaging_type
 
 !------------------------------------------------------------------------
 
@@ -236,7 +284,7 @@ contains
 
 !------------------------------------------------------------------------
 
-  PetscReal function interpolation_table_average(self, interval) &
+  PetscReal function interpolation_table_average_endpoint(self, interval) &
        result(y)
     !! Returns y value averaged over the specified x interval. Values
     !! at the end points are interpolated first, then these two values are
@@ -252,7 +300,73 @@ contains
 
     y = 0.5_dp * sum(yend)
 
-  end function interpolation_table_average
+  end function interpolation_table_average_endpoint
+
+!------------------------------------------------------------------------
+
+  PetscReal function interpolation_table_average_integrate(self, interval) &
+       result(y)
+    !! Returns y value averaged over the specified x interval,
+    !! calculated by integration. Values of y are assumed to vary
+    !! between data points according to the table's interpolation type.
+
+    class(interpolation_table_type), intent(in out) :: self
+    PetscReal, intent(in) :: interval(2) !! x interval
+    ! Locals:
+    PetscReal :: integral, dx, xav
+    PetscReal :: x1, x2, y1, y2
+    PetscInt :: istart, i
+    PetscBool :: finished
+    PetscReal, parameter :: tol = 1.e-15_dp
+
+    dx = interval(2) - interval(1)
+    if (dx >= tol) then
+
+       integral = 0._dp
+       x1 = interval(1)
+       y1 = self%interpolate(x1)
+       istart = self%index
+       finished = PETSC_FALSE
+
+       do i = istart, self%size - 1
+          x2 = self%data(i + 1, 1)
+          if (x2 > interval(2)) then
+             x2 = interval(2)
+             finished = PETSC_TRUE
+          end if
+          self%index = i
+          y2 = self%interpolate_at_index(x2)
+          call update_integral(x1, x2, y1, y2, integral)
+          x1 = x2
+          y1 = y2
+          if (finished) exit
+       end do
+
+       if (x1 < interval(2)) then
+          ! data ran out before end of interval:
+          x2 = interval(2)
+          y2 = self%interpolate(x2)
+          call update_integral(x1, x2, y1, y2, integral)
+       end if
+
+       y = integral / dx
+
+    else
+       ! Interval close to zero- just interpolate at midpoint:
+       xav = 0.5_dp *(interval(1) + interval(2))
+       y = self%interpolate(xav)
+    end if
+
+  contains
+
+    subroutine update_integral(x1, x2, y1, y2, integral)
+      !! Add contribution from last data interval to integral.
+      PetscReal, intent(in) :: x1, x2, y1, y2
+      PetscReal, intent(in out) :: integral
+      integral = integral + (x2 - x1) * 0.5_dp * (y1 + y2)
+    end subroutine update_integral
+
+  end function interpolation_table_average_integrate
 
 !------------------------------------------------------------------------
 

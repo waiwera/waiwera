@@ -21,7 +21,7 @@ module interpolation_test
   public :: test_interpolation_linear, test_interpolation_single, &
        test_interpolation_step, test_interpolation_step_average, &
        test_average_linear, test_average_step, &
-       test_average_step_average
+       test_average_step_average, test_average_linear_integration
 
 contains
 
@@ -179,6 +179,8 @@ contains
 
        call assert_equals(-0.27307692307692316_dp, table%average([8._dp, 12._dp]), tol, "[8., 12.]")
 
+       call assert_equals(1.4761904761904763_dp, table%average([1._dp, 1._dp]), tol, "[1., 1.]")
+
        call table%destroy()
 
     end if
@@ -208,6 +210,8 @@ contains
        call assert_equals(0.45_dp, table%average([3.1_dp, 7._dp]), tol, "[3.1, 7.]")
 
        call assert_equals(-0.6_dp, table%average([8._dp, 12._dp]), tol, "[8., 12.]")
+
+       call assert_equals(1._dp, table%average([1._dp, 1._dp]), tol, "[1., 1.]")
 
        call table%destroy()
 
@@ -239,11 +243,49 @@ contains
 
        call assert_equals(-0.35_dp, table%average([8._dp, 12._dp]), tol, "[8., 12.]")
 
+       call assert_equals(-0.1_dp, table%average([9._dp, 12._dp]), tol, "[9., 12.]")
+
+       call assert_equals(1.5_dp, table%average([1._dp, 1._dp]), tol, "[1., 1.]")
+
        call table%destroy()
 
     end if
 
   end subroutine test_average_step_average
+
+!------------------------------------------------------------------------
+
+  subroutine test_average_linear_integration
+
+    ! Linear interpolation integration averaging
+
+    type(interpolation_table_type) :: table
+
+    if (mpi%rank == mpi%output_rank) then
+
+       call table%init(data5, INTERP_LINEAR, INTERP_AVERAGING_INTEGRATE)
+
+       call assert_equals(1._dp, table%average([-0.5_dp, -0.1_dp]), tol, "[-0.5, -0.1]")
+
+       call assert_equals(1.003968253968254_dp, table%average([-0.5_dp, 0.1_dp]), tol, "[-0.5, 0.1]")
+
+       call assert_equals(1.5_dp, table%average([0.1_dp, 2._dp]), tol, "[0.1, 2.]")
+
+       call assert_equals(1.5406660509031198_dp, table%average([0.1_dp, 3._dp]), tol, "[0.1, 3.]")
+
+       call assert_equals(-0.2530818540433925_dp, table%average([3.1_dp, 7._dp]), tol, "[3.1, 7.]")
+
+       call assert_equals(-0.1389423076923077_dp, table%average([8._dp, 12._dp]), tol, "[8., 12.]")
+
+       call assert_equals(-0.1_dp, table%average([9._dp, 12._dp]), tol, "[9., 12.]")
+
+       call assert_equals(1.4761904761904763_dp, table%average([1._dp, 1._dp]), tol, "[1., 1.]")
+
+       call table%destroy()
+
+    end if
+
+  end subroutine test_average_linear_integration
 
 !------------------------------------------------------------------------
 
