@@ -65,16 +65,14 @@ digraph supermodel{
         fson_mpi_module -> kinds_module
         fson_mpi_module -> logfile_module
         fson_mpi_module -> mpi_module
-        source_control_module -> interpolation_module
-        source_control_module -> kinds_module
-        source_control_module -> list_module
-        source_control_module -> source_module
         source_setup_module -> fson
         source_setup_module -> fson_mpi_module
+        source_setup_module -> fson_value_m
         source_setup_module -> kinds_module
         source_setup_module -> list_module
         source_setup_module -> logfile_module
         source_setup_module -> mesh_module
+        source_setup_module -> source_control_module
         source_setup_module -> source_module
         interpolation_module -> kinds_module
         mesh_module -> dm_utils_module
@@ -144,6 +142,10 @@ digraph supermodel{
         timestepper_module -> ode_module
         timestepper_module -> utils_module
         logfile_module -> mpi_module
+        source_control_module -> interpolation_module
+        source_control_module -> kinds_module
+        source_control_module -> list_module
+        source_control_module -> source_module
         relative_permeability_module -> fson
         relative_permeability_module -> fson_mpi_module
         relative_permeability_module -> kinds_module
