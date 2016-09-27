@@ -39,10 +39,10 @@ contains
   subroutine test_list
     ! Test list operations
     
-    type(list_type) :: list
-    PetscInt :: i
-    PetscReal :: x
-    character(3) :: str
+    type(list_type) :: list, list2
+    PetscInt :: i, j
+    PetscReal :: x, y
+    character(3) :: str, str2
     type(thing_type) :: thing
     type(list_node_type), pointer :: node
     PetscReal, parameter :: tol = 1.e-8_dp
@@ -118,6 +118,27 @@ contains
        call assert_false(associated(node), 'get(10)')
        node => list%get(-8)
        call assert_false(associated(node), 'get(-8)')
+
+       j = 10
+       str2 = 'foo'
+       y = 101._dp
+       call list2%init()
+       call list2%append(j, 'int2')
+       call list2%append(str2)
+       call list2%append(y, 'real2')
+
+       call list%add(list2)
+       call list2%destroy()
+       call assert_equals(7, list%count, 'list count after add')
+
+       node => list%get(-1)
+       call assert_true(associated(node), 'get(-1) after add')
+       if (associated(node)) then
+          select type (d => node%data)
+          type is (PetscReal)
+             call assert_equals(y, d, tol, 'get(-1) value after add')
+          end select
+       end if
 
        call list%destroy(list_node_destroy_data)
        call assert_equals(0, list%count, 'list count after destroy')

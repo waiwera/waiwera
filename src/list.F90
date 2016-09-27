@@ -34,6 +34,7 @@ module list_module
      procedure :: list_prepend
      procedure :: list_prepend_with_tag
      generic, public :: prepend => list_prepend, list_prepend_with_tag
+     procedure, public :: add => list_add
      procedure :: list_delete
      procedure :: list_delete_tag
      procedure :: list_delete_destroy
@@ -171,6 +172,31 @@ contains
     end if
 
   end subroutine list_prepend_with_tag
+
+!------------------------------------------------------------------------
+
+  subroutine list_add(self, other)
+    !! Appends nodes with data (and any tags) from the other list to self.
+
+    class(list_type), intent(in out) :: self
+    type(list_type), intent(in out) :: other
+
+    call other%traverse(append_to_self_iterator)
+
+  contains
+
+    subroutine append_to_self_iterator(node, stopped)
+      type(list_node_type), pointer, intent(in out)  :: node
+      PetscBool, intent(out) :: stopped
+      if (allocated(node%tag)) then
+         call self%append(node%data, node%tag)
+      else
+         call self%append(node%data)
+      end if
+      stopped = PETSC_FALSE
+    end subroutine append_to_self_iterator
+
+  end subroutine list_add
 
 !------------------------------------------------------------------------
 
