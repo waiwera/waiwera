@@ -42,7 +42,7 @@ contains
     type(fson_value), pointer :: sources_json, source_json
     PetscInt :: num_sources, num_cells
     type(source_type), pointer :: source
-    PetscReal :: rate, enthalpy
+    PetscReal :: initial_rate, enthalpy
     character(max_source_name_length) :: name
     character(max_source_name_length) :: default_name = ""
     DMLabel :: ghost_label
@@ -71,7 +71,7 @@ contains
           source_json => fson_value_get_mpi(sources_json, isrc)
 
           call fson_get_mpi(source_json, "name", default_name, name)
-          call get_rate(source_json, rate, can_inject)
+          call get_initial_rate(source_json, initial_rate, can_inject)
           call get_components(source_json, isothermal, np, srcstr, &
                injection_component, production_component, logfile)
           call get_enthalpy(source_json, isothermal, can_inject, &
@@ -88,7 +88,7 @@ contains
                   cell_order_label_name, ghost_label)
              if (c >= 0) then
                 allocate(source)
-                call source%init(cell_order, c, np, rate, enthalpy, &
+                call source%init(cell_order, c, np, initial_rate, enthalpy, &
                      injection_component, production_component)
                 call sources%append(source, name)
                 call cell_sources%append(source, name)
@@ -114,14 +114,14 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine get_rate(source_json, rate, can_inject)
-    !! Gets flow rate and whether the source can inject. These can
-    !! only be determined for constant-rate sources. For other source
-    !! types, a default initial rate is assigned and it is assumed
-    !! that the source may inject.
+  subroutine get_initial_rate(source_json, initial_rate, can_inject)
+    !! Gets initial flow rate and whether the source can inject. These
+    !! can only be determined for constant-rate sources. For other
+    !! source types, a default initial rate is assigned and it is
+    !! assumed that the source may inject.
 
     type(fson_value), pointer, intent(in) :: source_json
-    PetscReal, intent(out) :: rate
+    PetscReal, intent(out) :: initial_rate
     PetscBool, intent(out) :: can_inject
     ! Locals:
     PetscInt :: rate_type
@@ -131,19 +131,19 @@ contains
        rate_type = fson_type_mpi(source_json, "rate")
 
        if (rate_type == TYPE_REAL) then
-          call fson_get_mpi(source_json, "rate", val = rate)
-          can_inject = (rate > 0._dp)
+          call fson_get_mpi(source_json, "rate", val = initial_rate)
+          can_inject = (initial_rate > 0._dp)
        else if (rate_type == TYPE_ARRAY) then
-          rate = default_source_rate
+          initial_rate = default_source_rate
           can_inject = PETSC_TRUE
        end if
 
     else
-       rate = default_source_rate
+       initial_rate = default_source_rate
        can_inject = PETSC_TRUE
     end if
 
-  end subroutine get_rate
+  end subroutine get_initial_rate
 
 !------------------------------------------------------------------------
 
