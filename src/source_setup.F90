@@ -238,7 +238,26 @@ contains
     !! Sets up any 'inline' source controls for the source,
     !! i.e. controls defined implicitly in the specification of the source.
 
-    use interpolation_module, only: INTERP_LINEAR, INTERP_AVERAGING_INTEGRATE
+    type(fson_value), pointer, intent(in) :: source_json
+    type(list_type), intent(in out) :: cell_sources
+    type(list_type), intent(in out) :: source_controls
+
+    call setup_rate_source_control(source_json, cell_sources, &
+         source_controls)
+
+    ! TODO: other inline controls (enthalpy table, limiter, etc.)
+
+  end subroutine setup_inline_source_controls
+
+!------------------------------------------------------------------------
+
+  subroutine setup_rate_source_control(source_json, cell_sources, &
+       source_controls)
+    !! Set up rate source control.
+
+    use interpolation_module, only: interpolation_type_from_str, &
+         averaging_type_from_str
+    use utils_module, only: str_to_lower
 
     type(fson_value), pointer, intent(in) :: source_json
     type(list_type), intent(in out) :: cell_sources
@@ -247,8 +266,14 @@ contains
     type(source_control_rate_table_type), pointer :: rate_control
     PetscInt :: rate_type, interpolation_type, averaging_type
     PetscReal, allocatable :: rate_array(:,:)
-    PetscInt, parameter :: default_interpolation_type = INTERP_LINEAR
-    PetscInt, parameter :: default_averaging_type = INTERP_AVERAGING_INTEGRATE
+    PetscInt, parameter :: max_interpolation_str_length = 16
+    character(max_interpolation_str_length), parameter :: &
+         default_interpolation_str = "linear"
+    character(max_interpolation_str_length) :: interpolation_str
+    PetscInt, parameter :: max_averaging_str_length = 16
+    character(max_averaging_str_length), parameter :: &
+         default_averaging_str = "integrate"
+    character(max_averaging_str_length) :: averaging_str
 
     ! Rate table:
     if (fson_has_mpi(source_json, "rate")) then
@@ -256,10 +281,14 @@ contains
        if (rate_type == TYPE_ARRAY) then
 
           call fson_get_mpi(source_json, "rate", val = rate_array)
+
           call fson_get_mpi(source_json, "interpolation", &
-               default_interpolation_type, interpolation_type)
+               default_interpolation_str, interpolation_str)
+          interpolation_type = interpolation_type_from_str(interpolation_str)
+
           call fson_get_mpi(source_json, "averaging", &
-               default_averaging_type, averaging_type)
+               default_averaging_str, averaging_str)
+          averaging_type = averaging_type_from_str(averaging_str)
 
           allocate(source_control_rate_table_type :: rate_control)
           call rate_control%init()
@@ -271,9 +300,7 @@ contains
        end if
     end if
 
-    ! TODO: other inline controls (enthalpy table, limiter, etc.)
-
-  end subroutine setup_inline_source_controls
+  end subroutine setup_rate_source_control
 
 !------------------------------------------------------------------------
 

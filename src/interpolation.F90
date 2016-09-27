@@ -59,7 +59,46 @@ module interpolation_module
 
   end interface
 
+  public :: interpolation_type_from_str, averaging_type_from_str
+
 contains
+
+!------------------------------------------------------------------------
+
+  PetscInt function interpolation_type_from_str(str) result(interpolation_type)
+    !! Returns interpolation type from string specification.
+
+    use utils_module, only: str_to_lower
+
+    character(len = *), intent(in) :: str
+    select case (str_to_lower(str))
+    case ("linear")
+       interpolation_type = INTERP_LINEAR
+    case ("step")
+       interpolation_type = INTERP_STEP
+    case ("step_average")
+       interpolation_type = INTERP_STEP_AVERAGE
+    end select
+
+  end function interpolation_type_from_str
+
+!------------------------------------------------------------------------
+
+  PetscInt function averaging_type_from_str(str) result(averaging_type)
+    !! Returns averaging type from string specification.
+
+    use utils_module, only: str_to_lower
+
+    character(len = *), intent(in) :: str
+    select case (str_to_lower(str))
+    case ("endpoint")
+       averaging_type = INTERP_AVERAGING_ENDPOINT
+    case ("integrate")
+       averaging_type = INTERP_AVERAGING_INTEGRATE
+    end select
+
+  end function averaging_type_from_str
+
 
 !------------------------------------------------------------------------
 ! Interpolation functions:
