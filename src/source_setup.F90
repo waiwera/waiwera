@@ -3,11 +3,10 @@ module source_setup_module
 
   use kinds_module
   use fson
-  use fson_value_m, only: TYPE_REAL, TYPE_ARRAY
+  use fson_value_m, only: TYPE_INTEGER, TYPE_REAL, TYPE_ARRAY
   use fson_mpi_module
   use list_module
   use logfile_module
-  use mesh_module, only: cell_order_label_name
   use source_module
   use source_control_module
 
@@ -22,36 +21,39 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine setup_sources(json, dm, np, isothermal, sources_list, &
-       source_controls_list, logfile)
+  subroutine setup_sources(json, dm, np, isothermal, sources, &
+       source_controls, logfile)
     !! Sets up lists of sinks / sources and source controls.
+
+    use mesh_module, only: cell_order_label_name
+    use dm_utils_module, only: dm_order_local_index
 
     type(fson_value), pointer, intent(in) :: json !! JSON file object
     DM, intent(in) :: dm !! Mesh DM
     PetscInt, intent(in) :: np !! Number of primary variables
     PetscBool, intent(in) :: isothermal !! Whether EOS is isothermal
-    type(list_type), intent(in out) :: sources_list !! List of sources
-    type(list_type), intent(in out) :: source_controls_list !! List of source controls
+    type(list_type), intent(in out) :: sources !! List of sources
+    type(list_type), intent(in out) :: source_controls !! List of source controls
     type(logfile_type), intent(in out), optional :: logfile !! Logfile for log output
     ! Locals:
     PetscErrorCode :: ierr
-    PetscInt :: c, isrc, injection_component, production_component
+    PetscInt :: icell, c, isrc, cell_order
+    PetscInt :: injection_component, production_component
     type(fson_value), pointer :: sources_json, source_json
-    PetscInt :: num_sources, cell, num_cells, ghost
+    PetscInt :: num_sources, num_cells
     type(source_type), pointer :: source
-    class(source_control_type), pointer :: control
-    PetscInt, pointer :: cells(:)
     PetscReal :: rate, enthalpy
     character(max_source_name_length) :: name
     character(max_source_name_length) :: default_name = ""
-    IS :: cell_IS
     DMLabel :: ghost_label
     character(len=64) :: srcstr
     character(len=12) :: istr
     PetscBool :: can_inject
+    PetscInt, allocatable :: cells(:)
+    type(list_type) :: cell_sources
 
-    call sources_list%init(delete_deallocates = PETSC_TRUE)
-    call source_controls_list%init(delete_deallocates = PETSC_TRUE)
+    call sources%init(delete_deallocates = PETSC_TRUE)
+    call source_controls%init(delete_deallocates = PETSC_TRUE)
 
     if (fson_has_mpi(json, "source")) then
 
@@ -69,45 +71,36 @@ contains
           source_json => fson_value_get_mpi(sources_json, isrc)
 
           call fson_get_mpi(source_json, "name", default_name, name)
-          call fson_get_mpi(source_json, "cell", val = cell)
-
           call get_rate(source_json, rate, can_inject)
-
           call get_components(source_json, isothermal, np, srcstr, &
                injection_component, production_component, logfile)
-
           call get_enthalpy(source_json, isothermal, can_inject, &
                injection_component, np, srcstr, enthalpy, logfile)
 
-          call DMGetStratumIS(dm, cell_order_label_name, &
-               cell, cell_IS, ierr); CHKERRQ(ierr)
-          if (cell_IS /= 0) then
+          call get_cells(source_json, cells)
+          num_cells = size(cells)
+          call cell_sources%init()
 
-             call ISGetIndicesF90(cell_IS, cells, ierr); CHKERRQ(ierr)
-             num_cells = size(cells)
-             if ((num_cells > 1) .and. present(logfile)) then
-                call logfile%write(LOG_LEVEL_WARN, 'source', &
-                     'multiple cells found for source: ' // trim(name))
-             end if
+          do icell = 1, num_cells
 
-             c = cells(1)
-             call DMLabelGetValue(ghost_label, c, ghost, ierr)
-             CHKERRQ(ierr)
-             if (ghost < 0) then
+             cell_order = cells(icell)
+             c = dm_order_local_index(dm, cell_order, &
+                  cell_order_label_name, ghost_label)
+             if (c >= 0) then
                 allocate(source)
-                call source%init(cell, c, np, rate, enthalpy, &
+                call source%init(cell_order, c, np, rate, enthalpy, &
                      injection_component, production_component)
-                call sources_list%append(source, name)
+                call sources%append(source, name)
+                call cell_sources%append(source, name)
              end if
-             call ISRestoreIndicesF90(cell_IS, cells, ierr); CHKERRQ(ierr)
 
+          end do
+
+          if (cell_sources%count > 0) then
+             call setup_inline_source_controls(source_json, cell_sources, &
+                  source_controls)
           end if
-          call ISDestroy(cell_IS, ierr); CHKERRQ(ierr)
-
-          if (associated(source)) then
-             ! Set up any inline controls for this source:
-
-          end if
+          call cell_sources%destroy()
 
        end do
 
@@ -211,6 +204,76 @@ contains
     end if
 
   end subroutine get_enthalpy
+
+!------------------------------------------------------------------------
+
+  subroutine get_cells(source_json, cells)
+    !! Gets array of cell indices for the source. These are global
+    !! indices (i.e. natural orders).
+
+    type(fson_value), pointer, intent(in) :: source_json
+    PetscInt, allocatable, intent(out) :: cells(:)
+    ! Locals:
+    PetscInt :: cell_type, cell
+
+    if (fson_has_mpi(source_json, "cell")) then
+
+       cell_type = fson_type_mpi(source_json, "cell")
+
+       if (cell_type == TYPE_INTEGER) then
+          call fson_get_mpi(source_json, "cell", val = cell)
+          cells = [cell]
+       else if (cell_type == TYPE_ARRAY) then
+          call fson_get_mpi(source_json, "cell", val = cells)
+       end if
+
+    end if
+
+  end subroutine get_cells
+
+!------------------------------------------------------------------------
+
+  subroutine setup_inline_source_controls(source_json, cell_sources, &
+       source_controls)
+    !! Sets up any 'inline' source controls for the source,
+    !! i.e. controls defined implicitly in the specification of the source.
+
+    use interpolation_module, only: INTERP_LINEAR, INTERP_AVERAGING_INTEGRATE
+
+    type(fson_value), pointer, intent(in) :: source_json
+    type(list_type), intent(in out) :: cell_sources
+    type(list_type), intent(in out) :: source_controls
+    ! Locals:
+    type(source_control_rate_table_type), pointer :: rate_control
+    PetscInt :: rate_type, interpolation_type, averaging_type
+    PetscReal, allocatable :: rate_array(:,:)
+    PetscInt, parameter :: default_interpolation_type = INTERP_LINEAR
+    PetscInt, parameter :: default_averaging_type = INTERP_AVERAGING_INTEGRATE
+
+    ! Rate table:
+    if (fson_has_mpi(source_json, "rate")) then
+       rate_type = fson_type_mpi(source_json, "rate")
+       if (rate_type == TYPE_ARRAY) then
+
+          call fson_get_mpi(source_json, "rate", val = rate_array)
+          call fson_get_mpi(source_json, "interpolation", &
+               default_interpolation_type, interpolation_type)
+          call fson_get_mpi(source_json, "averaging", &
+               default_averaging_type, averaging_type)
+
+          allocate(source_control_rate_table_type :: rate_control)
+          call rate_control%init()
+          call rate_control%table%init(rate_array, interpolation_type, &
+               averaging_type)
+          call rate_control%sources%add(cell_sources)
+          call source_controls%append(rate_control)
+
+       end if
+    end if
+
+    ! TODO: other inline controls (enthalpy table, limiter, etc.)
+
+  end subroutine setup_inline_source_controls
 
 !------------------------------------------------------------------------
 
