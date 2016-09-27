@@ -96,10 +96,8 @@ contains
 
           end do
 
-          if (cell_sources%count > 0) then
-             call setup_inline_source_controls(source_json, cell_sources, &
+          call setup_inline_source_controls(source_json, cell_sources, &
                   source_controls)
-          end if
           call cell_sources%destroy()
 
        end do
@@ -290,12 +288,15 @@ contains
                default_averaging_str, averaging_str)
           averaging_type = averaging_type_from_str(averaging_str)
 
-          allocate(source_control_rate_table_type :: rate_control)
-          call rate_control%init()
-          call rate_control%table%init(rate_array, interpolation_type, &
-               averaging_type)
-          call rate_control%sources%add(cell_sources)
-          call source_controls%append(rate_control)
+          if (cell_sources%count > 0) then
+
+             allocate(source_control_rate_table_type :: rate_control)
+             call rate_control%init()
+             call rate_control%table%init(rate_array, interpolation_type, &
+                  averaging_type)
+             call rate_control%sources%add(cell_sources)
+             call source_controls%append(rate_control)
+          end if
 
        end if
     end if
