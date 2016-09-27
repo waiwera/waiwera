@@ -13,6 +13,7 @@ module dm_utils_module
   public :: dm_cell_normal_face
   public :: write_vec_vtk
   public :: vec_max_pointwise_abs_scale
+  public :: dm_order_local_index
 
 contains
 
@@ -376,6 +377,44 @@ contains
     call DMRestoreGlobalVector(dm, scaled_v, ierr); CHKERRQ(ierr)
 
   end subroutine vec_max_pointwise_abs_scale
+
+!------------------------------------------------------------------------
+
+  PetscInt function dm_order_local_index(dm, order, order_label_name, &
+       ghost_label) result(index)
+    !! Returns local index of mesh point with given order in DM.  It
+    !! is assumed that the order label values are unique. If no mesh
+    !! point that has the specified order, and is not a ghost, exists
+    !! on the current processor, a value of -1 is returned.
+
+    DM, intent(in) :: dm
+    PetscInt, intent(in) :: order
+    character(len = *), intent(in) :: order_label_name
+    DMLabel, intent(in) :: ghost_label
+    ! Locals:
+    IS :: order_IS
+    PetscInt, pointer :: order_indices(:)
+    PetscInt :: i, ghost
+    PetscErrorCode :: ierr
+
+    index = -1
+
+    call DMGetStratumIS(dm, order_label_name, order, order_IS, ierr); CHKERRQ(ierr)
+
+    if (order_IS /= 0) then
+
+       call ISGetIndicesF90(order_IS, order_indices, ierr); CHKERRQ(ierr)
+       i = order_indices(1)
+       call ISRestoreIndicesF90(order_IS, order_indices, ierr); CHKERRQ(ierr)
+
+       call DMLabelGetValue(ghost_label, i, ghost, ierr); CHKERRQ(ierr)
+       if (ghost < 0) then
+          index = i
+       end if
+
+    end if
+
+  end function dm_order_local_index
 
 !------------------------------------------------------------------------
 
