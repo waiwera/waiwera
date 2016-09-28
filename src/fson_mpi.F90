@@ -288,10 +288,11 @@ contains
                 key = path
              end if
              if (size(val) > 0) then
+                allocate(character(logfile%max_num_length) :: intstr)
                 write(intstr, logfile%int_format) val(1)
-                str = '[' // intstr // ',...]'
+                allocate(str, source = '[' // intstr // ',...]')
              else
-                str = '[]'
+                allocate(str, source = '[]')
              end if
              call logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
                   str_key = key, str_value = str)
@@ -331,10 +332,11 @@ contains
                 key = path
              end if
              if (size(val) > 0) then
+                allocate(character(logfile%max_num_length) :: realstr)
                 write(realstr, logfile%real_format) val(1)
-                str = '[' // realstr // ',...]'
+                allocate(str, source = '[' // realstr // ',...]')
              else
-                str = '[]'
+                allocate(str, source = '[]')
              end if
              call logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
                   str_key = key, str_value = str)
@@ -374,10 +376,11 @@ contains
                 key = path
              end if
              if (size(val) > 0) then
+                allocate(character(logfile%max_num_length) :: realstr)
                 write(realstr, logfile%real_format) val(1)
-                str = '[' // realstr // ',...]'
+                allocate(str, source = '[' // realstr // ',...]')
              else
-                str = '[]'
+                allocate(str, source = '[]')
              end if
              call logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
                   str_key = key, str_value = str)
@@ -401,7 +404,8 @@ contains
     character(len=*), intent(in), optional :: log_key
     ! Locals:
     type(fson_value), pointer :: p
-    character(:), allocatable :: logstr, str
+    character :: logstr
+    character(:), allocatable :: str
     character(max_log_key_length) :: key
 
     call fson_get(self, path, p)
@@ -418,9 +422,9 @@ contains
              end if
              if (size(val) > 0) then
                 write(logstr, '(L)') val(1)
-                str = '[' // logstr // ',...]'
+                allocate(str, source = '[' // logstr // ',...]')
              else
-                str = '[]'
+                allocate(str, source = '[]')
              end if
              call logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
                   str_key = key, str_value = str)
@@ -460,10 +464,11 @@ contains
                 key = path
              end if
              if (size(val) > 0) then
+                allocate(character(logfile%max_num_length) :: intstr)
                 write(intstr, logfile%int_format) val(1,1)
-                str = '[[' // intstr // ',...]]'
+                allocate(str, source = '[[' // intstr // ',...]]')
              else
-                str = '[]'
+                allocate(str, source = '[]')
              end if
              call logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
                   str_key = key, str_value = str)
@@ -503,10 +508,11 @@ contains
                 key = path
              end if
              if (size(val) > 0) then
+                allocate(character(logfile%max_num_length) :: realstr)
                 write(realstr, logfile%real_format) val(1,1)
-                str = '[[' // realstr // ',...]]'
+                allocate(str, source = '[[' // realstr // ',...]]')
              else
-                str = '[]'
+                allocate(str, source = '[]')
              end if
              call logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
                   str_key = key, str_value = str)
@@ -546,10 +552,11 @@ contains
                 key = path
              end if
              if (size(val) > 0) then
+                allocate(character(logfile%max_num_length) :: realstr)
                 write(realstr, logfile%real_format) val(1,1)
-                str = '[[' // realstr // ',...]]'
+                allocate(str, source = '[[' // realstr // ',...]]')
              else
-                str = '[]'
+                allocate(str, source = '[]')
              end if
              call logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
                   str_key = key, str_value = str)
@@ -573,7 +580,8 @@ contains
     character(len=*), intent(in), optional :: log_key
     ! Locals:
     type(fson_value), pointer :: p
-    character(:), allocatable :: logstr, str
+    character :: logstr
+    character(:), allocatable :: str
     character(max_log_key_length) :: key
 
     call fson_get(self, path, p)
@@ -590,9 +598,9 @@ contains
              end if
              if (size(val) > 0) then
                 write(logstr, '(L)') val(1,1)
-                str = '[[' // logstr // ',...]]'
+                allocate(str, source = '[[' // logstr // ',...]]')
              else
-                str = '[]'
+                allocate(str, source = '[]')
              end if
              call logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
                   str_key = key, str_value = str)
