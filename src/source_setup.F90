@@ -3,7 +3,7 @@ module source_setup_module
 
   use kinds_module
   use fson
-  use fson_value_m, only: TYPE_INTEGER, TYPE_REAL, TYPE_ARRAY
+  use fson_value_m, only: TYPE_INTEGER, TYPE_REAL, TYPE_ARRAY, TYPE_STRING
   use fson_mpi_module
   use list_module
   use logfile_module
@@ -145,6 +145,28 @@ contains
 
 !------------------------------------------------------------------------
 
+  PetscInt function get_component(source_json, eos, name) result(component)
+    !! Gets a specified component type for the source.
+
+    type(fson_value), pointer, intent(in) :: source_json
+    class(eos_type), intent(in) :: eos
+    character(len=*), intent(in) :: name
+    ! Locals:
+    character(max_component_name_length) :: component_str
+    PetscInt :: component_type
+
+    component_type = fson_type_mpi(source_json, name)
+    if (component_type == TYPE_INTEGER) then
+       call fson_get_mpi(source_json, name, val = component)
+    else if (component_type == TYPE_STRING) then
+       call fson_get_mpi(source_json, name, val = component_str)
+       component = eos%component_index(component_str)
+    end if
+
+  end function get_component
+
+!------------------------------------------------------------------------
+
   subroutine get_components(source_json, eos, srcstr, &
        injection_component, production_component, logfile)
     !! Gets injection and production components for the source.
@@ -156,27 +178,25 @@ contains
     PetscInt, intent(out) :: production_component
     type(logfile_type), intent(in out), optional :: logfile
 
-    associate(np => eos%num_primary_variables)
+    if (fson_has_mpi(source_json, "component")) then
+       injection_component = get_component(source_json, eos, &
+            "component")
+    else
+       injection_component = default_source_component
+    end if
 
-      call fson_get_mpi(source_json, "component", default_source_component, &
-           injection_component, logfile, trim(srcstr) // "component")
-
-      if (fson_has_mpi(source_json, "production_component")) then
-
-         call fson_get_mpi(source_json, "production_component", &
-              val = production_component)
-
-      else
-
+    if (fson_has_mpi(source_json, "production_component")) then
+       production_component = get_component(source_json, eos, &
+            "production_component")
+    else
+       associate(np => eos%num_primary_variables)
          if ((.not. eos%isothermal) .and. (injection_component == np)) then
             production_component = injection_component
          else
             production_component = default_source_production_component
          end if
-
-      end if
-
-    end associate
+       end associate
+    end if
 
   end subroutine get_components
 
