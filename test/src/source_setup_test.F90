@@ -5,7 +5,6 @@ module source_setup_test
   use kinds_module
   use mpi_module
   use fruit
-  use eos_module
   use source_setup_module
   use eos_test
 
@@ -30,6 +29,7 @@ contains
     use list_module
     use source_module
     use IAPWS_module
+    use eos_module
 
     character(16), parameter :: path = "data/source/"
     type(IAPWS_type) :: thermo
@@ -50,8 +50,9 @@ contains
     call setup_sources(json, mesh%dm, eos, sources, source_controls)
 
     call sources%traverse(source_test_iterator)
-    call sources%destroy(source_list_node_data_destroy)
 
+    call sources%destroy(source_list_node_data_destroy)
+    call source_controls%destroy()
     call mesh%destroy()
     call eos%destroy()
     call thermo%destroy()
