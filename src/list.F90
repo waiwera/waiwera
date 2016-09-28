@@ -283,7 +283,7 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine list_traverse(self, iterator, backwards)
+  recursive subroutine list_traverse(self, iterator, backwards)
     !! Traverses the list, applying the iterator function to each
     !! node. If backwards is true, the list is traversed from tail to
     !! head, otherwise from head to tail.
@@ -319,7 +319,7 @@ contains
 
   end subroutine list_traverse
 
-  subroutine list_traverse_default(self, iterator)
+  recursive subroutine list_traverse_default(self, iterator)
     !! Traverses the list in the default forward direction.
 
     class(list_type), intent(in out) :: self
