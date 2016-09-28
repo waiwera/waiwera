@@ -1122,7 +1122,7 @@ end subroutine timestepper_steps_set_next_stepsize
     type(timestepper_solver_context_type), intent(in out) :: context
     PetscErrorCode :: ierr
 
-    if ((num_iterations > 0)) then
+    if (num_iterations > 0) then
        call context%ode%logfile%write(LOG_LEVEL_INFO, 'nonlinear_solver', &
             'iteration', ['count   ', 'cell    ', 'equation'], &
             [num_iterations, context%steps%current%max_residual_cell, &
