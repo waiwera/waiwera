@@ -717,6 +717,7 @@ end subroutine flow_simulation_run_info
       class is (source_control_type)
          call source_control%update(t, interval)
       end select
+      stopped = PETSC_FALSE
 
     end subroutine source_control_iterator
 
