@@ -65,9 +65,9 @@ contains
 
     if (mpi%rank == mpi%output_rank) then
     
-       filename = "model.h5"
-       expected_base = "model"
-       expected_ext = "h5"
+       allocate(filename, source = "model.h5")
+       allocate(expected_base, source = "model")
+       allocate(expected_ext, source = "h5")
        call split_filename(filename, base, ext)
        call assert_equals(expected_base, base, 'base ' // filename)
        call assert_equals(expected_ext, ext, 'extension ' // filename)
@@ -101,10 +101,10 @@ contains
 
     if (mpi%rank == mpi%output_rank) then
     
-       filename = "model.h5"
-       ext = "log"
-       expected_filename = "model.log"
-       new_filename = change_filename_extension(filename, ext)
+       allocate(filename, source = "model.h5")
+       allocate(ext, source = "log")
+       allocate(expected_filename, source = "model.log")
+       allocate(new_filename, source = change_filename_extension(filename, ext))
        call assert_equals(expected_filename, new_filename, 'filename')
 
        filename = "/path/to/model.json"

@@ -193,10 +193,10 @@ contains
     call self%logfile%destroy()
   end subroutine destroy_test_ode
 
-  subroutine lhs_test_ode(self, t, y, lhs, err)
+  subroutine lhs_test_ode(self, t, interval, y, lhs, err)
     ! Default identity LHS function.
     class(test_ode_type), intent(in out) :: self
-    PetscReal, intent(in) :: t
+    PetscReal, intent(in) :: t, interval(2)
     Vec, intent(in) :: y
     Vec, intent(out) :: lhs
     PetscErrorCode, intent(out) :: err
@@ -205,10 +205,10 @@ contains
     call VecCopy(y, lhs, ierr); CHKERRQ(ierr)
   end subroutine lhs_test_ode
 
-  subroutine rhs_test_ode(self, t, y, rhs, err)
+  subroutine rhs_test_ode(self, t, interval, y, rhs, err)
     ! Default zero RHS function.
     class(test_ode_type), intent(in out) :: self
-    PetscReal, intent(in) :: t
+    PetscReal, intent(in) :: t, interval(2)
     Vec, intent(in) :: y
     Vec, intent(out) :: rhs
     PetscErrorCode, intent(out) :: err
@@ -289,10 +289,10 @@ contains
 ! Specific test ode functions
 !------------------------------------------------------------------------
 
-  subroutine rhs_const(self, t, y, rhs, err)
+  subroutine rhs_const(self, t, interval, y, rhs, err)
     ! rhs(t, y) = k
     class(linear_ode_type), intent(in out) :: self
-    PetscReal, intent(in) :: t
+    PetscReal, intent(in) :: t, interval(2)
     Vec, intent(in) :: y
     Vec, intent(out) :: rhs
     PetscErrorCode, intent(out) :: err
@@ -313,10 +313,10 @@ contains
 
 !------------------------------------------------------------------------
   
-  subroutine rhs_linear(self, t, y, rhs, err)
+  subroutine rhs_linear(self, t, interval, y, rhs, err)
     ! rhs(t, y) = k * y
     class(exponential_ode_type), intent(in out) :: self
-    PetscReal, intent(in) :: t
+    PetscReal, intent(in) :: t, interval(2)
     Vec, intent(in) :: y
     Vec, intent(out) :: rhs
     PetscErrorCode, intent(out) :: err
@@ -340,10 +340,10 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine rhs_logistic(self, t, y, rhs, err)
+  subroutine rhs_logistic(self, t, interval, y, rhs, err)
     ! rhs(t, y) = (3 - 2 * y) * y
     class(logistic_ode_type), intent(in out) :: self
-    PetscReal, intent(in) :: t
+    PetscReal, intent(in) :: t, interval(2)
     Vec, intent(in) :: y
     Vec, intent(out) :: rhs
     PetscErrorCode, intent(out) :: err
@@ -377,10 +377,10 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine lhs_nontrivial_lhs(self, t, y, lhs, err)
+  subroutine lhs_nontrivial_lhs(self, t, interval, y, lhs, err)
     ! lhs(t, y) = t * y
     class(nontrivial_lhs_ode_type), intent(in out) :: self
-    PetscReal, intent(in) :: t
+    PetscReal, intent(in) :: t, interval(2)
     Vec, intent(in) :: y
     Vec, intent(out) :: lhs
     PetscErrorCode, intent(out) :: err
@@ -401,10 +401,10 @@ contains
 
 !------------------------------------------------------------------------
   
-  subroutine lhs_nonlinear_lhs(self, t, y, lhs, err)
+  subroutine lhs_nonlinear_lhs(self, t, interval, y, lhs, err)
     ! lhs(t, y) = y * (y - 2)
     class(nonlinear_lhs_ode_type), intent(in out) :: self
-    PetscReal, intent(in) :: t
+    PetscReal, intent(in) :: t, interval(2)
     Vec, intent(in) :: y
     Vec, intent(out) :: lhs
     PetscErrorCode, intent(out) :: err
@@ -415,10 +415,10 @@ contains
     call VecAXPY(lhs, -2._dp, y, ierr); CHKERRQ(ierr)
   end subroutine lhs_nonlinear_lhs
 
-  subroutine rhs_nonlinear_lhs(self, t, y, rhs, err)
+  subroutine rhs_nonlinear_lhs(self, t, interval, y, rhs, err)
     ! rhs(t, y) = k * (y - 1)
     class(nonlinear_lhs_ode_type), intent(in out) :: self
-    PetscReal, intent(in) :: t
+    PetscReal, intent(in) :: t, interval(2)
     Vec, intent(in) :: y
     Vec, intent(out) :: rhs
     PetscErrorCode, intent(out) :: err
@@ -513,10 +513,10 @@ contains
 
   end subroutine init_heat1d
 
-  subroutine rhs_heat1d(self, t, y, rhs, err)
+  subroutine rhs_heat1d(self, t, interval, y, rhs, err)
     ! rhs = d2y/dx2
     class(heat1d_ode_type), intent(in out) :: self
-    PetscReal, intent(in) :: t
+    PetscReal, intent(in) :: t, interval(2)
     Vec, intent(in) :: y
     Vec, intent(out) :: rhs
     PetscErrorCode, intent(out) :: err
@@ -564,10 +564,10 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine lhs_heat1d_nonlinear(self, t, y, lhs, err)
+  subroutine lhs_heat1d_nonlinear(self, t, interval, y, lhs, err)
     ! lhs = y * y
     class(heat1d_nonlinear_ode_type), intent(in out) :: self
-    PetscReal, intent(in) :: t
+    PetscReal, intent(in) :: t, interval(2)
     Vec, intent(in) :: y
     Vec, intent(out) :: lhs
     PetscErrorCode, intent(out) :: err
@@ -605,10 +605,10 @@ contains
 
   end subroutine lhs_heat1d_nonlinear
   
-  subroutine rhs_heat1d_nonlinear(self, t, y, rhs, err)
+  subroutine rhs_heat1d_nonlinear(self, t, interval, y, rhs, err)
     ! rhs = 2 * y * d2y/dx2
     class(heat1d_nonlinear_ode_type), intent(in out) :: self
-    PetscReal, intent(in) :: t
+    PetscReal, intent(in) :: t, interval(2)
     Vec, intent(in) :: y
     Vec, intent(out) :: rhs
     PetscErrorCode, intent(out) :: err
@@ -688,10 +688,10 @@ contains
     call VecScale(self%secondary, t, ierr); CHKERRQ(ierr)
   end subroutine calculate_secondary_pre_eval
 
-  subroutine lhs_pre_eval(self, t, y, lhs, err)
+  subroutine lhs_pre_eval(self, t, interval, y, lhs, err)
     ! lhs(t, y) = secondary
     class(pre_eval_ode_type), intent(in out) :: self
-    PetscReal, intent(in) :: t
+    PetscReal, intent(in) :: t, interval(2)
     Vec, intent(in) :: y
     Vec, intent(out) :: lhs
     PetscErrorCode, intent(out) :: err
@@ -711,10 +711,10 @@ contains
     call VecSet(self%solution, 0.5_dp, ierr); CHKERRQ(ierr)
   end subroutine set_initial_conditions_ss
 
-  subroutine rhs_ss(self, t, y, rhs, err)
+  subroutine rhs_ss(self, t, interval, y, rhs, err)
     ! rhs(t, y) = 1 - y * y
     class(ss_ode_type), intent(in out) :: self
-    PetscReal, intent(in) :: t
+    PetscReal, intent(in) :: t, interval(2)
     Vec, intent(in) :: y
     Vec, intent(out) :: rhs
     PetscErrorCode, intent(out) :: err

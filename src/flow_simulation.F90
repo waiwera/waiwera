@@ -31,6 +31,7 @@ module flow_simulation_module
      Vec, public :: last_timestep_fluid !! Fluid properties at previous timestep
      Vec, public :: last_iteration_fluid !! Fluid properties at previous nonlinear solver iteration
      type(list_type), public :: sources !! Source/sink terms
+     type(list_type), public :: source_controls !! Source/sink controls
      class(thermodynamics_type), allocatable, public :: thermo !! Fluid thermodynamic formulation
      class(eos_type), allocatable, public :: eos !! Fluid equation of state
      PetscReal, public :: gravity !! Acceleration of gravity (\(m.s^{-1}\))
@@ -323,7 +324,7 @@ end subroutine flow_simulation_run_info
     use initial_module, only: setup_initial
     use fluid_module, only: setup_fluid_vector
     use rock_module, only: setup_rock_vector, setup_rocktype_labels
-    use source_module, only: setup_sources
+    use source_setup_module, only: setup_sources
     use utils_module, only: date_time_str
     use profiling_module, only: simulation_init_event
 
@@ -390,7 +391,7 @@ end subroutine flow_simulation_run_info
          self%fluid_range_start, self%rock_range_start)
     call setup_sources(json, self%mesh%dm, &
          self%eos%num_primary_variables, self%eos%isothermal, &
-         self%sources, self%logfile)
+         self%sources, self%source_controls, self%logfile)
 
     call self%logfile%flush()
 
@@ -417,6 +418,7 @@ end subroutine flow_simulation_run_info
     call VecDestroy(self%last_timestep_fluid, ierr); CHKERRQ(ierr)
     call VecDestroy(self%last_iteration_fluid, ierr); CHKERRQ(ierr)
     call VecDestroy(self%rock, ierr); CHKERRQ(ierr)
+    call self%source_controls%destroy(source_control_list_node_data_destroy)
     call self%sources%destroy(source_list_node_data_destroy)
     call self%mesh%destroy()
     call self%thermo%destroy()
@@ -448,11 +450,24 @@ end subroutine flow_simulation_run_info
       end select
     end subroutine source_list_node_data_destroy
 
+    subroutine source_control_list_node_data_destroy(node)
+      ! Destroys source control in each list node.
+
+      use source_control_module, only: source_control_type
+
+      type(list_node_type), pointer, intent(in out) :: node
+
+      select type (source_control => node%data)
+      class is (source_control_type)
+         call source_control%destroy()
+      end select
+    end subroutine source_control_list_node_data_destroy
+
   end subroutine flow_simulation_destroy
 
 !------------------------------------------------------------------------
 
-  subroutine flow_simulation_cell_balances(self, t, y, lhs, err)
+  subroutine flow_simulation_cell_balances(self, t, interval, y, lhs, err)
     !! Computes mass and energy balance for each cell, for the given
     !! primary thermodynamic variables and time.
 
@@ -462,6 +477,7 @@ end subroutine flow_simulation_run_info
 
     class(flow_simulation_type), intent(in out) :: self
     PetscReal, intent(in) :: t !! time (s)
+    PetscReal, intent(in) :: interval(2) !! time interval bounds
     Vec, intent(in) :: y !! global primary variables vector
     Vec, intent(out) :: lhs
     PetscErrorCode, intent(out) :: err
@@ -525,7 +541,7 @@ end subroutine flow_simulation_run_info
 
 !------------------------------------------------------------------------
 
-  subroutine flow_simulation_cell_inflows(self, t, y, rhs, err)
+  subroutine flow_simulation_cell_inflows(self, t, interval, y, rhs, err)
     !! Computes net inflow (per unit volume) into each cell, from
     !! flows through faces and source terms, for the given primary
     !! thermodynamic variables and time.
@@ -535,10 +551,12 @@ end subroutine flow_simulation_run_info
     use cell_module, only: cell_type
     use face_module, only: face_type
     use source_module, only: source_type
+    use source_control_module, only: source_control_type
     use profiling_module, only: cell_inflows_event, sources_event
 
     class(flow_simulation_type), intent(in out) :: self
-    PetscReal, intent(in) :: t !! time
+    PetscReal, intent(in) :: t !! time (s)
+    PetscReal, intent(in) :: interval(2) !! time interval bounds
     Vec, intent(in) :: y !! global primary variables vector
     Vec, intent(out) :: rhs
     PetscErrorCode, intent(out) :: err
@@ -634,6 +652,7 @@ end subroutine flow_simulation_run_info
     ! Source / sink terms:
     call PetscLogEventBegin(sources_event, ierr); CHKERRQ(ierr)
     call cell%init(self%eos%num_components, self%eos%num_phases)
+    call self%source_controls%traverse(source_control_iterator)
     call self%sources%traverse(source_iterator)
     call PetscLogEventEnd(sources_event, ierr); CHKERRQ(ierr)
 
@@ -653,6 +672,7 @@ end subroutine flow_simulation_run_info
     subroutine source_iterator(node, stopped)
       !! Assembles source contribution from source list node to global
       !! RHS array.
+
       type(list_node_type), pointer, intent(in out) :: node
       PetscBool, intent(out) :: stopped
       ! Locals:
@@ -687,6 +707,19 @@ end subroutine flow_simulation_run_info
       stopped = PETSC_FALSE
 
     end subroutine source_iterator
+
+    subroutine source_control_iterator(node, stopped)
+      !! Applies source controls.
+
+      type(list_node_type), pointer, intent(in out) :: node
+      PetscBool, intent(out) :: stopped
+
+      select type (source_control => node%data)
+      class is (source_control_type)
+         call source_control%update(t, interval)
+      end select
+
+    end subroutine source_control_iterator
 
   end subroutine flow_simulation_cell_inflows
 
