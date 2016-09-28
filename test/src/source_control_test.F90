@@ -49,10 +49,10 @@ contains
 
     call setup_sources(json, mesh%dm, eos, sources, source_controls)
 
-    t = 0.5_dp
-    interval = [0._dp, t]
+    t = 2._dp
+    interval = [0.5_dp, t]
     call source_controls%traverse(source_control_iterator)
-    ! call sources%traverse(source_test_iterator)
+    call sources%traverse(source_test_iterator)
 
     call sources%destroy(source_list_node_data_destroy)
     call source_controls%destroy()
@@ -72,6 +72,23 @@ contains
       end select
       stopped = PETSC_FALSE
     end subroutine source_control_iterator
+
+    subroutine source_test_iterator(node, stopped)
+      type(list_node_type), pointer, intent(in out) :: node
+      PetscBool, intent(out) :: stopped
+      ! Locals:
+      PetscReal, parameter :: tol = 1.e-6_dp
+      select type (source => node%data)
+      class is (source_type)
+         select case (node%tag)
+         case ("rate table single source")
+            call assert_equals(-2.25_dp, source%rate, tol, node%tag)
+         case ("rate table 3 sources")
+            call assert_equals(2.25_dp, source%rate, tol, node%tag)
+         end select
+      end select
+      stopped = PETSC_FALSE
+    end subroutine source_test_iterator
 
     subroutine source_list_node_data_destroy(node)
       type(list_node_type), pointer, intent(in out) :: node
