@@ -8,6 +8,7 @@ digraph supermodel{
         eos_module -> logfile_module
         eos_module -> rock_module
         eos_module -> thermodynamics_module
+        eos_module -> utils_module
         rock_module -> dm_utils_module
         rock_module -> fson
         rock_module -> fson_mpi_module
