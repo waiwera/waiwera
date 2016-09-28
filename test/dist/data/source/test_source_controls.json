@@ -1,0 +1,13 @@
+{
+    "title": "Test source controls",
+    "mesh": "data/flow_simulation/mesh/3x3_2d.exo",
+    "source": [
+        {"name": "rate table source", "cell": 0,
+         "rate":[
+             [0., -1.],
+             [1., -2.],
+             [2.5, -3.5],
+             [4.2, -2.4]
+         ]}
+    ]
+}
