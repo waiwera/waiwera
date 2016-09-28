@@ -7,6 +7,7 @@ module source_setup_module
   use fson_mpi_module
   use list_module
   use logfile_module
+  use eos_module
   use source_module
   use source_control_module
 
@@ -21,8 +22,7 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine setup_sources(json, dm, np, isothermal, sources, &
-       source_controls, logfile)
+  subroutine setup_sources(json, dm, eos, sources, source_controls, logfile)
     !! Sets up lists of sinks / sources and source controls.
 
     use mesh_module, only: cell_order_label_name
@@ -30,13 +30,11 @@ contains
 
     type(fson_value), pointer, intent(in) :: json !! JSON file object
     DM, intent(in) :: dm !! Mesh DM
-    PetscInt, intent(in) :: np !! Number of primary variables
-    PetscBool, intent(in) :: isothermal !! Whether EOS is isothermal
+    class(eos_type), intent(in) :: eos
     type(list_type), intent(in out) :: sources !! List of sources
     type(list_type), intent(in out) :: source_controls !! List of source controls
     type(logfile_type), intent(in out), optional :: logfile !! Logfile for log output
     ! Locals:
-    PetscErrorCode :: ierr
     PetscInt :: icell, c, isrc, cell_order
     PetscInt :: injection_component, production_component
     type(fson_value), pointer :: sources_json, source_json
@@ -51,6 +49,7 @@ contains
     PetscBool :: can_inject
     PetscInt, allocatable :: cells(:)
     type(list_type) :: cell_sources
+    PetscErrorCode :: ierr
 
     call sources%init(delete_deallocates = PETSC_TRUE)
     call source_controls%init(delete_deallocates = PETSC_TRUE)
@@ -72,10 +71,10 @@ contains
 
           call fson_get_mpi(source_json, "name", default_name, name)
           call get_initial_rate(source_json, initial_rate, can_inject)
-          call get_components(source_json, isothermal, np, srcstr, &
+          call get_components(source_json, eos, srcstr, &
                injection_component, production_component, logfile)
-          call get_enthalpy(source_json, isothermal, can_inject, &
-               injection_component, np, srcstr, enthalpy, logfile)
+          call get_enthalpy(source_json, eos, srcstr, can_inject, &
+               injection_component, enthalpy, logfile)
 
           call get_cells(source_json, cells)
           num_cells = size(cells)
@@ -88,8 +87,9 @@ contains
                   cell_order_label_name, ghost_label)
              if (c >= 0) then
                 allocate(source)
-                call source%init(cell_order, c, np, initial_rate, enthalpy, &
-                     injection_component, production_component)
+                call source%init(cell_order, c, eos%num_primary_variables, &
+                     initial_rate, enthalpy, injection_component, &
+                     production_component)
                 call sources%append(source, name)
                 call cell_sources%append(source, name)
              end if
@@ -145,61 +145,68 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine get_components(source_json, isothermal, &
-       np, srcstr, injection_component, production_component, &
-       logfile)
+  subroutine get_components(source_json, eos, srcstr, &
+       injection_component, production_component, logfile)
     !! Gets injection and production components for the source.
 
     type(fson_value), pointer, intent(in) :: source_json
-    PetscBool, intent(in) :: isothermal
-    PetscInt, intent(in) :: np
+    class(eos_type), intent(in) :: eos
     character(len=*) :: srcstr
     PetscInt, intent(out) :: injection_component
     PetscInt, intent(out) :: production_component
     type(logfile_type), intent(in out), optional :: logfile
 
-    call fson_get_mpi(source_json, "component", default_source_component, &
-         injection_component, logfile, trim(srcstr) // "component")
+    associate(np => eos%num_primary_variables)
 
-    if (fson_has_mpi(source_json, "production_component")) then
+      call fson_get_mpi(source_json, "component", default_source_component, &
+           injection_component, logfile, trim(srcstr) // "component")
 
-       call fson_get_mpi(source_json, "production_component", &
-            val = production_component)
+      if (fson_has_mpi(source_json, "production_component")) then
 
-    else
+         call fson_get_mpi(source_json, "production_component", &
+              val = production_component)
 
-       if ((.not. isothermal) .and. (injection_component == np)) then
-          production_component = injection_component
-       else
-          production_component = default_source_production_component
-       end if
+      else
 
-    end if
+         if ((.not. eos%isothermal) .and. (injection_component == np)) then
+            production_component = injection_component
+         else
+            production_component = default_source_production_component
+         end if
+
+      end if
+
+    end associate
 
   end subroutine get_components
 
 !------------------------------------------------------------------------
 
-  subroutine get_enthalpy(source_json, isothermal, can_inject, &
-       injection_component, np, srcstr, enthalpy, logfile)
+  subroutine get_enthalpy(source_json, eos, srcstr, can_inject, &
+       injection_component, enthalpy, logfile)
     !! Gets production enthalpy for the source, if needed.
 
     type(fson_value), pointer, intent(in) :: source_json
-    PetscBool, intent(in) :: isothermal, can_inject
-    PetscInt, intent(in) :: injection_component, np
+    class(eos_type), intent(in) :: eos
+    PetscBool, intent(in) :: can_inject
+    PetscInt, intent(in) :: injection_component
     character(len=*) :: srcstr
     PetscReal, intent(out) :: enthalpy
     type(logfile_type), intent(in out), optional :: logfile
 
-    if (can_inject .and. (injection_component < np)) then
+    associate(np => eos%num_primary_variables)
 
-       call fson_get_mpi(source_json, "enthalpy", &
-            default_source_injection_enthalpy, &
-            enthalpy, logfile, trim(srcstr) // "enthalpy")
+      if (can_inject .and. (injection_component < np)) then
 
-    else
-       enthalpy = 0._dp
-    end if
+         call fson_get_mpi(source_json, "enthalpy", &
+              default_source_injection_enthalpy, &
+              enthalpy, logfile, trim(srcstr) // "enthalpy")
+
+      else
+         enthalpy = 0._dp
+      end if
+
+    end associate
 
   end subroutine get_enthalpy
 

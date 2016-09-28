@@ -389,8 +389,7 @@ end subroutine flow_simulation_run_info
     call self%mesh%set_boundary_values(self%solution, self%fluid, &
          self%rock, self%eos, self%solution_range_start, &
          self%fluid_range_start, self%rock_range_start)
-    call setup_sources(json, self%mesh%dm, &
-         self%eos%num_primary_variables, self%eos%isothermal, &
+    call setup_sources(json, self%mesh%dm, self%eos, &
          self%sources, self%source_controls, self%logfile)
 
     call self%logfile%flush()

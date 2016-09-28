@@ -66,6 +66,7 @@ digraph supermodel{
         fson_mpi_module -> logfile_module
         fson_mpi_module -> mpi_module
         source_setup_module -> dm_utils_module
+        source_setup_module -> eos_module
         source_setup_module -> fson
         source_setup_module -> fson_mpi_module
         source_setup_module -> fson_value_m
