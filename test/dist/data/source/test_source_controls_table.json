@@ -18,7 +18,7 @@
              [252.0, 2.4]
          ]},
         {"name": "enthalpy table", "cell": [2, 5],
-         "rate" : -10.0,
+         "rate" : 10.0,
          "averaging": "endpoint",
          "enthalpy":[
              [0., 83.e3],
