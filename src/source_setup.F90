@@ -51,8 +51,8 @@ contains
     type(list_type) :: cell_sources
     PetscErrorCode :: ierr
 
-    call sources%init(delete_deallocates = PETSC_TRUE)
-    call source_controls%init(delete_deallocates = PETSC_TRUE)
+    call sources%init(owner = PETSC_TRUE)
+    call source_controls%init(owner = PETSC_TRUE)
 
     if (fson_has_mpi(json, "source")) then
 

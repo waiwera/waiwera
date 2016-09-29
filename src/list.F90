@@ -19,7 +19,7 @@ module list_module
   type, public :: list_type
      !! Linked list type.
      private
-     PetscBool :: delete_deallocates !! Whether deleting a node also deallocates its data
+     PetscBool :: owner !! Whether the list 'owns' the data
      PetscInt, public :: count  !! Number of nodes in the list
      type(list_node_type), pointer, public :: head !! Node at start of list
      type(list_node_type), pointer, public :: tail !! Node at end of list
@@ -72,14 +72,14 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine list_init(self, delete_deallocates)
-    !! Initialises list, specifying whether deletion of nodes should
-    !! destroy (i.e. deallocate) their data.
+  subroutine list_init(self, owner)
+    !! Initialises list, specifying whether the list 'owns' the data,
+    !! i.e. whether the data should be destroyed when the list is destroyed.
     
     class(list_type), intent(in out) :: self
-    PetscBool, intent(in) :: delete_deallocates
+    PetscBool, intent(in) :: owner
 
-    self%delete_deallocates = delete_deallocates
+    self%owner = owner
     self%count = 0
     self%head => null()
     self%tail => null()
@@ -87,7 +87,7 @@ contains
   end subroutine list_init
 
   subroutine list_init_default(self)
-    !! Initialises list with default delete_deallocates = false.
+    !! Initialises list with default owner = false.
 
     class(list_type), intent(in out) :: self
 
@@ -201,7 +201,7 @@ contains
 !------------------------------------------------------------------------
 
   subroutine list_delete(self, node)
-    !! Deletes specified list node. If self%delete_deallocates is true,
+    !! Deletes specified list node. If self%owner is true,
     !! this will also deallocate the data in the node.
 
     class(list_type), intent(in out) :: self
@@ -211,7 +211,7 @@ contains
 
     if (associated(node)) then
 
-       if (self%delete_deallocates) then
+       if (self%owner) then
           deallocate(node%data)
        end if
 
@@ -250,7 +250,9 @@ contains
     type(list_node_type), pointer, intent(in out) :: node
     procedure(list_node_data_destroy_procedure) :: node_data_destroy_procedure
 
-    call node_data_destroy_procedure(node)
+    if (self%owner) then
+       call node_data_destroy_procedure(node)
+    end if
     call self%delete(node)
 
   end subroutine list_delete_destroy
