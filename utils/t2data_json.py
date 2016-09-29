@@ -181,6 +181,14 @@ class t2data_export_json(t2data):
         jsondata = {}
         component = {'MASS': 1, 'HEAT': 2, 'COM1': 1, 'COM2': 2, 'COM3': 3, 'COM4': 4,
                      'COM5': 5, 'WATE': 1, 'AIR ': 2, 'CO2 ': 2, 'TRAC': 2}
+        if self.parameter['option'][12] == 0:
+            interp_type, averaging_type = "linear", "endpoint"
+        elif self.parameter['option'][12] == 1:
+            interp_type, averaging_type = "step_average", "endpoint"
+        else:
+            # there are actually more subtleties here- differences
+            # between TOUGH2/ AUTOUGH2 etc. for MOP(12) >= 2.
+            interp_type, averaging_type = "linear", "integrate"
         if self.generatorlist:
             jsondata['source'] = []
             for gen in self.generatorlist:
@@ -191,6 +199,13 @@ class t2data_export_json(t2data):
                         g['component'] = component[gen.type]
                         if gen.type != 'HEAT': g['enthalpy'] = gen.ex
                     else: raise Exception('Generator type ' + gen.type + ' not supported.')
+                if gen.time:
+                    if gen.rate:
+                        g['rate'] = [list(r) for r in zip(gen.time, gen.rate)]
+                    if gen.enthalpy:
+                        g['enthalpy'] = [list(r) for r in zip(gen.time, gen.enthalpy)]
+                    g['interpolation'] = interp_type
+                    g['averaging'] = averaging_type
                 jsondata['source'].append(g)
         return jsondata
 
