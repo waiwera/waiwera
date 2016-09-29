@@ -55,7 +55,7 @@ contains
     call sources%traverse(source_test_iterator)
 
     call sources%destroy(source_list_node_data_destroy)
-    call source_controls%destroy()
+    call source_controls%destroy(source_control_list_node_data_destroy)
     call mesh%destroy()
     call eos%destroy()
     call thermo%destroy()
@@ -100,6 +100,14 @@ contains
          call source%destroy()
       end select
     end subroutine source_list_node_data_destroy
+
+     subroutine source_control_list_node_data_destroy(node)
+      type(list_node_type), pointer, intent(in out) :: node
+      select type (source_control => node%data)
+      class is (source_control_type)
+         call source_control%destroy()
+      end select
+    end subroutine source_control_list_node_data_destroy
 
   end subroutine test_source_control_table
 
