@@ -22,16 +22,30 @@ module source_control_module
      procedure(source_control_update_procedure), public, deferred :: update
   end type source_control_type
 
-  type, public, extends(source_control_type) :: source_control_rate_table_type
-     !! Controls source rate via a table of values vs. time.
+  type, abstract, extends(source_control_type) :: source_control_table_type
+     !! Controls a source parameter (e.g. rate or enthalpy) via a
+     !! table of values vs. time.
      private
-     type(interpolation_table_type), public :: table !! Table of flow rates vs. time
+     type(interpolation_table_type), public :: table !! Table of values vs. time
    contains
      private
-     procedure, public :: init => source_control_rate_table_init
-     procedure, public :: destroy => source_control_rate_table_destroy
+     procedure, public :: init => source_control_table_init
+     procedure, public :: destroy => source_control_table_destroy
+  end type source_control_table_type
+
+  type, public, extends(source_control_table_type) :: source_control_rate_table_type
+     !! Controls source rate via a table of values vs. time.
+   contains
+     private
      procedure, public :: update => source_control_rate_table_update
   end type source_control_rate_table_type
+
+  type, public, extends(source_control_table_type) :: source_control_enthalpy_table_type
+     !! Controls source injection enthalpy via a table of values vs. time.
+   contains
+     private
+     procedure, public :: update => source_control_enthalpy_table_update
+  end type source_control_enthalpy_table_type
 
   abstract interface
 
@@ -59,30 +73,32 @@ module source_control_module
 contains
 
 !------------------------------------------------------------------------
-! Source control rate table:
+! Source control table:
 !------------------------------------------------------------------------
 
-  subroutine source_control_rate_table_init(self)
-    !! Initialises source_control_rate_table object.
+  subroutine source_control_table_init(self)
+    !! Initialises source_control_table object.
 
-    class(source_control_rate_table_type), intent(in out) :: self
+    class(source_control_table_type), intent(in out) :: self
 
     call self%sources%init()
 
-  end subroutine source_control_rate_table_init
+  end subroutine source_control_table_init
 
 !------------------------------------------------------------------------
 
-  subroutine source_control_rate_table_destroy(self)
-    !! Destroys source_control_rate_table_type object.
+  subroutine source_control_table_destroy(self)
+    !! Destroys source_control_table_type object.
 
-    class(source_control_rate_table_type), intent(in out) :: self
+    class(source_control_table_type), intent(in out) :: self
 
     call self%table%destroy()
     call self%sources%destroy()
 
-  end subroutine source_control_rate_table_destroy
+  end subroutine source_control_table_destroy
 
+!------------------------------------------------------------------------
+! Source control rate table:
 !------------------------------------------------------------------------
 
   subroutine source_control_rate_table_update(self, t, interval)
@@ -110,6 +126,36 @@ contains
     end subroutine source_control_rate_table_update_iterator
 
   end subroutine source_control_rate_table_update
+
+!------------------------------------------------------------------------
+! Source control enthalpy table:
+!------------------------------------------------------------------------
+
+  subroutine source_control_enthalpy_table_update(self, t, interval)
+    !! Update injection enthalpy for source_control_enthalpy_table_type.
+
+    class(source_control_enthalpy_table_type), intent(in out) :: self
+    PetscReal, intent(in) :: t, interval(2)
+    ! Locals:
+    PetscReal :: enthalpy
+
+    enthalpy = self%table%average(interval)
+    call self%sources%traverse(source_control_enthalpy_table_update_iterator)
+
+  contains
+
+    subroutine source_control_enthalpy_table_update_iterator(node, stopped)
+      !! Sets source injection enthalpy at a list node.
+      type(list_node_type), pointer, intent(in out)  :: node
+      PetscBool, intent(out) :: stopped
+      select type (source => node%data)
+      type is (source_type)
+         source%injection_enthalpy = enthalpy
+      end select
+      stopped = PETSC_FALSE
+    end subroutine source_control_enthalpy_table_update_iterator
+
+  end subroutine source_control_enthalpy_table_update
 
 !------------------------------------------------------------------------
 

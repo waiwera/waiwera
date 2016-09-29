@@ -267,18 +267,16 @@ contains
     type(list_type), intent(in out) :: cell_sources
     type(list_type), intent(in out) :: source_controls
 
-    call setup_rate_source_control(source_json, cell_sources, &
+    call setup_table_source_control(source_json, cell_sources, &
          source_controls)
-
-    ! TODO: other inline controls (enthalpy table, limiter, etc.)
 
   end subroutine setup_inline_source_controls
 
 !------------------------------------------------------------------------
 
-  subroutine setup_rate_source_control(source_json, cell_sources, &
+  subroutine setup_table_source_control(source_json, cell_sources, &
        source_controls)
-    !! Set up rate source control.
+    !! Set up rate or enthalpy table source controls.
 
     use interpolation_module, only: interpolation_type_from_str, &
          averaging_type_from_str
@@ -289,8 +287,9 @@ contains
     type(list_type), intent(in out) :: source_controls
     ! Locals:
     type(source_control_rate_table_type), pointer :: rate_control
-    PetscInt :: rate_type, interpolation_type, averaging_type
-    PetscReal, allocatable :: rate_array(:,:)
+    type(source_control_enthalpy_table_type), pointer :: enthalpy_control
+    PetscInt :: variable_type, interpolation_type, averaging_type
+    PetscReal, allocatable :: data_array(:,:)
     PetscInt, parameter :: max_interpolation_str_length = 16
     character(max_interpolation_str_length), parameter :: &
          default_interpolation_str = "linear"
@@ -302,10 +301,10 @@ contains
 
     ! Rate table:
     if (fson_has_mpi(source_json, "rate")) then
-       rate_type = fson_type_mpi(source_json, "rate")
-       if (rate_type == TYPE_ARRAY) then
+       variable_type = fson_type_mpi(source_json, "rate")
+       if (variable_type == TYPE_ARRAY) then
 
-          call fson_get_mpi(source_json, "rate", val = rate_array)
+          call fson_get_mpi(source_json, "rate", val = data_array)
 
           call fson_get_mpi(source_json, "interpolation", &
                default_interpolation_str, interpolation_str)
@@ -319,16 +318,48 @@ contains
 
              allocate(source_control_rate_table_type :: rate_control)
              call rate_control%init()
-             call rate_control%table%init(rate_array, interpolation_type, &
+             call rate_control%table%init(data_array, interpolation_type, &
                   averaging_type)
              call rate_control%sources%add(cell_sources)
              call source_controls%append(rate_control)
           end if
 
+          deallocate(data_array)
+
        end if
     end if
 
-  end subroutine setup_rate_source_control
+    ! Enthalpy table:
+    if (fson_has_mpi(source_json, "enthalpy")) then
+       variable_type = fson_type_mpi(source_json, "enthalpy")
+       if (variable_type == TYPE_ARRAY) then
+
+          call fson_get_mpi(source_json, "enthalpy", val = data_array)
+
+          call fson_get_mpi(source_json, "interpolation", &
+               default_interpolation_str, interpolation_str)
+          interpolation_type = interpolation_type_from_str(interpolation_str)
+
+          call fson_get_mpi(source_json, "averaging", &
+               default_averaging_str, averaging_str)
+          averaging_type = averaging_type_from_str(averaging_str)
+
+          if (cell_sources%count > 0) then
+
+             allocate(source_control_enthalpy_table_type :: enthalpy_control)
+             call enthalpy_control%init()
+             call enthalpy_control%table%init(data_array, interpolation_type, &
+                  averaging_type)
+             call enthalpy_control%sources%add(cell_sources)
+             call source_controls%append(enthalpy_control)
+          end if
+
+          deallocate(data_array)
+
+       end if
+    end if
+
+  end subroutine setup_table_source_control
 
 !------------------------------------------------------------------------
 

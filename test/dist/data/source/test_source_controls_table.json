@@ -1,0 +1,30 @@
+{
+    "title": "Test table source controls",
+    "mesh": "data/flow_simulation/mesh/3x3_2d.exo",
+    "source": [
+        {"name": "rate table single source", "cell": 0,
+         "rate":[
+             [0.0, -1.0],
+             [60.0, -2.0],
+             [150.0, -3.5],
+             [252.0, -2.4]
+         ]},
+        {"name": "rate table 3 sources", "cell": [1, 6, 9],
+         "enthalpy": 83.93e3,
+         "rate":[
+             [0.0, 1.0],
+             [60.0, 2.0],
+             [150.0, 3.5],
+             [252.0, 2.4]
+         ]},
+        {"name": "enthalpy table", "cell": [2, 5],
+         "rate" : -10.0,
+         "averaging": "endpoint",
+         "enthalpy":[
+             [0., 83.e3],
+             [60., 105.e3],
+             [150., 120.e3],
+             [252., 135.e3]
+         ]}
+    ]
+}
