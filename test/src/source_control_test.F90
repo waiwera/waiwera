@@ -36,6 +36,7 @@ contains
     type(fson_value), pointer :: json
     type(mesh_type) :: mesh
     type(list_type) :: sources, source_controls
+    PetscInt :: num_sources
     PetscReal :: t, interval(2)
     PetscErrorCode :: ierr
 
@@ -48,6 +49,12 @@ contains
     call mesh%configure(eos%primary_variable_names)
 
     call setup_sources(json, mesh%dm, eos, sources, source_controls)
+
+    call MPI_reduce(sources%count, num_sources, 1, MPI_INTEGER, MPI_SUM, &
+         mpi%input_rank, mpi%comm, ierr)
+    if (mpi%rank == mpi%input_rank) then
+      call assert_equals(6, num_sources, "number of sources")
+    end if
 
     t = 120._dp
     interval = [30._dp, t]

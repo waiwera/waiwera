@@ -37,6 +37,7 @@ contains
     type(fson_value), pointer :: json
     type(mesh_type) :: mesh
     type(list_type) :: sources, source_controls
+    PetscInt :: expected_num_sources, num_sources
     PetscErrorCode :: ierr
 
     json => fson_parse_mpi(trim(path) // "test_source.json")
@@ -48,6 +49,13 @@ contains
     call mesh%configure(eos%primary_variable_names)
 
     call setup_sources(json, mesh%dm, eos, sources, source_controls)
+
+    expected_num_sources = fson_value_count_mpi(json, "source")
+    call MPI_reduce(sources%count, num_sources, 1, MPI_INTEGER, MPI_SUM, &
+         mpi%input_rank, mpi%comm, ierr)
+    if (mpi%rank == mpi%input_rank) then
+      call assert_equals(expected_num_sources, num_sources, "number of sources")
+    end if
 
     call sources%traverse(source_test_iterator)
 
