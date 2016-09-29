@@ -221,6 +221,7 @@ contains
        node%data => null()
        node%next => null()
        node%previous => null()
+       if (allocated(node%tag)) deallocate(node%tag)
        deallocate(node)
        node => null()
 
