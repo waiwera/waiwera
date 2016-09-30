@@ -3,8 +3,8 @@
     "mesh": "data/flow_simulation/mesh/3x3_2d.exo",
     "source": [
         {"name": "mass injection 1", "cell": 0, "rate": 10.,   "enthalpy": 90.e3},
-        {"name": "mass injection 2", "cell": 1, "component": 2, "rate": 5.,    "enthalpy": 100.e3},
-        {"name": "heat injection", "cell": 2, "component": "energy", "rate": 1000.},
+        {"name": "mass injection 2", "cells": 1, "component": 2, "rate": 5.,    "enthalpy": 100.e3},
+        {"name": "heat injection", "cells": [2], "component": "energy", "rate": 1000.},
         {"name": "mass component production", "cell": 3, "component": "water", "rate": -2.},
         {"name": "mass component production enthalpy", "cell": 4, "component": 1, "rate": -3.,  "enthalpy": 200.e3},
         {"name": "mass production", "cell": 5, "rate": -5.},

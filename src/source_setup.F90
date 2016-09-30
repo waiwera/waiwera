@@ -245,7 +245,10 @@ contains
 
   subroutine get_cells(source_json, cells)
     !! Gets array of cell indices for the source. These are global
-    !! indices (i.e. natural orders).
+    !! indices (i.e. natural orders).  The "cell" key can be used to
+    !! specify a single cell. The "cells" key can be used to specify
+    !! either a single cell or an array of cells. If both are present,
+    !! the "cells" key is used.
 
     type(fson_value), pointer, intent(in) :: source_json
     PetscInt, allocatable, intent(out) :: cells(:)
@@ -253,14 +256,19 @@ contains
     PetscInt :: cell_type, cell
 
     if (fson_has_mpi(source_json, "cell")) then
+       call fson_get_mpi(source_json, "cell", val = cell)
+       cells = [cell]
+    end if
 
-       cell_type = fson_type_mpi(source_json, "cell")
+    if (fson_has_mpi(source_json, "cells")) then
+
+       cell_type = fson_type_mpi(source_json, "cells")
 
        if (cell_type == TYPE_INTEGER) then
-          call fson_get_mpi(source_json, "cell", val = cell)
+          call fson_get_mpi(source_json, "cells", val = cell)
           cells = [cell]
        else if (cell_type == TYPE_ARRAY) then
-          call fson_get_mpi(source_json, "cell", val = cells)
+          call fson_get_mpi(source_json, "cells", val = cells)
        end if
 
     end if
