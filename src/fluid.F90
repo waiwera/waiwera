@@ -104,7 +104,7 @@ contains
 
   PetscReal function phase_mobility(self)
     !! Returns mobility of the phase:
-    !! mobility = \(k_r \rho / \nu \)
+    !! mobility = \(k_r \rho / \mu \)
 
     class(phase_type), intent(in) :: self
 
