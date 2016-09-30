@@ -76,8 +76,7 @@ contains
           call get_initial_enthalpy(source_json, eos, can_inject, &
                injection_component, initial_enthalpy)
 
-          call get_cells(source_json, cells)
-          num_cells = size(cells)
+          call get_cells(source_json, cells, num_cells)
           call cell_sources%init()
 
           do icell = 1, num_cells
@@ -243,7 +242,7 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine get_cells(source_json, cells)
+  subroutine get_cells(source_json, cells, num_cells)
     !! Gets array of cell indices for the source. These are global
     !! indices (i.e. natural orders).  The "cell" key can be used to
     !! specify a single cell. The "cells" key can be used to specify
@@ -252,6 +251,7 @@ contains
 
     type(fson_value), pointer, intent(in) :: source_json
     PetscInt, allocatable, intent(out) :: cells(:)
+    PetscInt, intent(out) :: num_cells
     ! Locals:
     PetscInt :: cell_type, cell
 
@@ -271,6 +271,12 @@ contains
           call fson_get_mpi(source_json, "cells", val = cells)
        end if
 
+    end if
+
+    if (allocated(cells)) then
+       num_cells = size(cells)
+    else
+       num_cells = 0
     end if
 
   end subroutine get_cells
