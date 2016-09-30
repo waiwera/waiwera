@@ -19,9 +19,8 @@ module interpolation_test
   PetscReal, parameter :: tol = 1.e-9_dp
 
   public :: test_interpolation_linear, test_interpolation_single, &
-       test_interpolation_step, test_interpolation_step_average, &
-       test_average_linear, test_average_step, &
-       test_average_step_average, test_average_linear_integration
+       test_interpolation_step, test_average_linear, test_average_step, &
+       test_average_linear_integration
 
 contains
 
@@ -124,38 +123,6 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine test_interpolation_step_average
-
-    ! Step average interpolation
-
-    type(interpolation_table_type) :: table
-
-    if (mpi%rank == mpi%output_rank) then
-
-       call table%init(data5, INTERP_STEP_AVERAGE)
-
-       call assert_equals(1._dp, table%interpolate(-0.5_dp), tol, "-0.5")
-
-       call assert_equals(1._dp, table%interpolate(0.0_dp), tol, "0.0")
-
-       call assert_equals(1.5_dp, table%interpolate(1.0_dp), tol, "1.0")
-
-       call assert_equals(-0.3_dp, table%interpolate(4.5_dp), tol, "4.5")
-
-       call assert_equals(1.25_dp, table%interpolate(3.6_dp), tol, "3.6")
-
-       call assert_equals(-0.6_dp, table%interpolate(6.3_dp), tol, "6.3")
-
-       call assert_equals(-0.1_dp, table%interpolate(10.0_dp), tol, "10.0")
-
-       call table%destroy()
-
-    end if
-
-  end subroutine test_interpolation_step_average
-
-!------------------------------------------------------------------------
-
   subroutine test_average_linear
 
     ! Linear interpolation average
@@ -218,40 +185,6 @@ contains
     end if
 
   end subroutine test_average_step
-
-!------------------------------------------------------------------------
-
-  subroutine test_average_step_average
-
-    ! Step average interpolation average
-
-    type(interpolation_table_type) :: table
-
-    if (mpi%rank == mpi%output_rank) then
-
-       call table%init(data5, INTERP_STEP_AVERAGE)
-
-       call assert_equals(1._dp, table%average([-0.5_dp, -0.1_dp]), tol, "[-0.5, -0.1]")
-
-       call assert_equals(1.25_dp, table%average([-0.5_dp, 0.1_dp]), tol, "[-0.5, 0.1]")
-
-       call assert_equals(1.5_dp, table%average([0.1_dp, 2._dp]), tol, "[0.1, 2.]")
-
-       call assert_equals(1.375_dp, table%average([0.1_dp, 3._dp]), tol, "[0.1, 3.]")
-
-       call assert_equals(0.325_dp, table%average([3.1_dp, 7._dp]), tol, "[3.1, 7.]")
-
-       call assert_equals(-0.35_dp, table%average([8._dp, 12._dp]), tol, "[8., 12.]")
-
-       call assert_equals(-0.1_dp, table%average([9._dp, 12._dp]), tol, "[9., 12.]")
-
-       call assert_equals(1.5_dp, table%average([1._dp, 1._dp]), tol, "[1., 1.]")
-
-       call table%destroy()
-
-    end if
-
-  end subroutine test_average_step_average
 
 !------------------------------------------------------------------------
 

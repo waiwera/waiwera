@@ -184,7 +184,7 @@ class t2data_export_json(t2data):
         if self.parameter['option'][12] == 0:
             interp_type, averaging_type = "linear", "endpoint"
         elif self.parameter['option'][12] == 1:
-            interp_type, averaging_type = "step_average", "endpoint"
+            interp_type, averaging_type = "step", "endpoint"
         else:
             # there are actually more subtleties here- differences
             # between TOUGH2/ AUTOUGH2 etc. for MOP(12) >= 2.

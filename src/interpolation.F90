@@ -9,8 +9,7 @@ module interpolation_module
 #include <petsc/finclude/petscdef.h>
 #include <petsc/finclude/petscsys.h>
 
-  PetscInt, parameter, public :: INTERP_LINEAR = 0, INTERP_STEP = 1, &
-       INTERP_STEP_AVERAGE = 2
+  PetscInt, parameter, public :: INTERP_LINEAR = 0, INTERP_STEP = 1
   PetscInt, parameter, public :: INTERP_AVERAGING_ENDPOINT = 0, &
        INTERP_AVERAGING_INTEGRATE = 1
 
@@ -76,8 +75,6 @@ contains
        interpolation_type = INTERP_LINEAR
     case ("step")
        interpolation_type = INTERP_STEP
-    case ("step_average")
-       interpolation_type = INTERP_STEP_AVERAGE
     end select
 
   end function interpolation_type_from_str
@@ -131,20 +128,6 @@ contains
     y = data(index, 2)
 
   end function interpolant_step
-
-!------------------------------------------------------------------------
-
-  PetscReal function interpolant_step_average(data, x, index) result(y)
-    !! Piecewise constant step interpolation function, with constant
-    !! value set to the average of the data values at index and index + 1.
-
-    PetscReal, intent(in) :: data(:,:)
-    PetscReal, intent(in) :: x
-    PetscInt, intent(in) :: index
-
-    y = 0.5_dp * (data(index, 2) + data(index + 1, 2))
-
-  end function interpolant_step_average
 
 !------------------------------------------------------------------------
 ! interpolation_table_type:  
@@ -205,8 +188,6 @@ contains
        self%interpolant => interpolant_linear
     case (INTERP_STEP)
        self%interpolant => interpolant_step
-    case (INTERP_STEP_AVERAGE)
-       self%interpolant => interpolant_step_average
     case default
        self%interpolant => interpolant_linear
     end select
