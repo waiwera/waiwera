@@ -174,27 +174,20 @@ contains
     !! Returns index of specified component name (or -1 if no such
     !! component exists).
 
-    use utils_module, only: str_to_lower
+    use utils_module, only: str_to_lower, str_array_index
 
     class(eos_type), intent(in) :: self
     character(len = *), intent(in) :: component_name
     ! Locals:
-    PetscInt :: i
     character(len = len(component_name)) :: lowercase_name
 
-    index = -1
     lowercase_name = str_to_lower(component_name)
 
     if ((trim(lowercase_name) == trim(energy_component_name)) .and. &
          (.not. self%isothermal)) then
        index = self%num_primary_variables
     else
-       do i = 1, self%num_components
-          if (trim(lowercase_name) == trim(self%component_names(i))) then
-             index = i
-             exit
-          end if
-       end do
+       index = str_array_index(lowercase_name, self%component_names)
     end if
 
   end function eos_component_index

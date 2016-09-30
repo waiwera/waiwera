@@ -13,7 +13,7 @@ module utils_test
 
   public :: test_str_to_upper, test_str_to_lower, &
        test_split_filename, test_change_filename_extension, &
-       test_int_str_len
+       test_int_str_len, test_str_array_index
 
 contains
 
@@ -141,6 +141,30 @@ contains
     end if
 
   end subroutine test_int_str_len
+
+!------------------------------------------------------------------------
+
+  subroutine test_str_array_index
+
+    ! Test str_array_index()
+
+    PetscInt, parameter :: strlen = 3
+    character(len = strlen) :: arr(3), str
+
+    if (mpi%rank == mpi%output_rank) then
+
+       arr = ["foo", "baz", "bar"]
+
+       str = "foo"
+       call assert_equals(1, str_array_index(str, arr), str)
+       str = "bar"
+       call assert_equals(3, str_array_index(str, arr), str)
+       str = "pog"
+       call assert_equals(-1, str_array_index(str, arr), str)
+
+    end if
+
+  end subroutine test_str_array_index
 
 !------------------------------------------------------------------------
 
