@@ -418,11 +418,11 @@ contains
 
        call fson_get_mpi(limiter_json, "type", default_limiter_type, &
             limiter_type_str, logfile, srcstr)
+       limiter_type_str = str_to_lower(limiter_type_str)
        if (limiter_type_str == "total") then
           phase = 0
        else
-          phase = str_array_index(str_to_lower(limiter_type_str), &
-               eos%phase_names)
+          phase = str_array_index(limiter_type_str, eos%phase_names)
        end if
 
        call fson_get_mpi(limiter_json, "limit", default_limiter_limit, &
