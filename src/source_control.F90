@@ -2,6 +2,7 @@ module source_control_module
   !! Module for source controls- for controlling source parameters (e.g. flow rate, enthalpy) over time.
 
   use kinds_module
+  use eos_module, only: max_phase_name_length
   use list_module
   use source_module
   use interpolation_module
@@ -10,6 +11,9 @@ module source_control_module
   private
 
 #include <petsc/finclude/petsc.h90>
+
+  character(max_phase_name_length), parameter, public :: default_limiter_type = "total"
+  PetscReal, parameter, public :: default_limiter_limit = 1._dp
 
   type, public, abstract :: source_control_type
      !! Abstract type for source control, controlling source
@@ -46,6 +50,18 @@ module source_control_module
      private
      procedure, public :: update => source_control_enthalpy_table_update
   end type source_control_enthalpy_table_type
+
+  type, public, extends(source_control_type) :: source_control_limiter_type
+     !! Limits flow in a particular phase (or total flow) through a source.
+     private
+     PetscInt, public :: phase !! Which phase is limited (0 for total)
+     PetscReal, public :: limit !! Flow limit
+   contains
+     private
+     procedure, public :: init => source_control_limiter_init
+     procedure, public :: destroy => source_control_limiter_destroy
+     procedure, public :: update => source_control_limiter_update
+  end type source_control_limiter_type
 
   abstract interface
 
@@ -156,6 +172,76 @@ contains
     end subroutine source_control_enthalpy_table_update_iterator
 
   end subroutine source_control_enthalpy_table_update
+
+!------------------------------------------------------------------------
+! Source control limiter:
+!------------------------------------------------------------------------
+
+  subroutine source_control_limiter_init(self)
+    !! Initialises source_control_limiter object.
+
+    class(source_control_limiter_type), intent(in out) :: self
+
+    call self%sources%init()
+
+  end subroutine source_control_limiter_init
+
+!------------------------------------------------------------------------
+
+  subroutine source_control_limiter_destroy(self)
+    !! Destroys source_control_limiter_type object.
+
+    class(source_control_limiter_type), intent(in out) :: self
+
+    call self%sources%destroy()
+
+  end subroutine source_control_limiter_destroy
+
+!------------------------------------------------------------------------
+
+  subroutine source_control_limiter_update(self, t, interval)
+    !! Update flow rate for source_control_limiter_type.
+
+    class(source_control_limiter_type), intent(in out) :: self
+    PetscReal, intent(in) :: t, interval(2)
+
+    call self%sources%traverse(source_control_limiter_update_iterator)
+
+  contains
+
+    subroutine source_control_limiter_update_iterator(node, stopped)
+      !! Limits source rate at a list node.
+
+      type(list_node_type), pointer, intent(in out)  :: node
+      PetscBool, intent(out) :: stopped
+      ! Locals:
+      PetscReal :: rate, scale
+      PetscReal, parameter :: small = 1.e-6_dp
+
+      select type (source => node%data)
+      type is (source_type)
+
+         scale = 1._dp
+
+         if (self%phase == 0) then ! Limit total flow:
+
+            rate = abs(source%rate)
+            if ((rate > self%limit) .and. (rate > small)) then
+               scale = self%limit / rate
+            end if
+
+         else
+            ! TODO: limit phase flow
+         end if
+
+         source%rate = source%rate * scale
+
+      end select
+      stopped = PETSC_FALSE
+
+    end subroutine source_control_limiter_update_iterator
+
+  end subroutine source_control_limiter_update
 
 !------------------------------------------------------------------------
 

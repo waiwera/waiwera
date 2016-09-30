@@ -70,7 +70,7 @@ contains
           source_json => fson_value_get_mpi(sources_json, isrc)
 
           call fson_get_mpi(source_json, "name", default_name, name)
-          call get_components(source_json, eos, srcstr, &
+          call get_components(source_json, eos, &
                injection_component, production_component, logfile)
           call get_initial_rate(source_json, initial_rate, can_inject)
           call get_initial_enthalpy(source_json, eos, can_inject, &
@@ -95,8 +95,8 @@ contains
 
           end do
 
-          call setup_inline_source_controls(source_json, cell_sources, &
-                  source_controls)
+          call setup_inline_source_controls(source_json, eos, srcstr, &
+               cell_sources, source_controls, logfile)
           call cell_sources%destroy()
 
        end do
@@ -133,13 +133,12 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine get_components(source_json, eos, srcstr, &
+  subroutine get_components(source_json, eos, &
        injection_component, production_component, logfile)
     !! Gets injection and production components for the source.
 
     type(fson_value), pointer, intent(in) :: source_json
     class(eos_type), intent(in) :: eos
-    character(len=*) :: srcstr
     PetscInt, intent(out) :: injection_component
     PetscInt, intent(out) :: production_component
     type(logfile_type), intent(in out), optional :: logfile
@@ -283,17 +282,23 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine setup_inline_source_controls(source_json, cell_sources, &
-       source_controls)
+  subroutine setup_inline_source_controls(source_json, eos, srcstr, &
+       cell_sources, source_controls, logfile)
     !! Sets up any 'inline' source controls for the source,
     !! i.e. controls defined implicitly in the specification of the source.
 
     type(fson_value), pointer, intent(in) :: source_json
+    class(eos_type), intent(in) :: eos
+    character(len = *), intent(in) :: srcstr
     type(list_type), intent(in out) :: cell_sources
     type(list_type), intent(in out) :: source_controls
+    type(logfile_type), intent(in out), optional :: logfile
 
     call setup_table_source_control(source_json, cell_sources, &
          source_controls)
+
+    call setup_limiter_source_control(source_json, eos, srcstr, &
+         cell_sources, source_controls, logfile)
 
   end subroutine setup_inline_source_controls
 
@@ -385,6 +390,54 @@ contains
     end if
 
   end subroutine setup_table_source_control
+
+!------------------------------------------------------------------------
+
+  subroutine setup_limiter_source_control(source_json, eos, srcstr, &
+       cell_sources, source_controls, logfile)
+    !! Set up limiter source control.
+
+    use utils_module, only: str_to_lower, str_array_index
+
+    type(fson_value), pointer, intent(in) :: source_json
+    class(eos_type), intent(in) :: eos
+    character(len=*) :: srcstr
+    type(list_type), intent(in out) :: cell_sources
+    type(list_type), intent(in out) :: source_controls
+    type(logfile_type), intent(in out), optional :: logfile
+    ! Locals:
+    type(fson_value), pointer :: limiter_json
+    character(max_phase_name_length) :: limiter_type_str
+    PetscInt :: phase
+    PetscReal :: limit
+    type(source_control_limiter_type), pointer :: limiter
+
+    if (fson_has_mpi(source_json, "limiter")) then
+
+       call fson_get_mpi(source_json, "limiter", limiter_json)
+
+       call fson_get_mpi(limiter_json, "type", default_limiter_type, &
+            limiter_type_str, logfile, srcstr)
+       if (limiter_type_str == "total") then
+          phase = 0
+       else
+          phase = str_array_index(str_to_lower(limiter_type_str), &
+               eos%phase_names)
+       end if
+
+       call fson_get_mpi(limiter_json, "limit", default_limiter_limit, &
+            limit, logfile, srcstr)
+
+       allocate(source_control_limiter_type :: limiter)
+       call limiter%init()
+       call limiter%sources%add(cell_sources)
+       limiter%phase = phase
+       limiter%limit = limit
+       call source_controls%append(limiter)
+
+    end if
+
+  end subroutine setup_limiter_source_control
 
 !------------------------------------------------------------------------
 
