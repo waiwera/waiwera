@@ -322,6 +322,7 @@ contains
       PetscBool, intent(out) :: stopped
       ! Locals:
       PetscReal :: rate, scale
+      PetscReal, allocatable :: phase_flow_fractions(:)
 
       select type (source => node%data)
       type is (source_type)
@@ -330,8 +331,11 @@ contains
             rate = abs(source%rate)
          else
             call source%update_fluid(fluid_data, fluid_section)
-            rate = source%phase_flow_fractions(self%phase) * &
+            allocate(phase_flow_fractions(source%fluid%num_phases))
+            phase_flow_fractions = source%fluid%phase_flow_fractions()
+            rate = phase_flow_fractions(self%phase) * &
                  abs(source%rate)
+            deallocate(phase_flow_fractions)
          end if
 
          scale = self%rate_scale(rate)

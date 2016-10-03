@@ -32,7 +32,6 @@ module source_module
      PetscReal, allocatable, public :: flow(:) !! Flows in each mass and energy component
      PetscReal, public :: enthalpy !! Enthalpy of produced or injected fluid
      type(fluid_type), public :: fluid !! Fluid properties in cell (for production)
-     PetscReal, public, allocatable :: phase_flow_fractions(:) !! Fluid phase flow fractions
      PetscBool :: fluid_updated !! Whether fluid has been updated
      PetscBool :: isothermal !! Whether equation of state is isothermal
    contains
@@ -76,7 +75,6 @@ contains
     self%cell_index = cell_index
     allocate(self%flow(eos%num_primary_variables))
     call self%fluid%init(eos%num_components, eos%num_phases)
-    allocate(self%phase_flow_fractions(eos%num_phases))
     self%fluid_updated = PETSC_FALSE
     self%isothermal = eos%isothermal
     self%rate = rate
@@ -93,7 +91,7 @@ contains
 
     class(source_type), intent(in out) :: self
 
-    deallocate(self%flow, self%phase_flow_fractions)
+    deallocate(self%flow)
     call self%fluid%destroy()
 
   end subroutine source_destroy
@@ -134,7 +132,6 @@ contains
     if (.not. self%fluid_updated) then
 
        call self%fluid%assign(fluid_data, fluid_offset)
-       self%phase_flow_fractions = self%fluid%phase_flow_fractions()
 
        self%fluid_updated = PETSC_TRUE
 
@@ -174,6 +171,8 @@ contains
     use fluid_module, only: fluid_type
 
     class(source_type), intent(in out) :: self
+    ! Locals:
+    PetscReal :: phase_flow_fractions(self%fluid%num_phases)
 
     if (self%production_component <= 0) then
        self%component = default_source_production_component
@@ -186,16 +185,17 @@ contains
     associate(np => size(self%flow), nc => self%fluid%num_components)
 
       if (self%component < np) then
+         phase_flow_fractions = self%fluid%phase_flow_fractions()
          if (.not. self%isothermal) then
             self%enthalpy = self%fluid%specific_enthalpy( &
-                 self%phase_flow_fractions)
+                 phase_flow_fractions)
          end if
       end if
       
       if (self%component <= 0) then
          ! distribute production over all mass components:
          self%flow(1: nc) = self%rate * &
-              self%fluid%component_flow_fractions(self%phase_flow_fractions)
+              self%fluid%component_flow_fractions(phase_flow_fractions)
       else
          ! produce only specified mass or energy component:
          self%flow(self%component) = self%rate
