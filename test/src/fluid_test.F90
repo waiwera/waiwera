@@ -148,7 +148,7 @@ contains
 !------------------------------------------------------------------------
 
   subroutine test_fluid_enthalpy
-    ! Test fluid flow_fractions(), component_flow_fractions() and
+    ! Test fluid phase_flow_fractions(), component_flow_fractions() and
     ! specific_enthalpy()
 
     type(fluid_type) :: fluid
@@ -173,8 +173,8 @@ contains
 
        call fluid%assign(fluid_data, offset)
 
-       ff = fluid%flow_fractions()
-       call assert_equals(expected_ff, ff, num_phases, tol, "Fluid flow fractions")
+       ff = fluid%phase_flow_fractions()
+       call assert_equals(expected_ff, ff, num_phases, tol, "Fluid phase flow fractions")
 
        cff = fluid%component_flow_fractions(ff)
 

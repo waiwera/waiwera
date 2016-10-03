@@ -70,7 +70,7 @@ module fluid_module
      procedure, public :: destroy => fluid_destroy
      procedure, public :: component_density => fluid_component_density
      procedure, public :: energy => fluid_energy
-     procedure, public :: flow_fractions => fluid_flow_fractions
+     procedure, public :: phase_flow_fractions => fluid_phase_flow_fractions
      procedure, public :: component_flow_fractions => fluid_component_flow_fractions
      procedure, public :: specific_enthalpy => fluid_specific_enthalpy
      procedure, public :: update_phase_composition => &
@@ -239,7 +239,7 @@ contains
 
 !------------------------------------------------------------------------
 
-  function fluid_flow_fractions(self) result(f)
+  function fluid_phase_flow_fractions(self) result(f)
     !! Returns array containing the flow fractions for each
     !! phase. There are in proportion to the mobility of each phase,
     !! scaled to sum to 1.
@@ -259,17 +259,17 @@ contains
     end do
     f = f / sum(f)
 
-  end function fluid_flow_fractions
+  end function fluid_phase_flow_fractions
 
 !------------------------------------------------------------------------
 
-  function fluid_component_flow_fractions(self, flow_fractions) result(f)
+  function fluid_component_flow_fractions(self, phase_flow_fractions) result(f)
     !! Returns array containing the flow fractions for each
     !! component, given the array of phase flow fractions (calculated
     !! using the flow_fractions() method).
 
     class(fluid_type), intent(in) :: self
-    PetscReal, intent(in) :: flow_fractions(self%num_phases)
+    PetscReal, intent(in) :: phase_flow_fractions(self%num_phases)
     PetscReal :: f(self%num_components)
     ! Locals:
     PetscInt :: c, p, phases
@@ -279,7 +279,7 @@ contains
        f(c) = 0._dp
        do p = 1, self%num_phases
           if (btest(phases, p - 1)) then
-             f(c) = f(c) + flow_fractions(p) * self%phase(p)%mass_fraction(c)
+             f(c) = f(c) + phase_flow_fractions(p) * self%phase(p)%mass_fraction(c)
           end if
        end do
     end do
@@ -289,13 +289,13 @@ contains
 
 !------------------------------------------------------------------------
 
-  PetscReal function fluid_specific_enthalpy(self, flow_fractions) result(h)
+  PetscReal function fluid_specific_enthalpy(self, phase_flow_fractions) result(h)
     !! Returns total specific enthalpy, with contributions from all
     !! phases, given the array of phase flow fractions (calculated
     !! using the flow_fractions() method).
 
     class(fluid_type), intent(in) :: self
-    PetscReal, intent(in) :: flow_fractions(self%num_phases)
+    PetscReal, intent(in) :: phase_flow_fractions(self%num_phases)
     ! Locals:
     PetscInt :: p, phases
 
@@ -304,7 +304,7 @@ contains
     phases = nint(self%phase_composition)
     do p = 1, self%num_phases
        if (btest(phases, p - 1)) then
-          h = h + flow_fractions(p) * &
+          h = h + phase_flow_fractions(p) * &
                self%phase(p)%specific_enthalpy
        end if
     end do
