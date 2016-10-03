@@ -14,6 +14,8 @@ module source_control_module
 
   character(max_phase_name_length), parameter, public :: default_limiter_type = "total"
   PetscReal, parameter, public :: default_limiter_limit = 1._dp
+  PetscReal, parameter, public :: default_deliverability_productivity_index = 1.e-11_dp
+  PetscReal, parameter, public :: default_deliverability_bottomhole_pressure = 1.e5_dp
 
   type, public, abstract :: source_control_type
      !! Abstract type for source control, controlling source
@@ -50,6 +52,17 @@ module source_control_module
      private
      procedure, public :: update => source_control_enthalpy_table_update
   end type source_control_enthalpy_table_type
+
+  type, public, extends(source_control_type) :: source_control_deliverability_type
+     !! Controls a source on deliverability.
+     private
+     PetscReal, public :: productivity_index !! Productivity index
+     PetscReal, public :: bottomhole_pressure
+   contains
+     procedure, public :: init => source_control_deliverability_init
+     procedure, public :: destroy => source_control_deliverability_destroy
+     procedure, public :: update => source_control_deliverability_update
+  end type source_control_deliverability_type
 
   type, public, extends(source_control_type) :: source_control_limiter_type
      !! Limits flow in a particular phase (or total flow) through a source.
@@ -93,7 +106,7 @@ module source_control_module
 contains
 
 !------------------------------------------------------------------------
-! Source control table:
+! Table source control:
 !------------------------------------------------------------------------
 
   subroutine source_control_table_init(self)
@@ -118,7 +131,7 @@ contains
   end subroutine source_control_table_destroy
 
 !------------------------------------------------------------------------
-! Source control rate table:
+! Rate table source control:
 !------------------------------------------------------------------------
 
   subroutine source_control_rate_table_update(self, t, interval, &
@@ -151,7 +164,7 @@ contains
   end subroutine source_control_rate_table_update
 
 !------------------------------------------------------------------------
-! Source control enthalpy table:
+! Enthalpy table source control:
 !------------------------------------------------------------------------
 
   subroutine source_control_enthalpy_table_update(self, t, interval, &
@@ -184,7 +197,67 @@ contains
   end subroutine source_control_enthalpy_table_update
 
 !------------------------------------------------------------------------
-! Source control limiter:
+! Deliverability source control:
+!------------------------------------------------------------------------
+
+  subroutine source_control_deliverability_init(self)
+    !! Initialises source_control_deliverability object.
+
+    class(source_control_deliverability_type), intent(in out) :: self
+
+    call self%sources%init()
+
+  end subroutine source_control_deliverability_init
+
+!------------------------------------------------------------------------
+
+  subroutine source_control_deliverability_destroy(self)
+    !! Destroys source_control_deliverability object.
+
+    class(source_control_deliverability_type), intent(in out) :: self
+
+    call self%sources%destroy()
+
+  end subroutine source_control_deliverability_destroy
+
+!------------------------------------------------------------------------
+
+  subroutine source_control_deliverability_update(self, t, interval, &
+       fluid_data, fluid_section)
+    !! Update flow rate for source_control_deliverability_type.
+
+    class(source_control_deliverability_type), intent(in out) :: self
+    PetscReal, intent(in) :: t, interval(2)
+    PetscReal, pointer, contiguous, intent(in) :: fluid_data(:)
+    PetscSection, intent(in) :: fluid_section
+
+    call self%sources%traverse(source_control_deliverability_update_iterator)
+
+  contains
+
+    subroutine source_control_deliverability_update_iterator(node, stopped)
+      !! Applies deliverability control at a list node.
+      type(list_node_type), pointer, intent(in out)  :: node
+      PetscBool, intent(out) :: stopped
+
+      select type (source => node%data)
+      type is (source_type)
+
+         call source%update_fluid(fluid_data, fluid_section)
+
+         source%rate = self%productivity_index * (source%fluid%pressure - &
+              self%bottomhole_pressure)
+
+      end select
+
+      stopped = PETSC_FALSE
+
+    end subroutine source_control_deliverability_update_iterator
+
+  end subroutine source_control_deliverability_update
+
+!------------------------------------------------------------------------
+! Limiter source control:
 !------------------------------------------------------------------------
 
   subroutine source_control_limiter_init(self)

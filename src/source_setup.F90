@@ -297,6 +297,9 @@ contains
     call setup_table_source_control(source_json, cell_sources, &
          source_controls)
 
+    call setup_deliverability_source_control(source_json, srcstr, &
+         cell_sources, source_controls, logfile)
+
     call setup_limiter_source_control(source_json, eos, srcstr, &
          cell_sources, source_controls, logfile)
 
@@ -390,6 +393,45 @@ contains
     end if
 
   end subroutine setup_table_source_control
+
+!------------------------------------------------------------------------
+
+  subroutine setup_deliverability_source_control(source_json, srcstr, &
+       cell_sources, source_controls, logfile)
+    !! Set up deliverability source control.
+
+    type(fson_value), pointer, intent(in) :: source_json
+    character(len=*) :: srcstr
+    type(list_type), intent(in out) :: cell_sources
+    type(list_type), intent(in out) :: source_controls
+    type(logfile_type), intent(in out), optional :: logfile
+    ! Locals:
+    type(fson_value), pointer :: deliv_json
+    PetscReal :: productivity_index, bottomhole_pressure
+    type(source_control_deliverability_type), pointer :: deliv
+
+    if (fson_has_mpi(source_json, "deliverability")) then
+
+       call fson_get_mpi(source_json, "deliverability", deliv_json)
+
+       call fson_get_mpi(deliv_json, "productivity_index", &
+            default_deliverability_productivity_index, productivity_index, &
+            logfile, srcstr)
+
+       call fson_get_mpi(deliv_json, "bottomhole_pressure", &
+            default_deliverability_bottomhole_pressure, bottomhole_pressure, &
+            logfile, srcstr)
+
+       allocate(source_control_deliverability_type :: deliv)
+       call deliv%init()
+       call deliv%sources%add(cell_sources)
+       deliv%productivity_index = productivity_index
+       deliv%bottomhole_pressure = bottomhole_pressure
+       call source_controls%append(deliv)
+
+    end if
+
+  end subroutine setup_deliverability_source_control
 
 !------------------------------------------------------------------------
 
