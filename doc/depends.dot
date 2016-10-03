@@ -117,6 +117,8 @@ digraph supermodel{
         eos_w_module -> logfile_module
         eos_w_module -> rock_module
         eos_w_module -> thermodynamics_module
+        source_module -> dm_utils_module
+        source_module -> eos_module
         source_module -> fluid_module
         source_module -> kinds_module
         source_module -> list_module
@@ -148,6 +150,7 @@ digraph supermodel{
         timestepper_module -> ode_module
         timestepper_module -> utils_module
         logfile_module -> mpi_module
+        source_control_module -> eos_module
         source_control_module -> interpolation_module
         source_control_module -> kinds_module
         source_control_module -> list_module

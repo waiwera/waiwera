@@ -3,6 +3,7 @@ module source_module
 
   use kinds_module
   use list_module
+  use fluid_module
 
   implicit none
   private
@@ -30,13 +31,24 @@ module source_module
      PetscReal, public :: injection_enthalpy !! Enthalpy to apply for injection
      PetscReal, allocatable, public :: flow(:) !! Flows in each mass and energy component
      PetscReal, public :: enthalpy !! Enthalpy of produced or injected fluid
+     type(fluid_type), public :: fluid !! Fluid properties in cell (for production)
+     PetscReal, public, allocatable :: phase_flow_fractions(:) !! Fluid phase flow fractions
+     PetscBool :: fluid_updated !! Whether fluid has been updated
+     PetscBool :: isothermal !! Whether equation of state is isothermal
    contains
      private
      procedure :: update_injection_mass_flow => source_update_injection_mass_flow
      procedure :: update_production_mass_flow => source_update_production_mass_flow
      procedure :: update_energy_flow => source_update_energy_flow
      procedure, public :: init => source_init
-     procedure, public :: update_flow => source_update_flow
+     procedure :: source_update_fluid_section
+     procedure :: source_update_fluid
+     generic, public :: update_fluid => source_update_fluid_section, &
+          source_update_fluid
+     procedure :: source_update_flow_section
+     procedure :: source_update_flow_offset
+     generic, public :: update_flow => source_update_flow_section, &
+          source_update_flow_offset
      procedure, public :: destroy => source_destroy
   end type source_type
 
@@ -45,14 +57,16 @@ contains
 !------------------------------------------------------------------------
 
   subroutine source_init(self, cell_natural_index, cell_index, &
-       num_primary, rate, injection_enthalpy, &
+       eos, rate, injection_enthalpy, &
        injection_component, production_component)
     !! Initialises a source object.
+
+    use eos_module, only: eos_type
 
     class(source_type), intent(in out) :: self
     PetscInt, intent(in) :: cell_natural_index !! natural index of cell the source is in
     PetscInt, intent(in) :: cell_index !! local index of cell the source is in
-    PetscInt, intent(in) :: num_primary !! Number of primary variables
+    class(eos_type), intent(in) :: eos !! Equation of state
     PetscReal, intent(in) :: rate !! source flow rate
     PetscReal, intent(in) :: injection_enthalpy !! enthalpy for injection
     PetscInt, intent(in) :: injection_component !! mass (or energy) component for injection
@@ -60,7 +74,11 @@ contains
 
     self%cell_natural_index = cell_natural_index
     self%cell_index = cell_index
-    allocate(self%flow(num_primary))
+    allocate(self%flow(eos%num_primary_variables))
+    call self%fluid%init(eos%num_components, eos%num_phases)
+    allocate(self%phase_flow_fractions(eos%num_phases))
+    self%fluid_updated = PETSC_FALSE
+    self%isothermal = eos%isothermal
     self%rate = rate
     self%injection_enthalpy = injection_enthalpy
     self%injection_component = injection_component
@@ -75,18 +93,62 @@ contains
 
     class(source_type), intent(in out) :: self
 
-    deallocate(self%flow)
+    deallocate(self%flow, self%phase_flow_fractions)
+    call self%fluid%destroy()
 
   end subroutine source_destroy
 
 !------------------------------------------------------------------------
 
-  subroutine source_update_injection_mass_flow(self, isothermal)
+  subroutine source_update_fluid_section(self, fluid_data, fluid_section)
+    !! Updates fluid object from given data array and section, and
+    !! calculates the fluid phase flow fractions.
+
+    use dm_utils_module, only: section_offset
+
+    class(source_type), intent(in out) :: self
+    PetscReal, pointer, contiguous, intent(in) :: fluid_data(:)
+    PetscSection, intent(in) :: fluid_section
+    ! Locals:
+    PetscInt :: fluid_offset
+    PetscErrorCode :: ierr
+
+    if (.not. self%fluid_updated) then
+
+       call section_offset(fluid_section, self%cell_index, &
+            fluid_offset, ierr); CHKERRQ(ierr)
+       call self%update_fluid(fluid_data, fluid_offset)
+
+    end if
+
+  end subroutine source_update_fluid_section
+
+  subroutine source_update_fluid(self, fluid_data, fluid_offset)
+    !! Updates fluid object from given data array and offset, and
+    !! calculates the fluid phase flow fractions.
+
+    class(source_type), intent(in out) :: self
+    PetscReal, pointer, contiguous, intent(in) :: fluid_data(:)
+    PetscInt, intent(in) :: fluid_offset
+
+    if (.not. self%fluid_updated) then
+
+       call self%fluid%assign(fluid_data, fluid_offset)
+       self%phase_flow_fractions = self%fluid%phase_flow_fractions()
+
+       self%fluid_updated = PETSC_TRUE
+
+    end if
+
+  end subroutine source_update_fluid
+
+!------------------------------------------------------------------------
+
+  subroutine source_update_injection_mass_flow(self)
     !! Updates the mass components of the flow array (and the
     !! enthalpy) for injection. Only to be called if self%rate >= 0.
     
     class(source_type), intent(in out) :: self
-    PetscBool, intent(in) :: isothermal
 
     if (self%injection_component <= 0) then
        self%component = default_source_injection_component
@@ -104,17 +166,14 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine source_update_production_mass_flow(self, isothermal, fluid)
+  subroutine source_update_production_mass_flow(self)
     !! Updates the mass components of the flow array (and the
-    !! enthalpy) for production. Only to be called if self%rate < 0.
+    !! enthalpy) for production. Only to be called if self%rate <
+    !! 0. Should always be preceded by a call to update_fluid().
 
     use fluid_module, only: fluid_type
 
     class(source_type), intent(in out) :: self
-    PetscBool, intent(in) :: isothermal
-    type(fluid_type), intent(in) :: fluid
-    ! Locals:
-    PetscReal :: flow_fractions(fluid%num_phases)
 
     if (self%production_component <= 0) then
        self%component = default_source_production_component
@@ -124,19 +183,19 @@ contains
 
     self%flow = 0._dp
 
-    associate(np => size(self%flow), nc => fluid%num_components)
+    associate(np => size(self%flow), nc => self%fluid%num_components)
 
       if (self%component < np) then
-         flow_fractions = fluid%flow_fractions()
-         if (.not. isothermal) then
-            self%enthalpy = fluid%specific_enthalpy(flow_fractions)
+         if (.not. self%isothermal) then
+            self%enthalpy = self%fluid%specific_enthalpy( &
+                 self%phase_flow_fractions)
          end if
       end if
       
       if (self%component <= 0) then
          ! distribute production over all mass components:
          self%flow(1: nc) = self%rate * &
-              fluid%component_flow_fractions(flow_fractions)
+              self%fluid%component_flow_fractions(self%phase_flow_fractions)
       else
          ! produce only specified mass or energy component:
          self%flow(self%component) = self%rate
@@ -163,27 +222,57 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine source_update_flow(self, fluid, isothermal)
+  subroutine source_update_flow_section(self, fluid_data, fluid_section)
     !! Updates the flow array, according to the source parameters and
     !! fluid conditions.
 
     use fluid_module, only: fluid_type
 
     class(source_type), intent(in out) :: self
-    type(fluid_type), intent(in) :: fluid
-    PetscBool, intent(in) :: isothermal
+    PetscReal, pointer, contiguous, intent(in) :: fluid_data(:)
+    PetscSection, intent(in) :: fluid_section
 
     if (self%rate >= 0._dp) then
-       call self%update_injection_mass_flow(isothermal)
+       call self%update_injection_mass_flow()
     else
-       call self%update_production_mass_flow(isothermal, fluid)
+       call self%update_fluid(fluid_data, fluid_section)
+       call self%update_production_mass_flow()
     end if
 
-    if (.not.(isothermal)) then
+    if (.not.(self%isothermal)) then
        call self%update_energy_flow()
     end if
 
-  end subroutine source_update_flow
+    self%fluid_updated = PETSC_FALSE
+
+  end subroutine source_update_flow_section
+
+  subroutine source_update_flow_offset(self, fluid_data, fluid_offset)
+    !! Updates the flow array, according to the source parameters and
+    !! fluid conditions. This overloaded version of the update_flow()
+    !! procedure, taking an offset rather than a section, is mainly
+    !! used for unit testing.
+
+    use fluid_module, only: fluid_type
+
+    class(source_type), intent(in out) :: self
+    PetscReal, pointer, contiguous, intent(in) :: fluid_data(:)
+    PetscInt, intent(in) :: fluid_offset
+
+    if (self%rate >= 0._dp) then
+       call self%update_injection_mass_flow()
+    else
+       call self%update_fluid(fluid_data, fluid_offset)
+       call self%update_production_mass_flow()
+    end if
+
+    if (.not.(self%isothermal)) then
+       call self%update_energy_flow()
+    end if
+
+    self%fluid_updated = PETSC_FALSE
+
+  end subroutine source_update_flow_offset
 
 !------------------------------------------------------------------------
 

@@ -28,7 +28,10 @@ contains
     use mesh_module
     use list_module
     use IAPWS_module
+    use eos_module, only: max_component_name_length, max_phase_name_length
     use eos_test
+    use fluid_module, only: setup_fluid_vector
+    use dm_utils_module, only: global_to_local_vec_section, restore_dm_local_vec
 
     character(16), parameter :: path = "data/source/"
     type(IAPWS_type) :: thermo
@@ -36,7 +39,10 @@ contains
     type(fson_value), pointer :: json
     type(mesh_type) :: mesh
     type(list_type) :: sources, source_controls
-    PetscInt :: num_sources
+    Vec :: global_fluid, local_fluid
+    PetscReal, pointer, contiguous :: fluid_array(:)
+    PetscSection :: fluid_section
+    PetscInt :: num_sources, range_start
     PetscReal :: t, interval(2)
     PetscErrorCode :: ierr
 
@@ -47,6 +53,11 @@ contains
     call mesh%init(json)
     call DMCreateLabel(mesh%dm, open_boundary_label_name, ierr); CHKERRQ(ierr)
     call mesh%configure(eos%primary_variable_names)
+    call setup_fluid_vector(mesh%dm, max_component_name_length, &
+         eos%component_names, max_phase_name_length, eos%phase_names, &
+         global_fluid, range_start)
+    call global_to_local_vec_section(global_fluid, local_fluid, fluid_section)
+    call VecGetArrayReadF90(local_fluid, fluid_array, ierr); CHKERRQ(ierr)
 
     call setup_sources(json, mesh%dm, eos, sources, source_controls)
 
@@ -63,6 +74,10 @@ contains
 
     call sources%destroy(source_list_node_data_destroy)
     call source_controls%destroy(source_control_list_node_data_destroy)
+
+    call VecRestoreArrayReadF90(local_fluid, fluid_array, ierr); CHKERRQ(ierr)
+    call restore_dm_local_vec(local_fluid)
+    call VecDestroy(global_fluid, ierr); CHKERRQ(ierr)
     call mesh%destroy()
     call eos%destroy()
     call thermo%destroy()
@@ -75,7 +90,7 @@ contains
       PetscBool, intent(out) :: stopped
       select type (source_control => node%data)
       class is (source_control_type)
-         call source_control%update(t, interval)
+         call source_control%update(t, interval, fluid_array, fluid_section)
       end select
       stopped = PETSC_FALSE
     end subroutine source_control_iterator

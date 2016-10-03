@@ -86,9 +86,9 @@ contains
                   cell_order_label_name, ghost_label)
              if (c >= 0) then
                 allocate(source)
-                call source%init(cell_order, c, eos%num_primary_variables, &
-                     initial_rate, initial_enthalpy, injection_component, &
-                     production_component)
+                call source%init(cell_order, c, eos, &
+                     initial_rate, initial_enthalpy, &
+                     injection_component, production_component)
                 call sources%append(source, name)
                 call cell_sources%append(source, name)
              end if

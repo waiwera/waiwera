@@ -6,6 +6,7 @@ module source_test
   use mpi_module
   use fruit
   use source_module
+  use eos_test, only: eos_test_type
 
   implicit none
   private
@@ -21,20 +22,25 @@ contains
   subroutine test_source_update_flow
     ! update_flow() test
 
+    use fson
     use fluid_module, only: fluid_type
+    use IAPWS_module, only: IAPWS_type
 
     type(source_type) :: source
     type(fluid_type) :: fluid
-    PetscBool :: isothermal = PETSC_FALSE
-    PetscInt, parameter :: num_components = 2, num_phases = 2
-    PetscInt, parameter :: num_primary = num_components + 1
+    type(fson_value), pointer :: json
+    type(IAPWS_type) :: thermo
+    type(eos_test_type) :: eos
     PetscInt, parameter :: offset = 1
     PetscReal, pointer, contiguous :: fluid_data(:)
     PetscReal, parameter :: tol = 1.e-6_dp
 
     if (mpi%rank == mpi%output_rank) then
 
-       call fluid%init(num_components, num_phases)
+       json => fson_parse(str = "{}")
+       call thermo%init()
+       call eos%init(json, thermo)
+       call fluid%init(eos%num_components, eos%num_phases)
 
        allocate(fluid_data(offset - 1 + fluid%dof))
        fluid_data = [2.7e5_dp, 130._dp, 4._dp, 3._dp, &
@@ -66,6 +72,9 @@ contains
 
        call fluid%destroy()
        deallocate(fluid_data)
+       call eos%destroy()
+       call thermo%destroy()
+       call fson_destroy(json)
 
     end if
 
@@ -80,11 +89,11 @@ contains
       PetscInt, intent(in) :: injection_component, production_component
       PetscReal, intent(in) :: flow(:)
 
-      call source%init(0, 0, num_primary, rate, enthalpy, &
+      call source%init(0, 0, eos, rate, enthalpy, &
            injection_component, production_component)
-      call source%update_flow(fluid, isothermal)
+      call source%update_flow(fluid_data, offset)
       call assert_equals(flow, source%flow, &
-           num_primary, tol, "Source update_flow() " // trim(tag))
+           eos%num_primary_variables, tol, "Source update_flow() " // trim(tag))
       call source%destroy()
 
     end subroutine source_flow_test

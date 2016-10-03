@@ -77,11 +77,14 @@ module source_control_module
        class(source_control_type), intent(in out) :: self
      end subroutine source_control_destroy_procedure
 
-     subroutine source_control_update_procedure(self, t, interval)
+     subroutine source_control_update_procedure(self, t, interval, &
+          fluid_data, fluid_section)
        !! Updates sources at the specified time.
        import :: source_control_type
        class(source_control_type), intent(in out) :: self
        PetscReal, intent(in) :: t, interval(2)
+       PetscReal, pointer, contiguous, intent(in) :: fluid_data(:)
+       PetscSection, intent(in) :: fluid_section
      end subroutine source_control_update_procedure
 
   end interface
@@ -117,11 +120,14 @@ contains
 ! Source control rate table:
 !------------------------------------------------------------------------
 
-  subroutine source_control_rate_table_update(self, t, interval)
+  subroutine source_control_rate_table_update(self, t, interval, &
+       fluid_data, fluid_section)
     !! Update flow rate for source_control_rate_table_type.
 
     class(source_control_rate_table_type), intent(in out) :: self
     PetscReal, intent(in) :: t, interval(2)
+    PetscReal, pointer, contiguous, intent(in) :: fluid_data(:)
+    PetscSection, intent(in) :: fluid_section
     ! Locals:
     PetscReal :: rate
 
@@ -147,11 +153,14 @@ contains
 ! Source control enthalpy table:
 !------------------------------------------------------------------------
 
-  subroutine source_control_enthalpy_table_update(self, t, interval)
+  subroutine source_control_enthalpy_table_update(self, t, interval, &
+       fluid_data, fluid_section)
     !! Update injection enthalpy for source_control_enthalpy_table_type.
 
     class(source_control_enthalpy_table_type), intent(in out) :: self
     PetscReal, intent(in) :: t, interval(2)
+    PetscReal, pointer, contiguous, intent(in) :: fluid_data(:)
+    PetscSection, intent(in) :: fluid_section
     ! Locals:
     PetscReal :: enthalpy
 
@@ -199,11 +208,14 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine source_control_limiter_update(self, t, interval)
+  subroutine source_control_limiter_update(self, t, interval, &
+       fluid_data, fluid_section)
     !! Update flow rate for source_control_limiter_type.
 
     class(source_control_limiter_type), intent(in out) :: self
     PetscReal, intent(in) :: t, interval(2)
+    PetscReal, pointer, contiguous, intent(in) :: fluid_data(:)
+    PetscSection, intent(in) :: fluid_section
 
     call self%sources%traverse(source_control_limiter_update_iterator)
 
@@ -221,22 +233,27 @@ contains
       select type (source => node%data)
       type is (source_type)
 
-         scale = 1._dp
-
          if (self%phase == 0) then ! Limit total flow:
 
             rate = abs(source%rate)
-            if ((rate > self%limit) .and. (rate > small)) then
-               scale = self%limit / rate
-            end if
 
+         else ! Limit phase flow:
+
+            call source%update_fluid(fluid_data, fluid_section)
+            rate = source%phase_flow_fractions(self%phase) * abs(source%rate)
+
+         end if
+
+         if ((rate > self%limit) .and. (rate > small)) then
+            scale = self%limit / rate
          else
-            ! TODO: limit phase flow
+            scale = 1._dp
          end if
 
          source%rate = source%rate * scale
 
       end select
+
       stopped = PETSC_FALSE
 
     end subroutine source_control_limiter_update_iterator

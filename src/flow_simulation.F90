@@ -572,7 +572,6 @@ end subroutine flow_simulation_run_info
     PetscInt :: face_geom_offset, cell_geom_offsets(2)
     PetscInt :: rock_offsets(2), fluid_offsets(2), rhs_offsets(2)
     PetscInt :: cell_geom_offset, rhs_offset
-    PetscInt :: fluid_offset
     PetscInt, pointer :: cells(:)
     PetscReal, pointer, contiguous :: inflow(:)
     PetscReal, allocatable :: face_flow(:)
@@ -668,6 +667,20 @@ end subroutine flow_simulation_run_info
 
   contains
 
+    subroutine source_control_iterator(node, stopped)
+      !! Applies source controls.
+
+      type(list_node_type), pointer, intent(in out) :: node
+      PetscBool, intent(out) :: stopped
+
+      select type (source_control => node%data)
+      class is (source_control_type)
+         call source_control%update(t, interval, fluid_array, fluid_section)
+      end select
+      stopped = PETSC_FALSE
+
+    end subroutine source_control_iterator
+
     subroutine source_iterator(node, stopped)
       !! Assembles source contribution from source list node to global
       !! RHS array.
@@ -692,11 +705,7 @@ end subroutine flow_simulation_run_info
                  cell_geom_offset, ierr); CHKERRQ(ierr)
             call cell%assign_geometry(cell_geom_array, cell_geom_offset)
 
-            call section_offset(fluid_section, c, &
-                 fluid_offset, ierr); CHKERRQ(ierr)
-            call cell%fluid%assign(fluid_array, fluid_offset)
-
-            call source%update_flow(cell%fluid, self%eos%isothermal)
+            call source%update_flow(fluid_array, fluid_section)
             inflow = inflow + source%flow / cell%volume
 
          end if
@@ -706,20 +715,6 @@ end subroutine flow_simulation_run_info
       stopped = PETSC_FALSE
 
     end subroutine source_iterator
-
-    subroutine source_control_iterator(node, stopped)
-      !! Applies source controls.
-
-      type(list_node_type), pointer, intent(in out) :: node
-      PetscBool, intent(out) :: stopped
-
-      select type (source_control => node%data)
-      class is (source_control_type)
-         call source_control%update(t, interval)
-      end select
-      stopped = PETSC_FALSE
-
-    end subroutine source_control_iterator
 
   end subroutine flow_simulation_cell_inflows
 
