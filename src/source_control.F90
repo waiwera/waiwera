@@ -58,6 +58,7 @@ module source_control_module
      PetscReal, public :: limit !! Flow limit
    contains
      private
+     procedure :: rate_scale => source_control_limiter_rate_scale
      procedure, public :: init => source_control_limiter_init
      procedure, public :: destroy => source_control_limiter_destroy
      procedure, public :: update => source_control_limiter_update
@@ -208,6 +209,26 @@ contains
 
 !------------------------------------------------------------------------
 
+  PetscReal function source_control_limiter_rate_scale(self, rate) &
+       result(scale)
+    !! Returns factor by which flow should be scaled to avoid
+    !! exceededing limit.
+
+    class(source_control_limiter_type), intent(in) :: self
+    PetscReal, intent(in) :: rate
+    ! Locals:
+    PetscReal, parameter :: small = 1.e-6_dp
+
+    if ((rate > self%limit) .and. (rate > small)) then
+       scale = self%limit / rate
+    else
+       scale = 1._dp
+    end if
+
+  end function source_control_limiter_rate_scale
+
+!------------------------------------------------------------------------
+
   subroutine source_control_limiter_update(self, t, interval, &
        fluid_data, fluid_section)
     !! Update flow rate for source_control_limiter_type.
@@ -228,28 +249,19 @@ contains
       PetscBool, intent(out) :: stopped
       ! Locals:
       PetscReal :: rate, scale
-      PetscReal, parameter :: small = 1.e-6_dp
 
       select type (source => node%data)
       type is (source_type)
 
          if (self%phase == 0) then ! Limit total flow:
-
             rate = abs(source%rate)
-
-         else ! Limit phase flow:
-
-            call source%update_fluid(fluid_data, fluid_section)
-            rate = source%phase_flow_fractions(self%phase) * abs(source%rate)
-
-         end if
-
-         if ((rate > self%limit) .and. (rate > small)) then
-            scale = self%limit / rate
          else
-            scale = 1._dp
+            call source%update_fluid(fluid_data, fluid_section)
+            rate = source%phase_flow_fractions(self%phase) * &
+                 abs(source%rate)
          end if
 
+         scale = self%rate_scale(rate)
          source%rate = source%rate * scale
 
       end select
