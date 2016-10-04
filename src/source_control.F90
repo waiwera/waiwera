@@ -83,7 +83,8 @@ module source_control_module
   end type source_control_separator_type
 
   type, public, extends(source_control_type) :: source_control_limiter_type
-     !! Limits flow in a particular phase (or total flow) through a source.
+     !! Limits total flow, or separated steam or water flow (output
+     !! from a separator) through a source.
      private
      type(list_type), public :: sources
      PetscInt, public :: phase !! Which phase is limited (0 for total)
@@ -368,13 +369,26 @@ contains
     PetscReal :: phase_flow_fractions(self%source%fluid%num_phases)
     PetscReal :: enthalpy, steam_fraction
 
-    call self%source%update_fluid(fluid_data, fluid_section)
-    phase_flow_fractions = self%source%fluid%phase_flow_fractions()
-    enthalpy = self%source%fluid%specific_enthalpy(phase_flow_fractions)
+    associate(np => size(self%source%flow))
 
-    steam_fraction = self%steam_fraction(enthalpy)
-    self%water_flow_rate = (1._dp - steam_fraction) * self%source%rate
-    self%steam_flow_rate = steam_fraction * self%source%rate
+      if ((self%source%rate < 0._dp) .and. (self%source%component < np)) then
+
+         call self%source%update_fluid(fluid_data, fluid_section)
+         phase_flow_fractions = self%source%fluid%phase_flow_fractions()
+         enthalpy = self%source%fluid%specific_enthalpy(phase_flow_fractions)
+
+         steam_fraction = self%steam_fraction(enthalpy)
+         self%water_flow_rate = (1._dp - steam_fraction) * self%source%rate
+         self%steam_flow_rate = steam_fraction * self%source%rate
+
+      else
+
+         self%water_flow_rate = 0._dp
+         self%steam_flow_rate = 0._dp
+
+      end if
+
+    end associate
 
   end subroutine source_control_separator_update
 
