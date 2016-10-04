@@ -3,6 +3,7 @@ module source_control_module
 
   use kinds_module
   use eos_module, only: max_phase_name_length
+  use thermodynamics_module
   use list_module
   use source_module
   use interpolation_module
@@ -21,7 +22,6 @@ module source_control_module
      !! Abstract type for source control, controlling source
      !! parameters over time, for one or more sources.
      private
-     type(list_type), public :: sources
    contains
      procedure(source_control_init_procedure), public, deferred :: init
      procedure(source_control_destroy_procedure), public, deferred :: destroy
@@ -32,6 +32,7 @@ module source_control_module
      !! Controls a source parameter (e.g. rate or enthalpy) via a
      !! table of values vs. time.
      private
+     type(list_type), public :: sources
      type(interpolation_table_type), public :: table !! Table of values vs. time
    contains
      private
@@ -56,6 +57,7 @@ module source_control_module
   type, public, extends(source_control_type) :: source_control_deliverability_type
      !! Controls a source on deliverability.
      private
+     type(list_type), public :: sources
      PetscReal, public :: productivity_index !! Productivity index
      PetscReal, public :: bottomhole_pressure
    contains
@@ -64,9 +66,27 @@ module source_control_module
      procedure, public :: update => source_control_deliverability_update
   end type source_control_deliverability_type
 
+  type, public, extends(source_control_type) :: source_control_separator_type
+     !! Takes flow from a single source and outputs water and steam flow.
+     private
+     type(source_type), pointer :: source
+     class(thermodynamics_type), pointer :: thermo
+     PetscReal, public :: separator_pressure !! Separator pressure
+     PetscReal :: water_enthalpy !! Enthalpy of water at separator pressure
+     PetscReal :: steam_enthalpy !! Enthalpy of steam at separator pressure
+     PetscReal, public :: water_flow_rate !! Output separated water flow rate
+     PetscReal, public :: steam_flow_rate !! Output separated steam flow rate
+   contains
+     procedure, public :: init => source_control_separator_init
+     procedure, public :: destroy => source_control_separator_destroy
+     procedure, public :: update => source_control_separator_update
+     procedure :: steam_fraction => source_control_separator_steam_fraction
+  end type source_control_separator_type
+
   type, public, extends(source_control_type) :: source_control_limiter_type
      !! Limits flow in a particular phase (or total flow) through a source.
      private
+     type(list_type), public :: sources
      PetscInt, public :: phase !! Which phase is limited (0 for total)
      PetscReal, public :: limit !! Flow limit
    contains
@@ -255,6 +275,95 @@ contains
     end subroutine source_control_deliverability_update_iterator
 
   end subroutine source_control_deliverability_update
+
+!------------------------------------------------------------------------
+! Separator source control:
+!------------------------------------------------------------------------
+
+  subroutine source_control_separator_init(self)
+    !! Initialises source_control_separator object.
+
+    class(source_control_separator_type), intent(in out) :: self
+    ! Locals:
+    PetscReal :: saturation_temperature
+    PetscReal :: params(2), water_props(2), steam_props(2)
+    PetscErrorCode :: err
+
+    call self%thermo%saturation%temperature(self%separator_pressure, &
+         saturation_temperature, err)
+    params = [self%separator_pressure, saturation_temperature]
+    call self%thermo%water%properties(params, water_props, err)
+    call self%thermo%steam%properties(params, steam_props, err)
+
+    associate(water_density => water_props(1), &
+         water_internal_energy => water_props(2), &
+         steam_density => steam_props(1), &
+         steam_internal_energy => steam_props(2))
+      self%water_enthalpy = water_internal_energy + &
+           self%separator_pressure / water_density
+      self%steam_enthalpy = steam_internal_energy + &
+           self%separator_pressure / steam_density
+    end associate
+
+  end subroutine source_control_separator_init
+
+!------------------------------------------------------------------------
+
+  subroutine source_control_separator_destroy(self)
+    !! Destroys source_control_separator object.
+
+    class(source_control_separator_type), intent(in out) :: self
+
+    self%source => null()
+    self%thermo => null()
+
+  end subroutine source_control_separator_destroy
+
+!------------------------------------------------------------------------
+
+  PetscReal function source_control_separator_steam_fraction(self, &
+       enthalpy) result(sf)
+    !! Returns steam fraction for given enthalpy, based on the
+    !! separator pressure.
+
+    class(source_control_separator_type), intent(in) :: self
+    PetscReal, intent(in) :: enthalpy
+
+    if (enthalpy <= self%water_enthalpy) then
+       sf = 0._dp
+    else if (enthalpy <= self%steam_enthalpy) then
+       sf = (enthalpy - self%water_enthalpy) / &
+            (self%steam_enthalpy - self%water_enthalpy)
+    else
+       sf = 1._dp
+    end if
+
+  end function source_control_separator_steam_fraction
+
+!------------------------------------------------------------------------
+
+  subroutine source_control_separator_update(self, t, interval, &
+       fluid_data, fluid_section)
+    !! Update separated water and steam flow rates for
+    !! source_control_separator_type.
+
+    class(source_control_separator_type), intent(in out) :: self
+    PetscReal, intent(in) :: t, interval(2)
+    PetscReal, pointer, contiguous, intent(in) :: fluid_data(:)
+    PetscSection, intent(in) :: fluid_section
+    ! Locals:
+    PetscReal :: phase_flow_fractions(self%source%fluid%num_phases)
+    PetscReal :: enthalpy, steam_fraction
+
+    call self%source%update_fluid(fluid_data, fluid_section)
+    phase_flow_fractions = self%source%fluid%phase_flow_fractions()
+    enthalpy = self%source%fluid%specific_enthalpy(phase_flow_fractions)
+
+    steam_fraction = self%steam_fraction(enthalpy)
+    self%water_flow_rate = (1._dp - steam_fraction) * self%source%rate
+    self%steam_flow_rate = steam_fraction * self%source%rate
+
+  end subroutine source_control_separator_update
 
 !------------------------------------------------------------------------
 ! Limiter source control:
