@@ -78,6 +78,7 @@ digraph supermodel{
         source_setup_module -> mesh_module
         source_setup_module -> source_control_module
         source_setup_module -> source_module
+        source_setup_module -> thermodynamics_module
         source_setup_module -> utils_module
         interpolation_module -> kinds_module
         interpolation_module -> utils_module
@@ -155,6 +156,7 @@ digraph supermodel{
         source_control_module -> kinds_module
         source_control_module -> list_module
         source_control_module -> source_module
+        source_control_module -> thermodynamics_module
         relative_permeability_module -> fson
         relative_permeability_module -> fson_mpi_module
         relative_permeability_module -> kinds_module
