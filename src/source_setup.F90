@@ -350,10 +350,8 @@ contains
           if (cell_sources%count > 0) then
 
              allocate(source_control_rate_table_type :: rate_control)
-             call rate_control%init()
-             call rate_control%table%init(data_array, interpolation_type, &
-                  averaging_type)
-             call rate_control%sources%add(cell_sources)
+             call rate_control%init(data_array, interpolation_type, &
+                  averaging_type, cell_sources)
              call source_controls%append(rate_control)
           end if
 
@@ -380,10 +378,8 @@ contains
           if (cell_sources%count > 0) then
 
              allocate(source_control_enthalpy_table_type :: enthalpy_control)
-             call enthalpy_control%init()
-             call enthalpy_control%table%init(data_array, interpolation_type, &
-                  averaging_type)
-             call enthalpy_control%sources%add(cell_sources)
+             call enthalpy_control%init(data_array, interpolation_type, &
+                  averaging_type, cell_sources)
              call source_controls%append(enthalpy_control)
           end if
 
@@ -423,10 +419,7 @@ contains
             logfile, srcstr)
 
        allocate(source_control_deliverability_type :: deliv)
-       call deliv%init()
-       call deliv%sources%add(cell_sources)
-       deliv%productivity_index = productivity_index
-       deliv%bottomhole_pressure = bottomhole_pressure
+       call deliv%init(productivity_index, bottomhole_pressure, cell_sources)
        call source_controls%append(deliv)
 
     end if
@@ -471,10 +464,7 @@ contains
             limit, logfile, srcstr)
 
        allocate(source_control_limiter_type :: limiter)
-       call limiter%init()
-       call limiter%sources%add(cell_sources)
-       limiter%phase = phase
-       limiter%limit = limit
+       call limiter%init(phase, limit, cell_sources)
        call source_controls%append(limiter)
 
     end if

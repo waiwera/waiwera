@@ -23,7 +23,6 @@ module source_control_module
      !! parameters over time, for one or more sources.
      private
    contains
-     procedure(source_control_init_procedure), public, deferred :: init
      procedure(source_control_destroy_procedure), public, deferred :: destroy
      procedure(source_control_update_procedure), public, deferred :: update
   end type source_control_type
@@ -129,12 +128,19 @@ contains
 ! Table source control:
 !------------------------------------------------------------------------
 
-  subroutine source_control_table_init(self)
+  subroutine source_control_table_init(self, data, interpolation_type, &
+       averaging_type, sources)
     !! Initialises source_control_table object.
 
     class(source_control_table_type), intent(in out) :: self
+    PetscReal, intent(in) :: data(:,:)
+    PetscInt, intent(in) :: interpolation_type
+    PetscInt, intent(in) :: averaging_type
+    type(list_type), intent(in out) :: sources
 
     call self%sources%init()
+    call self%table%init(data, interpolation_type, averaging_type)
+    call self%sources%add(sources)
 
   end subroutine source_control_table_init
 
@@ -220,12 +226,19 @@ contains
 ! Deliverability source control:
 !------------------------------------------------------------------------
 
-  subroutine source_control_deliverability_init(self)
+  subroutine source_control_deliverability_init(self, productivity_index, &
+       bottomhole_pressure, sources)
     !! Initialises source_control_deliverability object.
 
     class(source_control_deliverability_type), intent(in out) :: self
+    PetscReal, intent(in) :: productivity_index
+    PetscReal, intent(in) :: bottomhole_pressure
+    type(list_type), intent(in out) :: sources
 
     call self%sources%init()
+    call self%sources%add(sources)
+    self%productivity_index = productivity_index
+    self%bottomhole_pressure = bottomhole_pressure
 
   end subroutine source_control_deliverability_init
 
@@ -369,12 +382,18 @@ contains
 ! Limiter source control:
 !------------------------------------------------------------------------
 
-  subroutine source_control_limiter_init(self)
+  subroutine source_control_limiter_init(self, phase, limit, sources)
     !! Initialises source_control_limiter object.
 
     class(source_control_limiter_type), intent(in out) :: self
+    PetscInt, intent(in) :: phase
+    PetscReal, intent(in) :: limit
+    type(list_type), intent(in out) :: sources
 
     call self%sources%init()
+    call self%sources%add(sources)
+    self%phase = phase
+    self%limit = limit
 
   end subroutine source_control_limiter_init
 
