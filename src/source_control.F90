@@ -13,8 +13,13 @@ module source_control_module
 
 #include <petsc/finclude/petsc.h90>
 
-  character(max_phase_name_length), parameter, public :: default_limiter_type = "total"
-  PetscReal, parameter, public :: default_limiter_limit = 1._dp
+  PetscReal, parameter, public :: default_source_control_separator_pressure = 0.55e6_dp
+  PetscInt, parameter, public :: max_limiter_type_length = 5
+  character(max_limiter_type_length), parameter, public :: &
+       default_source_control_limiter_type_str = "total"
+  PetscInt, parameter, public :: SRC_CONTROL_LIMITER_TYPE_TOTAL = 1, &
+       SRC_CONTROL_LIMITER_TYPE_WATER = 2, SRC_CONTROL_LIMITER_TYPE_STEAM = 3
+  PetscReal, parameter, public :: default_source_control_limiter_limit = 1._dp
   PetscReal, parameter, public :: default_deliverability_productivity_index = 1.e-11_dp
   PetscReal, parameter, public :: default_deliverability_bottomhole_pressure = 1.e5_dp
 
@@ -87,7 +92,8 @@ module source_control_module
      !! from a separator) through a source.
      private
      type(list_type), public :: sources
-     PetscInt, public :: phase !! Which phase is limited (0 for total)
+     PetscReal, pointer, public :: rate !! Pointer to flow rate variable
+     PetscInt, public :: type !! Type of limiter (water, steam or total)
      PetscReal, public :: limit !! Flow limit
    contains
      private
@@ -294,14 +300,22 @@ contains
 ! Separator source control:
 !------------------------------------------------------------------------
 
-  subroutine source_control_separator_init(self)
+  subroutine source_control_separator_init(self, source, &
+       thermo, separator_pressure)
     !! Initialises source_control_separator object.
 
     class(source_control_separator_type), intent(in out) :: self
+    type(source_type), target, intent(in) :: source
+    class(thermodynamics_type), target, intent(in) :: thermo
+    PetscReal, intent(in) :: separator_pressure
     ! Locals:
     PetscReal :: saturation_temperature
     PetscReal :: params(2), water_props(2), steam_props(2)
     PetscErrorCode :: err
+
+    self%source => source
+    self%thermo => thermo
+    self%separator_pressure = separator_pressure
 
     call self%thermo%saturation%temperature(self%separator_pressure, &
          saturation_temperature, err)
@@ -396,17 +410,20 @@ contains
 ! Limiter source control:
 !------------------------------------------------------------------------
 
-  subroutine source_control_limiter_init(self, phase, limit, sources)
+  subroutine source_control_limiter_init(self, limiter_type, rate, &
+       limit, sources)
     !! Initialises source_control_limiter object.
 
     class(source_control_limiter_type), intent(in out) :: self
-    PetscInt, intent(in) :: phase
+    PetscInt, intent(in) :: limiter_type
+    PetscReal, target, intent(in) :: rate
     PetscReal, intent(in) :: limit
     type(list_type), intent(in out) :: sources
 
     call self%sources%init()
     call self%sources%add(sources)
-    self%phase = phase
+    self%type = limiter_type
+    self%rate => rate
     self%limit = limit
 
   end subroutine source_control_limiter_init
@@ -418,24 +435,24 @@ contains
 
     class(source_control_limiter_type), intent(in out) :: self
 
+    self%rate => null()
     call self%sources%destroy()
 
   end subroutine source_control_limiter_destroy
 
 !------------------------------------------------------------------------
 
-  PetscReal function source_control_limiter_rate_scale(self, rate) &
+  PetscReal function source_control_limiter_rate_scale(self) &
        result(scale)
     !! Returns factor by which flow should be scaled to avoid
     !! exceededing limit.
 
     class(source_control_limiter_type), intent(in) :: self
-    PetscReal, intent(in) :: rate
     ! Locals:
     PetscReal, parameter :: small = 1.e-6_dp
 
-    if ((rate > self%limit) .and. (rate > small)) then
-       scale = self%limit / rate
+    if ((self%rate > self%limit) .and. (self%rate > small)) then
+       scale = self%limit / self%rate
     else
        scale = 1._dp
     end if
@@ -452,7 +469,9 @@ contains
     PetscReal, intent(in) :: t, interval(2)
     PetscReal, pointer, contiguous, intent(in) :: fluid_data(:)
     PetscSection, intent(in) :: fluid_section
+    PetscReal :: scale
 
+    scale = self%rate_scale()
     call self%sources%traverse(source_control_limiter_update_iterator)
 
   contains
@@ -462,27 +481,10 @@ contains
 
       type(list_node_type), pointer, intent(in out)  :: node
       PetscBool, intent(out) :: stopped
-      ! Locals:
-      PetscReal :: rate, scale
-      PetscReal, allocatable :: phase_flow_fractions(:)
 
       select type (source => node%data)
       type is (source_type)
-
-         if (self%phase == 0) then ! Limit total flow:
-            rate = abs(source%rate)
-         else
-            call source%update_fluid(fluid_data, fluid_section)
-            allocate(phase_flow_fractions(source%fluid%num_phases))
-            phase_flow_fractions = source%fluid%phase_flow_fractions()
-            rate = phase_flow_fractions(self%phase) * &
-                 abs(source%rate)
-            deallocate(phase_flow_fractions)
-         end if
-
-         scale = self%rate_scale(rate)
          source%rate = source%rate * scale
-
       end select
 
       stopped = PETSC_FALSE

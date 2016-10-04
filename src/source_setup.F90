@@ -8,6 +8,7 @@ module source_setup_module
   use list_module
   use logfile_module
   use eos_module
+  use thermodynamics_module, only: thermodynamics_type
   use source_module
   use source_control_module
 
@@ -22,7 +23,8 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine setup_sources(json, dm, eos, sources, source_controls, logfile)
+  subroutine setup_sources(json, dm, eos, thermo, sources, &
+       source_controls, logfile)
     !! Sets up lists of sinks / sources and source controls.
 
     use mesh_module, only: cell_order_label_name
@@ -31,6 +33,7 @@ contains
     type(fson_value), pointer, intent(in) :: json !! JSON file object
     DM, intent(in) :: dm !! Mesh DM
     class(eos_type), intent(in) :: eos
+    class(thermodynamics_type), intent(in) :: thermo
     type(list_type), intent(in out) :: sources !! List of sources
     type(list_type), intent(in out) :: source_controls !! List of source controls
     type(logfile_type), intent(in out), optional :: logfile !! Logfile for log output
@@ -95,8 +98,8 @@ contains
 
           end do
 
-          call setup_inline_source_controls(source_json, eos, srcstr, &
-               cell_sources, source_controls, logfile)
+          call setup_inline_source_controls(source_json, eos, thermo, &
+               srcstr, cell_sources, source_controls, logfile)
           call cell_sources%destroy()
 
        end do
@@ -282,13 +285,14 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine setup_inline_source_controls(source_json, eos, srcstr, &
-       cell_sources, source_controls, logfile)
+  subroutine setup_inline_source_controls(source_json, eos, thermo, &
+       srcstr, cell_sources, source_controls, logfile)
     !! Sets up any 'inline' source controls for the source,
     !! i.e. controls defined implicitly in the specification of the source.
 
     type(fson_value), pointer, intent(in) :: source_json
     class(eos_type), intent(in) :: eos
+    class(thermodynamics_type), intent(in) :: thermo
     character(len = *), intent(in) :: srcstr
     type(list_type), intent(in out) :: cell_sources
     type(list_type), intent(in out) :: source_controls
@@ -300,7 +304,7 @@ contains
     call setup_deliverability_source_control(source_json, srcstr, &
          cell_sources, source_controls, logfile)
 
-    call setup_limiter_source_control(source_json, eos, srcstr, &
+    call setup_limiter_source_control(source_json, srcstr, thermo, &
          cell_sources, source_controls, logfile)
 
   end subroutine setup_inline_source_controls
@@ -428,46 +432,101 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine setup_limiter_source_control(source_json, eos, srcstr, &
-       cell_sources, source_controls, logfile)
-    !! Set up limiter source control.
+  subroutine setup_limiter_source_control(source_json, srcstr, &
+       thermo, cell_sources, source_controls, logfile)
+    !! Set up limiter source control for each cell source. If
+    !! separated water or steam is to be limited, first set up
+    !! corresponding separator for each cell source.
 
     use utils_module, only: str_to_lower, str_array_index
 
     type(fson_value), pointer, intent(in) :: source_json
-    class(eos_type), intent(in) :: eos
     character(len=*) :: srcstr
+    class(thermodynamics_type), intent(in) :: thermo
     type(list_type), intent(in out) :: cell_sources
     type(list_type), intent(in out) :: source_controls
     type(logfile_type), intent(in out), optional :: logfile
     ! Locals:
     type(fson_value), pointer :: limiter_json
     character(max_phase_name_length) :: limiter_type_str
-    PetscInt :: phase
-    PetscReal :: limit
-    type(source_control_limiter_type), pointer :: limiter
+    PetscInt :: limiter_type
+    PetscReal :: limit, separator_pressure
 
     if (fson_has_mpi(source_json, "limiter")) then
 
        call fson_get_mpi(source_json, "limiter", limiter_json)
 
-       call fson_get_mpi(limiter_json, "type", default_limiter_type, &
+       call fson_get_mpi(limiter_json, "type", &
+            default_source_control_limiter_type_str, &
             limiter_type_str, logfile, srcstr)
        limiter_type_str = str_to_lower(limiter_type_str)
-       if (limiter_type_str == "total") then
-          phase = 0
-       else
-          phase = str_array_index(limiter_type_str, eos%phase_names)
+
+       select case (limiter_type_str)
+       case ("total")
+          limiter_type = SRC_CONTROL_LIMITER_TYPE_TOTAL
+       case ("water")
+          limiter_type = SRC_CONTROL_LIMITER_TYPE_WATER
+       case ("steam")
+          limiter_type = SRC_CONTROL_LIMITER_TYPE_STEAM
+       case default
+          limiter_type = SRC_CONTROL_LIMITER_TYPE_TOTAL
+       end select
+
+       if (limiter_type /= SRC_CONTROL_LIMITER_TYPE_TOTAL) then
+          call fson_get_mpi(limiter_json, "separator_pressure", &
+               default_source_control_separator_pressure, &
+               separator_pressure, logfile, srcstr)
        end if
 
-       call fson_get_mpi(limiter_json, "limit", default_limiter_limit, &
-            limit, logfile, srcstr)
+       call fson_get_mpi(limiter_json, "limit", &
+            default_source_control_limiter_limit, limit, logfile, srcstr)
 
-       allocate(source_control_limiter_type :: limiter)
-       call limiter%init(phase, limit, cell_sources)
-       call source_controls%append(limiter)
+       call cell_sources%traverse(setup_limiter_iterator)
 
     end if
+
+  contains
+
+    subroutine setup_limiter_iterator(node, stopped)
+      !! Sets up limiter (and separator if needed) at a source list node.
+
+      type(list_node_type), pointer, intent(in out)  :: node
+      PetscBool, intent(out) :: stopped
+      ! Locals:
+      type(source_control_limiter_type), pointer :: limiter
+      type(source_control_separator_type), pointer :: separator
+
+      select type (source => node%data)
+      type is (source_type)
+
+         allocate(source_control_limiter_type :: limiter)
+
+         if (limiter_type == SRC_CONTROL_LIMITER_TYPE_TOTAL) then
+
+            call limiter%init(limiter_type, source%rate, limit, &
+                 cell_sources)
+
+         else
+
+            allocate(source_control_separator_type :: separator)
+            call separator%init(source, thermo, separator_pressure)
+            call source_controls%append(separator)
+
+            if (limiter_type == SRC_CONTROL_LIMITER_TYPE_WATER) then
+               call limiter%init(limiter_type, separator%water_flow_rate, &
+                    limit, cell_sources)
+            else
+               call limiter%init(limiter_type, separator%steam_flow_rate, &
+                    limit, cell_sources)
+            end if
+
+         end if
+
+         call source_controls%append(limiter)
+
+      end select
+
+    end subroutine setup_limiter_iterator
 
   end subroutine setup_limiter_source_control
 
