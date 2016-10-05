@@ -179,7 +179,8 @@ class t2data_export_json(t2data):
     def generators_json(self, geo):
         """Converts TOUGH2 generator data to JSON."""
         jsondata = {}
-        component = {'MASS': 1, 'HEAT': 2, 'COM1': 1, 'COM2': 2, 'COM3': 3, 'COM4': 4,
+        component = {'MASS': 1, 'HEAT': self.multi['num_equations'],
+                     'COM1': 1, 'COM2': 2, 'COM3': 3, 'COM4': 4,
                      'COM5': 5, 'WATE': 1, 'AIR ': 2, 'CO2 ': 2, 'TRAC': 2}
         if self.parameter['option'][12] == 0:
             interp_type, averaging_type = "linear", "endpoint"
