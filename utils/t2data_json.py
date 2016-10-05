@@ -183,7 +183,7 @@ class t2data_export_json(t2data):
     def generators_json(self, geo):
         """Converts TOUGH2 generator data to JSON."""
         jsondata = {}
-        component = {'MASS': 1, 'HEAT': 2, 'COM1': 1, 'COM2': 2}
+        component = {'MASS': 1, 'HEAT': self.multi['num_equations'], 'COM1': 1, 'COM2': 2}
         if self.generatorlist:
             jsondata['source'] = []
             for gen in self.generatorlist:
