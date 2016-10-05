@@ -417,7 +417,8 @@ end subroutine flow_simulation_run_info
     call VecDestroy(self%last_timestep_fluid, ierr); CHKERRQ(ierr)
     call VecDestroy(self%last_iteration_fluid, ierr); CHKERRQ(ierr)
     call VecDestroy(self%rock, ierr); CHKERRQ(ierr)
-    call self%source_controls%destroy(source_control_list_node_data_destroy)
+    call self%source_controls%destroy(source_control_list_node_data_destroy, &
+         reverse = PETSC_TRUE)
     call self%sources%destroy(source_list_node_data_destroy)
     call self%mesh%destroy()
     call self%thermo%destroy()

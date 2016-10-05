@@ -48,9 +48,15 @@ module list_module
      procedure :: list_find_default
      generic, public :: find => list_find, list_find_default
      procedure, public :: get => list_get
-     procedure :: list_destroy
-     procedure :: list_destroy_default
-     generic, public :: destroy => list_destroy, list_destroy_default
+     procedure :: destroy_default_forward => list_destroy_default_forward
+     procedure :: destroy_default_reverse => list_destroy_default_reverse
+     procedure :: destroy_default_direction => list_destroy_default_direction
+     procedure :: destroy_proc_forward => list_destroy_proc_forward
+     procedure :: destroy_proc_reverse => list_destroy_proc_reverse
+     procedure :: destroy_proc_direction => list_destroy_proc_direction
+     generic, public :: destroy => destroy_default_forward, &
+          destroy_default_direction, destroy_proc_forward, &
+          destroy_proc_direction
   end type list_type
 
   abstract interface
@@ -419,8 +425,8 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine list_destroy_default(self)
-    !! Destroys list.
+  subroutine list_destroy_default_forward(self)
+    !! Destroys list, in forward order.
 
     class(list_type), intent(in out) :: self
 
@@ -428,11 +434,36 @@ contains
        call self%delete(self%head)
     end do
 
-  end subroutine list_destroy_default
+  end subroutine list_destroy_default_forward
 
-  subroutine list_destroy(self, node_data_destroy_procedure)
-    !! Destroys list, applying specified procedure to destroy the data
-    !! in the given node.
+  subroutine list_destroy_default_reverse(self)
+    !! Destroys list, in reverse order.
+
+    class(list_type), intent(in out) :: self
+
+    do while (associated(self%tail))
+       call self%delete(self%tail)
+    end do
+
+  end subroutine list_destroy_default_reverse
+
+  subroutine list_destroy_default_direction(self, reverse)
+    !! Destroys list, with direction specified.
+
+    class(list_type), intent(in out) :: self
+    PetscBool, intent(in) :: reverse
+
+    if (reverse) then
+       call self%destroy_default_reverse()
+    else
+       call self%destroy_default_forward()
+    end if
+
+  end subroutine list_destroy_default_direction
+
+  subroutine list_destroy_proc_forward(self, node_data_destroy_procedure)
+    !! Destroys list, in forward order, applying specified procedure
+    !! to destroy the data in the given node.
 
     class(list_type), intent(in out) :: self
     procedure(list_node_data_destroy_procedure) :: node_data_destroy_procedure
@@ -441,7 +472,37 @@ contains
        call self%delete(self%head, node_data_destroy_procedure)
     end do
 
-  end subroutine list_destroy
+  end subroutine list_destroy_proc_forward
+
+  subroutine list_destroy_proc_reverse(self, node_data_destroy_procedure)
+    !! Destroys list, in reverse order, applying specified procedure
+    !! to destroy the data in the given node.
+
+    class(list_type), intent(in out) :: self
+    procedure(list_node_data_destroy_procedure) :: node_data_destroy_procedure
+
+    do while (associated(self%tail))
+       call self%delete(self%tail, node_data_destroy_procedure)
+    end do
+
+  end subroutine list_destroy_proc_reverse
+
+  subroutine list_destroy_proc_direction(self, &
+       node_data_destroy_procedure, reverse)
+    !! Destroys list, applying specified procedure to destroy the data
+    !! in the given node, with direction specified.
+
+    class(list_type), intent(in out) :: self
+    procedure(list_node_data_destroy_procedure) :: node_data_destroy_procedure
+    PetscBool, intent(in) :: reverse
+
+    if (reverse) then
+       call self%destroy_proc_reverse(node_data_destroy_procedure)
+    else
+       call self%destroy_proc_forward(node_data_destroy_procedure)
+    end if
+
+  end subroutine list_destroy_proc_direction
 
 !------------------------------------------------------------------------
 
