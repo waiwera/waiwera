@@ -279,14 +279,23 @@ contains
       !! Applies deliverability control at a list node.
       type(list_node_type), pointer, intent(in out)  :: node
       PetscBool, intent(out) :: stopped
+      ! Locals:
+      PetscInt :: p, phases
 
       select type (source => node%data)
       type is (source_type)
 
          call source%update_fluid(fluid_data, fluid_section)
 
-         source%rate = self%productivity_index * (source%fluid%pressure - &
-              self%bottomhole_pressure)
+         source%rate = 0._dp
+         phases = nint(source%fluid%phase_composition)
+         do p = 1, source%fluid%num_phases
+            if (btest(phases, p - 1)) then
+               source%rate = source%rate - source%fluid%phase(p)%mobility() * &
+                    self%productivity_index * &
+                    (source%fluid%pressure - self%bottomhole_pressure)
+            end if
+         end do
 
       end select
 
