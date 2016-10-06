@@ -48,7 +48,7 @@ contains
     call DMCreateLabel(mesh%dm, open_boundary_label_name, ierr); CHKERRQ(ierr)
     call mesh%configure(eos%primary_variable_names)
 
-    call setup_sources(json, mesh%dm, eos, sources, source_controls)
+    call setup_sources(json, mesh%dm, eos, thermo, sources, source_controls)
 
     expected_num_sources = fson_value_count_mpi(json, "source")
     call MPI_reduce(sources%count, num_sources, 1, MPI_INTEGER, MPI_SUM, &
