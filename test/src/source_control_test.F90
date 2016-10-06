@@ -14,14 +14,14 @@ module source_control_test
 
 #include <petsc/finclude/petsc.h90>
 
-  public :: test_source_control_table
+  public :: test_source_control_table, test_source_control_deliverability
 
 contains
 
 !------------------------------------------------------------------------
 
   subroutine test_source_control_table
-    ! table source control tests
+    ! Table source control
 
     use fson
     use fson_mpi_module
@@ -59,7 +59,7 @@ contains
     call global_to_local_vec_section(global_fluid, local_fluid, fluid_section)
     call VecGetArrayReadF90(local_fluid, fluid_array, ierr); CHKERRQ(ierr)
 
-    call setup_sources(json, mesh%dm, eos, sources, source_controls)
+    call setup_sources(json, mesh%dm, eos, thermo, sources, source_controls)
 
     call MPI_reduce(sources%count, num_sources, 1, MPI_INTEGER, MPI_SUM, &
          mpi%input_rank, mpi%comm, ierr)
@@ -73,7 +73,8 @@ contains
     call sources%traverse(source_test_iterator)
 
     call sources%destroy(source_list_node_data_destroy)
-    call source_controls%destroy(source_control_list_node_data_destroy)
+    call source_controls%destroy(source_control_list_node_data_destroy, &
+         reverse = PETSC_TRUE)
 
     call VecRestoreArrayReadF90(local_fluid, fluid_array, ierr); CHKERRQ(ierr)
     call restore_dm_local_vec(local_fluid)
@@ -132,6 +133,165 @@ contains
     end subroutine source_control_list_node_data_destroy
 
   end subroutine test_source_control_table
+
+!------------------------------------------------------------------------
+
+  subroutine test_source_control_deliverability
+    ! Deliverability source control
+
+    use fson
+    use fson_mpi_module
+    use mesh_module
+    use list_module
+    use IAPWS_module
+    use eos_module, only: max_component_name_length, max_phase_name_length
+    use eos_test
+    use fluid_module, only: fluid_type, setup_fluid_vector
+    use dm_utils_module, only: global_to_local_vec_section, &
+         restore_dm_local_vec, section_offset
+
+    character(16), parameter :: path = "data/source/"
+    type(IAPWS_type) :: thermo
+    type(eos_test_type) :: eos
+    type(fson_value), pointer :: json
+    type(mesh_type) :: mesh
+    type(list_type) :: sources, source_controls
+    Vec :: global_fluid, local_fluid
+    PetscReal, pointer, contiguous :: fluid_array(:)
+    PetscSection :: fluid_section
+    type(fluid_type) :: fluid
+    PetscInt :: num_sources, num_source_controls, range_start, c
+    PetscInt :: fluid_offset, cell_phase_composition
+    PetscReal :: t, interval(2), cell_temperature
+    PetscErrorCode :: ierr
+    PetscReal, parameter :: cell_pressure = 7.e5_dp
+    PetscInt, parameter :: cell_region = 4
+
+    json => fson_parse_mpi(trim(path) // "test_source_controls_deliverability.json")
+
+    call thermo%init()
+    call eos%init(json, thermo)
+    call thermo%saturation%temperature(cell_pressure, cell_temperature, ierr)
+    cell_phase_composition = thermo%phase_composition(cell_region, &
+               cell_pressure, cell_temperature)
+
+    call mesh%init(json)
+    call fluid%init(eos%num_components, eos%num_phases)
+    call DMCreateLabel(mesh%dm, open_boundary_label_name, ierr); CHKERRQ(ierr)
+    call mesh%configure(eos%primary_variable_names)
+    call setup_fluid_vector(mesh%dm, max_component_name_length, &
+         eos%component_names, max_phase_name_length, eos%phase_names, &
+         global_fluid, range_start)
+    call global_to_local_vec_section(global_fluid, local_fluid, fluid_section)
+    call VecGetArrayReadF90(local_fluid, fluid_array, ierr); CHKERRQ(ierr)
+
+    do c = mesh%start_cell, mesh%end_cell - 1
+       if (mesh%ghost_cell(c) < 0) then
+          call section_offset(fluid_section, c, fluid_offset, ierr)
+          CHKERRQ(ierr)
+          call fluid%assign(fluid_array, fluid_offset)
+          fluid%pressure = cell_pressure
+          fluid%temperature = cell_temperature
+          fluid%region = dble(cell_region)
+          fluid%phase_composition = cell_phase_composition
+          fluid%phase(1)%relative_permeability = 0.8_dp
+          fluid%phase(1)%density = 998._dp
+          fluid%phase(1)%viscosity = 1.e-6_dp
+          fluid%phase(2)%relative_permeability = 0.2_dp
+          fluid%phase(2)%density = 5._dp
+          fluid%phase(2)%viscosity = 1.e-7_dp
+       end if
+    end do
+
+    call setup_sources(json, mesh%dm, eos, thermo, sources, source_controls)
+
+    call MPI_reduce(sources%count, num_sources, 1, MPI_INTEGER, MPI_SUM, &
+         mpi%input_rank, mpi%comm, ierr)
+    if (mpi%rank == mpi%input_rank) then
+      call assert_equals(1, num_sources, "number of sources")
+    end if
+
+    call MPI_reduce(source_controls%count, num_source_controls, 1, &
+         MPI_INTEGER, MPI_SUM, mpi%input_rank, mpi%comm, ierr)
+    if (mpi%rank == mpi%input_rank) then
+      call assert_equals(1, num_source_controls, "number of source controls")
+    end if
+
+    call source_controls%traverse(source_control_update_iterator)
+    call source_controls%traverse(source_control_test_iterator)
+    call sources%traverse(source_test_iterator)
+
+    call sources%destroy(source_list_node_data_destroy)
+    call source_controls%destroy(source_control_list_node_data_destroy, &
+      reverse = PETSC_TRUE)
+
+    call fluid%destroy()
+    call VecRestoreArrayReadF90(local_fluid, fluid_array, ierr); CHKERRQ(ierr)
+    call restore_dm_local_vec(local_fluid)
+    call VecDestroy(global_fluid, ierr); CHKERRQ(ierr)
+    call mesh%destroy()
+    call eos%destroy()
+    call thermo%destroy()
+    call fson_destroy_mpi(json)
+
+  contains
+
+    subroutine source_control_update_iterator(node, stopped)
+      type(list_node_type), pointer, intent(in out) :: node
+      PetscBool, intent(out) :: stopped
+      select type (source_control => node%data)
+      class is (source_control_type)
+         call source_control%update(t, interval, fluid_array, fluid_section)
+      end select
+      stopped = PETSC_FALSE
+    end subroutine source_control_update_iterator
+
+    subroutine source_control_test_iterator(node, stopped)
+      type(list_node_type), pointer, intent(in out) :: node
+      PetscBool, intent(out) :: stopped
+      PetscReal, parameter :: PI_tol = 1.e-16_dp, P_tol = 1.e-6_dp
+      select type (source_control => node%data)
+      class is (source_control_deliverability_type)
+         call assert_equals(1.e-12_dp, &
+              source_control%productivity_index, PI_tol, "productivity index")
+         call assert_equals(2.e5_dp, &
+              source_control%bottomhole_pressure, P_tol, "bottomhole pressure")
+      end select
+      stopped = PETSC_FALSE
+    end subroutine source_control_test_iterator
+
+    subroutine source_test_iterator(node, stopped)
+      type(list_node_type), pointer, intent(in out) :: node
+      PetscBool, intent(out) :: stopped
+      ! Locals:
+      PetscReal, parameter :: tol = 1.e-6_dp
+      select type (source => node%data)
+      class is (source_type)
+         select case (node%tag)
+         case ("source 1")
+            call assert_equals(-404.2_dp, source%rate, tol, "source rate")
+         end select
+      end select
+      stopped = PETSC_FALSE
+    end subroutine source_test_iterator
+
+    subroutine source_list_node_data_destroy(node)
+      type(list_node_type), pointer, intent(in out) :: node
+      select type (source => node%data)
+      type is (source_type)
+         call source%destroy()
+      end select
+    end subroutine source_list_node_data_destroy
+
+     subroutine source_control_list_node_data_destroy(node)
+      type(list_node_type), pointer, intent(in out) :: node
+      select type (source_control => node%data)
+      class is (source_control_type)
+         call source_control%destroy()
+      end select
+    end subroutine source_control_list_node_data_destroy
+
+  end subroutine test_source_control_deliverability
 
 !------------------------------------------------------------------------
 
