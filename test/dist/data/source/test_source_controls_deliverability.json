@@ -6,6 +6,12 @@
          "deliverability": {
              "productivity_index": 1.0e-12,
              "bottomhole_pressure": 2.e5}
+        },
+        {"name": "source 2", "cell": 1,
+         "deliverability": {
+             "productivity_index": 1.0e-12,
+             "bottomhole_pressure": 2.e5},
+         "limiter": {"type": "total", "limit": 300.}
          }
     ]
 }

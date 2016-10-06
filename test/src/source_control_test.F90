@@ -137,7 +137,7 @@ contains
 !------------------------------------------------------------------------
 
   subroutine test_source_control_deliverability
-    ! Deliverability source control
+    ! Deliverability source controls
 
     use fson
     use fson_mpi_module
@@ -208,13 +208,13 @@ contains
     call MPI_reduce(sources%count, num_sources, 1, MPI_INTEGER, MPI_SUM, &
          mpi%input_rank, mpi%comm, ierr)
     if (mpi%rank == mpi%input_rank) then
-      call assert_equals(1, num_sources, "number of sources")
+      call assert_equals(2, num_sources, "number of sources")
     end if
 
     call MPI_reduce(source_controls%count, num_source_controls, 1, &
          MPI_INTEGER, MPI_SUM, mpi%input_rank, mpi%comm, ierr)
     if (mpi%rank == mpi%input_rank) then
-      call assert_equals(1, num_source_controls, "number of source controls")
+      call assert_equals(3, num_source_controls, "number of source controls")
     end if
 
     call source_controls%traverse(source_control_update_iterator)
@@ -249,13 +249,17 @@ contains
     subroutine source_control_test_iterator(node, stopped)
       type(list_node_type), pointer, intent(in out) :: node
       PetscBool, intent(out) :: stopped
-      PetscReal, parameter :: PI_tol = 1.e-16_dp, P_tol = 1.e-6_dp
+      PetscReal, parameter :: PI_tol = 1.e-16_dp, tol = 1.e-6_dp
       select type (source_control => node%data)
       class is (source_control_deliverability_type)
          call assert_equals(1.e-12_dp, &
               source_control%productivity_index, PI_tol, "productivity index")
          call assert_equals(2.e5_dp, &
-              source_control%bottomhole_pressure, P_tol, "bottomhole pressure")
+              source_control%bottomhole_pressure, tol, "bottomhole pressure")
+      class is (source_control_limiter_type)
+         call assert_equals(SRC_CONTROL_LIMITER_TYPE_TOTAL, &
+              source_control%type, "limiter type")
+         call assert_equals(300._dp, source_control%limit, tol, "limiter limit")
       end select
       stopped = PETSC_FALSE
     end subroutine source_control_test_iterator
@@ -269,7 +273,9 @@ contains
       class is (source_type)
          select case (node%tag)
          case ("source 1")
-            call assert_equals(-404.2_dp, source%rate, tol, "source rate")
+            call assert_equals(-404.2_dp, source%rate, tol, "source 1 rate")
+         case ("source 2")
+            call assert_equals(-300._dp, source%rate, tol, "source 2 rate")
          end select
       end select
       stopped = PETSC_FALSE
