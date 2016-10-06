@@ -11,7 +11,13 @@
          "deliverability": {
              "productivity_index": 1.0e-12,
              "bottomhole_pressure": 2.e5},
-         "limiter": {"type": "total", "limit": 300.}
-         }
+         "limiter": {"type": "total", "limit": 10.}
+        },
+        {"name": "source 3", "cell": 2,
+         "deliverability": {
+             "productivity_index": 1.0e-12,
+             "bottomhole_pressure": 2.e5},
+         "limiter": {"type": "steam", "separator_pressure": 10.e5, "limit": 5.}
+        }
     ]
 }

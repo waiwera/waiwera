@@ -162,9 +162,12 @@ contains
     type(fluid_type) :: fluid
     PetscInt :: num_sources, num_source_controls, range_start, c
     PetscInt :: fluid_offset, cell_phase_composition
-    PetscReal :: t, interval(2), cell_temperature
+    PetscReal :: t, interval(2), props(2)
+    PetscReal :: cell_temperature, cell_liquid_density, cell_liquid_internal_energy
+    PetscReal :: cell_vapour_density, cell_vapour_internal_energy
+    PetscReal :: cell_liquid_viscosity, cell_vapour_viscosity
     PetscErrorCode :: ierr
-    PetscReal, parameter :: cell_pressure = 7.e5_dp
+    PetscReal, parameter :: cell_pressure = 50.e5_dp, cell_vapour_saturation = 0.8_dp
     PetscInt, parameter :: cell_region = 4
 
     json => fson_parse_mpi(trim(path) // "test_source_controls_deliverability.json")
@@ -173,7 +176,19 @@ contains
     call eos%init(json, thermo)
     call thermo%saturation%temperature(cell_pressure, cell_temperature, ierr)
     cell_phase_composition = thermo%phase_composition(cell_region, &
-               cell_pressure, cell_temperature)
+         cell_pressure, cell_temperature)
+    call thermo%water%properties([cell_pressure, cell_temperature], &
+         props, ierr)
+    cell_liquid_density = props(1)
+    cell_liquid_internal_energy = props(2)
+    call thermo%water%viscosity(cell_temperature, cell_pressure, cell_liquid_density, &
+         cell_liquid_viscosity)
+    call thermo%steam%properties([cell_pressure, cell_temperature], &
+         props, ierr)
+    cell_vapour_density = props(1)
+    cell_vapour_internal_energy = props(2)
+    call thermo%steam%viscosity(cell_temperature, cell_pressure, cell_vapour_density, &
+         cell_vapour_viscosity)
 
     call mesh%init(json)
     call fluid%init(eos%num_components, eos%num_phases)
@@ -194,12 +209,22 @@ contains
           fluid%temperature = cell_temperature
           fluid%region = dble(cell_region)
           fluid%phase_composition = cell_phase_composition
-          fluid%phase(1)%relative_permeability = 0.8_dp
-          fluid%phase(1)%density = 998._dp
-          fluid%phase(1)%viscosity = 1.e-6_dp
-          fluid%phase(2)%relative_permeability = 0.2_dp
-          fluid%phase(2)%density = 5._dp
-          fluid%phase(2)%viscosity = 1.e-7_dp
+          fluid%phase(1)%density = cell_liquid_density
+          fluid%phase(1)%viscosity = cell_liquid_viscosity
+          fluid%phase(1)%saturation = 1._dp - cell_vapour_saturation
+          fluid%phase(1)%relative_permeability = 1._dp - cell_vapour_saturation
+          fluid%phase(1)%specific_enthalpy = cell_liquid_internal_energy + &
+               cell_pressure / cell_liquid_density
+          fluid%phase(1)%internal_energy = cell_liquid_internal_energy
+          fluid%phase(1)%mass_fraction = [0.75_dp, 0.25_dp]
+          fluid%phase(2)%density = cell_vapour_density
+          fluid%phase(2)%viscosity = cell_vapour_viscosity
+          fluid%phase(2)%saturation = cell_vapour_saturation
+          fluid%phase(2)%relative_permeability = cell_vapour_saturation
+          fluid%phase(2)%specific_enthalpy = cell_vapour_internal_energy + &
+               cell_pressure / cell_vapour_density
+          fluid%phase(2)%internal_energy = cell_vapour_internal_energy
+          fluid%phase(2)%mass_fraction = [0.9_dp, 0.1_dp]
        end if
     end do
 
@@ -208,13 +233,13 @@ contains
     call MPI_reduce(sources%count, num_sources, 1, MPI_INTEGER, MPI_SUM, &
          mpi%input_rank, mpi%comm, ierr)
     if (mpi%rank == mpi%input_rank) then
-      call assert_equals(2, num_sources, "number of sources")
+      call assert_equals(3, num_sources, "number of sources")
     end if
 
     call MPI_reduce(source_controls%count, num_source_controls, 1, &
          MPI_INTEGER, MPI_SUM, mpi%input_rank, mpi%comm, ierr)
     if (mpi%rank == mpi%input_rank) then
-      call assert_equals(3, num_source_controls, "number of source controls")
+      call assert_equals(6, num_source_controls, "number of source controls")
     end if
 
     call source_controls%traverse(source_control_update_iterator)
@@ -257,9 +282,19 @@ contains
          call assert_equals(2.e5_dp, &
               source_control%bottomhole_pressure, tol, "bottomhole pressure")
       class is (source_control_limiter_type)
-         call assert_equals(SRC_CONTROL_LIMITER_TYPE_TOTAL, &
-              source_control%type, "limiter type")
-         call assert_equals(300._dp, source_control%limit, tol, "limiter limit")
+         select case (source_control%type)
+         case (SRC_CONTROL_LIMITER_TYPE_TOTAL)
+            call assert_equals(10._dp, source_control%limit, tol, "total limiter limit")
+         case (SRC_CONTROL_LIMITER_TYPE_STEAM)
+            call assert_equals(5._dp, source_control%limit, tol, "steam limiter limit")
+         end select
+      class is (source_control_separator_type)
+         call assert_equals(10.e5_dp, &
+              source_control%separator_pressure, tol, "separator pressure")
+         call assert_equals(-6.074100319_dp, &
+              source_control%water_flow_rate, tol, "separator water flow rate")
+         call assert_equals(-6.798751656_dp, &
+              source_control%steam_flow_rate, tol, "separator steam flow rate")
       end select
       stopped = PETSC_FALSE
     end subroutine source_control_test_iterator
@@ -273,9 +308,11 @@ contains
       class is (source_type)
          select case (node%tag)
          case ("source 1")
-            call assert_equals(-404.2_dp, source%rate, tol, "source 1 rate")
+            call assert_equals(-12.8728519749_dp, source%rate, tol, "source 1 rate")
          case ("source 2")
-            call assert_equals(-300._dp, source%rate, tol, "source 2 rate")
+            call assert_equals(-10._dp, source%rate, tol, "source 2 rate")
+         case ("source 3")
+            call assert_equals(-9.4670702993_dp, source%rate, tol, "source 3 rate")
          end select
       end select
       stopped = PETSC_FALSE
