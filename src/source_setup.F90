@@ -98,10 +98,8 @@ contains
 
           end do
 
-          if (cell_sources%count > 0) then
-             call setup_inline_source_controls(source_json, eos, thermo, &
-                  srcstr, cell_sources, source_controls, logfile)
-          end if
+          call setup_inline_source_controls(source_json, eos, thermo, &
+               srcstr, cell_sources, source_controls, logfile)
           call cell_sources%destroy()
 
        end do
@@ -353,10 +351,12 @@ contains
                default_averaging_str, averaging_str)
           averaging_type = averaging_type_from_str(averaging_str)
 
-          allocate(source_control_rate_table_type :: rate_control)
-          call rate_control%init(data_array, interpolation_type, &
-               averaging_type, cell_sources)
-          call source_controls%append(rate_control)
+          if (cell_sources%count > 0) then
+             allocate(source_control_rate_table_type :: rate_control)
+             call rate_control%init(data_array, interpolation_type, &
+                  averaging_type, cell_sources)
+             call source_controls%append(rate_control)
+          end if
 
           deallocate(data_array)
 
@@ -378,10 +378,12 @@ contains
                default_averaging_str, averaging_str)
           averaging_type = averaging_type_from_str(averaging_str)
 
-          allocate(source_control_enthalpy_table_type :: enthalpy_control)
-          call enthalpy_control%init(data_array, interpolation_type, &
-               averaging_type, cell_sources)
-          call source_controls%append(enthalpy_control)
+          if (cell_sources%count > 0) then
+             allocate(source_control_enthalpy_table_type :: enthalpy_control)
+             call enthalpy_control%init(data_array, interpolation_type, &
+                  averaging_type, cell_sources)
+             call source_controls%append(enthalpy_control)
+          end if
 
           deallocate(data_array)
 
@@ -418,9 +420,11 @@ contains
             default_deliverability_bottomhole_pressure, bottomhole_pressure, &
             logfile, srcstr)
 
-       allocate(source_control_deliverability_type :: deliv)
-       call deliv%init(productivity_index, bottomhole_pressure, cell_sources)
-       call source_controls%append(deliv)
+       if (cell_sources%count > 0) then
+          allocate(source_control_deliverability_type :: deliv)
+          call deliv%init(productivity_index, bottomhole_pressure, cell_sources)
+          call source_controls%append(deliv)
+       end if
 
     end if
 
