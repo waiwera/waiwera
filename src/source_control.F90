@@ -458,10 +458,13 @@ contains
 
     class(source_control_limiter_type), intent(in) :: self
     ! Locals:
+    PetscReal :: abs_rate
     PetscReal, parameter :: small = 1.e-6_dp
 
-    if ((self%rate > self%limit) .and. (self%rate > small)) then
-       scale = self%limit / self%rate
+    abs_rate = abs(self%rate)
+
+    if ((abs_rate > self%limit) .and. (abs_rate > small)) then
+       scale = self%limit / abs_rate
     else
        scale = 1._dp
     end if
