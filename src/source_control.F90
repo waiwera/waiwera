@@ -78,13 +78,14 @@ module source_control_module
      PetscReal, public :: separator_pressure !! Separator pressure
      PetscReal :: water_enthalpy !! Enthalpy of water at separator pressure
      PetscReal :: steam_enthalpy !! Enthalpy of steam at separator pressure
+     PetscReal, public :: steam_fraction  !! Output steam fraction
      PetscReal, public :: water_flow_rate !! Output separated water flow rate
      PetscReal, public :: steam_flow_rate !! Output separated steam flow rate
    contains
      procedure, public :: init => source_control_separator_init
      procedure, public :: destroy => source_control_separator_destroy
      procedure, public :: update => source_control_separator_update
-     procedure :: steam_fraction => source_control_separator_steam_fraction
+     procedure :: update_steam_fraction => source_control_separator_update_steam_fraction
   end type source_control_separator_type
 
   type, public, extends(source_control_type) :: source_control_limiter_type
@@ -358,24 +359,24 @@ contains
 
 !------------------------------------------------------------------------
 
-  PetscReal function source_control_separator_steam_fraction(self, &
-       enthalpy) result(sf)
-    !! Returns steam fraction for given enthalpy, based on the
+  subroutine source_control_separator_update_steam_fraction(self, &
+       enthalpy)
+    !! Updates steam fraction for given enthalpy, based on the
     !! separator pressure.
 
-    class(source_control_separator_type), intent(in) :: self
+    class(source_control_separator_type), intent(in out) :: self
     PetscReal, intent(in) :: enthalpy
 
     if (enthalpy <= self%water_enthalpy) then
-       sf = 0._dp
+       self%steam_fraction = 0._dp
     else if (enthalpy <= self%steam_enthalpy) then
-       sf = (enthalpy - self%water_enthalpy) / &
+       self%steam_fraction = (enthalpy - self%water_enthalpy) / &
             (self%steam_enthalpy - self%water_enthalpy)
     else
-       sf = 1._dp
+       self%steam_fraction = 1._dp
     end if
 
-  end function source_control_separator_steam_fraction
+  end subroutine source_control_separator_update_steam_fraction
 
 !------------------------------------------------------------------------
 
@@ -390,19 +391,20 @@ contains
     PetscSection, intent(in) :: fluid_section
     ! Locals:
     PetscReal :: phase_flow_fractions(self%source%fluid%num_phases)
-    PetscReal :: enthalpy, steam_fraction
+    PetscReal :: enthalpy
 
     associate(np => size(self%source%flow))
 
-      if ((self%source%rate < 0._dp) .and. (self%source%component < np)) then
+      if ((self%source%rate < 0._dp) .and. &
+           (self%source%production_component < np)) then
 
          call self%source%update_fluid(fluid_data, fluid_section)
          phase_flow_fractions = self%source%fluid%phase_flow_fractions()
          enthalpy = self%source%fluid%specific_enthalpy(phase_flow_fractions)
 
-         steam_fraction = self%steam_fraction(enthalpy)
-         self%water_flow_rate = (1._dp - steam_fraction) * self%source%rate
-         self%steam_flow_rate = steam_fraction * self%source%rate
+         call self%update_steam_fraction(enthalpy)
+         self%water_flow_rate = (1._dp - self%steam_fraction) * self%source%rate
+         self%steam_flow_rate = self%steam_fraction * self%source%rate
 
       else
 
