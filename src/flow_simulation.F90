@@ -390,6 +390,7 @@ end subroutine flow_simulation_run_info
          self%rock, self%eos, self%solution_range_start, &
          self%fluid_range_start, self%rock_range_start)
     call setup_sources(json, self%mesh%dm, self%eos, self%thermo, &
+         self%fluid, self%fluid_range_start, &
          self%sources, self%source_controls, self%logfile)
 
     call self%logfile%flush()

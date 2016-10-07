@@ -36,6 +36,8 @@ contains
     type(eos_test_type) :: eos
     type(fson_value), pointer :: json
     type(mesh_type) :: mesh
+    Vec :: fluid
+    PetscInt :: range_start
     type(list_type) :: sources, source_controls
     PetscInt :: expected_num_sources, num_sources
     PetscErrorCode :: ierr
@@ -47,8 +49,10 @@ contains
     call mesh%init(json)
     call DMCreateLabel(mesh%dm, open_boundary_label_name, ierr); CHKERRQ(ierr)
     call mesh%configure(eos%primary_variable_names)
+    call DMGetGlobalVector(mesh%dm, fluid, ierr); CHKERRQ(ierr) ! dummy- not used
 
-    call setup_sources(json, mesh%dm, eos, thermo, sources, source_controls)
+    call setup_sources(json, mesh%dm, eos, thermo, fluid, range_start, &
+         sources, source_controls)
 
     expected_num_sources = fson_value_count_mpi(json, "source")
     call MPI_reduce(sources%count, num_sources, 1, MPI_INTEGER, MPI_SUM, &
@@ -61,6 +65,7 @@ contains
 
     call sources%destroy(source_list_node_data_destroy)
     call source_controls%destroy()
+    call DMRestoreGlobalVector(mesh%dm, fluid, ierr); CHKERRQ(ierr)
     call mesh%destroy()
     call eos%destroy()
     call thermo%destroy()

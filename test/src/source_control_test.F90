@@ -42,7 +42,7 @@ contains
     Vec :: global_fluid, local_fluid
     PetscReal, pointer, contiguous :: fluid_array(:)
     PetscSection :: fluid_section
-    PetscInt :: num_sources, range_start
+    PetscInt :: num_sources, fluid_range_start
     PetscReal :: t, interval(2)
     PetscErrorCode :: ierr
 
@@ -55,11 +55,12 @@ contains
     call mesh%configure(eos%primary_variable_names)
     call setup_fluid_vector(mesh%dm, max_component_name_length, &
          eos%component_names, max_phase_name_length, eos%phase_names, &
-         global_fluid, range_start)
+         global_fluid, fluid_range_start)
     call global_to_local_vec_section(global_fluid, local_fluid, fluid_section)
     call VecGetArrayReadF90(local_fluid, fluid_array, ierr); CHKERRQ(ierr)
 
-    call setup_sources(json, mesh%dm, eos, thermo, sources, source_controls)
+    call setup_sources(json, mesh%dm, eos, thermo, global_fluid, &
+         fluid_range_start, sources, source_controls)
 
     call MPI_reduce(sources%count, num_sources, 1, MPI_INTEGER, MPI_SUM, &
          mpi%input_rank, mpi%comm, ierr)
@@ -160,7 +161,7 @@ contains
     PetscReal, pointer, contiguous :: fluid_array(:)
     PetscSection :: fluid_section
     type(fluid_type) :: fluid
-    PetscInt :: num_sources, num_source_controls, range_start, c
+    PetscInt :: num_sources, num_source_controls, fluid_range_start, c
     PetscInt :: fluid_offset, cell_phase_composition
     PetscReal :: t, interval(2), props(2)
     PetscReal :: cell_temperature, cell_liquid_density, cell_liquid_internal_energy
@@ -196,7 +197,7 @@ contains
     call mesh%configure(eos%primary_variable_names)
     call setup_fluid_vector(mesh%dm, max_component_name_length, &
          eos%component_names, max_phase_name_length, eos%phase_names, &
-         global_fluid, range_start)
+         global_fluid, fluid_range_start)
     call global_to_local_vec_section(global_fluid, local_fluid, fluid_section)
     call VecGetArrayReadF90(local_fluid, fluid_array, ierr); CHKERRQ(ierr)
 
@@ -228,7 +229,8 @@ contains
        end if
     end do
 
-    call setup_sources(json, mesh%dm, eos, thermo, sources, source_controls)
+    call setup_sources(json, mesh%dm, eos, thermo, global_fluid, &
+         fluid_range_start, sources, source_controls)
 
     call MPI_reduce(sources%count, num_sources, 1, MPI_INTEGER, MPI_SUM, &
          mpi%input_rank, mpi%comm, ierr)

@@ -23,8 +23,8 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine setup_sources(json, dm, eos, thermo, sources, &
-       source_controls, logfile)
+  subroutine setup_sources(json, dm, eos, thermo, fluid, fluid_range_start, &
+       sources, source_controls, logfile)
     !! Sets up lists of sinks / sources and source controls.
 
     use mesh_module, only: cell_order_label_name
@@ -32,8 +32,10 @@ contains
 
     type(fson_value), pointer, intent(in) :: json !! JSON file object
     DM, intent(in) :: dm !! Mesh DM
-    class(eos_type), intent(in) :: eos
-    class(thermodynamics_type), intent(in) :: thermo
+    class(eos_type), intent(in) :: eos !! Equation of state
+    class(thermodynamics_type), intent(in) :: thermo !! Thermodynamics formulation
+    Vec, intent(in) :: fluid !! Fluid vector
+    PetscInt, intent(in) :: fluid_range_start
     type(list_type), intent(in out) :: sources !! List of sources
     type(list_type), intent(in out) :: source_controls !! List of source controls
     type(logfile_type), intent(in out), optional :: logfile !! Logfile for log output
@@ -99,7 +101,8 @@ contains
           end do
 
           call setup_inline_source_controls(source_json, eos, thermo, &
-               srcstr, cell_sources, source_controls, logfile)
+               fluid, fluid_range_start, srcstr, num_cells, cell_sources, &
+               source_controls, logfile)
           call cell_sources%destroy()
 
        end do
@@ -286,14 +289,18 @@ contains
 !------------------------------------------------------------------------
 
   subroutine setup_inline_source_controls(source_json, eos, thermo, &
-       srcstr, cell_sources, source_controls, logfile)
+       fluid, fluid_range_start, srcstr, num_cells, cell_sources, &
+       source_controls, logfile)
     !! Sets up any 'inline' source controls for the source,
     !! i.e. controls defined implicitly in the specification of the source.
 
     type(fson_value), pointer, intent(in) :: source_json
     class(eos_type), intent(in) :: eos
     class(thermodynamics_type), intent(in) :: thermo
+    Vec, intent(in) :: fluid
+    PetscInt, intent(in) :: fluid_range_start
     character(len = *), intent(in) :: srcstr
+    PetscInt, intent(in) :: num_cells
     type(list_type), intent(in out) :: cell_sources
     type(list_type), intent(in out) :: source_controls
     type(logfile_type), intent(in out), optional :: logfile
@@ -302,7 +309,8 @@ contains
          source_controls)
 
     call setup_deliverability_source_control(source_json, srcstr, &
-         cell_sources, source_controls, logfile)
+         fluid, fluid_range_start, num_cells, cell_sources, &
+         source_controls, logfile)
 
     call setup_limiter_source_control(source_json, srcstr, thermo, &
          cell_sources, source_controls, logfile)
@@ -352,7 +360,7 @@ contains
           averaging_type = averaging_type_from_str(averaging_str)
 
           if (cell_sources%count > 0) then
-             allocate(source_control_rate_table_type :: rate_control)
+             allocate(rate_control)
              call rate_control%init(data_array, interpolation_type, &
                   averaging_type, cell_sources)
              call source_controls%append(rate_control)
@@ -379,7 +387,7 @@ contains
           averaging_type = averaging_type_from_str(averaging_str)
 
           if (cell_sources%count > 0) then
-             allocate(source_control_enthalpy_table_type :: enthalpy_control)
+             allocate(enthalpy_control)
              call enthalpy_control%init(data_array, interpolation_type, &
                   averaging_type, cell_sources)
              call source_controls%append(enthalpy_control)
@@ -395,11 +403,15 @@ contains
 !------------------------------------------------------------------------
 
   subroutine setup_deliverability_source_control(source_json, srcstr, &
-       cell_sources, source_controls, logfile)
+       fluid, fluid_range_start, num_cells, cell_sources, &
+       source_controls, logfile)
     !! Set up deliverability source control.
 
     type(fson_value), pointer, intent(in) :: source_json
     character(len=*) :: srcstr
+    Vec, intent(in) :: fluid
+    PetscInt, intent(in) :: fluid_range_start
+    PetscInt, intent(in) :: num_cells
     type(list_type), intent(in out) :: cell_sources
     type(list_type), intent(in out) :: source_controls
     type(logfile_type), intent(in out), optional :: logfile
@@ -407,23 +419,57 @@ contains
     type(fson_value), pointer :: deliv_json
     PetscReal :: productivity_index, bottomhole_pressure
     type(source_control_deliverability_type), pointer :: deliv
+    PetscBool :: calculate_productivity_index
+    PetscReal :: initial_rate
 
     if (fson_has_mpi(source_json, "deliverability")) then
 
        call fson_get_mpi(source_json, "deliverability", deliv_json)
 
-       call fson_get_mpi(deliv_json, "productivity_index", &
-            default_deliverability_productivity_index, productivity_index, &
-            logfile, srcstr)
-
        call fson_get_mpi(deliv_json, "bottomhole_pressure", &
             default_deliverability_bottomhole_pressure, bottomhole_pressure, &
             logfile, srcstr)
 
+       calculate_productivity_index = PETSC_FALSE
+
+       if ((fson_has_mpi(deliv_json, "productivity_index")) .and. &
+            (fson_type_mpi(deliv_json, "productivity_index") == TYPE_REAL)) then
+
+          call fson_get_mpi(deliv_json, "productivity_index", &
+               val = productivity_index)
+
+       else
+
+          productivity_index = default_deliverability_productivity_index
+
+          if ((fson_has_mpi(source_json, "rate") .and. &
+               (num_cells == 1) .and. (cell_sources%count == 1))) then
+
+             call fson_get_mpi(source_json, "rate", val = initial_rate)
+             calculate_productivity_index = PETSC_TRUE
+
+          else
+             if (present(logfile) .and. logfile%active) then
+                call logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
+                  real_keys = [srcstr], &
+                  real_values = [productivity_index])
+             end if
+          end if
+
+       end if
+
        if (cell_sources%count > 0) then
-          allocate(source_control_deliverability_type :: deliv)
+
+          allocate(deliv)
           call deliv%init(productivity_index, bottomhole_pressure, cell_sources)
+
+          if (calculate_productivity_index) then
+             call deliv%calculate_productivity_index(initial_rate, &
+                  fluid, fluid_range_start)
+          end if
+
           call source_controls%append(deliv)
+
        end if
 
     end if
@@ -499,7 +545,7 @@ contains
       select type (source => node%data)
       type is (source_type)
 
-         allocate(source_control_limiter_type :: limiter)
+         allocate(limiter)
 
          if (limiter_type == SRC_CONTROL_LIMITER_TYPE_TOTAL) then
 
@@ -508,7 +554,7 @@ contains
 
          else
 
-            allocate(source_control_separator_type :: separator)
+            allocate(separator)
             call separator%init(source, thermo, separator_pressure)
             call source_controls%append(separator)
 
