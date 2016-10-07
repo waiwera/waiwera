@@ -235,13 +235,13 @@ contains
     call MPI_reduce(sources%count, num_sources, 1, MPI_INTEGER, MPI_SUM, &
          mpi%input_rank, mpi%comm, ierr)
     if (mpi%rank == mpi%input_rank) then
-      call assert_equals(3, num_sources, "number of sources")
+      call assert_equals(4, num_sources, "number of sources")
     end if
 
     call MPI_reduce(source_controls%count, num_source_controls, 1, &
          MPI_INTEGER, MPI_SUM, mpi%input_rank, mpi%comm, ierr)
     if (mpi%rank == mpi%input_rank) then
-      call assert_equals(6, num_source_controls, "number of source controls")
+      call assert_equals(7, num_source_controls, "number of source controls")
     end if
 
     call source_controls%traverse(source_control_update_iterator)
@@ -278,11 +278,19 @@ contains
       PetscBool, intent(out) :: stopped
       PetscReal, parameter :: PI_tol = 1.e-16_dp, tol = 1.e-6_dp
       select type (source_control => node%data)
+
       type is (source_control_deliverability_type)
-         call assert_equals(1.e-12_dp, &
-              source_control%productivity_index, PI_tol, "productivity index")
+         select case (source_control%sources%head%tag)
+         case ("source 2")
+            call assert_equals(1.e-12_dp, &
+                 source_control%productivity_index, PI_tol, "source 2 productivity index")
+         case ("source 4")
+            call assert_equals(8.54511496085953E-13_dp, &
+                 source_control%productivity_index, PI_tol, "source 4 productivity index")
+         end select
          call assert_equals(2.e5_dp, &
               source_control%bottomhole_pressure, tol, "bottomhole pressure")
+
       type is (source_control_limiter_type)
          select case (source_control%type)
          case (SRC_CONTROL_LIMITER_TYPE_TOTAL)
@@ -290,6 +298,7 @@ contains
          case (SRC_CONTROL_LIMITER_TYPE_STEAM)
             call assert_equals(5._dp, source_control%limit, tol, "steam limiter limit")
          end select
+
       type is (source_control_separator_type)
          call assert_equals(10.e5_dp, &
               source_control%separator_pressure, tol, "separator pressure")
@@ -301,6 +310,7 @@ contains
               source_control%steam_flow_rate, tol, "separator steam flow rate")
       end select
       stopped = PETSC_FALSE
+
     end subroutine source_control_test_iterator
 
     subroutine source_test_iterator(node, stopped)
@@ -317,6 +327,8 @@ contains
             call assert_equals(-10._dp, source%rate, tol, "source 2 rate")
          case ("source 3")
             call assert_equals(-9.3081349399_dp, source%rate, tol, "source 3 rate")
+         case ("source 4")
+            call assert_equals(-11._dp, source%rate, tol, "source 4 rate")
          end select
       end select
       stopped = PETSC_FALSE

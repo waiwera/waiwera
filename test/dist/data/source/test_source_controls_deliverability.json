@@ -18,6 +18,10 @@
              "productivity_index": 1.0e-12,
              "bottomhole_pressure": 2.e5},
          "limiter": {"type": "steam", "separator_pressure": 10.e5, "limit": 5.}
+        },
+        {"name": "source 4", "cell": 3,
+         "rate": -11.,
+         "deliverability": {"bottomhole_pressure": 2.e5}
         }
     ]
 }
