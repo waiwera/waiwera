@@ -350,7 +350,7 @@ contains
                (source%fluid%pressure - self%bottomhole_pressure)
 
           if (abs(factor) > tol) then
-             self%productivity_index = initial_rate / factor
+             self%productivity_index = abs(initial_rate) / factor
           end if
 
           deallocate(phase_mobilities)
