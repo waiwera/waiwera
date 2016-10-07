@@ -68,6 +68,8 @@ module source_control_module
      procedure, public :: init => source_control_deliverability_init
      procedure, public :: destroy => source_control_deliverability_destroy
      procedure, public :: update => source_control_deliverability_update
+     procedure, public :: calculate_productivity_index => &
+          source_control_deliverability_calculate_productivity_index
   end type source_control_deliverability_type
 
   type, public, extends(source_control_type) :: source_control_separator_type
@@ -305,6 +307,64 @@ contains
     end subroutine source_control_deliverability_update_iterator
 
   end subroutine source_control_deliverability_update
+
+!------------------------------------------------------------------------
+
+  subroutine source_control_deliverability_calculate_productivity_index(self, &
+       initial_rate, fluid_vector, fluid_range_start)
+    !! Calculates productivity index for deliverability control, from
+    !! specified initial flow rate. This only works if the control has
+    !! exactly one source, otherwise the correct productivity index
+    !! would not be well-defined. If the productivity index can't be
+    !! calculated, it is left at its initial value.
+
+    use dm_utils_module, only: global_vec_section, global_section_offset
+
+    class(source_control_deliverability_type), intent(in out) :: self
+    PetscReal, intent(in) :: initial_rate
+    Vec, intent(in) :: fluid_vector
+    PetscInt, intent(in) :: fluid_range_start
+    ! Locals:
+    type(list_node_type), pointer :: node
+    PetscInt :: c, fluid_offset
+    PetscReal, pointer, contiguous :: fluid_data(:)
+    PetscSection :: fluid_section
+    PetscReal, allocatable :: phase_mobilities(:)
+    PetscReal :: factor
+    PetscErrorCode :: ierr
+    PetscReal, parameter :: tol = 1.e-9_dp
+
+    if (self%sources%count == 1) then
+       node => self%sources%head
+       select type (source => node%data)
+       type is (source_type)
+
+          call global_vec_section(fluid_vector, fluid_section)
+          call VecGetArrayReadF90(fluid_vector, fluid_data, ierr)
+          CHKERRQ(ierr)
+          c = source%cell_index
+          call global_section_offset(fluid_section, c, &
+               fluid_range_start, fluid_offset, ierr); CHKERRQ(ierr)
+
+          call source%fluid%assign(fluid_data, fluid_offset)
+          allocate(phase_mobilities(source%fluid%num_phases))
+          phase_mobilities = source%fluid%phase_mobilities()
+
+          factor = sum(phase_mobilities) * &
+               (source%fluid%pressure - self%bottomhole_pressure)
+
+          if (abs(factor) > tol) then
+             self%productivity_index = initial_rate / factor
+          end if
+
+          deallocate(phase_mobilities)
+          call VecRestoreArrayReadF90(fluid_vector, fluid_data, ierr)
+          CHKERRQ(ierr)
+
+       end select
+    end if
+
+  end subroutine source_control_deliverability_calculate_productivity_index
 
 !------------------------------------------------------------------------
 ! Separator source control:
