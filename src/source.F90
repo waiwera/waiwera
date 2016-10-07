@@ -44,6 +44,9 @@ module source_module
      procedure :: source_update_fluid
      generic, public :: update_fluid => source_update_fluid_section, &
           source_update_fluid
+     procedure :: update_component_production => source_update_component_production
+     procedure :: update_component_injection => source_update_component_injection
+     procedure, public :: update_component => source_update_component
      procedure :: source_update_flow_section
      procedure :: source_update_flow_offset
      generic, public :: update_flow => source_update_flow_section, &
@@ -141,10 +144,24 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine source_update_injection_mass_flow(self)
-    !! Updates the mass components of the flow array (and the
-    !! enthalpy) for injection. Only to be called if self%rate >= 0.
+  subroutine source_update_component_production(self)
+    !! Update the component being produced.
+
+    class(source_type), intent(in out) :: self
     
+    if (self%production_component <= 0) then
+       self%component = default_source_production_component
+    else
+       self%component = self%production_component
+    end if
+
+  end subroutine source_update_component_production
+
+!------------------------------------------------------------------------
+
+  subroutine source_update_component_injection(self)
+    !! Update the component being injected.
+
     class(source_type), intent(in out) :: self
 
     if (self%injection_component <= 0) then
@@ -153,7 +170,33 @@ contains
        self%component = self%injection_component
     end if
 
+  end subroutine source_update_component_injection
+
+!------------------------------------------------------------------------
+
+  subroutine source_update_component(self)
+    !! Updates the component being injected or produced.
+
+    class(source_type), intent(in out) :: self
+
+    if (self%rate >= 0._dp) then
+       call self%update_component_injection()
+    else
+       call self%update_component_production()
+    end if
+
+  end subroutine source_update_component
+
+!------------------------------------------------------------------------
+
+  subroutine source_update_injection_mass_flow(self)
+    !! Updates the mass components of the flow array (and the
+    !! enthalpy) for injection. Only to be called if self%rate >= 0.
+
+    class(source_type), intent(in out) :: self
+
     self%flow = 0._dp
+
     if (self%component > 0) then
        self%enthalpy = self%injection_enthalpy
        self%flow(self%component) = self%rate
@@ -174,13 +217,8 @@ contains
     ! Locals:
     PetscReal :: phase_flow_fractions(self%fluid%num_phases)
 
-    if (self%production_component <= 0) then
-       self%component = default_source_production_component
-    else
-       self%component = self%production_component
-    end if
-
     self%flow = 0._dp
+    self%enthalpy = 0._dp
 
     associate(np => size(self%flow), nc => self%fluid%num_components)
 
@@ -233,8 +271,10 @@ contains
     PetscSection, intent(in) :: fluid_section
 
     if (self%rate >= 0._dp) then
+       call self%update_component_injection()
        call self%update_injection_mass_flow()
     else
+       call self%update_component_production()
        call self%update_fluid(fluid_data, fluid_section)
        call self%update_production_mass_flow()
     end if
@@ -260,8 +300,10 @@ contains
     PetscInt, intent(in) :: fluid_offset
 
     if (self%rate >= 0._dp) then
+       call self%update_component_injection()
        call self%update_injection_mass_flow()
     else
+       call self%update_component_production()
        call self%update_fluid(fluid_data, fluid_offset)
        call self%update_production_mass_flow()
     end if
