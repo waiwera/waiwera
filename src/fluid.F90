@@ -70,6 +70,7 @@ module fluid_module
      procedure, public :: destroy => fluid_destroy
      procedure, public :: component_density => fluid_component_density
      procedure, public :: energy => fluid_energy
+     procedure, public :: phase_mobilities => fluid_phase_mobilities
      procedure, public :: phase_flow_fractions => fluid_phase_flow_fractions
      procedure, public :: component_flow_fractions => fluid_component_flow_fractions
      procedure, public :: specific_enthalpy => fluid_specific_enthalpy
@@ -239,6 +240,27 @@ contains
 
 !------------------------------------------------------------------------
 
+  function fluid_phase_mobilities(self) result(mobilities)
+    !! Returns array containing the mobility for each phase.
+
+    class(fluid_type), intent(in) :: self
+    PetscReal :: mobilities(self%num_phases)
+    ! Locals:
+    PetscInt :: p, phases
+
+    phases = nint(self%phase_composition)
+
+    mobilities = 0._dp
+    do p = 1, self%num_phases
+       if (btest(phases, p - 1)) then
+          mobilities(p) = self%phase(p)%mobility()
+       end if
+    end do
+
+  end function fluid_phase_mobilities
+
+!------------------------------------------------------------------------
+
   function fluid_phase_flow_fractions(self) result(f)
     !! Returns array containing the flow fractions for each
     !! phase. There are in proportion to the mobility of each phase,
@@ -246,17 +268,8 @@ contains
 
     class(fluid_type), intent(in) :: self
     PetscReal :: f(self%num_phases)
-    ! Locals:
-    PetscInt :: p, phases
 
-    phases = nint(self%phase_composition)
-
-    f = 0._dp
-    do p = 1, self%num_phases
-       if (btest(phases, p - 1)) then
-          f(p) = self%phase(p)%mobility()
-       end if
-    end do
+    f = self%phase_mobilities()
     f = f / sum(f)
 
   end function fluid_phase_flow_fractions
