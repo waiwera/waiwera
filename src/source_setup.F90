@@ -431,8 +431,11 @@ contains
     type(source_control_deliverability_type), pointer :: deliv
     PetscBool :: calculate_productivity_index
     PetscReal :: initial_rate
+    PetscReal, parameter :: default_rate = 0._dp
 
     if (fson_has_mpi(source_json, "deliverability")) then
+
+       call fson_get_mpi(source_json, "rate", default_rate, initial_rate)
 
        call fson_get_mpi(source_json, "deliverability", deliv_json)
 
@@ -455,7 +458,6 @@ contains
           if ((fson_has_mpi(source_json, "rate") .and. &
                (num_cells == 1) .and. (cell_sources%count == 1))) then
 
-             call fson_get_mpi(source_json, "rate", val = initial_rate)
              calculate_productivity_index = PETSC_TRUE
 
           else
