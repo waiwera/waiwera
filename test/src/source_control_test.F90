@@ -276,24 +276,26 @@ contains
       PetscBool, intent(out) :: stopped
       PetscReal, parameter :: PI_tol = 1.e-16_dp, tol = 1.e-6_dp
       select type (source_control => node%data)
-      class is (source_control_deliverability_type)
+      type is (source_control_deliverability_type)
          call assert_equals(1.e-12_dp, &
               source_control%productivity_index, PI_tol, "productivity index")
          call assert_equals(2.e5_dp, &
               source_control%bottomhole_pressure, tol, "bottomhole pressure")
-      class is (source_control_limiter_type)
+      type is (source_control_limiter_type)
          select case (source_control%type)
          case (SRC_CONTROL_LIMITER_TYPE_TOTAL)
             call assert_equals(10._dp, source_control%limit, tol, "total limiter limit")
          case (SRC_CONTROL_LIMITER_TYPE_STEAM)
             call assert_equals(5._dp, source_control%limit, tol, "steam limiter limit")
          end select
-      class is (source_control_separator_type)
+      type is (source_control_separator_type)
          call assert_equals(10.e5_dp, &
               source_control%separator_pressure, tol, "separator pressure")
-         call assert_equals(-6.074100319_dp, &
+         call assert_equals(0.5371645375_dp, &
+              source_control%steam_fraction, tol, "separator steam fraction")
+         call assert_equals(-5.9580123975_dp, &
               source_control%water_flow_rate, tol, "separator water flow rate")
-         call assert_equals(-6.798751656_dp, &
+         call assert_equals(-6.9148395774_dp, &
               source_control%steam_flow_rate, tol, "separator steam flow rate")
       end select
       stopped = PETSC_FALSE
@@ -312,7 +314,7 @@ contains
          case ("source 2")
             call assert_equals(-10._dp, source%rate, tol, "source 2 rate")
          case ("source 3")
-            call assert_equals(-9.4670702993_dp, source%rate, tol, "source 3 rate")
+            call assert_equals(-9.3081349399_dp, source%rate, tol, "source 3 rate")
          end select
       end select
       stopped = PETSC_FALSE
