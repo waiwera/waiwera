@@ -23,18 +23,18 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine setup_sources(json, dm, eos, thermo, fluid, fluid_range_start, &
-       sources, source_controls, logfile)
+  subroutine setup_sources(json, dm, eos, thermo, fluid_vector, &
+       fluid_range_start, sources, source_controls, logfile)
     !! Sets up lists of sinks / sources and source controls.
 
     use mesh_module, only: cell_order_label_name
-    use dm_utils_module, only: dm_order_local_index
+    use dm_utils_module, only: dm_order_local_index, global_vec_section
 
     type(fson_value), pointer, intent(in) :: json !! JSON file object
     DM, intent(in) :: dm !! Mesh DM
     class(eos_type), intent(in) :: eos !! Equation of state
     class(thermodynamics_type), intent(in) :: thermo !! Thermodynamics formulation
-    Vec, intent(in) :: fluid !! Fluid vector
+    Vec, intent(in) :: fluid_vector !! Fluid vector
     PetscInt, intent(in) :: fluid_range_start
     type(list_type), intent(in out) :: sources !! List of sources
     type(list_type), intent(in out) :: source_controls !! List of source controls
@@ -54,10 +54,15 @@ contains
     PetscBool :: can_inject
     PetscInt, allocatable :: cells(:)
     type(list_type) :: cell_sources
+    PetscReal, pointer, contiguous :: fluid_data(:)
+    PetscSection :: fluid_section
     PetscErrorCode :: ierr
 
     call sources%init(owner = PETSC_TRUE)
     call source_controls%init(owner = PETSC_TRUE)
+
+    call global_vec_section(fluid_vector, fluid_section)
+    call VecGetArrayReadF90(fluid_vector, fluid_data, ierr); CHKERRQ(ierr)
 
     if (fson_has_mpi(json, "source")) then
 
@@ -101,8 +106,8 @@ contains
           end do
 
           call setup_inline_source_controls(source_json, eos, thermo, &
-               fluid, fluid_range_start, srcstr, num_cells, cell_sources, &
-               source_controls, logfile)
+               fluid_data, fluid_section, fluid_range_start, srcstr, &
+               num_cells, cell_sources, source_controls, logfile)
           call cell_sources%destroy()
 
        end do
@@ -112,6 +117,9 @@ contains
           call logfile%write(LOG_LEVEL_INFO, "input", "no_sources")
        end if
     end if
+
+    call VecRestoreArrayReadF90(fluid_vector, fluid_data, ierr)
+    CHKERRQ(ierr)
 
   end subroutine setup_sources
 
@@ -289,15 +297,16 @@ contains
 !------------------------------------------------------------------------
 
   subroutine setup_inline_source_controls(source_json, eos, thermo, &
-       fluid, fluid_range_start, srcstr, num_cells, cell_sources, &
-       source_controls, logfile)
+       fluid_data, fluid_section, fluid_range_start, srcstr, &
+       num_cells, cell_sources, source_controls, logfile)
     !! Sets up any 'inline' source controls for the source,
     !! i.e. controls defined implicitly in the specification of the source.
 
     type(fson_value), pointer, intent(in) :: source_json
     class(eos_type), intent(in) :: eos
     class(thermodynamics_type), intent(in) :: thermo
-    Vec, intent(in) :: fluid
+    PetscReal, pointer, contiguous, intent(in) :: fluid_data(:)
+    PetscSection, intent(in) :: fluid_section
     PetscInt, intent(in) :: fluid_range_start
     character(len = *), intent(in) :: srcstr
     PetscInt, intent(in) :: num_cells
@@ -309,8 +318,8 @@ contains
          source_controls)
 
     call setup_deliverability_source_control(source_json, srcstr, &
-         fluid, fluid_range_start, num_cells, cell_sources, &
-         source_controls, logfile)
+         fluid_data, fluid_section, fluid_range_start, &
+         num_cells, cell_sources, source_controls, logfile)
 
     call setup_limiter_source_control(source_json, srcstr, thermo, &
          cell_sources, source_controls, logfile)
@@ -403,13 +412,14 @@ contains
 !------------------------------------------------------------------------
 
   subroutine setup_deliverability_source_control(source_json, srcstr, &
-       fluid, fluid_range_start, num_cells, cell_sources, &
-       source_controls, logfile)
+       fluid_data, fluid_section, fluid_range_start, num_cells, &
+       cell_sources, source_controls, logfile)
     !! Set up deliverability source control.
 
     type(fson_value), pointer, intent(in) :: source_json
     character(len=*) :: srcstr
-    Vec, intent(in) :: fluid
+    PetscReal, pointer, contiguous, intent(in) :: fluid_data(:)
+    PetscSection, intent(in) :: fluid_section
     PetscInt, intent(in) :: fluid_range_start
     PetscInt, intent(in) :: num_cells
     type(list_type), intent(in out) :: cell_sources
@@ -465,7 +475,7 @@ contains
 
           if (calculate_productivity_index) then
              call deliv%calculate_productivity_index(initial_rate, &
-                  fluid, fluid_range_start)
+                  fluid_data, fluid_section, fluid_range_start)
           end if
 
           call source_controls%append(deliv)

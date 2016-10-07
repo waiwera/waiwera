@@ -311,7 +311,7 @@ contains
 !------------------------------------------------------------------------
 
   subroutine source_control_deliverability_calculate_productivity_index(self, &
-       initial_rate, fluid_vector, fluid_range_start)
+       initial_rate, fluid_data, fluid_section, fluid_range_start)
     !! Calculates productivity index for deliverability control, from
     !! specified initial flow rate. This only works if the control has
     !! exactly one source, otherwise the correct productivity index
@@ -322,13 +322,12 @@ contains
 
     class(source_control_deliverability_type), intent(in out) :: self
     PetscReal, intent(in) :: initial_rate
-    Vec, intent(in) :: fluid_vector
+    PetscReal, pointer, contiguous, intent(in) :: fluid_data(:)
+    PetscSection, intent(in) :: fluid_section
     PetscInt, intent(in) :: fluid_range_start
     ! Locals:
     type(list_node_type), pointer :: node
     PetscInt :: c, fluid_offset
-    PetscReal, pointer, contiguous :: fluid_data(:)
-    PetscSection :: fluid_section
     PetscReal, allocatable :: phase_mobilities(:)
     PetscReal :: factor
     PetscErrorCode :: ierr
@@ -339,9 +338,6 @@ contains
        select type (source => node%data)
        type is (source_type)
 
-          call global_vec_section(fluid_vector, fluid_section)
-          call VecGetArrayReadF90(fluid_vector, fluid_data, ierr)
-          CHKERRQ(ierr)
           c = source%cell_index
           call global_section_offset(fluid_section, c, &
                fluid_range_start, fluid_offset, ierr); CHKERRQ(ierr)
@@ -358,8 +354,6 @@ contains
           end if
 
           deallocate(phase_mobilities)
-          call VecRestoreArrayReadF90(fluid_vector, fluid_data, ierr)
-          CHKERRQ(ierr)
 
        end select
     end if
