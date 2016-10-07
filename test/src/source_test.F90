@@ -50,25 +50,25 @@ contains
        call fluid%assign(fluid_data, offset)
 
        call source_flow_test("inject 1", 10._dp, 200.e3_dp, 1, 0, &
-            [10._dp, 0._dp, 2.e6_dp])
+            [10._dp, 0._dp, 2.e6_dp], 1)
        call source_flow_test("inject 2", 5._dp, 200.e3_dp, 2, 0, &
-            [0._dp, 5._dp, 1.e6_dp])
+            [0._dp, 5._dp, 1.e6_dp], 2)
        call source_flow_test("inject 3", 5._dp, 200.e3_dp, 2, 2, &
-            [0._dp, 5._dp, 1.e6_dp])
+            [0._dp, 5._dp, 1.e6_dp], 2)
        call source_flow_test("inject heat", 1000._dp, 0._dp, 3, 0, &
-            [0._dp, 0._dp, 1000._dp])
+            [0._dp, 0._dp, 1000._dp], 3)
 
        call source_flow_test("produce all", -5._dp, 0._dp, 0, 0, &
-            [-3.4948610582_dp, -1.5051389418_dp, -431766.653977922_dp])
+            [-3.4948610582_dp, -1.5051389418_dp, -431766.653977922_dp], 0)
        call source_flow_test("produce 1", -5._dp, 0._dp, 0, 1, &
-            [-5._dp, 0._dp, -431766.653977922_dp])
+            [-5._dp, 0._dp, -431766.653977922_dp], 1)
        call source_flow_test("produce heat", -5000._dp, 0._dp, 0, 3, &
-            [0._dp, 0._dp, -5000._dp])
+            [0._dp, 0._dp, -5000._dp], 3)
 
        call source_flow_test("no flow 1", 0._dp, 100.e3_dp, 1, 0, &
-            [0._dp, 0._dp, 0._dp])
+            [0._dp, 0._dp, 0._dp], 1)
        call source_flow_test("no flow all", 0._dp, 100.e3_dp, 0, 0, &
-            [0._dp, 0._dp, 0._dp])
+            [0._dp, 0._dp, 0._dp], 1)
 
        call fluid%destroy()
        deallocate(fluid_data)
@@ -81,19 +81,22 @@ contains
   contains
 
     subroutine source_flow_test(tag, rate, enthalpy, injection_component, &
-         production_component, flow)
+         production_component, flow, component)
       !! Runs asserts for single flow update_source() test.
 
       character(*), intent(in) :: tag
       PetscReal, intent(in) :: rate, enthalpy
       PetscInt, intent(in) :: injection_component, production_component
       PetscReal, intent(in) :: flow(:)
+      PetscInt, intent(in) :: component
 
       call source%init(0, 0, eos, rate, enthalpy, &
            injection_component, production_component)
       call source%update_flow(fluid_data, offset)
       call assert_equals(flow, source%flow, &
-           eos%num_primary_variables, tol, "Source update_flow() " // trim(tag))
+           eos%num_primary_variables, tol, trim(tag) // " flow")
+      call assert_equals(component, source%component, &
+           trim(tag) // " component")
       call source%destroy()
 
     end subroutine source_flow_test
