@@ -120,7 +120,7 @@ contains
 
   subroutine fluid_init(self, num_components, num_phases)
     !! Initialises a fluid object.
-    
+
     class(fluid_type), intent(in out) :: self
     PetscInt, intent(in) :: num_components !! Number of fluid components
     PetscInt, intent(in) :: num_phases !! Number of fluid phases

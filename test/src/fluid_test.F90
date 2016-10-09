@@ -148,15 +148,16 @@ contains
 !------------------------------------------------------------------------
 
   subroutine test_fluid_enthalpy
-    ! Test fluid phase_flow_fractions(), component_flow_fractions() and
-    ! specific_enthalpy()
+    ! Test fluid phase_mobilities(), phase_flow_fractions(),
+    ! component_flow_fractions() and specific_enthalpy()
 
     type(fluid_type) :: fluid
     PetscInt, parameter :: num_components = 2, num_phases = 2
     PetscInt,  parameter :: offset = 1
     PetscReal, pointer, contiguous :: fluid_data(:)
-    PetscReal :: ff(num_phases), cff(num_components)
+    PetscReal :: mob(num_phases), ff(num_phases), cff(num_components)
     PetscReal :: h
+    PetscReal, parameter :: expected_mob(num_phases) = [654500000._dp, 2250000._dp]
     PetscReal, parameter :: expected_ff(num_phases) = [0.9965740388_dp, 0.0034259612_dp]
     PetscReal, parameter :: expected_cff(num_phases) = [0.6989722116_dp, 0.3010277884_dp]
     PetscReal, parameter :: expected_h = 86353.3307955843_dp
@@ -172,6 +173,9 @@ contains
             1.5_dp,  2.e-7_dp, 0.2_dp, 0.3_dp, 800.e3_dp, 2.540e6_dp, 0.4_dp, 0.6_dp]
 
        call fluid%assign(fluid_data, offset)
+
+       mob = fluid%phase_mobilities()
+       call assert_equals(expected_mob, mob, num_phases, tol, "Fluid phase mobilities")
 
        ff = fluid%phase_flow_fractions()
        call assert_equals(expected_ff, ff, num_phases, tol, "Fluid phase flow fractions")
