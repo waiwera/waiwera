@@ -333,7 +333,9 @@ contains
     !! Set up rate or enthalpy table source controls.
 
     use interpolation_module, only: interpolation_type_from_str, &
-         averaging_type_from_str
+         averaging_type_from_str, max_interpolation_str_length, &
+         max_averaging_str_length, default_interpolation_str, &
+         default_averaging_str
     use utils_module, only: str_to_lower
 
     type(fson_value), pointer, intent(in) :: source_json
@@ -344,13 +346,7 @@ contains
     type(source_control_enthalpy_table_type), pointer :: enthalpy_control
     PetscInt :: variable_type, interpolation_type, averaging_type
     PetscReal, allocatable :: data_array(:,:)
-    PetscInt, parameter :: max_interpolation_str_length = 16
-    character(max_interpolation_str_length), parameter :: &
-         default_interpolation_str = "linear"
     character(max_interpolation_str_length) :: interpolation_str
-    PetscInt, parameter :: max_averaging_str_length = 16
-    character(max_averaging_str_length), parameter :: &
-         default_averaging_str = "integrate"
     character(max_averaging_str_length) :: averaging_str
 
     ! Rate table:
@@ -416,6 +412,12 @@ contains
        cell_sources, source_controls, logfile)
     !! Set up deliverability source control.
 
+    use interpolation_module, only: interpolation_type_from_str, &
+         averaging_type_from_str, max_interpolation_str_length, &
+         max_averaging_str_length, default_interpolation_str, &
+         default_averaging_str
+    use utils_module, only: str_to_lower
+
     type(fson_value), pointer, intent(in) :: source_json
     character(len=*) :: srcstr
     PetscReal, pointer, contiguous, intent(in) :: fluid_data(:)
@@ -428,10 +430,14 @@ contains
     ! Locals:
     type(fson_value), pointer :: deliv_json
     PetscReal :: productivity_index, bottomhole_pressure
+    PetscReal, allocatable :: productivity_index_array(:,:)
+    PetscInt :: PI_type, interpolation_type, averaging_type
     type(source_control_deliverability_type), pointer :: deliv
     PetscBool :: calculate_productivity_index
     PetscReal :: initial_rate
-    PetscReal, parameter :: default_rate = 0._dp
+    PetscReal, parameter :: default_time = 0._dp, default_rate = 0._dp
+    character(max_interpolation_str_length) :: interpolation_str
+    character(max_averaging_str_length) :: averaging_str
 
     if (fson_has_mpi(source_json, "deliverability")) then
 
@@ -443,17 +449,45 @@ contains
             default_deliverability_bottomhole_pressure, bottomhole_pressure, &
             logfile, srcstr)
 
+       call fson_get_mpi(source_json, "interpolation", &
+            default_interpolation_str, interpolation_str)
+       interpolation_type = interpolation_type_from_str(interpolation_str)
+
+       call fson_get_mpi(source_json, "averaging", &
+            default_averaging_str, averaging_str)
+       averaging_type = averaging_type_from_str(averaging_str)
+
        calculate_productivity_index = PETSC_FALSE
 
-       if ((fson_has_mpi(deliv_json, "productivity_index")) .and. &
-            (fson_type_mpi(deliv_json, "productivity_index") == TYPE_REAL)) then
+       if (fson_has_mpi(deliv_json, "productivity_index")) then
 
-          call fson_get_mpi(deliv_json, "productivity_index", &
-               val = productivity_index)
+          PI_type = fson_type_mpi(deliv_json, "productivity_index")
+
+          select case(PI_type)
+          case (TYPE_REAL)
+             call fson_get_mpi(deliv_json, "productivity_index", &
+                  val = productivity_index)
+             productivity_index_array = reshape([default_time, &
+                  productivity_index], [1,2])
+          case (TYPE_ARRAY)
+             call fson_get_mpi(deliv_json, "productivity_index", &
+                  val = productivity_index_array)
+          case default
+             productivity_index = default_deliverability_productivity_index
+             productivity_index_array = reshape([default_time, &
+                  productivity_index], [1,2])
+             if (present(logfile) .and. logfile%active) then
+                call logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
+                     real_keys = [srcstr], &
+                     real_values = [productivity_index])
+             end if
+          end select
 
        else
 
           productivity_index = default_deliverability_productivity_index
+          productivity_index_array = reshape([default_time, &
+               productivity_index], [1,2])
 
           if ((fson_has_mpi(source_json, "rate") .and. &
                (num_cells == 1) .and. (cell_sources%count == 1))) then
@@ -473,7 +507,8 @@ contains
        if (cell_sources%count > 0) then
 
           allocate(deliv)
-          call deliv%init(productivity_index, bottomhole_pressure, cell_sources)
+          call deliv%init(productivity_index_array, interpolation_type, &
+               averaging_type, bottomhole_pressure, cell_sources)
 
           if (calculate_productivity_index) then
              call deliv%calculate_productivity_index(initial_rate, &

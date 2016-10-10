@@ -62,7 +62,7 @@ module source_control_module
      !! Controls a source on deliverability.
      private
      type(list_type), public :: sources
-     PetscReal, public :: productivity_index !! Productivity index
+     type(interpolation_table_type), public :: productivity_index !! Productivity index vs. time
      PetscReal, public :: bottomhole_pressure
    contains
      procedure, public :: init => source_control_deliverability_init
@@ -236,18 +236,20 @@ contains
 ! Deliverability source control:
 !------------------------------------------------------------------------
 
-  subroutine source_control_deliverability_init(self, productivity_index, &
-       bottomhole_pressure, sources)
+  subroutine source_control_deliverability_init(self, productivity_data, &
+       interpolation_type, averaging_type, bottomhole_pressure, sources)
     !! Initialises source_control_deliverability object.
 
     class(source_control_deliverability_type), intent(in out) :: self
-    PetscReal, intent(in) :: productivity_index
+    PetscReal, intent(in) :: productivity_data(:,:)
+    PetscInt, intent(in) :: interpolation_type, averaging_type
     PetscReal, intent(in) :: bottomhole_pressure
     type(list_type), intent(in out) :: sources
 
     call self%sources%init()
     call self%sources%add(sources)
-    self%productivity_index = productivity_index
+    call self%productivity_index%init(productivity_data, &
+         interpolation_type, averaging_type)
     self%bottomhole_pressure = bottomhole_pressure
 
   end subroutine source_control_deliverability_init
@@ -284,18 +286,21 @@ contains
       PetscBool, intent(out) :: stopped
       ! Locals:
       PetscInt :: p, phases
+      PetscReal :: productivity_index
 
       select type (source => node%data)
       type is (source_type)
 
          call source%update_fluid(local_fluid_data, local_fluid_section)
 
+         productivity_index = self%productivity_index%average(interval)
+
          source%rate = 0._dp
          phases = nint(source%fluid%phase_composition)
          do p = 1, source%fluid%num_phases
             if (btest(phases, p - 1)) then
                source%rate = source%rate - source%fluid%phase(p)%mobility() * &
-                    self%productivity_index * &
+                    productivity_index * &
                     (source%fluid%pressure - self%bottomhole_pressure)
             end if
          end do
@@ -350,7 +355,7 @@ contains
                (source%fluid%pressure - self%bottomhole_pressure)
 
           if (abs(factor) > tol) then
-             self%productivity_index = abs(initial_rate) / factor
+             self%productivity_index%data(1,2) = abs(initial_rate) / factor
           end if
 
           deallocate(phase_mobilities)
