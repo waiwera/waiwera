@@ -12,6 +12,12 @@ module interpolation_module
   PetscInt, parameter, public :: INTERP_LINEAR = 0, INTERP_STEP = 1
   PetscInt, parameter, public :: INTERP_AVERAGING_ENDPOINT = 0, &
        INTERP_AVERAGING_INTEGRATE = 1
+  PetscInt, parameter, public :: max_interpolation_str_length = 16
+  character(max_interpolation_str_length), parameter, public :: &
+       default_interpolation_str = "linear"
+  PetscInt, parameter, public :: max_averaging_str_length = 16
+  character(max_averaging_str_length), parameter, public :: &
+       default_averaging_str = "integrate"
 
   type, public :: interpolation_table_type
      !! Interpolation table type.
