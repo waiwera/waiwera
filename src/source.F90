@@ -40,17 +40,11 @@ module source_module
      procedure :: update_production_mass_flow => source_update_production_mass_flow
      procedure :: update_energy_flow => source_update_energy_flow
      procedure, public :: init => source_init
-     procedure :: source_update_fluid_section
-     procedure :: source_update_fluid
-     generic, public :: update_fluid => source_update_fluid_section, &
-          source_update_fluid
+     procedure, public :: update_fluid => source_update_fluid
      procedure :: update_component_production => source_update_component_production
      procedure :: update_component_injection => source_update_component_injection
      procedure, public :: update_component => source_update_component
-     procedure :: source_update_flow_section
-     procedure :: source_update_flow_offset
-     generic, public :: update_flow => source_update_flow_section, &
-          source_update_flow_offset
+     procedure, public :: update_flow => source_update_flow
      procedure, public :: destroy => source_destroy
   end type source_type
 
@@ -101,40 +95,24 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine source_update_fluid_section(self, fluid_data, fluid_section)
+  subroutine source_update_fluid(self, local_fluid_data, local_fluid_section)
     !! Updates fluid object from given data array and section, and
     !! calculates the fluid phase flow fractions.
 
     use dm_utils_module, only: section_offset
 
     class(source_type), intent(in out) :: self
-    PetscReal, pointer, contiguous, intent(in) :: fluid_data(:)
-    PetscSection, intent(in) :: fluid_section
+    PetscReal, pointer, contiguous, intent(in) :: local_fluid_data(:)
+    PetscSection, intent(in) :: local_fluid_section
     ! Locals:
     PetscInt :: fluid_offset
     PetscErrorCode :: ierr
 
     if (.not. self%fluid_updated) then
 
-       call section_offset(fluid_section, self%cell_index, &
+       call section_offset(local_fluid_section, self%cell_index, &
             fluid_offset, ierr); CHKERRQ(ierr)
-       call self%update_fluid(fluid_data, fluid_offset)
-
-    end if
-
-  end subroutine source_update_fluid_section
-
-  subroutine source_update_fluid(self, fluid_data, fluid_offset)
-    !! Updates fluid object from given data array and offset, and
-    !! calculates the fluid phase flow fractions.
-
-    class(source_type), intent(in out) :: self
-    PetscReal, pointer, contiguous, intent(in) :: fluid_data(:)
-    PetscInt, intent(in) :: fluid_offset
-
-    if (.not. self%fluid_updated) then
-
-       call self%fluid%assign(fluid_data, fluid_offset)
+       call self%fluid%assign(local_fluid_data, fluid_offset)
 
        self%fluid_updated = PETSC_TRUE
 
@@ -260,22 +238,22 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine source_update_flow_section(self, fluid_data, fluid_section)
+  subroutine source_update_flow(self, local_fluid_data, local_fluid_section)
     !! Updates the flow array, according to the source parameters and
     !! fluid conditions.
 
     use fluid_module, only: fluid_type
 
     class(source_type), intent(in out) :: self
-    PetscReal, pointer, contiguous, intent(in) :: fluid_data(:)
-    PetscSection, intent(in) :: fluid_section
+    PetscReal, pointer, contiguous, intent(in) :: local_fluid_data(:)
+    PetscSection, intent(in) :: local_fluid_section
 
     if (self%rate >= 0._dp) then
        call self%update_component_injection()
        call self%update_injection_mass_flow()
     else
        call self%update_component_production()
-       call self%update_fluid(fluid_data, fluid_section)
+       call self%update_fluid(local_fluid_data, local_fluid_section)
        call self%update_production_mass_flow()
     end if
 
@@ -285,36 +263,7 @@ contains
 
     self%fluid_updated = PETSC_FALSE
 
-  end subroutine source_update_flow_section
-
-  subroutine source_update_flow_offset(self, fluid_data, fluid_offset)
-    !! Updates the flow array, according to the source parameters and
-    !! fluid conditions. This overloaded version of the update_flow()
-    !! procedure, taking an offset rather than a section, is mainly
-    !! used for unit testing.
-
-    use fluid_module, only: fluid_type
-
-    class(source_type), intent(in out) :: self
-    PetscReal, pointer, contiguous, intent(in) :: fluid_data(:)
-    PetscInt, intent(in) :: fluid_offset
-
-    if (self%rate >= 0._dp) then
-       call self%update_component_injection()
-       call self%update_injection_mass_flow()
-    else
-       call self%update_component_production()
-       call self%update_fluid(fluid_data, fluid_offset)
-       call self%update_production_mass_flow()
-    end if
-
-    if (.not.(self%isothermal)) then
-       call self%update_energy_flow()
-    end if
-
-    self%fluid_updated = PETSC_FALSE
-
-  end subroutine source_update_flow_offset
+  end subroutine source_update_flow
 
 !------------------------------------------------------------------------
 
