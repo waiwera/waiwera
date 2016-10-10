@@ -247,19 +247,22 @@ contains
     call MPI_reduce(sources%count, num_sources, 1, MPI_INTEGER, MPI_SUM, &
          mpi%input_rank, mpi%comm, ierr)
     if (mpi%rank == mpi%input_rank) then
-      call assert_equals(4, num_sources, "number of sources")
+      call assert_equals(5, num_sources, "number of sources")
     end if
 
     call MPI_reduce(source_controls%count, num_source_controls, 1, &
          MPI_INTEGER, MPI_SUM, mpi%input_rank, mpi%comm, ierr)
     if (mpi%rank == mpi%input_rank) then
-      call assert_equals(7, num_source_controls, "number of source controls")
+      call assert_equals(8, num_source_controls, "number of source controls")
     end if
 
     call global_to_local_vec_section(fluid_vector, local_fluid_vector, &
          local_fluid_section)
     call VecGetArrayReadF90(local_fluid_vector, local_fluid_array, ierr)
     CHKERRQ(ierr)
+
+    t = 120._dp
+    interval = [30._dp, t]
 
     call source_controls%traverse(source_control_update_iterator)
     call source_controls%traverse(source_control_test_iterator)
@@ -351,6 +354,8 @@ contains
             call assert_equals(-9.3081349399_dp, source%rate, tol, "source 3 rate")
          case ("source 4")
             call assert_equals(-11._dp, source%rate, tol, "source 4 rate")
+         case ("source 5")
+            call assert_equals(-10.1910078135_dp, source%rate, tol, "source 5 rate")
          end select
       end select
       stopped = PETSC_FALSE

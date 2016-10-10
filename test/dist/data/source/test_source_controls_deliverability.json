@@ -22,6 +22,17 @@
         {"name": "source 4", "cell": 3,
          "rate": -11.,
          "deliverability": {"bottomhole_pressure": 2.e5}
-        }
+        },
+        {"name": "source 5", "cell": 4,
+         "deliverability": {
+             "productivity_index": [
+                 [0.0, 1.0e-12],
+                 [60., 0.9e-12],
+                 [90., 0.7e-12],
+                 [180., 0.5e-12]
+             ],
+             "bottomhole_pressure": 2.e5},
+             "averaging": "endpoint",
+        },
     ]
 }
