@@ -121,13 +121,13 @@ module source_control_module
      end subroutine source_control_destroy_procedure
 
      subroutine source_control_update_procedure(self, t, interval, &
-          fluid_data, fluid_section)
+          local_fluid_data, local_fluid_section)
        !! Updates sources at the specified time.
        import :: source_control_type
        class(source_control_type), intent(in out) :: self
        PetscReal, intent(in) :: t, interval(2)
-       PetscReal, pointer, contiguous, intent(in) :: fluid_data(:)
-       PetscSection, intent(in) :: fluid_section
+       PetscReal, pointer, contiguous, intent(in) :: local_fluid_data(:)
+       PetscSection, intent(in) :: local_fluid_section
      end subroutine source_control_update_procedure
 
   end interface
@@ -171,13 +171,13 @@ contains
 !------------------------------------------------------------------------
 
   subroutine source_control_rate_table_update(self, t, interval, &
-       fluid_data, fluid_section)
+       local_fluid_data, local_fluid_section)
     !! Update flow rate for source_control_rate_table_type.
 
     class(source_control_rate_table_type), intent(in out) :: self
     PetscReal, intent(in) :: t, interval(2)
-    PetscReal, pointer, contiguous, intent(in) :: fluid_data(:)
-    PetscSection, intent(in) :: fluid_section
+    PetscReal, pointer, contiguous, intent(in) :: local_fluid_data(:)
+    PetscSection, intent(in) :: local_fluid_section
     ! Locals:
     PetscReal :: rate
 
@@ -204,13 +204,13 @@ contains
 !------------------------------------------------------------------------
 
   subroutine source_control_enthalpy_table_update(self, t, interval, &
-       fluid_data, fluid_section)
+       local_fluid_data, local_fluid_section)
     !! Update injection enthalpy for source_control_enthalpy_table_type.
 
     class(source_control_enthalpy_table_type), intent(in out) :: self
     PetscReal, intent(in) :: t, interval(2)
-    PetscReal, pointer, contiguous, intent(in) :: fluid_data(:)
-    PetscSection, intent(in) :: fluid_section
+    PetscReal, pointer, contiguous, intent(in) :: local_fluid_data(:)
+    PetscSection, intent(in) :: local_fluid_section
     ! Locals:
     PetscReal :: enthalpy
 
@@ -266,13 +266,13 @@ contains
 !------------------------------------------------------------------------
 
   subroutine source_control_deliverability_update(self, t, interval, &
-       fluid_data, fluid_section)
+       local_fluid_data, local_fluid_section)
     !! Update flow rate for source_control_deliverability_type.
 
     class(source_control_deliverability_type), intent(in out) :: self
     PetscReal, intent(in) :: t, interval(2)
-    PetscReal, pointer, contiguous, intent(in) :: fluid_data(:)
-    PetscSection, intent(in) :: fluid_section
+    PetscReal, pointer, contiguous, intent(in) :: local_fluid_data(:)
+    PetscSection, intent(in) :: local_fluid_section
 
     call self%sources%traverse(source_control_deliverability_update_iterator)
 
@@ -288,7 +288,7 @@ contains
       select type (source => node%data)
       type is (source_type)
 
-         call source%update_fluid(fluid_data, fluid_section)
+         call source%update_fluid(local_fluid_data, local_fluid_section)
 
          source%rate = 0._dp
          phases = nint(source%fluid%phase_composition)
@@ -311,7 +311,7 @@ contains
 !------------------------------------------------------------------------
 
   subroutine source_control_deliverability_calculate_productivity_index(self, &
-       initial_rate, fluid_data, fluid_section, fluid_range_start)
+       initial_rate, global_fluid_data, global_fluid_section, fluid_range_start)
     !! Calculates productivity index for deliverability control, from
     !! specified initial flow rate. This only works if the control has
     !! exactly one source, otherwise the correct productivity index
@@ -322,8 +322,8 @@ contains
 
     class(source_control_deliverability_type), intent(in out) :: self
     PetscReal, intent(in) :: initial_rate
-    PetscReal, pointer, contiguous, intent(in) :: fluid_data(:)
-    PetscSection, intent(in) :: fluid_section
+    PetscReal, pointer, contiguous, intent(in) :: global_fluid_data(:)
+    PetscSection, intent(in) :: global_fluid_section
     PetscInt, intent(in) :: fluid_range_start
     ! Locals:
     type(list_node_type), pointer :: node
@@ -339,10 +339,10 @@ contains
        type is (source_type)
 
           c = source%cell_index
-          call global_section_offset(fluid_section, c, &
+          call global_section_offset(global_fluid_section, c, &
                fluid_range_start, fluid_offset, ierr); CHKERRQ(ierr)
 
-          call source%fluid%assign(fluid_data, fluid_offset)
+          call source%fluid%assign(global_fluid_data, fluid_offset)
           allocate(phase_mobilities(source%fluid%num_phases))
           phase_mobilities = source%fluid%phase_mobilities()
 
@@ -435,14 +435,14 @@ contains
 !------------------------------------------------------------------------
 
   subroutine source_control_separator_update(self, t, interval, &
-       fluid_data, fluid_section)
+       local_fluid_data, local_fluid_section)
     !! Update separated water and steam flow rates for
     !! source_control_separator_type.
 
     class(source_control_separator_type), intent(in out) :: self
     PetscReal, intent(in) :: t, interval(2)
-    PetscReal, pointer, contiguous, intent(in) :: fluid_data(:)
-    PetscSection, intent(in) :: fluid_section
+    PetscReal, pointer, contiguous, intent(in) :: local_fluid_data(:)
+    PetscSection, intent(in) :: local_fluid_section
     ! Locals:
     PetscReal :: phase_flow_fractions(self%source%fluid%num_phases)
     PetscReal :: enthalpy
@@ -452,7 +452,7 @@ contains
       if ((self%source%rate < 0._dp) .and. &
            (self%source%production_component < np)) then
 
-         call self%source%update_fluid(fluid_data, fluid_section)
+         call self%source%update_fluid(local_fluid_data, local_fluid_section)
          phase_flow_fractions = self%source%fluid%phase_flow_fractions()
          enthalpy = self%source%fluid%specific_enthalpy(phase_flow_fractions)
 
@@ -530,13 +530,13 @@ contains
 !------------------------------------------------------------------------
 
   subroutine source_control_limiter_update(self, t, interval, &
-       fluid_data, fluid_section)
+       local_fluid_data, local_fluid_section)
     !! Update flow rate for source_control_limiter_type.
 
     class(source_control_limiter_type), intent(in out) :: self
     PetscReal, intent(in) :: t, interval(2)
-    PetscReal, pointer, contiguous, intent(in) :: fluid_data(:)
-    PetscSection, intent(in) :: fluid_section
+    PetscReal, pointer, contiguous, intent(in) :: local_fluid_data(:)
+    PetscSection, intent(in) :: local_fluid_section
     PetscReal :: scale
 
     scale = self%rate_scale()

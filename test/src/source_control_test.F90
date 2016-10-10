@@ -31,7 +31,8 @@ contains
     use eos_module, only: max_component_name_length, max_phase_name_length
     use eos_test
     use fluid_module, only: setup_fluid_vector
-    use dm_utils_module, only: global_to_local_vec_section, restore_dm_local_vec
+    use dm_utils_module, only: global_vec_section, &
+         global_to_local_vec_section, restore_dm_local_vec
 
     character(16), parameter :: path = "data/source/"
     type(IAPWS_type) :: thermo
@@ -39,9 +40,9 @@ contains
     type(fson_value), pointer :: json
     type(mesh_type) :: mesh
     type(list_type) :: sources, source_controls
-    Vec :: global_fluid, local_fluid
-    PetscReal, pointer, contiguous :: fluid_array(:)
-    PetscSection :: fluid_section
+    Vec :: fluid_vector, local_fluid_vector
+    PetscReal, pointer, contiguous :: fluid_array(:), local_fluid_array(:)
+    PetscSection :: fluid_section, local_fluid_section
     PetscInt :: num_sources, fluid_range_start
     PetscReal :: t, interval(2)
     PetscErrorCode :: ierr
@@ -55,12 +56,14 @@ contains
     call mesh%configure(eos%primary_variable_names)
     call setup_fluid_vector(mesh%dm, max_component_name_length, &
          eos%component_names, max_phase_name_length, eos%phase_names, &
-         global_fluid, fluid_range_start)
-    call global_to_local_vec_section(global_fluid, local_fluid, fluid_section)
-    call VecGetArrayReadF90(local_fluid, fluid_array, ierr); CHKERRQ(ierr)
+         fluid_vector, fluid_range_start)
+    call global_vec_section(fluid_vector, fluid_section)
+    call VecGetArrayF90(fluid_vector, fluid_array, ierr); CHKERRQ(ierr)
 
-    call setup_sources(json, mesh%dm, eos, thermo, global_fluid, &
+    call setup_sources(json, mesh%dm, eos, thermo, fluid_vector, &
          fluid_range_start, sources, source_controls)
+
+    call VecRestoreArrayF90(fluid_vector, fluid_array, ierr); CHKERRQ(ierr)
 
     call MPI_reduce(sources%count, num_sources, 1, MPI_INTEGER, MPI_SUM, &
          mpi%input_rank, mpi%comm, ierr)
@@ -68,18 +71,25 @@ contains
       call assert_equals(6, num_sources, "number of sources")
     end if
 
+    call global_to_local_vec_section(fluid_vector, local_fluid_vector, &
+         local_fluid_section)
+    call VecGetArrayReadF90(local_fluid_vector, local_fluid_array, ierr)
+    CHKERRQ(ierr)
+
     t = 120._dp
     interval = [30._dp, t]
     call source_controls%traverse(source_control_iterator)
     call sources%traverse(source_test_iterator)
 
+    call VecRestoreArrayReadF90(local_fluid_vector, local_fluid_array, ierr)
+    CHKERRQ(ierr)
+    call restore_dm_local_vec(local_fluid_vector)
+
     call sources%destroy(source_list_node_data_destroy)
     call source_controls%destroy(source_control_list_node_data_destroy, &
          reverse = PETSC_TRUE)
 
-    call VecRestoreArrayReadF90(local_fluid, fluid_array, ierr); CHKERRQ(ierr)
-    call restore_dm_local_vec(local_fluid)
-    call VecDestroy(global_fluid, ierr); CHKERRQ(ierr)
+    call VecDestroy(fluid_vector, ierr); CHKERRQ(ierr)
     call mesh%destroy()
     call eos%destroy()
     call thermo%destroy()
@@ -148,8 +158,8 @@ contains
     use eos_module, only: max_component_name_length, max_phase_name_length
     use eos_test
     use fluid_module, only: fluid_type, setup_fluid_vector
-    use dm_utils_module, only: global_to_local_vec_section, &
-         restore_dm_local_vec, section_offset
+    use dm_utils_module, only: global_vec_section, global_section_offset, &
+         global_to_local_vec_section, restore_dm_local_vec
 
     character(16), parameter :: path = "data/source/"
     type(IAPWS_type) :: thermo
@@ -157,9 +167,9 @@ contains
     type(fson_value), pointer :: json
     type(mesh_type) :: mesh
     type(list_type) :: sources, source_controls
-    Vec :: global_fluid, local_fluid
-    PetscReal, pointer, contiguous :: fluid_array(:)
-    PetscSection :: fluid_section
+    Vec :: fluid_vector, local_fluid_vector
+    PetscReal, pointer, contiguous :: fluid_array(:), local_fluid_array(:)
+    PetscSection :: fluid_section, local_fluid_section
     type(fluid_type) :: fluid
     PetscInt :: num_sources, num_source_controls, fluid_range_start, c
     PetscInt :: fluid_offset, cell_phase_composition
@@ -197,13 +207,14 @@ contains
     call mesh%configure(eos%primary_variable_names)
     call setup_fluid_vector(mesh%dm, max_component_name_length, &
          eos%component_names, max_phase_name_length, eos%phase_names, &
-         global_fluid, fluid_range_start)
-    call global_to_local_vec_section(global_fluid, local_fluid, fluid_section)
-    call VecGetArrayReadF90(local_fluid, fluid_array, ierr); CHKERRQ(ierr)
+         fluid_vector, fluid_range_start)
+    call global_vec_section(fluid_vector, fluid_section)
+    call VecGetArrayF90(fluid_vector, fluid_array, ierr); CHKERRQ(ierr)
 
     do c = mesh%start_cell, mesh%end_cell - 1
        if (mesh%ghost_cell(c) < 0) then
-          call section_offset(fluid_section, c, fluid_offset, ierr)
+          call global_section_offset(fluid_section, c, fluid_range_start, &
+               fluid_offset, ierr)
           CHKERRQ(ierr)
           call fluid%assign(fluid_array, fluid_offset)
           fluid%pressure = cell_pressure
@@ -228,8 +239,9 @@ contains
           fluid%phase(2)%mass_fraction = [0.9_dp, 0.1_dp]
        end if
     end do
+    call VecRestoreArrayF90(fluid_vector, fluid_array, ierr); CHKERRQ(ierr)
 
-    call setup_sources(json, mesh%dm, eos, thermo, global_fluid, &
+    call setup_sources(json, mesh%dm, eos, thermo, fluid_vector, &
          fluid_range_start, sources, source_controls)
 
     call MPI_reduce(sources%count, num_sources, 1, MPI_INTEGER, MPI_SUM, &
@@ -244,18 +256,25 @@ contains
       call assert_equals(7, num_source_controls, "number of source controls")
     end if
 
+    call global_to_local_vec_section(fluid_vector, local_fluid_vector, &
+         local_fluid_section)
+    call VecGetArrayReadF90(local_fluid_vector, local_fluid_array, ierr)
+    CHKERRQ(ierr)
+
     call source_controls%traverse(source_control_update_iterator)
     call source_controls%traverse(source_control_test_iterator)
     call sources%traverse(source_test_iterator)
+
+    call VecRestoreArrayReadF90(local_fluid_vector, local_fluid_array, ierr)
+    CHKERRQ(ierr)
+    call restore_dm_local_vec(local_fluid_vector)
 
     call sources%destroy(source_list_node_data_destroy)
     call source_controls%destroy(source_control_list_node_data_destroy, &
       reverse = PETSC_TRUE)
 
     call fluid%destroy()
-    call VecRestoreArrayReadF90(local_fluid, fluid_array, ierr); CHKERRQ(ierr)
-    call restore_dm_local_vec(local_fluid)
-    call VecDestroy(global_fluid, ierr); CHKERRQ(ierr)
+    call VecDestroy(fluid_vector, ierr); CHKERRQ(ierr)
     call mesh%destroy()
     call eos%destroy()
     call thermo%destroy()
@@ -268,7 +287,8 @@ contains
       PetscBool, intent(out) :: stopped
       select type (source_control => node%data)
       class is (source_control_type)
-         call source_control%update(t, interval, fluid_array, fluid_section)
+         call source_control%update(t, interval, local_fluid_array, &
+              local_fluid_section)
       end select
       stopped = PETSC_FALSE
     end subroutine source_control_update_iterator

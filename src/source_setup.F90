@@ -297,7 +297,7 @@ contains
 !------------------------------------------------------------------------
 
   subroutine setup_inline_source_controls(source_json, eos, thermo, &
-       fluid_data, fluid_section, fluid_range_start, srcstr, &
+       local_fluid_data, local_fluid_section, fluid_range_start, srcstr, &
        num_cells, cell_sources, source_controls, logfile)
     !! Sets up any 'inline' source controls for the source,
     !! i.e. controls defined implicitly in the specification of the source.
@@ -305,8 +305,8 @@ contains
     type(fson_value), pointer, intent(in) :: source_json
     class(eos_type), intent(in) :: eos
     class(thermodynamics_type), intent(in) :: thermo
-    PetscReal, pointer, contiguous, intent(in) :: fluid_data(:)
-    PetscSection, intent(in) :: fluid_section
+    PetscReal, pointer, contiguous, intent(in) :: local_fluid_data(:)
+    PetscSection, intent(in) :: local_fluid_section
     PetscInt, intent(in) :: fluid_range_start
     character(len = *), intent(in) :: srcstr
     PetscInt, intent(in) :: num_cells
@@ -318,7 +318,7 @@ contains
          source_controls)
 
     call setup_deliverability_source_control(source_json, srcstr, &
-         fluid_data, fluid_section, fluid_range_start, &
+         local_fluid_data, local_fluid_section, fluid_range_start, &
          num_cells, cell_sources, source_controls, logfile)
 
     call setup_limiter_source_control(source_json, srcstr, thermo, &

@@ -44,6 +44,6 @@ $(BUILD)/timestepper$(OBJ):$(BUILD)/dm_utils$(OBJ) $(BUILD)/fson_mpi$(OBJ) $(BUI
 $(TEST)/$(BUILD)/mesh$(TESTSUF)$(OBJ):$(BUILD)/cell$(OBJ) $(BUILD)/dm_utils$(OBJ) $(BUILD)/face$(OBJ) $(BUILD)/fson_mpi$(OBJ) $(BUILD)/kinds$(OBJ) $(BUILD)/mesh$(OBJ) $(BUILD)/mpi$(OBJ)
 $(BUILD)/logfile$(OBJ):$(BUILD)/mpi$(OBJ)
 $(TEST)/$(BUILD)/interpolation$(TESTSUF)$(OBJ):$(BUILD)/interpolation$(OBJ) $(BUILD)/kinds$(OBJ) $(BUILD)/mpi$(OBJ)
-$(BUILD)/source_control$(OBJ):$(BUILD)/eos$(OBJ) $(BUILD)/interpolation$(OBJ) $(BUILD)/kinds$(OBJ) $(BUILD)/list$(OBJ) $(BUILD)/source$(OBJ) $(BUILD)/thermodynamics$(OBJ)
+$(BUILD)/source_control$(OBJ):$(BUILD)/dm_utils$(OBJ) $(BUILD)/eos$(OBJ) $(BUILD)/interpolation$(OBJ) $(BUILD)/kinds$(OBJ) $(BUILD)/list$(OBJ) $(BUILD)/source$(OBJ) $(BUILD)/thermodynamics$(OBJ)
 $(TEST)/$(BUILD)/flow_simulation$(TESTSUF)$(OBJ):$(BUILD)/dm_utils$(OBJ) $(BUILD)/flow_simulation$(OBJ) $(BUILD)/fson_mpi$(OBJ) $(BUILD)/kinds$(OBJ) $(BUILD)/mesh$(OBJ) $(BUILD)/mpi$(OBJ) $(BUILD)/rock$(OBJ)
 $(BUILD)/relative_permeability$(OBJ):$(BUILD)/fson_mpi$(OBJ) $(BUILD)/kinds$(OBJ) $(BUILD)/logfile$(OBJ) $(BUILD)/utils$(OBJ)
