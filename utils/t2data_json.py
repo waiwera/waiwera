@@ -225,6 +225,7 @@ class t2data_export_json(t2data):
                                     raise Exception('Two-stage flash separator not supported.')
                         elif gen.hg < 0. and gen.type == 'DELG':
                             g['rate'] = gen.hg # initial rate for computing productivity index
+                            del g['deliverability']['productivity_index']
                         if gen.type == 'DELS': g['production_component'] = 2
                     if gen.time:
                         if gen.type == 'DELG':
