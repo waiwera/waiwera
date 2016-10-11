@@ -180,9 +180,9 @@ class t2data_export_json(t2data):
         """Converts TOUGH2 generator data to JSON."""
         jsondata = {}
         unsupported_types = ['CO2 ', '']
-        component = {'MASS': 1, 'HEAT': self.multi['num_equations'],
+        mass_component = {'MASS': 1, 'HEAT': self.multi['num_equations'],
                      'COM1': 1, 'COM2': 2, 'COM3': 3, 'COM4': 4,
-                     'COM5': 5, 'WATE': 1, 'AIR ': 2, 'CO2 ': 2, 'TRAC': 2}
+                     'COM5': 5, 'WATE': 1, 'AIR ': 2, 'TRAC': 2}
         limit_type = {'DELG': 'steam', 'DELS': 'steam', 'DELT': 'total', 'DELW': 'water'}
         if self.parameter['option'][12] == 0:
             interp_type, averaging_type = "linear", "endpoint"
@@ -199,12 +199,12 @@ class t2data_export_json(t2data):
                     raise Exception('Generator type ' + gen.type + ' not supported.')
                 else:
                     cell_index = geo.block_name_index[gen.block] - geo.num_atmosphere_blocks
-                    g = {'name': gen.name, 'cell': cell_index, 'rate': gen.gx}
-                    if gen.gx >= 0.:
-                        if gen.type in component:
-                            g['component'] = component[gen.type]
+                    g = {'name': gen.name, 'cell': cell_index}
+                    if gen.type in mass_component:
+                        if gen.gx > 0.:
+                            g['rate'] = gen.gx
+                            g['component'] = mass_component[gen.type]
                             if gen.type != 'HEAT': g['enthalpy'] = gen.ex
-                        else: raise Exception('Generator type ' + gen.type + ' not supported.')
                     if gen.type == 'DELV':
                         if gen.ltab > 1:
                             raise Exception('DELV generator with multiple layers not supported.')
