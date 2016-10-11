@@ -302,6 +302,11 @@ contains
     !! Sets up any 'inline' source controls for the source,
     !! i.e. controls defined implicitly in the specification of the source.
 
+    use interpolation_module, only: interpolation_type_from_str, &
+         averaging_type_from_str, max_interpolation_str_length, &
+         max_averaging_str_length, default_interpolation_str, &
+         default_averaging_str
+
     type(fson_value), pointer, intent(in) :: source_json
     class(eos_type), intent(in) :: eos
     class(thermodynamics_type), intent(in) :: thermo
@@ -313,13 +318,26 @@ contains
     type(list_type), intent(in out) :: cell_sources
     type(list_type), intent(in out) :: source_controls
     type(logfile_type), intent(in out), optional :: logfile
+    ! Locals:
+    PetscInt :: interpolation_type, averaging_type
+    character(max_interpolation_str_length) :: interpolation_str
+    character(max_averaging_str_length) :: averaging_str
 
-    call setup_table_source_control(source_json, cell_sources, &
-         source_controls)
+    call fson_get_mpi(source_json, "interpolation", &
+         default_interpolation_str, interpolation_str)
+    interpolation_type = interpolation_type_from_str(interpolation_str)
+
+    call fson_get_mpi(source_json, "averaging", &
+         default_averaging_str, averaging_str)
+    averaging_type = averaging_type_from_str(averaging_str)
+
+    call setup_table_source_control(source_json, interpolation_type, &
+         averaging_type, cell_sources, source_controls)
 
     call setup_deliverability_source_control(source_json, srcstr, &
          local_fluid_data, local_fluid_section, fluid_range_start, &
-         num_cells, cell_sources, source_controls, logfile)
+         interpolation_type, averaging_type, num_cells, cell_sources, &
+         source_controls, logfile)
 
     call setup_limiter_source_control(source_json, srcstr, thermo, &
          cell_sources, source_controls, logfile)
@@ -328,26 +346,19 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine setup_table_source_control(source_json, cell_sources, &
-       source_controls)
+  subroutine setup_table_source_control(source_json, interpolation_type, &
+       averaging_type, cell_sources, source_controls)
     !! Set up rate or enthalpy table source controls.
 
-    use interpolation_module, only: interpolation_type_from_str, &
-         averaging_type_from_str, max_interpolation_str_length, &
-         max_averaging_str_length, default_interpolation_str, &
-         default_averaging_str
-    use utils_module, only: str_to_lower
-
     type(fson_value), pointer, intent(in) :: source_json
+    PetscInt, intent(in) :: interpolation_type, averaging_type
     type(list_type), intent(in out) :: cell_sources
     type(list_type), intent(in out) :: source_controls
     ! Locals:
     type(source_control_rate_table_type), pointer :: rate_control
     type(source_control_enthalpy_table_type), pointer :: enthalpy_control
-    PetscInt :: variable_type, interpolation_type, averaging_type
+    PetscInt :: variable_type
     PetscReal, allocatable :: data_array(:,:)
-    character(max_interpolation_str_length) :: interpolation_str
-    character(max_averaging_str_length) :: averaging_str
 
     ! Rate table:
     if (fson_has_mpi(source_json, "rate")) then
@@ -355,14 +366,6 @@ contains
        if (variable_type == TYPE_ARRAY) then
 
           call fson_get_mpi(source_json, "rate", val = data_array)
-
-          call fson_get_mpi(source_json, "interpolation", &
-               default_interpolation_str, interpolation_str)
-          interpolation_type = interpolation_type_from_str(interpolation_str)
-
-          call fson_get_mpi(source_json, "averaging", &
-               default_averaging_str, averaging_str)
-          averaging_type = averaging_type_from_str(averaging_str)
 
           if (cell_sources%count > 0) then
              allocate(rate_control)
@@ -383,14 +386,6 @@ contains
 
           call fson_get_mpi(source_json, "enthalpy", val = data_array)
 
-          call fson_get_mpi(source_json, "interpolation", &
-               default_interpolation_str, interpolation_str)
-          interpolation_type = interpolation_type_from_str(interpolation_str)
-
-          call fson_get_mpi(source_json, "averaging", &
-               default_averaging_str, averaging_str)
-          averaging_type = averaging_type_from_str(averaging_str)
-
           if (cell_sources%count > 0) then
              allocate(enthalpy_control)
              call enthalpy_control%init(data_array, interpolation_type, &
@@ -408,21 +403,17 @@ contains
 !------------------------------------------------------------------------
 
   subroutine setup_deliverability_source_control(source_json, srcstr, &
-       fluid_data, fluid_section, fluid_range_start, num_cells, &
+       fluid_data, fluid_section, fluid_range_start, &
+       interpolation_type, averaging_type, num_cells, &
        cell_sources, source_controls, logfile)
     !! Set up deliverability source control.
-
-    use interpolation_module, only: interpolation_type_from_str, &
-         averaging_type_from_str, max_interpolation_str_length, &
-         max_averaging_str_length, default_interpolation_str, &
-         default_averaging_str
-    use utils_module, only: str_to_lower
 
     type(fson_value), pointer, intent(in) :: source_json
     character(len=*) :: srcstr
     PetscReal, pointer, contiguous, intent(in) :: fluid_data(:)
     PetscSection, intent(in) :: fluid_section
     PetscInt, intent(in) :: fluid_range_start
+    PetscInt, intent(in) :: interpolation_type, averaging_type
     PetscInt, intent(in) :: num_cells
     type(list_type), intent(in out) :: cell_sources
     type(list_type), intent(in out) :: source_controls
@@ -431,13 +422,11 @@ contains
     type(fson_value), pointer :: deliv_json
     PetscReal :: productivity_index, bottomhole_pressure
     PetscReal, allocatable :: productivity_index_array(:,:)
-    PetscInt :: PI_type, interpolation_type, averaging_type
+    PetscInt :: PI_type
     type(source_control_deliverability_type), pointer :: deliv
     PetscBool :: calculate_productivity_index
     PetscReal :: initial_rate
     PetscReal, parameter :: default_time = 0._dp, default_rate = 0._dp
-    character(max_interpolation_str_length) :: interpolation_str
-    character(max_averaging_str_length) :: averaging_str
 
     if (fson_has_mpi(source_json, "deliverability")) then
 
@@ -448,14 +437,6 @@ contains
        call fson_get_mpi(deliv_json, "bottomhole_pressure", &
             default_deliverability_bottomhole_pressure, bottomhole_pressure, &
             logfile, srcstr)
-
-       call fson_get_mpi(source_json, "interpolation", &
-            default_interpolation_str, interpolation_str)
-       interpolation_type = interpolation_type_from_str(interpolation_str)
-
-       call fson_get_mpi(source_json, "averaging", &
-            default_averaging_str, averaging_str)
-       averaging_type = averaging_type_from_str(averaging_str)
 
        calculate_productivity_index = PETSC_FALSE
 
