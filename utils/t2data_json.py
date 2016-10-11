@@ -183,7 +183,7 @@ class t2data_export_json(t2data):
                              'PINJ', 'POWR', 'RECH', 'RINJ', 'TMAK', 'TOST', 'VOL.',
                              'WBRE', 'WFLO', 'XINJ', 'XIN2']
         mass_component = {'MASS': 1, 'HEAT': self.multi['num_equations'],
-                     'COM1': 1, 'COM2': 2, 'COM3': 3, 'COM4': 4,
+                          'COM1': 1, 'COM2': 2, 'COM3': 3, 'COM4': 4,
                           'COM5': 5, 'WATE': 1, 'AIR ': 2, 'TRAC': 2, 'NACL': 3}
         limit_type = {'DELG': 'steam', 'DELS': 'steam', 'DELT': 'total', 'DELW': 'water'}
         if self.parameter['option'][12] == 0:
