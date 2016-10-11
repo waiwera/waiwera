@@ -228,6 +228,8 @@ class t2data_export_json(t2data):
                             del g['deliverability']['productivity_index']
                         if gen.type == 'DELS': g['production_component'] = 2
                     if gen.time:
+                        g['interpolation'] = interp_type
+                        g['averaging'] = averaging_type
                         if gen.type == 'DELG':
                             if gen.ltab > 0:
                                 g['deliverability']['productivity_index'] = [list(r) for r in zip(gen.time, gen.rate)]
@@ -238,8 +240,6 @@ class t2data_export_json(t2data):
                                 g['rate'] = [list(r) for r in zip(gen.time, gen.rate)]
                             if gen.enthalpy:
                                 g['enthalpy'] = [list(r) for r in zip(gen.time, gen.enthalpy)]
-                            g['interpolation'] = interp_type
-                            g['averaging'] = averaging_type
                     jsondata['source'].append(g)
         return jsondata
 
