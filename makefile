@@ -10,7 +10,7 @@ DEBUG=true
 SRC=src
 DIST=dist
 BUILD=build
-TEST=test
+TEST=test/unit
 
 # file extensions:
 F90=.F90

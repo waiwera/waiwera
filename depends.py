@@ -203,7 +203,7 @@ class dependencies(object):
 
 if __name__ == '__main__':
 
-    srcdirs = ['src', 'test/src']
+    srcdirs = ['src', 'test/unit/src']
     objdirs = ['$(BUILD)', '$(TEST)/$(BUILD)']
     variables = [('$(TESTSUF)', '_test'), ('$(PROG)', 'supermodel'),
              ('$(TESTPROG)', 'test_all')]
