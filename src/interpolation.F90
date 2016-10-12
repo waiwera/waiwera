@@ -22,8 +22,9 @@ module interpolation_module
   type, public :: interpolation_table_type
      !! Interpolation table type.
      private
-     PetscReal, allocatable, public :: data(:,:) !! Data array of (x,y) values
-     PetscInt :: size !! Number of x values in the data array
+     PetscReal, allocatable, public :: coord(:) !! Data coordinates
+     PetscReal, allocatable, public :: val(:) !! Data values
+     PetscInt :: size !! Number of values in the data arrays
      PetscInt, public :: index !! Current index in the table
      procedure(interpolation_function), pointer, nopass, public :: interpolant
      procedure(averaging_function), pointer, public :: average
@@ -47,16 +48,17 @@ module interpolation_module
 
   interface
 
-     PetscReal function interpolation_function(data, x, index)
-       !! Function for interpolating data array at a given x value
-       !! between given index and index + 1.
-       PetscReal, intent(in) :: data(:,:)
+     PetscReal function interpolation_function(coord, val, x, index)
+       !! Function for interpolating value array at a given coordinate
+       !! value x between index and index + 1.
+       PetscReal, intent(in) :: coord(:), val(:)
        PetscReal, intent(in) :: x
        PetscInt, intent(in) :: index
      end function interpolation_function
 
      PetscReal function averaging_function(self, interval)
-       !! Function for averaging data array over a given x interval.
+       !! Function for averaging data value array over a given x
+       !! interval.
        import :: interpolation_table_type
        class(interpolation_table_type), intent(in out) :: self
        PetscReal, intent(in) :: interval(2) !! x interval
@@ -107,31 +109,31 @@ contains
 ! Interpolation functions:
 !------------------------------------------------------------------------
 
-  PetscReal function interpolant_linear(data, x, index) result(y)
+  PetscReal function interpolant_linear(coord, val, x, index) result(y)
     !! Linear interpolation function.
 
-    PetscReal, intent(in) :: data(:,:)
+    PetscReal, intent(in) :: coord(:), val(:)
     PetscReal, intent(in) :: x
     PetscInt, intent(in) :: index
     ! Locals:
     PetscReal :: theta
 
-    theta = (x - data(index, 1)) / (data(index + 1, 1) - data(index, 1))
-    y = (1._dp - theta) * data(index, 2) + theta * data(index + 1, 2)
+    theta = (x - coord(index)) / (coord(index + 1) - coord(index))
+    y = (1._dp - theta) * val(index) + theta * val(index + 1)
 
   end function interpolant_linear
 
 !------------------------------------------------------------------------
 
-  PetscReal function interpolant_step(data, x, index) result(y)
+  PetscReal function interpolant_step(coord, val, x, index) result(y)
     !! Piecewise constant step interpolation function, with constant
     !! value set to the data value at index.
 
-    PetscReal, intent(in) :: data(:,:)
+    PetscReal, intent(in) :: coord(:), val(:)
     PetscReal, intent(in) :: x
     PetscInt, intent(in) :: index
 
-    y = data(index, 2)
+    y = val(index)
 
   end function interpolant_step
 
@@ -142,17 +144,18 @@ contains
   subroutine interpolation_table_init(self, array, interpolation_type, &
        averaging_type)
     !! Initialises interpolation table.  The values of array(:,1) are
-    !! the sorted x values to interpolate between, while array(:,2)
-    !! are the corresponding y values. The array is assumed to have
-    !! size (at least) 2 in the second dimension.
+    !! the sorted x coordinate values to interpolate between, while
+    !! array(:,2) are the corresponding data values. The array is
+    !! assumed to have size (at least) 2 in the second dimension.
 
     class(interpolation_table_type), intent(in out) :: self
     PetscReal, intent(in) :: array(:,:)
     PetscInt, intent(in) :: interpolation_type
     PetscInt, intent(in) :: averaging_type
 
-    self%data = array
-    self%size = size(self%data, 1)
+    self%coord = array(:, 1)
+    self%val = array(:, 2)
+    self%size = size(self%coord)
     self%index = 1
     call self%set_interpolation_type(interpolation_type)
     call self%set_averaging_type(averaging_type)
@@ -226,14 +229,14 @@ contains
 
     class(interpolation_table_type), intent(in out) :: self
 
-    deallocate(self%data)
+    deallocate(self%coord, self%val)
 
   end subroutine interpolation_table_destroy
 
 !------------------------------------------------------------------------
 
   subroutine interpolation_table_find(self, x)
-    !! Updates index property so that data(index, 1) <= x < data(index + 1, 1).
+    !! Updates index property so that coord(index) <= x < coord(index + 1).
     !! If x is below the lower table limit, index = 0.
     !! If x is above the upper table limit, index = size.
 
@@ -242,10 +245,10 @@ contains
     ! Locals:
     PetscInt :: i, end_index, direction
 
-    if (x <= self%data(1, 1)) then
+    if (x <= self%coord(1)) then
        ! Below lower table limit- use y value at lower end:
        self%index = 0
-    else if (x >= self%data(self%size, 1)) then
+    else if (x >= self%coord(self%size)) then
        ! Above upper table limit- use y value at upper end:
        self%index = self%size
     else
@@ -258,7 +261,7 @@ contains
        end if
 
        ! Determine search direction:
-       if (x < self%data(self%index, 1)) then
+       if (x < self%coord(self%index)) then
           end_index = 1
           direction = -1
        else
@@ -267,7 +270,7 @@ contains
        end if
 
        do i = self%index, end_index, direction
-          if ((self%data(i, 1) <= x) .and. (x < self%data(i + 1, 1))) then
+          if ((self%coord(i) <= x) .and. (x < self%coord(i + 1))) then
              self%index = i
              exit
           end if
@@ -286,11 +289,11 @@ contains
     PetscReal, intent(in) :: x !! x value to interpolate at
 
     if (self%index <= 0) then
-       y = self%data(1, 2)
+       y = self%val(1)
     else if (self%index >= self%size) then
-       y = self%data(self%size, 2)
+       y = self%val(self%size)
     else
-       y = self%interpolant(self%data, x, self%index)
+       y = self%interpolant(self%coord, self%val, x, self%index)
     end if
 
   end function interpolation_table_interpolate_at_index
@@ -355,7 +358,7 @@ contains
        finished = PETSC_FALSE
 
        do i = istart, self%size - 1
-          x2 = self%data(i + 1, 1)
+          x2 = self%coord(i + 1)
           if (x2 > interval(2)) then
              x2 = interval(2)
              finished = PETSC_TRUE
