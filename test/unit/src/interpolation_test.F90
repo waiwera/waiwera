@@ -37,25 +37,25 @@ contains
        call table%init(data5) ! default linear interpolation
 
        call assert_equals(1._dp, table%interpolate(-0.5_dp), tol, "-0.5")
-       call assert_equals(0, table%index, "-0.5 index")
+       call assert_equals(0, table%coord%index, "-0.5 index")
 
        call assert_equals(1._dp, table%interpolate(0.0_dp), tol, "0.0")
-       call assert_equals(0, table%index, "0.0 index")
+       call assert_equals(0, table%coord%index, "0.0 index")
 
        call assert_equals(1.4761904761904763_dp, table%interpolate(1.0_dp), tol, "1.0")
-       call assert_equals(1, table%index, "1.0 index")
+       call assert_equals(1, table%coord%index, "1.0 index")
 
        call assert_equals(0.007692307692307665_dp, table%interpolate(4.5_dp), tol, "4.5")
-       call assert_equals(3, table%index, "4.5 index")
+       call assert_equals(3, table%coord%index, "4.5 index")
 
        call assert_equals(0.59375_dp, table%interpolate(3.6_dp), tol, "3.6")
-       call assert_equals(2, table%index, "3.6 index")
+       call assert_equals(2, table%coord%index, "3.6 index")
 
        call assert_equals(-1.1_dp, table%interpolate(6.3_dp), tol, "6.3")
-       call assert_equals(4, table%index, "6.3 index")
+       call assert_equals(4, table%coord%index, "6.3 index")
 
        call assert_equals(-0.1_dp, table%interpolate(10.0_dp), tol, "10.0")
-       call assert_equals(5, table%index, "10.0 index")
+       call assert_equals(5, table%coord%index, "10.0 index")
 
        call table%destroy()
 

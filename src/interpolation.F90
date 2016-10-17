@@ -19,13 +19,23 @@ module interpolation_module
   character(max_averaging_str_length), parameter, public :: &
        default_averaging_str = "integrate"
 
+  type, public :: interpolation_coordinate_type
+     !! Coordinate axis for interpolation.
+     private
+     PetscReal, allocatable, public :: val(:) !! Coordinate values
+     PetscInt, public :: size !! Number of coordinate values
+     PetscInt, public :: index !! Current index along the coordinate axis
+   contains
+     procedure, public :: init => interpolation_coordinate_init
+     procedure, public :: destroy => interpolation_coordinate_destroy
+     procedure, public :: find => interpolation_coordinate_find
+  end type interpolation_coordinate_type
+
   type, public :: interpolation_table_type
      !! Interpolation table type.
      private
-     PetscReal, allocatable, public :: coord(:) !! Data coordinates
+     type(interpolation_coordinate_type), public :: coord !! Data coordinates
      PetscReal, allocatable, public :: val(:) !! Data values
-     PetscInt :: size !! Number of values in the data arrays
-     PetscInt, public :: index !! Current index in the table
      procedure(interpolation_function), pointer, nopass, public :: interpolant
      procedure(averaging_function), pointer, public :: average
    contains
@@ -39,7 +49,6 @@ module interpolation_module
      procedure, public :: set_interpolation_type => interpolation_table_set_interpolation_type
      procedure, public :: set_averaging_type => interpolation_table_set_averaging_type
      procedure, public :: destroy => interpolation_table_destroy
-     procedure, public :: find => interpolation_table_find
      procedure :: interpolate_at_index => interpolation_table_interpolate_at_index
      procedure, public :: interpolate => interpolation_table_interpolate
      procedure :: interpolation_table_average_endpoint
@@ -138,6 +147,78 @@ contains
   end function interpolant_step
 
 !------------------------------------------------------------------------
+! interpolation_coordinate_type:
+!------------------------------------------------------------------------
+
+  subroutine interpolation_coordinate_init(self, values)
+    !! Initialises coordinate axis.
+    class(interpolation_coordinate_type), intent(in out) :: self
+    PetscReal, intent(in) :: values(:)
+
+    self%val = values
+    self%size = size(values, 1)
+    self%index = 1
+
+  end subroutine interpolation_coordinate_init
+
+!------------------------------------------------------------------------
+
+  subroutine interpolation_coordinate_destroy(self)
+    !! Destroys coordinate axis.
+    class(interpolation_coordinate_type), intent(in out) :: self
+
+    deallocate(self%val)
+
+  end subroutine interpolation_coordinate_destroy
+
+!------------------------------------------------------------------------
+
+  subroutine interpolation_coordinate_find(self, x)
+    !! Updates index property so that val(index) <= x < val(index + 1).
+    !! If x is below the lower coordinate limit, index = 0.
+    !! If x is above the upper coordinate limit, index = size.
+
+    class(interpolation_coordinate_type), intent(in out) :: self
+    PetscReal, intent(in) :: x !! x value to interpolate at
+    ! Locals:
+    PetscInt :: i, end_index, direction
+
+    if (x <= self%val(1)) then
+       ! Below lower coordinate limit:
+       self%index = 0
+    else if (x >= self%val(self%size)) then
+       ! Above upper table limit:
+       self%index = self%size
+    else
+
+       ! Check starting index:
+       if (self%index <= 0) then
+          self%index = 1
+       else if (self%index >= self%size) then
+          self%index = self%size - 1
+       end if
+
+       ! Determine search direction:
+       if (x < self%val(self%index)) then
+          end_index = 1
+          direction = -1
+       else
+          end_index = self%size - 1
+          direction = 1
+       end if
+
+       do i = self%index, end_index, direction
+          if ((self%val(i) <= x) .and. (x < self%val(i + 1))) then
+             self%index = i
+             exit
+          end if
+       end do
+
+    end if
+
+  end subroutine interpolation_coordinate_find
+
+!------------------------------------------------------------------------
 ! interpolation_table_type:  
 !------------------------------------------------------------------------
   
@@ -153,10 +234,8 @@ contains
     PetscInt, intent(in) :: interpolation_type
     PetscInt, intent(in) :: averaging_type
 
-    self%coord = array(:, 1)
+    call self%coord%init(array(:, 1))
     self%val = array(:, 2)
-    self%size = size(self%coord)
-    self%index = 1
     call self%set_interpolation_type(interpolation_type)
     call self%set_averaging_type(averaging_type)
 
@@ -229,71 +308,26 @@ contains
 
     class(interpolation_table_type), intent(in out) :: self
 
-    deallocate(self%coord, self%val)
+    call self%coord%destroy()
+    deallocate(self%val)
 
   end subroutine interpolation_table_destroy
 
 !------------------------------------------------------------------------
 
-  subroutine interpolation_table_find(self, x)
-    !! Updates index property so that coord(index) <= x < coord(index + 1).
-    !! If x is below the lower table limit, index = 0.
-    !! If x is above the upper table limit, index = size.
-
-    class(interpolation_table_type), intent(in out) :: self
-    PetscReal, intent(in) :: x !! x value to interpolate at
-    ! Locals:
-    PetscInt :: i, end_index, direction
-
-    if (x <= self%coord(1)) then
-       ! Below lower table limit- use y value at lower end:
-       self%index = 0
-    else if (x >= self%coord(self%size)) then
-       ! Above upper table limit- use y value at upper end:
-       self%index = self%size
-    else
-
-       ! Check starting index:
-       if (self%index <= 0) then
-          self%index = 1
-       else if (self%index >= self%size) then
-          self%index = self%size - 1
-       end if
-
-       ! Determine search direction:
-       if (x < self%coord(self%index)) then
-          end_index = 1
-          direction = -1
-       else
-          end_index = self%size - 1
-          direction = 1
-       end if
-
-       do i = self%index, end_index, direction
-          if ((self%coord(i) <= x) .and. (x < self%coord(i + 1))) then
-             self%index = i
-             exit
-          end if
-       end do
-
-    end if
-
-  end subroutine interpolation_table_find
-
-!------------------------------------------------------------------------
-
   PetscReal function interpolation_table_interpolate_at_index(self, x) result(y)
-    !! Returns interpolated y value for the given x, using the current index.
+    !! Returns interpolated y value for the given x, using the current
+    !! coordinate index.
 
     class(interpolation_table_type), intent(in out) :: self
     PetscReal, intent(in) :: x !! x value to interpolate at
 
-    if (self%index <= 0) then
+    if (self%coord%index <= 0) then
        y = self%val(1)
-    else if (self%index >= self%size) then
-       y = self%val(self%size)
+    else if (self%coord%index >= self%coord%size) then
+       y = self%val(self%coord%size)
     else
-       y = self%interpolant(self%coord, self%val, x, self%index)
+       y = self%interpolant(self%coord%val, self%val, x, self%coord%index)
     end if
 
   end function interpolation_table_interpolate_at_index
@@ -306,7 +340,7 @@ contains
     class(interpolation_table_type), intent(in out) :: self
     PetscReal, intent(in) :: x !! x value to interpolate at
 
-    call self%find(x)
+    call self%coord%find(x)
     y = self%interpolate_at_index(x)
 
   end function interpolation_table_interpolate
@@ -354,16 +388,16 @@ contains
        integral = 0._dp
        x1 = interval(1)
        y1 = self%interpolate(x1)
-       istart = self%index
+       istart = self%coord%index
        finished = PETSC_FALSE
 
-       do i = istart, self%size - 1
-          x2 = self%coord(i + 1)
+       do i = istart, self%coord%size - 1
+          x2 = self%coord%val(i + 1)
           if (x2 > interval(2)) then
              x2 = interval(2)
              finished = PETSC_TRUE
           end if
-          self%index = i
+          self%coord%index = i
           y2 = self%interpolate_at_index(x2)
           call update_integral(x1, x2, y1, y2, integral)
           x1 = x2
