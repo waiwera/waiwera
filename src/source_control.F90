@@ -22,10 +22,9 @@ module source_control_module
   PetscReal, parameter, public :: default_source_control_limiter_limit = 1._dp
   PetscReal, parameter, public :: default_deliverability_productivity_index = 1.e-11_dp
   PetscReal, parameter, public :: default_deliverability_reference_pressure = 1.e5_dp
-  PetscInt, parameter, public :: SRC_DELIV_DIRECTION_PRODUCTION = 1, &
-       SRC_DELIV_DIRECTION_INJECTION = 2, SRC_DELIV_DIRECTION_BOTH = 3
-  PetscInt, parameter, public :: default_deliverability_direction = &
-       SRC_DELIV_DIRECTION_BOTH
+  PetscInt, parameter, public :: SRC_DIRECTION_PRODUCTION = 1, &
+       SRC_DIRECTION_INJECTION = 2, SRC_DIRECTION_BOTH = 3
+  PetscInt, parameter, public :: default_source_direction = SRC_DIRECTION_BOTH
 
   type, public, abstract :: source_control_type
      !! Abstract type for source control, controlling source
@@ -310,9 +309,9 @@ contains
          source%rate = 0._dp
 
          select case (self%direction)
-         case (SRC_DELIV_DIRECTION_PRODUCTION)
+         case (SRC_DIRECTION_PRODUCTION)
             flowing = (pressure_difference > 0._dp)
-         case (SRC_DELIV_DIRECTION_INJECTION)
+         case (SRC_DIRECTION_INJECTION)
             flowing = (pressure_difference < 0._dp)
          case default
             flowing = PETSC_TRUE

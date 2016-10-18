@@ -469,21 +469,21 @@ contains
        call fson_get_mpi(json, "direction", val = direction_str)
        select case (trim(str_to_lower(direction_str)))
        case ("production", "out")
-          direction = SRC_DELIV_DIRECTION_PRODUCTION
+          direction = SRC_DIRECTION_PRODUCTION
        case ("injection", "in")
-          direction = SRC_DELIV_DIRECTION_INJECTION
+          direction = SRC_DIRECTION_INJECTION
        case ("both")
-          direction = SRC_DELIV_DIRECTION_BOTH
+          direction = SRC_DIRECTION_BOTH
        case default
           if (present(logfile) .and. logfile%active) then
              call logfile%write(LOG_LEVEL_WARN, 'input', 'unrecognised', &
                   str_key = "source[" // trim(srcstr) // "].deliverability.direction", &
                   str_value = direction_str)
           end if
-          direction = default_deliverability_direction
+          direction = default_source_direction
        end select
     else
-       direction = default_deliverability_direction
+       direction = default_source_direction
     end if
 
   end subroutine get_deliverability_direction
