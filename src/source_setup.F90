@@ -420,7 +420,7 @@ contains
     type(logfile_type), intent(in out), optional :: logfile
     ! Locals:
     type(fson_value), pointer :: deliv_json
-    PetscReal :: productivity_index, bottomhole_pressure
+    PetscReal :: productivity_index, reference_pressure
     PetscReal, allocatable :: productivity_index_array(:,:)
     PetscInt :: PI_type
     type(source_control_deliverability_type), pointer :: deliv
@@ -434,8 +434,8 @@ contains
 
        call fson_get_mpi(source_json, "deliverability", deliv_json)
 
-       call fson_get_mpi(deliv_json, "bottomhole_pressure", &
-            default_deliverability_bottomhole_pressure, bottomhole_pressure, &
+       call fson_get_mpi(deliv_json, "reference_pressure", &
+            default_deliverability_reference_pressure, reference_pressure, &
             logfile, srcstr)
 
        calculate_productivity_index = PETSC_FALSE
@@ -489,7 +489,7 @@ contains
 
           allocate(deliv)
           call deliv%init(productivity_index_array, interpolation_type, &
-               averaging_type, bottomhole_pressure, cell_sources)
+               averaging_type, reference_pressure, cell_sources)
 
           if (calculate_productivity_index) then
              call deliv%calculate_productivity_index(initial_rate, &

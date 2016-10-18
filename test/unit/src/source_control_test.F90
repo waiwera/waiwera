@@ -314,7 +314,7 @@ contains
                  "source 4 productivity index")
          end select
          call assert_equals(2.e5_dp, &
-              source_control%bottomhole_pressure, tol, "bottomhole pressure")
+              source_control%reference_pressure, tol, "reference pressure")
 
       type is (source_control_limiter_type)
          select case (source_control%type)

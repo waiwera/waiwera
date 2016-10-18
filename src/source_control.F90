@@ -21,7 +21,7 @@ module source_control_module
        SRC_CONTROL_LIMITER_TYPE_WATER = 2, SRC_CONTROL_LIMITER_TYPE_STEAM = 3
   PetscReal, parameter, public :: default_source_control_limiter_limit = 1._dp
   PetscReal, parameter, public :: default_deliverability_productivity_index = 1.e-11_dp
-  PetscReal, parameter, public :: default_deliverability_bottomhole_pressure = 1.e5_dp
+  PetscReal, parameter, public :: default_deliverability_reference_pressure = 1.e5_dp
 
   type, public, abstract :: source_control_type
      !! Abstract type for source control, controlling source
@@ -63,7 +63,7 @@ module source_control_module
      private
      type(list_type), public :: sources
      type(interpolation_table_type), public :: productivity_index !! Productivity index vs. time
-     PetscReal, public :: bottomhole_pressure
+     PetscReal, public :: reference_pressure
    contains
      procedure, public :: init => source_control_deliverability_init
      procedure, public :: destroy => source_control_deliverability_destroy
@@ -237,20 +237,20 @@ contains
 !------------------------------------------------------------------------
 
   subroutine source_control_deliverability_init(self, productivity_data, &
-       interpolation_type, averaging_type, bottomhole_pressure, sources)
+       interpolation_type, averaging_type, reference_pressure, sources)
     !! Initialises source_control_deliverability object.
 
     class(source_control_deliverability_type), intent(in out) :: self
     PetscReal, intent(in) :: productivity_data(:,:)
     PetscInt, intent(in) :: interpolation_type, averaging_type
-    PetscReal, intent(in) :: bottomhole_pressure
+    PetscReal, intent(in) :: reference_pressure
     type(list_type), intent(in out) :: sources
 
     call self%sources%init()
     call self%sources%add(sources)
     call self%productivity_index%init(productivity_data, &
          interpolation_type, averaging_type)
-    self%bottomhole_pressure = bottomhole_pressure
+    self%reference_pressure = reference_pressure
 
   end subroutine source_control_deliverability_init
 
@@ -301,7 +301,7 @@ contains
             if (btest(phases, p - 1)) then
                source%rate = source%rate - source%fluid%phase(p)%mobility() * &
                     productivity_index * &
-                    (source%fluid%pressure - self%bottomhole_pressure)
+                    (source%fluid%pressure - self%reference_pressure)
             end if
          end do
 
@@ -352,7 +352,7 @@ contains
           phase_mobilities = source%fluid%phase_mobilities()
 
           factor = sum(phase_mobilities) * &
-               (source%fluid%pressure - self%bottomhole_pressure)
+               (source%fluid%pressure - self%reference_pressure)
 
           if (abs(factor) > tol) then
              self%productivity_index%val(1) = abs(initial_rate) / factor

@@ -5,23 +5,23 @@
         {"name": "source 1", "cell": 0,
          "deliverability": {
              "productivity_index": 1.0e-12,
-             "bottomhole_pressure": 2.e5}
+             "reference_pressure": 2.e5}
         },
         {"name": "source 2", "cell": 1,
          "deliverability": {
              "productivity_index": 1.0e-12,
-             "bottomhole_pressure": 2.e5},
+             "reference_pressure": 2.e5},
          "limiter": {"type": "total", "limit": 10.}
         },
         {"name": "source 3", "cell": 2,
          "deliverability": {
              "productivity_index": 1.0e-12,
-             "bottomhole_pressure": 2.e5},
+             "reference_pressure": 2.e5},
          "limiter": {"type": "steam", "separator_pressure": 10.e5, "limit": 5.}
         },
         {"name": "source 4", "cell": 3,
          "rate": -11.,
-         "deliverability": {"bottomhole_pressure": 2.e5}
+         "deliverability": {"reference_pressure": 2.e5}
         },
         {"name": "source 5", "cell": 4,
          "deliverability": {
@@ -31,7 +31,7 @@
                  [90., 0.7e-12],
                  [180., 0.5e-12]
              ],
-             "bottomhole_pressure": 2.e5},
+             "reference_pressure": 2.e5},
              "averaging": "endpoint",
         },
     ]

@@ -212,10 +212,10 @@ class t2data_export_json(t2data):
                             raise Exception('DELV generator with multiple layers not supported.')
                         else:
                             g['deliverability'] = {'productivity_index': gen.gx,
-                                                   'bottomhole_pressure': gen.ex}
+                                                   'reference_pressure': gen.ex}
                     if gen.type in ['DELG', 'DELS', 'DELT', 'DELW']:
                         g['deliverability'] = {'productivity_index': gen.gx,
-                                               'bottomhole_pressure': gen.ex}
+                                               'reference_pressure': gen.ex}
                         if gen.hg > 0.:
                             g['limiter'] = {'type': limit_type[gen.type], 'limit': gen.hg}
                             if gen.type != 'DELT':
@@ -234,7 +234,7 @@ class t2data_export_json(t2data):
                             if gen.ltab > 0:
                                 g['deliverability']['productivity_index'] = [list(r) for r in zip(gen.time, gen.rate)]
                             else:
-                                raise Exception('Deliverability with bottomhole pressure table vs enthalpy not supported.')
+                                raise Exception('Deliverability with reference pressure table vs enthalpy not supported.')
                         else:
                             if gen.rate:
                                 g['rate'] = [list(r) for r in zip(gen.time, gen.rate)]
