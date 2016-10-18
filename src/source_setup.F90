@@ -402,11 +402,171 @@ contains
 
 !------------------------------------------------------------------------
 
+  subroutine get_deliverability_reference_pressure(json, &
+       srcstr, reference_pressure, calculate_reference_pressure, logfile)
+    !! Get reference pressure for deliverability source control.
+
+    use utils_module, only: str_to_lower
+
+    type(fson_value), pointer, intent(in) :: json
+    character(len = *), intent(in) :: srcstr
+    PetscReal, intent(out) :: reference_pressure
+    PetscBool, intent(out) :: calculate_reference_pressure
+    type(logfile_type), intent(in out), optional :: logfile
+    ! Locals:
+    PetscInt :: pressure_type
+    PetscInt, parameter :: max_pressure_str_length = 8
+    character(max_pressure_str_length) :: pressure_str
+
+    calculate_reference_pressure = PETSC_FALSE
+    reference_pressure = default_deliverability_reference_pressure
+
+    if (fson_has_mpi(json, "reference_pressure")) then
+       pressure_type = fson_type_mpi(json, "reference_pressure")
+       select case (pressure_type)
+       case (TYPE_REAL)
+          call fson_get_mpi(json, "reference_pressure", &
+               val = reference_pressure)
+       case (TYPE_STRING)
+          call fson_get_mpi(json, "reference_pressure", &
+               val = pressure_str)
+          if (trim(str_to_lower(pressure_str)) == 'initial') then
+             calculate_reference_pressure = PETSC_TRUE
+          else
+             if (present(logfile) .and. logfile%active) then
+                call logfile%write(LOG_LEVEL_WARN, 'input', 'unrecognised', &
+                     str_key = "source[" // trim(srcstr) // "].reference_pressure", &
+                     str_value = pressure_str)
+             end if
+          end if
+       end select
+    else
+       if (present(logfile) .and. logfile%active) then
+          call logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
+               real_keys = ["source[" // trim(srcstr) // "].reference_pressure"], &
+               real_values = [reference_pressure])
+       end if
+    end if
+
+  end subroutine get_deliverability_reference_pressure
+
+!------------------------------------------------------------------------
+
+  subroutine get_deliverability_direction(json, srcstr, direction, logfile)
+    !! Gets flow direction for deliverability source control.
+
+    use utils_module, only: str_to_lower
+
+    type(fson_value), pointer, intent(in) :: json
+    character(len = *), intent(in) :: srcstr
+    PetscInt, intent(out) :: direction
+    type(logfile_type), intent(in out), optional :: logfile
+    ! Locals:
+    PetscInt, parameter :: max_direction_str_length = 16
+    character(max_direction_str_length) :: direction_str
+
+    if (fson_has_mpi(json, "direction")) then
+       call fson_get_mpi(json, "direction", val = direction_str)
+       select case (trim(str_to_lower(direction_str)))
+       case ("production", "out")
+          direction = SRC_DELIV_DIRECTION_PRODUCTION
+       case ("injection", "in")
+          direction = SRC_DELIV_DIRECTION_INJECTION
+       case ("both")
+          direction = SRC_DELIV_DIRECTION_BOTH
+       case default
+          if (present(logfile) .and. logfile%active) then
+             call logfile%write(LOG_LEVEL_WARN, 'input', 'unrecognised', &
+                  str_key = "source[" // trim(srcstr) // "].deliverability.direction", &
+                  str_value = direction_str)
+          end if
+          direction = default_deliverability_direction
+       end select
+    else
+       direction = default_deliverability_direction
+    end if
+
+  end subroutine get_deliverability_direction
+
+!------------------------------------------------------------------------
+  
+  subroutine get_deliverability_productivity_index(json, source_json, srcstr, &
+       num_cells, cell_sources, productivity_index_array, calculate_PI_from_rate, &
+       recharge_coefficient, calculate_PI_from_recharge, logfile)
+    !! Gets productivity index for deliverability source control.
+
+    type(fson_value), pointer, intent(in) :: json, source_json
+    character(len = *), intent(in) :: srcstr
+    PetscInt, intent(in) :: num_cells
+    type(list_type), intent(in) :: cell_sources
+    PetscReal, allocatable :: productivity_index_array(:,:)
+    PetscBool, intent(out) :: calculate_PI_from_rate
+    PetscReal, intent(out) :: recharge_coefficient
+    PetscBool, intent(out) :: calculate_PI_from_recharge
+    type(logfile_type), intent(in out), optional :: logfile
+    ! Locals:
+    PetscInt :: PI_type
+    PetscReal :: productivity_index
+    PetscReal, parameter :: default_time = 0._dp
+
+    calculate_PI_from_rate = PETSC_FALSE
+    calculate_PI_from_recharge = PETSC_FALSE
+    productivity_index = default_deliverability_productivity_index
+    productivity_index_array = reshape([default_time, &
+         productivity_index], [1,2])
+
+    if (fson_has_mpi(json, "productivity_index")) then
+
+       PI_type = fson_type_mpi(json, "productivity_index")
+
+       select case(PI_type)
+       case (TYPE_REAL)
+          call fson_get_mpi(json, "productivity_index", &
+               val = productivity_index)
+          productivity_index_array = reshape([default_time, &
+               productivity_index], [1,2])
+       case (TYPE_ARRAY)
+          call fson_get_mpi(json, "productivity_index", &
+               val = productivity_index_array)
+       case default
+          if (present(logfile) .and. logfile%active) then
+             call logfile%write(LOG_LEVEL_WARN, 'input', 'unrecognised', &
+                  str_key = "source[" // trim(srcstr) // &
+                  "].deliverability.productivity_index", &
+                  str_value = "...")
+          end if
+       end select
+
+    else if (fson_has_mpi(json, "recharge_coefficient")) then
+
+       call fson_get_mpi(json, "recharge_coefficient", &
+            val = recharge_coefficient)
+       calculate_PI_from_recharge = PETSC_TRUE
+
+    else if ((fson_has_mpi(source_json, "rate") .and. &
+         (num_cells == 1) .and. (cell_sources%count == 1))) then
+
+       calculate_PI_from_rate = PETSC_TRUE
+
+    else
+       if (present(logfile) .and. logfile%active) then
+          call logfile%write(LOG_LEVEL_INFO, 'input', 'default', real_keys = &
+               ["source[" // trim(srcstr) // "].deliverability.productivity_index"], &
+               real_values = [productivity_index])
+       end if
+    end if
+
+  end subroutine get_deliverability_productivity_index
+
+!------------------------------------------------------------------------
+
   subroutine setup_deliverability_source_control(source_json, srcstr, &
        fluid_data, fluid_section, fluid_range_start, &
        interpolation_type, averaging_type, num_cells, &
        cell_sources, source_controls, logfile)
     !! Set up deliverability source control.
+
+    use utils_module, only: str_to_lower
 
     type(fson_value), pointer, intent(in) :: source_json
     character(len=*) :: srcstr
@@ -420,13 +580,14 @@ contains
     type(logfile_type), intent(in out), optional :: logfile
     ! Locals:
     type(fson_value), pointer :: deliv_json
-    PetscReal :: productivity_index, reference_pressure
-    PetscReal, allocatable :: productivity_index_array(:,:)
-    PetscInt :: PI_type
+    PetscReal :: reference_pressure
+    PetscInt :: direction
     type(source_control_deliverability_type), pointer :: deliv
-    PetscBool :: calculate_productivity_index
-    PetscReal :: initial_rate
-    PetscReal, parameter :: default_time = 0._dp, default_rate = 0._dp
+    PetscBool :: calculate_reference_pressure
+    PetscBool :: calculate_PI_from_rate, calculate_PI_from_recharge
+    PetscReal :: initial_rate, recharge_coefficient
+    PetscReal, allocatable :: productivity_index_array(:,:)
+    PetscReal, parameter :: default_rate = 0._dp
 
     if (fson_has_mpi(source_json, "deliverability")) then
 
@@ -434,65 +595,32 @@ contains
 
        call fson_get_mpi(source_json, "deliverability", deliv_json)
 
-       call fson_get_mpi(deliv_json, "reference_pressure", &
-            default_deliverability_reference_pressure, reference_pressure, &
-            logfile, srcstr)
+       call get_deliverability_reference_pressure(deliv_json, srcstr, &
+            reference_pressure, calculate_reference_pressure, logfile)
 
-       calculate_productivity_index = PETSC_FALSE
+       call get_deliverability_direction(deliv_json, srcstr, direction, logfile)
 
-       if (fson_has_mpi(deliv_json, "productivity_index")) then
-
-          PI_type = fson_type_mpi(deliv_json, "productivity_index")
-
-          select case(PI_type)
-          case (TYPE_REAL)
-             call fson_get_mpi(deliv_json, "productivity_index", &
-                  val = productivity_index)
-             productivity_index_array = reshape([default_time, &
-                  productivity_index], [1,2])
-          case (TYPE_ARRAY)
-             call fson_get_mpi(deliv_json, "productivity_index", &
-                  val = productivity_index_array)
-          case default
-             productivity_index = default_deliverability_productivity_index
-             productivity_index_array = reshape([default_time, &
-                  productivity_index], [1,2])
-             if (present(logfile) .and. logfile%active) then
-                call logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
-                     real_keys = [srcstr], &
-                     real_values = [productivity_index])
-             end if
-          end select
-
-       else
-
-          productivity_index = default_deliverability_productivity_index
-          productivity_index_array = reshape([default_time, &
-               productivity_index], [1,2])
-
-          if ((fson_has_mpi(source_json, "rate") .and. &
-               (num_cells == 1) .and. (cell_sources%count == 1))) then
-
-             calculate_productivity_index = PETSC_TRUE
-
-          else
-             if (present(logfile) .and. logfile%active) then
-                call logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
-                  real_keys = [srcstr], &
-                  real_values = [productivity_index])
-             end if
-          end if
-
-       end if
+       call get_deliverability_productivity_index(deliv_json, source_json, &
+            srcstr, num_cells, cell_sources, productivity_index_array, &
+            calculate_PI_from_rate, recharge_coefficient, &
+            calculate_PI_from_recharge, logfile)
 
        if (cell_sources%count > 0) then
 
           allocate(deliv)
           call deliv%init(productivity_index_array, interpolation_type, &
-               averaging_type, reference_pressure, cell_sources)
+               averaging_type, reference_pressure, direction, cell_sources)
 
-          if (calculate_productivity_index) then
-             call deliv%calculate_productivity_index(initial_rate, &
+          if (calculate_reference_pressure) then
+             call deliv%set_reference_pressure_initial(fluid_data, &
+                  fluid_section, fluid_range_start)
+          end if
+
+          if (calculate_PI_from_rate) then
+             call deliv%calculate_PI_from_rate(initial_rate, &
+                  fluid_data, fluid_section, fluid_range_start)
+          else if (calculate_PI_from_recharge) then
+             call deliv%calculate_PI_from_recharge(recharge_coefficient, &
                   fluid_data, fluid_section, fluid_range_start)
           end if
 

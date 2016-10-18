@@ -180,7 +180,7 @@ class t2data_export_json(t2data):
         """Converts TOUGH2 generator data to JSON."""
         jsondata = {}
         unsupported_types = ['CO2 ', 'DMAK', 'FEED', 'FINJ', 'HLOS', 'IMAK', 'MAKE',
-                             'PINJ', 'POWR', 'RECH', 'RINJ', 'TMAK', 'TOST', 'VOL.',
+                             'PINJ', 'POWR', 'RINJ', 'TMAK', 'TOST', 'VOL.',
                              'WBRE', 'WFLO', 'XINJ', 'XIN2']
         mass_component = {'MASS': 1, 'HEAT': self.multi['num_equations'],
                           'COM1': 1, 'COM2': 2, 'COM3': 3, 'COM4': 4,
@@ -212,10 +212,12 @@ class t2data_export_json(t2data):
                             raise Exception('DELV generator with multiple layers not supported.')
                         else:
                             g['deliverability'] = {'productivity_index': gen.gx,
-                                                   'reference_pressure': gen.ex}
-                    if gen.type in ['DELG', 'DELS', 'DELT', 'DELW']:
+                                                   'reference_pressure': gen.ex,
+                                                   'direction': 'production'}
+                    elif gen.type in ['DELG', 'DELS', 'DELT', 'DELW']:
                         g['deliverability'] = {'productivity_index': gen.gx,
-                                               'reference_pressure': gen.ex}
+                                               'reference_pressure': gen.ex,
+                                               'direction': 'production'}
                         if gen.hg > 0.:
                             g['limiter'] = {'type': limit_type[gen.type], 'limit': gen.hg}
                             if gen.type != 'DELT':
@@ -227,6 +229,19 @@ class t2data_export_json(t2data):
                             g['rate'] = gen.hg # initial rate for computing productivity index
                             del g['deliverability']['productivity_index']
                         if gen.type == 'DELS': g['production_component'] = 2
+                    elif gen.type == 'RECH':
+                        g['enthalpy'] = gen.ex
+                        if gen.hg != 0.:
+                            deliv = {}
+                            if gen.fg < 0.: deliv['direction'] = "out"
+                            elif gen.fg > 0.: deliv['direction'] = "in"
+                            else: deliv['direction'] = "both"
+                            if gen.hg > 0.: deliv['reference_pressure'] = gen.hg
+                            else: deliv['reference_pressure'] = 'initial'
+                            deliv['recharge_coefficient'] = gen.gx
+                            g['deliverability'] = deliv
+                        else:
+                            g['rate'] = gen.gx
                     if gen.time:
                         g['interpolation'] = interp_type
                         g['averaging'] = averaging_type

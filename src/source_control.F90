@@ -22,6 +22,10 @@ module source_control_module
   PetscReal, parameter, public :: default_source_control_limiter_limit = 1._dp
   PetscReal, parameter, public :: default_deliverability_productivity_index = 1.e-11_dp
   PetscReal, parameter, public :: default_deliverability_reference_pressure = 1.e5_dp
+  PetscInt, parameter, public :: SRC_DELIV_DIRECTION_PRODUCTION = 1, &
+       SRC_DELIV_DIRECTION_INJECTION = 2, SRC_DELIV_DIRECTION_BOTH = 3
+  PetscInt, parameter, public :: default_deliverability_direction = &
+       SRC_DELIV_DIRECTION_BOTH
 
   type, public, abstract :: source_control_type
      !! Abstract type for source control, controlling source
@@ -64,12 +68,17 @@ module source_control_module
      type(list_type), public :: sources
      type(interpolation_table_type), public :: productivity_index !! Productivity index vs. time
      PetscReal, public :: reference_pressure
+     PetscInt, public :: direction
    contains
      procedure, public :: init => source_control_deliverability_init
      procedure, public :: destroy => source_control_deliverability_destroy
      procedure, public :: update => source_control_deliverability_update
-     procedure, public :: calculate_productivity_index => &
-          source_control_deliverability_calculate_productivity_index
+     procedure, public :: set_reference_pressure_initial => &
+          source_control_deliverability_set_reference_pressure_initial
+     procedure, public :: calculate_PI_from_rate => &
+          source_control_deliverability_calculate_PI_from_rate
+     procedure, public :: calculate_PI_from_recharge => &
+          source_control_deliverability_calculate_PI_from_recharge
   end type source_control_deliverability_type
 
   type, public, extends(source_control_type) :: source_control_separator_type
@@ -237,13 +246,15 @@ contains
 !------------------------------------------------------------------------
 
   subroutine source_control_deliverability_init(self, productivity_data, &
-       interpolation_type, averaging_type, reference_pressure, sources)
+       interpolation_type, averaging_type, reference_pressure, direction, &
+       sources)
     !! Initialises source_control_deliverability object.
 
     class(source_control_deliverability_type), intent(in out) :: self
     PetscReal, intent(in) :: productivity_data(:,:)
     PetscInt, intent(in) :: interpolation_type, averaging_type
     PetscReal, intent(in) :: reference_pressure
+    PetscInt, intent(in) :: direction
     type(list_type), intent(in out) :: sources
 
     call self%sources%init()
@@ -251,6 +262,7 @@ contains
     call self%productivity_index%init(productivity_data, &
          interpolation_type, averaging_type)
     self%reference_pressure = reference_pressure
+    self%direction = direction
 
   end subroutine source_control_deliverability_init
 
@@ -286,24 +298,36 @@ contains
       PetscBool, intent(out) :: stopped
       ! Locals:
       PetscInt :: p, phases
-      PetscReal :: productivity_index
+      PetscReal :: pressure_difference, productivity_index
+      PetscBool :: flowing
 
       select type (source => node%data)
       type is (source_type)
 
          call source%update_fluid(local_fluid_data, local_fluid_section)
-
-         productivity_index = self%productivity_index%average(interval)
+         pressure_difference = source%fluid%pressure - self%reference_pressure
 
          source%rate = 0._dp
-         phases = nint(source%fluid%phase_composition)
-         do p = 1, source%fluid%num_phases
-            if (btest(phases, p - 1)) then
-               source%rate = source%rate - source%fluid%phase(p)%mobility() * &
-                    productivity_index * &
-                    (source%fluid%pressure - self%reference_pressure)
-            end if
-         end do
+
+         select case (self%direction)
+         case (SRC_DELIV_DIRECTION_PRODUCTION)
+            flowing = (pressure_difference > 0._dp)
+         case (SRC_DELIV_DIRECTION_INJECTION)
+            flowing = (pressure_difference < 0._dp)
+         case default
+            flowing = PETSC_TRUE
+         end select
+
+         if (flowing) then
+            productivity_index = self%productivity_index%average(interval)
+            phases = nint(source%fluid%phase_composition)
+            do p = 1, source%fluid%num_phases
+               if (btest(phases, p - 1)) then
+                  source%rate = source%rate - productivity_index * &
+                       source%fluid%phase(p)%mobility() * pressure_difference
+               end if
+            end do
+         end if
 
       end select
 
@@ -315,15 +339,52 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine source_control_deliverability_calculate_productivity_index(self, &
-       initial_rate, global_fluid_data, global_fluid_section, fluid_range_start)
+  subroutine source_control_deliverability_set_reference_pressure_initial(self, &
+       global_fluid_data, global_fluid_section, fluid_range_start)
+    !! Sets reference pressure for deliverability control to be the
+    !! initial fluid pressure.
+
+    use dm_utils_module, only: global_section_offset
+
+    class(source_control_deliverability_type), intent(in out) :: self
+    PetscReal, pointer, contiguous, intent(in) :: global_fluid_data(:)
+    PetscSection, intent(in) :: global_fluid_section
+    PetscInt, intent(in) :: fluid_range_start
+    ! Locals:
+    type(list_node_type), pointer :: node
+    PetscInt :: c, fluid_offset
+    PetscErrorCode :: ierr
+
+    if (self%sources%count == 1) then
+       node => self%sources%head
+       select type (source => node%data)
+       type is (source_type)
+
+          c = source%cell_index
+          call global_section_offset(global_fluid_section, c, &
+               fluid_range_start, fluid_offset, ierr); CHKERRQ(ierr)
+
+          call source%fluid%assign(global_fluid_data, fluid_offset)
+
+          self%reference_pressure = source%fluid%pressure
+
+       end select
+    end if
+
+  end subroutine source_control_deliverability_set_reference_pressure_initial
+
+!------------------------------------------------------------------------
+
+  subroutine source_control_deliverability_calculate_PI_from_rate(&
+       self, initial_rate, global_fluid_data, global_fluid_section, &
+       fluid_range_start)
     !! Calculates productivity index for deliverability control, from
     !! specified initial flow rate. This only works if the control has
     !! exactly one source, otherwise the correct productivity index
     !! would not be well-defined. If the productivity index can't be
     !! calculated, it is left at its initial value.
 
-    use dm_utils_module, only: global_vec_section, global_section_offset
+    use dm_utils_module, only: global_section_offset
 
     class(source_control_deliverability_type), intent(in out) :: self
     PetscReal, intent(in) :: initial_rate
@@ -363,7 +424,54 @@ contains
        end select
     end if
 
-  end subroutine source_control_deliverability_calculate_productivity_index
+  end subroutine source_control_deliverability_calculate_PI_from_rate
+
+!------------------------------------------------------------------------
+
+  subroutine source_control_deliverability_calculate_PI_from_recharge(&
+       self, recharge_coefficient, global_fluid_data, global_fluid_section, &
+       fluid_range_start)
+    !! Calculates productivity index for deliverability control, from
+    !! specified recharge coefficient. This only works if the control has
+    !! exactly one source, otherwise the correct productivity index
+    !! would not be well-defined. If the productivity index can't be
+    !! calculated, it is left at its initial value.
+
+    use dm_utils_module, only: global_section_offset
+
+    class(source_control_deliverability_type), intent(in out) :: self
+    PetscReal, intent(in) :: recharge_coefficient
+    PetscReal, pointer, contiguous, intent(in) :: global_fluid_data(:)
+    PetscSection, intent(in) :: global_fluid_section
+    PetscInt, intent(in) :: fluid_range_start
+    ! Locals:
+    type(list_node_type), pointer :: node
+    PetscInt :: c, fluid_offset
+    PetscReal, allocatable :: liquid_mobility
+    PetscErrorCode :: ierr
+    PetscReal, parameter :: tol = 1.e-9_dp
+
+    if (self%sources%count == 1) then
+       node => self%sources%head
+       select type (source => node%data)
+       type is (source_type)
+
+          c = source%cell_index
+          call global_section_offset(global_fluid_section, c, &
+               fluid_range_start, fluid_offset, ierr); CHKERRQ(ierr)
+
+          call source%fluid%assign(global_fluid_data, fluid_offset)
+
+          liquid_mobility = source%fluid%phase(1)%mobility()
+
+          if (liquid_mobility > tol) then
+             self%productivity_index%val(1) = -recharge_coefficient / liquid_mobility
+          end if
+
+       end select
+    end if
+
+  end subroutine source_control_deliverability_calculate_PI_from_recharge
 
 !------------------------------------------------------------------------
 ! Separator source control:
