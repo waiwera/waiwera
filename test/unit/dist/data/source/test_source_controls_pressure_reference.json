@@ -1,5 +1,5 @@
 {
-    "title": "Test deliverability source control",
+    "title": "Test pressure reference source controls",
     "mesh": "data/flow_simulation/mesh/3x3_2d.exo",
     "source": [
         {"name": "source 1", "cell": 0,
@@ -41,6 +41,24 @@
          "deliverability": {
              "productivity_index": 1.0e-12,
              "reference_pressure": 2.e5}
+        },
+        {"name": "source 7", "cell": 6,
+         "direction": "both",
+         "recharge": {
+             "recharge_coefficient": 1.3e-2,
+             "reference_pressure": 50.1e5}
+        },
+        {"name": "source 8", "cell": 7,
+         "direction": "out",
+         "recharge": {
+             "recharge_coefficient": 1.3e-2,
+             "reference_pressure": 49.99e5}
+        },
+        {"name": "source 9", "cell": 8,
+         "direction": "in",
+         "recharge": {
+             "recharge_coefficient": 1.1e-2,
+             "reference_pressure": 49.99e5}
         }
     ]
 }

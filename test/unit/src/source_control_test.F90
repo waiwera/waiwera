@@ -14,7 +14,7 @@ module source_control_test
 
 #include <petsc/finclude/petsc.h90>
 
-  public :: test_source_control_table, test_source_control_deliverability
+  public :: test_source_control_table, test_source_control_pressure_reference
 
 contains
 
@@ -147,8 +147,8 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine test_source_control_deliverability
-    ! Deliverability source controls
+  subroutine test_source_control_pressure_reference
+    ! Pressure reference source controls
 
     use fson
     use fson_mpi_module
@@ -181,7 +181,7 @@ contains
     PetscReal, parameter :: cell_pressure = 50.e5_dp, cell_vapour_saturation = 0.8_dp
     PetscInt, parameter :: cell_region = 4
 
-    json => fson_parse_mpi(trim(path) // "test_source_controls_deliverability.json")
+    json => fson_parse_mpi(trim(path) // "test_source_controls_pressure_reference.json")
 
     call thermo%init()
     call eos%init(json, thermo)
@@ -247,13 +247,13 @@ contains
     call MPI_reduce(sources%count, num_sources, 1, MPI_INTEGER, MPI_SUM, &
          mpi%input_rank, mpi%comm, ierr)
     if (mpi%rank == mpi%input_rank) then
-      call assert_equals(6, num_sources, "number of sources")
+      call assert_equals(9, num_sources, "number of sources")
     end if
 
     call MPI_reduce(source_controls%count, num_source_controls, 1, &
          MPI_INTEGER, MPI_SUM, mpi%input_rank, mpi%comm, ierr)
     if (mpi%rank == mpi%input_rank) then
-      call assert_equals(12, num_source_controls, "number of source controls")
+      call assert_equals(17, num_source_controls, "number of source controls")
     end if
 
     call global_to_local_vec_section(fluid_vector, local_fluid_vector, &
@@ -314,7 +314,17 @@ contains
                  "source 4 productivity index")
          end select
          call assert_equals(2.e5_dp, &
-              source_control%reference_pressure, tol, "reference pressure")
+              source_control%reference_pressure, tol, "deliverability reference pressure")
+
+      type is (source_control_recharge_type)
+         select case (source_control%sources%head%tag)
+         case ("source 7")
+            call assert_equals(1.3e-2_dp, &
+                 source_control%recharge_coefficient%val(1), tol, &
+                 "source 7 recharge coefficient")
+            call assert_equals(50.1e5_dp, &
+                 source_control%reference_pressure, tol, "source 7 reference pressure")
+         end select
 
       type is (source_control_limiter_type)
          select case (source_control%type)
@@ -358,6 +368,12 @@ contains
             call assert_equals(-10.1910078135_dp, source%rate, tol, "source 5 rate")
          case ("source 6")
             call assert_equals(0.0_dp, source%rate, tol, "source 6 rate")
+         case ("source 7")
+            call assert_equals(130.0_dp, source%rate, tol, "source 7 rate")
+         case ("source 8")
+            call assert_equals(-13.0_dp, source%rate, tol, "source 8 rate")
+         case ("source 9")
+            call assert_equals(0.0_dp, source%rate, tol, "source 9 rate")
          end select
       end select
       stopped = PETSC_FALSE
@@ -379,7 +395,7 @@ contains
       end select
     end subroutine source_control_list_node_data_destroy
 
-  end subroutine test_source_control_deliverability
+  end subroutine test_source_control_pressure_reference
 
 !------------------------------------------------------------------------
 
