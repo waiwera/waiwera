@@ -342,6 +342,9 @@ contains
     call setup_limiter_source_control(source_json, srcstr, thermo, &
          cell_sources, source_controls, logfile)
 
+    call setup_direction_source_control(source_json, srcstr, thermo, &
+         cell_sources, source_controls, logfile)
+
   end subroutine setup_inline_source_controls
 
 !------------------------------------------------------------------------
@@ -449,44 +452,6 @@ contains
     end if
 
   end subroutine get_deliverability_reference_pressure
-
-!------------------------------------------------------------------------
-
-  subroutine get_deliverability_direction(json, srcstr, direction, logfile)
-    !! Gets flow direction for deliverability source control.
-
-    use utils_module, only: str_to_lower
-
-    type(fson_value), pointer, intent(in) :: json
-    character(len = *), intent(in) :: srcstr
-    PetscInt, intent(out) :: direction
-    type(logfile_type), intent(in out), optional :: logfile
-    ! Locals:
-    PetscInt, parameter :: max_direction_str_length = 16
-    character(max_direction_str_length) :: direction_str
-
-    if (fson_has_mpi(json, "direction")) then
-       call fson_get_mpi(json, "direction", val = direction_str)
-       select case (trim(str_to_lower(direction_str)))
-       case ("production", "out")
-          direction = SRC_DIRECTION_PRODUCTION
-       case ("injection", "in")
-          direction = SRC_DIRECTION_INJECTION
-       case ("both")
-          direction = SRC_DIRECTION_BOTH
-       case default
-          if (present(logfile) .and. logfile%active) then
-             call logfile%write(LOG_LEVEL_WARN, 'input', 'unrecognised', &
-                  str_key = "source[" // trim(srcstr) // "].deliverability.direction", &
-                  str_value = direction_str)
-          end if
-          direction = default_source_direction
-       end select
-    else
-       direction = default_source_direction
-    end if
-
-  end subroutine get_deliverability_direction
 
 !------------------------------------------------------------------------
   
@@ -597,8 +562,6 @@ contains
 
        call get_deliverability_reference_pressure(deliv_json, srcstr, &
             reference_pressure, calculate_reference_pressure, logfile)
-
-       call get_deliverability_direction(deliv_json, srcstr, direction, logfile)
 
        call get_deliverability_productivity_index(deliv_json, source_json, &
             srcstr, num_cells, cell_sources, productivity_index_array, &
@@ -731,6 +694,71 @@ contains
     end subroutine setup_limiter_iterator
 
   end subroutine setup_limiter_source_control
+
+!------------------------------------------------------------------------
+
+  subroutine setup_direction_source_control(source_json, srcstr, &
+       thermo, cell_sources, source_controls, logfile)
+    !! Set up direction source control for each cell source.
+
+    use utils_module, only: str_to_lower
+
+    type(fson_value), pointer, intent(in) :: source_json
+    character(len=*) :: srcstr
+    class(thermodynamics_type), intent(in) :: thermo
+    type(list_type), intent(in out) :: cell_sources
+    type(list_type), intent(in out) :: source_controls
+    type(logfile_type), intent(in out), optional :: logfile
+    ! Locals:
+    PetscInt :: direction
+    PetscInt, parameter :: max_direction_str_length = 16
+    character(max_direction_str_length) :: direction_str
+
+    if (fson_has_mpi(source_json, "direction")) then
+
+       call fson_get_mpi(source_json, "direction", val = direction_str)
+       select case (trim(str_to_lower(direction_str)))
+       case ("production", "out")
+          direction = SRC_DIRECTION_PRODUCTION
+       case ("injection", "in")
+          direction = SRC_DIRECTION_INJECTION
+       case ("both")
+          direction = SRC_DIRECTION_BOTH
+       case default
+          if (present(logfile) .and. logfile%active) then
+             call logfile%write(LOG_LEVEL_WARN, 'input', 'unrecognised', &
+                  str_key = "source[" // trim(srcstr) // "].direction", &
+                  str_value = direction_str)
+          end if
+          direction = default_source_direction
+       end select
+
+       call cell_sources%traverse(setup_direction_iterator)
+
+    end if
+
+  contains
+
+    subroutine setup_direction_iterator(node, stopped)
+      !! Sets up direction control at a source list node.
+
+      type(list_node_type), pointer, intent(in out)  :: node
+      PetscBool, intent(out) :: stopped
+      ! Locals:
+      type(source_control_direction_type), pointer :: direction_control
+
+      select type (source => node%data)
+      type is (source_type)
+
+         allocate(direction_control)
+         call direction_control%init(direction, cell_sources)
+         call source_controls%append(direction_control)
+
+      end select
+
+    end subroutine setup_direction_iterator
+
+  end subroutine setup_direction_source_control
 
 !------------------------------------------------------------------------
 

@@ -214,6 +214,7 @@ class t2data_export_json(t2data):
                             g['deliverability'] = {'productivity_index': gen.gx,
                                                    'reference_pressure': gen.ex,
                                                    'direction': 'production'}
+                        g['direction'] = 'production'
                     elif gen.type in ['DELG', 'DELS', 'DELT', 'DELW']:
                         g['deliverability'] = {'productivity_index': gen.gx,
                                                'reference_pressure': gen.ex,
@@ -229,13 +230,14 @@ class t2data_export_json(t2data):
                             g['rate'] = gen.hg # initial rate for computing productivity index
                             del g['deliverability']['productivity_index']
                         if gen.type == 'DELS': g['production_component'] = 2
+                        g['direction'] = 'production'
                     elif gen.type == 'RECH':
                         g['enthalpy'] = gen.ex
                         if gen.hg != 0.:
                             deliv = {}
-                            if gen.fg < 0.: deliv['direction'] = "out"
-                            elif gen.fg > 0.: deliv['direction'] = "in"
-                            else: deliv['direction'] = "both"
+                            if gen.fg < 0.: g['direction'] = "out"
+                            elif gen.fg > 0.: g['direction'] = "in"
+                            else: g['direction'] = "both"
                             if gen.hg > 0.: deliv['reference_pressure'] = gen.hg
                             else: deliv['reference_pressure'] = 'initial'
                             deliv['recharge_coefficient'] = gen.gx

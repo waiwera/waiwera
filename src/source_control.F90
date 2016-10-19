@@ -114,6 +114,19 @@ module source_control_module
      procedure, public :: update => source_control_limiter_update
   end type source_control_limiter_type
 
+  type, public, extends(source_control_type) :: source_control_direction_type
+     !! Allows source to flow only in a specified direction
+     !! (production or injection).
+     private
+     type(list_type), public :: sources
+     PetscInt, public :: direction !! Flow direction
+   contains
+     private
+     procedure, public :: init => source_control_direction_init
+     procedure, public :: destroy => source_control_direction_destroy
+     procedure, public :: update => source_control_direction_update
+  end type source_control_direction_type
+
   abstract interface
 
      subroutine source_control_init_procedure(self)
@@ -672,6 +685,78 @@ contains
     end subroutine source_control_limiter_update_iterator
 
   end subroutine source_control_limiter_update
+
+!------------------------------------------------------------------------
+! Direction source control:
+!------------------------------------------------------------------------
+
+  subroutine source_control_direction_init(self, direction, sources)
+    !! Initialises source_control_direction object.
+
+    class(source_control_direction_type), intent(in out) :: self
+    PetscInt, intent(in) :: direction
+    type(list_type), intent(in out) :: sources
+
+    call self%sources%init()
+    call self%sources%add(sources)
+    self%direction = direction
+
+  end subroutine source_control_direction_init
+
+!------------------------------------------------------------------------
+
+  subroutine source_control_direction_destroy(self)
+    !! Destroys source_control_direction_type object.
+
+    class(source_control_direction_type), intent(in out) :: self
+
+    call self%sources%destroy()
+
+  end subroutine source_control_direction_destroy
+
+!------------------------------------------------------------------------
+
+  subroutine source_control_direction_update(self, t, interval, &
+       local_fluid_data, local_fluid_section)
+    !! Update flow rate for source_control_direction_type.
+
+    class(source_control_direction_type), intent(in out) :: self
+    PetscReal, intent(in) :: t, interval(2)
+    PetscReal, pointer, contiguous, intent(in) :: local_fluid_data(:)
+    PetscSection, intent(in) :: local_fluid_section
+
+    call self%sources%traverse(source_control_direction_update_iterator)
+
+  contains
+
+    subroutine source_control_direction_update_iterator(node, stopped)
+      !! Controls source rate direction at a list node.
+
+      type(list_node_type), pointer, intent(in out)  :: node
+      PetscBool, intent(out) :: stopped
+      ! Locals:
+      PetscBool :: flowing
+
+      select type (source => node%data)
+      type is (source_type)
+
+         select case (self%direction)
+         case (SRC_DIRECTION_PRODUCTION)
+            flowing = (source%rate < 0._dp)
+         case (SRC_DIRECTION_INJECTION)
+            flowing = (source%rate > 0._dp)
+         case default
+            flowing = PETSC_TRUE
+         end select
+         if (.not. flowing) source%rate = 0._dp
+
+      end select
+
+      stopped = PETSC_FALSE
+
+    end subroutine source_control_direction_update_iterator
+
+  end subroutine source_control_direction_update
 
 !------------------------------------------------------------------------
 
