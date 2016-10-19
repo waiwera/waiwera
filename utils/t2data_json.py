@@ -234,14 +234,14 @@ class t2data_export_json(t2data):
                     elif gen.type == 'RECH':
                         g['enthalpy'] = gen.ex
                         if gen.hg != 0.:
-                            deliv = {}
+                            rech = {}
                             if gen.fg < 0.: g['direction'] = "out"
                             elif gen.fg > 0.: g['direction'] = "in"
                             else: g['direction'] = "both"
-                            if gen.hg > 0.: deliv['reference_pressure'] = gen.hg
-                            else: deliv['reference_pressure'] = 'initial'
-                            deliv['recharge_coefficient'] = gen.gx
-                            g['deliverability'] = deliv
+                            if gen.hg > 0.: rech['reference_pressure'] = gen.hg
+                            else: rech['reference_pressure'] = 'initial'
+                            rech['recharge_coefficient'] = gen.gx
+                            g['recharge'] = rech
                         else:
                             g['rate'] = gen.gx
                     if gen.time:

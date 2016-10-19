@@ -22,6 +22,7 @@ module source_control_module
   PetscReal, parameter, public :: default_source_control_limiter_limit = 1._dp
   PetscReal, parameter, public :: default_deliverability_productivity_index = 1.e-11_dp
   PetscReal, parameter, public :: default_deliverability_reference_pressure = 1.e5_dp
+  PetscReal, parameter, public :: default_recharge_coefficient = 1.e-2_dp
   PetscInt, parameter, public :: SRC_DIRECTION_PRODUCTION = 1, &
        SRC_DIRECTION_INJECTION = 2, SRC_DIRECTION_BOTH = 3
   PetscInt, parameter, public :: default_source_direction = SRC_DIRECTION_BOTH
@@ -61,23 +62,37 @@ module source_control_module
      procedure, public :: update => source_control_enthalpy_table_update
   end type source_control_enthalpy_table_type
 
-  type, public, extends(source_control_type) :: source_control_deliverability_type
-     !! Controls a source on deliverability.
+  type, public, abstract, extends(source_control_type) :: source_control_pressure_reference_type
+     !! Controls a source by comparing fluid pressure with a reference
+     !! pressure (e.g. deliverability or recharge).
      private
      type(list_type), public :: sources
-     type(interpolation_table_type), public :: productivity_index !! Productivity index vs. time
      PetscReal, public :: reference_pressure
    contains
-     procedure, public :: init => source_control_deliverability_init
-     procedure, public :: destroy => source_control_deliverability_destroy
-     procedure, public :: update => source_control_deliverability_update
+     procedure, public :: destroy => source_control_pressure_reference_destroy
      procedure, public :: set_reference_pressure_initial => &
-          source_control_deliverability_set_reference_pressure_initial
+          source_control_set_reference_pressure_initial
+  end type source_control_pressure_reference_type
+
+  type, public, extends(source_control_pressure_reference_type) :: source_control_deliverability_type
+     !! Controls a source on deliverability.
+     private
+     type(interpolation_table_type), public :: productivity_index !! Productivity index vs. time
+   contains
+     procedure, public :: init => source_control_deliverability_init
+     procedure, public :: update => source_control_deliverability_update
      procedure, public :: calculate_PI_from_rate => &
           source_control_deliverability_calculate_PI_from_rate
-     procedure, public :: calculate_PI_from_recharge => &
-          source_control_deliverability_calculate_PI_from_recharge
   end type source_control_deliverability_type
+
+  type, public, extends(source_control_pressure_reference_type) :: source_control_recharge_type
+     !! Controls a source simulating recharge through a model boundary.
+     private
+     type(interpolation_table_type), public :: recharge_coefficient !! Recharge coefficient vs. time
+   contains
+     procedure, public :: init => source_control_recharge_init
+     procedure, public :: update => source_control_recharge_update
+  end type source_control_recharge_type
 
   type, public, extends(source_control_type) :: source_control_separator_type
      !! Takes flow from a single source and outputs water and steam flow.
@@ -253,6 +268,55 @@ contains
   end subroutine source_control_enthalpy_table_update
 
 !------------------------------------------------------------------------
+! Pressure reference source control:
+!------------------------------------------------------------------------
+
+  subroutine source_control_pressure_reference_destroy(self)
+    !! Destroys source_control_pressure_reference object.
+
+    class(source_control_pressure_reference_type), intent(in out) :: self
+
+    call self%sources%destroy()
+
+  end subroutine source_control_pressure_reference_destroy
+
+!------------------------------------------------------------------------
+
+  subroutine source_control_set_reference_pressure_initial(self, &
+       global_fluid_data, global_fluid_section, fluid_range_start)
+    !! Sets reference pressure for pressure reference control to be the
+    !! initial fluid pressure.
+
+    use dm_utils_module, only: global_section_offset
+
+    class(source_control_pressure_reference_type), intent(in out) :: self
+    PetscReal, pointer, contiguous, intent(in) :: global_fluid_data(:)
+    PetscSection, intent(in) :: global_fluid_section
+    PetscInt, intent(in) :: fluid_range_start
+    ! Locals:
+    type(list_node_type), pointer :: node
+    PetscInt :: c, fluid_offset
+    PetscErrorCode :: ierr
+
+    if (self%sources%count == 1) then
+       node => self%sources%head
+       select type (source => node%data)
+       type is (source_type)
+
+          c = source%cell_index
+          call global_section_offset(global_fluid_section, c, &
+               fluid_range_start, fluid_offset, ierr); CHKERRQ(ierr)
+
+          call source%fluid%assign(global_fluid_data, fluid_offset)
+
+          self%reference_pressure = source%fluid%pressure
+
+       end select
+    end if
+
+  end subroutine source_control_set_reference_pressure_initial
+
+!------------------------------------------------------------------------
 ! Deliverability source control:
 !------------------------------------------------------------------------
 
@@ -273,17 +337,6 @@ contains
     self%reference_pressure = reference_pressure
 
   end subroutine source_control_deliverability_init
-
-!------------------------------------------------------------------------
-
-  subroutine source_control_deliverability_destroy(self)
-    !! Destroys source_control_deliverability object.
-
-    class(source_control_deliverability_type), intent(in out) :: self
-
-    call self%sources%destroy()
-
-  end subroutine source_control_deliverability_destroy
 
 !------------------------------------------------------------------------
 
@@ -332,42 +385,6 @@ contains
     end subroutine source_control_deliverability_update_iterator
 
   end subroutine source_control_deliverability_update
-
-!------------------------------------------------------------------------
-
-  subroutine source_control_deliverability_set_reference_pressure_initial(self, &
-       global_fluid_data, global_fluid_section, fluid_range_start)
-    !! Sets reference pressure for deliverability control to be the
-    !! initial fluid pressure.
-
-    use dm_utils_module, only: global_section_offset
-
-    class(source_control_deliverability_type), intent(in out) :: self
-    PetscReal, pointer, contiguous, intent(in) :: global_fluid_data(:)
-    PetscSection, intent(in) :: global_fluid_section
-    PetscInt, intent(in) :: fluid_range_start
-    ! Locals:
-    type(list_node_type), pointer :: node
-    PetscInt :: c, fluid_offset
-    PetscErrorCode :: ierr
-
-    if (self%sources%count == 1) then
-       node => self%sources%head
-       select type (source => node%data)
-       type is (source_type)
-
-          c = source%cell_index
-          call global_section_offset(global_fluid_section, c, &
-               fluid_range_start, fluid_offset, ierr); CHKERRQ(ierr)
-
-          call source%fluid%assign(global_fluid_data, fluid_offset)
-
-          self%reference_pressure = source%fluid%pressure
-
-       end select
-    end if
-
-  end subroutine source_control_deliverability_set_reference_pressure_initial
 
 !------------------------------------------------------------------------
 
@@ -423,51 +440,75 @@ contains
   end subroutine source_control_deliverability_calculate_PI_from_rate
 
 !------------------------------------------------------------------------
+! Recharge source control:
+!------------------------------------------------------------------------
 
-  subroutine source_control_deliverability_calculate_PI_from_recharge(&
-       self, recharge_coefficient, global_fluid_data, global_fluid_section, &
-       fluid_range_start)
-    !! Calculates productivity index for deliverability control, from
-    !! specified recharge coefficient. This only works if the control has
-    !! exactly one source, otherwise the correct productivity index
-    !! would not be well-defined. If the productivity index can't be
-    !! calculated, it is left at its initial value.
+  subroutine source_control_recharge_init(self, recharge_data, &
+       interpolation_type, averaging_type, reference_pressure, sources)
+    !! Initialises source_control_recharge object.
 
-    use dm_utils_module, only: global_section_offset
+    class(source_control_recharge_type), intent(in out) :: self
+    PetscReal, intent(in) :: recharge_data(:,:)
+    PetscInt, intent(in) :: interpolation_type, averaging_type
+    PetscReal, intent(in) :: reference_pressure
+    type(list_type), intent(in out) :: sources
 
-    class(source_control_deliverability_type), intent(in out) :: self
-    PetscReal, intent(in) :: recharge_coefficient
-    PetscReal, pointer, contiguous, intent(in) :: global_fluid_data(:)
-    PetscSection, intent(in) :: global_fluid_section
-    PetscInt, intent(in) :: fluid_range_start
-    ! Locals:
-    type(list_node_type), pointer :: node
-    PetscInt :: c, fluid_offset
-    PetscReal, allocatable :: liquid_mobility
-    PetscErrorCode :: ierr
-    PetscReal, parameter :: tol = 1.e-9_dp
+    call self%sources%init()
+    call self%sources%add(sources)
+    call self%recharge_coefficient%init(recharge_data, &
+         interpolation_type, averaging_type)
+    self%reference_pressure = reference_pressure
 
-    if (self%sources%count == 1) then
-       node => self%sources%head
-       select type (source => node%data)
-       type is (source_type)
+  end subroutine source_control_recharge_init
 
-          c = source%cell_index
-          call global_section_offset(global_fluid_section, c, &
-               fluid_range_start, fluid_offset, ierr); CHKERRQ(ierr)
+!------------------------------------------------------------------------
 
-          call source%fluid%assign(global_fluid_data, fluid_offset)
+  subroutine source_control_recharge_destroy(self)
+    !! Destroys source_control_recharge object.
 
-          liquid_mobility = source%fluid%phase(1)%mobility()
+    class(source_control_recharge_type), intent(in out) :: self
 
-          if (liquid_mobility > tol) then
-             self%productivity_index%val(1) = -recharge_coefficient / liquid_mobility
-          end if
+    call self%sources%destroy()
 
-       end select
-    end if
+  end subroutine source_control_recharge_destroy
 
-  end subroutine source_control_deliverability_calculate_PI_from_recharge
+!------------------------------------------------------------------------
+
+  subroutine source_control_recharge_update(self, t, interval, &
+       local_fluid_data, local_fluid_section)
+    !! Update flow rate for source_control_recharge_type.
+
+    class(source_control_recharge_type), intent(in out) :: self
+    PetscReal, intent(in) :: t, interval(2)
+    PetscReal, pointer, contiguous, intent(in) :: local_fluid_data(:)
+    PetscSection, intent(in) :: local_fluid_section
+
+    call self%sources%traverse(source_control_recharge_update_iterator)
+
+  contains
+
+    subroutine source_control_recharge_update_iterator(node, stopped)
+      !! Applies recharge control at a list node.
+      type(list_node_type), pointer, intent(in out)  :: node
+      PetscBool, intent(out) :: stopped
+      ! Locals:
+      PetscReal :: pressure_difference, recharge_coefficient
+
+      select type (source => node%data)
+      type is (source_type)
+
+         call source%update_fluid(local_fluid_data, local_fluid_section)
+         pressure_difference = source%fluid%pressure - self%reference_pressure
+         recharge_coefficient = self%recharge_coefficient%average(interval)
+         source%rate = -recharge_coefficient * pressure_difference
+
+      end select
+
+      stopped = PETSC_FALSE
+
+    end subroutine source_control_recharge_update_iterator
+
+  end subroutine source_control_recharge_update
 
 !------------------------------------------------------------------------
 ! Separator source control:

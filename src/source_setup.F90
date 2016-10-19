@@ -339,6 +339,11 @@ contains
          interpolation_type, averaging_type, num_cells, cell_sources, &
          source_controls, logfile)
 
+    call setup_recharge_source_control(source_json, srcstr, &
+         local_fluid_data, local_fluid_section, fluid_range_start, &
+         interpolation_type, averaging_type, num_cells, cell_sources, &
+         source_controls, logfile)
+
     call setup_limiter_source_control(source_json, srcstr, thermo, &
          cell_sources, source_controls, logfile)
 
@@ -405,14 +410,14 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine get_deliverability_reference_pressure(json, &
-       srcstr, reference_pressure, calculate_reference_pressure, logfile)
-    !! Get reference pressure for deliverability source control.
+  subroutine get_reference_pressure(json, srcstr, source_type, &
+       reference_pressure, calculate_reference_pressure, logfile)
+    !! Get reference pressure for deliverability or recharge source control.
 
     use utils_module, only: str_to_lower
 
     type(fson_value), pointer, intent(in) :: json
-    character(len = *), intent(in) :: srcstr
+    character(len = *), intent(in) :: srcstr, source_type
     PetscReal, intent(out) :: reference_pressure
     PetscBool, intent(out) :: calculate_reference_pressure
     type(logfile_type), intent(in out), optional :: logfile
@@ -438,7 +443,8 @@ contains
           else
              if (present(logfile) .and. logfile%active) then
                 call logfile%write(LOG_LEVEL_WARN, 'input', 'unrecognised', &
-                     str_key = "source[" // trim(srcstr) // "].reference_pressure", &
+                     str_key = "source[" // trim(srcstr) // "]." // &
+                     source_type // ".reference_pressure", &
                      str_value = pressure_str)
              end if
           end if
@@ -446,18 +452,19 @@ contains
     else
        if (present(logfile) .and. logfile%active) then
           call logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
-               real_keys = ["source[" // trim(srcstr) // "].reference_pressure"], &
+               real_keys = ["source[" // trim(srcstr) // "]." // &
+               source_type // ".reference_pressure"], &
                real_values = [reference_pressure])
        end if
     end if
 
-  end subroutine get_deliverability_reference_pressure
+  end subroutine get_reference_pressure
 
 !------------------------------------------------------------------------
   
   subroutine get_deliverability_productivity_index(json, source_json, srcstr, &
-       num_cells, cell_sources, productivity_index_array, calculate_PI_from_rate, &
-       recharge_coefficient, calculate_PI_from_recharge, logfile)
+       num_cells, cell_sources, productivity_index_array, &
+       calculate_PI_from_rate, logfile)
     !! Gets productivity index for deliverability source control.
 
     type(fson_value), pointer, intent(in) :: json, source_json
@@ -466,8 +473,6 @@ contains
     type(list_type), intent(in) :: cell_sources
     PetscReal, allocatable :: productivity_index_array(:,:)
     PetscBool, intent(out) :: calculate_PI_from_rate
-    PetscReal, intent(out) :: recharge_coefficient
-    PetscBool, intent(out) :: calculate_PI_from_recharge
     type(logfile_type), intent(in out), optional :: logfile
     ! Locals:
     PetscInt :: PI_type
@@ -475,7 +480,6 @@ contains
     PetscReal, parameter :: default_time = 0._dp
 
     calculate_PI_from_rate = PETSC_FALSE
-    calculate_PI_from_recharge = PETSC_FALSE
     productivity_index = default_deliverability_productivity_index
     productivity_index_array = reshape([default_time, &
          productivity_index], [1,2])
@@ -501,12 +505,6 @@ contains
                   str_value = "...")
           end if
        end select
-
-    else if (fson_has_mpi(json, "recharge_coefficient")) then
-
-       call fson_get_mpi(json, "recharge_coefficient", &
-            val = recharge_coefficient)
-       calculate_PI_from_recharge = PETSC_TRUE
 
     else if ((fson_has_mpi(source_json, "rate") .and. &
          (num_cells == 1) .and. (cell_sources%count == 1))) then
@@ -548,8 +546,8 @@ contains
     PetscReal :: reference_pressure
     type(source_control_deliverability_type), pointer :: deliv
     PetscBool :: calculate_reference_pressure
-    PetscBool :: calculate_PI_from_rate, calculate_PI_from_recharge
-    PetscReal :: initial_rate, recharge_coefficient
+    PetscBool :: calculate_PI_from_rate
+    PetscReal :: initial_rate
     PetscReal, allocatable :: productivity_index_array(:,:)
     PetscReal, parameter :: default_rate = 0._dp
 
@@ -559,13 +557,12 @@ contains
 
        call fson_get_mpi(source_json, "deliverability", deliv_json)
 
-       call get_deliverability_reference_pressure(deliv_json, srcstr, &
+       call get_reference_pressure(deliv_json, srcstr, "deliverability", &
             reference_pressure, calculate_reference_pressure, logfile)
 
        call get_deliverability_productivity_index(deliv_json, source_json, &
             srcstr, num_cells, cell_sources, productivity_index_array, &
-            calculate_PI_from_rate, recharge_coefficient, &
-            calculate_PI_from_recharge, logfile)
+            calculate_PI_from_rate, logfile)
 
        if (cell_sources%count > 0) then
 
@@ -581,9 +578,6 @@ contains
           if (calculate_PI_from_rate) then
              call deliv%calculate_PI_from_rate(initial_rate, &
                   fluid_data, fluid_section, fluid_range_start)
-          else if (calculate_PI_from_recharge) then
-             call deliv%calculate_PI_from_recharge(recharge_coefficient, &
-                  fluid_data, fluid_section, fluid_range_start)
           end if
 
           call source_controls%append(deliv)
@@ -593,6 +587,113 @@ contains
     end if
 
   end subroutine setup_deliverability_source_control
+
+!------------------------------------------------------------------------
+
+  subroutine get_recharge_coefficient(json, source_json, srcstr, &
+       recharge_array, logfile)
+    !! Gets recharge coefficient for recharge source control.
+
+    type(fson_value), pointer, intent(in) :: json, source_json
+    character(len = *), intent(in) :: srcstr
+    PetscReal, allocatable :: recharge_array(:,:)
+    type(logfile_type), intent(in out), optional :: logfile
+    ! Locals:
+    PetscInt :: coef_type
+    PetscReal :: recharge_coefficient
+    PetscReal, parameter :: default_time = 0._dp
+
+    recharge_coefficient = default_recharge_coefficient
+    recharge_array = reshape([default_time, &
+         recharge_coefficient], [1,2])
+
+    if (fson_has_mpi(json, "recharge_coefficient")) then
+
+       coef_type = fson_type_mpi(json, "recharge_coefficient")
+
+       select case(coef_type)
+       case (TYPE_REAL)
+          call fson_get_mpi(json, "recharge_coefficient", &
+               val = recharge_coefficient)
+          recharge_array = reshape([default_time, &
+               recharge_coefficient], [1,2])
+       case (TYPE_ARRAY)
+          call fson_get_mpi(json, "recharge_coefficient", &
+               val = recharge_array)
+       case default
+          if (present(logfile) .and. logfile%active) then
+             call logfile%write(LOG_LEVEL_WARN, 'input', 'unrecognised', &
+                  str_key = "source[" // trim(srcstr) // &
+                  "].recharge.recharge_coefficient", &
+                  str_value = "...")
+          end if
+       end select
+
+    else
+       if (present(logfile) .and. logfile%active) then
+          call logfile%write(LOG_LEVEL_INFO, 'input', 'default', real_keys = &
+               ["source[" // trim(srcstr) // "].recharge.recharge_coefficient"], &
+               real_values = [recharge_coefficient])
+       end if
+    end if
+
+  end subroutine get_recharge_coefficient
+
+!------------------------------------------------------------------------
+
+  subroutine setup_recharge_source_control(source_json, srcstr, &
+       fluid_data, fluid_section, fluid_range_start, &
+       interpolation_type, averaging_type, num_cells, &
+       cell_sources, source_controls, logfile)
+    !! Set up recharge source control.
+
+    use utils_module, only: str_to_lower
+
+    type(fson_value), pointer, intent(in) :: source_json
+    character(len=*) :: srcstr
+    PetscReal, pointer, contiguous, intent(in) :: fluid_data(:)
+    PetscSection, intent(in) :: fluid_section
+    PetscInt, intent(in) :: fluid_range_start
+    PetscInt, intent(in) :: interpolation_type, averaging_type
+    PetscInt, intent(in) :: num_cells
+    type(list_type), intent(in out) :: cell_sources
+    type(list_type), intent(in out) :: source_controls
+    type(logfile_type), intent(in out), optional :: logfile
+    ! Locals:
+    type(fson_value), pointer :: recharge_json
+    PetscReal :: reference_pressure
+    type(source_control_recharge_type), pointer :: recharge
+    PetscBool :: calculate_reference_pressure
+    PetscReal, allocatable :: recharge_array(:,:)
+
+    if (fson_has_mpi(source_json, "recharge")) then
+
+       call fson_get_mpi(source_json, "recharge", recharge_json)
+
+       call get_reference_pressure(recharge_json, srcstr, "recharge", &
+            reference_pressure, calculate_reference_pressure, logfile)
+
+       call get_recharge_coefficient(recharge_json, source_json, &
+            srcstr, recharge_array, logfile)
+
+       if (cell_sources%count > 0) then
+
+          allocate(recharge)
+          call recharge%init(recharge_array, interpolation_type, &
+               averaging_type, reference_pressure, cell_sources)
+
+          if (calculate_reference_pressure) then
+             call recharge%set_reference_pressure_initial(fluid_data, &
+                  fluid_section, fluid_range_start)
+          end if
+
+          call source_controls%append(recharge)
+
+       end if
+
+    end if
+
+  end subroutine setup_recharge_source_control
 
 !------------------------------------------------------------------------
 
