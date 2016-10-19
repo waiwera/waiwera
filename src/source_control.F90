@@ -67,7 +67,6 @@ module source_control_module
      type(list_type), public :: sources
      type(interpolation_table_type), public :: productivity_index !! Productivity index vs. time
      PetscReal, public :: reference_pressure
-     PetscInt, public :: direction
    contains
      procedure, public :: init => source_control_deliverability_init
      procedure, public :: destroy => source_control_deliverability_destroy
@@ -258,15 +257,13 @@ contains
 !------------------------------------------------------------------------
 
   subroutine source_control_deliverability_init(self, productivity_data, &
-       interpolation_type, averaging_type, reference_pressure, direction, &
-       sources)
+       interpolation_type, averaging_type, reference_pressure, sources)
     !! Initialises source_control_deliverability object.
 
     class(source_control_deliverability_type), intent(in out) :: self
     PetscReal, intent(in) :: productivity_data(:,:)
     PetscInt, intent(in) :: interpolation_type, averaging_type
     PetscReal, intent(in) :: reference_pressure
-    PetscInt, intent(in) :: direction
     type(list_type), intent(in out) :: sources
 
     call self%sources%init()
@@ -274,7 +271,6 @@ contains
     call self%productivity_index%init(productivity_data, &
          interpolation_type, averaging_type)
     self%reference_pressure = reference_pressure
-    self%direction = direction
 
   end subroutine source_control_deliverability_init
 
@@ -311,7 +307,6 @@ contains
       ! Locals:
       PetscInt :: p, phases
       PetscReal :: pressure_difference, productivity_index
-      PetscBool :: flowing
 
       select type (source => node%data)
       type is (source_type)
@@ -321,25 +316,14 @@ contains
 
          source%rate = 0._dp
 
-         select case (self%direction)
-         case (SRC_DIRECTION_PRODUCTION)
-            flowing = (pressure_difference > 0._dp)
-         case (SRC_DIRECTION_INJECTION)
-            flowing = (pressure_difference < 0._dp)
-         case default
-            flowing = PETSC_TRUE
-         end select
-
-         if (flowing) then
-            productivity_index = self%productivity_index%average(interval)
-            phases = nint(source%fluid%phase_composition)
-            do p = 1, source%fluid%num_phases
-               if (btest(phases, p - 1)) then
-                  source%rate = source%rate - productivity_index * &
-                       source%fluid%phase(p)%mobility() * pressure_difference
-               end if
-            end do
-         end if
+         productivity_index = self%productivity_index%average(interval)
+         phases = nint(source%fluid%phase_composition)
+         do p = 1, source%fluid%num_phases
+            if (btest(phases, p - 1)) then
+               source%rate = source%rate - productivity_index * &
+                    source%fluid%phase(p)%mobility() * pressure_difference
+            end if
+         end do
 
       end select
 

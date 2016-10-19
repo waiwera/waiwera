@@ -546,7 +546,6 @@ contains
     ! Locals:
     type(fson_value), pointer :: deliv_json
     PetscReal :: reference_pressure
-    PetscInt :: direction
     type(source_control_deliverability_type), pointer :: deliv
     PetscBool :: calculate_reference_pressure
     PetscBool :: calculate_PI_from_rate, calculate_PI_from_recharge
@@ -572,7 +571,7 @@ contains
 
           allocate(deliv)
           call deliv%init(productivity_index_array, interpolation_type, &
-               averaging_type, reference_pressure, direction, cell_sources)
+               averaging_type, reference_pressure, cell_sources)
 
           if (calculate_reference_pressure) then
              call deliv%set_reference_pressure_initial(fluid_data, &
