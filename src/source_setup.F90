@@ -833,7 +833,9 @@ contains
           direction = default_source_direction
        end select
 
-       call cell_sources%traverse(setup_direction_iterator)
+       if (direction /= SRC_DIRECTION_BOTH) then
+          call cell_sources%traverse(setup_direction_iterator)
+       end if
 
     end if
 
