@@ -7,7 +7,7 @@ import json
 import subprocess
 
 model_name = 'recharge'
-run_name = 'case_1'
+run_name = 'outflow'
 
 model_dir = './run'
 orig_dir = os.getcwd()

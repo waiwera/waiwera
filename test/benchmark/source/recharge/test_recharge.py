@@ -39,7 +39,7 @@ t2geo_filename = os.path.join(model_dir, 'g' + model_name + '.dat')
 
 num_procs = 1
 
-run_names = ['case_1']
+run_names = ['outflow']
 test_fields = ["Pressure", "Temperature"]
 plot_fields = ["Pressure"]
 
