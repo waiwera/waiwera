@@ -41,6 +41,7 @@ contains
     type(list_type) :: sources, source_controls
     PetscInt :: expected_num_sources, num_sources
     PetscErrorCode :: ierr
+    PetscReal, parameter :: start_time = 0._dp
 
     json => fson_parse_mpi(trim(path) // "test_source.json")
 
@@ -51,8 +52,8 @@ contains
     call mesh%configure(eos%primary_variable_names)
     call DMGetGlobalVector(mesh%dm, fluid, ierr); CHKERRQ(ierr) ! dummy- not used
 
-    call setup_sources(json, mesh%dm, eos, thermo, fluid, range_start, &
-         sources, source_controls)
+    call setup_sources(json, mesh%dm, eos, thermo, start_time, fluid, &
+         range_start, sources, source_controls)
 
     expected_num_sources = fson_value_count_mpi(json, "source")
     call MPI_reduce(sources%count, num_sources, 1, MPI_INTEGER, MPI_SUM, &

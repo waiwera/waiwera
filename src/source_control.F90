@@ -67,9 +67,8 @@ module source_control_module
      !! pressure (e.g. deliverability or recharge).
      private
      type(list_type), public :: sources
-     PetscReal, public :: reference_pressure
+     type(interpolation_table_type), public :: reference_pressure !! Reference pressure vs. time
    contains
-     procedure, public :: destroy => source_control_pressure_reference_destroy
      procedure, public :: set_reference_pressure_initial => &
           source_control_set_reference_pressure_initial
   end type source_control_pressure_reference_type
@@ -80,6 +79,7 @@ module source_control_module
      type(interpolation_table_type), public :: productivity !! Productivity index vs. time
    contains
      procedure, public :: init => source_control_deliverability_init
+     procedure, public :: destroy => source_control_deliverability_destroy
      procedure, public :: update => source_control_deliverability_update
      procedure, public :: calculate_PI_from_rate => &
           source_control_deliverability_calculate_PI_from_rate
@@ -91,6 +91,7 @@ module source_control_module
      type(interpolation_table_type), public :: coefficient !! Recharge coefficient vs. time
    contains
      procedure, public :: init => source_control_recharge_init
+     procedure, public :: destroy => source_control_recharge_destroy
      procedure, public :: update => source_control_recharge_update
   end type source_control_recharge_type
 
@@ -271,17 +272,6 @@ contains
 ! Pressure reference source control:
 !------------------------------------------------------------------------
 
-  subroutine source_control_pressure_reference_destroy(self)
-    !! Destroys source_control_pressure_reference object.
-
-    class(source_control_pressure_reference_type), intent(in out) :: self
-
-    call self%sources%destroy()
-
-  end subroutine source_control_pressure_reference_destroy
-
-!------------------------------------------------------------------------
-
   subroutine source_control_set_reference_pressure_initial(self, &
        global_fluid_data, global_fluid_section, fluid_range_start)
     !! Sets reference pressure for pressure reference control to be the
@@ -309,7 +299,7 @@ contains
 
           call source%fluid%assign(global_fluid_data, fluid_offset)
 
-          self%reference_pressure = source%fluid%pressure
+          self%reference_pressure%val(1) = source%fluid%pressure
 
        end select
     end if
@@ -321,22 +311,36 @@ contains
 !------------------------------------------------------------------------
 
   subroutine source_control_deliverability_init(self, productivity_data, &
-       interpolation_type, averaging_type, reference_pressure, sources)
+       interpolation_type, averaging_type, reference_pressure_data, sources)
     !! Initialises source_control_deliverability object.
 
     class(source_control_deliverability_type), intent(in out) :: self
     PetscReal, intent(in) :: productivity_data(:,:)
     PetscInt, intent(in) :: interpolation_type, averaging_type
-    PetscReal, intent(in) :: reference_pressure
+    PetscReal, intent(in) :: reference_pressure_data(:,:)
     type(list_type), intent(in out) :: sources
 
     call self%sources%init()
     call self%sources%add(sources)
     call self%productivity%init(productivity_data, &
          interpolation_type, averaging_type)
-    self%reference_pressure = reference_pressure
+    call self%reference_pressure%init(reference_pressure_data, &
+         interpolation_type, averaging_type)
 
   end subroutine source_control_deliverability_init
+
+!------------------------------------------------------------------------
+
+  subroutine source_control_deliverability_destroy(self)
+    !! Destroys source_control_deliverability object.
+
+    class(source_control_deliverability_type), intent(in out) :: self
+
+    call self%productivity%destroy()
+    call self%reference_pressure%destroy()
+    call self%sources%destroy()
+
+  end subroutine source_control_deliverability_destroy
 
 !------------------------------------------------------------------------
 
@@ -359,13 +363,14 @@ contains
       PetscBool, intent(out) :: stopped
       ! Locals:
       PetscInt :: p, phases
-      PetscReal :: pressure_difference, productivity
+      PetscReal :: reference_pressure, pressure_difference, productivity
 
       select type (source => node%data)
       type is (source_type)
 
          call source%update_fluid(local_fluid_data, local_fluid_section)
-         pressure_difference = source%fluid%pressure - self%reference_pressure
+         reference_pressure = self%reference_pressure%average(interval)
+         pressure_difference = source%fluid%pressure - reference_pressure
 
          source%rate = 0._dp
 
@@ -389,8 +394,8 @@ contains
 !------------------------------------------------------------------------
 
   subroutine source_control_deliverability_calculate_PI_from_rate(&
-       self, initial_rate, global_fluid_data, global_fluid_section, &
-       fluid_range_start)
+       self, start_time, initial_rate, global_fluid_data, &
+       global_fluid_section, fluid_range_start)
     !! Calculates productivity index for deliverability control, from
     !! specified initial flow rate. This only works if the control has
     !! exactly one source, otherwise the correct productivity index
@@ -400,6 +405,7 @@ contains
     use dm_utils_module, only: global_section_offset
 
     class(source_control_deliverability_type), intent(in out) :: self
+    PetscReal, intent(in) :: start_time
     PetscReal, intent(in) :: initial_rate
     PetscReal, pointer, contiguous, intent(in) :: global_fluid_data(:)
     PetscSection, intent(in) :: global_fluid_section
@@ -408,7 +414,7 @@ contains
     type(list_node_type), pointer :: node
     PetscInt :: c, fluid_offset
     PetscReal, allocatable :: phase_mobilities(:)
-    PetscReal :: factor
+    PetscReal :: reference_pressure, pressure_difference, factor
     PetscErrorCode :: ierr
     PetscReal, parameter :: tol = 1.e-9_dp
 
@@ -425,8 +431,9 @@ contains
           allocate(phase_mobilities(source%fluid%num_phases))
           phase_mobilities = source%fluid%phase_mobilities()
 
-          factor = sum(phase_mobilities) * &
-               (source%fluid%pressure - self%reference_pressure)
+          reference_pressure = self%reference_pressure%interpolate(start_time)
+          pressure_difference = source%fluid%pressure - reference_pressure
+          factor = sum(phase_mobilities) * pressure_difference
 
           if (abs(factor) > tol) then
              self%productivity%val(1) = abs(initial_rate) / factor
@@ -444,20 +451,21 @@ contains
 !------------------------------------------------------------------------
 
   subroutine source_control_recharge_init(self, recharge_data, &
-       interpolation_type, averaging_type, reference_pressure, sources)
+       interpolation_type, averaging_type, reference_pressure_data, sources)
     !! Initialises source_control_recharge object.
 
     class(source_control_recharge_type), intent(in out) :: self
     PetscReal, intent(in) :: recharge_data(:,:)
     PetscInt, intent(in) :: interpolation_type, averaging_type
-    PetscReal, intent(in) :: reference_pressure
+    PetscReal, intent(in) :: reference_pressure_data(:,:)
     type(list_type), intent(in out) :: sources
 
     call self%sources%init()
     call self%sources%add(sources)
     call self%coefficient%init(recharge_data, &
          interpolation_type, averaging_type)
-    self%reference_pressure = reference_pressure
+    call self%reference_pressure%init(reference_pressure_data, &
+         interpolation_type, averaging_type)
 
   end subroutine source_control_recharge_init
 
@@ -468,6 +476,8 @@ contains
 
     class(source_control_recharge_type), intent(in out) :: self
 
+    call self%coefficient%destroy()
+    call self%reference_pressure%destroy()
     call self%sources%destroy()
 
   end subroutine source_control_recharge_destroy
@@ -492,13 +502,15 @@ contains
       type(list_node_type), pointer, intent(in out)  :: node
       PetscBool, intent(out) :: stopped
       ! Locals:
-      PetscReal :: pressure_difference, recharge_coefficient
+      PetscReal :: reference_pressure, pressure_difference, &
+           recharge_coefficient
 
       select type (source => node%data)
       type is (source_type)
 
          call source%update_fluid(local_fluid_data, local_fluid_section)
-         pressure_difference = source%fluid%pressure - self%reference_pressure
+         reference_pressure = self%reference_pressure%average(interval)
+         pressure_difference = source%fluid%pressure - reference_pressure
          recharge_coefficient = self%coefficient%average(interval)
          source%rate = -recharge_coefficient * pressure_difference
 

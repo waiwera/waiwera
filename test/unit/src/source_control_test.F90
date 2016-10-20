@@ -46,6 +46,7 @@ contains
     PetscInt :: num_sources, fluid_range_start
     PetscReal :: t, interval(2)
     PetscErrorCode :: ierr
+    PetscReal, parameter :: start_time = 0._dp
 
     json => fson_parse_mpi(trim(path) // "test_source_controls_table.json")
 
@@ -60,7 +61,7 @@ contains
     call global_vec_section(fluid_vector, fluid_section)
     call VecGetArrayF90(fluid_vector, fluid_array, ierr); CHKERRQ(ierr)
 
-    call setup_sources(json, mesh%dm, eos, thermo, fluid_vector, &
+    call setup_sources(json, mesh%dm, eos, thermo, start_time, fluid_vector, &
          fluid_range_start, sources, source_controls)
 
     call VecRestoreArrayF90(fluid_vector, fluid_array, ierr); CHKERRQ(ierr)
@@ -180,6 +181,7 @@ contains
     PetscErrorCode :: ierr
     PetscReal, parameter :: cell_pressure = 50.e5_dp, cell_vapour_saturation = 0.8_dp
     PetscInt, parameter :: cell_region = 4
+    PetscReal, parameter :: start_time = 0._dp
 
     json => fson_parse_mpi(trim(path) // "test_source_controls_pressure_reference.json")
 
@@ -241,7 +243,7 @@ contains
     end do
     call VecRestoreArrayF90(fluid_vector, fluid_array, ierr); CHKERRQ(ierr)
 
-    call setup_sources(json, mesh%dm, eos, thermo, fluid_vector, &
+    call setup_sources(json, mesh%dm, eos, thermo, start_time, fluid_vector, &
          fluid_range_start, sources, source_controls)
 
     call MPI_reduce(sources%count, num_sources, 1, MPI_INTEGER, MPI_SUM, &
@@ -314,7 +316,8 @@ contains
                  "source 4 productivity")
          end select
          call assert_equals(2.e5_dp, &
-              source_control%reference_pressure, tol, "deliverability reference pressure")
+              source_control%reference_pressure%val(1), tol, &
+              "deliverability reference pressure")
 
       type is (source_control_recharge_type)
          select case (source_control%sources%head%tag)
@@ -323,7 +326,8 @@ contains
                  source_control%coefficient%val(1), tol, &
                  "source 7 recharge coefficient")
             call assert_equals(50.1e5_dp, &
-                 source_control%reference_pressure, tol, "source 7 reference pressure")
+                 source_control%reference_pressure%val(1), &
+                 tol, "source 7 reference pressure")
          end select
 
       type is (source_control_limiter_type)
