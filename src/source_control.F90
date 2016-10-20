@@ -88,7 +88,7 @@ module source_control_module
   type, public, extends(source_control_pressure_reference_type) :: source_control_recharge_type
      !! Controls a source simulating recharge through a model boundary.
      private
-     type(interpolation_table_type), public :: recharge_coefficient !! Recharge coefficient vs. time
+     type(interpolation_table_type), public :: coefficient !! Recharge coefficient vs. time
    contains
      procedure, public :: init => source_control_recharge_init
      procedure, public :: update => source_control_recharge_update
@@ -455,7 +455,7 @@ contains
 
     call self%sources%init()
     call self%sources%add(sources)
-    call self%recharge_coefficient%init(recharge_data, &
+    call self%coefficient%init(recharge_data, &
          interpolation_type, averaging_type)
     self%reference_pressure = reference_pressure
 
@@ -499,7 +499,7 @@ contains
 
          call source%update_fluid(local_fluid_data, local_fluid_section)
          pressure_difference = source%fluid%pressure - self%reference_pressure
-         recharge_coefficient = self%recharge_coefficient%average(interval)
+         recharge_coefficient = self%coefficient%average(interval)
          source%rate = -recharge_coefficient * pressure_difference
 
       end select

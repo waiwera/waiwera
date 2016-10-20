@@ -320,7 +320,7 @@ contains
          select case (source_control%sources%head%tag)
          case ("source 7")
             call assert_equals(1.3e-2_dp, &
-                 source_control%recharge_coefficient%val(1), tol, &
+                 source_control%coefficient%val(1), tol, &
                  "source 7 recharge coefficient")
             call assert_equals(50.1e5_dp, &
                  source_control%reference_pressure, tol, "source 7 reference pressure")

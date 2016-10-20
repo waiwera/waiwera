@@ -607,24 +607,24 @@ contains
     recharge_array = reshape([default_time, &
          recharge_coefficient], [1,2])
 
-    if (fson_has_mpi(json, "recharge_coefficient")) then
+    if (fson_has_mpi(json, "coefficient")) then
 
-       coef_type = fson_type_mpi(json, "recharge_coefficient")
+       coef_type = fson_type_mpi(json, "coefficient")
 
        select case(coef_type)
        case (TYPE_REAL)
-          call fson_get_mpi(json, "recharge_coefficient", &
+          call fson_get_mpi(json, "coefficient", &
                val = recharge_coefficient)
           recharge_array = reshape([default_time, &
                recharge_coefficient], [1,2])
        case (TYPE_ARRAY)
-          call fson_get_mpi(json, "recharge_coefficient", &
+          call fson_get_mpi(json, "coefficient", &
                val = recharge_array)
        case default
           if (present(logfile) .and. logfile%active) then
              call logfile%write(LOG_LEVEL_WARN, 'input', 'unrecognised', &
                   str_key = "source[" // trim(srcstr) // &
-                  "].recharge.recharge_coefficient", &
+                  "].recharge.coefficient", &
                   str_value = "...")
           end if
        end select
@@ -632,7 +632,7 @@ contains
     else
        if (present(logfile) .and. logfile%active) then
           call logfile%write(LOG_LEVEL_INFO, 'input', 'default', real_keys = &
-               ["source[" // trim(srcstr) // "].recharge.recharge_coefficient"], &
+               ["source[" // trim(srcstr) // "].recharge.coefficient"], &
                real_values = [recharge_coefficient])
        end if
     end if

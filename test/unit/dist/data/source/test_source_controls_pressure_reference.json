@@ -45,19 +45,19 @@
         {"name": "source 7", "cell": 6,
          "direction": "both",
          "recharge": {
-             "recharge_coefficient": 1.3e-2,
+             "coefficient": 1.3e-2,
              "reference_pressure": 50.1e5}
         },
         {"name": "source 8", "cell": 7,
          "direction": "out",
          "recharge": {
-             "recharge_coefficient": 1.3e-2,
+             "coefficient": 1.3e-2,
              "reference_pressure": 49.99e5}
         },
         {"name": "source 9", "cell": 8,
          "direction": "in",
          "recharge": {
-             "recharge_coefficient": 1.1e-2,
+             "coefficient": 1.1e-2,
              "reference_pressure": 49.99e5}
         }
     ]

@@ -240,7 +240,7 @@ class t2data_export_json(t2data):
                             else: g['direction'] = "both"
                             if gen.hg > 0.: rech['reference_pressure'] = gen.hg
                             else: rech['reference_pressure'] = 'initial'
-                            rech['recharge_coefficient'] = gen.gx
+                            rech['coefficient'] = gen.gx
                             g['recharge'] = rech
                         else:
                             g['rate'] = gen.gx
