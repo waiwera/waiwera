@@ -72,7 +72,6 @@ geo.write_exodusii(mesh_filename)
 jsondata = dat.json(geo, mesh_filename)
 jsondata["output"]["frequency"] = 1
 jsondata["output"]["initial"] = True
-# jsondata["time"]["step"]["solver"]["nonlinear"]["minimum"] = {"iterations": 1}
 filename = model_name + '_' + run_name + '.json'
 json.dump(jsondata, file(filename, 'w'), indent = 2)
 
