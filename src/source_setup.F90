@@ -429,14 +429,14 @@ contains
     calculate_reference_pressure = PETSC_FALSE
     reference_pressure = default_deliverability_reference_pressure
 
-    if (fson_has_mpi(json, "reference_pressure")) then
-       pressure_type = fson_type_mpi(json, "reference_pressure")
+    if (fson_has_mpi(json, "pressure")) then
+       pressure_type = fson_type_mpi(json, "pressure")
        select case (pressure_type)
        case (TYPE_REAL)
-          call fson_get_mpi(json, "reference_pressure", &
+          call fson_get_mpi(json, "pressure", &
                val = reference_pressure)
        case (TYPE_STRING)
-          call fson_get_mpi(json, "reference_pressure", &
+          call fson_get_mpi(json, "pressure", &
                val = pressure_str)
           if (trim(str_to_lower(pressure_str)) == 'initial') then
              calculate_reference_pressure = PETSC_TRUE
@@ -444,7 +444,7 @@ contains
              if (present(logfile) .and. logfile%active) then
                 call logfile%write(LOG_LEVEL_WARN, 'input', 'unrecognised', &
                      str_key = "source[" // trim(srcstr) // "]." // &
-                     source_type // ".reference_pressure", &
+                     source_type // ".pressure", &
                      str_value = pressure_str)
              end if
           end if
@@ -453,7 +453,7 @@ contains
        if (present(logfile) .and. logfile%active) then
           call logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
                real_keys = ["source[" // trim(srcstr) // "]." // &
-               source_type // ".reference_pressure"], &
+               source_type // ".pressure"], &
                real_values = [reference_pressure])
        end if
     end if
