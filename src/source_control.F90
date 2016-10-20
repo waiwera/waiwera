@@ -20,7 +20,7 @@ module source_control_module
   PetscInt, parameter, public :: SRC_CONTROL_LIMITER_TYPE_TOTAL = 1, &
        SRC_CONTROL_LIMITER_TYPE_WATER = 2, SRC_CONTROL_LIMITER_TYPE_STEAM = 3
   PetscReal, parameter, public :: default_source_control_limiter_limit = 1._dp
-  PetscReal, parameter, public :: default_deliverability_productivity_index = 1.e-11_dp
+  PetscReal, parameter, public :: default_deliverability_productivity = 1.e-11_dp
   PetscReal, parameter, public :: default_deliverability_reference_pressure = 1.e5_dp
   PetscReal, parameter, public :: default_recharge_coefficient = 1.e-2_dp
   PetscInt, parameter, public :: SRC_DIRECTION_PRODUCTION = 1, &
@@ -77,7 +77,7 @@ module source_control_module
   type, public, extends(source_control_pressure_reference_type) :: source_control_deliverability_type
      !! Controls a source on deliverability.
      private
-     type(interpolation_table_type), public :: productivity_index !! Productivity index vs. time
+     type(interpolation_table_type), public :: productivity !! Productivity index vs. time
    contains
      procedure, public :: init => source_control_deliverability_init
      procedure, public :: update => source_control_deliverability_update
@@ -332,7 +332,7 @@ contains
 
     call self%sources%init()
     call self%sources%add(sources)
-    call self%productivity_index%init(productivity_data, &
+    call self%productivity%init(productivity_data, &
          interpolation_type, averaging_type)
     self%reference_pressure = reference_pressure
 
@@ -359,7 +359,7 @@ contains
       PetscBool, intent(out) :: stopped
       ! Locals:
       PetscInt :: p, phases
-      PetscReal :: pressure_difference, productivity_index
+      PetscReal :: pressure_difference, productivity
 
       select type (source => node%data)
       type is (source_type)
@@ -369,11 +369,11 @@ contains
 
          source%rate = 0._dp
 
-         productivity_index = self%productivity_index%average(interval)
+         productivity = self%productivity%average(interval)
          phases = nint(source%fluid%phase_composition)
          do p = 1, source%fluid%num_phases
             if (btest(phases, p - 1)) then
-               source%rate = source%rate - productivity_index * &
+               source%rate = source%rate - productivity * &
                     source%fluid%phase(p)%mobility() * pressure_difference
             end if
          end do
@@ -429,7 +429,7 @@ contains
                (source%fluid%pressure - self%reference_pressure)
 
           if (abs(factor) > tol) then
-             self%productivity_index%val(1) = abs(initial_rate) / factor
+             self%productivity%val(1) = abs(initial_rate) / factor
           end if
 
           deallocate(phase_mobilities)

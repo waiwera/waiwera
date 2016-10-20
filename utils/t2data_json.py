@@ -211,12 +211,12 @@ class t2data_export_json(t2data):
                         if gen.ltab > 1:
                             raise Exception('DELV generator with multiple layers not supported.')
                         else:
-                            g['deliverability'] = {'productivity_index': gen.gx,
+                            g['deliverability'] = {'productivity': gen.gx,
                                                    'reference_pressure': gen.ex,
                                                    'direction': 'production'}
                         g['direction'] = 'production'
                     elif gen.type in ['DELG', 'DELS', 'DELT', 'DELW']:
-                        g['deliverability'] = {'productivity_index': gen.gx,
+                        g['deliverability'] = {'productivity': gen.gx,
                                                'reference_pressure': gen.ex,
                                                'direction': 'production'}
                         if gen.hg > 0.:
@@ -228,7 +228,7 @@ class t2data_export_json(t2data):
                                     raise Exception('Two-stage flash separator not supported.')
                         elif gen.hg < 0. and gen.type == 'DELG':
                             g['rate'] = gen.hg # initial rate for computing productivity index
-                            del g['deliverability']['productivity_index']
+                            del g['deliverability']['productivity']
                         if gen.type == 'DELS': g['production_component'] = 2
                         g['direction'] = 'production'
                     elif gen.type == 'RECH':
@@ -249,7 +249,7 @@ class t2data_export_json(t2data):
                         g['averaging'] = averaging_type
                         if gen.type == 'DELG':
                             if gen.ltab > 0:
-                                g['deliverability']['productivity_index'] = [list(r) for r in zip(gen.time, gen.rate)]
+                                g['deliverability']['productivity'] = [list(r) for r in zip(gen.time, gen.rate)]
                             else:
                                 raise Exception('Deliverability with reference pressure table vs enthalpy not supported.')
                         else:

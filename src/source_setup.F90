@@ -462,8 +462,8 @@ contains
 
 !------------------------------------------------------------------------
   
-  subroutine get_deliverability_productivity_index(json, source_json, srcstr, &
-       num_cells, cell_sources, productivity_index_array, &
+  subroutine get_deliverability_productivity(json, source_json, srcstr, &
+       num_cells, cell_sources, productivity_array, &
        calculate_PI_from_rate, logfile)
     !! Gets productivity index for deliverability source control.
 
@@ -471,37 +471,35 @@ contains
     character(len = *), intent(in) :: srcstr
     PetscInt, intent(in) :: num_cells
     type(list_type), intent(in) :: cell_sources
-    PetscReal, allocatable :: productivity_index_array(:,:)
+    PetscReal, allocatable :: productivity_array(:,:)
     PetscBool, intent(out) :: calculate_PI_from_rate
     type(logfile_type), intent(in out), optional :: logfile
     ! Locals:
     PetscInt :: PI_type
-    PetscReal :: productivity_index
+    PetscReal :: productivity
     PetscReal, parameter :: default_time = 0._dp
 
     calculate_PI_from_rate = PETSC_FALSE
-    productivity_index = default_deliverability_productivity_index
-    productivity_index_array = reshape([default_time, &
-         productivity_index], [1,2])
+    productivity = default_deliverability_productivity
+    productivity_array = reshape([default_time, productivity], [1,2])
 
-    if (fson_has_mpi(json, "productivity_index")) then
+    if (fson_has_mpi(json, "productivity")) then
 
-       PI_type = fson_type_mpi(json, "productivity_index")
+       PI_type = fson_type_mpi(json, "productivity")
 
        select case(PI_type)
        case (TYPE_REAL)
-          call fson_get_mpi(json, "productivity_index", &
-               val = productivity_index)
-          productivity_index_array = reshape([default_time, &
-               productivity_index], [1,2])
+          call fson_get_mpi(json, "productivity", val = productivity)
+          productivity_array = reshape([default_time, &
+               productivity], [1,2])
        case (TYPE_ARRAY)
-          call fson_get_mpi(json, "productivity_index", &
-               val = productivity_index_array)
+          call fson_get_mpi(json, "productivity", &
+               val = productivity_array)
        case default
           if (present(logfile) .and. logfile%active) then
              call logfile%write(LOG_LEVEL_WARN, 'input', 'unrecognised', &
                   str_key = "source[" // trim(srcstr) // &
-                  "].deliverability.productivity_index", &
+                  "].deliverability.productivity", &
                   str_value = "...")
           end if
        end select
@@ -514,12 +512,12 @@ contains
     else
        if (present(logfile) .and. logfile%active) then
           call logfile%write(LOG_LEVEL_INFO, 'input', 'default', real_keys = &
-               ["source[" // trim(srcstr) // "].deliverability.productivity_index"], &
-               real_values = [productivity_index])
+               ["source[" // trim(srcstr) // "].deliverability.productivity"], &
+               real_values = [productivity])
        end if
     end if
 
-  end subroutine get_deliverability_productivity_index
+  end subroutine get_deliverability_productivity
 
 !------------------------------------------------------------------------
 
@@ -548,7 +546,7 @@ contains
     PetscBool :: calculate_reference_pressure
     PetscBool :: calculate_PI_from_rate
     PetscReal :: initial_rate
-    PetscReal, allocatable :: productivity_index_array(:,:)
+    PetscReal, allocatable :: productivity_array(:,:)
     PetscReal, parameter :: default_rate = 0._dp
 
     if (fson_has_mpi(source_json, "deliverability")) then
@@ -560,14 +558,14 @@ contains
        call get_reference_pressure(deliv_json, srcstr, "deliverability", &
             reference_pressure, calculate_reference_pressure, logfile)
 
-       call get_deliverability_productivity_index(deliv_json, source_json, &
-            srcstr, num_cells, cell_sources, productivity_index_array, &
+       call get_deliverability_productivity(deliv_json, source_json, &
+            srcstr, num_cells, cell_sources, productivity_array, &
             calculate_PI_from_rate, logfile)
 
        if (cell_sources%count > 0) then
 
           allocate(deliv)
-          call deliv%init(productivity_index_array, interpolation_type, &
+          call deliv%init(productivity_array, interpolation_type, &
                averaging_type, reference_pressure, cell_sources)
 
           if (calculate_reference_pressure) then

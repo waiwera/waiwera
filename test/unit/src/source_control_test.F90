@@ -306,12 +306,12 @@ contains
          select case (source_control%sources%head%tag)
          case ("source 2")
             call assert_equals(1.e-12_dp, &
-                 source_control%productivity_index%val(1), PI_tol, &
-                 "source 2 productivity index")
+                 source_control%productivity%val(1), PI_tol, &
+                 "source 2 productivity")
          case ("source 4")
             call assert_equals(8.54511496085953E-13_dp, &
-                 source_control%productivity_index%val(1), PI_tol, &
-                 "source 4 productivity index")
+                 source_control%productivity%val(1), PI_tol, &
+                 "source 4 productivity")
          end select
          call assert_equals(2.e5_dp, &
               source_control%reference_pressure, tol, "deliverability reference pressure")
