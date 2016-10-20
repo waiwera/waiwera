@@ -21,8 +21,9 @@ dat = t2data_export_json(model_name + '_ss.dat')
 
 mesh_filename = 'g'+ model_name +'.exo'
 
-ndt = 150
-maxtime = 1.e9
+ndt = 80
+dts = np.logspace(4, 7.5, ndt)
+maxtime = np.sum(dts)
 PI = 1.e-11
 Pwb = 5.e5
 
@@ -37,8 +38,8 @@ dat.parameter.update(
 
 dat.parameter['option'][24] = 2 # output initial results
 dat.parameter['option'][16] = 0
-dat.parameter['timestep'] = list(np.logspace(4, 7.5, 80))
-dat.parameter['const_timestep'] = -int(len(dat.parameter['timestep']) / 8 + 0.5)
+dat.parameter['timestep'] = list(dts)
+dat.parameter['const_timestep'] = -int(round(ndt/ 8))
 
 dat.write(model_name + '.dat')
 

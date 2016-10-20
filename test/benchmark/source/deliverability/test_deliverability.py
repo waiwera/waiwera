@@ -72,7 +72,7 @@ for run_index, run_name in enumerate(run_names):
                                      fieldname_map = AUT2_FIELDMAP)
     deliverability_test.addTestComp(run_index, "final errors",
                                         FieldWithinTolTC(fieldsToTest = test_fields,
-                                                         defFieldTol = 1.e-3,
+                                                         defFieldTol = 5.e-3,
                                                          expected = reference_result,
                                                          testOutputIndex = -1))
     deliverability_test.addTestComp(run_index, "time history",
