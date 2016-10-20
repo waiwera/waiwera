@@ -203,8 +203,8 @@ class t2data_export_json(t2data):
                     cell_index = geo.block_name_index[gen.block] - geo.num_atmosphere_blocks
                     g = {'name': gen.name, 'cell': cell_index}
                     if gen.type in mass_component:
+                        g['rate'] = gen.gx
                         if gen.gx > 0.:
-                            g['rate'] = gen.gx
                             g['component'] = mass_component[gen.type]
                             if gen.type != 'HEAT': g['enthalpy'] = gen.ex
                     if gen.type == 'DELV':
