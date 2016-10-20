@@ -130,17 +130,18 @@ for run_index, run_name in enumerate(run_names):
         plt.clf()
         test.mSuite.analysisImages.append(img_filename)
 
-    # plot time history results at RH end cell:
+    # plot time history results at end cells:
     for field_name in plot_fields:
-        var = test.mSuite.resultsList[run_index].getFieldHistoryAtCell(field_name, -1)
-        plt.semilogx(t, var, '-o', label = 'supermodel')
-        var = reference_result.getFieldHistoryAtCell(field_name, -1)
-        plt.semilogx(t, var, 's', label = 'AUTOUGH2')
+        for cell in [1, -1]:
+            var = test.mSuite.resultsList[run_index].getFieldHistoryAtCell(field_name, cell)
+            plt.semilogx(t, var, '-o', label = 'supermodel cell ' + str(cell))
+            var = reference_result.getFieldHistoryAtCell(field_name, cell)
+            plt.semilogx(t, var, 's', label = 'AUTOUGH2 cell ' + str(cell))
         plt.xlabel('t (s)')
         plt.ylabel(field_name)
         plt.legend()
-        plt.title(run_name + ' ' + tc_name + ' results')
-        img_filename_base = '_'.join((run_base_name, tc_name, field_name))
+        plt.title(run_name + ' results')
+        img_filename_base = '_'.join((run_base_name, field_name))
         img_filename_base = img_filename_base.replace(' ', '_')
         img_filename = os.path.join(test.mSuite.runs[run_index].basePath,
                                     test.mSuite.outputPathBase,
