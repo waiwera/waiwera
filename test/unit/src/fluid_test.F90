@@ -13,7 +13,8 @@ module fluid_test
 #include <petsc/finclude/petscdef.h>
 
 public :: test_fluid_assign, test_fluid_component_density, &
-     test_fluid_energy, test_fluid_energy_production
+     test_fluid_energy, test_fluid_enthalpy
+
 
 contains
   
@@ -146,49 +147,53 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine test_fluid_energy_production
-    ! Test fluid energy_production()
+  subroutine test_fluid_enthalpy
+    ! Test fluid phase_mobilities(), phase_flow_fractions(),
+    ! component_flow_fractions() and specific_enthalpy()
 
     type(fluid_type) :: fluid
-    PetscInt, parameter :: num_components = 1, num_phases = 2
-    PetscBool, parameter :: isothermal = .false.
-    PetscInt, parameter :: offset = 1
+    PetscInt, parameter :: num_components = 2, num_phases = 2
+    PetscInt,  parameter :: offset = 1
     PetscReal, pointer, contiguous :: fluid_data(:)
-    PetscReal :: source(num_components + 1), ff(num_phases)
+    PetscReal :: mob(num_phases), ff(num_phases), cff(num_components)
+    PetscReal :: h
+    PetscReal, parameter :: expected_mob(num_phases) = [654500000._dp, 2250000._dp]
+    PetscReal, parameter :: expected_ff(num_phases) = [0.9965740388_dp, 0.0034259612_dp]
+    PetscReal, parameter :: expected_cff(num_phases) = [0.6989722116_dp, 0.3010277884_dp]
+    PetscReal, parameter :: expected_h = 86353.3307955843_dp
     PetscReal, parameter :: tol = 1.e-6_dp
-    PetscReal, parameter :: expected_production = -3190284.011514185_dp
-    PetscReal, parameter :: expected_flow_fractions(num_phases) = &
-         [0.98532727106605555_dp, 0.014672728933944498_dp]
 
     if (mpi%rank == mpi%output_rank) then
 
        call fluid%init(num_components, num_phases)
 
        allocate(fluid_data(offset - 1 + fluid%dof))
-       fluid_data = [3346651.871510162_dp, 240._dp, 4._dp, 3._dp, &
-            813.36485916981576_dp, 0.00011105570007981882_dp, 0.8_dp, &
-            0.9_dp, 1037522.7548256445_dp, 1033408.1784042757_dp, 1._dp, &
-            16.747578872158215_dp, 1.7062182385337129e-05_dp, 0.2_dp, &
-            0.1_dp, 2803059.9721381501_dp, 2603230.9761348078_dp, 1._dp]
+       fluid_data = [2.7e5_dp, 130._dp, 4._dp, 3._dp, &
+            935._dp, 1.e-6_dp, 0.8_dp, 0.7_dp, 83.9e3_dp, 5.461e5_dp, 0.7_dp, 0.3_dp, &
+            1.5_dp,  2.e-7_dp, 0.2_dp, 0.3_dp, 800.e3_dp, 2.540e6_dp, 0.4_dp, 0.6_dp]
 
        call fluid%assign(fluid_data, offset)
 
-       ff = fluid%flow_fractions()
-       call assert_equals(expected_flow_fractions(1), ff(1), tol, "Flow fraction 1")
-       call assert_equals(expected_flow_fractions(2), ff(2), tol, "Flow fraction 2")
+       mob = fluid%phase_mobilities()
+       call assert_equals(expected_mob, mob, num_phases, tol, "Fluid phase mobilities")
 
-       source = [-3._dp, 0._dp]
-       call fluid%energy_production(source, isothermal)
+       ff = fluid%phase_flow_fractions()
+       call assert_equals(expected_ff, ff, num_phases, tol, "Fluid phase flow fractions")
 
-       call assert_equals(expected_production, source(num_components + 1), &
-            tol, "Energy production")
+       cff = fluid%component_flow_fractions(ff)
+
+       call assert_equals(expected_cff, cff, num_components, tol, &
+            "Fluid component flow fractions")
+
+       h = fluid%specific_enthalpy(ff)
+       call assert_equals(expected_h, h, tol, "Fluid enthalpy")
 
        call fluid%destroy()
        deallocate(fluid_data)
 
     end if
 
-  end subroutine test_fluid_energy_production
+  end subroutine test_fluid_enthalpy
 
 !------------------------------------------------------------------------
 

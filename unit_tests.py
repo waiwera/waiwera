@@ -7,8 +7,8 @@ import FRUIT
 
 build_command = 'make tests'
 driver_name = 'test_all'
-test_dir = 'test/src/'
-output_dir = 'test/dist/'
+test_dir = 'test/unit/src/'
+output_dir = 'test/unit/dist/'
 testsuffix = '_test'
 f90 = '.F90'
 setup_source = test_dir + 'setup' + testsuffix + f90

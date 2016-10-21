@@ -18,6 +18,8 @@ module eos_module
   PetscInt, parameter, public :: max_primary_variable_name_length = 32
   PetscInt, parameter, public :: max_phase_name_length = 13
   PetscInt, parameter, public :: max_component_name_length = 8
+  character(max_component_name_length), parameter, public :: &
+       energy_component_name  = 'energy'
 
   type, public, abstract :: eos_type
      !! Abstract type for equation of state (EOS) objects.
@@ -45,6 +47,7 @@ module eos_module
      procedure(eos_primary_variables_procedure), public, deferred :: primary_variables
      procedure(eos_check_primary_variables_procedure), public, deferred :: check_primary_variables
      procedure, public :: conductivity => eos_conductivity
+     procedure, public :: component_index => eos_component_index
   end type eos_type
 
   abstract interface
@@ -164,6 +167,30 @@ contains
          (rock%wet_conductivity - rock%dry_conductivity)
 
   end function eos_conductivity
+
+!------------------------------------------------------------------------
+
+  PetscInt function eos_component_index(self, component_name) result (index)
+    !! Returns index of specified component name (or -1 if no such
+    !! component exists).
+
+    use utils_module, only: str_to_lower, str_array_index
+
+    class(eos_type), intent(in) :: self
+    character(len = *), intent(in) :: component_name
+    ! Locals:
+    character(len = len(component_name)) :: lowercase_name
+
+    lowercase_name = str_to_lower(component_name)
+
+    if ((trim(lowercase_name) == trim(energy_component_name)) .and. &
+         (.not. self%isothermal)) then
+       index = self%num_primary_variables
+    else
+       index = str_array_index(lowercase_name, self%component_names)
+    end if
+
+  end function eos_component_index
 
 !------------------------------------------------------------------------
 

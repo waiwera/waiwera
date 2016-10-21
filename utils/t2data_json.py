@@ -179,17 +179,84 @@ class t2data_export_json(t2data):
     def generators_json(self, geo):
         """Converts TOUGH2 generator data to JSON."""
         jsondata = {}
-        component = {'MASS': 1, 'HEAT': self.multi['num_equations'], 'COM1': 1, 'COM2': 2}
+        unsupported_types = ['CO2 ', 'DMAK', 'FEED', 'FINJ', 'HLOS', 'IMAK', 'MAKE',
+                             'PINJ', 'POWR', 'RINJ', 'TMAK', 'TOST', 'VOL.',
+                             'WBRE', 'WFLO', 'XINJ', 'XIN2']
+        mass_component = {'MASS': 1, 'HEAT': self.multi['num_equations'],
+                          'COM1': 1, 'COM2': 2, 'COM3': 3, 'COM4': 4,
+                          'COM5': 5, 'WATE': 1, 'AIR ': 2, 'TRAC': 2, 'NACL': 3}
+        limit_type = {'DELG': 'steam', 'DELS': 'steam', 'DELT': 'total', 'DELW': 'water'}
+        if self.parameter['option'][12] == 0:
+            interp_type, averaging_type = "linear", "endpoint"
+        elif self.parameter['option'][12] == 1:
+            interp_type, averaging_type = "step", "endpoint"
+        else:
+            # there are actually more subtleties here- differences
+            # between TOUGH2/ AUTOUGH2 etc. for MOP(12) >= 2.
+            interp_type, averaging_type = "linear", "integrate"
         if self.generatorlist:
             jsondata['source'] = []
             for gen in self.generatorlist:
-                if gen.type in component:
+                if gen.type in unsupported_types:
+                    raise Exception('Generator type ' + gen.type + ' not supported.')
+                else:
                     cell_index = geo.block_name_index[gen.block] - geo.num_atmosphere_blocks
-                    g = {'name': gen.name, 'cell': cell_index,
-                         'value': gen.gx, 'component': component[gen.type]}
-                    if gen.gx > 0. and gen.type <> 'HEAT': g['enthalpy'] = gen.ex
+                    g = {'name': gen.name, 'cell': cell_index}
+                    if gen.type in mass_component:
+                        g['rate'] = gen.gx
+                        if gen.gx > 0.:
+                            g['component'] = mass_component[gen.type]
+                            if gen.type != 'HEAT': g['enthalpy'] = gen.ex
+                    if gen.type == 'DELV':
+                        if gen.ltab > 1:
+                            raise Exception('DELV generator with multiple layers not supported.')
+                        else:
+                            g['deliverability'] = {'productivity': gen.gx,
+                                                   'pressure': gen.ex,
+                                                   'direction': 'production'}
+                        g['direction'] = 'production'
+                    elif gen.type in ['DELG', 'DELS', 'DELT', 'DELW']:
+                        g['deliverability'] = {'productivity': gen.gx,
+                                               'pressure': gen.ex,
+                                               'direction': 'production'}
+                        if gen.hg > 0.:
+                            g['limiter'] = {'type': limit_type[gen.type], 'limit': gen.hg}
+                            if gen.type != 'DELT':
+                                if gen.fg > 0.:
+                                    g['limiter']['separator_pressure'] = gen.fg
+                                elif gen.fg < 0.:
+                                    raise Exception('Two-stage flash separator not supported.')
+                        elif gen.hg < 0. and gen.type == 'DELG':
+                            g['rate'] = gen.hg # initial rate for computing productivity index
+                            del g['deliverability']['productivity']
+                        if gen.type == 'DELS': g['production_component'] = 2
+                        g['direction'] = 'production'
+                    elif gen.type == 'RECH':
+                        g['enthalpy'] = gen.ex
+                        if gen.hg != 0.:
+                            rech = {}
+                            if gen.fg < 0.: g['direction'] = "out"
+                            elif gen.fg > 0.: g['direction'] = "in"
+                            else: g['direction'] = "both"
+                            if gen.hg > 0.: rech['pressure'] = gen.hg
+                            else: rech['pressure'] = 'initial'
+                            rech['coefficient'] = gen.gx
+                            g['recharge'] = rech
+                        else:
+                            g['rate'] = gen.gx
+                    if gen.time:
+                        g['interpolation'] = interp_type
+                        g['averaging'] = averaging_type
+                        data_table = [list(r) for r in zip(gen.time, gen.rate)]
+                        if gen.type == 'DELG':
+                            if gen.ltab > 0:
+                                g['deliverability']['productivity'] = {'time': data_table}
+                            else:
+                                g['deliverability']['pressure'] = {'enthalpy': data_table}
+                        else:
+                            if gen.rate: g['rate'] = data_table
+                            if gen.enthalpy: g['enthalpy'] = data_table
                     jsondata['source'].append(g)
-                else: raise Exception('Generator type ' + gen.type + ' not supported.')
         return jsondata
 
     def boundaries_json(self, geo, bdy_incons, atmos_volume, eos):

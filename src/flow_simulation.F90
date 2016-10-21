@@ -8,6 +8,7 @@ module flow_simulation_module
   use relative_permeability_module
   use logfile_module
   use mpi_module
+  use list_module
 
   implicit none
 
@@ -29,7 +30,8 @@ module flow_simulation_module
      Vec, public :: fluid !! Fluid properties in each cell
      Vec, public :: last_timestep_fluid !! Fluid properties at previous timestep
      Vec, public :: last_iteration_fluid !! Fluid properties at previous nonlinear solver iteration
-     Vec, public :: source !! Source/sink terms in each cell, for all mass and energy components
+     type(list_type), public :: sources !! Source/sink terms
+     type(list_type), public :: source_controls !! Source/sink controls
      class(thermodynamics_type), allocatable, public :: thermo !! Fluid thermodynamic formulation
      class(eos_type), allocatable, public :: eos !! Fluid equation of state
      PetscReal, public :: gravity !! Acceleration of gravity (\(m.s^{-1}\))
@@ -322,7 +324,7 @@ end subroutine flow_simulation_run_info
     use initial_module, only: setup_initial
     use fluid_module, only: setup_fluid_vector
     use rock_module, only: setup_rock_vector, setup_rocktype_labels
-    use source_module, only: setup_source_vector
+    use source_setup_module, only: setup_sources
     use utils_module, only: date_time_str
     use profiling_module, only: simulation_init_event
 
@@ -387,9 +389,9 @@ end subroutine flow_simulation_run_info
     call self%mesh%set_boundary_values(self%solution, self%fluid, &
          self%rock, self%eos, self%solution_range_start, &
          self%fluid_range_start, self%rock_range_start)
-    call setup_source_vector(json, self%mesh%dm, &
-         self%eos%num_primary_variables, self%eos%isothermal, &
-         self%source, self%solution_range_start, self%logfile)
+    call setup_sources(json, self%mesh%dm, self%eos, self%thermo, &
+         self%time, self%fluid, self%fluid_range_start, &
+         self%sources, self%source_controls, self%logfile)
 
     call self%logfile%flush()
 
@@ -416,7 +418,9 @@ end subroutine flow_simulation_run_info
     call VecDestroy(self%last_timestep_fluid, ierr); CHKERRQ(ierr)
     call VecDestroy(self%last_iteration_fluid, ierr); CHKERRQ(ierr)
     call VecDestroy(self%rock, ierr); CHKERRQ(ierr)
-    call VecDestroy(self%source, ierr); CHKERRQ(ierr)
+    call self%source_controls%destroy(source_control_list_node_data_destroy, &
+         reverse = PETSC_TRUE)
+    call self%sources%destroy(source_list_node_data_destroy)
     call self%mesh%destroy()
     call self%thermo%destroy()
     call self%eos%destroy()
@@ -432,11 +436,39 @@ end subroutine flow_simulation_run_info
 
     call self%logfile%destroy()
 
+  contains
+
+    subroutine source_list_node_data_destroy(node)
+      ! Destroys source in each list node.
+
+      use source_module, only: source_type
+
+      type(list_node_type), pointer, intent(in out) :: node
+
+      select type (source => node%data)
+      type is (source_type)
+         call source%destroy()
+      end select
+    end subroutine source_list_node_data_destroy
+
+    subroutine source_control_list_node_data_destroy(node)
+      ! Destroys source control in each list node.
+
+      use source_control_module, only: source_control_type
+
+      type(list_node_type), pointer, intent(in out) :: node
+
+      select type (source_control => node%data)
+      class is (source_control_type)
+         call source_control%destroy()
+      end select
+    end subroutine source_control_list_node_data_destroy
+
   end subroutine flow_simulation_destroy
 
 !------------------------------------------------------------------------
 
-  subroutine flow_simulation_cell_balances(self, t, y, lhs, err)
+  subroutine flow_simulation_cell_balances(self, t, interval, y, lhs, err)
     !! Computes mass and energy balance for each cell, for the given
     !! primary thermodynamic variables and time.
 
@@ -446,6 +478,7 @@ end subroutine flow_simulation_run_info
 
     class(flow_simulation_type), intent(in out) :: self
     PetscReal, intent(in) :: t !! time (s)
+    PetscReal, intent(in) :: interval(2) !! time interval bounds
     Vec, intent(in) :: y !! global primary variables vector
     Vec, intent(out) :: lhs
     PetscErrorCode, intent(out) :: err
@@ -509,7 +542,7 @@ end subroutine flow_simulation_run_info
 
 !------------------------------------------------------------------------
 
-  subroutine flow_simulation_cell_inflows(self, t, y, rhs, err)
+  subroutine flow_simulation_cell_inflows(self, t, interval, y, rhs, err)
     !! Computes net inflow (per unit volume) into each cell, from
     !! flows through faces and source terms, for the given primary
     !! thermodynamic variables and time.
@@ -518,32 +551,32 @@ end subroutine flow_simulation_run_info
     use dm_utils_module
     use cell_module, only: cell_type
     use face_module, only: face_type
+    use source_module, only: source_type
+    use source_control_module, only: source_control_type
     use profiling_module, only: cell_inflows_event, sources_event
 
     class(flow_simulation_type), intent(in out) :: self
-    PetscReal, intent(in) :: t !! time
+    PetscReal, intent(in) :: t !! time (s)
+    PetscReal, intent(in) :: interval(2) !! time interval bounds
     Vec, intent(in) :: y !! global primary variables vector
     Vec, intent(out) :: rhs
     PetscErrorCode, intent(out) :: err
     ! Locals:
-    PetscInt :: f, c, i, np, nc
+    PetscInt :: f, i, np
     Vec :: local_fluid, local_rock
     PetscReal, pointer, contiguous :: rhs_array(:)
     PetscReal, pointer, contiguous :: cell_geom_array(:), face_geom_array(:)
     PetscReal, pointer, contiguous :: fluid_array(:), rock_array(:)
-    PetscReal, pointer, contiguous :: source_array(:)
     PetscSection :: rhs_section, rock_section, fluid_section
-    PetscSection :: source_section
     PetscSection :: cell_geom_section, face_geom_section
     type(cell_type) :: cell
     type(face_type) :: face
     PetscInt :: face_geom_offset, cell_geom_offsets(2)
     PetscInt :: rock_offsets(2), fluid_offsets(2), rhs_offsets(2)
-    PetscInt :: cell_geom_offset, rhs_offset, source_offset
-    PetscInt :: fluid_offset
+    PetscInt :: cell_geom_offset, rhs_offset
     PetscInt, pointer :: cells(:)
     PetscReal, pointer, contiguous :: inflow(:)
-    PetscReal, allocatable :: face_flow(:), source(:)
+    PetscReal, allocatable :: face_flow(:)
     PetscReal, parameter :: flux_sign(2) = [-1._dp, 1._dp]
     PetscReal, allocatable :: primary(:)
     PetscErrorCode :: ierr
@@ -616,50 +649,74 @@ end subroutine flow_simulation_run_info
     CHKERRQ(ierr)
     call PetscLogEventEnd(cell_inflows_event, ierr); CHKERRQ(ierr)
 
-    ! Source/ sink terms:
+    ! Source / sink terms:
     call PetscLogEventBegin(sources_event, ierr); CHKERRQ(ierr)
-    nc = self%eos%num_components
-    call cell%init(nc, self%eos%num_phases)
-    call VecGetArrayReadF90(self%source, source_array, ierr); CHKERRQ(ierr)
-    call global_vec_section(self%source, source_section)
-    allocate(source(np))
-
-    do c = self%mesh%start_cell, self%mesh%end_cell - 1
-
-       if (self%mesh%ghost_cell(c) < 0) then
-          call global_section_offset(rhs_section, c, &
-               self%solution_range_start, rhs_offset, ierr)
-          CHKERRQ(ierr)
-          call section_offset(cell_geom_section, c, &
-               cell_geom_offset, ierr); CHKERRQ(ierr)
-          call section_offset(fluid_section, c, &
-               fluid_offset, ierr); CHKERRQ(ierr)
-          call cell%assign_geometry(cell_geom_array, cell_geom_offset)
-          call cell%fluid%assign(fluid_array, fluid_offset)
-          call global_section_offset(source_section, c, &
-               self%solution_range_start, source_offset, ierr)
-          CHKERRQ(ierr)
-          inflow => rhs_array(rhs_offset : rhs_offset + np - 1)
-          source = source_array(source_offset : source_offset + np - 1)
-          call cell%fluid%energy_production(source, self%eos%isothermal)
-          inflow = inflow + source / cell%volume
-       end if
-
-    end do
+    call cell%init(self%eos%num_components, self%eos%num_phases)
+    call self%source_controls%traverse(source_control_iterator)
+    call self%sources%traverse(source_iterator)
+    call PetscLogEventEnd(sources_event, ierr); CHKERRQ(ierr)
 
     nullify(inflow)
-    deallocate(source)
     call cell%destroy()
     call VecRestoreArrayReadF90(local_rock, rock_array, ierr); CHKERRQ(ierr)
     call VecRestoreArrayReadF90(local_fluid, fluid_array, ierr); CHKERRQ(ierr)
-    call VecRestoreArrayReadF90(self%source, source_array, ierr); CHKERRQ(ierr)
     call VecRestoreArrayReadF90(self%mesh%cell_geom, cell_geom_array, ierr)
     CHKERRQ(ierr)
     call VecRestoreArrayF90(rhs, rhs_array, ierr); CHKERRQ(ierr)
     call restore_dm_local_vec(local_fluid)
     call restore_dm_local_vec(local_rock)
     deallocate(face_flow, primary)
-    call PetscLogEventEnd(sources_event, ierr); CHKERRQ(ierr)
+
+  contains
+
+    subroutine source_control_iterator(node, stopped)
+      !! Applies source controls.
+
+      type(list_node_type), pointer, intent(in out) :: node
+      PetscBool, intent(out) :: stopped
+
+      select type (source_control => node%data)
+      class is (source_control_type)
+         call source_control%update(t, interval, fluid_array, fluid_section)
+      end select
+      stopped = PETSC_FALSE
+
+    end subroutine source_control_iterator
+
+    subroutine source_iterator(node, stopped)
+      !! Assembles source contribution from source list node to global
+      !! RHS array.
+
+      type(list_node_type), pointer, intent(in out) :: node
+      PetscBool, intent(out) :: stopped
+      ! Locals:
+      PetscInt :: c
+
+      select type (source => node%data)
+      type is (source_type)
+
+         c = source%cell_index
+         if (self%mesh%ghost_cell(c) < 0) then
+
+            call global_section_offset(rhs_section, c, &
+                 self%solution_range_start, rhs_offset, ierr)
+            CHKERRQ(ierr)
+            inflow => rhs_array(rhs_offset : rhs_offset + np - 1)
+
+            call section_offset(cell_geom_section, c, &
+                 cell_geom_offset, ierr); CHKERRQ(ierr)
+            call cell%assign_geometry(cell_geom_array, cell_geom_offset)
+
+            call source%update_flow(fluid_array, fluid_section)
+            inflow = inflow + source%flow / cell%volume
+
+         end if
+
+      end select
+
+      stopped = PETSC_FALSE
+
+    end subroutine source_iterator
 
   end subroutine flow_simulation_cell_inflows
 

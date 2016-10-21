@@ -294,18 +294,19 @@ contains
     type(timestepper_solver_context_type), intent(in out) :: context
     PetscErrorCode, intent(out) :: err
     ! Locals:
-    PetscReal :: t, dt
+    PetscReal :: t, dt, interval(2)
     PetscErrorCode :: ierr
 
     err = 0
     t = context%steps%current%time
+    interval = [context%steps%last%time, t]
     dt = context%steps%current%stepsize
 
-    call context%ode%lhs(t, y, context%steps%current%lhs, err)
+    call context%ode%lhs(t, interval, y, context%steps%current%lhs, err)
     if (err == 0) then
        call VecCopy(context%steps%current%lhs, residual, ierr); CHKERRQ(ierr)
        call VecAXPY(residual, -1.0_dp, context%steps%last%lhs, ierr); CHKERRQ(ierr)
-       call context%ode%rhs(t, y, context%steps%current%rhs, err)
+       call context%ode%rhs(t, interval, y, context%steps%current%rhs, err)
        if (err == 0) then
           call VecAXPY(residual, -dt, context%steps%current%rhs, ierr)
           CHKERRQ(ierr)
@@ -328,7 +329,7 @@ contains
     PetscErrorCode, intent(out) :: err
     ! Locals:
     type(timestepper_step_type), pointer :: last2
-    PetscReal :: t, dt, dtlast
+    PetscReal :: t, dt, dtlast, interval(2)
     PetscReal :: r, r1
     PetscErrorCode :: ierr
 
@@ -341,6 +342,7 @@ contains
 
        err = 0
        t  = context%steps%current%time
+       interval = [context%steps%last%time, t]
        dt = context%steps%current%stepsize
        dtlast = context%steps%last%stepsize
        r = dt / dtlast
@@ -348,14 +350,14 @@ contains
 
        last2 => context%steps%pstore(3)%p
 
-       call context%ode%lhs(t, y, context%steps%current%lhs, err)
+       call context%ode%lhs(t, interval, y, context%steps%current%lhs, err)
        if (err == 0) then
           call VecCopy(context%steps%current%lhs, residual, ierr); CHKERRQ(ierr)
           call VecScale(residual, 1._dp + 2._dp * r, ierr); CHKERRQ(ierr)
           call VecAXPY(residual, -r1 * r1, context%steps%last%lhs, ierr)
           CHKERRQ(ierr)
           call VecAXPY(residual, r * r, last2%lhs, ierr); CHKERRQ(ierr)
-          call context%ode%rhs(t, y, context%steps%current%rhs, err)
+          call context%ode%rhs(t, interval, y, context%steps%current%rhs, err)
           if (err == 0) then
              call VecAXPY(residual, -dt * r1, context%steps%current%rhs, ierr)
              CHKERRQ(ierr)
@@ -379,11 +381,13 @@ contains
     type(timestepper_solver_context_type), intent(in out) :: context
     PetscErrorCode, intent(out) :: err
     ! Locals:
+    PetscReal :: t, interval(2)
     PetscErrorCode :: ierr
 
     err = 0
-    call context%ode%rhs(context%steps%stop_time, y, &
-         context%steps%current%rhs, err)
+    t = context%steps%stop_time
+    interval = [t, t]
+    call context%ode%rhs(t, interval, y, context%steps%current%rhs, err)
     if (err == 0) then
        call VecCopy(context%steps%current%rhs, residual, ierr)
        CHKERRQ(ierr)
@@ -683,15 +687,18 @@ contains
 
     class(timestepper_type), intent(in out) :: self
     PetscErrorCode, intent(out) :: err
+    ! Locals:
+    PetscReal :: t, interval(2)
 
     err = 0
+    t = self%steps%current%time
+    interval = [t, t]
 
-    call self%ode%pre_solve(self%steps%current%time, &
-         self%steps%current%solution, err)
+    call self%ode%pre_solve(t, self%steps%current%solution, err)
 
     if (err == 0) then
-       call self%ode%lhs(self%steps%current%time, &
-            self%steps%current%solution, self%steps%current%lhs, err)
+       call self%ode%lhs(t, interval, self%steps%current%solution, &
+            self%steps%current%lhs, err)
     end if
 
   end subroutine timestepper_initial_function_calls

@@ -8,7 +8,7 @@ module utils_module
 #include <petsc/finclude/petscdef.h>
 
   public :: str_to_upper, str_to_lower, &
-       int_str_len, &
+       int_str_len, str_array_index, &
        split_filename, change_filename_extension, &
        date_time_str
   
@@ -72,6 +72,28 @@ contains
     end if
 
   end function int_str_len
+
+!------------------------------------------------------------------------
+
+  PetscInt function str_array_index(str, str_array) result(index)
+    !! Returns index of given string in an array of strings (or -1 if
+    !! it isn't in there).
+
+    character(len = *), intent(in) :: str
+    character(len = *), intent(in) :: str_array(:)
+    ! Locals:
+    PetscInt :: i, n
+
+    index = -1
+    n = size(str_array)
+    do i = 1, n
+       if (trim(str) == trim(str_array(i))) then
+          index = i
+          exit
+       end if
+    end do
+
+  end function str_array_index
 
 !------------------------------------------------------------------------
 

@@ -286,7 +286,8 @@ contains
     ! Locals:
     type(fson_value), pointer :: json
     character(64), parameter :: path = "data/flow_simulation/lhs/"
-    PetscReal :: time = 0._dp
+    PetscReal, parameter :: time = 0._dp
+    PetscReal :: interval(2) = [time, time]
     Vec :: lhs
     PetscErrorCode :: ierr, err
 
@@ -299,7 +300,7 @@ contains
     call PetscObjectSetName(lhs, "lhs", ierr); CHKERRQ(ierr)
 
     call sim%pre_solve(time, sim%solution, err)
-    call sim%lhs(time, sim%solution, lhs, err)
+    call sim%lhs(time, interval, sim%solution, lhs, err)
     call vec_diff_test(lhs, "lhs", path, sim%mesh%cell_index)
 
     call DMRestoreGlobalVector(sim%mesh%dm, lhs, ierr); CHKERRQ(ierr)
