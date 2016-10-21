@@ -63,12 +63,12 @@
         {"name": "source 10", "cell": 9,
          "deliverability": {
              "productivity": 1.0e-12,
-             "pressure": [
+             "pressure": {"time": [
                  [0.0,  2.0e5],
                  [60.0, 1.9e5],
                  [90.0, 1.6e5],
                  [180.0, 1.5e5]
-             ]
+             ]}
          },
          "interpolation": "step", "averaging": "endpoint"
         }

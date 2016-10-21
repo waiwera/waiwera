@@ -434,6 +434,7 @@ contains
     PetscInt :: pressure_type
     PetscInt, parameter :: max_pressure_str_length = 8
     character(max_pressure_str_length) :: pressure_str
+    type(fson_value), pointer :: pressure_json
     PetscReal, parameter :: default_time = 0._dp
 
     calculate_reference_pressure = PETSC_FALSE
@@ -451,6 +452,12 @@ contains
        case (TYPE_ARRAY)
           call fson_get_mpi(json, "pressure", &
                val = reference_pressure_array)
+       case (TYPE_OBJECT)
+          call fson_get_mpi(json, "pressure", pressure_json)
+          if (fson_has_mpi(pressure_json, "time")) then
+             call fson_get_mpi(pressure_json, "time", &
+                  val = reference_pressure_array)
+          end if
        case (TYPE_STRING)
           call fson_get_mpi(json, "pressure", &
                val = pressure_str)
