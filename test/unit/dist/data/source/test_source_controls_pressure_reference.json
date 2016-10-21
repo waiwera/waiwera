@@ -34,7 +34,7 @@
                  [180., 0.5e-12]
              ],
              "pressure": 2.e5},
-             "averaging": "endpoint",
+         "averaging": "endpoint",
         },
         {"name": "source 6", "cell": 5,
          "direction": "injection",
@@ -59,6 +59,18 @@
          "recharge": {
              "coefficient": 1.1e-2,
              "pressure": 49.99e5}
+        },
+        {"name": "source 10", "cell": 9,
+         "deliverability": {
+             "productivity": 1.0e-12,
+             "pressure": [
+                 [0.0,  2.0e5],
+                 [60.0, 1.9e5],
+                 [90.0, 1.6e5],
+                 [180.0, 1.5e5]
+             ]
+         },
+         "interpolation": "step", "averaging": "endpoint"
         }
     ]
 }

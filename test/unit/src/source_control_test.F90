@@ -161,6 +161,7 @@ contains
     use fluid_module, only: fluid_type, setup_fluid_vector
     use dm_utils_module, only: global_vec_section, global_section_offset, &
          global_to_local_vec_section, restore_dm_local_vec
+    use interpolation_module, only: INTERP_STEP, INTERP_AVERAGING_ENDPOINT
 
     character(16), parameter :: path = "data/source/"
     type(IAPWS_type) :: thermo
@@ -249,13 +250,13 @@ contains
     call MPI_reduce(sources%count, num_sources, 1, MPI_INTEGER, MPI_SUM, &
          mpi%input_rank, mpi%comm, ierr)
     if (mpi%rank == mpi%input_rank) then
-      call assert_equals(9, num_sources, "number of sources")
+      call assert_equals(10, num_sources, "number of sources")
     end if
 
     call MPI_reduce(source_controls%count, num_source_controls, 1, &
          MPI_INTEGER, MPI_SUM, mpi%input_rank, mpi%comm, ierr)
     if (mpi%rank == mpi%input_rank) then
-      call assert_equals(17, num_source_controls, "number of source controls")
+      call assert_equals(18, num_source_controls, "number of source controls")
     end if
 
     call global_to_local_vec_section(fluid_vector, local_fluid_vector, &
@@ -310,14 +311,27 @@ contains
             call assert_equals(1.e-12_dp, &
                  source_control%productivity%val(1), PI_tol, &
                  "source 2 productivity")
+            call assert_equals(2.e5_dp, &
+                 source_control%reference_pressure%val(1), tol, &
+                 "source 2 reference pressure")
          case ("source 4")
             call assert_equals(8.54511496085953E-13_dp, &
                  source_control%productivity%val(1), PI_tol, &
                  "source 4 productivity")
+         case ("source 10")
+            call assert_equals(4, &
+                 source_control%reference_pressure%coord%size, &
+                 "source 10 pressure table size")
+            call assert_equals(INTERP_STEP, &
+                 source_control%reference_pressure%interpolation_type, &
+                 "source 10 interpolation type")
+            call assert_equals(INTERP_AVERAGING_ENDPOINT, &
+                 source_control%reference_pressure%averaging_type, &
+                 "source 10 averaging type")
+            call assert_equals(1.8e5_dp, &
+                 source_control%reference_pressure%average(interval), &
+                 tol, "source 10 reference pressure")
          end select
-         call assert_equals(2.e5_dp, &
-              source_control%reference_pressure%val(1), tol, &
-              "deliverability reference pressure")
 
       type is (source_control_recharge_type)
          select case (source_control%sources%head%tag)
@@ -378,6 +392,8 @@ contains
             call assert_equals(-13.0_dp, source%rate, tol, "source 8 rate")
          case ("source 9")
             call assert_equals(0.0_dp, source%rate, tol, "source 9 rate")
+         case ("source 10")
+            call assert_equals(-12.9264888581701_dp, source%rate, tol, "source 10 rate")
          end select
       end select
       stopped = PETSC_FALSE
