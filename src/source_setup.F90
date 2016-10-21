@@ -3,7 +3,8 @@ module source_setup_module
 
   use kinds_module
   use fson
-  use fson_value_m, only: TYPE_INTEGER, TYPE_REAL, TYPE_ARRAY, TYPE_STRING
+  use fson_value_m, only: TYPE_INTEGER, TYPE_REAL, TYPE_ARRAY, &
+       TYPE_STRING, TYPE_OBJECT
   use fson_mpi_module
   use list_module
   use logfile_module
@@ -369,43 +370,48 @@ contains
     type(source_control_enthalpy_table_type), pointer :: enthalpy_control
     PetscInt :: variable_type
     PetscReal, allocatable :: data_array(:,:)
+    type(fson_value), pointer :: table
 
     ! Rate table:
     if (fson_has_mpi(source_json, "rate")) then
        variable_type = fson_type_mpi(source_json, "rate")
        if (variable_type == TYPE_ARRAY) then
-
           call fson_get_mpi(source_json, "rate", val = data_array)
-
-          if (cell_sources%count > 0) then
-             allocate(rate_control)
-             call rate_control%init(data_array, interpolation_type, &
-                  averaging_type, cell_sources)
-             call source_controls%append(rate_control)
+       else if (variable_type == TYPE_OBJECT) then
+          call fson_get_mpi(source_json, "rate", table)
+          if (fson_has_mpi(table, "time")) then
+             call fson_get_mpi(table, "time", val = data_array)
           end if
-
-          deallocate(data_array)
-
        end if
+    end if
+
+    if ((cell_sources%count > 0) .and. (allocated(data_array))) then
+       allocate(rate_control)
+       call rate_control%init(data_array, interpolation_type, &
+            averaging_type, cell_sources)
+       call source_controls%append(rate_control)
+       deallocate(data_array)
     end if
 
     ! Enthalpy table:
     if (fson_has_mpi(source_json, "enthalpy")) then
        variable_type = fson_type_mpi(source_json, "enthalpy")
        if (variable_type == TYPE_ARRAY) then
-
           call fson_get_mpi(source_json, "enthalpy", val = data_array)
-
-          if (cell_sources%count > 0) then
-             allocate(enthalpy_control)
-             call enthalpy_control%init(data_array, interpolation_type, &
-                  averaging_type, cell_sources)
-             call source_controls%append(enthalpy_control)
+       else if (variable_type == TYPE_OBJECT) then
+          call fson_get_mpi(source_json, "enthalpy", table)
+          if (fson_has_mpi(table, "time")) then
+             call fson_get_mpi(table, "time", val = data_array)
           end if
-
-          deallocate(data_array)
-
        end if
+    end if
+
+    if ((cell_sources%count > 0) .and. (allocated(data_array))) then
+       allocate(enthalpy_control)
+       call enthalpy_control%init(data_array, interpolation_type, &
+            averaging_type, cell_sources)
+       call source_controls%append(enthalpy_control)
+       deallocate(data_array)
     end if
 
   end subroutine setup_table_source_control

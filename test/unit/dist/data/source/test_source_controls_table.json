@@ -11,12 +11,13 @@
          ]},
         {"name": "rate table 3 sources", "cells": [1, 6, 9],
          "enthalpy": 83.93e3,
-         "rate":[
+         "rate": {"time": [
              [0.0, 1.0],
              [60.0, 2.0],
              [150.0, 3.5],
              [252.0, 2.4]
-         ]},
+         ]}
+        },
         {"name": "enthalpy table", "cells": [2, 5],
          "rate" : 10.0,
          "averaging": "endpoint",
