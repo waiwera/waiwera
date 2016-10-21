@@ -419,7 +419,8 @@ contains
 !------------------------------------------------------------------------
 
   subroutine get_reference_pressure(json, srcstr, source_type, &
-       reference_pressure_array, calculate_reference_pressure, logfile)
+       reference_pressure_array, calculate_reference_pressure, &
+       pressure_table_coordinate, logfile)
     !! Get reference pressure for deliverability or recharge source control.
 
     use utils_module, only: str_to_lower
@@ -428,6 +429,7 @@ contains
     character(len = *), intent(in) :: srcstr, source_type
     PetscReal, allocatable, intent(out) :: reference_pressure_array(:,:)
     PetscBool, intent(out) :: calculate_reference_pressure
+    PetscInt, intent(out) :: pressure_table_coordinate
     type(logfile_type), intent(in out), optional :: logfile
     ! Locals:
     PetscReal :: reference_pressure
@@ -441,6 +443,7 @@ contains
     reference_pressure = default_deliverability_reference_pressure
     reference_pressure_array = reshape([default_time, &
          reference_pressure], [1,2])
+    pressure_table_coordinate = default_source_pressure_table_coordinate
 
     if (fson_has_mpi(json, "pressure")) then
        pressure_type = fson_type_mpi(json, "pressure")
@@ -449,20 +452,28 @@ contains
           call fson_get_mpi(json, "pressure", &
                val = reference_pressure)
           reference_pressure_array(1,2) = reference_pressure
+          pressure_table_coordinate = SRC_PRESSURE_TABLE_COORD_TIME
        case (TYPE_ARRAY)
           call fson_get_mpi(json, "pressure", &
                val = reference_pressure_array)
+          pressure_table_coordinate = SRC_PRESSURE_TABLE_COORD_TIME
        case (TYPE_OBJECT)
           call fson_get_mpi(json, "pressure", pressure_json)
           if (fson_has_mpi(pressure_json, "time")) then
              call fson_get_mpi(pressure_json, "time", &
                   val = reference_pressure_array)
+             pressure_table_coordinate = SRC_PRESSURE_TABLE_COORD_TIME
+          else if (fson_has_mpi(pressure_json, "enthalpy")) then
+             call fson_get_mpi(pressure_json, "enthalpy", &
+                  val = reference_pressure_array)
+             pressure_table_coordinate = SRC_PRESSURE_TABLE_COORD_ENTHALPY
           end if
        case (TYPE_STRING)
           call fson_get_mpi(json, "pressure", &
                val = pressure_str)
           if (trim(str_to_lower(pressure_str)) == 'initial') then
              calculate_reference_pressure = PETSC_TRUE
+             pressure_table_coordinate = SRC_PRESSURE_TABLE_COORD_TIME
           else
              if (present(logfile) .and. logfile%active) then
                 call logfile%write(LOG_LEVEL_WARN, 'input', 'unrecognised', &
@@ -578,6 +589,7 @@ contains
     PetscBool :: calculate_PI_from_rate
     PetscReal :: initial_rate
     PetscReal, allocatable :: productivity_array(:,:)
+    PetscInt :: pressure_table_coordinate
     PetscReal, parameter :: default_rate = 0._dp
 
     if (fson_has_mpi(source_json, "deliverability")) then
@@ -587,7 +599,8 @@ contains
        call fson_get_mpi(source_json, "deliverability", deliv_json)
 
        call get_reference_pressure(deliv_json, srcstr, "deliverability", &
-            reference_pressure_array, calculate_reference_pressure, logfile)
+            reference_pressure_array, calculate_reference_pressure, &
+            pressure_table_coordinate, logfile)
 
        call get_deliverability_productivity(deliv_json, source_json, &
             srcstr, num_cells, cell_sources, productivity_array, &
@@ -597,7 +610,8 @@ contains
 
           allocate(deliv)
           call deliv%init(productivity_array, interpolation_type, &
-               averaging_type, reference_pressure_array, cell_sources)
+               averaging_type, reference_pressure_array, &
+               pressure_table_coordinate, cell_sources)
 
           if (calculate_reference_pressure) then
              call deliv%set_reference_pressure_initial(fluid_data, &
@@ -700,30 +714,43 @@ contains
     type(source_control_recharge_type), pointer :: recharge
     PetscBool :: calculate_reference_pressure
     PetscReal, allocatable :: recharge_array(:,:)
+    PetscInt :: pressure_table_coordinate
 
     if (fson_has_mpi(source_json, "recharge")) then
 
        call fson_get_mpi(source_json, "recharge", recharge_json)
 
        call get_reference_pressure(recharge_json, srcstr, "recharge", &
-            reference_pressure_array, calculate_reference_pressure, logfile)
+            reference_pressure_array, calculate_reference_pressure, &
+            pressure_table_coordinate, logfile)
 
-       call get_recharge_coefficient(recharge_json, source_json, &
-            srcstr, recharge_array, logfile)
+       if (pressure_table_coordinate == SRC_PRESSURE_TABLE_COORD_TIME) then
 
-       if (cell_sources%count > 0) then
+          call get_recharge_coefficient(recharge_json, source_json, &
+               srcstr, recharge_array, logfile)
 
-          allocate(recharge)
-          call recharge%init(recharge_array, interpolation_type, &
-               averaging_type, reference_pressure_array, cell_sources)
+          if (cell_sources%count > 0) then
 
-          if (calculate_reference_pressure) then
-             call recharge%set_reference_pressure_initial(fluid_data, &
-                  fluid_section, fluid_range_start)
+             allocate(recharge)
+             call recharge%init(recharge_array, interpolation_type, &
+                  averaging_type, reference_pressure_array, cell_sources)
+
+             if (calculate_reference_pressure) then
+                call recharge%set_reference_pressure_initial(fluid_data, &
+                     fluid_section, fluid_range_start)
+             end if
+
+             call source_controls%append(recharge)
+
           end if
 
-          call source_controls%append(recharge)
-
+       else
+          if (present(logfile) .and. logfile%active) then
+             call logfile%write(LOG_LEVEL_WARN, 'input', 'not_supported', &
+                  str_key = "source[" // trim(srcstr) // &
+                  "].recharge.pressure", &
+                  str_value = "...")
+          end if
        end if
 
     end if

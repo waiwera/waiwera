@@ -26,6 +26,10 @@ module source_control_module
   PetscInt, parameter, public :: SRC_DIRECTION_PRODUCTION = 1, &
        SRC_DIRECTION_INJECTION = 2, SRC_DIRECTION_BOTH = 3
   PetscInt, parameter, public :: default_source_direction = SRC_DIRECTION_BOTH
+  PetscInt, parameter, public :: SRC_PRESSURE_TABLE_COORD_TIME = 1, &
+       SRC_PRESSURE_TABLE_COORD_ENTHALPY = 2
+  PetscInt, parameter, public :: default_source_pressure_table_coordinate = &
+       SRC_PRESSURE_TABLE_COORD_TIME
 
   type, public, abstract :: source_control_type
      !! Abstract type for source control, controlling source
@@ -76,6 +80,7 @@ module source_control_module
   type, public, extends(source_control_pressure_reference_type) :: source_control_deliverability_type
      !! Controls a source on deliverability.
      private
+     PetscInt, public :: pressure_table_coordinate !! Coordinate variable of pressure table
      type(interpolation_table_type), public :: productivity !! Productivity index vs. time
    contains
      procedure, public :: init => source_control_deliverability_init
@@ -311,13 +316,15 @@ contains
 !------------------------------------------------------------------------
 
   subroutine source_control_deliverability_init(self, productivity_data, &
-       interpolation_type, averaging_type, reference_pressure_data, sources)
+       interpolation_type, averaging_type, reference_pressure_data, &
+       pressure_table_coordinate, sources)
     !! Initialises source_control_deliverability object.
 
     class(source_control_deliverability_type), intent(in out) :: self
     PetscReal, intent(in) :: productivity_data(:,:)
     PetscInt, intent(in) :: interpolation_type, averaging_type
     PetscReal, intent(in) :: reference_pressure_data(:,:)
+    PetscInt, intent(in) :: pressure_table_coordinate
     type(list_type), intent(in out) :: sources
 
     call self%sources%init()
@@ -326,6 +333,7 @@ contains
          interpolation_type, averaging_type)
     call self%reference_pressure%init(reference_pressure_data, &
          interpolation_type, averaging_type)
+    self%pressure_table_coordinate = pressure_table_coordinate
 
   end subroutine source_control_deliverability_init
 
@@ -363,25 +371,41 @@ contains
       PetscBool, intent(out) :: stopped
       ! Locals:
       PetscInt :: p, phases
-      PetscReal :: reference_pressure, pressure_difference, productivity
+      PetscReal :: h, reference_pressure, pressure_difference, productivity
+      PetscReal, allocatable :: phase_mobilities(:), phase_flow_fractions(:)
 
       select type (source => node%data)
       type is (source_type)
 
          call source%update_fluid(local_fluid_data, local_fluid_section)
-         reference_pressure = self%reference_pressure%average(interval)
-         pressure_difference = source%fluid%pressure - reference_pressure
 
-         source%rate = 0._dp
+         allocate(phase_mobilities(source%fluid%num_phases))
+         allocate(phase_flow_fractions(source%fluid%num_phases))
+         phase_mobilities = source%fluid%phase_mobilities()
+         phase_flow_fractions = phase_mobilities / sum(phase_mobilities)
+
+         select case (self%pressure_table_coordinate)
+         case (SRC_PRESSURE_TABLE_COORD_TIME)
+            reference_pressure = self%reference_pressure%average(interval)
+         case (SRC_PRESSURE_TABLE_COORD_ENTHALPY)
+            h = source%fluid%specific_enthalpy(phase_flow_fractions)
+            reference_pressure = self%reference_pressure%interpolate(h)
+         end select
 
          productivity = self%productivity%average(interval)
+
+         pressure_difference = source%fluid%pressure - reference_pressure
+         source%rate = 0._dp
+
          phases = nint(source%fluid%phase_composition)
          do p = 1, source%fluid%num_phases
             if (btest(phases, p - 1)) then
                source%rate = source%rate - productivity * &
-                    source%fluid%phase(p)%mobility() * pressure_difference
+                    phase_mobilities(p) * pressure_difference
             end if
          end do
+
+         deallocate(phase_mobilities, phase_flow_fractions)
 
       end select
 

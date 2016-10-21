@@ -71,6 +71,16 @@
              ]}
          },
          "interpolation": "step", "averaging": "endpoint"
+        },
+        {"name": "source 11", "cell": 0,
+         "deliverability": {
+             "productivity": 1.0e-12,
+             "pressure": {"enthalpy": [
+                 [0.0,   2.2e6],
+                 [1.1e6, 2.0e6],
+                 [2.8e6, 0.5e5]
+             ]}
+         }
         }
     ]
 }
