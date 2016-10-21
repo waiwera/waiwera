@@ -36,6 +36,8 @@ module interpolation_module
      private
      type(interpolation_coordinate_type), public :: coord !! Data coordinates
      PetscReal, allocatable, public :: val(:) !! Data values
+     PetscInt, public :: interpolation_type !! Interpolation type
+     PetscInt, public :: averaging_type !! Averaging type
      procedure(interpolation_function), pointer, nopass, public :: interpolant
      procedure(averaging_function), pointer, public :: average
    contains
@@ -271,6 +273,8 @@ contains
     class(interpolation_table_type), intent(in out) :: self
     PetscInt, intent(in) :: interpolation_type
 
+    self%interpolation_type = interpolation_type
+
     select case (interpolation_type)
     case (INTERP_LINEAR)
        self%interpolant => interpolant_linear
@@ -289,6 +293,8 @@ contains
 
     class(interpolation_table_type), intent(in out) :: self
     PetscInt, intent(in) :: averaging_type
+
+    self%averaging_type = averaging_type
 
     select case (averaging_type)
     case (INTERP_AVERAGING_ENDPOINT)
