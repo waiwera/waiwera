@@ -27,12 +27,12 @@
         {"name": "source 5", "cell": 4,
          "direction": "out",
          "deliverability": {
-             "productivity": [
+             "productivity": {"time": [
                  [0.0, 1.0e-12],
                  [60., 0.9e-12],
                  [90., 0.7e-12],
                  [180., 0.5e-12]
-             ],
+             ]},
              "pressure": 2.e5},
          "averaging": "endpoint",
         },

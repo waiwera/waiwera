@@ -500,6 +500,7 @@ contains
     ! Locals:
     PetscInt :: PI_type
     PetscReal :: productivity
+    type(fson_value), pointer :: PI_json
     PetscReal, parameter :: default_time = 0._dp
 
     calculate_PI_from_rate = PETSC_FALSE
@@ -518,6 +519,12 @@ contains
        case (TYPE_ARRAY)
           call fson_get_mpi(json, "productivity", &
                val = productivity_array)
+       case (TYPE_OBJECT)
+          call fson_get_mpi(json, "productivity", PI_json)
+          if (fson_has_mpi(PI_json, "time")) then
+             call fson_get_mpi(PI_json, "time", &
+                  val = productivity_array)
+          end if
        case default
           if (present(logfile) .and. logfile%active) then
              call logfile%write(LOG_LEVEL_WARN, 'input', 'unrecognised', &
