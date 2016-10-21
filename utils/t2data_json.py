@@ -247,16 +247,15 @@ class t2data_export_json(t2data):
                     if gen.time:
                         g['interpolation'] = interp_type
                         g['averaging'] = averaging_type
+                        data_table = [list(r) for r in zip(gen.time, gen.rate)]
                         if gen.type == 'DELG':
                             if gen.ltab > 0:
-                                g['deliverability']['productivity'] = [list(r) for r in zip(gen.time, gen.rate)]
+                                g['deliverability']['productivity'] = {'time': data_table}
                             else:
-                                raise Exception('Deliverability with reference pressure table vs enthalpy not supported.')
+                                g['deliverability']['pressure'] = {'enthalpy': data_table}
                         else:
-                            if gen.rate:
-                                g['rate'] = [list(r) for r in zip(gen.time, gen.rate)]
-                            if gen.enthalpy:
-                                g['enthalpy'] = [list(r) for r in zip(gen.time, gen.enthalpy)]
+                            if gen.rate: g['rate'] = data_table
+                            if gen.enthalpy: g['enthalpy'] = data_table
                     jsondata['source'].append(g)
         return jsondata
 
