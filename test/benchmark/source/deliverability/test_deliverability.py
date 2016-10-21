@@ -39,7 +39,7 @@ t2geo_filename = os.path.join(model_dir, 'g' + model_name + '.dat')
 
 num_procs = 1
 
-run_names = ['delv', 'delg_flow', 'delg_pi_table', 'delg_limit', 'delt', 'delw']
+run_names = ['delv', 'delg_flow', 'delg_pi_table', 'delg_pwb_table', 'delg_limit', 'delt', 'delw']
 test_fields = ["Pressure", "Temperature", "Vapour saturation"]
 plot_fields = ["Pressure", "Vapour saturation"]
 

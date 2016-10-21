@@ -45,7 +45,7 @@ dat.write(model_name + '.dat')
 
 iblk = geo.num_blocks / 2
 
-run_names = ['delv', 'delg_flow', 'delg_pi_table', 'delg_limit', 'delt', 'delw']
+run_names = ['delv', 'delg_flow', 'delg_pi_table', 'delg_pwb_table', 'delg_limit', 'delt', 'delw']
 run_sources = {}
 
 # straight DELV
@@ -61,6 +61,12 @@ run_sources['delg_pi_table'] = t2generator(type = 'DELG', block = geo.block_name
                                            name = 'del 1', ex = Pwb, ltab = 4,
                                            time = [0., 1.e4, 1.e6, 1.e9],
                                            rate = [1.e-11, 0.7e-11, 0.2e-11, 0.1e-11])
+
+# DELG with Pwb table vs enthalpy
+run_sources['delg_pwb_table'] = t2generator(type = 'DELG', block = geo.block_name_list[iblk],
+                                            name = 'del 1', gx = PI, ltab = -3,
+                                            time = [0., 1.1e6, 2.8e6],
+                                            rate = [22.e5, 20.e5, 0.5e5])
 
 # DELG with steam limiter
 run_sources['delg_limit'] = t2generator(type = 'DELG', block = geo.block_name_list[iblk],
