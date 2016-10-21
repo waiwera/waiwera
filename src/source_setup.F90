@@ -630,6 +630,7 @@ contains
     ! Locals:
     PetscInt :: coef_type
     PetscReal :: recharge_coefficient
+    type(fson_value), pointer :: coef_json
     PetscReal, parameter :: default_time = 0._dp
 
     recharge_coefficient = default_recharge_coefficient
@@ -648,6 +649,12 @@ contains
        case (TYPE_ARRAY)
           call fson_get_mpi(json, "coefficient", &
                val = recharge_array)
+       case (TYPE_OBJECT)
+          call fson_get_mpi(json, "coefficient", coef_json)
+          if (fson_has_mpi(coef_json, "time")) then
+             call fson_get_mpi(coef_json, "time", &
+                  val = recharge_array)
+          end if
        case default
           if (present(logfile) .and. logfile%active) then
              call logfile%write(LOG_LEVEL_WARN, 'input', 'unrecognised', &
