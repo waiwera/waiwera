@@ -204,7 +204,7 @@ class t2data_export_json(t2data):
                     g = {'name': gen.name, 'cell': cell_index}
                     if gen.type in mass_component:
                         g['rate'] = gen.gx
-                        if gen.gx > 0.:
+                        if gen.gx > 0. or (gen.time and any([r > 0. for r in gen.rate])):
                             g['component'] = mass_component[gen.type]
                             if gen.type != 'HEAT': g['enthalpy'] = gen.ex
                     if gen.type == 'DELV':
