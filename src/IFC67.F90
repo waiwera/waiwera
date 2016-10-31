@@ -625,6 +625,7 @@ subroutine saturation_temperature(self, p, t, err)
         if (err == 0) then
            if ((abs((p - ps) / p) <= tol) .and. (i > 1)) then
               found = PETSC_TRUE
+              exit
            else
               tsd = t + dt
               call self%pressure(tsd, psd, err)
