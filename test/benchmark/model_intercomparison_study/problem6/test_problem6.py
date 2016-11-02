@@ -112,9 +112,10 @@ for field_name in digitised_test_fields:
         digitised_result[obspt, field_name, sim] = result
         problem6_test.addTestComp(run_index, ' '.join((sim, field_name, obspt + ' well')),
                                   HistoryWithinTolTC(fieldsToTest = [field_name],
-                                                     defFieldTol = 5.e-2,
+                                                     defFieldTol = 1.e-2,
                                                      expected = result,
-                                                     testCellIndex = obs_cell_index))
+                                                     testCellIndex = obs_cell_index,
+                                                     orthogonalError = True))
 
 jrunner = SimpleJobRunner(mpi = True)
 testResult, mResults = problem6_test.runTest(jrunner, createReports = True)

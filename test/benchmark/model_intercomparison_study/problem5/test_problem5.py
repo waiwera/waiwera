@@ -124,9 +124,10 @@ for run_index, run_name in enumerate(run_names):
                 digitised_result[run_name, obspt, field_name, sim] = result
                 problem5_test.addTestComp(run_index, ' '.join((sim, field_name, obspt + ' well')),
                                           HistoryWithinTolTC(fieldsToTest = [field_name],
-                                                             defFieldTol = 1.e-2,
+                                                             defFieldTol = 1.5e-2,
                                                              expected = result,
-                                                             testCellIndex = obs_cell_index[obspt]))
+                                                             testCellIndex = obs_cell_index[obspt],
+                                                             orthogonalError = True))
 
 jrunner = SimpleJobRunner(mpi = True)
 testResult, mResults = problem5_test.runTest(jrunner, createReports = True)
