@@ -89,7 +89,7 @@ for run_index, run_name in enumerate(run_names):
     run_filename = run_base_name + '.json'
     model_run = SuperModelRun(run_name, run_filename,
                               fieldname_map = SUPER_FIELDMAP,
-                              simulator = 'supermodel',
+                              simulator = 'waiwera',
                               basePath = os.path.realpath(model_dir))
     model_run.jobParams['nproc'] = num_procs
     problem5_test.mSuite.addRun(model_run, run_name)
@@ -150,7 +150,7 @@ for run_index, run_name in enumerate(run_names):
 
             t = problem5_test.testComps[run_index][tc_name].times
             var = problem5_test.mSuite.resultsList[run_index].getFieldHistoryAtCell(field_name, blk_index)
-            plt.plot(t / yr, var / scale[field_name], '-', label = 'supermodel')
+            plt.plot(t / yr, var / scale[field_name], '-', label = 'Waiwera')
             for sim in digitised_simulators:
                 result = digitised_result[run_name, obspt, field_name, sim]
                 t = result.getTimes()

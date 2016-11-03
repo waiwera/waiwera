@@ -1,4 +1,4 @@
-digraph supermodel{
+digraph waiwera{
         fluid_module -> dm_utils_module
         fluid_module -> kinds_module
         fluid_module -> thermodynamics_module
@@ -92,6 +92,12 @@ digraph supermodel{
         mesh_module -> logfile_module
         mesh_module -> mpi_module
         mesh_module -> rock_module
+        waiwera -> flow_simulation_module
+        waiwera -> fson
+        waiwera -> fson_mpi_module
+        waiwera -> mpi_module
+        waiwera -> profiling_module
+        waiwera -> timestepper_module
         initial_module -> dm_utils_module
         initial_module -> eos_module
         initial_module -> fluid_module
@@ -104,12 +110,6 @@ digraph supermodel{
         initial_module -> mpi_module
         IFC67_module -> kinds_module
         IFC67_module -> thermodynamics_module
-        supermodel -> flow_simulation_module
-        supermodel -> fson
-        supermodel -> fson_mpi_module
-        supermodel -> mpi_module
-        supermodel -> profiling_module
-        supermodel -> timestepper_module
         eos_w_module -> eos_module
         eos_w_module -> fluid_module
         eos_w_module -> fson

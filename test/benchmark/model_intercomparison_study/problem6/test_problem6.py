@@ -80,7 +80,7 @@ run_base_name = model_name
 run_filename = run_base_name + '.json'
 model_run = SuperModelRun(run_name, run_filename,
                           fieldname_map = SUPER_FIELDMAP,
-                          simulator = 'supermodel',
+                          simulator = 'waiwera',
                           basePath = os.path.realpath(model_dir))
 model_run.jobParams['nproc'] = num_procs
 problem6_test.mSuite.addRun(model_run, run_name)
@@ -133,7 +133,7 @@ tc_name = "AUTOUGH2 " + obspt + " well"
 for field_name in digitised_test_fields:
     t = problem6_test.testComps[run_index][tc_name].times
     var = problem6_test.mSuite.resultsList[run_index].getFieldHistoryAtCell(field_name, obs_cell_index)
-    plt.plot(t / yr, var / scale[field_name], '-', label = 'supermodel')
+    plt.plot(t / yr, var / scale[field_name], '-', label = 'Waiwera')
     for sim in digitised_simulators:
         result = digitised_result[obspt, field_name, sim]
         t = result.getTimes()

@@ -55,7 +55,7 @@ for run_index, run_name in enumerate(run_names):
     run_filename = run_base_name + '.json'
     model_run = SuperModelRun(run_name, run_filename,
                               fieldname_map = SUPER_FIELDMAP,
-                              simulator = 'supermodel',
+                              simulator = 'waiwera',
                               basePath = os.path.realpath(model_dir))
     model_run.jobParams['nproc'] = num_procs
     deliverability_test.mSuite.addRun(model_run, run_name)

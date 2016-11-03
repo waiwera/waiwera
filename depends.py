@@ -205,7 +205,7 @@ if __name__ == '__main__':
 
     srcdirs = ['src', 'test/unit/src']
     objdirs = ['$(BUILD)', '$(TEST)/$(BUILD)']
-    variables = [('$(TESTSUF)', '_test'), ('$(PROG)', 'supermodel'),
+    variables = [('$(TESTSUF)', '_test'), ('$(PROG)', 'waiwera'),
              ('$(TESTPROG)', 'test_all')]
     omit = ['$(BUILD)/$(PROG)$(OBJ)', '$(TEST)/$(BUILD)/$(TESTPROG)$(OBJ)']
 

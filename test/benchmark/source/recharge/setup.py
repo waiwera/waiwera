@@ -1,4 +1,4 @@
-# Set up AUTOUGH2 and supermodel runs
+# Set up AUTOUGH2 and Waiwera runs
 
 import os
 from t2data_json import *

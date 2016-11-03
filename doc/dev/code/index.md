@@ -2,16 +2,16 @@ title: Code structure
 
 ## Main program
 
-The [[supermodel(program)]] program is the main driver program for the code. Its main job is to create and use two objects:
+The [[waiwera(program)]] program is the main driver program for the code. Its main job is to create and use two objects:
 
-- the [[supermodel:simulation]] object, representing the particular simulation to be run
-- the [[supermodel:timestepper]] object
+- the [[waiwera:simulation]] object, representing the particular simulation to be run
+- the [[waiwera:timestepper]] object
 
 First the timestepper is initialized and associated with the simulation. Then its [[timestepper_type:run]] method is called, which steps the simulation through time until it completes.
 
 ## Timesteppers and ODEs
 
-The [[supermodel:timestepper]] object is an instance of [[timestepper_type]]. This derived type is designed to step an ordinary differential equation (ODE) through time. It can do this with an arbitrary ODE of the form:
+The [[waiwera:timestepper]] object is an instance of [[timestepper_type]]. This derived type is designed to step an ordinary differential equation (ODE) through time. It can do this with an arbitrary ODE of the form:
 
 $$\frac{d}{dt} \mathit{LHS}(t, \vec{Y}) = \mathit{RHS}(t, \vec{Y})$$
 
@@ -23,7 +23,7 @@ The details of the ODE to be solved (including the LHS and RHS functions) are re
 
 ## Simulation object
 
-The [[supermodel:simulation]] object is an instance of [[flow_simulation_type]], which extends the abstract [[ode_type]] to implement the particular ODE to be solved for simulating non-isothermal subsurface flow. This ODE is derived from discretized mass and energy balance equations to be solved over the finite-volume mesh.
+The [[waiwera:simulation]] object is an instance of [[flow_simulation_type]], which extends the abstract [[ode_type]] to implement the particular ODE to be solved for simulating non-isothermal subsurface flow. This ODE is derived from discretized mass and energy balance equations to be solved over the finite-volume mesh.
 
 In a [[flow_simulation_type]] object, the [[ode_type(type):solution]] component vector (inherited from its parent [[ode_type]]) represents the primary thermodynamic variables in each mesh cell.
 

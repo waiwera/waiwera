@@ -27,7 +27,7 @@ contains
     ! Locals:
     PetscErrorCode :: ierr
 
-    call PetscClassIdRegister("supermodel", log_class, ierr); CHKERRQ(ierr)
+    call PetscClassIdRegister("waiwera", log_class, ierr); CHKERRQ(ierr)
 
     ! Register log events:
     call PetscLogEventRegister("sim_init", log_class, simulation_init_event, ierr)

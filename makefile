@@ -1,4 +1,4 @@
-# makefile for geothermal supermodel
+# makefile for Waiwera
 
 # PETSc includes:
 include ${PETSC_DIR}/lib/petsc/conf/variables
@@ -39,7 +39,7 @@ else
 endif
 
 # main source code:
-PROG = supermodel
+PROG = waiwera
 PROGEXE = $(DIST)/$(PROG)$(EXE)
 SOURCES = $(filter-out $(SRC)/$(PROG)$(F90) , $(wildcard $(SRC)/*$(F90)))
 OBJS = $(patsubst $(SRC)/%$(F90), $(BUILD)/%$(OBJ), $(SOURCES))

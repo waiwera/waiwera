@@ -1,4 +1,4 @@
-# Build and run supermodel tests. Optional command line arguments are the test module
+# Build and run Waiwera tests. Optional command line arguments are the test module
 # names required in the test, otherwise all test modules are used.
 
 from sys import argv

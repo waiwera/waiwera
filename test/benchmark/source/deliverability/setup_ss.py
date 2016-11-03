@@ -1,4 +1,4 @@
-# Set up steady state solutions for AUTOUGH2 and supermodel, to be
+# Set up steady state solutions for AUTOUGH2 and Waiwera, to be
 # used as initial conditions for transient runs.
 
 import os
@@ -77,6 +77,6 @@ jsondata["output"]["frequency"] = 0
 jsondata["output"]["initial"] = False
 filename = model_name + '_ss.json'
 json.dump(jsondata, file(filename, 'w'), indent = 2)
-subprocess.check_output(['mpiexec', '-np', '1', 'supermodel', filename])
+subprocess.check_output(['mpiexec', '-np', '1', 'waiwera', filename])
 
 os.chdir(orig_dir)

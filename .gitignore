@@ -6,7 +6,7 @@ build/*
 test/unit/build/*.o
 test/unit/build/*.mod
 test/unit/dist/test_all*
-dist/supermodel*
+dist/waiwera*
 test/unit/src/test_all.F90
 doc/depends.png
 doc/ford/*

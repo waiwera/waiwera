@@ -298,8 +298,8 @@ subroutine flow_simulation_run_info(self)
     class(flow_simulation_type), intent(in out) :: self
 
     call self%logfile%write(LOG_LEVEL_INFO, 'run', 'start', &
-         str_key = 'software', str_value = 'Supermodel' // &
-         ' version ' // trim(supermodel_version))
+         str_key = 'software', str_value = 'Waiwera' // &
+         ' version ' // trim(waiwera_version))
     call self%logfile%write(LOG_LEVEL_INFO, 'run', 'start', &
          str_key = 'compiler', str_value = compiler_version())
     call self%logfile%write(LOG_LEVEL_INFO, 'run', 'start', &

@@ -55,7 +55,7 @@ for run_index, run_name in enumerate(run_names):
     run_filename = run_base_name + '.json'
     model_run = SuperModelRun(run_name, run_filename,
                               fieldname_map = SUPER_FIELDMAP,
-                              simulator = 'supermodel',
+                              simulator = 'waiwera',
                               basePath = os.path.realpath(model_dir))
     model_run.jobParams['nproc'] = num_procs
     test.mSuite.addRun(model_run, run_name)
@@ -134,7 +134,7 @@ for run_index, run_name in enumerate(run_names):
     for field_name in plot_fields:
         for cell in [1, -1]:
             var = test.mSuite.resultsList[run_index].getFieldHistoryAtCell(field_name, cell)
-            plt.semilogx(t, var, '-o', label = 'supermodel cell ' + str(cell))
+            plt.semilogx(t, var, '-o', label = 'Waiwera cell ' + str(cell))
             var = reference_result.getFieldHistoryAtCell(field_name, cell)
             plt.semilogx(t, var, 's', label = 'AUTOUGH2 cell ' + str(cell))
         plt.xlabel('t (s)')

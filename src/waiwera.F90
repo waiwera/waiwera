@@ -1,5 +1,5 @@
-program supermodel
-  !! Main supermodel driver program.
+program waiwera
+  !! Main Waiwera driver program.
 
   use mpi_module
   use fson
@@ -70,4 +70,4 @@ contains
 
 !------------------------------------------------------------------------
 
-end program supermodel
+end program waiwera

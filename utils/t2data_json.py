@@ -1,4 +1,4 @@
-# Converting TOUGH2 input to JSON, for use as supermodel input.
+# Converting TOUGH2 input to JSON, for use as Waiwera input.
 # Use this module as a temporary drop-in replacement for t2data,
 # with the json() method providing the conversion.
 # It's envisaged eventually this code will be part of t2data itself.
@@ -16,7 +16,7 @@ primary_to_region_funcs = {'we': primary_to_region_we}
 
 class t2data_export_json(t2data):
     """Modification of t2data class including ability to export to
-    JSON for supercode."""
+    JSON for Waiwera."""
     def write_exodus_json(self, geo, indent = 2, atmos_volume = 1.e25,
                            incons = None, eos = None, bdy_incons = None):
         """Exports t2data object and mulgrid geometry to ExodusII file
