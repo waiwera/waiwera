@@ -11,7 +11,7 @@ from credo.systest import HistoryWithinTolTC
 from credo.jobrunner import SimpleJobRunner
 from credo.modelresult import ModelResult
 from credo.t2model import T2ModelRun, T2ModelResult
-from credo.supermodel import SuperModelRun
+from credo.waiwera import WaiweraModelRun
 
 import credo.reporting.standardReports as sReps
 from credo.reporting import getGenerators
@@ -46,7 +46,7 @@ AUT2_FIELDMAP = {
     'Temperature': 'Temperature',
     'Vapour saturation': 'Vapour saturation',
 }
-SUPER_FIELDMAP = {
+WAIWERA_FIELDMAP = {
     'Pressure': 'fluid_pressure',
     'Temperature': 'fluid_temperature',
     'Vapour saturation': 'fluid_vapour_saturation',
@@ -87,8 +87,8 @@ for run_index, run_name in enumerate(run_names):
 
     run_base_name = model_name + run_name
     run_filename = run_base_name + '.json'
-    model_run = SuperModelRun(run_name, run_filename,
-                              fieldname_map = SUPER_FIELDMAP,
+    model_run = WaiweraModelRun(run_name, run_filename,
+                              fieldname_map = WAIWERA_FIELDMAP,
                               simulator = 'waiwera',
                               basePath = os.path.realpath(model_dir))
     model_run.jobParams['nproc'] = num_procs
