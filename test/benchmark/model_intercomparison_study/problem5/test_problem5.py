@@ -39,17 +39,40 @@ class DigitisedHistoryResult(ModelResult):
             return self.data[:, 1]
         else: return None
 
+def total_steam_history(mResult, index):
+    """Returns history of total steam in place (per unit reservoir
+    thickness) in the model."""
+    thickness = 100.
+    times = mResult.getTimes()
+    steam_history = []
+    for i in range(len(times)):
+        sv = mResult.getFieldAtOutputIndex('Vapour saturation', i)
+        rhov = mResult.getFieldAtOutputIndex('Vapour density', i)
+        phi = mResult.getFieldAtOutputIndex('rock_porosity', i)
+        vol = mResult.getFieldAtOutputIndex('geom_volume', i)
+        steam = 1.e-3 * np.sum(phi * sv * rhov * vol) / thickness
+        steam_history.append(steam)
+    return np.array(steam_history)
+
 model_name = 'problem5'
 
 AUT2_FIELDMAP = {
     'Pressure': 'Pressure',
     'Temperature': 'Temperature',
     'Vapour saturation': 'Vapour saturation',
+    'Vapour density': 'Vapour density',
+    'rock_porosity': 'rock_porosity',
+    'geom_volume': 'geom_volume',
+    'Steam': total_steam_history
 }
 WAIWERA_FIELDMAP = {
     'Pressure': 'fluid_pressure',
     'Temperature': 'fluid_temperature',
     'Vapour saturation': 'fluid_vapour_saturation',
+    'Vapour density': 'fluid_vapour_density',
+    'rock_porosity': 'rock_porosity',
+    'geom_volume': 'geom_volume',
+    'Steam': total_steam_history
 }
 
 model_dir = './run'
@@ -62,7 +85,8 @@ run_names = ['a', 'b']
 test_fields = ["Pressure", "Temperature", "Vapour saturation"]
 plot_fields = test_fields
 digitised_test_fields = {'production': ["Pressure", "Temperature"],
-                         'injection': ["Pressure"]}
+                         'injection': ["Pressure"],
+                         'total': ["Steam"]}
 digitised_simulators = ["LBL", "S-Cubed"]    
 
 geo = mulgrid(t2geo_filename)
@@ -82,6 +106,8 @@ obs_positions = {"production": np.array([62.5, 62.5]),
              "injection": np.array([162.5, 137.5])}
 obs_cell_index = dict([(obspt, geo_pos_block_index(obs_positions[obspt]))
                        for obspt in obs_points])
+obs_points.append("total")
+obs_cell_index["total"] = 0 # dummy value- no location
 
 for run_index, run_name in enumerate(run_names):
 
@@ -107,7 +133,7 @@ for run_index, run_name in enumerate(run_names):
                                      fieldname_map = AUT2_FIELDMAP)
     for obspt in obs_points:
         blk_index = obs_cell_index[obspt]
-        problem5_test.addTestComp(run_index, "AUTOUGH2 " + obspt + " well",
+        problem5_test.addTestComp(run_index, "AUTOUGH2 " + obspt,
                               HistoryWithinTolTC(fieldsToTest = test_fields,
                                                  defFieldTol = 1.e-3,
                                                  expected = AUTOUGH2_result,
@@ -118,13 +144,12 @@ for run_index, run_name in enumerate(run_names):
                 data_filename = '_'.join((model_name + run_name, obspt, field_name, sim))
                 data_filename = os.path.join(data_dir, data_filename.lower() + '.dat')
                 result = DigitisedHistoryResult(sim, data_filename,
-                                                       field_name, blk_index,
-                                                       ordering_map = map_out_atm,
-                                                       fieldname_map = AUT2_FIELDMAP)
+                                                       field_name, blk_index)
                 digitised_result[run_name, obspt, field_name, sim] = result
-                problem5_test.addTestComp(run_index, ' '.join((sim, field_name, obspt + ' well')),
+                problem5_test.addTestComp(run_index, ' '.join((sim, field_name, obspt)),
                                           HistoryWithinTolTC(fieldsToTest = [field_name],
                                                              defFieldTol = 1.5e-2,
+                                                             fieldTols = {"Steam": 5.e-2},
                                                              expected = result,
                                                              testCellIndex = obs_cell_index[obspt],
                                                              orthogonalError = True))
@@ -134,16 +159,16 @@ testResult, mResults = problem5_test.runTest(jrunner, createReports = True)
 
 # plots:
 elevations = [layer.centre for layer in geo.layerlist[1:]]
-scale = {"Pressure": 1.e5, "Temperature": 1.}
-unit = {"Pressure": "bar", "Temperature": "$^{\circ}$C"}
+scale = {"Pressure": 1.e5, "Temperature": 1., "Steam": 1.}
+unit = {"Pressure": "bar", "Temperature": "$^{\circ}$C", "Steam": "tonnes/m"}
 symbol = {"LBL": 's', "S-Cubed": 'o'}
 yr = 365. * 24. * 60. * 60.
 
 for run_index, run_name in enumerate(run_names):
     for obspt in obs_points:
 
-        # plot time history results at well:
-        tc_name = "AUTOUGH2 " + obspt + " well"
+        # plot time history results:
+        tc_name = "AUTOUGH2 " + obspt
         blk_index = obs_cell_index[obspt]
 
         for field_name in digitised_test_fields[obspt]:
@@ -160,7 +185,7 @@ for run_index, run_name in enumerate(run_names):
             plt.ylabel(field_name + ' (' + unit[field_name] + ')')
             plt.legend()
             plt.title(' '.join((model_name + run_name, field_name.lower(),
-                                'results at', obspt, 'well')))
+                                'results at', obspt)))
             img_filename_base = '_'.join((model_name, run_name, obspt, field_name))
             img_filename_base = img_filename_base.replace(' ', '_')
             img_filename = os.path.join(problem5_test.mSuite.runs[run_index].basePath,
@@ -176,8 +201,8 @@ for run_index, run_name in enumerate(run_names):
             plt.plot(t / yr, var, '-o')
             plt.xlabel('time (years)')
             plt.ylabel(field_name + ' error')
-            plt.title(' '.join((model_name + run_name, 'comparison with AUTOUGH2 at',
-                               obspt, 'well')))
+            plt.title(' '.join((model_name + run_name, 'comparison with AUTOUGH2: ',
+                               obspt)))
             img_filename_base = '_'.join((model_name, run_name, tc_name, 'error', field_name))
             img_filename_base = img_filename_base.replace(' ', '_')
             img_filename = os.path.join(problem5_test.mSuite.runs[run_index].basePath,
