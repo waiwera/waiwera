@@ -144,6 +144,7 @@ for field_name in digitised_test_fields:
     img_filename = os.path.join(problem6_test.mSuite.runs[run_index].basePath,
                                 problem6_test.mSuite.outputPathBase,
                                 img_filename_base + '.png')
+    plt.tight_layout(pad = 3.)
     plt.savefig(img_filename)
     plt.clf()
     problem6_test.mSuite.analysisImages.append(img_filename)
@@ -161,6 +162,7 @@ for field_name in plot_fields:
     img_filename = os.path.join(problem6_test.mSuite.runs[run_index].basePath,
                                 problem6_test.mSuite.outputPathBase,
                                 img_filename_base + '.png')
+    plt.tight_layout(pad = 3.)
     plt.savefig(img_filename)
     plt.clf()
     problem6_test.mSuite.analysisImages.append(img_filename)

@@ -185,32 +185,35 @@ for run_index, run_name in enumerate(run_names):
             plt.ylabel(field_name + ' (' + unit[field_name] + ')')
             plt.legend()
             plt.title(' '.join((model_name + run_name, field_name.lower(),
-                                'results at', obspt)))
+                                'results:', obspt)))
             img_filename_base = '_'.join((model_name, run_name, obspt, field_name))
             img_filename_base = img_filename_base.replace(' ', '_')
             img_filename = os.path.join(problem5_test.mSuite.runs[run_index].basePath,
                                         problem5_test.mSuite.outputPathBase,
                                         img_filename_base + '.png')
+            plt.tight_layout(pad = 3.)
             plt.savefig(img_filename)
             plt.clf()
             problem5_test.mSuite.analysisImages.append(img_filename)
 
-        t = problem5_test.testComps[run_index][tc_name].times
-        for field_name in plot_fields:
-            var = np.array(problem5_test.testComps[run_index][tc_name].fieldErrors[field_name])
-            plt.plot(t / yr, var, '-o')
-            plt.xlabel('time (years)')
-            plt.ylabel(field_name + ' error')
-            plt.title(' '.join((model_name + run_name, 'comparison with AUTOUGH2: ',
-                               obspt)))
-            img_filename_base = '_'.join((model_name, run_name, tc_name, 'error', field_name))
-            img_filename_base = img_filename_base.replace(' ', '_')
-            img_filename = os.path.join(problem5_test.mSuite.runs[run_index].basePath,
-                                        problem5_test.mSuite.outputPathBase,
-                                        img_filename_base + '.png')
-            plt.savefig(img_filename)
-            plt.clf()
-            problem5_test.mSuite.analysisImages.append(img_filename)
+            if obspt != 'total':
+                t = problem5_test.testComps[run_index][tc_name].times
+                for field_name in plot_fields:
+                    var = np.array(problem5_test.testComps[run_index][tc_name].fieldErrors[field_name])
+                    plt.plot(t / yr, var, '-o')
+                    plt.xlabel('time (years)')
+                    plt.ylabel(field_name + ' error')
+                    plt.title(' '.join((model_name + run_name, 'comparison with AUTOUGH2: ',
+                                       obspt)))
+                    img_filename_base = '_'.join((model_name, run_name, tc_name, 'error', field_name))
+                    img_filename_base = img_filename_base.replace(' ', '_')
+                    img_filename = os.path.join(problem5_test.mSuite.runs[run_index].basePath,
+                                                problem5_test.mSuite.outputPathBase,
+                                                img_filename_base + '.png')
+                    plt.tight_layout(pad = 3.)
+                    plt.savefig(img_filename)
+                    plt.clf()
+                    problem5_test.mSuite.analysisImages.append(img_filename)
 
 # generate report:
 

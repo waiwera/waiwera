@@ -103,6 +103,7 @@ for run_index, run_name in enumerate(run_names):
         img_filename = os.path.join(test.mSuite.runs[run_index].basePath,
                                     test.mSuite.outputPathBase,
                                     img_filename_base + '.png')
+        plt.tight_layout(pad = 3.)
         plt.savefig(img_filename)
         plt.clf()
         test.mSuite.analysisImages.append(img_filename)
@@ -120,6 +121,7 @@ for run_index, run_name in enumerate(run_names):
         img_filename = os.path.join(test.mSuite.runs[run_index].basePath,
                                     test.mSuite.outputPathBase,
                                     img_filename_base + '.png')
+        plt.tight_layout(pad = 3.)
         plt.savefig(img_filename)
         plt.clf()
         test.mSuite.analysisImages.append(img_filename)
@@ -140,6 +142,7 @@ for run_index, run_name in enumerate(run_names):
         img_filename = os.path.join(test.mSuite.runs[run_index].basePath,
                                     test.mSuite.outputPathBase,
                                     img_filename_base + '.png')
+        plt.tight_layout(pad = 3.)
         plt.savefig(img_filename)
         plt.clf()
         test.mSuite.analysisImages.append(img_filename)
@@ -156,6 +159,7 @@ for run_index, run_name in enumerate(run_names):
         img_filename = os.path.join(test.mSuite.runs[run_index].basePath,
                                     test.mSuite.outputPathBase,
                                     img_filename_base + '.png')
+        plt.tight_layout(pad = 3.)
         plt.savefig(img_filename)
         plt.clf()
         test.mSuite.analysisImages.append(img_filename)
