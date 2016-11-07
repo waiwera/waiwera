@@ -114,21 +114,24 @@ for run_index, run_name in enumerate(run_names):
 
 problem5_test.setupEmptyTestCompsList()
 digitised_result = {}
+AUTOUGH2_result = {}
 
 for run_index, run_name in enumerate(run_names):
 
     run_base_name = model_name + run_name
+    dat_filename = os.path.join(model_dir, run_base_name + ".dat")
     run_filename = os.path.join(model_dir, run_base_name + ".listing")
-    AUTOUGH2_result = T2ModelResult("AUTOUGH2", run_filename,
-                                     geo_filename = t2geo_filename,
-                                     ordering_map = map_out_atm,
-                                     fieldname_map = AUT2_FIELDMAP)
+    AUTOUGH2_result[run_name] = T2ModelResult("AUTOUGH2", run_filename,
+                                              geo_filename = t2geo_filename,
+                                              dat_filename = dat_filename,
+                                              ordering_map = map_out_atm,
+                                              fieldname_map = AUT2_FIELDMAP)
     for obspt in obs_points:
         blk_index = obs_cell_index[obspt]
         problem5_test.addTestComp(run_index, "AUTOUGH2 " + obspt,
                               HistoryWithinTolTC(fieldsToTest = test_fields,
                                                  defFieldTol = 1.e-3,
-                                                 expected = AUTOUGH2_result,
+                                                 expected = AUTOUGH2_result[run_name],
                                                  testCellIndex = blk_index))
 
         for field_name in digitised_test_fields[obspt]:
@@ -168,6 +171,11 @@ for run_index, run_name in enumerate(run_names):
             t = problem5_test.testComps[run_index][tc_name].times
             var = problem5_test.mSuite.resultsList[run_index].getFieldHistoryAtCell(field_name, blk_index)
             plt.plot(t / yr, var / scale[field_name], '-', label = 'Waiwera')
+
+            t = AUTOUGH2_result[run_name].getTimes()
+            var = AUTOUGH2_result[run_name].getFieldHistoryAtCell(field_name, blk_index)
+            plt.plot(t / yr, var / scale[field_name], '+', label = 'AUTOUGH2')
+
             for sim in digitised_simulators:
                 result = digitised_result[run_name, obspt, field_name, sim]
                 t = result.getTimes()
