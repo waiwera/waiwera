@@ -23,11 +23,6 @@ from docutils.core import publish_file
 
 model_name = 'recharge'
 
-AUT2_FIELDMAP = {
-    'Pressure': 'Pressure',
-    'Temperature': 'Temperature',
-    'Vapour saturation': 'Vapour saturation',
-}
 WAIWERA_FIELDMAP = {
     'Pressure': 'fluid_pressure',
     'Temperature': 'fluid_temperature',
@@ -68,8 +63,7 @@ for run_index, run_name in enumerate(run_names):
     run_filename = os.path.join(model_dir, run_base_name + ".listing")
     reference_result = T2ModelResult("aut2", run_filename,
                                      geo_filename = t2geo_filename,
-                                     ordering_map = map_out_atm,
-                                     fieldname_map = AUT2_FIELDMAP)
+                                     ordering_map = map_out_atm)
     test.addTestComp(run_index, "final errors",
                                         FieldWithinTolTC(fieldsToTest = test_fields,
                                                          defFieldTol = 1.e-4,
