@@ -57,12 +57,6 @@ def total_steam_history(mResult, index):
 model_name = 'problem5'
 
 AUT2_FIELDMAP = {
-    'Pressure': 'Pressure',
-    'Temperature': 'Temperature',
-    'Vapour saturation': 'Vapour saturation',
-    'Vapour density': 'Vapour density',
-    'rock_porosity': 'rock_porosity',
-    'geom_volume': 'geom_volume',
     'Steam': total_steam_history
 }
 WAIWERA_FIELDMAP = {
@@ -70,8 +64,6 @@ WAIWERA_FIELDMAP = {
     'Temperature': 'fluid_temperature',
     'Vapour saturation': 'fluid_vapour_saturation',
     'Vapour density': 'fluid_vapour_density',
-    'rock_porosity': 'rock_porosity',
-    'geom_volume': 'geom_volume',
     'Steam': total_steam_history
 }
 

@@ -41,11 +41,6 @@ class DigitisedHistoryResult(ModelResult):
 
 model_name = 'problem6'
 
-AUT2_FIELDMAP = {
-    'Pressure': 'Pressure',
-    'Temperature': 'Temperature',
-    'Vapour saturation': 'Vapour saturation',
-}
 WAIWERA_FIELDMAP = {
     'Pressure': 'fluid_pressure',
     'Temperature': 'fluid_temperature',
@@ -92,8 +87,8 @@ run_base_name = model_name
 run_filename = os.path.join(model_dir, run_base_name + ".listing")
 AUTOUGH2_result = T2ModelResult("AUTOUGH2", run_filename,
                                  geo_filename = t2geo_filename,
-                                 ordering_map = map_out_atm,
-                                 fieldname_map = AUT2_FIELDMAP)
+                                 ordering_map = map_out_atm)
+
 
 problem6_test.addTestComp(run_index, "AUTOUGH2 " + obspt + " well",
                       HistoryWithinTolTC(fieldsToTest = test_fields,
