@@ -24,18 +24,18 @@ RM=rm -f
 CP=cp
 
 # paths for compiling and linking etc.:
-LIBS= -L$(HOME)/lib
+LIBS= -L$(HOME)/Developer/lib
 LDFLAGS= $(LIBS) -lfson $(PETSC_LIB)
 FMFLAGS = -J$(BUILD)
-INCLS=-I$(HOME)/include
+INCLS=-I$(HOME)/Developer/include
 TESTLDFLAGS=$(LIBS) -lfruit -lfson $(PETSC_LIB)
 TESTINCLS=$(INCLS)
 TESTFMFLAGS = -J$(TEST)/$(BUILD)
-INSTALL_DIR = $(HOME)/bin
+INSTALL_DIR = $(HOME)/Developer/bin
 ifeq ($(DEBUG),true)
-  FC_FLAGS =  -fPIC -Wall -Wno-unused-dummy-argument -Wno-unused-function -fcheck=all -g -O0
+  FC_FLAGS =  -fPIC -Wall -Wno-unused-dummy-argument -g -O0
 else
-  FC_FLAGS =  -fPIC -O3 -march=native -mtune=native
+  FC_FLAGS =  -fPIC -O3 -mtune=native
 endif
 
 # main source code:
