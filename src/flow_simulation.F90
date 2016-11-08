@@ -390,8 +390,8 @@ end subroutine flow_simulation_run_info
     call self%setup_solution_vector()
     call setup_relative_permeabilities(json, &
          self%relative_permeability, self%logfile)
-    call setup_rock_vector(json, self%mesh, self%rock, &
-         self%rock_range_start, self%logfile)
+    call setup_rock_vector(json, self%mesh%dm, self%rock, &
+         self%rock_range_start, self%mesh%ghost_cell, self%logfile)
     call setup_fluid_vector(self%mesh%dm, max_component_name_length, &
          self%eos%component_names, max_phase_name_length, &
          self%eos%phase_names, self%fluid, self%fluid_range_start)

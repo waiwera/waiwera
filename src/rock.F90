@@ -151,19 +151,20 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine set_default_rock_properties(mesh, rock_vector, range_start)
+  subroutine set_default_rock_properties(dm, rock_vector, range_start, &
+       ghost_cell)
     !! Assigns default rock properties to all cells.
 
-    use mesh_module, only: mesh_type
     use dm_utils_module, only: global_section_offset, global_vec_section
 
-    type(mesh_type), intent(in) :: mesh
+    DM, intent(in) :: dm
     Vec, intent(in out) :: rock_vector
     PetscInt, intent(in) :: range_start
+    PetscInt, allocatable, intent(in) :: ghost_cell(:)
     ! Locals:
     PetscSection :: rock_section
     PetscReal, pointer, contiguous :: rock_array(:)
-    PetscInt :: c, offset
+    PetscInt :: start_cell, end_cell, c, offset
     type(rock_type) :: rock
     PetscErrorCode :: ierr
 
@@ -171,8 +172,11 @@ contains
     call VecGetArrayF90(rock_vector, rock_array, ierr); CHKERRQ(ierr)
     call rock%init()
 
-    do c = mesh%start_cell, mesh%end_cell - 1
-       if (mesh%ghost_cell(c) < 0) then
+    call DMPlexGetHeightStratum(dm, 0, start_cell, end_cell, ierr)
+    CHKERRQ(ierr)
+
+    do c = start_cell, end_cell - 1
+       if (ghost_cell(c) < 0) then
           call global_section_offset(rock_section, c, range_start, &
                offset, ierr); CHKERRQ(ierr)
           call rock%assign(rock_array, offset)
@@ -280,25 +284,26 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine setup_rock_vector(json, mesh, rock_vector, range_start, logfile)
+  subroutine setup_rock_vector(json, dm, rock_vector, range_start, &
+       ghost_cell, logfile)
     !! Sets up rock vector on specified DM from JSON input.
 
-    use mesh_module, only: mesh_type
     use dm_utils_module, only: set_dm_data_layout, global_vec_range_start
     use fson
     use fson_mpi_module
     use logfile_module
 
     type(fson_value), pointer, intent(in) :: json
-    type(mesh_type), intent(in) :: mesh
+    DM, intent(in) :: dm
     Vec, intent(out) :: rock_vector
     PetscInt, intent(out) :: range_start
+    PetscInt, allocatable, intent(in) :: ghost_cell(:)
     type(logfile_type), intent(in out) :: logfile
     ! Locals:
     DM :: dm_rock
     PetscErrorCode :: ierr
 
-    call DMClone(mesh%dm, dm_rock, ierr); CHKERRQ(ierr)
+    call DMClone(dm, dm_rock, ierr); CHKERRQ(ierr)
 
     call set_dm_data_layout(dm_rock, rock_variable_num_components, &
          rock_variable_dim, rock_variable_names)
@@ -307,13 +312,14 @@ contains
     call PetscObjectSetName(rock_vector, "rock", ierr); CHKERRQ(ierr)
     call global_vec_range_start(rock_vector, range_start)
 
-    call set_default_rock_properties(mesh, rock_vector, range_start)
+    call set_default_rock_properties(dm, rock_vector, range_start, &
+         ghost_cell)
 
     if (fson_has_mpi(json, "rock")) then
 
        if (fson_has_mpi(json, "rock.types")) then
 
-          call setup_rock_vector_types(json, mesh%dm, rock_vector, range_start, &
+          call setup_rock_vector_types(json, dm, rock_vector, range_start, &
                logfile)
 
        else
