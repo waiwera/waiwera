@@ -305,18 +305,29 @@ contains
 
 !------------------------------------------------------------------------
 
-subroutine flow_simulation_run_info(self)
-  !! Writes run information to logfile, e.g. software name and
-  !! version, compiler details, number of processors.
+  subroutine flow_simulation_run_info(self)
+    !! Writes run information to logfile, e.g. software name and
+    !! version, compiler details, number of processors.
 
-  use iso_fortran_env
-  use version_module
+    use iso_fortran_env
+    use version_module
 
     class(flow_simulation_type), intent(in out) :: self
+    ! Locals:
+    character(len = 6) :: major_str, minor_str, subminor_str
 
     call self%logfile%write(LOG_LEVEL_INFO, 'run', 'start', &
          str_key = 'software', str_value = 'Waiwera' // &
          ' version ' // trim(waiwera_version))
+
+    write(major_str, '(i0)') PETSC_VERSION_MAJOR
+    write(minor_str, '(i0)') PETSC_VERSION_MINOR
+    write(subminor_str, '(i0)') PETSC_VERSION_SUBMINOR
+    call self%logfile%write(LOG_LEVEL_INFO, 'run', 'start', &
+         str_key = 'software', str_value = 'PETSc' // &
+         ' version ' // trim(major_str) // '.' // trim(minor_str) // &
+         '.' // subminor_str)
+
     call self%logfile%write(LOG_LEVEL_INFO, 'run', 'start', &
          str_key = 'compiler', str_value = compiler_version())
     call self%logfile%write(LOG_LEVEL_INFO, 'run', 'start', &
@@ -324,7 +335,7 @@ subroutine flow_simulation_run_info(self)
 
     call self%logfile%write_blank()
 
-end subroutine flow_simulation_run_info
+  end subroutine flow_simulation_run_info
 
 !------------------------------------------------------------------------
 
