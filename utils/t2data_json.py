@@ -47,26 +47,31 @@ class t2data_export_json(t2data):
         jsondata.update(self.initial_json(geo, incons, jsondata['eos']['name']))
         jsondata.update(self.boundaries_json(geo, bdy_incons, atmos_volume,
                                              jsondata['eos']['name']))
-        jsondata.update(self.generators_json(geo))
+        jsondata.update(self.generators_json(geo, jsondata['eos']['name']))
         return jsondata
 
     def eos_json(self, eos):
         """Converts TOUGH2 EOS data to JSON."""
         jsondata = {}
+        supported_eos = {'W': 'w', 'EW': 'we'}
         aut2eosname = ''
         if eos is None:
-            if 'eos' in self.multi:
-                if self.multi['eos']: aut2eosname = self.multi['eos'].strip()
-            if aut2eosname == '': aut2eosname = 'EW'
+            if self.multi:
+                if 'eos' in self.multi:
+                    if self.multi['eos']: aut2eosname = self.multi['eos'].strip()
+            elif self.simulator:
+                for eosname in supported_eos.keys():
+                    if self.simulator.endswith(eosname):
+                        autseosname = eosname
         else:
             if isinstance(eos, int):
                 eos_from_index = {1: 'EW', 2: 'EWC', 3: 'EWA', 4: 'EWAV'}
                 if eos in eos_from_index: aut2eosname = eos_from_index[eos]
             else: aut2eosname = eos
-        eosname = {'W': 'w', 'EW': 'we'}
-        if aut2eosname in eosname:
-            jsondata['eos'] = {'name': eosname[aut2eosname]}
-            if eosname == 'w':
+        if aut2eosname == '': aut2eosname = 'EW'
+        if aut2eosname in supported_eos:
+            jsondata['eos'] = {'name': supported_eos[aut2eosname]}
+            if jsondata['eos']['name'] == 'w':
                 jsondata['eos']['temperature'] = self.parameter['default_incons'][1]
         else: raise Exception ('Unhandled EOS:' + aut2eosname)
         return jsondata
@@ -176,13 +181,15 @@ class t2data_export_json(t2data):
                                 eos)
         return jsondata
 
-    def generators_json(self, geo):
+    def generators_json(self, geo, eosname):
         """Converts TOUGH2 generator data to JSON."""
         jsondata = {}
+        eos_num_equations = {'w': 1, 'we': 2}
+        num_eqns = eos_num_equations[eosname]
         unsupported_types = ['CO2 ', 'DMAK', 'FEED', 'FINJ', 'HLOS', 'IMAK', 'MAKE',
                              'PINJ', 'POWR', 'RINJ', 'TMAK', 'TOST', 'VOL.',
                              'WBRE', 'WFLO', 'XINJ', 'XIN2']
-        mass_component = {'MASS': 1, 'HEAT': self.multi['num_equations'],
+        mass_component = {'MASS': 1, 'HEAT': num_eqns,
                           'COM1': 1, 'COM2': 2, 'COM3': 3, 'COM4': 4,
                           'COM5': 5, 'WATE': 1, 'AIR ': 2, 'TRAC': 2, 'NACL': 3}
         limit_type = {'DELG': 'steam', 'DELS': 'steam', 'DELT': 'total', 'DELW': 'water'}
