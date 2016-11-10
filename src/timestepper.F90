@@ -1170,7 +1170,7 @@ end subroutine timestepper_steps_set_next_stepsize
     PetscReal, intent(in) :: xnorm, pnorm, fnorm
     SNESConvergedReason, intent(out) :: reason
     type(timestepper_solver_context_type), intent(in out) :: context
-    PetscErrorCode :: ierr
+    PetscErrorCode, intent(out) :: ierr
     ! Locals:
     Vec :: residual, solution, update
     PetscReal :: max_update
@@ -1188,9 +1188,11 @@ end subroutine timestepper_steps_set_next_stepsize
     context%steps%current%max_residual_equation = 1 + index - &
          context%steps%current%max_residual_cell * bs
 
-    if (num_iterations >= &
+    if (num_iterations < &
          context%steps%nonlinear_solver_minimum_iterations) then
-
+       reason = SNES_CONVERGED_ITERATING
+       ierr = 0
+    else
        if (context%steps%current%max_residual < &
             context%steps%nonlinear_solver_relative_tol) then
           reason = SNES_CONVERGED_FNORM_RELATIVE
@@ -1212,7 +1214,6 @@ end subroutine timestepper_steps_set_next_stepsize
                   fnorm, reason, PETSC_NULL_OBJECT, ierr); CHKERRQ(ierr)
           end if
        end if
-
     end if
 
   end subroutine SNES_convergence
