@@ -73,6 +73,7 @@ module flow_simulation_module
      procedure, public :: pre_retry_timestep => flow_simulation_pre_retry_timestep
      procedure, public :: pre_iteration => flow_simulation_pre_iteration
      procedure, public :: pre_eval => flow_simulation_pre_eval
+     procedure, public :: post_timestep => flow_simulation_post_timestep
      procedure, public :: post_linesearch => flow_simulation_post_linesearch
      procedure, public :: fluid_init => flow_simulation_fluid_init
      procedure, public :: fluid_transitions => flow_simulation_fluid_transitions
@@ -819,7 +820,24 @@ end subroutine flow_simulation_run_info
     call self%fluid_properties(t, y, err)
 
   end subroutine flow_simulation_pre_eval
+  
+!------------------------------------------------------------------------
 
+  subroutine flow_simulation_post_timestep(self)
+    !! Routine to be called before starting each time step. Here the
+    !! last_timestep_fluid vector is initialized from the fluid
+    !! vector, to be used to revert to the previous state when
+    !! re-trying a timestep with a smaller step size.
+    
+    class(flow_simulation_type), intent(in out) :: self
+    ! Locals:
+    !PetscErrorCode :: ierr
+    !print *, "In flow post timestep"
+    !call self%rock_mechanics%compute(self%gravity)
+    !print *, "Leaving flow post timestep"
+
+  end subroutine flow_simulation_post_timestep
+  
 !------------------------------------------------------------------------
 
   subroutine flow_simulation_post_linesearch(self, y_old, search, y, &
