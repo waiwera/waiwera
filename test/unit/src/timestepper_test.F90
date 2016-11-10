@@ -121,11 +121,12 @@ module timestepper_test
   PetscInt, parameter :: max_json_len = 256
   PetscReal, parameter :: time_tolerance = 1.e-6_dp
 
-public :: test_timestepper_linear, test_timestepper_exponential, &
-     test_timestepper_logistic, test_timestepper_nontrivial_lhs, &
-     test_timestepper_nonlinear_lhs, test_timestepper_heat1d, &
-     test_timestepper_heat1d_nonlinear, test_timestepper_pre_eval, &
-     test_timestepper_read, test_timestepper_steady
+  public :: test_timestepper_read, &
+       test_timestepper_linear, test_timestepper_exponential, &
+       test_timestepper_logistic, test_timestepper_nontrivial_lhs, &
+       test_timestepper_nonlinear_lhs, test_timestepper_heat1d, &
+       test_timestepper_heat1d_nonlinear, test_timestepper_pre_eval, &
+       test_timestepper_steady
 
 contains
 
@@ -170,6 +171,7 @@ contains
 
     call DMDACreate1d(mpi%comm, DM_BOUNDARY_NONE, self%dim, self%dof, &
          self%stencil, PETSC_NULL_INTEGER, self%mesh%dm, ierr); CHKERRQ(ierr)
+    call DMSetUp(self%mesh%dm, ierr); CHKERRQ(ierr)
     call DMCreateGlobalVector(self%mesh%dm, self%solution, ierr); CHKERRQ(ierr)
     call VecDuplicate(self%solution, self%exact_solution, ierr); CHKERRQ(ierr)
     call VecDuplicate(self%solution, self%diff, ierr); CHKERRQ(ierr)
@@ -501,6 +503,7 @@ contains
     call DMDACreate1d(mpi%comm, DM_BOUNDARY_GHOSTED, self%dim-2, &
          self%dof, self%stencil, PETSC_NULL_INTEGER, self%mesh%dm, &
          ierr); CHKERRQ(ierr)
+    call DMSetUp(self%mesh%dm, ierr); CHKERRQ(ierr)
     call DMDASetUniformCoordinates(self%mesh%dm, dx, self%L - dx, &
          0._dp, 0._dp, 0._dp, 0._dp, ierr); CHKERRQ(ierr)
     call DMCreateGlobalVector(self%mesh%dm, self%solution, ierr)
@@ -1147,7 +1150,7 @@ contains
 
   end subroutine test_timestepper_pre_eval
 
-  !------------------------------------------------------------------------
+!------------------------------------------------------------------------
 
   subroutine test_timestepper_steady
 
@@ -1173,5 +1176,7 @@ contains
     deallocate(initial)
 
   end subroutine test_timestepper_steady
+
+!------------------------------------------------------------------------
 
 end module timestepper_test
