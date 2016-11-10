@@ -3,16 +3,16 @@
 !   This file is part of Waiwera.
 
 !   Waiwera is free software: you can redistribute it and/or modify
-!   it under the terms of the GNU General Public License as published by
+!   it under the terms of the GNU Lesser General Public License as published by
 !   the Free Software Foundation, either version 3 of the License, or
 !   (at your option) any later version.
 
 !   Waiwera is distributed in the hope that it will be useful,
 !   but WITHOUT ANY WARRANTY; without even the implied warranty of
 !   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-!   GNU General Public License for more details.
+!   GNU Lesser General Public License for more details.
 
-!   You should have received a copy of the GNU General Public License
+!   You should have received a copy of the GNU Lesser General Public License
 !   along with Waiwera.  If not, see <http://www.gnu.org/licenses/>.
 
 module flow_simulation_module
@@ -306,18 +306,29 @@ contains
 
 !------------------------------------------------------------------------
 
-subroutine flow_simulation_run_info(self)
-  !! Writes run information to logfile, e.g. software name and
-  !! version, compiler details, number of processors.
+  subroutine flow_simulation_run_info(self)
+    !! Writes run information to logfile, e.g. software name and
+    !! version, compiler details, number of processors.
 
-  use iso_fortran_env
-  use version_module
+    use iso_fortran_env
+    use version_module
 
     class(flow_simulation_type), intent(in out) :: self
+    ! Locals:
+    character(len = 6) :: major_str, minor_str, subminor_str
 
     call self%logfile%write(LOG_LEVEL_INFO, 'run', 'start', &
          str_key = 'software', str_value = 'Waiwera' // &
          ' version ' // trim(waiwera_version))
+
+    write(major_str, '(i0)') PETSC_VERSION_MAJOR
+    write(minor_str, '(i0)') PETSC_VERSION_MINOR
+    write(subminor_str, '(i0)') PETSC_VERSION_SUBMINOR
+    call self%logfile%write(LOG_LEVEL_INFO, 'run', 'start', &
+         str_key = 'software', str_value = 'PETSc' // &
+         ' version ' // trim(major_str) // '.' // trim(minor_str) // &
+         '.' // subminor_str)
+
     call self%logfile%write(LOG_LEVEL_INFO, 'run', 'start', &
          str_key = 'compiler', str_value = compiler_version())
     call self%logfile%write(LOG_LEVEL_INFO, 'run', 'start', &
@@ -325,7 +336,7 @@ subroutine flow_simulation_run_info(self)
 
     call self%logfile%write_blank()
 
-end subroutine flow_simulation_run_info
+  end subroutine flow_simulation_run_info
 
 !------------------------------------------------------------------------
 
