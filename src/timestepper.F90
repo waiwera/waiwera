@@ -1664,6 +1664,8 @@ end subroutine timestepper_steps_set_next_stepsize
          s = "inner_solve"
       case (SNES_DIVERGED_LOCAL_MIN)
          s = "local_min"
+      case (SNES_DIVERGED_DTOL)
+         s = "divergence tolerance"
       case default
          s = "unknown"
       end select
