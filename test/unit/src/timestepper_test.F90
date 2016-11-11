@@ -919,9 +919,9 @@ contains
     ! Exponential function
 
     type(exponential_ode_type), target :: exponential
-    PetscInt,  parameter :: num_cases = 2
+    PetscInt,  parameter :: num_cases = 3
     character(len = max_json_len) :: json_str(num_cases)
-    PetscReal, parameter :: tol(num_cases) = [0.15_dp, 0.05_dp]
+    PetscReal, parameter :: tol(num_cases) = [0.15_dp, 0.05_dp, 0.2_dp]
     PetscReal, allocatable :: initial(:)
     PetscErrorCode :: err
 
@@ -938,6 +938,11 @@ contains
          '"step": {"initial": 0.05, "maximum": {"number": 200}, ' // &
          '"method": "bdf2", ' // &
          '"adapt": {"on": true, "minimum": 0.01, "maximum": 0.2}}}}'
+
+    json_str(3) = '{"time": {"start": 0.0, "stop": 1.0, ' // &
+         '"step": {"maximum": {"number": 200}, ' // &
+         '"method": "beuler", ' // &
+         '"sizes": [0.005, 0.007, 0.01, 0.012, 0.014, 0.015]}}}'
 
     call exponential%run_cases(json_str, tol)
 
