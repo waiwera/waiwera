@@ -1188,10 +1188,12 @@ end subroutine timestepper_steps_set_next_stepsize
     context%steps%current%max_residual_equation = 1 + index - &
          context%steps%current%max_residual_cell * bs
 
+    call SNESConvergedDefault(solver, num_iterations, xnorm, pnorm, &
+         fnorm, reason, PETSC_NULL_OBJECT, ierr); CHKERRQ(ierr)
+
     if (num_iterations < &
          context%steps%nonlinear_solver_minimum_iterations) then
        reason = SNES_CONVERGED_ITERATING
-       ierr = 0
     else
        if (context%steps%current%max_residual < &
             context%steps%nonlinear_solver_relative_tol) then
@@ -1205,13 +1207,7 @@ end subroutine timestepper_steps_set_next_stepsize
                   max_update, index)
              if (max_update <= context%steps%nonlinear_solver_update_relative_tol) then
                 reason = SNES_CONVERGED_SNORM_RELATIVE
-             else
-                call SNESConvergedDefault(solver, num_iterations, xnorm, pnorm, &
-                     fnorm, reason, PETSC_NULL_OBJECT, ierr); CHKERRQ(ierr)
              end if
-          else
-             call SNESConvergedDefault(solver, num_iterations, xnorm, pnorm, &
-                  fnorm, reason, PETSC_NULL_OBJECT, ierr); CHKERRQ(ierr)
           end if
        end if
     end if
