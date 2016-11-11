@@ -100,6 +100,7 @@ module timestepper_module
      PetscInt, public :: taken !! Number of steps taken so far
      PetscInt, public :: max_num !! Maximum allowable number of steps
      PetscInt, public :: max_num_tries !! Maximum allowable number of tries per step
+     PetscInt, public :: fixed_step_index !! Current index in array of fixed step sizes
      PetscReal, public :: next_stepsize !! Step size to be used for next step
      PetscReal, public :: stop_time !! Maximum allowable time
      PetscReal, public :: nonlinear_solver_relative_tol !! Relative tolerance for non-linear solver function value
@@ -685,11 +686,12 @@ contains
     self%nonlinear_solver_update_abs_tol = nonlinear_solver_update_abs_tol
     self%nonlinear_solver_minimum_iterations = nonlinear_solver_minimum_iterations
 
+    self%fixed_step_index = 1
     if ((present(step_sizes) .and. (allocated(step_sizes)))) then
        ! Fixed time step sizes override adaptor:
        self%sizes = step_sizes
        self%adaptor%on = PETSC_FALSE
-       self%next_stepsize = step_sizes(1)
+       self%next_stepsize = step_sizes(self%fixed_step_index)
     end if
 
     self%steady_state = steady_state
@@ -913,14 +915,10 @@ contains
     !! Gets next timestep size if using fixed time step sizes.
 
     class(timestepper_steps_type), intent(in out) :: self
-    ! Locals:
-    PetscInt :: step_index, next_index
 
-    step_index = self%taken + 1
-    next_index = step_index + 1
-
-    if ((allocated(self%sizes)) .and. (next_index <= size(self%sizes))) then
-       self%next_stepsize = self%sizes(next_index)
+    if (allocated(self%sizes)) then
+       self%fixed_step_index = min(self%fixed_step_index + 1, size(self%sizes))
+       self%next_stepsize = self%sizes(self%fixed_step_index)
     else
        self%next_stepsize = self%current%stepsize
     end if
