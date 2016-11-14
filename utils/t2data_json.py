@@ -97,10 +97,10 @@ class t2data_export_json(t2data):
                                           {'absolute': abstol, 'relative': reltol}},
                                       'maximum': {'iterations': maxit}}}}
         if self.parameter['const_timestep'] < 0. :
-            jsondata['time']['step'].update({'sizes': self.parameter['timestep'],
+            jsondata['time']['step'].update({'size': self.parameter['timestep'],
                                         'adapt': {'on': False}})
         else:
-            jsondata['time']['step'].update({'initial': self.parameter['const_timestep']})
+            jsondata['time']['step'].update({'size': self.parameter['const_timestep']})
             if self.parameter['option'][16] > 0:
                 redlt = self.parameter['timestep_reduction']
                 if redlt is None or redlt == 0:

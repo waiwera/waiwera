@@ -604,7 +604,7 @@ contains
 !------------------------------------------------------------------------
 
   subroutine timestepper_steps_init(self, num_stored, &
-       time, solution, initial_stepsize, stop_time_specified, &
+       time, solution, stop_time_specified, &
        stop_time, max_num_steps, max_stepsize, &
        adapt_on, adapt_method, adapt_min, adapt_max, &
        adapt_reduction, adapt_amplification, step_sizes, &
@@ -616,7 +616,7 @@ contains
 
     class(timestepper_steps_type), intent(in out) :: self
     PetscInt, intent(in) :: num_stored
-    PetscReal, intent(in) :: time, initial_stepsize
+    PetscReal, intent(in) :: time
     PetscBool, intent(in) :: stop_time_specified
     Vec, intent(in) :: solution
     PetscReal, intent(in) :: stop_time
@@ -626,7 +626,7 @@ contains
     PetscInt, intent(in) :: adapt_method
     PetscReal, intent(in) :: adapt_min, adapt_max
     PetscReal, intent(in) :: adapt_reduction, adapt_amplification
-    PetscReal, intent(in), allocatable, optional :: step_sizes(:)
+    PetscReal, intent(in), allocatable :: step_sizes(:)
     PetscReal, intent(in) :: nonlinear_solver_relative_tol, &
          nonlinear_solver_abs_tol
     PetscReal, intent(in) :: nonlinear_solver_update_relative_tol, &
@@ -653,7 +653,6 @@ contains
     self%taken = 0
     self%finished = PETSC_FALSE
     self%current%time = time
-    self%next_stepsize = initial_stepsize
     call VecCopy(solution, self%current%solution, ierr); CHKERRQ(ierr)
 
     self%stop_time_specified = stop_time_specified
@@ -679,24 +678,17 @@ contains
     self%adaptor%amplification = adapt_amplification
     self%adaptor%max_stepsize = max_stepsize
 
+    self%fixed = .not. self%adaptor%on
+    self%fixed_step_index = 1
+    self%sizes = step_sizes
+    self%next_stepsize = self%sizes(self%fixed_step_index)
+    self%steady_state = steady_state
+
     self%nonlinear_solver_relative_tol = nonlinear_solver_relative_tol
     self%nonlinear_solver_abs_tol = nonlinear_solver_abs_tol
     self%nonlinear_solver_update_relative_tol = nonlinear_solver_update_relative_tol
     self%nonlinear_solver_update_abs_tol = nonlinear_solver_update_abs_tol
     self%nonlinear_solver_minimum_iterations = nonlinear_solver_minimum_iterations
-
-    self%fixed_step_index = 1
-    if (present(step_sizes) .and. allocated(step_sizes)) then
-       self%fixed = PETSC_TRUE
-       self%sizes = step_sizes
-       self%adaptor%on = PETSC_FALSE
-       self%next_stepsize = step_sizes(self%fixed_step_index)
-    else
-       self%sizes = [initial_stepsize]
-       self%fixed = .not. adapt_on
-    end if
-
-    self%steady_state = steady_state
 
   end subroutine timestepper_steps_init
 
@@ -1253,7 +1245,7 @@ end subroutine timestepper_steps_set_next_stepsize
     use utils_module, only : str_to_lower
     use fson
     use fson_mpi_module
-    use fson_value_m, only : TYPE_NULL
+    use fson_value_m, only : TYPE_NULL, TYPE_REAL, TYPE_ARRAY
 
     class(timestepper_type), intent(in out) :: self
     type(fson_value), pointer, intent(in) :: json
@@ -1261,8 +1253,11 @@ end subroutine timestepper_steps_set_next_stepsize
     ! Locals:
     PetscInt :: max_num_steps
     PetscReal, parameter :: default_stop_time = 1.0_dp
-    PetscReal, parameter :: default_initial_stepsize = 0.1_dp
-    PetscReal :: initial_stepsize, max_stepsize, stop_time
+    PetscReal, parameter :: default_stepsize = 0.1_dp
+    PetscInt :: step_size_type
+    PetscReal :: step_size_single
+    PetscReal, allocatable :: step_sizes(:)
+    PetscReal :: max_stepsize, stop_time
     PetscReal, parameter :: default_max_stepsize = 0.0_dp
     PetscInt :: method
     PetscInt, parameter :: max_method_str_len = 12
@@ -1282,7 +1277,6 @@ end subroutine timestepper_steps_set_next_stepsize
     PetscReal, parameter :: default_adapt_reduction = 0.5_dp, &
          default_adapt_amplification = 2.0_dp
     PetscReal :: adapt_reduction, adapt_amplification
-    PetscReal, allocatable :: step_sizes(:)
     PetscInt, parameter :: default_nonlinear_max_iterations = 8
     PetscReal, parameter :: default_nonlinear_relative_tol = 1.e-5_dp
     PetscReal, parameter :: default_nonlinear_abs_tol = 1._dp
@@ -1382,7 +1376,7 @@ end subroutine timestepper_steps_set_next_stepsize
     if (method == TS_DIRECTSS) then
 
        steady_state = PETSC_TRUE
-       initial_stepsize = 0._dp
+       step_sizes = [0._dp]
        max_num_steps = 1
        max_num_tries = 1
        adapt_on = PETSC_FALSE
@@ -1409,8 +1403,6 @@ end subroutine timestepper_steps_set_next_stepsize
                '"time.stop not specified"')
        end if
 
-       call fson_get_mpi(json, "time.step.initial", &
-            default_initial_stepsize, initial_stepsize, self%ode%logfile)
        call fson_get_mpi(json, "time.step.maximum.size", &
             default_max_stepsize, max_stepsize, self%ode%logfile)
        call fson_get_mpi(json, "time.step.maximum.number", &
@@ -1435,11 +1427,21 @@ end subroutine timestepper_steps_set_next_stepsize
        call fson_get_mpi(json, "time.step.adapt.amplification", &
             default_adapt_amplification, adapt_amplification, self%ode%logfile)
 
-       if (fson_has_mpi(json, "time.step.sizes")) then
-          call fson_get_mpi(json, "time.step.sizes", val = step_sizes)
+       if (fson_has_mpi(json, "time.step.size")) then
+          step_size_type = fson_type_mpi(json, "time.step.size")
+          select case (step_size_type)
+          case (TYPE_REAL)
+             call fson_get_mpi(json, "time.step.size", val = step_size_single)
+             step_sizes = [step_size_single]
+          case (TYPE_ARRAY)
+             call fson_get_mpi(json, "time.step.size", val = step_sizes)
+          case default
+             step_sizes = [default_stepsize]
+          end select
        else
+          step_sizes = [default_stepsize]
           call self%ode%logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
-               str_key = "time.step.sizes", str_value = "adaptive")
+               real_keys = ["time.step.size"], real_values = [default_stepsize])
        end if
 
        call fson_get_mpi(json, "output.frequency", &
@@ -1448,7 +1450,7 @@ end subroutine timestepper_steps_set_next_stepsize
     end if
 
     call self%steps%init(self%method%num_stored_steps, &
-         self%ode%time, self%ode%solution, initial_stepsize, &
+         self%ode%time, self%ode%solution, &
          stop_time_specified, stop_time, max_num_steps, max_stepsize, &
          adapt_on, adapt_method, adapt_min, adapt_max, &
          adapt_reduction, adapt_amplification, step_sizes, &
