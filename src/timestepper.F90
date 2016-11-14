@@ -612,11 +612,7 @@ contains
        nonlinear_solver_update_relative_tol, nonlinear_solver_update_abs_tol, &
        nonlinear_solver_minimum_iterations, &
        max_num_tries, steady_state)
-
-    !! Sets up array of timesteps and pointers to them. This array stores the
-    !! current step and one or more previous steps. The number of stored
-    !! steps depends on the timestepping method (e.g. 2 for single-step methods,
-    !! > 2 for multistep methods). 
+    !! Sets up timestepper steps object from specified parameters.
 
     class(timestepper_steps_type), intent(in out) :: self
     PetscInt, intent(in) :: num_stored
@@ -642,18 +638,20 @@ contains
     PetscInt :: i
     PetscErrorCode :: ierr
 
-    self%taken = 0
-    self%finished = PETSC_FALSE
+    ! Set up array of timesteps and pointers to them. This array stores the
+    ! current step and one or more previous steps. The number of stored
+    ! steps depends on the timestepping method (e.g. 2 for single-step methods,
+    ! > 2 for multistep methods).
     self%num_stored = num_stored
     allocate(self%store(num_stored), self%pstore(num_stored))
-
     do i = 1, num_stored
        call self%store(i)%init(solution)
        call self%set_pstore(self%store, i, i)
     end do
-
     call self%set_aliases()
 
+    self%taken = 0
+    self%finished = PETSC_FALSE
     self%current%time = time
     self%next_stepsize = initial_stepsize
     call VecCopy(solution, self%current%solution, ierr); CHKERRQ(ierr)
