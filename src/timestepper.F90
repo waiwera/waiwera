@@ -114,6 +114,7 @@ module timestepper_module
      PetscBool, public :: stop_time_specified !! Whether stop time is specified or not
      PetscBool :: finished !! Whether simulation has yet finished
      PetscBool :: steady_state !! If simulation is direct steady state or transient
+     PetscBool :: fixed !! If fixed steps sizes are specified
    contains
      private
      procedure :: set_aliases => timestepper_steps_set_aliases
@@ -687,11 +688,14 @@ contains
     self%nonlinear_solver_minimum_iterations = nonlinear_solver_minimum_iterations
 
     self%fixed_step_index = 1
-    if ((present(step_sizes) .and. (allocated(step_sizes)))) then
-       ! Fixed time step sizes override adaptor:
+    if (present(step_sizes) .and. allocated(step_sizes)) then
+       self%fixed = PETSC_TRUE
        self%sizes = step_sizes
        self%adaptor%on = PETSC_FALSE
        self%next_stepsize = step_sizes(self%fixed_step_index)
+    else
+       self%sizes = [initial_stepsize]
+       self%fixed = .not. adapt_on
     end if
 
     self%steady_state = steady_state
@@ -916,12 +920,8 @@ contains
 
     class(timestepper_steps_type), intent(in out) :: self
 
-    if (allocated(self%sizes)) then
-       self%fixed_step_index = min(self%fixed_step_index + 1, size(self%sizes))
-       self%next_stepsize = self%sizes(self%fixed_step_index)
-    else
-       self%next_stepsize = self%current%stepsize
-    end if
+    self%fixed_step_index = min(self%fixed_step_index + 1, size(self%sizes))
+    self%next_stepsize = self%sizes(self%fixed_step_index)
 
   end subroutine timestepper_steps_get_next_fixed_stepsize
 
@@ -933,17 +933,29 @@ contains
     PetscBool, intent(out) :: accepted
 
     if (.not.(self%steady_state)) then
+
        if (self%adaptor%on) then
+
           call self%adapt(accepted)
+
+          if (self%fixed) then
+             if (self%next_stepsize >= self%sizes(self%fixed_step_index)) then
+                self%adaptor%on = PETSC_FALSE
+                self%next_stepsize = self%sizes(self%fixed_step_index)
+             end if
+          end if
+
        else
+
           if (self%current%status == TIMESTEP_OK) then
              accepted = PETSC_TRUE
              call self%get_next_fixed_stepsize()
-          else
+          else ! temporarily switch to adaptive time stepping:
              accepted = PETSC_FALSE
              self%adaptor%on = PETSC_TRUE
              self%next_stepsize = self%adaptor%reduce(self%current%stepsize)
           end if
+
        end if
     end if
 
