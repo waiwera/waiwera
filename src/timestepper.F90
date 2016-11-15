@@ -112,9 +112,9 @@ module timestepper_module
      PetscReal, allocatable, public :: sizes(:) !! Pre-specified time step sizes
      type(timestep_adaptor_type), public :: adaptor !! Time step size adaptor
      PetscBool, public :: stop_time_specified !! Whether stop time is specified or not
+     PetscBool, public :: fixed !! If fixed steps sizes are specified
      PetscBool :: finished !! Whether simulation has yet finished
      PetscBool :: steady_state !! If simulation is direct steady state or transient
-     PetscBool :: fixed !! If fixed steps sizes are specified
    contains
      private
      procedure :: set_aliases => timestepper_steps_set_aliases
@@ -660,7 +660,6 @@ contains
     self%max_num = max_num_steps
     self%max_num_tries = max_num_tries
 
-    self%adaptor%on = adapt_on
     select case (adapt_method)
     case (TS_ADAPT_CHANGE)
        self%adaptor%monitor => relative_change_monitor
@@ -678,7 +677,8 @@ contains
     self%adaptor%amplification = adapt_amplification
     self%adaptor%max_stepsize = max_stepsize
 
-    self%fixed = .not. self%adaptor%on
+    self%fixed = .not. adapt_on
+    self%adaptor%on = PETSC_FALSE  ! at least until fixed steps are done
     self%fixed_step_index = 1
     self%sizes = step_sizes
     self%next_stepsize = self%sizes(self%fixed_step_index)
@@ -880,7 +880,9 @@ contains
              self%current%status = TIMESTEP_FINAL
           else
              eta = self%adaptor%monitor(self%current, self%last)
-             if (self%adaptor%on) then
+             if ((self%adaptor%on) .or. &
+                  (self%fixed_step_index == size(self%sizes)) .and. &
+                  (.not. self%fixed)) then
                 if (eta < self%adaptor%monitor_min) then
                    self%current%status = TIMESTEP_TOO_SMALL
                 else if (eta > self%adaptor%monitor_max) then
@@ -905,13 +907,30 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine timestepper_steps_get_next_fixed_stepsize(self)
+  subroutine timestepper_steps_get_next_fixed_stepsize(self, accepted)
     !! Gets next timestep size if using fixed time step sizes.
 
     class(timestepper_steps_type), intent(in out) :: self
+    PetscBool, intent(out) :: accepted
 
-    self%fixed_step_index = min(self%fixed_step_index + 1, size(self%sizes))
-    self%next_stepsize = self%sizes(self%fixed_step_index)
+    associate (fixed_index => self%fixed_step_index, &
+         num_sizes => size(self%sizes))
+
+      accepted = PETSC_TRUE
+      fixed_index = fixed_index + 1
+      if (fixed_index <= num_sizes) then
+         self%next_stepsize = self%sizes(fixed_index)
+      else
+         fixed_index = num_sizes
+         if (self%fixed) then
+            self%next_stepsize = self%sizes(fixed_index)
+         else
+            self%adaptor%on = PETSC_TRUE
+            call self%adapt(accepted)
+         end if
+      end if
+
+    end associate
 
   end subroutine timestepper_steps_get_next_fixed_stepsize
 
@@ -928,8 +947,10 @@ contains
 
           call self%adapt(accepted)
 
-          if (self%fixed) then
+          if ((self%fixed_step_index < size(self%sizes)) .or. &
+               ((self%fixed_step_index >= size(self%sizes)) .and. self%fixed)) then
              if (self%next_stepsize >= self%sizes(self%fixed_step_index)) then
+                ! switch back to fixed time stepping:
                 self%adaptor%on = PETSC_FALSE
                 self%next_stepsize = self%sizes(self%fixed_step_index)
              end if
@@ -937,14 +958,14 @@ contains
 
        else
 
-          if (self%current%status == TIMESTEP_OK) then
-             accepted = PETSC_TRUE
-             call self%get_next_fixed_stepsize()
-          else ! temporarily switch to adaptive time stepping:
-             accepted = PETSC_FALSE
+          select case (self%current%status)
+          case (TIMESTEP_TOO_BIG, TIMESTEP_NOT_CONVERGED)
+             ! temporarily switch to adaptive time stepping:
              self%adaptor%on = PETSC_TRUE
-             self%next_stepsize = self%adaptor%reduce(self%current%stepsize)
-          end if
+             call self%adapt(accepted)
+          case default
+             call self%get_next_fixed_stepsize(accepted)
+          end select
 
        end if
     end if

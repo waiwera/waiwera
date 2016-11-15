@@ -860,7 +860,7 @@ contains
             time_tolerance, "Timestepper initial stepsize")
        call assert_equals(200, ts%steps%max_num, "Timestepper max. num steps")
        call assert_equals("Backward Euler", ts%method%name, "Timestepper method")
-       call assert_equals(.true., ts%steps%adaptor%on, "Timestepper adapt on")
+       call assert_equals(PETSC_FALSE, ts%steps%fixed, "Timestepper steps fixed")
        call assert_equals("change", trim(ts%steps%adaptor%name), "Timestepper adapt method")
        call assert_equals(0.01_dp, ts%steps%adaptor%monitor_min, "Timestepper monitor min")
        call assert_equals(0.2_dp, ts%steps%adaptor%monitor_max, "Timestepper monitor max")
@@ -941,7 +941,7 @@ contains
 
     json_str(3) = '{"time": {"start": 0.0, "stop": 1.0, ' // &
          '"step": {"maximum": {"number": 200}, ' // &
-         '"method": "beuler", ' // &
+         '"method": "beuler", "adapt": {"on": false}, ' // &
          '"size": [0.005, 0.007, 0.01, 0.012, 0.014, 0.015]}}}'
 
     call exponential%run_cases(json_str, tol)
@@ -1010,7 +1010,7 @@ contains
          '"adapt": {"on": true, "minimum": 0.03, "maximum": 0.1}}}}'
 
     json_str(2) = '{"time": {"start": 1.0, "stop": 10.0, ' // &
-         '"step": {"size": 1.0, "maximum": {"number": 100}, ' // &
+         '"step": {"size": 0.1, "maximum": {"number": 100}, ' // &
          '"method": "bdf2", ' // &
          '"adapt": {"on": true, "minimum": 0.05, "maximum": 0.1}}}}'
 
@@ -1102,12 +1102,12 @@ contains
     call heat1d%init(err = err)
 
     json_str(1) = '{"time": {"start": 0.0, "stop": 0.2, ' // &
-         '"step": {"size": 0.01, "maximum": {"number": 40}, ' // &
+         '"step": {"size": [0.005], "maximum": {"number": 100}, ' // &
          '"method": "beuler", ' // &
          '"adapt": {"on": true, "minimum": 0.01, "maximum": 0.1}}}}'
 
     json_str(2) = '{"time": {"start": 0.0, "stop": 0.2, ' // &
-         '"step": {"size": 0.01, "maximum": {"number": 40}, ' // &
+         '"step": {"size": 0.01, "maximum": {"number": 50}, ' // &
          '"method": "bdf2", ' // &
          '"adapt": {"on": true, "minimum": 0.01, "maximum": 0.2}}}}'
 
@@ -1144,7 +1144,7 @@ contains
          '"adapt": {"on": true, "minimum": 0.03, "maximum": 0.1}}}}'
 
     json_str(2) = '{"time": {"start": 1.0, "stop": 10.0, ' // &
-         '"step": {"size": 1.0, "maximum": {"number": 100}, ' // &
+         '"step": {"size": 0.1, "maximum": {"number": 100}, ' // &
          '"method": "bdf2", ' // &
          '"adapt": {"on": true, "minimum": 0.05, "maximum": 0.1}}}}'
 
