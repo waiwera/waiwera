@@ -320,4 +320,33 @@ class t2data_export_json(t2data):
             'frequency': print_interval,
             'final': True}
         if self.parameter['option'][24] > 0: jsondata['output']['initial'] = True
+        if self.output_times:
+            time_tol = 1.e-8
+            checkpoint = {'repeat': False}
+            if 'num_times_specified' in self.output_times:
+                num_times_specified = self.output_times['num_times_specified']
+            else:
+                num_times_specified = len(self.output_times['time'])
+            if 'num_times' in self.output_times:
+                num_times = self.output_times['num_times']
+            else:
+                num_times = num_times_specified
+            if num_times_specified >= 0:
+                times = self.output_times['time']
+                if 'time_increment' in self.output_times:
+                    dt = self.output_times['time_increment']
+                    if num_times_specified == 1 and abs(times[0] - dt) <= time_tol:
+                        checkpoint['repeat'] = num_times
+                    else:
+                        for i in range(num_times - num_times_specified):
+                            times.append(times[-1] + dt)
+                checkpoint['time'] = times
+            else: # time steps
+                steps = self.output_times['time']
+                if 'time_increment' in self.output_times:
+                    dt = self.output_times['time_increment']
+                    for i in range(num_times - num_times_specified):
+                        steps.append(dt)
+                checkpoint['step'] = steps
+            jsondata['output']['checkpoint'] = checkpoint
         return jsondata

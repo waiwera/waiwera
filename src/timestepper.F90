@@ -170,6 +170,8 @@ module timestepper_module
           before_step_output => before_step_output_default !! Output function to be called before each step
      procedure(step_output_routine), pointer, public :: &
           after_step_output => after_step_output_default !! Output function to be called after each step
+     PetscReal, allocatable, public :: checkpoint_time(:) !! Checkpoint times
+     PetscInt, public :: checkpoint_repeat !! Number of times to repeat checkpoint sequence (-1 to repeat indefinitely)
      PetscInt, public :: output_frequency !! Time step frequency for main output of results
      PetscInt, public :: output_index !! Counter for determining when main output is needed
      PetscBool, public :: output_initial !! Whether to output initial conditions 
@@ -1266,7 +1268,8 @@ end subroutine timestepper_steps_set_next_stepsize
     use utils_module, only : str_to_lower
     use fson
     use fson_mpi_module
-    use fson_value_m, only : TYPE_NULL, TYPE_REAL, TYPE_ARRAY
+    use fson_value_m, only : TYPE_NULL, TYPE_REAL, TYPE_INTEGER, &
+         TYPE_LOGICAL, TYPE_ARRAY
 
     class(timestepper_type), intent(in out) :: self
     type(fson_value), pointer, intent(in) :: json
@@ -1321,6 +1324,10 @@ end subroutine timestepper_steps_set_next_stepsize
     PCType :: pc_type
     PetscReal :: linear_relative_tol
     PetscInt :: linear_max_iterations
+    PetscInt, parameter :: default_checkpoint_repeat = 1
+    PetscInt :: checkpoint_repeat_type, i
+    PetscBool :: checkpoint_do_repeat
+    PetscReal, allocatable :: checkpoint_step(:)
     PetscErrorCode :: ierr
 
     self%ode => ode
@@ -1468,6 +1475,49 @@ end subroutine timestepper_steps_set_next_stepsize
        call fson_get_mpi(json, "output.frequency", &
             default_output_frequency, self%output_frequency, self%ode%logfile)
 
+       if (fson_has_mpi(json, "output.checkpoint")) then
+          if (fson_has_mpi(json, "output.checkpoint.repeat")) then
+             checkpoint_repeat_type = fson_type_mpi(json, "output.checkpoint.repeat")
+             select case (checkpoint_repeat_type)
+             case (TYPE_INTEGER)
+                call fson_get_mpi(json, "output.checkpoint.repeat", &
+                     val = self%checkpoint_repeat)
+             case (TYPE_LOGICAL)
+                call fson_get_mpi(json, "output.checkpoint.repeat", &
+                     val = checkpoint_do_repeat)
+                if (checkpoint_do_repeat) then
+                   self%checkpoint_repeat = -1
+                else
+                   self%checkpoint_repeat = 1
+                end if
+             case default
+                call self%ode%logfile%write(LOG_LEVEL_WARN, 'input', 'unrecognised', &
+                     str_key = "output.checkpoint.repeat", str_value = '...')
+             end select
+          else
+             self%checkpoint_repeat = 1
+             call self%ode%logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
+                  logical_keys = ['output.checkpoint.repeat'], &
+                  logical_values = [PETSC_FALSE])
+          end if
+          if (fson_has_mpi(json, "output.checkpoint.time")) then
+             call fson_get_mpi(json, "output.checkpoint.time", &
+                  val = self%checkpoint_time)
+          else if (fson_has_mpi(json, "output.checkpoint.step")) then
+             call fson_get_mpi(json, "output.checkpoint.step", &
+                  val = checkpoint_step)
+             allocate(self%checkpoint_time(size(checkpoint_step)))
+             self%checkpoint_time(1) = self%ode%time + checkpoint_step(1)
+             do i = 2, size(checkpoint_step)
+                self%checkpoint_time(i) = self%checkpoint_time(i-1) + checkpoint_step(i)
+             end do
+             deallocate(checkpoint_step)
+          end if
+       else
+          call self%ode%logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
+               str_key = 'output.checkpoint', str_value = 'none')
+       end if
+
     end if
 
     call self%steps%init(self%method%num_stored_steps, &
@@ -1560,6 +1610,8 @@ end subroutine timestepper_steps_set_next_stepsize
     call self%steps%destroy()
 
     nullify(self%ode)
+
+    deallocate(self%checkpoint_time)
 
   end subroutine timestepper_destroy
 
