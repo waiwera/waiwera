@@ -348,5 +348,7 @@ class t2data_export_json(t2data):
                     for i in range(num_times - num_times_specified):
                         steps.append(dt)
                 checkpoint['step'] = steps
+            if self.type == 'AUTOUGH2': checkpoint['tolerance'] = 0.1
+            else: checkpoint['tolerance'] = 0.
             jsondata['output']['checkpoint'] = checkpoint
         return jsondata

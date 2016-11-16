@@ -126,7 +126,7 @@ module timestepper_test
        test_timestepper_logistic, test_timestepper_nontrivial_lhs, &
        test_timestepper_nonlinear_lhs, test_timestepper_heat1d, &
        test_timestepper_heat1d_nonlinear, test_timestepper_pre_eval, &
-       test_timestepper_steady
+       test_timestepper_steady, test_checkpoints
 
 contains
 
@@ -1181,6 +1181,85 @@ contains
     deallocate(initial)
 
   end subroutine test_timestepper_steady
+
+!------------------------------------------------------------------------
+
+  subroutine test_checkpoints
+
+    ! Timestepper checkpoints
+
+    type(timestepper_checkpoints_type) :: checkpoints
+    PetscReal, allocatable :: times(:)
+    PetscInt :: repeat
+    PetscReal :: start_time
+    PetscReal, parameter :: tolerance = 0.01_dp
+
+    if (mpi%rank == mpi%output_rank) then
+
+       times = [1._dp, 3._dp, 4._dp]
+       repeat = 2
+       start_time = 0._dp
+       call checkpoints%init(times, repeat, tolerance, start_time)
+
+       call assert_equals(PETSC_FALSE, checkpoints%done, 'initial done')
+       call assert_equals(times(1), checkpoints%next_time, 'initial next_time')
+
+       call checkpoints%check(0.4_dp, 0.4_dp)
+       call assert_equals(PETSC_FALSE, checkpoints%hit, 't = 0.4 hit')
+
+       call checkpoints%check(1.0_dp, 0.6_dp)
+       call assert_equals(PETSC_TRUE, checkpoints%hit, 't = 1.0 hit')
+       call checkpoints%update()
+
+       call checkpoints%check(2.5_dp, 0.8_dp)
+       call assert_equals(PETSC_FALSE, checkpoints%hit, 't = 2.5 hit')
+
+       call checkpoints%check(3.2_dp, 1.0_dp)
+       call assert_equals(PETSC_TRUE, checkpoints%hit, 't = 3.2 hit')
+       call checkpoints%update()
+
+       call checkpoints%check(4.5_dp, 1.3_dp)
+       call assert_equals(PETSC_TRUE, checkpoints%hit, 't = 4.5 hit')
+       call checkpoints%update()
+       call assert_equals(5._dp, checkpoints%next_time, 't = 4.5 next_time')
+       call assert_equals(2, checkpoints%repeat_index, 't = 4.5 repeat_index')
+
+       call checkpoints%check(5.1_dp, 1.2_dp)
+       call assert_equals(PETSC_TRUE, checkpoints%hit, 't = 5.1 hit')
+       call checkpoints%update()
+
+       call checkpoints%update()
+       call assert_equals(3, checkpoints%index, 'last index')
+       call assert_equals(8._dp, checkpoints%next_time, 'last next_time')
+       call checkpoints%check(7.9_dp, 1.5_dp)
+       call assert_equals(PETSC_FALSE, checkpoints%hit, 't = 7.9 hit')
+       call checkpoints%check(7.99_dp, 1.5_dp)
+       call assert_equals(PETSC_TRUE, checkpoints%hit, 't = 7.99 hit')
+
+       call checkpoints%update()
+       call assert_equals(PETSC_TRUE, checkpoints%done, 'last done')
+
+       call checkpoints%destroy()
+
+       ! Test indefinite repeating:
+       times = [1._dp]
+       repeat = -1
+       call checkpoints%init(times, repeat, tolerance, start_time)
+       call assert_equals(PETSC_FALSE, checkpoints%done, 'indefinite repeat done 1')
+       call checkpoints%update()
+       call assert_equals(PETSC_FALSE, checkpoints%done, 'indefinite repeat done 2')
+       call checkpoints%update()
+       call assert_equals(PETSC_FALSE, checkpoints%done, 'indefinite repeat done 3')
+       call checkpoints%update()
+       call checkpoints%check(4.1_dp, 0.5_dp)
+       call assert_equals(PETSC_TRUE, checkpoints%hit, 'indefinite repeat t = 4.1 hit')
+       call checkpoints%destroy()
+
+       deallocate(times)
+
+    end if
+
+  end subroutine test_checkpoints
 
 !------------------------------------------------------------------------
 
