@@ -68,7 +68,6 @@ module flow_simulation_module
      procedure, public :: destroy => flow_simulation_destroy
      procedure, public :: lhs => flow_simulation_cell_balances
      procedure, public :: rhs => flow_simulation_cell_inflows
-     procedure, public :: pre_solve => flow_simulation_pre_solve
      procedure, public :: pre_timestep => flow_simulation_pre_timestep
      procedure, public :: pre_retry_timestep => flow_simulation_pre_retry_timestep
      procedure, public :: pre_iteration => flow_simulation_pre_iteration
@@ -417,6 +416,7 @@ contains
     call self%mesh%set_boundary_values(self%solution, self%fluid, &
          self%rock, self%eos, self%solution_range_start, &
          self%fluid_range_start, self%rock_range_start)
+    call self%fluid_init(self%time, self%solution, ierr)
     call setup_sources(json, self%mesh%dm, self%eos, self%thermo, &
          self%time, self%fluid, self%fluid_range_start, &
          self%sources, self%source_controls, self%logfile)
@@ -747,22 +747,6 @@ contains
     end subroutine source_iterator
 
   end subroutine flow_simulation_cell_inflows
-
-!------------------------------------------------------------------------
-
-  subroutine flow_simulation_pre_solve(self, t, y, err)
-    !! Routine to be called before the timestepper starts to run.
-    !! Here the initial fluid properties in all cells are computed.
-
-    class(flow_simulation_type), intent(in out) :: self
-    PetscReal, intent(in) :: t !! time
-    Vec, intent(in) :: y !! global primary variables vector
-    PetscErrorCode, intent(out) :: err
-
-    err = 0
-    call self%fluid_init(t, y, err)
-
-  end subroutine flow_simulation_pre_solve
 
 !------------------------------------------------------------------------
 
