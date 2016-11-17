@@ -97,19 +97,20 @@ class t2data_export_json(t2data):
                                           {'absolute': abstol, 'relative': reltol}},
                                       'maximum': {'iterations': maxit}}}}
         if self.parameter['const_timestep'] < 0. :
-            jsondata['time']['step'].update({'sizes': self.parameter['timestep'],
-                                        'adapt': {'on': False}})
+            jsondata['time']['step'].update({'size': self.parameter['timestep'],
+                                             'adapt': {'on': False}})
         else:
-            jsondata['time']['step'].update({'initial': self.parameter['const_timestep']})
-            if self.parameter['option'][16] > 0:
-                redlt = self.parameter['timestep_reduction']
-                if redlt is None or redlt == 0:
-                    redlt = 5  # default for AUTOUGH2.2
-                jsondata['time']['step']['adapt'] = \
-                    {'on': True, 'method': 'iteration',
-                     'reduction': 1. / redlt,
-                     'amplification': 2.,
-                     'minimum': float(self.parameter['option'][16]), 'maximum': float(maxit)}
+            jsondata['time']['step'].update({'size': self.parameter['const_timestep'],
+                                             'adapt': {'on': True}})
+        if self.parameter['option'][16] > 0:
+            redlt = self.parameter['timestep_reduction']
+            if redlt is None or redlt == 0:
+                redlt = 5  # default for AUTOUGH2.2
+            jsondata['time']['step']['adapt'].update(
+                {'method': 'iteration',
+                 'reduction': 1. / redlt,
+                 'amplification': 2.,
+                 'minimum': float(self.parameter['option'][16]), 'maximum': float(maxit)})
         return jsondata
 
     def rocks_json(self, geo, atmos_volume):
@@ -320,4 +321,35 @@ class t2data_export_json(t2data):
             'frequency': print_interval,
             'final': True}
         if self.parameter['option'][24] > 0: jsondata['output']['initial'] = True
+        if self.output_times:
+            time_tol = 1.e-8
+            checkpoint = {'repeat': False}
+            if 'num_times_specified' in self.output_times:
+                num_times_specified = self.output_times['num_times_specified']
+            else:
+                num_times_specified = len(self.output_times['time'])
+            if 'num_times' in self.output_times:
+                num_times = self.output_times['num_times']
+            else:
+                num_times = num_times_specified
+            if num_times_specified >= 0:
+                times = self.output_times['time']
+                if 'time_increment' in self.output_times:
+                    dt = self.output_times['time_increment']
+                    if num_times_specified == 1 and abs(times[0] - dt) <= time_tol:
+                        checkpoint['repeat'] = num_times
+                    else:
+                        for i in range(num_times - num_times_specified):
+                            times.append(times[-1] + dt)
+                checkpoint['time'] = times
+            else: # time steps
+                steps = self.output_times['time']
+                if 'time_increment' in self.output_times:
+                    dt = self.output_times['time_increment']
+                    for i in range(num_times - num_times_specified):
+                        steps.append(dt)
+                checkpoint['step'] = steps
+            if self.type == 'AUTOUGH2': checkpoint['tolerance'] = 0.1
+            else: checkpoint['tolerance'] = 0.
+            jsondata['output']['checkpoint'] = checkpoint
         return jsondata
