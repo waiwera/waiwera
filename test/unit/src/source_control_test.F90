@@ -250,13 +250,13 @@ contains
     call MPI_reduce(sources%count, num_sources, 1, MPI_INTEGER, MPI_SUM, &
          mpi%input_rank, mpi%comm, ierr)
     if (mpi%rank == mpi%input_rank) then
-      call assert_equals(11, num_sources, "number of sources")
+      call assert_equals(12, num_sources, "number of sources")
     end if
 
     call MPI_reduce(source_controls%count, num_source_controls, 1, &
          MPI_INTEGER, MPI_SUM, mpi%input_rank, mpi%comm, ierr)
     if (mpi%rank == mpi%input_rank) then
-      call assert_equals(19, num_source_controls, "number of source controls")
+      call assert_equals(20, num_source_controls, "number of source controls")
     end if
 
     call global_to_local_vec_section(fluid_vector, local_fluid_vector, &
@@ -349,6 +349,10 @@ contains
             call assert_equals(50.1e5_dp, &
                  source_control%reference_pressure%val(1), &
                  tol, "source 7 reference pressure")
+         case ("source 12")
+            call assert_equals(cell_pressure, &
+                 source_control%reference_pressure%val(1), &
+                 tol, "source 12 reference pressure")
          end select
 
       type is (source_control_limiter_type)
@@ -403,6 +407,8 @@ contains
             call assert_equals(-12.9264888581701_dp, source%rate, tol, "source 10 rate")
          case ("source 11")
             call assert_equals(-10.3366086953508_dp, source%rate, tol, "source 11 rate")
+         case ("source 12")
+            call assert_equals(0._dp, source%rate, tol, "source 12 rate")
          end select
       end select
       stopped = PETSC_FALSE
