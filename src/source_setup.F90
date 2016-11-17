@@ -316,7 +316,7 @@ contains
 !------------------------------------------------------------------------
 
   subroutine setup_inline_source_controls(source_json, eos, thermo, &
-       start_time, local_fluid_data, local_fluid_section, fluid_range_start, &
+       start_time, fluid_data, fluid_section, fluid_range_start, &
        srcstr, num_cells, cell_sources, source_controls, logfile)
     !! Sets up any 'inline' source controls for the source,
     !! i.e. controls defined implicitly in the specification of the source.
@@ -330,8 +330,8 @@ contains
     class(eos_type), intent(in) :: eos
     class(thermodynamics_type), intent(in) :: thermo
     PetscReal, intent(in) :: start_time
-    PetscReal, pointer, contiguous, intent(in) :: local_fluid_data(:)
-    PetscSection, intent(in) :: local_fluid_section
+    PetscReal, pointer, contiguous, intent(in) :: fluid_data(:)
+    PetscSection, intent(in) :: fluid_section
     PetscInt, intent(in) :: fluid_range_start
     character(len = *), intent(in) :: srcstr
     PetscInt, intent(in) :: num_cells
@@ -355,12 +355,12 @@ contains
          averaging_type, cell_sources, source_controls)
 
     call setup_deliverability_source_control(source_json, srcstr, &
-         start_time, local_fluid_data, local_fluid_section, fluid_range_start, &
+         start_time, fluid_data, fluid_section, fluid_range_start, &
          interpolation_type, averaging_type, num_cells, cell_sources, &
          source_controls, logfile)
 
     call setup_recharge_source_control(source_json, srcstr, &
-         local_fluid_data, local_fluid_section, fluid_range_start, &
+         fluid_data, fluid_section, fluid_range_start, &
          interpolation_type, averaging_type, num_cells, cell_sources, &
          source_controls, logfile)
 
