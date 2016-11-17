@@ -97,19 +97,20 @@ class t2data_export_json(t2data):
                                           {'absolute': abstol, 'relative': reltol}},
                                       'maximum': {'iterations': maxit}}}}
         if self.parameter['const_timestep'] < 0. :
-            jsondata['time']['step'].update({'size': self.parameter['timestep'],
-                                        'adapt': {'on': False}})
+            jsondata['time']['step'].update({'size': self.parameter['timestep']})
         else:
             jsondata['time']['step'].update({'size': self.parameter['const_timestep']})
-            if self.parameter['option'][16] > 0:
-                redlt = self.parameter['timestep_reduction']
-                if redlt is None or redlt == 0:
-                    redlt = 5  # default for AUTOUGH2.2
-                jsondata['time']['step']['adapt'] = \
-                    {'on': True, 'method': 'iteration',
-                     'reduction': 1. / redlt,
-                     'amplification': 2.,
-                     'minimum': float(self.parameter['option'][16]), 'maximum': float(maxit)}
+        if self.parameter['option'][16] > 0:
+            redlt = self.parameter['timestep_reduction']
+            if redlt is None or redlt == 0:
+                redlt = 5  # default for AUTOUGH2.2
+            jsondata['time']['step']['adapt'] = \
+                {'on': True, 'method': 'iteration',
+                 'reduction': 1. / redlt,
+                 'amplification': 2.,
+                 'minimum': float(self.parameter['option'][16]), 'maximum': float(maxit)}
+        else:
+            jsondata['time']['step']['adapt'] = {'on': False}
         return jsondata
 
     def rocks_json(self, geo, atmos_volume):
