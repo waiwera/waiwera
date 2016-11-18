@@ -142,7 +142,7 @@ for field_name in digitised_test_fields:
         plt.plot(t / yr, var / scale[field_name], symbol[sim], label = sim)
     plt.xlabel('time (years)')
     plt.ylabel(field_name + ' (' + unit[field_name] + ')')
-    plt.legend()
+    plt.legend(loc = 'best')
     plt.title(' '.join((model_name, field_name.lower(),
                         'results at', obspt, 'well')))
     img_filename_base = '_'.join((model_name, obspt, field_name))
