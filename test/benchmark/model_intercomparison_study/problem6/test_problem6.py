@@ -126,9 +126,15 @@ yr = 365. * 24. * 60. * 60.
 tc_name = "AUTOUGH2 " + obspt + " well"
 
 for field_name in digitised_test_fields:
+
     t = problem6_test.testComps[run_index][tc_name].times
     var = problem6_test.mSuite.resultsList[run_index].getFieldHistoryAtCell(field_name, obs_cell_index)
     plt.plot(t / yr, var / scale[field_name], '-', label = 'Waiwera')
+
+    t = AUTOUGH2_result.getTimes()
+    var = AUTOUGH2_result.getFieldHistoryAtCell(field_name, obs_cell_index)
+    plt.plot(t / yr, var / scale[field_name], '+', label = 'AUTOUGH2')
+
     for sim in digitised_simulators:
         result = digitised_result[obspt, field_name, sim]
         t = result.getTimes()
