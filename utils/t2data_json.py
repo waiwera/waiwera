@@ -28,7 +28,7 @@ class t2data_export_json(t2data):
         json_data = self.json(geo, exoname, atmos_volume, incons, eos, bdy_incons)
         datbase, ext = splitext(self.filename)
         jsonname = datbase + '.json'
-        json.dump(json_data, file(jsonname, 'w'), indent = indent)
+        json.dump(json_data, open(jsonname, 'w'), indent = indent)
 
     def json(self, geo, mesh_filename, atmos_volume = 1.e25, incons = None,
                     eos = None, bdy_incons = None):
