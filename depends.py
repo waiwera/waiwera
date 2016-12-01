@@ -1,4 +1,7 @@
 """Analyses Fortan 90 source code module dependencies."""
+from builtins import str
+from builtins import zip
+from builtins import object
 
 def comment_line(line, i):
     """Returns True if line has a comment marker before the specified index. """
@@ -76,7 +79,7 @@ class module(object):
         self.depends = list(depends)
         self.depends.sort()
 
-class sourcefile(file):
+class sourcefile(object):
     """Source code file."""
     def __init__(self, filename):
         from os.path import split
@@ -84,9 +87,9 @@ class sourcefile(file):
         self.filename = name
         self.path = path
         self.modules = []
-        super(sourcefile, self).__init__(filename)
+        self._file = open(filename)
         self.parse()
-        self.close()
+        self._file.close()
 
     def __repr__(self):
         return self.filename + ':' + str(self.modules)
@@ -95,7 +98,7 @@ class sourcefile(file):
         """Parses modules in source file."""
         done = False
         while not done:
-            m = module(self)
+            m = module(self._file)
             if m.name is None: done = True
             else: self.modules.append(m)
 
@@ -146,7 +149,7 @@ class dependencies(object):
         omit is a list of targets to omit from the output."""
         from os.path import split, sep
         if objdirs == []: objdirs = self.srcdirs
-        objdirdict = dict(zip(self.srcdirs, objdirs))
+        objdirdict = dict(list(zip(self.srcdirs, objdirs)))
         if len(variables) > 0:
             def subst_vars(f):
                 newf = f
@@ -156,6 +159,7 @@ class dependencies(object):
         else:
             def subst_vars(f): return f
         outfile = open(filename, 'w')
+        lines = []
         for sourcename in self.sourcefiles:
             s = self.sourcefiles[sourcename]
             if len(s.depends) > 0:
@@ -175,7 +179,8 @@ class dependencies(object):
                             if depend_objname != objname:
                                 depends.append(depend_objname)
                     if depends:
-                        outfile.write(objname + ":" + " ".join(depends) + '\n')
+                        lines.append(objname + ":" + " ".join(depends) + '\n')
+        for line in sorted(lines): outfile.write(line)
         outfile.close()
 
     def write_module_dot(self, path = './', filename = 'depends.dot'):
@@ -183,6 +188,7 @@ class dependencies(object):
         This can be used to produce a module dependency diagram
         using e.g. Graphviz."""
         outfile = open(filename, 'w')
+        lines = []
         top = 'depends'
         for sourcename in self.sourcefiles:
             s = self.sourcefiles[sourcename]
@@ -197,7 +203,8 @@ class dependencies(object):
             if s.path == path:
                 for m in s.modules:
                     for d in m.depends:
-                        outfile.write('        ' + m.name + ' -> ' + d + '\n')
+                        lines.append('        ' + m.name + ' -> ' + d + '\n')
+        for line in sorted(lines): outfile.write(line)
         outfile.write('}')
         outfile.close()
 
