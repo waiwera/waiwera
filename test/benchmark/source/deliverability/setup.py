@@ -39,11 +39,11 @@ dat.parameter.update(
 dat.parameter['option'][24] = 2 # output initial results
 dat.parameter['option'][16] = 0
 dat.parameter['timestep'] = list(dts)
-dat.parameter['const_timestep'] = -int(round(ndt/ 8))
+dat.parameter['const_timestep'] = -int(round(ndt // 8))
 
 dat.write(model_name + '.dat')
 
-iblk = geo.num_blocks / 2
+iblk = geo.num_blocks // 2
 
 run_names = ['delv', 'delg_flow', 'delg_pi_table', 'delg_pwb_table', 'delg_limit', 'delt', 'delw']
 run_sources = {}

@@ -1,6 +1,7 @@
 from t2data_json import *
 from t2incons import *
 from t2thermo import cowat
+from builtins import zip
 import json
 import os
 
@@ -12,7 +13,7 @@ os.chdir(model_dir)
 model_name = 'problem5'
 dimensions = [300., 200., 100.]
 nblks = [12, 8, 1]
-gridsizes = [dim / nblk for dim, nblk in zip(dimensions, nblks)]
+gridsizes = [dim // nblk for dim, nblk in zip(dimensions, nblks)]
 dx = [[gridsize] * nblk for gridsize, nblk in zip(gridsizes, nblks)]
 
 geo = mulgrid().rectangular(dx[0], dx[1], dx[2], atmos_type = 2)

@@ -48,7 +48,7 @@ dat.parameter['option'][1] = 1
 dat.parameter['option'][24] = 2 # output initial results
 dat.parameter['option'][16] = 0
 dat.parameter['timestep'] = list(dts)
-dat.parameter['const_timestep'] = -int(round(ndt / 8))
+dat.parameter['const_timestep'] = -int(round(ndt // 8))
 
 dat.multi = {'num_components':1, 'num_equations':2,
              'num_phases':2, 'num_secondary_parameters':6,

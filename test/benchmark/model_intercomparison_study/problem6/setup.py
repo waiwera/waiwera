@@ -14,7 +14,7 @@ model_name = 'problem6'
 
 lx, ly = 5.e3, 4.e3
 nx, ny = 5, 5
-dx, dy = lx / nx, ly / ny
+dx, dy = lx / float(nx), ly / float(ny)
 zthick = [300.] * 4 + [600.]
 
 geo = mulgrid().rectangular([dx] * nx, [dy] * ny, zthick, atmos_type = 1)
