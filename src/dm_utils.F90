@@ -308,7 +308,7 @@ contains
     PetscInt, intent(out) :: f !! Face mesh point in DM
     ! Locals:
     PetscInt :: i, num_faces, imax
-    PetscInt :: dim, start_cell, end_cell
+    PetscInt :: start_cell, end_cell
     PetscErrorCode :: ierr
     PetscInt, pointer :: faces(:)
     PetscReal, allocatable, target :: centroid(:), face_normal(:)
@@ -321,8 +321,7 @@ contains
 
     if ((start_cell <= c) .and. (c < end_cell)) then
 
-       call DMGetDimension(dm, dim, ierr); CHKERRQ(ierr)
-       allocate(centroid(dim), face_normal(dim))
+       allocate(centroid(3), face_normal(3))
        pcentroid => centroid
        pface_normal => face_normal
        call DMPlexGetConeSize(dm, c, num_faces, ierr); CHKERRQ(ierr)
