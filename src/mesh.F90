@@ -275,11 +275,13 @@ contains
     class(mesh_type), intent(in out) :: self
     PetscInt, intent(in) :: dof !! Degrees of freedom
     ! Locals:
-    PetscInt :: num_components(1), field_dim(1)
+    PetscInt :: num_components(1), dim, field_dim(1)
     character(7) :: field_names(1)
+    PetscErrorCode :: ierr
 
+    call DMGetDimension(self%dm, dim, ierr); CHKERRQ(ierr)
     num_components = dof
-    field_dim = 3
+    field_dim = dim
     field_names(1) = "Primary"
 
     call set_dm_data_layout(self%dm, num_components, field_dim, &
