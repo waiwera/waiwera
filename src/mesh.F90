@@ -344,8 +344,8 @@ contains
 
     ! First call PETSc geometry routine- we use the cell geometry vector but need to 
     ! create our own face geometry vector, containing additional parameters:
-    call DMPlexSNESGetGeometryFVM(self%dm, petsc_face_geom, self%cell_geom, &
-         PETSC_NULL_REAL, ierr); CHKERRQ(ierr)
+    call DMPlexComputeGeometryFVM(self%dm, self%cell_geom, petsc_face_geom, &
+         ierr); CHKERRQ(ierr)
     call PetscObjectSetName(self%cell_geom, "cell_geometry", ierr); CHKERRQ(ierr)
 
     ! Set up face geometry vector:
