@@ -50,7 +50,7 @@ module cell_module
   PetscInt, parameter :: num_cell_variables = 2
   PetscInt, parameter, public :: &
        cell_variable_num_components(num_cell_variables) = &
-       [1, 3] !! Number of components in each cell variable
+       [3, 1] !! Number of components in each cell variable
 
   public :: cell_type
 
