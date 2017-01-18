@@ -58,13 +58,10 @@ module face_module
      procedure, public :: flux => face_flux
   end type face_type
 
-  PetscInt, parameter :: num_face_variables = 5
+  PetscInt, parameter, public :: num_face_variables = 5
   PetscInt, parameter, public :: &
        face_variable_num_components(num_face_variables) = &
        [1, 2, 3, 3, 1]
-  PetscInt, parameter, public :: &
-       face_variable_dim(num_face_variables) = &
-       [2, 2, 2, 2, 2]
   PetscInt, parameter :: max_face_variable_name_length = 24
   character(max_face_variable_name_length), parameter, public :: &
        face_variable_names(num_face_variables) = &

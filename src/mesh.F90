@@ -341,6 +341,7 @@ contains
     PetscInt, pointer :: cells(:)
     IS :: bdy_IS
     PetscInt, pointer :: bdy_faces(:)
+    PetscInt :: dim, face_variable_dim(num_face_variables)
 
     call face%init()
 
@@ -352,6 +353,8 @@ contains
 
     ! Set up face geometry vector:
     call DMClone(self%dm, dm_face, ierr); CHKERRQ(ierr)
+    call DMGetDimension(self%dm, dim, ierr); CHKERRQ(ierr)
+    face_variable_dim = dim - 1
     call set_dm_data_layout(dm_face, face_variable_num_components, face_variable_dim, &
          face_variable_names)
 

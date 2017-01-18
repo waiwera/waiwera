@@ -57,9 +57,6 @@ module rock_module
   PetscInt, parameter, public :: &
        rock_variable_num_components(num_rock_variables) = &
        [3, 1, 1, 1, 1, 1]
-  PetscInt, parameter, public :: &
-       rock_variable_dim(num_rock_variables) = &
-       [3, 3, 3, 3, 3, 3]
   PetscInt, parameter, public :: max_rockname_length = 24
 
   PetscInt, parameter, public :: max_rocktype_label_length = 9
@@ -301,10 +298,13 @@ contains
     type(logfile_type), intent(in out) :: logfile
     ! Locals:
     DM :: dm_rock
+    PetscInt :: dim, rock_variable_dim(num_rock_variables)
     PetscErrorCode :: ierr
 
     call DMClone(dm, dm_rock, ierr); CHKERRQ(ierr)
 
+    call DMGetDimension(dm, dim, ierr); CHKERRQ(ierr)
+    rock_variable_dim = dim
     call set_dm_data_layout(dm_rock, rock_variable_num_components, &
          rock_variable_dim, rock_variable_names)
 

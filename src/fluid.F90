@@ -383,7 +383,7 @@ contains
     PetscInt, intent(out) :: range_start
     ! Locals:
     PetscInt :: num_components, num_phases
-    PetscInt :: p, i, j
+    PetscInt :: p, i, j, dim
     PetscInt, allocatable :: num_field_components(:), field_dim(:)
     PetscErrorCode :: ierr
     PetscInt, parameter :: max_field_name_length = 40
@@ -399,7 +399,6 @@ contains
          field_names(fluid%dof))
 
     num_field_components = 1
-    field_dim = 3
 
     ! Assemble field names:
     field_names(1: num_fluid_variables) = fluid_variable_names
@@ -419,6 +418,8 @@ contains
 
     call DMClone(dm, fluid_dm, ierr); CHKERRQ(ierr)
 
+    call DMGetDimension(dm, dim, ierr); CHKERRQ(ierr)
+    field_dim = dim
     call set_dm_data_layout(fluid_dm, num_field_components, field_dim, &
          field_names)
 
