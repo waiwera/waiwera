@@ -20,6 +20,9 @@ module fson_mpi_module
   !! broadcast to other ranks, and with the ability to specify
   !! default values if not present in the JSON input.
 
+#include <petsc/finclude/petscsys.h>
+
+  use petscsys
   use kinds_module
   use mpi_module
   use logfile_module
@@ -27,9 +30,6 @@ module fson_mpi_module
 
   implicit none
   private
-
-#include <petsc/finclude/petscsys.h>
-#include <petsc/finclude/petscdef.h>
 
   interface fson_get_default
      module procedure fson_get_default_integer

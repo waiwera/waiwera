@@ -23,13 +23,14 @@ module IFC67_module
 
   ! These are higher-speed versions developed by Mike O'Sullivan for AUTOUGH2.
 
+#include <petsc/finclude/petscsys.h>
+
+  use petscsys
   use kinds_module
   use thermodynamics_module
 
   implicit none
   private
-
-#include <petsc/finclude/petscsys.h>
 
   PetscReal, parameter :: tcriticalk67 = 647.3_dp        ! Critical temperature (Kelvin)
   PetscReal, parameter :: tcritical67 = tcriticalk67 - tc_k

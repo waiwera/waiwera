@@ -18,6 +18,9 @@
 module source_setup_module
   !! Module for setting up sources and sinks.
 
+#include <petsc/finclude/petsc.h>
+
+  use petsc
   use kinds_module
   use fson
   use fson_value_m, only: TYPE_INTEGER, TYPE_REAL, TYPE_ARRAY, &
@@ -32,8 +35,6 @@ module source_setup_module
 
   implicit none
   private
-
-#include <petsc/finclude/petsc.h90>
 
   public :: setup_sources
 

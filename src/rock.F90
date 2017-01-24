@@ -18,13 +18,14 @@
 module rock_module
   !! Defines type for accessing local rock properties on cells and faces.
 
+#include <petsc/finclude/petsc.h>
+
+  use petsc
   use kinds_module
   use relative_permeability_module
 
   implicit none
   private
-
-#include <petsc/finclude/petsc.h90>
 
   type rock_type
      !! Local rock properties.

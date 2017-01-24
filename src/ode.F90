@@ -19,14 +19,15 @@ module ode_module
   !! Abstract base class for ordinary differential equations defined over a mesh,
   !! to be solved by timestepper class.
 
+#include <petsc/finclude/petsc.h>
+
+  use petsc
   use mesh_module
   use logfile_module
 
   implicit none
 
   private
-
-#include <petsc/finclude/petsc.h90>
 
   type, public, abstract :: ode_type
      private

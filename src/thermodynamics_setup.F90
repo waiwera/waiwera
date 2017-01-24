@@ -18,6 +18,9 @@
 module thermodynamics_setup_module
   !! Module for setting up thermodynamics from input.
 
+#include <petsc/finclude/petscsys.h>
+
+  use petscsys
   use thermodynamics_module
   use IAPWS_module
   use IFC67_module
@@ -26,8 +29,6 @@ module thermodynamics_setup_module
 
   implicit none
   private
-
-#include <petsc/finclude/petscdef.h>
 
   PetscInt, parameter :: max_thermo_ID_length = 8
   character(max_thermo_ID_length), parameter :: &

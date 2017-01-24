@@ -18,11 +18,12 @@
 module list_module
   !! Module for linked lists with arbitrary data and optional character tags.
 
+#include <petsc/finclude/petscsys.h>
+
+  use petscsys
+
   implicit none
   private
-
-#include <petsc/finclude/petscdef.h>
-#include <petsc/finclude/petscsys.h>
 
   type, public :: list_node_type
      !! List node type.

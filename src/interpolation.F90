@@ -18,13 +18,13 @@
 module interpolation_module
   !! Module for interpolation tables.
 
+#include <petsc/finclude/petscsys.h>
+
+  use petscsys
   use kinds_module
 
   implicit none
   private
-
-#include <petsc/finclude/petscdef.h>
-#include <petsc/finclude/petscsys.h>
 
   PetscInt, parameter, public :: INTERP_LINEAR = 0, INTERP_STEP = 1
   PetscInt, parameter, public :: INTERP_AVERAGING_ENDPOINT = 0, &

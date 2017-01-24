@@ -18,11 +18,12 @@
 module mpi_module
   !! MPI variables.
 
+#include <petsc/finclude/petscsys.h>
+
+  use petscsys
+
   implicit none
   private
-
-#include <petsc/finclude/petscdef.h>
-#include <petsc/finclude/petscsys.h>
 
   type, public :: mpi_type
      MPI_Comm, public :: comm !! MPI communicator
@@ -95,11 +96,11 @@ contains
     PetscErrorCode :: ierr
 
     call MPI_reduce(val, any_val, 1, MPI_LOGICAL, MPI_LOR, &
-         mpi%input_rank, mpi%comm, ierr)
-    if (mpi%rank == mpi%input_rank) then
+         self%input_rank, self%comm, ierr)
+    if (self%rank == self%input_rank) then
        val = any_val
     end if
-    call MPI_bcast(val, 1, MPI_LOGICAL, mpi%input_rank, mpi%comm, ierr)
+    call MPI_bcast(val, 1, MPI_LOGICAL, self%input_rank, self%comm, ierr)
 
   end subroutine mpi_broadcast_logical
 

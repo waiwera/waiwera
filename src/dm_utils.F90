@@ -18,10 +18,12 @@
 module dm_utils_module
   !! Module for utilities related to PETSc DMs (which handle data management on parallel meshes), and Vecs.
 
+#include <petsc/finclude/petsc.h>
+
+  use petsc
+
   implicit none
   private
-
-#include <petsc/finclude/petsc.h90>
 
   public :: set_dm_data_layout, section_offset, global_section_offset
   public :: global_vec_section, local_vec_section

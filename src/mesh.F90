@@ -18,14 +18,15 @@
 module mesh_module
   !! Module for mesh type.
 
+#include <petsc/finclude/petscdm.h>
+
+  use petscdm
   use mpi_module
   use fson
 
   implicit none
 
   private
-
-#include <petsc/finclude/petsc.h90>
 
   PetscInt, parameter, public :: max_mesh_filename_length = 200
   character(len = 16), public :: open_boundary_label_name = "open_boundary" !! Name of DMLabel for identifying open boundaries

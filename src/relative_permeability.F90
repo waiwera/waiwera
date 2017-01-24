@@ -18,14 +18,14 @@
 module relative_permeability_module
   !! Relative permeability functions.
 
+#include <petsc/finclude/petscsys.h>
+
+  use petscsys
   use kinds_module
   use fson
 
   implicit none
   private
-
-#include <petsc/finclude/petscdef.h>
-#include <petsc/finclude/petscsys.h>
 
   PetscInt, parameter, public :: max_relative_permeability_name_length = 12
 

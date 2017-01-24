@@ -18,12 +18,13 @@
 module logfile_module
   !! Module for logging output messages to file.
 
+#include <petsc/finclude/petsc.h>
+
+  use petsc
   use mpi_module
 
   implicit none
   private
-
-#include <petsc/finclude/petsc.h90>
 
   PetscInt, parameter, public :: LOG_LEVEL_INFO  = 1, &
        LOG_LEVEL_WARN = 2, LOG_LEVEL_ERR = 3

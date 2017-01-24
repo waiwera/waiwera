@@ -18,6 +18,9 @@
 module timestepper_module
   !! Time stepping methods for solving \(\frac{d}{dt} L(t,y) = R(t,y)\), where y is a parallel vector.
 
+#include <petsc/finclude/petsc.h>
+
+  use petsc
   use kinds_module
   use mpi_module
   use ode_module
@@ -26,8 +29,6 @@ module timestepper_module
   implicit none
 
   private
-
-#include <petsc/finclude/petsc.h90>
 
   ! Timestepping methods
      PetscInt, parameter, public :: TS_BEULER = 0, TS_BDF2 = 1, TS_DIRECTSS = 2
@@ -1808,7 +1809,7 @@ end subroutine timestepper_steps_set_next_stepsize
        call self%steps%check_checkpoints(self%ode%logfile)
        call self%steps%check_finished(self%ode%logfile)
 
-       call SNESSolve(self%solver, PETSC_NULL_OBJECT, self%steps%current%solution, &
+       call SNESSolve(self%solver, PETSC_NULL_VEC, self%steps%current%solution, &
             ierr); CHKERRQ(ierr)
        call SNESGetIterationNumber(self%solver, self%steps%current%num_iterations, &
             ierr); CHKERRQ(ierr)

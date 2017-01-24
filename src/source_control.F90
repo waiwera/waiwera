@@ -18,6 +18,9 @@
 module source_control_module
   !! Module for source controls- for controlling source parameters (e.g. flow rate, enthalpy) over time.
 
+#include <petsc/finclude/petsc.h>
+
+  use petsc
   use kinds_module
   use eos_module, only: max_phase_name_length
   use thermodynamics_module
@@ -27,8 +30,6 @@ module source_control_module
 
   implicit none
   private
-
-#include <petsc/finclude/petsc.h90>
 
   PetscReal, parameter, public :: default_source_control_separator_pressure = 0.55e6_dp
   PetscInt, parameter, public :: max_limiter_type_length = 5

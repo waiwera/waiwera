@@ -18,6 +18,9 @@
 program waiwera
   !! Main Waiwera driver program.
 
+#include <petsc/finclude/petscsys.h>
+
+  use petscsys
   use mpi_module
   use fson
   use fson_mpi_module
@@ -26,8 +29,6 @@ program waiwera
   use profiling_module
 
   implicit none
-
-#include <petsc/finclude/petscsys.h>
 
   type(fson_value), pointer :: json !! JSON object for simulation input
   type(flow_simulation_type) :: simulation !! Flow simulation object

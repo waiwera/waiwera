@@ -18,14 +18,15 @@
 module initial_module
   !! Module for setting up initial conditions.
 
+#include <petsc/finclude/petsc.h>
+
+  use petsc
   use kinds_module
   use fson
   use fson_mpi_module
 
   implicit none
   private
-
-#include <petsc/finclude/petsc.h90>
 
   public :: setup_initial
 

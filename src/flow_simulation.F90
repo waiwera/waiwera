@@ -18,6 +18,9 @@
 module flow_simulation_module
   !! Module for high-level representation of a flow simulation ODE.
 
+#include <petsc/finclude/petsc.h>
+
+  use petsc
   use ode_module
   use mesh_module
   use thermodynamics_module
@@ -30,8 +33,6 @@ module flow_simulation_module
   implicit none
 
   private
-
-#include <petsc/finclude/petsc.h90>
 
   PetscInt, parameter, public :: max_title_length = 120
   PetscInt, parameter, public :: max_flow_simulation_filename_length = 200
