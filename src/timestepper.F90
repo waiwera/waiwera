@@ -22,7 +22,6 @@ module timestepper_module
 
   use petsc
   use kinds_module
-  use mpi_module
   use ode_module
   use logfile_module
 
@@ -1243,7 +1242,7 @@ end subroutine timestepper_steps_set_next_stepsize
 
     call self%context%init(self%ode, self%steps, self%method%residual)
 
-    call SNESCreate(mpi%comm, self%solver, ierr); CHKERRQ(ierr)
+    call SNESCreate(PETSC_COMM_WORLD, self%solver, ierr); CHKERRQ(ierr)
     call SNESSetApplicationContext(self%solver, self%context, ierr); CHKERRQ(ierr)
     call SNESSetFunction(self%solver, self%residual, &
          SNES_residual, self%context, ierr); CHKERRQ(ierr)

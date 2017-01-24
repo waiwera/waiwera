@@ -21,7 +21,6 @@ module logfile_module
 #include <petsc/finclude/petsc.h>
 
   use petsc
-  use mpi_module
 
   implicit none
   private
@@ -87,8 +86,8 @@ contains
 
     self%filename = filename
     if (self%filename /= "") then
-       call PetscViewerASCIIOpen(mpi%comm, filename, self%viewer, ierr)
-       CHKERRQ(ierr)
+       call PetscViewerASCIIOpen(PETSC_COMM_WORLD, filename, self%viewer, &
+            ierr); CHKERRQ(ierr)
        call PetscViewerASCIIPushSynchronized(self%viewer, ierr)
        CHKERRQ(ierr)
     end if
@@ -126,16 +125,18 @@ contains
     character(*), intent(in) :: string
     PetscMPIInt, intent(in), optional :: rank
     ! Locals:
-    PetscMPIInt :: output_rank
+    PetscMPIInt :: mpi_rank, output_rank
     PetscErrorCode :: ierr
 
     if (present(rank)) then
        output_rank = rank
     else
-       output_rank = mpi%output_rank
+       output_rank = 0
     end if
 
-    if (mpi%rank == output_rank) then
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, mpi_rank, ierr)
+
+    if (mpi_rank == output_rank) then
 
        if (self%filename /= "") then
           call PetscViewerASCIISynchronizedPrintf(self%viewer, &

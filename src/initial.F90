@@ -251,7 +251,6 @@ contains
        y_range_start, fluid_range_start, index)
     !! Initializes fluid vector and solution vector y from HDF5 file.
 
-    use mpi_module
     use mesh_module
     use dm_utils_module, only: global_vec_section, global_section_offset
     use eos_module, only: eos_type
@@ -276,7 +275,7 @@ contains
     PetscInt :: np, c, ghost, y_offset, fluid_offset
     PetscErrorCode :: ierr
 
-    call PetscViewerHDF5Open(mpi%comm, filename, FILE_MODE_READ, &
+    call PetscViewerHDF5Open(PETSC_COMM_WORLD, filename, FILE_MODE_READ, &
          viewer, ierr); CHKERRQ(ierr)
     call PetscViewerHDF5PushGroup(viewer, "/", ierr); CHKERRQ(ierr)
 

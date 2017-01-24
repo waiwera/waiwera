@@ -27,7 +27,6 @@ module flow_simulation_module
   use eos_module
   use relative_permeability_module
   use logfile_module
-  use mpi_module
   use list_module
 
   implicit none
@@ -244,7 +243,7 @@ contains
     end if
 
     if (self%output_filename /= "") then
-       call PetscViewerHDF5Open(mpi%comm, self%output_filename, &
+       call PetscViewerHDF5Open(PETSC_COMM_WORLD, self%output_filename, &
             FILE_MODE_WRITE, self%hdf5_viewer, ierr); CHKERRQ(ierr)
        call PetscViewerHDF5PushGroup(self%hdf5_viewer, "/", ierr)
        CHKERRQ(ierr)
@@ -315,6 +314,7 @@ contains
     class(flow_simulation_type), intent(in out) :: self
     ! Locals:
     character(len = 6) :: major_str, minor_str, subminor_str
+    PetscMPIInt :: num_procs
 
     call self%logfile%write(LOG_LEVEL_INFO, 'run', 'start', &
          str_key = 'software', str_value = 'Waiwera' // &
@@ -330,8 +330,9 @@ contains
 
     call self%logfile%write(LOG_LEVEL_INFO, 'run', 'start', &
          str_key = 'compiler', str_value = compiler_version())
+    call MPI_COMM_SIZE(PETSC_COMM_WORLD, num_procs, ierr)
     call self%logfile%write(LOG_LEVEL_INFO, 'run', 'start', &
-         int_keys = ['num_processors'], int_values = [mpi%size])
+         int_keys = ['num_processors'], int_values = [num_procs])
 
     call self%logfile%write_blank()
 
@@ -847,6 +848,7 @@ contains
     use dm_utils_module, only: global_section_offset, global_vec_section
     use cell_module, only: cell_type
     use profiling_module, only: fluid_init_event
+    use mpi_utils_module, only: mpi_broadcast_error_flag
 
     class(flow_simulation_type), intent(in out) :: self
     PetscReal, intent(in) :: t !! time
@@ -860,9 +862,11 @@ contains
     PetscReal, pointer, contiguous :: fluid_array(:), rock_array(:)
     type(cell_type) :: cell
     DMLabel :: order_label
+    PetscMPIInt :: rank
     PetscErrorCode :: ierr
 
     call PetscLogEventBegin(fluid_init_event, ierr); CHKERRQ(ierr)
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
 
     err = 0
     np = self%eos%num_primary_variables
@@ -911,7 +915,7 @@ contains
                 call self%logfile%write(LOG_LEVEL_ERR, 'initialize', &
                      'fluid', ['cell  ', 'region'], [order, int(cell%fluid%region)], &
                      real_array_key = 'primary', real_array_value = cell_primary, &
-                     rank = mpi%rank)
+                     rank = rank)
                 exit
              end if
           else
@@ -920,7 +924,7 @@ contains
              call self%logfile%write(LOG_LEVEL_ERR, 'initialize', &
                   'fluid', ['cell  ', 'region'], [order, int(cell%fluid%region)], &
                   real_array_key = 'primary', real_array_value = cell_primary, &
-                  rank = mpi%rank)
+                  rank = rank)
              exit
           end if
 
@@ -933,7 +937,7 @@ contains
     call VecRestoreArrayF90(y, y_array, ierr); CHKERRQ(ierr)
     call cell%destroy()
 
-    call mpi%broadcast_error_flag(err)
+    call mpi_broadcast_error_flag(err)
 
     call PetscLogEventEnd(fluid_init_event, ierr); CHKERRQ(ierr)
 
@@ -949,6 +953,7 @@ contains
     use dm_utils_module, only: global_section_offset, global_vec_section
     use cell_module, only: cell_type
     use profiling_module, only: fluid_properties_event
+    use mpi_utils_module, only: mpi_broadcast_error_flag
 
     class(flow_simulation_type), intent(in out) :: self
     PetscReal, intent(in) :: t !! time
@@ -962,9 +967,11 @@ contains
     PetscReal, pointer, contiguous :: fluid_array(:), rock_array(:)
     type(cell_type) :: cell
     DMLabel :: order_label
+    PetscMPIInt :: rank
     PetscErrorCode :: ierr
 
     call PetscLogEventBegin(fluid_properties_event, ierr); CHKERRQ(ierr)
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
 
     err = 0
     np = self%eos%num_primary_variables
@@ -1014,7 +1021,7 @@ contains
                      'properties_not_found', &
                      ['cell            '], [order], &
                      real_array_key = 'primary         ', &
-                     real_array_value = cell_primary, rank = mpi%rank)
+                     real_array_value = cell_primary, rank = rank)
                 exit
              end if
           else
@@ -1023,7 +1030,7 @@ contains
                   'properties_not_found', &
                   ['cell            '], [order], &
                   real_array_key = 'primary         ', &
-                  real_array_value = cell_primary, rank = mpi%rank)
+                  real_array_value = cell_primary, rank = rank)
              exit
           end if
 
@@ -1036,7 +1043,7 @@ contains
     call VecRestoreArrayReadF90(y, y_array, ierr); CHKERRQ(ierr)
     call cell%destroy()
 
-    call mpi%broadcast_error_flag(err)
+    call mpi_broadcast_error_flag(err)
 
     call PetscLogEventEnd(fluid_properties_event, ierr); CHKERRQ(ierr)
 
@@ -1052,6 +1059,7 @@ contains
     use dm_utils_module, only: global_section_offset, global_vec_section
     use fluid_module, only: fluid_type
     use profiling_module, only: fluid_transitions_event
+    use mpi_utils_module, only: mpi_broadcast_error_flag, mpi_broadcast_logical
 
     class(flow_simulation_type), intent(in out) :: self
     Vec, intent(in) :: y_old !! Previous global primary variables vector
@@ -1069,9 +1077,11 @@ contains
     type(fluid_type) :: last_iteration_fluid, fluid
     DMLabel :: order_label
     PetscBool :: transition
+    PetscMPIInt :: rank
     PetscErrorCode :: ierr
 
     call PetscLogEventBegin(fluid_transitions_event, ierr); CHKERRQ(ierr)
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
 
     err = 0
     changed_search = PETSC_FALSE
@@ -1132,7 +1142,7 @@ contains
                         [order, &
                         nint(last_iteration_fluid%region), nint(fluid%region)], &
                         real_array_key = 'new_primary     ', &
-                        real_array_value = cell_primary, rank = mpi%rank)
+                        real_array_value = cell_primary, rank = rank)
                 end if
              else
                 call DMLabelGetValue(order_label, c, order, ierr)
@@ -1142,7 +1152,7 @@ contains
                      ['cell            ', 'region          '], &
                      [order, nint(fluid%region)], &
                      real_array_key = 'primary         ', &
-                     real_array_value = cell_primary, rank = mpi%rank)
+                     real_array_value = cell_primary, rank = rank)
                 exit
              end if
 
@@ -1152,7 +1162,7 @@ contains
                   'transition_failed', &
                   ['cell  ', 'region'], [order, nint(fluid%region)], &
                   real_array_key = 'primary', real_array_value = cell_primary, &
-                  rank = mpi%rank)
+                  rank = rank)
              exit
           end if
 
@@ -1169,9 +1179,9 @@ contains
     call last_iteration_fluid%destroy()
     call fluid%destroy()
 
-    call mpi%broadcast_error_flag(err)
-    call mpi%broadcast_logical(changed_y)
-    call mpi%broadcast_logical(changed_search)
+    call mpi_broadcast_error_flag(err)
+    call mpi_broadcast_logical(changed_y)
+    call mpi_broadcast_logical(changed_search)
 
     call PetscLogEventEnd(fluid_transitions_event, ierr); CHKERRQ(ierr)
 

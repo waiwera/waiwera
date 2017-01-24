@@ -21,7 +21,6 @@ program waiwera
 #include <petsc/finclude/petscsys.h>
 
   use petscsys
-  use mpi_module
   use fson
   use fson_mpi_module
   use flow_simulation_module
@@ -37,8 +36,6 @@ program waiwera
   PetscErrorCode :: ierr !! Error code for PETSc
 
   call PetscInitialize(PETSC_NULL_CHARACTER, ierr); CHKERRQ(ierr)
-  call mpi%init(PETSC_COMM_WORLD)
-
   call init_profiling()
 
   call get_filename(filename)
@@ -67,8 +64,10 @@ contains
     character(*), intent(out) :: filename !! JSON input filename
     ! Locals:
     PetscInt :: num_args, filename_length, ierr
+    PetscMPIInt :: rank
 
-    if (mpi%rank == mpi%input_rank) then
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
 
        num_args = command_argument_count()
        if (num_args == 0) then
@@ -82,7 +81,7 @@ contains
     end if
     filename_length = len_trim(filename)
     call MPI_bcast(filename, filename_length, MPI_CHARACTER, &
-         mpi%input_rank, mpi%comm, ierr)
+         0, PETSC_COMM_WORLD, ierr)
 
   end subroutine get_filename
 

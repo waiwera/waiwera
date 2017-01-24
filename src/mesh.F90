@@ -18,10 +18,10 @@
 module mesh_module
   !! Module for mesh type.
 
-#include <petsc/finclude/petscdm.h>
+#include <petsc/finclude/petsc.h>
 
-  use petscdm
-  use mpi_module
+  use petsc
+  use mpi_utils_module
   use fson
 
   implicit none
@@ -120,8 +120,11 @@ contains
     Vec :: v
     IS :: cell_interior_index
     PetscInt :: blocksize, start_global_index, i_global
+    PetscMPIInt :: rank, num_procs
     PetscErrorCode :: ierr
 
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    call MPI_COMM_SIZE(PETSC_COMM_WORLD, num_procs, ierr)
     call DMGetLabel(self%dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
 
     ! Count interior cells:
@@ -156,18 +159,18 @@ contains
     end do
 
     ! Gather arrays to root process:
-    if (mpi%rank == mpi%input_rank) then
-       allocate_size = mpi%size
+    if (rank == 0) then
+       allocate_size = num_procs
     else ! have to allocate non-zero size, even if not actually used:
        allocate_size = 1
     end if
     allocate(local_counts(allocate_size), displacements(allocate_size))
     call MPI_gather(local_count, 1, MPI_INTEGER, local_counts, 1, &
-         MPI_INTEGER, mpi%input_rank, mpi%comm, ierr)
-    if (mpi%rank == mpi%input_rank) then
+         MPI_INTEGER, 0, PETSC_COMM_WORLD, ierr)
+    if (rank == 0) then
        total_count = sum(local_counts)
        displacements(1) = 0
-       do i = 2, mpi%size
+       do i = 2, num_procs
           displacements(i) = displacements(i-1) + local_counts(i-1)
        end do
        total_allocate_count = total_count
@@ -178,15 +181,15 @@ contains
          natural_index_all(total_allocate_count))
     call MPI_gatherv(global_index, local_count, MPI_INTEGER, &
          global_index_all, local_counts, displacements, MPI_INTEGER, &
-         mpi%input_rank, mpi%comm, ierr)
+         0, PETSC_COMM_WORLD, ierr)
     call MPI_gatherv(natural_index, local_count, MPI_INTEGER, &
          natural_index_all, local_counts, displacements, MPI_INTEGER, &
-         mpi%input_rank, mpi%comm, ierr)
+         0, PETSC_COMM_WORLD, ierr)
     deallocate(global_index, natural_index)
 
     ! Set up index array on root process, and scatter:
     allocate(index_array_all(total_allocate_count))
-    if (mpi%rank == mpi%input_rank) then
+    if (rank == 0) then
        do i = 1, total_count
           index_array_all(natural_index_all(i) + 1) = global_index_all(i)
        end do
@@ -195,13 +198,13 @@ contains
     allocate(index_array(local_count))
     call MPI_scatterv(index_array_all, local_counts, displacements, &
          MPI_INTEGER, index_array, local_count, MPI_INTEGER, &
-         mpi%input_rank, mpi%comm, ierr)
-    call ISCreateGeneral(mpi%comm, local_count, index_array, &
+         0, PETSC_COMM_WORLD, ierr)
+    call ISCreateGeneral(PETSC_COMM_WORLD, local_count, index_array, &
          PETSC_COPY_VALUES, self%cell_index, ierr); CHKERRQ(ierr)
     call PetscObjectSetName(self%cell_index, "cell_index", ierr)
 
     ! Set up cell interior index set:
-    if (mpi%rank == mpi%input_rank) then
+    if (rank == 0) then
        do i = 1, total_count
           index_array_all(natural_index_all(i) + 1) = i - 1
        end do
@@ -209,10 +212,10 @@ contains
     deallocate(natural_index_all)
     call MPI_scatterv(index_array_all, local_counts, displacements, &
          MPI_INTEGER, index_array, local_count, MPI_INTEGER, &
-         mpi%input_rank, mpi%comm, ierr)
+         0, PETSC_COMM_WORLD, ierr)
     deallocate(index_array_all, local_counts, displacements)
 
-    call ISCreateGeneral(mpi%comm, local_count, index_array, &
+    call ISCreateGeneral(PETSC_COMM_WORLD, local_count, index_array, &
          PETSC_COPY_VALUES, cell_interior_index, ierr); CHKERRQ(ierr)
     deallocate(index_array)
     call PetscObjectSetName(cell_interior_index, &
@@ -303,7 +306,7 @@ contains
     PetscInt :: dim
     PetscErrorCode :: ierr
 
-    call PetscFVCreate(mpi%comm, fvm, ierr); CHKERRQ(ierr)
+    call PetscFVCreate(PETSC_COMM_WORLD, fvm, ierr); CHKERRQ(ierr)
     call PetscFVSetFromOptions(fvm, ierr); CHKERRQ(ierr)
     call PetscFVSetNumComponents(fvm, dof, ierr); CHKERRQ(ierr)
     call DMGetDimension(self%dm, dim, ierr); CHKERRQ(ierr)
@@ -510,8 +513,10 @@ contains
     ! Locals:
     PetscErrorCode :: ierr
     type(fson_value), pointer :: mesh
+    PetscMPIInt :: rank
 
-    if (mpi%rank == mpi%input_rank) then
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
        call fson_get(json, "mesh", mesh)
        if (associated(mesh)) then
           call fson_get(mesh, ".", self%filename)
@@ -520,18 +525,18 @@ contains
              call logfile%write(LOG_LEVEL_ERR, 'mesh', 'init', &
                   str_key = 'stop            ', &
                   str_value = 'mesh not found in input.', &
-                  rank = mpi%input_rank)
+                  rank = 0)
           end if
           stop
        end if
     end if
 
     call MPI_bcast(self%filename, max_mesh_filename_length, MPI_CHARACTER, &
-         mpi%input_rank, mpi%comm, ierr)
+         0, PETSC_COMM_WORLD, ierr)
 
     ! Read in DM:
-    call DMPlexCreateFromFile(mpi%comm, self%filename, PETSC_TRUE, self%dm, ierr)
-    CHKERRQ(ierr)
+    call DMPlexCreateFromFile(PETSC_COMM_WORLD, self%filename, PETSC_TRUE, &
+         self%dm, ierr); CHKERRQ(ierr)
 
     call DMPlexSetAdjacencyUseCone(self%dm, PETSC_TRUE, ierr); CHKERRQ(ierr)
     call DMPlexSetAdjacencyUseClosure(self%dm, PETSC_FALSE, ierr); CHKERRQ(ierr)
