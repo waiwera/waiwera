@@ -16,7 +16,7 @@
 !   along with Waiwera.  If not, see <http://www.gnu.org/licenses/>.
 
 module mpi_utils_module
-  !! MPI variables.
+  !! MPI utilities.
 
 #include <petsc/finclude/petscsys.h>
 
