@@ -237,9 +237,9 @@ contains
     PetscErrorCode :: ierr
     PetscInt, parameter :: overlap = 1
 
-    call DMPlexDistribute(self%dm, overlap, PETSC_NULL_OBJECT, &
+    call DMPlexDistribute(self%dm, overlap, PETSC_NULL_SF, &
          dist_dm, ierr); CHKERRQ(ierr)
-    if (dist_dm /= 0) then
+    if (dist_dm .ne. PETSC_NULL_DM) then
        call DMDestroy(self%dm, ierr); CHKERRQ(ierr)
        self%dm = dist_dm
     end if
@@ -258,7 +258,7 @@ contains
 
     call DMPlexConstructGhostCells(self%dm, open_boundary_label_name, &
          PETSC_NULL_INTEGER, ghost_dm, ierr); CHKERRQ(ierr)
-    if (ghost_dm /= 0) then
+    if (ghost_dm .ne. PETSC_NULL_DM) then
        call DMDestroy(self%dm, ierr); CHKERRQ(ierr);
        self%dm = ghost_dm
     end if
