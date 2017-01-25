@@ -483,11 +483,11 @@ contains
     class(mesh_type), intent(in out) :: self
     ! Locals:
     PetscErrorCode :: ierr
+    PetscInt :: cmax, fmax, emax, vmax
 
-    call DMPlexGetHybridBounds(self%dm, self%end_interior_cell, &
-         PETSC_NULL_INTEGER, PETSC_NULL_INTEGER, PETSC_NULL_INTEGER, &
-         ierr)
+    call DMPlexGetHybridBounds(self%dm, cmax, fmax, emax, vmax, ierr)
     CHKERRQ(ierr)
+    self%end_interior_cell = cmax
 
     call DMPlexGetHeightStratum(self%dm, 0, self%start_cell, &
          self%end_cell, ierr)
