@@ -54,12 +54,16 @@ contains
     type(fson_value), pointer :: json
     character(100), parameter :: json_str = &
          '{"type": "linear", "liquid": [0.1, 0.8], "vapour": [0.3, 0.75]}'
+    PetscMPIInt :: rank
+    PetscInt :: ierr
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
 
     json => fson_parse(str = json_str)
     call linear%init(json)
     call fson_destroy(json)
 
-    if (mpi%rank == mpi%output_rank) then
+    if (rank == 0) then
 
        call assert_equals("Linear", linear%name, "Name")
 
@@ -83,12 +87,16 @@ contains
     type(fson_value), pointer :: json
     character(100), parameter :: json_str = &
          '{"type": "Pickens", "power": 2.0}'
+    PetscMPIInt :: rank
+    PetscInt :: ierr
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
 
     json => fson_parse(str = json_str)
     call pickens%init(json)
     call fson_destroy(json)
 
-    if (mpi%rank == mpi%output_rank) then
+    if (rank == 0) then
 
        call assert_equals("Pickens", pickens%name, "Name")
 
@@ -111,12 +119,16 @@ contains
     type(fson_value), pointer :: json
     character(100), parameter :: json_str = &
     '{"type": "Corey", "slr": 0.3, "ssr": 0.1}'
+    PetscMPIInt :: rank
+    PetscInt :: ierr
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
 
     json => fson_parse(str = json_str)
     call corey%init(json)
     call fson_destroy(json)
 
-    if (mpi%rank == mpi%output_rank) then
+    if (rank == 0) then
 
        call assert_equals("Corey", corey%name, "Name")
 
@@ -139,12 +151,16 @@ contains
     type(fson_value), pointer :: json
     character(100), parameter :: json_str = &
     '{"type": "Grant", "slr": 0.3, "ssr": 0.1}'
+    PetscMPIInt :: rank
+    PetscInt :: ierr
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
 
     json => fson_parse(str = json_str)
     call grant%init(json)
     call fson_destroy(json)
 
-    if (mpi%rank == mpi%output_rank) then
+    if (rank == 0) then
 
        call assert_equals("Grant", grant%name, "Name")
 
@@ -167,12 +183,16 @@ contains
     type(fson_value), pointer :: json
     character(100), parameter :: json_str = &
     '{"type": "Fully mobile"}'
+    PetscMPIInt :: rank
+    PetscInt :: ierr
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
 
     json => fson_parse(str = json_str)
     call mobile%init(json)
     call fson_destroy(json)
 
-    if (mpi%rank == mpi%output_rank) then
+    if (rank == 0) then
 
        call assert_equals("Fully mobile", mobile%name, "Name")
 

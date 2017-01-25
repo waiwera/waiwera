@@ -33,8 +33,11 @@ contains
     PetscReal, parameter :: tol = 1.e-6_dp
     PetscReal :: offset_padding(offset-1) = 0._dp
     PetscReal, pointer, contiguous :: rock_data(:)
+    PetscMPIInt :: rank
+    PetscInt :: ierr
 
-    if (mpi%rank == mpi%output_rank) then
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
 
        call rock%init()
        allocate(rock_data(offset - 1 + rock%dof))
@@ -72,8 +75,11 @@ contains
     PetscReal, parameter :: expected_er = 2.717e8
     PetscReal, parameter :: tol = 1.e-3_dp
     PetscInt,  parameter :: offset = 1
+    PetscMPIInt :: rank
+    PetscInt :: ierr
 
-    if (mpi%rank == mpi%output_rank) then
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
 
        call rock%init()
        allocate(rock_data(offset - 1 + rock%dof))

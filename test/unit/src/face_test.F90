@@ -40,8 +40,11 @@ contains
     PetscInt, parameter :: offset = 6
     PetscReal :: offset_padding(offset-1) = 0._dp
     PetscReal, pointer, contiguous :: face_data(:)
+    PetscMPIInt :: rank
+    PetscInt :: ierr
 
-    if (mpi%rank == mpi%output_rank) then
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
 
        call face%init()
 
@@ -89,8 +92,11 @@ contains
     PetscInt :: i
     PetscInt :: offset = 1
     character(len = 32) :: msg
+    PetscMPIInt :: rank
+    PetscInt :: ierr
 
-    if (mpi%rank == mpi%output_rank) then
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
 
        call face%init()
 
@@ -133,8 +139,11 @@ contains
     PetscReal, pointer, contiguous :: cell_data(:)
     PetscInt :: face_offset, cell_offsets(2)
     PetscReal :: g
+    PetscMPIInt :: rank
+    PetscInt :: ierr
 
-    if (mpi%rank == mpi%output_rank) then
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
 
        call cell%init(1,1) ! dummy argument values
        call face%init()
@@ -196,8 +205,11 @@ contains
          [194.937133277_dp, 170._dp, 240._dp, 0._dp, 0._dp, 0._dp]
     PetscInt :: i
     character(len = 32) :: msg
+    PetscMPIInt :: rank
+    PetscInt :: ierr
 
-    if (mpi%rank == mpi%output_rank) then
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
 
        call cell%init(1,1) ! dummy argument values
        call face%init()
@@ -254,12 +266,15 @@ contains
     PetscInt :: rock_offsets(2), fluid_offsets(2)
     PetscReal, parameter :: expected_mass_flux = 0._dp
     PetscReal, parameter :: expected_heat_flux = 0._dp
+    PetscMPIInt :: rank
+    PetscInt :: ierr
 
     call thermo%init()
     json => fson_parse(str = '{}')
     call eos%init(json, thermo)
 
-    if (mpi%rank == mpi%output_rank) then
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
 
        call cell%init(nc, num_phases)
        call face%init(nc, num_phases)
@@ -337,12 +352,15 @@ contains
     PetscInt :: rock_offsets(2), fluid_offsets(2)
     PetscReal, parameter :: expected_mass_flux = 2.9294255256e-5_dp
     PetscReal, parameter :: expected_heat_flux = 2.4610631137_dp
+    PetscMPIInt :: rank
+    PetscInt :: ierr
 
     call thermo%init()
     json => fson_parse(str = '{}')
     call eos%init(json, thermo)
 
-    if (mpi%rank == mpi%output_rank) then
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
 
        call cell%init(nc, num_phases)
        call face%init(nc, num_phases)
@@ -419,12 +437,15 @@ contains
     PetscInt :: rock_offsets(2), fluid_offsets(2)
     PetscReal, parameter :: expected_mass_flux = 0._dp
     PetscReal, parameter :: expected_heat_flux = 0._dp
+    PetscMPIInt :: rank
+    PetscInt :: ierr
 
     call thermo%init()
     json => fson_parse(str = '{}')
     call eos%init(json, thermo)
 
-    if (mpi%rank == mpi%output_rank) then
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
 
        call cell%init(nc, num_phases)
        call face%init(nc, num_phases)
@@ -506,12 +527,15 @@ contains
     PetscReal, parameter :: expected_vapour_density = 3.7044444444_dp
     PetscReal, parameter :: expected_mass_flux = 9.14772841429594e-5_dp
     PetscReal, parameter :: expected_heat_flux = 57.9124776818_dp
+    PetscMPIInt :: rank
+    PetscInt :: ierr
 
     call thermo%init()
     json => fson_parse(str = '{}')
     call eos%init(json, thermo)
 
-    if (mpi%rank == mpi%output_rank) then
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
 
        call cell%init(nc, num_phases)
        call face%init(nc, num_phases)

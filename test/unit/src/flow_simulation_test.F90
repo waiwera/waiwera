@@ -47,14 +47,14 @@ contains
     call DMGetLabelSize(sim%mesh%dm, rocktype_label_name, &
          num_rocktypes, ierr); CHKERRQ(ierr)
     call MPI_allreduce(num_rocktypes, total_num_rocktypes, 1, MPI_INTEGER, &
-         MPI_MAX, mpi%comm, ierr)
+         MPI_MAX, PETSC_COMM_WORLD, ierr)
     call DMGetLabel(sim%mesh%dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
     allocate(nrc(total_num_rocktypes), rock_count(total_num_rocktypes))
     do ir = 1, total_num_rocktypes
        nrc(ir) = 0 ! number of rocktype cells on processor
        call DMGetStratumIS(sim%mesh%dm, rocktype_label_name, ir, &
             rock_IS, ierr); CHKERRQ(ierr)
-       if (rock_IS /= 0) then
+       if (rock_IS .ne. PETSC_NULL_IS) then
           call ISGetIndicesF90(rock_IS, rock_cells, ierr); CHKERRQ(ierr)
           IS_size = size(rock_cells)
           do ic = 1, IS_size
@@ -68,7 +68,7 @@ contains
        end if
        call ISDestroy(rock_IS, ierr); CHKERRQ(ierr)
        call MPI_reduce(nrc(ir), rock_count(ir), 1, MPI_INTEGER, MPI_SUM, &
-            mpi%output_rank, mpi%comm, ierr)
+            0, PETSC_COMM_WORLD, ierr)
     end do
     deallocate(nrc)
 
@@ -88,7 +88,7 @@ contains
     PetscErrorCode :: ierr
     PetscViewer :: viewer
 
-    call PetscViewerHDF5Open(mpi%comm, &
+    call PetscViewerHDF5Open(PETSC_COMM_WORLD, &
          trim(path) // trim(name) // ".h5", &
          FILE_MODE_WRITE, viewer, ierr); CHKERRQ(ierr)
     call PetscViewerHDF5PushGroup(viewer, "/", ierr); CHKERRQ(ierr)
@@ -118,12 +118,14 @@ contains
     PetscViewer :: viewer
     PetscReal :: diffnorm
     PetscErrorCode :: ierr
+    PetscMPIInt :: rank
 
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
     call VecGetDM(v, dm, ierr); CHKERRQ(ierr)
     call DMGetGlobalVector(dm, vread, ierr); CHKERRQ(ierr)
     call DMGetGlobalVector(dm, diff, ierr); CHKERRQ(ierr)
     call PetscObjectSetName(vread, name, ierr); CHKERRQ(ierr)
-    call PetscViewerHDF5Open(mpi%comm, trim(path) // trim(name) // ".h5", &
+    call PetscViewerHDF5Open(PETSC_COMM_WORLD, trim(path) // trim(name) // ".h5", &
          FILE_MODE_READ, viewer, ierr)
     CHKERRQ(ierr)
     call PetscViewerHDF5PushGroup(viewer, "/", ierr); CHKERRQ(ierr)
@@ -140,7 +142,7 @@ contains
     call VecCopy(vread, diff, ierr); CHKERRQ(ierr)
     call VecAXPY(diff, -1._dp, v, ierr); CHKERRQ(ierr)
     call VecNorm(diff, NORM_2, diffnorm, ierr); CHKERRQ(ierr)
-    if (mpi%rank == mpi%output_rank) then
+    if (rank == 0) then
        call assert_equals(0._dp, diffnorm, tol, &
             "Flow simulation " // trim(name) // " vector")
     end if
@@ -161,13 +163,15 @@ contains
     PetscInt :: sim_dim, sim_dof
     Vec :: x
     PetscErrorCode :: ierr
+    PetscMPIInt :: rank
     
     call DMGetDimension(sim%mesh%dm, sim_dim, ierr); CHKERRQ(ierr)
     call DMGetGlobalVector(sim%mesh%dm, x, ierr); CHKERRQ(ierr)
     call VecGetSize(x, sim_dof, ierr); CHKERRQ(ierr)
     call DMRestoreGlobalVector(sim%mesh%dm, x, ierr); CHKERRQ(ierr)
 
-    if (mpi%rank == mpi%output_rank) then
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
        call assert_equals(title, sim%title, "Flow simulation title")
        call assert_equals(thermo, sim%thermo%name, "Flow simulation thermodynamics")
        call assert_equals(eos, sim%eos%name, "Flow simulation EOS")
@@ -191,23 +195,26 @@ contains
     PetscBool :: open_bdy, has_rock_label
     PetscInt, allocatable :: sim_rock_cells(:)
     PetscErrorCode :: ierr
+    PetscMPIInt :: rank
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
 
     ! Open boundary label:
     call DMHasLabel(sim%mesh%dm, open_boundary_label_name, open_bdy, &
          ierr); CHKERRQ(ierr)
-    if (mpi%rank == mpi%output_rank) then
+    if (rank == 0) then
        call assert_equals(.true., open_bdy, "Flow simulation open boundary label")
     end if
 
     ! Rock type label:
     call DMHasLabel(sim%mesh%dm, rocktype_label_name, has_rock_label, &
          ierr); CHKERRQ(ierr)
-    if (mpi%rank == mpi%output_rank) then
+    if (rank == 0) then
        call assert_equals(.true., has_rock_label, "Flow simulation rocktype label")
     end if
     if (has_rock_label) then
        call get_rocktype_counts(sim_rock_cells)
-       if (mpi%rank == mpi%output_rank) then
+       if (rank == 0) then
           call assert_equals(size(rock_cells), size(sim_rock_cells), &
                "Flow simulation num rocktypes")
           call assert_equals(rock_cells, sim_rock_cells, &

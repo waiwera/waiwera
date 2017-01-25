@@ -22,7 +22,6 @@ contains
     PetscErrorCode :: ierr
     
     call PetscInitialize(PETSC_NULL_CHARACTER, ierr); CHKERRQ(ierr)
-    call mpi%init(PETSC_COMM_WORLD)
     call init_profiling()
     
   end subroutine setup

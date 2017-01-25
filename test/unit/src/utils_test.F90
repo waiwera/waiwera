@@ -26,8 +26,11 @@ contains
     PetscInt, parameter :: strlen = 8
     character(len = strlen) :: str, upper_str
     character(len = strlen), parameter :: expected = "ABCABC12"
-    
-    if (mpi%rank == mpi%output_rank) then
+    PetscMPIInt :: rank
+    PetscInt :: ierr
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
        str = "abcABC12"
        upper_str = str_to_upper(str)
        call assert_equals(expected, upper_str, 'str_to_upper')
@@ -44,8 +47,11 @@ contains
     PetscInt, parameter :: strlen = 8
     character(len = strlen) :: str, lower_str
     character(len = strlen), parameter :: expected = "abcabc12"
+    PetscMPIInt :: rank
+    PetscInt :: ierr
     
-    if (mpi%rank == mpi%output_rank) then
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
        str = "abcABC12"
        lower_str = str_to_lower(str)
        call assert_equals(expected, lower_str, 'str_to_lower')
@@ -62,8 +68,11 @@ contains
     character(:), allocatable :: filename
     character(:), allocatable :: expected_base, expected_ext
     character(:), allocatable :: base, ext
+    PetscMPIInt :: rank
+    PetscInt :: ierr
 
-    if (mpi%rank == mpi%output_rank) then
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
     
        allocate(filename, source = "model.h5")
        allocate(expected_base, source = "model")
@@ -98,8 +107,11 @@ contains
 
     character(:), allocatable :: filename, ext
     character(:), allocatable :: new_filename, expected_filename
+    PetscMPIInt :: rank
+    PetscInt :: ierr
 
-    if (mpi%rank == mpi%output_rank) then
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
     
        allocate(filename, source = "model.h5")
        allocate(ext, source = "log")
@@ -130,7 +142,11 @@ contains
 
     ! Test int_str_len()
 
-    if (mpi%rank == mpi%output_rank) then
+    PetscMPIInt :: rank
+    PetscInt :: ierr
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
 
        call assert_equals(1, int_str_len(0), '0')
        call assert_equals(1, int_str_len(5), '5')
@@ -150,8 +166,11 @@ contains
 
     PetscInt, parameter :: strlen = 3
     character(len = strlen) :: arr(3), str
+    PetscMPIInt :: rank
+    PetscInt :: ierr
 
-    if (mpi%rank == mpi%output_rank) then
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
 
        arr = ["foo", "baz", "bar"]
 

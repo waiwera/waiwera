@@ -169,7 +169,7 @@ contains
     self%dof = 1
     self%stencil = 0
 
-    call DMDACreate1d(mpi%comm, DM_BOUNDARY_NONE, self%dim, self%dof, &
+    call DMDACreate1d(PETSC_COMM_WORLD, DM_BOUNDARY_NONE, self%dim, self%dof, &
          self%stencil, PETSC_NULL_INTEGER, self%mesh%dm, ierr); CHKERRQ(ierr)
     call DMSetUp(self%mesh%dm, ierr); CHKERRQ(ierr)
     call DMCreateGlobalVector(self%mesh%dm, self%solution, ierr); CHKERRQ(ierr)
@@ -500,7 +500,7 @@ contains
     dx = self%L / (self%dim - 1._dp)
     self%a = 1._dp / (dx*dx)
 
-    call DMDACreate1d(mpi%comm, DM_BOUNDARY_GHOSTED, self%dim-2, &
+    call DMDACreate1d(PETSC_COMM_WORLD, DM_BOUNDARY_GHOSTED, self%dim-2, &
          self%dof, self%stencil, PETSC_NULL_INTEGER, self%mesh%dm, &
          ierr); CHKERRQ(ierr)
     call DMSetUp(self%mesh%dm, ierr); CHKERRQ(ierr)
@@ -782,6 +782,10 @@ contains
     PetscInt :: num_cases, i
     type(timestepper_type) :: ts
     type(fson_value), pointer :: json
+    PetscMPIInt :: rank
+    PetscInt :: ierr
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
 
     num_cases = size(json_str)
 
@@ -799,7 +803,7 @@ contains
  
        call ts%run()
 
-       if (mpi%rank == mpi%output_rank) then
+       if (rank == 0) then
           call assert_equals(ts%steps%stop_time, &
                ts%steps%current%time, time_tolerance, &
                trim(ts%method%name) // ' stop time')
@@ -839,6 +843,10 @@ contains
     type(test_ode_type) :: test_ode
     PetscReal, allocatable :: initial(:)
     PetscErrorCode :: err
+    PetscMPIInt :: rank
+    PetscInt :: ierr
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
 
     initial = [-4._dp, -3.0_dp, -2.0_dp, -1.0_dp, &
          0.0_dp, 1.0_dp, 2.0_dp, 3.0_dp]
@@ -853,7 +861,7 @@ contains
     call test_ode%init(initial, err)
     call ts%init(json, test_ode)
 
-    if (mpi%rank == mpi%output_rank) then
+    if (rank == 0) then
        call assert_equals(1.0_dp, ts%steps%stop_time, time_tolerance, &
             "Timestepper stop time")
        call assert_equals(0.01_dp, ts%steps%next_stepsize, &
@@ -1193,8 +1201,11 @@ contains
     PetscInt :: repeat
     PetscReal :: start_time
     PetscReal, parameter :: tolerance = 0.01_dp
+    PetscMPIInt :: rank
+    PetscInt :: ierr
 
-    if (mpi%rank == mpi%output_rank) then
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
 
        times = [1._dp, 3._dp, 4._dp]
        repeat = 2

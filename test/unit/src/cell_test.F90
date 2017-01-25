@@ -30,8 +30,11 @@ contains
     PetscReal :: offset_padding(offset-1) = 0._dp
     PetscReal, pointer, contiguous :: cell_data(:)
     PetscReal, parameter :: tol = 1.e-6_dp
+    PetscMPIInt :: rank
+    PetscInt :: ierr
 
-    if (mpi%rank == mpi%output_rank) then
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
 
        allocate(cell_data(offset - 1 + sum(cell_variable_num_components)))
        cell_data = [offset_padding, centroid, volume]
@@ -68,8 +71,12 @@ contains
     PetscReal, parameter :: expected_bal(num_components + 1) = &
          [52.372_dp, 22.458_dp, 2.8545448e8_dp]
     PetscReal, parameter :: tol = 1.e-6_dp
+    PetscMPIInt :: rank
+    PetscInt :: ierr
 
-    if (mpi%rank == mpi%output_rank) then
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+
+    if (rank == 0) then
 
        allocate(rock_data(sum(rock_variable_num_components)), &
             fluid_data(num_fluid_variables + num_phases * &

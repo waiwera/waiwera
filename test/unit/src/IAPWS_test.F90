@@ -63,9 +63,12 @@ module IAPWS_test
       PetscReal :: param(2), props(2)
       PetscReal :: err_params(nerr,2) = reshape([ &
            20.e6_dp, 101.e6_dp, &
-            360._dp,    60._dp], [nerr,2])
+           360._dp,    60._dp], [nerr,2])
+      PetscInt :: ierr
+      PetscMPIInt :: rank
 
-      if (mpi%rank == mpi%output_rank) then
+      call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+      if (rank == 0) then
          params(:,2) = params(:,2) - tc_k  ! convert temperatures to Celcius
          do i = 1, n
             param = params(i,:)
@@ -101,8 +104,11 @@ module IAPWS_test
       PetscReal :: err_params(nerr,2) = reshape([ &
            20.e6_dp, 101.e6_dp, &
            801._dp,    60._dp], [nerr,2])
+      PetscInt :: ierr
+      PetscMPIInt :: rank
 
-      if (mpi%rank == mpi%output_rank) then
+      call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+      if (rank == 0) then
          params(:,2) = params(:,2) - tc_k  ! convert temperatures to Celcius
          do i = 1, n
             param = params(i,:)
@@ -137,8 +143,11 @@ module IAPWS_test
       PetscReal :: err_params(nerr,2) = reshape([ &
            800._dp, &
            400._dp], [nerr,2])
+      PetscInt :: ierr
+      PetscMPIInt :: rank
 
-      if (mpi%rank == mpi%output_rank) then
+      call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+      if (rank == 0) then
          params(:,2) = params(:,2) - tc_k  ! convert temperatures to Celcius
          do i = 1, n
             param = params(i,:)
@@ -169,8 +178,11 @@ module IAPWS_test
       PetscReal :: ps, ts
       PetscInt :: i, err
       PetscReal :: terr(nerr) = [380._dp], perr(nerr) = [30.e6_dp]
+      PetscInt :: ierr
+      PetscMPIInt :: rank
 
-      if (mpi%rank == mpi%output_rank) then
+      call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+      if (rank == 0) then
          do i = 1, n
             call IAPWS%saturation%pressure(t(i), ps, err)
             call assert_equals(p(i), ps, pressure_tol, 'pressure')
@@ -207,8 +219,11 @@ module IAPWS_test
       PetscReal, parameter :: p = 1.e5 ! dummy pressure
       PetscReal :: v
       PetscInt :: i
+      PetscInt :: ierr
+      PetscMPIInt :: rank
 
-      if (mpi%rank == mpi%output_rank) then
+      call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+      if (rank == 0) then
          do i = 1, n
             call IAPWS%region(reg(i))%ptr%viscosity(t(i), p, d(i), v)
             call assert_equals(visc(i), v, viscosity_tol)
@@ -226,8 +241,11 @@ module IAPWS_test
       PetscReal, parameter :: t0 = 0.62315e3_dp - tc_k
       PetscReal, parameter :: p0 = 0.165291643e8_dp
       PetscReal :: p, t
+      PetscInt :: ierr
+      PetscMPIInt :: rank
 
-      if (mpi%rank == mpi%output_rank) then
+      call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+      if (rank == 0) then
          call IAPWS%boundary23%pressure(t0, p)
          call assert_equals(p0, p, pressure_tol, "Pressure")
          call IAPWS%boundary23%temperature(p0, t)
@@ -243,8 +261,11 @@ module IAPWS_test
       ! Phase composition tests
 
       PetscInt :: phases, expected_phases
+      PetscInt :: ierr
+      PetscMPIInt :: rank
 
-      if (mpi%rank == mpi%output_rank) then
+      call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+      if (rank == 0) then
 
          phases = IAPWS%phase_composition(1, 1.e5_dp, 20._dp)
          expected_phases = b'001'
