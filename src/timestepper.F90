@@ -1373,7 +1373,7 @@ end subroutine timestepper_steps_set_next_stepsize
          context%steps%current%max_residual_cell * bs
 
     call SNESConvergedDefault(solver, num_iterations, xnorm, pnorm, &
-         fnorm, reason, PETSC_NULL_OBJECT, ierr); CHKERRQ(ierr)
+         fnorm, reason, 0, ierr); CHKERRQ(ierr)
 
     if (num_iterations < &
          context%steps%nonlinear_solver_minimum_iterations) then
