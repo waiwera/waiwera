@@ -315,6 +315,7 @@ contains
     ! Locals:
     character(len = 6) :: major_str, minor_str, subminor_str
     PetscMPIInt :: num_procs
+    PetscInt :: ierr
 
     call self%logfile%write(LOG_LEVEL_INFO, 'run', 'start', &
          str_key = 'software', str_value = 'Waiwera' // &
