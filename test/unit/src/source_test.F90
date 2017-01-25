@@ -2,16 +2,16 @@ module source_test
 
   ! Test for source module
 
+#include <petsc/finclude/petsc.h>
+
+  use petsc
   use kinds_module
-  use mpi_module
   use fruit
   use source_module
   use eos_test, only: eos_test_type
 
   implicit none
   private
-
-#include <petsc/finclude/petsc.h90>
 
 public :: test_source_update_flow
 

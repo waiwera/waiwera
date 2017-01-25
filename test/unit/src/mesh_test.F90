@@ -2,16 +2,16 @@ module mesh_test
 
   ! Tests for mesh module
 
+#include <petsc/finclude/petsc.h>
+
+  use petsc
   use kinds_module
-  use mpi_module
   use fruit
   use fson
   use mesh_module
 
   implicit none
   private
-
-#include <petsc/finclude/petsc.h90>
 
 public :: test_mesh_init
 

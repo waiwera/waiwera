@@ -2,8 +2,10 @@ module eos_w_test
 
   ! Tests for eos_w module (isothermal pure water equation of state)
 
+#include <petsc/finclude/petsc.h>
+
+  use petsc
   use kinds_module
-  use mpi_module
   use fruit
   use fluid_module
   use rock_module
@@ -15,8 +17,6 @@ module eos_w_test
 
   implicit none
   private
-
-#include <petsc/finclude/petsc.h90>
 
   public :: test_eos_w_fluid_properties
 

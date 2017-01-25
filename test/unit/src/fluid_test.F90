@@ -2,19 +2,18 @@ module fluid_test
 
   ! Test for fluid module
 
+#include <petsc/finclude/petscsys.h>
+
+  use petscsys
   use kinds_module
-  use mpi_module
   use fruit
   use fluid_module
 
   implicit none
   private
 
-#include <petsc/finclude/petscdef.h>
-
 public :: test_fluid_assign, test_fluid_component_density, &
      test_fluid_energy, test_fluid_enthalpy
-
 
 contains
   

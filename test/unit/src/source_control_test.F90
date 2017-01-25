@@ -2,8 +2,10 @@ module source_control_test
 
   ! Test for source control module
 
+#include <petsc/finclude/petsc.h>
+
+  use petsc
   use kinds_module
-  use mpi_module
   use fruit
   use source_module
   use source_control_module
@@ -11,8 +13,6 @@ module source_control_test
 
   implicit none
   private
-
-#include <petsc/finclude/petsc.h90>
 
   public :: test_source_control_table, test_source_control_pressure_reference
 

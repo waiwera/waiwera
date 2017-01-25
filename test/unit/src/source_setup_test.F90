@@ -2,16 +2,16 @@ module source_setup_test
 
   ! Tests for source setup module
 
+#include <petsc/finclude/petsc.h>
+
+  use petsc
   use kinds_module
-  use mpi_module
   use fruit
   use source_setup_module
   use eos_test
 
   implicit none
   private
-
-#include <petsc/finclude/petsc.h90>
 
 public :: test_setup_sources
 

@@ -2,15 +2,15 @@ module dm_utils_test
 
   ! Tests for dm_utils module
 
+#include <petsc/finclude/petsc.h>
+
+  use petsc
   use kinds_module
-  use mpi_module
   use fruit
   use dm_utils_module
 
   implicit none
   private
-
-#include <petsc/finclude/petsc.h90>
 
 public :: test_vec_reorder, test_dm_cell_normal_face
 

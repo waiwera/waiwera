@@ -2,15 +2,15 @@ module list_test
 
   ! Test for list module
 
+#include <petsc/finclude/petscsys.h>
+
+  use petscsys
   use kinds_module
-  use mpi_module
   use fruit
   use list_module
 
   implicit none
   private
-
-#include <petsc/finclude/petscdef.h>
 
   type :: thing_type
      character(len = 5) :: name

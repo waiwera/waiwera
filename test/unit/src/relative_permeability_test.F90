@@ -2,16 +2,16 @@ module relative_permeability_test
 
   ! Tests for relative permeability module
 
+#include <petsc/finclude/petscsys.h>
+
+  use petscsys
   use kinds_module
-  use mpi_module
   use fruit
   use relative_permeability_module
   use fson
 
   implicit none
   private
-
-#include <petsc/finclude/petscdef.h>
 
   PetscReal, parameter :: tol = 1.e-6_dp
 

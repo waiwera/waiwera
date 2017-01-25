@@ -2,14 +2,14 @@ module utils_test
 
   ! Tests for utils module
 
-  use mpi_module
+#include <petsc/finclude/petscsys.h>
+
+  use petscsys
   use fruit
   use utils_module
 
   implicit none
   private 
-
-#include <petsc/finclude/petscdef.h>
 
   public :: test_str_to_upper, test_str_to_lower, &
        test_split_filename, test_change_filename_extension, &

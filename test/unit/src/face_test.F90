@@ -2,8 +2,10 @@ module face_test
 
   ! Test for face module
 
+#include <petsc/finclude/petscsys.h>
+
+  use petscsys
   use kinds_module
-  use mpi_module
   use fruit
   use face_module
   use IAPWS_module
@@ -11,8 +13,6 @@ module face_test
 
   implicit none
   private
-
-#include <petsc/finclude/petscdef.h>
 
 public :: test_face_assign, test_face_permeability_direction, &
      test_face_normal_gradient, test_face_harmonic_average, &

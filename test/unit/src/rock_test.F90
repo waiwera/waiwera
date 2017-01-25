@@ -2,15 +2,15 @@ module rock_test
 
   ! Test for rock module
 
+#include <petsc/finclude/petscsys.h>
+
+  use petscsys
   use kinds_module
-  use mpi_module
   use fruit
   use rock_module
 
   implicit none
   private
-
-#include <petsc/finclude/petscdef.h>
 
 public :: test_rock_assign, test_rock_energy
 

@@ -2,8 +2,10 @@ module timestepper_test
 
   ! Tests for timestepper module
 
+#include <petsc/finclude/petsc.h>
+
+  use petsc
   use kinds_module
-  use mpi_module
   use fruit
   use ode_module
   use timestepper_module
@@ -13,8 +15,6 @@ module timestepper_test
   implicit none
 
   private
-
-#include <petsc/finclude/petsc.h90>
 
   type, extends(ode_type) :: test_ode_type
      private

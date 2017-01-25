@@ -2,17 +2,16 @@ module IAPWS_test
 
   ! Tests for IAPWS thermodynamics module
 
+#include <petsc/finclude/petscsys.h>
+
+  use petscsys
   use kinds_module
-  use mpi_module
   use IAPWS_module
   use thermodynamics_module, only: tc_k
   use fruit
 
   implicit none
   private
-
-#include <petsc/finclude/petscsys.h>
-#include <petsc/finclude/petscdef.h>
 
   PetscReal, parameter :: density_tol = 1.e-5_dp, energy_tol = 1.e-2_dp
   PetscReal, parameter :: pressure_tol = 1.e-1_dp, temperature_tol = 1.e-6_dp

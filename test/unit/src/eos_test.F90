@@ -1,8 +1,10 @@
 module eos_test
   !! Tests for eos module.
 
+#include <petsc/finclude/petsc.h>
+
+  use petsc
   use kinds_module
-  use mpi_module
   use fruit
   use fson
   use fson_mpi_module
@@ -10,8 +12,6 @@ module eos_test
 
   implicit none
   private
-
-#include <petsc/finclude/petsc.h90>
 
   type, extends(eos_type), public :: eos_test_type
      !! Dummy EOS used only for testing.

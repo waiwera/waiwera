@@ -2,16 +2,16 @@ module flow_simulation_test
 
   ! Tests for flow_simulation module
 
+#include <petsc/finclude/petsc.h>
+
+  use petsc
   use kinds_module
-  use mpi_module
   use fruit
   use fson
   use flow_simulation_module
 
   implicit none
   private
-
-#include <petsc/finclude/petsc.h90>
 
 public :: test_flow_simulation_init, &
      test_flow_simulation_fluid_properties, test_flow_simulation_lhs

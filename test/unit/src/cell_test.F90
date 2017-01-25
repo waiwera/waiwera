@@ -2,15 +2,15 @@ module cell_test
 
   ! Test for cell module
 
+#include <petsc/finclude/petscsys.h>
+
+  use petscsys
   use kinds_module
-  use mpi_module
   use fruit
   use cell_module
 
   implicit none
   private
-
-#include <petsc/finclude/petscdef.h>
 
 public :: test_cell_assign_geometry, test_cell_balance
 

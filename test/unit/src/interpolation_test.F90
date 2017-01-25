@@ -2,15 +2,15 @@ module interpolation_test
 
   ! Tests for interpolation module
 
+#include <petsc/finclude/petscsys.h>
+
+  use petscsys
   use kinds_module
-  use mpi_module
   use fruit
   use interpolation_module
 
   implicit none
   private
-
-#include <petsc/finclude/petscdef.h>
 
   PetscReal, dimension(5,2), parameter :: data5 = reshape([&
        0._dp, 2.1_dp, 3.7_dp,  6.3_dp,  8.9_dp, &
