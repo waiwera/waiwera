@@ -25,6 +25,8 @@ module mpi_utils_module
   implicit none
   private
 
+  public :: mpi_broadcast_error_flag, mpi_broadcast_logical
+
 contains
 
 !------------------------------------------------------------------------
