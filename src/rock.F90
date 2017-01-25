@@ -253,7 +253,7 @@ contains
             specific_heat, logfile, trim(rockstr) // "specific heat")
        call DMGetStratumIS(dm, rocktype_label_name, ir, rock_IS, &
             ierr); CHKERRQ(ierr)
-       if (rock_IS /= 0) then
+       if (rock_IS .ne. PETSC_NULL_IS) then
           call ISGetIndicesF90(rock_IS, rock_cells, ierr); CHKERRQ(ierr)
           num_cells = size(rock_cells)
           do ic = 1, num_cells

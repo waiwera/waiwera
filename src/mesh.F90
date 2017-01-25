@@ -416,7 +416,7 @@ contains
        do ibdy = 1, size(self%bcs, 2)
           call DMGetStratumIS(self%dm, open_boundary_label_name, ibdy, bdy_IS, &
                ierr); CHKERRQ(ierr)
-          if (bdy_IS /= 0) then
+          if (bdy_IS .ne. PETSC_NULL_IS) then
              call ISGetIndicesF90(bdy_IS, bdy_faces, ierr); CHKERRQ(ierr)
              num_faces = size(bdy_faces)
              do iface = 1, num_faces
@@ -752,7 +752,7 @@ contains
        do ibdy = 1, num_boundaries
           call DMGetStratumIS(self%dm, open_boundary_label_name, &
                ibdy, bdy_IS, ierr); CHKERRQ(ierr)
-          if (bdy_IS /= 0) then
+          if (bdy_IS .ne. PETSC_NULL_IS) then
              call ISGetIndicesF90(bdy_IS, bdy_faces, ierr); CHKERRQ(ierr)
              num_faces = size(bdy_faces)
              do iface = 1, num_faces

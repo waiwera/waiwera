@@ -116,7 +116,7 @@ contains
        global_cell_index = i - 1
        call DMGetStratumIS(mesh%dm, cell_order_label_name, &
             global_cell_index, cell_IS, ierr); CHKERRQ(ierr)
-       if (cell_IS /= 0) then
+       if (cell_IS .ne. PETSC_NULL_IS) then
           call ISGetIndicesF90(cell_IS, cells, ierr); CHKERRQ(ierr)
           if (size(cells) > 0) then
              call DMLabelGetValue(ghost_label, cells(1), ghost, ierr)
@@ -225,7 +225,7 @@ contains
        global_cell_index = i - 1
        call DMGetStratumIS(mesh%dm, cell_order_label_name, &
             global_cell_index, cell_IS, ierr); CHKERRQ(ierr)
-       if (cell_IS /= 0) then
+       if (cell_IS .ne. PETSC_NULL_IS) then
           call ISGetIndicesF90(cell_IS, cells, ierr); CHKERRQ(ierr)
           if (size(cells) > 0) then
              call DMLabelGetValue(ghost_label, cells(1), ghost, ierr)

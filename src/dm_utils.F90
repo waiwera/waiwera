@@ -77,7 +77,7 @@ contains
 
     call DMPlexCreateSection(dm, dim, num_fields, pnum_components, &
          pnum_dof, num_bc, pbc_field, pbc_comps, pbc_points, &
-         PETSC_NULL_OBJECT, section, ierr); CHKERRQ(ierr)
+         PETSC_NULL_IS, section, ierr); CHKERRQ(ierr)
 
     if (present(field_name)) then
        do i = 1, num_fields
@@ -413,7 +413,7 @@ contains
 
     call DMGetStratumIS(dm, order_label_name, order, order_IS, ierr); CHKERRQ(ierr)
 
-    if (order_IS /= 0) then
+    if (order_IS .ne. PETSC_NULL_IS) then
 
        call ISGetIndicesF90(order_IS, order_indices, ierr); CHKERRQ(ierr)
        i = order_indices(1)
