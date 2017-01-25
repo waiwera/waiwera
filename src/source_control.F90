@@ -181,6 +181,7 @@ module source_control_module
 
      subroutine source_control_update_procedure(self, t, interval, &
           local_fluid_data, local_fluid_section)
+       use petscis
        !! Updates sources at the specified time.
        import :: source_control_type
        class(source_control_type), intent(in out) :: self

@@ -214,6 +214,8 @@ module timestepper_module
 
      subroutine method_residual(solver, y, residual, context, err)
        !! Residual routine to be minimised by nonlinear solver.
+       use petscsnes
+       use petscvec
        import :: timestepper_solver_context_type
        SNES, intent(in) :: solver
        Vec, intent(in) :: y
@@ -237,6 +239,7 @@ module timestepper_module
      subroutine SNESGetApplicationContext(solver, context, ierr)
        !! Interface for getting context from SNES solver- to cast it
        !! as the correct type.
+       use petscsnes
        import :: timestepper_solver_context_type
        SNES, intent(in) :: solver
        type(timestepper_solver_context_type), pointer, &
