@@ -1360,7 +1360,7 @@ end subroutine timestepper_steps_set_next_stepsize
     PetscReal :: max_update
     PetscInt :: index, bs
 
-    call SNESGetFunction(solver, residual, PETSC_NULL_OBJECT, &
+    call SNESGetFunction(solver, residual, PETSC_NULL_FUNCTION, &
          PETSC_NULL_INTEGER, ierr); CHKERRQ(ierr)
 
     call vec_max_pointwise_abs_scale(residual, &
