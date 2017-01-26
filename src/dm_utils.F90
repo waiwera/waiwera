@@ -406,18 +406,21 @@ contains
     ! Locals:
     IS :: order_IS
     PetscInt, pointer :: order_indices(:)
-    PetscInt :: i, ghost
+    PetscInt :: i, ghost, count
     PetscErrorCode :: ierr
 
     index = -1
 
-    call DMGetStratumIS(dm, order_label_name, order, order_IS, ierr); CHKERRQ(ierr)
+    call DMGetStratumSize(dm, order_label_name, order, count, ierr)
+    CHKERRQ(ierr)
 
-    if (order_IS .ne. PETSC_NULL_IS) then
+    if (count > 0) then
 
+       call DMGetStratumIS(dm, order_label_name, order, order_IS, ierr); CHKERRQ(ierr)
        call ISGetIndicesF90(order_IS, order_indices, ierr); CHKERRQ(ierr)
        i = order_indices(1)
        call ISRestoreIndicesF90(order_IS, order_indices, ierr); CHKERRQ(ierr)
+       call ISDestroy(order_IS, ierr); CHKERRQ(ierr)
 
        call DMLabelGetValue(ghost_label, i, ghost, ierr); CHKERRQ(ierr)
        if (ghost < 0) then

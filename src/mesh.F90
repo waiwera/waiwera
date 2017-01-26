@@ -414,11 +414,12 @@ contains
     if (allocated(self%bcs)) then
        ! Set external boundary face connection distances to zero:
        do ibdy = 1, size(self%bcs, 2)
-          call DMGetStratumIS(self%dm, open_boundary_label_name, ibdy, bdy_IS, &
-               ierr); CHKERRQ(ierr)
-          if (bdy_IS .ne. PETSC_NULL_IS) then
+          call DMGetStratumSize(self%dm, open_boundary_label_name, ibdy, &
+               num_faces, ierr); CHKERRQ(ierr)
+          if (num_faces > 0) then
+             call DMGetStratumIS(self%dm, open_boundary_label_name, ibdy, &
+                  bdy_IS, ierr); CHKERRQ(ierr)
              call ISGetIndicesF90(bdy_IS, bdy_faces, ierr); CHKERRQ(ierr)
-             num_faces = size(bdy_faces)
              do iface = 1, num_faces
                 f = bdy_faces(iface)
                 call section_offset(face_section, f, face_offset, ierr)
@@ -427,8 +428,8 @@ contains
                 face%distance(2) = 0._dp
              end do
              call ISRestoreIndicesF90(bdy_IS, bdy_faces, ierr); CHKERRQ(ierr)
+             call ISDestroy(bdy_IS, ierr); CHKERRQ(ierr)
           end if
-          call ISDestroy(bdy_IS, ierr); CHKERRQ(ierr)
        end do
     end if
 
@@ -441,6 +442,7 @@ contains
 
     call PetscSectionDestroy(face_section, ierr); CHKERRQ(ierr)
     call DMDestroy(dm_face, ierr); CHKERRQ(ierr)
+
 
   end subroutine mesh_setup_geometry
 
@@ -750,11 +752,12 @@ contains
     if (allocated(self%bcs)) then
        num_boundaries = size(self%bcs, 2)
        do ibdy = 1, num_boundaries
-          call DMGetStratumIS(self%dm, open_boundary_label_name, &
-               ibdy, bdy_IS, ierr); CHKERRQ(ierr)
-          if (bdy_IS .ne. PETSC_NULL_IS) then
+          call DMGetStratumSize(self%dm, open_boundary_label_name, &
+               ibdy, num_faces, ierr); CHKERRQ(ierr)
+          if (num_faces > 0) then
+             call DMGetStratumIS(self%dm, open_boundary_label_name, &
+                  ibdy, bdy_IS, ierr); CHKERRQ(ierr)
              call ISGetIndicesF90(bdy_IS, bdy_faces, ierr); CHKERRQ(ierr)
-             num_faces = size(bdy_faces)
              do iface = 1, num_faces
                 f = bdy_faces(iface)
                 call DMPlexGetSupport(self%dm, f, cells, ierr); CHKERRQ(ierr)
@@ -785,8 +788,8 @@ contains
                 end if
              end do
              call ISRestoreIndicesF90(bdy_IS, bdy_faces, ierr); CHKERRQ(ierr)
+             call ISDestroy(bdy_IS, ierr); CHKERRQ(ierr)
           end if
-          call ISDestroy(bdy_IS, ierr); CHKERRQ(ierr)
        end do
     end if
 
