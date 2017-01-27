@@ -115,7 +115,8 @@ digraph waiwera{
         mpi_utils_module -> petscsys
         ode_module -> logfile_module
         ode_module -> mesh_module
-        ode_module -> petsc
+        ode_module -> petscsys
+        ode_module -> petscvec
         powertable_module -> kinds_module
         powertable_module -> petscsys
         profiling_module -> petscsys
@@ -138,6 +139,7 @@ digraph waiwera{
         source_control_module -> kinds_module
         source_control_module -> list_module
         source_control_module -> petsc
+        source_control_module -> petscis
         source_control_module -> source_module
         source_control_module -> thermodynamics_module
         source_module -> dm_utils_module
@@ -179,6 +181,8 @@ digraph waiwera{
         timestepper_module -> logfile_module
         timestepper_module -> ode_module
         timestepper_module -> petsc
+        timestepper_module -> petscsnes
+        timestepper_module -> petscvec
         timestepper_module -> utils_module
         utils_module -> petscsys
         version_module -> petscsys
