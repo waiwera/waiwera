@@ -128,8 +128,10 @@ for run_index, run_name in enumerate(run_names):
                                               fieldname_map = AUT2_FIELDMAP)
     for obspt in obs_points:
         blk_index = obs_cell_index[obspt]
+        if obspt == 'total': fields = digitised_test_fields[obspt]
+        else: fields = test_fields
         problem5_test.addTestComp(run_index, "AUTOUGH2 " + obspt,
-                              HistoryWithinTolTC(fieldsToTest = test_fields,
+                              HistoryWithinTolTC(fieldsToTest = fields,
                                                  defFieldTol = 1.e-3,
                                                  expected = AUTOUGH2_result[run_name],
                                                  testCellIndex = blk_index))
