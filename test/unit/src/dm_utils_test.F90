@@ -2,15 +2,15 @@ module dm_utils_test
 
   ! Tests for dm_utils module
 
+#include <petsc/finclude/petsc.h>
+
+  use petsc
   use kinds_module
-  use mpi_module
   use fruit
   use dm_utils_module
 
   implicit none
   private
-
-#include <petsc/finclude/petsc.h90>
 
 public :: test_vec_reorder, test_dm_cell_normal_face
 
@@ -35,7 +35,7 @@ contains
     PetscInt, parameter :: expected(n) = [6, 5, 4, 0, 3, 7, 2, 1]
     PetscReal, parameter :: tol = 1.e-6_dp
 
-    call VecCreate(mpi%comm, v, ierr); CHKERRQ(ierr)
+    call VecCreate(PETSC_COMM_WORLD, v, ierr); CHKERRQ(ierr)
     call VecSetBlockSize(v, bs, ierr); CHKERRQ(ierr)
     call VecSetType(v, VECMPI, ierr); CHKERRQ(ierr)
     call VecSetSizes(v, PETSC_DECIDE, n * bs, ierr); CHKERRQ(ierr)
@@ -61,9 +61,9 @@ contains
        ind2_array(i) = ind2(global(i))
     end do
 
-    call ISCreateGeneral(mpi%comm, num_local, ind1_array, &
+    call ISCreateGeneral(PETSC_COMM_WORLD, num_local, ind1_array, &
          PETSC_COPY_VALUES, is1, ierr); CHKERRQ(ierr)
-    call ISCreateGeneral(mpi%comm, num_local, ind2_array, &
+    call ISCreateGeneral(PETSC_COMM_WORLD, num_local, ind2_array, &
          PETSC_COPY_VALUES, is2, ierr); CHKERRQ(ierr)
     deallocate(ind1_array, ind2_array)
 
@@ -87,14 +87,17 @@ contains
     character(len = 80) :: filename
     PetscErrorCode :: ierr
     PetscInt :: f, dim
+    PetscMPIInt :: rank
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
 
     filename = "data/mesh/block3.exo"
 
-    call DMPlexCreateFromFile(mpi%comm, filename, PETSC_TRUE, dm, ierr)
-    CHKERRQ(ierr)
+    call DMPlexCreateFromFile(PETSC_COMM_WORLD, filename, &
+         PETSC_TRUE, dm, ierr); CHKERRQ(ierr)
     call DMGetDimension(dm, dim, ierr); CHKERRQ(ierr)
 
-    if (mpi%rank == mpi%input_rank) then
+    if (rank == 0) then
 
        call dm_cell_normal_face(dm, 0, [0._dp, 0._dp, 1._dp], f)
        call assert_equals(20, f, "top")

@@ -18,14 +18,14 @@
 module eos_w_module
   !! Equation of state for isothermal pure water.
 
+#include <petsc/finclude/petscsys.h>
+
+  use petscsys
   use kinds_module
   use eos_module
 
   implicit none
   private
-
-#include <petsc/finclude/petscdef.h>
-#include <petsc/finclude/petscsys.h>
 
   type, public, extends(eos_type) :: eos_w_type
      !! Isothermal pure water equation of state type.

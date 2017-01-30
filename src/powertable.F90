@@ -20,12 +20,13 @@ module powertable_module
   !! The algorithm uses repeated squaring and a lookup table, and avoids calculating
   !! any powers that are not needed.
 
+#include <petsc/finclude/petscsys.h>
+
+  use petscsys
   use kinds_module
 
   implicit none
   private
-
-#include <petsc/finclude/petscsys.h>
 
   type :: product_pointer_type
      private

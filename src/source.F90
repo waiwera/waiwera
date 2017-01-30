@@ -18,14 +18,15 @@
 module source_module
  !! Module for handling sinks and sources.
 
+#include <petsc/finclude/petsc.h>
+
+  use petsc
   use kinds_module
   use list_module
   use fluid_module
 
   implicit none
   private
-
-#include <petsc/finclude/petsc.h90>
 
   PetscInt, parameter, public :: max_source_name_length = 32
   PetscInt, parameter, public :: default_source_component = 0

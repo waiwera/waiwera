@@ -2,19 +2,18 @@ module fluid_test
 
   ! Test for fluid module
 
+#include <petsc/finclude/petscsys.h>
+
+  use petscsys
   use kinds_module
-  use mpi_module
   use fruit
   use fluid_module
 
   implicit none
   private
 
-#include <petsc/finclude/petscdef.h>
-
 public :: test_fluid_assign, test_fluid_component_density, &
      test_fluid_energy, test_fluid_enthalpy
-
 
 contains
   
@@ -30,8 +29,11 @@ contains
     PetscReal, pointer, contiguous :: fluid_data(:)
     PetscInt :: i, ip, nc, phase_dof
     PetscReal, parameter :: tol = 1.e-6_dp
+    PetscMPIInt :: rank
+    PetscInt :: ierr
 
-    if (mpi%rank == mpi%output_rank) then
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
 
        call fluid%init(num_components, num_phases)
 
@@ -87,8 +89,12 @@ contains
     PetscReal :: cd(num_components)
     PetscReal, parameter :: expected_cd(num_components) = [523.72_dp, 224.58_dp]
     PetscReal, parameter :: tol = 1.e-3_dp
+    PetscMPIInt :: rank
+    PetscInt :: ierr
 
-    if (mpi%rank == mpi%output_rank) then
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+
+    if (rank == 0) then
 
        call fluid%init(num_components, num_phases)
        allocate(fluid_data(offset - 1 + fluid%dof))
@@ -122,8 +128,11 @@ contains
     PetscReal :: ef
     PetscReal, parameter :: expected_ef = 4.092448e8_dp
     PetscReal, parameter :: tol = 1.e-3_dp
+    PetscMPIInt :: rank
+    PetscInt :: ierr
 
-    if (mpi%rank == mpi%output_rank) then
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
 
        call fluid%init(num_components, num_phases)
 
@@ -162,8 +171,11 @@ contains
     PetscReal, parameter :: expected_cff(num_phases) = [0.6989722116_dp, 0.3010277884_dp]
     PetscReal, parameter :: expected_h = 86353.3307955843_dp
     PetscReal, parameter :: tol = 1.e-6_dp
+    PetscMPIInt :: rank
+    PetscInt :: ierr
 
-    if (mpi%rank == mpi%output_rank) then
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
 
        call fluid%init(num_components, num_phases)
 

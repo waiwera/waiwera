@@ -2,16 +2,16 @@ module source_test
 
   ! Test for source module
 
+#include <petsc/finclude/petsc.h>
+
+  use petsc
   use kinds_module
-  use mpi_module
   use fruit
   use source_module
   use eos_test, only: eos_test_type
 
   implicit none
   private
-
-#include <petsc/finclude/petsc.h90>
 
 public :: test_source_update_flow
 
@@ -46,7 +46,9 @@ contains
     PetscErrorCode :: ierr
     PetscInt, parameter :: offset = 1
     PetscReal, parameter :: tol = 1.e-6_dp
+    PetscMPIInt :: rank
 
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
     json => fson_parse_mpi(str = '{"mesh": "data/flow_simulation/mesh/3x3_2d.exo"}')
     call thermo%init()
     call eos%init(json, thermo)
@@ -80,7 +82,7 @@ contains
     call VecGetArrayReadF90(local_fluid_vector, local_fluid_array, ierr)
     CHKERRQ(ierr)
 
-    if (mpi%rank == mpi%output_rank) then
+    if (rank == 0) then
 
        call source_flow_test("inject 1", 10._dp, 200.e3_dp, 1, 0, &
             [10._dp, 0._dp, 2.e6_dp], 1)

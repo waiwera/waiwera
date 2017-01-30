@@ -2,8 +2,10 @@ module source_control_test
 
   ! Test for source control module
 
+#include <petsc/finclude/petsc.h>
+
+  use petsc
   use kinds_module
-  use mpi_module
   use fruit
   use source_module
   use source_control_module
@@ -11,8 +13,6 @@ module source_control_test
 
   implicit none
   private
-
-#include <petsc/finclude/petsc.h90>
 
   public :: test_source_control_table, test_source_control_pressure_reference
 
@@ -47,7 +47,9 @@ contains
     PetscReal :: t, interval(2)
     PetscErrorCode :: ierr
     PetscReal, parameter :: start_time = 0._dp
+    PetscMPIInt :: rank
 
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
     json => fson_parse_mpi(trim(path) // "test_source_controls_table.json")
 
     call thermo%init()
@@ -67,8 +69,8 @@ contains
     call VecRestoreArrayF90(fluid_vector, fluid_array, ierr); CHKERRQ(ierr)
 
     call MPI_reduce(sources%count, num_sources, 1, MPI_INTEGER, MPI_SUM, &
-         mpi%input_rank, mpi%comm, ierr)
-    if (mpi%rank == mpi%input_rank) then
+         0, PETSC_COMM_WORLD, ierr)
+    if (rank == 0) then
       call assert_equals(6, num_sources, "number of sources")
     end if
 
@@ -183,7 +185,9 @@ contains
     PetscReal, parameter :: cell_pressure = 50.e5_dp, cell_vapour_saturation = 0.8_dp
     PetscInt, parameter :: cell_region = 4
     PetscReal, parameter :: start_time = 0._dp
+    PetscMPIInt :: rank
 
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
     json => fson_parse_mpi(trim(path) // "test_source_controls_pressure_reference.json")
 
     call thermo%init()
@@ -248,14 +252,14 @@ contains
          fluid_range_start, sources, source_controls)
 
     call MPI_reduce(sources%count, num_sources, 1, MPI_INTEGER, MPI_SUM, &
-         mpi%input_rank, mpi%comm, ierr)
-    if (mpi%rank == mpi%input_rank) then
+         0, PETSC_COMM_WORLD, ierr)
+    if (rank == 0) then
       call assert_equals(12, num_sources, "number of sources")
     end if
 
     call MPI_reduce(source_controls%count, num_source_controls, 1, &
-         MPI_INTEGER, MPI_SUM, mpi%input_rank, mpi%comm, ierr)
-    if (mpi%rank == mpi%input_rank) then
+         MPI_INTEGER, MPI_SUM, 0, PETSC_COMM_WORLD, ierr)
+    if (rank == 0) then
       call assert_equals(20, num_source_controls, "number of source controls")
     end if
 

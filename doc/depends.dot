@@ -1,17 +1,21 @@
 digraph waiwera{
         IAPWS_module -> kinds_module
+        IAPWS_module -> petscsys
         IAPWS_module -> powertable_module
         IAPWS_module -> thermodynamics_module
         IFC67_module -> kinds_module
+        IFC67_module -> petscsys
         IFC67_module -> thermodynamics_module
         cell_module -> fluid_module
         cell_module -> kinds_module
+        cell_module -> petscsys
         cell_module -> rock_module
-        dm_utils_module -> mpi_module
+        dm_utils_module -> petsc
         eos_module -> fluid_module
         eos_module -> fson
         eos_module -> kinds_module
         eos_module -> logfile_module
+        eos_module -> petscsys
         eos_module -> rock_module
         eos_module -> thermodynamics_module
         eos_module -> utils_module
@@ -29,6 +33,7 @@ digraph waiwera{
         eos_w_module -> fson_mpi_module
         eos_w_module -> kinds_module
         eos_w_module -> logfile_module
+        eos_w_module -> petscsys
         eos_w_module -> rock_module
         eos_w_module -> thermodynamics_module
         eos_we_module -> eos_module
@@ -37,11 +42,13 @@ digraph waiwera{
         eos_we_module -> fson_mpi_module
         eos_we_module -> kinds_module
         eos_we_module -> logfile_module
+        eos_we_module -> petscsys
         eos_we_module -> rock_module
         eos_we_module -> thermodynamics_module
         face_module -> cell_module
         face_module -> eos_module
         face_module -> kinds_module
+        face_module -> petscsys
         flow_simulation_module -> cell_module
         flow_simulation_module -> dm_utils_module
         flow_simulation_module -> eos_module
@@ -57,8 +64,9 @@ digraph waiwera{
         flow_simulation_module -> list_module
         flow_simulation_module -> logfile_module
         flow_simulation_module -> mesh_module
-        flow_simulation_module -> mpi_module
+        flow_simulation_module -> mpi_utils_module
         flow_simulation_module -> ode_module
+        flow_simulation_module -> petsc
         flow_simulation_module -> profiling_module
         flow_simulation_module -> relative_permeability_module
         flow_simulation_module -> rock_module
@@ -71,12 +79,13 @@ digraph waiwera{
         flow_simulation_module -> version_module
         fluid_module -> dm_utils_module
         fluid_module -> kinds_module
+        fluid_module -> petsc
         fluid_module -> thermodynamics_module
         fson_mpi_module -> fson
         fson_mpi_module -> fson_value_m
         fson_mpi_module -> kinds_module
         fson_mpi_module -> logfile_module
-        fson_mpi_module -> mpi_module
+        fson_mpi_module -> petscsys
         initial_module -> dm_utils_module
         initial_module -> eos_module
         initial_module -> fluid_module
@@ -86,10 +95,12 @@ digraph waiwera{
         initial_module -> kinds_module
         initial_module -> logfile_module
         initial_module -> mesh_module
-        initial_module -> mpi_module
+        initial_module -> petsc
         interpolation_module -> kinds_module
+        interpolation_module -> petscsys
         interpolation_module -> utils_module
-        logfile_module -> mpi_module
+        list_module -> petscsys
+        logfile_module -> petsc
         mesh_module -> dm_utils_module
         mesh_module -> eos_module
         mesh_module -> face_module
@@ -98,27 +109,37 @@ digraph waiwera{
         mesh_module -> fson_mpi_module
         mesh_module -> kinds_module
         mesh_module -> logfile_module
-        mesh_module -> mpi_module
+        mesh_module -> mpi_utils_module
+        mesh_module -> petsc
         mesh_module -> rock_module
+        mpi_utils_module -> petscsys
         ode_module -> logfile_module
         ode_module -> mesh_module
+        ode_module -> petscsys
+        ode_module -> petscvec
         powertable_module -> kinds_module
+        powertable_module -> petscsys
+        profiling_module -> petscsys
         relative_permeability_module -> fson
         relative_permeability_module -> fson_mpi_module
         relative_permeability_module -> kinds_module
         relative_permeability_module -> logfile_module
+        relative_permeability_module -> petscsys
         relative_permeability_module -> utils_module
         rock_module -> dm_utils_module
         rock_module -> fson
         rock_module -> fson_mpi_module
         rock_module -> kinds_module
         rock_module -> logfile_module
+        rock_module -> petsc
         rock_module -> relative_permeability_module
         source_control_module -> dm_utils_module
         source_control_module -> eos_module
         source_control_module -> interpolation_module
         source_control_module -> kinds_module
         source_control_module -> list_module
+        source_control_module -> petsc
+        source_control_module -> petscis
         source_control_module -> source_module
         source_control_module -> thermodynamics_module
         source_module -> dm_utils_module
@@ -126,6 +147,7 @@ digraph waiwera{
         source_module -> fluid_module
         source_module -> kinds_module
         source_module -> list_module
+        source_module -> petsc
         source_setup_module -> dm_utils_module
         source_setup_module -> eos_module
         source_setup_module -> fson
@@ -136,16 +158,19 @@ digraph waiwera{
         source_setup_module -> list_module
         source_setup_module -> logfile_module
         source_setup_module -> mesh_module
+        source_setup_module -> petsc
         source_setup_module -> source_control_module
         source_setup_module -> source_module
         source_setup_module -> thermodynamics_module
         source_setup_module -> utils_module
         thermodynamics_module -> kinds_module
+        thermodynamics_module -> petscsys
         thermodynamics_setup_module -> IAPWS_module
         thermodynamics_setup_module -> IFC67_module
         thermodynamics_setup_module -> fson
         thermodynamics_setup_module -> fson_mpi_module
         thermodynamics_setup_module -> logfile_module
+        thermodynamics_setup_module -> petscsys
         thermodynamics_setup_module -> thermodynamics_module
         thermodynamics_setup_module -> utils_module
         timestepper_module -> dm_utils_module
@@ -154,13 +179,17 @@ digraph waiwera{
         timestepper_module -> fson_value_m
         timestepper_module -> kinds_module
         timestepper_module -> logfile_module
-        timestepper_module -> mpi_module
         timestepper_module -> ode_module
+        timestepper_module -> petsc
+        timestepper_module -> petscsnes
+        timestepper_module -> petscvec
         timestepper_module -> utils_module
+        utils_module -> petscsys
+        version_module -> petscsys
         waiwera -> flow_simulation_module
         waiwera -> fson
         waiwera -> fson_mpi_module
-        waiwera -> mpi_module
+        waiwera -> petscsys
         waiwera -> profiling_module
         waiwera -> timestepper_module
 }

@@ -2,17 +2,16 @@ module fson_mpi_test
 
   ! Tests for fson_mpi module
 
+#include <petsc/finclude/petscsys.h>
+
+  use petscsys
   use fruit
   use fson
   use kinds_module
-  use mpi_module
   use fson_mpi_module
 
   implicit none
   private 
-
-#include <petsc/finclude/petscsys.h>
-#include <petsc/finclude/petscdef.h>
 
   character(len = 32), parameter :: filename = "data/fson_mpi/test_fson_mpi.json"
   public :: test_fson_mpi_int, test_fson_mpi_real, test_fson_mpi_double

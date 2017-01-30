@@ -18,14 +18,15 @@
 module initial_module
   !! Module for setting up initial conditions.
 
+#include <petsc/finclude/petsc.h>
+
+  use petsc
   use kinds_module
   use fson
   use fson_mpi_module
 
   implicit none
   private
-
-#include <petsc/finclude/petsc.h90>
 
   public :: setup_initial
 
@@ -96,7 +97,7 @@ contains
     PetscInt, intent(in) :: range_start
     ! Locals:
     PetscInt :: num_cells, np, global_cell_index, i
-    PetscInt :: offset, ghost
+    PetscInt :: offset, ghost, num_matching
     PetscErrorCode :: ierr
     PetscReal, pointer, contiguous :: cell_primary(:), y_array(:)
     PetscSection :: section
@@ -113,22 +114,22 @@ contains
 
     do i = 1, num_cells
        global_cell_index = i - 1
-       call DMGetStratumIS(mesh%dm, cell_order_label_name, &
-            global_cell_index, cell_IS, ierr); CHKERRQ(ierr)
-       if (cell_IS /= 0) then
+       call DMGetStratumSize(mesh%dm, cell_order_label_name, &
+            global_cell_index, num_matching, ierr); CHKERRQ(ierr)
+       if (num_matching > 0) then
+          call DMGetStratumIS(mesh%dm, cell_order_label_name, &
+               global_cell_index, cell_IS, ierr); CHKERRQ(ierr)
           call ISGetIndicesF90(cell_IS, cells, ierr); CHKERRQ(ierr)
-          if (size(cells) > 0) then
-             call DMLabelGetValue(ghost_label, cells(1), ghost, ierr)
-             if (ghost < 0) then
-                call global_section_offset(section, cells(1), range_start, &
-                     offset, ierr)
-                cell_primary => y_array(offset : offset + np - 1)
-                cell_primary = primary(i, :)
-             end if
+          call DMLabelGetValue(ghost_label, cells(1), ghost, ierr)
+          if (ghost < 0) then
+             call global_section_offset(section, cells(1), range_start, &
+                  offset, ierr)
+             cell_primary => y_array(offset : offset + np - 1)
+             cell_primary = primary(i, :)
           end if
           call ISRestoreIndicesF90(cell_IS, cells, ierr); CHKERRQ(ierr)
+          call ISDestroy(cell_IS, ierr); CHKERRQ(ierr)
        end if
-       call ISDestroy(cell_IS, ierr); CHKERRQ(ierr)
     end do
 
     call VecRestoreArrayF90(y, y_array, ierr); CHKERRQ(ierr)
@@ -203,7 +204,7 @@ contains
     PetscInt, intent(in) :: fluid_range_start
     ! Locals:
     PetscInt :: num_cells, np, global_cell_index, i, ghost
-    PetscInt :: offset
+    PetscInt :: offset, num_matching
     PetscErrorCode :: ierr
     type(fluid_type) :: fluid
     PetscReal, pointer, contiguous :: fluid_array(:)
@@ -222,22 +223,22 @@ contains
 
     do i = 1, num_cells
        global_cell_index = i - 1
-       call DMGetStratumIS(mesh%dm, cell_order_label_name, &
-            global_cell_index, cell_IS, ierr); CHKERRQ(ierr)
-       if (cell_IS /= 0) then
+       call DMGetStratumSize(mesh%dm, cell_order_label_name, &
+            global_cell_index, num_matching, ierr); CHKERRQ(ierr)
+       if (num_matching > 0) then
+          call DMGetStratumIS(mesh%dm, cell_order_label_name, &
+               global_cell_index, cell_IS, ierr); CHKERRQ(ierr)
           call ISGetIndicesF90(cell_IS, cells, ierr); CHKERRQ(ierr)
-          if (size(cells) > 0) then
-             call DMLabelGetValue(ghost_label, cells(1), ghost, ierr)
-             if (ghost < 0) then
-                call global_section_offset(section, cells(1), &
-                     fluid_range_start, offset, ierr); CHKERRQ(ierr)
-                call fluid%assign(fluid_array, offset)
-                fluid%region = dble(region(i))
-             end if
+          call DMLabelGetValue(ghost_label, cells(1), ghost, ierr)
+          if (ghost < 0) then
+             call global_section_offset(section, cells(1), &
+                  fluid_range_start, offset, ierr); CHKERRQ(ierr)
+             call fluid%assign(fluid_array, offset)
+             fluid%region = dble(region(i))
           end if
           call ISRestoreIndicesF90(cell_IS, cells, ierr); CHKERRQ(ierr)
+          call ISDestroy(cell_IS, ierr); CHKERRQ(ierr)
        end if
-       call ISDestroy(cell_IS, ierr); CHKERRQ(ierr)
     end do
 
     call VecRestoreArrayF90(fluid_vector, fluid_array, ierr); CHKERRQ(ierr)
@@ -250,7 +251,6 @@ contains
        y_range_start, fluid_range_start, index)
     !! Initializes fluid vector and solution vector y from HDF5 file.
 
-    use mpi_module
     use mesh_module
     use dm_utils_module, only: global_vec_section, global_section_offset
     use eos_module, only: eos_type
@@ -275,7 +275,7 @@ contains
     PetscInt :: np, c, ghost, y_offset, fluid_offset
     PetscErrorCode :: ierr
 
-    call PetscViewerHDF5Open(mpi%comm, filename, FILE_MODE_READ, &
+    call PetscViewerHDF5Open(PETSC_COMM_WORLD, filename, FILE_MODE_READ, &
          viewer, ierr); CHKERRQ(ierr)
     call PetscViewerHDF5PushGroup(viewer, "/", ierr); CHKERRQ(ierr)
 

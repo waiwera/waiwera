@@ -2,8 +2,10 @@ module eos_w_test
 
   ! Tests for eos_w module (isothermal pure water equation of state)
 
+#include <petsc/finclude/petsc.h>
+
+  use petsc
   use kinds_module
-  use mpi_module
   use fruit
   use fluid_module
   use rock_module
@@ -15,8 +17,6 @@ module eos_w_test
 
   implicit none
   private
-
-#include <petsc/finclude/petsc.h90>
 
   public :: test_eos_w_fluid_properties
 
@@ -43,6 +43,8 @@ contains
     PetscReal, parameter :: expected_internal_energy = 83911.631393167205_dp
     PetscReal, parameter :: expected_specific_enthalpy = 84011.811167136271_dp
     PetscReal, parameter :: expected_viscosity = 1.0015972622270245e-3_dp
+    PetscMPIInt :: rank
+    PetscInt :: ierr
 
     json => fson_parse_mpi(str = json_str)
     call thermo%init()
@@ -62,7 +64,8 @@ contains
     call eos%phase_properties(primary, rock, fluid, err)
     call eos%primary_variables(fluid, primary2)
 
-    if (mpi%rank == mpi%output_rank) then
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
 
        call assert_equals(pressure, fluid%pressure, tol, "Pressure")
        call assert_equals(eos%temperature, fluid%temperature, tol, "Temperature")

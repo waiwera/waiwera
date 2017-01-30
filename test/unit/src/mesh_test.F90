@@ -2,16 +2,16 @@ module mesh_test
 
   ! Tests for mesh module
 
+#include <petsc/finclude/petsc.h>
+
+  use petsc
   use kinds_module
-  use mpi_module
   use fruit
   use fson
   use mesh_module
 
   implicit none
   private
-
-#include <petsc/finclude/petsc.h90>
 
 public :: test_mesh_init
 
@@ -45,6 +45,7 @@ contains
     PetscInt, pointer :: cells(:)
     PetscReal :: dist(2)
     PetscErrorCode :: ierr
+    PetscMPIInt :: rank
     character(len = 24) :: msg
     PetscInt, parameter :: expected_dim = 3, num_cells = 3, num_faces = 16
     PetscReal, parameter :: face_area = 200._dp
@@ -53,6 +54,8 @@ contains
     PetscReal, parameter :: face_centroid(3, 2) = &
          reshape([5._dp, 10._dp, 50._dp, 5._dp, 10._dp, 30._dp], [3,2])
     
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+
     primary = ["Pressure   ", "Temperature"]
 
     json => fson_parse_mpi(str = '{"mesh": "data/mesh/block3.exo"}')
@@ -63,13 +66,13 @@ contains
     call mesh%configure(primary)
 
     call DMGetDimension(mesh%dm, dim, ierr); CHKERRQ(ierr)
-    if (mpi%rank == mpi%output_rank) then
+    if (rank == 0) then
        call assert_equals(expected_dim, dim, "mesh dimension")
     end if
 
     call DMGetGlobalVector(mesh%dm, x, ierr); CHKERRQ(ierr)
     call VecGetSize(x, global_solution_dof, ierr); CHKERRQ(ierr)
-    if (mpi%rank == mpi%output_rank) then
+    if (rank == 0) then
        num_primary = size(primary)
        call assert_equals(num_cells * num_primary, global_solution_dof, &
             "global solution dof")

@@ -21,14 +21,15 @@ module cell_module
   !! The components of these types all point to values in arrays obtained from
   !! parallel vectors.
 
+#include <petsc/finclude/petscsys.h>
+
+  use petscsys
   use kinds_module
   use rock_module
   use fluid_module
 
   implicit none
   private
-
-#include <petsc/finclude/petscsys.h>
 
   type cell_type
      !! Type for accessing local cell geometry, rock and

@@ -19,14 +19,17 @@ module ode_module
   !! Abstract base class for ordinary differential equations defined over a mesh,
   !! to be solved by timestepper class.
 
+#include <petsc/finclude/petscsys.h>
+#include <petsc/finclude/petscvec.h>
+
+  use petscsys
+  use petscvec
   use mesh_module
   use logfile_module
 
   implicit none
 
   private
-
-#include <petsc/finclude/petsc.h90>
 
   type, public, abstract :: ode_type
      private
@@ -53,6 +56,7 @@ module ode_module
 
      subroutine lhs_function(self, t, interval, y, lhs, err)
        !! LHS function lhs = L(t, y)
+       use petscvec
        import :: ode_type
        class(ode_type), intent(in out) :: self
        PetscReal, intent(in) :: t, interval(2)
@@ -63,6 +67,7 @@ module ode_module
 
      subroutine rhs_function(self, t, interval, y, rhs, err)
        !! RHS function rhs = R(t, y)
+       use petscvec
        import :: ode_type
        class(ode_type), intent(in out) :: self
        PetscReal, intent(in) :: t, interval(2)

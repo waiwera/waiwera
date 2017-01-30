@@ -18,16 +18,16 @@
 module timestepper_module
   !! Time stepping methods for solving \(\frac{d}{dt} L(t,y) = R(t,y)\), where y is a parallel vector.
 
+#include <petsc/finclude/petsc.h>
+
+  use petsc
   use kinds_module
-  use mpi_module
   use ode_module
   use logfile_module
 
   implicit none
 
   private
-
-#include <petsc/finclude/petsc.h90>
 
   ! Timestepping methods
      PetscInt, parameter, public :: TS_BEULER = 0, TS_BDF2 = 1, TS_DIRECTSS = 2
@@ -214,6 +214,8 @@ module timestepper_module
 
      subroutine method_residual(solver, y, residual, context, err)
        !! Residual routine to be minimised by nonlinear solver.
+       use petscsnes
+       use petscvec
        import :: timestepper_solver_context_type
        SNES, intent(in) :: solver
        Vec, intent(in) :: y
@@ -237,6 +239,7 @@ module timestepper_module
      subroutine SNESGetApplicationContext(solver, context, ierr)
        !! Interface for getting context from SNES solver- to cast it
        !! as the correct type.
+       use petscsnes
        import :: timestepper_solver_context_type
        SNES, intent(in) :: solver
        type(timestepper_solver_context_type), pointer, &
@@ -1242,7 +1245,7 @@ end subroutine timestepper_steps_set_next_stepsize
 
     call self%context%init(self%ode, self%steps, self%method%residual)
 
-    call SNESCreate(mpi%comm, self%solver, ierr); CHKERRQ(ierr)
+    call SNESCreate(PETSC_COMM_WORLD, self%solver, ierr); CHKERRQ(ierr)
     call SNESSetApplicationContext(self%solver, self%context, ierr); CHKERRQ(ierr)
     call SNESSetFunction(self%solver, self%residual, &
          SNES_residual, self%context, ierr); CHKERRQ(ierr)
@@ -1360,7 +1363,7 @@ end subroutine timestepper_steps_set_next_stepsize
     PetscReal :: max_update
     PetscInt :: index, bs
 
-    call SNESGetFunction(solver, residual, PETSC_NULL_OBJECT, &
+    call SNESGetFunction(solver, residual, PETSC_NULL_FUNCTION, &
          PETSC_NULL_INTEGER, ierr); CHKERRQ(ierr)
 
     call vec_max_pointwise_abs_scale(residual, &
@@ -1373,7 +1376,7 @@ end subroutine timestepper_steps_set_next_stepsize
          context%steps%current%max_residual_cell * bs
 
     call SNESConvergedDefault(solver, num_iterations, xnorm, pnorm, &
-         fnorm, reason, PETSC_NULL_OBJECT, ierr); CHKERRQ(ierr)
+         fnorm, reason, 0, ierr); CHKERRQ(ierr)
 
     if (num_iterations < &
          context%steps%nonlinear_solver_minimum_iterations) then
@@ -1808,7 +1811,7 @@ end subroutine timestepper_steps_set_next_stepsize
        call self%steps%check_checkpoints(self%ode%logfile)
        call self%steps%check_finished(self%ode%logfile)
 
-       call SNESSolve(self%solver, PETSC_NULL_OBJECT, self%steps%current%solution, &
+       call SNESSolve(self%solver, PETSC_NULL_VEC, self%steps%current%solution, &
             ierr); CHKERRQ(ierr)
        call SNESGetIterationNumber(self%solver, self%steps%current%num_iterations, &
             ierr); CHKERRQ(ierr)

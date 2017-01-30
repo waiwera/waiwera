@@ -18,10 +18,12 @@
 module profiling_module
   !! Module for profiling code via PETSc log events.
 
+#include <petsc/finclude/petscsys.h>
+
+  use petscsys
+
   implicit none
   private
-
-#include <petsc/finclude/petscsys.h>
 
   PetscClassId, public ::  log_class
   PetscLogEvent, public :: simulation_init_event

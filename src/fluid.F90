@@ -24,12 +24,13 @@ module fluid_module
   !! state of each fluid phase and are stored in an array component of
   !! [[phase_type]] objects.
 
+#include <petsc/finclude/petsc.h>
+
+  use petsc
   use kinds_module
 
   implicit none
   private
-
-#include <petsc/finclude/petsc.h90>
 
   PetscInt, parameter, public :: num_fluid_variables = 4
   PetscInt, parameter, public :: num_phase_variables = 6  ! (excluding mass fractions)

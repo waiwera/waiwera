@@ -18,11 +18,12 @@
 module utils_module
   !! Utility functions for string handling, formatting, file names etc.
 
+#include <petsc/finclude/petscsys.h>
+
+  use petscsys
+
   implicit none
   private
-
-#include <petsc/finclude/petscsys.h>
-#include <petsc/finclude/petscdef.h>
 
   public :: str_to_upper, str_to_lower, &
        int_str_len, str_array_index, &

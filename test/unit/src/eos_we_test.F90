@@ -2,8 +2,10 @@ module eos_we_test_module
 
   ! Tests for eos_we module (non-isothermal pure water equation of state)
 
+#include <petsc/finclude/petsc.h>
+
+  use petsc
   use kinds_module
-  use mpi_module
   use fruit
   use fluid_module
   use rock_module
@@ -15,8 +17,6 @@ module eos_we_test_module
 
   implicit none
   private
-
-#include <petsc/finclude/petsc.h90>
 
 public :: test_eos_we_fluid_properties, test_eos_we_transition, &
      test_eos_we_errors, test_eos_we_conductivity
@@ -87,6 +87,10 @@ contains
     PetscReal, parameter :: expected_vapour_specific_enthalpy = 2803009.2956133024_dp
     PetscReal, parameter :: expected_vapour_viscosity = 1.6704837258831552e-5_dp
     PetscReal, parameter :: expected_vapour_relative_permeability = 1._dp / 12._dp
+    PetscMPIInt :: rank
+    PetscInt :: ierr
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
 
     json => fson_parse_mpi(str = json_str)
     call thermo%init()
@@ -109,7 +113,7 @@ contains
     call eos%phase_properties(primary, rock, fluid, err)
     call eos%primary_variables(fluid, primary2)
 
-    if (mpi%rank == mpi%output_rank) then
+    if (rank == 0) then
 
        call assert_equals(pressure, fluid%pressure, tol, "Pressure")
        call assert_equals(temperature, fluid%temperature, tol, "Temperature")
@@ -180,7 +184,11 @@ contains
     character(2) :: json_str = '{}'
     character(60) :: title
     PetscErrorCode :: err
+    PetscMPIInt :: rank
+    PetscInt :: ierr
     PetscReal, parameter :: small = 1.e-6_dp
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
 
     json => fson_parse_mpi(str = json_str)
     call thermo%init()
@@ -193,7 +201,7 @@ contains
     call old_fluid%assign(old_fluid_data, offset)
     call fluid%assign(fluid_data, offset)
 
-    if (mpi%rank == mpi%output_rank) then
+    if (rank == 0) then
 
        title = "Region 1 null transition"
        old_fluid%region = dble(1)
@@ -313,6 +321,10 @@ contains
     PetscReal, parameter :: tol = 1.e-8_dp
     PetscInt :: i, p
     PetscErrorCode :: err
+    PetscMPIInt :: rank
+    PetscInt :: ierr
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
 
     json => fson_parse_mpi(str = json_str)
     call thermo%init()
@@ -334,7 +346,7 @@ contains
        call eos%bulk_properties(primary, fluid, err)
        call eos%phase_composition(fluid, err)
        call eos%phase_properties(primary, rock, fluid, err)
-       if (mpi%rank == mpi%output_rank) then
+       if (rank == 0) then
           call assert_equals(1, err, "error code")
        end if
     end do
@@ -364,6 +376,10 @@ contains
     PetscInt :: offset = 1
     PetscReal :: cond, expected_cond
     PetscReal, parameter :: tol = 1.e-6_dp
+    PetscMPIInt :: rank
+    PetscInt :: ierr
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
 
     json => fson_parse_mpi(str = '{}')
     call thermo%init()
@@ -379,7 +395,7 @@ contains
     call fluid%assign(fluid_data, offset)
     call rock%assign(rock_data, offset)
 
-    if (mpi%rank == mpi%output_rank) then
+    if (rank == 0) then
 
        fluid_data(7) = 0.0_dp
        expected_cond = 1.0_dp

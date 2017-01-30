@@ -18,13 +18,14 @@
 module rock_module
   !! Defines type for accessing local rock properties on cells and faces.
 
+#include <petsc/finclude/petsc.h>
+
+  use petsc
   use kinds_module
   use relative_permeability_module
 
   implicit none
   private
-
-#include <petsc/finclude/petsc.h90>
 
   type rock_type
      !! Local rock properties.
@@ -250,9 +251,11 @@ contains
             trim(rockstr) // "density")
        call fson_get_mpi(r, "specific heat", default_specific_heat, &
             specific_heat, logfile, trim(rockstr) // "specific heat")
-       call DMGetStratumIS(dm, rocktype_label_name, ir, rock_IS, &
+       call DMGetStratumSize(dm, rocktype_label_name, ir, num_cells, &
             ierr); CHKERRQ(ierr)
-       if (rock_IS /= 0) then
+       if (num_cells > 0) then
+          call DMGetStratumIS(dm, rocktype_label_name, ir, rock_IS, &
+               ierr); CHKERRQ(ierr)
           call ISGetIndicesF90(rock_IS, rock_cells, ierr); CHKERRQ(ierr)
           num_cells = size(rock_cells)
           do ic = 1, num_cells
@@ -271,8 +274,8 @@ contains
              end if
           end do
           call ISRestoreIndicesF90(rock_IS, rock_cells, ierr); CHKERRQ(ierr)
+          call ISDestroy(rock_IS, ierr); CHKERRQ(ierr)
        end if
-       call ISDestroy(rock_IS, ierr); CHKERRQ(ierr)
     end do
     call rock%destroy()
     call VecRestoreArrayF90(rock_vector, rock_array, ierr); CHKERRQ(ierr)

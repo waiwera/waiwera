@@ -18,14 +18,15 @@
 module mesh_module
   !! Module for mesh type.
 
-  use mpi_module
+#include <petsc/finclude/petsc.h>
+
+  use petsc
+  use mpi_utils_module
   use fson
 
   implicit none
 
   private
-
-#include <petsc/finclude/petsc.h90>
 
   PetscInt, parameter, public :: max_mesh_filename_length = 200
   character(len = 16), public :: open_boundary_label_name = "open_boundary" !! Name of DMLabel for identifying open boundaries
@@ -119,8 +120,11 @@ contains
     Vec :: v
     IS :: cell_interior_index
     PetscInt :: blocksize, start_global_index, i_global
+    PetscMPIInt :: rank, num_procs
     PetscErrorCode :: ierr
 
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    call MPI_COMM_SIZE(PETSC_COMM_WORLD, num_procs, ierr)
     call DMGetLabel(self%dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
 
     ! Count interior cells:
@@ -155,18 +159,18 @@ contains
     end do
 
     ! Gather arrays to root process:
-    if (mpi%rank == mpi%input_rank) then
-       allocate_size = mpi%size
+    if (rank == 0) then
+       allocate_size = num_procs
     else ! have to allocate non-zero size, even if not actually used:
        allocate_size = 1
     end if
     allocate(local_counts(allocate_size), displacements(allocate_size))
     call MPI_gather(local_count, 1, MPI_INTEGER, local_counts, 1, &
-         MPI_INTEGER, mpi%input_rank, mpi%comm, ierr)
-    if (mpi%rank == mpi%input_rank) then
+         MPI_INTEGER, 0, PETSC_COMM_WORLD, ierr)
+    if (rank == 0) then
        total_count = sum(local_counts)
        displacements(1) = 0
-       do i = 2, mpi%size
+       do i = 2, num_procs
           displacements(i) = displacements(i-1) + local_counts(i-1)
        end do
        total_allocate_count = total_count
@@ -177,15 +181,15 @@ contains
          natural_index_all(total_allocate_count))
     call MPI_gatherv(global_index, local_count, MPI_INTEGER, &
          global_index_all, local_counts, displacements, MPI_INTEGER, &
-         mpi%input_rank, mpi%comm, ierr)
+         0, PETSC_COMM_WORLD, ierr)
     call MPI_gatherv(natural_index, local_count, MPI_INTEGER, &
          natural_index_all, local_counts, displacements, MPI_INTEGER, &
-         mpi%input_rank, mpi%comm, ierr)
+         0, PETSC_COMM_WORLD, ierr)
     deallocate(global_index, natural_index)
 
     ! Set up index array on root process, and scatter:
     allocate(index_array_all(total_allocate_count))
-    if (mpi%rank == mpi%input_rank) then
+    if (rank == 0) then
        do i = 1, total_count
           index_array_all(natural_index_all(i) + 1) = global_index_all(i)
        end do
@@ -194,13 +198,13 @@ contains
     allocate(index_array(local_count))
     call MPI_scatterv(index_array_all, local_counts, displacements, &
          MPI_INTEGER, index_array, local_count, MPI_INTEGER, &
-         mpi%input_rank, mpi%comm, ierr)
-    call ISCreateGeneral(mpi%comm, local_count, index_array, &
+         0, PETSC_COMM_WORLD, ierr)
+    call ISCreateGeneral(PETSC_COMM_WORLD, local_count, index_array, &
          PETSC_COPY_VALUES, self%cell_index, ierr); CHKERRQ(ierr)
     call PetscObjectSetName(self%cell_index, "cell_index", ierr)
 
     ! Set up cell interior index set:
-    if (mpi%rank == mpi%input_rank) then
+    if (rank == 0) then
        do i = 1, total_count
           index_array_all(natural_index_all(i) + 1) = i - 1
        end do
@@ -208,10 +212,10 @@ contains
     deallocate(natural_index_all)
     call MPI_scatterv(index_array_all, local_counts, displacements, &
          MPI_INTEGER, index_array, local_count, MPI_INTEGER, &
-         mpi%input_rank, mpi%comm, ierr)
+         0, PETSC_COMM_WORLD, ierr)
     deallocate(index_array_all, local_counts, displacements)
 
-    call ISCreateGeneral(mpi%comm, local_count, index_array, &
+    call ISCreateGeneral(PETSC_COMM_WORLD, local_count, index_array, &
          PETSC_COPY_VALUES, cell_interior_index, ierr); CHKERRQ(ierr)
     deallocate(index_array)
     call PetscObjectSetName(cell_interior_index, &
@@ -237,9 +241,9 @@ contains
     PetscErrorCode :: ierr
     PetscInt, parameter :: overlap = 1
 
-    call DMPlexDistribute(self%dm, overlap, PETSC_NULL_OBJECT, &
+    call DMPlexDistribute(self%dm, overlap, PETSC_NULL_SF, &
          dist_dm, ierr); CHKERRQ(ierr)
-    if (dist_dm /= 0) then
+    if (dist_dm .ne. PETSC_NULL_DM) then
        call DMDestroy(self%dm, ierr); CHKERRQ(ierr)
        self%dm = dist_dm
     end if
@@ -258,7 +262,7 @@ contains
 
     call DMPlexConstructGhostCells(self%dm, open_boundary_label_name, &
          PETSC_NULL_INTEGER, ghost_dm, ierr); CHKERRQ(ierr)
-    if (ghost_dm /= 0) then
+    if (ghost_dm .ne. PETSC_NULL_DM) then
        call DMDestroy(self%dm, ierr); CHKERRQ(ierr);
        self%dm = ghost_dm
     end if
@@ -302,7 +306,7 @@ contains
     PetscInt :: dim
     PetscErrorCode :: ierr
 
-    call PetscFVCreate(mpi%comm, fvm, ierr); CHKERRQ(ierr)
+    call PetscFVCreate(PETSC_COMM_WORLD, fvm, ierr); CHKERRQ(ierr)
     call PetscFVSetFromOptions(fvm, ierr); CHKERRQ(ierr)
     call PetscFVSetNumComponents(fvm, dof, ierr); CHKERRQ(ierr)
     call DMGetDimension(self%dm, dim, ierr); CHKERRQ(ierr)
@@ -410,11 +414,12 @@ contains
     if (allocated(self%bcs)) then
        ! Set external boundary face connection distances to zero:
        do ibdy = 1, size(self%bcs, 2)
-          call DMGetStratumIS(self%dm, open_boundary_label_name, ibdy, bdy_IS, &
-               ierr); CHKERRQ(ierr)
-          if (bdy_IS /= 0) then
+          call DMGetStratumSize(self%dm, open_boundary_label_name, ibdy, &
+               num_faces, ierr); CHKERRQ(ierr)
+          if (num_faces > 0) then
+             call DMGetStratumIS(self%dm, open_boundary_label_name, ibdy, &
+                  bdy_IS, ierr); CHKERRQ(ierr)
              call ISGetIndicesF90(bdy_IS, bdy_faces, ierr); CHKERRQ(ierr)
-             num_faces = size(bdy_faces)
              do iface = 1, num_faces
                 f = bdy_faces(iface)
                 call section_offset(face_section, f, face_offset, ierr)
@@ -423,8 +428,8 @@ contains
                 face%distance(2) = 0._dp
              end do
              call ISRestoreIndicesF90(bdy_IS, bdy_faces, ierr); CHKERRQ(ierr)
+             call ISDestroy(bdy_IS, ierr); CHKERRQ(ierr)
           end if
-          call ISDestroy(bdy_IS, ierr); CHKERRQ(ierr)
        end do
     end if
 
@@ -437,6 +442,7 @@ contains
 
     call PetscSectionDestroy(face_section, ierr); CHKERRQ(ierr)
     call DMDestroy(dm_face, ierr); CHKERRQ(ierr)
+
 
   end subroutine mesh_setup_geometry
 
@@ -479,11 +485,11 @@ contains
     class(mesh_type), intent(in out) :: self
     ! Locals:
     PetscErrorCode :: ierr
+    PetscInt :: cmax, fmax, emax, vmax
 
-    call DMPlexGetHybridBounds(self%dm, self%end_interior_cell, &
-         PETSC_NULL_INTEGER, PETSC_NULL_INTEGER, PETSC_NULL_INTEGER, &
-         ierr)
+    call DMPlexGetHybridBounds(self%dm, cmax, fmax, emax, vmax, ierr)
     CHKERRQ(ierr)
+    self%end_interior_cell = cmax
 
     call DMPlexGetHeightStratum(self%dm, 0, self%start_cell, &
          self%end_cell, ierr)
@@ -509,8 +515,10 @@ contains
     ! Locals:
     PetscErrorCode :: ierr
     type(fson_value), pointer :: mesh
+    PetscMPIInt :: rank
 
-    if (mpi%rank == mpi%input_rank) then
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
        call fson_get(json, "mesh", mesh)
        if (associated(mesh)) then
           call fson_get(mesh, ".", self%filename)
@@ -519,18 +527,18 @@ contains
              call logfile%write(LOG_LEVEL_ERR, 'mesh', 'init', &
                   str_key = 'stop            ', &
                   str_value = 'mesh not found in input.', &
-                  rank = mpi%input_rank)
+                  rank = 0)
           end if
           stop
        end if
     end if
 
     call MPI_bcast(self%filename, max_mesh_filename_length, MPI_CHARACTER, &
-         mpi%input_rank, mpi%comm, ierr)
+         0, PETSC_COMM_WORLD, ierr)
 
     ! Read in DM:
-    call DMPlexCreateFromFile(mpi%comm, self%filename, PETSC_TRUE, self%dm, ierr)
-    CHKERRQ(ierr)
+    call DMPlexCreateFromFile(PETSC_COMM_WORLD, self%filename, PETSC_TRUE, &
+         self%dm, ierr); CHKERRQ(ierr)
 
     call DMPlexSetAdjacencyUseCone(self%dm, PETSC_TRUE, ierr); CHKERRQ(ierr)
     call DMPlexSetAdjacencyUseClosure(self%dm, PETSC_FALSE, ierr); CHKERRQ(ierr)
@@ -744,11 +752,12 @@ contains
     if (allocated(self%bcs)) then
        num_boundaries = size(self%bcs, 2)
        do ibdy = 1, num_boundaries
-          call DMGetStratumIS(self%dm, open_boundary_label_name, &
-               ibdy, bdy_IS, ierr); CHKERRQ(ierr)
-          if (bdy_IS /= 0) then
+          call DMGetStratumSize(self%dm, open_boundary_label_name, &
+               ibdy, num_faces, ierr); CHKERRQ(ierr)
+          if (num_faces > 0) then
+             call DMGetStratumIS(self%dm, open_boundary_label_name, &
+                  ibdy, bdy_IS, ierr); CHKERRQ(ierr)
              call ISGetIndicesF90(bdy_IS, bdy_faces, ierr); CHKERRQ(ierr)
-             num_faces = size(bdy_faces)
              do iface = 1, num_faces
                 f = bdy_faces(iface)
                 call DMPlexGetSupport(self%dm, f, cells, ierr); CHKERRQ(ierr)
@@ -779,8 +788,8 @@ contains
                 end if
              end do
              call ISRestoreIndicesF90(bdy_IS, bdy_faces, ierr); CHKERRQ(ierr)
+             call ISDestroy(bdy_IS, ierr); CHKERRQ(ierr)
           end if
-          call ISDestroy(bdy_IS, ierr); CHKERRQ(ierr)
        end do
     end if
 

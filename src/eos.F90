@@ -20,15 +20,15 @@ module eos_module
   !! behaviour of each combination of fluid components is governed by
   !! an EOS object.
 
+#include <petsc/finclude/petscsys.h>
+
+  use petscsys
   use kinds_module
   use fson
   use thermodynamics_module
 
   implicit none
   private
-
-#include <petsc/finclude/petscdef.h>
-#include <petsc/finclude/petscsys.h>
 
   PetscInt, parameter, public :: max_eos_name_length = 8
   PetscInt, parameter, public :: max_eos_description_length = 80

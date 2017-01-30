@@ -2,15 +2,15 @@ module interpolation_test
 
   ! Tests for interpolation module
 
+#include <petsc/finclude/petscsys.h>
+
+  use petscsys
   use kinds_module
-  use mpi_module
   use fruit
   use interpolation_module
 
   implicit none
   private
-
-#include <petsc/finclude/petscdef.h>
 
   PetscReal, dimension(5,2), parameter :: data5 = reshape([&
        0._dp, 2.1_dp, 3.7_dp,  6.3_dp,  8.9_dp, &
@@ -31,8 +31,11 @@ contains
     ! Linear interpolation
 
     type(interpolation_table_type) :: table
+    PetscMPIInt :: rank
+    PetscInt :: ierr
 
-    if (mpi%rank == mpi%output_rank) then
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
 
        call table%init(data5) ! default linear interpolation
 
@@ -70,11 +73,13 @@ contains
     ! Single-value data table
 
     type(interpolation_table_type) :: table
-    ! Locals:
     PetscReal, dimension(1,2), parameter :: data1 = reshape(&
          [0._dp, 2._dp], [1,2])
+    PetscMPIInt :: rank
+    PetscInt :: ierr
 
-    if (mpi%rank == mpi%output_rank) then
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
 
        call table%init(data1)
 
@@ -96,8 +101,11 @@ contains
     ! Step interpolation
 
     type(interpolation_table_type) :: table
+    PetscMPIInt :: rank
+    PetscInt :: ierr
 
-    if (mpi%rank == mpi%output_rank) then
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
 
        call table%init(data5, INTERP_STEP)
 
@@ -128,8 +136,12 @@ contains
     ! Linear interpolation average
 
     type(interpolation_table_type) :: table
+    PetscMPIInt :: rank
+    PetscInt :: ierr
 
-    if (mpi%rank == mpi%output_rank) then
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+
+    if (rank == 0) then
 
        call table%init(data5)
 
@@ -161,8 +173,12 @@ contains
     ! Step interpolation average
 
     type(interpolation_table_type) :: table
+    PetscMPIInt :: rank
+    PetscInt :: ierr
 
-    if (mpi%rank == mpi%output_rank) then
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+
+    if (rank == 0) then
 
        call table%init(data5, INTERP_STEP)
 
@@ -193,8 +209,11 @@ contains
     ! Linear interpolation integration averaging
 
     type(interpolation_table_type) :: table
+    PetscMPIInt :: rank
+    PetscInt :: ierr
 
-    if (mpi%rank == mpi%output_rank) then
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
 
        call table%init(data5, INTERP_LINEAR, INTERP_AVERAGING_INTEGRATE)
 
