@@ -61,6 +61,7 @@ module mesh_module
      procedure :: setup_ghost_arrays => mesh_setup_ghost_arrays
      procedure :: get_bounds => mesh_get_bounds
      procedure :: setup_coordinate_parameters => mesh_setup_coordinate_parameters
+     procedure :: set_boundary_face_distances => mesh_set_boundary_face_distances
      procedure, public :: init => mesh_init
      procedure, public :: configure => mesh_configure
      procedure, public :: setup_boundaries => mesh_setup_boundaries
@@ -379,8 +380,7 @@ contains
     Vec :: petsc_face_geom
     DM :: dm_face
     PetscSection :: face_section, petsc_face_section, cell_section
-    PetscInt :: c, f, ghost_cell, ghost_face, i, bdy_face, ibdy
-    PetscInt :: num_faces, iface
+    PetscInt :: c, f, ghost_cell, ghost_face, i, bdy_face
     PetscInt :: face_offset, petsc_face_offset
     PetscInt :: cell_offset(2), offset
     type(cell_type) :: cell
@@ -390,8 +390,6 @@ contains
     PetscReal, pointer, contiguous :: cell_geom_array(:)
     DMLabel :: ghost_label, bdy_label
     PetscInt, pointer :: cells(:)
-    IS :: bdy_IS
-    PetscInt, pointer :: bdy_faces(:)
     PetscInt :: dim, face_variable_dim(num_face_variables)
 
     call DMGetDimension(self%dm, dim, ierr); CHKERRQ(ierr)
@@ -404,7 +402,6 @@ contains
          ierr); CHKERRQ(ierr)
 
     ! Set up cell geometry vector:
-    call PetscObjectSetName(self%cell_geom, "cell_geometry", ierr); CHKERRQ(ierr)
     call local_vec_section(self%cell_geom, cell_section)
     call VecGetArrayF90(self%cell_geom, cell_geom_array, ierr); CHKERRQ(ierr)
 
@@ -426,7 +423,6 @@ contains
     call set_dm_data_layout(dm_face, face_variable_num_components, face_variable_dim, &
          face_variable_names)
     call DMCreateLocalVector(dm_face, self%face_geom, ierr); CHKERRQ(ierr)
-    call PetscObjectSetName(self%face_geom, "face_geometry", ierr); CHKERRQ(ierr)
     call local_vec_section(self%face_geom, face_section)
     call VecGetArrayF90(self%face_geom, face_geom_array, ierr); CHKERRQ(ierr)
     call local_vec_section(petsc_face_geom, petsc_face_section)
@@ -467,27 +463,10 @@ contains
 
     end do
 
-    if (allocated(self%bcs)) then
-       ! Set external boundary face connection distances to zero:
-       do ibdy = 1, size(self%bcs, 2)
-          call DMGetStratumSize(self%dm, open_boundary_label_name, ibdy, &
-               num_faces, ierr); CHKERRQ(ierr)
-          if (num_faces > 0) then
-             call DMGetStratumIS(self%dm, open_boundary_label_name, ibdy, &
-                  bdy_IS, ierr); CHKERRQ(ierr)
-             call ISGetIndicesF90(bdy_IS, bdy_faces, ierr); CHKERRQ(ierr)
-             do iface = 1, num_faces
-                f = bdy_faces(iface)
-                call section_offset(face_section, f, face_offset, ierr)
-                CHKERRQ(ierr)
-                call face%assign_geometry(face_geom_array, face_offset)
-                face%distance(2) = 0._dp
-             end do
-             call ISRestoreIndicesF90(bdy_IS, bdy_faces, ierr); CHKERRQ(ierr)
-             call ISDestroy(bdy_IS, ierr); CHKERRQ(ierr)
-          end if
-       end do
-    end if
+    call PetscObjectSetName(self%cell_geom, "cell_geometry", ierr); CHKERRQ(ierr)
+    call PetscObjectSetName(self%face_geom, "face_geometry", ierr); CHKERRQ(ierr)
+
+    call self%set_boundary_face_distances()
 
     call face%destroy()
     call petsc_face%destroy()
@@ -662,6 +641,57 @@ contains
     end if
 
   end subroutine mesh_destroy
+
+!------------------------------------------------------------------------
+
+  subroutine mesh_set_boundary_face_distances(self)
+    !! Sets face distances from boundary ghost cells to zero.
+
+    use kinds_module
+    use face_module
+    use dm_utils_module, only: local_vec_section, section_offset
+
+    class(mesh_type), intent(in out) :: self
+    ! Locals:
+    PetscInt :: ibdy, num_faces
+    PetscInt :: face_offset, f, iface
+    IS :: bdy_IS
+    PetscInt, pointer :: bdy_faces(:)
+    type(face_type) :: face
+    PetscSection :: face_section
+    PetscReal, pointer, contiguous :: face_geom_array(:)
+    PetscErrorCode :: ierr
+
+    call local_vec_section(self%face_geom, face_section)
+    call VecGetArrayF90(self%face_geom, face_geom_array, ierr); CHKERRQ(ierr)
+    call face%init()
+
+    if (allocated(self%bcs)) then
+       ! Set external boundary face connection distances to zero:
+       do ibdy = 1, size(self%bcs, 2)
+          call DMGetStratumSize(self%dm, open_boundary_label_name, ibdy, &
+               num_faces, ierr); CHKERRQ(ierr)
+          if (num_faces > 0) then
+             call DMGetStratumIS(self%dm, open_boundary_label_name, ibdy, &
+                  bdy_IS, ierr); CHKERRQ(ierr)
+             call ISGetIndicesF90(bdy_IS, bdy_faces, ierr); CHKERRQ(ierr)
+             do iface = 1, num_faces
+                f = bdy_faces(iface)
+                call section_offset(face_section, f, face_offset, ierr)
+                CHKERRQ(ierr)
+                call face%assign_geometry(face_geom_array, face_offset)
+                face%distance(2) = 0._dp
+             end do
+             call ISRestoreIndicesF90(bdy_IS, bdy_faces, ierr); CHKERRQ(ierr)
+             call ISDestroy(bdy_IS, ierr); CHKERRQ(ierr)
+          end if
+       end do
+    end if
+
+    call face%destroy()
+    call VecRestoreArrayF90(self%face_geom, face_geom_array, ierr); CHKERRQ(ierr)
+
+  end subroutine mesh_set_boundary_face_distances
 
 !------------------------------------------------------------------------
 
