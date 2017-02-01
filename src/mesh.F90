@@ -48,6 +48,8 @@ module mesh_module
      PetscReal, allocatable, public :: bcs(:,:) !! Array containing boundary conditions
      IS, public :: cell_index !! Index set defining natural cell ordering
      PetscInt, public, allocatable :: ghost_cell(:), ghost_face(:) !! Ghost label values for cells and faces
+     PetscReal, public :: thickness !! Mesh thickness (for dimension < 3)
+     PetscBool, public :: radial !! If mesh coordinate system is radial or Cartesian
    contains
      procedure :: setup_cell_order_label => mesh_setup_cell_order_label
      procedure :: setup_cell_index => mesh_setup_cell_index
@@ -58,6 +60,7 @@ module mesh_module
      procedure :: setup_discretization => mesh_setup_discretization
      procedure :: setup_ghost_arrays => mesh_setup_ghost_arrays
      procedure :: get_bounds => mesh_get_bounds
+     procedure :: setup_coordinate_parameters => mesh_setup_coordinate_parameters
      procedure, public :: init => mesh_init
      procedure, public :: configure => mesh_configure
      procedure, public :: setup_boundaries => mesh_setup_boundaries
@@ -319,11 +322,54 @@ contains
 
 !------------------------------------------------------------------------
 
+  subroutine mesh_setup_coordinate_parameters(self, json, logfile)
+    !! Sets up mesh coordinate system parameters.
+
+    use kinds_module
+    use fson_mpi_module
+    use logfile_module
+
+    class(mesh_type), intent(in out) :: self
+    type(fson_value), pointer, intent(in) :: json !! JSON file pointer
+    type(logfile_type), intent(in out), optional :: logfile !! Logfile for log output
+    ! Locals:
+    PetscInt :: dim
+    PetscErrorCode :: ierr
+    PetscBool, parameter :: default_radial = PETSC_FALSE
+    PetscReal, parameter :: default_thickness = 1._dp
+
+    self%thickness = default_thickness
+    call DMGetDimension(self%dm, dim, ierr); CHKERRQ(ierr)
+    select case (dim)
+    case(3)
+       self%radial = PETSC_FALSE
+    case(2)
+       call fson_get_mpi(json, "mesh.radial", default_radial, self%radial, &
+               logfile)
+       if (.not. self%radial) then
+          call fson_get_mpi(json, "mesh.thickness", default_thickness, &
+               self%thickness, logfile)
+       end if
+    case default
+       if (present(logfile)) then
+          call logfile%write(LOG_LEVEL_ERR, 'mesh', 'init', &
+               str_key = 'stop            ', &
+               str_value = '1-D mesh not supported.', &
+               rank = 0)
+       end if
+       stop
+    end select
+
+  end subroutine mesh_setup_coordinate_parameters
+
+!------------------------------------------------------------------------
+
   subroutine mesh_setup_geometry(self)
     !! Sets up global vectors containing geometry data (e.g. cell volumes,
     !! cell centroids, face areas, face-to-centroid distances) for the mesh.
 
     use kinds_module
+    use cell_module
     use face_module
     use dm_utils_module, only: section_offset, local_vec_section, set_dm_data_layout
 
@@ -333,10 +379,11 @@ contains
     Vec :: petsc_face_geom
     DM :: dm_face
     PetscSection :: face_section, petsc_face_section, cell_section
-    PetscInt :: f, ghost_face, i, bdy_face, ibdy
+    PetscInt :: c, f, ghost_cell, ghost_face, i, bdy_face, ibdy
     PetscInt :: num_faces, iface
     PetscInt :: face_offset, petsc_face_offset
-    PetscInt :: cell_offset(2)
+    PetscInt :: cell_offset(2), offset
+    type(cell_type) :: cell
     type(face_type) :: face
     type(petsc_face_type) :: petsc_face
     PetscReal, pointer, contiguous :: face_geom_array(:), petsc_face_geom_array(:)
@@ -347,35 +394,43 @@ contains
     PetscInt, pointer :: bdy_faces(:)
     PetscInt :: dim, face_variable_dim(num_face_variables)
 
+    call DMGetDimension(self%dm, dim, ierr); CHKERRQ(ierr)
     call face%init()
+    call DMGetLabel(self%dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
+    call DMGetLabel(self%dm, open_boundary_label_name, bdy_label, ierr)
+    CHKERRQ(ierr)
 
-    ! First call PETSc geometry routine- we use the cell geometry vector but need to 
-    ! create our own face geometry vector, containing additional parameters:
     call DMPlexComputeGeometryFVM(self%dm, self%cell_geom, petsc_face_geom, &
          ierr); CHKERRQ(ierr)
+
+    ! Set up cell geometry vector:
     call PetscObjectSetName(self%cell_geom, "cell_geometry", ierr); CHKERRQ(ierr)
+    call local_vec_section(self%cell_geom, cell_section)
+    call VecGetArrayF90(self%cell_geom, cell_geom_array, ierr); CHKERRQ(ierr)
+
+    if ((dim < 3) .and. .not.(self%radial)) then
+       ! Adjust cell volumes for mesh thickness:
+       do c = self%start_cell, self%end_cell - 1
+          call DMLabelGetValue(ghost_label, c, ghost_cell, ierr); CHKERRQ(ierr)
+          if (ghost_cell < 0) then
+             call section_offset(cell_section, c, offset, ierr); CHKERRQ(ierr)
+             call cell%assign_geometry(cell_geom_array, offset)
+             cell%volume = cell%volume * self%thickness
+          end if
+       end do
+    end if
 
     ! Set up face geometry vector:
     call DMClone(self%dm, dm_face, ierr); CHKERRQ(ierr)
-    call DMGetDimension(self%dm, dim, ierr); CHKERRQ(ierr)
     face_variable_dim = dim - 1
     call set_dm_data_layout(dm_face, face_variable_num_components, face_variable_dim, &
          face_variable_names)
-
     call DMCreateLocalVector(dm_face, self%face_geom, ierr); CHKERRQ(ierr)
     call PetscObjectSetName(self%face_geom, "face_geometry", ierr); CHKERRQ(ierr)
     call local_vec_section(self%face_geom, face_section)
     call VecGetArrayF90(self%face_geom, face_geom_array, ierr); CHKERRQ(ierr)
-
-    call local_vec_section(self%cell_geom, cell_section)
-    call VecGetArrayF90(self%cell_geom, cell_geom_array, ierr); CHKERRQ(ierr)
-
     call local_vec_section(petsc_face_geom, petsc_face_section)
     call VecGetArrayF90(petsc_face_geom, petsc_face_geom_array, ierr); CHKERRQ(ierr)
-
-    call DMGetLabel(self%dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
-    call DMGetLabel(self%dm, open_boundary_label_name, bdy_label, ierr)
-    CHKERRQ(ierr)
 
     do f = self%start_face, self%end_face - 1
 
@@ -402,6 +457,7 @@ contains
           face%centroid = petsc_face%centroid
           face%area = norm2(petsc_face%area_normal)
           face%normal = petsc_face%area_normal / face%area
+          face%area = face%area  * self%thickness
           do i = 1, 2
              face%distance(i) = norm2(face%centroid - face%cell(i)%centroid)
           end do
@@ -442,7 +498,6 @@ contains
 
     call PetscSectionDestroy(face_section, ierr); CHKERRQ(ierr)
     call DMDestroy(dm_face, ierr); CHKERRQ(ierr)
-
 
   end subroutine mesh_setup_geometry
 
