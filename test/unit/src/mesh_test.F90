@@ -13,7 +13,7 @@ module mesh_test
   implicit none
   private
 
-public :: test_mesh_init
+public :: test_mesh_init, test_2d_geometry
 
 PetscReal, parameter :: tol = 1.e-6_dp
 
@@ -26,7 +26,7 @@ contains
     ! Mesh init test
 
     use dm_utils_module, only: section_offset
-    use fson_mpi_module
+ use fson_mpi_module
     use cell_module
     use face_module
 
@@ -125,6 +125,91 @@ contains
     deallocate(primary)
 
   end subroutine test_mesh_init
+
+!------------------------------------------------------------------------
+
+  subroutine test_2d_geometry
+    ! Test 2D Cartesian volumes and areas
+
+    use fson_mpi_module
+    use cell_module
+    use face_module
+    use dm_utils_module, only: section_offset, local_vec_section
+
+    type(fson_value), pointer :: json
+    type(mesh_type) :: mesh
+    character(len = 11), allocatable :: primary(:)
+    PetscReal, pointer, contiguous :: cell_geom_array(:), face_geom_array(:)
+    PetscSection :: cell_geom_section, face_geom_section
+    PetscInt :: c, offset, f
+    type(cell_type) :: cell
+    type(face_type) :: face
+    PetscErrorCode :: ierr
+    PetscMPIInt :: rank
+    character(50) :: msg
+    PetscBool :: volumes_OK, areas_OK
+    PetscReal, parameter :: expected_cell_vol = 62500._dp
+    PetscReal, parameter :: expected_face_area = 2500._dp
+    PetscReal, parameter :: tol = 1.e-6_dp
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    primary = ["Pressure   ", "Temperature"]
+
+    json => fson_parse_mpi(str = '{"mesh": {' // &
+         '"filename": "data/mesh/2D.msh",' // &
+         '"thickness": 100.}}')
+    call mesh%init(json)
+    call fson_destroy_mpi(json)
+    call mesh%configure(primary)
+
+    call local_vec_section(mesh%cell_geom, cell_geom_section)
+    call VecGetArrayReadF90(mesh%cell_geom, cell_geom_array, ierr)
+    CHKERRQ(ierr)
+
+    volumes_OK = PETSC_TRUE
+
+    do c = mesh%start_cell, mesh%end_cell - 1
+       if (mesh%ghost_cell(c) < 0) then
+          call section_offset(cell_geom_section, c, offset, &
+               ierr); CHKERRQ(ierr)
+          call cell%assign_geometry(cell_geom_array, offset)
+          volumes_OK = (volumes_OK .and. &
+               abs(cell%volume - expected_cell_vol) <= tol)
+       end if
+    end do
+
+    write(msg, '(a, i3)') 'cell volumes on proc', rank
+    call assert_true(volumes_OK, msg)
+
+    call VecRestoreArrayReadF90(mesh%cell_geom, cell_geom_array, ierr)
+    CHKERRQ(ierr)
+
+    call local_vec_section(mesh%face_geom, face_geom_section)
+    call VecGetArrayReadF90(mesh%face_geom, face_geom_array, ierr)
+    CHKERRQ(ierr)
+    call face%init()
+    areas_OK = PETSC_TRUE
+
+    do f = mesh%start_face, mesh%end_face - 1
+       if (mesh%ghost_face(f) < 0) then
+          call section_offset(face_geom_section, f, offset, &
+               ierr); CHKERRQ(ierr)
+          call face%assign_geometry(face_geom_array, offset)
+          areas_OK = (areas_OK .and. &
+               abs(face%area - expected_face_area) <= tol)
+       end if
+    end do
+
+    write(msg, '(a, i3)') 'face areas on proc', rank
+    call assert_true(areas_OK, msg)
+
+    call VecRestoreArrayReadF90(mesh%face_geom, face_geom_array, ierr)
+    CHKERRQ(ierr)
+    call face%destroy()
+
+    call mesh%destroy()
+
+  end subroutine test_2d_geometry
 
 !------------------------------------------------------------------------
 
