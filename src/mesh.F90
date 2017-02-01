@@ -563,40 +563,44 @@ contains
     !! Otherwise, the PETSc DM is read in.
 
     use logfile_module
+    use fson_mpi_module
+    use fson_value_m, only: TYPE_STRING, TYPE_OBJECT
 
     class(mesh_type), intent(in out) :: self
     type(fson_value), pointer, intent(in) :: json !! JSON file pointer
     type(logfile_type), intent(in out), optional :: logfile
     ! Locals:
+    PetscInt :: mesh_type
     PetscErrorCode :: ierr
-    type(fson_value), pointer :: mesh
-    PetscMPIInt :: rank
 
-    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
-    if (rank == 0) then
-       call fson_get(json, "mesh", mesh)
-       if (associated(mesh)) then
-          call fson_get(mesh, ".", self%filename)
-       else
-          if (present(logfile)) then
-             call logfile%write(LOG_LEVEL_ERR, 'mesh', 'init', &
-                  str_key = 'stop            ', &
-                  str_value = 'mesh not found in input.', &
-                  rank = 0)
-          end if
-          stop
-       end if
+    if (fson_has_mpi(json, "mesh")) then
+       mesh_type = fson_type_mpi(json, "mesh")
+       select case (mesh_type)
+       case(TYPE_STRING)
+          call fson_get_mpi(json, "mesh", val = self%filename)
+       case (TYPE_OBJECT)
+          call fson_get_mpi(json, "mesh.filename", "", self%filename)
+       case default
+          self%filename = ""
+       end select
     end if
 
-    call MPI_bcast(self%filename, max_mesh_filename_length, MPI_CHARACTER, &
-         0, PETSC_COMM_WORLD, ierr)
-
-    ! Read in DM:
-    call DMPlexCreateFromFile(PETSC_COMM_WORLD, self%filename, PETSC_TRUE, &
-         self%dm, ierr); CHKERRQ(ierr)
-
-    call DMPlexSetAdjacencyUseCone(self%dm, PETSC_TRUE, ierr); CHKERRQ(ierr)
-    call DMPlexSetAdjacencyUseClosure(self%dm, PETSC_FALSE, ierr); CHKERRQ(ierr)
+    if (self%filename == "") then
+       if (present(logfile)) then
+          call logfile%write(LOG_LEVEL_ERR, 'mesh', 'init', &
+               str_key = 'stop            ', &
+               str_value = 'filename not found in input.', &
+               rank = 0)
+       end if
+       stop
+    else
+       ! Read in DM:
+       call DMPlexCreateFromFile(PETSC_COMM_WORLD, self%filename, PETSC_TRUE, &
+            self%dm, ierr); CHKERRQ(ierr)
+       call DMPlexSetAdjacencyUseCone(self%dm, PETSC_TRUE, ierr); CHKERRQ(ierr)
+       call DMPlexSetAdjacencyUseClosure(self%dm, PETSC_FALSE, ierr); CHKERRQ(ierr)
+       call self%setup_coordinate_parameters(json, logfile)
+    end if
 
   end subroutine mesh_init
 
