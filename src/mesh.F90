@@ -62,6 +62,7 @@ module mesh_module
      procedure :: get_bounds => mesh_get_bounds
      procedure :: setup_coordinate_parameters => mesh_setup_coordinate_parameters
      procedure :: set_boundary_face_distances => mesh_set_boundary_face_distances
+     procedure :: modify_geometry => mesh_modify_geometry
      procedure, public :: init => mesh_init
      procedure, public :: configure => mesh_configure
      procedure, public :: setup_boundaries => mesh_setup_boundaries
@@ -369,18 +370,47 @@ contains
     !! Sets up global vectors containing geometry data (e.g. cell volumes,
     !! cell centroids, face areas, face-to-centroid distances) for the mesh.
 
+    class(mesh_type), intent(in out) :: self
+    ! Locals:
+    PetscErrorCode :: ierr
+    Vec :: petsc_face_geom
+
+    call DMPlexComputeGeometryFVM(self%dm, self%cell_geom, petsc_face_geom, &
+         ierr); CHKERRQ(ierr)
+
+    call self%modify_geometry(petsc_face_geom)
+    call self%set_boundary_face_distances()
+
+    call PetscObjectSetName(self%cell_geom, "cell_geometry", ierr)
+    CHKERRQ(ierr)
+    call PetscObjectSetName(self%face_geom, "face_geometry", ierr)
+    CHKERRQ(ierr)
+
+  end subroutine mesh_setup_geometry
+
+!------------------------------------------------------------------------
+
+  subroutine mesh_modify_geometry(self, petsc_face_geom)
+    !! Modifies cell and face geometry vectors, given the face
+    !! geometry vector produced by DMPlexComputeGeometryFVM(). For 2D
+    !! Cartesian meshes, cell volumes and face areas are modified to
+    !! account for the mesh thickness. For radial meshes, cell volumes
+    !! and face areas are computed for the solids of revolution of
+    !! cells and faces in the 2D mesh, using Pappus' centroid
+    !! theorem. In both cases, additional face geometry parameters are
+    !! computed (e.g. distances).
+
     use kinds_module
     use cell_module
     use face_module
     use dm_utils_module, only: section_offset, local_vec_section, set_dm_data_layout
 
     class(mesh_type), intent(in out) :: self
+    Vec, intent(in) :: petsc_face_geom
     ! Locals:
-    PetscErrorCode :: ierr
-    Vec :: petsc_face_geom
     DM :: dm_face
     PetscSection :: face_section, petsc_face_section, cell_section
-    PetscInt :: c, f, ghost_cell, ghost_face, i, bdy_face
+    PetscInt :: c, f, ghost_cell, ghost_face, i
     PetscInt :: face_offset, petsc_face_offset
     PetscInt :: cell_offset(2), offset
     type(cell_type) :: cell
@@ -388,31 +418,47 @@ contains
     type(petsc_face_type) :: petsc_face
     PetscReal, pointer, contiguous :: face_geom_array(:), petsc_face_geom_array(:)
     PetscReal, pointer, contiguous :: cell_geom_array(:)
-    DMLabel :: ghost_label, bdy_label
+    DMLabel :: ghost_label
     PetscInt, pointer :: cells(:)
     PetscInt :: dim, face_variable_dim(num_face_variables)
+    PetscErrorCode :: ierr
+
+    interface
+
+       subroutine modify_cell_volume_routine(cell)
+         import :: cell_type
+         type(cell_type), intent(in out) :: cell
+       end subroutine modify_cell_volume_routine
+
+       subroutine modify_face_area_routine(face)
+         import :: face_type
+         type(face_type), intent(in out) :: face
+       end subroutine modify_face_area_routine
+
+    end interface
+    procedure(modify_cell_volume_routine), pointer :: modify_cell_volume
+    procedure(modify_face_area_routine), pointer :: modify_face_area
 
     call DMGetDimension(self%dm, dim, ierr); CHKERRQ(ierr)
-    call face%init()
     call DMGetLabel(self%dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
-    call DMGetLabel(self%dm, open_boundary_label_name, bdy_label, ierr)
-    CHKERRQ(ierr)
-
-    call DMPlexComputeGeometryFVM(self%dm, self%cell_geom, petsc_face_geom, &
-         ierr); CHKERRQ(ierr)
 
     ! Set up cell geometry vector:
     call local_vec_section(self%cell_geom, cell_section)
     call VecGetArrayF90(self%cell_geom, cell_geom_array, ierr); CHKERRQ(ierr)
 
-    if ((dim < 3) .and. .not.(self%radial)) then
-       ! Adjust cell volumes for mesh thickness:
+    if (dim == 2) then
+       ! Adjust cell volumes:
+       if (self%radial) then
+          modify_cell_volume => modify_cell_volume_2d_radial
+       else
+          modify_cell_volume => modify_cell_volume_2d_cartesian
+       end if
        do c = self%start_cell, self%end_cell - 1
           call DMLabelGetValue(ghost_label, c, ghost_cell, ierr); CHKERRQ(ierr)
           if (ghost_cell < 0) then
              call section_offset(cell_section, c, offset, ierr); CHKERRQ(ierr)
              call cell%assign_geometry(cell_geom_array, offset)
-             cell%volume = cell%volume * self%thickness
+             call modify_cell_volume(cell)
           end if
        end do
     end if
@@ -420,21 +466,32 @@ contains
     ! Set up face geometry vector:
     call DMClone(self%dm, dm_face, ierr); CHKERRQ(ierr)
     face_variable_dim = dim - 1
-    call set_dm_data_layout(dm_face, face_variable_num_components, face_variable_dim, &
-         face_variable_names)
+    call set_dm_data_layout(dm_face, face_variable_num_components, &
+         face_variable_dim, face_variable_names)
     call DMCreateLocalVector(dm_face, self%face_geom, ierr); CHKERRQ(ierr)
     call local_vec_section(self%face_geom, face_section)
     call VecGetArrayF90(self%face_geom, face_geom_array, ierr); CHKERRQ(ierr)
     call local_vec_section(petsc_face_geom, petsc_face_section)
-    call VecGetArrayF90(petsc_face_geom, petsc_face_geom_array, ierr); CHKERRQ(ierr)
+    call VecGetArrayF90(petsc_face_geom, petsc_face_geom_array, ierr)
+    CHKERRQ(ierr)
+    call face%init()
+
+    select case (dim)
+    case (3)
+       modify_face_area => modify_face_area_null
+    case (2)
+       if (self%radial) then
+          modify_face_area => modify_face_area_2d_radial
+       else
+          modify_face_area => modify_face_area_2d_cartesian
+       end if
+    end select
 
     do f = self%start_face, self%end_face - 1
 
        call DMLabelGetValue(ghost_label, f, ghost_face, ierr); CHKERRQ(ierr)
 
        if (ghost_face < 0) then
-
-          call DMLabelGetValue(bdy_label, f, bdy_face, ierr); CHKERRQ(ierr)
 
           call section_offset(face_section, f, face_offset, ierr); CHKERRQ(ierr)
           call section_offset(petsc_face_section, f, petsc_face_offset, ierr)
@@ -453,7 +510,7 @@ contains
           face%centroid = petsc_face%centroid
           face%area = norm2(petsc_face%area_normal)
           face%normal = petsc_face%area_normal / face%area
-          face%area = face%area  * self%thickness
+          call modify_face_area(face)
           do i = 1, 2
              face%distance(i) = norm2(face%centroid - face%cell(i)%centroid)
           end do
@@ -462,11 +519,6 @@ contains
        end if
 
     end do
-
-    call PetscObjectSetName(self%cell_geom, "cell_geometry", ierr); CHKERRQ(ierr)
-    call PetscObjectSetName(self%face_geom, "face_geometry", ierr); CHKERRQ(ierr)
-
-    call self%set_boundary_face_distances()
 
     call face%destroy()
     call petsc_face%destroy()
@@ -478,7 +530,67 @@ contains
     call PetscSectionDestroy(face_section, ierr); CHKERRQ(ierr)
     call DMDestroy(dm_face, ierr); CHKERRQ(ierr)
 
-  end subroutine mesh_setup_geometry
+  contains
+
+    subroutine modify_cell_volume_2d_cartesian(cell)
+      ! Volume modification for 2D Cartesian cells.
+      type(cell_type), intent(in out) :: cell
+
+      cell%volume = cell%volume * self%thickness
+
+    end subroutine modify_cell_volume_2d_cartesian
+
+!........................................................................
+
+    subroutine modify_cell_volume_2d_radial(cell)
+      ! Volume modification for 2D radial cells- via Pappus' centroid
+      ! theorem.
+      use utils_module, only: pi
+      type(cell_type), intent(in out) :: cell
+      ! Locals:
+      PetscReal :: r
+
+      r = cell%centroid(1)
+      cell%volume = cell%volume * 2._dp * pi * r
+
+    end subroutine modify_cell_volume_2d_radial
+
+!........................................................................
+
+    subroutine modify_face_area_null(face)
+      ! Do-nothing area modification- for 3D cells.
+      type(face_type), intent(in out) :: face
+
+      continue
+
+    end subroutine modify_face_area_null
+
+!........................................................................
+
+    subroutine modify_face_area_2d_cartesian(face)
+      ! Area modification for 2D Cartesian faces.
+      type(face_type), intent(in out) :: face
+
+      face%area = face%area * self%thickness
+
+    end subroutine modify_face_area_2d_cartesian
+
+!........................................................................
+
+    subroutine modify_face_area_2d_radial(face)
+      ! Area modification for 2D radial faces- via Pappus' centroid
+      ! theorem.
+      use utils_module, only: pi
+      type(face_type), intent(in out) :: face
+      ! Locals:
+      PetscReal :: r
+
+      r = face%centroid(1)
+      face%area = face%area * 2._dp * pi * r
+
+    end subroutine modify_face_area_2d_radial
+
+  end subroutine mesh_modify_geometry
 
 !------------------------------------------------------------------------
 
