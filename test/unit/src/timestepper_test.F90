@@ -445,10 +445,10 @@ contains
 
   PetscReal function fn_heat1d(self, x, t)
     ! Exact heat equation solution at given point and time.
+    use utils_module, only: pi
     class(heat1d_ode_type), intent(in out) :: self
     PetscReal, intent(in) :: x, t
     ! Locals:
-    PetscReal, parameter :: pi = 4._dp * atan(1._dp)
     fn_heat1d = sin(pi * x) * exp(-pi * pi * t)
   end function fn_heat1d
 
