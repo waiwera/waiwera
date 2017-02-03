@@ -36,7 +36,7 @@ class t2data_export_json(t2data):
         representing the corresponding JSON input."""
         jsondata = {}
         jsondata['title'] = self.title.strip()
-        jsondata['mesh'] = mesh_filename
+        jsondata['mesh'] = {'filename': mesh_filename}
         jsondata['gravity'] = self.parameter['gravity']
         jsondata['thermodynamics'] = 'ifc67'
         jsondata.update(self.eos_json(eos))
