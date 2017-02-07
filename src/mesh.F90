@@ -366,11 +366,12 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine mesh_setup_geometry(self)
+  subroutine mesh_setup_geometry(self, gravity)
     !! Sets up global vectors containing geometry data (e.g. cell volumes,
     !! cell centroids, face areas, face-to-centroid distances) for the mesh.
 
     class(mesh_type), intent(in out) :: self
+    PetscReal, intent(in) :: gravity(:)
     ! Locals:
     PetscErrorCode :: ierr
     Vec :: petsc_face_geom
@@ -378,7 +379,7 @@ contains
     call DMPlexComputeGeometryFVM(self%dm, self%cell_geom, petsc_face_geom, &
          ierr); CHKERRQ(ierr)
 
-    call self%modify_geometry(petsc_face_geom)
+    call self%modify_geometry(petsc_face_geom, gravity)
     call self%set_boundary_face_distances()
 
     call PetscObjectSetName(self%cell_geom, "cell_geometry", ierr)
@@ -390,7 +391,7 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine mesh_modify_geometry(self, petsc_face_geom)
+  subroutine mesh_modify_geometry(self, petsc_face_geom, gravity)
     !! Modifies cell and face geometry vectors, given the face
     !! geometry vector produced by DMPlexComputeGeometryFVM(). For 2D
     !! Cartesian meshes, cell volumes and face areas are modified to
@@ -398,7 +399,7 @@ contains
     !! and face areas are computed for the solids of revolution of
     !! cells and faces in the 2D mesh, using Pappus' centroid
     !! theorem. In both cases, additional face geometry parameters are
-    !! computed (e.g. distances).
+    !! computed (e.g. distances, gravity normal).
 
     use kinds_module
     use cell_module
@@ -407,6 +408,7 @@ contains
 
     class(mesh_type), intent(in out) :: self
     Vec, intent(in) :: petsc_face_geom
+    PetscReal, intent(in) :: gravity(:)
     ! Locals:
     DM :: dm_face
     PetscSection :: face_section, petsc_face_section, cell_section
@@ -510,6 +512,7 @@ contains
           face%centroid = petsc_face%centroid
           face%area = norm2(petsc_face%area_normal)
           face%normal = petsc_face%area_normal / face%area
+          face%gravity_normal = dot_product(gravity, face%normal)
           call modify_face_area(face)
           do i = 1, 2
              face%distance(i) = norm2(face%centroid - face%cell(i)%centroid)
@@ -697,13 +700,14 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine mesh_configure(self, primary_variable_names, viewer)
+  subroutine mesh_configure(self, primary_variable_names, gravity, viewer)
     !! Configures mesh, including distribution over processes and
     !! construction of ghost cells, setup of data layout, geometry and
     !! cell index set.
 
     class(mesh_type), intent(in out) :: self
     character(*), intent(in) :: primary_variable_names(:) !! Names of primary thermodynamic variables
+    PetscReal, intent(in) :: gravity(:)
     PetscViewer, intent(in out), optional :: viewer !! PetscViewer for output of cell index set to HDF5 file
     ! Locals:
     PetscInt :: dof
@@ -719,7 +723,7 @@ contains
 
     call self%setup_data_layout(dof)
 
-    call self%setup_geometry()
+    call self%setup_geometry(gravity)
 
     call self%setup_ghost_arrays()
 

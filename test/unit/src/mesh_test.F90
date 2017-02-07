@@ -54,6 +54,7 @@ contains
          reshape([5._dp, 10._dp, 10._dp, 15._dp], [2,2])
     PetscReal, parameter :: face_centroid(3, 2) = &
          reshape([5._dp, 10._dp, 50._dp, 5._dp, 10._dp, 30._dp], [3,2])
+    PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
     
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
 
@@ -64,7 +65,7 @@ contains
     call fson_destroy_mpi(json)
 
     call DMCreateLabel(mesh%dm, open_boundary_label_name, ierr); CHKERRQ(ierr)
-    call mesh%configure(primary)
+    call mesh%configure(primary, gravity)
 
     call DMGetDimension(mesh%dm, dim, ierr); CHKERRQ(ierr)
     if (rank == 0) then
@@ -151,6 +152,7 @@ contains
     PetscBool :: volumes_OK, areas_OK
     PetscReal, parameter :: expected_cell_vol = 62500._dp
     PetscReal, parameter :: expected_face_area = 2500._dp
+    PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
     primary = ["Pressure   ", "Temperature"]
@@ -160,7 +162,7 @@ contains
          '"thickness": 100.}}')
     call mesh%init(json)
     call fson_destroy_mpi(json)
-    call mesh%configure(primary)
+    call mesh%configure(primary, gravity)
 
     call local_vec_section(mesh%cell_geom, cell_geom_section)
     call VecGetArrayReadF90(mesh%cell_geom, cell_geom_array, ierr)
@@ -237,6 +239,7 @@ contains
     PetscReal :: r, r1, r2, l, expected_cell_vol, expected_face_area
     PetscBool :: vertical
     PetscReal, parameter :: dr = 300._dp / 12, dy = 200._dp / 8
+    PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
     primary = ["Pressure   ", "Temperature"]
@@ -246,7 +249,7 @@ contains
          '"radial": true}}')
     call mesh%init(json)
     call fson_destroy_mpi(json)
-    call mesh%configure(primary)
+    call mesh%configure(primary, gravity)
 
     call local_vec_section(mesh%cell_geom, cell_geom_section)
     call VecGetArrayReadF90(mesh%cell_geom, cell_geom_array, ierr)

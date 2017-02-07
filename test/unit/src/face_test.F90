@@ -35,6 +35,8 @@ contains
     PetscReal, parameter :: area = 300._dp
     PetscReal, parameter :: distance(2) = [20._dp, 30._dp]
     PetscReal, parameter :: normal(3) = [0.5_dp, -0.25_dp, 0.75_dp]
+    PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
+    PetscReal, parameter :: gravity_normal = dot_product(gravity, normal)
     PetscReal, parameter :: centroid(3) = [-1250._dp, 3560._dp, -2530._dp]
     PetscReal, parameter :: permeability_direction = dble(2)
     PetscInt, parameter :: offset = 6
@@ -49,8 +51,8 @@ contains
        call face%init()
 
        allocate(face_data(offset - 1 + face%dof))
-       face_data = [offset_padding, area, distance, normal, centroid, &
-            permeability_direction]
+       face_data = [offset_padding, area, distance, normal, gravity_normal, &
+            centroid, permeability_direction]
 
        call assert_equals(face%dof, size(face_data) - (offset-1), "face dof")
 
@@ -59,6 +61,7 @@ contains
        call assert_equals(area, face%area, tol, "area")
        call assert_equals(0._dp, norm2(face%distance - distance), tol, "distances")
        call assert_equals(0._dp, norm2(face%normal - normal), tol, "normal")
+       call assert_equals(-7.35_dp, face%gravity_normal, tol, "gravity normal")
        call assert_equals(0._dp, norm2(face%centroid - centroid), tol, "centroid")
        call assert_equals(permeability_direction, face%permeability_direction, &
             tol, "permeability direction")
@@ -88,6 +91,8 @@ contains
             1._dp,  -1.4_dp, -1.6_dp], [3, num_tests])
     PetscReal, parameter :: expected_permeability_direction(num_tests) = &
          [dble(1), dble(2), dble(3)]
+    PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
+    PetscReal :: gravity_normal
     PetscReal, pointer, contiguous :: face_data(:)
     PetscInt :: i
     PetscInt :: offset = 1
@@ -102,9 +107,10 @@ contains
 
        do i = 1, num_tests
 
+          gravity_normal = dot_product(gravity, normal(:,i))
           allocate(face_data(offset - 1 + face%dof))
-          face_data = [area, distance, normal(:,i), centroid, &
-               initial_permeability_direction]
+          face_data = [area, distance, normal(:,i), gravity_normal, &
+               centroid, initial_permeability_direction]
           call face%assign_geometry(face_data, offset)
           call face%calculate_permeability_direction()
 
@@ -251,7 +257,6 @@ contains
     use eos_we_module
 
     PetscInt, parameter :: nc = 1, num_phases = 1, num_primary = 2
-    PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
     type(face_type) :: face
     type(cell_type) :: cell
     type(rock_type) :: rock
@@ -288,7 +293,7 @@ contains
        rock_offsets = [1, 1]
        fluid_offsets = [1, 1]
        face_data = [0._dp,  25._dp, 35._dp,  1._dp, 0._dp, 0._dp, &
-            0._dp, 0._dp, 0._dp, 1._dp]
+            0._dp, 0._dp, 0._dp, 0._dp, 1._dp]
        cell_data = 0._dp ! not needed
        rock_data = [ &
             1.e-14_dp, 2.e-14_dp, 3.e-15_dp,  2.5_dp,  2.5_dp, 0.1_dp, &
@@ -303,7 +308,7 @@ contains
        call face%assign_cell_rock(rock_data, rock_offsets)
        call face%assign_cell_fluid(fluid_data, fluid_offsets)
 
-       flux = face%flux(eos, gravity)
+       flux = face%flux(eos)
 
        call assert_equals(num_primary, size(flux), "Flux array size")
        call assert_equals(expected_mass_flux, flux(1), tol, "Mass flux")
@@ -337,7 +342,6 @@ contains
     use eos_we_module
 
     PetscInt, parameter :: nc = 1, num_phases = 1, num_primary = 2
-    PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
     type(face_type) :: face
     type(cell_type) :: cell
     type(rock_type) :: rock
@@ -374,7 +378,7 @@ contains
        rock_offsets = [1, 1]
        fluid_offsets = [1, 1]
        face_data = [0._dp,  25._dp, 35._dp,  0._dp, 0._dp, -1._dp, &
-            0._dp, 0._dp, 0._dp, 3._dp]
+            9.8_dp, 0._dp, 0._dp, 0._dp, 3._dp]
        cell_data = 0._dp ! not needed
        rock_data = [ &
             1.e-14_dp, 2.e-14_dp, 3.e-15_dp,  2.5_dp,  2.5_dp, 0.1_dp, &
@@ -389,7 +393,7 @@ contains
        call face%assign_cell_rock(rock_data, rock_offsets)
        call face%assign_cell_fluid(fluid_data, fluid_offsets)
 
-       flux = face%flux(eos, gravity)
+       flux = face%flux(eos)
 
        call assert_equals(expected_mass_flux, flux(1), mass_tol, "Mass flux")
        call assert_equals(expected_heat_flux, flux(2), heat_tol, "Heat flux")
@@ -422,7 +426,6 @@ contains
     use eos_we_module
 
     PetscInt, parameter :: nc = 1, num_phases = 1, num_primary = 2
-    PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
     type(face_type) :: face
     type(cell_type) :: cell
     type(rock_type) :: rock
@@ -459,7 +462,7 @@ contains
        rock_offsets = [1, 1]
        fluid_offsets = [1, 1 + fluid%dof]
        face_data = [0._dp,  25._dp, 35._dp,  0._dp, 0._dp, -1._dp, &
-            0._dp, 0._dp, 0._dp, 3._dp]
+            9.8_dp, 0._dp, 0._dp, 0._dp, 3._dp]
        cell_data = 0._dp ! not needed
        rock_data = [ &
             1.e-14_dp, 2.e-14_dp, 3.e-15_dp,  2.5_dp,  2.5_dp, 0.1_dp, &
@@ -477,7 +480,7 @@ contains
        call face%assign_cell_rock(rock_data, rock_offsets)
        call face%assign_cell_fluid(fluid_data, fluid_offsets)
 
-       flux = face%flux(eos, gravity)
+       flux = face%flux(eos)
 
        call assert_equals(expected_mass_flux, flux(1), mass_tol, "Mass flux")
        call assert_equals(expected_heat_flux, flux(2), heat_tol, "Heat flux")
@@ -509,7 +512,6 @@ contains
     use eos_we_module
 
     PetscInt, parameter :: nc = 1, num_phases = 2, num_primary = 2
-    PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
     type(face_type) :: face
     type(cell_type) :: cell
     type(rock_type) :: rock
@@ -548,8 +550,8 @@ contains
        cell_offsets = [1, 1]
        rock_offsets = [1, 1 + rock%dof]
        fluid_offsets = [1, 1 + fluid%dof]
-       face_data = [0._dp,  25._dp, 35._dp,  0._dp, 0._dp, -1._dp, 0._dp, &
-            0._dp, 0._dp, 3._dp]
+       face_data = [0._dp,  25._dp, 35._dp,  0._dp, 0._dp, -1._dp, 9.8_dp, &
+            0._dp, 0._dp, 0._dp, 3._dp]
        cell_data = 0._dp ! not needed
        rock_data = [ &
             1.e-14_dp, 2.e-14_dp, 3.e-15_dp,  2.5_dp, 2.5_dp, 0.1_dp, &  ! cell 1
@@ -577,7 +579,7 @@ contains
        call assert_equals(expected_liquid_density, density, density_tol, "Liquid density")
        density = face%phase_density(2)
        call assert_equals(expected_vapour_density, density, density_tol, "Vapour density")
-       flux = face%flux(eos, gravity)
+       flux = face%flux(eos)
 
        call assert_equals(expected_mass_flux, flux(1), mass_tol, "Mass flux")
        call assert_equals(expected_heat_flux, flux(2), heat_tol, "Heat flux")

@@ -436,10 +436,10 @@ contains
     call setup_rocktype_labels(json, self%mesh%dm, self%logfile)
     call self%mesh%setup_boundaries(json, self%eos, self%logfile)
     if (self%output_filename == '') then
-       call self%mesh%configure(self%eos%primary_variable_names)
+       call self%mesh%configure(self%eos%primary_variable_names, self%gravity)
     else
        call self%mesh%configure(self%eos%primary_variable_names, &
-            self%hdf5_viewer)
+            self%gravity, self%hdf5_viewer)
     end if
     call self%output_mesh_geometry()
 
@@ -704,7 +704,7 @@ contains
           call face%assign_cell_rock(rock_array, rock_offsets)
           call face%assign_cell_fluid(fluid_array, fluid_offsets)
 
-          face_flow = face%flux(self%eos, self%gravity) * face%area
+          face_flow = face%flux(self%eos) * face%area
 
           do i = 1, 2
              if ((self%mesh%ghost_cell(cells(i)) < 0) .and. &
