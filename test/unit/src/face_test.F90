@@ -251,7 +251,7 @@ contains
     use eos_we_module
 
     PetscInt, parameter :: nc = 1, num_phases = 1, num_primary = 2
-    PetscReal, parameter :: gravity = 9.8_dp
+    PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
     type(face_type) :: face
     type(cell_type) :: cell
     type(rock_type) :: rock
@@ -337,7 +337,7 @@ contains
     use eos_we_module
 
     PetscInt, parameter :: nc = 1, num_phases = 1, num_primary = 2
-    PetscReal, parameter :: gravity = 9.8_dp
+    PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
     type(face_type) :: face
     type(cell_type) :: cell
     type(rock_type) :: rock
@@ -422,7 +422,7 @@ contains
     use eos_we_module
 
     PetscInt, parameter :: nc = 1, num_phases = 1, num_primary = 2
-    PetscReal, parameter :: gravity = 9.8_dp
+    PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
     type(face_type) :: face
     type(cell_type) :: cell
     type(rock_type) :: rock
@@ -509,7 +509,7 @@ contains
     use eos_we_module
 
     PetscInt, parameter :: nc = 1, num_phases = 2, num_primary = 2
-    PetscReal, parameter :: gravity = 9.8_dp
+    PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
     type(face_type) :: face
     type(cell_type) :: cell
     type(rock_type) :: rock

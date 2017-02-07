@@ -51,7 +51,7 @@ module flow_simulation_module
      type(list_type), public :: source_controls !! Source/sink controls
      class(thermodynamics_type), allocatable, public :: thermo !! Fluid thermodynamic formulation
      class(eos_type), allocatable, public :: eos !! Fluid equation of state
-     PetscReal, public :: gravity !! Acceleration of gravity (\(m.s^{-1}\))
+     PetscReal, public :: gravity(3) !! Acceleration of gravity vector (\(m.s^{-1}\))
      class(relative_permeability_type), allocatable, public :: relative_permeability !! Rock relative permeability function
      character(max_output_filename_length), public :: output_filename !! HDF5 output filename
      PetscViewer :: hdf5_viewer
@@ -61,6 +61,7 @@ module flow_simulation_module
      procedure :: setup_solution_vector => flow_simulation_setup_solution_vector
      procedure :: setup_logfile => flow_simulation_setup_logfile
      procedure :: setup_output => flow_simulation_setup_output
+     procedure :: setup_gravity => flow_simulation_setup_gravity
      procedure :: destroy_output => flow_simulation_destroy_output
      procedure, public :: input_summary => flow_simulation_input_summary
      procedure, public :: run_info => flow_simulation_run_info
@@ -341,6 +342,49 @@ contains
 
 !------------------------------------------------------------------------
 
+  subroutine flow_simulation_setup_gravity(self, json)
+    !! Sets up gravity vector from JSON input.
+
+    use kinds_module
+    use fson
+    use fson_mpi_module
+    use fson_value_m, only: TYPE_REAL, TYPE_ARRAY
+
+    class(flow_simulation_type), intent(in out) :: self
+    type(fson_value), pointer, intent(in) :: json
+    ! Locals:
+    PetscReal :: gravity_magnitude
+    PetscReal, allocatable :: gravity(:)
+    PetscInt :: gravity_type, ng
+    PetscReal, parameter :: default_gravity = 9.8_dp
+
+    if (fson_has_mpi(json, "gravity")) then
+       gravity_type = fson_type_mpi(json, "gravity")
+       select case (gravity_type)
+       case (TYPE_REAL)
+          call fson_get_mpi(json, "gravity", val = gravity_magnitude)
+          self%gravity = [0._dp, 0._dp, -gravity_magnitude]
+       case (TYPE_ARRAY)
+          call fson_get_mpi(json, "gravity", val = gravity)
+          ng = size(gravity)
+          self%gravity(1: ng) = gravity
+          deallocate(gravity)
+       case default
+          call self%logfile%write(LOG_LEVEL_ERR, 'simulation', &
+               'init', str_key = 'stop', &
+               str_value = 'unrecognised gravity type', &
+               rank = 0)
+       end select
+    else
+       call fson_get_mpi(json, "gravity", default_gravity, &
+            gravity_magnitude, self%logfile)
+          self%gravity = [0._dp, 0._dp, -gravity_magnitude]
+    end if
+
+  end subroutine flow_simulation_setup_gravity
+
+!------------------------------------------------------------------------
+
   subroutine flow_simulation_init(self, json, filename)
     !! Initializes a flow simulation using data from the specified JSON object.
 
@@ -364,7 +408,6 @@ contains
     ! Locals:
     character(len = max_title_length), parameter :: default_title = ""
     character(25) :: datetimestr
-    PetscReal, parameter :: default_gravity = 9.8_dp
     PetscErrorCode :: ierr
 
     call PetscLogEventBegin(simulation_init_event, ierr); CHKERRQ(ierr)
@@ -383,9 +426,8 @@ contains
 
     call fson_get_mpi(json, "title", default_title, self%title, &
          self%logfile)
-    call fson_get_mpi(json, "gravity", default_gravity, self%gravity, &
-         self%logfile)
 
+    call self%setup_gravity(json)
     call setup_thermodynamics(json, self%thermo, self%logfile)
     call setup_eos(json, self%thermo, self%eos, self%logfile)
 

@@ -379,7 +379,7 @@ contains
 
     class(face_type), intent(in) :: self
     class(eos_type), intent(in) :: eos
-    PetscReal, intent(in) :: gravity
+    PetscReal, intent(in) :: gravity(3)
     PetscReal :: flux(eos%num_primary_variables)
     ! Locals:
     PetscInt :: nc, np
@@ -392,7 +392,7 @@ contains
     nc = eos%num_components
     np = eos%num_primary_variables
     dpdn = self%pressure_gradient()
-    gn = gravity * self%normal(3)
+    gn = dot_product(gravity, self%normal)
 
     if (.not. eos%isothermal) then
        ! Heat conduction:
@@ -412,7 +412,7 @@ contains
        if (btest(phase_present, p - 1)) then
 
           face_density = self%phase_density(p)
-          G = dpdn + face_density * gn
+          G = dpdn - face_density * gn
 
           up = self%upstream_index(G)
 
