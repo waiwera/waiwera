@@ -180,24 +180,26 @@ for field_name in plot_fields:
     problem1_test.mSuite.analysisImages.append(img_filename)
 
 # plot temperature profile at end time:
-# tc_name = "AUTOUGH2 t = 1.e9 s"
-# r = np.array([col.centre[0] for col in geo.columnlist])
-# for field_name in plot_fields:
-#     var = np.array(problem1_test.testComps[run_index][tc_name].fieldErrors[field_name])
-#     plt.plot(r, var, '-o')
-#     plt.xlabel('radius (m)')
-#     plt.ylabel(field_name + ' error')
-#     plt.title(' '.join((model_name, 'comparison with AUTOUGH2 at',
-#                        obspt)))
-#     img_filename_base = '_'.join((model_name, tc_name, 'error', field_name))
-#     img_filename_base = img_filename_base.replace(' ', '_')
-#     img_filename = os.path.join(problem1_test.mSuite.runs[run_index].basePath,
-#                                 problem1_test.mSuite.outputPathBase,
-#                                 img_filename_base + '.png')
-#     plt.tight_layout(pad = 3.)
-#     plt.savefig(img_filename)
-#     plt.clf()
-#     problem1_test.mSuite.analysisImages.append(img_filename)
+tc_name = "AUTOUGH2 at t = 1.e9 s"
+r = np.array([col.centre[0] for col in geo.columnlist])
+for field_name in plot_fields:
+    var = problem1_test.mSuite.resultsList[run_index].getFieldAtOutputIndex(field_name, -1) /scale[field_name]
+    plt.plot(r, var, '-', label = 'Waiwera')
+    var = AUTOUGH2_result.getFieldAtOutputIndex(field_name, -1) / scale[field_name]
+    plt.plot(r, var, '+', label = 'AUTOUGH2')
+    plt.xlabel('radius (m)')
+    plt.ylabel(field_name + ' (' + unit[field_name] + ')')
+    plt.title(' '.join((model_name, 'comparison with', tc_name)))
+    img_filename_base = '_'.join((model_name, tc_name, 'comparison', field_name))
+    img_filename_base = img_filename_base.replace(' ', '_')
+    img_filename = os.path.join(problem1_test.mSuite.runs[run_index].basePath,
+                                problem1_test.mSuite.outputPathBase,
+                                img_filename_base + '.png')
+    plt.legend(loc = 'best')
+    plt.tight_layout(pad = 3.)
+    plt.savefig(img_filename)
+    plt.clf()
+    problem1_test.mSuite.analysisImages.append(img_filename)
 
 # generate report:
 
