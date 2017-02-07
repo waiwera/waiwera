@@ -366,6 +366,7 @@ contains
           self%gravity = [0._dp, 0._dp, -gravity_magnitude]
        case (TYPE_ARRAY)
           call fson_get_mpi(json, "gravity", val = gravity)
+          self%gravity = 0._dp
           ng = size(gravity)
           self%gravity(1: ng) = gravity
           deallocate(gravity)
