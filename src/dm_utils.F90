@@ -303,7 +303,7 @@ contains
     PetscReal, intent(in) :: normal(:) !! Normal vector
     PetscInt, intent(out) :: f !! Face mesh point in DM
     ! Locals:
-    PetscInt :: i, num_faces, imax
+    PetscInt :: i, num_faces, imax, dim
     PetscInt :: start_cell, end_cell
     PetscErrorCode :: ierr
     PetscInt, pointer :: faces(:)
@@ -312,6 +312,7 @@ contains
     PetscReal, allocatable :: cos_theta(:)
     PetscReal :: area, normal_norm, face_normal_norm
 
+    call DMGetDimension(dm, dim, ierr); CHKERRQ(ierr)
     call DMPlexGetHeightStratum(dm, 0, start_cell, &
          end_cell, ierr); CHKERRQ(ierr)
 
@@ -323,13 +324,14 @@ contains
        call DMPlexGetConeSize(dm, c, num_faces, ierr); CHKERRQ(ierr)
        call DMPlexGetCone(dm, c, faces, ierr); CHKERRQ(ierr)
        allocate(cos_theta(num_faces))
-       normal_norm = norm2(normal)
+       normal_norm = norm2(normal(1: dim))
 
        do i = 1, num_faces
           call DMPlexComputeCellGeometryFVM(dm, faces(i), area, &
                pcentroid, pface_normal, ierr); CHKERRQ(ierr)
-          face_normal_norm = norm2(face_normal)
-          cos_theta(i) = dot_product(normal, face_normal) / &
+          face_normal_norm = norm2(face_normal(1: dim))
+          cos_theta(i) = dot_product(normal(1: dim), &
+               face_normal(1: dim)) / &
                (normal_norm * face_normal_norm)
        end do
 
