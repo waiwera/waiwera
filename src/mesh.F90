@@ -814,6 +814,7 @@ contains
   subroutine mesh_setup_boundaries(self, json, eos, logfile)
     !! Sets up boundary conditions on the mesh.
 
+    use kinds_module
     use eos_module, only: eos_type
     use logfile_module
     use fson
@@ -832,8 +833,9 @@ contains
     PetscInt :: num_boundaries, num_faces, ibdy, iface, f, np
     PetscInt, allocatable :: default_faces(:)
     PetscInt, allocatable :: faces(:)
-    PetscInt :: region, cell
-    PetscReal, allocatable :: primary(:), normal(:)
+    PetscInt :: region, cell, normal_len
+    PetscReal, allocatable :: primary(:), input_normal(:)
+    PetscReal :: normal(3)
     character(len=64) :: bdystr
     character(len=12) :: istr
 
@@ -872,7 +874,10 @@ contains
                 item => fson_value_get_mpi(cell_normal, 1)
                 call fson_get_mpi(item, ".", val = cell)
                 item => fson_value_get_mpi(cell_normal, 2)
-                call fson_get_mpi(item, ".", val = normal)
+                call fson_get_mpi(item, ".", val = input_normal)
+                normal_len = size(input_normal)
+                normal = 0._dp
+                normal(1: normal_len) = input_normal
                 call dm_cell_normal_face(self%dm, cell, normal, f)
                 if (f >= 0) then
                    faces(iface) = f

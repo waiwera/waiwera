@@ -101,17 +101,20 @@ digraph waiwera{
         interpolation_module -> utils_module
         list_module -> petscsys
         logfile_module -> petsc
+        mesh_module -> cell_module
         mesh_module -> dm_utils_module
         mesh_module -> eos_module
         mesh_module -> face_module
         mesh_module -> fluid_module
         mesh_module -> fson
         mesh_module -> fson_mpi_module
+        mesh_module -> fson_value_m
         mesh_module -> kinds_module
         mesh_module -> logfile_module
         mesh_module -> mpi_utils_module
         mesh_module -> petsc
         mesh_module -> rock_module
+        mesh_module -> utils_module
         mpi_utils_module -> petscsys
         ode_module -> logfile_module
         ode_module -> mesh_module
@@ -184,6 +187,7 @@ digraph waiwera{
         timestepper_module -> petscsnes
         timestepper_module -> petscvec
         timestepper_module -> utils_module
+        utils_module -> kinds_module
         utils_module -> petscsys
         version_module -> petscsys
         waiwera -> flow_simulation_module
