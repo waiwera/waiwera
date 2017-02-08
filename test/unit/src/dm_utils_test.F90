@@ -86,7 +86,7 @@ contains
     DM :: dm
     character(len = 80) :: filename
     PetscErrorCode :: ierr
-    PetscInt :: f, dim
+    PetscInt :: f
     PetscMPIInt :: rank
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
@@ -95,7 +95,6 @@ contains
 
     call DMPlexCreateFromFile(PETSC_COMM_WORLD, filename, &
          PETSC_TRUE, dm, ierr); CHKERRQ(ierr)
-    call DMGetDimension(dm, dim, ierr); CHKERRQ(ierr)
 
     if (rank == 0) then
 
