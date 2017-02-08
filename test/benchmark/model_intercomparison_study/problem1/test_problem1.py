@@ -56,10 +56,8 @@ run_name = 'run'
 run_index = 0
 test_fields = ["Pressure", "Temperature"]
 plot_fields = test_fields[:2]
-# digitised_test_fields = ["Pressure", "Temperature"]
-# digitised_simulators = ["LBL", "S-Cubed"]
-digitised_test_fields = []
-digitised_simulators = []
+digitised_test_fields = ["Temperature"]
+digitised_simulators = ["S-Cubed", "GeoTrans"]
 
 geo = mulgrid(t2geo_filename)
 map_out_atm = range(geo.num_atmosphere_blocks, geo.num_blocks)
@@ -106,7 +104,7 @@ problem1_test.addTestComp(run_index, "AUTOUGH2 t = 1.e9 s",
 
 for field_name in digitised_test_fields:
     for sim in digitised_simulators:
-        data_filename = '_'.join((model_name, obspt, field_name, sim))
+        data_filename = '_'.join((model_name, field_name, sim))
         data_filename = data_filename.lower().replace(' ', '_')
         data_filename = os.path.join(data_dir, data_filename + '.dat')
         result = DigitisedHistoryResult(sim, data_filename,
@@ -115,7 +113,7 @@ for field_name in digitised_test_fields:
         digitised_result[obspt, field_name, sim] = result
         problem1_test.addTestComp(run_index, ' '.join((sim, field_name, obspt)),
                                   HistoryWithinTolTC(fieldsToTest = [field_name],
-                                                     defFieldTol = 1.e-2,
+                                                     defFieldTol = 2.e-2,
                                                      expected = result,
                                                      testCellIndex = obs_cell_index,
                                                      orthogonalError = True))
@@ -126,7 +124,7 @@ testResult, mResults = problem1_test.runTest(jrunner, createReports = True)
 # plots:
 scale = {"Pressure": 1.e5, "Temperature": 1.}
 unit = {"Pressure": "bar", "Temperature": "$^{\circ}$C"}
-symbol = {"LBL": 's', "S-Cubed": 'o'}
+symbol = {"GeoTrans": 's', "S-Cubed": 'o'}
 
 # plot time history results at r = 37.5 m:
 tc_name = "AUTOUGH2 history at " + obspt
@@ -135,17 +133,17 @@ for field_name in digitised_test_fields:
 
     t = problem1_test.testComps[run_index][tc_name].times
     var = problem1_test.mSuite.resultsList[run_index].getFieldHistoryAtCell(field_name, obs_cell_index)
-    plt.plot(t, var / scale[field_name], '-', label = 'Waiwera')
+    plt.semilogx(t, var / scale[field_name], '-', label = 'Waiwera')
 
     t = AUTOUGH2_result.getTimes()
     var = AUTOUGH2_result.getFieldHistoryAtCell(field_name, obs_cell_index)
-    plt.plot(t, var / scale[field_name], '+', label = 'AUTOUGH2')
+    plt.semilogx(t, var / scale[field_name], '+', label = 'AUTOUGH2')
 
     for sim in digitised_simulators:
         result = digitised_result[obspt, field_name, sim]
         t = result.getTimes()
         var = result.getFieldHistoryAtCell(field_name, obs_cell_index)
-        plt.plot(t, var / scale[field_name], symbol[sim], label = sim)
+        plt.semilogx(t, var / scale[field_name], symbol[sim], label = sim)
     plt.xlabel('time (s)')
     plt.ylabel(field_name + ' (' + unit[field_name] + ')')
     plt.legend(loc = 'best')
@@ -164,7 +162,7 @@ for field_name in digitised_test_fields:
 t = problem1_test.testComps[run_index][tc_name].times
 for field_name in plot_fields:
     var = np.array(problem1_test.testComps[run_index][tc_name].fieldErrors[field_name])
-    plt.plot(t, var, '-o')
+    plt.semilogx(t, var, '-o')
     plt.xlabel('time (s)')
     plt.ylabel(field_name + ' error')
     plt.title(' '.join((model_name, 'comparison with AUTOUGH2 at',
