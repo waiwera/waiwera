@@ -10,6 +10,7 @@ digraph waiwera{
         cell_module -> kinds_module
         cell_module -> petscsys
         cell_module -> rock_module
+        dm_utils_module -> kinds_module
         dm_utils_module -> petsc
         eos_module -> fluid_module
         eos_module -> fson
