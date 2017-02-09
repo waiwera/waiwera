@@ -12,6 +12,12 @@ if not os.path.isdir(model_dir): os.makedirs(model_dir)
 os.chdir(model_dir)
 
 model_name = 'problem2'
+
+# This is not the same mesh used in the original MIS problem, which
+# specified cell centres that could not possibly be at the centres of
+# the cells, and had a comparatively large cell next to the well. The
+# mesh used here is chosen so that the second and third cell centres
+# do correspond to cell centres in the original mesh.
 dr = np.concatenate((np.array([0.3, 0.4, 0.6]),
                      0.6 * np.logspace(1, 29, 30, base = 1.28)))
 thickness = 100.
