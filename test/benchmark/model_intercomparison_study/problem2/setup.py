@@ -59,7 +59,6 @@ dat.parameter.update(
      'absolute_error': 1.
      })
 
-
 dat.parameter['option'][1] = 1
 dat.parameter['option'][11] = 2 # permeability weighting
 dat.parameter['option'][12] = 1 # generation table interpolation

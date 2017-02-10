@@ -26,7 +26,7 @@ from docutils.core import publish_file
 
 P0 = 90.e5
 T0 = 260.
-qm = 14.
+qm = -14.
 k = 1.e-14
 phi = 0.2
 h = 100.
@@ -43,7 +43,7 @@ def theis(pos, t):
     else:
         s = -r * r / (4. * D * t)
         d = 4. * np.pi * k * h / vl
-        return P0 + qm * expi(s) / d
+        return P0 - qm * expi(s) / d
 
 model_name = 'problem2'
 
@@ -74,11 +74,11 @@ problem2_test.mSuite.addRun(model_run, run_name)
 problem2_test.setupEmptyTestCompsList()
 
 run_base_name = model_name
-run_filename = os.path.join(model_dir, run_base_name + ".listing")
-AUTOUGH2_result = T2ModelResult("AUTOUGH2", run_filename,
+results_filename = os.path.join(model_dir, run_base_name + ".listing")
+AUTOUGH2_result = T2ModelResult("AUTOUGH2", results_filename,
                                  geo_filename = t2geo_filename)
 
-obs_radii = [0.5, 1.]    
+obs_radii = [0.15, 0.5, 1.]
 for r in obs_radii:
     obspt = 'r = ' + str(r) + ' m'
     pos = np.array([r, 0., -0.5 * h])
