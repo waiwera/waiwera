@@ -125,4 +125,31 @@ jsondata['output']['initial'] = False
 jsondata['mesh']['radial'] = True
 json.dump(jsondata, file(model_name + 'b.json', 'w'), indent = 2)
 
+# problem 2c:
+
+P0 = 90.e5
+T0 = 300.
+dat.parameter['default_incons'] = [P0, T0]
+rock.porosity = 0.2
+rock.permeability = np.ones(3) * 0.01e-12
+rock.specific_heat = 2650. / rock.density * 1.e3
+gen.gx = -14.
+
+dat.write(model_name + 'c.dat')
+
+inc = t2incon()
+for blk in dat.grid.blocklist:
+    inc[blk.name] = [P0, T0]
+inc.write(model_name + 'c.incon')
+
+dat.run(simulator = 'AUTOUGH2_41Da',
+        incon_filename = model_name + 'c.incon',
+        silent = True)
+
+jsondata = dat.json(geo, mesh_filename, incons = inc, bdy_incons = inc)
+jsondata['initial'] = {'primary': [P0, T0], 'region': 1}
+jsondata['output']['initial'] = False
+jsondata['mesh']['radial'] = True
+json.dump(jsondata, file(model_name + 'c.json', 'w'), indent = 2)
+
 os.chdir(orig_dir)

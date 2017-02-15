@@ -40,10 +40,11 @@ t2geo_filename = os.path.join(model_dir, 'g' + model_name + '.dat')
 geo = mulgrid(t2geo_filename)
 
 num_procs = 1
-run_names = ['a', 'b']
+run_names = ['a', 'b', 'c']
 test_fields = {
     'a': ["Pressure"],
-    'b': ["Pressure", "Liquid saturation"]}
+    'b': ["Pressure", "Liquid saturation"],
+    'c': ["Pressure", "Liquid saturation"]}
 field_scale = {"Pressure": 1.e-5, "Liquid saturation": 1.}
 field_unit = {"Pressure": "bar", "Liquid saturation": ""}
 obs_radii = [0.5, 1.]
@@ -82,12 +83,23 @@ expected = {
     'a': theis,
     'b': DigitisedSimilarityResult('semi-analytical',
                                    {'Pressure': 'data/problem2b_pressure.dat',
-                                    'Liquid saturation': 'data/problem2b_saturation.dat'})
+                                    'Liquid saturation': 'data/problem2b_saturation.dat'}),
+    'c': DigitisedSimilarityResult('reference',
+                                   {'Pressure': 'data/problem2c_pressure_s-cubed.dat',
+                                    'Liquid saturation': 'data/problem2c_saturation_s-cubed.dat'})
 }
+ref_result_name = {'a': 'Theis solution',
+                   'b': 'semi-analytical',
+                   'c': 'S-Cubed'}
+AUTOUGH2_field_tol = {'a': 1.e-4, 'b': 1.e-4, 'c': 1.e-2}
+ref_field_tol = {'a': 2.e-2, 'b': 2.e-2, 'c': 3.5e-2}
+case_c_semi_analytical = DigitisedSimilarityResult('semi-analytical',
+                                   {'Pressure': 'data/problem2c_pressure_analytical.dat',
+                                    'Liquid saturation': 'data/problem2c_saturation_analytical.dat'})
 
 problem2_test = SciBenchmarkTest(model_name + "_test", nproc = num_procs)
 problem2_test.description = """Model Intercomparison Study problem 2
-(case a: Theis problem, case b: radial two-phase production)"""
+(case a: Theis problem, case b: radial two-phase production, case c: radial flashing front)"""
 
 for run_index, run_name in enumerate(run_names):
 
@@ -113,14 +125,14 @@ for run_index, run_name in enumerate(run_names):
     problem2_test.addTestComp(run_index, "AUTOUGH2",
                               SimilaritySolutionWithinTolTC(
                                   fieldsToTest = test_fields[run_name],
-                                  defFieldTol = 1.e-4,
+                                  defFieldTol = AUTOUGH2_field_tol[run_name],
                                   expected = AUTOUGH2_result[run_name],
                                   testCellIndices = obs_cell_indices))
     problem2_test.addTestComp(run_index,
-                              "Analytical",
+                              ref_result_name[run_name],
                               SimilaritySolutionWithinTolTC(
                                   fieldsToTest = test_fields[run_name],
-                                  defFieldTol = 2.e-2,
+                                  defFieldTol = ref_field_tol[run_name],
                                   fieldTols = {"Liquid saturation": 6.e-2},
                                   absoluteErrorTol = 0.01,
                                   expected = expected[run_name],
@@ -160,7 +172,11 @@ for run_index, run_name in enumerate(run_names):
         else:
             sims = expected[run_name].getSimilarityVariables(field_name)
             var = expected[run_name].getSimilarityValues(field_name)
-        plt.semilogx(sims / day, var * scale, '-', label = 'analytical')
+        plt.semilogx(sims / day, var * scale, '-', label = ref_result_name[run_name])
+        if run_name == 'c':
+            sims = case_c_semi_analytical.getSimilarityVariables(field_name)
+            var = case_c_semi_analytical.getSimilarityValues(field_name)
+            plt.semilogx(sims / day, var * scale, ':', label = 'semi-analytical')
         plt.xlabel('t /$r^2$ (day/$m^2$)')
         plt.ylabel(field_name + ' (' + field_unit[field_name] + ')')
         plt.legend(loc = 'best')
