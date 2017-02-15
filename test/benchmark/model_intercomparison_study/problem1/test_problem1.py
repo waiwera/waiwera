@@ -116,7 +116,8 @@ for field_name in digitised_test_fields:
                                                      defFieldTol = 2.e-2,
                                                      expected = result,
                                                      testCellIndex = obs_cell_index,
-                                                     orthogonalError = True))
+                                                     orthogonalError = True,
+                                                     logx = True))
 
 jrunner = SimpleJobRunner(mpi = True)
 testResult, mResults = problem1_test.runTest(jrunner, createReports = True)
