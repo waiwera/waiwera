@@ -34,9 +34,9 @@ dat.grid = t2grid().radial(dr, dz)
 rock = dat.grid.rocktypelist[0]
 rock.porosity = 0.2
 rock.permeability = np.ones(3) * 1.e-14
-rock.density = 2650.
+rock.density = 2650. # assumed
 rock.conductivity = 0.0
-rock.specific_heat = 1000.
+rock.specific_heat = 2650. / rock.density * 1.e3
 
 dat.relative_permeability = {'type': 1, 'parameters': [0., 0., 0., 0., 0.]}
 dat.capillarity = {'type': 1, 'parameters': [0., 0., 1., 0., 0.]}
@@ -63,7 +63,7 @@ dat.parameter['option'][1] = 1
 dat.parameter['option'][11] = 2 # permeability weighting
 dat.parameter['option'][12] = 1 # generation table interpolation
 dat.parameter['option'][16] = 5
-dat.parameter['option'][24] = 2 # initial output
+dat.parameter['option'][24] = 0 # initial output
 
 dat.multi = {'eos': 'EW', 'num_components': 1, 'num_phases': 2,
              'num_equations': 2, 'num_secondary_parameters': 6}
@@ -76,23 +76,53 @@ gen = t2generator(name = blkname, block = blkname,
                   gx = genrate, type = 'MASS')
 dat.add_generator(gen)
 
-dat.write(model_name + '.dat')
+dat.write(model_name + 'a.dat')
 
 # incons:
 inc = t2incon()
 for blk in dat.grid.blocklist:
     inc[blk.name] = [P0, T0]
-inc.write(model_name + '.incon')
+inc.write(model_name + 'a.incon')
 
 dat.run(simulator = 'AUTOUGH2_41Da',
-        incon_filename = model_name + '.incon',
+        incon_filename = model_name + 'a.incon',
         silent = True)
 
 mesh_filename = 'g' + model_name + '.msh'
 geo.write_mesh(mesh_filename, dimension = 2, slice = 'x')
 jsondata = dat.json(geo, mesh_filename, incons = inc, bdy_incons = inc)
 jsondata['initial']['primary'] = [P0, T0]
+jsondata['output']['initial'] = False
 jsondata['mesh']['radial'] = True
-json.dump(jsondata, file(model_name + '.json', 'w'), indent = 2)
-                  
+json.dump(jsondata, file(model_name + 'a.json', 'w'), indent = 2)
+
+# problem 2b:
+
+P0 = 30.e5
+S0 = 1. - 0.65
+dat.parameter['default_incons'] = [P0, S0]
+rock.porosity = 0.15
+rock.permeability = np.ones(3) * 0.24e-12
+rock.specific_heat = 2000. / rock.density * 1.e3
+gen.gx = -16.7
+
+dat.relative_permeability = {'type': 3, 'parameters': [0.3, 0.05, 0., 0., 0.]}
+
+dat.write(model_name + 'b.dat')
+
+inc = t2incon()
+for blk in dat.grid.blocklist:
+    inc[blk.name] = [P0, S0]
+inc.write(model_name + 'b.incon')
+
+dat.run(simulator = 'AUTOUGH2_41Da',
+        incon_filename = model_name + 'b.incon',
+        silent = True)
+
+jsondata = dat.json(geo, mesh_filename, incons = inc, bdy_incons = inc)
+jsondata['initial'] = {'primary': [P0, S0], 'region': 4}
+jsondata['output']['initial'] = False
+jsondata['mesh']['radial'] = True
+json.dump(jsondata, file(model_name + 'b.json', 'w'), indent = 2)
+
 os.chdir(orig_dir)

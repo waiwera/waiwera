@@ -5,8 +5,8 @@ Model Intercomparison Study problem 2
 import os
 
 from credo.systest import SciBenchmarkTest
-from credo.systest import FieldWithinTolTC
-from credo.systest import HistoryWithinTolTC
+from similarity import DigitisedSimilarityResult, \
+    SimilaritySolutionWithinTolTC
 
 from credo.jobrunner import SimpleJobRunner
 from credo.modelresult import ModelResult
@@ -17,37 +17,22 @@ import credo.reporting.standardReports as sReps
 from credo.reporting import getGenerators
 
 from mulgrids import mulgrid
+
 import matplotlib.pyplot as plt
+from matplotlib import rcParams
+rcParams['mathtext.default'] = 'regular'
+
 import numpy as np
 from t2thermo import *
 from scipy.special import expi
 
 from docutils.core import publish_file
 
-P0 = 90.e5
-T0 = 260.
-qm = -14.
-k = 1.e-14
-phi = 0.2
-h = 100.
-ps = sat(T0)
-pav = 81.e5
-rhol, ul = cowat(T0, pav)
-vl = visw(T0, pav, ps) / rhol
-comp = 1.5805e-9
-D = k / (vl * phi * rhol * comp)
-def theis(pos, t):
-    r = pos[0]
-    tol = 1.e-6
-    if t < tol: return P0
-    else:
-        s = -r * r / (4. * D * t)
-        d = 4. * np.pi * k * h / vl
-        return P0 - qm * expi(s) / d
-
 model_name = 'problem2'
 
-WAIWERA_FIELDMAP = {'Pressure': 'fluid_pressure'}
+WAIWERA_FIELDMAP = {
+    'Pressure': 'fluid_pressure',
+    'Liquid saturation': 'fluid_liquid_saturation'}
 
 model_dir = './run'
 data_dir = './data'
@@ -55,79 +40,141 @@ t2geo_filename = os.path.join(model_dir, 'g' + model_name + '.dat')
 geo = mulgrid(t2geo_filename)
 
 num_procs = 1
-run_name = 'case a'
-run_index = 0
-test_fields = ["Pressure"]
+run_names = ['a', 'b']
+test_fields = {
+    'a': ["Pressure"],
+    'b': ["Pressure", "Liquid saturation"]}
+field_scale = {"Pressure": 1.e-5, "Liquid saturation": 1.}
+field_unit = {"Pressure": "bar", "Liquid saturation": ""}
+obs_radii = [0.5, 1.]
+obs_cell_indices = []
+thickness = 100.
+for r in obs_radii:
+    pos = np.array([r, 0., -0.5 * thickness])
+    obs_blk = geo.block_name_containing_point(pos)
+    obs_cell_indices.append(geo.block_name_index[obs_blk])
+
+# Theis solution for case a:
+day = 24. * 60. * 60.
+P0 = 90.e5
+T0 = 260.
+qm = -14.
+k = 1.e-14
+phi = 0.2
+ps = sat(T0)
+pav = 81.e5
+rhol, ul = cowat(T0, pav)
+vl = visw(T0, pav, ps) / rhol
+comp = 1.5805e-9
+D = k / (vl * phi * rhol * comp)
+def theis_sim(sim):
+    tol = 1.e-5
+    if sim < tol: return P0
+    else:
+        s = 1. / (4. * D * sim)
+        d = 4. * np.pi * k * thickness / vl
+        return P0 - qm * expi(s) / d
+def theis(pos, t):
+    r = pos[0]
+    return theis_sim(t / (r * r))
+
+expected = {
+    'a': theis,
+    'b': DigitisedSimilarityResult('semi-analytical',
+                                   {'Pressure': 'data/problem2b_pressure.dat',
+                                    'Liquid saturation': 'data/problem2b_saturation.dat'})
+}
 
 problem2_test = SciBenchmarkTest(model_name + "_test", nproc = num_procs)
 problem2_test.description = """Model Intercomparison Study problem 2
-(Theis problem)"""
+(case a: Theis problem, case b: radial two-phase production)"""
 
-run_base_name = model_name
-run_filename = run_base_name + '.json'
-model_run = WaiweraModelRun(run_name, run_filename,
-                          fieldname_map = WAIWERA_FIELDMAP,
-                          simulator = 'waiwera',
-                          basePath = os.path.realpath(model_dir))
-model_run.jobParams['nproc'] = num_procs
-problem2_test.mSuite.addRun(model_run, run_name)
+for run_index, run_name in enumerate(run_names):
+
+    run_base_name = model_name + run_name
+    run_filename = run_base_name + '.json'
+    model_run = WaiweraModelRun(run_name, run_filename,
+                              fieldname_map = WAIWERA_FIELDMAP,
+                              simulator = 'waiwera',
+                              basePath = os.path.realpath(model_dir))
+    model_run.jobParams['nproc'] = num_procs
+    problem2_test.mSuite.addRun(model_run, run_name)
+
 problem2_test.setupEmptyTestCompsList()
+AUTOUGH2_result = {}
 
-run_base_name = model_name
-results_filename = os.path.join(model_dir, run_base_name + ".listing")
-AUTOUGH2_result = T2ModelResult("AUTOUGH2", results_filename,
-                                 geo_filename = t2geo_filename)
+for run_index, run_name in enumerate(run_names):
 
-obs_radii = [0.15, 0.5, 1.]
-for r in obs_radii:
-    obspt = 'r = ' + str(r) + ' m'
-    pos = np.array([r, 0., -0.5 * h])
-    obs_blk = geo.block_name_containing_point(pos)
-    obs_cell_index = geo.block_name_index[obs_blk]
-    problem2_test.addTestComp(run_index, "AUTOUGH2 " + obspt,
-                              HistoryWithinTolTC(fieldsToTest = test_fields,
-                                                 defFieldTol = 1.e-5,
-                                                 expected = AUTOUGH2_result,
-                                                 testCellIndex = obs_cell_index))
-    problem2_test.addTestComp(run_index, "Analytical solution " + obspt,
-                              HistoryWithinTolTC(fieldsToTest = test_fields,
-                                                 defFieldTol = 1.e-2,
-                                                 expected = theis,
-                                                 testCellIndex = obs_cell_index))
+    run_base_name = model_name + run_name
+    results_filename = os.path.join(model_dir, run_base_name + ".listing")
+    AUTOUGH2_result[run_name] = T2ModelResult("AUTOUGH2", results_filename,
+                                    geo_filename = t2geo_filename)
+
+    problem2_test.addTestComp(run_index, "AUTOUGH2",
+                              SimilaritySolutionWithinTolTC(
+                                  fieldsToTest = test_fields[run_name],
+                                  defFieldTol = 1.e-4,
+                                  expected = AUTOUGH2_result[run_name],
+                                  testCellIndices = obs_cell_indices))
+    problem2_test.addTestComp(run_index,
+                              "Analytical",
+                              SimilaritySolutionWithinTolTC(
+                                  fieldsToTest = test_fields[run_name],
+                                  defFieldTol = 2.e-2,
+                                  fieldTols = {"Liquid saturation": 6.e-2},
+                                  absoluteErrorTol = 0.01,
+                                  expected = expected[run_name],
+                                  testCellIndices = obs_cell_indices))
 
 jrunner = SimpleJobRunner(mpi = True)
 testResult, mResults = problem2_test.runTest(jrunner, createReports = True)
 
 # plots:
-field_name = "Pressure"
-bar, unit = 1.e5, 'bar'
-for r in obs_radii:
-    obspt = 'r = ' + str(r) + ' m'
-    pos = np.array([r, 0., -0.5 * h])
-    obs_blk = geo.block_name_containing_point(pos)
-    obs_cell_index = geo.block_name_index[obs_blk]
-    t = problem2_test.testComps[run_index]["AUTOUGH2 " + obspt].times
-    var = problem2_test.mSuite.resultsList[run_index].getFieldHistoryAtCell(field_name, obs_cell_index)
-    plt.semilogx(t, var / bar, '-', label = 'Waiwera')
-    t = AUTOUGH2_result.getTimes()
-    var = AUTOUGH2_result.getFieldHistoryAtCell(field_name, obs_cell_index)
-    plt.semilogx(t, var / bar, '+', label = 'AUTOUGH2')
-    var = np.array([theis(pos, ti) for ti in t])
-    plt.semilogx(t, var / bar, ':', label = 'analytical')
-    plt.xlabel('time (s)')
-    plt.ylabel(field_name + '(' + unit + ')')
-    plt.legend()
-    plt.title(' '.join((model_name, run_name, field_name.lower(),
-                        'results:', obspt)))
-    img_filename_base = '_'.join((model_name, run_name, obspt, field_name))
-    img_filename_base = img_filename_base.replace(' ', '_')
-    img_filename = os.path.join(problem2_test.mSuite.runs[run_index].basePath,
-                                problem2_test.mSuite.outputPathBase,
-                                img_filename_base + '.png')
-    plt.tight_layout(pad = 3.)
-    plt.savefig(img_filename)
-    plt.clf()
-    problem2_test.mSuite.analysisImages.append(img_filename)
+for run_index, run_name in enumerate(run_names):
+    for field_name in test_fields[run_name]:
+        scale = field_scale[field_name]
+        sims = []
+        var_waiwera, var_AUTOUGH2 = [], []
+        for r in obs_radii:
+            r2 = r * r
+            obspt = 'r = ' + str(r) + ' m'
+            pos = np.array([r, 0., -0.5 * thickness])
+            obs_blk = geo.block_name_containing_point(pos)
+            obs_cell_index = geo.block_name_index[obs_blk]
+            t = AUTOUGH2_result[run_name].getTimes()
+            sim = t / r2
+            sims += list(sim)
+            var = problem2_test.mSuite.resultsList[run_index].\
+                  getFieldHistoryAtCell(field_name, obs_cell_index)
+            var_waiwera += list(var)
+            var = AUTOUGH2_result[run_name].getFieldHistoryAtCell(field_name,
+                                                                  obs_cell_index)
+            var_AUTOUGH2 += list(var)
+        plt.semilogx(np.array(sims) / day, np.array(var_waiwera) * scale,
+                     'o', label = 'Waiwera')
+        plt.semilogx(np.array(sims) / day, np.array(var_AUTOUGH2) * scale,
+                     '+', label = 'AUTOUGH2')
+        if run_index == 0:
+            sims = np.logspace(-5, 1.8, 20) * day
+            var = np.array([theis_sim(sim) for sim in sims])
+        else:
+            sims = expected[run_name].getSimilarityVariables(field_name)
+            var = expected[run_name].getSimilarityValues(field_name)
+        plt.semilogx(sims / day, var * scale, '-', label = 'analytical')
+        plt.xlabel('t /$r^2$ (day/$m^2$)')
+        plt.ylabel(field_name + ' (' + field_unit[field_name] + ')')
+        plt.legend(loc = 'best')
+        plt.title(' '.join((model_name + run_name, field_name.lower(),
+                            'results')))
+        img_filename_base = '_'.join((model_name, run_name, obspt, field_name))
+        img_filename_base = img_filename_base.replace(' ', '_')
+        img_filename = os.path.join(problem2_test.mSuite.runs[run_index].basePath,
+                                    problem2_test.mSuite.outputPathBase,
+                                    img_filename_base + '.png')
+        plt.tight_layout(pad = 3.)
+        plt.savefig(img_filename)
+        plt.clf()
+        problem2_test.mSuite.analysisImages.append(img_filename)
     
 # generate report:
 
