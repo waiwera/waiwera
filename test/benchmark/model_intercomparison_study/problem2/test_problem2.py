@@ -96,6 +96,15 @@ ref_field_tol = {'a': 2.e-2, 'b': 2.e-2, 'c': 3.5e-2}
 case_c_semi_analytical = DigitisedSimilarityResult('semi-analytical',
                                    {'Pressure': 'data/problem2c_pressure_analytical.dat',
                                     'Liquid saturation': 'data/problem2c_saturation_analytical.dat'})
+case_b_s_cubed = DigitisedSimilarityResult('S-Cubed',
+                                   {'Pressure': 'data/problem2b_pressure_s-cubed.dat',
+                                    'Liquid saturation': 'data/problem2b_saturation_s-cubed.dat'})
+
+# NB here I have used the semi-analytical results as reference for
+# case b, as they are tolerably close to all the simulation results,
+# but for case c they are not, so I have used the S-Cubed results as
+# reference there. However both semi-analytical and S-Cubed results
+# are shown on plots for cases b and c.
 
 problem2_test = SciBenchmarkTest(model_name + "_test", nproc = num_procs)
 problem2_test.description = """Model Intercomparison Study problem 2
@@ -166,14 +175,18 @@ for run_index, run_name in enumerate(run_names):
                      'o', label = 'Waiwera')
         plt.semilogx(np.array(sims) / day, np.array(var_AUTOUGH2) * scale,
                      '+', label = 'AUTOUGH2')
-        if run_index == 0:
+        if run_name == 'a':
             sims = np.logspace(-5, 1.8, 20) * day
             var = np.array([theis_sim(sim) for sim in sims])
         else:
             sims = expected[run_name].getSimilarityVariables(field_name)
             var = expected[run_name].getSimilarityValues(field_name)
         plt.semilogx(sims / day, var * scale, '-', label = ref_result_name[run_name])
-        if run_name == 'c':
+        if run_name == 'b':
+            sims = case_b_s_cubed.getSimilarityVariables(field_name)
+            var = case_b_s_cubed.getSimilarityValues(field_name)
+            plt.semilogx(sims / day, var * scale, ':', label = 'S-Cubed')
+        elif run_name == 'c':
             sims = case_c_semi_analytical.getSimilarityVariables(field_name)
             var = case_c_semi_analytical.getSimilarityValues(field_name)
             plt.semilogx(sims / day, var * scale, ':', label = 'semi-analytical')
