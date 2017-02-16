@@ -16,6 +16,8 @@ from credo.waiwera import WaiweraModelRun
 import credo.reporting.standardReports as sReps
 from credo.reporting import getGenerators
 
+from radial import DigitisedRadialFieldResult, RadialSolutionWithinTolTC
+
 from mulgrids import mulgrid
 import matplotlib.pyplot as plt
 import numpy as np
@@ -55,9 +57,8 @@ num_procs = 1
 run_name = 'run'
 run_index = 0
 test_fields = ["Pressure", "Temperature"]
-plot_fields = test_fields[:2]
 digitised_test_fields = ["Temperature"]
-digitised_simulators = ["S-Cubed", "GeoTrans"]
+digitised_simulators = ["S-Cubed"]
 
 geo = mulgrid(t2geo_filename)
 map_out_atm = range(geo.num_atmosphere_blocks, geo.num_blocks)
@@ -70,6 +71,7 @@ obspt = 'r = 37.5 m'
 obs_position = np.array([37.5, 0., -50.])
 obs_blk = geo.block_name_containing_point(obs_position)
 obs_cell_index = geo.block_name_index[obs_blk] - geo.num_atmosphere_blocks
+max_radius = 500.
 
 run_base_name = model_name
 run_filename = run_base_name + '.json'
@@ -81,7 +83,8 @@ model_run.jobParams['nproc'] = num_procs
 problem1_test.mSuite.addRun(model_run, run_name)
 
 problem1_test.setupEmptyTestCompsList()
-digitised_result = {}
+digitised_time_result = {}
+digitised_r_result = {}
 
 run_base_name = model_name
 run_filename = os.path.join(model_dir, run_base_name + ".listing")
@@ -104,13 +107,13 @@ problem1_test.addTestComp(run_index, "AUTOUGH2 t = 1.e9 s",
 
 for field_name in digitised_test_fields:
     for sim in digitised_simulators:
-        data_filename = '_'.join((model_name, field_name, sim))
+        data_filename = '_'.join((model_name, field_name, 'time', sim))
         data_filename = data_filename.lower().replace(' ', '_')
         data_filename = os.path.join(data_dir, data_filename + '.dat')
         result = DigitisedHistoryResult(sim, data_filename,
                                                field_name, obs_cell_index)
 
-        digitised_result[obspt, field_name, sim] = result
+        digitised_time_result[obspt, field_name, sim] = result
         problem1_test.addTestComp(run_index, ' '.join((sim, field_name, obspt)),
                                   HistoryWithinTolTC(fieldsToTest = [field_name],
                                                      defFieldTol = 2.e-2,
@@ -118,6 +121,18 @@ for field_name in digitised_test_fields:
                                                      testCellIndex = obs_cell_index,
                                                      orthogonalError = True,
                                                      logx = True))
+        data_filename = '_'.join((model_name, field_name, 'r', sim))
+        data_filename = data_filename.lower().replace(' ', '_')
+        data_filename = os.path.join(data_dir, data_filename + '.dat')
+        result = DigitisedRadialFieldResult(sim, data_filename, field_name, -1)
+        digitised_r_result[field_name, sim] = result
+        problem1_test.addTestComp(run_index, ' '.join((sim, field_name)),
+                                  RadialSolutionWithinTolTC(
+                                      fieldsToTest = [field_name],
+                                      defFieldTol = 2.e-2,
+                                      expected = result,
+                                      testOutputIndex = -1,
+                                      maxRadius = max_radius))
 
 jrunner = SimpleJobRunner(mpi = True)
 testResult, mResults = problem1_test.runTest(jrunner, createReports = True)
@@ -141,10 +156,18 @@ for field_name in digitised_test_fields:
     plt.semilogx(t, var / scale[field_name], '+', label = 'AUTOUGH2')
 
     for sim in digitised_simulators:
-        result = digitised_result[obspt, field_name, sim]
+        result = digitised_time_result[obspt, field_name, sim]
         t = result.getTimes()
         var = result.getFieldHistoryAtCell(field_name, obs_cell_index)
         plt.semilogx(t, var / scale[field_name], symbol[sim], label = sim)
+    sim = 'analytical'
+    data_filename = '_'.join((model_name, field_name, 'time', sim))
+    data_filename = data_filename.lower().replace(' ', '_')
+    data_filename = os.path.join(data_dir, data_filename + '.dat')
+    result = DigitisedHistoryResult(sim, data_filename, field_name, obs_cell_index)
+    t = result.getTimes()
+    var = result.getFieldHistoryAtCell(field_name, obs_cell_index)
+    plt.semilogx(t, var / scale[field_name], ':', label = sim)
     plt.xlabel('time (s)')
     plt.ylabel(field_name + ' (' + unit[field_name] + ')')
     plt.legend(loc = 'best')
@@ -161,7 +184,7 @@ for field_name in digitised_test_fields:
     problem1_test.mSuite.analysisImages.append(img_filename)
 
 t = problem1_test.testComps[run_index][tc_name].times
-for field_name in plot_fields:
+for field_name in digitised_test_fields:
     var = np.array(problem1_test.testComps[run_index][tc_name].fieldErrors[field_name])
     plt.semilogx(t, var, '-o')
     plt.xlabel('time (s)')
@@ -180,12 +203,32 @@ for field_name in plot_fields:
 
 # plot temperature profile at end time:
 tc_name = "AUTOUGH2 at t = 1.e9 s"
+outputIndex = -1
 r = np.array([col.centre[0] for col in geo.columnlist])
-for field_name in plot_fields:
-    var = problem1_test.mSuite.resultsList[run_index].getFieldAtOutputIndex(field_name, -1) /scale[field_name]
+ir = np.where(r <= max_radius)
+r = r[ir]
+
+for field_name in digitised_test_fields:
+    result = problem1_test.mSuite.resultsList[run_index]
+    var = result.getFieldAtOutputIndex(field_name, outputIndex)[ir] /scale[field_name]
     plt.plot(r, var, '-', label = 'Waiwera')
-    var = AUTOUGH2_result.getFieldAtOutputIndex(field_name, -1) / scale[field_name]
+    var = AUTOUGH2_result.getFieldAtOutputIndex(field_name,
+                                                outputIndex)[ir] / scale[field_name]
     plt.plot(r, var, '+', label = 'AUTOUGH2')
+    for sim in digitised_simulators:
+        result = digitised_r_result[field_name, sim]
+        r = result.getRadii()
+        var = result.getFieldAtOutputIndex(field_name, outputIndex)
+        plt.plot(r, var / scale[field_name], symbol[sim], label = sim)
+    # TODO: add analytical r plot
+    sim = 'analytical'
+    data_filename = '_'.join((model_name, field_name, 'r', sim))
+    data_filename = data_filename.lower().replace(' ', '_')
+    data_filename = os.path.join(data_dir, data_filename + '.dat')
+    result = DigitisedRadialFieldResult(sim, data_filename, field_name, -1)
+    r = result.getRadii()
+    var = result.getFieldAtOutputIndex(field_name, outputIndex)
+    plt.plot(r, var / scale[field_name], ':', label = sim)
     plt.xlabel('radius (m)')
     plt.ylabel(field_name + ' (' + unit[field_name] + ')')
     plt.title(' '.join((model_name, 'comparison with', tc_name)))
@@ -194,7 +237,7 @@ for field_name in plot_fields:
     img_filename = os.path.join(problem1_test.mSuite.runs[run_index].basePath,
                                 problem1_test.mSuite.outputPathBase,
                                 img_filename_base + '.png')
-    plt.legend(loc = 'best')
+    plt.legend(loc = 'upper left')
     plt.tight_layout(pad = 3.)
     plt.savefig(img_filename)
     plt.clf()
