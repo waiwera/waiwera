@@ -355,18 +355,20 @@ contains
     ! Locals:
     PetscReal :: gravity_magnitude
     PetscReal, allocatable :: gravity(:)
-    PetscInt :: gravity_type, ng
+    PetscInt :: gravity_type, ng, dim
+    PetscErrorCode :: ierr
     PetscReal, parameter :: default_gravity = 9.8_dp
 
+    self%gravity = 0._dp
     if (fson_has_mpi(json, "gravity")) then
        gravity_type = fson_type_mpi(json, "gravity")
        select case (gravity_type)
        case (TYPE_REAL)
           call fson_get_mpi(json, "gravity", val = gravity_magnitude)
-          self%gravity = [0._dp, 0._dp, -gravity_magnitude]
+          call DMGetDimension(self%mesh%dm, dim, ierr); CHKERRQ(ierr)
+          self%gravity(dim) = -gravity_magnitude
        case (TYPE_ARRAY)
           call fson_get_mpi(json, "gravity", val = gravity)
-          self%gravity = 0._dp
           ng = size(gravity)
           self%gravity(1: ng) = gravity
           deallocate(gravity)
@@ -428,11 +430,11 @@ contains
     call fson_get_mpi(json, "title", default_title, self%title, &
          self%logfile)
 
-    call self%setup_gravity(json)
     call setup_thermodynamics(json, self%thermo, self%logfile)
     call setup_eos(json, self%thermo, self%eos, self%logfile)
 
     call self%mesh%init(json, self%logfile)
+    call self%setup_gravity(json)
     call setup_rocktype_labels(json, self%mesh%dm, self%logfile)
     call self%mesh%setup_boundaries(json, self%eos, self%logfile)
     if (self%output_filename == '') then
