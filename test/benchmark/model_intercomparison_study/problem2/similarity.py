@@ -47,7 +47,7 @@ class SimilaritySolutionWithinTolTC(BaseWithinTolTC):
 
         results, result_sims = [], []
         for testCellIndex in self.testCellIndices:
-            result = mResult.getFieldHistoryAtCell(field, testCellIndex)
+            t, result = mResult.getFieldHistoryAtCell(field, testCellIndex)
             results += list(result)
             result_times = mResult.getTimes()
             pos = mResult.getPositions()[testCellIndex]
@@ -68,9 +68,8 @@ class SimilaritySolutionWithinTolTC(BaseWithinTolTC):
                                          for t in result_times])
                     expected_times = result_times
                 else:
-                    expected = self.expected.getFieldHistoryAtCell(field,
+                    expected_times, expected = self.expected.getFieldHistoryAtCell(field,
                                                                    testCellIndex)
-                    expected_times = self.expected.getTimes()
                 expecteds += list(expected)
                 r2 = pos[0] * pos[0]
                 expected_sim = expected_times / r2

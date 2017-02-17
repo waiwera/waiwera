@@ -9,7 +9,7 @@ from credo.systest import FieldWithinTolTC
 from credo.systest import HistoryWithinTolTC
 
 from credo.jobrunner import SimpleJobRunner
-from credo.modelresult import ModelResult
+from credo.modelresult import ModelResult, HistoryDataResult
 from credo.t2model import T2ModelRun, T2ModelResult
 from credo.waiwera import WaiweraModelRun
 
@@ -23,23 +23,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from docutils.core import publish_file
-
-class DigitisedHistoryResult(ModelResult):
-    """Digitised results for a field at a single cell."""
-    def __init__(self, modelName, fileName, field, cellIndex, ordering_map=None,
-                 fieldname_map=None):
-        from os.path import dirname
-        super(DigitisedHistoryResult, self).__init__(modelName, dirname(fileName),
-                                            ordering_map=ordering_map,
-                                            fieldname_map=fieldname_map)
-        self.field = field
-        self.cellIndex = cellIndex
-        self.data = np.loadtxt(fileName)
-    def _getTimes(self): return self.data[:, 0]
-    def _getFieldHistoryAtCell(self, field, cellIndex):
-        if field == self.field and cellIndex == self.cellIndex:
-            return self.data[:, 1]
-        else: return None
 
 model_name = 'problem1'
 
@@ -105,22 +88,26 @@ problem1_test.addTestComp(run_index, "AUTOUGH2 t = 1.e9 s",
                          expected = AUTOUGH2_result,
                          testOutputIndex = -1))
 
-for field_name in digitised_test_fields:
-    for sim in digitised_simulators:
+digitised_result = {}
+for sim in digitised_simulators:
+    data = {}
+    for field_name in digitised_test_fields:
         data_filename = '_'.join((model_name, field_name, 'time', sim))
         data_filename = data_filename.lower().replace(' ', '_')
         data_filename = os.path.join(data_dir, data_filename + '.dat')
-        result = DigitisedHistoryResult(sim, data_filename,
-                                               field_name, obs_cell_index)
+        data[field_name, obs_cell_index] = np.loadtxt(data_filename)
+    digitised_result[sim] = HistoryDataResult(sim, data)
 
-        digitised_time_result[obspt, field_name, sim] = result
-        problem1_test.addTestComp(run_index, ' '.join((sim, field_name, obspt)),
-                                  HistoryWithinTolTC(fieldsToTest = [field_name],
-                                                     defFieldTol = 2.e-2,
-                                                     expected = result,
-                                                     testCellIndex = obs_cell_index,
-                                                     orthogonalError = True,
-                                                     logx = True))
+for sim in digitised_simulators:
+    problem1_test.addTestComp(run_index, ' '.join((sim, field_name, obspt)),
+                              HistoryWithinTolTC(fieldsToTest = [field_name],
+                                                 defFieldTol = 2.e-2,
+                                                 expected = digitised_result[sim],
+                                                 testCellIndex = obs_cell_index,
+                                                 orthogonalError = True,
+                                                 logx = True))
+    
+    for field_name in digitised_test_fields:
         data_filename = '_'.join((model_name, field_name, 'r', sim))
         data_filename = data_filename.lower().replace(' ', '_')
         data_filename = os.path.join(data_dir, data_filename + '.dat')
@@ -145,31 +132,34 @@ symbol = {"GeoTrans": 's', "S-Cubed": 'o'}
 # plot time history results at r = 37.5 m:
 tc_name = "AUTOUGH2 history at " + obspt
 
+sim = 'analytical'
+data = {}
 for field_name in digitised_test_fields:
-
-    t = problem1_test.testComps[run_index][tc_name].times
-    var = problem1_test.mSuite.resultsList[run_index].getFieldHistoryAtCell(field_name, obs_cell_index)
-    plt.semilogx(t, var / scale[field_name], '-', label = 'Waiwera')
-
-    t = AUTOUGH2_result.getTimes()
-    var = AUTOUGH2_result.getFieldHistoryAtCell(field_name, obs_cell_index)
-    plt.semilogx(t, var / scale[field_name], '+', label = 'AUTOUGH2')
-
-    for sim in digitised_simulators:
-        result = digitised_time_result[obspt, field_name, sim]
-        t = result.getTimes()
-        var = result.getFieldHistoryAtCell(field_name, obs_cell_index)
-        plt.semilogx(t, var / scale[field_name], symbol[sim], label = sim)
-    sim = 'analytical'
     data_filename = '_'.join((model_name, field_name, 'time', sim))
     data_filename = data_filename.lower().replace(' ', '_')
     data_filename = os.path.join(data_dir, data_filename + '.dat')
-    result = DigitisedHistoryResult(sim, data_filename, field_name, obs_cell_index)
-    t = result.getTimes()
-    var = result.getFieldHistoryAtCell(field_name, obs_cell_index)
-    plt.semilogx(t, var / scale[field_name], ':', label = sim)
+    data[field_name, obs_cell_index] = np.loadtxt(data_filename)
+analytical_result = HistoryDataResult(sim, data)
+
+for field_name in digitised_test_fields:
+
+    t, var = problem1_test.mSuite.resultsList[run_index].\
+             getFieldHistoryAtCell(field_name, obs_cell_index)
+    plt.semilogx(t, var / scale[field_name], '-', label = 'Waiwera')
+
+    t, var = AUTOUGH2_result.getFieldHistoryAtCell(field_name, obs_cell_index)
+    plt.semilogx(t, var / scale[field_name], '+', label = 'AUTOUGH2')
+
+    for sim in digitised_simulators:
+        result = digitised_result[sim]
+        t, var = result.getFieldHistoryAtCell(field_name, obs_cell_index)
+        plt.semilogx(t, var / scale[field_name], symbol[sim], label = sim)
+
+    t, var = analytical_result.getFieldHistoryAtCell(field_name, obs_cell_index)
+    plt.semilogx(t, var / scale[field_name], ':', label = 'analytical')
     plt.xlabel('time (s)')
     plt.ylabel(field_name + ' (' + unit[field_name] + ')')
+
     plt.legend(loc = 'best')
     plt.title(' '.join((model_name, field_name.lower(),
                         'results at', obspt)))
@@ -201,7 +191,7 @@ for field_name in digitised_test_fields:
     plt.clf()
     problem1_test.mSuite.analysisImages.append(img_filename)
 
-# plot temperature profile at end time:
+# plot temperature profile w.r.t. radius at end time:
 tc_name = "AUTOUGH2 at t = 1.e9 s"
 outputIndex = -1
 r = np.array([col.centre[0] for col in geo.columnlist])
@@ -220,7 +210,6 @@ for field_name in digitised_test_fields:
         r = result.getRadii()
         var = result.getFieldAtOutputIndex(field_name, outputIndex)
         plt.plot(r, var / scale[field_name], symbol[sim], label = sim)
-    # TODO: add analytical r plot
     sim = 'analytical'
     data_filename = '_'.join((model_name, field_name, 'r', sim))
     data_filename = data_filename.lower().replace(' ', '_')

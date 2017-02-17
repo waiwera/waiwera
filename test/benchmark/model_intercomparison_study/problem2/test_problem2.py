@@ -162,13 +162,12 @@ for run_index, run_name in enumerate(run_names):
             pos = np.array([r, 0., -0.5 * thickness])
             obs_blk = geo.block_name_containing_point(pos)
             obs_cell_index = geo.block_name_index[obs_blk]
-            t = AUTOUGH2_result[run_name].getTimes()
+            t, var = problem2_test.mSuite.resultsList[run_index].\
+                  getFieldHistoryAtCell(field_name, obs_cell_index)
             sim = t / r2
             sims += list(sim)
-            var = problem2_test.mSuite.resultsList[run_index].\
-                  getFieldHistoryAtCell(field_name, obs_cell_index)
             var_waiwera += list(var)
-            var = AUTOUGH2_result[run_name].getFieldHistoryAtCell(field_name,
+            t, var = AUTOUGH2_result[run_name].getFieldHistoryAtCell(field_name,
                                                                   obs_cell_index)
             var_AUTOUGH2 += list(var)
         plt.semilogx(np.array(sims) / day, np.array(var_waiwera) * scale,
