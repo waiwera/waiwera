@@ -108,9 +108,11 @@ dat.run(simulator = 'AUTOUGH2_41Da',
         incon_filename = model_name + '.incon',
         silent = True)
 
-mesh_filename = 'g' + model_name + '.exo'
-geo.write_exodusii(mesh_filename)
+mesh_filename = 'g' + model_name + '.msh'
+geo.write_mesh(mesh_filename, dimension = 2, slice = 'x')
 jsondata = dat.json(geo, mesh_filename, incons = inc, bdy_incons = inc)
+jsondata['mesh']['thickness'] = width
+jsondata['boundaries'][0]['cell normals'][0][1] = [0., 1.]
 json.dump(jsondata, file(model_name + '.json', 'w'), indent = 2)
 
 os.chdir(orig_dir)
