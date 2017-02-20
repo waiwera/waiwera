@@ -356,7 +356,7 @@ contains
     use kinds_module
     use fson
     use fson_mpi_module
-    use fson_value_m, only: TYPE_REAL, TYPE_ARRAY
+    use fson_value_m, only: TYPE_REAL, TYPE_ARRAY, TYPE_NULL
 
     class(flow_simulation_type), intent(in out) :: self
     type(fson_value), pointer, intent(in) :: json
@@ -365,9 +365,6 @@ contains
     PetscReal, allocatable :: gravity(:)
     PetscInt :: gravity_type, ng, dim
     PetscErrorCode :: ierr
-    PetscReal :: default_gravity
-    PetscReal, parameter :: default_gravity_2D = 0.0_dp
-    PetscReal, parameter :: default_gravity_3D = 9.8_dp
 
     call DMGetDimension(self%mesh%dm, dim, ierr); CHKERRQ(ierr)
     self%gravity = 0._dp
@@ -382,23 +379,36 @@ contains
           ng = size(gravity)
           self%gravity(1: ng) = gravity
           deallocate(gravity)
+       case (TYPE_NULL)
+          call set_default_gravity()
        case default
           call self%logfile%write(LOG_LEVEL_ERR, 'simulation', &
                'init', str_key = 'stop', &
                str_value = 'unrecognised gravity type', &
                rank = 0)
+          stop
        end select
     else
-       select case (dim)
-       case(2)
-          default_gravity = default_gravity_2D
-       case(3)
-          default_gravity = default_gravity_3D
-       end select
-       call fson_get_mpi(json, "gravity", default_gravity, &
-            gravity_magnitude, self%logfile) ! for logging purposes
-          self%gravity(dim) = -gravity_magnitude
+       call set_default_gravity()
     end if
+
+  contains
+
+    subroutine set_default_gravity()
+      !! Sets default gravity array.
+      PetscReal :: default_gravity
+      PetscReal, parameter :: default_gravity_2D = 0.0_dp
+      PetscReal, parameter :: default_gravity_3D = 9.8_dp
+      select case (dim)
+      case(2)
+         default_gravity = default_gravity_2D
+      case(3)
+         default_gravity = default_gravity_3D
+      end select
+      call fson_get_mpi(json, "gravity", default_gravity, &
+           gravity_magnitude, self%logfile) ! for logging purposes
+      self%gravity(dim) = -gravity_magnitude
+    end subroutine set_default_gravity
 
   end subroutine flow_simulation_setup_gravity
 

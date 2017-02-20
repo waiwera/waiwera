@@ -339,6 +339,16 @@ contains
     end if
 
     json => fson_parse_mpi(str = '{"mesh": {' // &
+         '"filename": "data/mesh/2D.msh"}, "gravity": null}')
+    call sim%mesh%init(json)
+    call sim%setup_gravity(json)
+    call fson_destroy_mpi(json)
+    if (rank == 0) then
+       call assert_equals([0._dp, 0._dp, 0._dp], sim%gravity, 3, tol, &
+            "2D null gravity")
+    end if
+
+    json => fson_parse_mpi(str = '{"mesh": {' // &
          '"filename": "data/mesh/2D.msh"}, ' // &
          '"gravity": 9.81}')
     call sim%mesh%init(json)
