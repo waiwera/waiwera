@@ -61,8 +61,8 @@ module flow_simulation_module
      procedure :: setup_solution_vector => flow_simulation_setup_solution_vector
      procedure :: setup_logfile => flow_simulation_setup_logfile
      procedure :: setup_output => flow_simulation_setup_output
-     procedure :: setup_gravity => flow_simulation_setup_gravity
      procedure :: destroy_output => flow_simulation_destroy_output
+     procedure, public :: setup_gravity => flow_simulation_setup_gravity
      procedure, public :: input_summary => flow_simulation_input_summary
      procedure, public :: run_info => flow_simulation_run_info
      procedure, public :: init => flow_simulation_init
@@ -343,7 +343,15 @@ contains
 !------------------------------------------------------------------------
 
   subroutine flow_simulation_setup_gravity(self, json)
-    !! Sets up gravity vector from JSON input.
+    !! Sets up gravity vector from JSON input. Gravity may be
+    !! specified as a scalar or array. If an array is specified, the
+    !! gravity array is set to the specified value. If a scalar is
+    !! specified, it is treated as the gravity magnitude and applied
+    !! in the negative direction of the last dimension of the mesh. If
+    !! no gravity is specified, the default value used depends on the
+    !! mesh dimension. 2D meshes are effectively assumed horizontal by
+    !! default, so no gravity is applied. For 3D meshes, a default
+    !! gravity magnitude is applied in the third dimension.
 
     use kinds_module
     use fson
@@ -357,15 +365,17 @@ contains
     PetscReal, allocatable :: gravity(:)
     PetscInt :: gravity_type, ng, dim
     PetscErrorCode :: ierr
-    PetscReal, parameter :: default_gravity = 9.8_dp
+    PetscReal :: default_gravity
+    PetscReal, parameter :: default_gravity_2D = 0.0_dp
+    PetscReal, parameter :: default_gravity_3D = 9.8_dp
 
+    call DMGetDimension(self%mesh%dm, dim, ierr); CHKERRQ(ierr)
     self%gravity = 0._dp
     if (fson_has_mpi(json, "gravity")) then
        gravity_type = fson_type_mpi(json, "gravity")
        select case (gravity_type)
        case (TYPE_REAL)
           call fson_get_mpi(json, "gravity", val = gravity_magnitude)
-          call DMGetDimension(self%mesh%dm, dim, ierr); CHKERRQ(ierr)
           self%gravity(dim) = -gravity_magnitude
        case (TYPE_ARRAY)
           call fson_get_mpi(json, "gravity", val = gravity)
@@ -379,9 +389,15 @@ contains
                rank = 0)
        end select
     else
+       select case (dim)
+       case(2)
+          default_gravity = default_gravity_2D
+       case(3)
+          default_gravity = default_gravity_3D
+       end select
        call fson_get_mpi(json, "gravity", default_gravity, &
-            gravity_magnitude, self%logfile)
-          self%gravity = [0._dp, 0._dp, -gravity_magnitude]
+            gravity_magnitude, self%logfile) ! for logging purposes
+          self%gravity(dim) = -gravity_magnitude
     end if
 
   end subroutine flow_simulation_setup_gravity

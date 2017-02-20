@@ -15,6 +15,7 @@ module flow_simulation_test
 
 public :: test_flow_simulation_init, &
      test_flow_simulation_fluid_properties, test_flow_simulation_lhs
+public :: test_setup_gravity
 public :: vec_write, vec_diff_test
 
 PetscReal, parameter :: tol = 1.e-6_dp
@@ -314,6 +315,86 @@ contains
     call sim%destroy()
 
   end subroutine test_flow_simulation_lhs
+
+!------------------------------------------------------------------------
+
+  subroutine test_setup_gravity
+    ! Test gravity setup
+
+    use fson_mpi_module
+    type(fson_value), pointer :: json
+    PetscMPIInt :: rank
+    PetscErrorCode :: ierr
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+
+    json => fson_parse_mpi(str = '{"mesh": {' // &
+         '"filename": "data/mesh/2D.msh"}}')
+    call sim%mesh%init(json)
+    call sim%setup_gravity(json)
+    call fson_destroy_mpi(json)
+    if (rank == 0) then
+       call assert_equals([0._dp, 0._dp, 0._dp], sim%gravity, 3, tol, &
+            "2D default gravity")
+    end if
+
+    json => fson_parse_mpi(str = '{"mesh": {' // &
+         '"filename": "data/mesh/2D.msh"}, ' // &
+         '"gravity": 9.81}')
+    call sim%mesh%init(json)
+    call sim%setup_gravity(json)
+    call fson_destroy_mpi(json)
+    if (rank == 0) then
+       call assert_equals([0._dp, -9.81_dp, 0._dp], sim%gravity, 3, tol, &
+         "2D scalar gravity")
+    end if
+
+    json => fson_parse_mpi(str = '{"mesh": {' // &
+         '"filename": "data/mesh/2D.msh"}, ' // &
+         '"gravity": [-9.8, 0.0]}')
+    call sim%mesh%init(json)
+    call sim%setup_gravity(json)
+    call fson_destroy_mpi(json)
+    if (rank == 0) then
+       call assert_equals([-9.8_dp, 0._dp, 0._dp], sim%gravity, 3, tol, &
+         "2D vector gravity")
+    end if
+
+    json => fson_parse_mpi(str = '{"mesh": {' // &
+         '"filename": "data/mesh/block3.exo"}}')
+    call sim%mesh%init(json)
+    call sim%setup_gravity(json)
+    call fson_destroy_mpi(json)
+    if (rank == 0) then
+       call assert_equals([0._dp, 0._dp, -9.8_dp], sim%gravity, 3, tol, &
+            "3D default gravity")
+    end if
+
+    json => fson_parse_mpi(str = '{"mesh": {' // &
+         '"filename": "data/mesh/block3.exo"}, ' // &
+         '"gravity": 9.80665}')
+    call sim%mesh%init(json)
+    call sim%setup_gravity(json)
+    call fson_destroy_mpi(json)
+    if (rank == 0) then
+       call assert_equals([0._dp, 0._dp, -9.80665_dp], sim%gravity, 3, tol, &
+            "3D scalar gravity")
+    end if
+
+    json => fson_parse_mpi(str = '{"mesh": {' // &
+         '"filename": "data/mesh/block3.exo"}, ' // &
+         '"gravity": [0., 0., -9.81]}')
+    call sim%mesh%init(json)
+    call sim%setup_gravity(json)
+    call fson_destroy_mpi(json)
+    if (rank == 0) then
+       call assert_equals([0._dp, 0._dp, -9.81_dp], sim%gravity, 3, tol, &
+            "3D vector gravity")
+    end if
+
+    call sim%mesh%destroy()
+
+  end subroutine test_setup_gravity
 
 !------------------------------------------------------------------------
 
