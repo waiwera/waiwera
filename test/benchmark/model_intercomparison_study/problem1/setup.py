@@ -101,7 +101,8 @@ dat.run(simulator = 'AUTOUGH2_41Da',
 
 mesh_filename = 'g' + model_name + '.msh'
 geo.write_mesh(mesh_filename, dimension = 2, slice = 'x')
-jsondata = dat.json(geo, mesh_filename, incons = inc, bdy_incons = inc)
+jsondata = dat.json(geo, mesh_filename, incons = inc, bdy_incons = inc,
+                    mesh_coords = 'rz')
 jsondata['initial']['primary'] = [P0, T0]
 jsondata['mesh']['radial'] = True
 jsondata['gravity'] = [0., -9.8]

@@ -90,7 +90,8 @@ dat.run(simulator = 'AUTOUGH2_41Da',
 
 mesh_filename = 'g' + model_name + '.msh'
 geo.write_mesh(mesh_filename, dimension = 2, slice = 'x')
-jsondata = dat.json(geo, mesh_filename, incons = inc, bdy_incons = inc)
+jsondata = dat.json(geo, mesh_filename, incons = inc, bdy_incons = inc,
+                    mesh_coords = 'rz')
 jsondata['initial']['primary'] = [P0, T0]
 jsondata['output']['initial'] = False
 jsondata['mesh']['radial'] = True
@@ -119,7 +120,8 @@ dat.run(simulator = 'AUTOUGH2_41Da',
         incon_filename = model_name + 'b.incon',
         silent = True)
 
-jsondata = dat.json(geo, mesh_filename, incons = inc, bdy_incons = inc)
+jsondata = dat.json(geo, mesh_filename, incons = inc, bdy_incons = inc,
+                    mesh_coords = 'rz')
 jsondata['initial'] = {'primary': [P0, S0], 'region': 4}
 jsondata['output']['initial'] = False
 jsondata['mesh']['radial'] = True
@@ -146,7 +148,8 @@ dat.run(simulator = 'AUTOUGH2_41Da',
         incon_filename = model_name + 'c.incon',
         silent = True)
 
-jsondata = dat.json(geo, mesh_filename, incons = inc, bdy_incons = inc)
+jsondata = dat.json(geo, mesh_filename, incons = inc, bdy_incons = inc,
+                    mesh_coords = 'rz')
 jsondata['initial'] = {'primary': [P0, T0], 'region': 1}
 jsondata['output']['initial'] = False
 jsondata['mesh']['radial'] = True
