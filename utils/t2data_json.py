@@ -18,20 +18,22 @@ class t2data_export_json(t2data):
     """Modification of t2data class including ability to export to
     JSON for Waiwera."""
     def write_exodus_json(self, geo, indent = 2, atmos_volume = 1.e25,
-                           incons = None, eos = None, bdy_incons = None):
+                           incons = None, eos = None, bdy_incons = None,
+                          mesh_coords = 'xyz'):
         """Exports t2data object and mulgrid geometry to ExodusII file
         and JSON file."""
         import json
         geobase, ext = splitext(geo.filename)
         exoname = geobase + '.exo'
         geo.write_exodusii(exoname)
-        json_data = self.json(geo, exoname, atmos_volume, incons, eos, bdy_incons)
+        json_data = self.json(geo, exoname, atmos_volume, incons, eos,
+                              bdy_incons, mesh_coords)
         datbase, ext = splitext(self.filename)
         jsonname = datbase + '.json'
         json.dump(json_data, open(jsonname, 'w'), indent = indent)
 
     def json(self, geo, mesh_filename, atmos_volume = 1.e25, incons = None,
-                    eos = None, bdy_incons = None):
+                    eos = None, bdy_incons = None, mesh_coords = 'xyz'):
         """Takes a t2data object and mulgrid and returns a dictionary
         representing the corresponding JSON input."""
         jsondata = {}
@@ -46,7 +48,7 @@ class t2data_export_json(t2data):
         jsondata['rock'].update(self.relative_permeability_json())
         jsondata.update(self.initial_json(geo, incons, jsondata['eos']['name']))
         jsondata.update(self.boundaries_json(geo, bdy_incons, atmos_volume,
-                                             jsondata['eos']['name']))
+                                             jsondata['eos']['name'], mesh_coords))
         jsondata.update(self.generators_json(geo, jsondata['eos']['name']))
         return jsondata
 
@@ -267,9 +269,13 @@ class t2data_export_json(t2data):
                     jsondata['source'].append(g)
         return jsondata
 
-    def boundaries_json(self, geo, bdy_incons, atmos_volume, eos):
-        """Converts Dirichlet boundary conditions to JSON."""
+    def boundaries_json(self, geo, bdy_incons, atmos_volume, eos, mesh_coords):
+        """Converts Dirichlet boundary conditions to JSON. Currently
+        connections to boundary blocks that are not either horizontal or
+        vertical will not be converted correctly.
+        """
         jsondata = {}
+        vertical_tolerance = 1.e-6
         if bdy_incons is None:
             default_incs = self.parameter['default_incons'][:]
             default_region = 1
@@ -289,22 +295,30 @@ class t2data_export_json(t2data):
                 pv = primary(blk.name)
                 bc = {'primary': pv, 'region': region(pv), 'cell normals': []}
                 for conname in blk.connection_name:
+                    nz = -self.grid.connection[conname].dircos
+                    vertical_connection = abs(nz) > vertical_tolerance
                     names = list(conname)
                     names.remove(blk.name)
                     interior_blkname = names[0]
                     interior_blk = self.grid.block[interior_blkname]
                     cell_index = geo.block_name_index[interior_blkname] - geo.num_atmosphere_blocks
                     if blk.centre is None:
-                        # TODO make this more general, to handle more cases
-                        nz = -self.grid.connection[conname].dircos
-                        if abs(nz) > 0.: normal = np.array([0., 0., nz])
+                        if vertical_connection:
+                            normal = np.array([0., 0., nz])
                         else:
                             raise Exception("Can't find normal vector for connection: " +
                                             str(conname))
                     else:
                         normal = blk.centre - interior_blk.centre
                     normal /= np.linalg.norm(normal)
-                    bc['cell normals'].append([cell_index, list(normal)])
+                    if mesh_coords != 'xyz':
+                        if vertical_connection:
+                            if mesh_coords in ['xz', 'yz', 'rz']:
+                                normal = normal[[0,2]]
+                            elif mesh_coords == 'xy': normal = None
+                        else: normal = normal[[0,1]]
+                    if normal is not None:
+                        bc['cell normals'].append([cell_index, list(normal)])
                 jsondata['boundaries'].append(bc)
         return jsondata
 
