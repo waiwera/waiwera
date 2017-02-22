@@ -129,9 +129,10 @@ for run_index, run_name in enumerate(run_names):
     # plot time history results at end cells:
     for field_name in plot_fields:
         for cell in [1, -1]:
-            var = test.mSuite.resultsList[run_index].getFieldHistoryAtCell(field_name, cell)
+            t, var = test.mSuite.resultsList[run_index].\
+                     getFieldHistoryAtCell(field_name, cell)
             plt.semilogx(t, var, '-o', label = 'Waiwera cell ' + str(cell))
-            var = reference_result.getFieldHistoryAtCell(field_name, cell)
+            t, var = reference_result.getFieldHistoryAtCell(field_name, cell)
             plt.semilogx(t, var, 's', label = 'AUTOUGH2 cell ' + str(cell))
         plt.xlabel('t (s)')
         plt.ylabel(field_name)

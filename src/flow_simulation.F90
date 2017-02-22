@@ -51,7 +51,7 @@ module flow_simulation_module
      type(list_type), public :: source_controls !! Source/sink controls
      class(thermodynamics_type), allocatable, public :: thermo !! Fluid thermodynamic formulation
      class(eos_type), allocatable, public :: eos !! Fluid equation of state
-     PetscReal, public :: gravity !! Acceleration of gravity (\(m.s^{-1}\))
+     PetscReal, public :: gravity(3) !! Acceleration of gravity vector (\(m.s^{-1}\))
      class(relative_permeability_type), allocatable, public :: relative_permeability !! Rock relative permeability function
      character(max_output_filename_length), public :: output_filename !! HDF5 output filename
      PetscViewer :: hdf5_viewer
@@ -62,6 +62,7 @@ module flow_simulation_module
      procedure :: setup_logfile => flow_simulation_setup_logfile
      procedure :: setup_output => flow_simulation_setup_output
      procedure :: destroy_output => flow_simulation_destroy_output
+     procedure, public :: setup_gravity => flow_simulation_setup_gravity
      procedure, public :: input_summary => flow_simulation_input_summary
      procedure, public :: run_info => flow_simulation_run_info
      procedure, public :: init => flow_simulation_init
@@ -286,15 +287,15 @@ contains
     call self%logfile%write(LOG_LEVEL_INFO, 'input', 'summary', &
          str_key = 'input.filename', str_value = self%filename)
     call self%logfile%write(LOG_LEVEL_INFO, 'input', 'summary', &
+         str_key = 'title', str_value = trim(self%title))
+    call self%logfile%write(LOG_LEVEL_INFO, 'input', 'summary', &
          str_key = 'logfile.filename', &
          str_value = self%logfile%filename)
     call self%logfile%write(LOG_LEVEL_INFO, 'input', 'summary', &
          str_key = 'output.filename', &
          str_value = self%output_filename)
     call self%logfile%write(LOG_LEVEL_INFO, 'input', 'summary', &
-         str_key = 'title', str_value = trim(self%title))
-    call self%logfile%write(LOG_LEVEL_INFO, 'input', 'summary', &
-         str_key = 'mesh', str_value = self%mesh%filename)
+         str_key = 'mesh.filename', str_value = self%mesh%filename)
     call self%logfile%write(LOG_LEVEL_INFO, 'input', 'summary', &
          str_key = 'eos.name', str_value = self%eos%name)
     call self%logfile%write(LOG_LEVEL_INFO, 'input', 'summary', &
@@ -341,6 +342,78 @@ contains
 
 !------------------------------------------------------------------------
 
+  subroutine flow_simulation_setup_gravity(self, json)
+    !! Sets up gravity vector from JSON input. Gravity may be
+    !! specified as a scalar or array. If an array is specified, the
+    !! gravity array is set to the specified value. If a scalar is
+    !! specified, it is treated as the gravity magnitude and applied
+    !! in the negative direction of the last dimension of the mesh. If
+    !! no gravity is specified, the default value used depends on the
+    !! mesh dimension. 2D meshes are effectively assumed horizontal by
+    !! default, so no gravity is applied. For 3D meshes, a default
+    !! gravity magnitude is applied in the third dimension.
+
+    use kinds_module
+    use fson
+    use fson_mpi_module
+    use fson_value_m, only: TYPE_REAL, TYPE_ARRAY, TYPE_NULL
+
+    class(flow_simulation_type), intent(in out) :: self
+    type(fson_value), pointer, intent(in) :: json
+    ! Locals:
+    PetscReal :: gravity_magnitude
+    PetscReal, allocatable :: gravity(:)
+    PetscInt :: gravity_type, ng, dim
+    PetscErrorCode :: ierr
+
+    call DMGetDimension(self%mesh%dm, dim, ierr); CHKERRQ(ierr)
+    self%gravity = 0._dp
+    if (fson_has_mpi(json, "gravity")) then
+       gravity_type = fson_type_mpi(json, "gravity")
+       select case (gravity_type)
+       case (TYPE_REAL)
+          call fson_get_mpi(json, "gravity", val = gravity_magnitude)
+          self%gravity(dim) = -gravity_magnitude
+       case (TYPE_ARRAY)
+          call fson_get_mpi(json, "gravity", val = gravity)
+          ng = size(gravity)
+          self%gravity(1: ng) = gravity
+          deallocate(gravity)
+       case (TYPE_NULL)
+          call set_default_gravity()
+       case default
+          call self%logfile%write(LOG_LEVEL_ERR, 'simulation', &
+               'init', str_key = 'stop', &
+               str_value = 'unrecognised gravity type', &
+               rank = 0)
+          stop
+       end select
+    else
+       call set_default_gravity()
+    end if
+
+  contains
+
+    subroutine set_default_gravity()
+      !! Sets default gravity array.
+      PetscReal :: default_gravity
+      PetscReal, parameter :: default_gravity_2D = 0.0_dp
+      PetscReal, parameter :: default_gravity_3D = 9.8_dp
+      select case (dim)
+      case(2)
+         default_gravity = default_gravity_2D
+      case(3)
+         default_gravity = default_gravity_3D
+      end select
+      call fson_get_mpi(json, "gravity", default_gravity, &
+           gravity_magnitude, self%logfile) ! for logging purposes
+      self%gravity(dim) = -gravity_magnitude
+    end subroutine set_default_gravity
+
+  end subroutine flow_simulation_setup_gravity
+
+!------------------------------------------------------------------------
+
   subroutine flow_simulation_init(self, json, filename)
     !! Initializes a flow simulation using data from the specified JSON object.
 
@@ -364,7 +437,6 @@ contains
     ! Locals:
     character(len = max_title_length), parameter :: default_title = ""
     character(25) :: datetimestr
-    PetscReal, parameter :: default_gravity = 9.8_dp
     PetscErrorCode :: ierr
 
     call PetscLogEventBegin(simulation_init_event, ierr); CHKERRQ(ierr)
@@ -383,20 +455,19 @@ contains
 
     call fson_get_mpi(json, "title", default_title, self%title, &
          self%logfile)
-    call fson_get_mpi(json, "gravity", default_gravity, self%gravity, &
-         self%logfile)
 
     call setup_thermodynamics(json, self%thermo, self%logfile)
     call setup_eos(json, self%thermo, self%eos, self%logfile)
 
     call self%mesh%init(json, self%logfile)
+    call self%setup_gravity(json)
     call setup_rocktype_labels(json, self%mesh%dm, self%logfile)
     call self%mesh%setup_boundaries(json, self%eos, self%logfile)
     if (self%output_filename == '') then
-       call self%mesh%configure(self%eos%primary_variable_names)
+       call self%mesh%configure(self%eos%primary_variable_names, self%gravity)
     else
        call self%mesh%configure(self%eos%primary_variable_names, &
-            self%hdf5_viewer)
+            self%gravity, self%hdf5_viewer)
     end if
     call self%output_mesh_geometry()
 
@@ -661,7 +732,7 @@ contains
           call face%assign_cell_rock(rock_array, rock_offsets)
           call face%assign_cell_fluid(fluid_array, fluid_offsets)
 
-          face_flow = face%flux(self%eos, self%gravity) * face%area
+          face_flow = face%flux(self%eos) * face%area
 
           do i = 1, 2
              if ((self%mesh%ghost_cell(cells(i)) < 0) .and. &

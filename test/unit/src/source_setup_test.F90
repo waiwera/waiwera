@@ -42,6 +42,7 @@ contains
     PetscInt :: expected_num_sources, num_sources
     PetscErrorCode :: ierr
     PetscReal, parameter :: start_time = 0._dp
+    PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
     PetscMPIInt :: rank
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
@@ -51,7 +52,7 @@ contains
     call eos%init(json, thermo)
     call mesh%init(json)
     call DMCreateLabel(mesh%dm, open_boundary_label_name, ierr); CHKERRQ(ierr)
-    call mesh%configure(eos%primary_variable_names)
+    call mesh%configure(eos%primary_variable_names, gravity)
     call DMGetGlobalVector(mesh%dm, fluid, ierr); CHKERRQ(ierr) ! dummy- not used
 
     call setup_sources(json, mesh%dm, eos, thermo, start_time, fluid, &

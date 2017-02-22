@@ -351,6 +351,7 @@ contains
     DM, intent(in out) :: dm
     type(logfile_type), intent(in out) :: logfile
     ! Locals:
+    PetscInt :: start_cell, end_cell
     PetscErrorCode :: ierr
     type(fson_value), pointer :: rocktypes, r
     PetscInt :: num_rocktypes, num_cells, ir, ic, c
@@ -360,6 +361,8 @@ contains
     character(len=12) :: irstr
 
     default_cells = [PetscInt::] ! empty integer array
+    call DMPlexGetHeightStratum(dm, 0, start_cell, end_cell, ierr)
+    CHKERRQ(ierr)
 
     if (fson_has_mpi(json, "rock.types")) then
        call fson_get_mpi(json, "rock.types", rocktypes)
@@ -375,8 +378,10 @@ contains
              num_cells = size(cells)
              do ic = 1, num_cells
                 c = cells(ic)
-                call DMSetLabelValue(dm, rocktype_label_name, &
-                     c, ir, ierr); CHKERRQ(ierr)
+                if ((c >= start_cell) .and. (c < end_cell)) then
+                   call DMSetLabelValue(dm, rocktype_label_name, &
+                        c, ir, ierr); CHKERRQ(ierr)
+                end if
              end do
              deallocate(cells)
           end if

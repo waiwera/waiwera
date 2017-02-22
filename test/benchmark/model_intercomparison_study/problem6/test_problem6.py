@@ -9,7 +9,7 @@ from credo.systest import FieldWithinTolTC
 from credo.systest import HistoryWithinTolTC
 
 from credo.jobrunner import SimpleJobRunner
-from credo.modelresult import ModelResult
+from credo.modelresult import ModelResult, HistoryDataResult
 from credo.t2model import T2ModelRun, T2ModelResult
 from credo.waiwera import WaiweraModelRun
 
@@ -21,23 +21,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from docutils.core import publish_file
-
-class DigitisedHistoryResult(ModelResult):
-    """Digitised results for a field at a single cell."""
-    def __init__(self, modelName, fileName, field, cellIndex, ordering_map=None,
-                 fieldname_map=None):
-        from os.path import dirname
-        super(DigitisedHistoryResult, self).__init__(modelName, dirname(fileName),
-                                            ordering_map=ordering_map,
-                                            fieldname_map=fieldname_map)
-        self.field = field
-        self.cellIndex = cellIndex
-        self.data = np.loadtxt(fileName)
-    def _getTimes(self): return self.data[:, 0]
-    def _getFieldHistoryAtCell(self, field, cellIndex):
-        if field == self.field and cellIndex == self.cellIndex:
-            return self.data[:, 1]
-        else: return None
 
 model_name = 'problem6'
 
@@ -81,7 +64,6 @@ model_run.jobParams['nproc'] = num_procs
 problem6_test.mSuite.addRun(model_run, run_name)
 
 problem6_test.setupEmptyTestCompsList()
-digitised_result = {}
 
 run_base_name = model_name
 run_filename = os.path.join(model_dir, run_base_name + ".listing")
@@ -96,21 +78,23 @@ problem6_test.addTestComp(run_index, "AUTOUGH2 " + obspt + " well",
                                          expected = AUTOUGH2_result,
                                          testCellIndex = obs_cell_index))
 
-for field_name in digitised_test_fields:
-    for sim in digitised_simulators:
+digitised_result = {}
+for sim in digitised_simulators:
+    data = {}
+    for field_name in digitised_test_fields:
         data_filename = '_'.join((model_name, obspt, field_name, sim))
         data_filename = data_filename.lower().replace(' ', '_')
         data_filename = os.path.join(data_dir, data_filename + '.dat')
-        result = DigitisedHistoryResult(sim, data_filename,
-                                               field_name, obs_cell_index)
+        data[field_name, obs_cell_index] = np.loadtxt(data_filename)
+    digitised_result[sim] = HistoryDataResult(sim, data)
 
-        digitised_result[obspt, field_name, sim] = result
-        problem6_test.addTestComp(run_index, ' '.join((sim, field_name, obspt + ' well')),
-                                  HistoryWithinTolTC(fieldsToTest = [field_name],
-                                                     defFieldTol = 1.e-2,
-                                                     expected = result,
-                                                     testCellIndex = obs_cell_index,
-                                                     orthogonalError = True))
+for sim in digitised_simulators:
+    problem6_test.addTestComp(run_index, ' '.join((sim, field_name, obspt + ' well')),
+                              HistoryWithinTolTC(fieldsToTest = digitised_test_fields,
+                                                 defFieldTol = 1.e-2,
+                                                 expected = digitised_result[sim],
+                                                 testCellIndex = obs_cell_index,
+                                                 orthogonalError = True))
 
 jrunner = SimpleJobRunner(mpi = True)
 testResult, mResults = problem6_test.runTest(jrunner, createReports = True)
@@ -127,18 +111,16 @@ tc_name = "AUTOUGH2 " + obspt + " well"
 
 for field_name in digitised_test_fields:
 
-    t = problem6_test.testComps[run_index][tc_name].times
-    var = problem6_test.mSuite.resultsList[run_index].getFieldHistoryAtCell(field_name, obs_cell_index)
+    t, var = problem6_test.mSuite.resultsList[run_index].\
+             getFieldHistoryAtCell(field_name, obs_cell_index)
     plt.plot(t / yr, var / scale[field_name], '-', label = 'Waiwera')
 
-    t = AUTOUGH2_result.getTimes()
-    var = AUTOUGH2_result.getFieldHistoryAtCell(field_name, obs_cell_index)
+    t, var = AUTOUGH2_result.getFieldHistoryAtCell(field_name, obs_cell_index)
     plt.plot(t / yr, var / scale[field_name], '+', label = 'AUTOUGH2')
 
     for sim in digitised_simulators:
-        result = digitised_result[obspt, field_name, sim]
-        t = result.getTimes()
-        var = result.getFieldHistoryAtCell(field_name, obs_cell_index)
+        result = digitised_result[sim]
+        t, var = result.getFieldHistoryAtCell(field_name, obs_cell_index)
         plt.plot(t / yr, var / scale[field_name], symbol[sim], label = sim)
     plt.xlabel('time (years)')
     plt.ylabel(field_name + ' (' + unit[field_name] + ')')

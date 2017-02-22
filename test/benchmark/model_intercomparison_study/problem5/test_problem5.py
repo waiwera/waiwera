@@ -9,7 +9,7 @@ from credo.systest import FieldWithinTolTC
 from credo.systest import HistoryWithinTolTC
 
 from credo.jobrunner import SimpleJobRunner
-from credo.modelresult import ModelResult
+from credo.modelresult import ModelResult, HistoryDataResult
 from credo.t2model import T2ModelRun, T2ModelResult
 from credo.waiwera import WaiweraModelRun
 
@@ -21,23 +21,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from docutils.core import publish_file
-
-class DigitisedHistoryResult(ModelResult):
-    """Digitised results for a field at a single cell."""
-    def __init__(self, modelName, fileName, field, cellIndex, ordering_map=None,
-                 fieldname_map=None):
-        from os.path import dirname
-        super(DigitisedHistoryResult, self).__init__(modelName, dirname(fileName),
-                                            ordering_map=ordering_map,
-                                            fieldname_map=fieldname_map)
-        self.field = field
-        self.cellIndex = cellIndex
-        self.data = np.loadtxt(fileName)
-    def _getTimes(self): return self.data[:, 0]
-    def _getFieldHistoryAtCell(self, field, cellIndex):
-        if field == self.field and cellIndex == self.cellIndex:
-            return self.data[:, 1]
-        else: return None
 
 def total_steam_history(mResult, index):
     """Returns history of total steam in place (per unit reservoir
@@ -52,7 +35,7 @@ def total_steam_history(mResult, index):
         vol = mResult.getFieldAtOutputIndex('geom_volume', i)
         steam = 1.e-3 * np.sum(phi * sv * rhov * vol) / thickness
         steam_history.append(steam)
-    return np.array(steam_history)
+    return times, np.array(steam_history)
 
 model_name = 'problem5'
 
@@ -79,7 +62,7 @@ plot_fields = test_fields
 digitised_test_fields = {'production': ["Pressure", "Temperature"],
                          'injection': ["Pressure"],
                          'total': ["Steam"]}
-digitised_simulators = ["LBL", "S-Cubed"]    
+digitised_simulators = ["LBL", "S-Cubed"] 
 
 geo = mulgrid(t2geo_filename)
 map_out_atm = range(geo.num_atmosphere_blocks, geo.num_blocks)
@@ -126,6 +109,16 @@ for run_index, run_name in enumerate(run_names):
                                               dat_filename = dat_filename,
                                               ordering_map = map_out_atm,
                                               fieldname_map = AUT2_FIELDMAP)
+
+    for sim in digitised_simulators:
+        data = {}
+        for obspt in obs_points:
+            for field_name in digitised_test_fields[obspt]:
+                data_filename = '_'.join((model_name + run_name, obspt, field_name, sim))
+                data_filename = os.path.join(data_dir, data_filename.lower() + '.dat')
+                data[field_name, obs_cell_index[obspt]] = np.loadtxt(data_filename)
+        digitised_result[run_name, sim] = HistoryDataResult(sim, data)
+    
     for obspt in obs_points:
         blk_index = obs_cell_index[obspt]
         if obspt == 'total': fields = digitised_test_fields[obspt]
@@ -135,21 +128,15 @@ for run_index, run_name in enumerate(run_names):
                                                  defFieldTol = 1.e-3,
                                                  expected = AUTOUGH2_result[run_name],
                                                  testCellIndex = blk_index))
-
-        for field_name in digitised_test_fields[obspt]:
-            for sim in digitised_simulators:
-                data_filename = '_'.join((model_name + run_name, obspt, field_name, sim))
-                data_filename = os.path.join(data_dir, data_filename.lower() + '.dat')
-                result = DigitisedHistoryResult(sim, data_filename,
-                                                       field_name, blk_index)
-                digitised_result[run_name, obspt, field_name, sim] = result
-                problem5_test.addTestComp(run_index, ' '.join((sim, field_name, obspt)),
-                                          HistoryWithinTolTC(fieldsToTest = [field_name],
-                                                             defFieldTol = 1.5e-2,
-                                                             fieldTols = {"Steam": 5.e-2},
-                                                             expected = result,
-                                                             testCellIndex = obs_cell_index[obspt],
-                                                             orthogonalError = True))
+        for sim in digitised_simulators:
+            problem5_test.addTestComp(run_index, ' '.join((sim, obspt)),
+                                      HistoryWithinTolTC(fieldsToTest = \
+                                                         digitised_test_fields[obspt],
+                                                         defFieldTol = 1.5e-2,
+                                                         fieldTols = {"Steam": 5.e-2},
+                                                         expected = digitised_result[run_name, sim],
+                                                         testCellIndex = obs_cell_index[obspt],
+                                                         orthogonalError = True))
 
 jrunner = SimpleJobRunner(mpi = True)
 testResult, mResults = problem5_test.runTest(jrunner, createReports = True)
@@ -170,18 +157,16 @@ for run_index, run_name in enumerate(run_names):
 
         for field_name in digitised_test_fields[obspt]:
 
-            t = problem5_test.testComps[run_index][tc_name].times
-            var = problem5_test.mSuite.resultsList[run_index].getFieldHistoryAtCell(field_name, blk_index)
+            t, var = problem5_test.mSuite.resultsList[run_index].\
+                     getFieldHistoryAtCell(field_name, blk_index)
             plt.plot(t / yr, var / scale[field_name], '-', label = 'Waiwera')
 
-            t = AUTOUGH2_result[run_name].getTimes()
-            var = AUTOUGH2_result[run_name].getFieldHistoryAtCell(field_name, blk_index)
+            t, var = AUTOUGH2_result[run_name].getFieldHistoryAtCell(field_name, blk_index)
             plt.plot(t / yr, var / scale[field_name], '+', label = 'AUTOUGH2')
 
             for sim in digitised_simulators:
-                result = digitised_result[run_name, obspt, field_name, sim]
-                t = result.getTimes()
-                var = result.getFieldHistoryAtCell(field_name, blk_index)
+                result = digitised_result[run_name, sim]
+                t, var = result.getFieldHistoryAtCell(field_name, blk_index)
                 plt.plot(t / yr, var / scale[field_name], symbol[sim], label = sim)
             plt.xlabel('time (years)')
             plt.ylabel(field_name + ' (' + unit[field_name] + ')')

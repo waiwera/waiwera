@@ -298,12 +298,14 @@ contains
     !! Returns index of DM mesh face on the specified cell c, with
     !! outward normal vector closest to the specified one.
 
+    use kinds_module
+
     DM, intent(in) :: dm !! DM
     PetscInt, intent(in) :: c !! Cell mesh point in DM
     PetscReal, intent(in) :: normal(:) !! Normal vector
     PetscInt, intent(out) :: f !! Face mesh point in DM
     ! Locals:
-    PetscInt :: i, num_faces, imax
+    PetscInt :: i, num_faces, imax, dim, num_cells
     PetscInt :: start_cell, end_cell
     PetscErrorCode :: ierr
     PetscInt, pointer :: faces(:)
@@ -312,6 +314,7 @@ contains
     PetscReal, allocatable :: cos_theta(:)
     PetscReal :: area, normal_norm, face_normal_norm
 
+    call DMGetDimension(dm, dim, ierr); CHKERRQ(ierr)
     call DMPlexGetHeightStratum(dm, 0, start_cell, &
          end_cell, ierr); CHKERRQ(ierr)
 
@@ -323,14 +326,20 @@ contains
        call DMPlexGetConeSize(dm, c, num_faces, ierr); CHKERRQ(ierr)
        call DMPlexGetCone(dm, c, faces, ierr); CHKERRQ(ierr)
        allocate(cos_theta(num_faces))
-       normal_norm = norm2(normal)
+       cos_theta = -1._dp
+       normal_norm = norm2(normal(1: dim))
 
        do i = 1, num_faces
-          call DMPlexComputeCellGeometryFVM(dm, faces(i), area, &
-               pcentroid, pface_normal, ierr); CHKERRQ(ierr)
-          face_normal_norm = norm2(face_normal)
-          cos_theta(i) = dot_product(normal, face_normal) / &
-               (normal_norm * face_normal_norm)
+          call DMPlexGetSupportSize(dm, faces(i), num_cells, ierr)
+          CHKERRQ(ierr)
+          if (num_cells < 2) then
+             call DMPlexComputeCellGeometryFVM(dm, faces(i), area, &
+                  pcentroid, pface_normal, ierr); CHKERRQ(ierr)
+             face_normal_norm = norm2(face_normal(1: dim))
+             cos_theta(i) = dot_product(normal(1: dim), &
+                  face_normal(1: dim)) / &
+                  (normal_norm * face_normal_norm)
+          end if
        end do
 
        imax = maxloc(cos_theta, 1)

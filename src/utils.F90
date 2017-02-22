@@ -16,14 +16,18 @@
 !   along with Waiwera.  If not, see <http://www.gnu.org/licenses/>.
 
 module utils_module
-  !! Utility functions for string handling, formatting, file names etc.
+  !! Utility functions for string handling, formatting, file names
+  !! etc. and constants.
 
 #include <petsc/finclude/petscsys.h>
 
   use petscsys
+  use kinds_module
 
   implicit none
   private
+
+  PetscReal, parameter, public :: pi = 4._dp * atan(1._dp)
 
   public :: str_to_upper, str_to_lower, &
        int_str_len, str_array_index, &
