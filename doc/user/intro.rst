@@ -1,6 +1,6 @@
-***********************
-Introduction to Waiwera
-***********************
+************
+Introduction
+************
 
 What is Waiwera?
 ================
