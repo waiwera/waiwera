@@ -14,11 +14,12 @@ Contents:
    intro
    installation
    testing
-
+   todolist
 
 Indices and tables
 ==================
 
 * :ref:`genindex`
 * :ref:`search`
+
 

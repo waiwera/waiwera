@@ -13,8 +13,12 @@ Waiwera depends on two other software libraries, which must be installed first b
 Installing PETSc
 ----------------
 
+.. todo:: add PETSc install instructions
+
 Installing FSON
 ---------------
+
+.. todo:: add FSON install instructions
 
 Installing Waiwera
 ==================

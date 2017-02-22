@@ -16,6 +16,8 @@ Features
 * Object-oriented code written in Fortran 2003    
 * Uses standard file formats for input (`JSON <http://www.json.org/>`_) and output (`HDF5 <https://support.hdfgroup.org/HDF5/>`_, `YAML <http://www.yaml.org/about.html>`_)
 
+.. todo:: add more detail on Waiwera's main features
+            
 What does the name mean?
 ========================
 
