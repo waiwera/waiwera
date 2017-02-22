@@ -12,6 +12,8 @@ Contents:
    :maxdepth: 2
 
    intro
+   installation
+   testing
 
 
 Indices and tables
