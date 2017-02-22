@@ -265,7 +265,7 @@ latex_elements = {
 # (source start file, target name, title,
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
-    (master_doc, 'Waiwera.tex', u'Waiwera user guide',
+    (master_doc, 'Waiwera_user_guide.tex', u'Waiwera user guide',
      u'Adrian Croucher', 'manual'),
 ]
 
