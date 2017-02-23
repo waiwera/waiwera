@@ -14,6 +14,7 @@ Contents:
    intro
    installation
    testing
+   input
    todolist
 
 Indices and tables
