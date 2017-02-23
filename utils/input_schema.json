@@ -4,7 +4,48 @@
     "description": "Schema for matching JSON input for the Waiwera flow simulator",
     "type": "object",
     "properties": {
+        "logfile": {"anyOf": [
+            {"type": "boolean"},
+            {"type": "object",
+             "properties": {
+                 "filename": {"type": "string"},
+                 "format": {"type": "object",
+                            "properties": {
+                                "max_num_length": {"type": "integer"},
+                                "num_real_digits": {"type": "integer"}
+                            }
+                           },
+                 "echo": {"type": "boolean"}
+             },
+             "additionalProperties": false
+            }]},
+        "output": {"anyOf": [
+            {"type": "boolean"},
+            {"type": "object",
+             "properties": {
+                 "filename": {"type": "string"},
+                 "initial": {"type": "boolean"},
+                 "final": {"type": "boolean"},
+                 "frequency": {"type": "integer", "minimum": 0}
+             },
+             "additionalProperties": false
+            }
+        ]},
         "title": {"type": "string"},
+        "thermodynamics": {
+            "type": "string",
+            "enum": ["ifc67", "IFC67", "iapws", "IAPWS"]},
+        "eos": {"type": "object",
+                "properties": {
+                    "name": {"type": "string",
+                             "enum": ["w", "W",
+                                      "we", "WE",
+                                      "wce", "WCE",
+                                      "wae", "WAE"]},
+                    "temperature": {"type": "number"}
+                },
+                "additionalProperties": false
+               },
         "mesh": {"anyOf": [
             {"type": "string"},
             {"type": "object",
@@ -14,7 +55,121 @@
                  "thickness": {"type": "number"}},
              "additionalProperties": false,
              "required": ["filename"]
-            }]}
+            }]},
+        "gravity": {"anyOf": [
+            {"type": "number"},
+            {"type": "array",
+             "items": {"type": "number"},
+             "minItems": 2, "maxItems": 3},
+            {"type": "null"}
+        ]},
+        "rock": {"type": "object",
+                 "properties": {
+                     "relative permeability": {
+                         "type": "object",
+                         "properties": {
+                             "type": {"type": "string",
+                                      "enum": [
+                                          "fully mobile", "Fully mobile", "Fully Mobile",
+                                          "linear", "Linear",
+                                          "pickens", "Pickens",
+                                          "corey", "Corey",
+                                          "grant", "Grant"
+                                      ]},
+                             "liquid": {"type": "array",
+                                        "items": {"type": "number",
+                                                  "minimum": 0, "maximum": 1},
+                                        "minItems": 2, "maxItems": 2},
+                             "vapour": {"type": "array",
+                                        "items": {"type": "number",
+                                                  "minimum": 0, "maximum": 1},
+                                        "minItems": 2, "maxItems": 2},
+                             "slr": {"type": "number", "minimum": 0, "maximum": 1},
+                             "ssr": {"type": "number", "minimum": 0, "maximum": 1},
+                             "power": {"type": "number"}
+                         },
+                         "additionalProperties": false
+                     },
+                     "types": {
+                         "type": "array",
+                         "items": {
+                             "type": "object",
+                             "properties": {
+                                 "name": {"type": "string"},
+                                 "permeability": {"type": "array",
+                                                  "items": {
+                                                      "type": "number", "minimum": 0},
+                                                  "minItems": 3, "maxItems": 3
+                                                 },
+                                 "wet conductivity": {"type": "number", "minimum": 0},
+                                 "dry conductivity": {"type": "number", "minimum": 0},
+                                 "porosity": {"type": "number", "minimum": 0},
+                                 "density": {"type": "number", "minimum": 0},
+                                 "specific heat": {"type": "number", "minimum": 0},
+                                 "cells": {"type": "array",
+                                           "items": {"type": "integer",
+                                                     "minimum": 0}}
+                             }
+                         }}
+                 },
+                 "additionalProperties": false
                 },
-    "required": ["mesh"]
+        "boundaries": {"type": "array",
+                       "items": {"anyOf": [
+                           {"type": "object",
+                            "properties": {
+                                "region": {"type": "integer", "minimum": 0},
+                                "primary": {"type": "array", "items":
+                                            {"type": "number"}},
+                                "faces": {"type": "array",
+                                          "items": {"type": "integer", "minimum": 0}}
+                            }, "additionalProperties": false},
+                           {"type": "object",
+                            "properties": {
+                                "region": {"type": "integer", "minimum": 0},
+                                "primary": {"type": "array", "items":
+                                            {"type": "number"}},
+                                "cell normals": {"type": "array",
+                                                 "items": {
+                                                     "type": "array",
+                                                     "items": [
+                                                         {"type": "integer", "minimum": 0},
+                                                         {"type": "array",
+                                                          "items": {"type": "number"}}],
+                                                     "minItems": 2, "maxItems": 2}
+                                                 }
+                            }, "additionalProperties": false}
+                       ]}},
+        "source": {"type": "array"},
+        "initial": {"anyOf": [
+            {"type": "object",
+             "properties": {
+                 "filename": {"type": "string"},
+                 "index": {"type": "integer", "minimum": 0}},
+             "additionalProperties": false},
+            {"type": "object",
+             "properties": {
+                 "primary": {"anyOf": [
+                     {"type": "number"},
+                     {"type": "array",
+                      "items": {"anyOf": [
+                          {"type": "number"},
+                          {"type": "array"}
+                      ]}
+                     }]},
+                 "region": {"anyOf": [
+                     {"type": "number"},
+                     {"type": "array", "items": {"type": "number"}}
+                     ]}
+             },
+             "additionalProperties": false
+            }]},
+        "time": {"type": "object",
+                 "properties": {
+                     "start": {"type": "number"}
+                 },
+                "additionalProperties": false}
+    },
+    "required": ["mesh"],
+    "additionalProperties": false
 }
