@@ -1,0 +1,20 @@
+{
+    "$schema": "http://json-schema.org/schema#",
+    "title": "Waiwera input",
+    "description": "Schema for matching JSON input for the Waiwera flow simulator",
+    "type": "object",
+    "properties": {
+        "title": {"type": "string"},
+        "mesh": {"anyOf": [
+            {"type": "string"},
+            {"type": "object",
+             "properties": {
+                 "filename": {"type": "string"},
+                 "radial": {"type": "boolean"},
+                 "thickness": {"type": "number"}},
+             "additionalProperties": false,
+             "required": ["filename"]
+            }]}
+                },
+    "required": ["mesh"]
+}
