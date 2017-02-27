@@ -326,7 +326,8 @@
                                          "enum": ["production", "Production",
                                                   "out", "Out",
                                                   "injection", "Injection",
-                                                  "in", "In"]
+                                                  "in", "In",
+                                                  "both", "Both"]
                            }
                        }, "additionalProperties": false
                    }},
