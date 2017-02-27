@@ -168,13 +168,15 @@
                            "rate": {"oneOf": [
                                {"type": "number"},
                                {"type": "array",
-                                "items": {
-                                    "type": "array",
-                                    "items": {"type": "number"}}},
+                                "items": {"type": "number"}},
+                               {"type": "array",
+                                "items": {"type": "array",
+                                          "items": {"type": "number"}}},
                                {"type": "object", "properties": {
                                    "time": {"type": "array",
                                             "items": {"type": "array",
-                                                      "items": {"type": "number"}
+                                                      "items": {"type": "number",
+                                                                "minItems": 2, "maxItems": 2}
                                                      }}
                                }}
                            ]},
