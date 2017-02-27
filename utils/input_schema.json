@@ -451,7 +451,9 @@
                         "maximum": {
                             "type": "object",
                             "properties": {
-                                "size": {"type": "number", "minimum": 0},
+                                "size": {"oneOf": [
+                                    {"type": "number","minimum": 0},
+                                    {"type": "null"}]},
                                 "number": {"type": "integer", "minimum": 0},
                                 "tries": {"type": "integer", "minimum": 0}
                             }, "additionalProperties": false},
