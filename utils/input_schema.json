@@ -184,6 +184,10 @@
                                {"type": "number"},
                                {"type": "array",
                                 "items": {"type": "number"}},
+                               {"type": "array",
+                                "items": {"type": "array",
+                                          "items": {"type": "number"},
+                                          "minItems": 2, "maxItems": 2}},
                                {"type": "object", "properties": {
                                    "time": {"type": "array",
                                             "items": {"type": "array",
