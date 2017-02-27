@@ -4,7 +4,7 @@
     "description": "Schema for matching JSON input for the Waiwera flow simulator",
     "type": "object",
     "properties": {
-        "logfile": {"anyOf": [
+        "logfile": {"oneOf": [
             {"type": "boolean"},
             {"type": "object",
              "properties": {
@@ -13,20 +13,33 @@
                             "properties": {
                                 "max_num_length": {"type": "integer"},
                                 "num_real_digits": {"type": "integer"}
-                            }
+                            }, "additionalProperties": false
                            },
                  "echo": {"type": "boolean"}
              },
              "additionalProperties": false
             }]},
-        "output": {"anyOf": [
+        "output": {"oneOf": [
             {"type": "boolean"},
             {"type": "object",
              "properties": {
                  "filename": {"type": "string"},
                  "initial": {"type": "boolean"},
                  "final": {"type": "boolean"},
-                 "frequency": {"type": "integer", "minimum": 0}
+                 "frequency": {"type": "integer", "minimum": 0},
+                 "checkpoint": {
+                     "type": "object",
+                     "properties": {
+                         "time": {"type": "array",
+                                  "items": {"type": "number"}},
+                         "step": {"type": "array",
+                                  "items": {"type": "number"}},
+                         "tolerance": {"type": "number", "minimum": 0},
+                         "repeat": {"oneOf": [
+                             {"type": "integer"},
+                             {"type": "boolean"}]}
+                     }, "additionalProperties": false
+                 }
              },
              "additionalProperties": false
             }
@@ -46,7 +59,7 @@
                 },
                 "additionalProperties": false
                },
-        "mesh": {"anyOf": [
+        "mesh": {"oneOf": [
             {"type": "string"},
             {"type": "object",
              "properties": {
@@ -56,7 +69,7 @@
              "additionalProperties": false,
              "required": ["filename"]
             }]},
-        "gravity": {"anyOf": [
+        "gravity": {"oneOf": [
             {"type": "number"},
             {"type": "array",
              "items": {"type": "number"},
@@ -109,13 +122,13 @@
                                  "cells": {"type": "array",
                                            "items": {"type": "integer",
                                                      "minimum": 0}}
-                             }
+                             }, "additionalProperties": false
                          }}
                  },
                  "additionalProperties": false
                 },
         "boundaries": {"type": "array",
-                       "items": {"anyOf": [
+                       "items": {"oneOf": [
                            {"type": "object",
                             "properties": {
                                 "region": {"type": "integer", "minimum": 0},
@@ -140,8 +153,177 @@
                                                  }
                             }, "additionalProperties": false}
                        ]}},
-        "source": {"type": "array"},
-        "initial": {"anyOf": [
+        "source": {"type": "array",
+                   "items": {
+                       "type": "object",
+                       "properties": {
+                           "name": {"type": "string"},
+                           "component": {"oneOf": [
+                               {"type": "integer", "minimum": 1},
+                               {"type": "string"}]},
+                           "production_component": {"oneOf": [
+                               {"type": "integer", "minimum": 1},
+                               {"type": "string"}]},
+                           "rate": {"oneOf": [
+                               {"type": "number"},
+                               {"type": "array",
+                                "items": {
+                                    "type": "array",
+                                    "items": {"type": "number"}}},
+                               {"type": "object", "properties": {
+                                   "time": {"type": "array",
+                                            "items": {"type": "array",
+                                                      "items": {"type": "number"}
+                                                     }}
+                               }}
+                           ]},
+                           "enthalpy": {"oneOf": [
+                               {"type": "number"},
+                               {"type": "array",
+                                "items": {"type": "number"}},
+                               {"type": "object", "properties": {
+                                   "time": {"type": "array",
+                                            "items": {"type": "array",
+                                                      "items": {"type": "number"}}
+                                           }
+                               }}
+                           ]},
+                           "cell": {"type": "integer", "minimum": 0},
+                           "cells": {"oneOf": [
+                               {"type": "integer", "minimum": 0},
+                               {"type": "array",
+                                "items": {"type": "integer", "minimum": 0}}
+                           ]},
+                           "interpolation": {"type": "string",
+                                             "enum": ["linear", "Linear",
+                                                      "step", "Step"]},
+                           "averaging": {"type": "string",
+                                         "enum": ["endpoint", "Endpoint",
+                                                  "integrate", "Integrate"]},
+                           "deliverability": {"type": "object",
+                                              "properties": {
+                                                  "pressure": {
+                                                      "oneOf": [
+                                                          {"type": "number"},
+                                                          {"type": "array",
+                                                           "items": {
+                                                               "type": "array",
+                                                               "items": {"type": "number"}}},
+                                                          {"oneOf": [
+                                                              {"type": "object",
+                                                               "properties": {
+                                                                   "time": {"type": "array",
+                                                                            "items": {
+                                                                                "type": "array",
+                                                                                "items": {
+                                                                                    "type": "number"}}
+                                                                           }
+                                                               }},
+                                                              {"type": "object",
+                                                               "properties": {
+                                                                   "enthalpy": {"type": "array",
+                                                                                "items": {
+                                                                                    "type": "array",
+                                                                                    "items": {
+                                                                                        "type": "number"}}
+                                                                           }
+                                                               }}
+                                                          ]},
+                                                          {"type": "string",
+                                                           "enum": ["initial", "Initial"]}
+                                                          ]
+                                                  },
+                                                  "productivity": {
+                                                      "oneOf": [
+                                                          {"type": "number"},
+                                                          {"type": "array",
+                                                           "items": {
+                                                               "type": "array",
+                                                               "items": {"type": "number"}}},
+                                                          {"type": "object",
+                                                               "properties": {
+                                                                   "time": {"type": "array",
+                                                                            "items": {
+                                                                                "type": "array",
+                                                                                "items": {
+                                                                                    "type": "number"}}
+                                                                           }
+                                                               }}
+                                                          ]
+                                                  }
+                                              }},
+                           "recharge": {"type": "object",
+                                        "properties": {
+                                            "pressure": {
+                                                "oneOf": [
+                                                    {"type": "number"},
+                                                    {"type": "array",
+                                                     "items": {
+                                                         "type": "array",
+                                                         "items": {"type": "number"}}},
+                                                    {"oneOf": [
+                                                        {"type": "object",
+                                                         "properties": {
+                                                             "time": {"type": "array",
+                                                                      "items": {
+                                                                          "type": "array",
+                                                                          "items": {
+                                                                              "type": "number"}}
+                                                                     }
+                                                         }},
+                                                        {"type": "object",
+                                                         "properties": {
+                                                             "enthalpy": {"type": "array",
+                                                                          "items": {
+                                                                              "type": "array",
+                                                                              "items": {
+                                                                                  "type": "number"}}
+                                                                         }
+                                                         }}
+                                                    ]},
+                                                    {"type": "string",
+                                                     "enum": ["initial", "Initial"]}
+                                                ]
+                                            },
+                                            "coefficient": {
+                                                "oneOf": [
+                                                    {"type": "number"},
+                                                    {"type": "array",
+                                                     "items": {
+                                                         "type": "array",
+                                                         "items": {"type": "number"}}},
+                                                    {"type": "object",
+                                                     "properties": {
+                                                         "time": {"type": "array",
+                                                                  "items": {
+                                                                      "type": "array",
+                                                                      "items": {
+                                                                          "type": "number"}}
+                                                                 }
+                                                               }}
+                                                ]}
+                                        },
+                                        "additionalProperties": false},
+                           "limiter": {"type": "object",
+                                       "properties": {
+                                           "type": {"type": "string",
+                                                    "enum": ["total", "Total",
+                                                             "water", "Water",
+                                                             "steam", "Steam"]},
+                                           "separator_pressure": {"type": "number",
+                                                                  "minimum": 0},
+                                           "limit": {"type": "number"}
+                                       }
+                                      },
+                           "direction": {"type": "string",
+                                         "enum": ["production", "Production",
+                                                  "out", "Out",
+                                                  "injection", "Injection",
+                                                  "in", "In"]
+                           }
+                       }, "additionalProperties": false
+                   }},
+        "initial": {"oneOf": [
             {"type": "object",
              "properties": {
                  "filename": {"type": "string"},
@@ -149,26 +331,145 @@
              "additionalProperties": false},
             {"type": "object",
              "properties": {
-                 "primary": {"anyOf": [
+                 "primary": {"oneOf": [
                      {"type": "number"},
                      {"type": "array",
-                      "items": {"anyOf": [
+                      "items": {"oneOf": [
                           {"type": "number"},
                           {"type": "array"}
                       ]}
                      }]},
-                 "region": {"anyOf": [
+                 "region": {"oneOf": [
                      {"type": "number"},
                      {"type": "array", "items": {"type": "number"}}
                      ]}
              },
              "additionalProperties": false
             }]},
-        "time": {"type": "object",
-                 "properties": {
-                     "start": {"type": "number"}
-                 },
-                "additionalProperties": false}
+        "time": {
+            "type": "object",
+            "properties": {
+                "start": {"type": "number"},
+                "stop": {"oneOf": [{"type": "number"}, {"type": "null"}]},
+                "step": {
+                    "type": "object",
+                    "properties": {
+                        "size": {"oneOf": [
+                            {"type": "number", "minimum": 0},
+                            {"type": "array",
+                             "items": {"type": "number", "minimum": 0}
+                            }
+                        ]},
+                        "method": {"type": "string",
+                                   "enum": ["beuler", "BEULER", "BEuler", "Beuler",
+                                            "bdf2", "BDF2",
+                                            "directSS", "DIRECTSS", "DirectSS"
+                                           ]},
+                        "solver": {
+                            "type": "object",
+                            "properties": {
+                                "linear": {
+                                    "type": "object",
+                                    "properties": {
+                                        "type": {"type": "string",
+                                                 "enum": ["gmres", "GMRES",
+                                                          "bcgs", "BCGS",
+                                                          "bcgsl", "BCGSL"]},
+                                        "tolerance": {
+                                            "type": "object",
+                                            "properties": {
+                                                "relative": {
+                                                    "type": "number",
+                                                    "minimum": 0}
+                                            }, "additionalProperties": false
+                                        },
+                                        "maximum": {
+                                            "type": "object",
+                                            "properties": {
+                                                "iterations": {
+                                                    "type": "integer",
+                                                    "minimum": 0
+                                                }
+                                            }, "additionalProperties": false
+                                        },
+                                        "preconditioner": {
+                                            "type": "object",
+                                            "properties": {
+                                                "type": {"type": "string",
+                                                         "enum": ["bjacobi", "BJACOBI",
+                                                                  "asm", "ASM"]}
+                                            }, "additionalProperties": false
+                                        }
+                                    }, "additionalProperties": false},
+                                "nonlinear": {
+                                    "type": "object",
+                                    "properties": {
+                                        "maximum": {
+                                            "type": "object",
+                                            "properties": {
+                                                "iterations": {"type": "integer",
+                                                               "minimum": 0}
+                                            }, "additionalProperties": false},
+                                        "minimum": {
+                                            "type": "object",
+                                            "properties": {
+                                                "iterations": {"type": "integer",
+                                                               "minimum": 0}
+                                            }, "additionalProperties": false},
+                                        "tolerance": {
+                                            "type": "object",
+                                            "properties": {
+                                                "function": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "relative": {"oneOf": [
+                                                            {"type": "number",
+                                                             "minimum": 0},
+                                                            {"type": "null"}]},
+                                                        "absolute": {"oneOf": [
+                                                            {"type": "number",
+                                                             "minimum": 0},
+                                                            {"type": "null"}]}
+                                                    }, "additionalProperties": false
+                                                },
+                                                "update": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "relative": {
+                                                            "type": "number",
+                                                            "minimum": 0},
+                                                        "absolute": {
+                                                            "type": "number",
+                                                            "minimum": 0}
+                                                    }, "additionalProperties": false
+                                                }
+                                            },
+                                            "additionalProperties": false
+                                        }
+                                    }, "additionalProperties": false}
+                            }, "additionalProperties": false},
+                        "maximum": {
+                            "type": "object",
+                            "properties": {
+                                "size": {"type": "number", "minimum": 0},
+                                "number": {"type": "integer", "minimum": 0},
+                                "tries": {"type": "integer", "minimum": 0}
+                            }, "additionalProperties": false},
+                        "adapt": {"type": "object",
+                                  "properties": {
+                                      "on": {"type": "boolean"},
+                                      "method": {"type": "string",
+                                                 "enum": ["change", "Change",
+                                                          "iteration", "Iteration"]},
+                                      "minimum": {"type": "number", "minimum": 0},
+                                      "maximum": {"type": "number", "minimum": 0},
+                                      "reduction": {"type": "number", "minimum": 0},
+                                      "amplification": {"type": "number", "minimum": 0}
+                                  }, "additionalProperties": false}
+                    }, "additionalProperties": false
+                }
+            },
+            "additionalProperties": false}
     },
     "required": ["mesh"],
     "additionalProperties": false
