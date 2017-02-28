@@ -171,7 +171,8 @@
                                 "items": {"type": "number"}},
                                {"type": "array",
                                 "items": {"type": "array",
-                                          "items": {"type": "number"}}},
+                                          "items": {"type": "number"},
+                                          "minItems": 2, "maxItems": 2}},
                                {"type": "object", "properties": {
                                    "time": {"type": "array",
                                             "items": {"type": "array",
@@ -191,7 +192,8 @@
                                {"type": "object", "properties": {
                                    "time": {"type": "array",
                                             "items": {"type": "array",
-                                                      "items": {"type": "number"}}
+                                                      "items": {"type": "number"},
+                                                      "minItems": 2, "maxItems": 2}
                                            }
                                }}
                            ]},
@@ -215,7 +217,8 @@
                                                           {"type": "array",
                                                            "items": {
                                                                "type": "array",
-                                                               "items": {"type": "number"}}},
+                                                               "items": {"type": "number"},
+                                                               "minItems": 2, "maxItems": 2}},
                                                           {"oneOf": [
                                                               {"type": "object",
                                                                "properties": {
@@ -223,7 +226,9 @@
                                                                             "items": {
                                                                                 "type": "array",
                                                                                 "items": {
-                                                                                    "type": "number"}}
+                                                                                    "type": "number"},
+                                                                                "minItems": 2,
+                                                                                "maxItems": 2}
                                                                            }
                                                                }},
                                                               {"type": "object",
@@ -232,7 +237,9 @@
                                                                                 "items": {
                                                                                     "type": "array",
                                                                                     "items": {
-                                                                                        "type": "number"}}
+                                                                                        "type": "number"},
+                                                                                    "minItems": 2,
+                                                                                    "maxItems": 2}
                                                                            }
                                                                }}
                                                           ]},
@@ -246,14 +253,17 @@
                                                           {"type": "array",
                                                            "items": {
                                                                "type": "array",
-                                                               "items": {"type": "number"}}},
+                                                               "items": {"type": "number"},
+                                                               "minItems": 2, "maxItems": 2}},
                                                           {"type": "object",
                                                                "properties": {
                                                                    "time": {"type": "array",
                                                                             "items": {
                                                                                 "type": "array",
                                                                                 "items": {
-                                                                                    "type": "number"}}
+                                                                                    "type": "number"},
+                                                                                "minItems": 2,
+                                                                                "maxItems": 2}
                                                                            }
                                                                }}
                                                           ]
@@ -267,7 +277,8 @@
                                                     {"type": "array",
                                                      "items": {
                                                          "type": "array",
-                                                         "items": {"type": "number"}}},
+                                                         "items": {"type": "number"},
+                                                         "minItems": 2, "maxItems": 2}},
                                                     {"oneOf": [
                                                         {"type": "object",
                                                          "properties": {
@@ -275,18 +286,22 @@
                                                                       "items": {
                                                                           "type": "array",
                                                                           "items": {
-                                                                              "type": "number"}}
+                                                                              "type": "number"},
+                                                                          "minItems": 2,
+                                                                          "maxItems": 2}}
                                                                      }
-                                                         }},
+                                                         },
                                                         {"type": "object",
                                                          "properties": {
                                                              "enthalpy": {"type": "array",
                                                                           "items": {
                                                                               "type": "array",
                                                                               "items": {
-                                                                                  "type": "number"}}
+                                                                                  "type": "number"},
+                                                                              "minItems": 2,
+                                                                              "maxItems": 2}}
                                                                          }
-                                                         }}
+                                                        }
                                                     ]},
                                                     {"type": "string",
                                                      "enum": ["initial", "Initial"]}
@@ -298,16 +313,19 @@
                                                     {"type": "array",
                                                      "items": {
                                                          "type": "array",
-                                                         "items": {"type": "number"}}},
+                                                         "items": {"type": "number"},
+                                                         "minItems": 2, "maxItems": 2}},
                                                     {"type": "object",
                                                      "properties": {
                                                          "time": {"type": "array",
                                                                   "items": {
                                                                       "type": "array",
                                                                       "items": {
-                                                                          "type": "number"}}
+                                                                          "type": "number"},
+                                                                      "minItems": 2,
+                                                                      "maxItems": 2}}
                                                                  }
-                                                               }}
+                                                               }
                                                 ]}
                                         },
                                         "additionalProperties": false},
@@ -344,12 +362,12 @@
                      {"type": "array",
                       "items": {"oneOf": [
                           {"type": "number"},
-                          {"type": "array"}
+                          {"type": "array", "items": {"type": "number"}}
                       ]}
                      }]},
                  "region": {"oneOf": [
-                     {"type": "number"},
-                     {"type": "array", "items": {"type": "number"}}
+                     {"type": "integer"},
+                     {"type": "array", "items": {"type": "integer"}}
                      ]}
              },
              "additionalProperties": false
