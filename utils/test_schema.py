@@ -1,6 +1,5 @@
 # Validates JSON input files for all benchmark tests against schema
 
-from __future__ import print_function
 import unittest
 import os
 import fnmatch
