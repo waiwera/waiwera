@@ -222,13 +222,11 @@ class t2data_export_json(t2data):
                             raise Exception('DELV generator with multiple layers not supported.')
                         else:
                             g['deliverability'] = {'productivity': gen.gx,
-                                                   'pressure': gen.ex,
-                                                   'direction': 'production'}
+                                                   'pressure': gen.ex}
                         g['direction'] = 'production'
                     elif gen.type in ['DELG', 'DELS', 'DELT', 'DELW']:
                         g['deliverability'] = {'productivity': gen.gx,
-                                               'pressure': gen.ex,
-                                               'direction': 'production'}
+                                               'pressure': gen.ex}
                         if gen.hg > 0.:
                             g['limiter'] = {'type': limit_type[gen.type], 'limit': gen.hg}
                             if gen.type != 'DELT':
