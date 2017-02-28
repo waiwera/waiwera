@@ -179,7 +179,7 @@
                                                       "items": {"type": "number",
                                                                 "minItems": 2, "maxItems": 2}
                                                      }}
-                               }}
+                               }, "additionalProperties": false}
                            ]},
                            "enthalpy": {"oneOf": [
                                {"type": "number"},
@@ -195,7 +195,7 @@
                                                       "items": {"type": "number"},
                                                       "minItems": 2, "maxItems": 2}
                                            }
-                               }}
+                               }, "additionalProperties": false}
                            ]},
                            "cell": {"type": "integer", "minimum": 0},
                            "cells": {"oneOf": [
@@ -219,10 +219,20 @@
                                                                "type": "array",
                                                                "items": {"type": "number"},
                                                                "minItems": 2, "maxItems": 2}},
-                                                          {"oneOf": [
-                                                              {"type": "object",
-                                                               "properties": {
-                                                                   "time": {"type": "array",
+                                                          {"type": "object",
+                                                           "properties": {
+                                                               "time": {"type": "array",
+                                                                        "items": {
+                                                                            "type": "array",
+                                                                            "items": {
+                                                                                "type": "number"},
+                                                                            "minItems": 2,
+                                                                            "maxItems": 2}
+                                                                       }
+                                                           }, "additionalProperties": false},
+                                                          {"type": "object",
+                                                           "properties": {
+                                                               "enthalpy": {"type": "array",
                                                                             "items": {
                                                                                 "type": "array",
                                                                                 "items": {
@@ -230,19 +240,7 @@
                                                                                 "minItems": 2,
                                                                                 "maxItems": 2}
                                                                            }
-                                                               }},
-                                                              {"type": "object",
-                                                               "properties": {
-                                                                   "enthalpy": {"type": "array",
-                                                                                "items": {
-                                                                                    "type": "array",
-                                                                                    "items": {
-                                                                                        "type": "number"},
-                                                                                    "minItems": 2,
-                                                                                    "maxItems": 2}
-                                                                           }
-                                                               }}
-                                                          ]},
+                                                           }, "additionalProperties": false},
                                                           {"type": "string",
                                                            "enum": ["initial", "Initial"]}
                                                           ]
@@ -265,10 +263,10 @@
                                                                                 "minItems": 2,
                                                                                 "maxItems": 2}
                                                                            }
-                                                               }}
+                                                               }, "additionalProperties": false}
                                                           ]
                                                   }
-                                              }},
+                                              }, "additionalProperties": false},
                            "recharge": {"type": "object",
                                         "properties": {
                                             "pressure": {
@@ -279,30 +277,28 @@
                                                          "type": "array",
                                                          "items": {"type": "number"},
                                                          "minItems": 2, "maxItems": 2}},
-                                                    {"oneOf": [
-                                                        {"type": "object",
-                                                         "properties": {
-                                                             "time": {"type": "array",
+                                                    {"type": "object",
+                                                     "properties": {
+                                                         "time": {"type": "array",
+                                                                  "items": {
+                                                                      "type": "array",
+                                                                      "items": {
+                                                                          "type": "number"},
+                                                                      "minItems": 2,
+                                                                      "maxItems": 2}}
+                                                     }, "additionalProperties": false
+                                                    },
+                                                    {"type": "object",
+                                                     "properties": {
+                                                         "enthalpy": {"type": "array",
                                                                       "items": {
                                                                           "type": "array",
                                                                           "items": {
                                                                               "type": "number"},
                                                                           "minItems": 2,
                                                                           "maxItems": 2}}
-                                                                     }
-                                                         },
-                                                        {"type": "object",
-                                                         "properties": {
-                                                             "enthalpy": {"type": "array",
-                                                                          "items": {
-                                                                              "type": "array",
-                                                                              "items": {
-                                                                                  "type": "number"},
-                                                                              "minItems": 2,
-                                                                              "maxItems": 2}}
-                                                                         }
-                                                        }
-                                                    ]},
+                                                     }, "additionalProperties": false
+                                                    },
                                                     {"type": "string",
                                                      "enum": ["initial", "Initial"]}
                                                 ]
@@ -324,8 +320,8 @@
                                                                           "type": "number"},
                                                                       "minItems": 2,
                                                                       "maxItems": 2}}
-                                                                 }
-                                                               }
+                                                     }, "additionalProperties": false
+                                                    }
                                                 ]}
                                         },
                                         "additionalProperties": false},
@@ -338,7 +334,7 @@
                                            "separator_pressure": {"type": "number",
                                                                   "minimum": 0},
                                            "limit": {"type": "number"}
-                                       }
+                                       }, "additionalProperties": false
                                       },
                            "direction": {"type": "string",
                                          "enum": ["production", "Production",
