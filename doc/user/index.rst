@@ -15,6 +15,7 @@ Contents:
    installation
    testing
    input
+   input_schema
    todolist
 
 Indices and tables
