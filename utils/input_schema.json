@@ -1,0 +1,500 @@
+{
+    "$schema": "http://json-schema.org/schema#",
+    "title": "Waiwera input",
+    "description": "Schema for matching JSON input for the Waiwera flow simulator",
+    "type": "object",
+    "properties": {
+        "logfile": {"oneOf": [
+            {"type": "boolean"},
+            {"type": "object",
+             "properties": {
+                 "filename": {"type": "string"},
+                 "format": {"type": "object",
+                            "properties": {
+                                "max_num_length": {"type": "integer"},
+                                "num_real_digits": {"type": "integer"}
+                            }, "additionalProperties": false
+                           },
+                 "echo": {"type": "boolean"}
+             },
+             "additionalProperties": false
+            }]},
+        "output": {"oneOf": [
+            {"type": "boolean"},
+            {"type": "object",
+             "properties": {
+                 "filename": {"type": "string"},
+                 "initial": {"type": "boolean"},
+                 "final": {"type": "boolean"},
+                 "frequency": {"type": "integer", "minimum": 0},
+                 "checkpoint": {
+                     "type": "object",
+                     "properties": {
+                         "time": {"type": "array",
+                                  "items": {"type": "number"}},
+                         "step": {"type": "array",
+                                  "items": {"type": "number"}},
+                         "tolerance": {"type": "number", "minimum": 0},
+                         "repeat": {"oneOf": [
+                             {"type": "integer"},
+                             {"type": "boolean"}]}
+                     }, "additionalProperties": false
+                 }
+             },
+             "additionalProperties": false
+            }
+        ]},
+        "title": {"type": "string"},
+        "thermodynamics": {
+            "type": "string",
+            "enum": ["ifc67", "IFC67", "iapws", "IAPWS"]},
+        "eos": {"type": "object",
+                "properties": {
+                    "name": {"type": "string",
+                             "enum": ["w", "W",
+                                      "we", "WE",
+                                      "wce", "WCE",
+                                      "wae", "WAE"]},
+                    "temperature": {"type": "number"}
+                },
+                "additionalProperties": false
+               },
+        "mesh": {"oneOf": [
+            {"type": "string"},
+            {"type": "object",
+             "properties": {
+                 "filename": {"type": "string"},
+                 "radial": {"type": "boolean"},
+                 "thickness": {"type": "number"}},
+             "additionalProperties": false,
+             "required": ["filename"]
+            }]},
+        "gravity": {"oneOf": [
+            {"type": "number"},
+            {"type": "array",
+             "items": {"type": "number"},
+             "minItems": 2, "maxItems": 3},
+            {"type": "null"}
+        ]},
+        "rock": {"type": "object",
+                 "properties": {
+                     "relative permeability": {
+                         "type": "object",
+                         "properties": {
+                             "type": {"type": "string",
+                                      "enum": [
+                                          "fully mobile", "Fully mobile", "Fully Mobile",
+                                          "linear", "Linear",
+                                          "pickens", "Pickens",
+                                          "corey", "Corey",
+                                          "grant", "Grant"
+                                      ]},
+                             "liquid": {"type": "array",
+                                        "items": {"type": "number",
+                                                  "minimum": 0, "maximum": 1},
+                                        "minItems": 2, "maxItems": 2},
+                             "vapour": {"type": "array",
+                                        "items": {"type": "number",
+                                                  "minimum": 0, "maximum": 1},
+                                        "minItems": 2, "maxItems": 2},
+                             "slr": {"type": "number", "minimum": 0, "maximum": 1},
+                             "ssr": {"type": "number", "minimum": 0, "maximum": 1},
+                             "power": {"type": "number"}
+                         },
+                         "additionalProperties": false
+                     },
+                     "types": {
+                         "type": "array",
+                         "items": {
+                             "type": "object",
+                             "properties": {
+                                 "name": {"type": "string"},
+                                 "permeability": {"type": "array",
+                                                  "items": {
+                                                      "type": "number", "minimum": 0},
+                                                  "minItems": 3, "maxItems": 3
+                                                 },
+                                 "wet conductivity": {"type": "number", "minimum": 0},
+                                 "dry conductivity": {"type": "number", "minimum": 0},
+                                 "porosity": {"type": "number", "minimum": 0},
+                                 "density": {"type": "number", "minimum": 0},
+                                 "specific heat": {"type": "number", "minimum": 0},
+                                 "cells": {"type": "array",
+                                           "items": {"type": "integer",
+                                                     "minimum": 0}}
+                             }, "additionalProperties": false
+                         }}
+                 },
+                 "additionalProperties": false
+                },
+        "boundaries": {"type": "array",
+                       "items": {"oneOf": [
+                           {"type": "object",
+                            "properties": {
+                                "region": {"type": "integer", "minimum": 0},
+                                "primary": {"type": "array", "items":
+                                            {"type": "number"}},
+                                "faces": {"type": "array",
+                                          "items": {"type": "integer", "minimum": 0}}
+                            }, "additionalProperties": false},
+                           {"type": "object",
+                            "properties": {
+                                "region": {"type": "integer", "minimum": 0},
+                                "primary": {"type": "array", "items":
+                                            {"type": "number"}},
+                                "cell normals": {"type": "array",
+                                                 "items": {
+                                                     "type": "array",
+                                                     "items": [
+                                                         {"type": "integer", "minimum": 0},
+                                                         {"type": "array",
+                                                          "items": {"type": "number"},
+                                                          "minItems": 2, "maxItems": 3}],
+                                                     "minItems": 2, "maxItems": 2}
+                                                 }
+                            }, "additionalProperties": false}
+                       ]}},
+        "source": {"type": "array",
+                   "items": {
+                       "type": "object",
+                       "properties": {
+                           "name": {"type": "string"},
+                           "component": {"oneOf": [
+                               {"type": "integer", "minimum": 1},
+                               {"type": "string"}]},
+                           "production_component": {"oneOf": [
+                               {"type": "integer", "minimum": 1},
+                               {"type": "string"}]},
+                           "rate": {"oneOf": [
+                               {"type": "number"},
+                               {"type": "array",
+                                "items": {"type": "number"}},
+                               {"type": "array",
+                                "items": {"type": "array",
+                                          "items": {"type": "number"},
+                                          "minItems": 2, "maxItems": 2}},
+                               {"type": "object", "properties": {
+                                   "time": {"type": "array",
+                                            "items": {"type": "array",
+                                                      "items": {"type": "number",
+                                                                "minItems": 2, "maxItems": 2}
+                                                     }}
+                               }, "additionalProperties": false}
+                           ]},
+                           "enthalpy": {"oneOf": [
+                               {"type": "number"},
+                               {"type": "array",
+                                "items": {"type": "number"}},
+                               {"type": "array",
+                                "items": {"type": "array",
+                                          "items": {"type": "number"},
+                                          "minItems": 2, "maxItems": 2}},
+                               {"type": "object", "properties": {
+                                   "time": {"type": "array",
+                                            "items": {"type": "array",
+                                                      "items": {"type": "number"},
+                                                      "minItems": 2, "maxItems": 2}
+                                           }
+                               }, "additionalProperties": false}
+                           ]},
+                           "cell": {"type": "integer", "minimum": 0},
+                           "cells": {"oneOf": [
+                               {"type": "integer", "minimum": 0},
+                               {"type": "array",
+                                "items": {"type": "integer", "minimum": 0}}
+                           ]},
+                           "interpolation": {"type": "string",
+                                             "enum": ["linear", "Linear",
+                                                      "step", "Step"]},
+                           "averaging": {"type": "string",
+                                         "enum": ["endpoint", "Endpoint",
+                                                  "integrate", "Integrate"]},
+                           "deliverability": {"type": "object",
+                                              "properties": {
+                                                  "pressure": {
+                                                      "oneOf": [
+                                                          {"type": "number"},
+                                                          {"type": "array",
+                                                           "items": {
+                                                               "type": "array",
+                                                               "items": {"type": "number"},
+                                                               "minItems": 2, "maxItems": 2}},
+                                                          {"type": "object",
+                                                           "properties": {
+                                                               "time": {"type": "array",
+                                                                        "items": {
+                                                                            "type": "array",
+                                                                            "items": {
+                                                                                "type": "number"},
+                                                                            "minItems": 2,
+                                                                            "maxItems": 2}
+                                                                       }
+                                                           }, "additionalProperties": false},
+                                                          {"type": "object",
+                                                           "properties": {
+                                                               "enthalpy": {"type": "array",
+                                                                            "items": {
+                                                                                "type": "array",
+                                                                                "items": {
+                                                                                    "type": "number"},
+                                                                                "minItems": 2,
+                                                                                "maxItems": 2}
+                                                                           }
+                                                           }, "additionalProperties": false},
+                                                          {"type": "string",
+                                                           "enum": ["initial", "Initial"]}
+                                                          ]
+                                                  },
+                                                  "productivity": {
+                                                      "oneOf": [
+                                                          {"type": "number"},
+                                                          {"type": "array",
+                                                           "items": {
+                                                               "type": "array",
+                                                               "items": {"type": "number"},
+                                                               "minItems": 2, "maxItems": 2}},
+                                                          {"type": "object",
+                                                               "properties": {
+                                                                   "time": {"type": "array",
+                                                                            "items": {
+                                                                                "type": "array",
+                                                                                "items": {
+                                                                                    "type": "number"},
+                                                                                "minItems": 2,
+                                                                                "maxItems": 2}
+                                                                           }
+                                                               }, "additionalProperties": false}
+                                                          ]
+                                                  }
+                                              }, "additionalProperties": false},
+                           "recharge": {"type": "object",
+                                        "properties": {
+                                            "pressure": {
+                                                "oneOf": [
+                                                    {"type": "number"},
+                                                    {"type": "array",
+                                                     "items": {
+                                                         "type": "array",
+                                                         "items": {"type": "number"},
+                                                         "minItems": 2, "maxItems": 2}},
+                                                    {"type": "object",
+                                                     "properties": {
+                                                         "time": {"type": "array",
+                                                                  "items": {
+                                                                      "type": "array",
+                                                                      "items": {
+                                                                          "type": "number"},
+                                                                      "minItems": 2,
+                                                                      "maxItems": 2}}
+                                                     }, "additionalProperties": false
+                                                    },
+                                                    {"type": "object",
+                                                     "properties": {
+                                                         "enthalpy": {"type": "array",
+                                                                      "items": {
+                                                                          "type": "array",
+                                                                          "items": {
+                                                                              "type": "number"},
+                                                                          "minItems": 2,
+                                                                          "maxItems": 2}}
+                                                     }, "additionalProperties": false
+                                                    },
+                                                    {"type": "string",
+                                                     "enum": ["initial", "Initial"]}
+                                                ]
+                                            },
+                                            "coefficient": {
+                                                "oneOf": [
+                                                    {"type": "number"},
+                                                    {"type": "array",
+                                                     "items": {
+                                                         "type": "array",
+                                                         "items": {"type": "number"},
+                                                         "minItems": 2, "maxItems": 2}},
+                                                    {"type": "object",
+                                                     "properties": {
+                                                         "time": {"type": "array",
+                                                                  "items": {
+                                                                      "type": "array",
+                                                                      "items": {
+                                                                          "type": "number"},
+                                                                      "minItems": 2,
+                                                                      "maxItems": 2}}
+                                                     }, "additionalProperties": false
+                                                    }
+                                                ]}
+                                        },
+                                        "additionalProperties": false},
+                           "limiter": {"type": "object",
+                                       "properties": {
+                                           "type": {"type": "string",
+                                                    "enum": ["total", "Total",
+                                                             "water", "Water",
+                                                             "steam", "Steam"]},
+                                           "separator_pressure": {"type": "number",
+                                                                  "minimum": 0},
+                                           "limit": {"type": "number"}
+                                       }, "additionalProperties": false
+                                      },
+                           "direction": {"type": "string",
+                                         "enum": ["production", "Production",
+                                                  "out", "Out",
+                                                  "injection", "Injection",
+                                                  "in", "In",
+                                                  "both", "Both"]
+                           }
+                       }, "additionalProperties": false
+                   }},
+        "initial": {"oneOf": [
+            {"type": "object",
+             "properties": {
+                 "filename": {"type": "string"},
+                 "index": {"type": "integer", "minimum": 0}},
+             "additionalProperties": false},
+            {"type": "object",
+             "properties": {
+                 "primary": {"oneOf": [
+                     {"type": "number"},
+                     {"type": "array",
+                      "items": {"oneOf": [
+                          {"type": "number"},
+                          {"type": "array", "items": {"type": "number"}}
+                      ]}
+                     }]},
+                 "region": {"oneOf": [
+                     {"type": "integer"},
+                     {"type": "array", "items": {"type": "integer"}}
+                     ]}
+             },
+             "additionalProperties": false
+            }]},
+        "time": {
+            "type": "object",
+            "properties": {
+                "start": {"type": "number"},
+                "stop": {"oneOf": [{"type": "number"}, {"type": "null"}]},
+                "step": {
+                    "type": "object",
+                    "properties": {
+                        "size": {"oneOf": [
+                            {"type": "number", "minimum": 0},
+                            {"type": "array",
+                             "items": {"type": "number", "minimum": 0}
+                            }
+                        ]},
+                        "method": {"type": "string",
+                                   "enum": ["beuler", "BEULER", "BEuler", "Beuler",
+                                            "bdf2", "BDF2",
+                                            "directSS", "DIRECTSS", "DirectSS"
+                                           ]},
+                        "solver": {
+                            "type": "object",
+                            "properties": {
+                                "linear": {
+                                    "type": "object",
+                                    "properties": {
+                                        "type": {"type": "string",
+                                                 "enum": ["gmres", "GMRES",
+                                                          "bcgs", "BCGS",
+                                                          "bcgsl", "BCGSL"]},
+                                        "tolerance": {
+                                            "type": "object",
+                                            "properties": {
+                                                "relative": {
+                                                    "type": "number",
+                                                    "minimum": 0}
+                                            }, "additionalProperties": false
+                                        },
+                                        "maximum": {
+                                            "type": "object",
+                                            "properties": {
+                                                "iterations": {
+                                                    "type": "integer",
+                                                    "minimum": 0
+                                                }
+                                            }, "additionalProperties": false
+                                        },
+                                        "preconditioner": {
+                                            "type": "object",
+                                            "properties": {
+                                                "type": {"type": "string",
+                                                         "enum": ["bjacobi", "BJACOBI",
+                                                                  "asm", "ASM"]}
+                                            }, "additionalProperties": false
+                                        }
+                                    }, "additionalProperties": false},
+                                "nonlinear": {
+                                    "type": "object",
+                                    "properties": {
+                                        "maximum": {
+                                            "type": "object",
+                                            "properties": {
+                                                "iterations": {"type": "integer",
+                                                               "minimum": 0}
+                                            }, "additionalProperties": false},
+                                        "minimum": {
+                                            "type": "object",
+                                            "properties": {
+                                                "iterations": {"type": "integer",
+                                                               "minimum": 0}
+                                            }, "additionalProperties": false},
+                                        "tolerance": {
+                                            "type": "object",
+                                            "properties": {
+                                                "function": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "relative": {"oneOf": [
+                                                            {"type": "number",
+                                                             "minimum": 0},
+                                                            {"type": "null"}]},
+                                                        "absolute": {"oneOf": [
+                                                            {"type": "number",
+                                                             "minimum": 0},
+                                                            {"type": "null"}]}
+                                                    }, "additionalProperties": false
+                                                },
+                                                "update": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "relative": {
+                                                            "type": "number",
+                                                            "minimum": 0},
+                                                        "absolute": {
+                                                            "type": "number",
+                                                            "minimum": 0}
+                                                    }, "additionalProperties": false
+                                                }
+                                            },
+                                            "additionalProperties": false
+                                        }
+                                    }, "additionalProperties": false}
+                            }, "additionalProperties": false},
+                        "maximum": {
+                            "type": "object",
+                            "properties": {
+                                "size": {"oneOf": [
+                                    {"type": "number","minimum": 0},
+                                    {"type": "null"}]},
+                                "number": {"type": "integer", "minimum": 0},
+                                "tries": {"type": "integer", "minimum": 0}
+                            }, "additionalProperties": false},
+                        "adapt": {"type": "object",
+                                  "properties": {
+                                      "on": {"type": "boolean"},
+                                      "method": {"type": "string",
+                                                 "enum": ["change", "Change",
+                                                          "iteration", "Iteration"]},
+                                      "minimum": {"type": "number", "minimum": 0},
+                                      "maximum": {"type": "number", "minimum": 0},
+                                      "reduction": {"type": "number", "minimum": 0},
+                                      "amplification": {"type": "number", "minimum": 0}
+                                  }, "additionalProperties": false}
+                    }, "additionalProperties": false
+                }
+            },
+            "additionalProperties": false}
+    },
+    "required": ["mesh"],
+    "additionalProperties": false
+}
