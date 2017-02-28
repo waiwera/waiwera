@@ -17,8 +17,9 @@ class JSONSchemaTestCase(unittest.TestCase):
         try:
             input = json.load(open(self.filename))
             jsonschema.validate(input, self.schema)
-        except jsonschema.ValidationError:
-            self.fail("JSON schema validation failed for file: " + self.filename)
+        except jsonschema.ValidationError as e:
+            self.fail("JSON schema validation failed for file: " + self.filename + '\n' +
+                      e.message)
 
 def suite():
     suite = unittest.TestSuite()
