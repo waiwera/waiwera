@@ -14,7 +14,7 @@ module mesh_test
   private
 
   public :: test_mesh_init, test_2d_cartesian_geometry, &
-       test_2d_radial_geometry
+       test_2d_radial_geometry, test_mesh_face_permeability_direction
 
   PetscReal, parameter :: tol = 1.e-6_dp
 
@@ -27,7 +27,7 @@ contains
     ! Mesh init test
 
     use dm_utils_module, only: section_offset
- use fson_mpi_module
+    use fson_mpi_module
     use cell_module
     use face_module
 
@@ -311,6 +311,68 @@ contains
     call mesh%destroy()
 
   end subroutine test_2d_radial_geometry
+
+!------------------------------------------------------------------------
+
+  subroutine test_mesh_face_permeability_direction
+    ! Test face permeability direction
+
+    use fson_mpi_module
+    use dm_utils_module, only: local_vec_section, section_offset
+    use face_module
+
+    type(fson_value), pointer :: json
+    type(mesh_type) :: mesh
+    character(len = 11), allocatable :: primary(:)
+    character(:), allocatable :: json_str
+    PetscInt :: f, offset
+    PetscErrorCode :: ierr
+    PetscSection :: face_geom_section
+    type(face_type) :: face
+    PetscReal :: dist
+    PetscReal, pointer, contiguous :: face_geom_array(:)
+    PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
+    PetscReal, parameter :: position(3) = [1750._dp, 2000._dp, 400._dp]
+    PetscReal, parameter :: tol = 1.e-6
+    PetscInt, parameter :: expected_direction = 1
+
+    json_str = '{"mesh": {"filename": "data/mesh/7x7grid.exo", ' // &
+         '"faces": [' // &
+         '{"cells": [16, 23], "permeability direction": 1}' // &
+         ']}}'
+    json => fson_parse_mpi(str = json_str)
+    call mesh%init(json)
+
+    call DMCreateLabel(mesh%dm, open_boundary_label_name, ierr); CHKERRQ(ierr)
+    primary = ["Pressure   ", "Temperature"]
+    call mesh%configure(primary, gravity)
+    call mesh%override_face_properties(json)
+    call fson_destroy_mpi(json)
+
+    call local_vec_section(mesh%face_geom, face_geom_section)
+    call VecGetArrayReadF90(mesh%face_geom, face_geom_array, ierr)
+    CHKERRQ(ierr)
+    call face%init()
+
+    do f = mesh%start_face, mesh%end_face - 1
+       if (mesh%ghost_face(f) < 0) then
+          call section_offset(face_geom_section, f, offset, ierr); CHKERRQ(ierr)
+          call face%assign_geometry(face_geom_array, offset)
+          dist = norm2(face%centroid - position)
+          if (dist <= tol) then
+             call assert_equals(expected_direction, &
+                  nint(face%permeability_direction), &
+                  'face [16, 23] direction')
+          end if
+       end if
+    end do
+
+    call face%destroy()
+    call VecRestoreArrayReadF90(mesh%face_geom, face_geom_array, ierr)
+    CHKERRQ(ierr)
+    call mesh%destroy()
+
+  end subroutine test_mesh_face_permeability_direction
 
 !------------------------------------------------------------------------
 
