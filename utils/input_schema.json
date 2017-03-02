@@ -65,7 +65,22 @@
              "properties": {
                  "filename": {"type": "string"},
                  "radial": {"type": "boolean"},
-                 "thickness": {"type": "number"}},
+                 "thickness": {"type": "number"},
+                 "permeability angle": {"type": "number"},
+                 "faces": {
+                     "type": "array",
+                     "items": {
+                         "type": "object",
+                         "properties": {
+                             "cells": {"type": "array",
+                                       "items": {"type": "integer", "minimum": 0},
+                                       "minItems": 2, "maxItems": 2},
+                             "permeability direction": {"type": "integer",
+                                                        "minimum": 1,
+                                                        "maximum": 3}
+                         }, "additionalProperties": false
+                     }
+             }},
              "additionalProperties": false,
              "required": ["filename"]
             }]},
