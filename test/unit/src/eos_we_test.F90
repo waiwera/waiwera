@@ -71,7 +71,7 @@ contains
     class(relative_permeability_type), allocatable, target :: rp
     type(fson_value), pointer :: json
     character(120) :: json_str = &
-         '{"rock": {"relative permeability": {"type": "linear", "liquid": [0.2, 0.8], "vapour": [0.2, 0.8]}}}'
+         '{"rock": {"relative_permeability": {"type": "linear", "liquid": [0.2, 0.8], "vapour": [0.2, 0.8]}}}'
     PetscErrorCode :: err
     PetscReal, parameter :: temperature = 230._dp
     PetscReal, parameter :: pressure = 27.967924557686445e5_dp
@@ -317,7 +317,7 @@ contains
     class(relative_permeability_type), allocatable, target :: rp
     type(fson_value), pointer :: json
     character(120) :: json_str = &
-         '{"rock": {"relative permeability": {"type": "linear", "liquid": [0.2, 0.8], "vapour": [0.2, 0.8]}}}'
+         '{"rock": {"relative_permeability": {"type": "linear", "liquid": [0.2, 0.8], "vapour": [0.2, 0.8]}}}'
     PetscReal, parameter :: tol = 1.e-8_dp
     PetscInt :: i, p
     PetscErrorCode :: err

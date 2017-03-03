@@ -60,7 +60,7 @@ class t2data_export_json(t2data):
         jsondata['mesh'] = {'filename': mesh_filename}
         tol = 1.e-6
         if abs(geo.permeability_angle) > tol:
-            jsondata['mesh']['permeability angle'] = geo.permeability_angle
+            jsondata['mesh']['permeability_angle'] = geo.permeability_angle
         face_directions = []
         from math import cos, sin, radians
         anglerad = radians(geo.permeability_angle)
@@ -77,7 +77,7 @@ class t2data_export_json(t2data):
                 if underground and con.direction != 3:
                     face_directions.append({
                         "cells": blkindices,
-                        "permeability direction": con.direction})
+                        "permeability_direction": con.direction})
             else:
                 d = con.block[1].centre - con.block[0].centre
                 d2 = np.dot(rotation, d[0:2])
@@ -85,7 +85,7 @@ class t2data_export_json(t2data):
                 if con.direction != expected_direction:
                     face_directions.append({
                         "cells": blkindices,
-                        "permeability direction": con.direction})
+                        "permeability_direction": con.direction})
         if face_directions: jsondata['mesh']['faces'] = face_directions
         return jsondata
 
@@ -162,10 +162,10 @@ class t2data_export_json(t2data):
         for rt in self.grid.rocktypelist:
             rtdata = {'name': rt.name, 'density': rt.density, 'porosity': rt.porosity,
                       'permeability': list(rt.permeability[:perm_size]),
-                      'wet conductivity': rt.conductivity, 'specific heat': rt.specific_heat}
+                      'wet_conductivity': rt.conductivity, 'specific_heat': rt.specific_heat}
             dry_cond = rt.dry_conductivity
-            if dry_cond is not None and dry_cond > 0.0: rtdata['dry conductivity'] = dry_cond
-            else: rtdata['dry conductivity'] = rt.conductivity
+            if dry_cond is not None and dry_cond > 0.0: rtdata['dry_conductivity'] = dry_cond
+            else: rtdata['dry_conductivity'] = rt.conductivity
             rtdata['cells'] = []
             jsondata['rock']['types'].append(rtdata)
             rock_index[rt.name] = ir
@@ -195,8 +195,8 @@ class t2data_export_json(t2data):
             elif itype in [3, 4]:
                 rp['slr'] = pars[0]
                 rp['ssr'] = pars[1]
-            jsondata['relative permeability'] = rp
-        else: jsondata['relative permeability'] = {'type': 'fully mobile'}
+            jsondata['relative_permeability'] = rp
+        else: jsondata['relative_permeability'] = {'type': 'fully mobile'}
         return jsondata
 
     def initial_json(self, geo, incons, eos):
@@ -330,7 +330,7 @@ class t2data_export_json(t2data):
         for blk in self.grid.blocklist:
             if not (0. < blk.volume < atmos_volume):
                 pv = primary(blk.name)
-                bc = {'primary': pv, 'region': region(pv), 'cell normals': []}
+                bc = {'primary': pv, 'region': region(pv), 'cell_normals': []}
                 for conname in blk.connection_name:
                     nz = -self.grid.connection[conname].dircos
                     vertical_connection = abs(nz) > vertical_tolerance
@@ -355,7 +355,7 @@ class t2data_export_json(t2data):
                             elif mesh_coords == 'xy': normal = None
                         else: normal = normal[[0,1]]
                     if normal is not None:
-                        bc['cell normals'].append([cell_index, list(normal)])
+                        bc['cell_normals'].append([cell_index, list(normal)])
                 jsondata['boundaries'].append(bc)
         return jsondata
 

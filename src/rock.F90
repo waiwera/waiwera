@@ -242,16 +242,16 @@ contains
        call fson_get_mpi(r, "name", "", name, logfile, trim(rockstr) // "name")
        call fson_get_mpi(r, "permeability", default_permeability, &
             permeability, logfile, trim(rockstr) // "permeability")
-       call fson_get_mpi(r, "wet conductivity", default_heat_conductivity, &
-            wet_conductivity, logfile, trim(rockstr) // "wet conductivity")
-       call fson_get_mpi(r, "dry conductivity", wet_conductivity, &
-            dry_conductivity, logfile, trim(rockstr) // "dry conductivity")
+       call fson_get_mpi(r, "wet_conductivity", default_heat_conductivity, &
+            wet_conductivity, logfile, trim(rockstr) // "wet_conductivity")
+       call fson_get_mpi(r, "dry_conductivity", wet_conductivity, &
+            dry_conductivity, logfile, trim(rockstr) // "dry_conductivity")
        call fson_get_mpi(r, "porosity", default_porosity, porosity, logfile, &
             trim(rockstr) // "porosity")
        call fson_get_mpi(r, "density", default_density, density, logfile, &
             trim(rockstr) // "density")
-       call fson_get_mpi(r, "specific heat", default_specific_heat, &
-            specific_heat, logfile, trim(rockstr) // "specific heat")
+       call fson_get_mpi(r, "specific_heat", default_specific_heat, &
+            specific_heat, logfile, trim(rockstr) // "specific_heat")
        call DMGetStratumSize(dm, rocktype_label_name, ir, num_cells, &
             ierr); CHKERRQ(ierr)
        if (num_cells > 0) then

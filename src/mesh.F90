@@ -389,7 +389,7 @@ contains
     PetscReal, parameter :: default_permeability_angle = 0._dp
 
     call fson_get_mpi(json, "mesh", mesh_json)
-    call fson_get_mpi(mesh_json, "permeability angle", &
+    call fson_get_mpi(mesh_json, "permeability_angle", &
          default_permeability_angle, angle, logfile)
     angle = degrees_to_radians(angle)
 
@@ -902,8 +902,8 @@ contains
                   logfile, log_key = trim(bdystr) // ".faces")
              num_faces = size(faces)
 
-          else if (fson_has_mpi(bdy, "cell normals")) then
-             call fson_get_mpi(bdy, "cell normals", cell_normals)
+          else if (fson_has_mpi(bdy, "cell_normals")) then
+             call fson_get_mpi(bdy, "cell_normals", cell_normals)
              num_faces = fson_value_count_mpi(cell_normals, ".")
              allocate(faces(num_faces))
              do iface = 1, num_faces
@@ -1112,9 +1112,9 @@ contains
           face_json => fson_value_get_mpi(faces_json, iface)
           call fson_get_mpi(face_json, "cells", default_cells, &
                global_cell_indices, logfile, log_key = trim(facestr) // ".cells")
-          call fson_get_mpi(face_json, "permeability direction", &
+          call fson_get_mpi(face_json, "permeability_direction", &
                default_permeability_direction, permeability_direction, &
-               logfile, log_key = trim(facestr) // ".permeability direction")
+               logfile, log_key = trim(facestr) // ".permeability_direction")
 
           num_cells = size(global_cell_indices)
           if (num_cells == 2) then
