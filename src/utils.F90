@@ -32,7 +32,7 @@ module utils_module
   public :: str_to_upper, str_to_lower, &
        int_str_len, str_array_index, &
        split_filename, change_filename_extension, &
-       date_time_str
+       date_time_str, degrees_to_radians, rotation_matrix_2d
   
 contains
 
@@ -175,6 +175,34 @@ contains
     date_time_str = datestr // ' ' // timestr // ' ' // zonestr
 
   end function date_time_str
+
+!------------------------------------------------------------------------
+
+  PetscReal function degrees_to_radians(degrees) result(radians)
+    !! Converts angle from degrees to radians.
+
+    PetscReal, intent(in) :: degrees
+
+    radians = degrees * pi / 180._dp
+
+  end function degrees_to_radians
+
+!------------------------------------------------------------------------
+
+  function rotation_matrix_2d(angle) result(M)
+    !! Returns a 2x2 rotation matrix corresponding to the given angle
+    !! (anti-clockwise, in radians).
+
+    PetscReal, intent(in) :: angle
+    PetscReal :: M(2, 2)
+    ! Locals:
+    PetscReal :: c, s
+
+    c = cos(angle)
+    s = sin(angle)
+    M = reshape([c, -s, s, c], [2, 2])
+
+  end function rotation_matrix_2d
 
 !------------------------------------------------------------------------
 

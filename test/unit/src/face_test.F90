@@ -96,6 +96,11 @@ contains
     PetscReal, pointer, contiguous :: face_data(:)
     PetscInt :: i
     PetscInt :: offset = 1
+    PetscReal :: rotation(3, 3) = reshape([ &
+         1._dp, 0._dp, 0._dp, &
+         0._dp, 1._dp, 0._dp, &
+         0._dp, 0._dp, 1._dp], [3, 3])
+
     character(len = 32) :: msg
     PetscMPIInt :: rank
     PetscInt :: ierr
@@ -112,7 +117,7 @@ contains
           face_data = [area, distance, normal(:,i), gravity_normal, &
                centroid, initial_permeability_direction]
           call face%assign_geometry(face_data, offset)
-          call face%calculate_permeability_direction()
+          call face%calculate_permeability_direction(rotation)
 
           write(msg, '(a, i2)') "Permeability direction test ", i
           call assert_equals(expected_permeability_direction(i), &

@@ -202,16 +202,20 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine face_calculate_permeability_direction(self)
+  subroutine face_calculate_permeability_direction(self, rotation)
     !! Calculates permeability direction for the face, being the
     !! coordinate axis most closely aligned with the face normal
-    !! vector.
+    !! vector. The rotation matrix corresponds to the rotation
+    !! transformation of the first horizontal permeability direction.
 
     class(face_type), intent(in out) :: self
+    PetscReal, intent(in) :: rotation(3, 3)
     ! Locals:
+    PetscReal :: d(3)
     PetscInt :: index
 
-    index = maxloc(abs(self%normal), 1)
+    d = matmul(rotation, self%normal)
+    index = maxloc(abs(d), 1)
     self%permeability_direction = dble(index)
 
   end subroutine face_calculate_permeability_direction

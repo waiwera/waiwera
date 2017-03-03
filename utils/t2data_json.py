@@ -38,9 +38,9 @@ class t2data_export_json(t2data):
         representing the corresponding JSON input."""
         jsondata = {}
         jsondata['title'] = self.title.strip()
-        jsondata['mesh'] = {'filename': mesh_filename}
         jsondata['gravity'] = self.parameter['gravity']
         jsondata['thermodynamics'] = 'ifc67'
+        jsondata.update(self.mesh_json(mesh_filename, geo))
         jsondata.update(self.eos_json(eos))
         jsondata.update(self.timestepping_json())
         jsondata.update(self.output_json())
@@ -50,6 +50,42 @@ class t2data_export_json(t2data):
         jsondata.update(self.boundaries_json(geo, bdy_incons, atmos_volume,
                                              jsondata['eos']['name'], mesh_coords))
         jsondata.update(self.generators_json(geo, jsondata['eos']['name']))
+        return jsondata
+
+    def mesh_json(self, mesh_filename, geo):
+        """Converts mesh data to JSON, and checks for face permeability
+        directions that have been overridden from their geometric
+        defaults."""
+        jsondata = {}
+        jsondata['mesh'] = {'filename': mesh_filename}
+        tol = 1.e-6
+        if abs(geo.permeability_angle) > tol:
+            jsondata['mesh']['permeability angle'] = geo.permeability_angle
+        face_directions = []
+        from math import cos, sin, radians
+        anglerad = radians(geo.permeability_angle)
+        c, s = cos(anglerad), sin(anglerad)
+        rotation = np.array([[c, s], [-s, c]])
+        for blknames in geo.block_connection_name_list:
+            con = self.grid.connection[blknames]
+            blkindices = [geo.block_name_index[blkname] -
+                          geo.num_atmosphere_blocks for blkname in blknames]
+            colnames = [geo.column_name(blkname) for blkname in blknames]
+            if colnames[0] == colnames[1]: # vertical connection
+                underground = all([blkindex >= 0 for blkindex in blkindices])
+                if underground and con.direction != 3:
+                    face_directions.append({
+                        "cells": blkindices,
+                        "permeability direction": con.direction})
+            else:
+                d = con.block[1].centre - con.block[0].centre
+                d2 = np.dot(rotation, d[0:2])
+                expected_direction = np.argmax(abs(d2)) + 1
+                if con.direction != expected_direction:
+                    face_directions.append({
+                        "cells": blkindices,
+                        "permeability direction": con.direction})
+        if face_directions: jsondata['mesh']['faces'] = face_directions
         return jsondata
 
     def eos_json(self, eos):

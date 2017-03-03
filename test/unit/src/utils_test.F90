@@ -13,7 +13,8 @@ module utils_test
 
   public :: test_str_to_upper, test_str_to_lower, &
        test_split_filename, test_change_filename_extension, &
-       test_int_str_len, test_str_array_index
+       test_int_str_len, test_str_array_index, &
+       test_degrees_to_radians, test_rotation_matrix_2d
 
 contains
 
@@ -184,6 +185,63 @@ contains
     end if
 
   end subroutine test_str_array_index
+
+!------------------------------------------------------------------------
+
+  subroutine test_degrees_to_radians
+
+    ! Test degrees_to_radians()
+
+    use kinds_module
+
+    PetscMPIInt :: rank
+    PetscInt :: ierr
+    PetscReal, parameter :: tol = 1.e-9_dp
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
+       call assert_equals(pi / 2._dp, &
+            degrees_to_radians(90._dp), tol, '90 degrees')
+       call assert_equals(pi, &
+            degrees_to_radians(180._dp), tol, '180 degrees')
+    end if
+
+  end subroutine test_degrees_to_radians
+
+!------------------------------------------------------------------------
+
+  subroutine test_rotation_matrix_2d
+
+    ! Test rotation_matrix_2d
+
+    use kinds_module
+
+    PetscReal :: angle, rotation(4)
+    PetscReal :: expected_rotation(4)
+    PetscMPIInt :: rank
+    PetscInt :: ierr
+    PetscReal, parameter :: tol = 1.e-9_dp
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
+
+       angle = 0._dp
+       rotation = reshape(rotation_matrix_2d(angle), [4])
+       expected_rotation = [1._dp, 0._dp, 0._dp, 1._dp]
+       call assert_equals(expected_rotation, &
+            rotation, 4, tol, 'angle = 0')
+
+       angle = 1._dp
+       rotation = reshape(rotation_matrix_2d(angle), [4])
+       expected_rotation = [&
+            0.540302305868_dp, -0.841470984808_dp,&
+            0.841470984808_dp, 0.540302305868_dp]
+       call assert_equals(expected_rotation, &
+            rotation, 4, tol, 'angle = 1 rad')
+
+    end if
+
+  end subroutine test_rotation_matrix_2d
 
 !------------------------------------------------------------------------
 

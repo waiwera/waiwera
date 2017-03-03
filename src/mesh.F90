@@ -48,6 +48,7 @@ module mesh_module
      PetscReal, allocatable, public :: bcs(:,:) !! Array containing boundary conditions
      IS, public :: cell_index !! Index set defining natural cell ordering
      PetscInt, public, allocatable :: ghost_cell(:), ghost_face(:) !! Ghost label values for cells and faces
+     PetscReal, public :: permeability_rotation(3, 3) !! Rotation matrix of permeability axes
      PetscReal, public :: thickness !! Mesh thickness (for dimension < 3)
      PetscBool, public :: radial !! If mesh coordinate system is radial or Cartesian
    contains
@@ -62,7 +63,9 @@ module mesh_module
      procedure :: get_bounds => mesh_get_bounds
      procedure :: setup_coordinate_parameters => mesh_setup_coordinate_parameters
      procedure :: set_boundary_face_distances => mesh_set_boundary_face_distances
+     procedure :: set_permeability_rotation => mesh_set_permeability_rotation
      procedure :: modify_geometry => mesh_modify_geometry
+     procedure :: override_face_properties => mesh_override_face_properties
      procedure, public :: init => mesh_init
      procedure, public :: configure => mesh_configure
      procedure, public :: setup_boundaries => mesh_setup_boundaries
@@ -366,6 +369,38 @@ contains
 
 !------------------------------------------------------------------------
 
+  subroutine mesh_set_permeability_rotation(self, json, logfile)
+    !! Sets up rotation matrix for permeability axes.  Here the
+    !! rotation is assumed to be only in the horizontal and defined by
+    !! a single angle (anti-clockwise from x-axis). Input angle should
+    !! be in degrees (converted here to radians).
+
+    use kinds_module
+    use fson_mpi_module
+    use logfile_module
+    use utils_module, only: degrees_to_radians, rotation_matrix_2d
+
+    class(mesh_type), intent(in out) :: self
+    type(fson_value), pointer, intent(in) :: json !! JSON file pointer
+    type(logfile_type), intent(in out), optional :: logfile !! Logfile for log output
+    ! Locals:
+    type(fson_value), pointer :: mesh_json
+    PetscReal :: angle
+    PetscReal, parameter :: default_permeability_angle = 0._dp
+
+    call fson_get_mpi(json, "mesh", mesh_json)
+    call fson_get_mpi(mesh_json, "permeability angle", &
+         default_permeability_angle, angle, logfile)
+    angle = degrees_to_radians(angle)
+
+    self%permeability_rotation = 0._dp
+    self%permeability_rotation(1:2, 1:2) = rotation_matrix_2d(angle)
+    self%permeability_rotation(3, 3) = 1._dp
+
+  end subroutine mesh_set_permeability_rotation
+
+!------------------------------------------------------------------------
+
   subroutine mesh_setup_geometry(self, gravity)
     !! Sets up global vectors containing geometry data (e.g. cell volumes,
     !! cell centroids, face areas, face-to-centroid distances) for the mesh.
@@ -404,6 +439,7 @@ contains
     use kinds_module
     use cell_module
     use face_module
+    use utils_module, only: rotation_matrix_2d
     use dm_utils_module, only: section_offset, local_vec_section, set_dm_data_layout
 
     class(mesh_type), intent(in out) :: self
@@ -517,7 +553,7 @@ contains
           do i = 1, 2
              face%distance(i) = norm2(face%centroid - face%cell(i)%centroid)
           end do
-          call face%calculate_permeability_direction()
+          call face%calculate_permeability_direction(self%permeability_rotation)
 
        end if
 
@@ -694,6 +730,7 @@ contains
        call DMPlexSetAdjacencyUseCone(self%dm, PETSC_TRUE, ierr); CHKERRQ(ierr)
        call DMPlexSetAdjacencyUseClosure(self%dm, PETSC_FALSE, ierr); CHKERRQ(ierr)
        call self%setup_coordinate_parameters(json, logfile)
+       call self%set_permeability_rotation(json, logfile)
     end if
 
   end subroutine mesh_init
@@ -1026,6 +1063,128 @@ contains
     call vec_reorder(v, index, self%cell_index)
 
   end subroutine mesh_order_vector
+
+!------------------------------------------------------------------------
+
+  subroutine mesh_override_face_properties(self, json, logfile)
+    !! Sets any face properties overridden in the JSON input-
+    !! currently just face permeability directions.
+
+    use fson_mpi_module
+    use logfile_module
+    use face_module
+    use dm_utils_module, only: local_vec_section, section_offset
+
+    class(mesh_type), intent(in out) :: self
+    type(fson_value), pointer, intent(in) :: json !! JSON file pointer
+    type(logfile_type), intent(in out), optional :: logfile !! Logfile for log output
+    ! Locals:
+    type(fson_value), pointer :: faces_json, face_json
+    PetscInt :: num_cells, num_faces, iface, f, i, num_cell_faces
+    PetscInt, allocatable :: global_cell_indices(:)
+    PetscInt, allocatable :: default_cells(:)
+    PetscInt, target :: points(2)
+    PetscInt :: permeability_direction, face_offset, num_matching
+    PetscSection :: face_section
+    PetscInt, pointer :: ppoints(:), cells(:)
+    PetscReal, pointer, contiguous :: face_geom_array(:)
+    PetscInt, pointer :: cell_faces(:)
+    type(face_type) :: face
+    character(len=64) :: facestr
+    character(len=12) :: istr
+    IS :: cell_IS
+    PetscErrorCode :: ierr
+    PetscInt, parameter :: default_permeability_direction = 1
+
+    default_cells = [PetscInt::] ! empty integer array
+    call local_vec_section(self%face_geom, face_section)
+    call VecGetArrayF90(self%face_geom, face_geom_array, ierr); CHKERRQ(ierr)
+    call face%init()
+
+    if (fson_has_mpi(json, "mesh.faces")) then
+       call fson_get_mpi(json, "mesh.faces", faces_json)
+       num_faces = fson_value_count_mpi(faces_json, ".")
+
+       do iface = 1, num_faces
+
+          write(istr, '(i0)') iface - 1
+          facestr = 'mesh.faces[' // trim(istr) // ']'
+          face_json => fson_value_get_mpi(faces_json, iface)
+          call fson_get_mpi(face_json, "cells", default_cells, &
+               global_cell_indices, logfile, log_key = trim(facestr) // ".cells")
+          call fson_get_mpi(face_json, "permeability direction", &
+               default_permeability_direction, permeability_direction, &
+               logfile, log_key = trim(facestr) // ".permeability direction")
+
+          num_cells = size(global_cell_indices)
+          if (num_cells == 2) then
+
+             ! get DM mesh points on local processor for both cells:
+             call DMGetStratumSize(self%dm, cell_order_label_name, &
+                  global_cell_indices(1), num_matching, ierr); CHKERRQ(ierr)
+             if (num_matching == 1) then
+                call DMGetStratumIS(self%dm, cell_order_label_name, &
+                     global_cell_indices(1), cell_IS, ierr); CHKERRQ(ierr)
+                call ISGetIndicesF90(cell_IS, cells, ierr); CHKERRQ(ierr)
+                points(1) = cells(1)
+                call ISRestoreIndicesF90(cell_IS, cells, ierr); CHKERRQ(ierr)
+                call ISDestroy(cell_IS, ierr); CHKERRQ(ierr)
+                call DMGetStratumSize(self%dm, cell_order_label_name, &
+                     global_cell_indices(2), num_matching, ierr); CHKERRQ(ierr)
+                if (num_matching == 1) then
+                   call DMGetStratumIS(self%dm, cell_order_label_name, &
+                        global_cell_indices(2), cell_IS, ierr); CHKERRQ(ierr)
+                   call ISGetIndicesF90(cell_IS, cells, ierr); CHKERRQ(ierr)
+                   points(2) = cells(1)
+                   call ISRestoreIndicesF90(cell_IS, cells, ierr); CHKERRQ(ierr)
+                   call ISDestroy(cell_IS, ierr); CHKERRQ(ierr)
+
+                   ppoints => points
+                   call DMPlexGetMeet(self%dm, num_cells, ppoints, cell_faces, ierr)
+                   CHKERRQ(ierr)
+                   num_cell_faces = size(cell_faces)
+                   do i = 1, num_cell_faces
+                      f = cell_faces(i)
+                      if (self%ghost_face(f) < 0) then
+                         call section_offset(face_section, f, face_offset, ierr)
+                         CHKERRQ(ierr)
+                         call face%assign_geometry(face_geom_array, face_offset)
+                         face%permeability_direction = dble(permeability_direction)
+                      end if
+                   end do
+                   call DMPlexRestoreMeet(self%dm, num_cells, ppoints, cell_faces, &
+                        ierr); CHKERRQ(ierr)
+
+                else
+                   if (present(logfile)) then
+                      call logfile%write(LOG_LEVEL_WARN, "input", &
+                           "failed to locate cells(2)", int_keys = ["mesh.faces"], &
+                           int_values = [iface - 1])
+                   end if
+                end if
+             else
+                if (present(logfile)) then
+                   call logfile%write(LOG_LEVEL_WARN, "input", &
+                        "failed to locate cells(1)", int_keys = ["mesh.faces"], &
+                        int_values = [iface - 1])
+                end if
+             end if
+
+          else
+             if (present(logfile)) then
+                call logfile%write(LOG_LEVEL_WARN, "input", &
+                     "incorrect number of cells", int_keys = ["mesh.faces"], &
+                     int_values = [iface - 1])
+             end if
+          end if
+       end do
+    end if
+
+    call face%destroy()
+    call VecRestoreArrayF90(self%face_geom, face_geom_array, ierr)
+    CHKERRQ(ierr)
+
+  end subroutine mesh_override_face_properties
 
 !------------------------------------------------------------------------
 
