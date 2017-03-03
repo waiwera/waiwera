@@ -1080,7 +1080,7 @@ contains
     type(logfile_type), intent(in out), optional :: logfile !! Logfile for log output
     ! Locals:
     type(fson_value), pointer :: faces_json, face_json
-    PetscInt :: num_cells, num_faces, iface, f
+    PetscInt :: num_cells, num_faces, iface, f, i, num_cell_faces
     PetscInt, allocatable :: global_cell_indices(:)
     PetscInt, allocatable :: default_cells(:)
     PetscInt, target :: points(2)
@@ -1093,6 +1093,7 @@ contains
     character(len=64) :: facestr
     character(len=12) :: istr
     IS :: cell_IS
+    PetscBool :: found_cells
     PetscErrorCode :: ierr
     PetscInt, parameter :: default_permeability_direction = 1
 
@@ -1113,8 +1114,8 @@ contains
           call fson_get_mpi(face_json, "permeability direction", &
                default_permeability_direction, permeability_direction, &
                logfile, log_key = trim(facestr) // ".permeability direction")
-          f = -1
           num_cells = size(global_cell_indices)
+          found_cells = PETSC_FALSE
           if (num_cells == 2) then
              ! get DM mesh points on local processor for both cells:
              call DMGetStratumSize(self%dm, cell_order_label_name, &
@@ -1135,26 +1136,30 @@ contains
                    points(2) = cells(1)
                    call ISRestoreIndicesF90(cell_IS, cells, ierr); CHKERRQ(ierr)
                    call ISDestroy(cell_IS, ierr); CHKERRQ(ierr)
+                   found_cells = PETSC_TRUE
                 end if
              end if
-             ppoints => points
-             call DMPlexGetMeet(self%dm, num_cells, ppoints, cell_faces, ierr)
-             CHKERRQ(ierr)
-             if (size(cell_faces) == 1) then
-                f = cell_faces(1)
+             if (found_cells) then
+                ppoints => points
+                call DMPlexGetMeet(self%dm, num_cells, ppoints, cell_faces, ierr)
+                CHKERRQ(ierr)
+                num_cell_faces = size(cell_faces)
+                do i = 1, num_cell_faces
+                   f = cell_faces(i)
+                   if (self%ghost_face(f) < 0) then
+                      call section_offset(face_section, f, face_offset, ierr)
+                      CHKERRQ(ierr)
+                      call face%assign_geometry(face_geom_array, face_offset)
+                      face%permeability_direction = dble(permeability_direction)
+                   end if
+                end do
+                call DMPlexRestoreMeet(self%dm, num_cells, ppoints, cell_faces, &
+                     ierr); CHKERRQ(ierr)
              end if
-             call DMPlexRestoreMeet(self%dm, num_cells, ppoints, cell_faces, &
-                  ierr); CHKERRQ(ierr)
-          end if
-          if (f >= 0) then
-             call section_offset(face_section, f, face_offset, ierr)
-             CHKERRQ(ierr)
-             call face%assign_geometry(face_geom_array, face_offset)
-             face%permeability_direction = dble(permeability_direction)
           else
              if (present(logfile)) then
                 call logfile%write(LOG_LEVEL_WARN, "input", &
-                     "faces_not_found", int_keys = ["mesh.faces"], &
+                     "incorrect number of cells", int_keys = ["mesh.faces"], &
                      int_values = [iface - 1])
              end if
           end if
