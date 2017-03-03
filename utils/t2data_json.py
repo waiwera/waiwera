@@ -71,7 +71,8 @@ class t2data_export_json(t2data):
             blkindices = [geo.block_name_index[blkname] -
                           geo.num_atmosphere_blocks for blkname in blknames]
             colnames = [geo.column_name(blkname) for blkname in blknames]
-            if colnames[0] == colnames[1]: # vertical connection
+            if colnames[0] == colnames[1] or con.block[0].centre is None or \
+               con.block[1].centre is None: # vertical connection
                 underground = all([blkindex >= 0 for blkindex in blkindices])
                 if underground and con.direction != 3:
                     face_directions.append({
