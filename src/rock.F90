@@ -210,6 +210,7 @@ contains
     type(logfile_type), intent(in out) :: logfile
     ! Locals:
     PetscInt :: num_rocktypes, ir, ic, c, num_cells, offset, ghost
+    PetscInt :: perm_size
     type(fson_value), pointer :: rocktypes, r
     IS :: rock_IS
     PetscInt, pointer :: rock_cells(:)
@@ -258,6 +259,7 @@ contains
                ierr); CHKERRQ(ierr)
           call ISGetIndicesF90(rock_IS, rock_cells, ierr); CHKERRQ(ierr)
           num_cells = size(rock_cells)
+          perm_size = size(permeability)
           do ic = 1, num_cells
              c = rock_cells(ic)
              call DMLabelGetValue(ghost_label, c, ghost, ierr); CHKERRQ(ierr)
@@ -265,7 +267,8 @@ contains
                 call global_section_offset(section, c, range_start, &
                      offset, ierr); CHKERRQ(ierr)
                 call rock%assign(rock_array, offset)
-                rock%permeability = permeability
+                rock%permeability = 0._dp
+                rock%permeability(1: perm_size) = permeability
                 rock%wet_conductivity = wet_conductivity
                 rock%dry_conductivity = dry_conductivity
                 rock%porosity = porosity

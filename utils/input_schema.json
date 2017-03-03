@@ -127,7 +127,7 @@
                                  "permeability": {"type": "array",
                                                   "items": {
                                                       "type": "number", "minimum": 0},
-                                                  "minItems": 3, "maxItems": 3
+                                                  "minItems": 2, "maxItems": 3
                                                  },
                                  "wet conductivity": {"type": "number", "minimum": 0},
                                  "dry conductivity": {"type": "number", "minimum": 0},

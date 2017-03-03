@@ -44,7 +44,7 @@ class t2data_export_json(t2data):
         jsondata.update(self.eos_json(eos))
         jsondata.update(self.timestepping_json())
         jsondata.update(self.output_json())
-        jsondata.update(self.rocks_json(geo, atmos_volume))
+        jsondata.update(self.rocks_json(geo, atmos_volume, mesh_coords))
         jsondata['rock'].update(self.relative_permeability_json())
         jsondata.update(self.initial_json(geo, incons, jsondata['eos']['name']))
         jsondata.update(self.boundaries_json(geo, bdy_incons, atmos_volume,
@@ -152,14 +152,16 @@ class t2data_export_json(t2data):
                  'minimum': float(self.parameter['option'][16]), 'maximum': float(maxit)})
         return jsondata
 
-    def rocks_json(self, geo, atmos_volume):
+    def rocks_json(self, geo, atmos_volume, mesh_coords):
         """Converts TOUGH2 rocktype definition and assignment data to JSON."""
         jsondata = {}
         jsondata['rock'] = {'types': []}
         ir, rock_index = 0, {}
+        if mesh_coords == 'xyz': perm_size = 3
+        else: perm_size = 2
         for rt in self.grid.rocktypelist:
             rtdata = {'name': rt.name, 'density': rt.density, 'porosity': rt.porosity,
-                      'permeability': list(rt.permeability),
+                      'permeability': list(rt.permeability[:perm_size]),
                       'wet conductivity': rt.conductivity, 'specific heat': rt.specific_heat}
             dry_cond = rt.dry_conductivity
             if dry_cond is not None and dry_cond > 0.0: rtdata['dry conductivity'] = dry_cond
