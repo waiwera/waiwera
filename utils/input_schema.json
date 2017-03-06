@@ -149,8 +149,28 @@
                                 "region": {"type": "integer", "minimum": 0},
                                 "primary": {"type": "array", "items":
                                             {"type": "number"}},
-                                "faces": {"type": "array",
-                                          "items": {"type": "integer", "minimum": 0}}
+                                "faces": {"oneOf": [
+                                    {"type": "array",
+                                     "items": {"type": "integer", "minimum": 0}},
+                                    {"type": "object",
+                                     "properties": {
+                                         "cells": {"type": "array",
+                                                   "items": {"type": "integer", "minimum": 0}},
+                                         "normal": {"type": "array",
+                                                    "items": {"type": "number"},
+                                                    "minItems": 2, "maxItems": 3}},
+                                     "additionalProperties": false},
+                                    {"type": "array",
+                                     "items": {
+                                         "type": "object",
+                                         "properties": {
+                                             "cells": {"type": "array",
+                                                       "items": {"type": "integer", "minimum": 0}},
+                                             "normal": {"type": "array",
+                                                        "items": {"type": "number"},
+                                                        "minItems": 2, "maxItems": 3}},
+                                         "additionalProperties": false}
+                                    }]}
                             }, "additionalProperties": false},
                            {"type": "object",
                             "properties": {

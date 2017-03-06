@@ -330,7 +330,7 @@ class t2data_export_json(t2data):
         for blk in self.grid.blocklist:
             if not (0. < blk.volume < atmos_volume):
                 pv = primary(blk.name)
-                bc = {'primary': pv, 'region': region(pv), 'cell_normals': []}
+                bc = {'primary': pv, 'region': region(pv), 'faces': []}
                 for conname in blk.connection_name:
                     nz = -self.grid.connection[conname].dircos
                     vertical_connection = abs(nz) > vertical_tolerance
@@ -355,8 +355,11 @@ class t2data_export_json(t2data):
                             elif mesh_coords == 'xy': normal = None
                         else: normal = normal[[0,1]]
                     if normal is not None:
-                        bc['cell_normals'].append([cell_index, list(normal)])
-                jsondata['boundaries'].append(bc)
+                        bc['faces'].append({"cells": [cell_index],
+                                            "normal": list(normal)})
+                if len(bc['faces']) > 0:
+                    if len(bc['faces']) == 1: bc['faces'] = bc['faces'][0]
+                    jsondata['boundaries'].append(bc)
         return jsondata
 
     def output_json(self):

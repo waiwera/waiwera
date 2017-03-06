@@ -855,6 +855,7 @@ contains
     use eos_module, only: eos_type
     use logfile_module
     use fson
+    use fson_value_m, only : TYPE_ARRAY, TYPE_OBJECT, TYPE_INTEGER
     use fson_mpi_module
     use dm_utils_module, only: dm_cell_normal_face
 
@@ -865,18 +866,22 @@ contains
     ! Locals:
     PetscErrorCode :: ierr
     PetscBool :: mesh_has_label
-    type(fson_value), pointer :: boundaries, bdy
+    type(fson_value), pointer :: boundaries, bdy, faces_json, face_json
     type(fson_value), pointer :: cell_normals, cell_normal, item
-    PetscInt :: num_boundaries, num_faces, ibdy, iface, f, np
-    PetscInt, allocatable :: default_faces(:)
-    PetscInt, allocatable :: faces(:)
-    PetscInt :: region, cell, normal_len
+    PetscInt :: faces_type, face1_type
+    PetscInt :: num_boundaries, num_faces, num_cells, ibdy
+    PetscInt :: iface, icell, f, np, i, offset
+    PetscInt, allocatable :: default_faces(:), default_cells(:)
+    PetscInt, allocatable :: faces(:), cells(:)
+    PetscInt :: region, cell, normal_len, num_face_items
     PetscReal, allocatable :: primary(:), input_normal(:)
     PetscReal :: normal(3)
+    PetscReal, parameter :: default_normal(3) = [0._dp, 0._dp, 1._dp]
     character(len=64) :: bdystr
     character(len=12) :: istr
 
     default_faces = [PetscInt::] ! empty integer array
+    default_cells = [PetscInt::]
     np = eos%num_primary_variables
 
     call DMHasLabel(self%dm, open_boundary_label_name, mesh_has_label, &
@@ -892,15 +897,67 @@ contains
        num_boundaries = fson_value_count_mpi(boundaries, ".")
        allocate(self%bcs(np + 1, num_boundaries))
 
+       num_faces = 0
        do ibdy = 1, num_boundaries
           write(istr, '(i0)') ibdy - 1
           bdystr = 'boundaries[' // trim(istr) // ']'
           bdy => fson_value_get_mpi(boundaries, ibdy)
 
           if (fson_has_mpi(bdy, "faces")) then
-             call fson_get_mpi(bdy, "faces", default_faces, faces, &
-                  logfile, log_key = trim(bdystr) // ".faces")
-             num_faces = size(faces)
+             call fson_get_mpi(bdy, "faces", faces_json)
+             faces_type = fson_type_mpi(faces_json, ".")
+             select case (faces_type)
+             case (TYPE_ARRAY)
+                num_face_items = fson_value_count_mpi(faces_json, ".")
+                if (num_face_items > 0) then
+                   face_json => fson_value_get_mpi(faces_json, 1)
+                   face1_type = fson_type_mpi(face_json, ".")
+                   select case (face1_type)
+                   case (TYPE_INTEGER)
+                      call fson_get_mpi(faces_json, ".", default_faces, faces, &
+                           logfile, log_key = trim(bdystr) // ".faces")
+                      num_faces = size(faces)
+                   case (TYPE_OBJECT)
+                      num_faces = 0
+                      do i = 1, num_face_items
+                         face_json => fson_value_get_mpi(faces_json, i)
+                         num_cells = fson_value_count_mpi(face_json, "cells")
+                         num_faces = num_faces + num_cells
+                      end do
+                      allocate(faces(num_faces))
+                      offset = 0
+                      do i = 1, num_face_items
+                         face_json => fson_value_get_mpi(faces_json, i)
+                         call fson_get_mpi(face_json, "cells", default_cells, cells, &
+                              logfile, log_key = trim(bdystr) // "faces.cells")
+                         call fson_get_mpi(face_json, "normal", default_normal, &
+                              input_normal, logfile, log_key = trim(bdystr) // "faces.normal")
+                         num_cells = size(cells)
+                         call get_cell_faces(cells, num_cells, input_normal, offset)
+                         offset = offset + num_cells
+                      end do
+                   case default
+                      if (present(logfile)) then
+                         call logfile%write(LOG_LEVEL_WARN, "input", &
+                              "unrecognised_face_type")
+                      end if
+                   end select
+                end if
+             case (TYPE_OBJECT)
+                call fson_get_mpi(faces_json, "cells", default_cells, cells, &
+                     logfile, log_key = trim(bdystr) // "faces.cells")
+                call fson_get_mpi(faces_json, "normal", default_normal, &
+                     input_normal, logfile, log_key = trim(bdystr) // "faces.normal")
+                num_cells = size(cells)
+                num_faces = num_cells
+                allocate(faces(num_faces))
+                call get_cell_faces(cells, num_cells, input_normal, 0)
+             case default
+                if (present(logfile)) then
+                   call logfile%write(LOG_LEVEL_WARN, "input", &
+                        "unrecognised_faces_type")
+                end if
+             end select
 
           else if (fson_has_mpi(bdy, "cell_normals")) then
              call fson_get_mpi(bdy, "cell_normals", cell_normals)
@@ -927,8 +984,6 @@ contains
                    faces(iface) = -1
                 end if
              end do
-          else
-             num_faces = 0
           end if
 
           do iface = 1, num_faces
@@ -950,6 +1005,37 @@ contains
     else if (present(logfile)) then
        call logfile%write(LOG_LEVEL_WARN, "input", "no_boundary_conditions")
     end if
+
+  contains
+
+    subroutine get_cell_faces(cells, num_cells, input_normal, offset)
+      ! Get faces for normal vector and specified cells.
+
+      PetscInt, intent(in) :: cells(:), num_cells
+      PetscReal, intent(in) :: input_normal(:)
+      PetscInt, intent(in) :: offset
+
+      normal_len = size(input_normal)
+      normal = 0._dp
+      normal(1: normal_len) = input_normal
+
+      do icell = 1, num_cells
+         iface = offset + icell
+         cell = cells(icell)
+         call dm_cell_normal_face(self%dm, cell, normal, f)
+         if (f >= 0) then
+            faces(iface) = f
+         else
+            if (present(logfile)) then
+               call logfile%write(LOG_LEVEL_WARN, "input", &
+                    "faces_not_found", int_keys = ["boundary"], &
+                    int_values = [ibdy - 1])
+            end if
+            faces(iface) = -1
+         end if
+      end do
+
+    end subroutine get_cell_faces
 
   end subroutine mesh_setup_boundaries
 
