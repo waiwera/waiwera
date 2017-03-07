@@ -175,8 +175,8 @@ contains
     T2 = T * T
     T3 = T * T2
     T4 = T * T3
-    h_solution = 1.e6_dp * (-0.073696_dp - 0.56405_dp * T + &
-         0.70363_dp * T2 - 0.27882_dp * T3 + 0.042579_dp * T4)
+    h_solution = 1.e6_dp * (-0.549491_dp + 0.456571_dp * T &
+         - 0.070404_dp * T2 - 0.031035_dp * T3 + 0.014121_dp * T4)
 
   end subroutine ncg_co2_energy_solution
 
