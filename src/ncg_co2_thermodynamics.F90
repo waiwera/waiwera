@@ -99,8 +99,6 @@ contains
 
       use thermodynamics_module, only: tc_k
 
-      implicit none
-
       PetscReal, intent(in)  :: T, PP
       PetscReal, intent(out) :: DC, HC
       PetscInt, intent(out)  :: err

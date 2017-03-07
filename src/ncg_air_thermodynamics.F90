@@ -104,8 +104,6 @@ contains
       use thermodynamics_module, only: tc_k
       use ncg_thermodynamics_module, only: gas_constant
 
-      implicit none
-
       PetscReal, intent(in)  :: partial_pressure, temperature
       PetscReal, intent(out) :: density_air, enthalpy_air
       PetscInt, intent(out)  :: err
