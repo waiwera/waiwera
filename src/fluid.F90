@@ -241,7 +241,7 @@ contains
     !! contributions from all phases.
 
     class(fluid_type), intent(in) :: self
-    PetscInt, intent(in) :: c !! Masss component
+    PetscInt, intent(in) :: c !! Mass component
     ! Locals:
     PetscInt :: p, phases
     PetscReal :: ds, total
