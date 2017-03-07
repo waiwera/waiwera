@@ -2,13 +2,14 @@ module ncg_thermodynamics_module
   !! Module for abstract non-condensible gas thermodynamics type, from
   !! which specific NCG thermodynamics types can be derived.
 
+#include <petsc/finclude/petscsys.h>
+
+  use petscsys
   use kinds_module
   use thermodynamics_module
 
   implicit none
   private
-
-#include <petsc/finclude/petscdef.h>
 
   PetscInt, parameter, public :: max_ncg_name_length = 8
 

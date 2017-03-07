@@ -1,14 +1,14 @@
 module eos_wce_module
   !! Equation of state for non-isothermal water and CO2 NCG.
 
+#include <petsc/finclude/petscsys.h>
+
+  use petscsys
   use eos_wge_module
   use ncg_co2_thermodynamics_module
 
   implicit none
   private
-
-#include <petsc/finclude/petscdef.h>
-#include <petsc/finclude/petscsys.h>
 
   type, public, extends(eos_wge_type) :: eos_wce_type
      !! Equation of state object for non-isothermal water and CO2 NCG.

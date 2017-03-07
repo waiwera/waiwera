@@ -1,15 +1,15 @@
 module eos_wge_module
   !! Equation of state for non-isothermal water and non-condensible gas.
 
+#include <petsc/finclude/petscsys.h>
+
+  use petscsys
   use kinds_module
   use eos_module
   use ncg_thermodynamics_module
 
   implicit none
   private
-
-#include <petsc/finclude/petscdef.h>
-#include <petsc/finclude/petscsys.h>
 
   type, public, extends(eos_type) :: eos_wge_type
      !! Pure water, non-condensible gas and energy equation of state type.

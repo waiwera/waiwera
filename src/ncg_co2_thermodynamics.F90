@@ -1,14 +1,14 @@
 module ncg_co2_thermodynamics_module
   !! Module for thermodynamics of CO2 non-condensible gas.
 
+#include <petsc/finclude/petscsys.h>
+
+  use petscsys
   use kinds_module
   use ncg_thermodynamics_module
 
   implicit none
   private
-
-#include <petsc/finclude/petscdef.h>
-#include <petsc/finclude/petscsys.h>
 
   PetscReal, parameter, public :: co2_molecular_weight = 44.01_dp ! g/mol
 

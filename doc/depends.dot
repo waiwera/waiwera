@@ -43,6 +43,7 @@ digraph waiwera{
         eos_wce_module -> fson_mpi_module
         eos_wce_module -> logfile_module
         eos_wce_module -> ncg_co2_thermodynamics_module
+        eos_wce_module -> petscsys
         eos_wce_module -> thermodynamics_module
         eos_we_module -> eos_module
         eos_we_module -> fluid_module
@@ -60,6 +61,7 @@ digraph waiwera{
         eos_wge_module -> kinds_module
         eos_wge_module -> logfile_module
         eos_wge_module -> ncg_thermodynamics_module
+        eos_wge_module -> petscsys
         eos_wge_module -> rock_module
         eos_wge_module -> thermodynamics_module
         face_module -> cell_module
@@ -135,8 +137,10 @@ digraph waiwera{
         mpi_utils_module -> petscsys
         ncg_co2_thermodynamics_module -> kinds_module
         ncg_co2_thermodynamics_module -> ncg_thermodynamics_module
+        ncg_co2_thermodynamics_module -> petscsys
         ncg_co2_thermodynamics_module -> thermodynamics_module
         ncg_thermodynamics_module -> kinds_module
+        ncg_thermodynamics_module -> petscsys
         ncg_thermodynamics_module -> thermodynamics_module
         ode_module -> logfile_module
         ode_module -> mesh_module
