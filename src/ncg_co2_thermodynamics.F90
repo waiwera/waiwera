@@ -129,8 +129,7 @@ contains
 !------------------------------------------------------------------------
 
   subroutine ncg_co2_henrys_constant(self, temperature, hc, err)
-    !! Henry's constant for CO2 NCG.  From TOUGH2 (reportedly derived
-    !! from data given by Cramer, 1982).
+    !! Henry's constant for CO2 NCG.
 
     use thermodynamics_module, only: h2o_molecular_weight
 
@@ -139,7 +138,7 @@ contains
     PetscReal, intent(out) :: hc
     PetscErrorCode, intent(out) :: err
     ! Locals:
-    PetscReal :: T2, T3, T4, T5
+    PetscReal :: T2, T3, T4, T5, RKH
 
     associate(T => temperature)
       if (T <= 300._dp) then
@@ -147,8 +146,9 @@ contains
          T3 = T2 * T
          T4 = T2 * T2
          T5 = T2 * T3
-         hc = 1.e-5_dp / (783.666_dp + 19.6025_dp * T + 0.820574_dp * T2 &
-              - 7.40674e-3_dp * T3 + 2.18380e-5_dp * T4 - 2.20999e-8_dp * T5)
+         RKH = (783.666_dp + 19.6025_dp * T + 0.820574_dp * T2) * 1.0e5_dp &
+              -T3 * (7.40674e2_dp - 2.18380_dp * T + 2.20999e-3_dp * T2)
+         hc = 1.0_dp / RKH
          err = 0
       else
          err = 1
