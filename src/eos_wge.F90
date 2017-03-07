@@ -302,7 +302,7 @@ contains
     PetscInt :: p, phases
     PetscReal :: h2o_properties(2), sl, relative_permeability(2)
     PetscReal :: pressure_water, gas_properties(2), xg
-    PetscReal :: gas_viscosity, h_solution
+    PetscReal :: h_solution
 
     err = 0
     phases = nint(fluid%phase_composition)
