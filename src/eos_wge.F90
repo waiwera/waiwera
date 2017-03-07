@@ -24,6 +24,7 @@ module eos_wge_module
      procedure, public :: bulk_properties => eos_wge_bulk_properties
      procedure, public :: phase_properties => eos_wge_phase_properties
      procedure, public :: primary_variables => eos_wge_primary_variables
+     procedure, public :: phase_saturations => eos_wge_phase_saturations
      procedure, public :: check_primary_variables => eos_wge_check_primary_variables
   end type eos_wge_type
 
@@ -254,6 +255,34 @@ contains
     end if
 
   end subroutine eos_wge_bulk_properties
+
+!------------------------------------------------------------------------
+
+  subroutine eos_wge_phase_saturations(self, primary, fluid)
+    !! Assigns fluid phase saturations from fluid region and primary variables.
+
+    use fluid_module, only: fluid_type
+    class(eos_wge_type), intent(in out) :: self
+    PetscReal, intent(in) :: primary(self%num_primary_variables) !! Primary thermodynamic variables
+    type(fluid_type), intent(in out) :: fluid !! Fluid object
+    ! Locals:
+    PetscInt :: region
+
+    region = nint(fluid%region)
+
+    select case (region)
+    case (1)
+       fluid%phase(1)%saturation = 1._dp
+       fluid%phase(2)%saturation = 0._dp
+    case (2)
+       fluid%phase(1)%saturation = 0._dp
+       fluid%phase(2)%saturation = 1._dp
+    case (4)
+       fluid%phase(1)%saturation = 1._dp - primary(2)
+       fluid%phase(2)%saturation = primary(2)
+    end select
+
+  end subroutine eos_wge_phase_saturations
 
 !------------------------------------------------------------------------
 
