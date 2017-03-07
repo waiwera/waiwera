@@ -11,7 +11,7 @@ module ncg_air_thermodynamics_module
   private
 
   PetscReal, parameter, public :: air_molecular_weight = 28.96_dp ! g/mol
-  PetscReal, parameter, public :: air_specific_heat = 733.0_dp
+  PetscReal, parameter, public :: air_specific_heat = 733.0_dp ! J/kg/K
 
   type, public, extends(ncg_thermodynamics_type) :: ncg_air_thermodynamics_type
      !! Type for air NCG thermodynamics.
