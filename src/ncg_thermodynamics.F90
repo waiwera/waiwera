@@ -12,6 +12,7 @@ module ncg_thermodynamics_module
   private
 
   PetscInt, parameter, public :: max_ncg_name_length = 8
+  PetscReal, parameter, public :: gas_constant = 8.3144598_dp !! Gas constant R
 
   type, public, abstract :: ncg_thermodynamics_type
      !! Non-condensible gas thermodynamics type
