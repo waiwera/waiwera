@@ -27,6 +27,7 @@ module ncg_co2_thermodynamics_module
      procedure, public :: henrys_constant => ncg_co2_henrys_constant
      procedure, public :: energy_solution => ncg_co2_energy_solution
      procedure, public :: viscosity => ncg_co2_viscosity
+     procedure, public :: vapour_mixture_viscosity => ncg_co2_vapour_mixture_viscosity
   end type ncg_co2_thermodynamics_type
 
 contains
@@ -65,10 +66,10 @@ contains
 
     err = 0
 
-    associate(density_co2 => props(1), internal_energy_co2 => props(2))
+    associate(density_co2 => props(1), enthalpy_co2 => props(2))
 
       call co2_rho_h(partial_pressure, temperature, density_co2, &
-           internal_energy_co2, err)
+           enthalpy_co2, err)
 
       if (err == 0) then
          if (phase == 1) then
@@ -217,6 +218,39 @@ contains
     end if
 
   end subroutine ncg_co2_viscosity
+
+!------------------------------------------------------------------------
+
+  subroutine ncg_co2_vapour_mixture_viscosity(self, pressure, &
+       partial_pressure, temperature, region, xg, density, viscosity, err)
+    !! Calculates viscosity for gas phase mixture given partial
+    !! pressure and temperature.
+
+    use thermodynamics_module, only: region_type
+
+    class(ncg_co2_thermodynamics_type), intent(in) :: self
+    PetscReal, intent(in) :: pressure
+    PetscReal, intent(in) :: partial_pressure
+    PetscReal, intent(in) :: temperature
+    class(region_type), pointer :: region
+    PetscReal, intent(in) :: xg
+    PetscReal, intent(in) :: density
+    PetscReal, intent(out):: viscosity
+    PetscInt, intent(out)  :: err
+    ! Locals:
+    PetscReal :: gas_viscosity, water_viscosity
+
+    call region%viscosity(temperature, pressure, density, water_viscosity)
+
+    call self%viscosity(partial_pressure, temperature, &
+         region, xg, xg * density, gas_viscosity, err)
+
+    if (err == 0) then
+       viscosity = water_viscosity * (1._dp - xg) &
+            + gas_viscosity * xg
+    end if
+
+  end subroutine ncg_co2_vapour_mixture_viscosity
 
 !------------------------------------------------------------------------
 

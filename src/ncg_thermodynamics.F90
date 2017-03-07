@@ -26,6 +26,8 @@ module ncg_thermodynamics_module
      procedure(ncg_henrys_constant_procedure), public, deferred :: henrys_constant
      procedure(ncg_energy_solution_procedure), public, deferred :: energy_solution
      procedure(ncg_viscosity_procedure), public, deferred :: viscosity
+     procedure(ncg_vapour_mixture_viscosity_procedure), public, deferred :: &
+          vapour_mixture_viscosity
      procedure, public :: mass_fraction => ncg_thermodynamics_mass_fraction
      procedure, public :: mole_fraction => ncg_thermodynamics_mole_fraction
    end type ncg_thermodynamics_type
@@ -87,6 +89,22 @@ module ncg_thermodynamics_module
        PetscReal, intent(out) :: viscosity
        PetscErrorCode, intent(out)  :: err
      end subroutine ncg_viscosity_procedure
+
+     subroutine ncg_vapour_mixture_viscosity_procedure(self, pressure, &
+          partial_pressure, temperature, region, xg, density, viscosity, err)
+       !! Calculate NCG water vapour mixture viscosity.
+       import :: ncg_thermodynamics_type
+       import :: region_type
+       class(ncg_thermodynamics_type), intent(in) :: self
+       PetscReal, intent(in)  :: pressure
+       PetscReal, intent(in)  :: partial_pressure
+       PetscReal, intent(in)  :: temperature
+       class(region_type), pointer :: region
+       PetscReal, intent(in)  :: xg
+       PetscReal, intent(in)  :: density
+       PetscReal, intent(out) :: viscosity
+       PetscErrorCode, intent(out)  :: err
+     end subroutine ncg_vapour_mixture_viscosity_procedure
 
   end interface
 
