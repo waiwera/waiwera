@@ -1,3 +1,20 @@
+!   Copyright 2016 University of Auckland.
+
+!   This file is part of Waiwera.
+
+!   Waiwera is free software: you can redistribute it and/or modify
+!   it under the terms of the GNU Lesser General Public License as published by
+!   the Free Software Foundation, either version 3 of the License, or
+!   (at your option) any later version.
+
+!   Waiwera is distributed in the hope that it will be useful,
+!   but WITHOUT ANY WARRANTY; without even the implied warranty of
+!   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+!   GNU Lesser General Public License for more details.
+
+!   You should have received a copy of the GNU Lesser General Public License
+!   along with Waiwera.  If not, see <http://www.gnu.org/licenses/>.
+
 module IAPWS_module
 
   !! IAPWS-97 industrial thermodynamic formulation, as described by:
@@ -10,14 +27,15 @@ module IAPWS_module
   !! The viscosity function is described by:
   !! IAPWS, 2008.  **Release on the IAPWS Formulation 2008 for the Viscosity of Ordinary Water Substance.**
 
+#include <petsc/finclude/petscsys.h>
+
+  use petscsys
   use kinds_module
   use powertable_module
   use thermodynamics_module
 
   implicit none
   private
-
-#include <petsc/finclude/petscsys.h>
 
 !------------------------------------------------------------------------
 ! Saturation curve type

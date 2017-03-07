@@ -1,8 +1,28 @@
+!   Copyright 2016 University of Auckland.
+
+!   This file is part of Waiwera.
+
+!   Waiwera is free software: you can redistribute it and/or modify
+!   it under the terms of the GNU Lesser General Public License as published by
+!   the Free Software Foundation, either version 3 of the License, or
+!   (at your option) any later version.
+
+!   Waiwera is distributed in the hope that it will be useful,
+!   but WITHOUT ANY WARRANTY; without even the implied warranty of
+!   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+!   GNU Lesser General Public License for more details.
+
+!   You should have received a copy of the GNU Lesser General Public License
+!   along with Waiwera.  If not, see <http://www.gnu.org/licenses/>.
+
 module eos_module
   !! Equations of state for different fluid mass components. The
   !! behaviour of each combination of fluid components is governed by
   !! an EOS object.
 
+#include <petsc/finclude/petscsys.h>
+
+  use petscsys
   use kinds_module
   use fson
   use thermodynamics_module
@@ -10,14 +30,13 @@ module eos_module
   implicit none
   private
 
-#include <petsc/finclude/petscdef.h>
-#include <petsc/finclude/petscsys.h>
-
   PetscInt, parameter, public :: max_eos_name_length = 8
   PetscInt, parameter, public :: max_eos_description_length = 80
   PetscInt, parameter, public :: max_primary_variable_name_length = 32
   PetscInt, parameter, public :: max_phase_name_length = 13
   PetscInt, parameter, public :: max_component_name_length = 8
+  character(max_component_name_length), parameter, public :: &
+       energy_component_name  = 'energy'
 
   type, public, abstract :: eos_type
      !! Abstract type for equation of state (EOS) objects.
@@ -40,12 +59,12 @@ module eos_module
      procedure, public :: destroy => eos_destroy
      procedure(eos_transition_procedure), public, deferred :: transition
      procedure(eos_bulk_properties_procedure), public, deferred :: bulk_properties
-     procedure, public :: phase_saturations => eos_phase_saturations
      procedure, public :: phase_composition => eos_phase_composition
      procedure(eos_phase_properties_procedure), public, deferred :: phase_properties
      procedure(eos_primary_variables_procedure), public, deferred :: primary_variables
      procedure(eos_check_primary_variables_procedure), public, deferred :: check_primary_variables
      procedure, public :: conductivity => eos_conductivity
+     procedure, public :: component_index => eos_component_index
   end type eos_type
 
   abstract interface
@@ -168,31 +187,27 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine eos_phase_saturations(self, primary, fluid)
-    !! Assigns fluid phase saturations from fluid region and primary variables.
+  PetscInt function eos_component_index(self, component_name) result (index)
+    !! Returns index of specified component name (or -1 if no such
+    !! component exists).
 
-    use fluid_module, only: fluid_type
-    class(eos_type), intent(in out) :: self
-    PetscReal, intent(in) :: primary(self%num_primary_variables) !! Primary thermodynamic variables
-    type(fluid_type), intent(in out) :: fluid !! Fluid object
+    use utils_module, only: str_to_lower, str_array_index
+
+    class(eos_type), intent(in) :: self
+    character(len = *), intent(in) :: component_name
     ! Locals:
-    PetscInt :: region
+    character(len = len(component_name)) :: lowercase_name
 
-    region = nint(fluid%region)
+    lowercase_name = str_to_lower(component_name)
 
-    select case (region)
-    case (1)
-       fluid%phase(1)%saturation = 1._dp
-       fluid%phase(2)%saturation = 0._dp
-    case (2)
-       fluid%phase(1)%saturation = 0._dp
-       fluid%phase(2)%saturation = 1._dp
-    case (4)
-       fluid%phase(1)%saturation = 1._dp - primary(2)
-       fluid%phase(2)%saturation = primary(2)
-    end select
+    if ((trim(lowercase_name) == trim(energy_component_name)) .and. &
+         (.not. self%isothermal)) then
+       index = self%num_primary_variables
+    else
+       index = str_array_index(lowercase_name, self%component_names)
+    end if
 
-  end subroutine eos_phase_saturations
+  end function eos_component_index
 
 !------------------------------------------------------------------------
 

@@ -1,16 +1,38 @@
+!   Copyright 2016 University of Auckland.
+
+!   This file is part of Waiwera.
+
+!   Waiwera is free software: you can redistribute it and/or modify
+!   it under the terms of the GNU Lesser General Public License as published by
+!   the Free Software Foundation, either version 3 of the License, or
+!   (at your option) any later version.
+
+!   Waiwera is distributed in the hope that it will be useful,
+!   but WITHOUT ANY WARRANTY; without even the implied warranty of
+!   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+!   GNU Lesser General Public License for more details.
+
+!   You should have received a copy of the GNU Lesser General Public License
+!   along with Waiwera.  If not, see <http://www.gnu.org/licenses/>.
+
 module utils_module
-  !! Utility functions for string handling, formatting, file names etc.
+  !! Utility functions for string handling, formatting, file names
+  !! etc. and constants.
+
+#include <petsc/finclude/petscsys.h>
+
+  use petscsys
+  use kinds_module
 
   implicit none
   private
 
-#include <petsc/finclude/petscsys.h>
-#include <petsc/finclude/petscdef.h>
+  PetscReal, parameter, public :: pi = 4._dp * atan(1._dp)
 
   public :: str_to_upper, str_to_lower, &
-       int_str_len, &
+       int_str_len, str_array_index, &
        split_filename, change_filename_extension, &
-       date_time_str
+       date_time_str, degrees_to_radians, rotation_matrix_2d
   
 contains
 
@@ -75,6 +97,28 @@ contains
 
 !------------------------------------------------------------------------
 
+  PetscInt function str_array_index(str, str_array) result(index)
+    !! Returns index of given string in an array of strings (or -1 if
+    !! it isn't in there).
+
+    character(len = *), intent(in) :: str
+    character(len = *), intent(in) :: str_array(:)
+    ! Locals:
+    PetscInt :: i, n
+
+    index = -1
+    n = size(str_array)
+    do i = 1, n
+       if (trim(str) == trim(str_array(i))) then
+          index = i
+          exit
+       end if
+    end do
+
+  end function str_array_index
+
+!------------------------------------------------------------------------
+
   subroutine split_filename(filename, base, ext)
     !! Splits filename into base and extension.
 
@@ -131,6 +175,34 @@ contains
     date_time_str = datestr // ' ' // timestr // ' ' // zonestr
 
   end function date_time_str
+
+!------------------------------------------------------------------------
+
+  PetscReal function degrees_to_radians(degrees) result(radians)
+    !! Converts angle from degrees to radians.
+
+    PetscReal, intent(in) :: degrees
+
+    radians = degrees * pi / 180._dp
+
+  end function degrees_to_radians
+
+!------------------------------------------------------------------------
+
+  function rotation_matrix_2d(angle) result(M)
+    !! Returns a 2x2 rotation matrix corresponding to the given angle
+    !! (anti-clockwise, in radians).
+
+    PetscReal, intent(in) :: angle
+    PetscReal :: M(2, 2)
+    ! Locals:
+    PetscReal :: c, s
+
+    c = cos(angle)
+    s = sin(angle)
+    M = reshape([c, -s, s, c], [2, 2])
+
+  end function rotation_matrix_2d
 
 !------------------------------------------------------------------------
 

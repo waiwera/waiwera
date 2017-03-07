@@ -1,3 +1,20 @@
+!   Copyright 2016 University of Auckland.
+
+!   This file is part of Waiwera.
+
+!   Waiwera is free software: you can redistribute it and/or modify
+!   it under the terms of the GNU Lesser General Public License as published by
+!   the Free Software Foundation, either version 3 of the License, or
+!   (at your option) any later version.
+
+!   Waiwera is distributed in the hope that it will be useful,
+!   but WITHOUT ANY WARRANTY; without even the implied warranty of
+!   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+!   GNU Lesser General Public License for more details.
+
+!   You should have received a copy of the GNU Lesser General Public License
+!   along with Waiwera.  If not, see <http://www.gnu.org/licenses/>.
+
 module IFC67_module
   !!  IFC-67 industrial thermodynamic formulation, as described by:
   !!
@@ -6,13 +23,14 @@ module IFC67_module
 
   ! These are higher-speed versions developed by Mike O'Sullivan for AUTOUGH2.
 
+#include <petsc/finclude/petscsys.h>
+
+  use petscsys
   use kinds_module
   use thermodynamics_module
 
   implicit none
   private
-
-#include <petsc/finclude/petscsys.h>
 
   PetscReal, parameter :: tcriticalk67 = 647.3_dp        ! Critical temperature (Kelvin)
   PetscReal, parameter :: tcritical67 = tcriticalk67 - tc_k
@@ -625,6 +643,7 @@ subroutine saturation_temperature(self, p, t, err)
         if (err == 0) then
            if ((abs((p - ps) / p) <= tol) .and. (i > 1)) then
               found = PETSC_TRUE
+              exit
            else
               tsd = t + dt
               call self%pressure(tsd, psd, err)

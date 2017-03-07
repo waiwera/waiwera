@@ -1,16 +1,33 @@
+!   Copyright 2016 University of Auckland.
+
+!   This file is part of Waiwera.
+
+!   Waiwera is free software: you can redistribute it and/or modify
+!   it under the terms of the GNU Lesser General Public License as published by
+!   the Free Software Foundation, either version 3 of the License, or
+!   (at your option) any later version.
+
+!   Waiwera is distributed in the hope that it will be useful,
+!   but WITHOUT ANY WARRANTY; without even the implied warranty of
+!   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+!   GNU Lesser General Public License for more details.
+
+!   You should have received a copy of the GNU Lesser General Public License
+!   along with Waiwera.  If not, see <http://www.gnu.org/licenses/>.
+
 module timestepper_module
   !! Time stepping methods for solving \(\frac{d}{dt} L(t,y) = R(t,y)\), where y is a parallel vector.
 
+#include <petsc/finclude/petsc.h>
+
+  use petsc
   use kinds_module
-  use mpi_module
   use ode_module
   use logfile_module
 
   implicit none
 
   private
-
-#include <petsc/finclude/petsc.h90>
 
   ! Timestepping methods
      PetscInt, parameter, public :: TS_BEULER = 0, TS_BDF2 = 1, TS_DIRECTSS = 2
@@ -72,6 +89,26 @@ module timestepper_module
      procedure :: reduce => timestep_adaptor_reduce
   end type timestep_adaptor_type
 
+  type, public :: timestepper_checkpoints_type
+     !! Checkpoints for output at specified times.
+     private
+     PetscReal :: tolerance !! Relative tolerance for deciding in checkpoint has been hit
+     PetscReal :: repeat_shift !! Time shift for each repeat cycle
+     PetscInt, public :: index !! Index in time array
+     PetscInt, public :: repeat_index !! Index of repeat
+     PetscReal, allocatable, public :: time(:) !! Checkpoint times
+     PetscReal, public :: restore_stepsize !! Time step size to restore after a checkpoint is hit
+     PetscReal, public :: next_time
+     PetscInt, public :: repeat !! Number of repeat cycles
+     PetscBool, public :: hit !! Whether a checkpoint has been hit on the current time step
+     PetscBool, public :: done !! Whether all checkpoints have been processed
+   contains
+     procedure, public :: init => timestepper_checkpoints_init
+     procedure, public :: destroy => timestepper_checkpoints_destroy
+     procedure, public :: update => timestepper_checkpoints_update
+     procedure, public :: check => timestepper_checkpoints_check
+  end type timestepper_checkpoints_type
+
   type, public :: timestepper_steps_type
      !! Storage for current and immediate past steps in timestepper.
      private
@@ -83,6 +120,7 @@ module timestepper_module
      PetscInt, public :: taken !! Number of steps taken so far
      PetscInt, public :: max_num !! Maximum allowable number of steps
      PetscInt, public :: max_num_tries !! Maximum allowable number of tries per step
+     PetscInt, public :: fixed_step_index !! Current index in array of fixed step sizes
      PetscReal, public :: next_stepsize !! Step size to be used for next step
      PetscReal, public :: stop_time !! Maximum allowable time
      PetscReal, public :: nonlinear_solver_relative_tol !! Relative tolerance for non-linear solver function value
@@ -90,10 +128,12 @@ module timestepper_module
      PetscReal, public :: nonlinear_solver_update_relative_tol !! Relative tolerance for non-linear solver update
      PetscReal, public :: nonlinear_solver_update_abs_tol !! Absolute tolerance for non-linear solver update
      PetscInt, public :: nonlinear_solver_minimum_iterations !! Minimum number of non-linear solver iterations to do before checking for convergence
-     PetscReal, public :: termination_tol = 1.e-6_dp !! Tolerance for detecting stop time reached
+     PetscReal, public :: termination_tol = 1.e-3_dp !! Tolerance for detecting stop time reached
      PetscReal, allocatable, public :: sizes(:) !! Pre-specified time step sizes
      type(timestep_adaptor_type), public :: adaptor !! Time step size adaptor
+     type(timestepper_checkpoints_type), public :: checkpoints !! Checkpoints
      PetscBool, public :: stop_time_specified !! Whether stop time is specified or not
+     PetscBool, public :: fixed !! If fixed steps sizes are specified
      PetscBool :: finished !! Whether simulation has yet finished
      PetscBool :: steady_state !! If simulation is direct steady state or transient
    contains
@@ -106,6 +146,7 @@ module timestepper_module
      procedure, public :: init => timestepper_steps_init
      procedure, public :: destroy => timestepper_steps_destroy
      procedure, public :: check_finished => timestepper_steps_check_finished
+     procedure, public :: check_checkpoints => timestepper_steps_check_checkpoints
      procedure, public :: set_current_status => &
           timestepper_steps_set_current_status
      procedure, public :: adapt => timestepper_steps_adapt
@@ -152,7 +193,7 @@ module timestepper_module
      procedure(step_output_routine), pointer, public :: &
           after_step_output => after_step_output_default !! Output function to be called after each step
      PetscInt, public :: output_frequency !! Time step frequency for main output of results
-     PetscInt, public :: output_index !! Counter for determining when main output is needed
+     PetscInt, public :: output_index !! How many sets of results have been output
      PetscBool, public :: output_initial !! Whether to output initial conditions 
      PetscBool, public :: output_final !! Whether to output final results
    contains
@@ -173,6 +214,8 @@ module timestepper_module
 
      subroutine method_residual(solver, y, residual, context, err)
        !! Residual routine to be minimised by nonlinear solver.
+       use petscsnes
+       use petscvec
        import :: timestepper_solver_context_type
        SNES, intent(in) :: solver
        Vec, intent(in) :: y
@@ -196,6 +239,7 @@ module timestepper_module
      subroutine SNESGetApplicationContext(solver, context, ierr)
        !! Interface for getting context from SNES solver- to cast it
        !! as the correct type.
+       use petscsnes
        import :: timestepper_solver_context_type
        SNES, intent(in) :: solver
        type(timestepper_solver_context_type), pointer, &
@@ -294,18 +338,19 @@ contains
     type(timestepper_solver_context_type), intent(in out) :: context
     PetscErrorCode, intent(out) :: err
     ! Locals:
-    PetscReal :: t, dt
+    PetscReal :: t, dt, interval(2)
     PetscErrorCode :: ierr
 
     err = 0
     t = context%steps%current%time
+    interval = [context%steps%last%time, t]
     dt = context%steps%current%stepsize
 
-    call context%ode%lhs(t, y, context%steps%current%lhs, err)
+    call context%ode%lhs(t, interval, y, context%steps%current%lhs, err)
     if (err == 0) then
        call VecCopy(context%steps%current%lhs, residual, ierr); CHKERRQ(ierr)
        call VecAXPY(residual, -1.0_dp, context%steps%last%lhs, ierr); CHKERRQ(ierr)
-       call context%ode%rhs(t, y, context%steps%current%rhs, err)
+       call context%ode%rhs(t, interval, y, context%steps%current%rhs, err)
        if (err == 0) then
           call VecAXPY(residual, -dt, context%steps%current%rhs, ierr)
           CHKERRQ(ierr)
@@ -328,7 +373,7 @@ contains
     PetscErrorCode, intent(out) :: err
     ! Locals:
     type(timestepper_step_type), pointer :: last2
-    PetscReal :: t, dt, dtlast
+    PetscReal :: t, dt, dtlast, interval(2)
     PetscReal :: r, r1
     PetscErrorCode :: ierr
 
@@ -341,6 +386,7 @@ contains
 
        err = 0
        t  = context%steps%current%time
+       interval = [context%steps%last%time, t]
        dt = context%steps%current%stepsize
        dtlast = context%steps%last%stepsize
        r = dt / dtlast
@@ -348,14 +394,14 @@ contains
 
        last2 => context%steps%pstore(3)%p
 
-       call context%ode%lhs(t, y, context%steps%current%lhs, err)
+       call context%ode%lhs(t, interval, y, context%steps%current%lhs, err)
        if (err == 0) then
           call VecCopy(context%steps%current%lhs, residual, ierr); CHKERRQ(ierr)
           call VecScale(residual, 1._dp + 2._dp * r, ierr); CHKERRQ(ierr)
           call VecAXPY(residual, -r1 * r1, context%steps%last%lhs, ierr)
           CHKERRQ(ierr)
           call VecAXPY(residual, r * r, last2%lhs, ierr); CHKERRQ(ierr)
-          call context%ode%rhs(t, y, context%steps%current%rhs, err)
+          call context%ode%rhs(t, interval, y, context%steps%current%rhs, err)
           if (err == 0) then
              call VecAXPY(residual, -dt * r1, context%steps%current%rhs, ierr)
              CHKERRQ(ierr)
@@ -379,11 +425,13 @@ contains
     type(timestepper_solver_context_type), intent(in out) :: context
     PetscErrorCode, intent(out) :: err
     ! Locals:
+    PetscReal :: t, interval(2)
     PetscErrorCode :: ierr
 
     err = 0
-    call context%ode%rhs(context%steps%stop_time, y, &
-         context%steps%current%rhs, err)
+    t = context%steps%stop_time
+    interval = [t, t]
+    call context%ode%rhs(t, interval, y, context%steps%current%rhs, err)
     if (err == 0) then
        call VecCopy(context%steps%current%rhs, residual, ierr)
        CHKERRQ(ierr)
@@ -577,27 +625,129 @@ contains
   end function timestep_adaptor_increase
 
 !------------------------------------------------------------------------
+! Timestepper_checkpoints procedures
+!------------------------------------------------------------------------
+
+  subroutine timestepper_checkpoints_init(self, time, repeat, tolerance, &
+       start_time)
+    !! Initialises checkpoints object.
+
+    class(timestepper_checkpoints_type), intent(in out) :: self
+    PetscReal, allocatable, intent(in) :: time(:)
+    PetscInt, intent(in) :: repeat
+    PetscReal, intent(in) :: tolerance
+    PetscReal, intent(in) :: start_time
+    ! Locals:
+    PetscReal, parameter :: min_checkpoint_tol = 1.e-6_dp ! Don't allow zero tolerance
+
+    if (allocated(time)) then
+
+       self%time = time
+       self%repeat = repeat
+       self%tolerance = max(tolerance, min_checkpoint_tol)
+       self%index = 1
+       self%repeat_index = 1
+       self%repeat_shift = self%time(size(self%time)) - start_time
+       self%next_time = self%time(1)
+       self%done = PETSC_FALSE
+
+    else
+       self%done = PETSC_TRUE
+    end if
+
+    self%hit = PETSC_FALSE
+
+  end subroutine timestepper_checkpoints_init
+
+!------------------------------------------------------------------------
+
+  subroutine timestepper_checkpoints_destroy(self)
+    !! Destroys checkpoints object.
+
+    class(timestepper_checkpoints_type), intent(in out) :: self
+
+    if (allocated(self%time)) then
+       deallocate(self%time)
+    end if
+
+  end subroutine timestepper_checkpoints_destroy
+
+!------------------------------------------------------------------------
+
+  subroutine timestepper_checkpoints_update(self)
+    !! Updates checkpoint status after checkpoint output.
+
+    class(timestepper_checkpoints_type), intent(in out) :: self
+
+    if (.not. self%done) then
+
+       self%index = self%index + 1
+
+       if (self%index > size(self%time)) then
+
+          if ((self%repeat > 0) .and. &
+               (self%repeat_index >= self%repeat)) then
+             self%done = PETSC_TRUE
+          else
+             self%repeat_index = self%repeat_index + 1
+             self%index = 1
+          end if
+
+       end if
+
+       if (.not. (self%done)) then
+          self%next_time = self%time(self%index) + &
+               (self%repeat_index - 1) * self%repeat_shift
+       end if
+
+    end if
+
+    self%hit = PETSC_FALSE
+
+  end subroutine timestepper_checkpoints_update
+
+!------------------------------------------------------------------------
+
+  subroutine timestepper_checkpoints_check(self, time, stepsize)
+    !! Checks if the next checkpoint will be hit during a timestep
+    !! with the specified end time and stepsize.
+
+    class(timestepper_checkpoints_type), intent(in out) :: self
+    PetscReal, intent(in) :: time
+    PetscReal, intent(in) :: stepsize
+
+    if (self%done) then
+       self%hit = PETSC_FALSE
+    else
+       if (time + self%tolerance * stepsize >= self%next_time) then
+          self%hit = PETSC_TRUE
+          self%restore_stepsize = stepsize
+       else
+          self%hit = PETSC_FALSE
+       end if
+    end if
+
+  end subroutine timestepper_checkpoints_check
+
+!------------------------------------------------------------------------
 ! Timestepper_steps procedures
 !------------------------------------------------------------------------
 
   subroutine timestepper_steps_init(self, num_stored, &
-       time, solution, initial_stepsize, stop_time_specified, &
+       time, solution, stop_time_specified, &
        stop_time, max_num_steps, max_stepsize, &
        adapt_on, adapt_method, adapt_min, adapt_max, &
        adapt_reduction, adapt_amplification, step_sizes, &
        nonlinear_solver_relative_tol, nonlinear_solver_abs_tol, &
        nonlinear_solver_update_relative_tol, nonlinear_solver_update_abs_tol, &
        nonlinear_solver_minimum_iterations, &
-       max_num_tries, steady_state)
-
-    !! Sets up array of timesteps and pointers to them. This array stores the
-    !! current step and one or more previous steps. The number of stored
-    !! steps depends on the timestepping method (e.g. 2 for single-step methods,
-    !! > 2 for multistep methods). 
+       max_num_tries, steady_state, &
+       checkpoint_time, checkpoint_repeat, checkpoint_tol)
+    !! Sets up timestepper steps object from specified parameters.
 
     class(timestepper_steps_type), intent(in out) :: self
     PetscInt, intent(in) :: num_stored
-    PetscReal, intent(in) :: time, initial_stepsize
+    PetscReal, intent(in) :: time
     PetscBool, intent(in) :: stop_time_specified
     Vec, intent(in) :: solution
     PetscReal, intent(in) :: stop_time
@@ -607,7 +757,7 @@ contains
     PetscInt, intent(in) :: adapt_method
     PetscReal, intent(in) :: adapt_min, adapt_max
     PetscReal, intent(in) :: adapt_reduction, adapt_amplification
-    PetscReal, intent(in), allocatable, optional :: step_sizes(:)
+    PetscReal, intent(in), allocatable :: step_sizes(:)
     PetscReal, intent(in) :: nonlinear_solver_relative_tol, &
          nonlinear_solver_abs_tol
     PetscReal, intent(in) :: nonlinear_solver_update_relative_tol, &
@@ -615,24 +765,28 @@ contains
     PetscInt, intent(in) :: nonlinear_solver_minimum_iterations
     PetscInt, intent(in) :: max_num_tries
     PetscBool, intent(in) :: steady_state
+    PetscReal, allocatable, intent(in) :: checkpoint_time(:)
+    PetscInt, intent(in) :: checkpoint_repeat
+    PetscReal, intent(in) :: checkpoint_tol
     ! Locals:
     PetscInt :: i
     PetscErrorCode :: ierr
 
-    self%taken = 0
-    self%finished = PETSC_FALSE
+    ! Set up array of timesteps and pointers to them. This array stores the
+    ! current step and one or more previous steps. The number of stored
+    ! steps depends on the timestepping method (e.g. 2 for single-step methods,
+    ! > 2 for multistep methods).
     self%num_stored = num_stored
     allocate(self%store(num_stored), self%pstore(num_stored))
-
     do i = 1, num_stored
        call self%store(i)%init(solution)
        call self%set_pstore(self%store, i, i)
     end do
-
     call self%set_aliases()
 
+    self%taken = 0
+    self%finished = PETSC_FALSE
     self%current%time = time
-    self%next_stepsize = initial_stepsize
     call VecCopy(solution, self%current%solution, ierr); CHKERRQ(ierr)
 
     self%stop_time_specified = stop_time_specified
@@ -640,7 +794,6 @@ contains
     self%max_num = max_num_steps
     self%max_num_tries = max_num_tries
 
-    self%adaptor%on = adapt_on
     select case (adapt_method)
     case (TS_ADAPT_CHANGE)
        self%adaptor%monitor => relative_change_monitor
@@ -658,20 +811,21 @@ contains
     self%adaptor%amplification = adapt_amplification
     self%adaptor%max_stepsize = max_stepsize
 
+    self%fixed = .not. adapt_on
+    self%adaptor%on = PETSC_FALSE  ! at least until fixed steps are done
+    self%fixed_step_index = 1
+    self%sizes = step_sizes
+    self%next_stepsize = self%sizes(self%fixed_step_index)
+    self%steady_state = steady_state
+
+    call self%checkpoints%init(checkpoint_time, checkpoint_repeat, &
+            checkpoint_tol, time)
+
     self%nonlinear_solver_relative_tol = nonlinear_solver_relative_tol
     self%nonlinear_solver_abs_tol = nonlinear_solver_abs_tol
     self%nonlinear_solver_update_relative_tol = nonlinear_solver_update_relative_tol
     self%nonlinear_solver_update_abs_tol = nonlinear_solver_update_abs_tol
     self%nonlinear_solver_minimum_iterations = nonlinear_solver_minimum_iterations
-
-    if ((present(step_sizes) .and. (allocated(step_sizes)))) then
-       ! Fixed time step sizes override adaptor:
-       self%sizes = step_sizes
-       self%adaptor%on = PETSC_FALSE
-       self%next_stepsize = step_sizes(1)
-    end if
-
-    self%steady_state = steady_state
 
   end subroutine timestepper_steps_init
 
@@ -683,15 +837,18 @@ contains
 
     class(timestepper_type), intent(in out) :: self
     PetscErrorCode, intent(out) :: err
+    ! Locals:
+    PetscReal :: t, interval(2)
 
     err = 0
+    t = self%steps%current%time
+    interval = [t, t]
 
-    call self%ode%pre_solve(self%steps%current%time, &
-         self%steps%current%solution, err)
+    call self%ode%pre_solve(t, self%steps%current%solution, err)
 
     if (err == 0) then
-       call self%ode%lhs(self%steps%current%time, &
-            self%steps%current%solution, self%steps%current%lhs, err)
+       call self%ode%lhs(t, interval, self%steps%current%solution, &
+            self%steps%current%lhs, err)
     end if
 
   end subroutine timestepper_initial_function_calls
@@ -717,6 +874,8 @@ contains
     if (allocated(self%sizes)) then
        deallocate(self%sizes)
     end if
+
+    call self%checkpoints%destroy()
 
   end subroutine timestepper_steps_destroy
 
@@ -821,7 +980,8 @@ contains
        self%finished = (self%taken == 1)
     else
        if (self%stop_time_specified .and. &
-            (self%current%time > self%stop_time - self%termination_tol)) then
+            (self%current%time + self%termination_tol * &
+            self%current%stepsize > self%stop_time)) then
           self%current%stepsize = self%stop_time - self%last%time
           self%current%time = self%stop_time
           self%finished = PETSC_TRUE
@@ -835,6 +995,32 @@ contains
     end if
 
   end subroutine timestepper_steps_check_finished
+
+!------------------------------------------------------------------------
+
+  subroutine timestepper_steps_check_checkpoints(self, logfile)
+    !! Checks if a checkpoint is being passed, and reduces
+    !! timestep if needed.
+
+    class(timestepper_steps_type), intent(in out) :: self
+    type(logfile_type), intent(in out) :: logfile
+
+    if (.not. (self%steady_state)) then
+
+       call self%checkpoints%check(self%current%time, self%current%stepsize)
+
+       if (self%checkpoints%hit) then
+
+          self%current%stepsize = self%checkpoints%next_time - self%last%time
+          self%current%time = self%checkpoints%next_time
+          call logfile%write(LOG_LEVEL_INFO, 'timestep', 'checkpoint_time_reached', &
+               real_keys = ['time'], real_values = [self%current%time])
+
+       end if
+
+    end if
+
+  end subroutine timestepper_steps_check_checkpoints
 
 !------------------------------------------------------------------------
 
@@ -860,7 +1046,9 @@ contains
              self%current%status = TIMESTEP_FINAL
           else
              eta = self%adaptor%monitor(self%current, self%last)
-             if (self%adaptor%on) then
+             if ((self%adaptor%on) .or. &
+                  (self%fixed_step_index == size(self%sizes)) .and. &
+                  (.not. self%fixed)) then
                 if (eta < self%adaptor%monitor_min) then
                    self%current%status = TIMESTEP_TOO_SMALL
                 else if (eta > self%adaptor%monitor_max) then
@@ -885,21 +1073,30 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine timestepper_steps_get_next_fixed_stepsize(self)
+  subroutine timestepper_steps_get_next_fixed_stepsize(self, accepted)
     !! Gets next timestep size if using fixed time step sizes.
 
     class(timestepper_steps_type), intent(in out) :: self
-    ! Locals:
-    PetscInt :: step_index, next_index
+    PetscBool, intent(out) :: accepted
 
-    step_index = self%taken + 1
-    next_index = step_index + 1
+    associate (fixed_index => self%fixed_step_index, &
+         num_sizes => size(self%sizes))
 
-    if ((allocated(self%sizes)) .and. (next_index <= size(self%sizes))) then
-       self%next_stepsize = self%sizes(next_index)
-    else
-       self%next_stepsize = self%current%stepsize
-    end if
+      accepted = PETSC_TRUE
+      fixed_index = fixed_index + 1
+      if (fixed_index <= num_sizes) then
+         self%next_stepsize = self%sizes(fixed_index)
+      else
+         fixed_index = num_sizes
+         if (self%fixed) then
+            self%next_stepsize = self%sizes(fixed_index)
+         else
+            self%adaptor%on = PETSC_TRUE
+            call self%adapt(accepted)
+         end if
+      end if
+
+    end associate
 
   end subroutine timestepper_steps_get_next_fixed_stepsize
 
@@ -911,17 +1108,31 @@ contains
     PetscBool, intent(out) :: accepted
 
     if (.not.(self%steady_state)) then
+
        if (self%adaptor%on) then
+
           call self%adapt(accepted)
-       else
-          if (self%current%status == TIMESTEP_OK) then
-             accepted = PETSC_TRUE
-             call self%get_next_fixed_stepsize()
-          else
-             accepted = PETSC_FALSE
-             self%adaptor%on = PETSC_TRUE
-             self%next_stepsize = self%adaptor%reduce(self%current%stepsize)
+
+          if ((self%fixed_step_index < size(self%sizes)) .or. &
+               ((self%fixed_step_index >= size(self%sizes)) .and. self%fixed)) then
+             if (self%next_stepsize >= self%sizes(self%fixed_step_index)) then
+                ! switch back to fixed time stepping:
+                self%adaptor%on = PETSC_FALSE
+                self%next_stepsize = self%sizes(self%fixed_step_index)
+             end if
           end if
+
+       else
+
+          select case (self%current%status)
+          case (TIMESTEP_TOO_BIG, TIMESTEP_NOT_CONVERGED)
+             ! temporarily switch to adaptive time stepping:
+             self%adaptor%on = PETSC_TRUE
+             call self%adapt(accepted)
+          case default
+             call self%get_next_fixed_stepsize(accepted)
+          end select
+
        end if
     end if
 
@@ -1034,7 +1245,7 @@ end subroutine timestepper_steps_set_next_stepsize
 
     call self%context%init(self%ode, self%steps, self%method%residual)
 
-    call SNESCreate(mpi%comm, self%solver, ierr); CHKERRQ(ierr)
+    call SNESCreate(PETSC_COMM_WORLD, self%solver, ierr); CHKERRQ(ierr)
     call SNESSetApplicationContext(self%solver, self%context, ierr); CHKERRQ(ierr)
     call SNESSetFunction(self%solver, self%residual, &
          SNES_residual, self%context, ierr); CHKERRQ(ierr)
@@ -1146,13 +1357,13 @@ end subroutine timestepper_steps_set_next_stepsize
     PetscReal, intent(in) :: xnorm, pnorm, fnorm
     SNESConvergedReason, intent(out) :: reason
     type(timestepper_solver_context_type), intent(in out) :: context
-    PetscErrorCode :: ierr
+    PetscErrorCode, intent(out) :: ierr
     ! Locals:
     Vec :: residual, solution, update
     PetscReal :: max_update
     PetscInt :: index, bs
 
-    call SNESGetFunction(solver, residual, PETSC_NULL_OBJECT, &
+    call SNESGetFunction(solver, residual, PETSC_NULL_FUNCTION, &
          PETSC_NULL_INTEGER, ierr); CHKERRQ(ierr)
 
     call vec_max_pointwise_abs_scale(residual, &
@@ -1164,9 +1375,13 @@ end subroutine timestepper_steps_set_next_stepsize
     context%steps%current%max_residual_equation = 1 + index - &
          context%steps%current%max_residual_cell * bs
 
-    if (num_iterations >= &
-         context%steps%nonlinear_solver_minimum_iterations) then
+    call SNESConvergedDefault(solver, num_iterations, xnorm, pnorm, &
+         fnorm, reason, 0, ierr); CHKERRQ(ierr)
 
+    if (num_iterations < &
+         context%steps%nonlinear_solver_minimum_iterations) then
+       reason = SNES_CONVERGED_ITERATING
+    else
        if (context%steps%current%max_residual < &
             context%steps%nonlinear_solver_relative_tol) then
           reason = SNES_CONVERGED_FNORM_RELATIVE
@@ -1179,16 +1394,9 @@ end subroutine timestepper_steps_set_next_stepsize
                   max_update, index)
              if (max_update <= context%steps%nonlinear_solver_update_relative_tol) then
                 reason = SNES_CONVERGED_SNORM_RELATIVE
-             else
-                call SNESConvergedDefault(solver, num_iterations, xnorm, pnorm, &
-                     fnorm, reason, PETSC_NULL_OBJECT, ierr); CHKERRQ(ierr)
              end if
-          else
-             call SNESConvergedDefault(solver, num_iterations, xnorm, pnorm, &
-                  fnorm, reason, PETSC_NULL_OBJECT, ierr); CHKERRQ(ierr)
           end if
        end if
-
     end if
 
   end subroutine SNES_convergence
@@ -1224,7 +1432,8 @@ end subroutine timestepper_steps_set_next_stepsize
     use utils_module, only : str_to_lower
     use fson
     use fson_mpi_module
-    use fson_value_m, only : TYPE_NULL
+    use fson_value_m, only : TYPE_NULL, TYPE_REAL, TYPE_INTEGER, &
+         TYPE_LOGICAL, TYPE_ARRAY
 
     class(timestepper_type), intent(in out) :: self
     type(fson_value), pointer, intent(in) :: json
@@ -1232,8 +1441,11 @@ end subroutine timestepper_steps_set_next_stepsize
     ! Locals:
     PetscInt :: max_num_steps
     PetscReal, parameter :: default_stop_time = 1.0_dp
-    PetscReal, parameter :: default_initial_stepsize = 0.1_dp
-    PetscReal :: initial_stepsize, max_stepsize, stop_time
+    PetscReal, parameter :: default_stepsize = 0.1_dp
+    PetscInt :: step_size_type
+    PetscReal :: step_size_single
+    PetscReal, allocatable :: step_sizes(:)
+    PetscReal :: max_stepsize, stop_time
     PetscReal, parameter :: default_max_stepsize = 0.0_dp
     PetscInt :: method
     PetscInt, parameter :: max_method_str_len = 12
@@ -1253,7 +1465,6 @@ end subroutine timestepper_steps_set_next_stepsize
     PetscReal, parameter :: default_adapt_reduction = 0.5_dp, &
          default_adapt_amplification = 2.0_dp
     PetscReal :: adapt_reduction, adapt_amplification
-    PetscReal, allocatable :: step_sizes(:)
     PetscInt, parameter :: default_nonlinear_max_iterations = 8
     PetscReal, parameter :: default_nonlinear_relative_tol = 1.e-5_dp
     PetscReal, parameter :: default_nonlinear_abs_tol = 1._dp
@@ -1277,6 +1488,12 @@ end subroutine timestepper_steps_set_next_stepsize
     PCType :: pc_type
     PetscReal :: linear_relative_tol
     PetscInt :: linear_max_iterations
+    PetscInt, parameter :: default_checkpoint_repeat = 1
+    PetscInt :: checkpoint_repeat_type, checkpoint_repeat, i
+    PetscBool :: checkpoint_do_repeat
+    PetscReal, allocatable :: checkpoint_time(:), checkpoint_step(:)
+    PetscReal :: checkpoint_tol
+    PetscReal, parameter :: default_checkpoint_tol = 0.1_dp
     PetscErrorCode :: ierr
 
     self%ode => ode
@@ -1353,7 +1570,7 @@ end subroutine timestepper_steps_set_next_stepsize
     if (method == TS_DIRECTSS) then
 
        steady_state = PETSC_TRUE
-       initial_stepsize = 0._dp
+       step_sizes = [0._dp]
        max_num_steps = 1
        max_num_tries = 1
        adapt_on = PETSC_FALSE
@@ -1380,8 +1597,6 @@ end subroutine timestepper_steps_set_next_stepsize
                '"time.stop not specified"')
        end if
 
-       call fson_get_mpi(json, "time.step.initial", &
-            default_initial_stepsize, initial_stepsize, self%ode%logfile)
        call fson_get_mpi(json, "time.step.maximum.size", &
             default_max_stepsize, max_stepsize, self%ode%logfile)
        call fson_get_mpi(json, "time.step.maximum.number", &
@@ -1406,26 +1621,82 @@ end subroutine timestepper_steps_set_next_stepsize
        call fson_get_mpi(json, "time.step.adapt.amplification", &
             default_adapt_amplification, adapt_amplification, self%ode%logfile)
 
-       if (fson_has_mpi(json, "time.step.sizes")) then
-          call fson_get_mpi(json, "time.step.sizes", val = step_sizes)
+       if (fson_has_mpi(json, "time.step.size")) then
+          step_size_type = fson_type_mpi(json, "time.step.size")
+          select case (step_size_type)
+          case (TYPE_REAL)
+             call fson_get_mpi(json, "time.step.size", val = step_size_single)
+             step_sizes = [step_size_single]
+          case (TYPE_ARRAY)
+             call fson_get_mpi(json, "time.step.size", val = step_sizes)
+          case default
+             step_sizes = [default_stepsize]
+          end select
        else
+          step_sizes = [default_stepsize]
           call self%ode%logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
-               str_key = "time.step.sizes", str_value = "adaptive")
+               real_keys = ["time.step.size"], real_values = [default_stepsize])
        end if
 
        call fson_get_mpi(json, "output.frequency", &
             default_output_frequency, self%output_frequency, self%ode%logfile)
 
+       if (fson_has_mpi(json, "output.checkpoint")) then
+          if (fson_has_mpi(json, "output.checkpoint.repeat")) then
+             checkpoint_repeat_type = fson_type_mpi(json, "output.checkpoint.repeat")
+             select case (checkpoint_repeat_type)
+             case (TYPE_INTEGER)
+                call fson_get_mpi(json, "output.checkpoint.repeat", &
+                     val = checkpoint_repeat)
+             case (TYPE_LOGICAL)
+                call fson_get_mpi(json, "output.checkpoint.repeat", &
+                     val = checkpoint_do_repeat)
+                if (checkpoint_do_repeat) then
+                   checkpoint_repeat = -1
+                else
+                   checkpoint_repeat = 1
+                end if
+             case default
+                call self%ode%logfile%write(LOG_LEVEL_WARN, 'input', 'unrecognised', &
+                     str_key = "output.checkpoint.repeat", str_value = '...')
+             end select
+          else
+             checkpoint_repeat = 1
+             call self%ode%logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
+                  logical_keys = ['output.checkpoint.repeat'], &
+                  logical_values = [PETSC_FALSE])
+          end if
+          if (fson_has_mpi(json, "output.checkpoint.time")) then
+             call fson_get_mpi(json, "output.checkpoint.time", &
+                  val = checkpoint_time)
+          else if (fson_has_mpi(json, "output.checkpoint.step")) then
+             call fson_get_mpi(json, "output.checkpoint.step", &
+                  val = checkpoint_step)
+             allocate(checkpoint_time(size(checkpoint_step)))
+             checkpoint_time(1) = self%ode%time + checkpoint_step(1)
+             do i = 2, size(checkpoint_step)
+                checkpoint_time(i) = checkpoint_time(i-1) + checkpoint_step(i)
+             end do
+             deallocate(checkpoint_step)
+          end if
+          call fson_get_mpi(json, "output.checkpoint.tolerance", &
+            default_checkpoint_tol, checkpoint_tol, self%ode%logfile)
+       else
+          call self%ode%logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
+               str_key = 'output.checkpoint', str_value = 'none')
+       end if
+
     end if
 
     call self%steps%init(self%method%num_stored_steps, &
-         self%ode%time, self%ode%solution, initial_stepsize, &
+         self%ode%time, self%ode%solution, &
          stop_time_specified, stop_time, max_num_steps, max_stepsize, &
          adapt_on, adapt_method, adapt_min, adapt_max, &
          adapt_reduction, adapt_amplification, step_sizes, &
          nonlinear_relative_tol, nonlinear_abs_tol, &
          nonlinear_update_relative_tol, nonlinear_update_abs_tol, &
-         nonlinear_min_iterations, max_num_tries, steady_state)
+         nonlinear_min_iterations, max_num_tries, steady_state, &
+         checkpoint_time, checkpoint_repeat, checkpoint_tol)
 
     call fson_get_mpi(json, "output.initial", &
          default_output_initial, self%output_initial, self%ode%logfile)
@@ -1433,6 +1704,10 @@ end subroutine timestepper_steps_set_next_stepsize
          default_output_final, self%output_final, self%ode%logfile)
 
     call self%ode%logfile%write_blank()
+
+    if (allocated(checkpoint_time)) then
+       deallocate(checkpoint_time)
+    end if
 
   contains
 
@@ -1533,9 +1808,10 @@ end subroutine timestepper_steps_set_next_stepsize
           call self%ode%pre_retry_timestep()
        end if
 
+       call self%steps%check_checkpoints(self%ode%logfile)
        call self%steps%check_finished(self%ode%logfile)
 
-       call SNESSolve(self%solver, PETSC_NULL_OBJECT, self%steps%current%solution, &
+       call SNESSolve(self%solver, PETSC_NULL_VEC, self%steps%current%solution, &
             ierr); CHKERRQ(ierr)
        call SNESGetIterationNumber(self%solver, self%steps%current%num_iterations, &
             ierr); CHKERRQ(ierr)
@@ -1643,6 +1919,8 @@ end subroutine timestepper_steps_set_next_stepsize
          s = "inner_solve"
       case (SNES_DIVERGED_LOCAL_MIN)
          s = "local_min"
+      case (SNES_DIVERGED_DTOL)
+         s = "divergence tolerance"
       case default
          s = "unknown"
       end select
@@ -1716,10 +1994,16 @@ end subroutine timestepper_steps_set_next_stepsize
              call self%after_step_output()
           end if
 
-          if (since_output == self%output_frequency) then
+          if ((self%steps%checkpoints%hit) .or. &
+               (since_output == self%output_frequency)) then
              call self%ode%output(self%output_index, self%steps%current%time)
              self%output_index = self%output_index + 1
-             since_output = 0
+             if (self%steps%checkpoints%hit) then
+                call self%steps%checkpoints%update()
+             end if
+             if (since_output == self%output_frequency) then
+                since_output = 0
+             end if
           end if
 
        end do

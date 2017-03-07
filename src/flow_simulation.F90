@@ -1,19 +1,37 @@
+!   Copyright 2016 University of Auckland.
+
+!   This file is part of Waiwera.
+
+!   Waiwera is free software: you can redistribute it and/or modify
+!   it under the terms of the GNU Lesser General Public License as published by
+!   the Free Software Foundation, either version 3 of the License, or
+!   (at your option) any later version.
+
+!   Waiwera is distributed in the hope that it will be useful,
+!   but WITHOUT ANY WARRANTY; without even the implied warranty of
+!   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+!   GNU Lesser General Public License for more details.
+
+!   You should have received a copy of the GNU Lesser General Public License
+!   along with Waiwera.  If not, see <http://www.gnu.org/licenses/>.
+
 module flow_simulation_module
   !! Module for high-level representation of a flow simulation ODE.
 
+#include <petsc/finclude/petsc.h>
+
+  use petsc
   use ode_module
   use mesh_module
   use thermodynamics_module
   use eos_module
   use relative_permeability_module
   use logfile_module
-  use mpi_module
+  use list_module
 
   implicit none
 
   private
-
-#include <petsc/finclude/petsc.h90>
 
   PetscInt, parameter, public :: max_title_length = 120
   PetscInt, parameter, public :: max_flow_simulation_filename_length = 200
@@ -29,10 +47,11 @@ module flow_simulation_module
      Vec, public :: fluid !! Fluid properties in each cell
      Vec, public :: last_timestep_fluid !! Fluid properties at previous timestep
      Vec, public :: last_iteration_fluid !! Fluid properties at previous nonlinear solver iteration
-     Vec, public :: source !! Source/sink terms in each cell, for all mass and energy components
+     type(list_type), public :: sources !! Source/sink terms
+     type(list_type), public :: source_controls !! Source/sink controls
      class(thermodynamics_type), allocatable, public :: thermo !! Fluid thermodynamic formulation
      class(eos_type), allocatable, public :: eos !! Fluid equation of state
-     PetscReal, public :: gravity !! Acceleration of gravity (\(m.s^{-1}\))
+     PetscReal, public :: gravity(3) !! Acceleration of gravity vector (\(m.s^{-1}\))
      class(relative_permeability_type), allocatable, public :: relative_permeability !! Rock relative permeability function
      character(max_output_filename_length), public :: output_filename !! HDF5 output filename
      PetscViewer :: hdf5_viewer
@@ -43,13 +62,13 @@ module flow_simulation_module
      procedure :: setup_logfile => flow_simulation_setup_logfile
      procedure :: setup_output => flow_simulation_setup_output
      procedure :: destroy_output => flow_simulation_destroy_output
+     procedure, public :: setup_gravity => flow_simulation_setup_gravity
      procedure, public :: input_summary => flow_simulation_input_summary
      procedure, public :: run_info => flow_simulation_run_info
      procedure, public :: init => flow_simulation_init
      procedure, public :: destroy => flow_simulation_destroy
      procedure, public :: lhs => flow_simulation_cell_balances
      procedure, public :: rhs => flow_simulation_cell_inflows
-     procedure, public :: pre_solve => flow_simulation_pre_solve
      procedure, public :: pre_timestep => flow_simulation_pre_timestep
      procedure, public :: pre_retry_timestep => flow_simulation_pre_retry_timestep
      procedure, public :: pre_iteration => flow_simulation_pre_iteration
@@ -225,7 +244,7 @@ contains
     end if
 
     if (self%output_filename /= "") then
-       call PetscViewerHDF5Open(mpi%comm, self%output_filename, &
+       call PetscViewerHDF5Open(PETSC_COMM_WORLD, self%output_filename, &
             FILE_MODE_WRITE, self%hdf5_viewer, ierr); CHKERRQ(ierr)
        call PetscViewerHDF5PushGroup(self%hdf5_viewer, "/", ierr)
        CHKERRQ(ierr)
@@ -268,15 +287,15 @@ contains
     call self%logfile%write(LOG_LEVEL_INFO, 'input', 'summary', &
          str_key = 'input.filename', str_value = self%filename)
     call self%logfile%write(LOG_LEVEL_INFO, 'input', 'summary', &
+         str_key = 'title', str_value = trim(self%title))
+    call self%logfile%write(LOG_LEVEL_INFO, 'input', 'summary', &
          str_key = 'logfile.filename', &
          str_value = self%logfile%filename)
     call self%logfile%write(LOG_LEVEL_INFO, 'input', 'summary', &
          str_key = 'output.filename', &
          str_value = self%output_filename)
     call self%logfile%write(LOG_LEVEL_INFO, 'input', 'summary', &
-         str_key = 'title', str_value = trim(self%title))
-    call self%logfile%write(LOG_LEVEL_INFO, 'input', 'summary', &
-         str_key = 'mesh', str_value = self%mesh%filename)
+         str_key = 'mesh.filename', str_value = self%mesh%filename)
     call self%logfile%write(LOG_LEVEL_INFO, 'input', 'summary', &
          str_key = 'eos.name', str_value = self%eos%name)
     call self%logfile%write(LOG_LEVEL_INFO, 'input', 'summary', &
@@ -286,26 +305,112 @@ contains
 
 !------------------------------------------------------------------------
 
-subroutine flow_simulation_run_info(self)
-  !! Writes run information to logfile, e.g. software name and
-  !! version, compiler details, number of processors.
+  subroutine flow_simulation_run_info(self)
+    !! Writes run information to logfile, e.g. software name and
+    !! version, compiler details, number of processors.
 
-  use iso_fortran_env
-  use version_module
+    use iso_fortran_env
+    use version_module
 
     class(flow_simulation_type), intent(in out) :: self
+    ! Locals:
+    character(len = 6) :: major_str, minor_str, subminor_str
+    PetscMPIInt :: num_procs
+    PetscInt :: ierr
 
     call self%logfile%write(LOG_LEVEL_INFO, 'run', 'start', &
-         str_key = 'software', str_value = 'Supermodel' // &
-         ' version ' // trim(supermodel_version))
+         str_key = 'software', str_value = 'Waiwera' // &
+         ' version ' // trim(waiwera_version))
+
+    write(major_str, '(i0)') PETSC_VERSION_MAJOR
+    write(minor_str, '(i0)') PETSC_VERSION_MINOR
+    write(subminor_str, '(i0)') PETSC_VERSION_SUBMINOR
+    call self%logfile%write(LOG_LEVEL_INFO, 'run', 'start', &
+         str_key = 'software', str_value = 'PETSc' // &
+         ' version ' // trim(major_str) // '.' // trim(minor_str) // &
+         '.' // subminor_str)
+
     call self%logfile%write(LOG_LEVEL_INFO, 'run', 'start', &
          str_key = 'compiler', str_value = compiler_version())
+    call MPI_COMM_SIZE(PETSC_COMM_WORLD, num_procs, ierr)
     call self%logfile%write(LOG_LEVEL_INFO, 'run', 'start', &
-         int_keys = ['num_processors'], int_values = [mpi%size])
+         int_keys = ['num_processors'], int_values = [num_procs])
 
     call self%logfile%write_blank()
 
-end subroutine flow_simulation_run_info
+  end subroutine flow_simulation_run_info
+
+!------------------------------------------------------------------------
+
+  subroutine flow_simulation_setup_gravity(self, json)
+    !! Sets up gravity vector from JSON input. Gravity may be
+    !! specified as a scalar or array. If an array is specified, the
+    !! gravity array is set to the specified value. If a scalar is
+    !! specified, it is treated as the gravity magnitude and applied
+    !! in the negative direction of the last dimension of the mesh. If
+    !! no gravity is specified, the default value used depends on the
+    !! mesh dimension. 2D meshes are effectively assumed horizontal by
+    !! default, so no gravity is applied. For 3D meshes, a default
+    !! gravity magnitude is applied in the third dimension.
+
+    use kinds_module
+    use fson
+    use fson_mpi_module
+    use fson_value_m, only: TYPE_REAL, TYPE_ARRAY, TYPE_NULL
+
+    class(flow_simulation_type), intent(in out) :: self
+    type(fson_value), pointer, intent(in) :: json
+    ! Locals:
+    PetscReal :: gravity_magnitude
+    PetscReal, allocatable :: gravity(:)
+    PetscInt :: gravity_type, ng, dim
+    PetscErrorCode :: ierr
+
+    call DMGetDimension(self%mesh%dm, dim, ierr); CHKERRQ(ierr)
+    self%gravity = 0._dp
+    if (fson_has_mpi(json, "gravity")) then
+       gravity_type = fson_type_mpi(json, "gravity")
+       select case (gravity_type)
+       case (TYPE_REAL)
+          call fson_get_mpi(json, "gravity", val = gravity_magnitude)
+          self%gravity(dim) = -gravity_magnitude
+       case (TYPE_ARRAY)
+          call fson_get_mpi(json, "gravity", val = gravity)
+          ng = size(gravity)
+          self%gravity(1: ng) = gravity
+          deallocate(gravity)
+       case (TYPE_NULL)
+          call set_default_gravity()
+       case default
+          call self%logfile%write(LOG_LEVEL_ERR, 'simulation', &
+               'init', str_key = 'stop', &
+               str_value = 'unrecognised gravity type', &
+               rank = 0)
+          stop
+       end select
+    else
+       call set_default_gravity()
+    end if
+
+  contains
+
+    subroutine set_default_gravity()
+      !! Sets default gravity array.
+      PetscReal :: default_gravity
+      PetscReal, parameter :: default_gravity_2D = 0.0_dp
+      PetscReal, parameter :: default_gravity_3D = 9.8_dp
+      select case (dim)
+      case(2)
+         default_gravity = default_gravity_2D
+      case(3)
+         default_gravity = default_gravity_3D
+      end select
+      call fson_get_mpi(json, "gravity", default_gravity, &
+           gravity_magnitude, self%logfile) ! for logging purposes
+      self%gravity(dim) = -gravity_magnitude
+    end subroutine set_default_gravity
+
+  end subroutine flow_simulation_setup_gravity
 
 !------------------------------------------------------------------------
 
@@ -322,7 +427,7 @@ end subroutine flow_simulation_run_info
     use initial_module, only: setup_initial
     use fluid_module, only: setup_fluid_vector
     use rock_module, only: setup_rock_vector, setup_rocktype_labels
-    use source_module, only: setup_source_vector
+    use source_setup_module, only: setup_sources
     use utils_module, only: date_time_str
     use profiling_module, only: simulation_init_event
 
@@ -332,7 +437,6 @@ end subroutine flow_simulation_run_info
     ! Locals:
     character(len = max_title_length), parameter :: default_title = ""
     character(25) :: datetimestr
-    PetscReal, parameter :: default_gravity = 9.8_dp
     PetscErrorCode :: ierr
 
     call PetscLogEventBegin(simulation_init_event, ierr); CHKERRQ(ierr)
@@ -351,28 +455,28 @@ end subroutine flow_simulation_run_info
 
     call fson_get_mpi(json, "title", default_title, self%title, &
          self%logfile)
-    call fson_get_mpi(json, "gravity", default_gravity, self%gravity, &
-         self%logfile)
 
     call setup_thermodynamics(json, self%thermo, self%logfile)
     call setup_eos(json, self%thermo, self%eos, self%logfile)
 
     call self%mesh%init(json, self%logfile)
+    call self%setup_gravity(json)
     call setup_rocktype_labels(json, self%mesh%dm, self%logfile)
     call self%mesh%setup_boundaries(json, self%eos, self%logfile)
     if (self%output_filename == '') then
-       call self%mesh%configure(self%eos%primary_variable_names)
+       call self%mesh%configure(self%eos%primary_variable_names, self%gravity)
     else
        call self%mesh%configure(self%eos%primary_variable_names, &
-            self%hdf5_viewer)
+            self%gravity, self%hdf5_viewer)
     end if
+    call self%mesh%override_face_properties(json, self%logfile)
     call self%output_mesh_geometry()
 
     call self%setup_solution_vector()
     call setup_relative_permeabilities(json, &
          self%relative_permeability, self%logfile)
     call setup_rock_vector(json, self%mesh%dm, self%rock, &
-         self%rock_range_start, self%logfile)
+         self%rock_range_start, self%mesh%ghost_cell, self%logfile)
     call setup_fluid_vector(self%mesh%dm, max_component_name_length, &
          self%eos%component_names, max_phase_name_length, &
          self%eos%phase_names, self%fluid, self%fluid_range_start)
@@ -387,9 +491,10 @@ end subroutine flow_simulation_run_info
     call self%mesh%set_boundary_values(self%solution, self%fluid, &
          self%rock, self%eos, self%solution_range_start, &
          self%fluid_range_start, self%rock_range_start)
-    call setup_source_vector(json, self%mesh%dm, &
-         self%eos%num_primary_variables, self%eos%isothermal, &
-         self%source, self%solution_range_start, self%logfile)
+    call self%fluid_init(self%time, self%solution, ierr)
+    call setup_sources(json, self%mesh%dm, self%eos, self%thermo, &
+         self%time, self%fluid, self%fluid_range_start, &
+         self%sources, self%source_controls, self%logfile)
 
     call self%logfile%flush()
 
@@ -416,7 +521,9 @@ end subroutine flow_simulation_run_info
     call VecDestroy(self%last_timestep_fluid, ierr); CHKERRQ(ierr)
     call VecDestroy(self%last_iteration_fluid, ierr); CHKERRQ(ierr)
     call VecDestroy(self%rock, ierr); CHKERRQ(ierr)
-    call VecDestroy(self%source, ierr); CHKERRQ(ierr)
+    call self%source_controls%destroy(source_control_list_node_data_destroy, &
+         reverse = PETSC_TRUE)
+    call self%sources%destroy(source_list_node_data_destroy)
     call self%mesh%destroy()
     call self%thermo%destroy()
     call self%eos%destroy()
@@ -432,11 +539,39 @@ end subroutine flow_simulation_run_info
 
     call self%logfile%destroy()
 
+  contains
+
+    subroutine source_list_node_data_destroy(node)
+      ! Destroys source in each list node.
+
+      use source_module, only: source_type
+
+      type(list_node_type), pointer, intent(in out) :: node
+
+      select type (source => node%data)
+      type is (source_type)
+         call source%destroy()
+      end select
+    end subroutine source_list_node_data_destroy
+
+    subroutine source_control_list_node_data_destroy(node)
+      ! Destroys source control in each list node.
+
+      use source_control_module, only: source_control_type
+
+      type(list_node_type), pointer, intent(in out) :: node
+
+      select type (source_control => node%data)
+      class is (source_control_type)
+         call source_control%destroy()
+      end select
+    end subroutine source_control_list_node_data_destroy
+
   end subroutine flow_simulation_destroy
 
 !------------------------------------------------------------------------
 
-  subroutine flow_simulation_cell_balances(self, t, y, lhs, err)
+  subroutine flow_simulation_cell_balances(self, t, interval, y, lhs, err)
     !! Computes mass and energy balance for each cell, for the given
     !! primary thermodynamic variables and time.
 
@@ -446,6 +581,7 @@ end subroutine flow_simulation_run_info
 
     class(flow_simulation_type), intent(in out) :: self
     PetscReal, intent(in) :: t !! time (s)
+    PetscReal, intent(in) :: interval(2) !! time interval bounds
     Vec, intent(in) :: y !! global primary variables vector
     Vec, intent(out) :: lhs
     PetscErrorCode, intent(out) :: err
@@ -509,7 +645,7 @@ end subroutine flow_simulation_run_info
 
 !------------------------------------------------------------------------
 
-  subroutine flow_simulation_cell_inflows(self, t, y, rhs, err)
+  subroutine flow_simulation_cell_inflows(self, t, interval, y, rhs, err)
     !! Computes net inflow (per unit volume) into each cell, from
     !! flows through faces and source terms, for the given primary
     !! thermodynamic variables and time.
@@ -518,32 +654,32 @@ end subroutine flow_simulation_run_info
     use dm_utils_module
     use cell_module, only: cell_type
     use face_module, only: face_type
+    use source_module, only: source_type
+    use source_control_module, only: source_control_type
     use profiling_module, only: cell_inflows_event, sources_event
 
     class(flow_simulation_type), intent(in out) :: self
-    PetscReal, intent(in) :: t !! time
+    PetscReal, intent(in) :: t !! time (s)
+    PetscReal, intent(in) :: interval(2) !! time interval bounds
     Vec, intent(in) :: y !! global primary variables vector
     Vec, intent(out) :: rhs
     PetscErrorCode, intent(out) :: err
     ! Locals:
-    PetscInt :: f, c, i, np, nc
+    PetscInt :: f, i, np
     Vec :: local_fluid, local_rock
     PetscReal, pointer, contiguous :: rhs_array(:)
     PetscReal, pointer, contiguous :: cell_geom_array(:), face_geom_array(:)
     PetscReal, pointer, contiguous :: fluid_array(:), rock_array(:)
-    PetscReal, pointer, contiguous :: source_array(:)
     PetscSection :: rhs_section, rock_section, fluid_section
-    PetscSection :: source_section
     PetscSection :: cell_geom_section, face_geom_section
     type(cell_type) :: cell
     type(face_type) :: face
     PetscInt :: face_geom_offset, cell_geom_offsets(2)
     PetscInt :: rock_offsets(2), fluid_offsets(2), rhs_offsets(2)
-    PetscInt :: cell_geom_offset, rhs_offset, source_offset
-    PetscInt :: fluid_offset
+    PetscInt :: cell_geom_offset, rhs_offset
     PetscInt, pointer :: cells(:)
     PetscReal, pointer, contiguous :: inflow(:)
-    PetscReal, allocatable :: face_flow(:), source(:)
+    PetscReal, allocatable :: face_flow(:)
     PetscReal, parameter :: flux_sign(2) = [-1._dp, 1._dp]
     PetscReal, allocatable :: primary(:)
     PetscErrorCode :: ierr
@@ -597,7 +733,7 @@ end subroutine flow_simulation_run_info
           call face%assign_cell_rock(rock_array, rock_offsets)
           call face%assign_cell_fluid(fluid_array, fluid_offsets)
 
-          face_flow = face%flux(self%eos, self%gravity) * face%area
+          face_flow = face%flux(self%eos) * face%area
 
           do i = 1, 2
              if ((self%mesh%ghost_cell(cells(i)) < 0) .and. &
@@ -616,68 +752,76 @@ end subroutine flow_simulation_run_info
     CHKERRQ(ierr)
     call PetscLogEventEnd(cell_inflows_event, ierr); CHKERRQ(ierr)
 
-    ! Source/ sink terms:
+    ! Source / sink terms:
     call PetscLogEventBegin(sources_event, ierr); CHKERRQ(ierr)
-    nc = self%eos%num_components
-    call cell%init(nc, self%eos%num_phases)
-    call VecGetArrayReadF90(self%source, source_array, ierr); CHKERRQ(ierr)
-    call global_vec_section(self%source, source_section)
-    allocate(source(np))
-
-    do c = self%mesh%start_cell, self%mesh%end_cell - 1
-
-       if (self%mesh%ghost_cell(c) < 0) then
-          call global_section_offset(rhs_section, c, &
-               self%solution_range_start, rhs_offset, ierr)
-          CHKERRQ(ierr)
-          call section_offset(cell_geom_section, c, &
-               cell_geom_offset, ierr); CHKERRQ(ierr)
-          call section_offset(fluid_section, c, &
-               fluid_offset, ierr); CHKERRQ(ierr)
-          call cell%assign_geometry(cell_geom_array, cell_geom_offset)
-          call cell%fluid%assign(fluid_array, fluid_offset)
-          call global_section_offset(source_section, c, &
-               self%solution_range_start, source_offset, ierr)
-          CHKERRQ(ierr)
-          inflow => rhs_array(rhs_offset : rhs_offset + np - 1)
-          source = source_array(source_offset : source_offset + np - 1)
-          call cell%fluid%energy_production(source, self%eos%isothermal)
-          inflow = inflow + source / cell%volume
-       end if
-
-    end do
+    call cell%init(self%eos%num_components, self%eos%num_phases)
+    call self%source_controls%traverse(source_control_iterator)
+    call self%sources%traverse(source_iterator)
+    call PetscLogEventEnd(sources_event, ierr); CHKERRQ(ierr)
 
     nullify(inflow)
-    deallocate(source)
     call cell%destroy()
     call VecRestoreArrayReadF90(local_rock, rock_array, ierr); CHKERRQ(ierr)
     call VecRestoreArrayReadF90(local_fluid, fluid_array, ierr); CHKERRQ(ierr)
-    call VecRestoreArrayReadF90(self%source, source_array, ierr); CHKERRQ(ierr)
     call VecRestoreArrayReadF90(self%mesh%cell_geom, cell_geom_array, ierr)
     CHKERRQ(ierr)
     call VecRestoreArrayF90(rhs, rhs_array, ierr); CHKERRQ(ierr)
     call restore_dm_local_vec(local_fluid)
     call restore_dm_local_vec(local_rock)
     deallocate(face_flow, primary)
-    call PetscLogEventEnd(sources_event, ierr); CHKERRQ(ierr)
+
+  contains
+
+    subroutine source_control_iterator(node, stopped)
+      !! Applies source controls.
+
+      type(list_node_type), pointer, intent(in out) :: node
+      PetscBool, intent(out) :: stopped
+
+      select type (source_control => node%data)
+      class is (source_control_type)
+         call source_control%update(t, interval, fluid_array, fluid_section)
+      end select
+      stopped = PETSC_FALSE
+
+    end subroutine source_control_iterator
+
+    subroutine source_iterator(node, stopped)
+      !! Assembles source contribution from source list node to global
+      !! RHS array.
+
+      type(list_node_type), pointer, intent(in out) :: node
+      PetscBool, intent(out) :: stopped
+      ! Locals:
+      PetscInt :: c
+
+      select type (source => node%data)
+      type is (source_type)
+
+         c = source%cell_index
+         if (self%mesh%ghost_cell(c) < 0) then
+
+            call global_section_offset(rhs_section, c, &
+                 self%solution_range_start, rhs_offset, ierr)
+            CHKERRQ(ierr)
+            inflow => rhs_array(rhs_offset : rhs_offset + np - 1)
+
+            call section_offset(cell_geom_section, c, &
+                 cell_geom_offset, ierr); CHKERRQ(ierr)
+            call cell%assign_geometry(cell_geom_array, cell_geom_offset)
+
+            call source%update_flow(fluid_array, fluid_section)
+            inflow = inflow + source%flow / cell%volume
+
+         end if
+
+      end select
+
+      stopped = PETSC_FALSE
+
+    end subroutine source_iterator
 
   end subroutine flow_simulation_cell_inflows
-
-!------------------------------------------------------------------------
-
-  subroutine flow_simulation_pre_solve(self, t, y, err)
-    !! Routine to be called before the timestepper starts to run.
-    !! Here the initial fluid properties in all cells are computed.
-
-    class(flow_simulation_type), intent(in out) :: self
-    PetscReal, intent(in) :: t !! time
-    Vec, intent(in) :: y !! global primary variables vector
-    PetscErrorCode, intent(out) :: err
-
-    err = 0
-    call self%fluid_init(t, y, err)
-
-  end subroutine flow_simulation_pre_solve
 
 !------------------------------------------------------------------------
 
@@ -777,6 +921,7 @@ end subroutine flow_simulation_run_info
     use dm_utils_module, only: global_section_offset, global_vec_section
     use cell_module, only: cell_type
     use profiling_module, only: fluid_init_event
+    use mpi_utils_module, only: mpi_broadcast_error_flag
 
     class(flow_simulation_type), intent(in out) :: self
     PetscReal, intent(in) :: t !! time
@@ -790,9 +935,11 @@ end subroutine flow_simulation_run_info
     PetscReal, pointer, contiguous :: fluid_array(:), rock_array(:)
     type(cell_type) :: cell
     DMLabel :: order_label
+    PetscMPIInt :: rank
     PetscErrorCode :: ierr
 
     call PetscLogEventBegin(fluid_init_event, ierr); CHKERRQ(ierr)
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
 
     err = 0
     np = self%eos%num_primary_variables
@@ -841,7 +988,7 @@ end subroutine flow_simulation_run_info
                 call self%logfile%write(LOG_LEVEL_ERR, 'initialize', &
                      'fluid', ['cell  ', 'region'], [order, int(cell%fluid%region)], &
                      real_array_key = 'primary', real_array_value = cell_primary, &
-                     rank = mpi%rank)
+                     rank = rank)
                 exit
              end if
           else
@@ -850,7 +997,7 @@ end subroutine flow_simulation_run_info
              call self%logfile%write(LOG_LEVEL_ERR, 'initialize', &
                   'fluid', ['cell  ', 'region'], [order, int(cell%fluid%region)], &
                   real_array_key = 'primary', real_array_value = cell_primary, &
-                  rank = mpi%rank)
+                  rank = rank)
              exit
           end if
 
@@ -863,7 +1010,7 @@ end subroutine flow_simulation_run_info
     call VecRestoreArrayF90(y, y_array, ierr); CHKERRQ(ierr)
     call cell%destroy()
 
-    call mpi%broadcast_error_flag(err)
+    call mpi_broadcast_error_flag(err)
 
     call PetscLogEventEnd(fluid_init_event, ierr); CHKERRQ(ierr)
 
@@ -879,6 +1026,7 @@ end subroutine flow_simulation_run_info
     use dm_utils_module, only: global_section_offset, global_vec_section
     use cell_module, only: cell_type
     use profiling_module, only: fluid_properties_event
+    use mpi_utils_module, only: mpi_broadcast_error_flag
 
     class(flow_simulation_type), intent(in out) :: self
     PetscReal, intent(in) :: t !! time
@@ -892,9 +1040,11 @@ end subroutine flow_simulation_run_info
     PetscReal, pointer, contiguous :: fluid_array(:), rock_array(:)
     type(cell_type) :: cell
     DMLabel :: order_label
+    PetscMPIInt :: rank
     PetscErrorCode :: ierr
 
     call PetscLogEventBegin(fluid_properties_event, ierr); CHKERRQ(ierr)
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
 
     err = 0
     np = self%eos%num_primary_variables
@@ -944,7 +1094,7 @@ end subroutine flow_simulation_run_info
                      'properties_not_found', &
                      ['cell            '], [order], &
                      real_array_key = 'primary         ', &
-                     real_array_value = cell_primary, rank = mpi%rank)
+                     real_array_value = cell_primary, rank = rank)
                 exit
              end if
           else
@@ -953,7 +1103,7 @@ end subroutine flow_simulation_run_info
                   'properties_not_found', &
                   ['cell            '], [order], &
                   real_array_key = 'primary         ', &
-                  real_array_value = cell_primary, rank = mpi%rank)
+                  real_array_value = cell_primary, rank = rank)
              exit
           end if
 
@@ -966,7 +1116,7 @@ end subroutine flow_simulation_run_info
     call VecRestoreArrayReadF90(y, y_array, ierr); CHKERRQ(ierr)
     call cell%destroy()
 
-    call mpi%broadcast_error_flag(err)
+    call mpi_broadcast_error_flag(err)
 
     call PetscLogEventEnd(fluid_properties_event, ierr); CHKERRQ(ierr)
 
@@ -982,6 +1132,7 @@ end subroutine flow_simulation_run_info
     use dm_utils_module, only: global_section_offset, global_vec_section
     use fluid_module, only: fluid_type
     use profiling_module, only: fluid_transitions_event
+    use mpi_utils_module, only: mpi_broadcast_error_flag, mpi_broadcast_logical
 
     class(flow_simulation_type), intent(in out) :: self
     Vec, intent(in) :: y_old !! Previous global primary variables vector
@@ -999,9 +1150,11 @@ end subroutine flow_simulation_run_info
     type(fluid_type) :: last_iteration_fluid, fluid
     DMLabel :: order_label
     PetscBool :: transition
+    PetscMPIInt :: rank
     PetscErrorCode :: ierr
 
     call PetscLogEventBegin(fluid_transitions_event, ierr); CHKERRQ(ierr)
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
 
     err = 0
     changed_search = PETSC_FALSE
@@ -1062,7 +1215,7 @@ end subroutine flow_simulation_run_info
                         [order, &
                         nint(last_iteration_fluid%region), nint(fluid%region)], &
                         real_array_key = 'new_primary     ', &
-                        real_array_value = cell_primary, rank = mpi%rank)
+                        real_array_value = cell_primary, rank = rank)
                 end if
              else
                 call DMLabelGetValue(order_label, c, order, ierr)
@@ -1072,7 +1225,7 @@ end subroutine flow_simulation_run_info
                      ['cell            ', 'region          '], &
                      [order, nint(fluid%region)], &
                      real_array_key = 'primary         ', &
-                     real_array_value = cell_primary, rank = mpi%rank)
+                     real_array_value = cell_primary, rank = rank)
                 exit
              end if
 
@@ -1082,7 +1235,7 @@ end subroutine flow_simulation_run_info
                   'transition_failed', &
                   ['cell  ', 'region'], [order, nint(fluid%region)], &
                   real_array_key = 'primary', real_array_value = cell_primary, &
-                  rank = mpi%rank)
+                  rank = rank)
              exit
           end if
 
@@ -1099,9 +1252,9 @@ end subroutine flow_simulation_run_info
     call last_iteration_fluid%destroy()
     call fluid%destroy()
 
-    call mpi%broadcast_error_flag(err)
-    call mpi%broadcast_logical(changed_y)
-    call mpi%broadcast_logical(changed_search)
+    call mpi_broadcast_error_flag(err)
+    call mpi_broadcast_logical(changed_y)
+    call mpi_broadcast_logical(changed_search)
 
     call PetscLogEventEnd(fluid_transitions_event, ierr); CHKERRQ(ierr)
 

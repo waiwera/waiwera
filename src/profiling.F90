@@ -1,10 +1,29 @@
+!   Copyright 2016 University of Auckland.
+
+!   This file is part of Waiwera.
+
+!   Waiwera is free software: you can redistribute it and/or modify
+!   it under the terms of the GNU Lesser General Public License as published by
+!   the Free Software Foundation, either version 3 of the License, or
+!   (at your option) any later version.
+
+!   Waiwera is distributed in the hope that it will be useful,
+!   but WITHOUT ANY WARRANTY; without even the implied warranty of
+!   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+!   GNU Lesser General Public License for more details.
+
+!   You should have received a copy of the GNU Lesser General Public License
+!   along with Waiwera.  If not, see <http://www.gnu.org/licenses/>.
+
 module profiling_module
   !! Module for profiling code via PETSc log events.
 
+#include <petsc/finclude/petscsys.h>
+
+  use petscsys
+
   implicit none
   private
-
-#include <petsc/finclude/petscsys.h>
 
   PetscClassId, public ::  log_class
   PetscLogEvent, public :: simulation_init_event
@@ -27,7 +46,7 @@ contains
     ! Locals:
     PetscErrorCode :: ierr
 
-    call PetscClassIdRegister("supermodel", log_class, ierr); CHKERRQ(ierr)
+    call PetscClassIdRegister("waiwera", log_class, ierr); CHKERRQ(ierr)
 
     ! Register log events:
     call PetscLogEventRegister("sim_init", log_class, simulation_init_event, ierr)

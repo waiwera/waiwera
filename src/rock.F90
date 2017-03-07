@@ -1,13 +1,31 @@
+!   Copyright 2016 University of Auckland.
+
+!   This file is part of Waiwera.
+
+!   Waiwera is free software: you can redistribute it and/or modify
+!   it under the terms of the GNU Lesser General Public License as published by
+!   the Free Software Foundation, either version 3 of the License, or
+!   (at your option) any later version.
+
+!   Waiwera is distributed in the hope that it will be useful,
+!   but WITHOUT ANY WARRANTY; without even the implied warranty of
+!   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+!   GNU Lesser General Public License for more details.
+
+!   You should have received a copy of the GNU Lesser General Public License
+!   along with Waiwera.  If not, see <http://www.gnu.org/licenses/>.
+
 module rock_module
   !! Defines type for accessing local rock properties on cells and faces.
 
+#include <petsc/finclude/petsc.h>
+
+  use petsc
   use kinds_module
   use relative_permeability_module
 
   implicit none
   private
-
-#include <petsc/finclude/petsc.h90>
 
   type rock_type
      !! Local rock properties.
@@ -40,9 +58,6 @@ module rock_module
   PetscInt, parameter, public :: &
        rock_variable_num_components(num_rock_variables) = &
        [3, 1, 1, 1, 1, 1]
-  PetscInt, parameter, public :: &
-       rock_variable_dim(num_rock_variables) = &
-       [3, 3, 3, 3, 3, 3]
   PetscInt, parameter, public :: max_rockname_length = 24
 
   PetscInt, parameter, public :: max_rocktype_label_length = 9
@@ -134,6 +149,51 @@ contains
 
 !------------------------------------------------------------------------
 
+  subroutine set_default_rock_properties(dm, rock_vector, range_start, &
+       ghost_cell)
+    !! Assigns default rock properties to all cells.
+
+    use dm_utils_module, only: global_section_offset, global_vec_section
+
+    DM, intent(in) :: dm
+    Vec, intent(in out) :: rock_vector
+    PetscInt, intent(in) :: range_start
+    PetscInt, allocatable, intent(in) :: ghost_cell(:)
+    ! Locals:
+    PetscSection :: rock_section
+    PetscReal, pointer, contiguous :: rock_array(:)
+    PetscInt :: start_cell, end_cell, c, offset
+    type(rock_type) :: rock
+    PetscErrorCode :: ierr
+
+    call global_vec_section(rock_vector, rock_section)
+    call VecGetArrayF90(rock_vector, rock_array, ierr); CHKERRQ(ierr)
+    call rock%init()
+
+    call DMPlexGetHeightStratum(dm, 0, start_cell, end_cell, ierr)
+    CHKERRQ(ierr)
+
+    do c = start_cell, end_cell - 1
+       if (ghost_cell(c) < 0) then
+          call global_section_offset(rock_section, c, range_start, &
+               offset, ierr); CHKERRQ(ierr)
+          call rock%assign(rock_array, offset)
+          rock%permeability = default_permeability
+          rock%wet_conductivity = default_heat_conductivity
+          rock%dry_conductivity = default_heat_conductivity
+          rock%porosity = default_porosity
+          rock%density = default_density
+          rock%specific_heat = default_specific_heat
+       end if
+    end do
+
+    call rock%destroy()
+    call VecRestoreArrayF90(rock_vector, rock_array, ierr); CHKERRQ(ierr)
+
+  end subroutine set_default_rock_properties
+
+!------------------------------------------------------------------------
+
   subroutine setup_rock_vector_types(json, dm, rock_vector, range_start, &
        logfile)
     !! Sets up rock vector on DM from rock types in JSON input.
@@ -150,6 +210,7 @@ contains
     type(logfile_type), intent(in out) :: logfile
     ! Locals:
     PetscInt :: num_rocktypes, ir, ic, c, num_cells, offset, ghost
+    PetscInt :: perm_size
     type(fson_value), pointer :: rocktypes, r
     IS :: rock_IS
     PetscInt, pointer :: rock_cells(:)
@@ -181,21 +242,24 @@ contains
        call fson_get_mpi(r, "name", "", name, logfile, trim(rockstr) // "name")
        call fson_get_mpi(r, "permeability", default_permeability, &
             permeability, logfile, trim(rockstr) // "permeability")
-       call fson_get_mpi(r, "wet conductivity", default_heat_conductivity, &
-            wet_conductivity, logfile, trim(rockstr) // "wet conductivity")
-       call fson_get_mpi(r, "dry conductivity", wet_conductivity, &
-            dry_conductivity, logfile, trim(rockstr) // "dry conductivity")
+       call fson_get_mpi(r, "wet_conductivity", default_heat_conductivity, &
+            wet_conductivity, logfile, trim(rockstr) // "wet_conductivity")
+       call fson_get_mpi(r, "dry_conductivity", wet_conductivity, &
+            dry_conductivity, logfile, trim(rockstr) // "dry_conductivity")
        call fson_get_mpi(r, "porosity", default_porosity, porosity, logfile, &
             trim(rockstr) // "porosity")
        call fson_get_mpi(r, "density", default_density, density, logfile, &
             trim(rockstr) // "density")
-       call fson_get_mpi(r, "specific heat", default_specific_heat, &
-            specific_heat, logfile, trim(rockstr) // "specific heat")
-       call DMGetStratumIS(dm, rocktype_label_name, ir, rock_IS, &
+       call fson_get_mpi(r, "specific_heat", default_specific_heat, &
+            specific_heat, logfile, trim(rockstr) // "specific_heat")
+       call DMGetStratumSize(dm, rocktype_label_name, ir, num_cells, &
             ierr); CHKERRQ(ierr)
-       if (rock_IS /= 0) then
+       if (num_cells > 0) then
+          call DMGetStratumIS(dm, rocktype_label_name, ir, rock_IS, &
+               ierr); CHKERRQ(ierr)
           call ISGetIndicesF90(rock_IS, rock_cells, ierr); CHKERRQ(ierr)
           num_cells = size(rock_cells)
+          perm_size = size(permeability)
           do ic = 1, num_cells
              c = rock_cells(ic)
              call DMLabelGetValue(ghost_label, c, ghost, ierr); CHKERRQ(ierr)
@@ -203,7 +267,8 @@ contains
                 call global_section_offset(section, c, range_start, &
                      offset, ierr); CHKERRQ(ierr)
                 call rock%assign(rock_array, offset)
-                rock%permeability = permeability
+                rock%permeability = 0._dp
+                rock%permeability(1: perm_size) = permeability
                 rock%wet_conductivity = wet_conductivity
                 rock%dry_conductivity = dry_conductivity
                 rock%porosity = porosity
@@ -212,8 +277,8 @@ contains
              end if
           end do
           call ISRestoreIndicesF90(rock_IS, rock_cells, ierr); CHKERRQ(ierr)
+          call ISDestroy(rock_IS, ierr); CHKERRQ(ierr)
        end if
-       call ISDestroy(rock_IS, ierr); CHKERRQ(ierr)
     end do
     call rock%destroy()
     call VecRestoreArrayF90(rock_vector, rock_array, ierr); CHKERRQ(ierr)
@@ -222,7 +287,8 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine setup_rock_vector(json, dm, rock_vector, range_start, logfile)
+  subroutine setup_rock_vector(json, dm, rock_vector, range_start, &
+       ghost_cell, logfile)
     !! Sets up rock vector on specified DM from JSON input.
 
     use dm_utils_module, only: set_dm_data_layout, global_vec_range_start
@@ -234,13 +300,17 @@ contains
     DM, intent(in) :: dm
     Vec, intent(out) :: rock_vector
     PetscInt, intent(out) :: range_start
+    PetscInt, allocatable, intent(in) :: ghost_cell(:)
     type(logfile_type), intent(in out) :: logfile
     ! Locals:
     DM :: dm_rock
+    PetscInt :: dim, rock_variable_dim(num_rock_variables)
     PetscErrorCode :: ierr
 
     call DMClone(dm, dm_rock, ierr); CHKERRQ(ierr)
 
+    call DMGetDimension(dm, dim, ierr); CHKERRQ(ierr)
+    rock_variable_dim = dim
     call set_dm_data_layout(dm_rock, rock_variable_num_components, &
          rock_variable_dim, rock_variable_names)
 
@@ -248,8 +318,8 @@ contains
     call PetscObjectSetName(rock_vector, "rock", ierr); CHKERRQ(ierr)
     call global_vec_range_start(rock_vector, range_start)
 
-    ! TODO: set default rock properties everywhere here? in case of cells with
-    ! no properties specified
+    call set_default_rock_properties(dm, rock_vector, range_start, &
+         ghost_cell)
 
     if (fson_has_mpi(json, "rock")) then
 
@@ -284,6 +354,7 @@ contains
     DM, intent(in out) :: dm
     type(logfile_type), intent(in out) :: logfile
     ! Locals:
+    PetscInt :: start_cell, end_cell
     PetscErrorCode :: ierr
     type(fson_value), pointer :: rocktypes, r
     PetscInt :: num_rocktypes, num_cells, ir, ic, c
@@ -293,6 +364,8 @@ contains
     character(len=12) :: irstr
 
     default_cells = [PetscInt::] ! empty integer array
+    call DMPlexGetHeightStratum(dm, 0, start_cell, end_cell, ierr)
+    CHKERRQ(ierr)
 
     if (fson_has_mpi(json, "rock.types")) then
        call fson_get_mpi(json, "rock.types", rocktypes)
@@ -308,8 +381,10 @@ contains
              num_cells = size(cells)
              do ic = 1, num_cells
                 c = cells(ic)
-                call DMSetLabelValue(dm, rocktype_label_name, &
-                     c, ir, ierr); CHKERRQ(ierr)
+                if ((c >= start_cell) .and. (c < end_cell)) then
+                   call DMSetLabelValue(dm, rocktype_label_name, &
+                        c, ir, ierr); CHKERRQ(ierr)
+                end if
              end do
              deallocate(cells)
           end if

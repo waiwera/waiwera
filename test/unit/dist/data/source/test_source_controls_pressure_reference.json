@@ -1,0 +1,92 @@
+{
+    "title": "Test pressure reference source controls",
+    "mesh": "data/flow_simulation/mesh/3x3_2d.exo",
+    "source": [
+        {"name": "source 1", "cell": 0,
+         "direction": "production",
+         "deliverability": {
+             "productivity": 1.0e-12,
+             "pressure": 2.e5}
+        },
+        {"name": "source 2", "cell": 1,
+         "deliverability": {
+             "productivity": 1.0e-12,
+             "pressure": 2.e5},
+         "limiter": {"type": "total", "limit": 10.}
+        },
+        {"name": "source 3", "cell": 2,
+         "deliverability": {
+             "productivity": 1.0e-12,
+             "pressure": 2.e5},
+         "limiter": {"type": "steam", "separator_pressure": 10.e5, "limit": 5.}
+        },
+        {"name": "source 4", "cell": 3,
+         "rate": -11.,
+         "deliverability": {"pressure": 2.e5}
+        },
+        {"name": "source 5", "cell": 4,
+         "direction": "out",
+         "deliverability": {
+             "productivity": {"time": [
+                 [0.0, 1.0e-12],
+                 [60., 0.9e-12],
+                 [90., 0.7e-12],
+                 [180., 0.5e-12]
+             ]},
+             "pressure": 2.e5},
+         "averaging": "endpoint",
+        },
+        {"name": "source 6", "cell": 5,
+         "direction": "injection",
+         "deliverability": {
+             "productivity": 1.0e-12,
+             "pressure": 2.e5}
+        },
+        {"name": "source 7", "cell": 6,
+         "direction": "both",
+         "recharge": {
+             "coefficient": 1.3e-2,
+             "pressure": 50.1e5}
+        },
+        {"name": "source 8", "cell": 7,
+         "direction": "out",
+         "recharge": {
+             "coefficient": 1.3e-2,
+             "pressure": 49.99e5}
+        },
+        {"name": "source 9", "cell": 8,
+         "direction": "in",
+         "recharge": {
+             "coefficient": 1.1e-2,
+             "pressure": 49.99e5}
+        },
+        {"name": "source 10", "cell": 9,
+         "deliverability": {
+             "productivity": 1.0e-12,
+             "pressure": {"time": [
+                 [0.0,  2.0e5],
+                 [60.0, 1.9e5],
+                 [90.0, 1.6e5],
+                 [180.0, 1.5e5]
+             ]}
+         },
+         "interpolation": "step", "averaging": "endpoint"
+        },
+        {"name": "source 11", "cell": 0,
+         "deliverability": {
+             "productivity": 1.0e-12,
+             "pressure": {"enthalpy": [
+                 [0.0,   2.2e6],
+                 [1.1e6, 2.0e6],
+                 [2.8e6, 0.5e5]
+             ]}
+         }
+        },
+        {"name": "source 12", "cell": 1,
+         "direction": "both",
+         "recharge": {
+             "coefficient": 1.2e-2,
+             "pressure": "initial"}
+        }
+    ]
+}

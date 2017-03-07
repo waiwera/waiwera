@@ -1,12 +1,29 @@
+!   Copyright 2016 University of Auckland.
+
+!   This file is part of Waiwera.
+
+!   Waiwera is free software: you can redistribute it and/or modify
+!   it under the terms of the GNU Lesser General Public License as published by
+!   the Free Software Foundation, either version 3 of the License, or
+!   (at your option) any later version.
+
+!   Waiwera is distributed in the hope that it will be useful,
+!   but WITHOUT ANY WARRANTY; without even the implied warranty of
+!   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+!   GNU Lesser General Public License for more details.
+
+!   You should have received a copy of the GNU Lesser General Public License
+!   along with Waiwera.  If not, see <http://www.gnu.org/licenses/>.
+
 module logfile_module
   !! Module for logging output messages to file.
 
-  use mpi_module
+#include <petsc/finclude/petsc.h>
+
+  use petsc
 
   implicit none
   private
-
-#include <petsc/finclude/petsc.h90>
 
   PetscInt, parameter, public :: LOG_LEVEL_INFO  = 1, &
        LOG_LEVEL_WARN = 2, LOG_LEVEL_ERR = 3
@@ -69,8 +86,8 @@ contains
 
     self%filename = filename
     if (self%filename /= "") then
-       call PetscViewerASCIIOpen(mpi%comm, filename, self%viewer, ierr)
-       CHKERRQ(ierr)
+       call PetscViewerASCIIOpen(PETSC_COMM_WORLD, filename, self%viewer, &
+            ierr); CHKERRQ(ierr)
        call PetscViewerASCIIPushSynchronized(self%viewer, ierr)
        CHKERRQ(ierr)
     end if
@@ -108,16 +125,18 @@ contains
     character(*), intent(in) :: string
     PetscMPIInt, intent(in), optional :: rank
     ! Locals:
-    PetscMPIInt :: output_rank
+    PetscMPIInt :: mpi_rank, output_rank
     PetscErrorCode :: ierr
 
     if (present(rank)) then
        output_rank = rank
     else
-       output_rank = mpi%output_rank
+       output_rank = 0
     end if
 
-    if (mpi%rank == output_rank) then
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, mpi_rank, ierr)
+
+    if (mpi_rank == output_rank) then
 
        if (self%filename /= "") then
           call PetscViewerASCIISynchronizedPrintf(self%viewer, &

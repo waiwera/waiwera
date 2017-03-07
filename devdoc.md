@@ -1,4 +1,4 @@
-project: Geothermal Supermodels
+project: Waiwera
 version: 0.0.1
 author: Dr Adrian Croucher
 author_description: Senior Research Fellow, Department of Engineering Science, University of Auckland

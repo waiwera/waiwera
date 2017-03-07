@@ -1,14 +1,31 @@
+!   Copyright 2016 University of Auckland.
+
+!   This file is part of Waiwera.
+
+!   Waiwera is free software: you can redistribute it and/or modify
+!   it under the terms of the GNU Lesser General Public License as published by
+!   the Free Software Foundation, either version 3 of the License, or
+!   (at your option) any later version.
+
+!   Waiwera is distributed in the hope that it will be useful,
+!   but WITHOUT ANY WARRANTY; without even the implied warranty of
+!   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+!   GNU Lesser General Public License for more details.
+
+!   You should have received a copy of the GNU Lesser General Public License
+!   along with Waiwera.  If not, see <http://www.gnu.org/licenses/>.
+
 module relative_permeability_module
   !! Relative permeability functions.
 
+#include <petsc/finclude/petscsys.h>
+
+  use petscsys
   use kinds_module
   use fson
 
   implicit none
   private
-
-#include <petsc/finclude/petscdef.h>
-#include <petsc/finclude/petscsys.h>
 
   PetscInt, parameter, public :: max_relative_permeability_name_length = 12
 
@@ -165,9 +182,9 @@ contains
     self%name = "Linear"
 
     call fson_get_mpi(json, "liquid", default_liquid_limits, &
-         liquid_limits, logfile, "rock.relative permeability.liquid")
+         liquid_limits, logfile, "rock.relative_permeability.liquid")
     call fson_get_mpi(json, "vapour", default_vapour_limits, &
-         vapour_limits, logfile, "rock.relative permeability.vapour")
+         vapour_limits, logfile, "rock.relative_permeability.vapour")
 
     self%liquid_limits = liquid_limits
     self%vapour_limits = vapour_limits
@@ -230,7 +247,7 @@ contains
     self%name = "Pickens"
 
     call fson_get_mpi(json, "power", default_power, self%power, &
-         logfile, "rock.relative permeability.power")
+         logfile, "rock.relative_permeability.power")
 
   end subroutine relative_permeability_pickens_init
 
@@ -267,9 +284,9 @@ contains
     self%name = "Corey"
 
     call fson_get_mpi(json, "slr", default_slr, self%slr, logfile, &
-         "rock.relative permeability.slr")
+         "rock.relative_permeability.slr")
     call fson_get_mpi(json, "ssr", default_ssr, self%ssr, logfile, &
-         "rock.relative permeability.ssr")
+         "rock.relative_permeability.ssr")
 
   end subroutine relative_permeability_corey_init
 
@@ -330,9 +347,9 @@ contains
     self%name = "Grant"
 
     call fson_get_mpi(json, "slr", default_slr, self%slr, logfile, &
-         "rock.relative permeability.slr")
+         "rock.relative_permeability.slr")
     call fson_get_mpi(json, "ssr", default_ssr, self%ssr, logfile, &
-         "rock.relative permeability.ssr")
+         "rock.relative_permeability.ssr")
 
   end subroutine relative_permeability_grant_init
 
@@ -382,7 +399,7 @@ contains
     character(max_relative_permeability_name_length) :: relperm_type
 
     call fson_get_mpi(json, "type", default_relperm_type, &
-         relperm_type, logfile, "rock.relative permeability.type")
+         relperm_type, logfile, "rock.relative_permeability.type")
 
     select case (str_to_lower(relperm_type))
     case ("fully mobile")
@@ -418,8 +435,8 @@ contains
     type(fson_value), pointer :: relperm
     PetscBool :: default_present
 
-    if (fson_has_mpi(json, "rock.relative permeability")) then
-       call fson_get_mpi(json, "rock.relative permeability", relperm)
+    if (fson_has_mpi(json, "rock.relative_permeability")) then
+       call fson_get_mpi(json, "rock.relative_permeability", relperm)
        default_present = PETSC_TRUE
     else
        relperm => fson_parse(str = "{}")

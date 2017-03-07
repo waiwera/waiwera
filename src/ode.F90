@@ -1,15 +1,35 @@
+!   Copyright 2016 University of Auckland.
+
+!   This file is part of Waiwera.
+
+!   Waiwera is free software: you can redistribute it and/or modify
+!   it under the terms of the GNU Lesser General Public License as published by
+!   the Free Software Foundation, either version 3 of the License, or
+!   (at your option) any later version.
+
+!   Waiwera is distributed in the hope that it will be useful,
+!   but WITHOUT ANY WARRANTY; without even the implied warranty of
+!   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+!   GNU Lesser General Public License for more details.
+
+!   You should have received a copy of the GNU Lesser General Public License
+!   along with Waiwera.  If not, see <http://www.gnu.org/licenses/>.
+
 module ode_module
   !! Abstract base class for ordinary differential equations defined over a mesh,
   !! to be solved by timestepper class.
 
+#include <petsc/finclude/petscsys.h>
+#include <petsc/finclude/petscvec.h>
+
+  use petscsys
+  use petscvec
   use mesh_module
   use logfile_module
 
   implicit none
 
   private
-
-#include <petsc/finclude/petsc.h90>
 
   type, public, abstract :: ode_type
      private
@@ -34,21 +54,23 @@ module ode_module
 
   abstract interface
 
-     subroutine lhs_function(self, t, y, lhs, err)
+     subroutine lhs_function(self, t, interval, y, lhs, err)
        !! LHS function lhs = L(t, y)
+       use petscvec
        import :: ode_type
        class(ode_type), intent(in out) :: self
-       PetscReal, intent(in) :: t
+       PetscReal, intent(in) :: t, interval(2)
        Vec, intent(in) :: y
        Vec, intent(out) :: lhs
        PetscErrorCode, intent(out) :: err
      end subroutine lhs_function
 
-     subroutine rhs_function(self, t, y, rhs, err)
+     subroutine rhs_function(self, t, interval, y, rhs, err)
        !! RHS function rhs = R(t, y)
+       use petscvec
        import :: ode_type
        class(ode_type), intent(in out) :: self
-       PetscReal, intent(in) :: t
+       PetscReal, intent(in) :: t, interval(2)
        Vec, intent(in) :: y
        Vec, intent(out) :: rhs
        PetscErrorCode, intent(out) :: err

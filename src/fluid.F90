@@ -1,3 +1,20 @@
+!   Copyright 2016 University of Auckland.
+
+!   This file is part of Waiwera.
+
+!   Waiwera is free software: you can redistribute it and/or modify
+!   it under the terms of the GNU Lesser General Public License as published by
+!   the Free Software Foundation, either version 3 of the License, or
+!   (at your option) any later version.
+
+!   Waiwera is distributed in the hope that it will be useful,
+!   but WITHOUT ANY WARRANTY; without even the implied warranty of
+!   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+!   GNU Lesser General Public License for more details.
+
+!   You should have received a copy of the GNU Lesser General Public License
+!   along with Waiwera.  If not, see <http://www.gnu.org/licenses/>.
+
 module fluid_module
   !! Module for accessing fluid properties.
   !!
@@ -7,12 +24,13 @@ module fluid_module
   !! state of each fluid phase and are stored in an array component of
   !! [[phase_type]] objects.
 
+#include <petsc/finclude/petsc.h>
+
+  use petsc
   use kinds_module
 
   implicit none
   private
-
-#include <petsc/finclude/petsc.h90>
 
   PetscInt, parameter, public :: num_fluid_variables = 4
   PetscInt, parameter, public :: num_phase_variables = 6  ! (excluding mass fractions)
@@ -71,8 +89,10 @@ module fluid_module
      procedure, public :: component_density => fluid_component_density
      procedure, public :: component_mass_fraction => fluid_component_mass_fraction
      procedure, public :: energy => fluid_energy
-     procedure, public :: flow_fractions => fluid_flow_fractions
-     procedure, public :: energy_production => fluid_energy_production
+     procedure, public :: phase_mobilities => fluid_phase_mobilities
+     procedure, public :: phase_flow_fractions => fluid_phase_flow_fractions
+     procedure, public :: component_flow_fractions => fluid_component_flow_fractions
+     procedure, public :: specific_enthalpy => fluid_specific_enthalpy
      procedure, public :: update_phase_composition => &
           fluid_update_phase_composition
   end type fluid_type
@@ -104,7 +124,7 @@ contains
 
   PetscReal function phase_mobility(self)
     !! Returns mobility of the phase:
-    !! mobility = \(k_r \rho / \nu \)
+    !! mobility = \(k_r \rho / \mu \)
 
     class(phase_type), intent(in) :: self
 
@@ -119,7 +139,7 @@ contains
 
   subroutine fluid_init(self, num_components, num_phases)
     !! Initialises a fluid object.
-    
+
     class(fluid_type), intent(in out) :: self
     PetscInt, intent(in) :: num_components !! Number of fluid components
     PetscInt, intent(in) :: num_phases !! Number of fluid phases
@@ -274,70 +294,89 @@ contains
 
 !------------------------------------------------------------------------
 
-  function fluid_flow_fractions(self) result(f)
+  function fluid_phase_mobilities(self) result(mobilities)
+    !! Returns array containing the mobility for each phase.
+
+    class(fluid_type), intent(in) :: self
+    PetscReal :: mobilities(self%num_phases)
+    ! Locals:
+    PetscInt :: p, phases
+
+    phases = nint(self%phase_composition)
+
+    mobilities = 0._dp
+    do p = 1, self%num_phases
+       if (btest(phases, p - 1)) then
+          mobilities(p) = self%phase(p)%mobility()
+       end if
+    end do
+
+  end function fluid_phase_mobilities
+
+!------------------------------------------------------------------------
+
+  function fluid_phase_flow_fractions(self) result(f)
     !! Returns array containing the flow fractions for each
     !! phase. There are in proportion to the mobility of each phase,
     !! scaled to sum to 1.
 
     class(fluid_type), intent(in) :: self
     PetscReal :: f(self%num_phases)
-    ! Locals:
-    PetscInt :: p, phases
 
-    phases = nint(self%phase_composition)
-
-    f = 0._dp
-    do p = 1, self%num_phases
-       if (btest(phases, p - 1)) then
-          f(p) = self%phase(p)%mobility()
-       end if
-    end do
+    f = self%phase_mobilities()
     f = f / sum(f)
 
-  end function fluid_flow_fractions
+  end function fluid_phase_flow_fractions
 
 !------------------------------------------------------------------------
 
-  subroutine fluid_energy_production(self, source, isothermal)
-    !! If source array contains production, and EOS is
-    !! non-isothermal, calculate associated energy production.
+  function fluid_component_flow_fractions(self, phase_flow_fractions) result(f)
+    !! Returns array containing the flow fractions for each
+    !! component, given the array of phase flow fractions (calculated
+    !! using the flow_fractions() method).
 
     class(fluid_type), intent(in) :: self
-    PetscReal, intent(in out) :: source(:)
-    PetscBool, intent(in) :: isothermal
+    PetscReal, intent(in) :: phase_flow_fractions(self%num_phases)
+    PetscReal :: f(self%num_components)
     ! Locals:
-    PetscInt :: p, np, phases, c
-    PetscReal :: flow_fractions(self%num_phases), hc
+    PetscInt :: c, p, phases
 
-    if (.not. isothermal) then
-       np = size(source)
-       associate (qenergy => source(np))
+    phases = nint(self%phase_composition)
+    do c = 1, self%num_components
+       f(c) = 0._dp
+       do p = 1, self%num_phases
+          if (btest(phases, p - 1)) then
+             f(c) = f(c) + phase_flow_fractions(p) * self%phase(p)%mass_fraction(c)
+          end if
+       end do
+    end do
+    f = f / sum(f)
 
-         phases = nint(self%phase_composition)
-         flow_fractions = self%flow_fractions()
+  end function fluid_component_flow_fractions
 
-         do c = 1, self%num_components
-            associate(q => source(c))
-              if (q < 0._dp) then
-                 hc = 0._dp
-                 do p = 1, self%num_phases
-                    if (btest(phases, p - 1)) then
-                       associate(phase => self%phase(p))
-                         hc = hc + flow_fractions(p) * &
-                              phase%specific_enthalpy * &
-                              phase%mass_fraction(c)
-                       end associate
-                    end if
-                 end do
-                 qenergy = qenergy + q * hc
-              end if
-            end associate
-         end do
+!------------------------------------------------------------------------
 
-       end associate
-    end if
+  PetscReal function fluid_specific_enthalpy(self, phase_flow_fractions) result(h)
+    !! Returns total specific enthalpy, with contributions from all
+    !! phases, given the array of phase flow fractions (calculated
+    !! using the flow_fractions() method).
 
-  end subroutine fluid_energy_production
+    class(fluid_type), intent(in) :: self
+    PetscReal, intent(in) :: phase_flow_fractions(self%num_phases)
+    ! Locals:
+    PetscInt :: p, phases
+
+    h = 0._dp
+
+    phases = nint(self%phase_composition)
+    do p = 1, self%num_phases
+       if (btest(phases, p - 1)) then
+          h = h + phase_flow_fractions(p) * &
+               self%phase(p)%specific_enthalpy
+       end if
+    end do
+
+  end function fluid_specific_enthalpy
 
 !------------------------------------------------------------------------
 
@@ -381,7 +420,7 @@ contains
     PetscInt, intent(out) :: range_start
     ! Locals:
     PetscInt :: num_components, num_phases
-    PetscInt :: p, i, j
+    PetscInt :: p, i, j, dim
     PetscInt, allocatable :: num_field_components(:), field_dim(:)
     PetscErrorCode :: ierr
     PetscInt, parameter :: max_field_name_length = 40
@@ -397,7 +436,6 @@ contains
          field_names(fluid%dof))
 
     num_field_components = 1
-    field_dim = 3
 
     ! Assemble field names:
     field_names(1: num_fluid_variables) = fluid_variable_names
@@ -417,6 +455,8 @@ contains
 
     call DMClone(dm, fluid_dm, ierr); CHKERRQ(ierr)
 
+    call DMGetDimension(dm, dim, ierr); CHKERRQ(ierr)
+    field_dim = dim
     call set_dm_data_layout(fluid_dm, num_field_components, field_dim, &
          field_names)
 

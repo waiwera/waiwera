@@ -1,18 +1,34 @@
+!   Copyright 2016 University of Auckland.
+
+!   This file is part of Waiwera.
+
+!   Waiwera is free software: you can redistribute it and/or modify
+!   it under the terms of the GNU Lesser General Public License as published by
+!   the Free Software Foundation, either version 3 of the License, or
+!   (at your option) any later version.
+
+!   Waiwera is distributed in the hope that it will be useful,
+!   but WITHOUT ANY WARRANTY; without even the implied warranty of
+!   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+!   GNU Lesser General Public License for more details.
+
+!   You should have received a copy of the GNU Lesser General Public License
+!   along with Waiwera.  If not, see <http://www.gnu.org/licenses/>.
+
 module fson_mpi_module
   !! Subroutines for JSON input under MPI, with input on one rank
   !! broadcast to other ranks, and with the ability to specify
   !! default values if not present in the JSON input.
 
+#include <petsc/finclude/petscsys.h>
+
+  use petscsys
   use kinds_module
-  use mpi_module
   use logfile_module
   use fson
 
   implicit none
   private
-
-#include <petsc/finclude/petscsys.h>
-#include <petsc/finclude/petscdef.h>
 
   interface fson_get_default
      module procedure fson_get_default_integer
@@ -620,8 +636,12 @@ contains
     type(fson_value), pointer, intent(in) :: self
     character(len=*), intent(in) :: path
     type(fson_value), pointer, intent(out) :: val
+    ! Locals:
+    PetscMPIInt :: rank
+    PetscInt :: ierr
 
-    if (mpi%rank == mpi%input_rank) then
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
        call fson_get(self, path, val)
     else
        val => NULL()
@@ -642,9 +662,11 @@ contains
     type(logfile_type), intent(in out), optional :: logfile
     character(len=*), intent(in), optional :: log_key
     ! Locals:
+    PetscMPIInt :: rank
     PetscInt :: ierr
 
-    if (mpi%rank == mpi%input_rank) then
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
        if (present(default)) then
           call fson_get_default(self, path, default, val, logfile, &
                log_key)
@@ -652,7 +674,7 @@ contains
           call fson_get(self, path, val)
        end if
     end if
-    call MPI_bcast(val, 1, MPI_INTEGER, mpi%input_rank, mpi%comm, ierr)
+    call MPI_bcast(val, 1, MPI_INTEGER, 0, PETSC_COMM_WORLD, ierr)
 
   end subroutine fson_get_mpi_integer
 
@@ -669,9 +691,11 @@ contains
     type(logfile_type), intent(in out), optional :: logfile
     character(len=*), intent(in), optional :: log_key
     ! Locals:
+    PetscMPIInt :: rank
     PetscInt :: ierr
 
-    if (mpi%rank == mpi%input_rank) then
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
        if (present(default)) then
           call fson_get_default(self, path, default, val, logfile, &
                log_key)
@@ -679,7 +703,7 @@ contains
           call fson_get(self, path, val)
        end if
     end if
-    call MPI_bcast(val, 1, MPI_REAL, mpi%input_rank, mpi%comm, ierr)
+    call MPI_bcast(val, 1, MPI_REAL, 0, PETSC_COMM_WORLD, ierr)
 
   end subroutine fson_get_mpi_real
 
@@ -696,9 +720,11 @@ contains
     type(logfile_type), intent(in out), optional :: logfile
     character(len=*), intent(in), optional :: log_key
     ! Locals:
+    PetscMPIInt :: rank
     PetscInt :: ierr
 
-    if (mpi%rank == mpi%input_rank) then
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
        if (present(default)) then
           call fson_get_default(self, path, default, val, logfile, &
                log_key)
@@ -706,8 +732,7 @@ contains
           call fson_get(self, path, val)
        end if
     end if
-    call MPI_bcast(val, 1, MPI_DOUBLE_PRECISION, mpi%input_rank, &
-         mpi%comm, ierr)
+    call MPI_bcast(val, 1, MPI_DOUBLE_PRECISION, 0, PETSC_COMM_WORLD, ierr)
 
   end subroutine fson_get_mpi_double
 
@@ -724,9 +749,11 @@ contains
     type(logfile_type), intent(in out), optional :: logfile
     character(len=*), intent(in), optional :: log_key
     ! Locals:
+    PetscMPIInt :: rank
     PetscInt :: ierr
 
-    if (mpi%rank == mpi%input_rank) then
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
        if (present(default)) then
           call fson_get_default(self, path, default, val, logfile, &
                log_key)
@@ -734,7 +761,7 @@ contains
           call fson_get(self, path, val)
        end if
     end if
-    call MPI_bcast(val, 1, MPI_LOGICAL, mpi%input_rank, mpi%comm, ierr)
+    call MPI_bcast(val, 1, MPI_LOGICAL, 0, PETSC_COMM_WORLD, ierr)
 
   end subroutine fson_get_mpi_logical
 
@@ -751,9 +778,11 @@ contains
     type(logfile_type), intent(in out), optional :: logfile
     character(len=*), intent(in), optional :: log_key
     ! Locals:
+    PetscMPIInt :: rank
     PetscInt :: ierr, count
 
-    if (mpi%rank == mpi%input_rank) then
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
        if (present(default)) then
           call fson_get_default(self, path, default, val, logfile, &
                log_key)
@@ -762,8 +791,7 @@ contains
        end if
     end if
     count = len(val)
-    call MPI_bcast(val, count, MPI_CHARACTER, mpi%input_rank, &
-         mpi%comm, ierr)
+    call MPI_bcast(val, count, MPI_CHARACTER, 0, PETSC_COMM_WORLD, ierr)
 
   end subroutine fson_get_mpi_character
 
@@ -781,9 +809,11 @@ contains
     character(len=*), intent(in), optional :: log_key
     ! Locals:
     PetscInt :: ierr, count
+    PetscMPIInt :: rank
     PetscBool :: alloc
 
-    if (mpi%rank == mpi%input_rank) then
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
        if (present(default)) then
           call fson_get_default(self, path, default, val, logfile, &
                log_key)
@@ -793,14 +823,13 @@ contains
        alloc = allocated(val)
        count = size(val)
     end if
-    call MPI_bcast(alloc, 1, MPI_LOGICAL, mpi%input_rank, mpi%comm, ierr)
+    call MPI_bcast(alloc, 1, MPI_LOGICAL, 0, PETSC_COMM_WORLD, ierr)
     if (alloc) then
-       call MPI_bcast(count, 1, MPI_INTEGER, mpi%input_rank, mpi%comm, ierr)
-       if (mpi%rank /= mpi%input_rank) then
+       call MPI_bcast(count, 1, MPI_INTEGER, 0, PETSC_COMM_WORLD, ierr)
+       if (rank /= 0) then
           allocate(val(count))
        end if
-       call MPI_bcast(val, count, MPI_INTEGER, mpi%input_rank, mpi%comm, &
-            ierr)
+       call MPI_bcast(val, count, MPI_INTEGER, 0, PETSC_COMM_WORLD, ierr)
     end if
 
   end subroutine fson_get_mpi_array_1d_integer
@@ -819,9 +848,11 @@ contains
     character(len=*), intent(in), optional :: log_key
     ! Locals:
     PetscInt :: ierr, count
+    PetscMPIInt :: rank
     PetscBool :: alloc
 
-    if (mpi%rank == mpi%input_rank) then
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
        if (present(default)) then
           call fson_get_default(self, path, default, val, logfile, &
                log_key)
@@ -831,13 +862,13 @@ contains
        alloc = allocated(val)
        count = size(val)
     end if
-    call MPI_bcast(alloc, 1, MPI_LOGICAL, mpi%input_rank, mpi%comm, ierr)
+    call MPI_bcast(alloc, 1, MPI_LOGICAL, 0, PETSC_COMM_WORLD, ierr)
     if (alloc) then
-       call MPI_bcast(count, 1, MPI_INTEGER, mpi%input_rank, mpi%comm, ierr)
-       if (mpi%rank /= mpi%input_rank) then
+       call MPI_bcast(count, 1, MPI_INTEGER, 0, PETSC_COMM_WORLD, ierr)
+       if (rank /= 0) then
           allocate(val(count))
        end if
-       call MPI_bcast(val, count, MPI_REAL, mpi%input_rank, mpi%comm, ierr)
+       call MPI_bcast(val, count, MPI_REAL, 0, PETSC_COMM_WORLD, ierr)
     end if
 
   end subroutine fson_get_mpi_array_1d_real
@@ -856,9 +887,11 @@ contains
     character(len=*), intent(in), optional :: log_key
    ! Locals:
     PetscInt :: ierr, count
+    PetscMPIInt :: rank
     PetscBool :: alloc
 
-    if (mpi%rank == mpi%input_rank) then
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
        if (present(default)) then
           call fson_get_default(self, path, default, val, &
                logfile, log_key)
@@ -868,15 +901,14 @@ contains
        alloc = allocated(val)
        count = size(val)
     end if
-    call MPI_bcast(alloc, 1, MPI_LOGICAL, mpi%input_rank, mpi%comm, ierr)
+    call MPI_bcast(alloc, 1, MPI_LOGICAL, 0, PETSC_COMM_WORLD, ierr)
     if (alloc) then
-       call MPI_bcast(count, 1, MPI_INTEGER, mpi%input_rank, mpi%comm, &
-            ierr)
-       if (mpi%rank /= mpi%input_rank) then
+       call MPI_bcast(count, 1, MPI_INTEGER, 0, PETSC_COMM_WORLD, ierr)
+       if (rank /= 0) then
           allocate(val(count))
        end if
-       call MPI_bcast(val, count, MPI_DOUBLE_PRECISION, mpi%input_rank, &
-            mpi%comm, ierr)
+       call MPI_bcast(val, count, MPI_DOUBLE_PRECISION, 0, &
+            PETSC_COMM_WORLD, ierr)
     end if
 
   end subroutine fson_get_mpi_array_1d_double
@@ -895,9 +927,11 @@ contains
     character(len=*), intent(in), optional :: log_key
     ! Locals:
     PetscInt :: ierr, count
+    PetscMPIInt :: rank
     PetscBool :: alloc
 
-    if (mpi%rank == mpi%input_rank) then
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
        if (present(default)) then
           call fson_get_default(self, path, default, val, logfile, &
                log_key)
@@ -907,13 +941,13 @@ contains
        alloc = allocated(val)
        count = size(val)
     end if
-    call MPI_bcast(alloc, 1, MPI_LOGICAL, mpi%input_rank, mpi%comm, ierr)
+    call MPI_bcast(alloc, 1, MPI_LOGICAL, 0, PETSC_COMM_WORLD, ierr)
     if (alloc) then
-       call MPI_bcast(count, 1, MPI_INTEGER, mpi%input_rank, mpi%comm, ierr)
-       if (mpi%rank /= mpi%input_rank) then
+       call MPI_bcast(count, 1, MPI_INTEGER, 0, PETSC_COMM_WORLD, ierr)
+       if (rank /= 0) then
           allocate(val(count))
        end if
-       call MPI_bcast(val, count, MPI_LOGICAL, mpi%input_rank, mpi%comm, &
+       call MPI_bcast(val, count, MPI_LOGICAL, 0, PETSC_COMM_WORLD, &
             ierr)
     end if
 
@@ -933,9 +967,11 @@ contains
     character(len=*), intent(in), optional :: log_key
     ! Locals:
     PetscInt :: ierr, count(2), total_count
+    PetscMPIInt :: rank
     PetscBool :: alloc
 
-    if (mpi%rank == mpi%input_rank) then
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
        if (present(default)) then
           call fson_get_default(self, path, default, val, logfile, &
                log_key)
@@ -945,15 +981,15 @@ contains
        alloc = allocated(val)
        count = shape(val)
     end if
-    call MPI_bcast(alloc, 1, MPI_LOGICAL, mpi%input_rank, mpi%comm, ierr)
+    call MPI_bcast(alloc, 1, MPI_LOGICAL, 0, PETSC_COMM_WORLD, ierr)
     if (alloc) then
-       call MPI_bcast(count, 2, MPI_INTEGER, mpi%input_rank, mpi%comm, ierr)
-       if (mpi%rank /= mpi%input_rank) then
+       call MPI_bcast(count, 2, MPI_INTEGER, 0, PETSC_COMM_WORLD, ierr)
+       if (rank /= 0) then
           allocate(val(count(1), count(2)))
        end if
        total_count = count(1) * count(2)
-       call MPI_bcast(val, total_count, MPI_INTEGER, mpi%input_rank, &
-            mpi%comm, ierr)
+       call MPI_bcast(val, total_count, MPI_INTEGER, 0, &
+            PETSC_COMM_WORLD, ierr)
     end if
 
   end subroutine fson_get_mpi_array_2d_integer
@@ -972,9 +1008,11 @@ contains
     character(len=*), intent(in), optional :: log_key
     ! Locals:
     PetscInt :: ierr, count(2), total_count
+    PetscMPIInt :: rank
     PetscBool :: alloc
 
-    if (mpi%rank == mpi%input_rank) then
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
        if (present(default)) then
           call fson_get_default(self, path, default, val, logfile, &
                log_key)
@@ -984,15 +1022,15 @@ contains
        alloc = allocated(val)
        count = shape(val)
     end if
-    call MPI_bcast(alloc, 1, MPI_LOGICAL, mpi%input_rank, mpi%comm, ierr)
+    call MPI_bcast(alloc, 1, MPI_LOGICAL, 0, PETSC_COMM_WORLD, ierr)
     if (alloc) then
-       call MPI_bcast(count, 2, MPI_INTEGER, mpi%input_rank, mpi%comm, ierr)
-       if (mpi%rank /= mpi%input_rank) then
+       call MPI_bcast(count, 2, MPI_INTEGER, 0, PETSC_COMM_WORLD, ierr)
+       if (rank /= 0) then
           allocate(val(count(1), count(2)))
        end if
        total_count = count(1) * count(2)
-       call MPI_bcast(val, total_count, MPI_REAL, mpi%input_rank, &
-            mpi%comm, ierr)
+       call MPI_bcast(val, total_count, MPI_REAL, 0, &
+            PETSC_COMM_WORLD, ierr)
     end if
 
   end subroutine fson_get_mpi_array_2d_real
@@ -1011,9 +1049,11 @@ contains
     character(len=*), intent(in), optional :: log_key
     ! Locals:
     PetscInt :: ierr, count(2), total_count
+    PetscMPIInt :: rank
     PetscBool :: alloc
 
-    if (mpi%rank == mpi%input_rank) then
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
        if (present(default)) then
           call fson_get_default(self, path, default, val, logfile, &
                log_key)
@@ -1023,15 +1063,15 @@ contains
        alloc = allocated(val)
        count = shape(val)
     end if
-    call MPI_bcast(alloc, 1, MPI_LOGICAL, mpi%input_rank, mpi%comm, ierr)
+    call MPI_bcast(alloc, 1, MPI_LOGICAL, 0, PETSC_COMM_WORLD, ierr)
     if (alloc) then
-       call MPI_bcast(count, 2, MPI_INTEGER, mpi%input_rank, mpi%comm, ierr)
-       if (mpi%rank /= mpi%input_rank) then
+       call MPI_bcast(count, 2, MPI_INTEGER, 0, PETSC_COMM_WORLD, ierr)
+       if (rank /= 0) then
           allocate(val(count(1), count(2)))
        end if
        total_count = count(1) * count(2)
        call MPI_bcast(val, total_count, MPI_DOUBLE_PRECISION, &
-            mpi%input_rank, mpi%comm, ierr)
+            0, PETSC_COMM_WORLD, ierr)
     end if
 
   end subroutine fson_get_mpi_array_2d_double
@@ -1050,9 +1090,11 @@ contains
     character(len=*), intent(in), optional :: log_key
     ! Locals:
     integer :: ierr, count(2), total_count
+    PetscMPIInt :: rank
     PetscBool :: alloc
 
-    if (mpi%rank == mpi%input_rank) then
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
        if (present(default)) then
           call fson_get_default(self, path, default, val, logfile, &
                log_key)
@@ -1062,15 +1104,15 @@ contains
        alloc = allocated(val)
        count = shape(val)
     end if
-    call MPI_bcast(alloc, 1, MPI_LOGICAL, mpi%input_rank, mpi%comm, ierr)
+    call MPI_bcast(alloc, 1, MPI_LOGICAL, 0, PETSC_COMM_WORLD, ierr)
     if (alloc) then
-       call MPI_bcast(count, 2, MPI_INTEGER, mpi%input_rank, mpi%comm, ierr)
-       if (mpi%rank /= mpi%input_rank) then
+       call MPI_bcast(count, 2, MPI_INTEGER, 0, PETSC_COMM_WORLD, ierr)
+       if (rank /= 0) then
           allocate(val(count(1), count(2)))
        end if
        total_count = count(1) * count(2)
-       call MPI_bcast(val, total_count, MPI_LOGICAL, mpi%input_rank, &
-            mpi%comm, ierr)
+       call MPI_bcast(val, total_count, MPI_LOGICAL, 0, &
+            PETSC_COMM_WORLD, ierr)
     end if
 
   end subroutine fson_get_mpi_array_2d_logical
@@ -1085,14 +1127,16 @@ contains
     character(len=*), intent(in) :: path
     ! Locals:
     type(fson_value), pointer :: p
+    PetscMPIInt :: rank
     PetscInt :: ierr
 
-    if (mpi%rank == mpi%input_rank) then
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
        call fson_get(self, path, p)
        has = (associated(p))
     end if
 
-    call MPI_bcast(has, 1, MPI_LOGICAL, mpi%input_rank, mpi%comm, ierr)
+    call MPI_bcast(has, 1, MPI_LOGICAL, 0, PETSC_COMM_WORLD, ierr)
 
   end function fson_has_mpi
 
@@ -1108,9 +1152,11 @@ contains
     character(len=*), intent(in) :: path
     ! Locals:
     type(fson_value), pointer :: p
+    PetscMPIInt :: rank
     PetscInt :: ierr
 
-    if (mpi%rank == mpi%input_rank) then
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
        call fson_get(self, path, p)
        if (associated(p)) then
           t = p%value_type
@@ -1119,7 +1165,7 @@ contains
        end if
     end if
 
-    call MPI_bcast(t, 1, MPI_INTEGER, mpi%input_rank, mpi%comm, ierr)
+    call MPI_bcast(t, 1, MPI_INTEGER, 0, PETSC_COMM_WORLD, ierr)
 
   end function fson_type_mpi
 
@@ -1138,9 +1184,11 @@ contains
     ! Locals:
     type(fson_value), pointer :: p, p1
     PetscInt :: t, count
+    PetscMPIInt :: rank
     PetscInt :: ierr
 
-    if (mpi%rank == mpi%input_rank) then
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
        call fson_get(self, path, p)
        if (associated(p)) then
           t = p%value_type
@@ -1164,7 +1212,7 @@ contains
        end if
     end if
 
-    call MPI_bcast(r, 1, MPI_INTEGER, mpi%input_rank, mpi%comm, ierr)
+    call MPI_bcast(r, 1, MPI_INTEGER, 0, PETSC_COMM_WORLD, ierr)
 
   end function fson_mpi_array_rank
 
@@ -1180,9 +1228,11 @@ contains
     character(len=*), intent(in) :: path
     ! Locals:
     type(fson_value), pointer :: p
+    PetscMPIInt :: rank
     PetscInt :: ierr
 
-    if (mpi%rank == mpi%input_rank) then
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
        call fson_get(self, path, p)
        if (assoc_non_null(p)) then
           count = fson_value_count(p)
@@ -1191,7 +1241,7 @@ contains
        end if
     end if
 
-    call MPI_bcast(count, 1, MPI_INTEGER, mpi%input_rank, mpi%comm, ierr)
+    call MPI_bcast(count, 1, MPI_INTEGER, 0, PETSC_COMM_WORLD, ierr)
 
   end function fson_value_count_mpi
 
@@ -1206,8 +1256,12 @@ contains
     type(fson_value), pointer, intent(in) :: self
     PetscInt, intent(in) :: i
     type(fson_value), pointer :: p
+    ! Locals:
+    PetscMPIInt :: rank
+    PetscInt :: ierr
 
-    if (mpi%rank == mpi%input_rank) then
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
        p => fson_value_get(self, i)
     else
        p => NULL()
@@ -1225,8 +1279,12 @@ contains
     character(len = *), intent(in), optional :: file
     PetscInt, intent(in out), optional :: unit
     character(len = *), intent(in), optional :: str
+    ! Locals:
+    PetscMPIInt :: rank
+    PetscInt :: ierr
 
-    if (mpi%rank == mpi%input_rank) then
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
        p => fson_parse(file, unit, str)
     else
        nullify(p)
@@ -1239,8 +1297,12 @@ contains
   subroutine fson_destroy_mpi(self)
     !! Destroys fson object on MPI input rank.
     type(fson_value), pointer, intent(in out) :: self
+    ! Locals:
+    PetscMPIInt :: rank
+    PetscInt :: ierr
 
-    if (mpi%rank == mpi%input_rank) then
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
        call fson_destroy(self)
        nullify(self)
     end if

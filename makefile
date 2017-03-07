@@ -1,4 +1,4 @@
-# makefile for geothermal supermodel
+# makefile for Waiwera
 
 # PETSc includes:
 include ${PETSC_DIR}/lib/petsc/conf/variables
@@ -10,7 +10,7 @@ DEBUG=true
 SRC=src
 DIST=dist
 BUILD=build
-TEST=test
+TEST=test/unit
 
 # file extensions:
 F90=.F90
@@ -39,7 +39,7 @@ else
 endif
 
 # main source code:
-PROG = supermodel
+PROG = waiwera
 PROGEXE = $(DIST)/$(PROG)$(EXE)
 SOURCES = $(filter-out $(SRC)/$(PROG)$(F90) , $(wildcard $(SRC)/*$(F90)))
 OBJS = $(patsubst $(SRC)/%$(F90), $(BUILD)/%$(OBJ), $(SOURCES))
@@ -81,7 +81,7 @@ $(TEST)/$(BUILD)/$(TESTPROG)$(OBJ): $(TEST)/$(SRC)/$(TESTPROG)$(F90) $(TESTOBJS)
 $(TEST)/$(BUILD)/setup$(TESTSUF)$(OBJ): $(TEST)/$(SRC)/setup$(TESTSUF)$(F90) $(DEPENDS)
 	$(PETSC_FCOMPILE) $(TESTFMFLAGS) -I$(BUILD) $(TESTINCLS) -c $< -o $@
 
-$(TEST)/$(BUILD)/%$(TESTSUF)$(OBJ): $(TEST)/$(SRC)/%$(TESTSUF)$(F90) $(BUILD)/%$(OBJ) $(BUILD)/mpi$(OBJ) $(DEPENDS)
+$(TEST)/$(BUILD)/%$(TESTSUF)$(OBJ): $(TEST)/$(SRC)/%$(TESTSUF)$(F90) $(BUILD)/%$(OBJ) $(DEPENDS)
 	$(PETSC_FCOMPILE) $(TESTFMFLAGS) -I$(BUILD) $(TESTINCLS) -c $< -o $@
 
 .PHONY: depends devdoc install clean
