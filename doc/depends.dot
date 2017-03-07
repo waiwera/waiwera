@@ -22,6 +22,7 @@ digraph waiwera{
         eos_module -> utils_module
         eos_setup_module -> eos_module
         eos_setup_module -> eos_w_module
+        eos_setup_module -> eos_wae_module
         eos_setup_module -> eos_wce_module
         eos_setup_module -> eos_we_module
         eos_setup_module -> fson
@@ -38,6 +39,13 @@ digraph waiwera{
         eos_w_module -> petscsys
         eos_w_module -> rock_module
         eos_w_module -> thermodynamics_module
+        eos_wae_module -> eos_wge_module
+        eos_wae_module -> fson
+        eos_wae_module -> fson_mpi_module
+        eos_wae_module -> logfile_module
+        eos_wae_module -> ncg_air_thermodynamics_module
+        eos_wae_module -> petscsys
+        eos_wae_module -> thermodynamics_module
         eos_wce_module -> eos_wge_module
         eos_wce_module -> fson
         eos_wce_module -> fson_mpi_module
@@ -135,6 +143,10 @@ digraph waiwera{
         mesh_module -> rock_module
         mesh_module -> utils_module
         mpi_utils_module -> petscsys
+        ncg_air_thermodynamics_module -> kinds_module
+        ncg_air_thermodynamics_module -> ncg_thermodynamics_module
+        ncg_air_thermodynamics_module -> petscsys
+        ncg_air_thermodynamics_module -> thermodynamics_module
         ncg_co2_thermodynamics_module -> kinds_module
         ncg_co2_thermodynamics_module -> ncg_thermodynamics_module
         ncg_co2_thermodynamics_module -> petscsys
