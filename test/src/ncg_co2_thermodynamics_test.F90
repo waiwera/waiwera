@@ -2,6 +2,9 @@ module ncg_co2_thermodynamics_test
 
   ! Tests for CO2 NCG thermodynamics module
 
+#include <petsc/finclude/petscsys.h>
+
+  use petscsys
   use kinds_module
   use mpi_module
   use ncg_co2_thermodynamics_module
@@ -9,9 +12,6 @@ module ncg_co2_thermodynamics_test
 
   implicit none
   private
-
-#include <petsc/finclude/petscsys.h>
-#include <petsc/finclude/petscdef.h>
 
   public :: test_ncg_co2_henrys_constant
 
