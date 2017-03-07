@@ -16,8 +16,8 @@ module ncg_air_thermodynamics_module
   type, public, extends(ncg_thermodynamics_type) :: ncg_air_thermodynamics_type
      !! Type for air NCG thermodynamics.
      private
-     PetscReal :: ZA = 1._dp
      PetscReal :: specific_heat
+     PetscReal :: ZA = 1._dp
      PetscReal :: fair = 97.0_dp
      PetscReal :: fwat = 363.0_dp
      PetscReal :: cair = 3.617_dp
@@ -118,7 +118,7 @@ contains
       end associate
 
       if (density_air > 0._dp) then 
-         enthalpy_air = self%specific_heat_air * temperature + &
+         enthalpy_air = self%specific_heat * temperature + &
               partial_pressure / density_air
       else
          enthalpy_air = 0._dp
