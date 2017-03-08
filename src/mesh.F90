@@ -1240,19 +1240,6 @@ contains
                    end do
                    call DMPlexRestoreMeet(self%dm, num_cells, ppoints, cell_faces, &
                         ierr); CHKERRQ(ierr)
-
-                else
-                   if (present(logfile)) then
-                      call logfile%write(LOG_LEVEL_WARN, "input", &
-                           "failed to locate cells(2)", int_keys = ["mesh.faces"], &
-                           int_values = [iface - 1])
-                   end if
-                end if
-             else
-                if (present(logfile)) then
-                   call logfile%write(LOG_LEVEL_WARN, "input", &
-                        "failed to locate cells(1)", int_keys = ["mesh.faces"], &
-                        int_values = [iface - 1])
                 end if
              end if
 
