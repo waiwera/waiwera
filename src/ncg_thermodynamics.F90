@@ -28,6 +28,7 @@ module ncg_thermodynamics_module
      procedure(ncg_viscosity_procedure), public, deferred :: viscosity
      procedure(ncg_vapour_mixture_viscosity_procedure), public, deferred :: &
           vapour_mixture_viscosity
+     procedure, public :: partial_pressure => ncg_partial_pressure
      procedure, public :: mass_fraction => ncg_thermodynamics_mass_fraction
      procedure, public :: mole_fraction => ncg_thermodynamics_mole_fraction
    end type ncg_thermodynamics_type
@@ -106,6 +107,18 @@ module ncg_thermodynamics_module
        PetscErrorCode, intent(out)  :: err
      end subroutine ncg_vapour_mixture_viscosity_procedure
 
+     subroutine ncg_partial_pressure_procedure(self, &
+          temperature, total_density, xg, partial_pressure, err)
+       !! Calculate NCG partial pressure from mass fraction xg.
+       import :: ncg_thermodynamics_type
+       class(ncg_thermodynamics_type), intent(in) :: self
+       PetscReal, intent(in)  :: temperature
+       PetscReal, intent(in)  :: total_density
+       PetscReal, intent(in)  :: xg
+       PetscReal, intent(out)  :: partial_pressure
+       PetscErrorCode, intent(out)  :: err
+     end subroutine ncg_partial_pressure_procedure
+
   end interface
 
 contains
@@ -139,6 +152,30 @@ contains
     xmole = w / (w + (1._dp - xmass) / h2o_molecular_weight)
 
   end function ncg_thermodynamics_mole_fraction
+
+!------------------------------------------------------------------------
+
+  PetscReal function ncg_partial_pressure(self, &
+       temperature, total_density, xmass) result(partial_pressure)
+    !! Calculate NCG partial pressure from mass fraction xmass.
+
+    use thermodynamics_module, only: tc_k, gas_constant
+
+    class(ncg_thermodynamics_type), intent(in) :: self
+    PetscReal, intent(in)  :: temperature !! Temperature
+    PetscReal, intent(in)  :: total_density !! Total mixture density
+    PetscReal, intent(in)  :: xmass !! NCG mass fraction
+    ! Locals:
+    PetscReal :: density_gas
+
+    density_gas = total_density * xmass / (1._dp - xmass)
+
+    associate(tk => temperature + tc_k)
+      partial_pressure = density_gas / self%molecular_weight * &
+           (1.e3_dp * gas_constant * self%deviation_factor * tk)
+    end associate
+
+  end function ncg_partial_pressure
 
 !------------------------------------------------------------------------
 
