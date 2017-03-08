@@ -17,7 +17,6 @@ module ncg_air_thermodynamics_module
      !! Type for air NCG thermodynamics.
      private
      PetscReal :: specific_heat
-     PetscReal :: ZA = 1._dp
      PetscReal :: fair = 97.0_dp
      PetscReal :: fwat = 363.0_dp
      PetscReal :: cair = 3.617_dp
@@ -112,7 +111,7 @@ contains
 
       associate(TK => temperature + tc_k)
         density_air = partial_pressure * self%molecular_weight / &
-             (1.e3 * gas_constant * self%ZA * TK)
+             (1.e3 * gas_constant * self%deviation_factor * TK)
       end associate
 
       if (density_air > 0._dp) then 

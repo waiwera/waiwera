@@ -19,6 +19,7 @@ module ncg_thermodynamics_module
      private
      character(max_ncg_name_length), public :: name !! NCG name
      PetscReal, public :: molecular_weight !! NCG molecular weight
+     PetscReal, public :: deviation_factor = 1._dp !! Gas deviation (compressibility) factor, to account for non-ideal gas behaviour
    contains
      private
      procedure(ncg_init_procedure), public, deferred :: init
