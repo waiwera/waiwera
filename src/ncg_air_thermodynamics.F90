@@ -100,8 +100,7 @@ contains
     subroutine air_rho_h(partial_pressure, temperature, density_air, &
            enthalpy_air, err)
 
-      use thermodynamics_module, only: tc_k
-      use ncg_thermodynamics_module, only: gas_constant
+      use thermodynamics_module, only: tc_k, gas_constant
 
       PetscReal, intent(in)  :: partial_pressure, temperature
       PetscReal, intent(out) :: density_air, enthalpy_air

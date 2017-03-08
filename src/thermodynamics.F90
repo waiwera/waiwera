@@ -40,6 +40,7 @@ module thermodynamics_module
   PetscReal, parameter, public :: dcritical  = 322.0_dp          !! Critical density (\(kg.m^{-3}\))
   PetscReal, parameter, public :: pcritical  = 22.064e6_dp       !! Critical pressure (Pa)
   PetscReal, parameter, public :: h2o_molecular_weight = 18.01528_dp !! Molecular weight of water (g/mol)
+  PetscReal, parameter, public :: gas_constant = 8.3144598_dp    !! Gas constant R
 
 !------------------------------------------------------------------------
 ! Saturation curve type
