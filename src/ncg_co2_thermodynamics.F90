@@ -136,14 +136,12 @@ contains
     PetscReal, intent(out) :: hc
     PetscErrorCode, intent(out) :: err
     ! Locals:
-    PetscReal :: T2, T3, T4, T5, RKH
+    PetscReal :: T2, T3, RKH
 
     associate(T => temperature)
       if (T <= 300._dp) then
          T2 = T * T
          T3 = T2 * T
-         T4 = T2 * T2
-         T5 = T2 * T3
          RKH = (783.666_dp + 19.6025_dp * T + 0.820574_dp * T2) * 1.0e5_dp &
               -T3 * (7.40674e2_dp - 2.18380_dp * T + 2.20999e-3_dp * T2)
          hc = 1.0_dp / RKH
