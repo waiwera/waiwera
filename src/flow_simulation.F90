@@ -1200,12 +1200,11 @@ contains
                fluid, transition, err)
 
           if (err == 0) then
-             err = self%eos%check_primary_variables(fluid, cell_primary)
+             call self%eos%check_primary_variables(fluid, cell_primary, &
+                  changed_y, err)
              if (err == 0) then
                 if (transition) then
-                   cell_search = old_cell_primary - cell_primary
                    changed_y = PETSC_TRUE
-                   changed_search = PETSC_TRUE
                    call DMLabelGetValue(order_label, c, order, ierr)
                    CHKERRQ(ierr)
                    call self%logfile%write(LOG_LEVEL_INFO, 'fluid', &
@@ -1228,7 +1227,10 @@ contains
                      real_array_value = cell_primary, rank = rank)
                 exit
              end if
-
+             if (changed_y) then
+                changed_search = PETSC_TRUE
+                cell_search = old_cell_primary - cell_primary
+             end if
           else
              call DMLabelGetValue(order_label, c, order, ierr); CHKERRQ(ierr)
              call self%logfile%write(LOG_LEVEL_WARN, 'fluid', &

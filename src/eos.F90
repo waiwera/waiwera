@@ -124,15 +124,19 @@ module eos_module
        PetscReal, intent(out) :: primary(self%num_primary_variables)
      end subroutine eos_primary_variables_procedure
 
-     PetscErrorCode function eos_check_primary_variables_procedure(self, fluid, primary)
-       !! Check if primary variables are in acceptable bounds, and return
-       !! error code accordingly.
+     subroutine eos_check_primary_variables_procedure(self, &
+          fluid, primary, changed, err)
+       !! Check if primary variables are in acceptable bounds, and
+       !! return error code accordingly. Also set changed to true if
+       !! primary variables have been changed during the check.
        use fluid_module, only: fluid_type
        import :: eos_type
        class(eos_type), intent(in) :: self
        type(fluid_type), intent(in) :: fluid
-       PetscReal, intent(in) :: primary(self%num_primary_variables)
-     end function eos_check_primary_variables_procedure
+       PetscReal, intent(in out) :: primary(self%num_primary_variables)
+       PetscBool, intent(out) :: changed
+       PetscErrorCode, intent(out) :: err
+     end subroutine eos_check_primary_variables_procedure
 
   end interface
 

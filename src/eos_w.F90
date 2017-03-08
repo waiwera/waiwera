@@ -210,8 +210,8 @@ end subroutine eos_w_phase_properties
 
 !------------------------------------------------------------------------
 
-  PetscErrorCode function eos_w_check_primary_variables(self, fluid, &
-       primary) result(err)
+  subroutine eos_w_check_primary_variables(self, fluid, &
+       primary, changed, err)
     !! Check if primary variables are in acceptable bounds, and return
     !! error code accordingly.
 
@@ -219,8 +219,12 @@ end subroutine eos_w_phase_properties
 
     class(eos_w_type), intent(in) :: self
     type(fluid_type), intent(in) :: fluid
-    PetscReal, intent(in) :: primary(self%num_primary_variables)
-    
+    PetscReal, intent(in out) :: primary(self%num_primary_variables)
+    PetscBool, intent(out) :: changed
+    PetscErrorCode, intent(out) :: err
+
+    changed = PETSC_FALSE
+
     associate (p => primary(1))
       if ((p < 0._dp) .or. (p > 100.e6_dp)) then
          err = 1
@@ -229,7 +233,7 @@ end subroutine eos_w_phase_properties
       end if
     end associate
 
-  end function eos_w_check_primary_variables
+  end subroutine eos_w_check_primary_variables
 
 !------------------------------------------------------------------------
 

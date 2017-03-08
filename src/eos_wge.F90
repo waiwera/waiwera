@@ -429,22 +429,26 @@ end subroutine eos_wge_phase_properties
 
 !------------------------------------------------------------------------
 
-  PetscErrorCode function eos_wge_check_primary_variables(self, fluid, &
-       primary) result(err)
+  subroutine eos_wge_check_primary_variables(self, fluid, &
+       primary, changed, err)
     !! Check if primary variables are in acceptable bounds, and return error
-    !! code accordingly.
+    !! code accordingly. If gas partial pressure drops below zero, it
+    !! is reset to zero, but an error is not raised.
 
     use fluid_module, only: fluid_type
 
     class(eos_wge_type), intent(in) :: self
     type(fluid_type), intent(in) :: fluid
-    PetscReal, intent(in) :: primary(self%num_primary_variables)
+    PetscReal, intent(in out) :: primary(self%num_primary_variables)
+    PetscBool, intent(out) :: changed
+    PetscErrorCode, intent(out) :: err
     ! Locals:
     PetscInt :: region
     PetscReal :: p
-    PetscReal, parameter :: ncg_partial_pressure_tol = 1.e-6_dp
 
+    changed = PETSC_FALSE
     err = 0
+
     associate (total_pressure => primary(1), partial_pressure => primary(3))
       p = total_pressure - partial_pressure
       if ((p < 0._dp) .or. (p > 100.e6_dp)) then
@@ -466,15 +470,17 @@ end subroutine eos_wge_phase_properties
             end associate
          end if
          if (err == 0) then
-            if ((partial_pressure < -ncg_partial_pressure_tol) .or. &
-                 (partial_pressure > total_pressure)) then
+            if (partial_pressure > total_pressure) then
                err = 1
+            else if (partial_pressure < 0._dp) then
+               partial_pressure = 0._dp
+               changed = PETSC_TRUE
             end if
          end if
       end if
     end associate
 
-  end function eos_wge_check_primary_variables
+  end subroutine eos_wge_check_primary_variables
 
 !------------------------------------------------------------------------
 

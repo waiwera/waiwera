@@ -376,8 +376,8 @@ contains
 
 !------------------------------------------------------------------------
 
-  PetscErrorCode function eos_we_check_primary_variables(self, fluid, &
-       primary) result(err)
+   subroutine eos_we_check_primary_variables(self, fluid, &
+       primary, changed, err)
     !! Check if primary variables are in acceptable bounds, and return error
     !! code accordingly.
 
@@ -385,11 +385,15 @@ contains
 
     class(eos_we_type), intent(in) :: self
     type(fluid_type), intent(in) :: fluid
-    PetscReal, intent(in) :: primary(self%num_primary_variables)
+    PetscReal, intent(in out) :: primary(self%num_primary_variables)
+    PetscBool, intent(out) :: changed
+    PetscErrorCode, intent(out) :: err
     ! Locals:
     PetscInt :: region
 
+    changed = PETSC_FALSE
     err = 0
+
     associate (p => primary(1))
       if ((p < 0._dp) .or. (p > 100.e6_dp)) then
          err = 1
@@ -397,22 +401,22 @@ contains
          region = nint(fluid%region)
          if (region == 4) then
             associate (vapour_saturation => primary(2))
-            if ((vapour_saturation < -1._dp) .or. &
-                 (vapour_saturation > 2._dp)) then
-               err = 1
-            end if
-          end associate
-       else
-          associate (t => primary(2))
-            if ((t < 0._dp) .or. (t > 800._dp)) then
-               err = 1
-            end if
-          end associate
-       end if
-    end if
-  end associate
+              if ((vapour_saturation < -1._dp) .or. &
+                   (vapour_saturation > 2._dp)) then
+                 err = 1
+              end if
+            end associate
+         else
+            associate (t => primary(2))
+              if ((t < 0._dp) .or. (t > 800._dp)) then
+                 err = 1
+              end if
+            end associate
+         end if
+      end if
+    end associate
 
-  end function eos_we_check_primary_variables
+  end subroutine eos_we_check_primary_variables
 
 !------------------------------------------------------------------------
 
