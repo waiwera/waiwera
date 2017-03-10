@@ -124,7 +124,7 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine eos_we_transition_to_single_phase(self, old_fluid, &
+  subroutine eos_we_transition_to_single_phase(self, old_primary, old_fluid, &
        new_region, primary, fluid, transition, err)
     !! For eos_we, make transition from two-phase to single-phase with
     !! specified region.
@@ -134,34 +134,54 @@ contains
     class(eos_we_type), intent(in out) :: self
     type(fluid_type), intent(in) :: old_fluid
     PetscInt, intent(in) :: new_region
+    PetscReal, intent(in) :: old_primary(self%num_primary_variables)
     PetscReal, intent(in out) :: primary(self%num_primary_variables)
     type(fluid_type), intent(in out) :: fluid
     PetscBool, intent(out) :: transition
     PetscErrorCode, intent(out) :: err
     ! Locals:
-    PetscReal :: old_saturation_pressure, factor
+    PetscReal :: old_saturation_pressure, pressure_factor
+    PetscReal :: saturation_bound, xi
+    PetscReal :: interpolated_primary(self%num_primary_variables)
     PetscReal, parameter :: small = 1.e-6_dp
 
     err = 0
+    transition = PETSC_FALSE
 
-    associate (pressure => primary(1), temperature => primary(2))
+    if (new_region == 1) then
+       saturation_bound = 0._dp
+       pressure_factor = 1._dp + small
+    else
+       saturation_bound = 1._dp
+       pressure_factor = 1._dp - small
+    end if
 
-      call self%thermo%saturation%pressure(old_fluid%temperature, &
-           old_saturation_pressure, err)
+    call self%primary_variable_interpolator%assign(old_primary, primary)
+    call self%primary_variable_interpolator%find(2, saturation_bound, xi, err)
+
+    associate (pressure => primary(1), temperature => primary(2), &
+         interpolated_pressure => interpolated_primary(1))
 
       if (err == 0) then
 
-         if (new_region == 1) then
-            factor = 1._dp + small
-         else
-            factor = 1._dp - small
+         interpolated_primary = self%primary_variable_interpolator%interpolate(xi)
+         pressure = pressure_factor * interpolated_pressure
+         call self%thermo%saturation%temperature(pressure, temperature, err)
+         if (err == 0) then
+            fluid%region = dble(new_region)
+            transition = PETSC_TRUE
          end if
 
-         pressure = factor * old_saturation_pressure
-         temperature = old_fluid%temperature
+      else
 
-         fluid%region = dble(new_region)
-         transition = PETSC_TRUE
+         call self%thermo%saturation%pressure(old_fluid%temperature, &
+              old_saturation_pressure, err)
+         if (err == 0) then
+            pressure = pressure_factor * old_saturation_pressure
+            temperature = old_fluid%temperature
+            fluid%region = dble(new_region)
+            transition = PETSC_TRUE
+         end if
 
       end if
 
@@ -248,11 +268,11 @@ contains
        associate (vapour_saturation => primary(2))
 
          if (vapour_saturation < 0._dp) then
-            call self%transition_to_single_phase(old_fluid, 1, primary, &
-                 fluid, transition, err)
+            call self%transition_to_single_phase(old_primary, old_fluid, &
+                 1, primary, fluid, transition, err)
          else if (vapour_saturation > 1._dp) then
-            call self%transition_to_single_phase(old_fluid, 2, primary, &
-                 fluid, transition, err)
+            call self%transition_to_single_phase(old_primary, old_fluid, &
+                 2, primary, fluid, transition, err)
          end if
 
      end associate
