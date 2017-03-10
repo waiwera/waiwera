@@ -44,7 +44,7 @@ contains
     n = size(primary)
     do i = 1, n
        write(istr, '(1x, a1, i2)') '#', i
-       call assert_equals(expected_primary(1), primary(1), tol, &
+       call assert_equals(expected_primary(i), primary(i), tol, &
             trim(message) // istr)
     end do
     call assert_equals(expected_region, nint(fluid%region), &
