@@ -1147,7 +1147,7 @@ contains
     PetscReal, pointer, contiguous :: primary_array(:), old_primary_array(:), search_array(:)
     PetscReal, pointer, contiguous :: cell_primary(:), old_cell_primary(:), cell_search(:)
     PetscReal, pointer, contiguous :: last_iteration_fluid_array(:), fluid_array(:)
-    type(fluid_type) :: last_iteration_fluid, fluid
+    type(fluid_type) :: old_fluid, fluid
     DMLabel :: order_label
     PetscBool :: transition
     PetscMPIInt :: rank
@@ -1172,7 +1172,7 @@ contains
     call VecGetArrayReadF90(self%last_iteration_fluid, &
          last_iteration_fluid_array, ierr); CHKERRQ(ierr)
 
-    call last_iteration_fluid%init(nc, self%eos%num_phases)
+    call old_fluid%init(nc, self%eos%num_phases)
     call fluid%init(nc, self%eos%num_phases)
 
     call DMGetLabel(self%mesh%dm, cell_order_label_name, order_label, ierr)
@@ -1192,12 +1192,12 @@ contains
           call global_section_offset(fluid_section, c, &
                self%fluid_range_start, fluid_offset, ierr); CHKERRQ(ierr)
 
-          call last_iteration_fluid%assign(last_iteration_fluid_array, &
+          call old_fluid%assign(last_iteration_fluid_array, &
                fluid_offset)
           call fluid%assign(fluid_array, fluid_offset)
 
-          call self%eos%transition(cell_primary, last_iteration_fluid, &
-               fluid, transition, err)
+          call self%eos%transition(old_cell_primary, cell_primary, &
+               old_fluid, fluid, transition, err)
 
           if (err == 0) then
              err = self%eos%check_primary_variables(fluid, cell_primary)
@@ -1213,7 +1213,7 @@ contains
                         ['cell            ', &
                         'old_region      ', 'new_region      '], &
                         [order, &
-                        nint(last_iteration_fluid%region), nint(fluid%region)], &
+                        nint(old_fluid%region), nint(fluid%region)], &
                         real_array_key = 'new_primary     ', &
                         real_array_value = cell_primary, rank = rank)
                 end if
@@ -1249,7 +1249,7 @@ contains
     call VecRestoreArrayF90(y, primary_array, ierr); CHKERRQ(ierr)
     call VecRestoreArrayReadF90(y_old, old_primary_array, ierr); CHKERRQ(ierr)
     call VecRestoreArrayF90(search, search_array, ierr); CHKERRQ(ierr)
-    call last_iteration_fluid%destroy()
+    call old_fluid%destroy()
     call fluid%destroy()
 
     call mpi_broadcast_error_flag(err)

@@ -172,7 +172,7 @@ contains
 !------------------------------------------------------------------------
 
   subroutine eos_we_transition_to_two_phase(self, saturation_pressure, &
-       old_fluid, primary, fluid, transition, err)
+       old_primary, old_fluid, primary, fluid, transition, err)
     !! For eos_we, make transition from single-phase to two-phase.
 
     use fluid_module, only: fluid_type
@@ -180,13 +180,13 @@ contains
     class(eos_we_type), intent(in out) :: self
     PetscReal, intent(in) :: saturation_pressure
     type(fluid_type), intent(in) :: old_fluid
+    PetscReal, intent(in) :: old_primary(self%num_primary_variables)
     PetscReal, intent(in out) :: primary(self%num_primary_variables)
     type(fluid_type), intent(in out) :: fluid
     PetscBool, intent(out) :: transition
     PetscErrorCode, intent(out) :: err
     ! Locals:
     PetscInt :: old_region
-    PetscReal :: old_primary(self%num_primary_variables)
     PetscReal :: interpolated_primary(self%num_primary_variables)
     PetscReal :: xi
     PetscReal, parameter :: small = 1.e-6_dp
@@ -196,11 +196,10 @@ contains
       interpolated_pressure => interpolated_primary(1))
 
       old_region = nint(old_fluid%region)
-
-      old_primary = [old_fluid%pressure, old_fluid%temperature]
       self%primary_variable_interpolator%start = old_primary
       self%primary_variable_interpolator%end = primary
       call self%saturation_line_finder%find()
+
       if (self%saturation_line_finder%err == 0) then
          xi = self%saturation_line_finder%root
          interpolated_primary = self%primary_variable_interpolator%interpolate(xi)
@@ -224,14 +223,15 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine eos_we_transition(self, primary, old_fluid, fluid, &
-       transition, err)
+  subroutine eos_we_transition(self, old_primary, primary, &
+       old_fluid, fluid, transition, err)
     !! For eos_we, check primary variables for a cell and make
     !! thermodynamic region transitions if needed.
 
     use fluid_module, only: fluid_type
 
     class(eos_we_type), intent(in out) :: self
+    PetscReal, intent(in) :: old_primary(self%num_primary_variables)
     PetscReal, intent(in out) :: primary(self%num_primary_variables)
     type(fluid_type), intent(in) :: old_fluid
     type(fluid_type), intent(in out) :: fluid
@@ -266,8 +266,8 @@ contains
          if (err == 0) then
             if (((old_region == 1) .and. (pressure < saturation_pressure)) .or. &
                  ((old_region == 2) .and. (pressure > saturation_pressure))) then
-               call self%transition_to_two_phase(saturation_pressure, old_fluid, &
-                    primary, fluid, transition, err)
+               call self%transition_to_two_phase(saturation_pressure, &
+                    old_primary, old_fluid, primary, fluid, transition, err)
             end if
          end if
 

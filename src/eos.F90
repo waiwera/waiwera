@@ -79,13 +79,14 @@ module eos_module
        type(logfile_type), intent(in out), optional :: logfile
      end subroutine eos_init_procedure
 
-     subroutine eos_transition_procedure(self, primary, old_fluid, fluid, &
-          transition, err)
+     subroutine eos_transition_procedure(self, old_primary, primary, &
+          old_fluid, fluid, transition, err)
        !! Check primary variables for a cell and make thermodynamic
        !! region transitions if needed.
        use fluid_module, only: fluid_type
        import :: eos_type
        class(eos_type), intent(in out) :: self
+       PetscReal, intent(in) :: old_primary(self%num_primary_variables)
        PetscReal, intent(in out) :: primary(self%num_primary_variables)
        type(fluid_type), intent(in) :: old_fluid
        type(fluid_type), intent(in out) :: fluid
