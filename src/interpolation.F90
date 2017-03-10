@@ -84,6 +84,7 @@ module interpolation_module
      procedure :: init_size => array_interpolator_init_size
      procedure :: init_arrays => array_interpolator_init_arrays
      generic, public :: init => init_size, init_arrays
+     procedure, public :: assign => array_interpolator_assign
      procedure, public :: destroy => array_interpolator_destroy
      procedure, public :: interpolate => array_interpolator_interpolate
   end type array_interpolator_type
@@ -502,6 +503,18 @@ contains
     self%end(1: end_size) = end
 
   end subroutine array_interpolator_init_arrays
+
+!------------------------------------------------------------------------
+
+  subroutine array_interpolator_assign(self, start, end)
+    !! Assigns start and end arrays.
+    class(array_interpolator_type), intent(in out) :: self
+    PetscReal, intent(in) :: start(:), end(:)
+
+    self%start = start
+    self%end = end
+
+  end subroutine array_interpolator_assign
 
 !------------------------------------------------------------------------
 

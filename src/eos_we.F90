@@ -196,8 +196,7 @@ contains
       interpolated_pressure => interpolated_primary(1))
 
       old_region = nint(old_fluid%region)
-      self%primary_variable_interpolator%start = old_primary
-      self%primary_variable_interpolator%end = primary
+      call self%primary_variable_interpolator%assign(old_primary, primary)
       call self%saturation_line_finder%find()
 
       if (self%saturation_line_finder%err == 0) then
