@@ -256,11 +256,11 @@ contains
     if (rank == 0) then
        call interp%init(start, end)
        call assert_equals(size, interp%size, "size")
-       call interp%interpolate(0._dp, v)
+       v = interp%interpolate(0._dp)
        call assert_equals(start, v, size, tol, "xi = 0")
-       call interp%interpolate(1._dp, v)
+       v = interp%interpolate(1._dp)
        call assert_equals([end, 0._dp], v, size, tol, "xi = 1")
-       call interp%interpolate(0.25_dp, v)
+       v = interp%interpolate(0.25_dp)
        call assert_equals([1.75_dp, 2.75_dp, 2.25_dp], v, &
             size, tol, "xi = 0.25")
        call interp%destroy()

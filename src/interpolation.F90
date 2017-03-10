@@ -516,17 +516,17 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine array_interpolator_interpolate(self, xi, arr)
+  function array_interpolator_interpolate(self, xi) result(arr)
     !! Interpolates between start and end arrays at
     !! non-dimensionalised coordinate 0 <= xi <= 1.
 
     class(array_interpolator_type), intent(in out) :: self
     PetscReal, intent(in) :: xi
-    PetscReal, intent(out) :: arr(:)
+    PetscReal :: arr(self%size)
 
     arr = (1._dp - xi) * self%start + xi * self%end
 
-  end subroutine array_interpolator_interpolate
+  end function array_interpolator_interpolate
 
 !------------------------------------------------------------------------
 

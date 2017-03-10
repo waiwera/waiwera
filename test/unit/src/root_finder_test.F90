@@ -219,7 +219,7 @@ contains
     if (rank == 0) then
 
        call assert_equals(0, finder%err, "Saturation line error")
-       call inc%interpolate(finder%root, var)
+       var = inc%interpolate(finder%root)
        associate(T => var(2))
          call assert_equals(expected_temperature, T, &
               finder%root_tolerance, "Saturation line temperature")
@@ -245,7 +245,7 @@ contains
       associate(P => var(1), T => var(2))
         select type (context)
         type is (array_interpolator_type)
-           call context%interpolate(x, var)
+           var = context%interpolate(x)
            call thermo%saturation%pressure(T, Ps, err)
         end select
         dp = Ps - P
