@@ -12,30 +12,11 @@ module root_finder_test
   implicit none
   private
 
-  type :: saturation_context_type
-     private
-     PetscReal, public :: T0, T1, P0, P1
-   contains
-     private
-     procedure, public :: PT => saturation_context_PT
-  end type saturation_context_type
-
   public :: test_root_finder_linear, test_root_finder_quadratic, &
        test_root_finder_Zhang, test_root_finder_inverse_quadratic, &
        test_root_finder_saturation
 
 contains
-
-!------------------------------------------------------------------------
-
-  subroutine saturation_context_PT(self, x, P, T)
-    ! Pressure and temperature as functions of x.
-    class(saturation_context_type), intent(in) :: self
-    PetscReal, intent(in) :: x
-    PetscReal, intent(out) :: P, T
-    P = (1._dp - x) * self%P0 + x * self%P1
-    T = (1._dp - x) * self%T0 + x * self%T1
-  end subroutine saturation_context_PT
 
 !------------------------------------------------------------------------
 
@@ -213,40 +194,42 @@ contains
     ! Saturation line intersection
 
     use IAPWS_module
+    use interpolation_module, only: array_interpolator_type
 
     type(root_finder_type) :: finder
-    type(saturation_context_type), target :: context
-    class(*), pointer :: pcontext
+    type(array_interpolator_type), target :: inc
+    class(*), pointer :: pinc
     PetscMPIInt :: rank
     PetscInt :: ierr
     procedure(root_finder_function), pointer :: f
     type(IAPWS_type) :: thermo
-    PetscReal :: P, T
+    PetscInt, parameter :: num_vars = 2
+    PetscReal :: var(num_vars)
     PetscReal, parameter :: expected_temperature = 218.61315743282924_dp
     PetscInt, parameter :: expected_iterations = 6
 
     call thermo%init()
-    context%P0 = 20.e5
-    context%T0 = 210._dp
-    context%P1 = 23.e5
-    context%T1 = 220._dp
-    pcontext => context
+    call inc%init([20.e5_dp, 210._dp], [23.e5_dp, 220._dp])
+    pinc => inc
     f => saturation_difference
-    call finder%init(f, context = pcontext)
+    call finder%init(f, context = pinc)
     call finder%find()
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
     if (rank == 0) then
 
        call assert_equals(0, finder%err, "Saturation line error")
-       call context%PT(finder%root, P, T)
-       call assert_equals(expected_temperature, T, &
-            finder%root_tolerance, "Saturation line temperature")
+       call inc%interpolate(finder%root, var)
+       associate(T => var(2))
+         call assert_equals(expected_temperature, T, &
+              finder%root_tolerance, "Saturation line temperature")
+       end associate
        call assert_true(finder%iterations <= expected_iterations, &
             "Saturation line iterations")
     end if
 
     call finder%destroy()
+    call inc%destroy()
     call thermo%destroy()
 
   contains
@@ -257,14 +240,16 @@ contains
       PetscReal, intent(in) :: x
       class(*), pointer, intent(in out) :: context
       ! Locals:
-      PetscReal :: P, T, Ps
+      PetscReal :: var(num_vars), Ps
       PetscInt :: err
-      select type (context)
-      type is (saturation_context_type)
-         call context%PT(x, P, T)
-         call thermo%saturation%pressure(T, Ps, err)
-      end select
-      dp = Ps - P
+      associate(P => var(1), T => var(2))
+        select type (context)
+        type is (array_interpolator_type)
+           call context%interpolate(x, var)
+           call thermo%saturation%pressure(T, Ps, err)
+        end select
+        dp = Ps - P
+      end associate
     end function saturation_difference
 
   end subroutine test_root_finder_saturation

@@ -137,6 +137,8 @@ digraph waiwera{
         rock_module -> logfile_module
         rock_module -> petsc
         rock_module -> relative_permeability_module
+        root_finder_module -> kinds_module
+        root_finder_module -> petscsys
         source_control_module -> dm_utils_module
         source_control_module -> eos_module
         source_control_module -> interpolation_module

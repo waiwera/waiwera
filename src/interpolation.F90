@@ -74,6 +74,20 @@ module interpolation_module
      procedure :: interpolation_table_average_integrate
   end type interpolation_table_type
 
+  type, public :: array_interpolator_type
+     !! Type for interpolating between two arrays.
+     private
+     PetscReal, allocatable, public :: start(:), end(:)
+     PetscInt, public :: size
+   contains
+     private
+     procedure :: init_size => array_interpolator_init_size
+     procedure :: init_arrays => array_interpolator_init_arrays
+     generic, public :: init => init_size, init_arrays
+     procedure, public :: destroy => array_interpolator_destroy
+     procedure, public :: interpolate => array_interpolator_interpolate
+  end type array_interpolator_type
+
   interface
 
      PetscReal function interpolation_function(coord, val, x, index)
@@ -453,6 +467,66 @@ contains
     end subroutine update_integral
 
   end function interpolation_table_average_integrate
+
+!------------------------------------------------------------------------
+!  Array interpolator type
+!------------------------------------------------------------------------
+
+  subroutine array_interpolator_init_size(self, size)
+    !! Initialise array interpolator with specified size- just
+    !! allocates start and end arrays without assigning values.
+
+    class(array_interpolator_type), intent(in out) :: self
+    PetscInt, intent(in):: size
+
+    allocate(self%start(size), self%end(size))
+    self%size = size
+
+  end subroutine array_interpolator_init_size
+
+  subroutine array_interpolator_init_arrays(self, start, end)
+    !! Initialise array interpolator with start and end arrays.
+
+    class(array_interpolator_type), intent(in out) :: self
+    PetscReal, intent(in) :: start(:), end(:)
+    ! Locals:
+    PetscInt :: start_size, end_size, max_size
+
+    start_size = size(start)
+    end_size = size(end)
+    max_size = max(start_size, end_size)
+    call self%init_size(max_size)
+    self%start = 0._dp
+    self%start(1: start_size) = start
+    self%end = 0._dp
+    self%end(1: end_size) = end
+
+  end subroutine array_interpolator_init_arrays
+
+!------------------------------------------------------------------------
+
+  subroutine array_interpolator_destroy(self)
+    !! Destroy array interpolator.
+
+    class(array_interpolator_type), intent(in out) :: self
+
+    deallocate(self%start, self%end)
+
+  end subroutine array_interpolator_destroy
+
+!------------------------------------------------------------------------
+
+  subroutine array_interpolator_interpolate(self, xi, arr)
+    !! Interpolates between start and end arrays at
+    !! non-dimensionalised coordinate 0 <= xi <= 1.
+
+    class(array_interpolator_type), intent(in out) :: self
+    PetscReal, intent(in) :: xi
+    PetscReal, intent(out) :: arr(:)
+
+    arr = (1._dp - xi) * self%start + xi * self%end
+
+  end subroutine array_interpolator_interpolate
 
 !------------------------------------------------------------------------
 
