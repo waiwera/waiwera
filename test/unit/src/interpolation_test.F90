@@ -250,7 +250,8 @@ contains
     PetscInt, parameter :: size = 3
     PetscReal, parameter :: start(size) = [1._dp, 2._dp, 3._dp], &
          end(size - 1) = [4._dp, 5._dp]
-    PetscReal :: v(size)
+    PetscReal :: v(size), xi
+    PetscErrorCode :: err
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
     if (rank == 0) then
@@ -263,6 +264,9 @@ contains
        v = interp%interpolate(0.25_dp)
        call assert_equals([1.75_dp, 2.75_dp, 2.25_dp], v, &
             size, tol, "xi = 0.25")
+       call interp%find(2, 3._dp, xi, err)
+       call assert_true(err == 0, "find error")
+       call assert_equals(1._dp / 3._dp, xi, tol, "find xi")
        call interp%destroy()
     end if
 

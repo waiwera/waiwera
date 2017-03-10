@@ -87,6 +87,7 @@ module interpolation_module
      procedure, public :: assign => array_interpolator_assign
      procedure, public :: destroy => array_interpolator_destroy
      procedure, public :: interpolate => array_interpolator_interpolate
+     procedure, public :: find => array_interpolator_find
   end type array_interpolator_type
 
   interface
@@ -533,13 +534,41 @@ contains
     !! Interpolates between start and end arrays at
     !! non-dimensionalised coordinate 0 <= xi <= 1.
 
-    class(array_interpolator_type), intent(in out) :: self
+    class(array_interpolator_type), intent(in) :: self
     PetscReal, intent(in) :: xi
     PetscReal :: arr(self%size)
 
     arr = (1._dp - xi) * self%start + xi * self%end
 
   end function array_interpolator_interpolate
+
+!------------------------------------------------------------------------
+
+  subroutine array_interpolator_find(self, index, val, xi, err)
+    !! Finds xi value corresponding to the point where the array
+    !! coordinate of the specified index attains the value val.
+    !! Sets error flag err if no such point can be found.
+
+    class(array_interpolator_type), intent(in) :: self
+    PetscInt, intent(in) :: index
+    PetscReal, intent(in) :: val
+    PetscReal, intent(out) :: xi
+    PetscErrorCode, intent(out) :: err
+    ! Locals:
+    PetscReal :: d
+    PetscReal, parameter :: tol = 1.e-8
+
+    err = 0
+
+    d = self%end(index) - self%start(index)
+
+    if (abs(d) >= tol) then
+       xi = (val - self%start(index)) / d
+    else
+       err = 1
+    end if
+
+  end subroutine array_interpolator_find
 
 !------------------------------------------------------------------------
 
