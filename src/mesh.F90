@@ -993,7 +993,9 @@ contains
                      f, ibdy, ierr); CHKERRQ(ierr)
              end if
           end do
-          deallocate(faces)
+          if (allocated(faces)) then
+             deallocate(faces)
+          end if
 
           call fson_get_mpi(bdy, "primary", eos%default_primary, &
                primary, logfile, log_key = trim(bdystr) // ".primary")
