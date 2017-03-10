@@ -219,7 +219,7 @@ contains
     deallocate(self%primary_variable_names)
     deallocate(self%phase_names, self%component_names)
     deallocate(self%default_primary)
-    nullify(self%thermo)
+    self%thermo => null()
 
   end subroutine eos_destroy
 
