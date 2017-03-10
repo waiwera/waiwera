@@ -16,7 +16,7 @@
 !   along with Waiwera.  If not, see <http://www.gnu.org/licenses/>.
 
 module root_finder_module
-  !! Finding roots of a function of one variable.
+  !! Finding root of an equation f(x) = 0 in one scalar variable x.
 
 #include <petsc/finclude/petscsys.h>
 
@@ -32,7 +32,7 @@ module root_finder_module
   type, public :: root_finder_type
      !! Root finder type.
      private
-     procedure(root_finder_function), pointer, nopass, public :: f !! Function to find root of
+     procedure(root_finder_function), pointer, nopass, public :: f !! Function for which to solve f(x) = 0
      class(*), pointer, public :: context  !! Context data for the function f
      PetscReal, public :: interval(2) !! Bracketing interval for the root
      PetscReal, public :: root !! Root value found
