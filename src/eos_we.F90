@@ -23,16 +23,28 @@ module eos_we_module
   use petscsys
   use kinds_module
   use eos_module
+  use root_finder_module
+  use interpolation_module
+  use thermodynamics_module
 
   implicit none
   private
 
+  type, extends(array_interpolator_type) :: eos_we_primary_variable_interpolator_type
+     private
+     class(thermodynamics_type), pointer, public :: thermo
+  end type eos_we_primary_variable_interpolator_type
+
   type, public, extends(eos_type) :: eos_we_type
      !! Pure water and energy equation of state type.
      private
+     type(root_finder_type) :: saturation_line_finder
+     type(eos_we_primary_variable_interpolator_type), pointer :: &
+          primary_variable_interpolator
    contains
      private
      procedure, public :: init => eos_we_init
+     procedure, public :: destroy => eos_we_destroy
      procedure, public :: transition => eos_we_transition
      procedure, public :: transition_to_single_phase => eos_we_transition_to_single_phase
      procedure, public :: transition_to_two_phase => eos_we_transition_to_two_phase
@@ -60,6 +72,8 @@ contains
     class(thermodynamics_type), intent(in), target :: thermo !! Thermodynamics object
     type(logfile_type), intent(in out), optional :: logfile
     ! Locals:
+    procedure(root_finder_function), pointer :: f
+    class(*), pointer :: pinterp
     PetscReal, parameter :: default_pressure = 1.0e5_dp
     PetscReal, parameter :: default_temperature = 20._dp ! deg C
 
@@ -79,7 +93,34 @@ contains
 
     self%thermo => thermo
 
+    ! Set up saturation line finder:
+    allocate(eos_we_primary_variable_interpolator_type :: &
+         self%primary_variable_interpolator)
+    call self%primary_variable_interpolator%init(self%num_primary_variables)
+    self%primary_variable_interpolator%thermo => self%thermo
+    f => eos_we_saturation_difference
+    pinterp => self%primary_variable_interpolator
+    call self%saturation_line_finder%init(f, context = pinterp)
+
   end subroutine eos_we_init
+
+!------------------------------------------------------------------------
+
+  subroutine eos_we_destroy(self)
+    !! Destroys pure water and energy EOS.
+
+    class(eos_we_type), intent(in out) :: self
+
+    deallocate(self%primary_variable_names)
+    deallocate(self%phase_names, self%component_names)
+    deallocate(self%default_primary)
+    self%thermo => null()
+
+    call self%saturation_line_finder%destroy()
+    call self%primary_variable_interpolator%destroy()
+    deallocate(self%primary_variable_interpolator)
+
+  end subroutine eos_we_destroy
 
 !------------------------------------------------------------------------
 
@@ -145,14 +186,28 @@ contains
     PetscErrorCode, intent(out) :: err
     ! Locals:
     PetscInt :: old_region
+    PetscReal :: old_primary(self%num_primary_variables)
+    PetscReal :: interpolated_primary(self%num_primary_variables)
+    PetscReal :: xi
     PetscReal, parameter :: small = 1.e-6_dp
 
     err = 0
-    associate (pressure => primary(1), vapour_saturation => primary(2))
+    associate (pressure => primary(1), vapour_saturation => primary(2), &
+      interpolated_pressure => interpolated_primary(1))
 
       old_region = nint(old_fluid%region)
 
-      pressure = saturation_pressure
+      old_primary = [old_fluid%pressure, old_fluid%temperature]
+      self%primary_variable_interpolator%start = old_primary
+      self%primary_variable_interpolator%end = primary
+      call self%saturation_line_finder%find()
+      if (self%saturation_line_finder%err == 0) then
+         xi = self%saturation_line_finder%root
+         interpolated_primary = self%primary_variable_interpolator%interpolate(xi)
+         pressure = interpolated_pressure
+      else
+         pressure = saturation_pressure
+      end if
 
       if (old_region == 1) then
          vapour_saturation = small
@@ -416,4 +471,30 @@ contains
 
 !------------------------------------------------------------------------
 
-end module eos_we_module
+  PetscReal function eos_we_saturation_difference(x, context) result(dp)
+    !! Returns difference between saturation pressure and pressure at
+    !! normalised point 0 <= x <= 1 along line between start and end
+    !! primary variables.
+
+    PetscReal, intent(in) :: x
+    class(*), pointer, intent(in out) :: context
+    ! Locals:
+    PetscReal, allocatable :: var(:)
+    PetscReal :: Ps
+    PetscInt :: err
+
+    select type (context)
+    type is (eos_we_primary_variable_interpolator_type)
+       var = context%interpolate(x)
+       associate(P => var(1), T => var(2))
+         call context%thermo%saturation%pressure(T, Ps, err)
+         dp = Ps - P
+       end associate
+    end select
+    deallocate(var)
+
+  end function eos_we_saturation_difference
+
+!------------------------------------------------------------------------
+
+  end module eos_we_module
