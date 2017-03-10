@@ -39,13 +39,13 @@ contains
     ! Locals:
     PetscInt :: n, i
     character(4) :: istr
-    PetscReal, parameter :: tol = 1.e-6_dp
+    PetscReal, parameter :: tol = 1.e-9_dp
 
     n = size(primary)
     do i = 1, n
        write(istr, '(1x, a1, i2)') '#', i
-       call assert_equals(expected_primary(i), primary(i), tol, &
-            trim(message) // istr)
+       call assert_equals(expected_primary(i), primary(i), &
+            tol * abs(expected_primary(i)), trim(message) // istr)
     end do
     call assert_equals(expected_region, nint(fluid%region), &
          trim(message) // " region")
