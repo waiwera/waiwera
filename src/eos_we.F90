@@ -33,6 +33,8 @@ module eos_we_module
   type, extends(array_interpolator_type) :: eos_we_primary_variable_interpolator_type
      private
      class(thermodynamics_type), pointer, public :: thermo
+   contains
+     procedure, public :: destroy =>  eos_we_primary_variable_interpolator_destroy
   end type eos_we_primary_variable_interpolator_type
 
   type, public, extends(eos_type) :: eos_we_type
@@ -516,4 +518,16 @@ contains
 
 !------------------------------------------------------------------------
 
-  end module eos_we_module
+  subroutine eos_we_primary_variable_interpolator_destroy(self)
+    !! Destroys eos_we primary variable interpolator.
+
+    class(eos_we_primary_variable_interpolator_type), intent(in out) :: self
+
+    call self%array_interpolator_type%destroy()
+    self%thermo => null()
+
+  end subroutine eos_we_primary_variable_interpolator_destroy
+
+!------------------------------------------------------------------------
+
+end module eos_we_module
