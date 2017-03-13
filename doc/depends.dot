@@ -14,6 +14,7 @@ digraph waiwera{
         dm_utils_module -> petsc
         eos_module -> fluid_module
         eos_module -> fson
+        eos_module -> interpolation_module
         eos_module -> kinds_module
         eos_module -> logfile_module
         eos_module -> petscsys
@@ -57,7 +58,6 @@ digraph waiwera{
         eos_we_module -> fluid_module
         eos_we_module -> fson
         eos_we_module -> fson_mpi_module
-        eos_we_module -> interpolation_module
         eos_we_module -> kinds_module
         eos_we_module -> logfile_module
         eos_we_module -> petscsys
@@ -73,6 +73,7 @@ digraph waiwera{
         eos_wge_module -> ncg_thermodynamics_module
         eos_wge_module -> petscsys
         eos_wge_module -> rock_module
+        eos_wge_module -> root_finder_module
         eos_wge_module -> thermodynamics_module
         face_module -> cell_module
         face_module -> eos_module
