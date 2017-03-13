@@ -20,7 +20,7 @@ module interpolation_test
 
   public :: test_interpolation_linear, test_interpolation_single, &
        test_interpolation_step, test_average_linear, test_average_step, &
-       test_average_linear_integration
+       test_average_linear_integration, test_array_interpolator
 
 contains
 
@@ -238,6 +238,39 @@ contains
     end if
 
   end subroutine test_average_linear_integration
+
+!------------------------------------------------------------------------
+
+  subroutine test_array_interpolator
+    ! Array interpolator
+
+    type(array_interpolator_type) :: interp
+    PetscMPIInt :: rank
+    PetscInt :: ierr
+    PetscInt, parameter :: size = 3
+    PetscReal, parameter :: start(size) = [1._dp, 2._dp, 3._dp], &
+         end(size - 1) = [4._dp, 5._dp]
+    PetscReal :: v(size), xi
+    PetscErrorCode :: err
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
+       call interp%init(start, end)
+       call assert_equals(size, interp%size, "size")
+       v = interp%interpolate(0._dp)
+       call assert_equals(start, v, size, tol, "xi = 0")
+       v = interp%interpolate(1._dp)
+       call assert_equals([end, 0._dp], v, size, tol, "xi = 1")
+       v = interp%interpolate(0.25_dp)
+       call assert_equals([1.75_dp, 2.75_dp, 2.25_dp], v, &
+            size, tol, "xi = 0.25")
+       call interp%find(2, 3._dp, xi, err)
+       call assert_true(err == 0, "find error")
+       call assert_equals(1._dp / 3._dp, xi, tol, "find xi")
+       call interp%destroy()
+    end if
+
+  end subroutine test_array_interpolator
 
 !------------------------------------------------------------------------
 

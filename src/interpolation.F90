@@ -74,6 +74,22 @@ module interpolation_module
      procedure :: interpolation_table_average_integrate
   end type interpolation_table_type
 
+  type, public :: array_interpolator_type
+     !! Type for interpolating between two arrays.
+     private
+     PetscReal, allocatable, public :: start(:), end(:)
+     PetscInt, public :: size
+   contains
+     private
+     procedure :: init_size => array_interpolator_init_size
+     procedure :: init_arrays => array_interpolator_init_arrays
+     generic, public :: init => init_size, init_arrays
+     procedure, public :: assign => array_interpolator_assign
+     procedure, public :: destroy => array_interpolator_destroy
+     procedure, public :: interpolate => array_interpolator_interpolate
+     procedure, public :: find => array_interpolator_find
+  end type array_interpolator_type
+
   interface
 
      PetscReal function interpolation_function(coord, val, x, index)
@@ -453,6 +469,106 @@ contains
     end subroutine update_integral
 
   end function interpolation_table_average_integrate
+
+!------------------------------------------------------------------------
+!  Array interpolator type
+!------------------------------------------------------------------------
+
+  subroutine array_interpolator_init_size(self, size)
+    !! Initialise array interpolator with specified size- just
+    !! allocates start and end arrays without assigning values.
+
+    class(array_interpolator_type), intent(in out) :: self
+    PetscInt, intent(in):: size
+
+    allocate(self%start(size), self%end(size))
+    self%size = size
+
+  end subroutine array_interpolator_init_size
+
+  subroutine array_interpolator_init_arrays(self, start, end)
+    !! Initialise array interpolator with start and end arrays.
+
+    class(array_interpolator_type), intent(in out) :: self
+    PetscReal, intent(in) :: start(:), end(:)
+    ! Locals:
+    PetscInt :: start_size, end_size, max_size
+
+    start_size = size(start)
+    end_size = size(end)
+    max_size = max(start_size, end_size)
+    call self%init_size(max_size)
+    self%start = 0._dp
+    self%start(1: start_size) = start
+    self%end = 0._dp
+    self%end(1: end_size) = end
+
+  end subroutine array_interpolator_init_arrays
+
+!------------------------------------------------------------------------
+
+  subroutine array_interpolator_assign(self, start, end)
+    !! Assigns start and end arrays.
+    class(array_interpolator_type), intent(in out) :: self
+    PetscReal, intent(in) :: start(:), end(:)
+
+    self%start = start
+    self%end = end
+
+  end subroutine array_interpolator_assign
+
+!------------------------------------------------------------------------
+
+  subroutine array_interpolator_destroy(self)
+    !! Destroy array interpolator.
+
+    class(array_interpolator_type), intent(in out) :: self
+
+    deallocate(self%start, self%end)
+
+  end subroutine array_interpolator_destroy
+
+!------------------------------------------------------------------------
+
+  function array_interpolator_interpolate(self, xi) result(arr)
+    !! Interpolates between start and end arrays at
+    !! non-dimensionalised coordinate 0 <= xi <= 1.
+
+    class(array_interpolator_type), intent(in) :: self
+    PetscReal, intent(in) :: xi
+    PetscReal :: arr(self%size)
+
+    arr = (1._dp - xi) * self%start + xi * self%end
+
+  end function array_interpolator_interpolate
+
+!------------------------------------------------------------------------
+
+  subroutine array_interpolator_find(self, index, val, xi, err)
+    !! Finds xi value corresponding to the point where the array
+    !! coordinate of the specified index attains the value val.
+    !! Sets error flag err if no such point can be found.
+
+    class(array_interpolator_type), intent(in) :: self
+    PetscInt, intent(in) :: index
+    PetscReal, intent(in) :: val
+    PetscReal, intent(out) :: xi
+    PetscErrorCode, intent(out) :: err
+    ! Locals:
+    PetscReal :: d
+    PetscReal, parameter :: tol = 1.e-8
+
+    err = 0
+
+    d = self%end(index) - self%start(index)
+
+    if (abs(d) >= tol) then
+       xi = (val - self%start(index)) / d
+    else
+       err = 1
+    end if
+
+  end subroutine array_interpolator_find
 
 !------------------------------------------------------------------------
 

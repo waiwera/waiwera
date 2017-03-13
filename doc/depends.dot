@@ -57,10 +57,12 @@ digraph waiwera{
         eos_we_module -> fluid_module
         eos_we_module -> fson
         eos_we_module -> fson_mpi_module
+        eos_we_module -> interpolation_module
         eos_we_module -> kinds_module
         eos_we_module -> logfile_module
         eos_we_module -> petscsys
         eos_we_module -> rock_module
+        eos_we_module -> root_finder_module
         eos_we_module -> thermodynamics_module
         eos_wge_module -> eos_module
         eos_wge_module -> fluid_module
@@ -174,6 +176,8 @@ digraph waiwera{
         rock_module -> logfile_module
         rock_module -> petsc
         rock_module -> relative_permeability_module
+        root_finder_module -> kinds_module
+        root_finder_module -> petscsys
         source_control_module -> dm_utils_module
         source_control_module -> eos_module
         source_control_module -> interpolation_module
