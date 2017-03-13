@@ -68,7 +68,7 @@ module eos_module
      procedure, public :: component_index => eos_component_index
   end type eos_type
 
-  type, extends(array_interpolator_type) :: primary_variable_interpolator_type
+  type, public, extends(array_interpolator_type) :: primary_variable_interpolator_type
      !! Interpolator for primary variable arrays, including
      !! thermodynamics object for when interpolator is used as a context
      !! for root finding.
