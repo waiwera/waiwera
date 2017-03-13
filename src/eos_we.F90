@@ -209,7 +209,6 @@ contains
     associate (pressure => primary(1), vapour_saturation => primary(2), &
       interpolated_pressure => interpolated_primary(1))
 
-      old_region = nint(old_fluid%region)
       call self%primary_variable_interpolator%assign(old_primary, primary)
       call self%saturation_line_finder%find()
 
@@ -221,6 +220,7 @@ contains
          pressure = saturation_pressure
       end if
 
+      old_region = nint(old_fluid%region)
       if (old_region == 1) then
          vapour_saturation = small
       else
