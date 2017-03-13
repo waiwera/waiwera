@@ -122,7 +122,7 @@ contains
     PetscBool, intent(out) :: transition
     PetscErrorCode, intent(out) :: err
     ! Locals:
-    PetscReal :: old_saturation_pressure, factor
+    PetscReal :: old_saturation_pressure, pressure_factor
     PetscReal :: saturation_bound, xi
     PetscReal :: interpolated_primary(self%num_primary_variables)
     PetscReal, parameter :: small = 1.e-6_dp
