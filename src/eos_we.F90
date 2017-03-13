@@ -24,24 +24,16 @@ module eos_we_module
   use kinds_module
   use eos_module
   use root_finder_module
-  use interpolation_module
   use thermodynamics_module
 
   implicit none
   private
 
-  type, extends(array_interpolator_type) :: eos_we_primary_variable_interpolator_type
-     private
-     class(thermodynamics_type), pointer, public :: thermo
-   contains
-     procedure, public :: destroy =>  eos_we_primary_variable_interpolator_destroy
-  end type eos_we_primary_variable_interpolator_type
-
   type, public, extends(eos_type) :: eos_we_type
      !! Pure water and energy equation of state type.
      private
      type(root_finder_type) :: saturation_line_finder
-     type(eos_we_primary_variable_interpolator_type), pointer :: &
+     type(primary_variable_interpolator_type), pointer :: &
           primary_variable_interpolator
    contains
      private
@@ -96,7 +88,7 @@ contains
     self%thermo => thermo
 
     ! Set up saturation line finder:
-    allocate(eos_we_primary_variable_interpolator_type :: &
+    allocate(primary_variable_interpolator_type :: &
          self%primary_variable_interpolator)
     call self%primary_variable_interpolator%init(self%num_primary_variables)
     self%primary_variable_interpolator%thermo => self%thermo
@@ -509,28 +501,16 @@ contains
     PetscInt :: err
 
     select type (context)
-    type is (eos_we_primary_variable_interpolator_type)
+    type is (primary_variable_interpolator_type)
        var = context%interpolate(x)
        associate(P => var(1), T => var(2))
          call context%thermo%saturation%pressure(T, Ps, err)
-         dp = Ps - P
+         dp = P - Ps
        end associate
     end select
     deallocate(var)
 
   end function eos_we_saturation_difference
-
-!------------------------------------------------------------------------
-
-  subroutine eos_we_primary_variable_interpolator_destroy(self)
-    !! Destroys eos_we primary variable interpolator.
-
-    class(eos_we_primary_variable_interpolator_type), intent(in out) :: self
-
-    call self%array_interpolator_type%destroy()
-    self%thermo => null()
-
-  end subroutine eos_we_primary_variable_interpolator_destroy
 
 !------------------------------------------------------------------------
 
