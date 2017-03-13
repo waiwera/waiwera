@@ -168,7 +168,7 @@ contains
     ! Locals:
     PetscReal :: density_gas
 
-    density_gas = total_density * xmass / (1._dp - xmass)
+    density_gas = total_density * xmass
 
     associate(tk => temperature + tc_k)
       partial_pressure = density_gas / self%molecular_weight * &
