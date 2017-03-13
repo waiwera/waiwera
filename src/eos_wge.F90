@@ -102,7 +102,7 @@ contains
     call self%primary_variable_interpolator%destroy()
     deallocate(self%primary_variable_interpolator)
 
-  end subroutine eos_we_destroy
+  end subroutine eos_wge_destroy
 
 !------------------------------------------------------------------------
 
