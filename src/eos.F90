@@ -246,7 +246,7 @@ contains
   subroutine primary_variable_interpolator_destroy(self)
     !! Destroys primary variable interpolator.
 
-    class(eos_we_primary_variable_interpolator_type), intent(in out) :: self
+    class(primary_variable_interpolator_type), intent(in out) :: self
 
     call self%array_interpolator_type%destroy()
     self%thermo => null()
