@@ -270,10 +270,10 @@ contains
        old_fluid%temperature = temperature
        fluid%region = old_fluid%region
        expected_region = 1
-       expected_primary = [85.000085e5_dp, temperature]
+       expected_primary = [8590917.681818182_dp, 300.02652425198085_dp]
        expected_transition = PETSC_TRUE
        old_primary = [85.e5_dp, 0.1_dp]
-       primary = [85.e5_dp, -0.01_dp]
+       primary = [86.e5_dp, -0.01_dp]
        call eos%transition(old_primary, primary, old_fluid, fluid, transition, err)
        call transition_compare(expected_primary, expected_region, &
             expected_transition, primary, fluid, transition, title)
@@ -284,10 +284,10 @@ contains
        old_fluid%temperature = temperature
        fluid%region = old_fluid%region
        expected_region = 2
-       expected_primary = [19.99998e5_dp, temperature]
+       expected_primary = [20.08331325e5, 212.59482411966491]
        expected_transition = PETSC_TRUE
        old_primary = [20.e5_dp, 0.9_dp]
-       primary = [20.e5_dp, 1.02_dp]
+       primary = [20.1e5_dp, 1.02_dp]
        call eos%transition(old_primary, primary, old_fluid, fluid, transition, err)
        call transition_compare(expected_primary, expected_region, &
             expected_transition, primary, fluid, transition, title)
