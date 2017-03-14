@@ -107,18 +107,6 @@ module ncg_thermodynamics_module
        PetscErrorCode, intent(out)  :: err
      end subroutine ncg_vapour_mixture_viscosity_procedure
 
-     subroutine ncg_partial_pressure_procedure(self, &
-          temperature, total_density, xg, partial_pressure, err)
-       !! Calculate NCG partial pressure from mass fraction xg.
-       import :: ncg_thermodynamics_type
-       class(ncg_thermodynamics_type), intent(in) :: self
-       PetscReal, intent(in)  :: temperature
-       PetscReal, intent(in)  :: total_density
-       PetscReal, intent(in)  :: xg
-       PetscReal, intent(out)  :: partial_pressure
-       PetscErrorCode, intent(out)  :: err
-     end subroutine ncg_partial_pressure_procedure
-
   end interface
 
 contains
