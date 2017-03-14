@@ -8,6 +8,7 @@ test/unit/build/*.mod
 test/unit/dist/test_all*
 dist/waiwera*
 test/unit/src/test_all.F90
-doc/depends.png
+doc/depends.dot
+doc/depends.eps
 doc/ford/*
 !doc/ford/readme
