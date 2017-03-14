@@ -492,10 +492,16 @@ end subroutine eos_wge_phase_properties
        primary(2) = fluid%temperature
     end if
 
-    xg = fluid%component_mass_fraction(2)
-    xmole = self%gas%mole_fraction(xg)
-    call self%gas%henrys_constant(fluid%temperature, hc, err)
-    partial_pressure = xmole / hc
+    if (region == 2) then
+       xg = fluid%phase(2)%mass_fraction(2)
+       partial_pressure = self%gas%partial_pressure(fluid%temperature, &
+            fluid%phase(2)%density, xg)
+    else
+       xg = fluid%phase(1)%mass_fraction(2)
+       call self%gas%henrys_constant(fluid%temperature, hc, err)
+       xmole = self%gas%mole_fraction(xg)
+       partial_pressure = xmole / hc
+    endif
     primary(3) = partial_pressure
 
   end subroutine eos_wge_primary_variables
