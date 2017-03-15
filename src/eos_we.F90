@@ -160,7 +160,8 @@ contains
 
          interpolated_primary = self%primary_variable_interpolator%interpolate(xi)
          pressure = pressure_factor * interpolated_pressure
-         call self%thermo%saturation%temperature(pressure, temperature, err)
+         call self%thermo%saturation%temperature(interpolated_pressure, &
+              temperature, err)
          if (err == 0) then
             fluid%region = dble(new_region)
             transition = PETSC_TRUE
