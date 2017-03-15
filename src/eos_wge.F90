@@ -123,7 +123,7 @@ contains
     PetscErrorCode, intent(out) :: err
     ! Locals:
     PetscReal :: old_saturation_pressure, pressure_factor
-    PetscReal :: saturation_bound, xi
+    PetscReal :: saturation_bound, xi, interpolated_water_pressure
     PetscReal :: interpolated_primary(self%num_primary_variables)
     PetscReal, parameter :: small = 1.e-6_dp
 
@@ -149,10 +149,11 @@ contains
       if (err == 0) then
 
          interpolated_primary = self%primary_variable_interpolator%interpolate(xi)
-         pressure = pressure_factor * interpolated_pressure
          partial_pressure = max(interpolated_partial_pressure, 0._dp)
-         call self%thermo%saturation%temperature(interpolated_pressure - &
-              interpolated_partial_pressure, temperature, err)
+         interpolated_water_pressure = interpolated_pressure - partial_pressure
+         pressure = pressure_factor * interpolated_water_pressure + partial_pressure
+         call self%thermo%saturation%temperature(interpolated_water_pressure, &
+              temperature, err)
          if (err == 0) then
             fluid%region = dble(new_region)
             transition = PETSC_TRUE
@@ -163,8 +164,8 @@ contains
          call self%thermo%saturation%pressure(old_fluid%temperature, &
               old_saturation_pressure, err)
          if (err == 0) then
-            pressure = pressure_factor * (old_saturation_pressure + &
-                 partial_pressure)
+            pressure = pressure_factor * old_saturation_pressure + &
+                 partial_pressure
             temperature = old_fluid%temperature
             fluid%region = dble(new_region)
             transition = PETSC_TRUE
