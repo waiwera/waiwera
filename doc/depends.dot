@@ -49,6 +49,7 @@ digraph waiwera{
         flow_simulation_module -> ode_module
         flow_simulation_module -> profiling_module
         flow_simulation_module -> relative_permeability_module
+        flow_simulation_module -> rock_mechanics_module
         flow_simulation_module -> rock_module
         flow_simulation_module -> source_control_module
         flow_simulation_module -> source_module
@@ -151,6 +152,9 @@ digraph waiwera{
         timestepper_module -> ode_module
         timestepper_module -> utils_module
         logfile_module -> mpi_module
+        rock_mechanics_module -> fson
+        rock_mechanics_module -> logfile_module
+        rock_mechanics_module -> mpi_module
         source_control_module -> dm_utils_module
         source_control_module -> eos_module
         source_control_module -> interpolation_module

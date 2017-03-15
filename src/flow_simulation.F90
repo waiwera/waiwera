@@ -26,6 +26,7 @@ module flow_simulation_module
   use logfile_module
   use mpi_module
   use list_module
+  use rock_mechanics_module
 
   implicit none
 
@@ -47,6 +48,7 @@ module flow_simulation_module
      Vec, public :: fluid !! Fluid properties in each cell
      Vec, public :: last_timestep_fluid !! Fluid properties at previous timestep
      Vec, public :: last_iteration_fluid !! Fluid properties at previous nonlinear solver iteration
+     type(rock_mechanics_type) :: rock_mechanics
      type(list_type), public :: sources !! Source/sink terms
      type(list_type), public :: source_controls !! Source/sink controls
      class(thermodynamics_type), allocatable, public :: thermo !! Fluid thermodynamic formulation
@@ -389,6 +391,7 @@ contains
     call setup_eos(json, self%thermo, self%eos, self%logfile)
 
     call self%mesh%init(json, self%logfile)
+    call self%rock_mechanics%init(json,self%logfile)
     call setup_rocktype_labels(json, self%mesh%dm, self%logfile)
     call self%mesh%setup_boundaries(json, self%eos, self%logfile)
     if (self%output_filename == '') then
@@ -843,9 +846,7 @@ contains
     class(flow_simulation_type), intent(in out) :: self
     ! Locals:
     !PetscErrorCode :: ierr
-    !print *, "In flow post timestep"
-    !call self%rock_mechanics%compute(self%gravity)
-    !print *, "Leaving flow post timestep"
+    print *, "In flow post timestep"
 
   end subroutine flow_simulation_post_timestep
   

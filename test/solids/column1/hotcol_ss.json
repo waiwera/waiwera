@@ -1,0 +1,88 @@
+{
+    "eos": {"name": "we"}, 
+    "thermodynamics": "ifc67", 
+    "mesh": "ghotcol.exo", 
+    "boundaries": [
+	{
+	    "cell normals": [[0,[0.0,0.0,1.0]]], 
+	    "region": 1, 
+	    "primary": [100000.0,20.0]
+	}
+    ], 
+    "title": "Hot injection into cold column", 
+    "output": {
+	"initial": false, 
+	"frequency": 0, 
+	"final": true, 
+	"filename": "hotcol_ss.vtk"
+    }, 
+    "rock": {
+	"relative permeability": {
+	    "type": "linear", 
+	    "liquid": [0.0,1.0], 
+	    "vapour": [0.0,1.0]
+	}, 
+	"types": [
+	    {
+		"specific heat": 900.0, 
+		"name": "dfalt", 
+		"density": 2600.0, 
+		"cells": [0,1,2,3,4], 
+		"porosity": 0.1, 
+		"dry conductivity": 1.5, 
+		"wet conductivity": 1.5, 
+		"permeability": [1e-13,1e-13,1e-13]
+	    },
+	    {   
+		"specific heat": 900.0,
+		"name": "rock2",
+		"density":2601.0,
+		"cells":[5,6,7,8,9],
+		"porosity": 0.1,
+		"dry conductivity": 1.5, 
+		"wet conductivity": 1.5, 
+		"permeability": [1e-13,1e-13,1e-13]
+	    }
+	]
+    }, 
+    "time": {
+	"start": 0.0, 
+	"step": {
+	    "initial": 10000.0, 
+	    "solver": {
+		"nonlinear": {
+		    "tolerance": {
+			"function": {
+			    "relative": 1e-06, 
+			    "absolute": 1.0
+			}
+		    }, 
+		    "maximum": {
+			"iterations": 8
+		    }
+		}
+	    }, 
+	    "maximum": {
+		"number": 200, 
+		"size": null
+	    }, 
+	    "adapt": {
+		"on": true, 
+		"amplification": 2.0, 
+		"maximum": 8.0, 
+		"reduction": 0.2, 
+		"minimum": 6.0, 
+		"method": "iteration"
+	    }, 
+	    "method": "beuler"
+	}, 
+	"stop": 1000.0
+    }, 
+    "gravity": 9.8, 
+    "initial": {
+	"primary": [
+	    100000.0, 
+	    20.0
+	]
+    }
+}
