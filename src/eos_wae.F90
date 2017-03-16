@@ -39,8 +39,8 @@ contains
 
     self%name = "wae"
     self%description = "Water, air NCG and energy"
-    self%primary_variable_names(3) = "Air partial pressure"
-    self%component_names(2) = "Air"
+    self%primary_variable_names(3) = "air partial pressure"
+    self%component_names(2) = "air"
 
     allocate(ncg_air_thermodynamics_type :: self%gas)
     call self%gas%init()
