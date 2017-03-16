@@ -1,6 +1,6 @@
-module eos_wae_test_module
+module eos_wge_test_module
 
-  ! Tests for eos_wae module (non-isothermal air-water equation of state)
+  ! Tests for eos_wge module (non-isothermal water-NCG equation of state)
 
 #include <petsc/finclude/petsc.h>
 
@@ -13,132 +13,21 @@ module eos_wae_test_module
   use IAPWS_module
   use fson
   use fson_mpi_module
-  use eos_wae_module
+  use eos_wge_module
   use eos_we_test_module, only: transition_compare
 
   implicit none
   private
 
-public :: test_eos_wae_fluid_properties, test_eos_wae_transition
+public :: test_eos_wge_transition
 
 contains
 
 !------------------------------------------------------------------------
 
-  subroutine test_eos_wae_fluid_properties
+  subroutine test_eos_wge_transition
 
-    ! eos_wae fluid_properties() test
-
-    type(fluid_type) :: fluid
-    type(rock_type) :: rock
-    PetscInt,  parameter :: offset = 1, region = 4, phase_composition = b'011'
-    PetscReal, pointer, contiguous :: fluid_data(:)
-    PetscReal, allocatable:: primary(:), primary2(:)
-    type(eos_wae_type) :: eos
-    type(IAPWS_type) :: thermo
-    class(relative_permeability_type), allocatable, target :: rp
-    type(fson_value), pointer :: json
-    character(120) :: json_str = &
-         '{"rock": {"relative_permeability": {"type": "linear", "liquid": [0.2, 0.8], "vapour": [0.2, 0.8]}}}'
-    PetscErrorCode :: err
-    PetscReal, parameter :: temperature = 230._dp
-    PetscReal, parameter :: pressure = 27.967924557686445e5_dp
-    PetscReal, parameter :: vapour_saturation = 0.25
-    PetscReal, parameter :: tol = 1.e-8_dp
-    PetscReal, parameter :: expected_liquid_density = 827.12247049977032_dp
-    PetscReal, parameter :: expected_liquid_internal_energy = 986828.18916209263_dp
-    PetscReal, parameter :: expected_liquid_specific_enthalpy = 990209.54144729744_dp
-    PetscReal, parameter :: expected_liquid_viscosity = 1.1619412513757267e-4_dp
-    PetscReal, parameter :: expected_liquid_relative_permeability = 11._dp / 12._dp
-    PetscReal, parameter :: expected_vapour_density = 13.984012253728331_dp
-    PetscReal, parameter :: expected_vapour_internal_energy = 2603010.010356456_dp
-    PetscReal, parameter :: expected_vapour_specific_enthalpy = 2803009.2956133024_dp
-    PetscReal, parameter :: expected_vapour_viscosity = 1.6704837258831552e-5_dp
-    PetscReal, parameter :: expected_vapour_relative_permeability = 1._dp / 12._dp
-    PetscMPIInt :: rank
-    PetscInt :: ierr
-
-    ! call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
-
-    ! json => fson_parse_mpi(str = json_str)
-    ! call thermo%init()
-    ! call eos%init(json, thermo)
-    ! call setup_relative_permeabilities(json, rp)
-
-    ! call fluid%init(eos%num_components, eos%num_phases)
-    ! call rock%init()
-    ! allocate(primary(eos%num_primary_variables), primary2(eos%num_primary_variables))
-    ! allocate(fluid_data(fluid%dof))
-    ! fluid_data = 0._dp
-    ! call fluid%assign(fluid_data, offset)
-
-    ! rock%relative_permeability => rp
-
-    ! primary = [pressure, vapour_saturation]
-    ! fluid%region = dble(region)
-    ! call eos%bulk_properties(primary, fluid, err)
-    ! call eos%phase_composition(fluid, err)
-    ! call eos%phase_properties(primary, rock, fluid, err)
-    ! call eos%primary_variables(fluid, primary2)
-
-    ! if (rank == 0) then
-
-    !    call assert_equals(pressure, fluid%pressure, tol, "Pressure")
-    !    call assert_equals(temperature, fluid%temperature, tol, "Temperature")
-    !    call assert_equals(phase_composition, nint(fluid%phase_composition), "Phase composition")
-
-    !    call assert_equals(expected_liquid_density, fluid%phase(1)%density, &
-    !         tol, "Liquid density")
-    !    call assert_equals(expected_liquid_internal_energy, &
-    !         fluid%phase(1)%internal_energy, tol, "Liquid internal energy")
-    !    call assert_equals(expected_liquid_specific_enthalpy, &
-    !         fluid%phase(1)%specific_enthalpy, tol, "Liquid specific enthalpy")
-    !    call assert_equals(expected_liquid_viscosity, fluid%phase(1)%viscosity, &
-    !         tol, "Liquid viscosity")
-    !    call assert_equals(1._dp - vapour_saturation, &
-    !         fluid%phase(1)%saturation, tol, "Liquid saturation")
-    !    call assert_equals(expected_liquid_relative_permeability, &
-    !         fluid%phase(1)%relative_permeability, &
-    !         tol, "Liquid relative permeability")
-    !    call assert_equals(1._dp, fluid%phase(1)%mass_fraction(1), &
-    !         tol, "Liquid mass fraction")
-
-    !    call assert_equals(expected_vapour_density, fluid%phase(2)%density, &
-    !         tol, "Vapour density")
-    !    call assert_equals(expected_vapour_internal_energy, &
-    !         fluid%phase(2)%internal_energy, tol, "Vapour internal energy")
-    !    call assert_equals(expected_vapour_specific_enthalpy, &
-    !         fluid%phase(2)%specific_enthalpy, tol, "Vapour specific enthalpy")
-    !    call assert_equals(expected_vapour_viscosity, fluid%phase(2)%viscosity, &
-    !         tol, "Vapour viscosity")
-    !    call assert_equals(vapour_saturation, fluid%phase(2)%saturation, &
-    !         tol, "Vapour saturation")
-    !    call assert_equals(expected_vapour_relative_permeability, &
-    !         fluid%phase(2)%relative_permeability, tol, &
-    !         "Vapour relative permeability")
-    !    call assert_equals(1._dp, fluid%phase(2)%mass_fraction(1), &
-    !         tol, "Vapour mass fraction")
-
-    !    call assert_equals(pressure, primary2(1), tol, "Primary 1")
-    !    call assert_equals(vapour_saturation, primary2(2), tol, "Primary 2")
-
-    ! end if
-
-    ! call fluid%destroy()
-    ! call rock%destroy()
-    ! deallocate(primary, primary2, fluid_data)
-    ! call eos%destroy()
-    ! call thermo%destroy()
-    ! call fson_destroy_mpi(json)
-    ! deallocate(rp)
-
-  end subroutine test_eos_wae_fluid_properties
-
-!------------------------------------------------------------------------
-
-  subroutine test_eos_wae_transition
-
-    ! eos_wae_transition() test
+    ! eos_wge_transition() test
 
     type(fluid_type) :: old_fluid, fluid
     PetscInt,  parameter :: offset = 1, num_primary_variables = 3
@@ -147,7 +36,7 @@ contains
     PetscReal :: expected_primary(num_primary_variables), temperature
     PetscInt :: expected_region
     PetscBool :: transition, expected_transition
-    type(eos_wae_type) :: eos
+    type(eos_wge_type) :: eos
     type(IAPWS_type) :: thermo
     type(fson_value), pointer :: json
     character(2) :: json_str = '{}'
@@ -360,8 +249,8 @@ contains
     call thermo%destroy()
     call fson_destroy_mpi(json)
 
-  end subroutine test_eos_wae_transition
+  end subroutine test_eos_wge_transition
 
 !------------------------------------------------------------------------
   
-end module eos_wae_test_module
+end module eos_wge_test_module
