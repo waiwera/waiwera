@@ -172,7 +172,7 @@ contains
     PetscInt, intent(out)  :: err
 
     err = 0
-    Viscosity = 0._dp
+    viscosity = 0._dp
 
   end subroutine ncg_air_viscosity
 
