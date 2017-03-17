@@ -70,12 +70,13 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine eos_test_transition(self, primary, old_fluid, fluid, &
-       transition, err)
+  subroutine eos_test_transition(self, old_primary, primary, &
+       old_fluid, fluid, transition, err)
 
     use fluid_module, only: fluid_type
 
     class(eos_test_type), intent(in out) :: self
+    PetscReal, intent(in) :: old_primary(self%num_primary_variables)
     PetscReal, intent(in out) :: primary(self%num_primary_variables)
     type(fluid_type), intent(in) :: old_fluid
     type(fluid_type), intent(in out) :: fluid

@@ -172,14 +172,14 @@ contains
     PetscInt, intent(out)  :: err
 
     err = 0
-    Viscosity = 0._dp
+    viscosity = 0._dp
 
   end subroutine ncg_air_viscosity
 
 !------------------------------------------------------------------------
 
   subroutine ncg_air_vapour_mixture_viscosity(self, pressure, &
-       partial_pressure, temperature, region, xg, density, viscosity, err)
+       temperature, partial_pressure, region, xg, density, viscosity, err)
     !! Calculates viscosity for the gas phase mixture, given partial
     !! pressure and temperature.
 

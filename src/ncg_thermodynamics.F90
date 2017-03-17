@@ -92,32 +92,20 @@ module ncg_thermodynamics_module
      end subroutine ncg_viscosity_procedure
 
      subroutine ncg_vapour_mixture_viscosity_procedure(self, pressure, &
-          partial_pressure, temperature, region, xg, density, viscosity, err)
+          temperature, partial_pressure, region, xg, density, viscosity, err)
        !! Calculate NCG water vapour mixture viscosity.
        import :: ncg_thermodynamics_type
        import :: region_type
        class(ncg_thermodynamics_type), intent(in) :: self
        PetscReal, intent(in)  :: pressure
-       PetscReal, intent(in)  :: partial_pressure
        PetscReal, intent(in)  :: temperature
+       PetscReal, intent(in)  :: partial_pressure
        class(region_type), pointer :: region
        PetscReal, intent(in)  :: xg
        PetscReal, intent(in)  :: density
        PetscReal, intent(out) :: viscosity
        PetscErrorCode, intent(out)  :: err
      end subroutine ncg_vapour_mixture_viscosity_procedure
-
-     subroutine ncg_partial_pressure_procedure(self, &
-          temperature, total_density, xg, partial_pressure, err)
-       !! Calculate NCG partial pressure from mass fraction xg.
-       import :: ncg_thermodynamics_type
-       class(ncg_thermodynamics_type), intent(in) :: self
-       PetscReal, intent(in)  :: temperature
-       PetscReal, intent(in)  :: total_density
-       PetscReal, intent(in)  :: xg
-       PetscReal, intent(out)  :: partial_pressure
-       PetscErrorCode, intent(out)  :: err
-     end subroutine ncg_partial_pressure_procedure
 
   end interface
 
@@ -168,7 +156,7 @@ contains
     ! Locals:
     PetscReal :: density_gas
 
-    density_gas = total_density * xmass / (1._dp - xmass)
+    density_gas = total_density * xmass
 
     associate(tk => temperature + tc_k)
       partial_pressure = density_gas / self%molecular_weight * &

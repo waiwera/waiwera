@@ -26,6 +26,7 @@ module eos_module
   use kinds_module
   use fson
   use thermodynamics_module
+  use interpolation_module
 
   implicit none
   private
@@ -67,6 +68,16 @@ module eos_module
      procedure, public :: component_index => eos_component_index
   end type eos_type
 
+  type, public, extends(array_interpolator_type) :: primary_variable_interpolator_type
+     !! Interpolator for primary variable arrays, including
+     !! thermodynamics object for when interpolator is used as a context
+     !! for root finding.
+     private
+     class(thermodynamics_type), pointer, public :: thermo
+   contains
+     procedure, public :: destroy =>  primary_variable_interpolator_destroy
+  end type primary_variable_interpolator_type
+
   abstract interface
 
      subroutine eos_init_procedure(self, json, thermo, logfile)
@@ -79,13 +90,14 @@ module eos_module
        type(logfile_type), intent(in out), optional :: logfile
      end subroutine eos_init_procedure
 
-     subroutine eos_transition_procedure(self, primary, old_fluid, fluid, &
-          transition, err)
+     subroutine eos_transition_procedure(self, old_primary, primary, &
+          old_fluid, fluid, transition, err)
        !! Check primary variables for a cell and make thermodynamic
        !! region transitions if needed.
        use fluid_module, only: fluid_type
        import :: eos_type
        class(eos_type), intent(in out) :: self
+       PetscReal, intent(in) :: old_primary(self%num_primary_variables)
        PetscReal, intent(in out) :: primary(self%num_primary_variables)
        type(fluid_type), intent(in) :: old_fluid
        type(fluid_type), intent(in out) :: fluid
@@ -223,9 +235,23 @@ contains
     deallocate(self%primary_variable_names)
     deallocate(self%phase_names, self%component_names)
     deallocate(self%default_primary)
-    nullify(self%thermo)
+    self%thermo => null()
 
   end subroutine eos_destroy
+
+!------------------------------------------------------------------------
+! Primary variable interpolator
+!------------------------------------------------------------------------
+
+  subroutine primary_variable_interpolator_destroy(self)
+    !! Destroys primary variable interpolator.
+
+    class(primary_variable_interpolator_type), intent(in out) :: self
+
+    call self%array_interpolator_type%destroy()
+    self%thermo => null()
+
+  end subroutine primary_variable_interpolator_destroy
 
 !------------------------------------------------------------------------
 

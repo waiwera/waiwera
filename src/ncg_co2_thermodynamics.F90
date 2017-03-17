@@ -218,7 +218,7 @@ contains
 !------------------------------------------------------------------------
 
   subroutine ncg_co2_vapour_mixture_viscosity(self, pressure, &
-       partial_pressure, temperature, region, xg, density, viscosity, err)
+       temperature, partial_pressure, region, xg, density, viscosity, err)
     !! Calculates viscosity for gas phase mixture given partial
     !! pressure and temperature.
 
@@ -226,8 +226,8 @@ contains
 
     class(ncg_co2_thermodynamics_type), intent(in) :: self
     PetscReal, intent(in) :: pressure
-    PetscReal, intent(in) :: partial_pressure
     PetscReal, intent(in) :: temperature
+    PetscReal, intent(in) :: partial_pressure
     class(region_type), pointer :: region
     PetscReal, intent(in) :: xg
     PetscReal, intent(in) :: density

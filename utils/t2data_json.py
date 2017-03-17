@@ -12,12 +12,14 @@ def primary_to_region_we(primary):
     if primary[1] < 1.: return 4
     else: return region(primary[1], primary[0])
 
-def primary_to_region_wce(primary):
-    """Returns thermodynamic region deduced from primary variables for EOS wce."""
+def primary_to_region_wge(primary):
+    """Returns thermodynamic region deduced from primary variables for wge
+    (NCG) EOS (wce, wae)."""
     pwater = primary[0] - primary[2]
     return primary_to_region_we([pwater, primary[1]])
 
-primary_to_region_funcs = {'we': primary_to_region_we, 'wce': primary_to_region_wce}
+primary_to_region_funcs = {'we': primary_to_region_we, 'wce': primary_to_region_wge,
+                           'wae': primary_to_region_wge}
 
 class t2data_export_json(t2data):
     """Modification of t2data class including ability to export to
@@ -97,7 +99,7 @@ class t2data_export_json(t2data):
     def eos_json(self, eos):
         """Converts TOUGH2 EOS data to JSON."""
         jsondata = {}
-        supported_eos = {'W': 'w', 'EW': 'we'}
+        supported_eos = {'W': 'w', 'EW': 'we', 'EWC': 'wce', 'EWA': 'wae'}
         aut2eosname = ''
         if eos is None:
             if self.multi:
@@ -230,7 +232,7 @@ class t2data_export_json(t2data):
     def generators_json(self, geo, eosname):
         """Converts TOUGH2 generator data to JSON."""
         jsondata = {}
-        eos_num_equations = {'w': 1, 'we': 2}
+        eos_num_equations = {'w': 1, 'we': 2, 'wce': 3, 'wae': 3}
         num_eqns = eos_num_equations[eosname]
         unsupported_types = ['CO2 ', 'DMAK', 'FEED', 'FINJ', 'HLOS', 'IMAK', 'MAKE',
                              'PINJ', 'POWR', 'RINJ', 'TMAK', 'TOST', 'VOL.',
