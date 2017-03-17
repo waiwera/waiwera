@@ -92,14 +92,14 @@ module ncg_thermodynamics_module
      end subroutine ncg_viscosity_procedure
 
      subroutine ncg_vapour_mixture_viscosity_procedure(self, pressure, &
-          partial_pressure, temperature, region, xg, density, viscosity, err)
+          temperature, partial_pressure, region, xg, density, viscosity, err)
        !! Calculate NCG water vapour mixture viscosity.
        import :: ncg_thermodynamics_type
        import :: region_type
        class(ncg_thermodynamics_type), intent(in) :: self
        PetscReal, intent(in)  :: pressure
-       PetscReal, intent(in)  :: partial_pressure
        PetscReal, intent(in)  :: temperature
+       PetscReal, intent(in)  :: partial_pressure
        class(region_type), pointer :: region
        PetscReal, intent(in)  :: xg
        PetscReal, intent(in)  :: density
