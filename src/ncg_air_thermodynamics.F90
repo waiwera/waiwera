@@ -53,6 +53,8 @@ contains
     !! Calculates density and internal energy of mixture of a fluid and and a ncg
     !! pressure (Pa) and temperature (deg C).
 
+    use thermodynamics_module, only: tc_k, gas_constant
+
     class(ncg_air_thermodynamics_type), intent(in) :: self
     PetscReal, intent(in) :: partial_pressure
     PetscReal, intent(in) :: temperature
@@ -62,65 +64,43 @@ contains
     PetscReal, intent(out):: xg !! Mass fraction of the ncg in this phase
     PetscErrorCode, intent(out) :: err !! Error code
     ! Locals:
-    PetscReal :: total_density, hc, xmole
+    PetscReal :: total_density, henrys_constant, xmole
     PetscReal, parameter :: small = 1.e-30_dp
 
     err = 0
 
-    associate(air_density => props(1), air_enthalpy => props(2))
+    associate(tk => temperature + tc_k, air_density => props(1), &
+         air_enthalpy => props(2))
 
-      call air_rho_h(partial_pressure, temperature, air_density, &
-           air_enthalpy, err)
-
-      if (err == 0) then
-         if (phase == 1) then
-            ! liquid
-            air_density = 0._dp    ! not used for mixture density
-            air_enthalpy = 0._dp
-            call self%henrys_constant(temperature, hc, err)
-            if (err == 0) then
-               xmole = hc * partial_pressure
-               xg = self%mass_fraction(xmole)
-            end if
-         else
-            ! vapour
-            total_density = air_density + water_density
-            if (total_density < small) then
-               xg = 0._dp
-            else
-               xg = air_density / total_density
-            end if
-         end if
-      end if
-
-    end associate
-
-  contains
-
-    subroutine air_rho_h(partial_pressure, temperature, air_density, &
-           air_enthalpy, err)
-
-      use thermodynamics_module, only: tc_k, gas_constant
-
-      PetscReal, intent(in)  :: partial_pressure, temperature
-      PetscReal, intent(out) :: air_density, air_enthalpy
-      PetscInt, intent(out)  :: err
-
-      err = 0
-
-      associate(TK => temperature + tc_k)
-        air_density = partial_pressure * self%molecular_weight / &
-             (1.e3 * gas_constant * self%deviation_factor * TK)
-      end associate
-
+      air_density = partial_pressure * self%molecular_weight / &
+           (1.e3 * gas_constant * self%deviation_factor * tk)
       if (air_density > 0._dp) then
          air_enthalpy = self%specific_heat * temperature + &
               partial_pressure / air_density
       else
          air_enthalpy = 0._dp
       end if
+      
+      if (phase == 1) then
+         ! liquid
+         air_density = 0._dp    ! not used for mixture density
+         air_enthalpy = 0._dp
+         call self%henrys_constant(temperature, henrys_constant, err)
+         if (err == 0) then
+            xmole = henrys_constant * partial_pressure
+            xg = self%mass_fraction(xmole)
+         end if
+      else
+         ! vapour
+         total_density = air_density + water_density
+         if (total_density < small) then
+            xg = 0._dp
+         else
+            xg = air_density / total_density
+         end if
+      end if
 
-    end subroutine air_rho_h
+    end associate
 
   end subroutine ncg_air_properties
 
