@@ -56,23 +56,24 @@ module ncg_thermodynamics_module
        PetscErrorCode, intent(out) :: err
      end subroutine ncg_properties_procedure
 
-     subroutine ncg_henrys_constant_procedure(self, temperature, hc, err)
+     subroutine ncg_henrys_constant_procedure(self, temperature, &
+          henrys_constant, err)
        !! Calculate NCG Henry's constant, for calculating dissolution
        !! of gas into water.
        import :: ncg_thermodynamics_type
        class(ncg_thermodynamics_type), intent(in) :: self
        PetscReal, intent(in) :: temperature
-       PetscReal, intent(out) :: hc
+       PetscReal, intent(out) :: henrys_constant
        PetscErrorCode, intent(out) :: err
      end subroutine ncg_henrys_constant_procedure
 
      subroutine ncg_energy_solution_procedure(self, temperature, &
-          h_solution, err)
+          energy_solution, err)
        !! Calculate NCG energy of solution.
        import :: ncg_thermodynamics_type
        class(ncg_thermodynamics_type), intent(in) :: self
        PetscReal, intent(in) :: temperature
-       PetscReal, intent(out) :: h_solution
+       PetscReal, intent(out) :: energy_solution
        PetscErrorCode, intent(out) :: err
      end subroutine ncg_energy_solution_procedure
 
@@ -92,7 +93,8 @@ module ncg_thermodynamics_module
      end subroutine ncg_viscosity_procedure
 
      subroutine ncg_vapour_mixture_viscosity_procedure(self, pressure, &
-          temperature, partial_pressure, region, xg, density, viscosity, err)
+          temperature, partial_pressure, region, xg, total_density, &
+          viscosity, err)
        !! Calculate NCG water vapour mixture viscosity.
        import :: ncg_thermodynamics_type
        import :: region_type
@@ -102,7 +104,7 @@ module ncg_thermodynamics_module
        PetscReal, intent(in)  :: partial_pressure
        class(region_type), pointer :: region
        PetscReal, intent(in)  :: xg
-       PetscReal, intent(in)  :: density
+       PetscReal, intent(in)  :: total_density
        PetscReal, intent(out) :: viscosity
        PetscErrorCode, intent(out)  :: err
      end subroutine ncg_vapour_mixture_viscosity_procedure

@@ -126,31 +126,32 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine ncg_air_henrys_constant(self, temperature, hc, err)
+  subroutine ncg_air_henrys_constant(self, temperature, &
+       henrys_constant, err)
     !! Henry's constant for air NCG.
 
     class(ncg_air_thermodynamics_type), intent(in) :: self
     PetscReal, intent(in) :: temperature
-    PetscReal, intent(out) :: hc
+    PetscReal, intent(out) :: henrys_constant
     PetscErrorCode, intent(out) :: err
 
     err = 0
-    hc = 1.e-10_dp
+    henrys_constant = 1.e-10_dp
 
   end subroutine ncg_air_henrys_constant
 
 !------------------------------------------------------------------------
 
-  subroutine ncg_air_energy_solution(self, temperature, h_solution, err)
+  subroutine ncg_air_energy_solution(self, temperature, energy_solution, err)
     !! Enthalpy of air dissolution in liquid.
 
     class(ncg_air_thermodynamics_type), intent(in) :: self
-    PetscReal, intent(in) :: temperature
-    PetscReal, intent(out):: h_solution
+    PetscReal, intent(in) :: temperature !! Temperature
+    PetscReal, intent(out):: energy_solution !! Energy of solution
     PetscInt, intent(out) :: err     !! error code
 
     err = 0
-    h_solution = 0._dp
+    energy_solution = 0._dp
 
   end subroutine ncg_air_energy_solution
 
@@ -159,17 +160,18 @@ contains
   subroutine ncg_air_viscosity(self, partial_pressure, temperature, &
        region, xg, density_g, viscosity, err)
     !! Viscosity for air, given partial pressure and temperature.
+    !! This is not used.
 
     use thermodynamics_module, only: region_type
 
     class(ncg_air_thermodynamics_type), intent(in) :: self
-    PetscReal, intent(in) :: partial_pressure 
-    PetscReal, intent(in) :: temperature
-    class(region_type), pointer :: region
-    PetscReal, intent(in) :: xg
-    PetscReal, intent(in) :: density_g
-    PetscReal, intent(out):: viscosity
-    PetscInt, intent(out)  :: err
+    PetscReal, intent(in) :: partial_pressure !! Air partial pressure
+    PetscReal, intent(in) :: temperature !! Temperature
+    class(region_type), pointer :: region !! Thermodynamic region
+    PetscReal, intent(in) :: xg !! Air mass fraction
+    PetscReal, intent(in) :: density_g !! Air density
+    PetscReal, intent(out):: viscosity !! Air viscosity
+    PetscInt, intent(out)  :: err !! Error code
 
     err = 0
     viscosity = 0._dp
@@ -179,35 +181,35 @@ contains
 !------------------------------------------------------------------------
 
   subroutine ncg_air_vapour_mixture_viscosity(self, pressure, &
-       temperature, partial_pressure, region, xg, density, viscosity, err)
+       temperature, partial_pressure, region, xg, total_density, &
+       viscosity, err)
     !! Calculates viscosity for the gas phase mixture, given partial
     !! pressure and temperature.
-
-    ! This routine computes the viscosity of vapor-air mixtures.
-    ! It uses a modified version of a formulation based on kinetic
-    ! gas theory, as given by J.O. Hirschfelder, C.F. Curtiss, and
-    ! R.B. Bird, Molecular Theory of Gases and Liquids, John Wiley
-    ! & Sons, 1954, pp. 528-530.
-    !
-    ! The modification made to the Hirschfelder et al. expressions is
-    ! that for vapor viscosity accurate (empirical) values are used,
-    ! rather than the first order expression of kinetic theory.
-    !
-    ! The formulation matches experimental data on viscosities of
-    ! vapor-air mixtures in the temperature range from 100 to 150
-    ! deg. C, for all compositions, to better than 4%.
+    !!
+    !! Uses a modified version of a formulation based on kinetic
+    !! gas theory, as given by J.O. Hirschfelder, C.F. Curtiss, and
+    !! R.B. Bird, Molecular Theory of Gases and Liquids, John Wiley
+    !! & Sons, 1954, pp. 528-530.
+    !!
+    !! The modification made to the Hirschfelder et al. expressions is
+    !! that for vapor viscosity accurate (empirical) values are used,
+    !! rather than the first order expression of kinetic theory.
+    !!
+    !! The formulation matches experimental data on viscosities of
+    !! vapor-air mixtures in the temperature range from 100 to 150
+    !! deg. C, for all compositions, to better than 4%.
     
     use thermodynamics_module
 
     class(ncg_air_thermodynamics_type), intent(in) :: self
-    PetscReal, intent(in) :: pressure 
-    PetscReal, intent(in) :: temperature
-    PetscReal, intent(in) :: partial_pressure 
-    class(region_type), pointer :: region
-    PetscReal, intent(in) :: xg
-    PetscReal, intent(in) :: density
-    PetscReal, intent(out):: viscosity
-    PetscInt, intent(out)  :: err
+    PetscReal, intent(in) :: pressure !! Pressure
+    PetscReal, intent(in) :: temperature !! Temperature
+    PetscReal, intent(in) :: partial_pressure !! Air partial pressure
+    class(region_type), pointer :: region !! Thermodynamic region
+    PetscReal, intent(in) :: xg !! Air mass fraction
+    PetscReal, intent(in) :: total_density !! Total density
+    PetscReal, intent(out):: viscosity !! Mixture viscosity
+    PetscInt, intent(out)  :: err !! Error code
     ! Locals:
     PetscReal :: vs, x1, x2, ard, cmix
     PetscReal :: e, fmix, g, h
@@ -235,7 +237,7 @@ contains
     rm3 = 2._dp * rm1 * rm2 / (rm1 + rm2)
     vis1 = covis(trd1, self%cair, ome1, rm1, self%fair)
 
-    call region%viscosity(temperature, pressure, density, vs)
+    call region%viscosity(temperature, pressure, total_density, vs)
 
     vis2 = 10._dp * vs
     vis3 = covis(trd3, cmix, ome3, rm3, fmix)

@@ -126,12 +126,12 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine ncg_co2_henrys_constant(self, temperature, hc, err)
+  subroutine ncg_co2_henrys_constant(self, temperature, henrys_constant, err)
     !! Henry's constant for CO2 NCG.
 
     class(ncg_co2_thermodynamics_type), intent(in) :: self
     PetscReal, intent(in) :: temperature
-    PetscReal, intent(out) :: hc
+    PetscReal, intent(out) :: henrys_constant
     PetscErrorCode, intent(out) :: err
     ! Locals:
     PetscReal :: T2, T3, RKH
@@ -142,7 +142,7 @@ contains
          T3 = T2 * T
          RKH = (783.666_dp + 19.6025_dp * T + 0.820574_dp * T2) * 1.0e5_dp &
               -T3 * (7.40674e2_dp - 2.18380_dp * T + 2.20999e-3_dp * T2)
-         hc = 1.0_dp / RKH
+         henrys_constant = 1.0_dp / RKH
          err = 0
       else
          err = 1
@@ -153,12 +153,12 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine ncg_co2_energy_solution(self, temperature, h_solution, err)
+  subroutine ncg_co2_energy_solution(self, temperature, energy_solution, err)
     !! Calculates enthalpy of CO2 dissolution in liquid
 
     class(ncg_co2_thermodynamics_type), intent(in) :: self
     PetscReal, intent(in) :: temperature
-    PetscReal, intent(out):: h_solution
+    PetscReal, intent(out):: energy_solution
     PetscInt, intent(out) :: err     !! error code
     ! Locals:
     PetscReal :: T, T2, T3, T4
@@ -169,7 +169,7 @@ contains
     T2 = T * T
     T3 = T * T2
     T4 = T * T3
-    h_solution = 1.e6_dp * (-0.549491_dp + 0.456571_dp * T &
+    energy_solution = 1.e6_dp * (-0.549491_dp + 0.456571_dp * T &
          - 0.070404_dp * T2 - 0.031035_dp * T3 + 0.014121_dp * T4)
 
   end subroutine ncg_co2_energy_solution
@@ -216,7 +216,8 @@ contains
 !------------------------------------------------------------------------
 
   subroutine ncg_co2_vapour_mixture_viscosity(self, pressure, &
-       temperature, partial_pressure, region, xg, density, viscosity, err)
+       temperature, partial_pressure, region, xg, total_density, &
+       viscosity, err)
     !! Calculates viscosity for gas phase mixture given partial
     !! pressure and temperature.
 
@@ -228,16 +229,17 @@ contains
     PetscReal, intent(in) :: partial_pressure
     class(region_type), pointer :: region
     PetscReal, intent(in) :: xg
-    PetscReal, intent(in) :: density
+    PetscReal, intent(in) :: total_density
     PetscReal, intent(out):: viscosity
     PetscInt, intent(out)  :: err
     ! Locals:
     PetscReal :: gas_viscosity, water_viscosity
 
-    call region%viscosity(temperature, pressure, density, water_viscosity)
+    call region%viscosity(temperature, pressure, total_density, &
+         water_viscosity)
 
     call self%viscosity(partial_pressure, temperature, &
-         region, xg, xg * density, gas_viscosity, err)
+         region, xg, xg * total_density, gas_viscosity, err)
 
     if (err == 0) then
        viscosity = water_viscosity * (1._dp - xg) &
