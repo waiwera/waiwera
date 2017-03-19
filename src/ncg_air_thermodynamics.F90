@@ -251,15 +251,9 @@ contains
   contains
 
     PetscReal function covis(trd, c, ome, rm, f)
-!     Coefficient of viscosity to the first approximation.
-
+      ! Coefficient of viscosity to the first approximation.
       PetscReal, intent(in)  :: trd, c, ome, rm, f
-      ! Locals:
-      PetscReal :: fox
-
-      fox = sqrt(rm * trd * f) / (c * c * ome * trd)
-      covis = 266.93e-7_dp * fox
-
+      covis = 266.93e-7_dp * sqrt(rm * trd * f) / (c * c * ome * trd)
     end function covis
 
   end subroutine ncg_air_vapour_mixture_viscosity
