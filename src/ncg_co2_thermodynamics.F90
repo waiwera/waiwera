@@ -48,14 +48,14 @@ contains
 !------------------------------------------------------------------------  
 
   subroutine ncg_co2_properties(self, partial_pressure, temperature, &
-       phase, density_water, props, xg, err)
+       phase, water_density, props, xg, err)
     !! Calculates density and internal energy of mixture of a fluid and and a ncg
     !! pressure (Pa) and temperature (deg C).
 
     class(ncg_co2_thermodynamics_type), intent(in) :: self
-    PetscReal, intent(in) :: partial_pressure
-    PetscReal, intent(in) :: temperature
-    PetscReal, intent(in) :: density_water 
+    PetscReal, intent(in) :: partial_pressure !! CO2 partial pressure
+    PetscReal, intent(in) :: temperature !! Temperature
+    PetscReal, intent(in) :: water_density !! Water density
     PetscInt, intent(in)  :: phase !! Fluid phase
     PetscReal, intent(out):: props(:) !! Properties (density and internal energy)
     PetscReal, intent(out):: xg !! Mass fraction of the ncg in this phase
@@ -66,15 +66,15 @@ contains
 
     err = 0
 
-    associate(density_co2 => props(1), enthalpy_co2 => props(2))
+    associate(co2_density => props(1), co2_enthalpy => props(2))
 
-      call co2_rho_h(partial_pressure, temperature, density_co2, &
-           enthalpy_co2, err)
+      call co2_rho_h(partial_pressure, temperature, co2_density, &
+           co2_enthalpy, err)
 
       if (err == 0) then
          if (phase == 1) then
             ! liquid
-            density_co2 = 0._dp    ! not used for mixture density
+            co2_density = 0._dp    ! not used for mixture density
             call self%henrys_constant(temperature, hc, err)
             if (err == 0) then
                xmole = hc * partial_pressure
@@ -82,11 +82,11 @@ contains
             end if
          else
             ! vapour
-            total_density = density_co2 + density_water
+            total_density = co2_density + water_density
             if (total_density < small) then
                xg = 0._dp
             else
-               xg = density_co2 / total_density
+               xg = co2_density / total_density
             end if
          end if
       end if

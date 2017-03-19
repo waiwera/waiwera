@@ -250,7 +250,7 @@ contains
     ! Locals:
     PetscInt :: old_region
     PetscReal :: saturation_pressure
-    PetscReal :: pressure_water
+    PetscReal :: water_pressure
 
     err = 0
     transition = PETSC_FALSE
@@ -276,9 +276,9 @@ contains
               saturation_pressure, err)
 
          if (err == 0) then
-            pressure_water = pressure - partial_pressure
-            if (((old_region == 1) .and. (pressure_water < saturation_pressure)) .or. &
-                 ((old_region == 2) .and. (pressure_water > saturation_pressure))) then
+            water_pressure = pressure - partial_pressure
+            if (((old_region == 1) .and. (water_pressure < saturation_pressure)) .or. &
+                 ((old_region == 2) .and. (water_pressure > saturation_pressure))) then
                call self%transition_to_two_phase(saturation_pressure, &
                     old_primary, old_fluid, primary, fluid, transition, err)
             end if
@@ -303,7 +303,7 @@ contains
     PetscErrorCode, intent(out) :: err !! Error code
     ! Locals:
     PetscInt :: region
-    PetscReal :: pressure_water
+    PetscReal :: water_pressure
 
     err = 0
     fluid%pressure = primary(1)
@@ -312,8 +312,8 @@ contains
     if (region == 4) then
        ! Two-phase
        associate(partial_pressure => primary(3))
-         pressure_water = fluid%pressure - partial_pressure
-         call self%thermo%saturation%temperature(pressure_water, &
+         water_pressure = fluid%pressure - partial_pressure
+         call self%thermo%saturation%temperature(water_pressure, &
               fluid%temperature, err)
        end associate
     else
@@ -375,7 +375,7 @@ contains
     ! Locals:
     PetscInt :: p, phases
     PetscReal :: water_properties(2), sl, relative_permeability(2)
-    PetscReal :: pressure_water, gas_properties(2), xg
+    PetscReal :: water_pressure, gas_properties(2), xg
     PetscReal :: h_solution
 
     err = 0
@@ -392,12 +392,12 @@ contains
            if (btest(phases, p - 1)) then
 
               if (p == 1) then
-                 pressure_water = fluid%pressure
+                 water_pressure = fluid%pressure
               else
-                 pressure_water = fluid%pressure - partial_pressure
+                 water_pressure = fluid%pressure - partial_pressure
               end if
 
-              call region%properties([pressure_water, fluid%temperature], &
+              call region%properties([water_pressure, fluid%temperature], &
                    water_properties, err)
 
               if (err == 0) then
@@ -438,7 +438,7 @@ contains
                         end if
 
                         phase%specific_enthalpy = (water_internal_energy &
-                             + pressure_water / water_density) * (1._dp - xg) &
+                             + water_pressure / water_density) * (1._dp - xg) &
                              + (gas_enthalpy + h_solution) * xg
                         phase%internal_energy = phase%specific_enthalpy &
                              - fluid%pressure / phase%density

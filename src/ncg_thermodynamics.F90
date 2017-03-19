@@ -42,7 +42,7 @@ module ncg_thermodynamics_module
      end subroutine ncg_init_procedure
 
      subroutine ncg_properties_procedure(self, partial_pressure, &
-          temperature, phase, density_water, props, xg, err)
+          temperature, phase, water_density, props, xg, err)
        !! Calculate NCG fluid properties (density and internal energy)
        !! and mass fraction.
        import :: ncg_thermodynamics_type
@@ -50,7 +50,7 @@ module ncg_thermodynamics_module
        PetscReal, intent(in) :: partial_pressure
        PetscReal, intent(in) :: temperature
        PetscInt, intent(in)  :: phase
-       PetscReal, intent(in) :: density_water
+       PetscReal, intent(in) :: water_density
        PetscReal, intent(out) :: props(:)
        PetscReal, intent(out) :: xg
        PetscErrorCode, intent(out) :: err

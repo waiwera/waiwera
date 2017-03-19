@@ -49,14 +49,14 @@ contains
 !------------------------------------------------------------------------  
 
   subroutine ncg_air_properties(self, partial_pressure, temperature, &
-       phase, density_water, props, xg, err)
+       phase, water_density, props, xg, err)
     !! Calculates density and internal energy of mixture of a fluid and and a ncg
     !! pressure (Pa) and temperature (deg C).
 
     class(ncg_air_thermodynamics_type), intent(in) :: self
     PetscReal, intent(in) :: partial_pressure
     PetscReal, intent(in) :: temperature
-    PetscReal, intent(in) :: density_water 
+    PetscReal, intent(in) :: water_density
     PetscInt, intent(in)  :: phase !! Fluid phase
     PetscReal, intent(out):: props(:) !! Properties (density and internal energy)
     PetscReal, intent(out):: xg !! Mass fraction of the ncg in this phase
@@ -67,16 +67,16 @@ contains
 
     err = 0
 
-    associate(density_air => props(1), enthalpy_air => props(2))
+    associate(air_density => props(1), air_enthalpy => props(2))
 
-      call air_rho_h(partial_pressure, temperature, density_air, &
-           enthalpy_air, err)
+      call air_rho_h(partial_pressure, temperature, air_density, &
+           air_enthalpy, err)
 
       if (err == 0) then
          if (phase == 1) then
             ! liquid
-            density_air = 0._dp    ! not used for mixture density
-            enthalpy_air = 0._dp
+            air_density = 0._dp    ! not used for mixture density
+            air_enthalpy = 0._dp
             call self%henrys_constant(temperature, hc, err)
             if (err == 0) then
                xmole = hc * partial_pressure
@@ -84,11 +84,11 @@ contains
             end if
          else
             ! vapour
-            total_density = density_air + density_water
+            total_density = air_density + water_density
             if (total_density < small) then
                xg = 0._dp
             else
-               xg = density_air / total_density
+               xg = air_density / total_density
             end if
          end if
       end if
@@ -97,27 +97,27 @@ contains
 
   contains
 
-    subroutine air_rho_h(partial_pressure, temperature, density_air, &
-           enthalpy_air, err)
+    subroutine air_rho_h(partial_pressure, temperature, air_density, &
+           air_enthalpy, err)
 
       use thermodynamics_module, only: tc_k, gas_constant
 
       PetscReal, intent(in)  :: partial_pressure, temperature
-      PetscReal, intent(out) :: density_air, enthalpy_air
+      PetscReal, intent(out) :: air_density, air_enthalpy
       PetscInt, intent(out)  :: err
 
       err = 0
 
       associate(TK => temperature + tc_k)
-        density_air = partial_pressure * self%molecular_weight / &
+        air_density = partial_pressure * self%molecular_weight / &
              (1.e3 * gas_constant * self%deviation_factor * TK)
       end associate
 
-      if (density_air > 0._dp) then 
-         enthalpy_air = self%specific_heat * temperature + &
-              partial_pressure / density_air
+      if (air_density > 0._dp) then
+         air_enthalpy = self%specific_heat * temperature + &
+              partial_pressure / air_density
       else
-         enthalpy_air = 0._dp
+         air_enthalpy = 0._dp
       end if
 
     end subroutine air_rho_h
