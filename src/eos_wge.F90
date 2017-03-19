@@ -374,7 +374,7 @@ contains
     PetscErrorCode, intent(out) :: err !! Error code
     ! Locals:
     PetscInt :: p, phases
-    PetscReal :: h2o_properties(2), sl, relative_permeability(2)
+    PetscReal :: water_properties(2), sl, relative_permeability(2)
     PetscReal :: pressure_water, gas_properties(2), xg
     PetscReal :: h_solution
 
@@ -398,15 +398,15 @@ contains
               end if
 
               call region%properties([pressure_water, fluid%temperature], &
-                   h2o_properties, err)
+                   water_properties, err)
 
               if (err == 0) then
 
-                 associate(h2o_density => h2o_properties(1), &
-                      h2o_internal_energy => h2o_properties(2))
+                 associate(water_density => water_properties(1), &
+                      water_internal_energy => water_properties(2))
 
                    call self%gas%properties(partial_pressure, fluid%temperature, &
-                        p, h2o_density, gas_properties, xg, err)
+                        p, water_density, gas_properties, xg, err)
 
                    if (err == 0) then
 
@@ -419,16 +419,16 @@ contains
                            gas_enthalpy => gas_properties(2))
 
                         if (p == 2) then
-                           phase%density = h2o_density + gas_density
+                           phase%density = water_density + gas_density
                            h_solution = 0._dp
                            call self%gas%vapour_mixture_viscosity(fluid%pressure, &
                                 fluid%temperature, partial_pressure, region, xg, &
-                                h2o_density, phase%viscosity, err)
+                                water_density, phase%viscosity, err)
                            if (err > 0) then
                               exit
                            end if
                         else
-                           phase%density = h2o_density
+                           phase%density = water_density
                            call self%gas%energy_solution(fluid%temperature, h_solution, err)
                            if (err > 0) then
                               exit
@@ -437,8 +437,8 @@ contains
                                 phase%density, phase%viscosity)
                         end if
 
-                        phase%specific_enthalpy = (h2o_internal_energy &
-                             + pressure_water / h2o_density) * (1._dp - xg) &
+                        phase%specific_enthalpy = (water_internal_energy &
+                             + pressure_water / water_density) * (1._dp - xg) &
                              + (gas_enthalpy + h_solution) * xg
                         phase%internal_energy = phase%specific_enthalpy &
                              - fluid%pressure / phase%density

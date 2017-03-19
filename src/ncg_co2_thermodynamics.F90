@@ -129,8 +129,6 @@ contains
   subroutine ncg_co2_henrys_constant(self, temperature, hc, err)
     !! Henry's constant for CO2 NCG.
 
-    use thermodynamics_module, only: h2o_molecular_weight
-
     class(ncg_co2_thermodynamics_type), intent(in) :: self
     PetscReal, intent(in) :: temperature
     PetscReal, intent(out) :: hc

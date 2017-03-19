@@ -122,7 +122,7 @@ contains
     PetscReal :: w
 
     w = xmole * self%molecular_weight
-    xmass = w / (w + (1._dp - xmole) * h2o_molecular_weight)
+    xmass = w / (w + (1._dp - xmole) * water_molecular_weight)
 
   end function ncg_thermodynamics_mass_fraction
 
@@ -137,7 +137,7 @@ contains
     PetscReal :: w
 
     w = xmass / self%molecular_weight
-    xmole = w / (w + (1._dp - xmass) / h2o_molecular_weight)
+    xmole = w / (w + (1._dp - xmass) / water_molecular_weight)
 
   end function ncg_thermodynamics_mole_fraction
 

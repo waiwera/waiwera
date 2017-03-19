@@ -217,7 +217,7 @@ contains
     err = 0
 
     rm1 = self%molecular_weight
-    rm2 = h2o_molecular_weight
+    rm2 = water_molecular_weight
 
     fmix = sqrt(self%fair * self%fwat)
     cmix = 0.5_dp * (self%cair + self%cwat)
