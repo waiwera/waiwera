@@ -56,11 +56,11 @@ contains
     use thermodynamics_module, only: tc_k, gas_constant
 
     class(ncg_air_thermodynamics_type), intent(in) :: self
-    PetscReal, intent(in) :: partial_pressure
-    PetscReal, intent(in) :: temperature
-    PetscReal, intent(in) :: water_density
+    PetscReal, intent(in) :: partial_pressure !! Air partial pressure
+    PetscReal, intent(in) :: temperature !! Temperature
+    PetscReal, intent(in) :: water_density !! Density of water
     PetscInt, intent(in)  :: phase !! Fluid phase
-    PetscReal, intent(out):: props(:) !! Properties (density and internal energy)
+    PetscReal, intent(out):: props(:) !! Properties (density and enthalpy)
     PetscReal, intent(out):: xg !! Mass fraction of the ncg in this phase
     PetscErrorCode, intent(out) :: err !! Error code
     ! Locals:
