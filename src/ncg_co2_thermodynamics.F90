@@ -108,9 +108,9 @@ contains
     !! Henry's constant for CO2 NCG.
 
     class(ncg_co2_thermodynamics_type), intent(in) :: self
-    PetscReal, intent(in) :: temperature
-    PetscReal, intent(out) :: henrys_constant
-    PetscErrorCode, intent(out) :: err
+    PetscReal, intent(in) :: temperature !! Temperature
+    PetscReal, intent(out) :: henrys_constant !! Henry's constant
+    PetscErrorCode, intent(out) :: err !! Error code
     ! Locals:
     PetscReal :: T2, T3, RKH
 
@@ -132,11 +132,11 @@ contains
 !------------------------------------------------------------------------
 
   subroutine ncg_co2_energy_solution(self, temperature, energy_solution, err)
-    !! Calculates enthalpy of CO2 dissolution in liquid
+    !! Calculates enthalpy of CO2 dissolution in liquid.
 
     class(ncg_co2_thermodynamics_type), intent(in) :: self
-    PetscReal, intent(in) :: temperature
-    PetscReal, intent(out):: energy_solution
+    PetscReal, intent(in) :: temperature !! Temperature
+    PetscReal, intent(out):: energy_solution !! Energy of solution
     PetscInt, intent(out) :: err     !! error code
     ! Locals:
     PetscReal :: T, T2, T3, T4
@@ -155,39 +155,34 @@ contains
 !------------------------------------------------------------------------
   
   subroutine ncg_co2_viscosity(self, partial_pressure, temperature, &
-       region, xg, density_g, viscosity, err)
-    !! Calculates viscosity for gas phase given partial pressure and temperature
-    ! Currently using TOUGH2 formulation
+       region, viscosity, err)
+    !! Calculates viscosity for gas phase given partial pressure and
+    !! temperature.
 
     use thermodynamics_module, only: region_type
 
     class(ncg_co2_thermodynamics_type), intent(in) :: self
-    PetscReal, intent(in) :: partial_pressure 
-    PetscReal, intent(in) :: temperature
-    class(region_type), pointer :: region
-    PetscReal, intent(in) :: xg
-    PetscReal, intent(in) :: density_g
-    PetscReal, intent(out):: viscosity
-    PetscInt, intent(out)  :: err
+    PetscReal, intent(in) :: partial_pressure !! CO2 partial pressure
+    PetscReal, intent(in) :: temperature !! Temperature
+    class(region_type), pointer :: region !! Thermodynamic region
+    PetscReal, intent(out):: viscosity !! CO2 viscosity
+    PetscInt, intent(out)  :: err !! Error code
     ! Locals:
-    PetscReal :: pbar, pscale, T2, T3, T4
-    PetscReal :: C(5)
+    PetscReal :: T2, T3, T4, C(5)
 
-    pbar = partial_pressure * 1.0e-5_dp
-    pscale = 0.01_dp * pbar
-    if (pscale <= 1._dp) then
-       C = self%viscosity_A + pscale * self%viscosity_BA
-       associate(T => temperature)
+    associate(pscale => partial_pressure * 1.0e-6_dp, T => temperature)
+      if (pscale <= 1._dp) then
+         C = self%viscosity_A + pscale * self%viscosity_BA
          T2 = T * T
          T3 = T * T2
          T4 = T2 * T2
          viscosity = 1.0e-8_dp * (C(1) + C(2) * T + &
               C(3) * T2 + C(4) * T3 + C(5) * T4)
-       end associate
-       err = 0
-    else
-       err = 1
-    end if
+         err = 0
+      else
+         err = 1
+      end if
+    end associate
 
   end subroutine ncg_co2_viscosity
 
@@ -202,14 +197,14 @@ contains
     use thermodynamics_module, only: region_type
 
     class(ncg_co2_thermodynamics_type), intent(in) :: self
-    PetscReal, intent(in) :: pressure
-    PetscReal, intent(in) :: temperature
-    PetscReal, intent(in) :: partial_pressure
-    class(region_type), pointer :: region
-    PetscReal, intent(in) :: xg
-    PetscReal, intent(in) :: total_density
-    PetscReal, intent(out):: viscosity
-    PetscInt, intent(out)  :: err
+    PetscReal, intent(in) :: pressure !! Pressure
+    PetscReal, intent(in) :: temperature !! Temperature
+    PetscReal, intent(in) :: partial_pressure !! Partial pressure of CO2
+    class(region_type), pointer :: region !! Thermodynamic region
+    PetscReal, intent(in) :: xg !! CO2 mass fraction
+    PetscReal, intent(in) :: total_density !! Total density
+    PetscReal, intent(out):: viscosity !! Mixture viscosity
+    PetscInt, intent(out)  :: err !! Error code
     ! Locals:
     PetscReal :: gas_viscosity, water_viscosity
 
@@ -217,7 +212,7 @@ contains
          water_viscosity)
 
     call self%viscosity(partial_pressure, temperature, &
-         region, xg, xg * total_density, gas_viscosity, err)
+         region, gas_viscosity, err)
 
     if (err == 0) then
        viscosity = water_viscosity * (1._dp - xg) &

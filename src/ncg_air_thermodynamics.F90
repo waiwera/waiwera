@@ -138,7 +138,7 @@ contains
 !------------------------------------------------------------------------
   
   subroutine ncg_air_viscosity(self, partial_pressure, temperature, &
-       region, xg, density_g, viscosity, err)
+       region, viscosity, err)
     !! Viscosity for air, given partial pressure and temperature.
     !! This is not used.
 
@@ -148,8 +148,6 @@ contains
     PetscReal, intent(in) :: partial_pressure !! Air partial pressure
     PetscReal, intent(in) :: temperature !! Temperature
     class(region_type), pointer :: region !! Thermodynamic region
-    PetscReal, intent(in) :: xg !! Air mass fraction
-    PetscReal, intent(in) :: density_g !! Air density
     PetscReal, intent(out):: viscosity !! Air viscosity
     PetscInt, intent(out)  :: err !! Error code
 
