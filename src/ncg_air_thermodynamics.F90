@@ -111,9 +111,9 @@ contains
     !! Henry's constant for air NCG.
 
     class(ncg_air_thermodynamics_type), intent(in) :: self
-    PetscReal, intent(in) :: temperature
-    PetscReal, intent(out) :: henrys_constant
-    PetscErrorCode, intent(out) :: err
+    PetscReal, intent(in) :: temperature !! Temperature
+    PetscReal, intent(out) :: henrys_constant !! Henry's constant
+    PetscErrorCode, intent(out) :: err !! Error code
 
     err = 0
     henrys_constant = 1.e-10_dp
@@ -128,7 +128,7 @@ contains
     class(ncg_air_thermodynamics_type), intent(in) :: self
     PetscReal, intent(in) :: temperature !! Temperature
     PetscReal, intent(out):: energy_solution !! Energy of solution
-    PetscInt, intent(out) :: err     !! error code
+    PetscInt, intent(out) :: err     !! Error code
 
     err = 0
     energy_solution = 0._dp
