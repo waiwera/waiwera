@@ -114,7 +114,7 @@ contains
 !------------------------------------------------------------------------
 
   PetscReal function ncg_thermodynamics_mass_fraction(self, xmole) &
-       result(xmass)
+       result(xg)
     !! Calculates NCG mass fraction from mole fraction.
     class(ncg_thermodynamics_type), intent(in) :: self
     PetscReal, intent(in) :: xmole !! NCG mole fraction
@@ -122,44 +122,40 @@ contains
     PetscReal :: w
 
     w = xmole * self%molecular_weight
-    xmass = w / (w + (1._dp - xmole) * water_molecular_weight)
+    xg = w / (w + (1._dp - xmole) * water_molecular_weight)
 
   end function ncg_thermodynamics_mass_fraction
 
 !------------------------------------------------------------------------
 
-  PetscReal function ncg_thermodynamics_mole_fraction(self, xmass) &
+  PetscReal function ncg_thermodynamics_mole_fraction(self, xg) &
        result(xmole)
     !! Calculates NCG mole fraction from mass fraction.
     class(ncg_thermodynamics_type), intent(in) :: self
-    PetscReal, intent(in) :: xmass !! NCG mass fraction
+    PetscReal, intent(in) :: xg !! NCG mass fraction
     ! Locals:
     PetscReal :: w
 
-    w = xmass / self%molecular_weight
-    xmole = w / (w + (1._dp - xmass) / water_molecular_weight)
+    w = xg / self%molecular_weight
+    xmole = w / (w + (1._dp - xg) / water_molecular_weight)
 
   end function ncg_thermodynamics_mole_fraction
 
 !------------------------------------------------------------------------
 
   PetscReal function ncg_partial_pressure(self, &
-       temperature, total_density, xmass) result(partial_pressure)
-    !! Calculate NCG partial pressure from mass fraction xmass.
+       temperature, total_density, xg) result(partial_pressure)
+    !! Calculate NCG partial pressure from mass fraction xg.
 
     use thermodynamics_module, only: tc_k, gas_constant
 
     class(ncg_thermodynamics_type), intent(in) :: self
     PetscReal, intent(in)  :: temperature !! Temperature
     PetscReal, intent(in)  :: total_density !! Total mixture density
-    PetscReal, intent(in)  :: xmass !! NCG mass fraction
-    ! Locals:
-    PetscReal :: density_gas
+    PetscReal, intent(in)  :: xg !! NCG mass fraction
 
-    density_gas = total_density * xmass
-
-    associate(tk => temperature + tc_k)
-      partial_pressure = density_gas / self%molecular_weight * &
+    associate(tk => temperature + tc_k, gas_density => total_density * xg)
+      partial_pressure = gas_density / self%molecular_weight * &
            (1.e3_dp * gas_constant * self%deviation_factor * tk)
     end associate
 
