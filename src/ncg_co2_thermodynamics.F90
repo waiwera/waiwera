@@ -52,75 +52,53 @@ contains
     !! Calculates density and internal energy of mixture of a fluid and and a ncg
     !! pressure (Pa) and temperature (deg C).
 
+    use thermodynamics_module, only: tc_k
+
     class(ncg_co2_thermodynamics_type), intent(in) :: self
     PetscReal, intent(in) :: partial_pressure !! CO2 partial pressure
     PetscReal, intent(in) :: temperature !! Temperature
     PetscReal, intent(in) :: water_density !! Water density
     PetscInt, intent(in)  :: phase !! Fluid phase
-    PetscReal, intent(out):: props(:) !! Properties (density and internal energy)
-    PetscReal, intent(out):: xg !! Mass fraction of the ncg in this phase
+    PetscReal, intent(out):: props(:) !! Properties (density and enthalpy)
+    PetscReal, intent(out):: xg !! Mass fraction of CO2 in this phase
     PetscErrorCode, intent(out) :: err !! Error code
     ! Locals:
-    PetscReal :: total_density, hc, xmole
+    PetscReal :: total_density, henrys_constant, xmole
+    PetscReal :: pp, tc, hci, vc
     PetscReal, parameter :: small = 1.e-30_dp
 
     err = 0
 
-    associate(co2_density => props(1), co2_enthalpy => props(2))
+    associate(tk => temperature + tc_k, co2_density => props(1), &
+         co2_enthalpy => props(2))
 
-      call co2_rho_h(partial_pressure, temperature, co2_density, &
-           co2_enthalpy, err)
+      pp = partial_pressure * 1.0e-6_dp
+      tc = (0.01_dp * tk) ** 3.3333333333_dp
+      hci = 1.667_dp + 0.001542_dp * tk - 0.7948_dp * log10(tk) - 41.35_dp / tk
+      co2_enthalpy = 1.e6_dp * (hci - 0.3571_dp * pp * &
+           (1._dp + 0.07576_dp * pp) / tc)
+      vc = 0.00018882_dp * tk - pp * (0.0824_dp + 0.01249_dp * pp) / tc
+      co2_density = pp / vc
 
-      if (err == 0) then
-         if (phase == 1) then
-            ! liquid
-            co2_density = 0._dp    ! not used for mixture density
-            call self%henrys_constant(temperature, hc, err)
-            if (err == 0) then
-               xmole = hc * partial_pressure
-               xg = self%mass_fraction(xmole)
-            end if
+      if (phase == 1) then
+         ! liquid
+         co2_density = 0._dp    ! not used for mixture density
+         call self%henrys_constant(temperature, henrys_constant, err)
+         if (err == 0) then
+            xmole = henrys_constant * partial_pressure
+            xg = self%mass_fraction(xmole)
+         end if
+      else
+         ! vapour
+         total_density = co2_density + water_density
+         if (total_density < small) then
+            xg = 0._dp
          else
-            ! vapour
-            total_density = co2_density + water_density
-            if (total_density < small) then
-               xg = 0._dp
-            else
-               xg = co2_density / total_density
-            end if
+            xg = co2_density / total_density
          end if
       end if
 
     end associate
-
-  contains
-
-    subroutine co2_rho_h(PP, T, DC, HC, err)
-
-      use thermodynamics_module, only: tc_k
-
-      PetscReal, intent(in)  :: T, PP
-      PetscReal, intent(out) :: DC, HC
-      PetscInt, intent(out)  :: err
-      ! Locals:
-      PetscReal :: PPb, TA, TB, TC
-      PetscReal :: HCI, VC1, VC2
-
-      err = 0
-
-      PPb = PP * 1.0e-6_dp
-      TA = T + tc_k
-      TB = 0.01_dp * TA
-      TC = TB ** 3.3333333333_dp
-      HCI = 1.667_dp + 0.001542_dp * TA - 0.7948_dp * log10(TA) - 41.35_dp / TA
-      HC = HCI - 0.3571_dp * PPb * (1._dp + 0.07576_dp * PPb) / TC
-      HC = HC * 1.e6_dp
-
-      VC1 = 0.00018882_dp * TA
-      VC2= - PPb * (0.0824_dp + 0.01249_dp * PPb) / TC
-      DC = PPb / (VC1 + VC2)
-
-    end subroutine co2_rho_h
 
   end subroutine ncg_co2_properties
 
