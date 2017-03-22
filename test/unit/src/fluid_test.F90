@@ -61,11 +61,13 @@ contains
           call assert_equals(fluid_data(i+3), &
                fluid%phase(ip)%relative_permeability, tol, "relative permeability")
           call assert_equals(fluid_data(i+4), &
-               fluid%phase(ip)%specific_enthalpy, tol, "specific enthalpy")
+               fluid%phase(ip)%capillary_pressure, tol, "capillary pressure")
           call assert_equals(fluid_data(i+5), &
+               fluid%phase(ip)%specific_enthalpy, tol, "specific enthalpy")
+          call assert_equals(fluid_data(i+6), &
                fluid%phase(ip)%internal_energy, tol, "internal energy")
           nc = size(fluid%phase(ip)%mass_fraction)
-          call assert_equals(0._dp, norm2(fluid_data(i+6: i + 6 + nc-1) - &
+          call assert_equals(0._dp, norm2(fluid_data(i+7: i + 7 + nc-1) - &
                fluid%phase(ip)%mass_fraction), tol, "mass fraction")
           i = i + phase_dof
        end do
@@ -100,8 +102,8 @@ contains
        allocate(fluid_data(offset - 1 + fluid%dof))
 
        fluid_data = [2.7e5_dp, 130._dp, 4._dp, 3._dp, &
-            935._dp, 0.0_dp, 0.8_dp, 0.0_dp, 0._dp, 5.461e5_dp, 0.7_dp, 0.3_dp, &
-            1.5_dp,  0.0_dp, 0.2_dp, 0.0_dp, 0._dp, 2.540e6_dp, 0.4_dp, 0.6_dp]
+            935._dp, 0._dp, 0.8_dp, 0._dp, 0._dp, 0._dp, 5.461e5_dp, 0.7_dp, 0.3_dp, &
+            1.5_dp,  0._dp, 0.2_dp, 0._dp, 0._dp, 0._dp, 2.540e6_dp, 0.4_dp, 0.6_dp]
 
        call fluid%assign(fluid_data, offset)
 
@@ -138,8 +140,8 @@ contains
 
        allocate(fluid_data(offset - 1 + fluid%dof))
        fluid_data = [2.7e5_dp, 130._dp, 4._dp, 3._dp, &
-            935._dp, 0.0_dp, 0.8_dp, 0.0_dp, 0._dp, 5.461e5_dp, 0.7_dp, 0.3_dp, &
-            1.5_dp,  0.0_dp, 0.2_dp, 0.0_dp, 0._dp, 2.540e6_dp, 0.4_dp, 0.6_dp]
+            935._dp, 0._dp, 0.8_dp, 0._dp, 0._dp, 0._dp, 5.461e5_dp, 0.7_dp, 0.3_dp, &
+            1.5_dp,  0._dp, 0.2_dp, 0._dp, 0._dp, 0._dp, 2.540e6_dp, 0.4_dp, 0.6_dp]
 
        call fluid%assign(fluid_data, offset)
 
@@ -181,8 +183,8 @@ contains
 
        allocate(fluid_data(offset - 1 + fluid%dof))
        fluid_data = [2.7e5_dp, 130._dp, 4._dp, 3._dp, &
-            935._dp, 1.e-6_dp, 0.8_dp, 0.7_dp, 83.9e3_dp, 5.461e5_dp, 0.7_dp, 0.3_dp, &
-            1.5_dp,  2.e-7_dp, 0.2_dp, 0.3_dp, 800.e3_dp, 2.540e6_dp, 0.4_dp, 0.6_dp]
+            935._dp, 1.e-6_dp, 0.8_dp, 0.7_dp, 0._dp, 83.9e3_dp, 5.461e5_dp, 0.7_dp, 0.3_dp, &
+            1.5_dp,  2.e-7_dp, 0.2_dp, 0.3_dp, 0._dp, 800.e3_dp, 2.540e6_dp, 0.4_dp, 0.6_dp]
 
        call fluid%assign(fluid_data, offset)
 
