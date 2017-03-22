@@ -198,6 +198,8 @@ contains
   function relative_permeability_linear_values(self, sl) result(rp)
     !! Evaluate linear relative permeability function.
 
+    use interpolation_module, only: ramp_interpolate
+
     class(relative_permeability_linear_type), intent(in) :: self
     PetscReal, intent(in) :: sl !! Liquid saturation
     PetscReal, dimension(2) :: rp !! Relative permeabilities
@@ -205,26 +207,8 @@ contains
     PetscReal :: sv
 
     sv = 1._dp - sl
-    rp(1) = linear_interpolate(sl, self%liquid_limits)
-    rp(2) = linear_interpolate(sv, self%vapour_limits)
-
-  contains
-
-    PetscReal function linear_interpolate(x, x_values) result(y)
-      !! Interpolates linearly between 0 and 1 within specified
-      !! limits.
-
-      PetscReal, intent(in) :: x, x_values(2)
-
-      if (x < x_values(1)) then
-         y = 0._dp
-      else if (x > x_values(2)) then
-         y = 1._dp
-      else
-         y = (x - x_values(1)) / (x_values(2) - x_values(1))
-      end if
-
-    end function linear_interpolate
+    rp(1) = ramp_interpolate(sl, self%liquid_limits, [0._dp, 1._dp])
+    rp(2) = ramp_interpolate(sv, self%vapour_limits, [0._dp, 1._dp])
 
   end function relative_permeability_linear_values
 
