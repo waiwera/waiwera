@@ -55,11 +55,12 @@ module capillary_pressure_module
        type(logfile_type), intent(in out), optional :: logfile
      end subroutine capillary_pressure_init_routine
 
-     PetscReal function capillary_pressure_function(self, sl)
+     PetscReal function capillary_pressure_function(self, sl, t)
        !! Capillary pressure function.
        import :: capillary_pressure_type
        class(capillary_pressure_type), intent(in) :: self
-       PetscReal, intent(in) :: sl  ! Liquid saturation
+       PetscReal, intent(in) :: sl  !! Liquid saturation
+       PetscReal, intent(in) :: t   !! Temperature
      end function capillary_pressure_function
 
   end interface
@@ -148,11 +149,12 @@ contains
 
 !------------------------------------------------------------------------
 
-  PetscReal function capillary_pressure_zero_value(self, sl) result(cp)
+  PetscReal function capillary_pressure_zero_value(self, sl, t) result(cp)
     !! Evaluate zero capillary pressure function.
 
     class(capillary_pressure_zero_type), intent(in) :: self
     PetscReal, intent(in) :: sl !! Liquid saturation
+    PetscReal, intent(in) :: t  !! Temperature
 
     cp = 0._dp
 
