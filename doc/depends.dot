@@ -8,6 +8,7 @@ digraph waiwera{
         IFC67_module -> thermodynamics_module
         capillary_pressure_module -> fson
         capillary_pressure_module -> fson_mpi_module
+        capillary_pressure_module -> interpolation_module
         capillary_pressure_module -> kinds_module
         capillary_pressure_module -> logfile_module
         capillary_pressure_module -> petscsys
@@ -133,6 +134,7 @@ digraph waiwera{
         profiling_module -> petscsys
         relative_permeability_module -> fson
         relative_permeability_module -> fson_mpi_module
+        relative_permeability_module -> interpolation_module
         relative_permeability_module -> kinds_module
         relative_permeability_module -> logfile_module
         relative_permeability_module -> petscsys
