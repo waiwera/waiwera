@@ -302,13 +302,15 @@ contains
     PetscErrorCode, intent(out) :: err !! Error code
     ! Locals:
     PetscInt :: p, phases
-    PetscReal :: properties(2), sl, relative_permeability(2)
+    PetscReal :: properties(2), sl, relative_permeability(2), capillary_pressure(2)
 
     err = 0
     phases = nint(fluid%phase_composition)
 
     sl = fluid%phase(1)%saturation
     relative_permeability = rock%relative_permeability%values(sl)
+    capillary_pressure = [rock%capillary_pressure%value(sl, fluid%temperature), &
+         0._dp]
 
     do p = 1, self%num_phases
        associate(phase => fluid%phase(p), &
@@ -328,6 +330,7 @@ contains
 
                phase%mass_fraction(1) = 1._dp
                phase%relative_permeability = relative_permeability(p)
+               phase%capillary_pressure =  capillary_pressure(p)
 
                call region%viscosity(fluid%temperature, fluid%pressure, &
                     phase%density, phase%viscosity)
@@ -341,6 +344,7 @@ contains
             phase%internal_energy = 0._dp
             phase%specific_enthalpy = 0._dp
             phase%relative_permeability = 0._dp
+            phase%capillary_pressure = 0._dp
             phase%viscosity = 0._dp
             phase%mass_fraction(1) = 0._dp
          end if

@@ -163,6 +163,7 @@ contains
               fluid%pressure / phase%density
 
          phase%relative_permeability = 1._dp
+         phase%capillary_pressure = 0._dp
          phase%mass_fraction(1) = 1._dp
 
          call region%viscosity(fluid%temperature, fluid%pressure, &
