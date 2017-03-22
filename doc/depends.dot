@@ -6,6 +6,12 @@ digraph waiwera{
         IFC67_module -> kinds_module
         IFC67_module -> petscsys
         IFC67_module -> thermodynamics_module
+        capillary_pressure_module -> fson
+        capillary_pressure_module -> fson_mpi_module
+        capillary_pressure_module -> kinds_module
+        capillary_pressure_module -> logfile_module
+        capillary_pressure_module -> petscsys
+        capillary_pressure_module -> utils_module
         cell_module -> fluid_module
         cell_module -> kinds_module
         cell_module -> petscsys
@@ -50,6 +56,7 @@ digraph waiwera{
         face_module -> eos_module
         face_module -> kinds_module
         face_module -> petscsys
+        flow_simulation_module -> capillary_pressure_module
         flow_simulation_module -> cell_module
         flow_simulation_module -> dm_utils_module
         flow_simulation_module -> eos_module
@@ -130,6 +137,7 @@ digraph waiwera{
         relative_permeability_module -> logfile_module
         relative_permeability_module -> petscsys
         relative_permeability_module -> utils_module
+        rock_module -> capillary_pressure_module
         rock_module -> dm_utils_module
         rock_module -> fson
         rock_module -> fson_mpi_module

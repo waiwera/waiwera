@@ -23,6 +23,7 @@ module rock_module
   use petsc
   use kinds_module
   use relative_permeability_module
+  use capillary_pressure_module
 
   implicit none
   private
@@ -37,6 +38,8 @@ module rock_module
      PetscReal, pointer, public :: specific_heat     !! Specific heat
      class(relative_permeability_type), pointer, &
           public :: relative_permeability !! Relative permeability functions
+     class(capillary_pressure_type), pointer, &
+          public :: capillary_pressure !! Capillary pressure function
      PetscInt, public :: dof !! Number of degrees of freedom
    contains
      private
@@ -44,6 +47,8 @@ module rock_module
      procedure, public :: assign => rock_assign
      procedure, public :: assign_relative_permeability => &
           rock_assign_relative_permeability
+     procedure, public :: assign_capillary_pressure => &
+          rock_assign_capillary_pressure
      procedure, public :: destroy => rock_destroy
      procedure, public :: energy => rock_energy
   end type rock_type
@@ -120,18 +125,32 @@ contains
 
 !------------------------------------------------------------------------
 
+  subroutine rock_assign_capillary_pressure(self, capillary_pressure)
+    !! Assigns capillary pressure pointer for a rock object.
+
+    class(rock_type), intent(in out) :: self
+    class(capillary_pressure_type), intent(in), &
+         target :: capillary_pressure
+
+    self%capillary_pressure => capillary_pressure
+
+  end subroutine rock_assign_capillary_pressure
+
+!------------------------------------------------------------------------
+
   subroutine rock_destroy(self)
     !! Destroys a rock object (nullifies all pointer components).
 
     class(rock_type), intent(in out) :: self
 
-    nullify(self%permeability)
-    nullify(self%wet_conductivity)
-    nullify(self%dry_conductivity)
-    nullify(self%porosity)
-    nullify(self%density)
-    nullify(self%specific_heat)
-    nullify(self%relative_permeability)
+    self%permeability => null()
+    self%wet_conductivity => null()
+    self%dry_conductivity => null()
+    self%porosity => null()
+    self%density => null()
+    self%specific_heat => null()
+    self%relative_permeability => null()
+    self%capillary_pressure => null()
 
   end subroutine rock_destroy
 
