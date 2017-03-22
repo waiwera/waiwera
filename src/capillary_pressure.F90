@@ -77,16 +77,16 @@ module capillary_pressure_module
 
 !------------------------------------------------------------------------
 
-!   type, extends(relative_permeability_type), &
-!        public :: relative_permeability_linear_type
-!      !! Linear relative permeability functions.
-!      private
-!      PetscReal, public :: liquid_limits(2)
-!      PetscReal, public :: vapour_limits(2)
-!    contains
-!      procedure, public :: init => relative_permeability_linear_init
-!      procedure, public :: values => relative_permeability_linear_values
-!   end type relative_permeability_linear_type
+  type, extends(capillary_pressure_type), public :: &
+       capillary_pressure_linear_type
+     !! Linear capillary pressure function.
+     private
+     PetscReal, public :: saturation_limits(2)
+     PetscReal, public :: pressure
+   contains
+     procedure, public :: init => capillary_pressure_linear_init
+     procedure, public :: value => capillary_pressure_linear_value
+  end type capillary_pressure_linear_type
 
 ! !------------------------------------------------------------------------
 
@@ -161,36 +161,53 @@ contains
   end function capillary_pressure_zero_value
 
 !------------------------------------------------------------------------
-! Linear functions
+! Linear function
 !------------------------------------------------------------------------
 
-!   subroutine relative_permeability_linear_init(self, json, logfile)
-!     !! Initialize linear relative permeability function.
+  subroutine capillary_pressure_linear_init(self, json, logfile)
+    !! Initialize linear capillary pressure function.
 
-!     use fson_mpi_module
-!     use logfile_module
+    use fson_mpi_module
+    use logfile_module
 
-!     class(relative_permeability_linear_type), intent(in out) :: self
-!     type(fson_value), pointer, intent(in) :: json
-!     type(logfile_type), intent(in out), optional :: logfile
-!     ! Locals:
-!     PetscReal, allocatable :: liquid_limits(:), vapour_limits(:)
-!     PetscReal, parameter :: default_liquid_limits(2) = [0._dp, 1._dp]
-!     PetscReal, parameter :: default_vapour_limits(2) = [0._dp, 1._dp]
+    class(capillary_pressure_linear_type), intent(in out) :: self
+    type(fson_value), pointer, intent(in) :: json
+    type(logfile_type), intent(in out), optional :: logfile
+    ! Locals:
+    PetscReal, allocatable :: saturation_limits(:)
+    PetscReal :: pressure
+    PetscReal, parameter :: default_saturation_limits(2) = [0._dp, 1._dp]
+    PetscReal, parameter :: default_pressure = 1.e5_dp
 
-!     self%name = "Linear"
+    self%name = "Linear"
 
-!     call fson_get_mpi(json, "liquid", default_liquid_limits, &
-!          liquid_limits, logfile, "rock.relative_permeability.liquid")
-!     call fson_get_mpi(json, "vapour", default_vapour_limits, &
-!          vapour_limits, logfile, "rock.relative_permeability.vapour")
+    call fson_get_mpi(json, "saturation_limits", default_saturation_limits, &
+         saturation_limits, logfile, "rock.capillary_pressure.saturation_limits")
+    call fson_get_mpi(json, "pressure", default_pressure, &
+         pressure, logfile, "rock.capillary_pressure.pressure")
 
-!     self%liquid_limits = liquid_limits
-!     self%vapour_limits = vapour_limits
+    self%saturation_limits = saturation_limits
+    self%pressure = pressure
 
-!     deallocate(liquid_limits, vapour_limits)
+    deallocate(saturation_limits)
 
-!   end subroutine relative_permeability_linear_init
+  end subroutine capillary_pressure_linear_init
+
+!------------------------------------------------------------------------
+
+  PetscReal function capillary_pressure_linear_value(self, sl, t) result(cp)
+    !! Evaluate linear capillary pressure function.
+
+    use interpolation_module, only: ramp_interpolate
+
+    class(capillary_pressure_linear_type), intent(in) :: self
+    PetscReal, intent(in) :: sl !! Liquid saturation
+    PetscReal, intent(in) :: t  !! Temperature
+
+    cp = ramp_interpolate(sl, self%saturation_limits, &
+         [-self%pressure, 0._dp])
+
+  end function capillary_pressure_linear_value
 
 ! !------------------------------------------------------------------------
 
@@ -403,6 +420,8 @@ contains
     select case (str_to_lower(capillary_type))
     case ("zero")
        allocate(capillary_pressure_zero_type :: cp)
+    case ("linear")
+       allocate(capillary_pressure_linear_type :: cp)
     case default
        allocate(capillary_pressure_zero_type :: cp)
     end select
