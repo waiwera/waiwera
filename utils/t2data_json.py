@@ -53,6 +53,7 @@ class t2data_export_json(t2data):
         jsondata.update(self.output_json())
         jsondata.update(self.rocks_json(geo, atmos_volume, mesh_coords))
         jsondata['rock'].update(self.relative_permeability_json())
+        jsondata['rock'].update(self.capillary_pressure_json())
         jsondata.update(self.initial_json(geo, incons, jsondata['eos']['name']))
         jsondata.update(self.boundaries_json(geo, bdy_incons, atmos_volume,
                                              jsondata['eos']['name'], mesh_coords))
@@ -188,22 +189,61 @@ class t2data_export_json(t2data):
     def relative_permeability_json(self):
         """Converts TOUGH2 relative permeability data to JSON."""
         jsondata = {}
+        stol = 1.e-9
         if self.relative_permeability:
             rp = {}
-            rp_types = {1: 'linear', 2: 'pickens', 3: 'corey', 4: 'grant', 5: 'fully mobile'}
+            rp_types = {1: 'linear', 2: 'pickens', 3: 'corey', 4: 'grant',
+                        5: 'fully mobile', 7: 'van Genuchten'}
             itype = self.relative_permeability['type']
             pars = self.relative_permeability['parameters']
-            rp['type'] = rp_types[itype]
-            if itype == 1:
-                rp['liquid'] = [pars[0], pars[2]]
-                rp['vapour'] = [pars[1], pars[3]]
-            elif itype == 2:
-                rp['power'] = pars[0]
-            elif itype in [3, 4]:
-                rp['slr'] = pars[0]
-                rp['ssr'] = pars[1]
-            jsondata['relative_permeability'] = rp
+            if itype in rp_types:
+                rp['type'] = rp_types[itype]
+                if itype == 1:
+                    rp['liquid'] = [pars[0], pars[2]]
+                    rp['vapour'] = [pars[1], pars[3]]
+                elif itype == 2:
+                    rp['power'] = pars[0]
+                elif itype in [3, 4]:
+                    rp['slr'] = pars[0]
+                    rp['ssr'] = pars[1]
+                elif itype == 7:
+                    rp['lambda'] = pars[0]
+                    rp['slr'] = pars[1]
+                    rp['sls'] = pars[2]
+                    if pars[3] > stol:
+                        rp['sum_unity'] = False
+                        rp['ssr'] = pars[3]
+                    else: rp['sum_unity'] = True
+                jsondata['relative_permeability'] = rp
+            else:
+                raise Exception ('Unhandled relative permeability type: %d' % itype)
         else: jsondata['relative_permeability'] = {'type': 'fully mobile'}
+        return jsondata
+
+    def capillary_pressure_json(self):
+        """Converts TOUGH2 capillary pressure data to JSON."""
+        jsondata = {}
+        stol = 1.e-9
+        if self.capillarity:
+            cp = {}
+            cp_types = {1: 'linear', 7: 'van Genuchten', 8: 'zero'}
+            itype = self.capillarity['type']
+            pars = self.capillarity['parameters']
+            if itype in cp_types:
+                cp['type'] = cp_types[itype]
+                if itype == 1:
+                    cp['pressure'] = pars[0]
+                    rp['saturation_limits'] = [pars[1], pars[2]]
+                elif itype == 7:
+                    cp['lambda'] = pars[0]
+                    cp['slr'] = pars[1]
+                    cp['P0'] = 1. / pars[2]
+                    if pars[3] > stol: cp['Pmax'] = pars[3]
+                    cp['sls'] = pars[4]
+                jsondata['capillary_pressure'] = cp
+            else:
+                raise Exception ('Unhandled capillary pressure type: %d' % itype)
+        else: jsondata['capillary_pressure'] = {'type': 'zero'}
         return jsondata
 
     def initial_json(self, geo, incons, eos):
