@@ -46,6 +46,7 @@ class t2data_export_json(t2data):
         jsondata.update(self.output_json())
         jsondata.update(self.rocks_json(geo, atmos_volume, mesh_coords))
         jsondata['rock'].update(self.relative_permeability_json())
+        jsondata['rock'].update(self.capillary_pressure_json())
         jsondata.update(self.initial_json(geo, incons, jsondata['eos']['name']))
         jsondata.update(self.boundaries_json(geo, bdy_incons, atmos_volume,
                                              jsondata['eos']['name'], mesh_coords))
@@ -210,6 +211,32 @@ class t2data_export_json(t2data):
             else:
                 raise Exception ('Unhandled relative permeability type: %d' % itype)
         else: jsondata['relative_permeability'] = {'type': 'fully mobile'}
+        return jsondata
+
+    def capillary_pressure_json(self):
+        """Converts TOUGH2 capillary pressure data to JSON."""
+        jsondata = {}
+        stol = 1.e-9
+        if self.capillarity:
+            cp = {}
+            cp_types = {1: 'linear', 7: 'van Genuchten', 8: 'zero'}
+            itype = self.capillarity['type']
+            pars = self.capillarity['parameters']
+            if itype in cp_types:
+                cp['type'] = cp_types[itype]
+                if itype == 1:
+                    cp['pressure'] = pars[0]
+                    rp['saturation_limits'] = [pars[1], pars[2]]
+                elif itype == 7:
+                    cp['lambda'] = pars[0]
+                    cp['slr'] = pars[1]
+                    cp['P0'] = 1. / pars[2]
+                    if pars[3] > stol: cp['Pmax'] = pars[3]
+                    cp['sls'] = pars[4]
+                jsondata['capillary_pressure'] = cp
+            else:
+                raise Exception ('Unhandled capillary pressure type: %d' % itype)
+        else: jsondata['capillary_pressure'] = {'type': 'zero'}
         return jsondata
 
     def initial_json(self, geo, incons, eos):
