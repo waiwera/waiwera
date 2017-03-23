@@ -27,7 +27,7 @@ module capillary_pressure_module
   implicit none
   private
 
-  PetscInt, parameter, public :: max_capillary_pressure_name_length = 12
+  PetscInt, parameter, public :: max_capillary_pressure_name_length = 16
 
 !------------------------------------------------------------------------
 
@@ -41,29 +41,6 @@ module capillary_pressure_module
      procedure(capillary_pressure_init_routine), public, deferred :: init
      procedure(capillary_pressure_function), public, deferred :: value
   end type capillary_pressure_type
-
-!------------------------------------------------------------------------
-
-  abstract interface
-
-     subroutine capillary_pressure_init_routine(self, json, logfile)
-       !! Initializes capillary pressure object from JSON data.
-       use logfile_module
-       import :: capillary_pressure_type, fson_value
-       class(capillary_pressure_type), intent(in out) :: self
-       type(fson_value), pointer, intent(in) :: json
-       type(logfile_type), intent(in out), optional :: logfile
-     end subroutine capillary_pressure_init_routine
-
-     PetscReal function capillary_pressure_function(self, sl, t)
-       !! Capillary pressure function.
-       import :: capillary_pressure_type
-       class(capillary_pressure_type), intent(in) :: self
-       PetscReal, intent(in) :: sl  !! Liquid saturation
-       PetscReal, intent(in) :: t   !! Temperature
-     end function capillary_pressure_function
-
-  end interface
 
 !------------------------------------------------------------------------
 
@@ -88,40 +65,43 @@ module capillary_pressure_module
      procedure, public :: value => capillary_pressure_linear_value
   end type capillary_pressure_linear_type
 
-! !------------------------------------------------------------------------
+!------------------------------------------------------------------------
 
-!   type, extends(relative_permeability_type), &
-!        public :: relative_permeability_pickens_type
-!      !! Pickens relative permeability curves.
-!      private
-!      PetscReal, public :: power
-!    contains
-!      procedure, public :: init => relative_permeability_pickens_init
-!      procedure, public :: values => relative_permeability_pickens_values
-!   end type relative_permeability_pickens_type
+  type, extends(capillary_pressure_type), public :: &
+       capillary_pressure_van_genuchten_type
+     !! Van Genuchten capillary pressure function.
+     private
+     PetscReal, public :: P0, Pmax
+     PetscReal, public :: lambda
+     PetscReal, public :: slr, sls
+     PetscBool, public :: apply_Pmax
+   contains
+     procedure, public :: init => capillary_pressure_van_genuchten_init
+     procedure, public :: value => capillary_pressure_van_genuchten_value
+  end type capillary_pressure_van_genuchten_type
 
-! !------------------------------------------------------------------------
+!------------------------------------------------------------------------
 
-!   type, extends(relative_permeability_type), &
-!        public :: relative_permeability_corey_type
-!      !! Corey's relative permeability curves.
-!      private
-!      PetscReal, public :: slr, ssr
-!    contains
-!      procedure, public :: init => relative_permeability_corey_init
-!      procedure, public :: values => relative_permeability_corey_values
-!      procedure :: sstar => relative_permeability_corey_sstar
-!   end type relative_permeability_corey_type
+  abstract interface
 
-! !------------------------------------------------------------------------
+     subroutine capillary_pressure_init_routine(self, json, logfile)
+       !! Initializes capillary pressure object from JSON data.
+       use logfile_module
+       import :: capillary_pressure_type, fson_value
+       class(capillary_pressure_type), intent(in out) :: self
+       type(fson_value), pointer, intent(in) :: json
+       type(logfile_type), intent(in out), optional :: logfile
+     end subroutine capillary_pressure_init_routine
 
-!   type, extends(relative_permeability_corey_type), &
-!        public :: relative_permeability_grant_type
-!      !! Grant's relative permeability curves.
-!    contains
-!      procedure, public :: init => relative_permeability_grant_init
-!      procedure, public :: values => relative_permeability_grant_values
-!   end type relative_permeability_grant_type
+     PetscReal function capillary_pressure_function(self, sl, t)
+       !! Capillary pressure function.
+       import :: capillary_pressure_type
+       class(capillary_pressure_type), intent(in) :: self
+       PetscReal, intent(in) :: sl  !! Liquid saturation
+       PetscReal, intent(in) :: t   !! Temperature
+     end function capillary_pressure_function
+
+  end interface
 
 !------------------------------------------------------------------------
 
@@ -175,19 +155,18 @@ contains
     type(logfile_type), intent(in out), optional :: logfile
     ! Locals:
     PetscReal, allocatable :: saturation_limits(:)
-    PetscReal :: pressure
     PetscReal, parameter :: default_saturation_limits(2) = [0._dp, 1._dp]
-    PetscReal, parameter :: default_pressure = 1.e5_dp
+    PetscReal, parameter :: default_pressure = 0.125e5_dp
 
     self%name = "Linear"
 
     call fson_get_mpi(json, "saturation_limits", default_saturation_limits, &
          saturation_limits, logfile, "rock.capillary_pressure.saturation_limits")
     call fson_get_mpi(json, "pressure", default_pressure, &
-         pressure, logfile, "rock.capillary_pressure.pressure")
+         self%pressure, logfile, "rock.capillary_pressure.pressure")
+    self%pressure = abs(self%pressure)
 
     self%saturation_limits = saturation_limits
-    self%pressure = pressure
 
     deallocate(saturation_limits)
 
@@ -209,190 +188,75 @@ contains
 
   end function capillary_pressure_linear_value
 
-! !------------------------------------------------------------------------
+!------------------------------------------------------------------------
+! Van Genuchten function
+!------------------------------------------------------------------------
 
-!   function relative_permeability_linear_values(self, sl) result(rp)
-!     !! Evaluate linear relative permeability function.
+  subroutine capillary_pressure_van_genuchten_init(self, json, logfile)
+    !! Initialize van Genuchten capillary pressure function.
 
-!     class(relative_permeability_linear_type), intent(in) :: self
-!     PetscReal, intent(in) :: sl !! Liquid saturation
-!     PetscReal, dimension(2) :: rp !! Relative permeabilities
-!     ! Locals:
-!     PetscReal :: sv
+    use fson_mpi_module
+    use logfile_module
 
-!     sv = 1._dp - sl
-!     rp(1) = linear_interpolate(sl, self%liquid_limits)
-!     rp(2) = linear_interpolate(sv, self%vapour_limits)
+    class(capillary_pressure_van_genuchten_type), intent(in out) :: self
+    type(fson_value), pointer, intent(in) :: json
+    type(logfile_type), intent(in out), optional :: logfile
+    ! Locals:
+    PetscReal, parameter :: default_P0 = 0.125e5_dp
+    PetscReal, parameter :: default_lambda = 0.45_dp
+    PetscReal, parameter :: default_slr = 1.e-3_dp
+    PetscReal, parameter :: default_sls = 1._dp
 
-!   contains
+    self%name = "van Genuchten"
 
-!     PetscReal function linear_interpolate(x, x_values) result(y)
-!       !! Interpolates linearly between 0 and 1 within specified
-!       !! limits.
+    call fson_get_mpi(json, "P0", default_P0, &
+         self%P0, logfile, "rock.capillary_pressure.P0")
+    self%P0 = abs(self%P0)
+    call fson_get_mpi(json, "lambda", default_lambda, &
+         self%lambda, logfile, "rock.capillary_pressure.lambda")
+    call fson_get_mpi(json, "slr", default_slr, &
+         self%slr, logfile, "rock.capillary_pressure.slr")
+    call fson_get_mpi(json, "sls", default_sls, &
+         self%sls, logfile, "rock.capillary_pressure.sls")
 
-!       PetscReal, intent(in) :: x, x_values(2)
+    if (fson_has_mpi(json, "Pmax")) then
+       call fson_get_mpi(json, "Pmax", val = self%Pmax)
+       self%Pmax = abs(self%Pmax)
+       self%apply_Pmax = PETSC_TRUE
+    else
+       self%apply_Pmax = PETSC_FALSE
+    end if
+    
+  end subroutine capillary_pressure_van_genuchten_init
 
-!       if (x < x_values(1)) then
-!          y = 0._dp
-!       else if (x > x_values(2)) then
-!          y = 1._dp
-!       else
-!          y = (x - x_values(1)) / (x_values(2) - x_values(1))
-!       end if
+!------------------------------------------------------------------------
 
-!     end function linear_interpolate
+  PetscReal function capillary_pressure_van_genuchten_value(self, sl, t) &
+       result(cp)
+    !! Evaluate van Genuchten capillary pressure function.
 
-!   end function relative_permeability_linear_values
+    class(capillary_pressure_van_genuchten_type), intent(in) :: self
+    PetscReal, intent(in) :: sl !! Liquid saturation
+    PetscReal, intent(in) :: t  !! Temperature
 
-! !------------------------------------------------------------------------
-! ! Pickens curves
-! !------------------------------------------------------------------------
+    associate(sstar => (sl - self%slr) / (self%sls - self%slr))
+      if (sstar > 0._dp) then
+         if (sstar < 1._dp) then
+            cp = -self%P0 * (sstar ** (-1._dp / self%lambda) - 1._dp) ** &
+                 (1._dp - self%lambda)
+         else
+            cp = 0._dp
+         end if
+      else
+         cp = -self%P0
+      end if
+      cp = min(0._dp, cp)
+      if (self%apply_Pmax) then
+         cp = max(-self%Pmax, cp)
+      end if
+    end associate
 
-!   subroutine relative_permeability_pickens_init(self, json, logfile)
-!     !! Initialize Pickens relative permeability function.
-
-!     use fson_mpi_module
-!     use logfile_module
-
-!     class(relative_permeability_pickens_type), intent(in out) :: self
-!     type(fson_value), pointer, intent(in) :: json
-!     type(logfile_type), intent(in out), optional :: logfile
-!     ! Locals:
-!     PetscReal, parameter :: default_power = 1._dp
-
-!     self%name = "Pickens"
-
-!     call fson_get_mpi(json, "power", default_power, self%power, &
-!          logfile, "rock.relative_permeability.power")
-
-!   end subroutine relative_permeability_pickens_init
-
-! !------------------------------------------------------------------------
-
-!   function relative_permeability_pickens_values(self, sl) result(rp)
-!     !! Evaluate Pickens relative permeability function.
-
-!     class(relative_permeability_pickens_type), intent(in) :: self
-!     PetscReal, intent(in) :: sl !! Liquid saturation
-!     PetscReal, dimension(2) :: rp !! Relative permeabilities
-
-!     rp(1) = sl ** self%power
-!     rp(2) = 1._dp
-
-!   end function relative_permeability_pickens_values
-
-! !------------------------------------------------------------------------
-! ! Corey's curves
-! !------------------------------------------------------------------------
-
-!   subroutine relative_permeability_corey_init(self, json, logfile)
-!     !! Initialize Corey's relative permeability function.
-
-!     use fson_mpi_module
-!     use logfile_module
-
-!     class(relative_permeability_corey_type), intent(in out) :: self
-!     type(fson_value), pointer, intent(in) :: json
-!     type(logfile_type), intent(in out), optional :: logfile
-!     ! Locals:
-!     PetscReal, parameter :: default_slr = 0.3_dp, default_ssr = 0.6_dp
-
-!     self%name = "Corey"
-
-!     call fson_get_mpi(json, "slr", default_slr, self%slr, logfile, &
-!          "rock.relative_permeability.slr")
-!     call fson_get_mpi(json, "ssr", default_ssr, self%ssr, logfile, &
-!          "rock.relative_permeability.ssr")
-
-!   end subroutine relative_permeability_corey_init
-
-! !------------------------------------------------------------------------
-
-!   PetscReal function relative_permeability_corey_sstar(self, sl) &
-!        result(sstar)
-!     !! Return sstar value used to calculate relative permeabilities.
-
-!     class(relative_permeability_corey_type), intent(in) :: self
-!     PetscReal, intent(in) :: sl !! Liquid saturation
-
-!     sstar = (sl - self%slr) / (1._dp - self%slr - self%ssr)
-
-!   end function relative_permeability_corey_sstar
-
-! !------------------------------------------------------------------------
-
-!   function relative_permeability_corey_values(self, sl) result(rp)
-!     !! Evaluate Corey's relative permeability function.
-
-!     class(relative_permeability_corey_type), intent(in) :: self
-!     PetscReal, intent(in) :: sl !! Liquid saturation
-!     PetscReal, dimension(2) :: rp !! Relative permeabilities
-!     ! Locals:
-!     PetscReal :: sv, sstar, sstar2
-
-!     sv = 1._dp - sl
-!     if (sv < self%ssr) then
-!        rp = [1._dp, 0._dp]
-!     else if (sv > 1._dp - self%slr) then
-!        rp = [0._dp, 1._dp]
-!     else
-!        sstar = self%sstar(sl)
-!        sstar2 = sstar * sstar
-!        rp(1) = sstar2 * sstar2
-!        rp(2) = (1._dp - 2._dp * sstar + sstar2) * (1._dp - sstar2)
-!     end if
-
-!   end function relative_permeability_corey_values
-
-! !------------------------------------------------------------------------
-! ! Grant's curves
-! !------------------------------------------------------------------------
-
-!   subroutine relative_permeability_grant_init(self, json, logfile)
-!     !! Initialize Grant's relative permeability function.
-
-!     use fson_mpi_module
-!     use logfile_module
-
-!     class(relative_permeability_grant_type), intent(in out) :: self
-!     type(fson_value), pointer, intent(in) :: json
-!     type(logfile_type), intent(in out), optional :: logfile
-!     ! Locals:
-!     PetscReal, parameter :: default_slr = 0.3_dp, default_ssr = 0.6_dp
-
-!     self%name = "Grant"
-
-!     call fson_get_mpi(json, "slr", default_slr, self%slr, logfile, &
-!          "rock.relative_permeability.slr")
-!     call fson_get_mpi(json, "ssr", default_ssr, self%ssr, logfile, &
-!          "rock.relative_permeability.ssr")
-
-!   end subroutine relative_permeability_grant_init
-
-! !------------------------------------------------------------------------
-
-!   function relative_permeability_grant_values(self, sl) result(rp)
-!     !! Evaluate Grant's relative permeability function.
-
-!     class(relative_permeability_grant_type), intent(in) :: self
-!     PetscReal, intent(in) :: sl !! Liquid saturation
-!     PetscReal, dimension(2) :: rp !! Relative permeabilities
-!     ! Locals:
-!     PetscReal :: sv, sstar, sstar2
-
-!     sv = 1._dp - sl
-!     if (sv < self%ssr) then
-!        rp = [1._dp, 0._dp]
-!     else if (sv > 1._dp - self%slr) then
-!        rp = [0._dp, 1._dp]
-!     else
-!        sstar = self%sstar(sl)
-!        sstar2 = sstar * sstar
-!        rp(1) = sstar2 * sstar2
-!        rp(2) = 1._dp - rp(1)
-!     end if
-
-!   end function relative_permeability_grant_values
+  end function capillary_pressure_van_genuchten_value
 
 !------------------------------------------------------------------------
 ! Setup procedures
