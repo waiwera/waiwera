@@ -284,6 +284,8 @@ contains
        allocate(capillary_pressure_zero_type :: cp)
     case ("linear")
        allocate(capillary_pressure_linear_type :: cp)
+    case ("van_genuchten", "van genuchten")
+       allocate(capillary_pressure_linear_type :: cp)
     case default
        allocate(capillary_pressure_zero_type :: cp)
     end select
