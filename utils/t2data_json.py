@@ -100,7 +100,8 @@ class t2data_export_json(t2data):
     def eos_json(self, eos):
         """Converts TOUGH2 EOS data to JSON."""
         jsondata = {}
-        supported_eos = {'W': 'w', 'EW': 'we', 'EWC': 'wce', 'EWA': 'wae'}
+        supported_eos = {'W': 'w', 'EW': 'we', 'EWC': 'wce',
+                         'EWA': 'wae', 'EWAV': 'wae'}
         aut2eosname = ''
         if eos is None:
             if self.multi:
