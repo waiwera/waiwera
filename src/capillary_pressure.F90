@@ -240,15 +240,13 @@ contains
     PetscReal, intent(in) :: t  !! Temperature
 
     associate(sstar => (sl - self%slr) / (self%sls - self%slr))
-      if (sstar > 0._dp) then
-         if (sstar < 1._dp) then
-            cp = -self%P0 * (sstar ** (-1._dp / self%lambda) - 1._dp) ** &
-                 (1._dp - self%lambda)
-         else
-            cp = 0._dp
-         end if
-      else
+      if (sstar < 0._dp) then
          cp = -self%P0
+      else if (sstar < 1._dp) then
+         cp = -self%P0 * (sstar ** (-1._dp / self%lambda) - 1._dp) ** &
+              (1._dp - self%lambda)
+      else
+         cp = 0._dp
       end if
       cp = min(0._dp, cp)
       if (self%apply_Pmax) then
