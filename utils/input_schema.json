@@ -93,31 +93,39 @@
         ]},
         "rock": {"type": "object",
                  "properties": {
-                     "relative_permeability": {
-                         "type": "object",
-                         "properties": {
-                             "type": {"type": "string",
-                                      "enum": [
-                                          "fully mobile", "Fully mobile", "Fully Mobile",
-                                          "linear", "Linear",
-                                          "pickens", "Pickens",
-                                          "corey", "Corey",
-                                          "grant", "Grant"
-                                      ]},
-                             "liquid": {"type": "array",
-                                        "items": {"type": "number",
-                                                  "minimum": 0, "maximum": 1},
-                                        "minItems": 2, "maxItems": 2},
-                             "vapour": {"type": "array",
-                                        "items": {"type": "number",
-                                                  "minimum": 0, "maximum": 1},
-                                        "minItems": 2, "maxItems": 2},
-                             "slr": {"type": "number", "minimum": 0, "maximum": 1},
-                             "ssr": {"type": "number", "minimum": 0, "maximum": 1},
-                             "power": {"type": "number"}
-                         },
-                         "additionalProperties": false
-                     },
+                     "relative_permeability": {"oneOf": [
+                         {"type": "object",
+                          "properties": {
+                              "type": {"type": "string",
+                                       "enum": ["fully mobile", "Fully mobile", "Fully Mobile"]}
+                          }, "additionalProperties": false},
+                         {"type": "object",
+                          "properties": {
+                              "type": {"type": "string",
+                                       "enum": ["linear", "Linear"]},
+                                       "liquid": {"type": "array",
+                                                  "items": {"type": "number",
+                                                            "minimum": 0, "maximum": 1},
+                                                  "minItems": 2, "maxItems": 2},
+                                       "vapour": {"type": "array",
+                                                  "items": {"type": "number",
+                                                            "minimum": 0, "maximum": 1},
+                                                  "minItems": 2, "maxItems": 2}
+                          }, "additionalProperties": false},
+                         {"type": "object",
+                          "properties": {
+                              "type": {"type": "string",
+                                       "enum": ["pickens", "Pickens"]},
+                              "power": {"type": "number"}
+                          }, "additionalProperties": false},
+                         {"type": "object",
+                          "properties": {
+                              "type": {"type": "string",
+                                       "enum": ["corey", "Corey", "grant", "Grant"]},
+                              "slr": {"type": "number"},
+                              "ssr": {"type": "number"}
+                          }, "additionalProperties": false}
+                     ]},
                      "types": {
                          "type": "array",
                          "items": {
