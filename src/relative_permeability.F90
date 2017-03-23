@@ -27,7 +27,7 @@ module relative_permeability_module
   implicit none
   private
 
-  PetscInt, parameter, public :: max_relative_permeability_name_length = 12
+  PetscInt, parameter, public :: max_relative_permeability_name_length = 16
 
 !------------------------------------------------------------------------
 
@@ -122,6 +122,20 @@ module relative_permeability_module
      procedure, public :: init => relative_permeability_grant_init
      procedure, public :: values => relative_permeability_grant_values
   end type relative_permeability_grant_type
+
+!------------------------------------------------------------------------
+
+  type, extends(relative_permeability_type), &
+       public :: relative_permeability_van_genuchten_type
+     !! Van Genuchten relative permeability curves.
+     private
+     PetscReal, public :: lambda
+     PetscReal, public :: slr, sls, ssr
+     PetscBool, public :: sum_unity
+   contains
+     procedure, public :: init => relative_permeability_van_genuchten_init
+     procedure, public :: values => relative_permeability_van_genuchten_values
+  end type relative_permeability_van_genuchten_type
 
 !------------------------------------------------------------------------
 
@@ -363,6 +377,80 @@ contains
   end function relative_permeability_grant_values
 
 !------------------------------------------------------------------------
+! van Genuchten curves
+!------------------------------------------------------------------------
+
+  subroutine relative_permeability_van_genuchten_init(self, json, logfile)
+    !! Initialize van Genuchten relative permeability function.
+
+    use fson_mpi_module
+    use logfile_module
+
+    class(relative_permeability_van_genuchten_type), intent(in out) :: self
+    type(fson_value), pointer, intent(in) :: json
+    type(logfile_type), intent(in out), optional :: logfile
+    ! Locals:
+    PetscReal, parameter :: default_lambda = 0.45_dp
+    PetscReal, parameter :: default_slr = 1.e-3_dp
+    PetscReal, parameter :: default_sls = 1._dp
+    PetscBool, parameter :: default_sum_unity = PETSC_TRUE
+    PetscReal, parameter :: default_ssr = 0.6_dp
+
+    self%name = "van Genuchten"
+
+    call fson_get_mpi(json, "lambda", default_lambda, &
+         self%lambda, logfile, "rock.capillary_pressure.lambda")
+    call fson_get_mpi(json, "slr", default_slr, &
+         self%slr, logfile, "rock.capillary_pressure.slr")
+    call fson_get_mpi(json, "sls", default_sls, &
+         self%sls, logfile, "rock.capillary_pressure.sls")
+    call fson_get_mpi(json, "sum_unity", default_sum_unity, &
+         self%sum_unity, logfile, "rock.capillary_pressure.sum_unity")
+    if (.not. (self%sum_unity)) then
+       call fson_get_mpi(json, "ssr", default_ssr, &
+            self%ssr, logfile, "rock.capillary_pressure.ssr")
+    end if
+
+  end subroutine relative_permeability_van_genuchten_init
+
+!------------------------------------------------------------------------
+
+  function relative_permeability_van_genuchten_values(self, sl) result(rp)
+    !! Evaluate van Genuchten relative permeability function.  If
+    !! self%sum_unity is true, then the relative permeabilities sum to
+    !! 1, otherwise the vapour phase relative permeability is found
+    !! from Corey's formula.
+
+    class(relative_permeability_van_genuchten_type), intent(in) :: self
+    PetscReal, intent(in) :: sl !! Liquid saturation
+    PetscReal, dimension(2) :: rp !! Relative permeabilities
+    ! Locals:
+    PetscReal :: s_hat2
+
+    associate(sstar => (sl - self%slr) / (self%sls - self%slr))
+      if (sstar < 0._dp) then
+         rp(1) = 0._dp
+      else if (sstar < 1._dp) then
+         rp(1) = sqrt(sstar) * (1._dp - &
+              (1._dp - sstar ** (1._dp / self%lambda)) ** self%lambda) ** 2
+      else
+         rp(1) = 1._dp
+      end if
+    end associate
+
+    if (self%sum_unity) then
+       rp(2) = 1._dp - rp(1)
+    else
+       associate(s_hat => (sl - self%slr) / (1._dp - self%slr - self%ssr))
+         s_hat2 = s_hat * s_hat
+         rp(2) = (1._dp - 2._dp * s_hat + s_hat2) * (1._dp - s_hat2)
+       end associate
+       rp(2) = min(1._dp, rp(2))
+    end if
+
+  end function relative_permeability_van_genuchten_values
+
+!------------------------------------------------------------------------
 ! Setup procedures
 !------------------------------------------------------------------------
 
@@ -386,7 +474,7 @@ contains
          relperm_type, logfile, "rock.relative_permeability.type")
 
     select case (str_to_lower(relperm_type))
-    case ("fully mobile")
+    case ("fully_mobile", "fully mobile")
        allocate(relative_permeability_fully_mobile_type :: rp)
     case ("linear")
        allocate(relative_permeability_linear_type :: rp)
@@ -396,6 +484,8 @@ contains
        allocate(relative_permeability_corey_type :: rp)
     case ("grant")
        allocate(relative_permeability_grant_type :: rp)
+    case ("van_genuchten", "van genuchten")
+       allocate(relative_permeability_van_genuchten_type :: rp)
     case default
        allocate(relative_permeability_linear_type :: rp)
     end select
