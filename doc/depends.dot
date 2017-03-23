@@ -2,6 +2,10 @@ digraph waiwera{
         IAPWS_module -> powertable_module
         IAPWS_module -> thermodynamics_module
         IFC67_module -> thermodynamics_module
+        capillary_pressure_module -> fson_mpi_module
+        capillary_pressure_module -> interpolation_module
+        capillary_pressure_module -> logfile_module
+        capillary_pressure_module -> utils_module
         cell_module -> fluid_module
         cell_module -> rock_module
         eos_module -> fluid_module
@@ -52,6 +56,7 @@ digraph waiwera{
         eos_wge_module -> thermodynamics_module
         face_module -> cell_module
         face_module -> eos_module
+        flow_simulation_module -> capillary_pressure_module
         flow_simulation_module -> cell_module
         flow_simulation_module -> dm_utils_module
         flow_simulation_module -> eos_module
@@ -103,8 +108,10 @@ digraph waiwera{
         ode_module -> logfile_module
         ode_module -> mesh_module
         relative_permeability_module -> fson_mpi_module
+        relative_permeability_module -> interpolation_module
         relative_permeability_module -> logfile_module
         relative_permeability_module -> utils_module
+        rock_module -> capillary_pressure_module
         rock_module -> dm_utils_module
         rock_module -> fson_mpi_module
         rock_module -> logfile_module

@@ -19,6 +19,7 @@ public :: test_relative_permeability_linear, &
      test_relative_permeability_pickens, &
      test_relative_permeability_corey, &
      test_relative_permeability_grant, &
+     test_relative_permeability_van_genuchten, &
      test_relative_permeability_fully_mobile
 
 contains
@@ -171,6 +172,43 @@ contains
     end if
 
   end subroutine test_relative_permeability_grant
+
+!------------------------------------------------------------------------
+
+  subroutine test_relative_permeability_van_genuchten
+
+    ! van Genuchten relative permeability functions
+
+    type(relative_permeability_van_genuchten_type) :: vg
+    ! Locals:
+    type(fson_value), pointer :: json
+    character(100), parameter :: json_str = &
+    '{"type": "van Genuchten", "slr": 0.1, "sls": 0.8, "lambda": 0.5}'
+    PetscMPIInt :: rank
+    PetscInt :: ierr
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+
+    json => fson_parse(str = json_str)
+    call vg%init(json)
+    call fson_destroy(json)
+
+    if (rank == 0) then
+
+       call assert_equals("van Genuchten", vg%name, "Name")
+
+       call relative_permeability_case(0.01_dp, vg, [0._dp, 1._dp])
+       call relative_permeability_case(0.25_dp, vg, &
+            [0.00024977947758877213_dp, 0.9997502205224112_dp])
+       call relative_permeability_case(0.5_dp, vg, &
+            [0.024315039984298164_dp, 0.9756849600157018_dp])
+       call relative_permeability_case(0.75_dp, vg, &
+            [0.38106285486468433_dp, 0.6189371451353156_dp])
+       call relative_permeability_case(0.95_dp, vg, [1._dp, 0._dp])
+
+    end if
+
+  end subroutine test_relative_permeability_van_genuchten
 
 !------------------------------------------------------------------------
 

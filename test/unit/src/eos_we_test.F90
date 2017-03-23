@@ -10,6 +10,7 @@ module eos_we_test_module
   use fluid_module
   use rock_module
   use relative_permeability_module
+  use capillary_pressure_module
   use IAPWS_module
   use fson
   use fson_mpi_module
@@ -72,7 +73,8 @@ contains
     PetscReal, allocatable:: primary(:), primary2(:)
     type(eos_we_type) :: eos
     type(IAPWS_type) :: thermo
-    class(relative_permeability_type), allocatable, target :: rp
+    class(relative_permeability_type), allocatable :: rp
+    class(capillary_pressure_type), allocatable :: cp
     type(fson_value), pointer :: json
     character(120) :: json_str = &
          '{"rock": {"relative_permeability": {"type": "linear", "liquid": [0.2, 0.8], "vapour": [0.2, 0.8]}}}'
@@ -86,11 +88,13 @@ contains
     PetscReal, parameter :: expected_liquid_specific_enthalpy = 990209.54144729744_dp
     PetscReal, parameter :: expected_liquid_viscosity = 1.1619412513757267e-4_dp
     PetscReal, parameter :: expected_liquid_relative_permeability = 11._dp / 12._dp
+    PetscReal, parameter :: expected_liquid_capillary_pressure = 0._dp
     PetscReal, parameter :: expected_vapour_density = 13.984012253728331_dp
     PetscReal, parameter :: expected_vapour_internal_energy = 2603010.010356456_dp
     PetscReal, parameter :: expected_vapour_specific_enthalpy = 2803009.2956133024_dp
     PetscReal, parameter :: expected_vapour_viscosity = 1.6704837258831552e-5_dp
     PetscReal, parameter :: expected_vapour_relative_permeability = 1._dp / 12._dp
+    PetscReal, parameter :: expected_vapour_capillary_pressure = 0._dp
     PetscMPIInt :: rank
     PetscInt :: ierr
 
@@ -100,6 +104,7 @@ contains
     call thermo%init()
     call eos%init(json, thermo)
     call setup_relative_permeabilities(json, rp)
+    call setup_capillary_pressures(json, cp)
 
     call fluid%init(eos%num_components, eos%num_phases)
     call rock%init()
@@ -108,7 +113,8 @@ contains
     fluid_data = 0._dp
     call fluid%assign(fluid_data, offset)
 
-    rock%relative_permeability => rp
+    call rock%assign_relative_permeability(rp)
+    call rock%assign_capillary_pressure(cp)
 
     primary = [pressure, vapour_saturation]
     fluid%region = dble(region)
@@ -136,6 +142,9 @@ contains
        call assert_equals(expected_liquid_relative_permeability, &
             fluid%phase(1)%relative_permeability, &
             tol, "Liquid relative permeability")
+       call assert_equals(expected_liquid_capillary_pressure, &
+            fluid%phase(1)%capillary_pressure, &
+            tol, "Liquid capillary pressure")
        call assert_equals(1._dp, fluid%phase(1)%mass_fraction(1), &
             tol, "Liquid mass fraction")
 
@@ -152,6 +161,9 @@ contains
        call assert_equals(expected_vapour_relative_permeability, &
             fluid%phase(2)%relative_permeability, tol, &
             "Vapour relative permeability")
+       call assert_equals(expected_vapour_capillary_pressure, &
+            fluid%phase(2)%capillary_pressure, &
+            tol, "Vapour capillary pressure")
        call assert_equals(1._dp, fluid%phase(2)%mass_fraction(1), &
             tol, "Vapour mass fraction")
 
@@ -167,6 +179,7 @@ contains
     call thermo%destroy()
     call fson_destroy_mpi(json)
     deallocate(rp)
+    deallocate(cp)
 
   end subroutine test_eos_we_fluid_properties
 
@@ -326,12 +339,13 @@ contains
     PetscReal :: primary(num_components + 1)
     type(eos_we_type) :: eos
     type(IAPWS_type) :: thermo
-    class(relative_permeability_type), allocatable, target :: rp
+    class(relative_permeability_type), allocatable :: rp
+    class(capillary_pressure_type), allocatable :: cp
     type(fson_value), pointer :: json
     character(120) :: json_str = &
          '{"rock": {"relative_permeability": {"type": "linear", "liquid": [0.2, 0.8], "vapour": [0.2, 0.8]}}}'
     PetscReal, parameter :: tol = 1.e-8_dp
-    PetscInt :: i, p
+    PetscInt :: i
     PetscErrorCode :: err
     PetscMPIInt :: rank
     PetscInt :: ierr
@@ -342,6 +356,7 @@ contains
     call thermo%init()
     call eos%init(json, thermo)
     call setup_relative_permeabilities(json, rp)
+    call setup_capillary_pressures(json, cp)
 
     call fluid%init(num_components, eos%num_phases)
     call rock%init()
@@ -349,10 +364,10 @@ contains
     fluid_data = 0._dp
     call fluid%assign(fluid_data, offset)
 
-    rock%relative_permeability => rp
+    call rock%assign_relative_permeability(rp)
+    call rock%assign_capillary_pressure(cp)
 
     do i = 1, n
-       p = i
        primary = data(i, :)
        fluid%region = dble(region(i))
        call eos%bulk_properties(primary, fluid, err)
@@ -370,6 +385,7 @@ contains
     call thermo%destroy()
     call fson_destroy_mpi(json)
     deallocate(rp)
+    deallocate(cp)
 
   end subroutine test_eos_we_errors
 

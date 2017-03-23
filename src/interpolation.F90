@@ -110,7 +110,8 @@ module interpolation_module
 
   end interface
 
-  public :: interpolation_type_from_str, averaging_type_from_str
+  public :: interpolation_type_from_str, averaging_type_from_str, &
+       ramp_interpolate
 
 contains
 
@@ -572,4 +573,28 @@ contains
 
 !------------------------------------------------------------------------
 
+  PetscReal function ramp_interpolate(x, x_values, y_values) result(y)
+    !! Interpolates linearly between y_values within specified
+    !! x_values limits, with constant values outside the range of
+    !! x_values.
+
+    PetscReal, intent(in) :: x !! Value to interpolate at
+    PetscReal, intent(in) :: x_values(2) !! x value limits of ramp
+    PetscReal, intent(in) :: y_values(2) !! y values at ramp ends
+
+    if (x < x_values(1)) then
+       y = y_values(1)
+    else if (x > x_values(2)) then
+       y = y_values(2)
+    else
+       associate(xi => &
+            (x - x_values(1)) / (x_values(2) - x_values(1)))
+         y = (1._dp - xi) * y_values(1) + xi * y_values(2)
+       end associate
+    end if
+
+  end function ramp_interpolate
+
+!------------------------------------------------------------------------
+  
 end module interpolation_module

@@ -236,18 +236,22 @@ contains
 
 !------------------------------------------------------------------------
 
-  PetscReal function face_pressure_gradient(self) result(dpdn)
-    !! Returns pressure gradient across the face.
+  PetscReal function face_pressure_gradient(self, p) result(dpdn)
+    !! Returns effective pressure gradient for phase p across the
+    !! face, including capillary pressure effects.
 
     class(face_type), intent(in) :: self
+    PetscInt, intent(in) :: p !! Phase index
     ! Locals:
-    PetscReal :: p(2)
+    PetscReal :: pressure(2)
     PetscInt :: i
     
     do i = 1, 2
-       p(i) = self%cell(i)%fluid%pressure
+       associate (fluid => self%cell(i)%fluid)
+         pressure(i) = fluid%pressure + fluid%phase(p)%capillary_pressure
+       end associate
     end do
-    dpdn = self%normal_gradient(p)
+    dpdn = self%normal_gradient(pressure)
 
   end function face_pressure_gradient
 
@@ -275,7 +279,7 @@ contains
     !! assumed that the phase is present in at least one of the cells.
 
     class(face_type), intent(in) :: self
-    PetscInt, intent(in) :: p
+    PetscInt, intent(in) :: p !! Phase index
     ! Locals:
     PetscInt :: i
     PetscReal :: weight
@@ -397,7 +401,6 @@ contains
 
     nc = eos%num_components
     np = eos%num_primary_variables
-    dpdn = self%pressure_gradient()
 
     if (.not. eos%isothermal) then
        ! Heat conduction:
@@ -417,6 +420,7 @@ contains
        if (btest(phase_present, p - 1)) then
 
           face_density = self%phase_density(p)
+          dpdn = self%pressure_gradient(p)
           G = dpdn - face_density * self%gravity_normal
 
           up = self%upstream_index(G)

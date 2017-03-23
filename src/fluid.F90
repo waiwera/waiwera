@@ -33,7 +33,7 @@ module fluid_module
   private
 
   PetscInt, parameter, public :: num_fluid_variables = 4
-  PetscInt, parameter, public :: num_phase_variables = 6  ! (excluding mass fractions)
+  PetscInt, parameter, public :: num_phase_variables = 7  ! (excluding mass fractions)
   PetscInt, parameter, public :: max_fluid_variable_name_length = 11
   character(max_fluid_variable_name_length), public :: &
        fluid_variable_names(num_fluid_variables) = [ &
@@ -44,6 +44,7 @@ module fluid_module
        phase_variable_names(num_phase_variables) = [ &
        "density              ", "viscosity            ", &
        "saturation           ", "relative_permeability", &
+       "capillary_pressure   ", &
        "specific_enthalpy    ", "internal_energy      "]
 
   type phase_type
@@ -52,6 +53,7 @@ module fluid_module
      PetscReal, pointer :: viscosity  !! Viscosity
      PetscReal, pointer :: saturation !! Phase saturation
      PetscReal, pointer :: relative_permeability !! Relative permeability
+     PetscReal, pointer :: capillary_pressure !! Capillary pressure
      PetscReal, pointer :: specific_enthalpy !! Specific enthalpy
      PetscReal, pointer :: internal_energy !! Internal energy
      PetscReal, pointer, contiguous :: mass_fraction(:) !! Component mass fractions
@@ -110,13 +112,14 @@ contains
 
     class(phase_type), intent(in out) :: self
 
-    nullify(self%density)
-    nullify(self%viscosity)
-    nullify(self%saturation)
-    nullify(self%relative_permeability)
-    nullify(self%specific_enthalpy)
-    nullify(self%internal_energy)
-    nullify(self%mass_fraction)
+    self%density => null()
+    self%viscosity => null()
+    self%saturation => null()
+    self%relative_permeability => null()
+    self%capillary_pressure => null()
+    self%specific_enthalpy => null()
+    self%internal_energy => null()
+    self%mass_fraction => null()
 
   end subroutine phase_destroy
 
@@ -177,9 +180,10 @@ contains
          phase%viscosity => data(i+1)
          phase%saturation => data(i+2)
          phase%relative_permeability => data(i+3)
-         phase%specific_enthalpy => data(i+4)
-         phase%internal_energy => data(i+5)
-         phase%mass_fraction => data(i+6: i+6 + self%num_components-1)
+         phase%capillary_pressure => data(i+4)
+         phase%specific_enthalpy => data(i+5)
+         phase%internal_energy => data(i+6)
+         phase%mass_fraction => data(i+7: i+7 + self%num_components-1)
          i = i + self%phase_dof
        end associate
     end do

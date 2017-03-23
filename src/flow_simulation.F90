@@ -26,6 +26,7 @@ module flow_simulation_module
   use thermodynamics_module
   use eos_module
   use relative_permeability_module
+  use capillary_pressure_module
   use logfile_module
   use list_module
 
@@ -53,6 +54,7 @@ module flow_simulation_module
      class(eos_type), allocatable, public :: eos !! Fluid equation of state
      PetscReal, public :: gravity(3) !! Acceleration of gravity vector (\(m.s^{-1}\))
      class(relative_permeability_type), allocatable, public :: relative_permeability !! Rock relative permeability function
+     class(capillary_pressure_type), allocatable, public :: capillary_pressure !! Rock capillary pressure function
      character(max_output_filename_length), public :: output_filename !! HDF5 output filename
      PetscViewer :: hdf5_viewer
      PetscLogDouble :: start_wall_time
@@ -475,6 +477,8 @@ contains
     call self%setup_solution_vector()
     call setup_relative_permeabilities(json, &
          self%relative_permeability, self%logfile)
+    call setup_capillary_pressures(json, &
+         self%capillary_pressure, self%logfile)
     call setup_rock_vector(json, self%mesh%dm, self%rock, &
          self%rock_range_start, self%mesh%ghost_cell, self%logfile)
     call setup_fluid_vector(self%mesh%dm, max_component_name_length, &
@@ -975,6 +979,7 @@ contains
 
           call cell%rock%assign(rock_array, rock_offset)
           call cell%rock%assign_relative_permeability(self%relative_permeability)
+          call cell%rock%assign_capillary_pressure(self%capillary_pressure)
           call cell%fluid%assign(fluid_array, fluid_offset)
 
           call self%eos%bulk_properties(cell_primary, cell%fluid, err)
@@ -1080,6 +1085,7 @@ contains
 
           call cell%rock%assign(rock_array, rock_offset)
           call cell%rock%assign_relative_permeability(self%relative_permeability)
+          call cell%rock%assign_capillary_pressure(self%capillary_pressure)
           call cell%fluid%assign(fluid_array, fluid_offset)
 
           call self%eos%bulk_properties(cell_primary, cell%fluid, err)
