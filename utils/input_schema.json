@@ -137,6 +137,33 @@
                               "ssr": {"type": "number", "minimum": 0, "maximum": 1}
                           }, "additionalProperties": false}
                      ]},
+                     "capillary_pressure": {"oneOf": [
+                         {"type": "object",
+                          "properties": {
+                              "type": {"type": "string",
+                                       "enum": ["zero", "Zero", "none", "None"]}
+                          }, "additionalProperties": false},
+                         {"type": "object",
+                          "properties": {
+                              "type": {"type": "string",
+                                       "enum": ["linear", "Linear"]},
+                              "saturation_limits": {"type": "array",
+                                                    "items": {"type": "number",
+                                                              "minimum": 0, "maximum": 1}}
+                          }, "additionalProperties": false},
+                         {"type": "object",
+                          "properties": {
+                              "type": {"type": "string",
+                                       "enum": ["van Genuchten", "van genuchten",
+                                                "van_Genuchten", "van_genuchten"]},
+                              "P0": {"type": "number"},
+                              "lambda": {"type": "number"},
+                              "slr": {"type": "number", "minimum": 0, "maximum": 1},
+                              "sls": {"type": "number", "minimum": 0, "maximum": 1},
+                              "Pmax": {"type": "number"}
+                          }, "additionalProperties": false}
+                         ]
+                     },
                      "types": {
                          "type": "array",
                          "items": {
