@@ -374,7 +374,8 @@ contains
     PetscErrorCode, intent(out) :: err !! Error code
     ! Locals:
     PetscInt :: p, phases
-    PetscReal :: water_properties(2), sl, relative_permeability(2)
+    PetscReal :: water_properties(2), sl
+    PetscReal :: relative_permeability(2), capillary_pressure(2)
     PetscReal :: water_pressure, gas_properties(2), xg
     PetscReal :: h_solution
 
@@ -383,6 +384,8 @@ contains
 
     sl = fluid%phase(1)%saturation
     relative_permeability = rock%relative_permeability%values(sl)
+    capillary_pressure = [rock%capillary_pressure%value(sl, fluid%temperature), &
+         0._dp]
 
     associate(partial_pressure => primary(3))
 
@@ -414,6 +417,7 @@ contains
                       phase%mass_fraction(2) = xg
 
                       phase%relative_permeability = relative_permeability(p)
+                      phase%capillary_pressure =  capillary_pressure(p)
 
                       associate(gas_density => gas_properties(1), &
                            gas_enthalpy => gas_properties(2))
@@ -458,6 +462,7 @@ contains
               phase%internal_energy = 0._dp
               phase%specific_enthalpy = 0._dp
               phase%relative_permeability = 0._dp
+              phase%capillary_pressure = 0._dp
               phase%viscosity = 0._dp
               phase%mass_fraction = 0._dp
            end if
