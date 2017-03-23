@@ -122,8 +122,19 @@
                           "properties": {
                               "type": {"type": "string",
                                        "enum": ["corey", "Corey", "grant", "Grant"]},
-                              "slr": {"type": "number"},
-                              "ssr": {"type": "number"}
+                              "slr": {"type": "number", "minimum": 0, "maximum": 1},
+                              "ssr": {"type": "number", "minimum": 0, "maximum": 1}
+                          }, "additionalProperties": false},
+                         {"type": "object",
+                          "properties": {
+                              "type": {"type": "string",
+                                       "enum": ["van Genuchten", "van genuchten",
+                                                "van_Genuchten", "van_genuchten"]},
+                              "lambda": {"type": "number"},
+                              "slr": {"type": "number", "minimum": 0, "maximum": 1},
+                              "sls": {"type": "number", "minimum": 0, "maximum": 1},
+                              "sum_unity": {"type": "boolean"},
+                              "ssr": {"type": "number", "minimum": 0, "maximum": 1}
                           }, "additionalProperties": false}
                      ]},
                      "types": {
