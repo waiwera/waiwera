@@ -181,21 +181,34 @@ class t2data_export_json(t2data):
     def relative_permeability_json(self):
         """Converts TOUGH2 relative permeability data to JSON."""
         jsondata = {}
+        stol = 1.e-9
         if self.relative_permeability:
             rp = {}
-            rp_types = {1: 'linear', 2: 'pickens', 3: 'corey', 4: 'grant', 5: 'fully mobile'}
+            rp_types = {1: 'linear', 2: 'pickens', 3: 'corey', 4: 'grant',
+                        5: 'fully mobile', 7: 'van Genuchten'}
             itype = self.relative_permeability['type']
             pars = self.relative_permeability['parameters']
-            rp['type'] = rp_types[itype]
-            if itype == 1:
-                rp['liquid'] = [pars[0], pars[2]]
-                rp['vapour'] = [pars[1], pars[3]]
-            elif itype == 2:
-                rp['power'] = pars[0]
-            elif itype in [3, 4]:
-                rp['slr'] = pars[0]
-                rp['ssr'] = pars[1]
-            jsondata['relative_permeability'] = rp
+            if itype in rp_types:
+                rp['type'] = rp_types[itype]
+                if itype == 1:
+                    rp['liquid'] = [pars[0], pars[2]]
+                    rp['vapour'] = [pars[1], pars[3]]
+                elif itype == 2:
+                    rp['power'] = pars[0]
+                elif itype in [3, 4]:
+                    rp['slr'] = pars[0]
+                    rp['ssr'] = pars[1]
+                elif itype == 7:
+                    rp['lambda'] = pars[0]
+                    rp['slr'] = pars[1]
+                    rp['sls'] = pars[2]
+                    if pars[3] > stol:
+                        rp['sum_unity'] = False
+                        rp['ssr'] = pars[3]
+                    else: rp['sum_unity'] = True
+                jsondata['relative_permeability'] = rp
+            else:
+                raise Exception ('Unhandled relative permeability type: %d' % itype)
         else: jsondata['relative_permeability'] = {'type': 'fully mobile'}
         return jsondata
 
