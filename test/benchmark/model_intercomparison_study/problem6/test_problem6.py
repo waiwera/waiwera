@@ -71,13 +71,6 @@ AUTOUGH2_result = T2ModelResult("AUTOUGH2", run_filename,
                                  geo_filename = t2geo_filename,
                                  ordering_map = map_out_atm)
 
-
-problem6_test.addTestComp(run_index, "AUTOUGH2 " + obspt + " well",
-                      HistoryWithinTolTC(fieldsToTest = test_fields,
-                                         defFieldTol = 1.e-3,
-                                         expected = AUTOUGH2_result,
-                                         testCellIndex = obs_cell_index))
-
 digitised_result = {}
 for sim in digitised_simulators:
     data = {}
@@ -128,24 +121,6 @@ for field_name in digitised_test_fields:
     plt.title(' '.join((model_name, field_name.lower(),
                         'results at', obspt, 'well')))
     img_filename_base = '_'.join((model_name, obspt, field_name))
-    img_filename_base = img_filename_base.replace(' ', '_')
-    img_filename = os.path.join(problem6_test.mSuite.runs[run_index].basePath,
-                                problem6_test.mSuite.outputPathBase,
-                                img_filename_base + '.png')
-    plt.tight_layout(pad = 3.)
-    plt.savefig(img_filename)
-    plt.clf()
-    problem6_test.mSuite.analysisImages.append(img_filename)
-
-t = problem6_test.testComps[run_index][tc_name].times
-for field_name in plot_fields:
-    var = np.array(problem6_test.testComps[run_index][tc_name].fieldErrors[field_name])
-    plt.plot(t / yr, var, '-o')
-    plt.xlabel('time (years)')
-    plt.ylabel(field_name + ' error')
-    plt.title(' '.join((model_name, 'comparison with AUTOUGH2 at',
-                       obspt, 'well')))
-    img_filename_base = '_'.join((model_name, tc_name, 'error', field_name))
     img_filename_base = img_filename_base.replace(' ', '_')
     img_filename = os.path.join(problem6_test.mSuite.runs[run_index].basePath,
                                 problem6_test.mSuite.outputPathBase,
