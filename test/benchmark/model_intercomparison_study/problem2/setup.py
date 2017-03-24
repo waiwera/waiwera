@@ -6,6 +6,8 @@ from math import ceil
 import json
 import os
 
+AUTOUGH2 = 'AUTOUGH2_42D'
+
 model_dir = './run'
 orig_dir = os.getcwd()
 if not os.path.isdir(model_dir): os.makedirs(model_dir)
@@ -84,7 +86,7 @@ for blk in dat.grid.blocklist:
     inc[blk.name] = [P0, T0]
 inc.write(model_name + 'a.incon')
 
-dat.run(simulator = 'AUTOUGH2_41Da',
+dat.run(simulator = AUTOUGH2,
         incon_filename = model_name + 'a.incon',
         silent = True)
 

@@ -6,6 +6,8 @@ from scipy.optimize import fsolve
 import json
 import os
 
+AUTOUGH2 = 'AUTOUGH2_42D'
+
 model_dir = './run'
 orig_dir = os.getcwd()
 if not os.path.isdir(model_dir): os.makedirs(model_dir)
@@ -104,7 +106,7 @@ for blk, Tblk, Pblk in zip(dat.grid.blocklist, T, P):
     inc[blk.name] = [Pblk, Tblk]
 inc.write(model_name + '.incon')
 
-dat.run(simulator = 'AUTOUGH2_41Da',
+dat.run(simulator = AUTOUGH2,
         incon_filename = model_name + '.incon',
         silent = True)
 
