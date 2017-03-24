@@ -5,18 +5,15 @@ Model Intercomparison Study problem 1
 import os
 
 from credo.systest import SciBenchmarkTest
-from credo.systest import FieldWithinTolTC
-from credo.systest import HistoryWithinTolTC
+from credo.systest import FieldWithinTolTC, HistoryWithinTolTC, RadialSolutionWithinTolTC
 
 from credo.jobrunner import SimpleJobRunner
-from credo.modelresult import ModelResult, HistoryDataResult
+from credo.modelresult import DigitisedRadialFieldResult, HistoryDataResult
 from credo.t2model import T2ModelRun, T2ModelResult
 from credo.waiwera import WaiweraModelRun
 
 import credo.reporting.standardReports as sReps
 from credo.reporting import getGenerators
-
-from radial import DigitisedRadialFieldResult, RadialSolutionWithinTolTC
 
 from mulgrids import mulgrid
 import matplotlib.pyplot as plt
