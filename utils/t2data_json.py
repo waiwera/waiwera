@@ -226,7 +226,7 @@ class t2data_export_json(t2data):
                 cp['type'] = cp_types[itype]
                 if itype == 1:
                     cp['pressure'] = pars[0]
-                    rp['saturation_limits'] = [pars[1], pars[2]]
+                    cp['saturation_limits'] = [pars[1], pars[2]]
                 elif itype == 7:
                     cp['lambda'] = pars[0]
                     cp['slr'] = pars[1]
