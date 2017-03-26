@@ -7,6 +7,8 @@ import os
 from scipy.optimize import brentq
 from math import log10
 
+AUTOUGH2 = 'AUTOUGH2_42D'
+
 model_dir = './run'
 orig_dir = os.getcwd()
 if not os.path.isdir(model_dir): os.makedirs(model_dir)
@@ -112,7 +114,7 @@ gen = t2generator(block = dat.grid.blocklist[0].name,
 dat.add_generator(gen)
 
 dat.write(model_name + '.dat')
-dat.run(simulator = 'AUTOUGH2_41Da', silent = True)
+dat.run(simulator = AUTOUGH2, silent = True)
 var = t2incon(model_name + '.save')[-1].variable
 inc = dat.grid.incons(var)
 

@@ -89,7 +89,7 @@ AUTOUGH2_result = T2ModelResult("AUTOUGH2", run_filename,
 
 heat_pipe_test.addTestComp(run_index, "AUTOUGH2",
                            FieldWithinTolTC(fieldsToTest = test_fields,
-                                            defFieldTol = 2.e-3,
+                                            defFieldTol = 5.e-3,
                                             expected = AUTOUGH2_result,
                                             testOutputIndex = -1))
 
