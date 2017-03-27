@@ -33,7 +33,7 @@ program waiwera
   type(flow_simulation_type) :: simulation !! Flow simulation object
   type(timestepper_type) :: timestepper !! Timestepper for time-stepping the simulation
   character(max_flow_simulation_filename_length) :: filename !! JSON input filename
-  PetscErrorCode :: ierr !! Error code for PETSc
+  PetscErrorCode :: ierr !! Error code
 
   call PetscInitialize(PETSC_NULL_CHARACTER, ierr); CHKERRQ(ierr)
   call init_profiling()
@@ -41,15 +41,19 @@ program waiwera
   call get_filename(filename)
   json => fson_parse_mpi(filename)
 
-  call simulation%init(json, filename)
-  call timestepper%init(json, simulation)
-  call fson_destroy_mpi(json)
-  call simulation%input_summary()
-  call timestepper%input_summary()
+  call simulation%init(json, filename, ierr)
 
-  call timestepper%run()
+  if (ierr == 0) then
+     call timestepper%init(json, simulation)
+     call fson_destroy_mpi(json)
+     call simulation%input_summary()
+     call timestepper%input_summary()
+     call timestepper%run()
+     call timestepper%destroy()
+  else
+     call fson_destroy_mpi(json)
+  end if
 
-  call timestepper%destroy()
   call simulation%destroy()
 
   call PetscFinalize(ierr); CHKERRQ(ierr)

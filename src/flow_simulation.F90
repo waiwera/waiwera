@@ -416,7 +416,7 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine flow_simulation_init(self, json, filename)
+  subroutine flow_simulation_init(self, json, filename, err)
     !! Initializes a flow simulation using data from the specified JSON object.
 
     use kinds_module
@@ -436,13 +436,14 @@ contains
     class(flow_simulation_type), intent(in out) :: self
     type(fson_value), pointer, intent(in) :: json
     character(len = *), intent(in), optional :: filename
+    PetscErrorCode, intent(out) :: err
     ! Locals:
     character(len = max_title_length), parameter :: default_title = ""
     character(25) :: datetimestr
     PetscErrorCode :: ierr
 
+    err = 0
     call PetscLogEventBegin(simulation_init_event, ierr); CHKERRQ(ierr)
-
     call PetscTime(self%start_wall_time, ierr); CHKERRQ(ierr)
     datetimestr = date_time_str()
 
@@ -495,10 +496,12 @@ contains
     call self%mesh%set_boundary_values(self%solution, self%fluid, &
          self%rock, self%eos, self%solution_range_start, &
          self%fluid_range_start, self%rock_range_start)
-    call self%fluid_init(self%time, self%solution, ierr)
-    call setup_sources(json, self%mesh%dm, self%eos, self%thermo, &
-         self%time, self%fluid, self%fluid_range_start, &
-         self%sources, self%source_controls, self%logfile)
+    call self%fluid_init(self%time, self%solution, err)
+    if (err == 0) then
+       call setup_sources(json, self%mesh%dm, self%eos, self%thermo, &
+            self%time, self%fluid, self%fluid_range_start, &
+            self%sources, self%source_controls, self%logfile)
+    end if
 
     call self%logfile%flush()
 
@@ -991,7 +994,8 @@ contains
                 call DMLabelGetValue(order_label, c, order, ierr)
                 CHKERRQ(ierr)
                 call self%logfile%write(LOG_LEVEL_ERR, 'initialize', &
-                     'fluid', ['cell  ', 'region'], [order, int(cell%fluid%region)], &
+                     'fluid_phase_properties', ['cell  ', 'region'], &
+                     [order, int(cell%fluid%region)], &
                      real_array_key = 'primary', real_array_value = cell_primary, &
                      rank = rank)
                 exit
@@ -1000,7 +1004,8 @@ contains
              call DMLabelGetValue(order_label, c, order, ierr)
              CHKERRQ(ierr)
              call self%logfile%write(LOG_LEVEL_ERR, 'initialize', &
-                  'fluid', ['cell  ', 'region'], [order, int(cell%fluid%region)], &
+                  'fluid_bulk_properties', ['cell  ', 'region'], &
+                  [order, int(cell%fluid%region)], &
                   real_array_key = 'primary', real_array_value = cell_primary, &
                   rank = rank)
              exit
