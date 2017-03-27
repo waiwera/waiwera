@@ -170,7 +170,7 @@ contains
     ! Locals:
     PetscReal :: T2, T3, T4, C(5)
 
-    associate(pscale => partial_pressure * 1.0e-6_dp, T => temperature)
+    associate(pscale => partial_pressure * 1.0e-7_dp, T => temperature)
       if (pscale <= 1._dp) then
          C = self%viscosity_A + pscale * self%viscosity_BA
          T2 = T * T
