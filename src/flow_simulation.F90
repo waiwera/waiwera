@@ -358,12 +358,13 @@ contains
     use kinds_module
     use fson
     use fson_mpi_module
-    use fson_value_m, only: TYPE_REAL, TYPE_ARRAY, TYPE_NULL
+    use fson_value_m, only: TYPE_REAL, TYPE_INTEGER, TYPE_ARRAY, TYPE_NULL
 
     class(flow_simulation_type), intent(in out) :: self
     type(fson_value), pointer, intent(in) :: json
     ! Locals:
     PetscReal :: gravity_magnitude
+    PetscInt :: int_gravity_magnitude
     PetscReal, allocatable :: gravity(:)
     PetscInt :: gravity_type, ng, dim
     PetscErrorCode :: ierr
@@ -376,6 +377,9 @@ contains
        case (TYPE_REAL)
           call fson_get_mpi(json, "gravity", val = gravity_magnitude)
           self%gravity(dim) = -gravity_magnitude
+       case (TYPE_INTEGER)
+          call fson_get_mpi(json, "gravity", val = int_gravity_magnitude)
+          self%gravity(dim) = -dble(int_gravity_magnitude)
        case (TYPE_ARRAY)
           call fson_get_mpi(json, "gravity", val = gravity)
           ng = size(gravity)
