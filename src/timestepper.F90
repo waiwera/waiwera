@@ -1442,7 +1442,7 @@ end subroutine timestepper_steps_set_next_stepsize
     PetscInt :: max_num_steps
     PetscReal, parameter :: default_stop_time = 1.0_dp
     PetscReal, parameter :: default_stepsize = 0.1_dp
-    PetscInt :: step_size_type, int_step_size_single
+    PetscInt :: step_size_type
     PetscReal :: step_size_single
     PetscReal, allocatable :: step_sizes(:)
     PetscReal :: max_stepsize, stop_time
@@ -1624,12 +1624,9 @@ end subroutine timestepper_steps_set_next_stepsize
        if (fson_has_mpi(json, "time.step.size")) then
           step_size_type = fson_type_mpi(json, "time.step.size")
           select case (step_size_type)
-          case (TYPE_REAL)
+          case (TYPE_REAL, TYPE_INTEGER)
              call fson_get_mpi(json, "time.step.size", val = step_size_single)
              step_sizes = [step_size_single]
-          case (TYPE_INTEGER)
-             call fson_get_mpi(json, "time.step.size", val = int_step_size_single)
-             step_sizes = [dble(int_step_size_single)]
           case (TYPE_ARRAY)
              call fson_get_mpi(json, "time.step.size", val = step_sizes)
           case default

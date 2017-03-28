@@ -211,19 +211,15 @@ contains
     PetscReal, intent(out) :: initial_rate
     PetscBool, intent(out) :: can_inject
     ! Locals:
-    PetscInt :: rate_type, int_initial_rate
+    PetscInt :: rate_type
 
     if (fson_has_mpi(source_json, "rate")) then
 
        rate_type = fson_type_mpi(source_json, "rate")
 
        select case (rate_type)
-       case (TYPE_REAL)
+       case (TYPE_REAL, TYPE_INTEGER)
           call fson_get_mpi(source_json, "rate", val = initial_rate)
-          can_inject = (initial_rate > 0._dp)
-       case (TYPE_INTEGER)
-          call fson_get_mpi(source_json, "rate", val = int_initial_rate)
-          initial_rate = dble(int_initial_rate)
           can_inject = (initial_rate > 0._dp)
        case (TYPE_ARRAY)
           initial_rate = default_source_rate
@@ -249,7 +245,7 @@ contains
     PetscInt, intent(in) :: injection_component
     PetscReal, intent(out) :: enthalpy
     ! Locals:
-    PetscInt :: enthalpy_type, int_enthalpy
+    PetscInt :: enthalpy_type
 
     associate(np => eos%num_primary_variables)
 
@@ -260,13 +256,9 @@ contains
             enthalpy_type = fson_type_mpi(source_json, "enthalpy")
 
             select case (enthalpy_type)
-            case(TYPE_REAL)
+            case(TYPE_REAL, TYPE_INTEGER)
                call fson_get_mpi(source_json, "enthalpy", &
                     val = enthalpy)
-            case(TYPE_INTEGER)
-               call fson_get_mpi(source_json, "enthalpy", &
-                    val = int_enthalpy)
-               enthalpy = dble(int_enthalpy)
             case default
                enthalpy = default_source_injection_enthalpy
             end select
@@ -461,7 +453,7 @@ contains
     type(logfile_type), intent(in out), optional :: logfile
     ! Locals:
     PetscReal :: reference_pressure
-    PetscInt :: pressure_type, int_reference_pressure
+    PetscInt :: pressure_type
     PetscInt, parameter :: max_pressure_str_length = 8
     character(max_pressure_str_length) :: pressure_str
     type(fson_value), pointer :: pressure_json
@@ -476,15 +468,9 @@ contains
     if (fson_has_mpi(json, "pressure")) then
        pressure_type = fson_type_mpi(json, "pressure")
        select case (pressure_type)
-       case (TYPE_REAL)
+       case (TYPE_REAL, TYPE_INTEGER)
           call fson_get_mpi(json, "pressure", &
                val = reference_pressure)
-          reference_pressure_array(1,2) = reference_pressure
-          pressure_table_coordinate = SRC_PRESSURE_TABLE_COORD_TIME
-       case (TYPE_INTEGER)
-          call fson_get_mpi(json, "pressure", &
-               val = int_reference_pressure)
-          reference_pressure = dble(int_reference_pressure)
           reference_pressure_array(1,2) = reference_pressure
           pressure_table_coordinate = SRC_PRESSURE_TABLE_COORD_TIME
        case (TYPE_ARRAY)
@@ -543,7 +529,7 @@ contains
     PetscBool, intent(out) :: calculate_PI_from_rate
     type(logfile_type), intent(in out), optional :: logfile
     ! Locals:
-    PetscInt :: PI_type, int_productivity
+    PetscInt :: PI_type
     PetscReal :: productivity
     type(fson_value), pointer :: PI_json
     PetscReal, parameter :: default_time = 0._dp
@@ -557,13 +543,8 @@ contains
        PI_type = fson_type_mpi(json, "productivity")
 
        select case(PI_type)
-       case (TYPE_REAL)
+       case (TYPE_REAL, TYPE_INTEGER)
           call fson_get_mpi(json, "productivity", val = productivity)
-          productivity_array = reshape([default_time, &
-               productivity], [1,2])
-       case (TYPE_INTEGER)
-          call fson_get_mpi(json, "productivity", val = int_productivity)
-          productivity = dble(int_productivity)
           productivity_array = reshape([default_time, &
                productivity], [1,2])
        case (TYPE_ARRAY)
@@ -681,7 +662,7 @@ contains
     PetscReal, allocatable :: recharge_array(:,:)
     type(logfile_type), intent(in out), optional :: logfile
     ! Locals:
-    PetscInt :: coef_type, int_recharge_coefficient
+    PetscInt :: coef_type
     PetscReal :: recharge_coefficient
     type(fson_value), pointer :: coef_json
     PetscReal, parameter :: default_time = 0._dp
@@ -695,14 +676,9 @@ contains
        coef_type = fson_type_mpi(json, "coefficient")
 
        select case(coef_type)
-       case (TYPE_REAL)
+       case (TYPE_REAL, TYPE_INTEGER)
           call fson_get_mpi(json, "coefficient", &
                val = recharge_coefficient)
-          recharge_array(1,2) = recharge_coefficient
-       case (TYPE_INTEGER)
-          call fson_get_mpi(json, "coefficient", &
-               val = int_recharge_coefficient)
-          recharge_coefficient = dble(int_recharge_coefficient)
           recharge_array(1,2) = recharge_coefficient
        case (TYPE_ARRAY)
           call fson_get_mpi(json, "coefficient", &
