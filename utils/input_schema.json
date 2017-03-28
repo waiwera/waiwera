@@ -149,7 +149,8 @@
                                        "enum": ["linear", "Linear"]},
                               "saturation_limits": {"type": "array",
                                                     "items": {"type": "number",
-                                                              "minimum": 0, "maximum": 1}}
+                                                              "minimum": 0, "maximum": 1}},
+                              "pressure": {"type": "number"}
                           }, "additionalProperties": false},
                          {"type": "object",
                           "properties": {
