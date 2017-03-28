@@ -65,7 +65,7 @@
              "properties": {
                  "filename": {"type": "string"},
                  "radial": {"type": "boolean"},
-                 "thickness": {"type": "number"},
+                 "thickness": {"type": "number", "minimum": 0},
                  "permeability_angle": {"type": "number"},
                  "faces": {
                      "type": "array",
