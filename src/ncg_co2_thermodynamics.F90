@@ -155,7 +155,7 @@ contains
 !------------------------------------------------------------------------
   
   subroutine ncg_co2_viscosity(self, partial_pressure, temperature, &
-       region, viscosity, err)
+       viscosity, err)
     !! Calculates viscosity for gas phase given partial pressure and
     !! temperature.
 
@@ -164,7 +164,6 @@ contains
     class(ncg_co2_thermodynamics_type), intent(in) :: self
     PetscReal, intent(in) :: partial_pressure !! CO2 partial pressure
     PetscReal, intent(in) :: temperature !! Temperature
-    class(region_type), pointer :: region !! Thermodynamic region
     PetscReal, intent(out):: viscosity !! CO2 viscosity
     PetscInt, intent(out)  :: err !! Error code
     ! Locals:
@@ -212,7 +211,7 @@ contains
          water_viscosity)
 
     call self%viscosity(partial_pressure, temperature, &
-         region, gas_viscosity, err)
+         gas_viscosity, err)
 
     if (err == 0) then
        viscosity = water_viscosity * (1._dp - xg) &

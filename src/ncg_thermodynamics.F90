@@ -78,14 +78,13 @@ module ncg_thermodynamics_module
      end subroutine ncg_energy_solution_procedure
 
      subroutine ncg_viscosity_procedure(self, partial_pressure, &
-          temperature, region, viscosity, err)
+          temperature, viscosity, err)
        !! Calculate NCG viscosity.
        import :: ncg_thermodynamics_type
        import :: region_type
        class(ncg_thermodynamics_type), intent(in) :: self 
        PetscReal, intent(in)  :: partial_pressure
        PetscReal, intent(in)  :: temperature
-       class(region_type), pointer :: region
        PetscReal, intent(out) :: viscosity
        PetscErrorCode, intent(out)  :: err
      end subroutine ncg_viscosity_procedure
