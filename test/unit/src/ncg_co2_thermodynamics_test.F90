@@ -70,7 +70,7 @@ contains
     type(ncg_co2_thermodynamics_type) :: gas
     PetscReal :: temperature, expected, hs
     PetscErrorCode :: err
-    character(33) :: s = "CO2 energy of solution, temperature"
+    character(35) :: s = "CO2 energy of solution, temperature"
     PetscMPIInt :: rank
     PetscInt :: ierr
     PetscReal, parameter :: tol = 1.e-4_dp
