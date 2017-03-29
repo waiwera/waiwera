@@ -118,7 +118,7 @@ contains
       if (T <= 300._dp) then
          T2 = T * T
          T3 = T2 * T
-         RKH = (783.666_dp + 19.6025_dp * T + 0.820574_dp * T2) * 1.0e5_dp &
+         RKH = 783.666e5_dp + 19.6025e5_dp * T + 0.820574e5_dp * T2 &
               -T3 * (7.40674e2_dp - 2.18380_dp * T + 2.20999e-3_dp * T2)
          henrys_constant = 1.0_dp / RKH
          err = 0
@@ -147,8 +147,8 @@ contains
     T2 = T * T
     T3 = T * T2
     T4 = T * T3
-    energy_solution = 1.e6_dp * (-0.549491_dp + 0.456571_dp * T &
-         - 0.070404_dp * T2 - 0.031035_dp * T3 + 0.014121_dp * T4)
+    energy_solution = -0.549491e6_dp + 0.456571e6_dp * T &
+         - 0.070404e6_dp * T2 - 0.031035e6_dp * T3 + 0.014121e6_dp * T4
 
   end subroutine ncg_co2_energy_solution
 
