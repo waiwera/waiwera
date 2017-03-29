@@ -240,11 +240,14 @@ contains
     ! Locals:
     character(26), parameter :: path = "data/flow_simulation/init/"
     type(fson_value), pointer :: json
+    PetscErrorCode :: err
 
     json => fson_parse_mpi(trim(path) // "test_init.json")
 
-    call sim%init(json)
+    call sim%init(json, err = err)
     call fson_destroy_mpi(json)
+
+    call assert_equals(0, err, "flow_simulation init() error")
 
     call flow_simulation_basic_test(title = "Test flow simulation init", &
          thermo = "IAPWS-97", eos = "w", dim = 3, dof = 12)
@@ -274,9 +277,10 @@ contains
 
     json => fson_parse_mpi(trim(path) // "test_fluid_properties.json")
 
-    call sim%init(json)
+    call sim%init(json, err = err)
     call fson_destroy_mpi(json)
 
+    call assert_equals(0, err, "fluid_properties error")
     call sim%pre_solve(time, sim%solution, err)
     call vec_diff_test(sim%fluid, "fluid", path, sim%mesh%cell_index)
     
@@ -301,9 +305,10 @@ contains
 
     json => fson_parse_mpi(trim(path) // "test_lhs.json")
 
-    call sim%init(json)
+    call sim%init(json, err = err)
     call fson_destroy_mpi(json)
 
+    call assert_equals(0, err, "lhs error")
     call DMGetGlobalVector(sim%mesh%dm, lhs, ierr); CHKERRQ(ierr)
     call PetscObjectSetName(lhs, "lhs", ierr); CHKERRQ(ierr)
 
