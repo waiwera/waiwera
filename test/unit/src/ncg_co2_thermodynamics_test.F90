@@ -20,7 +20,7 @@ contains
 
   subroutine test_ncg_co2_henrys_constant
 
-    ! CO2 Henry's constant tests.
+    ! CO2 Henry's constant.
     ! Expected values are from AUTOUGH2.
 
     type(ncg_co2_thermodynamics_type) :: gas
@@ -30,6 +30,8 @@ contains
     PetscMPIInt :: rank
     PetscInt :: ierr
     PetscReal, parameter :: tol = 1.e-15_dp
+
+    call gas%init()
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
 
@@ -66,6 +68,7 @@ contains
 !------------------------------------------------------------------------
 
   subroutine test_ncg_co2_energy_solution
+    ! CO2 energy of solution
 
     type(ncg_co2_thermodynamics_type) :: gas
     PetscReal :: temperature, expected, hs
@@ -74,6 +77,8 @@ contains
     PetscMPIInt :: rank
     PetscInt :: ierr
     PetscReal, parameter :: tol = 1.e-4_dp
+
+    call gas%init()
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
 
