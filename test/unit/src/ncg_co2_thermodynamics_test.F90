@@ -6,7 +6,6 @@ module ncg_co2_thermodynamics_test
 
   use petscsys
   use kinds_module
-  use mpi_module
   use ncg_co2_thermodynamics_module
   use fruit
 
@@ -28,28 +27,36 @@ contains
     PetscReal :: temperature, expected, hc
     PetscErrorCode :: err
     character(33) :: s = "CO2 Henry's constant, temperature"
+    PetscMPIInt :: rank
+    PetscInt :: ierr
     PetscReal, parameter :: tol = 1.e-15_dp
 
-    if (mpi%rank == mpi%output_rank) then
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+
+    if (rank == 0) then
 
        temperature = 20._dp
        expected = 0.690552871945e-08_dp
        call gas%henrys_constant(temperature, hc, err)
+       call assert_equals(0, err, s // " 20 deg C error")
        call assert_equals(expected, hc, tol, s // " 20 deg C")
 
        temperature = 100._dp
        expected = 0.181629386327e-08_dp
        call gas%henrys_constant(temperature, hc, err)
+       call assert_equals(0, err, s // " 100 deg C error")
        call assert_equals(expected, hc, tol, s // " 100 deg C")
 
        temperature = 240._dp
        expected = 0.191626750106e-08_dp
        call gas%henrys_constant(temperature, hc, err)
+       call assert_equals(0, err, s // " 240 deg C error")
        call assert_equals(expected, hc, tol, s // " 240 deg C")
 
        temperature = 300._dp
        expected = 0.268879436880e-08_dp
        call gas%henrys_constant(temperature, hc, err)
+       call assert_equals(0, err, s // " 300 deg C error")
        call assert_equals(expected, hc, tol, s // " 300 deg C")
 
     end if
