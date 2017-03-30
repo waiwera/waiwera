@@ -376,7 +376,7 @@ contains
     PetscInt :: p, phases
     PetscReal :: water_properties(2), sl
     PetscReal :: relative_permeability(2), capillary_pressure(2)
-    PetscReal :: water_pressure, gas_properties(2), xg
+    PetscReal :: water_pressure(2), gas_properties(2), xg
     PetscReal :: h_solution
 
     err = 0
@@ -389,18 +389,15 @@ contains
 
     associate(partial_pressure => primary(3))
 
+      water_pressure = fluid%pressure
+      water_pressure(2) = water_pressure(2) - partial_pressure
+
       do p = 1, self%num_phases
          associate(phase => fluid%phase(p), region => self%thermo%region(p)%ptr)
 
            if (btest(phases, p - 1)) then
 
-              if (p == 1) then
-                 water_pressure = fluid%pressure
-              else
-                 water_pressure = fluid%pressure - partial_pressure
-              end if
-
-              call region%properties([water_pressure, fluid%temperature], &
+              call region%properties([water_pressure(p), fluid%temperature], &
                    water_properties, err)
 
               if (err == 0) then
@@ -442,7 +439,7 @@ contains
                         end if
 
                         phase%specific_enthalpy = (water_internal_energy &
-                             + water_pressure / water_density) * (1._dp - xg) &
+                             + water_pressure(p) / water_density) * (1._dp - xg) &
                              + (gas_enthalpy + h_solution) * xg
                         phase%internal_energy = phase%specific_enthalpy &
                              - fluid%pressure / phase%density
