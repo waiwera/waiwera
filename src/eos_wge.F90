@@ -416,13 +416,13 @@ contains
 
                 if (err == 0) then
 
+                   call self%gas%effective_properties(gas_properties, p, &
+                        effective_gas_properties)
+
                    associate(water_density => water_properties(1), &
                         water_internal_energy => water_properties(2), &
                         gas_density => effective_gas_properties(1), &
                         gas_enthalpy => effective_gas_properties(2))
-
-                   call self%gas%effective_properties(gas_properties, p, &
-                        effective_gas_properties)
 
                    call self%gas%mass_fraction(partial_pressure, fluid%temperature, &
                         p, gas_density, water_density, xg, err)
