@@ -384,8 +384,8 @@ contains
 
     sl = fluid%phase(1)%saturation
     relative_permeability = rock%relative_permeability%values(sl)
-    capillary_pressure = [rock%capillary_pressure%value(sl, fluid%temperature), &
-         0._dp]
+    capillary_pressure(2) = 0._dp
+    energy_solution(2) = 0._dp
 
     associate(partial_pressure => primary(3))
 
@@ -394,8 +394,9 @@ contains
 
     if (err == 0) then
 
-       energy_solution(2) = 0._dp
        if (btest(phases, 0)) then
+          capillary_pressure(1) = rock%capillary_pressure%value(sl, &
+               fluid%temperature)
           call self%gas%energy_solution(fluid%temperature, &
                energy_solution(1), err)
        end if
