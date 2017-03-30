@@ -384,8 +384,8 @@ contains
 
     sl = fluid%phase(1)%saturation
     relative_permeability = rock%relative_permeability%values(sl)
-    capillary_pressure(2) = 0._dp
-    energy_solution(2) = 0._dp
+    capillary_pressure = 0._dp
+    energy_solution = 0._dp
 
     associate(partial_pressure => primary(3))
 
