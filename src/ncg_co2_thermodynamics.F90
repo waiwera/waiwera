@@ -85,7 +85,7 @@ contains
          call self%henrys_constant(temperature, henrys_constant, err)
          if (err == 0) then
             xmole = henrys_constant * partial_pressure
-            xg = self%mass_fraction(xmole)
+            xg = self%mole_to_mass_fraction(xmole)
          end if
       else
          ! vapour

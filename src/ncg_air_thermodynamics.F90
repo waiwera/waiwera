@@ -87,7 +87,7 @@ contains
          call self%henrys_constant(temperature, henrys_constant, err)
          if (err == 0) then
             xmole = henrys_constant * partial_pressure
-            xg = self%mass_fraction(xmole)
+            xg = self%mole_to_mass_fraction(xmole)
          end if
       else
          ! vapour
@@ -200,7 +200,7 @@ contains
     fmix = sqrt(self%fair * self%fwat)
     cmix = 0.5_dp * (self%cair + self%cwat)
 
-    x1 = self%mole_fraction(xg)
+    x1 = self%mass_to_mole_fraction(xg)
     x2 = 1._dp - x1
 
     associate (tk => temperature + tc_k)

@@ -29,8 +29,8 @@ module ncg_thermodynamics_module
      procedure(ncg_vapour_mixture_viscosity_procedure), public, deferred :: &
           vapour_mixture_viscosity
      procedure, public :: partial_pressure => ncg_partial_pressure
-     procedure, public :: mass_fraction => ncg_thermodynamics_mass_fraction
-     procedure, public :: mole_fraction => ncg_thermodynamics_mole_fraction
+     procedure, public :: mole_to_mass_fraction => ncg_thermodynamics_mole_to_mass_fraction
+     procedure, public :: mass_to_mole_fraction => ncg_thermodynamics_mass_to_mole_fraction
    end type ncg_thermodynamics_type
 
   abstract interface
@@ -112,7 +112,7 @@ contains
 
 !------------------------------------------------------------------------
 
-  PetscReal function ncg_thermodynamics_mass_fraction(self, xmole) &
+  PetscReal function ncg_thermodynamics_mole_to_mass_fraction(self, xmole) &
        result(xg)
     !! Calculates NCG mass fraction from mole fraction.
     class(ncg_thermodynamics_type), intent(in) :: self
@@ -123,11 +123,11 @@ contains
     w = xmole * self%molecular_weight
     xg = w / (w + (1._dp - xmole) * water_molecular_weight)
 
-  end function ncg_thermodynamics_mass_fraction
+  end function ncg_thermodynamics_mole_to_mass_fraction
 
 !------------------------------------------------------------------------
 
-  PetscReal function ncg_thermodynamics_mole_fraction(self, xg) &
+  PetscReal function ncg_thermodynamics_mass_to_mole_fraction(self, xg) &
        result(xmole)
     !! Calculates NCG mole fraction from mass fraction.
     class(ncg_thermodynamics_type), intent(in) :: self
@@ -138,7 +138,7 @@ contains
     w = xg / self%molecular_weight
     xmole = w / (w + (1._dp - xg) / water_molecular_weight)
 
-  end function ncg_thermodynamics_mole_fraction
+  end function ncg_thermodynamics_mass_to_mole_fraction
 
 !------------------------------------------------------------------------
 
