@@ -174,11 +174,10 @@ contains
     type(ncg_co2_thermodynamics_type) :: gas
     PetscMPIInt :: rank
     PetscInt :: ierr, err, i
-    PetscReal :: props(2), xg
+    PetscReal :: props(2)
     character(40) :: s
-    PetscReal, parameter :: water_density = 998._dp
     PetscReal, parameter :: htol = 1.e-3_dp, dtol = 1.e-7_dp
-    PetscInt, parameter :: num_cases = 14, phase = 2
+    PetscInt, parameter :: num_cases = 14
     PetscReal, parameter :: data(4, num_cases) = reshape([ &
          0.0_dp, 20.0_dp, 17140.18077231938_dp, 0.0_dp, &
          100000.0_dp, 20.0_dp, 16142.247883091828_dp, 1.8142044368713437_dp, &
@@ -206,7 +205,7 @@ contains
           associate(pc => data(1, i), t => data(2, i), &
                expected_h => data(3, i), expected_d => data(4, i), &
                d => props(1), h => props(2))
-            call gas%properties(pc, t, phase, water_density, props, xg, err)
+            call gas%properties(pc, t, props, err)
             write(s, '(a, e8.3, a, f6.2)') 'pc = ', pc, ', t = ', t
             call assert_equals(0, err, trim(s) // ' error')
             call assert_equals(expected_h, h, htol, trim(s) // ' enthalpy')
