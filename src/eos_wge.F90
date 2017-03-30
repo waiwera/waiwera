@@ -422,7 +422,15 @@ contains
                       associate(gas_density => gas_properties(1), &
                            gas_enthalpy => gas_properties(2))
 
-                        if (p == 2) then
+                        if (p == 1) then
+                           phase%density = water_density
+                           call self%gas%energy_solution(fluid%temperature, h_solution, err)
+                           if (err > 0) then
+                              exit
+                           end if
+                           call region%viscosity(fluid%temperature, fluid%pressure, &
+                                phase%density, phase%viscosity)
+                        else
                            phase%density = water_density + gas_density
                            h_solution = 0._dp
                            call self%gas%vapour_mixture_viscosity(fluid%pressure, &
@@ -431,14 +439,6 @@ contains
                            if (err > 0) then
                               exit
                            end if
-                        else
-                           phase%density = water_density
-                           call self%gas%energy_solution(fluid%temperature, h_solution, err)
-                           if (err > 0) then
-                              exit
-                           end if
-                           call region%viscosity(fluid%temperature, fluid%pressure, &
-                                phase%density, phase%viscosity)
                         end if
 
                         phase%specific_enthalpy = (water_internal_energy &
