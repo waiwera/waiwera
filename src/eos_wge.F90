@@ -389,94 +389,91 @@ contains
 
     associate(partial_pressure => primary(3))
 
-    call self%gas%properties(partial_pressure, fluid%temperature, &
-         gas_properties, err)
+      call self%gas%properties(partial_pressure, fluid%temperature, &
+           gas_properties, err)
 
-    if (err == 0) then
+      if (err == 0) then
 
-       if (btest(phases, 0)) then
-          capillary_pressure(1) = rock%capillary_pressure%value(sl, &
-               fluid%temperature)
-          call self%gas%energy_solution(fluid%temperature, &
-               energy_solution(1), err)
-       end if
+         water_pressure = [fluid%pressure, fluid%pressure - partial_pressure]
 
-       if (err == 0) then
+         if (btest(phases, 0)) then
+            capillary_pressure(1) = rock%capillary_pressure%value(sl, &
+                 fluid%temperature)
+            call self%gas%energy_solution(fluid%temperature, &
+                 energy_solution(1), err)
+         end if
 
-          water_pressure = fluid%pressure
-          water_pressure(2) = water_pressure(2) - partial_pressure
+         if (err == 0) then
 
-          do p = 1, self%num_phases
-             associate(phase => fluid%phase(p), region => self%thermo%region(p)%ptr)
+            do p = 1, self%num_phases
+               associate(phase => fluid%phase(p), region => self%thermo%region(p)%ptr)
 
-             if (btest(phases, p - 1)) then
+                 if (btest(phases, p - 1)) then
 
-                call region%properties([water_pressure(p), fluid%temperature], &
-                     water_properties, err)
+                    call region%properties([water_pressure(p), fluid%temperature], &
+                         water_properties, err)
 
-                if (err == 0) then
+                    if (err == 0) then
 
-                   call self%gas%effective_properties(gas_properties, p, &
-                        effective_gas_properties)
+                       call self%gas%effective_properties(gas_properties, p, &
+                            effective_gas_properties)
 
-                   associate(water_density => water_properties(1), &
-                        water_internal_energy => water_properties(2), &
-                        gas_density => effective_gas_properties(1), &
-                        gas_enthalpy => effective_gas_properties(2))
+                       associate(water_density => water_properties(1), &
+                            water_internal_energy => water_properties(2), &
+                            gas_density => effective_gas_properties(1), &
+                            gas_enthalpy => effective_gas_properties(2))
 
-                   call self%gas%mass_fraction(partial_pressure, fluid%temperature, &
-                        p, gas_density, water_density, xg, err)
+                         call self%gas%mass_fraction(partial_pressure, fluid%temperature, &
+                              p, gas_density, water_density, xg, err)
 
-                   if (err == 0) then
+                         if (err == 0) then
 
-                      phase%mass_fraction(1) = 1._dp - xg
-                      phase%mass_fraction(2) = xg
+                            phase%mass_fraction = [1._dp - xg, xg]
+                            phase%relative_permeability = relative_permeability(p)
+                            phase%capillary_pressure =  capillary_pressure(p)
+                            phase%density = water_density + gas_density
 
-                      phase%relative_permeability = relative_permeability(p)
-                      phase%capillary_pressure =  capillary_pressure(p)
-                      phase%density = water_density + gas_density
+                            call self%gas%mixture_viscosity(fluid%temperature, &
+                                 fluid%pressure, partial_pressure, region, xg, &
+                                 water_density, p, phase%viscosity, err)
 
-                      call self%gas%mixture_viscosity(fluid%temperature, &
-                           fluid%pressure, partial_pressure, region, xg, &
-                           water_density, p, phase%viscosity, err)
+                            if (err == 0) then
+                               phase%specific_enthalpy = (water_internal_energy &
+                                    + water_pressure(p) / water_density) * (1._dp - xg) &
+                                    + (gas_enthalpy + energy_solution(p)) * xg
+                               phase%internal_energy = phase%specific_enthalpy &
+                                    - fluid%pressure / phase%density
+                            else
+                               exit
+                            end if
+                         else
+                            exit
+                         end if
 
-                      if (err == 0) then
-                         phase%specific_enthalpy = (water_internal_energy &
-                              + water_pressure(p) / water_density) * (1._dp - xg) &
-                              + (gas_enthalpy + energy_solution(p)) * xg
-                         phase%internal_energy = phase%specific_enthalpy &
-                              - fluid%pressure / phase%density
-                      else
-                         exit
-                      end if
-                   else
-                      exit
-                   end if
+                       end associate
+                    else
+                       exit
+                    end if
 
-                 end associate
-              else
-                 exit
-              end if
+                 else
+                    phase%density = 0._dp
+                    phase%internal_energy = 0._dp
+                    phase%specific_enthalpy = 0._dp
+                    phase%relative_permeability = 0._dp
+                    phase%capillary_pressure = 0._dp
+                    phase%viscosity = 0._dp
+                    phase%mass_fraction = 0._dp
+                 end if
 
-           else
-              phase%density = 0._dp
-              phase%internal_energy = 0._dp
-              phase%specific_enthalpy = 0._dp
-              phase%relative_permeability = 0._dp
-              phase%capillary_pressure = 0._dp
-              phase%viscosity = 0._dp
-              phase%mass_fraction = 0._dp
-           end if
+               end associate
+            end do
+         end if
 
-         end associate
-      end do
-   end if
+      end if
 
-end if
+    end associate
 
-end associate
-
-end subroutine eos_wge_phase_properties
+  end subroutine eos_wge_phase_properties
 
 !------------------------------------------------------------------------
 
