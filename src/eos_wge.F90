@@ -425,9 +425,9 @@ contains
 
                      phase%relative_permeability = relative_permeability(p)
                      phase%capillary_pressure =  capillary_pressure(p)
+                     phase%density = water_density + gas_density
 
                      if (p == 1) then
-                        phase%density = water_density
                         call self%gas%energy_solution(fluid%temperature, &
                              energy_solution, err)
                         if (err > 0) then
@@ -436,7 +436,6 @@ contains
                         call region%viscosity(fluid%temperature, fluid%pressure, &
                              phase%density, phase%viscosity)
                      else
-                        phase%density = water_density + gas_density
                         energy_solution = 0._dp
                         call self%gas%vapour_mixture_viscosity(fluid%pressure, &
                              fluid%temperature, partial_pressure, region, xg, &
