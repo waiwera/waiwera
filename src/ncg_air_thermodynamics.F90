@@ -50,8 +50,7 @@ contains
 
   subroutine ncg_air_properties(self, partial_pressure, temperature, &
        phase, water_density, props, xg, err)
-    !! Calculates density and internal energy of mixture of a fluid and and a ncg
-    !! pressure (Pa) and temperature (deg C).
+    !! Calculates air NCG density, internal energy and mass fraction.
 
     use thermodynamics_module, only: tc_k, gas_constant
 
