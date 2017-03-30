@@ -428,16 +428,15 @@ contains
 
                          if (err == 0) then
 
-                            phase%mass_fraction = [1._dp - xg, xg]
-                            phase%relative_permeability = relative_permeability(p)
-                            phase%capillary_pressure =  capillary_pressure(p)
-                            phase%density = water_density + gas_density
-
                             call self%gas%mixture_viscosity(fluid%temperature, &
                                  fluid%pressure, partial_pressure, region, xg, &
                                  water_density, p, phase%viscosity, err)
 
                             if (err == 0) then
+                               phase%density = water_density + gas_density
+                               phase%mass_fraction = [1._dp - xg, xg]
+                               phase%relative_permeability = relative_permeability(p)
+                               phase%capillary_pressure =  capillary_pressure(p)
                                phase%specific_enthalpy = (water_internal_energy &
                                     + water_pressure(p) / water_density) * (1._dp - xg) &
                                     + (gas_enthalpy + energy_solution(p)) * xg
