@@ -403,48 +403,53 @@ contains
               if (err == 0) then
 
                  associate(water_density => water_properties(1), &
-                      water_internal_energy => water_properties(2))
+                      water_internal_energy => water_properties(2), &
+                      gas_density => gas_properties(1), &
+                      gas_enthalpy => gas_properties(2))
 
                    call self%gas%properties(partial_pressure, fluid%temperature, &
-                        p, water_density, gas_properties, xg, err)
+                       p, gas_properties, err)
 
                    if (err == 0) then
 
-                      phase%mass_fraction(1) = 1._dp - xg
-                      phase%mass_fraction(2) = xg
+                      call self%gas%mass_fraction(partial_pressure, fluid%temperature, &
+                           p, gas_density, water_density, xg, err)
 
-                      phase%relative_permeability = relative_permeability(p)
-                      phase%capillary_pressure =  capillary_pressure(p)
+                      if (err == 0) then
 
-                      associate(gas_density => gas_properties(1), &
-                           gas_enthalpy => gas_properties(2))
+                         phase%mass_fraction(1) = 1._dp - xg
+                         phase%mass_fraction(2) = xg
 
-                        if (p == 1) then
-                           phase%density = water_density
-                           call self%gas%energy_solution(fluid%temperature, h_solution, err)
-                           if (err > 0) then
-                              exit
-                           end if
-                           call region%viscosity(fluid%temperature, fluid%pressure, &
-                                phase%density, phase%viscosity)
-                        else
-                           phase%density = water_density + gas_density
-                           h_solution = 0._dp
-                           call self%gas%vapour_mixture_viscosity(fluid%pressure, &
-                                fluid%temperature, partial_pressure, region, xg, &
-                                water_density, phase%viscosity, err)
-                           if (err > 0) then
-                              exit
-                           end if
-                        end if
+                         phase%relative_permeability = relative_permeability(p)
+                         phase%capillary_pressure =  capillary_pressure(p)
 
-                        phase%specific_enthalpy = (water_internal_energy &
-                             + water_pressure(p) / water_density) * (1._dp - xg) &
-                             + (gas_enthalpy + h_solution) * xg
-                        phase%internal_energy = phase%specific_enthalpy &
-                             - fluid%pressure / phase%density
+                         if (p == 1) then
+                            phase%density = water_density
+                            call self%gas%energy_solution(fluid%temperature, h_solution, err)
+                            if (err > 0) then
+                               exit
+                            end if
+                            call region%viscosity(fluid%temperature, fluid%pressure, &
+                                 phase%density, phase%viscosity)
+                         else
+                            phase%density = water_density + gas_density
+                            h_solution = 0._dp
+                            call self%gas%vapour_mixture_viscosity(fluid%pressure, &
+                                 fluid%temperature, partial_pressure, region, xg, &
+                                 water_density, phase%viscosity, err)
+                            if (err > 0) then
+                               exit
+                            end if
+                         end if
 
-                      end associate
+                         phase%specific_enthalpy = (water_internal_energy &
+                              + water_pressure(p) / water_density) * (1._dp - xg) &
+                              + (gas_enthalpy + h_solution) * xg
+                         phase%internal_energy = phase%specific_enthalpy &
+                              - fluid%pressure / phase%density
+                      else
+                         exit
+                      end if
                    else
                       exit
                    end if

@@ -29,6 +29,7 @@ module ncg_thermodynamics_module
      procedure(ncg_vapour_mixture_viscosity_procedure), public, deferred :: &
           vapour_mixture_viscosity
      procedure, public :: partial_pressure => ncg_partial_pressure
+     procedure, public :: mass_fraction => ncg_mass_fraction
      procedure, public :: mole_to_mass_fraction => ncg_thermodynamics_mole_to_mass_fraction
      procedure, public :: mass_to_mole_fraction => ncg_thermodynamics_mass_to_mole_fraction
    end type ncg_thermodynamics_type
@@ -42,17 +43,14 @@ module ncg_thermodynamics_module
      end subroutine ncg_init_procedure
 
      subroutine ncg_properties_procedure(self, partial_pressure, &
-          temperature, phase, water_density, props, xg, err)
-       !! Calculate NCG fluid properties (density and internal energy)
-       !! and mass fraction.
+          temperature, phase, props, err)
+       !! Calculate NCG fluid properties (density and enthalpy).
        import :: ncg_thermodynamics_type
        class(ncg_thermodynamics_type), intent(in) :: self
        PetscReal, intent(in) :: partial_pressure
        PetscReal, intent(in) :: temperature
-       PetscInt, intent(in)  :: phase
-       PetscReal, intent(in) :: water_density
+       PetscInt, intent(in) :: phase
        PetscReal, intent(out) :: props(:)
-       PetscReal, intent(out) :: xg
        PetscErrorCode, intent(out) :: err
      end subroutine ncg_properties_procedure
 
@@ -159,6 +157,43 @@ contains
     end associate
 
   end function ncg_partial_pressure
+
+!------------------------------------------------------------------------
+
+  subroutine ncg_mass_fraction(self, partial_pressure, &
+       temperature, phase, gas_density, water_density, xg, err)
+    !! Calculate NCG mass fraction from partial pressure.
+
+    class(ncg_thermodynamics_type), intent(in) :: self
+    PetscReal, intent(in) :: partial_pressure !! NCG partial pressure
+    PetscReal, intent(in) :: temperature !! Temperature
+    PetscInt, intent(in) :: phase !! Phase index
+    PetscReal, intent(in) :: gas_density !! NCG density in this phase
+    PetscReal, intent(in) :: water_density !! Water density in this phase
+    PetscReal, intent(out) :: xg !! NCG mass fraction
+    PetscErrorCode, intent(out) :: err !! Error code
+    ! Locals:
+    PetscReal :: henrys_constant, xmole
+    PetscReal :: total_density
+    PetscReal, parameter :: small = 1.e-30_dp
+
+    err = 0
+    if (phase == 1) then
+       call self%henrys_constant(temperature, henrys_constant, err)
+       if (err == 0) then
+          xmole = henrys_constant * partial_pressure
+          xg = self%mole_to_mass_fraction(xmole)
+       end if
+    else
+       total_density = gas_density + water_density
+       if (total_density < small) then
+          xg = 0._dp
+       else
+          xg = gas_density / total_density
+       end if
+    end if
+
+  end subroutine ncg_mass_fraction
 
 !------------------------------------------------------------------------
 

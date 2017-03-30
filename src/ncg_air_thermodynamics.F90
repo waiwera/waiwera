@@ -49,22 +49,17 @@ contains
 !------------------------------------------------------------------------  
 
   subroutine ncg_air_properties(self, partial_pressure, temperature, &
-       phase, water_density, props, xg, err)
-    !! Calculates air NCG density, internal energy and mass fraction.
+       phase, props, err)
+    !! Calculates air NCG density and enthalpy.
 
     use thermodynamics_module, only: tc_k, gas_constant
 
     class(ncg_air_thermodynamics_type), intent(in) :: self
     PetscReal, intent(in) :: partial_pressure !! Air partial pressure
     PetscReal, intent(in) :: temperature !! Temperature
-    PetscReal, intent(in) :: water_density !! Density of water
-    PetscInt, intent(in)  :: phase !! Fluid phase
+    PetscInt, intent(in) :: phase !! Phase index
     PetscReal, intent(out):: props(:) !! Properties (density and enthalpy)
-    PetscReal, intent(out):: xg !! Mass fraction of the ncg in this phase
     PetscErrorCode, intent(out) :: err !! Error code
-    ! Locals:
-    PetscReal :: total_density, henrys_constant, xmole
-    PetscReal, parameter :: small = 1.e-30_dp
 
     err = 0
 
@@ -81,22 +76,8 @@ contains
       end if
       
       if (phase == 1) then
-         ! liquid
          air_density = 0._dp    ! not used for mixture density
          air_enthalpy = 0._dp
-         call self%henrys_constant(temperature, henrys_constant, err)
-         if (err == 0) then
-            xmole = henrys_constant * partial_pressure
-            xg = self%mole_to_mass_fraction(xmole)
-         end if
-      else
-         ! vapour
-         total_density = air_density + water_density
-         if (total_density < small) then
-            xg = 0._dp
-         else
-            xg = air_density / total_density
-         end if
       end if
 
     end associate

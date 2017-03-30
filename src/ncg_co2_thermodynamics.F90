@@ -48,23 +48,19 @@ contains
 !------------------------------------------------------------------------  
 
   subroutine ncg_co2_properties(self, partial_pressure, temperature, &
-       phase, water_density, props, xg, err)
-    !! Calculates CO2 NCG density, internal energy and mass fraction.
+       phase, props, err)
+    !! Calculates CO2 NCG density and enthalpy.
 
     use thermodynamics_module, only: tc_k
 
     class(ncg_co2_thermodynamics_type), intent(in) :: self
     PetscReal, intent(in) :: partial_pressure !! CO2 partial pressure
     PetscReal, intent(in) :: temperature !! Temperature
-    PetscReal, intent(in) :: water_density !! Water density
-    PetscInt, intent(in)  :: phase !! Fluid phase
+    PetscInt, intent(in) :: phase !! Phase index
     PetscReal, intent(out):: props(:) !! Properties (density and enthalpy)
-    PetscReal, intent(out):: xg !! Mass fraction of CO2 in this phase
     PetscErrorCode, intent(out) :: err !! Error code
     ! Locals:
-    PetscReal :: total_density, henrys_constant, xmole
     PetscReal :: pp, tc, hci, vc
-    PetscReal, parameter :: small = 1.e-30_dp
 
     err = 0
 
@@ -80,21 +76,7 @@ contains
       co2_density = pp / vc
 
       if (phase == 1) then
-         ! liquid
          co2_density = 0._dp    ! not used for mixture density
-         call self%henrys_constant(temperature, henrys_constant, err)
-         if (err == 0) then
-            xmole = henrys_constant * partial_pressure
-            xg = self%mole_to_mass_fraction(xmole)
-         end if
-      else
-         ! vapour
-         total_density = co2_density + water_density
-         if (total_density < small) then
-            xg = 0._dp
-         else
-            xg = co2_density / total_density
-         end if
       end if
 
     end associate
