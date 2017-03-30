@@ -376,7 +376,7 @@ contains
     PetscInt :: p, phases
     PetscReal :: water_properties(2), sl
     PetscReal :: relative_permeability(2), capillary_pressure(2)
-    PetscReal :: water_pressure(2), xg, h_solution
+    PetscReal :: water_pressure(2), xg, energy_solution
     PetscReal :: gas_properties(2), effective_gas_properties(2)
 
     err = 0
@@ -428,7 +428,8 @@ contains
 
                      if (p == 1) then
                         phase%density = water_density
-                        call self%gas%energy_solution(fluid%temperature, h_solution, err)
+                        call self%gas%energy_solution(fluid%temperature, &
+                             energy_solution, err)
                         if (err > 0) then
                            exit
                         end if
@@ -436,7 +437,7 @@ contains
                              phase%density, phase%viscosity)
                      else
                         phase%density = water_density + gas_density
-                        h_solution = 0._dp
+                        energy_solution = 0._dp
                         call self%gas%vapour_mixture_viscosity(fluid%pressure, &
                              fluid%temperature, partial_pressure, region, xg, &
                              water_density, phase%viscosity, err)
@@ -447,7 +448,7 @@ contains
 
                      phase%specific_enthalpy = (water_internal_energy &
                           + water_pressure(p) / water_density) * (1._dp - xg) &
-                          + (gas_enthalpy + h_solution) * xg
+                          + (gas_enthalpy + energy_solution) * xg
                      phase%internal_energy = phase%specific_enthalpy &
                           - fluid%pressure / phase%density
                   else
