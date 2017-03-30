@@ -92,14 +92,14 @@ contains
     PetscInt, intent(in) :: phase !! Phase index
     PetscReal, intent(out) :: effective_props(:) !! Effective NCG properties
 
+    effective_props = props
+
     if (phase == 1) then
        associate(air_density => effective_props(1), &
             air_enthalpy => effective_props(2))
          air_density = 0._dp
          air_enthalpy = 0._dp
        end associate
-    else
-       effective_props = props
     end if
 
   end subroutine ncg_air_effective_properties
