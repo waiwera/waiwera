@@ -97,7 +97,6 @@ contains
        associate(co2_density => effective_props(1))
          co2_density = 0._dp
        end associate
-    else
     end if
 
   end subroutine ncg_co2_effective_properties
