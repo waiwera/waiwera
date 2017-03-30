@@ -29,7 +29,7 @@ module ncg_air_thermodynamics_module
      procedure, public :: henrys_constant => ncg_air_henrys_constant
      procedure, public :: energy_solution => ncg_air_energy_solution
      procedure, public :: viscosity => ncg_air_viscosity
-     procedure, public :: vapour_mixture_viscosity => ncg_air_vapour_mixture_viscosity
+     procedure, public :: mixture_viscosity => ncg_air_mixture_viscosity
   end type ncg_air_thermodynamics_type
 
 contains
@@ -157,11 +157,10 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine ncg_air_vapour_mixture_viscosity(self, pressure, &
-       temperature, partial_pressure, region, xg, total_density, &
+  subroutine ncg_air_mixture_viscosity(self, temperature, pressure, &
+       partial_pressure, region, xg, total_density, phase, &
        viscosity, err)
-    !! Calculates viscosity for the gas phase mixture, given partial
-    !! pressure and temperature.
+    !! Calculates viscosity for water-air mixture in the given phase.
     !!
     !! Uses a modified version of a formulation based on kinetic
     !! gas theory, as given by J.O. Hirschfelder, C.F. Curtiss, and
@@ -169,63 +168,73 @@ contains
     !! & Sons, 1954, pp. 528-530.
     !!
     !! The modification made to the Hirschfelder et al. expressions is
-    !! that for vapor viscosity accurate (empirical) values are used,
+    !! that for vapour viscosity accurate (empirical) values are used,
     !! rather than the first order expression of kinetic theory.
     !!
     !! The formulation matches experimental data on viscosities of
-    !! vapor-air mixtures in the temperature range from 100 to 150
+    !! vapour-air mixtures in the temperature range from 100 to 150
     !! deg. C, for all compositions, to better than 4%.
     
     use thermodynamics_module
 
     class(ncg_air_thermodynamics_type), intent(in) :: self
-    PetscReal, intent(in) :: pressure !! Pressure
     PetscReal, intent(in) :: temperature !! Temperature
+    PetscReal, intent(in) :: pressure !! Pressure
     PetscReal, intent(in) :: partial_pressure !! Air partial pressure
     class(region_type), pointer :: region !! Thermodynamic region
     PetscReal, intent(in) :: xg !! Air mass fraction
     PetscReal, intent(in) :: total_density !! Total density
+    PetscInt, intent(in)  :: phase !! Phase index
     PetscReal, intent(out):: viscosity !! Mixture viscosity
     PetscInt, intent(out)  :: err !! Error code
     ! Locals:
-    PetscReal :: vs, x1, x2, ard, cmix
+    PetscReal :: water_viscosity
+    PetscReal :: x1, x2, ard, cmix
     PetscReal :: e, fmix, g, h
     PetscReal :: ome1, ome3, rm1, rm2, rm3
     PetscReal :: trd1, trd3, vis1, vis2, vis3, z1, z2, z3
 
     err = 0
 
-    rm1 = self%molecular_weight
-    rm2 = water_molecular_weight
+    call region%viscosity(temperature, pressure, total_density, &
+         water_viscosity)
 
-    fmix = sqrt(self%fair * self%fwat)
-    cmix = 0.5_dp * (self%cair + self%cwat)
+    if (phase == 1) then
 
-    x1 = self%mass_to_mole_fraction(xg)
-    x2 = 1._dp - x1
+       viscosity = water_viscosity
 
-    associate (tk => temperature + tc_k)
-      trd1 = tk / self%fair
-      trd3 = tk / fmix
-    end associate
-    ome1 = (1.188_dp - 0.051_dp * trd1) / trd1
-    ome3 = (1.48_dp  - 0.412_dp * log(trd3)) / trd3
-    ard = 1.095_dp / trd3
-    rm3 = 2._dp * rm1 * rm2 / (rm1 + rm2)
-    vis1 = covis(trd1, self%cair, ome1, rm1, self%fair)
+    else
 
-    call region%viscosity(temperature, pressure, total_density, vs)
+       rm1 = self%molecular_weight
+       rm2 = water_molecular_weight
 
-    vis2 = 10._dp * vs
-    vis3 = covis(trd3, cmix, ome3, rm3, fmix)
-    z1 = x1 * x1 / vis1 + 2._dp * x2 * x1 / vis3 + x2 * x2 / vis2
-    g = x1 * x1 * rm1 / rm2
-    h = x2 * x2 * rm2 / rm1
-    e = (2._dp * x1 * x2 * rm1 * rm2 / (rm3 * rm3)) * &
-         vis3 / (vis1 * vis2)
-    z2 = 0.6_dp * ard * (g / vis1 + e + h / vis2)
-    z3 = 0.6_dp * ard * (g + e * (vis1 + vis2) - 2._dp * x1 * x2 + h)
-    viscosity = 0.1_dp * (1._dp + z3) / (z1 + z2)
+       fmix = sqrt(self%fair * self%fwat)
+       cmix = 0.5_dp * (self%cair + self%cwat)
+
+       x1 = self%mass_to_mole_fraction(xg)
+       x2 = 1._dp - x1
+
+       associate (tk => temperature + tc_k)
+         trd1 = tk / self%fair
+         trd3 = tk / fmix
+       end associate
+       ome1 = (1.188_dp - 0.051_dp * trd1) / trd1
+       ome3 = (1.48_dp  - 0.412_dp * log(trd3)) / trd3
+       ard = 1.095_dp / trd3
+       rm3 = 2._dp * rm1 * rm2 / (rm1 + rm2)
+       vis1 = covis(trd1, self%cair, ome1, rm1, self%fair)
+       vis2 = 10._dp * water_viscosity
+       vis3 = covis(trd3, cmix, ome3, rm3, fmix)
+       z1 = x1 * x1 / vis1 + 2._dp * x2 * x1 / vis3 + x2 * x2 / vis2
+       g = x1 * x1 * rm1 / rm2
+       h = x2 * x2 * rm2 / rm1
+       e = (2._dp * x1 * x2 * rm1 * rm2 / (rm3 * rm3)) * &
+            vis3 / (vis1 * vis2)
+       z2 = 0.6_dp * ard * (g / vis1 + e + h / vis2)
+       z3 = 0.6_dp * ard * (g + e * (vis1 + vis2) - 2._dp * x1 * x2 + h)
+       viscosity = 0.1_dp * (1._dp + z3) / (z1 + z2)
+
+    end if
 
   contains
 
@@ -235,7 +244,7 @@ contains
       covis = 266.93e-7_dp * sqrt(rm * trd * f) / (c * c * ome * trd)
     end function covis
 
-  end subroutine ncg_air_vapour_mixture_viscosity
+  end subroutine ncg_air_mixture_viscosity
 
 !------------------------------------------------------------------------
 

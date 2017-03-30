@@ -436,23 +436,19 @@ contains
                       phase%capillary_pressure =  capillary_pressure(p)
                       phase%density = water_density + gas_density
 
-                      if (p == 1) then
-                         call region%viscosity(fluid%temperature, fluid%pressure, &
-                              phase%density, phase%viscosity)
-                      else
-                         call self%gas%vapour_mixture_viscosity(fluid%pressure, &
-                              fluid%temperature, partial_pressure, region, xg, &
-                              water_density, phase%viscosity, err)
-                         if (err > 0) then
-                            exit
-                         end if
-                      end if
+                      call self%gas%mixture_viscosity(fluid%temperature, &
+                           fluid%pressure, partial_pressure, region, xg, &
+                           water_density, p, phase%viscosity, err)
 
-                      phase%specific_enthalpy = (water_internal_energy &
-                           + water_pressure(p) / water_density) * (1._dp - xg) &
-                           + (gas_enthalpy + energy_solution(p)) * xg
-                      phase%internal_energy = phase%specific_enthalpy &
-                           - fluid%pressure / phase%density
+                      if (err == 0) then
+                         phase%specific_enthalpy = (water_internal_energy &
+                              + water_pressure(p) / water_density) * (1._dp - xg) &
+                              + (gas_enthalpy + energy_solution(p)) * xg
+                         phase%internal_energy = phase%specific_enthalpy &
+                              - fluid%pressure / phase%density
+                      else
+                         exit
+                      end if
                    else
                       exit
                    end if

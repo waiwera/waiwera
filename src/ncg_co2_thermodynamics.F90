@@ -28,7 +28,7 @@ module ncg_co2_thermodynamics_module
      procedure, public :: henrys_constant => ncg_co2_henrys_constant
      procedure, public :: energy_solution => ncg_co2_energy_solution
      procedure, public :: viscosity => ncg_co2_viscosity
-     procedure, public :: vapour_mixture_viscosity => ncg_co2_vapour_mixture_viscosity
+     procedure, public :: mixture_viscosity => ncg_co2_mixture_viscosity
   end type ncg_co2_thermodynamics_type
 
 contains
@@ -187,38 +187,43 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine ncg_co2_vapour_mixture_viscosity(self, pressure, &
-       temperature, partial_pressure, region, xg, total_density, &
-       viscosity, err)
-    !! Calculates viscosity for gas phase mixture given partial
-    !! pressure and temperature.
+  subroutine ncg_co2_mixture_viscosity(self, temperature, pressure, &
+       partial_pressure, region, xg, total_density, &
+       phase, viscosity, err)
+    !! Calculates viscosity for water-CO2 mixture in the given phase.
 
     use thermodynamics_module, only: region_type
 
     class(ncg_co2_thermodynamics_type), intent(in) :: self
-    PetscReal, intent(in) :: pressure !! Pressure
     PetscReal, intent(in) :: temperature !! Temperature
+    PetscReal, intent(in) :: pressure !! Pressure
     PetscReal, intent(in) :: partial_pressure !! Partial pressure of CO2
     class(region_type), pointer :: region !! Thermodynamic region
     PetscReal, intent(in) :: xg !! CO2 mass fraction
     PetscReal, intent(in) :: total_density !! Total density
+    PetscInt, intent(in)  :: phase !! Phase index
     PetscReal, intent(out):: viscosity !! Mixture viscosity
     PetscInt, intent(out)  :: err !! Error code
     ! Locals:
     PetscReal :: gas_viscosity, water_viscosity
 
+    err = 0
+
     call region%viscosity(temperature, pressure, total_density, &
          water_viscosity)
 
-    call self%viscosity(partial_pressure, temperature, &
-         gas_viscosity, err)
-
-    if (err == 0) then
-       viscosity = water_viscosity * (1._dp - xg) &
-            + gas_viscosity * xg
+    if (phase == 1) then
+       viscosity = water_viscosity
+    else
+       call self%viscosity(partial_pressure, temperature, &
+            gas_viscosity, err)
+       if (err == 0) then
+          viscosity = water_viscosity * (1._dp - xg) &
+               + gas_viscosity * xg
+       end if
     end if
 
-  end subroutine ncg_co2_vapour_mixture_viscosity
+  end subroutine ncg_co2_mixture_viscosity
 
 !------------------------------------------------------------------------
 
