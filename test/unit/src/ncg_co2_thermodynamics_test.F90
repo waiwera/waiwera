@@ -41,26 +41,26 @@ contains
        temperature = 20._dp
        expected = 0.690552871945e-08_dp
        call gas%henrys_constant(temperature, hc, err)
-       call assert_equals(0, err, s // " 20 deg C error")
-       call assert_equals(expected, hc, tol, s // " 20 deg C")
+       call assert_equals(0, err, trim(s) // " 20 deg C error")
+       call assert_equals(expected, hc, tol, trim(s) // " 20 deg C")
 
        temperature = 100._dp
        expected = 0.181629386327e-08_dp
        call gas%henrys_constant(temperature, hc, err)
-       call assert_equals(0, err, s // " 100 deg C error")
-       call assert_equals(expected, hc, tol, s // " 100 deg C")
+       call assert_equals(0, err, trim(s) // " 100 deg C error")
+       call assert_equals(expected, hc, tol, trim(s) // " 100 deg C")
 
        temperature = 240._dp
        expected = 0.191626750106e-08_dp
        call gas%henrys_constant(temperature, hc, err)
-       call assert_equals(0, err, s // " 240 deg C error")
-       call assert_equals(expected, hc, tol, s // " 240 deg C")
+       call assert_equals(0, err, trim(s) // " 240 deg C error")
+       call assert_equals(expected, hc, tol, trim(s) // " 240 deg C")
 
        temperature = 300._dp
        expected = 0.268879436880e-08_dp
        call gas%henrys_constant(temperature, hc, err)
-       call assert_equals(0, err, s // " 300 deg C error")
-       call assert_equals(expected, hc, tol, s // " 300 deg C")
+       call assert_equals(0, err, trim(s) // " 300 deg C error")
+       call assert_equals(expected, hc, tol, trim(s) // " 300 deg C")
 
     end if
 
@@ -88,26 +88,26 @@ contains
        temperature = 20._dp
        expected = -461218.6464_dp
        call gas%energy_solution(temperature, hs, err)
-       call assert_equals(0, err, s // " 20 deg C error")
-       call assert_equals(expected, hs, tol, s // " 20 deg C")
+       call assert_equals(0, err, trim(s) // " 20 deg C error")
+       call assert_equals(expected, hs, tol, trim(s) // " 20 deg C")
 
        temperature = 100._dp
        expected = -180238.0_dp
        call gas%energy_solution(temperature, hs, err)
-       call assert_equals(0, err, s // " 100 deg C error")
-       call assert_equals(expected, hs, tol, s // " 100 deg C")
+       call assert_equals(0, err, trim(s) // " 100 deg C error")
+       call assert_equals(expected, hs, tol, trim(s) // " 100 deg C")
 
        temperature = 240._dp
        expected = 180225.4096_dp
        call gas%energy_solution(temperature, hs, err)
-       call assert_equals(0, err, s // " 240 deg C error")
-       call assert_equals(expected, hs, tol, s // " 240 deg C")
+       call assert_equals(0, err, trim(s) // " 240 deg C error")
+       call assert_equals(expected, hs, tol, trim(s) // " 240 deg C")
 
        temperature = 300._dp
        expected = 492442.0_dp
        call gas%energy_solution(temperature, hs, err)
-       call assert_equals(0, err, s // " 300 deg C error")
-       call assert_equals(expected, hs, tol, s // " 300 deg C")
+       call assert_equals(0, err, trim(s) // " 300 deg C error")
+       call assert_equals(expected, hs, tol, trim(s) // " 300 deg C")
 
     end if
 
@@ -157,7 +157,7 @@ contains
              call gas%viscosity(pc(ip), t(it), visc, err)
              write(s, '(a, e8.3, a, f6.2)') 'p = ', &
                   pc(ip), ', t = ', t(it)
-             call assert_equals(0, err, s // ' error')
+             call assert_equals(0, err, trim(s) // ' error')
              call assert_equals(expected_visc(ip, it), visc, tol, s)
           end do
        end do
