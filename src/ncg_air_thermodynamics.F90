@@ -25,6 +25,7 @@ module ncg_air_thermodynamics_module
      private
      procedure, public :: init => ncg_air_init
      procedure, public :: properties => ncg_air_properties
+     procedure, public :: effective_properties => ncg_air_effective_properties
      procedure, public :: henrys_constant => ncg_air_henrys_constant
      procedure, public :: energy_solution => ncg_air_energy_solution
      procedure, public :: viscosity => ncg_air_viscosity
@@ -49,7 +50,7 @@ contains
 !------------------------------------------------------------------------  
 
   subroutine ncg_air_properties(self, partial_pressure, temperature, &
-       phase, props, err)
+       props, err)
     !! Calculates air NCG density and enthalpy.
 
     use thermodynamics_module, only: tc_k, gas_constant
@@ -57,7 +58,6 @@ contains
     class(ncg_air_thermodynamics_type), intent(in) :: self
     PetscReal, intent(in) :: partial_pressure !! Air partial pressure
     PetscReal, intent(in) :: temperature !! Temperature
-    PetscInt, intent(in) :: phase !! Phase index
     PetscReal, intent(out):: props(:) !! Properties (density and enthalpy)
     PetscErrorCode, intent(out) :: err !! Error code
 
@@ -74,15 +74,35 @@ contains
       else
          air_enthalpy = 0._dp
       end if
-      
-      if (phase == 1) then
-         air_density = 0._dp    ! not used for mixture density
-         air_enthalpy = 0._dp
-      end if
 
     end associate
 
   end subroutine ncg_air_properties
+
+!------------------------------------------------------------------------
+
+  subroutine ncg_air_effective_properties(self, props, phase, &
+       effective_props)
+    !! Returns effective air NCG properties for specified phase.
+    !! Air density and enthalpy are treated as effectively zero in the
+    !! liquid phase.
+
+    class(ncg_air_thermodynamics_type), intent(in) :: self
+    PetscReal, intent(in) :: props(:) !! Air NCG properties (density, enthalpy)
+    PetscInt, intent(in) :: phase !! Phase index
+    PetscReal, intent(out) :: effective_props(:) !! Effective NCG properties
+
+    if (phase == 1) then
+       associate(air_density => effective_props(1), &
+            air_enthalpy => effective_props(2))
+         air_density = 0._dp
+         air_enthalpy = 0._dp
+       end associate
+    else
+       effective_props = props
+    end if
+
+  end subroutine ncg_air_effective_properties
 
 !------------------------------------------------------------------------
 

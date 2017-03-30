@@ -24,6 +24,7 @@ module ncg_co2_thermodynamics_module
      private
      procedure, public :: init => ncg_co2_init
      procedure, public :: properties => ncg_co2_properties
+     procedure, public :: effective_properties => ncg_co2_effective_properties
      procedure, public :: henrys_constant => ncg_co2_henrys_constant
      procedure, public :: energy_solution => ncg_co2_energy_solution
      procedure, public :: viscosity => ncg_co2_viscosity
@@ -48,7 +49,7 @@ contains
 !------------------------------------------------------------------------  
 
   subroutine ncg_co2_properties(self, partial_pressure, temperature, &
-       phase, props, err)
+       props, err)
     !! Calculates CO2 NCG density and enthalpy.
 
     use thermodynamics_module, only: tc_k
@@ -56,7 +57,6 @@ contains
     class(ncg_co2_thermodynamics_type), intent(in) :: self
     PetscReal, intent(in) :: partial_pressure !! CO2 partial pressure
     PetscReal, intent(in) :: temperature !! Temperature
-    PetscInt, intent(in) :: phase !! Phase index
     PetscReal, intent(out):: props(:) !! Properties (density and enthalpy)
     PetscErrorCode, intent(out) :: err !! Error code
     ! Locals:
@@ -75,13 +75,31 @@ contains
       vc = 0.00018882_dp * tk - pp * (0.0824_dp + 0.01249_dp * pp) / tc
       co2_density = pp / vc
 
-      if (phase == 1) then
-         co2_density = 0._dp    ! not used for mixture density
-      end if
-
     end associate
 
   end subroutine ncg_co2_properties
+
+!------------------------------------------------------------------------
+
+  subroutine ncg_co2_effective_properties(self, props, phase, &
+       effective_props)
+    !! Returns effective CO2 NCG properties for specified phase.
+    !! CO2 density is treated as effectively zero in the liquid phase.
+
+    class(ncg_co2_thermodynamics_type), intent(in) :: self
+    PetscReal, intent(in) :: props(:) !! CO2 NCG properties (density, enthalpy)
+    PetscInt, intent(in) :: phase !! Phase index
+    PetscReal, intent(out) :: effective_props(:) !! Effective NCG properties
+
+    if (phase == 1) then
+       associate(co2_density => effective_props(1))
+         co2_density = 0._dp
+       end associate
+    else
+       effective_props = props
+    end if
+
+  end subroutine ncg_co2_effective_properties
 
 !------------------------------------------------------------------------
 

@@ -23,6 +23,7 @@ module ncg_thermodynamics_module
      private
      procedure(ncg_init_procedure), public, deferred :: init
      procedure(ncg_properties_procedure), public, deferred :: properties
+     procedure(ncg_effective_properties_procedure), public, deferred :: effective_properties
      procedure(ncg_henrys_constant_procedure), public, deferred :: henrys_constant
      procedure(ncg_energy_solution_procedure), public, deferred :: energy_solution
      procedure(ncg_viscosity_procedure), public, deferred :: viscosity
@@ -43,16 +44,25 @@ module ncg_thermodynamics_module
      end subroutine ncg_init_procedure
 
      subroutine ncg_properties_procedure(self, partial_pressure, &
-          temperature, phase, props, err)
+          temperature, props, err)
        !! Calculate NCG fluid properties (density and enthalpy).
        import :: ncg_thermodynamics_type
        class(ncg_thermodynamics_type), intent(in) :: self
        PetscReal, intent(in) :: partial_pressure
        PetscReal, intent(in) :: temperature
-       PetscInt, intent(in) :: phase
        PetscReal, intent(out) :: props(:)
        PetscErrorCode, intent(out) :: err
      end subroutine ncg_properties_procedure
+
+     subroutine ncg_effective_properties_procedure(self, props, phase, &
+          effective_props)
+       !! Return effective NCG fluid properties for the specified phase.
+       import :: ncg_thermodynamics_type
+       class(ncg_thermodynamics_type), intent(in) :: self
+       PetscReal, intent(in) :: props(:)
+       PetscInt, intent(in) :: phase
+       PetscReal, intent(out) :: effective_props(:)
+     end subroutine ncg_effective_properties_procedure
 
      subroutine ncg_henrys_constant_procedure(self, temperature, &
           henrys_constant, err)
