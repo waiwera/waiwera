@@ -21,6 +21,7 @@ module ncg_air_thermodynamics_module
      PetscReal :: fwat = 363.0_dp
      PetscReal :: cair = 3.617_dp
      PetscReal :: cwat = 2.655_dp
+     PetscReal :: fmix, cmix
    contains
      private
      procedure, public :: init => ncg_air_init
@@ -44,6 +45,9 @@ contains
     self%name = "Air"
     self%molecular_weight = air_molecular_weight
     self%specific_heat = air_specific_heat
+
+    self%fmix = sqrt(self%fair * self%fwat)
+    self%cmix = 0.5_dp * (self%cair + self%cwat)
 
   end subroutine ncg_air_init
 
@@ -185,9 +189,9 @@ contains
     PetscReal, intent(out):: viscosity !! Mixture viscosity
     PetscInt, intent(out)  :: err !! Error code
     ! Locals:
-    PetscReal :: x1, x2, ard, cmix
-    PetscReal :: e, fmix, g, h
-    PetscReal :: ome1, ome3, rm1, rm2, rm3
+    PetscReal :: x1, x2, ard
+    PetscReal :: e, g, h
+    PetscReal :: ome1, ome3, rm3
     PetscReal :: trd1, trd3, vis1, vis2, vis3, z1, z2, z3
 
     err = 0
@@ -198,34 +202,32 @@ contains
 
     else
 
-       rm1 = self%molecular_weight
-       rm2 = water_molecular_weight
+       associate(rm1 => self%molecular_weight, rm2 => water_molecular_weight)
 
-       fmix = sqrt(self%fair * self%fwat)
-       cmix = 0.5_dp * (self%cair + self%cwat)
+         x1 = self%mass_to_mole_fraction(xg)
+         x2 = 1._dp - x1
 
-       x1 = self%mass_to_mole_fraction(xg)
-       x2 = 1._dp - x1
+         associate (tk => temperature + tc_k)
+           trd1 = tk / self%fair
+           trd3 = tk / self%fmix
+         end associate
+         ome1 = (1.188_dp - 0.051_dp * trd1) / trd1
+         ome3 = (1.48_dp  - 0.412_dp * log(trd3)) / trd3
+         ard = 1.095_dp / trd3
+         rm3 = 2._dp * rm1 * rm2 / (rm1 + rm2)
+         vis1 = covis(trd1, self%cair, ome1, rm1, self%fair)
+         vis2 = 10._dp * water_viscosity
+         vis3 = covis(trd3, self%cmix, ome3, rm3, self%fmix)
+         z1 = x1 * x1 / vis1 + 2._dp * x2 * x1 / vis3 + x2 * x2 / vis2
+         g = x1 * x1 * rm1 / rm2
+         h = x2 * x2 * rm2 / rm1
+         e = (2._dp * x1 * x2 * rm1 * rm2 / (rm3 * rm3)) * &
+              vis3 / (vis1 * vis2)
+         z2 = 0.6_dp * ard * (g / vis1 + e + h / vis2)
+         z3 = 0.6_dp * ard * (g + e * (vis1 + vis2) - 2._dp * x1 * x2 + h)
+         viscosity = 0.1_dp * (1._dp + z3) / (z1 + z2)
 
-       associate (tk => temperature + tc_k)
-         trd1 = tk / self%fair
-         trd3 = tk / fmix
        end associate
-       ome1 = (1.188_dp - 0.051_dp * trd1) / trd1
-       ome3 = (1.48_dp  - 0.412_dp * log(trd3)) / trd3
-       ard = 1.095_dp / trd3
-       rm3 = 2._dp * rm1 * rm2 / (rm1 + rm2)
-       vis1 = covis(trd1, self%cair, ome1, rm1, self%fair)
-       vis2 = 10._dp * water_viscosity
-       vis3 = covis(trd3, cmix, ome3, rm3, fmix)
-       z1 = x1 * x1 / vis1 + 2._dp * x2 * x1 / vis3 + x2 * x2 / vis2
-       g = x1 * x1 * rm1 / rm2
-       h = x2 * x2 * rm2 / rm1
-       e = (2._dp * x1 * x2 * rm1 * rm2 / (rm3 * rm3)) * &
-            vis3 / (vis1 * vis2)
-       z2 = 0.6_dp * ard * (g / vis1 + e + h / vis2)
-       z3 = 0.6_dp * ard * (g + e * (vis1 + vis2) - 2._dp * x1 * x2 + h)
-       viscosity = 0.1_dp * (1._dp + z3) / (z1 + z2)
 
     end if
 
