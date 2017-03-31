@@ -186,30 +186,24 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine ncg_co2_mixture_viscosity(self, temperature, pressure, &
-       partial_pressure, region, xg, water_density, &
-       phase, viscosity, err)
+  subroutine ncg_co2_mixture_viscosity(self, water_viscosity, &
+       temperature, partial_pressure, xg, phase, viscosity, err)
     !! Calculates viscosity for water-CO2 mixture in the given phase.
 
     use thermodynamics_module, only: region_type
 
     class(ncg_co2_thermodynamics_type), intent(in) :: self
+    PetscReal, intent(in) :: water_viscosity !! Viscosity of water
     PetscReal, intent(in) :: temperature !! Temperature
-    PetscReal, intent(in) :: pressure !! Pressure
     PetscReal, intent(in) :: partial_pressure !! Partial pressure of CO2
-    class(region_type), pointer :: region !! Thermodynamic region
     PetscReal, intent(in) :: xg !! CO2 mass fraction
-    PetscReal, intent(in) :: water_density !! Water density
     PetscInt, intent(in)  :: phase !! Phase index
     PetscReal, intent(out):: viscosity !! Mixture viscosity
     PetscInt, intent(out)  :: err !! Error code
     ! Locals:
-    PetscReal :: gas_viscosity, water_viscosity
+    PetscReal :: gas_viscosity
 
     err = 0
-
-    call region%viscosity(temperature, pressure, water_density, &
-         water_viscosity)
 
     if (phase == 1) then
        viscosity = water_viscosity

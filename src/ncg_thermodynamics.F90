@@ -96,19 +96,16 @@ module ncg_thermodynamics_module
        PetscErrorCode, intent(out)  :: err
      end subroutine ncg_viscosity_procedure
 
-     subroutine ncg_mixture_viscosity_procedure(self, temperature, &
-          pressure, partial_pressure, region, xg, water_density, &
-          phase, viscosity, err)
+     subroutine ncg_mixture_viscosity_procedure(self, water_viscosity, &
+          temperature, partial_pressure, xg, phase, viscosity, err)
        !! Calculate water-NCG mixture viscosity for given phase.
        import :: ncg_thermodynamics_type
        import :: region_type
        class(ncg_thermodynamics_type), intent(in) :: self
+       PetscReal, intent(in)  :: water_viscosity
        PetscReal, intent(in)  :: temperature
-       PetscReal, intent(in)  :: pressure
        PetscReal, intent(in)  :: partial_pressure
-       class(region_type), pointer :: region
        PetscReal, intent(in)  :: xg
-       PetscReal, intent(in)  :: water_density
        PetscInt, intent(in)   :: phase
        PetscReal, intent(out) :: viscosity
        PetscErrorCode, intent(out)  :: err

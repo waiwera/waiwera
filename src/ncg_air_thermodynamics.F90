@@ -157,9 +157,8 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine ncg_air_mixture_viscosity(self, temperature, pressure, &
-       partial_pressure, region, xg, water_density, phase, &
-       viscosity, err)
+  subroutine ncg_air_mixture_viscosity(self, water_viscosity, &
+       temperature, partial_pressure, xg, phase, viscosity, err)
     !! Calculates viscosity for water-air mixture in the given phase.
     !!
     !! Uses a modified version of a formulation based on kinetic
@@ -178,26 +177,20 @@ contains
     use thermodynamics_module
 
     class(ncg_air_thermodynamics_type), intent(in) :: self
+    PetscReal, intent(in) :: water_viscosity !! Viscosity of water
     PetscReal, intent(in) :: temperature !! Temperature
-    PetscReal, intent(in) :: pressure !! Pressure
-    PetscReal, intent(in) :: partial_pressure !! Air partial pressure
-    class(region_type), pointer :: region !! Thermodynamic region
+    PetscReal, intent(in) :: partial_pressure !! Air partial pressure (not used)
     PetscReal, intent(in) :: xg !! Air mass fraction
-    PetscReal, intent(in) :: water_density !! Water density
     PetscInt, intent(in)  :: phase !! Phase index
     PetscReal, intent(out):: viscosity !! Mixture viscosity
     PetscInt, intent(out)  :: err !! Error code
     ! Locals:
-    PetscReal :: water_viscosity
     PetscReal :: x1, x2, ard, cmix
     PetscReal :: e, fmix, g, h
     PetscReal :: ome1, ome3, rm1, rm2, rm3
     PetscReal :: trd1, trd3, vis1, vis2, vis3, z1, z2, z3
 
     err = 0
-
-    call region%viscosity(temperature, pressure, water_density, &
-         water_viscosity)
 
     if (phase == 1) then
 

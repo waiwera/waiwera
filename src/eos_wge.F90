@@ -374,7 +374,7 @@ contains
     PetscErrorCode, intent(out) :: err !! Error code
     ! Locals:
     PetscInt :: p, phases
-    PetscReal :: water_properties(2), sl, xg
+    PetscReal :: water_properties(2), water_viscosity, sl, xg
     PetscReal :: relative_permeability(2), capillary_pressure(2)
     PetscReal :: water_pressure(2), energy_solution(2)
     PetscReal :: gas_properties(2), effective_gas_properties(2)
@@ -428,9 +428,11 @@ contains
 
                          if (err == 0) then
 
-                            call self%gas%mixture_viscosity(fluid%temperature, &
-                                 fluid%pressure, partial_pressure, region, xg, &
-                                 water_density, p, phase%viscosity, err)
+                            call region%viscosity(fluid%temperature, fluid%pressure, &
+                                 water_density, water_viscosity)
+                            call self%gas%mixture_viscosity(water_viscosity, &
+                                 fluid%temperature, partial_pressure, xg, p, &
+                                 phase%viscosity, err)
 
                             if (err == 0) then
                                phase%density = water_density + gas_density
