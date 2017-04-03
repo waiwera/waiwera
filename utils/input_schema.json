@@ -151,6 +151,7 @@
                           }, "additionalProperties": false}
                      ]},
                      "capillary_pressure": {"oneOf": [
+                         {"type": "null"},
                          {"type": "object",
                           "properties": {
                               "type": {"type": "string",

@@ -307,7 +307,7 @@ contains
     type(fson_value), pointer, intent(in) :: json
     type(logfile_type), intent(in out), optional :: logfile
     ! Locals:
-    PetscReal, parameter :: default_slr = 0.3_dp, default_ssr = 0.6_dp
+    PetscReal, parameter :: default_slr = 0.3_dp, default_ssr = 0.05_dp
 
     self%name = "Corey"
 

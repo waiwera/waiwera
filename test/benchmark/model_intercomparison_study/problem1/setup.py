@@ -34,8 +34,8 @@ rock.permeability = np.ones(3) * 1.e-12
 rock.conductivity = 20.0
 rock.specific_heat = 1000.
 
-dat.relative_permeability = {'type': 1, 'parameters': [0., 0., 0., 0., 0.]}
-dat.capillarity = {'type': 1, 'parameters': [0., 0., 1., 0., 0.]}
+dat.relative_permeability = {'type': 1, 'parameters': [0.] * 5}
+dat.capillarity = {'type': 8, 'parameters': [0.] * 5}
 
 ndt = 500
 P0, T0 = 50.e5, 170.

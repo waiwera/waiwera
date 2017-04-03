@@ -378,6 +378,7 @@ contains
     !! Eventually cp will be an array of objects.
 
     use fson_mpi_module
+    use fson_value_m, only: TYPE_OBJECT, TYPE_NULL
     use logfile_module
 
     type(fson_value), pointer, intent(in) :: json
@@ -385,11 +386,18 @@ contains
     type(logfile_type), intent(in out), optional :: logfile
     ! Locals:
     type(fson_value), pointer :: capillary
+    PetscInt :: cp_type
     PetscBool :: default_present
 
     if (fson_has_mpi(json, "rock.capillary_pressure")) then
-       call fson_get_mpi(json, "rock.capillary_pressure", capillary)
-       default_present = PETSC_TRUE
+       cp_type = fson_type_mpi(json, "rock.capillary_pressure")
+       if (cp_type == TYPE_OBJECT) then
+          call fson_get_mpi(json, "rock.capillary_pressure", capillary)
+          default_present = PETSC_TRUE
+       else if (cp_type == TYPE_NULL) then
+          capillary => fson_parse(str = "{}")
+          default_present = PETSC_FALSE
+       end if
     else
        capillary => fson_parse(str = "{}")
        default_present = PETSC_FALSE

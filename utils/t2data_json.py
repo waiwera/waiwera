@@ -241,10 +241,12 @@ class t2data_export_json(t2data):
                     cp['P0'] = 1. / pars[2]
                     if pars[3] > stol: cp['Pmax'] = pars[3]
                     cp['sls'] = pars[4]
+                elif itype == 8:
+                    cp = None
                 jsondata['capillary_pressure'] = cp
             else:
                 raise Exception ('Unhandled capillary pressure type: %d' % itype)
-        else: jsondata['capillary_pressure'] = {'type': 'zero'}
+        else: jsondata['capillary_pressure'] = None
         return jsondata
 
     def initial_json(self, geo, incons, eos):
