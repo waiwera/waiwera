@@ -20,6 +20,7 @@ public :: test_relative_permeability_linear, &
      test_relative_permeability_corey, &
      test_relative_permeability_grant, &
      test_relative_permeability_van_genuchten, &
+     test_relative_permeability_table, &
      test_relative_permeability_fully_mobile
 
 contains
@@ -31,7 +32,7 @@ contains
     ! Test one case
 
     PetscReal, intent(in) :: sl
-    class(relative_permeability_type), intent(in) :: relp
+    class(relative_permeability_type), intent(in out) :: relp
     PetscReal, intent(in) :: expected(2)
     ! Locals:
     PetscReal :: rp(2)
@@ -75,6 +76,8 @@ contains
 
     end if
 
+    call linear%destroy()
+
   end subroutine test_relative_permeability_linear
 
 !------------------------------------------------------------------------
@@ -106,6 +109,8 @@ contains
        call relative_permeability_case(0.9_dp, pickens, [0.81_dp, 1._dp])
 
     end if
+
+    call pickens%destroy()
 
   end subroutine test_relative_permeability_pickens
 
@@ -139,6 +144,8 @@ contains
 
     end if
 
+    call corey%destroy()
+
   end subroutine test_relative_permeability_corey
 
 !------------------------------------------------------------------------
@@ -170,6 +177,8 @@ contains
        call relative_permeability_case(0.95_dp, grant, [1._dp, 0._dp])
 
     end if
+
+    call grant%destroy()
 
   end subroutine test_relative_permeability_grant
 
@@ -208,7 +217,51 @@ contains
 
     end if
 
+    call vg%destroy()
+
   end subroutine test_relative_permeability_van_genuchten
+
+!------------------------------------------------------------------------
+
+  subroutine test_relative_permeability_table
+
+    ! Table relative permeability functions
+
+    type(relative_permeability_table_type) :: rp
+
+    ! Locals:
+    type(fson_value), pointer :: json
+    character(160) :: json_str
+    PetscMPIInt :: rank
+    PetscInt :: ierr
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+
+    json_str = '{"type": "table", ' // &
+         '"liquid": [[0,0], [0.7, 0.01], [0.95, 0.99], [1,1]], ' // &
+         '"vapour": [[0,0], [0.05, 0.01], [0.3, 0.99], [1,1]]}'
+
+    json => fson_parse(str = json_str)
+    call rp%init(json)
+    call fson_destroy(json)
+
+    if (rank == 0) then
+
+       call assert_equals("table", rp%name, "Name")
+
+       call relative_permeability_case(0._dp, rp, [0._dp, 1._dp])
+       call relative_permeability_case(0.3_dp, rp, &
+            [0.01_dp * 3._dp / 7._dp, (4._dp + 3._dp * 0.99_dp) / 7._dp])
+       call relative_permeability_case(0.7_dp, rp, [0.01_dp, 0.99_dp])
+       call relative_permeability_case(0.9_dp, rp, &
+            [0.2_dp * 0.01_dp + 0.8_dp * 0.99_dp, 0.8_dp * 0.01_dp + 0.2_dp * 0.99_dp])
+       call relative_permeability_case(1._dp, rp, [1._dp, 0._dp])
+
+    end if
+
+    call rp%destroy()
+
+  end subroutine test_relative_permeability_table
 
 !------------------------------------------------------------------------
 

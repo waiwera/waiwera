@@ -135,6 +135,19 @@
                               "sls": {"type": "number", "minimum": 0, "maximum": 1},
                               "sum_unity": {"type": "boolean"},
                               "ssr": {"type": "number", "minimum": 0, "maximum": 1}
+                          }, "additionalProperties": false},
+                         {"type": "object",
+                          "properties": {
+                              "type": {"type": "string",
+                                       "enum": ["table", "Table"]},
+                              "liquid": {"type": "array",
+                                         "items": {"type": "array", "items": {
+                                             "type": "number", "minimum": 0, "maximum": 1},
+                                                   "minItems": 2, "maxItems": 2}},
+                              "vapour": {"type": "array",
+                                         "items": {"type": "array", "items": {
+                                             "type": "number", "minimum": 0, "maximum": 1},
+                                                   "minItems": 2, "maxItems": 2}}
                           }, "additionalProperties": false}
                      ]},
                      "capillary_pressure": {"oneOf": [
@@ -162,7 +175,16 @@
                               "slr": {"type": "number", "minimum": 0, "maximum": 1},
                               "sls": {"type": "number", "minimum": 0, "maximum": 1},
                               "Pmax": {"type": "number"}
-                          }, "additionalProperties": false}
+                          }, "additionalProperties": false},
+                         {"type": "object",
+                          "properties": {
+                              "type": {"type": "string",
+                                       "enum": ["table", "Table"]},
+                              "pressure": {"type": "array", "items": {
+                                  "type": "array", "items": {"type": "number"},
+                                  "minItems": 2, "maxItems": 2}
+                                          }}, "additionalProperties": false
+                          }
                          ]
                      },
                      "types": {

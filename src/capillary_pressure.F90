@@ -22,6 +22,7 @@ module capillary_pressure_module
 
   use petscsys
   use kinds_module
+  use interpolation_module
   use fson
 
   implicit none
@@ -40,11 +41,12 @@ module capillary_pressure_module
      private
      procedure(capillary_pressure_init_routine), public, deferred :: init
      procedure(capillary_pressure_function), public, deferred :: value
+     procedure, public :: destroy => capillary_pressure_destroy
   end type capillary_pressure_type
 
 !------------------------------------------------------------------------
 
-  type, extends(capillary_pressure_type), public :: &
+  type, public, extends(capillary_pressure_type) :: &
        capillary_pressure_zero_type
      !! Zero capillary pressure function.
    contains
@@ -54,7 +56,7 @@ module capillary_pressure_module
 
 !------------------------------------------------------------------------
 
-  type, extends(capillary_pressure_type), public :: &
+  type, public, extends(capillary_pressure_type) :: &
        capillary_pressure_linear_type
      !! Linear capillary pressure function.
      private
@@ -67,7 +69,7 @@ module capillary_pressure_module
 
 !------------------------------------------------------------------------
 
-  type, extends(capillary_pressure_type), public :: &
+  type, public, extends(capillary_pressure_type) :: &
        capillary_pressure_van_genuchten_type
      !! Van Genuchten capillary pressure function.
      private
@@ -79,6 +81,19 @@ module capillary_pressure_module
      procedure, public :: init => capillary_pressure_van_genuchten_init
      procedure, public :: value => capillary_pressure_van_genuchten_value
   end type capillary_pressure_van_genuchten_type
+
+!------------------------------------------------------------------------
+
+  type, public, extends(capillary_pressure_type) :: &
+       capillary_pressure_table_type
+     !! Table capillary pressure function.
+     private
+     type(interpolation_table_type), public :: pressure
+   contains
+     procedure, public :: init => capillary_pressure_table_init
+     procedure, public :: value => capillary_pressure_table_value
+     procedure, public :: destroy => capillary_pressure_table_destroy
+  end type capillary_pressure_table_type
 
 !------------------------------------------------------------------------
 
@@ -96,18 +111,30 @@ module capillary_pressure_module
      PetscReal function capillary_pressure_function(self, sl, t)
        !! Capillary pressure function.
        import :: capillary_pressure_type
-       class(capillary_pressure_type), intent(in) :: self
+       class(capillary_pressure_type), intent(in out) :: self
        PetscReal, intent(in) :: sl  !! Liquid saturation
        PetscReal, intent(in) :: t   !! Temperature
      end function capillary_pressure_function
 
   end interface
 
-!------------------------------------------------------------------------
-
   public :: setup_capillary_pressures
 
 contains
+
+!------------------------------------------------------------------------
+!  capillary_pressure_type
+!------------------------------------------------------------------------
+
+  subroutine capillary_pressure_destroy(self)
+    !! Destroys capillary pressure object. Dummy method, to be
+    !! overridden (as needed) by derived types.
+
+    class(capillary_pressure_type), intent(in out) :: self
+
+    continue
+
+  end subroutine capillary_pressure_destroy
 
 !------------------------------------------------------------------------
 ! Zero function
@@ -123,7 +150,7 @@ contains
     type(fson_value), pointer, intent(in) :: json
     type(logfile_type), intent(in out), optional :: logfile
 
-    self%name = "Zero"
+    self%name = "zero"
 
   end subroutine capillary_pressure_zero_init
 
@@ -132,7 +159,7 @@ contains
   PetscReal function capillary_pressure_zero_value(self, sl, t) result(cp)
     !! Evaluate zero capillary pressure function.
 
-    class(capillary_pressure_zero_type), intent(in) :: self
+    class(capillary_pressure_zero_type), intent(in out) :: self
     PetscReal, intent(in) :: sl !! Liquid saturation
     PetscReal, intent(in) :: t  !! Temperature
 
@@ -158,7 +185,7 @@ contains
     PetscReal, parameter :: default_saturation_limits(2) = [0._dp, 1._dp]
     PetscReal, parameter :: default_pressure = 0.125e5_dp
 
-    self%name = "Linear"
+    self%name = "linear"
 
     call fson_get_mpi(json, "saturation_limits", default_saturation_limits, &
          saturation_limits, logfile, "rock.capillary_pressure.saturation_limits")
@@ -177,9 +204,7 @@ contains
   PetscReal function capillary_pressure_linear_value(self, sl, t) result(cp)
     !! Evaluate linear capillary pressure function.
 
-    use interpolation_module, only: ramp_interpolate
-
-    class(capillary_pressure_linear_type), intent(in) :: self
+    class(capillary_pressure_linear_type), intent(in out) :: self
     PetscReal, intent(in) :: sl !! Liquid saturation
     PetscReal, intent(in) :: t  !! Temperature
 
@@ -235,7 +260,7 @@ contains
        result(cp)
     !! Evaluate van Genuchten capillary pressure function.
 
-    class(capillary_pressure_van_genuchten_type), intent(in) :: self
+    class(capillary_pressure_van_genuchten_type), intent(in out) :: self
     PetscReal, intent(in) :: sl !! Liquid saturation
     PetscReal, intent(in) :: t  !! Temperature
 
@@ -255,6 +280,57 @@ contains
     end associate
 
   end function capillary_pressure_van_genuchten_value
+
+!------------------------------------------------------------------------
+! Table function
+!------------------------------------------------------------------------
+
+  subroutine capillary_pressure_table_init(self, json, logfile)
+    !! Initialize table capillary pressure function.
+
+    use fson_mpi_module
+    use logfile_module
+
+    class(capillary_pressure_table_type), intent(in out) :: self
+    type(fson_value), pointer, intent(in) :: json
+    type(logfile_type), intent(in out), optional :: logfile
+    ! Locals:
+    PetscReal, allocatable :: pressure_array(:,:)
+    PetscReal, parameter :: default_pressure_array(2, 2) = reshape( &
+         [0._dp, 1._dp, 0._dp, 0._dp], [2, 2])
+
+    self%name = "table"
+
+    call fson_get_mpi(json, "pressure", default_pressure_array, &
+         pressure_array, logfile, "rock.capillary_pressure.pressure")
+    call self%pressure%init(pressure_array)
+    deallocate(pressure_array)
+
+  end subroutine capillary_pressure_table_init
+
+!------------------------------------------------------------------------
+
+  PetscReal function capillary_pressure_table_value(self, sl, t) result(cp)
+    !! Evaluate table capillary pressure function.
+
+    class(capillary_pressure_table_type), intent(in out) :: self
+    PetscReal, intent(in) :: sl !! Liquid saturation
+    PetscReal, intent(in) :: t  !! Temperature
+
+    cp = self%pressure%interpolate(sl)
+
+  end function capillary_pressure_table_value
+
+!------------------------------------------------------------------------
+
+  subroutine capillary_pressure_table_destroy(self)
+    !! Destroy table capillary pressure function.
+
+    class(capillary_pressure_table_type), intent(in out) :: self
+
+    call self%pressure%destroy()
+
+  end subroutine capillary_pressure_table_destroy
 
 !------------------------------------------------------------------------
 ! Setup procedures
@@ -286,6 +362,8 @@ contains
        allocate(capillary_pressure_linear_type :: cp)
     case ("van_genuchten", "van genuchten")
        allocate(capillary_pressure_van_genuchten_type :: cp)
+    case ("table")
+       allocate(capillary_pressure_table_type :: cp)
     case default
        allocate(capillary_pressure_zero_type :: cp)
     end select
