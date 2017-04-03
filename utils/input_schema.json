@@ -174,7 +174,16 @@
                               "slr": {"type": "number", "minimum": 0, "maximum": 1},
                               "sls": {"type": "number", "minimum": 0, "maximum": 1},
                               "Pmax": {"type": "number"}
-                          }, "additionalProperties": false}
+                          }, "additionalProperties": false},
+                         {"type": "object",
+                          "properties": {
+                              "type": {"type": "string",
+                                       "enum": ["table", "Table"]},
+                              "pressure": {"type": "array", "items": {
+                                  "type": "array", "items": {"type": "number"},
+                                  "minItems": 2, "maxItems": 2}
+                                          }}, "additionalProperties": false
+                          }
                          ]
                      },
                      "types": {

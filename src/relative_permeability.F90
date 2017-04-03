@@ -508,6 +508,7 @@ contains
          vapour_array, logfile, "rock.relative_permeability.vapour")
     call self%liquid%init(liquid_array)
     call self%vapour%init(vapour_array)
+    deallocate(liquid_array, vapour_array)
 
   end subroutine relative_permeability_table_init
 
