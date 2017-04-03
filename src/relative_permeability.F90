@@ -22,6 +22,7 @@ module relative_permeability_module
 
   use petscsys
   use kinds_module
+  use interpolation_module
   use fson
 
   implicit none
@@ -40,7 +41,94 @@ module relative_permeability_module
      private
      procedure(relative_permeability_init_routine), public, deferred :: init
      procedure(relative_permeability_function), public, deferred :: values
+     procedure, public :: destroy => relative_permeability_destroy
   end type relative_permeability_type
+
+!------------------------------------------------------------------------
+
+  type, public, extends(relative_permeability_type) :: &
+       relative_permeability_fully_mobile_type
+     !! Fully mobile relative permeability curves.
+   contains
+     procedure, public :: init => relative_permeability_fully_mobile_init
+     procedure, public :: values => relative_permeability_fully_mobile_values
+  end type relative_permeability_fully_mobile_type
+
+!------------------------------------------------------------------------
+
+  type, public, extends(relative_permeability_type) :: &
+       relative_permeability_linear_type
+     !! Linear relative permeability functions.
+     private
+     PetscReal, public :: liquid_limits(2)
+     PetscReal, public :: vapour_limits(2)
+   contains
+     procedure, public :: init => relative_permeability_linear_init
+     procedure, public :: values => relative_permeability_linear_values
+  end type relative_permeability_linear_type
+
+!------------------------------------------------------------------------
+
+  type, public, extends(relative_permeability_type) :: &
+       relative_permeability_pickens_type
+     !! Pickens relative permeability curves.
+     private
+     PetscReal, public :: power
+   contains
+     procedure, public :: init => relative_permeability_pickens_init
+     procedure, public :: values => relative_permeability_pickens_values
+  end type relative_permeability_pickens_type
+
+!------------------------------------------------------------------------
+
+  type, public, extends(relative_permeability_type) :: &
+       relative_permeability_corey_type
+     !! Corey's relative permeability curves.
+     private
+     PetscReal, public :: slr, ssr
+   contains
+     procedure, public :: init => relative_permeability_corey_init
+     procedure, public :: values => relative_permeability_corey_values
+     procedure :: sstar => relative_permeability_corey_sstar
+  end type relative_permeability_corey_type
+
+!------------------------------------------------------------------------
+
+  type, public, extends(relative_permeability_corey_type) :: &
+       relative_permeability_grant_type
+     !! Grant's relative permeability curves.
+   contains
+     procedure, public :: init => relative_permeability_grant_init
+     procedure, public :: values => relative_permeability_grant_values
+  end type relative_permeability_grant_type
+
+!------------------------------------------------------------------------
+
+  type, public, extends(relative_permeability_type) :: &
+       relative_permeability_van_genuchten_type
+     !! Van Genuchten relative permeability curves.
+     private
+     PetscReal, public :: lambda
+     PetscReal, public :: slr, sls, ssr
+     PetscBool, public :: sum_unity
+   contains
+     procedure, public :: init => relative_permeability_van_genuchten_init
+     procedure, public :: values => relative_permeability_van_genuchten_values
+  end type relative_permeability_van_genuchten_type
+
+!------------------------------------------------------------------------
+
+  type, public, extends(relative_permeability_type) :: &
+       relative_permeability_table_type
+     !! Piecewise linear table relative permeability curves.
+     private
+     type(interpolation_table_type), public :: liquid
+     type(interpolation_table_type), public :: vapour
+   contains
+     procedure, public :: init => relative_permeability_table_init
+     procedure, public :: values => relative_permeability_table_values
+     procedure, public :: destroy => relative_permeability_table_destroy
+  end type relative_permeability_table_type
 
 !------------------------------------------------------------------------
 
@@ -58,7 +146,7 @@ module relative_permeability_module
      function relative_permeability_function(self, sl) result(rp)
        !! Relative permeability function, returning array of values for both phases.
        import :: relative_permeability_type
-       class(relative_permeability_type), intent(in) :: self
+       class(relative_permeability_type), intent(in out) :: self
        PetscReal, intent(in) :: sl  ! Liquid saturation
        PetscReal, dimension(2) :: rp ! Relative permeabilities for liquid and vapour
      end function relative_permeability_function
@@ -67,81 +155,23 @@ module relative_permeability_module
 
 !------------------------------------------------------------------------
 
-  type, extends(relative_permeability_type), &
-       public :: relative_permeability_fully_mobile_type
-     !! Fully mobile relative permeability curves.
-   contains
-     procedure, public :: init => relative_permeability_fully_mobile_init
-     procedure, public :: values => relative_permeability_fully_mobile_values
-  end type relative_permeability_fully_mobile_type
-
-!------------------------------------------------------------------------
-
-  type, extends(relative_permeability_type), &
-       public :: relative_permeability_linear_type
-     !! Linear relative permeability functions.
-     private
-     PetscReal, public :: liquid_limits(2)
-     PetscReal, public :: vapour_limits(2)
-   contains
-     procedure, public :: init => relative_permeability_linear_init
-     procedure, public :: values => relative_permeability_linear_values
-  end type relative_permeability_linear_type
-
-!------------------------------------------------------------------------
-
-  type, extends(relative_permeability_type), &
-       public :: relative_permeability_pickens_type
-     !! Pickens relative permeability curves.
-     private
-     PetscReal, public :: power
-   contains
-     procedure, public :: init => relative_permeability_pickens_init
-     procedure, public :: values => relative_permeability_pickens_values
-  end type relative_permeability_pickens_type
-
-!------------------------------------------------------------------------
-
-  type, extends(relative_permeability_type), &
-       public :: relative_permeability_corey_type
-     !! Corey's relative permeability curves.
-     private
-     PetscReal, public :: slr, ssr
-   contains
-     procedure, public :: init => relative_permeability_corey_init
-     procedure, public :: values => relative_permeability_corey_values
-     procedure :: sstar => relative_permeability_corey_sstar
-  end type relative_permeability_corey_type
-
-!------------------------------------------------------------------------
-
-  type, extends(relative_permeability_corey_type), &
-       public :: relative_permeability_grant_type
-     !! Grant's relative permeability curves.
-   contains
-     procedure, public :: init => relative_permeability_grant_init
-     procedure, public :: values => relative_permeability_grant_values
-  end type relative_permeability_grant_type
-
-!------------------------------------------------------------------------
-
-  type, extends(relative_permeability_type), &
-       public :: relative_permeability_van_genuchten_type
-     !! Van Genuchten relative permeability curves.
-     private
-     PetscReal, public :: lambda
-     PetscReal, public :: slr, sls, ssr
-     PetscBool, public :: sum_unity
-   contains
-     procedure, public :: init => relative_permeability_van_genuchten_init
-     procedure, public :: values => relative_permeability_van_genuchten_values
-  end type relative_permeability_van_genuchten_type
-
-!------------------------------------------------------------------------
-
   public :: setup_relative_permeabilities
 
 contains
+
+!------------------------------------------------------------------------
+! relative_permeability_type
+!------------------------------------------------------------------------
+
+  subroutine relative_permeability_destroy(self)
+    !! Destroys relative_permeability_type. Dummy method, to be
+    !! overridden (as needed) by derived types.
+
+    class(relative_permeability_type), intent(in out) :: self
+
+    continue
+
+  end subroutine relative_permeability_destroy
 
 !------------------------------------------------------------------------
 ! Fully mobile
@@ -166,7 +196,7 @@ contains
   function relative_permeability_fully_mobile_values(self, sl) result(rp)
     !! Evaluate fully mobile relative permeability function.
 
-    class(relative_permeability_fully_mobile_type), intent(in) :: self
+    class(relative_permeability_fully_mobile_type), intent(in out) :: self
     PetscReal, intent(in) :: sl !! Liquid saturation
     PetscReal, dimension(2) :: rp !! Relative permeabilities
 
@@ -214,7 +244,7 @@ contains
 
     use interpolation_module, only: ramp_interpolate
 
-    class(relative_permeability_linear_type), intent(in) :: self
+    class(relative_permeability_linear_type), intent(in out) :: self
     PetscReal, intent(in) :: sl !! Liquid saturation
     PetscReal, dimension(2) :: rp !! Relative permeabilities
     ! Locals:
@@ -254,7 +284,7 @@ contains
   function relative_permeability_pickens_values(self, sl) result(rp)
     !! Evaluate Pickens relative permeability function.
 
-    class(relative_permeability_pickens_type), intent(in) :: self
+    class(relative_permeability_pickens_type), intent(in out) :: self
     PetscReal, intent(in) :: sl !! Liquid saturation
     PetscReal, dimension(2) :: rp !! Relative permeabilities
 
@@ -306,7 +336,7 @@ contains
   function relative_permeability_corey_values(self, sl) result(rp)
     !! Evaluate Corey's relative permeability function.
 
-    class(relative_permeability_corey_type), intent(in) :: self
+    class(relative_permeability_corey_type), intent(in out) :: self
     PetscReal, intent(in) :: sl !! Liquid saturation
     PetscReal, dimension(2) :: rp !! Relative permeabilities
     ! Locals:
@@ -356,7 +386,7 @@ contains
   function relative_permeability_grant_values(self, sl) result(rp)
     !! Evaluate Grant's relative permeability function.
 
-    class(relative_permeability_grant_type), intent(in) :: self
+    class(relative_permeability_grant_type), intent(in out) :: self
     PetscReal, intent(in) :: sl !! Liquid saturation
     PetscReal, dimension(2) :: rp !! Relative permeabilities
     ! Locals:
@@ -399,16 +429,16 @@ contains
     self%name = "van Genuchten"
 
     call fson_get_mpi(json, "lambda", default_lambda, &
-         self%lambda, logfile, "rock.capillary_pressure.lambda")
+         self%lambda, logfile, "rock.relative_permeability.lambda")
     call fson_get_mpi(json, "slr", default_slr, &
-         self%slr, logfile, "rock.capillary_pressure.slr")
+         self%slr, logfile, "rock.relative_permeability.slr")
     call fson_get_mpi(json, "sls", default_sls, &
-         self%sls, logfile, "rock.capillary_pressure.sls")
+         self%sls, logfile, "rock.relative_permeability.sls")
     call fson_get_mpi(json, "sum_unity", default_sum_unity, &
-         self%sum_unity, logfile, "rock.capillary_pressure.sum_unity")
+         self%sum_unity, logfile, "rock.relative_permeability.sum_unity")
     if (.not. (self%sum_unity)) then
        call fson_get_mpi(json, "ssr", default_ssr, &
-            self%ssr, logfile, "rock.capillary_pressure.ssr")
+            self%ssr, logfile, "rock.relative_permeability.ssr")
     end if
 
   end subroutine relative_permeability_van_genuchten_init
@@ -421,7 +451,7 @@ contains
     !! 1, otherwise the vapour phase relative permeability is found
     !! from Corey's formula.
 
-    class(relative_permeability_van_genuchten_type), intent(in) :: self
+    class(relative_permeability_van_genuchten_type), intent(in out) :: self
     PetscReal, intent(in) :: sl !! Liquid saturation
     PetscReal, dimension(2) :: rp !! Relative permeabilities
     ! Locals:
@@ -449,6 +479,64 @@ contains
     end if
 
   end function relative_permeability_van_genuchten_values
+
+!------------------------------------------------------------------------
+! Table curves
+!------------------------------------------------------------------------
+
+  subroutine relative_permeability_table_init(self, json, logfile)
+    !! Initialize table relative permeability function.
+
+    use fson_mpi_module
+    use logfile_module
+
+    class(relative_permeability_table_type), intent(in out) :: self
+    type(fson_value), pointer, intent(in) :: json
+    type(logfile_type), intent(in out), optional :: logfile
+    ! Locals:
+    PetscReal, allocatable :: liquid_array(:,:), vapour_array(:,:)
+    PetscReal, parameter :: default_liquid_array(2, 2) = reshape( &
+         [0._dp, 1._dp, 0._dp, 1._dp], [2, 2])
+    PetscReal, parameter :: default_vapour_array(2, 2) = reshape( &
+         [0._dp, 1._dp, 0._dp, 1._dp], [2, 2])
+
+    self%name = "table"
+
+    call fson_get_mpi(json, "liquid", default_liquid_array, &
+         liquid_array, logfile, "rock.relative_permeability.liquid")
+    call fson_get_mpi(json, "vapour", default_vapour_array, &
+         vapour_array, logfile, "rock.relative_permeability.vapour")
+    call self%liquid%init(liquid_array)
+    call self%vapour%init(vapour_array)
+
+  end subroutine relative_permeability_table_init
+
+!------------------------------------------------------------------------
+
+  function relative_permeability_table_values(self, sl) result(rp)
+    !! Evaluate table relative permeability function. The table is
+    !! interpolated using piecewise linear interpolation.
+
+    class(relative_permeability_table_type), intent(in out) :: self
+    PetscReal, intent(in) :: sl !! Liquid saturation
+    PetscReal, dimension(2) :: rp !! Relative permeabilities
+
+    rp(1) = self%liquid%interpolate(sl)
+    rp(2) = self%vapour%interpolate(1._dp - sl)
+
+  end function relative_permeability_table_values
+
+!------------------------------------------------------------------------
+
+  subroutine relative_permeability_table_destroy(self)
+    !! Destroys table relative permeability.
+
+    class(relative_permeability_table_type), intent(in out) :: self
+
+    call self%liquid%destroy()
+    call self%vapour%destroy()
+
+  end subroutine relative_permeability_table_destroy
 
 !------------------------------------------------------------------------
 ! Setup procedures
@@ -486,6 +574,8 @@ contains
        allocate(relative_permeability_grant_type :: rp)
     case ("van_genuchten", "van genuchten")
        allocate(relative_permeability_van_genuchten_type :: rp)
+    case ("table")
+       allocate(relative_permeability_table_type :: rp)
     case default
        allocate(relative_permeability_linear_type :: rp)
     end select

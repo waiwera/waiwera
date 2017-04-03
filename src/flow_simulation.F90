@@ -533,6 +533,7 @@ contains
     call self%eos%destroy()
     deallocate(self%thermo)
     deallocate(self%eos)
+    call self%relative_permeability%destroy()
     deallocate(self%relative_permeability)
 
     call PetscTime(end_wall_time, ierr); CHKERRQ(ierr)
