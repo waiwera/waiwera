@@ -40,11 +40,12 @@ module capillary_pressure_module
      private
      procedure(capillary_pressure_init_routine), public, deferred :: init
      procedure(capillary_pressure_function), public, deferred :: value
+     procedure, public :: destroy => capillary_pressure_destroy
   end type capillary_pressure_type
 
 !------------------------------------------------------------------------
 
-  type, extends(capillary_pressure_type), public :: &
+  type, public, extends(capillary_pressure_type) :: &
        capillary_pressure_zero_type
      !! Zero capillary pressure function.
    contains
@@ -54,7 +55,7 @@ module capillary_pressure_module
 
 !------------------------------------------------------------------------
 
-  type, extends(capillary_pressure_type), public :: &
+  type, public, extends(capillary_pressure_type) :: &
        capillary_pressure_linear_type
      !! Linear capillary pressure function.
      private
@@ -67,7 +68,7 @@ module capillary_pressure_module
 
 !------------------------------------------------------------------------
 
-  type, extends(capillary_pressure_type), public :: &
+  type, public, extends(capillary_pressure_type) :: &
        capillary_pressure_van_genuchten_type
      !! Van Genuchten capillary pressure function.
      private
@@ -103,11 +104,23 @@ module capillary_pressure_module
 
   end interface
 
-!------------------------------------------------------------------------
-
   public :: setup_capillary_pressures
 
 contains
+
+!------------------------------------------------------------------------
+!  capillary_pressure_type
+!------------------------------------------------------------------------
+
+  subroutine capillary_pressure_destroy(self)
+    !! Destroys capillary pressure object. Dummy method, to be
+    !! overridden (as needed) by derived types.
+
+    class(capillary_pressure_type), intent(in out) :: self
+
+    continue
+
+  end subroutine capillary_pressure_destroy
 
 !------------------------------------------------------------------------
 ! Zero function

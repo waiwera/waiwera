@@ -535,6 +535,8 @@ contains
     deallocate(self%eos)
     call self%relative_permeability%destroy()
     deallocate(self%relative_permeability)
+    call self%capillary_pressure%destroy()
+    deallocate(self%capillary_pressure)
 
     call PetscTime(end_wall_time, ierr); CHKERRQ(ierr)
     elapsed_time = end_wall_time - self%start_wall_time
