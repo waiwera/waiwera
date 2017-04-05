@@ -955,7 +955,7 @@ contains
     nc = self%eos%num_components
 
     call global_vec_section(y, y_section)
-    call VecGetArrayF90(y, y_array, ierr); CHKERRQ(ierr)
+    call VecGetArrayReadF90(y, y_array, ierr); CHKERRQ(ierr)
 
     call global_vec_section(self%fluid, fluid_section)
     call VecGetArrayF90(self%fluid, fluid_array, ierr); CHKERRQ(ierr)
@@ -1019,7 +1019,7 @@ contains
 
     call VecRestoreArrayF90(self%rock, rock_array, ierr); CHKERRQ(ierr)
     call VecRestoreArrayF90(self%fluid, fluid_array, ierr); CHKERRQ(ierr)
-    call VecRestoreArrayF90(y, y_array, ierr); CHKERRQ(ierr)
+    call VecRestoreArrayReadF90(y, y_array, ierr); CHKERRQ(ierr)
     call cell%destroy()
 
     call mpi_broadcast_error_flag(err)
