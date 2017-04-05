@@ -1930,16 +1930,26 @@ end subroutine timestepper_steps_set_next_stepsize
       KSPConvergedReason :: ksp_reason
       character(len = reason_str_len) :: s
       select case (ksp_reason)
+         case (KSP_DIVERGED_NULL)
+            s = "null"
+         case (KSP_DIVERGED_ITS)
+            s = "max_iterations"
          case (KSP_DIVERGED_DTOL)
             s = "dtol"
          case (KSP_DIVERGED_BREAKDOWN)
             s = "breakdown"
-         case (KSP_DIVERGED_ITS)
-            s = "max_iterations"
-         case (KSP_DIVERGED_NANORINF)
-            s = "NaN_or_Inf"
          case(KSP_DIVERGED_BREAKDOWN_BICG)
             s = "BiCG_breakdown"
+         case (KSP_DIVERGED_NONSYMMETRIC)
+            s = "non-symmetric"
+         case (KSP_DIVERGED_INDEFINITE_PC)
+            s = "indefinite PC"
+         case (KSP_DIVERGED_NANORINF)
+            s = "NaN_or_Inf"
+         case (KSP_DIVERGED_INDEFINITE_MAT)
+            s = "indefinite matrix"
+         case (KSP_DIVERGED_PCSETUP_FAILED)
+            s = "PC setup failed"
          case default
             s = "unknown"
       end select
