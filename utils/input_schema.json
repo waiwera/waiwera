@@ -522,7 +522,9 @@
                                             "type": "object",
                                             "properties": {
                                                 "type": {"type": "string",
-                                                         "enum": ["bjacobi", "BJACOBI",
+                                                         "enum": ["none", "NONE",
+                                                                  "ilu", "ILU",
+                                                                  "bjacobi", "BJACOBI",
                                                                   "asm", "ASM"]}
                                             }, "additionalProperties": false
                                         }

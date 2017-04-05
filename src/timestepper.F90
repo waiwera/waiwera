@@ -1754,6 +1754,10 @@ end subroutine timestepper_steps_set_next_stepsize
     PCType function pc_type_from_str(pc_type_str) result(pc_type)
       character(*), intent(in) :: pc_type_str
       select case(str_to_lower(pc_type_str))
+      case ("none")
+         pc_type = PCNONE
+      case ("ilu")
+         pc_type = PCILU
       case ("bjacobi")
          pc_type = PCBJACOBI
       case ("asm")
