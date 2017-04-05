@@ -691,13 +691,12 @@ contains
     PetscReal, pointer, contiguous :: inflow(:)
     PetscReal, allocatable :: face_flow(:)
     PetscReal, parameter :: flux_sign(2) = [-1._dp, 1._dp]
-    PetscReal, allocatable :: primary(:)
     PetscErrorCode :: ierr
 
     call PetscLogEventBegin(cell_inflows_event, ierr); CHKERRQ(ierr)
     err = 0
     np = self%eos%num_primary_variables
-    allocate(face_flow(np), primary(np))
+    allocate(face_flow(np))
 
     call global_vec_section(rhs, rhs_section)
     call VecGetArrayF90(rhs, rhs_array, ierr); CHKERRQ(ierr)
@@ -778,7 +777,7 @@ contains
     call VecRestoreArrayF90(rhs, rhs_array, ierr); CHKERRQ(ierr)
     call restore_dm_local_vec(local_fluid)
     call restore_dm_local_vec(local_rock)
-    deallocate(face_flow, primary)
+    deallocate(face_flow)
 
   contains
 
