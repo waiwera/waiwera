@@ -28,7 +28,7 @@ module initial_module
   implicit none
   private
 
-  public :: setup_initial
+  public :: setup_initial, scale_initial_primary
 
 contains
 
@@ -330,6 +330,63 @@ contains
     call fluid%destroy()
 
   end subroutine setup_initial_file
+
+!------------------------------------------------------------------------
+
+  subroutine scale_initial_primary(mesh, eos, y, fluid_vector, &
+      y_range_start, fluid_range_start)
+    !! Scales primary variables y in each cell according to the eos
+    !! primary variable scaling.
+
+    use mesh_module, only: mesh_type
+    use eos_module, only: eos_type
+    use fluid_module, only: fluid_type
+    use dm_utils_module, only: global_vec_section, global_section_offset
+
+    type(mesh_type), intent(in) :: mesh
+    class(eos_type), intent(in) :: eos
+    Vec, intent(in out) :: y, fluid_vector
+    PetscInt, intent(in) :: y_range_start, fluid_range_start
+    ! Locals:
+    PetscSection :: y_section, fluid_section
+    PetscReal, pointer, contiguous :: y_array(:), fluid_array(:)
+    PetscReal, pointer, contiguous :: cell_primary(:)
+    type(fluid_type) :: fluid
+    DMLabel :: ghost_label
+    PetscInt :: np, c, ghost, y_offset, fluid_offset
+    PetscErrorCode :: ierr
+
+    call global_vec_section(y, y_section)
+    call VecGetArrayF90(y, y_array, ierr); CHKERRQ(ierr)
+
+    call global_vec_section(fluid_vector, fluid_section)
+    call VecGetArrayReadF90(fluid_vector, fluid_array, ierr); CHKERRQ(ierr)
+
+    call fluid%init(eos%num_components, eos%num_phases)
+    np = eos%num_primary_variables
+
+    call DMGetLabel(mesh%dm, "ghost", ghost_label, ierr)
+    CHKERRQ(ierr)
+
+    do c = mesh%start_cell, mesh%end_cell - 1
+       call DMLabelGetValue(ghost_label, c, ghost, ierr); CHKERRQ(ierr)
+       if (ghost < 0) then
+          call global_section_offset(y_section, c, &
+               y_range_start, y_offset, ierr); CHKERRQ(ierr)
+          cell_primary => y_array(y_offset : y_offset + np - 1)
+          call global_section_offset(fluid_section, c, &
+               fluid_range_start, fluid_offset, ierr); CHKERRQ(ierr)
+          call fluid%assign(fluid_array, fluid_offset)
+          cell_primary = cell_primary / &
+                     eos%primary_scale(:, nint(fluid%region))
+       end if
+    end do
+
+    call VecRestoreArrayF90(y, y_array, ierr); CHKERRQ(ierr)
+    call VecRestoreArrayReadF90(fluid_vector, fluid_array, ierr); CHKERRQ(ierr)
+    call fluid%destroy()
+
+  end subroutine scale_initial_primary
 
 !------------------------------------------------------------------------
 
