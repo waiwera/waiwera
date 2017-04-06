@@ -83,6 +83,11 @@ contains
     self%component_names = ["water"]
 
     self%default_primary = [default_pressure, default_temperature]
+    self%primary_scale = reshape([ &
+         pcritical, tcritical, &
+         pcritical, tcritical, &
+         0._dp, 0._dp, &
+         pcritical, 1._dp], [2, 4])
     self%default_region = 1
 
     self%thermo => thermo

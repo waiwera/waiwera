@@ -71,6 +71,11 @@ contains
 
     self%default_primary = [default_pressure, default_temperature, &
          default_gas_partial_pressure]
+    self%primary_scale = reshape([ &
+         pcritical, tcritical, pcritical, &
+         pcritical, tcritical, pcritical, &
+         0._dp, 0._dp, 0._dp, &
+         pcritical, 1._dp, pcritical], [3, 4])
     self%default_region = 1
 
     self%thermo => thermo

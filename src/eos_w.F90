@@ -75,6 +75,7 @@ contains
     self%isothermal = PETSC_TRUE
 
     self%default_primary = [default_pressure]
+    self%primary_scale = reshape([pcritical, pcritical], [1, 2])
     self%default_region = 1
 
     self%thermo => thermo
