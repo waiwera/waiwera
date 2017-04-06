@@ -55,6 +55,7 @@ contains
     PetscReal, parameter :: default_pressure = 1.0e5_dp
     PetscReal, parameter :: default_temperature = 20._dp ! deg C
     PetscReal, parameter :: default_gas_partial_pressure = 0._dp
+    PetscReal, parameter :: pscale = 1.e6_dp, tscale = 1.e2_dp
 
     self%name = "wge"
     self%description = "Water, non-condensible gas and energy"
@@ -72,10 +73,10 @@ contains
     self%default_primary = [default_pressure, default_temperature, &
          default_gas_partial_pressure]
     self%primary_scale = reshape([ &
-         pcritical, tcritical, pcritical, &
-         pcritical, tcritical, pcritical, &
+         pscale, tscale, pscale, &
+         pscale, tscale, pscale, &
          0._dp, 0._dp, 0._dp, &
-         pcritical, 1._dp, pcritical], [3, 4])
+         pscale, 1._dp, pscale], [3, 4])
     self%default_region = 1
 
     self%thermo => thermo

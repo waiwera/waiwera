@@ -62,6 +62,7 @@ contains
     ! Locals:
     PetscReal, parameter :: default_pressure = 1.0e5_dp
     PetscReal, parameter :: default_temperature = 20._dp ! deg C
+    PetscReal, parameter :: pscale = 1.e6_dp
 
     self%name = "w"
     self%description = "Isothermal pure water"
@@ -75,7 +76,7 @@ contains
     self%isothermal = PETSC_TRUE
 
     self%default_primary = [default_pressure]
-    self%primary_scale = reshape([pcritical, pcritical], [1, 2])
+    self%primary_scale = reshape([pscale, pscale], [1, 2])
     self%default_region = 1
 
     self%thermo => thermo
