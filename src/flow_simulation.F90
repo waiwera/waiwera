@@ -1112,7 +1112,7 @@ contains
                 call DMLabelGetValue(order_label, c, order, ierr)
                 CHKERRQ(ierr)
                 call self%logfile%write(LOG_LEVEL_WARN, 'fluid', &
-                     'properties_not_found', &
+                     'phase_properties_not_found', &
                      ['cell            '], [order], &
                      real_array_key = 'primary         ', &
                      real_array_value = cell_primary, rank = rank)
@@ -1121,7 +1121,7 @@ contains
           else
              call DMLabelGetValue(order_label, c, order, ierr); CHKERRQ(ierr)
              call self%logfile%write(LOG_LEVEL_WARN, 'fluid', &
-                  'properties_not_found', &
+                  'bulk_properties_not_found', &
                   ['cell            '], [order], &
                   real_array_key = 'primary         ', &
                   real_array_value = cell_primary, rank = rank)
