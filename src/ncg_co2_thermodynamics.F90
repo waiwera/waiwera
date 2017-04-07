@@ -6,23 +6,30 @@ module ncg_co2_thermodynamics_module
   use petscsys
   use kinds_module
   use ncg_thermodynamics_module
+  use interpolation_module, only: interpolation_coordinate_type
 
   implicit none
   private
 
   PetscReal, parameter, public :: co2_molecular_weight = 44.01_dp ! g/mol
+  PetscReal, parameter :: viscosity_av(5, 5) = reshape([ &
+       1357.8_dp, 3918.9_dp, 9660.7_dp, 1.31566e4_dp, 1.47968e4_dp, &
+       4.9227_dp, -35.984_dp, -135.479_dp, -179.352_dp, -160.731_dp, &
+       -2.9661e-3_dp, 0.25825_dp, 0.90087_dp, 1.12474_dp, 0.850257_dp, &
+       2.8529e-6_dp, -7.1178e-4_dp, -2.4727e-3_dp, -2.98864e-3_dp, -1.99076e-3_dp, &
+       -2.1829e-9_dp, 6.9578e-7_dp, 2.4156e-6_dp, 2.85911e-6_dp, 1.73423e-6_dp], &
+       [5, 5])
+  PetscReal, parameter:: viscosity_pv(5) = [0._dp, 100.e5_dp, 150.e5_dp, &
+       200.e5_dp, 300.e5_dp]
 
   type, public, extends(ncg_thermodynamics_type) :: ncg_co2_thermodynamics_type
      !! Type for CO2 NCG thermodynamics.
      private
-     PetscReal :: viscosity_A(5) = [1357.8_dp, 4.9227_dp, &
-          -2.9661e-3_dp, 2.8529e-6_dp, -2.1829e-9_dp]
-     PetscReal :: viscosity_B(5) = [3918.9_dp, -35.984_dp, &
-          2.5825e-1_dp, -7.1178e-4_dp, 6.9578e-7_dp]
-     PetscReal :: viscosity_BA(5)
+     type(interpolation_coordinate_type) :: viscosity_coord
    contains
      private
      procedure, public :: init => ncg_co2_init
+     procedure, public :: destroy => ncg_co2_destroy
      procedure, public :: properties => ncg_co2_properties
      procedure, public :: effective_properties => ncg_co2_effective_properties
      procedure, public :: henrys_constant => ncg_co2_henrys_constant
@@ -42,9 +49,20 @@ contains
 
     self%name = "CO2"
     self%molecular_weight = co2_molecular_weight
-    self%viscosity_BA = self%viscosity_B - self%viscosity_A
+    call self%viscosity_coord%init(viscosity_pv)
 
   end subroutine ncg_co2_init
+
+!------------------------------------------------------------------------
+
+  subroutine ncg_co2_destroy(self)
+    !! Destroys CO2 thermodynamics.
+
+    class(ncg_co2_thermodynamics_type), intent(in out) :: self
+
+    call self%viscosity_coord%destroy()
+
+  end subroutine ncg_co2_destroy
 
 !------------------------------------------------------------------------  
 
@@ -156,31 +174,40 @@ contains
   subroutine ncg_co2_viscosity(self, partial_pressure, temperature, &
        viscosity, err)
     !! Calculates viscosity for gas phase given partial pressure and
-    !! temperature.
+    !! temperature. Formulation from Pritchett et al. (1982).
 
     use thermodynamics_module, only: region_type
+    use interpolation_module, only: interpolant_linear
 
-    class(ncg_co2_thermodynamics_type), intent(in) :: self
+    class(ncg_co2_thermodynamics_type), intent(in out) :: self
     PetscReal, intent(in) :: partial_pressure !! CO2 partial pressure
     PetscReal, intent(in) :: temperature !! Temperature
     PetscReal, intent(out):: viscosity !! CO2 viscosity
     PetscInt, intent(out)  :: err !! Error code
     ! Locals:
-    PetscReal :: T2, T3, T4, C(5)
+    PetscInt :: j
+    PetscReal :: tpower, a
 
-    associate(pscale => partial_pressure * 1.0e-7_dp, T => temperature)
-      if (pscale <= 1._dp) then
-         C = self%viscosity_A + pscale * self%viscosity_BA
-         T2 = T * T
-         T3 = T * T2
-         T4 = T2 * T2
-         viscosity = 1.0e-8_dp * (C(1) + C(2) * T + &
-              C(3) * T2 + C(4) * T3 + C(5) * T4)
-         err = 0
-      else
-         err = 1
-      end if
-    end associate
+    if (partial_pressure <= 300.e5_dp) then
+
+       call self%viscosity_coord%find(partial_pressure)
+       tpower = 1._dp
+       viscosity = 0._dp
+
+       do j = 1, 5
+          a = interpolant_linear(self%viscosity_coord%val, &
+               viscosity_av(:, j), partial_pressure, &
+               self%viscosity_coord%index)
+          viscosity = viscosity + a * tpower
+          tpower = tpower * temperature
+       end do
+
+       viscosity = 1.e-8_dp * viscosity
+       err = 0
+
+    else
+       err = 1
+    end if
 
   end subroutine ncg_co2_viscosity
 
@@ -192,7 +219,7 @@ contains
 
     use thermodynamics_module, only: region_type
 
-    class(ncg_co2_thermodynamics_type), intent(in) :: self
+    class(ncg_co2_thermodynamics_type), intent(in out) :: self
     PetscReal, intent(in) :: water_viscosity !! Viscosity of water
     PetscReal, intent(in) :: temperature !! Temperature
     PetscReal, intent(in) :: partial_pressure !! Partial pressure of CO2
