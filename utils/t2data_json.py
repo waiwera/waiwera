@@ -216,6 +216,14 @@ class t2data_export_json(t2data):
                         rp['ssr'] = pars[3]
                     else: rp['sum_unity'] = True
                 jsondata['relative_permeability'] = rp
+            elif self.type == 'AUTOUGH2' and itype == 19:
+                # tri-linear: convert to table
+                rp['type'] = 'table'
+                rp['liquid'] = [[0, 0], [pars[0], pars[4]],
+                                [pars[2], pars[6]], [1, 1]]
+                rp['vapour'] = [[0, 0], [pars[1], 0],
+                                [pars[3], pars[5]], [1,1]]
+                jsondata['relative_permeability'] = rp
             else:
                 raise Exception ('Unhandled relative permeability type: %d' % itype)
         else: jsondata['relative_permeability'] = {'type': 'fully mobile'}
