@@ -148,7 +148,7 @@ contains
 
     use thermodynamics_module, only: region_type
 
-    class(ncg_air_thermodynamics_type), intent(in) :: self
+    class(ncg_air_thermodynamics_type), intent(in out) :: self
     PetscReal, intent(in) :: partial_pressure !! Air partial pressure
     PetscReal, intent(in) :: temperature !! Temperature
     PetscReal, intent(out):: viscosity !! Air viscosity
@@ -180,7 +180,7 @@ contains
     
     use thermodynamics_module
 
-    class(ncg_air_thermodynamics_type), intent(in) :: self
+    class(ncg_air_thermodynamics_type), intent(in out) :: self
     PetscReal, intent(in) :: water_viscosity !! Viscosity of water
     PetscReal, intent(in) :: temperature !! Temperature
     PetscReal, intent(in) :: partial_pressure !! Air partial pressure (not used)

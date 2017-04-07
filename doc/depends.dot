@@ -102,6 +102,7 @@ digraph waiwera{
         mesh_module -> utils_module
         ncg_air_thermodynamics_module -> ncg_thermodynamics_module
         ncg_air_thermodynamics_module -> thermodynamics_module
+        ncg_co2_thermodynamics_module -> interpolation_module
         ncg_co2_thermodynamics_module -> ncg_thermodynamics_module
         ncg_co2_thermodynamics_module -> thermodynamics_module
         ncg_thermodynamics_module -> thermodynamics_module

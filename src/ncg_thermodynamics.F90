@@ -32,6 +32,7 @@ module ncg_thermodynamics_module
      procedure, public :: mass_fraction => ncg_mass_fraction
      procedure, public :: mole_to_mass_fraction => ncg_thermodynamics_mole_to_mass_fraction
      procedure, public :: mass_to_mole_fraction => ncg_thermodynamics_mass_to_mole_fraction
+     procedure, public :: destroy => ncg_thermodynamics_destroy
    end type ncg_thermodynamics_type
 
   abstract interface
@@ -89,7 +90,7 @@ module ncg_thermodynamics_module
        !! Calculate NCG viscosity.
        import :: ncg_thermodynamics_type
        import :: region_type
-       class(ncg_thermodynamics_type), intent(in) :: self 
+       class(ncg_thermodynamics_type), intent(in out) :: self
        PetscReal, intent(in)  :: partial_pressure
        PetscReal, intent(in)  :: temperature
        PetscReal, intent(out) :: viscosity
@@ -101,7 +102,7 @@ module ncg_thermodynamics_module
        !! Calculate water-NCG mixture viscosity for given phase.
        import :: ncg_thermodynamics_type
        import :: region_type
-       class(ncg_thermodynamics_type), intent(in) :: self
+       class(ncg_thermodynamics_type), intent(in out) :: self
        PetscReal, intent(in)  :: water_viscosity
        PetscReal, intent(in)  :: temperature
        PetscReal, intent(in)  :: partial_pressure
@@ -201,6 +202,17 @@ contains
     end if
 
   end subroutine ncg_mass_fraction
+
+!------------------------------------------------------------------------
+
+  subroutine ncg_thermodynamics_destroy(self)
+    !! Destroys NCG thermodynamics. Dummy routine to be overridden by
+    !! derived types.
+    class(ncg_thermodynamics_type), intent(in out) :: self
+
+    continue
+
+  end subroutine ncg_thermodynamics_destroy
 
 !------------------------------------------------------------------------
 
