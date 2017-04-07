@@ -111,7 +111,7 @@ module interpolation_module
   end interface
 
   public :: interpolation_type_from_str, averaging_type_from_str, &
-       ramp_interpolate
+       ramp_interpolate, interpolant_linear, interpolant_step
 
 contains
 
