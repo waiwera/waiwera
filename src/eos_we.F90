@@ -70,6 +70,7 @@ contains
     class(*), pointer :: pinterp
     PetscReal, parameter :: default_pressure = 1.0e5_dp
     PetscReal, parameter :: default_temperature = 20._dp ! deg C
+    PetscReal, parameter :: pscale = 1.e6_dp, tscale = 1.e2_dp
 
     self%name = "we"
     self%description = "Pure water and energy"
@@ -83,6 +84,11 @@ contains
     self%component_names = ["water"]
 
     self%default_primary = [default_pressure, default_temperature]
+    self%primary_scale = reshape([ &
+         pscale, tscale, &
+         pscale, tscale, &
+         0._dp, 0._dp, &
+         pscale, tscale], [2, 4])
     self%default_region = 1
 
     self%thermo => thermo

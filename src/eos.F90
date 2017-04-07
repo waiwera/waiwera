@@ -51,6 +51,7 @@ module eos_module
      PetscInt, public :: num_phases !! Number of possible phases
      PetscInt, public :: num_components !! Number of mass components
      PetscReal, allocatable, public :: default_primary(:) !! Default primary variable values
+     PetscReal, allocatable, public :: primary_scale(:,:) !! Scale factors for non-dimensionalising primary variables, indexed by variable and region
      PetscInt, public :: default_region !! Default thermodynamic region
      class(thermodynamics_type), pointer, public :: thermo !! Thermodynamic formulation
      PetscBool, public :: isothermal = PETSC_FALSE !! Whether the EOS is restricted to isothermal fluid conditions
@@ -235,6 +236,7 @@ contains
     deallocate(self%primary_variable_names)
     deallocate(self%phase_names, self%component_names)
     deallocate(self%default_primary)
+    deallocate(self%primary_scale)
     self%thermo => null()
 
   end subroutine eos_destroy
