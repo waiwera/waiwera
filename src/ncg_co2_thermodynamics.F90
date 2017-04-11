@@ -31,7 +31,6 @@ module ncg_co2_thermodynamics_module
      procedure, public :: init => ncg_co2_init
      procedure, public :: destroy => ncg_co2_destroy
      procedure, public :: properties => ncg_co2_properties
-     procedure, public :: effective_properties => ncg_co2_effective_properties
      procedure, public :: henrys_constant => ncg_co2_henrys_constant
      procedure, public :: energy_solution => ncg_co2_energy_solution
      procedure, public :: viscosity => ncg_co2_viscosity
@@ -96,28 +95,6 @@ contains
     end associate
 
   end subroutine ncg_co2_properties
-
-!------------------------------------------------------------------------
-
-  subroutine ncg_co2_effective_properties(self, props, phase, &
-       effective_props)
-    !! Returns effective CO2 NCG properties for specified phase.
-    !! CO2 density is treated as effectively zero in the liquid phase.
-
-    class(ncg_co2_thermodynamics_type), intent(in) :: self
-    PetscReal, intent(in) :: props(:) !! CO2 NCG properties (density, enthalpy)
-    PetscInt, intent(in) :: phase !! Phase index
-    PetscReal, intent(out) :: effective_props(:) !! Effective NCG properties
-
-    effective_props = props
-
-    if (phase == 1) then
-       associate(co2_density => effective_props(1))
-         co2_density = 0._dp
-       end associate
-    end if
-
-  end subroutine ncg_co2_effective_properties
 
 !------------------------------------------------------------------------
 
