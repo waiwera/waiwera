@@ -381,7 +381,8 @@ contains
     PetscErrorCode, intent(out) :: err !! Error code
     ! Locals:
     PetscInt :: p, phases
-    PetscReal :: water_properties(2), water_viscosity, sl, xg
+    PetscReal :: sl, xg
+    PetscReal :: water_properties(2), water_viscosity, water_enthalpy
     PetscReal :: relative_permeability(2), capillary_pressure(2)
     PetscReal :: water_pressure(2), energy_solution(2)
     PetscReal :: gas_properties(2), effective_gas_properties(2)
@@ -446,8 +447,9 @@ contains
                                phase%mass_fraction = [1._dp - xg, xg]
                                phase%relative_permeability = relative_permeability(p)
                                phase%capillary_pressure =  capillary_pressure(p)
-                               phase%specific_enthalpy = (water_internal_energy &
-                                    + water_pressure(p) / water_density) * (1._dp - xg) &
+                               water_enthalpy = water_internal_energy &
+                                    + water_pressure(p) / water_density
+                               phase%specific_enthalpy = water_enthalpy * (1._dp - xg) &
                                     + (gas_enthalpy + energy_solution(p)) * xg
                                phase%internal_energy = phase%specific_enthalpy &
                                     - fluid%pressure / phase%density
