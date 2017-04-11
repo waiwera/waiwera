@@ -23,7 +23,6 @@ module ncg_thermodynamics_module
      private
      procedure(ncg_init_procedure), public, deferred :: init
      procedure(ncg_properties_procedure), public, deferred :: properties
-     procedure(ncg_effective_properties_procedure), public, deferred :: effective_properties
      procedure(ncg_henrys_constant_procedure), public, deferred :: henrys_constant
      procedure(ncg_energy_solution_procedure), public, deferred :: energy_solution
      procedure(ncg_viscosity_procedure), public, deferred :: viscosity
@@ -32,6 +31,7 @@ module ncg_thermodynamics_module
      procedure, public :: mass_fraction => ncg_mass_fraction
      procedure, public :: mole_to_mass_fraction => ncg_thermodynamics_mole_to_mass_fraction
      procedure, public :: mass_to_mole_fraction => ncg_thermodynamics_mass_to_mole_fraction
+     procedure, public :: effective_properties => ncg_effective_properties
      procedure, public :: destroy => ncg_thermodynamics_destroy
    end type ncg_thermodynamics_type
 
@@ -53,16 +53,6 @@ module ncg_thermodynamics_module
        PetscReal, intent(out) :: props(:)
        PetscErrorCode, intent(out) :: err
      end subroutine ncg_properties_procedure
-
-     subroutine ncg_effective_properties_procedure(self, props, phase, &
-          effective_props)
-       !! Return effective NCG fluid properties for the specified phase.
-       import :: ncg_thermodynamics_type
-       class(ncg_thermodynamics_type), intent(in) :: self
-       PetscReal, intent(in) :: props(:)
-       PetscInt, intent(in) :: phase
-       PetscReal, intent(out) :: effective_props(:)
-     end subroutine ncg_effective_properties_procedure
 
      subroutine ncg_henrys_constant_procedure(self, temperature, &
           henrys_constant, err)
@@ -202,6 +192,28 @@ contains
     end if
 
   end subroutine ncg_mass_fraction
+
+!------------------------------------------------------------------------
+
+  subroutine ncg_effective_properties(self, props, phase, &
+       effective_props)
+    !! Returns effective NCG properties for specified phase.
+    !! NCG density is treated as effectively zero in the liquid phase.
+
+    class(ncg_thermodynamics_type), intent(in) :: self
+    PetscReal, intent(in) :: props(:) !! NCG properties (density, enthalpy)
+    PetscInt, intent(in) :: phase !! Phase index
+    PetscReal, intent(out) :: effective_props(:) !! Effective properties
+
+    effective_props = props
+
+    if (phase == 1) then
+       associate(ncg_density => effective_props(1))
+         ncg_density = 0._dp
+       end associate
+    end if
+
+  end subroutine ncg_effective_properties
 
 !------------------------------------------------------------------------
 
