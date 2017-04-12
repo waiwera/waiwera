@@ -317,7 +317,7 @@ contains
     PetscReal, intent(in) :: sl !! Liquid saturation
     PetscReal, intent(in) :: t  !! Temperature
 
-    cp = self%pressure%interpolate(sl)
+    cp = self%pressure%interpolate(sl, 1)
 
   end function capillary_pressure_table_value
 

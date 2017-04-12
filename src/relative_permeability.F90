@@ -522,8 +522,8 @@ contains
     PetscReal, intent(in) :: sl !! Liquid saturation
     PetscReal, dimension(2) :: rp !! Relative permeabilities
 
-    rp(1) = self%liquid%interpolate(sl)
-    rp(2) = self%vapour%interpolate(1._dp - sl)
+    rp(1) = self%liquid%interpolate(sl, 1)
+    rp(2) = self%vapour%interpolate(1._dp - sl, 1)
 
   end function relative_permeability_table_values
 

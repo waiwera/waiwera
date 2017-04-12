@@ -16,12 +16,18 @@ module interpolation_test
        0._dp, 2.1_dp, 3.7_dp,  6.3_dp,  8.9_dp, &
        1._dp, 2.0_dp, 0.5_dp, -1.1_dp, -0.1_dp], &
        [5,2])
+  PetscReal, dimension(3, 4), parameter :: data3 = reshape([&
+       0._dp, 1._dp, 2._dp, &
+       1._dp, 2._dp, 3._dp, &
+       2._dp, 3._dp, 4._dp, &
+       3._dp, 4._dp, 5._dp], &
+       [3, 4])
   PetscReal, parameter :: tol = 1.e-9_dp
 
   public :: test_interpolation_linear, test_interpolation_single, &
        test_interpolation_step, test_average_linear, test_average_step, &
        test_average_linear_integration, test_array_interpolator, &
-       test_ramp_interpolate
+       test_ramp_interpolate,  test_interpolation_linear_array
 
 contains
 
@@ -39,26 +45,27 @@ contains
     if (rank == 0) then
 
        call table%init(data5) ! default linear interpolation
+       call assert_equals(1, table%dim, "dim")
 
-       call assert_equals(1._dp, table%interpolate(-0.5_dp), tol, "-0.5")
+       call assert_equals(1._dp, table%interpolate(-0.5_dp, 1), tol, "-0.5")
        call assert_equals(0, table%coord%index, "-0.5 index")
 
-       call assert_equals(1._dp, table%interpolate(0.0_dp), tol, "0.0")
+       call assert_equals(1._dp, table%interpolate(0.0_dp, 1), tol, "0.0")
        call assert_equals(0, table%coord%index, "0.0 index")
 
-       call assert_equals(1.4761904761904763_dp, table%interpolate(1.0_dp), tol, "1.0")
+       call assert_equals(1.4761904761904763_dp, table%interpolate(1.0_dp, 1), tol, "1.0")
        call assert_equals(1, table%coord%index, "1.0 index")
 
-       call assert_equals(0.007692307692307665_dp, table%interpolate(4.5_dp), tol, "4.5")
+       call assert_equals(0.007692307692307665_dp, table%interpolate(4.5_dp, 1), tol, "4.5")
        call assert_equals(3, table%coord%index, "4.5 index")
 
-       call assert_equals(0.59375_dp, table%interpolate(3.6_dp), tol, "3.6")
+       call assert_equals(0.59375_dp, table%interpolate(3.6_dp, 1), tol, "3.6")
        call assert_equals(2, table%coord%index, "3.6 index")
 
-       call assert_equals(-1.1_dp, table%interpolate(6.3_dp), tol, "6.3")
+       call assert_equals(-1.1_dp, table%interpolate(6.3_dp, 1), tol, "6.3")
        call assert_equals(4, table%coord%index, "6.3 index")
 
-       call assert_equals(-0.1_dp, table%interpolate(10.0_dp), tol, "10.0")
+       call assert_equals(-0.1_dp, table%interpolate(10.0_dp, 1), tol, "10.0")
        call assert_equals(5, table%coord%index, "10.0 index")
 
        call table%destroy()
@@ -84,11 +91,11 @@ contains
 
        call table%init(data1)
 
-       call assert_equals(2._dp, table%interpolate(-0.5_dp), tol, "-0.5")
+       call assert_equals(2._dp, table%interpolate(-0.5_dp, 1), tol, "-0.5")
 
-       call assert_equals(2._dp, table%interpolate(0.0_dp), tol, "0.0")
+       call assert_equals(2._dp, table%interpolate(0.0_dp, 1), tol, "0.0")
 
-       call assert_equals(2._dp, table%interpolate(1.1_dp), tol, "1.1")
+       call assert_equals(2._dp, table%interpolate(1.1_dp, 1), tol, "1.1")
 
        call table%destroy()
     end if
@@ -110,19 +117,19 @@ contains
 
        call table%init(data5, INTERP_STEP)
 
-       call assert_equals(1._dp, table%interpolate(-0.5_dp), tol, "-0.5")
+       call assert_equals(1._dp, table%interpolate(-0.5_dp, 1), tol, "-0.5")
 
-       call assert_equals(1._dp, table%interpolate(0.0_dp), tol, "0.0")
+       call assert_equals(1._dp, table%interpolate(0.0_dp, 1), tol, "0.0")
 
-       call assert_equals(1._dp, table%interpolate(1.0_dp), tol, "1.0")
+       call assert_equals(1._dp, table%interpolate(1.0_dp, 1), tol, "1.0")
 
-       call assert_equals(0.5_dp, table%interpolate(4.5_dp), tol, "4.5")
+       call assert_equals(0.5_dp, table%interpolate(4.5_dp, 1), tol, "4.5")
 
-       call assert_equals(2.0_dp, table%interpolate(3.6_dp), tol, "3.6")
+       call assert_equals(2.0_dp, table%interpolate(3.6_dp, 1), tol, "3.6")
 
-       call assert_equals(-1.1_dp, table%interpolate(6.3_dp), tol, "6.3")
+       call assert_equals(-1.1_dp, table%interpolate(6.3_dp, 1), tol, "6.3")
 
-       call assert_equals(-0.1_dp, table%interpolate(10.0_dp), tol, "10.0")
+       call assert_equals(-0.1_dp, table%interpolate(10.0_dp, 1), tol, "10.0")
 
        call table%destroy()
 
@@ -146,20 +153,20 @@ contains
 
        call table%init(data5)
 
-       call assert_equals(1._dp, table%average([-0.5_dp, -0.1_dp]), tol, "[-0.5, -0.1]")
+       call assert_equals(1._dp, table%average([-0.5_dp, -0.1_dp], 1), tol, "[-0.5, -0.1]")
 
-       call assert_equals(1.0238095238095237_dp, table%average([-0.5_dp, 0.1_dp]), &
+       call assert_equals(1.0238095238095237_dp, table%average([-0.5_dp, 0.1_dp], 1), &
             tol, "[-0.5, 0.1]")
 
-       call assert_equals(1.5_dp, table%average([0.1_dp, 2._dp]), tol, "[0.1, 2.]")
+       call assert_equals(1.5_dp, table%average([0.1_dp, 2._dp], 1), tol, "[0.1, 2.]")
 
-       call assert_equals(1.1019345238095237_dp, table%average([0.1_dp, 3._dp]), tol, "[0.1, 3.]")
+       call assert_equals(1.1019345238095237_dp, table%average([0.1_dp, 3._dp], 1), tol, "[0.1, 3.]")
 
-       call assert_equals(0.11586538461538454_dp, table%average([3.1_dp, 7._dp]), tol, "[3.1, 7.]")
+       call assert_equals(0.11586538461538454_dp, table%average([3.1_dp, 7._dp], 1), tol, "[3.1, 7.]")
 
-       call assert_equals(-0.27307692307692316_dp, table%average([8._dp, 12._dp]), tol, "[8., 12.]")
+       call assert_equals(-0.27307692307692316_dp, table%average([8._dp, 12._dp], 1), tol, "[8., 12.]")
 
-       call assert_equals(1.4761904761904763_dp, table%average([1._dp, 1._dp]), tol, "[1., 1.]")
+       call assert_equals(1.4761904761904763_dp, table%average([1._dp, 1._dp], 1), tol, "[1., 1.]")
 
        call table%destroy()
 
@@ -183,19 +190,19 @@ contains
 
        call table%init(data5, INTERP_STEP)
 
-       call assert_equals(1._dp, table%average([-0.5_dp, -0.1_dp]), tol, "[-0.5, -0.1]")
+       call assert_equals(1._dp, table%average([-0.5_dp, -0.1_dp], 1), tol, "[-0.5, -0.1]")
 
-       call assert_equals(1._dp, table%average([-0.5_dp, 0.1_dp]), tol, "[-0.5, 0.1]")
+       call assert_equals(1._dp, table%average([-0.5_dp, 0.1_dp], 1), tol, "[-0.5, 0.1]")
 
-       call assert_equals(1._dp, table%average([0.1_dp, 2._dp]), tol, "[0.1, 2.]")
+       call assert_equals(1._dp, table%average([0.1_dp, 2._dp], 1), tol, "[0.1, 2.]")
 
-       call assert_equals(1.5_dp, table%average([0.1_dp, 3._dp]), tol, "[0.1, 3.]")
+       call assert_equals(1.5_dp, table%average([0.1_dp, 3._dp], 1), tol, "[0.1, 3.]")
 
-       call assert_equals(0.45_dp, table%average([3.1_dp, 7._dp]), tol, "[3.1, 7.]")
+       call assert_equals(0.45_dp, table%average([3.1_dp, 7._dp], 1), tol, "[3.1, 7.]")
 
-       call assert_equals(-0.6_dp, table%average([8._dp, 12._dp]), tol, "[8., 12.]")
+       call assert_equals(-0.6_dp, table%average([8._dp, 12._dp], 1), tol, "[8., 12.]")
 
-       call assert_equals(1._dp, table%average([1._dp, 1._dp]), tol, "[1., 1.]")
+       call assert_equals(1._dp, table%average([1._dp, 1._dp], 1), tol, "[1., 1.]")
 
        call table%destroy()
 
@@ -218,21 +225,22 @@ contains
 
        call table%init(data5, INTERP_LINEAR, INTERP_AVERAGING_INTEGRATE)
 
-       call assert_equals(1._dp, table%average([-0.5_dp, -0.1_dp]), tol, "[-0.5, -0.1]")
+       call assert_equals(1._dp, table%average([-0.5_dp, -0.1_dp], 1), tol, "[-0.5, -0.1]")
 
-       call assert_equals(1.003968253968254_dp, table%average([-0.5_dp, 0.1_dp]), tol, "[-0.5, 0.1]")
+       call assert_equals(1.003968253968254_dp, table%average([-0.5_dp, 0.1_dp], &
+            1), tol, "[-0.5, 0.1]")
 
-       call assert_equals(1.5_dp, table%average([0.1_dp, 2._dp]), tol, "[0.1, 2.]")
+       call assert_equals(1.5_dp, table%average([0.1_dp, 2._dp], 1), tol, "[0.1, 2.]")
 
-       call assert_equals(1.5406660509031198_dp, table%average([0.1_dp, 3._dp]), tol, "[0.1, 3.]")
+       call assert_equals(1.5406660509031198_dp, table%average([0.1_dp, 3._dp], 1), tol, "[0.1, 3.]")
 
-       call assert_equals(-0.2530818540433925_dp, table%average([3.1_dp, 7._dp]), tol, "[3.1, 7.]")
+       call assert_equals(-0.2530818540433925_dp, table%average([3.1_dp, 7._dp], 1), tol, "[3.1, 7.]")
 
-       call assert_equals(-0.1389423076923077_dp, table%average([8._dp, 12._dp]), tol, "[8., 12.]")
+       call assert_equals(-0.1389423076923077_dp, table%average([8._dp, 12._dp], 1), tol, "[8., 12.]")
 
-       call assert_equals(-0.1_dp, table%average([9._dp, 12._dp]), tol, "[9., 12.]")
+       call assert_equals(-0.1_dp, table%average([9._dp, 12._dp], 1), tol, "[9., 12.]")
 
-       call assert_equals(1.4761904761904763_dp, table%average([1._dp, 1._dp]), tol, "[1., 1.]")
+       call assert_equals(1.4761904761904763_dp, table%average([1._dp, 1._dp], 1), tol, "[1., 1.]")
 
        call table%destroy()
 
@@ -306,6 +314,36 @@ contains
     end if
 
   end subroutine test_ramp_interpolate
+
+!------------------------------------------------------------------------
+
+  subroutine test_interpolation_linear_array
+    ! Array interpolation
+
+    type(interpolation_table_type) :: table
+    PetscMPIInt :: rank
+    PetscInt :: ierr
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
+
+       call table%init(data3)
+       call assert_equals(3, table%dim, "dim")
+
+       call assert_equals([1._dp, 2._dp, 3._dp], table%interpolate(0._dp), 3, tol, "0")
+       call assert_equals(0, table%coord%index, "0 index")
+
+       call assert_equals([1.5_dp, 2.5_dp, 3.5_dp], table%interpolate(0.5_dp), 3, tol, "0.5")
+       call assert_equals(1, table%coord%index, "0.5 index")
+
+       call assert_equals([2.5_dp, 3.5_dp, 4.5_dp], table%interpolate(1.5_dp), 3, tol, "1.5")
+       call assert_equals(2, table%coord%index, "1.5 index")
+
+       call table%destroy()
+
+    end if
+
+  end subroutine test_interpolation_linear_array
 
 !------------------------------------------------------------------------
 
