@@ -147,8 +147,8 @@ contains
 
     if (rank == 0) then
 
-       do ip = 1, 4
-          do it = 1, 4
+       do ip = 1, 6
+          do it = 1, 5
              call gas%viscosity(pc(ip), t(it), visc, err)
              write(s, '(a, e8.3, a, f6.2)') 'p = ', &
                   pc(ip), ', t = ', t(it)
