@@ -70,6 +70,8 @@ module interpolation_module
      procedure, public :: set_averaging_type => interpolation_table_set_averaging_type
      procedure, public :: destroy => interpolation_table_destroy
      procedure, public :: interpolate_at_index => interpolation_table_interpolate_at_index
+     procedure, public :: interpolate_component_at_index => &
+          interpolation_table_interpolate_component_at_index
      procedure, public :: interpolation_table_interpolate
      procedure, public :: interpolation_table_interpolate_component
      generic, public :: interpolate => interpolation_table_interpolate, &
@@ -388,6 +390,25 @@ contains
 
 !------------------------------------------------------------------------
 
+  function interpolation_table_interpolate_component_at_index( &
+       self, x, component) result(yi)
+    !! Returns interpolated y value component for the given x, using
+    !! the current coordinate index.
+
+    class(interpolation_table_type), intent(in out) :: self
+    PetscReal, intent(in) :: x !! x value to interpolate at
+    PetscInt, intent(in) :: component !! Component to interpolate
+    PetscReal :: yi
+    ! Locals:
+    PetscReal :: y(self%dim)
+
+    y = self%interpolate_at_index(x)
+    yi = y(component)
+
+  end function interpolation_table_interpolate_component_at_index
+
+!------------------------------------------------------------------------
+
   function interpolation_table_interpolate(self, x) result(y)
     !! Returns interpolated y value for the given x.
 
@@ -402,19 +423,17 @@ contains
 
 !------------------------------------------------------------------------
 
-  function interpolation_table_interpolate_component(self, x, index) result(yi)
+  function interpolation_table_interpolate_component(self, x, &
+       component) result(yi)
     !! Returns interpolated y value for the given x.
 
     class(interpolation_table_type), intent(in out) :: self
     PetscReal, intent(in) :: x !! x value to interpolate at
-    PetscInt, intent(in) :: index !! Component to interpolate
+    PetscInt, intent(in) :: component !! Component to interpolate
     PetscReal :: yi
-    ! Locals:
-    PetscReal :: y(self%dim)
 
     call self%coord%find(x)
-    y = self%interpolate_at_index(x)
-    yi = y(index)
+    yi = self%interpolate_component_at_index(x, component)
 
   end function interpolation_table_interpolate_component
 
