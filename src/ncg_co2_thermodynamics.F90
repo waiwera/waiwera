@@ -13,7 +13,7 @@ module ncg_co2_thermodynamics_module
 
   PetscReal, parameter, public :: co2_molecular_weight = 44.01_dp ! g/mol
   PetscReal, parameter :: viscosity_data(5, 6) = reshape([ &
-       0._dp, 100.e5_dp, 150.e5_dp, 200.e5_dp, 250.e5_dp, 300.e5_dp, &
+       0._dp, 100.e5_dp, 150.e5_dp, 200.e5_dp, 300.e5_dp, &
        1357.8_dp, 3918.9_dp, 9660.7_dp, 1.31566e4_dp, 1.47968e4_dp, &
        4.9227_dp, -35.984_dp, -135.479_dp, -179.352_dp, -160.731_dp, &
        -2.9661e-3_dp, 0.25825_dp, 0.90087_dp, 1.12474_dp, 0.850257_dp, &
@@ -48,7 +48,7 @@ contains
 
     self%name = "CO2"
     self%molecular_weight = co2_molecular_weight
-    call self%viscosity_table%init(transpose(viscosity_data))
+    call self%viscosity_table%init(viscosity_data)
 
   end subroutine ncg_co2_init
 
