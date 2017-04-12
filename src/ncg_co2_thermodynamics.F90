@@ -183,23 +183,15 @@ contains
     PetscReal, intent(out):: viscosity !! CO2 viscosity
     PetscInt, intent(out)  :: err !! Error code
     ! Locals:
-    PetscInt :: j
-    PetscReal :: tpower, a(5)
+    PetscReal :: a(5)
 
     if (partial_pressure <= 300.e5_dp) then
-
        a = self%viscosity_table%interpolate(partial_pressure)
-       tpower = 1._dp
-       viscosity = 0._dp
-
-       do j = 1, 5
-          viscosity = viscosity + a(j) * tpower
-          tpower = tpower * temperature
-       end do
-
+       associate(t => temperature)
+         viscosity = a(1) + t * (a(2) + t * (a(3) + t * (a(4) + t * a(5))))
+       end associate
        viscosity = 1.e-8_dp * viscosity
        err = 0
-
     else
        err = 1
     end if
