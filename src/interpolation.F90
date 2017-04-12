@@ -57,6 +57,7 @@ module interpolation_module
      PetscInt, public :: interpolation_type !! Interpolation type
      PetscInt, public :: averaging_type !! Averaging type
      procedure(interpolation_function), pointer, nopass, public :: interpolant
+     procedure(inverse_interpolation_function), pointer, nopass, public :: inverse_interpolant
      procedure(averaging_function), pointer, public :: average_array_internal
    contains
      private
@@ -76,6 +77,8 @@ module interpolation_module
      procedure, public :: interpolation_table_interpolate_component
      generic, public :: interpolate => interpolation_table_interpolate, &
           interpolation_table_interpolate_component
+     procedure, public :: find_component_at_index => &
+          interpolation_table_find_component_at_index
      procedure :: interpolation_table_average_endpoint
      procedure :: interpolation_table_average_integrate
      procedure :: average_array => interpolation_table_average_array
@@ -110,6 +113,16 @@ module interpolation_module
        PetscReal :: interpolation_function(dim)
      end function interpolation_function
 
+     subroutine inverse_interpolation_function(coord, val, y, index, &
+          component, x, err)
+       !! Routine for inverting interpolation function.
+       PetscReal, intent(in) :: coord(:), val(:,:)
+       PetscReal, intent(in) :: y
+       PetscInt, intent(in) :: index, component
+       PetscReal, intent(out) :: x
+       PetscErrorCode, intent(out) :: err
+     end subroutine inverse_interpolation_function
+
      function averaging_function(self, interval)
        !! Function for averaging data value array over a given x
        !! interval.
@@ -122,7 +135,7 @@ module interpolation_module
   end interface
 
   public :: interpolation_type_from_str, averaging_type_from_str, &
-       ramp_interpolate, interpolant_linear, interpolant_step
+       ramp_interpolate
 
 contains
 
@@ -173,12 +186,39 @@ contains
     PetscInt, intent(in) :: dim, index
     PetscReal :: y(dim)
     ! Locals:
-    PetscReal :: theta
+    PetscReal :: xi
 
-    theta = (x - coord(index)) / (coord(index + 1) - coord(index))
-    y = (1._dp - theta) * val(:, index) + theta * val(:, index + 1)
+    xi = (x - coord(index)) / (coord(index + 1) - coord(index))
+    y = (1._dp - xi) * val(:, index) + xi * val(:, index + 1)
 
   end function interpolant_linear
+
+!------------------------------------------------------------------------
+
+  subroutine inverse_interpolant_linear(coord, val, y, index, &
+       component, x, err)
+    !! Routine for inverting linear interpolation function.
+    PetscReal, intent(in) :: coord(:), val(:,:)
+    PetscReal, intent(in) :: y
+    PetscInt, intent(in) :: index, component
+    PetscReal, intent(out) :: x
+    PetscErrorCode, intent(out) :: err
+    ! Locals:
+    PetscReal :: d, xi
+    PetscReal, parameter :: tol = 1.e-8_dp
+
+    err = 0
+
+    d = val(component, index + 1) - val(component, index)
+
+    if (abs(d) >= tol) then
+       xi = (y - val(component, index)) / d
+       x = (1._dp - xi) * coord(index) + xi * coord(index + 1)
+    else
+       err = 1
+    end if
+
+  end subroutine inverse_interpolant_linear
 
 !------------------------------------------------------------------------
 
@@ -194,6 +234,22 @@ contains
     y = val(:, index)
 
   end function interpolant_step
+
+!------------------------------------------------------------------------
+
+  subroutine inverse_interpolant_step(coord, val, y, index, &
+       component, x, err)
+    !! Dummy routine for inverting step interpolation function (which
+    !! is not invertible).
+    PetscReal, intent(in) :: coord(:), val(:,:)
+    PetscReal, intent(in) :: y
+    PetscInt, intent(in) :: index, component
+    PetscReal, intent(out) :: x
+    PetscErrorCode, intent(out) :: err
+
+    err = 1
+
+  end subroutine inverse_interpolant_step
 
 !------------------------------------------------------------------------
 ! interpolation_coordinate_type:
@@ -326,10 +382,13 @@ contains
     select case (interpolation_type)
     case (INTERP_LINEAR)
        self%interpolant => interpolant_linear
+       self%inverse_interpolant => inverse_interpolant_linear
     case (INTERP_STEP)
        self%interpolant => interpolant_step
+       self%inverse_interpolant => inverse_interpolant_step
     case default
        self%interpolant => interpolant_linear
+       self%inverse_interpolant => inverse_interpolant_linear
     end select
 
   end subroutine interpolation_table_set_interpolation_type
@@ -436,6 +495,29 @@ contains
     yi = self%interpolate_component_at_index(x, component)
 
   end function interpolation_table_interpolate_component
+
+!------------------------------------------------------------------------
+
+  subroutine interpolation_table_find_component_at_index(self, &
+       yi, component, x, err)
+    !! At current index, finds x value corresponding to the given
+    !! value yi of the specified component of y.
+
+    class(interpolation_table_type), intent(in out) :: self
+    PetscReal, intent(in) :: yi
+    PetscInt, intent(in) :: component
+    PetscReal, intent(out) :: x
+    PetscErrorCode, intent(out) :: err
+
+    if ((self%coord%index <= 0) .or. &
+         (self%coord%index >= self%coord%size)) then
+       err = 1
+    else
+       call self%inverse_interpolant(self%coord%val, self%val, &
+            yi, self%coord%index, component, x, err)
+    end if
+
+  end subroutine interpolation_table_find_component_at_index
 
 !------------------------------------------------------------------------
 

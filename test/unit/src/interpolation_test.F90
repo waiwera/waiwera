@@ -27,7 +27,8 @@ module interpolation_test
   public :: test_interpolation_linear, test_interpolation_single, &
        test_interpolation_step, test_average_linear, test_average_step, &
        test_average_linear_integration, test_array_interpolator, &
-       test_ramp_interpolate,  test_interpolation_linear_array
+       test_ramp_interpolate,  test_interpolation_linear_array, &
+       test_find
 
 contains
 
@@ -344,6 +345,40 @@ contains
     end if
 
   end subroutine test_interpolation_linear_array
+
+!------------------------------------------------------------------------
+
+  subroutine test_find
+    ! Find_component_at_index()
+
+    type(interpolation_table_type) :: table
+    PetscMPIInt :: rank
+    PetscInt :: ierr
+    PetscReal :: x
+    PetscErrorCode :: err
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
+
+       call table%init(data3)
+
+       call table%find_component_at_index(1.5_dp, 1, x, err)
+       call assert_equals(0.5_dp, x, tol, "component 1 = 1.5")
+       call assert_equals(0, err, "component 1 = 1.5 error")
+
+       call table%find_component_at_index(3.75_dp, 3, x, err)
+       call assert_equals(0.75_dp, x, tol, "component 3 = 3.75")
+       call assert_equals(0, err, "component 3 = 3.75 error")
+
+       call table%find_component_at_index(0._dp, 1, x, err)
+       call assert_equals(0, err, "component 1 = 0 error")
+       
+       call table%destroy()
+
+    end if
+    
+
+  end subroutine test_find
 
 !------------------------------------------------------------------------
 
