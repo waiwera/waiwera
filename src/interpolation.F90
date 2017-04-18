@@ -236,22 +236,6 @@ contains
   end function interpolant_step
 
 !------------------------------------------------------------------------
-
-  subroutine inverse_interpolant_step(coord, val, y, index, &
-       component, x, err)
-    !! Dummy routine for inverting step interpolation function (which
-    !! is not invertible).
-    PetscReal, intent(in) :: coord(:), val(:,:)
-    PetscReal, intent(in) :: y
-    PetscInt, intent(in) :: index, component
-    PetscReal, intent(out) :: x
-    PetscErrorCode, intent(out) :: err
-
-    err = 1
-
-  end subroutine inverse_interpolant_step
-
-!------------------------------------------------------------------------
 ! interpolation_coordinate_type:
 !------------------------------------------------------------------------
 
@@ -385,7 +369,7 @@ contains
        self%inverse_interpolant => inverse_interpolant_linear
     case (INTERP_STEP)
        self%interpolant => interpolant_step
-       self%inverse_interpolant => inverse_interpolant_step
+       self%inverse_interpolant => null()
     case default
        self%interpolant => interpolant_linear
        self%inverse_interpolant => inverse_interpolant_linear
