@@ -6,26 +6,25 @@ module ncg_co2_thermodynamics_module
   use petscsys
   use kinds_module
   use ncg_thermodynamics_module
-  use interpolation_module, only: interpolation_coordinate_type
+  use interpolation_module, only: interpolation_table_type
 
   implicit none
   private
 
   PetscReal, parameter, public :: co2_molecular_weight = 44.01_dp ! g/mol
-  PetscReal, parameter :: viscosity_av(5, 5) = reshape([ &
+  PetscReal, parameter :: viscosity_data(5, 6) = reshape([ &
+       0._dp, 100.e5_dp, 150.e5_dp, 200.e5_dp, 300.e5_dp, &
        1357.8_dp, 3918.9_dp, 9660.7_dp, 1.31566e4_dp, 1.47968e4_dp, &
        4.9227_dp, -35.984_dp, -135.479_dp, -179.352_dp, -160.731_dp, &
        -2.9661e-3_dp, 0.25825_dp, 0.90087_dp, 1.12474_dp, 0.850257_dp, &
        2.8529e-6_dp, -7.1178e-4_dp, -2.4727e-3_dp, -2.98864e-3_dp, -1.99076e-3_dp, &
        -2.1829e-9_dp, 6.9578e-7_dp, 2.4156e-6_dp, 2.85911e-6_dp, 1.73423e-6_dp], &
-       [5, 5])
-  PetscReal, parameter:: viscosity_pv(5) = [0._dp, 100.e5_dp, 150.e5_dp, &
-       200.e5_dp, 300.e5_dp]
+       [5, 6])
 
   type, public, extends(ncg_thermodynamics_type) :: ncg_co2_thermodynamics_type
      !! Type for CO2 NCG thermodynamics.
      private
-     type(interpolation_coordinate_type) :: viscosity_coord
+     type(interpolation_table_type) :: viscosity_table
    contains
      private
      procedure, public :: init => ncg_co2_init
@@ -49,7 +48,7 @@ contains
 
     self%name = "CO2"
     self%molecular_weight = co2_molecular_weight
-    call self%viscosity_coord%init(viscosity_pv)
+    call self%viscosity_table%init(viscosity_data)
 
   end subroutine ncg_co2_init
 
@@ -60,7 +59,7 @@ contains
 
     class(ncg_co2_thermodynamics_type), intent(in out) :: self
 
-    call self%viscosity_coord%destroy()
+    call self%viscosity_table%destroy()
 
   end subroutine ncg_co2_destroy
 
@@ -177,7 +176,6 @@ contains
     !! temperature. Formulation from Pritchett et al. (1982).
 
     use thermodynamics_module, only: region_type
-    use interpolation_module, only: interpolant_linear
 
     class(ncg_co2_thermodynamics_type), intent(in out) :: self
     PetscReal, intent(in) :: partial_pressure !! CO2 partial pressure
@@ -185,26 +183,15 @@ contains
     PetscReal, intent(out):: viscosity !! CO2 viscosity
     PetscInt, intent(out)  :: err !! Error code
     ! Locals:
-    PetscInt :: j
-    PetscReal :: tpower, a
+    PetscReal :: a(5)
 
     if (partial_pressure <= 300.e5_dp) then
-
-       call self%viscosity_coord%find(partial_pressure)
-       tpower = 1._dp
-       viscosity = 0._dp
-
-       do j = 1, 5
-          a = interpolant_linear(self%viscosity_coord%val, &
-               viscosity_av(:, j), partial_pressure, &
-               self%viscosity_coord%index)
-          viscosity = viscosity + a * tpower
-          tpower = tpower * temperature
-       end do
-
+       a = self%viscosity_table%interpolate(partial_pressure)
+       associate(t => temperature)
+         viscosity = a(1) + t * (a(2) + t * (a(3) + t * (a(4) + t * a(5))))
+       end associate
        viscosity = 1.e-8_dp * viscosity
        err = 0
-
     else
        err = 1
     end if

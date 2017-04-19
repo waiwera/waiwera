@@ -69,7 +69,7 @@ module eos_module
      procedure, public :: component_index => eos_component_index
   end type eos_type
 
-  type, public, extends(array_interpolator_type) :: primary_variable_interpolator_type
+  type, public, extends(interpolation_table_type) :: primary_variable_interpolator_type
      !! Interpolator for primary variable arrays, including
      !! thermodynamics object for when interpolator is used as a context
      !! for root finding.
@@ -250,7 +250,7 @@ contains
 
     class(primary_variable_interpolator_type), intent(in out) :: self
 
-    call self%array_interpolator_type%destroy()
+    call self%interpolation_table_type%destroy()
     self%thermo => null()
 
   end subroutine primary_variable_interpolator_destroy

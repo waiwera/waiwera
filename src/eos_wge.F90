@@ -52,6 +52,7 @@ contains
     ! Locals:
     procedure(root_finder_function), pointer :: f
     class(*), pointer :: pinterp
+    PetscReal, allocatable :: data(:, :)
     PetscReal, parameter :: default_pressure = 1.0e5_dp
     PetscReal, parameter :: default_temperature = 20._dp ! deg C
     PetscReal, parameter :: default_gas_partial_pressure = 0._dp
@@ -84,7 +85,11 @@ contains
     ! Set up saturation line finder:
     allocate(primary_variable_interpolator_type :: &
          self%primary_variable_interpolator)
-    call self%primary_variable_interpolator%init(self%num_primary_variables)
+    allocate(data(2, 1 + self%num_primary_variables))
+    data = 0._dp
+    data(:, 1) = [0._dp, 1._dp]
+    call self%primary_variable_interpolator%init(data)
+    deallocate(data)
     self%primary_variable_interpolator%thermo => self%thermo
     f => eos_wge_saturation_difference
     pinterp => self%primary_variable_interpolator
@@ -145,8 +150,10 @@ contains
        pressure_factor = 1._dp - small
     end if
 
-    call self%primary_variable_interpolator%assign(old_primary, primary)
-    call self%primary_variable_interpolator%find(2, saturation_bound, xi, err)
+    self%primary_variable_interpolator%val(:, 1) = old_primary
+    self%primary_variable_interpolator%val(:, 2) = primary
+    call self%primary_variable_interpolator%find_component_at_index(&
+         saturation_bound, 2, xi, err)
 
     associate (pressure => primary(1), temperature => primary(2), &
          partial_pressure => primary(3), &
@@ -212,7 +219,8 @@ contains
          interpolated_pressure => interpolated_primary(1), &
          interpolated_partial_pressure => interpolated_primary(3))
 
-      call self%primary_variable_interpolator%assign(old_primary, primary)
+      self%primary_variable_interpolator%val(:, 1) = old_primary
+      self%primary_variable_interpolator%val(:, 2) = primary
       call self%saturation_line_finder%find()
 
       if (self%saturation_line_finder%err == 0) then
@@ -592,13 +600,14 @@ contains
 
     select type (context)
     type is (primary_variable_interpolator_type)
-       var = context%interpolate(x)
+       allocate(var(context%dim))
+       var = context%interpolate_at_index(x)
        associate(P => var(1), T => var(2), Pg => var(3))
          call context%thermo%saturation%pressure(T, Ps, err)
          dp = P - Pg - Ps
        end associate
+       deallocate(var)
     end select
-    deallocate(var)
 
   end function eos_wge_saturation_difference
 

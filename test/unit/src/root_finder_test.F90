@@ -194,22 +194,25 @@ contains
     ! Saturation line intersection
 
     use IAPWS_module
-    use interpolation_module, only: array_interpolator_type
+    use interpolation_module, only: interpolation_table_type
 
     type(root_finder_type) :: finder
-    type(array_interpolator_type), target :: inc
+    type(interpolation_table_type), target :: inc
     class(*), pointer :: pinc
     PetscMPIInt :: rank
     PetscInt :: ierr
     procedure(root_finder_function), pointer :: f
     type(IAPWS_type) :: thermo
     PetscInt, parameter :: num_vars = 2
-    PetscReal :: var(num_vars)
+    PetscReal :: var(num_vars), data(2, 1 + num_vars)
     PetscReal, parameter :: expected_temperature = 218.61315743282924_dp
     PetscInt, parameter :: expected_iterations = 6
 
     call thermo%init()
-    call inc%init([20.e5_dp, 210._dp], [23.e5_dp, 220._dp])
+    data(:, 1) = [0._dp, 1._dp]
+    data(:, 2) = [20.e5_dp, 23.e5_dp]
+    data(:, 3) = [210._dp, 220._dp]
+    call inc%init(data)
     pinc => inc
     f => saturation_difference
     call finder%init(f, context = pinc)
@@ -244,8 +247,8 @@ contains
       PetscInt :: err
       associate(P => var(1), T => var(2))
         select type (context)
-        type is (array_interpolator_type)
-           var = context%interpolate(x)
+        type is (interpolation_table_type)
+           var = context%interpolate_at_index(x)
            call thermo%saturation%pressure(T, Ps, err)
         end select
         dp = Ps - P
