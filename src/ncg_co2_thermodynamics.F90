@@ -12,6 +12,12 @@ module ncg_co2_thermodynamics_module
   private
 
   PetscReal, parameter, public :: co2_molecular_weight = 44.01_dp ! g/mol
+  PetscReal, parameter :: henry_data(6) = [&
+       783.666e5_dp, 19.6025e5_dp, 0.820574e5_dp, &
+       -7.40674e2_dp, 2.18380_dp, -2.20999e-3_dp]
+  PetscReal, parameter :: energy_solution_data(5) = [&
+       -0.549491e6_dp, 0.456571e6_dp, -0.070404e6_dp, &
+       -0.031035e6_dp, 0.014121e6_dp]
   PetscReal, parameter :: viscosity_data(5, 6) = reshape([ &
        0._dp, 100.e5_dp, 150.e5_dp, 200.e5_dp, 300.e5_dp, &
        1357.8_dp, 3918.9_dp, 9660.7_dp, 1.31566e4_dp, 1.47968e4_dp, &
@@ -123,25 +129,19 @@ contains
   subroutine ncg_co2_henrys_constant(self, temperature, henrys_constant, err)
     !! Henry's constant for CO2 NCG.
 
+    use utils_module, only: polynomial
+
     class(ncg_co2_thermodynamics_type), intent(in) :: self
     PetscReal, intent(in) :: temperature !! Temperature
     PetscReal, intent(out) :: henrys_constant !! Henry's constant
     PetscErrorCode, intent(out) :: err !! Error code
-    ! Locals:
-    PetscReal :: T2, T3, RKH
 
-    associate(T => temperature)
-      if (T <= 300._dp) then
-         T2 = T * T
-         T3 = T2 * T
-         RKH = 783.666e5_dp + 19.6025e5_dp * T + 0.820574e5_dp * T2 &
-              -T3 * (7.40674e2_dp - 2.18380_dp * T + 2.20999e-3_dp * T2)
-         henrys_constant = 1.0_dp / RKH
-         err = 0
-      else
-         err = 1
-      end if
-    end associate
+    if (temperature <= 300._dp) then
+       henrys_constant = 1._dp / polynomial(henry_data, temperature)
+       err = 0
+    else
+       err = 1
+    end if
 
   end subroutine ncg_co2_henrys_constant
 
@@ -150,21 +150,16 @@ contains
   subroutine ncg_co2_energy_solution(self, temperature, energy_solution, err)
     !! Calculates enthalpy of CO2 dissolution in liquid.
 
+    use utils_module, only: polynomial
+
     class(ncg_co2_thermodynamics_type), intent(in) :: self
     PetscReal, intent(in) :: temperature !! Temperature
     PetscReal, intent(out):: energy_solution !! Energy of solution
     PetscInt, intent(out) :: err     !! error code
-    ! Locals:
-    PetscReal :: T, T2, T3, T4
 
+    energy_solution = polynomial(energy_solution_data, &
+         0.01_dp * temperature)
     err = 0
-
-    T = 0.01_dp * temperature
-    T2 = T * T
-    T3 = T * T2
-    T4 = T * T3
-    energy_solution = -0.549491e6_dp + 0.456571e6_dp * T &
-         - 0.070404e6_dp * T2 - 0.031035e6_dp * T3 + 0.014121e6_dp * T4
 
   end subroutine ncg_co2_energy_solution
 
@@ -175,7 +170,7 @@ contains
     !! Calculates viscosity for gas phase given partial pressure and
     !! temperature. Formulation from Pritchett et al. (1982).
 
-    use thermodynamics_module, only: region_type
+    use utils_module, only: polynomial
 
     class(ncg_co2_thermodynamics_type), intent(in out) :: self
     PetscReal, intent(in) :: partial_pressure !! CO2 partial pressure
@@ -187,10 +182,7 @@ contains
 
     if (partial_pressure <= 300.e5_dp) then
        a = self%viscosity_table%interpolate(partial_pressure)
-       associate(t => temperature)
-         viscosity = a(1) + t * (a(2) + t * (a(3) + t * (a(4) + t * a(5))))
-       end associate
-       viscosity = 1.e-8_dp * viscosity
+       viscosity = 1.e-8_dp * polynomial(a, temperature)
        err = 0
     else
        err = 1
