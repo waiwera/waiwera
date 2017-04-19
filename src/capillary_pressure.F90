@@ -60,11 +60,11 @@ module capillary_pressure_module
        capillary_pressure_linear_type
      !! Linear capillary pressure function.
      private
-     PetscReal, public :: saturation_limits(2)
-     PetscReal, public :: pressure
+     type(interpolation_table_type), public :: pressure
    contains
      procedure, public :: init => capillary_pressure_linear_init
      procedure, public :: value => capillary_pressure_linear_value
+     procedure, public :: destroy => capillary_pressure_linear_destroy
   end type capillary_pressure_linear_type
 
 !------------------------------------------------------------------------
@@ -181,6 +181,7 @@ contains
     type(fson_value), pointer, intent(in) :: json
     type(logfile_type), intent(in out), optional :: logfile
     ! Locals:
+    PetscReal :: pressure, data(2, 2)
     PetscReal, allocatable :: saturation_limits(:)
     PetscReal, parameter :: default_saturation_limits(2) = [0._dp, 1._dp]
     PetscReal, parameter :: default_pressure = 0.125e5_dp
@@ -190,10 +191,12 @@ contains
     call fson_get_mpi(json, "saturation_limits", default_saturation_limits, &
          saturation_limits, logfile, "rock.capillary_pressure.saturation_limits")
     call fson_get_mpi(json, "pressure", default_pressure, &
-         self%pressure, logfile, "rock.capillary_pressure.pressure")
-    self%pressure = abs(self%pressure)
+         pressure, logfile, "rock.capillary_pressure.pressure")
+    pressure = abs(pressure)
 
-    self%saturation_limits = saturation_limits
+    data(1, :) = [saturation_limits(1), -pressure]
+    data(2, :) = [saturation_limits(2), 0._dp]
+    call self%pressure%init(data)
 
     deallocate(saturation_limits)
 
@@ -208,10 +211,20 @@ contains
     PetscReal, intent(in) :: sl !! Liquid saturation
     PetscReal, intent(in) :: t  !! Temperature
 
-    cp = ramp_interpolate(sl, self%saturation_limits, &
-         [-self%pressure, 0._dp])
+    cp = self%pressure%interpolate(sl, 1)
 
   end function capillary_pressure_linear_value
+
+!------------------------------------------------------------------------
+
+  subroutine capillary_pressure_linear_destroy(self)
+    !! Destroy linear capillary pressure function.
+
+    class(capillary_pressure_linear_type), intent(in out) :: self
+
+    call self%pressure%destroy()
+
+  end subroutine capillary_pressure_linear_destroy
 
 !------------------------------------------------------------------------
 ! Van Genuchten function

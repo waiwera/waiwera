@@ -26,8 +26,8 @@ module interpolation_test
 
   public :: test_interpolation_linear, test_interpolation_single, &
        test_interpolation_step, test_average_linear, test_average_step, &
-       test_average_linear_integration, test_ramp_interpolate,  &
-       test_interpolation_linear_array, test_find
+       test_average_linear_integration, test_interpolation_linear_array, &
+       test_find
 
 contains
 
@@ -247,40 +247,6 @@ contains
     end if
 
   end subroutine test_average_linear_integration
-
-!------------------------------------------------------------------------
-
-  subroutine test_ramp_interpolate
-    ! Ramp interpolation
-
-    PetscReal :: x(2), y(2)
-    PetscMPIInt :: rank
-    PetscInt :: ierr
-
-    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
-    if (rank == 0) then
-
-       x = [0._dp, 1._dp]
-       y = [0._dp, 1._dp]
-       call assert_equals(0.3_dp, &
-            ramp_interpolate(0.3_dp, x, y), tol, "case 1a")
-       call assert_equals(0.0_dp, &
-            ramp_interpolate(-0.3_dp, x, y), tol, "case 1b")
-       call assert_equals(1.0_dp, &
-            ramp_interpolate(2.3_dp, x, y), tol, "case 1c")
-
-       x = [-1._dp, 2._dp]
-       y = [2._dp, -3._dp]
-       call assert_equals(1._dp / 3._dp, &
-            ramp_interpolate(0._dp, x, y), tol, "case 2a")
-       call assert_equals(2._dp, &
-            ramp_interpolate(-1.3_dp, x, y), tol, "case 2b")
-       call assert_equals(-3._dp, &
-            ramp_interpolate(3._dp, x, y), tol, "case 2c")
-
-    end if
-
-  end subroutine test_ramp_interpolate
 
 !------------------------------------------------------------------------
 
