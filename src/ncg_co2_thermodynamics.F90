@@ -204,8 +204,6 @@ contains
        temperature, partial_pressure, xg, phase, viscosity, err)
     !! Calculates viscosity for water-CO2 mixture in the given phase.
 
-    use thermodynamics_module, only: region_type
-
     class(ncg_co2_thermodynamics_type), intent(in out) :: self
     PetscReal, intent(in) :: water_viscosity !! Viscosity of water
     PetscReal, intent(in) :: temperature !! Temperature
