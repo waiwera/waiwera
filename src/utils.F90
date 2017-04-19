@@ -32,7 +32,8 @@ module utils_module
   public :: str_to_upper, str_to_lower, &
        int_str_len, str_array_index, &
        split_filename, change_filename_extension, &
-       date_time_str, degrees_to_radians, rotation_matrix_2d
+       date_time_str, degrees_to_radians, rotation_matrix_2d, &
+       polynomial
   
 contains
 
@@ -203,6 +204,26 @@ contains
     M = reshape([c, -s, s, c], [2, 2])
 
   end function rotation_matrix_2d
+
+!------------------------------------------------------------------------
+
+  PetscReal function polynomial(a, x) result(p)
+    !! Evaluate polynomial a1 + a2*x + a3 * x^2 + ..., using Horner's
+    !! method.
+
+    PetscReal, intent(in) :: a(:)
+    PetscReal, intent(in) :: x
+    ! Locals:
+    PetscInt :: i
+
+    associate(n => size(a))
+      p = a(n)
+      do i = n - 1, 1, -1
+         p = a(i) + x * p
+      end do
+    end associate
+
+  end function polynomial
 
 !------------------------------------------------------------------------
 
