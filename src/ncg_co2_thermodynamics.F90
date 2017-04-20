@@ -13,8 +13,8 @@ module ncg_co2_thermodynamics_module
 
   PetscReal, parameter, public :: co2_molecular_weight = 44.01_dp ! g/mol
   PetscReal, parameter :: henry_data(6) = [&
-       783.666e5_dp, 19.6025e5_dp, 0.820574e5_dp, &
-       -7.40674e2_dp, 2.18380_dp, -2.20999e-3_dp]
+       783.666_dp, 19.6025_dp, 0.820574_dp, &
+       -7.40674e-3_dp, 2.18380e-5_dp, -2.20999e-8_dp]
   PetscReal, parameter :: energy_solution_data(5) = [&
        -0.549491e6_dp, 0.456571e6_dp, -0.070404e6_dp, &
        -0.031035e6_dp, 0.014121e6_dp]
@@ -137,7 +137,7 @@ contains
     PetscErrorCode, intent(out) :: err !! Error code
 
     if (temperature <= 300._dp) then
-       henrys_constant = 1._dp / polynomial(henry_data, temperature)
+       henrys_constant = 1.e-5_dp / polynomial(henry_data, temperature)
        err = 0
     else
        err = 1
