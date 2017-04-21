@@ -109,7 +109,7 @@ for run_index, run_name in enumerate(run_names):
         var = result.getFieldAtOutputIndex(field_name, -1) / scale
         plt.plot(var, z, '-', label = 'Waiwera')
         var = AUTOUGH2_result[run_name].getFieldAtOutputIndex(field_name, -1) / scale
-        plt.plot(var, z, '+', label = 'AUTOUGH2')
+        plt.plot(var, z, 'o', label = 'AUTOUGH2')
         plt.xlabel(field_name + ' (' + unit + ')')
         plt.ylabel('elevation (m)')
         plt.title(' '.join(['Input CO2 mass fraction:', run_name + '%']))
