@@ -9,12 +9,12 @@ from credo.systest import SciBenchmarkTest
 from credo.jobrunner import SimpleJobRunner
 from credo.t2model import T2ModelRun, T2ModelResult
 from credo.waiwera import WaiweraModelRun
-from credo.modelresult import DigitisedRadialFieldResult
+from credo.modelresult import DigitisedOneDFieldResult
 
 import credo.reporting.standardReports as sReps
 from credo.reporting import getGenerators
 
-from credo.systest import FieldWithinTolTC, RadialSolutionWithinTolTC
+from credo.systest import FieldWithinTolTC, OneDSolutionWithinTolTC
 
 from mulgrids import mulgrid
 
@@ -48,7 +48,6 @@ run_index = 0
 run_name = 'run'
 run_base_name = model_name
 output_indices = [1, 2, 3]
-xmax = 0.12
 
 test_fields = ['Liquid saturation']
 digitised_test_fields = test_fields
@@ -83,20 +82,23 @@ for output_index in output_indices:
 digitised_result = {}
 digitised_times = [864, 5184, 9504]
 digitised_output_index = [1, 2, 3]
-for sim in digitised_simulators:    
+xmax_all = 0.
+for sim in digitised_simulators:
     for field_name in digitised_test_fields:
         for time, output_index in zip(digitised_times, digitised_output_index):
             data_filename = '_'.join([sim, str(time)])
             data_filename = data_filename.lower().replace(' ', '_')
             data_filename = os.path.join(data_dir, data_filename + '.dat')
-            result = DigitisedRadialFieldResult(sim, data_filename, field_name, output_index)
+            result = DigitisedOneDFieldResult(sim, data_filename, field_name, output_index)
             digitised_result[sim, output_index] = result
+            xmax = np.max(result.getCoordinates())
+            xmax_all = max(xmax_all, xmax)
             infiltration_test.addTestComp(run_index, ' '.join((sim, str(output_index))),
-                                      RadialSolutionWithinTolTC(
+                                      OneDSolutionWithinTolTC(
                                           fieldsToTest = [field_name],
                                           defFieldTol = 5.e-2,
                                           expected = result,
-                                          maxRadius = xmax,
+                                          maxCoordinate = xmax,
                                           testOutputIndex = output_index))
 
 jrunner = SimpleJobRunner(mpi = True)
@@ -105,7 +107,7 @@ testResult, mResults = infiltration_test.runTest(jrunner, createReports = True)
 result = infiltration_test.mSuite.resultsList[run_index]
 t = result.getTimes()
 x = np.array([col.centre[0] for col in geo.columnlist])
-ix = np.where(x <= xmax)
+ix = np.where(x <= xmax_all)
 
 for field_name in test_fields:
     for output_index in output_indices:
@@ -116,7 +118,7 @@ for field_name in test_fields:
         plt.plot(x[ix], var[ix], '+', label = 'AUTOUGH2' + tstr)
         for sim in digitised_simulators:
             dig_result = digitised_result[sim, output_index]
-            xd = dig_result.getRadii()
+            xd = dig_result.getCoordinates()
             var = dig_result.getFieldAtOutputIndex(field_name, output_index)
             plt.plot(xd, var, '-', label = sim + tstr)
     plt.xlabel('x (m)')

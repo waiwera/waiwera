@@ -7,14 +7,14 @@ import os
 from credo.systest import SciBenchmarkTest
 
 from credo.jobrunner import SimpleJobRunner
-from credo.modelresult import DigitisedRadialFieldResult
+from credo.modelresult import DigitisedOneDFieldResult
 from credo.t2model import T2ModelRun, T2ModelResult
 from credo.waiwera import WaiweraModelRun
 
 import credo.reporting.standardReports as sReps
 from credo.reporting import getGenerators
 
-from credo.systest import FieldWithinTolTC, RadialSolutionWithinTolTC
+from credo.systest import FieldWithinTolTC, OneDSolutionWithinTolTC
 
 from mulgrids import mulgrid
 
@@ -99,17 +99,18 @@ for sim in digitised_simulators:
         data_filename = '_'.join((model_name, field_name, sim))
         data_filename = data_filename.lower().replace(' ', '_')
         data_filename = os.path.join(data_dir, data_filename + '.dat')
-        result = DigitisedRadialFieldResult(sim, data_filename, field_name, -1)
+        result = DigitisedOneDFieldResult(sim, data_filename, field_name, -1)
         result.data[:,0] = np.exp(result.data[:,0]) * np.sqrt(t_final)
         result.data[:,1] *= field_scale[field_name]
         digitised_result[field_name, sim] = result
         heat_pipe_test.addTestComp(run_index, ' '.join((sim, field_name)),
-                                  RadialSolutionWithinTolTC(
+                                  OneDSolutionWithinTolTC(
                                       fieldsToTest = [field_name],
                                       defFieldTol = 2.e-2,
                                       fieldTols = {'Pressure': 0.07},
                                       expected = result,
-                                      maxRadius = max_radius,
+                                      maxCoordinate = max_radius,
+                                      logCoordinate = True,
                                       testOutputIndex = -1))
 
 jrunner = SimpleJobRunner(mpi = True)
@@ -131,7 +132,7 @@ for field_name in test_fields:
     plt.semilogx(r, var, '+', label = 'AUTOUGH2')
     for sim in digitised_simulators:
         result = digitised_result[field_name, sim]
-        r = result.getRadii()
+        r = result.getCoordinates()
         var = result.getFieldAtOutputIndex(field_name, outputIndex)
         plt.semilogx(r, var / field_scale[field_name], symbol[sim], label = sim)
     plt.xlabel('radius (m)')

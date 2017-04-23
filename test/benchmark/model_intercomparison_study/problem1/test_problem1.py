@@ -5,10 +5,10 @@ Model Intercomparison Study problem 1
 import os
 
 from credo.systest import SciBenchmarkTest
-from credo.systest import FieldWithinTolTC, HistoryWithinTolTC, RadialSolutionWithinTolTC
+from credo.systest import FieldWithinTolTC, HistoryWithinTolTC, OneDSolutionWithinTolTC
 
 from credo.jobrunner import SimpleJobRunner
-from credo.modelresult import DigitisedRadialFieldResult, HistoryDataResult
+from credo.modelresult import DigitisedOneDFieldResult, HistoryDataResult
 from credo.t2model import T2ModelRun, T2ModelResult
 from credo.waiwera import WaiweraModelRun
 
@@ -108,15 +108,16 @@ for sim in digitised_simulators:
         data_filename = '_'.join((model_name, field_name, 'r', sim))
         data_filename = data_filename.lower().replace(' ', '_')
         data_filename = os.path.join(data_dir, data_filename + '.dat')
-        result = DigitisedRadialFieldResult(sim, data_filename, field_name, -1)
+        result = DigitisedOneDFieldResult(sim, data_filename, field_name, -1)
         digitised_r_result[field_name, sim] = result
         problem1_test.addTestComp(run_index, ' '.join((sim, field_name)),
-                                  RadialSolutionWithinTolTC(
+                                  OneDSolutionWithinTolTC(
                                       fieldsToTest = [field_name],
                                       defFieldTol = 2.e-2,
                                       expected = result,
                                       testOutputIndex = -1,
-                                      maxRadius = max_radius))
+                                      maxCoordinate = max_radius,
+                                      logCoordinate = True))
 
 jrunner = SimpleJobRunner(mpi = True)
 testResult, mResults = problem1_test.runTest(jrunner, createReports = True)
@@ -204,15 +205,15 @@ for field_name in digitised_test_fields:
     plt.plot(r, var, '+', label = 'AUTOUGH2')
     for sim in digitised_simulators:
         result = digitised_r_result[field_name, sim]
-        r = result.getRadii()
+        r = result.getCoordinates()
         var = result.getFieldAtOutputIndex(field_name, outputIndex)
         plt.plot(r, var / scale[field_name], symbol[sim], label = sim)
     sim = 'analytical'
     data_filename = '_'.join((model_name, field_name, 'r', sim))
     data_filename = data_filename.lower().replace(' ', '_')
     data_filename = os.path.join(data_dir, data_filename + '.dat')
-    result = DigitisedRadialFieldResult(sim, data_filename, field_name, -1)
-    r = result.getRadii()
+    result = DigitisedOneDFieldResult(sim, data_filename, field_name, -1)
+    r = result.getCoordinates()
     var = result.getFieldAtOutputIndex(field_name, outputIndex)
     plt.plot(r, var / scale[field_name], ':', label = sim)
     plt.xlabel('radius (m)')
