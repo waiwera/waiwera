@@ -24,9 +24,10 @@ module ncg_thermodynamics_module
      procedure(ncg_init_procedure), public, deferred :: init
      procedure(ncg_properties_procedure), public, deferred :: properties
      procedure(ncg_henrys_constant_procedure), public, deferred :: henrys_constant
-     procedure(ncg_energy_solution_procedure), public, deferred :: energy_solution
+     procedure(ncg_henrys_derivative_procedure), public, deferred :: henrys_derivative
      procedure(ncg_viscosity_procedure), public, deferred :: viscosity
      procedure(ncg_mixture_viscosity_procedure), public, deferred :: mixture_viscosity
+     procedure, public :: energy_solution => ncg_energy_solution
      procedure, public :: partial_pressure => ncg_partial_pressure
      procedure, public :: mass_fraction => ncg_mass_fraction
      procedure, public :: mole_to_mass_fraction => ncg_thermodynamics_mole_to_mass_fraction
@@ -64,6 +65,17 @@ module ncg_thermodynamics_module
        PetscReal, intent(out) :: henrys_constant
        PetscErrorCode, intent(out) :: err
      end subroutine ncg_henrys_constant_procedure
+
+     PetscReal function ncg_henrys_derivative_procedure(self, temperature, &
+          henrys_constant)
+       !! Calculate derivative of the natural logarithm of Henry's
+       !! constant with respect to temperature (used for computing
+       !! energy of solution).
+       import :: ncg_thermodynamics_type
+       class(ncg_thermodynamics_type), intent(in) :: self
+       PetscReal, intent(in) :: temperature
+       PetscReal, intent(out) :: henrys_constant
+     end function ncg_henrys_derivative_procedure
 
      subroutine ncg_energy_solution_procedure(self, temperature, &
           energy_solution, err)
@@ -111,6 +123,7 @@ contains
   PetscReal function ncg_thermodynamics_mole_to_mass_fraction(self, xmole) &
        result(xg)
     !! Calculates NCG mass fraction from mole fraction.
+
     class(ncg_thermodynamics_type), intent(in) :: self
     PetscReal, intent(in) :: xmole !! NCG mole fraction
     ! Locals:
@@ -126,6 +139,7 @@ contains
   PetscReal function ncg_thermodynamics_mass_to_mole_fraction(self, xg) &
        result(xmole)
     !! Calculates NCG mole fraction from mass fraction.
+
     class(ncg_thermodynamics_type), intent(in) :: self
     PetscReal, intent(in) :: xg !! NCG mass fraction
     ! Locals:
@@ -135,6 +149,30 @@ contains
     xmole = w / (w + (1._dp - xg) / water_molecular_weight)
 
   end function ncg_thermodynamics_mass_to_mole_fraction
+
+!------------------------------------------------------------------------
+
+  PetscReal function ncg_energy_solution(self, &
+       temperature, henrys_constant) result(energy_solution)
+    !! Calculates NCG energy of solution from the given temperature
+    !! and Henry's constant (from Himmelblau, 1959).
+
+    use thermodynamics_module, only: tc_k, gas_constant
+
+    class(ncg_thermodynamics_type), intent(in) :: self
+    PetscReal, intent(in) :: temperature
+    PetscReal, intent(in) :: henrys_constant
+    ! Locals:
+    PetscReal :: henry_derivative
+
+    henry_derivative = self%henry_derivative(temperature, henrys_constant)
+
+    associate(tk => temperature + tc_k)
+      energy_solution = -1.e3_dp * gas_constant * tk * tk * &
+           henry_derivative / self%molecular_weight
+    end associate
+
+  end function ncg_energy_solution
 
 !------------------------------------------------------------------------
 
@@ -220,6 +258,7 @@ contains
   subroutine ncg_thermodynamics_destroy(self)
     !! Destroys NCG thermodynamics. Dummy routine to be overridden by
     !! derived types.
+
     class(ncg_thermodynamics_type), intent(in out) :: self
 
     continue
