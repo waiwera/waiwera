@@ -178,11 +178,11 @@ contains
     PetscReal, intent(out):: viscosity !! CO2 viscosity
     PetscInt, intent(out)  :: err !! Error code
     ! Locals:
-    PetscReal :: a(5)
+    PetscReal :: coefs(5)
 
     if (partial_pressure <= 300.e5_dp) then
-       a = self%viscosity_table%interpolate(partial_pressure)
-       viscosity = 1.e-8_dp * polynomial(a, temperature)
+       coefs = self%viscosity_table%interpolate(partial_pressure)
+       viscosity = 1.e-8_dp * polynomial(coefs, temperature)
        err = 0
     else
        err = 1
