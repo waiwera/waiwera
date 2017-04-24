@@ -60,11 +60,12 @@ module relative_permeability_module
        relative_permeability_linear_type
      !! Linear relative permeability functions.
      private
-     PetscReal, public :: liquid_limits(2)
-     PetscReal, public :: vapour_limits(2)
+     type(interpolation_table_type), public :: liquid
+     type(interpolation_table_type), public :: vapour
    contains
      procedure, public :: init => relative_permeability_linear_init
      procedure, public :: values => relative_permeability_linear_values
+     procedure, public :: destroy => relative_permeability_linear_destroy
   end type relative_permeability_linear_type
 
 !------------------------------------------------------------------------
@@ -219,6 +220,7 @@ contains
     type(fson_value), pointer, intent(in) :: json
     type(logfile_type), intent(in out), optional :: logfile
     ! Locals:
+    PetscReal :: liquid_array(2, 2), vapour_array(2, 2)
     PetscReal, allocatable :: liquid_limits(:), vapour_limits(:)
     PetscReal, parameter :: default_liquid_limits(2) = [0._dp, 1._dp]
     PetscReal, parameter :: default_vapour_limits(2) = [0._dp, 1._dp]
@@ -230,8 +232,12 @@ contains
     call fson_get_mpi(json, "vapour", default_vapour_limits, &
          vapour_limits, logfile, "rock.relative_permeability.vapour")
 
-    self%liquid_limits = liquid_limits
-    self%vapour_limits = vapour_limits
+    liquid_array(1, :) = [liquid_limits(1), 0._dp]
+    liquid_array(2, :) = [liquid_limits(2), 1._dp]
+    call self%liquid%init(liquid_array)
+    vapour_array(1, :) = [vapour_limits(1), 0._dp]
+    vapour_array(2, :) = [vapour_limits(2), 1._dp]
+    call self%vapour%init(vapour_array)
 
     deallocate(liquid_limits, vapour_limits)
 
@@ -242,19 +248,26 @@ contains
   function relative_permeability_linear_values(self, sl) result(rp)
     !! Evaluate linear relative permeability function.
 
-    use interpolation_module, only: ramp_interpolate
-
     class(relative_permeability_linear_type), intent(in out) :: self
     PetscReal, intent(in) :: sl !! Liquid saturation
     PetscReal, dimension(2) :: rp !! Relative permeabilities
-    ! Locals:
-    PetscReal :: sv
 
-    sv = 1._dp - sl
-    rp(1) = ramp_interpolate(sl, self%liquid_limits, [0._dp, 1._dp])
-    rp(2) = ramp_interpolate(sv, self%vapour_limits, [0._dp, 1._dp])
+    rp(1) = self%liquid%interpolate(sl, 1)
+    rp(2) = self%vapour%interpolate(1._dp - sl, 1)
 
   end function relative_permeability_linear_values
+
+!------------------------------------------------------------------------
+
+  subroutine relative_permeability_linear_destroy(self)
+    !! Destroys linear relative permeability.
+
+    class(relative_permeability_linear_type), intent(in out) :: self
+
+    call self%liquid%destroy()
+    call self%vapour%destroy()
+
+  end subroutine relative_permeability_linear_destroy
 
 !------------------------------------------------------------------------
 ! Pickens curves
@@ -522,8 +535,8 @@ contains
     PetscReal, intent(in) :: sl !! Liquid saturation
     PetscReal, dimension(2) :: rp !! Relative permeabilities
 
-    rp(1) = self%liquid%interpolate(sl)
-    rp(2) = self%vapour%interpolate(1._dp - sl)
+    rp(1) = self%liquid%interpolate(sl, 1)
+    rp(2) = self%vapour%interpolate(1._dp - sl, 1)
 
   end function relative_permeability_table_values
 

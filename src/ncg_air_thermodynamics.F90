@@ -120,8 +120,6 @@ contains
     !! Viscosity for air, given partial pressure and temperature.
     !! This is not used.
 
-    use thermodynamics_module, only: region_type
-
     class(ncg_air_thermodynamics_type), intent(in out) :: self
     PetscReal, intent(in) :: partial_pressure !! Air partial pressure
     PetscReal, intent(in) :: temperature !! Temperature
@@ -152,7 +150,7 @@ contains
     !! vapour-air mixtures in the temperature range from 100 to 150
     !! deg. C, for all compositions, to better than 4%.
     
-    use thermodynamics_module
+    use thermodynamics_module, only: water_molecular_weight, tc_k
 
     class(ncg_air_thermodynamics_type), intent(in out) :: self
     PetscReal, intent(in) :: water_viscosity !! Viscosity of water
