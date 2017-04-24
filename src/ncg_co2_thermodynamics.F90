@@ -140,6 +140,7 @@ contains
 
     henrys_derivative = 1.e5_dp * henrys_constant * &
          polynomial(henry_derivative_data, 0.01_dp * temperature)
+    err = 0
 
   end subroutine ncg_co2_henrys_derivative
 
