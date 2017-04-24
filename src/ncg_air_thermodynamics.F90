@@ -27,7 +27,7 @@ module ncg_air_thermodynamics_module
      procedure, public :: init => ncg_air_init
      procedure, public :: properties => ncg_air_properties
      procedure, public :: henrys_constant => ncg_air_henrys_constant
-     procedure, public :: energy_solution => ncg_air_energy_solution
+     procedure, public :: henrys_derivative => ncg_air_henrys_derivative
      procedure, public :: viscosity => ncg_air_viscosity
      procedure, public :: mixture_viscosity => ncg_air_mixture_viscosity
   end type ncg_air_thermodynamics_type
@@ -100,18 +100,24 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine ncg_air_energy_solution(self, temperature, energy_solution, err)
-    !! Enthalpy of air dissolution in liquid.
+  subroutine ncg_air_henrys_derivative(self, temperature, &
+       henrys_constant, henrys_derivative, err)
+    !! Returns derivative of natural logarithm of Henry's constant
+    !! with respect to temperature.
+
+    use utils_module, only: polynomial
 
     class(ncg_air_thermodynamics_type), intent(in) :: self
     PetscReal, intent(in) :: temperature !! Temperature
-    PetscReal, intent(out):: energy_solution !! Energy of solution
-    PetscInt, intent(out) :: err     !! Error code
+    PetscReal, intent(in) :: henrys_constant !! Henry's constant
+    PetscReal, intent(out) :: henrys_derivative !! Henry's derivative
+    PetscErrorCode, intent(out) :: err !! Error code
 
+    ! TODO
+    henrys_derivative = 0._dp
     err = 0
-    energy_solution = 0._dp
 
-  end subroutine ncg_air_energy_solution
+  end subroutine ncg_air_henrys_derivative
 
 !------------------------------------------------------------------------
   

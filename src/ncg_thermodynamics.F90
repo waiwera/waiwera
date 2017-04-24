@@ -66,26 +66,18 @@ module ncg_thermodynamics_module
        PetscErrorCode, intent(out) :: err
      end subroutine ncg_henrys_constant_procedure
 
-     PetscReal function ncg_henrys_derivative_procedure(self, temperature, &
-          henrys_constant)
+     subroutine ncg_henrys_derivative_procedure(self, temperature, &
+          henrys_constant, henrys_derivative, err)
        !! Calculate derivative of the natural logarithm of Henry's
        !! constant with respect to temperature (used for computing
        !! energy of solution).
        import :: ncg_thermodynamics_type
        class(ncg_thermodynamics_type), intent(in) :: self
        PetscReal, intent(in) :: temperature
-       PetscReal, intent(out) :: henrys_constant
-     end function ncg_henrys_derivative_procedure
-
-     subroutine ncg_energy_solution_procedure(self, temperature, &
-          energy_solution, err)
-       !! Calculate NCG energy of solution.
-       import :: ncg_thermodynamics_type
-       class(ncg_thermodynamics_type), intent(in) :: self
-       PetscReal, intent(in) :: temperature
-       PetscReal, intent(out) :: energy_solution
+       PetscReal, intent(in) :: henrys_constant
+       PetscReal, intent(out) :: henrys_derivative
        PetscErrorCode, intent(out) :: err
-     end subroutine ncg_energy_solution_procedure
+     end subroutine ncg_henrys_derivative_procedure
 
      subroutine ncg_viscosity_procedure(self, partial_pressure, &
           temperature, viscosity, err)
@@ -152,8 +144,8 @@ contains
 
 !------------------------------------------------------------------------
 
-  PetscReal function ncg_energy_solution(self, &
-       temperature, henrys_constant) result(energy_solution)
+  subroutine ncg_energy_solution(self, temperature, henrys_constant, &
+       energy_solution, err)
     !! Calculates NCG energy of solution from the given temperature
     !! and Henry's constant (from Himmelblau, 1959).
 
@@ -162,17 +154,22 @@ contains
     class(ncg_thermodynamics_type), intent(in) :: self
     PetscReal, intent(in) :: temperature
     PetscReal, intent(in) :: henrys_constant
+    PetscReal, intent(out) :: energy_solution
+    PetscErrorCode, intent(out) :: err
     ! Locals:
-    PetscReal :: henry_derivative
+    PetscReal :: henrys_derivative
 
-    henry_derivative = self%henry_derivative(temperature, henrys_constant)
+    err = 0
+
+    call self%henrys_derivative(temperature, henrys_constant, &
+         henrys_derivative, err)
 
     associate(tk => temperature + tc_k)
       energy_solution = -1.e3_dp * gas_constant * tk * tk * &
-           henry_derivative / self%molecular_weight
+           henrys_derivative / self%molecular_weight
     end associate
 
-  end function ncg_energy_solution
+  end subroutine ncg_energy_solution
 
 !------------------------------------------------------------------------
 
@@ -197,7 +194,8 @@ contains
 !------------------------------------------------------------------------
 
   subroutine ncg_mass_fraction(self, partial_pressure, &
-       temperature, phase, gas_density, water_density, xg, err)
+       temperature, phase, gas_density, water_density, &
+       henrys_constant, xg, err)
     !! Calculate NCG mass fraction from partial pressure.
 
     class(ncg_thermodynamics_type), intent(in) :: self
@@ -206,20 +204,18 @@ contains
     PetscInt, intent(in) :: phase !! Phase index
     PetscReal, intent(in) :: gas_density !! NCG density in this phase
     PetscReal, intent(in) :: water_density !! Water density in this phase
+    PetscReal, intent(in) :: henrys_constant !! Henry's constant
     PetscReal, intent(out) :: xg !! NCG mass fraction
     PetscErrorCode, intent(out) :: err !! Error code
     ! Locals:
-    PetscReal :: henrys_constant, xmole
+    PetscReal :: xmole
     PetscReal :: total_density
     PetscReal, parameter :: small = 1.e-30_dp
 
     err = 0
     if (phase == 1) then
-       call self%henrys_constant(temperature, henrys_constant, err)
-       if (err == 0) then
-          xmole = henrys_constant * partial_pressure
-          xg = self%mole_to_mass_fraction(xmole)
-       end if
+       xmole = henrys_constant * partial_pressure
+       xg = self%mole_to_mass_fraction(xmole)
     else
        total_density = gas_density + water_density
        if (total_density < small) then

@@ -15,9 +15,9 @@ module ncg_co2_thermodynamics_module
   PetscReal, parameter :: henry_data(6) = [&
        0.783666_dp, 1.96025_dp, 8.20574_dp, &
        -7.40674_dp, 2.18380_dp, -0.220999_dp]
-  PetscReal, parameter :: energy_solution_data(5) = [&
-       -0.549491e6_dp, 0.456571e6_dp, -0.070404e6_dp, &
-       -0.031035e6_dp, 0.014121e6_dp]
+  PetscReal, parameter :: henry_derivative_data(5) = [&
+       19.6025_dp, 2._dp * 0.820574_dp, -3._dp * 7.40674e-3, &
+            4._dp * 2.18380e-5_dp, -5._dp * 2.20999e-8]
   PetscReal, parameter :: viscosity_data(5, 6) = reshape([ &
        0._dp, 100.e5_dp, 150.e5_dp, 200.e5_dp, 300.e5_dp, &
        1357.8_dp, 3918.9_dp, 9660.7_dp, 1.31566e4_dp, 1.47968e4_dp, &
@@ -37,7 +37,7 @@ module ncg_co2_thermodynamics_module
      procedure, public :: destroy => ncg_co2_destroy
      procedure, public :: properties => ncg_co2_properties
      procedure, public :: henrys_constant => ncg_co2_henrys_constant
-     procedure, public :: energy_solution => ncg_co2_energy_solution
+     procedure, public :: henrys_derivative => ncg_co2_henrys_derivative
      procedure, public :: viscosity => ncg_co2_viscosity
      procedure, public :: mixture_viscosity => ncg_co2_mixture_viscosity
   end type ncg_co2_thermodynamics_type
@@ -125,21 +125,23 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine ncg_co2_energy_solution(self, temperature, energy_solution, err)
-    !! Calculates enthalpy of CO2 dissolution in liquid.
+  subroutine ncg_co2_henrys_derivative(self, temperature, &
+       henrys_constant, henrys_derivative, err)
+    !! Returns derivative of natural logarithm of Henry's constant
+    !! with respect to temperature.
 
     use utils_module, only: polynomial
 
     class(ncg_co2_thermodynamics_type), intent(in) :: self
     PetscReal, intent(in) :: temperature !! Temperature
-    PetscReal, intent(out):: energy_solution !! Energy of solution
-    PetscInt, intent(out) :: err     !! error code
+    PetscReal, intent(in) :: henrys_constant !! Henry's constant
+    PetscReal, intent(out) :: henrys_derivative !! Henry's derivative
+    PetscErrorCode, intent(out) :: err !! Error code
 
-    energy_solution = polynomial(energy_solution_data, &
-         0.01_dp * temperature)
-    err = 0
+    henrys_derivative = 1.e5_dp * henrys_constant * &
+         polynomial(henry_derivative_data, temperature)
 
-  end subroutine ncg_co2_energy_solution
+  end subroutine ncg_co2_henrys_derivative
 
 !------------------------------------------------------------------------
   
