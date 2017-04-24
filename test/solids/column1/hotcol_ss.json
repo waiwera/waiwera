@@ -31,7 +31,9 @@
 		"porosity": 0.1, 
 		"dry conductivity": 1.5, 
 		"wet conductivity": 1.5, 
-		"permeability": [1e-13,1e-13,1e-13]
+		"permeability": [1e-13,1e-13,1e-13],
+		"youngs modulus":1.0e10,
+		"poissons ratio":0.20
 	    },
 	    {   
 		"specific heat": 900.0,
@@ -41,7 +43,9 @@
 		"porosity": 0.1,
 		"dry conductivity": 1.5, 
 		"wet conductivity": 1.5, 
-		"permeability": [1e-13,1e-13,1e-13]
+		"permeability": [1e-13,1e-13,1e-13],
+		"youngs modulus":2.0e10,
+		"poissons ratio":0.25
 	    }
 	]
     }, 

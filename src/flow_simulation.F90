@@ -391,7 +391,6 @@ contains
     call setup_eos(json, self%thermo, self%eos, self%logfile)
 
     call self%mesh%init(json, self%logfile)
-    call self%rock_mechanics%init(json,self%logfile)
     call setup_rocktype_labels(json, self%mesh%dm, self%logfile)
     call self%mesh%setup_boundaries(json, self%eos, self%logfile)
     if (self%output_filename == '') then
@@ -402,6 +401,9 @@ contains
     end if
     call self%output_mesh_geometry()
 
+    ! initialize rock mechanics
+    call self%rock_mechanics%init(self%mesh%dm,self%logfile)
+    
     call self%setup_solution_vector()
     call setup_relative_permeabilities(json, &
          self%relative_permeability, self%logfile)
@@ -842,12 +844,19 @@ contains
     !! last_timestep_fluid vector is initialized from the fluid
     !! vector, to be used to revert to the previous state when
     !! re-trying a timestep with a smaller step size.
+    use dm_utils_module, only: global_section_offset, global_vec_section
+    use fluid_module
+    use rock_module
     
     class(flow_simulation_type), intent(in out) :: self
     ! Locals:
-    !PetscErrorCode :: ierr
-    print *, "In flow post timestep"
-
+    type(fluid_type) :: fluid
+    type(rock_type) :: rock
+    
+    call fluid%init(self%eos%num_components, self%eos%num_phases)
+    call rock%init()
+    call self%rock_mechanics%run(fluid,rock,self%fluid,self%fluid_range_start, &
+         self%rock,self%rock_range_start)
   end subroutine flow_simulation_post_timestep
   
 !------------------------------------------------------------------------
@@ -1146,7 +1155,6 @@ contains
           call last_iteration_fluid%assign(last_iteration_fluid_array, &
                fluid_offset)
           call fluid%assign(fluid_array, fluid_offset)
-
           call self%eos%transition(cell_primary, last_iteration_fluid, &
                fluid, transition, err)
 

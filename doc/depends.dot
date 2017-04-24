@@ -27,6 +27,7 @@ digraph waiwera{
         ode_module -> logfile_module
         ode_module -> mesh_module
         dm_utils_module -> mpi_module
+        thermodynamics_module -> kinds_module
         cell_module -> fluid_module
         cell_module -> kinds_module
         cell_module -> rock_module
@@ -58,7 +59,6 @@ digraph waiwera{
         flow_simulation_module -> thermodynamics_setup_module
         flow_simulation_module -> utils_module
         flow_simulation_module -> version_module
-        thermodynamics_module -> kinds_module
         face_module -> cell_module
         face_module -> eos_module
         face_module -> kinds_module
@@ -152,9 +152,10 @@ digraph waiwera{
         timestepper_module -> ode_module
         timestepper_module -> utils_module
         logfile_module -> mpi_module
-        rock_mechanics_module -> fson
+        rock_mechanics_module -> dm_utils_module
+        rock_mechanics_module -> fluid_module
         rock_mechanics_module -> logfile_module
-        rock_mechanics_module -> mpi_module
+        rock_mechanics_module -> rock_module
         source_control_module -> dm_utils_module
         source_control_module -> eos_module
         source_control_module -> interpolation_module

@@ -34,6 +34,8 @@ module rock_module
      PetscReal, pointer, public :: porosity          !! Porosity
      PetscReal, pointer, public :: density           !! Grain density
      PetscReal, pointer, public :: specific_heat     !! Specific heat
+     PetscReal, pointer, public :: youngs_modulus    !! Young's modulus for rock mechanics
+     PetscReal, pointer, public :: poissons_ratio    !! Poisson's ratio for rock mechanics
      class(relative_permeability_type), pointer, &
           public :: relative_permeability !! Relative permeability functions
      PetscInt, public :: dof !! Number of degrees of freedom
@@ -47,19 +49,19 @@ module rock_module
      procedure, public :: energy => rock_energy
   end type rock_type
 
-  PetscInt, parameter :: num_rock_variables = 6
+  PetscInt, parameter :: num_rock_variables = 8
   PetscInt, parameter :: max_rock_variable_name_length = 32
   character(max_rock_variable_name_length), parameter, public :: &
        rock_variable_names(num_rock_variables) = &
        [character(max_rock_variable_name_length):: &
        "permeability", "wet_conductivity", "dry_conductivity", "porosity", &
-       "density", "specific_heat"]
+       "density", "specific_heat", "youngs_modulus","poissons_ratio"]
   PetscInt, parameter, public :: &
        rock_variable_num_components(num_rock_variables) = &
-       [3, 1, 1, 1, 1, 1]
+       [3, 1, 1, 1, 1, 1, 1, 1]
   PetscInt, parameter, public :: &
        rock_variable_dim(num_rock_variables) = &
-       [3, 3, 3, 3, 3, 3]
+       [3, 3, 3, 3, 3, 3, 3, 3]
   PetscInt, parameter, public :: max_rockname_length = 24
 
   PetscInt, parameter, public :: max_rocktype_label_length = 9
@@ -72,6 +74,8 @@ module rock_module
   PetscReal, parameter, public :: default_density = 2200.0_dp
   PetscReal, parameter, public :: default_specific_heat = 1000._dp
   PetscReal, parameter, public :: default_heat_conductivity = 2.5_dp
+  PetscReal, parameter, public :: default_youngs_modulus = 1.0e10_dp
+  PetscReal, parameter, public :: default_poissons_ratio = 0.25_dp
 
   public :: rock_type, setup_rock_vector, setup_rocktype_labels
 
@@ -104,6 +108,8 @@ contains
     self%porosity => data(offset + 5)
     self%density => data(offset + 6)
     self%specific_heat => data(offset + 7)
+    self%youngs_modulus => data(offset + 8)
+    self%poissons_ratio => data(offset + 9)
 
   end subroutine rock_assign
     
@@ -134,6 +140,8 @@ contains
     nullify(self%density)
     nullify(self%specific_heat)
     nullify(self%relative_permeability)
+    nullify(self%youngs_modulus)
+    nullify(self%poissons_ratio)
 
   end subroutine rock_destroy
 
@@ -186,6 +194,8 @@ contains
           rock%porosity = default_porosity
           rock%density = default_density
           rock%specific_heat = default_specific_heat
+          rock%youngs_modulus = default_youngs_modulus
+          rock%poissons_ratio = default_poissons_ratio
        end if
     end do
 
@@ -219,6 +229,7 @@ contains
     type(rock_type) :: rock
     character(max_rockname_length) :: name
     PetscReal :: porosity, density, specific_heat
+    PetscReal :: youngs_modulus, poissons_ratio
     PetscReal :: wet_conductivity, dry_conductivity
     PetscReal, allocatable :: permeability(:)
     PetscReal, pointer, contiguous :: rock_array(:)
@@ -253,6 +264,10 @@ contains
             trim(rockstr) // "density")
        call fson_get_mpi(r, "specific heat", default_specific_heat, &
             specific_heat, logfile, trim(rockstr) // "specific heat")
+       call fson_get_mpi(r, "youngs modulus", default_youngs_modulus, youngs_modulus, logfile, &
+            trim(rockstr) // "youngs modulus")
+       call fson_get_mpi(r, "poissons ratio", default_poissons_ratio, poissons_ratio, logfile, &
+            trim(rockstr) // "poissons ratio")
        call DMGetStratumIS(dm, rocktype_label_name, ir, rock_IS, &
             ierr); CHKERRQ(ierr)
        if (rock_IS /= 0) then
@@ -271,6 +286,8 @@ contains
                 rock%porosity = porosity
                 rock%density = density
                 rock%specific_heat = specific_heat
+                rock%youngs_modulus = youngs_modulus
+                rock%poissons_ratio = poissons_ratio
              end if
           end do
           call ISRestoreIndicesF90(rock_IS, rock_cells, ierr); CHKERRQ(ierr)
