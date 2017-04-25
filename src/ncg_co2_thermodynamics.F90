@@ -15,9 +15,8 @@ module ncg_co2_thermodynamics_module
   PetscReal, parameter :: henry_data(6) = [&
        0.783666_dp, 1.96025_dp, 8.20574_dp, &
        -7.40674_dp, 2.18380_dp, -0.220999_dp]
-  PetscReal, parameter :: henry_derivative_data(5) = [&
-       19.6025_dp, 2._dp * 0.820574e2_dp, -3._dp * 7.40674e1, &
-            4._dp * 2.18380e1_dp, -5._dp * 2.20999_dp]
+  PetscReal, parameter :: henry_derivative_data(5) = 10._dp * &
+       henry_data(2: 6) * [1, 2, 3, 4, 5]
   PetscReal, parameter :: viscosity_data(5, 6) = reshape([ &
        0._dp, 100.e5_dp, 150.e5_dp, 200.e5_dp, 300.e5_dp, &
        1357.8_dp, 3918.9_dp, 9660.7_dp, 1.31566e4_dp, 1.47968e4_dp, &
@@ -112,10 +111,12 @@ contains
     PetscReal, intent(in) :: temperature !! Temperature
     PetscReal, intent(out) :: henrys_constant !! Henry's constant
     PetscErrorCode, intent(out) :: err !! Error code
+    ! Locals:
+    PetscReal, parameter :: tscale = 0.01_dp
 
     if (temperature <= 300._dp) then
        henrys_constant = 1.e-8_dp / polynomial(henry_data, &
-            0.01_dp * temperature)
+            tscale * temperature)
        err = 0
     else
        err = 1
@@ -137,9 +138,11 @@ contains
     PetscReal, intent(in) :: henrys_constant !! Henry's constant
     PetscReal, intent(out) :: henrys_derivative !! Henry's derivative
     PetscErrorCode, intent(out) :: err !! Error code
+    ! Locals:
+    PetscReal, parameter :: tscale = 0.01_dp
 
-    henrys_derivative = 1.e5_dp * henrys_constant * &
-         polynomial(henry_derivative_data, 0.01_dp * temperature)
+    henrys_derivative = 1.e7_dp * henrys_constant * tscale * &
+         polynomial(henry_derivative_data, tscale * temperature)
     err = 0
 
   end subroutine ncg_co2_henrys_derivative
