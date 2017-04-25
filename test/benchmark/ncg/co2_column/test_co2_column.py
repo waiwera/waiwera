@@ -93,7 +93,7 @@ for run_index, run_name in enumerate(run_names):
                                               ordering_map = map_out_atm)
     co2_column_test.addTestComp(run_index, "AUTOUGH2",
                       FieldWithinTolTC(fieldsToTest = test_fields,
-                                       defFieldTol = 1.e-4,
+                                       defFieldTol = 2.e-4,
                                        expected = AUTOUGH2_result[run_name],
                                        testOutputIndex = -1))
 
