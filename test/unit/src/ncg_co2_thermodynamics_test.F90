@@ -72,7 +72,7 @@ contains
     ! CO2 energy of solution
 
     type(ncg_co2_thermodynamics_type) :: gas
-    PetscReal :: temperature, expected, hs
+    PetscReal :: temperature, expected, hs, hc
     PetscErrorCode :: err
     character(35) :: s = "CO2 energy of solution, temperature"
     PetscMPIInt :: rank
@@ -86,26 +86,30 @@ contains
     if (rank == 0) then
 
        temperature = 20._dp
-       expected = -461218.6464_dp
-       call gas%energy_solution(temperature, hs, err)
+       expected = -495750.87299689_dp
+       call gas%henrys_constant(temperature, hc, err)
+       call gas%energy_solution(temperature, hc, hs, err)
        call assert_equals(0, err, trim(s) // " 20 deg C error")
        call assert_equals(expected, hs, tol, trim(s) // " 20 deg C")
 
        temperature = 100._dp
-       expected = -180238.0_dp
-       call gas%energy_solution(temperature, hs, err)
+       expected = -180685.98723494_dp
+       call gas%henrys_constant(temperature, hc, err)
+       call gas%energy_solution(temperature, hc, hs, err)
        call assert_equals(0, err, trim(s) // " 100 deg C error")
        call assert_equals(expected, hs, tol, trim(s) // " 100 deg C")
 
        temperature = 240._dp
-       expected = 180225.4096_dp
-       call gas%energy_solution(temperature, hs, err)
+       expected = 242741.64505202_dp
+       call gas%henrys_constant(temperature, hc, err)
+       call gas%energy_solution(temperature, hc, hs, err)
        call assert_equals(0, err, trim(s) // " 240 deg C error")
        call assert_equals(expected, hs, tol, trim(s) // " 240 deg C")
 
        temperature = 300._dp
-       expected = 492442.0_dp
-       call gas%energy_solution(temperature, hs, err)
+       expected = 407409.27618764_dp
+       call gas%henrys_constant(temperature, hc, err)
+       call gas%energy_solution(temperature, hc, hs, err)
        call assert_equals(0, err, trim(s) // " 300 deg C error")
        call assert_equals(expected, hs, tol, trim(s) // " 300 deg C")
 
