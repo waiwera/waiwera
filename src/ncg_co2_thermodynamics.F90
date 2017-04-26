@@ -18,12 +18,12 @@ module ncg_co2_thermodynamics_module
   PetscReal, parameter :: henry_derivative_data(5) = 10._dp * &
        henry_data(2: 6) * [1._dp, 2._dp, 3._dp, 4._dp, 5._dp]
   PetscReal, parameter :: viscosity_data(5, 6) = reshape([ &
-       0._dp, 100.e5_dp, 150.e5_dp, 200.e5_dp, 300.e5_dp, &
-       1357.8_dp, 3918.9_dp, 9660.7_dp, 1.31566e4_dp, 1.47968e4_dp, &
-       4.9227_dp, -35.984_dp, -135.479_dp, -179.352_dp, -160.731_dp, &
-       -2.9661e-3_dp, 0.25825_dp, 0.90087_dp, 1.12474_dp, 0.850257_dp, &
-       2.8529e-6_dp, -7.1178e-4_dp, -2.4727e-3_dp, -2.98864e-3_dp, -1.99076e-3_dp, &
-       -2.1829e-9_dp, 6.9578e-7_dp, 2.4156e-6_dp, 2.85911e-6_dp, 1.73423e-6_dp], &
+       0._dp, 10._dp, 15._dp, 20._dp, 30._dp, &
+       1.3578_dp, 3.9189_dp, 9.6607_dp, 13.1566_dp, 14.7968_dp, &
+       4.9227e-3_dp, -35.984e-3_dp, -135.479e-3_dp, -179.352e-3_dp, -160.731e-3_dp, &
+       -2.9661e-6_dp, 0.25825e-3_dp, 0.90087e-3_dp, 1.12474e-3_dp, 0.850257e-3_dp, &
+       2.8529e-9_dp, -7.1178e-7_dp, -2.4727e-6_dp, -2.98864e-6_dp, -1.99076e-6_dp, &
+       -2.1829e-12_dp, 6.9578e-10_dp, 2.4156e-9_dp, 2.85911e-9_dp, 1.73423e-9_dp], &
        [5, 6])
 
   type, public, extends(ncg_thermodynamics_type) :: ncg_co2_thermodynamics_type
@@ -163,10 +163,13 @@ contains
     PetscInt, intent(out)  :: err !! Error code
     ! Locals:
     PetscReal :: coefs(5)
+    PetscReal, parameter :: pscale = 1.e6_dp
 
     if (partial_pressure <= 300.e5_dp) then
-       coefs = self%viscosity_table%interpolate(partial_pressure)
-       viscosity = 1.e-8_dp * polynomial(coefs, temperature)
+       associate(p => partial_pressure / pscale)
+         coefs = self%viscosity_table%interpolate(p)
+       end associate
+       viscosity = 1.e-5_dp * polynomial(coefs, temperature)
        err = 0
     else
        err = 1
