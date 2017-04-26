@@ -112,11 +112,11 @@ contains
     PetscReal, intent(out) :: henrys_constant !! Henry's constant
     PetscErrorCode, intent(out) :: err !! Error code
     ! Locals:
-    PetscReal, parameter :: tscale = 0.01_dp
+    PetscReal, parameter :: tscale = 100._dp
 
     if (temperature <= 300._dp) then
        henrys_constant = 1.e-8_dp / polynomial(henry_data, &
-            tscale * temperature)
+            temperature / tscale)
        err = 0
     else
        err = 1
@@ -139,10 +139,10 @@ contains
     PetscReal, intent(out) :: henrys_derivative !! Henry's derivative
     PetscErrorCode, intent(out) :: err !! Error code
     ! Locals:
-    PetscReal, parameter :: tscale = 0.01_dp
+    PetscReal, parameter :: tscale = 100._dp
 
-    henrys_derivative = 1.e7_dp * henrys_constant * tscale * &
-         polynomial(henry_derivative_data, tscale * temperature)
+    henrys_derivative = 1.e7_dp * henrys_constant / tscale * &
+         polynomial(henry_derivative_data, temperature / tscale)
     err = 0
 
   end subroutine ncg_co2_henrys_derivative
@@ -166,9 +166,7 @@ contains
     PetscReal, parameter :: pscale = 1.e6_dp
 
     if (partial_pressure <= 300.e5_dp) then
-       associate(p => partial_pressure / pscale)
-         coefs = self%viscosity_table%interpolate(p)
-       end associate
+       coefs = self%viscosity_table%interpolate(partial_pressure / pscale)
        viscosity = 1.e-5_dp * polynomial(coefs, temperature)
        err = 0
     else
