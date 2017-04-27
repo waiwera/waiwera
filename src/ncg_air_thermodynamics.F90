@@ -13,6 +13,8 @@ module ncg_air_thermodynamics_module
   PetscReal, parameter, public :: air_molecular_weight = 28.96_dp ! g/mol
   PetscReal, parameter :: enthalpy_data(4) = [&
        1.20740_dp, 9.24502_dp, 0.115984_dp, -5.63568e-4_dp]
+  PetscReal, parameter :: henry_weight(2) = [0.79_dp, 0.21_dp]
+  PetscReal, parameter :: henry_p0(2) = [1.01325_dp, 1._dp]
   PetscReal, parameter :: henry_data(2, 7) = reshape([&
        0.513726_dp, 0.26234_dp, &
        1.58603_dp, 0.610628_dp, &
@@ -22,6 +24,11 @@ module ncg_air_thermodynamics_module
        -1.21388e-1_dp, -1.54216e-1_dp, &
        1.00041e-2_dp, 1.23190e-2_dp], &
        [2, 7])
+  PetscReal, parameter :: poly_deriv(6) = &
+       [1._dp, 2._dp, 3._dp, 4._dp, 5._dp, 6._dp]
+  PetscReal, parameter :: henry_derivative_data(2, 6) = &
+       henry_data(:, 2: 7) * &
+       transpose(reshape([poly_deriv, poly_deriv], [6, 2]))
 
   type, public, extends(ncg_thermodynamics_type) :: ncg_air_thermodynamics_type
      !! Type for air NCG thermodynamics.
@@ -102,14 +109,12 @@ contains
     PetscReal, intent(out) :: henrys_constant !! Henry's constant
     PetscErrorCode, intent(out) :: err !! Error code
     ! Locals:
-    PetscReal, parameter :: weight(2) = [0.79_dp, 0.21_dp]
-    PetscReal, parameter :: p0(2) = [1.01325_dp, 1._dp]
     PetscReal, parameter :: tscale = 100._dp
     PetscReal :: hinv(2)
 
     err = 0
-    hinv = p0 * polynomial(henry_data, temperature / tscale)
-    henrys_constant = 1.e-10_dp / sum(weight * hinv)
+    hinv = polynomial(henry_data, temperature / tscale)
+    henrys_constant = 1.e-10_dp / sum(henry_weight * henry_p0 * hinv)
 
   end subroutine ncg_air_henrys_constant
 
@@ -127,10 +132,14 @@ contains
     PetscReal, intent(in) :: henrys_constant !! Henry's constant
     PetscReal, intent(out) :: henrys_derivative !! Henry's derivative
     PetscErrorCode, intent(out) :: err !! Error code
+    ! Locals:
+    PetscReal, parameter :: tscale = 100._dp
+    PetscReal :: dhinv(2)
 
-    ! TODO
-    henrys_derivative = 0._dp
     err = 0
+    dhinv = polynomial(henry_derivative_data, temperature / tscale)
+    henrys_derivative = henrys_constant * 1.e10_dp / tscale * &
+         sum(henry_weight * henry_p0 * dhinv)
 
   end subroutine ncg_air_henrys_derivative
 
