@@ -12,9 +12,117 @@ module ncg_air_thermodynamics_test
   implicit none
   private
 
-  public :: test_ncg_air_mixture_viscosity
+  public :: test_ncg_air_enthalpy, test_ncg_air_henry, &
+       test_ncg_air_mixture_viscosity
 
 contains
+
+!------------------------------------------------------------------------
+
+  subroutine test_ncg_air_enthalpy
+    ! Air enthalpy
+
+    type(ncg_air_thermodynamics_type) :: gas
+    PetscReal :: temperature, expected, props(2)
+    PetscErrorCode :: err
+    character(33) :: s = "Air enthalpy, temperature"
+    PetscMPIInt :: rank
+    PetscInt :: ierr
+    PetscReal, parameter :: pa = 1.e5_dp
+    PetscReal, parameter :: tol = 1.e-6_dp
+
+    call gas%init()
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+
+    if (rank == 0) then
+
+       temperature = 20._dp
+       expected = 19766.68296464_dp
+       call gas%properties(pa, temperature, props, err)
+       call assert_equals(0, err, trim(s) // " 20 deg C error")
+       call assert_equals(expected, props(2), tol, trim(s) // " 20 deg C")
+
+       temperature = 100._dp
+       expected = 99758.41320142_dp
+       call gas%properties(pa, temperature, props, err)
+       call assert_equals(0, err, trim(s) // " 20 deg C error")
+       call assert_equals(expected, props(2), tol, trim(s) // " 20 deg C")
+
+       temperature = 240._dp
+       expected = 243111.52063028_dp
+       call gas%properties(pa, temperature, props, err)
+       call assert_equals(0, err, trim(s) // " 20 deg C error")
+       call assert_equals(expected, props(2), tol, trim(s) // " 20 deg C")
+
+       temperature = 300._dp
+       expected = 305841.67475311_dp
+       call gas%properties(pa, temperature, props, err)
+       call assert_equals(0, err, trim(s) // " 20 deg C error")
+       call assert_equals(expected, props(2), tol, trim(s) // " 20 deg C")
+
+       temperature = 350._dp
+       expected = 358701.72866633_dp
+       call gas%properties(pa, temperature, props, err)
+       call assert_equals(0, err, trim(s) // " 20 deg C error")
+       call assert_equals(expected, props(2), tol, trim(s) // " 20 deg C")
+
+    end if
+
+  end subroutine test_ncg_air_enthalpy
+
+!------------------------------------------------------------------------
+
+  subroutine test_ncg_air_henry
+    ! Air Henry's constant
+
+    type(ncg_air_thermodynamics_type) :: gas
+    PetscReal :: temperature, expected, hc
+    PetscErrorCode :: err
+    character(33) :: s = "Air Henry's constant, temperature"
+    PetscMPIInt :: rank
+    PetscInt :: ierr
+    PetscReal, parameter :: tol = 1.e-15_dp
+
+    call gas%init()
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+
+    if (rank == 0) then
+
+       temperature = 20._dp
+       expected = 1.37591939e-10_dp
+       call gas%henrys_constant(temperature, hc, err)
+       call assert_equals(0, err, trim(s) // " 20 deg C error")
+       call assert_equals(expected, hc, tol, trim(s) // " 20 deg C")
+
+       temperature = 100._dp
+       expected = 8.89730840e-11_dp
+       call gas%henrys_constant(temperature, hc, err)
+       call assert_equals(0, err, trim(s) // " 100 deg C error")
+       call assert_equals(expected, hc, tol, trim(s) // " 100 deg C")
+
+       temperature = 240._dp
+       expected = 2.52702897e-10_dp
+       call gas%henrys_constant(temperature, hc, err)
+       call assert_equals(0, err, trim(s) // " 240 deg C error")
+       call assert_equals(expected, hc, tol, trim(s) // " 240 deg C")
+
+       temperature = 300._dp
+       expected = 5.25847886e-10_dp
+       call gas%henrys_constant(temperature, hc, err)
+       call assert_equals(0, err, trim(s) // " 300 deg C error")
+       call assert_equals(expected, hc, tol, trim(s) // " 300 deg C")
+
+       temperature = 350._dp
+       expected = 1.63742619e-09_dp
+       call gas%henrys_constant(temperature, hc, err)
+       call assert_equals(0, err, trim(s) // " 300 deg C error")
+       call assert_equals(expected, hc, tol, trim(s) // " 300 deg C")
+
+    end if
+
+  end subroutine test_ncg_air_henry
 
 !------------------------------------------------------------------------
 

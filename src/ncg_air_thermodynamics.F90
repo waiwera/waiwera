@@ -11,12 +11,21 @@ module ncg_air_thermodynamics_module
   private
 
   PetscReal, parameter, public :: air_molecular_weight = 28.96_dp ! g/mol
-  PetscReal, parameter, public :: air_specific_heat = 733.0_dp ! J/kg/K
+  PetscReal, parameter :: enthalpy_data(4) = [&
+       1.20740_dp, 9.24502_dp, 0.115984_dp, -5.63568e-4_dp]
+  PetscReal, parameter :: henry_data(2, 7) = reshape([&
+       0.513726_dp, 0.26234_dp, &
+       1.58603_dp, 0.610628_dp, &
+       -5.9378e-1_dp, 7.00732e-1_dp, &
+       -6.98282e-1_dp, -0.139299e1_dp, &
+       5.10330e-1_dp, 7.13850e-1_dp, &
+       -1.21388e-1_dp, -1.54216e-1_dp, &
+       1.00041e-2_dp, 1.23190e-2_dp], &
+       [2, 7])
 
   type, public, extends(ncg_thermodynamics_type) :: ncg_air_thermodynamics_type
      !! Type for air NCG thermodynamics.
      private
-     PetscReal :: specific_heat
      PetscReal :: fair = 97.0_dp
      PetscReal :: fwat = 363.0_dp
      PetscReal :: cair = 3.617_dp
@@ -43,7 +52,6 @@ contains
 
     self%name = "Air"
     self%molecular_weight = air_molecular_weight
-    self%specific_heat = air_specific_heat
 
     self%fmix = sqrt(self%fair * self%fwat)
     self%cmix = 0.5_dp * (self%cair + self%cwat)
@@ -54,30 +62,28 @@ contains
 
   subroutine ncg_air_properties(self, partial_pressure, temperature, &
        props, err)
-    !! Calculates air NCG density and enthalpy.
+    !! Calculates air NCG density and enthalpy. Density is calculated
+    !! from the real gas law. Enthalpy is from Irvine and Liley
+    !! (1984), "Steam and gas tables with computer equations".
 
     use thermodynamics_module, only: tc_k, gas_constant
+    use utils_module, only: polynomial
 
     class(ncg_air_thermodynamics_type), intent(in) :: self
     PetscReal, intent(in) :: partial_pressure !! Air partial pressure
     PetscReal, intent(in) :: temperature !! Temperature
     PetscReal, intent(out):: props(:) !! Properties (density and enthalpy)
     PetscErrorCode, intent(out) :: err !! Error code
+    ! Locals:
+    PetscReal, parameter :: tscale = 100._dp
+    PetscReal, parameter :: h0 = 273150.410_dp
 
     err = 0
-
     associate(tk => temperature + tc_k, air_density => props(1), &
          air_enthalpy => props(2))
-
       air_density = partial_pressure * self%molecular_weight / &
-           (1.e3 * gas_constant * self%deviation_factor * tk)
-      if (air_density > 0._dp) then
-         air_enthalpy = self%specific_heat * temperature + &
-              partial_pressure / air_density
-      else
-         air_enthalpy = 0._dp
-      end if
-
+           (1.e3_dp * gas_constant * self%deviation_factor * tk)
+      air_enthalpy = 1.e4_dp * polynomial(enthalpy_data, tk / tscale) - h0
     end associate
 
   end subroutine ncg_air_properties
@@ -86,15 +92,24 @@ contains
 
   subroutine ncg_air_henrys_constant(self, temperature, &
        henrys_constant, err)
-    !! Henry's constant for air NCG.
+    !! Henry's constant for air NCG. The formulation is based on
+    !! D'Amore and Truesdell (1988), Cramer (1982) and Cygan (1991).
+
+    use utils_module, only: polynomial
 
     class(ncg_air_thermodynamics_type), intent(in) :: self
     PetscReal, intent(in) :: temperature !! Temperature
     PetscReal, intent(out) :: henrys_constant !! Henry's constant
     PetscErrorCode, intent(out) :: err !! Error code
+    ! Locals:
+    PetscReal, parameter :: weight(2) = [0.79_dp, 0.21_dp]
+    PetscReal, parameter :: p0(2) = [1.01325_dp, 1._dp]
+    PetscReal, parameter :: tscale = 100._dp
+    PetscReal :: hinv(2)
 
     err = 0
-    henrys_constant = 1.e-10_dp
+    hinv = p0 * polynomial(henry_data, temperature / tscale)
+    henrys_constant = 1.e-10_dp / sum(weight * hinv)
 
   end subroutine ncg_air_henrys_constant
 
