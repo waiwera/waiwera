@@ -29,6 +29,11 @@ module utils_module
 
   PetscReal, parameter, public :: pi = 4._dp * atan(1._dp)
 
+  interface polynomial
+     module procedure polynomial_single
+     module procedure polynomial_multiple
+  end interface polynomial
+
   public :: str_to_upper, str_to_lower, &
        int_str_len, str_array_index, &
        split_filename, change_filename_extension, &
@@ -207,12 +212,13 @@ contains
 
 !------------------------------------------------------------------------
 
-  PetscReal function polynomial(a, x) result(p)
+  function polynomial_single(a, x) result(p)
     !! Evaluate polynomial a1 + a2*x + a3 * x^2 + ..., using Horner's
     !! method.
 
     PetscReal, intent(in) :: a(:)
     PetscReal, intent(in) :: x
+    PetscReal :: p
     ! Locals:
     PetscInt :: i
 
@@ -223,7 +229,28 @@ contains
       end do
     end associate
 
-  end function polynomial
+  end function polynomial_single
+
+!------------------------------------------------------------------------
+
+  function polynomial_multiple(a, x) result(p)
+    !! Evaluate polynomials a(:, 1) + a(:, 2) * x + a(:, 3) * x^2 +
+    !! ..., using Horner's method.
+
+    PetscReal, intent(in) :: a(:, :)
+    PetscReal, intent(in) :: x
+    PetscReal :: p(size(a, 1))
+    ! Locals:
+    PetscInt :: i
+
+    associate(n => size(a, 2))
+      p = a(:, n)
+      do i = n - 1, 1, -1
+         p = a(:, i) + x * p
+      end do
+    end associate
+
+  end function polynomial_multiple
 
 !------------------------------------------------------------------------
 
