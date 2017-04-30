@@ -29,6 +29,7 @@ module ncg_air_thermodynamics_module
   PetscReal, parameter :: henry_derivative_data(2, 6) = &
        henry_data(:, 2: 7) * &
        transpose(reshape([poly_deriv, poly_deriv], [6, 2]))
+  PetscReal, parameter :: tscale = 100._dp
 
   type, public, extends(ncg_thermodynamics_type) :: ncg_air_thermodynamics_type
      !! Type for air NCG thermodynamics.
@@ -38,6 +39,7 @@ module ncg_air_thermodynamics_module
      PetscReal :: cair = 3.617_dp
      PetscReal :: cwat = 2.655_dp
      PetscReal :: fmix, cmix
+     PetscReal :: enthalpy_shift
    contains
      private
      procedure, public :: init => ncg_air_init
@@ -55,6 +57,9 @@ contains
   subroutine ncg_air_init(self)
     !! Initialises air NCG thermodynamics object.
 
+    use thermodynamics_module, only: ttriple, tc_k
+    use utils_module, only: polynomial
+
     class(ncg_air_thermodynamics_type), intent(in out) :: self
 
     self%name = "Air"
@@ -62,6 +67,12 @@ contains
 
     self%fmix = sqrt(self%fair * self%fwat)
     self%cmix = 0.5_dp * (self%cair + self%cwat)
+
+    ! Enthalpy shift is calculated so that enthalpy at triple point of
+    ! water is zero:
+    associate(tk => ttriple + tc_k)
+      self%enthalpy_shift = polynomial(enthalpy_data, tk / tscale)
+    end associate
 
   end subroutine ncg_air_init
 
@@ -81,16 +92,14 @@ contains
     PetscReal, intent(in) :: temperature !! Temperature
     PetscReal, intent(out):: props(:) !! Properties (density and enthalpy)
     PetscErrorCode, intent(out) :: err !! Error code
-    ! Locals:
-    PetscReal, parameter :: tscale = 100._dp
-    PetscReal, parameter :: h0 = 273150.410_dp
 
     err = 0
     associate(tk => temperature + tc_k, air_density => props(1), &
          air_enthalpy => props(2))
       air_density = partial_pressure * self%molecular_weight / &
            (1.e3_dp * gas_constant * self%deviation_factor * tk)
-      air_enthalpy = 1.e4_dp * polynomial(enthalpy_data, tk / tscale) - h0
+      air_enthalpy = 1.e4_dp * (polynomial(enthalpy_data, tk / tscale) - &
+           self%enthalpy_shift)
     end associate
 
   end subroutine ncg_air_properties
@@ -109,7 +118,6 @@ contains
     PetscReal, intent(out) :: henrys_constant !! Henry's constant
     PetscErrorCode, intent(out) :: err !! Error code
     ! Locals:
-    PetscReal, parameter :: tscale = 100._dp
     PetscReal :: hinv(2)
 
     err = 0
@@ -133,7 +141,6 @@ contains
     PetscReal, intent(out) :: henrys_derivative !! Henry's derivative
     PetscErrorCode, intent(out) :: err !! Error code
     ! Locals:
-    PetscReal, parameter :: tscale = 100._dp
     PetscReal :: dhinv(2)
 
     err = 0
