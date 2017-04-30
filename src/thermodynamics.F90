@@ -41,6 +41,7 @@ module thermodynamics_module
   PetscReal, parameter, public :: pcritical  = 22.064e6_dp       !! Critical pressure (Pa)
   PetscReal, parameter, public :: water_molecular_weight = 18.01528_dp !! Molecular weight of water (g/mol)
   PetscReal, parameter, public :: gas_constant = 8.3144598_dp    !! Gas constant R
+  PetscReal, parameter, public :: ttriple = 0.01_dp              !! Triple point of water
 
 !------------------------------------------------------------------------
 ! Saturation curve type
