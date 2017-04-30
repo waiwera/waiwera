@@ -38,31 +38,31 @@ contains
     if (rank == 0) then
 
        temperature = 20._dp
-       expected = 19766.68296464_dp
+       expected = 19766.68740112_dp
        call gas%properties(pa, temperature, props, err)
        call assert_equals(0, err, trim(s) // " 20 deg C error")
        call assert_equals(expected, props(2), tol, trim(s) // " 20 deg C")
 
        temperature = 100._dp
-       expected = 99758.41320142_dp
+       expected = 99758.4176379_dp
        call gas%properties(pa, temperature, props, err)
        call assert_equals(0, err, trim(s) // " 20 deg C error")
        call assert_equals(expected, props(2), tol, trim(s) // " 20 deg C")
 
        temperature = 240._dp
-       expected = 243111.52063028_dp
+       expected = 243111.52506676_dp
        call gas%properties(pa, temperature, props, err)
        call assert_equals(0, err, trim(s) // " 20 deg C error")
        call assert_equals(expected, props(2), tol, trim(s) // " 20 deg C")
 
        temperature = 300._dp
-       expected = 305841.67475311_dp
+       expected = 305841.67918959_dp
        call gas%properties(pa, temperature, props, err)
        call assert_equals(0, err, trim(s) // " 20 deg C error")
        call assert_equals(expected, props(2), tol, trim(s) // " 20 deg C")
 
        temperature = 350._dp
-       expected = 358701.72866633_dp
+       expected = 358701.73310281_dp
        call gas%properties(pa, temperature, props, err)
        call assert_equals(0, err, trim(s) // " 20 deg C error")
        call assert_equals(expected, props(2), tol, trim(s) // " 20 deg C")
