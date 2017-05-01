@@ -25,6 +25,7 @@ module ncg_co2_thermodynamics_module
        2.8529e-9_dp, -7.1178e-7_dp, -2.4727e-6_dp, -2.98864e-6_dp, -1.99076e-6_dp, &
        -2.1829e-12_dp, 6.9578e-10_dp, 2.4156e-9_dp, 2.85911e-9_dp, 1.73423e-9_dp], &
        [5, 6])
+  PetscReal, parameter :: tscale = 100._dp
 
   type, public, extends(ncg_thermodynamics_type) :: ncg_co2_thermodynamics_type
      !! Type for CO2 NCG thermodynamics.
@@ -111,8 +112,6 @@ contains
     PetscReal, intent(in) :: temperature !! Temperature
     PetscReal, intent(out) :: henrys_constant !! Henry's constant
     PetscErrorCode, intent(out) :: err !! Error code
-    ! Locals:
-    PetscReal, parameter :: tscale = 100._dp
 
     if (temperature <= 300._dp) then
        henrys_constant = 1.e-8_dp / polynomial(henry_data, &
@@ -138,8 +137,6 @@ contains
     PetscReal, intent(in) :: henrys_constant !! Henry's constant
     PetscReal, intent(out) :: henrys_derivative !! Henry's derivative
     PetscErrorCode, intent(out) :: err !! Error code
-    ! Locals:
-    PetscReal, parameter :: tscale = 100._dp
 
     henrys_derivative = 1.e7_dp * henrys_constant / tscale * &
          polynomial(henry_derivative_data, temperature / tscale)
