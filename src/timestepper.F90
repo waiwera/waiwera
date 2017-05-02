@@ -1270,9 +1270,6 @@ end subroutine timestepper_steps_set_next_stepsize
     call SNESSetJacobian(self%solver, self%jacobian, self%jacobian, &
          SNESComputeJacobianDefaultColor, fd_coloring, ierr); CHKERRQ(ierr)
 
-    ! Set nonlinear and linear solver options from command line options:
-    call SNESSetFromOptions(self%solver, ierr); CHKERRQ(ierr)
-
     call SNESSetTolerances(self%solver, PETSC_DEFAULT_REAL, &
          PETSC_DEFAULT_REAL, stol, max_iterations, &
          PETSC_DEFAULT_INTEGER, ierr); CHKERRQ(ierr)
@@ -1280,6 +1277,7 @@ end subroutine timestepper_steps_set_next_stepsize
          PETSC_NULL_FUNCTION, ierr); CHKERRQ(ierr)
     call SNESMonitorSet(self%solver, SNES_monitor, self%context, &
          PETSC_NULL_FUNCTION, ierr); CHKERRQ(ierr)
+    call SNESSetFromOptions(self%solver, ierr); CHKERRQ(ierr)
 
     ! Set function to be called at start of each solver iteration:
     call SNESSetUpdate(self%solver, SNES_pre_iteration_update, ierr)
