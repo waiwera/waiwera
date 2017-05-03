@@ -1241,8 +1241,8 @@ end subroutine timestepper_steps_set_next_stepsize
     ! time step reduction when primary variables go out of bounds:
     PetscReal, parameter :: stol = 1.e-99_dp
     PetscReal, parameter :: dtol = 1.e8_dp
-    PetscReal, parameter :: default_mat_fd_err = 1.e-7_dp
-    PetscReal, parameter :: default_mat_fd_umin = 1.e-5_dp
+    PetscReal, parameter :: default_mat_fd_err = 1.e-8_dp
+    PetscReal, parameter :: default_mat_fd_umin = 1.e-3_dp
 
     call self%context%init(self%ode, self%steps, self%method%residual)
 
