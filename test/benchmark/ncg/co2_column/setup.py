@@ -56,7 +56,7 @@ ndt = 500
 P0, T0 = 1.e5, 10.
 dat.parameter.update(
     {'max_timesteps': ndt,
-     'tstop': 1.e13,
+     'tstop': 1.e15,
      'print_interval': 1,
      'gravity': g,
      'const_timestep': 1.e5,
