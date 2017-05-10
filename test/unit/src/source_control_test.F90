@@ -315,14 +315,14 @@ contains
          select case (source_control%sources%head%tag)
          case ("source 2")
             call assert_equals(1.e-12_dp, &
-                 source_control%productivity%val(1), PI_tol, &
+                 source_control%productivity%val(1,1), PI_tol, &
                  "source 2 productivity")
             call assert_equals(2.e5_dp, &
-                 source_control%reference_pressure%val(1), tol, &
+                 source_control%reference_pressure%val(1,1), tol, &
                  "source 2 reference pressure")
          case ("source 4")
             call assert_equals(8.54511496085953E-13_dp, &
-                 source_control%productivity%val(1), PI_tol, &
+                 source_control%productivity%val(1,1), PI_tol, &
                  "source 4 productivity")
          case ("source 10")
             call assert_equals(SRC_PRESSURE_TABLE_COORD_TIME, &
@@ -338,7 +338,7 @@ contains
                  source_control%reference_pressure%averaging_type, &
                  "source 10 averaging type")
             call assert_equals(1.8e5_dp, &
-                 source_control%reference_pressure%average(interval), &
+                 source_control%reference_pressure%average(interval, 1), &
                  tol, "source 10 reference pressure")
          case ("source 11")
             call assert_equals(SRC_PRESSURE_TABLE_COORD_ENTHALPY, &
@@ -350,14 +350,14 @@ contains
          select case (source_control%sources%head%tag)
          case ("source 7")
             call assert_equals(1.3e-2_dp, &
-                 source_control%coefficient%val(1), tol, &
+                 source_control%coefficient%val(1, 1), tol, &
                  "source 7 recharge coefficient")
             call assert_equals(50.1e5_dp, &
-                 source_control%reference_pressure%val(1), &
+                 source_control%reference_pressure%val(1, 1), &
                  tol, "source 7 reference pressure")
          case ("source 12")
             call assert_equals(cell_pressure, &
-                 source_control%reference_pressure%val(1), &
+                 source_control%reference_pressure%val(1, 1), &
                  tol, "source 12 reference pressure")
          end select
 

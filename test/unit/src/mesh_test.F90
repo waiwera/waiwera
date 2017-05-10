@@ -324,7 +324,6 @@ contains
     type(fson_value), pointer :: json
     type(mesh_type) :: mesh
     character(len = 11), allocatable :: primary(:)
-    character(:), allocatable :: json_str
     PetscInt :: f, offset
     PetscErrorCode :: ierr
     PetscSection :: face_geom_section
@@ -336,11 +335,11 @@ contains
     PetscReal, parameter :: tol = 1.e-6
     PetscInt, parameter :: expected_direction = 1
 
-    json_str = '{"mesh": {"filename": "data/mesh/7x7grid.exo", ' // &
+    json => fson_parse_mpi(str = &
+         '{"mesh": {"filename": "data/mesh/7x7grid.exo", ' // &
          '"faces": [' // &
          '{"cells": [16, 23], "permeability direction": 1}' // &
-         ']}}'
-    json => fson_parse_mpi(str = json_str)
+         ']}}')
     call mesh%init(json)
 
     call DMCreateLabel(mesh%dm, open_boundary_label_name, ierr); CHKERRQ(ierr)

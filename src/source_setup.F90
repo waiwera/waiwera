@@ -217,13 +217,14 @@ contains
 
        rate_type = fson_type_mpi(source_json, "rate")
 
-       if (rate_type == TYPE_REAL) then
+       select case (rate_type)
+       case (TYPE_REAL, TYPE_INTEGER)
           call fson_get_mpi(source_json, "rate", val = initial_rate)
           can_inject = (initial_rate > 0._dp)
-       else if (rate_type == TYPE_ARRAY) then
+       case (TYPE_ARRAY)
           initial_rate = default_source_rate
           can_inject = PETSC_TRUE
-       end if
+       end select
 
     else
        initial_rate = default_source_rate
@@ -254,12 +255,13 @@ contains
 
             enthalpy_type = fson_type_mpi(source_json, "enthalpy")
 
-            if (enthalpy_type == TYPE_REAL) then
+            select case (enthalpy_type)
+            case(TYPE_REAL, TYPE_INTEGER)
                call fson_get_mpi(source_json, "enthalpy", &
                     val = enthalpy)
-            else
+            case default
                enthalpy = default_source_injection_enthalpy
-            end if
+            end select
 
          else
             enthalpy = default_source_injection_enthalpy
@@ -466,7 +468,7 @@ contains
     if (fson_has_mpi(json, "pressure")) then
        pressure_type = fson_type_mpi(json, "pressure")
        select case (pressure_type)
-       case (TYPE_REAL)
+       case (TYPE_REAL, TYPE_INTEGER)
           call fson_get_mpi(json, "pressure", &
                val = reference_pressure)
           reference_pressure_array(1,2) = reference_pressure
@@ -541,7 +543,7 @@ contains
        PI_type = fson_type_mpi(json, "productivity")
 
        select case(PI_type)
-       case (TYPE_REAL)
+       case (TYPE_REAL, TYPE_INTEGER)
           call fson_get_mpi(json, "productivity", val = productivity)
           productivity_array = reshape([default_time, &
                productivity], [1,2])
@@ -674,7 +676,7 @@ contains
        coef_type = fson_type_mpi(json, "coefficient")
 
        select case(coef_type)
-       case (TYPE_REAL)
+       case (TYPE_REAL, TYPE_INTEGER)
           call fson_get_mpi(json, "coefficient", &
                val = recharge_coefficient)
           recharge_array(1,2) = recharge_coefficient

@@ -1240,8 +1240,9 @@ end subroutine timestepper_steps_set_next_stepsize
     ! This tolerance needs to be set very small so it doesn't override
     ! time step reduction when primary variables go out of bounds:
     PetscReal, parameter :: stol = 1.e-99_dp
-    PetscReal, parameter :: default_mat_fd_err = 1.e-7_dp
-    PetscReal, parameter :: default_mat_fd_umin = 1.e-5_dp
+    PetscReal, parameter :: dtol = 1.e8_dp
+    PetscReal, parameter :: default_mat_fd_err = 1.e-8_dp
+    PetscReal, parameter :: default_mat_fd_umin = 1.e-3_dp
 
     call self%context%init(self%ode, self%steps, self%method%residual)
 
@@ -1270,16 +1271,15 @@ end subroutine timestepper_steps_set_next_stepsize
     call SNESSetJacobian(self%solver, self%jacobian, self%jacobian, &
          SNESComputeJacobianDefaultColor, fd_coloring, ierr); CHKERRQ(ierr)
 
-    ! Set nonlinear and linear solver options from command line options:
-    call SNESSetFromOptions(self%solver, ierr); CHKERRQ(ierr)
-
     call SNESSetTolerances(self%solver, PETSC_DEFAULT_REAL, &
          PETSC_DEFAULT_REAL, stol, max_iterations, &
          PETSC_DEFAULT_INTEGER, ierr); CHKERRQ(ierr)
+    call SNESSetDivergenceTolerance(self%solver, dtol, ierr); CHKERRQ(ierr)
     call SNESSetConvergenceTest(self%solver, SNES_convergence, self%context, &
          PETSC_NULL_FUNCTION, ierr); CHKERRQ(ierr)
     call SNESMonitorSet(self%solver, SNES_monitor, self%context, &
          PETSC_NULL_FUNCTION, ierr); CHKERRQ(ierr)
+    call SNESSetFromOptions(self%solver, ierr); CHKERRQ(ierr)
 
     ! Set function to be called at start of each solver iteration:
     call SNESSetUpdate(self%solver, SNES_pre_iteration_update, ierr)
@@ -1624,7 +1624,7 @@ end subroutine timestepper_steps_set_next_stepsize
        if (fson_has_mpi(json, "time.step.size")) then
           step_size_type = fson_type_mpi(json, "time.step.size")
           select case (step_size_type)
-          case (TYPE_REAL)
+          case (TYPE_REAL, TYPE_INTEGER)
              call fson_get_mpi(json, "time.step.size", val = step_size_single)
              step_sizes = [step_size_single]
           case (TYPE_ARRAY)

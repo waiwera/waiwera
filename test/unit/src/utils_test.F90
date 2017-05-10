@@ -14,7 +14,8 @@ module utils_test
   public :: test_str_to_upper, test_str_to_lower, &
        test_split_filename, test_change_filename_extension, &
        test_int_str_len, test_str_array_index, &
-       test_degrees_to_radians, test_rotation_matrix_2d
+       test_degrees_to_radians, test_rotation_matrix_2d, &
+       test_polynomial
 
 contains
 
@@ -242,6 +243,39 @@ contains
     end if
 
   end subroutine test_rotation_matrix_2d
+
+!------------------------------------------------------------------------
+
+  subroutine test_polynomial
+    ! Test polynomial
+
+    use kinds_module
+
+    PetscReal :: x
+    PetscReal, parameter :: a(5) = [1._dp, 1._dp, 0.5_dp, &
+         1._dp / 6._dp, 1._dp / 24._dp]
+    PetscMPIInt :: rank
+    PetscInt :: ierr
+    PetscReal, parameter :: tol = 1.e-9_dp
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
+
+       x = 0._dp
+       call assert_equals(1._dp, polynomial(a, x), tol, '0')
+
+       x = 1._dp
+       call assert_equals(2.708333333333_dp, polynomial(a, x), tol, '1')
+
+       x = -1._dp
+       call assert_equals(0.375_dp, polynomial(a, x), tol, '-1')
+
+       x = 2.3_dp
+       call assert_equals(9.1388375_dp, polynomial(a, x), tol, '2.3')
+
+    end if
+
+  end subroutine test_polynomial
 
 !------------------------------------------------------------------------
 

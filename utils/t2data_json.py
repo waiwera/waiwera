@@ -12,7 +12,14 @@ def primary_to_region_we(primary):
     if primary[1] < 1.: return 4
     else: return region(primary[1], primary[0])
 
-primary_to_region_funcs = {'we': primary_to_region_we}
+def primary_to_region_wge(primary):
+    """Returns thermodynamic region deduced from primary variables for wge
+    (NCG) EOS (wce, wae)."""
+    pwater = primary[0] - primary[2]
+    return primary_to_region_we([pwater, primary[1]])
+
+primary_to_region_funcs = {'we': primary_to_region_we, 'wce': primary_to_region_wge,
+                           'wae': primary_to_region_wge}
 
 class t2data_export_json(t2data):
     """Modification of t2data class including ability to export to
@@ -93,7 +100,8 @@ class t2data_export_json(t2data):
     def eos_json(self, eos):
         """Converts TOUGH2 EOS data to JSON."""
         jsondata = {}
-        supported_eos = {'W': 'w', 'EW': 'we'}
+        supported_eos = {'W': 'w', 'EW': 'we', 'EWC': 'wce',
+                         'EWA': 'wae', 'EWAV': 'wae'}
         aut2eosname = ''
         if eos is None:
             if self.multi:
@@ -208,6 +216,14 @@ class t2data_export_json(t2data):
                         rp['ssr'] = pars[3]
                     else: rp['sum_unity'] = True
                 jsondata['relative_permeability'] = rp
+            elif self.type == 'AUTOUGH2' and itype == 19:
+                # tri-linear: convert to table
+                rp['type'] = 'table'
+                rp['liquid'] = [[0, 0], [pars[0], pars[4]],
+                                [pars[2], pars[6]], [1, 1]]
+                rp['vapour'] = [[0, 0], [pars[1], 0],
+                                [pars[3], pars[5]], [1,1]]
+                jsondata['relative_permeability'] = rp
             else:
                 raise Exception ('Unhandled relative permeability type: %d' % itype)
         else: jsondata['relative_permeability'] = {'type': 'fully mobile'}
@@ -261,14 +277,13 @@ class t2data_export_json(t2data):
                 if len(set(jsondata['initial']['region'])) == 1:
                     jsondata['initial']['region'] = jsondata['initial']['region'][0]
             else:
-                raise Exception("Finding thermodynamic region from primary variables not yet supported for EOS:" +
-                                eos)
+                raise Exception("Finding thermodynamic region from primary variables not yet supported for EOS:" + eos)
         return jsondata
 
     def generators_json(self, geo, eosname):
         """Converts TOUGH2 generator data to JSON."""
         jsondata = {}
-        eos_num_equations = {'w': 1, 'we': 2}
+        eos_num_equations = {'w': 1, 'we': 2, 'wce': 3, 'wae': 3}
         num_eqns = eos_num_equations[eosname]
         unsupported_types = ['CO2 ', 'DMAK', 'FEED', 'FINJ', 'HLOS', 'IMAK', 'MAKE',
                              'PINJ', 'POWR', 'RINJ', 'TMAK', 'TOST', 'VOL.',

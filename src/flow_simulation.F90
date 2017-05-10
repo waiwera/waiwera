@@ -358,7 +358,7 @@ contains
     use kinds_module
     use fson
     use fson_mpi_module
-    use fson_value_m, only: TYPE_REAL, TYPE_ARRAY, TYPE_NULL
+    use fson_value_m, only: TYPE_REAL, TYPE_INTEGER, TYPE_ARRAY, TYPE_NULL
 
     class(flow_simulation_type), intent(in out) :: self
     type(fson_value), pointer, intent(in) :: json
@@ -373,7 +373,7 @@ contains
     if (fson_has_mpi(json, "gravity")) then
        gravity_type = fson_type_mpi(json, "gravity")
        select case (gravity_type)
-       case (TYPE_REAL)
+       case (TYPE_REAL, TYPE_INTEGER)
           call fson_get_mpi(json, "gravity", val = gravity_magnitude)
           self%gravity(dim) = -gravity_magnitude
        case (TYPE_ARRAY)
@@ -416,7 +416,7 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine flow_simulation_init(self, json, filename)
+  subroutine flow_simulation_init(self, json, filename, err)
     !! Initializes a flow simulation using data from the specified JSON object.
 
     use kinds_module
@@ -426,7 +426,7 @@ contains
     use eos_module, only: max_component_name_length, &
          max_phase_name_length
     use eos_setup_module, only: setup_eos
-    use initial_module, only: setup_initial
+    use initial_module, only: setup_initial, scale_initial_primary
     use fluid_module, only: setup_fluid_vector
     use rock_module, only: setup_rock_vector, setup_rocktype_labels
     use source_setup_module, only: setup_sources
@@ -436,13 +436,14 @@ contains
     class(flow_simulation_type), intent(in out) :: self
     type(fson_value), pointer, intent(in) :: json
     character(len = *), intent(in), optional :: filename
+    PetscErrorCode, intent(out) :: err
     ! Locals:
     character(len = max_title_length), parameter :: default_title = ""
     character(25) :: datetimestr
     PetscErrorCode :: ierr
 
+    err = 0
     call PetscLogEventBegin(simulation_init_event, ierr); CHKERRQ(ierr)
-
     call PetscTime(self%start_wall_time, ierr); CHKERRQ(ierr)
     datetimestr = date_time_str()
 
@@ -495,10 +496,14 @@ contains
     call self%mesh%set_boundary_values(self%solution, self%fluid, &
          self%rock, self%eos, self%solution_range_start, &
          self%fluid_range_start, self%rock_range_start)
-    call self%fluid_init(self%time, self%solution, ierr)
-    call setup_sources(json, self%mesh%dm, self%eos, self%thermo, &
-         self%time, self%fluid, self%fluid_range_start, &
-         self%sources, self%source_controls, self%logfile)
+    call scale_initial_primary(self%mesh, self%eos, self%solution, self%fluid, &
+         self%solution_range_start, self%fluid_range_start)
+    call self%fluid_init(self%time, self%solution, err)
+    if (err == 0) then
+       call setup_sources(json, self%mesh%dm, self%eos, self%thermo, &
+            self%time, self%fluid, self%fluid_range_start, &
+            self%sources, self%source_controls, self%logfile)
+    end if
 
     call self%logfile%flush()
 
@@ -688,13 +693,12 @@ contains
     PetscReal, pointer, contiguous :: inflow(:)
     PetscReal, allocatable :: face_flow(:)
     PetscReal, parameter :: flux_sign(2) = [-1._dp, 1._dp]
-    PetscReal, allocatable :: primary(:)
     PetscErrorCode :: ierr
 
     call PetscLogEventBegin(cell_inflows_event, ierr); CHKERRQ(ierr)
     err = 0
     np = self%eos%num_primary_variables
-    allocate(face_flow(np), primary(np))
+    allocate(face_flow(np))
 
     call global_vec_section(rhs, rhs_section)
     call VecGetArrayF90(rhs, rhs_array, ierr); CHKERRQ(ierr)
@@ -775,7 +779,7 @@ contains
     call VecRestoreArrayF90(rhs, rhs_array, ierr); CHKERRQ(ierr)
     call restore_dm_local_vec(local_fluid)
     call restore_dm_local_vec(local_rock)
-    deallocate(face_flow, primary)
+    deallocate(face_flow)
 
   contains
 
@@ -938,8 +942,9 @@ contains
     PetscInt :: c, np, nc, order
     PetscSection :: y_section, fluid_section, rock_section
     PetscInt :: y_offset, fluid_offset, rock_offset
-    PetscReal, pointer, contiguous :: y_array(:), cell_primary(:)
+    PetscReal, pointer, contiguous :: y_array(:), scaled_cell_primary(:)
     PetscReal, pointer, contiguous :: fluid_array(:), rock_array(:)
+    PetscReal :: cell_primary(self%eos%num_primary_variables)
     type(cell_type) :: cell
     DMLabel :: order_label
     PetscMPIInt :: rank
@@ -953,7 +958,7 @@ contains
     nc = self%eos%num_components
 
     call global_vec_section(y, y_section)
-    call VecGetArrayF90(y, y_array, ierr); CHKERRQ(ierr)
+    call VecGetArrayReadF90(y, y_array, ierr); CHKERRQ(ierr)
 
     call global_vec_section(self%fluid, fluid_section)
     call VecGetArrayF90(self%fluid, fluid_array, ierr); CHKERRQ(ierr)
@@ -972,7 +977,7 @@ contains
 
           call global_section_offset(y_section, c, &
                self%solution_range_start, y_offset, ierr); CHKERRQ(ierr)
-          cell_primary => y_array(y_offset : y_offset + np - 1)
+          scaled_cell_primary => y_array(y_offset : y_offset + np - 1)
 
           call global_section_offset(fluid_section, c, &
                self%fluid_range_start, fluid_offset, ierr); CHKERRQ(ierr)
@@ -984,6 +989,8 @@ contains
           call cell%rock%assign_relative_permeability(self%relative_permeability)
           call cell%rock%assign_capillary_pressure(self%capillary_pressure)
           call cell%fluid%assign(fluid_array, fluid_offset)
+          cell_primary = scaled_cell_primary * &
+               self%eos%primary_scale(:, nint(cell%fluid%region))
 
           call self%eos%bulk_properties(cell_primary, cell%fluid, err)
 
@@ -994,7 +1001,8 @@ contains
                 call DMLabelGetValue(order_label, c, order, ierr)
                 CHKERRQ(ierr)
                 call self%logfile%write(LOG_LEVEL_ERR, 'initialize', &
-                     'fluid', ['cell  ', 'region'], [order, int(cell%fluid%region)], &
+                     'fluid_phase_properties', ['cell  ', 'region'], &
+                     [order, int(cell%fluid%region)], &
                      real_array_key = 'primary', real_array_value = cell_primary, &
                      rank = rank)
                 exit
@@ -1003,7 +1011,8 @@ contains
              call DMLabelGetValue(order_label, c, order, ierr)
              CHKERRQ(ierr)
              call self%logfile%write(LOG_LEVEL_ERR, 'initialize', &
-                  'fluid', ['cell  ', 'region'], [order, int(cell%fluid%region)], &
+                  'fluid_bulk_properties', ['cell  ', 'region'], &
+                  [order, int(cell%fluid%region)], &
                   real_array_key = 'primary', real_array_value = cell_primary, &
                   rank = rank)
              exit
@@ -1015,7 +1024,7 @@ contains
 
     call VecRestoreArrayF90(self%rock, rock_array, ierr); CHKERRQ(ierr)
     call VecRestoreArrayF90(self%fluid, fluid_array, ierr); CHKERRQ(ierr)
-    call VecRestoreArrayF90(y, y_array, ierr); CHKERRQ(ierr)
+    call VecRestoreArrayReadF90(y, y_array, ierr); CHKERRQ(ierr)
     call cell%destroy()
 
     call mpi_broadcast_error_flag(err)
@@ -1044,8 +1053,9 @@ contains
     PetscInt :: c, np, nc, order
     PetscSection :: y_section, fluid_section, rock_section
     PetscInt :: y_offset, fluid_offset, rock_offset
-    PetscReal, pointer, contiguous :: y_array(:), cell_primary(:)
+    PetscReal, pointer, contiguous :: y_array(:), scaled_cell_primary(:)
     PetscReal, pointer, contiguous :: fluid_array(:), rock_array(:)
+    PetscReal :: cell_primary(self%eos%num_primary_variables)
     type(cell_type) :: cell
     DMLabel :: order_label
     PetscMPIInt :: rank
@@ -1078,7 +1088,7 @@ contains
 
           call global_section_offset(y_section, c, &
                self%solution_range_start, y_offset, ierr); CHKERRQ(ierr)
-          cell_primary => y_array(y_offset : y_offset + np - 1)
+          scaled_cell_primary => y_array(y_offset : y_offset + np - 1)
 
           call global_section_offset(fluid_section, c, &
                self%fluid_range_start, fluid_offset, ierr); CHKERRQ(ierr)
@@ -1090,6 +1100,8 @@ contains
           call cell%rock%assign_relative_permeability(self%relative_permeability)
           call cell%rock%assign_capillary_pressure(self%capillary_pressure)
           call cell%fluid%assign(fluid_array, fluid_offset)
+          cell_primary = scaled_cell_primary * &
+               self%eos%primary_scale(:, nint(cell%fluid%region))
 
           call self%eos%bulk_properties(cell_primary, cell%fluid, err)
 
@@ -1100,7 +1112,7 @@ contains
                 call DMLabelGetValue(order_label, c, order, ierr)
                 CHKERRQ(ierr)
                 call self%logfile%write(LOG_LEVEL_WARN, 'fluid', &
-                     'properties_not_found', &
+                     'phase_properties_not_found', &
                      ['cell            '], [order], &
                      real_array_key = 'primary         ', &
                      real_array_value = cell_primary, rank = rank)
@@ -1109,7 +1121,7 @@ contains
           else
              call DMLabelGetValue(order_label, c, order, ierr); CHKERRQ(ierr)
              call self%logfile%write(LOG_LEVEL_WARN, 'fluid', &
-                  'properties_not_found', &
+                  'bulk_properties_not_found', &
                   ['cell            '], [order], &
                   real_array_key = 'primary         ', &
                   real_array_value = cell_primary, rank = rank)
@@ -1154,9 +1166,11 @@ contains
     PetscSection :: primary_section, fluid_section
     PetscInt :: primary_offset, fluid_offset
     PetscReal, pointer, contiguous :: primary_array(:), old_primary_array(:), search_array(:)
-    PetscReal, pointer, contiguous :: cell_primary(:), old_cell_primary(:), cell_search(:)
+    PetscReal, pointer, contiguous :: scaled_cell_primary(:), old_scaled_cell_primary(:)
+    PetscReal, pointer, contiguous :: scaled_cell_search(:)
     PetscReal, pointer, contiguous :: last_iteration_fluid_array(:), fluid_array(:)
-    type(fluid_type) :: last_iteration_fluid, fluid
+    PetscReal, dimension(self%eos%num_primary_variables) :: cell_primary, old_cell_primary
+    type(fluid_type) :: old_fluid, fluid
     DMLabel :: order_label
     PetscBool :: transition
     PetscMPIInt :: rank
@@ -1181,7 +1195,7 @@ contains
     call VecGetArrayReadF90(self%last_iteration_fluid, &
          last_iteration_fluid_array, ierr); CHKERRQ(ierr)
 
-    call last_iteration_fluid%init(nc, self%eos%num_phases)
+    call old_fluid%init(nc, self%eos%num_phases)
     call fluid%init(nc, self%eos%num_phases)
 
     call DMGetLabel(self%mesh%dm, cell_order_label_name, order_label, ierr)
@@ -1193,28 +1207,31 @@ contains
 
           call global_section_offset(primary_section, c, &
                self%solution_range_start, primary_offset, ierr); CHKERRQ(ierr)
-          cell_primary => primary_array(primary_offset : primary_offset + np - 1)
-          old_cell_primary => old_primary_array(primary_offset : &
+          scaled_cell_primary => primary_array(primary_offset : primary_offset + np - 1)
+          old_scaled_cell_primary => old_primary_array(primary_offset : &
                primary_offset + np - 1)
-          cell_search => search_array(primary_offset : primary_offset + np - 1)
+          scaled_cell_search => search_array(primary_offset : primary_offset + np - 1)
 
           call global_section_offset(fluid_section, c, &
                self%fluid_range_start, fluid_offset, ierr); CHKERRQ(ierr)
 
-          call last_iteration_fluid%assign(last_iteration_fluid_array, &
+          call old_fluid%assign(last_iteration_fluid_array, &
                fluid_offset)
           call fluid%assign(fluid_array, fluid_offset)
+          cell_primary = scaled_cell_primary * &
+               self%eos%primary_scale(:, nint(fluid%region))
+          old_cell_primary = old_scaled_cell_primary * &
+               self%eos%primary_scale(:, nint(old_fluid%region))
 
-          call self%eos%transition(cell_primary, last_iteration_fluid, &
-               fluid, transition, err)
+          call self%eos%transition(old_cell_primary, cell_primary, &
+               old_fluid, fluid, transition, err)
 
           if (err == 0) then
-             err = self%eos%check_primary_variables(fluid, cell_primary)
+             call self%eos%check_primary_variables(fluid, cell_primary, &
+                  changed_y, err)
              if (err == 0) then
                 if (transition) then
-                   cell_search = old_cell_primary - cell_primary
                    changed_y = PETSC_TRUE
-                   changed_search = PETSC_TRUE
                    call DMLabelGetValue(order_label, c, order, ierr)
                    CHKERRQ(ierr)
                    call self%logfile%write(LOG_LEVEL_INFO, 'fluid', &
@@ -1222,7 +1239,7 @@ contains
                         ['cell            ', &
                         'old_region      ', 'new_region      '], &
                         [order, &
-                        nint(last_iteration_fluid%region), nint(fluid%region)], &
+                        nint(old_fluid%region), nint(fluid%region)], &
                         real_array_key = 'new_primary     ', &
                         real_array_value = cell_primary, rank = rank)
                 end if
@@ -1237,7 +1254,12 @@ contains
                      real_array_value = cell_primary, rank = rank)
                 exit
              end if
-
+             if (changed_y) then
+                changed_search = PETSC_TRUE
+                scaled_cell_primary = cell_primary / &
+                     self%eos%primary_scale(:, nint(fluid%region))
+                scaled_cell_search = old_scaled_cell_primary - scaled_cell_primary
+             end if
           else
              call DMLabelGetValue(order_label, c, order, ierr); CHKERRQ(ierr)
              call self%logfile%write(LOG_LEVEL_WARN, 'fluid', &
@@ -1258,7 +1280,7 @@ contains
     call VecRestoreArrayF90(y, primary_array, ierr); CHKERRQ(ierr)
     call VecRestoreArrayReadF90(y_old, old_primary_array, ierr); CHKERRQ(ierr)
     call VecRestoreArrayF90(search, search_array, ierr); CHKERRQ(ierr)
-    call last_iteration_fluid%destroy()
+    call old_fluid%destroy()
     call fluid%destroy()
 
     call mpi_broadcast_error_flag(err)

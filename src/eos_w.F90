@@ -36,6 +36,7 @@ module eos_w_module
      procedure, public :: init => eos_w_init
      procedure, public :: transition => eos_w_transition
      procedure, public :: bulk_properties => eos_w_bulk_properties
+     procedure, public :: phase_saturations => eos_w_phase_saturations
      procedure, public :: phase_properties => eos_w_phase_properties
      procedure, public :: primary_variables => eos_w_primary_variables
      procedure, public :: check_primary_variables => eos_w_check_primary_variables
@@ -61,6 +62,7 @@ contains
     ! Locals:
     PetscReal, parameter :: default_pressure = 1.0e5_dp
     PetscReal, parameter :: default_temperature = 20._dp ! deg C
+    PetscReal, parameter :: pscale = 1.e6_dp
 
     self%name = "w"
     self%description = "Isothermal pure water"
@@ -74,6 +76,7 @@ contains
     self%isothermal = PETSC_TRUE
 
     self%default_primary = [default_pressure]
+    self%primary_scale = reshape([pscale, pscale], [1, 2])
     self%default_region = 1
 
     self%thermo => thermo
@@ -85,14 +88,15 @@ contains
 
 !------------------------------------------------------------------------
   
-  subroutine eos_w_transition(self, primary, old_fluid, fluid, &
-       transition, err)
+  subroutine eos_w_transition(self, old_primary, primary, &
+       old_fluid, fluid, transition, err)
     !! For eos_w, check primary variables for a cell and make
     !! thermodynamic region transitions if needed
 
     use fluid_module, only: fluid_type
 
     class(eos_w_type), intent(in out) :: self
+    PetscReal, intent(in) :: old_primary(self%num_primary_variables)
     PetscReal, intent(in out) :: primary(self%num_primary_variables)
     type(fluid_type), intent(in) :: old_fluid
     type(fluid_type), intent(in out) :: fluid
@@ -126,6 +130,23 @@ contains
     call self%phase_composition(fluid, err)
 
   end subroutine eos_w_bulk_properties
+
+!------------------------------------------------------------------------
+
+  subroutine eos_w_phase_saturations(self, primary, fluid)
+    !! Assigns fluid phase saturations from fluid region and primary variables.
+
+    use fluid_module, only: fluid_type
+    class(eos_w_type), intent(in out) :: self
+    PetscReal, intent(in) :: primary(self%num_primary_variables) !! Primary thermodynamic variables
+    type(fluid_type), intent(in out) :: fluid !! Fluid object
+    ! Locals:
+    PetscInt :: region
+
+    region = nint(fluid%region)
+    fluid%phase(region)%saturation = 1._dp
+
+  end subroutine eos_w_phase_saturations
 
 !------------------------------------------------------------------------
 
@@ -193,8 +214,8 @@ end subroutine eos_w_phase_properties
 
 !------------------------------------------------------------------------
 
-  PetscErrorCode function eos_w_check_primary_variables(self, fluid, &
-       primary) result(err)
+  subroutine eos_w_check_primary_variables(self, fluid, &
+       primary, changed, err)
     !! Check if primary variables are in acceptable bounds, and return
     !! error code accordingly.
 
@@ -202,8 +223,12 @@ end subroutine eos_w_phase_properties
 
     class(eos_w_type), intent(in) :: self
     type(fluid_type), intent(in) :: fluid
-    PetscReal, intent(in) :: primary(self%num_primary_variables)
-    
+    PetscReal, intent(in out) :: primary(self%num_primary_variables)
+    PetscBool, intent(out) :: changed
+    PetscErrorCode, intent(out) :: err
+
+    changed = PETSC_FALSE
+
     associate (p => primary(1))
       if ((p < 0._dp) .or. (p > 100.e6_dp)) then
          err = 1
@@ -212,7 +237,7 @@ end subroutine eos_w_phase_properties
       end if
     end associate
 
-  end function eos_w_check_primary_variables
+  end subroutine eos_w_check_primary_variables
 
 !------------------------------------------------------------------------
 

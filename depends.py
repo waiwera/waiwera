@@ -183,7 +183,8 @@ class dependencies(object):
         for line in sorted(lines): outfile.write(line)
         outfile.close()
 
-    def write_module_dot(self, path = './', filename = 'depends.dot'):
+    def write_module_dot(self, path = './', filename = 'depends.dot',
+                         exclude_modules = []):
         """Writes DOT file describing the module dependency graph.
         This can be used to produce a module dependency diagram
         using e.g. Graphviz."""
@@ -203,7 +204,8 @@ class dependencies(object):
             if s.path == path:
                 for m in s.modules:
                     for d in m.depends:
-                        lines.append('        ' + m.name + ' -> ' + d + '\n')
+                        if d not in exclude_modules:
+                            lines.append('        ' + m.name + ' -> ' + d + '\n')
         for line in sorted(lines): outfile.write(line)
         outfile.write('}')
         outfile.close()
@@ -215,7 +217,10 @@ if __name__ == '__main__':
     variables = [('$(TESTSUF)', '_test'), ('$(PROG)', 'waiwera'),
              ('$(TESTPROG)', 'test_all')]
     omit = ['$(BUILD)/$(PROG)$(OBJ)', '$(TEST)/$(BUILD)/$(TESTPROG)$(OBJ)']
+    exclude_modules = ['petsc', 'petscvec', 'petscsnes', 'petscis', 'petscsys',
+                       'kinds_module', 'fson_value_m', 'fson',
+                       'iso_fortran_env']
 
     deps = dependencies(srcdirs)
     deps.make_depends(objdirs, variables = variables, omit = omit)
-    deps.write_module_dot(srcdirs[0], 'doc/depends.dot')
+    deps.write_module_dot(srcdirs[0], 'doc/depends.dot', exclude_modules)

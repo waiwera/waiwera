@@ -62,6 +62,11 @@ contains
 
     self%default_primary = [default_pressure, default_temperature, &
          default_gas_partial_pressure]
+    self%primary_scale = reshape([ &
+         pcritical, tcritical, pcritical, &
+         pcritical, tcritical, pcritical, &
+         0._dp, 0._dp, 0._dp, &
+         pcritical, 1._dp, pcritical], [3, 4])
     self%default_region = 1
 
     self%thermo => thermo
@@ -70,12 +75,13 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine eos_test_transition(self, primary, old_fluid, fluid, &
-       transition, err)
+  subroutine eos_test_transition(self, old_primary, primary, &
+       old_fluid, fluid, transition, err)
 
     use fluid_module, only: fluid_type
 
     class(eos_test_type), intent(in out) :: self
+    PetscReal, intent(in) :: old_primary(self%num_primary_variables)
     PetscReal, intent(in out) :: primary(self%num_primary_variables)
     type(fluid_type), intent(in) :: old_fluid
     type(fluid_type), intent(in out) :: fluid
@@ -135,18 +141,21 @@ contains
 
 !------------------------------------------------------------------------
 
-  PetscErrorCode function eos_test_check_primary_variables(self, fluid, &
-       primary) result(err)
+  subroutine eos_test_check_primary_variables(self, fluid, &
+       primary, changed, err)
 
     use fluid_module, only: fluid_type
 
     class(eos_test_type), intent(in) :: self
     type(fluid_type), intent(in) :: fluid
-    PetscReal, intent(in) :: primary(self%num_primary_variables)
+    PetscReal, intent(in out) :: primary(self%num_primary_variables)
+    PetscBool, intent(out) :: changed
+    PetscErrorCode, intent(out) :: err
 
+    changed = PETSC_FALSE
     err = 0
 
-  end function eos_test_check_primary_variables
+  end subroutine eos_test_check_primary_variables
 
 !------------------------------------------------------------------------
 
