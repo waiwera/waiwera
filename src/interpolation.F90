@@ -305,10 +305,15 @@ contains
     PetscReal, intent(in) :: array(:,:)
     PetscInt, intent(in) :: interpolation_type
     PetscInt, intent(in) :: averaging_type
+    ! Locals:
+    PetscInt :: n(2)
 
     call self%coord%init(array(:, 1))
+
+    n = shape(array)
+    self%dim = n(2) - 1
+    allocate(self%val(self%dim, n(1)))
     self%val = transpose(array(:, 2:))
-    self%dim = size(self%val, 1)
     call self%set_interpolation_type(interpolation_type)
     call self%set_averaging_type(averaging_type)
 
