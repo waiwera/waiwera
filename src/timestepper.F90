@@ -172,6 +172,7 @@ module timestepper_module
      class(ode_type), pointer, public :: ode
      type(timestepper_steps_type), pointer, public :: steps
      procedure(method_residual), pointer, nopass, public :: residual
+     MatFDColoring, public :: fd_coloring !! Finite difference colouring for Jacobian matrix
    contains
      private
      procedure, public :: init => timestepper_solver_context_init
@@ -458,6 +459,7 @@ contains
     PetscErrorCode, intent(out) :: err
     ! Locals:
     PetscErrorCode :: ierr, ferr
+    PetscInt, pointer :: perturbed(:)
 
     err = 0; ferr = 0
     call context%ode%pre_eval(context%steps%current%time, y, ferr)
@@ -1215,10 +1217,13 @@ end subroutine timestepper_steps_set_next_stepsize
     !! Destroys timestepper SNES solver context.
 
     class(timestepper_solver_context_type), intent(in out) :: self
+    ! Locals:
+    PetscErrorCode :: ierr
 
     nullify(self%ode)
     nullify(self%steps)
     nullify(self%residual)
+    call MatFDColoringDestroy(self%fd_coloring, ierr); CHKERRQ(ierr)
 
   end subroutine timestepper_solver_context_destroy
 
@@ -1234,7 +1239,6 @@ end subroutine timestepper_steps_set_next_stepsize
     ! Locals:
     PetscErrorCode :: ierr
     MatColoring :: matrix_coloring
-    MatFDColoring ::  fd_coloring
     ISColoring :: is_coloring
     SNESLineSearch :: linesearch
     ! This tolerance needs to be set very small so it doesn't override
@@ -1256,20 +1260,22 @@ end subroutine timestepper_steps_set_next_stepsize
     call MatColoringSetFromOptions(matrix_coloring, ierr); CHKERRQ(ierr)
     call MatColoringApply(matrix_coloring, is_coloring, ierr); CHKERRQ(ierr)
     call MatColoringDestroy(matrix_coloring, ierr); CHKERRQ(ierr)
-    call MatFDColoringCreate(self%jacobian, is_coloring, fd_coloring, ierr)
+    call MatFDColoringCreate(self%jacobian, is_coloring, self%context%fd_coloring, &
+         ierr); CHKERRQ(ierr)
+    call MatFDColoringSetFunction(self%context%fd_coloring, SNES_residual, &
+         self%context, ierr); CHKERRQ(ierr)
+    call MatFDColoringSetType(self%context%fd_coloring, MATMFFD_DS, ierr)
     CHKERRQ(ierr)
-    call MatFDColoringSetFunction(fd_coloring, SNES_residual, self%context, ierr)
-    CHKERRQ(ierr)
-    call MatFDColoringSetType(fd_coloring, MATMFFD_DS, ierr); CHKERRQ(ierr)
-    call MatFDColoringSetParameters(fd_coloring, default_mat_fd_err, &
-         default_mat_fd_umin, ierr); CHKERRQ(ierr)
-    call MatFDColoringSetFromOptions(fd_coloring, ierr); CHKERRQ(ierr)
-    call MatFDColoringSetUp(self%jacobian, is_coloring, fd_coloring, ierr)
-    CHKERRQ(ierr)
+    call MatFDColoringSetParameters(self%context%fd_coloring, &
+         default_mat_fd_err, default_mat_fd_umin, ierr); CHKERRQ(ierr)
+    call MatFDColoringSetFromOptions(self%context%fd_coloring, ierr); CHKERRQ(ierr)
+    call MatFDColoringSetUp(self%jacobian, is_coloring, self%context%fd_coloring, &
+         ierr); CHKERRQ(ierr)
     call ISColoringDestroy(is_coloring, ierr); CHKERRQ(ierr)
 
     call SNESSetJacobian(self%solver, self%jacobian, self%jacobian, &
-         SNESComputeJacobianDefaultColor, fd_coloring, ierr); CHKERRQ(ierr)
+         SNESComputeJacobianDefaultColor, self%context%fd_coloring, ierr)
+    CHKERRQ(ierr)
 
     call SNESSetTolerances(self%solver, PETSC_DEFAULT_REAL, &
          PETSC_DEFAULT_REAL, stol, max_iterations, &
