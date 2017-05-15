@@ -281,7 +281,7 @@ contains
     call fson_destroy_mpi(json)
 
     call assert_equals(0, err, "fluid_properties error")
-    call sim%pre_solve(time, sim%solution, err)
+    call sim%pre_solve(time, sim%solution, err = err)
     call vec_diff_test(sim%fluid, "fluid", path, sim%mesh%cell_index)
     
     call sim%destroy()
@@ -312,7 +312,7 @@ contains
     call DMGetGlobalVector(sim%mesh%dm, lhs, ierr); CHKERRQ(ierr)
     call PetscObjectSetName(lhs, "lhs", ierr); CHKERRQ(ierr)
 
-    call sim%pre_solve(time, sim%solution, err)
+    call sim%pre_solve(time, sim%solution, err = err)
     call sim%lhs(time, interval, sim%solution, lhs, err)
     call vec_diff_test(lhs, "lhs", path, sim%mesh%cell_index)
 

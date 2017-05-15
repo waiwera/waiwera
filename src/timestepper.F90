@@ -459,10 +459,17 @@ contains
     PetscErrorCode, intent(out) :: err
     ! Locals:
     PetscErrorCode :: ierr, ferr
-    PetscInt, pointer :: perturbed(:)
+    PetscInt, pointer :: perturbed_columns(:)
 
     err = 0; ferr = 0
-    call context%ode%pre_eval(context%steps%current%time, y, ferr)
+
+    call MatFDColoringGetPerturbedColumnsF90(context%fd_coloring, &
+         perturbed_columns, ierr); CHKERRQ(ierr)
+    call context%ode%pre_eval(context%steps%current%time, y, &
+         perturbed_columns, ferr)
+    call MatFDColoringGetPerturbedColumnsF90(context%fd_coloring, &
+         perturbed_columns, ierr); CHKERRQ(ierr)
+
     if (ferr == 0) then
        call context%residual(solver, y, residual, context, ferr)
     end if
@@ -846,7 +853,7 @@ contains
     t = self%steps%current%time
     interval = [t, t]
 
-    call self%ode%pre_solve(t, self%steps%current%solution, err)
+    call self%ode%pre_solve(t, self%steps%current%solution, err = err)
 
     if (err == 0) then
        call self%ode%lhs(t, interval, self%steps%current%solution, &

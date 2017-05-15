@@ -21,6 +21,7 @@ module flow_simulation_module
 #include <petsc/finclude/petsc.h>
 
   use petsc
+  use kinds_module
   use ode_module
   use mesh_module
   use thermodynamics_module
@@ -41,13 +42,15 @@ module flow_simulation_module
   type, public, extends(ode_type) :: flow_simulation_type
      !! Type for simulation of fluid mass and energy flows in porous media.
      private
-     PetscInt :: solution_range_start, rock_range_start, fluid_range_start
+     PetscInt :: solution_range_start, rock_range_start
+     PetscInt :: fluid_range_start, update_cell_range_start
      character(max_flow_simulation_filename_length), public :: filename !! JSON input filename
      character(max_title_length), public :: title !! Descriptive title for the simulation
      Vec, public :: rock !! Rock properties in each cell
      Vec, public :: fluid !! Fluid properties in each cell
      Vec, public :: last_timestep_fluid !! Fluid properties at previous timestep
      Vec, public :: last_iteration_fluid !! Fluid properties at previous nonlinear solver iteration
+     Vec, public :: update_cell !! Which cells have primary variables being updated
      type(list_type), public :: sources !! Source/sink terms
      type(list_type), public :: source_controls !! Source/sink controls
      class(thermodynamics_type), allocatable, public :: thermo !! Fluid thermodynamic formulation
@@ -63,6 +66,8 @@ module flow_simulation_module
      procedure :: setup_solution_vector => flow_simulation_setup_solution_vector
      procedure :: setup_logfile => flow_simulation_setup_logfile
      procedure :: setup_output => flow_simulation_setup_output
+     procedure :: setup_update_cell => flow_simulation_setup_update_cell
+     procedure :: identify_update_cells => flow_simulation_identify_update_cells
      procedure :: destroy_output => flow_simulation_destroy_output
      procedure, public :: setup_gravity => flow_simulation_setup_gravity
      procedure, public :: input_summary => flow_simulation_input_summary
@@ -355,7 +360,6 @@ contains
     !! default, so no gravity is applied. For 3D meshes, a default
     !! gravity magnitude is applied in the third dimension.
 
-    use kinds_module
     use fson
     use fson_mpi_module
     use fson_value_m, only: TYPE_REAL, TYPE_INTEGER, TYPE_ARRAY, TYPE_NULL
@@ -416,10 +420,37 @@ contains
 
 !------------------------------------------------------------------------
 
+  subroutine flow_simulation_setup_update_cell(self)
+    !! Sets up update_cell vector, which stores update status of each
+    !! cell:- -1 if cell is not being updated, or 1 if it is.  For
+    !! function evaluations where the primary variables are not being
+    !! perturbed to calculate finite differences for the Jacobian, all
+    !! values are 1. During Jacobian calculation, all values are -1
+    !! except those for cells in which variables are being perturbed,
+    !! which have the value 1.
+
+    use dm_utils_module, only: set_dm_data_layout, global_vec_range_start
+
+    class(flow_simulation_type), intent(in out) :: self
+    ! Locals:
+    DM :: dm_update
+    PetscInt :: dim
+    PetscErrorCode :: ierr
+
+    call DMClone(self%mesh%dm, dm_update, ierr); CHKERRQ(ierr)
+    call DMGetDimension(self%mesh%dm, dim, ierr); CHKERRQ(ierr)
+    call set_dm_data_layout(dm_update, [1], [dim], ["update"])
+    call DMCreateGlobalVector(dm_update, self%update_cell, ierr); CHKERRQ(ierr)
+    call PetscObjectSetName(self%update_cell, "update_cell", ierr); CHKERRQ(ierr)
+    call global_vec_range_start(self%update_cell, self%update_cell_range_start)
+
+  end subroutine flow_simulation_setup_update_cell
+
+!------------------------------------------------------------------------
+
   subroutine flow_simulation_init(self, json, filename, err)
     !! Initializes a flow simulation using data from the specified JSON object.
 
-    use kinds_module
     use fson
     use fson_mpi_module
     use thermodynamics_setup_module, only: setup_thermodynamics
@@ -493,6 +524,7 @@ contains
     call setup_initial(json, self%mesh, self%eos, &
          self%time, self%solution, self%fluid, &
          self%solution_range_start, self%fluid_range_start, self%logfile)
+    call self%setup_update_cell()
     call self%mesh%set_boundary_values(self%solution, self%fluid, &
          self%rock, self%eos, self%solution_range_start, &
          self%fluid_range_start, self%rock_range_start)
@@ -530,6 +562,7 @@ contains
     call VecDestroy(self%last_timestep_fluid, ierr); CHKERRQ(ierr)
     call VecDestroy(self%last_iteration_fluid, ierr); CHKERRQ(ierr)
     call VecDestroy(self%rock, ierr); CHKERRQ(ierr)
+    call VecDestroy(self%update_cell, ierr); CHKERRQ(ierr)
     call self%source_controls%destroy(source_control_list_node_data_destroy, &
          reverse = PETSC_TRUE)
     call self%sources%destroy(source_list_node_data_destroy)
@@ -580,6 +613,43 @@ contains
     end subroutine source_control_list_node_data_destroy
 
   end subroutine flow_simulation_destroy
+
+!------------------------------------------------------------------------
+
+  subroutine flow_simulation_identify_update_cells(self, perturbed_columns)
+    !! Identify which cells have primary variables that are currently
+    !! being updated. For a straight function evaluation, all cells
+    !! are updated. For Jacobian calculation, only cells with
+    !! perturbed variables are updated.
+
+    class(flow_simulation_type), intent(in out) :: self
+    PetscInt, optional :: perturbed_columns(:)
+    ! Locals:
+    PetscInt :: num_perturbed
+    PetscReal, allocatable :: update(:)
+    PetscErrorCode :: ierr
+
+    if (present(perturbed_columns)) then
+       num_perturbed = size(perturbed_columns)
+    else
+       num_perturbed = 0
+    end if
+
+    if (num_perturbed == 0) then ! update all
+       call VecSet(self%update_cell, 1._dp, ierr); CHKERRQ(ierr)
+    else
+       call VecSet(self%update_cell, -1._dp, ierr); CHKERRQ(ierr)
+       allocate(update(num_perturbed))
+       update = 1._dp
+       call VecSetValues(self%update_cell, num_perturbed, &
+            perturbed_columns, update, INSERT_VALUES, ierr)
+       CHKERRQ(ierr)
+       call VecAssemblyBegin(self%update_cell, ierr); CHKERRQ(ierr)
+       call VecAssemblyEnd(self%update_cell, ierr); CHKERRQ(ierr)
+       deallocate(update)
+    end if
+
+  end subroutine flow_simulation_identify_update_cells
 
 !------------------------------------------------------------------------
 
@@ -662,7 +732,6 @@ contains
     !! flows through faces and source terms, for the given primary
     !! thermodynamic variables and time.
 
-    use kinds_module
     use dm_utils_module
     use cell_module, only: cell_type
     use face_module, only: face_type
@@ -886,17 +955,20 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine flow_simulation_pre_eval(self, t, y, err)
+  subroutine flow_simulation_pre_eval(self, t, y, perturbed_columns, err)
     !! Routine to be called before each function evaluation during the
-    !! nonlinear solve at each time step. Here the fluid properties
-    !! (excluding phase composition) are updated.
+    !! nonlinear solve at each time step. Here the update_cell vector is
+    !! constructed and fluid properties (excluding phase composition)
+    !! are updated.
 
     class(flow_simulation_type), intent(in out) :: self
     PetscReal, intent(in) :: t !! time
     Vec, intent(in) :: y !! global primary variables vector
+    PetscInt, intent(in), optional :: perturbed_columns(:)
     PetscErrorCode, intent(out) :: err !! error code
 
     err = 0
+    call self%identify_update_cells(perturbed_columns)
     call self%fluid_properties(t, y, err)
 
   end subroutine flow_simulation_pre_eval

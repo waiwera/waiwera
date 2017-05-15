@@ -110,13 +110,14 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine ode_pre_eval(self, t, y, err)
+  subroutine ode_pre_eval(self, t, y, perturbed_columns, err)
     !! Default routine to be called before each evaluation
     !! of LHS and RHS functions.
 
     class(ode_type), intent(in out) :: self
     PetscReal, intent(in) :: t
     Vec, intent(in) :: y
+    PetscInt, intent(in), optional :: perturbed_columns(:)
     PetscErrorCode, intent(out) :: err
 
     ! Do nothing
