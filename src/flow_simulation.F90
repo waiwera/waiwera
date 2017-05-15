@@ -51,6 +51,7 @@ module flow_simulation_module
      Vec, public :: current_fluid !! Fluid properties in each cell for current primary variables
      Vec, public :: last_timestep_fluid !! Fluid properties at previous timestep
      Vec, public :: last_iteration_fluid !! Fluid properties at previous nonlinear solver iteration
+     Vec, public :: balances !! Mass and energy balances for unperturbed primary variables
      Vec, public :: update_cell !! Which cells have primary variables being updated
      type(list_type), public :: sources !! Source/sink terms
      type(list_type), public :: source_controls !! Source/sink controls
@@ -108,6 +109,9 @@ contains
     CHKERRQ(ierr)
     call PetscObjectSetName(self%solution, "primary", ierr); CHKERRQ(ierr)
     call global_vec_range_start(self%solution, self%solution_range_start)
+
+    call VecDuplicate(self%solution, self%balances, ierr); CHKERRQ(ierr)
+    call PetscObjectSetName(self%balances, "balances", ierr); CHKERRQ(ierr)
 
   end subroutine flow_simulation_setup_solution_vector
 
@@ -445,6 +449,7 @@ contains
     call DMCreateGlobalVector(dm_update, self%update_cell, ierr); CHKERRQ(ierr)
     call PetscObjectSetName(self%update_cell, "update_cell", ierr); CHKERRQ(ierr)
     call global_vec_range_start(self%update_cell, self%update_cell_range_start)
+    call VecSet(self%update_cell, 1._dp, ierr); CHKERRQ(ierr)
 
   end subroutine flow_simulation_setup_update_cell
 
@@ -561,6 +566,7 @@ contains
     call self%destroy_output()
 
     call VecDestroy(self%solution, ierr); CHKERRQ(ierr)
+    call VecDestroy(self%balances, ierr); CHKERRQ(ierr)
     call VecDestroy(self%fluid, ierr); CHKERRQ(ierr)
     call VecDestroy(self%current_fluid, ierr); CHKERRQ(ierr)
     call VecDestroy(self%last_timestep_fluid, ierr); CHKERRQ(ierr)
@@ -675,9 +681,10 @@ contains
     PetscErrorCode, intent(out) :: err
     ! Locals:
     PetscInt :: c, np, nc
-    PetscSection :: fluid_section, rock_section, lhs_section
-    PetscInt :: fluid_offset, rock_offset, lhs_offset
-    PetscReal, pointer, contiguous :: fluid_array(:), rock_array(:), lhs_array(:)
+    PetscSection :: fluid_section, rock_section, lhs_section, update_section
+    PetscInt :: fluid_offset, rock_offset, lhs_offset, update_offset
+    PetscReal, pointer, contiguous :: fluid_array(:), rock_array(:), &
+         lhs_array(:), update(:)
     PetscReal, pointer, contiguous :: balance(:)
     type(cell_type) :: cell
     PetscErrorCode :: ierr
@@ -688,11 +695,15 @@ contains
     np = self%eos%num_primary_variables
     nc = self%eos%num_components
 
+    call VecCopy(self%balances, lhs, ierr); CHKERRQ(ierr)
     call global_vec_section(lhs, lhs_section)
     call VecGetArrayF90(lhs, lhs_array, ierr); CHKERRQ(ierr)
 
     call global_vec_section(self%current_fluid, fluid_section)
     call VecGetArrayReadF90(self%current_fluid, fluid_array, ierr); CHKERRQ(ierr)
+
+    call global_vec_section(self%update_cell, update_section)
+    call VecGetArrayReadF90(self%update_cell, update, ierr); CHKERRQ(ierr)
 
     call global_vec_section(self%rock, rock_section)
     call VecGetArrayReadF90(self%rock, rock_array, ierr); CHKERRQ(ierr)
@@ -703,20 +714,25 @@ contains
 
        if (self%mesh%ghost_cell(c) < 0) then
 
-          call global_section_offset(lhs_section, c, &
-               self%solution_range_start, lhs_offset, ierr); CHKERRQ(ierr)
-          balance => lhs_array(lhs_offset : lhs_offset + np - 1)
+          call global_section_offset(update_section, c, &
+               self%update_cell_range_start, update_offset, ierr); CHKERRQ(ierr)
+          if (update(update_offset) > 0) then
 
-          call global_section_offset(fluid_section, c, &
-               self%fluid_range_start, fluid_offset, ierr); CHKERRQ(ierr)
-          call global_section_offset(rock_section, c, &
-               self%rock_range_start, rock_offset, ierr); CHKERRQ(ierr)
+             call global_section_offset(lhs_section, c, &
+                  self%solution_range_start, lhs_offset, ierr); CHKERRQ(ierr)
+             balance => lhs_array(lhs_offset : lhs_offset + np - 1)
 
-          call cell%rock%assign(rock_array, rock_offset)
-          call cell%fluid%assign(fluid_array, fluid_offset)
+             call global_section_offset(fluid_section, c, &
+                  self%fluid_range_start, fluid_offset, ierr); CHKERRQ(ierr)
+             call global_section_offset(rock_section, c, &
+                  self%rock_range_start, rock_offset, ierr); CHKERRQ(ierr)
 
-          balance = cell%balance(np)
+             call cell%rock%assign(rock_array, rock_offset)
+             call cell%fluid%assign(fluid_array, fluid_offset)
 
+             balance = cell%balance(np)
+
+          end if
        end if
 
     end do
@@ -724,8 +740,12 @@ contains
     call cell%destroy()
     nullify(balance)
     call VecRestoreArrayReadF90(self%current_fluid, fluid_array, ierr); CHKERRQ(ierr)
+    call VecRestoreArrayReadF90(self%update_cell, update, ierr); CHKERRQ(ierr)
     call VecRestoreArrayReadF90(self%rock, rock_array, ierr); CHKERRQ(ierr)
     call VecRestoreArrayF90(lhs, lhs_array, ierr); CHKERRQ(ierr)
+    if (self%unperturbed) then
+       call VecCopy(lhs, self%balances, ierr); CHKERRQ(ierr)
+    end if
 
     call PetscLogEventEnd(cell_balances_event, ierr); CHKERRQ(ierr)
 
