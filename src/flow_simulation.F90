@@ -1136,10 +1136,10 @@ contains
     PetscErrorCode, intent(out) :: err !! error code
     ! Locals:
     PetscInt :: c, np, nc, order
-    PetscSection :: y_section, fluid_section, rock_section
-    PetscInt :: y_offset, fluid_offset, rock_offset
+    PetscSection :: y_section, fluid_section, rock_section, update_section
+    PetscInt :: y_offset, fluid_offset, rock_offset, update_offset
     PetscReal, pointer, contiguous :: y_array(:), scaled_cell_primary(:)
-    PetscReal, pointer, contiguous :: fluid_array(:), rock_array(:)
+    PetscReal, pointer, contiguous :: fluid_array(:), rock_array(:), update(:)
     PetscReal :: cell_primary(self%eos%num_primary_variables)
     type(cell_type) :: cell
     DMLabel :: order_label
@@ -1160,6 +1160,9 @@ contains
     call global_vec_section(self%current_fluid, fluid_section)
     call VecGetArrayF90(self%current_fluid, fluid_array, ierr); CHKERRQ(ierr)
 
+    call global_vec_section(self%update_cell, update_section)
+    call VecGetArrayReadF90(self%update_cell, update, ierr); CHKERRQ(ierr)
+
     call global_vec_section(self%rock, rock_section)
     call VecGetArrayF90(self%rock, rock_array, ierr); CHKERRQ(ierr)
 
@@ -1170,56 +1173,62 @@ contains
 
     do c = self%mesh%start_cell, self%mesh%end_cell - 1
 
-       if (self%mesh%ghost_cell(c) < 0) then
+       if ((self%mesh%ghost_cell(c) < 0)) then
 
-          call global_section_offset(y_section, c, &
-               self%solution_range_start, y_offset, ierr); CHKERRQ(ierr)
-          scaled_cell_primary => y_array(y_offset : y_offset + np - 1)
+          call global_section_offset(update_section, c, &
+               self%update_cell_range_start, update_offset, ierr); CHKERRQ(ierr)
+          if (update(update_offset) > 0) then
 
-          call global_section_offset(fluid_section, c, &
-               self%fluid_range_start, fluid_offset, ierr); CHKERRQ(ierr)
+             call global_section_offset(y_section, c, &
+                  self%solution_range_start, y_offset, ierr); CHKERRQ(ierr)
+             scaled_cell_primary => y_array(y_offset : y_offset + np - 1)
 
-          call global_section_offset(rock_section, c, &
-               self%rock_range_start, rock_offset, ierr); CHKERRQ(ierr)
+             call global_section_offset(fluid_section, c, &
+                  self%fluid_range_start, fluid_offset, ierr); CHKERRQ(ierr)
 
-          call cell%rock%assign(rock_array, rock_offset)
-          call cell%rock%assign_relative_permeability(self%relative_permeability)
-          call cell%rock%assign_capillary_pressure(self%capillary_pressure)
-          call cell%fluid%assign(fluid_array, fluid_offset)
-          cell_primary = scaled_cell_primary * &
-               self%eos%primary_scale(:, nint(cell%fluid%region))
+             call global_section_offset(rock_section, c, &
+                  self%rock_range_start, rock_offset, ierr); CHKERRQ(ierr)
 
-          call self%eos%bulk_properties(cell_primary, cell%fluid, err)
+             call cell%rock%assign(rock_array, rock_offset)
+             call cell%rock%assign_relative_permeability(self%relative_permeability)
+             call cell%rock%assign_capillary_pressure(self%capillary_pressure)
+             call cell%fluid%assign(fluid_array, fluid_offset)
+             cell_primary = scaled_cell_primary * &
+                  self%eos%primary_scale(:, nint(cell%fluid%region))
 
-          if (err == 0) then
-             call self%eos%phase_properties(cell_primary, cell%rock, &
-                  cell%fluid, err)
-             if (err > 0) then
-                call DMLabelGetValue(order_label, c, order, ierr)
-                CHKERRQ(ierr)
+             call self%eos%bulk_properties(cell_primary, cell%fluid, err)
+
+             if (err == 0) then
+                call self%eos%phase_properties(cell_primary, cell%rock, &
+                     cell%fluid, err)
+                if (err > 0) then
+                   call DMLabelGetValue(order_label, c, order, ierr)
+                   CHKERRQ(ierr)
+                   call self%logfile%write(LOG_LEVEL_WARN, 'fluid', &
+                        'phase_properties_not_found', &
+                        ['cell            '], [order], &
+                        real_array_key = 'primary         ', &
+                        real_array_value = cell_primary, rank = rank)
+                   exit
+                end if
+             else
+                call DMLabelGetValue(order_label, c, order, ierr); CHKERRQ(ierr)
                 call self%logfile%write(LOG_LEVEL_WARN, 'fluid', &
-                     'phase_properties_not_found', &
+                     'bulk_properties_not_found', &
                      ['cell            '], [order], &
                      real_array_key = 'primary         ', &
                      real_array_value = cell_primary, rank = rank)
                 exit
              end if
-          else
-             call DMLabelGetValue(order_label, c, order, ierr); CHKERRQ(ierr)
-             call self%logfile%write(LOG_LEVEL_WARN, 'fluid', &
-                  'bulk_properties_not_found', &
-                  ['cell            '], [order], &
-                  real_array_key = 'primary         ', &
-                  real_array_value = cell_primary, rank = rank)
-             exit
-          end if
 
+          end if
        end if
 
     end do
 
     call VecRestoreArrayF90(self%rock, rock_array, ierr); CHKERRQ(ierr)
     call VecRestoreArrayF90(self%current_fluid, fluid_array, ierr); CHKERRQ(ierr)
+    call VecRestoreArrayReadF90(self%update_cell, update, ierr); CHKERRQ(ierr)
     call VecRestoreArrayReadF90(y, y_array, ierr); CHKERRQ(ierr)
     call cell%destroy()
 
