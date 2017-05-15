@@ -47,7 +47,8 @@ module flow_simulation_module
      character(max_flow_simulation_filename_length), public :: filename !! JSON input filename
      character(max_title_length), public :: title !! Descriptive title for the simulation
      Vec, public :: rock !! Rock properties in each cell
-     Vec, public :: fluid !! Fluid properties in each cell
+     Vec, public :: fluid !! Fluid properties in each cell, for unperturbed primary variables
+     Vec, public :: current_fluid !! Fluid properties in each cell for current primary variables
      Vec, public :: last_timestep_fluid !! Fluid properties at previous timestep
      Vec, public :: last_iteration_fluid !! Fluid properties at previous nonlinear solver iteration
      Vec, public :: update_cell !! Which cells have primary variables being updated
@@ -61,6 +62,7 @@ module flow_simulation_module
      character(max_output_filename_length), public :: output_filename !! HDF5 output filename
      PetscViewer :: hdf5_viewer
      PetscLogDouble :: start_wall_time
+     PetscBool :: unperturbed !! Whether any primary variables are being perturbed for Jacobian calculation
    contains
      private
      procedure :: setup_solution_vector => flow_simulation_setup_solution_vector
@@ -516,6 +518,7 @@ contains
     call setup_fluid_vector(self%mesh%dm, max_component_name_length, &
          self%eos%component_names, max_phase_name_length, &
          self%eos%phase_names, self%fluid, self%fluid_range_start)
+    call VecDuplicate(self%fluid, self%current_fluid, ierr); CHKERRQ(ierr)
     call VecDuplicate(self%fluid, self%last_timestep_fluid, ierr)
     CHKERRQ(ierr)
     call VecDuplicate(self%fluid, self%last_iteration_fluid, ierr)
@@ -559,6 +562,7 @@ contains
 
     call VecDestroy(self%solution, ierr); CHKERRQ(ierr)
     call VecDestroy(self%fluid, ierr); CHKERRQ(ierr)
+    call VecDestroy(self%current_fluid, ierr); CHKERRQ(ierr)
     call VecDestroy(self%last_timestep_fluid, ierr); CHKERRQ(ierr)
     call VecDestroy(self%last_iteration_fluid, ierr); CHKERRQ(ierr)
     call VecDestroy(self%rock, ierr); CHKERRQ(ierr)
@@ -637,6 +641,7 @@ contains
 
     if (num_perturbed == 0) then ! update all
        call VecSet(self%update_cell, 1._dp, ierr); CHKERRQ(ierr)
+       self%unperturbed = PETSC_TRUE
     else
        call VecSet(self%update_cell, -1._dp, ierr); CHKERRQ(ierr)
        allocate(update(num_perturbed))
@@ -647,6 +652,7 @@ contains
        call VecAssemblyBegin(self%update_cell, ierr); CHKERRQ(ierr)
        call VecAssemblyEnd(self%update_cell, ierr); CHKERRQ(ierr)
        deallocate(update)
+       self%unperturbed = PETSC_FALSE
     end if
 
   end subroutine flow_simulation_identify_update_cells
@@ -685,8 +691,8 @@ contains
     call global_vec_section(lhs, lhs_section)
     call VecGetArrayF90(lhs, lhs_array, ierr); CHKERRQ(ierr)
 
-    call global_vec_section(self%fluid, fluid_section)
-    call VecGetArrayReadF90(self%fluid, fluid_array, ierr); CHKERRQ(ierr)
+    call global_vec_section(self%current_fluid, fluid_section)
+    call VecGetArrayReadF90(self%current_fluid, fluid_array, ierr); CHKERRQ(ierr)
 
     call global_vec_section(self%rock, rock_section)
     call VecGetArrayReadF90(self%rock, rock_array, ierr); CHKERRQ(ierr)
@@ -717,7 +723,7 @@ contains
 
     call cell%destroy()
     nullify(balance)
-    call VecRestoreArrayReadF90(self%fluid, fluid_array, ierr); CHKERRQ(ierr)
+    call VecRestoreArrayReadF90(self%current_fluid, fluid_array, ierr); CHKERRQ(ierr)
     call VecRestoreArrayReadF90(self%rock, rock_array, ierr); CHKERRQ(ierr)
     call VecRestoreArrayF90(lhs, lhs_array, ierr); CHKERRQ(ierr)
 
@@ -780,7 +786,8 @@ contains
     call VecGetArrayReadF90(self%mesh%face_geom, face_geom_array, ierr)
     CHKERRQ(ierr)
 
-    call global_to_local_vec_section(self%fluid, local_fluid, fluid_section)
+    call global_to_local_vec_section(self%current_fluid, local_fluid, &
+         fluid_section)
     call VecGetArrayReadF90(local_fluid, fluid_array, ierr); CHKERRQ(ierr)
 
     call global_to_local_vec_section(self%rock, local_rock, rock_section)
@@ -966,10 +973,15 @@ contains
     Vec, intent(in) :: y !! global primary variables vector
     PetscInt, intent(in), optional :: perturbed_columns(:)
     PetscErrorCode, intent(out) :: err !! error code
+    ! Locals:
+    PetscErrorCode :: ierr
 
     err = 0
     call self%identify_update_cells(perturbed_columns)
     call self%fluid_properties(t, y, err)
+    if (self%unperturbed) then
+       call VecCopy(self%current_fluid, self%fluid, ierr); CHKERRQ(ierr)
+    end if
 
   end subroutine flow_simulation_pre_eval
 
@@ -1096,6 +1108,7 @@ contains
 
     call VecRestoreArrayF90(self%rock, rock_array, ierr); CHKERRQ(ierr)
     call VecRestoreArrayF90(self%fluid, fluid_array, ierr); CHKERRQ(ierr)
+    call VecCopy(self%fluid, self%current_fluid, ierr); CHKERRQ(ierr)
     call VecRestoreArrayReadF90(y, y_array, ierr); CHKERRQ(ierr)
     call cell%destroy()
 
@@ -1143,8 +1156,9 @@ contains
     call global_vec_section(y, y_section)
     call VecGetArrayReadF90(y, y_array, ierr); CHKERRQ(ierr)
 
-    call global_vec_section(self%fluid, fluid_section)
-    call VecGetArrayF90(self%fluid, fluid_array, ierr); CHKERRQ(ierr)
+    call VecCopy(self%fluid, self%current_fluid, ierr); CHKERRQ(ierr)
+    call global_vec_section(self%current_fluid, fluid_section)
+    call VecGetArrayF90(self%current_fluid, fluid_array, ierr); CHKERRQ(ierr)
 
     call global_vec_section(self%rock, rock_section)
     call VecGetArrayF90(self%rock, rock_array, ierr); CHKERRQ(ierr)
@@ -1205,7 +1219,7 @@ contains
     end do
 
     call VecRestoreArrayF90(self%rock, rock_array, ierr); CHKERRQ(ierr)
-    call VecRestoreArrayF90(self%fluid, fluid_array, ierr); CHKERRQ(ierr)
+    call VecRestoreArrayF90(self%current_fluid, fluid_array, ierr); CHKERRQ(ierr)
     call VecRestoreArrayReadF90(y, y_array, ierr); CHKERRQ(ierr)
     call cell%destroy()
 
@@ -1453,8 +1467,8 @@ contains
     call VecGetArrayReadF90(lhs, lhs_array, ierr); CHKERRQ(ierr)
     call VecGetArrayF90(residual, residual_array, ierr); CHKERRQ(ierr)
 
-    call global_vec_section(self%fluid, fluid_section)
-    call VecGetArrayReadF90(self%fluid, fluid_array, ierr); CHKERRQ(ierr)
+    call global_vec_section(self%current_fluid, fluid_section)
+    call VecGetArrayReadF90(self%current_fluid, fluid_array, ierr); CHKERRQ(ierr)
 
     call global_vec_section(self%rock, rock_section)
     call VecGetArrayReadF90(self%rock, rock_array, ierr); CHKERRQ(ierr)
@@ -1485,7 +1499,7 @@ contains
     end do
 
     call cell%destroy()
-    call VecRestoreArrayReadF90(self%fluid, fluid_array, ierr); CHKERRQ(ierr)
+    call VecRestoreArrayReadF90(self%current_fluid, fluid_array, ierr); CHKERRQ(ierr)
     call VecRestoreArrayReadF90(self%rock, rock_array, ierr); CHKERRQ(ierr)
     call VecRestoreArrayReadF90(lhs, lhs_array, ierr); CHKERRQ(ierr)
     call VecRestoreArrayF90(residual, residual_array, ierr); CHKERRQ(ierr)
