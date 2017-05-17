@@ -467,7 +467,7 @@ contains
          perturbed_columns, ierr); CHKERRQ(ierr)
     call context%ode%pre_eval(context%steps%current%time, y, &
          perturbed_columns, ferr)
-    call MatFDColoringGetPerturbedColumnsF90(context%fd_coloring, &
+    call MatFDColoringRestorePerturbedColumnsF90(context%fd_coloring, &
          perturbed_columns, ierr); CHKERRQ(ierr)
 
     if (ferr == 0) then
