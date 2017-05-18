@@ -219,11 +219,12 @@ contains
     call VecSet(rhs, 0._dp, ierr); CHKERRQ(ierr)
   end subroutine rhs_test_ode
 
-  subroutine pre_eval_test_ode(self, t, y, err)
+  subroutine pre_eval_test_ode(self, t, y, perturbed_columns, err)
     ! Default do-nothing pre-evaluation routine.
     class(test_ode_type), intent(in out) :: self
     PetscReal, intent(in) :: t
     Vec, intent(in) :: y
+    PetscInt, intent(in), optional :: perturbed_columns(:)
     PetscErrorCode, intent(out) :: err
     continue
   end subroutine pre_eval_test_ode
@@ -678,11 +679,12 @@ contains
     call self%test_ode_type%destroy()
   end subroutine destroy_pre_eval
 
-  subroutine calculate_secondary_pre_eval(self, t, y, err)
+  subroutine calculate_secondary_pre_eval(self, t, y, perturbed_columns, err)
     ! Calculates secondary vector = t * y
     class(pre_eval_ode_type), intent(in out) :: self
     PetscReal, intent(in) :: t
     Vec, intent(in) :: y
+    PetscInt, intent(in), optional :: perturbed_columns(:)
     PetscErrorCode, intent(out) :: err
     ! Locals:
     PetscErrorCode :: ierr
