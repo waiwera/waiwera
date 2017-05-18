@@ -202,6 +202,7 @@ module timestepper_module
      procedure :: setup_jacobian => timestepper_setup_jacobian
      procedure :: setup_nonlinear_solver => timestepper_setup_nonlinear_solver
      procedure :: setup_linear_solver => timestepper_setup_linear_solver
+     procedure :: setup_linear_sub_solver => timestepper_setup_linear_sub_solver
      procedure :: step => timestepper_step
      procedure :: log_step_status => timestepper_log_step_status
      procedure, public :: init => timestepper_init
@@ -1337,6 +1338,57 @@ end subroutine timestepper_steps_set_next_stepsize
 
 !------------------------------------------------------------------------
 
+  subroutine timestepper_setup_linear_sub_solver(self, sub_pc_type, &
+       factor_levels)
+    !! Sets up linear sub-solver for block Jacobi and ASM preconditioners.
+
+    class(timestepper_type), intent(in out) :: self
+    PCType, intent(in) :: sub_pc_type
+    PetscInt, intent(in) :: factor_levels
+    ! Locals:
+    KSP :: ksp
+    PC :: pc, sub_pc
+    PCType :: pc_type
+    PetscInt :: num_local, first_local, i
+    KSP, allocatable :: sub_ksp(:)
+    PetscErrorCode :: ierr
+
+    call SNESGetKSP(self%solver, ksp, ierr); CHKERRQ(ierr)
+    call KSPSetUp(ksp, ierr); CHKERRQ(ierr)
+    call KSPGetPC(ksp, pc, ierr); CHKERRQ(ierr)
+    call PCGetType(pc, pc_type, ierr); CHKERRQ(ierr)
+
+    num_local = 0
+
+    select case (pc_type)
+    case (PCBJACOBI)
+       call PCBJacobiGetSubKSP(pc, num_local, first_local, &
+            PETSC_NULL_KSP, ierr); CHKERRQ(ierr)
+       allocate(sub_ksp(num_local))
+       call PCBJacobiGetSubKSP(pc, num_local, first_local, &
+            sub_ksp, ierr); CHKERRQ(ierr)
+    case (PCASM)
+       call PCASMGetSubKSP(pc, num_local, first_local, &
+            PETSC_NULL_KSP, ierr); CHKERRQ(ierr)
+       allocate(sub_ksp(num_local))
+       call PCASMGetSubKSP(pc, num_local, first_local, &
+            sub_ksp, ierr); CHKERRQ(ierr)
+    end select
+
+    if (allocated(sub_ksp)) then
+       do i = 1, num_local
+          call KSPGetPC(sub_ksp(i), sub_pc, ierr); CHKERRQ(ierr)
+          call PCSetType(sub_pc, sub_pc_type, ierr); CHKERRQ(ierr)
+          call PCFactorSetLevels(sub_pc, factor_levels, ierr)
+          CHKERRQ(ierr)
+       end do
+       deallocate(sub_ksp)
+    end if
+
+  end subroutine timestepper_setup_linear_sub_solver
+
+!------------------------------------------------------------------------
+
   subroutine SNES_monitor(solver, num_iterations, fnorm, context, ierr)
     !! SNES monitor routine for output at each nonlinear iteration.
 
@@ -1496,11 +1548,13 @@ end subroutine timestepper_steps_set_next_stepsize
     character(max_ksp_type_str_len) :: ksp_type_str
     character(max_ksp_type_str_len), parameter :: default_ksp_type_str = "bcgs"
     KSPType :: ksp_type
-    character(max_pc_type_str_len) :: pc_type_str
+    character(max_pc_type_str_len) :: pc_type_str, sub_pc_type_str
     character(max_pc_type_str_len), parameter :: default_pc_type_str = "asm"
-    PCType :: pc_type
+    character(max_pc_type_str_len), parameter :: default_sub_pc_type_str = "ilu"
+    PetscInt, parameter :: default_sub_pc_factor_levels = 0
+    PCType :: pc_type, sub_pc_type
     PetscReal :: linear_relative_tol
-    PetscInt :: linear_max_iterations
+    PetscInt :: linear_max_iterations, sub_pc_factor_levels
     PetscInt, parameter :: default_checkpoint_repeat = 1
     PetscInt :: checkpoint_repeat_type, checkpoint_repeat, i
     PetscBool :: checkpoint_do_repeat
@@ -1579,6 +1633,16 @@ end subroutine timestepper_steps_set_next_stepsize
     call self%setup_nonlinear_solver(nonlinear_max_iterations)
     call self%setup_linear_solver(ksp_type, linear_relative_tol, &
          linear_max_iterations, pc_type)
+    if ((pc_type == 'bjacobi') .or. (pc_type == 'asm')) then
+       call fson_get_mpi(json, &
+            "time.step.solver.linear.preconditioner.sub.preconditioner.type", &
+            default_sub_pc_type_str, sub_pc_type_str, self%ode%logfile)
+       sub_pc_type = pc_type_from_str(sub_pc_type_str)
+       call fson_get_mpi(json, &
+            "time.step.solver.linear.preconditioner.sub.preconditioner.factor.levels", &
+            default_sub_pc_factor_levels, sub_pc_factor_levels, self%ode%logfile)
+       call self%setup_linear_sub_solver(sub_pc_type, sub_pc_factor_levels)
+    end if
 
     if (method == TS_DIRECTSS) then
 
@@ -1769,6 +1833,8 @@ end subroutine timestepper_steps_set_next_stepsize
       select case(str_to_lower(pc_type_str))
       case ("none")
          pc_type = PCNONE
+      case ("lu")
+         pc_type = PCLU
       case ("ilu")
          pc_type = PCILU
       case ("bjacobi")
