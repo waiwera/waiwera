@@ -2,15 +2,15 @@ module cell_test
 
   ! Test for cell module
 
+#include <petsc/finclude/petscsys.h>
+
+  use petscsys
   use kinds_module
-  use mpi_module
   use fruit
   use cell_module
 
   implicit none
   private
-
-#include <petsc/finclude/petscdef.h>
 
 public :: test_cell_assign_geometry, test_cell_balance
 
@@ -30,8 +30,11 @@ contains
     PetscReal :: offset_padding(offset-1) = 0._dp
     PetscReal, pointer, contiguous :: cell_data(:)
     PetscReal, parameter :: tol = 1.e-6_dp
+    PetscMPIInt :: rank
+    PetscInt :: ierr
 
-    if (mpi%rank == mpi%output_rank) then
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
 
        allocate(cell_data(offset - 1 + sum(cell_variable_num_components)))
        cell_data = [offset_padding, centroid, volume]
@@ -68,16 +71,20 @@ contains
     PetscReal, parameter :: expected_bal(num_components + 1) = &
          [52.372_dp, 22.458_dp, 2.8545448e8_dp]
     PetscReal, parameter :: tol = 1.e-6_dp
+    PetscMPIInt :: rank
+    PetscInt :: ierr
 
-    if (mpi%rank == mpi%output_rank) then
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+
+    if (rank == 0) then
 
        allocate(rock_data(sum(rock_variable_num_components)), &
             fluid_data(num_fluid_variables + num_phases * &
             (num_phase_variables + num_components)))
        rock_data = [0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0.1_dp, 2200._dp, 950._dp]
        fluid_data = [2.7e5_dp, 130._dp, 4._dp, 3._dp, &
-            935._dp, 0.0_dp, 0.8_dp, 0.0_dp, 0._dp, 5.461e5_dp, 0.7_dp, 0.3_dp, &
-            1.5_dp,  0.0_dp, 0.2_dp, 0.0_dp, 0._dp, 2.540e6_dp, 0.4_dp, 0.6_dp]
+            935._dp, 0._dp, 0.8_dp, 0._dp, 0._dp, 0._dp, 5.461e5_dp, 0.7_dp, 0.3_dp, &
+            1.5_dp,  0._dp, 0.2_dp, 0._dp, 0._dp, 0._dp, 2.540e6_dp, 0.4_dp, 0.6_dp]
 
        call cell%init(num_components, num_phases)
 

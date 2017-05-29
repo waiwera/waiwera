@@ -18,13 +18,15 @@
 module rock_module
   !! Defines type for accessing local rock properties on cells and faces.
 
+#include <petsc/finclude/petsc.h>
+
+  use petsc
   use kinds_module
   use relative_permeability_module
+  use capillary_pressure_module
 
   implicit none
   private
-
-#include <petsc/finclude/petsc.h90>
 
   type rock_type
      !! Local rock properties.
@@ -38,6 +40,8 @@ module rock_module
      PetscReal, pointer, public :: poissons_ratio    !! Poisson's ratio for rock mechanics
      class(relative_permeability_type), pointer, &
           public :: relative_permeability !! Relative permeability functions
+     class(capillary_pressure_type), pointer, &
+          public :: capillary_pressure !! Capillary pressure function
      PetscInt, public :: dof !! Number of degrees of freedom
    contains
      private
@@ -45,6 +49,8 @@ module rock_module
      procedure, public :: assign => rock_assign
      procedure, public :: assign_relative_permeability => &
           rock_assign_relative_permeability
+     procedure, public :: assign_capillary_pressure => &
+          rock_assign_capillary_pressure
      procedure, public :: destroy => rock_destroy
      procedure, public :: energy => rock_energy
   end type rock_type
@@ -128,20 +134,34 @@ contains
 
 !------------------------------------------------------------------------
 
+  subroutine rock_assign_capillary_pressure(self, capillary_pressure)
+    !! Assigns capillary pressure pointer for a rock object.
+
+    class(rock_type), intent(in out) :: self
+    class(capillary_pressure_type), intent(in), &
+         target :: capillary_pressure
+
+    self%capillary_pressure => capillary_pressure
+
+  end subroutine rock_assign_capillary_pressure
+
+!------------------------------------------------------------------------
+
   subroutine rock_destroy(self)
     !! Destroys a rock object (nullifies all pointer components).
 
     class(rock_type), intent(in out) :: self
 
-    nullify(self%permeability)
-    nullify(self%wet_conductivity)
-    nullify(self%dry_conductivity)
-    nullify(self%porosity)
-    nullify(self%density)
-    nullify(self%specific_heat)
-    nullify(self%relative_permeability)
-    nullify(self%youngs_modulus)
-    nullify(self%poissons_ratio)
+    self%permeability => null()
+    self%wet_conductivity => null()
+    self%dry_conductivity => null()
+    self%porosity => null()
+    self%density => null()
+    self%specific_heat => null()
+    self%relative_permeability => null()
+    self%capillary_pressure => null()
+    self%youngs_modulus => null()
+    self%poissons_ratio => null()
 
   end subroutine rock_destroy
 
@@ -222,6 +242,7 @@ contains
     type(logfile_type), intent(in out) :: logfile
     ! Locals:
     PetscInt :: num_rocktypes, ir, ic, c, num_cells, offset, ghost
+    PetscInt :: perm_size
     type(fson_value), pointer :: rocktypes, r
     IS :: rock_IS
     PetscInt, pointer :: rock_cells(:)
@@ -254,10 +275,10 @@ contains
        call fson_get_mpi(r, "name", "", name, logfile, trim(rockstr) // "name")
        call fson_get_mpi(r, "permeability", default_permeability, &
             permeability, logfile, trim(rockstr) // "permeability")
-       call fson_get_mpi(r, "wet conductivity", default_heat_conductivity, &
-            wet_conductivity, logfile, trim(rockstr) // "wet conductivity")
-       call fson_get_mpi(r, "dry conductivity", wet_conductivity, &
-            dry_conductivity, logfile, trim(rockstr) // "dry conductivity")
+       call fson_get_mpi(r, "wet_conductivity", default_heat_conductivity, &
+            wet_conductivity, logfile, trim(rockstr) // "wet_conductivity")
+       call fson_get_mpi(r, "dry_conductivity", wet_conductivity, &
+            dry_conductivity, logfile, trim(rockstr) // "dry_conductivity")
        call fson_get_mpi(r, "porosity", default_porosity, porosity, logfile, &
             trim(rockstr) // "porosity")
        call fson_get_mpi(r, "density", default_density, density, logfile, &
@@ -268,11 +289,14 @@ contains
             trim(rockstr) // "youngs modulus")
        call fson_get_mpi(r, "poissons ratio", default_poissons_ratio, poissons_ratio, logfile, &
             trim(rockstr) // "poissons ratio")
-       call DMGetStratumIS(dm, rocktype_label_name, ir, rock_IS, &
+       call DMGetStratumSize(dm, rocktype_label_name, ir, num_cells, &
             ierr); CHKERRQ(ierr)
-       if (rock_IS /= 0) then
+       if (num_cells > 0) then
+          call DMGetStratumIS(dm, rocktype_label_name, ir, rock_IS, &
+               ierr); CHKERRQ(ierr)
           call ISGetIndicesF90(rock_IS, rock_cells, ierr); CHKERRQ(ierr)
           num_cells = size(rock_cells)
+          perm_size = size(permeability)
           do ic = 1, num_cells
              c = rock_cells(ic)
              call DMLabelGetValue(ghost_label, c, ghost, ierr); CHKERRQ(ierr)
@@ -280,7 +304,8 @@ contains
                 call global_section_offset(section, c, range_start, &
                      offset, ierr); CHKERRQ(ierr)
                 call rock%assign(rock_array, offset)
-                rock%permeability = permeability
+                rock%permeability = 0._dp
+                rock%permeability(1: perm_size) = permeability
                 rock%wet_conductivity = wet_conductivity
                 rock%dry_conductivity = dry_conductivity
                 rock%porosity = porosity
@@ -291,8 +316,8 @@ contains
              end if
           end do
           call ISRestoreIndicesF90(rock_IS, rock_cells, ierr); CHKERRQ(ierr)
+          call ISDestroy(rock_IS, ierr); CHKERRQ(ierr)
        end if
-       call ISDestroy(rock_IS, ierr); CHKERRQ(ierr)
     end do
     call rock%destroy()
     call VecRestoreArrayF90(rock_vector, rock_array, ierr); CHKERRQ(ierr)
@@ -318,10 +343,13 @@ contains
     type(logfile_type), intent(in out) :: logfile
     ! Locals:
     DM :: dm_rock
+    PetscInt :: dim, rock_variable_dim(num_rock_variables)
     PetscErrorCode :: ierr
 
     call DMClone(dm, dm_rock, ierr); CHKERRQ(ierr)
 
+    call DMGetDimension(dm, dim, ierr); CHKERRQ(ierr)
+    rock_variable_dim = dim
     call set_dm_data_layout(dm_rock, rock_variable_num_components, &
          rock_variable_dim, rock_variable_names)
 
@@ -365,6 +393,7 @@ contains
     DM, intent(in out) :: dm
     type(logfile_type), intent(in out) :: logfile
     ! Locals:
+    PetscInt :: start_cell, end_cell
     PetscErrorCode :: ierr
     type(fson_value), pointer :: rocktypes, r
     PetscInt :: num_rocktypes, num_cells, ir, ic, c
@@ -374,6 +403,8 @@ contains
     character(len=12) :: irstr
 
     default_cells = [PetscInt::] ! empty integer array
+    call DMPlexGetHeightStratum(dm, 0, start_cell, end_cell, ierr)
+    CHKERRQ(ierr)
 
     if (fson_has_mpi(json, "rock.types")) then
        call fson_get_mpi(json, "rock.types", rocktypes)
@@ -389,8 +420,10 @@ contains
              num_cells = size(cells)
              do ic = 1, num_cells
                 c = cells(ic)
-                call DMSetLabelValue(dm, rocktype_label_name, &
-                     c, ir, ierr); CHKERRQ(ierr)
+                if ((c >= start_cell) .and. (c < end_cell)) then
+                   call DMSetLabelValue(dm, rocktype_label_name, &
+                        c, ir, ierr); CHKERRQ(ierr)
+                end if
              end do
              deallocate(cells)
           end if

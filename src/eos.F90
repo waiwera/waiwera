@@ -20,15 +20,16 @@ module eos_module
   !! behaviour of each combination of fluid components is governed by
   !! an EOS object.
 
+#include <petsc/finclude/petscsys.h>
+
+  use petscsys
   use kinds_module
   use fson
   use thermodynamics_module
+  use interpolation_module
 
   implicit none
   private
-
-#include <petsc/finclude/petscdef.h>
-#include <petsc/finclude/petscsys.h>
 
   PetscInt, parameter, public :: max_eos_name_length = 8
   PetscInt, parameter, public :: max_eos_description_length = 80
@@ -50,6 +51,7 @@ module eos_module
      PetscInt, public :: num_phases !! Number of possible phases
      PetscInt, public :: num_components !! Number of mass components
      PetscReal, allocatable, public :: default_primary(:) !! Default primary variable values
+     PetscReal, allocatable, public :: primary_scale(:,:) !! Scale factors for non-dimensionalising primary variables, indexed by variable and region
      PetscInt, public :: default_region !! Default thermodynamic region
      class(thermodynamics_type), pointer, public :: thermo !! Thermodynamic formulation
      PetscBool, public :: isothermal = PETSC_FALSE !! Whether the EOS is restricted to isothermal fluid conditions
@@ -67,6 +69,16 @@ module eos_module
      procedure, public :: component_index => eos_component_index
   end type eos_type
 
+  type, public, extends(interpolation_table_type) :: primary_variable_interpolator_type
+     !! Interpolator for primary variable arrays, including
+     !! thermodynamics object for when interpolator is used as a context
+     !! for root finding.
+     private
+     class(thermodynamics_type), pointer, public :: thermo
+   contains
+     procedure, public :: destroy =>  primary_variable_interpolator_destroy
+  end type primary_variable_interpolator_type
+
   abstract interface
 
      subroutine eos_init_procedure(self, json, thermo, logfile)
@@ -79,13 +91,14 @@ module eos_module
        type(logfile_type), intent(in out), optional :: logfile
      end subroutine eos_init_procedure
 
-     subroutine eos_transition_procedure(self, primary, old_fluid, fluid, &
-          transition, err)
+     subroutine eos_transition_procedure(self, old_primary, primary, &
+          old_fluid, fluid, transition, err)
        !! Check primary variables for a cell and make thermodynamic
        !! region transitions if needed.
        use fluid_module, only: fluid_type
        import :: eos_type
        class(eos_type), intent(in out) :: self
+       PetscReal, intent(in) :: old_primary(self%num_primary_variables)
        PetscReal, intent(in out) :: primary(self%num_primary_variables)
        type(fluid_type), intent(in) :: old_fluid
        type(fluid_type), intent(in out) :: fluid
@@ -124,15 +137,19 @@ module eos_module
        PetscReal, intent(out) :: primary(self%num_primary_variables)
      end subroutine eos_primary_variables_procedure
 
-     PetscErrorCode function eos_check_primary_variables_procedure(self, fluid, primary)
-       !! Check if primary variables are in acceptable bounds, and return
-       !! error code accordingly.
+     subroutine eos_check_primary_variables_procedure(self, &
+          fluid, primary, changed, err)
+       !! Check if primary variables are in acceptable bounds, and
+       !! return error code accordingly. Also set changed to true if
+       !! primary variables have been changed during the check.
        use fluid_module, only: fluid_type
        import :: eos_type
        class(eos_type), intent(in) :: self
        type(fluid_type), intent(in) :: fluid
-       PetscReal, intent(in) :: primary(self%num_primary_variables)
-     end function eos_check_primary_variables_procedure
+       PetscReal, intent(in out) :: primary(self%num_primary_variables)
+       PetscBool, intent(out) :: changed
+       PetscErrorCode, intent(out) :: err
+     end subroutine eos_check_primary_variables_procedure
 
   end interface
 
@@ -219,9 +236,24 @@ contains
     deallocate(self%primary_variable_names)
     deallocate(self%phase_names, self%component_names)
     deallocate(self%default_primary)
-    nullify(self%thermo)
+    deallocate(self%primary_scale)
+    self%thermo => null()
 
   end subroutine eos_destroy
+
+!------------------------------------------------------------------------
+! Primary variable interpolator
+!------------------------------------------------------------------------
+
+  subroutine primary_variable_interpolator_destroy(self)
+    !! Destroys primary variable interpolator.
+
+    class(primary_variable_interpolator_type), intent(in out) :: self
+
+    call self%interpolation_table_type%destroy()
+    self%thermo => null()
+
+  end subroutine primary_variable_interpolator_destroy
 
 !------------------------------------------------------------------------
 

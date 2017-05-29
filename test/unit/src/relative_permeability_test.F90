@@ -2,8 +2,10 @@ module relative_permeability_test
 
   ! Tests for relative permeability module
 
+#include <petsc/finclude/petscsys.h>
+
+  use petscsys
   use kinds_module
-  use mpi_module
   use fruit
   use relative_permeability_module
   use fson
@@ -11,14 +13,14 @@ module relative_permeability_test
   implicit none
   private
 
-#include <petsc/finclude/petscdef.h>
-
   PetscReal, parameter :: tol = 1.e-6_dp
 
 public :: test_relative_permeability_linear, &
      test_relative_permeability_pickens, &
      test_relative_permeability_corey, &
      test_relative_permeability_grant, &
+     test_relative_permeability_van_genuchten, &
+     test_relative_permeability_table, &
      test_relative_permeability_fully_mobile
 
 contains
@@ -30,7 +32,7 @@ contains
     ! Test one case
 
     PetscReal, intent(in) :: sl
-    class(relative_permeability_type), intent(in) :: relp
+    class(relative_permeability_type), intent(in out) :: relp
     PetscReal, intent(in) :: expected(2)
     ! Locals:
     PetscReal :: rp(2)
@@ -54,12 +56,16 @@ contains
     type(fson_value), pointer :: json
     character(100), parameter :: json_str = &
          '{"type": "linear", "liquid": [0.1, 0.8], "vapour": [0.3, 0.75]}'
+    PetscMPIInt :: rank
+    PetscInt :: ierr
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
 
     json => fson_parse(str = json_str)
     call linear%init(json)
     call fson_destroy(json)
 
-    if (mpi%rank == mpi%output_rank) then
+    if (rank == 0) then
 
        call assert_equals("Linear", linear%name, "Name")
 
@@ -69,6 +75,8 @@ contains
        call relative_permeability_case(0.9_dp, linear, [1._dp, 0._dp])
 
     end if
+
+    call linear%destroy()
 
   end subroutine test_relative_permeability_linear
 
@@ -83,12 +91,16 @@ contains
     type(fson_value), pointer :: json
     character(100), parameter :: json_str = &
          '{"type": "Pickens", "power": 2.0}'
+    PetscMPIInt :: rank
+    PetscInt :: ierr
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
 
     json => fson_parse(str = json_str)
     call pickens%init(json)
     call fson_destroy(json)
 
-    if (mpi%rank == mpi%output_rank) then
+    if (rank == 0) then
 
        call assert_equals("Pickens", pickens%name, "Name")
 
@@ -97,6 +109,8 @@ contains
        call relative_permeability_case(0.9_dp, pickens, [0.81_dp, 1._dp])
 
     end if
+
+    call pickens%destroy()
 
   end subroutine test_relative_permeability_pickens
 
@@ -111,12 +125,16 @@ contains
     type(fson_value), pointer :: json
     character(100), parameter :: json_str = &
     '{"type": "Corey", "slr": 0.3, "ssr": 0.1}'
+    PetscMPIInt :: rank
+    PetscInt :: ierr
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
 
     json => fson_parse(str = json_str)
     call corey%init(json)
     call fson_destroy(json)
 
-    if (mpi%rank == mpi%output_rank) then
+    if (rank == 0) then
 
        call assert_equals("Corey", corey%name, "Name")
 
@@ -125,6 +143,8 @@ contains
        call relative_permeability_case(0.95_dp, corey, [1._dp, 0._dp])
 
     end if
+
+    call corey%destroy()
 
   end subroutine test_relative_permeability_corey
 
@@ -139,12 +159,16 @@ contains
     type(fson_value), pointer :: json
     character(100), parameter :: json_str = &
     '{"type": "Grant", "slr": 0.3, "ssr": 0.1}'
+    PetscMPIInt :: rank
+    PetscInt :: ierr
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
 
     json => fson_parse(str = json_str)
     call grant%init(json)
     call fson_destroy(json)
 
-    if (mpi%rank == mpi%output_rank) then
+    if (rank == 0) then
 
        call assert_equals("Grant", grant%name, "Name")
 
@@ -154,7 +178,90 @@ contains
 
     end if
 
+    call grant%destroy()
+
   end subroutine test_relative_permeability_grant
+
+!------------------------------------------------------------------------
+
+  subroutine test_relative_permeability_van_genuchten
+
+    ! van Genuchten relative permeability functions
+
+    type(relative_permeability_van_genuchten_type) :: vg
+    ! Locals:
+    type(fson_value), pointer :: json
+    character(100), parameter :: json_str = &
+    '{"type": "van Genuchten", "slr": 0.1, "sls": 0.8, "lambda": 0.5}'
+    PetscMPIInt :: rank
+    PetscInt :: ierr
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+
+    json => fson_parse(str = json_str)
+    call vg%init(json)
+    call fson_destroy(json)
+
+    if (rank == 0) then
+
+       call assert_equals("van Genuchten", vg%name, "Name")
+
+       call relative_permeability_case(0.01_dp, vg, [0._dp, 1._dp])
+       call relative_permeability_case(0.25_dp, vg, &
+            [0.00024977947758877213_dp, 0.9997502205224112_dp])
+       call relative_permeability_case(0.5_dp, vg, &
+            [0.024315039984298164_dp, 0.9756849600157018_dp])
+       call relative_permeability_case(0.75_dp, vg, &
+            [0.38106285486468433_dp, 0.6189371451353156_dp])
+       call relative_permeability_case(0.95_dp, vg, [1._dp, 0._dp])
+
+    end if
+
+    call vg%destroy()
+
+  end subroutine test_relative_permeability_van_genuchten
+
+!------------------------------------------------------------------------
+
+  subroutine test_relative_permeability_table
+
+    ! Table relative permeability functions
+
+    type(relative_permeability_table_type) :: rp
+
+    ! Locals:
+    type(fson_value), pointer :: json
+    character(160) :: json_str
+    PetscMPIInt :: rank
+    PetscInt :: ierr
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+
+    json_str = '{"type": "table", ' // &
+         '"liquid": [[0,0], [0.7, 0.01], [0.95, 0.99], [1,1]], ' // &
+         '"vapour": [[0,0], [0.05, 0.01], [0.3, 0.99], [1,1]]}'
+
+    json => fson_parse(str = json_str)
+    call rp%init(json)
+    call fson_destroy(json)
+
+    if (rank == 0) then
+
+       call assert_equals("table", rp%name, "Name")
+
+       call relative_permeability_case(0._dp, rp, [0._dp, 1._dp])
+       call relative_permeability_case(0.3_dp, rp, &
+            [0.01_dp * 3._dp / 7._dp, (4._dp + 3._dp * 0.99_dp) / 7._dp])
+       call relative_permeability_case(0.7_dp, rp, [0.01_dp, 0.99_dp])
+       call relative_permeability_case(0.9_dp, rp, &
+            [0.2_dp * 0.01_dp + 0.8_dp * 0.99_dp, 0.8_dp * 0.01_dp + 0.2_dp * 0.99_dp])
+       call relative_permeability_case(1._dp, rp, [1._dp, 0._dp])
+
+    end if
+
+    call rp%destroy()
+
+  end subroutine test_relative_permeability_table
 
 !------------------------------------------------------------------------
 
@@ -167,12 +274,16 @@ contains
     type(fson_value), pointer :: json
     character(100), parameter :: json_str = &
     '{"type": "Fully mobile"}'
+    PetscMPIInt :: rank
+    PetscInt :: ierr
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
 
     json => fson_parse(str = json_str)
     call mobile%init(json)
     call fson_destroy(json)
 
-    if (mpi%rank == mpi%output_rank) then
+    if (rank == 0) then
 
        call assert_equals("Fully mobile", mobile%name, "Name")
 

@@ -2,8 +2,10 @@ module flow_simulation_test
 
   ! Tests for flow_simulation module
 
+#include <petsc/finclude/petsc.h>
+
+  use petsc
   use kinds_module
-  use mpi_module
   use fruit
   use fson
   use flow_simulation_module
@@ -11,10 +13,9 @@ module flow_simulation_test
   implicit none
   private
 
-#include <petsc/finclude/petsc.h90>
-
 public :: test_flow_simulation_init, &
      test_flow_simulation_fluid_properties, test_flow_simulation_lhs
+public :: test_setup_gravity
 public :: vec_write, vec_diff_test
 
 PetscReal, parameter :: tol = 1.e-6_dp
@@ -47,14 +48,14 @@ contains
     call DMGetLabelSize(sim%mesh%dm, rocktype_label_name, &
          num_rocktypes, ierr); CHKERRQ(ierr)
     call MPI_allreduce(num_rocktypes, total_num_rocktypes, 1, MPI_INTEGER, &
-         MPI_MAX, mpi%comm, ierr)
+         MPI_MAX, PETSC_COMM_WORLD, ierr)
     call DMGetLabel(sim%mesh%dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
     allocate(nrc(total_num_rocktypes), rock_count(total_num_rocktypes))
     do ir = 1, total_num_rocktypes
        nrc(ir) = 0 ! number of rocktype cells on processor
        call DMGetStratumIS(sim%mesh%dm, rocktype_label_name, ir, &
             rock_IS, ierr); CHKERRQ(ierr)
-       if (rock_IS /= 0) then
+       if (rock_IS .ne. PETSC_NULL_IS) then
           call ISGetIndicesF90(rock_IS, rock_cells, ierr); CHKERRQ(ierr)
           IS_size = size(rock_cells)
           do ic = 1, IS_size
@@ -68,7 +69,7 @@ contains
        end if
        call ISDestroy(rock_IS, ierr); CHKERRQ(ierr)
        call MPI_reduce(nrc(ir), rock_count(ir), 1, MPI_INTEGER, MPI_SUM, &
-            mpi%output_rank, mpi%comm, ierr)
+            0, PETSC_COMM_WORLD, ierr)
     end do
     deallocate(nrc)
 
@@ -88,7 +89,7 @@ contains
     PetscErrorCode :: ierr
     PetscViewer :: viewer
 
-    call PetscViewerHDF5Open(mpi%comm, &
+    call PetscViewerHDF5Open(PETSC_COMM_WORLD, &
          trim(path) // trim(name) // ".h5", &
          FILE_MODE_WRITE, viewer, ierr); CHKERRQ(ierr)
     call PetscViewerHDF5PushGroup(viewer, "/", ierr); CHKERRQ(ierr)
@@ -118,12 +119,14 @@ contains
     PetscViewer :: viewer
     PetscReal :: diffnorm
     PetscErrorCode :: ierr
+    PetscMPIInt :: rank
 
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
     call VecGetDM(v, dm, ierr); CHKERRQ(ierr)
     call DMGetGlobalVector(dm, vread, ierr); CHKERRQ(ierr)
     call DMGetGlobalVector(dm, diff, ierr); CHKERRQ(ierr)
     call PetscObjectSetName(vread, name, ierr); CHKERRQ(ierr)
-    call PetscViewerHDF5Open(mpi%comm, trim(path) // trim(name) // ".h5", &
+    call PetscViewerHDF5Open(PETSC_COMM_WORLD, trim(path) // trim(name) // ".h5", &
          FILE_MODE_READ, viewer, ierr)
     CHKERRQ(ierr)
     call PetscViewerHDF5PushGroup(viewer, "/", ierr); CHKERRQ(ierr)
@@ -140,7 +143,7 @@ contains
     call VecCopy(vread, diff, ierr); CHKERRQ(ierr)
     call VecAXPY(diff, -1._dp, v, ierr); CHKERRQ(ierr)
     call VecNorm(diff, NORM_2, diffnorm, ierr); CHKERRQ(ierr)
-    if (mpi%rank == mpi%output_rank) then
+    if (rank == 0) then
        call assert_equals(0._dp, diffnorm, tol, &
             "Flow simulation " // trim(name) // " vector")
     end if
@@ -161,13 +164,15 @@ contains
     PetscInt :: sim_dim, sim_dof
     Vec :: x
     PetscErrorCode :: ierr
+    PetscMPIInt :: rank
     
     call DMGetDimension(sim%mesh%dm, sim_dim, ierr); CHKERRQ(ierr)
     call DMGetGlobalVector(sim%mesh%dm, x, ierr); CHKERRQ(ierr)
     call VecGetSize(x, sim_dof, ierr); CHKERRQ(ierr)
     call DMRestoreGlobalVector(sim%mesh%dm, x, ierr); CHKERRQ(ierr)
 
-    if (mpi%rank == mpi%output_rank) then
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
        call assert_equals(title, sim%title, "Flow simulation title")
        call assert_equals(thermo, sim%thermo%name, "Flow simulation thermodynamics")
        call assert_equals(eos, sim%eos%name, "Flow simulation EOS")
@@ -191,23 +196,26 @@ contains
     PetscBool :: open_bdy, has_rock_label
     PetscInt, allocatable :: sim_rock_cells(:)
     PetscErrorCode :: ierr
+    PetscMPIInt :: rank
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
 
     ! Open boundary label:
     call DMHasLabel(sim%mesh%dm, open_boundary_label_name, open_bdy, &
          ierr); CHKERRQ(ierr)
-    if (mpi%rank == mpi%output_rank) then
+    if (rank == 0) then
        call assert_equals(.true., open_bdy, "Flow simulation open boundary label")
     end if
 
     ! Rock type label:
     call DMHasLabel(sim%mesh%dm, rocktype_label_name, has_rock_label, &
          ierr); CHKERRQ(ierr)
-    if (mpi%rank == mpi%output_rank) then
+    if (rank == 0) then
        call assert_equals(.true., has_rock_label, "Flow simulation rocktype label")
     end if
     if (has_rock_label) then
        call get_rocktype_counts(sim_rock_cells)
-       if (mpi%rank == mpi%output_rank) then
+       if (rank == 0) then
           call assert_equals(size(rock_cells), size(sim_rock_cells), &
                "Flow simulation num rocktypes")
           call assert_equals(rock_cells, sim_rock_cells, &
@@ -232,11 +240,14 @@ contains
     ! Locals:
     character(26), parameter :: path = "data/flow_simulation/init/"
     type(fson_value), pointer :: json
+    PetscErrorCode :: err
 
     json => fson_parse_mpi(trim(path) // "test_init.json")
 
-    call sim%init(json)
+    call sim%init(json, err = err)
     call fson_destroy_mpi(json)
+
+    call assert_equals(0, err, "flow_simulation init() error")
 
     call flow_simulation_basic_test(title = "Test flow simulation init", &
          thermo = "IAPWS-97", eos = "w", dim = 3, dof = 12)
@@ -266,10 +277,11 @@ contains
 
     json => fson_parse_mpi(trim(path) // "test_fluid_properties.json")
 
-    call sim%init(json)
+    call sim%init(json, err = err)
     call fson_destroy_mpi(json)
 
-    call sim%pre_solve(time, sim%solution, err)
+    call assert_equals(0, err, "fluid_properties error")
+    call sim%pre_solve(time, sim%solution, err = err)
     call vec_diff_test(sim%fluid, "fluid", path, sim%mesh%cell_index)
     
     call sim%destroy()
@@ -293,13 +305,14 @@ contains
 
     json => fson_parse_mpi(trim(path) // "test_lhs.json")
 
-    call sim%init(json)
+    call sim%init(json, err = err)
     call fson_destroy_mpi(json)
 
+    call assert_equals(0, err, "lhs error")
     call DMGetGlobalVector(sim%mesh%dm, lhs, ierr); CHKERRQ(ierr)
     call PetscObjectSetName(lhs, "lhs", ierr); CHKERRQ(ierr)
 
-    call sim%pre_solve(time, sim%solution, err)
+    call sim%pre_solve(time, sim%solution, err = err)
     call sim%lhs(time, interval, sim%solution, lhs, err)
     call vec_diff_test(lhs, "lhs", path, sim%mesh%cell_index)
 
@@ -307,6 +320,96 @@ contains
     call sim%destroy()
 
   end subroutine test_flow_simulation_lhs
+
+!------------------------------------------------------------------------
+
+  subroutine test_setup_gravity
+    ! Test gravity setup
+
+    use fson_mpi_module
+    type(fson_value), pointer :: json
+    PetscMPIInt :: rank
+    PetscErrorCode :: ierr
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+
+    json => fson_parse_mpi(str = '{"mesh": {' // &
+         '"filename": "data/mesh/2D.msh"}}')
+    call sim%mesh%init(json)
+    call sim%setup_gravity(json)
+    call fson_destroy_mpi(json)
+    if (rank == 0) then
+       call assert_equals([0._dp, 0._dp, 0._dp], sim%gravity, 3, tol, &
+            "2D default gravity")
+    end if
+
+    json => fson_parse_mpi(str = '{"mesh": {' // &
+         '"filename": "data/mesh/2D.msh"}, "gravity": null}')
+    call sim%mesh%init(json)
+    call sim%setup_gravity(json)
+    call fson_destroy_mpi(json)
+    if (rank == 0) then
+       call assert_equals([0._dp, 0._dp, 0._dp], sim%gravity, 3, tol, &
+            "2D null gravity")
+    end if
+
+    json => fson_parse_mpi(str = '{"mesh": {' // &
+         '"filename": "data/mesh/2D.msh"}, ' // &
+         '"gravity": 9.81}')
+    call sim%mesh%init(json)
+    call sim%setup_gravity(json)
+    call fson_destroy_mpi(json)
+    if (rank == 0) then
+       call assert_equals([0._dp, -9.81_dp, 0._dp], sim%gravity, 3, tol, &
+         "2D scalar gravity")
+    end if
+
+    json => fson_parse_mpi(str = '{"mesh": {' // &
+         '"filename": "data/mesh/2D.msh"}, ' // &
+         '"gravity": [-9.8, 0.0]}')
+    call sim%mesh%init(json)
+    call sim%setup_gravity(json)
+    call fson_destroy_mpi(json)
+    if (rank == 0) then
+       call assert_equals([-9.8_dp, 0._dp, 0._dp], sim%gravity, 3, tol, &
+         "2D vector gravity")
+    end if
+
+    json => fson_parse_mpi(str = '{"mesh": {' // &
+         '"filename": "data/mesh/block3.exo"}}')
+    call sim%mesh%init(json)
+    call sim%setup_gravity(json)
+    call fson_destroy_mpi(json)
+    if (rank == 0) then
+       call assert_equals([0._dp, 0._dp, -9.8_dp], sim%gravity, 3, tol, &
+            "3D default gravity")
+    end if
+
+    json => fson_parse_mpi(str = '{"mesh": {' // &
+         '"filename": "data/mesh/block3.exo"}, ' // &
+         '"gravity": 9.80665}')
+    call sim%mesh%init(json)
+    call sim%setup_gravity(json)
+    call fson_destroy_mpi(json)
+    if (rank == 0) then
+       call assert_equals([0._dp, 0._dp, -9.80665_dp], sim%gravity, 3, tol, &
+            "3D scalar gravity")
+    end if
+
+    json => fson_parse_mpi(str = '{"mesh": {' // &
+         '"filename": "data/mesh/block3.exo"}, ' // &
+         '"gravity": [0., 0., -9.81]}')
+    call sim%mesh%init(json)
+    call sim%setup_gravity(json)
+    call fson_destroy_mpi(json)
+    if (rank == 0) then
+       call assert_equals([0._dp, 0._dp, -9.81_dp], sim%gravity, 3, tol, &
+            "3D vector gravity")
+    end if
+
+    call sim%mesh%destroy()
+
+  end subroutine test_setup_gravity
 
 !------------------------------------------------------------------------
 

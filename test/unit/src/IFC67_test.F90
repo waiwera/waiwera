@@ -2,17 +2,16 @@ module IFC67_test
 
   ! Tests for IAPWS thermodynamics module
 
+#include <petsc/finclude/petscsys.h>
+
+  use petscsys
   use kinds_module
-  use mpi_module
   use IFC67_module
   use thermodynamics_module, only: tc_k
   use fruit
 
   implicit none
   private
-
-#include <petsc/finclude/petscsys.h>
-#include <petsc/finclude/petscdef.h>
 
   PetscReal, parameter :: density_tol = 1.e-5_dp, energy_tol = 1.e-2_dp
   PetscReal, parameter :: pressure_tol = 1.e-1_dp, temperature_tol = 1.e-6_dp
@@ -66,8 +65,11 @@ module IFC67_test
       PetscReal :: err_params(nerr,2) = reshape([ &
            20.e6_dp, 101.e6_dp, &
             360._dp,    60._dp], [nerr,2])
+      PetscMPIInt :: rank
+      PetscInt :: ierr
 
-      if (mpi%rank == mpi%output_rank) then
+      call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+      if (rank == 0) then
          params(:,2) = params(:,2) - tc_k  ! convert temperatures to Celcius
          do i = 1, n
             param = params(i,:)
@@ -104,8 +106,11 @@ module IFC67_test
       PetscReal :: err_params(nerr,2) = reshape([ &
            20.e6_dp, 101.e6_dp, &
            801._dp,    60._dp], [nerr,2])
+      PetscMPIInt :: rank
+      PetscInt :: ierr
 
-      if (mpi%rank == mpi%output_rank) then
+      call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+      if (rank == 0) then
          params(:,2) = params(:,2) - tc_k  ! convert temperatures to Celcius
          do i = 1, n
             param = params(i,:)
@@ -136,8 +141,11 @@ module IFC67_test
       PetscReal :: ps, ts, ps1, ts1
       PetscInt :: i, err
       PetscReal :: terr(nerr) = [380._dp], perr(nerr) = [30.e6_dp]
+      PetscMPIInt :: rank
+      PetscInt :: ierr
 
-      if (mpi%rank == mpi%output_rank) then
+      call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+      if (rank == 0) then
          do i = 1, n
 
             call IFC67%saturation%pressure(t(i), ps, err)
@@ -184,8 +192,11 @@ module IFC67_test
       PetscReal, parameter :: visc2(n2) = [3.249537e-05_dp, 3.667671e-05_dp]
       PetscReal :: v, p = 0.0_dp, d = 0.0_dp
       PetscInt :: i
+      PetscMPIInt :: rank
+      PetscInt :: ierr
 
-      if (mpi%rank == mpi%output_rank) then
+      call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+      if (rank == 0) then
          do i = 1, n1
             call IFC67%water%viscosity(t1(i), p1(i), d, v)
             call assert_equals(visc1(i), v, viscosity_tol)
@@ -205,8 +216,11 @@ module IFC67_test
       ! IFC-67 phase composition tests
 
       PetscInt :: phases, expected_phases
+      PetscMPIInt :: rank
+      PetscInt :: ierr
 
-      if (mpi%rank == mpi%output_rank) then
+      call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+      if (rank == 0) then
 
          phases = IFC67%phase_composition(1, 1.e5_dp, 20._dp)
          expected_phases = b'01'

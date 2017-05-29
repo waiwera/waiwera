@@ -24,15 +24,16 @@ module fluid_module
   !! state of each fluid phase and are stored in an array component of
   !! [[phase_type]] objects.
 
+#include <petsc/finclude/petsc.h>
+
+  use petsc
   use kinds_module
 
   implicit none
   private
 
-#include <petsc/finclude/petsc.h90>
-
   PetscInt, parameter, public :: num_fluid_variables = 4
-  PetscInt, parameter, public :: num_phase_variables = 6  ! (excluding mass fractions)
+  PetscInt, parameter, public :: num_phase_variables = 7  ! (excluding mass fractions)
   PetscInt, parameter, public :: max_fluid_variable_name_length = 11
   character(max_fluid_variable_name_length), public :: &
        fluid_variable_names(num_fluid_variables) = [ &
@@ -43,6 +44,7 @@ module fluid_module
        phase_variable_names(num_phase_variables) = [ &
        "density              ", "viscosity            ", &
        "saturation           ", "relative_permeability", &
+       "capillary_pressure   ", &
        "specific_enthalpy    ", "internal_energy      "]
 
   type phase_type
@@ -51,6 +53,7 @@ module fluid_module
      PetscReal, pointer :: viscosity  !! Viscosity
      PetscReal, pointer :: saturation !! Phase saturation
      PetscReal, pointer :: relative_permeability !! Relative permeability
+     PetscReal, pointer :: capillary_pressure !! Capillary pressure
      PetscReal, pointer :: specific_enthalpy !! Specific enthalpy
      PetscReal, pointer :: internal_energy !! Internal energy
      PetscReal, pointer, contiguous :: mass_fraction(:) !! Component mass fractions
@@ -86,6 +89,7 @@ module fluid_module
      procedure, public :: assign => fluid_assign
      procedure, public :: destroy => fluid_destroy
      procedure, public :: component_density => fluid_component_density
+     procedure, public :: component_mass_fraction => fluid_component_mass_fraction
      procedure, public :: energy => fluid_energy
      procedure, public :: phase_mobilities => fluid_phase_mobilities
      procedure, public :: phase_flow_fractions => fluid_phase_flow_fractions
@@ -108,13 +112,14 @@ contains
 
     class(phase_type), intent(in out) :: self
 
-    nullify(self%density)
-    nullify(self%viscosity)
-    nullify(self%saturation)
-    nullify(self%relative_permeability)
-    nullify(self%specific_enthalpy)
-    nullify(self%internal_energy)
-    nullify(self%mass_fraction)
+    self%density => null()
+    self%viscosity => null()
+    self%saturation => null()
+    self%relative_permeability => null()
+    self%capillary_pressure => null()
+    self%specific_enthalpy => null()
+    self%internal_energy => null()
+    self%mass_fraction => null()
 
   end subroutine phase_destroy
 
@@ -175,9 +180,10 @@ contains
          phase%viscosity => data(i+1)
          phase%saturation => data(i+2)
          phase%relative_permeability => data(i+3)
-         phase%specific_enthalpy => data(i+4)
-         phase%internal_energy => data(i+5)
-         phase%mass_fraction => data(i+6: i+6 + self%num_components-1)
+         phase%capillary_pressure => data(i+4)
+         phase%specific_enthalpy => data(i+5)
+         phase%internal_energy => data(i+6)
+         phase%mass_fraction => data(i+7: i+7 + self%num_components-1)
          i = i + self%phase_dof
        end associate
     end do
@@ -231,6 +237,41 @@ contains
     end do
 
   end function fluid_component_density
+
+!------------------------------------------------------------------------
+
+  PetscReal function fluid_component_mass_fraction(self, c) result(xc)
+    !! Returns total mass fraction for specified component, with
+    !! contributions from all phases.
+
+    class(fluid_type), intent(in) :: self
+    PetscInt, intent(in) :: c !! Mass component
+    ! Locals:
+    PetscInt :: p, phases
+    PetscReal :: ds, total
+    PetscReal, parameter :: small = 1.e-30_dp
+
+    xc = 0._dp
+    total = 0._dp
+
+    phases = nint(self%phase_composition)
+    do p = 1, self%num_phases
+       if (btest(phases, p - 1)) then
+          associate(phase => self%phase(p))
+            ds = phase%density * phase%saturation
+            xc = xc + ds * phase%mass_fraction(c)
+            total = total + ds
+          end associate
+       end if
+    end do
+
+    if (total > small) then
+       xc = xc / total
+    else
+       xc = 0._dp
+    end if
+
+  end function fluid_component_mass_fraction
 
 !------------------------------------------------------------------------
 
@@ -383,7 +424,7 @@ contains
     PetscInt, intent(out) :: range_start
     ! Locals:
     PetscInt :: num_components, num_phases
-    PetscInt :: p, i, j
+    PetscInt :: p, i, j, dim
     PetscInt, allocatable :: num_field_components(:), field_dim(:)
     PetscErrorCode :: ierr
     PetscInt, parameter :: max_field_name_length = 40
@@ -399,7 +440,6 @@ contains
          field_names(fluid%dof))
 
     num_field_components = 1
-    field_dim = 3
 
     ! Assemble field names:
     field_names(1: num_fluid_variables) = fluid_variable_names
@@ -419,6 +459,8 @@ contains
 
     call DMClone(dm, fluid_dm, ierr); CHKERRQ(ierr)
 
+    call DMGetDimension(dm, dim, ierr); CHKERRQ(ierr)
+    field_dim = dim
     call set_dm_data_layout(fluid_dm, num_field_components, field_dim, &
          field_names)
 

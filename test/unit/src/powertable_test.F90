@@ -2,16 +2,15 @@ module powertable_test
 
   ! Tests for powertable module
 
+#include <petsc/finclude/petscsys.h>
+
+  use petscsys
   use kinds_module
-  use mpi_module
   use fruit
   use powertable_module
 
   implicit none
   private 
-
-#include <petsc/finclude/petscsys.h>
-#include <petsc/finclude/petscdef.h>
 
   PetscReal, parameter :: tol = 1.e-9
 
@@ -32,8 +31,11 @@ module powertable_test
       PetscReal :: x
       PetscReal, allocatable :: xp(:)
       PetscInt :: lower, upper
+      PetscMPIInt :: rank
+      PetscInt :: ierr
 
-      if (mpi%rank == mpi%output_rank) then
+      call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+      if (rank == 0) then
 
          lower = min(minval(powers), 0)
          upper = max(maxval(powers), 1)
@@ -73,8 +75,11 @@ module powertable_test
       PetscReal :: x
       PetscReal, allocatable :: xp(:)
       PetscInt :: lower, upper
+      PetscMPIInt :: rank
+      PetscInt :: ierr
 
-      if (mpi%rank == mpi%output_rank) then
+      call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+      if (rank == 0) then
 
          lower = min(minval(powers), 0)
          upper = max(maxval(powers), 1)
@@ -114,8 +119,11 @@ module powertable_test
       PetscReal :: x
       PetscReal, allocatable :: xp(:)
       PetscInt :: lower, upper
+      PetscMPIInt :: rank
+      PetscInt :: ierr
 
-      if (mpi%rank == mpi%output_rank) then
+      call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+      if (rank == 0) then
          
          lower = min(minval(powers), 0)
          upper = max(maxval(powers), 1)
@@ -156,8 +164,11 @@ module powertable_test
       PetscReal :: x
       PetscReal, allocatable :: xp(:)
       PetscInt :: lower, upper
+      PetscMPIInt :: rank
+      PetscInt :: ierr
 
-      if (mpi%rank == mpi%output_rank) then
+      call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+      if (rank == 0) then
          
          allpowers = [powers1, powers2]
          lower = min(minval(allpowers), 0)

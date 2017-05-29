@@ -79,7 +79,7 @@ jrunner = SimpleJobRunner(mpi = True)
 testResult, mResults = deliverability_test.runTest(jrunner, createReports = True)
 
 # plots:
-elevations = [layer.centre for layer in geo.layerlist[1:]]
+x = [col.centre[0] for col in geo.columnlist]
 
 for run_index, run_name in enumerate(run_names):
 
@@ -105,9 +105,9 @@ for run_index, run_name in enumerate(run_names):
     tc_name = "final errors"
     for field_name in plot_fields:
         var = np.array(deliverability_test.testComps[run_index][tc_name].fieldErrors[field_name])
-        plt.plot(var, elevations, 'o-')
-        plt.ylabel('elevation (m)')
-        plt.xlabel(field_name + ' error')
+        plt.plot(x, var, 'o-')
+        plt.xlabel('x (m)')
+        plt.ylabel(field_name + ' error')
         plt.title(run_name + ' ' + tc_name)
         img_filename_base = '_'.join((run_base_name, tc_name, field_name))
         img_filename_base = img_filename_base.replace(' ', '_')

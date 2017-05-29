@@ -2,8 +2,10 @@ module timestepper_test
 
   ! Tests for timestepper module
 
+#include <petsc/finclude/petsc.h>
+
+  use petsc
   use kinds_module
-  use mpi_module
   use fruit
   use ode_module
   use timestepper_module
@@ -13,8 +15,6 @@ module timestepper_test
   implicit none
 
   private
-
-#include <petsc/finclude/petsc.h90>
 
   type, extends(ode_type) :: test_ode_type
      private
@@ -126,7 +126,7 @@ module timestepper_test
        test_timestepper_logistic, test_timestepper_nontrivial_lhs, &
        test_timestepper_nonlinear_lhs, test_timestepper_heat1d, &
        test_timestepper_heat1d_nonlinear, test_timestepper_pre_eval, &
-       test_timestepper_steady
+       test_timestepper_steady, test_checkpoints
 
 contains
 
@@ -169,7 +169,7 @@ contains
     self%dof = 1
     self%stencil = 0
 
-    call DMDACreate1d(mpi%comm, DM_BOUNDARY_NONE, self%dim, self%dof, &
+    call DMDACreate1d(PETSC_COMM_WORLD, DM_BOUNDARY_NONE, self%dim, self%dof, &
          self%stencil, PETSC_NULL_INTEGER, self%mesh%dm, ierr); CHKERRQ(ierr)
     call DMSetUp(self%mesh%dm, ierr); CHKERRQ(ierr)
     call DMCreateGlobalVector(self%mesh%dm, self%solution, ierr); CHKERRQ(ierr)
@@ -219,11 +219,12 @@ contains
     call VecSet(rhs, 0._dp, ierr); CHKERRQ(ierr)
   end subroutine rhs_test_ode
 
-  subroutine pre_eval_test_ode(self, t, y, err)
+  subroutine pre_eval_test_ode(self, t, y, perturbed_columns, err)
     ! Default do-nothing pre-evaluation routine.
     class(test_ode_type), intent(in out) :: self
     PetscReal, intent(in) :: t
     Vec, intent(in) :: y
+    PetscInt, intent(in), optional :: perturbed_columns(:)
     PetscErrorCode, intent(out) :: err
     continue
   end subroutine pre_eval_test_ode
@@ -445,10 +446,10 @@ contains
 
   PetscReal function fn_heat1d(self, x, t)
     ! Exact heat equation solution at given point and time.
+    use utils_module, only: pi
     class(heat1d_ode_type), intent(in out) :: self
     PetscReal, intent(in) :: x, t
     ! Locals:
-    PetscReal, parameter :: pi = 4._dp * atan(1._dp)
     fn_heat1d = sin(pi * x) * exp(-pi * pi * t)
   end function fn_heat1d
 
@@ -500,7 +501,7 @@ contains
     dx = self%L / (self%dim - 1._dp)
     self%a = 1._dp / (dx*dx)
 
-    call DMDACreate1d(mpi%comm, DM_BOUNDARY_GHOSTED, self%dim-2, &
+    call DMDACreate1d(PETSC_COMM_WORLD, DM_BOUNDARY_GHOSTED, self%dim-2, &
          self%dof, self%stencil, PETSC_NULL_INTEGER, self%mesh%dm, &
          ierr); CHKERRQ(ierr)
     call DMSetUp(self%mesh%dm, ierr); CHKERRQ(ierr)
@@ -678,11 +679,12 @@ contains
     call self%test_ode_type%destroy()
   end subroutine destroy_pre_eval
 
-  subroutine calculate_secondary_pre_eval(self, t, y, err)
+  subroutine calculate_secondary_pre_eval(self, t, y, perturbed_columns, err)
     ! Calculates secondary vector = t * y
     class(pre_eval_ode_type), intent(in out) :: self
     PetscReal, intent(in) :: t
     Vec, intent(in) :: y
+    PetscInt, intent(in), optional :: perturbed_columns(:)
     PetscErrorCode, intent(out) :: err
     ! Locals:
     PetscErrorCode :: ierr
@@ -782,6 +784,10 @@ contains
     PetscInt :: num_cases, i
     type(timestepper_type) :: ts
     type(fson_value), pointer :: json
+    PetscMPIInt :: rank
+    PetscInt :: ierr
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
 
     num_cases = size(json_str)
 
@@ -799,7 +805,7 @@ contains
  
        call ts%run()
 
-       if (mpi%rank == mpi%output_rank) then
+       if (rank == 0) then
           call assert_equals(ts%steps%stop_time, &
                ts%steps%current%time, time_tolerance, &
                trim(ts%method%name) // ' stop time')
@@ -839,12 +845,16 @@ contains
     type(test_ode_type) :: test_ode
     PetscReal, allocatable :: initial(:)
     PetscErrorCode :: err
+    PetscMPIInt :: rank
+    PetscInt :: ierr
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
 
     initial = [-4._dp, -3.0_dp, -2.0_dp, -1.0_dp, &
          0.0_dp, 1.0_dp, 2.0_dp, 3.0_dp]
 
     json_str = '{"time": {"stop": 1.0, ' // &
-         '"step": {"initial": 0.01, "maximum": {"number": 200, ' // &
+         '"step": {"size": 0.01, "maximum": {"number": 200, ' // &
          '"size": 3.e6}, "method": "beuler", ' // &
          '"adapt": {"on": true, "method": "change", "minimum": 0.01, ' // &
          '"maximum": 0.2, "reduction": 0.6, "amplification": 1.9}}}}'
@@ -853,14 +863,14 @@ contains
     call test_ode%init(initial, err)
     call ts%init(json, test_ode)
 
-    if (mpi%rank == mpi%output_rank) then
+    if (rank == 0) then
        call assert_equals(1.0_dp, ts%steps%stop_time, time_tolerance, &
             "Timestepper stop time")
        call assert_equals(0.01_dp, ts%steps%next_stepsize, &
             time_tolerance, "Timestepper initial stepsize")
        call assert_equals(200, ts%steps%max_num, "Timestepper max. num steps")
        call assert_equals("Backward Euler", ts%method%name, "Timestepper method")
-       call assert_equals(.true., ts%steps%adaptor%on, "Timestepper adapt on")
+       call assert_equals(PETSC_FALSE, ts%steps%fixed, "Timestepper steps fixed")
        call assert_equals("change", trim(ts%steps%adaptor%name), "Timestepper adapt method")
        call assert_equals(0.01_dp, ts%steps%adaptor%monitor_min, "Timestepper monitor min")
        call assert_equals(0.2_dp, ts%steps%adaptor%monitor_max, "Timestepper monitor max")
@@ -893,17 +903,17 @@ contains
     call linear%init(initial, err)
 
     json_str(1) = '{"time": {"start": 0.0, "stop": 1.0, ' // &
-         '"step": {"initial": 0.1, "maximum": {"number": 20}, ' // &
+         '"step": {"size": 0.1, "maximum": {"number": 20}, ' // &
          '"method": "beuler", "adapt": {"on": false}}}}'
 
     json_str(2) = '{"time": {"start": 0.0, "stop": 1.0, ' // &
-         '"step": {"initial": 0.1, "maximum": {"number": 20}, ' // &
+         '"step": {"size": 0.1, "maximum": {"number": 20}, ' // &
          '"method": "bdf2", "adapt": {"on": false}}}}'
 
     json_str(3) = '{"time": {"start": 0.0, "stop": 1.0, ' // &
          '"step": {"maximum": {"number": 10}, ' // &
          '"method": "beuler", ' // &
-         '"sizes": [0.1, 0.1, 0.2, 0.2, 0.3]}}}'
+         '"size": [0.1, 0.1, 0.2, 0.2, 0.3]}}}'
 
     call linear%run_cases(json_str, tol)
 
@@ -919,9 +929,9 @@ contains
     ! Exponential function
 
     type(exponential_ode_type), target :: exponential
-    PetscInt,  parameter :: num_cases = 2
+    PetscInt,  parameter :: num_cases = 3
     character(len = max_json_len) :: json_str(num_cases)
-    PetscReal, parameter :: tol(num_cases) = [0.15_dp, 0.05_dp]
+    PetscReal, parameter :: tol(num_cases) = [0.15_dp, 0.05_dp, 0.2_dp]
     PetscReal, allocatable :: initial(:)
     PetscErrorCode :: err
 
@@ -930,14 +940,19 @@ contains
     call exponential%init(initial, err)
 
     json_str(1) = '{"time": {"start": 0.0, "stop": 1.0, ' // &
-         '"step": {"initial": 0.01, "maximum": {"number": 200}, ' // &
+         '"step": {"size": 0.01, "maximum": {"number": 200}, ' // &
          '"method": "beuler", ' // &
          '"adapt": {"on": true, "minimum": 0.01, "maximum": 0.2}}}}'
 
     json_str(2) = '{"time": {"start": 0.0, "stop": 1.0, ' // &
-         '"step": {"initial": 0.05, "maximum": {"number": 200}, ' // &
+         '"step": {"size": 0.05, "maximum": {"number": 200}, ' // &
          '"method": "bdf2", ' // &
          '"adapt": {"on": true, "minimum": 0.01, "maximum": 0.2}}}}'
+
+    json_str(3) = '{"time": {"start": 0.0, "stop": 1.0, ' // &
+         '"step": {"maximum": {"number": 200}, ' // &
+         '"method": "beuler", "adapt": {"on": false}, ' // &
+         '"size": [0.005, 0.007, 0.01, 0.012, 0.014, 0.015]}}}'
 
     call exponential%run_cases(json_str, tol)
 
@@ -965,12 +980,12 @@ contains
     call logistic%init(initial, err)
 
     json_str(1) = '{"time": {"start": 0.0, "stop": 1.0, ' // &
-         '"step": {"initial": 0.1, "maximum": {"number": 100}, ' // &
+         '"step": {"size": 0.1, "maximum": {"number": 100}, ' // &
          '"method": "beuler", ' // &
          '"adapt": {"on": true, "minimum": 0.01, "maximum": 0.2}}}}'
 
     json_str(2) = '{"time": {"start": 0.0, "stop": 1.0, ' // &
-         '"step": {"initial": 0.1, "maximum": {"number": 100}, ' // &
+         '"step": {"size": 0.1, "maximum": {"number": 100}, ' // &
          '"method": "bdf2", ' // &
          '"adapt": {"on": true, "minimum": 0.01, "maximum": 0.2}}}}'
 
@@ -1000,12 +1015,12 @@ contains
     call nontrivial_lhs%init(initial, err)
 
     json_str(1) = '{"time": {"start": 1.0, "stop": 10.0, ' // &
-         '"step": {"initial": 0.01, "maximum": {"number": 100}, ' // &
+         '"step": {"size": 0.01, "maximum": {"number": 100}, ' // &
          '"method": "beuler", ' // &
          '"adapt": {"on": true, "minimum": 0.03, "maximum": 0.1}}}}'
 
     json_str(2) = '{"time": {"start": 1.0, "stop": 10.0, ' // &
-         '"step": {"initial": 1.0, "maximum": {"number": 100}, ' // &
+         '"step": {"size": 0.1, "maximum": {"number": 100}, ' // &
          '"method": "bdf2", ' // &
          '"adapt": {"on": true, "minimum": 0.05, "maximum": 0.1}}}}'
 
@@ -1034,12 +1049,12 @@ contains
     call nonlinear_lhs%init(initial, err)
 
     json_str(1) = '{"time": {"start": 0.0, "stop": 1.0, ' // &
-         '"step": {"initial": 0.01, "maximum": {"number": 200}, ' // &
+         '"step": {"size": 0.01, "maximum": {"number": 200}, ' // &
          '"method": "beuler", ' // &
          '"adapt": {"on": true, "minimum": 0.03, "maximum": 0.1}}}}'
 
     json_str(2) = '{"time": {"start": 0.0, "stop": 1.0, ' // &
-         '"step": {"initial": 0.04, "maximum": {"number": 200}, ' // &
+         '"step": {"size": 0.04, "maximum": {"number": 200}, ' // &
          '"method": "bdf2", ' // &
          '"adapt": {"on": true, "minimum": 0.05, "maximum": 0.1}}}}'
 
@@ -1066,12 +1081,12 @@ contains
     call heat1d%init(err = err)
 
     json_str(1) = '{"time": {"start": 0.0, "stop": 0.2, ' // &
-         '"step": {"initial": 0.01, "maximum": {"number": 20}, ' // &
+         '"step": {"size": 0.01, "maximum": {"number": 20}, ' // &
          '"method": "beuler", ' // &
          '"adapt": {"on": true, "minimum": 0.01, "maximum": 0.1}}}}'
 
     json_str(2) = '{"time": {"start": 0.0, "stop": 0.2, ' // &
-         '"step": {"initial": 0.01, "maximum": {"number": 20}, ' // &
+         '"step": {"size": 0.01, "maximum": {"number": 20}, ' // &
          '"method": "bdf2", ' // &
          '"adapt": {"on": true, "minimum": 0.01, "maximum": 0.2}}}}'
 
@@ -1097,12 +1112,12 @@ contains
     call heat1d%init(err = err)
 
     json_str(1) = '{"time": {"start": 0.0, "stop": 0.2, ' // &
-         '"step": {"initial": 0.01, "maximum": {"number": 40}, ' // &
+         '"step": {"size": [0.005], "maximum": {"number": 100}, ' // &
          '"method": "beuler", ' // &
          '"adapt": {"on": true, "minimum": 0.01, "maximum": 0.1}}}}'
 
     json_str(2) = '{"time": {"start": 0.0, "stop": 0.2, ' // &
-         '"step": {"initial": 0.01, "maximum": {"number": 40}, ' // &
+         '"step": {"size": 0.01, "maximum": {"number": 50}, ' // &
          '"method": "bdf2", ' // &
          '"adapt": {"on": true, "minimum": 0.01, "maximum": 0.2}}}}'
 
@@ -1134,12 +1149,12 @@ contains
     call pre_eval%init(initial, err)
 
     json_str(1) = '{"time": {"start": 1.0, "stop": 10.0, ' // &
-         '"step": {"initial": 0.01, "maximum": {"number": 100}, ' // &
+         '"step": {"size": 0.01, "maximum": {"number": 100}, ' // &
          '"method": "beuler", ' // &
          '"adapt": {"on": true, "minimum": 0.03, "maximum": 0.1}}}}'
 
     json_str(2) = '{"time": {"start": 1.0, "stop": 10.0, ' // &
-         '"step": {"initial": 1.0, "maximum": {"number": 100}, ' // &
+         '"step": {"size": 0.1, "maximum": {"number": 100}, ' // &
          '"method": "bdf2", ' // &
          '"adapt": {"on": true, "minimum": 0.05, "maximum": 0.1}}}}'
 
@@ -1176,6 +1191,88 @@ contains
     deallocate(initial)
 
   end subroutine test_timestepper_steady
+
+!------------------------------------------------------------------------
+
+  subroutine test_checkpoints
+
+    ! Timestepper checkpoints
+
+    type(timestepper_checkpoints_type) :: checkpoints
+    PetscReal, allocatable :: times(:)
+    PetscInt :: repeat
+    PetscReal :: start_time
+    PetscReal, parameter :: tolerance = 0.01_dp
+    PetscMPIInt :: rank
+    PetscInt :: ierr
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
+
+       times = [1._dp, 3._dp, 4._dp]
+       repeat = 2
+       start_time = 0._dp
+       call checkpoints%init(times, repeat, tolerance, start_time)
+
+       call assert_equals(PETSC_FALSE, checkpoints%done, 'initial done')
+       call assert_equals(times(1), checkpoints%next_time, 'initial next_time')
+
+       call checkpoints%check(0.4_dp, 0.4_dp)
+       call assert_equals(PETSC_FALSE, checkpoints%hit, 't = 0.4 hit')
+
+       call checkpoints%check(1.0_dp, 0.6_dp)
+       call assert_equals(PETSC_TRUE, checkpoints%hit, 't = 1.0 hit')
+       call checkpoints%update()
+
+       call checkpoints%check(2.5_dp, 0.8_dp)
+       call assert_equals(PETSC_FALSE, checkpoints%hit, 't = 2.5 hit')
+
+       call checkpoints%check(3.2_dp, 1.0_dp)
+       call assert_equals(PETSC_TRUE, checkpoints%hit, 't = 3.2 hit')
+       call checkpoints%update()
+
+       call checkpoints%check(4.5_dp, 1.3_dp)
+       call assert_equals(PETSC_TRUE, checkpoints%hit, 't = 4.5 hit')
+       call checkpoints%update()
+       call assert_equals(5._dp, checkpoints%next_time, 't = 4.5 next_time')
+       call assert_equals(2, checkpoints%repeat_index, 't = 4.5 repeat_index')
+
+       call checkpoints%check(5.1_dp, 1.2_dp)
+       call assert_equals(PETSC_TRUE, checkpoints%hit, 't = 5.1 hit')
+       call checkpoints%update()
+
+       call checkpoints%update()
+       call assert_equals(3, checkpoints%index, 'last index')
+       call assert_equals(8._dp, checkpoints%next_time, 'last next_time')
+       call checkpoints%check(7.9_dp, 1.5_dp)
+       call assert_equals(PETSC_FALSE, checkpoints%hit, 't = 7.9 hit')
+       call checkpoints%check(7.99_dp, 1.5_dp)
+       call assert_equals(PETSC_TRUE, checkpoints%hit, 't = 7.99 hit')
+
+       call checkpoints%update()
+       call assert_equals(PETSC_TRUE, checkpoints%done, 'last done')
+
+       call checkpoints%destroy()
+
+       ! Test indefinite repeating:
+       times = [1._dp]
+       repeat = -1
+       call checkpoints%init(times, repeat, tolerance, start_time)
+       call assert_equals(PETSC_FALSE, checkpoints%done, 'indefinite repeat done 1')
+       call checkpoints%update()
+       call assert_equals(PETSC_FALSE, checkpoints%done, 'indefinite repeat done 2')
+       call checkpoints%update()
+       call assert_equals(PETSC_FALSE, checkpoints%done, 'indefinite repeat done 3')
+       call checkpoints%update()
+       call checkpoints%check(4.1_dp, 0.5_dp)
+       call assert_equals(PETSC_TRUE, checkpoints%hit, 'indefinite repeat t = 4.1 hit')
+       call checkpoints%destroy()
+
+       deallocate(times)
+
+    end if
+
+  end subroutine test_checkpoints
 
 !------------------------------------------------------------------------
 

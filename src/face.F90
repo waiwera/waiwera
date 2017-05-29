@@ -18,13 +18,14 @@
 module face_module
   !! Defines type for accessing local quantities defined on a mesh face.
 
+#include <petsc/finclude/petscsys.h>
+
+  use petscsys
   use kinds_module
   use cell_module
 
   implicit none
   private
-
-#include <petsc/finclude/petscsys.h>
 
   type face_type
      !! Type for accessing local face properties.
@@ -32,6 +33,7 @@ module face_module
      PetscReal, pointer, public :: area !! face area
      PetscReal, pointer, contiguous, public :: distance(:) !! cell centroid distances on either side of the face
      PetscReal, pointer, contiguous, public :: normal(:) !! normal vector to face
+     PetscReal, pointer, public :: gravity_normal !! dot product of normal with gravity vector
      PetscReal, pointer, contiguous, public :: centroid(:) !! centroid of face
      PetscReal, pointer, public :: permeability_direction !! direction of permeability (1.. 3)
      type(cell_type), allocatable, public :: cell(:) !! cells on either side of face
@@ -58,18 +60,15 @@ module face_module
      procedure, public :: flux => face_flux
   end type face_type
 
-  PetscInt, parameter :: num_face_variables = 5
+  PetscInt, parameter, public :: num_face_variables = 6
   PetscInt, parameter, public :: &
        face_variable_num_components(num_face_variables) = &
-       [1, 2, 3, 3, 1]
-  PetscInt, parameter, public :: &
-       face_variable_dim(num_face_variables) = &
-       [2, 2, 2, 2, 2]
+       [1, 2, 3, 1, 3, 1]
   PetscInt, parameter :: max_face_variable_name_length = 24
   character(max_face_variable_name_length), parameter, public :: &
        face_variable_names(num_face_variables) = &
        [character(max_face_variable_name_length):: &
-       "area", "distance", "normal", "centroid", &
+       "area", "distance", "normal", "gravity_normal", "centroid", &
        "permeability_direction"]
 
   type petsc_face_type
@@ -124,8 +123,9 @@ contains
     self%area => data(offset)
     self%distance => data(offset + 1: offset + 2)
     self%normal => data(offset + 3: offset + 5)
-    self%centroid => data(offset + 6: offset + 8)
-    self%permeability_direction => data(offset + 9)
+    self%gravity_normal => data(offset + 6)
+    self%centroid => data(offset + 7: offset + 9)
+    self%permeability_direction => data(offset + 10)
     self%distance12 = sum(self%distance)
 
   end subroutine face_assign_geometry
@@ -191,6 +191,7 @@ contains
     nullify(self%area)
     nullify(self%distance)
     nullify(self%normal)
+    nullify(self%gravity_normal)
     nullify(self%centroid)
     nullify(self%permeability_direction)
     if (allocated(self%cell)) then
@@ -201,16 +202,20 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine face_calculate_permeability_direction(self)
+  subroutine face_calculate_permeability_direction(self, rotation)
     !! Calculates permeability direction for the face, being the
     !! coordinate axis most closely aligned with the face normal
-    !! vector.
+    !! vector. The rotation matrix corresponds to the rotation
+    !! transformation of the first horizontal permeability direction.
 
     class(face_type), intent(in out) :: self
+    PetscReal, intent(in) :: rotation(3, 3)
     ! Locals:
+    PetscReal :: d(3)
     PetscInt :: index
 
-    index = maxloc(abs(self%normal), 1)
+    d = matmul(rotation, self%normal)
+    index = maxloc(abs(d), 1)
     self%permeability_direction = dble(index)
 
   end subroutine face_calculate_permeability_direction
@@ -231,18 +236,22 @@ contains
 
 !------------------------------------------------------------------------
 
-  PetscReal function face_pressure_gradient(self) result(dpdn)
-    !! Returns pressure gradient across the face.
+  PetscReal function face_pressure_gradient(self, p) result(dpdn)
+    !! Returns effective pressure gradient for phase p across the
+    !! face, including capillary pressure effects.
 
     class(face_type), intent(in) :: self
+    PetscInt, intent(in) :: p !! Phase index
     ! Locals:
-    PetscReal :: p(2)
+    PetscReal :: pressure(2)
     PetscInt :: i
     
     do i = 1, 2
-       p(i) = self%cell(i)%fluid%pressure
+       associate (fluid => self%cell(i)%fluid)
+         pressure(i) = fluid%pressure + fluid%phase(p)%capillary_pressure
+       end associate
     end do
-    dpdn = self%normal_gradient(p)
+    dpdn = self%normal_gradient(pressure)
 
   end function face_pressure_gradient
 
@@ -270,7 +279,7 @@ contains
     !! assumed that the phase is present in at least one of the cells.
 
     class(face_type), intent(in) :: self
-    PetscInt, intent(in) :: p
+    PetscInt, intent(in) :: p !! Phase index
     ! Locals:
     PetscInt :: i
     PetscReal :: weight
@@ -372,7 +381,7 @@ contains
 
 !------------------------------------------------------------------------
 
-  function face_flux(self, eos, gravity) result(flux)
+  function face_flux(self, eos) result(flux)
     !! Returns array containing the mass fluxes for each component
     !! through the face, from cell(1) to cell(2), and energy flux
     !! for non-isothermal simulations.
@@ -381,20 +390,17 @@ contains
 
     class(face_type), intent(in) :: self
     class(eos_type), intent(in) :: eos
-    PetscReal, intent(in) :: gravity
     PetscReal :: flux(eos%num_primary_variables)
     ! Locals:
     PetscInt :: nc, np
     PetscInt :: i, p, up
-    PetscReal :: dpdn, dtdn, gn, G, face_density, F
+    PetscReal :: dpdn, dtdn, G, face_density, F
     PetscReal :: phase_flux(self%cell(1)%fluid%num_components)
     PetscReal :: k, h, cond
     PetscInt :: phases(2), phase_present
 
     nc = eos%num_components
     np = eos%num_primary_variables
-    dpdn = self%pressure_gradient()
-    gn = gravity * self%normal(3)
 
     if (.not. eos%isothermal) then
        ! Heat conduction:
@@ -414,7 +420,8 @@ contains
        if (btest(phase_present, p - 1)) then
 
           face_density = self%phase_density(p)
-          G = dpdn + face_density * gn
+          dpdn = self%pressure_gradient(p)
+          G = dpdn - face_density * self%gravity_normal
 
           up = self%upstream_index(G)
 

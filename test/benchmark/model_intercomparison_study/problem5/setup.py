@@ -1,8 +1,11 @@
 from t2data_json import *
 from t2incons import *
 from t2thermo import cowat
+from builtins import zip
 import json
 import os
+
+AUTOUGH2 = 'AUTOUGH2_42D'
 
 model_dir = './run'
 orig_dir = os.getcwd()
@@ -12,7 +15,7 @@ os.chdir(model_dir)
 model_name = 'problem5'
 dimensions = [300., 200., 100.]
 nblks = [12, 8, 1]
-gridsizes = [dim / nblk for dim, nblk in zip(dimensions, nblks)]
+gridsizes = [dim // nblk for dim, nblk in zip(dimensions, nblks)]
 dx = [[gridsize] * nblk for gridsize, nblk in zip(gridsizes, nblks)]
 
 geo = mulgrid().rectangular(dx[0], dx[1], dx[2], atmos_type = 2)
@@ -40,7 +43,6 @@ dat.parameter.update(
     {'max_timesteps': ndt,
      'tstop': 10. * yr,
      'print_interval': 1,
-     'gravity': 9.81,
      'default_incons': [P0, T0],
      'const_timestep': 0.05 * yr,
      'max_timestep': 0.05 * yr,
@@ -97,13 +99,15 @@ for blk in dat.grid.blocklist:
     inc[blk.name] = [P0, T0]
 inc.write(model_name + '.incon')
 
-dat.run(simulator = 'AUTOUGH2_41Da',
+dat.run(simulator = AUTOUGH2,
         incon_filename = model_name + '.incon',
         silent = True)
 
-mesh_filename = 'g' + model_name + '.exo'
-geo.write_exodusii(mesh_filename)
-jsondata = dat.json(geo, mesh_filename, incons = inc, bdy_incons = inc)
+mesh_filename = 'g' + model_name + '.msh'
+geo.write_mesh(mesh_filename, dimension = 2)
+jsondata = dat.json(geo, mesh_filename, incons = inc, bdy_incons = inc,
+                    mesh_coords = 'xy')
+jsondata['mesh']['thickness'] = dimensions[-1]
 json.dump(jsondata, file(model_name + 'a.json', 'w'), indent = 2)
 
 # problem 5b:
@@ -125,7 +129,9 @@ dat.run(simulator = 'AUTOUGH2_41Da',
         incon_filename = model_name + '.incon',
         silent = True)
 
-jsondata = dat.json(geo, mesh_filename, incons = inc, bdy_incons = inc)
+jsondata = dat.json(geo, mesh_filename, incons = inc, bdy_incons = inc,
+                    mesh_coords = 'xy')
+jsondata['mesh']['thickness'] = dimensions[-1]
 json.dump(jsondata, file(model_name + 'b.json', 'w'), indent = 2)
                   
 os.chdir(orig_dir)

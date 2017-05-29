@@ -6,6 +6,8 @@ from t2thermo import *
 import json
 import subprocess
 
+AUTOUGH2 = 'AUTOUGH2_42D'
+
 model_name = 'recharge'
 run_name = 'outflow'
 
@@ -48,7 +50,7 @@ dat.parameter['option'][1] = 1
 dat.parameter['option'][24] = 2 # output initial results
 dat.parameter['option'][16] = 0
 dat.parameter['timestep'] = list(dts)
-dat.parameter['const_timestep'] = -int(round(ndt / 8))
+dat.parameter['const_timestep'] = -int(round(ndt // 8))
 
 dat.multi = {'num_components':1, 'num_equations':2,
              'num_phases':2, 'num_secondary_parameters':6,
@@ -65,7 +67,7 @@ dat.write(t2dat_filename)
 
 t2gener_filename = 'gener.data'
 if os.path.isfile(t2gener_filename): os.remove(t2gener_filename)
-dat.run(simulator = 'AUTOUGH2_41Da', silent = True)
+dat.run(simulator = AUTOUGH2, silent = True)
 
 mesh_filename = 'g'+ model_name +'.exo'
 geo.write_exodusii(mesh_filename)

@@ -2,16 +2,16 @@ module source_setup_test
 
   ! Tests for source setup module
 
+#include <petsc/finclude/petsc.h>
+
+  use petsc
   use kinds_module
-  use mpi_module
   use fruit
   use source_setup_module
   use eos_test
 
   implicit none
   private
-
-#include <petsc/finclude/petsc.h90>
 
 public :: test_setup_sources
 
@@ -42,14 +42,17 @@ contains
     PetscInt :: expected_num_sources, num_sources
     PetscErrorCode :: ierr
     PetscReal, parameter :: start_time = 0._dp
+    PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
+    PetscMPIInt :: rank
 
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
     json => fson_parse_mpi(trim(path) // "test_source.json")
 
     call thermo%init()
     call eos%init(json, thermo)
     call mesh%init(json)
     call DMCreateLabel(mesh%dm, open_boundary_label_name, ierr); CHKERRQ(ierr)
-    call mesh%configure(eos%primary_variable_names)
+    call mesh%configure(eos%primary_variable_names, gravity)
     call DMGetGlobalVector(mesh%dm, fluid, ierr); CHKERRQ(ierr) ! dummy- not used
 
     call setup_sources(json, mesh%dm, eos, thermo, start_time, fluid, &
@@ -57,8 +60,8 @@ contains
 
     expected_num_sources = fson_value_count_mpi(json, "source")
     call MPI_reduce(sources%count, num_sources, 1, MPI_INTEGER, MPI_SUM, &
-         mpi%input_rank, mpi%comm, ierr)
-    if (mpi%rank == mpi%input_rank) then
+         0, PETSC_COMM_WORLD, ierr)
+    if (rank == 0) then
       call assert_equals(expected_num_sources, num_sources, "number of sources")
     end if
 

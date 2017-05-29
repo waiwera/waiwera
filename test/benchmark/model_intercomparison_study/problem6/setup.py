@@ -5,6 +5,8 @@ from scipy.optimize import fsolve
 import json
 import os
 
+AUTOUGH2 = 'AUTOUGH2_42D'
+
 model_dir = './run'
 orig_dir = os.getcwd()
 if not os.path.isdir(model_dir): os.makedirs(model_dir)
@@ -14,7 +16,7 @@ model_name = 'problem6'
 
 lx, ly = 5.e3, 4.e3
 nx, ny = 5, 5
-dx, dy = lx / nx, ly / ny
+dx, dy = lx / float(nx), ly / float(ny)
 zthick = [300.] * 4 + [600.]
 
 geo = mulgrid().rectangular([dx] * nx, [dy] * ny, zthick, atmos_type = 1)
@@ -162,7 +164,7 @@ for lay in geo.layerlist[1:]:
 inc.write(model_name + '.incon')
 dat.write(model_name + '.dat')
 
-dat.run(simulator = 'AUTOUGH2_41Dasw',
+dat.run(simulator = AUTOUGH2,
         incon_filename = model_name + '.incon',
         silent = True)
 

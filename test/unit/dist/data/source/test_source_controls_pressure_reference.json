@@ -81,6 +81,12 @@
                  [2.8e6, 0.5e5]
              ]}
          }
+        },
+        {"name": "source 12", "cell": 1,
+         "direction": "both",
+         "recharge": {
+             "coefficient": 1.2e-2,
+             "pressure": "initial"}
         }
     ]
 }

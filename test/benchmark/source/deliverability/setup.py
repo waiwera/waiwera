@@ -1,31 +1,43 @@
-# Transient model run setup.
-# Before running this script, setup_ss.py must be run to compute the steady state solutions.
+# Set up deliverability benchmark test cases
 
 import os
 from t2data_json import *
 from t2thermo import *
-from t2incons import *
 import json
+
+AUTOUGH2 = 'AUTOUGH2_42D'
 
 model_name = 'deliv'
 
 model_dir = './run'
 orig_dir = os.getcwd()
+if not os.path.isdir(model_dir): os.makedirs(model_dir)
 os.chdir(model_dir)
 
-inc = t2incon(model_name + '_ss.save')
-inc.write(model_name + '.incon')
+t2geo_filename = 'g' + model_name + '.dat'
+t2dat_filename = model_name + '.dat'
 
-geo = mulgrid('g' + model_name + '.dat')
-dat = t2data_export_json(model_name + '_ss.dat')
+d = 100.
+dx = [d] * 10
+dy = [d]
+dz = [d]
 
-mesh_filename = 'g'+ model_name +'.exo'
+geo = mulgrid().rectangular(dx, dy, dz, atmos_type = 2)
+geo.write(t2geo_filename)
+
+dp = 1.e5
+temperature = 230.
+pressure = sat(temperature) + dp
+
+dat = t2data_export_json()
+dat.title = 'Deliverability source test'
+dat.simulator = 'AUTOUGH2.2'
+dat.grid = t2grid().fromgeo(geo)
+dat.grid.rocktype['dfalt'].permeability = np.ones(3) * 1.e-13
 
 ndt = 80
 dts = np.logspace(4, 7.5, ndt)
 maxtime = np.sum(dts)
-PI = 1.e-11
-Pwb = 5.e5
 
 dat.start = False
 
@@ -33,20 +45,50 @@ dat.parameter.update(
     {'max_timesteps': ndt,
      'tstop': maxtime,
      'print_interval': 1,
+     'default_incons': [pressure, temperature],
      'relative_error': 1.e-7,
      })
 
-dat.parameter['option'][24] = 2 # output initial results
+dat.parameter['option'][1] = 1
 dat.parameter['option'][16] = 0
+dat.parameter['option'][24] = 2 # output initial results
+
 dat.parameter['timestep'] = list(dts)
-dat.parameter['const_timestep'] = -int(round(ndt/ 8))
+dat.parameter['const_timestep'] = -int(round(ndt // 8))
 
-dat.write(model_name + '.dat')
+dat.start = True
 
-iblk = geo.num_blocks / 2
+dat.multi = {'num_components':1, 'num_equations':2,
+             'num_phases':2, 'num_secondary_parameters':6,
+             'eos': 'EW'}
+
+dat.relative_permeability = {'type': 1, 'parameters': [0.,0.,1., 1.]}
+dat.capillarity = {'type': 1, 'parameters': [0.,0.,0., 0.]}
+
+# BC block at right hand end:
+x = 1.e3
+col = geo.columnlist[-1]
+lay = geo.layerlist[-1]
+blkname = geo.block_name(lay.name, col.name)
+blk = dat.grid.block[blkname]
+vol = 0.
+rock = dat.grid.rocktypelist[-1]
+bcblk = t2block('bc %2d' % 0, vol, rock,
+                np.array([x, 0.5 * d, -0.5 * d]))
+dat.grid.add_block(bcblk)
+area = d * d
+con = t2connection([blk, bcblk], 1,
+                   [0.5 * d, geo.atmosphere_connection],
+                   area, 0.)
+dat.grid.add_connection(con)
+
+dat.write(t2dat_filename)
 
 run_names = ['delv', 'delg_flow', 'delg_pi_table', 'delg_pwb_table', 'delg_limit', 'delt', 'delw']
 run_sources = {}
+iblk = 0
+PI = 1.e-11
+Pwb = 5.e5
 
 # straight DELV
 run_sources['delv'] = t2generator(type = 'DELV', block = geo.block_name_list[iblk],
@@ -80,6 +122,9 @@ run_sources['delt'] = t2generator(type = 'DELT', block = geo.block_name_list[ibl
 run_sources['delw'] = t2generator(type = 'DELW', block = geo.block_name_list[iblk],
                      name = 'del 1', gx = PI, ex = Pwb, hg = 20., fg = 0.7e6)
 
+mesh_filename = 'g' + model_name + '.exo'
+geo.write_exodusii(mesh_filename)
+
 from os import remove
 from os.path import isfile
 
@@ -91,12 +136,11 @@ for run_name in run_names:
     dat.write(run_base_name + '.dat')
 
     if isfile('gener.data'): remove('gener.data')
-    dat.run(simulator = 'AUTOUGH2_41Dasw',
+    dat.run(simulator = AUTOUGH2,
             incon_filename = model_name + '.incon',
             silent = True)
 
-    jsondata = dat.json(geo, mesh_filename, incons = model_name + '_ss.h5',
-                    bdy_incons = inc)
+    jsondata = dat.json(geo, mesh_filename)
     filename = run_base_name + '.json'
     json.dump(jsondata, file(filename, 'w'), indent = 2)
 

@@ -18,12 +18,12 @@
 module logfile_module
   !! Module for logging output messages to file.
 
-  use mpi_module
+#include <petsc/finclude/petsc.h>
+
+  use petsc
 
   implicit none
   private
-
-#include <petsc/finclude/petsc.h90>
 
   PetscInt, parameter, public :: LOG_LEVEL_INFO  = 1, &
        LOG_LEVEL_WARN = 2, LOG_LEVEL_ERR = 3
@@ -31,7 +31,7 @@ module logfile_module
   character(max_log_level_name_length), parameter :: &
        log_level_name(3) = ['info', 'warn', 'err ']
   PetscInt, parameter, public :: max_logfile_name_length = 120
-  PetscInt, parameter, public :: max_log_key_length = 64
+  PetscInt, parameter, public :: max_log_key_length = 80
   PetscInt, parameter :: max_format_length = 8
   character, parameter :: lf = new_line('a')
 
@@ -86,8 +86,8 @@ contains
 
     self%filename = filename
     if (self%filename /= "") then
-       call PetscViewerASCIIOpen(mpi%comm, filename, self%viewer, ierr)
-       CHKERRQ(ierr)
+       call PetscViewerASCIIOpen(PETSC_COMM_WORLD, filename, self%viewer, &
+            ierr); CHKERRQ(ierr)
        call PetscViewerASCIIPushSynchronized(self%viewer, ierr)
        CHKERRQ(ierr)
     end if
@@ -125,16 +125,18 @@ contains
     character(*), intent(in) :: string
     PetscMPIInt, intent(in), optional :: rank
     ! Locals:
-    PetscMPIInt :: output_rank
+    PetscMPIInt :: mpi_rank, output_rank
     PetscErrorCode :: ierr
 
     if (present(rank)) then
        output_rank = rank
     else
-       output_rank = mpi%output_rank
+       output_rank = 0
     end if
 
-    if (mpi%rank == output_rank) then
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, mpi_rank, ierr)
+
+    if (mpi_rank == output_rank) then
 
        if (self%filename /= "") then
           call PetscViewerASCIISynchronizedPrintf(self%viewer, &

@@ -9,9 +9,9 @@
                 "name": "rock1", 
                 "permeability": [1e-14, 2e-14, 3e-14],
                 "porosity": 0.1, 
-                "specific heat": 900.0, 
-                "density": 2600.0, 
-                "heat conductivity": 1.5, 
+                "specific_heat": 900.0,
+                "density": 2600.0,
+                "heat_conductivity": 1.5,
                 "cells": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
             }
         ]

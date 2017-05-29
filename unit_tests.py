@@ -1,6 +1,7 @@
 # Build and run Waiwera tests. Optional command line arguments are the test module
 # names required in the test, otherwise all test modules are used.
 
+from __future__ import print_function
 from sys import argv
 from glob import glob
 import FRUIT
@@ -25,9 +26,9 @@ if setup_source not in test_sources: test_sources.append(setup_source)
 suite = FRUIT.test_suite(test_sources)
 
 for np in num_procs:
-    print '-'*72
-    print 'Processors:', np
+    print('-'*72)
+    print('Processors:', np)
     suite.build_run(driver_source, build_command, output_dir = output_dir,
                     num_procs = np, mpi_comm = mpi_comm, mpi = True)
     if suite.built: suite.summary()
-    else: print 'Failed to build/run tests'
+    else: print('Failed to build/run tests')

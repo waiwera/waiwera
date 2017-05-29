@@ -18,10 +18,12 @@
 module dm_utils_module
   !! Module for utilities related to PETSc DMs (which handle data management on parallel meshes), and Vecs.
 
+#include <petsc/finclude/petsc.h>
+
+  use petsc
+
   implicit none
   private
-
-#include <petsc/finclude/petsc.h90>
 
   public :: set_dm_data_layout, section_offset, global_section_offset
   public :: global_vec_section, local_vec_section
@@ -75,7 +77,7 @@ contains
 
     call DMPlexCreateSection(dm, dim, num_fields, pnum_components, &
          pnum_dof, num_bc, pbc_field, pbc_comps, pbc_points, &
-         PETSC_NULL_OBJECT, section, ierr); CHKERRQ(ierr)
+         PETSC_NULL_IS, section, ierr); CHKERRQ(ierr)
 
     if (present(field_name)) then
        do i = 1, num_fields
@@ -97,8 +99,6 @@ contains
     !! Gets global start of global range from PetscLayout of global section
     !! on DM that vector v is defined on.
 
-    use mpi_module
-
     Vec, intent(in) :: v !! Global vector
     PetscInt, intent(out) :: range_start !! Range start for global section
     ! Locals:
@@ -109,8 +109,8 @@ contains
 
     call global_vec_section(v, section)
 
-    call PetscSectionGetValueLayout(mpi%comm, section, layout, ierr)
-    CHKERRQ(ierr)
+    call PetscSectionGetValueLayout(PETSC_COMM_WORLD, section, layout, &
+         ierr); CHKERRQ(ierr)
     call PetscLayoutGetRange(layout, range_start, range_end, ierr)
     CHKERRQ(ierr)
     call PetscLayoutDestroy(layout, ierr)
@@ -232,15 +232,13 @@ contains
   subroutine write_vec_vtk(v, filename)
     !! Writes vector v to VTK file.
 
-    use mpi_module
-
     Vec, intent(in) :: v !! Vector
     character(len = *), intent(in) :: filename !! VTK output filename
     ! Locals:
     PetscViewer :: viewer
     PetscErrorCode :: ierr
 
-    call PetscViewerCreate(mpi%comm, viewer, ierr); CHKERRQ(ierr)
+    call PetscViewerCreate(PETSC_COMM_WORLD, viewer, ierr); CHKERRQ(ierr)
     call PetscViewerSetType(viewer, PETSCVIEWERVTK, ierr); CHKERRQ(ierr)
     call PetscViewerFileSetName(viewer, filename, ierr); CHKERRQ(ierr)
     call VecView(v, viewer, ierr); CHKERRQ(ierr)
@@ -253,8 +251,6 @@ contains
   subroutine vec_reorder(v, old_index, new_index)
     !! Reorders a vector from the specified old ordering to new
     !! ordering.
-
-    use mpi_module
 
     Vec, intent(in out) :: v !! Global vector to be reordered
     IS, intent(in) :: old_index !! Index set for old ordering
@@ -272,13 +268,13 @@ contains
     call VecGetBlockSize(v, blocksize, ierr); CHKERRQ(ierr)
 
     call ISGetIndicesF90(old_index, indices, ierr); CHKERRQ(ierr)
-    call ISCreateBlock(mpi%comm, blocksize, size(indices), indices, &
-         PETSC_COPY_VALUES, old_index_block, ierr); CHKERRQ(ierr)
+    call ISCreateBlock(PETSC_COMM_WORLD, blocksize, size(indices), &
+         indices, PETSC_COPY_VALUES, old_index_block, ierr); CHKERRQ(ierr)
     call ISRestoreIndicesF90(old_index, indices, ierr); CHKERRQ(ierr)
 
     call ISGetIndicesF90(new_index, indices, ierr); CHKERRQ(ierr)
-    call ISCreateBlock(mpi%comm, blocksize, size(indices), indices, &
-         PETSC_COPY_VALUES, new_index_block, ierr); CHKERRQ(ierr)
+    call ISCreateBlock(PETSC_COMM_WORLD, blocksize, size(indices), &
+         indices, PETSC_COPY_VALUES, new_index_block, ierr); CHKERRQ(ierr)
     call ISRestoreIndicesF90(new_index, indices, ierr); CHKERRQ(ierr)
 
     call VecScatterCreate(vinitial, old_index_block, v, &
@@ -302,13 +298,15 @@ contains
     !! Returns index of DM mesh face on the specified cell c, with
     !! outward normal vector closest to the specified one.
 
+    use kinds_module
+
     DM, intent(in) :: dm !! DM
     PetscInt, intent(in) :: c !! Cell mesh point in DM
     PetscReal, intent(in) :: normal(:) !! Normal vector
     PetscInt, intent(out) :: f !! Face mesh point in DM
     ! Locals:
-    PetscInt :: i, num_faces, imax
-    PetscInt :: dim, start_cell, end_cell
+    PetscInt :: i, num_faces, imax, dim, num_cells
+    PetscInt :: start_cell, end_cell
     PetscErrorCode :: ierr
     PetscInt, pointer :: faces(:)
     PetscReal, allocatable, target :: centroid(:), face_normal(:)
@@ -316,26 +314,32 @@ contains
     PetscReal, allocatable :: cos_theta(:)
     PetscReal :: area, normal_norm, face_normal_norm
 
+    call DMGetDimension(dm, dim, ierr); CHKERRQ(ierr)
     call DMPlexGetHeightStratum(dm, 0, start_cell, &
          end_cell, ierr); CHKERRQ(ierr)
 
     if ((start_cell <= c) .and. (c < end_cell)) then
 
-       call DMGetDimension(dm, dim, ierr); CHKERRQ(ierr)
-       allocate(centroid(dim), face_normal(dim))
+       allocate(centroid(3), face_normal(3))
        pcentroid => centroid
        pface_normal => face_normal
        call DMPlexGetConeSize(dm, c, num_faces, ierr); CHKERRQ(ierr)
        call DMPlexGetCone(dm, c, faces, ierr); CHKERRQ(ierr)
        allocate(cos_theta(num_faces))
-       normal_norm = norm2(normal)
+       cos_theta = -1._dp
+       normal_norm = norm2(normal(1: dim))
 
        do i = 1, num_faces
-          call DMPlexComputeCellGeometryFVM(dm, faces(i), area, &
-               pcentroid, pface_normal, ierr); CHKERRQ(ierr)
-          face_normal_norm = norm2(face_normal)
-          cos_theta(i) = dot_product(normal, face_normal) / &
-               (normal_norm * face_normal_norm)
+          call DMPlexGetSupportSize(dm, faces(i), num_cells, ierr)
+          CHKERRQ(ierr)
+          if (num_cells < 2) then
+             call DMPlexComputeCellGeometryFVM(dm, faces(i), area, &
+                  pcentroid, pface_normal, ierr); CHKERRQ(ierr)
+             face_normal_norm = norm2(face_normal(1: dim))
+             cos_theta(i) = dot_product(normal(1: dim), &
+                  face_normal(1: dim)) / &
+                  (normal_norm * face_normal_norm)
+          end if
        end do
 
        imax = maxloc(cos_theta, 1)
@@ -411,18 +415,21 @@ contains
     ! Locals:
     IS :: order_IS
     PetscInt, pointer :: order_indices(:)
-    PetscInt :: i, ghost
+    PetscInt :: i, ghost, count
     PetscErrorCode :: ierr
 
     index = -1
 
-    call DMGetStratumIS(dm, order_label_name, order, order_IS, ierr); CHKERRQ(ierr)
+    call DMGetStratumSize(dm, order_label_name, order, count, ierr)
+    CHKERRQ(ierr)
 
-    if (order_IS /= 0) then
+    if (count > 0) then
 
+       call DMGetStratumIS(dm, order_label_name, order, order_IS, ierr); CHKERRQ(ierr)
        call ISGetIndicesF90(order_IS, order_indices, ierr); CHKERRQ(ierr)
        i = order_indices(1)
        call ISRestoreIndicesF90(order_IS, order_indices, ierr); CHKERRQ(ierr)
+       call ISDestroy(order_IS, ierr); CHKERRQ(ierr)
 
        call DMLabelGetValue(ghost_label, i, ghost, ierr); CHKERRQ(ierr)
        if (ghost < 0) then

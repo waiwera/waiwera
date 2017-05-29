@@ -18,10 +18,12 @@
 module version_module
   !! Module for software version information.
 
+#include <petsc/finclude/petscsys.h>
+
+  use petscsys
+
   implicit none
   private
-
-#include <petsc/finclude/petscdef.h>
   
   PetscInt, parameter :: max_version_string_length = 64
   character(len = max_version_string_length), public :: &

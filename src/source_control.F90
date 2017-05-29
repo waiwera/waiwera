@@ -18,6 +18,9 @@
 module source_control_module
   !! Module for source controls- for controlling source parameters (e.g. flow rate, enthalpy) over time.
 
+#include <petsc/finclude/petsc.h>
+
+  use petsc
   use kinds_module
   use eos_module, only: max_phase_name_length
   use thermodynamics_module
@@ -27,8 +30,6 @@ module source_control_module
 
   implicit none
   private
-
-#include <petsc/finclude/petsc.h90>
 
   PetscReal, parameter, public :: default_source_control_separator_pressure = 0.55e6_dp
   PetscInt, parameter, public :: max_limiter_type_length = 5
@@ -180,6 +181,7 @@ module source_control_module
 
      subroutine source_control_update_procedure(self, t, interval, &
           local_fluid_data, local_fluid_section)
+       use petscis
        !! Updates sources at the specified time.
        import :: source_control_type
        class(source_control_type), intent(in out) :: self
@@ -239,7 +241,7 @@ contains
     ! Locals:
     PetscReal :: rate
 
-    rate = self%table%average(interval)
+    rate = self%table%average(interval, 1)
     call self%sources%traverse(source_control_rate_table_update_iterator)
 
   contains
@@ -272,7 +274,7 @@ contains
     ! Locals:
     PetscReal :: enthalpy
 
-    enthalpy = self%table%average(interval)
+    enthalpy = self%table%average(interval, 1)
     call self%sources%traverse(source_control_enthalpy_table_update_iterator)
 
   contains
@@ -321,7 +323,7 @@ contains
 
           call source%fluid%assign(global_fluid_data, fluid_offset)
 
-          self%reference_pressure%val(1) = source%fluid%pressure
+          self%reference_pressure%val(1, 1) = source%fluid%pressure
 
        end select
     end if
@@ -403,13 +405,13 @@ contains
 
          select case (self%pressure_table_coordinate)
          case (SRC_PRESSURE_TABLE_COORD_TIME)
-            reference_pressure = self%reference_pressure%average(interval)
+            reference_pressure = self%reference_pressure%average(interval, 1)
          case (SRC_PRESSURE_TABLE_COORD_ENTHALPY)
             h = source%fluid%specific_enthalpy(phase_flow_fractions)
-            reference_pressure = self%reference_pressure%interpolate(h)
+            reference_pressure = self%reference_pressure%interpolate(h, 1)
          end select
 
-         productivity = self%productivity%average(interval)
+         productivity = self%productivity%average(interval, 1)
 
          pressure_difference = source%fluid%pressure - reference_pressure
          source%rate = 0._dp
@@ -472,12 +474,12 @@ contains
           allocate(phase_mobilities(source%fluid%num_phases))
           phase_mobilities = source%fluid%phase_mobilities()
 
-          reference_pressure = self%reference_pressure%interpolate(start_time)
+          reference_pressure = self%reference_pressure%interpolate(start_time, 1)
           pressure_difference = source%fluid%pressure - reference_pressure
           factor = sum(phase_mobilities) * pressure_difference
 
           if (abs(factor) > tol) then
-             self%productivity%val(1) = abs(initial_rate) / factor
+             self%productivity%val(1, 1) = abs(initial_rate) / factor
           end if
 
           deallocate(phase_mobilities)
@@ -550,9 +552,9 @@ contains
       type is (source_type)
 
          call source%update_fluid(local_fluid_data, local_fluid_section)
-         reference_pressure = self%reference_pressure%average(interval)
+         reference_pressure = self%reference_pressure%average(interval, 1)
          pressure_difference = source%fluid%pressure - reference_pressure
-         recharge_coefficient = self%coefficient%average(interval)
+         recharge_coefficient = self%coefficient%average(interval, 1)
          source%rate = -recharge_coefficient * pressure_difference
 
       end select

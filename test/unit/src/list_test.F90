@@ -2,15 +2,15 @@ module list_test
 
   ! Test for list module
 
+#include <petsc/finclude/petscsys.h>
+
+  use petscsys
   use kinds_module
-  use mpi_module
   use fruit
   use list_module
 
   implicit none
   private
-
-#include <petsc/finclude/petscdef.h>
 
   type :: thing_type
      character(len = 5) :: name
@@ -46,8 +46,11 @@ contains
     type(thing_type) :: thing
     type(list_node_type), pointer :: node
     PetscReal, parameter :: tol = 1.e-8_dp
+    PetscMPIInt :: rank
+    PetscInt :: ierr
 
-    if (mpi%rank == mpi%output_rank) then
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
 
        i = 1
        x = -5.67_dp

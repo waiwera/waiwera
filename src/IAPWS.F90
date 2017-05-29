@@ -27,14 +27,15 @@ module IAPWS_module
   !! The viscosity function is described by:
   !! IAPWS, 2008.  **Release on the IAPWS Formulation 2008 for the Viscosity of Ordinary Water Substance.**
 
+#include <petsc/finclude/petscsys.h>
+
+  use petscsys
   use kinds_module
   use powertable_module
   use thermodynamics_module
 
   implicit none
   private
-
-#include <petsc/finclude/petscsys.h>
 
 !------------------------------------------------------------------------
 ! Saturation curve type

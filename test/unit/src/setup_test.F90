@@ -2,12 +2,11 @@ module setup_module
 
   ! Setup and teardown routines for unit tests
 
-  use mpi_module
+#include <petsc/finclude/petscsys.h>
+
+  use petscsys
 
   implicit none
-
-#include <petsc/finclude/petscsys.h>
-#include <petsc/finclude/petscdef.h>
 
 contains
 
@@ -23,7 +22,6 @@ contains
     PetscErrorCode :: ierr
     
     call PetscInitialize(PETSC_NULL_CHARACTER, ierr); CHKERRQ(ierr)
-    call mpi%init(PETSC_COMM_WORLD)
     call init_profiling()
     
   end subroutine setup

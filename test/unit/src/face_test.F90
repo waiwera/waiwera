@@ -2,8 +2,10 @@ module face_test
 
   ! Test for face module
 
+#include <petsc/finclude/petscsys.h>
+
+  use petscsys
   use kinds_module
-  use mpi_module
   use fruit
   use face_module
   use IAPWS_module
@@ -11,8 +13,6 @@ module face_test
 
   implicit none
   private
-
-#include <petsc/finclude/petscdef.h>
 
 public :: test_face_assign, test_face_permeability_direction, &
      test_face_normal_gradient, test_face_harmonic_average, &
@@ -35,19 +35,24 @@ contains
     PetscReal, parameter :: area = 300._dp
     PetscReal, parameter :: distance(2) = [20._dp, 30._dp]
     PetscReal, parameter :: normal(3) = [0.5_dp, -0.25_dp, 0.75_dp]
+    PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
+    PetscReal, parameter :: gravity_normal = dot_product(gravity, normal)
     PetscReal, parameter :: centroid(3) = [-1250._dp, 3560._dp, -2530._dp]
     PetscReal, parameter :: permeability_direction = dble(2)
     PetscInt, parameter :: offset = 6
     PetscReal :: offset_padding(offset-1) = 0._dp
     PetscReal, pointer, contiguous :: face_data(:)
+    PetscMPIInt :: rank
+    PetscInt :: ierr
 
-    if (mpi%rank == mpi%output_rank) then
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
 
        call face%init()
 
        allocate(face_data(offset - 1 + face%dof))
-       face_data = [offset_padding, area, distance, normal, centroid, &
-            permeability_direction]
+       face_data = [offset_padding, area, distance, normal, gravity_normal, &
+            centroid, permeability_direction]
 
        call assert_equals(face%dof, size(face_data) - (offset-1), "face dof")
 
@@ -56,6 +61,7 @@ contains
        call assert_equals(area, face%area, tol, "area")
        call assert_equals(0._dp, norm2(face%distance - distance), tol, "distances")
        call assert_equals(0._dp, norm2(face%normal - normal), tol, "normal")
+       call assert_equals(-7.35_dp, face%gravity_normal, tol, "gravity normal")
        call assert_equals(0._dp, norm2(face%centroid - centroid), tol, "centroid")
        call assert_equals(permeability_direction, face%permeability_direction, &
             tol, "permeability direction")
@@ -85,22 +91,33 @@ contains
             1._dp,  -1.4_dp, -1.6_dp], [3, num_tests])
     PetscReal, parameter :: expected_permeability_direction(num_tests) = &
          [dble(1), dble(2), dble(3)]
+    PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
+    PetscReal :: gravity_normal
     PetscReal, pointer, contiguous :: face_data(:)
     PetscInt :: i
     PetscInt :: offset = 1
-    character(len = 32) :: msg
+    PetscReal :: rotation(3, 3) = reshape([ &
+         1._dp, 0._dp, 0._dp, &
+         0._dp, 1._dp, 0._dp, &
+         0._dp, 0._dp, 1._dp], [3, 3])
 
-    if (mpi%rank == mpi%output_rank) then
+    character(len = 32) :: msg
+    PetscMPIInt :: rank
+    PetscInt :: ierr
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
 
        call face%init()
 
        do i = 1, num_tests
 
+          gravity_normal = dot_product(gravity, normal(:,i))
           allocate(face_data(offset - 1 + face%dof))
-          face_data = [area, distance, normal(:,i), centroid, &
-               initial_permeability_direction]
+          face_data = [area, distance, normal(:,i), gravity_normal, &
+               centroid, initial_permeability_direction]
           call face%assign_geometry(face_data, offset)
-          call face%calculate_permeability_direction()
+          call face%calculate_permeability_direction(rotation)
 
           write(msg, '(a, i2)') "Permeability direction test ", i
           call assert_equals(expected_permeability_direction(i), &
@@ -133,8 +150,11 @@ contains
     PetscReal, pointer, contiguous :: cell_data(:)
     PetscInt :: face_offset, cell_offsets(2)
     PetscReal :: g
+    PetscMPIInt :: rank
+    PetscInt :: ierr
 
-    if (mpi%rank == mpi%output_rank) then
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
 
        call cell%init(1,1) ! dummy argument values
        call face%init()
@@ -196,8 +216,11 @@ contains
          [194.937133277_dp, 170._dp, 240._dp, 0._dp, 0._dp, 0._dp]
     PetscInt :: i
     character(len = 32) :: msg
+    PetscMPIInt :: rank
+    PetscInt :: ierr
 
-    if (mpi%rank == mpi%output_rank) then
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
 
        call cell%init(1,1) ! dummy argument values
        call face%init()
@@ -239,7 +262,6 @@ contains
     use eos_we_module
 
     PetscInt, parameter :: nc = 1, num_phases = 1, num_primary = 2
-    PetscReal, parameter :: gravity = 9.8_dp
     type(face_type) :: face
     type(cell_type) :: cell
     type(rock_type) :: rock
@@ -254,12 +276,15 @@ contains
     PetscInt :: rock_offsets(2), fluid_offsets(2)
     PetscReal, parameter :: expected_mass_flux = 0._dp
     PetscReal, parameter :: expected_heat_flux = 0._dp
+    PetscMPIInt :: rank
+    PetscInt :: ierr
 
     call thermo%init()
     json => fson_parse(str = '{}')
     call eos%init(json, thermo)
 
-    if (mpi%rank == mpi%output_rank) then
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
 
        call cell%init(nc, num_phases)
        call face%init(nc, num_phases)
@@ -273,14 +298,14 @@ contains
        rock_offsets = [1, 1]
        fluid_offsets = [1, 1]
        face_data = [0._dp,  25._dp, 35._dp,  1._dp, 0._dp, 0._dp, &
-            0._dp, 0._dp, 0._dp, 1._dp]
+            0._dp, 0._dp, 0._dp, 0._dp, 1._dp]
        cell_data = 0._dp ! not needed
        rock_data = [ &
             1.e-14_dp, 2.e-14_dp, 3.e-15_dp,  2.5_dp,  2.5_dp, 0.1_dp, &
             2200._dp, 1000._dp]
        fluid_data = [ &
             1.e5_dp, 20._dp, 1._dp, 1._dp, &
-            998.2_dp, 1.e-3_dp, 1._dp, 1._dp, &
+            998.2_dp, 1.e-3_dp, 1._dp, 1._dp, 0._dp, &
             84011.8_dp, 83911.6_dp, 1._dp]
 
        call face%assign_geometry(face_data, face_offset)
@@ -288,7 +313,7 @@ contains
        call face%assign_cell_rock(rock_data, rock_offsets)
        call face%assign_cell_fluid(fluid_data, fluid_offsets)
 
-       flux = face%flux(eos, gravity)
+       flux = face%flux(eos)
 
        call assert_equals(num_primary, size(flux), "Flux array size")
        call assert_equals(expected_mass_flux, flux(1), tol, "Mass flux")
@@ -322,7 +347,6 @@ contains
     use eos_we_module
 
     PetscInt, parameter :: nc = 1, num_phases = 1, num_primary = 2
-    PetscReal, parameter :: gravity = 9.8_dp
     type(face_type) :: face
     type(cell_type) :: cell
     type(rock_type) :: rock
@@ -337,12 +361,15 @@ contains
     PetscInt :: rock_offsets(2), fluid_offsets(2)
     PetscReal, parameter :: expected_mass_flux = 2.9294255256e-5_dp
     PetscReal, parameter :: expected_heat_flux = 2.4610631137_dp
+    PetscMPIInt :: rank
+    PetscInt :: ierr
 
     call thermo%init()
     json => fson_parse(str = '{}')
     call eos%init(json, thermo)
 
-    if (mpi%rank == mpi%output_rank) then
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
 
        call cell%init(nc, num_phases)
        call face%init(nc, num_phases)
@@ -356,14 +383,14 @@ contains
        rock_offsets = [1, 1]
        fluid_offsets = [1, 1]
        face_data = [0._dp,  25._dp, 35._dp,  0._dp, 0._dp, -1._dp, &
-            0._dp, 0._dp, 0._dp, 3._dp]
+            9.8_dp, 0._dp, 0._dp, 0._dp, 3._dp]
        cell_data = 0._dp ! not needed
        rock_data = [ &
             1.e-14_dp, 2.e-14_dp, 3.e-15_dp,  2.5_dp,  2.5_dp, 0.1_dp, &
             2200._dp, 1000._dp]
        fluid_data = [ &
             1.e5_dp, 20._dp, 1._dp, 1._dp, &
-            998.2_dp, 1.e-3_dp, 1._dp, 1._dp, &
+            998.2_dp, 1.e-3_dp, 1._dp, 1._dp, 0._dp, &
             84011.8_dp, 83911.6_dp, 1._dp]
 
        call face%assign_geometry(face_data, face_offset)
@@ -371,7 +398,7 @@ contains
        call face%assign_cell_rock(rock_data, rock_offsets)
        call face%assign_cell_fluid(fluid_data, fluid_offsets)
 
-       flux = face%flux(eos, gravity)
+       flux = face%flux(eos)
 
        call assert_equals(expected_mass_flux, flux(1), mass_tol, "Mass flux")
        call assert_equals(expected_heat_flux, flux(2), heat_tol, "Heat flux")
@@ -404,7 +431,6 @@ contains
     use eos_we_module
 
     PetscInt, parameter :: nc = 1, num_phases = 1, num_primary = 2
-    PetscReal, parameter :: gravity = 9.8_dp
     type(face_type) :: face
     type(cell_type) :: cell
     type(rock_type) :: rock
@@ -419,12 +445,15 @@ contains
     PetscInt :: rock_offsets(2), fluid_offsets(2)
     PetscReal, parameter :: expected_mass_flux = 0._dp
     PetscReal, parameter :: expected_heat_flux = 0._dp
+    PetscMPIInt :: rank
+    PetscInt :: ierr
 
     call thermo%init()
     json => fson_parse(str = '{}')
     call eos%init(json, thermo)
 
-    if (mpi%rank == mpi%output_rank) then
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
 
        call cell%init(nc, num_phases)
        call face%init(nc, num_phases)
@@ -438,17 +467,17 @@ contains
        rock_offsets = [1, 1]
        fluid_offsets = [1, 1 + fluid%dof]
        face_data = [0._dp,  25._dp, 35._dp,  0._dp, 0._dp, -1._dp, &
-            0._dp, 0._dp, 0._dp, 3._dp]
+            9.8_dp, 0._dp, 0._dp, 0._dp, 3._dp]
        cell_data = 0._dp ! not needed
        rock_data = [ &
             1.e-14_dp, 2.e-14_dp, 3.e-15_dp,  2.5_dp,  2.5_dp, 0.1_dp, &
             2200._dp, 1000._dp]
        fluid_data = [ &
             2.e5_dp, 20._dp, 1._dp, 1._dp, &                ! cell 1
-            998.2512244888_dp, 0.00100156652270771_dp, 1._dp, 1._dp, &
+            998.2512244888_dp, 0.00100156652270771_dp, 1._dp, 1._dp, 0._dp, &
             84105.9189422008_dp, 83905.5685743839_dp, 1._dp, &
             7.87050606076185e5_dp, 20._dp, 1._dp, 1._dp, &  ! cell 2
-            998.5195444779_dp, 0.00100138700807062_dp, 1._dp, 1._dp, &
+            998.5195444779_dp, 0.00100138700807062_dp, 1._dp, 1._dp, 0._dp, &
             84658.2021844106_dp, 83869.9846573438_dp, 1._dp]
 
        call face%assign_geometry(face_data, face_offset)
@@ -456,7 +485,7 @@ contains
        call face%assign_cell_rock(rock_data, rock_offsets)
        call face%assign_cell_fluid(fluid_data, fluid_offsets)
 
-       flux = face%flux(eos, gravity)
+       flux = face%flux(eos)
 
        call assert_equals(expected_mass_flux, flux(1), mass_tol, "Mass flux")
        call assert_equals(expected_heat_flux, flux(2), heat_tol, "Heat flux")
@@ -488,7 +517,6 @@ contains
     use eos_we_module
 
     PetscInt, parameter :: nc = 1, num_phases = 2, num_primary = 2
-    PetscReal, parameter :: gravity = 9.8_dp
     type(face_type) :: face
     type(cell_type) :: cell
     type(rock_type) :: rock
@@ -506,12 +534,15 @@ contains
     PetscReal, parameter :: expected_vapour_density = 3.7044444444_dp
     PetscReal, parameter :: expected_mass_flux = 9.14772841429594e-5_dp
     PetscReal, parameter :: expected_heat_flux = 57.9124776818_dp
+    PetscMPIInt :: rank
+    PetscInt :: ierr
 
     call thermo%init()
     json => fson_parse(str = '{}')
     call eos%init(json, thermo)
 
-    if (mpi%rank == mpi%output_rank) then
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
 
        call cell%init(nc, num_phases)
        call face%init(nc, num_phases)
@@ -524,8 +555,8 @@ contains
        cell_offsets = [1, 1]
        rock_offsets = [1, 1 + rock%dof]
        fluid_offsets = [1, 1 + fluid%dof]
-       face_data = [0._dp,  25._dp, 35._dp,  0._dp, 0._dp, -1._dp, 0._dp, &
-            0._dp, 0._dp, 3._dp]
+       face_data = [0._dp,  25._dp, 35._dp,  0._dp, 0._dp, -1._dp, 9.8_dp, &
+            0._dp, 0._dp, 0._dp, 3._dp]
        cell_data = 0._dp ! not needed
        rock_data = [ &
             1.e-14_dp, 2.e-14_dp, 3.e-15_dp,  2.5_dp, 2.5_dp, 0.1_dp, &  ! cell 1
@@ -533,15 +564,15 @@ contains
             2.e-14_dp, 3.e-14_dp, 6.e-15_dp,  2.7_dp, 2.7_dp, 0.05_dp, & ! cell 2
             2300._dp, 995._dp]
        fluid_data = [ &
-            6.2e5_dp, 160._dp, 4._dp, 3._dp, &        ! cell 1
-            907.45_dp, 1.7e-4_dp, 0.25_dp, 0.75_dp, & ! liquid
+            6.2e5_dp, 160._dp, 4._dp, 3._dp, &               ! cell 1
+            907.45_dp, 1.7e-4_dp, 0.25_dp, 0.75_dp, 0._dp, & ! liquid
             675574.7_dp, 674893.5_dp, 1._dp, &
-            3.26_dp, 1.43e-5_dp, 0.75_dp, 0.25_dp, &  ! vapour
+            3.26_dp, 1.43e-5_dp, 0.75_dp, 0.25_dp, 0._dp,  & ! vapour
             2757430.53_dp, 2567774.0_dp, 1._dp, &
-            8.2e5_dp, 171.44_dp, 4._dp, 3._dp, &      ! cell 2
-            895.98_dp, 1.58e-4_dp, 0.4_dp, 0.6_dp, &  ! liquid
+            8.2e5_dp, 171.44_dp, 4._dp, 3._dp, &             ! cell 2
+            895.98_dp, 1.58e-4_dp, 0.4_dp, 0.6_dp, 0._dp,  & ! liquid
             725517.1_dp, 724601.9_dp, 1._dp, &
-            4.26_dp, 1.47e-5_dp, 0.6_dp, 0.4_dp, &    ! vapour
+            4.26_dp, 1.47e-5_dp, 0.6_dp, 0.4_dp, 0._dp,    & ! vapour
             2769308.8_dp, 2576807.25_dp, 1._dp]
 
        call face%assign_geometry(face_data, face_offset)
@@ -553,7 +584,7 @@ contains
        call assert_equals(expected_liquid_density, density, density_tol, "Liquid density")
        density = face%phase_density(2)
        call assert_equals(expected_vapour_density, density, density_tol, "Vapour density")
-       flux = face%flux(eos, gravity)
+       flux = face%flux(eos)
 
        call assert_equals(expected_mass_flux, flux(1), mass_tol, "Mass flux")
        call assert_equals(expected_heat_flux, flux(2), heat_tol, "Heat flux")

@@ -2,8 +2,10 @@ module source_control_test
 
   ! Test for source control module
 
+#include <petsc/finclude/petsc.h>
+
+  use petsc
   use kinds_module
-  use mpi_module
   use fruit
   use source_module
   use source_control_module
@@ -11,8 +13,6 @@ module source_control_test
 
   implicit none
   private
-
-#include <petsc/finclude/petsc.h90>
 
   public :: test_source_control_table, test_source_control_pressure_reference
 
@@ -47,14 +47,17 @@ contains
     PetscReal :: t, interval(2)
     PetscErrorCode :: ierr
     PetscReal, parameter :: start_time = 0._dp
+    PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
+    PetscMPIInt :: rank
 
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
     json => fson_parse_mpi(trim(path) // "test_source_controls_table.json")
 
     call thermo%init()
     call eos%init(json, thermo)
     call mesh%init(json)
     call DMCreateLabel(mesh%dm, open_boundary_label_name, ierr); CHKERRQ(ierr)
-    call mesh%configure(eos%primary_variable_names)
+    call mesh%configure(eos%primary_variable_names, gravity)
     call setup_fluid_vector(mesh%dm, max_component_name_length, &
          eos%component_names, max_phase_name_length, eos%phase_names, &
          fluid_vector, fluid_range_start)
@@ -67,8 +70,8 @@ contains
     call VecRestoreArrayF90(fluid_vector, fluid_array, ierr); CHKERRQ(ierr)
 
     call MPI_reduce(sources%count, num_sources, 1, MPI_INTEGER, MPI_SUM, &
-         mpi%input_rank, mpi%comm, ierr)
-    if (mpi%rank == mpi%input_rank) then
+         0, PETSC_COMM_WORLD, ierr)
+    if (rank == 0) then
       call assert_equals(6, num_sources, "number of sources")
     end if
 
@@ -183,7 +186,10 @@ contains
     PetscReal, parameter :: cell_pressure = 50.e5_dp, cell_vapour_saturation = 0.8_dp
     PetscInt, parameter :: cell_region = 4
     PetscReal, parameter :: start_time = 0._dp
+    PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
+    PetscMPIInt :: rank
 
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
     json => fson_parse_mpi(trim(path) // "test_source_controls_pressure_reference.json")
 
     call thermo%init()
@@ -207,7 +213,7 @@ contains
     call mesh%init(json)
     call fluid%init(eos%num_components, eos%num_phases)
     call DMCreateLabel(mesh%dm, open_boundary_label_name, ierr); CHKERRQ(ierr)
-    call mesh%configure(eos%primary_variable_names)
+    call mesh%configure(eos%primary_variable_names, gravity)
     call setup_fluid_vector(mesh%dm, max_component_name_length, &
          eos%component_names, max_phase_name_length, eos%phase_names, &
          fluid_vector, fluid_range_start)
@@ -248,15 +254,15 @@ contains
          fluid_range_start, sources, source_controls)
 
     call MPI_reduce(sources%count, num_sources, 1, MPI_INTEGER, MPI_SUM, &
-         mpi%input_rank, mpi%comm, ierr)
-    if (mpi%rank == mpi%input_rank) then
-      call assert_equals(11, num_sources, "number of sources")
+         0, PETSC_COMM_WORLD, ierr)
+    if (rank == 0) then
+      call assert_equals(12, num_sources, "number of sources")
     end if
 
     call MPI_reduce(source_controls%count, num_source_controls, 1, &
-         MPI_INTEGER, MPI_SUM, mpi%input_rank, mpi%comm, ierr)
-    if (mpi%rank == mpi%input_rank) then
-      call assert_equals(19, num_source_controls, "number of source controls")
+         MPI_INTEGER, MPI_SUM, 0, PETSC_COMM_WORLD, ierr)
+    if (rank == 0) then
+      call assert_equals(20, num_source_controls, "number of source controls")
     end if
 
     call global_to_local_vec_section(fluid_vector, local_fluid_vector, &
@@ -309,14 +315,14 @@ contains
          select case (source_control%sources%head%tag)
          case ("source 2")
             call assert_equals(1.e-12_dp, &
-                 source_control%productivity%val(1), PI_tol, &
+                 source_control%productivity%val(1,1), PI_tol, &
                  "source 2 productivity")
             call assert_equals(2.e5_dp, &
-                 source_control%reference_pressure%val(1), tol, &
+                 source_control%reference_pressure%val(1,1), tol, &
                  "source 2 reference pressure")
          case ("source 4")
             call assert_equals(8.54511496085953E-13_dp, &
-                 source_control%productivity%val(1), PI_tol, &
+                 source_control%productivity%val(1,1), PI_tol, &
                  "source 4 productivity")
          case ("source 10")
             call assert_equals(SRC_PRESSURE_TABLE_COORD_TIME, &
@@ -332,7 +338,7 @@ contains
                  source_control%reference_pressure%averaging_type, &
                  "source 10 averaging type")
             call assert_equals(1.8e5_dp, &
-                 source_control%reference_pressure%average(interval), &
+                 source_control%reference_pressure%average(interval, 1), &
                  tol, "source 10 reference pressure")
          case ("source 11")
             call assert_equals(SRC_PRESSURE_TABLE_COORD_ENTHALPY, &
@@ -344,11 +350,15 @@ contains
          select case (source_control%sources%head%tag)
          case ("source 7")
             call assert_equals(1.3e-2_dp, &
-                 source_control%coefficient%val(1), tol, &
+                 source_control%coefficient%val(1, 1), tol, &
                  "source 7 recharge coefficient")
             call assert_equals(50.1e5_dp, &
-                 source_control%reference_pressure%val(1), &
+                 source_control%reference_pressure%val(1, 1), &
                  tol, "source 7 reference pressure")
+         case ("source 12")
+            call assert_equals(cell_pressure, &
+                 source_control%reference_pressure%val(1, 1), &
+                 tol, "source 12 reference pressure")
          end select
 
       type is (source_control_limiter_type)
@@ -403,6 +413,8 @@ contains
             call assert_equals(-12.9264888581701_dp, source%rate, tol, "source 10 rate")
          case ("source 11")
             call assert_equals(-10.3366086953508_dp, source%rate, tol, "source 11 rate")
+         case ("source 12")
+            call assert_equals(0._dp, source%rate, tol, "source 12 rate")
          end select
       end select
       stopped = PETSC_FALSE
