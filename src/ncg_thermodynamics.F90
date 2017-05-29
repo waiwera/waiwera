@@ -23,15 +23,16 @@ module ncg_thermodynamics_module
      private
      procedure(ncg_init_procedure), public, deferred :: init
      procedure(ncg_properties_procedure), public, deferred :: properties
-     procedure(ncg_effective_properties_procedure), public, deferred :: effective_properties
      procedure(ncg_henrys_constant_procedure), public, deferred :: henrys_constant
-     procedure(ncg_energy_solution_procedure), public, deferred :: energy_solution
+     procedure(ncg_henrys_derivative_procedure), public, deferred :: henrys_derivative
      procedure(ncg_viscosity_procedure), public, deferred :: viscosity
      procedure(ncg_mixture_viscosity_procedure), public, deferred :: mixture_viscosity
+     procedure, public :: energy_solution => ncg_energy_solution
      procedure, public :: partial_pressure => ncg_partial_pressure
      procedure, public :: mass_fraction => ncg_mass_fraction
      procedure, public :: mole_to_mass_fraction => ncg_thermodynamics_mole_to_mass_fraction
      procedure, public :: mass_to_mole_fraction => ncg_thermodynamics_mass_to_mole_fraction
+     procedure, public :: effective_properties => ncg_effective_properties
      procedure, public :: destroy => ncg_thermodynamics_destroy
    end type ncg_thermodynamics_type
 
@@ -54,16 +55,6 @@ module ncg_thermodynamics_module
        PetscErrorCode, intent(out) :: err
      end subroutine ncg_properties_procedure
 
-     subroutine ncg_effective_properties_procedure(self, props, phase, &
-          effective_props)
-       !! Return effective NCG fluid properties for the specified phase.
-       import :: ncg_thermodynamics_type
-       class(ncg_thermodynamics_type), intent(in) :: self
-       PetscReal, intent(in) :: props(:)
-       PetscInt, intent(in) :: phase
-       PetscReal, intent(out) :: effective_props(:)
-     end subroutine ncg_effective_properties_procedure
-
      subroutine ncg_henrys_constant_procedure(self, temperature, &
           henrys_constant, err)
        !! Calculate NCG Henry's constant, for calculating dissolution
@@ -75,15 +66,18 @@ module ncg_thermodynamics_module
        PetscErrorCode, intent(out) :: err
      end subroutine ncg_henrys_constant_procedure
 
-     subroutine ncg_energy_solution_procedure(self, temperature, &
-          energy_solution, err)
-       !! Calculate NCG energy of solution.
+     subroutine ncg_henrys_derivative_procedure(self, temperature, &
+          henrys_constant, henrys_derivative, err)
+       !! Calculate derivative of the natural logarithm of Henry's
+       !! constant with respect to temperature (used for computing
+       !! energy of solution).
        import :: ncg_thermodynamics_type
        class(ncg_thermodynamics_type), intent(in) :: self
        PetscReal, intent(in) :: temperature
-       PetscReal, intent(out) :: energy_solution
+       PetscReal, intent(in) :: henrys_constant
+       PetscReal, intent(out) :: henrys_derivative
        PetscErrorCode, intent(out) :: err
-     end subroutine ncg_energy_solution_procedure
+     end subroutine ncg_henrys_derivative_procedure
 
      subroutine ncg_viscosity_procedure(self, partial_pressure, &
           temperature, viscosity, err)
@@ -121,6 +115,7 @@ contains
   PetscReal function ncg_thermodynamics_mole_to_mass_fraction(self, xmole) &
        result(xg)
     !! Calculates NCG mass fraction from mole fraction.
+
     class(ncg_thermodynamics_type), intent(in) :: self
     PetscReal, intent(in) :: xmole !! NCG mole fraction
     ! Locals:
@@ -136,6 +131,7 @@ contains
   PetscReal function ncg_thermodynamics_mass_to_mole_fraction(self, xg) &
        result(xmole)
     !! Calculates NCG mole fraction from mass fraction.
+
     class(ncg_thermodynamics_type), intent(in) :: self
     PetscReal, intent(in) :: xg !! NCG mass fraction
     ! Locals:
@@ -145,6 +141,35 @@ contains
     xmole = w / (w + (1._dp - xg) / water_molecular_weight)
 
   end function ncg_thermodynamics_mass_to_mole_fraction
+
+!------------------------------------------------------------------------
+
+  subroutine ncg_energy_solution(self, temperature, henrys_constant, &
+       energy_solution, err)
+    !! Calculates NCG energy of solution from the given temperature
+    !! and Henry's constant (from Himmelblau, 1959).
+
+    use thermodynamics_module, only: tc_k, gas_constant
+
+    class(ncg_thermodynamics_type), intent(in) :: self
+    PetscReal, intent(in) :: temperature
+    PetscReal, intent(in) :: henrys_constant
+    PetscReal, intent(out) :: energy_solution
+    PetscErrorCode, intent(out) :: err
+    ! Locals:
+    PetscReal :: henrys_derivative
+
+    err = 0
+
+    call self%henrys_derivative(temperature, henrys_constant, &
+         henrys_derivative, err)
+
+    associate(tk => temperature + tc_k)
+      energy_solution = -1.e3_dp * gas_constant * tk * tk * &
+           henrys_derivative / self%molecular_weight
+    end associate
+
+  end subroutine ncg_energy_solution
 
 !------------------------------------------------------------------------
 
@@ -169,7 +194,8 @@ contains
 !------------------------------------------------------------------------
 
   subroutine ncg_mass_fraction(self, partial_pressure, &
-       temperature, phase, gas_density, water_density, xg, err)
+       temperature, phase, gas_density, water_density, &
+       henrys_constant, xg, err)
     !! Calculate NCG mass fraction from partial pressure.
 
     class(ncg_thermodynamics_type), intent(in) :: self
@@ -178,20 +204,18 @@ contains
     PetscInt, intent(in) :: phase !! Phase index
     PetscReal, intent(in) :: gas_density !! NCG density in this phase
     PetscReal, intent(in) :: water_density !! Water density in this phase
+    PetscReal, intent(in) :: henrys_constant !! Henry's constant
     PetscReal, intent(out) :: xg !! NCG mass fraction
     PetscErrorCode, intent(out) :: err !! Error code
     ! Locals:
-    PetscReal :: henrys_constant, xmole
+    PetscReal :: xmole
     PetscReal :: total_density
     PetscReal, parameter :: small = 1.e-30_dp
 
     err = 0
     if (phase == 1) then
-       call self%henrys_constant(temperature, henrys_constant, err)
-       if (err == 0) then
-          xmole = henrys_constant * partial_pressure
-          xg = self%mole_to_mass_fraction(xmole)
-       end if
+       xmole = henrys_constant * partial_pressure
+       xg = self%mole_to_mass_fraction(xmole)
     else
        total_density = gas_density + water_density
        if (total_density < small) then
@@ -205,9 +229,32 @@ contains
 
 !------------------------------------------------------------------------
 
+  subroutine ncg_effective_properties(self, props, phase, &
+       effective_props)
+    !! Returns effective NCG properties for specified phase.
+    !! NCG density is treated as effectively zero in the liquid phase.
+
+    class(ncg_thermodynamics_type), intent(in) :: self
+    PetscReal, intent(in) :: props(:) !! NCG properties (density, enthalpy)
+    PetscInt, intent(in) :: phase !! Phase index
+    PetscReal, intent(out) :: effective_props(:) !! Effective properties
+
+    effective_props = props
+
+    if (phase == 1) then
+       associate(ncg_density => effective_props(1))
+         ncg_density = 0._dp
+       end associate
+    end if
+
+  end subroutine ncg_effective_properties
+
+!------------------------------------------------------------------------
+
   subroutine ncg_thermodynamics_destroy(self)
     !! Destroys NCG thermodynamics. Dummy routine to be overridden by
     !! derived types.
+
     class(ncg_thermodynamics_type), intent(in out) :: self
 
     continue

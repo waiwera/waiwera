@@ -72,7 +72,7 @@ contains
     ! CO2 energy of solution
 
     type(ncg_co2_thermodynamics_type) :: gas
-    PetscReal :: temperature, expected, hs
+    PetscReal :: temperature, expected, hs, hc
     PetscErrorCode :: err
     character(35) :: s = "CO2 energy of solution, temperature"
     PetscMPIInt :: rank
@@ -86,26 +86,30 @@ contains
     if (rank == 0) then
 
        temperature = 20._dp
-       expected = -461218.6464_dp
-       call gas%energy_solution(temperature, hs, err)
+       expected = -495750.87299689_dp
+       call gas%henrys_constant(temperature, hc, err)
+       call gas%energy_solution(temperature, hc, hs, err)
        call assert_equals(0, err, trim(s) // " 20 deg C error")
        call assert_equals(expected, hs, tol, trim(s) // " 20 deg C")
 
        temperature = 100._dp
-       expected = -180238.0_dp
-       call gas%energy_solution(temperature, hs, err)
+       expected = -180685.98723494_dp
+       call gas%henrys_constant(temperature, hc, err)
+       call gas%energy_solution(temperature, hc, hs, err)
        call assert_equals(0, err, trim(s) // " 100 deg C error")
        call assert_equals(expected, hs, tol, trim(s) // " 100 deg C")
 
        temperature = 240._dp
-       expected = 180225.4096_dp
-       call gas%energy_solution(temperature, hs, err)
+       expected = 242741.64505202_dp
+       call gas%henrys_constant(temperature, hc, err)
+       call gas%energy_solution(temperature, hc, hs, err)
        call assert_equals(0, err, trim(s) // " 240 deg C error")
        call assert_equals(expected, hs, tol, trim(s) // " 240 deg C")
 
        temperature = 300._dp
-       expected = 492442.0_dp
-       call gas%energy_solution(temperature, hs, err)
+       expected = 407409.27618764_dp
+       call gas%henrys_constant(temperature, hc, err)
+       call gas%energy_solution(temperature, hc, hs, err)
        call assert_equals(0, err, trim(s) // " 300 deg C error")
        call assert_equals(expected, hs, tol, trim(s) // " 300 deg C")
 
@@ -130,7 +134,7 @@ contains
     PetscReal, parameter :: t(5) = [20._dp, 100._dp, 200._dp, 300._dp, 350._dp]
     PetscReal, parameter :: expected_visc(6, 5) = reshape([ &
          1.47350850e-5_dp, 1.63927474e-5_dp, 2.37601356e-5_dp, &
-         3.29693708e-5_dp, 9.99600434e-5_dp, 1.19066342e-04_dp, &
+         3.29693708e-5_dp, 9.99600434e-5_dp, 1.19066342e-4_dp, &
          1.82742115e-5_dp, 1.86681905e-5_dp, 2.04192081e-5_dp, &
          2.26079800e-5_dp, 3.76607100e-5_dp, 5.40893300e-5_dp, &
          2.24530737e-5_dp, 2.26583470e-5_dp, 2.35706728e-5_dp, &

@@ -389,7 +389,9 @@ contains
     PetscErrorCode, intent(out) :: err !! Error code
     ! Locals:
     PetscInt :: p, phases
-    PetscReal :: water_properties(2), water_viscosity, sl, xg
+    PetscReal :: sl, xg
+    PetscReal :: henrys_constant
+    PetscReal :: water_properties(2), water_viscosity, water_enthalpy
     PetscReal :: relative_permeability(2), capillary_pressure(2)
     PetscReal :: water_pressure(2), energy_solution(2)
     PetscReal :: gas_properties(2), effective_gas_properties(2)
@@ -400,6 +402,7 @@ contains
     sl = fluid%phase(1)%saturation
     relative_permeability = rock%relative_permeability%values(sl)
     capillary_pressure = 0._dp
+    henrys_constant = 0._dp
     energy_solution = 0._dp
 
     associate(partial_pressure => primary(3))
@@ -414,8 +417,11 @@ contains
          if (btest(phases, 0)) then
             capillary_pressure(1) = rock%capillary_pressure%value(sl, &
                  fluid%temperature)
-            call self%gas%energy_solution(fluid%temperature, &
-                 energy_solution(1), err)
+            call self%gas%henrys_constant(fluid%temperature, henrys_constant, err)
+            if (err == 0) then
+               call self%gas%energy_solution(fluid%temperature, henrys_constant, &
+                    energy_solution(1), err)
+            end if
          end if
 
          if (err == 0) then
@@ -439,7 +445,7 @@ contains
                             gas_enthalpy => effective_gas_properties(2))
 
                          call self%gas%mass_fraction(partial_pressure, fluid%temperature, &
-                              p, gas_density, water_density, xg, err)
+                              p, gas_density, water_density, henrys_constant, xg, err)
 
                          if (err == 0) then
 
@@ -454,8 +460,9 @@ contains
                                phase%mass_fraction = [1._dp - xg, xg]
                                phase%relative_permeability = relative_permeability(p)
                                phase%capillary_pressure =  capillary_pressure(p)
-                               phase%specific_enthalpy = (water_internal_energy &
-                                    + water_pressure(p) / water_density) * (1._dp - xg) &
+                               water_enthalpy = water_internal_energy &
+                                    + water_pressure(p) / water_density
+                               phase%specific_enthalpy = water_enthalpy * (1._dp - xg) &
                                     + (gas_enthalpy + energy_solution(p)) * xg
                                phase%internal_energy = phase%specific_enthalpy &
                                     - fluid%pressure / phase%density

@@ -15,17 +15,17 @@ module ncg_co2_thermodynamics_module
   PetscReal, parameter :: henry_data(6) = [&
        0.783666_dp, 1.96025_dp, 8.20574_dp, &
        -7.40674_dp, 2.18380_dp, -0.220999_dp]
-  PetscReal, parameter :: energy_solution_data(5) = [&
-       -0.549491e6_dp, 0.456571e6_dp, -0.070404e6_dp, &
-       -0.031035e6_dp, 0.014121e6_dp]
+  PetscReal, parameter :: henry_derivative_data(5) = 10._dp * &
+       henry_data(2: 6) * [1._dp, 2._dp, 3._dp, 4._dp, 5._dp]
   PetscReal, parameter :: viscosity_data(5, 6) = reshape([ &
-       0._dp, 100.e5_dp, 150.e5_dp, 200.e5_dp, 300.e5_dp, &
-       1357.8_dp, 3918.9_dp, 9660.7_dp, 1.31566e4_dp, 1.47968e4_dp, &
-       4.9227_dp, -35.984_dp, -135.479_dp, -179.352_dp, -160.731_dp, &
-       -2.9661e-3_dp, 0.25825_dp, 0.90087_dp, 1.12474_dp, 0.850257_dp, &
-       2.8529e-6_dp, -7.1178e-4_dp, -2.4727e-3_dp, -2.98864e-3_dp, -1.99076e-3_dp, &
-       -2.1829e-9_dp, 6.9578e-7_dp, 2.4156e-6_dp, 2.85911e-6_dp, 1.73423e-6_dp], &
+       0._dp, 10._dp, 15._dp, 20._dp, 30._dp, &
+       1.3578_dp, 3.9189_dp, 9.6607_dp, 13.1566_dp, 14.7968_dp, &
+       4.9227e-3_dp, -35.984e-3_dp, -135.479e-3_dp, -179.352e-3_dp, -160.731e-3_dp, &
+       -2.9661e-6_dp, 0.25825e-3_dp, 0.90087e-3_dp, 1.12474e-3_dp, 0.850257e-3_dp, &
+       2.8529e-9_dp, -7.1178e-7_dp, -2.4727e-6_dp, -2.98864e-6_dp, -1.99076e-6_dp, &
+       -2.1829e-12_dp, 6.9578e-10_dp, 2.4156e-9_dp, 2.85911e-9_dp, 1.73423e-9_dp], &
        [5, 6])
+  PetscReal, parameter :: tscale = 100._dp
 
   type, public, extends(ncg_thermodynamics_type) :: ncg_co2_thermodynamics_type
      !! Type for CO2 NCG thermodynamics.
@@ -36,9 +36,8 @@ module ncg_co2_thermodynamics_module
      procedure, public :: init => ncg_co2_init
      procedure, public :: destroy => ncg_co2_destroy
      procedure, public :: properties => ncg_co2_properties
-     procedure, public :: effective_properties => ncg_co2_effective_properties
      procedure, public :: henrys_constant => ncg_co2_henrys_constant
-     procedure, public :: energy_solution => ncg_co2_energy_solution
+     procedure, public :: henrys_derivative => ncg_co2_henrys_derivative
      procedure, public :: viscosity => ncg_co2_viscosity
      procedure, public :: mixture_viscosity => ncg_co2_mixture_viscosity
   end type ncg_co2_thermodynamics_type
@@ -104,28 +103,6 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine ncg_co2_effective_properties(self, props, phase, &
-       effective_props)
-    !! Returns effective CO2 NCG properties for specified phase.
-    !! CO2 density is treated as effectively zero in the liquid phase.
-
-    class(ncg_co2_thermodynamics_type), intent(in) :: self
-    PetscReal, intent(in) :: props(:) !! CO2 NCG properties (density, enthalpy)
-    PetscInt, intent(in) :: phase !! Phase index
-    PetscReal, intent(out) :: effective_props(:) !! Effective NCG properties
-
-    effective_props = props
-
-    if (phase == 1) then
-       associate(co2_density => effective_props(1))
-         co2_density = 0._dp
-       end associate
-    end if
-
-  end subroutine ncg_co2_effective_properties
-
-!------------------------------------------------------------------------
-
   subroutine ncg_co2_henrys_constant(self, temperature, henrys_constant, err)
     !! Henry's constant for CO2 NCG.
 
@@ -138,7 +115,7 @@ contains
 
     if (temperature <= 300._dp) then
        henrys_constant = 1.e-8_dp / polynomial(henry_data, &
-            0.01_dp * temperature)
+            temperature / tscale)
        err = 0
     else
        err = 1
@@ -148,21 +125,24 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine ncg_co2_energy_solution(self, temperature, energy_solution, err)
-    !! Calculates enthalpy of CO2 dissolution in liquid.
+  subroutine ncg_co2_henrys_derivative(self, temperature, &
+       henrys_constant, henrys_derivative, err)
+    !! Returns derivative of natural logarithm of Henry's constant
+    !! with respect to temperature.
 
     use utils_module, only: polynomial
 
     class(ncg_co2_thermodynamics_type), intent(in) :: self
     PetscReal, intent(in) :: temperature !! Temperature
-    PetscReal, intent(out):: energy_solution !! Energy of solution
-    PetscInt, intent(out) :: err     !! error code
+    PetscReal, intent(in) :: henrys_constant !! Henry's constant
+    PetscReal, intent(out) :: henrys_derivative !! Henry's derivative
+    PetscErrorCode, intent(out) :: err !! Error code
 
-    energy_solution = polynomial(energy_solution_data, &
-         0.01_dp * temperature)
+    henrys_derivative = 1.e7_dp * henrys_constant / tscale * &
+         polynomial(henry_derivative_data, temperature / tscale)
     err = 0
 
-  end subroutine ncg_co2_energy_solution
+  end subroutine ncg_co2_henrys_derivative
 
 !------------------------------------------------------------------------
   
@@ -180,10 +160,11 @@ contains
     PetscInt, intent(out)  :: err !! Error code
     ! Locals:
     PetscReal :: coefs(5)
+    PetscReal, parameter :: pscale = 1.e6_dp
 
     if (partial_pressure <= 300.e5_dp) then
-       coefs = self%viscosity_table%interpolate(partial_pressure)
-       viscosity = 1.e-8_dp * polynomial(coefs, temperature)
+       coefs = self%viscosity_table%interpolate(partial_pressure / pscale)
+       viscosity = 1.e-5_dp * polynomial(coefs, temperature)
        err = 0
     else
        err = 1
