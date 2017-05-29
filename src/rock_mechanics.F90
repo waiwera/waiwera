@@ -1,6 +1,6 @@
 module rock_mechanics_module
 
-#include <petsc/finclude/petsc.h90>
+#include <petsc/finclude/petsc.h>
 
   use petsc
   use kinds_module
