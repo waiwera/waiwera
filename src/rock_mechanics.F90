@@ -12,14 +12,12 @@ module rock_mechanics_module
   PetscInt, parameter :: max_primary_variable_name_length = 12
   PetscInt, parameter :: max_gauss_order = 2
   PetscInt, parameter :: max_spatial_dimension = 3
-  PetscInt, parameter :: max_mesh_filename_length = 200
   
   type, public :: rock_mechanics_type
      private
      DM :: dm_rock
      PetscInt :: start_cell, end_cell, end_interior_cell
      character(max_primary_variable_name_length), allocatable :: primary_variable_names(:)
-     character(max_mesh_filename_length) :: filename
      
    contains
      private
