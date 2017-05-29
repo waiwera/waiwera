@@ -71,15 +71,18 @@ contains
     PetscQuadrature :: quad  
     PetscInt :: numele
     PetscInt :: quad_dim, num_quad
-    PetscReal, target, dimension(max_spatial_dimension*(max_gauss_order**max_spatial_dimension)) :: q_points
-    PetscReal, target, dimension(max_gauss_order**max_spatial_dimension) :: q_weights
+    PetscReal, target, dimension(max_spatial_dimension * &
+         (max_gauss_order ** max_spatial_dimension)) :: q_points
+    PetscReal, target, dimension(max_gauss_order ** &
+         max_spatial_dimension) :: q_weights
     PetscReal, pointer :: pq_points(:)
     PetscReal, pointer :: pq_weights(:)
 
     ! stuff for integration
     Vec :: global_coordinates
     PetscSection :: coord_section
-    PetscReal, target, dimension(max_spatial_dimension*(max_gauss_order**max_spatial_dimension)) :: local_coordinates
+    PetscReal, target, dimension(max_spatial_dimension * &
+         (max_gauss_order ** max_spatial_dimension)) :: local_coordinates
     PetscReal, pointer :: pcoords(:)
     
     PetscReal, target, dimension(100) :: v0
@@ -110,7 +113,8 @@ contains
     ! numerical quadrature setup stuff
     numele = self%end_interior_cell-self%start_cell
     call DMGetDimension(self%dm_rock, ndof, ierr); CHKERRQ(ierr)
-    call PetscFECreateDefault(self%dm_rock,ndof,numele,PETSC_FALSE,"fe",1,fem,ierr); CHKERRQ(ierr)
+    call PetscFECreateDefault(self%dm_rock,ndof,numele,PETSC_FALSE,"fe",1,fem,ierr)
+    CHKERRQ(ierr)
     call PetscFEGetQuadrature(fem,quad,ierr); CHKERRQ(ierr)
     call PetscQuadratureGetData(quad,quad_dim,num_quad,pq_points,pq_weights,ierr)
     call PetscFEGetDefaultTabulation(fem,pv0,pJ,pinvJ,ierr); CHKERRQ(ierr)
@@ -128,8 +132,10 @@ contains
     ! loop over elements for integration
     do e=self%start_cell,self%end_interior_cell-1     
        ! assign fluid properties to get pressure and temperature
-       call global_section_offset(fluid_section, e, fluid_range_start, fluid_offset, ierr); CHKERRQ(ierr)
-       call global_section_offset(rock_section, e, rock_range_start, rock_offset, ierr); CHKERRQ(ierr)
+       call global_section_offset(fluid_section, e, fluid_range_start, fluid_offset, ierr)
+       CHKERRQ(ierr)
+       call global_section_offset(rock_section, e, rock_range_start, rock_offset, ierr)
+       CHKERRQ(ierr)
        call fluid%assign(fluid_array, fluid_offset)
        call rock%assign(rock_array, rock_offset)
 
