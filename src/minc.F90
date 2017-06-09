@@ -35,7 +35,7 @@ module minc_module
      PetscInt, public :: num_levels !! Number of MINC levels (additional MINC cells per fracture cell)
      PetscReal, allocatable, public :: volume_fractions(:) !! Fraction of cell volume occupied by fractures
      PetscInt, public :: num_fracture_planes !! Number of fracture planes (1.. 3)
-     PetscReal, public :: fracture_spacing !! Fracture spacing
+     PetscReal, allocatable, public :: fracture_spacing(:) !! Fracture spacings for each set of fracture planes
    contains
      private
      procedure, public :: init => minc_init
@@ -53,6 +53,7 @@ contains
     use fson
     use fson_mpi_module
     use logfile_module
+    use fson_value_m, only : TYPE_ARRAY, TYPE_REAL
     
     class(minc_type), intent(in out) :: self
     type(fson_value), pointer, intent(in) :: json !! JSON file pointer
@@ -66,6 +67,10 @@ contains
     PetscInt :: num_cells, ic, c
     PetscInt, allocatable :: cells(:)
     PetscInt, allocatable :: default_cells(:)
+    type(fson_value), pointer :: spacing_json
+    PetscInt :: spacing_type, num_spacings
+    PetscReal :: fracture_spacing
+    PetscReal, allocatable :: fracture_spacing_array(:)
     PetscErrorCode :: ierr
     PetscReal, parameter :: default_volume_fractions(2) = [0.1_dp, 0.9_dp]
     PetscInt, parameter :: default_num_fracture_planes = 1
@@ -78,8 +83,30 @@ contains
 
     call fson_get_mpi(json, "fracture.planes", default_num_fracture_planes, &
          self%num_fracture_planes, logfile, trim(str) // "fracture.planes")
-    call fson_get_mpi(json, "fracture.spacing", default_fracture_spacing, &
-         self%fracture_spacing, logfile, trim(str) // "fracture.spacing")
+
+    allocate(self%fracture_spacing(self%num_fracture_planes))
+    if (fson_has_mpi(json, "fracture.spacing")) then
+       call fson_get_mpi(json, "fracture.spacing", spacing_json)
+       spacing_type = fson_type_mpi(spacing_json, ".")
+       select case (spacing_type)
+       case (TYPE_REAL)
+          call fson_get_mpi(json, "fracture.spacing", default_fracture_spacing, &
+               fracture_spacing, logfile, trim(str) // "fracture.spacing")
+          self%fracture_spacing = fracture_spacing
+       case (TYPE_ARRAY)
+          call fson_get_mpi(json, "fracture.spacing", [default_fracture_spacing], &
+               fracture_spacing_array, logfile, trim(str) // "fracture.spacing")
+          num_spacings = size(fracture_spacing_array)
+          self%fracture_spacing(1: num_spacings) = fracture_spacing_array
+          if (num_spacings < self%num_fracture_planes) then
+             self%fracture_spacing(num_spacings + 1:) = fracture_spacing_array(1)
+          end if
+       end select
+    else
+       call fson_get_mpi(json, "fracture.spacing", default_fracture_spacing, &
+            fracture_spacing, logfile, trim(str) // "fracture.spacing")
+       self%fracture_spacing = fracture_spacing
+    end if
 
     call DMGetLabel(dm, minc_label_name, minc_label, ierr); CHKERRQ(ierr)
     default_cells = [PetscInt::]
@@ -111,6 +138,7 @@ contains
     class(minc_type), intent(in out) :: self
 
     deallocate(self%volume_fractions)
+    deallocate(self%fracture_spacing)
 
   end subroutine minc_destroy
 
