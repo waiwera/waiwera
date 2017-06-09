@@ -84,7 +84,9 @@
                  "minc": {"oneOf": [
                      {"type": "object",
                      "properties": {
-                         "levels": {"type": "integer", "minimum": 0},
+                         "volume_fractions": {"type": "array",
+                                              "items": {"type": "number",
+                                                        "minimum": 0, "maximum": 1}},
                          "cells": {"type": "array",
                                    "items": {"type": "integer", "minimum": 0}},
                          "fracture": {"type": "object",
@@ -92,17 +94,16 @@
                                           "planes": {"type": "integer",
                                                      "minimum": 1, "maximum": 3},
                                           "spacing": {
-                                              "type": "number", "minimum": 0},
-                                          "volume_fraction": {
-                                              "type": "number",
-                                              "minimum": 0, "maximum": 1}
+                                              "type": "number", "minimum": 0}
                                       }, "additionalProperties": false}
                      }, "additionalProperties": false},
                      {"type": "array",
                       "items": {
                           "type": "object",
                            "properties": {
-                               "levels": {"type": "integer", "minimum": 0},
+                               "volume_fractions": {"type": "array",
+                                                    "items": {"type": "number",
+                                                              "minimum": 0, "maximum": 1}},
                                "cells": {"type": "array",
                                          "items": {"type": "integer", "minimum": 0}},
                                "fracture": {"type": "object",
@@ -110,10 +111,7 @@
                                                 "planes": {"type": "integer",
                                                            "minimum": 1, "maximum": 3},
                                                 "spacing": {
-                                                    "type": "number", "minimum": 0},
-                                                "volume_fraction": {
-                                                    "type": "number",
-                                                    "minimum": 0, "maximum": 1}
+                                                    "type": "number", "minimum": 0}
                                             }, "additionalProperties": false}
                            }, "additionalProperties": false}
                      }
