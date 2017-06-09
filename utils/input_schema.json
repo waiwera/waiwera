@@ -91,6 +91,8 @@
                                       "properties": {
                                           "planes": {"type": "integer",
                                                      "minimum": 1, "maximum": 3},
+                                          "spacing": {
+                                              "type": "number", "minimum": 0},
                                           "volume_fraction": {
                                               "type": "number",
                                               "minimum": 0, "maximum": 1}
@@ -107,6 +109,8 @@
                                             "properties": {
                                                 "planes": {"type": "integer",
                                                            "minimum": 1, "maximum": 3},
+                                                "spacing": {
+                                                    "type": "number", "minimum": 0},
                                                 "volume_fraction": {
                                                     "type": "number",
                                                     "minimum": 0, "maximum": 1}
