@@ -558,6 +558,7 @@ contains
             self%gravity, self%hdf5_viewer)
     end if
     call self%mesh%override_face_properties(json, self%logfile)
+    call self%mesh%setup_minc(json, self%logfile)
     call self%output_mesh_geometry()
 
     call self%setup_solution_vector()

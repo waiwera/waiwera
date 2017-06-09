@@ -23,6 +23,7 @@ module mesh_module
   use petsc
   use mpi_utils_module
   use fson
+  use minc_module
 
   implicit none
 
@@ -48,6 +49,7 @@ module mesh_module
      PetscReal, allocatable, public :: bcs(:,:) !! Array containing boundary conditions
      IS, public :: cell_index !! Index set defining natural cell ordering
      PetscInt, public, allocatable :: ghost_cell(:), ghost_face(:) !! Ghost label values for cells and faces
+     type(minc_type), allocatable :: minc(:)
      PetscReal, public :: permeability_rotation(3, 3) !! Rotation matrix of permeability axes
      PetscReal, public :: thickness !! Mesh thickness (for dimension < 3)
      PetscBool, public :: radial !! If mesh coordinate system is radial or Cartesian
@@ -66,6 +68,7 @@ module mesh_module
      procedure :: set_permeability_rotation => mesh_set_permeability_rotation
      procedure :: modify_geometry => mesh_modify_geometry
      procedure :: override_face_properties => mesh_override_face_properties
+     procedure :: setup_minc => mesh_setup_minc
      procedure, public :: init => mesh_init
      procedure, public :: configure => mesh_configure
      procedure, public :: setup_boundaries => mesh_setup_boundaries
@@ -775,6 +778,7 @@ contains
 
     class(mesh_type), intent(in out) :: self
     ! Locals:
+    PetscInt :: i
     PetscErrorCode :: ierr
     
     call VecDestroy(self%face_geom, ierr); CHKERRQ(ierr)
@@ -791,6 +795,13 @@ contains
     end if
     if (allocated(self%ghost_face)) then
        deallocate(self%ghost_face)
+    end if
+
+    if (allocated(self%minc)) then
+       do i = 1, size(self%minc)
+          call self%minc(i)%destroy()
+       end do
+       deallocate(self%minc)
     end if
 
   end subroutine mesh_destroy
@@ -1260,6 +1271,56 @@ contains
     CHKERRQ(ierr)
 
   end subroutine mesh_override_face_properties
+
+!------------------------------------------------------------------------
+
+  subroutine mesh_setup_minc(self, json, logfile)
+    !! Sets up MINC for fractured zones.
+
+    use fson_mpi_module
+    use logfile_module
+    use fson_value_m, only : TYPE_ARRAY, TYPE_OBJECT
+
+    class(mesh_type), intent(in out) :: self
+    type(fson_value), pointer, intent(in) :: json !! JSON file pointer
+    type(logfile_type), intent(in out), optional :: logfile !! Logfile for log output
+    ! Locals:
+    PetscInt :: num_minc, iminc
+    type(fson_value), pointer :: minc_json, minci_json
+    PetscInt :: minc_type
+    character(32) :: imincstr, mincstr
+    PetscErrorCode :: ierr
+
+    if (fson_has_mpi(json, "mesh.minc")) then
+
+       call DMCreateLabel(self%dm, minc_label_name, ierr); CHKERRQ(ierr)
+
+       call fson_get_mpi(json, "mesh.minc", minc_json)
+       minc_type = fson_type_mpi(minc_json, ".")
+
+       select case (minc_type)
+       case (TYPE_OBJECT)
+          num_minc = 1
+          allocate(self%minc(num_minc))
+          iminc = 1
+          mincstr = "minc."
+          call self%minc(num_minc)%init(minc_json, self%dm, &
+               iminc, mincstr, logfile)
+       case (TYPE_ARRAY)
+          num_minc = fson_value_count_mpi(minc_json, ".")
+          allocate(self%minc(num_minc))
+          do iminc = 1, num_minc
+             minci_json => fson_value_get_mpi(minc_json, iminc)
+             write(imincstr, '(i0)') iminc - 1
+             mincstr = 'minc[' // trim(imincstr) // '].'
+             call self%minc(iminc)%init(minci_json, self%dm, iminc, &
+                  mincstr, logfile)
+          end do
+       end select
+
+    end if
+
+  end subroutine mesh_setup_minc
 
 !------------------------------------------------------------------------
 
