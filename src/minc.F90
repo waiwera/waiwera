@@ -143,14 +143,14 @@ contains
 
 !------------------------------------------------------------------------
 
-  PetscReal function minc_proximity(self, x) result(p)
+  PetscReal function minc_proximity(self, d) result(p)
     !! MINC proximity function: total fraction of matrix rock within
-    !! distance x of a fracture.
+    !! distance d of a fracture.
 
     class(minc_type), intent(in) :: self
-    PetscReal, intent(in) :: x
+    PetscReal, intent(in) :: d
 
-    associate(u => 2._dp * x / self%fracture_spacing)
+    associate(u => 2._dp * d / self%fracture_spacing)
       if (any(u >= 1._dp)) then
          p = 1._dp
       else
