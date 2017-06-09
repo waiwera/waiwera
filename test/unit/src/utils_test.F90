@@ -15,7 +15,7 @@ module utils_test
        test_split_filename, test_change_filename_extension, &
        test_int_str_len, test_str_array_index, &
        test_degrees_to_radians, test_rotation_matrix_2d, &
-       test_polynomial, test_multipolynomial
+       test_polynomial, test_multipolynomial, test_array_pair_sum
 
 contains
 
@@ -318,6 +318,29 @@ contains
     end if
 
   end subroutine test_multipolynomial
+
+!------------------------------------------------------------------------
+
+  subroutine test_array_pair_sum
+    ! Test array_pair_sum
+
+    use kinds_module
+
+    PetscMPIInt :: rank
+    PetscInt :: ierr
+    PetscReal, parameter :: tol = 1.e-9_dp
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
+
+       call assert_equals(2._dp, array_pair_sum([2._dp]), tol, '1-D')
+       call assert_equals(12._dp, array_pair_sum([2._dp, 3._dp]), tol, '2-D')
+       call assert_equals(26._dp, array_pair_sum([2._dp, 3._dp, 4._dp]), &
+            tol, '3-D')
+
+    end if
+
+  end subroutine test_array_pair_sum
 
 !------------------------------------------------------------------------
 

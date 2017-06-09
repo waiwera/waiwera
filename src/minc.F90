@@ -147,6 +147,8 @@ contains
     !! MINC proximity function: total fraction of matrix rock within
     !! distance d of a fracture.
 
+    use utils_module, only: array_pair_sum
+
     class(minc_type), intent(in) :: self
     PetscReal, intent(in) :: d
 
@@ -154,31 +156,9 @@ contains
       if (any(u >= 1._dp)) then
          p = 1._dp
       else
-         p = sum(u) + product(u) - pair_sum(u)
+         p = sum(u) + product(u) - array_pair_sum(u)
       end if
     end associate
-
-  contains
-
-    PetscReal function pair_sum(a) result(s)
-      !! Returns sum of products of consecutive pairs in an array
-      !! (including the pair formed by the last and first elements).
-      PetscReal, intent(in) :: a(:)
-      ! Locals:
-      PetscInt :: i, i1
-      s = 0._dp
-      associate(n => size(a))
-        if (n == 1) then
-           s = a(1)
-        else
-           do i = 1, n
-              i1 = i + 1
-              if (i1 > n) i1 = i1 - n
-              s = s + a(i) * a(i1)
-           end do
-        end if
-      end associate
-    end function pair_sum
 
   end function minc_proximity
 
