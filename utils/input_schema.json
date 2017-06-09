@@ -81,8 +81,8 @@
                          }, "additionalProperties": false
                      }
                  },
-                 "minc": {
-                     "type": "object",
+                 "minc": {"oneOf": [
+                     {"type": "object",
                      "properties": {
                          "levels": {"type": "integer", "minimum": 0},
                          "cells": {"type": "array",
@@ -95,8 +95,25 @@
                                               "type": "number",
                                               "minimum": 0, "maximum": 1}
                                       }, "additionalProperties": false}
-                     }, "additionalProperties": false
-                 }
+                     }, "additionalProperties": false},
+                     {"type": "array",
+                      "items": {
+                          "type": "object",
+                           "properties": {
+                               "levels": {"type": "integer", "minimum": 0},
+                               "cells": {"type": "array",
+                                         "items": {"type": "integer", "minimum": 0}},
+                               "fracture": {"type": "object",
+                                            "properties": {
+                                                "planes": {"type": "integer",
+                                                           "minimum": 1, "maximum": 3},
+                                                "volume_fraction": {
+                                                    "type": "number",
+                                                    "minimum": 0, "maximum": 1}
+                                            }, "additionalProperties": false}
+                           }, "additionalProperties": false}
+                     }
+                 ]}
              },
              "additionalProperties": false,
              "required": ["filename"]
