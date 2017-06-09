@@ -63,7 +63,6 @@ contains
     character(*), intent(in) :: str !! Logfile string for current MINC object
     type(logfile_type), intent(in out), optional :: logfile !! Logfile for log output
     ! Locals:
-    DMLabel :: minc_label
     PetscInt :: start_cell, end_cell
     PetscInt :: num_cells, ic, c
     PetscInt, allocatable :: cells(:)
@@ -109,14 +108,13 @@ contains
        self%fracture_spacing = fracture_spacing
     end if
 
-    call DMGetLabel(dm, minc_label_name, minc_label, ierr); CHKERRQ(ierr)
     default_cells = [PetscInt::]
-    call DMPlexGetHeightStratum(dm, 0, start_cell, end_cell, ierr)
-    CHKERRQ(ierr)
     call fson_get_mpi(json, "cells", default_cells, cells, logfile, &
          trim(str) // "cells")
     if (allocated(cells)) then
        num_cells = size(cells)
+       call DMPlexGetHeightStratum(dm, 0, start_cell, end_cell, ierr)
+       CHKERRQ(ierr)
        do ic = 1, num_cells
           c = cells(ic)
           if ((c >= start_cell) .and. (c < end_cell)) then
