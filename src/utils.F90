@@ -38,7 +38,7 @@ module utils_module
        int_str_len, str_array_index, &
        split_filename, change_filename_extension, &
        date_time_str, degrees_to_radians, rotation_matrix_2d, &
-       polynomial, array_pair_sum
+       polynomial
   
 contains
 
@@ -251,31 +251,6 @@ contains
     end associate
 
   end function polynomial_multiple
-
-!------------------------------------------------------------------------
-
-  PetscReal function array_pair_sum(a) result(s)
-    !! Returns sum of products of consecutive pairs in an array
-    !! (including the pair formed by the last and first elements).
-
-    PetscReal, intent(in) :: a(:)
-    ! Locals:
-    PetscInt :: i, i1
-
-    s = 0._dp
-    associate(n => size(a))
-      if (n == 1) then
-         s = a(1)
-      else
-         do i = 1, n
-            i1 = i + 1
-            if (i1 > n) i1 = i1 - n
-            s = s + a(i) * a(i1)
-         end do
-      end if
-    end associate
-
-  end function array_pair_sum
 
 !------------------------------------------------------------------------
 
