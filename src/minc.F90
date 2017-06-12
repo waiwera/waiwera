@@ -42,6 +42,7 @@ module minc_module
      procedure, public :: destroy => minc_destroy
      procedure, public :: proximity => minc_proximity
      procedure, public :: proximity_derivative => minc_proximity_derivative
+     procedure, public :: inner_connection_distance => minc_inner_connection_distance
   end type minc_type
 
 contains
@@ -181,6 +182,29 @@ contains
     end associate
 
   end function minc_proximity_derivative
+
+!------------------------------------------------------------------------
+
+  PetscReal function minc_inner_connection_distance(self, x) result(c)
+    !! Connection distance for innermost cell, at distance x.
+
+    use utils_module, only: array_pair_sum
+
+    class(minc_type), intent(in) :: self
+    PetscReal, intent(in) :: x
+
+    associate(u => self%fracture_spacing - 2._dp * x)
+      select case (self%num_fracture_planes)
+      case (1)
+         c = u(1) / 6._dp
+      case (2)
+         c = 0.25_dp * product(u) / sum(u)
+      case (3)
+         c = 0.3_dp * product(u) / array_pair_sum(u)
+      end select
+    end associate
+
+  end function minc_inner_connection_distance
 
 !------------------------------------------------------------------------
 
