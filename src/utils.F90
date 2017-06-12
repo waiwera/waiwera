@@ -38,7 +38,7 @@ module utils_module
        int_str_len, str_array_index, &
        split_filename, change_filename_extension, &
        date_time_str, degrees_to_radians, rotation_matrix_2d, &
-       polynomial, array_pair_sum
+       polynomial, array_pair_sum, array_cumulative_sum
   
 contains
 
@@ -276,6 +276,23 @@ contains
     end associate
 
   end function array_pair_sum
+
+!------------------------------------------------------------------------
+
+  function array_cumulative_sum(a) result(s)
+    !! Cumulative sums of an array.
+
+    PetscReal, intent(in) :: a(:)
+    PetscReal :: s(size(a))
+    ! Locals:
+    PetscInt :: i
+
+    s(1) = a(1)
+    do i = 2, size(a)
+       s(i) = s(i - 1) + a(i)
+    end do
+
+  end function array_cumulative_sum
 
 !------------------------------------------------------------------------
 
