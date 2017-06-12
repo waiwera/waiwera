@@ -14,7 +14,7 @@ module minc_test
   implicit none
   private 
 
-  public :: test_proximity
+  public :: test_proximity, test_proximity_derivative
 
 contains
 
@@ -80,6 +80,67 @@ contains
     call fson_destroy_mpi(json)
 
   end subroutine test_proximity
+
+!------------------------------------------------------------------------
+
+  subroutine test_proximity_derivative
+    ! MINC proximity function derivatives
+
+    use fson
+    use fson_mpi_module
+
+    type(minc_type) :: minc
+    DM :: dm
+    type(fson_value), pointer :: json
+    PetscMPIInt :: rank
+    PetscErrorCode :: ierr
+    PetscReal, parameter :: tol = 1.e-9_dp
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+
+    json => fson_parse_mpi(str = '{"volume_fractions": [0.1, 0.9],' // &
+         '"fracture": {"planes": 1, "spacing": 50.}}')
+    call minc%init(json, dm, 0, "minc")
+    if (rank == 0) then
+       call assert_equals(0.04_dp, &
+            minc%proximity_derivative(0._dp), tol, '1 plane x = 0')
+       call assert_equals(0.04_dp, &
+            minc%proximity_derivative(10._dp), tol, '1 plane x = 10')
+       call assert_equals(0.04_dp, &
+            minc%proximity_derivative(20._dp), tol, '1 plane x = 20')
+    end if
+    call minc%destroy()
+    call fson_destroy_mpi(json)
+
+    json => fson_parse_mpi(str = '{"volume_fractions": [0.1, 0.9],' // &
+         '"fracture": {"planes": 2, "spacing": [50, 80]}}')
+    call minc%init(json, dm, 0, "minc")
+    if (rank == 0) then
+       call assert_equals(0.065_dp, &
+            minc%proximity_derivative(0._dp), tol, '2 planes x = 0')
+       call assert_equals(0.045_dp, &
+            minc%proximity_derivative(10._dp), tol, '2 planes x = 10')
+       call assert_equals(0.025_dp, &
+            minc%proximity_derivative(20._dp), tol, '2 planes x = 20')
+    end if
+    call minc%destroy()
+    call fson_destroy_mpi(json)
+
+    json => fson_parse_mpi(str = '{"volume_fractions": [0.1, 0.9],' // &
+         '"fracture": {"planes": 3, "spacing": [50, 80, 60]}}')
+    call minc%init(json, dm, 0, "minc")
+    if (rank == 0) then
+       call assert_equals(0.0983333333_dp, &
+            minc%proximity_derivative(0._dp), tol, '3 planes x = 0')
+       call assert_equals(0.045_dp, &
+            minc%proximity_derivative(10._dp), tol, '3 planes x = 10')
+       call assert_equals(0.0116666667_dp, &
+            minc%proximity_derivative(20._dp), tol, '3 planes x = 20')
+    end if
+    call minc%destroy()
+    call fson_destroy_mpi(json)
+
+  end subroutine test_proximity_derivative
 
 !------------------------------------------------------------------------
 

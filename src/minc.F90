@@ -41,6 +41,7 @@ module minc_module
      procedure, public :: init => minc_init
      procedure, public :: destroy => minc_destroy
      procedure, public :: proximity => minc_proximity
+     procedure, public :: proximity_derivative => minc_proximity_derivative
   end type minc_type
 
 contains
@@ -161,6 +162,25 @@ contains
     end associate
 
   end function minc_proximity
+
+!------------------------------------------------------------------------
+
+  PetscReal function minc_proximity_derivative(self, d) result(pd)
+    !! Derivative of MINC proximity function with respect to distance d.
+
+    class(minc_type), intent(in) :: self
+    PetscReal, intent(in) :: d
+
+    associate(fout => 1._dp - 2._dp * d / self%fracture_spacing)
+      if (any(fout < 0._dp)) then
+         pd = 0._dp
+      else
+         pd = 2._dp * product(fout) * &
+              sum(1._dp / (self%fracture_spacing * fout))
+      end if
+    end associate
+
+  end function minc_proximity_derivative
 
 !------------------------------------------------------------------------
 
