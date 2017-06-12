@@ -97,7 +97,9 @@
                                               {"type": "number", "minimum": 0},
                                               {"type": "array", "items":
                                                {"type": "number", "minimum": 0}
-                                              }]}
+                                              }]},
+                                          "connection_distance": {"type": "number",
+                                                                  "minimum": 0}
                                       }, "additionalProperties": false}
                      }, "additionalProperties": false},
                      {"type": "array",
@@ -117,7 +119,9 @@
                                               {"type": "number", "minimum": 0},
                                               {"type": "array", "items":
                                                {"type": "number", "minimum": 0}
-                                              }]}
+                                              }]},
+                                                "connection_distance": {"type": "number",
+                                                                        "minimum": 0}
                                             }, "additionalProperties": false}
                            }, "additionalProperties": false}
                      }
