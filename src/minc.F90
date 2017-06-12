@@ -34,6 +34,9 @@ module minc_module
      private
      PetscInt, public :: num_levels !! Number of MINC levels (additional MINC cells per fracture cell)
      PetscReal, allocatable, public :: volume_fraction(:) !! Fraction of cell volume occupied by fractures
+     PetscReal, public :: fracture_connection_distance !! Connection distance from fracture to matrix
+     PetscReal, allocatable, public :: connection_distance(:) !! Connection distances for matrix cells
+     PetscReal, allocatable, public :: connection_area(:) !! Areas for matrix cell connections
      PetscInt, public :: num_fracture_planes !! Number of fracture planes (1.. 3)
      PetscReal, allocatable, public :: fracture_spacing(:) !! Fracture spacings for each set of fracture planes
    contains
@@ -43,6 +46,7 @@ module minc_module
      procedure, public :: proximity => minc_proximity
      procedure, public :: proximity_derivative => minc_proximity_derivative
      procedure, public :: inner_connection_distance => minc_inner_connection_distance
+     procedure, public :: setup_geometry => minc_setup_geometry
   end type minc_type
 
 contains
@@ -77,6 +81,7 @@ contains
     PetscReal, parameter :: default_volume_fraction(2) = [0.1_dp, 0.9_dp]
     PetscInt, parameter :: default_num_fracture_planes = 1
     PetscReal, parameter :: default_fracture_spacing = 50._dp
+    PetscReal, parameter :: default_fracture_connection_distance = 0._dp
 
     call fson_get_mpi(json, "volume_fractions", default_volume_fraction, &
          self%volume_fraction, logfile, trim(str) // "volume_fractions")
@@ -110,6 +115,13 @@ contains
        self%fracture_spacing = fracture_spacing
     end if
 
+    call fson_get_mpi(json, "fracture.connection_distance", &
+         default_fracture_connection_distance, &
+         self%fracture_connection_distance, logfile, &
+         trim(str) // "fracture.connection_distance")
+
+    call self%setup_geometry()
+
     default_cells = [PetscInt::]
     call fson_get_mpi(json, "cells", default_cells, cells, logfile, &
          trim(str) // "cells")
@@ -140,6 +152,8 @@ contains
 
     deallocate(self%volume_fraction)
     deallocate(self%fracture_spacing)
+    deallocate(self%connection_distance)
+    deallocate(self%connection_area)
 
   end subroutine minc_destroy
 
@@ -209,6 +223,83 @@ contains
     end associate
 
   end function minc_inner_connection_distance
+
+!------------------------------------------------------------------------
+
+  subroutine minc_setup_geometry(self)
+    !! Calculates distances and areas for connections between matrix
+    !! cells.
+
+    use utils_module, only: array_cumulative_sum
+    use root_finder_module
+
+    class(minc_type), intent(in out) :: self
+    ! Locals:
+    PetscReal :: x(self%num_levels + 1)
+    PetscReal :: volsum(self%num_levels)
+    PetscReal, target :: vf
+    PetscReal :: xm, xl, xr
+    PetscInt :: i
+    type(root_finder_type) :: root_finder
+    procedure(root_finder_function), pointer :: f
+    class(*), pointer :: ctx
+    PetscReal, parameter :: small = 1.e-8_dp
+
+    allocate(self%connection_distance(self%num_levels + 2))
+    allocate(self%connection_area(self%num_levels + 1))
+
+    f => volume_fraction_difference
+    call root_finder%init(f, context = ctx)
+
+    associate(vfm => 1._dp - self%volume_fraction(1))
+
+      volsum = array_cumulative_sum(self%volume_fraction(2:)) / vfm
+      volsum(self%num_levels) = 1._dp - small
+
+      x(1) = 0._dp
+      self%connection_distance(1) = self%fracture_connection_distance
+      self%connection_area(1) = vfm * self%proximity_derivative(x(1))
+
+      xl = 0._dp
+      xr = self%volume_fraction(2) / self%connection_area(1)
+
+      do i = 1, self%num_levels
+         vf = self%volume_fraction(i)
+         ctx => vf
+         do while (f(xr, ctx) < 0._dp)
+            xr = xr * 2._dp
+         end do
+         root_finder%interval = [xl, xr]
+         call root_finder%find()
+         xm = root_finder%root
+         x(i + 1) = xm
+         self%connection_area(i + 1) = vfm * self%proximity_derivative(xm)
+         self%connection_distance(i + 1) = 0.5_dp * (xm - xl)
+         xl = xm
+      end do
+      xm = self%connection_distance(self%num_levels + 1)
+      self%connection_distance(self%num_levels + 2) = &
+           self%inner_connection_distance(xm)
+
+    end associate
+
+  contains
+
+    PetscReal function volume_fraction_difference(x, context) result(y)
+
+      PetscReal, intent(in) :: x
+      class(*), pointer, intent(in out) :: context
+
+      select type (context)
+      type is (PetscReal)
+         associate(vf => context)
+           y = self%proximity(x) - vf
+         end associate
+      end select
+
+    end function volume_fraction_difference
+
+  end subroutine minc_setup_geometry
 
 !------------------------------------------------------------------------
 
