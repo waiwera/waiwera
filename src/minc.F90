@@ -33,7 +33,7 @@ module minc_module
      !! MINC parameters for a particular zone.
      private
      PetscInt, public :: num_levels !! Number of MINC levels (additional MINC cells per fracture cell)
-     PetscReal, allocatable, public :: volume_fractions(:) !! Fraction of cell volume occupied by fractures
+     PetscReal, allocatable, public :: volume_fraction(:) !! Fraction of cell volume occupied by fractures
      PetscInt, public :: num_fracture_planes !! Number of fracture planes (1.. 3)
      PetscReal, allocatable, public :: fracture_spacing(:) !! Fracture spacings for each set of fracture planes
    contains
@@ -74,14 +74,14 @@ contains
     PetscReal :: fracture_spacing
     PetscReal, allocatable :: fracture_spacing_array(:)
     PetscErrorCode :: ierr
-    PetscReal, parameter :: default_volume_fractions(2) = [0.1_dp, 0.9_dp]
+    PetscReal, parameter :: default_volume_fraction(2) = [0.1_dp, 0.9_dp]
     PetscInt, parameter :: default_num_fracture_planes = 1
     PetscReal, parameter :: default_fracture_spacing = 50._dp
 
-    call fson_get_mpi(json, "volume_fractions", default_volume_fractions, &
-         self%volume_fractions, logfile, trim(str) // "volume_fractions")
-    self%volume_fractions = self%volume_fractions / sum(self%volume_fractions)
-    self%num_levels = size(self%volume_fractions) - 1
+    call fson_get_mpi(json, "volume_fractions", default_volume_fraction, &
+         self%volume_fraction, logfile, trim(str) // "volume_fractions")
+    self%volume_fraction = self%volume_fraction / sum(self%volume_fraction)
+    self%num_levels = size(self%volume_fraction) - 1
 
     call fson_get_mpi(json, "fracture.planes", default_num_fracture_planes, &
          self%num_fracture_planes, logfile, trim(str) // "fracture.planes")
@@ -138,7 +138,7 @@ contains
 
     class(minc_type), intent(in out) :: self
 
-    deallocate(self%volume_fractions)
+    deallocate(self%volume_fraction)
     deallocate(self%fracture_spacing)
 
   end subroutine minc_destroy
