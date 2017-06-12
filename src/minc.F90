@@ -111,8 +111,8 @@ contains
     default_cells = [PetscInt::]
     call fson_get_mpi(json, "cells", default_cells, cells, logfile, &
          trim(str) // "cells")
-    if (allocated(cells)) then
-       num_cells = size(cells)
+    num_cells = size(cells)
+    if (num_cells > 0) then
        call DMPlexGetHeightStratum(dm, 0, start_cell, end_cell, ierr)
        CHKERRQ(ierr)
        do ic = 1, num_cells
@@ -122,8 +122,8 @@ contains
                   c, iminc, ierr); CHKERRQ(ierr)
           end if
        end do
-       deallocate(cells)
     end if
+    deallocate(cells)
 
     ! TODO: rock properties
     
@@ -147,16 +147,16 @@ contains
     !! MINC proximity function: total fraction of matrix rock within
     !! distance d of a fracture.
 
-    use utils_module, only: array_pair_sum
-
     class(minc_type), intent(in) :: self
     PetscReal, intent(in) :: d
 
-    associate(u => 2._dp * d / self%fracture_spacing)
-      if (any(u >= 1._dp)) then
+    ! fout is an array of the fraction not within d of a fracture, for
+    ! each set of fracture planes:
+    associate(fout => 1._dp - 2._dp * d / self%fracture_spacing)
+      if (any(fout < 0._dp)) then
          p = 1._dp
       else
-         p = sum(u) + product(u) - array_pair_sum(u)
+         p = 1._dp - product(fout)
       end if
     end associate
 

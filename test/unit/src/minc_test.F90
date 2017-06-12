@@ -35,9 +35,6 @@ contains
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
 
-    call DMPlexCreateFromFile(PETSC_COMM_WORLD, "data/mesh/block3.exo", &
-         PETSC_TRUE, dm, ierr); CHKERRQ(ierr)
-
     json => fson_parse_mpi(str = '{"volume_fractions": [0.1, 0.9],' // &
          '"fracture": {"planes": 1, "spacing": 50.}}')
     call minc%init(json, dm, 0, "minc")
@@ -81,8 +78,6 @@ contains
     end if
     call minc%destroy()
     call fson_destroy_mpi(json)
-
-    call DMDestroy(dm, ierr)
 
   end subroutine test_proximity
 
