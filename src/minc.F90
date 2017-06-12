@@ -283,6 +283,8 @@ contains
 
     end associate
 
+    call root_finder%destroy()
+
   contains
 
     PetscReal function volume_fraction_difference(x, context) result(y)
