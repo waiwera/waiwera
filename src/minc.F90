@@ -147,7 +147,7 @@ contains
 
   PetscReal function minc_proximity(self, d) result(p)
     !! MINC proximity function: total fraction of matrix rock within
-    !! distance d of a fracture.
+    !! distance d of a fracture, for 'nested cube' geometry.
 
     class(minc_type), intent(in) :: self
     PetscReal, intent(in) :: d
@@ -167,7 +167,8 @@ contains
 !------------------------------------------------------------------------
 
   PetscReal function minc_proximity_derivative(self, d) result(pd)
-    !! Derivative of MINC proximity function with respect to distance d.
+    !! Derivative of MINC proximity function with respect to distance
+    !! d, for 'nested cube' geometry.
 
     class(minc_type), intent(in) :: self
     PetscReal, intent(in) :: d
@@ -186,7 +187,10 @@ contains
 !------------------------------------------------------------------------
 
   PetscReal function minc_inner_connection_distance(self, x) result(c)
-    !! Connection distance for innermost cell, at distance x.
+    !! Connection distance for innermost cell, at distance x, for
+    !! 'nested cube' geometry. From Pruess (1983), "GMINC - a mesh
+    !! generator for flow simulations in fractured reservoirs",
+    !! report LBL-15227.
 
     use utils_module, only: array_pair_sum
 
