@@ -260,6 +260,7 @@ contains
     allocate(self%connection_area(self%num_levels + 1))
 
     f => volume_difference
+    call root_finder%init(f)
 
     associate(vm => 1._dp - self%volume(1))
 
@@ -278,7 +279,8 @@ contains
          do while (f(xr, v) < 0._dp)
             xr = xr * 2._dp
          end do
-         call root_finder%init(f, interval = [xl, xr], context = v)
+         root_finder%interval = [xl, xr]
+         root_finder%context => v
          call root_finder%find()
          if (root_finder%err == 0) then
             xm = root_finder%root
@@ -290,8 +292,9 @@ contains
             err = 1
             exit
          end if
-         call root_finder%destroy()
       end do
+
+      call root_finder%destroy()
 
       if (err == 0) then
          xm = x(self%num_levels)
