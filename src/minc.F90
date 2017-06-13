@@ -226,7 +226,7 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine minc_setup_geometry(self)
+  subroutine minc_setup_geometry(self, err)
     !! Calculates distances and areas for connections between matrix
     !! cells.
 
@@ -234,10 +234,11 @@ contains
     use root_finder_module
 
     class(minc_type), intent(in out) :: self
+    PetscErrorCode, intent(out) :: err
     ! Locals:
     PetscReal :: x(self%num_levels + 1)
     PetscReal :: volsum(self%num_levels)
-    PetscReal, target :: vf
+    PetscReal, target :: v
     PetscReal :: xm, xl, xr
     PetscInt :: i
     type(root_finder_type) :: root_finder
@@ -245,41 +246,50 @@ contains
     class(*), pointer :: ctx
     PetscReal, parameter :: small = 1.e-8_dp
 
-    allocate(self%connection_distance(self%num_levels + 2))
+    err = 0
+    allocate(self%connection_distance(self%num_levels + 1))
     allocate(self%connection_area(self%num_levels + 1))
 
     f => volume_difference
     call root_finder%init(f, context = ctx)
 
-    associate(vfm => 1._dp - self%volume(1))
+    associate(vm => 1._dp - self%volume(1))
 
-      volsum = array_cumulative_sum(self%volume(2:)) / vfm
+      volsum = array_cumulative_sum(self%volume(2:)) / vm
       volsum(self%num_levels) = 1._dp - small
 
       x(1) = 0._dp
       self%connection_distance(1) = self%fracture_connection_distance
-      self%connection_area(1) = vfm * self%proximity_derivative(x(1))
+      self%connection_area(1) = vm * self%proximity_derivative(x(1))
 
       xl = 0._dp
       xr = self%volume(2) / self%connection_area(1)
-      ctx => vf
+      ctx => v
 
       do i = 1, self%num_levels
-         vf = self%volume(i)
+         v = self%volume(i)
          do while (f(xr, ctx) < 0._dp)
             xr = xr * 2._dp
          end do
          root_finder%interval = [xl, xr]
          call root_finder%find()
-         xm = root_finder%root
-         x(i + 1) = xm
-         self%connection_distance(i + 1) = 0.5_dp * (xm - xl)
-         self%connection_area(i + 1) = vfm * self%proximity_derivative(xm)
-         xl = xm
+         if (root_finder%err == 0) then
+            xm = root_finder%root
+            x(i + 1) = xm
+            self%connection_distance(i + 1) = 0.5_dp * (xm - xl)
+            self%connection_area(i + 1) = vm * self%proximity_derivative(xm)
+            xl = xm
+         else
+            err = 1
+            exit
+         end if
       end do
-      xm = self%connection_distance(self%num_levels + 1)
-      self%connection_distance(self%num_levels + 2) = &
-           self%inner_connection_distance(xm)
+
+      if (err == 0) then
+         xm = x(self%num_levels)
+         self%connection_distance(self%num_levels + 1) = &
+              self%inner_connection_distance(xm)
+      end if
 
     end associate
 
@@ -294,8 +304,8 @@ contains
 
       select type (context)
       type is (PetscReal)
-         associate(vf => context)
-           y = self%proximity(x) - vf
+         associate(v => context)
+           y = self%proximity(x) - v
          end associate
       end select
 
