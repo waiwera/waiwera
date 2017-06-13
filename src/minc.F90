@@ -33,10 +33,10 @@ module minc_module
      !! MINC parameters for a particular zone.
      private
      PetscInt, public :: num_levels !! Number of MINC levels (additional MINC cells per fracture cell)
-     PetscReal, allocatable, public :: volume_fraction(:) !! Fraction of cell volume occupied by fractures
+     PetscReal, allocatable, public :: volume(:) !! Volume occupied by fracture and matrix levels (scaled by original cell volume)
      PetscReal, public :: fracture_connection_distance !! Connection distance from fracture to matrix
      PetscReal, allocatable, public :: connection_distance(:) !! Connection distances for matrix cells
-     PetscReal, allocatable, public :: connection_area(:) !! Areas for matrix cell connections
+     PetscReal, allocatable, public :: connection_area(:) !! Areas for matrix cell connections (scaled by original cell volume)
      PetscInt, public :: num_fracture_planes !! Number of fracture planes (1.. 3)
      PetscReal, allocatable, public :: fracture_spacing(:) !! Fracture spacings for each set of fracture planes
    contains
@@ -84,9 +84,9 @@ contains
     PetscReal, parameter :: default_fracture_connection_distance = 0._dp
 
     call fson_get_mpi(json, "volume_fractions", default_volume_fraction, &
-         self%volume_fraction, logfile, trim(str) // "volume_fractions")
-    self%volume_fraction = self%volume_fraction / sum(self%volume_fraction)
-    self%num_levels = size(self%volume_fraction) - 1
+         self%volume, logfile, trim(str) // "volume_fractions")
+    self%volume = self%volume / sum(self%volume)
+    self%num_levels = size(self%volume) - 1
 
     call fson_get_mpi(json, "fracture.planes", default_num_fracture_planes, &
          self%num_fracture_planes, logfile, trim(str) // "fracture.planes")
@@ -150,7 +150,7 @@ contains
 
     class(minc_type), intent(in out) :: self
 
-    deallocate(self%volume_fraction)
+    deallocate(self%volume)
     deallocate(self%fracture_spacing)
     deallocate(self%connection_distance)
     deallocate(self%connection_area)
@@ -248,12 +248,12 @@ contains
     allocate(self%connection_distance(self%num_levels + 2))
     allocate(self%connection_area(self%num_levels + 1))
 
-    f => volume_fraction_difference
+    f => volume_difference
     call root_finder%init(f, context = ctx)
 
-    associate(vfm => 1._dp - self%volume_fraction(1))
+    associate(vfm => 1._dp - self%volume(1))
 
-      volsum = array_cumulative_sum(self%volume_fraction(2:)) / vfm
+      volsum = array_cumulative_sum(self%volume(2:)) / vfm
       volsum(self%num_levels) = 1._dp - small
 
       x(1) = 0._dp
@@ -261,11 +261,11 @@ contains
       self%connection_area(1) = vfm * self%proximity_derivative(x(1))
 
       xl = 0._dp
-      xr = self%volume_fraction(2) / self%connection_area(1)
+      xr = self%volume(2) / self%connection_area(1)
+      ctx => vf
 
       do i = 1, self%num_levels
-         vf = self%volume_fraction(i)
-         ctx => vf
+         vf = self%volume(i)
          do while (f(xr, ctx) < 0._dp)
             xr = xr * 2._dp
          end do
@@ -273,8 +273,8 @@ contains
          call root_finder%find()
          xm = root_finder%root
          x(i + 1) = xm
-         self%connection_area(i + 1) = vfm * self%proximity_derivative(xm)
          self%connection_distance(i + 1) = 0.5_dp * (xm - xl)
+         self%connection_area(i + 1) = vfm * self%proximity_derivative(xm)
          xl = xm
       end do
       xm = self%connection_distance(self%num_levels + 1)
@@ -287,7 +287,7 @@ contains
 
   contains
 
-    PetscReal function volume_fraction_difference(x, context) result(y)
+    PetscReal function volume_difference(x, context) result(y)
 
       PetscReal, intent(in) :: x
       class(*), pointer, intent(in out) :: context
@@ -299,7 +299,7 @@ contains
          end associate
       end select
 
-    end function volume_fraction_difference
+    end function volume_difference
 
   end subroutine minc_setup_geometry
 
