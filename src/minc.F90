@@ -258,9 +258,8 @@ contains
     class(minc_type), intent(in out) :: self
     PetscErrorCode, intent(out) :: err
     ! Locals:
-    PetscReal :: x(self%num_levels + 1)
     PetscReal, target :: volsum(self%num_levels)
-    PetscReal :: xm, xl, xr
+    PetscReal :: x, xl, xr
     PetscInt :: i
     type(root_finder_type) :: root_finder
     procedure(root_finder_function), pointer :: f
@@ -273,55 +272,52 @@ contains
     f => volume_difference
     call root_finder%init(f)
 
-    associate(vm => 1._dp - self%volume(1))
+    associate(vmatrix => 1._dp - self%volume(1))
 
-      volsum = array_cumulative_sum(self%volume(2:)) / vm
+      volsum = array_cumulative_sum(self%volume(2:)) / vmatrix
 
-      x(1) = 0._dp
+      x = 0._dp
       self%connection_distance(1) = self%fracture_connection_distance
-      self%connection_area(1) = vm * self%proximity_derivative(x(1))
+      self%connection_area(1) = vmatrix * self%proximity_derivative(x)
 
-      xl = 0._dp
+      xl = x
       xr = self%volume(2) / self%connection_area(1)
 
-      do i = 1, self%num_levels
+      do i = 1, self%num_levels - 1
 
-         if (i < self%num_levels) then
-            v => volsum(i)
-            do while (f(xr, v) < 0._dp)
-               xr = xr * 2._dp
-            end do
-            root_finder%interval = [xl, xr]
-            root_finder%context => v
-            call root_finder%find()
-            if (root_finder%err == 0) then
-               xm = root_finder%root
-            else
-               err = 1
-               exit
-            end if
+         v => volsum(i)
+         do while (f(xr, v) < 0._dp)
+            xr = xr * 2._dp
+         end do
+         root_finder%interval = [xl, xr]
+         root_finder%context => v
+         call root_finder%find()
+         if (root_finder%err == 0) then
+            x = root_finder%root
          else
-            xm = self%inner_cell_centre()
+            err = 1
+            exit
          end if
 
-         x(i + 1) = xm
-         self%connection_distance(i + 1) = 0.5_dp * (xm - xl)
-         self%connection_area(i + 1) = vm * self%proximity_derivative(xm)
-         xl = xm
+         self%connection_distance(i + 1) = 0.5_dp * (x - xl)
+         self%connection_area(i + 1) = vmatrix * self%proximity_derivative(x)
+         xl = x
 
       end do
 
-      call root_finder%destroy()
-      f => null()
-      v => null()
-
       if (err == 0) then
-         xm = x(self%num_levels)
          self%connection_distance(self%num_levels + 1) = &
-              self%inner_connection_distance(xm)
+              self%inner_connection_distance(x)
+         x = self%inner_cell_centre()
+         self%connection_area(self%num_levels + 1) = vmatrix * &
+              self%proximity_derivative(x)
       end if
 
     end associate
+
+    call root_finder%destroy()
+    f => null()
+    v => null()
 
   contains
 
