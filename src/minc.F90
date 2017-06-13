@@ -53,7 +53,7 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine minc_init(self, json, dm, iminc, str, logfile)
+  subroutine minc_init(self, json, dm, iminc, str, logfile, err)
     !! Initialises MINC object from JSON input, and sets minc label on
     !! DM at cells where these MINC parameters are to be applied.
 
@@ -68,6 +68,7 @@ contains
     PetscInt, intent(in) :: iminc !! Index of MINC zone (1-based)
     character(*), intent(in) :: str !! Logfile string for current MINC object
     type(logfile_type), intent(in out), optional :: logfile !! Logfile for log output
+    PetscErrorCode, intent(out) :: err
     ! Locals:
     PetscInt :: start_cell, end_cell
     PetscInt :: num_cells, ic, c
@@ -82,6 +83,8 @@ contains
     PetscInt, parameter :: default_num_fracture_planes = 1
     PetscReal, parameter :: default_fracture_spacing = 50._dp
     PetscReal, parameter :: default_fracture_connection_distance = 0._dp
+
+    err = 0
 
     call fson_get_mpi(json, "volume_fractions", default_volume_fraction, &
          self%volume, logfile, trim(str) // "volume_fractions")
@@ -120,24 +123,31 @@ contains
          self%fracture_connection_distance, logfile, &
          trim(str) // "fracture.connection_distance")
 
-    call self%setup_geometry()
+    call self%setup_geometry(err)
 
-    default_cells = [PetscInt::]
-    call fson_get_mpi(json, "cells", default_cells, cells, logfile, &
-         trim(str) // "cells")
-    num_cells = size(cells)
-    if (num_cells > 0) then
-       call DMPlexGetHeightStratum(dm, 0, start_cell, end_cell, ierr)
-       CHKERRQ(ierr)
-       do ic = 1, num_cells
-          c = cells(ic)
-          if ((c >= start_cell) .and. (c < end_cell)) then
-             call DMSetLabelValue(dm, minc_label_name, &
-                  c, iminc, ierr); CHKERRQ(ierr)
-          end if
-       end do
+    if (err == 0) then
+       default_cells = [PetscInt::]
+       call fson_get_mpi(json, "cells", default_cells, cells, logfile, &
+            trim(str) // "cells")
+       num_cells = size(cells)
+       if (num_cells > 0) then
+          call DMPlexGetHeightStratum(dm, 0, start_cell, end_cell, ierr)
+          CHKERRQ(ierr)
+          do ic = 1, num_cells
+             c = cells(ic)
+             if ((c >= start_cell) .and. (c < end_cell)) then
+                call DMSetLabelValue(dm, minc_label_name, &
+                     c, iminc, ierr); CHKERRQ(ierr)
+             end if
+          end do
+       end if
+       deallocate(cells)
+    else
+       call logfile%write(LOG_LEVEL_ERR, 'minc', 'init', &
+            str_key = 'stop', &
+            str_value = 'Could not compute MINC geometry.', &
+            rank = 0)
     end if
-    deallocate(cells)
 
     ! TODO: rock properties
     

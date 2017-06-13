@@ -1274,7 +1274,7 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine mesh_setup_minc(self, json, logfile)
+  subroutine mesh_setup_minc(self, json, logfile, err)
     !! Sets up MINC for fractured zones.
 
     use fson_mpi_module
@@ -1284,12 +1284,15 @@ contains
     class(mesh_type), intent(in out) :: self
     type(fson_value), pointer, intent(in) :: json !! JSON file pointer
     type(logfile_type), intent(in out), optional :: logfile !! Logfile for log output
+    PetscErrorCode, intent(out) :: err
     ! Locals:
     PetscInt :: num_minc, iminc
     type(fson_value), pointer :: minc_json, minci_json
     PetscInt :: minc_type
     character(32) :: imincstr, mincstr
     PetscErrorCode :: ierr
+
+    err = 0
 
     if (fson_has_mpi(json, "mesh.minc")) then
 
@@ -1305,7 +1308,7 @@ contains
           iminc = 1
           mincstr = "minc."
           call self%minc(num_minc)%init(minc_json, self%dm, &
-               iminc, mincstr, logfile)
+               iminc, mincstr, logfile, err)
        case (TYPE_ARRAY)
           num_minc = fson_value_count_mpi(minc_json, ".")
           allocate(self%minc(num_minc))
@@ -1314,7 +1317,8 @@ contains
              write(imincstr, '(i0)') iminc - 1
              mincstr = 'minc[' // trim(imincstr) // '].'
              call self%minc(iminc)%init(minci_json, self%dm, iminc, &
-                  mincstr, logfile)
+                  mincstr, logfile, err)
+             if (err > 0) exit
           end do
        end select
 
