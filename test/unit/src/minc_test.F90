@@ -260,7 +260,7 @@ contains
             '1 plane 3 levels volume fractions')
        call assert_equals([0.018_dp, 0.018_dp, 0.018_dp, 0.018_dp], &
             minc%connection_area, 4, tol, '1 plane 3 levels connection areas')
-       call assert_equals([0._dp, 50._dp / 9._dp, 100._dp / 9._dp, 7400._dp / 999._dp], &
+       call assert_equals([0._dp, 50._dp / 9._dp, 25._dp / 3._dp, 7400._dp / 999._dp], &
             minc%connection_distance, 4, tol, '1 plane 3 levels connection distances')
     end if
     call minc%destroy()

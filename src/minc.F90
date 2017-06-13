@@ -247,13 +247,12 @@ contains
     PetscErrorCode, intent(out) :: err
     ! Locals:
     PetscReal :: x(self%num_levels + 1)
-    PetscReal :: volsum(self%num_levels)
-    PetscReal, target :: v
+    PetscReal, target :: volsum(self%num_levels)
     PetscReal :: xm, xl, xr
     PetscInt :: i
     type(root_finder_type) :: root_finder
     procedure(root_finder_function), pointer :: f
-    class(*), pointer :: ctx
+    class(*), pointer :: v
     PetscReal, parameter :: small = 1.e-8_dp
 
     err = 0
@@ -261,7 +260,6 @@ contains
     allocate(self%connection_area(self%num_levels + 1))
 
     f => volume_difference
-    call root_finder%init(f, context = ctx)
 
     associate(vm => 1._dp - self%volume(1))
 
@@ -274,14 +272,13 @@ contains
 
       xl = 0._dp
       xr = self%volume(2) / self%connection_area(1)
-      ctx => v
 
       do i = 1, self%num_levels
-         v = self%volume(i)
-         do while (f(xr, ctx) < 0._dp)
+         v => volsum(i)
+         do while (f(xr, v) < 0._dp)
             xr = xr * 2._dp
          end do
-         root_finder%interval = [xl, xr]
+         call root_finder%init(f, interval = [xl, xr], context = v)
          call root_finder%find()
          if (root_finder%err == 0) then
             xm = root_finder%root
@@ -293,6 +290,7 @@ contains
             err = 1
             exit
          end if
+         call root_finder%destroy()
       end do
 
       if (err == 0) then
@@ -303,7 +301,6 @@ contains
 
     end associate
 
-    call root_finder%destroy()
 
   contains
 
