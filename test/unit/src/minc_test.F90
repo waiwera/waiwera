@@ -217,7 +217,7 @@ contains
     type(fson_value), pointer :: json
     PetscMPIInt :: rank
     PetscErrorCode :: ierr, err
-    PetscReal, parameter :: tol = 1.e-9_dp
+    PetscReal, parameter :: tol = 1.e-7_dp
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
 
@@ -262,6 +262,42 @@ contains
             minc%connection_area, 4, tol, '1 plane 3 levels connection areas')
        call assert_equals([0._dp, 50._dp / 9._dp, 25._dp / 3._dp, 7400._dp / 999._dp], &
             minc%connection_distance, 4, tol, '1 plane 3 levels connection distances')
+    end if
+    call minc%destroy()
+    call fson_destroy_mpi(json)
+
+    json => fson_parse_mpi(str = '{"volume_fractions": [5, 20, 30, 45],' // &
+         '"fracture": {"planes": 2, "spacing": 100.}}')
+    call minc%init(json, dm, 0, "minc", err = err)
+    if (rank == 0) then
+       call assert_equals(0, err, '2 planes 3 levels error')
+       call assert_equals([0.05_dp, 0.2_dp, 0.3_dp, 0.45_dp], minc%volume, 4, tol, &
+            '2 planes 3 levels volume fractions')
+       call assert_equals([0.038_dp, 0.033763886490617179_dp, &
+            0.026153393818234151_dp, 3.8e-06_dp], &
+            minc%connection_area, 4, tol, '2 planes 3 levels connection areas')
+       call assert_equals([0._dp, 2.78691708403391_dp, &
+            5.006902875674109_dp, 8.6030900201459914_dp], &
+            minc%connection_distance, 4, tol, '2 planes 3 levels connection distances')
+    end if
+    call minc%destroy()
+    call fson_destroy_mpi(json)
+
+    json => fson_parse_mpi(str = '{"volume_fractions": [5, 20, 30, 45],' // &
+         '"fracture": {"planes": 2, "spacing": [100, 80]}}')
+    call minc%init(json, dm, 0, "minc", err = err)
+    if (rank == 0) then
+       call assert_equals(0, err, '2 planes 3 levels variable spacing error')
+       call assert_equals([0.05_dp, 0.2_dp, 0.3_dp, 0.45_dp], minc%volume, 4, tol, &
+            '2 planes 3 levels variable spacing volume fractions')
+       call assert_equals([0.04275_dp, 0.038046846447656414_dp, &
+            0.029623680667175543_dp, 0.004750001948906706_dp], &
+            minc%connection_area, 4, tol, &
+            '2 planes 3 levels variable spacing connection areas')
+       call assert_equals([0._dp, 2.4753441451477878_dp, &
+            4.433244588928682_dp, 7.595274770950577_dp], &
+            minc%connection_distance, 4, tol, &
+            '2 planes 3 levels variable spacing connection distances')
     end if
     call minc%destroy()
     call fson_destroy_mpi(json)
