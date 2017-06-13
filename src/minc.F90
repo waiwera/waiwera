@@ -295,6 +295,8 @@ contains
       end do
 
       call root_finder%destroy()
+      f => null()
+      v => null()
 
       if (err == 0) then
          xm = x(self%num_levels)
@@ -303,7 +305,6 @@ contains
       end if
 
     end associate
-
 
   contains
 
