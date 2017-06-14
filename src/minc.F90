@@ -46,7 +46,6 @@ module minc_module
      procedure, public :: proximity => minc_proximity
      procedure, public :: proximity_derivative => minc_proximity_derivative
      procedure, public :: inner_connection_distance => minc_inner_connection_distance
-     procedure, public :: inner_cell_centre => minc_inner_cell_centre
      procedure, public :: setup_geometry => minc_setup_geometry
   end type minc_type
 
@@ -236,17 +235,6 @@ contains
     end associate
 
   end function minc_inner_connection_distance
-
-!------------------------------------------------------------------------
-
-  PetscReal function minc_inner_cell_centre(self) result(x)
-    !! Distance from fracture to centre of innermost MINC cell.
-
-    class(minc_type), intent(in) :: self
-
-    x = 0.5_dp * minval(self%fracture_spacing)
-
-  end function minc_inner_cell_centre
 
 !------------------------------------------------------------------------
 
