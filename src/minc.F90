@@ -61,7 +61,7 @@ contains
     use fson
     use fson_mpi_module
     use logfile_module
-    use fson_value_m, only : TYPE_ARRAY, TYPE_REAL
+    use fson_value_m, only : TYPE_ARRAY, TYPE_REAL, TYPE_INTEGER
     
     class(minc_type), intent(in out) :: self
     type(fson_value), pointer, intent(in) :: json !! JSON file pointer
@@ -100,7 +100,7 @@ contains
        call fson_get_mpi(json, "fracture.spacing", spacing_json)
        spacing_type = fson_type_mpi(spacing_json, ".")
        select case (spacing_type)
-       case (TYPE_REAL)
+       case (TYPE_REAL, TYPE_INTEGER)
           call fson_get_mpi(json, "fracture.spacing", default_fracture_spacing, &
                fracture_spacing, logfile, trim(str) // "fracture.spacing")
           self%fracture_spacing = fracture_spacing
