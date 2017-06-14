@@ -269,12 +269,11 @@ contains
       x = 0._dp
       self%connection_distance(1) = self%fracture_connection_distance
       self%connection_area(1) = vmatrix * self%proximity_derivative(x)
-
-      xl = x
       xr = self%volume(2) / self%connection_area(1)
 
       do i = 1, self%num_levels - 1
 
+         xl = x
          v => volsum(i)
          do while (f(xr, v) < 0._dp)
             xr = xr * 2._dp
@@ -291,7 +290,6 @@ contains
 
          self%connection_distance(i + 1) = 0.5_dp * (x - xl)
          self%connection_area(i + 1) = vmatrix * self%proximity_derivative(x)
-         xl = x
 
       end do
 
