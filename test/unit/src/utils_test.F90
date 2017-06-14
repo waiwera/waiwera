@@ -16,7 +16,7 @@ module utils_test
        test_int_str_len, test_str_array_index, &
        test_degrees_to_radians, test_rotation_matrix_2d, &
        test_polynomial, test_multipolynomial, test_array_pair_sum, &
-       test_array_cumulative_sum
+       test_array_cumulative_sum, test_array_exclusive_products
 
 contains
 
@@ -368,6 +368,32 @@ contains
     end if
 
   end subroutine test_array_cumulative_sum
+
+!------------------------------------------------------------------------
+
+  subroutine test_array_exclusive_products
+    ! Test array_exclusive_products
+
+    use kinds_module
+
+    PetscMPIInt :: rank
+    PetscInt :: ierr
+    PetscReal, parameter :: tol = 1.e-9_dp
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
+
+       call assert_equals([1._dp], &
+            array_exclusive_products([2._dp]), 1, tol, '1-D')
+       call assert_equals([3._dp, 2._dp], &
+            array_exclusive_products([2._dp, 3._dp]), 2, tol, '2-D')
+       call assert_equals([12._dp, 8._dp, 6._dp], &
+            array_exclusive_products([2._dp, 3._dp, 4._dp]), 3, &
+            tol, '3-D')
+
+    end if
+
+  end subroutine test_array_exclusive_products
 
 !------------------------------------------------------------------------
 

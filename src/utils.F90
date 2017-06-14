@@ -38,7 +38,8 @@ module utils_module
        int_str_len, str_array_index, &
        split_filename, change_filename_extension, &
        date_time_str, degrees_to_radians, rotation_matrix_2d, &
-       polynomial, array_pair_sum, array_cumulative_sum
+       polynomial, array_pair_sum, array_cumulative_sum, &
+       array_exclusive_products
   
 contains
 
@@ -293,6 +294,27 @@ contains
     end do
 
   end function array_cumulative_sum
+
+!------------------------------------------------------------------------
+
+  function array_exclusive_products(a) result(p)
+    !! Returns products of array elements, excluding successive
+    !! elements of the array. If the array has only one element, the
+    !! returned result is 1.
+
+    PetscReal, intent(in) :: a(:)
+    PetscReal :: p(size(a))
+    ! Locals:
+    PetscInt :: i
+    PetscReal :: x(size(a))
+
+    do i = 1, size(a)
+       x = a
+       x(i) = 1._dp
+       p(i) = product(x)
+    end do
+
+  end function array_exclusive_products
 
 !------------------------------------------------------------------------
 
