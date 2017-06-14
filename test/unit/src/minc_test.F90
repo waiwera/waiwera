@@ -36,8 +36,7 @@ contains
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
 
-    json => fson_parse_mpi(str = '{"volume_fractions": [0.1, 0.9],' // &
-         '"fracture": {"planes": 1, "spacing": 50.}}')
+    json => fson_parse_mpi(str = '{"fracture": {"planes": 1, "spacing": 50.}}')
     call minc%init(json, dm, 0, "minc", err = err)
     if (rank == 0) then
        call assert_equals(1, minc%num_fracture_planes, '1 set of fracture planes')
@@ -50,8 +49,7 @@ contains
     call minc%destroy()
     call fson_destroy_mpi(json)
 
-    json => fson_parse_mpi(str = '{"volume_fractions": [0.1, 0.9],' // &
-         '"fracture": {"planes": 2, "spacing": [50, 80]}}')
+    json => fson_parse_mpi(str = '{"fracture": {"planes": 2, "spacing": [50, 80]}}')
     call minc%init(json, dm, 0, "minc", err = err)
     if (rank == 0) then
        call assert_equals(2, minc%num_fracture_planes, '2 sets of fracture planes')
@@ -65,8 +63,7 @@ contains
     call minc%destroy()
     call fson_destroy_mpi(json)
 
-    json => fson_parse_mpi(str = '{"volume_fractions": [0.1, 0.9],' // &
-         '"fracture": {"planes": 3, "spacing": [50, 80, 60]}}')
+    json => fson_parse_mpi(str = '{"fracture": {"planes": 3, "spacing": [50, 80, 60]}}')
     call minc%init(json, dm, 0, "minc", err = err)
     if (rank == 0) then
        call assert_equals(3, minc%num_fracture_planes, '3 sets of fracture planes')
@@ -99,8 +96,7 @@ contains
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
 
-    json => fson_parse_mpi(str = '{"volume_fractions": [0.1, 0.9],' // &
-         '"fracture": {"planes": 1, "spacing": 50.}}')
+    json => fson_parse_mpi(str = '{"fracture": {"planes": 1, "spacing": 50.}}')
     call minc%init(json, dm, 0, "minc", err = err)
     if (rank == 0) then
        call assert_equals(0.04_dp, &
@@ -109,12 +105,13 @@ contains
             minc%proximity_derivative(10._dp), tol, '1 plane x = 10')
        call assert_equals(0.04_dp, &
             minc%proximity_derivative(20._dp), tol, '1 plane x = 20')
+       call assert_equals(0.04_dp, &
+            minc%proximity_derivative(25._dp), tol, '1 plane x = 25')
     end if
     call minc%destroy()
     call fson_destroy_mpi(json)
 
-    json => fson_parse_mpi(str = '{"volume_fractions": [0.1, 0.9],' // &
-         '"fracture": {"planes": 2, "spacing": [50, 80]}}')
+    json => fson_parse_mpi(str = '{"fracture": {"planes": 2, "spacing": [50, 80]}}')
     call minc%init(json, dm, 0, "minc", err = err)
     if (rank == 0) then
        call assert_equals(0.065_dp, &
@@ -123,12 +120,30 @@ contains
             minc%proximity_derivative(10._dp), tol, '2 planes x = 10')
        call assert_equals(0.025_dp, &
             minc%proximity_derivative(20._dp), tol, '2 planes x = 20')
+       call assert_equals(0.015_dp, &
+            minc%proximity_derivative(25._dp), tol, '2 planes x = 25')
     end if
     call minc%destroy()
     call fson_destroy_mpi(json)
 
-    json => fson_parse_mpi(str = '{"volume_fractions": [0.1, 0.9],' // &
-         '"fracture": {"planes": 3, "spacing": [50, 80, 60]}}')
+    json => fson_parse_mpi(str = '{"fracture": {"planes": 2, "spacing": 50}}')
+    call minc%init(json, dm, 0, "minc", err = err)
+    if (rank == 0) then
+       call assert_equals([50._dp, 50._dp], minc%fracture_spacing, 2, tol, &
+            '2 planes equal spacing fracture spacing')
+       call assert_equals(0.08_dp, &
+            minc%proximity_derivative(0._dp), tol, '2 planes equal spacing x = 0')
+       call assert_equals(0.048_dp, &
+            minc%proximity_derivative(10._dp), tol, '2 planes equal spacing x = 10')
+       call assert_equals(0.016_dp, &
+            minc%proximity_derivative(20._dp), tol, '2 planes equal spacing x = 20')
+       call assert_equals(0._dp, &
+            minc%proximity_derivative(25._dp), tol, '2 planes equal spacing x = 25')
+    end if
+    call minc%destroy()
+    call fson_destroy_mpi(json)
+
+    json => fson_parse_mpi(str = '{"fracture": {"planes": 3, "spacing": [50, 80, 60]}}')
     call minc%init(json, dm, 0, "minc", err = err)
     if (rank == 0) then
        call assert_equals(0.0983333333_dp, &
@@ -137,6 +152,8 @@ contains
             minc%proximity_derivative(10._dp), tol, '3 planes x = 10')
        call assert_equals(0.0116666667_dp, &
             minc%proximity_derivative(20._dp), tol, '3 planes x = 20')
+       call assert_equals(2.5e-3_dp, &
+            minc%proximity_derivative(25._dp), tol, '3 planes x = 25')
     end if
     call minc%destroy()
     call fson_destroy_mpi(json)
@@ -160,8 +177,7 @@ contains
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
 
-    json => fson_parse_mpi(str = '{"volume_fractions": [0.1, 0.9],' // &
-         '"fracture": {"planes": 1, "spacing": 50.}}')
+    json => fson_parse_mpi(str = '{"fracture": {"planes": 1, "spacing": 50.}}')
     call minc%init(json, dm, 0, "minc", err = err)
     if (rank == 0) then
        call assert_equals(25._dp / 3._dp, &
@@ -174,8 +190,7 @@ contains
     call minc%destroy()
     call fson_destroy_mpi(json)
 
-    json => fson_parse_mpi(str = '{"volume_fractions": [0.1, 0.9],' // &
-         '"fracture": {"planes": 2, "spacing": [50, 80]}}')
+    json => fson_parse_mpi(str = '{"fracture": {"planes": 2, "spacing": [50, 80]}}')
     call minc%init(json, dm, 0, "minc", err = err)
     if (rank == 0) then
        call assert_equals(100._dp / 13._dp, &
@@ -188,8 +203,7 @@ contains
     call minc%destroy()
     call fson_destroy_mpi(json)
 
-    json => fson_parse_mpi(str = '{"volume_fractions": [0.1, 0.9],' // &
-         '"fracture": {"planes": 3, "spacing": [50, 80, 60]}}')
+    json => fson_parse_mpi(str = '{"fracture": {"planes": 3, "spacing": [50, 80, 60]}}')
     call minc%init(json, dm, 0, "minc", err = err)
     if (rank == 0) then
        call assert_equals(360._dp / 59._dp, &
@@ -267,14 +281,14 @@ contains
     call fson_destroy_mpi(json)
 
     json => fson_parse_mpi(str = '{"volume_fractions": [5, 20, 30, 45],' // &
-         '"fracture": {"planes": 2, "spacing": 100.}}')
+         '"fracture": {"planes": 2, "spacing": 100}}')
     call minc%init(json, dm, 0, "minc", err = err)
     if (rank == 0) then
        call assert_equals(0, err, '2 planes 3 levels error')
        call assert_equals([0.05_dp, 0.2_dp, 0.3_dp, 0.45_dp], minc%volume, 4, tol, &
             '2 planes 3 levels volume fractions')
        call assert_equals([0.038_dp, 0.033763886490617179_dp, &
-            0.026153393818234151_dp, 3.8e-06_dp], &
+            0.026153393818234151_dp, 0._dp], &
             minc%connection_area, 4, tol, '2 planes 3 levels connection areas')
        call assert_equals([0._dp, 2.78691708403391_dp, &
             5.006902875674109_dp, 8.6030900201459914_dp], &
@@ -298,6 +312,24 @@ contains
             4.433244588928682_dp, 7.595274770950577_dp], &
             minc%connection_distance, 4, tol, &
             '2 planes 3 levels variable spacing connection distances')
+    end if
+    call minc%destroy()
+    call fson_destroy_mpi(json)
+
+    json => fson_parse_mpi(str = '{"volume_fractions": [10, 30, 60],' // &
+         '"fracture": {"planes": 3, "spacing": [100, 80, 90]}}')
+    call minc%init(json, dm, 0, "minc", err = err)
+    if (rank == 0) then
+       call assert_equals(0, err, '3 planes 2 levels error')
+       call assert_equals([0.10_dp, 0.3_dp, 0.6_dp], minc%volume, 3, tol, &
+            '3 planes 2 levels volume fractions')
+       call assert_equals([0.0605_dp, 0.046229920797811137_dp, &
+            0.0005_dp], &
+            minc%connection_area, 3, tol, &
+            '3 planes 2 levels connection areas')
+       call assert_equals([0._dp, 2.8192309717077664_dp, 7.7871646178561607_dp], &
+            minc%connection_distance, 3, tol, &
+            '3 planes 2 levels connection distances')
     end if
     call minc%destroy()
     call fson_destroy_mpi(json)
