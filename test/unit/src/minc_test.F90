@@ -242,8 +242,8 @@ contains
        call assert_equals(0, err, '1 plane 1 level error')
        call assert_equals([0.1_dp, 0.9_dp], minc%volume, 2, tol, &
             '1 plane 1 level volume fractions')
-       call assert_equals([0.036_dp, 0.036_dp], &
-            minc%connection_area, 2, tol, '1 plane 1 level connection areas')
+       call assert_equals([0.036_dp], &
+            minc%connection_area, 1, tol, '1 plane 1 level connection areas')
        call assert_equals([0._dp, 25._dp / 3._dp], &
             minc%connection_distance, 2, tol, '1 plane 1 level connection distances')
     end if
@@ -257,8 +257,8 @@ contains
        call assert_equals(0, err, '1 plane 2 levels error')
        call assert_equals([0.1_dp, 0.3_dp, 0.6_dp], minc%volume, 3, tol, &
             '1 plane 2 levels volume fractions')
-       call assert_equals([0.018_dp, 0.018_dp, 0.018_dp], &
-            minc%connection_area, 3, tol, '1 plane 2 levels connection areas')
+       call assert_equals([0.018_dp, 0.018_dp], &
+            minc%connection_area, 2, tol, '1 plane 2 levels connection areas')
        call assert_equals([0._dp, 25._dp / 3._dp, 100._dp / 9._dp], &
             minc%connection_distance, 3, tol, '1 plane 2 levels connection distances')
     end if
@@ -272,8 +272,8 @@ contains
        call assert_equals(0, err, '1 plane 3 levels error')
        call assert_equals([0.1_dp, 0.2_dp, 0.3_dp, 0.4_dp], minc%volume, 4, tol, &
             '1 plane 3 levels volume fractions')
-       call assert_equals([0.018_dp, 0.018_dp, 0.018_dp, 0.018_dp], &
-            minc%connection_area, 4, tol, '1 plane 3 levels connection areas')
+       call assert_equals([0.018_dp, 0.018_dp, 0.018_dp], &
+            minc%connection_area, 3, tol, '1 plane 3 levels connection areas')
        call assert_equals([0._dp, 50._dp / 9._dp, 25._dp / 3._dp, 7400._dp / 999._dp], &
             minc%connection_distance, 4, tol, '1 plane 3 levels connection distances')
     end if
@@ -288,8 +288,8 @@ contains
        call assert_equals([0.05_dp, 0.2_dp, 0.3_dp, 0.45_dp], minc%volume, 4, tol, &
             '2 planes 3 levels volume fractions')
        call assert_equals([0.038_dp, 0.033763886490617179_dp, &
-            0.026153393818234151_dp, 0._dp], &
-            minc%connection_area, 4, tol, '2 planes 3 levels connection areas')
+            0.026153393818234151_dp], &
+            minc%connection_area, 3, tol, '2 planes 3 levels connection areas')
        call assert_equals([0._dp, 2.78691708403391_dp, &
             5.006902875674109_dp, 8.6030900201459914_dp], &
             minc%connection_distance, 4, tol, '2 planes 3 levels connection distances')
@@ -305,8 +305,7 @@ contains
        call assert_equals([0.05_dp, 0.2_dp, 0.3_dp, 0.45_dp], minc%volume, 4, tol, &
             '2 planes 3 levels variable spacing volume fractions')
        call assert_equals([0.04275_dp, 0.038046846447656414_dp, &
-            0.029623680667175543_dp, 0.004750001948906706_dp], &
-            minc%connection_area, 4, tol, &
+            0.029623680667175543_dp], minc%connection_area, 3, tol, &
             '2 planes 3 levels variable spacing connection areas')
        call assert_equals([0._dp, 2.4753441451477878_dp, &
             4.433244588928682_dp, 7.595274770950577_dp], &
@@ -323,9 +322,8 @@ contains
        call assert_equals(0, err, '3 planes 2 levels error')
        call assert_equals([0.10_dp, 0.3_dp, 0.6_dp], minc%volume, 3, tol, &
             '3 planes 2 levels volume fractions')
-       call assert_equals([0.0605_dp, 0.046229920797811137_dp, &
-            0.0005_dp], &
-            minc%connection_area, 3, tol, &
+       call assert_equals([0.0605_dp, 0.046229920797811137_dp], &
+            minc%connection_area, 2, tol, &
             '3 planes 2 levels connection areas')
        call assert_equals([0._dp, 2.8192309717077664_dp, 7.7871646178561607_dp], &
             minc%connection_distance, 3, tol, &

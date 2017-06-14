@@ -269,7 +269,7 @@ contains
 
     err = 0
     allocate(self%connection_distance(self%num_levels + 1))
-    allocate(self%connection_area(self%num_levels + 1))
+    allocate(self%connection_area(self%num_levels))
 
     f => volume_difference
     call root_finder%init(f)
@@ -310,9 +310,6 @@ contains
       if (err == 0) then
          self%connection_distance(self%num_levels + 1) = &
               self%inner_connection_distance(x)
-         x = self%inner_cell_centre()
-         self%connection_area(self%num_levels + 1) = vmatrix * &
-              self%proximity_derivative(x)
       end if
 
     end associate
