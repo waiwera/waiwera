@@ -195,6 +195,8 @@ contains
     !! Derivative of MINC proximity function with respect to distance
     !! d, for 'nested cube' geometry.
 
+    use utils_module, only: array_exclusive_products
+
     class(minc_type), intent(in) :: self
     PetscReal, intent(in) :: d
 
@@ -202,8 +204,8 @@ contains
       if (any(fout < 0._dp)) then
          pd = 0._dp
       else
-         pd = 2._dp * product(fout) * &
-              sum(1._dp / (self%fracture_spacing * fout))
+         pd = 2._dp * sum(array_exclusive_products(fout) / &
+              self%fracture_spacing)
       end if
     end associate
 
