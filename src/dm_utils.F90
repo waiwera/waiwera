@@ -33,6 +33,7 @@ module dm_utils_module
   public :: write_vec_vtk
   public :: vec_max_pointwise_abs_scale
   public :: dm_order_local_index
+  public :: dm_copy_cone_sizes, dm_copy_cones
 
 contains
 
@@ -442,4 +443,56 @@ contains
 
 !------------------------------------------------------------------------
 
-end module dm_utils_module
+  subroutine dm_copy_cone_sizes(dm, new_dm, start, end, point_shift)
+    !! Copies cone sizes from one DM to another, within the specified
+    !! point range, with a specified shift in the point index.
+
+    DM, intent(in) :: dm
+    DM, intent(in out) :: new_dm
+    PetscInt, intent(in) :: start, end
+    PetscInt, intent(in) :: point_shift
+    ! Locals:
+    PetscInt :: p
+    PetscInt :: cone_size
+    PetscErrorCode :: ierr
+
+    do p = start, end
+       associate(new_p => p + point_shift)
+         call DMPlexGetConeSize(dm, p, cone_size, ierr); CHKERRQ(ierr)
+         call DMPlexSetConeSize(new_dm, new_p, cone_size, ierr)
+         CHKERRQ(ierr)
+       end associate
+    end do
+
+  end subroutine dm_copy_cone_sizes
+
+!------------------------------------------------------------------------
+
+  subroutine dm_copy_cones(dm, new_dm, start, end, point_shift, cone_shift)
+    !! Copies cones from one DM to another, within the specified point
+    !! range, with a specified shifts in the point index and the cone
+    !! point indices.
+
+    DM, intent(in) :: dm
+    DM, intent(in out) :: new_dm
+    PetscInt, intent(in) :: start, end
+    PetscInt, intent(in) :: point_shift, cone_shift
+    ! Locals:
+    PetscInt :: p
+    PetscInt, pointer :: points(:)
+    PetscErrorCode :: ierr
+
+    do p = start, end
+       associate(new_p => p + point_shift)
+         call DMPlexGetCone(dm, p, points, ierr); CHKERRQ(ierr)
+         call DMPlexSetCone(new_dm, new_p, points + cone_shift, ierr)
+         CHKERRQ(ierr)
+         call DMPlexRestoreCone(dm, p, points, ierr); CHKERRQ(ierr)
+       end associate
+    end do
+
+  end subroutine dm_copy_cones
+
+!------------------------------------------------------------------------
+
+  end module dm_utils_module
