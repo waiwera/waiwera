@@ -1379,10 +1379,7 @@ contains
     PetscInt, allocatable :: frac_shift(:), minc_shift(:,:)
     PetscInt, allocatable :: minc_zone(:), num_minc_level_cells(:)
     IS :: minc_IS
-    PetscSection :: section
     PetscInt, pointer :: minc_cells(:)
-    PetscInt :: num_components(1), field_dim(1), dof
-    character(7) :: field_names(1)
     PetscErrorCode :: ierr
 
     call DMPlexCreate(PETSC_COMM_WORLD, self%minc_dm, ierr); CHKERRQ(ierr)
@@ -1447,16 +1444,6 @@ contains
 
     call DMPlexSymmetrize(self%minc_dm, ierr); CHKERRQ(ierr)
     call DMPlexStratify(self%minc_dm, ierr); CHKERRQ(ierr)
-
-    call DMGetDefaultGlobalSection(self%original_dm, section, ierr)
-    CHKERRQ(ierr)
-    call PetscSectionGetMaxDof(section, dof, ierr); CHKERRQ(ierr)
-    num_components = dof
-    field_dim = dim
-    call PetscSectionGetFieldName(section, 0, field_names(1), ierr)
-    CHKERRQ(ierr)
-    call set_dm_data_layout(self%minc_dm, num_components, field_dim, &
-         field_names)
 
     call self%assign_dm(self%minc_dm)
 
