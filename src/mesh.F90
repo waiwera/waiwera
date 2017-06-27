@@ -714,6 +714,7 @@ contains
     use logfile_module
     use fson_mpi_module
     use fson_value_m, only: TYPE_STRING, TYPE_OBJECT
+    use dm_utils_module, only: dm_set_fv_adjacency
 
     class(mesh_type), intent(in out) :: self
     type(fson_value), pointer, intent(in) :: json !! JSON file pointer
@@ -746,11 +747,8 @@ contains
        ! Read in original DM:
        call DMPlexCreateFromFile(PETSC_COMM_WORLD, self%filename, PETSC_TRUE, &
             self%original_dm, ierr); CHKERRQ(ierr)
+       call dm_set_fv_adjacency(self%original_dm)
        call self%assign_dm(self%original_dm)
-       call DMPlexSetAdjacencyUseCone(self%original_dm, PETSC_TRUE, ierr)
-       CHKERRQ(ierr)
-       call DMPlexSetAdjacencyUseClosure(self%original_dm, PETSC_FALSE, ierr)
-       CHKERRQ(ierr)
        call self%setup_coordinate_parameters(json, logfile)
        call self%set_permeability_rotation(json, logfile)
        self%has_minc = PETSC_FALSE

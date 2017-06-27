@@ -34,6 +34,7 @@ module dm_utils_module
   public :: vec_max_pointwise_abs_scale
   public :: dm_order_local_index
   public :: dm_copy_cone_sizes, dm_copy_cones
+  public :: dm_set_fv_adjacency
 
 contains
 
@@ -495,4 +496,18 @@ contains
 
 !------------------------------------------------------------------------
 
-  end module dm_utils_module
+  subroutine dm_set_fv_adjacency(dm)
+    !! Sets finite-volume adjacency for DM.
+
+    DM, intent(in out) :: dm
+    ! Locals:
+    PetscErrorCode :: ierr
+
+    call DMPlexSetAdjacencyUseCone(dm, PETSC_TRUE, ierr); CHKERRQ(ierr)
+    call DMPlexSetAdjacencyUseClosure(dm, PETSC_FALSE, ierr); CHKERRQ(ierr)
+
+  end subroutine dm_set_fv_adjacency
+
+!------------------------------------------------------------------------
+
+end module dm_utils_module
