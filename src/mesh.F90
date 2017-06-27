@@ -1452,7 +1452,8 @@ contains
     call PetscSectionGetMaxDof(section, dof, ierr); CHKERRQ(ierr)
     num_components = dof
     field_dim = dim
-    field_names(1) = "Primary"
+    call PetscSectionGetFieldName(section, 0, field_names(1), ierr)
+    CHKERRQ(ierr)
     call set_dm_data_layout(self%minc_dm, num_components, field_dim, &
          field_names)
 
