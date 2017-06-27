@@ -137,6 +137,8 @@ contains
     PetscViewer, intent(in out), optional :: viewer
     ! Locals:
     PetscInt :: total_count, local_count
+    PetscInt :: start_cell, end_cell, end_interior_cell
+    PetscInt :: cmax, fmax, emax, vmax
     PetscInt :: total_allocate_count, allocate_size
     PetscInt :: c, i, ghost, order
     DMLabel :: ghost_label, order_label
@@ -152,29 +154,34 @@ contains
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
     call MPI_COMM_SIZE(PETSC_COMM_WORLD, num_procs, ierr)
-    call DMGetLabel(self%dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
+    call DMGetLabel(self%original_dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
+    call DMPlexGetHeightStratum(self%original_dm, 0, start_cell, end_cell, ierr)
+    CHKERRQ(ierr)
+    call DMPlexGetHybridBounds(self%original_dm, cmax, fmax, emax, vmax, ierr)
+    CHKERRQ(ierr)
+    end_interior_cell = cmax
 
     ! Count interior cells:
     local_count = 0
-    do c = self%start_cell, self%end_interior_cell - 1
+    do c = start_cell, end_interior_cell - 1
        call DMLabelGetValue(ghost_label, c, ghost, ierr); CHKERRQ(ierr)
        if (ghost < 0) local_count = local_count + 1
     end do
     allocate(global_index(local_count), natural_index(local_count))
 
     ! Get starting global index for each process:
-    call DMGetGlobalVector(self%dm, v, ierr); CHKERRQ(ierr)
+    call DMGetGlobalVector(self%original_dm, v, ierr); CHKERRQ(ierr)
     call VecGetOwnershipRange(v, start_global_index, &
          PETSC_NULL_INTEGER, ierr); CHKERRQ(ierr)
     call VecGetBlockSize(v, blocksize, ierr); CHKERRQ(ierr)
-    call DMRestoreGlobalVector(self%dm, v, ierr); CHKERRQ(ierr)
+    call DMRestoreGlobalVector(self%original_dm, v, ierr); CHKERRQ(ierr)
     start_global_index = start_global_index / blocksize
 
     ! Set up global and natural index arrays on each process:
-    call DMGetLabel(self%dm, cell_order_label_name, order_label, ierr)
-    CHKERRQ(ierr)
+    call DMGetLabel(self%original_dm, cell_order_label_name, order_label, &
+         ierr); CHKERRQ(ierr)
     i = 1
-    do c = self%start_cell, self%end_interior_cell - 1
+    do c = start_cell, end_interior_cell - 1
        call DMLabelGetValue(ghost_label, c, ghost, ierr); CHKERRQ(ierr)
        if (ghost < 0) then
           call DMLabelGetValue(order_label, c, order, ierr); CHKERRQ(ierr)
