@@ -46,7 +46,7 @@ module mesh_module
      PetscInt, public :: end_cell !! DM point one greater than last cell on this process
      PetscInt, public :: end_interior_cell !! DM point one greater than last interior (non-ghost) cell on this process
      PetscInt, public :: start_face !! DM point containing first face on this process
-     PetscInt, public :: end_face !! DM point containing last face on this process
+     PetscInt, public :: end_face !! DM point one greater than last face on this process
      PetscReal, allocatable, public :: bcs(:,:) !! Array containing boundary conditions
      IS, public :: cell_index !! Index set defining natural cell ordering
      PetscInt, public, allocatable :: ghost_cell(:), ghost_face(:) !! Ghost label values for cells and faces
