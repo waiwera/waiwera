@@ -753,6 +753,7 @@ contains
        CHKERRQ(ierr)
        call self%setup_coordinate_parameters(json, logfile)
        call self%set_permeability_rotation(json, logfile)
+       self%has_minc = PETSC_FALSE
     end if
 
   end subroutine mesh_init
@@ -1317,7 +1318,6 @@ contains
     PetscErrorCode :: ierr
 
     err = 0
-    self%has_minc = PETSC_FALSE
 
     if (fson_has_mpi(json, "mesh.minc")) then
 
@@ -1352,6 +1352,8 @@ contains
             num_minc_cells, ierr); CHKERRQ(ierr)
        self%has_minc = (num_minc_cells > 0)
 
+    else
+       self%has_minc = PETSC_FALSE
     end if
 
   end subroutine mesh_setup_minc
