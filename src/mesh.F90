@@ -1393,6 +1393,7 @@ contains
     allocate(start(0: depth), end(0: depth))
     do h = 0, depth
        call DMPlexGetHeightStratum(self%original_dm, h, start(h), end(h), ierr)
+       CHKERRQ(ierr)
     end do
 
     num_cells = end(0) - start(0)
