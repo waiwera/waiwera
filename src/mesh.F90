@@ -1568,6 +1568,7 @@ contains
       PetscInt :: face_p, inner_face_p, minc_p
       PetscInt :: above_p, cone_shift
       PetscInt, pointer :: points(:)
+      PetscInt, allocatable :: frac_cone(:), minc_cone(:)
       PetscErrorCode :: ierr
 
       ! Cells:
@@ -1577,29 +1578,30 @@ contains
          iminc = minc_zone(p)
          if (iminc > 0) then
             face_p = p + minc_shift(1, 1)
-            call DMPlexSetCone(self%minc_dm, p, &
-                 [points + frac_shift(1), [face_p]], ierr); CHKERRQ(ierr)
+            frac_cone = [points + frac_shift(1), [face_p]]
             associate(num_levels => self%minc(iminc)%num_levels)
               do m = 1, num_levels
                  minc_p = p + minc_shift(0, m)
                  face_p = p + minc_shift(1, m)
                  if (m < num_levels) then
                     inner_face_p = p + minc_shift(1, m + 1)
-                    call DMPlexSetCone(self%minc_dm, minc_p, &
-                         [face_p, inner_face_p], ierr); CHKERRQ(ierr)
+                    minc_cone = [face_p, inner_face_p]
                  else
-                    call DMPlexSetCone(self%minc_dm, minc_p, [face_p], ierr)
-                    CHKERRQ(ierr)
+                    minc_cone = [face_p]
                  end if
+                 call DMPlexSetCone(self%minc_dm, minc_p, &
+                      minc_cone, ierr); CHKERRQ(ierr)
               end do
             end associate
          else
-            call DMPlexSetCone(self%minc_dm, p, &
-                 points + frac_shift(1), ierr); CHKERRQ(ierr)
+            frac_cone = points + frac_shift(1)
          end if
+         call DMPlexSetCone(self%minc_dm, p, frac_cone, ierr); CHKERRQ(ierr)
          call DMPlexRestoreCone(self%original_dm, p, points, ierr)
          CHKERRQ(ierr)
       end do
+
+      deallocate(frac_cone, minc_cone)
 
       ! Higher level points:
       do h = 1, depth
