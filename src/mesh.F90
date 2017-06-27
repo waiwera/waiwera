@@ -468,6 +468,7 @@ contains
     DM :: dm_face
     PetscSection :: face_section, petsc_face_section, cell_section
     PetscInt :: c, f, ghost_cell, ghost_face, i
+    PetscInt :: start_cell, end_cell, start_face, end_face
     PetscInt :: face_offset, petsc_face_offset
     PetscInt :: cell_offset(2), offset
     type(cell_type) :: cell
@@ -498,6 +499,10 @@ contains
 
     call DMGetDimension(self%original_dm, dim, ierr); CHKERRQ(ierr)
     call DMGetLabel(self%original_dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
+    call DMPlexGetHeightStratum(self%original_dm, 0, start_cell, end_cell, ierr)
+    CHKERRQ(ierr)
+    call DMPlexGetHeightStratum(self%original_dm, 1, start_face, end_face, ierr)
+    CHKERRQ(ierr)
 
     ! Set up cell geometry vector:
     call local_vec_section(self%cell_geom, cell_section)
@@ -510,7 +515,7 @@ contains
        else
           modify_cell_volume => modify_cell_volume_2d_cartesian
        end if
-       do c = self%start_cell, self%end_cell - 1
+       do c = start_cell, end_cell - 1
           call DMLabelGetValue(ghost_label, c, ghost_cell, ierr); CHKERRQ(ierr)
           if (ghost_cell < 0) then
              call section_offset(cell_section, c, offset, ierr); CHKERRQ(ierr)
@@ -544,7 +549,7 @@ contains
        end if
     end select
 
-    do f = self%start_face, self%end_face - 1
+    do f = start_face, end_face - 1
 
        call DMLabelGetValue(ghost_label, f, ghost_face, ierr); CHKERRQ(ierr)
 
