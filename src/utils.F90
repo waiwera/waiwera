@@ -34,6 +34,11 @@ module utils_module
      module procedure polynomial_multiple
   end interface polynomial
 
+  interface array_cumulative_sum
+     module procedure array_cumulative_sum_real
+     module procedure array_cumulative_sum_integer
+  end interface array_cumulative_sum
+
   public :: str_to_upper, str_to_lower, &
        int_str_len, str_array_index, &
        split_filename, change_filename_extension, &
@@ -280,8 +285,8 @@ contains
 
 !------------------------------------------------------------------------
 
-  function array_cumulative_sum(a) result(s)
-    !! Cumulative sums of an array.
+  function array_cumulative_sum_real(a) result(s)
+    !! Cumulative sums of a real array.
 
     PetscReal, intent(in) :: a(:)
     PetscReal :: s(size(a))
@@ -293,7 +298,24 @@ contains
        s(i) = s(i - 1) + a(i)
     end do
 
-  end function array_cumulative_sum
+  end function array_cumulative_sum_real
+
+!------------------------------------------------------------------------
+
+  function array_cumulative_sum_integer(a) result(s)
+    !! Cumulative sums of an integer array.
+
+    PetscInt, intent(in) :: a(:)
+    PetscInt :: s(size(a))
+    ! Locals:
+    PetscInt :: i
+
+    s(1) = a(1)
+    do i = 2, size(a)
+       s(i) = s(i - 1) + a(i)
+    end do
+
+  end function array_cumulative_sum_integer
 
 !------------------------------------------------------------------------
 

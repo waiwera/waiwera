@@ -364,7 +364,8 @@ contains
        call assert_equals([2._dp, 5._dp, 9._dp], &
             array_cumulative_sum([2._dp, 3._dp, 4._dp]), 3, &
             tol, '3-D')
-
+       call assert_equals([2, 5, 9], &
+            array_cumulative_sum([2, 3, 4]), 3, 'integer')
     end if
 
   end subroutine test_array_cumulative_sum
