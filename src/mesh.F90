@@ -50,7 +50,7 @@ module mesh_module
      PetscReal, allocatable, public :: bcs(:,:) !! Array containing boundary conditions
      IS, public :: cell_index !! Index set defining natural cell ordering
      PetscInt, public, allocatable :: ghost_cell(:), ghost_face(:) !! Ghost label values for cells and faces
-     type(minc_type), allocatable :: minc(:)
+     type(minc_type), allocatable, public :: minc(:)
      PetscReal, public :: permeability_rotation(3, 3) !! Rotation matrix of permeability axes
      PetscReal, public :: thickness !! Mesh thickness (for dimension < 3)
      PetscBool, public :: radial !! If mesh coordinate system is radial or Cartesian
