@@ -1373,7 +1373,6 @@ contains
     ! Locals:
     PetscInt :: start_chart, end_chart, c, i, iminc, h
     PetscInt :: dim, depth
-    PetscInt :: cone_size, cone_shift
     PetscInt :: num_minc_zone_cells, num_minc_cells
     PetscInt :: num_minc_zones, num_cells, num_new_points, max_num_levels
     PetscInt, allocatable :: start(:), end(:)
@@ -1470,14 +1469,18 @@ contains
       !! Set up shift arrays to determine index shift from original DM
       !! point to corresponding fracture and MINC points in new DM.
 
+      use utils_module, only: array_cumulative_sum
+
       PetscInt, intent(out) :: frac_shift(0: depth)
       PetscInt, intent(out) :: minc_shift(0: depth, 1: max_num_levels)
       ! Locals:
       PetscInt :: ishift(0: depth)
       PetscInt :: i, s, h, m
+      PetscInt :: minc_offset(0: max_num_levels)
 
       !! Set up ishift array, to take account of the fact that DMPlex
-      !! points have the order cells, vertices, faces, edges.
+      !! points have the order cells, vertices, faces, edges-
+      !! i.e. they are not in depth order.
       ishift(0) = 0
       ishift(depth) = 1
       s = ishift(depth) + 1
@@ -1486,12 +1489,13 @@ contains
          s = s + 1
       end do
 
-      ! TODO: this needs altering for variable levels per zone:
-      frac_shift = ishift * num_minc_cells * num_levels
+      minc_offset = 0
+      minc_offset(1:) = array_cumulative_sum(num_minc_level_cells(1:))
+
+      frac_shift = ishift * minc_offset(max_num_levels)
       do h = 0, depth
-         do m = 1, num_levels
-            minc_shift(h, m) = end(h) + frac_shift(h) + &
-                 (m - 1) * num_minc_cells
+         do m = 1, max_num_levels
+            minc_shift(h, m) = end(h) + frac_shift(h) + minc_offset(m - 1)
          end do
       end do
 
@@ -1562,7 +1566,7 @@ contains
       ! Locals:
       PetscInt :: p, m, h, iminc
       PetscInt :: face_p, inner_face_p, minc_p
-      PetscInt :: above_p, below_p
+      PetscInt :: above_p, cone_shift
       PetscInt, pointer :: points(:)
       PetscErrorCode :: ierr
 
@@ -1575,26 +1579,26 @@ contains
             face_p = p + minc_shift(1, 1)
             call DMPlexSetCone(self%minc_dm, p, &
                  [points + frac_shift(1), [face_p]], ierr); CHKERRQ(ierr)
+            associate(num_levels => self%minc(iminc)%num_levels)
+              do m = 1, num_levels
+                 minc_p = p + minc_shift(0, m)
+                 face_p = p + minc_shift(1, m)
+                 if (m < num_levels) then
+                    inner_face_p = p + minc_shift(1, m + 1)
+                    call DMPlexSetCone(self%minc_dm, minc_p, &
+                         [face_p, inner_face_p], ierr); CHKERRQ(ierr)
+                 else
+                    call DMPlexSetCone(self%minc_dm, minc_p, [face_p], ierr)
+                    CHKERRQ(ierr)
+                 end if
+              end do
+            end associate
          else
             call DMPlexSetCone(self%minc_dm, p, &
                  points + frac_shift(1), ierr); CHKERRQ(ierr)
          end if
          call DMPlexRestoreCone(self%original_dm, p, points, ierr)
          CHKERRQ(ierr)
-         associate(num_levels => self%minc(iminc)%num_levels)
-           do m = 1, num_levels
-              minc_p = p + minc_shift(0, m)
-              face_p = p + minc_shift(1, m)
-              if (m < num_levels) then
-                 inner_face_p = p + minc_shift(1, m + 1)
-                 call DMPlexSetCone(self%minc_dm, minc_p, &
-                      [face_p, inner_face_p], ierr); CHKERRQ(ierr)
-              else
-                 call DMPlexSetCone(self%minc_dm, minc_p, [face_p], ierr)
-                 CHKERRQ(ierr)
-              end if
-           end do
-         end associate
       end do
 
       ! Higher level points:
