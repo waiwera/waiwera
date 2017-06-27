@@ -1365,7 +1365,7 @@ contains
     !! consistent everywhere.
 
     use dm_utils_module, only: dm_copy_cone_sizes, dm_copy_cones, &
-         set_dm_data_layout
+         set_dm_data_layout, dm_set_fv_adjacency
 
     class(mesh_type), intent(in out) :: self
     ! Locals:
@@ -1442,6 +1442,7 @@ contains
 
     call DMPlexSymmetrize(self%minc_dm, ierr); CHKERRQ(ierr)
     call DMPlexStratify(self%minc_dm, ierr); CHKERRQ(ierr)
+    call dm_set_fv_adjacency(self%minc_dm)
 
     call self%assign_dm(self%minc_dm)
 
