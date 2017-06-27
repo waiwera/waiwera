@@ -43,8 +43,8 @@ module mesh_module
      Vec, public :: cell_geom !! Vector containing cell geometry data
      Vec, public :: face_geom !! Vector containing face geometry data
      PetscInt, public :: start_cell !! DM point containing first cell on this process
-     PetscInt, public :: end_cell !! DM point containing last cell on this process
-     PetscInt, public :: end_interior_cell !! DM point containing last interior (non-ghost) cell on this process
+     PetscInt, public :: end_cell !! DM point one greater than last cell on this process
+     PetscInt, public :: end_interior_cell !! DM point one greater than last interior (non-ghost) cell on this process
      PetscInt, public :: start_face !! DM point containing first face on this process
      PetscInt, public :: end_face !! DM point containing last face on this process
      PetscReal, allocatable, public :: bcs(:,:) !! Array containing boundary conditions
