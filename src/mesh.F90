@@ -748,11 +748,8 @@ contains
     end if
 
     call self%get_bounds()
-
     call self%setup_geometry(gravity)
-
     call self%setup_ghost_arrays()
-
     call self%setup_cell_index(viewer)
 
   end subroutine mesh_configure
