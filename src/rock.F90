@@ -371,7 +371,7 @@ contains
 
     type(fson_value), pointer, intent(in) :: json
     DM, intent(in out) :: dm
-    type(logfile_type), intent(in out) :: logfile
+    type(logfile_type), intent(in out), optional :: logfile
     ! Locals:
     PetscInt :: start_cell, end_cell
     PetscErrorCode :: ierr
@@ -409,7 +409,9 @@ contains
           end if
        end do
     else
-       call logfile%write(LOG_LEVEL_WARN, "input", "no rocktypes")
+       if (present(logfile)) then
+          call logfile%write(LOG_LEVEL_WARN, "input", "no rocktypes")
+       end if
     end if
 
   end subroutine setup_rocktype_labels
