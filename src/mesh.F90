@@ -1454,6 +1454,7 @@ contains
 
     call DMPlexSymmetrize(self%minc_dm, ierr); CHKERRQ(ierr)
     call DMPlexStratify(self%minc_dm, ierr); CHKERRQ(ierr)
+    call transfer_labels(self%dm, self%minc_dm, 1)
     call dm_set_fv_adjacency(self%minc_dm)
 
     call self%assign_dm(self%minc_dm)
@@ -1631,6 +1632,93 @@ contains
       end do
 
     end subroutine set_cones
+
+!........................................................................
+
+    subroutine transfer_labels(dm, minc_dm, max_height)
+      !! Transfers relevant labels from original DM to MINC DM
+      !! fracture points, applying appropriate shifts to the point
+      !! indices.
+
+      use rock_module, only: rocktype_label_name
+
+      DM, intent(in) :: dm
+      DM, intent(in out) :: minc_dm
+      PetscInt, intent(in) :: max_height
+      ! Locals:
+      PetscInt :: p, h, l, iid, ip, label_value
+      PetscInt :: num_labels, num_ids, num_points
+      PetscInt, parameter :: max_label_name_length = 80
+      character(max_label_name_length) :: label_name
+      character(max_label_name_length) :: label_names(0:3)
+      IS :: id_IS, point_IS
+      PetscInt, pointer :: ids(:), points(:)
+      PetscBool :: has_label
+      PetscErrorCode :: ierr
+
+      ! call DMGetNumLabels(dm, num_labels, ierr); CHKERRQ(ierr)
+      num_labels = 4
+      label_names = [character(max_label_name_length):: &
+           rocktype_label_name, minc_label_name, &
+           open_boundary_label_name, cell_order_label_name]
+
+      do l = 0, num_labels - 1
+         ! call DMGetLabelName(dm, l, label_name, ierr); CHKERRQ(ierr)
+         label_name = label_names(l)
+         call DMHasLabel(dm, label_name, has_label, ierr); CHKERRQ(ierr)
+         if (has_label .and. (label_name /= 'depth')) then
+            call DMCreateLabel(minc_dm, label_name, ierr); CHKERRQ(ierr)
+            call DMGetLabelIdIS(dm, label_name, id_IS, ierr); CHKERRQ(ierr)
+            call ISGetLocalSize(id_IS, num_ids, ierr); CHKERRQ(ierr)
+            if (num_ids > 0) then
+               call ISGetIndicesF90(id_IS, ids, ierr); CHKERRQ(ierr)
+               do iid = 1, num_ids
+                  call DMGetStratumIS(dm, label_name, ids(iid), point_IS, &
+                       ierr); CHKERRQ(ierr)
+                  call ISGetLocalSize(point_IS, num_points, ierr)
+                  CHKERRQ(ierr)
+                  if (num_points > 0) then
+                     call ISGetIndicesF90(point_IS, points, ierr)
+                     CHKERRQ(ierr)
+                     do ip = 1, num_points
+                        p = points(ip)
+                        h = dm_point_height(dm, p)
+                        call DMSetLabelValue(minc_dm, label_name, &
+                             p + frac_shift(h), label_value, ierr)
+                        CHKERRQ(ierr)
+                     end do
+                     call ISRestoreIndicesF90(point_IS, points, ierr)
+                     CHKERRQ(ierr)
+                  end if
+                  call ISDestroy(point_IS, ierr); CHKERRQ(ierr)
+               end do
+               call ISRestoreIndicesF90(id_IS, ids, ierr); CHKERRQ(ierr)
+            end if
+            call ISDestroy(id_IS, ierr); CHKERRQ(ierr)
+         end if
+      end do
+
+    end subroutine transfer_labels
+
+!........................................................................
+
+    PetscInt function dm_point_height(dm, p) result(height)
+      !! Returns height of point in DM.
+
+      DM, intent(in) :: dm
+      PetscInt, intent(in) :: p
+      ! Locals:
+      PetscInt :: h
+
+      height = -1
+      do h = 0, depth
+         if ((start(h) <= p) .and. (p < end(h))) then
+            height = h
+            exit
+         end if
+      end do
+
+    end function dm_point_height
 
 !........................................................................
 
