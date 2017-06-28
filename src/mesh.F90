@@ -1647,23 +1647,24 @@ contains
       PetscInt, intent(in) :: max_height
       ! Locals:
       PetscInt :: p, h, l, iid, ip, label_value
-      PetscInt :: num_labels, num_ids, num_points
+      PetscInt :: num_ids, num_points
       PetscInt, parameter :: max_label_name_length = 80
       character(max_label_name_length) :: label_name
-      character(max_label_name_length) :: label_names(0:3)
+      PetscInt, parameter :: num_labels = 6
+      character(max_label_name_length) :: label_names(0: num_labels - 1)
       IS :: id_IS, point_IS
       PetscInt, pointer :: ids(:), points(:)
       PetscBool :: has_label
       PetscErrorCode :: ierr
 
       ! call DMGetNumLabels(dm, num_labels, ierr); CHKERRQ(ierr)
-      num_labels = 4
       label_names = [character(max_label_name_length):: &
+           "ghost", "Cell Sets", &
            rocktype_label_name, minc_label_name, &
            open_boundary_label_name, cell_order_label_name]
 
       do l = 0, num_labels - 1
-         ! call DMGetLabelName(dm, l, label_name, ierr); CHKERRQ(ierr)
+         ! call DMGetLabelName(dm, l, label_name, ierr); CHKERRQ(ierr) ! missing Fortran interface
          label_name = label_names(l)
          call DMHasLabel(dm, label_name, has_label, ierr); CHKERRQ(ierr)
          if (has_label .and. (label_name /= 'depth')) then
