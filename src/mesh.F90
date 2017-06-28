@@ -61,7 +61,6 @@ module mesh_module
      procedure :: setup_cell_index => mesh_setup_cell_index
      procedure :: distribute => mesh_distribute
      procedure :: construct_ghost_cells => mesh_construct_ghost_cells
-     procedure :: setup_data_layout => mesh_setup_data_layout
      procedure :: setup_geometry => mesh_setup_geometry
      procedure :: setup_ghost_arrays => mesh_setup_ghost_arrays
      procedure :: get_bounds => mesh_get_bounds
@@ -301,30 +300,6 @@ contains
     end if
 
   end subroutine mesh_construct_ghost_cells
-
-!------------------------------------------------------------------------
-
-  subroutine mesh_setup_data_layout(self, dof)
-    !! Sets up default section data layout for the mesh.
-
-    use dm_utils_module, only: set_dm_data_layout
-
-    class(mesh_type), intent(in out) :: self
-    PetscInt, intent(in) :: dof !! Degrees of freedom
-    ! Locals:
-    PetscInt :: num_components(1), dim, field_dim(1)
-    character(7) :: field_names(1)
-    PetscErrorCode :: ierr
-
-    call DMGetDimension(self%dm, dim, ierr); CHKERRQ(ierr)
-    num_components = dof
-    field_dim = dim
-    field_names(1) = "Primary"
-
-    call set_dm_data_layout(self%dm, num_components, field_dim, &
-         field_names)
-
-  end subroutine mesh_setup_data_layout
 
 !------------------------------------------------------------------------
 
@@ -750,7 +725,8 @@ contains
     !! construction of ghost cells, setup of data layout, geometry and
     !! cell index set.
 
-    use dm_utils_module, only: dm_setup_fv_discretization
+    use dm_utils_module, only: dm_setup_fv_discretization, &
+         set_dm_default_data_layout
 
     class(mesh_type), intent(in out) :: self
     character(*), intent(in) :: primary_variable_names(:) !! Names of primary thermodynamic variables
@@ -764,15 +740,14 @@ contains
     call self%setup_cell_order_label()
     call self%distribute()
     call self%construct_ghost_cells()
-    call dm_setup_fv_discretization(self%dm, dof)
+    call dm_setup_fv_discretization(self%original_dm, dof)
+    call set_dm_default_data_layout(self%original_dm, dof)
 
     if (self%has_minc) then
        call self%setup_minc_dm(dof)
     end if
 
     call self%get_bounds()
-
-    call self%setup_data_layout(dof)
 
     call self%setup_geometry(gravity)
 
@@ -1355,7 +1330,8 @@ contains
     !! consistent everywhere.
 
     use dm_utils_module, only: dm_copy_cone_sizes, dm_copy_cones, &
-         set_dm_data_layout, dm_set_fv_adjacency, dm_setup_fv_discretization
+         set_dm_data_layout, dm_set_fv_adjacency, &
+         dm_setup_fv_discretization, set_dm_default_data_layout
 
     class(mesh_type), intent(in out) :: self
     PetscInt, intent(in) :: dof !! Degrees of freedom for discretization
@@ -1435,7 +1411,8 @@ contains
     call DMPlexStratify(self%minc_dm, ierr); CHKERRQ(ierr)
     call transfer_labels(self%dm, self%minc_dm, 1)
     call dm_set_fv_adjacency(self%minc_dm)
-    call dm_setup_fv_discretization(self%dm, dof)
+    call dm_setup_fv_discretization(self%minc_dm, dof)
+    call set_dm_default_data_layout(self%minc_dm, dof)
 
     call self%assign_dm(self%minc_dm)
 

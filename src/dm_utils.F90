@@ -25,7 +25,8 @@ module dm_utils_module
   implicit none
   private
 
-  public :: set_dm_data_layout, section_offset, global_section_offset
+  public :: set_dm_data_layout, set_dm_default_data_layout
+  public :: section_offset, global_section_offset
   public :: global_vec_section, local_vec_section
   public :: global_to_local_vec_section, restore_dm_local_vec
   public :: global_vec_range_start, vec_reorder
@@ -94,6 +95,29 @@ contains
     deallocate(num_dof)
 
   end subroutine set_dm_data_layout
+
+!------------------------------------------------------------------------
+
+  subroutine set_dm_default_data_layout(dm, dof)
+    !! Sets default data layout on DM, for primary variable vector
+    !! with specified number of degrees of freedom.
+
+    DM, intent(in out) :: dm
+    PetscInt, intent(in) :: dof
+    ! Locals:
+    PetscInt :: num_components(1), dim, field_dim(1)
+    character(7) :: field_names(1)
+    PetscErrorCode :: ierr
+
+    call DMGetDimension(dm, dim, ierr); CHKERRQ(ierr)
+    num_components = dof
+    field_dim = dim
+    field_names(1) = "Primary"
+
+    call set_dm_data_layout(dm, num_components, field_dim, &
+         field_names)
+
+  end subroutine set_dm_default_data_layout
 
 !------------------------------------------------------------------------
 
