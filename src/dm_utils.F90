@@ -34,7 +34,7 @@ module dm_utils_module
   public :: vec_max_pointwise_abs_scale
   public :: dm_order_local_index
   public :: dm_copy_cone_sizes, dm_copy_cones
-  public :: dm_set_fv_adjacency
+  public :: dm_set_fv_adjacency, dm_setup_fv_discretization
 
 contains
 
@@ -507,6 +507,30 @@ contains
     call DMPlexSetAdjacencyUseClosure(dm, PETSC_FALSE, ierr); CHKERRQ(ierr)
 
   end subroutine dm_set_fv_adjacency
+
+!------------------------------------------------------------------------
+
+  subroutine dm_setup_fv_discretization(dm, dof)
+    !! Sets up finite-volume discretization on DM.
+
+    DM, intent(in out) :: dm
+    PetscInt, intent(in) :: dof
+    ! Locals:
+    PetscFV :: fvm
+    PetscDS :: ds
+    PetscInt :: dim
+    PetscErrorCode :: ierr
+
+    call PetscFVCreate(PETSC_COMM_WORLD, fvm, ierr); CHKERRQ(ierr)
+    call PetscFVSetFromOptions(fvm, ierr); CHKERRQ(ierr)
+    call PetscFVSetNumComponents(fvm, dof, ierr); CHKERRQ(ierr)
+    call DMGetDimension(dm, dim, ierr); CHKERRQ(ierr)
+    call PetscFVSetSpatialDimension(fvm, dim, ierr); CHKERRQ(ierr)
+    call DMGetDS(dm, ds, ierr); CHKERRQ(ierr)
+    call PetscDSAddDiscretization(ds, fvm, ierr); CHKERRQ(ierr)
+    call PetscFVDestroy(fvm, ierr); CHKERRQ(ierr)
+
+  end subroutine dm_setup_fv_discretization
 
 !------------------------------------------------------------------------
 

@@ -63,7 +63,6 @@ module mesh_module
      procedure :: construct_ghost_cells => mesh_construct_ghost_cells
      procedure :: setup_data_layout => mesh_setup_data_layout
      procedure :: setup_geometry => mesh_setup_geometry
-     procedure :: setup_discretization => mesh_setup_discretization
      procedure :: setup_ghost_arrays => mesh_setup_ghost_arrays
      procedure :: get_bounds => mesh_get_bounds
      procedure :: setup_coordinate_parameters => mesh_setup_coordinate_parameters
@@ -326,30 +325,6 @@ contains
          field_names)
 
   end subroutine mesh_setup_data_layout
-
-!------------------------------------------------------------------------
-
-  subroutine mesh_setup_discretization(self, dof)
-    !! Sets up finite volume discretization on the DM.
-
-    class(mesh_type), intent(in out) :: self
-    PetscInt, intent(in) :: dof
-    ! Locals:
-    PetscFV :: fvm
-    PetscDS :: ds
-    PetscInt :: dim
-    PetscErrorCode :: ierr
-
-    call PetscFVCreate(PETSC_COMM_WORLD, fvm, ierr); CHKERRQ(ierr)
-    call PetscFVSetFromOptions(fvm, ierr); CHKERRQ(ierr)
-    call PetscFVSetNumComponents(fvm, dof, ierr); CHKERRQ(ierr)
-    call DMGetDimension(self%dm, dim, ierr); CHKERRQ(ierr)
-    call PetscFVSetSpatialDimension(fvm, dim, ierr); CHKERRQ(ierr)
-    call DMGetDS(self%dm, ds, ierr); CHKERRQ(ierr)
-    call PetscDSAddDiscretization(ds, fvm, ierr); CHKERRQ(ierr)
-    call PetscFVDestroy(fvm, ierr); CHKERRQ(ierr)
-
-  end subroutine mesh_setup_discretization
 
 !------------------------------------------------------------------------
 
@@ -775,6 +750,8 @@ contains
     !! construction of ghost cells, setup of data layout, geometry and
     !! cell index set.
 
+    use dm_utils_module, only: dm_setup_fv_discretization
+
     class(mesh_type), intent(in out) :: self
     character(*), intent(in) :: primary_variable_names(:) !! Names of primary thermodynamic variables
     PetscReal, intent(in) :: gravity(:)
@@ -782,15 +759,16 @@ contains
     ! Locals:
     PetscInt :: dof
 
+    dof = size(primary_variable_names)
+
     call self%setup_cell_order_label()
     call self%distribute()
     call self%construct_ghost_cells()
-    if (self%has_minc) then
-       call self%setup_minc_dm()
-    end if
+    call dm_setup_fv_discretization(self%dm, dof)
 
-    dof = size(primary_variable_names)
-    call self%setup_discretization(dof)
+    if (self%has_minc) then
+       call self%setup_minc_dm(dof)
+    end if
 
     call self%get_bounds()
 
@@ -1370,16 +1348,17 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine mesh_setup_minc_dm(self)
+  subroutine mesh_setup_minc_dm(self, dof)
     !! Sets up augmented DM for MINC mesh, including MINC cells and
     !! faces. Although they are not used, edges and vertices are also
     !! created for the MINC faces, so that the depth of the DM is
     !! consistent everywhere.
 
     use dm_utils_module, only: dm_copy_cone_sizes, dm_copy_cones, &
-         set_dm_data_layout, dm_set_fv_adjacency
+         set_dm_data_layout, dm_set_fv_adjacency, dm_setup_fv_discretization
 
     class(mesh_type), intent(in out) :: self
+    PetscInt, intent(in) :: dof !! Degrees of freedom for discretization
     ! Locals:
     PetscInt :: start_chart, end_chart, c, i, iminc, h
     PetscInt :: dim, depth
@@ -1456,6 +1435,7 @@ contains
     call DMPlexStratify(self%minc_dm, ierr); CHKERRQ(ierr)
     call transfer_labels(self%dm, self%minc_dm, 1)
     call dm_set_fv_adjacency(self%minc_dm)
+    call dm_setup_fv_discretization(self%dm, dof)
 
     call self%assign_dm(self%minc_dm)
 
