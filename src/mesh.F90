@@ -1339,7 +1339,7 @@ contains
     class(mesh_type), intent(in out) :: self
     PetscInt, intent(in) :: dof !! Degrees of freedom for discretization
     ! Locals:
-    PetscInt :: start_chart, end_chart, c, i, iminc, h
+    PetscInt :: start_chart, end_chart, c, i, iminc, h, l, ghost
     PetscInt :: dim, depth
     PetscInt :: num_minc_zone_cells, num_minc_cells
     PetscInt :: num_minc_zones, num_cells, num_new_points, max_num_levels
@@ -1348,6 +1348,7 @@ contains
     PetscInt, allocatable :: minc_zone(:), num_minc_level_cells(:)
     IS :: minc_IS
     PetscInt, pointer :: minc_cells(:)
+    DMLabel :: ghost_label
     PetscErrorCode :: ierr
 
     call DMPlexCreate(PETSC_COMM_WORLD, self%minc_dm, ierr); CHKERRQ(ierr)
@@ -1364,6 +1365,8 @@ contains
     num_cells = end(0) - start(0)
     num_minc_zones = size(self%minc)
 
+    call DMGetLabel(self%original_dm, "ghost", ghost_label, ierr)
+    CHKERRQ(ierr)
     max_num_levels = 0
     do iminc = 1, num_minc_zones
        associate(num_levels => self%minc(iminc)%num_levels)
@@ -1379,16 +1382,18 @@ contains
             num_minc_zone_cells, ierr); CHKERRQ(ierr)
        if (num_minc_zone_cells > 0) then
           associate(num_levels => self%minc(iminc)%num_levels)
-            do i = 0, num_levels
-               num_minc_level_cells(i) = num_minc_level_cells(i) + &
-                    num_minc_zone_cells
-            end do
             call DMGetStratumIS(self%original_dm, minc_label_name, &
                  iminc, minc_IS, ierr); CHKERRQ(ierr)
             call ISGetIndicesF90(minc_IS, minc_cells, ierr); CHKERRQ(ierr)
             do i = 1, num_minc_zone_cells
                c = minc_cells(i)
-               minc_zone(c) = iminc
+               call DMLabelGetValue(ghost_label, c, ghost, ierr)
+               if (ghost < 0) then
+                  minc_zone(c) = iminc
+                  do l = 0, num_levels
+                     num_minc_level_cells(l) = num_minc_level_cells(l) + 1
+                  end do
+               end if
             end do
             call ISRestoreIndicesF90(minc_IS, minc_cells, ierr); CHKERRQ(ierr)
             call ISDestroy(minc_IS, ierr); CHKERRQ(ierr)
