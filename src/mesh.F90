@@ -1275,6 +1275,7 @@ contains
     type(fson_value), pointer :: minc_json, minci_json
     PetscInt :: minc_type
     character(32) :: imincstr, mincstr
+    PetscMPIInt :: rank
     PetscErrorCode :: ierr
 
     err = 0
@@ -1308,9 +1309,14 @@ contains
           end do
        end select
 
-       call DMGetLabelSize(self%original_dm, minc_label_name, &
-            num_minc_cells, ierr); CHKERRQ(ierr)
-       self%has_minc = (num_minc_cells > 0)
+       call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+       if (rank == 0) then
+          call DMGetLabelSize(self%original_dm, minc_label_name, &
+               num_minc_cells, ierr); CHKERRQ(ierr)
+          self%has_minc = (num_minc_cells > 0)
+       end if
+       call MPI_bcast(self%has_minc, 1, MPI_LOGICAL, 0, &
+            PETSC_COMM_WORLD, ierr)
 
     else
        self%has_minc = PETSC_FALSE
