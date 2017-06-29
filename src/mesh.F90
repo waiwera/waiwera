@@ -1653,9 +1653,8 @@ contains
 !........................................................................
 
     subroutine transfer_labels(dm, minc_dm, max_height)
-      !! Transfers relevant labels from original DM to MINC DM
-      !! fracture points, applying appropriate shifts to the point
-      !! indices.
+      !! Transfers labels from original DM to MINC DM fracture points,
+      !! applying appropriate shifts to the point indices.
 
       use rock_module, only: rocktype_label_name
 
@@ -1667,54 +1666,44 @@ contains
       PetscInt :: num_ids, num_points
       PetscInt, parameter :: max_label_name_length = 80
       character(max_label_name_length) :: label_name
-      PetscInt, parameter :: num_labels = 7
-      character(max_label_name_length) :: label_names(0: num_labels - 1)
+      PetscInt :: num_labels
       IS :: id_IS, point_IS
       PetscInt, pointer :: ids(:), points(:)
-      PetscBool :: has_label
       PetscErrorCode :: ierr
 
-      ! call DMGetNumLabels(dm, num_labels, ierr); CHKERRQ(ierr)
-      label_names = [character(max_label_name_length):: &
-           "depth", "ghost", "Cell Sets", &
-           rocktype_label_name, minc_label_name, &
-           open_boundary_label_name, cell_order_label_name]
+      call DMGetNumLabels(dm, num_labels, ierr); CHKERRQ(ierr)
 
       do l = 0, num_labels - 1
-         ! call DMGetLabelName(dm, l, label_name, ierr); CHKERRQ(ierr) ! missing Fortran interface
-         label_name = label_names(l)
-         call DMHasLabel(dm, label_name, has_label, ierr); CHKERRQ(ierr)
-         if (has_label) then
-            call DMCreateLabel(minc_dm, label_name, ierr); CHKERRQ(ierr)
-            call DMGetLabelIdIS(dm, label_name, id_IS, ierr); CHKERRQ(ierr)
-            call ISGetLocalSize(id_IS, num_ids, ierr); CHKERRQ(ierr)
-            if (num_ids > 0) then
-               call ISGetIndicesF90(id_IS, ids, ierr); CHKERRQ(ierr)
-               do iid = 1, num_ids
-                  label_value = ids(iid)
-                  call DMGetStratumIS(dm, label_name, ids(iid), point_IS, &
-                       ierr); CHKERRQ(ierr)
-                  call ISGetLocalSize(point_IS, num_points, ierr)
+         call DMGetLabelName(dm, l, label_name, ierr); CHKERRQ(ierr)
+         call DMCreateLabel(minc_dm, label_name, ierr); CHKERRQ(ierr)
+         call DMGetLabelIdIS(dm, label_name, id_IS, ierr); CHKERRQ(ierr)
+         call ISGetLocalSize(id_IS, num_ids, ierr); CHKERRQ(ierr)
+         if (num_ids > 0) then
+            call ISGetIndicesF90(id_IS, ids, ierr); CHKERRQ(ierr)
+            do iid = 1, num_ids
+               label_value = ids(iid)
+               call DMGetStratumIS(dm, label_name, ids(iid), point_IS, &
+                    ierr); CHKERRQ(ierr)
+               call ISGetLocalSize(point_IS, num_points, ierr)
+               CHKERRQ(ierr)
+               if (num_points > 0) then
+                  call ISGetIndicesF90(point_IS, points, ierr)
                   CHKERRQ(ierr)
-                  if (num_points > 0) then
-                     call ISGetIndicesF90(point_IS, points, ierr)
+                  do ip = 1, num_points
+                     p = points(ip)
+                     h = dm_point_height(dm, p)
+                     call DMSetLabelValue(minc_dm, label_name, &
+                          p + frac_shift(h), label_value, ierr)
                      CHKERRQ(ierr)
-                     do ip = 1, num_points
-                        p = points(ip)
-                        h = dm_point_height(dm, p)
-                        call DMSetLabelValue(minc_dm, label_name, &
-                             p + frac_shift(h), label_value, ierr)
-                        CHKERRQ(ierr)
-                     end do
-                     call ISRestoreIndicesF90(point_IS, points, ierr)
-                     CHKERRQ(ierr)
-                  end if
-                  call ISDestroy(point_IS, ierr); CHKERRQ(ierr)
-               end do
-               call ISRestoreIndicesF90(id_IS, ids, ierr); CHKERRQ(ierr)
-            end if
-            call ISDestroy(id_IS, ierr); CHKERRQ(ierr)
+                  end do
+                  call ISRestoreIndicesF90(point_IS, points, ierr)
+                  CHKERRQ(ierr)
+               end if
+               call ISDestroy(point_IS, ierr); CHKERRQ(ierr)
+            end do
+            call ISRestoreIndicesF90(id_IS, ids, ierr); CHKERRQ(ierr)
          end if
+         call ISDestroy(id_IS, ierr); CHKERRQ(ierr)
       end do
 
     end subroutine transfer_labels
