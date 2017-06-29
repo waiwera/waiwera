@@ -1342,16 +1342,13 @@ contains
     class(mesh_type), intent(in out) :: self
     PetscInt, intent(in) :: dof !! Degrees of freedom for discretization
     ! Locals:
-    PetscInt :: start_chart, end_chart, c, i, iminc, h, l, ghost
+    PetscInt :: start_chart, end_chart, iminc, h
     PetscInt :: dim, depth
     PetscInt :: num_minc_zone_cells, num_minc_cells
     PetscInt :: num_minc_zones, num_cells, num_new_points, max_num_levels
-    PetscInt, allocatable :: start(:), end(:)
+    PetscInt, allocatable :: stratum_start(:), stratum_end(:)
     PetscInt, allocatable :: frac_shift(:), minc_shift(:,:)
     PetscInt, allocatable :: minc_zone(:), num_minc_level_cells(:)
-    IS :: minc_IS
-    PetscInt, pointer :: minc_cells(:)
-    DMLabel :: ghost_label
     PetscErrorCode :: ierr
 
     call DMPlexCreate(PETSC_COMM_WORLD, self%minc_dm, ierr); CHKERRQ(ierr)
@@ -1359,53 +1356,25 @@ contains
     call DMGetDimension(self%original_dm, dim, ierr); CHKERRQ(ierr)
     call DMSetDimension(self%minc_dm, dim, ierr); CHKERRQ(ierr)
     call DMPlexGetDepth(self%original_dm, depth, ierr); CHKERRQ(ierr)
-    allocate(start(0: depth), end(0: depth))
+    call DMPlexGetChart(self%original_dm, start_chart, end_chart, ierr)
+    CHKERRQ(ierr)
+    allocate(stratum_start(0: depth), stratum_end(0: depth))
     do h = 0, depth
-       call DMPlexGetHeightStratum(self%original_dm, h, start(h), end(h), ierr)
-       CHKERRQ(ierr)
+       call DMPlexGetHeightStratum(self%original_dm, h, stratum_start(h), &
+            stratum_end(h), ierr); CHKERRQ(ierr)
     end do
 
-    num_cells = end(0) - start(0)
+    num_cells = stratum_end(0) - stratum_start(0)
     num_minc_zones = size(self%minc)
 
-    call DMGetLabel(self%original_dm, "ghost", ghost_label, ierr)
-    CHKERRQ(ierr)
     max_num_levels = 0
     do iminc = 1, num_minc_zones
        associate(num_levels => self%minc(iminc)%num_levels)
          max_num_levels = max(num_levels, max_num_levels)
        end associate
     end do
-    allocate(minc_zone(0: num_cells - 1), &
-         num_minc_level_cells(0: max_num_levels))
-    minc_zone = -1
-    num_minc_level_cells = 0
-    do iminc = 1, num_minc_zones
-       call DMGetStratumSize(self%original_dm, minc_label_name, iminc, &
-            num_minc_zone_cells, ierr); CHKERRQ(ierr)
-       if (num_minc_zone_cells > 0) then
-          associate(num_levels => self%minc(iminc)%num_levels)
-            call DMGetStratumIS(self%original_dm, minc_label_name, &
-                 iminc, minc_IS, ierr); CHKERRQ(ierr)
-            call ISGetIndicesF90(minc_IS, minc_cells, ierr); CHKERRQ(ierr)
-            do i = 1, num_minc_zone_cells
-               c = minc_cells(i)
-               call DMLabelGetValue(ghost_label, c, ghost, ierr)
-               if (ghost < 0) then
-                  minc_zone(c) = iminc
-                  do l = 0, num_levels
-                     num_minc_level_cells(l) = num_minc_level_cells(l) + 1
-                  end do
-               end if
-            end do
-            call ISRestoreIndicesF90(minc_IS, minc_cells, ierr); CHKERRQ(ierr)
-            call ISDestroy(minc_IS, ierr); CHKERRQ(ierr)
-          end associate
-       end if
-    end do
 
-    call DMPlexGetChart(self%original_dm, start_chart, end_chart, ierr)
-    CHKERRQ(ierr)
+    call setup_minc_zone_and_cells()
     num_minc_cells = sum(num_minc_level_cells(1:))
     num_new_points = num_minc_cells * (depth + 1)
     call DMPlexSetChart(self%minc_dm, start_chart, &
@@ -1427,10 +1396,58 @@ contains
 
     call self%assign_dm(self%minc_dm)
 
-    deallocate(start, end, frac_shift, minc_shift, minc_zone, &
-         num_minc_level_cells)
+    deallocate(stratum_start, stratum_end, frac_shift, &
+         minc_shift, minc_zone, num_minc_level_cells)
 
   contains
+
+!........................................................................
+
+    subroutine setup_minc_zone_and_cells
+      !! Set up minc_zone and num_minc_level_cells arrays.
+
+      ! Locals:
+      PetscInt :: iminc, i, c, l, ghost
+      IS :: minc_IS
+      PetscInt, pointer :: minc_cells(:)
+      DMLabel :: ghost_label
+      PetscErrorCode :: ierr
+
+      allocate(minc_zone(0: num_cells - 1), &
+           num_minc_level_cells(0: max_num_levels))
+      minc_zone = -1
+      num_minc_level_cells = 0
+
+      call DMGetLabel(self%original_dm, "ghost", ghost_label, ierr)
+      CHKERRQ(ierr)
+
+      do iminc = 1, num_minc_zones
+         call DMGetStratumSize(self%original_dm, minc_label_name, iminc, &
+              num_minc_zone_cells, ierr); CHKERRQ(ierr)
+         if (num_minc_zone_cells > 0) then
+            associate(num_levels => self%minc(iminc)%num_levels)
+              call DMGetStratumIS(self%original_dm, minc_label_name, &
+                   iminc, minc_IS, ierr); CHKERRQ(ierr)
+              call ISGetIndicesF90(minc_IS, minc_cells, ierr)
+              CHKERRQ(ierr)
+              do i = 1, num_minc_zone_cells
+                 c = minc_cells(i)
+                 call DMLabelGetValue(ghost_label, c, ghost, ierr)
+                 if (ghost < 0) then
+                    minc_zone(c) = iminc
+                    do l = 0, num_levels
+                       num_minc_level_cells(l) = num_minc_level_cells(l) + 1
+                    end do
+                 end if
+              end do
+              call ISRestoreIndicesF90(minc_IS, minc_cells, ierr)
+              CHKERRQ(ierr)
+              call ISDestroy(minc_IS, ierr); CHKERRQ(ierr)
+            end associate
+         end if
+      end do
+
+  end subroutine setup_minc_zone_and_cells
 
 !........................................................................
 
@@ -1464,7 +1481,8 @@ contains
       frac_shift = ishift * minc_offset(max_num_levels)
       do h = 0, depth
          do m = 1, max_num_levels
-            minc_shift(h, m) = end(h) + frac_shift(h) + minc_offset(m - 1)
+            minc_shift(h, m) = stratum_end(h) + frac_shift(h) + &
+                 minc_offset(m - 1)
          end do
       end do
 
@@ -1480,7 +1498,7 @@ contains
       PetscErrorCode :: ierr
 
       ! Cells:
-      do p = start(0), end(0) - 1
+      do p = stratum_start(0), stratum_end(0) - 1
          call DMPlexGetConeSize(self%original_dm, p, cone_size, ierr)
          CHKERRQ(ierr)
          call DMPlexSetConeSize(self%minc_dm, p, cone_size + 1, ierr)
@@ -1505,13 +1523,13 @@ contains
       ! Higher level points:
       do h = 1, depth
          call dm_copy_cone_sizes(self%original_dm, self%minc_dm, &
-              start(h), end(h) - 1, frac_shift(h))
+              stratum_start(h), stratum_end(h) - 1, frac_shift(h))
          if (h < depth) then
             cone_size = 1
          else
             cone_size = 0
          end if
-         do p = start(0), end(0) - 1
+         do p = stratum_start(0), stratum_end(0) - 1
             iminc = minc_zone(p)
             if (iminc > 0) then
                associate(num_levels => self%minc(iminc)%num_levels)
@@ -1541,7 +1559,7 @@ contains
       PetscErrorCode :: ierr
 
       ! Cells:
-      do p = start(0), end(0) - 1
+      do p = stratum_start(0), stratum_end(0) - 1
          call DMPlexGetCone(self%original_dm, p, points, ierr)
          CHKERRQ(ierr)
          iminc = minc_zone(p)
@@ -1579,9 +1597,10 @@ contains
          else
             cone_shift = 0
          end if
-         call dm_copy_cones(self%original_dm, self%minc_dm, start(h), &
-              end(h) - 1, frac_shift(h), cone_shift)
-         do p = start(0), end(0) - 1
+         call dm_copy_cones(self%original_dm, self%minc_dm, &
+              stratum_start(h), stratum_end(h) - 1, &
+              frac_shift(h), cone_shift)
+         do p = stratum_start(0), stratum_end(0) - 1
             iminc = minc_zone(p)
             if (iminc > 0) then
                associate(num_levels => self%minc(iminc)%num_levels)
@@ -1612,7 +1631,7 @@ contains
       PetscInt :: minc_p
       PetscErrorCode :: ierr
 
-      do p = start(0), end(0) - 1
+      do p = stratum_start(0), stratum_end(0) - 1
          iminc = minc_zone(p)
          if (iminc > 0) then
             associate(num_levels => self%minc(iminc)%num_levels)
@@ -1712,7 +1731,7 @@ contains
 
       height = -1
       do h = 0, depth
-         if ((start(h) <= p) .and. (p < end(h))) then
+         if ((stratum_start(h) <= p) .and. (p < stratum_end(h))) then
             height = h
             exit
          end if
