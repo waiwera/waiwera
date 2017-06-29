@@ -628,6 +628,9 @@ contains
     allocate(self%ghost_cell(self%start_cell: self%end_cell - 1))
     allocate(self%ghost_face(self%start_face: self%end_face - 1))
 
+    self%ghost_cell = -1
+    self%ghost_face = -1
+
     call DMGetLabel(self%dm, "ghost", ghost_label, ierr)
     CHKERRQ(ierr)
 
