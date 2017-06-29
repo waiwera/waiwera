@@ -1419,8 +1419,8 @@ contains
     call set_cones()
 
     call DMPlexSymmetrize(self%minc_dm, ierr); CHKERRQ(ierr)
-    call DMPlexStratify(self%minc_dm, ierr); CHKERRQ(ierr)
     call transfer_labels(self%dm, self%minc_dm, 1)
+    call set_minc_depth_labels(self%minc_dm)
     call dm_set_fv_adjacency(self%minc_dm)
     call dm_setup_fv_discretization(self%minc_dm, dof)
     call set_dm_default_data_layout(self%minc_dm, dof)
@@ -1603,6 +1603,36 @@ contains
 
 !........................................................................
 
+    subroutine set_minc_depth_labels(minc_dm)
+      !! Set DAG depth labels for MINC points added to the DM.
+
+      DM, intent(in out) :: minc_dm
+      ! Locals:
+      PetscInt :: h, p, iminc, m
+      PetscInt :: minc_p
+      PetscErrorCode :: ierr
+
+      do p = start(0), end(0) - 1
+         iminc = minc_zone(p)
+         if (iminc > 0) then
+            associate(num_levels => self%minc(iminc)%num_levels)
+              do m = 1, num_levels
+                 do h = 0, depth
+                    associate(p_depth => depth - h)
+                      minc_p = p + minc_shift(h, m)
+                      call DMSetLabelValue(minc_dm, "depth", &
+                           minc_p, p_depth, ierr); CHKERRQ(ierr)
+                    end associate
+                 end do
+              end do
+            end associate
+         end if
+      end do
+
+    end subroutine set_minc_depth_labels
+
+!........................................................................
+
     subroutine transfer_labels(dm, minc_dm, max_height)
       !! Transfers relevant labels from original DM to MINC DM
       !! fracture points, applying appropriate shifts to the point
@@ -1618,7 +1648,7 @@ contains
       PetscInt :: num_ids, num_points
       PetscInt, parameter :: max_label_name_length = 80
       character(max_label_name_length) :: label_name
-      PetscInt, parameter :: num_labels = 6
+      PetscInt, parameter :: num_labels = 7
       character(max_label_name_length) :: label_names(0: num_labels - 1)
       IS :: id_IS, point_IS
       PetscInt, pointer :: ids(:), points(:)
@@ -1627,7 +1657,7 @@ contains
 
       ! call DMGetNumLabels(dm, num_labels, ierr); CHKERRQ(ierr)
       label_names = [character(max_label_name_length):: &
-           "ghost", "Cell Sets", &
+           "depth", "ghost", "Cell Sets", &
            rocktype_label_name, minc_label_name, &
            open_boundary_label_name, cell_order_label_name]
 
@@ -1635,7 +1665,7 @@ contains
          ! call DMGetLabelName(dm, l, label_name, ierr); CHKERRQ(ierr) ! missing Fortran interface
          label_name = label_names(l)
          call DMHasLabel(dm, label_name, has_label, ierr); CHKERRQ(ierr)
-         if (has_label .and. (label_name /= 'depth')) then
+         if (has_label) then
             call DMCreateLabel(minc_dm, label_name, ierr); CHKERRQ(ierr)
             call DMGetLabelIdIS(dm, label_name, id_IS, ierr); CHKERRQ(ierr)
             call ISGetLocalSize(id_IS, num_ids, ierr); CHKERRQ(ierr)
