@@ -1642,6 +1642,7 @@ contains
             if (num_ids > 0) then
                call ISGetIndicesF90(id_IS, ids, ierr); CHKERRQ(ierr)
                do iid = 1, num_ids
+                  label_value = ids(iid)
                   call DMGetStratumIS(dm, label_name, ids(iid), point_IS, &
                        ierr); CHKERRQ(ierr)
                   call ISGetLocalSize(point_IS, num_points, ierr)
