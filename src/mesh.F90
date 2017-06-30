@@ -1461,7 +1461,7 @@ contains
       PetscInt, intent(out) :: minc_shift(0: depth, 1: max_num_levels)
       ! Locals:
       PetscInt :: ishift(0: depth)
-      PetscInt :: i, s, h, m
+      PetscInt :: i, h, m
       PetscInt :: minc_offset(0: max_num_levels)
 
       !! Set up ishift array, to take account of the fact that DMPlex
@@ -1469,11 +1469,7 @@ contains
       !! i.e. they are not in depth order.
       ishift(0) = 0
       ishift(depth) = 1
-      s = ishift(depth) + 1
-      do i = 1, depth - 1
-         ishift(i) = s
-         s = s + 1
-      end do
+      ishift(1: depth - 1) = [(i + 1, i = 1, depth - 1)]
 
       minc_offset = 0
       minc_offset(1:) = array_cumulative_sum(num_minc_level_cells(1:))
