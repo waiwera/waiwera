@@ -155,4 +155,6 @@ digraph waiwera{
         waiwera -> fson_mpi_module
         waiwera -> profiling_module
         waiwera -> timestepper_module
+        zone_module -> fson_mpi_module
+        zone_module -> logfile_module
 }
