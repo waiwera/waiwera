@@ -18,9 +18,9 @@
 module zone_module
   !! Module for a zone in the mesh and identifying which cells are inside it.
 
-#include <petsc/finclude/petscsys.h>
+#include <petsc/finclude/petsc.h>
 
-  use petscsys
+  use petsc
   use kinds_module
   use logfile_module
   use fson_mpi_module
@@ -31,25 +31,56 @@ module zone_module
 
   PetscInt, parameter, public :: max_zone_name_length = 80
   PetscInt, parameter, public :: ZONE_TYPE_CELL_ARRAY = 1
+  character(len = 8), public :: zone_label_name = "zone"
 
-  type, public :: zone_type
+  type, public, abstract :: zone_type
      !! 3-D zone in the mesh, used to identify cells.
      private
-     character(max_zone_name_length), public :: name
-     PetscInt, allocatable, public :: cells(:)
+     character(max_zone_name_length), public :: name !! Zone name
+     PetscInt :: index !! Zone index
    contains
-     procedure, public :: init => zone_init
-     procedure, public :: find_cells => zone_find_cells
-     procedure, public :: destroy => zone_destroy
+     procedure(zone_init_procedure), public, deferred :: init
+     procedure(zone_find_cells_procedure), public, deferred :: find_cells
+     procedure(zone_destroy_procedure), public, deferred :: destroy
   end type zone_type
 
   type, public, extends(zone_type) :: zone_cell_array_type
-     !! Zone defined by an array of cells. (Note: it is not necessary
-     !! to override the find_cells() method, because the cells are
-     !! explicitly specified in the input.)
+     !! Zone defined by an array of global cell indices.
+     PetscInt, allocatable, public :: cells(:)
    contains
      procedure, public :: init => zone_cell_array_init
+     procedure, public :: destroy => zone_cell_array_destroy
+     procedure, public :: find_cells => zone_cell_array_find_cells
   end type zone_cell_array_type
+
+  abstract interface
+
+     subroutine zone_init_procedure(self, name, index, json)
+       !! Initialises a zone.
+       import :: zone_type, fson_value
+       class(zone_type), intent(in out) :: self
+       character(*), intent(in) :: name
+       PetscInt, intent(in) :: index
+       type(fson_value), pointer, intent(in) :: json
+     end subroutine zone_init_procedure
+
+     subroutine zone_destroy_procedure(self)
+       !! Destroys a zone.
+       import :: zone_type
+       class(zone_type), intent(in out) :: self
+     end subroutine zone_destroy_procedure
+
+     subroutine zone_find_cells_procedure(self, dm, cell_geometry, err)
+       !! Finds cells in the zone and sets zone label for those cells
+       !! in DM.
+       import :: zone_type, tDM, tVec
+       class(zone_type), intent(in out) :: self
+       DM, intent(in out) :: dm
+       Vec, intent(in) :: cell_geometry
+       PetscErrorCode, intent(out) :: err
+     end subroutine zone_find_cells_procedure
+
+  end interface
 
   public :: get_zone_type
 
@@ -60,120 +91,139 @@ contains
   PetscInt function get_zone_type(json) result(zone_type)
     !! Determines zone type from JSON input.
 
+    use fson_value_m, only: TYPE_ARRAY, TYPE_OBJECT
+
     type(fson_value), pointer, intent(in) :: json
     ! Locals:
     PetscInt, parameter :: max_type_str_len = 16
     character(max_type_str_len) :: type_str
+    PetscInt :: json_type
 
     zone_type = -1
 
-    if (fson_has_mpi(json, "type")) then
+    json_type = fson_type_mpi(json, ".")
 
-       call fson_get_mpi(json, "type", val = type_str)
+    select case (json_type)
 
-       select case (type_str)
-       case ('array')
-          zone_type = ZONE_TYPE_CELL_ARRAY
-       end select
+    case (TYPE_ARRAY)
 
-    else ! determine type from object keys:
+       zone_type = ZONE_TYPE_CELL_ARRAY
 
-       if (fson_has_mpi(json, "cells")) then
+    case (TYPE_OBJECT)
 
-          zone_type = ZONE_TYPE_CELL_ARRAY
+       if (fson_has_mpi(json, "type")) then
+
+          call fson_get_mpi(json, "type", val = type_str)
+
+          select case (type_str)
+          case ('array')
+             zone_type = ZONE_TYPE_CELL_ARRAY
+          end select
+
+       else ! determine type from object keys:
+
+          if (fson_has_mpi(json, "cells")) then
+
+             zone_type = ZONE_TYPE_CELL_ARRAY
+
+          end if
 
        end if
 
-    end if
+    end select
 
   end function get_zone_type
-
-!------------------------------------------------------------------------
-
-  subroutine zone_init(self, json, logfile, err)
-    !! Initialise zone. This routine just gets the zone name - to be
-    !! overridden by derived types.
-
-    class(zone_type), intent(in out) :: self
-    type(fson_value), pointer, intent(in) :: json
-    type(logfile_type), intent(in out), optional :: logfile
-    PetscErrorCode, intent(out) :: err
-
-    if (fson_has_mpi(json, "name")) then
-       call fson_get_mpi(json, "name", val = self%name)
-       err = 0
-    else
-       if (present(logfile)) then
-          call logfile%write(LOG_LEVEL_ERR, 'zone', 'init', &
-               str_key = 'stop', &
-               str_value = 'unnamed zone found.')
-       end if
-       err = 1
-    end if
-
-  end subroutine zone_init
-
-!------------------------------------------------------------------------
-
-  subroutine zone_destroy(self)
-    !! Destroys a zone.
-
-    class(zone_type), intent(in out) :: self
-
-    if (allocated(self%cells)) then
-       deallocate(self%cells)
-    end if
-
-  end subroutine zone_destroy
-
-!------------------------------------------------------------------------
-
-  subroutine zone_find_cells(self, err)
-    !! Find cells in a zone (dummy routine to be overridden by derived
-    !! types).
-
-    class(zone_type), intent(in out) :: self
-    PetscErrorCode, intent(out) :: err
-
-    err = 0
-    
-  end subroutine zone_find_cells
 
 !------------------------------------------------------------------------
 ! zone_cell_array_type
 !------------------------------------------------------------------------
 
-  subroutine zone_cell_array_init(self, json, logfile, err)
+  subroutine zone_cell_array_init(self, name, index, json)
     !! Initialise cell array zone.
 
     use fson_value_m, only: TYPE_ARRAY, TYPE_OBJECT
 
     class(zone_cell_array_type), intent(in out) :: self
+    character(*), intent(in) :: name
+    PetscInt, intent(in) :: index
     type(fson_value), pointer, intent(in) :: json
-    type(logfile_type), intent(in out), optional :: logfile
-    PetscErrorCode, intent(out) :: err
     ! Locals:
     PetscInt :: json_type
     PetscInt, allocatable :: default_cells(:)
 
-    call self%zone_type%init(json, logfile, err)
+    self%name = name
+    self%index = index
 
-    if (err == 0) then
+    json_type = fson_type_mpi(json, ".")
 
-       json_type = fson_type_mpi(json, ".")
-
-       select case (json_type)
-       case (TYPE_ARRAY)
-          call fson_get_mpi(json, ".", val = self%cells)
-       case (TYPE_OBJECT)
-          default_cells = [PetscInt::]
-          call fson_get_mpi(json, "cells", default_cells, &
-               self%cells, logfile)
-       end select
-
-    end if
+    select case (json_type)
+    case (TYPE_ARRAY)
+       call fson_get_mpi(json, ".", val = self%cells)
+    case (TYPE_OBJECT)
+       default_cells = [PetscInt::]
+       call fson_get_mpi(json, "cells", default_cells, &
+            self%cells)
+    end select
 
   end subroutine zone_cell_array_init
+
+!------------------------------------------------------------------------
+
+  subroutine zone_cell_array_destroy(self)
+    !! Destroys a cell array zone.
+
+    class(zone_cell_array_type), intent(in out) :: self
+
+    if (allocated(self%cells)) then
+       deallocate(self%cells)
+    end if
+
+  end subroutine zone_cell_array_destroy
+
+!------------------------------------------------------------------------
+
+  subroutine zone_cell_array_find_cells(self, dm, cell_geometry, err)
+    !! Find cells in a zone from array of global node indices.
+
+    use mesh_module, only: cell_order_label_name
+
+    class(zone_cell_array_type), intent(in out) :: self
+    DM, intent(in out) :: dm
+    Vec, intent(in) :: cell_geometry
+    PetscErrorCode, intent(out) :: err
+    ! Locals:
+    PetscInt :: num_matching
+    IS :: cell_IS
+    PetscInt, pointer :: cells(:)
+    PetscInt :: ghost, c, ic, global_cell_index
+    DMLabel :: ghost_label, zone_label
+    PetscErrorCode :: ierr
+
+    err = 0
+
+    call DMGetLabel(dm, zone_label_name, zone_label, ierr); CHKERRQ(ierr)
+
+    do ic = 1, size(self%cells)
+       global_cell_index = self%cells(ic)
+       call DMGetStratumSize(dm, cell_order_label_name, &
+            global_cell_index, num_matching, ierr); CHKERRQ(ierr)
+       if (num_matching > 0) then
+          call DMGetStratumIS(dm, cell_order_label_name, &
+               global_cell_index, cell_IS, ierr); CHKERRQ(ierr)
+          call ISGetIndicesF90(cell_IS, cells, ierr); CHKERRQ(ierr)
+          do c = 1, num_matching
+             call DMLabelGetValue(ghost_label, cells(c), ghost, ierr)
+             if (ghost < 0) then
+                call DMLabelSetValue(zone_label, cells(c), self%index, &
+                     ierr); CHKERRQ(ierr)
+             end if
+          end do
+          call ISRestoreIndicesF90(cell_IS, cells, ierr); CHKERRQ(ierr)
+          call ISDestroy(cell_IS, ierr); CHKERRQ(ierr)
+       end if
+    end do
+
+  end subroutine zone_cell_array_find_cells
 
 !------------------------------------------------------------------------  
 
