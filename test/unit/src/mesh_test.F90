@@ -14,7 +14,8 @@ module mesh_test
   private
 
   public :: test_mesh_init, test_2d_cartesian_geometry, &
-       test_2d_radial_geometry, test_mesh_face_permeability_direction
+       test_2d_radial_geometry, test_mesh_face_permeability_direction, &
+       test_setup_minc_dm
 
   PetscReal, parameter :: tol = 1.e-6_dp
 
@@ -372,6 +373,77 @@ contains
     call mesh%destroy()
 
   end subroutine test_mesh_face_permeability_direction
+
+!------------------------------------------------------------------------
+
+  subroutine test_setup_minc_dm
+    ! Test setup_minc_dm()
+
+    use fson_mpi_module
+    use rock_module, only: setup_rocktype_labels
+
+    type(fson_value), pointer :: json
+    type(mesh_type) :: mesh
+    character(len = 11), allocatable :: primary(:)
+    PetscInt :: num_cells, num_minc_zones
+    PetscMPIInt :: rank
+    PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
+    PetscErrorCode :: ierr, err
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    primary = ["Pressure   ", "Temperature"]
+
+    json => fson_parse_mpi(str = &
+         '{"mesh": {"filename": "data/mesh/7x7grid.exo",' // &
+         '"minc": {"volume_fractions": [0.1, 0.9], ' // &
+         '"cells": [' // &
+         '0,1,2,3,4,5,6,7,8,9,' // &
+         '10,11,12,13,14,15,16,17,18,19,' // &
+         '20,21,22,23,24,25,26,27,28,29,' // &
+         '30,31,32,33,34,35,36,37,38,39,' // &
+         '40,41,42,43,44,45,46,47,48]' // &
+         '}}, "rock": {"types": [' // &
+         '{"cells": [' // &
+         '0,1,2,3,4,5,6,7,8,9,' // &
+         '10,11,12,13,14,15,16,17,18,19,' // &
+         '20,21,22,23,24,25,26,27,28,29,' // &
+         '30,31,32,33,34,35,36,37,38,39,' // &
+         '40,41,42,43,44,45,46,47,48]' // &
+         '}]}}')
+    call mesh%init(json)
+    call setup_rocktype_labels(json, mesh%original_dm)
+    call mesh%setup_minc(json, err = err)
+    call assert_equals(0, err, "minc setup error")
+    call DMCreateLabel(mesh%dm, open_boundary_label_name, ierr); CHKERRQ(ierr)
+    call mesh%configure(primary, gravity)
+    call fson_destroy_mpi(json)
+
+    num_minc_zones = size(mesh%minc)
+    call assert_equals(1, num_minc_zones, "num minc zones")
+
+    num_cells = total_interior_cell_count(mesh)
+    if (rank == 0) then
+       call assert_equals(49 * 2, num_cells, "num cells")
+    end if
+
+    call mesh%destroy()
+
+  contains
+
+    PetscInt function total_interior_cell_count(mesh) result(n)
+      type(mesh_type), intent(in) :: mesh
+      PetscInt :: c, n_local
+      n_local = 0
+      do c = mesh%start_cell, mesh%end_cell - 1
+         if (mesh%ghost_cell(c) < 0) then
+            n_local = n_local + 1
+         end if
+      end do
+      call MPI_reduce(n_local, n, 1, MPI_INTEGER, MPI_SUM, &
+         0, PETSC_COMM_WORLD, ierr)
+    end function total_interior_cell_count
+
+  end subroutine test_setup_minc_dm
 
 !------------------------------------------------------------------------
 
