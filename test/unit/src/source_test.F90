@@ -56,7 +56,7 @@ contains
     call mesh%init(json)
     call fluid%init(eos%num_components, eos%num_phases)
     call DMCreateLabel(mesh%dm, open_boundary_label_name, ierr); CHKERRQ(ierr)
-    call mesh%configure(eos%primary_variable_names, gravity)
+    call mesh%configure(eos%num_primary_variables, gravity)
     call setup_fluid_vector(mesh%dm, max_component_name_length, &
          eos%component_names, max_phase_name_length, eos%phase_names, &
          fluid_vector, fluid_range_start)

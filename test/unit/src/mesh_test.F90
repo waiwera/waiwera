@@ -33,10 +33,10 @@ contains
 
     type(fson_value), pointer :: json
     type(mesh_type) :: mesh
-    character(len = 11), allocatable :: primary(:)
     Vec :: x
     type(face_type) :: face
-    PetscInt :: global_solution_dof, num_primary
+    PetscInt :: global_solution_dof
+    PetscInt, parameter :: dof = 2
     PetscInt :: dim
     DM :: dm_face
     PetscSection :: section
@@ -58,14 +58,12 @@ contains
     
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
 
-    primary = ["Pressure   ", "Temperature"]
-
     json => fson_parse_mpi(str = '{"mesh": "data/mesh/block3.exo"}')
     call mesh%init(json)
     call fson_destroy_mpi(json)
 
     call DMCreateLabel(mesh%dm, open_boundary_label_name, ierr); CHKERRQ(ierr)
-    call mesh%configure(primary, gravity)
+    call mesh%configure(dof, gravity)
 
     call DMGetDimension(mesh%dm, dim, ierr); CHKERRQ(ierr)
     if (rank == 0) then
@@ -75,8 +73,7 @@ contains
     call DMGetGlobalVector(mesh%dm, x, ierr); CHKERRQ(ierr)
     call VecGetSize(x, global_solution_dof, ierr); CHKERRQ(ierr)
     if (rank == 0) then
-       num_primary = size(primary)
-       call assert_equals(num_cells * num_primary, global_solution_dof, &
+       call assert_equals(num_cells * dof, global_solution_dof, &
             "global solution dof")
     end if
     call DMRestoreGlobalVector(mesh%dm, x, ierr); CHKERRQ(ierr)
@@ -124,7 +121,6 @@ contains
     call VecRestoreArrayF90(mesh%face_geom, fg, ierr); CHKERRQ(ierr)
 
     call mesh%destroy()
-    deallocate(primary)
 
   end subroutine test_mesh_init
 
@@ -140,7 +136,7 @@ contains
 
     type(fson_value), pointer :: json
     type(mesh_type) :: mesh
-    character(len = 11), allocatable :: primary(:)
+    PetscInt, parameter :: dof = 2
     PetscReal, pointer, contiguous :: cell_geom_array(:), face_geom_array(:)
     PetscSection :: cell_geom_section, face_geom_section
     PetscInt :: c, offset, f
@@ -155,14 +151,13 @@ contains
     PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
-    primary = ["Pressure   ", "Temperature"]
 
     json => fson_parse_mpi(str = '{"mesh": {' // &
          '"filename": "data/mesh/2D.msh",' // &
          '"thickness": 100.}}')
     call mesh%init(json)
     call fson_destroy_mpi(json)
-    call mesh%configure(primary, gravity)
+    call mesh%configure(dof, gravity)
 
     call local_vec_section(mesh%cell_geom, cell_geom_section)
     call VecGetArrayReadF90(mesh%cell_geom, cell_geom_array, ierr)
@@ -226,7 +221,7 @@ contains
 
     type(fson_value), pointer :: json
     type(mesh_type) :: mesh
-    character(len = 11), allocatable :: primary(:)
+    PetscInt, parameter :: dof = 2
     PetscReal, pointer, contiguous :: cell_geom_array(:), face_geom_array(:)
     PetscSection :: cell_geom_section, face_geom_section
     PetscInt :: c, offset, f
@@ -242,14 +237,13 @@ contains
     PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
-    primary = ["Pressure   ", "Temperature"]
 
     json => fson_parse_mpi(str = '{"mesh": {' // &
          '"filename": "data/mesh/2D.msh",' // &
          '"radial": true}}')
     call mesh%init(json)
     call fson_destroy_mpi(json)
-    call mesh%configure(primary, gravity)
+    call mesh%configure(dof, gravity)
 
     call local_vec_section(mesh%cell_geom, cell_geom_section)
     call VecGetArrayReadF90(mesh%cell_geom, cell_geom_array, ierr)
@@ -323,7 +317,7 @@ contains
 
     type(fson_value), pointer :: json
     type(mesh_type) :: mesh
-    character(len = 11), allocatable :: primary(:)
+    PetscInt, parameter :: dof = 2
     PetscInt :: f, offset
     PetscErrorCode :: ierr
     PetscSection :: face_geom_section
@@ -343,8 +337,7 @@ contains
     call mesh%init(json)
 
     call DMCreateLabel(mesh%dm, open_boundary_label_name, ierr); CHKERRQ(ierr)
-    primary = ["Pressure   ", "Temperature"]
-    call mesh%configure(primary, gravity)
+    call mesh%configure(dof, gravity)
     call mesh%override_face_properties(json)
     call fson_destroy_mpi(json)
 
