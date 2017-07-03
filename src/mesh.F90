@@ -617,7 +617,7 @@ contains
     ! Locals:
     PetscInt :: i
     PetscErrorCode :: ierr
-    
+
     call VecDestroy(self%face_geom, ierr); CHKERRQ(ierr)
     call DMDestroy(self%dm, ierr); CHKERRQ(ierr)
 

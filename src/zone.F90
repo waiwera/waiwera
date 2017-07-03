@@ -216,12 +216,12 @@ contains
     IS :: cell_IS
     PetscInt, pointer :: cells(:)
     PetscInt :: ghost, c, ic, global_cell_index
-    DMLabel :: ghost_label, zone_label
+    DMLabel :: ghost_label
     PetscErrorCode :: ierr
 
     err = 0
 
-    call DMGetLabel(dm, zone_label_name, zone_label, ierr); CHKERRQ(ierr)
+    call DMGetLabel(dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
 
     do ic = 1, size(self%cells)
        global_cell_index = self%cells(ic)
@@ -234,8 +234,8 @@ contains
           do c = 1, num_matching
              call DMLabelGetValue(ghost_label, cells(c), ghost, ierr)
              if (ghost < 0) then
-                call DMLabelSetValue(zone_label, cells(c), self%index, &
-                     ierr); CHKERRQ(ierr)
+                call DMSetLabelValue(dm, zone_label_name, cells(c), &
+                     self%index, ierr); CHKERRQ(ierr)
              end if
           end do
           call ISRestoreIndicesF90(cell_IS, cells, ierr); CHKERRQ(ierr)

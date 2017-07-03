@@ -61,4 +61,4 @@ $(TEST)/$(BUILD)/source_control$(TESTSUF)$(OBJ):$(BUILD)/IAPWS$(OBJ) $(BUILD)/dm
 $(TEST)/$(BUILD)/source_setup$(TESTSUF)$(OBJ):$(BUILD)/IAPWS$(OBJ) $(BUILD)/eos$(OBJ) $(TEST)/$(BUILD)/eos$(TESTSUF)$(OBJ) $(BUILD)/fson_mpi$(OBJ) $(BUILD)/kinds$(OBJ) $(BUILD)/list$(OBJ) $(BUILD)/mesh$(OBJ) $(BUILD)/source$(OBJ) $(BUILD)/source_setup$(OBJ)
 $(TEST)/$(BUILD)/timestepper$(TESTSUF)$(OBJ):$(BUILD)/fson_mpi$(OBJ) $(BUILD)/kinds$(OBJ) $(BUILD)/ode$(OBJ) $(BUILD)/timestepper$(OBJ) $(BUILD)/utils$(OBJ)
 $(TEST)/$(BUILD)/utils$(TESTSUF)$(OBJ):$(BUILD)/kinds$(OBJ) $(BUILD)/utils$(OBJ)
-$(TEST)/$(BUILD)/zone$(TESTSUF)$(OBJ):$(BUILD)/fson_mpi$(OBJ) $(BUILD)/kinds$(OBJ) $(BUILD)/zone$(OBJ)
+$(TEST)/$(BUILD)/zone$(TESTSUF)$(OBJ):$(BUILD)/fson_mpi$(OBJ) $(BUILD)/kinds$(OBJ) $(BUILD)/mesh$(OBJ) $(BUILD)/zone$(OBJ)
