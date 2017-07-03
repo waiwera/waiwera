@@ -21,6 +21,7 @@ module mesh_module
 #include <petsc/finclude/petsc.h>
 
   use petsc
+  use zone_module
   use mpi_utils_module
   use fson
 
@@ -50,6 +51,7 @@ module mesh_module
      PetscInt, public, allocatable :: ghost_cell(:), ghost_face(:) !! Ghost label values for cells and faces
      PetscReal, public :: permeability_rotation(3, 3) !! Rotation matrix of permeability axes
      PetscReal, public :: thickness !! Mesh thickness (for dimension < 3)
+     class(zone_type), allocatable, public :: zone(:)
      PetscBool, public :: radial !! If mesh coordinate system is radial or Cartesian
    contains
      procedure :: setup_cell_order_label => mesh_setup_cell_order_label
@@ -66,6 +68,7 @@ module mesh_module
      procedure :: set_permeability_rotation => mesh_set_permeability_rotation
      procedure :: modify_geometry => mesh_modify_geometry
      procedure :: override_face_properties => mesh_override_face_properties
+     procedure :: setup_zones => mesh_setup_zones
      procedure, public :: init => mesh_init
      procedure, public :: configure => mesh_configure
      procedure, public :: setup_boundaries => mesh_setup_boundaries
@@ -737,29 +740,26 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine mesh_configure(self, primary_variable_names, gravity, viewer)
+  subroutine mesh_configure(self, dof, gravity, viewer)
     !! Configures mesh, including distribution over processes and
     !! construction of ghost cells, setup of data layout, geometry and
     !! cell index set.
 
     class(mesh_type), intent(in out) :: self
-    character(*), intent(in) :: primary_variable_names(:) !! Names of primary thermodynamic variables
+    PetscInt, intent(in) :: dof !! Number of degrees of freedom (primary thermodynamic variables)
     PetscReal, intent(in) :: gravity(:)
     PetscViewer, intent(in out), optional :: viewer !! PetscViewer for output of cell index set to HDF5 file
-    ! Locals:
-    PetscInt :: dof
 
     call self%setup_cell_order_label()
     call self%distribute()
     call self%construct_ghost_cells()
 
-    dof = size(primary_variable_names)
     call self%setup_discretization(dof)
 
     call self%get_bounds()
 
     call self%setup_data_layout(dof)
-
+    ! call self%setup_zones()
     call self%setup_geometry(gravity)
 
     call self%setup_ghost_arrays()
@@ -1260,6 +1260,26 @@ contains
     CHKERRQ(ierr)
 
   end subroutine mesh_override_face_properties
+
+!------------------------------------------------------------------------
+
+  subroutine mesh_setup_zones(self, json, logfile)
+    !! Sets up zones (for defining e.g. rock types, MINC etc.) in the
+    !! mesh, from JSON input.
+
+    use fson_mpi_module
+    use logfile_module
+
+    class(mesh_type), intent(in out) :: self
+    type(fson_value), pointer, intent(in) :: json !! JSON file pointer
+    type(logfile_type), intent(in out), optional :: logfile !! Logfile for log output
+    ! Locals:
+
+    if (fson_has_mpi(json, "mesh.zones")) then
+       
+    end if
+    
+  end subroutine mesh_setup_zones
 
 !------------------------------------------------------------------------
 

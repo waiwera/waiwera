@@ -552,9 +552,9 @@ contains
     call setup_rocktype_labels(json, self%mesh%dm, self%logfile)
     call self%mesh%setup_boundaries(json, self%eos, self%logfile)
     if (self%output_filename == '') then
-       call self%mesh%configure(self%eos%primary_variable_names, self%gravity)
+       call self%mesh%configure(self%eos%num_primary_variables, self%gravity)
     else
-       call self%mesh%configure(self%eos%primary_variable_names, &
+       call self%mesh%configure(self%eos%num_primary_variables, &
             self%gravity, self%hdf5_viewer)
     end if
     call self%mesh%override_face_properties(json, self%logfile)
