@@ -615,6 +615,7 @@ contains
 
     class(mesh_type), intent(in out) :: self
     ! Locals:
+    PetscInt :: i
     PetscErrorCode :: ierr
     
     call VecDestroy(self%face_geom, ierr); CHKERRQ(ierr)
@@ -634,6 +635,9 @@ contains
     end if
 
     if (allocated(self%zone)) then
+       do i = 1, size(self%zone)
+          call self%zone(i)%ptr%destroy()
+       end do
        deallocate(self%zone)
     end if
 
