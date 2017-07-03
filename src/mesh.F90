@@ -1125,6 +1125,7 @@ contains
     PetscInt :: num_zones, i, zone_type
     type(fson_value), pointer :: zones_json, zone_json
     character(max_zone_name_length) :: name
+    character(120) :: zone_name
 
     if (fson_has_mpi(json, "mesh.zones")) then
 
@@ -1138,6 +1139,13 @@ contains
           select case (zone_type)
           case (ZONE_TYPE_CELL_ARRAY)
              allocate(zone_cell_array_type :: self%zone(i)%ptr)
+          case default
+             if (present(logfile)) then
+                write(zone_name, '(a, i3, a)') 'mesh.zone[', i, ']'
+                call logfile%write(LOG_LEVEL_WARN, 'input', &
+                     "unrecognised zone type", int_keys = ["index"], &
+                     int_values = [i])
+             end if
           end select
           call self%zone(i)%ptr%init(name, i, zone_json)
        end do
