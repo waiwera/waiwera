@@ -552,10 +552,11 @@ contains
     call setup_rocktype_labels(json, self%mesh%dm, self%logfile)
     call self%mesh%setup_boundaries(json, self%eos, self%logfile)
     if (self%output_filename == '') then
-       call self%mesh%configure(self%eos%num_primary_variables, self%gravity)
+       call self%mesh%configure(self%eos%num_primary_variables, &
+            self%gravity, json, self%logfile)
     else
        call self%mesh%configure(self%eos%num_primary_variables, &
-            self%gravity, self%hdf5_viewer)
+            self%gravity, json, self%logfile, self%hdf5_viewer)
     end if
     call self%mesh%override_face_properties(json, self%logfile)
     call self%output_mesh_geometry()
@@ -1110,6 +1111,7 @@ contains
     !! thermodynamic variables. This is called before the timestepper
     !! starts to run.
 
+    use cell_order_module, only: cell_order_label_name
     use dm_utils_module, only: global_section_offset, global_vec_section
     use cell_module, only: cell_type
     use profiling_module, only: fluid_init_event
@@ -1222,6 +1224,7 @@ contains
     !! composition, based on the current time and primary
     !! thermodynamic variables.
 
+    use cell_order_module, only: cell_order_label_name
     use dm_utils_module, only: global_section_offset, global_vec_section
     use cell_module, only: cell_type
     use profiling_module, only: fluid_properties_event
@@ -1342,6 +1345,7 @@ contains
     !! Checks primary variables and thermodynamic regions in all mesh
     !! cells and updates if region transitions have occurred.
 
+    use cell_order_module, only: cell_order_label_name
     use dm_utils_module, only: global_section_offset, global_vec_section
     use fluid_module, only: fluid_type
     use profiling_module, only: fluid_transitions_event

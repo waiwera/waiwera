@@ -26,6 +26,7 @@ contains
 
     ! Mesh init test
 
+    use cell_order_module, only: cell_order_label_name
     use dm_utils_module, only: section_offset
     use fson_mpi_module
     use cell_module
@@ -60,10 +61,9 @@ contains
 
     json => fson_parse_mpi(str = '{"mesh": "data/mesh/block3.exo"}')
     call mesh%init(json)
-    call fson_destroy_mpi(json)
-
     call DMCreateLabel(mesh%dm, open_boundary_label_name, ierr); CHKERRQ(ierr)
-    call mesh%configure(dof, gravity)
+    call mesh%configure(dof, gravity, json)
+    call fson_destroy_mpi(json)
 
     call DMGetDimension(mesh%dm, dim, ierr); CHKERRQ(ierr)
     if (rank == 0) then
@@ -156,8 +156,8 @@ contains
          '"filename": "data/mesh/2D.msh",' // &
          '"thickness": 100.}}')
     call mesh%init(json)
+    call mesh%configure(dof, gravity, json)
     call fson_destroy_mpi(json)
-    call mesh%configure(dof, gravity)
 
     call local_vec_section(mesh%cell_geom, cell_geom_section)
     call VecGetArrayReadF90(mesh%cell_geom, cell_geom_array, ierr)
@@ -242,8 +242,8 @@ contains
          '"filename": "data/mesh/2D.msh",' // &
          '"radial": true}}')
     call mesh%init(json)
+    call mesh%configure(dof, gravity, json)
     call fson_destroy_mpi(json)
-    call mesh%configure(dof, gravity)
 
     call local_vec_section(mesh%cell_geom, cell_geom_section)
     call VecGetArrayReadF90(mesh%cell_geom, cell_geom_array, ierr)
@@ -337,7 +337,7 @@ contains
     call mesh%init(json)
 
     call DMCreateLabel(mesh%dm, open_boundary_label_name, ierr); CHKERRQ(ierr)
-    call mesh%configure(dof, gravity)
+    call mesh%configure(dof, gravity, json)
     call mesh%override_face_properties(json)
     call fson_destroy_mpi(json)
 

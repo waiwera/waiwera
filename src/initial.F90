@@ -87,7 +87,8 @@ contains
     !! all mesh cells.
 
     use dm_utils_module, only: global_vec_section, global_section_offset
-    use mesh_module, only: mesh_type, cell_order_label_name
+    use mesh_module, only: mesh_type
+    use cell_order_module, only: cell_order_label_name
     use eos_module, only: eos_type
 
     type(mesh_type), intent(in) :: mesh
@@ -195,7 +196,8 @@ contains
     !! all mesh cells.
 
     use dm_utils_module, only: global_vec_section, global_section_offset
-    use mesh_module, only: mesh_type, cell_order_label_name
+    use mesh_module, only: mesh_type
+    use cell_order_module, only: cell_order_label_name
     use eos_module, only: eos_type
     use fluid_module, only: fluid_type
 
