@@ -114,7 +114,8 @@ contains
          '"zones": {"zone1": [10, 15, 20, 27, 34, 44], ' // &
          '"zone2": [40, 30, 5]}}}')
     call mesh%init(json)
-    call mesh%configure(dof, gravity, json)
+    call mesh%configure(dof, gravity, json, err = err)
+    call assert_equals(0, err, 'config error')
     call fson_destroy_mpi(json)
 
     if (rank == 0) then
@@ -147,11 +148,6 @@ contains
 
            call assert_equals(cells, zone%cells, &
                 num_cells, 'cell array cells ' // trim(istr))
-
-           call zone%find_cells(mesh%dm, mesh%cell_geom, err)
-           if (rank == 0) then
-              call assert_equals(0, err, 'error ' // trim(istr))
-           end if
 
            call DMGetStratumSize(mesh%dm, zone_label_name, index, &
                 num_found_local, ierr); CHKERRQ(ierr)

@@ -576,7 +576,7 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine mesh_configure(self, dof, gravity, json, logfile, viewer)
+  subroutine mesh_configure(self, dof, gravity, json, logfile, viewer, err)
     !! Configures mesh, including distribution over processes and
     !! construction of ghost cells, setup of data layout, geometry and
     !! cell index set.
@@ -590,6 +590,9 @@ contains
     type(fson_value), pointer, intent(in) :: json !! JSON file pointer
     type(logfile_type), intent(in out), optional :: logfile !! Log file
     PetscViewer, intent(in out), optional :: viewer !! PetscViewer for output of cell index set to HDF5 file
+    PetscErrorCode, intent(out) :: err !! Error flag
+
+    err = 0
 
     call dm_setup_cell_order_label(self%dm)
     call self%distribute()
@@ -600,7 +603,7 @@ contains
     call self%get_bounds()
 
     call self%setup_data_layout(dof)
-    call self%setup_zones(json, logfile)
+    call self%setup_zones(json, logfile, err)
     call self%setup_geometry(gravity)
 
     call self%setup_ghost_arrays()
@@ -1120,7 +1123,7 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine mesh_setup_zones(self, json, logfile)
+  subroutine mesh_setup_zones(self, json, logfile, err)
     !! Sets up zones (for defining e.g. rock types, MINC etc.) in the
     !! mesh, from JSON input.
 
@@ -1130,11 +1133,15 @@ contains
     class(mesh_type), intent(in out) :: self
     type(fson_value), pointer, intent(in) :: json !! JSON file pointer
     type(logfile_type), intent(in out), optional :: logfile !! Logfile for log output
+    PetscErrorCode, intent(out) :: err
     ! Locals:
     PetscInt :: num_zones, i, ztype
     type(fson_value), pointer :: zones_json, zone_json
     character(:), allocatable :: name
     class(zone_type), pointer :: zone
+    type(list_node_type), pointer :: node
+
+    err = 0
 
     call self%zones%init(owner = PETSC_TRUE)
 
