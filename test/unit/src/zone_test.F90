@@ -217,6 +217,7 @@ contains
          '{"mesh": {"filename": "data/mesh/7x7grid.exo", ' // &
          '"zones": {' // &
          '"xzone": {"x": [2000, 3000]}, ' // &
+         '"all": {"type": "box"}, ' // &
          '"xyzone": {"x": [0, 2000], "y": [2500, 4500]}}}}')
     call mesh%init(json)
     call mesh%configure(dof, gravity, json, err = err)
@@ -225,7 +226,8 @@ contains
 
     if (err == 0) then
        call zone_test(0, 14)
-       call zone_test(1, 9)
+       call zone_test(1, 49)
+       call zone_test(2, 9)
     end if
 
     call mesh%destroy()
