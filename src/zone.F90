@@ -54,7 +54,9 @@ module zone_module
   end type zone_cell_array_type
 
   type, public, extends(zone_type) :: zone_box_type
-     !! Zone defined by coordinate ranges.
+     !! Zone defined by coordinate ranges. Bounds for any coordinate
+     !! may be omitted, in which case they will not be tested. Hence,
+     !! a box with no bounds corresponds to all cells in the mesh.
      private
      PetscReal, public :: coord_range(2, 3)
      PetscBool, public :: coord_specified(3)
