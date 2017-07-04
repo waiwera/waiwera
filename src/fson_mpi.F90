@@ -63,7 +63,7 @@ module fson_mpi_module
      module procedure fson_get_mpi_array_2d_logical
   end interface fson_get_mpi
 
-  public :: fson_get_default, fson_get_mpi, fson_has_mpi
+  public :: fson_get_default, fson_get_mpi, fson_has_mpi, fson_get_name_mpi
   public :: fson_type_mpi, fson_value_count_mpi, fson_value_get_mpi
   public :: fson_mpi_array_rank, fson_parse_mpi, fson_destroy_mpi
 
@@ -1139,6 +1139,35 @@ contains
     call MPI_bcast(has, 1, MPI_LOGICAL, 0, PETSC_COMM_WORLD, ierr)
 
   end function fson_has_mpi
+
+!------------------------------------------------------------------------
+
+  function fson_get_name_mpi(self) result(name)
+    !! Returns fson value name on all ranks.
+
+    use fson_string_m, only: fson_string_length, fson_string_copy
+
+    type(fson_value), pointer, intent(in) :: self
+    character(:), allocatable :: name
+    ! Locals:
+    PetscMPIInt :: rank
+    PetscInt :: name_len
+    PetscInt :: ierr
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
+       name_len = fson_string_length(self%name)
+    end if
+    call MPI_bcast(name_len, 1, MPI_INTEGER, 0, PETSC_COMM_WORLD, ierr)
+    allocate(character(name_len) :: name)
+
+    if (rank == 0) then
+       call fson_string_copy(self%name, name)
+    end if
+    call MPI_bcast(name, name_len, MPI_CHARACTER, 0, &
+         PETSC_COMM_WORLD, ierr)
+
+  end function fson_get_name_mpi
 
 !------------------------------------------------------------------------
 

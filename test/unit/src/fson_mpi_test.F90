@@ -16,7 +16,7 @@ module fson_mpi_test
   character(len = 32), parameter :: filename = "data/fson_mpi/test_fson_mpi.json"
   public :: test_fson_mpi_int, test_fson_mpi_real, test_fson_mpi_double
   public :: test_fson_mpi_logical, test_fson_mpi_char
-  public :: test_fson_mpi_array_rank
+  public :: test_fson_mpi_array_rank, test_fson_get_name_mpi
 
 contains
 
@@ -214,6 +214,34 @@ contains
     call fson_destroy_mpi(json)
 
   end subroutine test_fson_mpi_array_rank
+
+!------------------------------------------------------------------------
+
+  subroutine test_fson_get_name_mpi
+
+    ! fson_get_name_mpi()
+
+    type(fson_value), pointer :: json, sub_json
+    character(:), allocatable :: name
+    PetscInt :: num_items
+
+    json => fson_parse_mpi(str = '{"foo": 1, "bar": 2}')
+
+    num_items = fson_value_count_mpi(json, ".")
+    call assert_equals(2, num_items, "num items")
+
+    sub_json => fson_value_get_mpi(json, 1)
+    name = fson_get_name_mpi(sub_json)
+    call assert_equals("foo", name, "foo name")
+    write(*,*) 'name:', name
+
+    sub_json => fson_value_get_mpi(json, 2)
+    name = fson_get_name_mpi(sub_json)
+    call assert_equals("bar", name, "bar name")
+
+    call fson_destroy_mpi(json)
+
+  end subroutine test_fson_get_name_mpi
 
 !------------------------------------------------------------------------
 
