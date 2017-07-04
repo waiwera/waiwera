@@ -46,7 +46,7 @@ contains
     PetscInt :: f, offset, fstart, fend, ghost_face, i, order(2), gf
     PetscInt, pointer :: cells(:)
     PetscReal :: dist(2)
-    PetscErrorCode :: ierr
+    PetscErrorCode :: ierr, err
     PetscMPIInt :: rank
     character(len = 24) :: msg
     PetscInt, parameter :: expected_dim = 3, num_cells = 3, num_faces = 16
@@ -62,7 +62,7 @@ contains
     json => fson_parse_mpi(str = '{"mesh": "data/mesh/block3.exo"}')
     call mesh%init(json)
     call DMCreateLabel(mesh%dm, open_boundary_label_name, ierr); CHKERRQ(ierr)
-    call mesh%configure(dof, gravity, json)
+    call mesh%configure(dof, gravity, json, err = err)
     call fson_destroy_mpi(json)
 
     call DMGetDimension(mesh%dm, dim, ierr); CHKERRQ(ierr)
@@ -142,7 +142,7 @@ contains
     PetscInt :: c, offset, f
     type(cell_type) :: cell
     type(face_type) :: face
-    PetscErrorCode :: ierr
+    PetscErrorCode :: ierr, err
     PetscMPIInt :: rank
     character(50) :: msg
     PetscBool :: volumes_OK, areas_OK
@@ -156,7 +156,7 @@ contains
          '"filename": "data/mesh/2D.msh",' // &
          '"thickness": 100.}}')
     call mesh%init(json)
-    call mesh%configure(dof, gravity, json)
+    call mesh%configure(dof, gravity, json, err = err)
     call fson_destroy_mpi(json)
 
     call local_vec_section(mesh%cell_geom, cell_geom_section)
@@ -227,7 +227,7 @@ contains
     PetscInt :: c, offset, f
     type(cell_type) :: cell
     type(face_type) :: face
-    PetscErrorCode :: ierr
+    PetscErrorCode :: ierr, err
     PetscMPIInt :: rank
     character(50) :: msg
     PetscBool :: volumes_OK, areas_OK
@@ -242,7 +242,7 @@ contains
          '"filename": "data/mesh/2D.msh",' // &
          '"radial": true}}')
     call mesh%init(json)
-    call mesh%configure(dof, gravity, json)
+    call mesh%configure(dof, gravity, json, err = err)
     call fson_destroy_mpi(json)
 
     call local_vec_section(mesh%cell_geom, cell_geom_section)
@@ -319,7 +319,7 @@ contains
     type(mesh_type) :: mesh
     PetscInt, parameter :: dof = 2
     PetscInt :: f, offset
-    PetscErrorCode :: ierr
+    PetscErrorCode :: ierr, err
     PetscSection :: face_geom_section
     type(face_type) :: face
     PetscReal :: dist
@@ -337,7 +337,7 @@ contains
     call mesh%init(json)
 
     call DMCreateLabel(mesh%dm, open_boundary_label_name, ierr); CHKERRQ(ierr)
-    call mesh%configure(dof, gravity, json)
+    call mesh%configure(dof, gravity, json, err = err)
     call mesh%override_face_properties(json)
     call fson_destroy_mpi(json)
 

@@ -1160,17 +1160,39 @@ contains
           case (ZONE_TYPE_CELL_ARRAY)
              allocate(zone_cell_array_type :: zone)
           case default
+             err = 1
              if (present(logfile)) then
                 call logfile%write(LOG_LEVEL_WARN, 'input', &
                      "unrecognised zone type", int_keys = ["index"], &
                      int_values = [i - 1])
              end if
           end select
-          if (associated(zone)) then
+          if (err == 0) then
              call zone%init(i - 1, zone_json)
              call self%zones%append(zone, name)
+          else
+             exit
           end if
        end do
+
+       if (err == 0) then
+          ! TODO: process zones in dependency order
+          do i = 0, num_zones - 1
+             node => self%zones%get(i)
+             select type(zone => node%data)
+                class is (zone_type)
+                call zone%find_cells(self%dm, self%cell_geom, err)
+                if (err > 0) then
+                   if (present(logfile)) then
+                      call logfile%write(LOG_LEVEL_WARN, 'zone', &
+                           "can't find cells", int_keys = ["index"], &
+                           int_values = [i])
+                   end if
+                   exit
+                end if
+             end select
+          end do
+       end if
 
     end if
     
