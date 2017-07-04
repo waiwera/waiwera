@@ -69,7 +69,7 @@ contains
     character(max_type_str_len) :: type_str
     PetscInt :: json_type
 
-    zone_type = -1
+    ztype = -1
 
     json_type = fson_type_mpi(json, ".")
 
@@ -77,7 +77,7 @@ contains
 
     case (TYPE_ARRAY)
 
-       zone_type = ZONE_TYPE_CELL_ARRAY
+       ztype = ZONE_TYPE_CELL_ARRAY
 
     case (TYPE_OBJECT)
 
@@ -87,14 +87,14 @@ contains
 
           select case (type_str)
           case ('array')
-             zone_type = ZONE_TYPE_CELL_ARRAY
+             ztype = ZONE_TYPE_CELL_ARRAY
           end select
 
        else ! determine type from object keys:
 
           if (fson_has_mpi(json, "cells")) then
 
-             zone_type = ZONE_TYPE_CELL_ARRAY
+             ztype = ZONE_TYPE_CELL_ARRAY
 
           end if
 
