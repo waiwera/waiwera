@@ -1131,10 +1131,10 @@ contains
     type(fson_value), pointer, intent(in) :: json !! JSON file pointer
     type(logfile_type), intent(in out), optional :: logfile !! Logfile for log output
     ! Locals:
-    PetscInt :: num_zones, i, zone_type
+    PetscInt :: num_zones, i, ztype
     type(fson_value), pointer :: zones_json, zone_json
-    character(max_zone_name_length) :: name
-    type(zone_cell_array_type), pointer :: zone_cell_array
+    character(:), allocatable :: name
+    class(zone_type), pointer :: zone
 
     call self%zones%init(owner = PETSC_TRUE)
 
@@ -1145,21 +1145,24 @@ contains
        num_zones = fson_value_count_mpi(zones_json, ".")
 
        do i = 1, num_zones
+          zone => null()
           zone_json => fson_value_get_mpi(zones_json, i)
-          zone_type = get_zone_type(zone_json)
-          name = "zone1"
-          select case (zone_type)
+          ztype = get_zone_type(zone_json)
+          name = fson_get_name_mpi(zone_json)
+          select case (ztype)
           case (ZONE_TYPE_CELL_ARRAY)
-             allocate(zone_cell_array_type :: zone_cell_array)
-             call zone_cell_array%init(name, i, json)
-             call self%zones%append(zone_cell_array, name)
+             allocate(zone_cell_array_type :: zone)
           case default
              if (present(logfile)) then
                 call logfile%write(LOG_LEVEL_WARN, 'input', &
                      "unrecognised zone type", int_keys = ["index"], &
-                     int_values = [i])
+                     int_values = [i - 1])
              end if
           end select
+          if (associated(zone)) then
+             call zone%init(i - 1, zone_json)
+             call self%zones%append(zone, name)
+          end if
        end do
 
     end if
