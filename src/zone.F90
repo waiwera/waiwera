@@ -30,7 +30,7 @@ module zone_module
   private
 
   PetscInt, parameter, public :: max_zone_name_length = 80
-  PetscInt, parameter, public :: ZONE_TYPE_CELL_ARRAY = 1
+  PetscInt, parameter, public :: ZONE_TYPE_CELL_ARRAY = 1, ZONE_TYPE_BOX = 2
   character(len = 8), public :: zone_label_name = "zone"
 
   type, public :: zone_type
@@ -99,6 +99,8 @@ contains
           select case (type_str)
           case ('array')
              ztype = ZONE_TYPE_CELL_ARRAY
+          case ('box')
+             ztype = ZONE_TYPE_BOX
           end select
 
        else ! determine type from object keys:
@@ -106,6 +108,13 @@ contains
           if (fson_has_mpi(json, "cells")) then
 
              ztype = ZONE_TYPE_CELL_ARRAY
+
+          else if (fson_has_mpi(json, "x") .or. &
+               fson_has_mpi(json, "r") .or. &
+               fson_has_mpi(json, "y") .or. &
+               fson_has_mpi(json, "z")) then
+
+             ztype = ZONE_TYPE_BOX
 
           end if
 

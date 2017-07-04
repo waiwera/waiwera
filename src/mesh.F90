@@ -1159,6 +1159,8 @@ contains
           select case (ztype)
           case (ZONE_TYPE_CELL_ARRAY)
              allocate(zone_cell_array_type :: zone)
+          case (ZONE_TYPE_BOX)
+             allocate(zone_box_type :: zone)
           case default
              err = 1
              if (present(logfile)) then
