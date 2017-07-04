@@ -99,6 +99,7 @@ digraph waiwera{
         mesh_module -> face_module
         mesh_module -> fluid_module
         mesh_module -> fson_mpi_module
+        mesh_module -> list_module
         mesh_module -> logfile_module
         mesh_module -> mpi_utils_module
         mesh_module -> rock_module
@@ -132,7 +133,6 @@ digraph waiwera{
         source_module -> dm_utils_module
         source_module -> eos_module
         source_module -> fluid_module
-        source_module -> list_module
         source_setup_module -> cell_order_module
         source_setup_module -> dm_utils_module
         source_setup_module -> eos_module

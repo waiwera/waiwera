@@ -44,14 +44,6 @@ module zone_module
      procedure(zone_destroy_procedure), public, deferred :: destroy
   end type zone_type
 
-  ! Pointer to zone:
-  type, public :: pzone_type
-     !! Pointer to zone.
-     class(zone_type), pointer, public :: ptr
-   contains
-     procedure, public :: set => pzone_set
-  end type pzone_type
-
   type, public, extends(zone_type) :: zone_cell_array_type
      !! Zone defined by an array of global cell indices.
      PetscInt, allocatable, public :: cells(:)
@@ -141,18 +133,6 @@ contains
     end select
 
   end function get_zone_type
-
-!------------------------------------------------------------------------
-
-  subroutine pzone_set(self, tgt)
-    !! Sets a zone pointer.
-
-    class(pzone_type), intent(in out) :: self
-    class(zone_type), target, intent(in) :: tgt
-
-    self%ptr => tgt
-
-  end subroutine pzone_set
 
 !------------------------------------------------------------------------
 ! zone_cell_array_type

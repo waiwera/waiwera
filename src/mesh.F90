@@ -23,6 +23,7 @@ module mesh_module
   use petsc
   use cell_order_module
   use zone_module
+  use list_module
   use mpi_utils_module
   use fson
 
@@ -50,7 +51,7 @@ module mesh_module
      PetscInt, public, allocatable :: ghost_cell(:), ghost_face(:) !! Ghost label values for cells and faces
      PetscReal, public :: permeability_rotation(3, 3) !! Rotation matrix of permeability axes
      PetscReal, public :: thickness !! Mesh thickness (for dimension < 3)
-     class(pzone_type), allocatable, public :: zone(:)
+     type(list_type), public :: zones !! Mesh zones
      PetscBool, public :: radial !! If mesh coordinate system is radial or Cartesian
    contains
      procedure :: distribute => mesh_distribute
@@ -615,7 +616,6 @@ contains
 
     class(mesh_type), intent(in out) :: self
     ! Locals:
-    PetscInt :: i
     PetscErrorCode :: ierr
 
     call VecDestroy(self%face_geom, ierr); CHKERRQ(ierr)
@@ -634,12 +634,21 @@ contains
        deallocate(self%ghost_face)
     end if
 
-    if (allocated(self%zone)) then
-       do i = 1, size(self%zone)
-          call self%zone(i)%ptr%destroy()
-       end do
-       deallocate(self%zone)
-    end if
+    call self%zones%destroy(mesh_zones_node_data_destroy)
+
+  contains
+
+    subroutine mesh_zones_node_data_destroy(node)
+      ! Destroys zone data.
+
+      type(list_node_type), pointer, intent(in out) :: node
+
+      select type (zone => node%data)
+      class is (zone_type)
+         call zone%destroy()
+      end select
+
+    end subroutine mesh_zones_node_data_destroy
 
   end subroutine mesh_destroy
 
@@ -1125,29 +1134,32 @@ contains
     PetscInt :: num_zones, i, zone_type
     type(fson_value), pointer :: zones_json, zone_json
     character(max_zone_name_length) :: name
-    character(120) :: zone_name
+    type(zone_cell_array_type), pointer :: zone_cell_array
+
+    call self%zones%init(owner = PETSC_TRUE)
 
     if (fson_has_mpi(json, "mesh.zones")) then
 
        call fson_get_mpi(json, "mesh.zones", zones_json)
+
        num_zones = fson_value_count_mpi(zones_json, ".")
-       allocate(self%zone(num_zones))
 
        do i = 1, num_zones
           zone_json => fson_value_get_mpi(zones_json, i)
           zone_type = get_zone_type(zone_json)
+          name = "zone1"
           select case (zone_type)
           case (ZONE_TYPE_CELL_ARRAY)
-             allocate(zone_cell_array_type :: self%zone(i)%ptr)
+             allocate(zone_cell_array_type :: zone_cell_array)
+             call zone_cell_array%init(name, i, json)
+             call self%zones%append(zone_cell_array, name)
           case default
              if (present(logfile)) then
-                write(zone_name, '(a, i3, a)') 'mesh.zone[', i, ']'
                 call logfile%write(LOG_LEVEL_WARN, 'input', &
                      "unrecognised zone type", int_keys = ["index"], &
                      int_values = [i])
              end if
           end select
-          call self%zone(i)%ptr%init(name, i, zone_json)
        end do
 
     end if
