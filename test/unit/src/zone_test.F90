@@ -236,23 +236,19 @@ contains
 
       PetscInt, intent(in) :: index, num_cells
       ! Locals:
-      type(list_node_type), pointer :: node
       PetscInt :: num_found, num_found_local
       character(40) :: istr
 
       write(istr, '(a,i1,a)') '[', index, ']'
 
-      node => mesh%zones%get(index)
-      select type(zone => node%data)
-      type is (zone_cell_array_type)
-         call DMGetStratumSize(mesh%dm, zone_label_name, index, &
-              num_found_local, ierr); CHKERRQ(ierr)
-         call MPI_reduce(num_found_local, num_found, 1, MPI_INTEGER, &
-              MPI_SUM, 0, PETSC_COMM_WORLD, ierr)
-         if (rank == 0) then
-            call assert_equals(num_cells, num_found, 'num found ' // istr)
-         end if
-      end select
+      call DMGetStratumSize(mesh%dm, zone_label_name, index, &
+           num_found_local, ierr); CHKERRQ(ierr)
+      call MPI_reduce(num_found_local, num_found, 1, MPI_INTEGER, &
+           MPI_SUM, 0, PETSC_COMM_WORLD, ierr)
+      if (rank == 0) then
+         call assert_equals(num_cells, num_found, 'num found ' // istr)
+      end if
+
     end subroutine zone_test
 
   end subroutine test_box_find
