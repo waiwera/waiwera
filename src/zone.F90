@@ -306,7 +306,8 @@ contains
     ! Locals:
     PetscInt :: dim, ghost, i, c, offset
     DMLabel :: ghost_label
-    PetscInt :: start_cell, end_cell
+    PetscInt :: start_cell, end_cell, end_interior_cell
+    PetscInt :: cmax, fmax, emax, vmax
     PetscSection :: section
     PetscReal, contiguous, pointer :: cell_geom_array(:)
     type(cell_type) :: cell
@@ -318,11 +319,14 @@ contains
     call DMGetDimension(dm, dim, ierr); CHKERRQ(ierr)
     call DMPlexGetHeightStratum(dm, 0, start_cell, end_cell, ierr)
     CHKERRQ(ierr)
+    call DMPlexGetHybridBounds(dm, cmax, fmax, emax, vmax, ierr)
+    CHKERRQ(ierr)
+    end_interior_cell = cmax
     call DMGetLabel(dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
     call local_vec_section(cell_geometry, section)
     call VecGetArrayReadF90(cell_geometry, cell_geom_array, ierr); CHKERRQ(ierr)
 
-    do c = start_cell, end_cell - 1
+    do c = start_cell, end_interior_cell - 1
 
        call DMLabelGetValue(ghost_label, c, ghost, ierr); CHKERRQ(ierr)
        if (ghost < 0) then
