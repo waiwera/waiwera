@@ -15,7 +15,7 @@ module zone_test
   private
 
   public :: test_get_zone_type, test_cell_array, &
-       test_cell_array_find
+       test_cell_array_find, test_box_find
 
 contains
 
@@ -57,6 +57,34 @@ contains
     zone_type = get_zone_type(json)
     if (rank == 0) then
        call assert_equals(-1, zone_type, "unknown type")
+    end if
+    call fson_destroy_mpi(json)
+
+    json => fson_parse_mpi(str = '{"type": "box"}')
+    zone_type = get_zone_type(json)
+    if (rank == 0) then
+       call assert_equals(ZONE_TYPE_BOX, zone_type, "type box")
+    end if
+    call fson_destroy_mpi(json)
+
+    json => fson_parse_mpi(str = '{"x": [0, 100]}')
+    zone_type = get_zone_type(json)
+    if (rank == 0) then
+       call assert_equals(ZONE_TYPE_BOX, zone_type, "x box")
+    end if
+    call fson_destroy_mpi(json)
+
+    json => fson_parse_mpi(str = '{"r": [100, 200]}')
+    zone_type = get_zone_type(json)
+    if (rank == 0) then
+       call assert_equals(ZONE_TYPE_BOX, zone_type, "r box")
+    end if
+    call fson_destroy_mpi(json)
+
+    json => fson_parse_mpi(str = '{"y": [100, 200], "z": [-50, 50]}')
+    zone_type = get_zone_type(json)
+    if (rank == 0) then
+       call assert_equals(ZONE_TYPE_BOX, zone_type, "y-z box")
     end if
     call fson_destroy_mpi(json)
 
@@ -118,12 +146,16 @@ contains
     call assert_equals(0, err, 'config error')
     call fson_destroy_mpi(json)
 
-    if (rank == 0) then
-       call assert_equals(2, mesh%zones%count, 'num zones')
-    end if
+    if (err == 0) then
 
-    call zone_test(0, [10, 15, 20, 27, 34, 44])
-    call zone_test(1, [40, 30, 5])
+       if (rank == 0) then
+          call assert_equals(2, mesh%zones%count, 'num zones')
+       end if
+
+       call zone_test(0, [10, 15, 20, 27, 34, 44])
+       call zone_test(1, [40, 30, 5])
+
+    end if
 
     call mesh%destroy()
 
@@ -163,6 +195,67 @@ contains
     end subroutine zone_test
 
   end subroutine test_cell_array_find
+
+!------------------------------------------------------------------------
+
+  subroutine test_box_find
+    ! box find
+
+    use mesh_module
+    use list_module
+
+    type(fson_value), pointer :: json
+    type(mesh_type) :: mesh
+    PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
+    PetscInt, parameter :: dof = 2
+    PetscMPIInt :: rank
+    PetscErrorCode :: ierr, err
+
+    call MPI_comm_rank(PETSC_COMM_WORLD, rank, ierr)
+
+    json => fson_parse_mpi(str = &
+         '{"mesh": {"filename": "data/mesh/7x7grid.exo", ' // &
+         '"zones": {' // &
+         '"xzone": {"x": [2000, 3000]}, ' // &
+         '"xyzone": {"x": [0, 2000], "y": [2500, 4500]}}}}')
+    call mesh%init(json)
+    call mesh%configure(dof, gravity, json, err = err)
+    call assert_equals(0, err, 'config error')
+    call fson_destroy_mpi(json)
+
+    if (err == 0) then
+       call zone_test(0, 14)
+       call zone_test(1, 9)
+    end if
+
+    call mesh%destroy()
+
+  contains
+
+    subroutine zone_test(index, num_cells)
+
+      PetscInt, intent(in) :: index, num_cells
+      ! Locals:
+      type(list_node_type), pointer :: node
+      PetscInt :: num_found, num_found_local
+      character(40) :: istr
+
+      write(istr, '(a,i1,a)') '[', index, ']'
+
+      node => mesh%zones%get(index)
+      select type(zone => node%data)
+      type is (zone_cell_array_type)
+         call DMGetStratumSize(mesh%dm, zone_label_name, index, &
+              num_found_local, ierr); CHKERRQ(ierr)
+         call MPI_reduce(num_found_local, num_found, 1, MPI_INTEGER, &
+              MPI_SUM, 0, PETSC_COMM_WORLD, ierr)
+         if (rank == 0) then
+            call assert_equals(num_cells, num_found, 'num found ' // istr)
+         end if
+      end select
+    end subroutine zone_test
+
+  end subroutine test_box_find
 
 !------------------------------------------------------------------------
 
