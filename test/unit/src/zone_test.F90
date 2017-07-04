@@ -75,16 +75,15 @@ contains
     call MPI_comm_rank(PETSC_COMM_WORLD, rank, ierr)
 
     json => fson_parse_mpi(str = '[1, 2, 3]')
-    call zone%init("zone1", 1, json)
+    call zone%init(1, json)
     if (rank == 0) then
-       call assert_equals("zone1", zone%name, 'array name')
        call assert_equals([1, 2, 3], zone%cells, 3, 'array cells')
     end if
     call zone%destroy()
     call fson_destroy_mpi(json)
 
     json => fson_parse_mpi(str = '{"cells": [1, 2, 3]}')
-    call zone%init("zone1", 1, json)
+    call zone%init(1, json)
     if (rank == 0) then
        call assert_equals([1, 2, 3], zone%cells, 3, 'cells cells')
     end if
@@ -104,46 +103,68 @@ contains
     type(fson_value), pointer :: json
     type(mesh_type) :: mesh
     PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
-    PetscInt, parameter :: dof = 2, index = 3
+    PetscInt, parameter :: dof = 2
     PetscMPIInt :: rank
-    PetscInt :: num_found, num_found_local
-    type(list_node_type), pointer :: node
     PetscErrorCode :: ierr, err
 
     call MPI_comm_rank(PETSC_COMM_WORLD, rank, ierr)
 
     json => fson_parse_mpi(str = &
-         '{"mesh": {"filename": "data/mesh/7x7grid.exo"}, ' // &
-         '"zones": {"zone1": [10, 15, 20, 27, 34, 44]}}')
+         '{"mesh": {"filename": "data/mesh/7x7grid.exo", ' // &
+         '"zones": {"zone1": [10, 15, 20, 27, 34, 44], ' // &
+         '"zone2": [40, 30, 5]}}}')
     call mesh%init(json)
     call mesh%configure(dof, gravity, json)
     call fson_destroy_mpi(json)
 
-    node => mesh%zones%get(0)
-    select type(zone => node%data)
-    class is (zone_type)
+    if (rank == 0) then
+       call assert_equals(2, mesh%zones%count, 'num zones')
+    end if
 
-    !    if (rank == 0) then
-    !       call assert_equals(1, mesh%zones%count, 'num zones')
-    !       call assert_equals('zone1', zone%name, 'name')
-    !    end if
-
-    !    call zone%find_cells(mesh%dm, mesh%cell_geom, err)
-    !    if (rank == 0) then
-    !       call assert_equals(0, err, 'error')
-    !    end if
-
-    !    call DMGetStratumSize(mesh%dm, zone_label_name, index, &
-    !         num_found_local, ierr); CHKERRQ(ierr)
-    !    call MPI_reduce(num_found_local, num_found, 1, MPI_INTEGER, &
-    !         MPI_SUM, 0, PETSC_COMM_WORLD, ierr)
-    !    if (rank == 0) then
-    !       call assert_equals(6, num_found, 'num found')
-    !    end if
-
-    end select
+    call zone_test(0, [10, 15, 20, 27, 34, 44])
+    call zone_test(1, [40, 30, 5])
 
     call mesh%destroy()
+
+  contains
+
+    subroutine zone_test(index, cells)
+
+      PetscInt, intent(in) :: index
+      PetscInt, intent(in) :: cells(:)
+      ! Locals:
+      type(list_node_type), pointer :: node
+      PetscInt :: num_found, num_found_local
+      character(40) :: istr
+
+      write(istr, '(a,i1,a)') '[', index, ']'
+
+      associate(num_cells => size(cells))
+
+        node => mesh%zones%get(index)
+        select type(zone => node%data)
+        type is (zone_cell_array_type)
+
+           call assert_equals(cells, zone%cells, &
+                num_cells, 'cell array cells ' // trim(istr))
+
+           call zone%find_cells(mesh%dm, mesh%cell_geom, err)
+           if (rank == 0) then
+              call assert_equals(0, err, 'error ' // trim(istr))
+           end if
+
+           call DMGetStratumSize(mesh%dm, zone_label_name, index, &
+                num_found_local, ierr); CHKERRQ(ierr)
+           call MPI_reduce(num_found_local, num_found, 1, MPI_INTEGER, &
+                MPI_SUM, 0, PETSC_COMM_WORLD, ierr)
+           if (rank == 0) then
+              call assert_equals(num_cells, num_found, 'num found ' // istr)
+           end if
+
+        end select
+      end associate
+
+    end subroutine zone_test
 
   end subroutine test_cell_array_find
 
