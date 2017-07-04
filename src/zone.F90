@@ -33,15 +33,14 @@ module zone_module
   PetscInt, parameter, public :: ZONE_TYPE_CELL_ARRAY = 1
   character(len = 8), public :: zone_label_name = "zone"
 
-  type, public, abstract :: zone_type
+  type, public :: zone_type
      !! 3-D zone in the mesh, used to identify cells.
      private
-     character(max_zone_name_length), public :: name !! Zone name
      PetscInt :: index !! Zone index
    contains
-     procedure(zone_init_procedure), public, deferred :: init
-     procedure(zone_find_cells_procedure), public, deferred :: find_cells
-     procedure(zone_destroy_procedure), public, deferred :: destroy
+     procedure, public :: init => zone_init
+     procedure, public :: find_cells => zone_find_cells
+     procedure, public :: destroy => zone_destroy
   end type zone_type
 
   type, public, extends(zone_type) :: zone_cell_array_type
@@ -53,42 +52,13 @@ module zone_module
      procedure, public :: find_cells => zone_cell_array_find_cells
   end type zone_cell_array_type
 
-  abstract interface
-
-     subroutine zone_init_procedure(self, name, index, json)
-       !! Initialises a zone.
-       import :: zone_type, fson_value
-       class(zone_type), intent(in out) :: self
-       character(*), intent(in) :: name
-       PetscInt, intent(in) :: index
-       type(fson_value), pointer, intent(in) :: json
-     end subroutine zone_init_procedure
-
-     subroutine zone_destroy_procedure(self)
-       !! Destroys a zone.
-       import :: zone_type
-       class(zone_type), intent(in out) :: self
-     end subroutine zone_destroy_procedure
-
-     subroutine zone_find_cells_procedure(self, dm, cell_geometry, err)
-       !! Finds cells in the zone and sets zone label for those cells
-       !! in DM.
-       import :: zone_type, tDM, tVec
-       class(zone_type), intent(in out) :: self
-       DM, intent(in out) :: dm
-       Vec, intent(in) :: cell_geometry
-       PetscErrorCode, intent(out) :: err
-     end subroutine zone_find_cells_procedure
-
-  end interface
-
   public :: get_zone_type
 
 contains
 
 !------------------------------------------------------------------------
 
-  PetscInt function get_zone_type(json) result(zone_type)
+  PetscInt function get_zone_type(json) result(ztype)
     !! Determines zone type from JSON input.
 
     use fson_value_m, only: TYPE_ARRAY, TYPE_OBJECT
@@ -135,24 +105,62 @@ contains
   end function get_zone_type
 
 !------------------------------------------------------------------------
+! zone_type
+!------------------------------------------------------------------------
+
+  subroutine zone_init(self, index, json)
+    !! Initialise zone.
+
+    class(zone_type), intent(in out) :: self
+    PetscInt, intent(in) :: index
+    type(fson_value), pointer, intent(in) :: json
+
+    self%index = index
+
+  end subroutine zone_init
+
+!------------------------------------------------------------------------
+
+  subroutine zone_destroy(self)
+    !! Destroys a zone- dummy routine to be overridden.
+
+    class(zone_type), intent(in out) :: self
+
+    continue
+
+  end subroutine zone_destroy
+
+!------------------------------------------------------------------------
+
+  subroutine zone_find_cells(self, dm, cell_geometry, err)
+    !! Find cells in a zone- dummy routine to be overridden.
+
+    class(zone_type), intent(in out) :: self
+    DM, intent(in out) :: dm
+    Vec, intent(in) :: cell_geometry
+    PetscErrorCode, intent(out) :: err
+
+    err = 0
+
+  end subroutine zone_find_cells
+
+!------------------------------------------------------------------------
 ! zone_cell_array_type
 !------------------------------------------------------------------------
 
-  subroutine zone_cell_array_init(self, name, index, json)
+  subroutine zone_cell_array_init(self, index, json)
     !! Initialise cell array zone.
 
     use fson_value_m, only: TYPE_ARRAY, TYPE_OBJECT
 
     class(zone_cell_array_type), intent(in out) :: self
-    character(*), intent(in) :: name
     PetscInt, intent(in) :: index
     type(fson_value), pointer, intent(in) :: json
     ! Locals:
     PetscInt :: json_type
     PetscInt, allocatable :: default_cells(:)
 
-    self%name = name
-    self%index = index
+    call self%zone_type%init(index, json)
 
     json_type = fson_type_mpi(json, ".")
 
