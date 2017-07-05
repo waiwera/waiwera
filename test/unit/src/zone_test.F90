@@ -10,6 +10,7 @@ module zone_test
   use fson
   use zone_module
   use fson_mpi_module
+  use list_module
 
   implicit none
   private
@@ -103,7 +104,7 @@ contains
     call MPI_comm_rank(PETSC_COMM_WORLD, rank, ierr)
 
     json => fson_parse_mpi(str = '[1, 2, 3]')
-    call zone%init(1, json)
+    call zone%init(1, 'zone1', json)
     if (rank == 0) then
        call assert_equals([1, 2, 3], zone%cells, 3, 'array cells')
     end if
@@ -111,7 +112,7 @@ contains
     call fson_destroy_mpi(json)
 
     json => fson_parse_mpi(str = '{"cells": [1, 2, 3]}')
-    call zone%init(1, json)
+    call zone%init(1, 'zone1', json)
     if (rank == 0) then
        call assert_equals([1, 2, 3], zone%cells, 3, 'cells cells')
     end if
@@ -126,7 +127,6 @@ contains
     ! cell array find
 
     use mesh_module
-    use list_module
 
     type(fson_value), pointer :: json
     type(mesh_type) :: mesh
@@ -181,7 +181,7 @@ contains
            call assert_equals(cells, zone%cells, &
                 num_cells, 'cell array cells ' // trim(istr))
 
-           call DMGetStratumSize(mesh%dm, zone_label_name, index, &
+           call DMGetStratumSize(mesh%dm, zone%label_name(), 1, &
                 num_found_local, ierr); CHKERRQ(ierr)
            call MPI_reduce(num_found_local, num_found, 1, MPI_INTEGER, &
                 MPI_SUM, 0, PETSC_COMM_WORLD, ierr)
@@ -202,7 +202,6 @@ contains
     ! box find
 
     use mesh_module
-    use list_module
 
     type(fson_value), pointer :: json
     type(mesh_type) :: mesh
@@ -225,33 +224,44 @@ contains
     call fson_destroy_mpi(json)
 
     if (err == 0) then
-       call zone_test(0, 14)
-       call zone_test(1, 49)
-       call zone_test(2, 9)
+       call mesh%zones%traverse(box_find_iterator)
     end if
 
     call mesh%destroy()
 
   contains
 
-    subroutine zone_test(index, num_cells)
+    subroutine box_find_iterator(node, stopped)
 
-      PetscInt, intent(in) :: index, num_cells
+      type(list_node_type), pointer, intent(in out) :: node
+      PetscBool, intent(out) :: stopped
       ! Locals:
-      PetscInt :: num_found, num_found_local
-      character(40) :: istr
+      PetscInt :: num_found, num_found_local, num_expected
+      character(:), allocatable :: label_name
 
-      write(istr, '(a,i1,a)') '[', index, ']'
+      select type (zone => node%data)
+      class is (zone_type)
+         label_name = zone%label_name()
+         call DMGetStratumSize(mesh%dm, label_name, 1, &
+              num_found_local, ierr); CHKERRQ(ierr)
+         call MPI_reduce(num_found_local, num_found, 1, MPI_INTEGER, &
+              MPI_SUM, 0, PETSC_COMM_WORLD, ierr)
+         if (rank == 0) then
+            select case (zone%name)
+            case ('xzone')
+               num_expected = 14
+            case ('all')
+               num_expected = 49
+            case ('xyzone')
+               num_expected = 9
+            end select
+            call assert_equals(num_expected, num_found, &
+                 'num found ' //  zone%name)
+         end if
+      end select
+      stopped = PETSC_FALSE
 
-      call DMGetStratumSize(mesh%dm, zone_label_name, index, &
-           num_found_local, ierr); CHKERRQ(ierr)
-      call MPI_reduce(num_found_local, num_found, 1, MPI_INTEGER, &
-           MPI_SUM, 0, PETSC_COMM_WORLD, ierr)
-      if (rank == 0) then
-         call assert_equals(num_cells, num_found, 'num found ' // istr)
-      end if
-
-    end subroutine zone_test
+    end subroutine box_find_iterator
 
   end subroutine test_box_find
 

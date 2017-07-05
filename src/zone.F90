@@ -24,23 +24,26 @@ module zone_module
   use kinds_module
   use logfile_module
   use fson_mpi_module
+  use list_module
   use fson
 
   implicit none
   private
 
   PetscInt, parameter, public :: max_zone_name_length = 80
-  PetscInt, parameter, public :: ZONE_TYPE_CELL_ARRAY = 1, ZONE_TYPE_BOX = 2
-  character(len = 8), public :: zone_label_name = "zone"
+  PetscInt, parameter, public :: ZONE_TYPE_CELL_ARRAY = 1, ZONE_TYPE_BOX = 2, &
+       ZONE_TYPE_COMBINE = 3
 
   type, public :: zone_type
      !! 3-D zone in the mesh, used to identify cells.
      private
      PetscInt :: index !! Zone index
+     character(max_zone_name_length), public :: name
    contains
      procedure, public :: init => zone_init
-     procedure, public :: find_cells => zone_find_cells
+     procedure, public :: label_cells => zone_label_cells
      procedure, public :: destroy => zone_destroy
+     procedure, public :: label_name => zone_label_name
   end type zone_type
 
   type, public, extends(zone_type) :: zone_cell_array_type
@@ -50,7 +53,7 @@ module zone_module
    contains
      procedure, public :: init => zone_cell_array_init
      procedure, public :: destroy => zone_cell_array_destroy
-     procedure, public :: find_cells => zone_cell_array_find_cells
+     procedure, public :: label_cells => zone_cell_array_label_cells
   end type zone_cell_array_type
 
   type, public, extends(zone_type) :: zone_box_type
@@ -62,8 +65,19 @@ module zone_module
      PetscBool, public :: coord_specified(3)
    contains
      procedure, public :: init => zone_box_init
-     procedure, public :: find_cells => zone_box_find_cells
+     procedure, public :: label_cells => zone_box_label_cells
   end type zone_box_type
+
+  type, public, extends(zone_type) :: zone_combine_type
+     !! Zone defined by combining other zones, adding zones together
+     !! and/or subtracting (excluding) them.
+     private
+     character(max_zone_name_length), allocatable :: plus(:), minus(:)
+   contains
+     procedure, public :: init => zone_combine_init
+     procedure, public :: destroy => zone_combine_destroy
+     procedure, public :: label_cells => zone_combine_label_cells
+  end type zone_combine_type
 
   public :: get_zone_type
 
@@ -103,6 +117,8 @@ contains
              ztype = ZONE_TYPE_CELL_ARRAY
           case ('box')
              ztype = ZONE_TYPE_BOX
+          case ('combine')
+             ztype = ZONE_TYPE_COMBINE
           end select
 
        else ! determine type from object keys:
@@ -118,6 +134,11 @@ contains
 
              ztype = ZONE_TYPE_BOX
 
+          else if (fson_has_mpi(json, "+") .or. &
+               fson_has_mpi(json, "-")) then
+
+             ztype = ZONE_TYPE_COMBINE
+
           end if
 
        end if
@@ -130,14 +151,16 @@ contains
 ! zone_type
 !------------------------------------------------------------------------
 
-  subroutine zone_init(self, index, json)
+  subroutine zone_init(self, index, name, json)
     !! Initialise zone.
 
     class(zone_type), intent(in out) :: self
     PetscInt, intent(in) :: index
+    character(*), intent(in) :: name
     type(fson_value), pointer, intent(in) :: json
 
     self%index = index
+    self%name = name
 
   end subroutine zone_init
 
@@ -154,8 +177,8 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine zone_find_cells(self, dm, cell_geometry, err)
-    !! Find cells in a zone- dummy routine to be overridden.
+  subroutine zone_label_cells(self, dm, cell_geometry, err)
+    !! Label cells in a zone on DM- dummy routine to be overridden.
 
     class(zone_type), intent(in out) :: self
     DM, intent(in out) :: dm
@@ -164,25 +187,38 @@ contains
 
     err = 0
 
-  end subroutine zone_find_cells
+  end subroutine zone_label_cells
+
+!------------------------------------------------------------------------
+
+  function zone_label_name(self) result(name)
+    !! Returns name of zone label associated with a zone.
+
+    class(zone_type), intent(in) :: self
+    character(:), allocatable :: name
+
+    allocate(name, source = 'zone_' // self%name)
+
+  end function zone_label_name
 
 !------------------------------------------------------------------------
 ! zone_cell_array_type
 !------------------------------------------------------------------------
 
-  subroutine zone_cell_array_init(self, index, json)
+  subroutine zone_cell_array_init(self, index, name, json)
     !! Initialise cell array zone.
 
     use fson_value_m, only: TYPE_ARRAY, TYPE_OBJECT
 
     class(zone_cell_array_type), intent(in out) :: self
     PetscInt, intent(in) :: index
+    character(*), intent(in) :: name
     type(fson_value), pointer, intent(in) :: json
     ! Locals:
     PetscInt :: json_type
     PetscInt, allocatable :: default_cells(:)
 
-    call self%zone_type%init(index, json)
+    call self%zone_type%init(index, name, json)
 
     json_type = fson_type_mpi(json, ".")
 
@@ -212,8 +248,9 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine zone_cell_array_find_cells(self, dm, cell_geometry, err)
-    !! Find cells in a zone from array of global node indices.
+  subroutine zone_cell_array_label_cells(self, dm, cell_geometry, err)
+    !! Label cells on a DM in a zone defined by an array of global
+    !! node indices.
 
     use cell_order_module, only: cell_order_label_name
 
@@ -227,10 +264,13 @@ contains
     PetscInt, pointer :: cells(:)
     PetscInt :: ghost, c, ic, global_cell_index
     DMLabel :: ghost_label
+    character(:), allocatable :: label_name
     PetscErrorCode :: ierr
 
     err = 0
 
+    label_name = self%label_name()
+    call DMCreateLabel(dm, label_name, ierr); CHKERRQ(ierr)
     call DMGetLabel(dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
 
     do ic = 1, size(self%cells)
@@ -244,8 +284,8 @@ contains
           do c = 1, num_matching
              call DMLabelGetValue(ghost_label, cells(c), ghost, ierr)
              if (ghost < 0) then
-                call DMSetLabelValue(dm, zone_label_name, cells(c), &
-                     self%index, ierr); CHKERRQ(ierr)
+                call DMSetLabelValue(dm, label_name, cells(c), &
+                     1, ierr); CHKERRQ(ierr)
              end if
           end do
           call ISRestoreIndicesF90(cell_IS, cells, ierr); CHKERRQ(ierr)
@@ -253,22 +293,23 @@ contains
        end if
     end do
 
-  end subroutine zone_cell_array_find_cells
+  end subroutine zone_cell_array_label_cells
 
 !------------------------------------------------------------------------
 ! zone_box_type
 !------------------------------------------------------------------------
 
-  subroutine zone_box_init(self, index, json)
+  subroutine zone_box_init(self, index, name, json)
     !! Initialise box zone.
 
     class(zone_box_type), intent(in out) :: self
     PetscInt, intent(in) :: index
+    character(*), intent(in) :: name
     type(fson_value), pointer, intent(in) :: json
 
-    call self%zone_type%init(index, json)
-    self%coord_specified = PETSC_FALSE
+    call self%zone_type%init(index, name, json)
 
+    self%coord_specified = PETSC_FALSE
     call set_coords(1, "x")
     call set_coords(1, "r")
     call set_coords(2, "y")
@@ -276,16 +317,16 @@ contains
 
   contains
 
-    subroutine set_coords(index, name)
+    subroutine set_coords(index, coord)
 
       PetscInt, intent(in) :: index
-      character(*), intent(in) :: name
+      character(*), intent(in) :: coord
       ! Locals:
       PetscReal, allocatable :: r(:)
 
-      if (fson_has_mpi(json, name)) then
+      if (fson_has_mpi(json, coord)) then
          self%coord_specified(index) = PETSC_TRUE
-         call fson_get_mpi(json, name, val = r)
+         call fson_get_mpi(json, coord, val = r)
          self%coord_range(:, index) = r
       end if
 
@@ -295,8 +336,8 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine zone_box_find_cells(self, dm, cell_geometry, err)
-    !! Find cells in a zone from specified coordinate ranges.
+  subroutine zone_box_label_cells(self, dm, cell_geometry, err)
+    !! Label cells on a DM in a zone with specified coordinate ranges.
 
     use dm_utils_module, only: local_vec_section, section_offset
     use cell_module
@@ -314,9 +355,13 @@ contains
     PetscReal, contiguous, pointer :: cell_geom_array(:)
     type(cell_type) :: cell
     PetscBool :: found(3)
+    character(:), allocatable :: label_name
     PetscErrorCode :: ierr
 
     err = 0
+
+    label_name = self%label_name()
+    call DMCreateLabel(dm, label_name, ierr); CHKERRQ(ierr)
 
     call DMGetDimension(dm, dim, ierr); CHKERRQ(ierr)
     call DMPlexGetHeightStratum(dm, 0, start_cell, end_cell, ierr)
@@ -348,7 +393,7 @@ contains
           end do
 
           if (all(found)) then
-             call DMSetLabelValue(dm, zone_label_name, c, self%index, &
+             call DMSetLabelValue(dm, label_name, c, 1, &
                   ierr); CHKERRQ(ierr)
           end if
 
@@ -358,7 +403,129 @@ contains
     call VecRestoreArrayReadF90(cell_geometry, cell_geom_array, ierr)
     CHKERRQ(ierr)
 
-  end subroutine zone_box_find_cells
+  end subroutine zone_box_label_cells
+
+!------------------------------------------------------------------------
+! zone_combine_type
+!------------------------------------------------------------------------
+
+  subroutine zone_combine_init(self, index, name, json)
+    !! Initialise a combined zone.
+
+    class(zone_combine_type), intent(in out) :: self
+    PetscInt, intent(in) :: index
+    character(*), intent(in) :: name
+    type(fson_value), pointer, intent(in) :: json
+    ! Locals:
+    character(max_zone_name_length), allocatable :: default_names(:)
+
+    call self%zone_type%init(index, name, json)
+    default_names = [character(max_zone_name_length)::]
+
+    call fson_get_mpi(json, "+", default_names, max_zone_name_length, &
+         self%plus)
+
+    call fson_get_mpi(json, "-", default_names, max_zone_name_length, &
+         self%minus)
+
+  end subroutine zone_combine_init
+
+!------------------------------------------------------------------------
+
+  subroutine zone_combine_destroy(self)
+    !! Destroys a combined zone.
+
+    class(zone_combine_type), intent(in out) :: self
+
+    deallocate(self%plus, self%minus)
+
+  end subroutine zone_combine_destroy
+
+!------------------------------------------------------------------------
+
+  subroutine zone_combine_label_cells(self, dm, cell_geometry, err)
+    !! Label cells in a combined zone on a DM.
+
+    class(zone_combine_type), intent(in out) :: self
+    DM, intent(in out) :: dm
+    Vec, intent(in) :: cell_geometry
+    PetscErrorCode, intent(out) :: err
+    ! Locals:
+    DMLabel :: ghost_label
+    PetscInt :: start_cell, end_cell, end_interior_cell
+    PetscInt :: cmax, fmax, emax, vmax
+    PetscInt :: i, c, p, num_matching, ghost
+    IS :: zone_IS
+    PetscInt, pointer :: cells(:)
+    character(:), allocatable :: label_name
+    PetscErrorCode :: ierr
+
+    err = 0
+    label_name = self%label_name()
+    call DMCreateLabel(dm, label_name, ierr); CHKERRQ(ierr)
+
+    call DMGetLabel(dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
+    call DMPlexGetHeightStratum(dm, 0, start_cell, end_cell, ierr)
+    CHKERRQ(ierr)
+    call DMPlexGetHybridBounds(dm, cmax, fmax, emax, vmax, ierr)
+    CHKERRQ(ierr)
+    end_interior_cell = cmax
+    
+    associate(num_plus => size(self%plus), num_minus => size(self%minus))
+
+      if ((num_plus == 0) .and. (num_minus > 0)) then
+         ! Label all cells:
+         do c = start_cell, end_interior_cell - 1
+            call DMLabelGetValue(ghost_label, c, ghost, ierr); CHKERRQ(ierr)
+            if (ghost < 0) then
+               call DMSetLabelValue(dm, label_name, c, 1, ierr)
+               CHKERRQ(ierr)
+            end if
+         end do
+      else ! Label all zones in plus array:
+         do i = 1, num_plus
+            call DMGetStratumSize(dm, self%plus(i), &
+                 1, num_matching, ierr); CHKERRQ(ierr)
+            if (num_matching > 0) then
+               call DMGetStratumIS(dm, self%plus(i), &
+                    1, zone_IS, ierr); CHKERRQ(ierr)
+               call ISGetIndicesF90(zone_IS, cells, ierr); CHKERRQ(ierr)
+               do c = 1, num_matching
+                  p = cells(c)
+                  call DMLabelGetValue(ghost_label, p, ghost, ierr)
+                  if (ghost < 0) then
+                     call DMSetLabelValue(dm, label_name, p, &
+                          1, ierr); CHKERRQ(ierr)
+                  end if
+               end do
+               call ISRestoreIndicesF90(zone_IS, cells, ierr); CHKERRQ(ierr)
+            end if
+         end do
+      end if
+
+      ! Unlabel all zones in minus array:
+      do i = 1, num_minus
+         call DMGetStratumSize(dm, self%minus(i), &
+              1, num_matching, ierr); CHKERRQ(ierr)
+         if (num_matching > 0) then
+            call DMGetStratumIS(dm, self%minus(i), &
+                 1, zone_IS, ierr); CHKERRQ(ierr)
+            call ISGetIndicesF90(zone_IS, cells, ierr); CHKERRQ(ierr)
+            do c = 1, num_matching
+               p = cells(c)
+               call DMLabelGetValue(ghost_label, p, ghost, ierr)
+               if (ghost < 0) then
+                  call DMSetLabelValue(dm, label_name, p, &
+                       -1, ierr); CHKERRQ(ierr)
+               end if
+            end do
+            call ISRestoreIndicesF90(zone_IS, cells, ierr); CHKERRQ(ierr)
+         end if
+      end do
+
+    end associate
+
+  end subroutine zone_combine_label_cells
 
 !------------------------------------------------------------------------  
 

@@ -603,8 +603,8 @@ contains
     call self%get_bounds()
 
     call self%setup_data_layout(dof)
-    call self%setup_zones(json, logfile, err)
     call self%setup_geometry(gravity)
+    call self%setup_zones(json, logfile, err)
 
     call self%setup_ghost_arrays()
 
@@ -1161,17 +1161,28 @@ contains
              allocate(zone_cell_array_type :: zone)
           case (ZONE_TYPE_BOX)
              allocate(zone_box_type :: zone)
+          case (ZONE_TYPE_COMBINE)
+             allocate(zone_combine_type :: zone)
           case default
              err = 1
              if (present(logfile)) then
-                call logfile%write(LOG_LEVEL_WARN, 'input', &
+                call logfile%write(LOG_LEVEL_ERR, 'input', &
                      "unrecognised zone type", int_keys = ["index"], &
                      int_values = [i - 1])
              end if
           end select
           if (err == 0) then
-             call zone%init(i - 1, zone_json)
-             call self%zones%append(zone, name)
+             call zone%init(i - 1, name, zone_json)
+             if (err == 0) then
+                call self%zones%append(zone, name)
+             else
+                if (present(logfile)) then
+                   call logfile%write(LOG_LEVEL_ERR, 'input', &
+                        "unrecognised zone dependency", &
+                        int_keys = ["index"], int_values = [i - 1])
+                end if
+                exit
+             end if
           else
              exit
           end if
@@ -1183,7 +1194,7 @@ contains
              node => self%zones%get(i)
              select type(zone => node%data)
                 class is (zone_type)
-                call zone%find_cells(self%dm, self%cell_geom, err)
+                call zone%label_cells(self%dm, self%cell_geom, err)
                 if (err > 0) then
                    if (present(logfile)) then
                       call logfile%write(LOG_LEVEL_WARN, 'zone', &
