@@ -16,7 +16,7 @@ module zone_test
   private
 
   public :: test_get_zone_type, test_cell_array, &
-       test_cell_array_find, test_box_find
+       test_cell_array_find, test_box_find, test_combine_find
 
 contains
 
@@ -181,7 +181,7 @@ contains
            call assert_equals(cells, zone%cells, &
                 num_cells, 'cell array cells ' // trim(istr))
 
-           call DMGetStratumSize(mesh%dm, zone%label_name(), 1, &
+           call DMGetStratumSize(mesh%dm, zone_label_name(zone%name), 1, &
                 num_found_local, ierr); CHKERRQ(ierr)
            call MPI_reduce(num_found_local, num_found, 1, MPI_INTEGER, &
                 MPI_SUM, 0, PETSC_COMM_WORLD, ierr)
@@ -241,7 +241,7 @@ contains
 
       select type (zone => node%data)
       class is (zone_type)
-         label_name = zone%label_name()
+         label_name = zone_label_name(zone%name)
          call DMGetStratumSize(mesh%dm, label_name, 1, &
               num_found_local, ierr); CHKERRQ(ierr)
          call MPI_reduce(num_found_local, num_found, 1, MPI_INTEGER, &
@@ -264,6 +264,75 @@ contains
     end subroutine box_find_iterator
 
   end subroutine test_box_find
+
+!------------------------------------------------------------------------
+
+  subroutine test_combine_find
+    ! combine find
+
+    use mesh_module
+
+    type(fson_value), pointer :: json
+    type(mesh_type) :: mesh
+    PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
+    PetscInt, parameter :: dof = 2
+    PetscMPIInt :: rank
+    PetscErrorCode :: ierr, err
+
+    call MPI_comm_rank(PETSC_COMM_WORLD, rank, ierr)
+
+    json => fson_parse_mpi(str = &
+         '{"mesh": {"filename": "data/mesh/7x7grid.exo", ' // &
+         '"zones": {' // &
+         '"zone1": {"x": [2000, 3000]}, ' // &
+         '"zone2": {"x": [3500, 4500]}, ' // &
+         '"zone3": {"+": ["zone1", "zone2"]}}}}')
+    call mesh%init(json)
+    call mesh%configure(dof, gravity, json, err = err)
+    call assert_equals(0, err, 'config error')
+    call fson_destroy_mpi(json)
+
+    if (err == 0) then
+       call mesh%zones%traverse(combine_find_iterator)
+    end if
+
+    call mesh%destroy()
+
+  contains
+
+    subroutine combine_find_iterator(node, stopped)
+
+      type(list_node_type), pointer, intent(in out) :: node
+      PetscBool, intent(out) :: stopped
+      ! Locals:
+      PetscInt :: num_found, num_found_local, num_expected
+      character(:), allocatable :: label_name
+
+      select type (zone => node%data)
+      class is (zone_type)
+         label_name = zone_label_name(zone%name)
+         call DMGetStratumSize(mesh%dm, label_name, 1, &
+              num_found_local, ierr); CHKERRQ(ierr)
+         call MPI_reduce(num_found_local, num_found, 1, MPI_INTEGER, &
+              MPI_SUM, 0, PETSC_COMM_WORLD, ierr)
+         if (rank == 0) then
+            select case (zone%name)
+            case ('zone1')
+               num_expected = 14
+            case ('zone2')
+               num_expected = 7
+            case ('zone3')
+               num_expected = 21
+            end select
+            call assert_equals(num_expected, num_found, &
+                 'num found ' //  zone%name)
+         end if
+      end select
+      stopped = PETSC_FALSE
+
+    end subroutine combine_find_iterator
+
+  end subroutine test_combine_find
 
 !------------------------------------------------------------------------
 
