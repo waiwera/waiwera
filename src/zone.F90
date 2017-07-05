@@ -43,7 +43,6 @@ module zone_module
      procedure, public :: init => zone_init
      procedure, public :: label_cells => zone_label_cells
      procedure, public :: destroy => zone_destroy
-     procedure, public :: label_name => zone_label_name
   end type zone_type
 
   type, public, extends(zone_type) :: zone_cell_array_type
@@ -79,7 +78,7 @@ module zone_module
      procedure, public :: label_cells => zone_combine_label_cells
   end type zone_combine_type
 
-  public :: get_zone_type
+  public :: get_zone_type, zone_label_name
 
 contains
 
@@ -148,6 +147,18 @@ contains
   end function get_zone_type
 
 !------------------------------------------------------------------------
+
+  function zone_label_name(zone_name) result(name)
+    !! Returns name of zone label associated with a zone name.
+
+    character(*), intent(in) :: zone_name
+    character(:), allocatable :: name
+
+    allocate(name, source = 'zone_' // trim(zone_name))
+
+  end function zone_label_name
+
+!------------------------------------------------------------------------
 ! zone_type
 !------------------------------------------------------------------------
 
@@ -188,18 +199,6 @@ contains
     err = 0
 
   end subroutine zone_label_cells
-
-!------------------------------------------------------------------------
-
-  function zone_label_name(self) result(name)
-    !! Returns name of zone label associated with a zone.
-
-    class(zone_type), intent(in) :: self
-    character(:), allocatable :: name
-
-    allocate(name, source = 'zone_' // self%name)
-
-  end function zone_label_name
 
 !------------------------------------------------------------------------
 ! zone_cell_array_type
@@ -269,7 +268,7 @@ contains
 
     err = 0
 
-    label_name = self%label_name()
+    label_name = zone_label_name(self%name)
     call DMCreateLabel(dm, label_name, ierr); CHKERRQ(ierr)
     call DMGetLabel(dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
 
@@ -360,7 +359,7 @@ contains
 
     err = 0
 
-    label_name = self%label_name()
+    label_name = zone_label_name(self%name)
     call DMCreateLabel(dm, label_name, ierr); CHKERRQ(ierr)
 
     call DMGetDimension(dm, dim, ierr); CHKERRQ(ierr)
@@ -457,11 +456,12 @@ contains
     PetscInt :: i, c, p, num_matching, ghost
     IS :: zone_IS
     PetscInt, pointer :: cells(:)
-    character(:), allocatable :: label_name
+    character(:), allocatable :: label_name, plus_label_name, &
+         minus_label_name
     PetscErrorCode :: ierr
 
     err = 0
-    label_name = self%label_name()
+    label_name = zone_label_name(self%name)
     call DMCreateLabel(dm, label_name, ierr); CHKERRQ(ierr)
 
     call DMGetLabel(dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
@@ -470,7 +470,7 @@ contains
     call DMPlexGetHybridBounds(dm, cmax, fmax, emax, vmax, ierr)
     CHKERRQ(ierr)
     end_interior_cell = cmax
-    
+
     associate(num_plus => size(self%plus), num_minus => size(self%minus))
 
       if ((num_plus == 0) .and. (num_minus > 0)) then
@@ -484,11 +484,12 @@ contains
          end do
       else ! Label all zones in plus array:
          do i = 1, num_plus
-            call DMGetStratumSize(dm, self%plus(i), &
-                 1, num_matching, ierr); CHKERRQ(ierr)
+            plus_label_name = zone_label_name(self%plus(i))
+            call DMGetStratumSize(dm, plus_label_name, 1, &
+                 num_matching, ierr); CHKERRQ(ierr)
             if (num_matching > 0) then
-               call DMGetStratumIS(dm, self%plus(i), &
-                    1, zone_IS, ierr); CHKERRQ(ierr)
+               call DMGetStratumIS(dm, plus_label_name, 1, &
+                    zone_IS, ierr); CHKERRQ(ierr)
                call ISGetIndicesF90(zone_IS, cells, ierr); CHKERRQ(ierr)
                do c = 1, num_matching
                   p = cells(c)
@@ -505,10 +506,11 @@ contains
 
       ! Unlabel all zones in minus array:
       do i = 1, num_minus
-         call DMGetStratumSize(dm, self%minus(i), &
+         minus_label_name = zone_label_name(self%minus(i))
+         call DMGetStratumSize(dm, minus_label_name, &
               1, num_matching, ierr); CHKERRQ(ierr)
          if (num_matching > 0) then
-            call DMGetStratumIS(dm, self%minus(i), &
+            call DMGetStratumIS(dm, minus_label_name, &
                  1, zone_IS, ierr); CHKERRQ(ierr)
             call ISGetIndicesF90(zone_IS, cells, ierr); CHKERRQ(ierr)
             do c = 1, num_matching
