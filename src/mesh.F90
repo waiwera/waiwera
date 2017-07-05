@@ -1194,7 +1194,7 @@ contains
              node => self%zones%get(i)
              select type(zone => node%data)
                 class is (zone_type)
-                call zone%label_cells(self%dm, self%cell_geom, err)
+                call zone%label_dm(self%dm, self%cell_geom, err)
                 if (err > 0) then
                    if (present(logfile)) then
                       call logfile%write(LOG_LEVEL_WARN, 'zone', &

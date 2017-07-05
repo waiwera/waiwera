@@ -35,13 +35,13 @@ module zone_module
        ZONE_TYPE_COMBINE = 3
 
   type, public :: zone_type
-     !! 3-D zone in the mesh, used to identify cells.
+     !! 3-D zone in the mesh, used to identify mesh points.
      private
      PetscInt :: index !! Zone index
      character(max_zone_name_length), public :: name
    contains
      procedure, public :: init => zone_init
-     procedure, public :: label_cells => zone_label_cells
+     procedure, public :: label_dm => zone_label_dm
      procedure, public :: destroy => zone_destroy
   end type zone_type
 
@@ -52,19 +52,20 @@ module zone_module
    contains
      procedure, public :: init => zone_cell_array_init
      procedure, public :: destroy => zone_cell_array_destroy
-     procedure, public :: label_cells => zone_cell_array_label_cells
+     procedure, public :: label_dm => zone_cell_array_label_dm
   end type zone_cell_array_type
 
   type, public, extends(zone_type) :: zone_box_type
-     !! Zone defined by coordinate ranges. Bounds for any coordinate
-     !! may be omitted, in which case they will not be tested. Hence,
-     !! a box with no bounds corresponds to all cells in the mesh.
+     !! Zone of cells defined by coordinate ranges. Bounds for any
+     !! coordinate may be omitted, in which case they will not be
+     !! tested. Hence, a box with no bounds corresponds to all cells
+     !! in the mesh.
      private
      PetscReal, public :: coord_range(2, 3)
      PetscBool, public :: coord_specified(3)
    contains
      procedure, public :: init => zone_box_init
-     procedure, public :: label_cells => zone_box_label_cells
+     procedure, public :: label_dm => zone_box_label_dm
   end type zone_box_type
 
   type, public, extends(zone_type) :: zone_combine_type
@@ -75,7 +76,7 @@ module zone_module
    contains
      procedure, public :: init => zone_combine_init
      procedure, public :: destroy => zone_combine_destroy
-     procedure, public :: label_cells => zone_combine_label_cells
+     procedure, public :: label_dm => zone_combine_label_dm
   end type zone_combine_type
 
   public :: get_zone_type, zone_label_name
@@ -188,7 +189,7 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine zone_label_cells(self, dm, cell_geometry, err)
+  subroutine zone_label_dm(self, dm, cell_geometry, err)
     !! Label cells in a zone on DM- dummy routine to be overridden.
 
     class(zone_type), intent(in out) :: self
@@ -198,7 +199,7 @@ contains
 
     err = 0
 
-  end subroutine zone_label_cells
+  end subroutine zone_label_dm
 
 !------------------------------------------------------------------------
 ! zone_cell_array_type
@@ -247,7 +248,7 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine zone_cell_array_label_cells(self, dm, cell_geometry, err)
+  subroutine zone_cell_array_label_dm(self, dm, cell_geometry, err)
     !! Label cells on a DM in a zone defined by an array of global
     !! node indices.
 
@@ -292,7 +293,7 @@ contains
        end if
     end do
 
-  end subroutine zone_cell_array_label_cells
+  end subroutine zone_cell_array_label_dm
 
 !------------------------------------------------------------------------
 ! zone_box_type
@@ -335,7 +336,7 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine zone_box_label_cells(self, dm, cell_geometry, err)
+  subroutine zone_box_label_dm(self, dm, cell_geometry, err)
     !! Label cells on a DM in a zone with specified coordinate ranges.
 
     use dm_utils_module, only: local_vec_section, section_offset
@@ -402,7 +403,7 @@ contains
     call VecRestoreArrayReadF90(cell_geometry, cell_geom_array, ierr)
     CHKERRQ(ierr)
 
-  end subroutine zone_box_label_cells
+  end subroutine zone_box_label_dm
 
 !------------------------------------------------------------------------
 ! zone_combine_type
@@ -442,8 +443,8 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine zone_combine_label_cells(self, dm, cell_geometry, err)
-    !! Label cells in a combined zone on a DM.
+  subroutine zone_combine_label_dm(self, dm, cell_geometry, err)
+    !! Label points in a combined zone on a DM.
 
     class(zone_combine_type), intent(in out) :: self
     DM, intent(in out) :: dm
@@ -527,7 +528,7 @@ contains
 
     end associate
 
-  end subroutine zone_combine_label_cells
+  end subroutine zone_combine_label_dm
 
 !------------------------------------------------------------------------  
 
