@@ -40,6 +40,7 @@ module fson_mpi_module
      module procedure fson_get_default_array_1d_real
      module procedure fson_get_default_array_1d_double
      module procedure fson_get_default_array_1d_logical
+     module procedure fson_get_default_array_1d_character
      module procedure fson_get_default_array_2d_integer
      module procedure fson_get_default_array_2d_real
      module procedure fson_get_default_array_2d_double
@@ -57,6 +58,7 @@ module fson_mpi_module
      module procedure fson_get_mpi_array_1d_real
      module procedure fson_get_mpi_array_1d_double
      module procedure fson_get_mpi_array_1d_logical
+     module procedure fson_get_mpi_array_1d_character
      module procedure fson_get_mpi_array_2d_integer
      module procedure fson_get_mpi_array_2d_real
      module procedure fson_get_mpi_array_2d_double
@@ -449,6 +451,51 @@ contains
     end if
 
   end subroutine fson_get_default_array_1d_logical
+
+!------------------------------------------------------------------------
+
+  subroutine fson_get_default_array_1d_character(self, path, default, &
+       string_length, val, logfile, log_key)
+    !! Gets 1-D character array with default if not present.
+
+    type(fson_value), pointer, intent(in) :: self
+    character(len=*), intent(in) :: path
+    character(string_length), intent(in) :: default(:)
+    PetscInt, intent(in) :: string_length
+    character(string_length), allocatable, intent(out) :: val(:)
+    type(logfile_type), intent(in out), optional :: logfile
+    character(len=*), intent(in), optional :: log_key
+    ! Locals:
+    type(fson_value), pointer :: p
+    character :: logstr
+    character(:), allocatable :: str
+    character(max_log_key_length) :: key
+
+    call fson_get(self, path, p)
+    if (assoc_non_null(p)) then
+       call fson_get(p, ".", val)
+    else
+       val = default
+       if (present(logfile)) then
+          if (logfile%active) then
+             if (present(log_key)) then
+                key = log_key
+             else
+                key = path
+             end if
+             if (size(val) > 0) then
+                write(logstr, '(a)') val(1)
+                allocate(str, source = '[' // logstr // ',...]')
+             else
+                allocate(str, source = '[]')
+             end if
+             call logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
+                  str_key = key, str_value = str)
+          end if
+       end if
+    end if
+
+  end subroutine fson_get_default_array_1d_character
 
 !------------------------------------------------------------------------
 
@@ -952,6 +999,47 @@ contains
     end if
 
   end subroutine fson_get_mpi_array_1d_logical
+
+!------------------------------------------------------------------------
+
+  subroutine fson_get_mpi_array_1d_character(self, path, default, &
+       string_length, val, logfile, log_key)
+    !! Gets 1-D character array on all ranks, with optional default.
+
+    type(fson_value), pointer, intent(in) :: self
+    character(len=*), intent(in) :: path
+    character(string_length), intent(in), optional :: default(:)
+    PetscInt, intent(in) :: string_length
+    character(string_length), allocatable, intent(out) :: val(:)
+    type(logfile_type), intent(in out), optional :: logfile
+    character(len=*), intent(in), optional :: log_key
+    ! Locals:
+    PetscInt :: ierr, count
+    PetscMPIInt :: rank
+    PetscBool :: alloc
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
+       if (present(default)) then
+          call fson_get_default(self, path, default, string_length, &
+               val, logfile, log_key)
+       else
+          call fson_get(self, path, val)
+       end if
+       alloc = allocated(val)
+       count = size(val)
+    end if
+    call MPI_bcast(alloc, 1, MPI_LOGICAL, 0, PETSC_COMM_WORLD, ierr)
+    if (alloc) then
+       call MPI_bcast(count, 1, MPI_INTEGER, 0, PETSC_COMM_WORLD, ierr)
+       if (rank /= 0) then
+          allocate(val(count))
+       end if
+       call MPI_bcast(val, count * string_length, MPI_CHARACTER, 0, &
+            PETSC_COMM_WORLD, ierr)
+    end if
+
+  end subroutine fson_get_mpi_array_1d_character
 
 !------------------------------------------------------------------------
 

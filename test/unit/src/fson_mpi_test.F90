@@ -176,6 +176,10 @@ contains
     PetscInt, parameter :: char_len = 12
     character(len = char_len) :: val
     character(len = char_len), parameter :: expected = "etaoinshrdlu"
+    character(len = char_len), allocatable :: arr(:)
+    character(len = char_len), parameter :: default_arr(2) = ["a", "b"]
+    character(len = char_len), parameter :: expected_arr(3) = &
+         ["foo        ", "eric       ", "egeszegedre"]
 
     json => fson_parse_mpi(filename)
 
@@ -183,6 +187,9 @@ contains
     call assert_equals(expected, val, "character")
     call fson_get_mpi(json, "missing_character", expected, val)
     call assert_equals(expected, val, "character")
+
+    call fson_get_mpi(json, "char_array", default_arr, char_len, arr)
+    call assert_equals(expected_arr, arr, 3, "character array")
 
     call fson_destroy_mpi(json)
 
