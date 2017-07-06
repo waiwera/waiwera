@@ -451,7 +451,7 @@ contains
     Vec, intent(in) :: cell_geometry
     PetscErrorCode, intent(out) :: err
     ! Locals:
-    DMLabel :: ghost_label
+    DMLabel :: ghost_label, label
     PetscInt :: start_cell, end_cell, end_interior_cell
     PetscInt :: cmax, fmax, emax, vmax
     PetscInt :: i, c, p, num_matching, ghost
@@ -464,6 +464,7 @@ contains
     err = 0
     label_name = zone_label_name(self%name)
     call DMCreateLabel(dm, label_name, ierr); CHKERRQ(ierr)
+    call DMGetLabel(dm, label_name, label, ierr); CHKERRQ(ierr)
 
     call DMGetLabel(dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
     call DMPlexGetHeightStratum(dm, 0, start_cell, end_cell, ierr)
@@ -518,8 +519,7 @@ contains
                p = cells(c)
                call DMLabelGetValue(ghost_label, p, ghost, ierr)
                if (ghost < 0) then
-                  call DMSetLabelValue(dm, label_name, p, &
-                       -1, ierr); CHKERRQ(ierr)
+                  call DMLabelClearValue(label, p, 1, ierr); CHKERRQ(ierr)
                end if
             end do
             call ISRestoreIndicesF90(zone_IS, cells, ierr); CHKERRQ(ierr)
