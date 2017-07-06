@@ -412,21 +412,47 @@ contains
   subroutine zone_combine_init(self, index, name, json)
     !! Initialise a combined zone.
 
+    use fson_value_m, only: TYPE_ARRAY, TYPE_STRING, TYPE_NULL
+
     class(zone_combine_type), intent(in out) :: self
     PetscInt, intent(in) :: index
     character(*), intent(in) :: name
     type(fson_value), pointer, intent(in) :: json
-    ! Locals:
-    character(max_zone_name_length), allocatable :: default_names(:)
 
     call self%zone_type%init(index, name, json)
-    default_names = [character(max_zone_name_length)::]
 
-    call fson_get_mpi(json, "+", default_names, max_zone_name_length, &
-         self%plus)
+    call get_zones('+', self%plus)
+    call get_zones('-', self%minus)
 
-    call fson_get_mpi(json, "-", default_names, max_zone_name_length, &
-         self%minus)
+  contains
+
+    subroutine get_zones(key, zones)
+
+      character(*), intent(in) :: key
+      character(max_zone_name_length), allocatable, intent(out) :: zones(:)
+      ! Locals:
+      PetscInt :: json_type
+      character(max_zone_name_length), allocatable :: default_zones(:)
+
+      default_zones = [character(max_zone_name_length)::]
+
+      if (fson_has_mpi(json, key)) then
+         json_type = fson_type_mpi(json, key)
+         select case (json_type)
+         case (TYPE_ARRAY)
+            call fson_get_mpi(json, key, default_zones, &
+                 max_zone_name_length, zones)
+         case (TYPE_STRING)
+            allocate(zones(1))
+            call fson_get_mpi(json, key, val = zones(1))
+         case (TYPE_NULL)
+            zones = default_zones
+         end select
+      else
+         zones = default_zones
+      end if
+
+    end subroutine get_zones
 
   end subroutine zone_combine_init
 
