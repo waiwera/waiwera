@@ -223,7 +223,7 @@ contains
     DM, intent(in) :: dm
     Vec, intent(out) :: rock_vector
     PetscInt, intent(in) :: range_start
-    type(logfile_type), intent(in out) :: logfile
+    type(logfile_type), intent(in out), optional :: logfile
     ! Locals:
     PetscInt :: num_rocktypes, ir, ic, c, num_cells
     PetscInt :: perm_size, num_matching
@@ -308,7 +308,9 @@ contains
        call VecRestoreArrayF90(rock_vector, rock_array, ierr); CHKERRQ(ierr)
 
     else
-       call logfile%write(LOG_LEVEL_WARN, "input", "no rocktypes")
+       if (present(logfile)) then
+          call logfile%write(LOG_LEVEL_WARN, "input", "no rocktypes")
+       end if
     end if
 
   contains
@@ -356,7 +358,7 @@ contains
     Vec, intent(out) :: rock_vector
     PetscInt, intent(out) :: range_start
     PetscInt, allocatable, intent(in) :: ghost_cell(:)
-    type(logfile_type), intent(in out) :: logfile
+    type(logfile_type), intent(in out), optional :: logfile
     ! Locals:
     DM :: dm_rock
     PetscInt :: dim, rock_variable_dim(num_rock_variables)
