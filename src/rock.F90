@@ -215,6 +215,7 @@ contains
 
     use cell_order_module, only: cell_order_label_name
     use dm_utils_module, only: global_section_offset, global_vec_section
+    use zone_module
     use fson
     use fson_mpi_module
     use logfile_module
@@ -225,16 +226,19 @@ contains
     PetscInt, intent(in) :: range_start
     type(logfile_type), intent(in out), optional :: logfile
     ! Locals:
-    PetscInt :: num_rocktypes, ir, ic, c, num_cells
+    PetscInt :: num_rocktypes, ir, ic, iz, c
     PetscInt :: perm_size, num_matching
     type(fson_value), pointer :: rocktypes, r
     PetscInt :: start_cell, end_cell, global_cell_index
     PetscInt, allocatable :: global_cell_indices(:)
+    character(max_zone_name_length), allocatable :: zones(:)
+    character(:), allocatable :: label_name
     IS :: cell_IS
     PetscInt, pointer :: cells(:)
     DMLabel :: ghost_label
     type(rock_type) :: rock
     character(max_rockname_length) :: name
+    PetscBool :: has_label
     PetscReal :: porosity, density, specific_heat
     PetscReal :: wet_conductivity, dry_conductivity
     PetscReal, allocatable :: permeability(:)
@@ -282,24 +286,54 @@ contains
           if (fson_has_mpi(r, "cells")) then
              call fson_get_mpi(r, "cells", val = global_cell_indices)
              if (allocated(global_cell_indices)) then
-                num_cells = size(global_cell_indices)
-                do ic = 1, num_cells
-                   global_cell_index = global_cell_indices(ic)
-                   call DMGetStratumSize(dm, cell_order_label_name, &
-                        global_cell_index, num_matching, ierr); CHKERRQ(ierr)
-                   if (num_matching > 0) then
-                      call DMGetStratumIS(dm, cell_order_label_name, &
-                           global_cell_index, cell_IS, ierr); CHKERRQ(ierr)
-                      call ISGetIndicesF90(cell_IS, cells, ierr); CHKERRQ(ierr)
-                      do c = 1, num_matching
-                         call assign_rock_parameters(cells(c))
-                      end do
-                      call ISRestoreIndicesF90(cell_IS, cells, ierr); CHKERRQ(ierr)
-                      call ISDestroy(cell_IS, ierr); CHKERRQ(ierr)
-                   end if
-                end do
+                associate(num_cells => size(global_cell_indices))
+                  do ic = 1, num_cells
+                     global_cell_index = global_cell_indices(ic)
+                     call DMGetStratumSize(dm, cell_order_label_name, &
+                          global_cell_index, num_matching, ierr); CHKERRQ(ierr)
+                     if (num_matching > 0) then
+                        call DMGetStratumIS(dm, cell_order_label_name, &
+                             global_cell_index, cell_IS, ierr); CHKERRQ(ierr)
+                        call ISGetIndicesF90(cell_IS, cells, ierr); CHKERRQ(ierr)
+                        do c = 1, num_matching
+                           call assign_rock_parameters(cells(c))
+                        end do
+                        call ISRestoreIndicesF90(cell_IS, cells, ierr); CHKERRQ(ierr)
+                        call ISDestroy(cell_IS, ierr); CHKERRQ(ierr)
+                     end if
+                  end do
+                end associate
                 deallocate(global_cell_indices)
              end if
+          end if
+
+          if (fson_has_mpi(r, "zones")) then
+             call fson_get_mpi(r, "zones", string_length = max_zone_name_length, &
+                  val = zones)
+             associate(num_zones => size(zones))
+               do iz = 1, num_zones
+                  label_name = zone_label_name(zones(iz))
+                  call DMHasLabel(dm, label_name, has_label, ierr); CHKERRQ(ierr)
+                  if (has_label) then
+                     call DMGetStratumSize(dm, label_name, 1, num_matching, &
+                          ierr); CHKERRQ(ierr)
+                     if (num_matching > 0) then
+                        call DMGetStratumIS(dm, label_name, 1, cell_IS, &
+                             ierr); CHKERRQ(ierr)
+                        call ISGetIndicesF90(cell_IS, cells, ierr); CHKERRQ(ierr)
+                        do c = 1, num_matching
+                           call assign_rock_parameters(cells(c))
+                        end do
+                        call ISRestoreIndicesF90(cell_IS, cells, ierr); CHKERRQ(ierr)
+                        call ISDestroy(cell_IS, ierr); CHKERRQ(ierr)
+                     end if
+                  else
+                     ! err = 1
+                     ! exit
+                  end if
+               end do
+             end associate
+             deallocate(zones)
           end if
 
        end do
