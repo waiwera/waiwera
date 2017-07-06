@@ -14,7 +14,8 @@ module mesh_test
   private
 
   public :: test_mesh_init, test_2d_cartesian_geometry, &
-       test_2d_radial_geometry, test_mesh_face_permeability_direction
+       test_2d_radial_geometry, test_mesh_face_permeability_direction, &
+       test_rock_assignment
 
   PetscReal, parameter :: tol = 1.e-6_dp
 
@@ -365,6 +366,91 @@ contains
     call mesh%destroy()
 
   end subroutine test_mesh_face_permeability_direction
+
+!------------------------------------------------------------------------
+
+  subroutine test_rock_assignment
+    ! rock assignment
+
+    use fson_mpi_module
+    use rock_module
+    use dm_utils_module, only: global_section_offset, global_vec_section
+
+    type(fson_value), pointer :: json
+    type(mesh_type) :: mesh
+    PetscInt, parameter :: dof = 2
+    Vec :: rock_vector
+    type(rock_type) :: rock
+    PetscReal, contiguous, pointer :: rock_array(:)
+    PetscSection :: section
+    DMLabel :: ghost_label
+    PetscInt :: rock_range_start, start_cell, end_cell
+    PetscInt :: c, ghost, offset, irock
+    PetscErrorCode :: ierr, err
+    PetscInt :: rock_count_local(2), rock_count(2)
+    PetscMPIInt :: rank
+    PetscInt, parameter :: expected_count(2) = [21, 28]
+    PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
+    PetscReal, parameter :: tol = 1.e-6
+
+    call MPI_comm_rank(PETSC_COMM_WORLD, rank, ierr)
+
+    json => fson_parse_mpi(str = &
+         '{"mesh": {"filename": "data/mesh/7x7grid.exo"}, ' // &
+         '"rock": {"types": [' // &
+         '  {"name": "rock1", "porosity": 0.1, ' // &
+         '   "cells": [0,1,2,3,4,5,6,7,8,9,' // &
+         '    10,11,12,13,14,15,16,17,18,19,20]},' // &
+         '  {"name": "rock2", "porosity": 0.2, ' // &
+         '    "cells": [21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,' // &
+         '    36,37,38,39,40,41,42,43,44,45,46,47,48]},' // &
+         '  ]}}')
+    call mesh%init(json)
+
+    call DMCreateLabel(mesh%dm, open_boundary_label_name, ierr); CHKERRQ(ierr)
+    call mesh%configure(dof, gravity, json, err = err)
+    call setup_rock_vector(json, mesh%dm, rock_vector, rock_range_start, &
+         mesh%ghost_cell)
+    call fson_destroy_mpi(json)
+
+    call VecGetArrayF90(rock_vector, rock_array, ierr); CHKERRQ(ierr)
+    call global_vec_section(rock_vector, section)
+    call rock%init()
+    call DMPlexGetHeightStratum(mesh%dm, 0, start_cell, end_cell, ierr)
+    CHKERRQ(ierr)
+    call DMGetLabel(mesh%dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
+
+    rock_count_local = 0
+
+    do c = start_cell, end_cell - 1
+       call DMLabelGetValue(ghost_label, c, ghost, ierr); CHKERRQ(ierr)
+       if (ghost < 0) then
+          call global_section_offset(section, c, rock_range_start, &
+               offset, ierr); CHKERRQ(ierr)
+          call rock%assign(rock_array, offset)
+          if (rock%porosity < 0.15_dp) then
+             irock = 1
+          else
+             irock = 2
+          end if
+          rock_count_local(irock) = rock_count_local(irock) + 1
+       end if
+    end do
+
+    call MPI_reduce(rock_count_local, rock_count, 2, MPI_INTEGER, &
+         MPI_SUM, 0, PETSC_COMM_WORLD, ierr)
+
+    if (rank == 0) then
+       call assert_equals(expected_count, rock_count, 2, "rock counts")
+    end if
+
+    call rock%destroy()
+    call VecRestoreArrayF90(rock_vector, rock_array, ierr); CHKERRQ(ierr)
+
+    call VecDestroy(rock_vector, ierr); CHKERRQ(ierr)
+    call mesh%destroy()
+
+  end subroutine test_rock_assignment
 
 !------------------------------------------------------------------------
 
