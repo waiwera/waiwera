@@ -288,7 +288,8 @@ contains
          '"zone2": {"x": [3500, 4500]}, ' // &
          '"zone3": {"x": [2500, 4500], "y": [0, 1000]}, ' // &
          '"zone_plus": {"+": ["zone1", "zone2"]}, ' // &
-         '"zone_minus": {"+": ["zone_plus"], "-": ["zone3"]}}}}')
+         '"zone_minus": {"+": "zone_plus", "-": "zone3"}, ' // &
+         '"all": {"-": null}}}}')
     call mesh%init(json)
     call mesh%configure(dof, gravity, json, err = err)
     call assert_equals(0, err, 'config error')
@@ -329,6 +330,8 @@ contains
                num_expected = 21
             case ('zone_minus')
                num_expected = 19
+            case ('all')
+               num_expected = 49
             end select
             call assert_equals(num_expected, num_found, &
                  'num found: ' //  zone%name)
