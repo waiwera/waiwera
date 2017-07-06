@@ -88,6 +88,7 @@ contains
   PetscInt function get_zone_type(json) result(ztype)
     !! Determines zone type from JSON input.
 
+    use utils_module, only: str_to_lower
     use fson_value_m, only: TYPE_ARRAY, TYPE_OBJECT
 
     type(fson_value), pointer, intent(in) :: json
@@ -112,7 +113,7 @@ contains
 
           call fson_get_mpi(json, "type", val = type_str)
 
-          select case (type_str)
+          select case (str_to_lower(type_str))
           case ('array')
              ztype = ZONE_TYPE_CELL_ARRAY
           case ('box')
