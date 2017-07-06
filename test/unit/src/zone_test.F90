@@ -286,21 +286,23 @@ contains
          '"zones": {' // &
          '"zone1": {"x": [2000, 3000]}, ' // &
          '"zone2": {"x": [3500, 4500]}, ' // &
-         '"zone3": {"+": ["zone1", "zone2"]}}}}')
+         '"zone3": {"x": [2500, 4500], "y": [0, 1000]}, ' // &
+         '"zone_plus": {"+": ["zone1", "zone2"]}, ' // &
+         '"zone_minus": {"+": ["zone_plus"], "-": ["zone3"]}}}}')
     call mesh%init(json)
     call mesh%configure(dof, gravity, json, err = err)
     call assert_equals(0, err, 'config error')
     call fson_destroy_mpi(json)
 
     if (err == 0) then
-       call mesh%zones%traverse(combine_find_iterator)
+       call mesh%zones%traverse(combine_label_iterator)
     end if
 
     call mesh%destroy()
 
   contains
 
-    subroutine combine_find_iterator(node, stopped)
+    subroutine combine_label_iterator(node, stopped)
 
       type(list_node_type), pointer, intent(in out) :: node
       PetscBool, intent(out) :: stopped
@@ -322,17 +324,21 @@ contains
             case ('zone2')
                num_expected = 7
             case ('zone3')
+               num_expected = 3
+            case ('zone_plus')
                num_expected = 21
+            case ('zone_minus')
+               num_expected = 19
             end select
             call assert_equals(num_expected, num_found, &
-                 'num found ' //  zone%name)
+                 'num found: ' //  zone%name)
          end if
       end select
       stopped = PETSC_FALSE
 
-    end subroutine combine_find_iterator
+    end subroutine combine_label_iterator
 
-  end subroutine test_combine_find
+  end subroutine test_combine_label
 
 !------------------------------------------------------------------------
 
