@@ -501,7 +501,7 @@ contains
 
     associate(num_plus => size(self%plus), num_minus => size(self%minus))
 
-      if ((num_plus == 0) .and. (num_minus > 0)) then
+      if (num_plus == 0) then
          ! Label all cells:
          do c = start_cell, end_interior_cell - 1
             call DMLabelGetValue(ghost_label, c, ghost, ierr); CHKERRQ(ierr)
