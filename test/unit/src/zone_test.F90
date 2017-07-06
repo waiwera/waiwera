@@ -16,7 +16,7 @@ module zone_test
   private
 
   public :: test_get_zone_type, test_cell_array, &
-       test_cell_array_find, test_box_find, test_combine_find
+       test_cell_array_label, test_box_label, test_combine_label
 
 contains
 
@@ -123,8 +123,8 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine test_cell_array_find
-    ! cell array find
+  subroutine test_cell_array_label
+    ! cell array label
 
     use mesh_module
 
@@ -194,12 +194,12 @@ contains
 
     end subroutine zone_test
 
-  end subroutine test_cell_array_find
+  end subroutine test_cell_array_label
 
 !------------------------------------------------------------------------
 
-  subroutine test_box_find
-    ! box find
+  subroutine test_box_label
+    ! box label
 
     use mesh_module
 
@@ -224,14 +224,14 @@ contains
     call fson_destroy_mpi(json)
 
     if (err == 0) then
-       call mesh%zones%traverse(box_find_iterator)
+       call mesh%zones%traverse(box_label_iterator)
     end if
 
     call mesh%destroy()
 
   contains
 
-    subroutine box_find_iterator(node, stopped)
+    subroutine box_label_iterator(node, stopped)
 
       type(list_node_type), pointer, intent(in out) :: node
       PetscBool, intent(out) :: stopped
@@ -261,14 +261,14 @@ contains
       end select
       stopped = PETSC_FALSE
 
-    end subroutine box_find_iterator
+    end subroutine box_label_iterator
 
-  end subroutine test_box_find
+  end subroutine test_box_label
 
 !------------------------------------------------------------------------
 
-  subroutine test_combine_find
-    ! combine find
+  subroutine test_combine_label
+    ! combine label
 
     use mesh_module
 
