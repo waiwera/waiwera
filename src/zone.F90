@@ -72,7 +72,8 @@ module zone_module
      !! Zone defined by combining other zones, adding zones together
      !! and/or subtracting (excluding) them.
      private
-     character(max_zone_name_length), allocatable :: plus(:), minus(:)
+     character(max_zone_name_length), allocatable :: plus(:), &
+          minus(:), times(:)
    contains
      procedure, public :: init => zone_combine_init
      procedure, public :: destroy => zone_combine_destroy
@@ -136,7 +137,8 @@ contains
              ztype = ZONE_TYPE_BOX
 
           else if (fson_has_mpi(json, "+") .or. &
-               fson_has_mpi(json, "-")) then
+               fson_has_mpi(json, "-") .or. &
+               fson_has_mpi(json, "*")) then
 
              ztype = ZONE_TYPE_COMBINE
 
@@ -424,6 +426,7 @@ contains
 
     call get_zones('+', self%plus)
     call get_zones('-', self%minus)
+    call get_zones('*', self%times)
 
   contains
 
@@ -464,7 +467,7 @@ contains
 
     class(zone_combine_type), intent(in out) :: self
 
-    deallocate(self%plus, self%minus)
+    deallocate(self%plus, self%minus, self%times)
 
   end subroutine zone_combine_destroy
 
@@ -479,13 +482,14 @@ contains
     PetscErrorCode, intent(out) :: err
     ! Locals:
     DMLabel :: ghost_label, label
+    DMLabel, allocatable :: times_label(:)
     PetscInt :: start_cell, end_cell, end_interior_cell
     PetscInt :: cmax, fmax, emax, vmax
-    PetscInt :: i, c, p, num_matching, ghost
+    PetscInt :: i, c, p, num_matching, ghost, times
     IS :: zone_IS
     PetscInt, pointer :: cells(:)
     character(:), allocatable :: label_name, plus_label_name, &
-         minus_label_name
+         minus_label_name, times_label_name
     PetscErrorCode :: ierr
 
     err = 0
@@ -500,7 +504,8 @@ contains
     CHKERRQ(ierr)
     end_interior_cell = cmax
 
-    associate(num_plus => size(self%plus), num_minus => size(self%minus))
+    associate(num_plus => size(self%plus), num_minus => size(self%minus), &
+         num_times => size(self%times))
 
       if (num_plus == 0) then
          ! Label all cells:
@@ -522,7 +527,7 @@ contains
                call ISGetIndicesF90(zone_IS, cells, ierr); CHKERRQ(ierr)
                do c = 1, num_matching
                   p = cells(c)
-                  call DMLabelGetValue(ghost_label, p, ghost, ierr)
+                  call DMLabelGetValue(ghost_label, p, ghost, ierr); CHKERRQ(ierr)
                   if (ghost < 0) then
                      call DMSetLabelValue(dm, label_name, p, &
                           1, ierr); CHKERRQ(ierr)
@@ -531,6 +536,40 @@ contains
                call ISRestoreIndicesF90(zone_IS, cells, ierr); CHKERRQ(ierr)
             end if
          end do
+      end if
+
+      ! Unlabel all labelled points that are not in all of the zones
+      ! in the times array:
+      if (num_times > 0) then
+         call DMGetStratumSize(dm, label_name, 1, num_matching, ierr)
+         CHKERRQ(ierr)
+         if (num_matching > 0) then
+            call DMGetStratumIS(dm, label_name, 1, zone_IS, ierr)
+            CHKERRQ(ierr)
+            call ISGetIndicesF90(zone_IS, cells, ierr); CHKERRQ(ierr)
+            allocate(times_label(num_times))
+            do i = 1, num_times
+               times_label_name = zone_label_name(self%times(i))
+               call DMGetLabel(dm, times_label_name, times_label(i), &
+                    ierr); CHKERRQ(ierr)
+            end do
+            do c = 1, num_matching
+               p = cells(c)
+               call DMLabelGetValue(ghost_label, p, ghost, ierr); CHKERRQ(ierr)
+               if (ghost < 0) then
+                  do i = 1, num_times
+                     call DMLabelGetValue(times_label(i), p, times, ierr)
+                     CHKERRQ(ierr)
+                     if (times <= 0) then
+                        call DMLabelClearValue(label, p, 1, ierr); CHKERRQ(ierr)
+                        exit
+                     end if
+                  end do
+               end if
+            end do
+            deallocate(times_label)
+            call ISRestoreIndicesF90(zone_IS, cells, ierr); CHKERRQ(ierr)
+         end if
       end if
 
       ! Unlabel all zones in minus array:

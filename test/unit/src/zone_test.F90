@@ -289,6 +289,8 @@ contains
          '"zone3": {"x": [2500, 4500], "y": [0, 1000]}, ' // &
          '"zone_plus": {"+": ["zone1", "zone2"]}, ' // &
          '"zone_minus": {"+": "zone_plus", "-": "zone3"}, ' // &
+         '"zone_times": {"+": "zone_plus", "*": "zone3"}, ' // &
+         '"zone_times2": {"*": ["zone_plus", "zone3"]}, ' // &
          '"all": {"-": null}}}}')
     call mesh%init(json)
     call mesh%configure(dof, gravity, json, err = err)
@@ -330,6 +332,8 @@ contains
                num_expected = 21
             case ('zone_minus')
                num_expected = 19
+            case ('zone_times', 'zone_times2')
+               num_expected = 2
             case ('all')
                num_expected = 49
             end select
