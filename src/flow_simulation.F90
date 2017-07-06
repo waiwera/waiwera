@@ -513,7 +513,7 @@ contains
     use eos_setup_module, only: setup_eos
     use initial_module, only: setup_initial, scale_initial_primary
     use fluid_module, only: setup_fluid_vector
-    use rock_module, only: setup_rock_vector, setup_rocktype_labels
+    use rock_module, only: setup_rock_vector
     use source_setup_module, only: setup_sources
     use utils_module, only: date_time_str
     use profiling_module, only: simulation_init_event
@@ -549,7 +549,6 @@ contains
 
     call self%mesh%init(json, self%logfile)
     call self%setup_gravity(json)
-    call setup_rocktype_labels(json, self%mesh%dm, self%logfile)
     call self%mesh%setup_boundaries(json, self%eos, self%logfile)
     if (self%output_filename == '') then
        call self%mesh%configure(self%eos%num_primary_variables, &
