@@ -126,7 +126,7 @@ digraph waiwera{
         rock_module -> fson_mpi_module
         rock_module -> logfile_module
         rock_module -> relative_permeability_module
-        rock_module -> zone_module
+        rock_module -> zone_label_module
         source_control_module -> dm_utils_module
         source_control_module -> eos_module
         source_control_module -> interpolation_module
@@ -169,4 +169,5 @@ digraph waiwera{
         zone_module -> list_module
         zone_module -> logfile_module
         zone_module -> utils_module
+        zone_module -> zone_label_module
 }

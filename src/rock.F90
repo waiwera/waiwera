@@ -215,7 +215,7 @@ contains
 
     use cell_order_module, only: cell_order_label_name
     use dm_utils_module, only: global_section_offset, global_vec_section
-    use zone_module
+    use zone_label_module
     use fson
     use fson_mpi_module
     use logfile_module

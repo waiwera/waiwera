@@ -22,6 +22,7 @@ module zone_module
 
   use petsc
   use kinds_module
+  use zone_label_module
   use logfile_module
   use fson_mpi_module
   use list_module
@@ -30,7 +31,6 @@ module zone_module
   implicit none
   private
 
-  PetscInt, parameter, public :: max_zone_name_length = 80
   PetscInt, parameter, public :: ZONE_TYPE_CELL_ARRAY = 1, ZONE_TYPE_BOX = 2, &
        ZONE_TYPE_COMBINE = 3
 
@@ -80,7 +80,7 @@ module zone_module
      procedure, public :: label_dm => zone_combine_label_dm
   end type zone_combine_type
 
-  public :: get_zone_type, zone_label_name
+  public :: get_zone_type
 
 contains
 
@@ -149,18 +149,6 @@ contains
     end select
 
   end function get_zone_type
-
-!------------------------------------------------------------------------
-
-  function zone_label_name(zone_name) result(name)
-    !! Returns name of zone label associated with a zone name.
-
-    character(*), intent(in) :: zone_name
-    character(:), allocatable :: name
-
-    allocate(name, source = 'zone_' // trim(zone_name))
-
-  end function zone_label_name
 
 !------------------------------------------------------------------------
 ! zone_type

@@ -9,6 +9,7 @@ module zone_test
   use fruit
   use fson
   use zone_module
+  use zone_label_module
   use fson_mpi_module
   use list_module
 
