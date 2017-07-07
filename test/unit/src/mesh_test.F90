@@ -377,25 +377,14 @@ contains
     use dm_utils_module, only: global_section_offset, global_vec_section
 
     type(fson_value), pointer :: json
-    type(mesh_type) :: mesh
-    PetscInt, parameter :: dof = 2
-    Vec :: rock_vector
-    type(rock_type) :: rock
-    PetscReal, contiguous, pointer :: rock_array(:)
-    PetscSection :: section
-    DMLabel :: ghost_label
-    PetscInt :: rock_range_start, start_cell, end_cell
-    PetscInt :: c, ghost, offset, irock
-    PetscErrorCode :: ierr, err
-    PetscInt :: rock_count_local(2), rock_count(2)
+    character(:), allocatable :: json_str
+    PetscErrorCode :: ierr
     PetscMPIInt :: rank
-    PetscInt, parameter :: expected_count(2) = [21, 28]
-    PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
-    PetscReal, parameter :: tol = 1.e-6
+    PetscInt, parameter :: num_rocktypes = 2
 
     call MPI_comm_rank(PETSC_COMM_WORLD, rank, ierr)
 
-    json => fson_parse_mpi(str = &
+    json_str = &
          '{"mesh": {"filename": "data/mesh/7x7grid.exo"}, ' // &
          '"rock": {"types": [' // &
          '  {"name": "rock1", "porosity": 0.1, ' // &
@@ -404,51 +393,95 @@ contains
          '  {"name": "rock2", "porosity": 0.2, ' // &
          '    "cells": [21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,' // &
          '    36,37,38,39,40,41,42,43,44,45,46,47,48]},' // &
-         '  ]}}')
-    call mesh%init(json)
+         '  ]}}'
 
-    call DMCreateLabel(mesh%dm, open_boundary_label_name, ierr); CHKERRQ(ierr)
-    call mesh%configure(dof, gravity, json, err = err)
-    call setup_rock_vector(json, mesh%dm, rock_vector, rock_range_start, &
-         mesh%ghost_cell)
-    call fson_destroy_mpi(json)
+    call rock_test_case(json_str, [21, 28], "cells")
 
-    call VecGetArrayF90(rock_vector, rock_array, ierr); CHKERRQ(ierr)
-    call global_vec_section(rock_vector, section)
-    call rock%init()
-    call DMPlexGetHeightStratum(mesh%dm, 0, start_cell, end_cell, ierr)
-    CHKERRQ(ierr)
-    call DMGetLabel(mesh%dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
+    json_str = &
+         '{"mesh": {"filename": "data/mesh/7x7grid.exo", ' // &
+         '"zones": {' // &
+         '"left_zone": {"x": [0, 3000]},' // &
+         '"right_zone": {"-": "left_zone"}' // &
+         '}}, ' // &
+         '"rock": {"types": [' // &
+         '  {"name": "rock1", "porosity": 0.1, ' // &
+         '   "zones": ["left_zone"]}, ' // &
+         '  {"name": "rock2", "porosity": 0.2, ' // &
+         '    "zones": ["right_zone"]}' // &
+         '  ]}}'
 
-    rock_count_local = 0
+    call rock_test_case(json_str, [35, 14], "zones")
 
-    do c = start_cell, end_cell - 1
-       call DMLabelGetValue(ghost_label, c, ghost, ierr); CHKERRQ(ierr)
-       if (ghost < 0) then
-          call global_section_offset(section, c, rock_range_start, &
-               offset, ierr); CHKERRQ(ierr)
-          call rock%assign(rock_array, offset)
-          if (rock%porosity < 0.15_dp) then
-             irock = 1
-          else
-             irock = 2
-          end if
-          rock_count_local(irock) = rock_count_local(irock) + 1
-       end if
-    end do
+  contains
 
-    call MPI_reduce(rock_count_local, rock_count, 2, MPI_INTEGER, &
-         MPI_SUM, 0, PETSC_COMM_WORLD, ierr)
+    subroutine rock_test_case(json_str, expected_count, title)
 
-    if (rank == 0) then
-       call assert_equals(expected_count, rock_count, 2, "rock counts")
-    end if
+      character(*), intent(in) :: json_str
+      PetscInt, intent(in) :: expected_count(num_rocktypes)
+      character(*), intent(in) :: title
+      ! Locals:
+      type(mesh_type) :: mesh
+      PetscInt, parameter :: dof = 2
+      Vec :: rock_vector
+      type(rock_type) :: rock
+      PetscReal, contiguous, pointer :: rock_array(:)
+      PetscSection :: section
+      DMLabel :: ghost_label
+      PetscInt :: rock_range_start, start_cell, end_cell
+      PetscInt :: c, ghost, offset, irock
+      PetscErrorCode :: ierr, err
+      PetscInt :: rock_count_local(num_rocktypes), rock_count(num_rocktypes)
+      PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
+      PetscReal, parameter :: tol = 1.e-6
 
-    call rock%destroy()
-    call VecRestoreArrayF90(rock_vector, rock_array, ierr); CHKERRQ(ierr)
+      json => fson_parse_mpi(str = json_str )
+      call mesh%init(json)
 
-    call VecDestroy(rock_vector, ierr); CHKERRQ(ierr)
-    call mesh%destroy()
+      call DMCreateLabel(mesh%dm, open_boundary_label_name, ierr); CHKERRQ(ierr)
+      call mesh%configure(dof, gravity, json, err = err)
+      call setup_rock_vector(json, mesh%dm, rock_vector, rock_range_start, &
+           mesh%ghost_cell)
+      call fson_destroy_mpi(json)
+
+      call VecGetArrayF90(rock_vector, rock_array, ierr); CHKERRQ(ierr)
+      call global_vec_section(rock_vector, section)
+      call rock%init()
+      call DMPlexGetHeightStratum(mesh%dm, 0, start_cell, end_cell, ierr)
+      CHKERRQ(ierr)
+      call DMGetLabel(mesh%dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
+
+      rock_count_local = 0
+
+      do c = start_cell, end_cell - 1
+         call DMLabelGetValue(ghost_label, c, ghost, ierr); CHKERRQ(ierr)
+         if (ghost < 0) then
+            call global_section_offset(section, c, rock_range_start, &
+                 offset, ierr); CHKERRQ(ierr)
+            call rock%assign(rock_array, offset)
+            if (rock%porosity < 0.15_dp) then
+               irock = 1
+            else
+               irock = 2
+            end if
+            rock_count_local(irock) = rock_count_local(irock) + 1
+         end if
+      end do
+
+      call MPI_reduce(rock_count_local, rock_count, num_rocktypes, &
+           MPI_INTEGER, MPI_SUM, 0, PETSC_COMM_WORLD, ierr)
+
+      if (rank == 0) then
+         call assert_equals(expected_count, rock_count, num_rocktypes, &
+              "rock counts: " // trim(title))
+      end if
+
+      call rock%destroy()
+      call VecRestoreArrayF90(rock_vector, rock_array, ierr); CHKERRQ(ierr)
+
+      call VecDestroy(rock_vector, ierr); CHKERRQ(ierr)
+      call mesh%destroy()
+
+    end subroutine rock_test_case
 
   end subroutine test_rock_assignment
 
