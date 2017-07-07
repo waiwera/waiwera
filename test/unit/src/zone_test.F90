@@ -16,7 +16,7 @@ module zone_test
   implicit none
   private
 
-  public :: test_get_zone_type, test_cell_array, &
+  public :: test_get_zone_type, test_cell_array, test_zone_depends, &
        test_cell_array_label, test_box_label, test_combine_label
 
 contains
@@ -121,6 +121,55 @@ contains
     call fson_destroy_mpi(json)
 
   end subroutine test_cell_array
+
+!------------------------------------------------------------------------
+
+  subroutine test_zone_depends
+    ! dependencies
+
+    type(fson_value), pointer :: json
+    class(zone_type), pointer :: zone
+    character(max_zone_name_length), allocatable :: expected_depends(:)
+    PetscMPIInt :: rank
+    PetscErrorCode :: ierr
+
+    call MPI_comm_rank(PETSC_COMM_WORLD, rank, ierr)
+
+    json => fson_parse_mpi(str = '[1, 2, 3]')
+    expected_depends = [character(max_zone_name_length)::]
+    allocate(zone_cell_array_type:: zone)
+    call zone%init(1, 'zone', json)
+    if (rank == 0) then
+       call assert_equals(expected_depends, zone%dependencies(), 0, 'cells')
+    end if
+    call zone%destroy()
+    deallocate(zone)
+    call fson_destroy_mpi(json)
+
+    json => fson_parse_mpi(str = '{"x": [0, 100]}')
+    expected_depends = [character(max_zone_name_length)::]
+    allocate(zone_box_type:: zone)
+    call zone%init(1, 'zone', json)
+    if (rank == 0) then
+       call assert_equals(expected_depends, zone%dependencies(), 0, 'box')
+    end if
+    call zone%destroy()
+    deallocate(zone)
+    call fson_destroy_mpi(json)
+
+    json => fson_parse_mpi(str = '{"+": ["zone1", "zone2"], ' // &
+         '"*": "zone3", "-": "zone4"}')
+    expected_depends = ["zone1", "zone2", "zone3", "zone4"]
+    allocate(zone_combine_type:: zone)
+    call zone%init(1, 'zone', json)
+    if (rank == 0) then
+       call assert_equals(expected_depends, zone%dependencies(), 4, 'combine')
+    end if
+    call zone%destroy()
+    deallocate(zone)
+    call fson_destroy_mpi(json)
+
+  end subroutine test_zone_depends
 
 !------------------------------------------------------------------------
 

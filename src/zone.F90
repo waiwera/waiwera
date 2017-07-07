@@ -43,6 +43,7 @@ module zone_module
      procedure, public :: init => zone_init
      procedure, public :: label_dm => zone_label_dm
      procedure, public :: destroy => zone_destroy
+     procedure, public :: dependencies => zone_dependencies
   end type zone_type
 
   type, public, extends(zone_type) :: zone_cell_array_type
@@ -78,6 +79,7 @@ module zone_module
      procedure, public :: init => zone_combine_init
      procedure, public :: destroy => zone_combine_destroy
      procedure, public :: label_dm => zone_combine_label_dm
+     procedure, public :: dependencies => zone_combine_dependencies
   end type zone_combine_type
 
   public :: get_zone_type
@@ -191,6 +193,18 @@ contains
     err = 0
 
   end subroutine zone_label_dm
+
+!------------------------------------------------------------------------
+
+  function zone_dependencies(self) result (depends)
+    !! Returns array of names of other zones that this zone depends on.
+
+    class(zone_type), intent(in) :: self
+    character(max_zone_name_length), allocatable :: depends(:)
+
+    depends = [character(max_zone_name_length)::]
+
+  end function zone_dependencies
 
 !------------------------------------------------------------------------
 ! zone_cell_array_type
@@ -583,6 +597,19 @@ contains
     end associate
 
   end subroutine zone_combine_label_dm
+
+!------------------------------------------------------------------------
+
+  function zone_combine_dependencies(self) result (depends)
+    !! Returns array of names of other zones that a combined zone
+    !! depends on.
+
+    class(zone_combine_type), intent(in) :: self
+    character(max_zone_name_length), allocatable :: depends(:)
+
+    depends = [self%plus, self%times, self%minus]
+
+  end function zone_combine_dependencies
 
 !------------------------------------------------------------------------  
 
