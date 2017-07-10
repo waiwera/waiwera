@@ -196,15 +196,15 @@ contains
 
 !------------------------------------------------------------------------
 
-  function zone_dependencies(self) result (depends)
+   subroutine zone_dependencies(self, depends)
     !! Returns array of names of other zones that this zone depends on.
 
     class(zone_type), intent(in) :: self
-    character(max_zone_name_length), allocatable :: depends(:)
+    character(max_zone_name_length), allocatable, intent(out) :: depends(:)
 
     depends = [character(max_zone_name_length)::]
 
-  end function zone_dependencies
+  end subroutine zone_dependencies
 
 !------------------------------------------------------------------------
 ! zone_cell_array_type
@@ -600,16 +600,16 @@ contains
 
 !------------------------------------------------------------------------
 
-  function zone_combine_dependencies(self) result (depends)
+  subroutine zone_combine_dependencies(self, depends)
     !! Returns array of names of other zones that a combined zone
     !! depends on.
 
     class(zone_combine_type), intent(in) :: self
-    character(max_zone_name_length), allocatable :: depends(:)
+    character(max_zone_name_length), allocatable, intent(out) :: depends(:)
 
     depends = [self%plus, self%times, self%minus]
 
-  end function zone_combine_dependencies
+  end subroutine zone_combine_dependencies
 
 !------------------------------------------------------------------------  
 
