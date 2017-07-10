@@ -130,6 +130,7 @@ contains
     type(fson_value), pointer :: json
     class(zone_type), pointer :: zone
     character(max_zone_name_length), allocatable :: expected_depends(:)
+    character(max_zone_name_length), allocatable :: depends(:)
     PetscMPIInt :: rank
     PetscErrorCode :: ierr
 
@@ -139,8 +140,9 @@ contains
     expected_depends = [character(max_zone_name_length)::]
     allocate(zone_cell_array_type:: zone)
     call zone%init(1, 'zone', json)
+    call zone%dependencies(depends)
     if (rank == 0) then
-       call assert_equals(expected_depends, zone%dependencies(), 0, 'cells')
+       call assert_equals(expected_depends, depends, 0, 'cells')
     end if
     call zone%destroy()
     deallocate(zone)
@@ -150,8 +152,9 @@ contains
     expected_depends = [character(max_zone_name_length)::]
     allocate(zone_box_type:: zone)
     call zone%init(1, 'zone', json)
+    call zone%dependencies(depends)
     if (rank == 0) then
-       call assert_equals(expected_depends, zone%dependencies(), 0, 'box')
+       call assert_equals(expected_depends, depends, 0, 'box')
     end if
     call zone%destroy()
     deallocate(zone)
@@ -162,8 +165,9 @@ contains
     expected_depends = ["zone1", "zone2", "zone3", "zone4"]
     allocate(zone_combine_type:: zone)
     call zone%init(1, 'zone', json)
+    call zone%dependencies(depends)
     if (rank == 0) then
-       call assert_equals(expected_depends, zone%dependencies(), 4, 'combine')
+       call assert_equals(expected_depends, depends, 4, 'combine')
     end if
     call zone%destroy()
     deallocate(zone)
