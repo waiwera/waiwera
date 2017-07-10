@@ -1129,6 +1129,9 @@ contains
 
     use fson_mpi_module
     use logfile_module
+    use zone_label_module, only: max_zone_name_length
+    use dictionary_module
+    use dag_module
 
     class(mesh_type), intent(in out) :: self
     type(fson_value), pointer, intent(in) :: json !! JSON file pointer
@@ -1140,6 +1143,11 @@ contains
     character(:), allocatable :: name
     class(zone_type), pointer :: zone
     type(list_node_type), pointer :: node
+    type(dictionary_type) :: zone_dict
+    type(dag_type) :: dag
+    PetscInt, allocatable :: order(:)
+    character(max_zone_name_length), allocatable :: zone_names(:)
+    character(max_zone_name_length) :: zone_name
 
     err = 0
 
@@ -1167,8 +1175,8 @@ contains
              err = 1
              if (present(logfile)) then
                 call logfile%write(LOG_LEVEL_ERR, 'input', &
-                     "unrecognised zone type", int_keys = ["index"], &
-                     int_values = [i - 1])
+                     "unrecognised zone type", str_key = "name", &
+                     str_value = name)
              end if
           end select
           if (err == 0) then
@@ -1179,7 +1187,7 @@ contains
                 if (present(logfile)) then
                    call logfile%write(LOG_LEVEL_ERR, 'input', &
                         "unrecognised zone dependency", &
-                        int_keys = ["index"], int_values = [i - 1])
+                        str_key = "name", str_value = name)
                 end if
                 exit
              end if
@@ -1188,26 +1196,72 @@ contains
           end if
        end do
 
+       call zone_dict%init(self%zones)
+       ! Set up zone dependency graph and do topological sort:
+       call dag%init(num_zones)
+       call self%zones%traverse(zone_dependency_proc)
+       call dag%sort(order, err)
+
        if (err == 0) then
-          ! TODO: process zones in dependency order
+          call self%zones%tags(zone_names)
           do i = 0, num_zones - 1
-             node => self%zones%get(i)
+             zone_name = zone_names(order(i))
+             node => zone_dict%get(zone_name)
              select type(zone => node%data)
                 class is (zone_type)
                 call zone%label_dm(self%dm, self%cell_geom, err)
                 if (err > 0) then
                    if (present(logfile)) then
                       call logfile%write(LOG_LEVEL_WARN, 'zone', &
-                           "can't find cells", int_keys = ["index"], &
-                           int_values = [i])
+                           "can't find cells", str_key = "name", &
+                           str_value = zone_name)
                    end if
                    exit
                 end if
              end select
           end do
+
+       else
+          if (present(logfile)) then
+             call logfile%write(LOG_LEVEL_ERR, 'input', &
+                  "circular zone dependency")
+          end if
        end if
 
+       call zone_dict%destroy()
+
     end if
+
+  contains
+
+    subroutine zone_dependency_proc(node, stopped)
+      !! Adds dependencies for zone to dependency graph.
+
+      type(list_node_type), pointer, intent(in out)  :: node
+      PetscBool, intent(out) :: stopped
+      ! Locals:
+      character(max_zone_name_length), allocatable :: depends(:)
+      PetscInt :: i, num_depends
+      PetscInt, allocatable :: edges(:)
+      type(list_node_type), pointer :: depend_node
+
+      stopped = PETSC_FALSE
+      select type (zone => node%data)
+      class is (zone_type)
+         call zone%dependencies(depends)
+         num_depends = size(depends)
+         allocate(edges(num_depends))
+         do i = 1, size(depends)
+            depend_node => zone_dict%get(depends(i))
+            select type (depend_zone => depend_node%data)
+            class is (zone_type)
+               edges(i) = depend_zone%index
+            end select
+         end do
+         call dag%set_edges(zone%index, edges)
+      end select
+
+    end subroutine zone_dependency_proc
     
   end subroutine mesh_setup_zones
 

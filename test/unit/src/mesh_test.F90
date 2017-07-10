@@ -412,6 +412,22 @@ contains
 
     call rock_test_case(json_str, [35, 14], "zones")
 
+    json_str = &
+         '{"mesh": {"filename": "data/mesh/7x7grid.exo", ' // &
+         '"zones": {' // &
+         '"zone4": {"-": "zone3"},' // &
+         '"zone3": {"+": "zone1", "-": "zone2"},' // &
+         '"zone1": {"x": [0, 3000]},' // &
+         '"zone2": {"x": [1500, 2500], "y": [1500, 2500]}' // &
+         '}}, ' // &
+         '"rock": {"types": [' // &
+         '  {"name": "rock1", "porosity": 0.1, ' // &
+         '   "zones": ["zone3"]}, ' // &
+         '  {"name": "rock2", "porosity": 0.2, ' // &
+         '    "zones": ["zone4"]}' // &
+         '  ]}}'
+
+    call rock_test_case(json_str, [31, 18], "zones")
   contains
 
     subroutine rock_test_case(json_str, expected_count, title)
