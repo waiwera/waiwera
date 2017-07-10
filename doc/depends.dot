@@ -8,6 +8,7 @@ digraph waiwera{
         capillary_pressure_module -> utils_module
         cell_module -> fluid_module
         cell_module -> rock_module
+        dictionary_module -> list_module
         eos_module -> fluid_module
         eos_module -> interpolation_module
         eos_module -> logfile_module
@@ -95,6 +96,8 @@ digraph waiwera{
         interpolation_module -> utils_module
         mesh_module -> cell_module
         mesh_module -> cell_order_module
+        mesh_module -> dag_module
+        mesh_module -> dictionary_module
         mesh_module -> dm_utils_module
         mesh_module -> eos_module
         mesh_module -> face_module
@@ -105,6 +108,7 @@ digraph waiwera{
         mesh_module -> mpi_utils_module
         mesh_module -> rock_module
         mesh_module -> utils_module
+        mesh_module -> zone_label_module
         mesh_module -> zone_module
         ncg_air_thermodynamics_module -> ncg_thermodynamics_module
         ncg_air_thermodynamics_module -> thermodynamics_module

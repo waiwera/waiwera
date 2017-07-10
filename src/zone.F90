@@ -37,12 +37,13 @@ module zone_module
   type, public :: zone_type
      !! 3-D zone in the mesh, used to identify mesh points.
      private
-     PetscInt :: index !! Zone index
+     PetscInt, public :: index !! Zone index
      character(max_zone_name_length), public :: name
    contains
      procedure, public :: init => zone_init
      procedure, public :: label_dm => zone_label_dm
      procedure, public :: destroy => zone_destroy
+     procedure, public :: dependencies => zone_dependencies
   end type zone_type
 
   type, public, extends(zone_type) :: zone_cell_array_type
@@ -78,6 +79,7 @@ module zone_module
      procedure, public :: init => zone_combine_init
      procedure, public :: destroy => zone_combine_destroy
      procedure, public :: label_dm => zone_combine_label_dm
+     procedure, public :: dependencies => zone_combine_dependencies
   end type zone_combine_type
 
   public :: get_zone_type
@@ -191,6 +193,18 @@ contains
     err = 0
 
   end subroutine zone_label_dm
+
+!------------------------------------------------------------------------
+
+   subroutine zone_dependencies(self, depends)
+    !! Returns array of names of other zones that this zone depends on.
+
+    class(zone_type), intent(in) :: self
+    character(max_zone_name_length), allocatable, intent(out) :: depends(:)
+
+    depends = [character(max_zone_name_length)::]
+
+  end subroutine zone_dependencies
 
 !------------------------------------------------------------------------
 ! zone_cell_array_type
@@ -583,6 +597,20 @@ contains
     end associate
 
   end subroutine zone_combine_label_dm
+
+!------------------------------------------------------------------------
+
+  subroutine zone_combine_dependencies(self, depends)
+    !! Returns array of names of other zones that a combined zone
+    !! depends on.
+
+    class(zone_combine_type), intent(in) :: self
+    character(max_zone_name_length), allocatable, intent(out) :: depends(:)
+
+    depends = [character(max_zone_name_length):: &
+         self%plus, self%times, self%minus]
+
+  end subroutine zone_combine_dependencies
 
 !------------------------------------------------------------------------  
 
