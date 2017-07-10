@@ -282,13 +282,8 @@ contains
     !! Returns number of items in the dictionary.
 
     class(dictionary_type), intent(in out) :: self
-    ! Locals:
-    PetscInt :: i
 
-    count = 0
-    do i = 1, size(self%list)
-       count = count + self%list(i)%count
-    end do
+    count = sum(self%list%count)
 
   end function dictionary_count
 
