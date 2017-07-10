@@ -607,7 +607,8 @@ contains
     class(zone_combine_type), intent(in) :: self
     character(max_zone_name_length), allocatable, intent(out) :: depends(:)
 
-    depends = [self%plus, self%times, self%minus]
+    depends = [character(max_zone_name_length):: &
+         self%plus, self%times, self%minus]
 
   end subroutine zone_combine_dependencies
 
