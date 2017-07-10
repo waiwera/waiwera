@@ -46,7 +46,7 @@ contains
        fluid_range_start, sources, source_controls, logfile)
     !! Sets up lists of sinks / sources and source controls.
 
-    use mesh_module, only: cell_order_label_name
+    use cell_order_module, only: cell_order_label_name
     use dm_utils_module, only: dm_order_local_index, global_vec_section
 
     type(fson_value), pointer, intent(in) :: json !! JSON file object

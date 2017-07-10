@@ -43,7 +43,7 @@ contains
     PetscInt :: c, fluid_offset, fluid_range_start
     PetscReal, allocatable :: fluid_cell_data(:)
     PetscReal, pointer, contiguous :: fluid_array(:), local_fluid_array(:)
-    PetscErrorCode :: ierr
+    PetscErrorCode :: ierr, err
     PetscInt, parameter :: offset = 1
     PetscReal, parameter :: tol = 1.e-6_dp
     PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
@@ -56,7 +56,7 @@ contains
     call mesh%init(json)
     call fluid%init(eos%num_components, eos%num_phases)
     call DMCreateLabel(mesh%dm, open_boundary_label_name, ierr); CHKERRQ(ierr)
-    call mesh%configure(eos%primary_variable_names, gravity)
+    call mesh%configure(eos%num_primary_variables, gravity, json, err = err)
     call setup_fluid_vector(mesh%dm, max_component_name_length, &
          eos%component_names, max_phase_name_length, eos%phase_names, &
          fluid_vector, fluid_range_start)

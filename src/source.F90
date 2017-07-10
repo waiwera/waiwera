@@ -22,7 +22,6 @@ module source_module
 
   use petsc
   use kinds_module
-  use list_module
   use fluid_module
 
   implicit none

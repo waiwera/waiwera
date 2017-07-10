@@ -513,7 +513,7 @@ contains
     use eos_setup_module, only: setup_eos
     use initial_module, only: setup_initial, scale_initial_primary
     use fluid_module, only: setup_fluid_vector
-    use rock_module, only: setup_rock_vector, setup_rocktype_labels
+    use rock_module, only: setup_rock_vector
     use source_setup_module, only: setup_sources
     use utils_module, only: date_time_str
     use profiling_module, only: simulation_init_event
@@ -549,52 +549,57 @@ contains
 
     call self%mesh%init(json, self%logfile)
     call self%setup_gravity(json)
-    call setup_rocktype_labels(json, self%mesh%dm, self%logfile)
     call self%mesh%setup_minc(json, self%logfile, err)
 
     if (err == 0) then
 
        call self%mesh%setup_boundaries(json, self%eos, self%logfile)
        if (self%output_filename == '') then
-          call self%mesh%configure(self%eos%primary_variable_names, self%gravity)
+          call self%mesh%configure(self%eos%num_primary_variables, &
+               self%gravity, json, self%logfile, err = err)
        else
-          call self%mesh%configure(self%eos%primary_variable_names, &
-               self%gravity, self%hdf5_viewer)
+          call self%mesh%configure(self%eos%num_primary_variables, &
+               self%gravity, json, self%logfile, self%hdf5_viewer, err)
        end if
-       call self%mesh%override_face_properties(json, self%logfile)
-       call self%output_mesh_geometry()
 
-       call self%setup_solution_vector()
-       call setup_relative_permeabilities(json, &
-            self%relative_permeability, self%logfile)
-       call setup_capillary_pressures(json, &
-            self%capillary_pressure, self%logfile)
-       call setup_rock_vector(json, self%mesh%dm, self%rock, &
-            self%rock_range_start, self%mesh%ghost_cell, self%logfile)
-       call setup_fluid_vector(self%mesh%dm, max_component_name_length, &
-            self%eos%component_names, max_phase_name_length, &
-            self%eos%phase_names, self%fluid, self%fluid_range_start)
-       call VecDuplicate(self%fluid, self%current_fluid, ierr); CHKERRQ(ierr)
-       call VecDuplicate(self%fluid, self%last_timestep_fluid, ierr)
-       CHKERRQ(ierr)
-       call VecDuplicate(self%fluid, self%last_iteration_fluid, ierr)
-       CHKERRQ(ierr)
-       call self%setup_flux_vector()
-
-       call setup_initial(json, self%mesh, self%eos, &
-            self%time, self%solution, self%fluid, &
-            self%solution_range_start, self%fluid_range_start, self%logfile)
-       call self%setup_update_cell()
-       call self%mesh%set_boundary_values(self%solution, self%fluid, &
-            self%rock, self%eos, self%solution_range_start, &
-            self%fluid_range_start, self%rock_range_start)
-       call scale_initial_primary(self%mesh, self%eos, self%solution, self%fluid, &
-            self%solution_range_start, self%fluid_range_start)
-       call self%fluid_init(self%time, self%solution, err)
        if (err == 0) then
-          call setup_sources(json, self%mesh%dm, self%eos, self%thermo, &
-               self%time, self%fluid, self%fluid_range_start, &
-               self%sources, self%source_controls, self%logfile)
+
+          call self%mesh%override_face_properties(json, self%logfile)
+          call self%output_mesh_geometry()
+
+          call self%setup_solution_vector()
+          call setup_relative_permeabilities(json, &
+               self%relative_permeability, self%logfile)
+          call setup_capillary_pressures(json, &
+               self%capillary_pressure, self%logfile)
+          call setup_rock_vector(json, self%mesh%dm, self%rock, &
+               self%rock_range_start, self%mesh%ghost_cell, self%logfile)
+          call setup_fluid_vector(self%mesh%dm, max_component_name_length, &
+               self%eos%component_names, max_phase_name_length, &
+               self%eos%phase_names, self%fluid, self%fluid_range_start)
+          call VecDuplicate(self%fluid, self%current_fluid, ierr); CHKERRQ(ierr)
+          call VecDuplicate(self%fluid, self%last_timestep_fluid, ierr)
+          CHKERRQ(ierr)
+          call VecDuplicate(self%fluid, self%last_iteration_fluid, ierr)
+          CHKERRQ(ierr)
+          call self%setup_flux_vector()
+
+          call setup_initial(json, self%mesh, self%eos, &
+               self%time, self%solution, self%fluid, &
+               self%solution_range_start, self%fluid_range_start, self%logfile)
+          call self%setup_update_cell()
+          call self%mesh%set_boundary_values(self%solution, self%fluid, &
+               self%rock, self%eos, self%solution_range_start, &
+               self%fluid_range_start, self%rock_range_start)
+          call scale_initial_primary(self%mesh, self%eos, self%solution, self%fluid, &
+               self%solution_range_start, self%fluid_range_start)
+          call self%fluid_init(self%time, self%solution, err)
+          if (err == 0) then
+             call setup_sources(json, self%mesh%dm, self%eos, self%thermo, &
+                  self%time, self%fluid, self%fluid_range_start, &
+                  self%sources, self%source_controls, self%logfile)
+          end if
+
        end if
 
     end if
@@ -1116,6 +1121,7 @@ contains
     !! thermodynamic variables. This is called before the timestepper
     !! starts to run.
 
+    use cell_order_module, only: cell_order_label_name
     use dm_utils_module, only: global_section_offset, global_vec_section
     use cell_module, only: cell_type
     use profiling_module, only: fluid_init_event
@@ -1228,6 +1234,7 @@ contains
     !! composition, based on the current time and primary
     !! thermodynamic variables.
 
+    use cell_order_module, only: cell_order_label_name
     use dm_utils_module, only: global_section_offset, global_vec_section
     use cell_module, only: cell_type
     use profiling_module, only: fluid_properties_event
@@ -1348,6 +1355,7 @@ contains
     !! Checks primary variables and thermodynamic regions in all mesh
     !! cells and updates if region transitions have occurred.
 
+    use cell_order_module, only: cell_order_label_name
     use dm_utils_module, only: global_section_offset, global_vec_section
     use fluid_module, only: fluid_type
     use profiling_module, only: fluid_transitions_event
