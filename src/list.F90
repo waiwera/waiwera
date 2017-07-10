@@ -75,6 +75,7 @@ module list_module
      generic, public :: destroy => destroy_default_forward, &
           destroy_default_direction, destroy_proc_forward, &
           destroy_proc_direction
+     procedure, public :: tags => list_tags
   end type list_type
 
   abstract interface
@@ -523,6 +524,31 @@ contains
     end if
 
   end subroutine list_destroy_proc_direction
+
+!------------------------------------------------------------------------
+
+  subroutine list_tags(self, tags)
+    !! Returns array of tags on each node of the list.
+
+    class(list_type), intent(in out) :: self
+    character(*), allocatable, intent(out) :: tags(:)
+    ! Locals:
+    PetscInt :: i
+
+    allocate(tags(0: self%count - 1))
+    i = 0
+    call self%traverse(get_tag_iterator)
+
+  contains
+
+    subroutine get_tag_iterator(node, stopped)
+       type(list_node_type), pointer, intent(in out)  :: node
+       PetscBool, intent(out) :: stopped
+       tags(i) = node%tag
+       i = i + 1
+     end subroutine get_tag_iterator
+
+  end subroutine list_tags
 
 !------------------------------------------------------------------------
 
