@@ -37,7 +37,7 @@ module zone_module
   type, public :: zone_type
      !! 3-D zone in the mesh, used to identify mesh points.
      private
-     PetscInt :: index !! Zone index
+     PetscInt, public :: index !! Zone index
      character(max_zone_name_length), public :: name
    contains
      procedure, public :: init => zone_init
