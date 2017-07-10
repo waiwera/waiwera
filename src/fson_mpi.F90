@@ -40,6 +40,7 @@ module fson_mpi_module
      module procedure fson_get_default_array_1d_real
      module procedure fson_get_default_array_1d_double
      module procedure fson_get_default_array_1d_logical
+     module procedure fson_get_default_array_1d_character
      module procedure fson_get_default_array_2d_integer
      module procedure fson_get_default_array_2d_real
      module procedure fson_get_default_array_2d_double
@@ -57,13 +58,14 @@ module fson_mpi_module
      module procedure fson_get_mpi_array_1d_real
      module procedure fson_get_mpi_array_1d_double
      module procedure fson_get_mpi_array_1d_logical
+     module procedure fson_get_mpi_array_1d_character
      module procedure fson_get_mpi_array_2d_integer
      module procedure fson_get_mpi_array_2d_real
      module procedure fson_get_mpi_array_2d_double
      module procedure fson_get_mpi_array_2d_logical
   end interface fson_get_mpi
 
-  public :: fson_get_default, fson_get_mpi, fson_has_mpi
+  public :: fson_get_default, fson_get_mpi, fson_has_mpi, fson_get_name_mpi
   public :: fson_type_mpi, fson_value_count_mpi, fson_value_get_mpi
   public :: fson_mpi_array_rank, fson_parse_mpi, fson_destroy_mpi
 
@@ -449,6 +451,51 @@ contains
     end if
 
   end subroutine fson_get_default_array_1d_logical
+
+!------------------------------------------------------------------------
+
+  subroutine fson_get_default_array_1d_character(self, path, default, &
+       string_length, val, logfile, log_key)
+    !! Gets 1-D character array with default if not present.
+
+    type(fson_value), pointer, intent(in) :: self
+    character(len=*), intent(in) :: path
+    character(string_length), intent(in) :: default(:)
+    PetscInt, intent(in) :: string_length
+    character(string_length), allocatable, intent(out) :: val(:)
+    type(logfile_type), intent(in out), optional :: logfile
+    character(len=*), intent(in), optional :: log_key
+    ! Locals:
+    type(fson_value), pointer :: p
+    character :: logstr
+    character(:), allocatable :: str
+    character(max_log_key_length) :: key
+
+    call fson_get(self, path, p)
+    if (assoc_non_null(p)) then
+       call fson_get(p, ".", val)
+    else
+       val = default
+       if (present(logfile)) then
+          if (logfile%active) then
+             if (present(log_key)) then
+                key = log_key
+             else
+                key = path
+             end if
+             if (size(val) > 0) then
+                write(logstr, '(a)') val(1)
+                allocate(str, source = '[' // logstr // ',...]')
+             else
+                allocate(str, source = '[]')
+             end if
+             call logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
+                  str_key = key, str_value = str)
+          end if
+       end if
+    end if
+
+  end subroutine fson_get_default_array_1d_character
 
 !------------------------------------------------------------------------
 
@@ -955,6 +1002,47 @@ contains
 
 !------------------------------------------------------------------------
 
+  subroutine fson_get_mpi_array_1d_character(self, path, default, &
+       string_length, val, logfile, log_key)
+    !! Gets 1-D character array on all ranks, with optional default.
+
+    type(fson_value), pointer, intent(in) :: self
+    character(len=*), intent(in) :: path
+    character(string_length), intent(in), optional :: default(:)
+    PetscInt, intent(in) :: string_length
+    character(string_length), allocatable, intent(out) :: val(:)
+    type(logfile_type), intent(in out), optional :: logfile
+    character(len=*), intent(in), optional :: log_key
+    ! Locals:
+    PetscInt :: ierr, count
+    PetscMPIInt :: rank
+    PetscBool :: alloc
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
+       if (present(default)) then
+          call fson_get_default(self, path, default, string_length, &
+               val, logfile, log_key)
+       else
+          call fson_get(self, path, val)
+       end if
+       alloc = allocated(val)
+       count = size(val)
+    end if
+    call MPI_bcast(alloc, 1, MPI_LOGICAL, 0, PETSC_COMM_WORLD, ierr)
+    if (alloc) then
+       call MPI_bcast(count, 1, MPI_INTEGER, 0, PETSC_COMM_WORLD, ierr)
+       if (rank /= 0) then
+          allocate(val(count))
+       end if
+       call MPI_bcast(val, count * string_length, MPI_CHARACTER, 0, &
+            PETSC_COMM_WORLD, ierr)
+    end if
+
+  end subroutine fson_get_mpi_array_1d_character
+
+!------------------------------------------------------------------------
+
   subroutine fson_get_mpi_array_2d_integer(self, path, default, val, &
        logfile, log_key)
     !! Gets 2-D integer array on all ranks, with optional default.
@@ -1139,6 +1227,35 @@ contains
     call MPI_bcast(has, 1, MPI_LOGICAL, 0, PETSC_COMM_WORLD, ierr)
 
   end function fson_has_mpi
+
+!------------------------------------------------------------------------
+
+  function fson_get_name_mpi(self) result(name)
+    !! Returns fson value name on all ranks.
+
+    use fson_string_m, only: fson_string_length, fson_string_copy
+
+    type(fson_value), pointer, intent(in) :: self
+    character(:), allocatable :: name
+    ! Locals:
+    PetscMPIInt :: rank
+    PetscInt :: name_len
+    PetscInt :: ierr
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
+       name_len = fson_string_length(self%name)
+    end if
+    call MPI_bcast(name_len, 1, MPI_INTEGER, 0, PETSC_COMM_WORLD, ierr)
+    allocate(character(name_len) :: name)
+
+    if (rank == 0) then
+       call fson_string_copy(self%name, name)
+    end if
+    call MPI_bcast(name, name_len, MPI_CHARACTER, 0, &
+         PETSC_COMM_WORLD, ierr)
+
+  end function fson_get_name_mpi
 
 !------------------------------------------------------------------------
 

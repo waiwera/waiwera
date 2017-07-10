@@ -621,7 +621,44 @@
                     }, "additionalProperties": false
                 }
             },
-            "additionalProperties": false}
+            "additionalProperties": false},
+        "zones": {"type": "object", "items": {"oneOf": [
+            {"type": "array", "items": {"type": "string"}},
+            {"type": "object",
+             "properties": {"type": {"type": "string", "enum": ["array", "Array"]},
+                            "cells": {"type": "array",
+                                      "items": {"type": "integer", "minimum": 0}}},
+             "additionalProperties": false},
+            {"type": "object",
+             "properties": {"type": {"type": "string", "enum": ["box", "Box"]},
+                            "x": {"type": "array", "minItems": 2, "maxItems": 2,
+                                  "items": {"type": "number"}},
+                            "r": {"type": "array", "minItems": 2, "maxItems": 2,
+                                  "items": {"type": "number"}},
+                            "y": {"type": "array", "minItems": 2, "maxItems": 2,
+                                  "items": {"type": "number"}},
+                            "z": {"type": "array", "minItems": 2, "maxItems": 2,
+                                  "items": {"type": "number"}}
+                           }, "additionalProperties": false},
+            {"type": "object",
+             "properties": {"type": {"type": "string", "enum": ["combine", "Combine"]},
+                            "+": {"oneOf": [
+                                {"type": "array", "items": {"type": "string"}},
+                                {"type": "string"},
+                                {"type": "null"}
+                            ]},
+                            "-": {"oneOf": [
+                                {"type": "array", "items": {"type": "string"}},
+                                {"type": "string"},
+                                {"type": "null"}
+                            ]},
+                            "*": {"oneOf": [
+                                {"type": "array", "items": {"type": "string"}},
+                                {"type": "string"},
+                                {"type": "null"}
+                            ]}
+                           }, "additionalProperties": false}
+        ]}}
     },
     "required": ["mesh"],
     "additionalProperties": false

@@ -48,6 +48,7 @@ contains
     PetscReal, parameter :: tol = 1.e-8_dp
     PetscMPIInt :: rank
     PetscInt :: ierr
+    character(16), allocatable :: tags(:)
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
     if (rank == 0) then
@@ -67,6 +68,9 @@ contains
        call assert_equals(4, list%count, 'initial list count')
        call assert_true(associated(list%head), 'initial head associated')
        call assert_true(associated(list%tail), 'initial tail associated')
+
+       call list%tags(tags)
+       call assert_equals(['real', 'int ', '    ', '    '], tags, 4, 'tags')
 
        call list%delete('int')
        call assert_equals(3, list%count, 'list count after deletion')

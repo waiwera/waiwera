@@ -21,6 +21,9 @@ module mesh_module
 #include <petsc/finclude/petsc.h>
 
   use petsc
+  use cell_order_module
+  use zone_module
+  use list_module
   use mpi_utils_module
   use fson
 
@@ -30,8 +33,6 @@ module mesh_module
 
   PetscInt, parameter, public :: max_mesh_filename_length = 200
   character(len = 16), public :: open_boundary_label_name = "open_boundary" !! Name of DMLabel for identifying open boundaries
-  character(len = 13), parameter, public :: &
-       cell_order_label_name = "cell_order" !! Name of DMLabel for generating cell index set
 
   type, public :: mesh_type
      !! Mesh type.
@@ -50,10 +51,9 @@ module mesh_module
      PetscInt, public, allocatable :: ghost_cell(:), ghost_face(:) !! Ghost label values for cells and faces
      PetscReal, public :: permeability_rotation(3, 3) !! Rotation matrix of permeability axes
      PetscReal, public :: thickness !! Mesh thickness (for dimension < 3)
+     type(list_type), public :: zones !! Mesh zones
      PetscBool, public :: radial !! If mesh coordinate system is radial or Cartesian
    contains
-     procedure :: setup_cell_order_label => mesh_setup_cell_order_label
-     procedure :: setup_cell_index => mesh_setup_cell_index
      procedure :: distribute => mesh_distribute
      procedure :: construct_ghost_cells => mesh_construct_ghost_cells
      procedure :: setup_data_layout => mesh_setup_data_layout
@@ -66,6 +66,7 @@ module mesh_module
      procedure :: set_permeability_rotation => mesh_set_permeability_rotation
      procedure :: modify_geometry => mesh_modify_geometry
      procedure :: override_face_properties => mesh_override_face_properties
+     procedure :: setup_zones => mesh_setup_zones
      procedure, public :: init => mesh_init
      procedure, public :: configure => mesh_configure
      procedure, public :: setup_boundaries => mesh_setup_boundaries
@@ -75,168 +76,6 @@ module mesh_module
   end type mesh_type
 
 contains
-
-!------------------------------------------------------------------------
-
-  subroutine mesh_setup_cell_order_label(self)
-    !! Sets up cell ordering label on mesh cells. This assumes the mesh
-    !! has not yet been distributed.
-
-    class(mesh_type), intent(in out) :: self
-    ! Locals:
-    PetscBool :: has_label
-    PetscInt :: start_cell, end_cell, c
-    PetscErrorCode :: ierr
-
-    call DMHasLabel(self%dm, cell_order_label_name, has_label, &
-         ierr); CHKERRQ(ierr)
-
-    if (.not. has_label) then
-       call DMCreateLabel(self%dm, cell_order_label_name, ierr)
-       CHKERRQ(ierr)
-       call DMPlexGetHeightStratum(self%dm, 0, start_cell, end_cell, &
-            ierr); CHKERRQ(ierr)
-       do c = start_cell, end_cell - 1
-          call DMSetLabelValue(self%dm, cell_order_label_name, c, &
-               c, ierr); CHKERRQ(ierr)
-       end do
-    end if
-
-  end subroutine mesh_setup_cell_order_label
-
-!------------------------------------------------------------------------
-
-  subroutine mesh_setup_cell_index(self, viewer)
-    !! Sets up cell index set from cell order label on DM.  This index
-    !! set corresponds to a block size of 1.
-    !! Also writes the cell interior index set to HDF5 output. This is
-    !! used for post-processing and is similar to the cell index set
-    !! except that the global indices apply to vectors containing only
-    !! interior cells (not boundary ghost cells).
-
-    class(mesh_type), intent(in out) :: self
-    PetscViewer, intent(in out), optional :: viewer
-    ! Locals:
-    PetscInt :: total_count, local_count
-    PetscInt :: total_allocate_count, allocate_size
-    PetscInt :: c, i, ghost, order
-    DMLabel :: ghost_label, order_label
-    PetscInt, allocatable :: global_index(:), natural_index(:)
-    PetscInt, allocatable :: global_index_all(:), natural_index_all(:)
-    PetscInt, allocatable :: index_array_all(:), index_array(:)
-    PetscInt, allocatable :: local_counts(:), displacements(:)
-    Vec :: v
-    IS :: cell_interior_index
-    PetscInt :: blocksize, start_global_index, i_global
-    PetscMPIInt :: rank, num_procs
-    PetscErrorCode :: ierr
-
-    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
-    call MPI_COMM_SIZE(PETSC_COMM_WORLD, num_procs, ierr)
-    call DMGetLabel(self%dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
-
-    ! Count interior cells:
-    local_count = 0
-    do c = self%start_cell, self%end_interior_cell - 1
-       call DMLabelGetValue(ghost_label, c, ghost, ierr); CHKERRQ(ierr)
-       if (ghost < 0) local_count = local_count + 1
-    end do
-    allocate(global_index(local_count), natural_index(local_count))
-
-    ! Get starting global index for each process:
-    call DMGetGlobalVector(self%dm, v, ierr); CHKERRQ(ierr)
-    call VecGetOwnershipRange(v, start_global_index, &
-         PETSC_NULL_INTEGER, ierr); CHKERRQ(ierr)
-    call VecGetBlockSize(v, blocksize, ierr); CHKERRQ(ierr)
-    call DMRestoreGlobalVector(self%dm, v, ierr); CHKERRQ(ierr)
-    start_global_index = start_global_index / blocksize
-
-    ! Set up global and natural index arrays on each process:
-    call DMGetLabel(self%dm, cell_order_label_name, order_label, ierr)
-    CHKERRQ(ierr)
-    i = 1
-    do c = self%start_cell, self%end_interior_cell - 1
-       call DMLabelGetValue(ghost_label, c, ghost, ierr); CHKERRQ(ierr)
-       if (ghost < 0) then
-          call DMLabelGetValue(order_label, c, order, ierr); CHKERRQ(ierr)
-          i_global = start_global_index + c - self%start_cell
-          global_index(i) = i_global
-          natural_index(i) = order
-          i = i + 1
-       end if
-    end do
-
-    ! Gather arrays to root process:
-    if (rank == 0) then
-       allocate_size = num_procs
-    else ! have to allocate non-zero size, even if not actually used:
-       allocate_size = 1
-    end if
-    allocate(local_counts(allocate_size), displacements(allocate_size))
-    call MPI_gather(local_count, 1, MPI_INTEGER, local_counts, 1, &
-         MPI_INTEGER, 0, PETSC_COMM_WORLD, ierr)
-    if (rank == 0) then
-       total_count = sum(local_counts)
-       displacements(1) = 0
-       do i = 2, num_procs
-          displacements(i) = displacements(i-1) + local_counts(i-1)
-       end do
-       total_allocate_count = total_count
-    else
-       total_allocate_count = 1
-    end if
-    allocate(global_index_all(total_allocate_count), &
-         natural_index_all(total_allocate_count))
-    call MPI_gatherv(global_index, local_count, MPI_INTEGER, &
-         global_index_all, local_counts, displacements, MPI_INTEGER, &
-         0, PETSC_COMM_WORLD, ierr)
-    call MPI_gatherv(natural_index, local_count, MPI_INTEGER, &
-         natural_index_all, local_counts, displacements, MPI_INTEGER, &
-         0, PETSC_COMM_WORLD, ierr)
-    deallocate(global_index, natural_index)
-
-    ! Set up index array on root process, and scatter:
-    allocate(index_array_all(total_allocate_count))
-    if (rank == 0) then
-       do i = 1, total_count
-          index_array_all(natural_index_all(i) + 1) = global_index_all(i)
-       end do
-    end if
-    deallocate(global_index_all)
-    allocate(index_array(local_count))
-    call MPI_scatterv(index_array_all, local_counts, displacements, &
-         MPI_INTEGER, index_array, local_count, MPI_INTEGER, &
-         0, PETSC_COMM_WORLD, ierr)
-    call ISCreateGeneral(PETSC_COMM_WORLD, local_count, index_array, &
-         PETSC_COPY_VALUES, self%cell_index, ierr); CHKERRQ(ierr)
-    call PetscObjectSetName(self%cell_index, "cell_index", ierr)
-
-    ! Set up cell interior index set:
-    if (rank == 0) then
-       do i = 1, total_count
-          index_array_all(natural_index_all(i) + 1) = i - 1
-       end do
-    end if
-    deallocate(natural_index_all)
-    call MPI_scatterv(index_array_all, local_counts, displacements, &
-         MPI_INTEGER, index_array, local_count, MPI_INTEGER, &
-         0, PETSC_COMM_WORLD, ierr)
-    deallocate(index_array_all, local_counts, displacements)
-
-    call ISCreateGeneral(PETSC_COMM_WORLD, local_count, index_array, &
-         PETSC_COPY_VALUES, cell_interior_index, ierr); CHKERRQ(ierr)
-    deallocate(index_array)
-    call PetscObjectSetName(cell_interior_index, &
-         "cell_interior_index", ierr)
-
-    if (present(viewer)) then
-       call ISView(self%cell_index, viewer, ierr); CHKERRQ(ierr)
-       call ISView(cell_interior_index, viewer, ierr); CHKERRQ(ierr)
-    end if
-
-    call ISDestroy(cell_interior_index, ierr); CHKERRQ(ierr)
-
-  end subroutine mesh_setup_cell_index
 
 !------------------------------------------------------------------------
 
@@ -737,34 +576,39 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine mesh_configure(self, primary_variable_names, gravity, viewer)
+  subroutine mesh_configure(self, dof, gravity, json, logfile, viewer, err)
     !! Configures mesh, including distribution over processes and
     !! construction of ghost cells, setup of data layout, geometry and
     !! cell index set.
 
-    class(mesh_type), intent(in out) :: self
-    character(*), intent(in) :: primary_variable_names(:) !! Names of primary thermodynamic variables
-    PetscReal, intent(in) :: gravity(:)
-    PetscViewer, intent(in out), optional :: viewer !! PetscViewer for output of cell index set to HDF5 file
-    ! Locals:
-    PetscInt :: dof
+    use cell_order_module
+    use logfile_module
 
-    call self%setup_cell_order_label()
+    class(mesh_type), intent(in out) :: self
+    PetscInt, intent(in) :: dof !! Number of degrees of freedom (primary thermodynamic variables)
+    PetscReal, intent(in) :: gravity(:)
+    type(fson_value), pointer, intent(in) :: json !! JSON file pointer
+    type(logfile_type), intent(in out), optional :: logfile !! Log file
+    PetscViewer, intent(in out), optional :: viewer !! PetscViewer for output of cell index set to HDF5 file
+    PetscErrorCode, intent(out) :: err !! Error flag
+
+    err = 0
+
+    call dm_setup_cell_order_label(self%dm)
     call self%distribute()
     call self%construct_ghost_cells()
 
-    dof = size(primary_variable_names)
     call self%setup_discretization(dof)
 
     call self%get_bounds()
 
     call self%setup_data_layout(dof)
-
     call self%setup_geometry(gravity)
+    call self%setup_zones(json, logfile, err)
 
     call self%setup_ghost_arrays()
 
-    call self%setup_cell_index(viewer)
+    call dm_setup_cell_index(self%dm, self%cell_index, viewer)
 
   end subroutine mesh_configure
 
@@ -776,7 +620,7 @@ contains
     class(mesh_type), intent(in out) :: self
     ! Locals:
     PetscErrorCode :: ierr
-    
+
     call VecDestroy(self%face_geom, ierr); CHKERRQ(ierr)
     call DMDestroy(self%dm, ierr); CHKERRQ(ierr)
 
@@ -792,6 +636,22 @@ contains
     if (allocated(self%ghost_face)) then
        deallocate(self%ghost_face)
     end if
+
+    call self%zones%destroy(mesh_zones_node_data_destroy)
+
+  contains
+
+    subroutine mesh_zones_node_data_destroy(node)
+      ! Destroys zone data.
+
+      type(list_node_type), pointer, intent(in out) :: node
+
+      select type (zone => node%data)
+      class is (zone_type)
+         call zone%destroy()
+      end select
+
+    end subroutine mesh_zones_node_data_destroy
 
   end subroutine mesh_destroy
 
@@ -1260,6 +1120,150 @@ contains
     CHKERRQ(ierr)
 
   end subroutine mesh_override_face_properties
+
+!------------------------------------------------------------------------
+
+  subroutine mesh_setup_zones(self, json, logfile, err)
+    !! Sets up zones (for defining e.g. rock types, MINC etc.) in the
+    !! mesh, from JSON input.
+
+    use fson_mpi_module
+    use logfile_module
+    use zone_label_module, only: max_zone_name_length
+    use dictionary_module
+    use dag_module
+
+    class(mesh_type), intent(in out) :: self
+    type(fson_value), pointer, intent(in) :: json !! JSON file pointer
+    type(logfile_type), intent(in out), optional :: logfile !! Logfile for log output
+    PetscErrorCode, intent(out) :: err
+    ! Locals:
+    PetscInt :: num_zones, i, ztype
+    type(fson_value), pointer :: zones_json, zone_json
+    character(:), allocatable :: name
+    class(zone_type), pointer :: zone
+    type(list_node_type), pointer :: node
+    type(dictionary_type) :: zone_dict
+    type(dag_type) :: dag
+    PetscInt, allocatable :: order(:)
+    character(max_zone_name_length), allocatable :: zone_names(:)
+    character(max_zone_name_length) :: zone_name
+
+    err = 0
+
+    call self%zones%init(owner = PETSC_TRUE)
+
+    if (fson_has_mpi(json, "mesh.zones")) then
+
+       call fson_get_mpi(json, "mesh.zones", zones_json)
+
+       num_zones = fson_value_count_mpi(zones_json, ".")
+
+       do i = 1, num_zones
+          zone => null()
+          zone_json => fson_value_get_mpi(zones_json, i)
+          ztype = get_zone_type(zone_json)
+          name = fson_get_name_mpi(zone_json)
+          select case (ztype)
+          case (ZONE_TYPE_CELL_ARRAY)
+             allocate(zone_cell_array_type :: zone)
+          case (ZONE_TYPE_BOX)
+             allocate(zone_box_type :: zone)
+          case (ZONE_TYPE_COMBINE)
+             allocate(zone_combine_type :: zone)
+          case default
+             err = 1
+             if (present(logfile)) then
+                call logfile%write(LOG_LEVEL_ERR, 'input', &
+                     "unrecognised zone type", str_key = "name", &
+                     str_value = name)
+             end if
+          end select
+          if (err == 0) then
+             call zone%init(i - 1, name, zone_json)
+             if (err == 0) then
+                call self%zones%append(zone, name)
+             else
+                if (present(logfile)) then
+                   call logfile%write(LOG_LEVEL_ERR, 'input', &
+                        "unrecognised zone dependency", &
+                        str_key = "name", str_value = name)
+                end if
+                exit
+             end if
+          else
+             exit
+          end if
+       end do
+
+       call zone_dict%init(self%zones)
+       ! Set up zone dependency graph and do topological sort:
+       call dag%init(num_zones)
+       call self%zones%traverse(zone_dependency_iterator)
+       call dag%sort(order, err)
+
+       if (err == 0) then
+          call self%zones%tags(zone_names)
+          do i = 0, num_zones - 1
+             zone_name = zone_names(order(i))
+             node => zone_dict%get(zone_name)
+             select type(zone => node%data)
+                class is (zone_type)
+                call zone%label_dm(self%dm, self%cell_geom, err)
+                if (err > 0) then
+                   if (present(logfile)) then
+                      call logfile%write(LOG_LEVEL_WARN, 'zone', &
+                           "can't find cells", str_key = "name", &
+                           str_value = zone_name)
+                   end if
+                   exit
+                end if
+             end select
+          end do
+
+       else
+          if (present(logfile)) then
+             call logfile%write(LOG_LEVEL_ERR, 'input', &
+                  "circular zone dependency")
+          end if
+       end if
+
+       call zone_dict%destroy()
+
+    end if
+
+  contains
+
+    subroutine zone_dependency_iterator(node, stopped)
+      !! Adds dependencies for zone to dependency graph.
+
+      type(list_node_type), pointer, intent(in out)  :: node
+      PetscBool, intent(out) :: stopped
+      ! Locals:
+      character(max_zone_name_length), allocatable :: depends(:)
+      PetscInt :: i, num_depends
+      PetscInt, allocatable :: edges(:)
+      type(list_node_type), pointer :: depend_node
+
+      stopped = PETSC_FALSE
+      select type (zone => node%data)
+      class is (zone_type)
+         call zone%dependencies(depends)
+         num_depends = size(depends)
+         allocate(edges(num_depends))
+         do i = 1, size(depends)
+            depend_node => zone_dict%get(depends(i))
+            select type (depend_zone => depend_node%data)
+            class is (zone_type)
+               edges(i) = depend_zone%index
+            end select
+         end do
+         call dag%set_edges(zone%index, edges)
+      end select
+
+    end subroutine zone_dependency_iterator
+    
+  end subroutine mesh_setup_zones
 
 !------------------------------------------------------------------------
 
