@@ -1199,7 +1199,7 @@ contains
        call zone_dict%init(self%zones)
        ! Set up zone dependency graph and do topological sort:
        call dag%init(num_zones)
-       call self%zones%traverse(zone_dependency_proc)
+       call self%zones%traverse(zone_dependency_iterator)
        call dag%sort(order, err)
 
        if (err == 0) then
@@ -1234,7 +1234,7 @@ contains
 
   contains
 
-    subroutine zone_dependency_proc(node, stopped)
+    subroutine zone_dependency_iterator(node, stopped)
       !! Adds dependencies for zone to dependency graph.
 
       type(list_node_type), pointer, intent(in out)  :: node
@@ -1261,7 +1261,7 @@ contains
          call dag%set_edges(zone%index, edges)
       end select
 
-    end subroutine zone_dependency_proc
+    end subroutine zone_dependency_iterator
     
   end subroutine mesh_setup_zones
 
