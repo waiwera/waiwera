@@ -37,7 +37,7 @@ module list_module
   type, public :: list_type
      !! Linked list type.
      private
-     PetscBool :: owner !! Whether the list 'owns' the data
+     PetscBool, public :: owner !! Whether the list 'owns' the data
      PetscInt, public :: count  !! Number of nodes in the list
      type(list_node_type), pointer, public :: head !! Node at start of list
      type(list_node_type), pointer, public :: tail !! Node at end of list
@@ -91,6 +91,8 @@ module list_module
      end subroutine list_node_data_destroy_procedure
 
   end interface
+
+  public :: list_node_data_destroy_procedure
 
 contains
 
