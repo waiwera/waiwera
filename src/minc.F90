@@ -61,6 +61,7 @@ contains
     use fson_mpi_module
     use logfile_module
     use fson_value_m, only : TYPE_ARRAY, TYPE_REAL, TYPE_INTEGER
+    use zone_label_module
     
     class(minc_type), intent(in out) :: self
     type(fson_value), pointer, intent(in) :: json !! JSON file pointer
@@ -71,9 +72,13 @@ contains
     PetscErrorCode, intent(out) :: err
     ! Locals:
     PetscInt :: start_cell, end_cell
-    PetscInt :: num_cells, ic, c
+    PetscInt :: num_cells, ic, c, iz
     PetscInt, allocatable :: cells(:)
-    PetscInt, allocatable :: default_cells(:)
+    character(max_zone_name_length), allocatable :: zones(:)
+    character(:), allocatable :: label_name
+    IS :: cell_IS
+    PetscInt, pointer :: zone_cells(:)
+    PetscBool :: has_label
     type(fson_value), pointer :: spacing_json
     PetscInt :: spacing_type, num_spacings
     PetscReal :: fracture_spacing
@@ -126,22 +131,64 @@ contains
     call self%setup_geometry(err)
 
     if (err == 0) then
-       default_cells = [PetscInt::]
-       call fson_get_mpi(json, "cells", default_cells, cells, logfile, &
-            trim(str) // "cells")
-       num_cells = size(cells)
-       if (num_cells > 0) then
-          call DMPlexGetHeightStratum(dm, 0, start_cell, end_cell, ierr)
-          CHKERRQ(ierr)
-          do ic = 1, num_cells
-             c = cells(ic)
-             if ((c >= start_cell) .and. (c < end_cell)) then
-                call DMSetLabelValue(dm, minc_label_name, &
-                     c, iminc, ierr); CHKERRQ(ierr)
-             end if
-          end do
+
+       if (fson_has_mpi(json, "cells")) then
+          call fson_get_mpi(json, "cells", val = cells)
+          num_cells = size(cells)
+          if (num_cells > 0) then
+             call DMPlexGetHeightStratum(dm, 0, start_cell, end_cell, ierr)
+             CHKERRQ(ierr)
+             do ic = 1, num_cells
+                c = cells(ic)
+                if ((c >= start_cell) .and. (c < end_cell)) then
+                   call DMSetLabelValue(dm, minc_label_name, &
+                        c, iminc, ierr); CHKERRQ(ierr)
+                end if
+             end do
+          end if
+          deallocate(cells)
        end if
-       deallocate(cells)
+
+       if (fson_has_mpi(json, "zones")) then
+          call fson_get_mpi(json, "zones", string_length = max_zone_name_length, &
+               val = zones)
+          associate(num_zones => size(zones))
+            do iz = 1, num_zones
+               label_name = zone_label_name(zones(iz))
+               call DMHasLabel(dm, label_name, has_label, ierr); CHKERRQ(ierr)
+               if (has_label) then
+                  call DMGetStratumSize(dm, label_name, 1, num_cells, &
+                       ierr); CHKERRQ(ierr)
+                  if (num_cells > 0) then
+                     call DMGetStratumIS(dm, label_name, 1, cell_IS, &
+                          ierr); CHKERRQ(ierr)
+                     call ISGetIndicesF90(cell_IS, zone_cells, ierr)
+                     CHKERRQ(ierr)
+                     do ic = 1, num_cells
+                        c = zone_cells(ic)
+                        if ((c >= start_cell) .and. (c < end_cell)) then
+                           call DMSetLabelValue(dm, minc_label_name, &
+                                c, iminc, ierr); CHKERRQ(ierr)
+                        end if
+                     end do
+                     call ISRestoreIndicesF90(cell_IS, zone_cells, ierr)
+                     CHKERRQ(ierr)
+                     call ISDestroy(cell_IS, ierr); CHKERRQ(ierr)
+                  end if
+               else
+                  err = 1
+                  if (present(logfile)) then
+                     call logfile%write(LOG_LEVEL_ERR, "input", &
+                          "unrecognised zone", &
+                          str_key = "name", str_value = zones(iz))
+                  end if
+                  exit
+               end if
+            end do
+          end associate
+          deallocate(zones)
+       end if
+
     else
        call logfile%write(LOG_LEVEL_ERR, 'minc', 'init', &
             str_key = 'stop', &
