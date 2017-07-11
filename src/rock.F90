@@ -210,7 +210,7 @@ contains
 !------------------------------------------------------------------------
 
   subroutine setup_rock_vector_types(json, dm, rock_vector, range_start, &
-       logfile)
+       logfile, err)
     !! Sets up rock vector on DM from rock types in JSON input.
 
     use cell_order_module, only: cell_order_label_name
@@ -225,6 +225,7 @@ contains
     Vec, intent(out) :: rock_vector
     PetscInt, intent(in) :: range_start
     type(logfile_type), intent(in out), optional :: logfile
+    PetscErrorCode, intent(out) :: err
     ! Locals:
     PetscInt :: num_rocktypes, ir, ic, iz, c
     PetscInt :: perm_size, num_matching
@@ -247,6 +248,8 @@ contains
     PetscErrorCode :: ierr
     character(len=64) :: rockstr
     character(len=12) :: irstr
+
+    err = 0
 
     if (fson_has_mpi(json, "rock.types")) then
 
@@ -328,8 +331,12 @@ contains
                         call ISDestroy(cell_IS, ierr); CHKERRQ(ierr)
                      end if
                   else
-                     ! err = 1
-                     ! exit
+                     err = 1
+                     if (present(logfile)) then
+                        call logfile%write(LOG_LEVEL_ERR, "input", "unrecognised zone", &
+                             str_key = "name", str_value = zones(iz))
+                     end if
+                     exit
                   end if
                end do
              end associate
@@ -379,7 +386,7 @@ contains
 !------------------------------------------------------------------------
 
   subroutine setup_rock_vector(json, dm, rock_vector, range_start, &
-       ghost_cell, logfile)
+       ghost_cell, logfile, err)
     !! Sets up rock vector on specified DM from JSON input.
 
     use dm_utils_module, only: set_dm_data_layout, global_vec_range_start
@@ -393,10 +400,13 @@ contains
     PetscInt, intent(out) :: range_start
     PetscInt, allocatable, intent(in) :: ghost_cell(:)
     type(logfile_type), intent(in out), optional :: logfile
+    PetscErrorCode, intent(out) :: err
     ! Locals:
     DM :: dm_rock
     PetscInt :: dim, rock_variable_dim(num_rock_variables)
     PetscErrorCode :: ierr
+
+    err = 0
 
     call DMClone(dm, dm_rock, ierr); CHKERRQ(ierr)
 
@@ -417,7 +427,7 @@ contains
        if (fson_has_mpi(json, "rock.types")) then
 
           call setup_rock_vector_types(json, dm, rock_vector, range_start, &
-               logfile)
+               logfile, err)
 
        else
           ! other types of rock initialization here- TODO
