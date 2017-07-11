@@ -610,13 +610,17 @@ contains
     call dm_setup_fv_discretization(self%original_dm, dof)
     call set_dm_default_data_layout(self%original_dm, dof)
 
-    if (self%has_minc) then
-       call self%setup_minc_dm(dof)
+    call self%setup_geometry(gravity)
+    call self%setup_zones(json, logfile, err)
+
+    if (err == 0) then
+       call self%setup_minc(json, logfile, err)
+       if ((err == 0) .and. self%has_minc) then
+          call self%setup_minc_dm(dof)
+       end if
     end if
 
     call self%get_bounds()
-    call self%setup_geometry(gravity)
-    call self%setup_zones(json, logfile, err)
     call self%setup_ghost_arrays()
     call dm_setup_cell_index(self%dm, self%cell_index, viewer)
 
