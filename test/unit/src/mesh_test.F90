@@ -386,29 +386,19 @@ contains
 
     json => fson_parse_mpi(str = &
          '{"mesh": {"filename": "data/mesh/7x7grid.exo",' // &
-         '"minc": {"volume_fractions": [0.1, 0.9], ' // &
-         '"cells": [' // &
-         '0,1,2,3,4,5,6,7,8,9,' // &
-         '10,11,12,13,14,15,16,17,18,19,' // &
-         '20,21,22,23,24,25,26,27,28,29,' // &
-         '30,31,32,33,34,35,36,37,38,39,' // &
-         '40,41,42,43,44,45,46,47,48]' // &
-         '}}, "rock": {"types": [' // &
-         '{"cells": [' // &
-         '0,1,2,3,4,5,6,7,8,9,' // &
-         '10,11,12,13,14,15,16,17,18,19,' // &
-         '20,21,22,23,24,25,26,27,28,29,' // &
-         '30,31,32,33,34,35,36,37,38,39,' // &
-         '40,41,42,43,44,45,46,47,48]' // &
-         '}]}}')
+         '  "zones": {"all": {"-": null}},' // &
+         '  "minc": {"volume_fractions": [0.1, 0.9], "zones": ["all"]}},' // &
+         '"rock": {"types": [{"zones": ["all"]}]}' // &
+         '}')
     call mesh%init(json)
-    call mesh%setup_minc(json, err = err)
-    call assert_equals(0, err, "minc setup error")
     call DMCreateLabel(mesh%dm, open_boundary_label_name, ierr); CHKERRQ(ierr)
     call mesh%configure(dof, gravity, json, err = err)
     call assert_equals(0, err, "minc config error")
     call fson_destroy_mpi(json)
 
+    if (rank == 0) then
+       call assert_true(mesh%has_minc, "mesh has minc")
+    end if
     num_minc_zones = size(mesh%minc)
     call assert_equals(1, num_minc_zones, "num minc zones")
 
