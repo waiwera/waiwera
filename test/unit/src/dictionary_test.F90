@@ -1,0 +1,195 @@
+module dictionary_test
+
+  ! Tests for dictionaries.
+
+#include <petsc/finclude/petscsys.h>
+
+  use petscsys
+  use kinds_module
+  use fruit
+  use dictionary_module
+  use list_module, only: list_node_type, list_type
+
+  implicit none
+  private
+
+  type :: thing_type
+     PetscReal, allocatable :: x(:)
+   contains
+     procedure :: destroy => thing_destroy
+  end type thing_type
+
+  public :: test_integer, test_thing, test_dict_list
+
+contains
+
+!------------------------------------------------------------------------
+
+  subroutine thing_destroy(self)
+    !! Destroys a thing.
+
+    class(thing_type), intent(in out) :: self
+
+    deallocate(self%x)
+
+  end subroutine thing_destroy
+
+!------------------------------------------------------------------------
+
+  subroutine test_integer
+    ! dictionary of integers
+
+    type(dictionary_type) :: dict
+    PetscInt :: i, count
+    PetscMPIInt :: rank
+    PetscErrorCode :: ierr
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+
+    call dict%init()
+
+    do i = ichar("a"), ichar("z")
+       call dict%add(char(i), i)
+    end do
+    call dict%add("fred", 100)
+    call dict%add("egeszegedre", 101)
+    call dict%add("zone100", 102)
+    call dict%add("ZZZZZZ", 103)
+    
+    if (rank == 0) then
+       call assert_equals(PETSC_TRUE, dict%has("fred"), 'fred present')
+    end if
+    
+    count = dict%count()
+    call dict%delete("fred")
+    if (rank == 0) then
+       call assert_equals(PETSC_FALSE, dict%has("fred"), 'fred gone')
+       call assert_equals(count - 1, dict%count(), 'count with fred gone')
+    end if
+
+    do i = ichar("a"), ichar("z")
+       call dict_test(char(i), i)
+    end do
+    call dict_test("egeszegedre", 101)
+    call dict_test("zone100", 102)
+    call dict_test("ZZZZZZ", 103)
+
+    call dict%destroy()
+
+  contains
+
+    subroutine dict_test(key, expected)
+
+      character(*), intent(in) :: key
+      PetscInt, intent(in) :: expected
+      ! Locals:
+      type(list_node_type), pointer :: node
+
+      node => dict%get(key)
+      if (rank == 0) then
+         select type (data => node%data)
+         type is (PetscInt)
+            call assert_equals(expected, data, key)
+         end select
+      end if
+
+    end subroutine dict_test
+
+  end subroutine test_integer
+
+!------------------------------------------------------------------------
+
+  subroutine test_thing
+    ! dictionary of objects
+
+    type(thing_type), pointer :: thing
+    type(dictionary_type) :: dict
+    type(list_node_type), pointer :: node
+    
+    PetscMPIInt :: rank
+    PetscErrorCode :: ierr
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+
+    call dict%init(owner = PETSC_TRUE)
+
+    allocate(thing_type :: thing)
+    thing%x = [1._dp, 2._dp, 3._dp]
+
+    call dict%add("thing1", thing)
+
+    if (rank == 0) then
+       call assert_equals(PETSC_TRUE, dict%has("thing1"), "has thing1")
+    end if
+
+    node => dict%get("another thing")
+    if (rank == 0) then
+       call assert_equals(PETSC_FALSE, associated(node), "get thing2")
+    end if
+
+    node => dict%get("thing1")
+    select type (data => node%data)
+    type is (thing_type)
+       if (rank == 0) then
+          call assert_equals([1._dp, 2._dp, 3._dp], data%x, 3, "thing x")
+       end if
+    end select
+
+    call dict%destroy(list_node_destroy_data)
+
+  contains
+
+    subroutine list_node_destroy_data(node)
+      ! Destroy data in list node.
+      implicit none
+      type(list_node_type), pointer, intent(in out) :: node
+
+      select type(d => node%data)
+      type is (thing_type)
+         call d%destroy()
+      end select
+
+    end subroutine list_node_destroy_data
+
+  end subroutine test_thing
+
+!------------------------------------------------------------------------
+
+  subroutine test_dict_list
+    ! list to dict
+
+    type(list_type) :: list
+    type(dictionary_type) :: dict
+    PetscInt :: i, j
+    PetscReal :: x
+    PetscMPIInt :: rank
+    PetscErrorCode :: ierr
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+
+    i = 5
+    j = 9
+    x = -5.67_dp
+
+    call list%init()
+    call list%append(i, "i")
+    call list%append(j, "j")
+    call list%append(x, "x")
+
+    call dict%init(list)
+
+    if (rank == 0) then
+       call assert_equals(3, dict%count(), "count")
+       call assert_equals(PETSC_TRUE, dict%has("i"), "has i")
+       call assert_equals(PETSC_TRUE, dict%has("j"), "has j")
+       call assert_equals(PETSC_TRUE, dict%has("x"), "has x")
+    end if
+
+    call dict%destroy()
+    call list%destroy()
+
+  end subroutine test_dict_list
+
+!------------------------------------------------------------------------
+
+end module dictionary_test

@@ -15,7 +15,7 @@ module mesh_test
 
   public :: test_mesh_init, test_2d_cartesian_geometry, &
        test_2d_radial_geometry, test_mesh_face_permeability_direction, &
-       test_setup_minc_dm
+       test_setup_minc_dm, test_rock_assignment
 
   PetscReal, parameter :: tol = 1.e-6_dp
 
@@ -27,6 +27,7 @@ contains
 
     ! Mesh init test
 
+    use cell_order_module, only: cell_order_label_name
     use dm_utils_module, only: section_offset
     use fson_mpi_module
     use cell_module
@@ -34,10 +35,10 @@ contains
 
     type(fson_value), pointer :: json
     type(mesh_type) :: mesh
-    character(len = 11), allocatable :: primary(:)
     Vec :: x
     type(face_type) :: face
-    PetscInt :: global_solution_dof, num_primary
+    PetscInt :: global_solution_dof
+    PetscInt, parameter :: dof = 2
     PetscInt :: dim
     DM :: dm_face
     PetscSection :: section
@@ -46,7 +47,7 @@ contains
     PetscInt :: f, offset, fstart, fend, ghost_face, i, order(2), gf
     PetscInt, pointer :: cells(:)
     PetscReal :: dist(2)
-    PetscErrorCode :: ierr
+    PetscErrorCode :: ierr, err
     PetscMPIInt :: rank
     character(len = 24) :: msg
     PetscInt, parameter :: expected_dim = 3, num_cells = 3, num_faces = 16
@@ -59,14 +60,11 @@ contains
     
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
 
-    primary = ["Pressure   ", "Temperature"]
-
     json => fson_parse_mpi(str = '{"mesh": "data/mesh/block3.exo"}')
     call mesh%init(json)
-    call fson_destroy_mpi(json)
-
     call DMCreateLabel(mesh%dm, open_boundary_label_name, ierr); CHKERRQ(ierr)
-    call mesh%configure(primary, gravity)
+    call mesh%configure(dof, gravity, json, err = err)
+    call fson_destroy_mpi(json)
 
     call DMGetDimension(mesh%dm, dim, ierr); CHKERRQ(ierr)
     if (rank == 0) then
@@ -76,8 +74,7 @@ contains
     call DMGetGlobalVector(mesh%dm, x, ierr); CHKERRQ(ierr)
     call VecGetSize(x, global_solution_dof, ierr); CHKERRQ(ierr)
     if (rank == 0) then
-       num_primary = size(primary)
-       call assert_equals(num_cells * num_primary, global_solution_dof, &
+       call assert_equals(num_cells * dof, global_solution_dof, &
             "global solution dof")
     end if
     call DMRestoreGlobalVector(mesh%dm, x, ierr); CHKERRQ(ierr)
@@ -125,7 +122,6 @@ contains
     call VecRestoreArrayF90(mesh%face_geom, fg, ierr); CHKERRQ(ierr)
 
     call mesh%destroy()
-    deallocate(primary)
 
   end subroutine test_mesh_init
 
@@ -141,13 +137,13 @@ contains
 
     type(fson_value), pointer :: json
     type(mesh_type) :: mesh
-    character(len = 11), allocatable :: primary(:)
+    PetscInt, parameter :: dof = 2
     PetscReal, pointer, contiguous :: cell_geom_array(:), face_geom_array(:)
     PetscSection :: cell_geom_section, face_geom_section
     PetscInt :: c, offset, f
     type(cell_type) :: cell
     type(face_type) :: face
-    PetscErrorCode :: ierr
+    PetscErrorCode :: ierr, err
     PetscMPIInt :: rank
     character(50) :: msg
     PetscBool :: volumes_OK, areas_OK
@@ -156,14 +152,13 @@ contains
     PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
-    primary = ["Pressure   ", "Temperature"]
 
     json => fson_parse_mpi(str = '{"mesh": {' // &
          '"filename": "data/mesh/2D.msh",' // &
          '"thickness": 100.}}')
     call mesh%init(json)
+    call mesh%configure(dof, gravity, json, err = err)
     call fson_destroy_mpi(json)
-    call mesh%configure(primary, gravity)
 
     call local_vec_section(mesh%cell_geom, cell_geom_section)
     call VecGetArrayReadF90(mesh%cell_geom, cell_geom_array, ierr)
@@ -227,13 +222,13 @@ contains
 
     type(fson_value), pointer :: json
     type(mesh_type) :: mesh
-    character(len = 11), allocatable :: primary(:)
+    PetscInt, parameter :: dof = 2
     PetscReal, pointer, contiguous :: cell_geom_array(:), face_geom_array(:)
     PetscSection :: cell_geom_section, face_geom_section
     PetscInt :: c, offset, f
     type(cell_type) :: cell
     type(face_type) :: face
-    PetscErrorCode :: ierr
+    PetscErrorCode :: ierr, err
     PetscMPIInt :: rank
     character(50) :: msg
     PetscBool :: volumes_OK, areas_OK
@@ -243,14 +238,13 @@ contains
     PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
-    primary = ["Pressure   ", "Temperature"]
 
     json => fson_parse_mpi(str = '{"mesh": {' // &
          '"filename": "data/mesh/2D.msh",' // &
          '"radial": true}}')
     call mesh%init(json)
+    call mesh%configure(dof, gravity, json, err = err)
     call fson_destroy_mpi(json)
-    call mesh%configure(primary, gravity)
 
     call local_vec_section(mesh%cell_geom, cell_geom_section)
     call VecGetArrayReadF90(mesh%cell_geom, cell_geom_array, ierr)
@@ -324,9 +318,9 @@ contains
 
     type(fson_value), pointer :: json
     type(mesh_type) :: mesh
-    character(len = 11), allocatable :: primary(:)
+    PetscInt, parameter :: dof = 2
     PetscInt :: f, offset
-    PetscErrorCode :: ierr
+    PetscErrorCode :: ierr, err
     PetscSection :: face_geom_section
     type(face_type) :: face
     PetscReal :: dist
@@ -344,8 +338,7 @@ contains
     call mesh%init(json)
 
     call DMCreateLabel(mesh%dm, open_boundary_label_name, ierr); CHKERRQ(ierr)
-    primary = ["Pressure   ", "Temperature"]
-    call mesh%configure(primary, gravity)
+    call mesh%configure(dof, gravity, json, err = err)
     call mesh%override_face_properties(json)
     call fson_destroy_mpi(json)
 
@@ -380,18 +373,16 @@ contains
     ! Test setup_minc_dm()
 
     use fson_mpi_module
-    use rock_module, only: setup_rocktype_labels
 
     type(fson_value), pointer :: json
     type(mesh_type) :: mesh
-    character(len = 11), allocatable :: primary(:)
+    PetscInt, parameter :: dof = 2
     PetscInt :: num_cells, num_minc_zones
     PetscMPIInt :: rank
     PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
     PetscErrorCode :: ierr, err
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
-    primary = ["Pressure   ", "Temperature"]
 
     json => fson_parse_mpi(str = &
          '{"mesh": {"filename": "data/mesh/7x7grid.exo",' // &
@@ -411,11 +402,11 @@ contains
          '40,41,42,43,44,45,46,47,48]' // &
          '}]}}')
     call mesh%init(json)
-    call setup_rocktype_labels(json, mesh%original_dm)
     call mesh%setup_minc(json, err = err)
     call assert_equals(0, err, "minc setup error")
     call DMCreateLabel(mesh%dm, open_boundary_label_name, ierr); CHKERRQ(ierr)
-    call mesh%configure(primary, gravity)
+    call mesh%configure(dof, gravity, json, err = err)
+    call assert_equals(0, err, "minc config error")
     call fson_destroy_mpi(json)
 
     num_minc_zones = size(mesh%minc)
@@ -444,6 +435,140 @@ contains
     end function total_interior_cell_count
 
   end subroutine test_setup_minc_dm
+
+!------------------------------------------------------------------------
+
+  subroutine test_rock_assignment
+    ! rock assignment
+
+    use fson_mpi_module
+    use rock_module
+    use dm_utils_module, only: global_section_offset, global_vec_section
+
+    type(fson_value), pointer :: json
+    character(:), allocatable :: json_str
+    PetscErrorCode :: ierr
+    PetscMPIInt :: rank
+    PetscInt, parameter :: num_rocktypes = 2
+
+    call MPI_comm_rank(PETSC_COMM_WORLD, rank, ierr)
+
+    json_str = &
+         '{"mesh": {"filename": "data/mesh/7x7grid.exo"}, ' // &
+         '"rock": {"types": [' // &
+         '  {"name": "rock1", "porosity": 0.1, ' // &
+         '   "cells": [0,1,2,3,4,5,6,7,8,9,' // &
+         '    10,11,12,13,14,15,16,17,18,19,20]},' // &
+         '  {"name": "rock2", "porosity": 0.2, ' // &
+         '    "cells": [21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,' // &
+         '    36,37,38,39,40,41,42,43,44,45,46,47,48]},' // &
+         '  ]}}'
+
+    call rock_test_case(json_str, [21, 28], "cells")
+
+    json_str = &
+         '{"mesh": {"filename": "data/mesh/7x7grid.exo", ' // &
+         '"zones": {' // &
+         '"left_zone": {"x": [0, 3000]},' // &
+         '"right_zone": {"-": "left_zone"}' // &
+         '}}, ' // &
+         '"rock": {"types": [' // &
+         '  {"name": "rock1", "porosity": 0.1, ' // &
+         '   "zones": ["left_zone"]}, ' // &
+         '  {"name": "rock2", "porosity": 0.2, ' // &
+         '    "zones": ["right_zone"]}' // &
+         '  ]}}'
+
+    call rock_test_case(json_str, [35, 14], "zones")
+
+    json_str = &
+         '{"mesh": {"filename": "data/mesh/7x7grid.exo", ' // &
+         '"zones": {' // &
+         '"zone4": {"-": "zone3"},' // &
+         '"zone3": {"+": "zone1", "-": "zone2"},' // &
+         '"zone1": {"x": [0, 3000]},' // &
+         '"zone2": {"x": [1500, 2500], "y": [1500, 2500]}' // &
+         '}}, ' // &
+         '"rock": {"types": [' // &
+         '  {"name": "rock1", "porosity": 0.1, ' // &
+         '   "zones": ["zone3"]}, ' // &
+         '  {"name": "rock2", "porosity": 0.2, ' // &
+         '    "zones": ["zone4"]}' // &
+         '  ]}}'
+
+    call rock_test_case(json_str, [31, 18], "zones")
+  contains
+
+    subroutine rock_test_case(json_str, expected_count, title)
+
+      character(*), intent(in) :: json_str
+      PetscInt, intent(in) :: expected_count(num_rocktypes)
+      character(*), intent(in) :: title
+      ! Locals:
+      type(mesh_type) :: mesh
+      PetscInt, parameter :: dof = 2
+      Vec :: rock_vector
+      type(rock_type) :: rock
+      PetscReal, contiguous, pointer :: rock_array(:)
+      PetscSection :: section
+      DMLabel :: ghost_label
+      PetscInt :: rock_range_start, start_cell, end_cell
+      PetscInt :: c, ghost, offset, irock
+      PetscErrorCode :: ierr, err
+      PetscInt :: rock_count_local(num_rocktypes), rock_count(num_rocktypes)
+      PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
+      PetscReal, parameter :: tol = 1.e-6
+
+      json => fson_parse_mpi(str = json_str )
+      call mesh%init(json)
+
+      call DMCreateLabel(mesh%dm, open_boundary_label_name, ierr); CHKERRQ(ierr)
+      call mesh%configure(dof, gravity, json, err = err)
+      call setup_rock_vector(json, mesh%dm, rock_vector, rock_range_start, &
+           mesh%ghost_cell)
+      call fson_destroy_mpi(json)
+
+      call VecGetArrayF90(rock_vector, rock_array, ierr); CHKERRQ(ierr)
+      call global_vec_section(rock_vector, section)
+      call rock%init()
+      call DMPlexGetHeightStratum(mesh%dm, 0, start_cell, end_cell, ierr)
+      CHKERRQ(ierr)
+      call DMGetLabel(mesh%dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
+
+      rock_count_local = 0
+
+      do c = start_cell, end_cell - 1
+         call DMLabelGetValue(ghost_label, c, ghost, ierr); CHKERRQ(ierr)
+         if (ghost < 0) then
+            call global_section_offset(section, c, rock_range_start, &
+                 offset, ierr); CHKERRQ(ierr)
+            call rock%assign(rock_array, offset)
+            if (rock%porosity < 0.15_dp) then
+               irock = 1
+            else
+               irock = 2
+            end if
+            rock_count_local(irock) = rock_count_local(irock) + 1
+         end if
+      end do
+
+      call MPI_reduce(rock_count_local, rock_count, num_rocktypes, &
+           MPI_INTEGER, MPI_SUM, 0, PETSC_COMM_WORLD, ierr)
+
+      if (rank == 0) then
+         call assert_equals(expected_count, rock_count, num_rocktypes, &
+              "rock counts: " // trim(title))
+      end if
+
+      call rock%destroy()
+      call VecRestoreArrayF90(rock_vector, rock_array, ierr); CHKERRQ(ierr)
+
+      call VecDestroy(rock_vector, ierr); CHKERRQ(ierr)
+      call mesh%destroy()
+
+    end subroutine rock_test_case
+
+  end subroutine test_rock_assignment
 
 !------------------------------------------------------------------------
 

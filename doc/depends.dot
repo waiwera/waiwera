@@ -8,6 +8,7 @@ digraph waiwera{
         capillary_pressure_module -> utils_module
         cell_module -> fluid_module
         cell_module -> rock_module
+        dictionary_module -> list_module
         eos_module -> fluid_module
         eos_module -> interpolation_module
         eos_module -> logfile_module
@@ -58,6 +59,7 @@ digraph waiwera{
         face_module -> eos_module
         flow_simulation_module -> capillary_pressure_module
         flow_simulation_module -> cell_module
+        flow_simulation_module -> cell_order_module
         flow_simulation_module -> dm_utils_module
         flow_simulation_module -> eos_module
         flow_simulation_module -> eos_setup_module
@@ -82,7 +84,9 @@ digraph waiwera{
         flow_simulation_module -> version_module
         fluid_module -> dm_utils_module
         fluid_module -> thermodynamics_module
+        fson_mpi_module -> fson_string_m
         fson_mpi_module -> logfile_module
+        initial_module -> cell_order_module
         initial_module -> dm_utils_module
         initial_module -> eos_module
         initial_module -> fluid_module
@@ -91,16 +95,22 @@ digraph waiwera{
         initial_module -> mesh_module
         interpolation_module -> utils_module
         mesh_module -> cell_module
+        mesh_module -> cell_order_module
+        mesh_module -> dag_module
+        mesh_module -> dictionary_module
         mesh_module -> dm_utils_module
         mesh_module -> eos_module
         mesh_module -> face_module
         mesh_module -> fluid_module
         mesh_module -> fson_mpi_module
+        mesh_module -> list_module
         mesh_module -> logfile_module
         mesh_module -> minc_module
         mesh_module -> mpi_utils_module
         mesh_module -> rock_module
         mesh_module -> utils_module
+        mesh_module -> zone_label_module
+        mesh_module -> zone_module
         minc_module -> fson_mpi_module
         minc_module -> logfile_module
         minc_module -> root_finder_module
@@ -120,10 +130,12 @@ digraph waiwera{
         relative_permeability_module -> logfile_module
         relative_permeability_module -> utils_module
         rock_module -> capillary_pressure_module
+        rock_module -> cell_order_module
         rock_module -> dm_utils_module
         rock_module -> fson_mpi_module
         rock_module -> logfile_module
         rock_module -> relative_permeability_module
+        rock_module -> zone_label_module
         source_control_module -> dm_utils_module
         source_control_module -> eos_module
         source_control_module -> interpolation_module
@@ -133,14 +145,13 @@ digraph waiwera{
         source_module -> dm_utils_module
         source_module -> eos_module
         source_module -> fluid_module
-        source_module -> list_module
+        source_setup_module -> cell_order_module
         source_setup_module -> dm_utils_module
         source_setup_module -> eos_module
         source_setup_module -> fson_mpi_module
         source_setup_module -> interpolation_module
         source_setup_module -> list_module
         source_setup_module -> logfile_module
-        source_setup_module -> mesh_module
         source_setup_module -> source_control_module
         source_setup_module -> source_module
         source_setup_module -> thermodynamics_module
@@ -160,4 +171,12 @@ digraph waiwera{
         waiwera -> fson_mpi_module
         waiwera -> profiling_module
         waiwera -> timestepper_module
+        zone_module -> cell_module
+        zone_module -> cell_order_module
+        zone_module -> dm_utils_module
+        zone_module -> fson_mpi_module
+        zone_module -> list_module
+        zone_module -> logfile_module
+        zone_module -> utils_module
+        zone_module -> zone_label_module
 }
