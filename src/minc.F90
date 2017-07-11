@@ -132,6 +132,8 @@ contains
 
     if (err == 0) then
 
+       call DMPlexGetHeightStratum(dm, 0, start_cell, end_cell, ierr)
+
        if (fson_has_mpi(json, "cells")) then
           call fson_get_mpi(json, "cells", val = cells)
           num_cells = size(cells)
