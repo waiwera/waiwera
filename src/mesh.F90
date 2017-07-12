@@ -1504,6 +1504,7 @@ contains
       minc_offset(1:) = array_cumulative_sum(num_minc_level_cells(1:))
 
       frac_shift = ishift * minc_offset(max_num_levels)
+      minc_shift = 0
       do h = 0, depth
          do m = 1, max_num_levels
             minc_shift(h, m) = stratum_end(h) + frac_shift(h) + &
@@ -1519,17 +1520,17 @@ contains
       !! Sets cone sizes for MINC DM.
 
       ! Locals:
-      PetscInt :: p, cone_size, iminc, m, minc_p, h
+      PetscInt :: p, cone_size, new_cone_size
+      PetscInt :: iminc, m, minc_p, h
       PetscErrorCode :: ierr
 
       ! Cells:
       do p = stratum_start(0), stratum_end(0) - 1
+         iminc = minc_zone(p)
          call DMPlexGetConeSize(self%original_dm, p, cone_size, ierr)
          CHKERRQ(ierr)
-         call DMPlexSetConeSize(self%minc_dm, p, cone_size + 1, ierr)
-         CHKERRQ(ierr)
-         iminc = minc_zone(p)
          if (iminc > 0) then
+            new_cone_size = cone_size + 1
             associate(num_levels => self%minc(iminc)%num_levels)
               do m = 1, num_levels
                  minc_p = p + minc_shift(0, m)
@@ -1542,7 +1543,11 @@ contains
                       cone_size, ierr); CHKERRQ(ierr)
               end do
             end associate
+         else
+            new_cone_size = cone_size
          end if
+         call DMPlexSetConeSize(self%minc_dm, p, new_cone_size, ierr)
+         CHKERRQ(ierr)
       end do
 
       ! Higher level points:
