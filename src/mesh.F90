@@ -1147,73 +1147,6 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine mesh_setup_minc(self, json, logfile, err)
-    !! Sets up MINC for fractured zones.
-
-    use fson_mpi_module
-    use logfile_module
-    use fson_value_m, only : TYPE_ARRAY, TYPE_OBJECT
-
-    class(mesh_type), intent(in out) :: self
-    type(fson_value), pointer, intent(in) :: json !! JSON file pointer
-    type(logfile_type), intent(in out), optional :: logfile !! Logfile for log output
-    PetscErrorCode, intent(out) :: err
-    ! Locals:
-    PetscInt :: num_minc_zones, iminc, num_minc_cells
-    type(fson_value), pointer :: minc_json, minci_json
-    PetscInt :: minc_type
-    character(32) :: imincstr, mincstr
-    PetscMPIInt :: rank
-    PetscErrorCode :: ierr
-
-    err = 0
-
-    if (fson_has_mpi(json, "mesh.minc")) then
-
-       call DMCreateLabel(self%original_dm, minc_zone_label_name, ierr)
-       CHKERRQ(ierr)
-
-       call fson_get_mpi(json, "mesh.minc", minc_json)
-       minc_type = fson_type_mpi(minc_json, ".")
-
-       select case (minc_type)
-       case (TYPE_OBJECT)
-          num_minc_zones = 1
-          allocate(self%minc(num_minc_zones))
-          iminc = 1
-          mincstr = "minc."
-          call self%minc(num_minc_zones)%init(minc_json, self%original_dm, &
-               iminc, mincstr, logfile, err)
-       case (TYPE_ARRAY)
-          num_minc_zones = fson_value_count_mpi(minc_json, ".")
-          allocate(self%minc(num_minc_zones))
-          do iminc = 1, num_minc_zones
-             minci_json => fson_value_get_mpi(minc_json, iminc)
-             write(imincstr, '(i0)') iminc - 1
-             mincstr = 'minc[' // trim(imincstr) // '].'
-             call self%minc(iminc)%init(minci_json, self%original_dm, iminc, &
-                  mincstr, logfile, err)
-             if (err > 0) exit
-          end do
-       end select
-
-       call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
-       if (rank == 0) then
-          call DMGetLabelSize(self%original_dm, minc_zone_label_name, &
-               num_minc_cells, ierr); CHKERRQ(ierr)
-          self%has_minc = (num_minc_cells > 0)
-       end if
-       call MPI_bcast(self%has_minc, 1, MPI_LOGICAL, 0, &
-            PETSC_COMM_WORLD, ierr)
-
-    else
-       self%has_minc = PETSC_FALSE
-    end if
-
-  end subroutine mesh_setup_minc
-    
-!------------------------------------------------------------------------
-
   subroutine mesh_setup_zones(self, json, logfile, err)
     !! Sets up zones (for defining e.g. rock types, MINC etc.) in the
     !! mesh, from JSON input.
@@ -1358,6 +1291,73 @@ contains
 
 !------------------------------------------------------------------------
 
+  subroutine mesh_setup_minc(self, json, logfile, err)
+    !! Sets up MINC for fractured zones.
+
+    use fson_mpi_module
+    use logfile_module
+    use fson_value_m, only : TYPE_ARRAY, TYPE_OBJECT
+
+    class(mesh_type), intent(in out) :: self
+    type(fson_value), pointer, intent(in) :: json !! JSON file pointer
+    type(logfile_type), intent(in out), optional :: logfile !! Logfile for log output
+    PetscErrorCode, intent(out) :: err
+    ! Locals:
+    PetscInt :: num_minc_zones, iminc, num_minc_cells
+    type(fson_value), pointer :: minc_json, minci_json
+    PetscInt :: minc_type
+    character(32) :: imincstr, mincstr
+    PetscMPIInt :: rank
+    PetscErrorCode :: ierr
+
+    err = 0
+
+    if (fson_has_mpi(json, "mesh.minc")) then
+
+       call DMCreateLabel(self%original_dm, minc_zone_label_name, ierr)
+       CHKERRQ(ierr)
+
+       call fson_get_mpi(json, "mesh.minc", minc_json)
+       minc_type = fson_type_mpi(minc_json, ".")
+
+       select case (minc_type)
+       case (TYPE_OBJECT)
+          num_minc_zones = 1
+          allocate(self%minc(num_minc_zones))
+          iminc = 1
+          mincstr = "minc."
+          call self%minc(num_minc_zones)%init(minc_json, self%original_dm, &
+               iminc, mincstr, logfile, err)
+       case (TYPE_ARRAY)
+          num_minc_zones = fson_value_count_mpi(minc_json, ".")
+          allocate(self%minc(num_minc_zones))
+          do iminc = 1, num_minc_zones
+             minci_json => fson_value_get_mpi(minc_json, iminc)
+             write(imincstr, '(i0)') iminc - 1
+             mincstr = 'minc[' // trim(imincstr) // '].'
+             call self%minc(iminc)%init(minci_json, self%original_dm, iminc, &
+                  mincstr, logfile, err)
+             if (err > 0) exit
+          end do
+       end select
+
+       call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+       if (rank == 0) then
+          call DMGetLabelSize(self%original_dm, minc_zone_label_name, &
+               num_minc_cells, ierr); CHKERRQ(ierr)
+          self%has_minc = (num_minc_cells > 0)
+       end if
+       call MPI_bcast(self%has_minc, 1, MPI_LOGICAL, 0, &
+            PETSC_COMM_WORLD, ierr)
+
+    else
+       self%has_minc = PETSC_FALSE
+    end if
+
+  end subroutine mesh_setup_minc
+
+!------------------------------------------------------------------------
+
   subroutine mesh_setup_minc_dm(self, dof)
     !! Sets up augmented DM for MINC mesh, including MINC cells and
     !! faces. Although they are not used, edges and vertices are also
@@ -1433,7 +1433,8 @@ contains
 !........................................................................
 
     subroutine setup_minc_zone_and_cells
-      !! Set up minc_zone and num_minc_level_cells arrays.
+      !! Set up minc_zone and num_minc_level_cells arrays, and minc
+      !! level label on DM.
 
       ! Locals:
       PetscInt :: iminc, i, c, l, ghost
