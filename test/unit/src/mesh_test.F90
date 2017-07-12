@@ -375,12 +375,8 @@ contains
     use fson_mpi_module
 
     type(fson_value), pointer :: json
-    type(mesh_type) :: mesh
-    PetscInt, parameter :: dof = 2
-    PetscInt :: num_cells, num_minc_zones
     PetscMPIInt :: rank
-    PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
-    PetscErrorCode :: ierr, err
+    PetscErrorCode :: ierr
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
 
@@ -390,26 +386,55 @@ contains
          '  "minc": {"volume_fractions": [0.1, 0.9], "zones": ["all"]}},' // &
          '"rock": {"types": [{"zones": ["all"]}]}' // &
          '}')
-    call mesh%init(json)
-    call DMCreateLabel(mesh%dm, open_boundary_label_name, ierr); CHKERRQ(ierr)
-    call mesh%configure(dof, gravity, json, err = err)
-    call assert_equals(0, err, "minc config error")
+    call minc_test(json, 1, 2 * 49)
     call fson_destroy_mpi(json)
 
-    if (rank == 0) then
-       call assert_true(mesh%has_minc, "mesh has minc")
-    end if
-    num_minc_zones = size(mesh%minc)
-    call assert_equals(1, num_minc_zones, "num minc zones")
-
-    num_cells = total_interior_cell_count(mesh)
-    if (rank == 0) then
-       call assert_equals(49 * 2, num_cells, "num cells")
-    end if
-
-    call mesh%destroy()
+    json => fson_parse_mpi(str = &
+         '{"mesh": {"filename": "data/mesh/7x7grid.exo",' // &
+         '  "zones": {"left": {"x": [0, 1500]}, "right": {"-": "left"}},' // &
+         '  "minc": {"volume_fractions": [0.1, 0.9], "zones": ["left"]}},' // &
+         '"rock": {"types": [{"zones": ["left", "right"]}]}' // &
+         '}')
+    call minc_test(json, 1, 63)
+    call fson_destroy_mpi(json)
 
   contains
+
+!........................................................................
+
+    subroutine minc_test(json, expected_num_zones, expected_num_cells)
+
+      type(fson_value), pointer, intent(in out) :: json
+      PetscInt, intent(in) :: expected_num_zones, expected_num_cells
+      ! Locals:
+      type(mesh_type) :: mesh
+      PetscInt, parameter :: dof = 2
+      PetscInt :: num_cells, num_minc_zones
+      PetscErrorCode :: err
+      PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
+
+      call mesh%init(json)
+      call DMCreateLabel(mesh%dm, open_boundary_label_name, ierr); CHKERRQ(ierr)
+      call mesh%configure(dof, gravity, json, err = err)
+      call assert_equals(0, err, "minc config error")
+      call fson_destroy_mpi(json)
+
+      if (rank == 0) then
+         call assert_true(mesh%has_minc, "mesh has minc")
+      end if
+      num_minc_zones = size(mesh%minc)
+      call assert_equals(1, num_minc_zones, "num minc zones")
+
+      num_cells = total_interior_cell_count(mesh)
+      if (rank == 0) then
+         call assert_equals(49 * 2, num_cells, "num cells")
+      end if
+
+      call mesh%destroy()
+
+    end subroutine minc_test
+
+!........................................................................
 
     PetscInt function total_interior_cell_count(mesh) result(n)
       type(mesh_type), intent(in) :: mesh
