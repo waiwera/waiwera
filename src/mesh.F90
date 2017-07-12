@@ -1468,11 +1468,10 @@ contains
          call DMGetStratumSize(self%original_dm, minc_zone_label_name, iminc, &
               num_minc_zone_cells, ierr); CHKERRQ(ierr)
          if (num_minc_zone_cells > 0) then
+            call DMGetStratumIS(self%original_dm, minc_zone_label_name, &
+                 iminc, minc_IS, ierr); CHKERRQ(ierr)
+            call ISGetIndicesF90(minc_IS, minc_cells, ierr); CHKERRQ(ierr)
             associate(num_levels => self%minc(iminc)%num_levels)
-              call DMGetStratumIS(self%original_dm, minc_zone_label_name, &
-                   iminc, minc_IS, ierr); CHKERRQ(ierr)
-              call ISGetIndicesF90(minc_IS, minc_cells, ierr)
-              CHKERRQ(ierr)
               do i = 1, num_minc_zone_cells
                  c = minc_cells(i)
                  call DMLabelGetValue(ghost_label, c, ghost, ierr)
@@ -1483,10 +1482,10 @@ contains
                     end do
                  end if
               end do
-              call ISRestoreIndicesF90(minc_IS, minc_cells, ierr)
-              CHKERRQ(ierr)
-              call ISDestroy(minc_IS, ierr); CHKERRQ(ierr)
             end associate
+            call ISRestoreIndicesF90(minc_IS, minc_cells, ierr)
+            CHKERRQ(ierr)
+            call ISDestroy(minc_IS, ierr); CHKERRQ(ierr)
          end if
       end do
 
