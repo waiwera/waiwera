@@ -1170,7 +1170,7 @@ contains
 
     if (fson_has_mpi(json, "mesh.minc")) then
 
-       call DMCreateLabel(self%original_dm, minc_label_name, ierr)
+       call DMCreateLabel(self%original_dm, minc_zone_label_name, ierr)
        CHKERRQ(ierr)
 
        call fson_get_mpi(json, "mesh.minc", minc_json)
@@ -1199,7 +1199,7 @@ contains
 
        call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
        if (rank == 0) then
-          call DMGetLabelSize(self%original_dm, minc_label_name, &
+          call DMGetLabelSize(self%original_dm, minc_zone_label_name, &
                num_minc_cells, ierr); CHKERRQ(ierr)
           self%has_minc = (num_minc_cells > 0)
        end if
@@ -1451,11 +1451,11 @@ contains
       CHKERRQ(ierr)
 
       do iminc = 1, num_minc_zones
-         call DMGetStratumSize(self%original_dm, minc_label_name, iminc, &
+         call DMGetStratumSize(self%original_dm, minc_zone_label_name, iminc, &
               num_minc_zone_cells, ierr); CHKERRQ(ierr)
          if (num_minc_zone_cells > 0) then
             associate(num_levels => self%minc(iminc)%num_levels)
-              call DMGetStratumIS(self%original_dm, minc_label_name, &
+              call DMGetStratumIS(self%original_dm, minc_zone_label_name, &
                    iminc, minc_IS, ierr); CHKERRQ(ierr)
               call ISGetIndicesF90(minc_IS, minc_cells, ierr)
               CHKERRQ(ierr)

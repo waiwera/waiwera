@@ -26,8 +26,7 @@ module minc_module
   implicit none
   private
 
-  PetscInt, parameter :: max_minc_label_name_length = 4
-  character(max_minc_label_name_length), parameter, public :: minc_label_name = "minc"
+  character(9), parameter, public :: minc_zone_label_name = "minc_zone"
 
   type, public :: minc_type
      !! MINC parameters for a particular zone.
@@ -143,7 +142,7 @@ contains
              do ic = 1, num_cells
                 c = cells(ic)
                 if ((c >= start_cell) .and. (c < end_cell)) then
-                   call DMSetLabelValue(dm, minc_label_name, &
+                   call DMSetLabelValue(dm, minc_zone_label_name, &
                         c, iminc, ierr); CHKERRQ(ierr)
                 end if
              end do
@@ -169,7 +168,7 @@ contains
                      do ic = 1, num_cells
                         c = zone_cells(ic)
                         if ((c >= start_cell) .and. (c < end_cell)) then
-                           call DMSetLabelValue(dm, minc_label_name, &
+                           call DMSetLabelValue(dm, minc_zone_label_name, &
                                 c, iminc, ierr); CHKERRQ(ierr)
                         end if
                      end do
