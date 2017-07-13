@@ -131,9 +131,8 @@ contains
 
     if (err == 0) then
 
-       call DMPlexGetHeightStratum(dm, 0, start_cell, end_cell, ierr)
-
        if (fson_has_mpi(json, "cells")) then
+          call DMPlexGetHeightStratum(dm, 0, start_cell, end_cell, ierr)
           call fson_get_mpi(json, "cells", val = cells)
           num_cells = size(cells)
           if (num_cells > 0) then
@@ -151,6 +150,7 @@ contains
        end if
 
        if (fson_has_mpi(json, "zones")) then
+          call DMPlexGetHeightStratum(dm, 0, start_cell, end_cell, ierr)
           call fson_get_mpi(json, "zones", string_length = max_zone_name_length, &
                val = zones)
           associate(num_zones => size(zones))
