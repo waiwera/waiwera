@@ -115,6 +115,7 @@ digraph waiwera{
         minc_module -> logfile_module
         minc_module -> root_finder_module
         minc_module -> utils_module
+        minc_module -> zone_label_module
         ncg_air_thermodynamics_module -> ncg_thermodynamics_module
         ncg_air_thermodynamics_module -> thermodynamics_module
         ncg_air_thermodynamics_module -> utils_module
