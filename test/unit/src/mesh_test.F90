@@ -370,7 +370,7 @@ contains
 !------------------------------------------------------------------------
 
   subroutine test_setup_minc_dm
-    ! Test setup_minc_dm()
+    ! Test setup_minc_dm
 
     use fson_mpi_module
 
@@ -383,27 +383,41 @@ contains
     json => fson_parse_mpi(str = &
          '{"mesh": {"filename": "data/mesh/7x7grid.exo",' // &
          '  "zones": {"all": {"-": null}},' // &
-         '  "minc": {"volume_fractions": [0.1, 0.9], "zones": ["all"]}},' // &
-         '"rock": {"types": [{"zones": ["all"]}]}' // &
-         '}')
-    call minc_test(json, 1, 2 * 49)
+         '  "minc": {"volume_fractions": [0.1, 0.9], "zones": ["all"]}}}')
+    call minc_test('all', json, 1, 2 * 49)
     call fson_destroy_mpi(json)
 
     json => fson_parse_mpi(str = &
          '{"mesh": {"filename": "data/mesh/7x7grid.exo",' // &
          '  "zones": {"left": {"x": [0, 1500]}, "right": {"-": "left"}},' // &
-         '  "minc": {"volume_fractions": [0.1, 0.9], "zones": ["left"]}},' // &
-         '"rock": {"types": [{"zones": ["left", "right"]}]}' // &
-         '}')
-    call minc_test(json, 1, 63)
+         '  "minc": {"volume_fractions": [0.1, 0.9], "zones": ["left"]}}}')
+    call minc_test('partial', json, 1, 63)
+    call fson_destroy_mpi(json)
+
+    json => fson_parse_mpi(str = &
+         '{"mesh": {"filename": "data/mesh/7x7grid.exo",' // &
+         '  "zones": {"left": {"x": [0, 1500]}, "right": {"-": "left"}},' // &
+         '  "minc": [{"volume_fractions": [0.1, 0.9], "zones": ["left"]}, ' // &
+         '           {"volume_fractions": [0.1, 0.3, 0.6], "zones": ["right"]}]}}')
+    call minc_test('two-zone', json, 2, 133)
+    call fson_destroy_mpi(json)
+
+    json => fson_parse_mpi(str = &
+         '{"mesh": {"filename": "data/mesh/7x7grid.exo",' // &
+         '  "zones": {"left": {"x": [0, 1500]}, ' // &
+         '            "right corner": {"x": [2500, 4500], "y": [3000, 4500]}},' // &
+         '  "minc": [{"volume_fractions": [0.1, 0.3, 0.6], "zones": ["left"]}, ' // &
+         '           {"volume_fractions": [0.1, 0.9], "zones": ["right corner"]}]}}')
+    call minc_test('two-zone partial', json, 2, 83)
     call fson_destroy_mpi(json)
 
   contains
 
 !........................................................................
 
-    subroutine minc_test(json, expected_num_zones, expected_num_cells)
+    subroutine minc_test(name, json, expected_num_zones, expected_num_cells)
 
+      character(*), intent(in) :: name
       type(fson_value), pointer, intent(in out) :: json
       PetscInt, intent(in) :: expected_num_zones, expected_num_cells
       ! Locals:
@@ -416,18 +430,20 @@ contains
       call mesh%init(json)
       call DMCreateLabel(mesh%dm, open_boundary_label_name, ierr); CHKERRQ(ierr)
       call mesh%configure(dof, gravity, json, err = err)
-      call assert_equals(0, err, "minc config error")
+      call assert_equals(0, err, name // ": minc config error")
       call fson_destroy_mpi(json)
 
       if (rank == 0) then
-         call assert_true(mesh%has_minc, "mesh has minc")
+         call assert_true(mesh%has_minc, name // ": mesh has minc")
       end if
       num_minc_zones = size(mesh%minc)
-      call assert_equals(1, num_minc_zones, "num minc zones")
+      call assert_equals(expected_num_zones, &
+           num_minc_zones, name // ": num minc zones")
 
       num_cells = total_interior_cell_count(mesh)
       if (rank == 0) then
-         call assert_equals(49 * 2, num_cells, "num cells")
+         call assert_equals(expected_num_cells, &
+              num_cells, name  // ": num cells")
       end if
 
       call mesh%destroy()
