@@ -384,14 +384,14 @@ contains
          '{"mesh": {"filename": "data/mesh/7x7grid.exo",' // &
          '  "zones": {"all": {"-": null}},' // &
          '  "minc": {"volume_fractions": [0.1, 0.9], "zones": ["all"]}}}')
-    call minc_test('all', json, 1, 2 * 49)
+    call minc_test('all', json, 1, 2 * 49, 1, [98, 98])
     call fson_destroy_mpi(json)
 
     json => fson_parse_mpi(str = &
          '{"mesh": {"filename": "data/mesh/7x7grid.exo",' // &
          '  "zones": {"left": {"x": [0, 1500]}, "right": {"-": "left"}},' // &
          '  "minc": {"volume_fractions": [0.1, 0.9], "zones": ["left"]}}}')
-    call minc_test('partial', json, 1, 63)
+    call minc_test('partial', json, 1, 63, 1, [28, 28])
     call fson_destroy_mpi(json)
 
     json => fson_parse_mpi(str = &
@@ -399,7 +399,7 @@ contains
          '  "zones": {"left": {"x": [0, 1500]}, "right": {"-": "left"}},' // &
          '  "minc": [{"volume_fractions": [0.1, 0.9], "zones": ["left"]}, ' // &
          '           {"volume_fractions": [0.1, 0.3, 0.6], "zones": ["right"]}]}}')
-    call minc_test('two-zone', json, 2, 133)
+    call minc_test('two-zone', json, 2, 133, 2, [98, 98, 70])
     call fson_destroy_mpi(json)
 
     json => fson_parse_mpi(str = &
@@ -408,24 +408,30 @@ contains
          '            "right corner": {"x": [2500, 4500], "y": [3000, 4500]}},' // &
          '  "minc": [{"volume_fractions": [0.1, 0.3, 0.6], "zones": ["left"]}, ' // &
          '           {"volume_fractions": [0.1, 0.9], "zones": ["right corner"]}]}}')
-    call minc_test('two-zone partial', json, 2, 83)
+    call minc_test('two-zone partial', json, 2, 83, 2, [40, 40, 28])
     call fson_destroy_mpi(json)
 
   contains
 
 !........................................................................
 
-    subroutine minc_test(name, json, expected_num_zones, expected_num_cells)
+    subroutine minc_test(name, json, expected_num_zones, expected_num_cells, &
+         expected_max_level, expected_num_minc_level_cells)
+
+      use minc_module, only: minc_level_label_name
 
       character(*), intent(in) :: name
       type(fson_value), pointer, intent(in out) :: json
       PetscInt, intent(in) :: expected_num_zones, expected_num_cells
+      PetscInt, intent(in) :: expected_max_level
+      PetscInt, intent(in) :: expected_num_minc_level_cells(0: expected_max_level)
       ! Locals:
       type(mesh_type) :: mesh
       PetscInt, parameter :: dof = 2
-      PetscInt :: num_cells, num_minc_zones
+      PetscInt :: num_cells, num_minc_zones, m, num_local, num
       PetscErrorCode :: err
       PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
+      character(32) :: str
 
       call mesh%init(json)
       call DMCreateLabel(mesh%dm, open_boundary_label_name, ierr); CHKERRQ(ierr)
@@ -445,6 +451,18 @@ contains
          call assert_equals(expected_num_cells, &
               num_cells, name  // ": num cells")
       end if
+
+      do m = 0, expected_max_level
+         call DMGetStratumSize(mesh%minc_dm, minc_level_label_name, m, &
+               num_local, ierr); CHKERRQ(ierr)
+         call MPI_reduce(num_local, num, 1, MPI_INTEGER, MPI_SUM, &
+              0, PETSC_COMM_WORLD, ierr)
+         if (rank == 0) then
+            write(str, '(a, i1)') ": num minc points, level ", m
+            call assert_equals(expected_num_minc_level_cells(m), &
+                 num, name  // str)
+         end if
+      end do
 
       call mesh%destroy()
 
