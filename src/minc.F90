@@ -27,6 +27,7 @@ module minc_module
   private
 
   character(9), parameter, public :: minc_zone_label_name = "minc_zone"
+  character(10), parameter, public :: minc_level_label_name = "minc_level"
 
   type, public :: minc_type
      !! MINC parameters for a particular zone.
