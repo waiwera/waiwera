@@ -1435,6 +1435,8 @@ contains
     call dm_set_fv_adjacency(self%minc_dm)
     call dm_setup_fv_discretization(self%minc_dm, dof)
     call set_dm_default_data_layout(self%minc_dm, dof)
+    call self%setup_minc_geometry(depth, num_cells, max_num_levels, &
+         stratum_start, stratum_end, shift)
 
     call self%assign_dm(self%minc_dm)
 
@@ -1968,6 +1970,112 @@ contains
     end subroutine minc_level_label_iterator
 
   end subroutine mesh_setup_minc_dm_level_label
+
+!------------------------------------------------------------------------
+
+  subroutine mesh_setup_minc_geometry(self, depth, num_cells, &
+       max_num_levels, stratum_start, stratum_end, minc_zone, shift)
+    !! Sets up cell and face geometry vectors for MINC mesh. These
+    !! overwrite the original geometry vectors.
+
+    use cell_module
+    use face_module
+
+    class(mesh_type), intent(in out) :: self
+    PetscInt, intent(in) :: depth, num_cells, max_num_levels
+    PetscInt, intent(in) :: stratum_start(0: depth), stratum_end(0: depth)
+    PetscInt, intent(in) :: minc_zone(0: num_cells - 1)
+    PetscInt, intent(in) :: shift(0: depth, 0: max_num_levels)
+    ! Locals:
+    PetscInt :: dim, cell_variable_dim, face_variable_dim
+    PetscInt :: iminc, minc_p, ic(max_num_levels)
+    PetscInt :: cell_offset, minc_cell_offset
+    DM :: dm_cell, dm_face
+    Vec :: minc_cell_geom, minc_face_geom
+    PetscSection :: cell_section, minc_cell_section
+    PetscSection :: face_section, minc_face_section
+    PetscReal, pointer, contiguous :: cell_geom_array(:), minc_cell_geom_array(:)
+    PetscReal, pointer, contiguous :: face_geom_array(:), minc_face_geom_array(:)
+    type(cell_type) :: cell
+    type(face_type) :: face
+    PetscReal :: orig_volume
+    PetscErrorCode :: ierr
+
+    call DMGetDimension(self%original_dm, dim, ierr); CHKERRQ(ierr)
+
+    call DMClone(self%minc_dm, dm_cell, ierr); CHKERRQ(ierr)
+    cell_variable_dim = dim
+    call set_dm_data_layout(dm_cell, cell_variable_num_components, &
+         cell_variable_dim, cell_variable_names)
+    call DMCreateLocalVector(dm_cell, minc_cell_geom, ierr); CHKERRQ(ierr)
+    call local_vec_section(minc_cell_geom, minc_cell_section)
+    call VecGetArrayF90(minc_cell_geom, minc_cell_geom_array, ierr)
+    CHKERRQ(ierr)
+
+    call local_vec_section(self%cell_geom, cell_section)
+    call VecGetArrayReadF90(self%cell_geom, cell_geom_array, ierr)
+    CHKERRQ(ierr)
+
+    call DMClone(self%minc_dm, dm_face, ierr); CHKERRQ(ierr)
+    face_variable_dim = dim - 1
+    call set_dm_data_layout(dm_face, face_variable_num_components, &
+         face_variable_dim, face_variable_names)
+    call DMCreateLocalVector(dm_face, minc_face_geom, ierr); CHKERRQ(ierr)
+    call local_vec_section(minc_face_geom, minc_face_section)
+    call VecGetArrayF90(minc_face_geom, minc_face_geom_array, ierr)
+    CHKERRQ(ierr)
+
+    call local_vec_section(self%face_geom, face_section)
+    call VecGetArrayReadF90(self%face_geom, face_geom_array, ierr)
+    CHKERRQ(ierr)
+
+    h = 0
+    call cell%init(1, 1)
+    ic = 0
+    do c = stratum_start(h), stratum_end(h) - 1
+       call section_offset(cell_section, c, cell_offset, ierr)
+       CHKERRQ(ierr)
+       call section_offset(minc_cell_section, c, minc_cell_offset, ierr)
+       CHKERRQ(ierr)
+       ! Copy original cell geometry:
+       minc_cell_geom_array(minc_cell_offset: &
+            minc_cell_offset + cell%dof) = cell_geom_array(cell_offset: &
+            cell_offset + cell%dof)
+       iminc = minc_zone(c)
+       if (iminc > 0) then
+          associate(minc => self%minc(iminc))
+            call cell%assign_geometry(minc_cell_geom_array, minc_cell_offset)
+            orig_volume = cell%volume
+            ! Modify fracture cell volume:
+            cell%volume = orig_volume * minc%volume(1)
+            ! Assign MINC cell volumes:
+            do m = 1, minc%num_levels
+               minc_p = ic(m) + shift(h, m)
+               call section_offset(minc_cell_section, minc_p, &
+                    minc_cell_offset, ierr); CHKERRQ(ierr)
+               call cell%assign_geometry(minc_cell_geom_array, minc_cell_offset)
+               cell%volume = orig_volume * minc%volume(m + 1)
+               ic(m) = ic(m) + 1
+            end do
+          end associate
+       end if
+    end do
+
+    call cell%destroy()
+    call VecRestoreArrayReadF90(self%cell_geom, cell_geom_array, ierr)
+    CHKERRQ(ierr)
+    call VecRestoreArrayF90(minc_cell_geom, minc_cell_geom_array, ierr)
+    CHKERRQ(ierr)
+
+    ! TODO: face geometry
+
+    call face%destroy()
+    call VecRestoreArrayReadF90(self%face_geom, face_geom_array, ierr)
+    CHKERRQ(ierr)
+    call VecRestoreArrayF90(minc_face_geom, minc_face_geom_array, ierr)
+    CHKERRQ(ierr)
+
+  end subroutine mesh_setup_minc_geometry
 
 !------------------------------------------------------------------------
 
