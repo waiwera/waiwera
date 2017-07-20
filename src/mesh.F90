@@ -2050,8 +2050,8 @@ contains
           call section_offset(minc_face_section, f, minc_face_offset, ierr)
           CHKERRQ(ierr)
           minc_face_geom_array(minc_face_offset: &
-               minc_face_offset + face%dof) = face_geom_array(face_offset: &
-               face_offset + face%dof)
+               minc_face_offset + face%dof - 1) = face_geom_array(face_offset: &
+               face_offset + face%dof - 1)
        end if
     end do
 
@@ -2070,8 +2070,8 @@ contains
           CHKERRQ(ierr)
           ! Copy original cell geometry:
           minc_cell_geom_array(minc_cell_offset: &
-               minc_cell_offset + cell%dof) = cell_geom_array(cell_offset: &
-               cell_offset + cell%dof)
+               minc_cell_offset + cell%dof - 1) = cell_geom_array(cell_offset: &
+               cell_offset + cell%dof - 1)
           iminc = minc_zone(c)
 
           if (iminc > 0) then
