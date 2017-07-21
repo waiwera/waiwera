@@ -418,7 +418,10 @@ contains
     subroutine minc_test(name, json, expected_num_zones, expected_num_cells, &
          expected_max_level, expected_num_minc_level_cells)
 
-      use minc_module, only: minc_level_label_name
+      use minc_module, only: minc_level_label_name, minc_zone_label_name
+      use cell_module
+      use face_module
+      use dm_utils_module, only: section_offset, local_vec_section
 
       character(*), intent(in) :: name
       type(fson_value), pointer, intent(in out) :: json
@@ -432,6 +435,22 @@ contains
       PetscErrorCode :: err
       PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
       character(32) :: str
+      PetscInt :: iminc, num_minc_zone_cells, i, c
+      IS :: minc_IS
+      PetscInt, pointer :: minc_cells(:)
+      Vec :: orig_cell_geom, orig_face_geom
+      type(cell_type) :: orig_cell, cell
+      type(face_type) :: face
+      DMLabel :: ghost_label, minc_level_label
+      PetscInt, parameter :: nc = 1, np = 1 ! dummy values for cell init
+      PetscSection :: orig_cell_section, cell_section, face_section
+      PetscReal, pointer, contiguous :: orig_cell_geom_array(:), cell_geom_array(:)
+      PetscReal, pointer, contiguous :: face_geom_array(:)
+      PetscInt :: orig_cell_offset, cell_offset, ghost, icone, p_cell, p
+      PetscInt :: minc_level, face_offset
+      PetscReal :: expected_vol, expected_area
+      PetscInt, pointer :: cone(:)
+      PetscReal, parameter :: tol = 1.e-6_dp
 
       call mesh%init(json)
       call DMCreateLabel(mesh%dm, open_boundary_label_name, ierr); CHKERRQ(ierr)
@@ -464,6 +483,76 @@ contains
          end if
       end do
 
+      ! Test geometry:
+      call DMPlexComputeGeometryFVM(mesh%original_dm, orig_cell_geom, &
+           orig_face_geom, ierr); CHKERRQ(ierr)
+      call orig_cell%init(nc, np)
+      call cell%init(nc, np)
+      call face%init(nc, np)
+      call local_vec_section(orig_cell_geom, orig_cell_section)
+      call VecGetArrayReadF90(orig_cell_geom, orig_cell_geom_array, ierr)
+      CHKERRQ(ierr)
+      call local_vec_section(mesh%cell_geom, cell_section)
+      call VecGetArrayReadF90(mesh%cell_geom, cell_geom_array, ierr)
+      CHKERRQ(ierr)
+      call local_vec_section(mesh%face_geom, face_section)
+      call VecGetArrayReadF90(mesh%face_geom, face_geom_array, ierr)
+      CHKERRQ(ierr)
+      call DMGetLabel(mesh%original_dm, "ghost", ghost_label, ierr)
+      CHKERRQ(ierr)
+      call DMGetLabel(mesh%minc_dm, minc_level_label_name, minc_level_label, ierr)
+      CHKERRQ(ierr)
+      do iminc = 1, size(mesh%minc)
+         associate(minc => mesh%minc(iminc))
+           call DMGetStratumSize(mesh%original_dm, minc_zone_label_name, iminc, &
+                num_minc_zone_cells, ierr); CHKERRQ(ierr)
+           if (num_minc_zone_cells > 0) then
+              call DMGetStratumIS(mesh%original_dm, minc_zone_label_name, &
+                   iminc, minc_IS, ierr); CHKERRQ(ierr)
+              call ISGetIndicesF90(minc_IS, minc_cells, ierr); CHKERRQ(ierr)
+              do i = 1, num_minc_zone_cells
+                 c = minc_cells(i)
+                 call DMLabelGetValue(ghost_label, c, ghost, ierr)
+                 if (ghost < 0) then
+                    call section_offset(orig_cell_section, c, orig_cell_offset, ierr)
+                    CHKERRQ(ierr)
+                    call orig_cell%assign_geometry(orig_cell_geom_array, orig_cell_offset)
+                    call section_offset(cell_section, c, cell_offset, ierr)
+                    CHKERRQ(ierr)
+                    call cell%assign_geometry(cell_geom_array, cell_offset)
+                    expected_vol = orig_cell%volume * minc%volume(1)
+                    call assert_equals(expected_vol, cell%volume, tol, "fracture volume")
+                    p_cell = c
+                    do m = 1, minc%num_levels
+                       call DMPlexGetCone(mesh%minc_dm, p_cell, cone, ierr)
+                       CHKERRQ(ierr)
+                       do icone = 1, size(cone)
+                          p = cone(icone)
+                          call DMLabelGetValue(minc_level_label, p, minc_level, ierr)
+                          if (minc_level == m) then
+                             call section_offset(face_section, p, face_offset, ierr)
+                             CHKERRQ(ierr)
+                             call face%assign_geometry(face_geom_array, face_offset)
+                             expected_area = orig_cell%volume * minc%connection_area(m)
+                             call assert_equals(expected_area, face%area, tol, "face area")
+                          end if
+                       end do
+                       call DMPlexRestoreCone(mesh%minc_dm, p_cell, cone, ierr)
+                       CHKERRQ(ierr)
+                    end do
+                 end if
+              end do
+           end if
+         end associate
+      end do
+      call VecRestoreArrayReadF90(orig_cell_geom, orig_cell_geom_array, ierr)
+      call VecRestoreArrayReadF90(mesh%cell_geom, cell_geom_array, ierr)
+      call VecRestoreArrayReadF90(mesh%face_geom, face_geom_array, ierr)
+      call VecDestroy(orig_cell_geom, ierr); CHKERRQ(ierr)
+      call VecDestroy(orig_face_geom, ierr); CHKERRQ(ierr)
+      call cell%destroy()
+      call orig_cell%destroy()
+      call face%destroy()
       call mesh%destroy()
 
     end subroutine minc_test
