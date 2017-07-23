@@ -1436,7 +1436,7 @@ contains
     call dm_setup_fv_discretization(self%minc_dm, dof)
     call set_dm_default_data_layout(self%minc_dm, dof)
     call self%setup_minc_geometry(depth, num_cells, max_num_levels, &
-         stratum_start, stratum_end, minc_zone)
+         num_minc_zones, stratum_start, stratum_end, minc_zone)
 
     call self%assign_dm(self%minc_dm)
 
@@ -1859,18 +1859,18 @@ contains
     PetscInt, pointer :: ids(:), points(:)
     PetscErrorCode :: ierr
 
-    call DMGetNumLabels(self%dm, num_labels, ierr); CHKERRQ(ierr)
+    call DMGetNumLabels(self%original_dm, num_labels, ierr); CHKERRQ(ierr)
 
     do l = 0, num_labels - 1
-       call DMGetLabelName(self%dm, l, label_name, ierr); CHKERRQ(ierr)
+       call DMGetLabelName(self%original_dm, l, label_name, ierr); CHKERRQ(ierr)
        call DMCreateLabel(self%minc_dm, label_name, ierr); CHKERRQ(ierr)
-       call DMGetLabelIdIS(self%dm, label_name, id_IS, ierr); CHKERRQ(ierr)
+       call DMGetLabelIdIS(self%original_dm, label_name, id_IS, ierr); CHKERRQ(ierr)
        call ISGetLocalSize(id_IS, num_ids, ierr); CHKERRQ(ierr)
        if (num_ids > 0) then
           call ISGetIndicesF90(id_IS, ids, ierr); CHKERRQ(ierr)
           do iid = 1, num_ids
              label_value = ids(iid)
-             call DMGetStratumIS(self%dm, label_name, ids(iid), point_IS, &
+             call DMGetStratumIS(self%original_dm, label_name, ids(iid), point_IS, &
                   ierr); CHKERRQ(ierr)
              call ISGetLocalSize(point_IS, num_points, ierr)
              CHKERRQ(ierr)
@@ -1879,7 +1879,7 @@ contains
                 CHKERRQ(ierr)
                 do ip = 1, num_points
                    p = points(ip)
-                   h = dm_point_height(self%dm, p)
+                   h = dm_point_height(self%original_dm, p)
                    call DMSetLabelValue(self%minc_dm, label_name, &
                         p + self%minc_shift(h, 0), label_value, ierr)
                    CHKERRQ(ierr)
@@ -1966,7 +1966,7 @@ contains
 !------------------------------------------------------------------------
 
   subroutine mesh_setup_minc_geometry(self, depth, num_cells, &
-       max_num_levels, stratum_start, stratum_end, minc_zone)
+       max_num_levels, num_minc_zones, stratum_start, stratum_end, minc_zone)
     !! Sets up cell and face geometry vectors for MINC mesh. These
     !! overwrite the original geometry vectors.
 
@@ -1977,17 +1977,19 @@ contains
     use face_module
 
     class(mesh_type), intent(in out) :: self
-    PetscInt, intent(in) :: depth, num_cells, max_num_levels
+    PetscInt, intent(in) :: depth, num_cells, max_num_levels, num_minc_zones
     PetscInt, intent(in) :: stratum_start(0: depth), stratum_end(0: depth)
     PetscInt, intent(in) :: minc_zone(0: num_cells - 1)
     ! Locals:
     PetscInt :: dim, cell_variable_dim(num_cell_variables), &
          face_variable_dim(num_face_variables)
-    PetscInt :: iminc, c, f, h, m, cell_p, face_p, ghost
+    PetscInt :: iminc, c, f, h, i, m, cell_p, face_p, ghost
     PetscInt :: cell_offset, minc_cell_offset, face_offset, minc_face_offset
-    PetscInt :: ic(max_num_levels)
+    PetscInt :: ic(max_num_levels), num_minc_zone_cells
     DM :: dm_cell, dm_face
     DMLabel :: ghost_label
+    IS :: minc_IS
+    PetscInt, pointer :: minc_cells(:)
     Vec :: minc_cell_geom, minc_face_geom
     PetscSection :: cell_section, minc_cell_section
     PetscSection :: face_section, minc_face_section
@@ -2029,9 +2031,25 @@ contains
     call VecGetArrayReadF90(self%face_geom, face_geom_array, ierr)
     CHKERRQ(ierr)
 
+    ! Copy original cell geometry:
+    h = 0
+    call cell%init(nc, np)
+    do c = stratum_start(h), stratum_end(h) - 1
+       call DMLabelGetValue(ghost_label, c, ghost, ierr); CHKERRQ(ierr)
+       if (ghost < 0) then
+          call section_offset(cell_section, c, cell_offset, ierr)
+          CHKERRQ(ierr)
+          call section_offset(minc_cell_section, c, minc_cell_offset, ierr)
+          CHKERRQ(ierr)
+          minc_cell_geom_array(minc_cell_offset: &
+               minc_cell_offset + cell%dof - 1) = cell_geom_array(cell_offset: &
+               cell_offset + cell%dof - 1)
+       end if
+    end do
+
+    ! Copy original face geometry:
     h = 1
     call face%init(nc, np)
-    ! Copy original face geometry:
     do f = stratum_start(h), stratum_end(h) - 1
        call DMLabelGetValue(ghost_label, f, ghost, ierr); CHKERRQ(ierr)
        if (ghost < 0) then
@@ -2047,62 +2065,51 @@ contains
 
     h = 0
     ic = 0
-    call cell%init(nc, np)
-
-    do c = stratum_start(h), stratum_end(h) - 1
-
-       call DMLabelGetValue(ghost_label, c, ghost, ierr); CHKERRQ(ierr)
-       if (ghost < 0) then
-
-          call section_offset(cell_section, c, cell_offset, ierr)
-          CHKERRQ(ierr)
-          call section_offset(minc_cell_section, c, minc_cell_offset, ierr)
-          CHKERRQ(ierr)
-          ! Copy original cell geometry:
-          minc_cell_geom_array(minc_cell_offset: &
-               minc_cell_offset + cell%dof - 1) = cell_geom_array(cell_offset: &
-               cell_offset + cell%dof - 1)
-          iminc = minc_zone(c)
-
-          if (iminc > 0) then
-             associate(minc => self%minc(iminc))
-
-               call cell%assign_geometry(minc_cell_geom_array, minc_cell_offset)
-               orig_volume = cell%volume
-               ! Modify fracture cell volume:
-               cell%volume = orig_volume * minc%volume(1)
-
-               do m = 1, minc%num_levels
-
-                  ! Assign MINC cell geometry:
-                  cell_p = ic(m) + self%minc_shift(h, m)
-                  call section_offset(minc_cell_section, cell_p, &
-                       minc_cell_offset, ierr); CHKERRQ(ierr)
+    do iminc = 1, num_minc_zones
+       associate(minc => self%minc(iminc))
+         call DMGetStratumSize(self%original_dm, minc_zone_label_name, iminc, &
+              num_minc_zone_cells, ierr); CHKERRQ(ierr)
+         if (num_minc_zone_cells > 0) then
+            call DMGetStratumIS(self%original_dm, minc_zone_label_name, &
+                 iminc, minc_IS, ierr); CHKERRQ(ierr)
+            call ISGetIndicesF90(minc_IS, minc_cells, ierr); CHKERRQ(ierr)
+            do i = 1, num_minc_zone_cells
+               c = minc_cells(i)
+               call DMLabelGetValue(ghost_label, c, ghost, ierr)
+               if (ghost < 0) then
+                  call section_offset(cell_section, c, cell_offset, ierr)
+                  CHKERRQ(ierr)
+                  call section_offset(minc_cell_section, c, minc_cell_offset, ierr)
+                  CHKERRQ(ierr)
                   call cell%assign_geometry(minc_cell_geom_array, minc_cell_offset)
-                  cell%volume = orig_volume * minc%volume(m + 1)
-                  cell%centroid = 0._dp
-
-                  ! Assign MINC face geometry:
-                  face_p = ic(m) + self%minc_shift(h + 1, m)
-                  call section_offset(minc_face_section, face_p, &
-                       minc_face_offset, ierr); CHKERRQ(ierr)
-                  call face%assign_geometry(minc_face_geom_array, minc_face_offset)
-                  face%area = orig_volume * minc%connection_area(m)
-                  face%distance = minc%connection_distance(m: m + 1)
-                  face%normal = 0._dp
-                  face%gravity_normal = 0._dp
-                  face%centroid = 0._dp
-                  face%permeability_direction = dble(1)
-
-                  ic(m) = ic(m) + 1
-
-               end do
-
-             end associate
-          end if
-
-       end if
-
+                  orig_volume = cell%volume
+                  ! Modify fracture cell volume:
+                  cell%volume = orig_volume * minc%volume(1)
+                  do m = 1, minc%num_levels
+                     ! Assign MINC cell geometry:
+                     cell_p = ic(m) + self%minc_shift(h, m)
+                     call section_offset(minc_cell_section, cell_p, &
+                          minc_cell_offset, ierr); CHKERRQ(ierr)
+                     call cell%assign_geometry(minc_cell_geom_array, minc_cell_offset)
+                     cell%volume = orig_volume * minc%volume(m + 1)
+                     cell%centroid = 0._dp
+                     ! Assign MINC face geometry:
+                     face_p = ic(m) + self%minc_shift(h + 1, m)
+                     call section_offset(minc_face_section, face_p, &
+                          minc_face_offset, ierr); CHKERRQ(ierr)
+                     call face%assign_geometry(minc_face_geom_array, minc_face_offset)
+                     face%area = orig_volume * minc%connection_area(m)
+                     face%distance = minc%connection_distance(m: m + 1)
+                     face%normal = 0._dp
+                     face%gravity_normal = 0._dp
+                     face%centroid = 0._dp
+                     face%permeability_direction = dble(1)
+                     ic(m) = ic(m) + 1
+                  end do
+               end if
+            end do
+         end if
+       end associate
     end do
 
     call cell%destroy()
