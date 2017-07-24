@@ -431,7 +431,7 @@ contains
       ! Locals:
       type(mesh_type) :: mesh
       PetscInt, parameter :: dof = 2
-      PetscInt :: num_cells, num_minc_zones, m, num_local, num
+      PetscInt :: num_cells, num_minc_zones, m, num_local, num, max_num_levels
       PetscErrorCode :: err
       PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
       character(32) :: str
@@ -446,10 +446,10 @@ contains
       PetscSection :: orig_cell_section, cell_section, face_section
       PetscReal, pointer, contiguous :: orig_cell_geom_array(:), cell_geom_array(:)
       PetscReal, pointer, contiguous :: face_geom_array(:)
-      PetscInt :: orig_cell_offset, cell_offset, ghost, icone, p_cell, p
-      PetscInt :: minc_level, face_offset
+      PetscInt :: orig_cell_offset, cell_offset, ghost
+      PetscInt :: face_offset, cell_p, face_p, h
       PetscReal :: expected_vol, expected_area
-      PetscInt, pointer :: cone(:)
+      PetscInt :: ic(expected_max_level)
       PetscReal, parameter :: tol = 1.e-6_dp
 
       call mesh%init(json)
@@ -462,8 +462,13 @@ contains
          call assert_true(mesh%has_minc, name // ": mesh has minc")
       end if
       num_minc_zones = size(mesh%minc)
-      call assert_equals(expected_num_zones, &
-           num_minc_zones, name // ": num minc zones")
+      max_num_levels = ubound(mesh%minc_shift, 2)
+      if (rank == 0) then
+         call assert_equals(expected_num_zones, &
+              num_minc_zones, name // ": num minc zones")
+         call assert_equals(expected_max_level, &
+              max_num_levels, name // ": num minc levels")
+      end if
 
       num_cells = total_interior_cell_count(mesh)
       if (rank == 0) then
@@ -502,6 +507,8 @@ contains
       CHKERRQ(ierr)
       call DMGetLabel(mesh%minc_dm, minc_level_label_name, minc_level_label, ierr)
       CHKERRQ(ierr)
+      ic = 0
+      h = 0
       do iminc = 1, size(mesh%minc)
          associate(minc => mesh%minc(iminc))
            call DMGetStratumSize(mesh%original_dm, minc_zone_label_name, iminc, &
@@ -522,23 +529,24 @@ contains
                     call cell%assign_geometry(cell_geom_array, cell_offset)
                     expected_vol = orig_cell%volume * minc%volume(1)
                     call assert_equals(expected_vol, cell%volume, tol, "fracture volume")
-                    p_cell = c
                     do m = 1, minc%num_levels
-                       call DMPlexGetCone(mesh%minc_dm, p_cell, cone, ierr)
-                       CHKERRQ(ierr)
-                       do icone = 1, size(cone)
-                          p = cone(icone)
-                          call DMLabelGetValue(minc_level_label, p, minc_level, ierr)
-                          if (minc_level == m) then
-                             call section_offset(face_section, p, face_offset, ierr)
-                             CHKERRQ(ierr)
-                             call face%assign_geometry(face_geom_array, face_offset)
-                             expected_area = orig_cell%volume * minc%connection_area(m)
-                             call assert_equals(expected_area, face%area, tol, "face area")
-                          end if
-                       end do
-                       call DMPlexRestoreCone(mesh%minc_dm, p_cell, cone, ierr)
-                       CHKERRQ(ierr)
+                       cell_p = ic(m) + mesh%minc_shift(h, m)
+                       call section_offset(cell_section, cell_p, &
+                            cell_offset, ierr); CHKERRQ(ierr)
+                       call cell%assign_geometry(cell_geom_array, cell_offset)
+                       expected_vol = orig_cell%volume * minc%volume(m + 1)
+                       call assert_equals(expected_vol, cell%volume, tol, "minc volume")
+                       face_p = ic(m) + mesh%minc_shift(h + 1, m)
+                       call section_offset(face_section, face_p, &
+                            face_offset, ierr); CHKERRQ(ierr)
+                       call face%assign_geometry(face_geom_array, face_offset)
+                       expected_area = orig_cell%volume * minc%connection_area(m)
+                       call assert_equals(expected_area, face%area, tol, "minc area")
+                       call assert_equals(minc%connection_distance(m), face%distance(1), &
+                            tol, "minc distance 1")
+                       call assert_equals(minc%connection_distance(m + 1), face%distance(2), &
+                            tol, "minc distance 2")
+                       ic(m) = ic(m) + 1
                     end do
                  end if
               end do
