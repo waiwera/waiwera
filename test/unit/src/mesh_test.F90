@@ -406,8 +406,8 @@ contains
          '{"mesh": {"filename": "data/mesh/7x7grid.exo",' // &
          '  "zones": {"left": {"x": [0, 1500]}, ' // &
          '            "right corner": {"x": [2500, 4500], "y": [3000, 4500]}},' // &
-         '  "minc": [{"volume_fractions": [0.1, 0.3, 0.6], "zones": ["left"]}, ' // &
-         '           {"volume_fractions": [0.1, 0.9], "zones": ["right corner"]}]}}')
+         '  "minc": [{"volume_fractions": [0.1, 0.9], "zones": ["right corner"]}, ' // &
+         '   {"volume_fractions": [0.1, 0.3, 0.6], "zones": ["left"]}]}}')
     call minc_test('two-zone partial', json, 2, 83, 2, [40, 40, 28])
     call fson_destroy_mpi(json)
 
