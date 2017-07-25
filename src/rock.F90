@@ -209,10 +209,11 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine setup_rock_vector_types(json, dm, rock_vector, range_start, &
-       logfile, err)
+  subroutine setup_rock_vector_types(json, dm, rock_vector, rock_dict, &
+       range_start, logfile, err)
     !! Sets up rock vector on DM from rock types in JSON input.
 
+    use dictionary_module
     use cell_order_module, only: cell_order_label_name
     use dm_utils_module, only: global_section_offset, global_vec_section
     use zone_label_module
@@ -223,11 +224,13 @@ contains
     type(fson_value), pointer, intent(in) :: json
     DM, intent(in) :: dm
     Vec, intent(out) :: rock_vector
+    type(dictionary_type), intent(in out) :: rock_dict
     PetscInt, intent(in) :: range_start
     type(logfile_type), intent(in out), optional :: logfile
     PetscErrorCode, intent(out) :: err
     ! Locals:
-    PetscInt :: num_rocktypes, ir, ic, iz, c
+    PetscInt :: num_rocktypes, ic, iz, c
+    PetscInt, target :: ir
     PetscInt :: perm_size, num_matching
     type(fson_value), pointer :: rocktypes, r
     PetscInt :: start_cell, end_cell, global_cell_index
@@ -248,6 +251,7 @@ contains
     PetscErrorCode :: ierr
     character(len=64) :: rockstr
     character(len=12) :: irstr
+    PetscInt, pointer :: pir
 
     err = 0
 
@@ -272,6 +276,11 @@ contains
           rockstr = 'rock.types[' // trim(irstr) // '].'
           r => fson_value_get_mpi(rocktypes, ir)
           call fson_get_mpi(r, "name", "", name, logfile, trim(rockstr) // "name")
+          if (name /= "") then
+             allocate(pir)
+             pir = ir
+             call rock_dict%add(name, pir)
+          end if
           call fson_get_mpi(r, "permeability", default_permeability, &
                permeability, logfile, trim(rockstr) // "permeability")
           call fson_get_mpi(r, "wet_conductivity", default_heat_conductivity, &
@@ -385,10 +394,11 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine setup_rock_vector(json, dm, rock_vector, range_start, &
-       ghost_cell, logfile, err)
+  subroutine setup_rock_vector(json, dm, rock_vector, rock_dict, &
+       range_start, ghost_cell, logfile, err)
     !! Sets up rock vector on specified DM from JSON input.
 
+    use dictionary_module
     use dm_utils_module, only: set_dm_data_layout, global_vec_range_start
     use fson
     use fson_mpi_module
@@ -397,6 +407,7 @@ contains
     type(fson_value), pointer, intent(in) :: json
     DM, intent(in) :: dm
     Vec, intent(out) :: rock_vector
+    type(dictionary_type), intent(in out) :: rock_dict
     PetscInt, intent(out) :: range_start
     PetscInt, allocatable, intent(in) :: ghost_cell(:)
     type(logfile_type), intent(in out), optional :: logfile
@@ -426,8 +437,8 @@ contains
 
        if (fson_has_mpi(json, "rock.types")) then
 
-          call setup_rock_vector_types(json, dm, rock_vector, range_start, &
-               logfile, err)
+          call setup_rock_vector_types(json, dm, rock_vector, rock_dict, &
+               range_start, logfile, err)
 
        else
           ! other types of rock initialization here- TODO

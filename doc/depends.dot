@@ -60,6 +60,7 @@ digraph waiwera{
         flow_simulation_module -> capillary_pressure_module
         flow_simulation_module -> cell_module
         flow_simulation_module -> cell_order_module
+        flow_simulation_module -> dictionary_module
         flow_simulation_module -> dm_utils_module
         flow_simulation_module -> eos_module
         flow_simulation_module -> eos_setup_module
@@ -132,6 +133,7 @@ digraph waiwera{
         relative_permeability_module -> utils_module
         rock_module -> capillary_pressure_module
         rock_module -> cell_order_module
+        rock_module -> dictionary_module
         rock_module -> dm_utils_module
         rock_module -> fson_mpi_module
         rock_module -> logfile_module

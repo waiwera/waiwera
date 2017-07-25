@@ -590,6 +590,7 @@ contains
     use fson_mpi_module
     use rock_module
     use dm_utils_module, only: global_section_offset, global_vec_section
+    use dictionary_module
 
     type(fson_value), pointer :: json
     character(:), allocatable :: json_str
@@ -654,6 +655,7 @@ contains
       type(mesh_type) :: mesh
       PetscInt, parameter :: dof = 2
       Vec :: rock_vector
+      type(dictionary_type) :: rock_dict
       type(rock_type) :: rock
       PetscReal, contiguous, pointer :: rock_array(:)
       PetscSection :: section
@@ -665,13 +667,14 @@ contains
       PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
       PetscReal, parameter :: tol = 1.e-6
 
-      json => fson_parse_mpi(str = json_str )
+      json => fson_parse_mpi(str = json_str)
       call mesh%init(json)
 
       call DMCreateLabel(mesh%dm, open_boundary_label_name, ierr); CHKERRQ(ierr)
       call mesh%configure(dof, gravity, json, err = err)
-      call setup_rock_vector(json, mesh%dm, rock_vector, rock_range_start, &
-           mesh%ghost_cell, err = err)
+      call rock_dict%init(owner = PETSC_TRUE)
+      call setup_rock_vector(json, mesh%dm, rock_vector, rock_dict, &
+           rock_range_start, mesh%ghost_cell, err = err)
       call assert_equals(0, err, "setup rock vector error")
       call fson_destroy_mpi(json)
 
@@ -712,6 +715,7 @@ contains
 
       call VecDestroy(rock_vector, ierr); CHKERRQ(ierr)
       call mesh%destroy()
+      call rock_dict%destroy()
 
     end subroutine rock_test_case
 
