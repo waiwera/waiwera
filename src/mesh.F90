@@ -82,6 +82,7 @@ module mesh_module
      procedure :: transfer_labels_to_minc_dm => mesh_transfer_labels_to_minc_dm
      procedure :: setup_minc_dm_level_label => mesh_setup_minc_dm_level_label
      procedure :: setup_minc_geometry => mesh_setup_minc_geometry
+     procedure :: setup_minc_rock_properties => mesh_setup_minc_rock_properties
      procedure, public :: init => mesh_init
      procedure, public :: configure => mesh_configure
      procedure, public :: setup_boundaries => mesh_setup_boundaries
@@ -2130,6 +2131,240 @@ contains
     self%face_geom = minc_face_geom
 
   end subroutine mesh_setup_minc_geometry
+
+!------------------------------------------------------------------------
+
+  subroutine mesh_setup_minc_rock_properties(self, json, rock_vector, &
+       rock_dict, rock_range_start, ghost_cell, logfile, err)
+    !! Sets rock properties in MINC cells. Rock types can be specified
+    !! for fracture and matrix cells in each MINC zone. If fracture
+    !! cell rock properties are not specified in the fracture rock
+    !! type, their values are left unchanged from the original cell
+    !! rock properties. If matrix cell rock properties are not
+    !! specified in the matrix rock type, their values are also set
+    !! equal to the properties from the original rock type, except the
+    !! porosity, which is calculated to preserve the total void
+    !! fraction of the rock in the original cell.
+
+    use kinds_module
+    use fson_mpi_module
+    use logfile_module
+    use dictionary_module
+    use rock_module
+    use dm_utils_module, only: global_vec_section, global_section_offset
+    use fson_value_m, only : TYPE_ARRAY, TYPE_OBJECT
+
+    class(mesh_type), intent(in out) :: self
+    type(fson_value), pointer, intent(in) :: json
+    Vec, intent(in out) :: rock_vector
+    type(dictionary_type), intent(in out) :: rock_dict
+    PetscInt, intent(out) :: rock_range_start
+    PetscInt, allocatable, intent(in) :: ghost_cell(:)
+    type(logfile_type), intent(in out), optional :: logfile
+    PetscErrorCode, intent(out) :: err
+    ! Locals:
+    PetscInt :: iminc, h, i, c, m, cell_p
+    PetscInt :: num_minc_zone_cells, orig_offset, offset
+    IS :: minc_IS
+    PetscSection :: section
+    PetscReal, pointer, contiguous :: rock_array(:)
+    PetscInt, pointer :: minc_cells(:)
+    type(rock_type) :: orig_rock, rock
+    type(fson_value), pointer :: minc_json, minci_json, rocktypes_json, r
+    PetscInt :: minc_type, max_num_levels, dof
+    PetscInt, allocatable :: ic(:)
+    type(rock_type) :: fracture_rock, matrix_rock
+    PetscReal :: fracture_porosity, matrix_porosity
+    PetscReal, pointer, contiguous :: fracture_rock_array(:), &
+         matrix_rock_array(:)
+    PetscErrorCode :: ierr
+    character(len=64) :: mincstr
+    character(len=12) :: imstr
+
+    err = 0
+
+    call fson_get_mpi(json, "mesh.minc", minc_json)
+    minc_type = fson_type_mpi(minc_json, ".")
+
+    call VecGetArrayF90(rock_vector, rock_array, ierr); CHKERRQ(ierr)
+    call global_vec_section(rock_vector, section)
+
+    call orig_rock%init()
+    call rock%init()
+    dof = rock%dof
+
+    allocate(fracture_rock_array(dof), matrix_rock_array(dof))
+    call fracture_rock%assign(fracture_rock_array, 1)
+    call matrix_rock%assign(matrix_rock_array, 1)
+
+    max_num_levels = ubound(self%minc_shift, 2)
+    allocate(ic(max_num_levels))
+    ic = 0
+    h = 0
+    
+    do iminc = 1, size(self%minc)
+       associate(minc => self%minc(iminc))
+
+         if (minc_type == TYPE_OBJECT) then
+            minci_json => minc_json
+         else
+            minci_json => fson_value_get_mpi(minc_json, iminc)
+         end if
+         write(imstr, '(i0)') iminc - 1
+         mincstr = 'mesh.minc[' // trim(imstr) // ']'
+
+         call read_rock_type("fracture", minci_json, fracture_rock, err)
+         call read_rock_type("matrix", minci_json, matrix_rock, err)
+
+         if (err == 0) then
+
+            call DMGetStratumSize(self%original_dm, minc_zone_label_name, iminc, &
+                 num_minc_zone_cells, ierr); CHKERRQ(ierr)
+            if (num_minc_zone_cells > 0) then
+               call DMGetStratumIS(self%original_dm, minc_zone_label_name, &
+                    iminc, minc_IS, ierr); CHKERRQ(ierr)
+               call ISGetIndicesF90(minc_IS, minc_cells, ierr); CHKERRQ(ierr)
+               do i = 1, num_minc_zone_cells
+                  c = minc_cells(i)
+                  if (ghost_cell(c) < 0) then
+                     call global_section_offset(section, c, rock_range_start, &
+                          orig_offset, ierr); CHKERRQ(ierr)
+                     call orig_rock%assign(rock_array, orig_offset)
+
+                     if (fracture_rock%porosity < 0._dp) then
+                        fracture_porosity = orig_rock%porosity
+                     else
+                        fracture_porosity = fracture_rock%porosity
+                     end if
+
+                     if (matrix_rock%porosity < 0._dp) then
+                        ! Default matrix porosity preserves void fraction of original rock:
+                        associate(fracture_volume => minc%volume(1))
+                          matrix_porosity = (orig_rock%porosity - &
+                               fracture_porosity * fracture_volume) / &
+                               (1._dp - fracture_volume)
+                        end associate
+                     else
+                        matrix_porosity = matrix_rock%porosity
+                     end if
+
+                     associate(orig_properties => rock_array(orig_offset: &
+                          orig_offset + dof - 1))
+
+                       do m = 1, minc%num_levels
+                          cell_p = ic(m) + self%minc_shift(h, m)
+                          call global_section_offset(section, cell_p, rock_range_start, &
+                               offset, ierr); CHKERRQ(ierr)
+                          ! Update specified matrix properties:
+                          associate(matrix_properties => rock_array(offset: &
+                               offset + dof - 1))
+                            matrix_properties = merge( &
+                                 matrix_rock_array, orig_properties, &
+                                 matrix_rock_array > 0._dp)
+                          end associate
+                          call rock%assign(rock_array, offset)
+                          rock%porosity = matrix_porosity
+                          ic(m) = ic(m) + 1
+                       end do
+
+                       ! Update specified fracture properties:
+                       orig_properties = merge( &
+                            fracture_rock_array, orig_properties, &
+                            fracture_rock_array > 0._dp)
+                     end associate
+                  end if
+               end do
+            end if
+
+         else
+            exit
+         end if
+
+       end associate
+    end do
+
+    deallocate(ic)
+    call fracture_rock%destroy()
+    call matrix_rock%destroy()
+    deallocate(fracture_rock_array, matrix_rock_array)
+    call rock%destroy()
+    call orig_rock%destroy()
+    call VecRestoreArrayF90(rock_vector, rock_array, ierr); CHKERRQ(ierr)
+
+  contains
+
+    subroutine read_rock_parameters(json, rock, rockstr)
+
+      type(fson_value), pointer, intent(in) :: json
+      type(rock_type), intent(out) :: rock
+      character(*), intent(in) :: rockstr
+      ! Locals:
+      PetscReal, parameter :: default = -1._dp ! Flag missing values with -1
+      PetscReal, parameter :: default_permeability(3) = [-1._dp, -1._dp, -1._dp]
+      PetscReal, allocatable :: permeability(:)
+
+      call fson_get_mpi(json, "permeability", default_permeability, &
+           permeability, logfile, trim(rockstr) // "permeability")
+      rock%permeability = 0._dp
+      rock%permeability(1: size(permeability)) = permeability
+      call fson_get_mpi(json, "wet_conductivity", default, &
+           rock%wet_conductivity, logfile, trim(rockstr) // "wet_conductivity")
+      call fson_get_mpi(json, "dry_conductivity", default, &
+           rock%dry_conductivity, logfile, trim(rockstr) // "dry_conductivity")
+      call fson_get_mpi(json, "porosity", default, rock%porosity, logfile, &
+           trim(rockstr) // "porosity")
+      call fson_get_mpi(json, "density", default, rock%density, logfile, &
+           trim(rockstr) // "density")
+      call fson_get_mpi(json, "specific_heat", default, &
+           rock%specific_heat, logfile, trim(rockstr) // "specific_heat")
+
+    end subroutine read_rock_parameters
+
+    subroutine read_rock_type(name, minc_json, rock, err)
+
+      character(*), intent(in) :: name
+      type(fson_value), pointer, intent(in) :: minc_json
+      type(rock_type), intent(out) :: rock
+      PetscErrorCode, intent(out) :: err
+      ! Locals:
+      character(max_rockname_length) :: rock_name
+      character(len=64) :: mincstr, rockstr
+      character(len=12) :: irstr
+      type(list_node_type), pointer :: node
+
+      err = 0
+
+      if (fson_has_mpi(json, trim(name) // ".rock.type")) then
+         call fson_get_mpi(minc_json, trim(name) // ".rock.type", val = rock_name)
+         node => rock_dict%get(rock_name)
+         if (associated(node)) then
+            select type (ir => node%data)
+            type is (PetscInt)
+               write(irstr, '(i0)') ir - 1
+               rockstr = 'rock.types[' // trim(irstr) // '].'
+               call fson_get_mpi(json, "rock.types", rocktypes_json)
+               r => fson_value_get_mpi(rocktypes_json, ir)
+               call read_rock_parameters(r, fracture_rock, rockstr)
+            end select
+         else
+            if (present(logfile)) then
+               call logfile%write(LOG_LEVEL_ERR, "input", "unrecognised", &
+                    str_key = mincstr // "." // trim(name) // &
+                    ".rock.type", str_value = rock_name)
+               err = 1
+            end if
+         end if
+      else
+         if (present(logfile)) then
+            call logfile%write(LOG_LEVEL_ERR, "input", "not found", &
+                 str_key = mincstr, str_value = trim(name) // ".rock.type")
+            err = 1
+         end if
+      end if
+
+    end subroutine read_rock_type
+
+  end subroutine mesh_setup_minc_rock_properties
 
 !------------------------------------------------------------------------
 
