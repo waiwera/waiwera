@@ -85,17 +85,25 @@ contains
     PetscReal :: fracture_spacing
     PetscReal, allocatable :: fracture_spacing_array(:)
     PetscErrorCode :: ierr
-    PetscReal, parameter :: default_volume_fraction(2) = [0.1_dp, 0.9_dp]
+    PetscReal :: fracture_volume
+    PetscReal, allocatable :: matrix_volume(:)
+    PetscReal, parameter :: default_matrix_volume = 0.9_dp
     PetscInt, parameter :: default_num_fracture_planes = 1
     PetscReal, parameter :: default_fracture_spacing = 50._dp
     PetscReal, parameter :: default_fracture_connection_distance = 0._dp
 
     err = 0
 
-    call fson_get_mpi(json, "volume_fractions", default_volume_fraction, &
-         self%volume, logfile, trim(str) // "volume_fractions")
+    if (fson_has_mpi(json, "fracture.volume")) then
+       call fson_get_mpi(json, "fracture.volume", val = fracture_volume)
+       call get_matrix_volumes(json, matrix_volume, 1._dp - fracture_volume)
+    else
+       call get_matrix_volumes(json, matrix_volume, default_matrix_volume)
+       fracture_volume = 1._dp - sum(matrix_volume)
+    end if
+    self%volume = [fracture_volume, matrix_volume]
     self%volume = self%volume / sum(self%volume)
-    self%num_levels = size(self%volume) - 1
+    self%num_levels = size(matrix_volume)
 
     call fson_get_mpi(json, "fracture.planes", default_num_fracture_planes, &
          self%num_fracture_planes, logfile, trim(str) // "fracture.planes")
@@ -124,10 +132,10 @@ contains
        self%fracture_spacing = fracture_spacing
     end if
 
-    call fson_get_mpi(json, "fracture.connection_distance", &
+    call fson_get_mpi(json, "fracture.connection", &
          default_fracture_connection_distance, &
          self%fracture_connection_distance, logfile, &
-         trim(str) // "fracture.connection_distance")
+         trim(str) // "fracture.connection")
 
     call self%setup_geometry(err)
 
@@ -206,8 +214,33 @@ contains
             rank = 0)
     end if
 
-    ! TODO: rock properties
-    
+  contains
+
+    subroutine get_matrix_volumes(json, matrix_volume, default_matrix_volume)
+
+      type(fson_value), pointer, intent(in) :: json
+      PetscReal, allocatable, intent(out) :: matrix_volume(:)
+      PetscReal, intent(in) :: default_matrix_volume
+      ! Locals:
+      PetscInt :: matrix_type
+
+      if (fson_has_mpi(json, "matrix.volume")) then
+         matrix_type = fson_type_mpi(json, "matrix.volume")
+         select case (matrix_type)
+         case (TYPE_REAL)
+            allocate(matrix_volume(1))
+            call fson_get_mpi(json, "matrix.volume", val = matrix_volume(1))
+         case (TYPE_ARRAY)
+            call fson_get_mpi(json, "matrix.volume", val = matrix_volume)
+         end select
+      else
+         allocate(matrix_volume(1))
+         call fson_get_mpi(json, "matrix.volume", default_matrix_volume, &
+              matrix_volume(1), logfile, trim(str) // "matrix.volume")
+      end if
+
+    end subroutine get_matrix_volumes
+
   end subroutine minc_init
 
 !------------------------------------------------------------------------

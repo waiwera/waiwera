@@ -383,22 +383,23 @@ contains
     json => fson_parse_mpi(str = &
          '{"mesh": {"filename": "data/mesh/7x7grid.exo",' // &
          '  "zones": {"all": {"-": null}},' // &
-         '  "minc": {"volume_fractions": [0.1, 0.9], "zones": ["all"]}}}')
+         '  "minc": {"zones": ["all"], "fracture": {"volume": 0.1}}}}')
     call minc_test('all', json, 1, 2 * 49, 1, [98, 98])
     call fson_destroy_mpi(json)
 
     json => fson_parse_mpi(str = &
          '{"mesh": {"filename": "data/mesh/7x7grid.exo",' // &
          '  "zones": {"left": {"x": [0, 1500]}, "right": {"-": "left"}},' // &
-         '  "minc": {"volume_fractions": [0.1, 0.9], "zones": ["left"]}}}')
+         '  "minc": {"zones": ["left"], "matrix": {"volume": 0.9}}}}')
     call minc_test('partial', json, 1, 63, 1, [28, 28])
     call fson_destroy_mpi(json)
 
     json => fson_parse_mpi(str = &
          '{"mesh": {"filename": "data/mesh/7x7grid.exo",' // &
          '  "zones": {"left": {"x": [0, 1500]}, "right": {"-": "left"}},' // &
-         '  "minc": [{"volume_fractions": [0.1, 0.9], "zones": ["left"]}, ' // &
-         '           {"volume_fractions": [0.1, 0.3, 0.6], "zones": ["right"]}]}}')
+         '  "minc": [{"zones": ["left"], "fracture": {"volume": 0.1}}, ' // &
+         '           {"zones": ["right"], "fracture": {"volume": 0.1}, ' // &
+         '            "matrix": {"volume": [0.3, 0.6]}}]}}')
     call minc_test('two-zone', json, 2, 133, 2, [98, 98, 70])
     call fson_destroy_mpi(json)
 
@@ -406,8 +407,8 @@ contains
          '{"mesh": {"filename": "data/mesh/7x7grid.exo",' // &
          '  "zones": {"left": {"x": [0, 1500]}, ' // &
          '            "right corner": {"x": [2500, 4500], "y": [3000, 4500]}},' // &
-         '  "minc": [{"volume_fractions": [0.1, 0.9], "zones": ["right corner"]}, ' // &
-         '   {"volume_fractions": [0.1, 0.3, 0.6], "zones": ["left"]}]}}')
+         '  "minc": [{"zones": ["right corner"], "fracture": {"volume": 0.1}}, ' // &
+         '   {"zones": ["left"], "matrix": {"volume": [0.3, 0.6]}}]}}')
     call minc_test('two-zone partial', json, 2, 83, 2, [40, 40, 28])
     call fson_destroy_mpi(json)
 
@@ -741,9 +742,10 @@ contains
     json_str = &
          '{"mesh": {"filename": "data/mesh/7x7grid.exo",' // &
          '  "zones": {"all": {"-": null}},' // &
-         '  "minc": {"volume_fractions": [0.1, 0.9], "zones": "all", ' // &
-         '           "fracture": {"planes": 3, "spacing": 100, "rock": {"type": "fracture"}}, ' // &
-         '           "matrix": {"rock": {"type": "matrix"}}}},' // &
+         '  "minc": {"zones": "all", ' // &
+         '           "fracture": {"volume": 0.1, "planes": 3, ' // &
+         '                        "spacing": 100, "rock": {"type": "fracture"}}, ' // &
+         '           "matrix": {"volume": 0.9, "rock": {"type": "matrix"}}}},' // &
          ' "rock": {"types": [{"name": "original", "porosity": 0.1, "zones": "all"}, ' // &
          '                    {"name": "fracture", "porosity": 0.6}, ' // &
          '                    {"name": "matrix", "porosity": 0.02}]}}'
@@ -753,9 +755,10 @@ contains
     json_str = &
          '{"mesh": {"filename": "data/mesh/7x7grid.exo",' // &
          '  "zones": {"all": {"-": null}},' // &
-         '  "minc": {"volume_fractions": [0.1, 0.3, 0.6], "zones": "all", ' // &
-         '           "fracture": {"planes": 3, "spacing": 100, "rock": {"type": "fracture"}}, ' // &
-         '           "matrix": {"rock": {"type": "matrix"}}}},' // &
+         '  "minc": {"zones": "all", ' // &
+         '           "fracture": {"volume": 0.1, "planes": 3, ' // &
+         '                        "spacing": 100, "rock": {"type": "fracture"}}, ' // &
+         '           "matrix": {"volume": [0.3, 0.6], "rock": {"type": "matrix"}}}},' // &
          ' "rock": {"types": [{"name": "original", "porosity": 0.1, "zones": "all"}, ' // &
          '                    {"name": "fracture", "porosity": 0.6}, ' // &
          '                    {"name": "matrix"}]}}'
