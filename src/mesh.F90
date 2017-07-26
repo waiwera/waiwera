@@ -2334,7 +2334,7 @@ contains
 
       err = 0
 
-      if (fson_has_mpi(json, trim(name) // ".rock.type")) then
+      if (fson_has_mpi(minc_json, trim(name) // ".rock.type")) then
          call fson_get_mpi(minc_json, trim(name) // ".rock.type", val = rock_name)
          node => rock_dict%get(rock_name)
          if (associated(node)) then
@@ -2344,7 +2344,7 @@ contains
                rockstr = 'rock.types[' // trim(irstr) // '].'
                call fson_get_mpi(json, "rock.types", rocktypes_json)
                r => fson_value_get_mpi(rocktypes_json, ir)
-               call read_rock_parameters(r, fracture_rock, rockstr)
+               call read_rock_parameters(r, rock, rockstr)
             end select
          else
             if (present(logfile)) then
