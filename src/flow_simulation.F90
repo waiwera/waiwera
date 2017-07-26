@@ -513,7 +513,7 @@ contains
     use eos_module, only: max_component_name_length, &
          max_phase_name_length
     use eos_setup_module, only: setup_eos
-    use initial_module, only: setup_initial, scale_initial_primary
+    use initial_module
     use fluid_module, only: setup_fluid_vector
     use rock_module, only: setup_rock_vector
     use source_setup_module, only: setup_sources
@@ -592,6 +592,11 @@ contains
           call setup_initial(json, self%mesh, self%eos, &
                self%time, self%solution, self%fluid, &
                self%solution_range_start, self%fluid_range_start, self%logfile)
+          if (self%mesh%has_minc) then
+             call setup_minc_initial(self%mesh, self%solution, self%fluid, &
+                  self%solution_range_start, self%fluid_range_start, self%eos, &
+                  self%logfile)
+          end if
           call self%setup_update_cell()
           call self%mesh%set_boundary_values(self%solution, self%fluid, &
                self%rock, self%eos, self%solution_range_start, &

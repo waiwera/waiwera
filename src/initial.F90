@@ -28,7 +28,7 @@ module initial_module
   implicit none
   private
 
-  public :: setup_initial, scale_initial_primary
+  public :: setup_initial, scale_initial_primary, setup_minc_initial
 
 contains
 
@@ -398,7 +398,8 @@ contains
     !! from JSON input 'initial'.  A full set of initial conditions
     !! may be read in from an HDF5 file, or a constant set of primary
     !! variables can be read from the JSON input and applied to all
-    !! cells.
+    !! cells. The fluid thermodynamic region for each cell is also
+    !! initialised (in the fluid vector).
 
     use mesh_module
     use eos_module
@@ -502,6 +503,104 @@ contains
     end if
 
   end subroutine setup_initial
+
+!------------------------------------------------------------------------
+
+  subroutine setup_minc_initial(mesh, y, fluid_vector, &
+       y_range_start, fluid_range_start, eos, logfile)
+
+    !! Sets up initial conditions in MINC matrix cells. These are
+    !! simply copied from the corresponding fracture cells, which are
+    !! assumed already initialised.
+
+    use mesh_module
+    use eos_module
+    use dm_utils_module, only: global_vec_section, global_section_offset
+    use fluid_module, only: fluid_type
+    use minc_module, only: minc_zone_label_name
+    use logfile_module
+
+    class(mesh_type), intent(in out) :: mesh
+    Vec, intent(in out) :: y, fluid_vector !! Solution and fluid vectors
+    PetscInt, intent(in) :: y_range_start, fluid_range_start !! Range starts for vectors
+    class(eos_type), intent(in) :: eos !!
+    type(logfile_type), intent(in out), optional :: logfile !! Log file
+    ! Locals:
+    PetscSection :: y_section, fluid_section
+    PetscReal, pointer, contiguous :: y_array(:), fluid_array(:)
+    PetscInt :: iminc, c, h, i, m, p, num_minc_zone_cells, max_num_levels
+    PetscInt, allocatable :: ic(:)
+    PetscInt :: y_offset, fluid_offset, y_minc_offset, fluid_minc_offset, np
+    type(fluid_type) :: fluid
+    PetscInt :: frac_region
+    IS :: minc_IS
+    PetscInt, pointer :: minc_cells(:)
+    PetscErrorCode :: ierr
+
+    call global_vec_section(y, y_section)
+    call VecGetArrayF90(y, y_array, ierr); CHKERRQ(ierr)
+    call global_vec_section(fluid_vector, fluid_section)
+    call VecGetArrayF90(fluid_vector, fluid_array, ierr); CHKERRQ(ierr)
+
+    call fluid%init(eos%num_components, eos%num_phases)
+    np = eos%num_primary_variables
+
+    max_num_levels = ubound(mesh%minc_shift, 2)
+    allocate(ic(max_num_levels))
+    ic = 0
+    h = 0
+
+    do iminc = 1, size(mesh%minc)
+       associate(minc => mesh%minc(iminc))
+         call DMGetStratumSize(mesh%original_dm, minc_zone_label_name, iminc, &
+              num_minc_zone_cells, ierr); CHKERRQ(ierr)
+         if (num_minc_zone_cells > 0) then
+            call DMGetStratumIS(mesh%original_dm, minc_zone_label_name, &
+                 iminc, minc_IS, ierr); CHKERRQ(ierr)
+            call ISGetIndicesF90(minc_IS, minc_cells, ierr); CHKERRQ(ierr)
+
+            do i = 1, num_minc_zone_cells
+
+               c = minc_cells(i)
+               if (mesh%ghost_cell(c) < 0) then
+
+                  call global_section_offset(y_section, c, y_range_start, &
+                       y_offset, ierr); CHKERRQ(ierr)
+                  associate(frac_primary => y_array(y_offset : y_offset + np - 1))
+                    call global_section_offset(fluid_section, c, fluid_range_start, &
+                         fluid_offset, ierr); CHKERRQ(ierr)
+                    call fluid%assign(fluid_array, fluid_offset)
+                    frac_region = nint(fluid%region)
+
+                    do m = 1, minc%num_levels
+                       p = ic(m) + mesh%minc_shift(h, m)
+                       call global_section_offset(y_section, p, y_range_start, &
+                            y_minc_offset, ierr); CHKERRQ(ierr)
+                       associate (primary => y_array(y_minc_offset : &
+                            y_minc_offset + np - 1))
+                         primary = frac_primary
+                       end associate
+                       call global_section_offset(fluid_section, p, fluid_range_start, &
+                            fluid_minc_offset, ierr); CHKERRQ(ierr)
+                       call fluid%assign(fluid_array, fluid_minc_offset)
+                       fluid%region = dble(frac_region)
+                       ic(m) = ic(m) + 1
+                    end do
+
+                  end associate
+               end if
+            end do
+
+            call ISRestoreIndicesF90(minc_IS, minc_cells, ierr); CHKERRQ(ierr)
+         end if
+       end associate
+    end do
+
+    call VecRestoreArrayF90(y, y_array, ierr); CHKERRQ(ierr)
+    call VecRestoreArrayF90(fluid_vector, fluid_array, ierr); CHKERRQ(ierr)
+    call fluid%destroy()
+
+  end subroutine setup_minc_initial
 
 !------------------------------------------------------------------------
 
