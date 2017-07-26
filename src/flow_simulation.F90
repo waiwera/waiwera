@@ -579,30 +579,32 @@ contains
              call self%mesh%setup_minc_rock_properties(json, self%rock, &
                   self%rock_dict, self%rock_range_start, self%logfile, err)
           end if
-          call setup_fluid_vector(self%mesh%dm, max_component_name_length, &
-               self%eos%component_names, max_phase_name_length, &
-               self%eos%phase_names, self%fluid, self%fluid_range_start)
-          call VecDuplicate(self%fluid, self%current_fluid, ierr); CHKERRQ(ierr)
-          call VecDuplicate(self%fluid, self%last_timestep_fluid, ierr)
-          CHKERRQ(ierr)
-          call VecDuplicate(self%fluid, self%last_iteration_fluid, ierr)
-          CHKERRQ(ierr)
-          call self%setup_flux_vector()
-
-          call setup_initial(json, self%mesh, self%eos, &
-               self%time, self%solution, self%fluid, &
-               self%solution_range_start, self%fluid_range_start, self%logfile)
-          call self%setup_update_cell()
-          call self%mesh%set_boundary_values(self%solution, self%fluid, &
-               self%rock, self%eos, self%solution_range_start, &
-               self%fluid_range_start, self%rock_range_start)
-          call scale_initial_primary(self%mesh, self%eos, self%solution, self%fluid, &
-               self%solution_range_start, self%fluid_range_start)
-          call self%fluid_init(self%time, self%solution, err)
           if (err == 0) then
-             call setup_sources(json, self%mesh%dm, self%eos, self%thermo, &
-                  self%time, self%fluid, self%fluid_range_start, &
-                  self%sources, self%source_controls, self%logfile)
+             call setup_fluid_vector(self%mesh%dm, max_component_name_length, &
+                  self%eos%component_names, max_phase_name_length, &
+                  self%eos%phase_names, self%fluid, self%fluid_range_start)
+             call VecDuplicate(self%fluid, self%current_fluid, ierr); CHKERRQ(ierr)
+             call VecDuplicate(self%fluid, self%last_timestep_fluid, ierr)
+             CHKERRQ(ierr)
+             call VecDuplicate(self%fluid, self%last_iteration_fluid, ierr)
+             CHKERRQ(ierr)
+             call self%setup_flux_vector()
+
+             call setup_initial(json, self%mesh, self%eos, &
+                  self%time, self%solution, self%fluid, &
+                  self%solution_range_start, self%fluid_range_start, self%logfile)
+             call self%setup_update_cell()
+             call self%mesh%set_boundary_values(self%solution, self%fluid, &
+                  self%rock, self%eos, self%solution_range_start, &
+                  self%fluid_range_start, self%rock_range_start)
+             call scale_initial_primary(self%mesh, self%eos, self%solution, self%fluid, &
+                  self%solution_range_start, self%fluid_range_start)
+             call self%fluid_init(self%time, self%solution, err)
+             if (err == 0) then
+                call setup_sources(json, self%mesh%dm, self%eos, self%thermo, &
+                     self%time, self%fluid, self%fluid_range_start, &
+                     self%sources, self%source_controls, self%logfile)
+             end if
           end if
        end if
 
