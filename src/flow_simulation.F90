@@ -577,8 +577,7 @@ contains
        if (err == 0) then
           if (self%mesh%has_minc) then
              call self%mesh%setup_minc_rock_properties(json, self%rock, &
-                  self%rock_dict, self%rock_range_start, self%mesh%ghost_cell, &
-                  self%logfile, err)
+                  self%rock_dict, self%rock_range_start, self%logfile, err)
           end if
           call setup_fluid_vector(self%mesh%dm, max_component_name_length, &
                self%eos%component_names, max_phase_name_length, &

@@ -2135,7 +2135,7 @@ contains
 !------------------------------------------------------------------------
 
   subroutine mesh_setup_minc_rock_properties(self, json, rock_vector, &
-       rock_dict, rock_range_start, ghost_cell, logfile, err)
+       rock_dict, rock_range_start, logfile, err)
     !! Sets rock properties in MINC cells. Rock types can be specified
     !! for fracture and matrix cells in each MINC zone. If fracture
     !! cell rock properties are not specified in the fracture rock
@@ -2159,7 +2159,6 @@ contains
     Vec, intent(in out) :: rock_vector
     type(dictionary_type), intent(in out) :: rock_dict
     PetscInt, intent(out) :: rock_range_start
-    PetscInt, allocatable, intent(in) :: ghost_cell(:)
     type(logfile_type), intent(in out), optional :: logfile
     PetscErrorCode, intent(out) :: err
     ! Locals:
@@ -2226,7 +2225,7 @@ contains
                call ISGetIndicesF90(minc_IS, minc_cells, ierr); CHKERRQ(ierr)
                do i = 1, num_minc_zone_cells
                   c = minc_cells(i)
-                  if (ghost_cell(c) < 0) then
+                  if (self%ghost_cell(c) < 0) then
                      call global_section_offset(section, c, rock_range_start, &
                           orig_offset, ierr); CHKERRQ(ierr)
                      call orig_rock%assign(rock_array, orig_offset)
