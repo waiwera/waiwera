@@ -28,7 +28,7 @@ module initial_module
   implicit none
   private
 
-  public :: setup_initial, scale_initial_primary, setup_minc_initial
+  public :: setup_initial, scale_initial_primary
 
 contains
 
@@ -502,12 +502,17 @@ contains
 
     end if
 
+    if (mesh%has_minc) then
+       call setup_minc_initial(mesh, eos, y, fluid_vector, y_range_start, &
+            fluid_range_start)
+    end if
+
   end subroutine setup_initial
 
 !------------------------------------------------------------------------
 
-  subroutine setup_minc_initial(mesh, y, fluid_vector, &
-       y_range_start, fluid_range_start, eos, logfile)
+  subroutine setup_minc_initial(mesh, eos, y, fluid_vector, &
+       y_range_start, fluid_range_start)
 
     !! Sets up initial conditions in MINC matrix cells. These are
     !! simply copied from the corresponding fracture cells, which are
@@ -518,13 +523,11 @@ contains
     use dm_utils_module, only: global_vec_section, global_section_offset
     use fluid_module, only: fluid_type
     use minc_module, only: minc_zone_label_name
-    use logfile_module
 
-    class(mesh_type), intent(in out) :: mesh
+    class(mesh_type), intent(in) :: mesh !! Mesh object
+    class(eos_type), intent(in) :: eos !! Equation of state module
     Vec, intent(in out) :: y, fluid_vector !! Solution and fluid vectors
     PetscInt, intent(in) :: y_range_start, fluid_range_start !! Range starts for vectors
-    class(eos_type), intent(in) :: eos !!
-    type(logfile_type), intent(in out), optional :: logfile !! Log file
     ! Locals:
     PetscSection :: y_section, fluid_section
     PetscReal, pointer, contiguous :: y_array(:), fluid_array(:)
