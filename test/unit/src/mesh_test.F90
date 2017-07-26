@@ -806,7 +806,7 @@ contains
            rock_range_start, mesh%ghost_cell, err = err)
       call assert_equals(0, err, "setup rock vector error")
       call mesh%setup_minc_rock_properties(json, rock_vector, &
-           rock_dict, rock_range_start, mesh%ghost_cell, err = err)
+           rock_dict, rock_range_start, err = err)
       call assert_equals(0, err, "setup MINC rock properties error")
       call fson_destroy_mpi(json)
 
