@@ -83,52 +83,57 @@
                  },
                  "minc": {"oneOf": [
                      {"type": "object",
-                     "properties": {
-                         "volume_fractions": {"type": "array",
-                                              "items": {"type": "number",
-                                                        "minimum": 0, "maximum": 1}},
-                         "cells": {"type": "array",
-                                   "items": {"type": "integer", "minimum": 0}},
-                         "zones": {"oneOf": [
-                             {"type": "string"},
-                             {"type": "array",
-                              "items": {"type": "string"}}
-                         ]},
-                         "fracture": {"type": "object",
-                                      "properties": {
-                                          "planes": {"type": "integer",
-                                                     "minimum": 1, "maximum": 3},
-                                          "spacing": {"oneOf": [
-                                              {"type": "number", "minimum": 0},
-                                              {"type": "array", "items":
-                                               {"type": "number", "minimum": 0}
-                                              }]},
-                                          "connection_distance": {"type": "number",
-                                                                  "minimum": 0}
-                                      }, "additionalProperties": false}
-                     }, "additionalProperties": false},
+                      "properties": {
+                          "volume_fractions": {"type": "array",
+                                               "items": {"type": "number",
+                                                         "minimum": 0, "maximum": 1}},
+                          "cells": {"type": "array",
+                                    "items": {"type": "integer", "minimum": 0}},
+                          "zones": {"oneOf": [
+                              {"type": "string"},
+                              {"type": "array",
+                               "items": {"type": "string"}}
+                          ]},
+                          "fracture": {"type": "object",
+                                       "properties": {
+                                           "planes": {"type": "integer",
+                                                      "minimum": 1, "maximum": 3},
+                                           "spacing": {"oneOf": [
+                                               {"type": "number", "minimum": 0},
+                                               {"type": "array", "items":
+                                                {"type": "number", "minimum": 0}
+                                               }]},
+                                           "connection_distance": {"type": "number",
+                                                                   "minimum": 0}
+                                       }, "additionalProperties": false}
+                      }, "additionalProperties": false},
                      {"type": "array",
                       "items": {
                           "type": "object",
-                           "properties": {
-                               "volume_fractions": {"type": "array",
-                                                    "items": {"type": "number",
-                                                              "minimum": 0, "maximum": 1}},
-                               "cells": {"type": "array",
-                                         "items": {"type": "integer", "minimum": 0}},
-                               "fracture": {"type": "object",
-                                            "properties": {
-                                                "planes": {"type": "integer",
-                                                           "minimum": 1, "maximum": 3},
-                                          "spacing": {"oneOf": [
-                                              {"type": "number", "minimum": 0},
-                                              {"type": "array", "items":
-                                               {"type": "number", "minimum": 0}
-                                              }]},
-                                                "connection_distance": {"type": "number",
-                                                                        "minimum": 0}
-                                            }, "additionalProperties": false}
-                           }, "additionalProperties": false}
+                          "properties": {
+                              "volume_fractions": {"type": "array",
+                                                   "items": {"type": "number",
+                                                             "minimum": 0, "maximum": 1}},
+                              "cells": {"type": "array",
+                                        "items": {"type": "integer", "minimum": 0}},
+                              "zones": {"oneOf": [
+                                  {"type": "string"},
+                                  {"type": "array",
+                                   "items": {"type": "string"}}
+                              ]},
+                              "fracture": {"type": "object",
+                                           "properties": {
+                                               "planes": {"type": "integer",
+                                                          "minimum": 1, "maximum": 3},
+                                               "spacing": {"oneOf": [
+                                                   {"type": "number", "minimum": 0},
+                                                   {"type": "array", "items":
+                                                    {"type": "number", "minimum": 0}
+                                                   }]},
+                                               "connection_distance": {"type": "number",
+                                                                       "minimum": 0}
+                                           }, "additionalProperties": false}
+                          }, "additionalProperties": false}
                      }
                  ]}
              },
@@ -142,9 +147,9 @@
              "minItems": 2, "maxItems": 3},
             {"type": "null"}
         ]},
-        "rock": {"type": "object",
-                 "properties": {
-                     "relative_permeability": {"oneOf": [
+            "rock": {"type": "object",
+                     "properties": {
+                         "relative_permeability": {"oneOf": [
                          {"type": "object",
                           "properties": {
                               "type": {"type": "string",
