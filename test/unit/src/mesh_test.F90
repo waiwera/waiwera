@@ -15,7 +15,7 @@ module mesh_test
 
   public :: test_mesh_init, test_2d_cartesian_geometry, &
        test_2d_radial_geometry, test_mesh_face_permeability_direction, &
-       test_setup_minc_dm, test_rock_assignment
+       test_setup_minc_dm, test_rock_assignment, test_minc_rock
 
   PetscReal, parameter :: tol = 1.e-6_dp
 
@@ -720,6 +720,130 @@ contains
     end subroutine rock_test_case
 
   end subroutine test_rock_assignment
+
+!------------------------------------------------------------------------
+
+  subroutine test_minc_rock
+    ! MINC rock assignment
+
+    use fson_mpi_module
+    use dictionary_module
+    use rock_module
+    use minc_module, only: minc_level_label_name
+    use dm_utils_module, only: global_section_offset, global_vec_section
+
+    PetscMPIInt :: rank
+    PetscErrorCode :: ierr
+    character(:), allocatable :: json_str
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+
+    json_str = &
+         '{"mesh": {"filename": "data/mesh/7x7grid.exo",' // &
+         '  "zones": {"all": {"-": null}},' // &
+         '  "minc": {"volume_fractions": [0.1, 0.9], "zones": "all", ' // &
+         '           "fracture": {"planes": 3, "spacing": 100, "rock": {"type": "fracture"}}, ' // &
+         '           "matrix": {"rock": {"type": "matrix"}}}},' // &
+         ' "rock": {"types": [{"name": "original", "porosity": 0.1, "zones": "all"}, ' // &
+         '                    {"name": "fracture", "porosity": 0.6}, ' // &
+         '                    {"name": "matrix", "porosity": 0.02}]}}'
+
+    call minc_rock_test_case(json_str, "case 1", 1, 0.6_dp, 0.02_dp)
+
+    json_str = &
+         '{"mesh": {"filename": "data/mesh/7x7grid.exo",' // &
+         '  "zones": {"all": {"-": null}},' // &
+         '  "minc": {"volume_fractions": [0.1, 0.3, 0.6], "zones": "all", ' // &
+         '           "fracture": {"planes": 3, "spacing": 100, "rock": {"type": "fracture"}}, ' // &
+         '           "matrix": {"rock": {"type": "matrix"}}}},' // &
+         ' "rock": {"types": [{"name": "original", "porosity": 0.1, "zones": "all"}, ' // &
+         '                    {"name": "fracture", "porosity": 0.6}, ' // &
+         '                    {"name": "matrix"}]}}'
+
+    call minc_rock_test_case(json_str, "case 2", 2, 0.6_dp, 2._dp / 45._dp)
+
+  contains
+
+    subroutine minc_rock_test_case(json_str, title, num_levels, &
+         expected_fracture_porosity, expected_matrix_porosity)
+
+      character(*), intent(in) :: json_str
+      character(*), intent(in) :: title
+      PetscInt, intent(in) :: num_levels
+      PetscReal, intent(in) :: expected_fracture_porosity, expected_matrix_porosity
+      ! Locals:
+      type(fson_value), pointer :: json
+      type(mesh_type) :: mesh
+      PetscInt, parameter :: dof = 2
+      Vec :: rock_vector
+      type(dictionary_type) :: rock_dict
+      PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
+      PetscErrorCode :: err
+      PetscInt :: rock_range_start, c, i, m, num_cells, offset
+      PetscReal, contiguous, pointer :: rock_array(:)
+      type(rock_type) :: rock
+      PetscSection :: section
+      IS :: minc_IS
+      PetscInt, pointer :: minc_points(:)
+      PetscReal :: expected_porosity(0 : num_levels)
+      character(8) :: levelstr
+      PetscReal, parameter :: tol = 1.e-6
+
+      expected_porosity = expected_matrix_porosity
+      expected_porosity(0) = expected_fracture_porosity
+
+      json => fson_parse_mpi(str = json_str)
+      call mesh%init(json)
+
+      call DMCreateLabel(mesh%dm, open_boundary_label_name, ierr); CHKERRQ(ierr)
+      call mesh%configure(dof, gravity, json, err = err)
+      call assert_equals(0, err, "mesh configure error")
+      call rock_dict%init(owner = PETSC_TRUE)
+      call setup_rock_vector(json, mesh%dm, rock_vector, rock_dict, &
+           rock_range_start, mesh%ghost_cell, err = err)
+      call assert_equals(0, err, "setup rock vector error")
+      call mesh%setup_minc_rock_properties(json, rock_vector, &
+           rock_dict, rock_range_start, mesh%ghost_cell, err = err)
+      call assert_equals(0, err, "setup MINC rock properties error")
+      call fson_destroy_mpi(json)
+
+      call VecGetArrayReadF90(rock_vector, rock_array, ierr); CHKERRQ(ierr)
+      call global_vec_section(rock_vector, section)
+      call rock%init()
+
+      do m = 0, num_levels
+         write(levelstr, '(a, i1)') ' level ', m
+         call DMGetStratumSize(mesh%minc_dm, minc_level_label_name, m, &
+              num_cells, ierr); CHKERRQ(ierr)
+         if (num_cells > 0) then
+            call DMGetStratumIS(mesh%minc_dm, minc_level_label_name, &
+                 m, minc_IS, ierr); CHKERRQ(ierr)
+            call ISGetIndicesF90(minc_IS, minc_points, ierr); CHKERRQ(ierr)
+            do i = 1, size(minc_points)
+               c = minc_points(i)
+               if ((mesh%start_cell <= c) .and. (c < mesh%end_interior_cell)) then
+                  if (mesh%ghost_cell(c) < 0) then
+                     call global_section_offset(section, c, rock_range_start, &
+                          offset, ierr); CHKERRQ(ierr)
+                     call rock%assign(rock_array, offset)
+                     call assert_equals(expected_porosity(m), rock%porosity, tol, &
+                          title // levelstr)
+                  end if
+               end if
+            end do
+            call ISRestoreIndicesF90(minc_IS, minc_points, ierr); CHKERRQ(ierr)
+         end if
+      end do
+
+      call VecRestoreArrayReadF90(rock_vector, rock_array, ierr); CHKERRQ(ierr)
+      call VecDestroy(rock_vector, ierr); CHKERRQ(ierr)
+      call mesh%destroy()
+      call rock_dict%destroy()
+      call rock%destroy()
+
+    end subroutine minc_rock_test_case
+
+  end subroutine test_minc_rock
 
 !------------------------------------------------------------------------
 
