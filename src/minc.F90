@@ -60,7 +60,7 @@ contains
     use fson
     use fson_mpi_module
     use logfile_module
-    use fson_value_m, only : TYPE_ARRAY, TYPE_REAL, TYPE_INTEGER
+    use fson_value_m, only : TYPE_ARRAY, TYPE_REAL, TYPE_INTEGER, TYPE_STRING
     use zone_label_module
     
     class(minc_type), intent(in out) :: self
@@ -81,6 +81,7 @@ contains
     PetscBool :: has_label
     type(fson_value), pointer :: spacing_json
     PetscInt :: spacing_type, num_spacings
+    PetscInt :: zones_type
     PetscReal :: fracture_spacing
     PetscReal, allocatable :: fracture_spacing_array(:)
     PetscErrorCode :: ierr
@@ -152,8 +153,15 @@ contains
 
        if (fson_has_mpi(json, "zones")) then
           call DMPlexGetHeightStratum(dm, 0, start_cell, end_cell, ierr)
-          call fson_get_mpi(json, "zones", string_length = max_zone_name_length, &
-               val = zones)
+          zones_type = fson_type_mpi(json, "zones")
+          select case (zones_type)
+          case (TYPE_STRING)
+             allocate(zones(1))
+             call fson_get_mpi(json, "zones", val = zones(1))
+          case (TYPE_ARRAY)
+             call fson_get_mpi(json, "zones", string_length = max_zone_name_length, &
+                  val = zones)
+          end select
           associate(num_zones => size(zones))
             do iz = 1, num_zones
                label_name = zone_label_name(zones(iz))

@@ -89,6 +89,11 @@
                                                         "minimum": 0, "maximum": 1}},
                          "cells": {"type": "array",
                                    "items": {"type": "integer", "minimum": 0}},
+                         "zones": {"oneOf": [
+                             {"type": "string"},
+                             {"type": "array",
+                              "items": {"type": "string"}}
+                         ]},
                          "fracture": {"type": "object",
                                       "properties": {
                                           "planes": {"type": "integer",
@@ -252,7 +257,12 @@
                                  "specific_heat": {"type": "number", "minimum": 0},
                                  "cells": {"type": "array",
                                            "items": {"type": "integer",
-                                                     "minimum": 0}}
+                                                     "minimum": 0}},
+                                 "zones": {"oneOf": [
+                                     {"type": "string"},
+                                     {"type": "array",
+                                      "items": {"type": "string"}}
+                                 ]}
                              }, "additionalProperties": false
                          }}
                  },

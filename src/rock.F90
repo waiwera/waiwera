@@ -220,6 +220,7 @@ contains
     use fson
     use fson_mpi_module
     use logfile_module
+    use fson_value_m, only : TYPE_STRING, TYPE_ARRAY
 
     type(fson_value), pointer, intent(in) :: json
     DM, intent(in) :: dm
@@ -252,6 +253,7 @@ contains
     character(len=64) :: rockstr
     character(len=12) :: irstr
     PetscInt, pointer :: pir
+    PetscInt :: zones_type
 
     err = 0
 
@@ -320,8 +322,15 @@ contains
           end if
 
           if (fson_has_mpi(r, "zones")) then
-             call fson_get_mpi(r, "zones", string_length = max_zone_name_length, &
-                  val = zones)
+             zones_type = fson_type_mpi(r, "zones")
+             select case (zones_type)
+             case (TYPE_STRING)
+                allocate(zones(1))
+                call fson_get_mpi(r, "zones", val = zones(1))
+             case (TYPE_ARRAY)
+                call fson_get_mpi(r, "zones", string_length = max_zone_name_length, &
+                     val = zones)
+             end select
              associate(num_zones => size(zones))
                do iz = 1, num_zones
                   label_name = zone_label_name(zones(iz))
