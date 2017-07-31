@@ -1950,18 +1950,19 @@ contains
   subroutine mesh_setup_minc_dm_level_label(self, max_num_levels, &
        minc_level_cells)
     !! Sets up minc_level label on MINC DM, with MINC level assigned
-    !! to all cells and faces.
+    !! to all cells.
 
     class(mesh_type), intent(in out) :: self
     PetscInt, intent(in) :: max_num_levels
     type(list_type), intent(in out) :: minc_level_cells(0: max_num_levels)
     ! Locals:
-    PetscInt :: m, ic
+    PetscInt :: m, ic, h
     PetscErrorCode :: ierr
 
     call DMCreateLabel(self%minc_dm, minc_level_label_name, ierr)
     CHKERRQ(ierr)
 
+    h = 0
     do m = 0, max_num_levels
        ic = 0
        call minc_level_cells(m)%traverse(minc_level_label_iterator)
@@ -1975,16 +1976,14 @@ contains
       type(list_node_type), pointer, intent(in out) :: node
       PetscBool, intent(out) :: stopped
       ! Locals:
-      PetscInt :: minc_p, h
+      PetscInt :: minc_p
       PetscErrorCode :: ierr
 
       select type (c => node%data)
       type is (PetscInt)
-         do h = 0, 1
-            minc_p = ic + self%minc_shift(h, m)
-            call DMSetLabelValue(self%minc_dm, minc_level_label_name, &
-                 minc_p, m, ierr); CHKERRQ(ierr)
-         end do
+         minc_p = ic + self%minc_shift(h, m)
+         call DMSetLabelValue(self%minc_dm, minc_level_label_name, &
+              minc_p, m, ierr); CHKERRQ(ierr)
       end select
       ic = ic + 1
 

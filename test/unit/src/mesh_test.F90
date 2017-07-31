@@ -384,14 +384,14 @@ contains
          '{"mesh": {"filename": "data/mesh/7x7grid.exo",' // &
          '  "zones": {"all": {"-": null}},' // &
          '  "minc": {"zones": ["all"], "fracture": {"volume": 0.1}}}}')
-    call minc_test('all', json, 1, 2 * 49, 1, [98, 98])
+    call minc_test('all', json, 1, 2 * 49, 1, [49, 49])
     call fson_destroy_mpi(json)
 
     json => fson_parse_mpi(str = &
          '{"mesh": {"filename": "data/mesh/7x7grid.exo",' // &
          '  "zones": {"left": {"x": [0, 1500]}, "right": {"-": "left"}},' // &
          '  "minc": {"zones": ["left"], "matrix": {"volume": 0.9}}}}')
-    call minc_test('partial', json, 1, 63, 1, [28, 28])
+    call minc_test('partial', json, 1, 63, 1, [14, 14])
     call fson_destroy_mpi(json)
 
     json => fson_parse_mpi(str = &
@@ -400,7 +400,7 @@ contains
          '  "minc": [{"zones": ["left"], "fracture": {"volume": 0.1}}, ' // &
          '           {"zones": ["right"], "fracture": {"volume": 0.1}, ' // &
          '            "matrix": {"volume": [0.3, 0.6]}}]}}')
-    call minc_test('two-zone', json, 2, 133, 2, [98, 98, 70])
+    call minc_test('two-zone', json, 2, 133, 2, [49, 49, 35])
     call fson_destroy_mpi(json)
 
     json => fson_parse_mpi(str = &
@@ -409,7 +409,7 @@ contains
          '            "right corner": {"x": [2500, 4500], "y": [3000, 4500]}},' // &
          '  "minc": [{"zones": ["right corner"], "fracture": {"volume": 0.1}}, ' // &
          '   {"zones": ["left"], "matrix": {"volume": [0.3, 0.6]}}]}}')
-    call minc_test('two-zone partial', json, 2, 83, 2, [40, 40, 28])
+    call minc_test('two-zone partial', json, 2, 83, 2, [20, 20, 14])
     call fson_destroy_mpi(json)
 
   contains
@@ -833,14 +833,12 @@ contains
             call ISGetIndicesF90(minc_IS, minc_points, ierr); CHKERRQ(ierr)
             do i = 1, size(minc_points)
                c = minc_points(i)
-               if ((mesh%start_cell <= c) .and. (c < mesh%end_interior_cell)) then
-                  if (mesh%ghost_cell(c) < 0) then
-                     call global_section_offset(section, c, rock_range_start, &
-                          offset, ierr); CHKERRQ(ierr)
-                     call rock%assign(rock_array, offset)
-                     call assert_equals(expected_porosity(m), rock%porosity, tol, &
-                          title // levelstr)
-                  end if
+               if (mesh%ghost_cell(c) < 0) then
+                  call global_section_offset(section, c, rock_range_start, &
+                       offset, ierr); CHKERRQ(ierr)
+                  call rock%assign(rock_array, offset)
+                  call assert_equals(expected_porosity(m), rock%porosity, tol, &
+                       title // levelstr)
                end if
             end do
             call ISRestoreIndicesF90(minc_IS, minc_points, ierr); CHKERRQ(ierr)
