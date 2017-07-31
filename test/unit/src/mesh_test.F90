@@ -423,6 +423,7 @@ contains
       use cell_module
       use face_module
       use dm_utils_module, only: section_offset, local_vec_section
+      use cell_order_module, only: cell_order_label_name
 
       character(*), intent(in) :: name
       type(fson_value), pointer, intent(in out) :: json
@@ -442,12 +443,12 @@ contains
       Vec :: orig_cell_geom, orig_face_geom
       type(cell_type) :: orig_cell, cell
       type(face_type) :: face
-      DMLabel :: ghost_label, minc_level_label
+      DMLabel :: ghost_label, minc_level_label, cell_order_label
       PetscInt, parameter :: nc = 1, np = 1 ! dummy values for cell init
       PetscSection :: orig_cell_section, cell_section, face_section
       PetscReal, pointer, contiguous :: orig_cell_geom_array(:), cell_geom_array(:)
       PetscReal, pointer, contiguous :: face_geom_array(:)
-      PetscInt :: orig_cell_offset, cell_offset, ghost
+      PetscInt :: orig_cell_offset, cell_offset, ghost, cell_order, minc_cell_order
       PetscInt :: face_offset, cell_p, face_p, h
       PetscReal :: expected_vol, expected_area
       PetscInt :: ic(expected_max_level)
@@ -508,6 +509,9 @@ contains
       CHKERRQ(ierr)
       call DMGetLabel(mesh%minc_dm, minc_level_label_name, minc_level_label, ierr)
       CHKERRQ(ierr)
+      call DMGetLabel(mesh%minc_dm, cell_order_label_name, &
+         cell_order_label, ierr)
+    CHKERRQ(ierr)
       ic = 0
       h = 0
       do iminc = 1, size(mesh%minc)
@@ -522,6 +526,8 @@ contains
                  c = minc_cells(i)
                  call DMLabelGetValue(ghost_label, c, ghost, ierr)
                  if (ghost < 0) then
+                    call DMLabelGetValue(cell_order_label, c, cell_order, ierr)
+                    CHKERRQ(ierr)
                     call section_offset(orig_cell_section, c, orig_cell_offset, ierr)
                     CHKERRQ(ierr)
                     call orig_cell%assign_geometry(orig_cell_geom_array, orig_cell_offset)
@@ -547,6 +553,9 @@ contains
                             tol, "minc distance 1")
                        call assert_equals(minc%connection_distance(m + 1), face%distance(2), &
                             tol, "minc distance 2")
+                       call DMLabelGetValue(cell_order_label, cell_p, minc_cell_order, ierr)
+                       CHKERRQ(ierr)
+                       call assert_equals(cell_order, minc_cell_order, "minc cell order")
                        ic(m) = ic(m) + 1
                     end do
                  end if

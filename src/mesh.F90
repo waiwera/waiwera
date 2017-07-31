@@ -80,9 +80,10 @@ module mesh_module
      procedure :: setup_minc_dm_shift => mesh_setup_minc_dm_shift
      procedure :: set_minc_dm_cone_sizes => mesh_set_minc_dm_cone_sizes
      procedure :: set_minc_dm_cones => mesh_set_minc_dm_cones
-     procedure :: set_minc_dm_depth_labels => mesh_set_minc_dm_depth_labels
+     procedure :: setup_minc_dm_depth_label => mesh_setup_minc_dm_depth_label
      procedure :: transfer_labels_to_minc_dm => mesh_transfer_labels_to_minc_dm
      procedure :: setup_minc_dm_level_label => mesh_setup_minc_dm_level_label
+     procedure :: setup_minc_dm_cell_order_label => mesh_setup_minc_dm_cell_order_label
      procedure :: setup_minc_geometry => mesh_setup_minc_geometry
      procedure :: setup_minc_rock_properties => mesh_setup_minc_rock_properties
      procedure, public :: init => mesh_init
@@ -1453,10 +1454,12 @@ contains
     call DMPlexSymmetrize(self%minc_dm, ierr); CHKERRQ(ierr)
     call self%transfer_labels_to_minc_dm(1, depth, max_num_levels, &
          stratum_start, stratum_end)
-    call self%set_minc_dm_depth_labels(depth, max_num_levels, &
+    call self%setup_minc_dm_depth_label(depth, max_num_levels, &
          minc_level_cells)
-    call self%setup_minc_dm_level_label(depth, max_num_levels, &
+    call self%setup_minc_dm_level_label(max_num_levels, &
          minc_level_cells)
+    call self%setup_minc_dm_cell_order_label(max_num_levels, &
+         num_minc_zones)
 
     call dm_set_fv_adjacency(self%minc_dm)
     call dm_setup_fv_discretization(self%minc_dm, dof)
@@ -1823,9 +1826,9 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine mesh_set_minc_dm_depth_labels(self, depth, max_num_levels, &
+  subroutine mesh_setup_minc_dm_depth_label(self, depth, max_num_levels, &
        minc_level_cells)
-    !! Set DAG depth labels for MINC points added to the DM.
+    !! Set DAG depth label for MINC points added to the DM.
 
     class(mesh_type), intent(in out) :: self
     PetscInt, intent(in) :: depth, max_num_levels
@@ -1863,7 +1866,7 @@ contains
 
     end subroutine minc_depth_label_iterator
 
-  end subroutine mesh_set_minc_dm_depth_labels
+  end subroutine mesh_setup_minc_dm_depth_label
 
 !------------------------------------------------------------------------
 
@@ -1944,13 +1947,13 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine mesh_setup_minc_dm_level_label(self, depth, max_num_levels, &
+  subroutine mesh_setup_minc_dm_level_label(self, max_num_levels, &
        minc_level_cells)
     !! Sets up minc_level label on MINC DM, with MINC level assigned
     !! to all cells and faces.
 
     class(mesh_type), intent(in out) :: self
-    PetscInt, intent(in) :: depth, max_num_levels
+    PetscInt, intent(in) :: max_num_levels
     type(list_type), intent(in out) :: minc_level_cells(0: max_num_levels)
     ! Locals:
     PetscInt :: m, ic
@@ -1988,6 +1991,62 @@ contains
     end subroutine minc_level_label_iterator
 
   end subroutine mesh_setup_minc_dm_level_label
+
+!------------------------------------------------------------------------
+
+  subroutine mesh_setup_minc_dm_cell_order_label(self, max_num_levels, &
+       num_minc_zones)
+
+    !! Sets up cell order label on MINC matrix cells, which are given
+    !! the same cell order label as their parent fracture cell.
+
+    use cell_order_module, only: cell_order_label_name
+
+    class(mesh_type), intent(in out) :: self
+    PetscInt, intent(in) :: max_num_levels, num_minc_zones
+    ! Locals:
+    PetscInt :: ghost, c, h, i, iminc, m
+    PetscInt :: cell_p, cell_order
+    PetscInt :: ic(max_num_levels), num_minc_zone_cells
+    IS :: minc_IS
+    PetscInt, pointer :: minc_cells(:)
+    DMLabel :: ghost_label, cell_order_label
+    PetscErrorCode :: ierr
+
+    call DMGetLabel(self%original_dm, "ghost", ghost_label, ierr)
+    CHKERRQ(ierr)
+    call DMGetLabel(self%original_dm, cell_order_label_name, &
+         cell_order_label, ierr)
+    CHKERRQ(ierr)
+
+    h = 0
+    ic = 0
+    do iminc = 1, num_minc_zones
+       associate(minc => self%minc(iminc))
+         call DMGetStratumSize(self%original_dm, minc_zone_label_name, iminc, &
+              num_minc_zone_cells, ierr); CHKERRQ(ierr)
+         if (num_minc_zone_cells > 0) then
+            call DMGetStratumIS(self%original_dm, minc_zone_label_name, &
+                 iminc, minc_IS, ierr); CHKERRQ(ierr)
+            call ISGetIndicesF90(minc_IS, minc_cells, ierr); CHKERRQ(ierr)
+            do i = 1, num_minc_zone_cells
+               c = minc_cells(i)
+               call DMLabelGetValue(ghost_label, c, ghost, ierr)
+               if (ghost < 0) then
+                  call DMLabelGetValue(cell_order_label, c, cell_order, ierr)
+                  do m = 1, minc%num_levels
+                     cell_p = ic(m) + self%minc_shift(h, m)
+                     call DMSetLabelValue(self%minc_dm, cell_order_label_name, &
+                          cell_p, cell_order, ierr); CHKERRQ(ierr)
+                     ic(m) = ic(m) + 1
+                  end do
+               end if
+            end do
+         end if
+       end associate
+    end do
+
+  end subroutine mesh_setup_minc_dm_cell_order_label
 
 !------------------------------------------------------------------------
 
