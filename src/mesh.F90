@@ -39,8 +39,8 @@ module mesh_module
      !! Mesh type.
      private
      character(max_mesh_filename_length), public :: filename !! Mesh file name
-     DM, public :: original_dm, minc_dm
-     DM, pointer, public :: dm !! DM representing the mesh topology
+     DM, public :: original_dm, minc_dm !! DMs representing the topology for original and MINC meshes
+     DM, pointer, public :: dm !! Pointer to appropriate DM for the simulation
      Vec, public :: cell_geom !! Vector containing cell geometry data
      Vec, public :: face_geom !! Vector containing face geometry data
      PetscInt, public :: start_cell !! DM point containing first cell on this process
@@ -49,7 +49,8 @@ module mesh_module
      PetscInt, public :: start_face !! DM point containing first face on this process
      PetscInt, public :: end_face !! DM point one greater than last face on this process
      PetscReal, allocatable, public :: bcs(:,:) !! Array containing boundary conditions
-     IS, public :: cell_index !! Index set defining natural cell ordering
+     IS, public :: original_cell_index, minc_cell_index !! Index sets defining natural cell ordering for original and MINC meshes
+     IS, pointer, public :: cell_index !! Pointer to appropriate cell index for the simulation
      PetscInt, public, allocatable :: ghost_cell(:), ghost_face(:) !! Ghost label values for cells and faces
      type(minc_type), allocatable, public :: minc(:) !! Array of MINC zones, with parameters
      PetscInt, allocatable, public :: minc_shift(:, :) !! MINC DM point shifts for given height and MINC level
@@ -60,6 +61,7 @@ module mesh_module
      PetscBool, public :: has_minc !! If mesh has any MINC cells
    contains
      procedure :: assign_dm => mesh_assign_dm
+     procedure :: assign_cell_index => mesh_assign_cell_index
      procedure :: setup_cell_order_label => mesh_setup_cell_order_label
      procedure :: distribute => mesh_distribute
      procedure :: construct_ghost_cells => mesh_construct_ghost_cells
@@ -104,6 +106,18 @@ contains
     self%dm => dm
 
   end subroutine mesh_assign_dm
+
+!------------------------------------------------------------------------
+
+  subroutine mesh_assign_cell_index(self, index)
+    !! Assigns self%cell_index pointer to specified IS.
+
+    class(mesh_type), intent(in out) :: self
+    IS, target, intent(in) :: index
+
+    self%cell_index => index
+
+  end subroutine mesh_assign_cell_index
 
 !------------------------------------------------------------------------
 
@@ -585,6 +599,7 @@ contains
             self%original_dm, ierr); CHKERRQ(ierr)
        call dm_set_fv_adjacency(self%original_dm)
        call self%assign_dm(self%original_dm)
+       call self%assign_cell_index(self%original_cell_index)
        call self%setup_coordinate_parameters(json, logfile)
        call self%set_permeability_rotation(json, logfile)
        self%has_minc = PETSC_FALSE
@@ -632,7 +647,15 @@ contains
 
     call self%get_bounds()
     call self%setup_ghost_arrays()
-    call dm_setup_cell_index(self%dm, self%cell_index, viewer)
+
+    if (self%has_minc) then
+       call dm_setup_cell_index(self%original_dm, self%original_cell_index)
+       call dm_setup_cell_index(self%minc_dm, self%minc_cell_index, viewer)
+       call self%assign_cell_index(self%minc_cell_index)
+    else
+       call dm_setup_cell_index(self%original_dm, self%original_cell_index, &
+            viewer)
+    end if
 
   end subroutine mesh_configure
 
@@ -650,11 +673,12 @@ contains
     self%dm => null()
     call DMDestroy(self%original_dm, ierr); CHKERRQ(ierr)
 
+    self%cell_index => null()
+    call ISDestroy(self%original_cell_index, ierr); CHKERRQ(ierr)
+
     if (allocated(self%bcs)) then
        deallocate(self%bcs)
     end if
-
-    call ISDestroy(self%cell_index, ierr); CHKERRQ(ierr)
 
     if (allocated(self%ghost_cell)) then
        deallocate(self%ghost_cell)
@@ -665,6 +689,7 @@ contains
 
     if (self%has_minc) then
        call DMDestroy(self%minc_dm, ierr); CHKERRQ(ierr)
+       call ISDestroy(self%minc_cell_index, ierr); CHKERRQ(ierr)
        do i = 1, size(self%minc)
           call self%minc(i)%destroy()
        end do

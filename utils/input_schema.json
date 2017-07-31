@@ -543,7 +543,8 @@
             {"type": "object",
              "properties": {
                  "filename": {"type": "string"},
-                 "index": {"type": "integer", "minimum": 0}},
+                 "index": {"type": "integer", "minimum": 0},
+                 "minc": {"type": "boolean"}},
              "additionalProperties": false},
             {"type": "object",
              "properties": {
@@ -558,7 +559,8 @@
                  "region": {"oneOf": [
                      {"type": "integer"},
                      {"type": "array", "items": {"type": "integer"}}
-                     ]}
+                 ]},
+                 "minc": {"type": "boolean"}
              },
              "additionalProperties": false
             }]},
