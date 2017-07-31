@@ -391,7 +391,7 @@ contains
          '{"mesh": {"filename": "data/mesh/7x7grid.exo",' // &
          '  "zones": {"left": {"x": [0, 1500]}, "right": {"-": "left"}},' // &
          '  "minc": {"zones": ["left"], "matrix": {"volume": 0.9}}}}')
-    call minc_test('partial', json, 1, 63, 1, [14, 14])
+    call minc_test('partial', json, 1, 63, 1, [49, 14])
     call fson_destroy_mpi(json)
 
     json => fson_parse_mpi(str = &
@@ -409,7 +409,7 @@ contains
          '            "right corner": {"x": [2500, 4500], "y": [3000, 4500]}},' // &
          '  "minc": [{"zones": ["right corner"], "fracture": {"volume": 0.1}}, ' // &
          '   {"zones": ["left"], "matrix": {"volume": [0.3, 0.6]}}]}}')
-    call minc_test('two-zone partial', json, 2, 83, 2, [20, 20, 14])
+    call minc_test('two-zone partial', json, 2, 83, 2, [49, 20, 14])
     call fson_destroy_mpi(json)
 
   contains

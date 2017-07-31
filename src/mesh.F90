@@ -1457,7 +1457,7 @@ contains
     call self%setup_minc_dm_depth_label(depth, max_num_levels, &
          minc_level_cells)
     call self%setup_minc_dm_level_label(max_num_levels, &
-         minc_level_cells)
+         depth, stratum_start, stratum_end, minc_level_cells)
     call self%setup_minc_dm_cell_order_label(max_num_levels, &
          num_minc_zones)
 
@@ -1948,22 +1948,36 @@ contains
 !------------------------------------------------------------------------
 
   subroutine mesh_setup_minc_dm_level_label(self, max_num_levels, &
-       minc_level_cells)
+       depth, stratum_start, stratum_end, minc_level_cells)
     !! Sets up minc_level label on MINC DM, with MINC level assigned
-    !! to all cells.
+    !! to all cells. Non-MINC cells are assigned level 0 (as are
+    !! fracture cells in MINC zones).
 
     class(mesh_type), intent(in out) :: self
-    PetscInt, intent(in) :: max_num_levels
+    PetscInt, intent(in) :: max_num_levels, depth
+    PetscInt, intent(in) :: stratum_start(0: depth), stratum_end(0: depth)
     type(list_type), intent(in out) :: minc_level_cells(0: max_num_levels)
     ! Locals:
-    PetscInt :: m, ic, h
+    PetscInt :: m, ic, h, c, ghost
+    DMLabel :: ghost_label
     PetscErrorCode :: ierr
 
+    call DMGetLabel(self%minc_dm, "ghost", ghost_label, ierr)
+    CHKERRQ(ierr)
     call DMCreateLabel(self%minc_dm, minc_level_label_name, ierr)
     CHKERRQ(ierr)
 
     h = 0
-    do m = 0, max_num_levels
+    m = 0
+    do c = stratum_start(h), stratum_end(h) - 1
+       call DMLabelGetValue(ghost_label, c, ghost, ierr)
+       if (ghost < 0) then
+          call DMSetLabelValue(self%minc_dm, minc_level_label_name, &
+               c, m, ierr); CHKERRQ(ierr)
+       end if
+    end do
+
+    do m = 1, max_num_levels
        ic = 0
        call minc_level_cells(m)%traverse(minc_level_label_iterator)
     end do
