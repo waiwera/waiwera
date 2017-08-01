@@ -1407,6 +1407,7 @@ contains
     PetscInt, intent(in) :: dof !! Degrees of freedom for discretization
     ! Locals:
     PetscInt :: start_chart, end_chart, h, m
+    PetscInt :: cmax, fmax, emax, vmax
     PetscInt :: dim, depth
     PetscInt :: num_minc_cells
     PetscInt :: num_minc_zones, num_cells, num_new_points, max_num_levels
@@ -1439,6 +1440,10 @@ contains
     num_new_points = num_minc_cells * (depth + 1)
     call DMPlexSetChart(self%minc_dm, start_chart, &
          end_chart + num_new_points, ierr); CHKERRQ(ierr)
+    call DMPlexGetHybridBounds(self%original_dm, cmax, fmax, emax, vmax, &
+         ierr); CHKERRQ(ierr)
+    call DMPlexSetHybridBounds(self%minc_dm, cmax, PETSC_DETERMINE, &
+         PETSC_DETERMINE, PETSC_DETERMINE, ierr); CHKERRQ(ierr)
 
     allocate(self%minc_shift(0: depth, 0: max_num_levels))
     call self%setup_minc_dm_shift(num_minc_cells, depth, &
