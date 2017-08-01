@@ -433,6 +433,7 @@ contains
          end do
 
          allocate(isort(total_level_count))
+         isort = [(i - 1, i = 1, total_level_count)]
          call PetscSortIntWithPermutation(total_level_count, &
               level_natural_index, isort, ierr); CHKERRQ(ierr)
          isort = isort + 1
