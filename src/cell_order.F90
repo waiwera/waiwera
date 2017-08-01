@@ -427,7 +427,8 @@ contains
          do p = 1, num_procs
             associate(d => level_displacements(p), &
                  n => local_level_counts(p))
-              level_natural_index(dl: dl + n) = natural_index_all(d: d + n)
+              level_natural_index(dl: dl + n - 1) = &
+                   natural_index_all(d: d + n - 1)
               dl = dl + n
             end associate
          end do
@@ -448,7 +449,8 @@ contains
          do p = 1, num_procs
             associate(d => level_displacements(p), &
                  n => local_level_counts(p))
-              natural_index_all(d: d + n) = level_natural_index(dl: dl + n)
+              natural_index_all(d: d + n - 1) = &
+                   level_natural_index(dl: dl + n - 1)
               dl = dl + n
             end associate
          end do
