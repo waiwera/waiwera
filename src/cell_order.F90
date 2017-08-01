@@ -418,7 +418,7 @@ contains
          call displacements_from_counts(local_level_counts, &
               level_displacements)
          total_level_count = sum(local_level_counts)
-         allocate(level_natural_index(total_level_count))
+         allocate(level_natural_index(0: total_level_count - 1))
 
          ! Assemble array with natural indices (currently from
          ! associated fracture cells) for this MINC level from all
@@ -432,14 +432,13 @@ contains
             end associate
          end do
 
-         allocate(isort(total_level_count))
-         isort = [(i - 1, i = 1, total_level_count)]
+         allocate(isort(0: total_level_count - 1))
+         isort = [(i, i = 0, total_level_count - 1)]
          call PetscSortIntWithPermutation(total_level_count, &
               level_natural_index, isort, ierr); CHKERRQ(ierr)
-         isort = isort + 1
 
          ! Assign new natural indices to MINC cells:
-         do i = 1, total_level_count
+         do i = 0, total_level_count - 1
             level_natural_index(isort(i)) = inatural
             inatural = inatural + 1
          end do
