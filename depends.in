@@ -2,6 +2,7 @@ $(BUILD)/IAPWS$(OBJ):$(BUILD)/kinds$(OBJ) $(BUILD)/powertable$(OBJ) $(BUILD)/the
 $(BUILD)/IFC67$(OBJ):$(BUILD)/kinds$(OBJ) $(BUILD)/thermodynamics$(OBJ)
 $(BUILD)/capillary_pressure$(OBJ):$(BUILD)/fson_mpi$(OBJ) $(BUILD)/interpolation$(OBJ) $(BUILD)/kinds$(OBJ) $(BUILD)/logfile$(OBJ) $(BUILD)/utils$(OBJ)
 $(BUILD)/cell$(OBJ):$(BUILD)/fluid$(OBJ) $(BUILD)/kinds$(OBJ) $(BUILD)/rock$(OBJ)
+$(BUILD)/cell_order$(OBJ):$(BUILD)/minc$(OBJ)
 $(BUILD)/dictionary$(OBJ):$(BUILD)/list$(OBJ)
 $(BUILD)/dm_utils$(OBJ):$(BUILD)/kinds$(OBJ)
 $(BUILD)/eos$(OBJ):$(BUILD)/fluid$(OBJ) $(BUILD)/interpolation$(OBJ) $(BUILD)/kinds$(OBJ) $(BUILD)/logfile$(OBJ) $(BUILD)/rock$(OBJ) $(BUILD)/thermodynamics$(OBJ) $(BUILD)/utils$(OBJ)
