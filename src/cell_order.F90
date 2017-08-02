@@ -84,6 +84,7 @@ contains
     PetscInt, allocatable :: global_index_all(:), natural_index_all(:)
     PetscInt, allocatable :: index_array_all(:), index_array(:)
     PetscInt, allocatable :: local_counts(:), displacements(:)
+    PetscInt, allocatable :: level_displacements(:)
     PetscInt, allocatable :: local_level_counts(:)
     IS :: cell_interior_index
     PetscInt :: start_global_index, max_level
@@ -118,24 +119,26 @@ contains
        CHKERRQ(ierr)
        max_level = get_max_minc_level()
        call allocate_processor_array(local_level_counts)
+       call allocate_processor_array(level_displacements)
+       level_displacements = displacements
        do m = 0, max_level
           call get_minc_global_and_natural_indices(m, global_index, &
                natural_index, local_level_count)
           call MPI_gather(local_level_count, 1, MPI_INTEGER, &
                local_level_counts, 1, MPI_INTEGER, 0, PETSC_COMM_WORLD, ierr)
           call MPI_gatherv(global_index, local_level_count, MPI_INTEGER, &
-               global_index_all, local_level_counts, displacements, MPI_INTEGER, &
-               0, PETSC_COMM_WORLD, ierr)
+               global_index_all, local_level_counts, level_displacements, &
+               MPI_INTEGER, 0, PETSC_COMM_WORLD, ierr)
           call MPI_gatherv(natural_index, local_level_count, MPI_INTEGER, &
-               natural_index_all, local_level_counts, displacements, MPI_INTEGER, &
-               0, PETSC_COMM_WORLD, ierr)
+               natural_index_all, local_level_counts, level_displacements, &
+               MPI_INTEGER, 0, PETSC_COMM_WORLD, ierr)
           if (m == 0) then
              inatural = get_new_natural_index()
           else
              call assign_minc_natural_indices(inatural)
           end if
           deallocate(global_index, natural_index)
-          displacements = displacements + local_level_counts
+          level_displacements = level_displacements + local_level_counts
        end do
 
     else
@@ -324,7 +327,7 @@ contains
 !........................................................................
 
     subroutine get_minc_global_and_natural_indices(level, global_index, &
-         natural_index, level_count)
+         natural_index, local_level_count)
 
       !! Sets up global and natural index arrays on each process for
       !! the given MINC level, and returns count of local MINC cells
@@ -332,20 +335,20 @@ contains
 
       PetscInt, intent(in) :: level
       PetscInt, allocatable, intent(out) :: global_index(:), natural_index(:)
-      PetscInt, intent(out) :: level_count
+      PetscInt, intent(out) :: local_level_count
       ! Locals:
       PetscInt :: i, c, ghost, i_global, order
       IS :: level_IS
       PetscInt, pointer :: level_cells(:)
 
       call DMGetStratumSize(dm, minc_level_label_name, level, &
-           level_count, ierr); CHKERRQ(ierr)
-      if (level_count > 0) then
-         allocate(global_index(level_count), natural_index(level_count))
+           local_level_count, ierr); CHKERRQ(ierr)
+      if (local_level_count > 0) then
+         allocate(global_index(local_level_count), natural_index(local_level_count))
          call DMGetStratumIS(dm, minc_level_label_name, &
               level, level_IS, ierr); CHKERRQ(ierr)
          call ISGetIndicesF90(level_IS, level_cells, ierr); CHKERRQ(ierr)
-         do i = 1, level_count
+         do i = 1, local_level_count
             c = level_cells(i)
             call DMLabelGetValue(ghost_label, c, ghost, ierr)
             if (ghost < 0) then
@@ -409,27 +412,26 @@ contains
 
       PetscInt, intent(in out) :: inatural
       ! Locals:
-      PetscInt :: total_level_count, p, dl, i
+      PetscInt :: total_level_count, p, i
       PetscInt, allocatable :: level_natural_index(:), isort(:)
-      PetscInt :: level_displacements(num_procs)
+      PetscInt :: local_level_displacements(num_procs)
 
       if (rank == 0) then
 
          call displacements_from_counts(local_level_counts, &
-              level_displacements)
+              local_level_displacements)
          total_level_count = sum(local_level_counts)
          allocate(level_natural_index(0: total_level_count - 1))
 
          ! Assemble array with natural indices (currently from
          ! associated fracture cells) for this MINC level from all
          ! processors:
-         dl = 0
          do p = 1, num_procs
-            associate(d => level_displacements(p), &
+            associate(dl => local_level_displacements(p), &
+                 d => level_displacements(p), &
                  n => local_level_counts(p))
               level_natural_index(dl: dl + n - 1) = &
                    natural_index_all(d: d + n - 1)
-              dl = dl + n
             end associate
          end do
 
@@ -445,13 +447,12 @@ contains
          end do
 
          ! Copy new natural indices back:
-         dl = 0
          do p = 1, num_procs
-            associate(d => level_displacements(p), &
+            associate(dl => local_level_displacements(p), &
+                 d => level_displacements(p), &
                  n => local_level_counts(p))
               natural_index_all(d: d + n - 1) = &
                    level_natural_index(dl: dl + n - 1)
-              dl = dl + n
             end associate
          end do
 
