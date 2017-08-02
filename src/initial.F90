@@ -254,7 +254,7 @@ contains
 !------------------------------------------------------------------------
 
   subroutine setup_initial_file(filename, mesh, eos, t, y, fluid_vector, &
-       y_range_start, fluid_range_start, index)
+       y_range_start, fluid_range_start, index, minc_specified)
     !! Initializes fluid vector and solution vector y from HDF5 file.
 
     use mesh_module
@@ -269,6 +269,7 @@ contains
     Vec, intent(in out) :: y, fluid_vector
     PetscInt, intent(in) :: y_range_start, fluid_range_start
     PetscInt, intent(in) :: index !! time index to fetch initial conditions from
+    PetscBool, intent(in) :: minc_specified !! Whether initial conditions include MINC cells
     ! Locals:
     PetscViewer :: viewer
     DM :: fluid_dm
@@ -425,17 +426,26 @@ contains
     character(len = max_filename_length) :: filename
     PetscInt, parameter :: default_index = 0
     PetscInt :: index
+    PetscBool :: minc_specified
+    PetscBool, parameter :: default_minc_specified = PETSC_FALSE
 
     call fson_get_mpi(json, "time.start", default_start_time, t, logfile)
 
     if (fson_has_mpi(json, "initial")) then
+
+       if (mesh%has_minc) then
+          call fson_get_mpi(json, "initial.minc", default_minc_specified, &
+               minc_specified, logfile)
+       else
+          minc_specified = PETSC_FALSE
+       end if
 
        if (fson_has_mpi(json, "initial.filename")) then
 
           call fson_get_mpi(json, "initial.filename", val = filename)
           call fson_get_mpi(json, "initial.index", default_index, index, logfile)
           call setup_initial_file(filename, mesh, eos, t, y, fluid_vector, &
-               y_range_start, fluid_range_start, index)
+               y_range_start, fluid_range_start, index, minc_specified)
 
        else if (fson_has_mpi(json, "initial.primary")) then
 
@@ -499,10 +509,11 @@ contains
        call logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
             int_keys = ['initial.region'], &
             int_values = [eos%default_region])
+       minc_specified = PETSC_FALSE
 
     end if
 
-    if (mesh%has_minc) then
+    if (mesh%has_minc .and. (.not. minc_specified)) then
        call setup_minc_initial(mesh, eos, y, fluid_vector, y_range_start, &
             fluid_range_start)
     end if
