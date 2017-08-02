@@ -690,30 +690,32 @@ contains
     class(flow_simulation_type), intent(in out) :: self
     PetscInt, optional :: perturbed_columns(:)
     ! Locals:
-    PetscInt :: num_perturbed
+    PetscInt :: local_num_perturbed
     PetscReal, allocatable :: update(:)
     PetscErrorCode :: ierr
 
     if (present(perturbed_columns)) then
-       num_perturbed = size(perturbed_columns)
+       local_num_perturbed = size(perturbed_columns)
     else
-       num_perturbed = 0
+       local_num_perturbed = 0
     end if
+    call MPI_reduce(local_num_perturbed == 0, self%unperturbed, 1, &
+         MPI_LOGICAL, MPI_LAND, 0, PETSC_COMM_WORLD, ierr)
+    call MPI_bcast(self%unperturbed, 1, MPI_LOGICAL, 0, PETSC_COMM_WORLD, &
+         ierr)
 
-    if (num_perturbed == 0) then ! update all
+    if (self%unperturbed) then ! update all
        call VecSet(self%update_cell, 1._dp, ierr); CHKERRQ(ierr)
-       self%unperturbed = PETSC_TRUE
     else
        call VecSet(self%update_cell, -1._dp, ierr); CHKERRQ(ierr)
-       allocate(update(num_perturbed))
+       allocate(update(local_num_perturbed))
        update = 1._dp
-       call VecSetValues(self%update_cell, num_perturbed, &
+       call VecSetValues(self%update_cell, local_num_perturbed, &
             perturbed_columns, update, INSERT_VALUES, ierr)
        CHKERRQ(ierr)
        call VecAssemblyBegin(self%update_cell, ierr); CHKERRQ(ierr)
        call VecAssemblyEnd(self%update_cell, ierr); CHKERRQ(ierr)
        deallocate(update)
-       self%unperturbed = PETSC_FALSE
     end if
 
   end subroutine flow_simulation_identify_update_cells
