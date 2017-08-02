@@ -83,7 +83,7 @@ contains
        end if
 
     end if
-    filename_length = len_trim(filename)
+    filename_length = len(filename)
     call MPI_bcast(filename, filename_length, MPI_CHARACTER, &
          0, PETSC_COMM_WORLD, ierr)
 
