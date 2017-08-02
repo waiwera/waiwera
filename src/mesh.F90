@@ -1442,8 +1442,9 @@ contains
          end_chart + num_new_points, ierr); CHKERRQ(ierr)
     call DMPlexGetHybridBounds(self%original_dm, cmax, fmax, emax, vmax, &
          ierr); CHKERRQ(ierr)
-    call DMPlexSetHybridBounds(self%minc_dm, cmax, PETSC_DETERMINE, &
-         PETSC_DETERMINE, PETSC_DETERMINE, ierr); CHKERRQ(ierr)
+    call DMPlexSetHybridBounds(self%minc_dm, cmax + num_minc_cells, &
+         PETSC_DETERMINE, PETSC_DETERMINE, PETSC_DETERMINE, &
+         ierr); CHKERRQ(ierr)
 
     allocate(self%minc_shift(0: depth, 0: max_num_levels))
     call self%setup_minc_dm_shift(num_minc_cells, depth, &
