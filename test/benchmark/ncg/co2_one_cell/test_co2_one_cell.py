@@ -105,16 +105,16 @@ for sim in digitised_simulators:
 jrunner = SimpleJobRunner(mpi = True)
 testResult, mResults = co2_one_cell_test.runTest(jrunner, createReports = True)
 
-symbol = {"MULKOM": '.'}
+symbol = {"MULKOM": 'o'}
 
 for field_name in digitised_test_fields:
 
     t, var = co2_one_cell_test.mSuite.resultsList[run_index].\
              getFieldHistoryAtCell(field_name, obs_cell_index)
-    plt.plot(t, var / field_scale[field_name], '-', label = 'Waiwera')
+    plt.plot(t, var / field_scale[field_name], '-', label = 'Waiwera', zorder = 3)
 
     t, var = AUTOUGH2_result.getFieldHistoryAtCell(field_name, obs_cell_index)
-    plt.plot(t, var / field_scale[field_name], '+', label = 'AUTOUGH2')
+    plt.plot(t, var / field_scale[field_name], 's', label = 'AUTOUGH2', zorder = 2)
 
     for sim in digitised_simulators:
         result = digitised_result[sim]
@@ -128,11 +128,12 @@ for field_name in digitised_test_fields:
     img_filename_base = img_filename_base.replace(' ', '_')
     img_filename = os.path.join(co2_one_cell_test.mSuite.runs[run_index].basePath,
                                 co2_one_cell_test.mSuite.outputPathBase,
-                                img_filename_base + '.png')
+                                img_filename_base)
     plt.tight_layout(pad = 3.)
-    plt.savefig(img_filename)
+    plt.savefig(img_filename + '.png', dpi = 300)
+    plt.savefig(img_filename + '.pdf')
     plt.clf()
-    co2_one_cell_test.mSuite.analysisImages.append(img_filename)
+    co2_one_cell_test.mSuite.analysisImages.append(img_filename + '.png')
 
 # generate report:
 
