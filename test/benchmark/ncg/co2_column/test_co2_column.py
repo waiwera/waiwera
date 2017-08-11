@@ -136,7 +136,7 @@ for run_index, run_name in enumerate(run_names):
                 co2_column_test.addTestComp(run_index, ' '.join((sim, field_name)),
                                           OneDSolutionWithinTolTC(
                                               fieldsToTest = [field_name],
-                                              defFieldTol = 2.e-2,
+                                              defFieldTol = 0.07,
                                               expected = result,
                                               coordinateIndex = 1,
                                               testOutputIndex = -1))
