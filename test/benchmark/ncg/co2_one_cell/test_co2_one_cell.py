@@ -70,7 +70,6 @@ model_run.jobParams['nproc'] = num_procs
 co2_one_cell_test.mSuite.addRun(model_run, run_name)
 
 co2_one_cell_test.setupEmptyTestCompsList()
-digitised_result = {}
 
 run_base_name = model_name
 run_filename = os.path.join(model_dir, run_base_name + ".listing")
