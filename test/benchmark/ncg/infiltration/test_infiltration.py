@@ -19,6 +19,7 @@ from credo.systest import FieldWithinTolTC, OneDSolutionWithinTolTC
 from mulgrids import mulgrid
 
 import matplotlib.pyplot as plt
+
 from matplotlib import rcParams
 rcParams['mathtext.default'] = 'regular'
 
@@ -112,27 +113,40 @@ ix = np.where(x <= xmax_all)
 for field_name in test_fields:
     for output_index in output_indices:
         var = result.getFieldAtOutputIndex(field_name, output_index)
-        tstr = ' t = %4.0f s' % t[output_index]
-        plt.plot(x[ix], var[ix], 'o', label = 'Waiwera' + tstr)
+        # tstr = ' t = %4.0f s' % t[output_index]
+        plt.plot(x[ix], var[ix], 'b-', label = 'Waiwera', zorder = 3)
         var = AUTOUGH2_result.getFieldAtOutputIndex(field_name, output_index)
-        plt.plot(x[ix], var[ix], '+', label = 'AUTOUGH2' + tstr)
+        plt.plot(x[ix], var[ix], 'gs', label = 'AUTOUGH2', zorder = 2)
         for sim in digitised_simulators:
             dig_result = digitised_result[sim, output_index]
             xd = dig_result.getCoordinates()
             var = dig_result.getFieldAtOutputIndex(field_name, output_index)
-            plt.plot(xd, var, '-', label = sim + tstr)
+            plt.plot(xd, var, 'r:', label = sim, zorder = 1)
     plt.xlabel('x (m)')
     plt.ylabel(field_name)
     img_filename_base = '_'.join((model_name, run_name, field_name))
     img_filename_base = img_filename_base.replace(' ', '_')
     img_filename = os.path.join(infiltration_test.mSuite.runs[run_index].basePath,
                                 infiltration_test.mSuite.outputPathBase,
-                                img_filename_base + '.png')
-    plt.legend(loc = 'best')
+                                img_filename_base)
+    # remove duplicate labels in legend:
+    handles, labels = plt.gca().get_legend_handles_labels()
+    i = 1
+    while i < len(labels):
+        if labels[i] in labels[:i]:
+            del(labels[i])
+            del(handles[i])
+        else: i += 1
+    plt.legend(handles, labels, loc = 'best')
+    # time labels:
+    plt.text(0.013, 0.5, "0.01 days")
+    plt.text(0.03, 0.65, "0.06 days")
+    plt.text(0.06, 0.73, "0.11 days")
     plt.tight_layout(pad = 3.)
-    plt.savefig(img_filename)
+    plt.savefig(img_filename + '.png', dpi = 300)
+    plt.savefig(img_filename + '.pdf')
     plt.clf()
-    infiltration_test.mSuite.analysisImages.append(img_filename)
+    infiltration_test.mSuite.analysisImages.append(img_filename + '.png')
 
 # generate report:
 
