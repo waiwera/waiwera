@@ -175,6 +175,47 @@ for run_index, run_name in enumerate(run_names):
         plt.clf()
         co2_column_test.mSuite.analysisImages.append(img_filename + '.png')
 
+# combined partial pressure plot:
+field_name = 'CO2 partial pressure'
+for run_index, run_name in enumerate(run_names):
+    if run_name in digitised_run_names:
+        scale = field_scale[field_name]
+        unit = field_unit[field_name]
+        result = co2_column_test.mSuite.resultsList[run_index]
+        var = result.getFieldAtOutputIndex(field_name, -1) / scale
+        plt.plot(var, z, 'b-', label = 'Waiwera', zorder = 2)
+        var = AUTOUGH2_result[run_name].getFieldAtOutputIndex(field_name, -1) / scale
+        plt.plot(var, z, 'gs', label = 'AUTOUGH2', zorder = 1)
+        if field_name in digitised_test_fields:
+            for sim in digitised_simulators:
+                result = digitised_result[run_name, field_name, sim]
+                zd = result.getCoordinates()
+                var = result.getFieldAtOutputIndex(field_name, -1) / scale
+                plt.plot(var, zd, 'ro', label = sim)
+plt.text(2.3, -900, "0.1%")
+plt.text(10, -800, "1%")
+plt.text(18, -800, "5%")
+plt.xlabel(field_name + ' (' + unit + ')')
+plt.ylabel('elevation (m)')
+img_filename_base = '_'.join((model_name, field_name))
+img_filename_base = img_filename_base.replace(' ', '_')
+img_filename = os.path.join(co2_column_test.mSuite.runs[run_index].basePath,
+                            co2_column_test.mSuite.outputPathBase,
+                            img_filename_base)
+# remove duplicate labels in legend:
+handles, labels = plt.gca().get_legend_handles_labels()
+i = 1
+while i < len(labels):
+    if labels[i] in labels[:i]:
+        del(labels[i])
+        del(handles[i])
+    else: i += 1
+plt.legend(handles, labels, loc = 'best')
+plt.tight_layout(pad = 3.)
+plt.savefig(img_filename + '.png', dpi = 300)
+plt.savefig(img_filename + '.pdf')
+plt.clf()
+
 # generate report:
 
 for rGen in getGenerators(["RST"], co2_column_test.outputPathBase):
