@@ -113,7 +113,6 @@ ix = np.where(x <= xmax_all)
 for field_name in test_fields:
     for output_index in output_indices:
         var = result.getFieldAtOutputIndex(field_name, output_index)
-        # tstr = ' t = %4.0f s' % t[output_index]
         plt.plot(x[ix], var[ix], 'b-', label = 'Waiwera', zorder = 3)
         var = AUTOUGH2_result.getFieldAtOutputIndex(field_name, output_index)
         plt.plot(x[ix], var[ix], 'gs', label = 'AUTOUGH2', zorder = 2)
@@ -121,7 +120,7 @@ for field_name in test_fields:
             dig_result = digitised_result[sim, output_index]
             xd = dig_result.getCoordinates()
             var = dig_result.getFieldAtOutputIndex(field_name, output_index)
-            plt.plot(xd, var, 'r:', label = sim, zorder = 1)
+            plt.plot(xd, var, 'k--', label = sim, zorder = 1)
     plt.xlabel('x (m)')
     plt.ylabel(field_name)
     img_filename_base = '_'.join((model_name, run_name, field_name))

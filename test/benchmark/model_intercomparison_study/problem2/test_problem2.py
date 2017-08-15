@@ -91,8 +91,8 @@ expected = {
 ref_result_name = {'a': 'Theis solution',
                    'b': 'semi-analytical',
                    'c': 'S-Cubed'}
-symbol = {'Theis solution': ':',
-          'semi-analytical': ':',
+symbol = {'Theis solution': 'k--',
+          'semi-analytical': 'k--',
           'S-Cubed': 'o'}
 AUTOUGH2_field_tol = {'a': 1.e-4, 'b': 1.e-4, 'c': 1.e-2}
 ref_field_tol = {'a': 2.e-2, 'b': 2.e-2, 'c': 3.5e-2}
@@ -193,7 +193,7 @@ for run_index, run_name in enumerate(run_names):
         elif run_name == 'c':
             sims = case_c_semi_analytical.getSimilarityVariables(field_name)
             var = case_c_semi_analytical.getSimilarityValues(field_name)
-            plt.semilogx(sims / day, var * scale, ':', label = 'semi-analytical')
+            plt.semilogx(sims / day, var * scale, 'k--', label = 'semi-analytical')
         plt.xlabel('t /$r^2$ (day/$m^2$)')
         plt.ylabel(field_name + ' (' + field_unit[field_name] + ')')
         plt.legend(loc = 'best')

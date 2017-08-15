@@ -154,7 +154,7 @@ for field_name in digitised_test_fields:
         plt.semilogx(t, var / scale[field_name], symbol[sim], label = sim)
 
     t, var = analytical_result.getFieldHistoryAtCell(field_name, obs_cell_index)
-    plt.semilogx(t, var / scale[field_name], ':', label = 'analytical', zorder = 1)
+    plt.semilogx(t, var / scale[field_name], 'k--', label = 'analytical', zorder = 1)
     plt.xlabel('time (s)')
     plt.ylabel(field_name + ' (' + unit[field_name] + ')')
 
@@ -217,7 +217,7 @@ for field_name in digitised_test_fields:
     result = DigitisedOneDFieldResult(sim, data_filename, field_name, -1)
     r = result.getCoordinates()
     var = result.getFieldAtOutputIndex(field_name, outputIndex)
-    plt.plot(r, var / scale[field_name], ':', label = sim, zorder = 1)
+    plt.plot(r, var / scale[field_name], 'k--', label = sim, zorder = 1)
     plt.xlabel('radius (m)')
     plt.ylabel(field_name + ' (' + unit[field_name] + ')')
     plt.title(' '.join((model_name, 'comparison with', tc_name)))
