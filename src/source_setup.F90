@@ -497,8 +497,7 @@ contains
           else
              if (present(logfile) .and. logfile%active) then
                 call logfile%write(LOG_LEVEL_WARN, 'input', 'unrecognised', &
-                     str_key = "source[" // trim(srcstr) // "]." // &
-                     source_type // ".pressure", &
+                     str_key = trim(srcstr) // source_type // ".pressure", &
                      str_value = pressure_str)
              end if
           end if
@@ -506,8 +505,7 @@ contains
     else
        if (present(logfile) .and. logfile%active) then
           call logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
-               real_keys = ["source[" // trim(srcstr) // "]." // &
-               source_type // ".pressure"], &
+               real_keys = [trim(srcstr) // source_type // ".pressure"], &
                real_values = [reference_pressure])
        end if
     end if
@@ -559,8 +557,7 @@ contains
        case default
           if (present(logfile) .and. logfile%active) then
              call logfile%write(LOG_LEVEL_WARN, 'input', 'unrecognised', &
-                  str_key = "source[" // trim(srcstr) // &
-                  "].deliverability.productivity", &
+                  str_key = trim(srcstr) // "deliverability.productivity", &
                   str_value = "...")
           end if
        end select
@@ -573,7 +570,7 @@ contains
     else
        if (present(logfile) .and. logfile%active) then
           call logfile%write(LOG_LEVEL_INFO, 'input', 'default', real_keys = &
-               ["source[" // trim(srcstr) // "].deliverability.productivity"], &
+               [trim(srcstr) // "deliverability.productivity"], &
                real_values = [productivity])
        end if
     end if
@@ -692,8 +689,7 @@ contains
        case default
           if (present(logfile) .and. logfile%active) then
              call logfile%write(LOG_LEVEL_WARN, 'input', 'unrecognised', &
-                  str_key = "source[" // trim(srcstr) // &
-                  "].recharge.coefficient", &
+                  str_key = trim(srcstr) // "recharge.coefficient", &
                   str_value = "...")
           end if
        end select
@@ -701,7 +697,7 @@ contains
     else
        if (present(logfile) .and. logfile%active) then
           call logfile%write(LOG_LEVEL_INFO, 'input', 'default', real_keys = &
-               ["source[" // trim(srcstr) // "].recharge.coefficient"], &
+               [trim(srcstr) // "recharge.coefficient"], &
                real_values = [recharge_coefficient])
        end if
     end if
@@ -767,8 +763,7 @@ contains
        else
           if (present(logfile) .and. logfile%active) then
              call logfile%write(LOG_LEVEL_WARN, 'input', 'not_supported', &
-                  str_key = "source[" // trim(srcstr) // &
-                  "].recharge.pressure", &
+                  str_key = trim(srcstr) // "recharge.pressure", &
                   str_value = "...")
           end if
        end if
@@ -909,7 +904,7 @@ contains
        case default
           if (present(logfile) .and. logfile%active) then
              call logfile%write(LOG_LEVEL_WARN, 'input', 'unrecognised', &
-                  str_key = "source[" // trim(srcstr) // "].direction", &
+                  str_key = trim(srcstr) // "direction", &
                   str_value = direction_str)
           end if
           direction = default_source_direction
