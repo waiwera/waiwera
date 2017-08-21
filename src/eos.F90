@@ -51,7 +51,6 @@ module eos_module
      PetscInt, public :: num_phases !! Number of possible phases
      PetscInt, public :: num_components !! Number of mass components
      PetscReal, allocatable, public :: default_primary(:) !! Default primary variable values
-     PetscReal, allocatable, public :: primary_scale(:,:) !! Scale factors for non-dimensionalising primary variables, indexed by variable and region
      PetscInt, public :: default_region !! Default thermodynamic region
      class(thermodynamics_type), pointer, public :: thermo !! Thermodynamic formulation
      PetscBool, public :: isothermal = PETSC_FALSE !! Whether the EOS is restricted to isothermal fluid conditions
@@ -65,6 +64,8 @@ module eos_module
      procedure(eos_phase_properties_procedure), public, deferred :: phase_properties
      procedure(eos_primary_variables_procedure), public, deferred :: primary_variables
      procedure(eos_check_primary_variables_procedure), public, deferred :: check_primary_variables
+     procedure(eos_scale_procedure), public, deferred :: scale
+     procedure(eos_unscale_procedure), public, deferred :: unscale
      procedure, public :: conductivity => eos_conductivity
      procedure, public :: component_index => eos_component_index
   end type eos_type
@@ -151,6 +152,24 @@ module eos_module
        PetscErrorCode, intent(out) :: err
      end subroutine eos_check_primary_variables_procedure
 
+     function eos_scale_procedure(self, primary, region) result(scaled_primary)
+       !! Non-dimensionalise primary variables by scaling.
+       import :: eos_type
+       class(eos_type), intent(in) :: self
+       PetscReal, intent(in) :: primary(self%num_primary_variables)
+       PetscInt, intent(in) :: region
+       PetscReal :: scaled_primary(self%num_primary_variables)
+     end function eos_scale_procedure
+
+     function eos_unscale_procedure(self, scaled_primary, region) result(primary)
+       !! Re-dimensionalise scaled primary variables.
+       import :: eos_type
+       class(eos_type), intent(in) :: self
+       PetscReal, intent(in) :: scaled_primary(self%num_primary_variables)
+       PetscInt, intent(in) :: region
+       PetscReal :: primary(self%num_primary_variables)
+     end function eos_unscale_procedure
+
   end interface
 
 contains
@@ -236,7 +255,6 @@ contains
     deallocate(self%primary_variable_names)
     deallocate(self%phase_names, self%component_names)
     deallocate(self%default_primary)
-    deallocate(self%primary_scale)
     self%thermo => null()
 
   end subroutine eos_destroy

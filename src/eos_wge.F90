@@ -15,6 +15,7 @@ module eos_wge_module
   type, public, extends(eos_type) :: eos_wge_type
      !! Pure water, non-condensible gas and energy equation of state type.
      private
+     PetscReal, allocatable :: primary_scale(:, :)
      class(ncg_thermodynamics_type), allocatable, public :: gas
      type(root_finder_type) :: saturation_line_finder
      type(primary_variable_interpolator_type), pointer :: &
@@ -31,6 +32,8 @@ module eos_wge_module
      procedure, public :: primary_variables => eos_wge_primary_variables
      procedure, public :: phase_saturations => eos_wge_phase_saturations
      procedure, public :: check_primary_variables => eos_wge_check_primary_variables
+     procedure, public :: scale => eos_wge_scale
+     procedure, public :: unscale => eos_wge_unscale
   end type eos_wge_type
 
 contains
@@ -56,7 +59,8 @@ contains
     PetscReal, parameter :: default_pressure = 1.0e5_dp
     PetscReal, parameter :: default_temperature = 20._dp ! deg C
     PetscReal, parameter :: default_gas_partial_pressure = 0._dp
-    PetscReal, parameter :: pscale = 1.e6_dp, tscale = 1.e2_dp
+    PetscReal :: pressure_scale = 1.e6_dp !! Scale factor for non-dimensionalising pressure
+    PetscReal :: temperature_scale = 1.e2_dp !! Scale factor for non-dimensionalising temperature
 
     self%name = "wge"
     self%description = "Water, non-condensible gas and energy"
@@ -73,12 +77,12 @@ contains
 
     self%default_primary = [default_pressure, default_temperature, &
          default_gas_partial_pressure]
-    self%primary_scale = reshape([ &
-         pscale, tscale, pscale, &
-         pscale, tscale, pscale, &
-         0._dp, 0._dp, 0._dp, &
-         pscale, 1._dp, pscale], [3, 4])
     self%default_region = 1
+    self%primary_scale = reshape([ &
+          pressure_scale, temperature_scale, &
+          pressure_scale, temperature_scale, &
+          0._dp, 0._dp, &
+          pressure_scale, 1._dp], [2, 4])
 
     self%thermo => thermo
 
@@ -107,6 +111,7 @@ contains
     deallocate(self%primary_variable_names)
     deallocate(self%phase_names, self%component_names)
     deallocate(self%default_primary)
+    deallocate(self%primary_scale)
     self%thermo => null()
 
     call self%saturation_line_finder%destroy()
@@ -590,6 +595,45 @@ contains
     end associate
 
   end subroutine eos_wge_check_primary_variables
+
+!------------------------------------------------------------------------
+
+  function eos_wge_scale(self, primary, region) result(scaled_primary)
+    !! Non-dimensionalise eos_wge primary variables by scaling. The
+    !! first two variables (pressure and temperature or saturation)
+    !! are scaled by fixed constants. The third variable, NCG partial
+    !! pressure, is scaled by total pressure.
+
+    class(eos_wge_type), intent(in) :: self
+    PetscReal, intent(in) :: primary(self%num_primary_variables)
+    PetscInt, intent(in) :: region
+    PetscReal :: scaled_primary(self%num_primary_variables)
+
+    scaled_primary(1:2) = primary(1:2) / self%primary_scale(:, region)
+    associate(scaled_partial_pressure => scaled_primary(3), &
+         pressure => primary(1), partial_pressure => primary(3))
+      scaled_partial_pressure = partial_pressure / pressure
+    end associate
+
+  end function eos_wge_scale
+
+!------------------------------------------------------------------------
+
+  function eos_wge_unscale(self, scaled_primary, region) result(primary)
+    !! Re-dimensionalise eos_wge scaled primary variables.
+
+    class(eos_wge_type), intent(in) :: self
+    PetscReal, intent(in) :: scaled_primary(self%num_primary_variables)
+    PetscInt, intent(in) :: region
+    PetscReal :: primary(self%num_primary_variables)
+
+    primary(1:2) = scaled_primary(1:2) * self%primary_scale(:, region)
+    associate(scaled_partial_pressure => scaled_primary(3), &
+         pressure => primary(1), partial_pressure => primary(3))
+      partial_pressure = scaled_partial_pressure * pressure
+    end associate
+
+  end function eos_wge_unscale
 
 !------------------------------------------------------------------------
 
