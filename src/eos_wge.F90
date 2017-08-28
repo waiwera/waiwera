@@ -565,6 +565,15 @@ contains
     err = 0
 
     associate (total_pressure => primary(1), partial_pressure => primary(3))
+
+      if (partial_pressure > total_pressure) then
+         partial_pressure = total_pressure
+         changed = PETSC_TRUE
+      else if (partial_pressure < 0._dp) then
+         partial_pressure = 0._dp
+         changed = PETSC_TRUE
+      end if
+
       p = total_pressure - partial_pressure
       if ((p < 0._dp) .or. (p > 100.e6_dp)) then
          err = 1
@@ -583,14 +592,6 @@ contains
                  err = 1
               end if
             end associate
-         end if
-         if (err == 0) then
-            if (partial_pressure > total_pressure) then
-               err = 1
-            else if (partial_pressure < 0._dp) then
-               partial_pressure = 0._dp
-               changed = PETSC_TRUE
-            end if
          end if
       end if
     end associate
