@@ -224,6 +224,7 @@ contains
          interpolated_pressure => interpolated_primary(1), &
          interpolated_partial_pressure => interpolated_primary(3))
 
+      partial_pressure = max(0._dp, min(partial_pressure, pressure))
       self%primary_variable_interpolator%val(:, 1) = old_primary
       self%primary_variable_interpolator%val(:, 2) = primary
       call self%saturation_line_finder%find()
