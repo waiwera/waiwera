@@ -225,9 +225,7 @@ contains
 
     err = 0
     associate (pressure => primary(1), vapour_saturation => primary(2), &
-         partial_pressure => primary(3), &
-         interpolated_pressure => interpolated_primary(1), &
-         interpolated_partial_pressure => interpolated_primary(3))
+         partial_pressure => primary(3))
 
       partial_pressure = max(0._dp, min(partial_pressure, pressure))
       self%primary_variable_interpolator%val(:, 1) = old_primary
@@ -237,8 +235,11 @@ contains
       if (self%saturation_line_finder%err == 0) then
          xi = self%saturation_line_finder%root
          interpolated_primary = self%primary_variable_interpolator%interpolate(xi)
-         pressure = interpolated_pressure
-         partial_pressure = interpolated_partial_pressure
+         associate(interpolated_pressure => interpolated_primary(1), &
+              interpolated_partial_pressure => interpolated_primary(3))
+           pressure = interpolated_pressure
+           partial_pressure = interpolated_partial_pressure
+         end associate
       else
          pressure = saturation_pressure + partial_pressure
       end if
