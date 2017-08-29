@@ -155,22 +155,27 @@ contains
        pressure_factor = 1._dp - small
     end if
 
-    self%primary_variable_interpolator%val(:, 1) = old_primary
-    self%primary_variable_interpolator%val(:, 2) = primary
-    call self%primary_variable_interpolator%find_component_at_index(&
-         saturation_bound, 2, xi, err)
-
     associate (pressure => primary(1), temperature => primary(2), &
-         partial_pressure => primary(3), &
-         interpolated_pressure => interpolated_primary(1), &
-         interpolated_partial_pressure => interpolated_primary(3))
+         partial_pressure => primary(3))
+
+      partial_pressure = max(0._dp, min(partial_pressure, pressure))
+      self%primary_variable_interpolator%val(:, 1) = old_primary
+      self%primary_variable_interpolator%val(:, 2) = primary
+      call self%primary_variable_interpolator%find_component_at_index(&
+           saturation_bound, 2, xi, err)
 
       if (err == 0) then
 
          interpolated_primary = self%primary_variable_interpolator%interpolate(xi)
-         partial_pressure = max(interpolated_partial_pressure, 0._dp)
-         interpolated_water_pressure = interpolated_pressure - partial_pressure
-         pressure = pressure_factor * interpolated_water_pressure + partial_pressure
+         associate(interpolated_pressure => interpolated_primary(1), &
+              interpolated_partial_pressure => interpolated_primary(3))
+           interpolated_water_pressure = interpolated_pressure - &
+                interpolated_partial_pressure
+           pressure = pressure_factor * interpolated_water_pressure + &
+                interpolated_partial_pressure
+           partial_pressure = interpolated_partial_pressure
+         end associate
+
          call self%thermo%saturation%temperature(interpolated_water_pressure, &
               temperature, err)
          if (err == 0) then
