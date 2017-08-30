@@ -1819,6 +1819,8 @@ end subroutine timestepper_steps_set_next_stepsize
       select case(str_to_lower(ksp_type_str))
       case ("gmres")
          ksp_type = KSPGMRES
+      case ("lgmres")
+         ksp_type = KSPLGMRES
       case ("bcgs")
          ksp_type = KSPBCGS
       case ("bcgsl")
@@ -2161,6 +2163,8 @@ end subroutine timestepper_steps_set_next_stepsize
       select case (ksp_type)
       case (KSPGMRES)
          str = 'gmres'
+      case (KSPLGMRES)
+         str = 'lgmres'
       case (KSPBCGS)
          str = 'bcgs'
       case (KSPBCGSL)
