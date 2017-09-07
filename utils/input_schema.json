@@ -500,6 +500,7 @@
                                     "properties": {
                                         "type": {"type": "string",
                                                  "enum": ["gmres", "GMRES",
+                                                          "lgmres", "LGMRES",
                                                           "bcgs", "BCGS",
                                                           "bcgsl", "BCGSL"]},
                                         "tolerance": {
