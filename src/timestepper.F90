@@ -1633,7 +1633,7 @@ end subroutine timestepper_steps_set_next_stepsize
     call self%setup_nonlinear_solver(nonlinear_max_iterations)
     call self%setup_linear_solver(ksp_type, linear_relative_tol, &
          linear_max_iterations, pc_type)
-    if ((pc_type == 'bjacobi') .or. (pc_type == 'asm')) then
+    if ((pc_type == PCBJACOBI) .or. (pc_type == PCASM)) then
        call fson_get_mpi(json, &
             "time.step.solver.linear.preconditioner.sub.preconditioner.type", &
             default_sub_pc_type_str, sub_pc_type_str, self%ode%logfile)
