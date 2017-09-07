@@ -74,8 +74,8 @@ contains
     PetscReal, allocatable :: data(:, :)
     PetscReal, parameter :: default_pressure = 1.0e5_dp
     PetscReal, parameter :: default_temperature = 20._dp ! deg C
-    PetscReal :: pressure_scale = 1.e6_dp !! Scale factor for non-dimensionalising pressure
-    PetscReal :: temperature_scale = 1.e2_dp !! Scale factor for non-dimensionalising temperature
+    PetscReal, parameter :: pressure_scale = 1.e6_dp !! Scale factor for non-dimensionalising pressure
+    PetscReal, parameter :: temperature_scale = 1.e2_dp !! Scale factor for non-dimensionalising temperature
 
     self%name = "we"
     self%description = "Pure water and energy"
