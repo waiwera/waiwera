@@ -202,6 +202,7 @@ module timestepper_module
      procedure :: setup_jacobian => timestepper_setup_jacobian
      procedure :: setup_nonlinear_solver => timestepper_setup_nonlinear_solver
      procedure :: setup_linear_solver => timestepper_setup_linear_solver
+     procedure :: setup_linear_solver_options => timestepper_setup_linear_solver_options
      procedure :: setup_linear_sub_solver => timestepper_setup_linear_sub_solver
      procedure :: step => timestepper_step
      procedure :: log_step_status => timestepper_log_step_status
@@ -1328,13 +1329,46 @@ end subroutine timestepper_steps_set_next_stepsize
     call KSPSetType(ksp, ksp_type, ierr); CHKERRQ(ierr)
     call KSPSetTolerances(ksp, relative_tolerance, PETSC_DEFAULT_REAL, &
          PETSC_DEFAULT_REAL, max_iterations, ierr); CHKERRQ(ierr)
-    call KSPSetFromOptions(ksp, ierr); CHKERRQ(ierr)
 
     call KSPGetPC(ksp, pc, ierr); CHKERRQ(ierr)
     call PCSetType(pc, pc_type, ierr); CHKERRQ(ierr)
     call PCSetFromOptions(pc, ierr); CHKERRQ(ierr)
 
   end subroutine timestepper_setup_linear_solver
+
+!------------------------------------------------------------------------
+
+  subroutine timestepper_setup_linear_solver_options(self, json, ksp_type)
+    !! Sets up KSP linear solver options.
+
+    use fson
+    use fson_mpi_module
+
+    class(timestepper_type), intent(in out) :: self
+    type(fson_value), pointer, intent(in) :: json
+    KSPType, intent(in) :: ksp_type
+    ! Locals:
+    KSP :: ksp
+    PetscErrorCode :: ierr
+    type(fson_value), pointer :: opt_json
+    PetscInt :: restart
+
+    call SNESGetKSP(self%solver, ksp, ierr); CHKERRQ(ierr)
+
+    if ((ksp_type == KSPGMRES) .or. (ksp_type == KSPLGMRES) .and. &
+         (fson_has_mpi(json, 'time.step.solver.linear.options.gmres'))) then
+       call fson_get_mpi(json, 'time.step.solver.linear.options.gmres', opt_json)
+
+       if (fson_has_mpi(opt_json, 'restart')) then
+          call fson_get_mpi(opt_json, 'restart', val = restart)
+          call KSPGMRESSetRestart(ksp, restart, ierr); CHKERRQ(ierr)
+       end if
+
+    end if
+
+    call KSPSetFromOptions(ksp, ierr); CHKERRQ(ierr)
+
+  end subroutine timestepper_setup_linear_solver_options
 
 !------------------------------------------------------------------------
 
@@ -1633,6 +1667,8 @@ end subroutine timestepper_steps_set_next_stepsize
     call self%setup_nonlinear_solver(nonlinear_max_iterations)
     call self%setup_linear_solver(ksp_type, linear_relative_tol, &
          linear_max_iterations, pc_type)
+    call self%setup_linear_solver_options(json, ksp_type)
+
     if ((pc_type == PCBJACOBI) .or. (pc_type == PCASM)) then
        call fson_get_mpi(json, &
             "time.step.solver.linear.preconditioner.sub.preconditioner.type", &
