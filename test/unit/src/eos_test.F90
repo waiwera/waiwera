@@ -23,6 +23,8 @@ module eos_test
      procedure, public :: phase_properties => eos_test_phase_properties
      procedure, public :: primary_variables => eos_test_primary_variables
      procedure, public :: check_primary_variables => eos_test_check_primary_variables
+     procedure, public :: scale => eos_test_scale
+     procedure, public :: unscale => eos_test_unscale
   end type eos_test_type
 
   public :: test_eos_component_index
@@ -62,11 +64,6 @@ contains
 
     self%default_primary = [default_pressure, default_temperature, &
          default_gas_partial_pressure]
-    self%primary_scale = reshape([ &
-         pcritical, tcritical, pcritical, &
-         pcritical, tcritical, pcritical, &
-         0._dp, 0._dp, 0._dp, &
-         pcritical, 1._dp, pcritical], [3, 4])
     self%default_region = 1
 
     self%thermo => thermo
@@ -156,6 +153,32 @@ contains
     err = 0
 
   end subroutine eos_test_check_primary_variables
+
+!------------------------------------------------------------------------
+
+  function eos_test_scale(self, primary, region) result(scaled_primary)
+
+    class(eos_test_type), intent(in) :: self
+    PetscReal, intent(in) :: primary(self%num_primary_variables)
+    PetscInt, intent(in) :: region
+    PetscReal :: scaled_primary(self%num_primary_variables)
+
+    scaled_primary = primary
+
+  end function eos_test_scale
+
+!------------------------------------------------------------------------
+
+  function eos_test_unscale(self, scaled_primary, region) result(primary)
+
+    class(eos_test_type), intent(in) :: self
+    PetscReal, intent(in) :: scaled_primary(self%num_primary_variables)
+    PetscInt, intent(in) :: region
+    PetscReal :: primary(self%num_primary_variables)
+
+    primary = scaled_primary
+
+  end function eos_test_unscale
 
 !------------------------------------------------------------------------
 

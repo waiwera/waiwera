@@ -546,8 +546,25 @@
                                     "properties": {
                                         "type": {"type": "string",
                                                  "enum": ["gmres", "GMRES",
+                                                          "lgmres", "LGMRES",
                                                           "bcgs", "BCGS",
                                                           "bcgsl", "BCGSL"]},
+                                        "options": {
+                                            "type": "object",
+                                            "properties": {
+                                                "gmres": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "restart": {
+                                                            "type": "integer",
+                                                            "minimum": 0
+                                                        }
+                                                    },
+                                                    "additionalProperties": false
+                                                }
+                                            },
+                                            "additionalProperties": false
+                                        },
                                         "tolerance": {
                                             "type": "object",
                                             "properties": {

@@ -18,10 +18,8 @@ model_name = 'co2_column'
 
 dx = 100.
 dy = dx
-dz = 20.
-h = 1000.
-nz = int(h / dz)
-geo = mulgrid().rectangular([dx], [dy], [dz] * nz, atmos_type = 0)
+dz = [30.] * 10 + [35.] * 20
+geo = mulgrid().rectangular([dx], [dy], dz, atmos_type = 0)
 geo.write('g' + model_name + '.dat')
 mesh_filename = 'g' + model_name + '.msh'
 geo.write_mesh(mesh_filename, dimension = 2, slice = 'x')

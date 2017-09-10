@@ -31,6 +31,7 @@ module eos_w_module
      !! Isothermal pure water equation of state type.
      private
      PetscReal, public :: temperature  !! Constant temperature
+     PetscReal :: pressure_scale = 1.e6_dp !! Scale factor for non-dimensionalising pressure
    contains
      private
      procedure, public :: init => eos_w_init
@@ -40,6 +41,8 @@ module eos_w_module
      procedure, public :: phase_properties => eos_w_phase_properties
      procedure, public :: primary_variables => eos_w_primary_variables
      procedure, public :: check_primary_variables => eos_w_check_primary_variables
+     procedure, public :: scale => eos_w_scale
+     procedure, public :: unscale => eos_w_unscale
      procedure, public :: conductivity => eos_w_conductivity
   end type eos_w_type
 
@@ -62,7 +65,6 @@ contains
     ! Locals:
     PetscReal, parameter :: default_pressure = 1.0e5_dp
     PetscReal, parameter :: default_temperature = 20._dp ! deg C
-    PetscReal, parameter :: pscale = 1.e6_dp
 
     self%name = "w"
     self%description = "Isothermal pure water"
@@ -76,7 +78,6 @@ contains
     self%isothermal = PETSC_TRUE
 
     self%default_primary = [default_pressure]
-    self%primary_scale = reshape([pscale, pscale], [1, 2])
     self%default_region = 1
 
     self%thermo => thermo
@@ -238,6 +239,34 @@ end subroutine eos_w_phase_properties
     end associate
 
   end subroutine eos_w_check_primary_variables
+
+!------------------------------------------------------------------------
+
+  function eos_w_scale(self, primary, region) result(scaled_primary)
+    !! Non-dimensionalise eos_w primary variables by scaling.
+
+    class(eos_w_type), intent(in) :: self
+    PetscReal, intent(in) :: primary(self%num_primary_variables)
+    PetscInt, intent(in) :: region
+    PetscReal :: scaled_primary(self%num_primary_variables)
+
+    scaled_primary = primary / self%pressure_scale
+
+  end function eos_w_scale
+
+!------------------------------------------------------------------------
+
+  function eos_w_unscale(self, scaled_primary, region) result(primary)
+    !! Re-dimensionalise eos_w scaled primary variables.
+
+    class(eos_w_type), intent(in) :: self
+    PetscReal, intent(in) :: scaled_primary(self%num_primary_variables)
+    PetscInt, intent(in) :: region
+    PetscReal :: primary(self%num_primary_variables)
+
+    primary = scaled_primary * self%pressure_scale
+
+  end function eos_w_unscale
 
 !------------------------------------------------------------------------
 

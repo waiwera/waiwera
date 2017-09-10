@@ -379,8 +379,7 @@ contains
           call global_section_offset(fluid_section, c, &
                fluid_range_start, fluid_offset, ierr); CHKERRQ(ierr)
           call fluid%assign(fluid_array, fluid_offset)
-          cell_primary = cell_primary / &
-                     eos%primary_scale(:, nint(fluid%region))
+          cell_primary = eos%scale(cell_primary, nint(fluid%region))
        end if
     end do
 
