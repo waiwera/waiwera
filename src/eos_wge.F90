@@ -15,6 +15,7 @@ module eos_wge_module
   type, public, extends(eos_type) :: eos_wge_type
      !! Pure water, non-condensible gas and energy equation of state type.
      private
+     PetscReal, allocatable :: primary_scale(:, :)
      class(ncg_thermodynamics_type), allocatable, public :: gas
      type(root_finder_type) :: saturation_line_finder
      type(primary_variable_interpolator_type), pointer :: &
@@ -31,6 +32,8 @@ module eos_wge_module
      procedure, public :: primary_variables => eos_wge_primary_variables
      procedure, public :: phase_saturations => eos_wge_phase_saturations
      procedure, public :: check_primary_variables => eos_wge_check_primary_variables
+     procedure, public :: scale => eos_wge_scale
+     procedure, public :: unscale => eos_wge_unscale
   end type eos_wge_type
 
 contains
@@ -56,7 +59,8 @@ contains
     PetscReal, parameter :: default_pressure = 1.0e5_dp
     PetscReal, parameter :: default_temperature = 20._dp ! deg C
     PetscReal, parameter :: default_gas_partial_pressure = 0._dp
-    PetscReal, parameter :: pscale = 1.e6_dp, tscale = 1.e2_dp
+    PetscReal, parameter :: pressure_scale = 1.e6_dp !! Scale factor for non-dimensionalising pressure
+    PetscReal, parameter :: temperature_scale = 1.e2_dp !! Scale factor for non-dimensionalising temperature
 
     self%name = "wge"
     self%description = "Water, non-condensible gas and energy"
@@ -73,12 +77,12 @@ contains
 
     self%default_primary = [default_pressure, default_temperature, &
          default_gas_partial_pressure]
-    self%primary_scale = reshape([ &
-         pscale, tscale, pscale, &
-         pscale, tscale, pscale, &
-         0._dp, 0._dp, 0._dp, &
-         pscale, 1._dp, pscale], [3, 4])
     self%default_region = 1
+    self%primary_scale = reshape([ &
+          pressure_scale, temperature_scale, &
+          pressure_scale, temperature_scale, &
+          0._dp, 0._dp, &
+          pressure_scale, 1._dp], [2, 4])
 
     self%thermo => thermo
 
@@ -107,6 +111,7 @@ contains
     deallocate(self%primary_variable_names)
     deallocate(self%phase_names, self%component_names)
     deallocate(self%default_primary)
+    deallocate(self%primary_scale)
     self%thermo => null()
 
     call self%saturation_line_finder%destroy()
@@ -150,22 +155,27 @@ contains
        pressure_factor = 1._dp - small
     end if
 
-    self%primary_variable_interpolator%val(:, 1) = old_primary
-    self%primary_variable_interpolator%val(:, 2) = primary
-    call self%primary_variable_interpolator%find_component_at_index(&
-         saturation_bound, 2, xi, err)
-
     associate (pressure => primary(1), temperature => primary(2), &
-         partial_pressure => primary(3), &
-         interpolated_pressure => interpolated_primary(1), &
-         interpolated_partial_pressure => interpolated_primary(3))
+         partial_pressure => primary(3))
+
+      partial_pressure = max(0._dp, min(partial_pressure, pressure))
+      self%primary_variable_interpolator%val(:, 1) = old_primary
+      self%primary_variable_interpolator%val(:, 2) = primary
+      call self%primary_variable_interpolator%find_component_at_index(&
+           saturation_bound, 2, xi, err)
 
       if (err == 0) then
 
          interpolated_primary = self%primary_variable_interpolator%interpolate(xi)
-         partial_pressure = max(interpolated_partial_pressure, 0._dp)
-         interpolated_water_pressure = interpolated_pressure - partial_pressure
-         pressure = pressure_factor * interpolated_water_pressure + partial_pressure
+         associate(interpolated_pressure => interpolated_primary(1), &
+              interpolated_partial_pressure => interpolated_primary(3))
+           interpolated_water_pressure = interpolated_pressure - &
+                interpolated_partial_pressure
+           pressure = pressure_factor * interpolated_water_pressure + &
+                interpolated_partial_pressure
+           partial_pressure = interpolated_partial_pressure
+         end associate
+
          call self%thermo%saturation%temperature(interpolated_water_pressure, &
               temperature, err)
          if (err == 0) then
@@ -215,10 +225,9 @@ contains
 
     err = 0
     associate (pressure => primary(1), vapour_saturation => primary(2), &
-         partial_pressure => primary(3), &
-         interpolated_pressure => interpolated_primary(1), &
-         interpolated_partial_pressure => interpolated_primary(3))
+         partial_pressure => primary(3))
 
+      partial_pressure = max(0._dp, min(partial_pressure, pressure))
       self%primary_variable_interpolator%val(:, 1) = old_primary
       self%primary_variable_interpolator%val(:, 2) = primary
       call self%saturation_line_finder%find()
@@ -226,8 +235,11 @@ contains
       if (self%saturation_line_finder%err == 0) then
          xi = self%saturation_line_finder%root
          interpolated_primary = self%primary_variable_interpolator%interpolate(xi)
-         pressure = interpolated_pressure
-         partial_pressure = interpolated_partial_pressure
+         associate(interpolated_pressure => interpolated_primary(1), &
+              interpolated_partial_pressure => interpolated_primary(3))
+           pressure = interpolated_pressure
+           partial_pressure = interpolated_partial_pressure
+         end associate
       else
          pressure = saturation_pressure + partial_pressure
       end if
@@ -559,6 +571,15 @@ contains
     err = 0
 
     associate (total_pressure => primary(1), partial_pressure => primary(3))
+
+      if (partial_pressure > total_pressure) then
+         partial_pressure = total_pressure
+         changed = PETSC_TRUE
+      else if (partial_pressure < 0._dp) then
+         partial_pressure = 0._dp
+         changed = PETSC_TRUE
+      end if
+
       p = total_pressure - partial_pressure
       if ((p < 0._dp) .or. (p > 100.e6_dp)) then
          err = 1
@@ -578,18 +599,49 @@ contains
               end if
             end associate
          end if
-         if (err == 0) then
-            if (partial_pressure > total_pressure) then
-               err = 1
-            else if (partial_pressure < 0._dp) then
-               partial_pressure = 0._dp
-               changed = PETSC_TRUE
-            end if
-         end if
       end if
     end associate
 
   end subroutine eos_wge_check_primary_variables
+
+!------------------------------------------------------------------------
+
+  function eos_wge_scale(self, primary, region) result(scaled_primary)
+    !! Non-dimensionalise eos_wge primary variables by scaling. The
+    !! first two variables (pressure and temperature or saturation)
+    !! are scaled by fixed constants. The third variable, NCG partial
+    !! pressure, is scaled by total pressure.
+
+    class(eos_wge_type), intent(in) :: self
+    PetscReal, intent(in) :: primary(self%num_primary_variables)
+    PetscInt, intent(in) :: region
+    PetscReal :: scaled_primary(self%num_primary_variables)
+
+    scaled_primary(1:2) = primary(1:2) / self%primary_scale(:, region)
+    associate(scaled_partial_pressure => scaled_primary(3), &
+         pressure => primary(1), partial_pressure => primary(3))
+      scaled_partial_pressure = partial_pressure / pressure
+    end associate
+
+  end function eos_wge_scale
+
+!------------------------------------------------------------------------
+
+  function eos_wge_unscale(self, scaled_primary, region) result(primary)
+    !! Re-dimensionalise eos_wge scaled primary variables.
+
+    class(eos_wge_type), intent(in) :: self
+    PetscReal, intent(in) :: scaled_primary(self%num_primary_variables)
+    PetscInt, intent(in) :: region
+    PetscReal :: primary(self%num_primary_variables)
+
+    primary(1:2) = scaled_primary(1:2) * self%primary_scale(:, region)
+    associate(scaled_partial_pressure => scaled_primary(3), &
+         pressure => primary(1), partial_pressure => primary(3))
+      partial_pressure = scaled_partial_pressure * pressure
+    end associate
+
+  end function eos_wge_unscale
 
 !------------------------------------------------------------------------
 

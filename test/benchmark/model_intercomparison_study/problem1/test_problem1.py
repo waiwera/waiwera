@@ -143,10 +143,10 @@ for field_name in digitised_test_fields:
 
     t, var = problem1_test.mSuite.resultsList[run_index].\
              getFieldHistoryAtCell(field_name, obs_cell_index)
-    plt.semilogx(t, var / scale[field_name], '-', label = 'Waiwera')
+    plt.semilogx(t, var / scale[field_name], '-', label = 'Waiwera', zorder = 4)
 
     t, var = AUTOUGH2_result.getFieldHistoryAtCell(field_name, obs_cell_index)
-    plt.semilogx(t, var / scale[field_name], '+', label = 'AUTOUGH2')
+    plt.semilogx(t, var / scale[field_name], 's', label = 'AUTOUGH2', zorder = 3)
 
     for sim in digitised_simulators:
         result = digitised_result[sim]
@@ -154,7 +154,7 @@ for field_name in digitised_test_fields:
         plt.semilogx(t, var / scale[field_name], symbol[sim], label = sim)
 
     t, var = analytical_result.getFieldHistoryAtCell(field_name, obs_cell_index)
-    plt.semilogx(t, var / scale[field_name], ':', label = 'analytical')
+    plt.semilogx(t, var / scale[field_name], 'k--', label = 'analytical', zorder = 1)
     plt.xlabel('time (s)')
     plt.ylabel(field_name + ' (' + unit[field_name] + ')')
 
@@ -165,11 +165,12 @@ for field_name in digitised_test_fields:
     img_filename_base = img_filename_base.replace(' ', '_')
     img_filename = os.path.join(problem1_test.mSuite.runs[run_index].basePath,
                                 problem1_test.mSuite.outputPathBase,
-                                img_filename_base + '.png')
+                                img_filename_base)
     plt.tight_layout(pad = 3.)
-    plt.savefig(img_filename)
+    plt.savefig(img_filename + '.png', dpi = 300)
+    plt.savefig(img_filename + '.pdf')
     plt.clf()
-    problem1_test.mSuite.analysisImages.append(img_filename)
+    problem1_test.mSuite.analysisImages.append(img_filename + '.png')
 
 t = problem1_test.testComps[run_index][tc_name].times
 for field_name in digitised_test_fields:
@@ -183,11 +184,12 @@ for field_name in digitised_test_fields:
     img_filename_base = img_filename_base.replace(' ', '_')
     img_filename = os.path.join(problem1_test.mSuite.runs[run_index].basePath,
                                 problem1_test.mSuite.outputPathBase,
-                                img_filename_base + '.png')
+                                img_filename_base)
     plt.tight_layout(pad = 3.)
-    plt.savefig(img_filename)
+    plt.savefig(img_filename + '.png', dpi = 300)
+    plt.savefig(img_filename + '.pdf')
     plt.clf()
-    problem1_test.mSuite.analysisImages.append(img_filename)
+    problem1_test.mSuite.analysisImages.append(img_filename + '.png')
 
 # plot temperature profile w.r.t. radius at end time:
 tc_name = "AUTOUGH2 at t = 1.e9 s"
@@ -199,10 +201,10 @@ r = r[ir]
 for field_name in digitised_test_fields:
     result = problem1_test.mSuite.resultsList[run_index]
     var = result.getFieldAtOutputIndex(field_name, outputIndex)[ir] /scale[field_name]
-    plt.plot(r, var, '-', label = 'Waiwera')
+    plt.plot(r, var, '-', label = 'Waiwera', zorder = 4)
     var = AUTOUGH2_result.getFieldAtOutputIndex(field_name,
                                                 outputIndex)[ir] / scale[field_name]
-    plt.plot(r, var, '+', label = 'AUTOUGH2')
+    plt.plot(r, var, 's', label = 'AUTOUGH2', zorder = 3)
     for sim in digitised_simulators:
         result = digitised_r_result[field_name, sim]
         r = result.getCoordinates()
@@ -215,7 +217,7 @@ for field_name in digitised_test_fields:
     result = DigitisedOneDFieldResult(sim, data_filename, field_name, -1)
     r = result.getCoordinates()
     var = result.getFieldAtOutputIndex(field_name, outputIndex)
-    plt.plot(r, var / scale[field_name], ':', label = sim)
+    plt.plot(r, var / scale[field_name], 'k--', label = sim, zorder = 1)
     plt.xlabel('radius (m)')
     plt.ylabel(field_name + ' (' + unit[field_name] + ')')
     plt.title(' '.join((model_name, 'comparison with', tc_name)))
@@ -223,12 +225,13 @@ for field_name in digitised_test_fields:
     img_filename_base = img_filename_base.replace(' ', '_')
     img_filename = os.path.join(problem1_test.mSuite.runs[run_index].basePath,
                                 problem1_test.mSuite.outputPathBase,
-                                img_filename_base + '.png')
+                                img_filename_base)
     plt.legend(loc = 'upper left')
     plt.tight_layout(pad = 3.)
-    plt.savefig(img_filename)
+    plt.savefig(img_filename + '.png', dpi = 300)
+    plt.savefig(img_filename + '.pdf')
     plt.clf()
-    problem1_test.mSuite.analysisImages.append(img_filename)
+    problem1_test.mSuite.analysisImages.append(img_filename + '.png')
 
 # generate report:
 

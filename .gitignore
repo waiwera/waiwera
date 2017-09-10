@@ -12,3 +12,4 @@ doc/depends.dot
 doc/depends.eps
 doc/ford/*
 !doc/ford/readme
+utils/*.pyc

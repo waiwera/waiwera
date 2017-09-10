@@ -1190,8 +1190,7 @@ contains
           call cell%rock%assign_relative_permeability(self%relative_permeability)
           call cell%rock%assign_capillary_pressure(self%capillary_pressure)
           call cell%fluid%assign(fluid_array, fluid_offset)
-          cell_primary = scaled_cell_primary * &
-               self%eos%primary_scale(:, nint(cell%fluid%region))
+          cell_primary = self%eos%unscale(scaled_cell_primary, nint(cell%fluid%region))
 
           call self%eos%bulk_properties(cell_primary, cell%fluid, err)
 
@@ -1311,8 +1310,7 @@ contains
              call cell%rock%assign_relative_permeability(self%relative_permeability)
              call cell%rock%assign_capillary_pressure(self%capillary_pressure)
              call cell%fluid%assign(fluid_array, fluid_offset)
-             cell_primary = scaled_cell_primary * &
-                  self%eos%primary_scale(:, nint(cell%fluid%region))
+             cell_primary = self%eos%unscale(scaled_cell_primary, nint(cell%fluid%region))
 
              call self%eos%bulk_properties(cell_primary, cell%fluid, err)
 
@@ -1432,10 +1430,9 @@ contains
           call old_fluid%assign(last_iteration_fluid_array, &
                fluid_offset)
           call fluid%assign(fluid_array, fluid_offset)
-          cell_primary = scaled_cell_primary * &
-               self%eos%primary_scale(:, nint(fluid%region))
-          old_cell_primary = old_scaled_cell_primary * &
-               self%eos%primary_scale(:, nint(old_fluid%region))
+          cell_primary = self%eos%unscale(scaled_cell_primary, nint(fluid%region))
+          old_cell_primary = self%eos%unscale(old_scaled_cell_primary, &
+               nint(old_fluid%region))
 
           call self%eos%transition(old_cell_primary, cell_primary, &
                old_fluid, fluid, transition, err)
@@ -1470,8 +1467,7 @@ contains
              end if
              if (changed_y) then
                 changed_search = PETSC_TRUE
-                scaled_cell_primary = cell_primary / &
-                     self%eos%primary_scale(:, nint(fluid%region))
+                scaled_cell_primary = self%eos%scale(cell_primary, nint(fluid%region))
                 scaled_cell_search = old_scaled_cell_primary - scaled_cell_primary
              end if
           else

@@ -121,13 +121,14 @@ for depth in depths:
 
         t, var = problem4_test.mSuite.resultsList[run_index].\
                  getFieldHistoryAtCell(field_name, obs_cell_index)
-        plt.plot(t / yr, var / scale[field_name], '-', label = 'Waiwera')
+        plt.plot(t / yr, var / scale[field_name], '-', label = 'Waiwera', zorder = 3)
 
         t, var = AUTOUGH2_result.getFieldHistoryAtCell(field_name, obs_cell_index)
-        plt.plot(t / yr, var / scale[field_name], '+', label = 'AUTOUGH2')
+        plt.plot(t[::3] / yr, var[::3] / scale[field_name], 's', label = 'AUTOUGH2', zorder = 2)
 
         t, var = ref_result.getFieldHistoryAtCell(field_name, obs_cell_index)
-        plt.plot(t / yr, var / scale[field_name], symbol[ref_sim], label = ref_sim)
+        plt.plot(t / yr, var / scale[field_name], symbol[ref_sim], label = ref_sim,
+                 zorder = 1)
 
         plt.xlabel('time (years)')
         plt.ylabel(field_name + ' (' + unit[field_name] + ')')
@@ -138,11 +139,12 @@ for depth in depths:
         img_filename_base = img_filename_base.replace(' ', '_')
         img_filename = os.path.join(problem4_test.mSuite.runs[run_index].basePath,
                                     problem4_test.mSuite.outputPathBase,
-                                    img_filename_base + '.png')
+                                    img_filename_base)
         plt.tight_layout(pad = 3.)
-        plt.savefig(img_filename)
+        plt.savefig(img_filename + '.png', dpi = 300)
+        plt.savefig(img_filename + '.pdf')
         plt.clf()
-        problem4_test.mSuite.analysisImages.append(img_filename)
+        problem4_test.mSuite.analysisImages.append(img_filename + '.png')
 
 # generate report:
 

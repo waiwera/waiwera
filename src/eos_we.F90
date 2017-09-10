@@ -32,6 +32,7 @@ module eos_we_module
   type, public, extends(eos_type) :: eos_we_type
      !! Pure water and energy equation of state type.
      private
+     PetscReal, allocatable :: primary_scale(:, :)
      type(root_finder_type) :: saturation_line_finder
      type(primary_variable_interpolator_type), pointer :: &
           primary_variable_interpolator
@@ -47,6 +48,8 @@ module eos_we_module
      procedure, public :: primary_variables => eos_we_primary_variables
      procedure, public :: phase_saturations => eos_we_phase_saturations
      procedure, public :: check_primary_variables => eos_we_check_primary_variables
+     procedure, public :: scale => eos_we_scale
+     procedure, public :: unscale => eos_we_unscale
   end type eos_we_type
 
 contains
@@ -71,7 +74,8 @@ contains
     PetscReal, allocatable :: data(:, :)
     PetscReal, parameter :: default_pressure = 1.0e5_dp
     PetscReal, parameter :: default_temperature = 20._dp ! deg C
-    PetscReal, parameter :: pscale = 1.e6_dp, tscale = 1.e2_dp
+    PetscReal, parameter :: pressure_scale = 1.e6_dp !! Scale factor for non-dimensionalising pressure
+    PetscReal, parameter :: temperature_scale = 1.e2_dp !! Scale factor for non-dimensionalising temperature
 
     self%name = "we"
     self%description = "Pure water and energy"
@@ -85,12 +89,12 @@ contains
     self%component_names = ["water"]
 
     self%default_primary = [default_pressure, default_temperature]
-    self%primary_scale = reshape([ &
-         pscale, tscale, &
-         pscale, tscale, &
-         0._dp, 0._dp, &
-         pscale, tscale], [2, 4])
     self%default_region = 1
+    self%primary_scale = reshape([ &
+          pressure_scale, temperature_scale, &
+          pressure_scale, temperature_scale, &
+          0._dp, 0._dp, &
+          pressure_scale, 1._dp], [2, 4])
 
     self%thermo => thermo
 
@@ -119,6 +123,7 @@ contains
     deallocate(self%primary_variable_names)
     deallocate(self%phase_names, self%component_names)
     deallocate(self%default_primary)
+    deallocate(self%primary_scale)
     self%thermo => null()
 
     call self%saturation_line_finder%destroy()
@@ -504,6 +509,34 @@ contains
     end associate
 
   end subroutine eos_we_check_primary_variables
+
+!------------------------------------------------------------------------
+
+  function eos_we_scale(self, primary, region) result(scaled_primary)
+    !! Non-dimensionalise eos_we primary variables by scaling.
+
+    class(eos_we_type), intent(in) :: self
+    PetscReal, intent(in) :: primary(self%num_primary_variables)
+    PetscInt, intent(in) :: region
+    PetscReal :: scaled_primary(self%num_primary_variables)
+
+    scaled_primary = primary / self%primary_scale(:, region)
+
+  end function eos_we_scale
+
+!------------------------------------------------------------------------
+
+  function eos_we_unscale(self, scaled_primary, region) result(primary)
+    !! Re-dimensionalise eos_we scaled primary variables.
+
+    class(eos_we_type), intent(in) :: self
+    PetscReal, intent(in) :: scaled_primary(self%num_primary_variables)
+    PetscInt, intent(in) :: region
+    PetscReal :: primary(self%num_primary_variables)
+
+    primary = scaled_primary * self%primary_scale(:, region)
+
+  end function eos_we_unscale
 
 !------------------------------------------------------------------------
 
