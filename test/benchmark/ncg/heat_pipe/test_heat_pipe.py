@@ -117,7 +117,7 @@ jrunner = SimpleJobRunner(mpi = True)
 testResult, mResults = heat_pipe_test.runTest(jrunner, createReports = True)
 
 # plots:
-symbol = {"TOUGH2": '.'}
+symbol = {"TOUGH2": 'o'}
 
 tc_name = "AUTOUGH2"
 outputIndex = -1
@@ -126,10 +126,10 @@ for field_name in test_fields:
     result = heat_pipe_test.mSuite.resultsList[run_index]
     r = np.array([col.centre[0] for col in geo.columnlist])
     var = result.getFieldAtOutputIndex(field_name, outputIndex) / field_scale[field_name]
-    plt.semilogx(r, var, '-', label = 'Waiwera')
+    plt.semilogx(r, var, '-', label = 'Waiwera', zorder = 3)
     var = AUTOUGH2_result.getFieldAtOutputIndex(field_name,
                                                 outputIndex) / field_scale[field_name]
-    plt.semilogx(r, var, '+', label = 'AUTOUGH2')
+    plt.semilogx(r, var, 's', label = 'AUTOUGH2', zorder = 2)
     for sim in digitised_simulators:
         result = digitised_result[field_name, sim]
         r = result.getCoordinates()
@@ -142,13 +142,14 @@ for field_name in test_fields:
     img_filename_base = img_filename_base.replace(' ', '_')
     img_filename = os.path.join(heat_pipe_test.mSuite.runs[run_index].basePath,
                                 heat_pipe_test.mSuite.outputPathBase,
-                                img_filename_base + '.png')
+                                img_filename_base)
     plt.xlim([min_radius, max_radius])
     plt.legend(loc = 'center right')
     plt.tight_layout(pad = 3.)
-    plt.savefig(img_filename)
+    plt.savefig(img_filename + '.png', dpi = 300)
+    plt.savefig(img_filename + '.pdf')
     plt.clf()
-    heat_pipe_test.mSuite.analysisImages.append(img_filename)
+    heat_pipe_test.mSuite.analysisImages.append(img_filename + '.png')
 
 # generate report:
 

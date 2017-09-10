@@ -323,25 +323,28 @@ class t2data_export_json(t2data):
                     elif gen.type in ['DELG', 'DELS', 'DELT', 'DELW']:
                         g['deliverability'] = {'productivity': gen.gx,
                                                'pressure': gen.ex}
-                        if gen.hg > 0.:
-                            g['limiter'] = {'type': limit_type[gen.type], 'limit': gen.hg}
-                            if gen.type != 'DELT':
-                                if gen.fg > 0.:
-                                    g['limiter']['separator_pressure'] = gen.fg
-                                elif gen.fg < 0.:
-                                    raise Exception('Two-stage flash separator not supported.')
-                        elif gen.hg < 0. and gen.type == 'DELG':
-                            g['rate'] = gen.hg # initial rate for computing productivity index
-                            del g['deliverability']['productivity']
+                        if gen.hg is not None:
+                            if gen.hg > 0.:
+                                g['limiter'] = {'type': limit_type[gen.type], 'limit': gen.hg}
+                                if gen.type != 'DELT':
+                                    if gen.fg is not None:
+                                        if gen.fg > 0.:
+                                            g['limiter']['separator_pressure'] = gen.fg
+                                        elif gen.fg < 0.:
+                                            raise Exception('Two-stage flash separator not supported.')
+                            elif gen.hg < 0. and gen.type == 'DELG':
+                                g['rate'] = gen.hg # initial rate for computing productivity index
+                                del g['deliverability']['productivity']
                         if gen.type == 'DELS': g['production_component'] = 2
                         g['direction'] = 'production'
                     elif gen.type == 'RECH':
                         g['enthalpy'] = gen.ex
-                        if gen.hg != 0.:
+                        if (gen.hg is not None) and gen.hg != 0.:
                             rech = {}
-                            if gen.fg < 0.: g['direction'] = "out"
-                            elif gen.fg > 0.: g['direction'] = "in"
-                            else: g['direction'] = "both"
+                            g['direction'] = "both"
+                            if gen.fg is not None:
+                                if gen.fg < 0.: g['direction'] = "out"
+                                elif gen.fg > 0.: g['direction'] = "in"
                             if gen.hg > 0.: rech['pressure'] = gen.hg
                             else: rech['pressure'] = 'initial'
                             rech['coefficient'] = gen.gx
