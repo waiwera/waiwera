@@ -64,7 +64,7 @@ contains
     call DMGetLabel(mesh%dm, "ghost", ghost_label, ierr)
     CHKERRQ(ierr)
 
-    do c = mesh%start_cell, mesh%end_cell - 1
+    do c = mesh%strata(0)%start, mesh%strata(0)%end - 1
        call DMLabelGetValue(ghost_label, c, ghost, ierr); CHKERRQ(ierr)
        if (ghost < 0) then
           call global_section_offset(y_section, c, &
@@ -172,7 +172,7 @@ contains
     call DMGetLabel(mesh%dm, "ghost", ghost_label, ierr)
     CHKERRQ(ierr)
 
-    do c = mesh%start_cell, mesh%end_cell - 1
+    do c = mesh%strata(0)%start, mesh%strata(0)%end - 1
        call DMLabelGetValue(ghost_label, c, ghost, ierr); CHKERRQ(ierr)
        if (ghost < 0) then
           call global_section_offset(fluid_section, c, &
@@ -315,7 +315,7 @@ contains
     call DMGetLabel(mesh%dm, "ghost", ghost_label, ierr)
     CHKERRQ(ierr)
 
-    do c = mesh%start_cell, mesh%end_cell - 1
+    do c = mesh%strata(0)%start, mesh%strata(0)%end - 1
        call DMLabelGetValue(ghost_label, c, ghost, ierr); CHKERRQ(ierr)
        if (ghost < 0) then
           call global_section_offset(y_section, c, &
@@ -371,7 +371,7 @@ contains
     call DMGetLabel(mesh%dm, "ghost", ghost_label, ierr)
     CHKERRQ(ierr)
 
-    do c = mesh%start_cell, mesh%end_cell - 1
+    do c = mesh%strata(0)%start, mesh%strata(0)%end - 1
        call DMLabelGetValue(ghost_label, c, ghost, ierr); CHKERRQ(ierr)
        if (ghost < 0) then
           call global_section_offset(y_section, c, &
@@ -558,7 +558,7 @@ contains
     call fluid%init(eos%num_components, eos%num_phases)
     np = eos%num_primary_variables
 
-    max_num_levels = ubound(mesh%minc_shift, 2)
+    max_num_levels = maxval(mesh%minc%num_levels)
     allocate(ic(max_num_levels))
     ic = 0
     h = 0
@@ -586,7 +586,7 @@ contains
                     frac_region = nint(fluid%region)
 
                     do m = 1, minc%num_levels
-                       p = ic(m) + mesh%minc_shift(h, m)
+                       p = mesh%strata(h)%minc_point(ic(m), m)
                        call global_section_offset(y_section, p, y_range_start, &
                             y_minc_offset, ierr); CHKERRQ(ierr)
                        associate (primary => y_array(y_minc_offset : &

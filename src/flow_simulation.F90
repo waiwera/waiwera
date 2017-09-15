@@ -779,7 +779,7 @@ contains
 
     call cell%init(nc, self%eos%num_phases)
 
-    do c = self%mesh%start_cell, self%mesh%end_cell - 1
+    do c = self%mesh%strata(0)%start, self%mesh%strata(0)%end - 1
 
        if (self%mesh%ghost_cell(c) < 0) then
 
@@ -892,7 +892,7 @@ contains
 
     call face%init(self%eos%num_components, self%eos%num_phases)
 
-    do f = self%mesh%start_face, self%mesh%end_face - 1
+    do f = self%mesh%strata(1)%start, self%mesh%strata(1)%end - 1
 
        if (self%mesh%ghost_face(f) < 0) then
 
@@ -938,7 +938,7 @@ contains
 
           do i = 1, 2
              if ((self%mesh%ghost_cell(cells(i)) < 0) .and. &
-                  (cells(i) <= self%mesh%end_interior_cell - 1)) then
+                  (cells(i) <= self%mesh%strata(0)%end_interior - 1)) then
                 inflow => rhs_array(rhs_offsets(i) : rhs_offsets(i) + np - 1)
                 inflow = inflow + flux_sign(i) * face_flow / &
                      face%cell(i)%volume
@@ -1173,7 +1173,7 @@ contains
     call DMGetLabel(self%mesh%dm, cell_order_label_name, order_label, ierr)
     CHKERRQ(ierr)
 
-    do c = self%mesh%start_cell, self%mesh%end_cell - 1
+    do c = self%mesh%strata(0)%start, self%mesh%strata(0)%end - 1
 
        if (self%mesh%ghost_cell(c) < 0) then
 
@@ -1289,7 +1289,7 @@ contains
     call DMGetLabel(self%mesh%dm, cell_order_label_name, order_label, ierr)
     CHKERRQ(ierr)
 
-    do c = self%mesh%start_cell, self%mesh%end_cell - 1
+    do c = self%mesh%strata(0)%start, self%mesh%strata(0)%end - 1
 
        if ((self%mesh%ghost_cell(c) < 0)) then
 
@@ -1414,7 +1414,7 @@ contains
     call DMGetLabel(self%mesh%dm, cell_order_label_name, order_label, ierr)
     CHKERRQ(ierr)
 
-    do c = self%mesh%start_cell, self%mesh%end_cell - 1
+    do c = self%mesh%strata(0)%start, self%mesh%strata(0)%end - 1
 
        if (self%mesh%ghost_cell(c) < 0) then
 
@@ -1600,7 +1600,7 @@ contains
 
     call cell%init(nc, self%eos%num_phases)
 
-    do c = self%mesh%end_interior_cell, self%mesh%end_cell - 1
+    do c = self%mesh%strata(0)%end_interior, self%mesh%strata(0)%end - 1
 
        if (self%mesh%ghost_cell(c) < 0) then
 
