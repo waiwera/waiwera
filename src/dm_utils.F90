@@ -25,6 +25,22 @@ module dm_utils_module
   implicit none
   private
 
+  type, public :: dm_stratum_type
+     !! Type for point stratum (cells, faces, edges or vertices) in a
+     !! DM. This includes functionality for MINC DM point calculations.
+     private
+     PetscInt, public :: start, end, end_interior
+     PetscInt, public, allocatable :: minc_shift(:)
+     PetscInt, public :: num_minc_points
+   contains
+     private
+     procedure, public :: size => dm_stratum_size
+     procedure, public :: contains_point => dm_stratum_contains_point
+     procedure :: minc_point_single => dm_stratum_minc_point_single
+     procedure :: minc_point_array => dm_stratum_minc_point_array
+     generic, public :: minc_point => minc_point_single, minc_point_array
+  end type dm_stratum_type
+
   public :: set_dm_data_layout, set_dm_default_data_layout
   public :: section_offset, global_section_offset
   public :: global_vec_section, local_vec_section
@@ -34,11 +50,75 @@ module dm_utils_module
   public :: write_vec_vtk
   public :: vec_max_pointwise_abs_scale
   public :: dm_order_local_index
-  public :: dm_copy_cone_sizes, dm_copy_cones
   public :: dm_set_fv_adjacency, dm_setup_fv_discretization
 
 contains
 
+!------------------------------------------------------------------------
+! DM stratum type:
+!------------------------------------------------------------------------
+
+  PetscInt function dm_stratum_size(self) result(n)
+    !! Returns size of DM stratum.
+
+    class(dm_stratum_type), intent(in) :: self
+
+    n = self%end - self%start
+
+  end function dm_stratum_size
+
+!------------------------------------------------------------------------
+
+  PetscBool function dm_stratum_contains_point(self, p) result(has)
+    !! Returns whether specified DM point p is inside the stratum.
+
+    class(dm_stratum_type), intent(in) :: self
+    PetscInt, intent(in) :: p
+
+    has = ((self%start <= p) .and. (p < self%end))
+
+  end function dm_stratum_contains_point
+
+!------------------------------------------------------------------------
+
+  PetscInt function dm_stratum_minc_point_single(self, p, m) &
+       result(minc_p)
+    !! Returns point for MINC level m in MINC DM corresponding to
+    !! point p in original DM. Boundary ghost cells are shifted up by
+    !! the number of MINC points in the stratum.
+
+    class(dm_stratum_type), intent(in) :: self
+    PetscInt, intent(in) :: p, m
+
+    minc_p = p + self%minc_shift(m)
+    if (p >= self%end_interior) then
+       minc_p = minc_p + self%num_minc_points
+    end if
+
+  end function dm_stratum_minc_point_single
+
+!........................................................................
+
+  function dm_stratum_minc_point_array(self, p_array, m) &
+       result(minc_p_array)
+    !! Returns array of MINC points for array of original DM points.
+
+    class(dm_stratum_type), intent(in) :: self
+    PetscInt, intent(in) :: p_array(:), m
+    PetscInt, allocatable :: minc_p_array(:)
+    ! Locals:
+    PetscInt :: p, i
+
+    allocate(minc_p_array(size(p_array)))
+    do i = 1, size(p_array)
+       p = p_array(i)
+       minc_p_array(i) = self%minc_point_single(p, m)
+    end do
+
+  end function dm_stratum_minc_point_array
+
+!------------------------------------------------------------------------
+! DM utilities:
 !------------------------------------------------------------------------
 
   subroutine set_dm_data_layout(dm, num_components, field_dim, &
@@ -465,58 +545,6 @@ contains
     end if
 
   end function dm_order_local_index
-
-!------------------------------------------------------------------------
-
-  subroutine dm_copy_cone_sizes(dm, new_dm, start, end, point_shift)
-    !! Copies cone sizes from one DM to another, within the specified
-    !! point range, with a specified shift in the point index.
-
-    DM, intent(in) :: dm
-    DM, intent(in out) :: new_dm
-    PetscInt, intent(in) :: start, end
-    PetscInt, intent(in) :: point_shift
-    ! Locals:
-    PetscInt :: p
-    PetscInt :: cone_size
-    PetscErrorCode :: ierr
-
-    do p = start, end
-       associate(new_p => p + point_shift)
-         call DMPlexGetConeSize(dm, p, cone_size, ierr); CHKERRQ(ierr)
-         call DMPlexSetConeSize(new_dm, new_p, cone_size, ierr)
-         CHKERRQ(ierr)
-       end associate
-    end do
-
-  end subroutine dm_copy_cone_sizes
-
-!------------------------------------------------------------------------
-
-  subroutine dm_copy_cones(dm, new_dm, start, end, point_shift, cone_shift)
-    !! Copies cones from one DM to another, within the specified point
-    !! range, with a specified shifts in the point index and the cone
-    !! point indices.
-
-    DM, intent(in) :: dm
-    DM, intent(in out) :: new_dm
-    PetscInt, intent(in) :: start, end
-    PetscInt, intent(in) :: point_shift, cone_shift
-    ! Locals:
-    PetscInt :: p
-    PetscInt, pointer :: points(:)
-    PetscErrorCode :: ierr
-
-    do p = start, end
-       associate(new_p => p + point_shift)
-         call DMPlexGetCone(dm, p, points, ierr); CHKERRQ(ierr)
-         call DMPlexSetCone(new_dm, new_p, points + cone_shift, ierr)
-         CHKERRQ(ierr)
-         call DMPlexRestoreCone(dm, p, points, ierr); CHKERRQ(ierr)
-       end associate
-    end do
-
-  end subroutine dm_copy_cones
 
 !------------------------------------------------------------------------
 
