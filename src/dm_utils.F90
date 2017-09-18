@@ -36,6 +36,7 @@ module dm_utils_module
      private
      procedure, public :: size => dm_stratum_size
      procedure, public :: contains_point => dm_stratum_contains_point
+     procedure, public :: destroy => dm_stratum_destroy
      procedure :: minc_point_single => dm_stratum_minc_point_single
      procedure :: minc_point_array => dm_stratum_minc_point_array
      generic, public :: minc_point => minc_point_single, minc_point_array
@@ -78,6 +79,19 @@ contains
     has = ((self%start <= p) .and. (p < self%end))
 
   end function dm_stratum_contains_point
+
+!------------------------------------------------------------------------
+
+  subroutine dm_stratum_destroy(self)
+    !! Destroys DM stratum.
+
+    class(dm_stratum_type), intent(in out) :: self
+
+    if (allocated(self%minc_shift)) then
+       deallocate(self%minc_shift)
+    end if
+
+  end subroutine dm_stratum_destroy
 
 !------------------------------------------------------------------------
 
