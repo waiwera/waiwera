@@ -166,7 +166,7 @@ contains
 
     volumes_OK = PETSC_TRUE
 
-    do c = mesh%start_cell, mesh%end_cell - 1
+    do c = mesh%strata(0)%start, mesh%strata(0)%end - 1
        if (mesh%ghost_cell(c) < 0) then
           call section_offset(cell_geom_section, c, offset, &
                ierr); CHKERRQ(ierr)
@@ -188,7 +188,7 @@ contains
     call face%init()
     areas_OK = PETSC_TRUE
 
-    do f = mesh%start_face, mesh%end_face - 1
+    do f = mesh%strata(1)%start, mesh%strata(1)%end - 1
        if (mesh%ghost_face(f) < 0) then
           call section_offset(face_geom_section, f, offset, &
                ierr); CHKERRQ(ierr)
@@ -252,7 +252,7 @@ contains
 
     volumes_OK = PETSC_TRUE
 
-    do c = mesh%start_cell, mesh%end_cell - 1
+    do c = mesh%strata(0)%start, mesh%strata(0)%end - 1
        if (mesh%ghost_cell(c) < 0) then
           call section_offset(cell_geom_section, c, offset, &
                ierr); CHKERRQ(ierr)
@@ -278,7 +278,7 @@ contains
     call face%init()
     areas_OK = PETSC_TRUE
 
-    do f = mesh%start_face, mesh%end_face - 1
+    do f = mesh%strata(1)%start, mesh%strata(1)%end - 1
        if (mesh%ghost_face(f) < 0) then
           call section_offset(face_geom_section, f, offset, &
                ierr); CHKERRQ(ierr)
@@ -347,7 +347,7 @@ contains
     CHKERRQ(ierr)
     call face%init()
 
-    do f = mesh%start_face, mesh%end_face - 1
+    do f = mesh%strata(1)%start, mesh%strata(1)%end - 1
        if (mesh%ghost_face(f) < 0) then
           call section_offset(face_geom_section, f, offset, ierr); CHKERRQ(ierr)
           call face%assign_geometry(face_geom_array, offset)
@@ -464,7 +464,7 @@ contains
          call assert_true(mesh%has_minc, name // ": mesh has minc")
       end if
       num_minc_zones = size(mesh%minc)
-      max_num_levels = ubound(mesh%minc_shift, 2)
+      max_num_levels = maxval(mesh%minc%num_levels)
       if (rank == 0) then
          call assert_equals(expected_num_zones, &
               num_minc_zones, name // ": num minc zones")
@@ -537,13 +537,13 @@ contains
                     expected_vol = orig_cell%volume * minc%volume(1)
                     call assert_equals(expected_vol, cell%volume, tol, "fracture volume")
                     do m = 1, minc%num_levels
-                       cell_p = ic(m) + mesh%minc_shift(h, m)
+                       cell_p = mesh%original_strata(h)%minc_point(ic(m), m)
                        call section_offset(cell_section, cell_p, &
                             cell_offset, ierr); CHKERRQ(ierr)
                        call cell%assign_geometry(cell_geom_array, cell_offset)
                        expected_vol = orig_cell%volume * minc%volume(m + 1)
                        call assert_equals(expected_vol, cell%volume, tol, "minc volume")
-                       face_p = ic(m) + mesh%minc_shift(h + 1, m)
+                       face_p = mesh%original_strata(h + 1)%minc_point(ic(m), m)
                        call section_offset(face_section, face_p, &
                             face_offset, ierr); CHKERRQ(ierr)
                        call face%assign_geometry(face_geom_array, face_offset)
@@ -581,7 +581,7 @@ contains
       type(mesh_type), intent(in) :: mesh
       PetscInt :: c, n_local
       n_local = 0
-      do c = mesh%start_cell, mesh%end_cell - 1
+      do c = mesh%strata(0)%start, mesh%strata(0)%end - 1
          if (mesh%ghost_cell(c) < 0) then
             n_local = n_local + 1
          end if

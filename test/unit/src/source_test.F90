@@ -67,7 +67,7 @@ contains
          935._dp, 1.e-6_dp, 0.8_dp, 0.7_dp, 0._dp, 83.9e3_dp, 5.461e5_dp, 0.7_dp, 0.3_dp, &
          1.5_dp,  2.e-7_dp, 0.2_dp, 0.3_dp, 0._dp, 800.e3_dp, 2.540e6_dp, 0.4_dp, 0.6_dp]
 
-    do c = mesh%start_cell, mesh%end_cell - 1
+    do c = mesh%strata(0)%start, mesh%strata(0)%end - 1
        if (mesh%ghost_cell(c) < 0) then
           call global_section_offset(fluid_section, c, fluid_range_start, &
                fluid_offset, ierr)

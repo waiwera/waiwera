@@ -220,7 +220,7 @@ contains
     call global_vec_section(fluid_vector, fluid_section)
     call VecGetArrayF90(fluid_vector, fluid_array, ierr); CHKERRQ(ierr)
 
-    do c = mesh%start_cell, mesh%end_cell - 1
+    do c = mesh%strata(0)%start, mesh%strata(0)%end - 1
        if (mesh%ghost_cell(c) < 0) then
           call global_section_offset(fluid_section, c, fluid_range_start, &
                fluid_offset, ierr)
