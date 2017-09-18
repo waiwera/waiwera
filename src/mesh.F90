@@ -1765,20 +1765,16 @@ contains
     end do
 
     ! Fracture and non-MINC DAG points for height h > 0:
-    do h = 1, self%depth
+    do h = 1, self%depth - 1
        do p = self%strata(h)%start, self%strata(h)%end - 1
           minc_p = self%strata(h)%minc_point(p, 0)
           call DMPlexGetCone(self%original_dm, p, points, ierr); CHKERRQ(ierr)
-          if (h < self%depth) then
-             minc_cone = self%strata(h + 1)%minc_point(points, 0)
-          else
-             minc_cone = points ! should be empty
-          end if
+          minc_cone = self%strata(h + 1)%minc_point(points, 0)
           call DMPlexSetCone(self%minc_dm, minc_p, minc_cone, ierr)
           CHKERRQ(ierr)
+          deallocate(minc_cone)
           call DMPlexRestoreCone(self%original_dm, p, points, ierr)
           CHKERRQ(ierr)
-          deallocate(minc_cone)
        end do
     end do
     ! MINC DAG points for height h > 0:
@@ -1837,8 +1833,8 @@ contains
            else
               minc_cone = [face_p]
            end if
-           call DMPlexSetCone(self%minc_dm, minc_p, &
-                minc_cone, ierr); CHKERRQ(ierr)
+           call DMPlexSetCone(self%minc_dm, minc_p, minc_cone, ierr)
+           CHKERRQ(ierr)
            deallocate(minc_cone)
          end associate
       end select
@@ -1859,8 +1855,8 @@ contains
          do h = 1, self%depth - 1
             minc_p = self%strata(h)%minc_point(ic, m)
             above_p = self%strata(h + 1)%minc_point(ic, m)
-            call DMPlexSetCone(self%minc_dm, minc_p, &
-                 [above_p], ierr); CHKERRQ(ierr)
+            call DMPlexSetCone(self%minc_dm, minc_p, [above_p], ierr)
+            CHKERRQ(ierr)
          end do
       end select
       ic = ic + 1
