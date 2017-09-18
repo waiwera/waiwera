@@ -389,7 +389,7 @@ contains
 
     json => fson_parse_mpi(str = &
          '{"mesh": {"filename": "data/mesh/7x7grid.exo",' // &
-         '  "zones": {"left": {"x": [0, 1500]}, "right": {"-": "left"}},' // &
+         '  "zones": {"left": {"x": [0, 1500]}},' // &
          '  "minc": {"zones": ["left"], "matrix": {"volume": 0.9}}}}')
     call minc_test('partial', json, 1, 63, 1, [49, 14])
     call fson_destroy_mpi(json)
@@ -535,27 +535,36 @@ contains
                     CHKERRQ(ierr)
                     call cell%assign_geometry(cell_geom_array, cell_offset)
                     expected_vol = orig_cell%volume * minc%volume(1)
-                    call assert_equals(expected_vol, cell%volume, tol, "fracture volume")
+                    write(str, '(a, i3, a)') "fracture volume(", cell_order, ")"
+                    call assert_equals(expected_vol, cell%volume, tol, str)
                     do m = 1, minc%num_levels
                        cell_p = mesh%original_strata(h)%minc_point(ic(m), m)
                        call section_offset(cell_section, cell_p, &
                             cell_offset, ierr); CHKERRQ(ierr)
                        call cell%assign_geometry(cell_geom_array, cell_offset)
                        expected_vol = orig_cell%volume * minc%volume(m + 1)
-                       call assert_equals(expected_vol, cell%volume, tol, "minc volume")
+                       write(str, '(a, i3, a, i1, a)') "minc volume(", cell_order, ", ", m, ")"
+                       call assert_equals(expected_vol, cell%volume, tol, str)
                        face_p = mesh%original_strata(h + 1)%minc_point(ic(m), m)
                        call section_offset(face_section, face_p, &
                             face_offset, ierr); CHKERRQ(ierr)
                        call face%assign_geometry(face_geom_array, face_offset)
                        expected_area = orig_cell%volume * minc%connection_area(m)
-                       call assert_equals(expected_area, face%area, tol, "minc area")
+                       write(str, '(a, i3, a, i1, a, i1, a)') "minc area(", cell_order, &
+                            ", ", m-1, ":", m, ")"
+                       call assert_equals(expected_area, face%area, tol, str)
+                       write(str, '(a, i3, a, i1, a, i1, a)') "minc distance 1(", &
+                            cell_order, ", ", m-1, ":", m, ")"
                        call assert_equals(minc%connection_distance(m), face%distance(1), &
-                            tol, "minc distance 1")
+                            tol, str)
+                       write(str, '(a, i3, a, i1, a, i1, a)') "minc distance 2(", &
+                            cell_order, ", ", m-1, ":", m, ")"
                        call assert_equals(minc%connection_distance(m + 1), face%distance(2), &
-                            tol, "minc distance 2")
+                            tol, str)
                        call DMLabelGetValue(cell_order_label, cell_p, minc_cell_order, ierr)
                        CHKERRQ(ierr)
-                       call assert_equals(cell_order, minc_cell_order, "minc cell order")
+                       write(str, '(a, i3, a, i1, a)') "minc cell order(", cell_order, ", ", m, ")"
+                       call assert_equals(cell_order, minc_cell_order, str)
                        ic(m) = ic(m) + 1
                     end do
                  end if
