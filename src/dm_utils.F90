@@ -99,13 +99,15 @@ contains
        result(minc_p)
     !! Returns point for MINC level m in MINC DM corresponding to
     !! point p in original DM. Boundary ghost cells are shifted up by
-    !! the number of MINC points in the stratum.
+    !! the number of MINC points in the stratum. For MINC points (m >
+    !! 0), p should be the index of the fracture cell in the list of
+    !! fracture cells for the given MINC level.
 
     class(dm_stratum_type), intent(in) :: self
     PetscInt, intent(in) :: p, m
 
     minc_p = p + self%minc_shift(m)
-    if (p >= self%end_interior) then
+    if ((m == 0) .and. (p >= self%end_interior)) then
        minc_p = minc_p + self%num_minc_points
     end if
 
