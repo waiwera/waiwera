@@ -1586,17 +1586,21 @@ contains
     PetscInt, intent(in) :: num_minc_cells, max_num_levels
     type(list_type), intent(in out) :: minc_level_cells(0: max_num_levels)
     ! Locals:
-    PetscInt :: ishift(0: self%depth)
+    PetscInt :: stratum_shift(0: self%depth)
     PetscInt :: i, h, m
     PetscInt :: minc_offset(0: max_num_levels)
 
-    !! Set up ishift array, to take account of the fact that DMPlex
-    !! points have the order cells, vertices, faces, edges-
-    !! i.e. they are not in depth order.
-    ishift(0) = 0
-    ishift(self%depth) = 1
-    ishift(1: self%depth - 1) = [(i + 1, i = 1, self%depth - 1)]
+    ! Set up stratum_shift array (taking account of the fact that
+    ! DMPlex points have the order cells, vertices, faces, edges-
+    ! i.e. they are not in depth order.) This is the cumulative shift
+    ! resulting from points added to previous strata.
+    stratum_shift(0) = 0
+    stratum_shift(self%depth) = 1
+    stratum_shift(1: self%depth - 1) = [(i + 1, i = 1, self%depth - 1)]
+    stratum_shift = stratum_shift * num_minc_cells
 
+    ! Offset of the start of each MINC level within the stratum (note
+    ! this is the same for all strata):
     minc_offset = 0
     do i = 1, max_num_levels
        minc_offset(i) = minc_offset(i - 1) + minc_level_cells(i)%count
@@ -1604,10 +1608,10 @@ contains
 
     do h = 0, self%depth
        allocate(self%strata(h)%minc_shift(0: max_num_levels))
-       self%strata(h)%minc_shift(0) = ishift(h) * num_minc_cells
+       self%strata(h)%minc_shift(0) = stratum_shift(h)
        do m = 1, max_num_levels
-          self%strata(h)%minc_shift(m) = self%strata(h)%end_interior + &
-               self%strata(h)%minc_shift(0) + minc_offset(m - 1)
+          self%strata(h)%minc_shift(m) = stratum_shift(h) + &
+               self%strata(h)%end_interior + minc_offset(m - 1)
        end do
     end do
 
