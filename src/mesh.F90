@@ -565,6 +565,11 @@ contains
     call DMPlexGetHybridBounds(self%dm, strata(0)%end_interior, &
          strata(1)%end_interior, strata(self%depth - 1)%end_interior, &
          strata(self%depth)%end_interior, ierr); CHKERRQ(ierr)
+    do h = 0, self%depth
+       if (strata(h)%end_interior < 0) then
+          strata(h)%end_interior = strata(h)%end
+       end if
+    end do
 
   end subroutine mesh_setup_strata
 
