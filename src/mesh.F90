@@ -86,6 +86,7 @@ module mesh_module
      procedure :: setup_minc_dm_cell_order_label => mesh_setup_minc_dm_cell_order_label
      procedure :: setup_minc_geometry => mesh_setup_minc_geometry
      procedure :: setup_minc_rock_properties => mesh_setup_minc_rock_properties
+     procedure :: setup_minc_sf => mesh_setup_minc_sf
      procedure, public :: init => mesh_init
      procedure, public :: configure => mesh_configure
      procedure, public :: setup_boundaries => mesh_setup_boundaries
@@ -1506,6 +1507,7 @@ contains
     call set_dm_default_data_layout(self%minc_dm, dof)
     call self%setup_minc_geometry(num_cells, max_num_levels, &
          num_minc_zones, minc_zone)
+    call self%setup_minc_sf()
 
     call self%assign_dm(self%minc_dm)
 
@@ -2512,6 +2514,27 @@ contains
     end subroutine read_rock_type
 
   end subroutine mesh_setup_minc_rock_properties
+
+!------------------------------------------------------------------------
+
+  subroutine mesh_setup_minc_sf(self)
+    !! Sets up SF for MINC DM, for communicating ghost values between
+    !! processors.
+
+    class(mesh_type), intent(in out) :: self
+    ! Locals:
+    PetscSF :: original_sf
+    PetscInt :: num_roots, num_leaves
+    PetscInt, pointer :: local_points(:)
+    PetscSFNode, pointer :: remote_points(:)
+    PetscErrorCode :: ierr
+
+    call DMGetPointSF(self%original_dm, original_sf, ierr); CHKERRQ(ierr)
+    call PetscSFGetGraph(original_sf, num_roots, num_leaves, local_points, &
+         remote_points, ierr); CHKERRQ(ierr)
+
+
+  end subroutine mesh_setup_minc_sf
 
 !------------------------------------------------------------------------
 
