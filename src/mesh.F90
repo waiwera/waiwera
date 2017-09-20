@@ -1598,7 +1598,7 @@ contains
     ! Set up stratum_shift array (taking account of the fact that
     ! DMPlex points have the order cells, vertices, faces, edges-
     ! i.e. they are not in depth order.) This is the cumulative shift
-    ! resulting from points added to previous strata.
+    ! resulting from points added to lower-index strata in the DM.
     stratum_shift(0) = 0
     stratum_shift(self%depth) = 1
     stratum_shift(1: self%depth - 1) = [(i + 1, i = 1, self%depth - 1)]
@@ -2132,7 +2132,7 @@ contains
     ! Locals:
     PetscInt :: dim, cell_variable_dim(num_cell_variables), &
          face_variable_dim(num_face_variables)
-    PetscInt :: iminc, c, f, h, i, m, cell_p, face_p, ghost
+    PetscInt :: iminc, c, f, h, i, m, minc_p, face_p, ghost
     PetscInt :: cell_offset, minc_cell_offset, face_offset, minc_face_offset
     PetscInt :: ic(max_num_levels), num_minc_zone_cells
     DM :: dm_cell, dm_face
@@ -2204,7 +2204,8 @@ contains
        if (ghost < 0) then
           call section_offset(face_section, f, face_offset, ierr)
           CHKERRQ(ierr)
-          call section_offset(minc_face_section, f, minc_face_offset, ierr)
+          minc_p = self%strata(h)%minc_point(f, 0)
+          call section_offset(minc_face_section, minc_p, minc_face_offset, ierr)
           CHKERRQ(ierr)
           minc_face_geom_array(minc_face_offset: &
                minc_face_offset + face%dof - 1) = face_geom_array(face_offset: &
@@ -2226,9 +2227,8 @@ contains
                c = minc_cells(i)
                call DMLabelGetValue(ghost_label, c, ghost, ierr)
                if (ghost < 0) then
-                  call section_offset(cell_section, c, cell_offset, ierr)
-                  CHKERRQ(ierr)
-                  call section_offset(minc_cell_section, c, minc_cell_offset, ierr)
+                  minc_p = self%strata(h)%minc_point(c, 0)
+                  call section_offset(minc_cell_section, minc_p, minc_cell_offset, ierr)
                   CHKERRQ(ierr)
                   call cell%assign_geometry(minc_cell_geom_array, minc_cell_offset)
                   orig_volume = cell%volume
@@ -2236,8 +2236,8 @@ contains
                   cell%volume = orig_volume * minc%volume(1)
                   do m = 1, minc%num_levels
                      ! Assign MINC cell geometry:
-                     cell_p = self%strata(h)%minc_point(ic(m), m)
-                     call section_offset(minc_cell_section, cell_p, &
+                     minc_p = self%strata(h)%minc_point(ic(m), m)
+                     call section_offset(minc_cell_section, minc_p, &
                           minc_cell_offset, ierr); CHKERRQ(ierr)
                      call cell%assign_geometry(minc_cell_geom_array, minc_cell_offset)
                      cell%volume = orig_volume * minc%volume(m + 1)
