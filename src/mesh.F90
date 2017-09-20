@@ -2146,7 +2146,7 @@ contains
     PetscReal, pointer, contiguous :: face_geom_array(:), minc_face_geom_array(:)
     type(cell_type) :: cell
     type(face_type) :: face
-    PetscReal :: orig_volume
+    PetscReal :: orig_volume, orig_centroid(3)
     PetscErrorCode :: ierr
     PetscInt, parameter :: nc = 1, np = 1 ! dummy values for cell & face init
 
@@ -2232,6 +2232,7 @@ contains
                   CHKERRQ(ierr)
                   call cell%assign_geometry(minc_cell_geom_array, minc_cell_offset)
                   orig_volume = cell%volume
+                  orig_centroid = cell%centroid
                   ! Modify fracture cell volume:
                   cell%volume = orig_volume * minc%volume(1)
                   do m = 1, minc%num_levels
@@ -2241,7 +2242,7 @@ contains
                           minc_cell_offset, ierr); CHKERRQ(ierr)
                      call cell%assign_geometry(minc_cell_geom_array, minc_cell_offset)
                      cell%volume = orig_volume * minc%volume(m + 1)
-                     cell%centroid = 0._dp
+                     cell%centroid = orig_centroid
                      ! Assign MINC face geometry:
                      face_p = self%strata(h + 1)%minc_point(ic(m), m)
                      call section_offset(minc_face_section, face_p, &
