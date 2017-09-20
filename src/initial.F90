@@ -541,7 +541,7 @@ contains
     ! Locals:
     PetscSection :: y_section, fluid_section
     PetscReal, pointer, contiguous :: y_array(:), fluid_array(:)
-    PetscInt :: iminc, c, h, i, m, p, num_minc_zone_cells, max_num_levels
+    PetscInt :: iminc, c, h, i, m, minc_p, num_minc_zone_cells, max_num_levels
     PetscInt, allocatable :: ic(:)
     PetscInt :: y_offset, fluid_offset, y_minc_offset, fluid_minc_offset, np
     type(fluid_type) :: fluid
@@ -577,24 +577,25 @@ contains
                c = minc_cells(i)
                if (mesh%ghost_cell(c) < 0) then
 
-                  call global_section_offset(y_section, c, y_range_start, &
+                  minc_p = mesh%original_strata(h)%minc_point(c, 0)
+                  call global_section_offset(y_section, minc_p, y_range_start, &
                        y_offset, ierr); CHKERRQ(ierr)
                   associate(frac_primary => y_array(y_offset : y_offset + np - 1))
-                    call global_section_offset(fluid_section, c, fluid_range_start, &
+                    call global_section_offset(fluid_section, minc_p, fluid_range_start, &
                          fluid_offset, ierr); CHKERRQ(ierr)
                     call fluid%assign(fluid_array, fluid_offset)
                     frac_region = nint(fluid%region)
 
                     do m = 1, minc%num_levels
-                       p = mesh%strata(h)%minc_point(ic(m), m)
-                       call global_section_offset(y_section, p, y_range_start, &
+                      minc_p = mesh%original_strata(h)%minc_point(ic(m), m)
+                       call global_section_offset(y_section, minc_p, y_range_start, &
                             y_minc_offset, ierr); CHKERRQ(ierr)
                        associate (primary => y_array(y_minc_offset : &
                             y_minc_offset + np - 1))
                          primary = frac_primary
                        end associate
-                       call global_section_offset(fluid_section, p, fluid_range_start, &
-                            fluid_minc_offset, ierr); CHKERRQ(ierr)
+                       call global_section_offset(fluid_section, minc_p, &
+                            fluid_range_start, fluid_minc_offset, ierr); CHKERRQ(ierr)
                        call fluid%assign(fluid_array, fluid_minc_offset)
                        fluid%region = dble(frac_region)
                        ic(m) = ic(m) + 1
