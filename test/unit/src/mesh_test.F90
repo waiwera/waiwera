@@ -436,7 +436,7 @@ contains
       PetscInt :: num_cells, num_minc_zones, m, num_local, num, max_num_levels
       PetscErrorCode :: err
       PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
-      character(32) :: str
+      character(48) :: str
       PetscInt :: iminc, num_minc_zone_cells, i, c
       IS :: minc_IS
       PetscInt, pointer :: minc_cells(:)
@@ -531,11 +531,12 @@ contains
                     call section_offset(orig_cell_section, c, orig_cell_offset, ierr)
                     CHKERRQ(ierr)
                     call orig_cell%assign_geometry(orig_cell_geom_array, orig_cell_offset)
-                    call section_offset(cell_section, c, cell_offset, ierr)
+                    cell_p = mesh%original_strata(h)%minc_point(c, 0)
+                    call section_offset(cell_section, cell_p, cell_offset, ierr)
                     CHKERRQ(ierr)
                     call cell%assign_geometry(cell_geom_array, cell_offset)
                     expected_vol = orig_cell%volume * minc%volume(1)
-                    write(str, '(a, i3, a)') "fracture volume(", cell_order, ")"
+                    write(str, '(a, a, i3, a)') name, ": fracture volume(", cell_order, ")"
                     call assert_equals(expected_vol, cell%volume, tol, str)
                     do m = 1, minc%num_levels
                        cell_p = mesh%original_strata(h)%minc_point(ic(m), m)
@@ -543,27 +544,29 @@ contains
                             cell_offset, ierr); CHKERRQ(ierr)
                        call cell%assign_geometry(cell_geom_array, cell_offset)
                        expected_vol = orig_cell%volume * minc%volume(m + 1)
-                       write(str, '(a, i3, a, i1, a)') "minc volume(", cell_order, ", ", m, ")"
+                       write(str, '(a, a, i3, a, i1, a)') name, ": minc volume(", &
+                            cell_order, ", ", m, ")"
                        call assert_equals(expected_vol, cell%volume, tol, str)
                        face_p = mesh%original_strata(h + 1)%minc_point(ic(m), m)
                        call section_offset(face_section, face_p, &
                             face_offset, ierr); CHKERRQ(ierr)
                        call face%assign_geometry(face_geom_array, face_offset)
                        expected_area = orig_cell%volume * minc%connection_area(m)
-                       write(str, '(a, i3, a, i1, a, i1, a)') "minc area(", cell_order, &
-                            ", ", m-1, ":", m, ")"
+                       write(str, '(a, a, i3, a, i1, a, i1, a)') name, &
+                            ": minc area(", cell_order, ", ", m-1, ":", m, ")"
                        call assert_equals(expected_area, face%area, tol, str)
-                       write(str, '(a, i3, a, i1, a, i1, a)') "minc distance 1(", &
+                       write(str, '(a, a, i3, a, i1, a, i1, a)') name, ": minc distance 1(", &
                             cell_order, ", ", m-1, ":", m, ")"
                        call assert_equals(minc%connection_distance(m), face%distance(1), &
                             tol, str)
-                       write(str, '(a, i3, a, i1, a, i1, a)') "minc distance 2(", &
+                       write(str, '(a, a, i3, a, i1, a, i1, a)') name, ": minc distance 2(", &
                             cell_order, ", ", m-1, ":", m, ")"
                        call assert_equals(minc%connection_distance(m + 1), face%distance(2), &
                             tol, str)
                        call DMLabelGetValue(cell_order_label, cell_p, minc_cell_order, ierr)
                        CHKERRQ(ierr)
-                       write(str, '(a, i3, a, i1, a)') "minc cell order(", cell_order, ", ", m, ")"
+                       write(str, '(a, a, i3, a, i1, a)') name, ": minc cell order(", &
+                            cell_order, ", ", m, ")"
                        call assert_equals(cell_order, minc_cell_order, str)
                        ic(m) = ic(m) + 1
                     end do
