@@ -80,14 +80,13 @@ contains
     PetscInt :: local_count, total_count, local_level_count
     PetscInt :: i, m, inatural
     DMLabel :: ghost_label, order_label, minc_level_label
-    PetscInt, allocatable :: global_index(:), natural_index(:)
-    PetscInt, allocatable :: global_index_all(:), natural_index_all(:)
+    PetscInt, allocatable :: natural_index(:), natural_index_all(:)
     PetscInt, allocatable :: index_array_all(:), index_array(:)
     PetscInt, allocatable :: local_counts(:), displacements(:)
     PetscInt, allocatable :: level_displacements(:)
     PetscInt, allocatable :: local_level_counts(:)
     IS :: cell_interior_index
-    PetscInt :: start_global_index, max_level
+    PetscInt :: max_level
     PetscInt :: cmax, fmax, emax, vmax
     PetscInt :: start_cell, end_cell, end_interior_cell
     PetscMPIInt :: rank, num_procs
@@ -106,12 +105,10 @@ contains
     CHKERRQ(ierr)
     call DMHasLabel(dm, minc_level_label_name, minc, ierr); CHKERRQ(ierr)
 
-    start_global_index = get_local_start_global_index()
     local_count = get_local_count()
     call get_displacements(local_count, local_counts, displacements, &
          total_count)
-    allocate(global_index_all(0: total_count - 1), &
-         natural_index_all(0: total_count - 1))
+    allocate(natural_index_all(0: total_count - 1))
 
     if (minc) then
 
@@ -122,13 +119,10 @@ contains
        call allocate_processor_array(level_displacements)
        level_displacements = displacements
        do m = 0, max_level
-          call get_minc_global_and_natural_indices(m, global_index, &
-               natural_index, local_level_count)
+          call get_minc_natural_indices(m, natural_index, &
+               local_level_count)
           call MPI_gather(local_level_count, 1, MPI_INTEGER, &
                local_level_counts, 1, MPI_INTEGER, 0, PETSC_COMM_WORLD, ierr)
-          call MPI_gatherv(global_index, local_level_count, MPI_INTEGER, &
-               global_index_all, local_level_counts, level_displacements, &
-               MPI_INTEGER, 0, PETSC_COMM_WORLD, ierr)
           call MPI_gatherv(natural_index, local_level_count, MPI_INTEGER, &
                natural_index_all, local_level_counts, level_displacements, &
                MPI_INTEGER, 0, PETSC_COMM_WORLD, ierr)
@@ -137,20 +131,17 @@ contains
           else
              call assign_minc_natural_indices(inatural)
           end if
-          deallocate(global_index, natural_index)
+          deallocate(natural_index)
           level_displacements = level_displacements + local_level_counts
        end do
 
     else
 
-       call get_global_and_natural_indices(global_index, natural_index)
-       call MPI_gatherv(global_index, local_count, MPI_INTEGER, &
-            global_index_all, local_counts, displacements, MPI_INTEGER, &
-            0, PETSC_COMM_WORLD, ierr)
+       call get_natural_indices(natural_index)
        call MPI_gatherv(natural_index, local_count, MPI_INTEGER, &
             natural_index_all, local_counts, displacements, MPI_INTEGER, &
             0, PETSC_COMM_WORLD, ierr)
-       deallocate(global_index, natural_index)
+       deallocate(natural_index)
 
     end if
 
@@ -158,10 +149,9 @@ contains
     allocate(index_array_all(0: total_count - 1))
     if (rank == 0) then
        do i = 0, total_count - 1
-          index_array_all(natural_index_all(i)) = global_index_all(i)
+          index_array_all(natural_index_all(i)) = i
        end do
     end if
-    deallocate(global_index_all)
     allocate(index_array(local_count))
     call MPI_scatterv(index_array_all, local_counts, displacements, &
          MPI_INTEGER, index_array, local_count, MPI_INTEGER, &
@@ -212,25 +202,6 @@ contains
       end do
 
     end function get_local_count
-
-!........................................................................
-
-    PetscInt function get_local_start_global_index() result(start_index)
-
-      !! Returns starting global index on current processor.
-
-      ! Locals:
-      Vec :: v
-      PetscInt :: blocksize
-
-      call DMGetGlobalVector(dm, v, ierr); CHKERRQ(ierr)
-      call VecGetOwnershipRange(v, start_index, &
-           PETSC_NULL_INTEGER, ierr); CHKERRQ(ierr)
-      call VecGetBlockSize(v, blocksize, ierr); CHKERRQ(ierr)
-      call DMRestoreGlobalVector(dm, v, ierr); CHKERRQ(ierr)
-      start_index = start_index / blocksize
-
-    end function get_local_start_global_index
 
 !........................................................................
 
@@ -301,50 +272,48 @@ contains
 
 !........................................................................
 
-    subroutine get_global_and_natural_indices(global_index, natural_index)
+    subroutine get_natural_indices(natural_index)
 
-      !! Sets up global and natural index arrays on each process.
+      !! Sets up natural index array on each process.
 
-      PetscInt, allocatable, intent(out) :: global_index(:), natural_index(:)
+      PetscInt, allocatable, intent(out) :: natural_index(:)
       ! Locals:
-      PetscInt :: i, c, ghost, i_global, order
+      PetscInt :: i, c, ghost, order
 
-      allocate(global_index(local_count), natural_index(local_count))
+      allocate(natural_index(local_count))
       i = 1
       do c = start_cell, end_interior_cell - 1
          call DMLabelGetValue(ghost_label, c, ghost, ierr); CHKERRQ(ierr)
          if (ghost < 0) then
             call DMLabelGetValue(order_label, c, order, ierr); CHKERRQ(ierr)
-            i_global = start_global_index + c - start_cell
-            global_index(i) = i_global
             natural_index(i) = order
             i = i + 1
          end if
       end do
 
-    end subroutine get_global_and_natural_indices
+    end subroutine get_natural_indices
 
 !........................................................................
 
-    subroutine get_minc_global_and_natural_indices(level, global_index, &
-         natural_index, local_level_count)
+    subroutine get_minc_natural_indices(level, natural_index, &
+         local_level_count)
 
-      !! Sets up global and natural index arrays on each process for
-      !! the given MINC level, and returns count of local MINC cells
-      !! for that level.
+      !! Sets up natural index array on each process for the given
+      !! MINC level, and returns count of local MINC cells for that
+      !! level.
 
       PetscInt, intent(in) :: level
-      PetscInt, allocatable, intent(out) :: global_index(:), natural_index(:)
+      PetscInt, allocatable, intent(out) :: natural_index(:)
       PetscInt, intent(out) :: local_level_count
       ! Locals:
-      PetscInt :: i, c, ghost, i_global, order
+      PetscInt :: i, c, ghost, order
       IS :: level_IS
       PetscInt, pointer :: level_cells(:)
 
       call DMGetStratumSize(dm, minc_level_label_name, level, &
            local_level_count, ierr); CHKERRQ(ierr)
       if (local_level_count > 0) then
-         allocate(global_index(local_level_count), natural_index(local_level_count))
+         allocate(natural_index(local_level_count))
          call DMGetStratumIS(dm, minc_level_label_name, &
               level, level_IS, ierr); CHKERRQ(ierr)
          call ISGetIndicesF90(level_IS, level_cells, ierr); CHKERRQ(ierr)
@@ -353,16 +322,14 @@ contains
             call DMLabelGetValue(ghost_label, c, ghost, ierr)
             if (ghost < 0) then
                call DMLabelGetValue(order_label, c, order, ierr); CHKERRQ(ierr)
-               i_global = start_global_index + c - start_cell
-               global_index(i) = i_global
                natural_index(i) = order
             end if
          end do
       else
-         allocate(global_index(0), natural_index(0))
+         allocate(natural_index(0))
       end if
 
-    end subroutine get_minc_global_and_natural_indices
+    end subroutine get_minc_natural_indices
 
 !........................................................................
 
