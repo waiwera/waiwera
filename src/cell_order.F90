@@ -65,30 +65,33 @@ contains
 
   subroutine dm_setup_cell_index(dm, cell_index, viewer)
     !! Sets up cell index set from cell order label on DM.  This index
-    !! set corresponds to a block size of 1.
+    !! set corresponds to a block size of 1, and applies to vectors
+    !! which contain data for boundary ghost cells.
     !! Also writes the cell interior index set to HDF5 output. This is
     !! used for post-processing and is similar to the cell index set
     !! except that the global indices apply to vectors containing only
     !! interior cells (not boundary ghost cells).
 
     use minc_module, only: minc_level_label_name
+    use utils_module, only: array_cumulative_sum
 
     DM, intent(in out) :: dm !! Mesh DM
     IS, intent(out) :: cell_index !! Output cell index set
     PetscViewer, intent(in out), optional :: viewer !! Viewer for optional output
     ! Locals:
     PetscInt :: local_count, total_count, local_level_count
-    PetscInt :: i, m, inatural
+    PetscInt :: i, m, ip, inatural, iglobal
     DMLabel :: ghost_label, order_label, minc_level_label
     PetscInt, allocatable :: natural_index(:), natural_index_all(:)
     PetscInt, allocatable :: index_array_all(:), index_array(:)
-    PetscInt, allocatable :: local_counts(:), displacements(:)
+    PetscInt, allocatable :: local_counts(:), bdy_counts(:), displacements(:)
+    PetscInt, allocatable :: cumulative_local_counts(:)
     PetscInt, allocatable :: level_displacements(:)
     PetscInt, allocatable :: local_level_counts(:)
     IS :: cell_interior_index
     PetscInt :: max_level
     PetscInt :: cmax, fmax, emax, vmax
-    PetscInt :: start_cell, end_cell, end_interior_cell
+    PetscInt :: start_cell, end_cell, end_interior_cell, bdy_count
     PetscMPIInt :: rank, num_procs
     PetscErrorCode :: ierr
     PetscBool :: minc
@@ -99,6 +102,7 @@ contains
     end_interior_cell = cmax
     call DMPlexGetHeightStratum(dm, 0, start_cell, end_cell, ierr)
     CHKERRQ(ierr)
+    bdy_count = max(end_cell - end_interior_cell, 0)
     call DMGetLabel(dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
     CHKERRQ(ierr)
     call DMGetLabel(dm, cell_order_label_name, order_label, ierr)
@@ -107,7 +111,7 @@ contains
 
     local_count = get_local_count()
     call get_displacements(local_count, local_counts, displacements, &
-         total_count)
+         bdy_counts, total_count)
     allocate(natural_index_all(0: total_count - 1))
 
     if (minc) then
@@ -148,8 +152,18 @@ contains
     ! Set up index array on root process, and scatter:
     allocate(index_array_all(0: total_count - 1))
     if (rank == 0) then
+       iglobal = 0
+       ip = 1
+       cumulative_local_counts = array_cumulative_sum(local_counts)
        do i = 0, total_count - 1
-          index_array_all(natural_index_all(i)) = i
+          index_array_all(natural_index_all(i)) = iglobal
+          iglobal = iglobal + 1
+          if (i >= cumulative_local_counts(ip) - 1) then
+             ! Add space for boundary ghost cells, and increment
+             ! processor index ip:
+             iglobal = iglobal + bdy_counts(ip)
+             ip = ip + 1
+          end if
        end do
     end if
     allocate(index_array(local_count))
@@ -246,20 +260,24 @@ contains
 !........................................................................
 
     subroutine get_displacements(local_count, local_counts, &
-         displacements, total_count)
+         displacements, bdy_counts, total_count)
 
-      !! Gathers local counts from all processors, calculates
-      !! displacements in gathered array and total count for gathered
-      !! array.
+      !! Gathers local counts and boundary cell counts from all
+      !! processors, calculates displacements in gathered array and
+      !! total count for gathered array.
 
       PetscInt, intent(in) :: local_count
-      PetscInt, allocatable, intent(out) :: local_counts(:), displacements(:)
+      PetscInt, allocatable, intent(out) :: local_counts(:), &
+           bdy_counts(:), displacements(:)
       PetscInt, intent(out) :: total_count
 
       call allocate_processor_array(local_counts)
+      call allocate_processor_array(bdy_counts)
       call allocate_processor_array(displacements)
 
       call MPI_gather(local_count, 1, MPI_INTEGER, local_counts, 1, &
+         MPI_INTEGER, 0, PETSC_COMM_WORLD, ierr)
+      call MPI_gather(bdy_count, 1, MPI_INTEGER, bdy_counts, 1, &
          MPI_INTEGER, 0, PETSC_COMM_WORLD, ierr)
       if (rank == 0) then
          total_count = sum(local_counts)
@@ -280,8 +298,8 @@ contains
       ! Locals:
       PetscInt :: i, c, ghost, order
 
-      allocate(natural_index(local_count))
-      i = 1
+      allocate(natural_index(0: local_count - 1))
+      i = 0
       do c = start_cell, end_interior_cell - 1
          call DMLabelGetValue(ghost_label, c, ghost, ierr); CHKERRQ(ierr)
          if (ghost < 0) then
