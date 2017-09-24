@@ -15,7 +15,8 @@ module mesh_test
 
   public :: test_mesh_init, test_2d_cartesian_geometry, &
        test_2d_radial_geometry, test_mesh_face_permeability_direction, &
-       test_setup_minc_dm, test_rock_assignment, test_minc_rock
+       test_setup_minc_dm, test_rock_assignment, test_minc_rock, &
+       test_dm_cell_index
 
   PetscReal, parameter :: tol = 1.e-6_dp
 
@@ -821,14 +822,14 @@ contains
 
       call DMCreateLabel(mesh%dm, open_boundary_label_name, ierr); CHKERRQ(ierr)
       call mesh%configure(dof, gravity, json, err = err)
-      call assert_equals(0, err, "mesh configure error")
+      call assert_equals(0, err, title // " mesh configure error")
       call rock_dict%init(owner = PETSC_TRUE)
       call setup_rock_vector(json, mesh%dm, rock_vector, rock_dict, &
            rock_range_start, mesh%ghost_cell, err = err)
-      call assert_equals(0, err, "setup rock vector error")
+      call assert_equals(0, err, title // " setup rock vector error")
       call mesh%setup_minc_rock_properties(json, rock_vector, &
            rock_dict, rock_range_start, err = err)
-      call assert_equals(0, err, "setup MINC rock properties error")
+      call assert_equals(0, err, title // " setup MINC rock properties error")
       call fson_destroy_mpi(json)
 
       call VecGetArrayReadF90(rock_vector, rock_array, ierr); CHKERRQ(ierr)
@@ -866,6 +867,136 @@ contains
     end subroutine minc_rock_test_case
 
   end subroutine test_minc_rock
+
+!------------------------------------------------------------------------
+
+  subroutine test_dm_cell_index
+    ! DM cell index
+
+    use fson_mpi_module
+
+    PetscMPIInt :: rank
+    PetscInt :: i
+    PetscErrorCode :: ierr
+    character(:), allocatable :: json_str
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+
+    json_str = &
+         '{"mesh": {"filename": "data/mesh/3x3grid.exo"}}'
+    call cell_index_test_case(json_str, 'no boundary', [(i, i = 0, 8)])
+
+    json_str = &
+         '{"mesh": {"filename": "data/mesh/3x3grid.exo"}, ' // &
+         ' "boundaries": [{"faces": {' // &
+         ' "cells": [0, 3, 6], "normal": [-1, 0, 0]' // &
+         '}}]}'
+    call cell_index_test_case(json_str, 'boundary', [(i, i = 0, 8)])
+
+    json_str = &
+         '{"mesh": {"filename": "data/mesh/3x3grid.exo",' // &
+         '  "zones": {"all": {"-": null}},' // &
+         '  "minc": {"zones": ["all"], "fracture": {"volume": 0.1}}}}'
+    call cell_index_test_case(json_str, 'minc no boundary', &
+         [[(i, i = 0, 8)], [(i, i = 0, 8)]])
+
+  contains
+
+    subroutine cell_index_test_case(json_str, title, expected_order)
+
+      use dm_utils_module, only: global_vec_range_start, global_vec_section, &
+           global_section_offset
+      use cell_order_module, only: cell_order_label_name
+      use IFC67_module
+      use eos_w_module
+
+      character(*), intent(in) :: json_str
+      character(*), intent(in) :: title
+      PetscInt, intent(in) :: expected_order(:)
+      ! Locals:
+      type(fson_value), pointer :: json
+      type(mesh_type) :: mesh
+      PetscInt, parameter :: dof = 1
+      PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
+      PetscInt :: c, start_cell, end_cell, ghost, order, i
+      PetscInt :: range_start, offset, count
+      Vec :: v, v0
+      VecScatter :: scatter
+      IS :: is0
+      PetscReal, pointer :: varray(:)
+      PetscInt, pointer :: isarray(:)
+      PetscInt, allocatable :: idx(:)
+      PetscSection :: section
+      DMLabel :: ghost_label, order_label
+      type(IFC67_type) :: thermo
+      type(eos_w_type) :: eos
+      PetscErrorCode :: err
+
+      json => fson_parse_mpi(str = json_str)
+      call mesh%init(json)
+      call thermo%init()
+      call eos%init(json, thermo)
+      call mesh%setup_boundaries(json, eos)
+      call mesh%configure(dof, gravity, json, err = err)
+      call fson_destroy_mpi(json)
+      
+      call DMGetGlobalVector(mesh%dm, v, ierr); CHKERRQ(ierr)
+
+      call DMPlexGetHeightStratum(mesh%dm, 0, start_cell, end_cell, ierr)
+      CHKERRQ(ierr)
+      call global_vec_range_start(v, range_start)
+      call DMGetLabel(mesh%dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
+      call DMGetLabel(mesh%dm, cell_order_label_name, order_label, ierr); CHKERRQ(ierr)
+      call VecGetArrayF90(v, varray, ierr); CHKERRQ(ierr)
+      call global_vec_section(v, section)
+
+      count = 0
+      do c = start_cell, end_cell - 1
+         call DMLabelGetValue(ghost_label, c, ghost, ierr); CHKERRQ(ierr)
+         if (ghost < 0) then
+            call global_section_offset(section, c, range_start, &
+                 offset, ierr); CHKERRQ(ierr)
+            call DMLabelGetValue(order_label, c, order, ierr); CHKERRQ(ierr)
+            varray(offset) = dble(order)
+            count = count + 1
+         end if
+      end do
+      call VecRestoreArrayF90(v, varray, ierr); CHKERRQ(ierr)
+
+      call VecScatterCreateToZero(v, scatter, v0, ierr); CHKERRQ(ierr)
+      call VecScatterBegin(scatter, v, v0, INSERT_VALUES, SCATTER_FORWARD, ierr)
+      call VecScatterEnd(scatter, v, v0, INSERT_VALUES, SCATTER_FORWARD, ierr)
+
+      call ISAllGather(mesh%cell_index, is0, ierr); CHKERRQ(ierr)
+      call ISGetIndicesF90(is0, isarray, ierr); CHKERRQ(ierr)
+      call VecGetArrayF90(v0, varray, ierr); CHKERRQ(ierr)
+
+      if (rank == 0) then
+         associate(n => size(isarray))
+           allocate(idx(n))
+           idx = 0
+           do i = 1, n
+              idx(i) = int(varray(isarray(i) + 1))
+           end do
+           call assert_equals(expected_order, idx, n, title // ': cell order')
+           deallocate(idx)
+         end associate
+      end if
+
+      call VecRestoreArrayF90(v0, varray, ierr); CHKERRQ(ierr)
+      call ISRestoreIndicesF90(is0, isarray, ierr); CHKERRQ(ierr)
+      call ISDestroy(is0, ierr); CHKERRQ(ierr)
+
+      call VecScatterDestroy(scatter, ierr); CHKERRQ(ierr)
+      call VecDestroy(v0, ierr); CHKERRQ(ierr)
+      call DMRestoreGlobalVector(mesh%dm, v, ierr); CHKERRQ(ierr)
+      call mesh%destroy()
+      call eos%destroy()
+      call thermo%destroy()
+
+    end subroutine cell_index_test_case
+
+  end subroutine test_dm_cell_index
 
 !------------------------------------------------------------------------
 
