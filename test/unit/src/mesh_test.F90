@@ -822,14 +822,14 @@ contains
 
       call DMCreateLabel(mesh%dm, open_boundary_label_name, ierr); CHKERRQ(ierr)
       call mesh%configure(dof, gravity, json, err = err)
-      call assert_equals(0, err, "mesh configure error")
+      call assert_equals(0, err, title // " mesh configure error")
       call rock_dict%init(owner = PETSC_TRUE)
       call setup_rock_vector(json, mesh%dm, rock_vector, rock_dict, &
            rock_range_start, mesh%ghost_cell, err = err)
-      call assert_equals(0, err, "setup rock vector error")
+      call assert_equals(0, err, title // " setup rock vector error")
       call mesh%setup_minc_rock_properties(json, rock_vector, &
            rock_dict, rock_range_start, err = err)
-      call assert_equals(0, err, "setup MINC rock properties error")
+      call assert_equals(0, err, title // " setup MINC rock properties error")
       call fson_destroy_mpi(json)
 
       call VecGetArrayReadF90(rock_vector, rock_array, ierr); CHKERRQ(ierr)
