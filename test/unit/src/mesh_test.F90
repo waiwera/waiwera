@@ -876,6 +876,7 @@ contains
     use fson_mpi_module
 
     PetscMPIInt :: rank
+    PetscInt :: i
     PetscErrorCode :: ierr
     character(:), allocatable :: json_str
 
@@ -883,18 +884,25 @@ contains
 
     json_str = &
          '{"mesh": {"filename": "data/mesh/3x3grid.exo"}}'
-    call cell_index_test_case(json_str)
+    call cell_index_test_case(json_str, 'no boundary', [(i, i = 0, 8)])
 
     json_str = &
          '{"mesh": {"filename": "data/mesh/3x3grid.exo"}, ' // &
          ' "boundaries": [{"faces": {' // &
          ' "cells": [0, 3, 6], "normal": [-1, 0, 0]' // &
          '}}]}'
-    call cell_index_test_case(json_str)
+    call cell_index_test_case(json_str, 'boundary', [(i, i = 0, 8)])
+
+    json_str = &
+         '{"mesh": {"filename": "data/mesh/3x3grid.exo",' // &
+         '  "zones": {"all": {"-": null}},' // &
+         '  "minc": {"zones": ["all"], "fracture": {"volume": 0.1}}}}'
+    call cell_index_test_case(json_str, 'minc no boundary', &
+         [[(i, i = 0, 8)], [(i, i = 0, 8)]])
 
   contains
 
-    subroutine cell_index_test_case(json_str)
+    subroutine cell_index_test_case(json_str, title, expected_order)
 
       use dm_utils_module, only: global_vec_range_start, global_vec_section, &
            global_section_offset
@@ -903,6 +911,8 @@ contains
       use eos_w_module
 
       character(*), intent(in) :: json_str
+      character(*), intent(in) :: title
+      PetscInt, intent(in) :: expected_order(:)
       ! Locals:
       type(fson_value), pointer :: json
       type(mesh_type) :: mesh
@@ -968,7 +978,7 @@ contains
            do i = 1, n
               idx(i) = int(varray(isarray(i) + 1))
            end do
-           call assert_equals([(i - 1, i = 1, n)], idx, n, 'cell order')
+           call assert_equals(expected_order, idx, n, title // ': cell order')
            deallocate(idx)
          end associate
       end if
