@@ -1494,7 +1494,7 @@ contains
          minc_zone, minc_level_cells)
 
     call DMPlexSymmetrize(self%minc_dm, ierr); CHKERRQ(ierr)
-    call self%transfer_labels_to_minc_dm(1, max_num_levels)
+    call self%transfer_labels_to_minc_dm(max_num_levels)
     call self%setup_minc_dm_depth_label(max_num_levels, &
          minc_level_cells)
     call self%setup_minc_dm_level_label(max_num_levels, &
@@ -1922,13 +1922,12 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine mesh_transfer_labels_to_minc_dm(self, max_height, &
-       max_num_levels)
+  subroutine mesh_transfer_labels_to_minc_dm(self, max_num_levels)
     !! Transfers labels from original DM to MINC DM fracture points,
     !! applying appropriate shifts to the point indices.
 
     class(mesh_type), intent(in out) :: self
-    PetscInt, intent(in) :: max_height, max_num_levels
+    PetscInt, intent(in) :: max_num_levels
 
     ! Locals:
     PetscInt :: p, minc_p, h, l, iid, ip, label_value
