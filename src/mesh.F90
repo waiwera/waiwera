@@ -1455,6 +1455,7 @@ contains
     PetscInt :: num_minc_cells
     PetscInt :: num_minc_zones, num_cells, num_new_points, max_num_levels
     PetscInt, allocatable :: minc_zone(:), minc_end_interior(:)
+    PetscInt :: stratum_shift(0: self%depth)
     type(list_type), allocatable :: minc_level_cells(:)
     PetscErrorCode :: ierr
 
@@ -1476,16 +1477,17 @@ contains
     num_new_points = num_minc_cells * (self%depth + 1)
     call DMPlexSetChart(self%minc_dm, start_chart, &
          end_chart + num_new_points, ierr); CHKERRQ(ierr)
+    call self%setup_minc_dm_strata_shifts(num_minc_cells, &
+         max_num_levels, minc_level_cells, stratum_shift)
+
     allocate(minc_end_interior(0: self%depth))
-    minc_end_interior = self%strata%end_interior + num_minc_cells
+    minc_end_interior = self%strata%end_interior + &
+         (stratum_shift + 1) * num_minc_cells
     call DMPlexSetHybridBounds(self%minc_dm, minc_end_interior(0), &
          minc_end_interior(1), minc_end_interior(self%depth - 1), &
          minc_end_interior(self%depth), ierr); CHKERRQ(ierr)
     deallocate(minc_end_interior)
     self%strata%num_minc_points = num_minc_cells
-
-    call self%setup_minc_dm_strata_shifts(num_minc_cells, &
-         max_num_levels, minc_level_cells)
 
     call self%set_minc_dm_cone_sizes(num_cells, num_minc_cells, &
          max_num_levels, minc_zone, minc_level_cells)
@@ -1585,26 +1587,25 @@ contains
 !------------------------------------------------------------------------
 
   subroutine mesh_setup_minc_dm_strata_shifts(self, num_minc_cells, &
-       max_num_levels, minc_level_cells)
+       max_num_levels, minc_level_cells, stratum_shift)
     !! Set up minc_shift array in DM strata, to determine index shift
     !! from original DM point to corresponding point in MINC DM.
 
     class(mesh_type), intent(in out) :: self
     PetscInt, intent(in) :: num_minc_cells, max_num_levels
     type(list_type), intent(in out) :: minc_level_cells(0: max_num_levels)
+    PetscInt, intent(out) :: stratum_shift(0: self%depth)
     ! Locals:
-    PetscInt :: stratum_shift(0: self%depth)
     PetscInt :: i, h, m
     PetscInt :: minc_offset(0: max_num_levels)
 
     ! Set up stratum_shift array (taking account of the fact that
     ! DMPlex points have the order cells, vertices, faces, edges-
-    ! i.e. they are not in depth order.) This is the cumulative shift
+    ! i.e. they are not in depth order.) This represents cumulative shift
     ! resulting from points added to lower-index strata in the DM.
     stratum_shift(0) = 0
     stratum_shift(self%depth) = 1
     stratum_shift(1: self%depth - 1) = [(i + 1, i = 1, self%depth - 1)]
-    stratum_shift = stratum_shift * num_minc_cells
 
     ! Offset of the start of each MINC level within the stratum (note
     ! this is the same for all strata):
@@ -1615,9 +1616,9 @@ contains
 
     do h = 0, self%depth
        allocate(self%strata(h)%minc_shift(0: max_num_levels))
-       self%strata(h)%minc_shift(0) = stratum_shift(h)
+       self%strata(h)%minc_shift(0) = stratum_shift(h) * num_minc_cells
        do m = 1, max_num_levels
-          self%strata(h)%minc_shift(m) = stratum_shift(h) + &
+          self%strata(h)%minc_shift(m) = stratum_shift(h) * num_minc_cells + &
                self%strata(h)%end_interior + minc_offset(m - 1)
        end do
     end do
