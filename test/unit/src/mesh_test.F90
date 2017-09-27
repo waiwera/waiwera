@@ -889,7 +889,7 @@ contains
     json_str = &
          '{"mesh": {"filename": "data/mesh/3x3grid.exo"}, ' // &
          ' "boundaries": [{"faces": {' // &
-         ' "cells": [0, 3, 6], "normal": [-1, 0, 0]' // &
+         ' "cells": [0, 3], "normal": [-1, 0, 0]' // &
          '}}]}'
     call cell_index_test_case(json_str, 'boundary', [(i, i = 0, 8)])
 
