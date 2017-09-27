@@ -324,28 +324,34 @@ contains
       PetscInt, allocatable, intent(out) :: natural_index(:)
       PetscInt, intent(out) :: local_level_count
       ! Locals:
-      PetscInt :: i, c, ghost, order
+      PetscInt :: i, c, ghost, order, stratum_size, count
       IS :: level_IS
       PetscInt, pointer :: level_cells(:)
 
       call DMGetStratumSize(dm, minc_level_label_name, level, &
-           local_level_count, ierr); CHKERRQ(ierr)
-      if (local_level_count > 0) then
-         allocate(natural_index(local_level_count))
+           stratum_size, ierr); CHKERRQ(ierr)
+      if (stratum_size > 0) then
+         allocate(natural_index(stratum_size))
          call DMGetStratumIS(dm, minc_level_label_name, &
               level, level_IS, ierr); CHKERRQ(ierr)
          call ISGetIndicesF90(level_IS, level_cells, ierr); CHKERRQ(ierr)
-         do i = 1, local_level_count
+         count = 0
+         do i = 1, stratum_size
             c = level_cells(i)
             call DMLabelGetValue(ghost_label, c, ghost, ierr)
-            if (ghost < 0) then
+            if ((ghost < 0) .and. (c < end_interior_cell)) then
+               count = count + 1
                call DMLabelGetValue(order_label, c, order, ierr); CHKERRQ(ierr)
-               natural_index(i) = order
+               natural_index(count) = order
             end if
          end do
       else
+         count = 0
          allocate(natural_index(0))
       end if
+
+      local_level_count = count
+      natural_index = natural_index(1: count)
 
     end subroutine get_minc_natural_indices
 
