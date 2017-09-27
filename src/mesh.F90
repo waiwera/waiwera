@@ -2010,7 +2010,7 @@ contains
     PetscInt, intent(in) :: max_num_levels
     type(list_type), intent(in out) :: minc_level_cells(0: max_num_levels)
     ! Locals:
-    PetscInt :: m, ic, h, c, ghost
+    PetscInt :: m, ic, h, c, ghost, minc_p
     DMLabel :: ghost_label
     PetscErrorCode :: ierr
 
@@ -2024,8 +2024,9 @@ contains
     do c = self%strata(h)%start, self%strata(h)%end - 1
        call DMLabelGetValue(ghost_label, c, ghost, ierr)
        if (ghost < 0) then
+          minc_p = self%strata(h)%minc_point(c, m)
           call DMSetLabelValue(self%minc_dm, minc_level_label_name, &
-               c, m, ierr); CHKERRQ(ierr)
+               minc_p, m, ierr); CHKERRQ(ierr)
        end if
     end do
 
