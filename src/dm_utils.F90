@@ -42,6 +42,8 @@ module dm_utils_module
      generic, public :: minc_point => minc_point_single, minc_point_array
   end type dm_stratum_type
 
+  public :: dm_point_stratum_height
+
   public :: set_dm_data_layout, set_dm_default_data_layout
   public :: section_offset, global_section_offset
   public :: global_vec_section, local_vec_section
@@ -132,6 +134,29 @@ contains
     end do
 
   end function dm_stratum_minc_point_array
+
+!------------------------------------------------------------------------
+
+  PetscInt function dm_point_stratum_height(strata, p) result(height)
+    !! Returns height of stratum containing point p, given array of
+    !! strata.
+
+    class(dm_stratum_type), intent(in) :: strata(0:)
+    PetscInt, intent(in) :: p
+    ! Locals:
+    PetscInt :: h
+
+    height = -1
+    associate(depth => size(strata) - 1)
+      do h = 0, depth
+         if (strata(h)%contains_point(p)) then
+            height = h
+            exit
+         end if
+      end do
+    end associate
+
+  end function dm_point_stratum_height
 
 !------------------------------------------------------------------------
 ! DM utilities:

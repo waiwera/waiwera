@@ -1927,6 +1927,8 @@ contains
     !! Transfers labels from original DM to MINC DM fracture points,
     !! applying appropriate shifts to the point indices.
 
+    use dm_utils_module, only: dm_point_stratum_height
+
     class(mesh_type), intent(in out) :: self
     PetscInt, intent(in) :: max_num_levels
 
@@ -1960,7 +1962,7 @@ contains
                 CHKERRQ(ierr)
                 do ip = 1, num_points
                    p = points(ip)
-                   h = dm_point_height(self%original_dm, p)
+                   h = dm_point_stratum_height(self%original_strata, p)
                    minc_p = self%strata(h)%minc_point(p, 0)
                    call DMSetLabelValue(self%minc_dm, label_name, &
                         minc_p, label_value, ierr)
@@ -1975,26 +1977,6 @@ contains
        end if
        call ISDestroy(id_IS, ierr); CHKERRQ(ierr)
     end do
-
-  contains
-
-    PetscInt function dm_point_height(dm, p) result(height)
-      !! Returns height of point in DM.
-
-      DM, intent(in) :: dm
-      PetscInt, intent(in) :: p
-      ! Locals:
-      PetscInt :: h
-
-      height = -1
-      do h = 0, self%depth
-         if (self%strata(h)%contains_point(p)) then
-            height = h
-            exit
-         end if
-      end do
-
-    end function dm_point_height
 
   end subroutine mesh_transfer_labels_to_minc_dm
 
