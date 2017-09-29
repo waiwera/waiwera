@@ -2505,18 +2505,65 @@ contains
     !! Sets up SF for MINC DM, for communicating ghost values between
     !! processors.
 
+    use dm_utils_module, only: dm_point_stratum_height
+
     class(mesh_type), intent(in out) :: self
     ! Locals:
-    PetscSF :: original_sf
-    PetscInt :: num_roots, num_leaves
-    PetscInt, pointer :: local_points(:)
-    PetscSFNode, pointer :: remote_points(:)
+    PetscSF :: sf, minc_sf
+    PetscInt :: start_chart, end_chart, h, i, p
+    PetscInt :: num_roots, num_leaves, num_minc_roots
+    PetscInt, allocatable :: new_locations(:), new_remote_locations(:)
+    PetscInt, pointer :: leaves(:), roots(:,:)
+    PetscInt, allocatable :: minc_leaves(:), minc_roots(:,:)
     PetscErrorCode :: ierr
+    PetscInt, parameter :: m = 0 ! MINC level
 
-    call DMGetPointSF(self%original_dm, original_sf, ierr); CHKERRQ(ierr)
-    call PetscSFGetGraph(original_sf, num_roots, num_leaves, local_points, &
-         remote_points, ierr); CHKERRQ(ierr)
+    call DMGetPointSF(self%minc_dm, minc_sf, ierr); CHKERRQ(ierr)
+    call DMGetPointSF(self%original_dm, sf, ierr); CHKERRQ(ierr)
+    call PetscSFGetGraph(sf, num_roots, num_leaves, leaves, roots, ierr)
+    CHKERRQ(ierr)
 
+    if (num_roots >= 0) then
+
+       ! All DM points are considered potential roots for leaves on
+       ! another process:
+       call DMPlexGetChart(self%minc_dm, start_chart, end_chart, ierr)
+       CHKERRQ(ierr)
+       num_minc_roots = start_chart - end_chart
+
+       ! Update leaf locations:
+       allocate(minc_leaves(num_leaves), minc_roots(2, num_leaves))
+       do i = 1, num_leaves
+          p = leaves(i)
+          h = dm_point_stratum_height(self%strata, p)
+          minc_leaves(i) = self%strata(h)%minc_point(p, m)
+       end do
+
+       ! Update root locations and broadcast:
+       allocate(new_locations(0: num_roots - 1), &
+            new_remote_locations(0: num_leaves))
+       do p = 0, num_roots - 1
+          h = dm_point_stratum_height(self%strata, p)
+          new_locations(p) = self%strata(h)%minc_point(p, m)
+       end do
+       call PetscSFBcastBegin(sf, MPI_UNSIGNED, new_locations, &
+            new_remote_locations, ierr); CHKERRQ(ierr)
+       call PetscSFBcastEnd(sf, MPI_UNSIGNED, new_locations, &
+            new_remote_locations, ierr); CHKERRQ(ierr)
+       do i = 1, num_leaves
+          minc_roots(1, i) = roots(1, i)
+          p = leaves(i)
+          minc_roots(2, i) = new_remote_locations(p)
+       end do
+       deallocate(new_locations, new_remote_locations)
+
+       call PetscSFSetGraph(minc_sf, num_minc_roots, num_leaves, &
+            minc_leaves, PETSC_COPY_VALUES, minc_roots, PETSC_COPY_VALUES, &
+            ierr); CHKERRQ(ierr)
+
+       deallocate(minc_leaves, minc_roots)
+
+    end if
 
   end subroutine mesh_setup_minc_sf
 
