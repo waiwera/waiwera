@@ -119,8 +119,8 @@ contains
        call DMGetLabel(dm, minc_level_label_name, minc_level_label, ierr)
        CHKERRQ(ierr)
        max_level = get_max_minc_level()
-       call allocate_processor_array(local_level_counts)
-       call allocate_processor_array(level_displacements)
+       call allocate_process_array(local_level_counts)
+       call allocate_process_array(level_displacements)
        level_displacements = displacements
        do m = 0, max_level
           call get_minc_natural_indices(m, natural_index, &
@@ -160,7 +160,7 @@ contains
           iglobal = iglobal + 1
           if (i >= cumulative_local_counts(ip) - 1) then
              ! Add space for boundary ghost cells, and increment
-             ! processor index ip:
+             ! process index ip:
              iglobal = iglobal + bdy_counts(ip)
              ip = ip + 1
           end if
@@ -219,7 +219,7 @@ contains
 
 !........................................................................
 
-    subroutine allocate_processor_array(array)
+    subroutine allocate_process_array(array)
 
       !! Allocates array with size num_procs on root process, and 1 on
       !! all others.
@@ -235,7 +235,7 @@ contains
       end if
       allocate(array(size))
 
-    end subroutine allocate_processor_array
+    end subroutine allocate_process_array
 
 !........................................................................
 
@@ -263,7 +263,7 @@ contains
          displacements, bdy_counts, total_count)
 
       !! Gathers local counts and boundary cell counts from all
-      !! processors, calculates displacements in gathered array and
+      !! processes, calculates displacements in gathered array and
       !! total count for gathered array.
 
       PetscInt, intent(in) :: local_count
@@ -271,9 +271,9 @@ contains
            bdy_counts(:), displacements(:)
       PetscInt, intent(out) :: total_count
 
-      call allocate_processor_array(local_counts)
-      call allocate_processor_array(bdy_counts)
-      call allocate_processor_array(displacements)
+      call allocate_process_array(local_counts)
+      call allocate_process_array(bdy_counts)
+      call allocate_process_array(displacements)
 
       call MPI_gather(local_count, 1, MPI_INTEGER, local_counts, 1, &
          MPI_INTEGER, 0, PETSC_COMM_WORLD, ierr)
@@ -359,7 +359,7 @@ contains
 
     PetscInt function get_max_minc_level() result(max_level)
 
-      !! Returns maximum MINC level on all processors.
+      !! Returns maximum MINC level on all processes.
 
       ! Locals:
       PetscInt :: local_max_level, c, level
@@ -416,7 +416,7 @@ contains
 
          ! Assemble array with natural indices (currently from
          ! associated fracture cells) for this MINC level from all
-         ! processors:
+         ! processes:
          do p = 1, num_procs
             associate(dl => local_level_displacements(p), &
                  d => level_displacements(p), &
