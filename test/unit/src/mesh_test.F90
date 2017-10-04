@@ -913,6 +913,16 @@ contains
     call cell_index_test_case(json_str, 'minc two level', &
          [(i, i = 0, 26)])
 
+    json_str = &
+         '{"mesh": {"filename": "data/mesh/3x3grid.exo",' // &
+         '  "zones": {"all": {"-": null}},' // &
+         '  "minc": {"zones": ["all"], "fracture": {"volume": 0.1},' // &
+         '  "matrix": {"volume": [0.3, 0.6]}}},' // &
+         '  "boundaries": [{"faces": {' // &
+         '    "cells": [0, 3], "normal": [-1, 0, 0]}}]}'
+    call cell_index_test_case(json_str, 'minc two level boundary', &
+         [(i, i = 0, 26)])
+
   contains
 
     subroutine cell_index_test_case(json_str, title, expected_order)
