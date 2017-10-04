@@ -2046,7 +2046,9 @@ contains
        num_minc_zones)
 
     !! Sets up cell order label on MINC matrix cells, which are given
-    !! the same cell order label as their parent fracture cell.
+    !! the same cell order label as their parent fracture cell. (This
+    !! is updated later to a unique cell order value when the cell
+    !! index is set up.)
 
     use cell_order_module, only: cell_order_label_name
     use dm_utils_module, only: dm_stratum_type

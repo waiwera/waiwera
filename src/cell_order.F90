@@ -71,6 +71,8 @@ contains
     !! used for post-processing and is similar to the cell index set
     !! except that the global indices apply to vectors containing only
     !! interior cells (not boundary ghost cells).
+    !! For MINC meshes, the cell order label is also updated in the
+    !! MINC cells, giving each one a unique cell order value.
 
     use minc_module, only: minc_level_label_name
     use utils_module, only: array_cumulative_sum
@@ -79,12 +81,12 @@ contains
     IS, intent(out) :: cell_index !! Output cell index set
     PetscViewer, intent(in out), optional :: viewer !! Viewer for optional output
     ! Locals:
-    PetscInt :: local_count, total_count, local_level_count
+    PetscInt :: local_count, total_count, local_level_count, local_minc_count
     PetscInt :: i, m, ip, inatural, iglobal
     DMLabel :: ghost_label, order_label, minc_level_label
     PetscInt, allocatable :: natural_index(:), natural_index_all(:)
-    PetscInt, allocatable :: index_array_all(:), index_array(:)
-    PetscInt, allocatable :: local_counts(:), bdy_counts(:), displacements(:)
+    PetscInt, allocatable :: index_array_all(:), index_array(:), local_counts(:)
+    PetscInt, allocatable :: bdy_counts(:), displacements(:)
     PetscInt, allocatable :: cumulative_local_counts(:)
     PetscInt, allocatable :: level_displacements(:)
     PetscInt, allocatable :: local_level_counts(:)
@@ -122,6 +124,7 @@ contains
        call allocate_process_array(local_level_counts)
        call allocate_process_array(level_displacements)
        level_displacements = displacements
+       local_minc_count = 0
        do m = 0, max_level
           call get_minc_natural_indices(m, natural_index, &
                local_level_count)
@@ -137,7 +140,11 @@ contains
           end if
           deallocate(natural_index)
           level_displacements = level_displacements + local_level_counts
+          if (m > 0) then
+             local_minc_count = local_minc_count + local_level_count
+          end if
        end do
+       call update_minc_cell_order_label()
 
     else
 
@@ -204,7 +211,7 @@ contains
 !........................................................................
 
     PetscInt function get_local_count() result(count)
-      !! Count interior cells on current processor
+      !! Count interior cells on current process.
 
       ! Locals:
       PetscInt :: c, ghost
@@ -452,6 +459,66 @@ contains
       end if
 
     end subroutine assign_minc_natural_indices
+
+!........................................................................
+
+    subroutine update_minc_cell_order_label()
+      !! Updates cell order label in MINC cells on current process.
+
+      ! Locals:
+      PetscInt, allocatable :: minc_counts(:), minc_displacements(:)
+      PetscInt :: c, i, m, stratum_size, ghost, count, old_order
+      IS :: level_IS
+      PetscInt, pointer :: level_cells(:)
+      DMLabel :: ghost_label, cell_order_label
+      PetscErrorCode :: ierr
+
+      call allocate_process_array(minc_counts)
+      call MPI_gather(local_minc_count, 1, MPI_INTEGER, minc_counts, &
+           1, MPI_INTEGER, 0, PETSC_COMM_WORLD, ierr)
+      call allocate_process_array(minc_displacements)
+      minc_displacements = displacements + local_counts - minc_counts
+
+      allocate(natural_index(local_minc_count))
+
+      call MPI_scatterv(natural_index_all, minc_counts, &
+           minc_displacements, MPI_INTEGER, natural_index, &
+           local_minc_count, MPI_INTEGER, 0, PETSC_COMM_WORLD, ierr)
+      write(*,'(a, i2, a, 9(i4, 1x))') 'natural_index on rank ', rank, ':', natural_index
+
+      call DMGetLabel(dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
+      call DMGetLabel(dm, cell_order_label_name, cell_order_label, &
+           ierr); CHKERRQ(ierr)
+
+      count = 0
+      do m = 1, max_level
+         call DMGetStratumSize(dm, minc_level_label_name, m, &
+              stratum_size, ierr); CHKERRQ(ierr)
+         if (stratum_size > 0) then
+            call DMGetStratumIS(dm, minc_level_label_name, &
+                 m, level_IS, ierr); CHKERRQ(ierr)
+            call ISGetIndicesF90(level_IS, level_cells, ierr); CHKERRQ(ierr)
+            do i = 1, stratum_size
+               c = level_cells(i)
+               call DMLabelGetValue(ghost_label, c, ghost, ierr)
+               if ((ghost < 0) .and. (c < end_interior_cell)) then
+                  count = count + 1
+                  call DMLabelGetValue(cell_order_label, c, &
+                       old_order, ierr); CHKERRQ(ierr)
+                  call DMLabelClearValue(cell_order_label, c, &
+                       old_order, ierr); CHKERRQ(ierr)
+                  call DMLabelSetValue(cell_order_label, c, &
+                       natural_index(count), ierr); CHKERRQ(ierr)
+               end if
+            end do
+         end if
+      end do
+
+      deallocate(natural_index, minc_counts, minc_displacements)
+
+      call DMView(dm, PETSC_VIEWER_STDOUT_WORLD, ierr)
+
+    end subroutine update_minc_cell_order_label
 
   end subroutine dm_setup_cell_index
 
