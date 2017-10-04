@@ -449,7 +449,7 @@ contains
       PetscSection :: orig_cell_section, cell_section, face_section
       PetscReal, pointer, contiguous :: orig_cell_geom_array(:), cell_geom_array(:)
       PetscReal, pointer, contiguous :: face_geom_array(:)
-      PetscInt :: orig_cell_offset, cell_offset, ghost, cell_order, minc_cell_order
+      PetscInt :: orig_cell_offset, cell_offset, ghost, cell_order
       PetscInt :: face_offset, cell_p, face_p, h
       PetscReal :: expected_vol, expected_area
       PetscInt :: ic(expected_max_level)
@@ -564,11 +564,6 @@ contains
                             cell_order, ", ", m-1, ":", m, ")"
                        call assert_equals(minc%connection_distance(m + 1), face%distance(2), &
                             tol, str)
-                       call DMLabelGetValue(cell_order_label, cell_p, minc_cell_order, ierr)
-                       CHKERRQ(ierr)
-                       write(str, '(a, a, i3, a, i1, a)') name, ": minc cell order(", &
-                            cell_order, ", ", m, ")"
-                       call assert_equals(cell_order, minc_cell_order, str)
                        ic(m) = ic(m) + 1
                     end do
                  end if
@@ -898,7 +893,7 @@ contains
          '  "zones": {"all": {"-": null}},' // &
          '  "minc": {"zones": ["all"], "fracture": {"volume": 0.1}}}}'
     call cell_index_test_case(json_str, 'minc no boundary', &
-         [[(i, i = 0, 8)], [(i, i = 0, 8)]])
+         [(i, i = 0, 17)])
 
     json_str = &
          '{"mesh": {"filename": "data/mesh/3x3grid.exo",' // &
@@ -908,7 +903,15 @@ contains
          '    "cells": [0, 3], "normal": [-1, 0, 0]}}]' // &
          '}'
     call cell_index_test_case(json_str, 'minc boundary', &
-         [[(i, i = 0, 8)], [(i, i = 0, 8)]])
+         [(i, i = 0, 17)])
+
+    json_str = &
+         '{"mesh": {"filename": "data/mesh/3x3grid.exo",' // &
+         '  "zones": {"all": {"-": null}},' // &
+         '  "minc": {"zones": ["all"], "fracture": {"volume": 0.1},' // &
+         '  "matrix": {"volume": [0.3, 0.6]}}}}'
+    call cell_index_test_case(json_str, 'minc two level', &
+         [(i, i = 0, 26)])
 
   contains
 
