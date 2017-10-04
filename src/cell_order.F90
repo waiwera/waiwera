@@ -484,7 +484,6 @@ contains
       call MPI_scatterv(natural_index_all, minc_counts, &
            minc_displacements, MPI_INTEGER, natural_index, &
            local_minc_count, MPI_INTEGER, 0, PETSC_COMM_WORLD, ierr)
-      write(*,'(a, i2, a, 9(i4, 1x))') 'natural_index on rank ', rank, ':', natural_index
 
       call DMGetLabel(dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
       call DMGetLabel(dm, cell_order_label_name, cell_order_label, &
@@ -515,8 +514,6 @@ contains
       end do
 
       deallocate(natural_index, minc_counts, minc_displacements)
-
-      call DMView(dm, PETSC_VIEWER_STDOUT_WORLD, ierr)
 
     end subroutine update_minc_cell_order_label
 
