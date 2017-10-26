@@ -2512,11 +2512,14 @@ contains
     class(mesh_type), intent(in out) :: self
     ! Locals:
     PetscSF :: sf, minc_sf
-    PetscInt :: start_chart, end_chart, h, i, p
+    PetscInt :: start_chart, end_chart, start_minc_chart, end_minc_chart
+    PetscInt :: h, i, p
     PetscInt :: num_roots, num_leaves, num_minc_roots
     PetscInt, allocatable :: new_locations(:), new_remote_locations(:)
-    PetscInt, pointer :: leaves(:), roots(:,:)
-    PetscInt, allocatable :: minc_leaves(:), minc_roots(:,:)
+    PetscInt, pointer :: leaves(:)
+    type(PetscSFNode), pointer :: roots(:)
+    PetscInt, allocatable :: minc_leaves(:)
+    type(PetscSFNode), allocatable :: minc_roots(:)
     PetscErrorCode :: ierr
     PetscInt, parameter :: m = 0 ! MINC level
 
@@ -2527,42 +2530,40 @@ contains
 
     if (num_roots >= 0) then
 
+       call DMPlexGetChart(self%original_dm, start_chart, end_chart, ierr)
+       CHKERRQ(ierr)
        ! All DM points are considered potential roots for leaves on
        ! another process:
-       call DMPlexGetChart(self%minc_dm, start_chart, end_chart, ierr)
+       call DMPlexGetChart(self%minc_dm, start_minc_chart, end_minc_chart, ierr)
        CHKERRQ(ierr)
-       num_minc_roots = start_chart - end_chart
-
-       ! Update leaf locations:
-       allocate(minc_leaves(num_leaves), minc_roots(2, num_leaves))
-       do i = 1, num_leaves
-          p = leaves(i)
-          h = dm_point_stratum_height(self%strata, p)
-          minc_leaves(i) = self%strata(h)%minc_point(p, m)
-       end do
+       num_minc_roots = end_minc_chart - start_minc_chart
 
        ! Update root locations and broadcast:
        allocate(new_locations(0: num_roots - 1), &
-            new_remote_locations(0: num_leaves))
+            new_remote_locations(0: end_chart - start_chart))
        do p = 0, num_roots - 1
           h = dm_point_stratum_height(self%strata, p)
           new_locations(p) = self%strata(h)%minc_point(p, m)
        end do
-       call PetscSFBcastBegin(sf, MPI_UNSIGNED, new_locations, &
+       call PetscSFBcastBegin(sf, MPI_INTEGER, new_locations, &
             new_remote_locations, ierr); CHKERRQ(ierr)
-       call PetscSFBcastEnd(sf, MPI_UNSIGNED, new_locations, &
+       call PetscSFBcastEnd(sf, MPI_INTEGER, new_locations, &
             new_remote_locations, ierr); CHKERRQ(ierr)
+
+       ! Determine MINC roots and leaves:
+       allocate(minc_leaves(num_leaves), minc_roots(num_leaves))
        do i = 1, num_leaves
-          minc_roots(1, i) = roots(1, i)
           p = leaves(i)
-          minc_roots(2, i) = new_remote_locations(p)
+          h = dm_point_stratum_height(self%strata, p)
+          minc_leaves(i) = self%strata(h)%minc_point(p, m)
+          minc_roots(i)%rank = roots(i)%rank
+          minc_roots(i)%index = new_remote_locations(p)
        end do
        deallocate(new_locations, new_remote_locations)
 
        call PetscSFSetGraph(minc_sf, num_minc_roots, num_leaves, &
             minc_leaves, PETSC_COPY_VALUES, minc_roots, PETSC_COPY_VALUES, &
             ierr); CHKERRQ(ierr)
-
        deallocate(minc_leaves, minc_roots)
 
     end if
