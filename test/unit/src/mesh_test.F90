@@ -962,7 +962,7 @@ contains
       call mesh%setup_boundaries(json, eos)
       call mesh%configure(dof, gravity, json, err = err)
       call fson_destroy_mpi(json)
-      
+
       call DMGetGlobalVector(mesh%dm, v, ierr); CHKERRQ(ierr)
 
       call DMPlexGetHeightStratum(mesh%dm, 0, start_cell, end_cell, ierr)

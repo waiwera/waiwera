@@ -45,6 +45,7 @@ module dm_utils_module
   public :: dm_point_stratum_height
 
   public :: set_dm_data_layout, set_dm_default_data_layout
+  public :: dm_setup_global_section
   public :: section_offset, global_section_offset
   public :: global_vec_section, local_vec_section
   public :: global_to_local_vec_section, restore_dm_local_vec
@@ -239,6 +240,27 @@ contains
          field_names)
 
   end subroutine set_dm_default_data_layout
+
+!------------------------------------------------------------------------
+
+  subroutine dm_setup_global_section(dm)
+    !! Sets up global section on DM, based on local section and point
+    !! SF.
+
+    DM, intent(in out) :: dm
+    ! Locals:
+    PetscSF :: sf
+    PetscSection :: local_section, global_section
+    PetscErrorCode :: ierr
+
+    call DMGetPointSF(dm, sf, ierr); CHKERRQ(ierr)
+    call DMGetDefaultSection(dm, local_section, ierr); CHKERRQ(ierr)
+    call PetscSectionCreateGlobalSection(local_section, sf, PETSC_FALSE, &
+         PETSC_FALSE, global_section, ierr); CHKERRQ(ierr)
+    call DMSetDefaultGlobalSection(dm, global_section, ierr)
+    CHKERRQ(ierr)
+
+  end subroutine dm_setup_global_section
 
 !------------------------------------------------------------------------
 

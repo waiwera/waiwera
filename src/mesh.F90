@@ -1510,6 +1510,7 @@ contains
     call self%setup_minc_geometry(num_cells, max_num_levels, &
          num_minc_zones, minc_zone)
     call self%setup_minc_sf()
+    call dm_setup_global_section(self%minc_dm)
 
     call self%assign_dm(self%minc_dm)
 
