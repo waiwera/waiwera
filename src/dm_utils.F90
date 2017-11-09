@@ -33,6 +33,7 @@ module dm_utils_module
   public :: write_vec_vtk
   public :: vec_max_pointwise_abs_scale
   public :: dm_order_local_index
+  public :: dm_get_num_non_ghost_cells, dm_get_bdy_cell_shift
 
 contains
 
@@ -439,6 +440,76 @@ contains
     end if
 
   end function dm_order_local_index
+
+!------------------------------------------------------------------------
+
+  PetscInt function dm_get_num_non_ghost_cells(dm) result(count)
+    !! Returns number of DM non-ghost cells on current process. This
+    !! excludes both partition and boundary ghost cells.
+
+    DM, intent(in) :: dm
+    ! Locals:
+    PetscInt :: c, ghost, start_cell, end_cell
+    DMLabel :: ghost_label
+    PetscErrorCode :: ierr
+
+    call DMPlexGetHeightStratum(dm, 0, start_cell, end_cell, ierr)
+    CHKERRQ(ierr)
+    call DMGetLabel(dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
+    count = 0
+    do c = start_cell, end_cell - 1
+       call DMLabelGetValue(ghost_label, c, ghost, ierr); CHKERRQ(ierr)
+       if (ghost < 0) count = count + 1
+    end do
+
+  end function dm_get_num_non_ghost_cells
+
+!------------------------------------------------------------------------
+
+  PetscInt function dm_get_bdy_cell_shift(dm) result(shift)
+    !! Returns number of boundary cells on processes of rank lower
+    !! than the current process.
+
+    DM, intent(in) :: dm
+    ! Locals:
+    PetscInt :: start_cell, end_cell, end_interior_cell, dummy
+    PetscInt :: num_bdy_cells, p, alloc_size
+    PetscMPIInt :: rank, size
+    PetscInt, allocatable :: proc_num_bdy_cells(:), &
+         proc_sum_bdy_cells(:)
+    PetscErrorCode :: ierr
+
+    call MPI_comm_rank(PETSC_COMM_WORLD, rank, ierr)
+    call MPI_comm_size(PETSC_COMM_WORLD, size, ierr)
+
+    call DMPlexGetHeightStratum(dm, 0, start_cell, end_cell, ierr)
+    CHKERRQ(ierr)
+    call DMPlexGetHybridBounds(dm, end_interior_cell, dummy, &
+       dummy, dummy, ierr)
+    num_bdy_cells = end_cell - end_interior_cell
+
+    if (rank == 0) then
+       alloc_size = size
+    else
+       alloc_size = 1
+    end if
+    allocate(proc_num_bdy_cells(alloc_size), proc_sum_bdy_cells(alloc_size))
+
+    call MPI_gather(num_bdy_cells, 1, MPI_INTEGER, proc_num_bdy_cells, &
+         1, MPI_INTEGER, 0, PETSC_COMM_WORLD, ierr)
+    if (rank == 0) then
+       proc_sum_bdy_cells(1) = 0
+       do p = 2, size
+          proc_sum_bdy_cells(p) = proc_sum_bdy_cells(p - 1) + &
+               proc_num_bdy_cells(p - 1)
+       end do
+    end if
+    call MPI_scatter(proc_sum_bdy_cells, 1, MPI_INTEGER, shift, &
+         1, MPI_INTEGER, 0, PETSC_COMM_WORLD, ierr)
+
+    deallocate(proc_num_bdy_cells, proc_sum_bdy_cells)
+
+  end function dm_get_bdy_cell_shift
 
 !------------------------------------------------------------------------
 
