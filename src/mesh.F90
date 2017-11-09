@@ -68,16 +68,20 @@ module mesh_module
      procedure :: override_face_properties => mesh_override_face_properties
      procedure :: setup_zones => mesh_setup_zones
      procedure :: setup_cell_order => mesh_setup_cell_order
-     procedure :: natural_to_local_cell_index_single => mesh_natural_to_local_cell_index_single
-     procedure :: natural_to_local_cell_index_array => mesh_natural_to_local_cell_index_array
-     generic :: natural_to_local_cell_index => natural_to_local_cell_index_single, &
-          natural_to_local_cell_index_array
      procedure, public :: init => mesh_init
      procedure, public :: configure => mesh_configure
      procedure, public :: setup_boundaries => mesh_setup_boundaries
      procedure, public :: set_boundary_values => mesh_set_boundary_values
      procedure, public :: order_vector => mesh_order_vector
      procedure, public :: destroy => mesh_destroy
+     generic, public :: natural_to_local_cell_index => natural_to_local_cell_index_array, &
+          natural_to_local_cell_index_single
+     procedure :: local_to_natural_cell_index_array => mesh_local_to_natural_cell_index_array
+     procedure :: local_to_natural_cell_index_single => mesh_local_to_natural_cell_index_single
+     generic, public :: local_to_natural_cell_index => local_to_natural_cell_index_single, &
+          local_to_natural_cell_index_array
+     procedure :: natural_to_local_cell_index_array => mesh_natural_to_local_cell_index_array
+     procedure :: natural_to_local_cell_index_single => mesh_natural_to_local_cell_index_single
   end type mesh_type
 
 contains
@@ -1410,6 +1414,53 @@ contains
     local = local_array(1)
 
   end function mesh_natural_to_local_cell_index_single
+
+!------------------------------------------------------------------------
+
+  function mesh_local_to_natural_cell_index_array(self, l2g, local) &
+       result(natural)
+    !! Returns array of natural cell indices corresponding to array of
+    !! local cell indices.
+
+    class(mesh_type), intent(in) :: self
+    ISLocalToGlobalMapping, intent(in) :: l2g
+    PetscInt, intent(in) :: local(:)
+    PetscInt :: natural(size(local))
+    ! Locals:
+    PetscInt :: idx(size(local))
+    PetscErrorCode :: ierr
+
+    associate(num_cells => size(local))
+      call ISLocalToGlobalMappingApply(l2g, num_cells, local, idx, &
+           ierr); CHKERRQ(ierr)
+      call AOPetscToApplication(self%cell_order, num_cells, idx, &
+           ierr); CHKERRQ(ierr)
+      natural = idx
+    end associate
+
+  end function mesh_local_to_natural_cell_index_array
+
+!------------------------------------------------------------------------
+
+  PetscInt function mesh_local_to_natural_cell_index_single(self, &
+       l2g, local) result(natural)
+    !! Returns natural cell index corresponding to local cell index.
+
+    class(mesh_type), intent(in) :: self
+    ISLocalToGlobalMapping, intent(in) :: l2g
+    PetscInt, intent(in) :: local
+    ! Locals:
+    PetscInt :: idx(1), local_array(1)
+    PetscErrorCode :: ierr
+
+    local_array(1) = local
+    call ISLocalToGlobalMappingApply(l2g, 1, local_array, idx, ierr)
+    CHKERRQ(ierr)
+    call AOPetscToApplication(self%cell_order, 1, idx, ierr)
+    CHKERRQ(ierr)
+    natural = idx(1)
+
+  end function mesh_local_to_natural_cell_index_single
 
 !------------------------------------------------------------------------
 
