@@ -548,9 +548,9 @@ contains
 
     call setup_thermodynamics(json, self%thermo, self%logfile)
     call setup_eos(json, self%thermo, self%eos, self%logfile)
-    call self%setup_gravity(json)
 
     call self%mesh%init(json, self%logfile)
+    call self%setup_gravity(json)
     call self%mesh%setup_boundaries(json, self%eos, self%logfile)
     call self%mesh%configure(self%eos%num_primary_variables, &
          self%gravity, json, self%logfile, self%hdf5_viewer, err)
