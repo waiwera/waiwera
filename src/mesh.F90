@@ -79,17 +79,19 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine mesh_distribute(self)
-    !! Distributes mesh over processors.
+  subroutine mesh_distribute(self, dist_sf)
+    !! Distributes mesh over processors, and returns star forest from
+    !! mesh distribution.
     
     class(mesh_type), intent(in out) :: self
+    PetscSF, intent(out) :: dist_sf !! Mesh distribution star forest
     ! Locals:
     DM :: dist_dm
     PetscErrorCode :: ierr
     PetscInt, parameter :: overlap = 1
 
-    call DMPlexDistribute(self%dm, overlap, PETSC_NULL_SF, &
-         dist_dm, ierr); CHKERRQ(ierr)
+    call DMPlexDistribute(self%dm, overlap, dist_sf, dist_dm, ierr)
+    CHKERRQ(ierr)
     if (dist_dm .ne. PETSC_NULL_DM) then
        call DMDestroy(self%dm, ierr); CHKERRQ(ierr)
        self%dm = dist_dm
