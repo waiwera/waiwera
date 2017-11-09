@@ -1339,7 +1339,7 @@ contains
        call AOApplicationToPetsc(self%cell_order, num_non_ghost_cells, &
             indx, ierr); CHKERRQ(ierr)
        call ISCreateGeneral(PETSC_COMM_WORLD, num_non_ghost_cells, indx, &
-            PETSC_COPY_VALUES, self%cell_index, ierr); CHKERRQ(ierr)
+            PETSC_COPY_VALUES, cell_interior_index, ierr); CHKERRQ(ierr)
        call PetscObjectSetName(cell_interior_index, &
             "cell_interior_index", ierr); CHKERRQ(ierr)
        call ISView(cell_interior_index, viewer, ierr); CHKERRQ(ierr)
