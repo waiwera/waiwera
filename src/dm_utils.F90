@@ -499,7 +499,7 @@ contains
     associate(num_cells => size(natural))
       idx = natural
       call AOApplicationToPetsc(ao, num_cells, idx, ierr); CHKERRQ(ierr)
-      call ISGlobalToLocalMappingApply(l2g, IS_GTOLM_MASK, num_cells, &
+      call ISGlobalToLocalMappingApplyBlock(l2g, IS_GTOLM_MASK, num_cells, &
            idx, n, local, ierr); CHKERRQ(ierr)
     end associate
 
@@ -521,7 +521,7 @@ contains
 
     idx(1) = natural
     call AOApplicationToPetsc(ao, 1, idx, ierr); CHKERRQ(ierr)
-    call ISGlobalToLocalMappingApply(l2g, IS_GTOLM_MASK, 1, &
+    call ISGlobalToLocalMappingApplyBlock(l2g, IS_GTOLM_MASK, 1, &
          idx, n, local_array, ierr); CHKERRQ(ierr)
     local = local_array(1)
 
@@ -543,7 +543,7 @@ contains
     PetscErrorCode :: ierr
 
     associate(num_cells => size(local))
-      call ISLocalToGlobalMappingApply(l2g, num_cells, local, idx, &
+      call ISLocalToGlobalMappingApplyBlock(l2g, num_cells, local, idx, &
            ierr); CHKERRQ(ierr)
       call AOPetscToApplication(ao, num_cells, idx, ierr); CHKERRQ(ierr)
       natural = idx
@@ -565,10 +565,9 @@ contains
     PetscErrorCode :: ierr
 
     local_array(1) = local
-    call ISLocalToGlobalMappingApply(l2g, 1, local_array, idx, ierr)
+    call ISLocalToGlobalMappingApplyBlock(l2g, 1, local_array, idx, ierr)
     CHKERRQ(ierr)
-    call AOPetscToApplication(ao, 1, idx, ierr)
-    CHKERRQ(ierr)
+    call AOPetscToApplication(ao, 1, idx, ierr); CHKERRQ(ierr)
     natural = idx(1)
 
   end function local_to_natural_cell_index_single

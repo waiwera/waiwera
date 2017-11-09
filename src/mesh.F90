@@ -1299,18 +1299,18 @@ contains
 
     num_non_ghost_cells = dm_get_num_non_ghost_cells(self%dm)
     bdy_cell_shift = dm_get_bdy_cell_shift(self%dm)
+    call DMGetLocalToGlobalMapping(self%dm, l2g, ierr); CHKERRQ(ierr)
 
     allocate(natural(0: num_non_ghost_cells - 1), &
          global(0: num_non_ghost_cells - 1))
     if (size > 1) then
        call PetscSFGetGraph(dist_sf, num_roots, num_leaves, &
             local, remote, ierr); CHKERRQ(ierr)
-       call DMGetLocalToGlobalMapping(self%dm, l2g, ierr); CHKERRQ(ierr)
        ic = 0
        do c = self%start_cell, self%end_interior_cell - 1
           if (self%ghost_cell(c) < 0) then
              natural(ic) = remote(c + 1)%index
-             call ISLocalToGlobalMappingApply(l2g, 1, [c], &
+             call ISLocalToGlobalMappingApplyBlock(l2g, 1, [c], &
                   idx, ierr); CHKERRQ(ierr)
              global(ic) = idx(1)
              ic = ic + 1
@@ -1330,7 +1330,7 @@ contains
 
     deallocate(global)
 
-    call ISLocalToGlobalMappingApply(l2g, num_non_ghost_cells, &
+    call ISLocalToGlobalMappingApplyBlock(l2g, num_non_ghost_cells, &
          [(ic, ic = 0, num_non_ghost_cells - 1)], natural, ierr)
     CHKERRQ(ierr)
 
