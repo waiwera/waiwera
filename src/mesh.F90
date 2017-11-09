@@ -67,6 +67,11 @@ module mesh_module
      procedure :: modify_geometry => mesh_modify_geometry
      procedure :: override_face_properties => mesh_override_face_properties
      procedure :: setup_zones => mesh_setup_zones
+     procedure :: setup_cell_order => mesh_setup_cell_order
+     procedure :: natural_to_local_cell_index_single => mesh_natural_to_local_cell_index_single
+     procedure :: natural_to_local_cell_index_array => mesh_natural_to_local_cell_index_array
+     generic :: natural_to_local_cell_index => natural_to_local_cell_index_single, &
+          natural_to_local_cell_index_array
      procedure, public :: init => mesh_init
      procedure, public :: configure => mesh_configure
      procedure, public :: setup_boundaries => mesh_setup_boundaries
@@ -1266,6 +1271,146 @@ contains
     end subroutine zone_dependency_iterator
     
   end subroutine mesh_setup_zones
+
+!------------------------------------------------------------------------
+
+  subroutine mesh_setup_cell_order(self, dist_sf, viewer)
+    !! Sets up cell order data structures: an application ordering
+    !! (AO) and the cell_index index set. A second index set is output
+    !! to the specified viewer (if it is non-null), representing the
+    !! cell indexing for vectors not containing boundary data (used
+    !! for post-processing).
+
+    use dm_utils_module, only: dm_get_num_non_ghost_cells, &
+         dm_get_bdy_cell_shift
+
+    class(mesh_type), intent(in out) :: self
+    PetscSF, intent(in) :: dist_sf !! Star forest from mesh distribution
+    PetscViewer, intent(in out) :: viewer
+    ! Locals:
+    PetscMPIInt :: size
+    PetscInt :: num_non_ghost_cells, bdy_cell_shift
+    PetscInt, allocatable :: natural(:), global(:), indx(:)
+    PetscInt :: ic, c, idx(1)
+    PetscInt :: num_roots, num_leaves
+    PetscInt, pointer :: local(:)
+    type(PetscSFNode), pointer :: remote(:)
+    ISLocalToGlobalMapping :: l2g
+    IS :: cell_interior_index
+    AO :: cell_order_bdy
+    PetscErrorCode :: ierr
+
+    call MPI_comm_size(PETSC_COMM_WORLD, size, ierr)
+
+    num_non_ghost_cells = dm_get_num_non_ghost_cells(self%dm)
+    bdy_cell_shift = dm_get_bdy_cell_shift(self%dm)
+
+    allocate(natural(0: num_non_ghost_cells - 1), &
+         global(0: num_non_ghost_cells - 1))
+    if (size > 1) then
+       call PetscSFGetGraph(dist_sf, num_roots, num_leaves, &
+            local, remote, ierr); CHKERRQ(ierr)
+       call DMGetLocalToGlobalMapping(self%dm, l2g, ierr); CHKERRQ(ierr)
+       ic = 0
+       do c = self%start_cell, self%end_interior_cell - 1
+          if (self%ghost_cell(c) < 0) then
+             natural(ic) = remote(c + 1)%index
+             call ISLocalToGlobalMappingApply(l2g, 1, [c], &
+                  idx, ierr); CHKERRQ(ierr)
+             global(ic) = idx(1)
+             ic = ic + 1
+          end if
+       end do
+    else ! serial (dist_sf is null):
+       natural = [(ic, ic = 0, num_non_ghost_cells - 1)]
+       global = natural
+    end if
+
+    call AOCreateBasic(PETSC_COMM_WORLD, num_non_ghost_cells, natural, &
+         global, self%cell_order, ierr); CHKERRQ(ierr)
+
+    global = global + bdy_cell_shift
+    call AOCreateMapping(PETSC_COMM_WORLD, num_non_ghost_cells, &
+         natural, global, cell_order_bdy, ierr); CHKERRQ(ierr)
+
+    deallocate(global)
+
+    call ISLocalToGlobalMappingApply(l2g, num_non_ghost_cells, &
+         [(ic, ic = 0, num_non_ghost_cells - 1)], natural, ierr)
+    CHKERRQ(ierr)
+
+    if (viewer /= PETSC_NULL_VIEWER) then
+       indx = natural
+       call AOApplicationToPetsc(self%cell_order, num_non_ghost_cells, &
+            indx, ierr); CHKERRQ(ierr)
+       call ISCreateGeneral(PETSC_COMM_WORLD, num_non_ghost_cells, indx, &
+            PETSC_COPY_VALUES, self%cell_index, ierr); CHKERRQ(ierr)
+       call PetscObjectSetName(cell_interior_index, &
+            "cell_interior_index", ierr); CHKERRQ(ierr)
+       call ISView(cell_interior_index, viewer, ierr); CHKERRQ(ierr)
+       call ISDestroy(cell_interior_index, ierr); CHKERRQ(ierr)
+    end if
+
+    indx = natural
+    deallocate(natural)
+    call AOApplicationToPetsc(cell_order_bdy, num_non_ghost_cells, &
+         indx, ierr); CHKERRQ(ierr)
+    call AODestroy(cell_order_bdy, ierr); CHKERRQ(ierr)
+    call ISCreateGeneral(PETSC_COMM_WORLD, num_non_ghost_cells, indx, &
+         PETSC_COPY_VALUES, self%cell_index, ierr); CHKERRQ(ierr)
+    deallocate(indx)
+    call PetscObjectSetName(self%cell_index, "cell_index", ierr)
+    CHKERRQ(ierr)
+
+  end subroutine mesh_setup_cell_order
+
+!------------------------------------------------------------------------
+
+  function mesh_natural_to_local_cell_index_array(self, l2g, natural) &
+       result(local)
+    !! Returns array of local cell indices corresponding to array of
+    !! natural cell indices. Any off-process cells are given index
+    !! values of -1.
+
+    class(mesh_type), intent(in) :: self
+    ISLocalToGlobalMapping, intent(in) :: l2g
+    PetscInt, intent(in) :: natural(:)
+    PetscInt :: local(size(natural))
+    ! Locals:
+    PetscInt :: n, idx(size(natural))
+    PetscErrorCode :: ierr
+
+    associate(num_cells => size(natural))
+      idx = natural
+      call AOApplicationToPetsc(self%cell_order, num_cells, &
+         idx, ierr); CHKERRQ(ierr)
+      call ISGlobalToLocalMappingApply(l2g, IS_GTOLM_MASK, num_cells, &
+           idx, n, local, ierr); CHKERRQ(ierr)
+    end associate
+
+  end function mesh_natural_to_local_cell_index_array
+
+!------------------------------------------------------------------------
+
+  PetscInt function mesh_natural_to_local_cell_index_single(self, l2g, &
+       natural) result(local)
+    !! Returns local cell index corresponding to natural cell
+    !! index. Off-process cells are given index values of -1.
+
+    class(mesh_type), intent(in) :: self
+    ISLocalToGlobalMapping, intent(in) :: l2g
+    PetscInt, intent(in) :: natural
+    ! Locals:
+    PetscInt :: n, idx(1), local_array(1)
+    PetscErrorCode :: ierr
+
+    idx(1) = natural
+    call AOApplicationToPetsc(self%cell_order, 1, idx, ierr); CHKERRQ(ierr)
+    call ISGlobalToLocalMappingApply(l2g, IS_GTOLM_MASK, 1, &
+         idx, n, local_array, ierr); CHKERRQ(ierr)
+    local = local_array(1)
+
+  end function mesh_natural_to_local_cell_index_single
 
 !------------------------------------------------------------------------
 
