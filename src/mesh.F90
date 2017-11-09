@@ -595,26 +595,25 @@ contains
     PetscReal, intent(in) :: gravity(:)
     type(fson_value), pointer, intent(in) :: json !! JSON file pointer
     type(logfile_type), intent(in out), optional :: logfile !! Log file
-    PetscViewer, intent(in out), optional :: viewer !! PetscViewer for output of cell index set to HDF5 file
+    PetscViewer, intent(in out) :: viewer !! PetscViewer for output of cell index set to HDF5 file
     PetscErrorCode, intent(out) :: err !! Error flag
+    ! Locals:
+    PetscSF :: dist_sf
+    PetscErrorCode :: ierr
 
     err = 0
-
-    call dm_setup_cell_order_label(self%dm)
-    call self%distribute()
+    call self%distribute(dist_sf)
     call self%construct_ghost_cells()
-
     call self%setup_discretization(dof)
-
     call self%get_bounds()
-
     call self%setup_data_layout(dof)
     call self%setup_geometry(gravity)
-    call self%setup_zones(json, logfile, err)
-
     call self%setup_ghost_arrays()
 
-    call dm_setup_cell_index(self%dm, self%cell_index, viewer)
+    call self%setup_cell_order(dist_sf, viewer)
+    call PetscSFDestroy(dist_sf, ierr); CHKERRQ(ierr)
+
+    call self%setup_zones(json, logfile, err)
 
   end subroutine mesh_configure
 
