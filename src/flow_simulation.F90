@@ -308,6 +308,8 @@ contains
             FILE_MODE_WRITE, self%hdf5_viewer, ierr); CHKERRQ(ierr)
        call PetscViewerHDF5PushGroup(self%hdf5_viewer, "/", ierr)
        CHKERRQ(ierr)
+    else
+       self%hdf5_viewer = PETSC_NULL_VIEWER
     end if
 
     if (default_output) then
@@ -546,17 +548,12 @@ contains
 
     call setup_thermodynamics(json, self%thermo, self%logfile)
     call setup_eos(json, self%thermo, self%eos, self%logfile)
+    call self%setup_gravity(json)
 
     call self%mesh%init(json, self%logfile)
-    call self%setup_gravity(json)
     call self%mesh%setup_boundaries(json, self%eos, self%logfile)
-    if (self%output_filename == '') then
-       call self%mesh%configure(self%eos%num_primary_variables, &
-            self%gravity, json, self%logfile, err = err)
-    else
-       call self%mesh%configure(self%eos%num_primary_variables, &
-            self%gravity, json, self%logfile, self%hdf5_viewer, err)
-    end if
+    call self%mesh%configure(self%eos%num_primary_variables, &
+         self%gravity, json, self%logfile, self%hdf5_viewer, err)
 
     if (err == 0) then
 
