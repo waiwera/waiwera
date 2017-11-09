@@ -21,7 +21,6 @@ module mesh_module
 #include <petsc/finclude/petsc.h>
 
   use petsc
-  use cell_order_module
   use zone_module
   use list_module
   use mpi_utils_module
@@ -47,7 +46,8 @@ module mesh_module
      PetscInt, public :: start_face !! DM point containing first face on this process
      PetscInt, public :: end_face !! DM point containing last face on this process
      PetscReal, allocatable, public :: bcs(:,:) !! Array containing boundary conditions
-     IS, public :: cell_index !! Index set defining natural cell ordering
+     AO, public :: cell_order !! Application ordering to convert between global and natural cell indices
+     IS, public :: cell_index !! Index set defining natural cell ordering (used for restarting from results of a previous run)
      PetscInt, public, allocatable :: ghost_cell(:), ghost_face(:) !! Ghost label values for cells and faces
      PetscReal, public :: permeability_rotation(3, 3) !! Rotation matrix of permeability axes
      PetscReal, public :: thickness !! Mesh thickness (for dimension < 3)
@@ -588,7 +588,6 @@ contains
     !! construction of ghost cells, setup of data layout, geometry and
     !! cell index set.
 
-    use cell_order_module
     use logfile_module
 
     class(mesh_type), intent(in out) :: self
@@ -635,6 +634,7 @@ contains
        deallocate(self%bcs)
     end if
 
+    call AODestroy(self%cell_order, ierr); CHKERRQ(ierr)
     call ISDestroy(self%cell_index, ierr); CHKERRQ(ierr)
 
     if (allocated(self%ghost_cell)) then
