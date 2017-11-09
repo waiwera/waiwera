@@ -25,6 +25,16 @@ module dm_utils_module
   implicit none
   private
 
+  interface natural_to_local_cell_index
+     module procedure natural_to_local_cell_index_array
+     module procedure natural_to_local_cell_index_single
+  end interface natural_to_local_cell_index
+
+  interface local_to_natural_cell_index
+     module procedure local_to_natural_cell_index_single
+     module procedure local_to_natural_cell_index_array
+  end interface local_to_natural_cell_index
+
   public :: set_dm_data_layout, section_offset, global_section_offset
   public :: global_vec_section, local_vec_section
   public :: global_to_local_vec_section, restore_dm_local_vec
@@ -34,6 +44,7 @@ module dm_utils_module
   public :: vec_max_pointwise_abs_scale
   public :: dm_order_local_index
   public :: dm_get_num_non_ghost_cells, dm_get_bdy_cell_shift
+  public :: natural_to_local_cell_index, local_to_natural_cell_index
 
 contains
 
@@ -510,6 +521,99 @@ contains
     deallocate(proc_num_bdy_cells, proc_sum_bdy_cells)
 
   end function dm_get_bdy_cell_shift
+
+!------------------------------------------------------------------------
+
+  function natural_to_local_cell_index_array(ao, l2g, natural) &
+       result(local)
+    !! Returns array of local cell indices corresponding to array
+    !! of natural cell indices. Any off-process cells are given index
+    !! values of -1.
+
+    AO, intent(in) :: ao !! Application ordering mapping natural to global cell indices
+    ISLocalToGlobalMapping, intent(in) :: l2g !! DM local to global mapping
+    PetscInt, intent(in) :: natural(:) !! Natural cell indices
+    PetscInt :: local(size(natural))
+    ! Locals:
+    PetscInt :: n, idx(size(natural))
+    PetscErrorCode :: ierr
+
+    associate(num_cells => size(natural))
+      idx = natural
+      call AOApplicationToPetsc(ao, num_cells, idx, ierr); CHKERRQ(ierr)
+      call ISGlobalToLocalMappingApply(l2g, IS_GTOLM_MASK, num_cells, &
+           idx, n, local, ierr); CHKERRQ(ierr)
+    end associate
+
+  end function natural_to_local_cell_index_array
+
+!------------------------------------------------------------------------
+
+  PetscInt function natural_to_local_cell_index_single(ao, l2g, &
+       natural) result(local)
+    !! Returns local cell index corresponding to natural cell
+    !! index. Off-process cells are given index values of -1.
+
+    AO, intent(in) :: ao !! Application ordering mapping natural to global cell indices
+    ISLocalToGlobalMapping, intent(in) :: l2g !! DM local to global mapping
+    PetscInt, intent(in) :: natural !! Natural cell index
+    ! Locals:
+    PetscInt :: n, idx(1), local_array(1)
+    PetscErrorCode :: ierr
+
+    idx(1) = natural
+    call AOApplicationToPetsc(ao, 1, idx, ierr); CHKERRQ(ierr)
+    call ISGlobalToLocalMappingApply(l2g, IS_GTOLM_MASK, 1, &
+         idx, n, local_array, ierr); CHKERRQ(ierr)
+    local = local_array(1)
+
+  end function natural_to_local_cell_index_single
+
+!------------------------------------------------------------------------
+
+  function local_to_natural_cell_index_array(ao, l2g, local) &
+       result(natural)
+    !! Returns array of natural cell indices corresponding to array of
+    !! local cell indices.
+
+    AO, intent(in) :: ao !! Application ordering mapping natural to global cell indices
+    ISLocalToGlobalMapping, intent(in) :: l2g !! DM local to global mapping
+    PetscInt, intent(in) :: local(:) !! Local cell indices
+    PetscInt :: natural(size(local))
+    ! Locals:
+    PetscInt :: idx(size(local))
+    PetscErrorCode :: ierr
+
+    associate(num_cells => size(local))
+      call ISLocalToGlobalMappingApply(l2g, num_cells, local, idx, &
+           ierr); CHKERRQ(ierr)
+      call AOPetscToApplication(ao, num_cells, idx, ierr); CHKERRQ(ierr)
+      natural = idx
+    end associate
+
+  end function local_to_natural_cell_index_array
+
+!------------------------------------------------------------------------
+
+  PetscInt function local_to_natural_cell_index_single(ao, &
+       l2g, local) result(natural)
+    !! Returns natural cell index corresponding to local cell index.
+
+    AO, intent(in) :: ao !! Application ordering mapping natural to global cell indices
+    ISLocalToGlobalMapping, intent(in) :: l2g !! DM local to global mapping
+    PetscInt, intent(in) :: local !! Local cell index
+    ! Locals:
+    PetscInt :: idx(1), local_array(1)
+    PetscErrorCode :: ierr
+
+    local_array(1) = local
+    call ISLocalToGlobalMappingApply(l2g, 1, local_array, idx, ierr)
+    CHKERRQ(ierr)
+    call AOPetscToApplication(ao, 1, idx, ierr)
+    CHKERRQ(ierr)
+    natural = idx(1)
+
+  end function local_to_natural_cell_index_single
 
 !------------------------------------------------------------------------
 
