@@ -418,15 +418,17 @@ contains
 
     DM, intent(in) :: dm
     ! Locals:
-    PetscInt :: c, ghost, start_cell, end_cell
+    PetscInt :: c, ghost, start_cell, end_cell, end_interior_cell, dummy
     DMLabel :: ghost_label
     PetscErrorCode :: ierr
 
     call DMPlexGetHeightStratum(dm, 0, start_cell, end_cell, ierr)
-    CHKERRQ(ierr)
+    call DMPlexGetHybridBounds(dm, end_interior_cell, dummy, &
+         dummy, dummy, ierr); CHKERRQ(ierr)
+    if (end_interior_cell < 0) end_interior_cell = end_cell
     call DMGetLabel(dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
     count = 0
-    do c = start_cell, end_cell - 1
+    do c = start_cell, end_interior_cell - 1
        call DMLabelGetValue(ghost_label, c, ghost, ierr); CHKERRQ(ierr)
        if (ghost < 0) count = count + 1
     end do
