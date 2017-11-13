@@ -1023,26 +1023,27 @@ contains
     use fson_mpi_module
     use logfile_module
     use face_module
-    use dm_utils_module, only: local_vec_section, section_offset
+    use dm_utils_module, only: local_vec_section, section_offset, &
+         natural_to_local_cell_index
 
     class(mesh_type), intent(in out) :: self
     type(fson_value), pointer, intent(in) :: json !! JSON file pointer
     type(logfile_type), intent(in out), optional :: logfile !! Logfile for log output
     ! Locals:
     type(fson_value), pointer :: faces_json, face_json
-    PetscInt :: num_cells, num_faces, iface, f, i, num_cell_faces
-    PetscInt, allocatable :: global_cell_indices(:)
+    PetscInt :: num_faces, iface, f, i, num_cell_faces
+    PetscInt, allocatable :: natural_cell_indices(:)
     PetscInt, allocatable :: default_cells(:)
-    PetscInt, target :: points(2)
-    PetscInt :: permeability_direction, face_offset, num_matching
+    PetscInt :: permeability_direction, face_offset
     PetscSection :: face_section
-    PetscInt, pointer :: ppoints(:), cells(:)
+    PetscInt, pointer :: pcells(:)
     PetscReal, pointer, contiguous :: face_geom_array(:)
     PetscInt, pointer :: cell_faces(:)
     type(face_type) :: face
     character(len=64) :: facestr
     character(len=12) :: istr
-    IS :: cell_IS
+    ISLocalToGlobalMapping :: l2g
+    PetscInt, target :: local_cell_indices(2)
     PetscErrorCode :: ierr
     PetscInt, parameter :: default_permeability_direction = 1
 
@@ -1050,6 +1051,7 @@ contains
     call local_vec_section(self%face_geom, face_section)
     call VecGetArrayF90(self%face_geom, face_geom_array, ierr); CHKERRQ(ierr)
     call face%init()
+    call DMGetLocalToGlobalMapping(self%dm, l2g, ierr); CHKERRQ(ierr)
 
     if (fson_has_mpi(json, "mesh.faces")) then
        call fson_get_mpi(json, "mesh.faces", faces_json)
@@ -1061,59 +1063,40 @@ contains
           facestr = 'mesh.faces[' // trim(istr) // ']'
           face_json => fson_value_get_mpi(faces_json, iface)
           call fson_get_mpi(face_json, "cells", default_cells, &
-               global_cell_indices, logfile, log_key = trim(facestr) // ".cells")
+               natural_cell_indices, logfile, log_key = trim(facestr) // ".cells")
           call fson_get_mpi(face_json, "permeability_direction", &
                default_permeability_direction, permeability_direction, &
                logfile, log_key = trim(facestr) // ".permeability_direction")
 
-          num_cells = size(global_cell_indices)
-          if (num_cells == 2) then
-
-             ! get DM mesh points on local processor for both cells:
-             call DMGetStratumSize(self%dm, cell_order_label_name, &
-                  global_cell_indices(1), num_matching, ierr); CHKERRQ(ierr)
-             if (num_matching == 1) then
-                call DMGetStratumIS(self%dm, cell_order_label_name, &
-                     global_cell_indices(1), cell_IS, ierr); CHKERRQ(ierr)
-                call ISGetIndicesF90(cell_IS, cells, ierr); CHKERRQ(ierr)
-                points(1) = cells(1)
-                call ISRestoreIndicesF90(cell_IS, cells, ierr); CHKERRQ(ierr)
-                call ISDestroy(cell_IS, ierr); CHKERRQ(ierr)
-                call DMGetStratumSize(self%dm, cell_order_label_name, &
-                     global_cell_indices(2), num_matching, ierr); CHKERRQ(ierr)
-                if (num_matching == 1) then
-                   call DMGetStratumIS(self%dm, cell_order_label_name, &
-                        global_cell_indices(2), cell_IS, ierr); CHKERRQ(ierr)
-                   call ISGetIndicesF90(cell_IS, cells, ierr); CHKERRQ(ierr)
-                   points(2) = cells(1)
-                   call ISRestoreIndicesF90(cell_IS, cells, ierr); CHKERRQ(ierr)
-                   call ISDestroy(cell_IS, ierr); CHKERRQ(ierr)
-
-                   ppoints => points
-                   call DMPlexGetMeet(self%dm, num_cells, ppoints, cell_faces, ierr)
-                   CHKERRQ(ierr)
-                   num_cell_faces = size(cell_faces)
-                   do i = 1, num_cell_faces
-                      f = cell_faces(i)
-                      if (self%ghost_face(f) < 0) then
-                         call section_offset(face_section, f, face_offset, ierr)
-                         CHKERRQ(ierr)
-                         call face%assign_geometry(face_geom_array, face_offset)
-                         face%permeability_direction = dble(permeability_direction)
-                      end if
-                   end do
-                   call DMPlexRestoreMeet(self%dm, num_cells, ppoints, cell_faces, &
-                        ierr); CHKERRQ(ierr)
-                end if
-             end if
-
-          else
-             if (present(logfile)) then
-                call logfile%write(LOG_LEVEL_WARN, "input", &
-                     "incorrect number of cells", int_keys = ["mesh.faces"], &
-                     int_values = [iface - 1])
-             end if
-          end if
+          associate(num_cells => size(natural_cell_indices))
+            if (num_cells == 2) then
+               local_cell_indices = natural_to_local_cell_index(self%cell_order, &
+                    l2g, natural_cell_indices)
+               if (all(local_cell_indices >= 0)) then
+                  pcells => local_cell_indices
+                  call DMPlexGetMeet(self%dm, num_cells, pcells, cell_faces, ierr)
+                  CHKERRQ(ierr)
+                  num_cell_faces = size(cell_faces)
+                  do i = 1, num_cell_faces
+                     f = cell_faces(i)
+                     if (self%ghost_face(f) < 0) then
+                        call section_offset(face_section, f, face_offset, ierr)
+                        CHKERRQ(ierr)
+                        call face%assign_geometry(face_geom_array, face_offset)
+                        face%permeability_direction = dble(permeability_direction)
+                     end if
+                  end do
+                  call DMPlexRestoreMeet(self%dm, num_cells, pcells, cell_faces, &
+                       ierr); CHKERRQ(ierr)
+               end if
+            else
+               if (present(logfile)) then
+                  call logfile%write(LOG_LEVEL_WARN, "input", &
+                       "incorrect number of cells", int_keys = ["mesh.faces"], &
+                       int_values = [iface - 1])
+               end if
+            end if
+          end associate
        end do
     end if
 
@@ -1211,7 +1194,8 @@ contains
              node => zone_dict%get(zone_name)
              select type(zone => node%data)
                 class is (zone_type)
-                call zone%label_dm(self%dm, self%cell_geom, err)
+                   call zone%label_dm(self%dm, self%cell_order, &
+                        self%cell_geom, err)
                 if (err > 0) then
                    if (present(logfile)) then
                       call logfile%write(LOG_LEVEL_WARN, 'zone', &
@@ -1283,7 +1267,7 @@ contains
     PetscSF, intent(in) :: dist_sf !! Star forest from mesh distribution
     PetscViewer, intent(in out) :: viewer
     ! Locals:
-    PetscMPIInt :: size
+    PetscMPIInt :: size, rank
     PetscInt :: num_non_ghost_cells, bdy_cell_shift
     PetscInt, allocatable :: natural(:), global(:), indx(:)
     PetscInt :: ic, c, idx(1)
@@ -1296,6 +1280,7 @@ contains
     PetscErrorCode :: ierr
 
     call MPI_comm_size(PETSC_COMM_WORLD, size, ierr)
+    call MPI_comm_rank(PETSC_COMM_WORLD, rank, ierr)
 
     num_non_ghost_cells = dm_get_num_non_ghost_cells(self%dm)
     bdy_cell_shift = dm_get_bdy_cell_shift(self%dm)
@@ -1321,8 +1306,10 @@ contains
        global = natural
     end if
 
-    call AOCreateBasic(PETSC_COMM_WORLD, num_non_ghost_cells, natural, &
+    call AOCreateMapping(PETSC_COMM_WORLD, num_non_ghost_cells, natural, &
          global, self%cell_order, ierr); CHKERRQ(ierr)
+    call AOView(self%cell_order, PETSC_VIEWER_STDOUT_WORLD, ierr)
+    call ISLocalToGlobalMappingView(l2g, PETSC_VIEWER_STDOUT_WORLD, ierr)
 
     global = global + bdy_cell_shift
     call AOCreateMapping(PETSC_COMM_WORLD, num_non_ghost_cells, &

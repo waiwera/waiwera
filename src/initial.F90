@@ -86,9 +86,9 @@ contains
     !! Initializes solution vector y from a rank-2 array of values for
     !! all mesh cells.
 
-    use dm_utils_module, only: global_vec_section, global_section_offset
+    use dm_utils_module, only: global_vec_section, global_section_offset, &
+         natural_to_local_cell_index
     use mesh_module, only: mesh_type
-    use cell_order_module, only: cell_order_label_name
     use eos_module, only: eos_type
 
     type(mesh_type), intent(in) :: mesh
@@ -97,42 +97,44 @@ contains
     Vec, intent(in out) :: y
     PetscInt, intent(in) :: range_start
     ! Locals:
-    PetscInt :: num_cells, np, global_cell_index, i
-    PetscInt :: offset, ghost, num_matching, c
-    PetscErrorCode :: ierr
+    PetscInt :: num_cells, np, i
+    PetscInt :: offset, ghost, c
     PetscReal, pointer, contiguous :: cell_primary(:), y_array(:)
     PetscSection :: section
-    IS :: cell_IS
-    PetscInt, pointer :: cells(:)
     DMLabel :: ghost_label
+    ISLocalToGlobalMapping :: l2g
+    PetscErrorCode :: ierr
+    PetscMPIInt :: rank
+    PetscInt :: idx(1)
 
+    call MPI_comm_rank(PETSC_COMM_WORLD, rank, ierr)
+    
     num_cells = size(primary, 1)
     np = eos%num_primary_variables
 
     call global_vec_section(y, section)
     call VecGetArrayF90(y, y_array, ierr); CHKERRQ(ierr)
     call DMGetLabel(mesh%dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
+    call DMGetLocalToGlobalMapping(mesh%dm, l2g, ierr); CHKERRQ(ierr)
 
     do i = 1, num_cells
-       global_cell_index = i - 1
-       call DMGetStratumSize(mesh%dm, cell_order_label_name, &
-            global_cell_index, num_matching, ierr); CHKERRQ(ierr)
-       if (num_matching > 0) then
-          call DMGetStratumIS(mesh%dm, cell_order_label_name, &
-               global_cell_index, cell_IS, ierr); CHKERRQ(ierr)
-          call ISGetIndicesF90(cell_IS, cells, ierr); CHKERRQ(ierr)
-          do c = 1, num_matching
-             call DMLabelGetValue(ghost_label, cells(c), ghost, ierr)
-             if (ghost < 0) then
-                call global_section_offset(section, cells(c), range_start, &
-                     offset, ierr)
-                cell_primary => y_array(offset : offset + np - 1)
-                cell_primary = primary(i, :)
-             end if
-          end do
-          call ISRestoreIndicesF90(cell_IS, cells, ierr); CHKERRQ(ierr)
-          call ISDestroy(cell_IS, ierr); CHKERRQ(ierr)
-       end if
+       associate(natural_cell_index => i - 1)
+         c = natural_to_local_cell_index(mesh%cell_order, l2g, &
+              natural_cell_index)
+         idx(1) = natural_cell_index
+         call AOApplicationToPetsc(mesh%cell_order, 1, idx, ierr)
+         write(*,*) 'rank:', rank, 'natural:', natural_cell_index, &
+              'global:', idx(1), 'c:', c
+         if (c >= 0) then
+            call DMLabelGetValue(ghost_label, c, ghost, ierr)
+            if (ghost < 0) then
+               call global_section_offset(section, c, range_start, &
+                    offset, ierr)
+               cell_primary => y_array(offset : offset + np - 1)
+               cell_primary = primary(i, :)
+            end if
+         end if
+       end associate
     end do
 
     call VecRestoreArrayF90(y, y_array, ierr); CHKERRQ(ierr)
@@ -195,9 +197,9 @@ contains
     !! Initializes fluid regions from a rank-1 array of values for
     !! all mesh cells.
 
-    use dm_utils_module, only: global_vec_section, global_section_offset
+    use dm_utils_module, only: global_vec_section, global_section_offset, &
+         natural_to_local_cell_index
     use mesh_module, only: mesh_type
-    use cell_order_module, only: cell_order_label_name
     use eos_module, only: eos_type
     use fluid_module, only: fluid_type
 
@@ -207,15 +209,14 @@ contains
     Vec, intent(in out) :: fluid_vector
     PetscInt, intent(in) :: fluid_range_start
     ! Locals:
-    PetscInt :: num_cells, np, global_cell_index, i, ghost
-    PetscInt :: offset, num_matching, c
-    PetscErrorCode :: ierr
+    PetscInt :: num_cells, np, i, ghost
+    PetscInt :: offset, c
     type(fluid_type) :: fluid
     PetscReal, pointer, contiguous :: fluid_array(:)
     PetscSection :: section
-    IS :: cell_IS
-    PetscInt, pointer :: cells(:)
+    ISLocalToGlobalMapping :: l2g
     DMLabel :: ghost_label
+    PetscErrorCode :: ierr
 
     num_cells = size(region, 1)
     np = eos%num_primary_variables
@@ -224,27 +225,22 @@ contains
     call VecGetArrayF90(fluid_vector, fluid_array, ierr); CHKERRQ(ierr)
     call fluid%init(eos%num_components, eos%num_phases)
     call DMGetLabel(mesh%dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
+    call DMGetLocalToGlobalMapping(mesh%dm, l2g, ierr); CHKERRQ(ierr)
 
     do i = 1, num_cells
-       global_cell_index = i - 1
-       call DMGetStratumSize(mesh%dm, cell_order_label_name, &
-            global_cell_index, num_matching, ierr); CHKERRQ(ierr)
-       if (num_matching > 0) then
-          call DMGetStratumIS(mesh%dm, cell_order_label_name, &
-               global_cell_index, cell_IS, ierr); CHKERRQ(ierr)
-          call ISGetIndicesF90(cell_IS, cells, ierr); CHKERRQ(ierr)
-          do c = 1, num_matching
-             call DMLabelGetValue(ghost_label, cells(c), ghost, ierr)
-             if (ghost < 0) then
-                call global_section_offset(section, cells(c), &
-                     fluid_range_start, offset, ierr); CHKERRQ(ierr)
-                call fluid%assign(fluid_array, offset)
-                fluid%region = dble(region(i))
-             end if
-          end do
-          call ISRestoreIndicesF90(cell_IS, cells, ierr); CHKERRQ(ierr)
-          call ISDestroy(cell_IS, ierr); CHKERRQ(ierr)
-       end if
+       associate(natural_cell_index => i - 1)
+         c = natural_to_local_cell_index(mesh%cell_order, l2g, &
+              natural_cell_index)
+         if (c >= 0) then
+            call DMLabelGetValue(ghost_label, c, ghost, ierr)
+            if (ghost < 0) then
+               call global_section_offset(section, c, &
+                    fluid_range_start, offset, ierr); CHKERRQ(ierr)
+               call fluid%assign(fluid_array, offset)
+               fluid%region = dble(region(i))
+            end if
+         end if
+       end associate
     end do
 
     call VecRestoreArrayF90(fluid_vector, fluid_array, ierr); CHKERRQ(ierr)
