@@ -484,6 +484,56 @@ contains
 
 !------------------------------------------------------------------------
 
+  AO function dm_get_natural_to_global_ao(dm, dist_sf) result(ao)
+    !! Returns application ordering for natural to global mapping on
+    !! the DM, given the mesh distribution SF.
+
+    DM, intent(in) :: dm
+    PetscSF, intent(in) :: dist_sf
+
+    PetscMPIInt :: np
+    PetscInt :: num_roots, num_leaves, c, dummy
+    PetscInt :: start_cell, end_cell, end_interior_cell, end_non_ghost_cell
+    PetscInt :: num_ghost_cells, num_non_ghost_cells
+    PetscInt, pointer :: local(:)
+    type(PetscSFNode), pointer :: remote(:)
+    PetscInt, allocatable :: natural(:), global(:)
+    ISLocalToGlobalMapping :: l2g
+    PetscErrorCode :: ierr
+
+    call DMPlexGetHeightStratum(dm, 0, start_cell, end_cell, &
+         ierr); CHKERRQ(ierr)
+    call DMPlexGetHybridBounds(dm, end_interior_cell, dummy, &
+         dummy, dummy, ierr)
+    if (end_interior_cell < 0) end_interior_cell = end_cell
+    call MPI_comm_size(PETSC_COMM_WORLD, np, ierr)
+    if (np > 1) then
+       num_ghost_cells = dm_get_num_partition_ghost_cells(dm)
+       num_non_ghost_cells = end_interior_cell - start_cell - num_ghost_cells
+       end_non_ghost_cell = start_cell + num_non_ghost_cells
+       call DMGetLocalToGlobalMapping(dm, l2g, ierr); CHKERRQ(ierr)
+       call PetscSFGetGraph(dist_sf, num_roots, num_leaves, &
+            local, remote, ierr); CHKERRQ(ierr)
+       allocate(natural(start_cell: end_non_ghost_cell - 1), &
+            global(start_cell: end_non_ghost_cell - 1))
+       natural = remote(1: num_non_ghost_cells)%index
+       call ISLocalToGlobalMappingApplyBlock(l2g, num_non_ghost_cells, &
+            [(c, c = start_cell, end_non_ghost_cell - 1)], global, ierr)
+       CHKERRQ(ierr)
+    else ! serial:
+       num_non_ghost_cells = end_interior_cell - start_cell
+       end_non_ghost_cell = start_cell + num_non_ghost_cells
+       natural = [(c, c = start_cell, end_non_ghost_cell - 1)]
+       global = natural
+    end if
+    call AOCreateMapping(PETSC_COMM_WORLD, num_non_ghost_cells, natural, &
+         global, ao, ierr); CHKERRQ(ierr)
+    deallocate(natural, global)
+
+  end function dm_get_natural_to_global_ao
+
+!------------------------------------------------------------------------
+
   function natural_to_local_cell_index_array(ao, l2g, natural) &
        result(local)
     !! Returns array of local cell indices corresponding to array
