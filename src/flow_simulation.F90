@@ -551,9 +551,8 @@ contains
 
     call self%mesh%init(json, self%logfile)
     call self%setup_gravity(json)
-    call self%mesh%setup_boundaries(json, self%eos, self%logfile)
-    call self%mesh%configure(self%eos%num_primary_variables, &
-         self%gravity, json, self%logfile, self%hdf5_viewer, err)
+    call self%mesh%configure(self%eos, self%gravity, json, &
+         self%logfile, self%hdf5_viewer, err)
 
     if (err == 0) then
 
