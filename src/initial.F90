@@ -104,11 +104,7 @@ contains
     DMLabel :: ghost_label
     ISLocalToGlobalMapping :: l2g
     PetscErrorCode :: ierr
-    PetscMPIInt :: rank
-    PetscInt :: idx(1)
 
-    call MPI_comm_rank(PETSC_COMM_WORLD, rank, ierr)
-    
     num_cells = size(primary, 1)
     np = eos%num_primary_variables
 
@@ -121,10 +117,6 @@ contains
        associate(natural_cell_index => i - 1)
          c = natural_to_local_cell_index(mesh%cell_order, l2g, &
               natural_cell_index)
-         idx(1) = natural_cell_index
-         call AOApplicationToPetsc(mesh%cell_order, 1, idx, ierr)
-         write(*,*) 'rank:', rank, 'natural:', natural_cell_index, &
-              'global:', idx(1), 'c:', c
          if (c >= 0) then
             call DMLabelGetValue(ghost_label, c, ghost, ierr)
             if (ghost < 0) then
