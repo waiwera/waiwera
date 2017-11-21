@@ -1334,6 +1334,9 @@ contains
     deallocate(indx)
     call PetscObjectSetName(self%cell_index, "cell_index", ierr)
     CHKERRQ(ierr)
+    if (viewer /= PETSC_NULL_VIEWER) then
+       call ISView(self%cell_index, viewer, ierr); CHKERRQ(ierr)
+    end if
 
   end subroutine mesh_setup_cell_order
 
