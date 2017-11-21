@@ -710,7 +710,7 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine mesh_setup_boundaries(self, json, eos, logfile)
+  subroutine mesh_setup_boundaries(self, json, eos, dist_sf, logfile)
     !! Sets up boundary conditions on the mesh.
 
     use kinds_module
@@ -719,23 +719,28 @@ contains
     use fson
     use fson_value_m, only : TYPE_ARRAY, TYPE_OBJECT, TYPE_INTEGER
     use fson_mpi_module
-    use dm_utils_module, only: dm_cell_normal_face
+    use dm_utils_module, only: dm_get_natural_to_global_ao, &
+         dm_cell_normal_face, dm_get_num_partition_ghost_cells
 
     class(mesh_type), intent(in out) :: self
     type(fson_value), pointer, intent(in) :: json !! JSON input file
     class(eos_type), intent(in) :: eos !! EOS object
+    PetscSF, intent(in) :: dist_sf !! SF from mesh distribution
     type(logfile_type), intent(in out), optional :: logfile !! Logfile for log output
     ! Locals:
     PetscErrorCode :: ierr
     PetscBool :: mesh_has_label
+    PetscInt :: start_cell, end_cell, end_interior_cell, dummy
+    PetscInt :: num_ghost_cells, num_non_ghost_cells, end_non_ghost_cell
+    ISLocalToGlobalMapping :: l2g
+    AO :: ao
     type(fson_value), pointer :: boundaries, bdy, faces_json, face_json
-    type(fson_value), pointer :: cell_normals, cell_normal, item
     PetscInt :: faces_type, face1_type
     PetscInt :: num_boundaries, num_faces, num_cells, ibdy
-    PetscInt :: iface, icell, f, np, i, offset
+    PetscInt :: iface, icell, np, i, offset, nout
     PetscInt, allocatable :: default_faces(:), default_cells(:)
-    PetscInt, allocatable :: faces(:), cells(:)
-    PetscInt :: region, cell, normal_len, num_face_items
+    PetscInt, allocatable :: faces(:), cells(:), local_cells(:)
+    PetscInt :: region, normal_len, num_face_items
     PetscReal, allocatable :: primary(:), input_normal(:)
     PetscReal :: normal(3)
     PetscReal, parameter :: default_normal(3) = [0._dp, 0._dp, 1._dp]
@@ -759,6 +764,17 @@ contains
        num_boundaries = fson_value_count_mpi(boundaries, ".")
        allocate(self%bcs(np + 1, num_boundaries))
 
+       call DMPlexGetHeightStratum(self%dm, 0, start_cell, end_cell, ierr)
+       CHKERRQ(ierr)
+       call DMPlexGetHybridBounds(self%dm, end_interior_cell, dummy, &
+            dummy, dummy, ierr); CHKERRQ(ierr)
+       if (end_interior_cell < 0) end_interior_cell = end_cell
+       num_ghost_cells = dm_get_num_partition_ghost_cells(self%dm)
+       num_non_ghost_cells = end_interior_cell - start_cell - num_ghost_cells
+       end_non_ghost_cell = start_cell + num_non_ghost_cells
+       ao = dm_get_natural_to_global_ao(self%dm, dist_sf)
+       call DMGetLocalToGlobalMapping(self%dm, l2g, ierr); CHKERRQ(ierr)
+
        num_faces = 0
        do ibdy = 1, num_boundaries
           write(istr, '(i0)') ibdy - 1
@@ -775,10 +791,6 @@ contains
                    face_json => fson_value_get_mpi(faces_json, 1)
                    face1_type = fson_type_mpi(face_json, ".")
                    select case (face1_type)
-                   case (TYPE_INTEGER)
-                      call fson_get_mpi(faces_json, ".", default_faces, faces, &
-                           logfile, log_key = trim(bdystr) // ".faces")
-                      num_faces = size(faces)
                    case (TYPE_OBJECT)
                       num_faces = 0
                       do i = 1, num_face_items
@@ -792,11 +804,16 @@ contains
                          face_json => fson_value_get_mpi(faces_json, i)
                          call fson_get_mpi(face_json, "cells", default_cells, cells, &
                               logfile, log_key = trim(bdystr) // "faces.cells")
+                         num_cells = size(cells)
+                         allocate(local_cells(num_cells))
+                         call AOApplicationToPetsc(ao, num_cells, cells, ierr); CHKERRQ(ierr)
+                         call ISGlobalToLocalMappingApplyBlock(l2g, IS_GTOLM_MASK, num_cells, &
+                              cells, nout, local_cells, ierr); CHKERRQ(ierr)
                          call fson_get_mpi(face_json, "normal", default_normal, &
                               input_normal, logfile, log_key = trim(bdystr) // "faces.normal")
-                         num_cells = size(cells)
-                         call get_cell_faces(cells, num_cells, input_normal, offset)
+                         call get_cell_faces(local_cells, num_cells, input_normal, offset)
                          offset = offset + num_cells
+                         deallocate(cells, local_cells)
                       end do
                    case default
                       if (present(logfile)) then
@@ -808,12 +825,17 @@ contains
              case (TYPE_OBJECT)
                 call fson_get_mpi(faces_json, "cells", default_cells, cells, &
                      logfile, log_key = trim(bdystr) // "faces.cells")
+                num_cells = size(cells)
+                allocate(local_cells(num_cells))
+                call AOApplicationToPetsc(ao, num_cells, cells, ierr); CHKERRQ(ierr)
+                call ISGlobalToLocalMappingApplyBlock(l2g, IS_GTOLM_MASK, num_cells, &
+                     cells, nout, local_cells, ierr); CHKERRQ(ierr)
                 call fson_get_mpi(faces_json, "normal", default_normal, &
                      input_normal, logfile, log_key = trim(bdystr) // "faces.normal")
-                num_cells = size(cells)
                 num_faces = num_cells
                 allocate(faces(num_faces))
-                call get_cell_faces(cells, num_cells, input_normal, 0)
+                call get_cell_faces(local_cells, num_cells, input_normal, 0)
+                deallocate(cells, local_cells)
              case default
                 if (present(logfile)) then
                    call logfile%write(LOG_LEVEL_WARN, "input", &
@@ -821,39 +843,15 @@ contains
                 end if
              end select
 
-          else if (fson_has_mpi(bdy, "cell_normals")) then
-             call fson_get_mpi(bdy, "cell_normals", cell_normals)
-             num_faces = fson_value_count_mpi(cell_normals, ".")
-             allocate(faces(num_faces))
-             do iface = 1, num_faces
-                cell_normal => fson_value_get_mpi(cell_normals, iface)
-                item => fson_value_get_mpi(cell_normal, 1)
-                call fson_get_mpi(item, ".", val = cell)
-                item => fson_value_get_mpi(cell_normal, 2)
-                call fson_get_mpi(item, ".", val = input_normal)
-                normal_len = size(input_normal)
-                normal = 0._dp
-                normal(1: normal_len) = input_normal
-                call dm_cell_normal_face(self%dm, cell, normal, f)
-                if (f >= 0) then
-                   faces(iface) = f
-                else
-                   if (present(logfile)) then
-                      call logfile%write(LOG_LEVEL_WARN, "input", &
-                           "faces_not_found", int_keys = ["boundary"], &
-                           int_values = [ibdy - 1])
-                   end if
-                   faces(iface) = -1
-                end if
-             end do
           end if
 
           do iface = 1, num_faces
-             f = faces(iface)
-             if (f >= 0) then
-                call DMSetLabelValue(self%dm, open_boundary_label_name, &
-                     f, ibdy, ierr); CHKERRQ(ierr)
-             end if
+             associate(f => faces(iface))
+               if (f >= 0) then
+                  call DMSetLabelValue(self%dm, open_boundary_label_name, &
+                       f, ibdy, ierr); CHKERRQ(ierr)
+               end if
+             end associate
           end do
           if (allocated(faces)) then
              deallocate(faces)
@@ -866,6 +864,8 @@ contains
           self%bcs(1, ibdy) = dble(region)
           self%bcs(2 : np + 1, ibdy) = primary(1 : np)
        end do
+       call AODestroy(ao, ierr); CHKERRQ(ierr)
+
     else if (present(logfile)) then
        call logfile%write(LOG_LEVEL_WARN, "input", "no_boundary_conditions")
     end if
@@ -878,6 +878,8 @@ contains
       PetscInt, intent(in) :: cells(:), num_cells
       PetscReal, intent(in) :: input_normal(:)
       PetscInt, intent(in) :: offset
+      ! Locals:
+      PetscInt :: f
 
       normal_len = size(input_normal)
       normal = 0._dp
@@ -885,18 +887,27 @@ contains
 
       do icell = 1, num_cells
          iface = offset + icell
-         cell = cells(icell)
-         call dm_cell_normal_face(self%dm, cell, normal, f)
-         if (f >= 0) then
-            faces(iface) = f
-         else
-            if (present(logfile)) then
-               call logfile%write(LOG_LEVEL_WARN, "input", &
-                    "faces_not_found", int_keys = ["boundary"], &
-                    int_values = [ibdy - 1])
-            end if
-            faces(iface) = -1
-         end if
+         associate(c => cells(icell))
+           if (c >= 0) then
+              if ((start_cell <= c) .and. (c <= end_non_ghost_cell)) then
+                 call dm_cell_normal_face(self%dm, c, normal, f)
+                 if (f >= 0) then
+                    faces(iface) = f
+                 else
+                    if (present(logfile)) then
+                       call logfile%write(LOG_LEVEL_WARN, "input", &
+                            "faces_not_found", int_keys = ["boundary"], &
+                            int_values = [ibdy - 1])
+                    end if
+                    faces(iface) = -1
+                 end if
+              else
+                 faces(iface) = -1
+              end if
+           else
+              faces(iface) = -1
+           end if
+         end associate
       end do
 
     end subroutine get_cell_faces
