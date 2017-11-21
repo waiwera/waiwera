@@ -579,16 +579,17 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine mesh_configure(self, dof, gravity, json, logfile, viewer, err)
+  subroutine mesh_configure(self, eos, gravity, json, logfile, viewer, err)
     !! Configures mesh, including distribution over processes and
     !! construction of ghost cells, setup of data layout, geometry and
     !! cell index set.
 
+    use eos_module, only: eos_type
     use logfile_module
 
     class(mesh_type), intent(in out) :: self
-    PetscInt, intent(in) :: dof !! Number of degrees of freedom (primary thermodynamic variables)
-    PetscReal, intent(in) :: gravity(:)
+    class(eos_type), intent(in) :: eos !! EOS object
+    PetscReal, intent(in) :: gravity(:) !! Gravity vector
     type(fson_value), pointer, intent(in) :: json !! JSON file pointer
     type(logfile_type), intent(in out), optional :: logfile !! Log file
     PetscViewer, intent(in out) :: viewer !! PetscViewer for output of cell index set to HDF5 file
@@ -599,10 +600,11 @@ contains
 
     err = 0
     call self%distribute(dist_sf)
+    call self%setup_discretization(eos%num_primary_variables)
+    call self%setup_boundaries(json, eos, dist_sf, logfile)
     call self%construct_ghost_cells()
-    call self%setup_discretization(dof)
     call self%get_bounds()
-    call self%setup_data_layout(dof)
+    call self%setup_data_layout(eos%num_primary_variables)
     call self%setup_geometry(gravity)
     call self%setup_ghost_arrays()
 
