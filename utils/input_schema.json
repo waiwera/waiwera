@@ -213,52 +213,34 @@
                  "additionalProperties": false
                 },
         "boundaries": {"type": "array",
-                       "items": {"oneOf": [
-                           {"type": "object",
-                            "properties": {
-                                "region": {"type": "integer", "minimum": 0},
-                                "primary": {"type": "array", "items":
-                                            {"type": "number"}},
-                                "faces": {"oneOf": [
-                                    {"type": "array",
-                                     "items": {"type": "integer", "minimum": 0}},
-                                    {"type": "object",
-                                     "properties": {
-                                         "cells": {"type": "array",
-                                                   "items": {"type": "integer", "minimum": 0}},
-                                         "normal": {"type": "array",
-                                                    "items": {"type": "number"},
-                                                    "minItems": 2, "maxItems": 3}},
-                                     "additionalProperties": false},
-                                    {"type": "array",
-                                     "items": {
-                                         "type": "object",
-                                         "properties": {
-                                             "cells": {"type": "array",
-                                                       "items": {"type": "integer", "minimum": 0}},
-                                             "normal": {"type": "array",
-                                                        "items": {"type": "number"},
-                                                        "minItems": 2, "maxItems": 3}},
-                                         "additionalProperties": false}
-                                    }]}
-                            }, "additionalProperties": false},
-                           {"type": "object",
-                            "properties": {
-                                "region": {"type": "integer", "minimum": 0},
-                                "primary": {"type": "array", "items":
-                                            {"type": "number"}},
-                                "cell_normals": {"type": "array",
-                                                 "items": {
-                                                     "type": "array",
-                                                     "items": [
-                                                         {"type": "integer", "minimum": 0},
-                                                         {"type": "array",
-                                                          "items": {"type": "number"},
-                                                          "minItems": 2, "maxItems": 3}],
-                                                     "minItems": 2, "maxItems": 2}
-                                                 }
-                            }, "additionalProperties": false}
-                       ]}},
+                       "items": {
+                           "type": "object",
+                           "properties": {
+                               "region": {"type": "integer", "minimum": 0},
+                               "primary": {"type": "array", "items":
+                                           {"type": "number"}},
+                               "faces": {"oneOf": [
+                                   {"type": "object",
+                                    "properties": {
+                                        "cells": {"type": "array",
+                                                  "items": {"type": "integer", "minimum": 0}},
+                                        "normal": {"type": "array",
+                                                   "items": {"type": "number"},
+                                                   "minItems": 2, "maxItems": 3}},
+                                    "additionalProperties": false},
+                                   {"type": "array",
+                                    "items": {
+                                        "type": "object",
+                                        "properties": {
+                                            "cells": {"type": "array",
+                                                      "items": {"type": "integer", "minimum": 0}},
+                                            "normal": {"type": "array",
+                                                       "items": {"type": "number"},
+                                                       "minItems": 2, "maxItems": 3}},
+                                        "additionalProperties": false}
+                                   }]}
+                           }, "additionalProperties": false}
+                      },
         "source": {"type": "array",
                    "items": {
                        "type": "object",
