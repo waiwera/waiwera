@@ -1271,81 +1271,59 @@ contains
     !! cell indexing for vectors not containing boundary data (used
     !! for post-processing).
 
-    use dm_utils_module, only: dm_get_num_non_ghost_cells, &
-         dm_get_bdy_cell_shift
+    use dm_utils_module, only: dm_get_num_partition_ghost_cells, &
+         dm_get_bdy_cell_shift, dm_get_natural_to_global_ao
 
     class(mesh_type), intent(in out) :: self
     PetscSF, intent(in) :: dist_sf !! Star forest from mesh distribution
     PetscViewer, intent(in out) :: viewer
     ! Locals:
-    PetscMPIInt :: size, rank
-    PetscInt :: num_non_ghost_cells, bdy_cell_shift
-    PetscInt, allocatable :: natural(:), global(:), indx(:)
-    PetscInt :: ic, c, idx(1)
-    PetscInt :: num_roots, num_leaves
-    PetscInt, pointer :: local(:)
-    type(PetscSFNode), pointer :: remote(:)
+    PetscMPIInt :: np
+    PetscInt :: start_cell, end_cell, end_interior_cell
+    PetscInt :: end_non_ghost_cell, dummy, c
+    PetscInt :: num_ghost_cells, num_non_ghost_cells, bdy_cell_shift
+    PetscInt, allocatable :: global(:), global_bdy(:), indx(:)
     ISLocalToGlobalMapping :: l2g
     IS :: cell_interior_index
     AO :: cell_order_bdy
     PetscErrorCode :: ierr
 
-    call MPI_comm_size(PETSC_COMM_WORLD, size, ierr)
-    call MPI_comm_rank(PETSC_COMM_WORLD, rank, ierr)
+    call MPI_comm_size(PETSC_COMM_WORLD, np, ierr)
 
-    num_non_ghost_cells = dm_get_num_non_ghost_cells(self%dm)
-    bdy_cell_shift = dm_get_bdy_cell_shift(self%dm)
+    self%cell_order = dm_get_natural_to_global_ao(self%dm, dist_sf)
     call DMGetLocalToGlobalMapping(self%dm, l2g, ierr); CHKERRQ(ierr)
+    call DMPlexGetHeightStratum(self%dm, 0, start_cell, end_cell, &
+         ierr); CHKERRQ(ierr)
+    call DMPlexGetHybridBounds(self%dm, end_interior_cell, dummy, &
+         dummy, dummy, ierr); CHKERRQ(ierr)
+    if (end_interior_cell < 0) end_interior_cell = end_cell
+    num_ghost_cells = dm_get_num_partition_ghost_cells(self%dm)
+    num_non_ghost_cells = end_interior_cell - start_cell - num_ghost_cells
+    end_non_ghost_cell = start_cell + num_non_ghost_cells
 
-    allocate(natural(0: num_non_ghost_cells - 1), &
-         global(0: num_non_ghost_cells - 1))
-    if (size > 1) then
-       call PetscSFGetGraph(dist_sf, num_roots, num_leaves, &
-            local, remote, ierr); CHKERRQ(ierr)
-       ic = 0
-       do c = self%start_cell, self%end_interior_cell - 1
-          if (self%ghost_cell(c) < 0) then
-             natural(ic) = remote(c + 1)%index
-             call ISLocalToGlobalMappingApplyBlock(l2g, 1, [c], &
-                  idx, ierr); CHKERRQ(ierr)
-             global(ic) = idx(1)
-             ic = ic + 1
-          end if
-       end do
-    else ! serial (dist_sf is null):
-       natural = [(ic, ic = 0, num_non_ghost_cells - 1)]
-       global = natural
-    end if
-
-    call AOCreateMapping(PETSC_COMM_WORLD, num_non_ghost_cells, natural, &
-         global, self%cell_order, ierr); CHKERRQ(ierr)
-    call AOView(self%cell_order, PETSC_VIEWER_STDOUT_WORLD, ierr)
-    call ISLocalToGlobalMappingView(l2g, PETSC_VIEWER_STDOUT_WORLD, ierr)
-
-    global = global + bdy_cell_shift
-    call AOCreateMapping(PETSC_COMM_WORLD, num_non_ghost_cells, &
-         natural, global, cell_order_bdy, ierr); CHKERRQ(ierr)
-
-    deallocate(global)
-
+    allocate(indx(start_cell: end_non_ghost_cell - 1))
     call ISLocalToGlobalMappingApplyBlock(l2g, num_non_ghost_cells, &
-         [(ic, ic = 0, num_non_ghost_cells - 1)], natural, ierr)
+         [(c, c = start_cell, end_non_ghost_cell - 1)], indx, ierr)
     CHKERRQ(ierr)
+    bdy_cell_shift = dm_get_bdy_cell_shift(self%dm)
+    global_bdy = indx + bdy_cell_shift
+    call AOCreateMapping(PETSC_COMM_WORLD, num_non_ghost_cells, &
+         indx, global_bdy, cell_order_bdy, ierr); CHKERRQ(ierr)
+    deallocate(global_bdy)
 
     if (viewer /= PETSC_NULL_VIEWER) then
-       indx = natural
+       global = indx
        call AOApplicationToPetsc(self%cell_order, num_non_ghost_cells, &
-            indx, ierr); CHKERRQ(ierr)
-       call ISCreateGeneral(PETSC_COMM_WORLD, num_non_ghost_cells, indx, &
+            global, ierr); CHKERRQ(ierr)
+       call ISCreateGeneral(PETSC_COMM_WORLD, num_non_ghost_cells, global, &
             PETSC_COPY_VALUES, cell_interior_index, ierr); CHKERRQ(ierr)
        call PetscObjectSetName(cell_interior_index, &
             "cell_interior_index", ierr); CHKERRQ(ierr)
        call ISView(cell_interior_index, viewer, ierr); CHKERRQ(ierr)
        call ISDestroy(cell_interior_index, ierr); CHKERRQ(ierr)
+       deallocate(global)
     end if
 
-    indx = natural
-    deallocate(natural)
     call AOApplicationToPetsc(cell_order_bdy, num_non_ghost_cells, &
          indx, ierr); CHKERRQ(ierr)
     call AODestroy(cell_order_bdy, ierr); CHKERRQ(ierr)
