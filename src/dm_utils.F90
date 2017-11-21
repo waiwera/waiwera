@@ -42,7 +42,8 @@ module dm_utils_module
   public :: dm_cell_normal_face
   public :: write_vec_vtk
   public :: vec_max_pointwise_abs_scale
-  public :: dm_get_num_non_ghost_cells, dm_get_bdy_cell_shift
+  public :: dm_get_num_partition_ghost_cells, dm_get_bdy_cell_shift
+  public :: dm_get_natural_to_global_ao
   public :: natural_to_local_cell_index, local_to_natural_cell_index
 
 contains
@@ -412,28 +413,31 @@ contains
 
 !------------------------------------------------------------------------
 
-  PetscInt function dm_get_num_non_ghost_cells(dm) result(count)
-    !! Returns number of DM non-ghost cells on current process. This
-    !! excludes both partition and boundary ghost cells.
+  PetscInt function dm_get_num_partition_ghost_cells(dm) result(n)
+    !! Returns number of DM partition ghost cells on current process.
 
     DM, intent(in) :: dm
     ! Locals:
-    PetscInt :: c, ghost, start_cell, end_cell, end_interior_cell, dummy
-    DMLabel :: ghost_label
+    PetscMPIInt :: np
+    PetscSF :: point_sf
+    PetscInt :: start_cell, end_cell
+    PetscInt :: num_roots, num_leaves
+    PetscInt, pointer :: local(:)
+    type(PetscSFNode), pointer :: remote(:)
     PetscErrorCode :: ierr
 
-    call DMPlexGetHeightStratum(dm, 0, start_cell, end_cell, ierr)
-    call DMPlexGetHybridBounds(dm, end_interior_cell, dummy, &
-         dummy, dummy, ierr); CHKERRQ(ierr)
-    if (end_interior_cell < 0) end_interior_cell = end_cell
-    call DMGetLabel(dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
-    count = 0
-    do c = start_cell, end_interior_cell - 1
-       call DMLabelGetValue(ghost_label, c, ghost, ierr); CHKERRQ(ierr)
-       if (ghost < 0) count = count + 1
-    end do
+    call MPI_comm_size(PETSC_COMM_WORLD, np, ierr)
+    if (np > 1) then
+       call DMPlexGetHeightStratum(dm, 0, start_cell, end_cell, ierr)
+       call DMGetPointSF(dm, point_sf, ierr); CHKERRQ(ierr)
+       call PetscSFGetGraph(point_sf, num_roots, num_leaves, &
+            local, remote, ierr); CHKERRQ(ierr)
+       n = count(local < end_cell)
+    else
+       n = 0
+    end if
 
-  end function dm_get_num_non_ghost_cells
+  end function dm_get_num_partition_ghost_cells
 
 !------------------------------------------------------------------------
 
