@@ -445,13 +445,13 @@ contains
     ! Locals:
     PetscInt :: start_cell, end_cell, end_interior_cell, dummy
     PetscInt :: num_bdy_cells, p, alloc_size
-    PetscMPIInt :: rank, size
+    PetscMPIInt :: rank, np
     PetscInt, allocatable :: proc_num_bdy_cells(:), &
          proc_sum_bdy_cells(:)
     PetscErrorCode :: ierr
 
     call MPI_comm_rank(PETSC_COMM_WORLD, rank, ierr)
-    call MPI_comm_size(PETSC_COMM_WORLD, size, ierr)
+    call MPI_comm_size(PETSC_COMM_WORLD, np, ierr)
 
     call DMPlexGetHeightStratum(dm, 0, start_cell, end_cell, ierr)
     CHKERRQ(ierr)
@@ -460,7 +460,7 @@ contains
     num_bdy_cells = end_cell - end_interior_cell
 
     if (rank == 0) then
-       alloc_size = size
+       alloc_size = np
     else
        alloc_size = 1
     end if
@@ -470,7 +470,7 @@ contains
          1, MPI_INTEGER, 0, PETSC_COMM_WORLD, ierr)
     if (rank == 0) then
        proc_sum_bdy_cells(1) = 0
-       do p = 2, size
+       do p = 2, np
           proc_sum_bdy_cells(p) = proc_sum_bdy_cells(p - 1) + &
                proc_num_bdy_cells(p - 1)
        end do
