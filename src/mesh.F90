@@ -1278,7 +1278,6 @@ contains
     PetscSF, intent(in) :: dist_sf !! Star forest from mesh distribution
     PetscViewer, intent(in out) :: viewer
     ! Locals:
-    PetscMPIInt :: np
     PetscInt :: start_cell, end_cell, end_interior_cell
     PetscInt :: end_non_ghost_cell, c
     PetscInt :: num_ghost_cells, num_non_ghost_cells, bdy_cell_shift
@@ -1287,8 +1286,6 @@ contains
     ISLocalToGlobalMapping :: l2g
     IS :: cell_interior_index
     PetscErrorCode :: ierr
-
-    call MPI_comm_size(PETSC_COMM_WORLD, np, ierr)
 
     self%cell_order = dm_get_natural_to_global_ao(self%dm, dist_sf)
 
