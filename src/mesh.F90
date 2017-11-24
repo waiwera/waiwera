@@ -1280,61 +1280,58 @@ contains
     ! Locals:
     PetscMPIInt :: np
     PetscInt :: start_cell, end_cell, end_interior_cell
-    PetscInt :: end_non_ghost_cell, dummy, c
+    PetscInt :: end_non_ghost_cell, c
     PetscInt :: num_ghost_cells, num_non_ghost_cells, bdy_cell_shift
-    PetscInt, allocatable :: global(:), global_bdy(:), indx(:)
+    PetscInt, allocatable :: global(:)
+    PetscInt, allocatable :: index_natural(:), index_global(:)
     ISLocalToGlobalMapping :: l2g
     IS :: cell_interior_index
-    AO :: cell_order_bdy
     PetscErrorCode :: ierr
 
     call MPI_comm_size(PETSC_COMM_WORLD, np, ierr)
 
     self%cell_order = dm_get_natural_to_global_ao(self%dm, dist_sf)
+
     call DMGetLocalToGlobalMapping(self%dm, l2g, ierr); CHKERRQ(ierr)
     call DMPlexGetHeightStratum(self%dm, 0, start_cell, end_cell, &
          ierr); CHKERRQ(ierr)
-    call DMPlexGetHybridBounds(self%dm, end_interior_cell, dummy, &
-         dummy, dummy, ierr); CHKERRQ(ierr)
-    if (end_interior_cell < 0) end_interior_cell = end_cell
+    end_interior_cell = dm_get_end_interior_cell(self%dm, end_cell)
     num_ghost_cells = dm_get_num_partition_ghost_cells(self%dm)
     num_non_ghost_cells = end_interior_cell - start_cell - num_ghost_cells
     end_non_ghost_cell = start_cell + num_non_ghost_cells
-
-    allocate(indx(start_cell: end_non_ghost_cell - 1))
-    call ISLocalToGlobalMappingApplyBlock(l2g, num_non_ghost_cells, &
-         [(c, c = start_cell, end_non_ghost_cell - 1)], indx, ierr)
-    CHKERRQ(ierr)
     bdy_cell_shift = dm_get_bdy_cell_shift(self%dm)
-    global_bdy = indx + bdy_cell_shift
-    call AOCreateMapping(PETSC_COMM_WORLD, num_non_ghost_cells, &
-         indx, global_bdy, cell_order_bdy, ierr); CHKERRQ(ierr)
-    deallocate(global_bdy)
+
+    allocate(global(start_cell: end_non_ghost_cell - 1))
+    call ISLocalToGlobalMappingApplyBlock(l2g, num_non_ghost_cells, &
+         [(c, c = start_cell, end_non_ghost_cell - 1)], global, ierr)
+    CHKERRQ(ierr)
+    ! The index_natural array does not represent natural indices
+    ! corresponding to local indices- it is just a set of natural
+    ! indices owned by the current process, for the purpose of writing
+    ! out the corresponding global indices:
+    index_natural = global - bdy_cell_shift
+    index_global = index_natural
+    call AOApplicationToPetsc(self%cell_order, num_non_ghost_cells, &
+         index_global, ierr); CHKERRQ(ierr)
+    call ISCreateGeneral(PETSC_COMM_WORLD, num_non_ghost_cells, index_global, &
+         PETSC_COPY_VALUES, self%cell_index, ierr); CHKERRQ(ierr)
+    call PetscObjectSetName(self%cell_index, "cell_index", ierr)
+    CHKERRQ(ierr)
+    deallocate(global, index_natural)
 
     if (viewer /= PETSC_NULL_VIEWER) then
-       global = indx
-       call AOApplicationToPetsc(self%cell_order, num_non_ghost_cells, &
-            global, ierr); CHKERRQ(ierr)
-       call ISCreateGeneral(PETSC_COMM_WORLD, num_non_ghost_cells, global, &
-            PETSC_COPY_VALUES, cell_interior_index, ierr); CHKERRQ(ierr)
+       call ISView(self%cell_index, viewer, ierr); CHKERRQ(ierr)
+       index_global = index_global - bdy_cell_shift
+       call ISCreateGeneral(PETSC_COMM_WORLD, num_non_ghost_cells, &
+            index_global, PETSC_COPY_VALUES, cell_interior_index, ierr)
+       CHKERRQ(ierr)
        call PetscObjectSetName(cell_interior_index, &
             "cell_interior_index", ierr); CHKERRQ(ierr)
        call ISView(cell_interior_index, viewer, ierr); CHKERRQ(ierr)
        call ISDestroy(cell_interior_index, ierr); CHKERRQ(ierr)
-       deallocate(global)
     end if
 
-    call AOApplicationToPetsc(cell_order_bdy, num_non_ghost_cells, &
-         indx, ierr); CHKERRQ(ierr)
-    call AODestroy(cell_order_bdy, ierr); CHKERRQ(ierr)
-    call ISCreateGeneral(PETSC_COMM_WORLD, num_non_ghost_cells, indx, &
-         PETSC_COPY_VALUES, self%cell_index, ierr); CHKERRQ(ierr)
-    deallocate(indx)
-    call PetscObjectSetName(self%cell_index, "cell_index", ierr)
-    CHKERRQ(ierr)
-    if (viewer /= PETSC_NULL_VIEWER) then
-       call ISView(self%cell_index, viewer, ierr); CHKERRQ(ierr)
-    end if
+    deallocate(index_global)
 
   end subroutine mesh_setup_cell_order
 
