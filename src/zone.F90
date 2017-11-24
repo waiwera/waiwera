@@ -342,7 +342,8 @@ contains
   subroutine zone_box_label_dm(self, dm, ao, cell_geometry, err)
     !! Label cells on a DM in a zone with specified coordinate ranges.
 
-    use dm_utils_module, only: local_vec_section, section_offset
+    use dm_utils_module, only: local_vec_section, section_offset, &
+         dm_get_end_interior_cell
     use cell_module
 
     class(zone_box_type), intent(in out) :: self
@@ -354,7 +355,6 @@ contains
     PetscInt :: dim, ghost, i, c, offset
     DMLabel :: ghost_label
     PetscInt :: start_cell, end_cell, end_interior_cell
-    PetscInt :: cmax, fmax, emax, vmax
     PetscSection :: section
     PetscReal, contiguous, pointer :: cell_geom_array(:)
     type(cell_type) :: cell
@@ -370,9 +370,7 @@ contains
     call DMGetDimension(dm, dim, ierr); CHKERRQ(ierr)
     call DMPlexGetHeightStratum(dm, 0, start_cell, end_cell, ierr)
     CHKERRQ(ierr)
-    call DMPlexGetHybridBounds(dm, cmax, fmax, emax, vmax, ierr)
-    CHKERRQ(ierr)
-    end_interior_cell = cmax
+    end_interior_cell = dm_get_end_interior_cell(dm, end_cell)
     call DMGetLabel(dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
     call local_vec_section(cell_geometry, section)
     call VecGetArrayReadF90(cell_geometry, cell_geom_array, ierr); CHKERRQ(ierr)
@@ -477,6 +475,8 @@ contains
   subroutine zone_combine_label_dm(self, dm, ao, cell_geometry, err)
     !! Label points in a combined zone on a DM.
 
+    use dm_utils_module, only: dm_get_end_interior_cell
+
     class(zone_combine_type), intent(in out) :: self
     DM, intent(in out) :: dm
     AO, intent(in) :: ao
@@ -486,7 +486,6 @@ contains
     DMLabel :: ghost_label, label
     DMLabel, allocatable :: times_label(:)
     PetscInt :: start_cell, end_cell, end_interior_cell
-    PetscInt :: cmax, fmax, emax, vmax
     PetscInt :: i, c, p, num_matching, ghost, times
     IS :: zone_IS
     PetscInt, pointer :: cells(:)
@@ -502,9 +501,7 @@ contains
     call DMGetLabel(dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
     call DMPlexGetHeightStratum(dm, 0, start_cell, end_cell, ierr)
     CHKERRQ(ierr)
-    call DMPlexGetHybridBounds(dm, cmax, fmax, emax, vmax, ierr)
-    CHKERRQ(ierr)
-    end_interior_cell = cmax
+    end_interior_cell = dm_get_end_interior_cell(dm, end_cell)
 
     associate(num_plus => size(self%plus), num_minus => size(self%minus), &
          num_times => size(self%times))

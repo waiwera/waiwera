@@ -43,6 +43,7 @@ module dm_utils_module
   public :: write_vec_vtk
   public :: vec_max_pointwise_abs_scale
   public :: dm_get_num_partition_ghost_cells, dm_get_bdy_cell_shift
+  public :: dm_get_end_interior_cell
   public :: dm_get_natural_to_global_ao
   public :: natural_to_local_cell_index, local_to_natural_cell_index
 
@@ -447,7 +448,7 @@ contains
 
     DM, intent(in) :: dm
     ! Locals:
-    PetscInt :: start_cell, end_cell, end_interior_cell, dummy
+    PetscInt :: start_cell, end_cell, end_interior_cell
     PetscInt :: num_bdy_cells, p, alloc_size
     PetscMPIInt :: rank, np
     PetscInt, allocatable :: proc_num_bdy_cells(:), &
@@ -459,8 +460,7 @@ contains
 
     call DMPlexGetHeightStratum(dm, 0, start_cell, end_cell, ierr)
     CHKERRQ(ierr)
-    call DMPlexGetHybridBounds(dm, end_interior_cell, dummy, &
-       dummy, dummy, ierr)
+    end_interior_cell = dm_get_end_interior_cell(dm, end_cell)
     num_bdy_cells = end_cell - end_interior_cell
 
     if (rank == 0) then
@@ -488,6 +488,27 @@ contains
 
 !------------------------------------------------------------------------
 
+  PetscInt function dm_get_end_interior_cell(dm, end_cell) &
+       result(end_interior_cell)
+    !! Returns index (+1) of last interior (i.e. non-boundary) cell of
+    !! the DM. In the serial case the result from
+    !! DMPlexGetHybridBounds() is -1, so here this is corrected to
+    !! end_cell.
+
+    DM, intent(in) :: dm
+    PetscInt, intent(in) :: end_cell
+    ! Locals:
+    PetscInt :: dummy
+    PetscErrorCode :: ierr
+
+    call DMPlexGetHybridBounds(dm, end_interior_cell, dummy, &
+         dummy, dummy, ierr); CHKERRQ(ierr)
+    if (end_interior_cell < 0) end_interior_cell = end_cell
+
+  end function dm_get_end_interior_cell
+
+!------------------------------------------------------------------------
+
   AO function dm_get_natural_to_global_ao(dm, dist_sf) result(ao)
     !! Returns application ordering for natural to global mapping on
     !! the DM, given the mesh distribution SF.
@@ -496,7 +517,7 @@ contains
     PetscSF, intent(in) :: dist_sf
 
     PetscMPIInt :: np
-    PetscInt :: num_roots, num_leaves, c, dummy
+    PetscInt :: num_roots, num_leaves, c
     PetscInt :: start_cell, end_cell, end_interior_cell, end_non_ghost_cell
     PetscInt :: num_ghost_cells, num_non_ghost_cells
     PetscInt, pointer :: local(:)
@@ -507,9 +528,7 @@ contains
 
     call DMPlexGetHeightStratum(dm, 0, start_cell, end_cell, &
          ierr); CHKERRQ(ierr)
-    call DMPlexGetHybridBounds(dm, end_interior_cell, dummy, &
-         dummy, dummy, ierr)
-    if (end_interior_cell < 0) end_interior_cell = end_cell
+    end_interior_cell = dm_get_end_interior_cell(dm, end_cell)
     call MPI_comm_size(PETSC_COMM_WORLD, np, ierr)
     if (np > 1) then
        num_ghost_cells = dm_get_num_partition_ghost_cells(dm)

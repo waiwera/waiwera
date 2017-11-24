@@ -509,18 +509,16 @@ contains
   subroutine mesh_get_bounds(self)
     !! Gets cell and face bounds  on current processor.
 
+    use dm_utils_module, only: dm_get_end_interior_cell
+
     class(mesh_type), intent(in out) :: self
     ! Locals:
     PetscErrorCode :: ierr
-    PetscInt :: cmax, fmax, emax, vmax
-
-    call DMPlexGetHybridBounds(self%dm, cmax, fmax, emax, vmax, ierr)
-    CHKERRQ(ierr)
-    self%end_interior_cell = cmax
 
     call DMPlexGetHeightStratum(self%dm, 0, self%start_cell, &
          self%end_cell, ierr)
     CHKERRQ(ierr)
+    self%end_interior_cell = dm_get_end_interior_cell(self%dm, self%end_cell)
 
     call DMPlexGetHeightStratum(self%dm, 1, self%start_face, &
          self%end_face, ierr); CHKERRQ(ierr)
@@ -722,7 +720,8 @@ contains
     use fson_value_m, only : TYPE_ARRAY, TYPE_OBJECT, TYPE_INTEGER
     use fson_mpi_module
     use dm_utils_module, only: dm_get_natural_to_global_ao, &
-         dm_cell_normal_face, dm_get_num_partition_ghost_cells
+         dm_cell_normal_face, dm_get_num_partition_ghost_cells, &
+         dm_get_end_interior_cell
 
     class(mesh_type), intent(in out) :: self
     type(fson_value), pointer, intent(in) :: json !! JSON input file
@@ -732,7 +731,7 @@ contains
     ! Locals:
     PetscErrorCode :: ierr
     PetscBool :: mesh_has_label
-    PetscInt :: start_cell, end_cell, end_interior_cell, dummy
+    PetscInt :: start_cell, end_cell, end_interior_cell
     PetscInt :: num_ghost_cells, num_non_ghost_cells, end_non_ghost_cell
     ISLocalToGlobalMapping :: l2g
     AO :: ao
@@ -768,9 +767,7 @@ contains
 
        call DMPlexGetHeightStratum(self%dm, 0, start_cell, end_cell, ierr)
        CHKERRQ(ierr)
-       call DMPlexGetHybridBounds(self%dm, end_interior_cell, dummy, &
-            dummy, dummy, ierr); CHKERRQ(ierr)
-       if (end_interior_cell < 0) end_interior_cell = end_cell
+       end_interior_cell = dm_get_end_interior_cell(self%dm, end_cell)
        num_ghost_cells = dm_get_num_partition_ghost_cells(self%dm)
        num_non_ghost_cells = end_interior_cell - start_cell - num_ghost_cells
        end_non_ghost_cell = start_cell + num_non_ghost_cells
@@ -1274,7 +1271,8 @@ contains
     !! for post-processing).
 
     use dm_utils_module, only: dm_get_num_partition_ghost_cells, &
-         dm_get_bdy_cell_shift, dm_get_natural_to_global_ao
+         dm_get_bdy_cell_shift, dm_get_end_interior_cell, &
+         dm_get_natural_to_global_ao
 
     class(mesh_type), intent(in out) :: self
     PetscSF, intent(in) :: dist_sf !! Star forest from mesh distribution
