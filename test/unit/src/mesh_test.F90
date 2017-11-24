@@ -27,29 +27,34 @@ contains
 
     ! Mesh init test
 
-    use cell_order_module, only: cell_order_label_name
-    use dm_utils_module, only: section_offset
+    use dm_utils_module, only: section_offset, local_to_natural_cell_index
     use fson_mpi_module
     use cell_module
     use face_module
+    use IAPWS_module
+    use eos_we_module
 
     type(fson_value), pointer :: json
+    type(IAPWS_type) :: thermo
+    type(eos_we_type) :: eos
     type(mesh_type) :: mesh
     Vec :: x
     type(face_type) :: face
     PetscInt :: global_solution_dof
-    PetscInt, parameter :: dof = 2
+
     PetscInt :: dim
     DM :: dm_face
     PetscSection :: section
-    DMLabel :: ghost_label, cell_order_label
+    DMLabel :: ghost_label
     PetscReal, pointer, contiguous :: fg(:)
-    PetscInt :: f, offset, fstart, fend, ghost_face, i, order(2), gf
+    PetscInt :: f, offset, fstart, fend, ghost_face, order(2), gf
     PetscInt, pointer :: cells(:)
     PetscReal :: dist(2)
     PetscErrorCode :: ierr, err
     PetscMPIInt :: rank
     character(len = 24) :: msg
+    PetscViewer :: viewer
+    ISLocalToGlobalMapping :: l2g
     PetscInt, parameter :: expected_dim = 3, num_cells = 3, num_faces = 16
     PetscReal, parameter :: face_area = 200._dp
     PetscReal, parameter :: face_distance(2, 2) = &
@@ -59,11 +64,14 @@ contains
     PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
     
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    call thermo%init()
+    call eos%init(json, thermo)
+    viewer = PETSC_NULL_VIEWER
 
     json => fson_parse_mpi(str = '{"mesh": "data/mesh/block3.exo"}')
     call mesh%init(json)
     call DMCreateLabel(mesh%dm, open_boundary_label_name, ierr); CHKERRQ(ierr)
-    call mesh%configure(dof, gravity, json, err = err)
+    call mesh%configure(eos, gravity, json, viewer = viewer, err = err)
     call fson_destroy_mpi(json)
 
     call DMGetDimension(mesh%dm, dim, ierr); CHKERRQ(ierr)
@@ -74,12 +82,13 @@ contains
     call DMGetGlobalVector(mesh%dm, x, ierr); CHKERRQ(ierr)
     call VecGetSize(x, global_solution_dof, ierr); CHKERRQ(ierr)
     if (rank == 0) then
-       call assert_equals(num_cells * dof, global_solution_dof, &
-            "global solution dof")
+       call assert_equals(num_cells * eos%num_primary_variables, &
+            global_solution_dof, "global solution dof")
     end if
     call DMRestoreGlobalVector(mesh%dm, x, ierr); CHKERRQ(ierr)
 
     call face%init()
+    call DMGetLocalToGlobalMapping(mesh%dm, l2g, ierr); CHKERRQ(ierr)
 
     ! Check face geometry:
     call VecGetDM(mesh%face_geom, dm_face, ierr); CHKERRQ(ierr)
@@ -87,7 +96,6 @@ contains
     call DMGetDefaultSection(dm_face, section, ierr); CHKERRQ(ierr)
     call DMPlexGetHeightStratum(mesh%dm, 1, fstart, fend, ierr); CHKERRQ(ierr)
     call DMGetLabel(mesh%dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
-    call DMGetLabel(mesh%dm, cell_order_label_name, cell_order_label, ierr)
     CHKERRQ(ierr)
     do f = fstart, fend - 1
        call DMLabelGetValue(ghost_label, f, ghost_face, ierr); CHKERRQ(ierr)
@@ -98,10 +106,7 @@ contains
           call assert_equals(face_area, face%area, tol, msg)
           dist = face%distance
           call DMPlexGetSupport(mesh%dm, f, cells, ierr); CHKERRQ(ierr)
-          do i = 1, 2
-             call DMLabelGetValue(cell_order_label, cells(i), order(i), ierr)
-             CHKERRQ(ierr)
-          end do
+          order = local_to_natural_cell_index(mesh%cell_order, l2g, cells)
           if (all(order == [0,1])) then
              gf = 1
           else if (all(order == [1,2])) then
@@ -122,6 +127,8 @@ contains
     call VecRestoreArrayF90(mesh%face_geom, fg, ierr); CHKERRQ(ierr)
 
     call mesh%destroy()
+    call eos%destroy()
+    call thermo%destroy()
 
   end subroutine test_mesh_init
 
@@ -134,10 +141,14 @@ contains
     use cell_module
     use face_module
     use dm_utils_module, only: section_offset, local_vec_section
+    use IAPWS_module
+    use eos_we_module
 
     type(fson_value), pointer :: json
+    type(IAPWS_type) :: thermo
+    type(eos_we_type) :: eos
     type(mesh_type) :: mesh
-    PetscInt, parameter :: dof = 2
+    PetscViewer :: viewer
     PetscReal, pointer, contiguous :: cell_geom_array(:), face_geom_array(:)
     PetscSection :: cell_geom_section, face_geom_section
     PetscInt :: c, offset, f
@@ -152,12 +163,15 @@ contains
     PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    call thermo%init()
+    call eos%init(json, thermo)
+    viewer = PETSC_NULL_VIEWER
 
     json => fson_parse_mpi(str = '{"mesh": {' // &
          '"filename": "data/mesh/2D.msh",' // &
          '"thickness": 100.}}')
     call mesh%init(json)
-    call mesh%configure(dof, gravity, json, err = err)
+    call mesh%configure(eos, gravity, json, viewer = viewer, err = err)
     call fson_destroy_mpi(json)
 
     call local_vec_section(mesh%cell_geom, cell_geom_section)
@@ -206,6 +220,8 @@ contains
     call face%destroy()
 
     call mesh%destroy()
+    call eos%destroy()
+    call thermo%destroy()
 
   end subroutine test_2d_cartesian_geometry
 
@@ -219,10 +235,14 @@ contains
     use face_module
     use dm_utils_module, only: section_offset, local_vec_section
     use utils_module, only: pi
+    use IAPWS_module
+    use eos_we_module
 
     type(fson_value), pointer :: json
     type(mesh_type) :: mesh
-    PetscInt, parameter :: dof = 2
+    type(IAPWS_type) :: thermo
+    type(eos_we_type) :: eos
+    PetscViewer :: viewer
     PetscReal, pointer, contiguous :: cell_geom_array(:), face_geom_array(:)
     PetscSection :: cell_geom_section, face_geom_section
     PetscInt :: c, offset, f
@@ -238,12 +258,15 @@ contains
     PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    call thermo%init()
+    call eos%init(json, thermo)
+    viewer = PETSC_NULL_VIEWER
 
     json => fson_parse_mpi(str = '{"mesh": {' // &
          '"filename": "data/mesh/2D.msh",' // &
          '"radial": true}}')
     call mesh%init(json)
-    call mesh%configure(dof, gravity, json, err = err)
+    call mesh%configure(eos, gravity, json, viewer = viewer, err = err)
     call fson_destroy_mpi(json)
 
     call local_vec_section(mesh%cell_geom, cell_geom_section)
@@ -304,6 +327,8 @@ contains
     call face%destroy()
 
     call mesh%destroy()
+    call eos%destroy()
+    call thermo%destroy()
 
   end subroutine test_2d_radial_geometry
 
@@ -315,10 +340,14 @@ contains
     use fson_mpi_module
     use dm_utils_module, only: local_vec_section, section_offset
     use face_module
+    use IAPWS_module
+    use eos_we_module
 
     type(fson_value), pointer :: json
+    type(IAPWS_type) :: thermo
+    type(eos_we_type) :: eos
     type(mesh_type) :: mesh
-    PetscInt, parameter :: dof = 2
+    PetscViewer :: viewer
     PetscInt :: f, offset
     PetscErrorCode :: ierr, err
     PetscSection :: face_geom_section
@@ -330,6 +359,10 @@ contains
     PetscReal, parameter :: tol = 1.e-6
     PetscInt, parameter :: expected_direction = 1
 
+    call thermo%init()
+    call eos%init(json, thermo)
+    viewer = PETSC_NULL_VIEWER
+
     json => fson_parse_mpi(str = &
          '{"mesh": {"filename": "data/mesh/7x7grid.exo", ' // &
          '"faces": [' // &
@@ -338,7 +371,7 @@ contains
     call mesh%init(json)
 
     call DMCreateLabel(mesh%dm, open_boundary_label_name, ierr); CHKERRQ(ierr)
-    call mesh%configure(dof, gravity, json, err = err)
+    call mesh%configure(eos, gravity, json, viewer = viewer, err = err)
     call mesh%override_face_properties(json)
     call fson_destroy_mpi(json)
 
@@ -364,6 +397,8 @@ contains
     call VecRestoreArrayReadF90(mesh%face_geom, face_geom_array, ierr)
     CHKERRQ(ierr)
     call mesh%destroy()
+    call eos%destroy()
+    call thermo%destroy()
 
   end subroutine test_mesh_face_permeability_direction
 
@@ -375,14 +410,22 @@ contains
     use fson_mpi_module
     use rock_module
     use dm_utils_module, only: global_section_offset, global_vec_section
+    use IAPWS_module
+    use eos_we_module
 
     type(fson_value), pointer :: json
     character(:), allocatable :: json_str
     PetscErrorCode :: ierr
     PetscMPIInt :: rank
+    type(IAPWS_type) :: thermo
+    type(eos_we_type) :: eos
+    PetscViewer :: viewer
     PetscInt, parameter :: num_rocktypes = 2
 
     call MPI_comm_rank(PETSC_COMM_WORLD, rank, ierr)
+    call thermo%init()
+    call eos%init(json, thermo)
+    viewer = PETSC_NULL_VIEWER
 
     json_str = &
          '{"mesh": {"filename": "data/mesh/7x7grid.exo"}, ' // &
@@ -428,6 +471,10 @@ contains
          '  ]}}'
 
     call rock_test_case(json_str, [31, 18], "zones")
+
+    call eos%destroy()
+    call thermo%destroy()
+
   contains
 
     subroutine rock_test_case(json_str, expected_count, title)
@@ -454,9 +501,9 @@ contains
       call mesh%init(json)
 
       call DMCreateLabel(mesh%dm, open_boundary_label_name, ierr); CHKERRQ(ierr)
-      call mesh%configure(dof, gravity, json, err = err)
-      call setup_rock_vector(json, mesh%dm, rock_vector, rock_range_start, &
-           mesh%ghost_cell, err = err)
+      call mesh%configure(eos, gravity, json, viewer = viewer, err = err)
+      call setup_rock_vector(json, mesh%dm, mesh%cell_order, rock_vector, &
+           rock_range_start, mesh%ghost_cell, err = err)
       call assert_equals(0, err, "setup rock vector error")
       call fson_destroy_mpi(json)
 
