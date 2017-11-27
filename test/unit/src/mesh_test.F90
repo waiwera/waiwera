@@ -630,6 +630,8 @@ contains
       deallocate(label_order, order)
 
       call mesh%destroy()
+      call eos%destroy()
+      call thermo%destroy()
 
     end subroutine cell_order_test_case
 
