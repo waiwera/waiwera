@@ -15,7 +15,7 @@ module mesh_test
 
   public :: test_mesh_init, test_2d_cartesian_geometry, &
        test_2d_radial_geometry, test_mesh_face_permeability_direction, &
-       test_rock_assignment
+       test_rock_assignment, test_cell_order
 
   PetscReal, parameter :: tol = 1.e-6_dp
 
@@ -548,6 +548,70 @@ contains
     end subroutine rock_test_case
 
   end subroutine test_rock_assignment
+
+!------------------------------------------------------------------------
+
+  subroutine test_cell_order
+    ! cell_order AO
+
+    use fson_mpi_module
+    use IAPWS_module
+    use eos_we_module
+    use dm_utils_module, only: local_to_natural_cell_index
+
+    type(fson_value), pointer :: json
+    type(IAPWS_type) :: thermo
+    type(eos_we_type) :: eos
+    type(mesh_type) :: mesh
+    PetscViewer :: viewer
+    PetscErrorCode :: ierr, err
+    PetscMPIInt :: rank
+    PetscInt :: c, start_cell, end_cell
+    PetscInt, allocatable :: label_order(:), order(:)
+    DMLabel :: label
+    ISLocalToGlobalMapping :: l2g
+    PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
+    character(20), parameter :: label_name = "cell order"
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    call thermo%init()
+    call eos%init(json, thermo)
+    viewer = PETSC_NULL_VIEWER
+
+    json => fson_parse_mpi(str = '{"mesh": {' // &
+         '"filename": "data/mesh/7x7grid.exo"}}')
+    call mesh%init(json)
+
+    call DMPlexGetHeightStratum(mesh%dm, 0, start_cell, end_cell, ierr)
+    CHKERRQ(ierr)
+    ! Create order label on serial DM:
+    call DMCreateLabel(mesh%dm, label_name, ierr); CHKERRQ(ierr)
+    do c = start_cell, end_cell - 1
+       call DMSetLabelValue(mesh%dm, label_name, c, c, ierr); CHKERRQ(ierr)
+    end do
+    
+    call mesh%configure(eos, gravity, json, viewer = viewer, err = err)
+    call fson_destroy_mpi(json)
+
+    ! Test distributed label values against mesh cell%order AO:
+    call DMPlexGetHeightStratum(mesh%dm, 0, start_cell, end_cell, ierr)
+    CHKERRQ(ierr)
+    allocate(label_order(start_cell: end_cell - 1), &
+         order(start_cell: end_cell - 1))
+    call DMGetLabel(mesh%dm, label_name, label, ierr); CHKERRQ(ierr)
+    call DMGetLocalToGlobalMapping(mesh%dm, l2g, ierr); CHKERRQ(ierr)
+    do c = start_cell, end_cell - 1
+       call DMLabelGetValue(label, c, label_order(c), ierr); CHKERRQ(ierr)
+    end do
+    order = local_to_natural_cell_index(mesh%cell_order, l2g, &
+         [(c, c = start_cell, end_cell - 1)])
+    call assert_equals(label_order, order, end_cell - start_cell, &
+         "cell order")
+    deallocate(label_order, order)
+
+    call mesh%destroy()
+
+  end subroutine test_cell_order
 
 !------------------------------------------------------------------------
 
