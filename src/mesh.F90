@@ -1281,9 +1281,10 @@ contains
     PetscInt :: start_cell, end_cell, end_interior_cell
     PetscInt :: end_non_ghost_cell, c
     PetscInt :: num_ghost_cells, num_non_ghost_cells, bdy_cell_shift
-    PetscInt, allocatable :: global(:)
+    PetscInt, allocatable :: global(:), natural(:), global_interior(:)
     PetscInt, allocatable :: index_natural(:), index_global(:)
     ISLocalToGlobalMapping :: l2g
+    AO :: ao_interior
     IS :: cell_interior_index
     PetscErrorCode :: ierr
 
@@ -1314,11 +1315,22 @@ contains
          PETSC_COPY_VALUES, self%cell_index, ierr); CHKERRQ(ierr)
     call PetscObjectSetName(self%cell_index, "cell_index", ierr)
     CHKERRQ(ierr)
-    deallocate(global, index_natural)
 
     if (viewer /= PETSC_NULL_VIEWER) then
+
        call ISView(self%cell_index, viewer, ierr); CHKERRQ(ierr)
-       index_global = index_global - bdy_cell_shift
+
+       natural = global
+       call AOPetscToApplication(self%cell_order, num_non_ghost_cells, &
+            natural, ierr); CHKERRQ(ierr)
+       global_interior = global - bdy_cell_shift
+       call AOCreateMapping(PETSC_COMM_WORLD, num_non_ghost_cells, &
+            natural, global_interior, ao_interior, ierr); CHKERRQ(ierr)
+       deallocate(natural, global_interior)
+       index_global = index_natural
+       call AOApplicationToPetsc(ao_interior, num_non_ghost_cells, &
+            index_global, ierr); CHKERRQ(ierr)
+       call AODestroy(ao_interior, ierr); CHKERRQ(ierr)
        call ISCreateGeneral(PETSC_COMM_WORLD, num_non_ghost_cells, &
             index_global, PETSC_COPY_VALUES, cell_interior_index, ierr)
        CHKERRQ(ierr)
@@ -1326,9 +1338,10 @@ contains
             "cell_interior_index", ierr); CHKERRQ(ierr)
        call ISView(cell_interior_index, viewer, ierr); CHKERRQ(ierr)
        call ISDestroy(cell_interior_index, ierr); CHKERRQ(ierr)
+
     end if
 
-    deallocate(index_global)
+    deallocate(global, index_natural, index_global)
 
   end subroutine mesh_setup_cell_order
 
