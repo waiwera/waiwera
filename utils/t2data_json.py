@@ -362,7 +362,8 @@ class t2data_export_json(t2data):
                                 g['deliverability']['pressure'] = {'enthalpy': data_table}
                         else:
                             if gen.rate: g['rate'] = data_table
-                            if gen.enthalpy: g['enthalpy'] = data_table
+                            if gen.enthalpy:
+                                g['enthalpy'] = [list(r) for r in zip(gen.time, gen.enthalpy)]
                     jsondata['source'].append(g)
         return jsondata
 
