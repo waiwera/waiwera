@@ -1372,8 +1372,8 @@ end subroutine timestepper_steps_set_next_stepsize
 
     call SNESGetKSP(self%solver, ksp, ierr); CHKERRQ(ierr)
 
-    if ((ksp_type == KSPGMRES) .or. (ksp_type == KSPLGMRES) .and. &
-         (fson_has_mpi(json, 'time.step.solver.linear.options.gmres'))) then
+    if (((ksp_type == KSPGMRES) .or. (ksp_type == KSPLGMRES)) .and. &
+         fson_has_mpi(json, 'time.step.solver.linear.options.gmres')) then
        call fson_get_mpi(json, 'time.step.solver.linear.options.gmres', opt_json)
 
        if (fson_has_mpi(opt_json, 'restart')) then
