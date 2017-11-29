@@ -756,12 +756,12 @@ contains
        call fson_get_mpi(json, "boundaries", boundaries)
        num_boundaries = fson_value_count_mpi(boundaries, ".")
        allocate(self%bcs(np + 1, num_boundaries))
+       bdy => fson_value_children_mpi(boundaries)
 
        num_faces = 0
        do ibdy = 1, num_boundaries
           write(istr, '(i0)') ibdy - 1
           bdystr = 'boundaries[' // trim(istr) // ']'
-          bdy => fson_value_get_mpi(boundaries, ibdy)
 
           if (fson_has_mpi(bdy, "faces")) then
              call fson_get_mpi(bdy, "faces", faces_json)
@@ -779,15 +779,16 @@ contains
                       num_faces = size(faces)
                    case (TYPE_OBJECT)
                       num_faces = 0
+                      face_json => fson_value_children_mpi(faces_json)
                       do i = 1, num_face_items
-                         face_json => fson_value_get_mpi(faces_json, i)
                          num_cells = fson_value_count_mpi(face_json, "cells")
                          num_faces = num_faces + num_cells
+                         face_json => fson_value_next_mpi(face_json)
                       end do
                       allocate(faces(num_faces))
+                      face_json => fson_value_children_mpi(faces_json)
                       offset = 0
                       do i = 1, num_face_items
-                         face_json => fson_value_get_mpi(faces_json, i)
                          call fson_get_mpi(face_json, "cells", default_cells, cells, &
                               logfile, log_key = trim(bdystr) // "faces.cells")
                          call fson_get_mpi(face_json, "normal", default_normal, &
@@ -795,6 +796,7 @@ contains
                          num_cells = size(cells)
                          call get_cell_faces(cells, num_cells, input_normal, offset)
                          offset = offset + num_cells
+                         face_json => fson_value_next_mpi(face_json)
                       end do
                    case default
                       if (present(logfile)) then
@@ -822,9 +824,9 @@ contains
           else if (fson_has_mpi(bdy, "cell_normals")) then
              call fson_get_mpi(bdy, "cell_normals", cell_normals)
              num_faces = fson_value_count_mpi(cell_normals, ".")
+             cell_normal => fson_value_children_mpi(cell_normals)
              allocate(faces(num_faces))
              do iface = 1, num_faces
-                cell_normal => fson_value_get_mpi(cell_normals, iface)
                 item => fson_value_get_mpi(cell_normal, 1)
                 call fson_get_mpi(item, ".", val = cell)
                 item => fson_value_get_mpi(cell_normal, 2)
@@ -843,6 +845,7 @@ contains
                    end if
                    faces(iface) = -1
                 end if
+                cell_normal => fson_value_next_mpi(cell_normal)
              end do
           end if
 
@@ -863,6 +866,9 @@ contains
                region, logfile, log_key = trim(bdystr) // ".region")
           self%bcs(1, ibdy) = dble(region)
           self%bcs(2 : np + 1, ibdy) = primary(1 : np)
+
+          bdy => fson_value_next_mpi(bdy)
+
        end do
     else if (present(logfile)) then
        call logfile%write(LOG_LEVEL_WARN, "input", "no_boundary_conditions")
@@ -1051,13 +1057,13 @@ contains
 
     if (fson_has_mpi(json, "mesh.faces")) then
        call fson_get_mpi(json, "mesh.faces", faces_json)
+       face_json => fson_value_children_mpi(faces_json)
        num_faces = fson_value_count_mpi(faces_json, ".")
 
        do iface = 1, num_faces
 
           write(istr, '(i0)') iface - 1
           facestr = 'mesh.faces[' // trim(istr) // ']'
-          face_json => fson_value_get_mpi(faces_json, iface)
           call fson_get_mpi(face_json, "cells", default_cells, &
                global_cell_indices, logfile, log_key = trim(facestr) // ".cells")
           call fson_get_mpi(face_json, "permeability_direction", &
@@ -1112,6 +1118,7 @@ contains
                      int_values = [iface - 1])
              end if
           end if
+          face_json => fson_value_next_mpi(face_json)
        end do
     end if
 
@@ -1158,10 +1165,10 @@ contains
        call fson_get_mpi(json, "mesh.zones", zones_json)
 
        num_zones = fson_value_count_mpi(zones_json, ".")
+       zone_json => fson_value_children_mpi(zones_json)
 
        do i = 1, num_zones
           zone => null()
-          zone_json => fson_value_get_mpi(zones_json, i)
           ztype = get_zone_type(zone_json)
           name = fson_get_name_mpi(zone_json)
           select case (ztype)
@@ -1194,6 +1201,7 @@ contains
           else
              exit
           end if
+          zone_json => fson_value_next_mpi(zone_json)
        end do
 
        call zone_dict%init(self%zones)
