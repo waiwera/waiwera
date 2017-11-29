@@ -17,6 +17,7 @@ module fson_mpi_test
   public :: test_fson_mpi_int, test_fson_mpi_real, test_fson_mpi_double
   public :: test_fson_mpi_logical, test_fson_mpi_char
   public :: test_fson_mpi_array_rank, test_fson_get_name_mpi
+  public :: test_fson_value_next_mpi
 
 contains
 
@@ -249,6 +250,36 @@ contains
     call fson_destroy_mpi(json)
 
   end subroutine test_fson_get_name_mpi
+
+!------------------------------------------------------------------------
+
+  subroutine test_fson_value_next_mpi
+    ! fson_value_next_mpi()
+
+    type(fson_value), pointer :: json, arr_json, elt_json
+    PetscInt, allocatable :: arr(:)
+    PetscInt :: n, i
+    PetscInt, parameter :: expected_arr(6) = [3, -1, 4, -1, 5, -9]
+
+    json => fson_parse_mpi(filename)
+
+    call fson_get_mpi(json, "int_array", arr_json)
+    n = fson_value_count_mpi(arr_json, ".")
+    allocate(arr(n))
+    arr = 0
+    elt_json => fson_value_children_mpi(arr_json)
+
+    do i = 1, n
+       call fson_get_mpi(elt_json, ".", val = arr(i))
+       elt_json => fson_value_next_mpi(elt_json)
+    end do
+
+    call assert_equals(expected_arr, arr, n, "array")
+
+    deallocate(arr)
+    call fson_destroy_mpi(json)
+    
+  end subroutine test_fson_value_next_mpi
 
 !------------------------------------------------------------------------
 
