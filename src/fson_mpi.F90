@@ -67,6 +67,7 @@ module fson_mpi_module
 
   public :: fson_get_default, fson_get_mpi, fson_has_mpi, fson_get_name_mpi
   public :: fson_type_mpi, fson_value_count_mpi, fson_value_get_mpi
+  public :: fson_value_children_mpi, fson_value_next_mpi
   public :: fson_mpi_array_rank, fson_parse_mpi, fson_destroy_mpi
 
 contains
@@ -1386,6 +1387,50 @@ contains
 
   end function fson_value_get_mpi
 
+!------------------------------------------------------------------------
+
+  function fson_value_children_mpi(self) result(p)
+    !! Returns pointer to children of an fson_value object
+    !! (e.g. elements of any array) on MPI input rank, and null on all
+    !! other ranks.
+
+    type(fson_value), pointer, intent(in) :: self
+    type(fson_value), pointer :: p
+    ! Locals:
+    PetscMPIInt :: rank
+    PetscInt :: ierr
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
+       p => self%children
+    else
+       p => NULL()
+    end if
+
+  end function fson_value_children_mpi
+  
+!------------------------------------------------------------------------
+
+  function fson_value_next_mpi(self) result(p)
+    !! Returns pointer to next element of an fson_value object
+    !! (e.g. next element in an array) on MPI input rank, and null on
+    !! all other ranks.
+
+    type(fson_value), pointer, intent(in) :: self
+    type(fson_value), pointer :: p
+    ! Locals:
+    PetscMPIInt :: rank
+    PetscInt :: ierr
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
+       p => self%next
+    else
+       p => NULL()
+    end if
+
+  end function fson_value_next_mpi
+  
 !------------------------------------------------------------------------
 
   function fson_parse_mpi(file, unit, str) result(p)
