@@ -355,7 +355,7 @@ class t2data_export_json(t2data):
                         g['interpolation'] = interp_type
                         g['averaging'] = averaging_type
                         data_table = [list(r) for r in zip(gen.time, gen.rate)]
-                        if gen.type == 'DELG':
+                        if gen.type in ['DELG', 'DELT', 'DELW']:
                             if gen.ltab > 0:
                                 g['deliverability']['productivity'] = {'time': data_table}
                             else:
