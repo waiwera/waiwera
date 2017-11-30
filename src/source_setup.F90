@@ -90,14 +90,13 @@ contains
 
        call fson_get_mpi(json, "source", sources_json)
        num_sources = fson_value_count_mpi(sources_json, ".")
+       source_json => fson_value_children_mpi(sources_json)
 
        do isrc = 1, num_sources
 
           write(istr, '(i0)') isrc - 1
           srcstr = 'source[' // trim(istr) // '].'
           source => null()
-
-          source_json => fson_value_get_mpi(sources_json, isrc)
 
           call fson_get_mpi(source_json, "name", default_name, name)
           call get_components(source_json, eos, &
@@ -129,6 +128,8 @@ contains
                start_time, fluid_data, fluid_section, fluid_range_start, srcstr, &
                num_cells, cell_sources, source_controls, logfile)
           call cell_sources%destroy()
+
+          source_json => fson_value_next_mpi(source_json)
 
        end do
 
