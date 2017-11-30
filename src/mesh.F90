@@ -1419,14 +1419,15 @@ contains
                iminc, mincstr, logfile, err)
        case (TYPE_ARRAY)
           num_minc_zones = fson_value_count_mpi(minc_json, ".")
+          minci_json => fson_value_children_mpi(minc_json)
           allocate(self%minc(num_minc_zones))
           do iminc = 1, num_minc_zones
-             minci_json => fson_value_get_mpi(minc_json, iminc)
              write(imincstr, '(i0)') iminc - 1
              mincstr = 'minc[' // trim(imincstr) // '].'
              call self%minc(iminc)%init(minci_json, self%original_dm, iminc, &
                   mincstr, logfile, err)
              if (err > 0) exit
+             minci_json => fson_value_next_mpi(minci_json)
           end do
        end select
 
