@@ -268,12 +268,12 @@ contains
 
        call fson_get_mpi(json, "rock.types", rocktypes)
        num_rocktypes = fson_value_count_mpi(rocktypes, ".")
+       r => fson_value_children_mpi(rocktypes)
 
        do ir = 1, num_rocktypes
 
           write(irstr, '(i0)') ir - 1
           rockstr = 'rock.types[' // trim(irstr) // '].'
-          r => fson_value_get_mpi(rocktypes, ir)
           call fson_get_mpi(r, "name", "", name, logfile, trim(rockstr) // "name")
           call fson_get_mpi(r, "permeability", default_permeability, &
                permeability, logfile, trim(rockstr) // "permeability")
@@ -338,6 +338,8 @@ contains
              end associate
              deallocate(zones)
           end if
+
+          r => fson_value_next_mpi(r)
 
        end do
 
