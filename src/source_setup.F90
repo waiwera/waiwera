@@ -42,15 +42,16 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine setup_sources(json, dm, eos, thermo, start_time, fluid_vector, &
-       fluid_range_start, sources, source_controls, logfile)
+  subroutine setup_sources(json, dm, ao, eos, thermo, start_time, &
+       fluid_vector, fluid_range_start, sources, source_controls, logfile)
     !! Sets up lists of sinks / sources and source controls.
 
-    use cell_order_module, only: cell_order_label_name
-    use dm_utils_module, only: dm_order_local_index, global_vec_section
+    use dm_utils_module, only: global_vec_section, &
+         natural_to_local_cell_index
 
     type(fson_value), pointer, intent(in) :: json !! JSON file object
     DM, intent(in) :: dm !! Mesh DM
+    AO, intent(in) :: ao !! Application ordering for natural to global cell indexing
     class(eos_type), intent(in) :: eos !! Equation of state
     class(thermodynamics_type), intent(in) :: thermo !! Thermodynamics formulation
     PetscReal, intent(in) :: start_time
@@ -60,7 +61,7 @@ contains
     type(list_type), intent(in out) :: source_controls !! List of source controls
     type(logfile_type), intent(in out), optional :: logfile !! Logfile for log output
     ! Locals:
-    PetscInt :: icell, c, isrc, cell_order
+    PetscInt :: ic, isrc, ghost
     PetscInt :: injection_component, production_component
     type(fson_value), pointer :: sources_json, source_json
     PetscInt :: num_sources, num_cells
@@ -72,10 +73,11 @@ contains
     character(len=64) :: srcstr
     character(len=12) :: istr
     PetscBool :: can_inject
-    PetscInt, allocatable :: cells(:)
+    PetscInt, allocatable :: cell_natural_index(:), cell_local_index(:)
     type(list_type) :: cell_sources
     PetscReal, pointer, contiguous :: fluid_data(:)
     PetscSection :: fluid_section
+    ISLocalToGlobalMapping :: l2g
     PetscErrorCode :: ierr
 
     call sources%init(owner = PETSC_TRUE)
@@ -83,6 +85,8 @@ contains
 
     call global_vec_section(fluid_vector, fluid_section)
     call VecGetArrayReadF90(fluid_vector, fluid_data, ierr); CHKERRQ(ierr)
+
+    call DMGetLocalToGlobalMapping(dm, l2g, ierr); CHKERRQ(ierr)
 
     if (fson_has_mpi(json, "source")) then
 
@@ -105,29 +109,35 @@ contains
           call get_initial_enthalpy(source_json, eos, can_inject, &
                injection_component, initial_enthalpy)
 
-          call get_cells(source_json, cells, num_cells)
+          call get_cells(source_json, ao, l2g, cell_natural_index, &
+               num_cells)
+          if (num_cells > 0) then
+             allocate(cell_local_index(num_cells))
+             cell_local_index = natural_to_local_cell_index(ao, l2g, &
+                  cell_natural_index)
+          end if
           call cell_sources%init()
 
-          do icell = 1, num_cells
-
-             cell_order = cells(icell)
-             c = dm_order_local_index(dm, cell_order, &
-                  cell_order_label_name, ghost_label)
-             if (c >= 0) then
-                allocate(source)
-                call source%init(cell_order, c, eos, &
-                     initial_rate, initial_enthalpy, &
-                     injection_component, production_component)
-                call sources%append(source, name)
-                call cell_sources%append(source, name)
-             end if
-
+          do ic = 1, num_cells
+             associate(c => cell_local_index(ic), natural => cell_natural_index(ic))
+               if (c >= 0) then
+                  call DMLabelGetValue(ghost_label, c, ghost, ierr); CHKERRQ(ierr)
+                  if (ghost < 0) then
+                     allocate(source)
+                     call source%init(natural, c, eos, initial_rate, &
+                          initial_enthalpy, injection_component, production_component)
+                     call sources%append(source, name)
+                     call cell_sources%append(source, name)
+                  end if
+               end if
+             end associate
           end do
 
           call setup_inline_source_controls(source_json, eos, thermo, &
                start_time, fluid_data, fluid_section, fluid_range_start, srcstr, &
                num_cells, cell_sources, source_controls, logfile)
           call cell_sources%destroy()
+          deallocate(cell_natural_index, cell_local_index)
 
           source_json => fson_value_next_mpi(source_json)
 
@@ -278,22 +288,23 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine get_cells(source_json, cells, num_cells)
-    !! Gets array of cell indices for the source. These are global
-    !! indices (i.e. natural orders).  The "cell" key can be used to
-    !! specify a single cell. The "cells" key can be used to specify
-    !! either a single cell or an array of cells. If both are present,
-    !! the "cells" key is used.
+  subroutine get_cells(source_json, ao, l2g, cell_natural_index, num_cells)
+    !! Gets array of cell natural indices for the source. The "cell"
+    !! key can be used to specify a single cell. The "cells" key can
+    !! be used to specify either a single cell or an array of
+    !! cells. If both are present, the "cells" key is used.
 
     type(fson_value), pointer, intent(in) :: source_json
-    PetscInt, allocatable, intent(out) :: cells(:)
+    AO, intent(in) :: ao
+    ISLocalToGlobalMapping, intent(in) :: l2g
+    PetscInt, allocatable, intent(out) :: cell_natural_index(:)
     PetscInt, intent(out) :: num_cells
     ! Locals:
     PetscInt :: cell_type, cell
 
     if (fson_has_mpi(source_json, "cell")) then
        call fson_get_mpi(source_json, "cell", val = cell)
-       cells = [cell]
+       cell_natural_index = [cell]
     end if
 
     if (fson_has_mpi(source_json, "cells")) then
@@ -302,15 +313,16 @@ contains
 
        if (cell_type == TYPE_INTEGER) then
           call fson_get_mpi(source_json, "cells", val = cell)
-          cells = [cell]
+          cell_natural_index = [cell]
        else if (cell_type == TYPE_ARRAY) then
-          call fson_get_mpi(source_json, "cells", val = cells)
+          call fson_get_mpi(source_json, "cells", &
+               val = cell_natural_index)
        end if
 
     end if
 
-    if (allocated(cells)) then
-       num_cells = size(cells)
+    if (allocated(cell_natural_index)) then
+       num_cells = size(cell_natural_index)
     else
        num_cells = 0
     end if

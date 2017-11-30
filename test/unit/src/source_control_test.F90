@@ -49,23 +49,25 @@ contains
     PetscReal, parameter :: start_time = 0._dp
     PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
     PetscMPIInt :: rank
+    PetscViewer :: viewer
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
     json => fson_parse_mpi(trim(path) // "test_source_controls_table.json")
+    viewer = PETSC_NULL_VIEWER
 
     call thermo%init()
     call eos%init(json, thermo)
     call mesh%init(json)
     call DMCreateLabel(mesh%dm, open_boundary_label_name, ierr); CHKERRQ(ierr)
-    call mesh%configure(eos%num_primary_variables, gravity, json, err = err)
+    call mesh%configure(eos, gravity, json, viewer = viewer, err = err)
     call setup_fluid_vector(mesh%dm, max_component_name_length, &
          eos%component_names, max_phase_name_length, eos%phase_names, &
          fluid_vector, fluid_range_start)
     call global_vec_section(fluid_vector, fluid_section)
     call VecGetArrayF90(fluid_vector, fluid_array, ierr); CHKERRQ(ierr)
 
-    call setup_sources(json, mesh%dm, eos, thermo, start_time, fluid_vector, &
-         fluid_range_start, sources, source_controls)
+    call setup_sources(json, mesh%dm, mesh%cell_order, eos, thermo, start_time, &
+         fluid_vector, fluid_range_start, sources, source_controls)
 
     call VecRestoreArrayF90(fluid_vector, fluid_array, ierr); CHKERRQ(ierr)
 
@@ -188,9 +190,11 @@ contains
     PetscReal, parameter :: start_time = 0._dp
     PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
     PetscMPIInt :: rank
+    PetscViewer :: viewer
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
     json => fson_parse_mpi(trim(path) // "test_source_controls_pressure_reference.json")
+    viewer = PETSC_NULL_VIEWER
 
     call thermo%init()
     call eos%init(json, thermo)
@@ -213,7 +217,7 @@ contains
     call mesh%init(json)
     call fluid%init(eos%num_components, eos%num_phases)
     call DMCreateLabel(mesh%dm, open_boundary_label_name, ierr); CHKERRQ(ierr)
-    call mesh%configure(eos%num_primary_variables, gravity, json, err = err)
+    call mesh%configure(eos, gravity, json, viewer = viewer, err = err)
     call setup_fluid_vector(mesh%dm, max_component_name_length, &
          eos%component_names, max_phase_name_length, eos%phase_names, &
          fluid_vector, fluid_range_start)
@@ -250,8 +254,8 @@ contains
     end do
     call VecRestoreArrayF90(fluid_vector, fluid_array, ierr); CHKERRQ(ierr)
 
-    call setup_sources(json, mesh%dm, eos, thermo, start_time, fluid_vector, &
-         fluid_range_start, sources, source_controls)
+    call setup_sources(json, mesh%dm, mesh%cell_order, eos, thermo, start_time, &
+         fluid_vector, fluid_range_start, sources, source_controls)
 
     call MPI_reduce(sources%count, num_sources, 1, MPI_INTEGER, MPI_SUM, &
          0, PETSC_COMM_WORLD, ierr)

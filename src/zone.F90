@@ -182,11 +182,12 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine zone_label_dm(self, dm, cell_geometry, err)
+  subroutine zone_label_dm(self, dm, ao, cell_geometry, err)
     !! Label cells in a zone on DM- dummy routine to be overridden.
 
     class(zone_type), intent(in out) :: self
     DM, intent(in out) :: dm
+    AO, intent(in) :: ao
     Vec, intent(in) :: cell_geometry
     PetscErrorCode, intent(out) :: err
 
@@ -253,22 +254,22 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine zone_cell_array_label_dm(self, dm, cell_geometry, err)
-    !! Label cells on a DM in a zone defined by an array of global
-    !! node indices.
+  subroutine zone_cell_array_label_dm(self, dm, ao, cell_geometry, err)
+    !! Label cells on a DM in a zone defined by an array of natural
+    !! cell indices.
 
-    use cell_order_module, only: cell_order_label_name
+    use dm_utils_module, only: natural_to_local_cell_index
 
     class(zone_cell_array_type), intent(in out) :: self
     DM, intent(in out) :: dm
+    AO, intent(in) :: ao
     Vec, intent(in) :: cell_geometry
     PetscErrorCode, intent(out) :: err
     ! Locals:
-    PetscInt :: num_matching
-    IS :: cell_IS
-    PetscInt, pointer :: cells(:)
-    PetscInt :: ghost, c, ic, global_cell_index
+    PetscInt, allocatable :: cell_local_index(:)
+    PetscInt :: ghost, ic
     DMLabel :: ghost_label
+    ISLocalToGlobalMapping :: l2g
     character(:), allocatable :: label_name
     PetscErrorCode :: ierr
 
@@ -277,26 +278,23 @@ contains
     label_name = zone_label_name(self%name)
     call DMCreateLabel(dm, label_name, ierr); CHKERRQ(ierr)
     call DMGetLabel(dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
+    call DMGetLocalToGlobalMapping(dm, l2g, ierr); CHKERRQ(ierr)
 
-    do ic = 1, size(self%cells)
-       global_cell_index = self%cells(ic)
-       call DMGetStratumSize(dm, cell_order_label_name, &
-            global_cell_index, num_matching, ierr); CHKERRQ(ierr)
-       if (num_matching > 0) then
-          call DMGetStratumIS(dm, cell_order_label_name, &
-               global_cell_index, cell_IS, ierr); CHKERRQ(ierr)
-          call ISGetIndicesF90(cell_IS, cells, ierr); CHKERRQ(ierr)
-          do c = 1, num_matching
-             call DMLabelGetValue(ghost_label, cells(c), ghost, ierr)
-             if (ghost < 0) then
-                call DMSetLabelValue(dm, label_name, cells(c), &
-                     1, ierr); CHKERRQ(ierr)
-             end if
-          end do
-          call ISRestoreIndicesF90(cell_IS, cells, ierr); CHKERRQ(ierr)
-          call ISDestroy(cell_IS, ierr); CHKERRQ(ierr)
-       end if
-    end do
+    associate(num_cells => size(self%cells))
+      allocate(cell_local_index(num_cells))
+      cell_local_index = natural_to_local_cell_index(ao, l2g, self%cells)
+      do ic = 1, num_cells
+         associate(c => cell_local_index(ic))
+           if (c >= 0) then
+              call DMLabelGetValue(ghost_label, c, ghost, ierr)
+              if (ghost < 0) then
+                 call DMSetLabelValue(dm, label_name, c, 1, ierr)
+                 CHKERRQ(ierr)
+              end if
+           end if
+         end associate
+      end do
+    end associate
 
   end subroutine zone_cell_array_label_dm
 
@@ -341,21 +339,22 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine zone_box_label_dm(self, dm, cell_geometry, err)
+  subroutine zone_box_label_dm(self, dm, ao, cell_geometry, err)
     !! Label cells on a DM in a zone with specified coordinate ranges.
 
-    use dm_utils_module, only: local_vec_section, section_offset
+    use dm_utils_module, only: local_vec_section, section_offset, &
+         dm_get_end_interior_cell
     use cell_module
 
     class(zone_box_type), intent(in out) :: self
     DM, intent(in out) :: dm
+    AO, intent(in) :: ao
     Vec, intent(in) :: cell_geometry
     PetscErrorCode, intent(out) :: err
     ! Locals:
     PetscInt :: dim, ghost, i, c, offset
     DMLabel :: ghost_label
     PetscInt :: start_cell, end_cell, end_interior_cell
-    PetscInt :: cmax, fmax, emax, vmax
     PetscSection :: section
     PetscReal, contiguous, pointer :: cell_geom_array(:)
     type(cell_type) :: cell
@@ -371,9 +370,7 @@ contains
     call DMGetDimension(dm, dim, ierr); CHKERRQ(ierr)
     call DMPlexGetHeightStratum(dm, 0, start_cell, end_cell, ierr)
     CHKERRQ(ierr)
-    call DMPlexGetHybridBounds(dm, cmax, fmax, emax, vmax, ierr)
-    CHKERRQ(ierr)
-    end_interior_cell = cmax
+    end_interior_cell = dm_get_end_interior_cell(dm, end_cell)
     call DMGetLabel(dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
     call local_vec_section(cell_geometry, section)
     call VecGetArrayReadF90(cell_geometry, cell_geom_array, ierr); CHKERRQ(ierr)
@@ -475,18 +472,20 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine zone_combine_label_dm(self, dm, cell_geometry, err)
+  subroutine zone_combine_label_dm(self, dm, ao, cell_geometry, err)
     !! Label points in a combined zone on a DM.
+
+    use dm_utils_module, only: dm_get_end_interior_cell
 
     class(zone_combine_type), intent(in out) :: self
     DM, intent(in out) :: dm
+    AO, intent(in) :: ao
     Vec, intent(in) :: cell_geometry
     PetscErrorCode, intent(out) :: err
     ! Locals:
     DMLabel :: ghost_label, label
     DMLabel, allocatable :: times_label(:)
     PetscInt :: start_cell, end_cell, end_interior_cell
-    PetscInt :: cmax, fmax, emax, vmax
     PetscInt :: i, c, p, num_matching, ghost, times
     IS :: zone_IS
     PetscInt, pointer :: cells(:)
@@ -502,9 +501,7 @@ contains
     call DMGetLabel(dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
     call DMPlexGetHeightStratum(dm, 0, start_cell, end_cell, ierr)
     CHKERRQ(ierr)
-    call DMPlexGetHybridBounds(dm, cmax, fmax, emax, vmax, ierr)
-    CHKERRQ(ierr)
-    end_interior_cell = cmax
+    end_interior_cell = dm_get_end_interior_cell(dm, end_cell)
 
     associate(num_plus => size(self%plus), num_minus => size(self%minus), &
          num_times => size(self%times))
