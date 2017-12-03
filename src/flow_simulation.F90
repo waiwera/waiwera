@@ -308,6 +308,8 @@ contains
             FILE_MODE_WRITE, self%hdf5_viewer, ierr); CHKERRQ(ierr)
        call PetscViewerHDF5PushGroup(self%hdf5_viewer, "/", ierr)
        CHKERRQ(ierr)
+    else
+       self%hdf5_viewer = PETSC_NULL_VIEWER
     end if
 
     if (default_output) then
@@ -553,14 +555,8 @@ contains
 
     if (err == 0) then
 
-       call self%mesh%setup_boundaries(json, self%eos, self%logfile)
-       if (self%output_filename == '') then
-          call self%mesh%configure(self%eos%num_primary_variables, &
-               self%gravity, json, self%logfile, err = err)
-       else
-          call self%mesh%configure(self%eos%num_primary_variables, &
-               self%gravity, json, self%logfile, self%hdf5_viewer, err)
-       end if
+       call self%mesh%configure(self%eos, self%gravity, json, &
+            self%logfile, self%hdf5_viewer, err)
 
        if (err == 0) then
 
@@ -575,6 +571,7 @@ contains
           call setup_rock_vector(json, self%mesh%dm, self%rock, &
                self%rock_range_start, self%mesh%ghost_cell, self%logfile, err)
           if (err == 0) then
+
              call setup_fluid_vector(self%mesh%dm, max_component_name_length, &
                   self%eos%component_names, max_phase_name_length, &
                   self%eos%phase_names, self%fluid, self%fluid_range_start)
@@ -1123,8 +1120,8 @@ contains
     !! thermodynamic variables. This is called before the timestepper
     !! starts to run.
 
-    use cell_order_module, only: cell_order_label_name
-    use dm_utils_module, only: global_section_offset, global_vec_section
+    use dm_utils_module, only: global_section_offset, global_vec_section, &
+         local_to_natural_cell_index
     use cell_module, only: cell_type
     use profiling_module, only: fluid_init_event
     use mpi_utils_module, only: mpi_broadcast_error_flag
@@ -1134,14 +1131,14 @@ contains
     Vec, intent(in) :: y !! global primary variables vector
     PetscErrorCode, intent(out) :: err
     ! Locals:
-    PetscInt :: c, np, nc, order
+    PetscInt :: c, np, nc, natural_cell_index
     PetscSection :: y_section, fluid_section, rock_section
     PetscInt :: y_offset, fluid_offset, rock_offset
     PetscReal, pointer, contiguous :: y_array(:), scaled_cell_primary(:)
     PetscReal, pointer, contiguous :: fluid_array(:), rock_array(:)
     PetscReal :: cell_primary(self%eos%num_primary_variables)
     type(cell_type) :: cell
-    DMLabel :: order_label
+    ISLocalToGlobalMapping :: l2g
     PetscMPIInt :: rank
     PetscErrorCode :: ierr
 
@@ -1162,9 +1159,7 @@ contains
     call VecGetArrayF90(self%rock, rock_array, ierr); CHKERRQ(ierr)
 
     call cell%init(nc, self%eos%num_phases)
-
-    call DMGetLabel(self%mesh%dm, cell_order_label_name, order_label, ierr)
-    CHKERRQ(ierr)
+    call DMGetLocalToGlobalMapping(self%mesh%dm, l2g, ierr); CHKERRQ(ierr)
 
     do c = self%mesh%start_cell, self%mesh%end_cell - 1
 
@@ -1192,21 +1187,21 @@ contains
              call self%eos%phase_properties(cell_primary, cell%rock, &
                   cell%fluid, err)
              if (err > 0) then
-                call DMLabelGetValue(order_label, c, order, ierr)
-                CHKERRQ(ierr)
+                natural_cell_index = local_to_natural_cell_index(&
+                     self%mesh%cell_order, l2g, c)
                 call self%logfile%write(LOG_LEVEL_ERR, 'initialize', &
                      'fluid_phase_properties', ['cell  ', 'region'], &
-                     [order, int(cell%fluid%region)], &
+                     [natural_cell_index, int(cell%fluid%region)], &
                      real_array_key = 'primary', real_array_value = cell_primary, &
                      rank = rank)
                 exit
              end if
           else
-             call DMLabelGetValue(order_label, c, order, ierr)
-             CHKERRQ(ierr)
+             natural_cell_index = local_to_natural_cell_index(&
+                  self%mesh%cell_order, l2g, c)
              call self%logfile%write(LOG_LEVEL_ERR, 'initialize', &
                   'fluid_bulk_properties', ['cell  ', 'region'], &
-                  [order, int(cell%fluid%region)], &
+                  [natural_cell_index, int(cell%fluid%region)], &
                   real_array_key = 'primary', real_array_value = cell_primary, &
                   rank = rank)
              exit
@@ -1235,8 +1230,8 @@ contains
     !! composition, based on the current time and primary
     !! thermodynamic variables.
 
-    use cell_order_module, only: cell_order_label_name
-    use dm_utils_module, only: global_section_offset, global_vec_section
+    use dm_utils_module, only: global_section_offset, global_vec_section, &
+         local_to_natural_cell_index
     use cell_module, only: cell_type
     use profiling_module, only: fluid_properties_event
     use mpi_utils_module, only: mpi_broadcast_error_flag
@@ -1246,14 +1241,14 @@ contains
     Vec, intent(in) :: y !! global primary variables vector
     PetscErrorCode, intent(out) :: err !! error code
     ! Locals:
-    PetscInt :: c, np, nc, order
+    PetscInt :: c, np, nc, natural_cell_index
     PetscSection :: y_section, fluid_section, rock_section, update_section
     PetscInt :: y_offset, fluid_offset, rock_offset, update_offset
     PetscReal, pointer, contiguous :: y_array(:), scaled_cell_primary(:)
     PetscReal, pointer, contiguous :: fluid_array(:), rock_array(:), update(:)
     PetscReal :: cell_primary(self%eos%num_primary_variables)
     type(cell_type) :: cell
-    DMLabel :: order_label
+    ISLocalToGlobalMapping :: l2g
     PetscMPIInt :: rank
     PetscErrorCode :: ierr
 
@@ -1278,9 +1273,7 @@ contains
     call VecGetArrayF90(self%rock, rock_array, ierr); CHKERRQ(ierr)
 
     call cell%init(nc, self%eos%num_phases)
-
-    call DMGetLabel(self%mesh%dm, cell_order_label_name, order_label, ierr)
-    CHKERRQ(ierr)
+    call DMGetLocalToGlobalMapping(self%mesh%dm, l2g, ierr); CHKERRQ(ierr)
 
     do c = self%mesh%start_cell, self%mesh%end_cell - 1
 
@@ -1312,20 +1305,21 @@ contains
                 call self%eos%phase_properties(cell_primary, cell%rock, &
                      cell%fluid, err)
                 if (err > 0) then
-                   call DMLabelGetValue(order_label, c, order, ierr)
-                   CHKERRQ(ierr)
+                   natural_cell_index = local_to_natural_cell_index(&
+                        self%mesh%cell_order, l2g, c)
                    call self%logfile%write(LOG_LEVEL_WARN, 'fluid', &
                         'phase_properties_not_found', &
-                        ['cell            '], [order], &
+                        ['cell            '], [natural_cell_index], &
                         real_array_key = 'primary         ', &
                         real_array_value = cell_primary, rank = rank)
                    exit
                 end if
              else
-                call DMLabelGetValue(order_label, c, order, ierr); CHKERRQ(ierr)
+                natural_cell_index = local_to_natural_cell_index(&
+                     self%mesh%cell_order, l2g, c)
                 call self%logfile%write(LOG_LEVEL_WARN, 'fluid', &
                      'bulk_properties_not_found', &
-                     ['cell            '], [order], &
+                     ['cell            '], [natural_cell_index], &
                      real_array_key = 'primary         ', &
                      real_array_value = cell_primary, rank = rank)
                 exit
@@ -1355,8 +1349,8 @@ contains
     !! Checks primary variables and thermodynamic regions in all mesh
     !! cells and updates if region transitions have occurred.
 
-    use cell_order_module, only: cell_order_label_name
-    use dm_utils_module, only: global_section_offset, global_vec_section
+    use dm_utils_module, only: global_section_offset, global_vec_section, &
+         local_to_natural_cell_index
     use fluid_module, only: fluid_type
     use profiling_module, only: fluid_transitions_event
     use mpi_utils_module, only: mpi_broadcast_error_flag, mpi_broadcast_logical
@@ -1368,7 +1362,7 @@ contains
     PetscBool, intent(out) :: changed_search, changed_y
     PetscErrorCode, intent(out) :: err !! Error code
     ! Locals:
-    PetscInt :: c, np, nc, order
+    PetscInt :: c, np, nc, natural_cell_index
     PetscSection :: primary_section, fluid_section
     PetscInt :: primary_offset, fluid_offset
     PetscReal, pointer, contiguous :: primary_array(:), old_primary_array(:), search_array(:)
@@ -1377,8 +1371,8 @@ contains
     PetscReal, pointer, contiguous :: last_iteration_fluid_array(:), fluid_array(:)
     PetscReal, dimension(self%eos%num_primary_variables) :: cell_primary, old_cell_primary
     type(fluid_type) :: old_fluid, fluid
-    DMLabel :: order_label
     PetscBool :: transition
+    ISLocalToGlobalMapping :: l2g
     PetscMPIInt :: rank
     PetscErrorCode :: ierr
 
@@ -1404,8 +1398,7 @@ contains
     call old_fluid%init(nc, self%eos%num_phases)
     call fluid%init(nc, self%eos%num_phases)
 
-    call DMGetLabel(self%mesh%dm, cell_order_label_name, order_label, ierr)
-    CHKERRQ(ierr)
+    call DMGetLocalToGlobalMapping(self%mesh%dm, l2g, ierr); CHKERRQ(ierr)
 
     do c = self%mesh%start_cell, self%mesh%end_cell - 1
 
@@ -1437,24 +1430,24 @@ contains
              if (err == 0) then
                 if (transition) then
                    changed_y = PETSC_TRUE
-                   call DMLabelGetValue(order_label, c, order, ierr)
-                   CHKERRQ(ierr)
+                   natural_cell_index = local_to_natural_cell_index(&
+                        self%mesh%cell_order, l2g, c)
                    call self%logfile%write(LOG_LEVEL_INFO, 'fluid', &
                         'transition', &
                         ['cell            ', &
                         'old_region      ', 'new_region      '], &
-                        [order, &
+                        [natural_cell_index, &
                         nint(old_fluid%region), nint(fluid%region)], &
                         real_array_key = 'new_primary     ', &
                         real_array_value = cell_primary, rank = rank)
                 end if
              else
-                call DMLabelGetValue(order_label, c, order, ierr)
-                CHKERRQ(ierr)
+                natural_cell_index = local_to_natural_cell_index(&
+                     self%mesh%cell_order, l2g, c)
                 call self%logfile%write(LOG_LEVEL_WARN, 'fluid', &
                      'out_of_range', &
                      ['cell            ', 'region          '], &
-                     [order, nint(fluid%region)], &
+                     [natural_cell_index, nint(fluid%region)], &
                      real_array_key = 'primary         ', &
                      real_array_value = cell_primary, rank = rank)
                 exit
@@ -1465,10 +1458,11 @@ contains
                 scaled_cell_search = old_scaled_cell_primary - scaled_cell_primary
              end if
           else
-             call DMLabelGetValue(order_label, c, order, ierr); CHKERRQ(ierr)
+             natural_cell_index = local_to_natural_cell_index(&
+                  self%mesh%cell_order, l2g, c)
              call self%logfile%write(LOG_LEVEL_WARN, 'fluid', &
                   'transition_failed', &
-                  ['cell  ', 'region'], [order, nint(fluid%region)], &
+                  ['cell  ', 'region'], [natural_cell_index, nint(fluid%region)], &
                   real_array_key = 'primary', real_array_value = cell_primary, &
                   rank = rank)
              exit

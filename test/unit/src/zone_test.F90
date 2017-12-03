@@ -181,22 +181,29 @@ contains
     ! cell array label
 
     use mesh_module
+    use IAPWS_module
+    use eos_we_module
 
     type(fson_value), pointer :: json
     type(mesh_type) :: mesh
     PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
-    PetscInt, parameter :: dof = 2
+    type(IAPWS_type) :: thermo
+    type(eos_we_type) :: eos
     PetscMPIInt :: rank
+    PetscViewer :: viewer
     PetscErrorCode :: ierr, err
 
     call MPI_comm_rank(PETSC_COMM_WORLD, rank, ierr)
+    call thermo%init()
+    call eos%init(json, thermo)
+    viewer = PETSC_NULL_VIEWER
 
     json => fson_parse_mpi(str = &
          '{"mesh": {"filename": "data/mesh/7x7grid.exo", ' // &
          '"zones": {"zone1": [10, 15, 20, 27, 34, 44], ' // &
          '"zone2": [40, 30, 5]}}}')
     call mesh%init(json)
-    call mesh%configure(dof, gravity, json, err = err)
+    call mesh%configure(eos, gravity, json, viewer = viewer, err = err)
     call assert_equals(0, err, 'config error')
     call fson_destroy_mpi(json)
 
@@ -212,6 +219,8 @@ contains
     end if
 
     call mesh%destroy()
+    call eos%destroy()
+    call thermo%destroy()
 
   contains
 
@@ -255,16 +264,23 @@ contains
   subroutine test_box_label
     ! box label
 
+    use IAPWS_module
+    use eos_we_module
     use mesh_module
 
     type(fson_value), pointer :: json
+    type(IAPWS_type) :: thermo
+    type(eos_we_type) :: eos
     type(mesh_type) :: mesh
     PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
-    PetscInt, parameter :: dof = 2
     PetscMPIInt :: rank
     PetscErrorCode :: ierr, err
+    PetscViewer :: viewer
 
     call MPI_comm_rank(PETSC_COMM_WORLD, rank, ierr)
+    call thermo%init()
+    call eos%init(json, thermo)
+    viewer = PETSC_NULL_VIEWER
 
     json => fson_parse_mpi(str = &
          '{"mesh": {"filename": "data/mesh/7x7grid.exo", ' // &
@@ -273,7 +289,7 @@ contains
          '"all": {"type": "box"}, ' // &
          '"xyzone": {"x": [0, 2000], "y": [2500, 4500]}}}}')
     call mesh%init(json)
-    call mesh%configure(dof, gravity, json, err = err)
+    call mesh%configure(eos, gravity, json, viewer = viewer, err = err)
     call assert_equals(0, err, 'config error')
     call fson_destroy_mpi(json)
 
@@ -282,6 +298,8 @@ contains
     end if
 
     call mesh%destroy()
+    call eos%destroy()
+    call thermo%destroy()
 
   contains
 
@@ -325,15 +343,22 @@ contains
     ! combine label
 
     use mesh_module
+    use IAPWS_module
+    use eos_we_module
 
     type(fson_value), pointer :: json
     type(mesh_type) :: mesh
     PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
-    PetscInt, parameter :: dof = 2
+    type(IAPWS_type) :: thermo
+    type(eos_we_type) :: eos
     PetscMPIInt :: rank
     PetscErrorCode :: ierr, err
+    PetscViewer :: viewer
 
     call MPI_comm_rank(PETSC_COMM_WORLD, rank, ierr)
+    call thermo%init()
+    call eos%init(json, thermo)
+    viewer = PETSC_NULL_VIEWER
 
     json => fson_parse_mpi(str = &
          '{"mesh": {"filename": "data/mesh/7x7grid.exo", ' // &
@@ -347,7 +372,7 @@ contains
          '"zone_times2": {"*": ["zone_plus", "zone3"]}, ' // &
          '"all": {"-": null}}}}')
     call mesh%init(json)
-    call mesh%configure(dof, gravity, json, err = err)
+    call mesh%configure(eos, gravity, json, viewer = viewer, err = err)
     call assert_equals(0, err, 'config error')
     call fson_destroy_mpi(json)
 
@@ -356,6 +381,8 @@ contains
     end if
 
     call mesh%destroy()
+    call eos%destroy()
+    call thermo%destroy()
 
   contains
 

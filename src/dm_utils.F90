@@ -25,6 +25,16 @@ module dm_utils_module
   implicit none
   private
 
+  interface natural_to_local_cell_index
+     module procedure natural_to_local_cell_index_array
+     module procedure natural_to_local_cell_index_single
+  end interface natural_to_local_cell_index
+
+  interface local_to_natural_cell_index
+     module procedure local_to_natural_cell_index_single
+     module procedure local_to_natural_cell_index_array
+  end interface local_to_natural_cell_index
+
   public :: set_dm_data_layout, section_offset, global_section_offset
   public :: global_vec_section, local_vec_section
   public :: global_to_local_vec_section, restore_dm_local_vec
@@ -32,7 +42,10 @@ module dm_utils_module
   public :: dm_cell_normal_face
   public :: write_vec_vtk
   public :: vec_max_pointwise_abs_scale
-  public :: dm_order_local_index
+  public :: dm_get_num_partition_ghost_cells, dm_get_bdy_cell_shift
+  public :: dm_get_end_interior_cell
+  public :: dm_get_natural_to_global_ao
+  public :: natural_to_local_cell_index, local_to_natural_cell_index
 
 contains
 
@@ -401,44 +414,238 @@ contains
 
 !------------------------------------------------------------------------
 
-  PetscInt function dm_order_local_index(dm, order, order_label_name, &
-       ghost_label) result(index)
-    !! Returns local index of mesh point with given order in DM.  It
-    !! is assumed that the order label values are unique. If no mesh
-    !! point that has the specified order, and is not a ghost, exists
-    !! on the current processor, a value of -1 is returned.
+  PetscInt function dm_get_num_partition_ghost_cells(dm) result(n)
+    !! Returns number of DM partition ghost cells on current process.
 
     DM, intent(in) :: dm
-    PetscInt, intent(in) :: order
-    character(len = *), intent(in) :: order_label_name
-    DMLabel, intent(in) :: ghost_label
     ! Locals:
-    IS :: order_IS
-    PetscInt, pointer :: order_indices(:)
-    PetscInt :: i, ghost, count
+    PetscMPIInt :: np
+    PetscSF :: point_sf
+    PetscInt :: start_cell, end_cell
+    PetscInt :: num_roots, num_leaves
+    PetscInt, pointer :: local(:)
+    type(PetscSFNode), pointer :: remote(:)
     PetscErrorCode :: ierr
 
-    index = -1
-
-    call DMGetStratumSize(dm, order_label_name, order, count, ierr)
-    CHKERRQ(ierr)
-
-    if (count > 0) then
-
-       call DMGetStratumIS(dm, order_label_name, order, order_IS, ierr); CHKERRQ(ierr)
-       call ISGetIndicesF90(order_IS, order_indices, ierr); CHKERRQ(ierr)
-       i = order_indices(1)
-       call ISRestoreIndicesF90(order_IS, order_indices, ierr); CHKERRQ(ierr)
-       call ISDestroy(order_IS, ierr); CHKERRQ(ierr)
-
-       call DMLabelGetValue(ghost_label, i, ghost, ierr); CHKERRQ(ierr)
-       if (ghost < 0) then
-          index = i
-       end if
-
+    call MPI_comm_size(PETSC_COMM_WORLD, np, ierr)
+    if (np > 1) then
+       call DMPlexGetHeightStratum(dm, 0, start_cell, end_cell, ierr)
+       call DMGetPointSF(dm, point_sf, ierr); CHKERRQ(ierr)
+       call PetscSFGetGraph(point_sf, num_roots, num_leaves, &
+            local, remote, ierr); CHKERRQ(ierr)
+       n = count(local < end_cell)
+    else
+       n = 0
     end if
 
-  end function dm_order_local_index
+  end function dm_get_num_partition_ghost_cells
+
+!------------------------------------------------------------------------
+
+  PetscInt function dm_get_bdy_cell_shift(dm) result(shift)
+    !! Returns number of boundary cells on processes of rank lower
+    !! than the current process.
+
+    DM, intent(in) :: dm
+    ! Locals:
+    PetscInt :: start_cell, end_cell, end_interior_cell
+    PetscInt :: num_bdy_cells, p, alloc_size
+    PetscMPIInt :: rank, np
+    PetscInt, allocatable :: proc_num_bdy_cells(:), &
+         proc_sum_bdy_cells(:)
+    PetscErrorCode :: ierr
+
+    call MPI_comm_rank(PETSC_COMM_WORLD, rank, ierr)
+    call MPI_comm_size(PETSC_COMM_WORLD, np, ierr)
+
+    call DMPlexGetHeightStratum(dm, 0, start_cell, end_cell, ierr)
+    CHKERRQ(ierr)
+    end_interior_cell = dm_get_end_interior_cell(dm, end_cell)
+    num_bdy_cells = end_cell - end_interior_cell
+
+    if (rank == 0) then
+       alloc_size = np
+    else
+       alloc_size = 1
+    end if
+    allocate(proc_num_bdy_cells(alloc_size), proc_sum_bdy_cells(alloc_size))
+
+    call MPI_gather(num_bdy_cells, 1, MPI_INTEGER, proc_num_bdy_cells, &
+         1, MPI_INTEGER, 0, PETSC_COMM_WORLD, ierr)
+    if (rank == 0) then
+       proc_sum_bdy_cells(1) = 0
+       do p = 2, np
+          proc_sum_bdy_cells(p) = proc_sum_bdy_cells(p - 1) + &
+               proc_num_bdy_cells(p - 1)
+       end do
+    end if
+    call MPI_scatter(proc_sum_bdy_cells, 1, MPI_INTEGER, shift, &
+         1, MPI_INTEGER, 0, PETSC_COMM_WORLD, ierr)
+
+    deallocate(proc_num_bdy_cells, proc_sum_bdy_cells)
+
+  end function dm_get_bdy_cell_shift
+
+!------------------------------------------------------------------------
+
+  PetscInt function dm_get_end_interior_cell(dm, end_cell) &
+       result(end_interior_cell)
+    !! Returns index (+1) of last interior (i.e. non-boundary) cell of
+    !! the DM. In the serial case the result from
+    !! DMPlexGetHybridBounds() is -1, so here this is corrected to
+    !! end_cell.
+
+    DM, intent(in) :: dm
+    PetscInt, intent(in) :: end_cell
+    ! Locals:
+    PetscInt :: dummy
+    PetscErrorCode :: ierr
+
+    call DMPlexGetHybridBounds(dm, end_interior_cell, dummy, &
+         dummy, dummy, ierr); CHKERRQ(ierr)
+    if (end_interior_cell < 0) end_interior_cell = end_cell
+
+  end function dm_get_end_interior_cell
+
+!------------------------------------------------------------------------
+
+  AO function dm_get_natural_to_global_ao(dm, dist_sf) result(ao)
+    !! Returns application ordering for natural to global mapping on
+    !! the DM, given the mesh distribution SF.
+
+    DM, intent(in) :: dm
+    PetscSF, intent(in) :: dist_sf
+
+    PetscMPIInt :: np
+    PetscInt :: num_roots, num_leaves, c
+    PetscInt :: start_cell, end_cell, end_interior_cell, end_non_ghost_cell
+    PetscInt :: num_ghost_cells, num_non_ghost_cells
+    PetscInt, pointer :: local(:)
+    type(PetscSFNode), pointer :: remote(:)
+    PetscInt, allocatable :: natural(:), global(:)
+    ISLocalToGlobalMapping :: l2g
+    PetscErrorCode :: ierr
+
+    call DMPlexGetHeightStratum(dm, 0, start_cell, end_cell, &
+         ierr); CHKERRQ(ierr)
+    end_interior_cell = dm_get_end_interior_cell(dm, end_cell)
+    call MPI_comm_size(PETSC_COMM_WORLD, np, ierr)
+    if (np > 1) then
+       num_ghost_cells = dm_get_num_partition_ghost_cells(dm)
+       num_non_ghost_cells = end_interior_cell - start_cell - num_ghost_cells
+       end_non_ghost_cell = start_cell + num_non_ghost_cells
+       call DMGetLocalToGlobalMapping(dm, l2g, ierr); CHKERRQ(ierr)
+       call PetscSFGetGraph(dist_sf, num_roots, num_leaves, &
+            local, remote, ierr); CHKERRQ(ierr)
+       allocate(natural(start_cell: end_non_ghost_cell - 1), &
+            global(start_cell: end_non_ghost_cell - 1))
+       natural = remote(1: num_non_ghost_cells)%index
+       call ISLocalToGlobalMappingApplyBlock(l2g, num_non_ghost_cells, &
+            [(c, c = start_cell, end_non_ghost_cell - 1)], global, ierr)
+       CHKERRQ(ierr)
+    else ! serial:
+       num_non_ghost_cells = end_interior_cell - start_cell
+       end_non_ghost_cell = start_cell + num_non_ghost_cells
+       natural = [(c, c = start_cell, end_non_ghost_cell - 1)]
+       global = natural
+    end if
+    call AOCreateMapping(PETSC_COMM_WORLD, num_non_ghost_cells, natural, &
+         global, ao, ierr); CHKERRQ(ierr)
+    deallocate(natural, global)
+
+  end function dm_get_natural_to_global_ao
+
+!------------------------------------------------------------------------
+
+  function natural_to_local_cell_index_array(ao, l2g, natural) &
+       result(local)
+    !! Returns array of local cell indices corresponding to array
+    !! of natural cell indices. Any off-process cells are given index
+    !! values of -1.
+
+    AO, intent(in) :: ao !! Application ordering mapping natural to global cell indices
+    ISLocalToGlobalMapping, intent(in) :: l2g !! DM local to global mapping
+    PetscInt, intent(in) :: natural(:) !! Natural cell indices
+    PetscInt :: local(size(natural))
+    ! Locals:
+    PetscInt :: n, idx(size(natural))
+    PetscErrorCode :: ierr
+
+    associate(num_cells => size(natural))
+      idx = natural
+      call AOApplicationToPetsc(ao, num_cells, idx, ierr); CHKERRQ(ierr)
+      call ISGlobalToLocalMappingApplyBlock(l2g, IS_GTOLM_MASK, num_cells, &
+           idx, n, local, ierr); CHKERRQ(ierr)
+    end associate
+
+  end function natural_to_local_cell_index_array
+
+!------------------------------------------------------------------------
+
+  PetscInt function natural_to_local_cell_index_single(ao, l2g, &
+       natural) result(local)
+    !! Returns local cell index corresponding to natural cell
+    !! index. Off-process cells are given index values of -1.
+
+    AO, intent(in) :: ao !! Application ordering mapping natural to global cell indices
+    ISLocalToGlobalMapping, intent(in) :: l2g !! DM local to global mapping
+    PetscInt, intent(in) :: natural !! Natural cell index
+    ! Locals:
+    PetscInt :: n, idx(1), local_array(1)
+    PetscErrorCode :: ierr
+
+    idx(1) = natural
+    call AOApplicationToPetsc(ao, 1, idx, ierr); CHKERRQ(ierr)
+    call ISGlobalToLocalMappingApplyBlock(l2g, IS_GTOLM_MASK, 1, &
+         idx, n, local_array, ierr); CHKERRQ(ierr)
+    local = local_array(1)
+
+  end function natural_to_local_cell_index_single
+
+!------------------------------------------------------------------------
+
+  function local_to_natural_cell_index_array(ao, l2g, local) &
+       result(natural)
+    !! Returns array of natural cell indices corresponding to array of
+    !! local cell indices.
+
+    AO, intent(in) :: ao !! Application ordering mapping natural to global cell indices
+    ISLocalToGlobalMapping, intent(in) :: l2g !! DM local to global mapping
+    PetscInt, intent(in) :: local(:) !! Local cell indices
+    PetscInt :: natural(size(local))
+    ! Locals:
+    PetscInt :: idx(size(local))
+    PetscErrorCode :: ierr
+
+    associate(num_cells => size(local))
+      call ISLocalToGlobalMappingApplyBlock(l2g, num_cells, local, idx, &
+           ierr); CHKERRQ(ierr)
+      call AOPetscToApplication(ao, num_cells, idx, ierr); CHKERRQ(ierr)
+      natural = idx
+    end associate
+
+  end function local_to_natural_cell_index_array
+
+!------------------------------------------------------------------------
+
+  PetscInt function local_to_natural_cell_index_single(ao, &
+       l2g, local) result(natural)
+    !! Returns natural cell index corresponding to local cell index.
+
+    AO, intent(in) :: ao !! Application ordering mapping natural to global cell indices
+    ISLocalToGlobalMapping, intent(in) :: l2g !! DM local to global mapping
+    PetscInt, intent(in) :: local !! Local cell index
+    ! Locals:
+    PetscInt :: idx(1), local_array(1)
+    PetscErrorCode :: ierr
+
+    local_array(1) = local
+    call ISLocalToGlobalMappingApplyBlock(l2g, 1, local_array, idx, ierr)
+    CHKERRQ(ierr)
+    call AOPetscToApplication(ao, 1, idx, ierr); CHKERRQ(ierr)
+    natural = idx(1)
+
+  end function local_to_natural_cell_index_single
 
 !------------------------------------------------------------------------
 

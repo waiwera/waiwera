@@ -21,7 +21,6 @@ module mesh_module
 #include <petsc/finclude/petsc.h>
 
   use petsc
-  use cell_order_module
   use zone_module
   use list_module
   use mpi_utils_module
@@ -48,7 +47,8 @@ module mesh_module
      PetscInt, public :: start_face !! DM point containing first face on this process
      PetscInt, public :: end_face !! DM point containing last face on this process
      PetscReal, allocatable, public :: bcs(:,:) !! Array containing boundary conditions
-     IS, public :: cell_index !! Index set defining natural cell ordering
+     AO, public :: cell_order !! Application ordering to convert between global and natural cell indices
+     IS, public :: cell_index !! Index set defining natural cell ordering (used for restarting from results of a previous run)
      PetscInt, public, allocatable :: ghost_cell(:), ghost_face(:) !! Ghost label values for cells and faces
      type(minc_type), allocatable :: minc(:)
      PetscReal, public :: permeability_rotation(3, 3) !! Rotation matrix of permeability axes
@@ -70,6 +70,7 @@ module mesh_module
      procedure :: override_face_properties => mesh_override_face_properties
      procedure :: setup_minc => mesh_setup_minc
      procedure :: setup_zones => mesh_setup_zones
+     procedure :: setup_cell_order => mesh_setup_cell_order
      procedure, public :: init => mesh_init
      procedure, public :: configure => mesh_configure
      procedure, public :: setup_boundaries => mesh_setup_boundaries
@@ -82,17 +83,19 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine mesh_distribute(self)
-    !! Distributes mesh over processors.
+  subroutine mesh_distribute(self, dist_sf)
+    !! Distributes mesh over processors, and returns star forest from
+    !! mesh distribution.
     
     class(mesh_type), intent(in out) :: self
+    PetscSF, intent(out) :: dist_sf !! Mesh distribution star forest
     ! Locals:
     DM :: dist_dm
     PetscErrorCode :: ierr
     PetscInt, parameter :: overlap = 1
 
-    call DMPlexDistribute(self%dm, overlap, PETSC_NULL_SF, &
-         dist_dm, ierr); CHKERRQ(ierr)
+    call DMPlexDistribute(self%dm, overlap, dist_sf, dist_dm, ierr)
+    CHKERRQ(ierr)
     if (dist_dm .ne. PETSC_NULL_DM) then
        call DMDestroy(self%dm, ierr); CHKERRQ(ierr)
        self%dm = dist_dm
@@ -509,18 +512,16 @@ contains
   subroutine mesh_get_bounds(self)
     !! Gets cell and face bounds  on current processor.
 
+    use dm_utils_module, only: dm_get_end_interior_cell
+
     class(mesh_type), intent(in out) :: self
     ! Locals:
     PetscErrorCode :: ierr
-    PetscInt :: cmax, fmax, emax, vmax
-
-    call DMPlexGetHybridBounds(self%dm, cmax, fmax, emax, vmax, ierr)
-    CHKERRQ(ierr)
-    self%end_interior_cell = cmax
 
     call DMPlexGetHeightStratum(self%dm, 0, self%start_cell, &
          self%end_cell, ierr)
     CHKERRQ(ierr)
+    self%end_interior_cell = dm_get_end_interior_cell(self%dm, self%end_cell)
 
     call DMPlexGetHeightStratum(self%dm, 1, self%start_face, &
          self%end_face, ierr); CHKERRQ(ierr)
@@ -579,39 +580,39 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine mesh_configure(self, dof, gravity, json, logfile, viewer, err)
+  subroutine mesh_configure(self, eos, gravity, json, logfile, viewer, err)
     !! Configures mesh, including distribution over processes and
     !! construction of ghost cells, setup of data layout, geometry and
     !! cell index set.
 
-    use cell_order_module
+    use eos_module, only: eos_type
     use logfile_module
 
     class(mesh_type), intent(in out) :: self
-    PetscInt, intent(in) :: dof !! Number of degrees of freedom (primary thermodynamic variables)
-    PetscReal, intent(in) :: gravity(:)
+    class(eos_type), intent(in) :: eos !! EOS object
+    PetscReal, intent(in) :: gravity(:) !! Gravity vector
     type(fson_value), pointer, intent(in) :: json !! JSON file pointer
     type(logfile_type), intent(in out), optional :: logfile !! Log file
-    PetscViewer, intent(in out), optional :: viewer !! PetscViewer for output of cell index set to HDF5 file
+    PetscViewer, intent(in out) :: viewer !! PetscViewer for output of cell index set to HDF5 file
     PetscErrorCode, intent(out) :: err !! Error flag
+    ! Locals:
+    PetscSF :: dist_sf
+    PetscErrorCode :: ierr
 
     err = 0
-
-    call dm_setup_cell_order_label(self%dm)
-    call self%distribute()
+    call self%distribute(dist_sf)
+    call self%setup_discretization(eos%num_primary_variables)
+    call self%setup_boundaries(json, eos, dist_sf, logfile)
     call self%construct_ghost_cells()
-
-    call self%setup_discretization(dof)
-
     call self%get_bounds()
-
-    call self%setup_data_layout(dof)
+    call self%setup_data_layout(eos%num_primary_variables)
     call self%setup_geometry(gravity)
-    call self%setup_zones(json, logfile, err)
-
     call self%setup_ghost_arrays()
 
-    call dm_setup_cell_index(self%dm, self%cell_index, viewer)
+    call self%setup_cell_order(dist_sf, viewer)
+    call PetscSFDestroy(dist_sf, ierr); CHKERRQ(ierr)
+
+    call self%setup_zones(json, logfile, err)
 
   end subroutine mesh_configure
 
@@ -632,6 +633,7 @@ contains
        deallocate(self%bcs)
     end if
 
+    call AODestroy(self%cell_order, ierr); CHKERRQ(ierr)
     call ISDestroy(self%cell_index, ierr); CHKERRQ(ierr)
 
     if (allocated(self%ghost_cell)) then
@@ -719,7 +721,7 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine mesh_setup_boundaries(self, json, eos, logfile)
+  subroutine mesh_setup_boundaries(self, json, eos, dist_sf, logfile)
     !! Sets up boundary conditions on the mesh.
 
     use kinds_module
@@ -728,23 +730,29 @@ contains
     use fson
     use fson_value_m, only : TYPE_ARRAY, TYPE_OBJECT, TYPE_INTEGER
     use fson_mpi_module
-    use dm_utils_module, only: dm_cell_normal_face
+    use dm_utils_module, only: dm_get_natural_to_global_ao, &
+         dm_cell_normal_face, dm_get_num_partition_ghost_cells, &
+         dm_get_end_interior_cell
 
     class(mesh_type), intent(in out) :: self
     type(fson_value), pointer, intent(in) :: json !! JSON input file
     class(eos_type), intent(in) :: eos !! EOS object
+    PetscSF, intent(in) :: dist_sf !! SF from mesh distribution
     type(logfile_type), intent(in out), optional :: logfile !! Logfile for log output
     ! Locals:
     PetscErrorCode :: ierr
     PetscBool :: mesh_has_label
+    PetscInt :: start_cell, end_cell, end_interior_cell
+    PetscInt :: num_ghost_cells, num_non_ghost_cells, end_non_ghost_cell
+    ISLocalToGlobalMapping :: l2g
+    AO :: ao
     type(fson_value), pointer :: boundaries, bdy, faces_json, face_json
-    type(fson_value), pointer :: cell_normals, cell_normal, item
     PetscInt :: faces_type, face1_type
     PetscInt :: num_boundaries, num_faces, num_cells, ibdy
-    PetscInt :: iface, icell, f, np, i, offset
+    PetscInt :: iface, icell, np, i, offset, nout
     PetscInt, allocatable :: default_faces(:), default_cells(:)
-    PetscInt, allocatable :: faces(:), cells(:)
-    PetscInt :: region, cell, normal_len, num_face_items
+    PetscInt, allocatable :: faces(:), cells(:), local_cells(:)
+    PetscInt :: region, normal_len, num_face_items
     PetscReal, allocatable :: primary(:), input_normal(:)
     PetscReal :: normal(3)
     PetscReal, parameter :: default_normal(3) = [0._dp, 0._dp, 1._dp]
@@ -769,6 +777,15 @@ contains
        allocate(self%bcs(np + 1, num_boundaries))
        bdy => fson_value_children_mpi(boundaries)
 
+       call DMPlexGetHeightStratum(self%dm, 0, start_cell, end_cell, ierr)
+       CHKERRQ(ierr)
+       end_interior_cell = dm_get_end_interior_cell(self%dm, end_cell)
+       num_ghost_cells = dm_get_num_partition_ghost_cells(self%dm)
+       num_non_ghost_cells = end_interior_cell - start_cell - num_ghost_cells
+       end_non_ghost_cell = start_cell + num_non_ghost_cells
+       ao = dm_get_natural_to_global_ao(self%dm, dist_sf)
+       call DMGetLocalToGlobalMapping(self%dm, l2g, ierr); CHKERRQ(ierr)
+
        num_faces = 0
        do ibdy = 1, num_boundaries
           write(istr, '(i0)') ibdy - 1
@@ -784,10 +801,6 @@ contains
                    face_json => fson_value_get_mpi(faces_json, 1)
                    face1_type = fson_type_mpi(face_json, ".")
                    select case (face1_type)
-                   case (TYPE_INTEGER)
-                      call fson_get_mpi(faces_json, ".", default_faces, faces, &
-                           logfile, log_key = trim(bdystr) // ".faces")
-                      num_faces = size(faces)
                    case (TYPE_OBJECT)
                       num_faces = 0
                       face_json => fson_value_children_mpi(faces_json)
@@ -802,11 +815,16 @@ contains
                       do i = 1, num_face_items
                          call fson_get_mpi(face_json, "cells", default_cells, cells, &
                               logfile, log_key = trim(bdystr) // "faces.cells")
+                         num_cells = size(cells)
+                         allocate(local_cells(num_cells))
+                         call AOApplicationToPetsc(ao, num_cells, cells, ierr); CHKERRQ(ierr)
+                         call ISGlobalToLocalMappingApplyBlock(l2g, IS_GTOLM_MASK, num_cells, &
+                              cells, nout, local_cells, ierr); CHKERRQ(ierr)
                          call fson_get_mpi(face_json, "normal", default_normal, &
                               input_normal, logfile, log_key = trim(bdystr) // "faces.normal")
-                         num_cells = size(cells)
-                         call get_cell_faces(cells, num_cells, input_normal, offset)
+                         call get_cell_faces(local_cells, num_cells, input_normal, offset)
                          offset = offset + num_cells
+                         deallocate(cells, local_cells)
                          face_json => fson_value_next_mpi(face_json)
                       end do
                    case default
@@ -819,12 +837,17 @@ contains
              case (TYPE_OBJECT)
                 call fson_get_mpi(faces_json, "cells", default_cells, cells, &
                      logfile, log_key = trim(bdystr) // "faces.cells")
+                num_cells = size(cells)
+                allocate(local_cells(num_cells))
+                call AOApplicationToPetsc(ao, num_cells, cells, ierr); CHKERRQ(ierr)
+                call ISGlobalToLocalMappingApplyBlock(l2g, IS_GTOLM_MASK, num_cells, &
+                     cells, nout, local_cells, ierr); CHKERRQ(ierr)
                 call fson_get_mpi(faces_json, "normal", default_normal, &
                      input_normal, logfile, log_key = trim(bdystr) // "faces.normal")
-                num_cells = size(cells)
                 num_faces = num_cells
                 allocate(faces(num_faces))
-                call get_cell_faces(cells, num_cells, input_normal, 0)
+                call get_cell_faces(local_cells, num_cells, input_normal, 0)
+                deallocate(cells, local_cells)
              case default
                 if (present(logfile)) then
                    call logfile%write(LOG_LEVEL_WARN, "input", &
@@ -832,40 +855,15 @@ contains
                 end if
              end select
 
-          else if (fson_has_mpi(bdy, "cell_normals")) then
-             call fson_get_mpi(bdy, "cell_normals", cell_normals)
-             num_faces = fson_value_count_mpi(cell_normals, ".")
-             cell_normal => fson_value_children_mpi(cell_normals)
-             allocate(faces(num_faces))
-             do iface = 1, num_faces
-                item => fson_value_get_mpi(cell_normal, 1)
-                call fson_get_mpi(item, ".", val = cell)
-                item => fson_value_get_mpi(cell_normal, 2)
-                call fson_get_mpi(item, ".", val = input_normal)
-                normal_len = size(input_normal)
-                normal = 0._dp
-                normal(1: normal_len) = input_normal
-                call dm_cell_normal_face(self%dm, cell, normal, f)
-                if (f >= 0) then
-                   faces(iface) = f
-                else
-                   if (present(logfile)) then
-                      call logfile%write(LOG_LEVEL_WARN, "input", &
-                           "faces_not_found", int_keys = ["boundary"], &
-                           int_values = [ibdy - 1])
-                   end if
-                   faces(iface) = -1
-                end if
-                cell_normal => fson_value_next_mpi(cell_normal)
-             end do
           end if
 
           do iface = 1, num_faces
-             f = faces(iface)
-             if (f >= 0) then
-                call DMSetLabelValue(self%dm, open_boundary_label_name, &
-                     f, ibdy, ierr); CHKERRQ(ierr)
-             end if
+             associate(f => faces(iface))
+               if (f >= 0) then
+                  call DMSetLabelValue(self%dm, open_boundary_label_name, &
+                       f, ibdy, ierr); CHKERRQ(ierr)
+               end if
+             end associate
           end do
           if (allocated(faces)) then
              deallocate(faces)
@@ -881,6 +879,8 @@ contains
           bdy => fson_value_next_mpi(bdy)
 
        end do
+       call AODestroy(ao, ierr); CHKERRQ(ierr)
+
     else if (present(logfile)) then
        call logfile%write(LOG_LEVEL_WARN, "input", "no_boundary_conditions")
     end if
@@ -893,6 +893,8 @@ contains
       PetscInt, intent(in) :: cells(:), num_cells
       PetscReal, intent(in) :: input_normal(:)
       PetscInt, intent(in) :: offset
+      ! Locals:
+      PetscInt :: f
 
       normal_len = size(input_normal)
       normal = 0._dp
@@ -900,18 +902,27 @@ contains
 
       do icell = 1, num_cells
          iface = offset + icell
-         cell = cells(icell)
-         call dm_cell_normal_face(self%dm, cell, normal, f)
-         if (f >= 0) then
-            faces(iface) = f
-         else
-            if (present(logfile)) then
-               call logfile%write(LOG_LEVEL_WARN, "input", &
-                    "faces_not_found", int_keys = ["boundary"], &
-                    int_values = [ibdy - 1])
-            end if
-            faces(iface) = -1
-         end if
+         associate(c => cells(icell))
+           if (c >= 0) then
+              if ((start_cell <= c) .and. (c <= end_non_ghost_cell)) then
+                 call dm_cell_normal_face(self%dm, c, normal, f)
+                 if (f >= 0) then
+                    faces(iface) = f
+                 else
+                    if (present(logfile)) then
+                       call logfile%write(LOG_LEVEL_WARN, "input", &
+                            "faces_not_found", int_keys = ["boundary"], &
+                            int_values = [ibdy - 1])
+                    end if
+                    faces(iface) = -1
+                 end if
+              else
+                 faces(iface) = -1
+              end if
+           else
+              faces(iface) = -1
+           end if
+         end associate
       end do
 
     end subroutine get_cell_faces
@@ -1038,26 +1049,27 @@ contains
     use fson_mpi_module
     use logfile_module
     use face_module
-    use dm_utils_module, only: local_vec_section, section_offset
+    use dm_utils_module, only: local_vec_section, section_offset, &
+         natural_to_local_cell_index
 
     class(mesh_type), intent(in out) :: self
     type(fson_value), pointer, intent(in) :: json !! JSON file pointer
     type(logfile_type), intent(in out), optional :: logfile !! Logfile for log output
     ! Locals:
     type(fson_value), pointer :: faces_json, face_json
-    PetscInt :: num_cells, num_faces, iface, f, i, num_cell_faces
-    PetscInt, allocatable :: global_cell_indices(:)
+    PetscInt :: num_faces, iface, f, i, num_cell_faces
+    PetscInt, allocatable :: natural_cell_indices(:)
     PetscInt, allocatable :: default_cells(:)
-    PetscInt, target :: points(2)
-    PetscInt :: permeability_direction, face_offset, num_matching
+    PetscInt :: permeability_direction, face_offset
     PetscSection :: face_section
-    PetscInt, pointer :: ppoints(:), cells(:)
+    PetscInt, pointer :: pcells(:)
     PetscReal, pointer, contiguous :: face_geom_array(:)
     PetscInt, pointer :: cell_faces(:)
     type(face_type) :: face
     character(len=64) :: facestr
     character(len=12) :: istr
-    IS :: cell_IS
+    ISLocalToGlobalMapping :: l2g
+    PetscInt, target :: local_cell_indices(2)
     PetscErrorCode :: ierr
     PetscInt, parameter :: default_permeability_direction = 1
 
@@ -1065,6 +1077,7 @@ contains
     call local_vec_section(self%face_geom, face_section)
     call VecGetArrayF90(self%face_geom, face_geom_array, ierr); CHKERRQ(ierr)
     call face%init()
+    call DMGetLocalToGlobalMapping(self%dm, l2g, ierr); CHKERRQ(ierr)
 
     if (fson_has_mpi(json, "mesh.faces")) then
        call fson_get_mpi(json, "mesh.faces", faces_json)
@@ -1076,60 +1089,43 @@ contains
           write(istr, '(i0)') iface - 1
           facestr = 'mesh.faces[' // trim(istr) // ']'
           call fson_get_mpi(face_json, "cells", default_cells, &
-               global_cell_indices, logfile, log_key = trim(facestr) // ".cells")
+               natural_cell_indices, logfile, log_key = trim(facestr) // ".cells")
           call fson_get_mpi(face_json, "permeability_direction", &
                default_permeability_direction, permeability_direction, &
                logfile, log_key = trim(facestr) // ".permeability_direction")
 
-          num_cells = size(global_cell_indices)
-          if (num_cells == 2) then
+          associate(num_cells => size(natural_cell_indices))
+            if (num_cells == 2) then
+               local_cell_indices = natural_to_local_cell_index(self%cell_order, &
+                    l2g, natural_cell_indices)
+               if (all(local_cell_indices >= 0)) then
+                  pcells => local_cell_indices
+                  call DMPlexGetMeet(self%dm, num_cells, pcells, cell_faces, ierr)
+                  CHKERRQ(ierr)
+                  num_cell_faces = size(cell_faces)
+                  do i = 1, num_cell_faces
+                     f = cell_faces(i)
+                     if (self%ghost_face(f) < 0) then
+                        call section_offset(face_section, f, face_offset, ierr)
+                        CHKERRQ(ierr)
+                        call face%assign_geometry(face_geom_array, face_offset)
+                        face%permeability_direction = dble(permeability_direction)
+                     end if
+                  end do
+                  call DMPlexRestoreMeet(self%dm, num_cells, pcells, cell_faces, &
+                       ierr); CHKERRQ(ierr)
+               end if
+            else
+               if (present(logfile)) then
+                  call logfile%write(LOG_LEVEL_WARN, "input", &
+                       "incorrect number of cells", int_keys = ["mesh.faces"], &
+                       int_values = [iface - 1])
+               end if
+            end if
+          end associate
 
-             ! get DM mesh points on local processor for both cells:
-             call DMGetStratumSize(self%dm, cell_order_label_name, &
-                  global_cell_indices(1), num_matching, ierr); CHKERRQ(ierr)
-             if (num_matching == 1) then
-                call DMGetStratumIS(self%dm, cell_order_label_name, &
-                     global_cell_indices(1), cell_IS, ierr); CHKERRQ(ierr)
-                call ISGetIndicesF90(cell_IS, cells, ierr); CHKERRQ(ierr)
-                points(1) = cells(1)
-                call ISRestoreIndicesF90(cell_IS, cells, ierr); CHKERRQ(ierr)
-                call ISDestroy(cell_IS, ierr); CHKERRQ(ierr)
-                call DMGetStratumSize(self%dm, cell_order_label_name, &
-                     global_cell_indices(2), num_matching, ierr); CHKERRQ(ierr)
-                if (num_matching == 1) then
-                   call DMGetStratumIS(self%dm, cell_order_label_name, &
-                        global_cell_indices(2), cell_IS, ierr); CHKERRQ(ierr)
-                   call ISGetIndicesF90(cell_IS, cells, ierr); CHKERRQ(ierr)
-                   points(2) = cells(1)
-                   call ISRestoreIndicesF90(cell_IS, cells, ierr); CHKERRQ(ierr)
-                   call ISDestroy(cell_IS, ierr); CHKERRQ(ierr)
-
-                   ppoints => points
-                   call DMPlexGetMeet(self%dm, num_cells, ppoints, cell_faces, ierr)
-                   CHKERRQ(ierr)
-                   num_cell_faces = size(cell_faces)
-                   do i = 1, num_cell_faces
-                      f = cell_faces(i)
-                      if (self%ghost_face(f) < 0) then
-                         call section_offset(face_section, f, face_offset, ierr)
-                         CHKERRQ(ierr)
-                         call face%assign_geometry(face_geom_array, face_offset)
-                         face%permeability_direction = dble(permeability_direction)
-                      end if
-                   end do
-                   call DMPlexRestoreMeet(self%dm, num_cells, ppoints, cell_faces, &
-                        ierr); CHKERRQ(ierr)
-                end if
-             end if
-
-          else
-             if (present(logfile)) then
-                call logfile%write(LOG_LEVEL_WARN, "input", &
-                     "incorrect number of cells", int_keys = ["mesh.faces"], &
-                     int_values = [iface - 1])
-             end if
-          end if
           face_json => fson_value_next_mpi(face_json)
+
        end do
     end if
 
@@ -1223,7 +1219,6 @@ contains
     character(max_zone_name_length) :: zone_name
 
     err = 0
-
     call self%zones%init(owner = PETSC_TRUE)
 
     if (fson_has_mpi(json, "mesh.zones")) then
@@ -1283,7 +1278,8 @@ contains
              node => zone_dict%get(zone_name)
              select type(zone => node%data)
                 class is (zone_type)
-                call zone%label_dm(self%dm, self%cell_geom, err)
+                   call zone%label_dm(self%dm, self%cell_order, &
+                        self%cell_geom, err)
                 if (err > 0) then
                    if (present(logfile)) then
                       call logfile%write(LOG_LEVEL_WARN, 'zone', &
@@ -1338,6 +1334,90 @@ contains
     end subroutine zone_dependency_iterator
     
   end subroutine mesh_setup_zones
+
+!------------------------------------------------------------------------
+
+  subroutine mesh_setup_cell_order(self, dist_sf, viewer)
+    !! Sets up cell order data structures: an application ordering
+    !! (AO) and the cell_index index set. A second index set is output
+    !! to the specified viewer (if it is non-null), representing the
+    !! cell indexing for vectors not containing boundary data (used
+    !! for post-processing).
+
+    use dm_utils_module, only: dm_get_num_partition_ghost_cells, &
+         dm_get_bdy_cell_shift, dm_get_end_interior_cell, &
+         dm_get_natural_to_global_ao
+
+    class(mesh_type), intent(in out) :: self
+    PetscSF, intent(in) :: dist_sf !! Star forest from mesh distribution
+    PetscViewer, intent(in out) :: viewer
+    ! Locals:
+    PetscInt :: start_cell, end_cell, end_interior_cell
+    PetscInt :: end_non_ghost_cell, c
+    PetscInt :: num_ghost_cells, num_non_ghost_cells, bdy_cell_shift
+    PetscInt, allocatable :: global(:), natural(:), global_interior(:)
+    PetscInt, allocatable :: index_natural(:), index_global(:)
+    ISLocalToGlobalMapping :: l2g
+    AO :: ao_interior
+    IS :: cell_interior_index
+    PetscErrorCode :: ierr
+
+    self%cell_order = dm_get_natural_to_global_ao(self%dm, dist_sf)
+
+    call DMGetLocalToGlobalMapping(self%dm, l2g, ierr); CHKERRQ(ierr)
+    call DMPlexGetHeightStratum(self%dm, 0, start_cell, end_cell, &
+         ierr); CHKERRQ(ierr)
+    end_interior_cell = dm_get_end_interior_cell(self%dm, end_cell)
+    num_ghost_cells = dm_get_num_partition_ghost_cells(self%dm)
+    num_non_ghost_cells = end_interior_cell - start_cell - num_ghost_cells
+    end_non_ghost_cell = start_cell + num_non_ghost_cells
+    bdy_cell_shift = dm_get_bdy_cell_shift(self%dm)
+
+    allocate(global(start_cell: end_non_ghost_cell - 1))
+    call ISLocalToGlobalMappingApplyBlock(l2g, num_non_ghost_cells, &
+         [(c, c = start_cell, end_non_ghost_cell - 1)], global, ierr)
+    CHKERRQ(ierr)
+    ! The index_natural array does not represent natural indices
+    ! corresponding to local indices- it is just a set of natural
+    ! indices owned by the current process, for the purpose of writing
+    ! out the corresponding global indices:
+    index_natural = global - bdy_cell_shift
+    index_global = index_natural
+    call AOApplicationToPetsc(self%cell_order, num_non_ghost_cells, &
+         index_global, ierr); CHKERRQ(ierr)
+    call ISCreateGeneral(PETSC_COMM_WORLD, num_non_ghost_cells, index_global, &
+         PETSC_COPY_VALUES, self%cell_index, ierr); CHKERRQ(ierr)
+    call PetscObjectSetName(self%cell_index, "cell_index", ierr)
+    CHKERRQ(ierr)
+
+    if (viewer /= PETSC_NULL_VIEWER) then
+
+       call ISView(self%cell_index, viewer, ierr); CHKERRQ(ierr)
+
+       natural = global
+       call AOPetscToApplication(self%cell_order, num_non_ghost_cells, &
+            natural, ierr); CHKERRQ(ierr)
+       global_interior = global - bdy_cell_shift
+       call AOCreateMapping(PETSC_COMM_WORLD, num_non_ghost_cells, &
+            natural, global_interior, ao_interior, ierr); CHKERRQ(ierr)
+       deallocate(natural, global_interior)
+       index_global = index_natural
+       call AOApplicationToPetsc(ao_interior, num_non_ghost_cells, &
+            index_global, ierr); CHKERRQ(ierr)
+       call AODestroy(ao_interior, ierr); CHKERRQ(ierr)
+       call ISCreateGeneral(PETSC_COMM_WORLD, num_non_ghost_cells, &
+            index_global, PETSC_COPY_VALUES, cell_interior_index, ierr)
+       CHKERRQ(ierr)
+       call PetscObjectSetName(cell_interior_index, &
+            "cell_interior_index", ierr); CHKERRQ(ierr)
+       call ISView(cell_interior_index, viewer, ierr); CHKERRQ(ierr)
+       call ISDestroy(cell_interior_index, ierr); CHKERRQ(ierr)
+
+    end if
+
+    deallocate(global, index_natural, index_global)
+
+  end subroutine mesh_setup_cell_order
 
 !------------------------------------------------------------------------
 

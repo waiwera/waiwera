@@ -8,7 +8,6 @@ module source_test
   use kinds_module
   use fruit
   use source_module
-  use eos_test, only: eos_test_type
 
   implicit none
   private
@@ -26,6 +25,7 @@ contains
     use fson_mpi_module
     use IAPWS_module, only: IAPWS_type
     use eos_module, only: max_component_name_length, max_phase_name_length
+    use IAPWS_module
     use eos_test
     use mesh_module
     use fluid_module, only: fluid_type, setup_fluid_vector
@@ -48,15 +48,17 @@ contains
     PetscReal, parameter :: tol = 1.e-6_dp
     PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
     PetscMPIInt :: rank
+    PetscViewer :: viewer
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
     json => fson_parse_mpi(str = '{"mesh": "data/flow_simulation/mesh/3x3_2d.exo"}')
     call thermo%init()
     call eos%init(json, thermo)
+    viewer = PETSC_NULL_VIEWER
+
     call mesh%init(json)
     call fluid%init(eos%num_components, eos%num_phases)
-    call DMCreateLabel(mesh%dm, open_boundary_label_name, ierr); CHKERRQ(ierr)
-    call mesh%configure(eos%num_primary_variables, gravity, json, err = err)
+    call mesh%configure(eos, gravity, json, viewer = viewer, err = err)
     call setup_fluid_vector(mesh%dm, max_component_name_length, &
          eos%component_names, max_phase_name_length, eos%phase_names, &
          fluid_vector, fluid_range_start)
