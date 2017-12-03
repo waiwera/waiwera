@@ -568,7 +568,7 @@ contains
                self%relative_permeability, self%logfile)
           call setup_capillary_pressures(json, &
                self%capillary_pressure, self%logfile)
-          call setup_rock_vector(json, self%mesh%dm, self%rock, &
+          call setup_rock_vector(json, self%mesh%dm, self%mesh%cell_order, self%rock, &
                self%rock_range_start, self%mesh%ghost_cell, self%logfile, err)
           if (err == 0) then
 
@@ -593,9 +593,10 @@ contains
                   self%solution_range_start, self%fluid_range_start)
              call self%fluid_init(self%time, self%solution, err)
              if (err == 0) then
-                call setup_sources(json, self%mesh%dm, self%eos, self%thermo, &
-                     self%time, self%fluid, self%fluid_range_start, &
-                     self%sources, self%source_controls, self%logfile)
+                call setup_sources(json, self%mesh%dm, self%mesh%cell_order, &
+                     self%eos, self%thermo, self%time, self%fluid, &
+                     self%fluid_range_start, self%sources, self%source_controls, &
+                     self%logfile)
              end if
           end if
        end if
