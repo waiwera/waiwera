@@ -659,7 +659,7 @@ contains
       if (err == 0) then
          call self%setup_minc(json, logfile, err)
          if ((err == 0) .and. self%has_minc) then
-            call self%setup_minc_dm(eos%num_primary_variables)
+            call self%setup_minc_dm(dof)
             call self%setup_strata(self%minc_strata)
             call self%assign_strata(self%minc_strata)
          end if
