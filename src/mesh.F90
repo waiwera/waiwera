@@ -645,22 +645,27 @@ contains
 
     call self%distribute(dist_sf)
     call self%construct_ghost_cells()
-    call dm_setup_fv_discretization(self%original_dm, eos%num_primary_variables)
-    call set_dm_default_data_layout(self%original_dm, eos%num_primary_variables)
 
-    call self%setup_geometry(gravity)
-    call self%setup_zones(json, logfile, err)
-    call self%setup_strata(self%original_strata)
-    call self%assign_strata(self%original_strata)
+    associate(dof => eos%num_primary_variables)
 
-    if (err == 0) then
-       call self%setup_minc(json, logfile, err)
-       if ((err == 0) .and. self%has_minc) then
-          call self%setup_minc_dm(dof)
-          call self%setup_strata(self%minc_strata)
-          call self%assign_strata(self%minc_strata)
-       end if
-    end if
+      call dm_setup_fv_discretization(self%original_dm, dof)
+      call set_dm_default_data_layout(self%original_dm, dof)
+
+      call self%setup_geometry(gravity)
+      call self%setup_zones(json, logfile, err)
+      call self%setup_strata(self%original_strata)
+      call self%assign_strata(self%original_strata)
+
+      if (err == 0) then
+         call self%setup_minc(json, logfile, err)
+         if ((err == 0) .and. self%has_minc) then
+            call self%setup_minc_dm(eos%num_primary_variables)
+            call self%setup_strata(self%minc_strata)
+            call self%assign_strata(self%minc_strata)
+         end if
+      end if
+
+    end associate
 
     call self%setup_ghost_arrays()
 
