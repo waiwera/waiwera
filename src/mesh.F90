@@ -61,7 +61,6 @@ module mesh_module
      procedure :: assign_dm => mesh_assign_dm
      procedure :: assign_cell_index => mesh_assign_cell_index
      procedure :: assign_strata => mesh_assign_strata
-     procedure :: setup_cell_order_label => mesh_setup_cell_order_label
      procedure :: distribute => mesh_distribute
      procedure :: construct_ghost_cells => mesh_construct_ghost_cells
      procedure :: setup_geometry => mesh_setup_geometry
@@ -133,34 +132,6 @@ contains
     self%strata(0:) => strata
 
   end subroutine mesh_assign_strata
-
-!------------------------------------------------------------------------
-
-  subroutine mesh_setup_cell_order_label(self)
-    !! Sets up cell ordering label on mesh cells. This assumes the mesh
-    !! has not yet been distributed.
-
-    class(mesh_type), intent(in out) :: self
-    ! Locals:
-    PetscBool :: has_label
-    PetscInt :: start_cell, end_cell, c
-    PetscErrorCode :: ierr
-
-    call DMHasLabel(self%original_dm, cell_order_label_name, has_label, &
-         ierr); CHKERRQ(ierr)
-
-    if (.not. has_label) then
-       call DMCreateLabel(self%original_dm, cell_order_label_name, ierr)
-       CHKERRQ(ierr)
-       call DMPlexGetHeightStratum(self%original_dm, 0, start_cell, &
-            end_cell, ierr); CHKERRQ(ierr)
-       do c = start_cell, end_cell - 1
-          call DMSetLabelValue(self%original_dm, cell_order_label_name, c, &
-               c, ierr); CHKERRQ(ierr)
-       end do
-    end if
-
-  end subroutine mesh_setup_cell_order_label
 
 !------------------------------------------------------------------------
 
