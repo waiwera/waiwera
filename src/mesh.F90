@@ -557,7 +557,6 @@ contains
     type(dm_stratum_type), intent(in out) :: strata(0: self%depth)
     ! Locals:
     PetscInt :: h
-    PetscErrorCode :: ierr
 
     do h = 0, self%depth
        call strata(h)%destroy()
