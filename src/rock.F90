@@ -209,13 +209,14 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine setup_rock_vector_types(json, dm, rock_vector, rock_dict, &
+  subroutine setup_rock_vector_types(json, dm, ao, rock_vector, rock_dict, &
        range_start, logfile, err)
     !! Sets up rock vector on DM from rock types in JSON input.
 
     use dictionary_module
     use cell_order_module, only: cell_order_label_name
-    use dm_utils_module, only: global_section_offset, global_vec_section
+    use dm_utils_module, only: global_section_offset, global_vec_section, &
+         natural_to_local_cell_index
     use zone_label_module
     use fson
     use fson_mpi_module
@@ -224,6 +225,7 @@ contains
 
     type(fson_value), pointer, intent(in) :: json
     DM, intent(in) :: dm
+    AO, intent(in) :: ao
     Vec, intent(out) :: rock_vector
     type(dictionary_type), intent(in out) :: rock_dict
     PetscInt, intent(in) :: range_start
@@ -234,21 +236,22 @@ contains
     PetscInt, target :: ir
     PetscInt :: perm_size, num_matching
     type(fson_value), pointer :: rocktypes, r
-    PetscInt :: start_cell, end_cell, global_cell_index
-    PetscInt, allocatable :: global_cell_indices(:)
+    PetscInt :: start_cell, end_cell
+    PetscInt, allocatable :: natural_cell_indices(:), local_cell_indices(:)
     character(max_zone_name_length), allocatable :: zones(:)
     character(:), allocatable :: label_name
-    IS :: cell_IS
     PetscInt, pointer :: cells(:)
     DMLabel :: ghost_label
     type(rock_type) :: rock
     character(max_rockname_length) :: name
     PetscBool :: has_label
+    IS :: cell_IS
     PetscReal :: porosity, density, specific_heat
     PetscReal :: wet_conductivity, dry_conductivity
     PetscReal, allocatable :: permeability(:)
     PetscReal, pointer, contiguous :: rock_array(:)
     PetscSection :: section
+    ISLocalToGlobalMapping :: l2g
     PetscErrorCode :: ierr
     character(len=64) :: rockstr
     character(len=12) :: irstr
@@ -268,6 +271,7 @@ contains
        call global_vec_section(rock_vector, section)
 
        call DMGetLabel(dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
+       call DMGetLocalToGlobalMapping(dm, l2g, ierr); CHKERRQ(ierr)
 
        call fson_get_mpi(json, "rock.types", rocktypes)
        num_rocktypes = fson_value_count_mpi(rocktypes, ".")
@@ -298,26 +302,19 @@ contains
           perm_size = size(permeability)
 
           if (fson_has_mpi(r, "cells")) then
-             call fson_get_mpi(r, "cells", val = global_cell_indices)
-             if (allocated(global_cell_indices)) then
-                associate(num_cells => size(global_cell_indices))
+             call fson_get_mpi(r, "cells", val = natural_cell_indices)
+             if (allocated(natural_cell_indices)) then
+                associate(num_cells => size(natural_cell_indices))
+                  allocate(local_cell_indices(num_cells))
+                  local_cell_indices = natural_to_local_cell_index(ao, &
+                       l2g, natural_cell_indices)
                   do ic = 1, num_cells
-                     global_cell_index = global_cell_indices(ic)
-                     call DMGetStratumSize(dm, cell_order_label_name, &
-                          global_cell_index, num_matching, ierr); CHKERRQ(ierr)
-                     if (num_matching > 0) then
-                        call DMGetStratumIS(dm, cell_order_label_name, &
-                             global_cell_index, cell_IS, ierr); CHKERRQ(ierr)
-                        call ISGetIndicesF90(cell_IS, cells, ierr); CHKERRQ(ierr)
-                        do c = 1, num_matching
-                           call assign_rock_parameters(cells(c))
-                        end do
-                        call ISRestoreIndicesF90(cell_IS, cells, ierr); CHKERRQ(ierr)
-                        call ISDestroy(cell_IS, ierr); CHKERRQ(ierr)
-                     end if
+                     associate(c => local_cell_indices(ic))
+                       if (c >= 0) call assign_rock_parameters(c)
+                     end associate
                   end do
                 end associate
-                deallocate(global_cell_indices)
+                deallocate(natural_cell_indices, local_cell_indices)
              end if
           end if
 
@@ -405,8 +402,9 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine setup_rock_vector(json, dm, rock_vector, rock_dict, &
+  subroutine setup_rock_vector(json, dm, ao, rock_vector, rock_dict, &
        range_start, ghost_cell, logfile, err)
+
     !! Sets up rock vector on specified DM from JSON input.
 
     use dictionary_module
@@ -417,6 +415,7 @@ contains
 
     type(fson_value), pointer, intent(in) :: json
     DM, intent(in) :: dm
+    AO, intent(in) :: ao
     Vec, intent(out) :: rock_vector
     type(dictionary_type), intent(in out) :: rock_dict
     PetscInt, intent(out) :: range_start
@@ -448,7 +447,7 @@ contains
 
        if (fson_has_mpi(json, "rock.types")) then
 
-          call setup_rock_vector_types(json, dm, rock_vector, rock_dict, &
+          call setup_rock_vector_types(json, dm, ao, rock_vector, rock_dict, &
                range_start, logfile, err)
 
        else
