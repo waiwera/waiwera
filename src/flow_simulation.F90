@@ -553,54 +553,52 @@ contains
 
     call self%mesh%init(json, self%logfile)
     call self%setup_gravity(json)
-    call self%mesh%setup_minc(json, self%logfile, err)
-    if (err == 0) then
-       call self%rock_dict%init(owner = PETSC_TRUE)
-       call self%mesh%configure(self%eos, self%gravity, json, &
-            self%logfile, self%hdf5_viewer, err)
-       if (err == 0) then
-          call self%mesh%override_face_properties(json, self%logfile)
-          call self%output_mesh_geometry()
-          call self%setup_solution_vector()
-          call setup_relative_permeabilities(json, &
-               self%relative_permeability, self%logfile)
-          call setup_capillary_pressures(json, &
-               self%capillary_pressure, self%logfile)
-          call setup_rock_vector(json, self%mesh%dm, self%mesh%cell_order, self%rock, &
-               self%rock_dict, self%rock_range_start, self%mesh%ghost_cell, &
-               self%logfile, err)
-          if (err == 0) then
-             if (self%mesh%has_minc) then
-                call self%mesh%setup_minc_rock_properties(json, self%rock, &
-                     self%rock_dict, self%rock_range_start, self%logfile, err)
-             end if
-             if (err == 0) then
-                call setup_fluid_vector(self%mesh%dm, max_component_name_length, &
-                     self%eos%component_names, max_phase_name_length, &
-                     self%eos%phase_names, self%fluid, self%fluid_range_start)
-                call VecDuplicate(self%fluid, self%current_fluid, ierr); CHKERRQ(ierr)
-                call VecDuplicate(self%fluid, self%last_timestep_fluid, ierr)
-                CHKERRQ(ierr)
-                call VecDuplicate(self%fluid, self%last_iteration_fluid, ierr)
-                CHKERRQ(ierr)
-                call self%setup_flux_vector()
 
-                call setup_initial(json, self%mesh, self%eos, &
-                     self%time, self%solution, self%fluid, &
-                     self%solution_range_start, self%fluid_range_start, self%logfile)
-                call self%setup_update_cell()
-                call self%mesh%set_boundary_values(self%solution, self%fluid, &
-                     self%rock, self%eos, self%solution_range_start, &
-                     self%fluid_range_start, self%rock_range_start)
-                call scale_initial_primary(self%mesh, self%eos, self%solution, self%fluid, &
-                     self%solution_range_start, self%fluid_range_start)
-                call self%fluid_init(self%time, self%solution, err)
-                if (err == 0) then
-                   call setup_sources(json, self%mesh%dm, self%mesh%cell_order, &
-                        self%eos, self%thermo, self%time, self%fluid, &
-                        self%fluid_range_start, self%sources, self%source_controls, &
-                        self%logfile)
-                end if
+    call self%rock_dict%init(owner = PETSC_TRUE)
+    call self%mesh%configure(self%eos, self%gravity, json, &
+         self%logfile, self%hdf5_viewer, err)
+    if (err == 0) then
+       call self%mesh%override_face_properties(json, self%logfile)
+       call self%output_mesh_geometry()
+       call self%setup_solution_vector()
+       call setup_relative_permeabilities(json, &
+            self%relative_permeability, self%logfile)
+       call setup_capillary_pressures(json, &
+            self%capillary_pressure, self%logfile)
+       call setup_rock_vector(json, self%mesh%dm, self%mesh%cell_order, self%rock, &
+            self%rock_dict, self%rock_range_start, self%mesh%ghost_cell, &
+            self%logfile, err)
+       if (err == 0) then
+          if (self%mesh%has_minc) then
+             call self%mesh%setup_minc_rock_properties(json, self%rock, &
+                  self%rock_dict, self%rock_range_start, self%logfile, err)
+          end if
+          if (err == 0) then
+             call setup_fluid_vector(self%mesh%dm, max_component_name_length, &
+                  self%eos%component_names, max_phase_name_length, &
+                  self%eos%phase_names, self%fluid, self%fluid_range_start)
+             call VecDuplicate(self%fluid, self%current_fluid, ierr); CHKERRQ(ierr)
+             call VecDuplicate(self%fluid, self%last_timestep_fluid, ierr)
+             CHKERRQ(ierr)
+             call VecDuplicate(self%fluid, self%last_iteration_fluid, ierr)
+             CHKERRQ(ierr)
+             call self%setup_flux_vector()
+
+             call setup_initial(json, self%mesh, self%eos, &
+                  self%time, self%solution, self%fluid, &
+                  self%solution_range_start, self%fluid_range_start, self%logfile)
+             call self%setup_update_cell()
+             call self%mesh%set_boundary_values(self%solution, self%fluid, &
+                  self%rock, self%eos, self%solution_range_start, &
+                  self%fluid_range_start, self%rock_range_start)
+             call scale_initial_primary(self%mesh, self%eos, self%solution, self%fluid, &
+                  self%solution_range_start, self%fluid_range_start)
+             call self%fluid_init(self%time, self%solution, err)
+             if (err == 0) then
+                call setup_sources(json, self%mesh%dm, self%mesh%cell_order, &
+                     self%eos, self%thermo, self%time, self%fluid, &
+                     self%fluid_range_start, self%sources, self%source_controls, &
+                     self%logfile)
              end if
           end if
        end if
