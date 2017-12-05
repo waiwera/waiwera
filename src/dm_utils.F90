@@ -42,7 +42,7 @@ module dm_utils_module
      generic, public :: minc_point => minc_point_single, minc_point_array
   end type dm_stratum_type
 
-  public :: dm_point_stratum_height
+  public :: dm_get_strata, dm_point_stratum_height
 
   public :: set_dm_data_layout, set_dm_default_data_layout
   public :: dm_setup_global_section
@@ -149,6 +149,36 @@ contains
     end do
 
   end function dm_stratum_minc_point_array
+
+!------------------------------------------------------------------------
+
+  subroutine dm_get_strata(dm, depth, strata)
+    !! Gets mesh depth and array of strata for the given DM.
+
+    DM, intent(in) :: dm
+    PetscInt, intent(out) :: depth
+    type(dm_stratum_type), allocatable, intent(out) :: strata(:)
+    ! Locals:
+    PetscErrorCode :: ierr, h
+
+    call DMPlexGetDepth(dm, depth, ierr); CHKERRQ(ierr)
+    allocate(strata(0: depth))
+
+    do h = 0, depth
+       call DMPlexGetHeightStratum(dm, h, strata(h)%start, &
+            strata(h)%end, ierr); CHKERRQ(ierr)
+    end do
+
+    call DMPlexGetHybridBounds(dm, strata(0)%end_interior, &
+         strata(1)%end_interior, strata(depth - 1)%end_interior, &
+         strata(depth)%end_interior, ierr); CHKERRQ(ierr)
+    do h = 0, depth
+       if (strata(h)%end_interior < 0) then
+          strata(h)%end_interior = strata(h)%end
+       end if
+    end do
+
+  end subroutine dm_get_strata
 
 !------------------------------------------------------------------------
 

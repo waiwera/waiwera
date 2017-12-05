@@ -26,6 +26,7 @@ module mesh_module
   use mpi_utils_module
   use fson
   use minc_module
+  use dm_utils_module, only: dm_stratum_type
 
   implicit none
 
@@ -42,6 +43,7 @@ module mesh_module
      Vec, public :: cell_geom !! Vector containing cell geometry data
      Vec, public :: face_geom !! Vector containing face geometry data
      PetscInt :: depth !! DM depth
+     type(dm_stratum_type), allocatable :: strata(:) !! Mesh strata (used for MINC point calculations)
      PetscReal, allocatable, public :: bcs(:,:) !! Array containing boundary conditions
      IS, public :: cell_index !! Index set defining natural to global cell ordering
      AO, public :: cell_order !! Application ordering to convert between global and natural cell indices
@@ -57,7 +59,7 @@ module mesh_module
      procedure :: construct_ghost_cells => mesh_construct_ghost_cells
      procedure :: setup_geometry => mesh_setup_geometry
      procedure :: setup_ghost_arrays => mesh_setup_ghost_arrays
-     procedure :: setup_strata => mesh_setup_strata
+     procedure :: destroy_minc => mesh_destroy_minc
      procedure :: destroy_strata => mesh_destroy_strata
      procedure :: setup_coordinate_parameters => mesh_setup_coordinate_parameters
      procedure :: set_boundary_face_distances => mesh_set_boundary_face_distances
@@ -451,11 +453,14 @@ contains
     class(mesh_type), intent(in out) :: self
     ! Locals:
     PetscInt :: c, f
+    PetscInt :: start_cell, end_cell, start_face, end_face
     DMLabel :: ghost_label
     PetscErrorCode :: ierr
 
-    allocate(self%ghost_cell(self%strata(0)%start: self%strata(0)%end - 1))
-    allocate(self%ghost_face(self%strata(1)%start: self%strata(1)%end - 1))
+    call DMPlexGetHeightStratum(self%dm, 0, start_cell, end_cell, ierr)
+    CHKERRQ(ierr)
+    call DMPlexGetHeightStratum(self%dm, 1, start_face, end_face, ierr)
+    CHKERRQ(ierr)
 
     self%ghost_cell = -1
     self%ghost_face = -1
@@ -463,12 +468,12 @@ contains
     call DMGetLabel(self%dm, "ghost", ghost_label, ierr)
     CHKERRQ(ierr)
 
-    do c = self%strata(0)%start, self%strata(0)%end - 1
+    do c = start_cell, end_cell - 1
        call DMLabelGetValue(ghost_label, c, self%ghost_cell(c), ierr)
        CHKERRQ(ierr)
     end do
 
-    do f = self%strata(1)%start, self%strata(1)%end - 1
+    do f = start_face, end_face - 1
        call DMLabelGetValue(ghost_label, f, self%ghost_face(f), ierr)
        CHKERRQ(ierr)
     end do
@@ -477,46 +482,33 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine mesh_setup_strata(self, strata)
-    !! Saves DM stratum bounds in specified strata array.
+  subroutine mesh_destroy_minc(self)
+    !! Destroys MINC objects.
 
     class(mesh_type), intent(in out) :: self
-    type(dm_stratum_type), allocatable, intent(in out) :: strata(:)
     ! Locals:
-    PetscErrorCode :: ierr, h
+    PetscInt :: i
 
-    call DMPlexGetDepth(self%dm, self%depth, ierr); CHKERRQ(ierr)
-    allocate(strata(0: self%depth))
-
-    do h = 0, self%depth
-       call DMPlexGetHeightStratum(self%dm, h, strata(h)%start, &
-            strata(h)%end, ierr); CHKERRQ(ierr)
+    do i = 1, size(self%minc)
+       call self%minc(i)%destroy()
     end do
+    deallocate(self%minc)
 
-    call DMPlexGetHybridBounds(self%dm, strata(0)%end_interior, &
-         strata(1)%end_interior, strata(self%depth - 1)%end_interior, &
-         strata(self%depth)%end_interior, ierr); CHKERRQ(ierr)
-    do h = 0, self%depth
-       if (strata(h)%end_interior < 0) then
-          strata(h)%end_interior = strata(h)%end
-       end if
-    end do
-
-  end subroutine mesh_setup_strata
+  end subroutine mesh_destroy_minc
 
 !------------------------------------------------------------------------
 
-  subroutine mesh_destroy_strata(self, strata)
+  subroutine mesh_destroy_strata(self)
     !! Destroys mesh strata.
 
     class(mesh_type), intent(in out) :: self
-    type(dm_stratum_type), intent(in out) :: strata(0: self%depth)
     ! Locals:
     PetscInt :: h
 
     do h = 0, self%depth
-       call strata(h)%destroy()
+       call self%strata(h)%destroy()
     end do
+    deallocate(self%strata)
 
   end subroutine mesh_destroy_strata
 
@@ -662,10 +654,8 @@ contains
 
     ! TODO factor out into mesh_destroy_minc()
     if (self%has_minc) then
-       do i = 1, size(self%minc)
-          call self%minc(i)%destroy()
-       end do
-       deallocate(self%minc)
+       call self%destroy_minc()
+       call self%destroy_strata()
     end if
 
     call self%zones%destroy(mesh_zones_node_data_destroy)
@@ -1390,7 +1380,7 @@ contains
     type(list_type), allocatable :: minc_level_cells(:)
     PetscErrorCode :: ierr
 
-    call self%setup_strata(strata) ! TODO change to dm_get_strata(self%dm)
+    call dm_get_strata(self%dm, self%depth, self%strata)
     
     call DMPlexCreate(PETSC_COMM_WORLD, minc_dm, ierr); CHKERRQ(ierr)
 
@@ -1901,7 +1891,7 @@ contains
                 CHKERRQ(ierr)
                 do ip = 1, num_points
                    p = points(ip)
-                   h = dm_point_stratum_height(strata, p)
+                   h = dm_point_stratum_height(self%strata, p)
                    minc_p = self%strata(h)%minc_point(p, 0)
                    call DMSetLabelValue(minc_dm, label_name, &
                         minc_p, label_value, ierr)
@@ -2329,7 +2319,7 @@ contains
                           orig_offset + dof - 1))
 
                        do m = 1, minc%num_levels
-                          cell_p = strata(h)%minc_point(ic(m), m)
+                          cell_p = self%strata(h)%minc_point(ic(m), m)
                           call global_section_offset(section, cell_p, rock_range_start, &
                                offset, ierr); CHKERRQ(ierr)
                           ! Update specified matrix properties:
