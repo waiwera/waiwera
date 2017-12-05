@@ -644,11 +644,12 @@ contains
     err = 0
 
     call self%distribute(dist_sf)
-    call self%construct_ghost_cells()
 
     associate(dof => eos%num_primary_variables)
 
       call dm_setup_fv_discretization(self%original_dm, dof)
+      call self%setup_boundaries(json, eos, dist_sf, logfile)
+      call self%construct_ghost_cells()
       call set_dm_default_data_layout(self%original_dm, dof)
 
       call self%setup_geometry(gravity)
