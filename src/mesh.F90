@@ -1971,64 +1971,12 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine mesh_setup_minc_dm_cell_order_label(self, minc_dm, max_num_levels, &
-       num_minc_zones)
-
-    !! Sets up cell order label on MINC matrix cells, which are given
-    !! the same cell order label as their parent fracture cell. (This
-    !! is updated later to a unique cell order value when the cell
-    !! index is set up.)
-
-    use cell_order_module, only: cell_order_label_name
-    use dm_utils_module, only: dm_stratum_type
+  subroutine mesh_setup_minc_dm_cell_order(self)
+    !! Sets up natural-to-global AO for MINC DM.
 
     class(mesh_type), intent(in out) :: self
-    DM, intent(in out) :: minc_dm
-    PetscInt, intent(in) :: max_num_levels, num_minc_zones
 
-    ! Locals:
-    PetscInt :: ghost, c, h, i, iminc, m
-    PetscInt :: cell_p, cell_order
-    PetscInt :: ic(max_num_levels), num_minc_zone_cells
-    IS :: minc_IS
-    PetscInt, pointer :: minc_cells(:)
-    DMLabel :: ghost_label, cell_order_label
-    PetscErrorCode :: ierr
-
-    call DMGetLabel(self%dm, "ghost", ghost_label, ierr)
-    CHKERRQ(ierr)
-    call DMGetLabel(self%dm, cell_order_label_name, &
-         cell_order_label, ierr)
-    CHKERRQ(ierr)
-
-    h = 0
-    ic = 0
-    do iminc = 1, num_minc_zones
-       associate(minc => self%minc(iminc))
-         call DMGetStratumSize(self%dm, minc_zone_label_name, iminc, &
-              num_minc_zone_cells, ierr); CHKERRQ(ierr)
-         if (num_minc_zone_cells > 0) then
-            call DMGetStratumIS(self%dm, minc_zone_label_name, &
-                 iminc, minc_IS, ierr); CHKERRQ(ierr)
-            call ISGetIndicesF90(minc_IS, minc_cells, ierr); CHKERRQ(ierr)
-            do i = 1, num_minc_zone_cells
-               c = minc_cells(i)
-               call DMLabelGetValue(ghost_label, c, ghost, ierr)
-               if (ghost < 0) then
-                  call DMLabelGetValue(cell_order_label, c, cell_order, ierr)
-                  do m = 1, minc%num_levels
-                     cell_p = self%strata(h)%minc_point(ic(m), m)
-                     call DMSetLabelValue(minc_dm, cell_order_label_name, &
-                          cell_p, cell_order, ierr); CHKERRQ(ierr)
-                     ic(m) = ic(m) + 1
-                  end do
-               end if
-            end do
-         end if
-       end associate
-    end do
-
-  end subroutine mesh_setup_minc_dm_cell_order_label
+  end subroutine mesh_setup_minc_dm_cell_order
 
 !------------------------------------------------------------------------
 
