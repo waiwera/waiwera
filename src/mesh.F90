@@ -2383,8 +2383,8 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine mesh_setup_minc_sf(self, minc_dm)
-    !! Sets up SF for MINC DM, for communicating ghost values between
+  subroutine mesh_setup_minc_point_sf(self, minc_dm)
+    !! Sets up point SF for MINC DM, for communicating ghost values between
     !! processors.
 
     use dm_utils_module, only: dm_point_stratum_height
@@ -2449,7 +2449,7 @@ contains
 
     end if
 
-  end subroutine mesh_setup_minc_sf
+  end subroutine mesh_setup_minc_point_sf
 
 !------------------------------------------------------------------------
 
