@@ -565,7 +565,7 @@ contains
                c = minc_cells(i)
                if (mesh%ghost_cell(c) < 0) then
 
-                  minc_p = mesh%original_strata(h)%minc_point(c, 0)
+                  minc_p = mesh%strata(h)%minc_point(c, 0)
                   call global_section_offset(y_section, minc_p, y_range_start, &
                        y_offset, ierr); CHKERRQ(ierr)
                   associate(frac_primary => y_array(y_offset : y_offset + np - 1))
@@ -575,7 +575,7 @@ contains
                     frac_region = nint(fluid%region)
 
                     do m = 1, minc%num_levels
-                      minc_p = mesh%original_strata(h)%minc_point(ic(m), m)
+                      minc_p = mesh%strata(h)%minc_point(ic(m), m)
                        call global_section_offset(y_section, minc_p, y_range_start, &
                             y_minc_offset, ierr); CHKERRQ(ierr)
                        associate (primary => y_array(y_minc_offset : &
