@@ -43,7 +43,7 @@ module mesh_module
      Vec, public :: cell_geom !! Vector containing cell geometry data
      Vec, public :: face_geom !! Vector containing face geometry data
      PetscInt :: depth !! DM depth
-     type(dm_stratum_type), allocatable :: strata(:) !! Mesh strata (used for MINC point calculations)
+     type(dm_stratum_type), allocatable, public :: strata(:) !! Mesh strata (used for MINC point calculations)
      PetscReal, allocatable, public :: bcs(:,:) !! Array containing boundary conditions
      IS, public :: cell_index !! Index set defining natural to global cell ordering
      AO, public :: cell_order !! Application ordering to convert between global and natural cell indices
