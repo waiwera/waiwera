@@ -581,10 +581,11 @@ contains
     PetscReal, intent(in) :: gravity(:) !! Gravity vector
     type(fson_value), pointer, intent(in) :: json !! JSON file pointer
     type(logfile_type), intent(in out), optional :: logfile !! Log file
-    PetscViewer, intent(in out) :: viewer !! PetscViewer for output of cell index set to HDF5 file
+    PetscViewer, intent(in out) :: viewer !! PetscViewer for output of cell index sets to HDF5 file
     PetscErrorCode, intent(out) :: err !! Error flag
     ! Locals:
     PetscSF :: dist_sf
+    IS :: cell_interior_index
     PetscErrorCode :: ierr
 
     err = 0
