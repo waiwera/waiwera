@@ -1439,9 +1439,9 @@ contains
        call minc_level_cells(m)%destroy()
     end do
     deallocate(minc_zone, minc_level_cells)
-    ! TODO deallocate / destroy strata
 
-    ! TODO destroy self%dm and set self%dm = minc_dm
+    call DMDestroy(self%dm, ierr); CHKERRQ(ierr)
+    self%dm = minc_dm
 
   end subroutine mesh_setup_minc_dm
 
