@@ -429,7 +429,7 @@ contains
     PetscInt :: gravity_type, ng, dim
     PetscErrorCode :: ierr
 
-    call DMGetDimension(self%mesh%original_dm, dim, ierr); CHKERRQ(ierr)
+    call DMGetDimension(self%mesh%dm, dim, ierr); CHKERRQ(ierr)
     self%gravity = 0._dp
     if (fson_has_mpi(json, "gravity")) then
        gravity_type = fson_type_mpi(json, "gravity")
