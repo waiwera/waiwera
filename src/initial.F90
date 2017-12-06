@@ -553,10 +553,10 @@ contains
 
     do iminc = 1, size(mesh%minc)
        associate(minc => mesh%minc(iminc))
-         call DMGetStratumSize(mesh%original_dm, minc_zone_label_name, iminc, &
+         call DMGetStratumSize(mesh%dm, minc_zone_label_name, iminc, &
               num_minc_zone_cells, ierr); CHKERRQ(ierr)
          if (num_minc_zone_cells > 0) then
-            call DMGetStratumIS(mesh%original_dm, minc_zone_label_name, &
+            call DMGetStratumIS(mesh%dm, minc_zone_label_name, &
                  iminc, minc_IS, ierr); CHKERRQ(ierr)
             call ISGetIndicesF90(minc_IS, minc_cells, ierr); CHKERRQ(ierr)
 
