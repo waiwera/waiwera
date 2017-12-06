@@ -28,38 +28,8 @@ module cell_order_module
 
   character(len = 13), parameter, public :: &
        cell_order_label_name = "cell_order" !! Name of DMLabel for generating cell index set
-
-  public :: dm_setup_cell_order_label, dm_setup_cell_index
   
 contains
-
-!------------------------------------------------------------------------
-
-  subroutine dm_setup_cell_order_label(dm)
-    !! Sets up cell ordering label on mesh DM cells. This assumes the DM
-    !! has not yet been distributed.
-
-    DM, intent(in out) :: dm
-    ! Locals:
-    PetscBool :: has_label
-    PetscInt :: start_cell, end_cell, c
-    PetscErrorCode :: ierr
-
-    call DMHasLabel(dm, cell_order_label_name, has_label, &
-         ierr); CHKERRQ(ierr)
-
-    if (.not. has_label) then
-       call DMCreateLabel(dm, cell_order_label_name, ierr)
-       CHKERRQ(ierr)
-       call DMPlexGetHeightStratum(dm, 0, start_cell, end_cell, &
-            ierr); CHKERRQ(ierr)
-       do c = start_cell, end_cell - 1
-          call DMSetLabelValue(dm, cell_order_label_name, c, &
-               c, ierr); CHKERRQ(ierr)
-       end do
-    end if
-
-  end subroutine dm_setup_cell_order_label
 
 !------------------------------------------------------------------------
 
