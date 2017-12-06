@@ -67,7 +67,7 @@ module dm_utils_module
   public :: dm_set_fv_adjacency, dm_setup_fv_discretization
   public :: dm_get_num_partition_ghost_cells, dm_get_bdy_cell_shift
   public :: dm_get_end_interior_cell
-  public :: dm_get_natural_to_global_ao
+  public :: dm_get_natural_to_global_ao, dm_get_cell_index
   public :: natural_to_local_cell_index, local_to_natural_cell_index
 
 contains
@@ -846,6 +846,77 @@ contains
     natural = idx(1)
 
   end function local_to_natural_cell_index_single
+
+!------------------------------------------------------------------------
+
+  subroutine dm_get_cell_index(dm, ao, cell_index, cell_interior_index)
+    !! Returns cell_index IS mapping natural cell indices to global
+    !! indices of a global vector (with boundary data included). Also
+    !! returns cell_interior_index which is similar but applies to
+    !! vectors without boundary data included (e.g. in some PETSc HDF5
+    !! output).
+
+    DM, intent(in) :: dm !! Input DM
+    AO, intent(in) :: ao !! Natural-to-global AO for the DM
+    IS, intent(out) :: cell_index !! Natural-to-global IS with boundary data
+    IS, intent(out) :: cell_interior_index !! Natural-to-global IS without boundary data
+    ! Locals:
+    ISLocalToGlobalMapping :: l2g
+    PetscInt :: start_cell, end_cell, end_interior_cell
+    PetscInt :: end_non_ghost_cell, c
+    PetscInt :: num_ghost_cells, num_non_ghost_cells, bdy_cell_shift
+    PetscInt, allocatable :: global(:), natural(:), global_interior(:)
+    PetscInt, allocatable :: index_natural(:), index_global(:)
+    AO :: ao_interior
+    PetscErrorCode :: ierr
+
+    call DMGetLocalToGlobalMapping(dm, l2g, ierr); CHKERRQ(ierr)
+    call DMPlexGetHeightStratum(dm, 0, start_cell, end_cell, &
+         ierr); CHKERRQ(ierr)
+    end_interior_cell = dm_get_end_interior_cell(dm, end_cell)
+    num_ghost_cells = dm_get_num_partition_ghost_cells(dm)
+    num_non_ghost_cells = end_interior_cell - start_cell - num_ghost_cells
+    end_non_ghost_cell = start_cell + num_non_ghost_cells
+    bdy_cell_shift = dm_get_bdy_cell_shift(dm)
+
+    allocate(global(start_cell: end_non_ghost_cell - 1))
+    call ISLocalToGlobalMappingApplyBlock(l2g, num_non_ghost_cells, &
+         [(c, c = start_cell, end_non_ghost_cell - 1)], global, ierr)
+    CHKERRQ(ierr)
+
+    ! The index_natural array does not represent natural indices
+    ! corresponding to local indices- it is just a set of natural
+    ! indices owned by the current process, for the purpose of writing
+    ! out the corresponding global indices:
+    index_natural = global - bdy_cell_shift
+    index_global = index_natural
+    call AOApplicationToPetsc(ao, num_non_ghost_cells, index_global, &
+         ierr); CHKERRQ(ierr)
+    call ISCreateGeneral(PETSC_COMM_WORLD, num_non_ghost_cells, index_global, &
+         PETSC_COPY_VALUES, cell_index, ierr); CHKERRQ(ierr)
+    call PetscObjectSetName(cell_index, "cell_index", ierr)
+    CHKERRQ(ierr)
+
+    natural = global
+    call AOPetscToApplication(ao, num_non_ghost_cells, natural, &
+         ierr); CHKERRQ(ierr)
+    global_interior = global - bdy_cell_shift
+    call AOCreateMapping(PETSC_COMM_WORLD, num_non_ghost_cells, &
+         natural, global_interior, ao_interior, ierr); CHKERRQ(ierr)
+    deallocate(natural, global_interior)
+    index_global = index_natural
+    call AOApplicationToPetsc(ao_interior, num_non_ghost_cells, &
+         index_global, ierr); CHKERRQ(ierr)
+    call AODestroy(ao_interior, ierr); CHKERRQ(ierr)
+    call ISCreateGeneral(PETSC_COMM_WORLD, num_non_ghost_cells, &
+         index_global, PETSC_COPY_VALUES, cell_interior_index, ierr)
+    CHKERRQ(ierr)
+    call PetscObjectSetName(cell_interior_index, &
+         "cell_interior_index", ierr); CHKERRQ(ierr)
+
+    deallocate(global, index_natural, index_global)
+
+  end subroutine dm_get_cell_index
 
 !------------------------------------------------------------------------
 
