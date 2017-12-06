@@ -50,7 +50,7 @@ contains
     PetscInt, intent(in) :: y_range_start
     ! Locals:
     PetscInt :: np, c, ghost
-    PetscInt :: y_offset
+    PetscInt :: start_cell, end_cell, y_offset
     PetscErrorCode :: ierr
     PetscReal, pointer, contiguous :: cell_primary(:), y_array(:)
     PetscSection :: y_section
@@ -63,8 +63,10 @@ contains
 
     call DMGetLabel(mesh%dm, "ghost", ghost_label, ierr)
     CHKERRQ(ierr)
+    call DMPlexGetHeightStratum(mesh%dm, 0, start_cell, end_cell, ierr)
+    CHKERRQ(ierr)
 
-    do c = mesh%strata(0)%start, mesh%strata(0)%end - 1
+    do c = start_cell, end_cell - 1
        call DMLabelGetValue(ghost_label, c, ghost, ierr); CHKERRQ(ierr)
        if (ghost < 0) then
           call global_section_offset(y_section, c, &
@@ -151,7 +153,7 @@ contains
     Vec, intent(in out) :: fluid_vector
     PetscInt, intent(in) :: fluid_range_start
     ! Locals:
-    PetscInt :: c, ghost
+    PetscInt :: c, ghost, start_cell, end_cell
     PetscInt :: fluid_offset
     PetscErrorCode :: ierr
     type(fluid_type) :: fluid
@@ -165,8 +167,10 @@ contains
 
     call DMGetLabel(mesh%dm, "ghost", ghost_label, ierr)
     CHKERRQ(ierr)
+    call DMPlexGetHeightStratum(mesh%dm, 0, start_cell, end_cell, ierr)
+    CHKERRQ(ierr)
 
-    do c = mesh%strata(0)%start, mesh%strata(0)%end - 1
+    do c = start_cell, end_cell - 1
        call DMLabelGetValue(ghost_label, c, ghost, ierr); CHKERRQ(ierr)
        if (ghost < 0) then
           call global_section_offset(fluid_section, c, &
@@ -268,6 +272,7 @@ contains
     type(fluid_type) :: fluid
     DMLabel :: ghost_label
     PetscInt :: np, c, ghost, y_offset, fluid_offset
+    PetscInt :: start_cell, end_cell
     PetscErrorCode :: ierr
 
     call PetscViewerHDF5Open(PETSC_COMM_WORLD, filename, FILE_MODE_READ, &
@@ -302,8 +307,10 @@ contains
 
     call DMGetLabel(mesh%dm, "ghost", ghost_label, ierr)
     CHKERRQ(ierr)
+    call DMPlexGetHeightStratum(mesh%dm, 0, start_cell, end_cell, ierr)
+    CHKERRQ(ierr)
 
-    do c = mesh%strata(0)%start, mesh%strata(0)%end - 1
+    do c = start_cell, end_cell - 1
        call DMLabelGetValue(ghost_label, c, ghost, ierr); CHKERRQ(ierr)
        if (ghost < 0) then
           call global_section_offset(y_section, c, &
@@ -345,6 +352,7 @@ contains
     type(fluid_type) :: fluid
     DMLabel :: ghost_label
     PetscInt :: np, c, ghost, y_offset, fluid_offset
+    PetscInt :: start_cell, end_cell
     PetscErrorCode :: ierr
 
     call global_vec_section(y, y_section)
@@ -358,8 +366,10 @@ contains
 
     call DMGetLabel(mesh%dm, "ghost", ghost_label, ierr)
     CHKERRQ(ierr)
+    call DMPlexGetHeightStratum(mesh%dm, 0, start_cell, end_cell, ierr)
+    CHKERRQ(ierr)
 
-    do c = mesh%strata(0)%start, mesh%strata(0)%end - 1
+    do c = start_cell, end_cell - 1
        call DMLabelGetValue(ghost_label, c, ghost, ierr); CHKERRQ(ierr)
        if (ghost < 0) then
           call global_section_offset(y_section, c, &
