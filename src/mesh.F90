@@ -631,7 +631,6 @@ contains
 
     class(mesh_type), intent(in out) :: self
     ! Locals:
-    PetscInt :: i
     PetscErrorCode :: ierr
 
     call VecDestroy(self%face_geom, ierr); CHKERRQ(ierr)
