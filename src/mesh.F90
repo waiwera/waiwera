@@ -256,7 +256,6 @@ contains
     DM :: dm_face
     PetscSection :: face_section, petsc_face_section, cell_section
     PetscInt :: c, f, ghost_cell, ghost_face, i
-    PetscInt :: start_cell, end_cell, start_face, end_face
     PetscInt :: face_offset, petsc_face_offset
     PetscInt :: cell_offset(2), offset
     type(cell_type) :: cell
@@ -287,10 +286,6 @@ contains
 
     call DMGetDimension(self%dm, dim, ierr); CHKERRQ(ierr)
     call DMGetLabel(self%dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
-    call DMPlexGetHeightStratum(self%dm, 0, start_cell, end_cell, ierr)
-    CHKERRQ(ierr)
-    call DMPlexGetHeightStratum(self%dm, 1, start_face, end_face, ierr)
-    CHKERRQ(ierr)
 
     ! Set up cell geometry vector:
     call local_vec_section(self%cell_geom, cell_section)
@@ -303,7 +298,7 @@ contains
        else
           modify_cell_volume => modify_cell_volume_2d_cartesian
        end if
-       do c = start_cell, end_cell - 1
+       do c = self%strata(0)%start, self%strata(0)%end - 1
           call DMLabelGetValue(ghost_label, c, ghost_cell, ierr); CHKERRQ(ierr)
           if (ghost_cell < 0) then
              call section_offset(cell_section, c, offset, ierr); CHKERRQ(ierr)
@@ -337,7 +332,7 @@ contains
        end if
     end select
 
-    do f = start_face, end_face - 1
+    do f = self%strata(1)%start, self%strata(1)%end - 1
 
        call DMLabelGetValue(ghost_label, f, ghost_face, ierr); CHKERRQ(ierr)
 
@@ -453,27 +448,23 @@ contains
     class(mesh_type), intent(in out) :: self
     ! Locals:
     PetscInt :: c, f
-    PetscInt :: start_cell, end_cell, start_face, end_face
     DMLabel :: ghost_label
     PetscErrorCode :: ierr
 
-    call DMPlexGetHeightStratum(self%dm, 0, start_cell, end_cell, ierr)
-    CHKERRQ(ierr)
-    call DMPlexGetHeightStratum(self%dm, 1, start_face, end_face, ierr)
-    CHKERRQ(ierr)
-
+    allocate(self%ghost_cell(self%strata(0)%start: self%strata(0)%end - 1))
+    allocate(self%ghost_face(self%strata(1)%start: self%strata(1)%end - 1))
     self%ghost_cell = -1
     self%ghost_face = -1
 
     call DMGetLabel(self%dm, "ghost", ghost_label, ierr)
     CHKERRQ(ierr)
 
-    do c = start_cell, end_cell - 1
+    do c = self%strata(0)%start, self%strata(0)%end - 1
        call DMLabelGetValue(ghost_label, c, self%ghost_cell(c), ierr)
        CHKERRQ(ierr)
     end do
 
-    do f = start_face, end_face - 1
+    do f = self%strata(1)%start, self%strata(1)%end - 1
        call DMLabelGetValue(ghost_label, f, self%ghost_face(f), ierr)
        CHKERRQ(ierr)
     end do
