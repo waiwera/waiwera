@@ -857,8 +857,9 @@ contains
     IS, intent(out) :: cell_interior_index !! Natural-to-global IS without boundary data
     ! Locals:
     ISLocalToGlobalMapping :: l2g
+    DMLabel :: ghost_label
     PetscInt :: start_cell, end_cell, end_interior_cell
-    PetscInt :: end_non_ghost_cell, c
+    PetscInt :: c, ic, ghost, carray(1)
     PetscInt :: num_ghost_cells, num_non_ghost_cells, bdy_cell_shift
     PetscInt, allocatable :: global(:), natural(:), global_interior(:)
     PetscInt, allocatable :: index_natural(:), index_global(:)
@@ -871,13 +872,20 @@ contains
     end_interior_cell = dm_get_end_interior_cell(dm, end_cell)
     num_ghost_cells = dm_get_num_partition_ghost_cells(dm)
     num_non_ghost_cells = end_interior_cell - start_cell - num_ghost_cells
-    end_non_ghost_cell = start_cell + num_non_ghost_cells
     bdy_cell_shift = dm_get_bdy_cell_shift(dm)
 
-    allocate(global(start_cell: end_non_ghost_cell - 1))
-    call ISLocalToGlobalMappingApplyBlock(l2g, num_non_ghost_cells, &
-         [(c, c = start_cell, end_non_ghost_cell - 1)], global, ierr)
-    CHKERRQ(ierr)
+    allocate(global(0: num_non_ghost_cells - 1))
+    ic = 0
+    call DMGetLabel(dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
+    do c = start_cell, end_interior_cell - 1
+       call DMLabelGetValue(ghost_label, c, ghost, ierr)
+       if (ghost < 0) then
+          carray = c
+          call ISLocalToGlobalMappingApplyBlock(l2g, 1, carray, &
+               global(ic:ic), ierr); CHKERRQ(ierr)
+          ic = ic + 1
+       end if
+    end do
 
     ! The index_natural array does not represent natural indices
     ! corresponding to local indices- it is just a set of natural
