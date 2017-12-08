@@ -604,13 +604,9 @@ contains
       if (err == 0) then
          call self%setup_minc(json, logfile, err)
          if (err == 0) then
-            if (self%has_minc) then
-               call self%setup_minc_dm(dof)
-               call self%setup_minc_dm_cell_index(cell_interior_index)
-            else
-               call dm_get_cell_index(self%dm, self%cell_order, &
-                    self%cell_index, cell_interior_index)
-            end if
+            if (self%has_minc) call self%setup_minc_dm(dof)
+            call dm_get_cell_index(self%dm, self%cell_order, &
+                 self%cell_index, cell_interior_index)
             if (viewer /= PETSC_NULL_VIEWER) then
                call ISView(self%cell_index, viewer, ierr); CHKERRQ(ierr)
                call ISView(cell_interior_index, viewer, ierr); CHKERRQ(ierr)
