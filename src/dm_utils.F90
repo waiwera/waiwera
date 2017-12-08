@@ -646,10 +646,12 @@ contains
     !! Returns number of boundary cells on processes of rank lower
     !! than the current process.
 
+    use utils_module, only: get_mpi_int_gather_array, array_cumulative_sum
+
     DM, intent(in) :: dm
     ! Locals:
     PetscInt :: start_cell, end_cell, end_interior_cell
-    PetscInt :: num_bdy_cells, p, alloc_size
+    PetscInt :: num_bdy_cells
     PetscMPIInt :: rank, np
     PetscInt, allocatable :: proc_num_bdy_cells(:), &
          proc_sum_bdy_cells(:)
@@ -663,21 +665,14 @@ contains
     end_interior_cell = dm_get_end_interior_cell(dm, end_cell)
     num_bdy_cells = end_cell - end_interior_cell
 
-    if (rank == 0) then
-       alloc_size = np
-    else
-       alloc_size = 1
-    end if
-    allocate(proc_num_bdy_cells(alloc_size), proc_sum_bdy_cells(alloc_size))
+    proc_num_bdy_cells = get_mpi_int_gather_array()
+    proc_sum_bdy_cells = get_mpi_int_gather_array()
 
     call MPI_gather(num_bdy_cells, 1, MPI_INTEGER, proc_num_bdy_cells, &
          1, MPI_INTEGER, 0, PETSC_COMM_WORLD, ierr)
     if (rank == 0) then
-       proc_sum_bdy_cells(1) = 0
-       do p = 2, np
-          proc_sum_bdy_cells(p) = proc_sum_bdy_cells(p - 1) + &
-               proc_num_bdy_cells(p - 1)
-       end do
+       proc_sum_bdy_cells = [[0], &
+            array_cumulative_sum(proc_num_bdy_cells(1: np - 1))]
     end if
     call MPI_scatter(proc_sum_bdy_cells, 1, MPI_INTEGER, shift, &
          1, MPI_INTEGER, 0, PETSC_COMM_WORLD, ierr)
