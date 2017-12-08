@@ -597,7 +597,6 @@ contains
       call self%setup_boundaries(json, eos, dist_sf, logfile)
       call self%construct_ghost_cells()
       call set_dm_default_data_layout(self%dm, dof)
-      call dm_get_strata(self%dm, self%depth, self%strata)
 
       call self%setup_geometry(gravity)
       self%cell_order = dm_get_natural_to_global_ao(self%dm, dist_sf)
@@ -650,10 +649,11 @@ contains
        deallocate(self%ghost_face)
     end if
 
-    if (self%has_minc) call self%destroy_minc()
-
+    if (self%has_minc) then
+       call self%destroy_minc()
+       call self%destroy_strata()
+    end if
     call self%zones%destroy(mesh_zones_node_data_destroy)
-    call self%destroy_strata()
 
   contains
 
@@ -1375,6 +1375,8 @@ contains
     type(list_type), allocatable :: minc_level_cells(:)
     PetscErrorCode :: ierr
 
+    call dm_get_strata(self%dm, self%depth, self%strata)
+    
     call DMPlexCreate(PETSC_COMM_WORLD, minc_dm, ierr); CHKERRQ(ierr)
 
     call DMGetDimension(self%dm, dim, ierr); CHKERRQ(ierr)
