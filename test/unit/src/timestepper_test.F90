@@ -169,7 +169,6 @@ contains
     self%dof = 1
     self%stencil = 0
 
-    call self%mesh%assign_dm(self%mesh%original_dm)
     call DMDACreate1d(PETSC_COMM_WORLD, DM_BOUNDARY_NONE, self%dim, self%dof, &
          self%stencil, PETSC_NULL_INTEGER, self%mesh%dm, ierr); CHKERRQ(ierr)
     call DMSetUp(self%mesh%dm, ierr); CHKERRQ(ierr)
@@ -502,7 +501,6 @@ contains
     dx = self%L / (self%dim - 1._dp)
     self%a = 1._dp / (dx*dx)
 
-    call self%mesh%assign_dm(self%mesh%original_dm)
     call DMDACreate1d(PETSC_COMM_WORLD, DM_BOUNDARY_GHOSTED, self%dim-2, &
          self%dof, self%stencil, PETSC_NULL_INTEGER, self%mesh%dm, &
          ierr); CHKERRQ(ierr)

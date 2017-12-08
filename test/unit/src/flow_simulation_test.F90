@@ -231,18 +231,27 @@ contains
     ! Test gravity setup
 
     use fson_mpi_module
+    use IAPWS_module
+    use eos_we_module
+
     type(fson_value), pointer :: json
-    PetscInt, parameter :: dof = 2
+
     PetscMPIInt :: rank
+    PetscViewer :: viewer
+    type(IAPWS_type) :: thermo
+    type(eos_we_type) :: eos
     PetscErrorCode :: ierr, err
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    viewer = PETSC_NULL_VIEWER
+    call thermo%init()
 
     json => fson_parse_mpi(str = '{"mesh": {' // &
          '"filename": "data/mesh/2D.msh"}}')
+    call eos%init(json, thermo)
     call sim%mesh%init(json)
     call sim%setup_gravity(json)
-    call sim%mesh%configure(dof, sim%gravity, json, err = err)
+    call sim%mesh%configure(eos, sim%gravity, json, viewer = viewer, err = err)
     call fson_destroy_mpi(json)
     if (rank == 0) then
        call assert_equals([0._dp, 0._dp, 0._dp], sim%gravity, 3, tol, &
@@ -254,7 +263,7 @@ contains
          '"filename": "data/mesh/2D.msh"}, "gravity": null}')
     call sim%mesh%init(json)
     call sim%setup_gravity(json)
-    call sim%mesh%configure(dof, sim%gravity, json, err = err)
+    call sim%mesh%configure(eos, sim%gravity, json, viewer = viewer, err = err)
     call fson_destroy_mpi(json)
     if (rank == 0) then
        call assert_equals([0._dp, 0._dp, 0._dp], sim%gravity, 3, tol, &
@@ -267,7 +276,7 @@ contains
          '"gravity": 9.81}')
     call sim%mesh%init(json)
     call sim%setup_gravity(json)
-    call sim%mesh%configure(dof, sim%gravity, json, err = err)
+    call sim%mesh%configure(eos, sim%gravity, json, viewer = viewer, err = err)
     call fson_destroy_mpi(json)
     if (rank == 0) then
        call assert_equals([0._dp, -9.81_dp, 0._dp], sim%gravity, 3, tol, &
@@ -280,7 +289,7 @@ contains
          '"gravity": [-9.8, 0.0]}')
     call sim%mesh%init(json)
     call sim%setup_gravity(json)
-    call sim%mesh%configure(dof, sim%gravity, json, err = err)
+    call sim%mesh%configure(eos, sim%gravity, json, viewer = viewer, err = err)
     call fson_destroy_mpi(json)
     if (rank == 0) then
        call assert_equals([-9.8_dp, 0._dp, 0._dp], sim%gravity, 3, tol, &
@@ -292,7 +301,7 @@ contains
          '"filename": "data/mesh/block3.exo"}}')
     call sim%mesh%init(json)
     call sim%setup_gravity(json)
-    call sim%mesh%configure(dof, sim%gravity, json, err = err)
+    call sim%mesh%configure(eos, sim%gravity, json, viewer = viewer, err = err)
     call fson_destroy_mpi(json)
     if (rank == 0) then
        call assert_equals([0._dp, 0._dp, -9.8_dp], sim%gravity, 3, tol, &
@@ -305,7 +314,7 @@ contains
          '"gravity": 9.80665}')
     call sim%mesh%init(json)
     call sim%setup_gravity(json)
-    call sim%mesh%configure(dof, sim%gravity, json, err = err)
+    call sim%mesh%configure(eos, sim%gravity, json, viewer = viewer, err = err)
     call fson_destroy_mpi(json)
     if (rank == 0) then
        call assert_equals([0._dp, 0._dp, -9.80665_dp], sim%gravity, 3, tol, &
@@ -318,13 +327,16 @@ contains
          '"gravity": [0., 0., -9.81]}')
     call sim%mesh%init(json)
     call sim%setup_gravity(json)
-    call sim%mesh%configure(dof, sim%gravity, json, err = err)
+    call sim%mesh%configure(eos, sim%gravity, json, viewer = viewer, err = err)
     call fson_destroy_mpi(json)
     if (rank == 0) then
        call assert_equals([0._dp, 0._dp, -9.81_dp], sim%gravity, 3, tol, &
             "3D vector gravity")
     end if
     call sim%mesh%destroy()
+
+    call eos%destroy()
+    call thermo%destroy()
 
   end subroutine test_setup_gravity
 
