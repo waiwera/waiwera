@@ -76,11 +76,11 @@ module mesh_module
      procedure :: setup_minc_dm_depth_label => mesh_setup_minc_dm_depth_label
      procedure :: transfer_labels_to_minc_dm => mesh_transfer_labels_to_minc_dm
      procedure :: setup_minc_dm_level_label => mesh_setup_minc_dm_level_label
-     procedure :: setup_minc_dm_cell_order_label => mesh_setup_minc_dm_cell_order_label
+     procedure :: setup_minc_dm_cell_order => mesh_setup_minc_dm_cell_order
      procedure :: setup_minc_geometry => mesh_setup_minc_geometry
      procedure :: setup_minc_rock_properties => mesh_setup_minc_rock_properties
-     procedure :: setup_minc_sf => mesh_setup_minc_sf
-     procedure :: setup_cell_order => mesh_setup_cell_order
+     procedure :: setup_minc_point_sf => mesh_setup_minc_point_sf
+     procedure :: setup_minc_dm_cell_index => mesh_setup_minc_dm_cell_index
      procedure, public :: init => mesh_init
      procedure, public :: configure => mesh_configure
      procedure, public :: setup_boundaries => mesh_setup_boundaries
@@ -1972,12 +1972,227 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine mesh_setup_minc_dm_cell_order(self)
-    !! Sets up natural-to-global AO for MINC DM.
+  subroutine mesh_setup_minc_dm_cell_order(self, minc_dm, max_num_levels, &
+       minc_level_cells)
+    !! Sets up natural-to-global AO for MINC DM, and overwrites
+    !! original AO.
+
+    use dm_utils_module
+    use utils_module, only: array_cumulative_sum, get_mpi_int_gather_array
 
     class(mesh_type), intent(in out) :: self
+    DM, intent(in) :: minc_dm
+    PetscInt, intent(in) :: max_num_levels
+    type(list_type), intent(in out) :: minc_level_cells(0: max_num_levels)
+    ! Locals:
+    AO :: minc_ao
+    PetscMPIInt :: rank, num_procs
+    PetscInt, allocatable :: natural(:), global(:)
+    PetscInt :: start_cell, end_interior_cell, offset, n_all
+    PetscInt :: mapping_count, num_ghost_cells, num_non_ghost_cells
+    ISLocalToGlobalMapping :: l2g, minc_l2g
+    PetscInt :: local_minc_cell_count, total_minc_cell_count
+    PetscInt :: ic, c, m, inatural
+    PetscInt, allocatable :: minc_global(:), minc_frac_natural(:)
+    PetscInt, allocatable :: minc_global_all(:), minc_frac_natural_all(:)
+    PetscInt, allocatable :: minc_counts(:), minc_displacements(:)
+    PetscErrorCode :: ierr
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    call MPI_COMM_SIZE(PETSC_COMM_WORLD, num_procs, ierr)
+
+    start_cell = self%strata(0)%start
+    end_interior_cell = self%strata(0)%end_interior
+    num_ghost_cells = dm_get_num_partition_ghost_cells(self%dm)
+    num_non_ghost_cells = end_interior_cell - start_cell - num_ghost_cells
+    ! Each rank has its own array elements for MINC level 0:
+    mapping_count = num_non_ghost_cells
+
+    ! Rank 0 has array elements for MINC cells from all ranks:
+    local_minc_cell_count = sum(minc_level_cells(1:)%count)
+    call MPI_reduce(local_minc_cell_count, total_minc_cell_count, 1, &
+         MPI_INTEGER, MPI_SUM, 0, PETSC_COMM_WORLD, ierr)
+    if (rank == 0) then
+       mapping_count = mapping_count + total_minc_cell_count
+    end if
+    allocate(natural(mapping_count), global(mapping_count))
+
+    call DMGetLocalToGlobalMapping(self%dm, l2g, ierr); CHKERRQ(ierr)
+    call DMGetLocalToGlobalMapping(minc_dm, minc_l2g, ierr); CHKERRQ(ierr)
+
+    call get_original_cell_natural_global_indices()
+    inatural = get_new_natural_index()
+    offset = num_non_ghost_cells + 1
+
+    ! MINC cells (level > 0):
+    minc_counts = get_mpi_int_gather_array()
+    minc_displacements = get_mpi_int_gather_array()
+    do m = 1, max_num_levels
+       associate(n => minc_level_cells(m)%count)
+         allocate(minc_frac_natural(n), minc_global(n))
+         call MPI_gather(n, 1, MPI_INTEGER, minc_counts, 1, &
+              MPI_INTEGER, 0, PETSC_COMM_WORLD, ierr)
+         if (rank == 0) then
+            minc_displacements = [[0], &
+                 array_cumulative_sum(minc_counts(1: num_procs - 1))]
+         end if
+         ic = 0
+         call minc_level_cells(m)%traverse(minc_indices_iterator)
+         n_all = sum(minc_counts)
+         allocate(minc_global_all(n_all), minc_frac_natural_all(n_all))
+         call MPI_gatherv(minc_global, n, MPI_INTEGER, &
+              minc_global_all, minc_counts, minc_displacements, &
+              MPI_INTEGER, 0, PETSC_COMM_WORLD, ierr)
+         call MPI_gatherv(minc_frac_natural, n, MPI_INTEGER, &
+              minc_frac_natural_all, minc_counts, minc_displacements, &
+              MPI_INTEGER, 0, PETSC_COMM_WORLD, ierr)
+         call assign_minc_natural_indices(n_all, minc_frac_natural_all, &
+              minc_global_all, natural, global, inatural, offset)
+         deallocate(minc_frac_natural, minc_global, minc_global_all, &
+              minc_frac_natural_all)
+       end associate
+    end do
+    deallocate(minc_counts, minc_displacements)
+
+    call AOCreateMapping(PETSC_COMM_WORLD, mapping_count, &
+         natural, global, minc_ao, ierr); CHKERRQ(ierr)
+    deallocate(natural, global)
+
+    call AODestroy(self%cell_order, ierr); CHKERRQ(ierr)
+    self%cell_order = minc_ao
+
+  contains
+
+!........................................................................
+
+    subroutine get_original_cell_natural_global_indices()
+      !! Gets natural and global indices for original cells on each
+      !! process, and returns number of cells.
+
+      ! Locals:
+      PetscInt :: ic, ghost, carray(1), idx(1)
+      DMLabel :: ghost_label
+      PetscErrorCode :: ierr
+
+      call DMGetLabel(self%dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
+      ic = 0
+      do c = start_cell, end_interior_cell - 1
+         call DMLabelGetValue(ghost_label, c, ghost, ierr); CHKERRQ(ierr)
+         if (ghost < 0) then
+            ic = ic + 1
+            natural(ic) = local_to_natural_cell_index(self%cell_order, &
+                 l2g, c)
+            carray = c
+            call ISLocalToGlobalMappingApplyBlock(minc_l2g, 1, carray, &
+                 idx, ierr); CHKERRQ(ierr)
+            global(ic) = idx(1)
+         end if
+      end do
+
+    end subroutine get_original_cell_natural_global_indices
+
+!........................................................................
+
+    PetscInt function get_new_natural_index() result(inatural)
+      !! Initialises new natural index for MINC cells.
+
+      ! Locals:
+      PetscInt :: local_max_natural, max_natural
+
+      local_max_natural = maxval(natural(1: num_non_ghost_cells))
+      call MPI_reduce(local_max_natural, max_natural, 1, MPI_INTEGER, &
+           MPI_MAX, 0, PETSC_COMM_WORLD, ierr)
+      if (rank == 0) then
+         inatural = max_natural + 1
+      else
+         inatural = 0
+      end if
+
+    end function get_new_natural_index
+
+!........................................................................
+
+    subroutine minc_indices_iterator(node, stopped)
+      !! Gets global indices and natural indices of fracture cells for
+      !! MINC cells on current process in specified MINC level.
+
+      type(list_node_type), pointer, intent(in out) :: node
+      PetscBool, intent(out) :: stopped
+      ! Locals:
+      PetscInt :: p(1), idx(1)
+      PetscErrorCode :: ierr
+
+      select type (c => node%data)
+      type is (PetscInt)
+         ic = ic + 1
+         minc_frac_natural(ic) = local_to_natural_cell_index( &
+              self%cell_order, l2g, c)
+         p = self%strata(0)%minc_point(c, m)
+         call ISLocalToGlobalMappingApplyBlock(minc_l2g, 1, p, &
+              idx, ierr); CHKERRQ(ierr)
+         minc_global(ic) = idx(1)
+      end select
+
+    end subroutine minc_indices_iterator
+
+!........................................................................
+
+    subroutine assign_minc_natural_indices(n_all, minc_frac_natural_all, &
+         minc_global_all, natural, global, inatural, offset)
+      !! Assigns natural indices to MINC level cells on root
+      !! process. The 'natural' ordering assigned to MINC cells must
+      !! be independent of the mesh partitioning. Here the MINC cells
+      !! are ordered first by MINC level and then by the natural order
+      !! of the corresponding fracture cells.
+
+      PetscInt, intent(in) :: n_all
+      PetscInt, intent(in) :: minc_frac_natural_all(:), minc_global_all(:)
+      PetscInt, intent(in out), target :: natural(:), global(:)
+      PetscInt, intent(in out) :: inatural, offset
+      ! Locals:
+      PetscInt, allocatable :: isort(:)
+      PetscInt, pointer :: minc_natural_sorted(:), minc_global_sorted(:)
+      PetscInt :: i
+      PetscErrorCode :: ierr
+
+      if (rank == 0) then
+
+         minc_natural_sorted => natural(offset: offset + n_all - 1)
+         minc_global_sorted => global(offset: offset + n_all - 1)
+
+         isort = [(i - 1, i = 1, n_all)]
+         call PetscSortIntWithPermutation(n_all, &
+              minc_frac_natural_all, isort, ierr); CHKERRQ(ierr)
+         isort = isort + 1 ! convert to 1-based
+
+         do i = 1, n_all
+            minc_natural_sorted(isort(i)) = inatural
+            minc_global_sorted(isort(i)) = minc_global_all(i)
+            inatural = inatural + 1
+         end do
+
+         offset = offset + n_all
+
+      end if
+
+    end subroutine assign_minc_natural_indices
+
+!........................................................................
 
   end subroutine mesh_setup_minc_dm_cell_order
+
+!------------------------------------------------------------------------
+
+  subroutine mesh_setup_minc_dm_cell_index(self, cell_interior_index)
+    !! Sets up self%cell_index and cell_interior_index index sets for
+    !! MINC mesh.
+
+    class(mesh_type), intent(in out) :: self
+    IS, intent(out) :: cell_interior_index
+
+    ! TODO- maybe don't need if can use dm_get_cell_index() ?
+
+  end subroutine mesh_setup_minc_dm_cell_index
 
 !------------------------------------------------------------------------
 
