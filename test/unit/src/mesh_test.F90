@@ -152,7 +152,7 @@ contains
     PetscViewer :: viewer
     PetscReal, pointer, contiguous :: cell_geom_array(:), face_geom_array(:)
     PetscSection :: cell_geom_section, face_geom_section
-    PetscInt :: c, offset, f
+    PetscInt :: c, offset, f, start_cell, end_cell, start_face, end_face
     type(cell_type) :: cell
     type(face_type) :: face
     PetscErrorCode :: ierr, err
@@ -181,7 +181,10 @@ contains
 
     volumes_OK = PETSC_TRUE
 
-    do c = mesh%strata(0)%start, mesh%strata(0)%end - 1
+    call DMPlexGetHeightStratum(mesh%dm, 0, start_cell, end_cell, ierr)
+    CHKERRQ(ierr)
+
+    do c = start_cell, end_cell - 1
        if (mesh%ghost_cell(c) < 0) then
           call section_offset(cell_geom_section, c, offset, &
                ierr); CHKERRQ(ierr)
@@ -203,7 +206,9 @@ contains
     call face%init()
     areas_OK = PETSC_TRUE
 
-    do f = mesh%strata(1)%start, mesh%strata(1)%end - 1
+    call DMPlexGetHeightStratum(mesh%dm, 1, start_face, end_face, ierr)
+    CHKERRQ(ierr)
+    do f = start_face, end_face - 1
        if (mesh%ghost_face(f) < 0) then
           call section_offset(face_geom_section, f, offset, &
                ierr); CHKERRQ(ierr)
@@ -246,7 +251,7 @@ contains
     PetscViewer :: viewer
     PetscReal, pointer, contiguous :: cell_geom_array(:), face_geom_array(:)
     PetscSection :: cell_geom_section, face_geom_section
-    PetscInt :: c, offset, f
+    PetscInt :: c, offset, f, start_cell, end_cell, start_face, end_face
     type(cell_type) :: cell
     type(face_type) :: face
     PetscErrorCode :: ierr, err
@@ -275,8 +280,10 @@ contains
     CHKERRQ(ierr)
 
     volumes_OK = PETSC_TRUE
+    call DMPlexGetHeightStratum(mesh%dm, 0, start_cell, end_cell, ierr)
+    CHKERRQ(ierr)
 
-    do c = mesh%strata(0)%start, mesh%strata(0)%end - 1
+    do c = start_cell, end_cell - 1
        if (mesh%ghost_cell(c) < 0) then
           call section_offset(cell_geom_section, c, offset, &
                ierr); CHKERRQ(ierr)
@@ -301,8 +308,10 @@ contains
     CHKERRQ(ierr)
     call face%init()
     areas_OK = PETSC_TRUE
+    call DMPlexGetHeightStratum(mesh%dm, 1, start_face, end_face, ierr)
+    CHKERRQ(ierr)
 
-    do f = mesh%strata(1)%start, mesh%strata(1)%end - 1
+    do f = start_face, end_face - 1
        if (mesh%ghost_face(f) < 0) then
           call section_offset(face_geom_section, f, offset, &
                ierr); CHKERRQ(ierr)
@@ -349,7 +358,7 @@ contains
     type(eos_we_type) :: eos
     type(mesh_type) :: mesh
     PetscViewer :: viewer
-    PetscInt :: f, offset
+    PetscInt :: f, offset, start_face, end_face
     PetscErrorCode :: ierr, err
     PetscSection :: face_geom_section
     type(face_type) :: face
@@ -380,8 +389,10 @@ contains
     call VecGetArrayReadF90(mesh%face_geom, face_geom_array, ierr)
     CHKERRQ(ierr)
     call face%init()
+    call DMPlexGetHeightStratum(mesh%dm, 1, start_face, end_face, ierr)
+    CHKERRQ(ierr)
 
-    do f = mesh%strata(1)%start, mesh%strata(1)%end - 1
+    do f = start_face, end_face - 1
        if (mesh%ghost_face(f) < 0) then
           call section_offset(face_geom_section, f, offset, ierr); CHKERRQ(ierr)
           call face%assign_geometry(face_geom_array, offset)
@@ -656,16 +667,25 @@ contains
 !........................................................................
 
     PetscInt function total_interior_cell_count(mesh) result(n)
+      ! Count interior cells.
+
       type(mesh_type), intent(in) :: mesh
-      PetscInt :: c, n_local
+      ! Locals:
+      PetscInt :: c, n_local, start_cell, end_cell
+      PetscErrorCode :: ierr
+
+      call DMPlexGetHeightStratum(mesh%dm, 0, start_cell, end_cell, ierr)
+      CHKERRQ(ierr)
+
       n_local = 0
-      do c = mesh%strata(0)%start, mesh%strata(0)%end - 1
+      do c = start_cell, end_cell - 1
          if (mesh%ghost_cell(c) < 0) then
             n_local = n_local + 1
          end if
       end do
       call MPI_reduce(n_local, n, 1, MPI_INTEGER, MPI_SUM, &
-         0, PETSC_COMM_WORLD, ierr)
+           0, PETSC_COMM_WORLD, ierr)
+
     end function total_interior_cell_count
 
   end subroutine test_setup_minc_dm

@@ -742,7 +742,7 @@ contains
     Vec, intent(out) :: lhs
     PetscErrorCode, intent(out) :: err
     ! Locals:
-    PetscInt :: c, np, nc
+    PetscInt :: c, np, nc, start_cell, end_cell
     PetscSection :: fluid_section, rock_section, lhs_section, update_section
     PetscInt :: fluid_offset, rock_offset, lhs_offset, update_offset
     PetscReal, pointer, contiguous :: fluid_array(:), rock_array(:), &
@@ -771,8 +771,10 @@ contains
     call VecGetArrayReadF90(self%rock, rock_array, ierr); CHKERRQ(ierr)
 
     call cell%init(nc, self%eos%num_phases)
+    call DMPlexGetHeightStratum(self%mesh%dm, 0, start_cell, end_cell, ierr)
+    CHKERRQ(ierr)
 
-    do c = self%mesh%strata(0)%start, self%mesh%strata(0)%end - 1
+    do c = start_cell, end_cell - 1
 
        if (self%mesh%ghost_cell(c) < 0) then
 
@@ -835,6 +837,8 @@ contains
     PetscErrorCode, intent(out) :: err
     ! Locals:
     PetscInt :: f, i, np
+    PetscInt :: start_cell, end_cell, end_interior_cell
+    PetscInt :: start_face, end_face
     Vec :: local_fluid, local_rock, local_update
     PetscReal, pointer, contiguous :: rhs_array(:)
     PetscReal, pointer, contiguous :: cell_geom_array(:), face_geom_array(:)
@@ -884,8 +888,13 @@ contains
     call VecGetArrayF90(self%flux, flux_array, ierr); CHKERRQ(ierr)
 
     call face%init(self%eos%num_components, self%eos%num_phases)
+    call DMPlexGetHeightStratum(self%mesh%dm, 0, start_cell, end_cell, ierr)
+    CHKERRQ(ierr)
+    call DMPlexGetHeightStratum(self%mesh%dm, 1, start_face, end_face, ierr)
+    CHKERRQ(ierr)
+    end_interior_cell = dm_get_end_interior_cell(self%mesh%dm, end_cell)
 
-    do f = self%mesh%strata(1)%start, self%mesh%strata(1)%end - 1
+    do f = start_face, end_face - 1
 
        if (self%mesh%ghost_face(f) < 0) then
 
@@ -931,7 +940,7 @@ contains
 
           do i = 1, 2
              if ((self%mesh%ghost_cell(cells(i)) < 0) .and. &
-                  (cells(i) <= self%mesh%strata(0)%end_interior - 1)) then
+                  (cells(i) <= end_interior_cell - 1)) then
                 inflow => rhs_array(rhs_offsets(i) : rhs_offsets(i) + np - 1)
                 inflow = inflow + flux_sign(i) * face_flow / &
                      face%cell(i)%volume
@@ -1134,7 +1143,7 @@ contains
     Vec, intent(in) :: y !! global primary variables vector
     PetscErrorCode, intent(out) :: err
     ! Locals:
-    PetscInt :: c, np, nc, natural_cell_index
+    PetscInt :: c, np, nc, natural_cell_index, start_cell, end_cell
     PetscSection :: y_section, fluid_section, rock_section
     PetscInt :: y_offset, fluid_offset, rock_offset
     PetscReal, pointer, contiguous :: y_array(:), scaled_cell_primary(:)
@@ -1163,8 +1172,10 @@ contains
 
     call cell%init(nc, self%eos%num_phases)
     call DMGetLocalToGlobalMapping(self%mesh%dm, l2g, ierr); CHKERRQ(ierr)
+    call DMPlexGetHeightStratum(self%mesh%dm, 0, start_cell, end_cell, ierr)
+    CHKERRQ(ierr)
 
-    do c = self%mesh%strata(0)%start, self%mesh%strata(0)%end - 1
+    do c = start_cell, end_cell - 1
 
        if (self%mesh%ghost_cell(c) < 0) then
 
@@ -1244,7 +1255,7 @@ contains
     Vec, intent(in) :: y !! global primary variables vector
     PetscErrorCode, intent(out) :: err !! error code
     ! Locals:
-    PetscInt :: c, np, nc, natural_cell_index
+    PetscInt :: c, np, nc, natural_cell_index, start_cell, end_cell
     PetscSection :: y_section, fluid_section, rock_section, update_section
     PetscInt :: y_offset, fluid_offset, rock_offset, update_offset
     PetscReal, pointer, contiguous :: y_array(:), scaled_cell_primary(:)
@@ -1277,8 +1288,10 @@ contains
 
     call cell%init(nc, self%eos%num_phases)
     call DMGetLocalToGlobalMapping(self%mesh%dm, l2g, ierr); CHKERRQ(ierr)
+    call DMPlexGetHeightStratum(self%mesh%dm, 0, start_cell, end_cell, ierr)
+    CHKERRQ(ierr)
 
-    do c = self%mesh%strata(0)%start, self%mesh%strata(0)%end - 1
+    do c = start_cell, end_cell - 1
 
        if ((self%mesh%ghost_cell(c) < 0)) then
 
@@ -1365,7 +1378,7 @@ contains
     PetscBool, intent(out) :: changed_search, changed_y
     PetscErrorCode, intent(out) :: err !! Error code
     ! Locals:
-    PetscInt :: c, np, nc, natural_cell_index
+    PetscInt :: c, np, nc, natural_cell_index, start_cell, end_cell
     PetscSection :: primary_section, fluid_section
     PetscInt :: primary_offset, fluid_offset
     PetscReal, pointer, contiguous :: primary_array(:), old_primary_array(:), search_array(:)
@@ -1402,8 +1415,10 @@ contains
     call fluid%init(nc, self%eos%num_phases)
 
     call DMGetLocalToGlobalMapping(self%mesh%dm, l2g, ierr); CHKERRQ(ierr)
+    call DMPlexGetHeightStratum(self%mesh%dm, 0, start_cell, end_cell, ierr)
+    CHKERRQ(ierr)
 
-    do c = self%mesh%strata(0)%start, self%mesh%strata(0)%end - 1
+    do c = start_cell, end_cell - 1
 
        if (self%mesh%ghost_cell(c) < 0) then
 
@@ -1556,7 +1571,8 @@ contains
   subroutine flow_simulation_boundary_residuals(self, y, lhs, residual, err)
     !! Computes residual terms for boundary ghost cells.
 
-    use dm_utils_module, only: global_section_offset, global_vec_section
+    use dm_utils_module, only: global_section_offset, global_vec_section, &
+         dm_get_end_interior_cell
     use cell_module, only: cell_type
 
     class(flow_simulation_type), intent(in out) :: self
@@ -1566,6 +1582,7 @@ contains
     PetscErrorCode, intent(out) :: err !! error code
     ! Locals:
     PetscInt :: c, np, nc
+    PetscInt :: start_cell, end_cell, end_interior_cell
     PetscSection :: fluid_section, rock_section, lhs_section
     PetscInt :: fluid_offset, rock_offset, lhs_offset
     PetscReal, pointer, contiguous :: fluid_array(:), rock_array(:)
@@ -1589,8 +1606,11 @@ contains
     call VecGetArrayReadF90(self%rock, rock_array, ierr); CHKERRQ(ierr)
 
     call cell%init(nc, self%eos%num_phases)
+    call DMPlexGetHeightStratum(self%mesh%dm, 0, start_cell, end_cell, ierr)
+    CHKERRQ(ierr)
+    end_interior_cell = dm_get_end_interior_cell(self%mesh%dm, end_cell)
 
-    do c = self%mesh%strata(0)%end_interior, self%mesh%strata(0)%end - 1
+    do c = end_interior_cell, end_cell - 1
 
        if (self%mesh%ghost_cell(c) < 0) then
 
