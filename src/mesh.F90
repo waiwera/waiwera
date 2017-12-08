@@ -571,8 +571,7 @@ contains
     !! cell index set.
 
     use eos_module, only: eos_type
-    use dm_utils_module, only: dm_setup_fv_discretization, &
-         set_dm_default_data_layout
+    use dm_utils_module
     use cell_order_module
     use logfile_module
 
@@ -600,20 +599,23 @@ contains
       call set_dm_default_data_layout(self%dm, dof)
 
       call self%setup_geometry(gravity)
+      self%cell_order = dm_get_natural_to_global_ao(self%dm, dist_sf)
       call self%setup_zones(json, logfile, err)
-
       if (err == 0) then
-         self%cell_order = dm_get_natural_to_global_ao(self%dm, dist_sf)
          call self%setup_minc(json, logfile, err)
          if (err == 0) then
             if (self%has_minc) then
                call self%setup_minc_dm(dof)
-               ! TODO set up MINC cell order
-               ! set up MINC cell index / interior index
+               call self%setup_minc_dm_cell_index(cell_interior_index)
             else
-               call dm_setup_cell_index(self%dm, self%cell_index, &
-                    cell_interior_index)
+               call dm_get_cell_index(self%dm, self%cell_order, &
+                    self%cell_index, cell_interior_index)
             end if
+            if (viewer /= PETSC_NULL_VIEWER) then
+               call ISView(self%cell_index, viewer, ierr); CHKERRQ(ierr)
+               call ISView(cell_interior_index, viewer, ierr); CHKERRQ(ierr)
+            end if
+            call ISDestroy(cell_interior_index, ierr); CHKERRQ(ierr)
          end if
       end if
 
@@ -621,7 +623,6 @@ contains
 
     call PetscSFDestroy(dist_sf, ierr); CHKERRQ(ierr)
     call self%setup_ghost_arrays()
-    call self%setup_zones(json, logfile, err)
     
   end subroutine mesh_configure
 
