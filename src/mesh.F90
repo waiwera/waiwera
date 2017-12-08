@@ -653,12 +653,10 @@ contains
        deallocate(self%ghost_face)
     end if
 
-    ! TODO factor out into mesh_destroy_minc()
     if (self%has_minc) then
        call self%destroy_minc()
        call self%destroy_strata()
     end if
-
     call self%zones%destroy(mesh_zones_node_data_destroy)
 
   contains
@@ -1425,16 +1423,17 @@ contains
          minc_level_cells)
     call self%setup_minc_dm_level_label(minc_dm, max_num_levels, &
          minc_level_cells)
-    call self%setup_minc_dm_cell_order_label(minc_dm, max_num_levels, &
-         num_minc_zones)
 
     call dm_set_fv_adjacency(minc_dm)
     call dm_setup_fv_discretization(minc_dm, dof)
     call set_dm_default_data_layout(minc_dm, dof)
+    call self%setup_minc_point_sf(minc_dm)
+    call dm_setup_global_section(minc_dm)
+
+    call self%setup_minc_dm_cell_order(minc_dm, max_num_levels, &
+         minc_level_cells)
     call self%setup_minc_geometry(minc_dm, num_cells, max_num_levels, &
          num_minc_zones, minc_zone)
-    call self%setup_minc_sf(minc_dm)
-    call dm_setup_global_section(minc_dm)
 
     do m = 0, max_num_levels
        call minc_level_cells(m)%destroy()
