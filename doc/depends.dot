@@ -11,6 +11,7 @@ digraph waiwera{
         cell_order_module -> minc_module
         cell_order_module -> utils_module
         dictionary_module -> list_module
+        dm_utils_module -> utils_module
         eos_module -> fluid_module
         eos_module -> interpolation_module
         eos_module -> logfile_module
