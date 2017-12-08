@@ -293,10 +293,14 @@ contains
     ! Locals:
     PetscInt :: i
 
-    s(1) = a(1)
-    do i = 2, size(a)
-       s(i) = s(i - 1) + a(i)
-    end do
+    associate(n => size(a))
+      if (n > 0) then
+         s(1) = a(1)
+         do i = 2, n
+            s(i) = s(i - 1) + a(i)
+         end do
+      end if
+    end associate
 
   end function array_cumulative_sum_real
 
@@ -310,10 +314,14 @@ contains
     ! Locals:
     PetscInt :: i
 
-    s(1) = a(1)
-    do i = 2, size(a)
-       s(i) = s(i - 1) + a(i)
-    end do
+    associate(n => size(a))
+      if (n > 0) then
+         s(1) = a(1)
+         do i = 2, n
+            s(i) = s(i - 1) + a(i)
+         end do
+      end if
+    end associate
 
   end function array_cumulative_sum_integer
 

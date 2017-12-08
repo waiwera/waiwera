@@ -357,6 +357,8 @@ contains
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
     if (rank == 0) then
 
+       call assert_equals([PetscInt::], &
+            array_cumulative_sum([PetscInt::]), 0, '0-D')
        call assert_equals([2._dp], &
             array_cumulative_sum([2._dp]), 1, tol, '1-D')
        call assert_equals([2._dp, 5._dp], &
