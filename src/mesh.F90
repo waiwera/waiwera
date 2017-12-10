@@ -1373,12 +1373,13 @@ contains
     PetscInt :: num_minc_cells
     PetscInt :: num_minc_zones, num_cells, num_new_points, max_num_levels
     PetscInt, allocatable :: minc_zone(:), minc_end_interior(:)
-    PetscInt :: stratum_shift(0: self%depth)
+    PetscInt, allocatable :: stratum_shift(:)
     type(list_type), allocatable :: minc_level_cells(:)
     PetscErrorCode :: ierr
 
     call dm_get_strata(self%dm, self%depth, self%strata)
-    
+    allocate(stratum_shift(0: self%depth))
+
     call DMPlexCreate(PETSC_COMM_WORLD, minc_dm, ierr); CHKERRQ(ierr)
 
     call DMGetDimension(self%dm, dim, ierr); CHKERRQ(ierr)
@@ -1436,7 +1437,7 @@ contains
     do m = 0, max_num_levels
        call minc_level_cells(m)%destroy()
     end do
-    deallocate(minc_zone, minc_level_cells)
+    deallocate(minc_zone, minc_level_cells, stratum_shift)
 
     call DMDestroy(self%dm, ierr); CHKERRQ(ierr)
     self%dm = minc_dm
