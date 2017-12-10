@@ -505,7 +505,6 @@ contains
 
       viewer = PETSC_NULL_VIEWER
       call thermo%init()
-
       json => fson_parse_mpi(str = json_str)
       call eos%init(json, thermo)
       call mesh%init(json)
@@ -658,7 +657,7 @@ contains
       i = index(json_str, '"minc"')
       if (i > 0) then
          associate(n => len(json_str))
-           orig_str(i:n) = '"minc": {}'
+           orig_str(i:n) = '"minc": {}}}'
          end associate
       end if
 
