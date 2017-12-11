@@ -2162,8 +2162,8 @@ contains
          isort = isort + 1 ! convert to 1-based
 
          do i = 1, n_all
-            minc_natural_sorted(isort(i)) = inatural
-            minc_global_sorted(isort(i)) = minc_global_all(i)
+            minc_natural_sorted(i) = inatural
+            minc_global_sorted(i) = minc_global_all(isort(i))
             inatural = inatural + 1
          end do
 
