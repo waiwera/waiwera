@@ -40,7 +40,7 @@ contains
     type(mesh_type) :: mesh
     Vec :: fluid_vector, local_fluid_vector
     PetscSection :: fluid_section, local_fluid_section
-    PetscInt :: c, fluid_offset, fluid_range_start
+    PetscInt :: start_cell, end_cell, c, fluid_offset, fluid_range_start
     PetscReal, allocatable :: fluid_cell_data(:)
     PetscReal, pointer, contiguous :: fluid_array(:), local_fluid_array(:)
     PetscErrorCode :: ierr, err
@@ -62,6 +62,8 @@ contains
     call setup_fluid_vector(mesh%dm, max_component_name_length, &
          eos%component_names, max_phase_name_length, eos%phase_names, &
          fluid_vector, fluid_range_start)
+    call DMPlexGetHeightStratum(mesh%dm, 0, start_cell, end_cell, ierr)
+    CHKERRQ(ierr)
     call global_vec_section(fluid_vector, fluid_section)
     call VecGetArrayF90(fluid_vector, fluid_array, ierr); CHKERRQ(ierr)
 
@@ -69,7 +71,7 @@ contains
          935._dp, 1.e-6_dp, 0.8_dp, 0.7_dp, 0._dp, 83.9e3_dp, 5.461e5_dp, 0.7_dp, 0.3_dp, &
          1.5_dp,  2.e-7_dp, 0.2_dp, 0.3_dp, 0._dp, 800.e3_dp, 2.540e6_dp, 0.4_dp, 0.6_dp]
 
-    do c = mesh%strata(0)%start, mesh%strata(0)%end - 1
+    do c = start_cell, end_cell - 1
        if (mesh%ghost_cell(c) < 0) then
           call global_section_offset(fluid_section, c, fluid_range_start, &
                fluid_offset, ierr)
