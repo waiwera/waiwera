@@ -80,7 +80,6 @@ module mesh_module
      procedure :: setup_minc_geometry => mesh_setup_minc_geometry
      procedure :: setup_minc_rock_properties => mesh_setup_minc_rock_properties
      procedure :: setup_minc_point_sf => mesh_setup_minc_point_sf
-     procedure :: setup_minc_dm_cell_index => mesh_setup_minc_dm_cell_index
      procedure, public :: init => mesh_init
      procedure, public :: configure => mesh_configure
      procedure, public :: setup_boundaries => mesh_setup_boundaries
@@ -2177,19 +2176,6 @@ contains
 !........................................................................
 
   end subroutine mesh_setup_minc_dm_cell_order
-
-!------------------------------------------------------------------------
-
-  subroutine mesh_setup_minc_dm_cell_index(self, cell_interior_index)
-    !! Sets up self%cell_index and cell_interior_index index sets for
-    !! MINC mesh.
-
-    class(mesh_type), intent(in out) :: self
-    IS, intent(out) :: cell_interior_index
-
-    ! TODO- maybe don't need if can use dm_get_cell_index() ?
-
-  end subroutine mesh_setup_minc_dm_cell_index
 
 !------------------------------------------------------------------------
 
