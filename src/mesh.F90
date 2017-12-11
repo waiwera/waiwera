@@ -2069,7 +2069,7 @@ contains
       !! process, and returns number of cells.
 
       ! Locals:
-      PetscInt :: ic, ghost, carray(1), idx(1)
+      PetscInt :: ic, ghost, carray(1)
       DMLabel :: ghost_label
       PetscErrorCode :: ierr
 
@@ -2083,8 +2083,7 @@ contains
                  l2g, c)
             carray = c
             call ISLocalToGlobalMappingApplyBlock(minc_l2g, 1, carray, &
-                 idx, ierr); CHKERRQ(ierr)
-            global(ic) = idx(1)
+                 global(ic:ic), ierr); CHKERRQ(ierr)
          end if
       end do
 
@@ -2118,7 +2117,7 @@ contains
       type(list_node_type), pointer, intent(in out) :: node
       PetscBool, intent(out) :: stopped
       ! Locals:
-      PetscInt :: p(1), idx(1)
+      PetscInt :: p(1)
       PetscErrorCode :: ierr
 
       select type (c => node%data)
@@ -2128,8 +2127,7 @@ contains
          minc_frac_natural(ic) = local_to_natural_cell_index( &
               self%cell_order, l2g, c)
          call ISLocalToGlobalMappingApplyBlock(minc_l2g, 1, p, &
-              idx, ierr); CHKERRQ(ierr)
-         minc_global(ic) = idx(1)
+              minc_global(ic:ic), ierr); CHKERRQ(ierr)
       end select
 
     end subroutine minc_indices_iterator
