@@ -2025,18 +2025,24 @@ contains
     ! MINC cells (level > 0):
     minc_counts = get_mpi_int_gather_array()
     minc_displacements = get_mpi_int_gather_array()
+
     do m = 1, max_num_levels
        associate(n => minc_level_cells(m)%count)
+
          allocate(minc_frac_natural(n), minc_global(n))
          call MPI_gather(n, 1, MPI_INTEGER, minc_counts, 1, &
               MPI_INTEGER, 0, PETSC_COMM_WORLD, ierr)
          if (rank == 0) then
             minc_displacements = [[0], &
                  array_cumulative_sum(minc_counts(1: num_procs - 1))]
+            n_all = sum(minc_counts)
+         else
+            n_all = 1
          end if
+
          ic = 0
          call minc_level_cells(m)%traverse(minc_indices_iterator)
-         n_all = sum(minc_counts)
+
          allocate(minc_global_all(n_all), minc_frac_natural_all(n_all))
          call MPI_gatherv(minc_global, n, MPI_INTEGER, &
               minc_global_all, minc_counts, minc_displacements, &
@@ -2044,10 +2050,13 @@ contains
          call MPI_gatherv(minc_frac_natural, n, MPI_INTEGER, &
               minc_frac_natural_all, minc_counts, minc_displacements, &
               MPI_INTEGER, 0, PETSC_COMM_WORLD, ierr)
+
          call assign_minc_natural_indices(n_all, minc_frac_natural_all, &
               minc_global_all, natural, global, inatural, offset)
+
          deallocate(minc_frac_natural, minc_global, minc_global_all, &
               minc_frac_natural_all)
+
        end associate
     end do
     deallocate(minc_counts, minc_displacements)
