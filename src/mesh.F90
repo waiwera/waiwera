@@ -2123,10 +2123,10 @@ contains
 
       select type (c => node%data)
       type is (PetscInt)
+         p = self%strata(0)%minc_point(ic, m)
          ic = ic + 1
          minc_frac_natural(ic) = local_to_natural_cell_index( &
               self%cell_order, l2g, c)
-         p = self%strata(0)%minc_point(c, m)
          call ISLocalToGlobalMappingApplyBlock(minc_l2g, 1, p, &
               idx, ierr); CHKERRQ(ierr)
          minc_global(ic) = idx(1)
