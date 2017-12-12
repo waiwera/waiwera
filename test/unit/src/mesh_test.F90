@@ -16,7 +16,7 @@ module mesh_test
   public :: test_mesh_init, test_2d_cartesian_geometry, &
        test_2d_radial_geometry, test_mesh_face_permeability_direction, &
        test_setup_minc_dm, test_minc_rock, &
-       test_rock_assignment, test_cell_order
+       test_rock_assignment, test_cell_order, test_minc_cell_order
 
   PetscReal, parameter :: tol = 1.e-6_dp
 
@@ -1108,6 +1108,157 @@ contains
     end subroutine cell_order_test_case
 
   end subroutine test_cell_order
+
+!------------------------------------------------------------------------
+
+  subroutine test_minc_cell_order
+    ! MINC cell order
+
+    use fson_mpi_module
+    use IAPWS_module
+    use eos_we_module
+    use dm_utils_module, only: dm_get_end_interior_cell, local_to_natural_cell_index
+    use minc_module, only: minc_zone_label_name
+
+    character(:), allocatable :: json_str
+    PetscInt, allocatable :: expected_minc_order(:,:)
+    PetscInt :: c, i
+    PetscInt, allocatable :: natural(:), minc_natural(:)
+
+    json_str = &
+         '{"mesh": {"filename": "data/mesh/7x7grid.exo",' // &
+         '  "zones": {"all": {"-": null}},' // &
+         '  "minc": {"zones": ["all"], "fracture": {"volume": 0.1}}}}'
+    allocate(expected_minc_order(1, 0:48))
+    expected_minc_order(1, :) = [(c + 49, c = 0, 48)]
+    call minc_cell_order_test_case(json_str, ' full no bdy', expected_minc_order)
+    deallocate(expected_minc_order)
+
+    json_str = &
+         '{"mesh": {"filename": "data/mesh/7x7grid.exo",' // &
+         '  "zones": {"all": {"-": null}},' // &
+         '  "minc": {"zones": ["all"], "fracture": {"volume": 0.1}}}, ' // &
+         '"boundaries": [{"faces": {"cells": [0, 1, 2, 3, 4, 5], ' // &
+         '  "normal": [0, -1, 0]}}]' // &
+         '}'
+    allocate(expected_minc_order(1, 0:48))
+    expected_minc_order(1, :) = [(c + 49, c = 0, 48)]
+    call minc_cell_order_test_case(json_str, ' full bdy', expected_minc_order)
+    deallocate(expected_minc_order)
+
+    json_str = &
+         '{"mesh": {"filename": "data/mesh/7x7grid.exo",' // &
+         '  "zones": {"sw": {"x": [0, 3000], "y": [0, 1500]}},' // &
+         '  "minc": {"zones": ["sw"], "fracture": {"volume": 0.1}}}}'
+    allocate(expected_minc_order(1, 0:48))
+    expected_minc_order = 0
+    expected_minc_order(1, 0:4) = [(c + 49, c = 0, 4)]
+    expected_minc_order(1, 7:11) = [(c + 47, c = 7, 11)]
+    call minc_cell_order_test_case(json_str, ' partial no bdy', expected_minc_order)
+    deallocate(expected_minc_order)
+
+    json_str = &
+         '{"mesh": {"filename": "data/mesh/7x7grid.exo",' // &
+         '  "zones": {"sw": {"x": [0, 3000], "y": [0, 1500]}},' // &
+         '  "minc": {"zones": ["sw"], "fracture": {"volume": 0.1}}},' // &
+         '"boundaries": [{"faces": {"cells": [0, 1, 2, 3, 4, 5], ' // &
+         '  "normal": [0, -1, 0]}}]' // &
+         '}'
+    allocate(expected_minc_order(1, 0:48))
+    expected_minc_order = 0
+    expected_minc_order(1, 0:4) = [(c + 49, c = 0, 4)]
+    expected_minc_order(1, 7:11) = [(c + 47, c = 7, 11)]
+    call minc_cell_order_test_case(json_str, ' partial bdy', expected_minc_order)
+    deallocate(expected_minc_order)
+
+    json_str = &
+         '{"mesh": {"filename": "data/mesh/7x7grid.exo",' // &
+         '  "zones": {"sw": {"x": [0, 3000], "y": [0, 1500]}, ' // &
+         '           "ne": {"x": [3000, 4500], "y": [2000, 4500]}},' // &
+         '  "minc": [{"zones": ["sw"], "fracture": {"volume": 0.1}}, ' // &
+         '   {"zones": ["ne"], "matrix": {"volume": [0.3, 0.6]}}]}, ' // &
+         '"boundaries": [{"faces": {"cells": [0, 1, 2, 3, 4, 5], ' // &
+         '  "normal": [0, -1, 0]}}]' // &
+         '}'
+    allocate(expected_minc_order(2, 0:48))
+    expected_minc_order = 0
+    natural = [0, 1, 2, 3, 4, 7, 8, 9, 10, 11, 26, 27, 33, 34, 40, 41, 47, 48]
+    minc_natural = [(c, c = 49, 66)]
+    do i = 1, size(natural)
+       expected_minc_order(1, natural(i)) = minc_natural(i)
+    end do
+    natural = [26, 27, 33, 34, 40, 41, 47, 48]
+    minc_natural = [(c, c = 67, 74)]
+    do i = 1, size(natural)
+       expected_minc_order(2, natural(i)) = minc_natural(i)
+    end do
+    call minc_cell_order_test_case(json_str, ' multizone bdy', expected_minc_order)
+    deallocate(expected_minc_order, natural, minc_natural)
+
+  contains
+
+    subroutine minc_cell_order_test_case(json_str, title, expected_minc_order)
+
+      character(*), intent(in) :: json_str
+      character(*), intent(in) :: title
+      PetscInt, intent(in) :: expected_minc_order(:, 0:)
+      ! Locals:
+      type(mesh_type) :: mesh
+      type(IAPWS_type) :: thermo
+      type(eos_we_type) :: eos
+      type(fson_value), pointer :: json
+      PetscViewer :: viewer
+      PetscInt :: c, p, m, natural, minc_natural, expected_natural
+      PetscInt, allocatable :: ic(:)
+      PetscInt :: iminc
+      DMLabel :: minc_label
+      ISLocalToGlobalMapping :: l2g
+      character(32) :: natural_str
+      PetscErrorCode :: err, ierr
+      PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
+
+      json => fson_parse_mpi(str = json_str)
+      call thermo%init()
+      call eos%init(json, thermo)
+      viewer = PETSC_NULL_VIEWER
+      call mesh%init(json)
+      call mesh%configure(eos, gravity, json, viewer = viewer, err = err)
+      call fson_destroy_mpi(json)
+
+      call DMGetLabel(mesh%dm, minc_zone_label_name, minc_label, ierr)
+      CHKERRQ(ierr)
+      call DMGetLocalToGlobalMapping(mesh%dm, l2g, ierr); CHKERRQ(ierr)
+
+      allocate(ic(maxval(mesh%minc%num_levels)))
+      ic = 0
+      do c = mesh%strata(0)%start, mesh%strata(0)%end_interior - 1
+         if (mesh%ghost_cell(c) < 0) then
+            call DMLabelGetValue(minc_label, c, iminc, ierr); CHKERRQ(ierr)
+            if (iminc > 0) then
+               associate(minc => mesh%minc(iminc))
+                 do m = 1, minc%num_levels
+                    p = mesh%strata(0)%minc_point(ic(m), m)
+                    natural = local_to_natural_cell_index(mesh%cell_order, l2g, c)
+                    write(natural_str, '(i6)') natural
+                    minc_natural = local_to_natural_cell_index(mesh%cell_order, l2g, p)
+                    expected_natural = expected_minc_order(m, natural)
+                    call assert_equals(expected_natural, minc_natural, &
+                         'minc natural' // title // trim(natural_str))
+                    ic(m) = ic(m) + 1
+                 end do
+               end associate
+            end if
+         end if
+      end do
+
+      call mesh%destroy()
+      call eos%destroy()
+      call thermo%destroy()
+      deallocate(ic)
+
+    end subroutine minc_cell_order_test_case
+
+  end subroutine test_minc_cell_order
 
 !------------------------------------------------------------------------
 
