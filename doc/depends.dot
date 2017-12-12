@@ -8,8 +8,6 @@ digraph waiwera{
         capillary_pressure_module -> utils_module
         cell_module -> fluid_module
         cell_module -> rock_module
-        cell_order_module -> minc_module
-        cell_order_module -> utils_module
         dictionary_module -> list_module
         dm_utils_module -> utils_module
         eos_module -> fluid_module
