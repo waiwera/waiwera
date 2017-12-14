@@ -2407,6 +2407,12 @@ contains
 
     call fson_get_mpi(json, "mesh.minc", minc_json)
     minc_type = fson_type_mpi(minc_json, ".")
+    select case (minc_type)
+    case (TYPE_OBJECT)
+       minci_json => minc_json
+    case (TYPE_ARRAY)
+       minci_json => fson_value_children_mpi(minc_json)
+    end select
 
     call VecGetArrayF90(rock_vector, rock_array, ierr); CHKERRQ(ierr)
     call global_vec_section(rock_vector, section)
@@ -2427,11 +2433,6 @@ contains
     do iminc = 1, size(self%minc)
        associate(minc => self%minc(iminc))
 
-         if (minc_type == TYPE_OBJECT) then
-            minci_json => minc_json
-         else
-            minci_json => fson_value_get_mpi(minc_json, iminc)
-         end if
          write(imstr, '(i0)') iminc - 1
          mincstr = 'mesh.minc[' // trim(imstr) // ']'
 
@@ -2500,6 +2501,10 @@ contains
 
          else
             exit
+         end if
+
+         if (minc_type == TYPE_ARRAY) then
+            minci_json => fson_value_next_mpi(minci_json)
          end if
 
        end associate
