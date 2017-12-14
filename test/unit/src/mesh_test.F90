@@ -430,29 +430,35 @@ contains
     json_str = &
          '{"mesh": {"filename": "data/mesh/7x7grid.exo",' // &
          '  "zones": {"all": {"-": null}},' // &
-         '  "minc": {"zones": ["all"], "fracture": {"volume": 0.1}}}}'
+         '  "minc": {"rock": {"zones": ["all"]}, ' // &
+         '           "geometry": {"fracture": {"volume": 0.1}}}}}'
     call minc_test('all', json_str, 1, 2 * 49, 1, [49, 49])
 
     json_str = &
          '{"mesh": {"filename": "data/mesh/7x7grid.exo",' // &
          '  "zones": {"left": {"x": [0, 1500]}},' // &
-         '  "minc": {"zones": ["left"], "matrix": {"volume": 0.9}}}}'
+         '  "minc": {"rock": {"zones": ["left"]}, ' // &
+         '           "geometry": {"matrix": {"volume": 0.9}}}}}'
     call minc_test('partial', json_str, 1, 63, 1, [49, 14])
 
     json_str = &
          '{"mesh": {"filename": "data/mesh/7x7grid.exo",' // &
          '  "zones": {"left": {"x": [0, 1500]}, "right": {"-": "left"}},' // &
-         '  "minc": [{"zones": ["left"], "fracture": {"volume": 0.1}}, ' // &
-         '           {"zones": ["right"], "fracture": {"volume": 0.1}, ' // &
-         '            "matrix": {"volume": [0.3, 0.6]}}]}}'
+         '  "minc": [{"rock": {"zones": ["left"]}, ' // &
+         '                     "geometry": {"fracture": {"volume": 0.1}}}, ' // &
+         '           {"rock": {"zones": ["right"]}, ' // &
+         '            "geometry": {"fracture": {"volume": 0.1}, ' // &
+         '                         "matrix": {"volume": [0.3, 0.6]}}}]}}'
     call minc_test('two-zone', json_str, 2, 133, 2, [49, 49, 35])
 
     json_str = &
          '{"mesh": {"filename": "data/mesh/7x7grid.exo",' // &
          '  "zones": {"left": {"x": [0, 1500]}, ' // &
          '            "right corner": {"x": [2500, 4500], "y": [3000, 4500]}},' // &
-         '  "minc": [{"zones": ["right corner"], "fracture": {"volume": 0.1}}, ' // &
-         '   {"zones": ["left"], "matrix": {"volume": [0.3, 0.6]}}]}}'
+         '  "minc": [{"rock": {"zones": ["right corner"]}, ' // &
+         '            "geometry": {"fracture": {"volume": 0.1}}}, ' // &
+         '           {"rock": {"zones": ["left"]}, ' // &
+         '            "geometry": {"matrix": {"volume": [0.3, 0.6]}}}]}}'
     call minc_test('two-zone partial', json_str, 2, 83, 2, [49, 20, 14])
 
   contains
@@ -862,10 +868,12 @@ contains
     json_str = &
          '{"mesh": {"filename": "data/mesh/7x7grid.exo",' // &
          '  "zones": {"all": {"-": null}},' // &
-         '  "minc": {"zones": "all", ' // &
-         '           "fracture": {"volume": 0.1, "planes": 3, ' // &
-         '                        "spacing": 100, "rock": {"type": "fracture"}}, ' // &
-         '           "matrix": {"volume": 0.9, "rock": {"type": "matrix"}}}},' // &
+         '  "minc": {"rock": {"zones": "all", ' // &
+         '                    "fracture": {"type": "fracture"}, ' // &
+         '                    "matrix": {"type": "matrix"}}, ' // &
+         '           "geometry": {"fracture": {"volume": 0.1, "planes": 3, ' // &
+         '                          "spacing": 100}, ' // &
+         '                        "matrix": {"volume": 0.9}}}},' // &
          ' "rock": {"types": [{"name": "original", "porosity": 0.1, "zones": "all"}, ' // &
          '                    {"name": "fracture", "porosity": 0.6}, ' // &
          '                    {"name": "matrix", "porosity": 0.02}]}}'
@@ -875,10 +883,12 @@ contains
     json_str = &
          '{"mesh": {"filename": "data/mesh/7x7grid.exo",' // &
          '  "zones": {"all": {"-": null}},' // &
-         '  "minc": {"zones": "all", ' // &
-         '           "fracture": {"volume": 0.1, "planes": 3, ' // &
-         '                        "spacing": 100, "rock": {"type": "fracture"}}, ' // &
-         '           "matrix": {"volume": [0.3, 0.6], "rock": {"type": "matrix"}}}},' // &
+         '  "minc": {"rock": {"zones": "all", ' // &
+         '                    "fracture": {"type": "fracture"}, ' // &
+         '                    "matrix": {"type": "matrix"}}, ' // &
+         '           "geometry": {"fracture": {"volume": 0.1, "planes": 3, ' // &
+         '                          "spacing": 100}, ' // &
+         '                        "matrix": {"volume": [0.3, 0.6]}}}},' // &
          ' "rock": {"types": [{"name": "original", "porosity": 0.1, "zones": "all"}, ' // &
          '                    {"name": "fracture", "porosity": 0.6}, ' // &
          '                    {"name": "matrix"}]}}'
@@ -1128,7 +1138,8 @@ contains
     json_str = &
          '{"mesh": {"filename": "data/mesh/7x7grid.exo",' // &
          '  "zones": {"all": {"-": null}},' // &
-         '  "minc": {"zones": ["all"], "fracture": {"volume": 0.1}}}}'
+         '  "minc": {"rock": {"zones": ["all"]}, ' // &
+         '           "geometry": {"fracture": {"volume": 0.1}}}}}'
     allocate(expected_minc_order(1, 0:48))
     expected_minc_order(1, :) = [(c + 49, c = 0, 48)]
     call minc_cell_order_test_case(json_str, ' full no bdy', expected_minc_order)
@@ -1137,7 +1148,8 @@ contains
     json_str = &
          '{"mesh": {"filename": "data/mesh/7x7grid.exo",' // &
          '  "zones": {"all": {"-": null}},' // &
-         '  "minc": {"zones": ["all"], "fracture": {"volume": 0.1}}}, ' // &
+         '  "minc": {"rock": {"zones": ["all"]}, ' // &
+         '           "geometry": {"fracture": {"volume": 0.1}}}}, ' // &
          '"boundaries": [{"faces": {"cells": [0, 1, 2, 3, 4, 5], ' // &
          '  "normal": [0, -1, 0]}}]' // &
          '}'
@@ -1149,7 +1161,8 @@ contains
     json_str = &
          '{"mesh": {"filename": "data/mesh/7x7grid.exo",' // &
          '  "zones": {"sw": {"x": [0, 3000], "y": [0, 1500]}},' // &
-         '  "minc": {"zones": ["sw"], "fracture": {"volume": 0.1}}}}'
+         '  "minc": {"rock": {"zones": ["sw"]}, ' // &
+         '           "geometry": {"fracture": {"volume": 0.1}}}}}'
     allocate(expected_minc_order(1, 0:48))
     expected_minc_order = 0
     expected_minc_order(1, 0:4) = [(c + 49, c = 0, 4)]
@@ -1160,7 +1173,8 @@ contains
     json_str = &
          '{"mesh": {"filename": "data/mesh/7x7grid.exo",' // &
          '  "zones": {"sw": {"x": [0, 3000], "y": [0, 1500]}},' // &
-         '  "minc": {"zones": ["sw"], "fracture": {"volume": 0.1}}},' // &
+         '  "minc": {"rock": {"zones": ["sw"]}, ' // &
+         '           "geometry": {"fracture": {"volume": 0.1}}}},' // &
          '"boundaries": [{"faces": {"cells": [0, 1, 2, 3, 4, 5], ' // &
          '  "normal": [0, -1, 0]}}]' // &
          '}'
@@ -1175,8 +1189,10 @@ contains
          '{"mesh": {"filename": "data/mesh/7x7grid.exo",' // &
          '  "zones": {"sw": {"x": [0, 3000], "y": [0, 1500]}, ' // &
          '           "ne": {"x": [3000, 4500], "y": [2000, 4500]}},' // &
-         '  "minc": [{"zones": ["sw"], "fracture": {"volume": 0.1}}, ' // &
-         '   {"zones": ["ne"], "matrix": {"volume": [0.3, 0.6]}}]}, ' // &
+         '  "minc": [{"rock": {"zones": ["sw"]}, ' // &
+         '            "geometry": {"fracture": {"volume": 0.1}}}, ' // &
+         '           {"rock": {"zones": ["ne"]}, ' // &
+         '            "geometry": {"matrix": {"volume": [0.3, 0.6]}}}]}, ' // &
          '"boundaries": [{"faces": {"cells": [0, 1, 2, 3, 4, 5], ' // &
          '  "normal": [0, -1, 0]}}]' // &
          '}'
