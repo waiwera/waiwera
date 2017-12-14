@@ -39,7 +39,7 @@ contains
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
     ir = 1
 
-    json => fson_parse_mpi(str = '{"fracture": {"planes": 1, "spacing": 50.}}')
+    json => fson_parse_mpi(str = '{"geometry": {"fracture": {"planes": 1, "spacing": 50.}}}')
     call minc%init(json, dm, ao, 0, "minc", ir, err = err)
     if (rank == 0) then
        call assert_equals(1, minc%num_fracture_planes, '1 set of fracture planes')
@@ -52,7 +52,7 @@ contains
     call minc%destroy()
     call fson_destroy_mpi(json)
 
-    json => fson_parse_mpi(str = '{"fracture": {"planes": 2, "spacing": [50, 80]}}')
+    json => fson_parse_mpi(str = '{"geometry": {"fracture": {"planes": 2, "spacing": [50, 80]}}}')
     call minc%init(json, dm, ao, 0, "minc", ir, err = err)
     if (rank == 0) then
        call assert_equals(2, minc%num_fracture_planes, '2 sets of fracture planes')
@@ -66,7 +66,7 @@ contains
     call minc%destroy()
     call fson_destroy_mpi(json)
 
-    json => fson_parse_mpi(str = '{"fracture": {"planes": 3, "spacing": [50, 80, 60]}}')
+    json => fson_parse_mpi(str = '{"geometry": {"fracture": {"planes": 3, "spacing": [50, 80, 60]}}}')
     call minc%init(json, dm, ao, 0, "minc", ir, err = err)
     if (rank == 0) then
        call assert_equals(3, minc%num_fracture_planes, '3 sets of fracture planes')
@@ -102,7 +102,7 @@ contains
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
     ir = 1
 
-    json => fson_parse_mpi(str = '{"fracture": {"planes": 1, "spacing": 50.}}')
+    json => fson_parse_mpi(str = '{"geometry": {"fracture": {"planes": 1, "spacing": 50.}}}')
     call minc%init(json, dm, ao, 0, "minc", ir, err = err)
     if (rank == 0) then
        call assert_equals(0.04_dp, &
@@ -117,7 +117,7 @@ contains
     call minc%destroy()
     call fson_destroy_mpi(json)
 
-    json => fson_parse_mpi(str = '{"fracture": {"planes": 2, "spacing": [50, 80]}}')
+    json => fson_parse_mpi(str = '{"geometry": {"fracture": {"planes": 2, "spacing": [50, 80]}}}')
     call minc%init(json, dm, ao, 0, "minc", ir, err = err)
     if (rank == 0) then
        call assert_equals(0.065_dp, &
@@ -132,7 +132,7 @@ contains
     call minc%destroy()
     call fson_destroy_mpi(json)
 
-    json => fson_parse_mpi(str = '{"fracture": {"planes": 2, "spacing": 50}}')
+    json => fson_parse_mpi(str = '{"geometry": {"fracture": {"planes": 2, "spacing": 50}}}')
     call minc%init(json, dm, ao, 0, "minc", ir, err = err)
     if (rank == 0) then
        call assert_equals([50._dp, 50._dp], minc%fracture_spacing, 2, tol, &
@@ -149,7 +149,7 @@ contains
     call minc%destroy()
     call fson_destroy_mpi(json)
 
-    json => fson_parse_mpi(str = '{"fracture": {"planes": 3, "spacing": [50, 80, 60]}}')
+    json => fson_parse_mpi(str = '{"geometry": {"fracture": {"planes": 3, "spacing": [50, 80, 60]}}}')
     call minc%init(json, dm, ao, 0, "minc", ir, err = err)
     if (rank == 0) then
        call assert_equals(0.0983333333_dp, &
@@ -186,7 +186,7 @@ contains
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
     ir = 1
 
-    json => fson_parse_mpi(str = '{"fracture": {"planes": 1, "spacing": 50.}}')
+    json => fson_parse_mpi(str = '{"geometry": {"fracture": {"planes": 1, "spacing": 50.}}}')
     call minc%init(json, dm, ao, 0, "minc", ir, err = err)
     if (rank == 0) then
        call assert_equals(25._dp / 3._dp, &
@@ -199,7 +199,7 @@ contains
     call minc%destroy()
     call fson_destroy_mpi(json)
 
-    json => fson_parse_mpi(str = '{"fracture": {"planes": 2, "spacing": [50, 80]}}')
+    json => fson_parse_mpi(str = '{"geometry": {"fracture": {"planes": 2, "spacing": [50, 80]}}}')
     call minc%init(json, dm, ao, 0, "minc", ir, err = err)
     if (rank == 0) then
        call assert_equals(100._dp / 13._dp, &
@@ -212,7 +212,7 @@ contains
     call minc%destroy()
     call fson_destroy_mpi(json)
 
-    json => fson_parse_mpi(str = '{"fracture": {"planes": 3, "spacing": [50, 80, 60]}}')
+    json => fson_parse_mpi(str = '{"geometry": {"fracture": {"planes": 3, "spacing": [50, 80, 60]}}}')
     call minc%init(json, dm, ao, 0, "minc", ir, err = err)
     if (rank == 0) then
        call assert_equals(360._dp / 59._dp, &
@@ -246,8 +246,8 @@ contains
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
 
-    json => fson_parse_mpi(str = '{' // &
-         '"fracture": {"volume": 0.1, "planes": 1, "spacing": 50.}}')
+    json => fson_parse_mpi(str = '{"geometry": {' // &
+         '"fracture": {"volume": 0.1, "planes": 1, "spacing": 50.}}}')
     call minc%init(json, dm, ao, 0, "minc", ir, err = err)
     if (rank == 0) then
        call assert_equals(0, err, '1 plane 1 level error')
@@ -261,9 +261,9 @@ contains
     call minc%destroy()
     call fson_destroy_mpi(json)
 
-    json => fson_parse_mpi(str = '{' // &
+    json => fson_parse_mpi(str = '{"geometry": {' // &
          '"fracture": {"volume": 0.1, "planes": 1, "spacing": 100.}, ' // &
-         '"matrix": {"volume": [0.3, 0.6]}}')
+         '"matrix": {"volume": [0.3, 0.6]}}}')
     call minc%init(json, dm, ao, 0, "minc", ir, err = err)
     if (rank == 0) then
        call assert_equals(0, err, '1 plane 2 levels error')
@@ -277,9 +277,9 @@ contains
     call minc%destroy()
     call fson_destroy_mpi(json)
 
-    json => fson_parse_mpi(str = '{' // &
+    json => fson_parse_mpi(str = '{"geometry": {' // &
          '"fracture": {"volume": 10, "planes": 1, "spacing": 100.}, ' // &
-         '"matrix": {"volume": [20, 30, 40]}}')
+         '"matrix": {"volume": [20, 30, 40]}}}')
     call minc%init(json, dm, ao, 0, "minc", ir, err = err)
     if (rank == 0) then
        call assert_equals(0, err, '1 plane 3 levels error')
@@ -293,9 +293,9 @@ contains
     call minc%destroy()
     call fson_destroy_mpi(json)
 
-    json => fson_parse_mpi(str = '{' // &
+    json => fson_parse_mpi(str = '{"geometry": {' // &
          '"fracture": {"volume": 5, "planes": 2, "spacing": 100}, ' // &
-         '"matrix": {"volume": [20, 30, 45]}}')
+         '"matrix": {"volume": [20, 30, 45]}}}')
     call minc%init(json, dm, ao, 0, "minc", ir, err = err)
     if (rank == 0) then
        call assert_equals(0, err, '2 planes 3 levels error')
@@ -311,9 +311,9 @@ contains
     call minc%destroy()
     call fson_destroy_mpi(json)
 
-    json => fson_parse_mpi(str = '{' // &
+    json => fson_parse_mpi(str = '{"geometry": {' // &
          '"fracture": {"volume": 5, "planes": 2, "spacing": [100, 80]}, ' // &
-         '"matrix": {"volume": [20, 30, 45]}}')
+         '"matrix": {"volume": [20, 30, 45]}}}')
     call minc%init(json, dm, ao, 0, "minc", ir, err = err)
     if (rank == 0) then
        call assert_equals(0, err, '2 planes 3 levels variable spacing error')
@@ -330,9 +330,9 @@ contains
     call minc%destroy()
     call fson_destroy_mpi(json)
 
-    json => fson_parse_mpi(str = '{' // &
+    json => fson_parse_mpi(str = '{"geometry": {' // &
          '"fracture": {"volume": 10, "planes": 3, "spacing": [100, 80, 90]}, ' // &
-         '"matrix": {"volume": [30, 60]}}')
+         '"matrix": {"volume": [30, 60]}}}')
     call minc%init(json, dm, ao, 0, "minc", ir, err = err)
     if (rank == 0) then
        call assert_equals(0, err, '3 planes 2 levels error')
