@@ -16,7 +16,7 @@
 !   along with Waiwera.  If not, see <http://www.gnu.org/licenses/>.
 
 module minc_module
-  !! Module for MINC (Multiple INteracting Continua) treatment of fractured media .
+  !! Module for MINC (Multiple INteracting Continua) treatment of fractured media.
 
 #include <petsc/finclude/petsc.h>
 
@@ -27,11 +27,13 @@ module minc_module
   private
 
   character(9), parameter, public :: minc_zone_label_name = "minc_zone"
+  character(18), parameter, public :: minc_rocktype_zone_label_name = "minc_rocktype_zone"
   character(10), parameter, public :: minc_level_label_name = "minc_level"
 
   type, public :: minc_type
      !! MINC parameters for a particular zone.
      private
+     PetscInt, public, allocatable :: rocktype_zones(:)
      PetscInt, public :: num_levels !! Number of MINC levels (additional MINC cells per fracture cell)
      PetscReal, allocatable, public :: volume(:) !! Volume occupied by fracture and matrix levels (scaled by original cell volume)
      PetscReal, public :: fracture_connection_distance !! Connection distance from fracture to matrix
@@ -53,7 +55,8 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine minc_init(self, json, dm, ao, iminc, str, logfile, err)
+  subroutine minc_init(self, json, dm, ao, iminc, str, minc_rocktype_zone_index, &
+       logfile, err)
     !! Initialises MINC object from JSON input, and sets minc label on
     !! DM at cells where these MINC parameters are to be applied.
 
@@ -71,6 +74,7 @@ contains
     AO, intent(in) :: ao !! Natural-to-global application ordering for DM
     PetscInt, intent(in) :: iminc !! Index of MINC zone (1-based)
     character(*), intent(in) :: str !! Logfile string for current MINC object
+    PetscInt, intent(in out) :: minc_rocktype_zone_index !! Index to assign next MINC rocktype zone
     type(logfile_type), intent(in out), optional :: logfile !! Logfile for log output
     PetscErrorCode, intent(out) :: err
     ! Locals:
@@ -157,11 +161,14 @@ contains
              num_rocks = fson_value_count_mpi(rock_json, ".")
              rocki_json => fson_value_children_mpi(rock_json)
           end select
+          allocate(self%rocktype_zones(num_rocks))
 
           call DMGetLocalToGlobalMapping(dm, l2g, ierr); CHKERRQ(ierr)
           call DMPlexGetHeightStratum(dm, 0, start_cell, end_cell, ierr); CHKERRQ(ierr)
 
           do irock = 1, num_rocks
+
+             self%rocktype_zones(irock) = minc_rocktype_zone_index
 
              if (fson_has_mpi(rocki_json, "cells")) then
                 call DMPlexGetHeightStratum(dm, 0, start_cell, end_cell, ierr)
@@ -176,6 +183,8 @@ contains
                       if ((c >= start_cell) .and. (c < end_cell)) then
                          call DMSetLabelValue(dm, minc_zone_label_name, &
                               c, iminc, ierr); CHKERRQ(ierr)
+                         call DMSetLabelValue(dm, minc_rocktype_zone_label_name, &
+                              c, minc_rocktype_zone_index, ierr); CHKERRQ(ierr)
                       end if
                    end do
                 end if
@@ -210,6 +219,8 @@ contains
                               if ((c >= start_cell) .and. (c < end_cell)) then
                                  call DMSetLabelValue(dm, minc_zone_label_name, &
                                       c, iminc, ierr); CHKERRQ(ierr)
+                                 call DMSetLabelValue(dm, minc_rocktype_zone_label_name, &
+                                      c, minc_rocktype_zone_index, ierr); CHKERRQ(ierr)
                               end if
                            end do
                            call ISRestoreIndicesF90(cell_IS, zone_cells, ierr)
@@ -233,8 +244,16 @@ contains
              if (rock_type == TYPE_ARRAY) then
                 rocki_json => fson_value_next_mpi(rocki_json)
              end if
+             minc_rocktype_zone_index = minc_rocktype_zone_index + 1
+
           end do
 
+       else
+          if (present(logfile)) then
+             call logfile%write(LOG_LEVEL_WARN, "input", &
+                  "not found", &
+                  str_key = trim(str), str_value = "rock")
+          end if
        end if
 
     else
@@ -280,6 +299,7 @@ contains
 
     class(minc_type), intent(in out) :: self
 
+    deallocate(self%rocktype_zones)
     deallocate(self%volume)
     deallocate(self%fracture_spacing)
     deallocate(self%connection_distance)
