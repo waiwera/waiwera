@@ -85,7 +85,7 @@ for run_index, run_name in enumerate(run_names):
     run_filename = run_base_name + '.json'
     inp = json.load(file(os.path.join(base_path, run_filename)))
     if 'minc' in inp['mesh']:
-        num_levels = len(inp['mesh']['minc']['matrix']['volume'])
+        num_levels = len(inp['mesh']['minc']['geometry']['matrix']['volume'])
     else: num_levels = 0
     AUTOUGH2_result[run_name] = T2ModelResult("AUTOUGH2", results_filename,
                                               geo_filename = t2geo_filename,

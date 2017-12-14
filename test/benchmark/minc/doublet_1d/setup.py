@@ -111,11 +111,12 @@ for spacing in [50, 100, 200]:
     jsondata['initial']['region'] = 4
     jsondata['mesh']['zones'] = {'all': {'-': None}}
     jsondata['mesh']['minc'] = {
-        'zones': 'all',
-        'fracture': {'volume': vol[0], 'planes': nf,
-                     'spacing': spacing, 'rock': {'type': fracture_rockname}},
-        'matrix': {'volume': vol[1:], 'rock': {'type': matrix_rockname}}
-    }
+        'geometry': {
+            'fracture': {'volume': vol[0], 'planes': nf, 'spacing': spacing},
+            'matrix': {'volume': vol[1:]}},
+        'rock': {'fracture': {'type': fracture_rockname},
+                 'matrix': {'type': matrix_rockname},
+                 'zones': 'all'}}
 
     json.dump(jsondata, file(case_model_name + '.json', 'w'),
               indent = 2, sort_keys = True)
