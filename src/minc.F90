@@ -53,19 +53,22 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine minc_init(self, json, dm, iminc, str, logfile, err)
+  subroutine minc_init(self, json, dm, ao, iminc, str, logfile, err)
     !! Initialises MINC object from JSON input, and sets minc label on
     !! DM at cells where these MINC parameters are to be applied.
 
     use fson
     use fson_mpi_module
     use logfile_module
-    use fson_value_m, only : TYPE_ARRAY, TYPE_REAL, TYPE_INTEGER, TYPE_STRING
+    use fson_value_m, only: TYPE_ARRAY, TYPE_REAL, TYPE_INTEGER, &
+         TYPE_STRING, TYPE_OBJECT
     use zone_label_module
+    use dm_utils_module, only: natural_to_local_cell_index
     
     class(minc_type), intent(in out) :: self
     type(fson_value), pointer, intent(in) :: json !! JSON file pointer
     DM, intent(in out) :: dm !! DM to set labels on
+    AO, intent(in) :: ao !! Natural-to-global application ordering for DM
     PetscInt, intent(in) :: iminc !! Index of MINC zone (1-based)
     character(*), intent(in) :: str !! Logfile string for current MINC object
     type(logfile_type), intent(in out), optional :: logfile !! Logfile for log output
@@ -73,14 +76,15 @@ contains
     ! Locals:
     PetscInt :: start_cell, end_cell
     PetscInt :: num_cells, ic, c, iz
-    PetscInt, allocatable :: cells(:)
+    PetscInt, allocatable :: natural_cell_indices(:), local_cell_indices(:)
+    ISLocalToGlobalMapping :: l2g
     character(max_zone_name_length), allocatable :: zones(:)
     character(:), allocatable :: label_name
     IS :: cell_IS
     PetscInt, pointer :: zone_cells(:)
     PetscBool :: has_label
-    type(fson_value), pointer :: spacing_json
-    PetscInt :: spacing_type, num_spacings
+    type(fson_value), pointer :: spacing_json, rock_json, rocki_json
+    PetscInt :: spacing_type, num_spacings, rock_type, num_rocks, irock
     PetscInt :: zones_type
     PetscReal :: fracture_spacing
     PetscReal, allocatable :: fracture_spacing_array(:)
@@ -94,8 +98,8 @@ contains
 
     err = 0
 
-    if (fson_has_mpi(json, "fracture.volume")) then
-       call fson_get_mpi(json, "fracture.volume", val = fracture_volume)
+    if (fson_has_mpi(json, "geometry.fracture.volume")) then
+       call fson_get_mpi(json, "geometry.fracture.volume", val = fracture_volume)
        call get_matrix_volumes(json, matrix_volume, 1._dp - fracture_volume)
     else
        call get_matrix_volumes(json, matrix_volume, default_matrix_volume)
@@ -105,21 +109,21 @@ contains
     self%volume = self%volume / sum(self%volume)
     self%num_levels = size(matrix_volume)
 
-    call fson_get_mpi(json, "fracture.planes", default_num_fracture_planes, &
-         self%num_fracture_planes, logfile, trim(str) // "fracture.planes")
+    call fson_get_mpi(json, "geometry.fracture.planes", default_num_fracture_planes, &
+         self%num_fracture_planes, logfile, trim(str) // "geometry.fracture.planes")
 
     allocate(self%fracture_spacing(self%num_fracture_planes))
-    if (fson_has_mpi(json, "fracture.spacing")) then
-       call fson_get_mpi(json, "fracture.spacing", spacing_json)
+    if (fson_has_mpi(json, "geometry.fracture.spacing")) then
+       call fson_get_mpi(json, "geometry.fracture.spacing", spacing_json)
        spacing_type = fson_type_mpi(spacing_json, ".")
        select case (spacing_type)
        case (TYPE_REAL, TYPE_INTEGER)
-          call fson_get_mpi(json, "fracture.spacing", default_fracture_spacing, &
-               fracture_spacing, logfile, trim(str) // "fracture.spacing")
+          call fson_get_mpi(json, "geometry.fracture.spacing", default_fracture_spacing, &
+               fracture_spacing, logfile, trim(str) // "geometry.fracture.spacing")
           self%fracture_spacing = fracture_spacing
        case (TYPE_ARRAY)
-          call fson_get_mpi(json, "fracture.spacing", [default_fracture_spacing], &
-               fracture_spacing_array, logfile, trim(str) // "fracture.spacing")
+          call fson_get_mpi(json, "geometry.fracture.spacing", [default_fracture_spacing], &
+               fracture_spacing_array, logfile, trim(str) // "geometry.fracture.spacing")
           num_spacings = size(fracture_spacing_array)
           self%fracture_spacing(1: num_spacings) = fracture_spacing_array
           if (num_spacings < self%num_fracture_planes) then
@@ -127,84 +131,110 @@ contains
           end if
        end select
     else
-       call fson_get_mpi(json, "fracture.spacing", default_fracture_spacing, &
-            fracture_spacing, logfile, trim(str) // "fracture.spacing")
+       call fson_get_mpi(json, "geometry.fracture.spacing", default_fracture_spacing, &
+            fracture_spacing, logfile, trim(str) // "geometry.fracture.spacing")
        self%fracture_spacing = fracture_spacing
     end if
 
-    call fson_get_mpi(json, "fracture.connection", &
+    call fson_get_mpi(json, "geometry.fracture.connection", &
          default_fracture_connection_distance, &
          self%fracture_connection_distance, logfile, &
-         trim(str) // "fracture.connection")
+         trim(str) // "geometry.fracture.connection")
 
     call self%setup_geometry(err)
 
     if (err == 0) then
 
-       if (fson_has_mpi(json, "cells")) then
-          call DMPlexGetHeightStratum(dm, 0, start_cell, end_cell, ierr)
-          call fson_get_mpi(json, "cells", val = cells)
-          num_cells = size(cells)
-          if (num_cells > 0) then
-             call DMPlexGetHeightStratum(dm, 0, start_cell, end_cell, ierr)
-             CHKERRQ(ierr)
-             do ic = 1, num_cells
-                c = cells(ic)
-                if ((c >= start_cell) .and. (c < end_cell)) then
-                   call DMSetLabelValue(dm, minc_zone_label_name, &
-                        c, iminc, ierr); CHKERRQ(ierr)
-                end if
-             end do
-          end if
-          deallocate(cells)
-       end if
+       if (fson_has_mpi(json, "rock")) then
 
-       if (fson_has_mpi(json, "zones")) then
-          call DMPlexGetHeightStratum(dm, 0, start_cell, end_cell, ierr)
-          zones_type = fson_type_mpi(json, "zones")
-          select case (zones_type)
-          case (TYPE_STRING)
-             allocate(zones(1))
-             call fson_get_mpi(json, "zones", val = zones(1))
+          call fson_get_mpi(json, "rock", rock_json)
+          rock_type = fson_type_mpi(rock_json, ".")
+          select case (rock_type)
+          case (TYPE_OBJECT)
+             num_rocks = 1
+             rocki_json => rock_json
           case (TYPE_ARRAY)
-             call fson_get_mpi(json, "zones", string_length = max_zone_name_length, &
-                  val = zones)
+             num_rocks = fson_value_count_mpi(rock_json, ".")
+             rocki_json => fson_value_children_mpi(rock_json)
           end select
-          associate(num_zones => size(zones))
-            do iz = 1, num_zones
-               label_name = zone_label_name(zones(iz))
-               call DMHasLabel(dm, label_name, has_label, ierr); CHKERRQ(ierr)
-               if (has_label) then
-                  call DMGetStratumSize(dm, label_name, 1, num_cells, &
-                       ierr); CHKERRQ(ierr)
-                  if (num_cells > 0) then
-                     call DMGetStratumIS(dm, label_name, 1, cell_IS, &
-                          ierr); CHKERRQ(ierr)
-                     call ISGetIndicesF90(cell_IS, zone_cells, ierr)
-                     CHKERRQ(ierr)
-                     do ic = 1, num_cells
-                        c = zone_cells(ic)
-                        if ((c >= start_cell) .and. (c < end_cell)) then
-                           call DMSetLabelValue(dm, minc_zone_label_name, &
-                                c, iminc, ierr); CHKERRQ(ierr)
+
+          call DMGetLocalToGlobalMapping(dm, l2g, ierr); CHKERRQ(ierr)
+          call DMPlexGetHeightStratum(dm, 0, start_cell, end_cell, ierr); CHKERRQ(ierr)
+
+          do irock = 1, num_rocks
+
+             if (fson_has_mpi(rocki_json, "cells")) then
+                call DMPlexGetHeightStratum(dm, 0, start_cell, end_cell, ierr)
+                call fson_get_mpi(rocki_json, "cells", val = natural_cell_indices)
+                num_cells = size(natural_cell_indices)
+                if (num_cells > 0) then
+                   allocate(local_cell_indices(num_cells))
+                   local_cell_indices = natural_to_local_cell_index(ao, &
+                        l2g, natural_cell_indices)
+                   do ic = 1, num_cells
+                      c = local_cell_indices(ic)
+                      if ((c >= start_cell) .and. (c < end_cell)) then
+                         call DMSetLabelValue(dm, minc_zone_label_name, &
+                              c, iminc, ierr); CHKERRQ(ierr)
+                      end if
+                   end do
+                end if
+                deallocate(natural_cell_indices, local_cell_indices)
+             end if
+
+             if (fson_has_mpi(rocki_json, "zones")) then
+                call DMPlexGetHeightStratum(dm, 0, start_cell, end_cell, ierr)
+                zones_type = fson_type_mpi(rocki_json, "zones")
+                select case (zones_type)
+                case (TYPE_STRING)
+                   allocate(zones(1))
+                   call fson_get_mpi(rocki_json, "zones", val = zones(1))
+                case (TYPE_ARRAY)
+                   call fson_get_mpi(rocki_json, "zones", &
+                        string_length = max_zone_name_length, val = zones)
+                end select
+                associate(num_zones => size(zones))
+                  do iz = 1, num_zones
+                     label_name = zone_label_name(zones(iz))
+                     call DMHasLabel(dm, label_name, has_label, ierr); CHKERRQ(ierr)
+                     if (has_label) then
+                        call DMGetStratumSize(dm, label_name, 1, num_cells, &
+                             ierr); CHKERRQ(ierr)
+                        if (num_cells > 0) then
+                           call DMGetStratumIS(dm, label_name, 1, cell_IS, &
+                                ierr); CHKERRQ(ierr)
+                           call ISGetIndicesF90(cell_IS, zone_cells, ierr)
+                           CHKERRQ(ierr)
+                           do ic = 1, num_cells
+                              c = zone_cells(ic)
+                              if ((c >= start_cell) .and. (c < end_cell)) then
+                                 call DMSetLabelValue(dm, minc_zone_label_name, &
+                                      c, iminc, ierr); CHKERRQ(ierr)
+                              end if
+                           end do
+                           call ISRestoreIndicesF90(cell_IS, zone_cells, ierr)
+                           CHKERRQ(ierr)
+                           call ISDestroy(cell_IS, ierr); CHKERRQ(ierr)
                         end if
-                     end do
-                     call ISRestoreIndicesF90(cell_IS, zone_cells, ierr)
-                     CHKERRQ(ierr)
-                     call ISDestroy(cell_IS, ierr); CHKERRQ(ierr)
-                  end if
-               else
-                  err = 1
-                  if (present(logfile)) then
-                     call logfile%write(LOG_LEVEL_ERR, "input", &
-                          "unrecognised zone", &
-                          str_key = "name", str_value = zones(iz))
-                  end if
-                  exit
-               end if
-            end do
-          end associate
-          deallocate(zones)
+                     else
+                        err = 1
+                        if (present(logfile)) then
+                           call logfile%write(LOG_LEVEL_ERR, "input", &
+                                "unrecognised zone", &
+                                str_key = "name", str_value = zones(iz))
+                        end if
+                        exit
+                     end if
+                  end do
+                end associate
+                deallocate(zones)
+             end if
+
+             if (rock_type == TYPE_ARRAY) then
+                rocki_json => fson_value_next_mpi(rocki_json)
+             end if
+          end do
+
        end if
 
     else
@@ -224,19 +254,19 @@ contains
       ! Locals:
       PetscInt :: matrix_type
 
-      if (fson_has_mpi(json, "matrix.volume")) then
-         matrix_type = fson_type_mpi(json, "matrix.volume")
+      if (fson_has_mpi(json, "geometry.matrix.volume")) then
+         matrix_type = fson_type_mpi(json, "geometry.matrix.volume")
          select case (matrix_type)
          case (TYPE_REAL)
             allocate(matrix_volume(1))
-            call fson_get_mpi(json, "matrix.volume", val = matrix_volume(1))
+            call fson_get_mpi(json, "geometry.matrix.volume", val = matrix_volume(1))
          case (TYPE_ARRAY)
-            call fson_get_mpi(json, "matrix.volume", val = matrix_volume)
+            call fson_get_mpi(json, "geometry.matrix.volume", val = matrix_volume)
          end select
       else
          allocate(matrix_volume(1))
-         call fson_get_mpi(json, "matrix.volume", default_matrix_volume, &
-              matrix_volume(1), logfile, trim(str) // "matrix.volume")
+         call fson_get_mpi(json, "geometry.matrix.volume", default_matrix_volume, &
+              matrix_volume(1), logfile, trim(str) // "geometry.matrix.volume")
       end if
 
     end subroutine get_matrix_volumes
