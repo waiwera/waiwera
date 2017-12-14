@@ -790,7 +790,7 @@ contains
       call mesh%init(json)
 
       call DMCreateLabel(mesh%dm, open_boundary_label_name, ierr); CHKERRQ(ierr)
-      call rock_dict%init(owner = PETSC_TRUE)
+      call rock_dict%init(owner = PETSC_FALSE)
       call mesh%configure(eos, gravity, json, viewer = viewer, err = err)
       call setup_rock_vector(json, mesh%dm, mesh%cell_order, rock_vector, &
            rock_dict, rock_range_start, mesh%ghost_cell, err = err)
@@ -926,7 +926,7 @@ contains
       call DMCreateLabel(mesh%dm, open_boundary_label_name, ierr); CHKERRQ(ierr)
       call mesh%configure(eos, gravity, json, viewer = viewer, err = err)
       call assert_equals(0, err, title // " mesh configure error")
-      call rock_dict%init(owner = PETSC_TRUE)
+      call rock_dict%init(owner = PETSC_FALSE)
       call setup_rock_vector(json, mesh%dm, mesh%cell_order, rock_vector, rock_dict, &
            rock_range_start, mesh%ghost_cell, err = err)
       call assert_equals(0, err, title // " setup rock vector error")

@@ -234,7 +234,7 @@ contains
     ! Locals:
     PetscInt :: num_rocktypes, ic, iz, c
     PetscInt, target :: ir
-    PetscInt :: perm_size, num_matching
+    PetscInt :: perm_size, num_zone_cells
     type(fson_value), pointer :: rocktypes, r
     PetscInt :: start_cell, end_cell
     PetscInt, allocatable :: natural_cell_indices(:), local_cell_indices(:)
@@ -255,7 +255,6 @@ contains
     PetscErrorCode :: ierr
     character(len=64) :: rockstr
     character(len=12) :: irstr
-    PetscInt, pointer :: pir
     PetscInt :: zones_type
 
     err = 0
@@ -283,9 +282,7 @@ contains
           rockstr = 'rock.types[' // trim(irstr) // '].'
           call fson_get_mpi(r, "name", "", name, logfile, trim(rockstr) // "name")
           if (name /= "") then
-             allocate(pir)
-             pir = ir
-             call rock_dict%add(name, pir)
+             call rock_dict%add(name, r)
           end if
           call fson_get_mpi(r, "permeability", default_permeability, &
                permeability, logfile, trim(rockstr) // "permeability")
@@ -333,13 +330,13 @@ contains
                   label_name = zone_label_name(zones(iz))
                   call DMHasLabel(dm, label_name, has_label, ierr); CHKERRQ(ierr)
                   if (has_label) then
-                     call DMGetStratumSize(dm, label_name, 1, num_matching, &
+                     call DMGetStratumSize(dm, label_name, 1, num_zone_cells, &
                           ierr); CHKERRQ(ierr)
-                     if (num_matching > 0) then
+                     if (num_zone_cells > 0) then
                         call DMGetStratumIS(dm, label_name, 1, cell_IS, &
                              ierr); CHKERRQ(ierr)
                         call ISGetIndicesF90(cell_IS, cells, ierr); CHKERRQ(ierr)
-                        do c = 1, num_matching
+                        do c = 1, num_zone_cells
                            call assign_rock_parameters(cells(c))
                         end do
                         call ISRestoreIndicesF90(cell_IS, cells, ierr); CHKERRQ(ierr)
@@ -405,7 +402,10 @@ contains
   subroutine setup_rock_vector(json, dm, ao, rock_vector, rock_dict, &
        range_start, ghost_cell, logfile, err)
 
-    !! Sets up rock vector on specified DM from JSON input.
+    !! Sets up rock vector on specified DM from JSON input. If
+    !! initialising rock properties using rock types, this routine
+    !! also sets up a dictionary of rock types for efficient access by
+    !! rock type name.
 
     use dictionary_module
     use dm_utils_module, only: set_dm_data_layout, global_vec_range_start

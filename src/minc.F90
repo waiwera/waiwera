@@ -299,11 +299,11 @@ contains
 
     class(minc_type), intent(in out) :: self
 
-    deallocate(self%rocktype_zones)
     deallocate(self%volume)
     deallocate(self%fracture_spacing)
     deallocate(self%connection_distance)
     deallocate(self%connection_area)
+    if (allocated(self%rocktype_zones)) deallocate(self%rocktype_zones)
 
   end subroutine minc_destroy
 

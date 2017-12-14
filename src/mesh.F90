@@ -2398,7 +2398,7 @@ contains
     PetscInt, pointer :: minc_cells(:)
     type(rock_type) :: orig_rock, rock
     type(fson_value), pointer :: minc_json, minci_json
-    type(fson_value), pointer :: rocktypes_json, rock_json, rocki_json, r
+    type(fson_value), pointer :: rock_json, rocki_json
     PetscInt :: minc_type, max_num_levels, dof, minc_rocktype_zone_index
     PetscInt, allocatable :: ic(:)
     type(rock_type) :: fracture_rock, matrix_rock
@@ -2566,7 +2566,6 @@ contains
       ! Locals:
       character(max_rockname_length) :: rock_name
       character(len=64) :: rockstr
-      character(len=12) :: irstr
       type(list_node_type), pointer :: node
 
       err = 0
@@ -2575,12 +2574,10 @@ contains
          call fson_get_mpi(rocki_json, trim(name) // ".type", val = rock_name)
          node => rock_dict%get(rock_name)
          if (associated(node)) then
-            select type (ir => node%data)
-            type is (PetscInt)
-               write(irstr, '(i0)') ir - 1
-               rockstr = 'rock.types[' // trim(irstr) // '].'
-               call fson_get_mpi(json, "rock.types", rocktypes_json)
-               r => fson_value_get_mpi(rocktypes_json, ir)
+            select type (r => node%data)
+            type is (fson_value)
+               rockstr = minc_str // "." // trim(minc_rock_str) // "." &
+                    // trim(name) // ".type"
                call read_rock_parameters(r, rock, rockstr)
             end select
          else
