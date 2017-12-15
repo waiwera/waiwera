@@ -461,6 +461,15 @@ contains
          '            "geometry": {"matrix": {"volume": [0.3, 0.6]}}}]}}'
     call minc_test('two-zone partial', json_str, 2, 83, 2, [49, 20, 14])
 
+    json_str = &
+         '{"mesh": {"filename": "data/mesh/7x7grid.exo",' // &
+         '  "zones": {"left": {"x": [0, 1500]}, ' // &
+         '            "right": {"-": "left"}},' // &
+         '  "minc": {"rock": [{"zones": ["left"]}, {"zones": ["right"]}], ' // &
+         '            "geometry": {"fracture": {"volume": 0.1}}}, ' // &
+         '           }}'
+    call minc_test('two sub-zone', json_str, 1, 2 * 49, 1, [49, 49])
+
   contains
 
 !........................................................................
