@@ -1196,6 +1196,22 @@ contains
 
     json_str = &
          '{"mesh": {"filename": "data/mesh/7x7grid.exo",' // &
+         '  "zones": {"sws": {"x": [0, 3000], "y": [0, 1000]}, ' // &
+         '            "swn": {"x": [0, 3000], "y": [1000, 1500]}},' // &
+         '  "minc": {"rock": [{"zones": ["swn"]}, {"zones": ["sws"]}], ' // &
+         '           "geometry": {"fracture": {"volume": 0.1}}}},' // &
+         '"boundaries": [{"faces": {"cells": [0, 1, 2, 3, 4, 5], ' // &
+         '  "normal": [0, -1, 0]}}]' // &
+         '}'
+    allocate(expected_minc_order(1, 0:48))
+    expected_minc_order = 0
+    expected_minc_order(1, 0:4) = [(c + 49, c = 0, 4)]
+    expected_minc_order(1, 7:11) = [(c + 47, c = 7, 11)]
+    call minc_cell_order_test_case(json_str, ' partial multi-rock bdy', expected_minc_order)
+    deallocate(expected_minc_order)
+
+    json_str = &
+         '{"mesh": {"filename": "data/mesh/7x7grid.exo",' // &
          '  "zones": {"sw": {"x": [0, 3000], "y": [0, 1500]}, ' // &
          '           "ne": {"x": [3000, 4500], "y": [2000, 4500]}},' // &
          '  "minc": [{"rock": {"zones": ["sw"]}, ' // &
