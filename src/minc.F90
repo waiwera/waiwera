@@ -250,9 +250,9 @@ contains
 
        else
           if (present(logfile)) then
-             call logfile%write(LOG_LEVEL_WARN, "input", &
-                  "not found", &
-                  str_key = trim(str), str_value = "rock")
+             call logfile%write(LOG_LEVEL_WARN, 'minc', &
+                  'init', str_key = trim(str) // 'rock', &
+                  str_value = 'not found')
           end if
        end if
 
