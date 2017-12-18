@@ -2573,11 +2573,11 @@ contains
          call fson_get_mpi(rocki_json, trim(name) // ".type", val = rock_name)
          node => rock_dict%get(rock_name)
          if (associated(node)) then
-            select type (r => node%data)
-            type is (fson_value)
+            select type (item => node%data)
+            type is (rock_dict_item_type)
                rockstr = minc_str // "." // trim(minc_rock_str) // "." &
                     // trim(name) // ".type"
-               call read_rock_parameters(r, rock, rockstr)
+               call read_rock_parameters(item%rock, rock, rockstr)
             end select
          else
             if (present(logfile)) then

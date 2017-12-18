@@ -24,9 +24,17 @@ module rock_module
   use kinds_module
   use relative_permeability_module
   use capillary_pressure_module
+  use fson
 
   implicit none
   private
+
+  type rock_dict_item_type
+     !! Item in rock dictionary.
+     private
+     type(fson_value), pointer, public :: rock
+     PetscInt, public :: label_value
+  end type rock_dict_item_type
 
   type rock_type
      !! Local rock properties.
@@ -72,7 +80,7 @@ module rock_module
   PetscReal, parameter, public :: default_specific_heat = 1000._dp
   PetscReal, parameter, public :: default_heat_conductivity = 2.5_dp
 
-  public :: rock_type, setup_rock_vector
+  public :: rock_dict_item_type, rock_type, setup_rock_vector
 
 contains
 
@@ -255,6 +263,7 @@ contains
     character(len=64) :: rockstr
     character(len=12) :: irstr
     PetscInt :: zones_type
+    type(rock_dict_item_type), pointer :: item
 
     err = 0
 
@@ -281,7 +290,10 @@ contains
           rockstr = 'rock.types[' // trim(irstr) // '].'
           call fson_get_mpi(r, "name", "", name, logfile, trim(rockstr) // "name")
           if (name /= "") then
-             call rock_dict%add(name, r)
+             allocate(item)
+             item%label_value = ir
+             item%rock => r
+             call rock_dict%add(name, item)
           end if
           call fson_get_mpi(r, "permeability", default_permeability, &
                permeability, logfile, trim(rockstr) // "permeability")

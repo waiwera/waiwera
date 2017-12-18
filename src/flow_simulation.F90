@@ -554,7 +554,7 @@ contains
     call self%mesh%init(json, self%logfile)
     call self%setup_gravity(json)
 
-    call self%rock_dict%init(owner = PETSC_FALSE)
+    call self%rock_dict%init(owner = PETSC_TRUE)
     call self%mesh%configure(self%eos, self%gravity, json, &
          self%logfile, self%hdf5_viewer, err)
     if (err == 0) then
