@@ -573,7 +573,6 @@ contains
 
     use eos_module, only: eos_type
     use dm_utils_module
-    use cell_order_module
     use logfile_module
 
     class(mesh_type), intent(in out) :: self

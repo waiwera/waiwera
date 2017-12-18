@@ -214,7 +214,6 @@ contains
     !! Sets up rock vector on DM from rock types in JSON input.
 
     use dictionary_module
-    use cell_order_module, only: cell_order_label_name
     use dm_utils_module, only: global_section_offset, global_vec_section, &
          natural_to_local_cell_index
     use zone_label_module
