@@ -32,8 +32,8 @@ module rock_module
   type rock_dict_item_type
      !! Item in rock dictionary.
      private
-     type(fson_value), pointer, public :: rock
-     PetscInt, public :: label_value
+     type(fson_value), pointer, public :: rock !! JSON input data value
+     PetscInt, public :: label_value !! DM rock label value
   end type rock_dict_item_type
 
   type rock_type
@@ -79,6 +79,8 @@ module rock_module
   PetscReal, parameter, public :: default_density = 2200.0_dp
   PetscReal, parameter, public :: default_specific_heat = 1000._dp
   PetscReal, parameter, public :: default_heat_conductivity = 2.5_dp
+
+  character(len = 9), public :: rock_type_label_name = "rock_type"
 
   public :: rock_dict_item_type, rock_type, setup_rock_vector
 
@@ -231,7 +233,7 @@ contains
     use fson_value_m, only : TYPE_STRING, TYPE_ARRAY
 
     type(fson_value), pointer, intent(in) :: json
-    DM, intent(in) :: dm
+    DM, intent(in out) :: dm
     AO, intent(in) :: ao
     Vec, intent(out) :: rock_vector
     type(dictionary_type), intent(in out) :: rock_dict
@@ -280,6 +282,8 @@ contains
        call DMGetLabel(dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
        call DMGetLocalToGlobalMapping(dm, l2g, ierr); CHKERRQ(ierr)
 
+       call DMCreateLabel(dm, rock_type_label_name, ierr); CHKERRQ(ierr)
+
        call fson_get_mpi(json, "rock.types", rocktypes)
        num_rocktypes = fson_value_count_mpi(rocktypes, ".")
        r => fson_value_children_mpi(rocktypes)
@@ -318,7 +322,7 @@ contains
                        l2g, natural_cell_indices)
                   do ic = 1, num_cells
                      associate(c => local_cell_indices(ic))
-                       if (c >= 0) call assign_rock_parameters(c)
+                       if (c >= 0) call assign_rock_parameters(c, ir)
                      end associate
                   end do
                 end associate
@@ -348,7 +352,7 @@ contains
                              ierr); CHKERRQ(ierr)
                         call ISGetIndicesF90(cell_IS, cells, ierr); CHKERRQ(ierr)
                         do c = 1, num_zone_cells
-                           call assign_rock_parameters(cells(c))
+                           call assign_rock_parameters(cells(c), ir)
                         end do
                         call ISRestoreIndicesF90(cell_IS, cells, ierr); CHKERRQ(ierr)
                         call ISDestroy(cell_IS, ierr); CHKERRQ(ierr)
@@ -381,16 +385,20 @@ contains
 
   contains
 
-    subroutine assign_rock_parameters(p)
-      !! Assigns rock parameters for cell at mesh point p.
+    subroutine assign_rock_parameters(p, ir)
+      !! Assigns rock parameters for cell at mesh point p, and label
+      !! DM with rock type index.
 
       PetscInt, intent(in) :: p
+      PetscInt, intent(in) :: ir
       ! Locals:
       PetscInt :: offset, ghost
 
       if ((p >= start_cell) .and. (p < end_cell)) then
          call DMLabelGetValue(ghost_label, p, ghost, ierr); CHKERRQ(ierr)
          if (ghost < 0) then
+            call DMSetLabelValue(dm, rock_type_label_name, &
+                 p, ir, ierr); CHKERRQ(ierr)
             call global_section_offset(section, p, range_start, &
                  offset, ierr); CHKERRQ(ierr)
             call rock%assign(rock_array, offset)
@@ -425,7 +433,7 @@ contains
     use logfile_module
 
     type(fson_value), pointer, intent(in) :: json
-    DM, intent(in) :: dm
+    DM, intent(in out) :: dm
     AO, intent(in) :: ao
     Vec, intent(out) :: rock_vector
     type(dictionary_type), intent(in out) :: rock_dict
