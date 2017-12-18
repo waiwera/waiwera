@@ -480,8 +480,8 @@ contains
       use minc_module, only: minc_level_label_name, minc_zone_label_name
       use cell_module
       use face_module
-      use dm_utils_module, only: section_offset, local_vec_section
-      use cell_order_module, only: cell_order_label_name
+      use dm_utils_module, only: section_offset, local_vec_section, &
+           local_to_natural_cell_index
       use IAPWS_module
       use eos_we_module
 
@@ -507,12 +507,13 @@ contains
       Vec :: orig_cell_geom, orig_face_geom
       type(cell_type) :: orig_cell, cell
       type(face_type) :: face
-      DMLabel :: ghost_label, minc_level_label, cell_order_label
+      ISLocalToGlobalMapping :: l2g
+      DMLabel :: ghost_label, minc_level_label
       PetscInt, parameter :: nc = 1, np = 1 ! dummy values for cell init
       PetscSection :: orig_cell_section, cell_section, face_section
       PetscReal, pointer, contiguous :: orig_cell_geom_array(:), cell_geom_array(:)
       PetscReal, pointer, contiguous :: face_geom_array(:)
-      PetscInt :: orig_cell_offset, cell_offset, ghost, cell_order
+      PetscInt :: orig_cell_offset, cell_offset, ghost, order
       PetscInt :: face_offset, cell_p, face_p, h
       PetscReal :: expected_vol, expected_area
       PetscInt :: ic(expected_max_level)
@@ -532,6 +533,8 @@ contains
       call orig_mesh%init(orig_json)
       call orig_mesh%configure(eos, gravity, orig_json, viewer = viewer, err = err)
       call fson_destroy_mpi(orig_json)
+
+      call DMGetLocalToGlobalMapping(orig_mesh%dm, l2g, ierr); CHKERRQ(ierr)
 
       if (rank == 0) then
          call assert_true(mesh%has_minc, name // ": mesh has minc")
@@ -582,9 +585,6 @@ contains
       CHKERRQ(ierr)
       call DMGetLabel(mesh%dm, minc_level_label_name, minc_level_label, ierr)
       CHKERRQ(ierr)
-      call DMGetLabel(mesh%dm, cell_order_label_name, &
-         cell_order_label, ierr)
-    CHKERRQ(ierr)
       ic = 0
       h = 0
       do iminc = 1, size(mesh%minc)
@@ -599,8 +599,7 @@ contains
                  c = minc_cells(i)
                  call DMLabelGetValue(ghost_label, c, ghost, ierr)
                  if (ghost < 0) then
-                    call DMLabelGetValue(cell_order_label, c, cell_order, ierr)
-                    CHKERRQ(ierr)
+                    order = local_to_natural_cell_index(orig_mesh%cell_order, l2g, c)
                     call section_offset(orig_cell_section, c, orig_cell_offset, ierr)
                     CHKERRQ(ierr)
                     call orig_cell%assign_geometry(orig_cell_geom_array, orig_cell_offset)
@@ -609,7 +608,7 @@ contains
                     CHKERRQ(ierr)
                     call cell%assign_geometry(cell_geom_array, cell_offset)
                     expected_vol = orig_cell%volume * minc%volume(1)
-                    write(str, '(a, a, i3, a)') name, ": fracture volume(", cell_order, ")"
+                    write(str, '(a, a, i3, a)') name, ": fracture volume(", order, ")"
                     call assert_equals(expected_vol, cell%volume, tol, str)
                     do m = 1, minc%num_levels
                        cell_p = mesh%strata(h)%minc_point(ic(m), m)
@@ -618,7 +617,7 @@ contains
                        call cell%assign_geometry(cell_geom_array, cell_offset)
                        expected_vol = orig_cell%volume * minc%volume(m + 1)
                        write(str, '(a, a, i3, a, i1, a)') name, ": minc volume(", &
-                            cell_order, ", ", m, ")"
+                            order, ", ", m, ")"
                        call assert_equals(expected_vol, cell%volume, tol, str)
                        face_p = mesh%strata(h + 1)%minc_point(ic(m), m)
                        call section_offset(face_section, face_p, &
@@ -626,14 +625,14 @@ contains
                        call face%assign_geometry(face_geom_array, face_offset)
                        expected_area = orig_cell%volume * minc%connection_area(m)
                        write(str, '(a, a, i3, a, i1, a, i1, a)') name, &
-                            ": minc area(", cell_order, ", ", m-1, ":", m, ")"
+                            ": minc area(", order, ", ", m-1, ":", m, ")"
                        call assert_equals(expected_area, face%area, tol, str)
                        write(str, '(a, a, i3, a, i1, a, i1, a)') name, ": minc distance 1(", &
-                            cell_order, ", ", m-1, ":", m, ")"
+                            order, ", ", m-1, ":", m, ")"
                        call assert_equals(minc%connection_distance(m), face%distance(1), &
                             tol, str)
                        write(str, '(a, a, i3, a, i1, a, i1, a)') name, ": minc distance 2(", &
-                            cell_order, ", ", m-1, ":", m, ")"
+                            order, ", ", m-1, ":", m, ")"
                        call assert_equals(minc%connection_distance(m + 1), face%distance(2), &
                             tol, str)
                        ic(m) = ic(m) + 1
