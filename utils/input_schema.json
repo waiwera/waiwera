@@ -127,6 +127,10 @@
                                    "zones": {"oneOf": [
                                        {"type": "string"},
                                        {"type": "array",
+                                        "items": {"type": "string"}}]},
+                                   "types": {"oneOf": [
+                                       {"type": "string"},
+                                       {"type": "array",
                                         "items": {"type": "string"}}]}
                                }, "additionalProperties": false},
                               {"type": "array",
@@ -144,6 +148,10 @@
                                        "cells": {"type": "array",
                                                  "items": {"type": "integer", "minimum": 0}},
                                        "zones": {"oneOf": [
+                                           {"type": "string"},
+                                           {"type": "array",
+                                            "items": {"type": "string"}}]},
+                                       "types": {"oneOf": [
                                            {"type": "string"},
                                            {"type": "array",
                                             "items": {"type": "string"}}]}
