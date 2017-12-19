@@ -55,8 +55,8 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine minc_init(self, json, dm, ao, iminc, str, minc_rocktype_zone_index, &
-       logfile, err)
+  subroutine minc_init(self, json, dm, ao, iminc, str, rock_dict, &
+       minc_rocktype_zone_index, logfile, err)
     !! Initialises MINC object from JSON input, and sets minc label on
     !! DM at cells where these MINC parameters are to be applied.
 
@@ -67,6 +67,10 @@ contains
          TYPE_STRING, TYPE_OBJECT
     use zone_label_module
     use dm_utils_module, only: natural_to_local_cell_index
+    use rock_module, only: max_rockname_length, rock_type_label_name, &
+         rock_dict_item_type
+    use list_module
+    use dictionary_module
     
     class(minc_type), intent(in out) :: self
     type(fson_value), pointer, intent(in) :: json !! JSON file pointer
@@ -74,6 +78,7 @@ contains
     AO, intent(in) :: ao !! Natural-to-global application ordering for DM
     PetscInt, intent(in) :: iminc !! Index of MINC zone (1-based)
     character(*), intent(in) :: str !! Logfile string for current MINC object
+    type(dictionary_type), intent(in out) :: rock_dict
     PetscInt, intent(in out) :: minc_rocktype_zone_index !! Index to assign next MINC rocktype zone
     type(logfile_type), intent(in out), optional :: logfile !! Logfile for log output
     PetscErrorCode, intent(out) :: err
@@ -83,13 +88,16 @@ contains
     PetscInt, allocatable :: natural_cell_indices(:), local_cell_indices(:)
     ISLocalToGlobalMapping :: l2g
     character(max_zone_name_length), allocatable :: zones(:)
+    character(max_rockname_length), allocatable :: types(:)
+    character(max_rockname_length) :: rock_name
     character(:), allocatable :: label_name
+    type(list_node_type), pointer :: node
     IS :: cell_IS
-    PetscInt, pointer :: zone_cells(:)
+    PetscInt, pointer :: zone_cells(:), type_cells(:)
     PetscBool :: has_label
     type(fson_value), pointer :: spacing_json, rock_json, rocki_json
-    PetscInt :: spacing_type, num_spacings, rock_type, num_rocks, irock
-    PetscInt :: zones_type
+    PetscInt :: spacing_type, num_spacings, rock_type, num_rocks, irock, itype
+    PetscInt :: zones_type, types_type
     PetscReal :: fracture_spacing
     PetscReal, allocatable :: fracture_spacing_array(:)
     PetscErrorCode :: ierr
@@ -239,6 +247,68 @@ contains
                   end do
                 end associate
                 deallocate(zones)
+             end if
+
+             if (fson_has_mpi(rocki_json, "types")) then
+                call DMHasLabel(dm, rock_type_label_name, has_label, ierr)
+                CHKERRQ(ierr)
+                if (has_label) then
+                   call DMPlexGetHeightStratum(dm, 0, start_cell, end_cell, ierr)
+                   types_type = fson_type_mpi(rocki_json, "types")
+                   select case (types_type)
+                   case (TYPE_STRING)
+                      allocate(types(1))
+                      call fson_get_mpi(rocki_json, "types", val = types(1))
+                   case (TYPE_ARRAY)
+                      call fson_get_mpi(rocki_json, "types", &
+                           string_length = max_rockname_length, val = types)
+                   end select
+                   associate(num_types => size(types))
+                     do itype = 1, num_types
+                        rock_name = types(itype)
+                        node => rock_dict%get(rock_name)
+                        if (associated(node)) then
+                           select type (item => node%data)
+                           type is (rock_dict_item_type)
+                              call DMGetStratumSize(dm, rock_type_label_name, &
+                                   item%label_value, num_cells, ierr); CHKERRQ(ierr)
+                              if (num_cells > 0) then
+                                 call DMGetStratumIS(dm, rock_type_label_name, &
+                                      item%label_value, cell_IS, ierr); CHKERRQ(ierr)
+                                 call ISGetIndicesF90(cell_IS, type_cells, ierr)
+                                 CHKERRQ(ierr)
+                                 do ic = 1, num_cells
+                                    c = type_cells(ic)
+                                    if ((c >= start_cell) .and. (c < end_cell)) then
+                                       call DMSetLabelValue(dm, minc_zone_label_name, &
+                                            c, iminc, ierr); CHKERRQ(ierr)
+                                       call DMSetLabelValue(dm, minc_rocktype_zone_label_name, &
+                                            c, minc_rocktype_zone_index, ierr); CHKERRQ(ierr)
+                                    end if
+                                 end do
+                                 call ISRestoreIndicesF90(cell_IS, type_cells, ierr)
+                                 CHKERRQ(ierr)
+                                 call ISDestroy(cell_IS, ierr); CHKERRQ(ierr)
+                              end if
+                           end select
+                        else
+                           err = 1
+                           if (present(logfile)) then
+                              call logfile%write(LOG_LEVEL_ERR, "input", &
+                                   "unrecognised rock type", &
+                                   str_key = "name", str_value = rock_name)
+                           end if
+                           exit
+                        end if
+                     end do
+                   end associate
+                else
+                   err = 1
+                   if (present(logfile)) then
+                      call logfile%write(LOG_LEVEL_ERR, "input", &
+                           "no rock types defined for MINC")
+                   end if
+                end if
              end if
 
              if (rock_type == TYPE_ARRAY) then

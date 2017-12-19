@@ -27,6 +27,7 @@ module mesh_module
   use fson
   use minc_module
   use dm_utils_module, only: dm_stratum_type
+  use dictionary_module
 
   implicit none
 
@@ -52,6 +53,7 @@ module mesh_module
      PetscReal, public :: permeability_rotation(3, 3) !! Rotation matrix of permeability axes
      PetscReal, public :: thickness !! Mesh thickness (for dimension < 3)
      type(list_type), public :: zones !! Mesh zones
+     type(dictionary_type), public :: rock_types !! Dictionary of rock types by name
      PetscBool, public :: radial !! If mesh coordinate system is radial or Cartesian
      PetscBool, public :: has_minc !! If mesh has any MINC cells
    contains
@@ -559,6 +561,7 @@ contains
        call dm_set_fv_adjacency(self%dm)
        call self%setup_coordinate_parameters(json, logfile)
        call self%set_permeability_rotation(json, logfile)
+       call self%rock_types%init(owner = PETSC_TRUE)
        self%has_minc = PETSC_FALSE
     end if
 
@@ -574,6 +577,7 @@ contains
     use eos_module, only: eos_type
     use dm_utils_module
     use logfile_module
+    use rock_module, only: setup_rock_types
 
     class(mesh_type), intent(in out) :: self
     class(eos_type), intent(in) :: eos !! EOS object
@@ -602,16 +606,20 @@ contains
       self%cell_order = dm_get_natural_to_global_ao(self%dm, dist_sf)
       call self%setup_zones(json, logfile, err)
       if (err == 0) then
-         call self%setup_minc(json, logfile, err)
+         call setup_rock_types(json, self%dm, self%cell_order, &
+              self%rock_types, logfile, err)
          if (err == 0) then
-            if (self%has_minc) call self%setup_minc_dm(dof)
-            call dm_get_cell_index(self%dm, self%cell_order, &
-                 self%cell_index, cell_interior_index)
-            if (viewer /= PETSC_NULL_VIEWER) then
-               call ISView(self%cell_index, viewer, ierr); CHKERRQ(ierr)
-               call ISView(cell_interior_index, viewer, ierr); CHKERRQ(ierr)
+            call self%setup_minc(json, logfile, err)
+            if (err == 0) then
+               if (self%has_minc) call self%setup_minc_dm(dof)
+               call dm_get_cell_index(self%dm, self%cell_order, &
+                    self%cell_index, cell_interior_index)
+               if (viewer /= PETSC_NULL_VIEWER) then
+                  call ISView(self%cell_index, viewer, ierr); CHKERRQ(ierr)
+                  call ISView(cell_interior_index, viewer, ierr); CHKERRQ(ierr)
+               end if
+               call ISDestroy(cell_interior_index, ierr); CHKERRQ(ierr)
             end if
-            call ISDestroy(cell_interior_index, ierr); CHKERRQ(ierr)
          end if
       end if
 
@@ -654,6 +662,8 @@ contains
        call self%destroy_strata()
     end if
     call self%zones%destroy(mesh_zones_node_data_destroy)
+
+    call self%rock_types%destroy()
 
   contains
 
@@ -1291,6 +1301,7 @@ contains
     use fson_mpi_module
     use logfile_module
     use fson_value_m, only : TYPE_ARRAY, TYPE_OBJECT
+    use dictionary_module
 
     class(mesh_type), intent(in out) :: self
     type(fson_value), pointer, intent(in) :: json !! JSON file pointer
@@ -1325,8 +1336,8 @@ contains
           iminc = 1
           mincstr = "minc."
           call self%minc(num_minc_zones)%init(minc_json, self%dm, &
-               self%cell_order, iminc, mincstr, minc_rocktype_zone_index, &
-               logfile, err)
+               self%cell_order, iminc, mincstr, self%rock_types, &
+               minc_rocktype_zone_index, logfile, err)
        case (TYPE_ARRAY)
           num_minc_zones = fson_value_count_mpi(minc_json, ".")
           minci_json => fson_value_children_mpi(minc_json)
@@ -1335,7 +1346,7 @@ contains
              write(imincstr, '(i0)') iminc - 1
              mincstr = 'minc[' // trim(imincstr) // '].'
              call self%minc(iminc)%init(minci_json, self%dm, self%cell_order, iminc, &
-                  mincstr, minc_rocktype_zone_index, logfile, err)
+                  mincstr, self%rock_types, minc_rocktype_zone_index, logfile, err)
              if (err > 0) exit
              minci_json => fson_value_next_mpi(minci_json)
           end do
@@ -2361,7 +2372,7 @@ contains
 !------------------------------------------------------------------------
 
   subroutine mesh_setup_minc_rock_properties(self, json, rock_vector, &
-       rock_dict, rock_range_start, logfile, err)
+       rock_range_start, logfile, err)
     !! Sets rock properties in MINC cells. Rock types can be specified
     !! for fracture and matrix cells in each MINC zone. If fracture
     !! cell rock properties are not specified in the fracture rock
@@ -2383,7 +2394,6 @@ contains
     class(mesh_type), intent(in out) :: self
     type(fson_value), pointer, intent(in) :: json
     Vec, intent(in out) :: rock_vector
-    type(dictionary_type), intent(in out) :: rock_dict
     PetscInt, intent(out) :: rock_range_start
     type(logfile_type), intent(in out), optional :: logfile
     PetscErrorCode, intent(out) :: err
@@ -2571,7 +2581,7 @@ contains
 
       if (fson_has_mpi(rocki_json, trim(name) // ".type")) then
          call fson_get_mpi(rocki_json, trim(name) // ".type", val = rock_name)
-         node => rock_dict%get(rock_name)
+         node => self%rock_types%get(rock_name)
          if (associated(node)) then
             select type (item => node%data)
             type is (rock_dict_item_type)

@@ -30,7 +30,6 @@ module flow_simulation_module
   use capillary_pressure_module
   use logfile_module
   use list_module
-  use dictionary_module
 
   implicit none
 
@@ -55,7 +54,6 @@ module flow_simulation_module
      Vec, public :: balances !! Mass and energy balances for unperturbed primary variables
      Vec, public :: update_cell !! Which cells have primary variables being updated
      Vec, public :: flux !! Mass or energy fluxes through cell faces for each component
-     type(dictionary_type) :: rock_dict !! Dictionary of rock type names
      type(list_type), public :: sources !! Source/sink terms
      type(list_type), public :: source_controls !! Source/sink controls
      class(thermodynamics_type), allocatable, public :: thermo !! Fluid thermodynamic formulation
@@ -554,7 +552,6 @@ contains
     call self%mesh%init(json, self%logfile)
     call self%setup_gravity(json)
 
-    call self%rock_dict%init(owner = PETSC_TRUE)
     call self%mesh%configure(self%eos, self%gravity, json, &
          self%logfile, self%hdf5_viewer, err)
     if (err == 0) then
@@ -566,12 +563,12 @@ contains
        call setup_capillary_pressures(json, &
             self%capillary_pressure, self%logfile)
        call setup_rock_vector(json, self%mesh%dm, self%mesh%cell_order, self%rock, &
-            self%rock_dict, self%rock_range_start, self%mesh%ghost_cell, &
+            self%mesh%rock_types, self%rock_range_start, self%mesh%ghost_cell, &
             self%logfile, err)
        if (err == 0) then
           if (self%mesh%has_minc) then
              call self%mesh%setup_minc_rock_properties(json, self%rock, &
-                  self%rock_dict, self%rock_range_start, self%logfile, err)
+                  self%rock_range_start, self%logfile, err)
           end if
           if (err == 0) then
              call setup_fluid_vector(self%mesh%dm, max_component_name_length, &
@@ -632,7 +629,6 @@ contains
     call VecDestroy(self%flux, ierr); CHKERRQ(ierr)
     call VecDestroy(self%rock, ierr); CHKERRQ(ierr)
     call VecDestroy(self%update_cell, ierr); CHKERRQ(ierr)
-    call self%rock_dict%destroy()
     call self%source_controls%destroy(source_control_list_node_data_destroy, &
          reverse = PETSC_TRUE)
     call self%sources%destroy(source_list_node_data_destroy)

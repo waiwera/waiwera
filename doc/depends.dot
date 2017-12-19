@@ -60,7 +60,6 @@ digraph waiwera{
         face_module -> eos_module
         flow_simulation_module -> capillary_pressure_module
         flow_simulation_module -> cell_module
-        flow_simulation_module -> dictionary_module
         flow_simulation_module -> dm_utils_module
         flow_simulation_module -> eos_module
         flow_simulation_module -> eos_setup_module
@@ -96,7 +95,6 @@ digraph waiwera{
         initial_module -> minc_module
         interpolation_module -> utils_module
         mesh_module -> cell_module
-        mesh_module -> cell_order_module
         mesh_module -> dag_module
         mesh_module -> dictionary_module
         mesh_module -> dm_utils_module
@@ -112,8 +110,12 @@ digraph waiwera{
         mesh_module -> utils_module
         mesh_module -> zone_label_module
         mesh_module -> zone_module
+        minc_module -> dictionary_module
+        minc_module -> dm_utils_module
         minc_module -> fson_mpi_module
+        minc_module -> list_module
         minc_module -> logfile_module
+        minc_module -> rock_module
         minc_module -> root_finder_module
         minc_module -> utils_module
         minc_module -> zone_label_module
@@ -132,7 +134,6 @@ digraph waiwera{
         relative_permeability_module -> logfile_module
         relative_permeability_module -> utils_module
         rock_module -> capillary_pressure_module
-        rock_module -> cell_order_module
         rock_module -> dictionary_module
         rock_module -> dm_utils_module
         rock_module -> fson_mpi_module
