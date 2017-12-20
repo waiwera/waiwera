@@ -470,6 +470,19 @@ contains
          '           }}'
     call minc_test('two sub-zone', json_str, 1, 2 * 49, 1, [49, 49])
 
+    json_str = &
+         '{"mesh": {"filename": "data/mesh/7x7grid.exo",' // &
+         '  "zones": {"left": {"x": [0, 1500]}, "right": {"-": "left"}},' // &
+         '  "minc": [{"rock": {"types": ["rock1"]}, ' // &
+         '                     "geometry": {"fracture": {"volume": 0.1}}}, ' // &
+         '           {"rock": {"types": ["rock2"]}, ' // &
+         '            "geometry": {"fracture": {"volume": 0.1}, ' // &
+         '                         "matrix": {"volume": [0.3, 0.6]}}}]}, ' // &
+         ' "rock": {"types": [{"name": "rock1", "zones": "left"}, ' // &
+         '                    {"name": "rock2", "zones": ["right"]}]}' // &
+         '}'
+    call minc_test('rocktype', json_str, 2, 133, 2, [49, 49, 35])
+
   contains
 
 !........................................................................
