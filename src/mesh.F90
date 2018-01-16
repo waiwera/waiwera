@@ -2585,14 +2585,14 @@ contains
          if (associated(node)) then
             select type (item => node%data)
             type is (rock_dict_item_type)
-               rockstr = minc_str // "." // trim(minc_rock_str) // "." &
+               rockstr = trim(minc_str) // "." // trim(minc_rock_str) // "." &
                     // trim(name) // ".type"
                call read_rock_parameters(item%rock, rock, rockstr)
             end select
          else
             if (present(logfile)) then
                call logfile%write(LOG_LEVEL_ERR, "input", "unrecognised", &
-                    str_key = minc_str // "." // trim(minc_rock_str) // "." &
+                    str_key = trim(minc_str) // "." // trim(minc_rock_str) // "." &
                     // trim(name) // ".type", str_value = rock_name)
                err = 1
             end if
@@ -2600,7 +2600,7 @@ contains
       else
          if (present(logfile)) then
             call logfile%write(LOG_LEVEL_ERR, "input", "not found", &
-                 str_key = minc_str, str_value = trim(name) // ".type")
+                 str_key = trim(minc_str), str_value = trim(name) // ".type")
             err = 1
          end if
       end if
