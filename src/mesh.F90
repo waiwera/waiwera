@@ -2471,69 +2471,72 @@ contains
                minc_rock_str = 'rock[' // trim(irockstr) // ']'
 
                call read_rock_type("fracture", rocki_json, json, fracture_rock, err)
-               call read_rock_type("matrix", rocki_json, json, matrix_rock, err)
-
                if (err == 0) then
+                  call read_rock_type("matrix", rocki_json, json, matrix_rock, err)
+                  if (err == 0) then
 
-                  call DMGetStratumSize(self%dm, minc_rocktype_zone_label_name, &
-                       minc_rocktype_zone_index, num_minc_zone_cells, ierr)
-                  CHKERRQ(ierr)
-                  if (num_minc_zone_cells > 0) then
-                     call DMGetStratumIS(self%dm, minc_rocktype_zone_label_name, &
-                          minc_rocktype_zone_index, minc_IS, ierr); CHKERRQ(ierr)
-                     call ISGetIndicesF90(minc_IS, minc_cells, ierr); CHKERRQ(ierr)
-                     do i = 1, num_minc_zone_cells
-                        c = minc_cells(i)
-                        if (self%ghost_cell(c) < 0) then
-                           call global_section_offset(section, c, rock_range_start, &
-                                orig_offset, ierr); CHKERRQ(ierr)
-                           call orig_rock%assign(rock_array, orig_offset)
+                     call DMGetStratumSize(self%dm, minc_rocktype_zone_label_name, &
+                          minc_rocktype_zone_index, num_minc_zone_cells, ierr)
+                     CHKERRQ(ierr)
+                     if (num_minc_zone_cells > 0) then
+                        call DMGetStratumIS(self%dm, minc_rocktype_zone_label_name, &
+                             minc_rocktype_zone_index, minc_IS, ierr); CHKERRQ(ierr)
+                        call ISGetIndicesF90(minc_IS, minc_cells, ierr); CHKERRQ(ierr)
+                        do i = 1, num_minc_zone_cells
+                           c = minc_cells(i)
+                           if (self%ghost_cell(c) < 0) then
+                              call global_section_offset(section, c, rock_range_start, &
+                                   orig_offset, ierr); CHKERRQ(ierr)
+                              call orig_rock%assign(rock_array, orig_offset)
 
-                           if (fracture_rock%porosity < 0._dp) then
-                              fracture_porosity = orig_rock%porosity
-                           else
-                              fracture_porosity = fracture_rock%porosity
-                           end if
+                              if (fracture_rock%porosity < 0._dp) then
+                                 fracture_porosity = orig_rock%porosity
+                              else
+                                 fracture_porosity = fracture_rock%porosity
+                              end if
 
-                           if (matrix_rock%porosity < 0._dp) then
-                              ! Default matrix porosity preserves void fraction of original rock:
-                              associate(fracture_volume => minc%volume(1))
-                                matrix_porosity = (orig_rock%porosity - &
-                                     fracture_porosity * fracture_volume) / &
-                                     (1._dp - fracture_volume)
+                              if (matrix_rock%porosity < 0._dp) then
+                                 ! Default matrix porosity preserves void fraction of original rock:
+                                 associate(fracture_volume => minc%volume(1))
+                                   matrix_porosity = (orig_rock%porosity - &
+                                        fracture_porosity * fracture_volume) / &
+                                        (1._dp - fracture_volume)
+                                 end associate
+                              else
+                                 matrix_porosity = matrix_rock%porosity
+                              end if
+
+                              associate(orig_properties => rock_array(orig_offset: &
+                                   orig_offset + dof - 1))
+
+                                do m = 1, minc%num_levels
+                                   cell_p = self%strata(h)%minc_point(ic(m), m)
+                                   call global_section_offset(section, cell_p, rock_range_start, &
+                                        offset, ierr); CHKERRQ(ierr)
+                                   ! Update specified matrix properties:
+                                   associate(matrix_properties => rock_array(offset: &
+                                        offset + dof - 1))
+                                     matrix_properties = merge( &
+                                          matrix_rock_array, orig_properties, &
+                                          matrix_rock_array > 0._dp)
+                                   end associate
+                                   call rock%assign(rock_array, offset)
+                                   rock%porosity = matrix_porosity
+                                   ic(m) = ic(m) + 1
+                                end do
+
+                                ! Update specified fracture properties:
+                                orig_properties = merge( &
+                                     fracture_rock_array, orig_properties, &
+                                     fracture_rock_array > 0._dp)
                               end associate
-                           else
-                              matrix_porosity = matrix_rock%porosity
                            end if
+                        end do
+                     end if
 
-                           associate(orig_properties => rock_array(orig_offset: &
-                                orig_offset + dof - 1))
-
-                             do m = 1, minc%num_levels
-                                cell_p = self%strata(h)%minc_point(ic(m), m)
-                                call global_section_offset(section, cell_p, rock_range_start, &
-                                     offset, ierr); CHKERRQ(ierr)
-                                ! Update specified matrix properties:
-                                associate(matrix_properties => rock_array(offset: &
-                                     offset + dof - 1))
-                                  matrix_properties = merge( &
-                                       matrix_rock_array, orig_properties, &
-                                       matrix_rock_array > 0._dp)
-                                end associate
-                                call rock%assign(rock_array, offset)
-                                rock%porosity = matrix_porosity
-                                ic(m) = ic(m) + 1
-                             end do
-
-                             ! Update specified fracture properties:
-                             orig_properties = merge( &
-                                  fracture_rock_array, orig_properties, &
-                                  fracture_rock_array > 0._dp)
-                           end associate
-                        end if
-                     end do
+                  else
+                     exit
                   end if
-
                else
                   exit
                end if
