@@ -205,7 +205,7 @@ contains
     Vec, intent(in out) :: fluid_vector
     PetscInt, intent(in) :: fluid_range_start
     ! Locals:
-    PetscInt :: num_cells, np, i, ghost
+    PetscInt :: num_cells, i, ghost
     PetscInt :: offset, c
     type(fluid_type) :: fluid
     PetscReal, pointer, contiguous :: fluid_array(:)
@@ -215,7 +215,6 @@ contains
     PetscErrorCode :: ierr
 
     num_cells = size(region, 1)
-    np = eos%num_primary_variables
 
     call global_vec_section(fluid_vector, section)
     call VecGetArrayF90(fluid_vector, fluid_array, ierr); CHKERRQ(ierr)
@@ -246,13 +245,15 @@ contains
 !------------------------------------------------------------------------
 
   subroutine setup_initial_file(filename, mesh, eos, t, y, fluid_vector, &
-       y_range_start, fluid_range_start, index, minc_specified)
+       y_range_start, fluid_range_start, index, use_original_dm)
     !! Initializes fluid vector and solution vector y from HDF5 file.
 
     use mesh_module
-    use dm_utils_module, only: global_vec_section, global_section_offset
-    use eos_module, only: eos_type
-    use fluid_module, only: fluid_type
+    use dm_utils_module, only: global_vec_section, global_section_offset, &
+         dm_get_cell_index, vec_reorder
+    use eos_module, only: eos_type, max_component_name_length, &
+         max_phase_name_length
+    use fluid_module, only: fluid_type, setup_fluid_vector
 
     character(len = *), intent(in) :: filename
     type(mesh_type), intent(in) :: mesh
@@ -261,71 +262,172 @@ contains
     Vec, intent(in out) :: y, fluid_vector
     PetscInt, intent(in) :: y_range_start, fluid_range_start
     PetscInt, intent(in) :: index !! time index to fetch initial conditions from
-    PetscBool, intent(in) :: minc_specified !! Whether initial conditions include MINC cells
+    PetscBool, intent(in) :: use_original_dm !! Whether file results correspond to original_dm
     ! Locals:
     PetscViewer :: viewer
-    DM :: fluid_dm
-    IS :: output_cell_index
-    PetscSection :: y_section, fluid_section
-    PetscReal, pointer, contiguous :: y_array(:), fluid_array(:)
-    PetscReal, pointer, contiguous :: cell_primary(:)
-    type(fluid_type) :: fluid
-    DMLabel :: ghost_label
-    PetscInt :: np, c, ghost, y_offset, fluid_offset
-    PetscInt :: start_cell, end_cell
     PetscErrorCode :: ierr
 
     call PetscViewerHDF5Open(PETSC_COMM_WORLD, filename, FILE_MODE_READ, &
          viewer, ierr); CHKERRQ(ierr)
     call PetscViewerHDF5PushGroup(viewer, "/", ierr); CHKERRQ(ierr)
 
-    call ISDuplicate(mesh%cell_index, output_cell_index, ierr); CHKERRQ(ierr)
-    call PetscObjectSetName(output_cell_index, "cell_index", ierr)
-    CHKERRQ(ierr)
-    call ISLoad(output_cell_index, viewer, ierr); CHKERRQ(ierr)
-
-    call VecGetDM(fluid_vector, fluid_dm, ierr); CHKERRQ(ierr)
-    call DMSetOutputSequenceNumber(fluid_dm, index, t, ierr); CHKERRQ(ierr)
-    call VecLoad(fluid_vector, viewer, ierr); CHKERRQ(ierr)
+    if (use_original_dm) then
+       call load_fluid_original_dm()
+    else
+       call load_fluid_dm()
+    end if
 
     call PetscViewerHDF5PopGroup(viewer, ierr); CHKERRQ(ierr)
     call PetscViewerDestroy(viewer, ierr); CHKERRQ(ierr)
 
-    call mesh%order_vector(fluid_vector, output_cell_index)
-    call ISDestroy(output_cell_index, ierr); CHKERRQ(ierr)
+    call assign_solution_vector()
 
-    ! Determine solution vector from fluid vector:
+  contains
 
-    call global_vec_section(y, y_section)
-    call VecGetArrayF90(y, y_array, ierr); CHKERRQ(ierr)
+!........................................................................
 
-    call global_vec_section(fluid_vector, fluid_section)
-    call VecGetArrayReadF90(fluid_vector, fluid_array, ierr); CHKERRQ(ierr)
+    subroutine load_fluid_original_dm()
+      !! Loads fluid vector corresponding to original DM from HDF5 file.
 
-    call fluid%init(eos%num_components, eos%num_phases)
-    np = eos%num_primary_variables
+      ! Locals:
+      DM :: fluid_dm
+      IS :: output_cell_index
+      IS :: original_cell_index, original_cell_interior_index
+      Vec :: original_fluid_vector
+      PetscInt :: original_fluid_range_start
+      PetscSection :: fluid_section, original_fluid_section
+      PetscReal, pointer, contiguous :: fluid_array(:), original_fluid_array(:)
+      PetscInt :: start_cell, end_cell, c, ghost
+      PetscInt :: fluid_offset, original_fluid_offset
+      type(fluid_type) :: fluid
+      DMLabel :: ghost_label
+      PetscErrorCode :: ierr
 
-    call DMGetLabel(mesh%dm, "ghost", ghost_label, ierr)
-    CHKERRQ(ierr)
-    call DMPlexGetHeightStratum(mesh%dm, 0, start_cell, end_cell, ierr)
-    CHKERRQ(ierr)
+      call fluid%init(eos%num_components, eos%num_phases)
 
-    do c = start_cell, end_cell - 1
-       call DMLabelGetValue(ghost_label, c, ghost, ierr); CHKERRQ(ierr)
-       if (ghost < 0) then
-          call global_section_offset(y_section, c, &
-               y_range_start, y_offset, ierr); CHKERRQ(ierr)
-          cell_primary => y_array(y_offset : y_offset + np - 1)
-          call global_section_offset(fluid_section, c, &
-               fluid_range_start, fluid_offset, ierr); CHKERRQ(ierr)
-          call fluid%assign(fluid_array, fluid_offset)
-          call eos%primary_variables(fluid, cell_primary)
-       end if
-    end do
+      call dm_get_cell_index(mesh%original_dm, mesh%original_cell_order, &
+           original_cell_index, original_cell_interior_index)
+      call ISDestroy(original_cell_interior_index, ierr); CHKERRQ(ierr)
 
-    call VecRestoreArrayF90(y, y_array, ierr); CHKERRQ(ierr)
-    call VecRestoreArrayReadF90(fluid_vector, fluid_array, ierr); CHKERRQ(ierr)
-    call fluid%destroy()
+      call ISDuplicate(original_cell_index, output_cell_index, ierr); CHKERRQ(ierr)
+      call PetscObjectSetName(output_cell_index, "cell_index", ierr)
+      CHKERRQ(ierr)
+      call ISLoad(output_cell_index, viewer, ierr); CHKERRQ(ierr)
+
+      call setup_fluid_vector(mesh%original_dm, max_component_name_length, &
+           eos%component_names, max_phase_name_length, &
+           eos%phase_names, original_fluid_vector, original_fluid_range_start)
+
+      call VecGetDM(original_fluid_vector, fluid_dm, ierr); CHKERRQ(ierr)
+      call DMSetOutputSequenceNumber(fluid_dm, index, t, ierr); CHKERRQ(ierr)
+      call VecLoad(original_fluid_vector, viewer, ierr); CHKERRQ(ierr)
+      call vec_reorder(original_fluid_vector, output_cell_index, original_cell_index)
+      call ISDestroy(output_cell_index, ierr); CHKERRQ(ierr)
+
+      call DMGetLabel(mesh%original_dm, "ghost", ghost_label, ierr)
+      CHKERRQ(ierr)
+      call DMPlexGetHeightStratum(mesh%original_dm, 0, start_cell, end_cell, ierr)
+      CHKERRQ(ierr)
+      call global_vec_section(original_fluid_vector, original_fluid_section)
+      call VecGetArrayReadF90(original_fluid_vector, original_fluid_array, ierr)
+      CHKERRQ(ierr)
+      call global_vec_section(fluid_vector, fluid_section)
+      call VecGetArrayReadF90(fluid_vector, fluid_array, ierr)
+      CHKERRQ(ierr)
+      fluid_array = -1._dp ! flag values missing from input
+
+      ! Copy original fluid values to fluid vector:
+      do c = start_cell, end_cell - 1
+         call DMLabelGetValue(ghost_label, c, ghost, ierr); CHKERRQ(ierr)
+         if (ghost < 0) then
+            call global_section_offset(original_fluid_section, c, &
+                 original_fluid_range_start, original_fluid_offset, ierr)
+            CHKERRQ(ierr)
+            call global_section_offset(fluid_section, c, &
+                 fluid_range_start, fluid_offset, ierr); CHKERRQ(ierr)
+            fluid_array(fluid_offset: fluid_offset + fluid%dof - 1) = &
+                 original_fluid_array(original_fluid_offset: &
+                 original_fluid_offset + fluid%dof - 1)
+         end if
+      end do
+
+      call VecDestroy(original_fluid_vector, ierr); CHKERRQ(ierr)
+      call fluid%destroy()
+
+    end subroutine load_fluid_original_dm
+
+!........................................................................
+
+    subroutine load_fluid_dm()
+      !! Loads fluid vector from HDF5 file.
+
+      ! Locals:
+      DM :: fluid_dm
+      IS :: output_cell_index
+      PetscErrorCode :: ierr
+
+      call ISDuplicate(mesh%cell_index, output_cell_index, ierr); CHKERRQ(ierr)
+      call PetscObjectSetName(output_cell_index, "cell_index", ierr)
+      CHKERRQ(ierr)
+      call ISLoad(output_cell_index, viewer, ierr); CHKERRQ(ierr)
+
+      call VecGetDM(fluid_vector, fluid_dm, ierr); CHKERRQ(ierr)
+      call DMSetOutputSequenceNumber(fluid_dm, index, t, ierr); CHKERRQ(ierr)
+      call VecLoad(fluid_vector, viewer, ierr); CHKERRQ(ierr)
+      call mesh%order_vector(fluid_vector, output_cell_index)
+      call ISDestroy(output_cell_index, ierr); CHKERRQ(ierr)
+
+    end subroutine load_fluid_dm
+
+!........................................................................
+
+    subroutine assign_solution_vector()
+      !! Determine solution vector from fluid vector.
+
+      ! Locals:
+      PetscSection :: y_section, fluid_section
+      PetscInt :: start_cell, end_cell, c
+      PetscInt :: ghost, np
+      PetscInt :: y_offset, fluid_offset
+      PetscReal, pointer, contiguous :: y_array(:), fluid_array(:)
+      PetscReal, pointer, contiguous :: cell_primary(:)
+      DMLabel :: ghost_label
+      type(fluid_type) :: fluid
+      PetscErrorCode :: ierr
+      
+      call fluid%init(eos%num_components, eos%num_phases)
+      np = eos%num_primary_variables
+      call global_vec_section(y, y_section)
+      call VecGetArrayF90(y, y_array, ierr); CHKERRQ(ierr)
+
+      call global_vec_section(fluid_vector, fluid_section)
+      call VecGetArrayReadF90(fluid_vector, fluid_array, ierr); CHKERRQ(ierr)
+
+      call DMGetLabel(mesh%dm, "ghost", ghost_label, ierr)
+      CHKERRQ(ierr)
+      call DMPlexGetHeightStratum(mesh%dm, 0, start_cell, end_cell, ierr)
+      CHKERRQ(ierr)
+
+      do c = start_cell, end_cell - 1
+         call DMLabelGetValue(ghost_label, c, ghost, ierr); CHKERRQ(ierr)
+         if (ghost < 0) then
+            call global_section_offset(fluid_section, c, &
+                 fluid_range_start, fluid_offset, ierr); CHKERRQ(ierr)
+            if (fluid_array(fluid_offset) > 0._dp) then
+               call global_section_offset(y_section, c, &
+                    y_range_start, y_offset, ierr); CHKERRQ(ierr)
+               cell_primary => y_array(y_offset : y_offset + np - 1)
+               call fluid%assign(fluid_array, fluid_offset)
+               call eos%primary_variables(fluid, cell_primary)
+            end if
+         end if
+      end do
+
+      call VecRestoreArrayF90(y, y_array, ierr); CHKERRQ(ierr)
+      call VecRestoreArrayReadF90(fluid_vector, fluid_array, ierr); CHKERRQ(ierr)
+      call fluid%destroy()
+
+    end subroutine assign_solution_vector
 
   end subroutine setup_initial_file
 
@@ -423,7 +525,7 @@ contains
     character(len = max_filename_length) :: filename
     PetscInt, parameter :: default_index = 0
     PetscInt :: index
-    PetscBool :: minc_specified
+    PetscBool :: minc_specified, use_original_dm
     PetscBool, parameter :: default_minc_specified = PETSC_FALSE
 
     call fson_get_mpi(json, "time.start", default_start_time, t, logfile)
@@ -433,8 +535,10 @@ contains
        if (mesh%has_minc) then
           call fson_get_mpi(json, "initial.minc", default_minc_specified, &
                minc_specified, logfile)
+          use_original_dm = .not. minc_specified
        else
           minc_specified = PETSC_FALSE
+          use_original_dm = PETSC_FALSE
        end if
 
        if (fson_has_mpi(json, "initial.filename")) then
@@ -442,7 +546,7 @@ contains
           call fson_get_mpi(json, "initial.filename", val = filename)
           call fson_get_mpi(json, "initial.index", default_index, index, logfile)
           call setup_initial_file(filename, mesh, eos, t, y, fluid_vector, &
-               y_range_start, fluid_range_start, index, minc_specified)
+               y_range_start, fluid_range_start, index, use_original_dm)
 
        else if (fson_has_mpi(json, "initial.primary")) then
 
