@@ -40,7 +40,8 @@ module mesh_module
      !! Mesh type.
      private
      character(max_mesh_filename_length), public :: filename !! Mesh file name
-     DM, public :: dm !! DM representing the mesh topology
+     DM, public :: original_dm !! Original DM read from file
+     DM, public :: dm !! DM representing the mesh topology (may be modified from original_dm)
      Vec, public :: cell_geom !! Vector containing cell geometry data
      Vec, public :: face_geom !! Vector containing face geometry data
      PetscInt :: depth !! DM depth
@@ -557,12 +558,13 @@ contains
     else
        ! Read in DM:
        call DMPlexCreateFromFile(PETSC_COMM_WORLD, self%filename, PETSC_TRUE, &
-            self%dm, ierr); CHKERRQ(ierr)
-       call dm_set_fv_adjacency(self%dm)
+            self%original_dm, ierr); CHKERRQ(ierr)
+       call dm_set_fv_adjacency(self%original_dm)
        call self%setup_coordinate_parameters(json, logfile)
        call self%set_permeability_rotation(json, logfile)
        call self%rock_types%init(owner = PETSC_TRUE)
        self%has_minc = PETSC_FALSE
+       self%dm = self%original_dm
     end if
 
   end subroutine mesh_init
@@ -1452,7 +1454,6 @@ contains
     end do
     deallocate(minc_zone, minc_level_cells, stratum_shift)
 
-    call DMDestroy(self%dm, ierr); CHKERRQ(ierr)
     self%dm = minc_dm
 
   end subroutine mesh_setup_minc_dm

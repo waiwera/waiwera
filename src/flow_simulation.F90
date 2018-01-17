@@ -600,6 +600,11 @@ contains
           end if
        end if
     end if
+
+    if (self%mesh%has_minc) then
+       call DMDestroy(self%mesh%original_dm, ierr); CHKERRQ(ierr)
+    end if
+
     call self%logfile%flush()
 
     call PetscLogEventEnd(simulation_init_event, ierr); CHKERRQ(ierr)
