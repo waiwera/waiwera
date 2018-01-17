@@ -274,7 +274,7 @@ contains
     if (use_original_dm) then
        call load_fluid_original_dm()
     else
-       call load_fluid_dm()
+       call load_fluid()
     end if
 
     call PetscViewerHDF5PopGroup(viewer, ierr); CHKERRQ(ierr)
@@ -358,7 +358,7 @@ contains
 
 !........................................................................
 
-    subroutine load_fluid_dm()
+    subroutine load_fluid()
       !! Loads fluid vector from HDF5 file.
 
       ! Locals:
@@ -377,7 +377,7 @@ contains
       call mesh%order_vector(fluid_vector, output_cell_index)
       call ISDestroy(output_cell_index, ierr); CHKERRQ(ierr)
 
-    end subroutine load_fluid_dm
+    end subroutine load_fluid
 
 !........................................................................
 
