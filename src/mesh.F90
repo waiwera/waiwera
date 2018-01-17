@@ -643,6 +643,7 @@ contains
 
     call VecDestroy(self%face_geom, ierr); CHKERRQ(ierr)
     call DMDestroy(self%dm, ierr); CHKERRQ(ierr)
+    call DMDestroy(self%original_dm, ierr); CHKERRQ(ierr)
     call ISDestroy(self%cell_index, ierr); CHKERRQ(ierr)
 
     if (allocated(self%bcs)) then
