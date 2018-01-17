@@ -49,6 +49,7 @@ module mesh_module
      PetscReal, allocatable, public :: bcs(:,:) !! Array containing boundary conditions
      IS, public :: cell_index !! Index set defining natural to global cell ordering
      AO, public :: cell_order !! Application ordering to convert between global and natural cell indices
+     AO, public :: original_cell_order !! Global-to-natural AO for original DM
      PetscInt, public, allocatable :: ghost_cell(:), ghost_face(:) !! Ghost label values for cells and faces
      type(minc_type), allocatable, public :: minc(:) !! Array of MINC zones, with parameters
      PetscReal, public :: permeability_rotation(3, 3) !! Rotation matrix of permeability axes
@@ -106,11 +107,11 @@ contains
     PetscErrorCode :: ierr
     PetscInt, parameter :: overlap = 1
 
-    call DMPlexDistribute(self%dm, overlap, dist_sf, dist_dm, ierr)
+    call DMPlexDistribute(self%original_dm, overlap, dist_sf, dist_dm, ierr)
     CHKERRQ(ierr)
     if (dist_dm .ne. PETSC_NULL_DM) then
-       call DMDestroy(self%dm, ierr); CHKERRQ(ierr)
-       self%dm = dist_dm
+       call DMDestroy(self%original_dm, ierr); CHKERRQ(ierr)
+       self%original_dm = dist_dm
     end if
     
   end subroutine mesh_distribute
@@ -125,11 +126,11 @@ contains
     DM :: ghost_dm
     PetscErrorCode :: ierr
 
-    call DMPlexConstructGhostCells(self%dm, open_boundary_label_name, &
+    call DMPlexConstructGhostCells(self%original_dm, open_boundary_label_name, &
          PETSC_NULL_INTEGER, ghost_dm, ierr); CHKERRQ(ierr)
     if (ghost_dm .ne. PETSC_NULL_DM) then
-       call DMDestroy(self%dm, ierr); CHKERRQ(ierr);
-       self%dm = ghost_dm
+       call DMDestroy(self%original_dm, ierr); CHKERRQ(ierr);
+       self%original_dm = ghost_dm
     end if
 
   end subroutine mesh_construct_ghost_cells
@@ -153,7 +154,7 @@ contains
     PetscReal, parameter :: default_thickness = 1._dp
 
     self%thickness = default_thickness
-    call DMGetDimension(self%dm, dim, ierr); CHKERRQ(ierr)
+    call DMGetDimension(self%original_dm, dim, ierr); CHKERRQ(ierr)
     select case (dim)
     case(3)
        self%radial = PETSC_FALSE
@@ -220,7 +221,7 @@ contains
     PetscErrorCode :: ierr
     Vec :: petsc_face_geom
 
-    call DMPlexComputeGeometryFVM(self%dm, self%cell_geom, &
+    call DMPlexComputeGeometryFVM(self%original_dm, self%cell_geom, &
          petsc_face_geom, ierr); CHKERRQ(ierr)
 
     call self%modify_geometry(petsc_face_geom, gravity)
@@ -287,11 +288,11 @@ contains
     procedure(modify_cell_volume_routine), pointer :: modify_cell_volume
     procedure(modify_face_area_routine), pointer :: modify_face_area
 
-    call DMGetDimension(self%dm, dim, ierr); CHKERRQ(ierr)
-    call DMGetLabel(self%dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
-    call DMPlexGetHeightStratum(self%dm, 0, start_cell, end_cell, ierr)
+    call DMGetDimension(self%original_dm, dim, ierr); CHKERRQ(ierr)
+    call DMGetLabel(self%original_dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
+    call DMPlexGetHeightStratum(self%original_dm, 0, start_cell, end_cell, ierr)
     CHKERRQ(ierr)
-    call DMPlexGetHeightStratum(self%dm, 1, start_face, end_face, ierr)
+    call DMPlexGetHeightStratum(self%original_dm, 1, start_face, end_face, ierr)
     CHKERRQ(ierr)
 
     ! Set up cell geometry vector:
@@ -316,7 +317,7 @@ contains
     end if
 
     ! Set up face geometry vector:
-    call DMClone(self%dm, dm_face, ierr); CHKERRQ(ierr)
+    call DMClone(self%original_dm, dm_face, ierr); CHKERRQ(ierr)
     face_variable_dim = dim - 1
     call set_dm_data_layout(dm_face, face_variable_num_components, &
          face_variable_dim, face_variable_names)
@@ -349,7 +350,7 @@ contains
           call section_offset(petsc_face_section, f, petsc_face_offset, ierr)
           CHKERRQ(ierr)
 
-          call DMPlexGetSupport(self%dm, f, cells, ierr); CHKERRQ(ierr)
+          call DMPlexGetSupport(self%original_dm, f, cells, ierr); CHKERRQ(ierr)
           do i = 1, 2
              call section_offset(cell_section, cells(i), cell_offset(i), ierr)
              CHKERRQ(ierr)
@@ -564,7 +565,6 @@ contains
        call self%set_permeability_rotation(json, logfile)
        call self%rock_types%init(owner = PETSC_TRUE)
        self%has_minc = PETSC_FALSE
-       self%dm = self%original_dm
     end if
 
   end subroutine mesh_init
@@ -599,13 +599,17 @@ contains
 
     associate(dof => eos%num_primary_variables)
 
-      call dm_setup_fv_discretization(self%dm, dof)
+      call dm_setup_fv_discretization(self%original_dm, dof)
       call self%setup_boundaries(json, eos, dist_sf, logfile)
       call self%construct_ghost_cells()
-      call set_dm_default_data_layout(self%dm, dof)
+      call set_dm_default_data_layout(self%original_dm, dof)
 
       call self%setup_geometry(gravity)
-      self%cell_order = dm_get_natural_to_global_ao(self%dm, dist_sf)
+      self%dm = self%original_dm
+      self%original_cell_order = dm_get_natural_to_global_ao(self%original_dm, &
+           dist_sf)
+      self%cell_order = self%original_cell_order
+
       call self%setup_zones(json, logfile, err)
       if (err == 0) then
          call setup_rock_types(json, self%dm, self%cell_order, &
@@ -643,7 +647,6 @@ contains
 
     call VecDestroy(self%face_geom, ierr); CHKERRQ(ierr)
     call DMDestroy(self%dm, ierr); CHKERRQ(ierr)
-    call DMDestroy(self%original_dm, ierr); CHKERRQ(ierr)
     call ISDestroy(self%cell_index, ierr); CHKERRQ(ierr)
 
     if (allocated(self%bcs)) then
@@ -651,7 +654,6 @@ contains
     end if
 
     call AODestroy(self%cell_order, ierr); CHKERRQ(ierr)
-    call ISDestroy(self%cell_index, ierr); CHKERRQ(ierr)
 
     if (allocated(self%ghost_cell)) then
        deallocate(self%ghost_cell)
@@ -661,6 +663,8 @@ contains
     end if
 
     if (self%has_minc) then
+       call DMDestroy(self%original_dm, ierr); CHKERRQ(ierr)
+       call AODestroy(self%original_cell_order, ierr); CHKERRQ(ierr)
        call self%destroy_minc()
        call self%destroy_strata()
     end if
@@ -711,10 +715,10 @@ contains
     if (allocated(self%bcs)) then
        ! Set external boundary face connection distances to zero:
        do ibdy = 1, size(self%bcs, 2)
-          call DMGetStratumSize(self%dm, open_boundary_label_name, ibdy, &
+          call DMGetStratumSize(self%original_dm, open_boundary_label_name, ibdy, &
                num_faces, ierr); CHKERRQ(ierr)
           if (num_faces > 0) then
-             call DMGetStratumIS(self%dm, open_boundary_label_name, ibdy, &
+             call DMGetStratumIS(self%original_dm, open_boundary_label_name, ibdy, &
                   bdy_IS, ierr); CHKERRQ(ierr)
              call ISGetIndicesF90(bdy_IS, bdy_faces, ierr); CHKERRQ(ierr)
              do iface = 1, num_faces
@@ -779,10 +783,10 @@ contains
     default_cells = [PetscInt::]
     np = eos%num_primary_variables
 
-    call DMHasLabel(self%dm, open_boundary_label_name, mesh_has_label, &
+    call DMHasLabel(self%original_dm, open_boundary_label_name, mesh_has_label, &
          ierr); CHKERRQ(ierr)
     if (.not. mesh_has_label) then
-       call DMCreateLabel(self%dm, open_boundary_label_name, &
+       call DMCreateLabel(self%original_dm, open_boundary_label_name, &
             ierr); CHKERRQ(ierr)
     end if
 
@@ -793,14 +797,14 @@ contains
        allocate(self%bcs(np + 1, num_boundaries))
        bdy => fson_value_children_mpi(boundaries)
 
-       call DMPlexGetHeightStratum(self%dm, 0, start_cell, end_cell, ierr)
+       call DMPlexGetHeightStratum(self%original_dm, 0, start_cell, end_cell, ierr)
        CHKERRQ(ierr)
-       end_interior_cell = dm_get_end_interior_cell(self%dm, end_cell)
-       num_ghost_cells = dm_get_num_partition_ghost_cells(self%dm)
+       end_interior_cell = dm_get_end_interior_cell(self%original_dm, end_cell)
+       num_ghost_cells = dm_get_num_partition_ghost_cells(self%original_dm)
        num_non_ghost_cells = end_interior_cell - start_cell - num_ghost_cells
        end_non_ghost_cell = start_cell + num_non_ghost_cells
-       ao = dm_get_natural_to_global_ao(self%dm, dist_sf)
-       call DMGetLocalToGlobalMapping(self%dm, l2g, ierr); CHKERRQ(ierr)
+       ao = dm_get_natural_to_global_ao(self%original_dm, dist_sf)
+       call DMGetLocalToGlobalMapping(self%original_dm, l2g, ierr); CHKERRQ(ierr)
 
        num_faces = 0
        do ibdy = 1, num_boundaries
@@ -876,7 +880,7 @@ contains
           do iface = 1, num_faces
              associate(f => faces(iface))
                if (f >= 0) then
-                  call DMSetLabelValue(self%dm, open_boundary_label_name, &
+                  call DMSetLabelValue(self%original_dm, open_boundary_label_name, &
                        f, ibdy, ierr); CHKERRQ(ierr)
                end if
              end associate
@@ -921,7 +925,7 @@ contains
          associate(c => cells(icell))
            if (c >= 0) then
               if ((start_cell <= c) .and. (c <= end_non_ghost_cell)) then
-                 call dm_cell_normal_face(self%dm, c, normal, f)
+                 call dm_cell_normal_face(self%original_dm, c, normal, f)
                  if (f >= 0) then
                     faces(iface) = f
                  else
@@ -2081,7 +2085,6 @@ contains
          natural, global, minc_ao, ierr); CHKERRQ(ierr)
     deallocate(natural, global)
 
-    call AODestroy(self%cell_order, ierr); CHKERRQ(ierr)
     self%cell_order = minc_ao
 
   contains
