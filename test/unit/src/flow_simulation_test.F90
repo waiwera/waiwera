@@ -36,15 +36,27 @@ contains
     character(*), intent(in) :: name, path
     IS, intent(in) :: cell_index
     ! Locals:
+    DM :: dm
     PetscErrorCode :: ierr
     PetscViewer :: viewer
+    PetscInt :: time_index
+    PetscReal :: time
+
+    time_index = 0
+    time = 0._dp
 
     call PetscViewerHDF5Open(PETSC_COMM_WORLD, &
          trim(path) // trim(name) // ".h5", &
          FILE_MODE_WRITE, viewer, ierr); CHKERRQ(ierr)
     call PetscViewerHDF5PushGroup(viewer, "/", ierr); CHKERRQ(ierr)
-    call VecView(v, viewer, ierr); CHKERRQ(ierr)
+
     call ISView(cell_index, viewer, ierr); CHKERRQ(ierr)
+
+    call VecGetDM(v, dm, ierr); CHKERRQ(ierr)
+    call DMSetOutputSequenceNumber(dm, time_index, time, &
+         ierr); CHKERRQ(ierr)
+
+    call VecView(v, viewer, ierr); CHKERRQ(ierr)
     call PetscViewerHDF5PopGroup(viewer, ierr); CHKERRQ(ierr)
     call PetscViewerDestroy(viewer, ierr); CHKERRQ(ierr)
 
