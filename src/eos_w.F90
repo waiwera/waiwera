@@ -130,6 +130,8 @@ contains
     fluid%phase(1)%saturation = 1._dp
     call self%phase_composition(fluid, err)
 
+    fluid%partial_pressure(1) = fluid%pressure
+
   end subroutine eos_w_bulk_properties
 
 !------------------------------------------------------------------------

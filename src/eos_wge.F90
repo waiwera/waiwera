@@ -330,19 +330,20 @@ contains
     PetscErrorCode, intent(out) :: err !! Error code
     ! Locals:
     PetscInt :: region
-    PetscReal :: water_pressure
 
     err = 0
     fluid%pressure = primary(1)
     region = nint(fluid%region)
 
+    associate(partial_pressure => primary(3))
+      fluid%partial_pressure(1) = fluid%pressure - partial_pressure
+      fluid%partial_pressure(2) = partial_pressure
+    end associate
+
     if (region == 4) then
        ! Two-phase
-       associate(partial_pressure => primary(3))
-         water_pressure = fluid%pressure - partial_pressure
-         call self%thermo%saturation%temperature(water_pressure, &
-              fluid%temperature, err)
-       end associate
+       call self%thermo%saturation%temperature( &
+            fluid%partial_pressure(1), fluid%temperature, err)
     else
        ! Single-phase
        fluid%temperature = primary(2)
