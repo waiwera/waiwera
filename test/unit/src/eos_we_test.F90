@@ -425,30 +425,34 @@ contains
 
     if (rank == 0) then
 
-       fluid_data(7) = 0.0_dp
-       expected_cond = 1.0_dp
-       cond = eos%conductivity(rock, fluid)
-       call assert_equals(expected_cond, cond, tol, "sl = 0.0")
+       associate(sl => fluid_data(8))
 
-       fluid_data(7) = 0.25_dp
-       expected_cond = 1.25_dp
-       cond = eos%conductivity(rock, fluid)
-       call assert_equals(expected_cond, cond, tol, "sl = 0.25")
+         sl = 0.0_dp
+         expected_cond = 1.0_dp
+         cond = eos%conductivity(rock, fluid)
+         call assert_equals(expected_cond, cond, tol, "sl = 0.0")
 
-       fluid_data(7) = 0.5_dp
-       expected_cond = 1.3535534_dp
-       cond = eos%conductivity(rock, fluid)
-       call assert_equals(expected_cond, cond, tol, "sl = 0.5")
+         sl = 0.25_dp
+         expected_cond = 1.25_dp
+         cond = eos%conductivity(rock, fluid)
+         call assert_equals(expected_cond, cond, tol, "sl = 0.25")
 
-       fluid_data(7) = 0.75_dp
-       expected_cond = 1.4330127_dp
-       cond = eos%conductivity(rock, fluid)
-       call assert_equals(expected_cond, cond, tol, "sl = 0.75")
+         sl = 0.5_dp
+         expected_cond = 1.3535534_dp
+         cond = eos%conductivity(rock, fluid)
+         call assert_equals(expected_cond, cond, tol, "sl = 0.5")
 
-       fluid_data(7) = 1.0_dp
-       expected_cond = 1.5_dp
-       cond = eos%conductivity(rock, fluid)
-       call assert_equals(expected_cond, cond, tol, "sl = 1.0")
+         sl = 0.75_dp
+         expected_cond = 1.4330127_dp
+         cond = eos%conductivity(rock, fluid)
+         call assert_equals(expected_cond, cond, tol, "sl = 0.75")
+
+         sl = 1.0_dp
+         expected_cond = 1.5_dp
+         cond = eos%conductivity(rock, fluid)
+         call assert_equals(expected_cond, cond, tol, "sl = 1.0")
+
+       end associate
 
     end if
 

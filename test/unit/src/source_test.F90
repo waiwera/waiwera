@@ -65,7 +65,7 @@ contains
     call global_vec_section(fluid_vector, fluid_section)
     call VecGetArrayF90(fluid_vector, fluid_array, ierr); CHKERRQ(ierr)
 
-    fluid_cell_data = [2.7e5_dp, 130._dp, 4._dp, 3._dp, &
+    fluid_cell_data = [2.7e5_dp, 130._dp, 4._dp, 3._dp, 0._dp, 0._dp, &
          935._dp, 1.e-6_dp, 0.8_dp, 0.7_dp, 0._dp, 83.9e3_dp, 5.461e5_dp, 0.7_dp, 0.3_dp, &
          1.5_dp,  2.e-7_dp, 0.2_dp, 0.3_dp, 0._dp, 800.e3_dp, 2.540e6_dp, 0.4_dp, 0.6_dp]
 
