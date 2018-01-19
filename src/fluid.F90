@@ -32,20 +32,22 @@ module fluid_module
   implicit none
   private
 
-  PetscInt, parameter, public :: num_fluid_variables = 4
-  PetscInt, parameter, public :: num_phase_variables = 7  ! (excluding mass fractions)
-  PetscInt, parameter, public :: max_fluid_variable_name_length = 11
+  PetscInt, parameter, public :: num_fluid_variables = 5
+  PetscInt, parameter, public :: num_phase_variables = 8
+  PetscInt, parameter, public :: max_fluid_variable_name_length = 16
   character(max_fluid_variable_name_length), public :: &
        fluid_variable_names(num_fluid_variables) = [ &
-       "pressure   ", "temperature", &
-       "region     ", "phases     "]
+       "pressure        ", "temperature     ", &
+       "region          ", "phases          ", &
+       "partial_pressure"]
   PetscInt, parameter, public :: max_phase_variable_name_length = 21
   character(max_phase_variable_name_length), public :: &
        phase_variable_names(num_phase_variables) = [ &
        "density              ", "viscosity            ", &
        "saturation           ", "relative_permeability", &
        "capillary_pressure   ", &
-       "specific_enthalpy    ", "internal_energy      "]
+       "specific_enthalpy    ", "internal_energy      ", &
+       "mass_fraction        "]
 
   type phase_type
      !! Type for accessing local fluid properties for a particular phase.
@@ -78,6 +80,7 @@ module fluid_module
      PetscReal, pointer, public :: temperature !! Temperature
      PetscReal, pointer, public :: region      !! Thermodynamic region
      PetscReal, pointer, public :: phase_composition   !! Phase composition
+     PetscReal, pointer, contiguous, public :: partial_pressure(:) !! Component partial pressures
      type(phase_type), allocatable, public :: phase(:) !! Phase variables
      PetscInt, public :: num_phases !! Number of phases
      PetscInt, public :: num_components !! Number of mass components
@@ -151,8 +154,10 @@ contains
     self%num_components = num_components
     allocate(self%phase(num_phases))
 
-    self%phase_dof = num_phase_variables + self%num_components
-    self%dof = num_fluid_variables + self%num_phases * self%phase_dof
+    self%phase_dof = num_phase_variables + self%num_components - 1
+    associate(bulk_dof => num_fluid_variables + self%num_components - 1)
+      self%dof = bulk_dof + self%num_phases * self%phase_dof
+    end associate
 
   end subroutine fluid_init
     
@@ -172,18 +177,21 @@ contains
     self%temperature => data(offset + 1)
     self%region => data(offset + 2)
     self%phase_composition => data(offset + 3)
+    self%partial_pressure => data(offset + 4: offset + 4 + self%num_components - 1)
     
-    i = offset + num_fluid_variables
+    associate(bulk_dof => num_fluid_variables + self%num_components - 1)
+      i = offset + bulk_dof
+    end associate
     do p = 1, self%num_phases
        associate(phase => self%phase(p))
          phase%density => data(i)
-         phase%viscosity => data(i+1)
-         phase%saturation => data(i+2)
-         phase%relative_permeability => data(i+3)
-         phase%capillary_pressure => data(i+4)
-         phase%specific_enthalpy => data(i+5)
-         phase%internal_energy => data(i+6)
-         phase%mass_fraction => data(i+7: i+7 + self%num_components-1)
+         phase%viscosity => data(i + 1)
+         phase%saturation => data(i + 2)
+         phase%relative_permeability => data(i + 3)
+         phase%capillary_pressure => data(i + 4)
+         phase%specific_enthalpy => data(i + 5)
+         phase%internal_energy => data(i + 6)
+         phase%mass_fraction => data(i + 7: i + 7 + self%num_components - 1)
          i = i + self%phase_dof
        end associate
     end do
@@ -203,6 +211,7 @@ contains
     nullify(self%temperature)
     nullify(self%region)
     nullify(self%phase_composition)
+    nullify(self%partial_pressure)
 
     do p = 1, self%num_phases
        call self%phase(p)%destroy()
@@ -442,17 +451,27 @@ contains
     num_field_components = 1
 
     ! Assemble field names:
-    field_names(1: num_fluid_variables) = fluid_variable_names
-    i = num_fluid_variables + 1
+    field_names(1: num_fluid_variables - 1) = &
+         fluid_variable_names(1: num_fluid_variables - 1) ! scalar bulk properties
+    i = num_fluid_variables
+    ! array bulk properties (partial pressures):
+    do j = 1, num_components
+       field_names(i) = trim(component_names(j)) // '_' // &
+            trim(fluid_variable_names(num_fluid_variables))
+       i = i + 1
+    end do
     do p = 1, num_phases
-       do j = 1, num_phase_variables
+       ! scalar phase properties:
+       do j = 1, num_phase_variables - 1
           field_names(i) = trim(phase_names(p)) &
                // '_' // trim(phase_variable_names(j))
           i = i + 1
        end do
+       ! array phase properties (mass fractions):
        do j = 1, num_components
           field_names(i) = trim(phase_names(p)) &
-               // '_' // trim(component_names(j)) // '_mass_fraction'
+               // '_' // trim(component_names(j)) // '_' // &
+               trim(phase_variable_names(num_phase_variables))
           i = i + 1
        end do
     end do
