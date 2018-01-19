@@ -1,5 +1,5 @@
 project: Waiwera
-version: 0.3.0
+version: 0.3.1
 author: Dr Adrian Croucher
 author_description: Senior Research Fellow, Department of Engineering Science, University of Auckland
 email: a.croucher@auckland.ac.nz

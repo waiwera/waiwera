@@ -341,6 +341,7 @@ contains
        call self%phase_composition(fluid, err)
        if (err == 0) then
           call self%phase_saturations(primary, fluid)
+          fluid%partial_pressure(1) = fluid%pressure
        end if
     end if
 
