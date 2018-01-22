@@ -37,17 +37,6 @@ def total_CO2_mass_fraction(mResult, index):
     xv = mResult.getFieldAtOutputIndex('fluid_vapour_CO2_mass_fraction', index)
     return (sl * rhol * xl + sv * rhov * xv) / (sl * rhol + sv * rhov)
 
-def CO2_partial_pressure(mResult, index):
-    """Returns CO2 partial pressure from Waiwera results."""
-    tscale = 100.; mol_wt = 44.01; water_mol_wt = 18.01528
-    henry_data = [0.783666, 1.96025, 8.20574, -7.40674, 2.18380, -0.220999][::-1]
-    xg = mResult.getFieldAtOutputIndex('fluid_liquid_CO2_mass_fraction', index)
-    t = mResult.getFieldAtOutputIndex('fluid_temperature', index)
-    w = xg / mol_wt
-    xmole = w / (w + (1. - xg) / water_mol_wt)
-    hc = 1.e-8 / polyval(henry_data, t / tscale)
-    return xmole / hc
-
 model_name = 'co2_column'
 
 AUTOUGH2_FIELDMAP = {
@@ -60,7 +49,7 @@ WAIWERA_FIELDMAP = {
     'Temperature': 'fluid_temperature',
     'Vapour saturation': 'fluid_vapour_saturation',
     'CO2 mass fraction': total_CO2_mass_fraction,
-    'CO2 partial pressure': CO2_partial_pressure}
+    'CO2 partial pressure': 'fluid_CO2_partial_pressure'}
 
 model_dir = './run'
 data_dir = './data'
