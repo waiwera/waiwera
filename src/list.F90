@@ -156,7 +156,7 @@ contains
 
     call self%append(data)
     if (tag /= "") then
-       allocate(self%tail%tag, source = tag)
+       self%tail%tag = tag
     end if
 
   end subroutine list_append_with_tag
@@ -195,7 +195,7 @@ contains
 
     call self%prepend(data)
     if (tag /= "") then
-       allocate(self%head%tag, source = tag)
+       self%head%tag  = tag
     end if
 
   end subroutine list_prepend_with_tag

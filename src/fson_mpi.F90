@@ -309,9 +309,9 @@ contains
              if (size(val) > 0) then
                 allocate(character(logfile%max_num_length) :: intstr)
                 write(intstr, logfile%int_format) val(1)
-                allocate(str, source = '[' // intstr // ',...]')
+                str = '[' // intstr // ',...]'
              else
-                allocate(str, source = '[]')
+                str = '[]'
              end if
              call logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
                   str_key = key, str_value = str)
@@ -353,9 +353,9 @@ contains
              if (size(val) > 0) then
                 allocate(character(logfile%max_num_length) :: realstr)
                 write(realstr, logfile%real_format) val(1)
-                allocate(str, source = '[' // realstr // ',...]')
+                str  = '[' // realstr // ',...]'
              else
-                allocate(str, source = '[]')
+                str  = '[]'
              end if
              call logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
                   str_key = key, str_value = str)
@@ -397,9 +397,9 @@ contains
              if (size(val) > 0) then
                 allocate(character(logfile%max_num_length) :: realstr)
                 write(realstr, logfile%real_format) val(1)
-                allocate(str, source = '[' // realstr // ',...]')
+                str = '[' // realstr // ',...]'
              else
-                allocate(str, source = '[]')
+                str = '[]'
              end if
              call logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
                   str_key = key, str_value = str)
@@ -441,9 +441,9 @@ contains
              end if
              if (size(val) > 0) then
                 write(logstr, '(L)') val(1)
-                allocate(str, source = '[' // logstr // ',...]')
+                str = '[' // logstr // ',...]'
              else
-                allocate(str, source = '[]')
+                str = '[]'
              end if
              call logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
                   str_key = key, str_value = str)
@@ -486,9 +486,9 @@ contains
              end if
              if (size(val) > 0) then
                 write(logstr, '(a)') val(1)
-                allocate(str, source = '[' // logstr // ',...]')
+                str = '[' // logstr // ',...]'
              else
-                allocate(str, source = '[]')
+                str = '[]'
              end if
              call logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
                   str_key = key, str_value = str)
@@ -530,9 +530,9 @@ contains
              if (size(val) > 0) then
                 allocate(character(logfile%max_num_length) :: intstr)
                 write(intstr, logfile%int_format) val(1,1)
-                allocate(str, source = '[[' // intstr // ',...]]')
+                str = '[[' // intstr // ',...]]'
              else
-                allocate(str, source = '[]')
+                str = '[]'
              end if
              call logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
                   str_key = key, str_value = str)
@@ -574,9 +574,9 @@ contains
              if (size(val) > 0) then
                 allocate(character(logfile%max_num_length) :: realstr)
                 write(realstr, logfile%real_format) val(1,1)
-                allocate(str, source = '[[' // realstr // ',...]]')
+                str  = '[[' // realstr // ',...]]'
              else
-                allocate(str, source = '[]')
+                str  = '[]'
              end if
              call logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
                   str_key = key, str_value = str)
@@ -618,9 +618,9 @@ contains
              if (size(val) > 0) then
                 allocate(character(logfile%max_num_length) :: realstr)
                 write(realstr, logfile%real_format) val(1,1)
-                allocate(str, source = '[[' // realstr // ',...]]')
+                str = '[[' // realstr // ',...]]'
              else
-                allocate(str, source = '[]')
+                str  = '[]'
              end if
              call logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
                   str_key = key, str_value = str)
@@ -662,9 +662,9 @@ contains
              end if
              if (size(val) > 0) then
                 write(logstr, '(L)') val(1,1)
-                allocate(str, source = '[[' // logstr // ',...]]')
+                str ='[[' // logstr // ',...]]'
              else
-                allocate(str, source = '[]')
+                str  = '[]'
              end if
              call logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
                   str_key = key, str_value = str)
