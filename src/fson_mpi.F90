@@ -461,8 +461,8 @@ contains
 
     type(fson_value), pointer, intent(in) :: self
     character(len=*), intent(in) :: path
-    character(string_length), intent(in) :: default(:)
     PetscInt, intent(in) :: string_length
+    character(string_length), intent(in) :: default(:)
     character(string_length), allocatable, intent(out) :: val(:)
     type(logfile_type), intent(in out), optional :: logfile
     character(len=*), intent(in), optional :: log_key
@@ -1009,8 +1009,8 @@ contains
 
     type(fson_value), pointer, intent(in) :: self
     character(len=*), intent(in) :: path
-    character(string_length), intent(in), optional :: default(:)
     PetscInt, intent(in) :: string_length
+    character(string_length), intent(in), optional :: default(:)
     character(string_length), allocatable, intent(out) :: val(:)
     type(logfile_type), intent(in out), optional :: logfile
     character(len=*), intent(in), optional :: log_key
