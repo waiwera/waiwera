@@ -346,8 +346,8 @@ contains
 
     if (self%active) then
 
-       allocate(msg, source = '- [' // trim(log_level_name(level)) // ', ' &
-            // trim(source) // ', ' // trim(event))
+       msg  = '- [' // trim(log_level_name(level)) // ', ' &
+            // trim(source) // ', ' // trim(event)
 
        has_data = PETSC_FALSE
 

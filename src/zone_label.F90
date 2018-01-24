@@ -39,7 +39,7 @@ contains
     character(*), intent(in) :: zone_name
     character(:), allocatable :: name
 
-    allocate(name, source = 'zone_' // trim(zone_name))
+    name = 'zone_' // trim(zone_name)
 
   end function zone_label_name
 
