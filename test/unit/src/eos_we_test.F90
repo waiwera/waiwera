@@ -103,8 +103,8 @@ contains
     json => fson_parse_mpi(str = json_str)
     call thermo%init()
     call eos%init(json, thermo)
-    call setup_relative_permeabilities(json, rp)
-    call setup_capillary_pressures(json, cp)
+    call setup_relative_permeabilities(json, rp, err = err)
+    call setup_capillary_pressures(json, cp, err = err)
 
     call fluid%init(eos%num_components, eos%num_phases)
     call rock%init()
@@ -355,8 +355,8 @@ contains
     json => fson_parse_mpi(str = json_str)
     call thermo%init()
     call eos%init(json, thermo)
-    call setup_relative_permeabilities(json, rp)
-    call setup_capillary_pressures(json, cp)
+    call setup_relative_permeabilities(json, rp, err = err)
+    call setup_capillary_pressures(json, cp, err = err)
 
     call fluid%init(num_components, eos%num_phases)
     call rock%init()

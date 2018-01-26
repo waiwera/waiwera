@@ -27,7 +27,7 @@ module interpolation_test
   public :: test_interpolation_linear, test_interpolation_single, &
        test_interpolation_step, test_average_linear, test_average_step, &
        test_average_linear_integration, test_interpolation_linear_array, &
-       test_find
+       test_find, test_unsorted
 
 contains
 
@@ -40,11 +40,14 @@ contains
     type(interpolation_table_type) :: table
     PetscMPIInt :: rank
     PetscInt :: ierr
+    PetscErrorCode :: err
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
     if (rank == 0) then
 
-       call table%init(data5) ! default linear interpolation
+       call table%init(data5, err = err) ! default linear interpolation
+
+       call assert_equals(0, err, "error")
        call assert_equals(1, table%dim, "dim")
 
        call assert_equals(1._dp, table%interpolate(-0.5_dp, 1), tol, "-0.5")
@@ -85,11 +88,13 @@ contains
          [0._dp, 2._dp], [1,2])
     PetscMPIInt :: rank
     PetscInt :: ierr
+    PetscErrorCode :: err
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
     if (rank == 0) then
 
-       call table%init(data1)
+       call table%init(data1, err = err)
+       call assert_equals(0, err, "error")
 
        call assert_equals(2._dp, table%interpolate(-0.5_dp, 1), tol, "-0.5")
 
@@ -111,12 +116,14 @@ contains
     type(interpolation_table_type) :: table
     PetscMPIInt :: rank
     PetscInt :: ierr
+    PetscErrorCode :: err
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
     if (rank == 0) then
 
-       call table%init(data5, INTERP_STEP)
+       call table%init(data5, INTERP_STEP, err = err)
 
+       call assert_equals(0, err, "error")
        call assert_equals(1._dp, table%interpolate(-0.5_dp, 1), tol, "-0.5")
 
        call assert_equals(1._dp, table%interpolate(0.0_dp, 1), tol, "0.0")
@@ -146,13 +153,15 @@ contains
     type(interpolation_table_type) :: table
     PetscMPIInt :: rank
     PetscInt :: ierr
+    PetscErrorCode :: err
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
 
     if (rank == 0) then
 
-       call table%init(data5)
+       call table%init(data5, err = err)
 
+       call assert_equals(0, err, "error")
        call assert_equals(1._dp, table%average([-0.5_dp, -0.1_dp], 1), tol, "[-0.5, -0.1]")
 
        call assert_equals(1.0238095238095237_dp, table%average([-0.5_dp, 0.1_dp], 1), &
@@ -183,12 +192,14 @@ contains
     type(interpolation_table_type) :: table
     PetscMPIInt :: rank
     PetscInt :: ierr
+    PetscErrorCode :: err
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
 
     if (rank == 0) then
 
-       call table%init(data5, INTERP_STEP)
+       call table%init(data5, INTERP_STEP, err = err)
+       call assert_equals(0, err, "error")
 
        call assert_equals(1._dp, table%average([-0.5_dp, -0.1_dp], 1), tol, "[-0.5, -0.1]")
 
@@ -219,11 +230,13 @@ contains
     type(interpolation_table_type) :: table
     PetscMPIInt :: rank
     PetscInt :: ierr
+    PetscErrorCode :: err
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
     if (rank == 0) then
 
-       call table%init(data5, INTERP_LINEAR, INTERP_AVERAGING_INTEGRATE)
+       call table%init(data5, INTERP_LINEAR, INTERP_AVERAGING_INTEGRATE, err = err)
+       call assert_equals(0, err, "error")
 
        call assert_equals(1._dp, table%average([-0.5_dp, -0.1_dp], 1), tol, "[-0.5, -0.1]")
 
@@ -256,11 +269,13 @@ contains
     type(interpolation_table_type) :: table
     PetscMPIInt :: rank
     PetscInt :: ierr
+    PetscErrorCode :: err
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
     if (rank == 0) then
 
-       call table%init(data3)
+       call table%init(data3, err = err)
+       call assert_equals(0, err, "error")
        call assert_equals(3, table%dim, "dim")
 
        call assert_equals([1._dp, 2._dp, 3._dp], table%interpolate(0._dp), 3, tol, "0")
@@ -292,7 +307,8 @@ contains
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
     if (rank == 0) then
 
-       call table%init(data3)
+       call table%init(data3, err = err)
+       call assert_equals(0, err, "error")
 
        call table%find_component_at_index(1.5_dp, 1, x, err)
        call assert_equals(0.5_dp, x, tol, "component 1 = 1.5")
@@ -314,4 +330,29 @@ contains
 
 !------------------------------------------------------------------------
 
-end module interpolation_test
+  subroutine test_unsorted
+    ! Unsorted table
+
+    type(interpolation_table_type) :: table
+    PetscMPIInt :: rank
+    PetscInt :: ierr
+    PetscErrorCode :: err
+    PetscReal, dimension(3,2), parameter :: data = reshape([&
+         0._dp, 2.1_dp, 2.0_dp, &
+         1._dp, 2.0_dp, 0.5_dp], &
+         [3,2])
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
+
+       call table%init(data, err = err)
+       call assert_equals(1, err, "error")
+       call table%destroy()
+
+    end if
+
+  end subroutine test_unsorted
+
+!------------------------------------------------------------------------
+
+     end module interpolation_test

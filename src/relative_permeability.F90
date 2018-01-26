@@ -135,13 +135,14 @@ module relative_permeability_module
 
   abstract interface
 
-     subroutine relative_permeability_init_routine(self, json, logfile)
+     subroutine relative_permeability_init_routine(self, json, logfile, err)
        !! Initializes relative permeability object from JSON data.
        use logfile_module
        import :: relative_permeability_type, fson_value
        class(relative_permeability_type), intent(in out) :: self
        type(fson_value), pointer, intent(in) :: json
        type(logfile_type), intent(in out), optional :: logfile
+       PetscErrorCode, intent(out) :: err
      end subroutine relative_permeability_init_routine
 
      function relative_permeability_function(self, sl) result(rp)
@@ -178,7 +179,7 @@ contains
 ! Fully mobile
 !------------------------------------------------------------------------
 
-  subroutine relative_permeability_fully_mobile_init(self, json, logfile)
+  subroutine relative_permeability_fully_mobile_init(self, json, logfile, err)
     !! Initialize fully mobile relative permeability function.
 
     use fson_mpi_module
@@ -187,7 +188,9 @@ contains
     class(relative_permeability_fully_mobile_type), intent(in out) :: self
     type(fson_value), pointer, intent(in) :: json
     type(logfile_type), intent(in out), optional :: logfile
+    PetscErrorCode, intent(out) :: err
 
+    err = 0
     self%name = "Fully mobile"
 
   end subroutine relative_permeability_fully_mobile_init
@@ -210,7 +213,7 @@ contains
 ! Linear functions
 !------------------------------------------------------------------------
 
-  subroutine relative_permeability_linear_init(self, json, logfile)
+  subroutine relative_permeability_linear_init(self, json, logfile, err)
     !! Initialize linear relative permeability function.
 
     use fson_mpi_module
@@ -219,6 +222,7 @@ contains
     class(relative_permeability_linear_type), intent(in out) :: self
     type(fson_value), pointer, intent(in) :: json
     type(logfile_type), intent(in out), optional :: logfile
+    PetscErrorCode, intent(out) :: err
     ! Locals:
     PetscReal :: liquid_array(2, 2), vapour_array(2, 2)
     PetscReal, allocatable :: liquid_limits(:), vapour_limits(:)
@@ -234,10 +238,21 @@ contains
 
     liquid_array(1, :) = [liquid_limits(1), 0._dp]
     liquid_array(2, :) = [liquid_limits(2), 1._dp]
-    call self%liquid%init(liquid_array)
-    vapour_array(1, :) = [vapour_limits(1), 0._dp]
-    vapour_array(2, :) = [vapour_limits(2), 1._dp]
-    call self%vapour%init(vapour_array)
+    call self%liquid%init(liquid_array, err)
+    if (err == 0) then
+       vapour_array(1, :) = [vapour_limits(1), 0._dp]
+       vapour_array(2, :) = [vapour_limits(2), 1._dp]
+       call self%vapour%init(vapour_array, err)
+       if (err > 0) then
+          call logfile%write(LOG_LEVEL_ERR, "input", "unsorted_array", &
+               real_array_key = "rock.relative_permeability.vapour", &
+               real_array_value = vapour_limits)
+       end if
+    else
+       call logfile%write(LOG_LEVEL_ERR, "input", "unsorted_array", &
+            real_array_key = "rock.relative_permeability.liquid", &
+            real_array_value = liquid_limits)
+    end if
 
     deallocate(liquid_limits, vapour_limits)
 
@@ -273,7 +288,7 @@ contains
 ! Pickens curves
 !------------------------------------------------------------------------
 
-  subroutine relative_permeability_pickens_init(self, json, logfile)
+  subroutine relative_permeability_pickens_init(self, json, logfile, err)
     !! Initialize Pickens relative permeability function.
 
     use fson_mpi_module
@@ -282,9 +297,11 @@ contains
     class(relative_permeability_pickens_type), intent(in out) :: self
     type(fson_value), pointer, intent(in) :: json
     type(logfile_type), intent(in out), optional :: logfile
+    PetscErrorCode, intent(out) :: err
     ! Locals:
     PetscReal, parameter :: default_power = 1._dp
 
+    err = 0
     self%name = "Pickens"
 
     call fson_get_mpi(json, "power", default_power, self%power, &
@@ -310,7 +327,7 @@ contains
 ! Corey's curves
 !------------------------------------------------------------------------
 
-  subroutine relative_permeability_corey_init(self, json, logfile)
+  subroutine relative_permeability_corey_init(self, json, logfile, err)
     !! Initialize Corey's relative permeability function.
 
     use fson_mpi_module
@@ -319,9 +336,11 @@ contains
     class(relative_permeability_corey_type), intent(in out) :: self
     type(fson_value), pointer, intent(in) :: json
     type(logfile_type), intent(in out), optional :: logfile
+    PetscErrorCode, intent(out) :: err
     ! Locals:
     PetscReal, parameter :: default_slr = 0.3_dp, default_ssr = 0.05_dp
 
+    err = 0
     self%name = "Corey"
 
     call fson_get_mpi(json, "slr", default_slr, self%slr, logfile, &
@@ -373,7 +392,7 @@ contains
 ! Grant's curves
 !------------------------------------------------------------------------
 
-  subroutine relative_permeability_grant_init(self, json, logfile)
+  subroutine relative_permeability_grant_init(self, json, logfile, err)
     !! Initialize Grant's relative permeability function.
 
     use fson_mpi_module
@@ -382,9 +401,11 @@ contains
     class(relative_permeability_grant_type), intent(in out) :: self
     type(fson_value), pointer, intent(in) :: json
     type(logfile_type), intent(in out), optional :: logfile
+    PetscErrorCode, intent(out) :: err
     ! Locals:
     PetscReal, parameter :: default_slr = 0.3_dp, default_ssr = 0.6_dp
 
+    err = 0
     self%name = "Grant"
 
     call fson_get_mpi(json, "slr", default_slr, self%slr, logfile, &
@@ -423,7 +444,7 @@ contains
 ! van Genuchten curves
 !------------------------------------------------------------------------
 
-  subroutine relative_permeability_van_genuchten_init(self, json, logfile)
+  subroutine relative_permeability_van_genuchten_init(self, json, logfile, err)
     !! Initialize van Genuchten relative permeability function.
 
     use fson_mpi_module
@@ -432,6 +453,7 @@ contains
     class(relative_permeability_van_genuchten_type), intent(in out) :: self
     type(fson_value), pointer, intent(in) :: json
     type(logfile_type), intent(in out), optional :: logfile
+    PetscErrorCode, intent(out) :: err
     ! Locals:
     PetscReal, parameter :: default_lambda = 0.45_dp
     PetscReal, parameter :: default_slr = 1.e-3_dp
@@ -439,6 +461,7 @@ contains
     PetscBool, parameter :: default_sum_unity = PETSC_TRUE
     PetscReal, parameter :: default_ssr = 0.6_dp
 
+    err = 0
     self%name = "van Genuchten"
 
     call fson_get_mpi(json, "lambda", default_lambda, &
@@ -497,7 +520,7 @@ contains
 ! Table curves
 !------------------------------------------------------------------------
 
-  subroutine relative_permeability_table_init(self, json, logfile)
+  subroutine relative_permeability_table_init(self, json, logfile, err)
     !! Initialize table relative permeability function.
 
     use fson_mpi_module
@@ -506,6 +529,7 @@ contains
     class(relative_permeability_table_type), intent(in out) :: self
     type(fson_value), pointer, intent(in) :: json
     type(logfile_type), intent(in out), optional :: logfile
+    PetscErrorCode, intent(out) :: err
     ! Locals:
     PetscReal, allocatable :: liquid_array(:,:), vapour_array(:,:)
     PetscReal, parameter :: default_liquid_array(2, 2) = reshape( &
@@ -519,8 +543,19 @@ contains
          liquid_array, logfile, "rock.relative_permeability.liquid")
     call fson_get_mpi(json, "vapour", default_vapour_array, &
          vapour_array, logfile, "rock.relative_permeability.vapour")
-    call self%liquid%init(liquid_array)
-    call self%vapour%init(vapour_array)
+    call self%liquid%init(liquid_array, err)
+    if (err == 0) then
+       call self%vapour%init(vapour_array, err)
+       if (err > 0) then
+          call logfile%write(LOG_LEVEL_ERR, "input", "unsorted_array", &
+               real_array_key = "rock.relative_permeability.vapour", &
+               real_array_value = vapour_array(:, 1))
+       end if
+    else
+       call logfile%write(LOG_LEVEL_ERR, "input", "unsorted_array", &
+            real_array_key = "rock.relative_permeability.liquid", &
+            real_array_value = liquid_array(:, 1))
+    end if
     deallocate(liquid_array, vapour_array)
 
   end subroutine relative_permeability_table_init
@@ -556,7 +591,7 @@ contains
 ! Setup procedures
 !------------------------------------------------------------------------
 
-  subroutine setup_relative_permeability(json, rp, logfile)
+  subroutine setup_relative_permeability(json, rp, logfile, err)
     !! Sets up single relative permeability object from JSON object
     !! for rock data in input.
 
@@ -567,6 +602,7 @@ contains
     type(fson_value), pointer, intent(in) :: json
     class(relative_permeability_type), allocatable, intent(out) :: rp
     type(logfile_type), intent(in out), optional :: logfile
+    PetscErrorCode, intent(out) :: err
     ! Locals:
     character(max_relative_permeability_name_length), parameter :: &
          default_relperm_type = "Linear"
@@ -593,13 +629,13 @@ contains
     case default
        allocate(relative_permeability_linear_type :: rp)
     end select
-    call rp%init(json, logfile)
+    call rp%init(json, logfile, err)
 
   end subroutine setup_relative_permeability
 
 !------------------------------------------------------------------------
 
-  subroutine setup_relative_permeabilities(json, rp, logfile)
+  subroutine setup_relative_permeabilities(json, rp, logfile, err)
     !! Sets up relative permeability objects from rock data in JSON input.
     !! Eventually rp will be an array of objects.
 
@@ -609,6 +645,7 @@ contains
     type(fson_value), pointer, intent(in) :: json
     class(relative_permeability_type), allocatable, intent(out) :: rp
     type(logfile_type), intent(in out), optional :: logfile
+    PetscErrorCode, intent(out) :: err
     ! Locals:
     type(fson_value), pointer :: relperm
     PetscBool :: default_present
@@ -621,7 +658,7 @@ contains
        default_present = PETSC_FALSE
     end if
 
-    call setup_relative_permeability(relperm, rp, logfile)
+    call setup_relative_permeability(relperm, rp, logfile, err)
 
     if (.not. (default_present)) then
        call fson_destroy(relperm)

@@ -7,6 +7,7 @@ module utils_test
   use petscsys
   use fruit
   use utils_module
+  use kinds_module
 
   implicit none
   private 
@@ -15,7 +16,7 @@ module utils_test
        test_split_filename, test_change_filename_extension, &
        test_int_str_len, test_str_array_index, &
        test_degrees_to_radians, test_rotation_matrix_2d, &
-       test_polynomial, test_multipolynomial
+       test_polynomial, test_multipolynomial, test_array_sorted
 
 contains
 
@@ -193,8 +194,6 @@ contains
 
     ! Test degrees_to_radians()
 
-    use kinds_module
-
     PetscMPIInt :: rank
     PetscInt :: ierr
     PetscReal, parameter :: tol = 1.e-9_dp
@@ -214,8 +213,6 @@ contains
   subroutine test_rotation_matrix_2d
 
     ! Test rotation_matrix_2d
-
-    use kinds_module
 
     PetscReal :: angle, rotation(4)
     PetscReal :: expected_rotation(4)
@@ -249,8 +246,6 @@ contains
   subroutine test_polynomial
     ! Test polynomial
 
-    use kinds_module
-
     PetscReal :: x
     PetscReal, parameter :: a(5) = [1._dp, 1._dp, 0.5_dp, &
          1._dp / 6._dp, 1._dp / 24._dp]
@@ -281,8 +276,6 @@ contains
 
   subroutine test_multipolynomial
     ! Test multipolynomial
-
-    use kinds_module
 
     PetscReal :: x
     PetscInt, parameter :: m = 2, n = 5
@@ -318,6 +311,27 @@ contains
     end if
 
   end subroutine test_multipolynomial
+
+!------------------------------------------------------------------------
+
+  subroutine test_array_sorted
+    ! Test array sorted
+
+    PetscMPIInt :: rank
+    PetscInt :: ierr
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
+
+       call assert_true(array_sorted([-1, 3, 4]), '[-1, 3, 4]')
+       call assert_true(array_sorted([-1._dp, 3._dp, 4._dp]), '[-1., 3., 4.]')
+       call assert_false(array_sorted([1, 3, 2, 5]), '[1, 3, 2, 5]')
+       call assert_false(array_sorted([1._dp, 3._dp, 2._dp, 5._dp]), '[1., 3., 2., 5.]')
+       call assert_true(array_sorted([1._dp, 3._dp, 3._dp]), '[1., 3., 3.]')
+
+    end if
+
+  end subroutine test_array_sorted
 
 !------------------------------------------------------------------------
 

@@ -34,11 +34,16 @@ module utils_module
      module procedure polynomial_multiple
   end interface polynomial
 
+  interface array_sorted
+     module procedure array_sorted_int
+     module procedure array_sorted_real
+  end interface array_sorted
+
   public :: str_to_upper, str_to_lower, &
        int_str_len, str_array_index, &
        split_filename, change_filename_extension, &
        date_time_str, degrees_to_radians, rotation_matrix_2d, &
-       polynomial
+       polynomial, array_sorted
   
 contains
 
@@ -251,6 +256,50 @@ contains
     end associate
 
   end function polynomial_multiple
+
+!------------------------------------------------------------------------
+
+  PetscBool function array_sorted_int(a) result(sorted)
+    !! Returns true if specified integer array a is monotonically
+    !! increasing.
+
+    PetscInt, intent(in) :: a(:)
+    ! Locals:
+    PetscInt :: i
+
+    sorted = PETSC_TRUE
+    associate(n => size(a))
+      do i = 1, n - 1
+         if (a(i + 1) < a(i)) then
+            sorted = PETSC_FALSE
+            exit
+         end if
+      end do
+    end associate
+
+  end function array_sorted_int
+
+!------------------------------------------------------------------------
+
+  PetscBool function array_sorted_real(a) result(sorted)
+    !! Returns true if specified real array a is monotonically
+    !! increasing.
+
+    PetscReal, intent(in) :: a(:)
+    ! Locals:
+    PetscInt :: i
+
+    sorted = PETSC_TRUE
+    associate(n => size(a))
+      do i = 1, n - 1
+         if (a(i + 1) < a(i)) then
+            sorted = PETSC_FALSE
+            exit
+         end if
+      end do
+    end associate
+
+  end function array_sorted_real
 
 !------------------------------------------------------------------------
 

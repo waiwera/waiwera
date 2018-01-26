@@ -99,13 +99,14 @@ module capillary_pressure_module
 
   abstract interface
 
-     subroutine capillary_pressure_init_routine(self, json, logfile)
+     subroutine capillary_pressure_init_routine(self, json, logfile, err)
        !! Initializes capillary pressure object from JSON data.
        use logfile_module
        import :: capillary_pressure_type, fson_value
        class(capillary_pressure_type), intent(in out) :: self
        type(fson_value), pointer, intent(in) :: json
        type(logfile_type), intent(in out), optional :: logfile
+       PetscErrorCode, intent(out) :: err
      end subroutine capillary_pressure_init_routine
 
      PetscReal function capillary_pressure_function(self, sl, t)
@@ -140,7 +141,7 @@ contains
 ! Zero function
 !------------------------------------------------------------------------
 
-  subroutine capillary_pressure_zero_init(self, json, logfile)
+  subroutine capillary_pressure_zero_init(self, json, logfile, err)
     !! Initialize zero capillary pressure function.
 
     use fson_mpi_module
@@ -149,7 +150,9 @@ contains
     class(capillary_pressure_zero_type), intent(in out) :: self
     type(fson_value), pointer, intent(in) :: json
     type(logfile_type), intent(in out), optional :: logfile
+    PetscErrorCode, intent(out) :: err
 
+    err = 0
     self%name = "zero"
 
   end subroutine capillary_pressure_zero_init
@@ -171,7 +174,7 @@ contains
 ! Linear function
 !------------------------------------------------------------------------
 
-  subroutine capillary_pressure_linear_init(self, json, logfile)
+  subroutine capillary_pressure_linear_init(self, json, logfile, err)
     !! Initialize linear capillary pressure function.
 
     use fson_mpi_module
@@ -180,6 +183,7 @@ contains
     class(capillary_pressure_linear_type), intent(in out) :: self
     type(fson_value), pointer, intent(in) :: json
     type(logfile_type), intent(in out), optional :: logfile
+    PetscErrorCode, intent(out) :: err
     ! Locals:
     PetscReal :: pressure, data(2, 2)
     PetscReal, allocatable :: saturation_limits(:)
@@ -196,7 +200,12 @@ contains
 
     data(1, :) = [saturation_limits(1), -pressure]
     data(2, :) = [saturation_limits(2), 0._dp]
-    call self%pressure%init(data)
+    call self%pressure%init(data, err)
+    if (err > 0) then
+       call logfile%write(LOG_LEVEL_ERR, "input", "unsorted_array", &
+            real_array_key = "rock.capillary_pressure.saturation_limits", &
+            real_array_value = saturation_limits)
+    end if
 
     deallocate(saturation_limits)
 
@@ -230,7 +239,7 @@ contains
 ! Van Genuchten function
 !------------------------------------------------------------------------
 
-  subroutine capillary_pressure_van_genuchten_init(self, json, logfile)
+  subroutine capillary_pressure_van_genuchten_init(self, json, logfile, err)
     !! Initialize van Genuchten capillary pressure function.
 
     use fson_mpi_module
@@ -239,12 +248,14 @@ contains
     class(capillary_pressure_van_genuchten_type), intent(in out) :: self
     type(fson_value), pointer, intent(in) :: json
     type(logfile_type), intent(in out), optional :: logfile
+    PetscErrorCode, intent(out) :: err
     ! Locals:
     PetscReal, parameter :: default_P0 = 0.125e5_dp
     PetscReal, parameter :: default_lambda = 0.45_dp
     PetscReal, parameter :: default_slr = 1.e-3_dp
     PetscReal, parameter :: default_sls = 1._dp
 
+    err = 0
     self%name = "van Genuchten"
 
     call fson_get_mpi(json, "P0", default_P0, &
@@ -298,7 +309,7 @@ contains
 ! Table function
 !------------------------------------------------------------------------
 
-  subroutine capillary_pressure_table_init(self, json, logfile)
+  subroutine capillary_pressure_table_init(self, json, logfile, err)
     !! Initialize table capillary pressure function.
 
     use fson_mpi_module
@@ -307,6 +318,7 @@ contains
     class(capillary_pressure_table_type), intent(in out) :: self
     type(fson_value), pointer, intent(in) :: json
     type(logfile_type), intent(in out), optional :: logfile
+    PetscErrorCode, intent(out) :: err
     ! Locals:
     PetscReal, allocatable :: pressure_array(:,:)
     PetscReal, parameter :: default_pressure_array(2, 2) = reshape( &
@@ -316,7 +328,12 @@ contains
 
     call fson_get_mpi(json, "pressure", default_pressure_array, &
          pressure_array, logfile, "rock.capillary_pressure.pressure")
-    call self%pressure%init(pressure_array)
+    call self%pressure%init(pressure_array, err)
+    if (err > 0) then
+       call logfile%write(LOG_LEVEL_ERR, "input", "unsorted_array", &
+            real_array_key = "rock.capillary_pressure.pressure", &
+            real_array_value = pressure_array(:, 1))
+    end if
     deallocate(pressure_array)
 
   end subroutine capillary_pressure_table_init
@@ -349,7 +366,7 @@ contains
 ! Setup procedures
 !------------------------------------------------------------------------
 
-  subroutine setup_capillary_pressure(json, cp, logfile)
+  subroutine setup_capillary_pressure(json, cp, logfile, err)
     !! Sets up single capillary pressure object from JSON object
     !! for rock data in input.
 
@@ -360,6 +377,7 @@ contains
     type(fson_value), pointer, intent(in) :: json
     class(capillary_pressure_type), allocatable, intent(out) :: cp
     type(logfile_type), intent(in out), optional :: logfile
+    PetscErrorCode, intent(out) :: err
     ! Locals:
     character(max_capillary_pressure_name_length), parameter :: &
          default_capillary_type = "zero"
@@ -380,13 +398,13 @@ contains
     case default
        allocate(capillary_pressure_zero_type :: cp)
     end select
-    call cp%init(json, logfile)
+    call cp%init(json, logfile, err)
 
   end subroutine setup_capillary_pressure
 
 !------------------------------------------------------------------------
 
-  subroutine setup_capillary_pressures(json, cp, logfile)
+  subroutine setup_capillary_pressures(json, cp, logfile, err)
     !! Sets up capillary pressure objects from rock data in JSON input.
     !! Eventually cp will be an array of objects.
 
@@ -397,6 +415,7 @@ contains
     type(fson_value), pointer, intent(in) :: json
     class(capillary_pressure_type), allocatable, intent(out) :: cp
     type(logfile_type), intent(in out), optional :: logfile
+    PetscErrorCode, intent(out) :: err
     ! Locals:
     type(fson_value), pointer :: capillary
     PetscInt :: cp_type
@@ -416,7 +435,7 @@ contains
        default_present = PETSC_FALSE
     end if
 
-    call setup_capillary_pressure(capillary, cp, logfile)
+    call setup_capillary_pressure(capillary, cp, logfile, err)
 
     if (.not. (default_present)) then
        call fson_destroy(capillary)
