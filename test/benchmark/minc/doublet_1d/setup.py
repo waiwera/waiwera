@@ -51,7 +51,7 @@ dat.parameter['option'][1] = 1
 dat.parameter['option'][16] = 4
 
 dat.relative_permeability = {'type': 3, 'parameters': [0.3, 0.05, 0., 0., 0.]}
-dat.capillarity = {'type': 1, 'parameters': [0., 1., 0., 0., 0.]}
+dat.capillarity = {'type': 1, 'parameters': [0., 0., 1., 0., 0.]}
 
 dat.multi = {'eos': 'EW', 'num_components': 1, 'num_phases': 2,
              'num_equations': 2, 'num_secondary_parameters': 6}
