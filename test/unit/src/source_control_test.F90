@@ -67,7 +67,8 @@ contains
     call VecGetArrayF90(fluid_vector, fluid_array, ierr); CHKERRQ(ierr)
 
     call setup_sources(json, mesh%dm, mesh%cell_order, eos, thermo, start_time, &
-         fluid_vector, fluid_range_start, sources, source_controls)
+         fluid_vector, fluid_range_start, sources, source_controls, err = err)
+    call assert_equals(0, err, "source setup error")
 
     call VecRestoreArrayF90(fluid_vector, fluid_array, ierr); CHKERRQ(ierr)
 
@@ -258,7 +259,8 @@ contains
     call VecRestoreArrayF90(fluid_vector, fluid_array, ierr); CHKERRQ(ierr)
 
     call setup_sources(json, mesh%dm, mesh%cell_order, eos, thermo, start_time, &
-         fluid_vector, fluid_range_start, sources, source_controls)
+         fluid_vector, fluid_range_start, sources, source_controls, err = err)
+    call assert_equals(0, err, "source setup error")
 
     call MPI_reduce(sources%count, num_sources, 1, MPI_INTEGER, MPI_SUM, &
          0, PETSC_COMM_WORLD, ierr)

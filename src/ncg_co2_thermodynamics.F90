@@ -50,10 +50,12 @@ contains
     !! Initialises CO2 NCG thermodynamics object.
 
     class(ncg_co2_thermodynamics_type), intent(in out) :: self
+    ! Locals:
+    PetscErrorCode :: err
 
     self%name = "CO2"
     self%molecular_weight = co2_molecular_weight
-    call self%viscosity_table%init(viscosity_data)
+    call self%viscosity_table%init(viscosity_data, err)
 
   end subroutine ncg_co2_init
 

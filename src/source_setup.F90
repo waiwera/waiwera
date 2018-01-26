@@ -43,7 +43,8 @@ contains
 !------------------------------------------------------------------------
 
   subroutine setup_sources(json, dm, ao, eos, thermo, start_time, &
-       fluid_vector, fluid_range_start, sources, source_controls, logfile)
+       fluid_vector, fluid_range_start, sources, source_controls, &
+       logfile, err)
     !! Sets up lists of sinks / sources and source controls.
 
     use dm_utils_module, only: global_vec_section, &
@@ -60,6 +61,7 @@ contains
     type(list_type), intent(in out) :: sources !! List of sources
     type(list_type), intent(in out) :: source_controls !! List of source controls
     type(logfile_type), intent(in out), optional :: logfile !! Logfile for log output
+    PetscErrorCode, intent(out) :: err !! Error code
     ! Locals:
     PetscInt :: ic, isrc, ghost
     PetscInt :: injection_component, production_component
@@ -135,9 +137,11 @@ contains
 
           call setup_inline_source_controls(source_json, eos, thermo, &
                start_time, fluid_data, fluid_section, fluid_range_start, srcstr, &
-               num_cells, cell_sources, source_controls, logfile)
+               num_cells, cell_sources, source_controls, logfile, err)
           call cell_sources%destroy()
           deallocate(cell_natural_index, cell_local_index)
+
+          if (err > 0) exit
 
           source_json => fson_value_next_mpi(source_json)
 
@@ -333,7 +337,7 @@ contains
 
   subroutine setup_inline_source_controls(source_json, eos, thermo, &
        start_time, fluid_data, fluid_section, fluid_range_start, &
-       srcstr, num_cells, cell_sources, source_controls, logfile)
+       srcstr, num_cells, cell_sources, source_controls, logfile, err)
     !! Sets up any 'inline' source controls for the source,
     !! i.e. controls defined implicitly in the specification of the source.
 
@@ -354,6 +358,7 @@ contains
     type(list_type), intent(in out) :: cell_sources
     type(list_type), intent(in out) :: source_controls
     type(logfile_type), intent(in out), optional :: logfile
+    PetscErrorCode, intent(out) :: err
     ! Locals:
     PetscInt :: interpolation_type, averaging_type
     character(max_interpolation_str_length) :: interpolation_str
@@ -367,37 +372,53 @@ contains
          default_averaging_str, averaging_str)
     averaging_type = averaging_type_from_str(averaging_str)
 
-    call setup_table_source_control(source_json, interpolation_type, &
-         averaging_type, cell_sources, source_controls)
+    call setup_table_source_control(source_json, srcstr, interpolation_type, &
+         averaging_type, cell_sources, source_controls, logfile, err)
 
-    call setup_deliverability_source_control(source_json, srcstr, &
-         start_time, fluid_data, fluid_section, fluid_range_start, &
-         interpolation_type, averaging_type, num_cells, cell_sources, &
-         source_controls, logfile)
+    if (err == 0) then
 
-    call setup_recharge_source_control(source_json, srcstr, &
-         fluid_data, fluid_section, fluid_range_start, &
-         interpolation_type, averaging_type, num_cells, cell_sources, &
-         source_controls, logfile)
+       call setup_deliverability_source_control(source_json, srcstr, &
+            start_time, fluid_data, fluid_section, fluid_range_start, &
+            interpolation_type, averaging_type, num_cells, cell_sources, &
+            source_controls, logfile, err)
 
-    call setup_limiter_source_control(source_json, srcstr, thermo, &
-         cell_sources, source_controls, logfile)
+       if (err == 0) then
 
-    call setup_direction_source_control(source_json, srcstr, thermo, &
-         cell_sources, source_controls, logfile)
+          call setup_recharge_source_control(source_json, srcstr, &
+               fluid_data, fluid_section, fluid_range_start, &
+               interpolation_type, averaging_type, num_cells, cell_sources, &
+               source_controls, logfile, err)
+
+          if (err == 0) then
+
+             call setup_limiter_source_control(source_json, srcstr, thermo, &
+                  cell_sources, source_controls, logfile)
+
+             call setup_direction_source_control(source_json, srcstr, thermo, &
+                  cell_sources, source_controls, logfile)
+
+          end if
+
+       end if
+
+    end if
 
   end subroutine setup_inline_source_controls
 
 !------------------------------------------------------------------------
 
-  subroutine setup_table_source_control(source_json, interpolation_type, &
-       averaging_type, cell_sources, source_controls)
+  subroutine setup_table_source_control(source_json, srcstr, &
+       interpolation_type, averaging_type, cell_sources, &
+       source_controls, logfile, err)
     !! Set up rate or enthalpy table source controls.
 
     type(fson_value), pointer, intent(in) :: source_json
+    character(len=*) :: srcstr
     PetscInt, intent(in) :: interpolation_type, averaging_type
     type(list_type), intent(in out) :: cell_sources
     type(list_type), intent(in out) :: source_controls
+    type(logfile_type), intent(in out), optional :: logfile
+    PetscErrorCode, intent(out) :: err
     ! Locals:
     type(source_control_rate_table_type), pointer :: rate_control
     type(source_control_enthalpy_table_type), pointer :: enthalpy_control
@@ -421,30 +442,42 @@ contains
     if ((cell_sources%count > 0) .and. (allocated(data_array))) then
        allocate(rate_control)
        call rate_control%init(data_array, interpolation_type, &
-            averaging_type, cell_sources)
-       call source_controls%append(rate_control)
-       deallocate(data_array)
+            averaging_type, cell_sources, err)
+       if (err == 0) call source_controls%append(rate_control)
     end if
 
-    ! Enthalpy table:
-    if (fson_has_mpi(source_json, "enthalpy")) then
-       variable_type = fson_type_mpi(source_json, "enthalpy")
-       if (variable_type == TYPE_ARRAY) then
-          call fson_get_mpi(source_json, "enthalpy", val = data_array)
-       else if (variable_type == TYPE_OBJECT) then
-          call fson_get_mpi(source_json, "enthalpy", table)
-          if (fson_has_mpi(table, "time")) then
-             call fson_get_mpi(table, "time", val = data_array)
+    if (err == 0) then
+
+       ! Enthalpy table:
+       if (fson_has_mpi(source_json, "enthalpy")) then
+          variable_type = fson_type_mpi(source_json, "enthalpy")
+          if (variable_type == TYPE_ARRAY) then
+             call fson_get_mpi(source_json, "enthalpy", val = data_array)
+          else if (variable_type == TYPE_OBJECT) then
+             call fson_get_mpi(source_json, "enthalpy", table)
+             if (fson_has_mpi(table, "time")) then
+                call fson_get_mpi(table, "time", val = data_array)
+             end if
           end if
        end if
-    end if
 
-    if ((cell_sources%count > 0) .and. (allocated(data_array))) then
-       allocate(enthalpy_control)
-       call enthalpy_control%init(data_array, interpolation_type, &
-            averaging_type, cell_sources)
-       call source_controls%append(enthalpy_control)
-       deallocate(data_array)
+       if ((cell_sources%count > 0) .and. (allocated(data_array))) then
+          allocate(enthalpy_control)
+          call enthalpy_control%init(data_array, interpolation_type, &
+               averaging_type, cell_sources, err)
+          if (err == 0) call source_controls%append(enthalpy_control)
+       end if
+
+       if (err > 0) then
+          call logfile%write(LOG_LEVEL_ERR, "input", "unsorted_array", &
+               real_array_key = trim(srcstr) // "enthalpy", &
+               real_array_value = data_array(:, 1))
+       end if
+
+    else
+       call logfile%write(LOG_LEVEL_ERR, "input", "unsorted_array", &
+            real_array_key = trim(srcstr) // "rate", &
+            real_array_value = data_array(:, 1))
     end if
 
   end subroutine setup_table_source_control
@@ -595,7 +628,7 @@ contains
   subroutine setup_deliverability_source_control(source_json, srcstr, &
        start_time, fluid_data, fluid_section, fluid_range_start, &
        interpolation_type, averaging_type, num_cells, &
-       cell_sources, source_controls, logfile)
+       cell_sources, source_controls, logfile, err)
     !! Set up deliverability source control.
 
     use utils_module, only: str_to_lower
@@ -611,6 +644,7 @@ contains
     type(list_type), intent(in out) :: cell_sources
     type(list_type), intent(in out) :: source_controls
     type(logfile_type), intent(in out), optional :: logfile
+    PetscErrorCode, intent(out) :: err
     ! Locals:
     type(fson_value), pointer :: deliv_json
     PetscReal, allocatable :: reference_pressure_array(:,:)
@@ -641,19 +675,24 @@ contains
           allocate(deliv)
           call deliv%init(productivity_array, interpolation_type, &
                averaging_type, reference_pressure_array, &
-               pressure_table_coordinate, cell_sources)
-
-          if (calculate_reference_pressure) then
-             call deliv%set_reference_pressure_initial(fluid_data, &
-                  fluid_section, fluid_range_start)
+               pressure_table_coordinate, cell_sources, err)
+          if (err == 0) then
+             if (calculate_reference_pressure) then
+                call deliv%set_reference_pressure_initial(fluid_data, &
+                     fluid_section, fluid_range_start)
+             end if
+             if (calculate_PI_from_rate) then
+                call deliv%calculate_PI_from_rate(start_time, initial_rate, &
+                     fluid_data, fluid_section, fluid_range_start)
+             end if
+             call source_controls%append(deliv)
+          else
+             call deliv%destroy()
+             deallocate(deliv)
+             call logfile%write(LOG_LEVEL_ERR, "input", "unsorted_array", &
+                  real_array_key = trim(srcstr) // "deliverability", &
+                  real_array_value = reference_pressure_array(:, 1))
           end if
-
-          if (calculate_PI_from_rate) then
-             call deliv%calculate_PI_from_rate(start_time, initial_rate, &
-                  fluid_data, fluid_section, fluid_range_start)
-          end if
-
-          call source_controls%append(deliv)
 
        end if
 
@@ -722,7 +761,7 @@ contains
   subroutine setup_recharge_source_control(source_json, srcstr, &
        fluid_data, fluid_section, fluid_range_start, &
        interpolation_type, averaging_type, num_cells, &
-       cell_sources, source_controls, logfile)
+       cell_sources, source_controls, logfile, err)
     !! Set up recharge source control.
 
     use utils_module, only: str_to_lower
@@ -737,6 +776,7 @@ contains
     type(list_type), intent(in out) :: cell_sources
     type(list_type), intent(in out) :: source_controls
     type(logfile_type), intent(in out), optional :: logfile
+    PetscErrorCode, intent(out) :: err
     ! Locals:
     type(fson_value), pointer :: recharge_json
     PetscReal, allocatable :: reference_pressure_array(:,:)
@@ -762,14 +802,28 @@ contains
 
              allocate(recharge)
              call recharge%init(recharge_array, interpolation_type, &
-                  averaging_type, reference_pressure_array, cell_sources)
+                  averaging_type, reference_pressure_array, cell_sources, err)
 
-             if (calculate_reference_pressure) then
-                call recharge%set_reference_pressure_initial(fluid_data, &
-                     fluid_section, fluid_range_start)
-             end if
-
-             call source_controls%append(recharge)
+             select case (err)
+             case (0)
+                if (calculate_reference_pressure) then
+                   call recharge%set_reference_pressure_initial(fluid_data, &
+                        fluid_section, fluid_range_start)
+                end if
+                call source_controls%append(recharge)
+             case (1)
+                call recharge%destroy()
+                deallocate(recharge)
+                call logfile%write(LOG_LEVEL_ERR, "input", "unsorted_array", &
+                     real_array_key = trim(srcstr) // "recharge.coefficient", &
+                     real_array_value = recharge_array(:, 1))
+             case (2)
+                call recharge%destroy()
+                deallocate(recharge)
+                call logfile%write(LOG_LEVEL_ERR, "input", "unsorted_array", &
+                     real_array_key = trim(srcstr) // "recharge.pressure", &
+                     real_array_value = reference_pressure_array(:, 1))
+             end select
 
           end if
 

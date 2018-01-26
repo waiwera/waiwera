@@ -199,7 +199,7 @@ contains
 !------------------------------------------------------------------------
 
   subroutine source_control_table_init(self, data, interpolation_type, &
-       averaging_type, sources)
+       averaging_type, sources, err)
     !! Initialises source_control_table object.
 
     class(source_control_table_type), intent(in out) :: self
@@ -207,10 +207,13 @@ contains
     PetscInt, intent(in) :: interpolation_type
     PetscInt, intent(in) :: averaging_type
     type(list_type), intent(in out) :: sources
+    PetscErrorCode, intent(out) :: err
 
     call self%sources%init()
-    call self%table%init(data, interpolation_type, averaging_type)
-    call self%sources%add(sources)
+    call self%table%init(data, interpolation_type, averaging_type, err)
+    if (err == 0) then
+       call self%sources%add(sources)
+    end if
 
   end subroutine source_control_table_init
 
@@ -336,7 +339,7 @@ contains
 
   subroutine source_control_deliverability_init(self, productivity_data, &
        interpolation_type, averaging_type, reference_pressure_data, &
-       pressure_table_coordinate, sources)
+       pressure_table_coordinate, sources, err)
     !! Initialises source_control_deliverability object.
 
     class(source_control_deliverability_type), intent(in out) :: self
@@ -345,14 +348,19 @@ contains
     PetscReal, intent(in) :: reference_pressure_data(:,:)
     PetscInt, intent(in) :: pressure_table_coordinate
     type(list_type), intent(in out) :: sources
+    PetscErrorCode, intent(out) :: err
 
     call self%sources%init()
     call self%sources%add(sources)
     call self%productivity%init(productivity_data, &
-         interpolation_type, averaging_type)
-    call self%reference_pressure%init(reference_pressure_data, &
-         interpolation_type, averaging_type)
-    self%pressure_table_coordinate = pressure_table_coordinate
+         interpolation_type, averaging_type, err)
+    if (err == 0) then
+       call self%reference_pressure%init(reference_pressure_data, &
+            interpolation_type, averaging_type, err)
+       if (err == 0) then
+          self%pressure_table_coordinate = pressure_table_coordinate
+       end if
+    end if
 
   end subroutine source_control_deliverability_init
 
@@ -494,21 +502,29 @@ contains
 !------------------------------------------------------------------------
 
   subroutine source_control_recharge_init(self, recharge_data, &
-       interpolation_type, averaging_type, reference_pressure_data, sources)
-    !! Initialises source_control_recharge object.
+       interpolation_type, averaging_type, reference_pressure_data, &
+       sources, err)
+    !! Initialises source_control_recharge object. Error flag err
+    !! returns 1 if there are problems with the recharge coefficient
+    !! array, or 2 if there are problems with the reference pressure
+    !! array.
 
     class(source_control_recharge_type), intent(in out) :: self
     PetscReal, intent(in) :: recharge_data(:,:)
     PetscInt, intent(in) :: interpolation_type, averaging_type
     PetscReal, intent(in) :: reference_pressure_data(:,:)
     type(list_type), intent(in out) :: sources
+    PetscErrorCode, intent(out) :: err
 
     call self%sources%init()
     call self%sources%add(sources)
     call self%coefficient%init(recharge_data, &
-         interpolation_type, averaging_type)
-    call self%reference_pressure%init(reference_pressure_data, &
-         interpolation_type, averaging_type)
+         interpolation_type, averaging_type, err)
+    if (err == 0) then
+       call self%reference_pressure%init(reference_pressure_data, &
+            interpolation_type, averaging_type, err)
+       if (err > 0) err = 2
+    end if
 
   end subroutine source_control_recharge_init
 

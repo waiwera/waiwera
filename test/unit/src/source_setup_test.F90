@@ -58,7 +58,8 @@ contains
     call DMGetGlobalVector(mesh%dm, fluid, ierr); CHKERRQ(ierr) ! dummy- not used
 
     call setup_sources(json, mesh%dm, mesh%cell_order, eos, thermo, start_time, fluid, &
-         range_start, sources, source_controls)
+         range_start, sources, source_controls, err = err)
+    call assert_equals(0, err, "error")
 
     expected_num_sources = fson_value_count_mpi(json, "source")
     call MPI_reduce(sources%count, num_sources, 1, MPI_INTEGER, MPI_SUM, &

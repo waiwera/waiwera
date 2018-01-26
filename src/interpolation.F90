@@ -222,14 +222,24 @@ contains
 ! interpolation_coordinate_type:
 !------------------------------------------------------------------------
 
-  subroutine interpolation_coordinate_init(self, values)
-    !! Initialises coordinate axis.
+  subroutine interpolation_coordinate_init(self, values, err)
+    !! Initialises coordinate axis. Returns err > 0 if the specified
+    !! values array is not sorted.
+
+    use utils_module, only: array_sorted
+
     class(interpolation_coordinate_type), intent(in out) :: self
     PetscReal, intent(in) :: values(:)
+    PetscErrorCode, intent(out) :: err
 
-    self%val = values
-    self%size = size(values, 1)
-    self%index = 1
+    if (array_sorted(values)) then
+       self%val = values
+       self%size = size(values, 1)
+       self%index = 1
+       err = 0
+    else
+       err = 1
+    end if
 
   end subroutine interpolation_coordinate_init
 
@@ -239,7 +249,7 @@ contains
     !! Destroys coordinate axis.
     class(interpolation_coordinate_type), intent(in out) :: self
 
-    deallocate(self%val)
+    if (allocated(self%val)) deallocate(self%val)
 
   end subroutine interpolation_coordinate_destroy
 
@@ -295,49 +305,55 @@ contains
 !------------------------------------------------------------------------
   
   subroutine interpolation_table_init(self, array, interpolation_type, &
-       averaging_type)
+       averaging_type, err)
     !! Initialises interpolation table.  The values of array(:, 1) are
     !! the sorted x coordinate values to interpolate between, while
     !! array(:, 2:) are the corresponding data values. The array is
-    !! assumed to have size (at least) 2 in the second dimension.
+    !! assumed to have size (at least) 2 in the second dimension. The
+    !! error code err returns > 0 if the table could not be
+    !! initialised.
 
     class(interpolation_table_type), intent(in out) :: self
     PetscReal, intent(in) :: array(:,:)
     PetscInt, intent(in) :: interpolation_type
     PetscInt, intent(in) :: averaging_type
+    PetscErrorCode, intent(out) :: err
     ! Locals:
     PetscInt :: n(2)
 
-    call self%coord%init(array(:, 1))
-
-    n = shape(array)
-    self%dim = n(2) - 1
-    allocate(self%val(self%dim, n(1)))
-    self%val = transpose(array(:, 2:))
-    call self%set_interpolation_type(interpolation_type)
-    call self%set_averaging_type(averaging_type)
+    call self%coord%init(array(:, 1), err)
+    if (err == 0) then
+       n = shape(array)
+       self%dim = n(2) - 1
+       allocate(self%val(self%dim, n(1)))
+       self%val = transpose(array(:, 2:))
+       call self%set_interpolation_type(interpolation_type)
+       call self%set_averaging_type(averaging_type)
+    end if
 
   end subroutine interpolation_table_init
 
   subroutine interpolation_table_init_default_averaging(self, array, &
-       interpolation_type)
+       interpolation_type, err)
     !! Initialises with default endpoint averaging.
 
     class(interpolation_table_type), intent(in out) :: self
     PetscReal, intent(in) :: array(:,:)
     PetscInt, intent(in) :: interpolation_type
+    PetscErrorCode, intent(out) :: err
 
-    call self%init(array, interpolation_type, INTERP_AVERAGING_ENDPOINT)
+    call self%init(array, interpolation_type, INTERP_AVERAGING_ENDPOINT, err)
 
   end subroutine interpolation_table_init_default_averaging
 
-  subroutine interpolation_table_init_default_all(self, array)
+  subroutine interpolation_table_init_default_all(self, array, err)
     !! Initialises with default linear interpolation and endpoint averaging.
 
     class(interpolation_table_type), intent(in out) :: self
     PetscReal, intent(in) :: array(:,:)
+    PetscErrorCode, intent(out) :: err
 
-    call self%init(array, INTERP_LINEAR, INTERP_AVERAGING_ENDPOINT)
+    call self%init(array, INTERP_LINEAR, INTERP_AVERAGING_ENDPOINT, err)
 
   end subroutine interpolation_table_init_default_all
 
@@ -394,7 +410,7 @@ contains
     class(interpolation_table_type), intent(in out) :: self
 
     call self%coord%destroy()
-    deallocate(self%val)
+    if (allocated(self%val)) deallocate(self%val)
 
   end subroutine interpolation_table_destroy
 
