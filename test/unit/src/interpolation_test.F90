@@ -27,7 +27,7 @@ module interpolation_test
   public :: test_interpolation_linear, test_interpolation_single, &
        test_interpolation_step, test_average_linear, test_average_step, &
        test_average_linear_integration, test_interpolation_linear_array, &
-       test_find, test_unsorted
+       test_find, test_unsorted, test_duplicate
 
 contains
 
@@ -352,6 +352,35 @@ contains
     end if
 
   end subroutine test_unsorted
+
+!------------------------------------------------------------------------
+
+  subroutine test_duplicate
+    ! Duplicate coordinates
+
+    type(interpolation_table_type) :: table
+    PetscMPIInt :: rank
+    PetscInt :: ierr
+    PetscErrorCode :: err
+    PetscReal, dimension(4,2), parameter :: data = reshape([&
+         0._dp, 1.0_dp, 1.0_dp, 2.0_dp, &
+         1._dp, 2.0_dp, 0.5_dp, 0.1_dp], &
+         [4,2])
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
+
+       call table%init(data, err = err)
+       call assert_equals(0, err, "error")
+       call assert_equals(0.3_dp, table%interpolate(1.5_dp, 1), tol, "1.5")
+       call assert_equals(3, table%coord%index, "1.5 index")
+       call assert_equals(0.5_dp, table%interpolate(1.0_dp, 1), tol, "1.0")
+       call assert_equals(3, table%coord%index, "1.0 index")
+       call table%destroy()
+
+    end if
+
+  end subroutine test_duplicate
 
 !------------------------------------------------------------------------
 
