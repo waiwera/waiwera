@@ -123,7 +123,7 @@ run_sources['delw'] = t2generator(type = 'DELW', block = geo.block_name_list[ibl
                      name = 'del 1', gx = PI, ex = Pwb, hg = 20., fg = 0.7e6)
 
 mesh_filename = 'g' + model_name + '.exo'
-geo.write_exodusii(mesh_filename)
+geo.write_mesh(mesh_filename)
 
 from os import remove
 from os.path import isfile
