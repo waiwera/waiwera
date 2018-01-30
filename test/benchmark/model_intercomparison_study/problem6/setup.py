@@ -169,7 +169,7 @@ dat.run(simulator = AUTOUGH2,
         silent = True)
 
 mesh_filename = 'g' + model_name + '.exo'
-geo.write_exodusii(mesh_filename)
+geo.write_mesh(mesh_filename)
 jsondata = dat.json(geo, mesh_filename, incons = inc, bdy_incons = inc)
 json.dump(jsondata, file(model_name + '.json', 'w'), indent = 2)
                   
