@@ -25,7 +25,7 @@ dz = [delx]
 geo = mulgrid().rectangular(dx, dy, dz)
 geo.write('g' + model_name + '.dat')
 mesh_filename = 'g' + model_name + '.exo'
-geo.write_exodusii(mesh_filename)
+geo.write_mesh(mesh_filename)
 
 dat = t2data_export_json()
 dat.title = '1-D MINC problem'
