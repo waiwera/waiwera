@@ -340,7 +340,10 @@ contains
   subroutine source_control_deliverability_init(self, productivity_data, &
        interpolation_type, averaging_type, reference_pressure_data, &
        pressure_table_coordinate, sources, err)
-    !! Initialises source_control_deliverability object.
+    !! Initialises source_control_deliverability object. Error flag err
+    !! returns 1 if there are problems with the productivity index
+    !! array, or 2 if there are problems with the reference pressure
+    !! array.
 
     class(source_control_deliverability_type), intent(in out) :: self
     PetscReal, intent(in) :: productivity_data(:,:)
@@ -359,6 +362,8 @@ contains
             interpolation_type, averaging_type, err)
        if (err == 0) then
           self%pressure_table_coordinate = pressure_table_coordinate
+       else
+          err = 2
        end if
     end if
 
