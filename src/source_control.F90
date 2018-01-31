@@ -454,22 +454,23 @@ contains
 !------------------------------------------------------------------------
 
   subroutine source_control_deliverability_calculate_PI_from_rate(&
-       self, time, rate, global_fluid_data, &
-       global_fluid_section, fluid_range_start)
+       self, time, rate, fluid_data, fluid_section, fluid_range_start, &
+       productivity)
     !! Calculates productivity index for deliverability control, from
     !! specified initial flow rate. This only works if the control has
     !! exactly one source, otherwise the correct productivity index
     !! would not be well-defined. If the productivity index can't be
     !! calculated, it is left at its initial value.
 
-    use dm_utils_module, only: global_section_offset
+    use dm_utils_module, only: global_section_offset, section_offset
 
     class(source_control_deliverability_type), intent(in out) :: self
     PetscReal, intent(in) :: time
     PetscReal, intent(in) :: rate
-    PetscReal, pointer, contiguous, intent(in) :: global_fluid_data(:)
-    PetscSection, intent(in) :: global_fluid_section
-    PetscInt, intent(in) :: fluid_range_start
+    PetscReal, pointer, contiguous, intent(in) :: fluid_data(:)
+    PetscSection, intent(in) :: fluid_section
+    PetscInt, intent(in) :: fluid_range_start !! Specify -1 for local data rather than global
+    PetscReal, intent(out) :: productivity
     ! Locals:
     type(list_node_type), pointer :: node
     PetscInt :: c, fluid_offset
@@ -484,10 +485,15 @@ contains
        type is (source_type)
 
           c = source%cell_index
-          call global_section_offset(global_fluid_section, c, &
-               fluid_range_start, fluid_offset, ierr); CHKERRQ(ierr)
+          if (fluid_range_start >= 0) then ! global
+             call global_section_offset(fluid_section, c, &
+                  fluid_range_start, fluid_offset, ierr)
+          else ! local
+             call section_offset(fluid_section, c, fluid_offset, ierr)
+          end if
+          CHKERRQ(ierr)
 
-          call source%fluid%assign(global_fluid_data, fluid_offset)
+          call source%fluid%assign(fluid_data, fluid_offset)
           allocate(phase_mobilities(source%fluid%num_phases))
           phase_mobilities = source%fluid%phase_mobilities()
 
@@ -496,7 +502,7 @@ contains
           factor = sum(phase_mobilities) * pressure_difference
 
           if (abs(factor) > tol) then
-             self%productivity%val(1, 1) = abs(rate) / factor
+             productivity = abs(rate) / factor
           end if
 
           deallocate(phase_mobilities)
