@@ -401,47 +401,79 @@ contains
 
   contains
 
+!........................................................................
+
+    subroutine update_flow_rate(source, productivity)
+      !! Updates flow rate using deliverability relation and the
+      !! specified productivity index.
+      type(source_type), intent(in out)  :: source
+      PetscReal, intent(in) :: productivity
+      ! Locals:
+      PetscInt :: p, phases
+      PetscReal :: h, reference_pressure, pressure_difference
+      PetscReal, allocatable :: phase_mobilities(:), phase_flow_fractions(:)
+
+      allocate(phase_mobilities(source%fluid%num_phases))
+      allocate(phase_flow_fractions(source%fluid%num_phases))
+      phase_mobilities = source%fluid%phase_mobilities()
+      phase_flow_fractions = phase_mobilities / sum(phase_mobilities)
+
+      select case (self%pressure_table_coordinate)
+      case (SRC_PRESSURE_TABLE_COORD_TIME)
+         reference_pressure = self%reference_pressure%average(interval, 1)
+      case (SRC_PRESSURE_TABLE_COORD_ENTHALPY)
+         h = source%fluid%specific_enthalpy(phase_flow_fractions)
+         reference_pressure = self%reference_pressure%interpolate(h, 1)
+      end select
+
+      pressure_difference = source%fluid%pressure - reference_pressure
+      source%rate = 0._dp
+
+      phases = nint(source%fluid%phase_composition)
+      do p = 1, source%fluid%num_phases
+         if (btest(phases, p - 1)) then
+            source%rate = source%rate - productivity * &
+                 phase_mobilities(p) * pressure_difference
+         end if
+      end do
+
+      deallocate(phase_mobilities, phase_flow_fractions)
+
+    end subroutine update_flow_rate
+
+!........................................................................
+
     subroutine source_control_deliverability_update_iterator(node, stopped)
-      !! Applies deliverability control at a list node.
+      !! Applies deliverability control at a list node. If the fluid
+      !! pressure is below the threshold (or no threshold is
+      !! specified) then flow rate is updated according to the
+      !! deliverability. If fluid pressure is above the threshold,
+      !! then the flow rate is not updated (and is assumed to have
+      !! been specified by another control, e.g. a rate table), but
+      !! the threshold productivity index is recomputed, based on the
+      !! current flow rate.
       type(list_node_type), pointer, intent(in out)  :: node
       PetscBool, intent(out) :: stopped
       ! Locals:
-      PetscInt :: p, phases
-      PetscReal :: h, reference_pressure, pressure_difference, productivity
-      PetscReal, allocatable :: phase_mobilities(:), phase_flow_fractions(:)
+      PetscReal :: productivity
 
       select type (source => node%data)
       type is (source_type)
 
          call source%update_fluid(local_fluid_data, local_fluid_section)
 
-         allocate(phase_mobilities(source%fluid%num_phases))
-         allocate(phase_flow_fractions(source%fluid%num_phases))
-         phase_mobilities = source%fluid%phase_mobilities()
-         phase_flow_fractions = phase_mobilities / sum(phase_mobilities)
-
-         select case (self%pressure_table_coordinate)
-         case (SRC_PRESSURE_TABLE_COORD_TIME)
-            reference_pressure = self%reference_pressure%average(interval, 1)
-         case (SRC_PRESSURE_TABLE_COORD_ENTHALPY)
-            h = source%fluid%specific_enthalpy(phase_flow_fractions)
-            reference_pressure = self%reference_pressure%interpolate(h, 1)
-         end select
-
-         productivity = self%productivity%average(interval, 1)
-
-         pressure_difference = source%fluid%pressure - reference_pressure
-         source%rate = 0._dp
-
-         phases = nint(source%fluid%phase_composition)
-         do p = 1, source%fluid%num_phases
-            if (btest(phases, p - 1)) then
-               source%rate = source%rate - productivity * &
-                    phase_mobilities(p) * pressure_difference
+         if (self%threshold <= 0._dp) then
+            productivity = self%productivity%average(interval, 1)
+            call update_flow_rate(source, productivity)
+         else
+            if (source%fluid%pressure < self%threshold) then
+               call update_flow_rate(source, self%threshold_productivity)
+            else
+               call self%calculate_PI_from_rate(t, source%rate, &
+                    local_fluid_data, local_fluid_section, -1, &
+                    self%threshold_productivity)
             end if
-         end do
-
-         deallocate(phase_mobilities, phase_flow_fractions)
+         end if
 
       end select
 
