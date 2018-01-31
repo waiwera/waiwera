@@ -427,7 +427,7 @@ contains
     PetscInt :: gravity_type, ng, dim
     PetscErrorCode :: ierr
 
-    call DMGetDimension(self%mesh%dm, dim, ierr); CHKERRQ(ierr)
+    call DMGetDimension(self%mesh%original_dm, dim, ierr); CHKERRQ(ierr)
     self%gravity = 0._dp
     if (fson_has_mpi(json, "gravity")) then
        gravity_type = fson_type_mpi(json, "gravity")
@@ -513,7 +513,7 @@ contains
     use eos_module, only: max_component_name_length, &
          max_phase_name_length
     use eos_setup_module, only: setup_eos
-    use initial_module, only: setup_initial, scale_initial_primary
+    use initial_module
     use fluid_module, only: setup_fluid_vector
     use rock_module, only: setup_rock_vector
     use source_setup_module, only: setup_sources
@@ -551,14 +551,12 @@ contains
 
     call self%mesh%init(json, self%logfile)
     call self%setup_gravity(json)
+
     call self%mesh%configure(self%eos, self%gravity, json, &
          self%logfile, self%hdf5_viewer, err)
-
     if (err == 0) then
-
        call self%mesh%override_face_properties(json, self%logfile)
        call self%output_mesh_geometry()
-
        call self%setup_solution_vector()
        call setup_relative_permeabilities(json, &
             self%relative_permeability, self%logfile, err)
@@ -566,38 +564,49 @@ contains
           call setup_capillary_pressures(json, &
                self%capillary_pressure, self%logfile, err)
           if (err == 0) then
-             call setup_rock_vector(json, self%mesh%dm, self%mesh%cell_order, &
-                  self%rock, self%rock_range_start, self%mesh%ghost_cell, &
+             call setup_rock_vector(json, self%mesh%dm, self%mesh%cell_order, self%rock, &
+                  self%mesh%rock_types, self%rock_range_start, self%mesh%ghost_cell, &
                   self%logfile, err)
              if (err == 0) then
-                call setup_fluid_vector(self%mesh%dm, max_component_name_length, &
-                     self%eos%component_names, max_phase_name_length, &
-                     self%eos%phase_names, self%fluid, self%fluid_range_start)
-                call VecDuplicate(self%fluid, self%current_fluid, ierr); CHKERRQ(ierr)
-                call VecDuplicate(self%fluid, self%last_timestep_fluid, ierr)
-                CHKERRQ(ierr)
-                call VecDuplicate(self%fluid, self%last_iteration_fluid, ierr)
-                CHKERRQ(ierr)
-                call self%setup_flux_vector()
-                call setup_initial(json, self%mesh, self%eos, &
-                     self%time, self%solution, self%fluid, &
-                     self%solution_range_start, self%fluid_range_start, self%logfile)
-                call self%setup_update_cell()
-                call self%mesh%set_boundary_values(self%solution, self%fluid, &
-                     self%rock, self%eos, self%solution_range_start, &
-                     self%fluid_range_start, self%rock_range_start)
-                call scale_initial_primary(self%mesh, self%eos, self%solution, self%fluid, &
-                     self%solution_range_start, self%fluid_range_start)
-                call self%fluid_init(self%time, self%solution, err)
+                if (self%mesh%has_minc) then
+                   call self%mesh%setup_minc_rock_properties(json, self%rock, &
+                        self%rock_range_start, self%logfile, err)
+                end if
                 if (err == 0) then
-                   call setup_sources(json, self%mesh%dm, self%mesh%cell_order, &
-                        self%eos, self%thermo, self%time, self%fluid, &
-                        self%fluid_range_start, self%sources, &
-                        self%source_controls, self%logfile, err)
+                   call setup_fluid_vector(self%mesh%dm, max_component_name_length, &
+                        self%eos%component_names, max_phase_name_length, &
+                        self%eos%phase_names, self%fluid, self%fluid_range_start)
+                   call VecDuplicate(self%fluid, self%current_fluid, ierr); CHKERRQ(ierr)
+                   call VecDuplicate(self%fluid, self%last_timestep_fluid, ierr)
+                   CHKERRQ(ierr)
+                   call VecDuplicate(self%fluid, self%last_iteration_fluid, ierr)
+                   CHKERRQ(ierr)
+                   call self%setup_flux_vector()
+
+                   call setup_initial(json, self%mesh, self%eos, &
+                        self%time, self%solution, self%fluid, &
+                        self%solution_range_start, self%fluid_range_start, self%logfile)
+                   call self%setup_update_cell()
+                   call self%mesh%set_boundary_values(self%solution, self%fluid, &
+                        self%rock, self%eos, self%solution_range_start, &
+                        self%fluid_range_start, self%rock_range_start)
+                   call scale_initial_primary(self%mesh, self%eos, self%solution, self%fluid, &
+                        self%solution_range_start, self%fluid_range_start)
+                   call self%fluid_init(self%time, self%solution, err)
+                   if (err == 0) then
+                      call setup_sources(json, self%mesh%dm, self%mesh%cell_order, &
+                           self%eos, self%thermo, self%time, self%fluid, &
+                           self%fluid_range_start, self%sources, self%source_controls, &
+                           self%logfile, err)
+                   end if
                 end if
              end if
           end if
        end if
+    end if
+
+    if (self%mesh%has_minc) then
+       call DMDestroy(self%mesh%original_dm, ierr); CHKERRQ(ierr)
     end if
 
     call self%logfile%flush()
@@ -738,7 +747,7 @@ contains
     Vec, intent(out) :: lhs
     PetscErrorCode, intent(out) :: err
     ! Locals:
-    PetscInt :: c, np, nc
+    PetscInt :: c, np, nc, start_cell, end_cell
     PetscSection :: fluid_section, rock_section, lhs_section, update_section
     PetscInt :: fluid_offset, rock_offset, lhs_offset, update_offset
     PetscReal, pointer, contiguous :: fluid_array(:), rock_array(:), &
@@ -767,8 +776,10 @@ contains
     call VecGetArrayReadF90(self%rock, rock_array, ierr); CHKERRQ(ierr)
 
     call cell%init(nc, self%eos%num_phases)
+    call DMPlexGetHeightStratum(self%mesh%dm, 0, start_cell, end_cell, ierr)
+    CHKERRQ(ierr)
 
-    do c = self%mesh%start_cell, self%mesh%end_cell - 1
+    do c = start_cell, end_cell - 1
 
        if (self%mesh%ghost_cell(c) < 0) then
 
@@ -831,6 +842,8 @@ contains
     PetscErrorCode, intent(out) :: err
     ! Locals:
     PetscInt :: f, i, np
+    PetscInt :: start_cell, end_cell, end_interior_cell
+    PetscInt :: start_face, end_face
     Vec :: local_fluid, local_rock, local_update
     PetscReal, pointer, contiguous :: rhs_array(:)
     PetscReal, pointer, contiguous :: cell_geom_array(:), face_geom_array(:)
@@ -880,8 +893,13 @@ contains
     call VecGetArrayF90(self%flux, flux_array, ierr); CHKERRQ(ierr)
 
     call face%init(self%eos%num_components, self%eos%num_phases)
+    call DMPlexGetHeightStratum(self%mesh%dm, 0, start_cell, end_cell, ierr)
+    CHKERRQ(ierr)
+    call DMPlexGetHeightStratum(self%mesh%dm, 1, start_face, end_face, ierr)
+    CHKERRQ(ierr)
+    end_interior_cell = dm_get_end_interior_cell(self%mesh%dm, end_cell)
 
-    do f = self%mesh%start_face, self%mesh%end_face - 1
+    do f = start_face, end_face - 1
 
        if (self%mesh%ghost_face(f) < 0) then
 
@@ -927,7 +945,7 @@ contains
 
           do i = 1, 2
              if ((self%mesh%ghost_cell(cells(i)) < 0) .and. &
-                  (cells(i) <= self%mesh%end_interior_cell - 1)) then
+                  (cells(i) <= end_interior_cell - 1)) then
                 inflow => rhs_array(rhs_offsets(i) : rhs_offsets(i) + np - 1)
                 inflow = inflow + flux_sign(i) * face_flow / &
                      face%cell(i)%volume
@@ -1130,7 +1148,7 @@ contains
     Vec, intent(in) :: y !! global primary variables vector
     PetscErrorCode, intent(out) :: err
     ! Locals:
-    PetscInt :: c, np, nc, natural_cell_index
+    PetscInt :: c, np, nc, natural_cell_index, start_cell, end_cell
     PetscSection :: y_section, fluid_section, rock_section
     PetscInt :: y_offset, fluid_offset, rock_offset
     PetscReal, pointer, contiguous :: y_array(:), scaled_cell_primary(:)
@@ -1159,8 +1177,10 @@ contains
 
     call cell%init(nc, self%eos%num_phases)
     call DMGetLocalToGlobalMapping(self%mesh%dm, l2g, ierr); CHKERRQ(ierr)
+    call DMPlexGetHeightStratum(self%mesh%dm, 0, start_cell, end_cell, ierr)
+    CHKERRQ(ierr)
 
-    do c = self%mesh%start_cell, self%mesh%end_cell - 1
+    do c = start_cell, end_cell - 1
 
        if (self%mesh%ghost_cell(c) < 0) then
 
@@ -1240,7 +1260,7 @@ contains
     Vec, intent(in) :: y !! global primary variables vector
     PetscErrorCode, intent(out) :: err !! error code
     ! Locals:
-    PetscInt :: c, np, nc, natural_cell_index
+    PetscInt :: c, np, nc, natural_cell_index, start_cell, end_cell
     PetscSection :: y_section, fluid_section, rock_section, update_section
     PetscInt :: y_offset, fluid_offset, rock_offset, update_offset
     PetscReal, pointer, contiguous :: y_array(:), scaled_cell_primary(:)
@@ -1273,8 +1293,10 @@ contains
 
     call cell%init(nc, self%eos%num_phases)
     call DMGetLocalToGlobalMapping(self%mesh%dm, l2g, ierr); CHKERRQ(ierr)
+    call DMPlexGetHeightStratum(self%mesh%dm, 0, start_cell, end_cell, ierr)
+    CHKERRQ(ierr)
 
-    do c = self%mesh%start_cell, self%mesh%end_cell - 1
+    do c = start_cell, end_cell - 1
 
        if ((self%mesh%ghost_cell(c) < 0)) then
 
@@ -1361,7 +1383,7 @@ contains
     PetscBool, intent(out) :: changed_search, changed_y
     PetscErrorCode, intent(out) :: err !! Error code
     ! Locals:
-    PetscInt :: c, np, nc, natural_cell_index
+    PetscInt :: c, np, nc, natural_cell_index, start_cell, end_cell
     PetscSection :: primary_section, fluid_section
     PetscInt :: primary_offset, fluid_offset
     PetscReal, pointer, contiguous :: primary_array(:), old_primary_array(:), search_array(:)
@@ -1398,8 +1420,10 @@ contains
     call fluid%init(nc, self%eos%num_phases)
 
     call DMGetLocalToGlobalMapping(self%mesh%dm, l2g, ierr); CHKERRQ(ierr)
+    call DMPlexGetHeightStratum(self%mesh%dm, 0, start_cell, end_cell, ierr)
+    CHKERRQ(ierr)
 
-    do c = self%mesh%start_cell, self%mesh%end_cell - 1
+    do c = start_cell, end_cell - 1
 
        if (self%mesh%ghost_cell(c) < 0) then
 
@@ -1552,7 +1576,8 @@ contains
   subroutine flow_simulation_boundary_residuals(self, y, lhs, residual, err)
     !! Computes residual terms for boundary ghost cells.
 
-    use dm_utils_module, only: global_section_offset, global_vec_section
+    use dm_utils_module, only: global_section_offset, global_vec_section, &
+         dm_get_end_interior_cell
     use cell_module, only: cell_type
 
     class(flow_simulation_type), intent(in out) :: self
@@ -1562,6 +1587,7 @@ contains
     PetscErrorCode, intent(out) :: err !! error code
     ! Locals:
     PetscInt :: c, np, nc
+    PetscInt :: start_cell, end_cell, end_interior_cell
     PetscSection :: fluid_section, rock_section, lhs_section
     PetscInt :: fluid_offset, rock_offset, lhs_offset
     PetscReal, pointer, contiguous :: fluid_array(:), rock_array(:)
@@ -1585,8 +1611,11 @@ contains
     call VecGetArrayReadF90(self%rock, rock_array, ierr); CHKERRQ(ierr)
 
     call cell%init(nc, self%eos%num_phases)
+    call DMPlexGetHeightStratum(self%mesh%dm, 0, start_cell, end_cell, ierr)
+    CHKERRQ(ierr)
+    end_interior_cell = dm_get_end_interior_cell(self%mesh%dm, end_cell)
 
-    do c = self%mesh%end_interior_cell, self%mesh%end_cell - 1
+    do c = end_interior_cell, end_cell - 1
 
        if (self%mesh%ghost_cell(c) < 0) then
 

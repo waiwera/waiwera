@@ -484,6 +484,23 @@ contains
 
 !------------------------------------------------------------------------
 
+  subroutine SNES_Jacobian(solver, y, J, B, context, err)
+    !! Jacobian calculation routine for SNES solver.
+
+    SNES, intent(in) :: solver
+    Vec, intent(in) :: y
+    Mat, intent(in) :: J
+    Mat, intent(out) :: B
+    type(timestepper_solver_context_type), intent(in out) :: context
+    PetscErrorCode, intent(out) :: err
+
+    call SNESComputeJacobianDefaultColor(solver, y, J, B, &
+         context%fd_coloring, err); CHKERRQ(err)
+
+  end subroutine SNES_Jacobian
+
+!------------------------------------------------------------------------
+
   PetscErrorCode function SNES_pre_iteration_update(solver, step)
     !! Function to be called before each nonlinear solver iteration.
 
@@ -1283,7 +1300,7 @@ end subroutine timestepper_steps_set_next_stepsize
     call ISColoringDestroy(is_coloring, ierr); CHKERRQ(ierr)
 
     call SNESSetJacobian(self%solver, self%jacobian, self%jacobian, &
-         SNESComputeJacobianDefaultColor, self%context%fd_coloring, ierr)
+         SNES_Jacobian, self%context, ierr)
     CHKERRQ(ierr)
 
     call SNESSetTolerances(self%solver, PETSC_DEFAULT_REAL, &

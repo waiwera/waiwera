@@ -80,7 +80,199 @@
                                                         "maximum": 3}
                          }, "additionalProperties": false
                      }
-             }},
+                 },
+                 "minc": {"oneOf": [
+                     {"type": "object",
+                      "properties": {
+                          "geometry": {"type": "object",
+                                       "properties": {
+                                           "fracture": {
+                                               "type": "object",
+                                               "properties": {
+                                                   "volume": {"type": "number", "minimum": 0},
+                                                   "planes": {"type": "integer",
+                                                              "minimum": 1, "maximum": 3},
+                                                   "spacing": {"oneOf": [
+                                                       {"type": "number", "minimum": 0},
+                                                       {"type": "array", "items":
+                                                        {"type": "number", "minimum": 0}
+                                                       }]},
+                                                   "connection": {"type": "number",
+                                                                  "minimum": 0}
+                                               }, "additionalProperties": false},
+                                           "matrix": {
+                                               "type": "object",
+                                               "properties": {
+                                                   "volume": {"oneOf": [
+                                                       {"type": "number", "minimum": 0},
+                                                       {"type": "array",
+                                                        "items": {"type": "number", "minimum": 0}}
+                                                   ]}
+                                               }, "additionalProperties": false}
+                                           }
+                                      },
+                          "rock": {"oneOf": [
+                              {"type": "object",
+                               "properties": {
+                                   "fracture": {
+                                       "type": "object",
+                                       "properties": {"type": {"type": "string"}},
+                                       "additionalProperties": false},
+                                   "matrix": {
+                                       "type": "object",
+                                       "properties": {"type": {"type": "string"}},
+                                       "additionalProperties": false},
+                                   "cells": {"type": "array",
+                                             "items": {"type": "integer", "minimum": 0}},
+                                   "zones": {"oneOf": [
+                                       {"type": "string"},
+                                       {"type": "array",
+                                        "items": {"type": "string"}}]},
+                                   "types": {"oneOf": [
+                                       {"type": "string"},
+                                       {"type": "array",
+                                        "items": {"type": "string"}}]}
+                               }, "additionalProperties": false},
+                              {"type": "array",
+                               "items": {
+                                   "type": "object",
+                                   "properties": {
+                                       "fracture": {
+                                           "type": "object",
+                                           "properties": {"type": {"type": "string"}},
+                                           "additionalProperties": false},
+                                       "matrix": {
+                                           "type": "object",
+                                           "properties": {"type": {"type": "string"}},
+                                           "additionalProperties": false},
+                                       "cells": {"type": "array",
+                                                 "items": {"type": "integer", "minimum": 0}},
+                                       "zones": {"oneOf": [
+                                           {"type": "string"},
+                                           {"type": "array",
+                                            "items": {"type": "string"}}]},
+                                       "types": {"oneOf": [
+                                           {"type": "string"},
+                                           {"type": "array",
+                                            "items": {"type": "string"}}]}
+                                   }, "additionalProperties": false
+                               }
+                              }
+                          ]}, "additionalProperties": false}},
+                     {"type": "array",
+                      "items": {
+                          "type": "object",
+                          "properties": {
+                              "geometry": {"type": "object",
+                                           "properties": {
+                                               "fracture": {
+                                                   "type": "object",
+                                                   "properties": {
+                                                       "volume": {"type": "number", "minimum": 0},
+                                                       "planes": {"type": "integer",
+                                                                  "minimum": 1, "maximum": 3},
+                                                       "spacing": {"oneOf": [
+                                                           {"type": "number", "minimum": 0},
+                                                           {"type": "array", "items":
+                                                            {"type": "number", "minimum": 0}
+                                                           }]},
+                                                       "connection": {"type": "number",
+                                                                      "minimum": 0}
+                                                   }, "additionalProperties": false},
+                                               "matrix": {
+                                                   "type": "object",
+                                                   "properties": {
+                                                       "volume": {"oneOf": [
+                                                           {"type": "number", "minimum": 0},
+                                                           {"type": "array",
+                                                            "items": {"type": "number", "minimum": 0}}
+                                                       ]}
+                                                   }, "additionalProperties": false}
+                                           }
+                                          },
+                              "rock": {
+                                  "oneOf": [
+                                      {"type": "object",
+                                       "properties": {
+                                           "fracture": {
+                                               "type": "object",
+                                               "properties": {"type": {"type": "string"}},
+                                               "additionalProperties": false},
+                                           "matrix": {
+                                               "type": "object",
+                                               "properties": {"type": {"type": "string"}},
+                                               "additionalProperties": false},
+                                           "cells": {"type": "array",
+                                                     "items": {"type": "integer", "minimum": 0}},
+                                           "zones": {"oneOf": [
+                                               {"type": "string"},
+                                               {"type": "array",
+                                                "items": {"type": "string"}}]}
+                                       }, "additionalProperties": false},
+                                      {"type": "array",
+                                       "items": {
+                                           "type": "object",
+                                           "properties": {
+                                               "fracture": {
+                                                   "type": "object",
+                                                   "properties": {"type": {"type": "string"}},
+                                                   "additionalProperties": false},
+                                               "matrix": {
+                                                   "type": "object",
+                                                   "properties": {"type": {"type": "string"}},
+                                                   "additionalProperties": false},
+                                               "cells": {"type": "array",
+                                                         "items": {"type": "integer", "minimum": 0}},
+                                               "zones": {"oneOf": [
+                                                   {"type": "string"},
+                                                   {"type": "array",
+                                                    "items": {"type": "string"}}]}
+                                           }, "additionalProperties": false
+                                       }
+                                      }
+                                  ]
+                              }
+                          }, "additionalProperties": false}
+                     }
+                 ]},
+                 "zones": {"type": "object", "items": {"oneOf": [
+                     {"type": "array", "items": {"type": "string"}},
+                     {"type": "object",
+                      "properties": {"type": {"type": "string", "enum": ["array", "Array"]},
+                                     "cells": {"type": "array",
+                                               "items": {"type": "integer", "minimum": 0}}},
+                      "additionalProperties": false},
+                     {"type": "object",
+                      "properties": {"type": {"type": "string", "enum": ["box", "Box"]},
+                                     "x": {"type": "array", "minItems": 2, "maxItems": 2,
+                                           "items": {"type": "number"}},
+                                     "r": {"type": "array", "minItems": 2, "maxItems": 2,
+                                           "items": {"type": "number"}},
+                                     "y": {"type": "array", "minItems": 2, "maxItems": 2,
+                                           "items": {"type": "number"}},
+                                     "z": {"type": "array", "minItems": 2, "maxItems": 2,
+                                           "items": {"type": "number"}}
+                                    }, "additionalProperties": false},
+                     {"type": "object",
+                      "properties": {"type": {"type": "string", "enum": ["combine", "Combine"]},
+                                     "+": {"oneOf": [
+                                         {"type": "array", "items": {"type": "string"}},
+                                         {"type": "string"},
+                                         {"type": "null"}
+                                     ]},
+                                     "-": {"oneOf": [
+                                         {"type": "array", "items": {"type": "string"}},
+                                         {"type": "string"},
+                                         {"type": "null"}
+                                     ]},
+                                     "*": {"oneOf": [
+                                         {"type": "array", "items": {"type": "string"}},
+                                         {"type": "string"},
+                                         {"type": "null"}
+                                     ]}
+                                    }, "additionalProperties": false}
+                 ]}}
+             },
              "additionalProperties": false,
              "required": ["filename"]
             }]},
@@ -91,9 +283,9 @@
              "minItems": 2, "maxItems": 3},
             {"type": "null"}
         ]},
-        "rock": {"type": "object",
-                 "properties": {
-                     "relative_permeability": {"oneOf": [
+            "rock": {"type": "object",
+                     "properties": {
+                         "relative_permeability": {"oneOf": [
                          {"type": "object",
                           "properties": {
                               "type": {"type": "string",
@@ -206,7 +398,12 @@
                                  "specific_heat": {"type": "number", "minimum": 0},
                                  "cells": {"type": "array",
                                            "items": {"type": "integer",
-                                                     "minimum": 0}}
+                                                     "minimum": 0}},
+                                 "zones": {"oneOf": [
+                                     {"type": "string"},
+                                     {"type": "array",
+                                      "items": {"type": "string"}}
+                                 ]}
                              }, "additionalProperties": false
                          }}
                  },
@@ -437,7 +634,8 @@
             {"type": "object",
              "properties": {
                  "filename": {"type": "string"},
-                 "index": {"type": "integer", "minimum": 0}},
+                 "index": {"type": "integer", "minimum": 0},
+                 "minc": {"type": "boolean"}},
              "additionalProperties": false},
             {"type": "object",
              "properties": {
@@ -452,7 +650,8 @@
                  "region": {"oneOf": [
                      {"type": "integer"},
                      {"type": "array", "items": {"type": "integer"}}
-                     ]}
+                 ]},
+                 "minc": {"type": "boolean"}
              },
              "additionalProperties": false
             }]},
@@ -621,44 +820,7 @@
                     }, "additionalProperties": false
                 }
             },
-            "additionalProperties": false},
-        "zones": {"type": "object", "items": {"oneOf": [
-            {"type": "array", "items": {"type": "string"}},
-            {"type": "object",
-             "properties": {"type": {"type": "string", "enum": ["array", "Array"]},
-                            "cells": {"type": "array",
-                                      "items": {"type": "integer", "minimum": 0}}},
-             "additionalProperties": false},
-            {"type": "object",
-             "properties": {"type": {"type": "string", "enum": ["box", "Box"]},
-                            "x": {"type": "array", "minItems": 2, "maxItems": 2,
-                                  "items": {"type": "number"}},
-                            "r": {"type": "array", "minItems": 2, "maxItems": 2,
-                                  "items": {"type": "number"}},
-                            "y": {"type": "array", "minItems": 2, "maxItems": 2,
-                                  "items": {"type": "number"}},
-                            "z": {"type": "array", "minItems": 2, "maxItems": 2,
-                                  "items": {"type": "number"}}
-                           }, "additionalProperties": false},
-            {"type": "object",
-             "properties": {"type": {"type": "string", "enum": ["combine", "Combine"]},
-                            "+": {"oneOf": [
-                                {"type": "array", "items": {"type": "string"}},
-                                {"type": "string"},
-                                {"type": "null"}
-                            ]},
-                            "-": {"oneOf": [
-                                {"type": "array", "items": {"type": "string"}},
-                                {"type": "string"},
-                                {"type": "null"}
-                            ]},
-                            "*": {"oneOf": [
-                                {"type": "array", "items": {"type": "string"}},
-                                {"type": "string"},
-                                {"type": "null"}
-                            ]}
-                           }, "additionalProperties": false}
-        ]}}
+            "additionalProperties": false}
     },
     "required": ["mesh"],
     "additionalProperties": false

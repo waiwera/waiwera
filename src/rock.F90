@@ -24,9 +24,17 @@ module rock_module
   use kinds_module
   use relative_permeability_module
   use capillary_pressure_module
+  use fson
 
   implicit none
   private
+
+  type rock_dict_item_type
+     !! Item in rock dictionary.
+     private
+     type(fson_value), pointer, public :: rock !! JSON input data value
+     PetscInt, public :: label_value !! DM rock label value
+  end type rock_dict_item_type
 
   type rock_type
      !! Local rock properties.
@@ -72,7 +80,9 @@ module rock_module
   PetscReal, parameter, public :: default_specific_heat = 1000._dp
   PetscReal, parameter, public :: default_heat_conductivity = 2.5_dp
 
-  public :: rock_type, setup_rock_vector
+  character(len = 9), public :: rock_type_label_name = "rock_type"
+
+  public :: rock_dict_item_type, rock_type, setup_rock_types, setup_rock_vector
 
 contains
 
@@ -209,62 +219,233 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine setup_rock_vector_types(json, dm, ao, rock_vector, &
-       range_start, logfile, err)
+  subroutine setup_rock_types(json, dm, ao, rock_dict, logfile, err)
+    !! Sets up rock type dictionary and rock type labels on DM, from
+    !! JSON input.
+
+    use dictionary_module
+    use fson
+    use fson_mpi_module
+    use fson_value_m, only : TYPE_STRING, TYPE_ARRAY
+    use logfile_module
+    use zone_label_module
+    use dm_utils_module, only: natural_to_local_cell_index
+
+    type(fson_value), pointer, intent(in) :: json
+    DM, intent(in out) :: dm
+    AO, intent(in) :: ao
+    type(dictionary_type), intent(in out) :: rock_dict
+    type(logfile_type), intent(in out), optional :: logfile
+    PetscErrorCode, intent(out) :: err
+    ! Locals:
+    PetscInt :: start_cell, end_cell, num_rocktypes, ir
+    DMLabel :: ghost_label
+    ISLocalToGlobalMapping :: l2g
+    type(fson_value), pointer :: rocktypes, r
+    character(len=64) :: rockstr
+    character(len=12) :: irstr
+    character(max_rockname_length) :: name
+    type(rock_dict_item_type), pointer :: item
+    PetscErrorCode :: ierr
+
+    err = 0
+
+    if (fson_has_mpi(json, "rock.types")) then
+
+       call DMCreateLabel(dm, rock_type_label_name, ierr); CHKERRQ(ierr)
+
+       call DMPlexGetHeightStratum(dm, 0, start_cell, end_cell, ierr)
+       CHKERRQ(ierr)
+       call DMGetLabel(dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
+       call DMGetLocalToGlobalMapping(dm, l2g, ierr); CHKERRQ(ierr)
+
+       call fson_get_mpi(json, "rock.types", rocktypes)
+       num_rocktypes = fson_value_count_mpi(rocktypes, ".")
+       r => fson_value_children_mpi(rocktypes)
+
+       do ir = 1, num_rocktypes
+          write(irstr, '(i0)') ir - 1
+          rockstr = 'rock.types[' // trim(irstr) // '].'
+          call fson_get_mpi(r, "name", "", name, logfile, trim(rockstr) // "name")
+          if (name /= "") then
+             allocate(item)
+             item%label_value = ir
+             item%rock => r
+             call rock_dict%add(name, item)
+          end if
+          call label_rock_cells(ir)
+          call label_rock_zones(ir, err)
+          if (err > 0) exit
+          r => fson_value_next_mpi(r)
+       end do
+
+    else
+       if (present(logfile)) then
+          call logfile%write(LOG_LEVEL_WARN, "input", "no rocktypes")
+       end if
+    end if
+
+  contains
+
+!........................................................................
+
+    subroutine label_rock_cell(p, ir)
+      !! Sets rocktype label on single cell, if it is not a ghost cell.
+
+      PetscInt, intent(in) :: p, ir
+      ! Locals:
+      PetscInt :: ghost
+      PetscErrorCode :: ierr
+
+      if ((p >= start_cell) .and. (p < end_cell)) then
+         call DMLabelGetValue(ghost_label, p, ghost, ierr); CHKERRQ(ierr)
+         if (ghost < 0) then
+            call DMSetLabelValue(dm, rock_type_label_name, &
+                 p, ir, ierr); CHKERRQ(ierr)
+         end if
+      end if
+
+    end subroutine label_rock_cell
+
+!........................................................................
+
+    subroutine label_rock_cells(ir)
+      !! Sets DM rocktype label on specified cells.
+
+      PetscInt, intent(in) :: ir
+      ! Locals:
+      PetscInt, allocatable :: natural_cell_indices(:), &
+           local_cell_indices(:)
+      PetscInt :: ic
+      
+      if (fson_has_mpi(r, "cells")) then
+         call fson_get_mpi(r, "cells", val = natural_cell_indices)
+         if (allocated(natural_cell_indices)) then
+            associate(num_cells => size(natural_cell_indices))
+              allocate(local_cell_indices(num_cells))
+              local_cell_indices = natural_to_local_cell_index(ao, &
+                   l2g, natural_cell_indices)
+              do ic = 1, num_cells
+                 associate(c => local_cell_indices(ic))
+                   if (c >= 0) call label_rock_cell(c, ir)
+                 end associate
+              end do
+            end associate
+            deallocate(natural_cell_indices, local_cell_indices)
+         end if
+      end if
+
+    end subroutine label_rock_cells
+
+!........................................................................
+
+    subroutine label_rock_zones(ir, err)
+      !! Sets DM rocktype label in specified zones.
+
+      PetscInt, intent(in) :: ir
+      PetscErrorCode, intent(out) :: err
+      ! Locals:
+      PetscInt :: iz, num_zone_cells, c
+      PetscBool :: has_label
+      character(max_zone_name_length), allocatable :: zones(:)
+      PetscInt :: zones_type
+      character(:), allocatable :: label_name
+      IS :: cell_IS
+      PetscInt, pointer :: cells(:)
+      PetscErrorCode :: ierr
+
+      err = 0
+
+      if (fson_has_mpi(r, "zones")) then
+         zones_type = fson_type_mpi(r, "zones")
+         select case (zones_type)
+         case (TYPE_STRING)
+            allocate(zones(1))
+            call fson_get_mpi(r, "zones", val = zones(1))
+         case (TYPE_ARRAY)
+            call fson_get_mpi(r, "zones", string_length = max_zone_name_length, &
+                 val = zones)
+         end select
+         associate(num_zones => size(zones))
+           do iz = 1, num_zones
+              label_name = zone_label_name(zones(iz))
+              call DMHasLabel(dm, label_name, has_label, ierr); CHKERRQ(ierr)
+              if (has_label) then
+                 call DMGetStratumSize(dm, label_name, 1, num_zone_cells, &
+                      ierr); CHKERRQ(ierr)
+                 if (num_zone_cells > 0) then
+                    call DMGetStratumIS(dm, label_name, 1, cell_IS, &
+                         ierr); CHKERRQ(ierr)
+                    call ISGetIndicesF90(cell_IS, cells, ierr); CHKERRQ(ierr)
+                    do c = 1, num_zone_cells
+                       call label_rock_cell(cells(c), ir)
+                    end do
+                    call ISRestoreIndicesF90(cell_IS, cells, ierr); CHKERRQ(ierr)
+                    call ISDestroy(cell_IS, ierr); CHKERRQ(ierr)
+                 end if
+              else
+                 err = 1
+                 if (present(logfile)) then
+                    call logfile%write(LOG_LEVEL_ERR, "input", "unrecognised zone", &
+                         str_key = "name", str_value = zones(iz))
+                 end if
+                 exit
+              end if
+           end do
+         end associate
+         deallocate(zones)
+      end if
+
+    end subroutine label_rock_zones
+
+  end subroutine setup_rock_types
+
+!------------------------------------------------------------------------
+
+  subroutine setup_rock_vector_types(json, dm, ao, rock_vector, rock_dict, &
+       range_start, logfile)
     !! Sets up rock vector on DM from rock types in JSON input.
 
+    use dictionary_module
     use dm_utils_module, only: global_section_offset, global_vec_section, &
          natural_to_local_cell_index
     use zone_label_module
     use fson
     use fson_mpi_module
     use logfile_module
+    use fson_value_m, only : TYPE_STRING, TYPE_ARRAY
 
     type(fson_value), pointer, intent(in) :: json
-    DM, intent(in) :: dm
+    DM, intent(in out) :: dm
     AO, intent(in) :: ao
     Vec, intent(out) :: rock_vector
+    type(dictionary_type), intent(in out) :: rock_dict
     PetscInt, intent(in) :: range_start
     type(logfile_type), intent(in out), optional :: logfile
-    PetscErrorCode, intent(out) :: err
     ! Locals:
-    PetscInt :: num_rocktypes, ir, ic, iz, c
-    PetscInt :: perm_size, num_matching
+    PetscInt :: num_rocktypes, c, num_cells, offset
+    PetscInt :: ir
+    PetscInt :: perm_size
     type(fson_value), pointer :: rocktypes, r
-    PetscInt :: start_cell, end_cell
-    PetscInt, allocatable :: natural_cell_indices(:), local_cell_indices(:)
-    character(max_zone_name_length), allocatable :: zones(:)
-    character(:), allocatable :: label_name
     PetscInt, pointer :: cells(:)
-    DMLabel :: ghost_label
     type(rock_type) :: rock
     character(max_rockname_length) :: name
-    PetscBool :: has_label
     IS :: cell_IS
     PetscReal :: porosity, density, specific_heat
     PetscReal :: wet_conductivity, dry_conductivity
     PetscReal, allocatable :: permeability(:)
     PetscReal, pointer, contiguous :: rock_array(:)
     PetscSection :: section
-    ISLocalToGlobalMapping :: l2g
     PetscErrorCode :: ierr
     character(len=64) :: rockstr
     character(len=12) :: irstr
-
-    err = 0
 
     if (fson_has_mpi(json, "rock.types")) then
 
        call rock%init()
 
-       call DMPlexGetHeightStratum(dm, 0, start_cell, end_cell, ierr)
-       CHKERRQ(ierr)
-
        call VecGetArrayF90(rock_vector, rock_array, ierr); CHKERRQ(ierr)
        call global_vec_section(rock_vector, section)
-
-       call DMGetLabel(dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
-       call DMGetLocalToGlobalMapping(dm, l2g, ierr); CHKERRQ(ierr)
 
        call fson_get_mpi(json, "rock.types", rocktypes)
        num_rocktypes = fson_value_count_mpi(rocktypes, ".")
@@ -289,54 +470,26 @@ contains
                specific_heat, logfile, trim(rockstr) // "specific_heat")
           perm_size = size(permeability)
 
-          if (fson_has_mpi(r, "cells")) then
-             call fson_get_mpi(r, "cells", val = natural_cell_indices)
-             if (allocated(natural_cell_indices)) then
-                associate(num_cells => size(natural_cell_indices))
-                  allocate(local_cell_indices(num_cells))
-                  local_cell_indices = natural_to_local_cell_index(ao, &
-                       l2g, natural_cell_indices)
-                  do ic = 1, num_cells
-                     associate(c => local_cell_indices(ic))
-                       if (c >= 0) call assign_rock_parameters(c)
-                     end associate
-                  end do
-                end associate
-                deallocate(natural_cell_indices, local_cell_indices)
-             end if
-          end if
-
-          if (fson_has_mpi(r, "zones")) then
-             call fson_get_mpi(r, "zones", string_length = max_zone_name_length, &
-                  val = zones)
-             associate(num_zones => size(zones))
-               do iz = 1, num_zones
-                  label_name = zone_label_name(zones(iz))
-                  call DMHasLabel(dm, label_name, has_label, ierr); CHKERRQ(ierr)
-                  if (has_label) then
-                     call DMGetStratumSize(dm, label_name, 1, num_matching, &
-                          ierr); CHKERRQ(ierr)
-                     if (num_matching > 0) then
-                        call DMGetStratumIS(dm, label_name, 1, cell_IS, &
-                             ierr); CHKERRQ(ierr)
-                        call ISGetIndicesF90(cell_IS, cells, ierr); CHKERRQ(ierr)
-                        do c = 1, num_matching
-                           call assign_rock_parameters(cells(c))
-                        end do
-                        call ISRestoreIndicesF90(cell_IS, cells, ierr); CHKERRQ(ierr)
-                        call ISDestroy(cell_IS, ierr); CHKERRQ(ierr)
-                     end if
-                  else
-                     err = 1
-                     if (present(logfile)) then
-                        call logfile%write(LOG_LEVEL_ERR, "input", "unrecognised zone", &
-                             str_key = "name", str_value = zones(iz))
-                     end if
-                     exit
-                  end if
-               end do
-             end associate
-             deallocate(zones)
+          call DMGetStratumSize(dm, rock_type_label_name, ir, num_cells, &
+               ierr); CHKERRQ(ierr)
+          if (num_cells > 0) then
+             call DMGetStratumIS(dm, rock_type_label_name, ir, cell_IS, &
+                  ierr); CHKERRQ(ierr)
+             call ISGetIndicesF90(cell_IS, cells, ierr); CHKERRQ(ierr)
+             do c = 1, num_cells
+                call global_section_offset(section, cells(c), range_start, &
+                     offset, ierr); CHKERRQ(ierr)
+                call rock%assign(rock_array, offset)
+                rock%permeability = 0._dp
+                rock%permeability(1: perm_size) = permeability
+                rock%wet_conductivity = wet_conductivity
+                rock%dry_conductivity = dry_conductivity
+                rock%porosity = porosity
+                rock%density = density
+                rock%specific_heat = specific_heat
+             end do
+             call ISRestoreIndicesF90(cell_IS, cells, ierr); CHKERRQ(ierr)
+             call ISDestroy(cell_IS, ierr); CHKERRQ(ierr)
           end if
 
           r => fson_value_next_mpi(r)
@@ -346,56 +499,31 @@ contains
        call rock%destroy()
        call VecRestoreArrayF90(rock_vector, rock_array, ierr); CHKERRQ(ierr)
 
-    else
-       if (present(logfile)) then
-          call logfile%write(LOG_LEVEL_WARN, "input", "no rocktypes")
-       end if
     end if
-
-  contains
-
-    subroutine assign_rock_parameters(p)
-      !! Assigns rock parameters for cell at mesh point p.
-
-      PetscInt, intent(in) :: p
-      ! Locals:
-      PetscInt :: offset, ghost
-
-      if ((p >= start_cell) .and. (p < end_cell)) then
-         call DMLabelGetValue(ghost_label, p, ghost, ierr); CHKERRQ(ierr)
-         if (ghost < 0) then
-            call global_section_offset(section, p, range_start, &
-                 offset, ierr); CHKERRQ(ierr)
-            call rock%assign(rock_array, offset)
-            rock%permeability = 0._dp
-            rock%permeability(1: perm_size) = permeability
-            rock%wet_conductivity = wet_conductivity
-            rock%dry_conductivity = dry_conductivity
-            rock%porosity = porosity
-            rock%density = density
-            rock%specific_heat = specific_heat
-         end if
-      end if
-
-    end subroutine assign_rock_parameters
 
   end subroutine setup_rock_vector_types
 
 !------------------------------------------------------------------------
 
-  subroutine setup_rock_vector(json, dm, ao, rock_vector, range_start, &
-       ghost_cell, logfile, err)
-    !! Sets up rock vector on specified DM from JSON input.
+  subroutine setup_rock_vector(json, dm, ao, rock_vector, rock_dict, &
+       range_start, ghost_cell, logfile, err)
 
+    !! Sets up rock vector on specified DM from JSON input. If
+    !! initialising rock properties using rock types, this routine
+    !! also sets up a dictionary of rock types for efficient access by
+    !! rock type name.
+
+    use dictionary_module
     use dm_utils_module, only: set_dm_data_layout, global_vec_range_start
     use fson
     use fson_mpi_module
     use logfile_module
 
     type(fson_value), pointer, intent(in) :: json
-    DM, intent(in) :: dm
+    DM, intent(in out) :: dm
     AO, intent(in) :: ao
     Vec, intent(out) :: rock_vector
+    type(dictionary_type), intent(in out) :: rock_dict
     PetscInt, intent(out) :: range_start
     PetscInt, allocatable, intent(in) :: ghost_cell(:)
     type(logfile_type), intent(in out), optional :: logfile
@@ -425,8 +553,8 @@ contains
 
        if (fson_has_mpi(json, "rock.types")) then
 
-          call setup_rock_vector_types(json, dm, ao, rock_vector, &
-               range_start, logfile, err)
+          call setup_rock_vector_types(json, dm, ao, rock_vector, rock_dict, &
+               range_start, logfile)
 
        else
           ! other types of rock initialization here- TODO

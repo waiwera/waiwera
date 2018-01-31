@@ -34,6 +34,11 @@ module utils_module
      module procedure polynomial_multiple
   end interface polynomial
 
+  interface array_cumulative_sum
+     module procedure array_cumulative_sum_real
+     module procedure array_cumulative_sum_integer
+  end interface array_cumulative_sum
+
   interface array_sorted
      module procedure array_sorted_int
      module procedure array_sorted_real
@@ -43,7 +48,9 @@ module utils_module
        int_str_len, str_array_index, &
        split_filename, change_filename_extension, &
        date_time_str, degrees_to_radians, rotation_matrix_2d, &
-       polynomial, array_sorted
+       polynomial, array_pair_sum, array_cumulative_sum, &
+       array_exclusive_products, get_mpi_int_gather_array, &
+       array_sorted
   
 contains
 
@@ -256,6 +263,120 @@ contains
     end associate
 
   end function polynomial_multiple
+
+!------------------------------------------------------------------------
+
+  PetscReal function array_pair_sum(a) result(s)
+    !! Returns sum of products of consecutive pairs in an array
+    !! (including the pair formed by the last and first elements).
+
+    PetscReal, intent(in) :: a(:)
+    ! Locals:
+    PetscInt :: i, i1
+
+    s = 0._dp
+    associate(n => size(a))
+      if (n == 1) then
+         s = a(1)
+      else
+         do i = 1, n
+            i1 = i + 1
+            if (i1 > n) i1 = i1 - n
+            s = s + a(i) * a(i1)
+         end do
+      end if
+    end associate
+
+  end function array_pair_sum
+
+!------------------------------------------------------------------------
+
+  function array_cumulative_sum_real(a) result(s)
+    !! Cumulative sums of a real array.
+
+    PetscReal, intent(in) :: a(:)
+    PetscReal :: s(size(a))
+    ! Locals:
+    PetscInt :: i
+
+    associate(n => size(a))
+      if (n > 0) then
+         s(1) = a(1)
+         do i = 2, n
+            s(i) = s(i - 1) + a(i)
+         end do
+      end if
+    end associate
+
+  end function array_cumulative_sum_real
+
+!------------------------------------------------------------------------
+
+  function array_cumulative_sum_integer(a) result(s)
+    !! Cumulative sums of an integer array.
+
+    PetscInt, intent(in) :: a(:)
+    PetscInt :: s(size(a))
+    ! Locals:
+    PetscInt :: i
+
+    associate(n => size(a))
+      if (n > 0) then
+         s(1) = a(1)
+         do i = 2, n
+            s(i) = s(i - 1) + a(i)
+         end do
+      end if
+    end associate
+
+  end function array_cumulative_sum_integer
+
+!------------------------------------------------------------------------
+
+  function array_exclusive_products(a) result(p)
+    !! Returns products of array elements, excluding successive
+    !! elements of the array. If the array has only one element, the
+    !! returned result is 1.
+
+    PetscReal, intent(in) :: a(:)
+    PetscReal :: p(size(a))
+    ! Locals:
+    PetscInt :: i
+    PetscReal :: x(size(a))
+
+    do i = 1, size(a)
+       x = a
+       x(i) = 1._dp
+       p(i) = product(x)
+    end do
+
+  end function array_exclusive_products
+
+!------------------------------------------------------------------------
+
+  function get_mpi_int_gather_array() result(array)
+    !! Returns integer array for use in MPI gather call. This is of
+    !! size equal to the number of processes on the root rank, and
+    !! size 1 on other ranks (needs to be allocated even though it is
+    !! not actually used.)
+
+    PetscInt, allocatable :: array(:)
+    ! Locals:
+    PetscMPIInt :: rank, num_procs
+    PetscInt :: size
+    PetscErrorCode :: ierr
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    call MPI_COMM_SIZE(PETSC_COMM_WORLD, num_procs, ierr)
+
+    if (rank == 0) then
+       size = num_procs
+    else ! have to allocate non-zero size, even if not actually used:
+       size = 1
+    end if
+    allocate(array(size))
+
+  end function get_mpi_int_gather_array
 
 !------------------------------------------------------------------------
 

@@ -58,7 +58,7 @@ contains
     call thermo%init()
     call eos%init(json, thermo)
     call mesh%init(json)
-    call DMCreateLabel(mesh%dm, open_boundary_label_name, ierr); CHKERRQ(ierr)
+    call DMCreateLabel(mesh%original_dm, open_boundary_label_name, ierr); CHKERRQ(ierr)
     call mesh%configure(eos, gravity, json, viewer = viewer, err = err)
     call setup_fluid_vector(mesh%dm, max_component_name_length, &
          eos%component_names, max_phase_name_length, eos%phase_names, &
@@ -179,7 +179,8 @@ contains
     PetscReal, pointer, contiguous :: fluid_array(:), local_fluid_array(:)
     PetscSection :: fluid_section, local_fluid_section
     type(fluid_type) :: fluid
-    PetscInt :: num_sources, num_source_controls, fluid_range_start, c
+    PetscInt :: num_sources, num_source_controls, fluid_range_start
+    PetscInt :: start_cell, end_cell, c
     PetscInt :: fluid_offset, cell_phase_composition
     PetscReal :: t, interval(2), props(2)
     PetscReal :: cell_temperature, cell_liquid_density, cell_liquid_internal_energy
@@ -217,15 +218,17 @@ contains
 
     call mesh%init(json)
     call fluid%init(eos%num_components, eos%num_phases)
-    call DMCreateLabel(mesh%dm, open_boundary_label_name, ierr); CHKERRQ(ierr)
+    call DMCreateLabel(mesh%original_dm, open_boundary_label_name, ierr); CHKERRQ(ierr)
     call mesh%configure(eos, gravity, json, viewer = viewer, err = err)
     call setup_fluid_vector(mesh%dm, max_component_name_length, &
          eos%component_names, max_phase_name_length, eos%phase_names, &
          fluid_vector, fluid_range_start)
+    call DMPlexGetHeightStratum(mesh%dm, 0, start_cell, end_cell, ierr)
+    CHKERRQ(ierr)
     call global_vec_section(fluid_vector, fluid_section)
     call VecGetArrayF90(fluid_vector, fluid_array, ierr); CHKERRQ(ierr)
 
-    do c = mesh%start_cell, mesh%end_cell - 1
+    do c = start_cell, end_cell - 1
        if (mesh%ghost_cell(c) < 0) then
           call global_section_offset(fluid_section, c, fluid_range_start, &
                fluid_offset, ierr)
@@ -444,7 +447,7 @@ contains
 
     subroutine reset_fluid_pressures(P)
       PetscReal, intent(in) :: P
-      do c = mesh%start_cell, mesh%end_cell - 1
+      do c = start_cell, end_cell - 1
          if (mesh%ghost_cell(c) < 0) then
             call section_offset(local_fluid_section, c, fluid_offset, ierr)
             CHKERRQ(ierr)

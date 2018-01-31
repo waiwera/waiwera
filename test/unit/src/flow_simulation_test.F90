@@ -36,15 +36,27 @@ contains
     character(*), intent(in) :: name, path
     IS, intent(in) :: cell_index
     ! Locals:
+    DM :: dm
     PetscErrorCode :: ierr
     PetscViewer :: viewer
+    PetscInt :: time_index
+    PetscReal :: time
+
+    time_index = 0
+    time = 0._dp
 
     call PetscViewerHDF5Open(PETSC_COMM_WORLD, &
          trim(path) // trim(name) // ".h5", &
          FILE_MODE_WRITE, viewer, ierr); CHKERRQ(ierr)
     call PetscViewerHDF5PushGroup(viewer, "/", ierr); CHKERRQ(ierr)
-    call VecView(v, viewer, ierr); CHKERRQ(ierr)
+
     call ISView(cell_index, viewer, ierr); CHKERRQ(ierr)
+
+    call VecGetDM(v, dm, ierr); CHKERRQ(ierr)
+    call DMSetOutputSequenceNumber(dm, time_index, time, &
+         ierr); CHKERRQ(ierr)
+
+    call VecView(v, viewer, ierr); CHKERRQ(ierr)
     call PetscViewerHDF5PopGroup(viewer, ierr); CHKERRQ(ierr)
     call PetscViewerDestroy(viewer, ierr); CHKERRQ(ierr)
 
@@ -231,87 +243,112 @@ contains
     ! Test gravity setup
 
     use fson_mpi_module
+    use IAPWS_module
+    use eos_we_module
+
     type(fson_value), pointer :: json
+
     PetscMPIInt :: rank
-    PetscErrorCode :: ierr
+    PetscViewer :: viewer
+    type(IAPWS_type) :: thermo
+    type(eos_we_type) :: eos
+    PetscErrorCode :: ierr, err
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    viewer = PETSC_NULL_VIEWER
+    call thermo%init()
 
     json => fson_parse_mpi(str = '{"mesh": {' // &
          '"filename": "data/mesh/2D.msh"}}')
+    call eos%init(json, thermo)
     call sim%mesh%init(json)
     call sim%setup_gravity(json)
+    call sim%mesh%configure(eos, sim%gravity, json, viewer = viewer, err = err)
     call fson_destroy_mpi(json)
     if (rank == 0) then
        call assert_equals([0._dp, 0._dp, 0._dp], sim%gravity, 3, tol, &
             "2D default gravity")
     end if
+    call sim%mesh%destroy()
 
     json => fson_parse_mpi(str = '{"mesh": {' // &
          '"filename": "data/mesh/2D.msh"}, "gravity": null}')
     call sim%mesh%init(json)
     call sim%setup_gravity(json)
+    call sim%mesh%configure(eos, sim%gravity, json, viewer = viewer, err = err)
     call fson_destroy_mpi(json)
     if (rank == 0) then
        call assert_equals([0._dp, 0._dp, 0._dp], sim%gravity, 3, tol, &
             "2D null gravity")
     end if
+    call sim%mesh%destroy()
 
     json => fson_parse_mpi(str = '{"mesh": {' // &
          '"filename": "data/mesh/2D.msh"}, ' // &
          '"gravity": 9.81}')
     call sim%mesh%init(json)
     call sim%setup_gravity(json)
+    call sim%mesh%configure(eos, sim%gravity, json, viewer = viewer, err = err)
     call fson_destroy_mpi(json)
     if (rank == 0) then
        call assert_equals([0._dp, -9.81_dp, 0._dp], sim%gravity, 3, tol, &
          "2D scalar gravity")
     end if
+    call sim%mesh%destroy()
 
     json => fson_parse_mpi(str = '{"mesh": {' // &
          '"filename": "data/mesh/2D.msh"}, ' // &
          '"gravity": [-9.8, 0.0]}')
     call sim%mesh%init(json)
     call sim%setup_gravity(json)
+    call sim%mesh%configure(eos, sim%gravity, json, viewer = viewer, err = err)
     call fson_destroy_mpi(json)
     if (rank == 0) then
        call assert_equals([-9.8_dp, 0._dp, 0._dp], sim%gravity, 3, tol, &
          "2D vector gravity")
     end if
+    call sim%mesh%destroy()
 
     json => fson_parse_mpi(str = '{"mesh": {' // &
          '"filename": "data/mesh/block3.exo"}}')
     call sim%mesh%init(json)
     call sim%setup_gravity(json)
+    call sim%mesh%configure(eos, sim%gravity, json, viewer = viewer, err = err)
     call fson_destroy_mpi(json)
     if (rank == 0) then
        call assert_equals([0._dp, 0._dp, -9.8_dp], sim%gravity, 3, tol, &
             "3D default gravity")
     end if
+    call sim%mesh%destroy()
 
     json => fson_parse_mpi(str = '{"mesh": {' // &
          '"filename": "data/mesh/block3.exo"}, ' // &
          '"gravity": 9.80665}')
     call sim%mesh%init(json)
     call sim%setup_gravity(json)
+    call sim%mesh%configure(eos, sim%gravity, json, viewer = viewer, err = err)
     call fson_destroy_mpi(json)
     if (rank == 0) then
        call assert_equals([0._dp, 0._dp, -9.80665_dp], sim%gravity, 3, tol, &
             "3D scalar gravity")
     end if
+    call sim%mesh%destroy()
 
     json => fson_parse_mpi(str = '{"mesh": {' // &
          '"filename": "data/mesh/block3.exo"}, ' // &
          '"gravity": [0., 0., -9.81]}')
     call sim%mesh%init(json)
     call sim%setup_gravity(json)
+    call sim%mesh%configure(eos, sim%gravity, json, viewer = viewer, err = err)
     call fson_destroy_mpi(json)
     if (rank == 0) then
        call assert_equals([0._dp, 0._dp, -9.81_dp], sim%gravity, 3, tol, &
             "3D vector gravity")
     end if
-
     call sim%mesh%destroy()
+
+    call eos%destroy()
+    call thermo%destroy()
 
   end subroutine test_setup_gravity
 

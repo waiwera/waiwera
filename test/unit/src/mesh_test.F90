@@ -15,7 +15,8 @@ module mesh_test
 
   public :: test_mesh_init, test_2d_cartesian_geometry, &
        test_2d_radial_geometry, test_mesh_face_permeability_direction, &
-       test_rock_assignment, test_cell_order
+       test_setup_minc_dm, test_minc_rock, &
+       test_rock_assignment, test_cell_order, test_minc_cell_order
 
   PetscReal, parameter :: tol = 1.e-6_dp
 
@@ -70,7 +71,7 @@ contains
 
     json => fson_parse_mpi(str = '{"mesh": "data/mesh/block3.exo"}')
     call mesh%init(json)
-    call DMCreateLabel(mesh%dm, open_boundary_label_name, ierr); CHKERRQ(ierr)
+    call DMCreateLabel(mesh%original_dm, open_boundary_label_name, ierr); CHKERRQ(ierr)
     call mesh%configure(eos, gravity, json, viewer = viewer, err = err)
     call fson_destroy_mpi(json)
 
@@ -151,7 +152,7 @@ contains
     PetscViewer :: viewer
     PetscReal, pointer, contiguous :: cell_geom_array(:), face_geom_array(:)
     PetscSection :: cell_geom_section, face_geom_section
-    PetscInt :: c, offset, f
+    PetscInt :: c, offset, f, start_cell, end_cell, start_face, end_face
     type(cell_type) :: cell
     type(face_type) :: face
     PetscErrorCode :: ierr, err
@@ -180,7 +181,10 @@ contains
 
     volumes_OK = PETSC_TRUE
 
-    do c = mesh%start_cell, mesh%end_cell - 1
+    call DMPlexGetHeightStratum(mesh%dm, 0, start_cell, end_cell, ierr)
+    CHKERRQ(ierr)
+
+    do c = start_cell, end_cell - 1
        if (mesh%ghost_cell(c) < 0) then
           call section_offset(cell_geom_section, c, offset, &
                ierr); CHKERRQ(ierr)
@@ -202,7 +206,9 @@ contains
     call face%init()
     areas_OK = PETSC_TRUE
 
-    do f = mesh%start_face, mesh%end_face - 1
+    call DMPlexGetHeightStratum(mesh%dm, 1, start_face, end_face, ierr)
+    CHKERRQ(ierr)
+    do f = start_face, end_face - 1
        if (mesh%ghost_face(f) < 0) then
           call section_offset(face_geom_section, f, offset, &
                ierr); CHKERRQ(ierr)
@@ -245,7 +251,7 @@ contains
     PetscViewer :: viewer
     PetscReal, pointer, contiguous :: cell_geom_array(:), face_geom_array(:)
     PetscSection :: cell_geom_section, face_geom_section
-    PetscInt :: c, offset, f
+    PetscInt :: c, offset, f, start_cell, end_cell, start_face, end_face
     type(cell_type) :: cell
     type(face_type) :: face
     PetscErrorCode :: ierr, err
@@ -274,8 +280,10 @@ contains
     CHKERRQ(ierr)
 
     volumes_OK = PETSC_TRUE
+    call DMPlexGetHeightStratum(mesh%dm, 0, start_cell, end_cell, ierr)
+    CHKERRQ(ierr)
 
-    do c = mesh%start_cell, mesh%end_cell - 1
+    do c = start_cell, end_cell - 1
        if (mesh%ghost_cell(c) < 0) then
           call section_offset(cell_geom_section, c, offset, &
                ierr); CHKERRQ(ierr)
@@ -300,8 +308,10 @@ contains
     CHKERRQ(ierr)
     call face%init()
     areas_OK = PETSC_TRUE
+    call DMPlexGetHeightStratum(mesh%dm, 1, start_face, end_face, ierr)
+    CHKERRQ(ierr)
 
-    do f = mesh%start_face, mesh%end_face - 1
+    do f = start_face, end_face - 1
        if (mesh%ghost_face(f) < 0) then
           call section_offset(face_geom_section, f, offset, &
                ierr); CHKERRQ(ierr)
@@ -348,7 +358,7 @@ contains
     type(eos_we_type) :: eos
     type(mesh_type) :: mesh
     PetscViewer :: viewer
-    PetscInt :: f, offset
+    PetscInt :: f, offset, start_face, end_face
     PetscErrorCode :: ierr, err
     PetscSection :: face_geom_section
     type(face_type) :: face
@@ -370,7 +380,7 @@ contains
          ']}}')
     call mesh%init(json)
 
-    call DMCreateLabel(mesh%dm, open_boundary_label_name, ierr); CHKERRQ(ierr)
+    call DMCreateLabel(mesh%original_dm, open_boundary_label_name, ierr); CHKERRQ(ierr)
     call mesh%configure(eos, gravity, json, viewer = viewer, err = err)
     call mesh%override_face_properties(json)
     call fson_destroy_mpi(json)
@@ -379,8 +389,10 @@ contains
     call VecGetArrayReadF90(mesh%face_geom, face_geom_array, ierr)
     CHKERRQ(ierr)
     call face%init()
+    call DMPlexGetHeightStratum(mesh%dm, 1, start_face, end_face, ierr)
+    CHKERRQ(ierr)
 
-    do f = mesh%start_face, mesh%end_face - 1
+    do f = start_face, end_face - 1
        if (mesh%ghost_face(f) < 0) then
           call section_offset(face_geom_section, f, offset, ierr); CHKERRQ(ierr)
           call face%assign_geometry(face_geom_array, offset)
@@ -404,12 +416,315 @@ contains
 
 !------------------------------------------------------------------------
 
+  subroutine test_setup_minc_dm
+    ! Test setup_minc_dm
+
+    use fson_mpi_module
+
+    character(:), allocatable :: json_str
+    PetscMPIInt :: rank
+    PetscErrorCode :: ierr
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+
+    json_str = &
+         '{"mesh": {"filename": "data/mesh/7x7grid.exo",' // &
+         '  "zones": {"all": {"-": null}},' // &
+         '  "minc": {"rock": {"zones": ["all"]}, ' // &
+         '           "geometry": {"fracture": {"volume": 0.1}}}}}'
+    call minc_test('all', json_str, 1, 2 * 49, 1, [49, 49])
+
+    json_str = &
+         '{"mesh": {"filename": "data/mesh/7x7grid.exo",' // &
+         '  "zones": {"left": {"x": [0, 1500]}},' // &
+         '  "minc": {"rock": {"zones": ["left"]}, ' // &
+         '           "geometry": {"matrix": {"volume": 0.9}}}}}'
+    call minc_test('partial', json_str, 1, 63, 1, [49, 14])
+
+    json_str = &
+         '{"mesh": {"filename": "data/mesh/7x7grid.exo",' // &
+         '  "zones": {"left": {"x": [0, 1500]}, "right": {"-": "left"}},' // &
+         '  "minc": [{"rock": {"zones": ["left"]}, ' // &
+         '                     "geometry": {"fracture": {"volume": 0.1}}}, ' // &
+         '           {"rock": {"zones": ["right"]}, ' // &
+         '            "geometry": {"fracture": {"volume": 0.1}, ' // &
+         '                         "matrix": {"volume": [0.3, 0.6]}}}]}}'
+    call minc_test('two-zone', json_str, 2, 133, 2, [49, 49, 35])
+
+    json_str = &
+         '{"mesh": {"filename": "data/mesh/7x7grid.exo",' // &
+         '  "zones": {"left": {"x": [0, 1500]}, ' // &
+         '            "right corner": {"x": [2500, 4500], "y": [3000, 4500]}},' // &
+         '  "minc": [{"rock": {"zones": ["right corner"]}, ' // &
+         '            "geometry": {"fracture": {"volume": 0.1}}}, ' // &
+         '           {"rock": {"zones": ["left"]}, ' // &
+         '            "geometry": {"matrix": {"volume": [0.3, 0.6]}}}]}}'
+    call minc_test('two-zone partial', json_str, 2, 83, 2, [49, 20, 14])
+
+    json_str = &
+         '{"mesh": {"filename": "data/mesh/7x7grid.exo",' // &
+         '  "zones": {"left": {"x": [0, 1500]}, ' // &
+         '            "right": {"-": "left"}},' // &
+         '  "minc": {"rock": [{"zones": ["left"]}, {"zones": ["right"]}], ' // &
+         '            "geometry": {"fracture": {"volume": 0.1}}}, ' // &
+         '           }}'
+    call minc_test('two sub-zone', json_str, 1, 2 * 49, 1, [49, 49])
+
+    json_str = &
+         '{"mesh": {"filename": "data/mesh/7x7grid.exo",' // &
+         '  "zones": {"left": {"x": [0, 1500]}, "right": {"-": "left"}},' // &
+         '  "minc": [{"rock": {"types": ["rock1"]}, ' // &
+         '                     "geometry": {"fracture": {"volume": 0.1}}}, ' // &
+         '           {"rock": {"types": ["rock2"]}, ' // &
+         '            "geometry": {"fracture": {"volume": 0.1}, ' // &
+         '                         "matrix": {"volume": [0.3, 0.6]}}}]}, ' // &
+         ' "rock": {"types": [{"name": "rock1", "zones": "left"}, ' // &
+         '                    {"name": "rock2", "zones": ["right"]}]}' // &
+         '}'
+    call minc_test('rocktype', json_str, 2, 133, 2, [49, 49, 35])
+
+  contains
+
+!........................................................................
+
+    subroutine minc_test(name, json_str, expected_num_zones, expected_num_cells, &
+         expected_max_level, expected_num_minc_level_cells)
+
+      use minc_module, only: minc_level_label_name, minc_zone_label_name
+      use cell_module
+      use face_module
+      use dm_utils_module, only: section_offset, local_vec_section, &
+           local_to_natural_cell_index
+      use IAPWS_module
+      use eos_we_module
+
+      character(*), intent(in) :: name
+      character(*), intent(in) :: json_str
+      PetscInt, intent(in) :: expected_num_zones, expected_num_cells
+      PetscInt, intent(in) :: expected_max_level
+      PetscInt, intent(in) :: expected_num_minc_level_cells(0: expected_max_level)
+      ! Locals:
+      type(fson_value), pointer :: json, orig_json
+      type(mesh_type) :: mesh, orig_mesh
+      character(:), allocatable :: orig_json_str
+      type(IAPWS_type) :: thermo
+      type(eos_we_type) :: eos
+      PetscViewer :: viewer
+      PetscInt :: num_cells, num_minc_zones, m, num_local, num, max_num_levels
+      PetscErrorCode :: err
+      PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
+      character(48) :: str
+      PetscInt :: iminc, num_minc_zone_cells, i, c
+      IS :: minc_IS
+      PetscInt, pointer :: minc_cells(:)
+      Vec :: orig_cell_geom, orig_face_geom
+      type(cell_type) :: orig_cell, cell
+      type(face_type) :: face
+      ISLocalToGlobalMapping :: l2g
+      DMLabel :: ghost_label, minc_level_label
+      PetscInt, parameter :: nc = 1, np = 1 ! dummy values for cell init
+      PetscSection :: orig_cell_section, cell_section, face_section
+      PetscReal, pointer, contiguous :: orig_cell_geom_array(:), cell_geom_array(:)
+      PetscReal, pointer, contiguous :: face_geom_array(:)
+      PetscInt :: orig_cell_offset, cell_offset, ghost, order
+      PetscInt :: face_offset, cell_p, face_p, h
+      PetscReal :: expected_vol, expected_area
+      PetscInt :: ic(expected_max_level)
+      PetscReal, parameter :: tol = 1.e-6_dp
+
+      viewer = PETSC_NULL_VIEWER
+      call thermo%init()
+      json => fson_parse_mpi(str = json_str)
+      call eos%init(json, thermo)
+      call mesh%init(json)
+      call mesh%configure(eos, gravity, json, viewer = viewer, err = err)
+      call assert_equals(0, err, name // ": minc config error")
+      call fson_destroy_mpi(json)
+
+      orig_json_str = get_orig_json_str(json_str)
+      orig_json => fson_parse_mpi(str = orig_json_str)
+      call orig_mesh%init(orig_json)
+      call orig_mesh%configure(eos, gravity, orig_json, viewer = viewer, err = err)
+      call fson_destroy_mpi(orig_json)
+
+      call DMGetLocalToGlobalMapping(orig_mesh%dm, l2g, ierr); CHKERRQ(ierr)
+
+      if (rank == 0) then
+         call assert_true(mesh%has_minc, name // ": mesh has minc")
+      end if
+      num_minc_zones = size(mesh%minc)
+      max_num_levels = maxval(mesh%minc%num_levels)
+      if (rank == 0) then
+         call assert_equals(expected_num_zones, &
+              num_minc_zones, name // ": num minc zones")
+         call assert_equals(expected_max_level, &
+              max_num_levels, name // ": num minc levels")
+      end if
+
+      num_cells = total_interior_cell_count(mesh)
+      if (rank == 0) then
+         call assert_equals(expected_num_cells, &
+              num_cells, name  // ": num cells")
+      end if
+
+      do m = 0, expected_max_level
+         call DMGetStratumSize(mesh%dm, minc_level_label_name, m, &
+               num_local, ierr); CHKERRQ(ierr)
+         call MPI_reduce(num_local, num, 1, MPI_INTEGER, MPI_SUM, &
+              0, PETSC_COMM_WORLD, ierr)
+         if (rank == 0) then
+            write(str, '(a, i1)') ": num minc points, level ", m
+            call assert_equals(expected_num_minc_level_cells(m), &
+                 num, name  // str)
+         end if
+      end do
+
+      ! Test geometry:
+      call DMPlexComputeGeometryFVM(orig_mesh%dm, orig_cell_geom, &
+           orig_face_geom, ierr); CHKERRQ(ierr)
+      call orig_cell%init(nc, np)
+      call cell%init(nc, np)
+      call face%init(nc, np)
+      call local_vec_section(orig_cell_geom, orig_cell_section)
+      call VecGetArrayReadF90(orig_cell_geom, orig_cell_geom_array, ierr)
+      CHKERRQ(ierr)
+      call local_vec_section(mesh%cell_geom, cell_section)
+      call VecGetArrayReadF90(mesh%cell_geom, cell_geom_array, ierr)
+      CHKERRQ(ierr)
+      call local_vec_section(mesh%face_geom, face_section)
+      call VecGetArrayReadF90(mesh%face_geom, face_geom_array, ierr)
+      CHKERRQ(ierr)
+      call DMGetLabel(orig_mesh%dm, "ghost", ghost_label, ierr)
+      CHKERRQ(ierr)
+      call DMGetLabel(mesh%dm, minc_level_label_name, minc_level_label, ierr)
+      CHKERRQ(ierr)
+      ic = 0
+      h = 0
+      do iminc = 1, size(mesh%minc)
+         associate(minc => mesh%minc(iminc))
+           call DMGetStratumSize(orig_mesh%dm, minc_zone_label_name, iminc, &
+                num_minc_zone_cells, ierr); CHKERRQ(ierr)
+           if (num_minc_zone_cells > 0) then
+              call DMGetStratumIS(orig_mesh%dm, minc_zone_label_name, &
+                   iminc, minc_IS, ierr); CHKERRQ(ierr)
+              call ISGetIndicesF90(minc_IS, minc_cells, ierr); CHKERRQ(ierr)
+              do i = 1, num_minc_zone_cells
+                 c = minc_cells(i)
+                 call DMLabelGetValue(ghost_label, c, ghost, ierr)
+                 if (ghost < 0) then
+                    order = local_to_natural_cell_index(orig_mesh%cell_order, l2g, c)
+                    call section_offset(orig_cell_section, c, orig_cell_offset, ierr)
+                    CHKERRQ(ierr)
+                    call orig_cell%assign_geometry(orig_cell_geom_array, orig_cell_offset)
+                    cell_p = mesh%strata(h)%minc_point(c, 0)
+                    call section_offset(cell_section, cell_p, cell_offset, ierr)
+                    CHKERRQ(ierr)
+                    call cell%assign_geometry(cell_geom_array, cell_offset)
+                    expected_vol = orig_cell%volume * minc%volume(1)
+                    write(str, '(a, a, i3, a)') name, ": fracture volume(", order, ")"
+                    call assert_equals(expected_vol, cell%volume, tol, str)
+                    do m = 1, minc%num_levels
+                       cell_p = mesh%strata(h)%minc_point(ic(m), m)
+                       call section_offset(cell_section, cell_p, &
+                            cell_offset, ierr); CHKERRQ(ierr)
+                       call cell%assign_geometry(cell_geom_array, cell_offset)
+                       expected_vol = orig_cell%volume * minc%volume(m + 1)
+                       write(str, '(a, a, i3, a, i1, a)') name, ": minc volume(", &
+                            order, ", ", m, ")"
+                       call assert_equals(expected_vol, cell%volume, tol, str)
+                       face_p = mesh%strata(h + 1)%minc_point(ic(m), m)
+                       call section_offset(face_section, face_p, &
+                            face_offset, ierr); CHKERRQ(ierr)
+                       call face%assign_geometry(face_geom_array, face_offset)
+                       expected_area = orig_cell%volume * minc%connection_area(m)
+                       write(str, '(a, a, i3, a, i1, a, i1, a)') name, &
+                            ": minc area(", order, ", ", m-1, ":", m, ")"
+                       call assert_equals(expected_area, face%area, tol, str)
+                       write(str, '(a, a, i3, a, i1, a, i1, a)') name, ": minc distance 1(", &
+                            order, ", ", m-1, ":", m, ")"
+                       call assert_equals(minc%connection_distance(m), face%distance(1), &
+                            tol, str)
+                       write(str, '(a, a, i3, a, i1, a, i1, a)') name, ": minc distance 2(", &
+                            order, ", ", m-1, ":", m, ")"
+                       call assert_equals(minc%connection_distance(m + 1), face%distance(2), &
+                            tol, str)
+                       ic(m) = ic(m) + 1
+                    end do
+                 end if
+              end do
+           end if
+         end associate
+      end do
+      call VecRestoreArrayReadF90(orig_cell_geom, orig_cell_geom_array, ierr)
+      call VecRestoreArrayReadF90(mesh%cell_geom, cell_geom_array, ierr)
+      call VecRestoreArrayReadF90(mesh%face_geom, face_geom_array, ierr)
+      call VecDestroy(orig_cell_geom, ierr); CHKERRQ(ierr)
+      call VecDestroy(orig_face_geom, ierr); CHKERRQ(ierr)
+      call cell%destroy()
+      call orig_cell%destroy()
+      call face%destroy()
+      call mesh%destroy()
+      call orig_mesh%destroy()
+      call eos%destroy()
+      call thermo%destroy()
+
+    end subroutine minc_test
+
+!........................................................................
+
+    function get_orig_json_str(json_str) result(orig_str)
+      ! Gets JSON string with MINC specification removed.
+
+      character(*), intent(in) :: json_str
+      character(len = len(json_str)) :: orig_str
+      ! Locals:
+      PetscInt :: i
+
+      orig_str = json_str
+      i = index(json_str, '"minc"')
+      if (i > 0) then
+         associate(n => len(json_str))
+           orig_str(i:n) = '"minc": {}}}'
+         end associate
+      end if
+
+    end function get_orig_json_str
+
+!........................................................................
+
+    PetscInt function total_interior_cell_count(mesh) result(n)
+      ! Count interior cells.
+
+      type(mesh_type), intent(in) :: mesh
+      ! Locals:
+      PetscInt :: c, n_local, start_cell, end_cell
+      PetscErrorCode :: ierr
+
+      call DMPlexGetHeightStratum(mesh%dm, 0, start_cell, end_cell, ierr)
+      CHKERRQ(ierr)
+
+      n_local = 0
+      do c = start_cell, end_cell - 1
+         if (mesh%ghost_cell(c) < 0) then
+            n_local = n_local + 1
+         end if
+      end do
+      call MPI_reduce(n_local, n, 1, MPI_INTEGER, MPI_SUM, &
+           0, PETSC_COMM_WORLD, ierr)
+
+    end function total_interior_cell_count
+
+  end subroutine test_setup_minc_dm
+
+!------------------------------------------------------------------------
+
   subroutine test_rock_assignment
     ! rock assignment
 
     use fson_mpi_module
     use rock_module
     use dm_utils_module, only: global_section_offset, global_vec_section
+    use dictionary_module
     use IAPWS_module
     use eos_we_module
 
@@ -486,6 +801,7 @@ contains
       type(mesh_type) :: mesh
       PetscInt, parameter :: dof = 2
       Vec :: rock_vector
+      type(dictionary_type) :: rock_dict
       type(rock_type) :: rock
       PetscReal, contiguous, pointer :: rock_array(:)
       PetscSection :: section
@@ -497,13 +813,14 @@ contains
       PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
       PetscReal, parameter :: tol = 1.e-6
 
-      json => fson_parse_mpi(str = json_str )
+      json => fson_parse_mpi(str = json_str)
       call mesh%init(json)
 
-      call DMCreateLabel(mesh%dm, open_boundary_label_name, ierr); CHKERRQ(ierr)
+      call DMCreateLabel(mesh%original_dm, open_boundary_label_name, ierr); CHKERRQ(ierr)
+      call rock_dict%init(owner = PETSC_TRUE)
       call mesh%configure(eos, gravity, json, viewer = viewer, err = err)
       call setup_rock_vector(json, mesh%dm, mesh%cell_order, rock_vector, &
-           rock_range_start, mesh%ghost_cell, err = err)
+           rock_dict, rock_range_start, mesh%ghost_cell, err = err)
       call assert_equals(0, err, "setup rock vector error")
       call fson_destroy_mpi(json)
 
@@ -544,10 +861,146 @@ contains
 
       call VecDestroy(rock_vector, ierr); CHKERRQ(ierr)
       call mesh%destroy()
+      call rock_dict%destroy()
 
     end subroutine rock_test_case
 
   end subroutine test_rock_assignment
+
+!------------------------------------------------------------------------
+
+  subroutine test_minc_rock
+    ! MINC rock assignment
+
+    use fson_mpi_module
+    use dictionary_module
+    use rock_module
+    use minc_module, only: minc_level_label_name
+    use dm_utils_module, only: global_section_offset, global_vec_section
+    use IAPWS_module
+    use eos_we_module
+
+    PetscMPIInt :: rank
+    PetscErrorCode :: ierr
+    character(:), allocatable :: json_str
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+
+    json_str = &
+         '{"mesh": {"filename": "data/mesh/7x7grid.exo",' // &
+         '  "zones": {"all": {"-": null}},' // &
+         '  "minc": {"rock": {"zones": "all", ' // &
+         '                    "fracture": {"type": "fracture"}, ' // &
+         '                    "matrix": {"type": "matrix"}}, ' // &
+         '           "geometry": {"fracture": {"volume": 0.1, "planes": 3, ' // &
+         '                          "spacing": 100}, ' // &
+         '                        "matrix": {"volume": 0.9}}}},' // &
+         ' "rock": {"types": [{"name": "original", "porosity": 0.1, "zones": "all"}, ' // &
+         '                    {"name": "fracture", "porosity": 0.6}, ' // &
+         '                    {"name": "matrix", "porosity": 0.02}]}}'
+
+    call minc_rock_test_case(json_str, "case 1", 1, 0.6_dp, 0.02_dp)
+
+    json_str = &
+         '{"mesh": {"filename": "data/mesh/7x7grid.exo",' // &
+         '  "zones": {"all": {"-": null}},' // &
+         '  "minc": {"rock": {"zones": "all", ' // &
+         '                    "fracture": {"type": "fracture"}, ' // &
+         '                    "matrix": {"type": "matrix"}}, ' // &
+         '           "geometry": {"fracture": {"volume": 0.1, "planes": 3, ' // &
+         '                          "spacing": 100}, ' // &
+         '                        "matrix": {"volume": [0.3, 0.6]}}}},' // &
+         ' "rock": {"types": [{"name": "original", "porosity": 0.1, "zones": "all"}, ' // &
+         '                    {"name": "fracture", "porosity": 0.6}, ' // &
+         '                    {"name": "matrix"}]}}'
+
+    call minc_rock_test_case(json_str, "case 2", 2, 0.6_dp, 2._dp / 45._dp)
+
+  contains
+
+    subroutine minc_rock_test_case(json_str, title, num_levels, &
+         expected_fracture_porosity, expected_matrix_porosity)
+
+      character(*), intent(in) :: json_str
+      character(*), intent(in) :: title
+      PetscInt, intent(in) :: num_levels
+      PetscReal, intent(in) :: expected_fracture_porosity, expected_matrix_porosity
+      ! Locals:
+      type(fson_value), pointer :: json
+      type(mesh_type) :: mesh
+      type(IAPWS_type) :: thermo
+      type(eos_we_type) :: eos
+      PetscViewer :: viewer
+      Vec :: rock_vector
+      type(dictionary_type) :: rock_dict
+      PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
+      PetscErrorCode :: err
+      PetscInt :: rock_range_start, c, i, m, num_cells, offset
+      PetscReal, contiguous, pointer :: rock_array(:)
+      type(rock_type) :: rock
+      PetscSection :: section
+      IS :: minc_IS
+      PetscInt, pointer :: minc_points(:)
+      PetscReal :: expected_porosity(0 : num_levels)
+      character(8) :: levelstr
+      PetscReal, parameter :: tol = 1.e-6
+
+      viewer = PETSC_NULL_VIEWER
+      expected_porosity = expected_matrix_porosity
+      expected_porosity(0) = expected_fracture_porosity
+
+      call thermo%init()
+      json => fson_parse_mpi(str = json_str)
+      call eos%init(json, thermo)
+      call mesh%init(json)
+
+      call DMCreateLabel(mesh%original_dm, open_boundary_label_name, ierr); CHKERRQ(ierr)
+      call mesh%configure(eos, gravity, json, viewer = viewer, err = err)
+      call assert_equals(0, err, title // " mesh configure error")
+      call rock_dict%init(owner = PETSC_TRUE)
+      call setup_rock_vector(json, mesh%dm, mesh%cell_order, rock_vector, rock_dict, &
+           rock_range_start, mesh%ghost_cell, err = err)
+      call assert_equals(0, err, title // " setup rock vector error")
+      call mesh%setup_minc_rock_properties(json, rock_vector, &
+           rock_range_start, err = err)
+      call assert_equals(0, err, title // " setup MINC rock properties error")
+      call fson_destroy_mpi(json)
+
+      call VecGetArrayReadF90(rock_vector, rock_array, ierr); CHKERRQ(ierr)
+      call global_vec_section(rock_vector, section)
+      call rock%init()
+
+      do m = 0, num_levels
+         write(levelstr, '(a, i1)') ' level ', m
+         call DMGetStratumSize(mesh%dm, minc_level_label_name, m, &
+              num_cells, ierr); CHKERRQ(ierr)
+         if (num_cells > 0) then
+            call DMGetStratumIS(mesh%dm, minc_level_label_name, &
+                 m, minc_IS, ierr); CHKERRQ(ierr)
+            call ISGetIndicesF90(minc_IS, minc_points, ierr); CHKERRQ(ierr)
+            do i = 1, size(minc_points)
+               c = minc_points(i)
+               if (mesh%ghost_cell(c) < 0) then
+                  call global_section_offset(section, c, rock_range_start, &
+                       offset, ierr); CHKERRQ(ierr)
+                  call rock%assign(rock_array, offset)
+                  call assert_equals(expected_porosity(m), rock%porosity, tol, &
+                       title // levelstr)
+               end if
+            end do
+            call ISRestoreIndicesF90(minc_IS, minc_points, ierr); CHKERRQ(ierr)
+         end if
+      end do
+
+      call VecRestoreArrayReadF90(rock_vector, rock_array, ierr); CHKERRQ(ierr)
+      call VecDestroy(rock_vector, ierr); CHKERRQ(ierr)
+      call mesh%destroy()
+      call rock_dict%destroy()
+      call rock%destroy()
+
+    end subroutine minc_rock_test_case
+
+  end subroutine test_minc_rock
 
 !------------------------------------------------------------------------
 
@@ -612,12 +1065,12 @@ contains
       viewer = PETSC_NULL_VIEWER
       call mesh%init(json)
 
-      call DMPlexGetHeightStratum(mesh%dm, 0, start_cell, end_cell, ierr)
+      call DMPlexGetHeightStratum(mesh%original_dm, 0, start_cell, end_cell, ierr)
       CHKERRQ(ierr)
       ! Create order label on serial DM:
-      call DMCreateLabel(mesh%dm, label_name, ierr); CHKERRQ(ierr)
+      call DMCreateLabel(mesh%original_dm, label_name, ierr); CHKERRQ(ierr)
       do c = start_cell, end_cell - 1
-         call DMSetLabelValue(mesh%dm, label_name, c, c, ierr); CHKERRQ(ierr)
+         call DMSetLabelValue(mesh%original_dm, label_name, c, c, ierr); CHKERRQ(ierr)
       end do
 
       call mesh%configure(eos, gravity, json, viewer = viewer, err = err)
@@ -686,6 +1139,179 @@ contains
     end subroutine cell_order_test_case
 
   end subroutine test_cell_order
+
+!------------------------------------------------------------------------
+
+  subroutine test_minc_cell_order
+    ! MINC cell order
+
+    use fson_mpi_module
+    use IAPWS_module
+    use eos_we_module
+    use dm_utils_module, only: dm_get_end_interior_cell, local_to_natural_cell_index
+    use minc_module, only: minc_zone_label_name
+
+    character(:), allocatable :: json_str
+    PetscInt, allocatable :: expected_minc_order(:,:)
+    PetscInt :: c, i
+    PetscInt, allocatable :: natural(:), minc_natural(:)
+
+    json_str = &
+         '{"mesh": {"filename": "data/mesh/7x7grid.exo",' // &
+         '  "zones": {"all": {"-": null}},' // &
+         '  "minc": {"rock": {"zones": ["all"]}, ' // &
+         '           "geometry": {"fracture": {"volume": 0.1}}}}}'
+    allocate(expected_minc_order(1, 0:48))
+    expected_minc_order(1, :) = [(c + 49, c = 0, 48)]
+    call minc_cell_order_test_case(json_str, ' full no bdy', expected_minc_order)
+    deallocate(expected_minc_order)
+
+    json_str = &
+         '{"mesh": {"filename": "data/mesh/7x7grid.exo",' // &
+         '  "zones": {"all": {"-": null}},' // &
+         '  "minc": {"rock": {"zones": ["all"]}, ' // &
+         '           "geometry": {"fracture": {"volume": 0.1}}}}, ' // &
+         '"boundaries": [{"faces": {"cells": [0, 1, 2, 3, 4, 5], ' // &
+         '  "normal": [0, -1, 0]}}]' // &
+         '}'
+    allocate(expected_minc_order(1, 0:48))
+    expected_minc_order(1, :) = [(c + 49, c = 0, 48)]
+    call minc_cell_order_test_case(json_str, ' full bdy', expected_minc_order)
+    deallocate(expected_minc_order)
+
+    json_str = &
+         '{"mesh": {"filename": "data/mesh/7x7grid.exo",' // &
+         '  "zones": {"sw": {"x": [0, 3000], "y": [0, 1500]}},' // &
+         '  "minc": {"rock": {"zones": ["sw"]}, ' // &
+         '           "geometry": {"fracture": {"volume": 0.1}}}}}'
+    allocate(expected_minc_order(1, 0:48))
+    expected_minc_order = 0
+    expected_minc_order(1, 0:4) = [(c + 49, c = 0, 4)]
+    expected_minc_order(1, 7:11) = [(c + 47, c = 7, 11)]
+    call minc_cell_order_test_case(json_str, ' partial no bdy', expected_minc_order)
+    deallocate(expected_minc_order)
+
+    json_str = &
+         '{"mesh": {"filename": "data/mesh/7x7grid.exo",' // &
+         '  "zones": {"sw": {"x": [0, 3000], "y": [0, 1500]}},' // &
+         '  "minc": {"rock": {"zones": ["sw"]}, ' // &
+         '           "geometry": {"fracture": {"volume": 0.1}}}},' // &
+         '"boundaries": [{"faces": {"cells": [0, 1, 2, 3, 4, 5], ' // &
+         '  "normal": [0, -1, 0]}}]' // &
+         '}'
+    allocate(expected_minc_order(1, 0:48))
+    expected_minc_order = 0
+    expected_minc_order(1, 0:4) = [(c + 49, c = 0, 4)]
+    expected_minc_order(1, 7:11) = [(c + 47, c = 7, 11)]
+    call minc_cell_order_test_case(json_str, ' partial bdy', expected_minc_order)
+    deallocate(expected_minc_order)
+
+    json_str = &
+         '{"mesh": {"filename": "data/mesh/7x7grid.exo",' // &
+         '  "zones": {"sws": {"x": [0, 3000], "y": [0, 1000]}, ' // &
+         '            "swn": {"x": [0, 3000], "y": [1000, 1500]}},' // &
+         '  "minc": {"rock": [{"zones": ["swn"]}, {"zones": ["sws"]}], ' // &
+         '           "geometry": {"fracture": {"volume": 0.1}}}},' // &
+         '"boundaries": [{"faces": {"cells": [0, 1, 2, 3, 4, 5], ' // &
+         '  "normal": [0, -1, 0]}}]' // &
+         '}'
+    allocate(expected_minc_order(1, 0:48))
+    expected_minc_order = 0
+    expected_minc_order(1, 0:4) = [(c + 49, c = 0, 4)]
+    expected_minc_order(1, 7:11) = [(c + 47, c = 7, 11)]
+    call minc_cell_order_test_case(json_str, ' partial multi-rock bdy', expected_minc_order)
+    deallocate(expected_minc_order)
+
+    json_str = &
+         '{"mesh": {"filename": "data/mesh/7x7grid.exo",' // &
+         '  "zones": {"sw": {"x": [0, 3000], "y": [0, 1500]}, ' // &
+         '           "ne": {"x": [3000, 4500], "y": [2000, 4500]}},' // &
+         '  "minc": [{"rock": {"zones": ["sw"]}, ' // &
+         '            "geometry": {"fracture": {"volume": 0.1}}}, ' // &
+         '           {"rock": {"zones": ["ne"]}, ' // &
+         '            "geometry": {"matrix": {"volume": [0.3, 0.6]}}}]}, ' // &
+         '"boundaries": [{"faces": {"cells": [0, 1, 2, 3, 4, 5], ' // &
+         '  "normal": [0, -1, 0]}}]' // &
+         '}'
+    allocate(expected_minc_order(2, 0:48))
+    expected_minc_order = 0
+    natural = [0, 1, 2, 3, 4, 7, 8, 9, 10, 11, 26, 27, 33, 34, 40, 41, 47, 48]
+    minc_natural = [(c, c = 49, 66)]
+    do i = 1, size(natural)
+       expected_minc_order(1, natural(i)) = minc_natural(i)
+    end do
+    natural = [26, 27, 33, 34, 40, 41, 47, 48]
+    minc_natural = [(c, c = 67, 74)]
+    do i = 1, size(natural)
+       expected_minc_order(2, natural(i)) = minc_natural(i)
+    end do
+    call minc_cell_order_test_case(json_str, ' multizone bdy', expected_minc_order)
+    deallocate(expected_minc_order, natural, minc_natural)
+
+  contains
+
+    subroutine minc_cell_order_test_case(json_str, title, expected_minc_order)
+
+      character(*), intent(in) :: json_str
+      character(*), intent(in) :: title
+      PetscInt, intent(in) :: expected_minc_order(:, 0:)
+      ! Locals:
+      type(mesh_type) :: mesh
+      type(IAPWS_type) :: thermo
+      type(eos_we_type) :: eos
+      type(fson_value), pointer :: json
+      PetscViewer :: viewer
+      PetscInt :: c, p, m, natural, minc_natural, expected_natural
+      PetscInt, allocatable :: ic(:)
+      PetscInt :: iminc
+      DMLabel :: minc_label
+      ISLocalToGlobalMapping :: l2g
+      character(32) :: natural_str
+      PetscErrorCode :: err, ierr
+      PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
+
+      json => fson_parse_mpi(str = json_str)
+      call thermo%init()
+      call eos%init(json, thermo)
+      viewer = PETSC_NULL_VIEWER
+      call mesh%init(json)
+      call mesh%configure(eos, gravity, json, viewer = viewer, err = err)
+      call fson_destroy_mpi(json)
+
+      call DMGetLabel(mesh%dm, minc_zone_label_name, minc_label, ierr)
+      CHKERRQ(ierr)
+      call DMGetLocalToGlobalMapping(mesh%dm, l2g, ierr); CHKERRQ(ierr)
+
+      allocate(ic(maxval(mesh%minc%num_levels)))
+      ic = 0
+      do c = mesh%strata(0)%start, mesh%strata(0)%end_interior - 1
+         if (mesh%ghost_cell(c) < 0) then
+            call DMLabelGetValue(minc_label, c, iminc, ierr); CHKERRQ(ierr)
+            if (iminc > 0) then
+               associate(minc => mesh%minc(iminc))
+                 do m = 1, minc%num_levels
+                    p = mesh%strata(0)%minc_point(ic(m), m)
+                    natural = local_to_natural_cell_index(mesh%cell_order, l2g, c)
+                    write(natural_str, '(i6)') natural
+                    minc_natural = local_to_natural_cell_index(mesh%cell_order, l2g, p)
+                    expected_natural = expected_minc_order(m, natural)
+                    call assert_equals(expected_natural, minc_natural, &
+                         'minc natural' // title // trim(natural_str))
+                    ic(m) = ic(m) + 1
+                 end do
+               end associate
+            end if
+         end if
+      end do
+
+      call mesh%destroy()
+      call eos%destroy()
+      call thermo%destroy()
+      deallocate(ic)
+
+    end subroutine minc_cell_order_test_case
+
+  end subroutine test_minc_cell_order
 
 !------------------------------------------------------------------------
 
