@@ -450,7 +450,7 @@ contains
 !------------------------------------------------------------------------
 
   subroutine source_control_deliverability_calculate_PI_from_rate(&
-       self, start_time, initial_rate, global_fluid_data, &
+       self, time, rate, global_fluid_data, &
        global_fluid_section, fluid_range_start)
     !! Calculates productivity index for deliverability control, from
     !! specified initial flow rate. This only works if the control has
@@ -461,8 +461,8 @@ contains
     use dm_utils_module, only: global_section_offset
 
     class(source_control_deliverability_type), intent(in out) :: self
-    PetscReal, intent(in) :: start_time
-    PetscReal, intent(in) :: initial_rate
+    PetscReal, intent(in) :: time
+    PetscReal, intent(in) :: rate
     PetscReal, pointer, contiguous, intent(in) :: global_fluid_data(:)
     PetscSection, intent(in) :: global_fluid_section
     PetscInt, intent(in) :: fluid_range_start
@@ -487,12 +487,12 @@ contains
           allocate(phase_mobilities(source%fluid%num_phases))
           phase_mobilities = source%fluid%phase_mobilities()
 
-          reference_pressure = self%reference_pressure%interpolate(start_time, 1)
+          reference_pressure = self%reference_pressure%interpolate(time, 1)
           pressure_difference = source%fluid%pressure - reference_pressure
           factor = sum(phase_mobilities) * pressure_difference
 
           if (abs(factor) > tol) then
-             self%productivity%val(1, 1) = abs(initial_rate) / factor
+             self%productivity%val(1, 1) = abs(rate) / factor
           end if
 
           deallocate(phase_mobilities)
