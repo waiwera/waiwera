@@ -423,25 +423,25 @@ contains
     type(source_control_rate_table_type), pointer :: rate_control
     type(source_control_enthalpy_table_type), pointer :: enthalpy_control
     PetscInt :: variable_type
-    PetscReal, allocatable :: data_array(:,:)
+    PetscReal, allocatable :: rate_data_array(:,:), enthalpy_data_array(:,:)
     type(fson_value), pointer :: table
 
     ! Rate table:
     if (fson_has_mpi(source_json, "rate")) then
        variable_type = fson_type_mpi(source_json, "rate")
        if (variable_type == TYPE_ARRAY) then
-          call fson_get_mpi(source_json, "rate", val = data_array)
+          call fson_get_mpi(source_json, "rate", val = rate_data_array)
        else if (variable_type == TYPE_OBJECT) then
           call fson_get_mpi(source_json, "rate", table)
           if (fson_has_mpi(table, "time")) then
-             call fson_get_mpi(table, "time", val = data_array)
+             call fson_get_mpi(table, "time", val = rate_data_array)
           end if
        end if
     end if
 
-    if ((cell_sources%count > 0) .and. (allocated(data_array))) then
+    if ((cell_sources%count > 0) .and. (allocated(rate_data_array))) then
        allocate(rate_control)
-       call rate_control%init(data_array, interpolation_type, &
+       call rate_control%init(rate_data_array, interpolation_type, &
             averaging_type, cell_sources, err)
        if (err == 0) call source_controls%append(rate_control)
     end if
@@ -452,18 +452,18 @@ contains
        if (fson_has_mpi(source_json, "enthalpy")) then
           variable_type = fson_type_mpi(source_json, "enthalpy")
           if (variable_type == TYPE_ARRAY) then
-             call fson_get_mpi(source_json, "enthalpy", val = data_array)
+             call fson_get_mpi(source_json, "enthalpy", val = enthalpy_data_array)
           else if (variable_type == TYPE_OBJECT) then
              call fson_get_mpi(source_json, "enthalpy", table)
              if (fson_has_mpi(table, "time")) then
-                call fson_get_mpi(table, "time", val = data_array)
+                call fson_get_mpi(table, "time", val = enthalpy_data_array)
              end if
           end if
        end if
 
-       if ((cell_sources%count > 0) .and. (allocated(data_array))) then
+       if ((cell_sources%count > 0) .and. (allocated(enthalpy_data_array))) then
           allocate(enthalpy_control)
-          call enthalpy_control%init(data_array, interpolation_type, &
+          call enthalpy_control%init(enthalpy_data_array, interpolation_type, &
                averaging_type, cell_sources, err)
           if (err == 0) call source_controls%append(enthalpy_control)
        end if
@@ -471,14 +471,17 @@ contains
        if (err > 0) then
           call logfile%write(LOG_LEVEL_ERR, "input", "unsorted_array", &
                real_array_key = trim(srcstr) // "enthalpy", &
-               real_array_value = data_array(:, 1))
+               real_array_value = enthalpy_data_array(:, 1))
        end if
 
     else
        call logfile%write(LOG_LEVEL_ERR, "input", "unsorted_array", &
             real_array_key = trim(srcstr) // "rate", &
-            real_array_value = data_array(:, 1))
+            real_array_value = rate_data_array(:, 1))
     end if
+
+    if (allocated(rate_data_array)) deallocate(rate_data_array)
+    if (allocated(enthalpy_data_array)) deallocate(enthalpy_data_array)
 
   end subroutine setup_table_source_control
 
@@ -651,16 +654,21 @@ contains
     type(source_control_deliverability_type), pointer :: deliv
     PetscBool :: calculate_reference_pressure
     PetscBool :: calculate_PI_from_rate
-    PetscReal :: initial_rate
+    PetscReal :: initial_rate, threshold
     PetscReal, allocatable :: productivity_array(:,:)
     PetscInt :: pressure_table_coordinate
     PetscReal, parameter :: default_rate = 0._dp
+    PetscReal, parameter :: default_threshold = -1._dp
 
     if (fson_has_mpi(source_json, "deliverability")) then
 
-       call fson_get_mpi(source_json, "rate", default_rate, initial_rate)
-
        call fson_get_mpi(source_json, "deliverability", deliv_json)
+
+       call fson_get_mpi(deliv_json, "threshold", default_threshold, threshold)
+
+       if (threshold <= 0._dp) then
+          call fson_get_mpi(source_json, "rate", default_rate, initial_rate)
+       end if
 
        call get_reference_pressure(deliv_json, srcstr, "deliverability", &
             reference_pressure_array, calculate_reference_pressure, &
@@ -675,24 +683,36 @@ contains
           allocate(deliv)
           call deliv%init(productivity_array, interpolation_type, &
                averaging_type, reference_pressure_array, &
-               pressure_table_coordinate, cell_sources, err)
-          if (err == 0) then
+               pressure_table_coordinate, threshold, cell_sources, err)
+          select case (err)
+          case (0)
              if (calculate_reference_pressure) then
                 call deliv%set_reference_pressure_initial(fluid_data, &
                      fluid_section, fluid_range_start)
              end if
              if (calculate_PI_from_rate) then
                 call deliv%calculate_PI_from_rate(start_time, initial_rate, &
-                     fluid_data, fluid_section, fluid_range_start)
+                     fluid_data, fluid_section, fluid_range_start, &
+                     deliv%productivity%val(1, 1))
+             end if
+             if (deliv%threshold > 0._dp) then
+                deliv%threshold_productivity = &
+                     deliv%productivity%interpolate(start_time, 1)
              end if
              call source_controls%append(deliv)
-          else
+          case (1)
              call deliv%destroy()
              deallocate(deliv)
              call logfile%write(LOG_LEVEL_ERR, "input", "unsorted_array", &
-                  real_array_key = trim(srcstr) // "deliverability", &
+                  real_array_key = trim(srcstr) // "deliverability.productivity", &
+                  real_array_value = productivity_array(:, 1))
+          case (2)
+             call deliv%destroy()
+             deallocate(deliv)
+             call logfile%write(LOG_LEVEL_ERR, "input", "unsorted_array", &
+                  real_array_key = trim(srcstr) // "deliverability.pressure", &
                   real_array_value = reference_pressure_array(:, 1))
-          end if
+          end select
 
        end if
 

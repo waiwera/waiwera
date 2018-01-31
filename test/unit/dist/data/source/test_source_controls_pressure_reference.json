@@ -87,6 +87,17 @@
          "recharge": {
              "coefficient": 1.2e-2,
              "pressure": "initial"}
+        },
+        {"name": "source 13", "cell": 1,
+         "rate": [
+             [0.0, -1.0],
+             [60.0, -2.0],
+             [150.0, -3.5],
+             [252.0, -2.4]],
+         "deliverability": {
+             "threshold": 5.e5,
+             "productivity": 1.e-12,
+             "pressure": 2.e5}
         }
     ]
 }

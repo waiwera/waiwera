@@ -166,7 +166,7 @@ contains
     use eos_test
     use fluid_module, only: fluid_type, setup_fluid_vector
     use dm_utils_module, only: global_vec_section, global_section_offset, &
-         global_to_local_vec_section, restore_dm_local_vec
+         global_to_local_vec_section, restore_dm_local_vec, section_offset
     use interpolation_module, only: INTERP_STEP, INTERP_AVERAGING_ENDPOINT
 
     character(16), parameter :: path = "data/source/"
@@ -265,18 +265,18 @@ contains
     call MPI_reduce(sources%count, num_sources, 1, MPI_INTEGER, MPI_SUM, &
          0, PETSC_COMM_WORLD, ierr)
     if (rank == 0) then
-      call assert_equals(12, num_sources, "number of sources")
+      call assert_equals(13, num_sources, "number of sources")
     end if
 
     call MPI_reduce(source_controls%count, num_source_controls, 1, &
          MPI_INTEGER, MPI_SUM, 0, PETSC_COMM_WORLD, ierr)
     if (rank == 0) then
-      call assert_equals(20, num_source_controls, "number of source controls")
+      call assert_equals(22, num_source_controls, "number of source controls")
     end if
 
     call global_to_local_vec_section(fluid_vector, local_fluid_vector, &
          local_fluid_section)
-    call VecGetArrayReadF90(local_fluid_vector, local_fluid_array, ierr)
+    call VecGetArrayF90(local_fluid_vector, local_fluid_array, ierr)
     CHKERRQ(ierr)
 
     t = 120._dp
@@ -286,7 +286,18 @@ contains
     call source_controls%traverse(source_control_test_iterator)
     call sources%traverse(source_test_iterator)
 
-    call VecRestoreArrayReadF90(local_fluid_vector, local_fluid_array, ierr)
+    ! Test deliverability threshold control- reduce fluid pressure:
+    call reset_fluid_pressures(6.e5_dp)
+    call source_controls%traverse(source_control_update_iterator)
+    call sources%traverse(source_threshold_test_1_iterator)
+    call reset_fluid_pressures(4.e5_dp)
+    call source_controls%traverse(source_control_update_iterator)
+    call sources%traverse(source_threshold_test_2_iterator)
+    call reset_fluid_pressures(3.e5_dp)
+    call source_controls%traverse(source_control_update_iterator)
+    call sources%traverse(source_threshold_test_3_iterator)
+
+    call VecRestoreArrayF90(local_fluid_vector, local_fluid_array, ierr)
     CHKERRQ(ierr)
     call restore_dm_local_vec(local_fluid_vector)
 
@@ -353,6 +364,9 @@ contains
             call assert_equals(SRC_PRESSURE_TABLE_COORD_ENTHALPY, &
                  source_control%pressure_table_coordinate, &
                  "source 11 pressure table coordinate")
+         case ("source 13")
+            call assert_equals(5.e5_dp, source_control%threshold, tol, &
+                 "source 13 deliverability threshold")
          end select
 
       type is (source_control_recharge_type)
@@ -424,10 +438,70 @@ contains
             call assert_equals(-10.3366086953508_dp, source%rate, tol, "source 11 rate")
          case ("source 12")
             call assert_equals(0._dp, source%rate, tol, "source 12 rate")
+         case ("source 13")
+            call assert_equals(-2.25_dp, source%rate, tol, "source 13 rate")
          end select
       end select
       stopped = PETSC_FALSE
     end subroutine source_test_iterator
+
+    subroutine reset_fluid_pressures(P)
+      PetscReal, intent(in) :: P
+      do c = mesh%start_cell, mesh%end_cell - 1
+         if (mesh%ghost_cell(c) < 0) then
+            call section_offset(local_fluid_section, c, fluid_offset, ierr)
+            CHKERRQ(ierr)
+            call fluid%assign(local_fluid_array, fluid_offset)
+            fluid%pressure = P
+         end if
+      end do
+
+    end subroutine reset_fluid_pressures
+
+    subroutine source_threshold_test_1_iterator(node, stopped)
+      type(list_node_type), pointer, intent(in out) :: node
+      PetscBool, intent(out) :: stopped
+      ! Locals:
+      PetscReal, parameter :: tol = 1.e-6_dp
+      select type (source => node%data)
+      class is (source_type)
+         select case (node%tag)
+         case ("source 13")
+            call assert_equals(-2.25_dp, source%rate, tol, "source 13 rate P = 6 bar")
+         end select
+      end select
+      stopped = PETSC_FALSE
+    end subroutine source_threshold_test_1_iterator
+
+    subroutine source_threshold_test_2_iterator(node, stopped)
+      type(list_node_type), pointer, intent(in out) :: node
+      PetscBool, intent(out) :: stopped
+      ! Locals:
+      PetscReal, parameter :: tol = 1.e-6_dp
+      select type (source => node%data)
+      class is (source_type)
+         select case (node%tag)
+         case ("source 13")
+            call assert_equals(-1.125_dp, source%rate, tol, "source 13 rate P = 4 bar")
+         end select
+      end select
+      stopped = PETSC_FALSE
+    end subroutine source_threshold_test_2_iterator
+
+    subroutine source_threshold_test_3_iterator(node, stopped)
+      type(list_node_type), pointer, intent(in out) :: node
+      PetscBool, intent(out) :: stopped
+      ! Locals:
+      PetscReal, parameter :: tol = 1.e-6_dp
+      select type (source => node%data)
+      class is (source_type)
+         select case (node%tag)
+         case ("source 13")
+            call assert_equals(-0.5625_dp, source%rate, tol, "source 13 rate P = 3 bar")
+         end select
+      end select
+      stopped = PETSC_FALSE
+    end subroutine source_threshold_test_3_iterator
 
     subroutine source_list_node_data_destroy(node)
       type(list_node_type), pointer, intent(in out) :: node
