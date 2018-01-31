@@ -447,7 +447,7 @@ contains
 
     subroutine reset_fluid_pressures(P)
       PetscReal, intent(in) :: P
-      do c = mesh%start_cell, mesh%end_cell - 1
+      do c = start_cell, end_cell - 1
          if (mesh%ghost_cell(c) < 0) then
             call section_offset(local_fluid_section, c, fluid_offset, ierr)
             CHKERRQ(ierr)
