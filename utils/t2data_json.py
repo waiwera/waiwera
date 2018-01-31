@@ -288,7 +288,7 @@ class t2data_export_json(t2data):
         unsupported_types = ['CO2 ', 'DMAK', 'FEED', 'FINJ', 'HLOS', 'IMAK', 'MAKE',
                              'PINJ', 'POWR', 'RINJ', 'TMAK', 'TOST', 'VOL.',
                              'WBRE', 'WFLO', 'XINJ', 'XIN2']
-        mass_component = {'MASS': 1, 'HEAT': num_eqns,
+        mass_component = {'MASS': 1, 'MASD': 1, 'HEAT': num_eqns,
                           'COM1': 1, 'COM2': 2, 'COM3': 3, 'COM4': 4,
                           'COM5': 5, 'WATE': 1, 'AIR ': 2, 'TRAC': 2, 'NACL': 3}
         limit_type = {'DELG': 'steam', 'DELS': 'steam', 'DELT': 'total', 'DELW': 'water'}
@@ -336,6 +336,11 @@ class t2data_export_json(t2data):
                                 g['rate'] = gen.hg # initial rate for computing productivity index
                                 del g['deliverability']['productivity']
                         if gen.type == 'DELS': g['production_component'] = 2
+                        g['direction'] = 'production'
+                    elif gen.type == 'MASD':
+                        g['deliverability'] = {'productivity': gen.ex,
+                                               'pressure': gen.fg,
+                                               'threshold': gen.hg}
                         g['direction'] = 'production'
                     elif gen.type == 'RECH':
                         g['enthalpy'] = gen.ex
