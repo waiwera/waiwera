@@ -100,6 +100,8 @@ module source_control_module
      private
      PetscInt, public :: pressure_table_coordinate !! Coordinate variable of pressure table
      type(interpolation_table_type), public :: productivity !! Productivity index vs. time
+     PetscReal, public :: threshold !! Pressure threshold below which deliverability is switched on (< 0 for always on)
+     PetscReal, public :: threshold_productivity !! Productivity index computed from flow rate and used when pressure drops below threshold
    contains
      procedure, public :: init => source_control_deliverability_init
      procedure, public :: destroy => source_control_deliverability_destroy
@@ -339,7 +341,7 @@ contains
 
   subroutine source_control_deliverability_init(self, productivity_data, &
        interpolation_type, averaging_type, reference_pressure_data, &
-       pressure_table_coordinate, sources, err)
+       pressure_table_coordinate, threshold, sources, err)
     !! Initialises source_control_deliverability object. Error flag err
     !! returns 1 if there are problems with the productivity index
     !! array, or 2 if there are problems with the reference pressure
@@ -350,6 +352,7 @@ contains
     PetscInt, intent(in) :: interpolation_type, averaging_type
     PetscReal, intent(in) :: reference_pressure_data(:,:)
     PetscInt, intent(in) :: pressure_table_coordinate
+    PetscReal, intent(in) :: threshold
     type(list_type), intent(in out) :: sources
     PetscErrorCode, intent(out) :: err
 
@@ -362,6 +365,7 @@ contains
             interpolation_type, averaging_type, err)
        if (err == 0) then
           self%pressure_table_coordinate = pressure_table_coordinate
+          self%threshold = threshold
        else
           err = 2
        end if
