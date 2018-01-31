@@ -651,10 +651,11 @@ contains
     type(source_control_deliverability_type), pointer :: deliv
     PetscBool :: calculate_reference_pressure
     PetscBool :: calculate_PI_from_rate
-    PetscReal :: initial_rate
+    PetscReal :: initial_rate, threshold
     PetscReal, allocatable :: productivity_array(:,:)
     PetscInt :: pressure_table_coordinate
     PetscReal, parameter :: default_rate = 0._dp
+    PetscReal, parameter :: default_threshold = -1._dp
 
     if (fson_has_mpi(source_json, "deliverability")) then
 
@@ -670,12 +671,14 @@ contains
             srcstr, num_cells, cell_sources, productivity_array, &
             calculate_PI_from_rate, logfile)
 
+       call fson_get_mpi(deliv_json, "threshold", default_threshold, threshold)
+
        if (cell_sources%count > 0) then
 
           allocate(deliv)
           call deliv%init(productivity_array, interpolation_type, &
                averaging_type, reference_pressure_array, &
-               pressure_table_coordinate, cell_sources, err)
+               pressure_table_coordinate, threshold, cell_sources, err)
           select case (err)
           case (0)
              if (calculate_reference_pressure) then
@@ -684,7 +687,12 @@ contains
              end if
              if (calculate_PI_from_rate) then
                 call deliv%calculate_PI_from_rate(start_time, initial_rate, &
-                     fluid_data, fluid_section, fluid_range_start)
+                     fluid_data, fluid_section, fluid_range_start, &
+                     deliv%productivity%val(1, 1))
+             end if
+             if (deliv%threshold > 0._dp) then
+                deliv%threshold_productivity = &
+                     deliv%productivity%interpolate(start_time, 1)
              end if
              call source_controls%append(deliv)
           case (1)
