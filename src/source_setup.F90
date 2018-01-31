@@ -676,7 +676,8 @@ contains
           call deliv%init(productivity_array, interpolation_type, &
                averaging_type, reference_pressure_array, &
                pressure_table_coordinate, cell_sources, err)
-          if (err == 0) then
+          select case (err)
+          case (0)
              if (calculate_reference_pressure) then
                 call deliv%set_reference_pressure_initial(fluid_data, &
                      fluid_section, fluid_range_start)
@@ -686,13 +687,19 @@ contains
                      fluid_data, fluid_section, fluid_range_start)
              end if
              call source_controls%append(deliv)
-          else
+          case (1)
              call deliv%destroy()
              deallocate(deliv)
              call logfile%write(LOG_LEVEL_ERR, "input", "unsorted_array", &
-                  real_array_key = trim(srcstr) // "deliverability", &
+                  real_array_key = trim(srcstr) // "deliverability.productivity", &
+                  real_array_value = productivity_array(:, 1))
+          case (2)
+             call deliv%destroy()
+             deallocate(deliv)
+             call logfile%write(LOG_LEVEL_ERR, "input", "unsorted_array", &
+                  real_array_key = trim(srcstr) // "deliverability.pressure", &
                   real_array_value = reference_pressure_array(:, 1))
-          end if
+          end select
 
        end if
 
