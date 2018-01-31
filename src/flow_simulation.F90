@@ -519,6 +519,7 @@ contains
     use source_setup_module, only: setup_sources
     use utils_module, only: date_time_str
     use profiling_module, only: simulation_init_event
+    use mpi_utils_module, only: mpi_broadcast_error_flag
 
     class(flow_simulation_type), intent(in out) :: self
     type(fson_value), pointer, intent(in) :: json
@@ -609,6 +610,7 @@ contains
        call DMDestroy(self%mesh%original_dm, ierr); CHKERRQ(ierr)
     end if
 
+    call mpi_broadcast_error_flag(err)
     call self%logfile%flush()
 
     call PetscLogEventEnd(simulation_init_event, ierr); CHKERRQ(ierr)
