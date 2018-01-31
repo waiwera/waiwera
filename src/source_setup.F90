@@ -659,9 +659,13 @@ contains
 
     if (fson_has_mpi(source_json, "deliverability")) then
 
-       call fson_get_mpi(source_json, "rate", default_rate, initial_rate)
-
        call fson_get_mpi(source_json, "deliverability", deliv_json)
+
+       call fson_get_mpi(deliv_json, "threshold", default_threshold, threshold)
+
+       if (threshold <= 0._dp) then
+          call fson_get_mpi(source_json, "rate", default_rate, initial_rate)
+       end if
 
        call get_reference_pressure(deliv_json, srcstr, "deliverability", &
             reference_pressure_array, calculate_reference_pressure, &
@@ -670,8 +674,6 @@ contains
        call get_deliverability_productivity(deliv_json, source_json, &
             srcstr, num_cells, cell_sources, productivity_array, &
             calculate_PI_from_rate, logfile)
-
-       call fson_get_mpi(deliv_json, "threshold", default_threshold, threshold)
 
        if (cell_sources%count > 0) then
 
