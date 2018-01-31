@@ -352,7 +352,8 @@
                                                                            }
                                                                }, "additionalProperties": false}
                                                           ]
-                                                  }
+                                                  },
+                                                  "threshold": {"type": "number"}
                                               }, "additionalProperties": false},
                            "recharge": {"type": "object",
                                         "properties": {
