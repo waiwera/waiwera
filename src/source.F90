@@ -70,8 +70,9 @@ module source_module
      procedure :: update_component_production => source_update_component_production
      procedure :: update_component_injection => source_update_component_injection
      procedure, public :: init => source_init
-     procedure, public :: setup => source_setup
+     procedure, public :: assign => source_assign
      procedure, public :: assign_fluid => source_assign_fluid
+     procedure, public :: setup => source_setup
      procedure, public :: update_component => source_update_component
      procedure, public :: update_flow => source_update_flow
      procedure, public :: destroy => source_destroy
@@ -120,6 +121,27 @@ contains
 
 !------------------------------------------------------------------------
 
+  subroutine source_assign_fluid(self, local_fluid_data, local_fluid_section)
+    !! Updates fluid object from given data array and section, and
+    !! calculates the fluid phase flow fractions.
+
+    use dm_utils_module, only: section_offset
+
+    class(source_type), intent(in out) :: self
+    PetscReal, pointer, contiguous, intent(in) :: local_fluid_data(:)
+    PetscSection, intent(in) :: local_fluid_section
+    ! Locals:
+    PetscInt :: fluid_offset
+    PetscErrorCode :: ierr
+
+    call section_offset(local_fluid_section, nint(self%local_cell_index), &
+         fluid_offset, ierr); CHKERRQ(ierr)
+    call self%fluid%assign(local_fluid_data, fluid_offset)
+
+  end subroutine source_assign_fluid
+
+!------------------------------------------------------------------------
+
   subroutine source_setup(self, source_index, cell_index, local_cell_index, &
        rate, injection_enthalpy, injection_component, production_component)
     !! Sets up main parameters of a source object.
@@ -164,27 +186,6 @@ contains
     call self%fluid%destroy()
 
   end subroutine source_destroy
-
-!------------------------------------------------------------------------
-
-  subroutine source_assign_fluid(self, local_fluid_data, local_fluid_section)
-    !! Updates fluid object from given data array and section, and
-    !! calculates the fluid phase flow fractions.
-
-    use dm_utils_module, only: section_offset
-
-    class(source_type), intent(in out) :: self
-    PetscReal, pointer, contiguous, intent(in) :: local_fluid_data(:)
-    PetscSection, intent(in) :: local_fluid_section
-    ! Locals:
-    PetscInt :: fluid_offset
-    PetscErrorCode :: ierr
-
-    call section_offset(local_fluid_section, nint(self%local_cell_index), &
-         fluid_offset, ierr); CHKERRQ(ierr)
-    call self%fluid%assign(local_fluid_data, fluid_offset)
-
-  end subroutine source_assign_fluid
 
 !------------------------------------------------------------------------
 
