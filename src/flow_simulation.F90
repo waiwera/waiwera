@@ -1011,7 +1011,7 @@ contains
       select type (source => node%data)
       type is (source_type)
 
-         c = source%cell_index
+         c = source%local_cell_index
          if (self%mesh%ghost_cell(c) < 0) then
 
             call global_section_offset(rhs_section, c, &

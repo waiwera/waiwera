@@ -322,7 +322,7 @@ contains
        select type (source => node%data)
        type is (source_type)
 
-          c = source%cell_index
+          c = source%local_cell_index
           call global_section_offset(global_fluid_section, c, &
                fluid_range_start, fluid_offset, ierr); CHKERRQ(ierr)
 
@@ -460,7 +460,7 @@ contains
       select type (source => node%data)
       type is (source_type)
 
-         call source%update_fluid(local_fluid_data, local_fluid_section)
+         call source%assign_fluid(local_fluid_data, local_fluid_section)
 
          if (self%threshold <= 0._dp) then
             productivity = self%productivity%average(interval, 1)
@@ -516,7 +516,7 @@ contains
        select type (source => node%data)
        type is (source_type)
 
-          c = source%cell_index
+          c = source%local_cell_index
           if (fluid_range_start >= 0) then ! global
              call global_section_offset(fluid_section, c, &
                   fluid_range_start, fluid_offset, ierr)
@@ -614,7 +614,7 @@ contains
       select type (source => node%data)
       type is (source_type)
 
-         call source%update_fluid(local_fluid_data, local_fluid_section)
+         call source%assign_fluid(local_fluid_data, local_fluid_section)
          reference_pressure = self%reference_pressure%average(interval, 1)
          pressure_difference = source%fluid%pressure - reference_pressure
          recharge_coefficient = self%coefficient%average(interval, 1)
@@ -712,7 +712,7 @@ contains
     PetscReal, pointer, contiguous, intent(in) :: local_fluid_data(:)
     PetscSection, intent(in) :: local_fluid_section
     ! Locals:
-    PetscReal :: phase_flow_fractions(self%source%fluid%num_phases)
+    PetscReal, allocatable :: phase_flow_fractions(:)
     PetscReal :: enthalpy
 
     associate(np => size(self%source%flow))
@@ -720,9 +720,11 @@ contains
       if ((self%source%rate < 0._dp) .and. &
            (self%source%production_component < np)) then
 
-         call self%source%update_fluid(local_fluid_data, local_fluid_section)
+         call self%source%assign_fluid(local_fluid_data, local_fluid_section)
+         allocate(phase_flow_fractions(self%source%fluid%num_phases))
          phase_flow_fractions = self%source%fluid%phase_flow_fractions()
          enthalpy = self%source%fluid%specific_enthalpy(phase_flow_fractions)
+         deallocate(phase_flow_fractions)
 
          call self%update_steam_fraction(enthalpy)
          self%water_flow_rate = (1._dp - self%steam_fraction) * self%source%rate
