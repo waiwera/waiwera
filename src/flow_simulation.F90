@@ -43,7 +43,7 @@ module flow_simulation_module
      !! Type for simulation of fluid mass and energy flows in porous media.
      private
      PetscInt :: solution_range_start, rock_range_start
-     PetscInt :: fluid_range_start, update_cell_range_start
+     PetscInt :: fluid_range_start, update_cell_range_start, source_range_start
      character(max_flow_simulation_filename_length), public :: filename !! JSON input filename
      character(max_title_length), public :: title !! Descriptive title for the simulation
      Vec, public :: rock !! Rock properties in each cell
@@ -54,7 +54,8 @@ module flow_simulation_module
      Vec, public :: balances !! Mass and energy balances for unperturbed primary variables
      Vec, public :: update_cell !! Which cells have primary variables being updated
      Vec, public :: flux !! Mass or energy fluxes through cell faces for each component
-     type(list_type), public :: sources !! Source/sink terms
+     Vec, public :: source !! Source/sink terms
+     PetscInt, public :: num_sources !! Number of source/sink terms on current process
      type(list_type), public :: source_controls !! Source/sink controls
      class(thermodynamics_type), allocatable, public :: thermo !! Fluid thermodynamic formulation
      class(eos_type), allocatable, public :: eos !! Fluid equation of state
@@ -597,8 +598,8 @@ contains
                    if (err == 0) then
                       call setup_sources(json, self%mesh%dm, self%mesh%cell_order, &
                            self%eos, self%thermo, self%time, self%fluid, &
-                           self%fluid_range_start, self%sources, self%source_controls, &
-                           self%logfile, err)
+                           self%fluid_range_start, self%source, self%source_range_start, &
+                           self%source_controls, self%logfile, err)
                    end if
                 end if
              end if
@@ -640,9 +641,9 @@ contains
     call VecDestroy(self%flux, ierr); CHKERRQ(ierr)
     call VecDestroy(self%rock, ierr); CHKERRQ(ierr)
     call VecDestroy(self%update_cell, ierr); CHKERRQ(ierr)
+    call VecDestroy(self%source, ierr); CHKERRQ(ierr)
     call self%source_controls%destroy(source_control_list_node_data_destroy, &
          reverse = PETSC_TRUE)
-    call self%sources%destroy(source_list_node_data_destroy)
     call self%mesh%destroy()
     call self%thermo%destroy()
     call self%eos%destroy()
@@ -853,7 +854,6 @@ contains
     PetscReal, pointer, contiguous :: update(:), flux_array(:)
     PetscSection :: rhs_section, rock_section, fluid_section, update_section
     PetscSection :: cell_geom_section, face_geom_section, flux_section
-    type(cell_type) :: cell
     type(face_type) :: face
     PetscInt :: face_geom_offset, cell_geom_offsets(2), update_offsets(2)
     PetscInt :: rock_offsets(2), fluid_offsets(2), rhs_offsets(2)
@@ -967,13 +967,11 @@ contains
 
     ! Source / sink terms:
     call PetscLogEventBegin(sources_event, ierr); CHKERRQ(ierr)
-    call cell%init(self%eos%num_components, self%eos%num_phases)
     call self%source_controls%traverse(source_control_iterator)
-    call self%sources%traverse(source_iterator)
+    call apply_sources()
     call PetscLogEventEnd(sources_event, ierr); CHKERRQ(ierr)
 
     nullify(inflow)
-    call cell%destroy()
     call VecRestoreArrayReadF90(local_rock, rock_array, ierr); CHKERRQ(ierr)
     call VecRestoreArrayReadF90(local_fluid, fluid_array, ierr); CHKERRQ(ierr)
     call VecRestoreArrayReadF90(self%mesh%cell_geom, cell_geom_array, ierr)
@@ -984,6 +982,8 @@ contains
     deallocate(face_flux, face_flow)
 
   contains
+
+!........................................................................
 
     subroutine source_control_iterator(node, stopped)
       !! Applies source controls.
@@ -999,40 +999,51 @@ contains
 
     end subroutine source_control_iterator
 
-    subroutine source_iterator(node, stopped)
-      !! Assembles source contribution from source list node to global
-      !! RHS array.
+!........................................................................
 
-      type(list_node_type), pointer, intent(in out) :: node
-      PetscBool, intent(out) :: stopped
+    subroutine apply_sources()
+      !! Assembles contributions from sources to global RHS array.
+
       ! Locals:
-      PetscInt :: c
+      PetscInt :: s, c
+      type(cell_type) :: cell
+      type(source_type) :: source
+      PetscSection :: source_section
+      PetscReal, pointer, contiguous :: source_array(:)
+      PetscInt :: source_offset
+      PetscErrorCode :: ierr
 
-      select type (source => node%data)
-      type is (source_type)
+      call cell%init(self%eos%num_components, self%eos%num_phases)
+      call source%init(self%eos)
+      call global_vec_section(self%source, source_section)
+      call VecGetArrayF90(self%source, source_array, ierr); CHKERRQ(ierr)
 
-         c = source%local_cell_index
-         if (self%mesh%ghost_cell(c) < 0) then
+      do s = 0, self%num_sources - 1
 
-            call global_section_offset(rhs_section, c, &
-                 self%solution_range_start, rhs_offset, ierr)
-            CHKERRQ(ierr)
-            inflow => rhs_array(rhs_offset : rhs_offset + np - 1)
+         call global_section_offset(source_section, s, &
+              self%source_range_start, source_offset, ierr); CHKERRQ(ierr)
+         call source%assign(source_array, source_offset)
+         c = nint(source%local_cell_index)
 
-            call section_offset(cell_geom_section, c, &
-                 cell_geom_offset, ierr); CHKERRQ(ierr)
-            call cell%assign_geometry(cell_geom_array, cell_geom_offset)
+         call global_section_offset(rhs_section, c, &
+              self%solution_range_start, rhs_offset, ierr)
+         CHKERRQ(ierr)
+         inflow => rhs_array(rhs_offset : rhs_offset + np - 1)
 
-            call source%update_flow(fluid_array, fluid_section)
-            inflow = inflow + source%flow / cell%volume
+         call section_offset(cell_geom_section, c, &
+              cell_geom_offset, ierr); CHKERRQ(ierr)
+         call cell%assign_geometry(cell_geom_array, cell_geom_offset)
 
-         end if
+         call source%update_flow(fluid_array, fluid_section)
+         inflow = inflow + source%flow / cell%volume
 
-      end select
+      end do
 
-      stopped = PETSC_FALSE
+      call source%destroy()
+      call VecRestoreArrayF90(self%source, source_array, ierr); CHKERRQ(ierr)
+      call cell%destroy()
 
-    end subroutine source_iterator
+    end subroutine apply_sources
 
   end subroutine flow_simulation_cell_inflows
 
