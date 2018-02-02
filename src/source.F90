@@ -60,6 +60,7 @@ module source_module
      PetscReal, pointer, public :: enthalpy !! Enthalpy of produced or injected fluid
      PetscReal, pointer, contiguous, public :: flow(:) !! Flows in each mass and energy component
      type(fluid_type), public :: fluid !! Fluid properties in cell (for production)
+     PetscInt, public :: dof !! Number of degrees of freedom
      PetscInt, public :: num_primary_variables !! Number of primary thermodynamic variables
      PetscBool, public :: isothermal !! Whether equation of state is isothermal
    contains
@@ -93,6 +94,7 @@ contains
     self%num_primary_variables = eos%num_primary_variables
     call self%fluid%init(eos%num_components, eos%num_phases)
     self%isothermal = eos%isothermal
+    self%dof = num_source_variables + self%num_primary_variables - 1
 
   end subroutine source_init
 
