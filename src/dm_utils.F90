@@ -970,20 +970,29 @@ contains
     PetscInt, intent(in) :: num_nodes !! Number of nodes on the path
     DM, intent(out) :: dm !! Output DMPlex
     ! Locals:
-    PetscInt :: p
+    PetscInt :: num_edges, num_points, p
     PetscErrorCode :: ierr
 
     call DMPlexCreate(PETSC_COMM_WORLD, dm, ierr); CHKERRQ(ierr)
     call DMSetDimension(dm, 1, ierr); CHKERRQ(ierr)
-    call DMPlexSetChart(dm, 0, 2 * num_nodes - 1, ierr); CHKERRQ(ierr)
 
-    do p = num_nodes, 2 * num_nodes - 2
+    if (num_nodes > 0) then
+       num_edges = num_nodes - 1
+    else
+       num_edges = 0
+    end if
+    num_points = num_nodes + num_edges
+
+    call DMPlexSetChart(dm, 0, num_points, ierr)
+    CHKERRQ(ierr)
+
+    do p = num_nodes, num_points - 1
        call DMPlexSetConeSize(dm, p, 2, ierr); CHKERRQ(ierr)
     end do
 
     call DMSetUp(dm, ierr); CHKERRQ(ierr)
 
-    do p = num_nodes, 2 * num_nodes - 2
+    do p = num_nodes, num_points - 1
        associate (p_node => p - num_nodes)
          call DMPlexSetCone(dm, p, [p_node, p_node + 1], ierr)
          CHKERRQ(ierr)
