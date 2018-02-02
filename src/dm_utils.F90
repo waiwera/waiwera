@@ -69,6 +69,7 @@ module dm_utils_module
   public :: dm_get_end_interior_cell
   public :: dm_get_natural_to_global_ao, dm_get_cell_index
   public :: natural_to_local_cell_index, local_to_natural_cell_index
+  public :: create_path_dm, vec_sequence_view
 
 contains
 
@@ -958,6 +959,62 @@ contains
     call PetscFVDestroy(fvm, ierr); CHKERRQ(ierr)
 
   end subroutine dm_setup_fv_discretization
+
+!------------------------------------------------------------------------
+
+  subroutine create_path_dm(num_nodes, dm)
+    !! Creates a 1-D DMPlex representing a path. Points 0 .. num_nodes
+    !! -1 are the nodes; points num_nodes ... 2 * num_nodes - 2 are
+    !! the edges.
+
+    PetscInt, intent(in) :: num_nodes !! Number of nodes on the path
+    DM, intent(out) :: dm !! Output DMPlex
+    ! Locals:
+    PetscInt :: p
+    PetscErrorCode :: ierr
+
+    call DMPlexCreate(PETSC_COMM_WORLD, dm, ierr); CHKERRQ(ierr)
+    call DMSetDimension(dm, 1, ierr); CHKERRQ(ierr)
+    call DMPlexSetChart(dm, 0, 2 * num_nodes - 1, ierr); CHKERRQ(ierr)
+
+    do p = num_nodes, 2 * num_nodes - 2
+       call DMPlexSetConeSize(dm, p, 2, ierr); CHKERRQ(ierr)
+    end do
+
+    call DMSetUp(dm, ierr); CHKERRQ(ierr)
+
+    do p = num_nodes, 2 * num_nodes - 2
+       associate (p_node => p - num_nodes)
+         call DMPlexSetCone(dm, p, [p_node, p_node + 1], ierr)
+         CHKERRQ(ierr)
+       end associate
+    end do
+
+    call DMPlexSymmetrize(dm, ierr); CHKERRQ(ierr)
+    call DMPlexStratify(dm, ierr); CHKERRQ(ierr)
+
+  end subroutine create_path_dm
+
+!------------------------------------------------------------------------
+
+  subroutine vec_sequence_view(v, time_index, time, viewer)
+    !! Views a vector v to the specified viewer, also setting the
+    !! vector's DM output sequence number.
+
+    Vec, intent(in) :: v
+    PetscInt, intent(in) :: time_index
+    PetscReal, intent(in) :: time
+    PetscViewer, intent(in out) :: viewer
+    ! Locals:
+    DM :: dm
+    PetscErrorCode :: ierr
+
+    call VecGetDM(v, dm, ierr); CHKERRQ(ierr)
+    call DMSetOutputSequenceNumber(dm, time_index, time, &
+         ierr); CHKERRQ(ierr)
+    call VecView(v, viewer, ierr); CHKERRQ(ierr)
+
+  end subroutine vec_sequence_view
 
 !------------------------------------------------------------------------
 
