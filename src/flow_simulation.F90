@@ -852,8 +852,10 @@ contains
     PetscReal, pointer, contiguous :: cell_geom_array(:), face_geom_array(:)
     PetscReal, pointer, contiguous :: fluid_array(:), rock_array(:)
     PetscReal, pointer, contiguous :: update(:), flux_array(:)
+    PetscReal, pointer, contiguous :: source_data(:)
     PetscSection :: rhs_section, rock_section, fluid_section, update_section
     PetscSection :: cell_geom_section, face_geom_section, flux_section
+    PetscSection :: source_section
     type(face_type) :: face
     PetscInt :: face_geom_offset, cell_geom_offsets(2), update_offsets(2)
     PetscInt :: rock_offsets(2), fluid_offsets(2), rhs_offsets(2)
@@ -967,8 +969,11 @@ contains
 
     ! Source / sink terms:
     call PetscLogEventBegin(sources_event, ierr); CHKERRQ(ierr)
+    call global_vec_section(self%source, source_section)
+    call VecGetArrayF90(self%source, source_data, ierr); CHKERRQ(ierr)
     call self%source_controls%traverse(source_control_iterator)
     call apply_sources()
+    call VecRestoreArrayF90(self%source, source_data, ierr); CHKERRQ(ierr)
     call PetscLogEventEnd(sources_event, ierr); CHKERRQ(ierr)
 
     nullify(inflow)
@@ -993,7 +998,9 @@ contains
 
       select type (source_control => node%data)
       class is (source_control_type)
-         call source_control%update(t, interval, fluid_array, fluid_section)
+         call source_control%update(t, interval, source_data, &
+              source_section, self%source_range_start, fluid_array, &
+              fluid_section, self%eos)
       end select
       stopped = PETSC_FALSE
 
@@ -1008,21 +1015,17 @@ contains
       PetscInt :: s, c
       type(cell_type) :: cell
       type(source_type) :: source
-      PetscSection :: source_section
-      PetscReal, pointer, contiguous :: source_array(:)
       PetscInt :: source_offset
       PetscErrorCode :: ierr
 
       call cell%init(self%eos%num_components, self%eos%num_phases)
       call source%init(self%eos)
-      call global_vec_section(self%source, source_section)
-      call VecGetArrayF90(self%source, source_array, ierr); CHKERRQ(ierr)
 
       do s = 0, self%num_sources - 1
 
          call global_section_offset(source_section, s, &
               self%source_range_start, source_offset, ierr); CHKERRQ(ierr)
-         call source%assign(source_array, source_offset)
+         call source%assign(source_data, source_offset)
          c = nint(source%local_cell_index)
 
          call global_section_offset(rhs_section, c, &
@@ -1040,7 +1043,6 @@ contains
       end do
 
       call source%destroy()
-      call VecRestoreArrayF90(self%source, source_array, ierr); CHKERRQ(ierr)
       call cell%destroy()
 
     end subroutine apply_sources
@@ -1569,7 +1571,6 @@ contains
     PetscInt, intent(in) :: time_index
     PetscReal, intent(in) :: time
     ! Locals:
-    DM :: fluid_dm
     PetscErrorCode :: ierr
 
     call PetscLogEventBegin(output_event, ierr); CHKERRQ(ierr)

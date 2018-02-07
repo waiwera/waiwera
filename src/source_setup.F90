@@ -43,12 +43,19 @@ contains
 !------------------------------------------------------------------------
 
   subroutine setup_sources(json, dm, ao, eos, thermo, start_time, &
-       fluid_vector, fluid_range_start, sources, source_controls, &
-       logfile, err)
-    !! Sets up lists of sinks / sources and source controls.
+       fluid_vector, fluid_range_start, source_vector, source_range_start, &
+       source_controls, logfile, err)
+    !! Sets up sinks / sources and source controls.
 
-    use dm_utils_module, only: global_vec_section, &
-         natural_to_local_cell_index
+    use dm_utils_module, only: global_vec_section, global_vec_range_start, &
+         global_section_offset, create_path_dm, set_dm_data_layout
+
+    type source_spec_type
+       !! Specification for a source.
+       PetscInt :: spec_index
+       type(fson_value), pointer :: json
+       PetscInt, allocatable :: cell_natural_index(:), cell_local_index(:)
+    end type source_spec_type
 
     type(fson_value), pointer, intent(in) :: json !! JSON file object
     DM, intent(in) :: dm !! Mesh DM
@@ -57,104 +64,144 @@ contains
     class(thermodynamics_type), intent(in) :: thermo !! Thermodynamics formulation
     PetscReal, intent(in) :: start_time
     Vec, intent(in) :: fluid_vector !! Fluid vector
-    PetscInt, intent(in) :: fluid_range_start
-    type(list_type), intent(in out) :: sources !! List of sources
+    PetscInt, intent(in) :: fluid_range_start !! Range start for global fluid vector
+    Vec, intent(out) :: source_vector !! Source vector
+    PetscInt, intent(out) :: source_range_start !! Range start for global source vector
     type(list_type), intent(in out) :: source_controls !! List of source controls
     type(logfile_type), intent(in out), optional :: logfile !! Logfile for log output
     PetscErrorCode, intent(out) :: err !! Error code
     ! Locals:
-    PetscInt :: ic, isrc, ghost
-    PetscInt :: injection_component, production_component
+    type(list_type) :: source_list
+    type(source_spec_type), pointer :: spec
+    DM :: dm_source
+    type(source_type) :: source
+    PetscInt :: i, j, spec_index, local_source_index
+    PetscInt :: total_num_cell_sources
     type(fson_value), pointer :: sources_json, source_json
     PetscInt :: num_sources, num_cells
-    type(source_type), pointer :: source
-    PetscReal :: initial_rate, initial_enthalpy
-    character(max_source_name_length) :: name
-    character(max_source_name_length) :: default_name = ""
-    DMLabel :: ghost_label
-    character(len=64) :: srcstr
-    character(len=12) :: istr
-    PetscBool :: can_inject
     PetscInt, allocatable :: cell_natural_index(:), cell_local_index(:)
-    type(list_type) :: cell_sources
-    PetscReal, pointer, contiguous :: fluid_data(:)
-    PetscSection :: fluid_section
-    ISLocalToGlobalMapping :: l2g
+    PetscReal, pointer, contiguous :: fluid_data(:), source_data(:)
+    PetscSection :: fluid_section, source_section
+    PetscInt, allocatable :: num_field_components(:), field_dim(:)
+    PetscInt, parameter :: max_field_name_length = 40
+    character(max_field_name_length), allocatable :: field_names(:)
     PetscErrorCode :: ierr
 
-    call sources%init(owner = PETSC_TRUE)
-    call source_controls%init(owner = PETSC_TRUE)
-
-    call global_vec_section(fluid_vector, fluid_section)
-    call VecGetArrayReadF90(fluid_vector, fluid_data, ierr); CHKERRQ(ierr)
-
-    call DMGetLocalToGlobalMapping(dm, l2g, ierr); CHKERRQ(ierr)
+    total_num_cell_sources = 0
+    call source%init(eos)
+    call source_list%init(owner = PETSC_TRUE)
 
     if (fson_has_mpi(json, "source")) then
-
-       call DMGetLabel(dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
 
        call fson_get_mpi(json, "source", sources_json)
        num_sources = fson_value_count_mpi(sources_json, ".")
        source_json => fson_value_children_mpi(sources_json)
-
-       do isrc = 1, num_sources
-
-          write(istr, '(i0)') isrc - 1
-          srcstr = 'source[' // trim(istr) // '].'
-          source => null()
-
-          call fson_get_mpi(source_json, "name", default_name, name)
-          call get_components(source_json, eos, &
-               injection_component, production_component, logfile)
-          call get_initial_rate(source_json, initial_rate, can_inject)
-          call get_initial_enthalpy(source_json, eos, can_inject, &
-               injection_component, initial_enthalpy)
-
-          call get_cells(source_json, ao, l2g, cell_natural_index, &
-               num_cells)
+       do spec_index = 0, num_sources - 1
+          call get_cells(source_json, dm, ao, cell_natural_index, &
+               cell_local_index, num_cells)
           if (num_cells > 0) then
-             allocate(cell_local_index(num_cells))
-             cell_local_index = natural_to_local_cell_index(ao, l2g, &
-                  cell_natural_index)
+             allocate(spec)
+             spec%spec_index = spec_index
+             spec%cell_natural_index = cell_natural_index
+             spec%cell_local_index = cell_local_index
+             spec%json => source_json
+             call source_list%append(spec)
+             total_num_cell_sources = total_num_cell_sources + num_cells
           end if
-          call cell_sources%init()
-
-          do ic = 1, num_cells
-             associate(c => cell_local_index(ic), natural => cell_natural_index(ic))
-               if (c >= 0) then
-                  call DMLabelGetValue(ghost_label, c, ghost, ierr); CHKERRQ(ierr)
-                  if (ghost < 0) then
-                     allocate(source)
-                     call source%init(natural, c, eos, initial_rate, &
-                          initial_enthalpy, injection_component, production_component)
-                     call sources%append(source, name)
-                     call cell_sources%append(source, name)
-                  end if
-               end if
-             end associate
-          end do
-
-          call setup_inline_source_controls(source_json, eos, thermo, &
-               start_time, fluid_data, fluid_section, fluid_range_start, srcstr, &
-               num_cells, cell_sources, source_controls, logfile, err)
-          call cell_sources%destroy()
-          deallocate(cell_natural_index, cell_local_index)
-
-          if (err > 0) exit
-
           source_json => fson_value_next_mpi(source_json)
-
        end do
 
+    end if
+
+    call create_path_dm(total_num_cell_sources, dm_source)
+
+    allocate(num_field_components(source%dof), field_dim(source%dof), &
+         field_names(source%dof))
+    num_field_components = 1
+    field_names(1: num_source_variables - 1) = &
+         source_variable_names(1: num_source_variables - 1) ! scalar fields
+    i = num_source_variables
+    ! array fields (flow):
+    do j = 1, eos%num_components
+       field_names(i) = trim(eos%component_names(j)) // '_' // &
+            trim(source_variable_names(num_source_variables))
+       i = i + 1
+    end do
+    call set_dm_data_layout(dm_source, num_field_components, field_dim, &
+         field_names)
+    call DMCreateGlobalVector(dm_source, source_vector, ierr); CHKERRQ(ierr)
+    call PetscObjectSetName(source_vector, "source", ierr); CHKERRQ(ierr)
+    call global_vec_range_start(source_vector, source_range_start)
+
+    call source_controls%init(owner = PETSC_TRUE)
+    call global_vec_section(fluid_vector, fluid_section)
+    call VecGetArrayReadF90(fluid_vector, fluid_data, ierr); CHKERRQ(ierr)
+    call global_vec_section(source_vector, source_section)
+    call VecGetArrayF90(source_vector, source_data, ierr); CHKERRQ(ierr)
+
+    if (fson_has_mpi(json, "source")) then
+       local_source_index = 0
+       call source_list%traverse(source_setup_iterator)
     else
        if (present(logfile)) then
           call logfile%write(LOG_LEVEL_INFO, "input", "no_sources")
        end if
     end if
 
+    call VecRestoreArrayF90(source_vector, source_data, ierr); CHKERRQ(ierr)
     call VecRestoreArrayReadF90(fluid_vector, fluid_data, ierr)
     CHKERRQ(ierr)
+    call source%destroy()
+    call source_list%destroy()
+
+  contains
+
+    subroutine source_setup_iterator(node, stopped)
+      !! Iterator for setting up cell sources for a source specification.
+
+      type(list_node_type), pointer, intent(in out)  :: node
+      PetscBool, intent(out) :: stopped
+      ! Locals:
+      character(len=64) :: srcstr
+      character(len=12) :: istr
+      PetscBool :: can_inject
+      PetscInt :: injection_component, production_component
+      PetscReal :: initial_rate, initial_enthalpy
+      PetscInt :: i, s, source_offset
+      PetscInt, allocatable :: source_indices(:)
+
+      select type (spec => node%data)
+      type is (source_spec_type)
+         write(istr, '(i0)') spec%spec_index
+         srcstr = 'source[' // trim(istr) // '].'
+         call get_components(spec%json, eos, &
+              injection_component, production_component, logfile)
+         call get_initial_rate(spec%json, initial_rate, can_inject)
+         call get_initial_enthalpy(spec%json, eos, can_inject, &
+              injection_component, initial_enthalpy)
+         associate(num_sources => size(spec%cell_natural_index))
+           allocate(source_indices(num_sources))
+           do i = 1, num_sources
+              s = spec%spec_index
+              call global_section_offset(source_section, s, &
+                   source_range_start, source_offset, ierr); CHKERRQ(ierr)
+              call source%assign(source_data, source_offset)
+              call source%setup(s, spec%cell_natural_index(i), &
+                   spec%cell_local_index(i), initial_rate, initial_enthalpy, &
+                   injection_component, production_component)
+              source_indices(i) = local_source_index
+              local_source_index = local_source_index + 1
+           end do
+         end associate
+         call setup_inline_source_controls(spec%json, eos, thermo, &
+              start_time, source_data, source_section, source_range_start, &
+              fluid_data, fluid_section, fluid_range_start, srcstr, &
+              source_indices, source_controls, logfile, err)
+         deallocate(source_indices)
+         stopped = (err > 0)
+      end select
+
+    end subroutine source_setup_iterator
 
   end subroutine setup_sources
 
@@ -292,19 +339,29 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine get_cells(source_json, ao, l2g, cell_natural_index, num_cells)
-    !! Gets array of cell natural indices for the source. The "cell"
-    !! key can be used to specify a single cell. The "cells" key can
-    !! be used to specify either a single cell or an array of
-    !! cells. If both are present, the "cells" key is used.
+  subroutine get_cells(source_json, dm, ao, cell_natural_index, &
+       cell_local_index, num_cells)
+    !! Gets arrays of cell natural and local indices for the
+    !! source. The "cell" key can be used to specify a single
+    !! cell. The "cells" key can be used to specify either a single
+    !! cell or an array of cells. If both are present, the "cells" key
+    !! is used.
+
+    use dm_utils_module, only: natural_to_local_cell_index
 
     type(fson_value), pointer, intent(in) :: source_json
+    DM, intent(in) :: dm
     AO, intent(in) :: ao
-    ISLocalToGlobalMapping, intent(in) :: l2g
     PetscInt, allocatable, intent(out) :: cell_natural_index(:)
+    PetscInt, allocatable, intent(out) :: cell_local_index(:)
     PetscInt, intent(out) :: num_cells
     ! Locals:
+    ISLocalToGlobalMapping :: l2g
     PetscInt :: cell_type, cell
+    PetscInt :: i, ghost
+    DMLabel :: ghost_label
+    PetscBool, allocatable :: filter(:)
+    PetscErrorCode :: ierr
 
     if (fson_has_mpi(source_json, "cell")) then
        call fson_get_mpi(source_json, "cell", val = cell)
@@ -326,7 +383,29 @@ contains
     end if
 
     if (allocated(cell_natural_index)) then
+
+       call DMGetLocalToGlobalMapping(dm, l2g, ierr); CHKERRQ(ierr)
+       cell_local_index = natural_to_local_cell_index(ao, l2g, &
+            cell_natural_index)
+
+       ! Flag ghost cells:
+       call DMGetLabel(dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
+       do i = 1, size(cell_local_index)
+          associate(c => cell_local_index(i))
+            if (c >= 0) then
+               call DMLabelGetValue(ghost_label, c, ghost, ierr)
+               CHKERRQ(ierr)
+               if (ghost >= 0) c = -1
+            end if
+          end associate
+       end do
+
+       ! Filter out off-process and ghost cells:
+       filter = cell_local_index >= 0
+       cell_local_index = pack(cell_local_index, filter)
+       cell_natural_index = pack(cell_natural_index, filter)
        num_cells = size(cell_natural_index)
+
     else
        num_cells = 0
     end if
@@ -336,10 +415,11 @@ contains
 !------------------------------------------------------------------------
 
   subroutine setup_inline_source_controls(source_json, eos, thermo, &
-       start_time, fluid_data, fluid_section, fluid_range_start, &
-       srcstr, num_cells, cell_sources, source_controls, logfile, err)
-    !! Sets up any 'inline' source controls for the source,
-    !! i.e. controls defined implicitly in the specification of the source.
+       start_time, source_data, source_section, source_range_start, &
+       fluid_data, fluid_section, fluid_range_start, &
+       srcstr, source_indices, source_controls, logfile, err)
+    !! Sets up any 'inline' source controls for the source specification,
+    !! i.e. controls defined implicitly in the specification.
 
     use interpolation_module, only: interpolation_type_from_str, &
          averaging_type_from_str, max_interpolation_str_length, &
@@ -350,12 +430,14 @@ contains
     class(eos_type), intent(in) :: eos
     class(thermodynamics_type), intent(in) :: thermo
     PetscReal, intent(in) :: start_time
+    PetscReal, pointer, contiguous, intent(in) :: source_data(:)
+    PetscSection, intent(in) :: source_section
+    PetscInt, intent(in) :: source_range_start
     PetscReal, pointer, contiguous, intent(in) :: fluid_data(:)
     PetscSection, intent(in) :: fluid_section
     PetscInt, intent(in) :: fluid_range_start
     character(len = *), intent(in) :: srcstr
-    PetscInt, intent(in) :: num_cells
-    type(list_type), intent(in out) :: cell_sources
+    PetscInt, intent(in) :: source_indices(:)
     type(list_type), intent(in out) :: source_controls
     type(logfile_type), intent(in out), optional :: logfile
     PetscErrorCode, intent(out) :: err
@@ -373,29 +455,31 @@ contains
     averaging_type = averaging_type_from_str(averaging_str)
 
     call setup_table_source_control(source_json, srcstr, interpolation_type, &
-         averaging_type, cell_sources, source_controls, logfile, err)
+         averaging_type, source_indices, source_controls, logfile, err)
 
     if (err == 0) then
 
-       call setup_deliverability_source_control(source_json, srcstr, &
-            start_time, fluid_data, fluid_section, fluid_range_start, &
-            interpolation_type, averaging_type, num_cells, cell_sources, &
+       call setup_deliverability_source_controls(source_json, srcstr, &
+            start_time, source_data, source_section, source_range_start, &
+            fluid_data, fluid_section, fluid_range_start, &
+            interpolation_type, averaging_type, source_indices, eos, &
             source_controls, logfile, err)
 
        if (err == 0) then
 
-          call setup_recharge_source_control(source_json, srcstr, &
+          call setup_recharge_source_controls(source_json, srcstr, &
+               source_data, source_section, source_range_start, &
                fluid_data, fluid_section, fluid_range_start, &
-               interpolation_type, averaging_type, num_cells, cell_sources, &
+               interpolation_type, averaging_type, source_indices, eos, &
                source_controls, logfile, err)
 
           if (err == 0) then
 
-             call setup_limiter_source_control(source_json, srcstr, thermo, &
-                  cell_sources, source_controls, logfile)
+             call setup_limiter_source_controls(source_json, srcstr, thermo, &
+                  source_indices, source_controls, logfile)
 
              call setup_direction_source_control(source_json, srcstr, thermo, &
-                  cell_sources, source_controls, logfile)
+                  source_indices, source_controls, logfile)
 
           end if
 
@@ -408,14 +492,14 @@ contains
 !------------------------------------------------------------------------
 
   subroutine setup_table_source_control(source_json, srcstr, &
-       interpolation_type, averaging_type, cell_sources, &
+       interpolation_type, averaging_type, source_indices, &
        source_controls, logfile, err)
     !! Set up rate or enthalpy table source controls.
 
     type(fson_value), pointer, intent(in) :: source_json
     character(len=*) :: srcstr
     PetscInt, intent(in) :: interpolation_type, averaging_type
-    type(list_type), intent(in out) :: cell_sources
+    PetscInt, intent(in) :: source_indices(:)
     type(list_type), intent(in out) :: source_controls
     type(logfile_type), intent(in out), optional :: logfile
     PetscErrorCode, intent(out) :: err
@@ -439,10 +523,10 @@ contains
        end if
     end if
 
-    if ((cell_sources%count > 0) .and. (allocated(rate_data_array))) then
+    if (allocated(rate_data_array)) then
        allocate(rate_control)
        call rate_control%init(rate_data_array, interpolation_type, &
-            averaging_type, cell_sources, err)
+            averaging_type, source_indices, err)
        if (err == 0) call source_controls%append(rate_control)
     end if
 
@@ -461,10 +545,10 @@ contains
           end if
        end if
 
-       if ((cell_sources%count > 0) .and. (allocated(enthalpy_data_array))) then
+       if (allocated(enthalpy_data_array)) then
           allocate(enthalpy_control)
           call enthalpy_control%init(enthalpy_data_array, interpolation_type, &
-               averaging_type, cell_sources, err)
+               averaging_type, source_indices, err)
           if (err == 0) call source_controls%append(enthalpy_control)
        end if
 
@@ -564,14 +648,11 @@ contains
 !------------------------------------------------------------------------
   
   subroutine get_deliverability_productivity(json, source_json, srcstr, &
-       num_cells, cell_sources, productivity_array, &
-       calculate_PI_from_rate, logfile)
+       productivity_array, calculate_PI_from_rate, logfile)
     !! Gets productivity index for deliverability source control.
 
     type(fson_value), pointer, intent(in) :: json, source_json
     character(len = *), intent(in) :: srcstr
-    PetscInt, intent(in) :: num_cells
-    type(list_type), intent(in) :: cell_sources
     PetscReal, allocatable, intent(out) :: productivity_array(:,:)
     PetscBool, intent(out) :: calculate_PI_from_rate
     type(logfile_type), intent(in out), optional :: logfile
@@ -611,8 +692,7 @@ contains
           end if
        end select
 
-    else if ((fson_has_mpi(source_json, "rate") .and. &
-         (num_cells == 1) .and. (cell_sources%count == 1))) then
+    else if (fson_has_mpi(source_json, "rate")) then
 
        calculate_PI_from_rate = PETSC_TRUE
 
@@ -628,23 +708,30 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine setup_deliverability_source_control(source_json, srcstr, &
-       start_time, fluid_data, fluid_section, fluid_range_start, &
-       interpolation_type, averaging_type, num_cells, &
-       cell_sources, source_controls, logfile, err)
-    !! Set up deliverability source control.
+  subroutine setup_deliverability_source_controls(source_json, srcstr, &
+       start_time, source_data, source_section, source_range_start, &
+       fluid_data, fluid_section, fluid_range_start, &
+       interpolation_type, averaging_type, source_indices, eos, &
+       source_controls, logfile, err)
+    !! Set up deliverability source controls. Deliverability controls
+    !! can control only one source, so if multiple cells are
+    !! specified, multiple corresponding deliverability controls are
+    !! created.
 
     use utils_module, only: str_to_lower
 
     type(fson_value), pointer, intent(in) :: source_json
     character(len=*) :: srcstr
     PetscReal, intent(in) :: start_time
+    PetscReal, pointer, contiguous, intent(in) :: source_data(:)
+    PetscSection, intent(in) :: source_section
+    PetscInt, intent(in) :: source_range_start
     PetscReal, pointer, contiguous, intent(in) :: fluid_data(:)
     PetscSection, intent(in) :: fluid_section
     PetscInt, intent(in) :: fluid_range_start
     PetscInt, intent(in) :: interpolation_type, averaging_type
-    PetscInt, intent(in) :: num_cells
-    type(list_type), intent(in out) :: cell_sources
+    PetscInt, intent(in) :: source_indices(:)
+    class(eos_type), intent(in) :: eos
     type(list_type), intent(in out) :: source_controls
     type(logfile_type), intent(in out), optional :: logfile
     PetscErrorCode, intent(out) :: err
@@ -656,7 +743,7 @@ contains
     PetscBool :: calculate_PI_from_rate
     PetscReal :: initial_rate, threshold
     PetscReal, allocatable :: productivity_array(:,:)
-    PetscInt :: pressure_table_coordinate
+    PetscInt :: pressure_table_coordinate, i, s
     PetscReal, parameter :: default_rate = 0._dp
     PetscReal, parameter :: default_threshold = -1._dp
 
@@ -675,24 +762,27 @@ contains
             pressure_table_coordinate, logfile)
 
        call get_deliverability_productivity(deliv_json, source_json, &
-            srcstr, num_cells, cell_sources, productivity_array, &
-            calculate_PI_from_rate, logfile)
+            srcstr, productivity_array, calculate_PI_from_rate, logfile)
 
-       if (cell_sources%count > 0) then
+       do i = 1, size(source_indices)
 
+          s = source_indices(i)
           allocate(deliv)
           call deliv%init(productivity_array, interpolation_type, &
                averaging_type, reference_pressure_array, &
-               pressure_table_coordinate, threshold, cell_sources, err)
+               pressure_table_coordinate, threshold, s, err)
+
           select case (err)
           case (0)
              if (calculate_reference_pressure) then
-                call deliv%set_reference_pressure_initial(fluid_data, &
-                     fluid_section, fluid_range_start)
+                call deliv%set_reference_pressure_initial(source_data, &
+                     source_section, source_range_start, fluid_data, &
+                     fluid_section, fluid_range_start, eos)
              end if
              if (calculate_PI_from_rate) then
                 call deliv%calculate_PI_from_rate(start_time, initial_rate, &
-                     fluid_data, fluid_section, fluid_range_start, &
+                     source_data, source_section, source_range_start, &
+                     fluid_data, fluid_section, fluid_range_start, eos, &
                      deliv%productivity%val(1, 1))
              end if
              if (deliv%threshold > 0._dp) then
@@ -714,11 +804,11 @@ contains
                   real_array_value = reference_pressure_array(:, 1))
           end select
 
-       end if
+       end do
 
     end if
 
-  end subroutine setup_deliverability_source_control
+  end subroutine setup_deliverability_source_controls
 
 !------------------------------------------------------------------------
 
@@ -778,22 +868,29 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine setup_recharge_source_control(source_json, srcstr, &
+  subroutine setup_recharge_source_controls(source_json, srcstr, &
+       source_data, source_section, source_range_start, &
        fluid_data, fluid_section, fluid_range_start, &
-       interpolation_type, averaging_type, num_cells, &
-       cell_sources, source_controls, logfile, err)
-    !! Set up recharge source control.
+       interpolation_type, averaging_type, source_indices, eos, &
+       source_controls, logfile, err)
+    !! Set up recharge source controls. Recharge controls
+    !! can control only one source, so if multiple cells are
+    !! specified, multiple corresponding recharge controls are
+    !! created.
 
     use utils_module, only: str_to_lower
 
     type(fson_value), pointer, intent(in) :: source_json
     character(len=*) :: srcstr
+    PetscReal, pointer, contiguous, intent(in) :: source_data(:)
+    PetscSection, intent(in) :: source_section
+    PetscInt, intent(in) :: source_range_start
     PetscReal, pointer, contiguous, intent(in) :: fluid_data(:)
     PetscSection, intent(in) :: fluid_section
     PetscInt, intent(in) :: fluid_range_start
     PetscInt, intent(in) :: interpolation_type, averaging_type
-    PetscInt, intent(in) :: num_cells
-    type(list_type), intent(in out) :: cell_sources
+    PetscInt, intent(in) :: source_indices(:)
+    class(eos_type), intent(in) :: eos
     type(list_type), intent(in out) :: source_controls
     type(logfile_type), intent(in out), optional :: logfile
     PetscErrorCode, intent(out) :: err
@@ -803,7 +900,7 @@ contains
     type(source_control_recharge_type), pointer :: recharge
     PetscBool :: calculate_reference_pressure
     PetscReal, allocatable :: recharge_array(:,:)
-    PetscInt :: pressure_table_coordinate
+    PetscInt :: pressure_table_coordinate, i, s
 
     if (fson_has_mpi(source_json, "recharge")) then
 
@@ -818,17 +915,19 @@ contains
           call get_recharge_coefficient(recharge_json, source_json, &
                srcstr, recharge_array, logfile)
 
-          if (cell_sources%count > 0) then
+          do i = 1, size(source_indices)
 
+             s = source_indices(i)
              allocate(recharge)
              call recharge%init(recharge_array, interpolation_type, &
-                  averaging_type, reference_pressure_array, cell_sources, err)
+                  averaging_type, reference_pressure_array, s, err)
 
              select case (err)
              case (0)
                 if (calculate_reference_pressure) then
-                   call recharge%set_reference_pressure_initial(fluid_data, &
-                        fluid_section, fluid_range_start)
+                   call recharge%set_reference_pressure_initial(source_data, &
+                        source_section, source_range_start, fluid_data, &
+                        fluid_section, fluid_range_start, eos)
                 end if
                 call source_controls%append(recharge)
              case (1)
@@ -845,7 +944,7 @@ contains
                      real_array_value = reference_pressure_array(:, 1))
              end select
 
-          end if
+          end do
 
        else
           if (present(logfile) .and. logfile%active) then
@@ -857,12 +956,12 @@ contains
 
     end if
 
-  end subroutine setup_recharge_source_control
+  end subroutine setup_recharge_source_controls
 
 !------------------------------------------------------------------------
 
-  subroutine setup_limiter_source_control(source_json, srcstr, &
-       thermo, cell_sources, source_controls, logfile)
+  subroutine setup_limiter_source_controls(source_json, srcstr, &
+       thermo, source_indices, source_controls, logfile)
     !! Set up limiter source control for each cell source. If
     !! separated water or steam is to be limited, first set up
     !! corresponding separator for each cell source.
@@ -872,7 +971,7 @@ contains
     type(fson_value), pointer, intent(in) :: source_json
     character(len=*) :: srcstr
     class(thermodynamics_type), intent(in) :: thermo
-    type(list_type), intent(in out) :: cell_sources
+    PetscInt, intent(in) :: source_indices(:)
     type(list_type), intent(in out) :: source_controls
     type(logfile_type), intent(in out), optional :: logfile
     ! Locals:
@@ -880,6 +979,9 @@ contains
     character(max_phase_name_length) :: limiter_type_str
     PetscInt :: limiter_type
     PetscReal :: limit, separator_pressure
+    PetscInt :: i, s
+    type(source_control_limiter_type), pointer :: limiter
+    type(source_control_separator_type), pointer :: separator
 
     if (fson_has_mpi(source_json, "limiter")) then
 
@@ -910,71 +1012,44 @@ contains
        call fson_get_mpi(limiter_json, "limit", &
             default_source_control_limiter_limit, limit, logfile, srcstr)
 
-       call cell_sources%traverse(setup_limiter_iterator)
+       do i = 1, size(source_indices)
+
+          s = source_indices(i)
+          allocate(limiter)
+          if (limiter_type == SRC_CONTROL_LIMITER_TYPE_TOTAL) then
+             call limiter%init(limiter_type, s, limit, [s])
+          else
+             allocate(separator)
+             call separator%init(s, thermo, separator_pressure)
+             call source_controls%append(separator)
+             call limiter%init_control(limiter_type, separator, limit, [s])
+          end if
+          call source_controls%append(limiter)
+
+       end do
 
     end if
 
-  contains
-
-    subroutine setup_limiter_iterator(node, stopped)
-      !! Sets up limiter (and separator if needed) at a source list node.
-
-      type(list_node_type), pointer, intent(in out)  :: node
-      PetscBool, intent(out) :: stopped
-      ! Locals:
-      type(source_control_limiter_type), pointer :: limiter
-      type(source_control_separator_type), pointer :: separator
-
-      select type (source => node%data)
-      type is (source_type)
-
-         allocate(limiter)
-
-         if (limiter_type == SRC_CONTROL_LIMITER_TYPE_TOTAL) then
-
-            call limiter%init(limiter_type, source%rate, limit, &
-                 cell_sources)
-
-         else
-
-            allocate(separator)
-            call separator%init(source, thermo, separator_pressure)
-            call source_controls%append(separator)
-
-            if (limiter_type == SRC_CONTROL_LIMITER_TYPE_WATER) then
-               call limiter%init(limiter_type, separator%water_flow_rate, &
-                    limit, cell_sources)
-            else
-               call limiter%init(limiter_type, separator%steam_flow_rate, &
-                    limit, cell_sources)
-            end if
-
-         end if
-
-         call source_controls%append(limiter)
-
-      end select
-
-    end subroutine setup_limiter_iterator
-
-  end subroutine setup_limiter_source_control
+  end subroutine setup_limiter_source_controls
 
 !------------------------------------------------------------------------
 
   subroutine setup_direction_source_control(source_json, srcstr, &
-       thermo, cell_sources, source_controls, logfile)
-    !! Set up direction source control for each cell source.
+       thermo, source_indices, source_controls, logfile)
+    !! Set up direction source control. This can control multiple
+    !! sources, so only one is created.
 
     use utils_module, only: str_to_lower
 
     type(fson_value), pointer, intent(in) :: source_json
     character(len=*) :: srcstr
     class(thermodynamics_type), intent(in) :: thermo
-    type(list_type), intent(in out) :: cell_sources
+    PetscInt, intent(in) :: source_indices(:)
     type(list_type), intent(in out) :: source_controls
     type(logfile_type), intent(in out), optional :: logfile
     ! Locals:
     PetscInt :: direction
+    type(source_control_direction_type), pointer :: direction_control
     PetscInt, parameter :: max_direction_str_length = 16
     character(max_direction_str_length) :: direction_str
 
@@ -998,31 +1073,12 @@ contains
        end select
 
        if (direction /= SRC_DIRECTION_BOTH) then
-          call cell_sources%traverse(setup_direction_iterator)
+         allocate(direction_control)
+         call direction_control%init(direction, source_indices)
+         call source_controls%append(direction_control)
        end if
 
     end if
-
-  contains
-
-    subroutine setup_direction_iterator(node, stopped)
-      !! Sets up direction control at a source list node.
-
-      type(list_node_type), pointer, intent(in out)  :: node
-      PetscBool, intent(out) :: stopped
-      ! Locals:
-      type(source_control_direction_type), pointer :: direction_control
-
-      select type (source => node%data)
-      type is (source_type)
-
-         allocate(direction_control)
-         call direction_control%init(direction, cell_sources)
-         call source_controls%append(direction_control)
-
-      end select
-
-    end subroutine setup_direction_iterator
 
   end subroutine setup_direction_source_control
 
