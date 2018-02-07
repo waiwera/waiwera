@@ -50,6 +50,7 @@ module mesh_module
      IS, public :: cell_index !! Index set defining natural to global cell ordering
      AO, public :: cell_order !! Application ordering to convert between global and natural cell indices
      AO, public :: original_cell_order !! Global-to-natural AO for original DM
+     PetscInt, allocatable :: minc_cell_map(:) !! Mapping from MINC cell local indices to original single-porosity cell local indices
      PetscInt, public, allocatable :: ghost_cell(:), ghost_face(:) !! Ghost label values for cells and faces
      type(minc_type), allocatable, public :: minc(:) !! Array of MINC zones, with parameters
      PetscReal, public :: permeability_rotation(3, 3) !! Rotation matrix of permeability axes
@@ -79,7 +80,7 @@ module mesh_module
      procedure :: set_minc_dm_cones => mesh_set_minc_dm_cones
      procedure :: setup_minc_dm_depth_label => mesh_setup_minc_dm_depth_label
      procedure :: transfer_labels_to_minc_dm => mesh_transfer_labels_to_minc_dm
-     procedure :: setup_minc_dm_level_label => mesh_setup_minc_dm_level_label
+     procedure :: setup_minc_dm_level_label_and_cell_map => mesh_setup_minc_dm_level_label_and_cell_map
      procedure :: setup_minc_dm_cell_order => mesh_setup_minc_dm_cell_order
      procedure :: setup_minc_geometry => mesh_setup_minc_geometry
      procedure :: setup_minc_rock_properties => mesh_setup_minc_rock_properties
@@ -667,6 +668,7 @@ contains
        call AODestroy(self%original_cell_order, ierr); CHKERRQ(ierr)
        call self%destroy_minc()
        call self%destroy_strata()
+       deallocate(self%minc_cell_map)
     end if
     call self%zones%destroy(mesh_zones_node_data_destroy)
 
@@ -1440,7 +1442,7 @@ contains
     call self%transfer_labels_to_minc_dm(minc_dm, max_num_levels)
     call self%setup_minc_dm_depth_label(minc_dm, max_num_levels, &
          minc_level_cells)
-    call self%setup_minc_dm_level_label(minc_dm, max_num_levels, &
+    call self%setup_minc_dm_level_label_and_cell_map(minc_dm, max_num_levels, &
          minc_level_cells)
 
     call dm_set_fv_adjacency(minc_dm)
@@ -1929,11 +1931,13 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine mesh_setup_minc_dm_level_label(self, minc_dm, max_num_levels, &
-       minc_level_cells)
+  subroutine mesh_setup_minc_dm_level_label_and_cell_map(self, minc_dm, &
+       max_num_levels, minc_level_cells)
     !! Sets up minc_level label on MINC DM, with MINC level assigned
     !! to all cells. Non-MINC cells are assigned level 0 (as are
-    !! fracture cells in MINC zones).
+    !! fracture cells in MINC zones). Also creates minc_cell_map
+    !! array, mapping MINC DM cell local indices to their original
+    !! single-porosity cell local indices.
 
     class(mesh_type), intent(in out) :: self
     DM, intent(in out) :: minc_dm
@@ -1941,6 +1945,7 @@ contains
     type(list_type), intent(in out) :: minc_level_cells(0: max_num_levels)
     ! Locals:
     PetscInt :: m, ic, h, c, ghost, minc_p
+    PetscInt :: start_cell, end_cell
     DMLabel :: ghost_label
     PetscErrorCode :: ierr
 
@@ -1950,6 +1955,12 @@ contains
     CHKERRQ(ierr)
 
     h = 0
+    call DMPlexGetHeightStratum(minc_dm, h, start_cell, end_cell, &
+         ierr); CHKERRQ(ierr)
+    associate(num_cells => end_cell - start_cell)
+      allocate(self%minc_cell_map(0: num_cells - 1))
+    end associate
+
     m = 0
     do c = self%strata(h)%start, self%strata(h)%end - 1
        call DMLabelGetValue(ghost_label, c, ghost, ierr)
@@ -1957,6 +1968,7 @@ contains
           minc_p = self%strata(h)%minc_point(c, m)
           call DMSetLabelValue(minc_dm, minc_level_label_name, &
                minc_p, m, ierr); CHKERRQ(ierr)
+          self%minc_cell_map(minc_p) = c
        end if
     end do
 
@@ -1981,12 +1993,13 @@ contains
          minc_p = self%strata(h)%minc_point(ic, m)
          call DMSetLabelValue(minc_dm, minc_level_label_name, &
               minc_p, m, ierr); CHKERRQ(ierr)
+         self%minc_cell_map(minc_p) = c
       end select
       ic = ic + 1
 
     end subroutine minc_level_label_iterator
 
-  end subroutine mesh_setup_minc_dm_level_label
+  end subroutine mesh_setup_minc_dm_level_label_and_cell_map
 
 !------------------------------------------------------------------------
 
