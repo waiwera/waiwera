@@ -55,7 +55,7 @@ module timestepper_module
      PetscInt, public :: num_iterations !! Number of non-linear solver iterations
      PetscInt, public :: status = TIMESTEP_OK !! Step status
      PetscReal, public :: max_residual !! Maximum residual over the mesh cells
-     PetscInt, public :: max_residual_cell !! Cell index at which maximum residual occurs
+     PetscInt, public :: max_residual_cell !! Global cell index at which maximum residual occurs
      PetscInt, public :: max_residual_equation !! Equation number at which maximum residual occurs
    contains
      private
@@ -1448,11 +1448,15 @@ end subroutine timestepper_steps_set_next_stepsize
     PetscReal, intent(in) :: fnorm
     type(timestepper_solver_context_type), intent(in out) :: context
     PetscErrorCode :: ierr
+    ! Locals:
+    PetscInt :: idx(1)
 
     if (num_iterations > 0) then
+       idx = context%steps%current%max_residual_cell
+       call AOPetscToApplication(context%ode%mesh%cell_order, 1, idx, ierr)
        call context%ode%logfile%write(LOG_LEVEL_INFO, 'nonlinear_solver', &
             'iteration', ['count   ', 'cell    ', 'equation'], &
-            [num_iterations, context%steps%current%max_residual_cell, &
+            [num_iterations, idx(1), &
             context%steps%current%max_residual_equation], &
             ['residual'], [context%steps%current%max_residual])
     end if
