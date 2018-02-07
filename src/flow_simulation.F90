@@ -356,8 +356,14 @@ contains
     call self%logfile%write(LOG_LEVEL_INFO, 'input', 'summary', &
          str_key = 'output.filename', &
          str_value = self%output_filename)
-    call self%logfile%write(LOG_LEVEL_INFO, 'input', 'summary', &
-         str_key = 'mesh.filename', str_value = self%mesh%filename)
+    if (self%mesh%has_minc) then
+       call self%logfile%write(LOG_LEVEL_INFO, 'input', 'summary', &
+            str_key = 'mesh.filename', str_value = self%mesh%filename, &
+            logical_keys = ['mesh.minc'], logical_values = [PETSC_TRUE])
+    else
+       call self%logfile%write(LOG_LEVEL_INFO, 'input', 'summary', &
+            str_key = 'mesh.filename', str_value = self%mesh%filename)
+    end if
     call self%logfile%write(LOG_LEVEL_INFO, 'input', 'summary', &
          str_key = 'eos.name', str_value = self%eos%name)
     call self%logfile%write(LOG_LEVEL_INFO, 'input', 'summary', &
