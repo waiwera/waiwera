@@ -128,7 +128,8 @@ contains
             trim(source_variable_names(num_source_variables))
        i = i + 1
     end do
-    if (.not. eos%isothermal) field_names(i) = 'heat_flow'
+    if (.not. eos%isothermal) field_names(i) = 'heat_' // &
+         trim(source_variable_names(num_source_variables))
     call set_dm_data_layout(dm_source, num_field_components, field_dim, &
          field_names)
     call DMCreateGlobalVector(dm_source, source_vector, ierr); CHKERRQ(ierr)
