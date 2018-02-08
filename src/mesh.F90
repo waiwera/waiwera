@@ -91,8 +91,10 @@ module mesh_module
      procedure, public :: set_boundary_values => mesh_set_boundary_values
      procedure, public :: order_vector => mesh_order_vector
      procedure, public :: destroy => mesh_destroy
+     procedure, public :: local_to_fracture_natural => mesh_local_to_fracture_natural
      procedure, public :: global_to_fracture_natural => mesh_global_to_fracture_natural
      procedure, public :: natural_cell_output_arrays =>  mesh_natural_cell_output_arrays
+     procedure, public :: local_cell_minc_level => mesh_local_cell_minc_level
   end type mesh_type
 
 contains
@@ -2733,6 +2735,57 @@ contains
 
 !------------------------------------------------------------------------
 
+  PetscInt function mesh_local_cell_minc_level(self, local) result(minc_level)
+    !! Takes local cell index and returns MINC level. If the mesh is
+    !! not MINC, the returned value is zero.
+
+    class(mesh_type), intent(in out) :: self
+    PetscInt, intent(in) :: local !! Local cell index
+    ! Locals:
+    DMLabel :: minc_level_label
+    PetscErrorCode :: ierr
+
+    if (self%has_minc) then
+       call DMGetLabel(self%dm, minc_level_label_name, &
+            minc_level_label, ierr); CHKERRQ(ierr)
+       call DMLabelGetValue(minc_level_label, local, minc_level, ierr)
+    else
+       minc_level = 0
+    end if
+
+  end function mesh_local_cell_minc_level
+
+!------------------------------------------------------------------------
+
+  PetscInt function mesh_local_to_fracture_natural(self, local) &
+       result(natural)
+    !! Takes a local cell index and returns natural index of the
+    !! corresponding fracture cell. (For a non-MINC mesh, the
+    !! 'fracture' cell is just the original cell itself.)
+
+    use dm_utils_module, only: local_to_natural_cell_index
+
+    class(mesh_type), intent(in out) :: self
+    PetscInt, intent(in) :: local !! Local cell index
+    ! Locals:
+    PetscInt :: fracture_local
+    ISLocalToGlobalMapping :: l2g
+    PetscErrorCode :: ierr
+
+    if (self%has_minc) then
+       fracture_local = self%minc_cell_map(local)
+    else
+       fracture_local = local
+    end if
+
+    call DMGetLocalToGlobalMapping(self%dm, l2g, ierr); CHKERRQ(ierr)
+    natural = local_to_natural_cell_index(self%cell_order, &
+         l2g, fracture_local)
+
+  end function mesh_local_to_fracture_natural
+
+!------------------------------------------------------------------------
+
   subroutine mesh_global_to_fracture_natural(self, global, &
        fracture_natural, minc_level)
     !! Takes a global cell index and returns natural index of
@@ -2740,17 +2793,14 @@ contains
     !! the cell. (For a non-MINC mesh, the 'fracture' cell is just the
     !! original cell itself, and the MINC level is zero.)
 
-    use dm_utils_module, only: local_to_natural_cell_index
-
     class(mesh_type), intent(in out) :: self
     PetscInt, intent(in) :: global !! Global cell index
     PetscInt, intent(out) :: fracture_natural !! Natural index of fracture cell
     PetscInt, intent(out) :: minc_level !! MINC level of cell
     ! Locals:
-    PetscInt :: idx(1), local_array(1), n, fracture_local
+    PetscInt :: idx(1), local_array(1), n
     ISLocalToGlobalMapping :: l2g
     PetscMPIInt :: rank, found_rank, process_found_rank
-    DMLabel :: minc_level_label
     PetscErrorCode :: ierr
 
     idx(1) = global
@@ -2763,12 +2813,8 @@ contains
        associate(c => local_array(1))
          if (c >= 0) then
             if (self%ghost_cell(c) < 0) then
-               fracture_local = self%minc_cell_map(c)
-               fracture_natural = local_to_natural_cell_index(self%cell_order, &
-                    l2g, fracture_local)
-               call DMGetLabel(self%dm, minc_level_label_name, &
-                    minc_level_label, ierr); CHKERRQ(ierr)
-               call DMLabelGetValue(minc_level_label, c, minc_level, ierr)
+               fracture_natural = self%local_to_fracture_natural(c)
+               minc_level = self%local_cell_minc_level(c)
                CHKERRQ(ierr)
                process_found_rank = rank
             end if
