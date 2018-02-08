@@ -1156,7 +1156,8 @@ contains
     Vec, intent(in) :: y !! global primary variables vector
     PetscErrorCode, intent(out) :: err
     ! Locals:
-    PetscInt :: c, np, nc, natural_cell_index, start_cell, end_cell
+    PetscInt :: c, np, nc, natural, minc_level
+    PetscInt :: start_cell, end_cell
     PetscSection :: y_section, fluid_section, rock_section
     PetscInt :: y_offset, fluid_offset, rock_offset
     PetscReal, pointer, contiguous :: y_array(:), scaled_cell_primary(:)
@@ -1164,6 +1165,8 @@ contains
     PetscReal :: cell_primary(self%eos%num_primary_variables)
     type(cell_type) :: cell
     ISLocalToGlobalMapping :: l2g
+    character(len = 6), allocatable :: cell_keys(:)
+    PetscInt, allocatable :: cell_values(:)
     PetscMPIInt :: rank
     PetscErrorCode :: ierr
 
@@ -1214,21 +1217,27 @@ contains
              call self%eos%phase_properties(cell_primary, cell%rock, &
                   cell%fluid, err)
              if (err > 0) then
-                natural_cell_index = local_to_natural_cell_index(&
-                     self%mesh%cell_order, l2g, c)
-                call self%logfile%write(LOG_LEVEL_ERR, 'initialize', &
-                     'fluid_phase_properties', ['cell  ', 'region'], &
-                     [natural_cell_index, int(cell%fluid%region)], &
+                natural = self%mesh%local_to_fracture_natural(c)
+                minc_level = self%mesh%local_cell_minc_level(c)
+                call self%mesh%natural_cell_output_arrays( &
+                     natural, minc_level, cell_keys, cell_values)
+                call self%logfile%write(LOG_LEVEL_ERR, &
+                     'initialize', 'fluid_phase_properties', &
+                     [cell_keys, ['region']], &
+                     [cell_values, [int(cell%fluid%region)]], &
                      real_array_key = 'primary', real_array_value = cell_primary, &
                      rank = rank)
                 exit
              end if
           else
-             natural_cell_index = local_to_natural_cell_index(&
-                  self%mesh%cell_order, l2g, c)
-             call self%logfile%write(LOG_LEVEL_ERR, 'initialize', &
-                  'fluid_bulk_properties', ['cell  ', 'region'], &
-                  [natural_cell_index, int(cell%fluid%region)], &
+             natural = self%mesh%local_to_fracture_natural(c)
+             minc_level = self%mesh%local_cell_minc_level(c)
+             call self%mesh%natural_cell_output_arrays( &
+                  natural, minc_level, cell_keys, cell_values)
+             call self%logfile%write(LOG_LEVEL_ERR, &
+                  'initialize', 'fluid_bulk_properties', &
+                  [cell_keys, ['region']], &
+                  [cell_values, [int(cell%fluid%region)]], &
                   real_array_key = 'primary', real_array_value = cell_primary, &
                   rank = rank)
              exit
@@ -1268,7 +1277,8 @@ contains
     Vec, intent(in) :: y !! global primary variables vector
     PetscErrorCode, intent(out) :: err !! error code
     ! Locals:
-    PetscInt :: c, np, nc, natural_cell_index, start_cell, end_cell
+    PetscInt :: c, np, nc, natural, minc_level
+    PetscInt :: start_cell, end_cell
     PetscSection :: y_section, fluid_section, rock_section, update_section
     PetscInt :: y_offset, fluid_offset, rock_offset, update_offset
     PetscReal, pointer, contiguous :: y_array(:), scaled_cell_primary(:)
@@ -1276,6 +1286,8 @@ contains
     PetscReal :: cell_primary(self%eos%num_primary_variables)
     type(cell_type) :: cell
     ISLocalToGlobalMapping :: l2g
+    character(len = 4), allocatable :: cell_keys(:)
+    PetscInt, allocatable :: cell_values(:)
     PetscMPIInt :: rank
     PetscErrorCode :: ierr
 
@@ -1334,21 +1346,25 @@ contains
                 call self%eos%phase_properties(cell_primary, cell%rock, &
                      cell%fluid, err)
                 if (err > 0) then
-                   natural_cell_index = local_to_natural_cell_index(&
-                        self%mesh%cell_order, l2g, c)
+                   natural = self%mesh%local_to_fracture_natural(c)
+                   minc_level = self%mesh%local_cell_minc_level(c)
+                   call self%mesh%natural_cell_output_arrays( &
+                        natural, minc_level, cell_keys, cell_values)
                    call self%logfile%write(LOG_LEVEL_WARN, 'fluid', &
                         'phase_properties_not_found', &
-                        ['cell            '], [natural_cell_index], &
+                        cell_keys, cell_values, &
                         real_array_key = 'primary         ', &
                         real_array_value = cell_primary, rank = rank)
                    exit
                 end if
              else
-                natural_cell_index = local_to_natural_cell_index(&
-                     self%mesh%cell_order, l2g, c)
+                natural = self%mesh%local_to_fracture_natural(c)
+                minc_level = self%mesh%local_cell_minc_level(c)
+                call self%mesh%natural_cell_output_arrays( &
+                     natural, minc_level, cell_keys, cell_values)
                 call self%logfile%write(LOG_LEVEL_WARN, 'fluid', &
                      'bulk_properties_not_found', &
-                     ['cell            '], [natural_cell_index], &
+                     cell_keys, cell_values, &
                      real_array_key = 'primary         ', &
                      real_array_value = cell_primary, rank = rank)
                 exit
@@ -1391,7 +1407,8 @@ contains
     PetscBool, intent(out) :: changed_search, changed_y
     PetscErrorCode, intent(out) :: err !! Error code
     ! Locals:
-    PetscInt :: c, np, nc, natural_cell_index, start_cell, end_cell
+    PetscInt :: c, np, nc, minc_level, natural
+    PetscInt :: start_cell, end_cell
     PetscSection :: primary_section, fluid_section
     PetscInt :: primary_offset, fluid_offset
     PetscReal, pointer, contiguous :: primary_array(:), old_primary_array(:), search_array(:)
@@ -1401,6 +1418,8 @@ contains
     PetscReal, dimension(self%eos%num_primary_variables) :: cell_primary, old_cell_primary
     type(fluid_type) :: old_fluid, fluid
     PetscBool :: transition
+    character(len = 16), allocatable :: cell_keys(:)
+    PetscInt, allocatable :: cell_values(:)
     ISLocalToGlobalMapping :: l2g
     PetscMPIInt :: rank
     PetscErrorCode :: ierr
@@ -1461,24 +1480,28 @@ contains
              if (err == 0) then
                 if (transition) then
                    changed_y = PETSC_TRUE
-                   natural_cell_index = local_to_natural_cell_index(&
-                        self%mesh%cell_order, l2g, c)
+                   natural = self%mesh%local_to_fracture_natural(c)
+                   minc_level = self%mesh%local_cell_minc_level(c)
+                   call self%mesh%natural_cell_output_arrays( &
+                        natural, minc_level, cell_keys, cell_values)
                    call self%logfile%write(LOG_LEVEL_INFO, 'fluid', &
                         'transition', &
-                        ['cell            ', &
-                        'old_region      ', 'new_region      '], &
-                        [natural_cell_index, &
-                        nint(old_fluid%region), nint(fluid%region)], &
+                        [cell_keys, &
+                        ['old_region      ', 'new_region      ']], &
+                        [cell_values, &
+                        [nint(old_fluid%region), nint(fluid%region)]], &
                         real_array_key = 'new_primary     ', &
                         real_array_value = cell_primary, rank = rank)
                 end if
              else
-                natural_cell_index = local_to_natural_cell_index(&
-                     self%mesh%cell_order, l2g, c)
+                natural = self%mesh%local_to_fracture_natural(c)
+                minc_level = self%mesh%local_cell_minc_level(c)
+                call self%mesh%natural_cell_output_arrays( &
+                     natural, minc_level, cell_keys, cell_values)
                 call self%logfile%write(LOG_LEVEL_WARN, 'fluid', &
                      'out_of_range', &
-                     ['cell            ', 'region          '], &
-                     [natural_cell_index, nint(fluid%region)], &
+                     [cell_keys, ['region          ']], &
+                     [cell_values, [nint(fluid%region)]], &
                      real_array_key = 'primary         ', &
                      real_array_value = cell_primary, rank = rank)
                 exit
@@ -1489,11 +1512,14 @@ contains
                 scaled_cell_search = old_scaled_cell_primary - scaled_cell_primary
              end if
           else
-             natural_cell_index = local_to_natural_cell_index(&
-                  self%mesh%cell_order, l2g, c)
+             natural = self%mesh%local_to_fracture_natural(c)
+             minc_level = self%mesh%local_cell_minc_level(c)
+             call self%mesh%natural_cell_output_arrays( &
+                  natural, minc_level, cell_keys, cell_values)
              call self%logfile%write(LOG_LEVEL_WARN, 'fluid', &
                   'transition_failed', &
-                  ['cell  ', 'region'], [natural_cell_index, nint(fluid%region)], &
+                  [cell_keys, ['region          ']], &
+                  [cell_values, [nint(fluid%region)]], &
                   real_array_key = 'primary', real_array_value = cell_primary, &
                   rank = rank)
              exit
