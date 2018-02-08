@@ -91,6 +91,7 @@ module mesh_module
      procedure, public :: set_boundary_values => mesh_set_boundary_values
      procedure, public :: order_vector => mesh_order_vector
      procedure, public :: destroy => mesh_destroy
+     procedure, public :: global_to_fracture_natural => mesh_global_to_fracture_natural
   end type mesh_type
 
 contains
@@ -2728,6 +2729,63 @@ contains
     end if
 
   end subroutine mesh_setup_minc_point_sf
+
+!------------------------------------------------------------------------
+
+  subroutine mesh_global_to_fracture_natural(self, global, &
+       fracture_natural, minc_level)
+    !! Takes a global cell index and returns natural index of
+    !! corresponding fracture cell, together with the MINC level of
+    !! the cell. (For a non-MINC mesh, the 'fracture' cell is just the
+    !! original cell itself, and the MINC level is zero.)
+
+    use dm_utils_module, only: local_to_natural_cell_index
+
+    class(mesh_type), intent(in out) :: self
+    PetscInt, intent(in) :: global !! Global cell index
+    PetscInt, intent(out) :: fracture_natural !! Natural index of fracture cell
+    PetscInt, intent(out) :: minc_level !! MINC level of cell
+    ! Locals:
+    PetscInt :: idx(1), local_array(1), n, fracture_local
+    ISLocalToGlobalMapping :: l2g
+    PetscMPIInt :: rank, found_rank, process_found_rank
+    DMLabel :: minc_level_label
+    PetscErrorCode :: ierr
+
+    idx(1) = global
+    if (self%has_minc) then
+       call MPI_comm_rank(PETSC_COMM_WORLD, rank, ierr)
+       process_found_rank = 0
+       call DMGetLocalToGlobalMapping(self%dm, l2g, ierr); CHKERRQ(ierr)
+       call ISGlobalToLocalMappingApplyBlock(l2g, IS_GTOLM_MASK, 1, &
+            idx, n, local_array, ierr); CHKERRQ(ierr)
+       associate(c => local_array(1))
+         if (c >= 0) then
+            if (self%ghost_cell(c) < 0) then
+               fracture_local = self%minc_cell_map(c)
+               fracture_natural = local_to_natural_cell_index(self%cell_order, &
+                    l2g, fracture_local)
+               call DMGetLabel(self%dm, minc_level_label_name, &
+                    minc_level_label, ierr); CHKERRQ(ierr)
+               call DMLabelGetValue(minc_level_label, c, minc_level, ierr)
+               CHKERRQ(ierr)
+               process_found_rank = rank
+            end if
+         end if
+         call MPI_Allreduce(process_found_rank, found_rank, 1, MPI_INT, &
+              MPI_MAX, PETSC_COMM_WORLD, ierr)
+         call MPI_bcast(fracture_natural, 1, MPI_LOGICAL, found_rank, &
+            PETSC_COMM_WORLD, ierr)
+         call MPI_bcast(minc_level, 1, MPI_LOGICAL, found_rank, &
+            PETSC_COMM_WORLD, ierr)
+       end associate
+    else
+       call AOPetscToApplication(self%cell_order, 1, idx, ierr); CHKERRQ(ierr)
+       fracture_natural = idx(1)
+       minc_level = 0
+    end if
+
+  end subroutine mesh_global_to_fracture_natural
 
 !------------------------------------------------------------------------
 
