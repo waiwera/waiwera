@@ -169,7 +169,7 @@ contains
       PetscBool :: can_inject
       PetscInt :: injection_component, production_component
       PetscReal :: initial_rate, initial_enthalpy
-      PetscInt :: i, s, source_offset
+      PetscInt :: i, source_offset
       PetscInt, allocatable :: source_indices(:)
 
       select type (spec => node%data)
@@ -184,11 +184,10 @@ contains
          associate(num_spec_sources => size(spec%cell_natural_index))
            allocate(source_indices(num_spec_sources))
            do i = 1, num_spec_sources
-              s = spec%spec_index
-              call global_section_offset(source_section, s, &
+              call global_section_offset(source_section, local_source_index, &
                    source_range_start, source_offset, ierr); CHKERRQ(ierr)
               call source%assign(source_data, source_offset)
-              call source%setup(s, spec%cell_natural_index(i), &
+              call source%setup(spec%spec_index, spec%cell_natural_index(i), &
                    spec%cell_local_index(i), initial_rate, initial_enthalpy, &
                    injection_component, production_component)
               source_indices(i) = local_source_index
