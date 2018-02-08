@@ -16,7 +16,8 @@ module mesh_test
   public :: test_mesh_init, test_2d_cartesian_geometry, &
        test_2d_radial_geometry, test_mesh_face_permeability_direction, &
        test_setup_minc_dm, test_minc_rock, &
-       test_rock_assignment, test_cell_order, test_minc_cell_order
+       test_rock_assignment, test_cell_order, test_minc_cell_order, &
+       test_global_to_fracture_natural
 
   PetscReal, parameter :: tol = 1.e-6_dp
 
@@ -1296,7 +1297,7 @@ contains
                     minc_natural = local_to_natural_cell_index(mesh%cell_order, l2g, p)
                     expected_natural = expected_minc_order(m, natural)
                     call assert_equals(expected_natural, minc_natural, &
-                         'minc natural' // title // trim(natural_str))
+                         'minc natural ' // title // ' ' // trim(natural_str))
                     ic(m) = ic(m) + 1
                  end do
                end associate
@@ -1312,6 +1313,99 @@ contains
     end subroutine minc_cell_order_test_case
 
   end subroutine test_minc_cell_order
+
+!------------------------------------------------------------------------
+
+  subroutine test_global_to_fracture_natural
+    ! global_to_fracture_natural()
+
+    use fson_mpi_module
+    use IAPWS_module
+    use eos_we_module
+
+    character(:), allocatable :: json_str
+
+    json_str = &
+         '{"mesh": {"filename": "data/mesh/7x7grid.exo"}}'
+    call global_to_fracture_natural_test_case(json_str, 'single porosity', &
+         [0, 10, 46], [0, 10, 46], [0, 0, 0])
+
+    json_str = &
+         '{"mesh": {"filename": "data/mesh/7x7grid.exo",' // &
+         '  "zones": {"all": {"-": null}},' // &
+         '  "minc": {"rock": {"zones": ["all"]}, ' // &
+         '           "geometry": {"fracture": {"volume": 0.1}}}}}'
+    call global_to_fracture_natural_test_case(json_str, 'MINC all no bdy', &
+         [0, 10, 46, 49, 59, 95], [0, 10, 46, 0, 10, 46], [0, 0, 0, 1, 1, 1])
+    
+    json_str = &
+         '{"mesh": {"filename": "data/mesh/7x7grid.exo",' // &
+         '  "zones": {"all": {"-": null}},' // &
+         '  "minc": {"rock": {"zones": ["all"]}, ' // &
+         '           "geometry": {"fracture": {"volume": 0.1}}}}, ' // &
+         '"boundaries": [{"faces": {"cells": [0, 1, 2, 3, 4, 5], ' // &
+         '  "normal": [0, -1, 0]}}]' // &
+         '}'
+    call global_to_fracture_natural_test_case(json_str, 'MINC all bdy', &
+         [0, 10, 46, 49, 59, 95], [0, 10, 46, 0, 10, 46], [0, 0, 0, 1, 1, 1])
+
+    json_str = &
+         '{"mesh": {"filename": "data/mesh/7x7grid.exo",' // &
+         '  "zones": {"sw": {"x": [0, 3000], "y": [0, 1500]}},' // &
+         '  "minc": {"rock": {"zones": ["sw"]}, ' // &
+         '           "geometry": {"fracture": {"volume": 0.1}}}}}'
+    call global_to_fracture_natural_test_case(json_str, 'MINC partial no bdy', &
+         [0, 10, 46, 49, 58], [0, 10, 46, 0, 11], [0, 0, 0, 1, 1])
+
+  contains
+
+    subroutine global_to_fracture_natural_test_case(json_str, title, &
+         natural_indices, expected_fracture_natural_indices, &
+         expected_minc_levels)
+
+      character(*), intent(in) :: json_str
+      character(*), intent(in) :: title
+      PetscInt, intent(in) :: natural_indices(:)
+      PetscInt, intent(in) :: expected_fracture_natural_indices(:)
+      PetscInt, intent(in) :: expected_minc_levels(:)
+      ! Locals:
+      type(mesh_type) :: mesh
+      type(IAPWS_type) :: thermo
+      type(eos_we_type) :: eos
+      type(fson_value), pointer :: json
+      PetscViewer :: viewer
+      PetscInt :: i, idx(1), natural, global, minc_level
+      PetscErrorCode :: err, ierr
+      character(2) :: natural_str
+      PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
+
+      json => fson_parse_mpi(str = json_str)
+      call thermo%init()
+      call eos%init(json, thermo)
+      viewer = PETSC_NULL_VIEWER
+      call mesh%init(json)
+      call mesh%configure(eos, gravity, json, viewer = viewer, err = err)
+      call fson_destroy_mpi(json)
+
+      do i = 1, size(natural_indices)
+         idx(1) = natural_indices(i)
+         write(natural_str, '(i2)') idx(1)
+         call AOApplicationToPetsc(mesh%cell_order, 1, idx, ierr); CHKERRQ(ierr)
+         global = idx(1)
+         call mesh%global_to_fracture_natural(global, natural, minc_level)
+         call assert_equals(expected_fracture_natural_indices(i), natural, &
+              trim(title) // ' ' // trim(natural_str) // ' natural')
+         call assert_equals(expected_minc_levels(i), minc_level, trim(title) &
+              // ' ' // trim(natural_str) // ' minc level')
+      end do
+
+      call mesh%destroy()
+      call eos%destroy()
+      call thermo%destroy()
+
+    end subroutine global_to_fracture_natural_test_case
+
+  end subroutine test_global_to_fracture_natural
 
 !------------------------------------------------------------------------
 

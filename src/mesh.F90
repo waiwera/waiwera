@@ -50,6 +50,7 @@ module mesh_module
      IS, public :: cell_index !! Index set defining natural to global cell ordering
      AO, public :: cell_order !! Application ordering to convert between global and natural cell indices
      AO, public :: original_cell_order !! Global-to-natural AO for original DM
+     PetscInt, allocatable, public :: minc_cell_map(:) !! Mapping from MINC cell local indices to original single-porosity cell local indices
      PetscInt, public, allocatable :: ghost_cell(:), ghost_face(:) !! Ghost label values for cells and faces
      type(minc_type), allocatable, public :: minc(:) !! Array of MINC zones, with parameters
      PetscReal, public :: permeability_rotation(3, 3) !! Rotation matrix of permeability axes
@@ -79,7 +80,7 @@ module mesh_module
      procedure :: set_minc_dm_cones => mesh_set_minc_dm_cones
      procedure :: setup_minc_dm_depth_label => mesh_setup_minc_dm_depth_label
      procedure :: transfer_labels_to_minc_dm => mesh_transfer_labels_to_minc_dm
-     procedure :: setup_minc_dm_level_label => mesh_setup_minc_dm_level_label
+     procedure :: setup_minc_dm_level_label_and_cell_map => mesh_setup_minc_dm_level_label_and_cell_map
      procedure :: setup_minc_dm_cell_order => mesh_setup_minc_dm_cell_order
      procedure :: setup_minc_geometry => mesh_setup_minc_geometry
      procedure :: setup_minc_rock_properties => mesh_setup_minc_rock_properties
@@ -90,6 +91,10 @@ module mesh_module
      procedure, public :: set_boundary_values => mesh_set_boundary_values
      procedure, public :: order_vector => mesh_order_vector
      procedure, public :: destroy => mesh_destroy
+     procedure, public :: local_to_fracture_natural => mesh_local_to_fracture_natural
+     procedure, public :: global_to_fracture_natural => mesh_global_to_fracture_natural
+     procedure, public :: natural_cell_output_arrays =>  mesh_natural_cell_output_arrays
+     procedure, public :: local_cell_minc_level => mesh_local_cell_minc_level
   end type mesh_type
 
 contains
@@ -667,6 +672,7 @@ contains
        call AODestroy(self%original_cell_order, ierr); CHKERRQ(ierr)
        call self%destroy_minc()
        call self%destroy_strata()
+       deallocate(self%minc_cell_map)
     end if
     call self%zones%destroy(mesh_zones_node_data_destroy)
 
@@ -1440,7 +1446,7 @@ contains
     call self%transfer_labels_to_minc_dm(minc_dm, max_num_levels)
     call self%setup_minc_dm_depth_label(minc_dm, max_num_levels, &
          minc_level_cells)
-    call self%setup_minc_dm_level_label(minc_dm, max_num_levels, &
+    call self%setup_minc_dm_level_label_and_cell_map(minc_dm, max_num_levels, &
          minc_level_cells)
 
     call dm_set_fv_adjacency(minc_dm)
@@ -1929,11 +1935,13 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine mesh_setup_minc_dm_level_label(self, minc_dm, max_num_levels, &
-       minc_level_cells)
+  subroutine mesh_setup_minc_dm_level_label_and_cell_map(self, minc_dm, &
+       max_num_levels, minc_level_cells)
     !! Sets up minc_level label on MINC DM, with MINC level assigned
     !! to all cells. Non-MINC cells are assigned level 0 (as are
-    !! fracture cells in MINC zones).
+    !! fracture cells in MINC zones). Also creates minc_cell_map
+    !! array, mapping MINC DM cell local indices to their original
+    !! single-porosity cell local indices.
 
     class(mesh_type), intent(in out) :: self
     DM, intent(in out) :: minc_dm
@@ -1941,6 +1949,7 @@ contains
     type(list_type), intent(in out) :: minc_level_cells(0: max_num_levels)
     ! Locals:
     PetscInt :: m, ic, h, c, ghost, minc_p
+    PetscInt :: start_cell, end_cell
     DMLabel :: ghost_label
     PetscErrorCode :: ierr
 
@@ -1950,6 +1959,12 @@ contains
     CHKERRQ(ierr)
 
     h = 0
+    call DMPlexGetHeightStratum(minc_dm, h, start_cell, end_cell, &
+         ierr); CHKERRQ(ierr)
+    associate(num_cells => end_cell - start_cell)
+      allocate(self%minc_cell_map(0: num_cells - 1))
+    end associate
+
     m = 0
     do c = self%strata(h)%start, self%strata(h)%end - 1
        call DMLabelGetValue(ghost_label, c, ghost, ierr)
@@ -1957,6 +1972,7 @@ contains
           minc_p = self%strata(h)%minc_point(c, m)
           call DMSetLabelValue(minc_dm, minc_level_label_name, &
                minc_p, m, ierr); CHKERRQ(ierr)
+          self%minc_cell_map(minc_p) = c
        end if
     end do
 
@@ -1981,12 +1997,13 @@ contains
          minc_p = self%strata(h)%minc_point(ic, m)
          call DMSetLabelValue(minc_dm, minc_level_label_name, &
               minc_p, m, ierr); CHKERRQ(ierr)
+         self%minc_cell_map(minc_p) = c
       end select
       ic = ic + 1
 
     end subroutine minc_level_label_iterator
 
-  end subroutine mesh_setup_minc_dm_level_label
+  end subroutine mesh_setup_minc_dm_level_label_and_cell_map
 
 !------------------------------------------------------------------------
 
@@ -2715,6 +2732,134 @@ contains
     end if
 
   end subroutine mesh_setup_minc_point_sf
+
+!------------------------------------------------------------------------
+
+  PetscInt function mesh_local_cell_minc_level(self, local) result(minc_level)
+    !! Takes local cell index and returns MINC level. If the mesh is
+    !! not MINC, the returned value is zero.
+
+    class(mesh_type), intent(in out) :: self
+    PetscInt, intent(in) :: local !! Local cell index
+    ! Locals:
+    DMLabel :: minc_level_label
+    PetscErrorCode :: ierr
+
+    if (self%has_minc) then
+       call DMGetLabel(self%dm, minc_level_label_name, &
+            minc_level_label, ierr); CHKERRQ(ierr)
+       call DMLabelGetValue(minc_level_label, local, minc_level, ierr)
+    else
+       minc_level = 0
+    end if
+
+  end function mesh_local_cell_minc_level
+
+!------------------------------------------------------------------------
+
+  PetscInt function mesh_local_to_fracture_natural(self, local) &
+       result(natural)
+    !! Takes a local cell index and returns natural index of the
+    !! corresponding fracture cell. (For a non-MINC mesh, the
+    !! 'fracture' cell is just the original cell itself.)
+
+    use dm_utils_module, only: local_to_natural_cell_index
+
+    class(mesh_type), intent(in out) :: self
+    PetscInt, intent(in) :: local !! Local cell index
+    ! Locals:
+    PetscInt :: fracture_local
+    ISLocalToGlobalMapping :: l2g
+    PetscErrorCode :: ierr
+
+    if (self%has_minc) then
+       fracture_local = self%minc_cell_map(local)
+    else
+       fracture_local = local
+    end if
+
+    call DMGetLocalToGlobalMapping(self%dm, l2g, ierr); CHKERRQ(ierr)
+    natural = local_to_natural_cell_index(self%cell_order, &
+         l2g, fracture_local)
+
+  end function mesh_local_to_fracture_natural
+
+!------------------------------------------------------------------------
+
+  subroutine mesh_global_to_fracture_natural(self, global, &
+       fracture_natural, minc_level)
+    !! Takes a global cell index and returns natural index of
+    !! corresponding fracture cell, together with the MINC level of
+    !! the cell. (For a non-MINC mesh, the 'fracture' cell is just the
+    !! original cell itself, and the MINC level is zero.)
+
+    class(mesh_type), intent(in out) :: self
+    PetscInt, intent(in) :: global !! Global cell index
+    PetscInt, intent(out) :: fracture_natural !! Natural index of fracture cell
+    PetscInt, intent(out) :: minc_level !! MINC level of cell
+    ! Locals:
+    PetscInt :: idx(1), local_array(1), n
+    ISLocalToGlobalMapping :: l2g
+    PetscMPIInt :: rank, found_rank, process_found_rank
+    PetscErrorCode :: ierr
+
+    idx(1) = global
+    if (self%has_minc) then
+       call MPI_comm_rank(PETSC_COMM_WORLD, rank, ierr)
+       process_found_rank = 0
+       call DMGetLocalToGlobalMapping(self%dm, l2g, ierr); CHKERRQ(ierr)
+       call ISGlobalToLocalMappingApplyBlock(l2g, IS_GTOLM_MASK, 1, &
+            idx, n, local_array, ierr); CHKERRQ(ierr)
+       associate(c => local_array(1))
+         if (c >= 0) then
+            if (self%ghost_cell(c) < 0) then
+               fracture_natural = self%local_to_fracture_natural(c)
+               minc_level = self%local_cell_minc_level(c)
+               CHKERRQ(ierr)
+               process_found_rank = rank
+            end if
+         end if
+         call MPI_Allreduce(process_found_rank, found_rank, 1, MPI_INT, &
+              MPI_MAX, PETSC_COMM_WORLD, ierr)
+         call MPI_bcast(fracture_natural, 1, MPI_LOGICAL, found_rank, &
+            PETSC_COMM_WORLD, ierr)
+         call MPI_bcast(minc_level, 1, MPI_LOGICAL, found_rank, &
+            PETSC_COMM_WORLD, ierr)
+       end associate
+    else
+       call AOPetscToApplication(self%cell_order, 1, idx, ierr); CHKERRQ(ierr)
+       fracture_natural = idx(1)
+       minc_level = 0
+    end if
+
+  end subroutine mesh_global_to_fracture_natural
+
+!------------------------------------------------------------------------
+
+  subroutine mesh_natural_cell_output_arrays(self, natural, minc_level, &
+       keys, values)
+    !! Takes a natural cell index and MINC level, and returns arrays
+    !! of keys and values for output. If the mesh is MINC, these
+    !! arrays have two entries, one for natural cell index
+    !! and one for MINC level; otherwise, the arrays have only one
+    !! entry each, for natural cell index. These arrays are intended
+    !! for output to logfile.
+
+    class(mesh_type), intent(in out) :: self
+    PetscInt, intent(in) :: natural !! Natural cell index
+    PetscInt, intent(in) :: minc_level !! MINC level
+    character(len = *), allocatable :: keys(:) !! Key array
+    PetscInt, allocatable :: values(:)
+
+    if (self%has_minc) then
+       keys = ['cell', 'minc']
+       values = [natural, minc_level]
+    else
+       keys = ['cell']
+       values = [natural]
+    end if
+
+  end subroutine mesh_natural_cell_output_arrays
 
 !------------------------------------------------------------------------
 
