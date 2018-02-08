@@ -802,6 +802,8 @@ contains
        call ts%init(json, self)
        ts%before_step_output => NULL()
        ts%after_step_output => timestepper_step_output
+       call SNESMonitorSet(ts%solver, PETSC_NULL_FUNCTION, 0, &
+            PETSC_NULL_FUNCTION, ierr); CHKERRQ(ierr)
  
        call ts%run()
 
