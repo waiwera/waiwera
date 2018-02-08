@@ -1449,16 +1449,26 @@ end subroutine timestepper_steps_set_next_stepsize
     type(timestepper_solver_context_type), intent(in out) :: context
     PetscErrorCode :: ierr
     ! Locals:
-    PetscInt :: idx(1)
+    PetscInt :: natural, minc_level
 
     if (num_iterations > 0) then
-       idx = context%steps%current%max_residual_cell
-       call AOPetscToApplication(context%ode%mesh%cell_order, 1, idx, ierr)
-       call context%ode%logfile%write(LOG_LEVEL_INFO, 'nonlinear_solver', &
-            'iteration', ['count   ', 'cell    ', 'equation'], &
-            [num_iterations, idx(1), &
-            context%steps%current%max_residual_equation], &
-            ['residual'], [context%steps%current%max_residual])
+       associate(mesh => context%ode%mesh)
+         call mesh%global_to_fracture_natural( &
+              context%steps%current%max_residual_cell, natural, minc_level)
+         if (mesh%has_minc) then
+            call context%ode%logfile%write(LOG_LEVEL_INFO, 'nonlinear_solver', &
+                 'iteration', ['count   ', 'cell    ', 'minc    ', 'equation'], &
+                 [num_iterations, natural, minc_level, &
+                 context%steps%current%max_residual_equation], &
+                 ['residual'], [context%steps%current%max_residual])
+         else
+            call context%ode%logfile%write(LOG_LEVEL_INFO, 'nonlinear_solver', &
+                 'iteration', ['count   ', 'cell    ', 'equation'], &
+                 [num_iterations, natural, &
+                 context%steps%current%max_residual_equation], &
+                 ['residual'], [context%steps%current%max_residual])
+         end if
+       end associate
     end if
     call context%ode%logfile%flush()
 
