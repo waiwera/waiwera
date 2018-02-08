@@ -182,7 +182,7 @@ module timestepper_module
   type, public :: timestepper_type
      !! Timestepper class.
      private
-     SNES :: solver
+     SNES, public :: solver
      Vec :: residual
      Mat :: jacobian
      type(timestepper_solver_context_type) :: context
