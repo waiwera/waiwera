@@ -605,7 +605,7 @@ contains
                       call setup_sources(json, self%mesh%dm, self%mesh%cell_order, &
                            self%eos, self%thermo, self%time, self%fluid, &
                            self%fluid_range_start, self%source, self%source_range_start, &
-                           self%source_controls, self%logfile, err)
+                           self%num_sources, self%source_controls, self%logfile, err)
                    end if
                 end if
              end if

@@ -44,7 +44,7 @@ contains
 
   subroutine setup_sources(json, dm, ao, eos, thermo, start_time, &
        fluid_vector, fluid_range_start, source_vector, source_range_start, &
-       source_controls, logfile, err)
+       num_sources, source_controls, logfile, err)
     !! Sets up sinks / sources and source controls.
 
     use dm_utils_module, only: global_vec_section, global_vec_range_start, &
@@ -76,9 +76,8 @@ contains
     DM :: dm_source
     type(source_type) :: source
     PetscInt :: i, j, spec_index, local_source_index
-    PetscInt :: total_num_cell_sources
     type(fson_value), pointer :: sources_json, source_json
-    PetscInt :: num_sources, num_cells
+    PetscInt :: num_sources, num_cells, num_source_specs, num_spec_sources
     PetscInt, allocatable :: cell_natural_index(:), cell_local_index(:)
     PetscReal, pointer, contiguous :: fluid_data(:), source_data(:)
     PetscSection :: fluid_section, source_section
@@ -87,16 +86,16 @@ contains
     character(max_field_name_length), allocatable :: field_names(:)
     PetscErrorCode :: ierr
 
-    total_num_cell_sources = 0
+    num_sources = 0
     call source%init(eos)
     call source_list%init(owner = PETSC_TRUE)
 
     if (fson_has_mpi(json, "source")) then
 
        call fson_get_mpi(json, "source", sources_json)
-       num_sources = fson_value_count_mpi(sources_json, ".")
+       num_source_specs = fson_value_count_mpi(sources_json, ".")
        source_json => fson_value_children_mpi(sources_json)
-       do spec_index = 0, num_sources - 1
+       do spec_index = 0, num_source_specs - 1
           call get_cells(source_json, dm, ao, cell_natural_index, &
                cell_local_index, num_cells)
           if (num_cells > 0) then
@@ -106,14 +105,14 @@ contains
              spec%cell_local_index = cell_local_index
              spec%json => source_json
              call source_list%append(spec)
-             total_num_cell_sources = total_num_cell_sources + num_cells
+             num_sources = num_sources + num_cells
           end if
           source_json => fson_value_next_mpi(source_json)
        end do
 
     end if
 
-    call create_path_dm(total_num_cell_sources, dm_source)
+    call create_path_dm(num_sources, dm_source)
 
     allocate(num_field_components(source%dof), field_dim(source%dof), &
          field_names(source%dof))
@@ -182,9 +181,9 @@ contains
          call get_initial_rate(spec%json, initial_rate, can_inject)
          call get_initial_enthalpy(spec%json, eos, can_inject, &
               injection_component, initial_enthalpy)
-         associate(num_sources => size(spec%cell_natural_index))
-           allocate(source_indices(num_sources))
-           do i = 1, num_sources
+         associate(num_spec_sources => size(spec%cell_natural_index))
+           allocate(source_indices(num_spec_sources))
+           do i = 1, num_spec_sources
               s = spec%spec_index
               call global_section_offset(source_section, s, &
                    source_range_start, source_offset, ierr); CHKERRQ(ierr)
