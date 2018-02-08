@@ -50,7 +50,7 @@ module mesh_module
      IS, public :: cell_index !! Index set defining natural to global cell ordering
      AO, public :: cell_order !! Application ordering to convert between global and natural cell indices
      AO, public :: original_cell_order !! Global-to-natural AO for original DM
-     PetscInt, allocatable :: minc_cell_map(:) !! Mapping from MINC cell local indices to original single-porosity cell local indices
+     PetscInt, allocatable, public :: minc_cell_map(:) !! Mapping from MINC cell local indices to original single-porosity cell local indices
      PetscInt, public, allocatable :: ghost_cell(:), ghost_face(:) !! Ghost label values for cells and faces
      type(minc_type), allocatable, public :: minc(:) !! Array of MINC zones, with parameters
      PetscReal, public :: permeability_rotation(3, 3) !! Rotation matrix of permeability axes
