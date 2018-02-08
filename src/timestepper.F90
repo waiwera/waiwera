@@ -1450,24 +1450,22 @@ end subroutine timestepper_steps_set_next_stepsize
     PetscErrorCode :: ierr
     ! Locals:
     PetscInt :: natural, minc_level
+    character(len = 8), allocatable :: cell_keys(:)
+    PetscInt, allocatable :: cell_values(:)
 
     if (num_iterations > 0) then
        associate(mesh => context%ode%mesh)
          call mesh%global_to_fracture_natural( &
-              context%steps%current%max_residual_cell, natural, minc_level)
-         if (mesh%has_minc) then
-            call context%ode%logfile%write(LOG_LEVEL_INFO, 'nonlinear_solver', &
-                 'iteration', ['count   ', 'cell    ', 'minc    ', 'equation'], &
-                 [num_iterations, natural, minc_level, &
-                 context%steps%current%max_residual_equation], &
-                 ['residual'], [context%steps%current%max_residual])
-         else
-            call context%ode%logfile%write(LOG_LEVEL_INFO, 'nonlinear_solver', &
-                 'iteration', ['count   ', 'cell    ', 'equation'], &
-                 [num_iterations, natural, &
-                 context%steps%current%max_residual_equation], &
-                 ['residual'], [context%steps%current%max_residual])
-         end if
+              context%steps%current%max_residual_cell, &
+              natural, minc_level)
+         call mesh%natural_cell_output_arrays( &
+              natural, minc_level, cell_keys, cell_values)
+         call context%ode%logfile%write(LOG_LEVEL_INFO, &
+              'nonlinear_solver', 'iteration', &
+              [['count   '], cell_keys, ['equation']], &
+              [[num_iterations], cell_values, &
+              [context%steps%current%max_residual_equation]], &
+              ['residual'], [context%steps%current%max_residual])
        end associate
     end if
     call context%ode%logfile%flush()

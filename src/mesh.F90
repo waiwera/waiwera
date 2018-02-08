@@ -92,6 +92,7 @@ module mesh_module
      procedure, public :: order_vector => mesh_order_vector
      procedure, public :: destroy => mesh_destroy
      procedure, public :: global_to_fracture_natural => mesh_global_to_fracture_natural
+     procedure, public :: natural_cell_output_arrays =>  mesh_natural_cell_output_arrays
   end type mesh_type
 
 contains
@@ -2786,6 +2787,33 @@ contains
     end if
 
   end subroutine mesh_global_to_fracture_natural
+
+!------------------------------------------------------------------------
+
+  subroutine mesh_natural_cell_output_arrays(self, natural, minc_level, &
+       keys, values)
+    !! Takes a natural cell index and MINC level, and returns arrays
+    !! of keys and values for output. If the mesh is MINC, these
+    !! arrays have two entries, one for natural cell index
+    !! and one for MINC level; otherwise, the arrays have only one
+    !! entry each, for natural cell index. These arrays are intended
+    !! for output to logfile.
+
+    class(mesh_type), intent(in out) :: self
+    PetscInt, intent(in) :: natural !! Natural cell index
+    PetscInt, intent(in) :: minc_level !! MINC level
+    character(len = *), allocatable :: keys(:) !! Key array
+    PetscInt, allocatable :: values(:)
+
+    if (self%has_minc) then
+       keys = ['cell', 'minc']
+       values = [natural, minc_level]
+    else
+       keys = ['cell']
+       values = [natural]
+    end if
+
+  end subroutine mesh_natural_cell_output_arrays
 
 !------------------------------------------------------------------------
 
