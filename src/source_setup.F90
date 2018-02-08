@@ -1025,7 +1025,7 @@ contains
              allocate(separator)
              call separator%init(s, thermo, separator_pressure)
              call source_controls%append(separator)
-             call limiter%init_control(limiter_type, separator, limit, [s])
+             call limiter%init(limiter_type, separator, limit, [s])
           end if
           call source_controls%append(limiter)
 

@@ -150,8 +150,9 @@ module source_control_module
    contains
      private
      procedure :: rate_scale => source_control_limiter_rate_scale
-     procedure, public :: init => source_control_limiter_init
-     procedure, public :: init_control => source_control_limiter_init_control
+     generic, public :: init => init_source, init_control
+     procedure :: init_source => source_control_limiter_init_source
+     procedure :: init_control => source_control_limiter_init_control
      procedure, public :: destroy => source_control_limiter_destroy
      procedure, public :: update => source_control_limiter_update
      procedure :: get_rate => source_control_limiter_get_rate
@@ -771,7 +772,7 @@ contains
 ! Limiter source control:
 !------------------------------------------------------------------------
 
-  subroutine source_control_limiter_init(self, limiter_type, &
+  subroutine source_control_limiter_init_source(self, limiter_type, &
        input_source_index, limit, source_indices)
     !! Initialises source_control_limiter object, with input taken
     !! from a source.
@@ -787,7 +788,7 @@ contains
     self%limit = limit
     self%source_indices = source_indices
 
-  end subroutine source_control_limiter_init
+  end subroutine source_control_limiter_init_source
 
 !------------------------------------------------------------------------
 
