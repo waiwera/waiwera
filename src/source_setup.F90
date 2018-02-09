@@ -117,7 +117,7 @@ contains
     allocate(num_field_components(source%dof), field_dim(source%dof), &
          field_names(source%dof))
     num_field_components = 1
-    field_dim = 1
+    field_dim = 0
     field_names(1: num_source_variables - 1) = &
          source_variable_names(1: num_source_variables - 1) ! scalar fields
     i = num_source_variables
