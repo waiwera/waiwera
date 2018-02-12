@@ -40,9 +40,11 @@ contains
     type(mesh_type) :: mesh
     Vec :: fluid_vector, local_fluid_vector
     PetscSection :: fluid_section, local_fluid_section
-    PetscInt :: start_cell, end_cell, c, fluid_offset, fluid_range_start
+    PetscInt :: start_cell, end_cell, c
+    PetscInt :: fluid_offset, fluid_range_start, source_offset, source_range_start
     PetscReal, allocatable :: fluid_cell_data(:)
     PetscReal, pointer, contiguous :: fluid_array(:), local_fluid_array(:)
+    PetscReal, pointer, contiguous :: source_data(:)
     PetscErrorCode :: ierr, err
     PetscInt, parameter :: offset = 1
     PetscReal, parameter :: tol = 1.e-6_dp
@@ -87,6 +89,10 @@ contains
     call VecGetArrayReadF90(local_fluid_vector, local_fluid_array, ierr)
     CHKERRQ(ierr)
 
+    call source%init(eos)
+    allocate(source_data(source%dof))
+    call source%assign(source_data, 1)
+    
     if (rank == 0) then
 
        call source_flow_test("inject 1", 10._dp, 200.e3_dp, 1, 0, &
@@ -112,6 +118,8 @@ contains
 
     end if
 
+    call source%destroy()
+    deallocate(source_data)
     call fluid%destroy()
     call VecRestoreArrayReadF90(local_fluid_vector, local_fluid_array, ierr)
     CHKERRQ(ierr)
@@ -134,14 +142,13 @@ contains
       PetscReal, intent(in) :: flow(:)
       PetscInt, intent(in) :: component
 
-      call source%init(0, 0, eos, rate, enthalpy, &
+      call source%setup(0, 0, 0, rate, enthalpy, &
            injection_component, production_component)
       call source%update_flow(local_fluid_array, local_fluid_section)
       call assert_equals(flow, source%flow, &
            eos%num_primary_variables, tol, trim(tag) // " flow")
-      call assert_equals(component, source%component, &
+      call assert_equals(component, nint(source%component), &
            trim(tag) // " component")
-      call source%destroy()
 
     end subroutine source_flow_test
 
