@@ -88,7 +88,7 @@ module source_control_module
      !! Controls a source by comparing fluid pressure with a reference
      !! pressure (e.g. deliverability or recharge).
      private
-     PetscInt, public :: source_index !! Index of source
+     PetscInt, public :: local_source_index !! Index of source
      type(interpolation_table_type), public :: reference_pressure !! Reference pressure vs. time
    contains
      procedure, public :: set_reference_pressure_initial => &
@@ -123,7 +123,7 @@ module source_control_module
   type, public, extends(source_control_type) :: source_control_separator_type
      !! Takes flow from a single source and outputs water and steam flow.
      private
-     PetscInt :: source_index
+     PetscInt :: local_source_index
      class(thermodynamics_type), pointer :: thermo
      PetscReal, public :: separator_pressure !! Separator pressure
      PetscReal :: water_enthalpy !! Enthalpy of water at separator pressure
@@ -142,8 +142,8 @@ module source_control_module
      !! Limits total flow, or separated steam or water flow (output
      !! from a separator) through a source.
      private
-     PetscInt, allocatable, public :: source_indices(:) !! Source indices
-     PetscInt, public :: input_source_index !! Index of source to be used as input
+     PetscInt, allocatable, public :: local_source_indices(:) !! Local source indices
+     PetscInt, public :: input_local_source_index !! Local index of source to be used as input
      class(source_control_type), pointer :: input_source_control !! Source control to be used as input
      PetscInt, public :: type !! Type of limiter (water, steam or total)
      PetscReal, public :: limit !! Flow limit
@@ -162,7 +162,7 @@ module source_control_module
      !! Allows source to flow only in a specified direction
      !! (production or injection).
      private
-     PetscInt, allocatable, public :: source_indices(:) !! Source indices
+     PetscInt, allocatable, public :: local_source_indices(:) !! Local source indices
      PetscInt, public :: direction !! Flow direction
    contains
      private
@@ -345,7 +345,7 @@ contains
     PetscErrorCode :: ierr
 
     call source%init(eos)
-    call global_section_offset(source_section, self%source_index, &
+    call global_section_offset(source_section, self%local_source_index, &
          source_range_start, source_offset, ierr); CHKERRQ(ierr)
     call source%assign(source_data, source_offset)
 
@@ -366,7 +366,7 @@ contains
 
   subroutine source_control_deliverability_init(self, productivity_data, &
        interpolation_type, averaging_type, reference_pressure_data, &
-       pressure_table_coordinate, threshold, source_index, err)
+       pressure_table_coordinate, threshold, local_source_index, err)
     !! Initialises source_control_deliverability object. Error flag err
     !! returns 1 if there are problems with the productivity index
     !! array, or 2 if there are problems with the reference pressure
@@ -378,7 +378,7 @@ contains
     PetscReal, intent(in) :: reference_pressure_data(:,:)
     PetscInt, intent(in) :: pressure_table_coordinate
     PetscReal, intent(in) :: threshold
-    PetscInt, intent(in) :: source_index
+    PetscInt, intent(in) :: local_source_index
     PetscErrorCode, intent(out) :: err
 
     call self%productivity%init(productivity_data, &
@@ -389,7 +389,7 @@ contains
        if (err == 0) then
           self%pressure_table_coordinate = pressure_table_coordinate
           self%threshold = threshold
-          self%source_index = source_index
+          self%local_source_index = local_source_index
        else
           err = 2
        end if
@@ -434,7 +434,7 @@ contains
 
     call source%init(eos)
 
-    call global_section_offset(source_section, self%source_index, &
+    call global_section_offset(source_section, self%local_source_index, &
          source_range_start, source_offset, ierr); CHKERRQ(ierr)
     call source%assign(source_data, source_offset)
     call source%assign_fluid(local_fluid_data, local_fluid_section)
@@ -528,7 +528,7 @@ contains
     PetscReal, parameter :: tol = 1.e-9_dp
 
     call source%init(eos)
-    call global_section_offset(source_section, self%source_index, &
+    call global_section_offset(source_section, self%local_source_index, &
          source_range_start, source_offset, ierr); CHKERRQ(ierr)
     call source%assign(source_data, source_offset)
 
@@ -564,7 +564,7 @@ contains
 
   subroutine source_control_recharge_init(self, recharge_data, &
        interpolation_type, averaging_type, reference_pressure_data, &
-       source_index, err)
+       local_source_index, err)
     !! Initialises source_control_recharge object. Error flag err
     !! returns 1 if there are problems with the recharge coefficient
     !! array, or 2 if there are problems with the reference pressure
@@ -574,7 +574,7 @@ contains
     PetscReal, intent(in) :: recharge_data(:,:)
     PetscInt, intent(in) :: interpolation_type, averaging_type
     PetscReal, intent(in) :: reference_pressure_data(:,:)
-    PetscInt, intent(in) :: source_index
+    PetscInt, intent(in) :: local_source_index
     PetscErrorCode, intent(out) :: err
 
     call self%coefficient%init(recharge_data, &
@@ -585,7 +585,7 @@ contains
        if (err > 0) then
           err = 2
        else
-          self%source_index = source_index
+          self%local_source_index = local_source_index
        end if
     end if
 
@@ -629,7 +629,7 @@ contains
 
     call source%init(eos)
 
-    call global_section_offset(source_section, self%source_index, &
+    call global_section_offset(source_section, self%local_source_index, &
          source_range_start, source_offset, ierr); CHKERRQ(ierr)
     call source%assign(source_data, source_offset)
     call source%assign_fluid(local_fluid_data, local_fluid_section)
@@ -647,12 +647,12 @@ contains
 ! Separator source control:
 !------------------------------------------------------------------------
 
-  subroutine source_control_separator_init(self, source_index, &
+  subroutine source_control_separator_init(self, local_source_index, &
        thermo, separator_pressure)
     !! Initialises source_control_separator object.
 
     class(source_control_separator_type), intent(in out) :: self
-    PetscInt, intent(in) :: source_index
+    PetscInt, intent(in) :: local_source_index
     class(thermodynamics_type), target, intent(in) :: thermo
     PetscReal, intent(in) :: separator_pressure
     ! Locals:
@@ -660,7 +660,7 @@ contains
     PetscReal :: params(2), water_props(2), steam_props(2)
     PetscErrorCode :: err
 
-    self%source_index = source_index
+    self%local_source_index = local_source_index
     self%thermo => thermo
     self%separator_pressure = separator_pressure
 
@@ -740,7 +740,7 @@ contains
     PetscErrorCode :: ierr
 
     call source%init(eos)
-    call global_section_offset(source_section, self%source_index, &
+    call global_section_offset(source_section, self%local_source_index, &
          source_range_start, source_offset, ierr); CHKERRQ(ierr)
     call source%assign(source_data, source_offset)
 
@@ -773,27 +773,27 @@ contains
 !------------------------------------------------------------------------
 
   subroutine source_control_limiter_init_source(self, limiter_type, &
-       input_source_index, limit, source_indices)
+       input_local_source_index, limit, local_source_indices)
     !! Initialises source_control_limiter object, with input taken
     !! from a source.
 
     class(source_control_limiter_type), intent(in out) :: self
     PetscInt, intent(in) :: limiter_type
-    PetscInt, intent(in) :: input_source_index
+    PetscInt, intent(in) :: input_local_source_index
     PetscReal, intent(in) :: limit
-    PetscInt, intent(in) :: source_indices(:)
+    PetscInt, intent(in) :: local_source_indices(:)
 
     self%type = limiter_type
-    self%input_source_index = input_source_index
+    self%input_local_source_index = input_local_source_index
     self%limit = limit
-    self%source_indices = source_indices
+    self%local_source_indices = local_source_indices
 
   end subroutine source_control_limiter_init_source
 
 !------------------------------------------------------------------------
 
   subroutine source_control_limiter_init_control(self, &
-       limiter_type, input_source_control, limit, source_indices)
+       limiter_type, input_source_control, limit, local_source_indices)
     !! Initialises source_control_limiter object, with input taken
     !! from another source control.
 
@@ -801,12 +801,12 @@ contains
     PetscInt, intent(in) :: limiter_type
     class(source_control_type), target, intent(in) :: input_source_control
     PetscReal, intent(in) :: limit
-    PetscInt, intent(in) :: source_indices(:)
+    PetscInt, intent(in) :: local_source_indices(:)
 
     self%type = limiter_type
     self%input_source_control => input_source_control
     self%limit = limit
-    self%source_indices = source_indices
+    self%local_source_indices = local_source_indices
 
   end subroutine source_control_limiter_init_control
 
@@ -817,7 +817,8 @@ contains
 
     class(source_control_limiter_type), intent(in out) :: self
 
-    if (allocated(self%source_indices)) deallocate(self%source_indices)
+    if (allocated(self%local_source_indices)) &
+         deallocate(self%local_source_indices)
     self%input_source_control => null()
 
   end subroutine source_control_limiter_destroy
@@ -844,8 +845,9 @@ contains
     select case (self%type)
     case (SRC_CONTROL_LIMITER_TYPE_TOTAL)
        call source%init(eos)
-       call global_section_offset(source_section, self%input_source_index, &
-            source_range_start, source_offset, ierr); CHKERRQ(ierr)
+       call global_section_offset(source_section, &
+            self%input_local_source_index, source_range_start, &
+            source_offset, ierr); CHKERRQ(ierr)
        call source%assign(source_data, source_offset)
        rate = source%rate
        call source%destroy()
@@ -919,9 +921,9 @@ contains
     scale = self%rate_scale(source_data, source_section, &
          source_range_start, eos)
 
-    do i = 1, size(self%source_indices)
+    do i = 1, size(self%local_source_indices)
 
-       s = self%source_indices(i)
+       s = self%local_source_indices(i)
        call global_section_offset(source_section, s, source_range_start, &
             source_offset, ierr); CHKERRQ(ierr)
        call source%assign(source_data, source_offset)
@@ -937,15 +939,16 @@ contains
 ! Direction source control:
 !------------------------------------------------------------------------
 
-  subroutine source_control_direction_init(self, direction, source_indices)
+  subroutine source_control_direction_init(self, direction, &
+       local_source_indices)
     !! Initialises source_control_direction object.
 
     class(source_control_direction_type), intent(in out) :: self
     PetscInt, intent(in) :: direction
-    PetscInt, intent(in) :: source_indices(:)
+    PetscInt, intent(in) :: local_source_indices(:)
 
     self%direction = direction
-    self%source_indices = source_indices
+    self%local_source_indices = local_source_indices
 
   end subroutine source_control_direction_init
 
@@ -956,7 +959,8 @@ contains
 
     class(source_control_direction_type), intent(in out) :: self
 
-    if (allocated(self%source_indices)) deallocate(self%source_indices)
+    if (allocated(self%local_source_indices)) &
+         deallocate(self%local_source_indices)
 
   end subroutine source_control_direction_destroy
 
@@ -985,9 +989,9 @@ contains
 
     call source%init(eos)
 
-    do i = 1, size(self%source_indices)
+    do i = 1, size(self%local_source_indices)
 
-       s = self%source_indices(i)
+       s = self%local_source_indices(i)
        call global_section_offset(source_section, s, source_range_start, &
             source_offset, ierr); CHKERRQ(ierr)
        call source%assign(source_data, source_offset)
