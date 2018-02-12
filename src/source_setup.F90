@@ -180,7 +180,6 @@ contains
       ! Locals:
       character(len=64) :: srcstr
       character(len=12) :: istr
-      PetscBool :: can_inject
       PetscInt :: injection_component, production_component
       PetscReal :: initial_rate, initial_enthalpy
       PetscInt :: i, source_offset
@@ -192,8 +191,8 @@ contains
         srcstr = 'source[' // trim(istr) // '].'
         call get_components(source_json, eos, &
              injection_component, production_component, logfile)
-        call get_initial_rate(source_json, initial_rate, can_inject)
-        call get_initial_enthalpy(source_json, eos, can_inject, &
+        call get_initial_rate(source_json, initial_rate)
+        call get_initial_enthalpy(source_json, eos, &
              injection_component, initial_enthalpy)
         allocate(local_source_indices(num_cells))
         do i = 1, num_cells
@@ -276,15 +275,14 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine get_initial_rate(source_json, initial_rate, can_inject)
-    !! Gets initial flow rate and whether the source can inject. These
-    !! can only be determined for constant-rate sources. For other
-    !! source types, a default initial rate is assigned and it is
-    !! assumed that the source may inject.
+  subroutine get_initial_rate(source_json, initial_rate)
+    !! Gets initial flow rate. This can only be determined for
+    !! constant-rate sources. For other source types, a default
+    !! initial rate is assigned, which may be modified by any source
+    !! controls acting on the source.
 
     type(fson_value), pointer, intent(in) :: source_json
     PetscReal, intent(out) :: initial_rate
-    PetscBool, intent(out) :: can_inject
     ! Locals:
     PetscInt :: rate_type
 
@@ -295,28 +293,24 @@ contains
        select case (rate_type)
        case (TYPE_REAL, TYPE_INTEGER)
           call fson_get_mpi(source_json, "rate", val = initial_rate)
-          can_inject = (initial_rate > 0._dp)
-       case (TYPE_ARRAY)
+       case default
           initial_rate = default_source_rate
-          can_inject = PETSC_TRUE
        end select
 
     else
        initial_rate = default_source_rate
-       can_inject = PETSC_TRUE
     end if
 
   end subroutine get_initial_rate
 
 !------------------------------------------------------------------------
 
-  subroutine get_initial_enthalpy(source_json, eos, can_inject, &
-       injection_component, enthalpy)
+  subroutine get_initial_enthalpy(source_json, eos, injection_component, &
+       enthalpy)
     !! Gets initial injection enthalpy for the source, if needed.
 
     type(fson_value), pointer, intent(in) :: source_json
     class(eos_type), intent(in) :: eos
-    PetscBool, intent(in) :: can_inject
     PetscInt, intent(in) :: injection_component
     PetscReal, intent(out) :: enthalpy
     ! Locals:
@@ -324,7 +318,7 @@ contains
 
     associate(np => eos%num_primary_variables)
 
-      if (can_inject .and. (injection_component < np)) then
+      if (injection_component < np) then
 
          if (fson_has_mpi(source_json, "enthalpy")) then
 
@@ -342,7 +336,7 @@ contains
             enthalpy = default_source_injection_enthalpy
          end if
 
-      else
+      else ! heat injection - no enthalpy needed
          enthalpy = 0._dp
       end if
 
