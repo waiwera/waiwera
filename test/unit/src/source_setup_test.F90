@@ -30,16 +30,21 @@ contains
     use source_module
     use IAPWS_module
     use eos_module
+    use dm_utils_module, only: global_vec_section, global_section_offset
 
     character(16), parameter :: path = "data/source/"
     type(IAPWS_type) :: thermo
     type(eos_test_type) :: eos
     type(fson_value), pointer :: json
     type(mesh_type) :: mesh
-    Vec :: fluid
-    PetscInt :: range_start
-    type(list_type) :: sources, source_controls
-    PetscInt :: expected_num_sources, num_sources
+    type(source_type) :: source
+    Vec :: fluid_vector, source_vector
+    PetscReal, pointer, contiguous :: source_array(:)
+    PetscSection :: source_section
+    PetscInt :: fluid_range_start, source_range_start
+    PetscInt :: s, source_offset, source_index
+    type(list_type) :: source_controls
+    PetscInt :: expected_num_sources, num_sources, total_num_sources
     PetscErrorCode :: ierr, err
     PetscReal, parameter :: start_time = 0._dp
     PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
@@ -52,27 +57,90 @@ contains
 
     call thermo%init()
     call eos%init(json, thermo)
+    call source%init(eos)
     call mesh%init(json)
     call DMCreateLabel(mesh%original_dm, open_boundary_label_name, ierr); CHKERRQ(ierr)
     call mesh%configure(eos, gravity, json, viewer = viewer, err = err)
-    call DMGetGlobalVector(mesh%dm, fluid, ierr); CHKERRQ(ierr) ! dummy- not used
+    call DMGetGlobalVector(mesh%dm, fluid_vector, ierr); CHKERRQ(ierr) ! dummy- not used
 
-    call setup_sources(json, mesh%dm, mesh%cell_order, eos, thermo, start_time, fluid, &
-         range_start, sources, source_controls, err = err)
+    call setup_sources(json, mesh%dm, mesh%cell_order, eos, thermo, start_time, &
+         fluid_vector, fluid_range_start, source_vector, source_range_start, &
+         num_sources, source_controls, err = err)
     call assert_equals(0, err, "error")
 
     expected_num_sources = fson_value_count_mpi(json, "source")
-    call MPI_reduce(sources%count, num_sources, 1, MPI_INTEGER, MPI_SUM, &
+    call MPI_reduce(num_sources, total_num_sources, 1, MPI_INTEGER, MPI_SUM, &
          0, PETSC_COMM_WORLD, ierr)
     if (rank == 0) then
-      call assert_equals(expected_num_sources, num_sources, "number of sources")
+      call assert_equals(expected_num_sources, total_num_sources, "number of sources")
     end if
 
-    call sources%traverse(source_test_iterator)
+    call global_vec_section(source_vector, source_section)
+    call VecGetArrayReadF90(source_vector, source_array, ierr); CHKERRQ(ierr)
+    call VecView(source_vector, PETSC_VIEWER_STDOUT_WORLD, ierr)
 
-    call sources%destroy(source_list_node_data_destroy)
+    do s = 0, num_sources - 1
+       call global_section_offset(source_section, s, &
+            source_range_start, source_offset, ierr); CHKERRQ(ierr)
+       call source%assign(source_array, source_offset)
+       source_index = nint(source%source_index)
+       select case (source_index)
+       case (0)
+            call source_test(source_index, source, &
+                 0, 10._dp, 90.e3_dp, 0, 0)
+         case (1)
+            call source_test(source_index, source, &
+                 1, 5._dp, 100.e3_dp, 2, 0)
+         case (2)
+            call source_test(source_index, source, &
+                 2, 1000._dp, 0._dp, 3, 3)
+         case (3)
+            call source_test(source_index, source, &
+                 3, -2._dp, default_source_injection_enthalpy, 1, 0)
+         case (4)
+            call source_test(source_index, source, &
+                 4, -3._dp, 200.e3_dp, 1, 0)
+         case (5)
+            call source_test(source_index, source, &
+                 5, -5._dp, default_source_injection_enthalpy, 0, 0)
+         case (6)
+            call source_test(source_index, source, &
+                 6, -2000._dp, 0._dp, 3, 3)
+         case (7)
+            call source_test(source_index, source, &
+                 7, default_source_rate, default_source_injection_enthalpy, 1, 0)
+         case (8)
+            call source_test(source_index, source, &
+                 8, default_source_rate, 1000.e3_dp, 2, 0)
+         case (9)
+            call source_test(source_index, source, &
+                 0, default_source_rate, 0._dp, 3, 3)
+         case (10)
+            call source_test(source_index, source, &
+                 1, 3._dp, 150.e3_dp, 1, 1)
+         case (11)
+            call source_test(source_index, source, &
+                 2, default_source_rate, default_source_injection_enthalpy, 1, 1)
+         case (12)
+            call source_test(source_index, source, &
+                 3, default_source_rate, 80.e3_dp, 2, 2)
+         case (13)
+            call source_test(source_index, source, &
+                 4, default_source_rate, 90.e3_dp, 1, 2)
+         case (14)
+            call source_test(source_index, source, &
+                 5, default_source_rate, 500.e3_dp, 2, 3)
+         case (15)
+            call source_test(source_index, source, &
+                 6, default_source_rate, 100.e3_dp, default_source_component, 2)
+         end select
+    end do
+
+    call source%destroy()
+    call VecRestoreArrayReadF90(source_vector, source_array, ierr); CHKERRQ(ierr)
+    call VecDestroy(source_vector, ierr); CHKERRQ(ierr)
     call source_controls%destroy()
-    call DMRestoreGlobalVector(mesh%dm, fluid, ierr); CHKERRQ(ierr)
+    call DMRestoreGlobalVector(mesh%dm, fluid_vector, ierr); CHKERRQ(ierr)
     call mesh%destroy()
     call eos%destroy()
     call thermo%destroy()
@@ -80,100 +148,31 @@ contains
 
   contains
 
-    subroutine source_test(tag, source, index, rate, enthalpy, &
+    subroutine source_test(source_index, source, index, rate, enthalpy, &
          injection_component, production_component)
       !! Runs asserts for a single source.
-      character(*), intent(in) :: tag
+      PetscInt, intent(in) :: source_index
       type(source_type), intent(in) :: source
       PetscInt, intent(in) :: index
       PetscInt, intent(in) :: injection_component, production_component
       PetscReal, intent(in) :: rate, enthalpy
       ! Locals:
+      character(12) :: srcstr
       PetscReal, parameter :: tol = 1.e-6_dp
 
-      call assert_equals(index, source%cell_natural_index, &
-           trim(tag) // ": natural index")
+      write(srcstr, '(a, i2, a)') 'source[', source_index, ']'
+      call assert_equals(index, nint(source%natural_cell_index), &
+           trim(srcstr) // ": natural index")
       call assert_equals(rate, source%rate, tol, &
-           trim(tag) // ": rate")
+           trim(srcstr) // ": rate")
       call assert_equals(enthalpy, source%injection_enthalpy, tol, &
-           trim(tag) // ": enthalpy")
-      call assert_equals(injection_component, source%injection_component, &
-           trim(tag) // ": injection component")
-      call assert_equals(production_component, source%production_component, &
-           trim(tag) // ": production component")
+           trim(srcstr) // ": enthalpy")
+      call assert_equals(injection_component, nint(source%injection_component), &
+           trim(srcstr) // ": injection component")
+      call assert_equals(production_component, nint(source%production_component), &
+           trim(srcstr) // ": production component")
 
     end subroutine source_test
-
-    subroutine source_test_iterator(node, stopped)
-      type(list_node_type), pointer, intent(in out) :: node
-      PetscBool, intent(out) :: stopped
-
-      select type (source => node%data)
-      type is (source_type)
-         select case (node%tag)
-         case ("mass injection 1")
-            call source_test(node%tag, source, &
-                 0, 10._dp, 90.e3_dp, 0, 0)
-         case ("mass injection 2")
-            call source_test(node%tag, source, &
-                 1, 5._dp, 100.e3_dp, 2, 0)
-         case ("heat injection")
-            call source_test(node%tag, source, &
-                 2, 1000._dp, 0._dp, 3, 3)
-         case ("mass component production")
-            call source_test(node%tag, source, &
-                 3, -2._dp, 0._dp, 1, 0)
-         case ("mass component production enthalpy")
-            call source_test(node%tag, source, &
-                 4, -3._dp, 200.e3_dp, 1, 0)
-         case ("mass production")
-            call source_test(node%tag, source, &
-                 5, -5._dp, 0._dp, 0, 0)
-         case ("heat production")
-            call source_test(node%tag, source, &
-                 6, -2000._dp, 0._dp, 3, 3)
-         case ("no rate mass")
-            call source_test(node%tag, source, &
-                 7, default_source_rate, default_source_injection_enthalpy, 1, 0)
-         case ("no rate mass enthalpy")
-            call source_test(node%tag, source, &
-                 8, default_source_rate, 1000.e3_dp, 2, 0)
-         case ("no rate heat")
-            call source_test(node%tag, source, &
-                 0, default_source_rate, 0._dp, 3, 3)
-         case ("production component 1")
-            call source_test(node%tag, source, &
-                 1, 3._dp, 150.e3_dp, 1, 1)
-         case ("production component 2")
-            call source_test(node%tag, source, &
-                 2, default_source_rate, default_source_injection_enthalpy, 1, 1)
-         case ("production component 3")
-            call source_test(node%tag, source, &
-                 3, default_source_rate, 80.e3_dp, 2, 2)
-         case ("production component 4")
-            call source_test(node%tag, source, &
-                 4, default_source_rate, 90.e3_dp, 1, 2)
-         case ("production component 5")
-            call source_test(node%tag, source, &
-                 5, default_source_rate, 500.e3_dp, 2, 3)
-         case ("production component 6")
-            call source_test(node%tag, source, &
-                 6, default_source_rate, 100.e3_dp, default_source_component, 2)
-         end select
-      end select
-
-      stopped = PETSC_FALSE
-
-    end subroutine source_test_iterator
-
-    subroutine source_list_node_data_destroy(node)
-      type(list_node_type), pointer, intent(in out) :: node
-
-      select type (source => node%data)
-      type is (source_type)
-         call source%destroy()
-      end select
-    end subroutine source_list_node_data_destroy
 
   end subroutine test_setup_sources
 

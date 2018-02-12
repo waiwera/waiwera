@@ -41,7 +41,7 @@ contains
     Vec :: fluid_vector, local_fluid_vector
     PetscSection :: fluid_section, local_fluid_section
     PetscInt :: start_cell, end_cell, c
-    PetscInt :: fluid_offset, fluid_range_start, source_offset, source_range_start
+    PetscInt :: fluid_offset, fluid_range_start
     PetscReal, allocatable :: fluid_cell_data(:)
     PetscReal, pointer, contiguous :: fluid_array(:), local_fluid_array(:)
     PetscReal, pointer, contiguous :: source_data(:)
@@ -92,7 +92,7 @@ contains
     call source%init(eos)
     allocate(source_data(source%dof))
     call source%assign(source_data, 1)
-    
+
     if (rank == 0) then
 
        call source_flow_test("inject 1", 10._dp, 200.e3_dp, 1, 0, &
@@ -142,7 +142,7 @@ contains
       PetscReal, intent(in) :: flow(:)
       PetscInt, intent(in) :: component
 
-      call source%setup(0, 0, 0, rate, enthalpy, &
+      call source%setup(0, 0, 0, 0, rate, enthalpy, &
            injection_component, production_component)
       call source%update_flow(local_fluid_array, local_fluid_section)
       call assert_equals(flow, source%flow, &

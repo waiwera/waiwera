@@ -31,7 +31,7 @@ contains
     use eos_module, only: max_component_name_length, max_phase_name_length
     use eos_test
     use fluid_module, only: setup_fluid_vector
-    use dm_utils_module, only: global_vec_section, &
+    use dm_utils_module, only: global_vec_section, global_section_offset, &
          global_to_local_vec_section, restore_dm_local_vec
 
     character(16), parameter :: path = "data/source/"
@@ -39,15 +39,22 @@ contains
     type(eos_test_type) :: eos
     type(fson_value), pointer :: json
     type(mesh_type) :: mesh
-    type(list_type) :: sources, source_controls
-    Vec :: fluid_vector, local_fluid_vector
+    type(list_type) :: source_controls
+    type(source_type) :: source
+    Vec :: fluid_vector, local_fluid_vector, source_vector
     PetscReal, pointer, contiguous :: fluid_array(:), local_fluid_array(:)
-    PetscSection :: fluid_section, local_fluid_section
-    PetscInt :: num_sources, fluid_range_start
+    PetscReal, pointer, contiguous :: source_array(:)
+    PetscSection :: fluid_section, local_fluid_section, source_section
+    PetscInt :: num_sources, total_num_sources, source_vector_size
+    PetscInt :: fluid_range_start, source_range_start
+    PetscInt :: s, source_offset, source_index
     PetscReal :: t, interval(2)
+    character(len = 8) :: srcstr
     PetscErrorCode :: ierr, err
     PetscReal, parameter :: start_time = 0._dp
     PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
+    PetscReal, parameter :: tol = 1.e-6_dp
+    PetscInt, parameter :: expected_num_sources = 6
     PetscMPIInt :: rank
     PetscViewer :: viewer
 
@@ -67,35 +74,61 @@ contains
     call VecGetArrayF90(fluid_vector, fluid_array, ierr); CHKERRQ(ierr)
 
     call setup_sources(json, mesh%dm, mesh%cell_order, eos, thermo, start_time, &
-         fluid_vector, fluid_range_start, sources, source_controls, err = err)
+         fluid_vector, fluid_range_start, source_vector, source_range_start, &
+         num_sources, source_controls, err = err)
     call assert_equals(0, err, "source setup error")
+    call source%init(eos)
+    call assert_equals(13, source%dof, "source dof")
 
     call VecRestoreArrayF90(fluid_vector, fluid_array, ierr); CHKERRQ(ierr)
 
-    call MPI_reduce(sources%count, num_sources, 1, MPI_INTEGER, MPI_SUM, &
+    call MPI_reduce(num_sources, total_num_sources, 1, MPI_INTEGER, MPI_SUM, &
          0, PETSC_COMM_WORLD, ierr)
+    call VecGetSize(source_vector, source_vector_size, ierr); CHKERRQ(ierr)
     if (rank == 0) then
-      call assert_equals(6, num_sources, "number of sources")
+       call assert_equals(expected_num_sources, total_num_sources, &
+            "number of sources")
+       call assert_equals(expected_num_sources * source%dof, &
+            source_vector_size, "source vector size")
     end if
 
     call global_to_local_vec_section(fluid_vector, local_fluid_vector, &
          local_fluid_section)
     call VecGetArrayReadF90(local_fluid_vector, local_fluid_array, ierr)
     CHKERRQ(ierr)
+    call global_vec_section(source_vector, source_section)
+    call VecGetArrayReadF90(source_vector, source_array, ierr); CHKERRQ(ierr)
 
     t = 120._dp
     interval = [30._dp, t]
     call source_controls%traverse(source_control_iterator)
-    call sources%traverse(source_test_iterator)
+    call VecView(source_vector, PETSC_VIEWER_STDOUT_WORLD, ierr)
+    do s = 0, num_sources - 1
+       call global_section_offset(source_section, s, &
+            source_range_start, source_offset, ierr); CHKERRQ(ierr)
+       call source%assign(source_array, source_offset)
+       source_index = nint(source%source_index)
+       write(srcstr, '(a, i1)') 'source ', source_index
+       select case (source_index)
+       case (0)
+          call assert_equals(-2.25_dp, source%rate, tol, trim(srcstr))
+       case (1)
+          call assert_equals(2.25_dp, source%rate, tol, trim(srcstr))
+       case (2)
+          call assert_equals(104.5e3_dp, source%injection_enthalpy, &
+               tol, trim(srcstr))
+       end select
+    end do
 
     call VecRestoreArrayReadF90(local_fluid_vector, local_fluid_array, ierr)
     CHKERRQ(ierr)
     call restore_dm_local_vec(local_fluid_vector)
 
-    call sources%destroy(source_list_node_data_destroy)
+    call source%destroy()
     call source_controls%destroy(source_control_list_node_data_destroy, &
          reverse = PETSC_TRUE)
-
+    call VecRestoreArrayReadF90(source_vector, source_array, ierr); CHKERRQ(ierr)
+    call VecDestroy(source_vector, ierr); CHKERRQ(ierr)
     call VecDestroy(fluid_vector, ierr); CHKERRQ(ierr)
     call mesh%destroy()
     call eos%destroy()
@@ -109,38 +142,12 @@ contains
       PetscBool, intent(out) :: stopped
       select type (source_control => node%data)
       class is (source_control_type)
-         call source_control%update(t, interval, fluid_array, fluid_section)
+         call source_control%update(t, interval, source_array, &
+              source_section, source_range_start, fluid_array, &
+              fluid_section, eos)
       end select
       stopped = PETSC_FALSE
     end subroutine source_control_iterator
-
-    subroutine source_test_iterator(node, stopped)
-      type(list_node_type), pointer, intent(in out) :: node
-      PetscBool, intent(out) :: stopped
-      ! Locals:
-      PetscReal, parameter :: tol = 1.e-6_dp
-      select type (source => node%data)
-      class is (source_type)
-         select case (node%tag)
-         case ("rate table single source")
-            call assert_equals(-2.25_dp, source%rate, tol, node%tag)
-         case ("rate table 3 sources")
-            call assert_equals(2.25_dp, source%rate, tol, node%tag)
-         case ("enthalpy table")
-            call assert_equals(104.5e3_dp, source%injection_enthalpy, &
-                 tol, node%tag)
-         end select
-      end select
-      stopped = PETSC_FALSE
-    end subroutine source_test_iterator
-
-    subroutine source_list_node_data_destroy(node)
-      type(list_node_type), pointer, intent(in out) :: node
-      select type (source => node%data)
-      type is (source_type)
-         call source%destroy()
-      end select
-    end subroutine source_list_node_data_destroy
 
      subroutine source_control_list_node_data_destroy(node)
       type(list_node_type), pointer, intent(in out) :: node
@@ -174,14 +181,17 @@ contains
     type(eos_test_type) :: eos
     type(fson_value), pointer :: json
     type(mesh_type) :: mesh
-    type(list_type) :: sources, source_controls
+    type(list_type) :: source_controls
+    type(source_type) :: source
+    Vec :: source_vector
     Vec :: fluid_vector, local_fluid_vector
     PetscReal, pointer, contiguous :: fluid_array(:), local_fluid_array(:)
-    PetscSection :: fluid_section, local_fluid_section
+    PetscReal, pointer, contiguous :: source_array(:)
+    PetscSection :: source_section, fluid_section, local_fluid_section
     type(fluid_type) :: fluid
-    PetscInt :: num_sources, num_source_controls, fluid_range_start
-    PetscInt :: start_cell, end_cell, c
-    PetscInt :: fluid_offset, cell_phase_composition
+    PetscInt :: num_sources, total_num_sources, num_source_controls, source_index
+    PetscInt :: start_cell, end_cell, c, s, s12, source_range_start, fluid_range_start
+    PetscInt :: fluid_offset, source_offset, cell_phase_composition
     PetscReal :: t, interval(2), props(2)
     PetscReal :: cell_temperature, cell_liquid_density, cell_liquid_internal_energy
     PetscReal :: cell_vapour_density, cell_vapour_internal_energy
@@ -191,8 +201,14 @@ contains
     PetscInt, parameter :: cell_region = 4
     PetscReal, parameter :: start_time = 0._dp
     PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
+    PetscReal, parameter :: expected_rates(0: 12) = [ &
+         -12.8728519749_dp, -10._dp, -9.3081349399_dp, -11._dp, -10.1910078135_dp, &
+         0.0_dp, 130.0_dp, -13.0_dp, 0.0_dp, -12.9264888581701_dp, &
+         -10.3366086953508_dp, 0._dp, -2.25_dp]
     PetscMPIInt :: rank
     PetscViewer :: viewer
+    character(len = 16) :: srcstr
+    PetscReal, parameter :: tol = 1.e-6_dp
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
     json => fson_parse_mpi(trim(path) // "test_source_controls_pressure_reference.json")
@@ -259,13 +275,15 @@ contains
     call VecRestoreArrayF90(fluid_vector, fluid_array, ierr); CHKERRQ(ierr)
 
     call setup_sources(json, mesh%dm, mesh%cell_order, eos, thermo, start_time, &
-         fluid_vector, fluid_range_start, sources, source_controls, err = err)
+         fluid_vector, fluid_range_start, source_vector, source_range_start, &
+         num_sources, source_controls, err = err)
     call assert_equals(0, err, "source setup error")
+    call source%init(eos)
 
-    call MPI_reduce(sources%count, num_sources, 1, MPI_INTEGER, MPI_SUM, &
+    call MPI_reduce(num_sources, total_num_sources, 1, MPI_INTEGER, MPI_SUM, &
          0, PETSC_COMM_WORLD, ierr)
     if (rank == 0) then
-      call assert_equals(13, num_sources, "number of sources")
+      call assert_equals(13, total_num_sources, "number of sources")
     end if
 
     call MPI_reduce(source_controls%count, num_source_controls, 1, &
@@ -279,32 +297,57 @@ contains
     call VecGetArrayF90(local_fluid_vector, local_fluid_array, ierr)
     CHKERRQ(ierr)
 
+    call global_vec_section(source_vector, source_section)
+    call VecGetArrayF90(source_vector, source_array, ierr); CHKERRQ(ierr)
+
     t = 120._dp
     interval = [30._dp, t]
 
     call source_controls%traverse(source_control_update_iterator)
     call source_controls%traverse(source_control_test_iterator)
-    call sources%traverse(source_test_iterator)
+
+    s12 = -1
+    do s = 0, num_sources - 1
+       call global_section_offset(source_section, s, &
+            source_range_start, source_offset, ierr); CHKERRQ(ierr)
+       call source%assign(source_array, source_offset)
+       source_index = nint(source%source_index)
+       write(srcstr, '(a, i1, a)') 'source ', source_index + 1, ' rate'
+       call assert_equals(expected_rates(source_index), source%rate, tol, &
+            trim(srcstr))
+       if (source_index == 12) s12 = s
+    end do
 
     ! Test deliverability threshold control- reduce fluid pressure:
     call reset_fluid_pressures(6.e5_dp)
     call source_controls%traverse(source_control_update_iterator)
-    call sources%traverse(source_threshold_test_1_iterator)
+    if (s12 >= 0) then
+       call global_section_offset(source_section, s12, &
+            source_range_start, source_offset, ierr); CHKERRQ(ierr)
+       call source%assign(source_array, source_offset)
+       call assert_equals(-2.25_dp, source%rate, tol, "source 13 rate P = 6 bar")
+    end if
+
     call reset_fluid_pressures(4.e5_dp)
     call source_controls%traverse(source_control_update_iterator)
-    call sources%traverse(source_threshold_test_2_iterator)
+    if (s12 >= 0) then
+       call assert_equals(-1.125_dp, source%rate, tol, "source 13 rate P = 4 bar")
+    end if
     call reset_fluid_pressures(3.e5_dp)
     call source_controls%traverse(source_control_update_iterator)
-    call sources%traverse(source_threshold_test_3_iterator)
+    if (s12 >= 0) then
+       call assert_equals(-0.5625_dp, source%rate, tol, "source 13 rate P = 3 bar")
+    end if
 
     call VecRestoreArrayF90(local_fluid_vector, local_fluid_array, ierr)
     CHKERRQ(ierr)
     call restore_dm_local_vec(local_fluid_vector)
 
-    call sources%destroy(source_list_node_data_destroy)
+    call source%destroy()
     call source_controls%destroy(source_control_list_node_data_destroy, &
       reverse = PETSC_TRUE)
-
+    call VecRestoreArrayF90(source_vector, source_array, ierr); CHKERRQ(ierr)
+    call VecDestroy(source_vector, ierr); CHKERRQ(ierr)
     call fluid%destroy()
     call VecDestroy(fluid_vector, ierr); CHKERRQ(ierr)
     call mesh%destroy()
@@ -319,8 +362,9 @@ contains
       PetscBool, intent(out) :: stopped
       select type (source_control => node%data)
       class is (source_control_type)
-         call source_control%update(t, interval, local_fluid_array, &
-              local_fluid_section)
+         call source_control%update(t, interval, source_array, &
+              source_section, source_range_start, local_fluid_array, &
+              local_fluid_section, eos)
       end select
       stopped = PETSC_FALSE
     end subroutine source_control_update_iterator
@@ -329,22 +373,29 @@ contains
       type(list_node_type), pointer, intent(in out) :: node
       PetscBool, intent(out) :: stopped
       PetscReal, parameter :: PI_tol = 1.e-16_dp, tol = 1.e-6_dp
+      PetscInt :: s, source_index
+
       select type (source_control => node%data)
 
       type is (source_control_deliverability_type)
-         select case (source_control%sources%head%tag)
-         case ("source 2")
+         s = source_control%local_source_index
+         call global_section_offset(source_section, s, &
+              source_range_start, source_offset, ierr); CHKERRQ(ierr)
+         call source%assign(source_array, source_offset)
+         source_index = nint(source%source_index)
+         select case (source_index)
+         case (1)
             call assert_equals(1.e-12_dp, &
                  source_control%productivity%val(1,1), PI_tol, &
                  "source 2 productivity")
             call assert_equals(2.e5_dp, &
                  source_control%reference_pressure%val(1,1), tol, &
                  "source 2 reference pressure")
-         case ("source 4")
+         case (3)
             call assert_equals(8.54511496085953E-13_dp, &
                  source_control%productivity%val(1,1), PI_tol, &
                  "source 4 productivity")
-         case ("source 10")
+         case (9)
             call assert_equals(SRC_PRESSURE_TABLE_COORD_TIME, &
                  source_control%pressure_table_coordinate, &
                  "source 10 pressure table coordinate")
@@ -360,25 +411,30 @@ contains
             call assert_equals(1.8e5_dp, &
                  source_control%reference_pressure%average(interval, 1), &
                  tol, "source 10 reference pressure")
-         case ("source 11")
+         case (10)
             call assert_equals(SRC_PRESSURE_TABLE_COORD_ENTHALPY, &
                  source_control%pressure_table_coordinate, &
                  "source 11 pressure table coordinate")
-         case ("source 13")
+         case (12)
             call assert_equals(5.e5_dp, source_control%threshold, tol, &
                  "source 13 deliverability threshold")
          end select
 
       type is (source_control_recharge_type)
-         select case (source_control%sources%head%tag)
-         case ("source 7")
+         s = source_control%local_source_index
+         call global_section_offset(source_section, s, &
+              source_range_start, source_offset, ierr); CHKERRQ(ierr)
+         call source%assign(source_array, source_offset)
+         source_index = nint(source%source_index)
+         select case (source_index)
+         case (6)
             call assert_equals(1.3e-2_dp, &
                  source_control%coefficient%val(1, 1), tol, &
                  "source 7 recharge coefficient")
             call assert_equals(50.1e5_dp, &
                  source_control%reference_pressure%val(1, 1), &
                  tol, "source 7 reference pressure")
-         case ("source 12")
+         case (11)
             call assert_equals(cell_pressure, &
                  source_control%reference_pressure%val(1, 1), &
                  tol, "source 12 reference pressure")
@@ -406,45 +462,6 @@ contains
 
     end subroutine source_control_test_iterator
 
-    subroutine source_test_iterator(node, stopped)
-      type(list_node_type), pointer, intent(in out) :: node
-      PetscBool, intent(out) :: stopped
-      ! Locals:
-      PetscReal, parameter :: tol = 1.e-6_dp
-      select type (source => node%data)
-      class is (source_type)
-         select case (node%tag)
-         case ("source 1")
-            call assert_equals(-12.8728519749_dp, source%rate, tol, "source 1 rate")
-         case ("source 2")
-            call assert_equals(-10._dp, source%rate, tol, "source 2 rate")
-         case ("source 3")
-            call assert_equals(-9.3081349399_dp, source%rate, tol, "source 3 rate")
-         case ("source 4")
-            call assert_equals(-11._dp, source%rate, tol, "source 4 rate")
-         case ("source 5")
-            call assert_equals(-10.1910078135_dp, source%rate, tol, "source 5 rate")
-         case ("source 6")
-            call assert_equals(0.0_dp, source%rate, tol, "source 6 rate")
-         case ("source 7")
-            call assert_equals(130.0_dp, source%rate, tol, "source 7 rate")
-         case ("source 8")
-            call assert_equals(-13.0_dp, source%rate, tol, "source 8 rate")
-         case ("source 9")
-            call assert_equals(0.0_dp, source%rate, tol, "source 9 rate")
-         case ("source 10")
-            call assert_equals(-12.9264888581701_dp, source%rate, tol, "source 10 rate")
-         case ("source 11")
-            call assert_equals(-10.3366086953508_dp, source%rate, tol, "source 11 rate")
-         case ("source 12")
-            call assert_equals(0._dp, source%rate, tol, "source 12 rate")
-         case ("source 13")
-            call assert_equals(-2.25_dp, source%rate, tol, "source 13 rate")
-         end select
-      end select
-      stopped = PETSC_FALSE
-    end subroutine source_test_iterator
-
     subroutine reset_fluid_pressures(P)
       PetscReal, intent(in) :: P
       do c = start_cell, end_cell - 1
@@ -457,51 +474,6 @@ contains
       end do
 
     end subroutine reset_fluid_pressures
-
-    subroutine source_threshold_test_1_iterator(node, stopped)
-      type(list_node_type), pointer, intent(in out) :: node
-      PetscBool, intent(out) :: stopped
-      ! Locals:
-      PetscReal, parameter :: tol = 1.e-6_dp
-      select type (source => node%data)
-      class is (source_type)
-         select case (node%tag)
-         case ("source 13")
-            call assert_equals(-2.25_dp, source%rate, tol, "source 13 rate P = 6 bar")
-         end select
-      end select
-      stopped = PETSC_FALSE
-    end subroutine source_threshold_test_1_iterator
-
-    subroutine source_threshold_test_2_iterator(node, stopped)
-      type(list_node_type), pointer, intent(in out) :: node
-      PetscBool, intent(out) :: stopped
-      ! Locals:
-      PetscReal, parameter :: tol = 1.e-6_dp
-      select type (source => node%data)
-      class is (source_type)
-         select case (node%tag)
-         case ("source 13")
-            call assert_equals(-1.125_dp, source%rate, tol, "source 13 rate P = 4 bar")
-         end select
-      end select
-      stopped = PETSC_FALSE
-    end subroutine source_threshold_test_2_iterator
-
-    subroutine source_threshold_test_3_iterator(node, stopped)
-      type(list_node_type), pointer, intent(in out) :: node
-      PetscBool, intent(out) :: stopped
-      ! Locals:
-      PetscReal, parameter :: tol = 1.e-6_dp
-      select type (source => node%data)
-      class is (source_type)
-         select case (node%tag)
-         case ("source 13")
-            call assert_equals(-0.5625_dp, source%rate, tol, "source 13 rate P = 3 bar")
-         end select
-      end select
-      stopped = PETSC_FALSE
-    end subroutine source_threshold_test_3_iterator
 
     subroutine source_list_node_data_destroy(node)
       type(list_node_type), pointer, intent(in out) :: node
