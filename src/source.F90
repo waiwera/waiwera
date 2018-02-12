@@ -34,15 +34,16 @@ module source_module
   PetscReal, parameter, public :: default_source_rate = 0._dp
   PetscReal, parameter, public :: default_source_injection_enthalpy = 83.9e3
 
-  PetscInt, parameter, public :: num_source_variables = 10
+  PetscInt, parameter, public :: num_source_variables = 11
   PetscInt, parameter, public :: max_source_variable_name_length = 20
   character(max_source_variable_name_length), public :: &
        source_variable_names(num_source_variables) = [ &
-       "source_index        ", "cell_index          ", &
-       "local_cell_index    ", "injection_enthalpy  ", &
-       "injection_component ", "production_component", &
-       "component           ", "rate                ", &
-       "enthalpy            ", "flow                "]
+       "source_index        ", "local_source_index  ", &
+       "natural_cell_index  ", "local_cell_index    ", &
+       "injection_enthalpy  ", "injection_component ", &
+       "production_component", "component           ", &
+       "rate                ", "enthalpy            ", &
+       "flow                "]
 
   type, public :: source_type
      !! Type for mass / energy source, applying specified values of
@@ -50,7 +51,8 @@ module source_module
      !! current time.
      private
      PetscReal, pointer, public :: source_index !! Index of source in input
-     PetscReal, pointer, public :: cell_index !! Natural index of cell the source is in
+     PetscReal, pointer, public :: local_source_index !! Index of source in local part of source vector
+     PetscReal, pointer, public :: natural_cell_index !! Natural index of cell the source is in
      PetscReal, pointer, public :: local_cell_index !! Local index of cell the source is in
      PetscReal, pointer, public :: injection_enthalpy !! Enthalpy to apply for injection
      PetscReal, pointer, public :: injection_component !! Component for injection
@@ -109,15 +111,16 @@ contains
     PetscInt, intent(in) :: offset  !! source array offset
 
     self%source_index => data(offset)
-    self%cell_index => data(offset + 1)
-    self%local_cell_index => data(offset + 2)
-    self%injection_enthalpy => data(offset + 3)
-    self%injection_component => data(offset + 4)
-    self%production_component => data(offset + 5)
-    self%component => data(offset + 6)
-    self%rate => data(offset + 7)
-    self%enthalpy => data(offset + 8)
-    self%flow => data(offset + 9: offset + 9 + self%num_primary_variables - 1)
+    self%local_source_index => data(offset + 1)
+    self%natural_cell_index => data(offset + 2)
+    self%local_cell_index => data(offset + 3)
+    self%injection_enthalpy => data(offset + 4)
+    self%injection_component => data(offset + 5)
+    self%production_component => data(offset + 6)
+    self%component => data(offset + 7)
+    self%rate => data(offset + 8)
+    self%enthalpy => data(offset + 9)
+    self%flow => data(offset + 10: offset + 10 + self%num_primary_variables - 1)
 
   end subroutine source_assign
 
@@ -144,13 +147,15 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine source_setup(self, source_index, cell_index, local_cell_index, &
-       rate, injection_enthalpy, injection_component, production_component)
+  subroutine source_setup(self, source_index, local_source_index, &
+       natural_cell_index, local_cell_index, rate, &
+       injection_enthalpy, injection_component, production_component)
     !! Sets up main parameters of a source object.
 
     class(source_type), intent(in out) :: self
     PetscInt, intent(in) :: source_index !! index of source in input
-    PetscInt, intent(in) :: cell_index !! natural index of cell the source is in
+    PetscInt, intent(in) :: local_source_index !! index of source in local part of source vector
+    PetscInt, intent(in) :: natural_cell_index !! natural index of cell the source is in
     PetscInt, intent(in) :: local_cell_index !! local index of cell the source is in
     PetscReal, intent(in) :: rate !! source flow rate
     PetscReal, intent(in) :: injection_enthalpy !! enthalpy for injection
@@ -158,7 +163,8 @@ contains
     PetscInt, intent(in) :: production_component !! mass (or energy) component for production
 
     self%source_index = source_index
-    self%cell_index = cell_index
+    self%local_source_index = local_source_index
+    self%natural_cell_index = natural_cell_index
     self%local_cell_index = local_cell_index
     self%injection_enthalpy = injection_enthalpy
     self%injection_component = injection_component
@@ -175,7 +181,8 @@ contains
     class(source_type), intent(in out) :: self
 
     self%source_index => null()
-    self%cell_index => null()
+    self%local_source_index => null()
+    self%natural_cell_index => null()
     self%local_cell_index => null()
     self%injection_enthalpy => null()
     self%injection_component => null()
