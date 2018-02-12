@@ -50,12 +50,10 @@ contains
     use dm_utils_module, only: global_vec_section, global_vec_range_start, &
          global_section_offset, create_path_dm, set_dm_data_layout
 
-    type source_spec_type
-       !! Specification for a source.
-       PetscInt :: spec_index
-       type(fson_value), pointer :: json
-       PetscInt, allocatable :: cell_natural_index(:), cell_local_index(:)
-    end type source_spec_type
+    type source_cells_type
+       !! Cells associated with a source specification.
+       PetscInt, allocatable :: natural_index(:), local_index(:)
+    end type source_cells_type
 
     type(fson_value), pointer, intent(in) :: json !! JSON file object
     DM, intent(in) :: dm !! Mesh DM
@@ -67,70 +65,41 @@ contains
     PetscInt, intent(in) :: fluid_range_start !! Range start for global fluid vector
     Vec, intent(out) :: source_vector !! Source vector
     PetscInt, intent(out) :: source_range_start !! Range start for global source vector
+    PetscInt, intent(out) :: num_sources !! Number of sources created
     type(list_type), intent(in out) :: source_controls !! List of source controls
     type(logfile_type), intent(in out), optional :: logfile !! Logfile for log output
     PetscErrorCode, intent(out) :: err !! Error code
     ! Locals:
-    type(list_type) :: source_list
-    type(source_spec_type), pointer :: spec
     DM :: dm_source
     type(source_type) :: source
-    PetscInt :: i, j, spec_index, local_source_index
+    type(source_cells_type), allocatable :: source_cells(:)
+    PetscInt :: spec_index, source_index
     type(fson_value), pointer :: sources_json, source_json
-    PetscInt :: num_sources, num_cells, num_source_specs, num_spec_sources
-    PetscInt, allocatable :: cell_natural_index(:), cell_local_index(:)
+    PetscInt :: num_source_specs
     PetscReal, pointer, contiguous :: fluid_data(:), source_data(:)
     PetscSection :: fluid_section, source_section
-    PetscInt, allocatable :: num_field_components(:), field_dim(:)
-    PetscInt, parameter :: max_field_name_length = 40
-    character(max_field_name_length), allocatable :: field_names(:)
     PetscErrorCode :: ierr
 
     num_sources = 0
     call source%init(eos)
-    call source_list%init(owner = PETSC_TRUE)
 
     if (fson_has_mpi(json, "source")) then
-
        call fson_get_mpi(json, "source", sources_json)
        num_source_specs = fson_value_count_mpi(sources_json, ".")
+       allocate(source_cells(0: num_source_specs - 1))
        source_json => fson_value_children_mpi(sources_json)
        do spec_index = 0, num_source_specs - 1
-          call get_cells(source_json, dm, ao, cell_natural_index, &
-               cell_local_index, num_cells)
-          if (num_cells > 0) then
-             allocate(spec)
-             spec%spec_index = spec_index
-             spec%cell_natural_index = cell_natural_index
-             spec%cell_local_index = cell_local_index
-             spec%json => source_json
-             call source_list%append(spec)
-             num_sources = num_sources + num_cells
-          end if
+          associate(cells => source_cells(spec_index))
+            call get_cells(source_json, dm, ao, cells%natural_index, &
+                 cells%local_index)
+            num_sources = num_sources + size(cells%natural_index)
+          end associate
           source_json => fson_value_next_mpi(source_json)
        end do
-
     end if
 
     call create_path_dm(num_sources, dm_source)
-
-    allocate(num_field_components(source%dof), field_dim(source%dof), &
-         field_names(source%dof))
-    num_field_components = 1
-    field_dim = 0
-    field_names(1: num_source_variables - 1) = &
-         source_variable_names(1: num_source_variables - 1) ! scalar fields
-    i = num_source_variables
-    ! array fields (flow):
-    do j = 1, eos%num_components
-       field_names(i) = trim(eos%component_names(j)) // '_' // &
-            trim(source_variable_names(num_source_variables))
-       i = i + 1
-    end do
-    if (.not. eos%isothermal) field_names(i) = 'heat_' // &
-         trim(source_variable_names(num_source_variables))
-    call set_dm_data_layout(dm_source, num_field_components, field_dim, &
-         field_names)
+    call setup_source_dm_data_layout(dm_source)
     call DMCreateGlobalVector(dm_source, source_vector, ierr); CHKERRQ(ierr)
     call PetscObjectSetName(source_vector, "source", ierr); CHKERRQ(ierr)
     call global_vec_range_start(source_vector, source_range_start)
@@ -142,8 +111,14 @@ contains
     call VecGetArrayF90(source_vector, source_data, ierr); CHKERRQ(ierr)
 
     if (fson_has_mpi(json, "source")) then
-       local_source_index = 0
-       call source_list%traverse(source_setup_iterator)
+       source_json => fson_value_children_mpi(sources_json)
+       source_index = 0
+       do spec_index = 0, num_source_specs - 1
+          call setup_source(spec_index, source_index, source_json, &
+               source_cells(spec_index), err)
+          if (err > 0) exit
+          source_json => fson_value_next_mpi(source_json)
+       end do
     else
        if (present(logfile)) then
           call logfile%write(LOG_LEVEL_INFO, "input", "no_sources")
@@ -154,15 +129,54 @@ contains
     call VecRestoreArrayReadF90(fluid_vector, fluid_data, ierr)
     CHKERRQ(ierr)
     call source%destroy()
-    call source_list%destroy()
+    if (allocated(source_cells)) deallocate(source_cells)
 
   contains
 
-    subroutine source_setup_iterator(node, stopped)
+!........................................................................
+
+    subroutine setup_source_dm_data_layout(dm_source)
+      !! Sets up data layout on source DM.
+
+      DM, intent(in out) :: dm_source
+      ! Locals:
+      PetscInt :: i, j
+      PetscInt, allocatable :: num_field_components(:), field_dim(:)
+      PetscInt, parameter :: max_field_name_length = 40
+      character(max_field_name_length), allocatable :: field_names(:)
+
+      allocate(num_field_components(source%dof), field_dim(source%dof), &
+           field_names(source%dof))
+      num_field_components = 1
+      field_dim = 0
+      field_names(1: num_source_variables - 1) = &
+           source_variable_names(1: num_source_variables - 1) ! scalar fields
+      i = num_source_variables
+      ! array fields (flow):
+      do j = 1, eos%num_components
+         field_names(i) = trim(eos%component_names(j)) // '_' // &
+              trim(source_variable_names(num_source_variables))
+         i = i + 1
+      end do
+      if (.not. eos%isothermal) field_names(i) = 'heat_' // &
+           trim(source_variable_names(num_source_variables))
+      call set_dm_data_layout(dm_source, num_field_components, field_dim, &
+           field_names)
+      deallocate(num_field_components, field_dim, field_names)
+
+    end subroutine setup_source_dm_data_layout
+
+!........................................................................
+
+    subroutine setup_source(spec_index, source_index, source_json, &
+         cells, err)
       !! Iterator for setting up cell sources for a source specification.
 
-      type(list_node_type), pointer, intent(in out)  :: node
-      PetscBool, intent(out) :: stopped
+      PetscInt, intent(in) :: spec_index !! Index of source specification
+      PetscInt, intent(in out) :: source_index !! Index of source
+      type(fson_value), pointer :: source_json !! JSON input for specification
+      type(source_cells_type), intent(in) :: cells !! Cells for specification
+      PetscErrorCode, intent(out) :: err
       ! Locals:
       character(len=64) :: srcstr
       character(len=12) :: istr
@@ -172,37 +186,34 @@ contains
       PetscInt :: i, source_offset
       PetscInt, allocatable :: source_indices(:)
 
-      select type (spec => node%data)
-      type is (source_spec_type)
-         write(istr, '(i0)') spec%spec_index
-         srcstr = 'source[' // trim(istr) // '].'
-         call get_components(spec%json, eos, &
-              injection_component, production_component, logfile)
-         call get_initial_rate(spec%json, initial_rate, can_inject)
-         call get_initial_enthalpy(spec%json, eos, can_inject, &
-              injection_component, initial_enthalpy)
-         associate(num_spec_sources => size(spec%cell_natural_index))
-           allocate(source_indices(num_spec_sources))
-           do i = 1, num_spec_sources
-              call global_section_offset(source_section, local_source_index, &
-                   source_range_start, source_offset, ierr); CHKERRQ(ierr)
-              call source%assign(source_data, source_offset)
-              call source%setup(spec%spec_index, spec%cell_natural_index(i), &
-                   spec%cell_local_index(i), initial_rate, initial_enthalpy, &
-                   injection_component, production_component)
-              source_indices(i) = local_source_index
-              local_source_index = local_source_index + 1
-           end do
-         end associate
-         call setup_inline_source_controls(spec%json, eos, thermo, &
-              start_time, source_data, source_section, source_range_start, &
-              fluid_data, fluid_section, fluid_range_start, srcstr, &
-              source_indices, source_controls, logfile, err)
-         deallocate(source_indices)
-         stopped = (err > 0)
-      end select
+      err = 0
+      associate(num_cells => size(cells%natural_index))
+        write(istr, '(i0)') spec_index
+        srcstr = 'source[' // trim(istr) // '].'
+        call get_components(source_json, eos, &
+             injection_component, production_component, logfile)
+        call get_initial_rate(source_json, initial_rate, can_inject)
+        call get_initial_enthalpy(source_json, eos, can_inject, &
+             injection_component, initial_enthalpy)
+        allocate(source_indices(num_cells))
+        do i = 1, num_cells
+           call global_section_offset(source_section, source_index, &
+                source_range_start, source_offset, ierr); CHKERRQ(ierr)
+           call source%assign(source_data, source_offset)
+           call source%setup(spec_index, cells%natural_index(i), &
+                cells%local_index(i), initial_rate, initial_enthalpy, &
+                injection_component, production_component)
+           source_indices(i) = source_index
+           source_index = source_index + 1
+        end do
+        call setup_inline_source_controls(source_json, eos, thermo, &
+             start_time, source_data, source_section, source_range_start, &
+             fluid_data, fluid_section, fluid_range_start, srcstr, &
+             source_indices, source_controls, logfile, err)
+        deallocate(source_indices)
+      end associate
 
-    end subroutine source_setup_iterator
+    end subroutine setup_source
 
   end subroutine setup_sources
 
@@ -341,7 +352,7 @@ contains
 !------------------------------------------------------------------------
 
   subroutine get_cells(source_json, dm, ao, cell_natural_index, &
-       cell_local_index, num_cells)
+       cell_local_index)
     !! Gets arrays of cell natural and local indices for the
     !! source. The "cell" key can be used to specify a single
     !! cell. The "cells" key can be used to specify either a single
@@ -355,7 +366,6 @@ contains
     AO, intent(in) :: ao
     PetscInt, allocatable, intent(out) :: cell_natural_index(:)
     PetscInt, allocatable, intent(out) :: cell_local_index(:)
-    PetscInt, intent(out) :: num_cells
     ! Locals:
     ISLocalToGlobalMapping :: l2g
     PetscInt :: cell_type, cell
@@ -405,10 +415,9 @@ contains
        filter = cell_local_index >= 0
        cell_local_index = pack(cell_local_index, filter)
        cell_natural_index = pack(cell_natural_index, filter)
-       num_cells = size(cell_natural_index)
 
     else
-       num_cells = 0
+       allocate(cell_local_index(0), cell_natural_index(0))
     end if
 
   end subroutine get_cells
