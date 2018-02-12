@@ -77,7 +77,6 @@ contains
 
     call global_vec_section(source_vector, source_section)
     call VecGetArrayReadF90(source_vector, source_array, ierr); CHKERRQ(ierr)
-    call VecView(source_vector, PETSC_VIEWER_STDOUT_WORLD, ierr)
 
     do s = 0, num_sources - 1
        call global_section_offset(source_section, s, &
