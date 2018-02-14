@@ -418,7 +418,7 @@ contains
     type(fson_value), pointer, intent(in) :: json
     DM, intent(in out) :: dm
     AO, intent(in) :: ao
-    Vec, intent(out) :: rock_vector
+    Vec, intent(in out) :: rock_vector
     type(dictionary_type), intent(in out) :: rock_dict
     PetscInt, intent(in) :: range_start
     type(logfile_type), intent(in out), optional :: logfile
@@ -522,7 +522,7 @@ contains
     type(fson_value), pointer, intent(in) :: json
     DM, intent(in out) :: dm
     AO, intent(in) :: ao
-    Vec, intent(out) :: rock_vector
+    Vec, intent(in out) :: rock_vector
     type(dictionary_type), intent(in out) :: rock_dict
     PetscInt, intent(out) :: range_start
     PetscInt, allocatable, intent(in) :: ghost_cell(:)

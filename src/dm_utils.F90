@@ -408,7 +408,7 @@ contains
     !! section from the DM of the global vector.
 
     Vec, intent(in) :: v !! Global vector
-    Vec, intent(out) :: local_v !! Local vector
+    Vec, intent(in out) :: local_v !! Local vector
     PetscSection, intent(out) :: section !! Default local section
     ! Locals:
     DM :: dm
@@ -430,7 +430,7 @@ contains
   subroutine restore_dm_local_vec(local_v)
     !! Restores local vector to its DM.
 
-    Vec, intent(out) :: local_v !! Local vector
+    Vec, intent(in out) :: local_v !! Local vector
     ! Locals:
     DM :: dm
     PetscErrorCode :: ierr

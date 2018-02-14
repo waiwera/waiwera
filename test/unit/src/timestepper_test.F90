@@ -200,7 +200,7 @@ contains
     class(test_ode_type), intent(in out) :: self
     PetscReal, intent(in) :: t, interval(2)
     Vec, intent(in) :: y
-    Vec, intent(out) :: lhs
+    Vec, intent(in out) :: lhs
     PetscErrorCode, intent(out) :: err
     ! Locals:
     PetscErrorCode :: ierr
@@ -212,7 +212,7 @@ contains
     class(test_ode_type), intent(in out) :: self
     PetscReal, intent(in) :: t, interval(2)
     Vec, intent(in) :: y
-    Vec, intent(out) :: rhs
+    Vec, intent(in out) :: rhs
     PetscErrorCode, intent(out) :: err
     ! Locals:
     PetscErrorCode :: ierr
@@ -233,7 +233,7 @@ contains
     ! Default zero exact solution.
     class(test_ode_type), intent(in out) :: self
     PetscReal, intent(in) :: t
-    Vec, intent(out) :: v
+    Vec, intent(in out) :: v
     ! Locals:
     PetscErrorCode :: ierr
     call VecSet(v, 0._dp, ierr); CHKERRQ(ierr)
@@ -297,7 +297,7 @@ contains
     class(linear_ode_type), intent(in out) :: self
     PetscReal, intent(in) :: t, interval(2)
     Vec, intent(in) :: y
-    Vec, intent(out) :: rhs
+    Vec, intent(in out) :: rhs
     PetscErrorCode, intent(out) :: err
     ! Locals:
     PetscErrorCode :: ierr
@@ -309,7 +309,7 @@ contains
     ! Linear solution
     class(linear_ode_type), intent(in out) :: self
     PetscReal, intent(in) :: t
-    Vec, intent(out) :: v
+    Vec, intent(in out) :: v
     call VecSetArray(v, self%initial_values + &
          self%k * (t - self%start_time))
   end subroutine exact_linear
@@ -321,7 +321,7 @@ contains
     class(exponential_ode_type), intent(in out) :: self
     PetscReal, intent(in) :: t, interval(2)
     Vec, intent(in) :: y
-    Vec, intent(out) :: rhs
+    Vec, intent(in out) :: rhs
     PetscErrorCode, intent(out) :: err
     ! Locals:
     PetscErrorCode :: ierr
@@ -336,7 +336,7 @@ contains
     ! Exponential solution
     class(exponential_ode_type), intent(in out) :: self
     PetscReal, intent(in) :: t
-    Vec, intent(out) :: v
+    Vec, intent(in out) :: v
     call VecSetArray(v, self%initial_values * &
          exp(self%k * (t - self%start_time)))
   end subroutine exact_exponential
@@ -348,7 +348,7 @@ contains
     class(logistic_ode_type), intent(in out) :: self
     PetscReal, intent(in) :: t, interval(2)
     Vec, intent(in) :: y
-    Vec, intent(out) :: rhs
+    Vec, intent(in out) :: rhs
     PetscErrorCode, intent(out) :: err
     ! Locals:
     PetscErrorCode :: ierr
@@ -362,7 +362,7 @@ contains
     ! Logistic solution 3 * c * exp(3 * t) / (1 + 2 * c * exp(3 * t))
     class(logistic_ode_type), intent(in out) :: self
     PetscReal, intent(in) :: t
-    Vec, intent(out) :: v
+    Vec, intent(in out) :: v
     ! Locals:
     PetscReal :: ce3t
     PetscErrorCode :: ierr
@@ -385,7 +385,7 @@ contains
     class(nontrivial_lhs_ode_type), intent(in out) :: self
     PetscReal, intent(in) :: t, interval(2)
     Vec, intent(in) :: y
-    Vec, intent(out) :: lhs
+    Vec, intent(in out) :: lhs
     PetscErrorCode, intent(out) :: err
     ! Locals:
     PetscErrorCode :: ierr
@@ -398,7 +398,7 @@ contains
     ! Solution y = y0 * t ** (k-1)
     class(nontrivial_lhs_ode_type), intent(in out) :: self
     PetscReal, intent(in) :: t
-    Vec, intent(out) :: v
+    Vec, intent(in out) :: v
     call VecSetArray(v, self%initial_values * t ** (self%k - 1._dp))
   end subroutine exact_nontrivial_lhs
 
@@ -409,7 +409,7 @@ contains
     class(nonlinear_lhs_ode_type), intent(in out) :: self
     PetscReal, intent(in) :: t, interval(2)
     Vec, intent(in) :: y
-    Vec, intent(out) :: lhs
+    Vec, intent(in out) :: lhs
     PetscErrorCode, intent(out) :: err
     ! Locals:
     PetscErrorCode :: ierr
@@ -423,7 +423,7 @@ contains
     class(nonlinear_lhs_ode_type), intent(in out) :: self
     PetscReal, intent(in) :: t, interval(2)
     Vec, intent(in) :: y
-    Vec, intent(out) :: rhs
+    Vec, intent(in out) :: rhs
     PetscErrorCode, intent(out) :: err
     ! Locals:
     PetscErrorCode :: ierr
@@ -437,7 +437,7 @@ contains
     ! Linear solution y = y0 + k * t / 2
     class(nonlinear_lhs_ode_type), intent(in out) :: self
     PetscReal, intent(in) :: t
-    Vec, intent(out) :: v
+    Vec, intent(in out) :: v
     call VecSetArray(v, self%initial_values + &
          0.5_dp * self%k * t)
   end subroutine exact_nonlinear_lhs
@@ -457,7 +457,7 @@ contains
     ! Exact heat equation solution vector on mesh.
     class(heat1d_ode_type), intent(in out) :: self
     PetscReal, intent(in) :: t
-    Vec, intent(out) :: v
+    Vec, intent(in out) :: v
     ! Locals:
     DM :: cdm
     Vec :: cv
@@ -522,7 +522,7 @@ contains
     class(heat1d_ode_type), intent(in out) :: self
     PetscReal, intent(in) :: t, interval(2)
     Vec, intent(in) :: y
-    Vec, intent(out) :: rhs
+    Vec, intent(in out) :: rhs
     PetscErrorCode, intent(out) :: err
     ! Locals:
     PetscErrorCode :: ierr
@@ -573,7 +573,7 @@ contains
     class(heat1d_nonlinear_ode_type), intent(in out) :: self
     PetscReal, intent(in) :: t, interval(2)
     Vec, intent(in) :: y
-    Vec, intent(out) :: lhs
+    Vec, intent(in out) :: lhs
     PetscErrorCode, intent(out) :: err
     ! Locals:
     PetscErrorCode :: ierr
@@ -614,7 +614,7 @@ contains
     class(heat1d_nonlinear_ode_type), intent(in out) :: self
     PetscReal, intent(in) :: t, interval(2)
     Vec, intent(in) :: y
-    Vec, intent(out) :: rhs
+    Vec, intent(in out) :: rhs
     PetscErrorCode, intent(out) :: err
     ! Locals:
     PetscErrorCode :: ierr
@@ -698,7 +698,7 @@ contains
     class(pre_eval_ode_type), intent(in out) :: self
     PetscReal, intent(in) :: t, interval(2)
     Vec, intent(in) :: y
-    Vec, intent(out) :: lhs
+    Vec, intent(in out) :: lhs
     PetscErrorCode, intent(out) :: err
     ! Locals:
     PetscErrorCode :: ierr
@@ -721,7 +721,7 @@ contains
     class(ss_ode_type), intent(in out) :: self
     PetscReal, intent(in) :: t, interval(2)
     Vec, intent(in) :: y
-    Vec, intent(out) :: rhs
+    Vec, intent(in out) :: rhs
     PetscErrorCode, intent(out) :: err
     ! Locals:
     Vec :: y2
@@ -738,7 +738,7 @@ contains
     ! Constant y = 1
     class(ss_ode_type), intent(in out) :: self
     PetscReal, intent(in) :: t
-    Vec, intent(out) :: v
+    Vec, intent(in out) :: v
     ! Locals:
     PetscErrorCode :: ierr
     call VecSet(v, 1._dp, ierr); CHKERRQ(ierr)

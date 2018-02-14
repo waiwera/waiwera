@@ -222,7 +222,7 @@ module timestepper_module
        import :: timestepper_solver_context_type
        SNES, intent(in) :: solver
        Vec, intent(in) :: y
-       Vec, intent(out) :: residual
+       Vec, intent(in out) :: residual
        type(timestepper_solver_context_type), intent(in out) :: context
        PetscErrorCode, intent(out) :: err
      end subroutine method_residual
@@ -337,7 +337,7 @@ contains
 
     SNES, intent(in) :: solver
     Vec, intent(in) :: y
-    Vec, intent(out) :: residual
+    Vec, intent(in out) :: residual
     type(timestepper_solver_context_type), intent(in out) :: context
     PetscErrorCode, intent(out) :: err
     ! Locals:
@@ -371,7 +371,7 @@ contains
 
     SNES, intent(in) :: solver
     Vec, intent(in) :: y
-    Vec, intent(out) :: residual
+    Vec, intent(in out) :: residual
     type(timestepper_solver_context_type), intent(in out) :: context
     PetscErrorCode, intent(out) :: err
     ! Locals:
@@ -424,7 +424,7 @@ contains
 
     SNES, intent(in) :: solver
     Vec, intent(in) :: y
-    Vec, intent(out) :: residual
+    Vec, intent(in out) :: residual
     type(timestepper_solver_context_type), intent(in out) :: context
     PetscErrorCode, intent(out) :: err
     ! Locals:
@@ -456,7 +456,7 @@ contains
 
     SNES, intent(in) :: solver
     Vec, intent(in) :: y
-    Vec, intent(out) :: residual
+    Vec, intent(in out) :: residual
     type(timestepper_solver_context_type), intent(in out) :: context
     PetscErrorCode, intent(out) :: err
     ! Locals:
@@ -490,7 +490,7 @@ contains
     SNES, intent(in) :: solver
     Vec, intent(in) :: y
     Mat, intent(in) :: J
-    Mat, intent(out) :: B
+    Mat, intent(in out) :: B
     type(timestepper_solver_context_type), intent(in out) :: context
     PetscErrorCode, intent(out) :: err
 
