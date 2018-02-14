@@ -429,7 +429,7 @@ contains
     character(max_component_name_length), intent(in) :: component_names(:)
     PetscInt, intent(in) :: max_phase_name_length
     character(max_phase_name_length), intent(in) :: phase_names(:)
-    Vec, intent(out) :: fluid_vec
+    Vec, intent(in out) :: fluid_vec
     PetscInt, intent(out) :: range_start
     ! Locals:
     PetscInt :: num_components, num_phases

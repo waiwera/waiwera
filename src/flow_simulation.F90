@@ -753,7 +753,7 @@ contains
     PetscReal, intent(in) :: t !! time (s)
     PetscReal, intent(in) :: interval(2) !! time interval bounds
     Vec, intent(in) :: y !! global primary variables vector
-    Vec, intent(out) :: lhs
+    Vec, intent(in out) :: lhs
     PetscErrorCode, intent(out) :: err
     ! Locals:
     PetscInt :: c, np, nc, start_cell, end_cell
@@ -847,7 +847,7 @@ contains
     PetscReal, intent(in) :: t !! time (s)
     PetscReal, intent(in) :: interval(2) !! time interval bounds
     Vec, intent(in) :: y !! global primary variables vector
-    Vec, intent(out) :: rhs
+    Vec, intent(in out) :: rhs
     PetscErrorCode, intent(out) :: err
     ! Locals:
     PetscInt :: f, i, np

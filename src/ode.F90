@@ -61,7 +61,7 @@ module ode_module
        class(ode_type), intent(in out) :: self
        PetscReal, intent(in) :: t, interval(2)
        Vec, intent(in) :: y
-       Vec, intent(out) :: lhs
+       Vec, intent(in out) :: lhs
        PetscErrorCode, intent(out) :: err
      end subroutine lhs_function
 
@@ -72,7 +72,7 @@ module ode_module
        class(ode_type), intent(in out) :: self
        PetscReal, intent(in) :: t, interval(2)
        Vec, intent(in) :: y
-       Vec, intent(out) :: rhs
+       Vec, intent(in out) :: rhs
        PetscErrorCode, intent(out) :: err
      end subroutine rhs_function
 
