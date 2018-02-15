@@ -532,7 +532,6 @@ contains
     use logfile_module
     use fson_mpi_module
     use fson_value_m, only: TYPE_STRING, TYPE_OBJECT
-    use dm_utils_module, only: dm_set_fv_adjacency
 
     class(mesh_type), intent(in out) :: self
     type(fson_value), pointer, intent(in) :: json !! JSON file pointer
@@ -565,7 +564,6 @@ contains
        ! Read in DM:
        call DMPlexCreateFromFile(PETSC_COMM_WORLD, self%filename, PETSC_TRUE, &
             self%original_dm, ierr); CHKERRQ(ierr)
-       call dm_set_fv_adjacency(self%original_dm)
        call self%setup_coordinate_parameters(json, logfile)
        call self%set_permeability_rotation(json, logfile)
        call self%rock_types%init(owner = PETSC_TRUE)
@@ -608,6 +606,7 @@ contains
       call self%setup_boundaries(json, eos, dist_sf, logfile)
       call self%construct_ghost_cells()
       call set_dm_default_data_layout(self%original_dm, dof)
+      call dm_set_fv_adjacency(self%original_dm)
 
       call self%setup_geometry(gravity)
       self%dm = self%original_dm
