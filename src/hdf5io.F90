@@ -83,6 +83,8 @@ contains
     !! viewer. Based on VecView_Plex_Local_HDF5_Internal(). Currently
     !! only for scalar fields.
 
+    use dm_utils_module, only: section_get_field_vector
+
     Vec, intent(in) :: v !! Vector to view
     PetscInt, intent(in) :: field_indices(:) !! Indices of fields to view
     character(*), intent(in) :: field_group !! Group to write to in HDF5 file
@@ -130,6 +132,8 @@ contains
 
   subroutine vec_load_fields_hdf5(v, field_indices, field_group, viewer)
     !! Loads specified fields of vector v from specified group in HDF5 file.
+
+    use dm_utils_module, only: section_get_field_vector
 
     Vec, intent(in) :: v !! Vector to load
     PetscInt, intent(in) :: field_indices(:) !! Indices of fields to load

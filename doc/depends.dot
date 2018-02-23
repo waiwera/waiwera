@@ -86,6 +86,7 @@ digraph waiwera{
         fluid_module -> thermodynamics_module
         fson_mpi_module -> fson_string_m
         fson_mpi_module -> logfile_module
+        hdf5io_module -> dm_utils
         initial_module -> dm_utils_module
         initial_module -> eos_module
         initial_module -> fluid_module
