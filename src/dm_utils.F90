@@ -69,7 +69,7 @@ module dm_utils_module
   public :: dm_get_end_interior_cell
   public :: dm_get_natural_to_global_ao, dm_get_cell_index
   public :: natural_to_local_cell_index, local_to_natural_cell_index
-  public :: section_get_field_vector
+  public :: section_get_field_vector, section_get_field_names
 
 contains
 
@@ -1020,6 +1020,25 @@ contains
     call VecSetBlockSize(subv, num_components, ierr); CHKERRQ(ierr)
 
   end subroutine section_get_field_vector
+
+!------------------------------------------------------------------------
+
+  subroutine section_get_field_names(section, field_names)
+    !! Returns array of section field names.
+
+    PetscSection, intent(in) :: section
+    character(*), allocatable :: field_names(:)
+    ! Locals:
+    PetscInt :: num_fields, f
+    PetscErrorCode :: ierr
+
+    call PetscSectionGetNumFields(section, num_fields, ierr); CHKERRQ(ierr)
+    allocate(field_names(num_fields))
+    do f = 1, num_fields
+       call PetscSectionGetFieldName(section, f - 1, field_names(f), ierr)
+    end do
+
+  end subroutine section_get_field_names
 
 !------------------------------------------------------------------------
 
