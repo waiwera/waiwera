@@ -63,6 +63,7 @@ module flow_simulation_module
      class(capillary_pressure_type), allocatable, public :: capillary_pressure !! Rock capillary pressure function
      character(max_output_filename_length), public :: output_filename !! HDF5 output filename
      PetscViewer :: hdf5_viewer
+     PetscInt, allocatable :: fluid_output_field_indices(:)
      PetscLogDouble :: start_wall_time
      PetscBool :: unperturbed !! Whether any primary variables are being perturbed for Jacobian calculation
    contains
@@ -70,6 +71,7 @@ module flow_simulation_module
      procedure :: setup_solution_vector => flow_simulation_setup_solution_vector
      procedure :: setup_logfile => flow_simulation_setup_logfile
      procedure :: setup_output => flow_simulation_setup_output
+     procedure :: setup_output_fields => flow_simulation_setup_output_fields
      procedure :: setup_update_cell => flow_simulation_setup_update_cell
      procedure :: setup_flux_vector => flow_simulation_setup_flux_vector
      procedure :: identify_update_cells => flow_simulation_identify_update_cells
@@ -336,8 +338,51 @@ contains
     if (self%output_filename /= "") then
        call PetscViewerDestroy(self%hdf5_viewer, ierr); CHKERRQ(ierr)
     end if
+    if (allocated(self%fluid_output_field_indices)) then
+       deallocate(self%fluid_output_field_indices)
+    end if
 
   end subroutine flow_simulation_destroy_output
+
+!------------------------------------------------------------------------
+
+  subroutine flow_simulation_setup_output_fields(self, json)
+    !! Sets up output field indices for writing to HDF5 file.
+
+    use fson
+    use fson_mpi_module
+    use hdf5io_module, only: max_field_name_length
+    use dm_utils_module, only: section_get_field_names
+    use utils_module, only: str_to_lower, str_array_index
+
+    class(flow_simulation_type), intent(in out) :: self
+    type(fson_value), pointer, intent(in) :: json
+    ! Locals:
+    character(max_field_name_length), allocatable :: &
+         fluid_output_fields(:), fluid_fields(:)
+    DM :: fluid_dm
+    PetscSection :: section
+    PetscInt :: i
+    PetscErrorCode :: ierr
+
+    call fson_get_mpi(json, "output.fields.fluid", &
+         self%eos%default_fluid_output_fields, max_field_name_length, &
+         fluid_output_fields, self%logfile)
+
+    associate(num_fields => size(fluid_output_fields))
+      allocate(self%fluid_output_field_indices(num_fields))
+      call VecGetDM(self%fluid, fluid_dm, ierr); CHKERRQ(ierr)
+      call DMGetDefaultSection(fluid_dm, section, ierr); CHKERRQ(ierr)
+      call section_get_field_names(section, fluid_fields)
+      do i = 1, num_fields
+         self%fluid_output_field_indices(i) = str_array_index( &
+              str_to_lower(fluid_output_fields(i)), fluid_fields)
+      end do
+    end associate
+
+    deallocate(fluid_fields)
+
+  end subroutine flow_simulation_setup_output_fields
 
 !------------------------------------------------------------------------
 
@@ -605,6 +650,9 @@ contains
                            self%eos, self%thermo, self%time, self%fluid, &
                            self%fluid_range_start, self%sources, self%source_controls, &
                            self%logfile, err)
+                      if (err == 0) then
+                         call self%setup_output_fields(json)
+                      end if
                    end if
                 end if
              end if
