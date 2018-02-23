@@ -25,6 +25,8 @@ module hdf5io_module
   implicit none
   private
 
+  PetscInt, parameter, public :: max_field_name_length = 128
+
   public :: vec_view_fields_hdf5, vec_load_fields_hdf5
 
 contains
@@ -97,7 +99,8 @@ contains
     IS :: index_set
     PetscInt :: time_index, i, f
     PetscReal :: time
-    character(max_name_length) :: name, field_name
+    character(max_name_length) :: name
+    character(max_field_name_length) :: field_name
     PetscErrorCode :: ierr
 
     call VecGetDM(v, dm, ierr); CHKERRQ(ierr)
@@ -145,7 +148,8 @@ contains
     Vec :: subv
     IS :: index_set
     PetscInt, parameter :: max_name_length = 64
-    character(max_name_length) :: name, field_name
+    character(max_name_length) :: name
+    character(max_field_name_length) :: field_name
     PetscInt :: i, f
     PetscErrorCode :: ierr
 
