@@ -41,6 +41,16 @@ contains
     self%description = "Water, air NCG and energy"
     self%primary_variable_names(3) = "air partial pressure"
     self%component_names(2) = "air"
+    self%required_fluid_output_fields = [ &
+         "pressure            ", "temperature         ", &
+         "region              ", "air_partial_pressure", &
+         "vapour_saturation   "]
+    self%default_fluid_output_fields = [ &
+         "pressure              ", "temperature           ", &
+         "region                ", "air_partial_pressure  ", &
+         "liquid_density        ", "liquid_internal_energy", &
+         "vapour_density        ", "vapour_internal_energy", &
+         "vapour_saturation     "]
 
     allocate(ncg_air_thermodynamics_type :: self%gas)
     call self%gas%init()
