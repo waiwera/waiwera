@@ -69,6 +69,7 @@ module dm_utils_module
   public :: dm_get_end_interior_cell
   public :: dm_get_natural_to_global_ao, dm_get_cell_index
   public :: natural_to_local_cell_index, local_to_natural_cell_index
+  public :: section_get_field_vector
 
 contains
 
@@ -958,6 +959,67 @@ contains
     call PetscFVDestroy(fvm, ierr); CHKERRQ(ierr)
 
   end subroutine dm_setup_fv_discretization
+
+!------------------------------------------------------------------------
+
+  subroutine section_get_field_vector(section, global_section, v, &
+       field, index_set, subv)
+    !! Gets subvector of v for the specified field. Based on
+    !! PetscSectionGetField_Internal().
+
+    PetscSection, intent(in) :: section, global_section
+    Vec, intent(in) :: v
+    PetscInt, intent(in) :: field
+    IS, intent(in out) :: index_set
+    Vec, intent(in out) :: subv
+    ! Locals:
+    PetscInt :: pstart, pend, p, f, fc, fdof
+    PetscInt :: num_components, gdof, poff, goff, suboff
+    PetscInt :: subsize
+    PetscInt, allocatable :: subindices(:)
+    PetscErrorCode :: ierr
+
+    call PetscSectionGetChart(section, pStart, pEnd, ierr); CHKERRQ(ierr)
+    call PetscSectionGetFieldComponents(section, field, &
+         num_components, ierr); CHKERRQ(ierr)
+    subsize = 0
+    do p = pstart, pend - 1
+       call PetscSectionGetDof(global_section, p, gdof, ierr); CHKERRQ(ierr)
+       if (gdof > 0) then
+          call PetscSectionGetFieldDof(section, p, field, fdof, ierr)
+          CHKERRQ(ierr)
+          subsize = subsize + fdof
+       end if
+    end do
+    allocate(subindices(0: subsize - 1))
+
+    suboff = 0
+    do p = pstart, pend - 1
+       call PetscSectionGetDof(global_section, p, gdof, ierr); CHKERRQ(ierr)
+       if (gdof > 0) then
+          call PetscSectionGetOffset(global_section, p, goff, ierr)
+          CHKERRQ(ierr)
+          poff = 0
+          do f = 0, field - 1
+             call PetscSectionGetFieldDof(section, p, f, fdof, ierr)
+             CHKERRQ(ierr)
+             poff = poff + fdof
+          end do
+          call PetscSectionGetFieldDof(section, p, field, fdof, ierr)
+          CHKERRQ(ierr)
+          subindices(suboff: suboff + fdof - 1) = &
+               goff + poff + [(fc, fc = 0, fdof - 1)]
+          suboff = suboff + fdof
+       end if
+    end do
+
+    call ISCreateGeneral(PETSC_COMM_WORLD, subsize, subindices, &
+         PETSC_COPY_VALUES, index_set, ierr); CHKERRQ(ierr)
+    deallocate(subindices)
+    call VecGetSubVector(v, index_set, subv, ierr); CHKERRQ(ierr)
+    call VecSetBlockSize(subv, num_components, ierr); CHKERRQ(ierr)
+
+  end subroutine section_get_field_vector
 
 !------------------------------------------------------------------------
 
