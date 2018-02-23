@@ -468,7 +468,7 @@ contains
     character(len=*), intent(in), optional :: log_key
     ! Locals:
     type(fson_value), pointer :: p
-    character :: logstr
+    character(string_length) :: logstr
     character(:), allocatable :: str
     character(max_log_key_length) :: key
 
