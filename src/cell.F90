@@ -55,7 +55,7 @@ module cell_module
   PetscInt, parameter :: max_cell_variable_name_length = 24
   character(max_cell_variable_name_length), parameter, public :: &
        cell_variable_names(num_cell_variables) = &
-       [character(max_cell_variable_name_length):: "volume", "centroid"]
+       [character(max_cell_variable_name_length):: "centroid", "volume"]
 
   public :: cell_type
 
