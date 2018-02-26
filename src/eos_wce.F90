@@ -41,11 +41,11 @@ contains
     self%description = "Water, CO2 NCG and energy"
     self%primary_variable_names(3) = "CO2 partial pressure"
     self%component_names(2) = "CO2"
-    self%required_fluid_output_fields = [ &
+    self%required_output_fluid_fields = [ &
          "pressure            ", "temperature         ", &
          "region              ", "CO2_partial_pressure", &
          "vapour_saturation   "]
-    self%default_fluid_output_fields = [ &
+    self%default_output_fluid_fields = [ &
          "pressure              ", "temperature           ", &
          "region                ", "CO2_partial_pressure  ", &
          "liquid_density        ", "liquid_internal_energy", &

@@ -79,11 +79,11 @@ contains
     self%default_primary = [default_pressure, default_temperature, &
          default_gas_partial_pressure]
     self%default_region = 1
-    self%required_fluid_output_fields = [ &
+    self%required_output_fluid_fields = [ &
          "pressure            ", "temperature         ", &
          "region              ", "gas_partial_pressure", &
          "vapour_saturation   "]
-    self%default_fluid_output_fields = [ &
+    self%default_output_fluid_fields = [ &
          "pressure              ", "temperature           ", &
          "region                ", "gas_partial_pressure  ", &
          "liquid_density        ", "liquid_internal_energy", &

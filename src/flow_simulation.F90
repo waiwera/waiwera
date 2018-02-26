@@ -63,7 +63,7 @@ module flow_simulation_module
      class(capillary_pressure_type), allocatable, public :: capillary_pressure !! Rock capillary pressure function
      character(max_output_filename_length), public :: output_filename !! HDF5 output filename
      PetscViewer :: hdf5_viewer
-     PetscInt, allocatable :: fluid_output_field_indices(:)
+     PetscInt, allocatable :: output_fluid_field_indices(:)
      PetscLogDouble :: start_wall_time
      PetscBool :: unperturbed !! Whether any primary variables are being perturbed for Jacobian calculation
    contains
@@ -338,8 +338,8 @@ contains
     if (self%output_filename /= "") then
        call PetscViewerDestroy(self%hdf5_viewer, ierr); CHKERRQ(ierr)
     end if
-    if (allocated(self%fluid_output_field_indices)) then
-       deallocate(self%fluid_output_field_indices)
+    if (allocated(self%output_fluid_field_indices)) then
+       deallocate(self%output_fluid_field_indices)
     end if
 
   end subroutine flow_simulation_destroy_output
