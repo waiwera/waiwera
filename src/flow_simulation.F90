@@ -1632,6 +1632,7 @@ contains
     !! Checkpoint output from flow simulation at a particular time.
 
     use profiling_module, only: output_event
+    use hdf5io_module, only: vec_view_fields_hdf5
 
     class(flow_simulation_type), intent(in out) :: self
     PetscInt, intent(in) :: time_index
@@ -1646,7 +1647,8 @@ contains
        call VecGetDM(self%fluid, fluid_dm, ierr); CHKERRQ(ierr)
        call DMSetOutputSequenceNumber(fluid_dm, time_index, time, &
             ierr); CHKERRQ(ierr)
-       call VecView(self%fluid, self%hdf5_viewer, ierr); CHKERRQ(ierr)
+       call vec_view_fields_hdf5(self%fluid, self%output_fluid_field_indices, &
+            "cell_fields", self%hdf5_viewer)
     end if
 
     call PetscLogEventEnd(output_event, ierr); CHKERRQ(ierr)
