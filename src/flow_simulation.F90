@@ -350,37 +350,83 @@ contains
     !! Sets up output field indices for writing to HDF5 file.
 
     use fson
-    use fson_mpi_module
-    use hdf5io_module, only: max_field_name_length
-    use dm_utils_module, only: section_get_field_names
-    use utils_module, only: str_to_lower, str_array_index
 
     class(flow_simulation_type), intent(in out) :: self
     type(fson_value), pointer, intent(in) :: json
-    ! Locals:
-    character(max_field_name_length), allocatable :: &
-         fluid_output_fields(:), fluid_fields(:)
-    DM :: fluid_dm
-    PetscSection :: section
-    PetscInt :: i
-    PetscErrorCode :: ierr
 
-    call fson_get_mpi(json, "output.fields.fluid", &
-         self%eos%default_fluid_output_fields, max_field_name_length, &
-         fluid_output_fields, self%logfile)
+    call setup_vector_output_fields("fluid", self%fluid, &
+         self%eos%default_output_fluid_fields, &
+         self%eos%required_output_fluid_fields, &
+         self%output_fluid_field_indices)
 
-    associate(num_fields => size(fluid_output_fields))
-      allocate(self%fluid_output_field_indices(num_fields))
-      call VecGetDM(self%fluid, fluid_dm, ierr); CHKERRQ(ierr)
-      call DMGetDefaultSection(fluid_dm, section, ierr); CHKERRQ(ierr)
-      call section_get_field_names(section, fluid_fields)
-      do i = 1, num_fields
-         self%fluid_output_field_indices(i) = str_array_index( &
-              str_to_lower(fluid_output_fields(i)), fluid_fields)
+  contains
+
+    subroutine setup_vector_output_fields(name, v, default_fields, &
+         required_fields, field_indices)
+
+      use fson_mpi_module
+      use hdf5io_module, only: max_field_name_length
+      use dm_utils_module, only: section_get_field_names
+      use utils_module, only: str_to_lower, str_array_index
+
+      character(*), intent(in) :: name
+      Vec, intent(in) :: v
+      character(max_field_name_length), intent(in) :: &
+           default_fields(:), required_fields(:)
+      PetscInt, allocatable, intent(out) :: field_indices(:)
+      ! Locals:
+      character(max_field_name_length), allocatable :: &
+           output_fields(:), fields(:)
+      DM :: dm
+      PetscSection :: section
+      PetscInt :: i
+      PetscBool, allocatable :: required_missing(:)
+      character(3) :: field_str
+      PetscErrorCode :: ierr
+
+      call fson_get_mpi(json, "output.fields." // trim(name), &
+           default_fields, max_field_name_length, &
+           output_fields, self%logfile)
+      do i = 1, size(output_fields)
+         output_fields(i) = str_to_lower(output_fields(i))
       end do
-    end associate
 
-    deallocate(fluid_fields)
+      ! Check if required fields are present:
+      associate(num_required => size(required_fields))
+        allocate(required_missing(num_required))
+        do i = 1, num_required
+           required_missing(i) = (str_array_index( &
+                required_fields(i), output_fields) == -1)
+        end do
+      end associate
+      output_fields = [output_fields, &
+           pack(required_fields, required_missing)]
+
+      associate(num_fields => size(output_fields))
+
+        allocate(field_indices(num_fields))
+        call VecGetDM(v, dm, ierr); CHKERRQ(ierr)
+        call DMGetDefaultSection(dm, section, ierr); CHKERRQ(ierr)
+        call section_get_field_names(section, fields)
+        do i = 1, num_fields
+           field_indices(i) = str_array_index( &
+                output_fields(i), fields)
+           if (field_indices(i) == -1) then
+              write(field_str, '(i3)') i - 1
+              call self%logfile%write(LOG_LEVEL_WARN, 'input', 'unrecognised', &
+                   str_key = "output.fields." // trim(name) // &
+                   "[" // trim(field_str) // "]", &
+                   str_value = output_fields(i))
+           end if
+        end do
+        field_indices = pack(field_indices, field_indices > -1)
+        field_indices = field_indices - 1 ! zero-based indices
+
+      end associate
+
+      deallocate(fields, required_missing)
+
+    end subroutine setup_vector_output_fields
 
   end subroutine flow_simulation_setup_output_fields
 
