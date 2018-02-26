@@ -1645,11 +1645,14 @@ contains
   subroutine flow_simulation_output_mesh_geometry(self)
     !! Writes mesh geometry data to output.
 
+    use hdf5io_module, only: vec_view_fields_hdf5
+
     class(flow_simulation_type), intent(in out) :: self
     ! Locals:
     PetscErrorCode :: ierr
     DM :: geom_dm
     Vec :: global_cell_geom
+    PetscInt, parameter :: cell_geom_indices(2) = [0, 1]
 
     if (self%output_filename /= "") then
 
@@ -1663,7 +1666,8 @@ contains
        call DMLocalToGlobalEnd(geom_dm, self%mesh%cell_geom, &
             INSERT_VALUES, global_cell_geom, ierr); CHKERRQ(ierr)
 
-       call VecView(global_cell_geom, self%hdf5_viewer, ierr); CHKERRQ(ierr)
+       call vec_view_fields_hdf5(global_cell_geom, cell_geom_indices, &
+            "cell_fields", self%hdf5_viewer)
 
        call DMRestoreGlobalVector(geom_dm, global_cell_geom, ierr)
        CHKERRQ(ierr)
