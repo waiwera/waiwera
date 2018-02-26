@@ -381,7 +381,7 @@ contains
       PetscSection :: section
       PetscInt :: i
       PetscBool, allocatable :: required_missing(:)
-      character(3) :: field_str
+      character(2) :: field_str
       PetscErrorCode :: ierr
 
       call fson_get_mpi(json, "output.fields." // trim(name), &
@@ -412,7 +412,7 @@ contains
            field_indices(i) = str_array_index( &
                 output_fields(i), fields)
            if (field_indices(i) == -1) then
-              write(field_str, '(i3)') i - 1
+              write(field_str, '(i2)') i - 1
               call self%logfile%write(LOG_LEVEL_WARN, 'input', 'unrecognised', &
                    str_key = "output.fields." // trim(name) // &
                    "[" // trim(field_str) // "]", &
