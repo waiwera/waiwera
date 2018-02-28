@@ -82,10 +82,10 @@ contains
 
   subroutine vec_view_fields_hdf5(v, field_indices, field_group, viewer)
     !! Views specified fields of vector v to specified group in HDF5
-    !! viewer. Based on VecView_Plex_Local_HDF5_Internal(). Currently
-    !! only for scalar fields.
+    !! viewer. Based on VecView_Plex_Local_HDF5_Internal().
 
-    use dm_utils_module, only: section_get_field_vector
+    use dm_utils_module, only: section_get_field_vector, &
+         dm_global_cell_field_dof
 
     Vec, intent(in) :: v !! Vector to view
     PetscInt, intent(in) :: field_indices(:) !! Indices of fields to view
@@ -97,10 +97,14 @@ contains
     PetscSection :: section, global_section
     Vec :: subv
     IS :: index_set
-    PetscInt :: time_index, i, f
+    PetscInt :: time_index, i, f, dim
+    PetscInt :: field_dof
     PetscReal :: time
-    character(max_name_length) :: name
+    character(max_name_length) :: vector_name
     character(max_field_name_length) :: field_name
+    character(6) :: field_type
+    character(:), allocatable :: subvector_name, field_path
+    PetscBool :: has_field_type
     PetscErrorCode :: ierr
 
     call VecGetDM(v, dm, ierr); CHKERRQ(ierr)
@@ -109,7 +113,9 @@ contains
     call PetscViewerHDF5SetTimestep(viewer, time_index, ierr); CHKERRQ(ierr)    
     call dm_time_view_hdf5(dm, time_index, time, viewer)
     call DMGetDefaultGlobalSection(dm, global_section, ierr); CHKERRQ(ierr)
-    call PetscObjectGetName(v, name, ierr); CHKERRQ(ierr)
+    call DMGetDimension(dm, dim, ierr); CHKERRQ(ierr)
+    call PetscObjectGetName(v, vector_name, ierr); CHKERRQ(ierr)
+    CHKERRQ(ierr)
 
     do i = 1, size(field_indices)
        f = field_indices(i)
@@ -120,12 +126,26 @@ contains
           CHKERRQ(ierr)
           call section_get_field_vector(section, global_section, v, &
                f, index_set, subv)
-          call PetscObjectSetName(subv, &
-               trim(name) // "_" // trim(field_name), ierr); CHKERRQ(ierr)
+          subvector_name = trim(vector_name) // "_" // trim(field_name)
+          call PetscObjectSetName(subv, subvector_name, ierr); CHKERRQ(ierr)
           call VecView(subv, viewer, ierr); CHKERRQ(ierr)
           call VecRestoreSubVector(v, index_set, subv, ierr); CHKERRQ(ierr)
           call ISDestroy(index_set, ierr); CHKERRQ(ierr)
           call PetscViewerHDF5PopGroup(viewer, ierr); CHKERRQ(ierr)
+          field_path = field_group // "/" // subvector_name
+          call PetscViewerHDF5HasAttribute(viewer, field_path, &
+               "vector_field_type", has_field_type, ierr); CHKERRQ(ierr)
+          if (has_field_type) then
+             field_dof = dm_global_cell_field_dof(dm, f)
+             if (field_dof == dim) then
+                field_type = "vector"
+             else
+                field_type = "scalar"
+             end if
+             call PetscViewerHDF5WriteAttribute(viewer, field_path, &
+                  "vector_field_type", PETSC_STRING, field_type, ierr)
+             CHKERRQ(ierr)
+          end if
        end if
     end do
 
