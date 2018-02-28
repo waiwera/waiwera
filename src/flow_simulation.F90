@@ -1667,7 +1667,7 @@ contains
             INSERT_VALUES, global_cell_geom, ierr); CHKERRQ(ierr)
 
        call vec_view_fields_hdf5(global_cell_geom, cell_geom_indices, &
-            "cell_fields", self%hdf5_viewer)
+            "/cell_fields", self%hdf5_viewer)
 
        call DMRestoreGlobalVector(geom_dm, global_cell_geom, ierr)
        CHKERRQ(ierr)
@@ -1698,7 +1698,7 @@ contains
        call DMSetOutputSequenceNumber(fluid_dm, time_index, time, &
             ierr); CHKERRQ(ierr)
        call vec_view_fields_hdf5(self%fluid, self%output_fluid_field_indices, &
-            "cell_fields", self%hdf5_viewer)
+            "/cell_fields", self%hdf5_viewer)
     end if
 
     call PetscLogEventEnd(output_event, ierr); CHKERRQ(ierr)
