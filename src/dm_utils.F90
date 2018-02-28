@@ -70,6 +70,7 @@ module dm_utils_module
   public :: dm_get_natural_to_global_ao, dm_get_cell_index
   public :: natural_to_local_cell_index, local_to_natural_cell_index
   public :: section_get_field_vector, section_get_field_names
+  public :: dm_global_cell_field_dof
 
 contains
 
@@ -1039,6 +1040,33 @@ contains
     end do
 
   end subroutine section_get_field_names
+
+!------------------------------------------------------------------------
+
+  PetscInt function dm_global_cell_field_dof(dm, field) result(dof)
+    !! Returns degrees of freedom associated with specified DM section
+    !! cell field. Checks dof on all processes in case current process
+    !! has no cells.
+
+    DM, intent(in) :: dm
+    PetscInt, intent(in) :: field
+    ! Locals:
+    PetscSection :: section
+    PetscInt :: start_cell, end_cell, field_dof
+    PetscErrorCode :: ierr
+
+    call DMGetDefaultSection(dm, section, ierr); CHKERRQ(ierr)
+    call DMPlexGetHeightStratum(dm, 0, start_cell, end_cell, ierr)
+    if (end_cell > start_cell) then
+       call PetscSectionGetFieldDof(section, start_cell, field, &
+            field_dof, ierr); CHKERRQ(ierr)
+    else
+       field_dof = -1
+    end if
+    call MPI_Allreduce(field_dof, dof, 1, MPI_INT, MPI_MAX, &
+         PETSC_COMM_WORLD, ierr); CHKERRQ(ierr)
+
+  end function dm_global_cell_field_dof
 
 !------------------------------------------------------------------------
 
