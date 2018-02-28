@@ -168,15 +168,19 @@ contains
     Vec :: subv
     IS :: index_set
     PetscInt, parameter :: max_name_length = 64
-    character(max_name_length) :: name
+    character(max_name_length) :: vector_name
     character(max_field_name_length) :: field_name
-    PetscInt :: i, f
+    character(:), allocatable :: subvector_name
+    PetscInt :: i, f, time_index
+    PetscReal :: time
     PetscErrorCode :: ierr
 
     call VecGetDM(v, dm, ierr); CHKERRQ(ierr)
+    call DMGetOutputSequenceNumber(dm, time_index, time, ierr); CHKERRQ(ierr)
+    call PetscViewerHDF5SetTimestep(viewer, time_index, ierr); CHKERRQ(ierr)
     call DMGetDefaultSection(dm, section, ierr); CHKERRQ(ierr)
     call DMGetDefaultGlobalSection(dm, global_section, ierr); CHKERRQ(ierr)
-    call PetscObjectGetName(v, name, ierr); CHKERRQ(ierr)
+    call PetscObjectGetName(v, vector_name, ierr); CHKERRQ(ierr)
 
     do i = 1, size(field_indices)
        f = field_indices(i)
@@ -187,8 +191,8 @@ contains
           CHKERRQ(ierr)
           call section_get_field_vector(section, global_section, v, &
                f, index_set, subv)
-          call PetscObjectSetName(subv, &
-               trim(name) // "_" // trim(field_name), ierr); CHKERRQ(ierr)
+          subvector_name = trim(vector_name) // "_" // trim(field_name)
+          call PetscObjectSetName(subv, subvector_name, ierr); CHKERRQ(ierr)
           call VecLoad(subv, viewer, ierr); CHKERRQ(ierr)
           call VecRestoreSubVector(v, index_set, subv, ierr); CHKERRQ(ierr)
           call ISDestroy(index_set, ierr); CHKERRQ(ierr)
