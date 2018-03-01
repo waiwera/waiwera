@@ -69,7 +69,7 @@ module dm_utils_module
   public :: dm_get_end_interior_cell
   public :: dm_get_natural_to_global_ao, dm_get_cell_index
   public :: natural_to_local_cell_index, local_to_natural_cell_index
-  public :: section_get_field_vector, section_get_field_names
+  public :: get_field_subvector, section_get_field_names
   public :: dm_global_cell_field_dof
 
 contains
@@ -963,24 +963,36 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine section_get_field_vector(section, global_section, v, &
-       field, index_set, subv)
+  subroutine get_field_subvector(v, field, index_set, subv)
     !! Gets subvector of v for the specified field. Based on
     !! PetscSectionGetField_Internal().
 
-    PetscSection, intent(in) :: section, global_section
     Vec, intent(in) :: v
     PetscInt, intent(in) :: field
     IS, intent(in out) :: index_set
     Vec, intent(in out) :: subv
     ! Locals:
+    DM :: dm
+    PetscSection :: section, global_section
     PetscInt :: pstart, pend, p, f, fc, fdof
+    PetscInt :: start_cell, end_cell, end_interior_cell
     PetscInt :: num_components, gdof, poff, goff, suboff
     PetscInt :: subsize
     PetscInt, allocatable :: subindices(:)
     PetscErrorCode :: ierr
 
-    call PetscSectionGetChart(section, pStart, pEnd, ierr); CHKERRQ(ierr)
+    call VecGetDM(v, dm, ierr); CHKERRQ(ierr)
+    call DMGetDefaultSection(dm, section, ierr); CHKERRQ(ierr)
+    call DMGetDefaultGlobalSection(dm, global_section, ierr); CHKERRQ(ierr)
+    call DMPlexGetHeightStratum(dm, 0, start_cell, end_cell, ierr); CHKERRQ(ierr)
+    end_interior_cell = dm_get_end_interior_cell(dm, end_cell)
+
+    call PetscSectionGetChart(section, pstart, pend, ierr); CHKERRQ(ierr)
+    ! Modify point range for cells- to exclude boundary ghosts:
+    if ((start_cell >= pstart) .and. (start_cell < pend)) then
+       pend = end_interior_cell
+    end if
+
     call PetscSectionGetFieldComponents(section, field, &
          num_components, ierr); CHKERRQ(ierr)
     subsize = 0
@@ -1020,7 +1032,7 @@ contains
     call VecGetSubVector(v, index_set, subv, ierr); CHKERRQ(ierr)
     call VecSetBlockSize(subv, num_components, ierr); CHKERRQ(ierr)
 
-  end subroutine section_get_field_vector
+  end subroutine get_field_subvector
 
 !------------------------------------------------------------------------
 
