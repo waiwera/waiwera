@@ -48,8 +48,6 @@ contains
     self%default_output_fluid_fields = [ &
          "pressure              ", "temperature           ", &
          "region                ", "CO2_partial_pressure  ", &
-         "liquid_density        ", "liquid_internal_energy", &
-         "vapour_density        ", "vapour_internal_energy", &
          "vapour_saturation     "]
 
     allocate(ncg_co2_thermodynamics_type :: self%gas)

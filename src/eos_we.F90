@@ -96,10 +96,7 @@ contains
          "region           ", "vapour_saturation"]
     self%default_output_fluid_fields = [ &
          "pressure              ", "temperature           ", &
-         "region                ", &
-         "liquid_density        ", "liquid_internal_energy", &
-         "vapour_density        ", "vapour_internal_energy", &
-         "vapour_saturation     "]
+         "region                ", "vapour_saturation     "]
 
     self%primary_scale = reshape([ &
           pressure_scale, temperature_scale, &
