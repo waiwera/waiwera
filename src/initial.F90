@@ -353,7 +353,8 @@ contains
 
       call VecGetDM(original_fluid_vector, fluid_dm, ierr); CHKERRQ(ierr)
       call DMSetOutputSequenceNumber(fluid_dm, index, t, ierr); CHKERRQ(ierr)
-      call VecLoad(original_fluid_vector, viewer, ierr); CHKERRQ(ierr)
+      call vec_load_fields_hdf5(original_fluid_vector, field_indices, &
+           "/cell_fields", viewer)
       call vec_reorder(original_fluid_vector, output_cell_index, original_cell_index)
       call ISDestroy(output_cell_index, ierr); CHKERRQ(ierr)
 
