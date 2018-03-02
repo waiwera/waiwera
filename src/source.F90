@@ -23,6 +23,7 @@ module source_module
   use petsc
   use kinds_module
   use fluid_module
+  use hdf5io_module, only: max_field_name_length
 
   implicit none
   private
@@ -44,6 +45,13 @@ module source_module
        "production_component", "component           ", &
        "rate                ", "enthalpy            ", &
        "flow                "]
+
+  character(max_field_name_length), parameter, public :: required_output_source_fields(2) = [&
+       "source_index      ", "natural_cell_index"]
+  character(max_field_name_length), parameter, public :: default_output_source_fields(5) = [&
+       "source_index      ", "natural_cell_index", &
+       "component         ", "rate              ", &
+       "enthalpy          "]
 
   type, public :: source_type
      !! Type for mass / energy source, applying specified values of

@@ -63,9 +63,10 @@ module flow_simulation_module
      class(relative_permeability_type), allocatable, public :: relative_permeability !! Rock relative permeability function
      class(capillary_pressure_type), allocatable, public :: capillary_pressure !! Rock capillary pressure function
      character(max_output_filename_length), public :: output_filename !! HDF5 output filename
-     PetscViewer :: hdf5_viewer
-     PetscInt, allocatable :: output_fluid_field_indices(:)
-     PetscLogDouble :: start_wall_time
+     PetscViewer :: hdf5_viewer !! Viewer for HDF5 output
+     PetscInt, allocatable :: output_fluid_field_indices(:) !! Field indices for fluid output
+     PetscInt, allocatable :: output_source_field_indices(:) !! Field indices for source output
+     PetscLogDouble :: start_wall_time !! Start wall time of simulation
      PetscBool :: unperturbed !! Whether any primary variables are being perturbed for Jacobian calculation
    contains
      private
@@ -342,6 +343,9 @@ contains
     if (allocated(self%output_fluid_field_indices)) then
        deallocate(self%output_fluid_field_indices)
     end if
+    if (allocated(self%output_source_field_indices)) then
+       deallocate(self%output_source_field_indices)
+    end if
 
   end subroutine flow_simulation_destroy_output
 
@@ -351,6 +355,8 @@ contains
     !! Sets up output field indices for writing to HDF5 file.
 
     use fson
+    use source_module, only: default_output_source_fields, &
+         required_output_source_fields
 
     class(flow_simulation_type), intent(in out) :: self
     type(fson_value), pointer, intent(in) :: json
@@ -359,6 +365,10 @@ contains
          self%eos%default_output_fluid_fields, &
          self%eos%required_output_fluid_fields, &
          self%output_fluid_field_indices)
+
+    call setup_vector_output_fields("source", self%source, &
+         default_output_source_fields, required_output_source_fields, &
+         self%output_source_field_indices)
 
   contains
 
