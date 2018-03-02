@@ -79,6 +79,15 @@ contains
     self%default_primary = [default_pressure, default_temperature, &
          default_gas_partial_pressure]
     self%default_region = 1
+    self%required_output_fluid_fields = [ &
+         "pressure            ", "temperature         ", &
+         "region              ", "gas_partial_pressure", &
+         "vapour_saturation   "]
+    self%default_output_fluid_fields = [ &
+         "pressure              ", "temperature           ", &
+         "region                ", "gas_partial_pressure  ", &
+         "vapour_saturation     "]
+
     self%primary_scale = reshape([ &
           pressure_scale, temperature_scale, &
           pressure_scale, temperature_scale, &

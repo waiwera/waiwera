@@ -261,7 +261,7 @@ contains
     Vec, intent(in) :: petsc_face_geom
     PetscReal, intent(in) :: gravity(:)
     ! Locals:
-    DM :: dm_face
+    DM :: dm_cell, dm_face
     PetscSection :: face_section, petsc_face_section, cell_section
     PetscInt :: c, f, ghost_cell, ghost_face, i
     PetscInt :: start_cell, end_cell, start_face, end_face
@@ -275,6 +275,7 @@ contains
     DMLabel :: ghost_label
     PetscInt, pointer :: cells(:)
     PetscInt :: dim, face_variable_dim(num_face_variables)
+    PetscInt :: cell_variable_dim(num_cell_variables)
     PetscErrorCode :: ierr
 
     interface
@@ -301,6 +302,11 @@ contains
     CHKERRQ(ierr)
 
     ! Set up cell geometry vector:
+    call VecGetDM(self%cell_geom, dm_cell, ierr); CHKERRQ(ierr)
+    cell_variable_dim = dim
+    call set_dm_data_layout(dm_cell, cell_variable_num_components, &
+         cell_variable_dim, cell_variable_names)
+
     call local_vec_section(self%cell_geom, cell_section)
     call VecGetArrayF90(self%cell_geom, cell_geom_array, ierr); CHKERRQ(ierr)
 

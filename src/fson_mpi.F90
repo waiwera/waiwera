@@ -309,7 +309,7 @@ contains
              if (size(val) > 0) then
                 allocate(character(logfile%max_num_length) :: intstr)
                 write(intstr, logfile%int_format) val(1)
-                str = '[' // intstr // ',...]'
+                str = '[' // trim(intstr) // ',...]'
              else
                 str = '[]'
              end if
@@ -353,7 +353,7 @@ contains
              if (size(val) > 0) then
                 allocate(character(logfile%max_num_length) :: realstr)
                 write(realstr, logfile%real_format) val(1)
-                str  = '[' // realstr // ',...]'
+                str  = '[' // trim(realstr) // ',...]'
              else
                 str  = '[]'
              end if
@@ -397,7 +397,7 @@ contains
              if (size(val) > 0) then
                 allocate(character(logfile%max_num_length) :: realstr)
                 write(realstr, logfile%real_format) val(1)
-                str = '[' // realstr // ',...]'
+                str = '[' // trim(realstr) // ',...]'
              else
                 str = '[]'
              end if
@@ -468,7 +468,7 @@ contains
     character(len=*), intent(in), optional :: log_key
     ! Locals:
     type(fson_value), pointer :: p
-    character :: logstr
+    character(string_length) :: logstr
     character(:), allocatable :: str
     character(max_log_key_length) :: key
 
@@ -486,7 +486,7 @@ contains
              end if
              if (size(val) > 0) then
                 write(logstr, '(a)') val(1)
-                str = '[' // logstr // ',...]'
+                str = '[' // trim(logstr) // ',...]'
              else
                 str = '[]'
              end if
@@ -530,7 +530,7 @@ contains
              if (size(val) > 0) then
                 allocate(character(logfile%max_num_length) :: intstr)
                 write(intstr, logfile%int_format) val(1,1)
-                str = '[[' // intstr // ',...]]'
+                str = '[[' // trim(intstr) // ',...]]'
              else
                 str = '[]'
              end if
@@ -574,7 +574,7 @@ contains
              if (size(val) > 0) then
                 allocate(character(logfile%max_num_length) :: realstr)
                 write(realstr, logfile%real_format) val(1,1)
-                str  = '[[' // realstr // ',...]]'
+                str  = '[[' // trim(realstr) // ',...]]'
              else
                 str  = '[]'
              end if
@@ -618,7 +618,7 @@ contains
              if (size(val) > 0) then
                 allocate(character(logfile%max_num_length) :: realstr)
                 write(realstr, logfile%real_format) val(1,1)
-                str = '[[' // realstr // ',...]]'
+                str = '[[' // trim(realstr) // ',...]]'
              else
                 str  = '[]'
              end if

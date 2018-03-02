@@ -79,6 +79,8 @@ contains
 
     self%default_primary = [default_pressure]
     self%default_region = 1
+    self%required_output_fluid_fields = ["pressure", "region  "]
+    self%default_output_fluid_fields = ["pressure", "region  "]
 
     self%thermo => thermo
 

@@ -11,6 +11,7 @@ digraph waiwera{
         dictionary_module -> list_module
         dm_utils_module -> utils_module
         eos_module -> fluid_module
+        eos_module -> hdf5io_module
         eos_module -> interpolation_module
         eos_module -> logfile_module
         eos_module -> rock_module
@@ -66,6 +67,7 @@ digraph waiwera{
         flow_simulation_module -> face_module
         flow_simulation_module -> fluid_module
         flow_simulation_module -> fson_mpi_module
+        flow_simulation_module -> hdf5io_module
         flow_simulation_module -> initial_module
         flow_simulation_module -> list_module
         flow_simulation_module -> logfile_module
@@ -86,13 +88,16 @@ digraph waiwera{
         fluid_module -> thermodynamics_module
         fson_mpi_module -> fson_string_m
         fson_mpi_module -> logfile_module
+        hdf5io_module -> dm_utils_module
         initial_module -> dm_utils_module
         initial_module -> eos_module
         initial_module -> fluid_module
         initial_module -> fson_mpi_module
+        initial_module -> hdf5io_module
         initial_module -> logfile_module
         initial_module -> mesh_module
         initial_module -> minc_module
+        initial_module -> utils_module
         interpolation_module -> utils_module
         mesh_module -> cell_module
         mesh_module -> dag_module

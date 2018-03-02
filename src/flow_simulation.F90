@@ -64,6 +64,7 @@ module flow_simulation_module
      class(capillary_pressure_type), allocatable, public :: capillary_pressure !! Rock capillary pressure function
      character(max_output_filename_length), public :: output_filename !! HDF5 output filename
      PetscViewer :: hdf5_viewer
+     PetscInt, allocatable :: output_fluid_field_indices(:)
      PetscLogDouble :: start_wall_time
      PetscBool :: unperturbed !! Whether any primary variables are being perturbed for Jacobian calculation
    contains
@@ -71,6 +72,7 @@ module flow_simulation_module
      procedure :: setup_solution_vector => flow_simulation_setup_solution_vector
      procedure :: setup_logfile => flow_simulation_setup_logfile
      procedure :: setup_output => flow_simulation_setup_output
+     procedure :: setup_output_fields => flow_simulation_setup_output_fields
      procedure :: setup_update_cell => flow_simulation_setup_update_cell
      procedure :: setup_flux_vector => flow_simulation_setup_flux_vector
      procedure :: identify_update_cells => flow_simulation_identify_update_cells
@@ -337,8 +339,97 @@ contains
     if (self%output_filename /= "") then
        call PetscViewerDestroy(self%hdf5_viewer, ierr); CHKERRQ(ierr)
     end if
+    if (allocated(self%output_fluid_field_indices)) then
+       deallocate(self%output_fluid_field_indices)
+    end if
 
   end subroutine flow_simulation_destroy_output
+
+!------------------------------------------------------------------------
+
+  subroutine flow_simulation_setup_output_fields(self, json)
+    !! Sets up output field indices for writing to HDF5 file.
+
+    use fson
+
+    class(flow_simulation_type), intent(in out) :: self
+    type(fson_value), pointer, intent(in) :: json
+
+    call setup_vector_output_fields("fluid", self%fluid, &
+         self%eos%default_output_fluid_fields, &
+         self%eos%required_output_fluid_fields, &
+         self%output_fluid_field_indices)
+
+  contains
+
+    subroutine setup_vector_output_fields(name, v, default_fields, &
+         required_fields, field_indices)
+
+      use fson_mpi_module
+      use hdf5io_module, only: max_field_name_length
+      use dm_utils_module, only: section_get_field_names
+      use utils_module, only: str_to_lower, str_array_index
+
+      character(*), intent(in) :: name
+      Vec, intent(in) :: v
+      character(max_field_name_length), intent(in) :: &
+           default_fields(:), required_fields(:)
+      PetscInt, allocatable, intent(out) :: field_indices(:)
+      ! Locals:
+      character(max_field_name_length), allocatable :: &
+           output_fields(:), fields(:)
+      DM :: dm
+      PetscSection :: section
+      PetscInt :: i
+      PetscBool, allocatable :: required_missing(:)
+      character(2) :: field_str
+      PetscErrorCode :: ierr
+
+      call fson_get_mpi(json, "output.fields." // trim(name), &
+           default_fields, max_field_name_length, &
+           output_fields, self%logfile)
+      do i = 1, size(output_fields)
+         output_fields(i) = str_to_lower(output_fields(i))
+      end do
+
+      ! Check if required fields are present:
+      associate(num_required => size(required_fields))
+        allocate(required_missing(num_required))
+        do i = 1, num_required
+           required_missing(i) = (str_array_index( &
+                required_fields(i), output_fields) == -1)
+        end do
+      end associate
+      output_fields = [output_fields, &
+           pack(required_fields, required_missing)]
+
+      associate(num_fields => size(output_fields))
+
+        allocate(field_indices(num_fields))
+        call VecGetDM(v, dm, ierr); CHKERRQ(ierr)
+        call DMGetDefaultSection(dm, section, ierr); CHKERRQ(ierr)
+        call section_get_field_names(section, fields)
+        do i = 1, num_fields
+           field_indices(i) = str_array_index( &
+                output_fields(i), fields)
+           if (field_indices(i) == -1) then
+              write(field_str, '(i2)') i - 1
+              call self%logfile%write(LOG_LEVEL_WARN, 'input', 'unrecognised', &
+                   str_key = "output.fields." // trim(name) // &
+                   "[" // trim(field_str) // "]", &
+                   str_value = output_fields(i))
+           end if
+        end do
+        field_indices = pack(field_indices, field_indices > -1)
+        field_indices = field_indices - 1 ! zero-based indices
+
+      end associate
+
+      deallocate(fields, required_missing)
+
+    end subroutine setup_vector_output_fields
+
+  end subroutine flow_simulation_setup_output_fields
 
 !------------------------------------------------------------------------
 
@@ -606,6 +697,9 @@ contains
                            self%eos, self%thermo, self%time, self%fluid, &
                            self%fluid_range_start, self%source, self%source_range_start, &
                            self%num_sources, self%source_controls, self%logfile, err)
+                      if (err == 0) then
+                         call self%setup_output_fields(json)
+                      end if
                    end if
                 end if
              end if
@@ -1564,11 +1658,14 @@ contains
   subroutine flow_simulation_output_mesh_geometry(self)
     !! Writes mesh geometry data to output.
 
+    use hdf5io_module, only: vec_view_fields_hdf5
+
     class(flow_simulation_type), intent(in out) :: self
     ! Locals:
     PetscErrorCode :: ierr
     DM :: geom_dm
     Vec :: global_cell_geom
+    PetscInt, parameter :: cell_geom_indices(2) = [0, 1]
 
     if (self%output_filename /= "") then
 
@@ -1582,7 +1679,8 @@ contains
        call DMLocalToGlobalEnd(geom_dm, self%mesh%cell_geom, &
             INSERT_VALUES, global_cell_geom, ierr); CHKERRQ(ierr)
 
-       call VecView(global_cell_geom, self%hdf5_viewer, ierr); CHKERRQ(ierr)
+       call vec_view_fields_hdf5(global_cell_geom, cell_geom_indices, &
+            "/cell_fields", self%hdf5_viewer)
 
        call DMRestoreGlobalVector(geom_dm, global_cell_geom, ierr)
        CHKERRQ(ierr)
@@ -1608,8 +1706,10 @@ contains
     call PetscLogEventBegin(output_event, ierr); CHKERRQ(ierr)
 
     if (self%output_filename /= "") then
-       call vec_sequence_view(self%fluid, time_index, time, self%hdf5_viewer)
-       call vec_sequence_view(self%source, time_index, time, self%hdf5_viewer)
+       call vec_sequence_view(self%fluid, self%output_fluid_field_indices, &
+            "/cell_fields", time_index, time, self%hdf5_viewer)
+       call vec_sequence_view(self%source, self%output_source_field_indices, &
+            "/source_fields", time_index, time, self%hdf5_viewer)
     end if
 
     call PetscLogEventEnd(output_event, ierr); CHKERRQ(ierr)

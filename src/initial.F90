@@ -250,10 +250,12 @@ contains
 
     use mesh_module
     use dm_utils_module, only: global_vec_section, global_section_offset, &
-         dm_get_cell_index, vec_reorder
+         dm_get_cell_index, vec_reorder, section_get_field_names
     use eos_module, only: eos_type, max_component_name_length, &
          max_phase_name_length
     use fluid_module, only: fluid_type, setup_fluid_vector
+    use utils_module, only: str_array_index
+    use hdf5io_module, only: max_field_name_length, vec_load_fields_hdf5
 
     character(len = *), intent(in) :: filename
     type(mesh_type), intent(in) :: mesh
@@ -265,11 +267,14 @@ contains
     PetscBool, intent(in) :: use_original_dm !! Whether file results correspond to original_dm
     ! Locals:
     PetscViewer :: viewer
+    PetscInt, allocatable :: field_indices(:)
     PetscErrorCode :: ierr
 
     call PetscViewerHDF5Open(PETSC_COMM_WORLD, filename, FILE_MODE_READ, &
          viewer, ierr); CHKERRQ(ierr)
     call PetscViewerHDF5PushGroup(viewer, "/", ierr); CHKERRQ(ierr)
+
+    call get_required_field_indices()
 
     if (use_original_dm) then
        call load_fluid_original_dm()
@@ -279,10 +284,38 @@ contains
 
     call PetscViewerHDF5PopGroup(viewer, ierr); CHKERRQ(ierr)
     call PetscViewerDestroy(viewer, ierr); CHKERRQ(ierr)
+    deallocate(field_indices)
 
     call assign_solution_vector()
 
   contains
+
+!........................................................................
+
+    subroutine get_required_field_indices()
+      !! Gets field indices to be read in, corresponding to the
+      !! required output fluid fields of the EOS.
+
+      ! Locals:
+      DM :: fluid_dm
+      PetscSection :: section
+      character(max_field_name_length), allocatable :: fields(:)
+      PetscInt :: i
+      PetscErrorCode :: ierr
+
+      associate(num_required => size(eos%required_output_fluid_fields))
+        allocate(field_indices(num_required))
+        call VecGetDM(fluid_vector, fluid_dm, ierr); CHKERRQ(ierr)
+        call DMGetDefaultSection(fluid_dm, section, ierr); CHKERRQ(ierr)
+        call section_get_field_names(section, fields)
+        do i = 1, num_required
+           field_indices(i) = str_array_index( &
+                eos%required_output_fluid_fields(i), fields) - 1
+        end do
+      end associate
+      deallocate(fields)
+
+    end subroutine get_required_field_indices
 
 !........................................................................
 
@@ -320,7 +353,8 @@ contains
 
       call VecGetDM(original_fluid_vector, fluid_dm, ierr); CHKERRQ(ierr)
       call DMSetOutputSequenceNumber(fluid_dm, index, t, ierr); CHKERRQ(ierr)
-      call VecLoad(original_fluid_vector, viewer, ierr); CHKERRQ(ierr)
+      call vec_load_fields_hdf5(original_fluid_vector, field_indices, &
+           "/cell_fields", viewer)
       call vec_reorder(original_fluid_vector, output_cell_index, original_cell_index)
       call ISDestroy(output_cell_index, ierr); CHKERRQ(ierr)
 
@@ -373,7 +407,8 @@ contains
 
       call VecGetDM(fluid_vector, fluid_dm, ierr); CHKERRQ(ierr)
       call DMSetOutputSequenceNumber(fluid_dm, index, t, ierr); CHKERRQ(ierr)
-      call VecLoad(fluid_vector, viewer, ierr); CHKERRQ(ierr)
+      call vec_load_fields_hdf5(fluid_vector, field_indices, &
+           "/cell_fields", viewer)
       call mesh%order_vector(fluid_vector, output_cell_index)
       call ISDestroy(output_cell_index, ierr); CHKERRQ(ierr)
 

@@ -70,6 +70,8 @@ module dm_utils_module
   public :: dm_get_natural_to_global_ao, dm_get_cell_index
   public :: natural_to_local_cell_index, local_to_natural_cell_index
   public :: create_path_dm, vec_sequence_view
+  public :: get_field_subvector, section_get_field_names
+  public :: dm_global_cell_field_dof
 
 contains
 
@@ -1024,6 +1026,125 @@ contains
     call VecView(v, viewer, ierr); CHKERRQ(ierr)
 
   end subroutine vec_sequence_view
+
+!------------------------------------------------------------------------
+
+  subroutine get_field_subvector(v, field, index_set, subv)
+    !! Gets subvector of v for the specified field. Based on
+    !! PetscSectionGetField_Internal().
+
+    Vec, intent(in) :: v
+    PetscInt, intent(in) :: field
+    IS, intent(in out) :: index_set
+    Vec, intent(in out) :: subv
+    ! Locals:
+    DM :: dm
+    PetscSection :: section, global_section
+    PetscInt :: pstart, pend, p, f, fc, fdof
+    PetscInt :: start_cell, end_cell, end_interior_cell
+    PetscInt :: num_components, gdof, poff, goff, suboff
+    PetscInt :: subsize
+    PetscInt, allocatable :: subindices(:)
+    PetscErrorCode :: ierr
+
+    call VecGetDM(v, dm, ierr); CHKERRQ(ierr)
+    call DMGetDefaultSection(dm, section, ierr); CHKERRQ(ierr)
+    call DMGetDefaultGlobalSection(dm, global_section, ierr); CHKERRQ(ierr)
+    call DMPlexGetHeightStratum(dm, 0, start_cell, end_cell, ierr); CHKERRQ(ierr)
+    end_interior_cell = dm_get_end_interior_cell(dm, end_cell)
+
+    call PetscSectionGetChart(section, pstart, pend, ierr); CHKERRQ(ierr)
+    ! Modify point range for cells- to exclude boundary ghosts:
+    if ((start_cell >= pstart) .and. (start_cell < pend)) then
+       pend = end_interior_cell
+    end if
+
+    call PetscSectionGetFieldComponents(section, field, &
+         num_components, ierr); CHKERRQ(ierr)
+    subsize = 0
+    do p = pstart, pend - 1
+       call PetscSectionGetDof(global_section, p, gdof, ierr); CHKERRQ(ierr)
+       if (gdof > 0) then
+          call PetscSectionGetFieldDof(section, p, field, fdof, ierr)
+          CHKERRQ(ierr)
+          subsize = subsize + fdof
+       end if
+    end do
+    allocate(subindices(0: subsize - 1))
+
+    suboff = 0
+    do p = pstart, pend - 1
+       call PetscSectionGetDof(global_section, p, gdof, ierr); CHKERRQ(ierr)
+       if (gdof > 0) then
+          call PetscSectionGetOffset(global_section, p, goff, ierr)
+          CHKERRQ(ierr)
+          poff = 0
+          do f = 0, field - 1
+             call PetscSectionGetFieldDof(section, p, f, fdof, ierr)
+             CHKERRQ(ierr)
+             poff = poff + fdof
+          end do
+          call PetscSectionGetFieldDof(section, p, field, fdof, ierr)
+          CHKERRQ(ierr)
+          subindices(suboff: suboff + fdof - 1) = &
+               goff + poff + [(fc, fc = 0, fdof - 1)]
+          suboff = suboff + fdof
+       end if
+    end do
+
+    call ISCreateGeneral(PETSC_COMM_WORLD, subsize, subindices, &
+         PETSC_COPY_VALUES, index_set, ierr); CHKERRQ(ierr)
+    deallocate(subindices)
+    call VecGetSubVector(v, index_set, subv, ierr); CHKERRQ(ierr)
+    call VecSetBlockSize(subv, num_components, ierr); CHKERRQ(ierr)
+
+  end subroutine get_field_subvector
+
+!------------------------------------------------------------------------
+
+  subroutine section_get_field_names(section, field_names)
+    !! Returns array of section field names.
+
+    PetscSection, intent(in) :: section
+    character(*), allocatable :: field_names(:)
+    ! Locals:
+    PetscInt :: num_fields, f
+    PetscErrorCode :: ierr
+
+    call PetscSectionGetNumFields(section, num_fields, ierr); CHKERRQ(ierr)
+    allocate(field_names(num_fields))
+    do f = 1, num_fields
+       call PetscSectionGetFieldName(section, f - 1, field_names(f), ierr)
+    end do
+
+  end subroutine section_get_field_names
+
+!------------------------------------------------------------------------
+
+  PetscInt function dm_global_cell_field_dof(dm, field) result(dof)
+    !! Returns degrees of freedom associated with specified DM section
+    !! cell field. Checks dof on all processes in case current process
+    !! has no cells.
+
+    DM, intent(in) :: dm
+    PetscInt, intent(in) :: field
+    ! Locals:
+    PetscSection :: section
+    PetscInt :: start_cell, end_cell, field_dof
+    PetscErrorCode :: ierr
+
+    call DMGetDefaultSection(dm, section, ierr); CHKERRQ(ierr)
+    call DMPlexGetHeightStratum(dm, 0, start_cell, end_cell, ierr)
+    if (end_cell > start_cell) then
+       call PetscSectionGetFieldDof(section, start_cell, field, &
+            field_dof, ierr); CHKERRQ(ierr)
+    else
+       field_dof = -1
+    end if
+    call MPI_Allreduce(field_dof, dof, 1, MPI_INT, MPI_MAX, &
+         PETSC_COMM_WORLD, ierr); CHKERRQ(ierr)
+
+  end function dm_global_cell_field_dof
 
 !------------------------------------------------------------------------
 
