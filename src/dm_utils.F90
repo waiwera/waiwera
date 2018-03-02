@@ -1008,11 +1008,16 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine vec_sequence_view(v, time_index, time, viewer)
+  subroutine vec_sequence_view(v, field_indices, field_group, &
+       time_index, time, viewer)
     !! Views a vector v to the specified viewer, also setting the
     !! vector's DM output sequence number.
 
+    use hdf5io_module, only: vec_view_fields_hdf5
+
     Vec, intent(in) :: v
+    PetscInt, intent(in) :: field_indices(:)
+    character(*), intent(in) :: field_group
     PetscInt, intent(in) :: time_index
     PetscReal, intent(in) :: time
     PetscViewer, intent(in out) :: viewer
@@ -1023,7 +1028,7 @@ contains
     call VecGetDM(v, dm, ierr); CHKERRQ(ierr)
     call DMSetOutputSequenceNumber(dm, time_index, time, &
          ierr); CHKERRQ(ierr)
-    call VecView(v, viewer, ierr); CHKERRQ(ierr)
+    call vec_view_fields_hdf5(v, field_indices, field_group, viewer)
 
   end subroutine vec_sequence_view
 
