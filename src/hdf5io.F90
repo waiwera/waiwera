@@ -27,7 +27,8 @@ module hdf5io_module
 
   PetscInt, parameter, public :: max_field_name_length = 128
 
-  public :: vec_view_fields_hdf5, vec_load_fields_hdf5
+  public :: vec_view_fields_hdf5, vec_load_fields_hdf5, &
+       vec_sequence_view_hdf5
 
 contains
 
@@ -217,6 +218,30 @@ contains
     end do
     
   end subroutine vec_load_fields_hdf5
+
+!------------------------------------------------------------------------
+
+  subroutine vec_sequence_view_hdf5(v, field_indices, field_group, &
+       time_index, time, viewer)
+    !! Views a vector v to the specified HDF5 viewer, also setting the
+    !! vector's DM output sequence number.
+
+    Vec, intent(in) :: v
+    PetscInt, intent(in) :: field_indices(:)
+    character(*), intent(in) :: field_group
+    PetscInt, intent(in) :: time_index
+    PetscReal, intent(in) :: time
+    PetscViewer, intent(in out) :: viewer
+    ! Locals:
+    DM :: dm
+    PetscErrorCode :: ierr
+
+    call VecGetDM(v, dm, ierr); CHKERRQ(ierr)
+    call DMSetOutputSequenceNumber(dm, time_index, time, &
+         ierr); CHKERRQ(ierr)
+    call vec_view_fields_hdf5(v, field_indices, field_group, viewer)
+
+  end subroutine vec_sequence_view_hdf5
 
 !------------------------------------------------------------------------
 

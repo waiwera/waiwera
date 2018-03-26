@@ -69,7 +69,7 @@ module dm_utils_module
   public :: dm_get_end_interior_cell
   public :: dm_get_natural_to_global_ao, dm_get_cell_index
   public :: natural_to_local_cell_index, local_to_natural_cell_index
-  public :: create_path_dm, vec_sequence_view
+  public :: create_path_dm
   public :: get_field_subvector, section_get_field_names
   public :: dm_global_cell_field_dof
 
@@ -1005,32 +1005,6 @@ contains
     call DMPlexStratify(dm, ierr); CHKERRQ(ierr)
 
   end subroutine create_path_dm
-
-!------------------------------------------------------------------------
-
-  subroutine vec_sequence_view(v, field_indices, field_group, &
-       time_index, time, viewer)
-    !! Views a vector v to the specified viewer, also setting the
-    !! vector's DM output sequence number.
-
-    use hdf5io_module, only: vec_view_fields_hdf5
-
-    Vec, intent(in) :: v
-    PetscInt, intent(in) :: field_indices(:)
-    character(*), intent(in) :: field_group
-    PetscInt, intent(in) :: time_index
-    PetscReal, intent(in) :: time
-    PetscViewer, intent(in out) :: viewer
-    ! Locals:
-    DM :: dm
-    PetscErrorCode :: ierr
-
-    call VecGetDM(v, dm, ierr); CHKERRQ(ierr)
-    call DMSetOutputSequenceNumber(dm, time_index, time, &
-         ierr); CHKERRQ(ierr)
-    call vec_view_fields_hdf5(v, field_indices, field_group, viewer)
-
-  end subroutine vec_sequence_view
 
 !------------------------------------------------------------------------
 

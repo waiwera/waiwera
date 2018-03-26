@@ -9,7 +9,6 @@ digraph waiwera{
         cell_module -> fluid_module
         cell_module -> rock_module
         dictionary_module -> list_module
-        dm_utils_module -> hdf5io_module
         dm_utils_module -> utils_module
         eos_module -> fluid_module
         eos_module -> hdf5io_module
