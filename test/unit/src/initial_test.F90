@@ -246,7 +246,7 @@ contains
     use flow_simulation_test, only: vec_write
     use logfile_module
     use hdf5io_module, only: max_field_name_length
-    use utils_module, only: str_array_index
+    use utils_module, only: str_array_index, str_to_lower
 
     character(:), allocatable :: json_str
     PetscMPIInt :: rank
@@ -304,12 +304,12 @@ contains
 
     call VecGetDM(fluid_vector, fluid_dm, ierr); CHKERRQ(ierr)
     call DMGetDefaultSection(fluid_dm, local_fluid_section, ierr); CHKERRQ(ierr)
-    call section_get_field_names(local_fluid_section, fields)
+    call section_get_field_names(local_fluid_section, PETSC_TRUE, fields)
     associate(num_fields => size(eos%required_output_fluid_fields))
       allocate(output_field_indices(num_fields))
       do i = 1, num_fields
          output_field_indices(i) = str_array_index( &
-              eos%required_output_fluid_fields(i), fields) - 1
+              str_to_lower(eos%required_output_fluid_fields(i)), fields) - 1
          call assert_true(output_field_indices(i) >= 0, "setup field")
       end do
     end associate
