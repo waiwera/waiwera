@@ -27,16 +27,19 @@ contains
 ! Utility routines:
 !------------------------------------------------------------------------
 
-  subroutine vec_write(v, name, path, cell_index)
+  subroutine vec_write(v, name, path, cell_index, field_indices, field_group)
 
     ! Writes vec v to HDF file with specified name and path (for
     ! generating reference values to test against).
 
+    use hdf5io_module, only: vec_sequence_view_hdf5
+
     Vec, intent(in) :: v
     character(*), intent(in) :: name, path
     IS, intent(in) :: cell_index
+    PetscInt, intent(in) :: field_indices(:)
+    character(*), intent(in) :: field_group
     ! Locals:
-    DM :: dm
     PetscErrorCode :: ierr
     PetscViewer :: viewer
     PetscInt :: time_index
@@ -51,12 +54,9 @@ contains
     call PetscViewerHDF5PushGroup(viewer, "/", ierr); CHKERRQ(ierr)
 
     call ISView(cell_index, viewer, ierr); CHKERRQ(ierr)
+    call vec_sequence_view_hdf5(v, field_indices, field_group, time_index, &
+         time, viewer)
 
-    call VecGetDM(v, dm, ierr); CHKERRQ(ierr)
-    call DMSetOutputSequenceNumber(dm, time_index, time, &
-         ierr); CHKERRQ(ierr)
-
-    call VecView(v, viewer, ierr); CHKERRQ(ierr)
     call PetscViewerHDF5PopGroup(viewer, ierr); CHKERRQ(ierr)
     call PetscViewerDestroy(viewer, ierr); CHKERRQ(ierr)
 
