@@ -204,12 +204,15 @@ contains
     use fluid_module, only: fluid_type, setup_fluid_vector
     use rock_module, only: rock_type
     use dm_utils_module, only: global_vec_section, global_section_offset, &
-         local_vec_section, section_offset, global_vec_range_start
+         local_vec_section, section_offset, global_vec_range_start, &
+         section_get_field_names
     use relative_permeability_module, only: relative_permeability_corey_type
     use capillary_pressure_module, only: capillary_pressure_zero_type
     use cell_module, only: cell_type
     use flow_simulation_test, only: vec_write
     use logfile_module
+    use hdf5io_module, only: max_field_name_length
+    use utils_module, only: str_array_index
 
     character(:), allocatable :: json_str
     PetscMPIInt :: rank
@@ -221,9 +224,10 @@ contains
     PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
     PetscViewer :: viewer
     Vec :: fluid_vector
-    PetscInt :: fluid_range_start, start_cell, end_cell
+    PetscInt :: fluid_range_start, start_cell, end_cell, i
     PetscInt :: c, ghost, fluid_offset, cell_geom_offset
-    PetscSection :: fluid_section, cell_geom_section
+    DM :: fluid_dm
+    PetscSection :: fluid_section, cell_geom_section, local_fluid_section
     PetscReal, pointer, contiguous :: fluid_array(:)
     DMLabel :: ghost_label
     type(rock_type) :: rock
@@ -234,6 +238,8 @@ contains
     PetscReal, pointer, contiguous :: cell_geom_array(:)
     type(cell_type) :: cell
     type(logfile_type) :: logfile
+    character(max_field_name_length), allocatable :: fields(:)
+    PetscInt, allocatable :: output_field_indices(:)
     PetscErrorCode :: err
     PetscInt, parameter :: region = 1
 
@@ -257,6 +263,18 @@ contains
          eos%phase_names, fluid_vector, fluid_range_start)
     call global_vec_section(fluid_vector, fluid_section)
     call VecGetArrayF90(fluid_vector, fluid_array, ierr); CHKERRQ(ierr)
+
+    call VecGetDM(fluid_vector, fluid_dm, ierr); CHKERRQ(ierr)
+    call DMGetDefaultSection(fluid_dm, local_fluid_section, ierr); CHKERRQ(ierr)
+    call section_get_field_names(local_fluid_section, fields)
+    associate(num_fields => size(eos%required_output_fluid_fields))
+      allocate(output_field_indices(num_fields))
+      do i = 1, num_fields
+         output_field_indices(i) = str_array_index( &
+              eos%required_output_fluid_fields(i), fields) - 1
+         call assert_true(output_field_indices(i) >= 0, "setup field")
+      end do
+    end associate
 
     call DMPlexGetHeightStratum(mesh%dm, 0, start_cell, end_cell, ierr)
     CHKERRQ(ierr)
@@ -293,7 +311,8 @@ contains
        end if
     end do
 
-    call vec_write(fluid_vector, "fluid", "data/initial/", mesh%cell_index)
+    call vec_write(fluid_vector, "fluid_minimal", "data/initial/", mesh%cell_index, &
+         output_field_indices, "/cell_fields")
 
     call VecRestoreArrayReadF90(mesh%cell_geom, cell_geom_array, ierr)
     CHKERRQ(ierr)
