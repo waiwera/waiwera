@@ -90,6 +90,14 @@ contains
          ' "initial": {"filename": "data/initial/fluid_minimal_minc.h5", "minc": true}}'
     call initial_hdf5_test('MINC minimal true', json_str)
 
+    json_str = &
+         '{"mesh": {"filename": "data/mesh/col100.exo", ' // &
+         '          "boundaries": [{"faces": {"cells": [0], ' // &
+         '                          "normal": [0, 1, 0]}}]},' // &
+         ' "eos": {"name": "we"}, ' // &
+         ' "initial": {"filename": "data/initial/fluid_minimal.h5"}}'
+    call initial_hdf5_test('single porosity minimal boundary', json_str)
+
   contains
 
 !........................................................................
