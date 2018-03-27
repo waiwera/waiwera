@@ -15,7 +15,7 @@ module initial_test
   private
 
   public :: test_initial_hdf5
-  ! public :: test_write_initial_hdf5
+  ! public :: test_setup_initial_hdf5
 
 contains
 
@@ -53,6 +53,12 @@ contains
          ' "eos": {"name": "we"}, ' // &
          ' "initial": {"filename": "data/initial/fluid.h5"}}'
     call initial_hdf5_test('single porosity', json_str)
+
+    json_str = &
+         '{"mesh": {"filename": "data/mesh/col100.exo"},' // &
+         ' "eos": {"name": "we"}, ' // &
+         ' "initial": {"filename": "data/initial/fluid_minimal.h5"}}'
+    call initial_hdf5_test('single porosity minimal', json_str)
 
     json_str = &
          '{"mesh": {"filename": "data/mesh/col100.exo", ' // &
