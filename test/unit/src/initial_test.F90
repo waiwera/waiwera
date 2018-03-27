@@ -70,6 +70,26 @@ contains
          ' "initial": {"filename": "data/initial/fluid.h5", "minc": false}}'
     call initial_hdf5_test('MINC', json_str)
 
+    json_str = &
+         '{"mesh": {"filename": "data/mesh/col100.exo", ' // &
+         '          "zones": {"all": {"-": null}},' // &
+         '          "minc": {"rock": {"zones": ["all"]}, ' // &
+         '                   "geometry": {"fracture": {"volume": 0.1}, ' // &
+         '                                "matrix": {"volume": [0.3, 0.6]}}}},' // &
+         ' "eos": {"name": "we"}, ' // &
+         ' "initial": {"filename": "data/initial/fluid_minimal.h5", "minc": false}}'
+    call initial_hdf5_test('MINC minimal false', json_str)
+
+    json_str = &
+         '{"mesh": {"filename": "data/mesh/col100.exo", ' // &
+         '          "zones": {"all": {"-": null}},' // &
+         '          "minc": {"rock": {"zones": ["all"]}, ' // &
+         '                   "geometry": {"fracture": {"volume": 0.1}, ' // &
+         '                                "matrix": {"volume": [0.3, 0.6]}}}},' // &
+         ' "eos": {"name": "we"}, ' // &
+         ' "initial": {"filename": "data/initial/fluid_minimal_minc.h5", "minc": true}}'
+    call initial_hdf5_test('MINC minimal true', json_str)
+
   contains
 
 !........................................................................
@@ -252,7 +272,11 @@ contains
     call MPI_comm_rank(PETSC_COMM_WORLD, rank, ierr)
 
     json_str = &
-         '{"mesh": {"filename": "data/mesh/col100.exo"},' // &
+         '{"mesh": {"filename": "data/mesh/col100.exo",' // &
+         '          "zones": {"all": {"-": null}},' // &
+         '          "minc": {"rock": {"zones": ["all"]}, ' // &
+         '                   "geometry": {"fracture": {"volume": 0.1}, ' // &
+         '                                "matrix": {"volume": [0.3, 0.6]}}}},' // &
          ' "eos": {"name": "we"}}'
 
     json => fson_parse_mpi(str = json_str)
@@ -317,7 +341,7 @@ contains
        end if
     end do
 
-    call vec_write(fluid_vector, "fluid_minimal", "data/initial/", mesh%cell_index, &
+    call vec_write(fluid_vector, "fluid_minimal_minc", "data/initial/", mesh%cell_index, &
          output_field_indices, "/cell_fields")
 
     call VecRestoreArrayReadF90(mesh%cell_geom, cell_geom_array, ierr)
