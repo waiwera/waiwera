@@ -387,7 +387,7 @@ contains
       PetscInt, allocatable, intent(out) :: field_indices(:)
       ! Locals:
       character(max_field_name_length), allocatable :: &
-           output_fields(:), fields(:)
+           output_fields(:), fields(:), lower_required_fields(:)
       DM :: dm
       PetscSection :: section
       PetscInt :: i
@@ -404,21 +404,23 @@ contains
 
       ! Check if required fields are present:
       associate(num_required => size(required_fields))
-        allocate(required_missing(num_required))
+        allocate(required_missing(num_required), &
+             lower_required_fields(num_required))
         do i = 1, num_required
+           lower_required_fields(i) = str_to_lower(required_fields(i))
            required_missing(i) = (str_array_index( &
-                required_fields(i), output_fields) == -1)
+                lower_required_fields(i), output_fields) == -1)
         end do
       end associate
       output_fields = [output_fields, &
-           pack(required_fields, required_missing)]
+           pack(lower_required_fields, required_missing)]
 
       associate(num_fields => size(output_fields))
 
         allocate(field_indices(num_fields))
         call VecGetDM(v, dm, ierr); CHKERRQ(ierr)
         call DMGetDefaultSection(dm, section, ierr); CHKERRQ(ierr)
-        call section_get_field_names(section, fields)
+        call section_get_field_names(section, PETSC_TRUE, fields)
         do i = 1, num_fields
            field_indices(i) = str_array_index( &
                 output_fields(i), fields)
@@ -435,7 +437,7 @@ contains
 
       end associate
 
-      deallocate(fields, required_missing)
+      deallocate(fields, required_missing, lower_required_fields)
 
     end subroutine setup_vector_output_fields
 
