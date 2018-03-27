@@ -1081,10 +1081,13 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine section_get_field_names(section, field_names)
+  subroutine section_get_field_names(section, lowercase, field_names)
     !! Returns array of section field names.
 
+    use utils_module, only: str_to_lower
+
     PetscSection, intent(in) :: section
+    PetscBool, intent(in) :: lowercase
     character(*), allocatable :: field_names(:)
     ! Locals:
     PetscInt :: num_fields, f
@@ -1094,6 +1097,9 @@ contains
     allocate(field_names(num_fields))
     do f = 1, num_fields
        call PetscSectionGetFieldName(section, f - 1, field_names(f), ierr)
+       if (lowercase) then
+          field_names(f) = str_to_lower(field_names(f))
+       end if
     end do
 
   end subroutine section_get_field_names
