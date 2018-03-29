@@ -115,6 +115,7 @@ geo.write_mesh(mesh_filename, dimension = 2, slice = 'x')
 jsondata = dat.json(geo, mesh_filename, incons = inc, bdy_incons = inc,
                     mesh_coords = 'xz')
 jsondata['mesh']['thickness'] = width
+jsondata['output']['fields'] = {'fluid': ['liquid_saturation']}
 json.dump(jsondata, file(model_name + '.json', 'w'), indent = 2)
 
 os.chdir(orig_dir)
