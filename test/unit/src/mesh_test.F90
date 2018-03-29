@@ -1045,18 +1045,10 @@ contains
       type(fson_value), pointer :: json
       PetscViewer :: viewer
       PetscErrorCode :: err
-      PetscInt :: c, start_cell, end_cell, offset, range_start
-      PetscInt :: n, count, bs
+      PetscInt :: c, start_cell, end_cell
       PetscInt, allocatable :: label_order(:), order(:)
       DMLabel :: label
       ISLocalToGlobalMapping :: l2g
-      Vec :: v, v0
-      PetscSection :: section
-      PetscReal, pointer :: v_array(:)
-      VecScatter :: scatter
-      IS :: index0
-      PetscInt, pointer :: ind(:)
-      PetscInt, allocatable :: val(:)
       PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
       character(20), parameter :: label_name = "cell order"
       
@@ -1092,46 +1084,6 @@ contains
       call assert_equals(label_order, order, end_cell - start_cell, &
            "cell order " // trim(title))
       deallocate(label_order, order)
-
-      ! Test cell index IS:
-      call DMGetGlobalVector(mesh%dm, v, ierr); CHKERRQ(ierr)
-      call VecSet(v, 0._dp, ierr); CHKERRQ(ierr)
-      call global_vec_section(v, section)
-      call VecGetArrayF90(v, v_array, ierr); CHKERRQ(ierr)
-      call global_vec_range_start(v, range_start)
-      do c = start_cell, end_cell - 1
-         if (mesh%ghost_cell(c) < 0) then
-             call global_section_offset(section, c, &
-                  range_start, offset, ierr); CHKERRQ(ierr)
-             v_array(offset) = dble(local_to_natural_cell_index(&
-                  mesh%cell_order, l2g, c))
-         end if
-      end do
-      call VecRestoreArrayF90(v, v_array, ierr); CHKERRQ(ierr)
-      call VecScatterCreateToZero(v, scatter, v0, ierr); CHKERRQ(ierr)
-      call VecScatterBegin(scatter, v, v0, INSERT_VALUES, &
-           SCATTER_FORWARD, ierr); CHKERRQ(ierr)
-      call VecScatterEnd(scatter, v, v0, INSERT_VALUES, &
-           SCATTER_FORWARD, ierr); CHKERRQ(ierr)
-      call VecScatterDestroy(scatter, ierr); CHKERRQ(ierr)
-      call ISAllGather(mesh%cell_index, index0, ierr); CHKERRQ(ierr)
-      call ISGetIndicesF90(index0, ind, ierr); CHKERRQ(ierr)
-      call VecGetArrayF90(v0, v_array, ierr); CHKERRQ(ierr)
-      call VecGetBlockSize(v, bs, ierr); CHKERRQ(ierr)
-      if (rank == 0) then
-         count = size(ind)
-         allocate(val(0: count - 1))
-         do n = 0, count - 1
-            val(n) = int(v_array(ind(n + 1) * bs + 1))
-         end do
-         call assert_equals([(n, n = 0, count - 1)], val, count, &
-              "cell index " // trim(title))
-         deallocate(val)
-      end if
-      call ISRestoreIndicesF90(index0, ind, ierr); CHKERRQ(ierr)
-      call VecRestoreArrayF90(v0, v_array, ierr); CHKERRQ(ierr)
-      call VecDestroy(v0, ierr); CHKERRQ(ierr)
-      call DMRestoreGlobalVector(mesh%dm, v, ierr); CHKERRQ(ierr)
 
       call mesh%destroy()
       call eos%destroy()
