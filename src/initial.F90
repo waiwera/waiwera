@@ -324,8 +324,7 @@ contains
 
       ! Locals:
       DM :: fluid_dm
-      IS :: output_cell_index
-      IS :: original_cell_index, original_cell_interior_index
+      IS :: original_cell_index
       Vec :: original_fluid_vector
       PetscInt :: original_fluid_range_start
       PetscSection :: fluid_section, original_fluid_section
@@ -339,13 +338,7 @@ contains
       call fluid%init(eos%num_components, eos%num_phases)
 
       call dm_get_cell_index(mesh%original_dm, mesh%original_cell_order, &
-           original_cell_index, original_cell_interior_index)
-      call ISDestroy(original_cell_interior_index, ierr); CHKERRQ(ierr)
-
-      call ISDuplicate(original_cell_index, output_cell_index, ierr); CHKERRQ(ierr)
-      call PetscObjectSetName(output_cell_index, "cell_index", ierr)
-      CHKERRQ(ierr)
-      call ISLoad(output_cell_index, viewer, ierr); CHKERRQ(ierr)
+           original_cell_index)
 
       call setup_fluid_vector(mesh%original_dm, max_component_name_length, &
            eos%component_names, max_phase_name_length, &
@@ -354,9 +347,8 @@ contains
       call VecGetDM(original_fluid_vector, fluid_dm, ierr); CHKERRQ(ierr)
       call DMSetOutputSequenceNumber(fluid_dm, index, t, ierr); CHKERRQ(ierr)
       call vec_load_fields_hdf5(original_fluid_vector, field_indices, &
-           "/cell_fields", viewer)
-      call vec_reorder(original_fluid_vector, output_cell_index, original_cell_index)
-      call ISDestroy(output_cell_index, ierr); CHKERRQ(ierr)
+           "/cell_fields", viewer, original_cell_index)
+      call ISDestroy(original_cell_index, ierr); CHKERRQ(ierr)
 
       call DMGetLabel(mesh%original_dm, "ghost", ghost_label, ierr)
       CHKERRQ(ierr)
@@ -397,20 +389,12 @@ contains
 
       ! Locals:
       DM :: fluid_dm
-      IS :: output_cell_index
       PetscErrorCode :: ierr
-
-      call ISDuplicate(mesh%cell_index, output_cell_index, ierr); CHKERRQ(ierr)
-      call PetscObjectSetName(output_cell_index, "cell_index", ierr)
-      CHKERRQ(ierr)
-      call ISLoad(output_cell_index, viewer, ierr); CHKERRQ(ierr)
 
       call VecGetDM(fluid_vector, fluid_dm, ierr); CHKERRQ(ierr)
       call DMSetOutputSequenceNumber(fluid_dm, index, t, ierr); CHKERRQ(ierr)
       call vec_load_fields_hdf5(fluid_vector, field_indices, &
-           "/cell_fields", viewer)
-      call mesh%order_vector(fluid_vector, output_cell_index)
-      call ISDestroy(output_cell_index, ierr); CHKERRQ(ierr)
+           "/cell_fields", viewer, mesh%cell_index)
 
     end subroutine load_fluid
 
