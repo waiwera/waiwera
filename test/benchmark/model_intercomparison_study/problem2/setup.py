@@ -97,6 +97,7 @@ jsondata = dat.json(geo, mesh_filename, incons = inc, bdy_incons = inc,
 jsondata['initial']['primary'] = [P0, T0]
 jsondata['output']['initial'] = False
 jsondata['mesh']['radial'] = True
+jsondata['output']['fields'] = {'fluid': ['liquid_saturation']}
 json.dump(jsondata, file(model_name + 'a.json', 'w'), indent = 2)
 
 # problem 2b:
@@ -126,6 +127,7 @@ jsondata = dat.json(geo, mesh_filename, incons = inc, bdy_incons = inc,
                     mesh_coords = 'rz')
 jsondata['initial'] = {'primary': [P0, S0], 'region': 4}
 jsondata['output']['initial'] = False
+jsondata['output']['fields'] = {'fluid': ['liquid_saturation']}
 jsondata['mesh']['radial'] = True
 json.dump(jsondata, file(model_name + 'b.json', 'w'), indent = 2)
 
@@ -154,6 +156,7 @@ jsondata = dat.json(geo, mesh_filename, incons = inc, bdy_incons = inc,
                     mesh_coords = 'rz')
 jsondata['initial'] = {'primary': [P0, T0], 'region': 1}
 jsondata['output']['initial'] = False
+jsondata['output']['fields'] = {'fluid': ['liquid_saturation']}
 jsondata['mesh']['radial'] = True
 json.dump(jsondata, file(model_name + 'c.json', 'w'), indent = 2)
 
