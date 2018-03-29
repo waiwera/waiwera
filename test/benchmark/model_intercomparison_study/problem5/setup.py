@@ -108,6 +108,7 @@ geo.write_mesh(mesh_filename, dimension = 2)
 jsondata = dat.json(geo, mesh_filename, incons = inc, bdy_incons = inc,
                     mesh_coords = 'xy')
 jsondata['mesh']['thickness'] = dimensions[-1]
+jsondata['output']['fields'] = {'fluid': ['vapour_saturation', 'vapour_density']}
 json.dump(jsondata, file(model_name + 'a.json', 'w'), indent = 2)
 
 # problem 5b:
@@ -132,6 +133,7 @@ dat.run(simulator = 'AUTOUGH2_41Da',
 jsondata = dat.json(geo, mesh_filename, incons = inc, bdy_incons = inc,
                     mesh_coords = 'xy')
 jsondata['mesh']['thickness'] = dimensions[-1]
+jsondata['output']['fields'] = {'fluid': ['vapour_saturation', 'vapour_density']}
 json.dump(jsondata, file(model_name + 'b.json', 'w'), indent = 2)
                   
 os.chdir(orig_dir)
