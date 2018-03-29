@@ -89,7 +89,6 @@ module mesh_module
      procedure, public :: configure => mesh_configure
      procedure, public :: setup_boundaries => mesh_setup_boundaries
      procedure, public :: set_boundary_values => mesh_set_boundary_values
-     procedure, public :: order_vector => mesh_order_vector
      procedure, public :: destroy => mesh_destroy
      procedure, public :: local_to_fracture_natural => mesh_local_to_fracture_natural
      procedure, public :: global_to_fracture_natural => mesh_global_to_fracture_natural
@@ -1054,22 +1053,6 @@ contains
     call rock%destroy()
 
   end subroutine mesh_set_boundary_values
-
-!------------------------------------------------------------------------
-
-  subroutine mesh_order_vector(self, v, index)
-    !! Reorders vector v to correspond to the cell order index of the mesh
-    !! DM, rather than that of the given order index set.
-
-    use dm_utils_module, only: vec_reorder
-
-    class(mesh_type), intent(in) :: self
-    Vec, intent(in out) :: v !! Global vector to re-order
-    IS, intent(in), optional :: index !! Cell order index set for original ordering of v
-
-    call vec_reorder(v, index, self%cell_index)
-
-  end subroutine mesh_order_vector
 
 !------------------------------------------------------------------------
 
