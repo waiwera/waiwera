@@ -47,7 +47,7 @@ module mesh_module
      PetscInt :: depth !! DM depth
      type(dm_stratum_type), allocatable, public :: strata(:) !! Mesh strata (used for MINC point calculations)
      PetscReal, allocatable, public :: bcs(:,:) !! Array containing boundary conditions
-     IS, public :: cell_index !! Index set defining natural to global cell ordering
+     IS, public :: cell_index !! Index set defining natural to global cell ordering (without boundary cells)
      AO, public :: cell_order !! Application ordering to convert between global and natural cell indices
      AO, public :: original_cell_order !! Global-to-natural AO for original DM
      PetscInt, allocatable, public :: minc_cell_map(:) !! Mapping from MINC cell local indices to original single-porosity cell local indices
@@ -598,7 +598,6 @@ contains
     PetscErrorCode, intent(out) :: err !! Error flag
     ! Locals:
     PetscSF :: dist_sf
-    IS :: cell_interior_index
     PetscErrorCode :: ierr
 
     err = 0
@@ -628,12 +627,10 @@ contains
             if (err == 0) then
                if (self%has_minc) call self%setup_minc_dm(dof)
                call dm_get_cell_index(self%dm, self%cell_order, &
-                    self%cell_index, cell_interior_index)
+                    self%cell_index)
                if (viewer /= PETSC_NULL_VIEWER) then
                   call ISView(self%cell_index, viewer, ierr); CHKERRQ(ierr)
-                  call ISView(cell_interior_index, viewer, ierr); CHKERRQ(ierr)
                end if
-               call ISDestroy(cell_interior_index, ierr); CHKERRQ(ierr)
             end if
          end if
       end if
