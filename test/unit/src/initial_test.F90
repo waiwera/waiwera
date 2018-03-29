@@ -305,6 +305,7 @@ contains
     call VecGetDM(fluid_vector, fluid_dm, ierr); CHKERRQ(ierr)
     call DMGetDefaultSection(fluid_dm, local_fluid_section, ierr); CHKERRQ(ierr)
     call section_get_field_names(local_fluid_section, PETSC_TRUE, fields)
+    ! Required fields:
     associate(num_fields => size(eos%required_output_fluid_fields))
       allocate(output_field_indices(num_fields))
       do i = 1, num_fields
@@ -313,6 +314,12 @@ contains
          call assert_true(output_field_indices(i) >= 0, "setup field")
       end do
     end associate
+
+    ! All fields:
+    ! associate(num_fields => size(fields))
+    !   allocate(output_field_indices(num_fields))
+    !   output_field_indices = [(i, i = 0, num_fields - 1)]
+    ! end associate
 
     call DMPlexGetHeightStratum(mesh%dm, 0, start_cell, end_cell, ierr)
     CHKERRQ(ierr)
