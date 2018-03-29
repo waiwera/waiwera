@@ -847,17 +847,13 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine dm_get_cell_index(dm, ao, cell_index, cell_interior_index)
+  subroutine dm_get_cell_index(dm, ao, cell_index)
     !! Returns cell_index IS mapping natural cell indices to global
-    !! indices of a global vector (with boundary data included). Also
-    !! returns cell_interior_index which is similar but applies to
-    !! vectors without boundary data included (e.g. in some PETSc HDF5
-    !! output).
+    !! indices of a global vector (without boundary data included).
 
     DM, intent(in) :: dm !! Input DM
     AO, intent(in) :: ao !! Natural-to-global AO for the DM
-    IS, intent(out) :: cell_index !! Natural-to-global IS with boundary data
-    IS, intent(out) :: cell_interior_index !! Natural-to-global IS without boundary data
+    IS, intent(out) :: cell_index !! Natural-to-global IS (without boundary data)
     ! Locals:
     ISLocalToGlobalMapping :: l2g
     DMLabel :: ghost_label
@@ -898,11 +894,6 @@ contains
     index_global = index_natural
     call AOApplicationToPetsc(ao, num_non_ghost_cells, index_global, &
          ierr); CHKERRQ(ierr)
-    call ISCreateGeneral(PETSC_COMM_WORLD, num_non_ghost_cells, index_global, &
-         PETSC_COPY_VALUES, cell_index, ierr); CHKERRQ(ierr)
-    call PetscObjectSetName(cell_index, "cell_index", ierr)
-    CHKERRQ(ierr)
-
     natural = global
     call AOPetscToApplication(ao, num_non_ghost_cells, natural, &
          ierr); CHKERRQ(ierr)
@@ -915,10 +906,10 @@ contains
          index_global, ierr); CHKERRQ(ierr)
     call AODestroy(ao_interior, ierr); CHKERRQ(ierr)
     call ISCreateGeneral(PETSC_COMM_WORLD, num_non_ghost_cells, &
-         index_global, PETSC_COPY_VALUES, cell_interior_index, ierr)
+         index_global, PETSC_COPY_VALUES, cell_index, ierr)
     CHKERRQ(ierr)
-    call PetscObjectSetName(cell_interior_index, &
-         "cell_interior_index", ierr); CHKERRQ(ierr)
+    call PetscObjectSetName(cell_index, "cell_interior_index", &
+         ierr); CHKERRQ(ierr)
 
     deallocate(global, index_natural, index_global)
 
