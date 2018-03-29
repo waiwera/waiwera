@@ -126,6 +126,7 @@ jsondata['initial']['primary'] = var
 jsondata['initial']['region'] = 4
 jsondata['mesh']['radial'] = True
 jsondata['gravity'] = None
+jsondata['output']['fields'] = {'fluid': ['vapour_air_mass_fraction']}
 json.dump(jsondata, file(model_name + '.json', 'w'), indent = 2)
 
 os.chdir(orig_dir)
