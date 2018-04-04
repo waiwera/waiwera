@@ -891,9 +891,6 @@ contains
     ! indices owned by the current process, for the purpose of writing
     ! out the corresponding global indices:
     index_natural = global - bdy_cell_shift
-    index_global = index_natural
-    call AOApplicationToPetsc(ao, num_non_ghost_cells, index_global, &
-         ierr); CHKERRQ(ierr)
     natural = global
     call AOPetscToApplication(ao, num_non_ghost_cells, natural, &
          ierr); CHKERRQ(ierr)
