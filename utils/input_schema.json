@@ -39,6 +39,21 @@
                              {"type": "integer"},
                              {"type": "boolean"}]}
                      }, "additionalProperties": false
+                 },
+                 "fields": {
+                     "type": "object",
+                     "properties": {
+                         "fluid": {
+                             "oneOf": [
+                                 {"type": "array", "items": {"type": "string"}},
+                                 {"type": "string", "enum": ["all", "All", "ALL"]}
+                             ]},
+                         "source": {
+                             "oneOf": [
+                                 {"type": "array", "items": {"type": "string"}},
+                                 {"type": "string", "enum": ["all", "All", "ALL"]}
+                             ]}
+                     }, "additionalProperties": false
                  }
              },
              "additionalProperties": false
