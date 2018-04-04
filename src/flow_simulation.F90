@@ -379,6 +379,7 @@ contains
       use hdf5io_module, only: max_field_name_length
       use dm_utils_module, only: section_get_field_names
       use utils_module, only: str_to_lower, str_array_index
+      use fson_value_m, only: TYPE_ARRAY, TYPE_STRING
 
       character(*), intent(in) :: name
       Vec, intent(in) :: v
@@ -393,14 +394,41 @@ contains
       PetscInt :: i
       PetscBool, allocatable :: required_missing(:)
       character(2) :: field_str
+      PetscInt :: fields_type
+      character(3) :: fields_str
       PetscErrorCode :: ierr
 
-      call fson_get_mpi(json, "output.fields." // trim(name), &
-           default_fields, max_field_name_length, &
-           output_fields, self%logfile)
-      do i = 1, size(output_fields)
-         output_fields(i) = str_to_lower(output_fields(i))
-      end do
+      call VecGetDM(v, dm, ierr); CHKERRQ(ierr)
+      call DMGetDefaultSection(dm, section, ierr); CHKERRQ(ierr)
+      call section_get_field_names(section, PETSC_TRUE, fields)
+
+      if (fson_has_mpi(json, "output.fields." // trim(name))) then
+         fields_type = fson_type_mpi(json, "output.fields." // trim(name))
+         select case (fields_type)
+         case (TYPE_ARRAY)
+            call fson_get_mpi(json, "output.fields." // trim(name), &
+                 default_fields, max_field_name_length, &
+                 output_fields, self%logfile)
+            do i = 1, size(output_fields)
+               output_fields(i) = str_to_lower(output_fields(i))
+            end do
+         case (TYPE_STRING)
+            call fson_get_mpi(json, "output.fields." // trim(name), &
+                 val = fields_str)
+            if (str_to_lower(fields_str) == "all") then
+               output_fields = fields
+            else
+               call self%logfile%write(LOG_LEVEL_WARN, 'input', 'unrecognised', &
+                    str_key = "output.fields." // trim(name), &
+                    str_value = fields_str)
+               output_fields = default_fields
+            end if
+         end select
+      else ! default:
+         call fson_get_mpi(json, "output.fields." // trim(name), &
+              default_fields, max_field_name_length, &
+              output_fields, self%logfile)
+      end if
 
       ! Check if required fields are present:
       associate(num_required => size(required_fields))
@@ -418,9 +446,6 @@ contains
       associate(num_fields => size(output_fields))
 
         allocate(field_indices(num_fields))
-        call VecGetDM(v, dm, ierr); CHKERRQ(ierr)
-        call DMGetDefaultSection(dm, section, ierr); CHKERRQ(ierr)
-        call section_get_field_names(section, PETSC_TRUE, fields)
         do i = 1, num_fields
            field_indices(i) = str_array_index( &
                 output_fields(i), fields)
