@@ -44,7 +44,7 @@ contains
 
   subroutine setup_sources(json, dm, ao, eos, thermo, start_time, &
        fluid_vector, fluid_range_start, source_vector, source_range_start, &
-       num_sources, source_controls, logfile, err)
+       num_sources, source_controls, source_index, logfile, err)
     !! Sets up sinks / sources and source controls.
 
     use dm_utils_module, only: global_vec_section, global_vec_range_start, &
@@ -67,6 +67,7 @@ contains
     PetscInt, intent(out) :: source_range_start !! Range start for global source vector
     PetscInt, intent(out) :: num_sources !! Number of sources created
     type(list_type), intent(in out) :: source_controls !! List of source controls
+    IS, intent(in out) :: source_index !! IS defining natural-to-global source ordering
     type(logfile_type), intent(in out), optional :: logfile !! Logfile for log output
     PetscErrorCode, intent(out) :: err !! Error code
     ! Locals:
@@ -124,6 +125,9 @@ contains
           call logfile%write(LOG_LEVEL_INFO, "input", "no_sources")
        end if
     end if
+
+    call setup_source_index(num_sources, source_data, source_section, &
+         source_range_start, source, source_index)
 
     call VecRestoreArrayF90(source_vector, source_data, ierr); CHKERRQ(ierr)
     call VecRestoreArrayReadF90(fluid_vector, fluid_data, ierr)
@@ -214,6 +218,71 @@ contains
       end associate
 
     end subroutine setup_source
+
+!........................................................................
+
+    subroutine setup_source_index(num_sources, source_data, &
+         source_section, source_range_start, source, source_index)
+      !! Sets up natural-to-global source ordering IS. This gives the
+      !! global index corresponding to a natural source index.
+
+      use utils_module, only: get_mpi_int_gather_array, &
+           array_cumulative_sum
+
+      PetscInt, intent(in) :: num_sources
+      PetscReal, contiguous, pointer, intent(in) :: source_data(:)
+      PetscSection, intent(in) :: source_section
+      PetscInt, intent(in) :: source_range_start
+      type(source_type), intent(in out) :: source
+      IS, intent(in out) :: source_index
+      ! Locals:
+      PetscInt :: indices(num_sources)
+      PetscInt :: i, source_offset
+      PetscMPIInt :: rank, num_procs, num_all, is_count
+      PetscInt, allocatable :: counts(:), displacements(:)
+      PetscInt, allocatable :: indices_all(:), global_indices(:)
+      PetscErrorCode :: ierr
+
+      call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+      call MPI_COMM_SIZE(PETSC_COMM_WORLD, num_procs, ierr)
+
+      do i = 1, num_sources
+         call global_section_offset(source_section, i - 1, &
+              source_range_start, source_offset, ierr); CHKERRQ(ierr)
+         call source%assign(source_data, source_offset)
+         indices(i) = nint(source%source_index)
+      end do
+
+      counts = get_mpi_int_gather_array()
+      displacements = get_mpi_int_gather_array()
+      call MPI_gather(num_sources, 1, MPI_INTEGER, counts, 1, &
+           MPI_INTEGER, 0, PETSC_COMM_WORLD, ierr)
+      if (rank == 0) then
+         displacements = [[0], &
+              array_cumulative_sum(counts(1: num_procs - 1))]
+         num_all = sum(counts)
+         is_count = num_all
+      else
+         num_all = 1
+         is_count = 0
+      end if
+      allocate(indices_all(0: num_all - 1), global_indices(0: num_all - 1))
+      call MPI_gatherv(indices, num_sources, MPI_INTEGER, &
+           indices_all, counts, displacements, &
+           MPI_INTEGER, 0, PETSC_COMM_WORLD, ierr)
+      if (rank == 0) then
+         do i = 0, num_all - 1
+            global_indices(indices_all(i)) = i
+         end do
+      end if
+      deallocate(indices_all, counts, displacements)
+      call ISCreateGeneral(PETSC_COMM_WORLD, is_count, &
+           global_indices, PETSC_COPY_VALUES, source_index, ierr)
+      CHKERRQ(ierr)
+      call PetscObjectSetName(source_index, "source_index", ierr)
+      deallocate(global_indices)
+
+    end subroutine setup_source_index
 
   end subroutine setup_sources
 

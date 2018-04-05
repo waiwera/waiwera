@@ -56,6 +56,7 @@ module flow_simulation_module
      Vec, public :: flux !! Mass or energy fluxes through cell faces for each component
      Vec, public :: source !! Source/sink terms
      PetscInt, public :: num_sources !! Number of source/sink terms on current process
+     IS, public :: source_index !! Index set defining natural to global source ordering
      type(list_type), public :: source_controls !! Source/sink controls
      class(thermodynamics_type), allocatable, public :: thermo !! Fluid thermodynamic formulation
      class(eos_type), allocatable, public :: eos !! Fluid equation of state
@@ -94,6 +95,7 @@ module flow_simulation_module
      procedure, public :: fluid_transitions => flow_simulation_fluid_transitions
      procedure, public :: fluid_properties => flow_simulation_fluid_properties
      procedure, public :: output_mesh_geometry => flow_simulation_output_mesh_geometry
+     procedure, public :: output_source_indices => flow_simulation_output_source_indices
      procedure, public :: output => flow_simulation_output
      procedure, public :: boundary_residuals => flow_simulation_boundary_residuals
   end type flow_simulation_type
@@ -733,8 +735,10 @@ contains
                       call setup_sources(json, self%mesh%dm, self%mesh%cell_order, &
                            self%eos, self%thermo, self%time, self%fluid, &
                            self%fluid_range_start, self%source, self%source_range_start, &
-                           self%num_sources, self%source_controls, self%logfile, err)
+                           self%num_sources, self%source_controls, self%source_index, &
+                           self%logfile, err)
                       if (err == 0) then
+                         call self%output_source_indices()
                          call self%setup_output_fields(json)
                       end if
                    end if
@@ -779,6 +783,7 @@ contains
     call VecDestroy(self%rock, ierr); CHKERRQ(ierr)
     call VecDestroy(self%update_cell, ierr); CHKERRQ(ierr)
     call VecDestroy(self%source, ierr); CHKERRQ(ierr)
+    call ISDestroy(self%source_index, ierr); CHKERRQ(ierr)
     call self%source_controls%destroy(source_control_list_node_data_destroy, &
          reverse = PETSC_TRUE)
     call self%mesh%destroy()
@@ -1725,6 +1730,21 @@ contains
     end if
 
   end subroutine flow_simulation_output_mesh_geometry
+
+!------------------------------------------------------------------------
+
+  subroutine flow_simulation_output_source_indices(self)
+    !! Writes source indices to output.
+
+    class(flow_simulation_type), intent(in out) :: self
+    ! Locals:
+    PetscErrorCode :: ierr
+
+    if (self%output_filename /= "") then
+       call ISView(self%source_index, self%hdf5_viewer, ierr); CHKERRQ(ierr)
+    end if
+
+  end subroutine flow_simulation_output_source_indices
 
 !------------------------------------------------------------------------
 
