@@ -46,12 +46,11 @@ module source_module
        "rate                ", "enthalpy            ", &
        "flow                "]
 
-  character(max_field_name_length), parameter, public :: required_output_source_fields(2) = [&
-       "source_index      ", "natural_cell_index"]
-  character(max_field_name_length), parameter, public :: default_output_source_fields(5) = [&
-       "source_index      ", "natural_cell_index", &
-       "component         ", "rate              ", &
-       "enthalpy          "]
+  character(max_field_name_length), parameter, public :: required_output_source_fields(1) = [&
+       "natural_cell_index"]
+  character(max_field_name_length), parameter, public :: default_output_source_fields(4) = [&
+       "natural_cell_index", "component         ", &
+       "rate              ", "enthalpy          "]
 
   type, public :: source_type
      !! Type for mass / energy source, applying specified values of
