@@ -199,7 +199,7 @@ contains
     PetscErrorCode :: ierr
 
     call ISDuplicate(cell_index, output_cell_index, ierr); CHKERRQ(ierr)
-    call PetscObjectSetName(output_cell_index, "cell_interior_index", ierr)
+    call PetscObjectSetName(output_cell_index, "cell_index", ierr)
     CHKERRQ(ierr)
     call ISLoad(output_cell_index, viewer, ierr); CHKERRQ(ierr)
 

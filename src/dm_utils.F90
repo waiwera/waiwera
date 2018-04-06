@@ -905,7 +905,7 @@ contains
     call ISCreateGeneral(PETSC_COMM_WORLD, num_non_ghost_cells, &
          index_global, PETSC_COPY_VALUES, cell_index, ierr)
     CHKERRQ(ierr)
-    call PetscObjectSetName(cell_index, "cell_interior_index", &
+    call PetscObjectSetName(cell_index, "cell_index", &
          ierr); CHKERRQ(ierr)
 
     deallocate(global, index_natural, index_global)
