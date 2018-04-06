@@ -96,6 +96,7 @@ module flow_simulation_module
      procedure, public :: fluid_properties => flow_simulation_fluid_properties
      procedure, public :: output_mesh_geometry => flow_simulation_output_mesh_geometry
      procedure, public :: output_source_indices => flow_simulation_output_source_indices
+     procedure, public :: output_source_cell_indices => flow_simulation_output_source_cell_indices
      procedure, public :: output => flow_simulation_output
      procedure, public :: boundary_residuals => flow_simulation_boundary_residuals
   end type flow_simulation_type
@@ -739,6 +740,7 @@ contains
                            self%logfile, err)
                       if (err == 0) then
                          call self%output_source_indices()
+                         call self%output_source_cell_indices()
                          call self%setup_output_fields(json)
                       end if
                    end if
@@ -1745,6 +1747,54 @@ contains
     end if
 
   end subroutine flow_simulation_output_source_indices
+
+!------------------------------------------------------------------------
+
+  subroutine flow_simulation_output_source_cell_indices(self)
+    !! Writes source cell natural indices to output.
+
+    use source_module, only: source_type
+    use dm_utils_module, only: global_vec_section, global_section_offset
+
+    class(flow_simulation_type), intent(in out) :: self
+    ! Locals:
+    PetscInt :: i, source_offset
+    PetscSection :: source_section
+    PetscReal, pointer, contiguous :: source_data(:)
+    PetscInt, allocatable :: source_cell_indices(:)
+    type(source_type) :: source
+    IS :: is_cell_indices
+    PetscErrorCode :: ierr
+
+    if (self%output_filename /= "") then
+
+       call global_vec_section(self%source, source_section)
+       call VecGetArrayReadF90(self%source, source_data, ierr); CHKERRQ(ierr)
+       call source%init(self%eos)
+       allocate(source_cell_indices(self%num_sources))
+       do i = 1, self%num_sources
+          call global_section_offset(source_section, i - 1, &
+               self%source_range_start, source_offset, ierr); CHKERRQ(ierr)
+          call source%assign(source_data, source_offset)
+          source_cell_indices(i) = nint(source%natural_cell_index)
+       end do
+       call VecRestoreArrayReadF90(self%source, source_data, ierr); CHKERRQ(ierr)
+       call source%destroy()
+       call ISCreateGeneral(PETSC_COMM_WORLD, self%num_sources, &
+            source_cell_indices, PETSC_COPY_VALUES, is_cell_indices, ierr)
+       CHKERRQ(ierr)
+       deallocate(source_cell_indices)
+       call PetscObjectSetName(is_cell_indices, "source_natural_cell_index", &
+            ierr); CHKERRQ(ierr)
+       call PetscViewerHDF5PushGroup(self%hdf5_viewer, "/source_fields", &
+            ierr); CHKERRQ(ierr)
+       call ISView(is_cell_indices, self%hdf5_viewer, ierr); CHKERRQ(ierr)
+       call PetscViewerHDF5PopGroup(self%hdf5_viewer, ierr); CHKERRQ(ierr)
+       call ISDestroy(is_cell_indices, ierr); CHKERRQ(ierr)
+
+    end if
+
+  end subroutine flow_simulation_output_source_cell_indices
 
 !------------------------------------------------------------------------
 
