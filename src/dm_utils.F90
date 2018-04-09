@@ -1022,7 +1022,8 @@ contains
 
     call PetscSectionGetChart(section, pstart, pend, ierr); CHKERRQ(ierr)
     ! Modify point range for cells- to exclude boundary ghosts:
-    if ((start_cell >= pstart) .and. (start_cell < pend)) then
+    if ((end_cell > start_cell) .and. &
+         (start_cell >= pstart) .and. (start_cell < pend)) then
        pend = end_interior_cell
     end if
 
