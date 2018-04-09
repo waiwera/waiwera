@@ -50,6 +50,7 @@ contains
     PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
     PetscMPIInt :: rank
     PetscViewer :: viewer
+    IS :: source_is
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
     json => fson_parse_mpi(trim(path) // "test_source.json")
@@ -65,7 +66,7 @@ contains
 
     call setup_sources(json, mesh%dm, mesh%cell_order, eos, thermo, start_time, &
          fluid_vector, fluid_range_start, source_vector, source_range_start, &
-         num_sources, source_controls, err = err)
+         num_sources, source_controls, source_is, err = err)
     call assert_equals(0, err, "error")
 
     expected_num_sources = fson_value_count_mpi(json, "source")
@@ -135,6 +136,7 @@ contains
          end select
     end do
 
+    call ISDestroy(source_is, ierr); CHKERRQ(ierr)
     call source%destroy()
     call VecRestoreArrayReadF90(source_vector, source_array, ierr); CHKERRQ(ierr)
     call VecDestroy(source_vector, ierr); CHKERRQ(ierr)

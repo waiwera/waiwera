@@ -57,6 +57,7 @@ contains
     PetscInt, parameter :: expected_num_sources = 6
     PetscMPIInt :: rank
     PetscViewer :: viewer
+    IS :: source_is
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
     json => fson_parse_mpi(trim(path) // "test_source_controls_table.json")
@@ -75,7 +76,7 @@ contains
 
     call setup_sources(json, mesh%dm, mesh%cell_order, eos, thermo, start_time, &
          fluid_vector, fluid_range_start, source_vector, source_range_start, &
-         num_sources, source_controls, err = err)
+         num_sources, source_controls, source_is, err = err)
     call assert_equals(0, err, "source setup error")
     call source%init(eos)
     call assert_equals(13, source%dof, "source dof")
@@ -124,6 +125,7 @@ contains
     CHKERRQ(ierr)
     call restore_dm_local_vec(local_fluid_vector)
 
+    call ISDestroy(source_is, ierr); CHKERRQ(ierr)
     call source%destroy()
     call source_controls%destroy(source_control_list_node_data_destroy, &
          reverse = PETSC_TRUE)
@@ -196,6 +198,7 @@ contains
     PetscReal :: cell_temperature, cell_liquid_density, cell_liquid_internal_energy
     PetscReal :: cell_vapour_density, cell_vapour_internal_energy
     PetscReal :: cell_liquid_viscosity, cell_vapour_viscosity
+    IS :: source_is
     PetscErrorCode :: ierr, err
     PetscReal, parameter :: cell_pressure = 50.e5_dp, cell_vapour_saturation = 0.8_dp
     PetscInt, parameter :: cell_region = 4
@@ -276,7 +279,7 @@ contains
 
     call setup_sources(json, mesh%dm, mesh%cell_order, eos, thermo, start_time, &
          fluid_vector, fluid_range_start, source_vector, source_range_start, &
-         num_sources, source_controls, err = err)
+         num_sources, source_controls, source_is, err = err)
     call assert_equals(0, err, "source setup error")
     call source%init(eos)
 
@@ -343,6 +346,7 @@ contains
     CHKERRQ(ierr)
     call restore_dm_local_vec(local_fluid_vector)
 
+    call ISDestroy(source_is, ierr); CHKERRQ(ierr)
     call source%destroy()
     call source_controls%destroy(source_control_list_node_data_destroy, &
       reverse = PETSC_TRUE)
