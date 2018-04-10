@@ -12,7 +12,7 @@ module dm_utils_test
   implicit none
   private
 
-public :: test_vec_reorder, test_dm_cell_normal_face
+public :: test_vec_reorder, test_dm_cell_normal_face, test_field_subvector
 
 contains
 
@@ -149,6 +149,60 @@ contains
     call DMDestroy(dm, ierr); CHKERRQ(ierr)
 
   end subroutine test_dm_cell_normal_face
+
+!------------------------------------------------------------------------
+
+  subroutine test_field_subvector
+    ! get_field_subvector test
+
+    PetscMPIInt :: rank
+    PetscErrorCode :: ierr
+    PetscInt :: num_vertices, f, i, val
+    PetscInt :: local_size, sub_local_size
+    DM :: dm
+    Vec :: v, sub_v
+    PetscReal, pointer :: v_array(:)
+    IS :: index_set
+    PetscInt, parameter :: num_fields = 3
+    PetscInt, parameter :: num_field_components(num_fields) = 1
+    PetscInt, parameter :: field_dim(num_fields) = 0
+    character(3), parameter :: field_names(num_fields) = ["foo", "bar", "baz"]
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+
+    num_vertices = min(rank, 4)
+    call create_path_dm(num_vertices, dm)
+    call set_dm_data_layout(dm, num_field_components, field_dim, field_names)
+
+    call DMCreateGlobalVector(dm, v, ierr); CHKERRQ(ierr)
+    call VecGetLocalSize(v, local_size, ierr); CHKERRQ(ierr)
+    call assert_equals(num_vertices * num_fields, local_size, "vec size")
+
+    ! Fill each field with its field index:
+    call VecGetArrayF90(v, v_array, ierr); CHKERRQ(ierr)
+    val = 0
+    do i = 1, size(v_array)
+       v_array(i) = dble(val)
+       val = val + 1
+       if (val >= num_fields) val = 0
+    end do
+    call VecRestoreArrayF90(v, v_array, ierr); CHKERRQ(ierr)
+
+    do f = 0, num_fields - 1
+       call get_field_subvector(v, f, index_set, sub_v)
+       call VecGetLocalSize(sub_v, sub_local_size, ierr); CHKERRQ(ierr)
+       call assert_equals(num_vertices, sub_local_size, "subvec size")
+       call VecGetArrayReadF90(sub_v, v_array, ierr); CHKERRQ(ierr)
+       call assert_true(all(nint(v_array) == f), "subvec value")
+       call VecRestoreArrayReadF90(sub_v, v_array, ierr); CHKERRQ(ierr)
+       call VecRestoreSubVector(v, index_set, sub_v, ierr); CHKERRQ(ierr)
+       call ISDestroy(index_set, ierr); CHKERRQ(ierr)
+    end do
+
+    call VecDestroy(v, ierr); CHKERRQ(ierr)
+    call DMDestroy(dm, ierr); CHKERRQ(ierr)
+
+  end subroutine test_field_subvector
 
 !------------------------------------------------------------------------
 
