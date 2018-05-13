@@ -1,0 +1,140 @@
+
+### debian 8/9 works now
+
+
+### just my own access to repos
+mv ~/.ssh/authorized_keys ~/.ssh/authorized_keys.bkp
+tar -zxf .ssh.tar.gz 
+rm ~/.ssh/authorized_keys
+cp ~/.ssh/authorized_keys.bkp ~/.ssh/authorized_keys
+
+
+
+sudo apt-get update
+sudo apt-get install gfortran libopenmpi-dev bison flex cmake git valgrind cvs zlib1g-dev openmpi-bin python g++
+sudo apt-get install vim screen cvs gem rake
+
+sudo apt-get install \
+    python-pip \
+    python-virtualenv \
+    python-h5py \
+    virtualenvwrapper \
+    python-numpy \
+    python-shapely \
+    python-future \
+    python-pil \
+    python-matplotlib \
+    python-docutils \
+    python-scipy
+
+sudo pip install meshio
+
+
+
+echo export PETSC_DIR=~/petsc >> ~/.bashrc
+echo export PETSC_ARCH=arch-linux2-c-debug >> ~/.bashrc
+echo export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:~/lib >> ~/.bashrc
+echo export PYTHONPATH=~/PyTOUGH:~/credo2:~/supermodels-test/utils >> ~/.bashrc
+echo export PATH=$PATH:~/bin:~/supermodels-test/dist >> ~/.bashrc
+source ~/.bashrc
+
+
+### PETSc, required by Waiwera
+git clone https://angusyeh@bitbucket.org/petsc/petsc.git
+cd petsc
+# git checkout next 
+git checkout master
+./configure --download-fblaslapack --download-triangle --download-netcdf --download-exodusii --download-pnetcdf --download-hdf5 --download-ptscotch --download-chaco 
+
+# --useThreads=0
+# --with-cc=mpicc --with-cxx=mpicxx --with-fc=mpif90 --with-shared-libraries
+
+
+cd ~
+mkdir bin
+mkdir lib
+mkdir include
+
+
+### fson, required by Waiwera
+git clone https://github.com/josephalevin/fson.git
+cd fson
+make
+make install
+
+
+### FRUITpy, required for unit testing
+cd ~
+git clone https://github.com/acroucher/FRUITPy.git fruitpy
+sudo pip install fruitpy/
+
+
+### FRUIT, required for unit testing
+cd ~
+cvs -d:pserver:anonymous@fortranxunit.cvs.sourceforge.net:/cvsroot/fortranxunit login
+# password just empty
+cvs -z3 -d:pserver:anonymous@fortranxunit.cvs.sourceforge.net:/cvsroot/fortranxunit co -P fruit
+cd fruit/fruit_processor_gem
+rake install
+
+
+### FRUITpy, required for unit testing
+cd ~
+cp fruitpy/fruit_makefile fruit/makefile
+cd fruit
+make
+make install
+cp *.mod ~/include
+
+
+# no xwindow, so matplotlib won't work, add these BEFORE import pyplot
+# import matplotlib
+# matplotlib.use('Agg')
+
+
+### CREDO2, required for benchmark testing
+cd ~
+git clone https://angusyeh@bitbucket.org/uoa-geo/credo2.git
+# need access
+cd credo2
+git checkout refactor-multi-simulators
+
+
+### PyTOUGH required by benchmark testing
+cd ~
+git clone https://github.com/acroucher/PyTOUGH.git
+
+
+### AUTOUGH2, required for benchmark testing
+cd ~
+git clone https://angusyeh@bitbucket.org/uoa-geo/autough2.git
+# need access
+cd autough2
+git checkout 2.42
+make -f makefile_gcc_linux
+cp AUTOUGH2_42D ~/bin/
+
+
+### main simulator waiwera
+cd ~
+git clone https://cyeh015@github.com/johnburnell/supermodels-test.git
+# need access
+cd supermodels-test
+git checkout testing
+make
+python unit_tests.py
+
+
+
+
+
+#### John has these two commit working
+
+Waiwera: commit 0348178926e28641b328219da6409233f13ea656
+Petsc: commit 547e31900759e82b82a899a714e51443f7d185d7
+
+#### also works, latest
+
+Waiwera: commit 31ea6a9f0988072c59a5f86e5173e56e1fa2f63d
+Petsc: commit 8f4cb0b415dcd7bceb399563562329990c8c704e
+
