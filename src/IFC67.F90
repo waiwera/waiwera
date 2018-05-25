@@ -570,10 +570,10 @@ contains
 
     v1 = 0.407_dp * temperature + 80.4_dp
     if (temperature <= 350.0_dp) then
-       viscosity = 1.0e-7_dp * (v1 - density * \
+       viscosity = 1.0e-7_dp * (v1 - density * &
        (1858.0_dp - 5.9_dp * temperature) * 1.0e-3_dp)
     else
-        viscosity = 1.0e-7_dp * (v1 + density * \
+        viscosity = 1.0e-7_dp * (v1 + density * &
         (0.353_dp + density * (676.5e-6_dp + density * 102.1e-9_dp)))
     end if
 
