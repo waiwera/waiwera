@@ -33,7 +33,7 @@ TESTINCLS=$(INCLS)
 TESTFMFLAGS = -J$(TEST)/$(BUILD)
 INSTALL_DIR = $(HOME)/bin
 ifeq ($(DEBUG),true)
-  FC_FLAGS =  -Wall -Wno-unused-dummy-argument -Wno-unused-function -Wno-return-type -Wno-maybe-uninitialized -fPIC -fcheck=all -fbacktrace -ffpe-trap=zero,overflow,underflow -fimplicit-none -ftrapv -ffree-line-length-none -g -O0 
+  FC_FLAGS =  -fPIC -Wall -Wno-unused-dummy-argument -Wno-unused-function -Wno-return-type -Wno-maybe-uninitialized -fcheck=all -g -O0 -ffree-line-length-none
 else
   FC_FLAGS =  -fPIC -O3 -march=native -mtune=native -ffree-line-length-none
 endif
