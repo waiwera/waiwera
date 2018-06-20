@@ -563,6 +563,7 @@ contains
     ! Locals:
     PetscInt :: region
     PetscReal :: p
+    PetscReal, parameter :: small = 1.e-6_dp
 
     changed = PETSC_FALSE
     err = 0
@@ -571,13 +572,15 @@ contains
 
       if (total_pressure > 0._dp) then
 
-         if (partial_pressure > total_pressure) then
-            partial_pressure = total_pressure
-            changed = PETSC_TRUE
-         else if (partial_pressure < 0._dp) then
-            partial_pressure = 0._dp
-            changed = PETSC_TRUE
-         end if
+         associate(max_partial_pressure => (1._dp - small) * total_pressure)
+           if (partial_pressure > max_partial_pressure) then
+              partial_pressure = max_partial_pressure
+              changed = PETSC_TRUE
+           else if (partial_pressure < 0._dp) then
+              partial_pressure = 0._dp
+              changed = PETSC_TRUE
+           end if
+         end associate
 
          p = total_pressure - partial_pressure
          if ((p < 0._dp) .or. (p > 100.e6_dp)) then
