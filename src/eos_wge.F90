@@ -583,7 +583,7 @@ contains
          end associate
 
          p = total_pressure - partial_pressure
-         if ((p < 0._dp) .or. (p > 100.e6_dp)) then
+         if (p > 100.e6_dp) then
             err = 1
          else
             region = nint(fluid%region)
