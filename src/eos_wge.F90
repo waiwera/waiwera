@@ -569,35 +569,42 @@ contains
 
     associate (total_pressure => primary(1), partial_pressure => primary(3))
 
-      if (partial_pressure > total_pressure) then
-         partial_pressure = total_pressure
-         changed = PETSC_TRUE
-      else if (partial_pressure < 0._dp) then
-         partial_pressure = 0._dp
-         changed = PETSC_TRUE
-      end if
+      if (total_pressure > 0._dp) then
 
-      p = total_pressure - partial_pressure
-      if ((p < 0._dp) .or. (p > 100.e6_dp)) then
-         err = 1
-      else
-         region = nint(fluid%region)
-         if (region == 4) then
-            associate (vapour_saturation => primary(2))
-              if ((vapour_saturation < -1._dp) .or. &
-                   (vapour_saturation > 2._dp)) then
-                 err = 1
-              end if
-            end associate
-         else
-            associate (t => primary(2))
-              if ((t < 0._dp) .or. (t > 800._dp)) then
-                 err = 1
-              end if
-            end associate
+         if (partial_pressure > total_pressure) then
+            partial_pressure = total_pressure
+            changed = PETSC_TRUE
+         else if (partial_pressure < 0._dp) then
+            partial_pressure = 0._dp
+            changed = PETSC_TRUE
          end if
-      end if
-    end associate
+
+         p = total_pressure - partial_pressure
+         if ((p < 0._dp) .or. (p > 100.e6_dp)) then
+            err = 1
+         else
+            region = nint(fluid%region)
+            if (region == 4) then
+               associate (vapour_saturation => primary(2))
+                 if ((vapour_saturation < -1._dp) .or. &
+                      (vapour_saturation > 2._dp)) then
+                    err = 1
+                 end if
+               end associate
+            else
+               associate (t => primary(2))
+               if ((t < 0._dp) .or. (t > 800._dp)) then
+                  err = 1
+               end if
+             end associate
+          end if
+       end if
+
+    else
+       err = 1
+    end if
+
+  end associate
 
   end subroutine eos_wge_check_primary_variables
 
