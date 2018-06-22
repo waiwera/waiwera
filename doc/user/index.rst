@@ -14,8 +14,9 @@ Contents:
    intro
    installation
    testing
-   input
-   input_schema
+   setup
+   run
+   output
    todolist
 
 Indices and tables
