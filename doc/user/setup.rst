@@ -6,5 +6,4 @@ Setting up a Waiwera simulation
    :maxdepth: 2
 
    input
-   title
-   mesh
+   input_data
