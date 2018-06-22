@@ -4,22 +4,22 @@ How are Waiwera JSON files structured?
 
 All input data for a Waiwera simulation are contained within one object in the input JSON file.
 
-The various aspects of the simulation are specified by different named values within that object. These values are of various types, and many are objects themselves. They are listed in the table below.
+The various aspects of the simulation are specified by different named values within that object, as listed below. These values are of various types, and many are objects themselves, with their own internal structure.
 
-==============  =====================
-Name            Type
-==============  =====================
-title           string
-mesh            string / object
-rock            object
-boundaries      array
-source          array
-initial         object
-gravity         number / array / null   
-thermodynamics  string
-eos             object
-time            object
-logfile         Boolean / object
-output          Boolean / object
-==============  =====================
+==============  ===================== =========================
+Name            Type                  Specifies
+==============  ===================== =========================
+title           string                simulation title
+mesh            string / object       simulation mesh
+rock            object                rock properties
+boundaries      array                 boundary conditions
+source          array                 source and sink terms
+initial         object                initial conditions
+gravity         number / array / null gravity
+thermodynamics  string                thermodynamic formulation
+eos             object                equation of state
+time            object                time stepping
+logfile         Boolean / object      output log file
+output          Boolean / object      output results file
+==============  ===================== =========================
 
