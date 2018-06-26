@@ -87,8 +87,4 @@ The exact expected structure of a JSON file for a particular application (e.g. W
 
 Schema validation is useful for avoiding input errors, e.g. missing data, or data with mis-spelled keys that would otherwise be ignored or given default values. (Basic JSON syntax validation, as described above, should be done first as well.)
 
-The `utils/` directory of the Waiwera source code contains a schema file (`input_schema.json`) for Waiwera JSON input. The contents of this file are shown below.
-
-.. literalinclude:: ../../utils/input_schema.json
-   :language: JSON
-
+The `utils/` directory of the Waiwera source code contains a schema file (`input_schema.json`) for Waiwera JSON input.

@@ -23,3 +23,7 @@ logfile         Boolean / object      output log file
 output          Boolean / object      output results file
 ==============  ===================== =========================
 
+The exact structure of a Waiwera input JSON file is defined by the JSON `schema <http://json-schema.org/>`_ included in the `utils/` directory of the Waiwera source code. The contents of this file are shown below.
+
+.. literalinclude:: ../../utils/input_schema.json
+   :language: JSON
