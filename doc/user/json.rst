@@ -11,6 +11,8 @@ A file in JSON format is just a text file, so it can be read and edited using a 
 
 JSON syntax makes a lot of use of brackets and braces (see below), so another useful text-editor feature is `bracket matching`. This allows the user to identify matching pairs of brackets within the file -- e.g. to find the closing bracket matching an opening bracket (and check that the closing bracket is not missing).
 
+There is also dedicated software designed specifically for editing JSON files, which can take care of much of the syntax for you. Examples include `JSON editor online <https://jsoneditoronline.org/>`_.
+
 Parsing JSON files
 ==================
 
