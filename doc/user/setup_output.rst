@@ -1,3 +1,5 @@
+.. _setup_output:
+
 *****************
 Simulation output
 *****************

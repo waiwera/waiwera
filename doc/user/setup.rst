@@ -1,6 +1,6 @@
-***********************
-Setting up a simulation
-***********************
+*******************************
+Setting up a Waiwera simulation
+*******************************
 
 This section describes how to set up the various aspects of a Waiwera simulation.
 

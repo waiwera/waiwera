@@ -14,6 +14,7 @@ Contents:
    intro
    installation
    testing
+   methods
    input
    setup
    run
