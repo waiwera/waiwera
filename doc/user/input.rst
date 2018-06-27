@@ -7,4 +7,3 @@ Waiwera input
 
    json
    waiwera_json
-   setup

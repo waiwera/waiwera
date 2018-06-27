@@ -15,6 +15,7 @@ Contents:
    installation
    testing
    input
+   setup
    run
    output
    todolist

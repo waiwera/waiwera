@@ -1,6 +1,6 @@
-======================================
-How are Waiwera JSON files structured?
-======================================
+===========================
+Waiwera JSON file structure
+===========================
 
 All input data for a Waiwera simulation are contained within one object in the input JSON file.
 
