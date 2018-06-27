@@ -555,6 +555,10 @@ contains
              call setup_direction_source_control(source_json, srcstr, thermo, &
                   local_source_indices, source_controls, logfile)
 
+             call setup_factor_source_control(source_json, srcstr, &
+                  interpolation_type, averaging_type, local_source_indices, &
+                  source_controls, logfile, err)
+
           end if
 
        end if
@@ -642,6 +646,78 @@ contains
     if (allocated(enthalpy_data_array)) deallocate(enthalpy_data_array)
 
   end subroutine setup_table_source_control
+
+!------------------------------------------------------------------------
+
+  subroutine setup_factor_source_control(source_json, srcstr, &
+       interpolation_type, averaging_type, local_source_indices, &
+       source_controls, logfile, err)
+    !! Set up rate factor source controls.
+
+    use interpolation_module, only: interpolation_type_from_str, &
+         averaging_type_from_str, max_interpolation_str_length, &
+         max_averaging_str_length
+
+    type(fson_value), pointer, intent(in) :: source_json
+    character(len=*) :: srcstr
+    PetscInt, intent(in) :: interpolation_type, averaging_type
+    PetscInt, intent(in) :: local_source_indices(:)
+    type(list_type), intent(in out) :: source_controls
+    type(logfile_type), intent(in out), optional :: logfile
+    PetscErrorCode, intent(out) :: err
+    ! Locals:
+    type(source_control_rate_factor_type), pointer :: factor_control
+    PetscInt :: variable_type
+    PetscReal, allocatable :: factor_data_array(:,:)
+    type(fson_value), pointer :: table
+    PetscInt :: effective_interpolation_type, effective_averaging_type
+    character(max_interpolation_str_length) :: interpolation_str
+    character(max_averaging_str_length) :: averaging_str
+
+    ! Use interpolation/ averaging parameters from source itself by default:
+    effective_interpolation_type = interpolation_type
+    effective_averaging_type = averaging_type
+
+    if (fson_has_mpi(source_json, "factor")) then
+       variable_type = fson_type_mpi(source_json, "factor")
+       if (variable_type == TYPE_ARRAY) then
+          call fson_get_mpi(source_json, "factor", val = factor_data_array)
+       else if (variable_type == TYPE_OBJECT) then
+          call fson_get_mpi(source_json, "factor", table)
+          if (fson_has_mpi(table, "time")) then
+             call fson_get_mpi(table, "time", val = factor_data_array)
+          end if
+          ! Check for overridden interpolation/ averaging parameters:
+          if (fson_has_mpi(source_json, "factor.interpolation")) then
+             call fson_get_mpi(source_json, "factor.interpolation", &
+               val = interpolation_str)
+             effective_interpolation_type = interpolation_type_from_str(interpolation_str)
+          end if
+          if (fson_has_mpi(source_json, "factor.averaging")) then
+             call fson_get_mpi(source_json, "factor.averaging", &
+               val = averaging_str)
+             effective_averaging_type = averaging_type_from_str(averaging_str)
+          end if
+       end if
+    end if
+
+    if (allocated(factor_data_array) .and. size(local_source_indices) > 0) then
+       allocate(factor_control)
+       call factor_control%init(factor_data_array, effective_interpolation_type, &
+            effective_averaging_type, local_source_indices, err)
+       if (err == 0) call source_controls%append(factor_control)
+    end if
+
+    if (err > 0) then
+
+       call logfile%write(LOG_LEVEL_ERR, "input", "unsorted_array", &
+            real_array_key = trim(srcstr) // "factor", &
+            real_array_value = factor_data_array(:, 1))
+    end if
+
+    if (allocated(factor_data_array)) deallocate(factor_data_array)
+
+  end subroutine setup_factor_source_control
 
 !------------------------------------------------------------------------
 
