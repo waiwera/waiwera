@@ -2,8 +2,6 @@
 Working with JSON files
 ***********************
 
-Waiwera takes its main input from a file in `JSON <https://www.json.org/>`_ format. JSON is a lightweight data-interchange format, designed to be easily human-readable and writeable, as well as being easy for computers to generate and parse.
-
 Editing JSON files
 ==================
 
@@ -19,7 +17,8 @@ Parsing JSON files
 Many scripting and programming languages are able to parse JSON files (either directly or via add-on libraries), so that the JSON file contents can then be manipulated using a script or program. For example, the Python scripting language has a built-in ``json`` module for this.
 
 JSON file structure
-===================
+
+
 
 JSON files can be structured in a `hierarchical` way, so that larger data structures in the file can contain smaller ones, which can in turn contain their own smaller data structures, and so on. The Waiwera input JSON files make use of this hierarchical structure to group related data together.
 

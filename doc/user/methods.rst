@@ -13,6 +13,7 @@ How Waiwera works
 .. phase transitions: variable switching   
 .. time stepping: abstracted
 .. EOS handles calculation of fluid (mixture) properties from primary variables, phase transitions etc.
+.. MINC for fractured media
 
 .. software design: PETSc library (DMPlex for meshes, Vec/Mat for linear algebra, SNES, KSP), Fortran 2003
 .. parallelism: MPI
