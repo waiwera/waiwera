@@ -337,7 +337,7 @@ contains
 
     use dm_utils_module, only: global_section_offset
 
-    class(source_control_rate_table_type), intent(in out) :: self
+    class(source_control_rate_factor_type), intent(in out) :: self
     PetscReal, intent(in) :: t, interval(2)
     PetscReal, pointer, contiguous, intent(in) :: source_data(:)
     PetscSection, intent(in) :: source_section
