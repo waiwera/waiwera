@@ -54,7 +54,7 @@ contains
     PetscReal, parameter :: start_time = 0._dp
     PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
     PetscReal, parameter :: tol = 1.e-6_dp
-    PetscInt, parameter :: expected_num_sources = 6
+    PetscInt, parameter :: expected_num_sources = 7
     PetscMPIInt :: rank
     PetscViewer :: viewer
     IS :: source_is
@@ -118,6 +118,8 @@ contains
        case (2)
           call assert_equals(104.5e3_dp, source%injection_enthalpy, &
                tol, trim(srcstr))
+       case (3)
+          call assert_equals(-2.5_dp * 0.75_dp, source%rate, tol, trim(srcstr))
        end select
     end do
 
@@ -204,10 +206,11 @@ contains
     PetscInt, parameter :: cell_region = 4
     PetscReal, parameter :: start_time = 0._dp
     PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
-    PetscReal, parameter :: expected_rates(0: 12) = [ &
+    PetscReal, parameter :: expected_rates(0: 14) = [ &
          -12.8728519749_dp, -10._dp, -9.3081349399_dp, -11._dp, -10.1910078135_dp, &
          0.0_dp, 130.0_dp, -13.0_dp, 0.0_dp, -12.9264888581701_dp, &
-         -10.3366086953508_dp, 0._dp, -2.25_dp]
+         -10.3366086953508_dp, 0._dp, -2.25_dp, -12.8728519749_dp * 0.75_dp, &
+         -12.8728519749_dp * 0.375_dp]
     PetscMPIInt :: rank
     PetscViewer :: viewer
     character(len = 16) :: srcstr
@@ -286,13 +289,13 @@ contains
     call MPI_reduce(num_sources, total_num_sources, 1, MPI_INTEGER, MPI_SUM, &
          0, PETSC_COMM_WORLD, ierr)
     if (rank == 0) then
-      call assert_equals(13, total_num_sources, "number of sources")
+      call assert_equals(15, total_num_sources, "number of sources")
     end if
 
     call MPI_reduce(source_controls%count, num_source_controls, 1, &
          MPI_INTEGER, MPI_SUM, 0, PETSC_COMM_WORLD, ierr)
     if (rank == 0) then
-      call assert_equals(22, num_source_controls, "number of source controls")
+      call assert_equals(28, num_source_controls, "number of source controls")
     end if
 
     call global_to_local_vec_section(fluid_vector, local_fluid_vector, &
