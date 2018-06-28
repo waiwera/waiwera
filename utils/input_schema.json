@@ -642,7 +642,27 @@
                                                   "injection", "Injection",
                                                   "in", "In",
                                                   "both", "Both"]
-                           }
+                                        },
+                           "factor": {"oneOf": [
+                               {"type": "number"},
+                               {"type": "array",
+                                "items": {"type": "array",
+                                          "items": {"type": "number"},
+                                          "minItems": 2, "maxItems": 2}},
+                               {"type": "object", "properties": {
+                                   "time": {"type": "array",
+                                            "items": {"type": "array",
+                                                      "items": {"type": "number",
+                                                                "minItems": 2, "maxItems": 2}
+                                                     }},
+                                   "interpolation": {"type": "string",
+                                                     "enum": ["linear", "Linear",
+                                                              "step", "Step"]},
+                                   "averaging": {"type": "string",
+                                                 "enum": ["endpoint", "Endpoint",
+                                                          "integrate", "Integrate"]}
+                               }, "additionalProperties": false}
+                           ]}
                        }, "additionalProperties": false
                    }},
         "initial": {"oneOf": [
