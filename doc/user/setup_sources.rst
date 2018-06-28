@@ -7,4 +7,4 @@ Sources and sinks
 .. source controls may determine values of rate and enthalpy
 .. can define a source on one or more cells
 .. controls: rate table, enthalpy table
-.. controls: deliverability, recharge, separator, limiter, direction
+.. controls: deliverability, recharge, separator, limiter, direction, factor
