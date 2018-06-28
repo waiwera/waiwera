@@ -98,6 +98,28 @@
              "threshold": 5.e5,
              "productivity": 1.e-12,
              "pressure": 2.e5}
+        },
+        {"name": "source 14", "cell": 2,
+         "direction": "production",
+         "deliverability": {
+             "productivity": 1.0e-12,
+             "pressure": 2.e5},
+         "factor": {
+             "time": [
+                 [0.0, 1.0],
+                 [30.0, 0.75],
+                 [120.0, 0.0]],
+             "interpolation": "step"}
+        },
+        {"name": "source 15", "cell": 3,
+         "direction": "production",
+         "deliverability": {
+             "productivity": 1.0e-12,
+             "pressure": 2.e5},
+         "factor": [
+             [0.0, 1.0],
+             [30.0, 0.75],
+             [120.0, 0.0]]
         }
     ]
 }

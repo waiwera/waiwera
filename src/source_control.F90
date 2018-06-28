@@ -84,6 +84,13 @@ module source_control_module
      procedure, public :: update => source_control_enthalpy_table_update
   end type source_control_enthalpy_table_type
 
+  type, public, extends(source_control_table_type) :: source_control_rate_factor_type
+     !! Multiplies source rate by a factor from a table of values vs. time.
+   contains
+     private
+     procedure, public :: update => source_control_rate_factor_update
+  end type source_control_rate_factor_type
+
   type, public, abstract, extends(source_control_type) :: source_control_pressure_reference_type
      !! Controls a source by comparing fluid pressure with a reference
      !! pressure (e.g. deliverability or recharge).
@@ -318,6 +325,46 @@ contains
     call source%destroy()
 
   end subroutine source_control_enthalpy_table_update
+
+!------------------------------------------------------------------------
+! Rate factor source control:
+!------------------------------------------------------------------------
+
+  subroutine source_control_rate_factor_update(self, t, interval, &
+       source_data, source_section, source_range_start, &
+       local_fluid_data, local_fluid_section, eos)
+    !! Update flow rate for source_control_rate_factor_type.
+
+    use dm_utils_module, only: global_section_offset
+
+    class(source_control_rate_factor_type), intent(in out) :: self
+    PetscReal, intent(in) :: t, interval(2)
+    PetscReal, pointer, contiguous, intent(in) :: source_data(:)
+    PetscSection, intent(in) :: source_section
+    PetscInt, intent(in) :: source_range_start
+    PetscReal, pointer, contiguous, intent(in) :: local_fluid_data(:)
+    PetscSection, intent(in) :: local_fluid_section
+    class(eos_type), intent(in) :: eos
+    ! Locals:
+    PetscReal :: factor
+    type(source_type) :: source
+    PetscInt :: i, s, source_offset
+    PetscErrorCode :: ierr
+
+    call source%init(eos)
+    factor = self%table%average(interval, 1)
+
+    do i = 1, size(self%source_indices)
+       s = self%source_indices(i)
+       call global_section_offset(source_section, s, source_range_start, &
+            source_offset, ierr); CHKERRQ(ierr)
+       call source%assign(source_data, source_offset)
+       source%rate = source%rate * factor
+    end do
+
+    call source%destroy()
+
+  end subroutine source_control_rate_factor_update
 
 !------------------------------------------------------------------------
 ! Pressure reference source control:
