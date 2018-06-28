@@ -54,7 +54,7 @@ contains
     PetscReal, parameter :: start_time = 0._dp
     PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
     PetscReal, parameter :: tol = 1.e-6_dp
-    PetscInt, parameter :: expected_num_sources = 7
+    PetscInt, parameter :: expected_num_sources = 8
     PetscMPIInt :: rank
     PetscViewer :: viewer
     IS :: source_is
@@ -120,6 +120,8 @@ contains
                tol, trim(srcstr))
        case (3)
           call assert_equals(-2.5_dp * 0.75_dp, source%rate, tol, trim(srcstr))
+       case (4)
+          call assert_equals(-2.5_dp * 0.5_dp, source%rate, tol, trim(srcstr))
        end select
     end do
 

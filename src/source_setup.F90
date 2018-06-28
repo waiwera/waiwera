@@ -673,6 +673,7 @@ contains
     PetscInt :: effective_interpolation_type, effective_averaging_type
     character(max_interpolation_str_length) :: interpolation_str
     character(max_averaging_str_length) :: averaging_str
+    PetscReal :: const_factor
 
     ! Use interpolation/ averaging parameters from source itself by default:
     effective_interpolation_type = interpolation_type
@@ -680,9 +681,14 @@ contains
 
     if (fson_has_mpi(source_json, "factor")) then
        variable_type = fson_type_mpi(source_json, "factor")
-       if (variable_type == TYPE_ARRAY) then
+       select case (variable_type)
+       case (TYPE_REAL, TYPE_INTEGER)
+          call fson_get_mpi(source_json, "factor", val = const_factor)
+          allocate(factor_data_array(1, 2))
+          factor_data_array(1, :) = [0._dp, const_factor]
+       case (TYPE_ARRAY)
           call fson_get_mpi(source_json, "factor", val = factor_data_array)
-       else if (variable_type == TYPE_OBJECT) then
+       case (TYPE_OBJECT)
           call fson_get_mpi(source_json, "factor", table)
           if (fson_has_mpi(table, "time")) then
              call fson_get_mpi(table, "time", val = factor_data_array)
@@ -698,7 +704,7 @@ contains
                val = averaging_str)
              effective_averaging_type = averaging_type_from_str(averaging_str)
           end if
-       end if
+       end select
     end if
 
     if (allocated(factor_data_array) .and. size(local_source_indices) > 0) then

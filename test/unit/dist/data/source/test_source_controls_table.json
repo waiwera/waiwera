@@ -38,6 +38,13 @@
                  [30.0, 0.75],
                  [120.0, 0.0]],
              "interpolation": "step"}
+        },
+        {"name": "const rate factor", "cell": 1,
+         "rate": [
+             [0.0, -1.0],
+             [30., -2.0],
+             [120., -3.0]],
+         "factor": 0.5
         }
     ]
 }
