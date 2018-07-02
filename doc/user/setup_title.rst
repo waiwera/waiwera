@@ -2,7 +2,7 @@
 Simulation title
 *****************
 
-The simulation can be given a descriptive title using the `title` value in the JSON input file. This is a simple string value, and is optional.
+The simulation can be given a descriptive title using the **title** value in the JSON input file. This is a simple string value, and is optional.
 
 Example::
 
