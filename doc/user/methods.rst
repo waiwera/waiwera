@@ -25,6 +25,8 @@ where :math:`c = 1,\ldots C+1` (and :math:`C` is the number of mass components, 
 
 For component :math:`c`, :math:`M^c` is the mass or energy density in :math:`V_n`, :math:`\vec{F^c}` is the flux and :math:`q^c` represents source or sink terms (per unit volume).
 
+.. _finite_volume_discretisation:
+
 Finite volume discretisation
 ****************************
 
