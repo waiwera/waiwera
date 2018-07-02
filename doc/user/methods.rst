@@ -87,6 +87,49 @@ Waiwera contains a module for the numerical solution of ordinary differential eq
 
 where :math:`t^n` is the :math:`n^{th}` discretised time, and :math:`\Delta t` is the time step size, so that :math:`t^{n+1} = t^n + \Delta t`. For the backwards Euler method, at each time step we must solve equation :eq:`beuler` for the unknown new solution :math:`\vec{Y}^{n+1}`.
 
+Function evaluations
+********************
+
+Waiwera needs to evaluate the functions :math:`L` and :math:`R` for any given set of primary variables (and time). The function :math:`L`, representing the mass and energy densities in the cells, is relatively straightforward to evaluate, by summing the contributions of the different phases. Considering a particular cell:
+
+.. math::
+
+   M_n^c =
+   \Biggl \lbrace
+   {
+   \phi_n \sum_p{S_p \rho_p X_p^c}, c \leq C
+   \atop
+   (1 - \phi_n) \rho_{r} c_{r} T + \phi_n \sum_p {S_p \rho_p u_p}, c = C + 1
+   }
+
+where the :math:`p` subscripts refer to phases, and the :math:`r` subscripts refer to rock properties. Here :math:`\phi_n` is the porosity in the cell, :math:`S` is phase saturation, :math:`\rho` is density, :math:`X` is mass fraction, :math:`u` is internal energy density, :math:`c_r` is the rock specific heat and :math:`T` is temperature.
+
+The function :math:`R`, representing fluxes into the cells, has contributions from source and sink terms (which are easily evaluated), and from fluxes through faces. This latter contribution is computed by summing the component face fluxes in each phase:
+
+.. math::
+
+   F_{nm}^c = \sum_p{F_p^c}
+
+where the phase fluxes are given by:
+
+.. math::
+   :label: flux
+
+   F_p^c =
+   \Biggl \lbrace
+   {
+   -k \frac{k_r^p}{\mu_p} \rho_p X_p^c (\frac{\partial P}{\partial n} - \bar{\rho}_p \vec{g}.\hat{n}), c \leq C
+   \atop
+   -K \frac{\partial T}{\partial n} + \sum_{i=1}^{C} {\sum_p{h_p^i F_p^i}} , c = C + 1
+   }
+
+Here :math:`k` is effective permeability normal to the face, :math:`k_r` is relative permeability, :math:`\mu` is viscosity, :math:`P` is pressure, :math:`\vec{g}` is the gravity vector, :math:`K` is fluid heat conductivity and :math:`h` is enthalpy. :math:`\hat{n}` is the unit vector normal to the face, and :math:`\bar{\rho}_p` is the effective phase density on the face.
+
+The normal gradients of pressure and temperature are evaluated by finite differencing across the phase, i.e. taking the difference between the values in the cells on either side of the face and dividing by the distance between the cell centres. This approximation relies on the assumption that the line joining the cell centres is perpendicular to the face.
+
+When evaluating the phase fluxes using equation :eq:`flux`, the flow quantities :math:`k_r`, :math:`\rho_p`, :math:`\mu`, :math:`X_c^p` and :math:`h_p` are "upstream weighted", i.e. their values are taken from the cell upstream from the face. This is needed for numerical stability. The rock properties :math:`K` and :math:`k_r` on the face are evaluated using harmonic weighting of the values in the cells on either side of the face.
+
+
 Solution of equations at each time step
 ***************************************
 
