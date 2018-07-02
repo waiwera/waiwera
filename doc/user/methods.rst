@@ -23,7 +23,7 @@ The mass and energy conservation equations over an arbitrary volume :math:`V` ar
 
 where :math:`c = 1,\ldots C+1` (and :math:`C` is the number of mass components, e.g. 1 for pure water). Component :math:`C+1` is the energy component.
 
-For component :math:`c`, :math:`M^c` is the mass or energy density in :math:`V_n`, :math:`\vec{F^c}` is the flux and :math:`q^c` represents source or sink terms.
+For component :math:`c`, :math:`M^c` is the mass or energy density in :math:`V_n`, :math:`\vec{F^c}` is the flux and :math:`q^c` represents source or sink terms (per unit volume).
 
 Finite volume discretisation
 ****************************
