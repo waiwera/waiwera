@@ -90,7 +90,7 @@ where :math:`t^n` is the :math:`n^{th}` discretised time, and :math:`\Delta t` i
 Function evaluations
 ********************
 
-Waiwera needs to evaluate the functions :math:`L` and :math:`R` for any given set of primary variables (and time). The function :math:`L`, representing the mass and energy densities in the cells, is relatively straightforward to evaluate, by summing the contributions of the different phases. Considering a particular cell:
+Waiwera needs to evaluate the functions :math:`L` and :math:`R` for any given set of primary variables (and time). The function :math:`L`, representing the mass and energy densities :math:`M_n^c` in the cells, is relatively straightforward to evaluate, by summing the contributions of the different phases. Considering a particular cell:
 
 .. math::
 
