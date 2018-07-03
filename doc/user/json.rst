@@ -38,18 +38,6 @@ An `array` is an ordered collection of values, beginning and ending with square 
 
 The values in the array may be character `strings` (enclosed by double quotes), `numbers` (integer or floating point), Boolean values (``true`` or ``false``) or null values (``null``). In addition, the values may themselves be arrays or objects. The values in an array do not all have to be of the same type.
 
-Here are some simple examples of JSON arrays::
-
-  [1, -2, 3, -4]
-
-::
-
-  [2.718, 3.1416, 1.618]
-
-::
-
-  ["one", "two", "three", "four"]
-
 JSON objects
 ------------
 
@@ -57,11 +45,15 @@ An `object` is an unordered collection of named values, i.e. pairs of names and 
 
 The values in an object can be of the same types as in an array (strings, numbers, etc.). Once again the values may themselves be arrays or objects.
 
-Here is a simple example of a JSON object, in which the values are all numbers::
+Here is a simple example of a JSON object, in which the values are all numbers:
+
+.. code-block:: json
 
   {"length": 20.5, "width": 14.8, "depth": 17.2}
 
-Here is a more complex example of an object with a mix of different value types (an object, an array, a string and a Boolean)::
+Here is a more complex example of an object with a mix of different value types (an object, an array of numbers, a string and a Boolean):
+
+.. code-block:: json
 
   {"dimensions": {"length": 20.5, "width": 14.8, "depth": 17.2},
    "position": [161.2, -12.5, 405.1],
