@@ -89,6 +89,8 @@ Waiwera contains a module for the numerical solution of ordinary differential eq
 
 where :math:`t^n` is the :math:`n^{th}` discretised time, and :math:`\Delta t` is the time step size, so that :math:`t^{n+1} = t^n + \Delta t`. For the backwards Euler method, at each time step we must solve equation :eq:`beuler` for the unknown new solution :math:`\vec{Y}^{n+1}`.
 
+.. _function_evaluations:
+
 Function evaluations
 ********************
 
@@ -127,7 +129,7 @@ where the phase fluxes are given by:
 
 Here :math:`k` is effective permeability normal to the face, :math:`k_r` is relative permeability, :math:`\mu` is viscosity, :math:`P` is pressure, :math:`\vec{g}` is the gravity vector, :math:`K` is fluid heat conductivity and :math:`h` is enthalpy. :math:`\hat{n}` is the unit vector normal to the face, and :math:`\bar{\rho}_p` is the effective phase density on the face.
 
-The normal gradients of pressure and temperature are evaluated by finite differencing across the phase, i.e. taking the difference between the values in the cells on either side of the face and dividing by the distance between the cell centres. This approximation relies on the assumption that the line joining the cell centres is perpendicular to the face.
+The normal gradients of pressure and temperature are evaluated by finite differencing across the phase, i.e. taking the difference between the values in the cells on either side of the face and dividing by the distance between the cell centres. This "two-point flux approximation" relies on the assumption that the mesh satisfies the "orthogonality criterion", i.e. that the line joining the cell centres is orthogonal to the face.
 
 When evaluating the phase fluxes using equation :eq:`flux`, the flow quantities :math:`k_r`, :math:`\rho_p`, :math:`\mu`, :math:`X_c^p` and :math:`h_p` are "upstream weighted", i.e. their values are taken from the cell upstream from the face. This is needed for numerical stability. The rock properties :math:`K` and :math:`k_r` on the face are evaluated using harmonic weighting of the values in the cells on either side of the face.
 
