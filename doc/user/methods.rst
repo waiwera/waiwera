@@ -53,6 +53,8 @@ Then the discretised conservation equations for cell :math:`V_n` can be written:
 
    \frac{d}{dt} M_n^c = \frac{1}{V_n} \sum_m {A_{nm} F_{nm}^c} + q_n^c
 
+.. _primary_variables:
+
 Primary variables
 *****************
 

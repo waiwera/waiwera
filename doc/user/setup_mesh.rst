@@ -19,7 +19,19 @@ All mesh-related data in the Waiwera input JSON file is contained in the **mesh*
 * a string value specifying the mesh filename
 * an object, with a **filename** string value (and other optional values as well)
 
-e.g.:
+.. note::
+
+   +-----------------+-----------------+
+   | **JSON value**: | "mesh"          |
+   +-----------------+-----------------+
+   | **type**:       | string | object |
+   +-----------------+-----------------+
+   | **required**:   | ``true``        |
+   +-----------------+-----------------+
+   | **specifies**:  | simulation mesh |
+   +-----------------+-----------------+
+
+Examples:
 
 .. code-block:: json
 
@@ -57,7 +69,21 @@ This is the default mesh type. PETSc's DMPlex implementation supports most commo
 2-D Cartesian meshes
 --------------------
 
-For 2-D problems (e.g. horizontal or vertical slice models), a mesh file containing a 2-D mesh can be used. In this case, the mesh thickness can be specified by the **mesh.thickness** value, e.g.:
+For 2-D problems (e.g. horizontal or vertical slice models), a mesh file containing a 2-D mesh can be used. In this case, the mesh thickness can be specified by the **mesh.thickness** value.
+
+.. note::
+
+   +-----------------+--------------------+
+   | **JSON value**: | "mesh.thickness"   |
+   +-----------------+--------------------+
+   | **type**:       | number             |
+   +-----------------+--------------------+
+   | **specifies**:  | 2-D mesh thickness |
+   +-----------------+--------------------+
+   | **default**:    | 1.0                |
+   +-----------------+--------------------+
+
+For example:
 
 .. code-block:: json
 
@@ -68,7 +94,21 @@ If the thickness is not specified, a default value of 1.0 m is assumed.
 2-D radial meshes
 -----------------
 
-For radial problems, a 2-D mesh file can also be used, and the **mesh.radial** Boolean value should be set to true, e.g.:
+For radial problems, a 2-D mesh file can also be used, and the **mesh.radial** Boolean value should be set to true.
+
+.. note::
+
+   +-----------------+--------------------+
+   | **JSON value**: | "mesh.radial"      |
+   +-----------------+--------------------+
+   | **type**:       | Boolean            |
+   +-----------------+--------------------+
+   | **specifies**:  | 2-D mesh geometry  |
+   +-----------------+--------------------+
+   | **default**:    | ``false``          |
+   +-----------------+--------------------+
+
+For example:
 
 .. code-block:: json
 
@@ -98,6 +138,16 @@ It is possible to define named "zones" on the Waiwera mesh, to facilitate assign
 Zones can be re-used for different purposes, and some types of zone specification are purely geometrical (not relying on cell indexing) and can therefore be re-used for different meshes.
 
 Mesh zones are defined in the **mesh.zones** value in the Waiwera JSON input file. This value in an object, containing pairs of zone names and their corresponding zone definitions.
+
+.. note::
+
+   +-----------------+---------------------+
+   | **JSON value**: | "mesh.zones"        |
+   +-----------------+---------------------+
+   | **type**:       | object              |
+   +-----------------+---------------------+
+   | **specifies**:  | named zones in mesh |
+   +-----------------+---------------------+
 
 The available types of zones are as follows.
 
