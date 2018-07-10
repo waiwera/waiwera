@@ -25,7 +25,9 @@ For example:
  .. code-block:: json
 
   {"eos": {"name": "wae"}}
-   
+
+selects the water / air / energy EOS.
+
 The equation of state modules included in Waiwera are described below.
 
 Water EOS modules
