@@ -2,7 +2,7 @@
 Gravity
 *******
 
-The face fluxes in the mass and energy balance equations (see :ref:`function_evaluations`) include a gravity term. The magnitude (and direction) of the acceleration due to gravity for the simulation can be specified in the Waiwera JSON input file via the **gravity** value.
+The face fluxes in the mass and energy balance equations (see :ref:`function_evaluations`) include a term involving the gravity vector (:math:`\vec{g}`). The magnitude (and direction) of this acceleration due to gravity for the simulation can be specified in the Waiwera JSON input file via the **gravity** value.
 
 .. note::
 
@@ -13,10 +13,10 @@ The face fluxes in the mass and energy balance equations (see :ref:`function_eva
    +-----------------+-----------------------------------------------------------------------+
    | **default**:    | [0, 0] (2-D meshes) | [0, 0, -9.8] m/s\ :superscript:`2` (3-D meshes) |
    +-----------------+-----------------------------------------------------------------------+
-   | **specifies**:  | acceleration due to gravity                                           |
+   | **specifies**:  | acceleration due to gravity (m/s\ :superscript:`2`)                   |
    +-----------------+-----------------------------------------------------------------------+
 
-Waiwera uses a gravity vector (i.e. an array); this is a 2-D vector for 2-D simulations, and a 3-D vector for 3-D simulations. The entire vector can be specified in full, by using an array value for gravity in the JSON input.
+The gravity vector is a 2-D vector for 2-D simulations, and a 3-D vector for 3-D simulations. The entire vector can be specified in full, by using an array value for gravity in the JSON input.
 
 For example:
 
