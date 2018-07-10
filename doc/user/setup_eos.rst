@@ -2,7 +2,106 @@
 Equation of state
 *****************
 
-.. list available equations of state
-.. primary variables for each (need to know for specifying initial conditions, BCs?)
-.. temperature for w eos (isothermal)
-.. main functions of an EOS (phase transitions, bulk properties, phase properties, check primary variable bounds, primary variable scaling)
+In different simulations there may be different combinations of mass and energy components present. In most subsurface simulations, water is present, but there may be others such as carbon dioxide or air. In non-isothermal simulations it is also necessary to model the energy component, to account for the effects of temperature on fluid properties. The set of equations describing the behaviour of the particular mixture of mass and energy components present under a range of thermodynamic conditions is referred to as the "equation of state" (EOS) module.
+
+Given the primary thermodynamic variables, the EOS module calculates bulk fluid properties such as pressure and temperature, as well as the properties of the individual phases present, such as density, internal energy, viscosity etc. It also checks the primary variables to make sure they have not gone outside acceptable physical bounds, and handles primary variable switching when phase transitions occur.
+
+In the Waiwera JSON input file, the **eos** value specifies the equation of state module to be used for the simulation. This is a object containing the **eos.name** value, specifying an abbreviated name of the EOS module.
+
+.. note::
+
+   +-----------------+-------------------+
+   | **JSON value**: | "eos.name"        |
+   +-----------------+-------------------+
+   | **type**:       | string            |
+   +-----------------+-------------------+
+   | **default**:    | "we"              |
+   +-----------------+-------------------+
+   | **specifies**:  | equation of state |
+   +-----------------+-------------------+
+
+For example:
+
+ .. code-block:: json
+
+  {"eos": {"name": "wae"}}
+   
+The equation of state modules included in Waiwera are described below.
+
+Water EOS modules
+=================
+
+Water ("w")
+-----------
+
+.. note::
+
+   * **name**: "w"
+   * **components:**: water (isothermal)
+   * **phase conditions**: liquid
+   * **primary variables**: pressure
+
+This is the simplest equation of state module, simulating the behaviour of isothermal, single-phase liquid water. There is only one primary thermodynamic variable: pressure.
+
+The temperature of the simulation can be specified in the Waiwera JSON input file via the **eos.temperature** value. This is a number value, specifying the temperature in degrees Celcius (:math:`^{\circ}`\ C). Note that this value is not needed (and will be ignored) if specified for other, non-isothermal EOS modules.
+
+For example:
+
+ .. code-block:: json
+
+  {"eos": {"name": "w", "temperature": 18.5}}
+
+Fluid properties are calculated directly from the thermodynamic formulation for water (see :ref:`water_thermodynamics`), at the specified temperature.
+  
+Water and energy ("we")
+-----------------------
+
+.. note::
+
+   * **Name**: "we"
+   * **Components:**: water, energy
+   * **Phase conditions**: liquid, vapour, two-phase
+   * **Primary variables**:
+
+     * **liquid / vapour**: pressure, temperature
+     * **two-phase**: pressure, vapour saturation
+
+This is the simplest non-isothermal equation of state module, with only one mass component (water) but also including the energy component. Water may be in liquid, vapour or two-phase conditions, and may change between these states. Primary variables are pressure and temperature for single-phase conditions but switch to pressure and vapour saturation under two-phase conditions.
+
+Fluid properties are calculated directly from the thermodynamic formulation for water (see :ref:`water_thermodynamics`).
+
+Water / NCG EOS modules
+=======================
+
+These EOS modules simulate mixtures of water and non-condensible gases (NCGs), together with energy. They work in much the same way as the water / energy EOS ("we") apart from modifications to the fluid properties resulting from the presence of the non-condensible gas.
+
+The primary variables for these EOS modules are as for the water / energy EOS, but with an added third variable, the partial pressure of the non-condensible gas.
+
+.. add detail on how NCG mixture EOS modules work? - using Henry's derivative to compute energy of solution etc.
+
+Water, air and energy ("wae")
+-----------------------------
+
+.. note::
+
+   * **Name**: "wae"
+   * **Components:**: water, air, energy
+   * **Phase conditions**: liquid, vapour, two-phase
+   * **Primary variables**:
+
+     * **liquid / vapour**: pressure, temperature, air partial pressure
+     * **two-phase**: pressure, vapour saturation, air partial pressure
+       
+Water, carbon dioxide and energy ("wce")
+----------------------------------------
+
+.. note::
+
+   * **Name**: "wce"
+   * **Components:**: water, carbon dioxide, energy
+   * **Phase conditions**: liquid, vapour, two-phase
+   * **Primary variables**:
+
+     * **liquid / vapour**: pressure, temperature, CO\ :sub:`2` partial pressure
+     * **two-phase**: pressure, vapour saturation, CO\ :sub:`2` partial pressure
+       

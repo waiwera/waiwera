@@ -1,3 +1,5 @@
+.. _water_thermodynamics:
+
 ********************
 Water thermodynamics
 ********************
