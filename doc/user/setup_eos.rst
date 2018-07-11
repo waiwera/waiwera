@@ -6,19 +6,22 @@ In different simulations there may be different combinations of mass and energy 
 
 Given the primary thermodynamic variables, the EOS module calculates bulk fluid properties such as pressure and temperature, as well as the properties of the individual phases present, such as density, internal energy, viscosity etc. It also checks the primary variables to make sure they have not gone outside acceptable physical bounds, and handles primary variable switching when phase transitions occur.
 
-In the Waiwera JSON input file, the **eos** value specifies the equation of state module to be used for the simulation. This is a object containing the **eos.name** value, specifying an abbreviated name of the EOS module.
+In the Waiwera JSON input file, the **eos** value specifies the equation of state module to be used for the simulation.
 
 .. note::
+   **JSON object**: eos
 
-   +-----------------+-------------------+
-   | **JSON value**: | "eos.name"        |
-   +-----------------+-------------------+
-   | **type**:       | string            |
-   +-----------------+-------------------+
-   | **default**:    | "we"              |
-   +-----------------+-------------------+
-   | **specifies**:  | equation of state |
-   +-----------------+-------------------+
+   +-------------+----------+-----------+-------------------+
+   |**value**    |**type**  |**default**|**specifies**      |
+   +-------------+----------+-----------+-------------------+
+   |"name"       |string    |"we"       |Abbreviated EOS    |
+   |             |          |           |module name        |
+   +-------------+----------+-----------+-------------------+
+   |"temperature"|number    |20.0       |constant           |
+   |             |          |           |temperature for    |
+   |             |          |           |:ref:`water_eos`   |
+   |             |          |           |EOS                |
+   +-------------+----------+-----------+-------------------+
 
 For example:
 
@@ -32,6 +35,8 @@ The equation of state modules included in Waiwera are described below.
 
 Water EOS modules
 =================
+
+.. _water_eos:
 
 Water ("w")
 -----------

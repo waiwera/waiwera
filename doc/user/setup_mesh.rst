@@ -45,6 +45,39 @@ or:
 
 Note that the mesh filename (specified in either of the above two ways) is a required input parameter in the simulation (there is no default).
 
+.. note::
+
+   **JSON object**: mesh
+
+   +--------------------+-----------+-----------+-------------------+
+   |**value**           |**type**   |**default**|**specifies**      |
+   +--------------------+-----------+-----------+-------------------+
+   |"filename"          |string     |(`no       |mesh               |
+   |                    |           |default`)  |filename           |
+   +--------------------+-----------+-----------+-------------------+
+   |"radial"            |Boolean    |``false``  |:ref:`radial_mesh` |
+   |                    |           |           |                   |
+   |                    |           |           |                   |
+   +--------------------+-----------+-----------+-------------------+
+   |"thickness"         |number     |1.0        |thickness for      |
+   |                    |           |           |:ref:`2d_mesh`     |
+   +--------------------+-----------+-----------+-------------------+
+   |"permeability_angle"|number     |0.0        |permeability       |
+   |                    |           |           |direction          |
+   |                    |           |           |angle              |
+   +--------------------+-----------+-----------+-------------------+
+   |"faces"             |array      |[]         |face               |
+   |                    |           |           |properties         |
+   +--------------------+-----------+-----------+-------------------+
+   |"minc"              |object |   |[]         |MINC               |
+   |                    |array      |           |treatment of       |
+   |                    |           |           |fractured          |
+   |                    |           |           |media              |
+   +--------------------+-----------+-----------+-------------------+
+   |"zones"             |object     |{}         |definitions of     |
+   |                    |           |           |:ref:`mesh_zones`  |
+   +--------------------+-----------+-----------+-------------------+
+
 Mesh formats
 ============
 
@@ -66,22 +99,12 @@ Mesh coordinate systems
 
 This is the default mesh type. PETSc's DMPlex implementation supports most common 3-D element types such as 8-node hexahedral ("brick") and 4-node tetrahedral elements, but does not currently support 6-node prism (or "wedge") elements.
 
+.. _2d_mesh:
+
 2-D Cartesian meshes
 --------------------
 
 For 2-D problems (e.g. horizontal or vertical slice models), a mesh file containing a 2-D mesh can be used. In this case, the mesh thickness can be specified by the **mesh.thickness** value.
-
-.. note::
-
-   +-----------------+--------------------+
-   | **JSON value**: | "mesh.thickness"   |
-   +-----------------+--------------------+
-   | **type**:       | number             |
-   +-----------------+--------------------+
-   | **specifies**:  | 2-D mesh thickness |
-   +-----------------+--------------------+
-   | **default**:    | 1.0                |
-   +-----------------+--------------------+
 
 For example:
 
@@ -91,22 +114,12 @@ For example:
 
 If the thickness is not specified, a default value of 1.0 m is assumed.
 
+.. _radial_mesh:
+
 2-D radial meshes
 -----------------
 
 For radial problems, a 2-D mesh file can also be used, and the **mesh.radial** Boolean value should be set to true.
-
-.. note::
-
-   +-----------------+--------------------+
-   | **JSON value**: | "mesh.radial"      |
-   +-----------------+--------------------+
-   | **type**:       | Boolean            |
-   +-----------------+--------------------+
-   | **specifies**:  | 2-D mesh geometry  |
-   +-----------------+--------------------+
-   | **default**:    | ``false``          |
-   +-----------------+--------------------+
 
 For example:
 
@@ -130,6 +143,8 @@ When running Waiwera in parallel, the mesh is "partitioned" so that each paralle
 
 Waiwera uses the mesh partitioning algorithms provided by PETSc. By default, the Chaco partitioner is used.
 
+.. _mesh_zones:
+
 Mesh zones
 ==========
 
@@ -138,16 +153,6 @@ It is possible to define named "zones" on the Waiwera mesh, to facilitate assign
 Zones can be re-used for different purposes, and some types of zone specification are purely geometrical (not relying on cell indexing) and can therefore be re-used for different meshes.
 
 Mesh zones are defined in the **mesh.zones** value in the Waiwera JSON input file. This value in an object, containing pairs of zone names and their corresponding zone definitions.
-
-.. note::
-
-   +-----------------+---------------------+
-   | **JSON value**: | "mesh.zones"        |
-   +-----------------+---------------------+
-   | **type**:       | object              |
-   +-----------------+---------------------+
-   | **specifies**:  | named zones in mesh |
-   +-----------------+---------------------+
 
 The available types of zones are as follows.
 
@@ -162,6 +167,18 @@ In this type of zone, cells in the zone are explicitly identified by their cell 
 All cell indices are zero-based (i.e. start from zero) and refer to the cell indices in the serial mesh (i.e. before partitioning, if the simulation is run in parallel).
 
 If the zone definition is an object, it can optionally also contain a **type** string value, set to "array", to make the zone type more explicit.
+
+.. note::
+
+   **JSON object**: cell array zone
+
+   +----------+----------+-----------+--------------+
+   |**value** |**type**  |**default**|**specifies** |
+   +----------+----------+-----------+--------------+
+   |"cells"   |array     |[]         |cell indices  |
+   +----------+----------+-----------+--------------+
+   |"type"    |string    |"array"    |zone type     |
+   +----------+----------+-----------+--------------+
 
 Example:
 
@@ -186,6 +203,28 @@ The zone definition is an object, with between one and three coordinate ranges n
 If any of these coordinate ranges is absent, there is assumed to be no limitation on that coordinate.
 
 The zone definition can optionally also contain a **type** string value, set to "box", to make the zone type more explicit.
+
+.. note::
+
+   **JSON object**: box zone
+
+   +----------+----------+-----------+--------------+
+   |**value** |**type**  |**default**|**specifies** |
+   +----------+----------+-----------+--------------+
+   |"x"       |array     |[]         |x-coordinate  |
+   |          |          |           |range         |
+   +----------+----------+-----------+--------------+
+   |"y"       |array     |[]         |y-coordinate  |
+   |          |          |           |range         |
+   +----------+----------+-----------+--------------+
+   |"z"       |array     |[]         |z-coordinate  |
+   |          |          |           |range         |
+   +----------+----------+-----------+--------------+
+   |"r"       |array     |[]         |r-coordinate  |
+   |          |          |           |range         |
+   +----------+----------+-----------+--------------+
+   |"type"    |string    |"box"      |zone type     |
+   +----------+----------+-----------+--------------+
 
 Examples:
 
@@ -227,6 +266,27 @@ This type of zone combines other zones together to form new zones. Zones may be 
 The zone definition is an object, with between one and three values named **+**, **-** and *****, corresponding to the zone combination operations listed above. Each value can be either a single zone name (string), a list of zone names, or ``null``.
 
 The zone definition can optionally also contain a **type** string value, set to "combine", to make the zone type more explicit.
+
+.. note::
+
+   **JSON object**: combination zone
+
+   +----------+----------------+-----------+-------------+
+   |**value** |**type**        |**default**|**specifies**|
+   |          |                |           |             |
+   +----------+----------------+-----------+-------------+
+   |"+"       |string | array  |[]         |zones to add |
+   |          |                |           |             |
+   +----------+----------------+-----------+-------------+
+   |"-"       |string | array  |[]         |zones to     |
+   |          |                |           |subtract     |
+   +----------+----------------+-----------+-------------+
+   |"*"       |string | array  |[]         |zones to     |
+   |          |                |           |multiply     |
+   +----------+----------------+-----------+-------------+
+   |"type"    |string          |"combine"  |zone type    |
+   +----------+----------------+-----------+-------------+
+
 
 Combination zones do not need to be defined in any particular order with respect to the other zones. They may refer to zones defined further down in the Waiwera JSON input file.
 
