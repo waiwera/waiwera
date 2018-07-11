@@ -8,7 +8,7 @@ How Waiwera works
 .. MINC for fractured media?
 
 Mass and energy conservation equations
-**************************************
+======================================
 
 Waiwera works by solving time-dependent conservation equations over the simulation domain. In general there may be several mass 'components' present in the problem, for example water and CO\ :sub:`2`. A separate mass conservation equation is solved for each mass component present.
 
@@ -28,7 +28,7 @@ For component :math:`c`, :math:`M^c` is the mass or energy density in :math:`V_n
 .. _finite_volume_discretisation:
 
 Finite volume discretisation
-****************************
+============================
 
 The flow domain is discretised using a finite volume mesh made up of :math:`N` cells. For each component we can define cell-averaged mass or energy densities :math:`M_n^c` for each component, and cell-averaged source terms :math:`q_n^c` as:
 
@@ -56,7 +56,7 @@ Then the discretised conservation equations for cell :math:`V_n` can be written:
 .. _primary_variables:
 
 Primary variables
-*****************
+=================
 
 Waiwera solves equation :eq:`discretised_conservation` for the thermodynamic state in each cell in the simulation mesh. The thermodynamic state in each cell is represented by a small set of 'primary variables', one for each conservation equation. The primary variables depend on the equation of state being used. The primary variables also depend on the phase conditions in the cell.
 
@@ -67,7 +67,7 @@ However, for two-phase conditions, the pressure and temperature are not independ
 Because the choice of primary variables depends on the phase conditions, when the fluid in a cell changes phase, the primary variables must be changed.
 
 Time evolution
-**************
+==============
 
 The discretised conservation equations :eq:`discretised_conservation` are of the form:
 
@@ -94,7 +94,7 @@ where :math:`t^n` is the :math:`n^{th}` discretised time, and :math:`\Delta t` i
 .. _function_evaluations:
 
 Function evaluations
-********************
+====================
 
 Waiwera needs to evaluate the functions :math:`L` and :math:`R` for any given set of primary variables (and time). The function :math:`L`, representing the mass and energy densities :math:`M_n^c` in the cells, is relatively straightforward to evaluate, by summing the contributions of the different phases. Considering a particular cell:
 
@@ -137,7 +137,7 @@ When evaluating the phase fluxes using equation :eq:`flux`, the flow quantities 
 
 
 Solution of equations at each time step
-***************************************
+=======================================
 
 Regardless of the time stepping method used, the discretised equations to be solved at each time step (e.g. :eq:`beuler`) are non-linear. If we write them in a generic form:
 
