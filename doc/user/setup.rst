@@ -13,6 +13,7 @@ This section describes how to set up the various aspects of a Waiwera simulation
    setup_eos
    setup_gravity
    setup_rock
+   setup_minc
    setup_boundaries
    setup_sources
    setup_initial
