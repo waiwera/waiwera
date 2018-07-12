@@ -11,6 +11,8 @@ Mesh files
 
 The simulation mesh is not stored in the main Waiwera JSON input file. Instead, it is stored in an auxiliary file. The JSON input file only specifies the location of this auxiliary mesh file.
 
+.. _specifying_mesh:
+
 Specifying the mesh
 ===================
 
@@ -49,34 +51,35 @@ Note that the mesh filename (specified in either of the above two ways) is a req
 
    **JSON object**: mesh
 
-   +--------------------+-----------+-----------+-------------------+
-   |**value**           |**type**   |**default**|**specifies**      |
-   +--------------------+-----------+-----------+-------------------+
-   |"filename"          |string     |(`no       |mesh               |
-   |                    |           |default`)  |filename           |
-   +--------------------+-----------+-----------+-------------------+
-   |"radial"            |Boolean    |``false``  |:ref:`radial_mesh` |
-   |                    |           |           |                   |
-   |                    |           |           |                   |
-   +--------------------+-----------+-----------+-------------------+
-   |"thickness"         |number     |1.0        |thickness for      |
-   |                    |           |           |:ref:`2d_mesh`     |
-   +--------------------+-----------+-----------+-------------------+
-   |"permeability_angle"|number     |0.0        |permeability       |
-   |                    |           |           |direction          |
-   |                    |           |           |angle              |
-   +--------------------+-----------+-----------+-------------------+
-   |"faces"             |array      |[]         |face               |
-   |                    |           |           |properties         |
-   +--------------------+-----------+-----------+-------------------+
-   |"minc"              |object |   |[]         |MINC               |
-   |                    |array      |           |treatment of       |
-   |                    |           |           |fractured          |
-   |                    |           |           |media              |
-   +--------------------+-----------+-----------+-------------------+
-   |"zones"             |object     |{}         |definitions of     |
-   |                    |           |           |:ref:`mesh_zones`  |
-   +--------------------+-----------+-----------+-------------------+
+   +--------------------+-----------+-------------------+-----------------------------------------+
+   |**value**           |**type**   |**default**        |**specifies**                            |
+   +--------------------+-----------+-------------------+-----------------------------------------+
+   |"filename"          |string     |(`no default`)     |mesh filename                            |
+   |                    |           |                   |                                         |
+   +--------------------+-----------+-------------------+-----------------------------------------+
+   |"radial"            |Boolean    |``false``          |:ref:`radial_mesh`                       |
+   |                    |           |                   |                                         |
+   |                    |           |                   |                                         |
+   +--------------------+-----------+-------------------+-----------------------------------------+
+   |"thickness"         |number     |1.0 m              |thickness (m) for :ref:`2d_mesh`         |
+   |                    |           |                   |                                         |
+   +--------------------+-----------+-------------------+-----------------------------------------+
+   |"permeability_angle"|number     |0\ :math:`^{\circ}`|horizontal rotation angle (\             |
+   |                    |           |                   |:math:`^{\circ}`) of permeability axes   |
+   |                    |           |                   |(see :ref:`rock_types`)                  |
+   |                    |           |                   |                                         |
+   +--------------------+-----------+-------------------+-----------------------------------------+
+   |"faces"             |array      |[]                 |face properties (see                     |
+   |                    |           |                   |:ref:`rock_permeability`)                |
+   +--------------------+-----------+-------------------+-----------------------------------------+
+   |"minc"              |object |   |[]                 |MINC treatment of fractured media (see   |
+   |                    |array      |                   |:ref:`minc`)                             |
+   |                    |           |                   |                                         |
+   |                    |           |                   |                                         |
+   +--------------------+-----------+-------------------+-----------------------------------------+
+   |"zones"             |object     |{}                 |definitions of :ref:`mesh_zones`         |
+   |                    |           |                   |                                         |
+   +--------------------+-----------+-------------------+-----------------------------------------+
 
 Mesh formats
 ============

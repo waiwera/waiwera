@@ -11,17 +11,19 @@ In the Waiwera JSON input file, the **eos** value specifies the equation of stat
 .. note::
    **JSON object**: eos
 
-   +-------------+----------+-----------+-------------------+
-   |**value**    |**type**  |**default**|**specifies**      |
-   +-------------+----------+-----------+-------------------+
-   |"name"       |string    |"we"       |Abbreviated EOS    |
-   |             |          |           |module name        |
-   +-------------+----------+-----------+-------------------+
-   |"temperature"|number    |20.0       |constant           |
-   |             |          |           |temperature for    |
-   |             |          |           |:ref:`water_eos`   |
-   |             |          |           |EOS                |
-   +-------------+----------+-----------+-------------------+
+   +-------------+----------+-------------------+-----------------------+
+   |**value**    |**type**  |**default**        |**specifies**          |
+   +-------------+----------+-------------------+-----------------------+
+   |"name"       |string    |"we"               |Abbreviated EOS module |
+   |             |          |                   |name                   |
+   +-------------+----------+-------------------+-----------------------+
+   |"temperature"|number    |20\                |constant temperature ( |
+   |             |          |:math:`^{\circ}`\ C|:math:`^{\circ}`\ C)   |
+   |             |          |                   |for :ref:`water_eos`   |
+   |             |          |                   |EOS                    |
+   |             |          |                   |                       |
+   |             |          |                   |                       |
+   +-------------+----------+-------------------+-----------------------+
 
 For example:
 
