@@ -55,9 +55,10 @@ Rock types may be specified in the Waiwera JSON input file via the **rock.types*
     |"name"            |string        |""                    |optional rock type name           |
     |                  |              |                      |                                  |
     +------------------+--------------+----------------------+----------------------------------+
-    |"permeability"    |array         |[1e-13, 1e-13, 1e-13] |permeability (\                   |
-    |                  |              |m\ :sup:`2`           |m\ :sup:`2`\ )                    |
-    |                  |              |                      |                                  |
+    |"permeability"    |array         |[10\ :sup:`-13`, 10\  |permeability (\                   |
+    |                  |              |:sup:`-13`, 10\       |m\ :sup:`2`\ )                    |
+    |                  |              |:sup:`-13`] m\        |                                  |
+    |                  |              |:sup:`2`              |                                  |
     +------------------+--------------+----------------------+----------------------------------+
     |"wet_conductivity"|number        |2.5 W / (m            |heat conductivity of fully        |
     |                  |              |:math:`^{\circ}`\ C)  |saturated rock (W / (m            |
@@ -192,7 +193,7 @@ For both liquid and vapour phases, the curves vary linearly from zero to one bet
    +------------+------------+------------+----------------------------+
    |"liquid"    |array       |[0, 1]      |liquid saturation limits    |
    +------------+------------+------------+----------------------------+
-   |"vapour"    |array       |[0, 1]      |vapour saturaton limits     |
+   |"vapour"    |array       |[0, 1]      |vapour saturation limits    |
    +------------+------------+------------+----------------------------+
 
 For example:
@@ -251,7 +252,7 @@ Corey relative permeability curves are selected by setting the **type** value to
 
    s_* = \frac{s_1 - s_{lr}}{1 - s_{lr} - s_{sr}}
 
-where :math:`s_1`, :math:`s_2` are the liquid and vapour saturations, and :math:`s_{lr}` and :math:`s_{sr}` are specified constant parameters. Then:
+where :math:`s_1` is the liquid saturation, and :math:`s_{lr}` and :math:`s_{sr}` are specified constant parameters. Then:
 
 .. math::
 
@@ -261,7 +262,7 @@ where :math:`s_1`, :math:`s_2` are the liquid and vapour saturations, and :math:
 
    k_r^2 = (1 - s_*)^2 (1 - s_*^2)
 
-provided :math:`s_{sr} \leq s_2 \leq 1 - s_{lr}`. For :math:`s_2 < s_{sr}`, :math:`k_r^1 = 1` and :math:`k_r^2 = 0`; and for :math:`s_2 > 1 - s_{lr}`, :math:`k_r^1 = 0` and :math:`k_r^2 = 1`.
+provided :math:`s_{sr} \leq s_2 = 1 - s_1 \leq 1 - s_{lr}`. For :math:`s_2 < s_{sr}`, :math:`k_r^1 = 1` and :math:`k_r^2 = 0`; and for :math:`s_2 > 1 - s_{lr}`, :math:`k_r^1 = 0` and :math:`k_r^2 = 1`.
 
 The two parameters :math:`s_{lr}` and :math:`s_{sr}` are specified in the Waiwera JSON input file via the **slr** and **ssr** values in the relative permeability object.
 
@@ -295,7 +296,7 @@ Grant
 
 For the Grant relative permeability curves, the liquid relative permeability is the same as for Corey curves. However, the vapour relative permeability is defined as :math:`k_r^2 = 1 - k_r^1`, so the liquid and vapour relative permeabilities always sum to one.
 
-In the Waiwera JSON input file, the **type** value of the relative permeability object is set to "grant". All other values are the same as for the Corey curves.
+In the Waiwera JSON input file, the **type** value of the relative permeability object is set to "grant". All other values are the same as for the Corey curves (though the :math:`s_{sr}` parameter has a different default value).
 
 .. note::
 
@@ -311,14 +312,113 @@ In the Waiwera JSON input file, the **type** value of the relative permeability 
    |"slr"       |number      |0.3         |:math:`s_{lr}` parameter |
    |            |            |            |                         |
    +------------+------------+------------+-------------------------+
-   |"ssr"       |number      |0.05        |:math:`s_{sr}` parameter |
+   |"ssr"       |number      |0.6         |:math:`s_{sr}` parameter |
    +------------+------------+------------+-------------------------+
 
 Van Genuchten
 -------------
 
+Setting the relative permeability **type** value to "van genuchten" selects the Van Genuchten curves. The liquid relative permeability curve is defined in terms of an intermediate variable :math:`s_*`:
+
+.. math::
+
+   s_* = \frac{s_1 - s_{lr}}{s_{ls} - s_{lr}}
+
+where :math:`s_1` is the liquid saturation, and :math:`s_{lr}` and :math:`s_{ls}` are specified constant parameters. Then, if :math:`0 \le s_* < 1`, the liquid relative permeability is given by:
+
+.. math::
+
+   k_r^1 = \sqrt{s_*} (1 - (1 - s_*^{1 / \lambda})^{\lambda})^2
+
+where :math:`\lambda` is also a specified constant parameter. For :math:`s_* < 0`, :math:`k_r^1 = 0`, and for :math:`s_* \ge 1`, :math:`k_r^1 = 1`.
+
+For the vapour relative permeability, there are two variations. In the first variation, the liquid and vapour relative permeabilities are forced to sum to one, by setting :math:`k_r^2 = 1 - k_r^1`. This variation can be selected in the Waiwera JSON input file by setting the **sum_unity** value in the relative permeability object to ``true`` (the default).
+
+In the second variation, the vapour relative permeability curve is defined in terms of another intermediate variable :math:`\hat{s}`:
+
+.. math::
+
+   \hat{s} = \frac{s_1 - s_{lr}}{1 - s_{lr} - s_{sr}}
+
+where :math:`s_{sr}` is another specified constant parameter. Then the vapour relative permeability is given by:
+
+.. math::
+
+   k_r^2 = \min{((1 - \hat{s})^2 (1 - \hat{s}^2), 1)}
+
+.. note::
+
+   **JSON object**: Van Genuchten relative permeability
+
+   +------------+------------+----------------+--------------------------+
+   |**value**   |**type**    |**default**     |**specifies**             |
+   +------------+------------+----------------+--------------------------+
+   |"type"      |string      |"van genuchten" |relative permeability     |
+   |            |            |                |curve type                |
+   |            |            |                |                          |
+   +------------+------------+----------------+--------------------------+
+   |"lambda"    |number      |0.45            |:math:`\lambda` parameter |
+   |            |            |                |                          |
+   +------------+------------+----------------+--------------------------+
+   |"slr"       |number      |10\ :sup:`-3`   |:math:`s_{lr}` parameter  |
+   +------------+------------+----------------+--------------------------+
+   |"sls"       |number      |1               |:math:`s_{ls}` parameter  |
+   +------------+------------+----------------+--------------------------+
+   |"ssr"       |number      |0.6             |:math:`s_{sr}` parameter  |
+   +------------+------------+----------------+--------------------------+
+   |"sum_unity" |Boolean     |``true``        |enforce :math:`k_r^1 +    |
+   |            |            |                |k_r^2 = 1`                |
+   +------------+------------+----------------+--------------------------+
+
+The :math:`s_{sr}` parameter is used only for the second variation of the vapour relative permeability curves, and has no effect if the "sum_unity" value is ``true``.
+
+For example:
+
+.. code-block:: json
+
+  {"rock": {"relative_permeability": {"type": "van genuchten", "lambda": 0.4}}}
+
+specifies Van Genuchten relative permeability curves with :math:`\lambda = 0.4` and all other parameters left at their default values.
+
 Table
 -----
+Setting the relative permeability **type** value to "table" allows specification of relative permeability curves defined as general piecewise-linear tables. For each phase :math:`p`, the relative permeability curve is specified as a table of :math:`(s_p, k_r^p)` values. In the Waiwera JSON input file these tables take the form of rank-2 arrays (i.e. arrays of arrays).
+
+.. note::
+
+   **JSON object**: table relative permeability
+
+   +------------+------------+---------------+-----------------------------------+
+   |**value**   |**type**    |**default**    |**specifies**                      |
+   +------------+------------+---------------+-----------------------------------+
+   |"type"      |string      |"table"        |relative permeability curve type   |
+   +------------+------------+---------------+-----------------------------------+
+   |"liquid"    |array       |[[0,0], [1,1]] |table of liquid relative           |
+   |            |            |               |permeability :math:`k_r^1`         |
+   |            |            |               |vs. liquid saturation :math:`s_1`  |
+   +------------+------------+---------------+-----------------------------------+
+   |"vapour"    |array       |[[0,0], [1,1]] |table of vapour relative           |
+   |            |            |               |permeability :math:`k_r^2`         |
+   |            |            |               |vs. vapour saturation :math:`s_2`  |
+   +------------+------------+---------------+-----------------------------------+
+
+For example:
+
+.. code-block:: json
+
+  {"rock": {"relative_permeability": {
+     "type": "table",
+     "liquid": [[0,0], [0.1, 0.01], [0.9, 0.99], [1,1]],
+     "vapour": [[0,0], [0.1, 0.01], [0.9, 0.99], [1,1]]
+     }}}
+
+specifies both liquid and vapour relative permeability curves as in the figure below, with a small slope at the extremes of saturation.
+
+.. figure:: relative_permeability_table.png
+           :scale: 67 %
+           :align: center
+
+           Example table relative permeability curves
 
 .. _capillarity:
 
