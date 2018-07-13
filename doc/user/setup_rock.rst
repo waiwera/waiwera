@@ -206,11 +206,11 @@ For example:
 
 specifies linear relative permeability curves for both liquid and vapour phases, with limits 0.1 and 0.9, as in the figure below:
 
-.. figure:: relative_permeability_linear.png
+.. figure:: relative_permeability_linear.*
            :scale: 67 %
            :align: center
 
-           Linear relative permeability curves
+           Example linear relative permeability curves
 
 Hence, in this example, for liquid saturations below 0.1 the liquid phase is immobile, while the vapour phase is fully mobile (as the vapour saturation is above 0.9). Conversely, for liquid saturations above 0.9 the liquid phase is fully mobile but the vapour phase is immobile.
 
@@ -414,7 +414,7 @@ For example:
 
 specifies both liquid and vapour relative permeability curves as in the figure below, with a small slope at the extremes of saturation.
 
-.. figure:: relative_permeability_table.png
+.. figure:: relative_permeability_table.*
            :scale: 67 %
            :align: center
 
