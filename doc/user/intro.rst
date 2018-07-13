@@ -16,7 +16,7 @@ Waiwera is a numerical simulator for subsurface flows in porous media. It featur
 What does the name mean?
 ========================
 
-The word *Waiwera* comes from the Maori language and means "hot water".
+The word *Waiwera* comes from the Māori language and means "hot water".
 
 Where was Waiwera developed?
 ============================
