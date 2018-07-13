@@ -19,11 +19,11 @@ The mass and energy conservation equations over an arbitrary volume :math:`V` ar
 .. math::
    :label: conservation
 
-   \frac{d}{dt} \int_{V} {M^c \, dV} = \int_{\partial V} {\vec{F^c} \cdot \hat{n} \, dA} + \int_{V} {q^c \, dV}
+   \frac{d}{dt} \int_{V} {M^c \, dV} = \int_{\partial V} {\mathbf{F^c} \cdot \hat{n} \, dA} + \int_{V} {q^c \, dV}
 
 where :math:`c = 1,\ldots C+1` (and :math:`C` is the number of mass components, e.g. 1 for pure water). Component :math:`C+1` is the energy component.
 
-For component :math:`c`, :math:`M^c` is the mass or energy density in :math:`V_n`, :math:`\vec{F^c}` is the flux and :math:`q^c` represents source or sink terms (per unit volume).
+For component :math:`c`, :math:`M^c` is the mass or energy density in :math:`V_n`, :math:`\mathbf{F^c}` is the flux and :math:`q^c` represents source or sink terms (per unit volume).
 
 .. _finite_volume_discretisation:
 
@@ -42,7 +42,7 @@ We can also represent the flux integral in :eq:`conservation` as:
 
 .. math::
 
-   \int_{\partial V_n} {\vec{F^c} \cdot \hat{n} \, dA} = \sum_m {A_{nm} F_{nm}^c}
+   \int_{\partial V_n} {\mathbf{F^c} \cdot \hat{n} \, dA} = \sum_m {A_{nm} F_{nm}^c}
 
 where :math:`A_{nm}` is the area of the face connecting cells :math:`n` and :math:`m`, and :math:`F_{nm}^c` is the normal component of the flux through it.
 
@@ -74,22 +74,22 @@ The discretised conservation equations :eq:`discretised_conservation` are of the
 .. math::
    :label: RLeqn
 
-   \frac{d}{dt} \mathit{L}(t, \vec{Y}) = \mathit{R}(t, \vec{Y})
+   \frac{d}{dt} \mathit{L}(t, \mathbf{Y}) = \mathit{R}(t, \mathbf{Y})
 
-where :math:`t` is time and :math:`\vec{Y}` is the vector of primary variables for all cells in the simulation mesh (of total length :math:`N(C+1)`). Here :math:`L` represents the cell-averaged mass and energy balances, as a function of time and the primary thermodynamic variables. Similarly, :math:`R` represents inflows into the cells (per unit volume) from flows through the cell faces, together with sources and sinks within the cell.
+where :math:`t` is time and :math:`\mathbf{Y}` is the vector of primary variables for all cells in the simulation mesh (of total length :math:`N(C+1)`). Here :math:`L` represents the cell-averaged mass and energy balances, as a function of time and the primary thermodynamic variables. Similarly, :math:`R` represents inflows into the cells (per unit volume) from flows through the cell faces, together with sources and sinks within the cell.
 
-Solving the set of ordinary differential equations :eq:`RLeqn` with respect to time, we can compute the time evolution of :math:`\vec{Y}`, the thermodynamic state of the entire discretised simulation domain.
+Solving the set of ordinary differential equations :eq:`RLeqn` with respect to time, we can compute the time evolution of :math:`\mathbf{Y}`, the thermodynamic state of the entire discretised simulation domain.
 
-For solving the conservation equations, :math:`L` and :math:`R` are complex, non-linear functions of the primary variables :math:`\vec{Y}`. Hence equation :eq:`RLeqn` must be solved numerically, computing the solution :math:`\vec{Y}` at discrete times.
+For solving the conservation equations, :math:`L` and :math:`R` are complex, non-linear functions of the primary variables :math:`\mathbf{Y}`. Hence equation :eq:`RLeqn` must be solved numerically, computing the solution :math:`\mathbf{Y}` at discrete times.
 
 Waiwera contains a module for the numerical solution of ordinary differential equations of the form :eq:`RLeqn`, using different numerical methods. The simplest of these is the 'backwards Euler' method, which discretises equation :eq:`RLeqn` as follows:
 
 .. math::
    :label: beuler
 
-   \frac{L(t^{n+1}, \vec{Y}^{n+1}) - L(t^n, \vec{Y}^n)}{\Delta t} \approx R(t^{n+1}, \vec{Y}^{n+1})
+   \frac{L(t^{n+1}, \mathbf{Y}^{n+1}) - L(t^n, \mathbf{Y}^n)}{\Delta t} \approx R(t^{n+1}, \mathbf{Y}^{n+1})
 
-where :math:`t^n` is the :math:`n^{th}` discretised time, and :math:`\Delta t` is the time step size, so that :math:`t^{n+1} = t^n + \Delta t`. For the backwards Euler method, at each time step we must solve equation :eq:`beuler` for the unknown new solution :math:`\vec{Y}^{n+1}`.
+where :math:`t^n` is the :math:`n^{th}` discretised time, and :math:`\Delta t` is the time step size, so that :math:`t^{n+1} = t^n + \Delta t`. For the backwards Euler method, at each time step we must solve equation :eq:`beuler` for the unknown new solution :math:`\mathbf{Y}^{n+1}`.
 
 .. _function_evaluations:
 
@@ -124,12 +124,12 @@ where the phase fluxes are given by:
    F_p^c =
    \Biggl \lbrace
    {
-   -k \frac{k_r^p}{\mu_p} \rho_p X_p^c (\frac{\partial P}{\partial n} - \bar{\rho}_p \vec{g}.\hat{n}), c \leq C
+   -k \frac{k_r^p}{\mu_p} \rho_p X_p^c (\frac{\partial P}{\partial n} - \bar{\rho}_p \mathbf{g}.\hat{n}), c \leq C
    \atop
    -K \frac{\partial T}{\partial n} + \sum_{i=1}^{C} {\sum_p{h_p^i F_p^i}} , c = C + 1
    }
 
-Here :math:`k` is effective permeability normal to the face, :math:`k_r` is relative permeability, :math:`\mu` is viscosity, :math:`P` is pressure, :math:`\vec{g}` is the gravity vector, :math:`K` is rock heat conductivity and :math:`h` is enthalpy. :math:`\hat{n}` is the unit vector normal to the face, and :math:`\bar{\rho}_p` is the effective phase density on the face.
+Here :math:`k` is effective permeability normal to the face, :math:`k_r` is relative permeability, :math:`\mu` is viscosity, :math:`P` is pressure, :math:`\mathbf{g}` is the gravity vector, :math:`K` is rock heat conductivity and :math:`h` is enthalpy. :math:`\hat{n}` is the unit vector normal to the face, and :math:`\bar{\rho}_p` is the effective phase density on the face.
 
 The normal gradients of pressure and temperature are evaluated by finite differencing across the phase, i.e. taking the difference between the values in the cells on either side of the face and dividing by the distance between the cell centres. This "two-point flux approximation" relies on the assumption that the mesh satisfies the "orthogonality criterion", i.e. that the line joining the cell centres is orthogonal to the face.
 
@@ -144,21 +144,21 @@ Regardless of the time stepping method used, the discretised equations to be sol
 .. math::
    :label: fx0
 
-   f(\vec{y}) = \vec{0}
+   f(\mathbf{y}) = \mathbf{0}
 
-then at each time step we must solve this for the solution :math:`\vec{y} = \vec{Y}^{n+1}`. Because of the non-linearity, it must be solved numerically using a non-linear solution technique such as Newton's method. This is an iterative method which starts from an initial estimate of the solution (here taken as :math:`\vec{y} = \vec{Y}^n`) and adjusts the provisional solution :math:`\vec{y}` at each iteration until equation :eq:`fx0` is satisfied, to within a pre-specified tolerance.
+then at each time step we must solve this for the solution :math:`\mathbf{y} = \mathbf{Y}^{n+1}`. Because of the non-linearity, it must be solved numerically using a non-linear solution technique such as Newton's method. This is an iterative method which starts from an initial estimate of the solution (here taken as :math:`\mathbf{y} = \mathbf{Y}^n`) and adjusts the provisional solution :math:`\mathbf{y}` at each iteration until equation :eq:`fx0` is satisfied, to within a pre-specified tolerance.
 
-At each iteration, Newton's method adds an update :math:`\Delta \vec{y}` to the provisional solution :math:`\vec{y}` according to:
+At each iteration, Newton's method adds an update :math:`\Delta \mathbf{y}` to the provisional solution :math:`\mathbf{y}` according to:
 
 .. math::
    :label: newton
 
-   \matrix{J} \Delta \vec{y} = -f(\vec{y})
+   \mathbf{J} \Delta \mathbf{y} = -f(\mathbf{y})
 
-where :math:`\matrix{J}` is the Jacobian matrix of the function :math:`f`, i.e. the matrix of partial derivatives of :math:`f` with respect to :math:`\vec{y}`.
+where :math:`\mathbf{J}` is the Jacobian matrix of the function :math:`f`, i.e. the matrix of partial derivatives of :math:`f` with respect to :math:`\mathbf{y}`.
 
 At each iteration, the Newton update equation :eq:`newton` represents a large, sparse system of linear equations to be solved numerically. "Krylov subspace" iterative methods (e.g. conjugate gradient methods) are appropriate for solving such systems. For typical simulations of large problems, most of the computation time is spent in the solution of the linear equations.
 
-Waiwera uses the "SNES" non-linear solver provided by the `PETSc <https://www.mcs.anl.gov/petsc/>`_ library to solve equation :eq:`fx0` at each time step. For problems in which the Jacobian matrix :math:`\matrix{J}` is difficult to calculate, the SNES solver offers an option to calculate it automatically using finite differencing. In this case the Jacobian partial derivatives are evaluated approximately by adding small increments onto the primary variable vector :math:`\vec{y}` and re-evaluating the function :math:`f`. Waiwera makes use of this approach to calculate the Jacobian matrix.
+Waiwera uses the "SNES" non-linear solver provided by the `PETSc <https://www.mcs.anl.gov/petsc/>`_ library to solve equation :eq:`fx0` at each time step. For problems in which the Jacobian matrix :math:`\mathbf{J}` is difficult to calculate, the SNES solver offers an option to calculate it automatically using finite differencing. In this case the Jacobian partial derivatives are evaluated approximately by adding small increments onto the primary variable vector :math:`\mathbf{y}` and re-evaluating the function :math:`f`. Waiwera makes use of this approach to calculate the Jacobian matrix.
 
 The SNES solver in turn makes use of the "KSP" suite of linear solvers, also provided by PETSc, to solve the linear system :eq:`newton` at each Newton iteration.
