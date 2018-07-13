@@ -423,5 +423,81 @@ specifies both liquid and vapour relative permeability curves as in the figure b
 
 .. _capillarity:
 
-Capillarity functions
-=====================
+Capillary pressure functions
+============================
+
+Waiwera can optionally include capillary pressure effects when calculating pressure gradients across mesh faces. For the liquid phase, the effective pressure in each cell is calculated from the sum of the fluid pressure and capillary pressure, which in turn is calculated from a specified function of saturation. These effective pressures are then used to calculate the effective pressure gradient across the mesh face. (If the saturations are the same in both cells on either side of the face, then the capillary pressures are also equal and have no effect on the calculated pressure gradient.)
+
+As for relative permeability curves, a variety of different capillary functions have been proposed, and Waiwera offers several of them. The desired capillary function is specified in the Waiwera JSON input file via the **rock.capillary_pressure** value. This value is an object (or ``null``), containing a **type** string value which selects the type of function, along with other parameters which depend on the function type.
+
+The different types of capillary functions available in Waiwera are described below.
+
+Zero
+----
+
+Capillary pressure effects can be disabled by setting the **type** value of the capillary pressure object to "zero" (or setting the capillary pressure value to ``null``). This is the default. In this case, the capillary pressure is identically zero regardless of saturation.
+
+.. note::
+
+   **JSON object**: zero capillary function
+
+   +----------+----------+--------------+----------------------+
+   |**value** |**type**  |**default**   |**specifies**         |
+   +----------+----------+--------------+----------------------+
+   |"type"    |string    |"zero"        |capillary function    |
+   |          |          |              |type                  |
+   +----------+----------+--------------+----------------------+
+
+For example:
+
+.. code-block:: json
+
+  {"rock": {"capillary_pressure": {"type": "zero"}}}
+
+or
+
+.. code-block:: json
+
+  {"rock": {"capillary_pressure": null}}
+
+both disable capillary pressure effects.
+
+Linear
+------
+
+Setting the **type** value to "linear" selects the linear capillary pressure function, in which capillary pressure is a linear function of liquid saturation. Lower and upper saturation limits are specified via the **saturation_limits** array value.
+
+When liquid saturation is below the lower limit, the capillary pressure is fixed at :math:`-P`, where :math:`P` is a specified (positive) constant. Between the limits, the capillary pressure is linearly interpolated between :math:`-P` and zero. Above the upper limit, the capillary pressure is identically zero.
+
+.. note::
+
+   **JSON object**: linear capillary function
+
+   +--------------------+------------+------------+-------------------------+
+   |**value**           |**type**    |**default** |**specifies**            |
+   +--------------------+------------+------------+-------------------------+
+   |"type"              |string      |"linear"    |capillary function type  |
+   |                    |            |            |                         |
+   +--------------------+------------+------------+-------------------------+
+   |"saturation_limits" |array       |[0, 1]      |liquid saturation limits |
+   +--------------------+------------+------------+-------------------------+
+   |"pressure"          |number      |0.125×10\   |magnitude :math:`P` of   |
+   |                    |            |:sup:`5` Pa |maximum capillary        |
+   |                    |            |            |pressure (Pa)            |
+   +--------------------+------------+------------+-------------------------+
+
+For example:
+
+.. code-block:: json
+
+  {"rock": {"capillary_pressure": {"type": "linear",
+                                   "saturation_limits": [0.1, 0.9],
+                                   "pressure": 10.0e3}}}
+
+gives the linear capillary pressure curve shown in the figure below.
+
+.. figure:: capillary_linear.*
+           :scale: 67 %
+           :align: center
+
+           Example linear capillary pressure function
