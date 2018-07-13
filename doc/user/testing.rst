@@ -17,19 +17,27 @@ Installing FRUIT and FRUITPy
 Running unit tests
 ^^^^^^^^^^^^^^^^^^
 
-To run all unit tests , navigate to the main Waiwera directory and type::
+To run all unit tests , navigate to the main Waiwera directory and type:
+
+.. code-block:: bash
 
   python unit_tests.py
 
-It is also possible to run unit tests only for specific code modules, by listing the names of those code modules after the command above. For example, to test only the `IAPWS` module, type::
+It is also possible to run unit tests only for specific code modules, by listing the names of those code modules after the command above. For example, to test only the `IAPWS` module, type:
 
-    python unit_tests.py IAPWS
+.. code-block:: bash
 
-or to test only the `face` and `cell` modules, type::
+  python unit_tests.py IAPWS
+
+or to test only the `face` and `cell` modules, type:
+
+.. code-block:: bash
 
   python unit_tests.py face cell
 
-If the tests have successfully passed, the output from FRUIT will appear something like this::
+If the tests have successfully passed, the output from FRUIT will appear something like this:
+
+.. code-block:: bash
 
   All tests passed.
   Hit rate:
