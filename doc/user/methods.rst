@@ -135,6 +135,14 @@ The normal gradients of pressure and temperature are evaluated by finite differe
 
 When evaluating the phase fluxes using equation :eq:`flux`, the flow quantities :math:`k_r`, :math:`\rho_p`, :math:`\mu`, :math:`X_c^p` and :math:`h_p` are "upstream weighted", i.e. their values are taken from the cell upstream from the face. This is needed for numerical stability. The rock permeability :math:`k` and heat conductivity :math:`K` on the face are evaluated using harmonic weighting of the values in the cells on either side of the face.
 
+For the gravity term, Waiwera calculates the effective phase density on the face as a saturation-weighted average of the phase densities in the cells on either side:
+
+.. math::
+
+   \bar{\rho}_p = \frac{S_p^1 \rho_p^1 + S_p^2 \rho_p^2}{S_p^1 + S_p^2}
+
+where :math:`S_p^1`, :math:`S_p^2` are the phase saturations in the two cells, and :math:`\rho_p^1`, :math:`\rho_p^2` are the corresponding phase densities. This formulation ensures a smooth variation in effective phase density on the face when the adjoining cells change phase. If both adjoining cells have the same saturation (e.g. in single-phase conditions) then this weighted average reduces to a simple arithmetic average.
+
 
 Solution of equations at each time step
 =======================================
