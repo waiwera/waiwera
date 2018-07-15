@@ -21,7 +21,7 @@ The rock value is an object, and may contain the values shown below.
    **JSON object**: rock
 
    +-----------------------+--------------+----------------------+-----------------------+
-   |**value**              |**type**      |**default**           |**specifies**          |
+   |**name**               |**type**      |**default**           |**value**              |
    +-----------------------+--------------+----------------------+-----------------------+
    |"types"                |array         |[]                    |:ref:`rock_types`      |
    +-----------------------+--------------+----------------------+-----------------------+
@@ -51,7 +51,7 @@ Rock types may be specified in the Waiwera JSON input file via the **rock.types*
    **JSON object**: rock type
 
     +------------------+--------------+----------------------+----------------------------------+
-    |**value**         |**type**      |**default**           |**specifies**                     |
+    |**name**          |**type**      |**default**           |**value**                         |
     +------------------+--------------+----------------------+----------------------------------+
     |"name"            |string        |""                    |optional rock type name           |
     |                  |              |                      |                                  |
@@ -107,7 +107,7 @@ In addition, individual face permeability directions can be manually overridden,
    **JSON object**: mesh face
    
    +------------------------+----------+-----------+----------------------------+
-   |**value**               |**type**  |**default**|**specifies**               |
+   |**name**                |**type**  |**default**|**value**                   |
    +------------------------+----------+-----------+----------------------------+
    |"cells"                 |array     |[]         |cell indices                |
    +------------------------+----------+-----------+----------------------------+
@@ -162,7 +162,7 @@ This type of relative permeability curve maintains full mobility for all phases,
    **JSON object**: fully mobile relative permeability
 
    +----------+----------+--------------+----------------------+
-   |**value** |**type**  |**default**   |**specifies**         |
+   |**name**  |**type**  |**default**   |**value**             |
    +----------+----------+--------------+----------------------+
    |"type"    |string    |"fully mobile"|relative permeability |
    |          |          |              |curve type            |
@@ -186,7 +186,7 @@ For both liquid and vapour phases, the curves vary linearly from zero to one bet
    **JSON object**: linear relative permeability
 
    +------------+------------+------------+----------------------------+
-   |**value**   |**type**    |**default** |**specifies**               |
+   |**name**    |**type**    |**default** |**value**                   |
    +------------+------------+------------+----------------------------+
    |"type"      |string      |"linear"    |relative permeability curve |
    |            |            |            |type                        |
@@ -225,7 +225,7 @@ For the Pickens-type relative permeability curves, the liquid relative permeabil
    **JSON object**: Pickens relative permeability
 
    +------------+------------+------------+----------------------+
-   |**value**   |**type**    |**default** |**specifies**         |
+   |**name**    |**type**    |**default** |**value**             |
    +------------+------------+------------+----------------------+
    |"type"      |string      |"pickens"   |relative permeability |
    |            |            |            |curve type            |
@@ -272,7 +272,7 @@ The two parameters :math:`s_{lr}` and :math:`s_{sr}` are specified in the Waiwer
    **JSON object**: Corey relative permeability
 
    +------------+------------+------------+-------------------------+
-   |**value**   |**type**    |**default** |**specifies**            |
+   |**name**    |**type**    |**default** |**value**                |
    +------------+------------+------------+-------------------------+
    |"type"      |string      |"corey"     |relative permeability    |
    |            |            |            |curve type               |
@@ -304,7 +304,7 @@ In the Waiwera JSON input file, the **type** value of the relative permeability 
    **JSON object**: Grant relative permeability
 
    +------------+------------+------------+-------------------------+
-   |**value**   |**type**    |**default** |**specifies**            |
+   |**name**    |**type**    |**default** |**value**                |
    +------------+------------+------------+-------------------------+
    |"type"      |string      |"grant"     |relative permeability    |
    |            |            |            |curve type               |
@@ -352,7 +352,7 @@ where :math:`s_{sr}` is another specified constant parameter. Then the vapour re
    **JSON object**: Van Genuchten relative permeability
 
    +------------+------------+----------------+--------------------------+
-   |**value**   |**type**    |**default**     |**specifies**             |
+   |**name**    |**type**    |**default**     |**value**                 |
    +------------+------------+----------------+--------------------------+
    |"type"      |string      |"van genuchten" |relative permeability     |
    |            |            |                |curve type                |
@@ -390,7 +390,7 @@ Setting the relative permeability **type** value to "table" allows specification
    **JSON object**: table relative permeability
 
    +------------+------------+---------------+-----------------------------------+
-   |**value**   |**type**    |**default**    |**specifies**                      |
+   |**name**    |**type**    |**default**    |**value**                          |
    +------------+------------+---------------+-----------------------------------+
    |"type"      |string      |"table"        |relative permeability curve type   |
    +------------+------------+---------------+-----------------------------------+
@@ -442,7 +442,7 @@ Capillary pressure effects can be disabled by setting the **type** value of the 
    **JSON object**: zero capillary function
 
    +----------+----------+--------------+----------------------+
-   |**value** |**type**  |**default**   |**specifies**         |
+   |**name**  |**type**  |**default**   |**value**             |
    +----------+----------+--------------+----------------------+
    |"type"    |string    |"zero"        |capillary function    |
    |          |          |              |type                  |
@@ -474,7 +474,7 @@ When liquid saturation is below the lower limit, the capillary pressure is fixed
    **JSON object**: linear capillary function
 
    +--------------------+------------+------------+-------------------------+
-   |**value**           |**type**    |**default** |**specifies**            |
+   |**name**            |**type**    |**default** |**value**                |
    +--------------------+------------+------------+-------------------------+
    |"type"              |string      |"linear"    |capillary function type  |
    |                    |            |            |                         |
@@ -501,3 +501,10 @@ gives the linear capillary pressure curve shown in the figure below.
            :align: center
 
            Example linear capillary pressure function
+
+Van Genuchten
+-------------
+
+Table
+-----
+

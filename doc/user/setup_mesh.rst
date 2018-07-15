@@ -52,7 +52,7 @@ Note that the mesh filename (specified in either of the above two ways) is a req
    **JSON object**: mesh
 
    +--------------------+-----------+-------------------+-----------------------------------------+
-   |**value**           |**type**   |**default**        |**specifies**                            |
+   |**name**            |**type**   |**default**        |**value**                                |
    +--------------------+-----------+-------------------+-----------------------------------------+
    |"filename"          |string     |(`no default`)     |mesh filename                            |
    |                    |           |                   |                                         |
@@ -176,7 +176,7 @@ If the zone definition is an object, it can optionally also contain a **type** s
    **JSON object**: cell array zone
 
    +----------+----------+-----------+--------------+
-   |**value** |**type**  |**default**|**specifies** |
+   |**name**  |**type**  |**default**|**value**     |
    +----------+----------+-----------+--------------+
    |"cells"   |array     |[]         |cell indices  |
    +----------+----------+-----------+--------------+
@@ -212,7 +212,7 @@ The zone definition can optionally also contain a **type** string value, set to 
    **JSON object**: box zone
 
    +----------+----------+-----------+--------------+
-   |**value** |**type**  |**default**|**specifies** |
+   |**name**  |**type**  |**default**|**value**     |
    +----------+----------+-----------+--------------+
    |"x"       |array     |[]         |x-coordinate  |
    |          |          |           |range         |
@@ -275,7 +275,7 @@ The zone definition can optionally also contain a **type** string value, set to 
    **JSON object**: combination zone
 
    +----------+----------------+-----------+-------------+
-   |**value** |**type**        |**default**|**specifies**|
+   |**name**  |**type**        |**default**|**value**    |
    |          |                |           |             |
    +----------+----------------+-----------+-------------+
    |"+"       |string | array  |[]         |zones to add |

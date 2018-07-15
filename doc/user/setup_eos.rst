@@ -12,7 +12,7 @@ In the Waiwera JSON input file, the **eos** value specifies the equation of stat
    **JSON object**: eos
 
    +-------------+----------+-------------------+-----------------------+
-   |**value**    |**type**  |**default**        |**specifies**          |
+   |**name**     |**type**  |**default**        |**value**              |
    +-------------+----------+-------------------+-----------------------+
    |"name"       |string    |"we"               |Abbreviated EOS module |
    |             |          |                   |name                   |
