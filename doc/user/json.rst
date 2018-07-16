@@ -60,6 +60,8 @@ Here is a more complex example of an object with a mix of different value types 
    "checked": true
   }
 
+Given a JSON object which contains a sub-object, it is sometimes convenient to refer to values inside the sub-object directly. This is done by using a JSON **path**, consisting of the value names joined together with dots between them. So in the above example we might refer to the value "dimensions.width", which in this case would have the value 14.8.
+
 JSON file layout
 ================
 
