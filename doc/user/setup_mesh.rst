@@ -4,7 +4,7 @@ Simulation mesh
 
 Waiwera uses a :ref:`finite_volume_discretisation` of the simulation domain to solve the mass and energy conservation equations within it. Such as discretisation strictly requires only the specification of the grid cell volumes, together with the areas of the mesh faces and their distances to the centres of the cells on either side.
 
-However, Waiwera requires a full *geometric mesh* to be given for the simulation, with specification of the positions of all the cell vertices, and definition of the vertex list for each cell. This is exactly the same kind of mesh definition used for e.g. finite element models. The finite volume discretisation is generated internally by Waiwera from the geometric mesh. In practice it is often more convenient to generate a geometric mesh than a pure finite volume discretisation. A geometric mesh is also necessary for post-processing of simulation results.
+However, Waiwera requires a full **geometric mesh** to be given for the simulation, with specification of the positions of all the cell vertices, and definition of the vertex list for each cell. This is exactly the same kind of mesh definition used for e.g. finite element models. The finite volume discretisation is generated internally by Waiwera from the geometric mesh. In practice it is often more convenient to generate a geometric mesh than a pure finite volume discretisation. A geometric mesh is also necessary for post-processing of simulation results.
 
 Mesh files
 ==========
@@ -16,10 +16,10 @@ The simulation mesh is not stored in the main Waiwera JSON input file. Instead, 
 Specifying the mesh
 ===================
 
-All mesh-related data in the Waiwera input JSON file is contained in the **mesh** value. This can be either:
+All mesh-related data in the Waiwera input JSON file is contained in the **"mesh"** value. This can be either:
 
 * a string value specifying the mesh filename
-* an object, with a **filename** string value (and other optional values as well)
+* an object, with a **"filename"** string value (and other optional values as well)
 
 .. note::
 
@@ -84,7 +84,7 @@ Note that the mesh filename (specified in either of the above two ways) is a req
 Mesh formats
 ============
 
-Mesh handling in Waiwera makes use of the `PETSc <https://www.mcs.anl.gov/petsc/>`_ library -- more specifically, it uses PETSc's *DMPlex* unstructured mesh functionality. As a result, Waiwera meshes may be stored in any of the file formats supported by DMPlex. Currently these formats include:
+Mesh handling in Waiwera makes use of the `PETSc <https://www.mcs.anl.gov/petsc/>`_ library -- more specifically, it uses PETSc's **DMPlex** unstructured mesh functionality. As a result, Waiwera meshes may be stored in any of the file formats supported by DMPlex. Currently these formats include:
 
 * ExodusII [ScYa95]_
 * `GMSH <http://gmsh.info/>`_
@@ -107,7 +107,7 @@ This is the default mesh type. PETSc's DMPlex implementation supports most commo
 2-D Cartesian meshes
 --------------------
 
-For 2-D problems (e.g. horizontal or vertical slice models), a mesh file containing a 2-D mesh can be used. In this case, the mesh thickness can be specified by the **mesh.thickness** value.
+For 2-D problems (e.g. horizontal or vertical slice models), a mesh file containing a 2-D mesh can be used. In this case, the mesh thickness can be specified by the **"mesh.thickness"** value.
 
 For example:
 
@@ -122,7 +122,7 @@ If the thickness is not specified, a default value of 1.0 m is assumed.
 2-D radial meshes
 -----------------
 
-For radial problems, a 2-D mesh file can also be used, and the **mesh.radial** Boolean value should be set to true.
+For radial problems, a 2-D mesh file can also be used, and the **"mesh.radial"** Boolean value should be set to true.
 
 For example:
 
@@ -155,7 +155,7 @@ It is possible to define named "zones" on the Waiwera mesh, to facilitate assign
 
 Zones can be re-used for different purposes, and some types of zone specification are purely geometrical (not relying on cell indexing) and can therefore be re-used for different meshes.
 
-Mesh zones are defined in the **mesh.zones** value in the Waiwera JSON input file. This value in an object, containing pairs of zone names and their corresponding zone definitions.
+Mesh zones are defined in the **"mesh.zones"** value in the Waiwera JSON input file. This value in an object, containing pairs of zone names and their corresponding zone definitions.
 
 The available types of zones are as follows.
 
@@ -165,11 +165,11 @@ Cell array type
 In this type of zone, cells in the zone are explicitly identified by their cell indices. In this case the zone definition can be either:
 
 * an array of numbers (the cell indices)
-* an object with a **cells** value, containing the array of cell indices
+* an object with a **"cells"** value, containing the array of cell indices
 
 All cell indices are zero-based (i.e. start from zero) and refer to the cell indices in the serial mesh (i.e. before partitioning, if the simulation is run in parallel).
 
-If the zone definition is an object, it can optionally also contain a **type** string value, set to "array", to make the zone type more explicit.
+If the zone definition is an object, it can optionally also contain a **"type"** string value, set to "array", to make the zone type more explicit.
 
 .. note::
 
@@ -201,11 +201,11 @@ Box type
 
 In this type of zone, a "box" is defined by coordinate ranges, and only the cells with centres inside that box belong to the zone.
 
-The zone definition is an object, with between one and three coordinate ranges named **x**, **y** and **z** (or **r** for radial meshes). Each coordinate range is a two-element array of numbers containing the minimum and maximum of the range.
+The zone definition is an object, with between one and three coordinate ranges named **"x"**, **"y"** and **"z"** (or **"r"** for radial meshes). Each coordinate range is a two-element array of numbers containing the minimum and maximum of the range.
 
 If any of these coordinate ranges is absent, there is assumed to be no limitation on that coordinate.
 
-The zone definition can optionally also contain a **type** string value, set to "box", to make the zone type more explicit.
+The zone definition can optionally also contain a **"type"** string value, set to "box", to make the zone type more explicit.
 
 .. note::
 
@@ -266,9 +266,9 @@ This type of zone combines other zones together to form new zones. Zones may be 
 * "subtracting" zones from one another (complement)
 * "multiplying" zones together (intersection)
 
-The zone definition is an object, with between one and three values named **+**, **-** and *****, corresponding to the zone combination operations listed above. Each value can be either a single zone name (string), a list of zone names, or ``null``.
+The zone definition is an object, with between one and three values named **"+"**, **"-"** and **"*"**, corresponding to the zone combination operations listed above. Each value can be either a single zone name (string), a list of zone names, or ``null``.
 
-The zone definition can optionally also contain a **type** string value, set to "combine", to make the zone type more explicit.
+The zone definition can optionally also contain a **"type"** string value, set to "combine", to make the zone type more explicit.
 
 .. note::
 

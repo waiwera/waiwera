@@ -2,7 +2,7 @@
 Gravity
 *******
 
-The face fluxes in the mass and energy balance equations (see :ref:`function_evaluations`) include a term involving the gravity vector (:math:`\mathbf{g}`). The magnitude (and direction) of this acceleration due to gravity for the simulation can be specified in the Waiwera JSON input file via the **gravity** value.
+The face fluxes in the mass and energy balance equations (see :ref:`function_evaluations`) include a term involving the gravity vector (:math:`\mathbf{g}`). The magnitude (and direction) of this acceleration due to gravity for the simulation can be specified in the Waiwera JSON input file via the **"gravity"** value.
 
 .. note::
 

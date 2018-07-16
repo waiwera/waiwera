@@ -101,12 +101,10 @@ Waiwera needs to evaluate the functions :math:`L` and :math:`R` for any given se
 .. math::
 
    M_n^c =
-   \Biggl \lbrace
-   {
-   \phi_n \sum_p{S_p \rho_p X_p^c}, c \leq C
-   \atop
-   (1 - \phi_n) \rho_{r} c_{r} T + \phi_n \sum_p {S_p \rho_p u_p}, c = C + 1
-   }
+   \begin{cases}
+   \phi_n \sum_p{S_p \rho_p X_p^c} & c \leq C \\
+   (1 - \phi_n) \rho_{r} c_{r} T + \phi_n \sum_p {S_p \rho_p u_p} & c = C + 1
+   \end{cases}
 
 where the :math:`p` subscripts refer to phases, and the :math:`r` subscripts refer to rock properties. Here :math:`\phi_n` is the porosity in the cell, :math:`S` is phase saturation, :math:`\rho` is density, :math:`X` is mass fraction, :math:`u` is internal energy density, :math:`c_r` is the rock specific heat and :math:`T` is temperature.
 
@@ -122,12 +120,10 @@ where the phase fluxes are given by:
    :label: flux
 
    F_p^c =
-   \Biggl \lbrace
-   {
-   -k \frac{k_r^p}{\mu_p} \rho_p X_p^c (\frac{\partial P}{\partial n} - \bar{\rho}_p \mathbf{g}.\hat{n}), c \leq C
-   \atop
-   -K \frac{\partial T}{\partial n} + \sum_{i=1}^{C} {\sum_p{h_p^i F_p^i}} , c = C + 1
-   }
+   \begin{cases}
+   -k \frac{k_r^p}{\mu_p} \rho_p X_p^c (\frac{\partial P}{\partial n} - \bar{\rho}_p \mathbf{g}.\hat{n}) & c \leq C \\
+   -K \frac{\partial T}{\partial n} + \sum_{i=1}^{C} {\sum_p{h_p^i F_p^i}} & c = C + 1
+   \end{cases}
 
 Here :math:`k` is effective permeability normal to the face, :math:`k_r` is relative permeability, :math:`\mu` is viscosity, :math:`P` is pressure, :math:`\mathbf{g}` is the gravity vector, :math:`K` is rock heat conductivity and :math:`h` is enthalpy. :math:`\hat{n}` is the unit vector normal to the face, and :math:`\bar{\rho}_p` is the effective phase density on the face.
 

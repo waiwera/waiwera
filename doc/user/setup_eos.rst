@@ -6,7 +6,7 @@ In different simulations there may be different combinations of mass and energy 
 
 Given the primary thermodynamic variables, the EOS module calculates bulk fluid properties such as pressure and temperature, as well as the properties of the individual phases present, such as density, internal energy, viscosity etc. It also checks the primary variables to make sure they have not gone outside acceptable physical bounds, and handles primary variable switching when phase transitions occur.
 
-In the Waiwera JSON input file, the **eos** value specifies the equation of state module to be used for the simulation.
+In the Waiwera JSON input file, the **"eos"** value specifies the equation of state module to be used for the simulation.
 
 .. note::
    **JSON object**: eos
