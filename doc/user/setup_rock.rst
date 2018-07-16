@@ -428,9 +428,9 @@ Capillary pressure functions
 
 Waiwera can optionally include capillary pressure effects when calculating pressure gradients across mesh faces. For the liquid phase, the effective pressure in each cell is calculated from the sum of the fluid pressure and capillary pressure, which in turn is calculated from a specified function of saturation. These effective pressures are then used to calculate the effective pressure gradient across the mesh face. (If the saturations are the same in both cells on either side of the face, then the capillary pressures are also equal and have no effect on the calculated pressure gradient.)
 
-As for relative permeability curves, a variety of different capillary functions have been proposed, and Waiwera offers several of them. The desired capillary function is specified in the Waiwera JSON input file via the **rock.capillary_pressure** value. This value is an object (or ``null``), containing a **type** string value which selects the type of function, along with other parameters which depend on the function type.
+As for relative permeability curves, a variety of different capillary pressure functions have been proposed, and Waiwera offers several of them. The desired capillary pressure function is specified in the Waiwera JSON input file via the **rock.capillary_pressure** value. This value is an object (or ``null``), containing a **type** string value which selects the type of function, along with other parameters which depend on the function type.
 
-The different types of capillary functions available in Waiwera are described below.
+The different types of capillary pressure functions available in Waiwera are described below.
 
 Zero
 ----
@@ -439,13 +439,13 @@ Capillary pressure effects can be disabled by setting the **type** value of the 
 
 .. note::
 
-   **JSON object**: zero capillary function
+   **JSON object**: zero capillary pressure function
 
    +----------+----------+--------------+----------------------+
    |**name**  |**type**  |**default**   |**value**             |
    +----------+----------+--------------+----------------------+
-   |"type"    |string    |"zero"        |capillary function    |
-   |          |          |              |type                  |
+   |"type"    |string    |"zero"        |capillary pressure    |
+   |          |          |              |function type         |
    +----------+----------+--------------+----------------------+
 
 For example:
@@ -465,19 +465,19 @@ both disable capillary pressure effects.
 Linear
 ------
 
-Setting the **type** value to "linear" selects the linear capillary pressure function, in which capillary pressure is a linear function of liquid saturation. Lower and upper saturation limits are specified via the **saturation_limits** array value.
+Setting the capillary pressure **type** value to "linear" selects the linear capillary pressure function, in which capillary pressure is a linear function of liquid saturation. Lower and upper saturation limits are specified via the **saturation_limits** array value.
 
 When liquid saturation is below the lower limit, the capillary pressure is fixed at :math:`-P`, where :math:`P` is a specified (positive) constant. Between the limits, the capillary pressure is linearly interpolated between :math:`-P` and zero. Above the upper limit, the capillary pressure is identically zero.
 
 .. note::
 
-   **JSON object**: linear capillary function
+   **JSON object**: linear capillary pressure function
 
    +--------------------+------------+------------+-------------------------+
    |**name**            |**type**    |**default** |**value**                |
    +--------------------+------------+------------+-------------------------+
-   |"type"              |string      |"linear"    |capillary function type  |
-   |                    |            |            |                         |
+   |"type"              |string      |"linear"    |capillary pressure       |
+   |                    |            |            |function type            |
    +--------------------+------------+------------+-------------------------+
    |"saturation_limits" |array       |[0, 1]      |liquid saturation limits |
    +--------------------+------------+------------+-------------------------+
@@ -505,6 +505,88 @@ gives the linear capillary pressure curve shown in the figure below.
 Van Genuchten
 -------------
 
+Setting the capillary pressure **type** value to "van genuchten" selects the Van Genuchten capillary pressure function. The capillary pressure is defined in terms of an intermediate quantity :math:`s_*`:
+
+.. math::
+
+   s_* = \frac{s_1 - s_{lr}}{s_{ls} - s_{lr}}
+
+where :math:`s_1` is the liquid saturation. and :math:`s_{lr}` and :math:`s_{ls}` are specified constant parameters. Then the capillary pressure :math:`P_c` is given by
+
+.. math::
+
+   P_c =
+   \begin{cases}
+   -P_0 & s_* < 0\\
+   \min{(-P_0 (s_*^{-1 / \lambda} -1) ^ {1 - \lambda}, 0)} & 0 \le s_* < 1\\
+   0 & s_* \ge 1
+   \end{cases}
+
+where :math:`P_0` and :math:`\lambda` are specified constant parameters (:math:`P_0 > 0`). An optional limit :math:`P_{max}` can be set on the magnitude of the capillary pressure determined by the above equation. If this limit is not specified, no limit is applied.
+
+.. note::
+
+   **JSON object**: Van Genuchten capillary pressure function
+
+   +------------+------------+----------------+--------------------+
+   |**name**    |**type**    |**default**     |**value**           |
+   +------------+------------+----------------+--------------------+
+   |"type"      |string      |"van genuchten" |capillary pressure  |
+   |            |            |                |function type       |
+   |            |            |                |                    |
+   +------------+------------+----------------+--------------------+
+   |"lambda"    |number      |0.45            |:math:`\lambda`     |
+   |            |            |                |parameter           |
+   +------------+------------+----------------+--------------------+
+   |"slr"       |number      |10\ :sup:`-3`   |:math:`s_{lr}`      |
+   |            |            |                |parameter           |
+   +------------+------------+----------------+--------------------+
+   |"sls"       |number      |1               |:math:`s_{ls}`      |
+   |            |            |                |parameter           |
+   +------------+------------+----------------+--------------------+
+   |"P0"        |number      |0.125×10\       |:math:`P_0`         |
+   |            |            |:sup:`5` Pa     |parameter (Pa)      |
+   +------------+------------+----------------+--------------------+
+   |"Pmax"      |number      |undefined       |:math:`P_{max}`     |
+   |            |            |                |parameter           |
+   +------------+------------+----------------+--------------------+
+
+For example:
+
+.. code-block:: json
+
+  {"rock": {"capillary_pressure": {"type": "van genuchten", "lambda": 0.5}}}
+
+gives the Van Genuchten capillary pressure function with :math:`\lambda = 0.5`, no :math:`P_{max}` parameter applied, and all other parameters left at their default values.
+
 Table
 -----
 
+Setting the capillary pressure **type** value to "table" allows specification of a capillary pressure function defined by a general piecewise-linear table. The capillary pressure function is specified as a table of :math:`(s_1, P_c)` values (i.e. capillary pressure vs. liquid saturation). In the Waiwera JSON input file this table takes the form of a rank-2 array (i.e. array of arrays).
+
+.. note::
+
+   **JSON object**: table capillary pressure function
+
+   +------------+------------+---------------+--------------------+
+   |**name**    |**type**    |**default**    |**value**           |
+   +------------+------------+---------------+--------------------+
+   |"type"      |string      |"table"        |capillary pressure  |
+   |            |            |               |function type       |
+   |            |            |               |                    |
+   +------------+------------+---------------+--------------------+
+   |"pressure"  |array       |[[0,0], [1,0]] |table of capillary  |
+   |            |            |               |pressure vs. liquid |
+   |            |            |               |saturation          |
+   +------------+------------+---------------+--------------------+
+
+For example:
+
+.. code-block:: json
+
+  {"rock": {"capillary_pressure": {
+     "type": "table",
+     "pressure": [[0, -0.1e5], [0.1, -0.1e5], [1, 0]]
+     }}}
+
+specifies a capillary pressure function with constant value -0.1 bar for liquid saturations between zero and 0.1, decreasing linearly to zero at fully-saturated conditions (:math:`s_1 = 1`).
