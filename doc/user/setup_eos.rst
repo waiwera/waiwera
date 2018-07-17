@@ -1,3 +1,5 @@
+.. _eos:
+
 *****************
 Equation of state
 *****************
@@ -61,7 +63,9 @@ For example:
   {"eos": {"name": "w", "temperature": 18.5}}
 
 Fluid properties are calculated directly from the thermodynamic formulation for water (see :ref:`water_thermodynamics`), at the specified temperature.
-  
+
+.. _water_energy_eos:
+
 Water and energy ("we")
 -----------------------
 

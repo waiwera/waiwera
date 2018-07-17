@@ -1,3 +1,5 @@
+.. _sources_and_sinks:
+
 *****************
 Sources and sinks
 *****************
