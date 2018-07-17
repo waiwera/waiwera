@@ -48,7 +48,7 @@ Water ("w")
 .. note::
 
    * **name**: "w"
-   * **components:**: water (isothermal)
+   * **component names**: "water"
    * **phase conditions**: liquid
    * **primary variables**: pressure
 
@@ -71,10 +71,10 @@ Water and energy ("we")
 
 .. note::
 
-   * **Name**: "we"
-   * **Components:**: water, energy
-   * **Phase conditions**: liquid, vapour, two-phase
-   * **Primary variables**:
+   * **name**: "we"
+   * **component names**: "water", "energy"
+   * **phase conditions**: liquid, vapour, two-phase
+   * **primary variables**:
 
      * **liquid / vapour**: pressure, temperature
      * **two-phase**: pressure, vapour saturation
@@ -97,10 +97,10 @@ Water, air and energy ("wae")
 
 .. note::
 
-   * **Name**: "wae"
-   * **Components:**: water, air, energy
-   * **Phase conditions**: liquid, vapour, two-phase
-   * **Primary variables**:
+   * **name**: "wae"
+   * **component names**: "water", "air", "energy"
+   * **phase conditions**: liquid, vapour, two-phase
+   * **primary variables**:
 
      * **liquid / vapour**: pressure, temperature, air partial pressure
      * **two-phase**: pressure, vapour saturation, air partial pressure
@@ -110,9 +110,9 @@ Water, carbon dioxide and energy ("wce")
 
 .. note::
 
-   * **Name**: "wce"
-   * **Components:**: water, carbon dioxide, energy
-   * **Phase conditions**: liquid, vapour, two-phase
+   * **name**: "wce"
+   * **component names**: "water", "CO2", "energy"
+   * **phase conditions**: liquid, vapour, two-phase
    * **Primary variables**:
 
      * **liquid / vapour**: pressure, temperature, CO\ :sub:`2` partial pressure
