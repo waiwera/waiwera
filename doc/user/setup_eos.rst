@@ -48,9 +48,12 @@ Water ("w")
 .. note::
 
    * **name**: "w"
-   * **component names**: "water"
+   * **component names**: ["water"]
    * **phase conditions**: liquid
-   * **primary variables**: pressure
+   * **primary variable names**: ["pressure"]
+   * **default primary variables**: [10\ :sup:`5` Pa]
+   * **default region**: 1 (liquid)
+   * **default output fluid fields**: ["pressure", "region"]
 
 This is the simplest equation of state module, simulating the behaviour of isothermal, single-phase liquid water. There is only one primary thermodynamic variable: pressure.
 
@@ -72,12 +75,15 @@ Water and energy ("we")
 .. note::
 
    * **name**: "we"
-   * **component names**: "water", "energy"
+   * **component names**: ["water", "energy"]
    * **phase conditions**: liquid, vapour, two-phase
-   * **primary variables**:
+   * **primary variable names**:
 
-     * **liquid / vapour**: pressure, temperature
-     * **two-phase**: pressure, vapour saturation
+     * **liquid / vapour**: ["pressure", "temperature"]
+     * **two-phase**: ["pressure", "vapour_saturation"]
+   * **default primary variables**: [10\ :sup:`5` Pa, 20 :math:`^{\circ}`\ C]
+   * **default region**: 1 (liquid)
+   * **default output fluid fields**: ["pressure", "temperature", "region", "vapour_saturation"]
 
 This is the simplest non-isothermal equation of state module, with only one mass component (water) but also including the energy component. Water may be in liquid, vapour or two-phase conditions, and may change between these states. Primary variables are pressure and temperature for single-phase conditions but switch to pressure and vapour saturation under two-phase conditions.
 
@@ -98,12 +104,15 @@ Water, air and energy ("wae")
 .. note::
 
    * **name**: "wae"
-   * **component names**: "water", "air", "energy"
+   * **component names**: ["water", "air", "energy"]
    * **phase conditions**: liquid, vapour, two-phase
-   * **primary variables**:
+   * **primary variable names**:
 
-     * **liquid / vapour**: pressure, temperature, air partial pressure
-     * **two-phase**: pressure, vapour saturation, air partial pressure
+     * **liquid / vapour**: ["pressure", "temperature", "air_partial_pressure"]
+     * **two-phase**: ["pressure", "vapour_saturation", "air_partial_pressure"]
+   * **default primary variables**: [10\ :sup:`5` Pa, 20 :math:`^{\circ}`\ C, 0 Pa]
+   * **default region**: 1 (liquid)
+   * **default output fluid fields**: ["pressure", "temperature", "region", "air_partial_pressure", "vapour_saturation"]
        
 Water, carbon dioxide and energy ("wce")
 ----------------------------------------
@@ -111,10 +120,13 @@ Water, carbon dioxide and energy ("wce")
 .. note::
 
    * **name**: "wce"
-   * **component names**: "water", "CO2", "energy"
+   * **component names**: ["water", "CO2", "energy"]
    * **phase conditions**: liquid, vapour, two-phase
-   * **Primary variables**:
+   * **primary variable names**:
 
-     * **liquid / vapour**: pressure, temperature, CO\ :sub:`2` partial pressure
-     * **two-phase**: pressure, vapour saturation, CO\ :sub:`2` partial pressure
+     * **liquid / vapour**: ["pressure", "temperature", "CO2_partial_pressure"]
+     * **two-phase**: ["pressure", "vapour_saturation", "CO2_partial_pressure"]
+   * **default primary variables**: [10\ :sup:`5` Pa, 20 :math:`^{\circ}`\ C, 0 Pa]
+   * **default region**: 1 (liquid)
+   * **default output fluid fields**: ["pressure", "temperature", "region", "CO2_partial_pressure", "vapour_saturation"]
        
