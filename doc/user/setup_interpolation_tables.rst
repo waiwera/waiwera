@@ -14,7 +14,7 @@ Some Waiwera input parameters are specified in the form of tables of values, tab
 
 specifies a source producing from a cell, with flow rate decreasing with time.
 
-Typicaly, it is necessary to perform two kinds of operation on the tabulated values:
+Typically, it is necessary to perform two kinds of operation on the tabulated values:
 
 * **interpolation**, to find values corresponding to times in between those given in the table
 * **averaging**, to find the average value over a given time interval (e.g. a time step)
