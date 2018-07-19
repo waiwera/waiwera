@@ -84,11 +84,13 @@ In this example:
 
 two boundaries are set up, the first again on four faces at the top surface of the mesh and with liquid conditions. Because the water, air and energy EOS is used, the region 1 boundary conditions specify pressure, temperature and air partial pressure. The second boundary sets two-phase conditions (pressure, vapour saturation and air partial pressure) with zero partial pressure of air on a horizontal boundary in the positive :math:`x`\ -direction.
 
+.. _neumann_boundary_conditions:
+
 Neumann boundary conditions
 ===========================
 
 "Neumann" boundary conditions prescribe the mass or energy flux through a boundary face. For example, in a geothermal reservoir model, Neumann boundary conditions may be used to specify basal mass and energy fluxes at the bottom boundary of the model.
 
-In the finite volume framework (see :ref:`finite_volume_discretisation`), a specified flux through a boundary face (which would otherwise be zero) is formally identical to adding a source or sink term to the cell just inside the boundary. In either case, a term is simply added to the right-hand side of the discretised conservation equations for that cell.
+In the finite volume framework (see :ref:`finite_volume_discretisation`), a specified flux through a boundary face (which would otherwise be zero) is formally identical to adding a source term to the cell just inside the boundary. In either case, a term is simply added to the right-hand side of the discretised conservation equations for that cell.
 
-Hence, it is not necessary to provide a separate mechanism for implementing Neumann boundary conditions, as they can always be implemented using equivalent source or sink terms instead (see :ref:`sources_and_sinks`).
+Hence, it is not necessary to provide a separate mechanism for implementing Neumann boundary conditions, as they can always be implemented using equivalent source terms instead (see :ref:`source_terms`).

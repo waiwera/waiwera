@@ -22,7 +22,7 @@ The various aspects of the simulation are specified by different named values wi
    +-----------------+-----------------+--------------------------+
    |"boundaries"     |array            |boundary conditions       |
    +-----------------+-----------------+--------------------------+
-   |"source"         |array            |source and sink terms     |
+   |"source"         |array            |source terms              |
    +-----------------+-----------------+--------------------------+
    |"initial"        |object           |initial conditions        |
    +-----------------+-----------------+--------------------------+

@@ -4,7 +4,7 @@
 Interpolation tables
 ********************
 
-Some Waiwera input parameters are specified in the form of tables of values, tabulated against some independent variable. Most commonly the independent variable is time, so the tables represent the time variation of some value. For example:
+Some Waiwera input parameters are specified in the form of tables of values, tabulated against some independent variable. Most commonly the independent variable is time, so the tables represent the time variation of the value. For example:
 
 .. code-block:: json
 
@@ -61,7 +61,7 @@ Averaging
 Waiwera also offers two methods for averaging an interpolated data table over an interval.
 
 * The first method uses integration. The integral of the data (using the specified interpolation method) is divided by the time interval to calculate the average value. This method is usually preferred, especially in situations when it is necessary to preserve the correct area under the data curve.
-* The second method is simpler, calculating an approximate result from the average of the interpolated values at the start- and end-points of the interval. This method can be less expensive if there are many data points within the time interval. However, it is not as accurate.
+* The second method is simpler, calculating an approximate result from the average of the interpolated values at the start- and end-points of the interval. This method can be less expensive if there are many data points within the time interval. However, it is not as accurate, particularly if there are many tabulated values within the integration interval.
 
 Usually a JSON value containing tabulated data in the Waiwera input file will also have an associated **"averaging"** string value, which can be set to either **"integrate"** or **"endpoint"** to control the averaging method. If the averaging method is not specified, the integration method is used by default.
 

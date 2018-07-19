@@ -7,6 +7,8 @@ How Waiwera works
 .. two-point flux approximation, upstream weighting?
 .. MINC for fractured media?
 
+.. _conservation_equations:
+
 Mass and energy conservation equations
 ======================================
 
