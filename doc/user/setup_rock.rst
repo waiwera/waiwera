@@ -111,7 +111,7 @@ In addition, individual face permeability directions can be manually overridden,
    +------------------------+----------+-----------+----------------------------+
    |"cells"                 |array     |[]         |cell indices                |
    +------------------------+----------+-----------+----------------------------+
-   |"permeability_direction"|number    |1          |face permeability direction |
+   |"permeability_direction"|integer   |1          |face permeability direction |
    +------------------------+----------+-----------+----------------------------+
 
 For example:

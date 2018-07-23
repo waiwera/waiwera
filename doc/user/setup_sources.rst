@@ -19,12 +19,12 @@ Sources are set up in the Waiwera JSON input file via the **"source"** value. Th
    |"name"                 |string          |""          |optional source name     |
    |                       |                |            |                         |
    +-----------------------+----------------+------------+-------------------------+
-   |"component"            |number | string |"water"     |mass or energy component |
+   |"component"            |integer | string|"water"     |mass or energy component |
    |                       |                |(injection) |                         |
    |                       |                || 0         |                         |
    |                       |                |(production)|                         |
    +-----------------------+----------------+------------+-------------------------+
-   |"production_component" |number | string |"heat" if   |mass or energy component |
+   |"production_component" |integer | string|"heat" if   |mass or energy component |
    |                       |                |"component" |for :ref:`mixed_flow`    |
    |                       |                |= "heat",   |production               |
    |                       |                |otherwise 0 |                         |
@@ -36,7 +36,7 @@ Sources are set up in the Waiwera JSON input file via the **"source"** value. Th
    |                       |object          |:sup:`3`    |                         |
    |                       |                |J/kg        |                         |
    +-----------------------+----------------+------------+-------------------------+
-   |"cell" | "cells"       |number | array  |[]          |indices of cells with    |
+   |"cell" | "cells"       |integer | array |[]          |indices of cells with    |
    |                       |                |            |this source specification|
    +-----------------------+----------------+------------+-------------------------+
    |"interpolation"        |string          |"linear"    |interpolation method for |
@@ -64,7 +64,7 @@ Sources are set up in the Waiwera JSON input file via the **"source"** value. Th
 Source cells
 ============
 
-Each source specification object has a **"cell"** value which can be used to specify a single cell index. There is also a **"cells"** value which can be either a number (in which case it works exactly the same way as the "cell" value) or an array of cell indices, if multiple sources are to be set up in different cells but with the same parameters.
+Each source specification object has a **"cell"** value which can be used to specify a single cell index. There is also a **"cells"** value which can be either an integer (in which case it works exactly the same way as the "cell" value) or an array of cell indices, if multiple sources are to be set up in different cells but with the same parameters.
 
 Injection
 =========

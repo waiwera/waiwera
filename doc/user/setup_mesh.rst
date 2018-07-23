@@ -164,7 +164,7 @@ Cell array type
 
 In this type of zone, cells in the zone are explicitly identified by their cell indices. In this case the zone definition can be either:
 
-* an array of numbers (the cell indices)
+* an array of integers (the cell indices)
 * an object with a **"cells"** value, containing the array of cell indices
 
 All cell indices are zero-based (i.e. start from zero) and refer to the cell indices in the serial mesh (i.e. before partitioning, if the simulation is run in parallel).

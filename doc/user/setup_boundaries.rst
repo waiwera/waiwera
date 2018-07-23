@@ -11,7 +11,7 @@ In the Waiwera JSON input file, Dirichlet boundary conditions are set up via the
 
 In each boundary condition, the primary variables are specified via the **"primary"** array value. The length and default value of this array both depend on which :ref:`eos` (EOS) is being used. For example, for the :ref:`water_energy_eos` EOS, there are two primary variables in the array, representing pressure and temperature for two-phase conditions, or pressure and vapour saturation for two-phase conditions.
 
-As well as the primary variables, the thermodynamic region (see :ref:`thermodynamic_regions`) must be specified as part of the boundary condition, via the **"region"** integer number value. This is needed so that the primary variables can be interpreted correctly for the desired phase conditions on the boundary. If it is not specified, a default region is used, which generally depends on the EOS (but usually corresponds to liquid conditions).
+As well as the primary variables, the thermodynamic region (see :ref:`thermodynamic_regions`) must be specified as part of the boundary condition, via the **"region"** integer value. This is needed so that the primary variables can be interpreted correctly for the desired phase conditions on the boundary. If it is not specified, a default region is used, which generally depends on the EOS (but usually corresponds to liquid conditions).
 
 .. note::
 
@@ -24,7 +24,7 @@ As well as the primary variables, the thermodynamic region (see :ref:`thermodyna
    |            |               |EOS         |variables                |
    |            |               |            |                         |
    +------------+---------------+------------+-------------------------+
-   |"region"    |number         |depends on  |prescribed thermodynamic |
+   |"region"    |integer        |depends on  |prescribed thermodynamic |
    |            |               |EOS         |region                   |
    |            |               |            |                         |
    +------------+---------------+------------+-------------------------+
