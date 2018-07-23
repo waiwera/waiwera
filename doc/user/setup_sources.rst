@@ -497,5 +497,4 @@ However, some of these combinations are more useful than others. There is no poi
 
 Waiwera applies controls to a source in a pre-defined order -- in fact, the same order they have been described here. (The order in which they are specified in the JSON input file is not important.) So, for example, if a source did have both a deliverability control and a recharge control, the flow rate computed by the deliverability control would be overridden by the flow rate computed by the recharge control. Controls which do not compute a flow rate (e.g. limiters, direction and factor controls), but only modify flow rates computed by other controls, are applied last.
 
-.. source may change between injection and production (production_component value?)
 
