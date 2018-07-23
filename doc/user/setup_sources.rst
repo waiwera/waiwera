@@ -55,8 +55,8 @@ Sources are set up in the Waiwera JSON input file via the **"source"** value. Th
    |"direction"            |string          |"both"      |:ref:`direction` source  |
    |                       |                |            |control                  |
    +-----------------------+----------------+------------+-------------------------+
-   |"factor"               |number | array ||{}          |factor source control    |
-   |                       |object          |            |                         |
+   |"factor"               |number | array ||{}          |:ref:`factor` source     |
+   |                       |object          |            |control                  |
    +-----------------------+----------------+------------+-------------------------+
 
 Source cells
@@ -434,6 +434,7 @@ specifies a recharge source that can only flow into the model, not out. A direct
                 "direction": "production"}
               ]}
 
+.. _factor:
 
 Factor
 ------
