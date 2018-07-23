@@ -125,7 +125,7 @@ Source controls
 
 In many cases, it is necessary to simulate sources with flow rates (and possibly enthalpies, for injection) that vary with time. To do this, a variety of different "source controls" may be added to a source, depending on what type of time variation is needed.
 
-These may be straight-forward controls in which the time variation is simply prescribed, or dynamic controls which vary flow rates in response to fluid conditions in the cell, or other factors. Most types of controls may be combined together to simulate more complex source behaviour.
+These may be straight-forward controls in which the time variation is simply prescribed, or dynamic controls which vary flow rates in response to fluid conditions in the cell, or other factors. Most types of controls may be combined together to simulate more complex source behaviour (see :ref:`combining_source_controls`).
 
 Tables
 ------
@@ -470,7 +470,16 @@ The following example uses step interpolation to simulate shutting in a delivera
                 "factor": {"time": [[0, 1], [1e8, 0]], "interpolation": "step"}}
               ]}
 
-.. combining controls / hierarchy of controls?
+.. _combining_source_controls:
+
+Combining source controls
+-------------------------
+
+As we have seen in some of the examples above, it is possible to use different source controls together on one source, to simulate more complex behaviour. In fact, in principle it is possible to use any combination of source controls together on the same source.
+
+However, some of these combinations are more useful than others. There is no point having multiple controls that independently assign different flow rates to the same source, for example, a deliverability control and a recharge control.
+
+Waiwera applies controls to a source in a pre-defined order -- in fact, the same order they have been described here. So, for example, if a source did have both a deliverability control and a recharge control, the flow rate computed by the deliverability control would be overridden by the flow rate computed by the recharge control. Controls which do not compute a flow rate (e.g. limiters, direction and factor controls), but only modify flow rates computed by other controls, are applied last.
 
 .. source may change between injection and production (production_component value?)
 
