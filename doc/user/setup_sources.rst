@@ -24,8 +24,10 @@ Sources are set up in the Waiwera JSON input file via the **"source"** value. Th
    |                       |                || 0         |                         |
    |                       |                |(production)|                         |
    +-----------------------+----------------+------------+-------------------------+
-   |"production_component" |number | string |0           |mass or energy component |
-   |                       |                |            |for production           |
+   |"production_component" |number | string |"heat" if   |mass or energy component |
+   |                       |                |"component" |for :ref:`mixed_flow`    |
+   |                       |                |= "heat",   |production               |
+   |                       |                |otherwise 0 |                         |
    +-----------------------+----------------+------------+-------------------------+
    |"rate"                 |number | array ||0           |flow rate (kg/s or J/s)  |
    |                       |object          |            |                         |
@@ -119,6 +121,19 @@ As for injection, it is also possible to produce heat only, rather than mass (e.
    ]}
 
 specifies three sources each extracting 1 kW of heat.
+
+.. _mixed_flow:
+
+Mixed flow
+==========
+
+The flow rate in a source may vary with time (see :ref:`source_controls`), and while it is uncommon, by default there is nothing to prevent a source from switching between production and injection during a simulation. (It is possible to limit the flow direction using the :ref:`direction` source control.)
+
+For mixed-flow sources, it is possible to specify the production component independently of the injection component (determined by the "component" value) if desired, so that a source may inject one component and produce a different one. This can be done by specifying the **"production_component"** value. If not specified, by default it is given the value "heat" if the "component" value is also "heat". If the "component" value specifies a mass component, then "production_component" takes the default value of zero (i.e. produce all mass components).
+
+Note that it is not necessary to set the "production_component" value except in this special case of mixed-flow sources with different components for production and injection. In all other cases, setting the "component" value by itself is sufficient.
+
+.. _source_controls:
 
 Source controls
 ===============
@@ -409,7 +424,7 @@ Here is the same source but with a limit of 3.5 kg/s on the steam flow, and the 
 Direction
 ---------
 
-By default, there is nothing to prevent a source from switching between production and injection during a simulation. The flow rate in a specified rate table may contain both positive and negative flow rates, although this is not common. Deliverability and recharge source controls may give flow rates that change sign, if the pressure drops below (or rises above) the reference pressure. In the case of recharge this may happen naturally if, for example, pressures in a reservoir drop during production and rise again after production ceases.
+As mentioned above (see :ref:`mixed_flow`), it is possible for a source's flow rate to change sign during a simulation. The flow rate in a specified rate table may contain both positive and negative flow rates, although this is not common (it could potentially be used e.g. for a production well which is shut in, and later used as an reinjection well). Deliverability and recharge source controls may give flow rates that change sign, if the pressure drops below (or rises above) the reference pressure.
 
 The flow rate may be limited to a particular direction by using a "direction" source control, via the **"direction"** value of the source. This is a simple string value which may be set to "production" or "out" if the flow rate should always remain negative, or to "injection" or "in" if the flow rate should always remain positive.
 
@@ -480,7 +495,7 @@ As we have seen in some of the examples above, it is possible to use different s
 
 However, some of these combinations are more useful than others. There is no point having multiple controls that independently assign different flow rates to the same source, for example, a deliverability control and a recharge control.
 
-Waiwera applies controls to a source in a pre-defined order -- in fact, the same order they have been described here. So, for example, if a source did have both a deliverability control and a recharge control, the flow rate computed by the deliverability control would be overridden by the flow rate computed by the recharge control. Controls which do not compute a flow rate (e.g. limiters, direction and factor controls), but only modify flow rates computed by other controls, are applied last.
+Waiwera applies controls to a source in a pre-defined order -- in fact, the same order they have been described here. (The order in which they are specified in the JSON input file is not important.) So, for example, if a source did have both a deliverability control and a recharge control, the flow rate computed by the deliverability control would be overridden by the flow rate computed by the recharge control. Controls which do not compute a flow rate (e.g. limiters, direction and factor controls), but only modify flow rates computed by other controls, are applied last.
 
 .. source may change between injection and production (production_component value?)
 
