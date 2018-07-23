@@ -57,7 +57,7 @@ Note that the mesh filename (specified in either of the above two ways) is a req
    |"filename"          |string     |(`no default`)     |mesh filename                            |
    |                    |           |                   |                                         |
    +--------------------+-----------+-------------------+-----------------------------------------+
-   |"radial"            |Boolean    |``false``          |:ref:`radial_mesh`                       |
+   |"radial"            |boolean    |``false``          |:ref:`radial_mesh`                       |
    |                    |           |                   |                                         |
    |                    |           |                   |                                         |
    +--------------------+-----------+-------------------+-----------------------------------------+
@@ -122,7 +122,7 @@ If the thickness is not specified, a default value of 1.0 m is assumed.
 2-D radial meshes
 -----------------
 
-For radial problems, a 2-D mesh file can also be used, and the **"mesh.radial"** Boolean value should be set to true.
+For radial problems, a 2-D mesh file can also be used, and the **"mesh.radial"** boolean value should be set to true.
 
 For example:
 

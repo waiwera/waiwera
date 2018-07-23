@@ -382,7 +382,7 @@ where :math:`S_{sr}` is another specified constant parameter. Then the vapour re
    +------------+------------+----------------+--------------------------+
    |"ssr"       |number      |0.6             |:math:`S_{sr}` parameter  |
    +------------+------------+----------------+--------------------------+
-   |"sum_unity" |Boolean     |``true``        |enforce :math:`k_r^1 +    |
+   |"sum_unity" |boolean     |``true``        |enforce :math:`k_r^1 +    |
    |            |            |                |k_r^2 = 1`                |
    +------------+------------+----------------+--------------------------+
 

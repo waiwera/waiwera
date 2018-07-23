@@ -35,7 +35,7 @@ JSON arrays
 
 An **array** is an ordered collection of values, beginning and ending with square brackets (``[ ]``), and with the values delimited by commas. (If you are familiar with the Python scripting language, this structure is known in Python as a "list".)
 
-The values in the array may be character **strings** (enclosed by double quotes), **numbers** (integer or floating point), **Boolean** values (``true`` or ``false``) or **null** values (``null``). In addition (and importantly), the values may themselves be arrays or objects. The values in an array do not all have to be of the same type.
+The values in the array may be character **strings** (enclosed by double quotes), **numbers** (integer or floating point), **boolean** values (``true`` or ``false``) or **null** values (``null``). In addition (and importantly), the values may themselves be arrays or objects. The values in an array do not all have to be of the same type.
 
 JSON objects
 ------------
@@ -50,7 +50,7 @@ Here is a simple example of a JSON object, in which the values are all numbers:
 
   {"length": 20.5, "width": 14.8, "depth": 17.2}
 
-Here is a more complex example of an object with a mix of different value types (an object, an array of numbers, a string and a Boolean):
+Here is a more complex example of an object with a mix of different value types (an object, an array of numbers, a string and a boolean):
 
 .. code-block:: json
 
