@@ -43,14 +43,17 @@ Sources are set up in the Waiwera JSON input file via the **"source"** value. Th
    |"averaging"            |string          |"integrate" |averaging method for data|
    |                       |                |            |tables                   |
    +-----------------------+----------------+------------+-------------------------+
-   |"deliverability"       |object          |{}          |deliverability source    |
+   |"deliverability"       |object          |{}          |:ref:`deliverability`    |
+   |                       |                |            |source control           |
+   +-----------------------+----------------+------------+-------------------------+
+   |"recharge"             |object          |{}          |:ref:`recharge` source   |
    |                       |                |            |control                  |
    +-----------------------+----------------+------------+-------------------------+
-   |"recharge"             |object          |{}          |recharge source control  |
+   |"limiter"              |object          |{}          |:ref:`limiter` source    |
+   |                       |                |            |control                  |
    +-----------------------+----------------+------------+-------------------------+
-   |"limiter"              |object          |{}          |limiter source control   |
-   +-----------------------+----------------+------------+-------------------------+
-   |"direction"            |string          |"both"      |direction source control |
+   |"direction"            |string          |"both"      |:ref:`direction` source  |
+   |                       |                |            |control                  |
    +-----------------------+----------------+------------+-------------------------+
    |"factor"               |number | array ||{}          |factor source control    |
    |                       |object          |            |                         |
@@ -166,6 +169,8 @@ The flow rate and / or enthalpy can equivalently be specified not as arrays but 
 
 This alternative syntax is generally not needed, but is provided for consistency with other data that may be specified as tables in which the independent variable can either be time or another quantity.
 
+.. _deliverability:
+
 Deliverability
 --------------
 
@@ -223,6 +228,8 @@ If the productivity index is not specified, but an initial flow rate is specifie
    
 The deliverability **"threshold"** value gives the option of switching on the deliverability control only when the pressure drops below the specified threshold pressure, and deactivating it again if the pressure rises back over the threshold. This option can be used, for example, for history matching simulations in which measured flow rates are specified for a well, but the model permeability is insufficient to maintain the specified flow rates without the pressure dropping towards zero, stalling the simulation. In such cases, using the "threshold" option causes the measured flow rates to be treated effectively as a target, with the well switching to deliverability if the target cannot be met.
 
+When a deliverability control is used to model a production well, normally the flow rate should be limited to production only (i.e. if the pressure drops below the reference pressure, the well will not flow), by using a direction control (see :ref:`direction`).
+
 For example, the source below has the simplest possible type of deliverability control, in which both the reference pressure (2 bar) and productivity index (10\ :sup:`-12` m\ :sup:`3`) are constant:
 :
 
@@ -269,6 +276,8 @@ This source has a table of specified flow rates vs. time, but switches to delive
      {"cell": 313, "rate": [[0, -2.5], [3600, -2.8], [7200, -3.2]],
       "deliverability": {"pressure": 1e5, "productivity": 1e-12, "threshold": 2e5}}
    ]}
+
+.. _recharge:
 
 Recharge
 --------
@@ -324,8 +333,115 @@ For example, the source below has a recharge control with reference pressure set
      {"cell": 200, "recharge": {"pressure": "initial", "coefficient": 1e-3}}
    ]}
 
+.. _limiter:
 
-.. controls: separator, limiter, direction, factor
+Limiter
+-------
+
+In some situations it is necessary to limit the flow rate of a source, so that it cannot exceed a prescribed maximum value -- for example, when a well has a prescribed maximum flow rate to comply with regulations. In the simplest case the limit applies to the total flow, but in other situations the source output may be passed through a separator, and the limit is set on either separated steam or water.
+
+A limiter may be added to a source in the Waiwera JSON input file by specifying the **"limiter"** value in that source. This value is an object, which has a **"type"** string value specifying whether the limit is set on total flow, separated water flow or steam flow. The flow rate limit is set via the **"limit"** value. Note that this value is positive and applies to the absolute value of the flow rate.
+
+.. note::
+   **JSON object**: limiter source control
+
+   +---------------------+------------+------------+------------------+
+   |**name**             |**type**    |**default** |**value**         |
+   +---------------------+------------+------------+------------------+
+   |"type"               |string      |"total"     |limiter type      |
+   |                     |            |            |("total" | "water"|
+   |                     |            |            || "steam")        |
+   |                     |            |            |                  |
+   +---------------------+------------+------------+------------------+
+   |"limit"              |number      |1 kg/s      |flow rate limit   |
+   |                     |            |            |(kg/s)            |
+   +---------------------+------------+------------+------------------+
+   |"separator_pressure" |number      |55×10\      |separator pressure|
+   |                     |            |:sup:`5` Pa |:math:`P_0` (Pa)  |
+   +---------------------+------------+------------+------------------+
+
+When the "type" value is "water" or "steam", a simple separator is simulated to compute the flow rates of separated steam (:math:`q_s`) and water (:math:`q_w`) from the source flow rate :math:`q` and fluid composition:
+
+.. math::
+
+   \begin{align}
+   q_s & = f q \\
+   q_w & = (1 - f) q
+   \end{align}
+
+where :math:`f` is the steam fraction, calculated from:
+
+.. math::
+
+   f = \begin{cases}
+   0 & h \le h_w \\
+   \frac{h - h_w}{h_s - h_w} & hw < h \le h_s \\
+   1 & h > h_s
+   \end{cases}
+
+where the steam and water enthalpies :math:`h_s`, :math:`h_w` are calculated from their respective internal energies (:math:`U_s`, :math:`U_w`) and densities (:math:`\rho_s`, :math:`\rho_w`), and the separator pressure :math:`P_0` (specified via the **"separator_pressure"** value), as follows:
+
+.. math::
+
+   \begin{align}
+   h_s & = U_s + P_0 / \rho_s \\
+   h_w & = U_w + P_0 / \rho_w \\
+   \end{align}
+
+The example below specifies a source on deliverability, with a simple limit of 5.1 kg/s on the total flow rate. (Because it is the total flow being limited, there is no need to specify a separator pressure.) 
+
+.. code-block:: json
+
+   {"source": [
+     {"cell": 100,
+      "deliverability": {"pressure": 2e5, "productivity": 1e-12},
+      "limiter": {"limit": 5.1}}
+   ]}
+
+Here is the same source but with a limit of 3.5 kg/s on the steam flow, and the separator pressure set at 50 bar:
+
+.. code-block:: json
+
+   {"source": [
+     {"cell": 100,
+      "deliverability": {"pressure": 2e5, "productivity": 1e-12},
+      "limiter": {"limit": 3.5, "type": "steam", "separator_pressure": 50e5}}
+   ]}
+
+.. _direction:
+
+Direction
+---------
+
+By default, there is nothing to prevent a source from switching between production and injection during a simulation. The flow rate in a specified rate table may contain both positive and negative flow rates, although this is not common. Deliverability and recharge source controls may give flow rates that change sign, if the pressure drops below (or rises above) the reference pressure. In the case of recharge this may happen naturally if, for example, pressures in a reservoir drop during production and rise again after production ceases.
+
+The flow rate may be limited to a particular direction by using a "direction" source control, via the **"direction"** value of the source. This is a simple string value which may be set to "production" or "out" if the flow rate should always remain negative, or to "injection" or "in" if the flow rate should always remain positive.
+
+With this control applied, flow rates are set to zero if they would otherwise flow in the direction opposite to that specified. Setting the limiter value to "both" is equivalent to not specifying a limiter -- both directions are allowed.
+
+For example:
+
+.. code-block:: json
+
+   {"source": [
+     {"cell": 200, "recharge": {"pressure": "initial", "coefficient": 1e-3},
+     "direction": "in"
+     }
+   ]}
+
+specifies a recharge source that can only flow into the model, not out. A direction control can be added to a well on deliverability as follows, to ensure it stops flowing if the pressure drops below the reference pressure:
+
+.. code-block:: json
+
+   {"source": [{"cell": 10,
+                "deliverability": {"pressure": 2e5, "productivity": 1e-12},
+                "direction": "production"}
+              ]}
+
+
+Factor
+------
+
 .. hierarchy of controls?
 
 .. source may change between injection and production (production_component value?)
