@@ -442,7 +442,39 @@ specifies a recharge source that can only flow into the model, not out. A direct
 Factor
 ------
 
-.. hierarchy of controls?
+In some situations it can be useful to apply a scale factor to the flow rate, particularly if the flow rate is not prescribed but is computed using a dynamic control such as :ref:`deliverability`. Multiplying the flow rate by a factor might be used to simulate changes in well performance over time, e.g. from scaling or makeovers, or to shut in a well on deliverability at a particular time.
+
+A factor control can be added to a source via its **"factor"** value. This can take several forms:
+
+* a simple number, to apply a constant scale factor to the flow rate
+* a rank-2 array representing an interpolation table (see :ref:`interpolation_tables`) of scale factor vs. time, to apply a time-dependent scale factor
+* an object, containing a **"time"** array value, as well as optional **"interpolation"** and **"averaging"** values (see :ref:`interpolation_tables`)
+
+Specifying the "factor" value as an object allows it to have its own parameters for interpolation and averaging, separate from those used to interpolate or average the source flow rate and enthalpy. This can be useful if, for example, a well uses linear interpolation for flow rate, but a step interpolation is more appropriate for the factor control, to simulate shutting the well in at a particular time.
+
+For example:
+
+.. code-block:: json
+
+   {"source": [{"cell": 10,
+                "deliverability": {"pressure": 2e5, "productivity": 1e-12},
+                "direction": "production",
+                "factor": [[0, 1], [3.15576e7, 0.95], [6.31152e7, 0.73], [9.46728e7, 0.89]]}
+              ]}
+
+specifies a production well on deliverability, with a declining scale factor applied over the first three years of production. Here no parameters are specified for interpolation or averaging, so the defaults (linear interpolation, integration averaging) are used for both flow rates and the scale factor.
+
+The following example uses step interpolation to simulate shutting in a deliverability well at time 10\ :sup:`8` seconds:
+
+.. code-block:: json
+
+   {"source": [{"cell": 10,
+                "deliverability": {"pressure": 2e5, "productivity": 1e-12},
+                "direction": "production",
+                "factor": {"time": [[0, 1], [1e8, 0]], "interpolation": "step"}}
+              ]}
+
+.. combining controls / hierarchy of controls?
 
 .. source may change between injection and production (production_component value?)
 
