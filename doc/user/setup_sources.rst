@@ -364,10 +364,8 @@ When the "type" value is "water" or "steam", a simple separator is simulated to 
 
 .. math::
 
-   \begin{align}
    q_s & = f q \\
    q_w & = (1 - f) q
-   \end{align}
 
 where :math:`f` is the steam fraction, calculated from:
 
@@ -383,10 +381,8 @@ where the steam and water enthalpies :math:`h_s`, :math:`h_w` are calculated fro
 
 .. math::
 
-   \begin{align}
    h_s & = U_s + P_0 / \rho_s \\
    h_w & = U_w + P_0 / \rho_w \\
-   \end{align}
 
 The example below specifies a source on deliverability, with a simple limit of 5.1 kg/s on the total flow rate. (Because it is the total flow being limited, there is no need to specify a separator pressure.) 
 
