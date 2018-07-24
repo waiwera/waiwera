@@ -1,3 +1,5 @@
+.. _setup_logfile:
+
 **********
 Log output
 **********
