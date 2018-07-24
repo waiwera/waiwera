@@ -1,3 +1,5 @@
+.. index:: Waiwera; simulation, simulation
+
 *******************************
 Setting up a Waiwera simulation
 *******************************

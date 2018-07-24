@@ -1,3 +1,4 @@
+.. index:: interpolation tables
 .. _interpolation_tables:
 
 ********************
@@ -21,6 +22,7 @@ Typically, it is necessary to perform two kinds of operation on the tabulated va
 
 Waiwera provides different options for both interpolation and averaging of tabulated data. Different options may be appropriate depending on the quantity represented by the data.
 
+.. index:: interpolation tables; interpolation
 .. _table_interpolation:
 
 Interpolation
@@ -53,6 +55,7 @@ For example:
 
 specifies a source with step interpolation on the flow rate table.
 
+.. index:: interpolation tables; averaging
 .. _table_averaging:
 
 Averaging

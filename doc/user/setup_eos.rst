@@ -1,3 +1,4 @@
+.. index:: equation of state (EOS), simulation; EOS
 .. _eos:
 
 *****************
@@ -40,6 +41,7 @@ The equation of state modules included in Waiwera are described below.
 Water EOS modules
 =================
 
+.. index:: equation of state (EOS); water ("w")
 .. _water_eos:
 
 Water ("w")
@@ -67,6 +69,7 @@ For example:
 
 Fluid properties are calculated directly from the thermodynamic formulation for water (see :ref:`water_thermodynamics`), at the specified temperature.
 
+.. index:: equation of state (EOS); water / energy ("we")
 .. _water_energy_eos:
 
 Water and energy ("we")
@@ -98,6 +101,8 @@ The primary variables for these EOS modules are as for the water / energy EOS, b
 
 .. add detail on how NCG mixture EOS modules work? - using Henry's derivative to compute energy of solution etc.
 
+.. index:: equation of state (EOS); water / air / energy ("wae")
+
 Water, air and energy ("wae")
 -----------------------------
 
@@ -113,7 +118,9 @@ Water, air and energy ("wae")
    * **default primary variables**: [10\ :sup:`5` Pa, 20 :math:`^{\circ}`\ C, 0 Pa]
    * **default region**: 1 (liquid)
    * **default output fluid fields**: ["pressure", "temperature", "region", "air_partial_pressure", "vapour_saturation"]
-       
+
+.. index:: equation of state (EOS); water / air / carbon dioxide ("wce")
+
 Water, carbon dioxide and energy ("wce")
 ----------------------------------------
 

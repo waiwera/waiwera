@@ -1,12 +1,10 @@
+.. index:: Waiwera; numerical methods, numerical methods
+
 *****************
 How Waiwera works
 *****************
 
-.. focus on what user needs to know about to set up simulation and interpret results
-
-.. two-point flux approximation, upstream weighting?
-.. MINC for fractured media?
-
+.. index:: conservation equations
 .. _conservation_equations:
 
 Mass and energy conservation equations
@@ -27,6 +25,7 @@ where :math:`c = 1,\ldots C+1` (and :math:`C` is the number of mass components, 
 
 For component :math:`c`, :math:`M^c` is the mass or energy density in :math:`V_n`, :math:`\mathbf{F^c}` is the flux and :math:`q^c` represents source or sink terms (per unit volume).
 
+.. index:: numerical methods; finite volume discretisation
 .. _finite_volume_discretisation:
 
 Finite volume discretisation
@@ -55,6 +54,7 @@ Then the discretised conservation equations for cell :math:`V_n` can be written:
 
    \frac{d}{dt} M_n^c = \frac{1}{V_n} \sum_m {A_{nm} F_{nm}^c} + q_n^c
 
+.. index:: thermodynamics; primary variables, primary variables
 .. _primary_variables:
 
 Primary variables
@@ -67,6 +67,8 @@ For example, for non-isothermal pure water simulations, there is just one mass c
 However, for two-phase conditions, the pressure and temperature are not independent, as they are related via the saturation curve. Hence, they cannot be used as primary variables to describe the thermodynamic state. For two-phase conditions, Waiwera uses pressure and vapour saturation as primary variables.
 
 Because the choice of primary variables depends on the phase conditions, when the fluid in a cell changes phase, the primary variables must be changed.
+
+.. index:: numerical methods; time evolution
 
 Time evolution
 ==============
@@ -93,6 +95,7 @@ Waiwera contains a module for the numerical solution of ordinary differential eq
 
 where :math:`t^n` is the :math:`n^{th}` discretised time, and :math:`\Delta t` is the time step size, so that :math:`t^{n+1} = t^n + \Delta t`. For the backwards Euler method, at each time step we must solve equation :eq:`beuler` for the unknown new solution :math:`\mathbf{Y}^{n+1}`.
 
+.. index:: numerical methods; function evaluations
 .. _function_evaluations:
 
 Function evaluations
@@ -141,6 +144,7 @@ For the gravity term, Waiwera calculates the effective phase density on the face
 
 where :math:`S_p^1`, :math:`S_p^2` are the phase saturations in the two cells, and :math:`\rho_p^1`, :math:`\rho_p^2` are the corresponding phase densities. This formulation ensures a smooth variation in effective phase density on the face when the adjoining cells change phase. If both adjoining cells have the same saturation (e.g. in single-phase conditions) then this weighted average reduces to a simple arithmetic average.
 
+.. index:: numerical methods; solution of equations, solution of equations
 
 Solution of equations at each time step
 =======================================
@@ -151,6 +155,8 @@ Regardless of the time stepping method used, the discretised equations to be sol
    :label: fx0
 
    f(\mathbf{y}) = \mathbf{0}
+
+.. index:: solution of equations; non-linear
 
 then at each time step we must solve this for the solution :math:`\mathbf{y} = \mathbf{Y}^{n+1}`. Because of the non-linearity, it must be solved numerically using a non-linear solution technique such as Newton's method. This is an iterative method which starts from an initial estimate of the solution (here taken as :math:`\mathbf{y} = \mathbf{Y}^n`) and adjusts the provisional solution :math:`\mathbf{y}` at each iteration until equation :eq:`fx0` is satisfied, to within a pre-specified tolerance.
 
@@ -163,8 +169,14 @@ At each iteration, Newton's method adds an update :math:`\Delta \mathbf{y}` to t
 
 where :math:`\mathbf{J}` is the Jacobian matrix of the function :math:`f`, i.e. the matrix of partial derivatives of :math:`f` with respect to :math:`\mathbf{y}`.
 
+.. index:: solution of equations; linear
+
 At each iteration, the Newton update equation :eq:`newton` represents a large, sparse system of linear equations to be solved numerically. "Krylov subspace" iterative methods (e.g. conjugate gradient methods) are appropriate for solving such systems. For typical simulations of large problems, most of the computation time is spent in the solution of the linear equations.
 
+.. index:: PETSc; SNES
+
 Waiwera uses the "SNES" non-linear solver provided by the `PETSc <https://www.mcs.anl.gov/petsc/>`_ library to solve equation :eq:`fx0` at each time step. For problems in which the Jacobian matrix :math:`\mathbf{J}` is difficult to calculate, the SNES solver offers an option to calculate it automatically using finite differencing. In this case the Jacobian partial derivatives are evaluated approximately by adding small increments onto the primary variable vector :math:`\mathbf{y}` and re-evaluating the function :math:`f`. Waiwera makes use of this approach to calculate the Jacobian matrix.
+
+.. index:: PETSc; KSP
 
 The SNES solver in turn makes use of the "KSP" suite of linear solvers, also provided by PETSc, to solve the linear system :eq:`newton` at each Newton iteration.

@@ -1,3 +1,5 @@
+.. index:: simulation; gravity, gravity
+
 *******
 Gravity
 *******

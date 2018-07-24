@@ -1,3 +1,5 @@
+.. index:: simulation; title
+
 *****************
 Simulation title
 *****************

@@ -1,3 +1,4 @@
+.. index:: simulation; sources, sources
 .. _source_terms:
 
 ************
@@ -66,6 +67,8 @@ Source cells
 
 Each source specification object has a **"cell"** value which can be used to specify a single cell index. There is also a **"cells"** value which can be either an integer (in which case it works exactly the same way as the "cell" value) or an array of cell indices, if multiple sources are to be set up in different cells but with the same parameters.
 
+.. index:: sources; injection
+
 Injection
 =========
 
@@ -95,6 +98,8 @@ For example:
 
 specifies 1 kW heat sources in three different cells.
 
+.. index:: sources; production
+
 Production
 ==========
 
@@ -122,6 +127,7 @@ As for injection, it is also possible to produce heat only, rather than mass (e.
 
 specifies three sources each extracting 1 kW of heat.
 
+.. index:: sources; mixed flow
 .. _mixed_flow:
 
 Mixed flow
@@ -133,6 +139,7 @@ For mixed-flow sources, it is possible to specify the production component indep
 
 Note that it is not necessary to set the "production_component" value except in this special case of mixed-flow sources with different components for production and injection. In all other cases, setting the "component" value by itself is sufficient.
 
+.. index:: sources; controls, source controls
 .. _source_controls:
 
 Source controls
@@ -141,6 +148,8 @@ Source controls
 In many cases, it is necessary to simulate sources with flow rates (and possibly enthalpies, for injection) that vary with time. To do this, a variety of different "source controls" may be added to a source, depending on what type of time variation is needed.
 
 These may be straight-forward controls in which the time variation is simply prescribed, or dynamic controls which vary flow rates in response to fluid conditions in the cell, or other factors. Most types of controls may be combined together to simulate more complex source behaviour (see :ref:`combining_source_controls`).
+
+.. index:: source controls; table
 
 Tables
 ------
@@ -184,6 +193,7 @@ The flow rate and / or enthalpy can equivalently be specified not as arrays but 
 
 This alternative syntax is generally not needed, but is provided for consistency with other data that may be specified as tables in which the independent variable can either be time or another quantity.
 
+.. index:: source controls; deliverability
 .. _deliverability:
 
 Deliverability
@@ -292,6 +302,7 @@ This source has a table of specified flow rates vs. time, but switches to delive
       "deliverability": {"pressure": 1e5, "productivity": 1e-12, "threshold": 2e5}}
    ]}
 
+.. index:: source controls; recharge
 .. _recharge:
 
 Recharge
@@ -348,6 +359,7 @@ For example, the source below has a recharge control with reference pressure set
      {"cell": 200, "recharge": {"pressure": "initial", "coefficient": 1e-3}}
    ]}
 
+.. index:: source controls; limiter
 .. _limiter:
 
 Limiter
@@ -419,6 +431,7 @@ Here is the same source but with a limit of 3.5 kg/s on the steam flow, and the 
       "limiter": {"limit": 3.5, "type": "steam", "separator_pressure": 50e5}}
    ]}
 
+.. index:: source controls; direction
 .. _direction:
 
 Direction
@@ -449,6 +462,7 @@ specifies a recharge source that can only flow into the model, not out. A direct
                 "direction": "production"}
               ]}
 
+.. index:: source controls; factor
 .. _factor:
 
 Factor
@@ -486,6 +500,7 @@ The following example uses step interpolation to simulate shutting in a delivera
                 "factor": {"time": [[0, 1], [1e8, 0]], "interpolation": "step"}}
               ]}
 
+.. index:: source controls; combining
 .. _combining_source_controls:
 
 Combining source controls

@@ -1,3 +1,5 @@
+.. index:: Waiwera; JSON file structure
+
 ===========================
 Waiwera JSON file structure
 ===========================
@@ -40,5 +42,7 @@ The various aspects of the simulation are specified by different named values wi
    +-----------------+-----------------+--------------------------+
    |"output"         |boolean | object |output results file       |
    +-----------------+-----------------+--------------------------+
+
+.. index:: JSON; schema
 
 The exact structure of a Waiwera input JSON file is defined by the JSON `schema <http://json-schema.org/>`_ included in the `utils/` directory of the Waiwera source code.

@@ -1,3 +1,5 @@
+.. index:: simulation; initial conditions, initial conditions
+
 ******************
 Initial conditions
 ******************
@@ -6,10 +8,15 @@ Before the simulation can run, the :ref:`primary_variables` in each cell at the 
 
 There are two ways of doing this. However, both ways specify the initial conditions via the **"initial"** value in the Waiwera JSON input file, and in both cases this value is an object (although some of its values are different in each case).
 
+.. index:: initial conditions; in JSON input file
+
 Specifying initial conditions in the JSON input file
 ----------------------------------------------------
 
 It is possible to specify initial conditions directly in the Waiwera JSON input file. Normally this is practical only for relatively small models.
+
+.. index::
+   pair: MINC; initial conditions
 
 .. note::
    **JSON object**: initial condition specification in JSON input file
@@ -82,12 +89,17 @@ The next example demonstrates different primary variables and regions being assi
     "region": [4, 4, 1, 1]}
    }
 
+.. index:: initial conditions; restarting
+
 Restarting from a previous output file
 --------------------------------------
 
 Waiwera saves its results to an HDF5 output file (see :ref:`setup_output`), and a new simulation can be restarted directly from the output of a previous run, using it as initial conditions.
 
 In this case, the "initial" object in the JSON input file for the restarted simulation takes a different form.
+
+.. index::
+   pair: MINC; initial conditions
 
 .. note::
    **JSON object**: restart initial condition specification
@@ -119,6 +131,8 @@ For example:
    {"initial": {"filename": "previous_run.h5", "index": 99}}
 
 restarts a simulation from a Waiwera HDF5 output file named "previous_run.h5", starting from the set of results in the file with zero-based index 99.
+
+.. index:: initial conditions; default
 
 Default initial conditions
 --------------------------

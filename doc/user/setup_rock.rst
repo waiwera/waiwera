@@ -1,3 +1,5 @@
+.. index:: rock
+
 ***************
 Rock parameters
 ***************
@@ -32,11 +34,14 @@ The rock value is an object, and may contain the values shown below.
    |                       |              |                      |                       |
    +-----------------------+--------------+----------------------+-----------------------+
 
+.. index:: simulation; rock properties, rock; properties
+
 Rock properties
 ===============
 
 Each cell in the Waiwera simulation mesh contains rock with particular physical properties (e.g. permeability, porosity etc.). The rock properties may potentially be different in each cell.
 
+.. index:: rock; types
 .. _rock_types:
 
 Rock types
@@ -81,6 +86,7 @@ Rock types may be specified in the Waiwera JSON input file via the **"rock.types
     |                  |              |                      |type                              |
     +------------------+--------------+----------------------+----------------------------------+
 
+.. index:: rock; permeability
 .. _rock_permeability:
 
 Rock permeability
@@ -99,6 +105,8 @@ For example:
             "permeability_angle": 30}}
 
 rotates the permeability axes anti-clockwise in the horizontal plane by 30\ :math:`^{\circ}`.
+
+.. index:: mesh; faces
 
 In addition, individual face permeability directions can be manually overridden, via the **"mesh.faces"** value (see :ref:`specifying_mesh`). This value is an array of objects, each of which has a **"cells"** array value containing the indices of the two cells on either side of the face. There is also a **"permeability_direction"** value which specifies the integer permeability direction for the face, overriding the default value.
 
@@ -139,6 +147,7 @@ It is possible to specify both cells and zones for a rock type, in which case al
 
 If there are any cells not assigned to any rock type, they will be given default rock properties (as shown above under :ref:`rock_types`).
 
+.. index:: rock; relative permeability, relative permeability
 .. _relative_perm:
 
 Relative permeability curves
@@ -151,6 +160,8 @@ In the equation for mass flux through the cell faces (see :ref:`function_evaluat
 A variety of different types of relative permeability curves have been proposed. Waiwera offers several of these, and allows the desired curves to be specified in the JSON input file via the **"rock.relative_permeability"** value. This value is an object, containing a **"type"** string value which selects the type of curves, along with other parameters which depend on the curve type.
 
 The different types of relative permeability curves available in Waiwera are described below.
+
+.. index:: relative permeability; fully mobile
 
 Fully mobile
 ------------
@@ -173,7 +184,9 @@ For example:
 .. code-block:: json
 
   {"rock": {"relative_permeability": {"type": "fully mobile"}}}
- 
+
+.. index:: relative permeability; linear
+
 Linear
 ------
 
@@ -215,6 +228,8 @@ specifies linear relative permeability curves for both liquid and vapour phases,
 
 Hence, in this example, for liquid saturations below 0.1 the liquid phase is immobile, while the vapour phase is fully mobile (as the vapour saturation is above 0.9). Conversely, for liquid saturations above 0.9 the liquid phase is fully mobile but the vapour phase is immobile.
 
+.. index:: relative permeability; Pickens
+
 Pickens
 -------
 
@@ -243,6 +258,8 @@ For example:
   {"rock": {"relative_permeability": {"type": "pickens", "power": 1.5}}}
 
 specifies Pickens curves with the power-law exponent :math:`\alpha = 1.5`.
+
+.. index:: relative permeability; Corey
 
 Corey
 -----
@@ -300,6 +317,8 @@ For example:
 
 specifies Corey relative permeability curves with :math:`S_{lr} = 0.4` and :math:`S_{sr} = 0.1`.
 
+.. index:: relative permeability; Grant
+
 Grant
 -----
 
@@ -323,6 +342,8 @@ In the Waiwera JSON input file, the **"type"** value of the relative permeabilit
    +------------+------------+------------+-------------------------+
    |"ssr"       |number      |0.6         |:math:`S_{sr}` parameter |
    +------------+------------+------------+-------------------------+
+
+.. index:: relative permeability; Van Genuchten
 
 Van Genuchten
 -------------
@@ -396,6 +417,8 @@ For example:
 
 specifies Van Genuchten relative permeability curves with :math:`\lambda = 0.4` and all other parameters left at their default values.
 
+.. index:: relative permeability; table
+
 Table
 -----
 Setting the relative permeability **"type"** value to "table" allows specification of relative permeability curves defined as general piecewise-linear tables. For each phase :math:`p`, the relative permeability curve is specified as a table of :math:`(S_p, k_r^p)` values. In the Waiwera JSON input file these tables take the form of rank-2 arrays (i.e. arrays of arrays), specified via the **"liquid"** and **"vapour"** values.
@@ -436,6 +459,7 @@ specifies both liquid and vapour relative permeability curves as in the figure b
 
            Example table relative permeability curves
 
+.. index:: rock; capillary pressure, capillary pressure
 .. _capillarity:
 
 Capillary pressure functions
@@ -446,6 +470,8 @@ Waiwera can optionally include capillary pressure effects when calculating press
 As for relative permeability curves, a variety of different capillary pressure functions have been proposed, and Waiwera offers several of them. The desired capillary pressure function is specified in the Waiwera JSON input file via the **"rock.capillary_pressure"** value. This value is an object (or ``null``), containing a **"type"** string value which selects the type of function, along with other parameters which depend on the function type.
 
 The different types of capillary pressure functions available in Waiwera are described below.
+
+.. index:: capillary pressure; zero
 
 Zero
 ----
@@ -476,6 +502,8 @@ or
   {"rock": {"capillary_pressure": null}}
 
 both disable capillary pressure effects.
+
+.. index:: capillary pressure; linear
 
 Linear
 ------
@@ -516,6 +544,8 @@ gives the linear capillary pressure curve shown in the figure below.
            :align: center
 
            Example linear capillary pressure function
+
+.. index:: capillary pressure; Van Genuchten
 
 Van Genuchten
 -------------
@@ -573,6 +603,8 @@ For example:
   {"rock": {"capillary_pressure": {"type": "van genuchten", "lambda": 0.5}}}
 
 gives the Van Genuchten capillary pressure function with :math:`\lambda = 0.5`, no :math:`P_{max}` parameter applied, and all other parameters left at their default values.
+
+.. index:: capillary pressure; table
 
 Table
 -----

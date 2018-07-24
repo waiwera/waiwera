@@ -1,3 +1,5 @@
+.. index:: Waiwera; input
+
 *************
 Waiwera input
 *************

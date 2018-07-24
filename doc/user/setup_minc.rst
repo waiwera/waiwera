@@ -1,3 +1,4 @@
+.. index:: MINC, fractured media
 .. _minc:
 
 ************************************

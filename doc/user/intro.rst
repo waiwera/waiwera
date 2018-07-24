@@ -2,6 +2,8 @@
 Introduction
 ************
 
+.. index:: Waiwera
+
 What is Waiwera?
 ================
 
@@ -13,6 +15,8 @@ Waiwera is a numerical simulator for subsurface flows in porous media. It featur
 * Object-oriented code written in Fortran 2003    
 * Uses standard file formats for input (`JSON <http://www.json.org/>`_) and output (`HDF5 <https://support.hdfgroup.org/HDF5/>`_, `YAML <http://www.yaml.org/about.html>`_)
 
+.. index:: Waiwera; name
+
 What does the name mean?
 ========================
 
@@ -22,6 +26,8 @@ Where was Waiwera developed?
 ============================
 
 Waiwera was developed at the University of Auckland's `Geothermal Institute <http://www.geothermal.auckland.ac.nz/>`_, in collaboration with `GNS Science <https://www.gns.cri.nz/>`_. The project was funded primarily by a grant from the New Zealand Ministry of Business, Innovation and Employment (`MBIE <http://www.mbie.govt.nz/>`_), with additional support from `Contact Energy Ltd <https://contact.co.nz/corporate>`_.
+
+.. index:: Waiwera; license
 
 Licensing
 =========

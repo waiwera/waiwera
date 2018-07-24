@@ -1,6 +1,10 @@
+.. index:: simulation; boundary conditions, boundary conditions
+
 *******************
 Boundary conditions
 *******************
+
+.. index:: boundary conditions; Dirichlet
 
 Dirichlet boundary conditions
 =============================
@@ -84,6 +88,7 @@ In this example:
 
 two boundaries are set up, the first again on four faces at the top surface of the mesh and with liquid conditions. Because the water, air and energy EOS is used, the region 1 boundary conditions specify pressure, temperature and air partial pressure. The second boundary sets two-phase conditions (pressure, vapour saturation and air partial pressure) with zero partial pressure of air on a horizontal boundary in the positive :math:`x`\ -direction.
 
+.. index:: boundary conditions; Neumann
 .. _neumann_boundary_conditions:
 
 Neumann boundary conditions

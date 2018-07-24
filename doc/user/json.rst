@@ -1,6 +1,10 @@
+.. index:: JSON
+
 ***********************
 Working with JSON files
 ***********************
+
+.. index:: JSON; editing
 
 Editing JSON files
 ==================
@@ -11,10 +15,14 @@ JSON syntax makes a lot of use of brackets and braces (see below), so another us
 
 There is also dedicated software designed specifically for editing JSON files, which can take care of much of the syntax for you. Examples include `JSON editor online <https://jsoneditoronline.org/>`_.
 
+.. index:: JSON; parsing
+
 Parsing JSON files
 ==================
 
 Many scripting and programming languages are able to parse JSON files (either directly or via add-on libraries), so that the JSON file contents can then be manipulated using a script or program. For example, the Python scripting language has a built-in ``json`` module for this.
+
+.. index:: JSON; structure
 
 JSON file structure
 ===================
@@ -23,6 +31,8 @@ JSON files can be structured in a **hierarchical** way, so that larger data stru
 
 JSON allows some **flexibility** in the way data are specified. For example, data may sometimes be specified in different ways, depending on the problem. Also, some data may not be required to be present, and can be given default values if they are absent.
 
+.. index:: JSON; data structures
+
 JSON data structures
 ====================
 
@@ -30,12 +40,18 @@ The data structures representable in JSON are defined in detail on the `JSON web
 
 The two main JSON data structures are the **array** and the **object**.
 
+.. index:: JSON; arrays
+
 JSON arrays
 -----------
 
 An **array** is an ordered collection of values, beginning and ending with square brackets (``[ ]``), and with the values delimited by commas. (If you are familiar with the Python scripting language, this structure is known in Python as a "list".)
 
+.. index:: JSON; strings, JSON; numbers, JSON; boolean, JSON; null
+
 The values in the array may be character **strings** (enclosed by double quotes), **numbers** (integer or floating point), **boolean** values (``true`` or ``false``) or **null** values (``null``). In addition (and importantly), the values may themselves be arrays or objects. The values in an array do not all have to be of the same type.
+
+.. index:: JSON; objects
 
 JSON objects
 ------------
@@ -62,10 +78,14 @@ Here is a more complex example of an object with a mix of different value types 
 
 Given a JSON object which contains a sub-object, it is sometimes convenient to refer to values inside the sub-object directly. This is done by using a JSON **path**, consisting of the value names joined together with dots between them. So in the above example we might refer to the value "dimensions.width", which in this case would have the value 14.8.
 
+.. index:: JSON; layout
+
 JSON file layout
 ================
 
 The exact positions of the data structures in a JSON file are not important. Arrays and object are delimited by brackets or braces as described above, and values are separated by commas, so the data can be located anywhere on each line. Usually they are arranged in a way that is easy for the user to read.
+
+.. index:: JSON; validation
 
 JSON validation
 ===============
@@ -73,6 +93,8 @@ JSON validation
 If you are editing a JSON file manually using a text editor, particularly if it contains complex nested data structures, it can be easy to make small syntactical mistakes, e.g. forgetting a closing bracket. JSON is not forgiving of such mistakes, so it is often wise to **validate** a JSON file before using it.
 
 There are software tools available to check if a the contents of a file are valid JSON, and point out any errors. There are JSON validation tools available inside some text editors, or as stand-alone tools, or as online tools such as `this <https://jsonlint.com/>`_ one.
+
+.. index:: JSON; schema
 
 Validation against a JSON schema
 ================================
