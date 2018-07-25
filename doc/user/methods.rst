@@ -69,6 +69,7 @@ However, for two-phase conditions, the pressure and temperature are not independ
 Because the choice of primary variables depends on the phase conditions, when the fluid in a cell changes phase, the primary variables must be changed.
 
 .. index:: numerical methods; time evolution
+.. _time_evolution:
 
 Time evolution
 ==============
@@ -78,20 +79,20 @@ The discretised conservation equations :eq:`discretised_conservation` are of the
 .. math::
    :label: RLeqn
 
-   \frac{d}{dt} \mathit{L}(t, \mathbf{Y}) = \mathit{R}(t, \mathbf{Y})
+   \frac{d}{dt} \mathbf{L}(t, \mathbf{Y}) = \mathbf{R}(t, \mathbf{Y})
 
-where :math:`t` is time and :math:`\mathbf{Y}` is the vector of primary variables for all cells in the simulation mesh (of total length :math:`N(C+1)`). Here :math:`L` represents the cell-averaged mass and energy balances, as a function of time and the primary thermodynamic variables. Similarly, :math:`R` represents inflows into the cells (per unit volume) from flows through the cell faces, together with sources and sinks within the cell.
+where :math:`t` is time and :math:`\mathbf{Y}` is the vector of primary variables for all cells in the simulation mesh (of total length :math:`N(C+1)`). Here :math:`\mathbf{L}` represents the cell-averaged mass and energy balances, as a function of time and the primary thermodynamic variables. Similarly, :math:`\mathbf{R}` represents inflows into the cells (per unit volume) from flows through the cell faces, together with sources and sinks within the cell.
 
 Solving the set of ordinary differential equations :eq:`RLeqn` with respect to time, we can compute the time evolution of :math:`\mathbf{Y}`, the thermodynamic state of the entire discretised simulation domain.
 
-For solving the conservation equations, :math:`L` and :math:`R` are complex, non-linear functions of the primary variables :math:`\mathbf{Y}`. Hence equation :eq:`RLeqn` must be solved numerically, computing the solution :math:`\mathbf{Y}` at discrete times.
+For solving the conservation equations, :math:`\mathbf{L}` and :math:`\mathbf{R}` are complex, non-linear functions of the primary variables :math:`\mathbf{Y}`. Hence equation :eq:`RLeqn` must be solved numerically, computing the solution :math:`\mathbf{Y}` at discrete times.
 
 Waiwera contains a module for the numerical solution of ordinary differential equations of the form :eq:`RLeqn`, using different numerical methods. The simplest of these is the 'backwards Euler' method, which discretises equation :eq:`RLeqn` as follows:
 
 .. math::
    :label: beuler
 
-   \frac{L(t^{n+1}, \mathbf{Y}^{n+1}) - L(t^n, \mathbf{Y}^n)}{\Delta t} \approx R(t^{n+1}, \mathbf{Y}^{n+1})
+   \frac{\mathbf{L}(t^{n+1}, \mathbf{Y}^{n+1}) - \mathbf{L}(t^n, \mathbf{Y}^n)}{\Delta t} = \mathbf{R}(t^{n+1}, \mathbf{Y}^{n+1})
 
 where :math:`t^n` is the :math:`n^{th}` discretised time, and :math:`\Delta t` is the time step size, so that :math:`t^{n+1} = t^n + \Delta t`. For the backwards Euler method, at each time step we must solve equation :eq:`beuler` for the unknown new solution :math:`\mathbf{Y}^{n+1}`.
 
@@ -101,7 +102,7 @@ where :math:`t^n` is the :math:`n^{th}` discretised time, and :math:`\Delta t` i
 Function evaluations
 ====================
 
-Waiwera needs to evaluate the functions :math:`L` and :math:`R` for any given set of primary variables (and time). The function :math:`L`, representing the mass and energy densities :math:`M_n^c` in the cells, is relatively straightforward to evaluate, by summing the contributions of the different phases. Considering a particular cell:
+Waiwera needs to evaluate the functions :math:`\mathbf{L}` and :math:`\mathbf{R}` for any given set of primary variables (and time). The function :math:`\mathbf{L}`, representing the mass and energy densities :math:`M_n^c` in the cells, is relatively straightforward to evaluate, by summing the contributions of the different phases. Considering a particular cell:
 
 .. math::
 
@@ -113,7 +114,7 @@ Waiwera needs to evaluate the functions :math:`L` and :math:`R` for any given se
 
 where the :math:`p` subscripts refer to phases, and the :math:`r` subscripts refer to rock properties. Here :math:`\phi_n` is the porosity in the cell, :math:`S` is phase saturation, :math:`\rho` is density, :math:`X` is mass fraction, :math:`u` is internal energy density, :math:`c_r` is the rock specific heat and :math:`T` is temperature.
 
-The function :math:`R`, representing fluxes into the cells, has contributions from source and sink terms (which are easily evaluated), and from fluxes through faces. This latter contribution is computed by summing the component face fluxes in each phase:
+The function :math:`\mathbf{R}`, representing fluxes into the cells, has contributions from source and sink terms (which are easily evaluated), and from fluxes through faces. This latter contribution is computed by summing the component face fluxes in each phase:
 
 .. math::
 
@@ -144,7 +145,8 @@ For the gravity term, Waiwera calculates the effective phase density on the face
 
 where :math:`S_p^1`, :math:`S_p^2` are the phase saturations in the two cells, and :math:`\rho_p^1`, :math:`\rho_p^2` are the corresponding phase densities. This formulation ensures a smooth variation in effective phase density on the face when the adjoining cells change phase. If both adjoining cells have the same saturation (e.g. in single-phase conditions) then this weighted average reduces to a simple arithmetic average.
 
-.. index:: numerical methods; solution of equations, solution of equations
+.. index:: solver
+.. _nonlinear_equations:
 
 Solution of equations at each time step
 =======================================
@@ -154,9 +156,7 @@ Regardless of the time stepping method used, the discretised equations to be sol
 .. math::
    :label: fx0
 
-   f(\mathbf{y}) = \mathbf{0}
-
-.. index:: solution of equations; non-linear
+   \mathbf{f}(\mathbf{y}) = \mathbf{0}
 
 then at each time step we must solve this for the solution :math:`\mathbf{y} = \mathbf{Y}^{n+1}`. Because of the non-linearity, it must be solved numerically using a non-linear solution technique such as Newton's method. This is an iterative method which starts from an initial estimate of the solution (here taken as :math:`\mathbf{y} = \mathbf{Y}^n`) and adjusts the provisional solution :math:`\mathbf{y}` at each iteration until equation :eq:`fx0` is satisfied, to within a pre-specified tolerance.
 
@@ -165,18 +165,18 @@ At each iteration, Newton's method adds an update :math:`\Delta \mathbf{y}` to t
 .. math::
    :label: newton
 
-   \mathbf{J} \Delta \mathbf{y} = -f(\mathbf{y})
+   \mathbf{J} \Delta \mathbf{y} = -\mathbf{f}(\mathbf{y})
 
-where :math:`\mathbf{J}` is the Jacobian matrix of the function :math:`f`, i.e. the matrix of partial derivatives of :math:`f` with respect to :math:`\mathbf{y}`.
+where :math:`\mathbf{J}` is the Jacobian matrix of the function :math:`\mathbf{f}`, i.e. the matrix of partial derivatives of :math:`\mathbf{f}` with respect to :math:`\mathbf{y}`.
 
-.. index:: solution of equations; linear
+.. index:: solver; non-linear, numerical methods; non-linear equations
 
 At each iteration, the Newton update equation :eq:`newton` represents a large, sparse system of linear equations to be solved numerically. "Krylov subspace" iterative methods (e.g. conjugate gradient methods) are appropriate for solving such systems. For typical simulations of large problems, most of the computation time is spent in the solution of the linear equations.
 
 .. index:: PETSc; SNES
 
-Waiwera uses the "SNES" non-linear solver provided by the `PETSc <https://www.mcs.anl.gov/petsc/>`_ library to solve equation :eq:`fx0` at each time step. For problems in which the Jacobian matrix :math:`\mathbf{J}` is difficult to calculate, the SNES solver offers an option to calculate it automatically using finite differencing. In this case the Jacobian partial derivatives are evaluated approximately by adding small increments onto the primary variable vector :math:`\mathbf{y}` and re-evaluating the function :math:`f`. Waiwera makes use of this approach to calculate the Jacobian matrix.
+Waiwera uses the "SNES" non-linear solver provided by the `PETSc <https://www.mcs.anl.gov/petsc/>`_ library to solve equation :eq:`fx0` at each time step. For problems in which the Jacobian matrix :math:`\mathbf{J}` is difficult to calculate, the SNES solver offers an option to calculate it automatically using finite differencing. In this case the Jacobian partial derivatives are evaluated approximately by adding small increments onto the primary variable vector :math:`\mathbf{y}` and re-evaluating the function :math:`\mathbf{f}`. Waiwera makes use of this approach to calculate the Jacobian matrix.
 
-.. index:: PETSc; KSP
+.. index:: PETSc; KSP, solver; linear, numerical methods; linear equations
 
 The SNES solver in turn makes use of the "KSP" suite of linear solvers, also provided by PETSc, to solve the linear system :eq:`newton` at each Newton iteration.
