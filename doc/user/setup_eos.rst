@@ -12,7 +12,9 @@ Given the primary thermodynamic variables, the EOS module calculates bulk fluid 
 In the Waiwera JSON input file, the **"eos"** value specifies the equation of state module to be used for the simulation.
 
 .. note::
-   **JSON object**: eos
+   **JSON object**: equation of state
+
+   **JSON path**: eos
 
    +-------------+----------+-------------------+-----------------------+
    |**name**     |**type**  |**default**        |**value**              |

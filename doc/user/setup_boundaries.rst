@@ -21,6 +21,8 @@ As well as the primary variables, the thermodynamic region (see :ref:`thermodyna
 
    **JSON object**: boundary condition
 
+   **JSON path**: boundaries[`index`]
+
    +------------+---------------+------------+-------------------------+
    |**name**    |**type**       |**default** |**value**                |
    +------------+---------------+------------+-------------------------+
@@ -50,6 +52,8 @@ In either case, the faces are specified by a combination of cell indices and an 
 .. note::
 
    **JSON object**: boundary condition face specification
+
+   **JSON path**: boundaries[`index`]["faces"]
 
    +------------+------------+------------+-----------------------+
    |**name**    |**type**    |**default** |**value**              |

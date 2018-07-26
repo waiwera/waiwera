@@ -4,23 +4,13 @@
 Rock parameters
 ***************
 
-Parameters related to the details of the rock media for the simulation are specified in the Waiwera JSON input file via the **"rock"** value.
+Parameters related to the details of the rock media for the simulation are specified in the Waiwera JSON input file via the **"rock"** value. This value is an object, and may contain the values shown below.
 
 .. note::
 
-   +-----------------+-----------------+
-   | **JSON value**: | "rock"          |
-   +-----------------+-----------------+
-   | **type**:       | object          |
-   +-----------------+-----------------+
-   | **specifies**:  | rock parameters |
-   +-----------------+-----------------+
+   **JSON object**: rock properties
 
-The rock value is an object, and may contain the values shown below.
-
-.. note::
-
-   **JSON object**: rock
+   **JSON path**: rock
 
    +-----------------------+--------------+----------------------+-----------------------+
    |**name**               |**type**      |**default**           |**value**              |
@@ -54,6 +44,8 @@ Rock types may be specified in the Waiwera JSON input file via the **"rock.types
 .. note::
 
    **JSON object**: rock type
+
+   **JSON path**: rock.types[`index`]
 
     +------------------+--------------+----------------------+----------------------------------+
     |**name**          |**type**      |**default**           |**value**                         |
@@ -113,6 +105,8 @@ In addition, individual face permeability directions can be manually overridden,
 .. note::
 
    **JSON object**: mesh face
+
+   **JSON path**: mesh.faces[`index`]
    
    +------------------------+----------+-----------+----------------------------+
    |**name**                |**type**  |**default**|**value**                   |
@@ -172,6 +166,8 @@ This type of relative permeability curve maintains full mobility for all phases,
 
    **JSON object**: fully mobile relative permeability
 
+   **JSON path**: rock.relative_permeability
+
    +----------+----------+--------------+----------------------+
    |**name**  |**type**  |**default**   |**value**             |
    +----------+----------+--------------+----------------------+
@@ -197,6 +193,8 @@ For both liquid and vapour phases, the curves vary linearly from zero to one bet
 .. note::
 
    **JSON object**: linear relative permeability
+
+   **JSON path**: rock.relative_permeability
 
    +------------+------------+------------+----------------------------+
    |**name**    |**type**    |**default** |**value**                   |
@@ -238,6 +236,8 @@ For the Pickens-type relative permeability curves, chosen by setting the **"type
 .. note::
 
    **JSON object**: Pickens relative permeability
+
+   **JSON path**: rock.relative_permeability
 
    +------------+------------+------------+----------------------+
    |**name**    |**type**    |**default** |**value**             |
@@ -296,6 +296,8 @@ The two parameters :math:`S_{lr}` and :math:`S_{sr}` are specified in the Waiwer
 
    **JSON object**: Corey relative permeability
 
+   **JSON path**: rock.relative_permeability
+
    +------------+------------+------------+-------------------------+
    |**name**    |**type**    |**default** |**value**                |
    +------------+------------+------------+-------------------------+
@@ -329,6 +331,8 @@ In the Waiwera JSON input file, the **"type"** value of the relative permeabilit
 .. note::
 
    **JSON object**: Grant relative permeability
+
+   **JSON path**: rock.relative_permeability
 
    +------------+------------+------------+-------------------------+
    |**name**    |**type**    |**default** |**value**                |
@@ -387,6 +391,8 @@ where :math:`S_{sr}` is another specified constant parameter. Then the vapour re
 
    **JSON object**: Van Genuchten relative permeability
 
+   **JSON path**: rock.relative_permeability
+
    +------------+------------+----------------+--------------------------+
    |**name**    |**type**    |**default**     |**value**                 |
    +------------+------------+----------------+--------------------------+
@@ -426,6 +432,8 @@ Setting the relative permeability **"type"** value to "table" allows specificati
 .. note::
 
    **JSON object**: table relative permeability
+
+   **JSON path**: rock.relative_permeability
 
    +------------+------------+---------------+-----------------------------------+
    |**name**    |**type**    |**default**    |**value**                          |
@@ -482,6 +490,8 @@ Capillary pressure effects can be disabled by setting the **"type"** value of th
 
    **JSON object**: zero capillary pressure function
 
+   **JSON path**: rock.capillary_pressure
+
    +----------+----------+--------------+----------------------+
    |**name**  |**type**  |**default**   |**value**             |
    +----------+----------+--------------+----------------------+
@@ -515,6 +525,8 @@ When liquid saturation is below the lower limit, the capillary pressure is fixed
 .. note::
 
    **JSON object**: linear capillary pressure function
+
+   **JSON path**: rock.capillary_pressure
 
    +--------------------+------------+------------+-------------------------+
    |**name**            |**type**    |**default** |**value**                |
@@ -573,6 +585,8 @@ where :math:`P_0` and :math:`\lambda` are specified constant parameters (:math:`
 
    **JSON object**: Van Genuchten capillary pressure function
 
+   **JSON path**: rock.capillary_pressure
+
    +------------+------------+----------------+--------------------+
    |**name**    |**type**    |**default**     |**value**           |
    +------------+------------+----------------+--------------------+
@@ -614,6 +628,8 @@ Setting the capillary pressure **"type"** value to "table" allows specification 
 .. note::
 
    **JSON object**: table capillary pressure function
+
+   **JSON path**: rock.capillary_pressure
 
    +------------+------------+---------------+--------------------+
    |**name**    |**type**    |**default**    |**value**           |

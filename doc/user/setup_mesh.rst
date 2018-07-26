@@ -23,18 +23,7 @@ All mesh-related data in the Waiwera input JSON file is contained in the **"mesh
 * a string value specifying the mesh filename
 * an object, with a **"filename"** string value (and other optional values as well)
 
-.. index:: mesh; JSON value
-.. note::
-
-   +-----------------+-----------------+
-   | **JSON value**: | "mesh"          |
-   +-----------------+-----------------+
-   | **type**:       | string | object |
-   +-----------------+-----------------+
-   | **required**:   | ``true``        |
-   +-----------------+-----------------+
-   | **specifies**:  | simulation mesh |
-   +-----------------+-----------------+
+The "mesh" value is not optional -- there is no default; it must be specified.
 
 Examples:
 
@@ -53,6 +42,8 @@ Note that the mesh filename (specified in either of the above two ways) is a req
 .. note::
 
    **JSON object**: mesh
+
+   **JSON path**: mesh
 
    +--------------------+-----------+-------------------+-----------------------------------------+
    |**name**            |**type**   |**default**        |**value**                                |
@@ -193,6 +184,8 @@ If the zone definition is an object, it can optionally also contain a **"type"**
 
    **JSON object**: cell array zone
 
+   **JSON path**: mesh.zones[`name`]
+
    +----------+----------+-----------+--------------+
    |**name**  |**type**  |**default**|**value**     |
    +----------+----------+-----------+--------------+
@@ -230,6 +223,8 @@ The zone definition can optionally also contain a **"type"** string value, set t
 .. note::
 
    **JSON object**: box zone
+
+   **JSON path**: mesh.zones[`name`]
 
    +----------+----------+-----------+--------------+
    |**name**  |**type**  |**default**|**value**     |
@@ -295,6 +290,8 @@ The zone definition can optionally also contain a **"type"** string value, set t
 .. note::
 
    **JSON object**: combination zone
+
+   **JSON path**: mesh.zones[`name`]
 
    +----------+----------------+-----------+-------------+
    |**name**  |**type**        |**default**|**value**    |

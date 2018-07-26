@@ -14,20 +14,6 @@ Waiwera includes implementations of two different "thermodynamic formulations" f
 
 The Waiwera JSON input file has a **"thermodynamics"** string value, which can be set to either "IFC67" or "IAPWS" (either upper or lower case) to select the thermodynamic formulation. If not specified, the default is "iapws".
 
-.. note::
-
-   +-----------------+---------------------------------------+
-   | **JSON value**: | "thermodynamics"                      |
-   +-----------------+---------------------------------------+
-   | **type**:       | string                                |
-   +-----------------+---------------------------------------+
-   | **values**:     | "IFC67" | "ifc67" | "IAPWS" | "iapws" |
-   +-----------------+---------------------------------------+
-   | **default**:    | "iapws"                               |
-   +-----------------+---------------------------------------+
-   | **specifies**:  | water thermodynamics formulation      |
-   +-----------------+---------------------------------------+
-
 Example:
 
 .. code-block:: json

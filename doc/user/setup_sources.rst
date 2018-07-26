@@ -14,6 +14,8 @@ Sources are set up in the Waiwera JSON input file via the **"source"** value. Th
 .. note::
    **JSON object**: source specification
 
+   **JSON path**: source[`index`]
+
    +-----------------------+----------------+------------+-------------------------+
    |**name**               |**type**        |**default** |**value**                |
    +-----------------------+----------------+------------+-------------------------+
@@ -215,6 +217,8 @@ In the Waiwera JSON input file, a deliverability control is added to a source sp
 .. note::
    **JSON object**: deliverability source control
 
+   **JSON path**: source[`index`]["deliverability"]
+
    +---------------+-----------------+--------------+---------------------+
    |**name**       |**type**         |**default**   |**value**            |
    +---------------+-----------------+--------------+---------------------+
@@ -323,6 +327,8 @@ In the Waiwera JSON input file, a recharge control is added to a source specific
 .. note::
    **JSON object**: recharge source control
 
+   **JSON path**: source[`index`]["recharge"]
+
    +--------------+------------+------------+-------------------+
    |**name**      |**type**    |**default** |**value**          |
    +--------------+------------+------------+-------------------+
@@ -371,6 +377,8 @@ A limiter may be added to a source in the Waiwera JSON input file by specifying 
 
 .. note::
    **JSON object**: limiter source control
+
+   **JSON path**: source[`index`]["limiter"]
 
    +---------------------+------------+------------+------------------+
    |**name**             |**type**    |**default** |**value**         |

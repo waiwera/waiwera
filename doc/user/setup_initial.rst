@@ -21,6 +21,8 @@ It is possible to specify initial conditions directly in the Waiwera JSON input 
 .. note::
    **JSON object**: initial condition specification in JSON input file
 
+   **JSON path**: initial
+
    +------------+----------------+---------------+----------------------------+
    |**name**    |**type**        |**default**    |**value**                   |
    +------------+----------------+---------------+----------------------------+
@@ -103,6 +105,8 @@ In this case, the "initial" object in the JSON input file for the restarted simu
 
 .. note::
    **JSON object**: restart initial condition specification
+
+   **JSON path**: initial
    
    +------------+------------+----------------+----------------------------+
    |**name**    |**type**    |**default**     |**value**                   |
