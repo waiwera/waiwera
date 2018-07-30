@@ -156,18 +156,18 @@ Regardless of the time stepping method used, the discretised equations to be sol
 .. math::
    :label: fx0
 
-   \mathbf{f}(\mathbf{y}) = \mathbf{0}
+   \mathbf{r}(\mathbf{Y}) = \mathbf{0}
 
-then at each time step we must solve this for the solution :math:`\mathbf{y} = \mathbf{Y}^{n+1}`. Because of the non-linearity, it must be solved numerically using a non-linear solution technique such as Newton's method. This is an iterative method which starts from an initial estimate of the solution (here taken as :math:`\mathbf{y} = \mathbf{Y}^n`) and adjusts the provisional solution :math:`\mathbf{y}` at each iteration until equation :eq:`fx0` is satisfied, to within a pre-specified tolerance.
+then at each time step we must solve this for the solution :math:`\mathbf{Y} = \mathbf{Y}^{n+1}`. Because of the non-linearity, it must be solved numerically using a non-linear solution technique such as Newton's method. This is an iterative method which starts from an initial estimate of the solution (here taken as :math:`\mathbf{Y} = \mathbf{Y}^n`) and adjusts the provisional solution :math:`\mathbf{Y}` at each iteration until equation :eq:`fx0` is satisfied, to within a pre-specified tolerance.
 
-At each iteration, Newton's method adds an update :math:`\Delta \mathbf{y}` to the provisional solution :math:`\mathbf{y}` according to:
+At each iteration, Newton's method adds an update :math:`\Delta \mathbf{Y}` to the provisional solution :math:`\mathbf{Y}` according to:
 
 .. math::
    :label: newton
 
-   \mathbf{J} \Delta \mathbf{y} = -\mathbf{f}(\mathbf{y})
+   \mathbf{J} \Delta \mathbf{Y} = -\mathbf{r}(\mathbf{Y})
 
-where :math:`\mathbf{J}` is the Jacobian matrix of the function :math:`\mathbf{f}`, i.e. the matrix of partial derivatives of :math:`\mathbf{f}` with respect to :math:`\mathbf{y}`.
+where :math:`\mathbf{J}` is the Jacobian matrix of the function :math:`\mathbf{r}`, i.e. the matrix of partial derivatives of :math:`\mathbf{r}` with respect to :math:`\mathbf{Y}`.
 
 .. index:: solver; non-linear, numerical methods; non-linear equations
 
