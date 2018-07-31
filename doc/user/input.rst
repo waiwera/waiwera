@@ -1,5 +1,7 @@
 .. index:: Waiwera; input
 
+.. _waiwera_input:
+
 *************
 Waiwera input
 *************

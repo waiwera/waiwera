@@ -314,6 +314,7 @@ For example:
 sets up a steady-state simulation using adaptive time-stepping, with a starting time step size of 10\ :sup:`6` s and a large stop time of 10\ :sup:`15` s, which must be attained within 500 time steps.
 
 .. index:: numerical methods; non-linear equations, solver; non-linear, PETSc; SNES
+.. _nonlinear_solution:
 
 Solution of non-linear equations
 ================================

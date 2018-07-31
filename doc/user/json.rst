@@ -32,6 +32,7 @@ JSON files can be structured in a **hierarchical** way, so that larger data stru
 JSON allows some **flexibility** in the way data are specified. For example, data may sometimes be specified in different ways, depending on the problem. Also, some data may not be required to be present, and can be given default values if they are absent.
 
 .. index:: JSON; data structures
+.. _json_data_structures:
 
 JSON data structures
 ====================
