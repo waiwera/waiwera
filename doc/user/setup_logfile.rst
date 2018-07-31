@@ -1,3 +1,4 @@
+.. index:: log output, log output; YAML
 .. _setup_logfile:
 
 **********
@@ -18,6 +19,8 @@ Waiwera writes a log file with diagnostic information about the simulation as it
 
 Note that the log file does not contain simulation results. These are written out to the main :ref:`setup_output` results file, in a different format that is more appropriate for large quantities of numerical data.
 
+.. index:: YAML
+
 YAML format
 ===========
 
@@ -28,6 +31,8 @@ The reason YAML is used for the log output instead of JSON lies in the way it st
 This means that if the simulation is stopped prematurely it will not leave partly-written data structures (with missing end delimiters) in the log file which cannot be parsed.
 
 For more details on YAML, see the `YAML website <http://yaml.org/>`_.
+
+.. index:: log output; message structure
 
 Log message structure
 =====================
@@ -42,6 +47,8 @@ All messages written to the Waiwera log file have the same structure, with four 
 2) **source**: which part of the code has generated the message
 3) **event**: the event that the message is about
 4) **data**: supplementary data providing additional detail on the event
+
+.. index:: log output; message format
 
 Log message format
 ==================
@@ -104,6 +111,8 @@ Controlling log output
 
 Log output is enabled by default, with the filename of the log file formed from the filename of the JSON input file, but with the extension changed from ".json" to ".yaml". However, log output can be controlled by setting the **"logfile"** value in the JSON input file.
 
+.. index:: log output; disabling
+
 The "logfile" value can take a boolean value and be used simply to turn log output on or off, for example:
 
 .. code-block:: json
@@ -131,6 +140,8 @@ Alternatively, the "logfile" value can be specified as an object, with a **"file
    |            |            |                       |is echoed to      |
    |            |            |                       |console           |
    +------------+------------+-----------------------+------------------+
+
+.. index:: log output; message format
 
 The **"format"** object value controls the formatting of numerical data in the log output. Its **"max_num_length"** integer value specifies the maximum length (in characters) of a number, and its **"num_real_digits"** integer value specifies the number of digits after the decimal point in floating point numbers.
 
