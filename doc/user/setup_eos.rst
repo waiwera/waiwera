@@ -53,7 +53,7 @@ Water ("w")
 
    * **name**: "w"
    * **component names**: ["water"]
-   * **phase conditions**: liquid
+   * **phase names**: ["liquid"]
    * **primary variable names**: ["pressure"]
    * **default primary variables**: [10\ :sup:`5` Pa]
    * **default region**: 1 (liquid)
@@ -81,7 +81,7 @@ Water and energy ("we")
 
    * **name**: "we"
    * **component names**: ["water", "energy"]
-   * **phase conditions**: liquid, vapour, two-phase
+   * **phase names**: ["liquid", "vapour"]
    * **primary variable names**:
 
      * **liquid / vapour**: ["pressure", "temperature"]
@@ -104,6 +104,7 @@ The primary variables for these EOS modules are as for the water / energy EOS, b
 .. add detail on how NCG mixture EOS modules work? - using Henry's derivative to compute energy of solution etc.
 
 .. index:: equation of state (EOS); water / air / energy ("wae")
+.. _water_air_energy_eos:
 
 Water, air and energy ("wae")
 -----------------------------
@@ -112,7 +113,7 @@ Water, air and energy ("wae")
 
    * **name**: "wae"
    * **component names**: ["water", "air", "energy"]
-   * **phase conditions**: liquid, vapour, two-phase
+   * **phase names**: ["liquid", "vapour"]
    * **primary variable names**:
 
      * **liquid / vapour**: ["pressure", "temperature", "air_partial_pressure"]
@@ -130,7 +131,7 @@ Water, carbon dioxide and energy ("wce")
 
    * **name**: "wce"
    * **component names**: ["water", "CO2", "energy"]
-   * **phase conditions**: liquid, vapour, two-phase
+   * **phase names**: ["liquid", "vapour"]
    * **primary variable names**:
 
      * **liquid / vapour**: ["pressure", "temperature", "CO2_partial_pressure"]
