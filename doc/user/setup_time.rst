@@ -71,6 +71,7 @@ All parameters related to time-stepping are specified via the **"step"** value i
    +-----------------+------------+--------------+-----------------------+
 
 .. index:: time step; methods, numerical methods; time evolution
+.. _time_stepping_methods:
 
 Time stepping methods
 =====================
@@ -268,6 +269,8 @@ The time stepper can terminate in a number of ways:
 * if a time step fails to complete, and the time step size reduction process is repeated more than the maximum allowable number of tries specified by the **"time.step.maximum.tries"** value
 
 .. index:: time; steady state
+
+.. _steady_state:
 
 Steady-state simulations
 ========================

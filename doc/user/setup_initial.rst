@@ -92,6 +92,7 @@ The next example demonstrates different primary variables and regions being assi
    }
 
 .. index:: initial conditions; restarting
+.. _restarting:
 
 Restarting from a previous output file
 --------------------------------------

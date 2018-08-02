@@ -13,7 +13,7 @@ Waiwera is a numerical simulator for subsurface flows in porous media. It featur
 * Parallel execution on shared- or distributed-memory computers and clusters
 * Based on `PETSc <https://www.mcs.anl.gov/petsc/>`_ (Portable Extensible Toolkit for Scientific Computation)
 * Object-oriented code written in Fortran 2003    
-* Uses standard file formats for input (`JSON <http://www.json.org/>`_) and output (`HDF5 <https://support.hdfgroup.org/HDF5/>`_, `YAML <http://www.yaml.org/about.html>`_)
+* Uses standard file formats for input (`JSON <http://www.json.org/>`_) and output (`HDF5 <https://portal.hdfgroup.org/display/HDF5/HDF5>`_, `YAML <http://www.yaml.org/about.html>`_)
 
 .. index:: Waiwera; name
 

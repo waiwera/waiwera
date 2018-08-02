@@ -1,4 +1,4 @@
-.. index:: log output, log output; YAML
+.. index:: log output, log output; YAML, output; log
 .. _setup_logfile:
 
 **********
