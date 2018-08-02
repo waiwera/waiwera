@@ -16,7 +16,7 @@ which are written to the HDF5 file at specified times.
 
 Simulation output can be controlled via the **"output"** value in the Waiwera JSON input file. This can be specified as a boolean value, so that it is possible (though unusual) to disable simulation output by setting it to ``false``. In most cases, however, it is specified as an object.
 
-This object has a **"filename"** string value for specifying the filename of the simulation output. If this is not specified, then a default filename will be used, formed from the Waiwera JSON input filename but with the extension changed to ".h5". The other values in the "output" object control when results are output, and which fields are output.
+This object has a **"filename"** string value for specifying the filename of the simulation output. If this is not specified, then a default filename will be used, formed from the Waiwera JSON input filename but with the extension changed to ".h5". The other values in the "output" object control the times at which results are output, and which fluid and source properties are written.
 
 .. note::
    **JSON object**: simulation output
@@ -73,7 +73,7 @@ Setting the "frequency" value to zero disables regular output. This is usually d
 Initial and final output
 ========================
 
-The **"initial"** and **"final"** boolean values control whether results are output at the start and end of the simulation respectively. Both are set to ``true`` by default, so that the initial conditions are written to the output file, as well as the results after the final time step (regardless of whether this would have been written anyway as part of :ref:`regular_output`).
+The **"initial"** and **"final"** boolean values control whether results are output at the start and end of the simulation respectively. Both are set to ``true`` by default, so that the initial conditions are written to the output file, as well as the results after the final time step (regardless of whether this would have been written anyway).
 
 For example:
 
@@ -152,7 +152,7 @@ Checkpoints every 1000 s for the entire simulation could be specified by:
 
    {"output": {"checkpoint": {"time": [1000], "repeat": true}}}
 
-The **"tolerance"** value specifies a tolerance :math:`\epsilon` for detecting when the time-stepping algorithm has hit a checkpoint. This is a non-dimensional (i.e. relative) tolerance, with the absolute tolerance given by this value multiplied by the current time step size :math:`\Delta t^n` (see :ref:`time_stepping_methods`). Specifically, the next checkpoint time :math:`t_c` will be considered hit in the current time step if:
+The **"tolerance"** value specifies a tolerance :math:`\epsilon` for detecting when the time-stepping algorithm has hit a checkpoint. This is a non-dimensional (i.e. relative) tolerance, with the absolute tolerance given by this value multiplied by the current time step size :math:`\Delta t^n` (see :ref:`time_stepping_methods`). Specifically, the next checkpoint time :math:`t_c` will be hit in the current time step if:
 
 .. math::
 
@@ -160,7 +160,7 @@ The **"tolerance"** value specifies a tolerance :math:`\epsilon` for detecting w
 
 This tolerance is necessary for two reasons. Firstly, with no tolerance, detecting checkpoints would in some situations (e.g. when a checkpoint coincides nearly exactly with a simulated time :math:`t^n`) be subject to rounding errors, and therefore unreliable.
 
-Secondly, the tolerance can give better time-stepping behaviour if a time step happens to fall just short of a checkpoint time. Without the tolerance, the time step would be completed, and the size of the following time step would have to be reduced to a very small value to hit the checkpoint. With the tolerance, the time step size can instead be increased slightly so that it hits the checkpoint, with no need for a subsequent reduction. This is the reason the default tolerance is relatively large (10%), larger than would be otherwise needed simply to avoid rounding error issues.
+Secondly, the tolerance can give better time-stepping behaviour if a time step happens to fall just short of a checkpoint time. Without the tolerance, the time step would be completed, and the size of the following time step would have to be reduced to a very small value to hit the checkpoint. With the tolerance, the time step size can instead be increased slightly so that it hits the checkpoint, with no need for a subsequent reduction. This is the reason the default tolerance is relatively large (10%), larger than what would otherwise be needed simply to avoid rounding error issues.
 
 .. index:: output; fields
 .. _output_fields:
@@ -327,3 +327,10 @@ The next example specifies the water / air / energy EOS, with source output fiel
    {"eos": {"name": "wae"},
     "output": {"fields": {
                   "source": ["enthalpy", "water_flow", "air_flow"]}}}
+
+In this example all available fluid fields will be output:
+
+.. code-block:: json
+
+   {"eos": {"name": "we"},
+    "output": {"fields": {"fluid": "all"}}}
