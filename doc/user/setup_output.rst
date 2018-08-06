@@ -152,13 +152,13 @@ Checkpoints every 1000 s for the entire simulation could be specified by:
 
    {"output": {"checkpoint": {"time": [1000], "repeat": true}}}
 
-The **"tolerance"** value specifies a tolerance :math:`\epsilon` for detecting when the time-stepping algorithm has hit a checkpoint. This is a non-dimensional (i.e. relative) tolerance, with the absolute tolerance given by this value multiplied by the current time step size :math:`\Delta t^n` (see :ref:`time_stepping_methods`). Specifically, the next checkpoint time :math:`t_c` will be hit in the current time step if:
+The **"tolerance"** value specifies a tolerance :math:`\epsilon` for detecting when the time-stepping algorithm has hit a checkpoint. This is a non-dimensional (i.e. relative) tolerance, with the absolute tolerance given by this value multiplied by the current time step size :math:`\Delta t^n` (see :ref:`time_stepping_methods`). Specifically, the next checkpoint time :math:`t_c` will be hit (and the time step size altered to :math:`t_c - t^n`)  in the current time step if:
 
 .. math::
 
    t^n + (1 + \epsilon) \Delta t^n \ge t_c
 
-This tolerance is necessary for two reasons. Firstly, with no tolerance, detecting checkpoints would in some situations (e.g. when a checkpoint coincides nearly exactly with a simulated time :math:`t^n`) be subject to rounding errors, and therefore unreliable.
+This tolerance :math:`\epsilon` is necessary for two reasons. Firstly, with no tolerance, detecting checkpoints would in some situations (e.g. when a checkpoint coincides nearly exactly with a simulated time :math:`t^n`) be subject to rounding errors, and therefore unreliable.
 
 Secondly, the tolerance can give better time-stepping behaviour if a time step happens to fall just short of a checkpoint time. Without the tolerance, the time step would be completed, and the size of the following time step would have to be reduced to a very small value to hit the checkpoint. With the tolerance, the time step size can instead be increased slightly so that it hits the checkpoint, with no need for a subsequent reduction. This is the reason the default tolerance is relatively large (10%), larger than what would otherwise be needed simply to avoid rounding error issues.
 
