@@ -144,6 +144,7 @@ Because Waiwera uses a :ref:`finite_volume_discretisation` to solve the mass and
 Care must therefore be taken to ensure the mesh satisfies this criterion. Some simpler kinds of mesh satisfy it trivially, e.g. all regular or irregular rectangular meshes.
 
 .. index:: mesh; partitioning
+.. _mesh_partitioning:
 
 Mesh partitioning
 =================

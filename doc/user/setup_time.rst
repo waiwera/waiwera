@@ -411,6 +411,16 @@ In the following example, a steady-state simulation is specified with the maximu
 Solution of linear equations
 ============================
 
+At each iteration of the non-linear solver (see :ref:`nonlinear_equations`), a large, sparse system of linear equations must be solved to find the latest Newton-Raphson update :math:`\Delta \mathbf{Y}` to the solution vector :math:`\mathbf{Y}`:
+
+.. math::
+
+   \mathbf{J} \Delta \mathbf{Y} = -\mathbf{r}
+
+where :math:`\mathbf{J}` is the Jacobian matrix of the residual :math:`\mathbf{r}`.
+
+This system of linear equations is solved using the `PETSc <https://www.mcs.anl.gov/petsc/>`_ "KSP" suite of parallelised linear equation solvers. Linear solver parameters can be specified via the **"time.step.solver.linear"** value in the Waiwera JSON input file. This value is an object.
+
 .. note::
    **JSON object**: linear solver parameters
 
@@ -432,7 +442,7 @@ Solution of linear equations
    |"maximum"        |object      |{}                   |maximum         |
    |                 |            |                     |iterations      |
    +-----------------+------------+---------------------+----------------+
-   |"preconditioner" |object      |{"type": "asm",      |pre-conditioner |
+   |"preconditioner" |object      |{"type": "asm",      |preconditioner  |
    |                 |            |"sub":               |options         |
    |                 |            |{"preconditioner":   |                |
    |                 |            |{"type": "ilu",      |                |
@@ -440,9 +450,200 @@ Solution of linear equations
    |                 |            |0}}}}                |                |
    +-----------------+------------+---------------------+----------------+
 
+Linear solver type
+------------------
 
+PETSc offers a range of different `KSP linear solver types <http://www.mcs.anl.gov/petsc/petsc-dev/docs/linearsolvertable.html>`_. For Waiwera, the most appropriate linear solvers are generally the "Krylov subspace" methods. The linear solver type can be specified in the Waiwera JSON input file via the **"type"** string value in the "time.step.solver.linear" object. The linear solver types that may be selected in this way are:
 
-.. linear: type, options, tolerance, max iterations (note equivalent PETSc command line parameters)
-.. preconditioner: type, sub-preconditioner
-.. ill conditioning - importance of preconditioner
-.. can set other options via PETSc command line parameters
++------------+---------------+-----------------------+
+|**name**    |**PETSc name** |**description**        |
+|            |               |                       |
++------------+---------------+-----------------------+
+|"gmres"     |KSPGMRES       |generalised minimum    |
+|            |               |residual               |
++------------+---------------+-----------------------+
+|"lgmres"    |KSPLGMRES      |augmented GMRES        |
++------------+---------------+-----------------------+
+|"bcgs"      |KSPBCGS        |Bi-CGStab (stabilised  |
+|            |               |bi-conjugate gradient) |
++------------+---------------+-----------------------+
+|"bcgsl"     |KSPBCGSL       |Bi-CGStab(L)           |
++------------+---------------+-----------------------+
+
+These represent the most commonly useful linear solver types for the linear equation systems solved by Waiwera. (Note that other PETSc linear solver types may be selected at run-time using :ref:`petsc_command_line_parameters`.) The GMRES and Bi-CGStab solvers generally perform adequately for many problems. For very ill-conditioned systems (e.g. near the end of steady-state simulations) the Bi-CGStab(L) solver may give better performance. If using the GMRES solver, increasing the restart parameter (see :ref:`solver_options`) may also help. If linear solver failures persist, it may be necessary to experiment with different :ref:`preconditioners`.
+
+For example:
+
+.. code-block:: json
+
+   {"time": {"step": {"solver": {"linear": {"type": "gmres"}}}}}
+
+selects the GMRES linear solver type.
+
+Convergence parameters
+----------------------
+
+The above linear solver types are all iterative methods, so parameters may be set to control convergence criteria.
+
+The convergence tolerance may be specified via the **"tolerance"** value in the "time.step.solver.linear" object. This value is itself an object, containing a **"relative"** number value for specifying the relative convergence tolerance. If not specified, then the PETSc default tolerance is used.
+
+.. note::
+   **JSON object**: linear solver tolerance
+
+   **JSON path**: time.step.solver.linear.tolerance
+
+   +------------+------------+--------------+---------------------+
+   |**name**    |**type**    |**default**   |**value**            |
+   +------------+------------+--------------+---------------------+
+   |"relative"  |number      |PETSc default |relative convergence |
+   |            |            |              |tolerance            |
+   |            |            |              |                     |
+   +------------+------------+--------------+---------------------+
+
+The maximum allowed number of linear solver iterations can be specified using the **"maximum"** value in the "time.step.solver.linear" object, which again is itself an object, this time containing a **"iterations"** integer value for specifying the iteration limit. If not specified, the the PETSc default is used.
+
+.. note::
+   **JSON object**: linear solver iteration limit
+
+   **JSON path**: time.step.solver.linear.maximum
+
+   +-------------+------------+--------------+------------------+
+   |**name**     |**type**    |**default**   |**value**         |
+   +-------------+------------+--------------+------------------+
+   |"iterations" |integer     |PETSc default |iteration limit   |
+   |             |            |              |                  |
+   +-------------+------------+--------------+------------------+
+
+For example:
+
+.. code-block:: json
+
+   {"time": {"step": {"solver": {"linear": {"type": "gmres",
+                                            "tolerance": {"relative": 1e-12},
+                                            "maximum": {"iterations": 2000}
+                                            }}}}}
+
+selects a GMRES linear solver with relative tolerance 10\ :sup:`-12` and and iteration limit of 2000.
+
+.. _solver_options:
+
+Solver options
+--------------
+
+Some linear solvers may have options specific to the solver type, which can be specified via the **"options"** value in the "time.step.solver.linear" object.
+
+.. note::
+   **JSON object**: linear solver options
+
+   **JSON path**: time.step.solver.options
+
+   +------------+------------+------------+--------------+
+   |**name**    |**type**    |**default** |**value**     |
+   +------------+------------+------------+--------------+
+   |"gmres"     |object      |see below   |GMRES options |
+   |            |            |            |              |
+   +------------+------------+------------+--------------+
+
+Currently there is only one such linear solver (GMRES) with options available in this way. The GMRES solver in PETSc offers a "restarted GMRES" option, and the "options.gmres" object has a **"restart"** integer value to specify the number of Krylov search directions to orthogonalise against. For some Waiwera simulations the restarted GMRES linear solver performs well on difficult problems, particularly if the restart parameter is increased.
+
+.. note::
+   **JSON object**: GMRES linear solver options
+
+   **JSON path**: time.step.solver.options.gmres
+
+   +------------+------------+-------------------+--------------------+
+   |**name**    |**type**    |**default**        |**value**           |
+   +------------+------------+-------------------+--------------------+
+   |"restart"   |integer     |PETSc default (30) |number of Krylov    |
+   |            |            |                   |search directions   |
+   +------------+------------+-------------------+--------------------+
+
+For example:
+
+.. code-block:: json
+
+   {"time": {"step": {"solver": {"linear": {"type": "gmres",
+                                            "options": {"gmres": {"restart": 200}}
+                                            }}}}}
+
+selects the restarted GMRES linear solver with a restart parameter of 200.
+
+.. _preconditioners:
+
+Preconditioners
+---------------
+
+Preconditioners are used to improve the convergence rate of iterative linear equation solvers. A preconditioner transforms the problem so that the resulting matrix has a lower condition number, allowing the linear solver to converge more rapidly. This is especially important when the original system of linear equations to be solved is ill-conditioned, as is often the case for the equations solved by Waiwera.
+
+Preconditioning parameters can be specified using the **"preconditioner"** value in the "time.step.solver.linear" object.
+
+.. note::
+   **JSON object**: linear solver preconditioner
+
+   **JSON path**: time.step.solver.linear.preconditioner
+
+   +------------+------------+------------+---------------------+
+   |**name**    |**type**    |**default** |**value**            |
+   +------------+------------+------------+---------------------+
+   |"type"      |string      |"asm"       |preconditioner type  |
+   +------------+------------+------------+---------------------+
+   |"sub"       |object      |see below   |sub-preconditioner   |
+   |            |            |            |options              |
+   +------------+------------+------------+---------------------+
+
+PETSc offers a range of different preconditioners. The **"type"** string value in the "preconditioner" object can be used to specify the preconditioner type. The preconditioner types that may be selected in this way are:
+
++------------+----------------+-------------------+-------------------+
+|**name**    |**PETSc name**  |**description**    |**parallel**       |
++------------+----------------+-------------------+-------------------+
+|"bjacobi"   |PCBJACOBI       |Block Jacobi       |yes                |
+|            |                |                   |                   |
++------------+----------------+-------------------+-------------------+
+|"asm"       |PCASM           |Additive Schwarz   |yes                |
+|            |                |method             |                   |
++------------+----------------+-------------------+-------------------+
+|"ilu"       |PCILU           |incomplete LU      |no                 |
+|            |                |factorisation      |                   |
++------------+----------------+-------------------+-------------------+
+|"lu"        |PCLU            |LU factorisation   |no                 |
++------------+----------------+-------------------+-------------------+
+|"none"      |PCNONE          |no preconditioning |no                 |
++------------+----------------+-------------------+-------------------+
+
+Of these, only the "bjacobi" and "asm" preconditioners are suitable for parallel simulations. Which one works better depends on the problem and can only be determined by experiment.
+
+The other preconditioner types are really only included here for testing purposes (e.g. if the linear solver is failing, and it is necessary to determine if the problem lies in the linear solver itself or the preconditioner). The "ilu" preconditioner could also be used for serial simulations.
+
+Sub-preconditioners
+-------------------
+
+In a parallel simulation, the matrix is effectively treated as a block matrix, with one block on each processor by default (so the blocks are determined by the :ref:`mesh_partitioning`). The parallel preconditioner operates at the block level, and each block has its own sub-preconditioner, which operates in serial.
+
+By default, the PETSc implementations of the Block Jacobi and Additive Schwarz parallel preconditioners use ILU(0) sub-preconditioning on each block by default (i.e. incomplete LU factorisation with no fill-in). Other sub-preconditioner types are available, but in general the ILU sub-preconditioner works adequately and there is little reason to use anything else.
+
+For very demanding problems it may be necessary, however, to increase the level of fill-in in the ILU sub-preconditioner. The level of fill-in may be specified via the **"sub.preconditioner"** value in the "time.step.solver.linear.preconditioner" object. This is itself an object, which contains a **"factor.levels"** value specifying the level of fill-in. (There is also a **"type"** string value which can be used for changing the sub-preconditioner type.)
+
+.. note::
+   **JSON object**: linear solver sub-preconditioner
+
+   **JSON path**: time.step.solver.linear.preconditioner.sub.preconditioner
+
+   +------------+------------+--------------+-------------------------+
+   |**name**    |**type**    |**default**   |**value**                |
+   +------------+------------+--------------+-------------------------+
+   |"type"      |string      |"ilu"         |sub-preconditioner type  |
+   +------------+------------+--------------+-------------------------+
+   |"factor"    |object      |{"levels": 0} |level of fill-in for     |
+   |            |            |              |"ilu" sub-preconditioner |
+   +------------+------------+--------------+-------------------------+
+
+For example:
+
+.. code-block:: json
+
+   {"time": {"step": {"solver": {"linear": {"type": "bcgs",
+                                            "preconditioner": {"sub": {"preconditioner":
+                                              {"factor": {"levels": 3}}}}
+                                            }}}}}
+
+specifies a Bi-CGStab linear solver. The default ILU sub-preconditioner is used, but with the level of fill-in increased to 3.
