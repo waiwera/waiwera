@@ -130,6 +130,8 @@ For example:
 
 overrides the permeability directions for three faces in the mesh, leaving all others at their default values.
 
+.. _rock_type_cells_and_zones:
+
 Rock type cells and zones
 -------------------------
 

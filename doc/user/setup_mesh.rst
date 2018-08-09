@@ -76,6 +76,7 @@ Note that the mesh filename (specified in either of the above two ways) is a req
    +--------------------+-----------+-------------------+-----------------------------------------+
 
 .. index:: mesh; formats
+.. _mesh_formats:
 
 Mesh formats
 ============

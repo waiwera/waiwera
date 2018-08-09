@@ -1,5 +1,7 @@
 .. index:: simulation; initial conditions, initial conditions
 
+.. _initial_conditions:
+
 ******************
 Initial conditions
 ******************
@@ -23,20 +25,21 @@ It is possible to specify initial conditions directly in the Waiwera JSON input 
 
    **JSON path**: initial
 
-   +------------+----------------+---------------+----------------------------+
-   |**name**    |**type**        |**default**    |**value**                   |
-   +------------+----------------+---------------+----------------------------+
-   |"primary"   |number | array  |(`no default`) |initial                     |
-   |            |                |               |:ref:`primary_variables`    |
-   |            |                |               |                            |
-   +------------+----------------+---------------+----------------------------+
-   |"region"    |integer | array |depends on EOS |initial                     |
-   |            |                |               |:ref:`thermodynamic_regions`|
-   +------------+----------------+---------------+----------------------------+
-   |"minc"      |boolean         |false          |whether initial conditions  |
-   |            |                |               |include values for MINC     |
-   |            |                |               |cells (see :ref:`minc`)     |
-   +------------+----------------+---------------+----------------------------+
+   +------------+----------------+---------------+-------------------------------+
+   |**name**    |**type**        |**default**    |**value**                      |
+   +------------+----------------+---------------+-------------------------------+
+   |"primary"   |number | array  |(`no default`) |initial                        |
+   |            |                |               |:ref:`primary_variables`       |
+   |            |                |               |                               |
+   +------------+----------------+---------------+-------------------------------+
+   |"region"    |integer | array |depends on EOS |initial                        |
+   |            |                |               |:ref:`thermodynamic_regions`   |
+   +------------+----------------+---------------+-------------------------------+
+   |"minc"      |boolean         |false          |whether initial conditions     |
+   |            |                |               |include values for MINC cells  |
+   |            |                |               |(see                           |
+   |            |                |               |:ref:`minc_initial_conditions`)|
+   +------------+----------------+---------------+-------------------------------+
 
 In this case the primary variables for each cell are specified via the **"primary"** value in the "initial" object. This value can be either:
 
@@ -109,19 +112,20 @@ In this case, the "initial" object in the JSON input file for the restarted simu
 
    **JSON path**: initial
    
-   +------------+------------+----------------+----------------------------+
-   |**name**    |**type**    |**default**     |**value**                   |
-   +------------+------------+----------------+----------------------------+
-   |"filename"  |string      | (`no default`) |name of Waiwera output HDF5 |
-   |            |            |                |file to restart from        |
-   +------------+------------+----------------+----------------------------+
-   |"index"     |integer     |0               |results index (zero-based)  |
-   |            |            |                |in file to restart from     |
-   +------------+------------+----------------+----------------------------+
-   |"minc"      |boolean     |false           |whether initial conditions  |
-   |            |            |                |include values for MINC     |
-   |            |            |                |cells (see :ref:`minc`)     |
-   +------------+------------+----------------+----------------------------+
+   +------------+------------+----------------+-------------------------------+
+   |**name**    |**type**    |**default**     |**value**                      |
+   +------------+------------+----------------+-------------------------------+
+   |"filename"  |string      | (`no default`) |name of Waiwera output HDF5    |
+   |            |            |                |file to restart from           |
+   +------------+------------+----------------+-------------------------------+
+   |"index"     |integer     |0               |results index (zero-based)     |
+   |            |            |                |in file to restart from        |
+   +------------+------------+----------------+-------------------------------+
+   |"minc"      |boolean     |false           |whether initial conditions     |
+   |            |            |                |include values for MINC cells  |
+   |            |            |                |(see                           |
+   |            |            |                |:ref:`minc_initial_conditions`)|
+   +------------+------------+----------------+-------------------------------+
 
 The filename of the output from the previous simulation is specified using the **"filename"** value. In general, an output file may contain results for more than one time. The new simulation can be restarted from any of the results in the previous output file. The index of the desired set of results can be specified using the **"index"** value, which defaults to zero.
 
