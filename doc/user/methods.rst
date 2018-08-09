@@ -31,7 +31,7 @@ For component :math:`c`, :math:`M^c` is the mass or energy density in :math:`V_n
 Finite volume discretisation
 ============================
 
-The flow domain is discretised using a finite volume mesh made up of :math:`N` cells. For each component we can define cell-averaged mass or energy densities :math:`M_n^c` for each component, and cell-averaged source terms :math:`q_n^c` as:
+The flow domain is discretised using a finite volume mesh made up of :math:`N` cells. In the :math:`n`\ :sup:`th` cell with volume :math:`V_n`, for each component we can define cell-averaged mass or energy densities :math:`M_n^c` for each component, and cell-averaged source terms :math:`q_n^c` as:
 
 .. math::
 
