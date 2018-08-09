@@ -18,8 +18,8 @@ This section describes how to set up the various aspects of a Waiwera simulation
    setup_minc
    setup_boundaries
    setup_sources
+   setup_interpolation_tables
    setup_initial
    setup_time
    setup_logfile
-   setup_output
-   setup_interpolation_tables
+   setup_output 
