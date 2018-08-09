@@ -221,7 +221,7 @@ For example:
 specifies linear relative permeability curves for both liquid and vapour phases, with limits 0.1 and 0.9, as in the figure below:
 
 .. figure:: relative_permeability_linear.*
-           :scale: 67 %
+           :scale: 50 %
            :align: center
 
            Example linear relative permeability curves
@@ -464,7 +464,7 @@ For example:
 specifies both liquid and vapour relative permeability curves as in the figure below, with a small slope at the extremes of saturation.
 
 .. figure:: relative_permeability_table.*
-           :scale: 67 %
+           :scale: 50 %
            :align: center
 
            Example table relative permeability curves
@@ -554,7 +554,7 @@ For example:
 gives the linear capillary pressure curve shown in the figure below.
 
 .. figure:: capillary_linear.*
-           :scale: 67 %
+           :scale: 50 %
            :align: center
 
            Example linear capillary pressure function
