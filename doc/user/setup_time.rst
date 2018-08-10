@@ -642,8 +642,9 @@ For example:
 .. code-block:: json
 
    {"time": {"step": {"solver": {"linear": {"type": "bcgs",
-                                            "preconditioner": {"sub": {"preconditioner":
-                                              {"factor": {"levels": 3}}}}
+                                            "preconditioner": {"sub":
+                                              {"preconditioner":
+                                                {"factor": {"levels": 3}}}}
                                             }}}}}
 
 specifies a Bi-CGStab linear solver. The default ILU sub-preconditioner is used, but with the level of fill-in increased to 3.
