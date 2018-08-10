@@ -31,28 +31,28 @@ For component :math:`c`, :math:`M^c` is the mass or energy density in :math:`V_n
 Finite volume discretisation
 ============================
 
-The flow domain is discretised using a finite volume mesh made up of :math:`N` cells. In the :math:`n`\ :sup:`th` cell with volume :math:`V_n`, for each component we can define cell-averaged mass or energy densities :math:`M_n^c` for each component, and cell-averaged source terms :math:`q_n^c` as:
+The flow domain is discretised using a finite volume mesh made up of :math:`N` cells. In the :math:`i`\ :sup:`th` cell with volume :math:`V_i`, for each component we can define cell-averaged mass or energy densities :math:`M_i^c` for each component, and cell-averaged source terms :math:`q_i^c` as:
 
 .. math::
 
-   M_n^c = \frac{1}{V_n} \int_{V_n} {M^c \, dV}
+   M_i^c = \frac{1}{V_i} \int_{V_i} {M^c \, dV}
 
-   q_n^c = \frac{1}{V_n} \int_{V_n} {q^c \, dV}
+   q_i^c = \frac{1}{V_i} \int_{V_i} {q^c \, dV}
 
 We can also represent the flux integral in :eq:`conservation` as:
 
 .. math::
 
-   \int_{\partial V_n} {\mathbf{F^c} \cdot \hat{n} \, dA} = \sum_m {A_{nm} F_{nm}^c}
+   \int_{\partial V_i} {\mathbf{F^c} \cdot \hat{n} \, dA} = \sum_j {A_{ij} F_{ij}^c}
 
-where :math:`A_{nm}` is the area of the face connecting cells :math:`n` and :math:`m`, and :math:`F_{nm}^c` is the normal component of the flux through it.
+where :math:`A_{ij}` is the area of the face connecting cells :math:`i` and :math:`j`, and :math:`F_{ij}^c` is the normal component of the flux through it.
 
-Then the discretised conservation equations for cell :math:`V_n` can be written:
+Then the discretised conservation equations for cell :math:`V_i` can be written:
 
 .. math::
    :label: discretised_conservation
 
-   \frac{d}{dt} M_n^c = \frac{1}{V_n} \sum_m {A_{nm} F_{nm}^c} + q_n^c
+   \frac{d}{dt} M_i^c = \frac{1}{V_i} \sum_j {A_{ij} F_{ij}^c} + q_i^c
 
 .. index:: thermodynamics; primary variables, primary variables
 .. _primary_variables:
@@ -81,7 +81,7 @@ The discretised conservation equations :eq:`discretised_conservation` are of the
 
    \frac{d}{dt} \mathbf{L}(t, \mathbf{Y}) = \mathbf{R}(t, \mathbf{Y})
 
-where :math:`t` is time and :math:`\mathbf{Y}` is the vector of primary variables for all cells in the simulation mesh (of total length :math:`N(C+1)`). Here :math:`\mathbf{L}` represents the cell-averaged mass and energy balances, as a function of time and the primary thermodynamic variables. Similarly, :math:`\mathbf{R}` represents inflows into the cells (per unit volume) from flows through the cell faces, together with sources and sinks within the cell.
+where :math:`t` is time and :math:`\mathbf{Y}` is the vector of primary variables for all cells in the simulation mesh (of total length :math:`N(C+1)` for non-isothermal simulations). Here :math:`\mathbf{L}` represents the cell-averaged mass and energy balances, as a function of time and the primary thermodynamic variables. Similarly, :math:`\mathbf{R}` represents inflows into the cells (per unit volume) from flows through the cell faces, together with sources and sinks within the cell.
 
 Solving the set of ordinary differential equations :eq:`RLeqn` with respect to time, we can compute the time evolution of :math:`\mathbf{Y}`, the thermodynamic state of the entire discretised simulation domain.
 
@@ -106,29 +106,29 @@ Waiwera needs to evaluate the functions :math:`\mathbf{L}` and :math:`\mathbf{R}
 
 .. math::
 
-   M_n^c =
+   M_i^c =
    \begin{cases}
-   \phi_n \sum_p{S_p \rho_p X_p^c} & c \leq C \\
-   (1 - \phi_n) \rho_{r} c_{r} T + \phi_n \sum_p {S_p \rho_p u_p} & c = C + 1
+   \phi_i \sum_p{S_p \rho_p X_p^c} & c \leq C \\
+   (1 - \phi_i) \rho_{r} c_{r} T + \phi_i \sum_p {S_p \rho_p u_p} & c = C + 1
    \end{cases}
 
-where the :math:`p` subscripts refer to phases, and the :math:`r` subscripts refer to rock properties. Here :math:`\phi_n` is the porosity in the cell, :math:`S` is phase saturation, :math:`\rho` is density, :math:`X` is mass fraction, :math:`u` is internal energy density, :math:`c_r` is the rock specific heat and :math:`T` is temperature.
+where the :math:`p` subscripts refer to phases, and the :math:`r` subscripts refer to rock properties. Here :math:`\phi_i` is the porosity in the cell, :math:`S` is phase saturation, :math:`\rho` is density, :math:`X` is mass fraction, :math:`u` is internal energy density, :math:`c_r` is the rock specific heat and :math:`T` is temperature.
 
 The function :math:`\mathbf{R}`, representing fluxes into the cells, has contributions from source and sink terms (which are easily evaluated), and from fluxes through faces. This latter contribution is computed by summing the component face fluxes in each phase:
 
 .. math::
 
-   F_{nm}^c = \sum_p{F_p^c}
+   F_{ij}^c = \sum_p{F_{ij,p}^c}
 
 where the phase fluxes are given by:
 
 .. math::
    :label: flux
 
-   F_p^c =
+   F_{ij,p}^c =
    \begin{cases}
    -k \frac{k_r^p}{\mu_p} \rho_p X_p^c (\frac{\partial P}{\partial n} - \bar{\rho}_p \mathbf{g}.\hat{n}) & c \leq C \\
-   -K \frac{\partial T}{\partial n} + \sum_{i=1}^{C} {\sum_p{h_p^i F_p^i}} & c = C + 1
+   -K \frac{\partial T}{\partial n} + \sum_{l=1}^{C} {\sum_p{h_p^l F_{ij,p}^l}} & c = C + 1
    \end{cases}
 
 Here :math:`k` is effective permeability normal to the face, :math:`k_r` is relative permeability, :math:`\mu` is viscosity, :math:`P` is pressure, :math:`\mathbf{g}` is the gravity vector, :math:`K` is rock heat conductivity and :math:`h` is enthalpy. :math:`\hat{n}` is the unit vector normal to the face, and :math:`\bar{\rho}_p` is the effective phase density on the face.
