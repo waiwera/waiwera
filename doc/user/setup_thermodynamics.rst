@@ -40,8 +40,9 @@ The four thermodynamic regions used by the IAPWS-97 formulation are:
 
 This thermodynamic region numbering is used by Waiwera when reporting phase conditions (regardless of which thermodynamic formulation is used), for example when phase changes occur.
 
-The IAPWS-97 regions are shown on a pressure-temperature diagram below. The diagram extends over the range of validitiy of the IAPWS-97 formulation (pressure :math:`\leq` 100 MPa, 0 :math:`^{\circ}`\ C :math:`\leq` temperature :math:`\leq` 800 :math:`^{\circ}`\ C).
+The IAPWS-97 regions are shown on a pressure-temperature diagram in :numref:`iapws_regions_plot`. The diagram extends over the range of validitiy of the IAPWS-97 formulation (pressure :math:`\leq` 100 MPa, 0 :math:`^{\circ}`\ C :math:`\leq` temperature :math:`\leq` 800 :math:`^{\circ}`\ C).
 
+.. _iapws_regions_plot:
 .. figure:: iapws_regions.*
            :scale: 67 %
            :align: center

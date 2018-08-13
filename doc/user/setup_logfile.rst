@@ -33,6 +33,7 @@ This means that if the simulation is stopped prematurely it will not leave partl
 For more details on YAML, see the `YAML website <http://yaml.org/>`_.
 
 .. index:: log output; message structure
+.. _log_message_structure:
 
 Log message structure
 =====================
@@ -49,6 +50,7 @@ All messages written to the Waiwera log file have the same structure, with four 
 4) **data**: supplementary data providing additional detail on the event
 
 .. index:: log output; message format
+.. _log_message_format:
 
 Log message format
 ==================

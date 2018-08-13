@@ -218,8 +218,9 @@ For example:
                                       "liquid": [0.1, 0.9],
                                       "vapour": [0.1, 0.9]}}}
 
-specifies linear relative permeability curves for both liquid and vapour phases, with limits 0.1 and 0.9, as in the figure below:
+specifies linear relative permeability curves for both liquid and vapour phases, with limits 0.1 and 0.9, as in :numref:`relperm_linear_fig`.
 
+.. _relperm_linear_fig:
 .. figure:: relative_permeability_linear.*
            :scale: 50 %
            :align: center
@@ -461,8 +462,9 @@ For example:
      "vapour": [[0,0], [0.1, 0.01], [0.9, 0.99], [1,1]]
      }}}
 
-specifies both liquid and vapour relative permeability curves as in the figure below, with a small slope at the extremes of saturation.
+specifies both liquid and vapour relative permeability curves as in :numref:`relperm_table_fig`, with a small slope at the extremes of saturation.
 
+.. _relperm_table_fig:
 .. figure:: relative_permeability_table.*
            :scale: 50 %
            :align: center
@@ -551,8 +553,9 @@ For example:
                                    "saturation_limits": [0.1, 0.9],
                                    "pressure": 10.0e3}}}
 
-gives the linear capillary pressure curve shown in the figure below.
+gives the linear capillary pressure curve shown in :numref:`capillary_linear_fig`.
 
+.. _capillary_linear_fig:
 .. figure:: capillary_linear.*
            :scale: 50 %
            :align: center

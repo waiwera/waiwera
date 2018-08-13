@@ -188,6 +188,8 @@ The main simulation results consist of fluid and source properties, or "fields",
 
 Each of these values can be specified as an array of strings, containing the field names. Alternatively, they can be set to the single string value **"all"**, in which case all available fields will be output.
 
+.. _output_fluid_fields:
+
 Fluid fields
 ------------
 
@@ -258,6 +260,8 @@ The Waiwera HDF5 output files can be used to provide initial conditions for rest
 For example, for the :ref:`water_energy_eos` EOS, the fluid output fields must include "pressure", "temperature" and "vapour_saturation".
 
 If the necessary primary variable fields are not specified in the "output.fields.fluid" array, Waiwera will automatically add them. 
+
+.. _output_source_fields:
 
 Source fields
 -------------

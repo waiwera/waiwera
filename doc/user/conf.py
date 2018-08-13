@@ -345,3 +345,4 @@ texinfo_documents = [
 # texinfo_no_detailmenu = False
 
 math_number_all = True
+numfig = True

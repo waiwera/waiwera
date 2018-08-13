@@ -28,11 +28,12 @@ Waiwera provides different options for both interpolation and averaging of tabul
 Interpolation
 =============
 
-Waiwera offers two types of interpolation, depending on how the data are assumed to vary between their tabulated values.
+Waiwera offers two types of interpolation (see :numref:`interpolation_fig`), depending on how the data are assumed to vary between their tabulated values.
 
 * The simplest is **step** interpolation, in which the data are assumed to have a piecewise constant variation. This may be appropriate for quantities which generally remain constant but are adjusted at particular times. The value in between two tabulated times is simply assumed equal to the last tabulated value.
 * The other type is **linear** interpolation, in which the data are assumed to vary linearly between the tabulated values. This is often appropriate for quantities that change continuously, with the tabulated values representing time-series measurements of the quantity over time.
 
+.. _interpolation_fig:
 .. figure:: interpolation.*
            :scale: 67 %
            :align: center
