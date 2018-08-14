@@ -20,13 +20,6 @@ JSON syntax makes a lot of use of brackets and braces (see below), so another us
 
 There is also dedicated software designed specifically for editing JSON files, which can take care of much of the syntax for you. Examples include `JSON editor online <https://jsoneditoronline.org/>`_.
 
-.. index:: JSON; parsing
-
-Parsing JSON files
-==================
-
-Many scripting and programming languages are able to parse JSON files (either directly or via add-on libraries), so that the JSON file contents can then be manipulated using a script or program. For example, the Python scripting language has a built-in ``json`` module for this.
-
 .. index:: JSON; structure
 
 JSON file structure
@@ -58,6 +51,7 @@ An **array** is an ordered collection of values, beginning and ending with squar
 The values in the array may be character **strings** (enclosed by double quotes), **numbers** (integer or floating point), **boolean** values (``true`` or ``false``) or **null** values (``null``). In addition (and importantly), the values may themselves be arrays or objects. The values in an array do not all have to be of the same type.
 
 .. index:: JSON; objects
+.. _json_objects:
 
 JSON objects
 ------------
@@ -112,6 +106,28 @@ Schema validation is useful for avoiding input errors, e.g. missing data, or dat
 The `utils/` directory of the Waiwera source code contains a schema file (`input_schema.json`) for Waiwera JSON input.
 
 .. index:: Waiwera; JSON file structure
+
+.. index:: JSON; scripting
+
+JSON files in scripts
+=====================
+
+Many scripting and programming languages are able to parse JSON files (either directly or via add-on libraries), so that the JSON file contents can then be manipulated using a script or program. Some are also able to write JSON data structures out to JSON files.
+
+For example, the Python scripting language has a built-in ``json`` module for this. Python has data structures equivalent to those found in JSON files, although some have different names: JSON arrays are called "lists" in Python, and JSON objects are called "dictionaries".
+
+In the example script below, the JSON object in the previous example (see :ref:`json_objects`) is read into a Python dictionary. The "depth" value in the "dimensions" object is then changed, and a new value called "age" is added to the object. Then the edited object is written out to a new JSON file.
+
+.. code-block:: python
+
+   import json
+
+   data = json.load(file('input.json', 'r'))
+
+   data["dimensions"]["depth"] = 17.3
+   data["age"] = 3.5
+
+   json.dump(data, file('edited.json', 'w'))
 
 Waiwera JSON file structure
 ===========================
