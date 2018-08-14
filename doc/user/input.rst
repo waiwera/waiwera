@@ -56,7 +56,7 @@ The values in the array may be character **strings** (enclosed by double quotes)
 JSON objects
 ------------
 
-An **object** is an unordered collection of named values, i.e. pairs of names and their corresponding values. The object is enclosed by `braces` (curly brackets, ``{ }``). Each name (a character string) is followed by a colon (``:``) and then the value. The pairs of names and values are separated by commas. (This data structure is known in Python as a "dictionary".)
+An **object** is an unordered collection of named values, i.e. pairs of names (or "keys") and their corresponding values. The object is enclosed by `braces` (curly brackets, ``{ }``). Each name (a character string) is followed by a colon (``:``) and then the value. The pairs of names and values are separated by commas. (This data structure is known in Python as a "dictionary".)
 
 The values in an object can be of the same types as in an array (strings, numbers, etc.). Once again the values may themselves be arrays or objects.
 
@@ -85,6 +85,39 @@ JSON file layout
 
 The exact positions of the data structures in a JSON file are not important. Arrays and object are delimited by brackets or braces as described above, and values are separated by commas, so the data can be located anywhere on each line. Usually they are arranged in a way that is easy for the user to read.
 
+For example, the following two JSON files are completely equivalent:
+
+.. code-block:: json
+
+   {"name": "Ted Smith",
+    "age": 76}
+
+.. code-block:: json
+
+   {"name": "Ted Smith", "age": 76}
+
+.. index:: JSON; scripting
+
+JSON files in scripts
+=====================
+
+Many scripting and programming languages are able to parse JSON files (either directly or via add-on libraries), so that the JSON file contents can then be manipulated using a script or program. Some are also able to write JSON data structures out to JSON files.
+
+For example, the Python scripting language has a built-in ``json`` module for this. Python has data structures equivalent to those found in JSON files, although some have different names: JSON arrays are called "lists" in Python, and JSON objects are called "dictionaries".
+
+In the example script below, the JSON object in the previous example (see :ref:`json_objects`) is read into a Python dictionary. The "dimensions.depth" value is then changed (note the syntax for accessing an object within an object), and a new value called "age" is added to the object. Then the edited object is written out to a new JSON file.
+
+.. code-block:: python
+
+   import json
+
+   data = json.load(file('input.json', 'r'))
+
+   data["dimensions"]["depth"] = 17.3
+   data["age"] = 3.5
+
+   json.dump(data, file('edited.json', 'w'))
+
 .. index:: JSON; validation
 
 JSON validation
@@ -106,28 +139,6 @@ Schema validation is useful for avoiding input errors, e.g. missing data, or dat
 The `utils/` directory of the Waiwera source code contains a schema file (`input_schema.json`) for Waiwera JSON input.
 
 .. index:: Waiwera; JSON file structure
-
-.. index:: JSON; scripting
-
-JSON files in scripts
-=====================
-
-Many scripting and programming languages are able to parse JSON files (either directly or via add-on libraries), so that the JSON file contents can then be manipulated using a script or program. Some are also able to write JSON data structures out to JSON files.
-
-For example, the Python scripting language has a built-in ``json`` module for this. Python has data structures equivalent to those found in JSON files, although some have different names: JSON arrays are called "lists" in Python, and JSON objects are called "dictionaries".
-
-In the example script below, the JSON object in the previous example (see :ref:`json_objects`) is read into a Python dictionary. The "depth" value in the "dimensions" object is then changed, and a new value called "age" is added to the object. Then the edited object is written out to a new JSON file.
-
-.. code-block:: python
-
-   import json
-
-   data = json.load(file('input.json', 'r'))
-
-   data["dimensions"]["depth"] = 17.3
-   data["age"] = 3.5
-
-   json.dump(data, file('edited.json', 'w'))
 
 Waiwera JSON file structure
 ===========================
@@ -172,5 +183,3 @@ The various aspects of the simulation are specified by different named values wi
    +-----------------+-----------------+--------------------------+
 
 .. index:: JSON; schema
-
-The exact structure of a Waiwera input JSON file is defined by the JSON `schema <http://json-schema.org/>`_ included in the `utils/` directory of the Waiwera source code.
