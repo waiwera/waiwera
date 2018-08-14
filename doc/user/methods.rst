@@ -10,7 +10,7 @@ How Waiwera works
 Mass and energy conservation equations
 ======================================
 
-Waiwera works by solving time-dependent conservation equations over the simulation domain. In general there may be several mass 'components' present in the problem, for example water and CO\ :sub:`2`. A separate mass conservation equation is solved for each mass component present.
+Waiwera works by solving time-dependent conservation equations for mass (and usually energy) over the simulation domain. In general there may be several mass 'components' present in the problem, for example water and CO\ :sub:`2`. A separate mass conservation equation is solved for each mass component present.
 
 For non-isothermal problems, an additional energy conservation equation is also solved, simultaneously with the mass conservation equations.
 
@@ -23,7 +23,7 @@ The mass and energy conservation equations over an arbitrary volume :math:`V` ar
 
 where :math:`c = 1,\ldots C+1` (and :math:`C` is the number of mass components, e.g. 1 for pure water). Component :math:`C+1` is the energy component.
 
-For component :math:`c`, :math:`M^c` is the mass or energy density in :math:`V_n`, :math:`\mathbf{F^c}` is the flux and :math:`q^c` represents source or sink terms (per unit volume).
+For component :math:`c`, :math:`M^c` is the mass or energy density in :math:`V`, :math:`\mathbf{F^c}` is the flux of that component through the boundary :math:`\partial V` and :math:`q^c` represents source or sink terms (per unit volume).
 
 .. index:: numerical methods; finite volume discretisation
 .. _finite_volume_discretisation:
@@ -60,7 +60,7 @@ Then the discretised conservation equations for cell :math:`V_i` can be written:
 Primary variables
 =================
 
-Waiwera solves equation :eq:`discretised_conservation` for the thermodynamic state in each cell in the simulation mesh. The thermodynamic state in each cell is represented by a small set of 'primary variables', one for each conservation equation. The primary variables depend on the equation of state being used. The primary variables also depend on the phase conditions in the cell.
+Waiwera solves equation :eq:`discretised_conservation` for the thermodynamic state in each cell in the simulation mesh. The thermodynamic state in each cell is represented by a small set of 'primary variables', one for each conservation equation. The primary variables depend on the equation of state being used. They also depend on the phase conditions in the cell.
 
 For example, for non-isothermal pure water simulations, there is just one mass component (water) and one energy component, so two primary variables are needed to describe the thermodynamic state. For single-phase conditions we may use pressure and temperature as the primary variables. All other fluid properties (e.g. density, viscosity etc.) can be calculated from the primary variables.
 
@@ -81,11 +81,11 @@ The discretised conservation equations :eq:`discretised_conservation` are of the
 
    \frac{d}{dt} \mathbf{L}(t, \mathbf{Y}) = \mathbf{R}(t, \mathbf{Y})
 
-where :math:`t` is time and :math:`\mathbf{Y}` is the vector of primary variables for all cells in the simulation mesh (of total length :math:`N(C+1)` for non-isothermal simulations). Here :math:`\mathbf{L}` represents the cell-averaged mass and energy balances, as a function of time and the primary thermodynamic variables. Similarly, :math:`\mathbf{R}` represents inflows into the cells (per unit volume) from flows through the cell faces, together with sources and sinks within the cell.
+where :math:`t` is time and :math:`\mathbf{Y}` is the vector of primary variables for all cells in the simulation mesh (of total length :math:`N(C+1)` for non-isothermal simulations). Here :math:`\mathbf{L}` represents the cell-averaged mass and energy balances, as a function of time and the primary thermodynamic variables. Similarly, :math:`\mathbf{R}` represents inflows (per unit volume) into the cells from flows through the cell faces, together with sources and sinks within the cell.
 
 Solving the set of ordinary differential equations :eq:`RLeqn` with respect to time, we can compute the time evolution of :math:`\mathbf{Y}`, the thermodynamic state of the entire discretised simulation domain.
 
-For solving the conservation equations, :math:`\mathbf{L}` and :math:`\mathbf{R}` are complex, non-linear functions of the primary variables :math:`\mathbf{Y}`. Hence equation :eq:`RLeqn` must be solved numerically, computing the solution :math:`\mathbf{Y}` at discrete times.
+When solving the conservation equations :eq:`discretised_conservation`, :math:`\mathbf{L}` and :math:`\mathbf{R}` are complicated, non-linear functions of the primary variables :math:`\mathbf{Y}`. Hence equation :eq:`RLeqn` must be solved numerically, computing the solution :math:`\mathbf{Y}` at discrete times.
 
 Waiwera contains a module for the numerical solution of ordinary differential equations of the form :eq:`RLeqn`, using different numerical methods. The simplest of these is the 'backwards Euler' method, which discretises equation :eq:`RLeqn` as follows:
 
@@ -102,17 +102,17 @@ where :math:`t^n` is the :math:`n^{th}` discretised time, and :math:`\Delta t` i
 Function evaluations
 ====================
 
-Waiwera needs to evaluate the functions :math:`\mathbf{L}` and :math:`\mathbf{R}` for any given set of primary variables (and time). The function :math:`\mathbf{L}`, representing the mass and energy densities :math:`M_n^c` in the cells, is relatively straightforward to evaluate, by summing the contributions of the different phases. Considering a particular cell:
+Waiwera needs to evaluate the functions :math:`\mathbf{L}` and :math:`\mathbf{R}` for any given set of primary variables (and time). The function :math:`\mathbf{L}`, representing the mass and energy densities :math:`M_i^c` in the cells, is relatively straightforward to evaluate, by summing the contributions of the different phases. Considering a particular cell:
 
 .. math::
 
    M_i^c =
    \begin{cases}
-   \phi_i \sum_p{S_p \rho_p X_p^c} & c \leq C \\
-   (1 - \phi_i) \rho_{r} c_{r} T + \phi_i \sum_p {S_p \rho_p u_p} & c = C + 1
+   \phi \sum_p{S_p \rho_p X_p^c} & c \leq C \\
+   (1 - \phi) \rho_{r} c_{r} T + \phi \sum_p {S_p \rho_p u_p} & c = C + 1
    \end{cases}
 
-where the :math:`p` subscripts refer to phases, and the :math:`r` subscripts refer to rock properties. Here :math:`\phi_i` is the porosity in the cell, :math:`S` is phase saturation, :math:`\rho` is density, :math:`X` is mass fraction, :math:`u` is internal energy density, :math:`c_r` is the rock specific heat and :math:`T` is temperature.
+where the :math:`p` subscripts refer to phases, and the :math:`r` subscripts refer to rock properties. Here :math:`\phi` is the porosity in the cell, :math:`S` is phase saturation, :math:`\rho` is density, :math:`X` is mass fraction, :math:`u` is internal energy density, :math:`c_r` is the rock specific heat and :math:`T` is temperature.
 
 The function :math:`\mathbf{R}`, representing fluxes into the cells, has contributions from source and sink terms (which are easily evaluated), and from fluxes through faces. This latter contribution is computed by summing the component face fluxes in each phase:
 
@@ -133,7 +133,7 @@ where the phase fluxes are given by:
 
 Here :math:`k` is effective permeability normal to the face, :math:`k_r` is relative permeability, :math:`\mu` is viscosity, :math:`P` is pressure, :math:`\mathbf{g}` is the gravity vector, :math:`K` is rock heat conductivity and :math:`h` is enthalpy. :math:`\hat{n}` is the unit vector normal to the face, and :math:`\bar{\rho}_p` is the effective phase density on the face.
 
-The normal gradients of pressure and temperature are evaluated by finite differencing across the phase, i.e. taking the difference between the values in the cells on either side of the face and dividing by the distance between the cell centres. This "two-point flux approximation" relies on the assumption that the mesh satisfies the "orthogonality criterion", i.e. that the line joining the cell centres is orthogonal to the face.
+The normal gradients of pressure and temperature are evaluated by finite differencing across the phase, i.e. taking the difference between the values in the cells on either side of the face and dividing by the distance between the cell centres. This "two-point flux approximation" relies on the assumption that the mesh satisfies the "orthogonality criterion", i.e. that the line joining the cell centres is orthogonal to the face (see :ref:`mesh_orthogonality`).
 
 When evaluating the phase fluxes using equation :eq:`flux`, the flow quantities :math:`k_r`, :math:`\rho_p`, :math:`\mu`, :math:`X_c^p` and :math:`h_p` are "upstream weighted", i.e. their values are taken from the cell upstream from the face. This is needed for numerical stability. The rock permeability :math:`k` and heat conductivity :math:`K` on the face are evaluated using harmonic weighting of the values in the cells on either side of the face.
 
@@ -143,7 +143,7 @@ For the gravity term, Waiwera calculates the effective phase density on the face
 
    \bar{\rho}_p = \frac{S_p^1 \rho_p^1 + S_p^2 \rho_p^2}{S_p^1 + S_p^2}
 
-where :math:`S_p^1`, :math:`S_p^2` are the phase saturations in the two cells, and :math:`\rho_p^1`, :math:`\rho_p^2` are the corresponding phase densities. This formulation ensures a smooth variation in effective phase density on the face when the adjoining cells change phase. If both adjoining cells have the same saturation (e.g. in single-phase conditions) then this weighted average reduces to a simple arithmetic average.
+where :math:`S_p^1`, :math:`S_p^2` are the phase saturations in the two cells, and :math:`\rho_p^1`, :math:`\rho_p^2` are the corresponding phase densities. This formulation can be derived by considering a force balance over the two cells, and ensures a smooth variation in effective phase density on the face when the adjoining cells change phase. If both adjoining cells have the same saturation (e.g. in single-phase conditions) then this weighted average reduces to a simple arithmetic average of :math:`\rho_p^1` and :math:`\rho_p^2`.
 
 .. index:: solver
 .. _nonlinear_equations:
@@ -158,20 +158,20 @@ Regardless of the time stepping method used, the discretised equations to be sol
 
    \mathbf{r}(\mathbf{Y}) = \mathbf{0}
 
-then at each time step we must solve this for the solution :math:`\mathbf{Y} = \mathbf{Y}^{n+1}`. Because of the non-linearity, it must be solved numerically using a non-linear solution technique such as Newton's method. This is an iterative method which starts from an initial estimate of the solution (here taken as :math:`\mathbf{Y} = \mathbf{Y}^n`) and adjusts the provisional solution :math:`\mathbf{Y}` at each iteration until equation :eq:`fx0` is satisfied, to within a pre-specified tolerance.
+then at each time step we must solve this for the solution :math:`\mathbf{Y} = \mathbf{Y}^{n+1}`. Because of the non-linearity, it must be solved numerically using a non-linear solution technique such as Newton's method. Newton's method is an iterative method which starts from an initial estimate of the solution (here taken as :math:`\mathbf{Y} = \mathbf{Y}^n`) and adjusts the provisional solution :math:`\mathbf{Y}` at each iteration until equation :eq:`fx0` is satisfied, to within a pre-specified tolerance.
 
 At each iteration, Newton's method adds an update :math:`\Delta \mathbf{Y}` to the provisional solution :math:`\mathbf{Y}` according to:
 
 .. math::
    :label: newton
 
-   \mathbf{J} \Delta \mathbf{Y} = -\mathbf{r}(\mathbf{Y})
+   \mathbf{J} \Delta \mathbf{Y} = -\mathbf{r}
 
 where :math:`\mathbf{J}` is the Jacobian matrix of the function :math:`\mathbf{r}`, i.e. the matrix of partial derivatives of :math:`\mathbf{r}` with respect to :math:`\mathbf{Y}`.
 
 .. index:: solver; non-linear, numerical methods; non-linear equations
 
-At each iteration, the Newton update equation :eq:`newton` represents a large, sparse system of linear equations to be solved numerically. "Krylov subspace" iterative methods (e.g. conjugate gradient methods) are appropriate for solving such systems. For typical simulations of large problems, most of the computation time is spent in the solution of the linear equations.
+At each iteration, the Newton update equation :eq:`newton` represents a large, sparse system of linear equations to be solved numerically. "Krylov subspace" iterative methods (e.g. conjugate gradient methods) are appropriate for solving such systems. For typical simulations of large flow problems, most of the computation time is spent in the solution of the linear equations.
 
 .. index:: PETSc; SNES
 

@@ -136,6 +136,7 @@ For example:
 In this case, the mesh is interpreted as being in :math:`r-z` (cylindrical) coordinates.
 
 .. index:: mesh; orthogonality
+.. _mesh_orthogonality:
 
 Mesh orthogonality
 ==================
