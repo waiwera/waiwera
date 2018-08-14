@@ -26,8 +26,6 @@ In the Waiwera JSON input file, the **"eos"** value specifies the equation of st
    |             |          |:math:`^{\circ}`\ C|:math:`^{\circ}`\ C)   |
    |             |          |                   |for :ref:`water_eos`   |
    |             |          |                   |EOS                    |
-   |             |          |                   |                       |
-   |             |          |                   |                       |
    +-------------+----------+-------------------+-----------------------+
 
 For example:
@@ -49,15 +47,23 @@ Water EOS modules
 Water ("w")
 -----------
 
-.. note::
-
-   * **name**: "w"
-   * **component names**: ["water"]
-   * **phase names**: ["liquid"]
-   * **primary variable names**: ["pressure"]
-   * **default primary variables**: [10\ :sup:`5` Pa]
-   * **default region**: 1 (liquid)
-   * **default output fluid fields**: ["pressure", "region"]
++-------------------------------+--------------------------+
+|**abbreviated name**:          |"w"                       |
++-------------------------------+--------------------------+
+|**component names**:           |["water"]                 |
++-------------------------------+--------------------------+
+|**phase names**:               |["liquid"]                |
++-------------------------------+--------------------------+
+|**primary variable names**:    |["pressure"]              |
++-------------------------------+--------------------------+
+|**default primary variables**: |[10\ :sup:`5` Pa]         |
+|                               |                          |
++-------------------------------+--------------------------+
+|**default region**:            |1 (liquid)                |
++-------------------------------+--------------------------+
+|**default output fluid         |["pressure", "region"]    |
+|fields**:                      |                          |
++-------------------------------+--------------------------+
 
 This is the simplest equation of state module, simulating the behaviour of isothermal, single-phase liquid water. There is only one primary thermodynamic variable: pressure.
 
@@ -77,18 +83,25 @@ Fluid properties are calculated directly from the thermodynamic formulation for 
 Water and energy ("we")
 -----------------------
 
-.. note::
-
-   * **name**: "we"
-   * **component names**: ["water", "energy"]
-   * **phase names**: ["liquid", "vapour"]
-   * **primary variable names**:
-
-     * **liquid / vapour**: ["pressure", "temperature"]
-     * **two-phase**: ["pressure", "vapour_saturation"]
-   * **default primary variables**: [10\ :sup:`5` Pa, 20 :math:`^{\circ}`\ C]
-   * **default region**: 1 (liquid)
-   * **default output fluid fields**: ["pressure", "temperature", "region", "vapour_saturation"]
++-------------------------------+--------------------------------------------------+
+|**abbreviated name**:          |"we"                                              |
++-------------------------------+--------------------------------------------------+
+|**component names**:           |["water", "energy"]                               |
++-------------------------------+--------------------------------------------------+
+|**phase names**:               |["liquid", "vapour"]                              |
++-------------------------------+--------------------------------------------------+
+|**primary variable names**:    |**single-phase**: ["pressure", "temperature"]     |
+|                               +--------------------------------------------------+
+|                               |**two-phase**: ["pressure", "vapour_saturation"]  |
++-------------------------------+--------------------------------------------------+
+|**default primary variables**: |[10\ :sup:`5` Pa, 20 :math:`^{\circ}`\ C]         |
+|                               |                                                  |
++-------------------------------+--------------------------------------------------+
+|**default region**:            |1 (liquid)                                        |
++-------------------------------+--------------------------------------------------+
+|**default output fluid         |["pressure", "temperature", "region",             |
+|fields**:                      |"vapour_saturation"]                              |
++-------------------------------+--------------------------------------------------+
 
 This is the simplest non-isothermal equation of state module, with only one mass component (water) but also including the energy component. Water may be in liquid, vapour or two-phase conditions, and may change between these states. Primary variables are pressure and temperature for single-phase conditions but switch to pressure and vapour saturation under two-phase conditions.
 
@@ -109,34 +122,46 @@ The primary variables for these EOS modules are as for the water / energy EOS, b
 Water, air and energy ("wae")
 -----------------------------
 
-.. note::
-
-   * **name**: "wae"
-   * **component names**: ["water", "air", "energy"]
-   * **phase names**: ["liquid", "vapour"]
-   * **primary variable names**:
-
-     * **liquid / vapour**: ["pressure", "temperature", "air_partial_pressure"]
-     * **two-phase**: ["pressure", "vapour_saturation", "air_partial_pressure"]
-   * **default primary variables**: [10\ :sup:`5` Pa, 20 :math:`^{\circ}`\ C, 0 Pa]
-   * **default region**: 1 (liquid)
-   * **default output fluid fields**: ["pressure", "temperature", "region", "air_partial_pressure", "vapour_saturation"]
++-------------------------------+-------------------------------------------------------------------------+
+|**abbreviated name**:          |"wae"                                                                    |
++-------------------------------+-------------------------------------------------------------------------+
+|**component names**:           |["water", "air", "energy"]                                               |
++-------------------------------+-------------------------------------------------------------------------+
+|**phase names**:               |["liquid", "vapour"]                                                     |
++-------------------------------+-------------------------------------------------------------------------+
+|**primary variable names**:    |**single-phase**: ["pressure", "temperature", "air_partial_pressure"]    |
+|                               +-------------------------------------------------------------------------+
+|                               |**two-phase**: ["pressure", "vapour_saturation", "air_partial_pressure"] |
++-------------------------------+-------------------------------------------------------------------------+
+|**default primary variables**: |[10\ :sup:`5` Pa, 20 :math:`^{\circ}`\ C, 0 Pa]                          |
++-------------------------------+-------------------------------------------------------------------------+
+|**default region**:            |1 (liquid)                                                               |
++-------------------------------+-------------------------------------------------------------------------+
+|**default output fluid         |["pressure", "temperature", "region", "air_partial_pressure",            |
+|fields**:                      |"vapour_saturation"]                                                     |
++-------------------------------+-------------------------------------------------------------------------+
 
 .. index:: equation of state (EOS); water / air / carbon dioxide ("wce")
 
 Water, carbon dioxide and energy ("wce")
 ----------------------------------------
 
-.. note::
-
-   * **name**: "wce"
-   * **component names**: ["water", "CO2", "energy"]
-   * **phase names**: ["liquid", "vapour"]
-   * **primary variable names**:
-
-     * **liquid / vapour**: ["pressure", "temperature", "CO2_partial_pressure"]
-     * **two-phase**: ["pressure", "vapour_saturation", "CO2_partial_pressure"]
-   * **default primary variables**: [10\ :sup:`5` Pa, 20 :math:`^{\circ}`\ C, 0 Pa]
-   * **default region**: 1 (liquid)
-   * **default output fluid fields**: ["pressure", "temperature", "region", "CO2_partial_pressure", "vapour_saturation"]
++-------------------------------+-------------------------------------------------------------------------+
+|**abbreviated name**:          |"wce"                                                                    |
++-------------------------------+-------------------------------------------------------------------------+
+|**component names**:           |["water", "CO2", "energy"]                                               |
++-------------------------------+-------------------------------------------------------------------------+
+|**phase names**:               |["liquid", "vapour"]                                                     |
++-------------------------------+-------------------------------------------------------------------------+
+|**primary variable names**:    |**single-phase**: ["pressure", "temperature", "CO2_partial_pressure"]    |
+|                               +-------------------------------------------------------------------------+
+|                               |**two-phase**: ["pressure", "vapour_saturation", "CO2_partial_pressure"] |
++-------------------------------+-------------------------------------------------------------------------+
+|**default primary variables**: |[10\ :sup:`5` Pa, 20 :math:`^{\circ}`\ C, 0 Pa]                          |
++-------------------------------+-------------------------------------------------------------------------+
+|**default region**:            |1 (liquid)                                                               |
++-------------------------------+-------------------------------------------------------------------------+
+|**default output fluid         |["pressure", "temperature", "region", "CO2_partial_pressure",            |
+|fields**:                      |"vapour_saturation"]                                                     |
++-------------------------------+-------------------------------------------------------------------------+
        
