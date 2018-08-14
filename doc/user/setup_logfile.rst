@@ -108,6 +108,8 @@ In the following log messages:
 
 the first message is a warning showing that the non-linear solver (see :ref:`nonlinear_solution`) has reached the maximum allowable number of iterations without converging, and is therefore stopping. The second message is also a warning, showing the the time step size is being reduced (see :ref:`time_step_reductions`), and the time step will be re-tried with the new size shown.
 
+.. _control_log_output:
+
 Controlling log output
 ======================
 

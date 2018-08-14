@@ -63,3 +63,8 @@ When Waiwera is run, the main parameter it takes is the filename, which should f
 These PETSc command line parameters can be used, for example, to control the behaviour of the PETSc linear and non-linear solvers used by Waiwera, as well as many other options such as diagnostic or debugging output. Some of these options (e.g. the linear and non-linear solver parameters) can also be specified in the Waiwera JSON input file.
 
 More information about specific PETSc command line parameters can be found in the `PETSc <https://www.mcs.anl.gov/petsc/>`_ documentation.
+
+Run-time console output
+=======================
+
+As Waiwera runs, by default all the log messages (see :ref:`setup_logfile`) being written to the YAML log file are also echoed to the console output, so the progress of the simulation can be monitored. If this is not needed it can be disabled in the input JSON file (see :ref:`control_log_output`).
