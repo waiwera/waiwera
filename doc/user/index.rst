@@ -21,11 +21,9 @@ Waiwera user guide
    output
    todolist
 
-******************
-Indices and tables
-******************
+.. only:: html
 
-* :ref:`genindex`
-* :ref:`search`
+   * :ref:`genindex`
+   * :ref:`search`
 
 
