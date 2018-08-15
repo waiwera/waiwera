@@ -19,7 +19,7 @@ In the Waiwera JSON input file, the **"eos"** value specifies the equation of st
    +-------------+----------+-------------------+-----------------------+
    |**name**     |**type**  |**default**        |**value**              |
    +-------------+----------+-------------------+-----------------------+
-   |"name"       |string    |"we"               |Abbreviated EOS module |
+   |"name"       |string    |"we"               |abbreviated EOS module |
    |             |          |                   |name                   |
    +-------------+----------+-------------------+-----------------------+
    |"temperature"|number    |20\                |constant temperature ( |
@@ -103,7 +103,7 @@ Water and energy ("we")
 |fields**:                      |"vapour_saturation"]                              |
 +-------------------------------+--------------------------------------------------+
 
-This is the simplest non-isothermal equation of state module, with only one mass component (water) but also including the energy component. Water may be in liquid, vapour or two-phase conditions, and may change between these states. Primary variables are pressure and temperature for single-phase conditions but switch to pressure and vapour saturation under two-phase conditions.
+This is the simplest non-isothermal equation of state module, with only one mass component (water) but also including the energy component. Water may be in liquid, vapour or two-phase conditions, and may transition between these states. Primary variables are pressure and temperature for single-phase conditions but switch to pressure and vapour saturation under two-phase conditions.
 
 Fluid properties are calculated directly from the thermodynamic formulation for water (see :ref:`water_thermodynamics`).
 
