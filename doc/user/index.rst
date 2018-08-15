@@ -19,7 +19,6 @@ Waiwera user guide
    import
    run
    output
-   todolist
 
 .. only:: html
 
