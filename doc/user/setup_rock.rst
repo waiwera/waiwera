@@ -83,11 +83,11 @@ Rock types may be specified in the Waiwera JSON input file via the **"rock.types
 
 Rock permeability
 -----------------
-Permeability is in many simulations the most influential rock property. In the Waiwera JSON input, permeability is specified as a 2-D array for 2-D simulations, or as a 3-D array for 3-D simulations, to allow for anisotropy.
+Permeability is in many simulations the most influential rock property. In the Waiwera JSON input, permeability is specified as a two-element array for 2-D simulations, or as a three-element array for 3-D simulations, to allow for anisotropy.
 
 In the mass and energy balance equations, permeability appears only in the face flux terms (see :ref:`function_evaluations`), where the value at each mesh face is determined by harmonic weighting of the cell values on either side of the face. The scalar effective permeability normal to the face is chosen from the permeability array according to the **permeability direction** assigned to that face. By default, these directions are chosen according to the **permeability axes** of the mesh. These axes are, in turn, aligned by default with the mesh coordinate axes, so that the elements of the permeability array are associated with the :math:`x`, :math:`y` and :math:`z` axes (in a Cartesian mesh). For faces which are not perfectly aligned with any permeability axis (e.g. in non-rectangular, unstructured meshes) the axis most closely aligned with the face normal vector is used to determine the default permeability direction.
 
-However, the mesh permeability axes can be rotated in the horizontal plane (for example, to align them with fault planes, or with the principal axes of a mesh that has itself been rotated) by specifying the **"mesh.permeability_angle"** value (see :ref:`specifying_mesh`). In this case, the permeability axes are rotated by the specified angle anti-clockwise from the :math:`x` axis.
+However, the mesh permeability axes can be rotated in the horizontal plane (for example, to align them with fault planes, or with the principal axes of a mesh that has itself been rotated) by specifying the **"mesh.permeability_angle"** value (see :ref:`specifying_mesh`). In this case, the permeability axes are rotated by the specified angle (in degrees) anti-clockwise from the :math:`x` axis.
 
 For example:
 
@@ -153,7 +153,7 @@ Relative permeability curves are a way of adapting Darcy's law to multi-phase fl
 
 In the equation for mass flux through the cell faces (see :ref:`function_evaluations`) the relative permeability :math:`k_r^p` is a factor applied the rock permeability :math:`k` for phase :math:`p`. The relative permeability curves describe how :math:`k_r^p` for each phase varies as a function of saturation.
 
-A variety of different types of relative permeability curves have been proposed. Waiwera offers several of these, and allows the desired curves to be specified in the JSON input file via the **"rock.relative_permeability"** value. This value is an object, containing a **"type"** string value which selects the type of curves, along with other parameters which depend on the curve type.
+A variety of different types of relative permeability curves have been proposed. Waiwera offers several of these, and allows the desired curves to be specified in the JSON input file via the **"rock.relative_permeability"** value. This value is an object, containing a **"type"** string value which selects the type of curve, along with other parameters which depend on the curve type.
 
 The different types of relative permeability curves available in Waiwera are described below.
 
