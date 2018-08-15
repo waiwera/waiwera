@@ -7,7 +7,7 @@ Source terms
 
 A **source** injects or produces (i.e. extracts) mass or energy at a particular **flow rate** (kg/s or J/s) in a given cell. By convention, the flow rate is positive for injection, and negative for production. (Here we use the term "source" to include "sinks", which are just considered to be sources with negative flow rate.)
 
-Sources may be used to represent physical sources or sinks such as wells or springs. They may also be used to implement :ref:`neumann_boundary_conditions`, i.e. model boundaries where flow rates of mass or energy are prescribed.
+Sources may be used to represent physical sources or sinks such as wells or springs. They may also be used to implement :ref:`neumann_boundary_conditions`, i.e. to model boundaries where flow rates of mass or energy are prescribed.
 
 Sources are set up in the Waiwera JSON input file via the **"source"** value. This is an array of objects. Each object in the array contains a source specification, which can set up a single source, or multiple sources with similar parameters in different cells.
 
@@ -135,7 +135,7 @@ specifies three sources each extracting 1 kW of heat.
 Mixed flow
 ==========
 
-The flow rate in a source may vary with time (see :ref:`source_controls`), and while it is uncommon, by default there is nothing to prevent a source from switching between production and injection during a simulation. (It is possible to limit the flow direction using the :ref:`direction` source control.)
+The flow rate in a source may vary with time (see :ref:`source_controls`), and while it is uncommon, by default there is nothing to prevent a source from switching between production and injection during a simulation. (It is possible to limit the flow direction using a :ref:`direction` source control.)
 
 For mixed-flow sources, it is possible to specify the production component independently of the injection component (determined by the "component" value) if desired, so that a source may inject one component and produce a different one. This can be done by specifying the **"production_component"** value. If not specified, by default it is given the value "heat" if the "component" value is also "heat". If the "component" value specifies a mass component, then "production_component" takes the default value of zero (i.e. produce all mass components).
 
@@ -149,7 +149,7 @@ Source controls
 
 In many cases, it is necessary to simulate sources with flow rates (and possibly enthalpies, for injection) that vary with time. To do this, a variety of different "source controls" may be added to a source, depending on what type of time variation is needed.
 
-These may be straight-forward controls in which the time variation is simply prescribed, or dynamic controls which vary flow rates in response to fluid conditions in the cell, or other factors. Most types of controls may be combined together to simulate more complex source behaviour (see :ref:`combining_source_controls`).
+These may be straight-forward controls in which the time variation is simply prescribed, or dynamic controls which vary flow rates in response to fluid conditions in the cell or other factors. Most types of controls may be combined together to simulate more complex source behaviour (see :ref:`combining_source_controls`).
 
 .. index:: source controls; table
 
@@ -168,7 +168,7 @@ For example:
      {"cell": 313, "rate": [[0, -2.5], [3600, -2.8], [7200, -3.2]], "interpolation": "step"}
    ]}
 
-specifies a source with time-varying flow rate, defined by tabulated points at three times. Step (i.e. piecewise constant) interpolation is used. Since an explicit "averaging" value is not specified, the default (integration) is used.
+specifies a source with time-varying flow rate, defined by tabulated points at three times (0, 1 hour and 2 hours). Step (i.e. piecewise constant) interpolation is used. Since an explicit "averaging" value is not specified, the default (integration) is used.
 
 The following example has a production source with both flow rate and enthalpy varying piecewise-linearly with time:
 
@@ -201,7 +201,7 @@ This alternative syntax is generally not needed, but is provided for consistency
 Deliverability
 --------------
 
-The "deliverability" source control dynamically changes the flow rate in a production source, according to the difference between the pressure in the cell and a reference pressure. This control is typically used for wells, and the reference pressure represents a wellbore pressure.
+The "deliverability" source control dynamically changes the flow rate in a production source, according to the difference between the pressure in the cell and a reference pressure. This control is typically used for wells, in which case the reference pressure represents a wellbore pressure.
 
 The total mass flow rate :math:`q` (kg/s) is given by:
 
@@ -516,7 +516,7 @@ Combining source controls
 
 As we have seen in some of the examples above, it is possible to use different source controls together on one source, to simulate more complex behaviour. In fact, in principle it is possible to use any combination of source controls together on the same source.
 
-However, some of these combinations are more useful than others. There is no point having multiple controls that independently assign different flow rates to the same source, for example, a deliverability control and a recharge control.
+However, some of these combinations are more useful than others. There is no point in having multiple controls that independently assign different flow rates to the same source, for example, a deliverability control and a recharge control.
 
 Waiwera applies controls to a source in a pre-defined order -- in fact, the same order they have been described here. (The order in which they are specified in the JSON input file is not important.) So, for example, if a source did have both a deliverability control and a recharge control, the flow rate computed by the deliverability control would be overridden by the flow rate computed by the recharge control. Controls which do not compute a flow rate (e.g. limiters, direction and factor controls), but only modify flow rates computed by other controls, are applied last.
 

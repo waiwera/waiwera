@@ -41,7 +41,7 @@ As well as the primary variables, the thermodynamic region (see :ref:`thermodyna
 
 The faces on which to apply the boundary condition are specified via the **"faces"** value. This can be either a single object or an array of objects, depending on whether the boundary condition is applied to one face specification or several different faces specifications.
 
-In either case, the faces are specified by a combination of cell indices and an outward normal vector for the boundary. The cell indices, specified by the **"cells"** array value, are the indices of the cells just inside the boundary. Because it is an array value, multiple faces may be contained in each face specification. In general, specifying the boundary cells is not sufficient to specify the faces uniquely, because on edges of the mesh these cells may have multiple boundary faces. Hence, it is also necessary to specify the outward normal vector of the boundary, via the **"normal"** array value (see :numref:`bc_fig`).
+In either case, the faces are specified by a combination of cell indices and an outward normal vector for the boundary. The cell indices, specified by the **"cells"** array value, are the indices of the cells just inside the boundary. Because it is an array value, multiple faces may be contained in each face specification. In general, specifying the boundary cells is not sufficient to specify the faces uniquely, because at mesh corners these cells may have multiple boundary faces. Hence, it is also necessary to specify the outward normal vector of the boundary, via the **"normal"** array value (see :numref:`bc_fig`).
 
 .. _bc_fig:
 .. figure:: boundary_conditions.*
