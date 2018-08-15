@@ -15,7 +15,7 @@ If the matrix is represented by just a single cell inside each fracture cell, th
 * each fracture cell and the first matrix cell inside it
 * each matrix cell and the next matrix cell inside itself
 
-but not between matrix cells that are inside different fracture cells. Flow in the rock matrix is locally one-dimensional. Generally permeabilities are low in the matrix cells, but high in the fracture cells.
+but not between matrix cells that are inside different fracture cells. Flow within the rock matrix is locally one-dimensional. Generally permeabilities are low in the matrix cells, but high in the fracture cells.
 
 .. figure:: minc.*
            :scale: 67 %
@@ -54,7 +54,7 @@ MINC geometry
 
 As the MINC matrix cells are treated the same as any of the other cells in the :ref:`finite_volume_discretisation`, it is necessary to assign appropriate volumes to them. Similarly, areas must be assigned to the additional mesh faces introduced by MINC, as well as connection distances from each face to the cells on either side.
 
-For conventional non-MINC cells these geometric parameters are computed simply from the mesh geometry. For MINC cells they must be computed based on some assumptions about the geometry of the fractures in the rock medium.
+For conventional non-MINC cells these geometric parameters are computed simply from the mesh geometry. For MINC cells they must be computed based on assumptions about the geometry of the fractures in the rock medium.
 
 The MINC method makes the simplifying assumption that thermodynamic conditions in the rock matrix cells depend primarily on the distance from the nearest fracture. The MINC cells are therefore constructed so that the interfaces between them are parallel to the nearest fracture. There are various ways of doing this. The simplest and most common way proceeds by idealising the matrix cells as sets of identical cubes, and this is the approach adopted in Waiwera's implementation of the MINC method. More details can be found in [PrNa85]_.
 
@@ -88,9 +88,9 @@ Volume fractions
 
 The fracture and matrix volume fractions may be specified using the **"fracture.volume"** and **"matrix.volume"** values in the "mesh.minc" object. Because the volume fractions must sum to one (i.e. :math:`f + \sum_i{m_i} = 1`), it is not usually necessary to specify both of these values. If either one is omitted, the default value it takes is set so that the above equation is satisfied.
 
-If there are multiple MINC matrix levels, the "matrix.volume" value in the "mesh.minc" object should be specified as an array of matrix volume fractions :math:`m_i`. If it is specified as a single number, there is just one matrix level (i.e. a "dual-porosity" model). The size of this value implicitly determines the number of matrix levels.
+If there are multiple MINC matrix levels, the "matrix.volume" value in the "mesh.minc" object should be specified as an array of matrix volume fractions :math:`m_i`. If it is specified as a single number, there is just one matrix level (i.e. a "dual-porosity" model). The length of the array value implicitly determines the number of matrix levels.
 
-If both fracture and matrix volume fractions are specified, but they do not sum to one, then they will be scaled so that they do sum to one. (This means, for example, that volume fractions can be specified as percentage values instead of decimal fractions.) Note that this is not possible unless both fracture and matrix volume fractions are specified.
+If both fracture and matrix volume fractions are specified, but they do not sum to one, then they will be scaled so that they do sum to one. (This means, for example, that volume fractions can be specified as percentage values instead of decimal fractions.) Note, however, that this is not possible unless both fracture and matrix volume fractions are specified.
 
 Fracture spacings and planes
 ----------------------------
@@ -187,7 +187,7 @@ The "zones" and "types" values can be either single strings or arrays of strings
 MINC rock types
 ---------------
 
-The **"fracture"** and **"matrix"** values in the "mesh.minc.rock" object define the rock properties in the MINC zone's fracture and matrix cells, respectively. Currently these MINC rock properties must be defined via :ref:`rock_types`, so both the "fracture" and "matrix" values are objects containing a single string value, **"type"**, specifying the appropriate rock type name. A rock type with the specified name must be defined in the main "rock.types" array (`not` the "mesh.minc.rock.types" array), where all the other rock types for single-porosity cells are also defined.
+The **"fracture"** and **"matrix"** values in the "mesh.minc.rock" object define the rock properties in the MINC zone's fracture and matrix cells, respectively. Currently these MINC rock properties must be defined via :ref:`rock_types`, so both the "fracture" and "matrix" values are objects containing a single string value, **"type"**, specifying the appropriate rock type name. A rock type with the specified name must be defined in the main "rock.types" array, where all the other rock types for single-porosity cells are also defined (`not` in the "mesh.minc.rock.types" array).
 
 Normally a rock type definition includes the specification of which cells are assigned that rock type (see :ref:`rock_type_cells_and_zones`). For MINC fracture and matrix rock types this is not necessary as the MINC rock assignments are defined in the "minc.rock" value (see :ref:`minc_zone_extent`). Hence, the "cells" and "zones" values in MINC rock types do not need to be specified.
 
