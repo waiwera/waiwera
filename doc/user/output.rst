@@ -40,7 +40,7 @@ The **"cell_fields"** group in a Waiwera HDF5 output file contains output data d
 
 Because the fluid datasets are generally time-dependent, there is one row in the dataset for each output time (see :ref:`time_output`), and on each row there is one column per cell.
 
-The "cell_fields" group also contains datasets related to **cell geometry**, which have names beginning with "cell_geometry". For example, the "cell_geometry_volume" dataset contains the volumes of all the cells. These datasets are not time-dependent, so there is just one row per cell. The "cell_centroid" dataset contains a three-element array for each cell, so there are three columns on each row.
+The "cell_fields" group also contains datasets related to **cell geometry**, which have names beginning with "cell_geometry". For example, the "cell_geometry_volume" dataset contains the volumes of all the cells. These datasets are not time-dependent, so there is just one row per cell. The "cell_geometry_centroid" dataset contains a three-element array for each cell, so there are three columns on each row.
 
 .. index:: output; sources, HDF5; source_fields group
 
@@ -81,7 +81,7 @@ As an example, consider the simple 9-cell 2-D mesh in :numref:`global_ordering_f
 
 The Waiwera HDF5 output file contains a dataset (in the root group) called **"cell_index"** which is a mapping from the natural cell ordering onto the global cell ordering used in the output. Hence, if the "cell_index" dataset is represented by the array :math:`c`, then the index of the global cell data corresponding to natural index :math:`i` is given by :math:`c[i]`. For example, the "cell_index" array for the mesh in :numref:`global_ordering_fig` would be [4, 5, 6, 0, 7, 8, 1, 2, 3].
 
-This index array can be used to re-order output in global output ordering back into natural ordering, for post-processing. It is also used to re-order fluid data when a simulation is restarted from the output of a previous run (see :ref:`restarting`).
+This index array can be used to re-order output in global output ordering back into natural ordering, for post-processing. It is also used internally by Waiwera to re-order fluid data when a simulation is restarted from the output of a previous run (see :ref:`restarting`).
 
 Similarly, there is another dataset called **"source_index"** which maps the natural source ordering onto the global source ordering in the output.
 

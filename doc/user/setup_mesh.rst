@@ -258,8 +258,12 @@ Examples:
 .. code-block:: json
 
   {"mesh": {"filename": "model.msh",
-            "zones": {"production": {"x": [0, 1000], "y": [500, 900], "z": [-1000, -200]},
-                      "NE": {"type": "box", "x": [1000, 4000], "y": [1200, 3300]},
+            "zones": {"production": {"x": [0, 1000],
+                                     "y": [500, 900],
+                                     "z": [-1000, -200]},
+                                     "NE": {"type": "box",
+                                            "x": [1000, 4000],
+                                            "y": [1200, 3300]},
                       "basement": {"z": [-3000, -2000]}}
    }}
 
@@ -343,7 +347,8 @@ In the next example, the "production matrix" zone consists of all cells in the "
             "zones": {"production": {"x": [0, 1000], "y": [0, 1000]},
                       "fracture1": {"z": [-2000, -1900]},
                       "fracture2": {"z": [-2400, -2350]},
-                      "production matrix": {"+": "production", "-": ["fracture1", "fracture2"]}
+                      "production matrix": {"+": "production",
+                                            "-": ["fracture1", "fracture2"]}
                       }
             }}
             

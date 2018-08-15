@@ -65,7 +65,7 @@ By default, results are output at every time step. However, if this amount of ou
 
 gives output only every fifth time step.
 
-Setting the "frequency" value to zero disables regular output. This is usually desirable only in conjunction with "checkpoint" output (see :ref:`checkpoint_output`), or if only the final simulation results are required (see :ref:`initial_and_final_output`), e.g. for :ref:`steady_state`.
+Setting the "frequency" value to zero disables regular output. This is usually desirable only in conjunction with "checkpoint" output (see :ref:`checkpoint_output`), or if only the final simulation results are required (see :ref:`initial_and_final_output`), e.g. for :ref:`steady_state` using adaptive time-stepping.
 
 .. index:: output; initial, output; final
 .. _initial_and_final_output:

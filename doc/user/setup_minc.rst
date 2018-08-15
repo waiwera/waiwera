@@ -226,7 +226,9 @@ In the example below, a model is set up with MINC applied to a central "producti
 .. code-block:: json
 
    {"mesh": {"filename": "my_mesh.msh",
-             "zones": {"production": {"x": [-500, 500], "y": [-500, 500], "z": [-1000, -200]},
+             "zones": {"production": {"x": [-500, 500],
+                                      "y": [-500, 500],
+                                      "z": [-1000, -200]},
                        "outer": {"-": "production"}},
              "minc": {"geometry": {"fracture": {"spacing": 45},
                                    "matrix": {"volume": [0.15, 0.3, 0.5]}},

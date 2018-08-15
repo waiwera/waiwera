@@ -46,7 +46,7 @@ All messages written to the Waiwera log file have the same structure, with four 
    * **"warn"**, for warnings (conditions that are unusual but will not cause the simulation to stop)
    * **"err"**, for errors, which will cause the simulation to stop
 2) **source**: which part of the code has generated the message
-3) **event**: the event that the message is about
+3) **event**: the event that the message is reporting
 4) **data**: supplementary data providing additional detail on the event
 
 .. index:: log output; message format

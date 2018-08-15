@@ -165,7 +165,8 @@ For example:
 .. code-block:: json
 
    {"source": [
-     {"cell": 313, "rate": [[0, -2.5], [3600, -2.8], [7200, -3.2]], "interpolation": "step"}
+     {"cell": 313, "rate": [[0, -2.5], [3600, -2.8], [7200, -3.2]],
+      "interpolation": "step"}
    ]}
 
 specifies a source with time-varying flow rate, defined by tabulated points at three times (0, 1 hour and 2 hours). Step (i.e. piecewise constant) interpolation is used. Since an explicit "averaging" value is not specified, the default (integration) is used.
@@ -273,8 +274,12 @@ This source has a time-varying reference pressure as well as time-varying produc
 .. code-block:: json
 
    {"source": [{"cell": 10,
-                "deliverability": {"pressure": [[0, 2.5e5], [1.5e4, 2.4e5], [4.1e4, 2.2e5]],
-                                   "productivity": [[0, 1e-11], [1.5e4, 3e-12], [4.1e4, 1.2e-12]]}}
+                "deliverability": {"pressure": [[0, 2.5e5],
+                                                [1.5e4, 2.4e5],
+                                                [4.1e4, 2.2e5]],
+                                   "productivity": [[0, 1e-11],
+                                                    [1.5e4, 3e-12],
+                                                    [4.1e4, 1.2e-12]]}}
               ]}
 
 This source has a constant productivity index, but an enthalpy-dependent reference pressure, decreasing from 25 bar at low enthalpies to 15 bar at 2000 kJ/kg:
@@ -284,7 +289,9 @@ This source has a constant productivity index, but an enthalpy-dependent referen
    {"source": [{"cell": 10,
                 "deliverability": {
                   "productivity": 2.2e-11,
-                  "pressure": {"enthalpy": [[0, 25e5], [1000e3, 25e5], [2000e3, 15e5]]}
+                  "pressure": {"enthalpy": [[0, 25e5],
+                                            [1000e3, 25e5],
+                                            [2000e3, 15e5]]}
                 }}]}
 
 This source also has an enthalpy-dependent reference pressure, and has its productivity index calculated from a specified initial flow rate of -3.2 kg/s:
@@ -294,7 +301,9 @@ This source also has an enthalpy-dependent reference pressure, and has its produ
    {"source": [{"cell": 10,
                 "rate": -3.2,
                 "deliverability": {
-                  "pressure": {"enthalpy": [[0, 25e5], [1000e3, 25e5], [2000e3, 15e5]]}
+                  "pressure": {"enthalpy": [[0, 25e5],
+                                            [1000e3, 25e5],
+                                            [2000e3, 15e5]]}
                 }}]}
 
 This source has a table of specified flow rates vs. time, but switches to deliverability if the pressure drops below the threshold value of 2 bar:
@@ -457,7 +466,7 @@ For example:
 
    {"source": [
      {"cell": 200, "recharge": {"pressure": "initial", "coefficient": 1e-3},
-     "direction": "in"
+      "direction": "in"
      }
    ]}
 
@@ -493,7 +502,10 @@ For example:
    {"source": [{"cell": 10,
                 "deliverability": {"pressure": 2e5, "productivity": 1e-12},
                 "direction": "production",
-                "factor": [[0, 1], [3.15576e7, 0.95], [6.31152e7, 0.73], [9.46728e7, 0.89]]}
+                "factor": [[0, 1],
+                           [3.15576e7, 0.95],
+                           [6.31152e7, 0.73],
+                           [9.46728e7, 0.89]]}
               ]}
 
 specifies a production well on deliverability, with a declining scale factor applied over the first three years of production. Here no parameters are specified for interpolation or averaging, so the defaults (linear interpolation, integration averaging) are used for both flow rates and the scale factor.

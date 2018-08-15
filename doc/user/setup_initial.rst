@@ -129,7 +129,7 @@ In this case, the "initial" object in the JSON input file for the restarted simu
 
 The filename of the output from the previous simulation is specified using the **"filename"** value. In general, an output file may contain results for more than one time. The new simulation can be restarted from any of the results in the previous output file. The index of the desired set of results can be specified using the **"index"** value, which defaults to zero.
 
-Restarting from a previous output file will read both the primary variables and the thermodynamic regions from the file. Clearly, the output file should contain results for the same number of cells as the restarted simulation.
+Restarting from a previous output file will read both the primary variables and the thermodynamic regions from the file. Clearly, the output file should contain results for the same number of cells as the restarted simulation (except in the case of restarting a MINC simulation from single-porosity initial conditions -- see :ref:`minc_initial_conditions`).
 
 Generally the previous output file should have been generated using the same :ref:`eos` used by the restarted simulation. However, this is not strictly necessary, as long as the output file contains results for all the primary variables of the EOS used in the restarted run.
 

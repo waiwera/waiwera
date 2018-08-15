@@ -32,7 +32,7 @@ All time-related parameters are specified in the Waiwera JSON input file via the
 
 .. index:: time; start, time; stop
 
-The **"start"** and **"stop"** values in the "time" object are numbers specifying the start and stop times for the simulation. The "stop" value can also be given the ``null`` value (or simply not be specified), in which case the simulation will not stop at a prescribed time -- other criteria will determine when the simulation stops (e.g. how many time steps have been taken).
+The **"start"** and **"stop"** values in the "time" object are numbers specifying the start and stop times for the simulation. The "stop" value can also be given the ``null`` value (or simply not specified), in which case the simulation will not stop at a prescribed time -- other criteria will determine when the simulation stops (e.g. how many time steps have been taken).
 
 For example:
 
@@ -87,7 +87,7 @@ where :math:`t` is time and  the left- and right-hand side functions :math:`\mat
 
 Waiwera contains a module for solving ordinary differential equations of this form, using different numerical time-stepping methods. These solve for the solution :math:`\mathbf{Y}^n` at a sequence of discretised times :math:`t^n`. At the :math:`n^{th}` time step the new solution :math:`\mathbf{Y}^{n+1}` at time :math:`t^{n+1} = t^n + \Delta t^n` (where :math:`\Delta t^n` is the current time step size) is computed from :math:`\mathbf{Y}^n` (and possibly other previous solutions) by solving a set of non-linear equations, which depend on the time-stepping method being used.
 
-At present, only a few relatively simple time-stepping methods are included. Particularly for geothermal flow models, the complex and highly non-linear nature of the equations being solved mean that the methods used need to be very stable.
+At present, only a few relatively simple time-stepping methods are included. Particularly for geothermal flow models, the complex and highly non-linear nature of the equations being solved mean that the time-stepping methods need to be very stable.
 
 The time-stepping method is specified via the **"method"** value in the "time.step" object. This is a simple string value which defaults to "beuler", selecting the :ref:`backwards_euler` method.
 
@@ -208,6 +208,11 @@ The "time.step.adapt" object has a Boolean **"on"** value, which determines whet
 
 Two different time step adaption methods are available, selected using the **"method"** string value in the "time.step.adapt" JSON object. They differ only in the way the monitor value :math:`\eta` is defined.
 
+Non-linear iteration count method
+---------------------------------
+
+This method, selected by setting the "method" value to "iteration", uses the number of non-linear solver iterations in the latest time step as the monitor value :math:`\eta`. Because the non-linear solver starts from the previous solution :math:`\mathbf{Y}^n` as its initial estimate of the new solution :math:`\mathbf{Y}^{n+1}`, in general the difference between these values may be expected to be correlated with the number of iterations.
+
 Relative change method
 ----------------------
 
@@ -224,11 +229,6 @@ where :math:`\epsilon` is a small constant (:math:`\epsilon = 10^{-3}` is used h
 ..   \eta = \max_i{\frac{|L_i^{n+1} - L_i^n|} {\max{(|L_i^n|, \epsilon)}}}
 
 .. to avoid problems with elements of L being of different magnitudes. Would be similar to def of NR residual (but for whole step rather than iteration)
-
-Non-linear iteration count method
----------------------------------
-
-This method, selected by setting the "method" value to "iteration", uses the number of non-linear solver iterations in the latest time step as the monitor value :math:`\eta`. Because the non-linear solver starts from the previous solution :math:`\mathbf{Y}^n` as its initial estimate of the new solution :math:`\mathbf{Y}^{n+1}`, in general the difference between these values may be expected to be correlated with the number of iterations.
 
 Example
 -------
@@ -291,7 +291,7 @@ However, the main problem with this approach lies in the fact that the non-linea
 Using adaptive time-stepping
 ----------------------------
 
-Another approach to finding steady-state solutions is to solve the usual transient conservation equations using :ref:`adaptive_time_stepping`, using the :ref:`backwards_euler` time-stepping method, without limiting the time step size, and letting the time stepper run until a very large time step size has been achieved. As the time step size :math:`\Delta t` increases, it gradually reduces the left-hand side time derivative term in equation :eq:`beuler`, until at very large time step sizes it is effectively zero.
+The usual approach to finding steady-state solutions is to solve the transient conservation equations using :ref:`adaptive_time_stepping`, using the :ref:`backwards_euler` time-stepping method, without limiting the time step size, and letting the time stepper run until a very large time step size has been achieved. As the time step size :math:`\Delta t^n` increases, it gradually reduces the left-hand side time derivative term in equation :eq:`beuler`, until at very large time step sizes it is effectively zero.
 
 This approach has the advantage that it usually still converges to the steady-state solution, even if it is started from an initial condition that is not close to the solution. The time-stepping process can be seen as effectively an outer iteration procedure that drives the problem from being transient to steady-state.
 
