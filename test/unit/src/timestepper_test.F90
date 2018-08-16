@@ -944,12 +944,14 @@ contains
     json_str(1) = '{"time": {"start": 0.0, "stop": 1.0, ' // &
          '"step": {"size": 0.01, "maximum": {"number": 200}, ' // &
          '"method": "beuler", ' // &
-         '"adapt": {"on": true, "minimum": 0.01, "maximum": 0.2}}}}'
+         '"adapt": {"on": true, "method": "change", ' // &
+         '"minimum": 0.01, "maximum": 0.2}}}}'
 
     json_str(2) = '{"time": {"start": 0.0, "stop": 1.0, ' // &
          '"step": {"size": 0.05, "maximum": {"number": 200}, ' // &
          '"method": "bdf2", ' // &
-         '"adapt": {"on": true, "minimum": 0.01, "maximum": 0.2}}}}'
+         '"adapt": {"on": true, "method": "change", ' // &
+         '"minimum": 0.01, "maximum": 0.2}}}}'
 
     json_str(3) = '{"time": {"start": 0.0, "stop": 1.0, ' // &
          '"step": {"maximum": {"number": 200}, ' // &
@@ -984,12 +986,14 @@ contains
     json_str(1) = '{"time": {"start": 0.0, "stop": 1.0, ' // &
          '"step": {"size": 0.1, "maximum": {"number": 100}, ' // &
          '"method": "beuler", ' // &
-         '"adapt": {"on": true, "minimum": 0.01, "maximum": 0.2}}}}'
+         '"adapt": {"on": true, "method": "change", ' // &
+         '"minimum": 0.01, "maximum": 0.2}}}}'
 
     json_str(2) = '{"time": {"start": 0.0, "stop": 1.0, ' // &
          '"step": {"size": 0.1, "maximum": {"number": 100}, ' // &
          '"method": "bdf2", ' // &
-         '"adapt": {"on": true, "minimum": 0.01, "maximum": 0.2}}}}'
+         '"adapt": {"on": true, "method": "change", ' // &
+         '"minimum": 0.01, "maximum": 0.2}}}}'
 
     call logistic%run_cases(json_str, tol)
 
@@ -1019,12 +1023,14 @@ contains
     json_str(1) = '{"time": {"start": 1.0, "stop": 10.0, ' // &
          '"step": {"size": 0.01, "maximum": {"number": 100}, ' // &
          '"method": "beuler", ' // &
-         '"adapt": {"on": true, "minimum": 0.03, "maximum": 0.1}}}}'
+         '"adapt": {"on": true, "method": "change", ' // &
+         '"minimum": 0.03, "maximum": 0.1}}}}'
 
     json_str(2) = '{"time": {"start": 1.0, "stop": 10.0, ' // &
          '"step": {"size": 0.1, "maximum": {"number": 100}, ' // &
          '"method": "bdf2", ' // &
-         '"adapt": {"on": true, "minimum": 0.05, "maximum": 0.1}}}}'
+         '"adapt": {"on": true, "method": "change", ' // &
+         '"minimum": 0.05, "maximum": 0.1}}}}'
 
     call nontrivial_lhs%run_cases(json_str, tol)
 
@@ -1053,12 +1059,14 @@ contains
     json_str(1) = '{"time": {"start": 0.0, "stop": 1.0, ' // &
          '"step": {"size": 0.01, "maximum": {"number": 200}, ' // &
          '"method": "beuler", ' // &
-         '"adapt": {"on": true, "minimum": 0.03, "maximum": 0.1}}}}'
+         '"adapt": {"on": true, "method": "change", ' // &
+         '"minimum": 0.03, "maximum": 0.1}}}}'
 
     json_str(2) = '{"time": {"start": 0.0, "stop": 1.0, ' // &
          '"step": {"size": 0.04, "maximum": {"number": 200}, ' // &
          '"method": "bdf2", ' // &
-         '"adapt": {"on": true, "minimum": 0.05, "maximum": 0.1}}}}'
+         '"adapt": {"on": true, "method": "change", ' // &
+         '"minimum": 0.05, "maximum": 0.1}}}}'
 
     call nonlinear_lhs%run_cases(json_str, tol)
 
@@ -1085,12 +1093,14 @@ contains
     json_str(1) = '{"time": {"start": 0.0, "stop": 0.2, ' // &
          '"step": {"size": 0.01, "maximum": {"number": 20}, ' // &
          '"method": "beuler", ' // &
-         '"adapt": {"on": true, "minimum": 0.01, "maximum": 0.1}}}}'
+         '"adapt": {"on": true, "method": "change", ' // &
+         '"minimum": 0.01, "maximum": 0.1}}}}'
 
     json_str(2) = '{"time": {"start": 0.0, "stop": 0.2, ' // &
          '"step": {"size": 0.01, "maximum": {"number": 20}, ' // &
          '"method": "bdf2", ' // &
-         '"adapt": {"on": true, "minimum": 0.01, "maximum": 0.2}}}}'
+         '"adapt": {"on": true, "method": "change", ' // &
+         ' "minimum": 0.01, "maximum": 0.2}}}}'
 
     call heat1d%run_cases(json_str, tol)
 
@@ -1116,12 +1126,14 @@ contains
     json_str(1) = '{"time": {"start": 0.0, "stop": 0.2, ' // &
          '"step": {"size": [0.005], "maximum": {"number": 100}, ' // &
          '"method": "beuler", ' // &
-         '"adapt": {"on": true, "minimum": 0.01, "maximum": 0.1}}}}'
+         '"adapt": {"on": true, "method": "change", ' // &
+         '"minimum": 0.01, "maximum": 0.1}}}}'
 
     json_str(2) = '{"time": {"start": 0.0, "stop": 0.2, ' // &
-         '"step": {"size": 0.01, "maximum": {"number": 50}, ' // &
+         '"step": {"size": 0.01, "maximum": {"number": 100}, ' // &
          '"method": "bdf2", ' // &
-         '"adapt": {"on": true, "minimum": 0.01, "maximum": 0.2}}}}'
+         '"adapt": {"on": true, "method": "change", ' // &
+         '"minimum": 0.01, "maximum": 0.2}}}}'
 
     call heat1d%run_cases(json_str, tol)
 
@@ -1153,12 +1165,14 @@ contains
     json_str(1) = '{"time": {"start": 1.0, "stop": 10.0, ' // &
          '"step": {"size": 0.01, "maximum": {"number": 100}, ' // &
          '"method": "beuler", ' // &
-         '"adapt": {"on": true, "minimum": 0.03, "maximum": 0.1}}}}'
+         '"adapt": {"on": true, "method": "change", ' // &
+         '"minimum": 0.03, "maximum": 0.1}}}}'
 
     json_str(2) = '{"time": {"start": 1.0, "stop": 10.0, ' // &
          '"step": {"size": 0.1, "maximum": {"number": 100}, ' // &
          '"method": "bdf2", ' // &
-         '"adapt": {"on": true, "minimum": 0.05, "maximum": 0.1}}}}'
+         '"adapt": {"on": true, "method": "change", ' // &
+         '"minimum": 0.05, "maximum": 0.1}}}}'
 
     call pre_eval%run_cases(json_str, tol)
 

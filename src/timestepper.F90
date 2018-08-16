@@ -1585,12 +1585,12 @@ end subroutine timestepper_steps_set_next_stepsize
     PetscInt, parameter :: max_adapt_method_str_len = 12
     character(max_adapt_method_str_len) :: adapt_method_str
     character(max_adapt_method_str_len), parameter :: &
-         default_adapt_method_str = "change"
+         default_adapt_method_str = "iteration"
     PetscInt :: adapt_method
-    PetscReal, parameter :: default_adapt_min = 0.01_dp, &
-         default_adapt_max = 0.1_dp
+    PetscReal, parameter :: default_adapt_min = 5._dp, &
+         default_adapt_max = 8._dp
     PetscReal :: adapt_min, adapt_max
-    PetscReal, parameter :: default_adapt_reduction = 0.5_dp, &
+    PetscReal, parameter :: default_adapt_reduction = 0.2_dp, &
          default_adapt_amplification = 2.0_dp
     PetscReal :: adapt_reduction, adapt_amplification
     PetscInt, parameter :: default_nonlinear_max_iterations = 8

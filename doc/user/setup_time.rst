@@ -186,14 +186,14 @@ The "time.step.adapt" object has a Boolean **"on"** value, which determines whet
    +----------------+------------+------------+-------------------------+
    |"on"            |boolean     |``false``   |whether adaptor is used  |
    +----------------+------------+------------+-------------------------+
-   |"method"        |string      |"change"    |method used for adapting |
+   |"method"        |string      |"iteration" |method used for adapting |
    |                |            |            |time step size           |
    +----------------+------------+------------+-------------------------+
-   |"minimum"       |number      |0.01        |minimum monitor value    |
+   |"minimum"       |number      |5           |minimum monitor value    |
    |                |            |            |:math:`\eta_{min}`       |
    |                |            |            |                         |
    +----------------+------------+------------+-------------------------+
-   |"maximum"       |number      |0.1         |maximum monitor value    |
+   |"maximum"       |number      |8           |maximum monitor value    |
    |                |            |            |:math:`\eta_{max}`       |
    |                |            |            |                         |
    +----------------+------------+------------+-------------------------+
@@ -201,7 +201,7 @@ The "time.step.adapt" object has a Boolean **"on"** value, which determines whet
    |                |            |            |increasing time step size|
    |                |            |            |                         |
    +----------------+------------+------------+-------------------------+
-   |"reduction"     |number      |0.5         |factor :math:`\beta` for |
+   |"reduction"     |number      |0.2         |factor :math:`\beta` for |
    |                |            |            |reducing time step size  |
    |                |            |            |                         |
    +----------------+------------+------------+-------------------------+
@@ -233,7 +233,7 @@ where :math:`\epsilon` is a small constant (:math:`\epsilon = 10^{-3}` is used h
 Example
 -------
 
-In the example below, an initial time step size of 3600 s (1 hour) is used, after which time step sizes are chosen adaptively using the non-linear iteration count method. The time step size will be doubled if the non-linear solver converges in fewer than 4 iterations, and halved if it takes more than 8 iterations. The time step size is not allowed to exceed 86400 s (1 day), and the simulation should stop at time 2592000 s (30 days).
+In the example below, an initial time step size of 3600 s (1 hour) is used, after which time step sizes are chosen adaptively using the non-linear iteration count method. The time step size will be increased if the non-linear solver converges in fewer than 4 iterations, and decreased if it takes more than 8 iterations. The time step size is not allowed to exceed 86400 s (1 day), and the simulation should stop at time 2592000 s (30 days).
 
 .. code-block:: json
 
