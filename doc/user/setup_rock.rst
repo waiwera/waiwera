@@ -76,6 +76,22 @@ Rock types may be specified in the Waiwera JSON input file via the **"rock.types
     |                  |              |                      |type                              |
     +------------------+--------------+----------------------+----------------------------------+
 
+For example, the following JSON input defines two rock types named "cap" and "greywacke". The "cap" rock type is given isotropic permeability (see :ref:`rock_permeability`), 5% porosity and is assigned to an array of cells (see :ref:`rock_type_cells_and_zones`). All other rock parameters are left at their default values. The "greywacke" rock type is given anisotropic permeability, 6% porosity and density 2710 kg/m\ :sup:`3`, and is assigned to the "basement" mesh zone.
+
+.. code-block:: json
+
+   {"mesh": {"filename": "my_mesh.exo"},
+    "rock": {"types": [
+             {"name": "cap",
+              "permeability": 1e-15, "porosity": 0.05,
+              "cells": [11, 12, 13, 16, 29, 34]},
+             {"name": "greywacke",
+              "permeability": [1.2e-14, 1.2e-14, 3e-15],
+              "porosity": 0.06, "density": 2710,
+              "zones": ["basement"]}]
+            }
+   }
+
 .. index:: rock; permeability
 .. _rock_permeability:
 
