@@ -241,11 +241,9 @@ In the example below, a model is set up with MINC applied to a central "producti
                        "permeability": [1e-14, 1e-14, 1e-15],
                        "zones": ["outer"]},
                        {"name": "fracture",
-                        "permeability": [1e-12, 1e-12, 1e-12],
-                        "porosity": 0.5},
+                        "permeability": 1e-12, "porosity": 0.5},
                        {"name": "matrix",
-                        "permeability": [1e-16, 1e-16, 1e-16],
-                        "porosity": 0.05}]}
+                        "permeability": 1e-16, "porosity": 0.05}]}
    }
 
 .. index:: MINC; initial conditions, initial conditions; MINC
