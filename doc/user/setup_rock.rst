@@ -53,10 +53,8 @@ Rock types may be specified in the Waiwera JSON input file via the **"rock.types
     |"name"            |string        |""                    |optional rock type name           |
     |                  |              |                      |                                  |
     +------------------+--------------+----------------------+----------------------------------+
-    |"permeability"    |array         |[10\ :sup:`-13`, 10\  |permeability (\                   |
-    |                  |              |:sup:`-13`, 10\       |m\ :sup:`2`\ )                    |
-    |                  |              |:sup:`-13`] m\        |                                  |
-    |                  |              |:sup:`2`              |                                  |
+    |"permeability"    |number | array|10\ :sup:`-13` m\     |permeability (\                   |
+    |                  |              |:sup:`2`              |m\ :sup:`2`\ )                    |
     +------------------+--------------+----------------------+----------------------------------+
     |"wet_conductivity"|number        |2.5 W / (m            |heat conductivity of fully        |
     |                  |              |:math:`^{\circ}`\ C)  |saturated rock (W / (m            |
@@ -83,7 +81,7 @@ Rock types may be specified in the Waiwera JSON input file via the **"rock.types
 
 Rock permeability
 -----------------
-Permeability is in many simulations the most influential rock property. In the Waiwera JSON input, permeability is specified as a two-element array for 2-D simulations, or as a three-element array for 3-D simulations, to allow for anisotropy.
+Permeability is in many simulations the most influential rock property. In the Waiwera JSON input, permeability can be specified as a number (i.e. scalar) for isotropic permeability. To specify anisotropic permeability, the value should be a two-element array for 2-D simulations, or a three-element array for 3-D simulations.
 
 In the mass and energy balance equations, permeability appears only in the face flux terms (see :ref:`function_evaluations`), where the value at each mesh face is determined by harmonic weighting of the cell values on either side of the face. The scalar effective permeability normal to the face is chosen from the permeability array according to the **permeability direction** assigned to that face. By default, these directions are chosen according to the **permeability axes** of the mesh. These axes are, in turn, aligned by default with the mesh coordinate axes, so that the elements of the permeability array are associated with the :math:`x`, :math:`y` and :math:`z` axes (in a Cartesian mesh). For faces which are not perfectly aligned with any permeability axis (e.g. in non-rectangular, unstructured meshes) the axis most closely aligned with the face normal vector is used to determine the default permeability direction.
 

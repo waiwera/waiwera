@@ -401,11 +401,13 @@
                              "type": "object",
                              "properties": {
                                  "name": {"type": "string"},
-                                 "permeability": {"type": "array",
-                                                  "items": {
-                                                      "type": "number", "minimum": 0},
-                                                  "minItems": 2, "maxItems": 3
-                                                 },
+                                 "permeability": {"oneOf": [{"type": "number",
+                                                             "minimum": 0},
+                                                            {"type": "array",
+                                                             "items": {
+                                                                 "type": "number", "minimum": 0},
+                                                             "minItems": 2, "maxItems": 3
+                                                            }]},
                                  "wet_conductivity": {"type": "number", "minimum": 0},
                                  "dry_conductivity": {"type": "number", "minimum": 0},
                                  "porosity": {"type": "number", "minimum": 0},

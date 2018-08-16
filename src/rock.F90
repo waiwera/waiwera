@@ -74,7 +74,10 @@ module rock_module
   PetscInt, parameter, public :: max_rockname_length = 24
 
   ! Default rock properties:
-  PetscReal, parameter, public :: default_permeability(3) = [1.e-13_dp, 1.e-13_dp, 1.e-13_dp]
+  PetscReal, parameter, public :: default_permeability_scalar = 1.e-13_dp
+  PetscReal, parameter, public :: default_permeability(3) = [ &
+       default_permeability_scalar, default_permeability_scalar, &
+       default_permeability_scalar]
   PetscReal, parameter, public :: default_porosity = 0.1_dp
   PetscReal, parameter, public :: default_density = 2200.0_dp
   PetscReal, parameter, public :: default_specific_heat = 1000._dp
@@ -413,7 +416,7 @@ contains
     use fson
     use fson_mpi_module
     use logfile_module
-    use fson_value_m, only : TYPE_STRING, TYPE_ARRAY
+    use fson_value_m, only : TYPE_ARRAY
 
     type(fson_value), pointer, intent(in) :: json
     DM, intent(in out) :: dm
@@ -424,7 +427,7 @@ contains
     type(logfile_type), intent(in out), optional :: logfile
     ! Locals:
     PetscInt :: num_rocktypes, c, num_cells, offset
-    PetscInt :: ir
+    PetscInt :: ir, permeability_type, dim
     PetscInt :: perm_size
     type(fson_value), pointer :: rocktypes, r
     PetscInt, pointer :: cells(:)
@@ -433,6 +436,7 @@ contains
     IS :: cell_IS
     PetscReal :: porosity, density, specific_heat
     PetscReal :: wet_conductivity, dry_conductivity
+    PetscReal :: permeability_scalar
     PetscReal, allocatable :: permeability(:)
     PetscReal, pointer, contiguous :: rock_array(:)
     PetscSection :: section
@@ -450,14 +454,24 @@ contains
        call fson_get_mpi(json, "rock.types", rocktypes)
        num_rocktypes = fson_value_count_mpi(rocktypes, ".")
        r => fson_value_children_mpi(rocktypes)
+       call DMGetDimension(dm, dim, ierr); CHKERRQ(ierr)
 
        do ir = 1, num_rocktypes
 
           write(irstr, '(i0)') ir - 1
           rockstr = 'rock.types[' // trim(irstr) // '].'
           call fson_get_mpi(r, "name", "", name, logfile, trim(rockstr) // "name")
-          call fson_get_mpi(r, "permeability", default_permeability, &
-               permeability, logfile, trim(rockstr) // "permeability")
+          permeability_type = fson_type_mpi(r, "permeability")
+          select case (permeability_type)
+          case (TYPE_ARRAY)
+             call fson_get_mpi(r, "permeability", default_permeability, &
+                  permeability, logfile, trim(rockstr) // "permeability")
+          case default ! real or null
+             call fson_get_mpi(r, "permeability", default_permeability_scalar, &
+                  permeability_scalar, logfile, trim(rockstr) // "permeability")
+             allocate(permeability(dim))
+             permeability = permeability_scalar
+          end select
           call fson_get_mpi(r, "wet_conductivity", default_heat_conductivity, &
                wet_conductivity, logfile, trim(rockstr) // "wet_conductivity")
           call fson_get_mpi(r, "dry_conductivity", wet_conductivity, &
@@ -491,6 +505,7 @@ contains
              call ISRestoreIndicesF90(cell_IS, cells, ierr); CHKERRQ(ierr)
              call ISDestroy(cell_IS, ierr); CHKERRQ(ierr)
           end if
+          deallocate(permeability)
 
           r => fson_value_next_mpi(r)
 
