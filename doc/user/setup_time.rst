@@ -216,19 +216,13 @@ This method, selected by setting the "method" value to "iteration", uses the num
 Relative change method
 ----------------------
 
-This method, selected by setting the "method" value to "change", defines the monitor value :math:`\eta` as:
+This method, selected by setting the "method" value to "change", defines the monitor value as :math:`\eta = \|\mathbf{\Delta L}\|_{\infty}` where:
 
 .. math::
 
-   \eta = \frac{\|\mathbf{L}^{n+1} - \mathbf{L}^n\|} {\|\mathbf{L}^{n+1}\| + \epsilon}
+   \Delta L_i = \frac{L_i^{n+1} - L_i^n} {\max{(|L_i^n|, \epsilon)}}
 
-where :math:`\epsilon` is a small constant (:math:`\epsilon = 10^{-3}` is used here), preventing the denominator from approaching zero. In this approach, the value of :math:`\eta` is essentially a measure of the relative change in the mass and energy balances in the cells.
-
-.. ref? or change this to
-
-..   \eta = \max_i{\frac{|L_i^{n+1} - L_i^n|} {\max{(|L_i^n|, \epsilon)}}}
-
-.. to avoid problems with elements of L being of different magnitudes. Would be similar to def of NR residual (but for whole step rather than iteration)
+:math:`\epsilon` is a small constant (:math:`\epsilon = 10^{-3}` is used here), preventing division by zero. In this approach, the value of :math:`\eta` is essentially a measure of the relative change in the mass and energy balances in the cells.
 
 Example
 -------
