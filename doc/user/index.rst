@@ -3,10 +3,9 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
+******************
 Waiwera user guide
-===================================
-
-Contents:
+******************
 
 .. toctree::
    :maxdepth: 2
@@ -14,14 +13,16 @@ Contents:
    intro
    installation
    testing
+   methods
    input
-   input_schema
-   todolist
+   setup
+   import
+   run
+   output
 
-Indices and tables
-==================
+.. only:: html
 
-* :ref:`genindex`
-* :ref:`search`
+   * :ref:`genindex`
+   * :ref:`search`
 
 

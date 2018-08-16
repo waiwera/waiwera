@@ -1,19 +1,27 @@
+.. index:: Waiwera; installation
+
 ******************
 Installing Waiwera
 ******************
-  
+
+.. index:: Waiwera; dependencies, PETSc, FSON
+
 Installing libraries
 ====================
 
 Waiwera depends on two other software libraries, which must be installed first before Waiwera itself can be compiled:
 
-* `PETSc <https://www.mcs.anl.gov/petsc/>`_
-* `FSON <https://github.com/josephalevin/fson>`_
+* `PETSc <https://www.mcs.anl.gov/petsc/>`_, the Portable Extensible Toolkit for Scientific Computation
+* `FSON <https://github.com/josephalevin/fson>`_, a library for parsing JSON input files in Fortran
+
+.. index:: PETSc; installation
 
 Installing PETSc
 ----------------
 
 .. todo:: add PETSc install instructions
+
+.. index:: FSON; installation
 
 Installing FSON
 ---------------
