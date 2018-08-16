@@ -123,7 +123,7 @@ class dependencies(object):
     def parse_sources(self):
         """Parses source files."""
         from glob import glob
-        from os.path import sep
+        sep = "/"
         self.sourcefiles = {}
         self.modules = {}
         for srcdir in self.srcdirs:
@@ -147,7 +147,8 @@ class dependencies(object):
         definitions declared in the makefile, to be substituted in the
         dependency rules. filename is the name of the output include file.
         omit is a list of targets to omit from the output."""
-        from os.path import split, sep
+        from os.path import split
+        sep = "/"
         if objdirs == []: objdirs = self.srcdirs
         objdirdict = dict(list(zip(self.srcdirs, objdirs)))
         if len(variables) > 0:
