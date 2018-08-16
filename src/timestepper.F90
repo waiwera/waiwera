@@ -276,25 +276,24 @@ contains
 
   PetscReal function relative_change_monitor(current, last)
 
-    !! Monitors relative change in solution. The parameter eps
-    !! avoids division by zero if last%lhs is zero.
+    !! Monitors relative change in left hand side vector. The
+    !! parameter eps avoids division by zero if any elements of
+    !! last%lhs are zero.
+
+    use dm_utils_module, only: vec_max_pointwise_abs_scale
 
     type(timestepper_step_type), intent(in) :: current, last
     ! Locals:
     PetscReal, parameter :: eps = 1.e-3_dp
-    NormType, parameter :: nt = NORM_2
     Vec :: diff
-    PetscReal :: norm_diff, norm_current
+    PetscInt :: index
     PetscErrorCode :: ierr
 
     call VecDuplicate(current%lhs, diff, ierr); CHKERRQ(ierr)
     call VecCopy(current%lhs, diff, ierr); CHKERRQ(ierr)
     call VecAXPY(diff, -1.0_dp, last%lhs, ierr); CHKERRQ(ierr)
-    call VecNorm(diff, nt, norm_diff, ierr); CHKERRQ(ierr)
-    call VecNorm(current%lhs, nt, norm_current, ierr); CHKERRQ(ierr)
-    call VecDestroy(diff, ierr); CHKERRQ(ierr)
-
-    relative_change_monitor = norm_diff / (norm_current + eps)
+    call vec_max_pointwise_abs_scale(diff, last%lhs, &
+         eps, relative_change_monitor, index)
 
   end function relative_change_monitor
 
