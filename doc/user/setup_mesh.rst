@@ -49,8 +49,8 @@ Note that the mesh filename (specified in either of the above two ways) is a req
    |"filename"          |string     |(`no default`)     |mesh filename                            |
    |                    |           |                   |                                         |
    +--------------------+-----------+-------------------+-----------------------------------------+
-   |"radial"            |boolean    |``false``          |:ref:`radial_mesh`                       |
-   |                    |           |                   |                                         |
+   |"radial"            |boolean    |``false``          |whether 2-D mesh is radial (see          |
+   |                    |           |                   |:ref:`radial_mesh`)                      |
    |                    |           |                   |                                         |
    +--------------------+-----------+-------------------+-----------------------------------------+
    |"thickness"         |number     |1.0 m              |thickness (m) for :ref:`2d_mesh`         |
