@@ -1795,14 +1795,14 @@ end subroutine timestepper_steps_set_next_stepsize
                 if (checkpoint_do_repeat) then
                    checkpoint_repeat = -1
                 else
-                   checkpoint_repeat = 1
+                   checkpoint_repeat = default_checkpoint_repeat
                 end if
              case default
                 call self%ode%logfile%write(LOG_LEVEL_WARN, 'input', 'unrecognised', &
                      str_key = "output.checkpoint.repeat", str_value = '...')
              end select
           else
-             checkpoint_repeat = 1
+             checkpoint_repeat = default_checkpoint_repeat
              call self%ode%logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
                   logical_keys = ['output.checkpoint.repeat'], &
                   logical_values = [PETSC_FALSE])
