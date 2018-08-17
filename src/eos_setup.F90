@@ -19,6 +19,10 @@ module eos_setup_module
   !! Module for selecting and initialising equation of state (EOS)
   !! modules.
 
+#include <petsc/finclude/petsc.h>
+
+  use petsc
+
   implicit none
   private
 
@@ -33,7 +37,8 @@ contains
     !! a default value is assigned.
 
     use fson
-    use fson_mpi_module, only: fson_get_mpi
+    use fson_value_m, only : TYPE_STRING, TYPE_OBJECT, TYPE_NULL
+    use fson_mpi_module, only: fson_get_mpi, fson_type_mpi
     use logfile_module
     use thermodynamics_module
     use utils_module, only : str_to_lower
@@ -48,12 +53,20 @@ contains
     class(eos_type), allocatable, intent(in out) :: eos
     type(logfile_type), intent(in out) :: logfile
     ! Locals:
+    PetscInt :: eos_json_type
     character(max_eos_name_length), parameter :: &
          default_eos_name = "we"
     character(max_eos_name_length) :: eos_name
 
-    call fson_get_mpi(json, "eos.name", default_eos_name, &
-         eos_name, logfile)
+    eos_json_type = fson_type_mpi(json, "eos")
+    select case (eos_json_type)
+    case (TYPE_STRING, TYPE_NULL)
+       call fson_get_mpi(json, "eos", default_eos_name, &
+            eos_name, logfile)
+    case (TYPE_OBJECT)
+       call fson_get_mpi(json, "eos.name", default_eos_name, &
+            eos_name, logfile)
+    end select
     eos_name = str_to_lower(eos_name)
 
     select case (eos_name)

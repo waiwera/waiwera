@@ -285,7 +285,7 @@ contains
          '          "minc": {"rock": {"zones": ["all"]}, ' // &
          '                   "geometry": {"fracture": {"volume": 0.1}, ' // &
          '                                "matrix": {"volume": [0.3, 0.6]}}}},' // &
-         ' "eos": {"name": "we"}}'
+         ' "eos": "we"}'
 
     json => fson_parse_mpi(str = json_str)
     viewer = PETSC_NULL_VIEWER

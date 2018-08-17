@@ -63,17 +63,22 @@
         "thermodynamics": {
             "type": "string",
             "enum": ["ifc67", "IFC67", "iapws", "IAPWS"]},
-        "eos": {"type": "object",
-                "properties": {
-                    "name": {"type": "string",
-                             "enum": ["w", "W",
-                                      "we", "WE",
-                                      "wce", "WCE",
-                                      "wae", "WAE"]},
-                    "temperature": {"type": "number"}
-                },
-                "additionalProperties": false
-               },
+        "eos": {"oneOf": [{"type": "string",
+                           "enum": ["w", "W",
+                                    "we", "WE",
+                                    "wce", "WCE",
+                                    "wae", "WAE"]},
+                          {"type": "object",
+                           "properties": {
+                               "name": {"type": "string",
+                                        "enum": ["w", "W",
+                                                 "we", "WE",
+                                                 "wce", "WCE",
+                                                 "wae", "WAE"]},
+                               "temperature": {"type": "number"}
+                           },
+                           "additionalProperties": false
+                          }]},
         "mesh": {"oneOf": [
             {"type": "string"},
             {"type": "object",
