@@ -1738,8 +1738,17 @@ end subroutine timestepper_steps_set_next_stepsize
                '"time.stop not specified"')
        end if
 
-       call fson_get_mpi(json, "time.step.maximum.size", &
-            default_max_stepsize, max_stepsize, self%ode%logfile)
+       if (fson_has_mpi(json, "time.step.maximum.size")) then
+          if (fson_type_mpi(json, "time.step.maximum.size") == TYPE_NULL) then
+             max_stepsize = default_max_stepsize
+          else
+             call fson_get_mpi(json, "time.step.maximum.size", &
+                  val = max_stepsize)
+          end if
+       else
+          call fson_get_mpi(json, "time.step.maximum.size", &
+               default_max_stepsize, max_stepsize, self%ode%logfile)
+       end if
        call fson_get_mpi(json, "time.step.maximum.number", &
             default_max_num_steps, max_num_steps, self%ode%logfile)
        call fson_get_mpi(json, "time.step.maximum.tries", &

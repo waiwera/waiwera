@@ -905,15 +905,15 @@ contains
     call linear%init(initial, err)
 
     json_str(1) = '{"time": {"start": 0.0, "stop": 1.0, ' // &
-         '"step": {"size": 0.1, "maximum": {"number": 20}, ' // &
+         '"step": {"size": 0.1, "maximum": {"number": 20, "size": null}, ' // &
          '"method": "beuler", "adapt": {"on": false}}}}'
 
     json_str(2) = '{"time": {"start": 0.0, "stop": 1.0, ' // &
-         '"step": {"size": 0.1, "maximum": {"number": 20}, ' // &
+         '"step": {"size": 0.1, "maximum": {"number": 20, "size": null}, ' // &
          '"method": "bdf2", "adapt": {"on": false}}}}'
 
     json_str(3) = '{"time": {"start": 0.0, "stop": 1.0, ' // &
-         '"step": {"maximum": {"number": 10}, ' // &
+         '"step": {"maximum": {"number": 10, "size": null}, ' // &
          '"method": "beuler", ' // &
          '"size": [0.1, 0.1, 0.2, 0.2, 0.3]}}}'
 
