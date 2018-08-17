@@ -123,6 +123,8 @@ module timestepper_module
      PetscInt, public :: fixed_step_index !! Current index in array of fixed step sizes
      PetscReal, public :: next_stepsize !! Step size to be used for next step
      PetscReal, public :: stop_time !! Maximum allowable time
+     PetscReal, public :: stop_min_stepsize !! Minimum allowable step size
+     PetscReal, public :: stop_max_stepsize !! Maximum allowable step size
      PetscReal, public :: nonlinear_solver_relative_tol !! Relative tolerance for non-linear solver function value
      PetscReal, public :: nonlinear_solver_abs_tol !! Absolute tolerance for non-linear solver function value
      PetscReal, public :: nonlinear_solver_update_relative_tol !! Relative tolerance for non-linear solver update
@@ -769,7 +771,8 @@ contains
        nonlinear_solver_update_relative_tol, nonlinear_solver_update_abs_tol, &
        nonlinear_solver_minimum_iterations, &
        max_num_tries, steady_state, &
-       checkpoint_time, checkpoint_repeat, checkpoint_tol)
+       checkpoint_time, checkpoint_repeat, checkpoint_tol, &
+       stop_minimum_stepsize, stop_maximum_stepsize)
     !! Sets up timestepper steps object from specified parameters.
 
     class(timestepper_steps_type), intent(in out) :: self
@@ -795,6 +798,7 @@ contains
     PetscReal, allocatable, intent(in) :: checkpoint_time(:)
     PetscInt, intent(in) :: checkpoint_repeat
     PetscReal, intent(in) :: checkpoint_tol
+    PetscReal, intent(in) :: stop_minimum_stepsize, stop_maximum_stepsize
     ! Locals:
     PetscInt :: i
     PetscErrorCode :: ierr
@@ -820,6 +824,8 @@ contains
     self%stop_time = stop_time
     self%max_num = max_num_steps
     self%max_num_tries = max_num_tries
+    self%stop_min_stepsize = stop_minimum_stepsize
+    self%stop_max_stepsize = stop_maximum_stepsize
 
     select case (adapt_method)
     case (TS_ADAPT_CHANGE)
@@ -1014,6 +1020,20 @@ contains
           self%finished = PETSC_TRUE
           call logfile%write(LOG_LEVEL_INFO, 'timestep', 'end_time_reached', &
                real_keys = ['size'], real_values = [self%current%stepsize])
+       else
+          if ((self%stop_min_stepsize > 0._dp) .and. &
+               self%current%stepsize <= self%stop_min_stepsize) then
+             self%current%stepsize = self%stop_min_stepsize
+             self%finished = PETSC_TRUE
+             call logfile%write(LOG_LEVEL_INFO, 'timestep', 'stop_size_minimum_reached', &
+                  real_keys = ['size'], real_values = [self%current%stepsize])
+          else if ((self%stop_max_stepsize > 0._dp) .and. &
+               self%current%stepsize >= self%stop_max_stepsize) then
+             self%current%stepsize = self%stop_max_stepsize
+             self%finished = PETSC_TRUE
+             call logfile%write(LOG_LEVEL_INFO, 'timestep', 'stop_size_maximum_reached', &
+                  real_keys = ['size'], real_values = [self%current%stepsize])
+          end if
        end if
        if (self%taken + 1 >= self%max_num) then
           self%finished = PETSC_TRUE
@@ -1574,6 +1594,9 @@ end subroutine timestepper_steps_set_next_stepsize
     PetscReal, allocatable :: step_sizes(:)
     PetscReal :: max_stepsize, stop_time
     PetscReal, parameter :: default_max_stepsize = 0.0_dp
+    PetscReal, parameter :: default_stop_minimum_stepsize = -1.0_dp
+    PetscReal, parameter :: default_stop_maximum_stepsize = -1.0_dp
+    PetscReal :: stop_minimum_stepsize, stop_maximum_stepsize
     PetscInt :: method
     PetscInt, parameter :: max_method_str_len = 12
     character(max_method_str_len) :: method_str
@@ -1749,6 +1772,28 @@ end subroutine timestepper_steps_set_next_stepsize
           call fson_get_mpi(json, "time.step.maximum.size", &
                default_max_stepsize, max_stepsize, self%ode%logfile)
        end if
+       if (fson_has_mpi(json, "time.step.stop.size.minimum")) then
+          if (fson_type_mpi(json, "time.step.stop.size.minimum") == TYPE_NULL) then
+             stop_minimum_stepsize = default_stop_minimum_stepsize
+          else
+             call fson_get_mpi(json, "time.step.stop.size.minimum", &
+                  val = stop_minimum_stepsize)
+          end if
+       else
+          call fson_get_mpi(json, "time.step.stop.size.minimum", &
+               default_stop_minimum_stepsize, stop_minimum_stepsize, self%ode%logfile)
+       end if
+       if (fson_has_mpi(json, "time.step.stop.size.maximum")) then
+          if (fson_type_mpi(json, "time.step.stop.size.maximum") == TYPE_NULL) then
+             stop_maximum_stepsize = default_stop_maximum_stepsize
+          else
+             call fson_get_mpi(json, "time.step.stop.size.maximum", &
+                  val = stop_maximum_stepsize)
+          end if
+       else
+          call fson_get_mpi(json, "time.step.stop.size.maximum", &
+               default_stop_maximum_stepsize, stop_maximum_stepsize, self%ode%logfile)
+       end if
        call fson_get_mpi(json, "time.step.maximum.number", &
             default_max_num_steps, max_num_steps, self%ode%logfile)
        call fson_get_mpi(json, "time.step.maximum.tries", &
@@ -1846,7 +1891,8 @@ end subroutine timestepper_steps_set_next_stepsize
          nonlinear_relative_tol, nonlinear_abs_tol, &
          nonlinear_update_relative_tol, nonlinear_update_abs_tol, &
          nonlinear_min_iterations, max_num_tries, steady_state, &
-         checkpoint_time, checkpoint_repeat, checkpoint_tol)
+         checkpoint_time, checkpoint_repeat, checkpoint_tol, &
+         stop_minimum_stepsize, stop_maximum_stepsize)
 
     call fson_get_mpi(json, "output.initial", &
          default_output_initial, self%output_initial, self%ode%logfile)
