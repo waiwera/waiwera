@@ -32,7 +32,7 @@ class t2data_export_json(t2data):
         import json
         geobase, ext = splitext(geo.filename)
         exoname = geobase + '.exo'
-        geo.write_exodusii(exoname)
+        geo.write_mesh(exoname)
         json_data = self.json(geo, exoname, atmos_volume, incons, eos,
                               bdy_incons, mesh_coords)
         datbase, ext = splitext(self.filename)
