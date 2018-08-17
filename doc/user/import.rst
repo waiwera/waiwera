@@ -37,7 +37,7 @@ The ``json()`` method takes the following parameters (most of which are optional
 
 * **incons**: string | ``t2incon`` | ``None``
 
-  Initial conditions for the TOUGH2 model. If specified as a string, this should be the filename of the initial conditions file; if a ``t2incon`` object, this should be the contents of such a file, represented by PyTOUGH's ``t2incon`` class. If ``None`` is specified, then default initial conditions will be applied from the TOUGH2 model's "PARAM" section.
+  Initial conditions for the TOUGH2 model. If specified as a string, this should be the filename of the Waiwera HDF5 output file for restarting the simulation (see :ref:`restarting`); if a ``t2incon`` object, this should be the contents of a TOUGH2 initial conditions file, represented by PyTOUGH's ``t2incon`` class. If ``None`` is specified, then default initial conditions will be applied from the TOUGH2 model's "PARAM" section.
 
 * **eos**: string | integer | ``None``
 
