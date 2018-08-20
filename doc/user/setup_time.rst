@@ -49,26 +49,32 @@ All parameters related to time-stepping are specified via the **"step"** value i
 
    **JSON path**: time.step
 
-   +-----------------+------------+--------------+-----------------------+
-   |**name**         |**type**    |**default**   |**value**              |
-   +-----------------+------------+--------------+-----------------------+
-   |"method"         |string      |"beuler"      |time stepping method   |
-   |                 |            |              |                       |
-   +-----------------+------------+--------------+-----------------------+
-   |"size"           |number |    |0.1 s         |time step sizes (s)    |
-   |                 |array       |              |                       |
-   +-----------------+------------+--------------+-----------------------+
-   |"adapt"          |object      |see below     |adaptive time-stepping |
-   |                 |            |              |parameters             |
-   +-----------------+------------+--------------+-----------------------+
-   |"maximum"        |object      |{"size":      |maximum time step size |
-   |                 |            |``null``,     |and number, and number |
-   |                 |            |"number": 100,|of tries per step      |
-   |                 |            |"tries": 10}  |                       |
-   +-----------------+------------+--------------+-----------------------+
-   |"solver"         |object      |see below     |non-linear and linear  |
-   |                 |            |              |solver parameters      |
-   +-----------------+------------+--------------+-----------------------+
+   +-----------------+------------+------------------+-----------------------+
+   |**name**         |**type**    |**default**       |**value**              |
+   +-----------------+------------+------------------+-----------------------+
+   |"method"         |string      |"beuler"          |time stepping method   |
+   |                 |            |                  |                       |
+   +-----------------+------------+------------------+-----------------------+
+   |"size"           |number |    |0.1 s             |time step sizes (s)    |
+   |                 |array       |                  |                       |
+   +-----------------+------------+------------------+-----------------------+
+   |"adapt"          |object      |see below         |adaptive time-stepping |
+   |                 |            |                  |parameters             |
+   +-----------------+------------+------------------+-----------------------+
+   |"maximum"        |object      |{"size": ``null``,|maximum time step size |
+   |                 |            |"number": 100,    |and number, and number |
+   |                 |            |"tries": 10}      |of tries per step      |
+   |                 |            |                  |                       |
+   +-----------------+------------+------------------+-----------------------+
+   |"stop"           |object      |{"step":          |minimum and maximum    |
+   |                 |            |{"minimum":       |time step sizes causing|
+   |                 |            |``null``,         |simulation to stop     |
+   |                 |            |"maximum":        |                       |
+   |                 |            |``null``}}        |                       |
+   +-----------------+------------+------------------+-----------------------+
+   |"solver"         |object      |see below         |non-linear and linear  |
+   |                 |            |                  |solver parameters      |
+   +-----------------+------------+------------------+-----------------------+
 
 .. index:: time step; methods, numerical methods; time evolution
 .. _time_stepping_methods:
@@ -172,7 +178,28 @@ The time step adaption algorithm uses the concept of a "monitor value" :math:`\e
      \beta \Delta t^n & \eta > \eta_{max}
    \end{cases}
 
-where :math:`\alpha > 1` is an amplification factor for increasing the time step size, and :math:`\beta < 1` is a reduction factor for reducing it. These are specified in the JSON input file via the **"amplification"** and **"reduction"** values in the **"time.step.adapt"** object. When the time step size is increased, it is not allowed to exceed the maximum time step size (if any) specified using the **"time.step.maximum.size"** value.
+where :math:`\alpha > 1` is an amplification factor for increasing the time step size, and :math:`\beta < 1` is a reduction factor for reducing it. These are specified in the JSON input file via the **"amplification"** and **"reduction"** values in the **"time.step.adapt"** object.
+
+When the time step size is increased, it is limited by the maximum time step size (if any) specified using the **"time.step.maximum.size"** value. If this maximum is exceeded, the simulation will continue with the step size reduced to the specified maximum.
+
+It is also possible to specify minimum and maximum time step sizes which, if exceeded, will cause the simulation to stop. These limits are specified via the **"time.step.stop.size.minimum"** and **"time.step.stop.size.maximum"** values. Either of these can take number values or ``null`` (the default), in which case no limit is enforced. If either limit is hit, a final time step is carried out at the limiting time step size before the simulation is stopped.
+
+.. note::
+   **JSON object**: time step stop sizes
+
+   **JSON path**: time.step.stop.size
+
+   +----------------+------------------+----------------+-----------------------+
+   |**name**        |**type**          |**default**     |**value**              |
+   +----------------+------------------+----------------+-----------------------+
+   |"minimum"       |number | ``null`` |``null``        |Minimum time step size |
+   |                |                  |                |causing simulation to  |
+   |                |                  |                |stop                   |
+   +----------------+------------------+----------------+-----------------------+
+   |"maximum"       |number | ``null`` |``null``        |Maximum time step size |
+   |                |                  |                |causing simulation to  |
+   |                |                  |                |stop                   |
+   +----------------+------------------+----------------+-----------------------+
 
 The "time.step.adapt" object has a Boolean **"on"** value, which determines whether adaptive time stepping is to be used. Note, however, that it can still be useful to specify at least some of the other adaptor parameters even if the adaptor is switched off. This is because the adaptor is also used to handle :ref:`time_step_reductions`. If these parameters are not specified, default values will be used.
 
@@ -249,7 +276,7 @@ If a time step cannot be completed with its original size, it is re-tried with a
 
 The non-linear solver may abort if the linear solver does not converge, or if primary thermodynamic variables go outside the range of validity of the thermodynamic formulation (see :ref:`water_thermodynamics`). Slow convergence of the non-linear solver may be caused by a variety of factors, including large numbers of phase transitions within the time step.
 
-The process of re-trying the time step with a reduced time step size may be carried out multiple times until the time step is successfully completed. There is, however, a limit on the number of allowable tries, specified by the **"time.step.maximum.tries"** value (which defaults to 10).
+The process of re-trying the time step with a reduced time step size may be carried out multiple times until the time step is successfully completed. There is, however, a limit on the number of allowable tries, specified by the **"time.step.maximum.tries"** value (which defaults to 10). If this limit is exceeded, the simulation will stop.
 
 If specified-size time steps are being used (see :ref:`specifying_time_step_sizes`), the process of reducing the time step size is carried out by temporarily turning on the time step size adaptor (see :ref:`adaptive_time_stepping`). After a successful reduced-size time step has been completed, the adaptor will then try to increase the time step size again if possible. Once the original specified time step size has been attained the adaptor will be switched off, and the time stepper will resume using the specified time step sizes.
 
@@ -260,6 +287,7 @@ The time stepper can terminate in a number of ways:
 
 * if the time reaches or exceeds the stop time, specified by the **"time.stop"** value in the JSON input (if the time exceeds the stop time, the time step size will be reduced to hit the stop time exactly)
 * if the number of time steps reaches the limit specified by the **"time.step.maximum.number"** value
+* if the time step size falls below a lower limit specified by **"time.step.stop.size.minimum"** or exceeds **"time.step.stop.size.maximum"**
 * if a time step fails to complete, and the time step size reduction process is repeated more than the maximum allowable number of tries specified by the **"time.step.maximum.tries"** value
 
 .. index:: time; steady state
@@ -293,7 +321,7 @@ What constitutes a "very large" time step size is somewhat problem-dependent, an
 
 As the time step size increases and the left-hand side time derivative term in equation :eq:`beuler` decreases in magnitude, the linear equations to be solved at each non-linear solver iteration generally become progressively more ill-conditioned. In the later stages of a steady-state simulation it is common for the linear solver to take more iterations to solve, or to fail. To obtain a properly converged steady state solution it may be necessary to experiment with different linear solvers and preconditioners (see :ref:`linear_equation_solution`).
 
-Setting up a steady-state simulation using this approach can be done by specifying a large stop time (via "time.stop"), e.g. 10\ :sup:`15` s, but a moderate maximum number of time steps (via "time.step.maximum.number"), so that the specified large stop time can only be attained by using a large time step size (rather than a large number of small time steps). After the simulation has finished, it is important to check that it has reached the specified stop time rather than the maximum number of time steps.
+Setting up a steady-state simulation using this approach can be done by specifying a large maximum stopping time step size (via "time.step.stop.size.maximum"), e.g. 10\ :sup:`15` s, and no stop time ("time.stop" = ``null``, the default). A limit on the total number of time steps ("time.step.maximum.number") is usually set, so that the simulation still stops even if a large time step size (and hence a true steady state) is never attained. After the simulation has finished, it is important to check that it has reached the specified stopping time step size rather than the maximum number of time steps.
 
 For example:
 
@@ -304,11 +332,12 @@ For example:
                                "method": "iteration",
                                "minimum": 5, "maximum": 8},
                       "maximum": {"number": 500},
-                      "method": "beuler"
+                      "method": "beuler",
+                      "stop": {"size": {"maximum": 1e15}}
                       },
-             "stop": 1e15}}
+             "stop": null}}
 
-sets up a steady-state simulation using adaptive time-stepping, with a starting time step size of 10\ :sup:`6` s and a large stop time of 10\ :sup:`15` s, which must be attained within 500 time steps.
+sets up a steady-state simulation using adaptive time-stepping, with a starting time step size of 10\ :sup:`6` s and a large stopping time step size of 10\ :sup:`15` s, which must be attained within 500 time steps.
 
 .. index:: numerical methods; non-linear equations, solver; non-linear, PETSc; SNES
 .. _nonlinear_solution:
@@ -376,8 +405,6 @@ Limits on the number of non-linear solver iterations can be set via the **"maxim
 
 The "minimum.iterations" value defaults to zero, so that the non-linear solution process is allowed to converge without iterating, if it happens that either of the convergence checks are satisfied with the initial estimate of the solution. Under some conditions, it is useful to make sure the non-linear solver always takes at least one iteration. This can be done by setting the "minimum.iterations" value to 1.
 
-.. can set other options via PETSc command line parameters
-
 .. non-dimensionalised primary variables?
 
 Example
@@ -392,12 +419,13 @@ In the following example, a steady-state simulation is specified with the maximu
                                "method": "iteration",
                                "minimum": 5, "maximum": 8},
                       "maximum": {"number": 500},
+                      "stop": {"size": {"maximum": 1e15}},
                       "method": "beuler",
                       "solver": {
                          "nonlinear": {"maximum": {"iterations": 10},
                                        "tolerance": {"function": {"relative": 1e-6}}}
                       }},
-             "stop": 1e15}}
+             "stop": null}}
 
 .. index:: numerical methods; linear equations, solver; linear
 .. _linear_equation_solution:

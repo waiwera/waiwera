@@ -844,6 +844,22 @@
                                 "number": {"type": "integer", "minimum": 0},
                                 "tries": {"type": "integer", "minimum": 0}
                             }, "additionalProperties": false},
+                        "stop": {
+                            "type": "object",
+                            "properties": {
+                                "size": {
+                                    "type": "object",
+                                    "properties": {
+                                        "minimum": {"oneOf": [
+                                            {"type": "number","minimum": 0},
+                                            {"type": "null"}]},
+                                        "maximum": {"oneOf": [
+                                            {"type": "number","minimum": 0},
+                                            {"type": "null"}]}
+                                    }, "additionalProperties": false
+                                }
+                            }, "additionalProperties": false
+                        },
                         "adapt": {"type": "object",
                                   "properties": {
                                       "on": {"type": "boolean"},
