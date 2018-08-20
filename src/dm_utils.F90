@@ -258,9 +258,9 @@ contains
        end do
     end if
 
-    call DMSetDefaultSection(dm, section, ierr); CHKERRQ(ierr)
+    call DMSetSection(dm, section, ierr); CHKERRQ(ierr)
     ! Create the global section:
-    call DMGetDefaultGlobalSection(dm, section, ierr); CHKERRQ(ierr)
+    call DMGetGlobalSection(dm, section, ierr); CHKERRQ(ierr)
     deallocate(num_dof)
 
   end subroutine set_dm_data_layout
@@ -301,10 +301,10 @@ contains
     PetscErrorCode :: ierr
 
     call DMGetPointSF(dm, sf, ierr); CHKERRQ(ierr)
-    call DMGetDefaultSection(dm, local_section, ierr); CHKERRQ(ierr)
+    call DMGetSection(dm, local_section, ierr); CHKERRQ(ierr)
     call PetscSectionCreateGlobalSection(local_section, sf, PETSC_FALSE, &
          PETSC_FALSE, global_section, ierr); CHKERRQ(ierr)
-    call DMSetDefaultGlobalSection(dm, global_section, ierr)
+    call DMSetGlobalSection(dm, global_section, ierr)
     CHKERRQ(ierr)
 
   end subroutine dm_setup_global_section
@@ -383,7 +383,7 @@ contains
     PetscErrorCode :: ierr
 
     call VecGetDM(v, dm, ierr); CHKERRQ(ierr)
-    call DMGetDefaultGlobalSection(dm, section, ierr); CHKERRQ(ierr)
+    call DMGetGlobalSection(dm, section, ierr); CHKERRQ(ierr)
 
   end subroutine global_vec_section
 
@@ -399,7 +399,7 @@ contains
     PetscErrorCode :: ierr
 
     call VecGetDM(v, dm, ierr); CHKERRQ(ierr)
-    call DMGetDefaultSection(dm, section, ierr); CHKERRQ(ierr)
+    call DMGetSection(dm, section, ierr); CHKERRQ(ierr)
 
   end subroutine local_vec_section
 
@@ -418,7 +418,7 @@ contains
     PetscErrorCode :: ierr
 
     call VecGetDM(v, dm, ierr); CHKERRQ(ierr)
-    call DMGetDefaultSection(dm, section, ierr); CHKERRQ(ierr)
+    call DMGetSection(dm, section, ierr); CHKERRQ(ierr)
 
     call DMGetLocalVector(dm, local_v, ierr); CHKERRQ(ierr)
     call DMGlobalToLocalBegin(dm, v, INSERT_VALUES, local_v, ierr)
@@ -1015,8 +1015,8 @@ contains
     PetscErrorCode :: ierr
 
     call VecGetDM(v, dm, ierr); CHKERRQ(ierr)
-    call DMGetDefaultSection(dm, section, ierr); CHKERRQ(ierr)
-    call DMGetDefaultGlobalSection(dm, global_section, ierr); CHKERRQ(ierr)
+    call DMGetSection(dm, section, ierr); CHKERRQ(ierr)
+    call DMGetGlobalSection(dm, global_section, ierr); CHKERRQ(ierr)
     call DMPlexGetHeightStratum(dm, 0, start_cell, end_cell, ierr); CHKERRQ(ierr)
     end_interior_cell = dm_get_end_interior_cell(dm, end_cell)
 
@@ -1107,7 +1107,7 @@ contains
     PetscInt :: start_cell, end_cell, field_dof
     PetscErrorCode :: ierr
 
-    call DMGetDefaultSection(dm, section, ierr); CHKERRQ(ierr)
+    call DMGetSection(dm, section, ierr); CHKERRQ(ierr)
     call DMPlexGetHeightStratum(dm, 0, start_cell, end_cell, ierr)
     if (end_cell > start_cell) then
        call PetscSectionGetFieldDof(section, start_cell, field, &

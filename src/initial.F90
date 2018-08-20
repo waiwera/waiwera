@@ -306,7 +306,7 @@ contains
       associate(num_required => size(eos%required_output_fluid_fields))
         allocate(field_indices(num_required))
         call VecGetDM(fluid_vector, fluid_dm, ierr); CHKERRQ(ierr)
-        call DMGetDefaultSection(fluid_dm, section, ierr); CHKERRQ(ierr)
+        call DMGetSection(fluid_dm, section, ierr); CHKERRQ(ierr)
         call section_get_field_names(section, PETSC_TRUE, fields)
         do i = 1, num_required
            field_indices(i) = str_array_index( &

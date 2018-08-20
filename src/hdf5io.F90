@@ -142,7 +142,7 @@ contains
 
     call PetscObjectGetName(v, vector_name, ierr); CHKERRQ(ierr)
     call VecGetDM(v, dm, ierr); CHKERRQ(ierr)
-    call DMGetDefaultSection(dm, section, ierr); CHKERRQ(ierr)
+    call DMGetSection(dm, section, ierr); CHKERRQ(ierr)
 
     call DMGetOutputSequenceNumber(dm, time_index, time, ierr); CHKERRQ(ierr)
     call PetscViewerHDF5SetTimestep(viewer, time_index, ierr); CHKERRQ(ierr)    
@@ -205,7 +205,7 @@ contains
 
     call PetscObjectGetName(v, vector_name, ierr); CHKERRQ(ierr)
     call VecGetDM(v, dm, ierr); CHKERRQ(ierr)
-    call DMGetDefaultSection(dm, section, ierr); CHKERRQ(ierr)
+    call DMGetSection(dm, section, ierr); CHKERRQ(ierr)
 
     call DMGetOutputSequenceNumber(dm, time_index, time, ierr); CHKERRQ(ierr)
     call PetscViewerHDF5SetTimestep(viewer, time_index, ierr); CHKERRQ(ierr)

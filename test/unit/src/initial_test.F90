@@ -303,7 +303,7 @@ contains
     call VecGetArrayF90(fluid_vector, fluid_array, ierr); CHKERRQ(ierr)
 
     call VecGetDM(fluid_vector, fluid_dm, ierr); CHKERRQ(ierr)
-    call DMGetDefaultSection(fluid_dm, local_fluid_section, ierr); CHKERRQ(ierr)
+    call DMGetSection(fluid_dm, local_fluid_section, ierr); CHKERRQ(ierr)
     call section_get_field_names(local_fluid_section, PETSC_TRUE, fields)
     ! Required fields:
     associate(num_fields => size(eos%required_output_fluid_fields))

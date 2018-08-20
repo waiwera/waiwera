@@ -95,7 +95,7 @@ contains
     ! Check face geometry:
     call VecGetDM(mesh%face_geom, dm_face, ierr); CHKERRQ(ierr)
     call VecGetArrayF90(mesh%face_geom, fg, ierr); CHKERRQ(ierr)
-    call DMGetDefaultSection(dm_face, section, ierr); CHKERRQ(ierr)
+    call DMGetSection(dm_face, section, ierr); CHKERRQ(ierr)
     call DMPlexGetHeightStratum(mesh%dm, 1, fstart, fend, ierr); CHKERRQ(ierr)
     call DMGetLabel(mesh%dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
     CHKERRQ(ierr)

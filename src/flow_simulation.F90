@@ -402,7 +402,7 @@ contains
       PetscErrorCode :: ierr
 
       call VecGetDM(v, dm, ierr); CHKERRQ(ierr)
-      call DMGetDefaultSection(dm, section, ierr); CHKERRQ(ierr)
+      call DMGetSection(dm, section, ierr); CHKERRQ(ierr)
       call section_get_field_names(section, PETSC_TRUE, fields)
 
       if (fson_has_mpi(json, "output.fields." // trim(name))) then
