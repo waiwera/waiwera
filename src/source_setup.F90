@@ -92,42 +92,49 @@ contains
        do i = 0, num_source_specs - 1
           associate(cells => source_cells(i))
             call get_cells(source_json, dm, ao, cells%natural_index, &
-                 cells%local_index)
+                 cells%local_index, err, logfile)
+            if (err > 0) exit
             num_sources = num_sources + size(cells%natural_index)
           end associate
           source_json => fson_value_next_mpi(source_json)
        end do
     end if
 
-    call create_path_dm(num_sources, dm_source)
-    call setup_source_dm_data_layout(dm_source)
-    call DMCreateGlobalVector(dm_source, source_vector, ierr); CHKERRQ(ierr)
-    call PetscObjectSetName(source_vector, "source", ierr); CHKERRQ(ierr)
-    call global_vec_range_start(source_vector, source_range_start)
+    if (err == 0) then
 
-    call source_controls%init(owner = PETSC_TRUE)
-    call global_vec_section(fluid_vector, fluid_section)
-    call VecGetArrayReadF90(fluid_vector, fluid_data, ierr); CHKERRQ(ierr)
-    call global_vec_section(source_vector, source_section)
-    call VecGetArrayF90(source_vector, source_data, ierr); CHKERRQ(ierr)
+       call create_path_dm(num_sources, dm_source)
+       call setup_source_dm_data_layout(dm_source)
+       call DMCreateGlobalVector(dm_source, source_vector, ierr); CHKERRQ(ierr)
+       call PetscObjectSetName(source_vector, "source", ierr); CHKERRQ(ierr)
+       call global_vec_range_start(source_vector, source_range_start)
 
-    if (fson_has_mpi(json, "source")) then
-       source_json => fson_value_children_mpi(sources_json)
-       local_source_index = 0
-       do i = 0, num_source_specs - 1
-          call setup_source(i, local_source_index, source_json, &
-               source_cells(i), err)
-          if (err > 0) exit
-          source_json => fson_value_next_mpi(source_json)
-       end do
-    else
-       if (present(logfile)) then
-          call logfile%write(LOG_LEVEL_INFO, "input", "no_sources")
+       call source_controls%init(owner = PETSC_TRUE)
+       call global_vec_section(fluid_vector, fluid_section)
+       call VecGetArrayReadF90(fluid_vector, fluid_data, ierr); CHKERRQ(ierr)
+       call global_vec_section(source_vector, source_section)
+       call VecGetArrayF90(source_vector, source_data, ierr); CHKERRQ(ierr)
+
+       if (fson_has_mpi(json, "source")) then
+          source_json => fson_value_children_mpi(sources_json)
+          local_source_index = 0
+          do i = 0, num_source_specs - 1
+             call setup_source(i, local_source_index, source_json, &
+                  source_cells(i), err)
+             if (err > 0) exit
+             source_json => fson_value_next_mpi(source_json)
+          end do
+       else
+          if (present(logfile)) then
+             call logfile%write(LOG_LEVEL_INFO, "input", "no_sources")
+          end if
        end if
-    end if
 
-    call setup_source_index(num_sources, source_data, source_section, &
-         source_range_start, source, source_index)
+       if (err == 0) then
+          call setup_source_index(num_sources, source_data, source_section, &
+               source_range_start, source, source_index)
+       end if
+
+    end if
 
     call VecRestoreArrayF90(source_vector, source_data, ierr); CHKERRQ(ierr)
     call VecRestoreArrayReadF90(fluid_vector, fluid_data, ierr)
@@ -416,27 +423,40 @@ contains
 !------------------------------------------------------------------------
 
   subroutine get_cells(source_json, dm, ao, cell_natural_index, &
-       cell_local_index)
+       cell_local_index, err, logfile)
     !! Gets arrays of cell natural and local indices for the
     !! source. The "cell" key can be used to specify a single
     !! cell. The "cells" key can be used to specify either a single
     !! cell or an array of cells. If both are present, the "cells" key
-    !! is used.
+    !! is used. The "zones" key can be used to specify either a single
+    !! zone or an array of zones.
 
-    use dm_utils_module, only: natural_to_local_cell_index
+    use dm_utils_module, only: natural_to_local_cell_index, &
+         local_to_natural_cell_index
+    use zone_label_module
 
     type(fson_value), pointer, intent(in) :: source_json
     DM, intent(in) :: dm
     AO, intent(in) :: ao
     PetscInt, allocatable, intent(out) :: cell_natural_index(:)
     PetscInt, allocatable, intent(out) :: cell_local_index(:)
+    PetscErrorCode, intent(out) :: err
+    type(logfile_type), intent(in out), optional :: logfile
     ! Locals:
     ISLocalToGlobalMapping :: l2g
-    PetscInt :: cell_type, cell
-    PetscInt :: i, ghost
+    PetscInt :: cell_type, cell, zones_type
+    PetscInt :: i, ghost, iz, num_zone_cells
     DMLabel :: ghost_label
     PetscBool, allocatable :: filter(:)
+    character(max_zone_name_length), allocatable :: zones(:)
+    character(:), allocatable :: label_name
+    PetscBool :: has_label
+    IS :: cell_IS
+    PetscInt, pointer :: zone_cells(:)
+    PetscInt, allocatable :: zone_cell_natural_index(:)
     PetscErrorCode :: ierr
+
+    err = 0
 
     if (fson_has_mpi(source_json, "cell")) then
        call fson_get_mpi(source_json, "cell", val = cell)
@@ -482,6 +502,49 @@ contains
 
     else
        allocate(cell_local_index(0), cell_natural_index(0))
+    end if
+
+    if (fson_has_mpi(source_json, "zones")) then
+       zones_type = fson_type_mpi(source_json, "zones")
+       select case (zones_type)
+       case (TYPE_STRING)
+          allocate(zones(1))
+          call fson_get_mpi(source_json, "zones", val = zones(1))
+       case (TYPE_ARRAY)
+          call fson_get_mpi(source_json, "zones", string_length = max_zone_name_length, &
+               val = zones)
+       end select
+       associate(num_zones => size(zones))
+         do iz = 1, num_zones
+            label_name = zone_label_name(zones(iz))
+            call DMHasLabel(dm, label_name, has_label, ierr); CHKERRQ(ierr)
+            if (has_label) then
+               call DMGetStratumSize(dm, label_name, 1, num_zone_cells, &
+                    ierr); CHKERRQ(ierr)
+               if (num_zone_cells > 0) then
+                  call DMGetStratumIS(dm, label_name, 1, cell_IS, &
+                       ierr); CHKERRQ(ierr)
+                  call ISGetIndicesF90(cell_IS, zone_cells, ierr); CHKERRQ(ierr)
+                  allocate(zone_cell_natural_index(num_zone_cells))
+                  zone_cell_natural_index = local_to_natural_cell_index(ao, &
+                       l2g, zone_cells)
+                  cell_local_index = [cell_local_index, zone_cells]
+                  cell_natural_index = [cell_natural_index, zone_cell_natural_index]
+                  deallocate(zone_cell_natural_index)
+                  call ISRestoreIndicesF90(cell_IS, zone_cells, ierr); CHKERRQ(ierr)
+                  call ISDestroy(cell_IS, ierr); CHKERRQ(ierr)
+               end if
+            else
+               err = 1
+               if (present(logfile)) then
+                  call logfile%write(LOG_LEVEL_ERR, "input", "unrecognised zone", &
+                       str_key = "name", str_value = zones(iz))
+               end if
+               exit
+            end if
+         end do
+       end associate
+       deallocate(zones)
     end if
 
   end subroutine get_cells

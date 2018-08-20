@@ -505,6 +505,11 @@
                                {"type": "array",
                                 "items": {"type": "integer", "minimum": 0}}
                            ]},
+                           "zones": {"oneOf": [
+                                     {"type": "string"},
+                                     {"type": "array",
+                                      "items": {"type": "string"}}
+                                 ]},
                            "interpolation": {"type": "string",
                                              "enum": ["linear", "Linear",
                                                       "step", "Step"]},

@@ -31,6 +31,7 @@ contains
     use IAPWS_module
     use eos_module
     use dm_utils_module, only: global_vec_section, global_section_offset
+    use utils_module, only: array_cumulative_sum, get_mpi_int_gather_array
 
     character(16), parameter :: path = "data/source/"
     type(IAPWS_type) :: thermo
@@ -44,15 +45,21 @@ contains
     PetscInt :: fluid_range_start, source_range_start
     PetscInt :: s, source_offset, source_index
     type(list_type) :: source_controls
-    PetscInt :: expected_num_sources, num_sources, total_num_sources
+    PetscInt :: num_sources, total_num_sources, num_zone_sources, n_all, i
     PetscErrorCode :: ierr, err
     PetscReal, parameter :: start_time = 0._dp
     PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
-    PetscMPIInt :: rank
+    PetscInt, parameter :: expected_num_sources = 19
+    PetscMPIInt :: rank, num_procs
     PetscViewer :: viewer
     IS :: source_is
+    PetscInt, allocatable :: zone_source(:), isort(:)
+    PetscInt, allocatable :: zone_source_sorted(:), zone_source_all(:)
+    PetscInt, allocatable :: zone_source_counts(:), zone_source_displacements(:)
+    PetscInt, parameter :: expected_zone_source_cells(3) = [0, 4, 8]
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    call MPI_COMM_SIZE(PETSC_COMM_WORLD, num_procs, ierr)
     json => fson_parse_mpi(trim(path) // "test_source.json")
     viewer = PETSC_NULL_VIEWER
 
@@ -69,7 +76,6 @@ contains
          num_sources, source_controls, source_is, err = err)
     call assert_equals(0, err, "error")
 
-    expected_num_sources = fson_value_count_mpi(json, "source")
     call MPI_reduce(num_sources, total_num_sources, 1, MPI_INTEGER, MPI_SUM, &
          0, PETSC_COMM_WORLD, ierr)
     if (rank == 0) then
@@ -78,6 +84,9 @@ contains
 
     call global_vec_section(source_vector, source_section)
     call VecGetArrayReadF90(source_vector, source_array, ierr); CHKERRQ(ierr)
+    allocate(zone_source(num_sources))
+    zone_source = -1
+    num_zone_sources = 0
 
     do s = 0, num_sources - 1
        call global_section_offset(source_section, s, &
@@ -133,9 +142,45 @@ contains
          case (15)
             call source_test(source_index, source, &
                  6, default_source_rate, 100.e3_dp, default_source_component, 2)
+         case (16)
+            num_zone_sources = num_zone_sources + 1
+            zone_source(num_zone_sources) = nint(source%natural_cell_index)
          end select
     end do
 
+    ! Test cells in source 16, defined on a zone:
+    zone_source = pack(zone_source, zone_source >= 0)
+    zone_source_counts = get_mpi_int_gather_array()
+    zone_source_displacements = get_mpi_int_gather_array()
+    call MPI_gather(num_zone_sources, 1, MPI_INTEGER, zone_source_counts, 1, &
+         MPI_INTEGER, 0, PETSC_COMM_WORLD, ierr)
+    if (rank == 0) then
+       zone_source_displacements = [[0], &
+            array_cumulative_sum(zone_source_counts(1: num_procs - 1))]
+       n_all = sum(zone_source_counts)
+    else
+       n_all = 1
+    end if
+    allocate(zone_source_all(n_all))
+    call MPI_gatherv(zone_source, num_zone_sources, MPI_INTEGER, &
+         zone_source_all, zone_source_counts, zone_source_displacements, &
+         MPI_INTEGER, 0, PETSC_COMM_WORLD, ierr)
+    if (rank == 0) then
+       isort = [(i - 1, i = 1, n_all)]
+       call PetscSortIntWithPermutation(n_all, &
+            zone_source_all, isort, ierr); CHKERRQ(ierr)
+       isort = isort + 1 ! convert to 1-based
+       allocate(zone_source_sorted(n_all))
+       do i = 1, n_all
+          zone_source_sorted(i) = zone_source_all(isort(i))
+       end do
+       call assert_equals(expected_zone_source_cells, zone_source_sorted, &
+            n_all, "zone source cells")
+       deallocate(zone_source_sorted, isort)
+    end if
+
+    deallocate(zone_source, zone_source_counts, zone_source_displacements, &
+         zone_source_all)
     call ISDestroy(source_is, ierr); CHKERRQ(ierr)
     call source%destroy()
     call VecRestoreArrayReadF90(source_vector, source_array, ierr); CHKERRQ(ierr)
