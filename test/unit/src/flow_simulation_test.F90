@@ -265,6 +265,7 @@ contains
     call sim%setup_gravity(json)
     call sim%mesh%configure(eos, sim%gravity, json, viewer = viewer, err = err)
     call fson_destroy_mpi(json)
+    call sim%mesh%destroy_distribution_data()
     if (rank == 0) then
        call assert_equals([0._dp, 0._dp, 0._dp], sim%gravity, 3, tol, &
             "2D default gravity")
@@ -277,6 +278,7 @@ contains
     call sim%setup_gravity(json)
     call sim%mesh%configure(eos, sim%gravity, json, viewer = viewer, err = err)
     call fson_destroy_mpi(json)
+    call sim%mesh%destroy_distribution_data()
     if (rank == 0) then
        call assert_equals([0._dp, 0._dp, 0._dp], sim%gravity, 3, tol, &
             "2D null gravity")
@@ -290,6 +292,7 @@ contains
     call sim%setup_gravity(json)
     call sim%mesh%configure(eos, sim%gravity, json, viewer = viewer, err = err)
     call fson_destroy_mpi(json)
+    call sim%mesh%destroy_distribution_data()
     if (rank == 0) then
        call assert_equals([0._dp, -9.81_dp, 0._dp], sim%gravity, 3, tol, &
          "2D scalar gravity")
@@ -303,6 +306,7 @@ contains
     call sim%setup_gravity(json)
     call sim%mesh%configure(eos, sim%gravity, json, viewer = viewer, err = err)
     call fson_destroy_mpi(json)
+    call sim%mesh%destroy_distribution_data()
     if (rank == 0) then
        call assert_equals([-9.8_dp, 0._dp, 0._dp], sim%gravity, 3, tol, &
          "2D vector gravity")
@@ -314,6 +318,7 @@ contains
     call sim%mesh%init(json)
     call sim%setup_gravity(json)
     call sim%mesh%configure(eos, sim%gravity, json, viewer = viewer, err = err)
+    call sim%mesh%destroy_distribution_data()
     call fson_destroy_mpi(json)
     if (rank == 0) then
        call assert_equals([0._dp, 0._dp, -9.8_dp], sim%gravity, 3, tol, &
@@ -328,6 +333,7 @@ contains
     call sim%setup_gravity(json)
     call sim%mesh%configure(eos, sim%gravity, json, viewer = viewer, err = err)
     call fson_destroy_mpi(json)
+    call sim%mesh%destroy_distribution_data()
     if (rank == 0) then
        call assert_equals([0._dp, 0._dp, -9.80665_dp], sim%gravity, 3, tol, &
             "3D scalar gravity")
@@ -341,6 +347,7 @@ contains
     call sim%setup_gravity(json)
     call sim%mesh%configure(eos, sim%gravity, json, viewer = viewer, err = err)
     call fson_destroy_mpi(json)
+    call sim%mesh%destroy_distribution_data()
     if (rank == 0) then
        call assert_equals([0._dp, 0._dp, -9.81_dp], sim%gravity, 3, tol, &
             "3D vector gravity")

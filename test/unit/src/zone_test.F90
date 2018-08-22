@@ -206,6 +206,7 @@ contains
     call mesh%configure(eos, gravity, json, viewer = viewer, err = err)
     call assert_equals(0, err, 'config error')
     call fson_destroy_mpi(json)
+    call mesh%destroy_distribution_data()
 
     if (err == 0) then
 
@@ -292,6 +293,7 @@ contains
     call mesh%configure(eos, gravity, json, viewer = viewer, err = err)
     call assert_equals(0, err, 'config error')
     call fson_destroy_mpi(json)
+    call mesh%destroy_distribution_data()
 
     if (err == 0) then
        call mesh%zones%traverse(box_label_iterator)
@@ -375,6 +377,7 @@ contains
     call mesh%configure(eos, gravity, json, viewer = viewer, err = err)
     call assert_equals(0, err, 'config error')
     call fson_destroy_mpi(json)
+    call mesh%destroy_distribution_data()
 
     if (err == 0) then
        call mesh%zones%traverse(combine_label_iterator)

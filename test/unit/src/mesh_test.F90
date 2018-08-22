@@ -75,6 +75,7 @@ contains
     call DMCreateLabel(mesh%serial_dm, open_boundary_label_name, ierr); CHKERRQ(ierr)
     call mesh%configure(eos, gravity, json, viewer = viewer, err = err)
     call fson_destroy_mpi(json)
+    call mesh%destroy_distribution_data()
 
     call DMGetDimension(mesh%dm, dim, ierr); CHKERRQ(ierr)
     if (rank == 0) then
@@ -175,6 +176,7 @@ contains
     call mesh%init(json)
     call mesh%configure(eos, gravity, json, viewer = viewer, err = err)
     call fson_destroy_mpi(json)
+    call mesh%destroy_distribution_data()
 
     call local_vec_section(mesh%cell_geom, cell_geom_section)
     call VecGetArrayReadF90(mesh%cell_geom, cell_geom_array, ierr)
@@ -275,6 +277,7 @@ contains
     call mesh%init(json)
     call mesh%configure(eos, gravity, json, viewer = viewer, err = err)
     call fson_destroy_mpi(json)
+    call mesh%destroy_distribution_data()
 
     call local_vec_section(mesh%cell_geom, cell_geom_section)
     call VecGetArrayReadF90(mesh%cell_geom, cell_geom_array, ierr)
@@ -383,8 +386,9 @@ contains
 
     call DMCreateLabel(mesh%serial_dm, open_boundary_label_name, ierr); CHKERRQ(ierr)
     call mesh%configure(eos, gravity, json, viewer = viewer, err = err)
-    call mesh%override_face_properties(json)
+    call mesh%override_face_properties()
     call fson_destroy_mpi(json)
+    call mesh%destroy_distribution_data()
 
     call local_vec_section(mesh%face_geom, face_geom_section)
     call VecGetArrayReadF90(mesh%face_geom, face_geom_array, ierr)
@@ -541,12 +545,14 @@ contains
       call mesh%configure(eos, gravity, json, viewer = viewer, err = err)
       call assert_equals(0, err, name // ": minc config error")
       call fson_destroy_mpi(json)
+      call mesh%destroy_distribution_data()
 
       orig_json_str = get_orig_json_str(json_str)
       orig_json => fson_parse_mpi(str = orig_json_str)
       call orig_mesh%init(orig_json)
       call orig_mesh%configure(eos, gravity, orig_json, viewer = viewer, err = err)
       call fson_destroy_mpi(orig_json)
+      call mesh%destroy_distribution_data()
 
       call DMGetLocalToGlobalMapping(orig_mesh%dm, l2g, ierr); CHKERRQ(ierr)
 
@@ -824,6 +830,7 @@ contains
            rock_dict, rock_range_start, mesh%ghost_cell, err = err)
       call assert_equals(0, err, "setup rock vector error")
       call fson_destroy_mpi(json)
+      call mesh%destroy_distribution_data()
 
       call VecGetArrayF90(rock_vector, rock_array, ierr); CHKERRQ(ierr)
       call global_vec_section(rock_vector, section)
@@ -966,6 +973,7 @@ contains
            rock_range_start, err = err)
       call assert_equals(0, err, title // " setup MINC rock properties error")
       call fson_destroy_mpi(json)
+      call mesh%destroy_distribution_data()
 
       call VecGetArrayReadF90(rock_vector, rock_array, ierr); CHKERRQ(ierr)
       call global_vec_section(rock_vector, section)
@@ -1068,6 +1076,7 @@ contains
 
       call mesh%configure(eos, gravity, json, viewer = viewer, err = err)
       call fson_destroy_mpi(json)
+      call mesh%destroy_distribution_data()
 
       ! Test distributed label values against mesh cell%order AO:
       call DMPlexGetHeightStratum(mesh%dm, 0, start_cell, end_cell, ierr)
@@ -1230,6 +1239,7 @@ contains
       call mesh%init(json)
       call mesh%configure(eos, gravity, json, viewer = viewer, err = err)
       call fson_destroy_mpi(json)
+      call mesh%destroy_distribution_data()
 
       call DMGetLabel(mesh%dm, minc_zone_label_name, minc_label, ierr)
       CHKERRQ(ierr)
@@ -1338,6 +1348,7 @@ contains
       call mesh%init(json)
       call mesh%configure(eos, gravity, json, viewer = viewer, err = err)
       call fson_destroy_mpi(json)
+      call mesh%destroy_distribution_data()
 
       do i = 1, size(natural_indices)
          idx(1) = natural_indices(i)

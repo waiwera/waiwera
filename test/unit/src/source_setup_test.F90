@@ -187,6 +187,7 @@ contains
     call VecDestroy(source_vector, ierr); CHKERRQ(ierr)
     call source_controls%destroy()
     call DMRestoreGlobalVector(mesh%dm, fluid_vector, ierr); CHKERRQ(ierr)
+    call mesh%destroy_distribution_data()
     call mesh%destroy()
     call eos%destroy()
     call thermo%destroy()

@@ -170,6 +170,7 @@ contains
       call VecGetArrayF90(y, y_array, ierr); CHKERRQ(ierr)
 
       call fson_destroy_mpi(json)
+      call mesh%destroy_distribution_data()
 
       call DMPlexGetHeightStratum(mesh%dm, 0, start_cell, end_cell, ierr)
       CHKERRQ(ierr)
@@ -337,6 +338,7 @@ contains
     call rock%assign_capillary_pressure(capillary_pressure)
     allocate(primary(eos%num_primary_variables))
     call fson_destroy_mpi(json)
+    call mesh%destroy_distribution_data()
 
     do c = start_cell, end_cell - 1
        call DMLabelGetValue(ghost_label, c, ghost, ierr); CHKERRQ(ierr)

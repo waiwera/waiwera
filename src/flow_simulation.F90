@@ -694,7 +694,7 @@ contains
     call self%mesh%configure(self%eos, self%gravity, json, &
          self%logfile, self%hdf5_viewer, err)
     if (err == 0) then
-       call self%mesh%override_face_properties(json, self%logfile)
+       call self%mesh%override_face_properties()
        call self%output_mesh_geometry()
        call self%setup_solution_vector()
        call setup_relative_permeabilities(json, &
@@ -749,6 +749,8 @@ contains
           end if
        end if
     end if
+
+    call self%mesh%destroy_distribution_data()
 
     if (self%mesh%has_minc) then
        call DMDestroy(self%mesh%original_dm, ierr); CHKERRQ(ierr)

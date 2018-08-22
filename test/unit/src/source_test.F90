@@ -129,6 +129,7 @@ contains
     call eos%destroy()
     call thermo%destroy()
     call fson_destroy_mpi(json)
+    call mesh%destroy_distribution_data()
 
   contains
 
