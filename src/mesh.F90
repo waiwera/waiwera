@@ -40,7 +40,8 @@ module mesh_module
      !! Mesh type.
      private
      character(max_mesh_filename_length), public :: filename !! Mesh file name
-     DM, public :: original_dm !! Original DM read from file
+     DM, public :: serial_dm !! Original DM read from file (not distributed)
+     DM, public :: original_dm !! Original DM read from file (and distributed)
      DM, public :: dm !! DM representing the mesh topology (may be modified from original_dm)
      Vec, public :: cell_geom !! Vector containing cell geometry data
      Vec, public :: face_geom !! Vector containing face geometry data
@@ -107,17 +108,15 @@ contains
     class(mesh_type), intent(in out) :: self
     PetscSF, intent(out) :: dist_sf !! Mesh distribution star forest
     ! Locals:
-    DM :: dist_dm
     PetscErrorCode :: ierr
     PetscInt, parameter :: overlap = 1
 
-    call DMPlexDistribute(self%original_dm, overlap, dist_sf, dist_dm, ierr)
-    CHKERRQ(ierr)
-    if (dist_dm .ne. PETSC_NULL_DM) then
-       call DMDestroy(self%original_dm, ierr); CHKERRQ(ierr)
-       self%original_dm = dist_dm
+    call DMPlexDistribute(self%serial_dm, overlap, dist_sf, &
+         self%original_dm, ierr); CHKERRQ(ierr)
+    if (self%original_dm .eq. PETSC_NULL_DM) then
+       self%original_dm = self%serial_dm
     end if
-    
+
   end subroutine mesh_distribute
 
 !------------------------------------------------------------------------
@@ -158,7 +157,7 @@ contains
     PetscReal, parameter :: default_thickness = 1._dp
 
     self%thickness = default_thickness
-    call DMGetDimension(self%original_dm, dim, ierr); CHKERRQ(ierr)
+    call DMGetDimension(self%serial_dm, dim, ierr); CHKERRQ(ierr)
     select case (dim)
     case(3)
        self%radial = PETSC_FALSE
@@ -568,7 +567,7 @@ contains
     else
        ! Read in DM:
        call DMPlexCreateFromFile(PETSC_COMM_WORLD, self%filename, PETSC_TRUE, &
-            self%original_dm, ierr); CHKERRQ(ierr)
+            self%serial_dm, ierr); CHKERRQ(ierr)
        call self%setup_coordinate_parameters(json, logfile)
        call self%set_permeability_rotation(json, logfile)
        call self%rock_types%init(owner = PETSC_TRUE)
@@ -598,9 +597,11 @@ contains
     PetscErrorCode, intent(out) :: err !! Error flag
     ! Locals:
     PetscSF :: dist_sf
+    PetscMPIInt :: np
     PetscErrorCode :: ierr
 
     err = 0
+    call MPI_comm_size(PETSC_COMM_WORLD, np, ierr)
 
     call self%distribute(dist_sf)
 
@@ -638,6 +639,9 @@ contains
     end associate
 
     call PetscSFDestroy(dist_sf, ierr); CHKERRQ(ierr)
+    if (np > 1) then
+       call DMDestroy(self%serial_dm, ierr); CHKERRQ(ierr)
+    end if
     call self%setup_ghost_arrays()
     
   end subroutine mesh_configure

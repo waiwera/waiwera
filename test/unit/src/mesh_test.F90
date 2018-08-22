@@ -72,7 +72,7 @@ contains
 
     json => fson_parse_mpi(str = '{"mesh": "data/mesh/block3.exo"}')
     call mesh%init(json)
-    call DMCreateLabel(mesh%original_dm, open_boundary_label_name, ierr); CHKERRQ(ierr)
+    call DMCreateLabel(mesh%serial_dm, open_boundary_label_name, ierr); CHKERRQ(ierr)
     call mesh%configure(eos, gravity, json, viewer = viewer, err = err)
     call fson_destroy_mpi(json)
 
@@ -381,7 +381,7 @@ contains
          ']}}')
     call mesh%init(json)
 
-    call DMCreateLabel(mesh%original_dm, open_boundary_label_name, ierr); CHKERRQ(ierr)
+    call DMCreateLabel(mesh%serial_dm, open_boundary_label_name, ierr); CHKERRQ(ierr)
     call mesh%configure(eos, gravity, json, viewer = viewer, err = err)
     call mesh%override_face_properties(json)
     call fson_destroy_mpi(json)
@@ -817,7 +817,7 @@ contains
       json => fson_parse_mpi(str = json_str)
       call mesh%init(json)
 
-      call DMCreateLabel(mesh%original_dm, open_boundary_label_name, ierr); CHKERRQ(ierr)
+      call DMCreateLabel(mesh%serial_dm, open_boundary_label_name, ierr); CHKERRQ(ierr)
       call rock_dict%init(owner = PETSC_TRUE)
       call mesh%configure(eos, gravity, json, viewer = viewer, err = err)
       call setup_rock_vector(json, mesh%dm, mesh%cell_order, rock_vector, &
@@ -955,7 +955,7 @@ contains
       call eos%init(json, thermo)
       call mesh%init(json)
 
-      call DMCreateLabel(mesh%original_dm, open_boundary_label_name, ierr); CHKERRQ(ierr)
+      call DMCreateLabel(mesh%serial_dm, open_boundary_label_name, ierr); CHKERRQ(ierr)
       call mesh%configure(eos, gravity, json, viewer = viewer, err = err)
       call assert_equals(0, err, title // " mesh configure error")
       call rock_dict%init(owner = PETSC_TRUE)
@@ -1058,12 +1058,12 @@ contains
       viewer = PETSC_NULL_VIEWER
       call mesh%init(json)
 
-      call DMPlexGetHeightStratum(mesh%original_dm, 0, start_cell, end_cell, ierr)
+      call DMPlexGetHeightStratum(mesh%serial_dm, 0, start_cell, end_cell, ierr)
       CHKERRQ(ierr)
       ! Create order label on serial DM:
-      call DMCreateLabel(mesh%original_dm, label_name, ierr); CHKERRQ(ierr)
+      call DMCreateLabel(mesh%serial_dm, label_name, ierr); CHKERRQ(ierr)
       do c = start_cell, end_cell - 1
-         call DMSetLabelValue(mesh%original_dm, label_name, c, c, ierr); CHKERRQ(ierr)
+         call DMSetLabelValue(mesh%serial_dm, label_name, c, c, ierr); CHKERRQ(ierr)
       end do
 
       call mesh%configure(eos, gravity, json, viewer = viewer, err = err)

@@ -67,7 +67,7 @@ contains
     call eos%init(json, thermo)
     call source%init(eos)
     call mesh%init(json)
-    call DMCreateLabel(mesh%original_dm, open_boundary_label_name, ierr); CHKERRQ(ierr)
+    call DMCreateLabel(mesh%serial_dm, open_boundary_label_name, ierr); CHKERRQ(ierr)
     call mesh%configure(eos, gravity, json, viewer = viewer, err = err)
     call DMGetGlobalVector(mesh%dm, fluid_vector, ierr); CHKERRQ(ierr) ! dummy- not used
 
