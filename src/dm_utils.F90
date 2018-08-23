@@ -72,7 +72,6 @@ module dm_utils_module
   public :: create_path_dm
   public :: get_field_subvector, section_get_field_names
   public :: dm_global_cell_field_dof
-  public :: dm_label_sub_sf
 
 contains
 
@@ -1137,59 +1136,6 @@ contains
          PETSC_COMM_WORLD, ierr); CHKERRQ(ierr)
 
   end function dm_global_cell_field_dof
-
-!------------------------------------------------------------------------
-
-  PetscSF function dm_label_sub_sf(dm, sf, label, label_value) &
-       result(sub_sf)
-    !! Returns subset of the given star forest, restricted to the
-    !! local points with the specified DMLabel value.
-
-    DM, intent(in) :: dm
-    PetscSF, intent(in) :: sf
-    DMLabel, intent(in) :: label
-    PetscInt, intent(in) :: label_value
-    ! Locals:
-    IS :: labelIS
-    PetscInt, pointer :: indices(:)
-    PetscInt :: num_roots, num_leaves
-    PetscInt, pointer :: leaves(:)
-    type(PetscSFNode), pointer :: roots(:)
-    PetscInt, allocatable :: sub_leaves(:)
-    type(PetscSFNode), allocatable :: sub_roots(:)
-    PetscInt :: num_sub_roots, num_sub_leaves, i
-    PetscErrorCode :: ierr
-
-    call PetscSFCreate(PETSC_COMM_WORLD, sub_sf, ierr); CHKERRQ(ierr)
-
-    call PetscSFGetGraph(sf, num_roots, num_leaves, leaves, roots, ierr)
-    call DMLabelGetStratumIS(label, label_value, labelIS, ierr); CHKERRQ(ierr)
-    call ISGetIndicesF90(labelIS, indices, ierr); CHKERRQ(ierr)
-
-    associate(num_points => size(indices))
-
-      allocate(sub_roots(num_points))
-      do i = 1, num_points
-         associate (p => indices(i) + 1)
-           sub_roots(i)%index = roots(p)%index
-           sub_roots(i)%rank = roots(p)%rank
-         end associate
-      end do
-
-      num_sub_leaves = num_points
-      sub_leaves = [(i, i = 0, num_sub_leaves - 1)]
-      num_sub_roots = min(num_points, num_roots)
-
-      call PetscSFSetGraph(sub_sf, num_sub_roots, num_sub_leaves, &
-           sub_leaves, PETSC_COPY_VALUES, sub_roots, PETSC_COPY_VALUES, ierr)
-
-      deallocate(sub_roots, sub_leaves)
-
-    end associate
-
-    call ISRestoreIndicesF90(labelIS, indices, ierr); CHKERRQ(ierr)
-
-  end function dm_label_sub_sf
 
 !------------------------------------------------------------------------
 
