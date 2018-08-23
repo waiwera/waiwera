@@ -1780,8 +1780,10 @@ end subroutine timestepper_steps_set_next_stepsize
                   val = stop_minimum_stepsize)
           end if
        else
-          call fson_get_mpi(json, "time.step.stop.size.minimum", &
-               default_stop_minimum_stepsize, stop_minimum_stepsize, self%ode%logfile)
+          stop_minimum_stepsize = default_stop_minimum_stepsize
+          call self%ode%logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
+                  str_key = "time.step.stop.size.minimum", &
+                  str_value = "null")
        end if
        if (fson_has_mpi(json, "time.step.stop.size.maximum")) then
           if (fson_type_mpi(json, "time.step.stop.size.maximum") == TYPE_NULL) then
@@ -1791,8 +1793,10 @@ end subroutine timestepper_steps_set_next_stepsize
                   val = stop_maximum_stepsize)
           end if
        else
-          call fson_get_mpi(json, "time.step.stop.size.maximum", &
-               default_stop_maximum_stepsize, stop_maximum_stepsize, self%ode%logfile)
+          stop_maximum_stepsize = default_stop_maximum_stepsize
+          call self%ode%logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
+                  str_key = "time.step.stop.size.maximum", &
+                  str_value = "null")
        end if
        call fson_get_mpi(json, "time.step.maximum.number", &
             default_max_num_steps, max_num_steps, self%ode%logfile)
