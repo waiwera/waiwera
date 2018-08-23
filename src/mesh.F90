@@ -35,7 +35,7 @@ module mesh_module
 
   PetscInt, parameter, public :: max_mesh_filename_length = 200
   character(len = 16), public :: open_boundary_label_name = "open_boundary" !! Name of DMLabel for identifying open boundaries
-  character(len = 22) :: face_property_override_label_name = "face_property_override"
+  character(len = 22) :: face_permeability_override_label_name = "face_permeability_override"
 
   type, public :: mesh_type
      !! Mesh type.
@@ -1101,7 +1101,7 @@ contains
     PetscInt, parameter :: default_permeability_direction = 1
 
     call MPI_comm_rank(PETSC_COMM_WORLD, rank, ierr)
-    call DMCreateLabel(self%serial_dm, face_property_override_label_name, &
+    call DMCreateLabel(self%serial_dm, face_permeability_override_label_name, &
          ierr); CHKERRQ(ierr)
 
     if (rank == 0) then
@@ -1135,7 +1135,7 @@ contains
                      do i = 1, num_cell_faces
                         f = cell_faces(i)
                         call DMSetLabelValue(self%serial_dm, &
-                             face_property_override_label_name, f, &
+                             face_permeability_override_label_name, f, &
                              permeability_direction, ierr); CHKERRQ(ierr)
                      end do
                   else
@@ -1187,7 +1187,7 @@ contains
     PetscErrorCode :: ierr
 
     call DMGetDimension(self%original_dm, dim, ierr); CHKERRQ(ierr)
-    call DMGetLabel(self%original_dm, face_property_override_label_name, &
+    call DMGetLabel(self%original_dm, face_permeability_override_label_name, &
          label, ierr); CHKERRQ(ierr)
 
     call local_vec_section(self%face_geom, face_section)
