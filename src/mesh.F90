@@ -35,6 +35,7 @@ module mesh_module
 
   PetscInt, parameter, public :: max_mesh_filename_length = 200
   character(len = 16), public :: open_boundary_label_name = "open_boundary" !! Name of DMLabel for identifying open boundaries
+  character(len = 22) :: face_property_override_label_name = "face_property_override"
 
   type, public :: mesh_type
      !! Mesh type.
@@ -52,7 +53,7 @@ module mesh_module
      AO, public :: cell_order !! Application ordering to convert between global and natural cell indices
      AO, public :: original_cell_order !! Global-to-natural AO for original DM
      PetscSF, public :: dist_sf !! Distribution star forest
-     IS :: face_permeability_direction !! Overridden face permeability directions
+     PetscInt, allocatable :: face_permeability_direction(:) !! Overridden face permeability directions
      PetscInt, allocatable, public :: minc_cell_map(:) !! Mapping from MINC cell local indices to original single-porosity cell local indices
      PetscInt, public, allocatable :: ghost_cell(:), ghost_face(:) !! Ghost label values for cells and faces
      type(minc_type), allocatable, public :: minc(:) !! Array of MINC zones, with parameters
@@ -1087,7 +1088,6 @@ contains
     type(logfile_type), intent(in out), optional :: logfile !! Logfile for log output
     ! Locals:
     PetscMPIInt :: rank
-    PetscInt, allocatable :: direction(:)
     PetscInt, allocatable, target :: cell_indices(:)
     PetscInt, allocatable :: default_cells(:)
     type(fson_value), pointer :: faces_json, face_json
@@ -1102,19 +1102,20 @@ contains
     PetscInt, parameter :: default_permeability_direction = 1
 
     call MPI_comm_rank(PETSC_COMM_WORLD, rank, ierr)
+    call DMCreateLabel(self%serial_dm, face_property_override_label_name, &
+         ierr); CHKERRQ(ierr)
 
     if (rank == 0) then
 
        default_cells = [PetscInt::] ! empty integer array
        call DMPlexGetHeightStratum(self%serial_dm, 1, start_face, end_face, ierr)
        CHKERRQ(ierr)
-       allocate(direction(start_face: end_face - 1))
-       direction = -1
 
        call fson_get(json, "mesh.faces", faces_json)
        if (associated(faces_json)) then
           face_json => faces_json%children
           num_faces = fson_value_count(faces_json)
+          allocate(self%face_permeability_direction(num_faces))
 
           do iface = 1, num_faces
 
@@ -1135,7 +1136,9 @@ contains
                   if (num_cell_faces == 1) then
                      do i = 1, num_cell_faces
                         f = cell_faces(i)
-                        direction(f) = permeability_direction
+                        call DMSetLabelValue(self%serial_dm, &
+                             face_property_override_label_name, f, 1, ierr); CHKERRQ(ierr)
+                        self%face_permeability_direction(iface) = permeability_direction
                      end do
                   else
                      if (present(logfile)) then
@@ -1158,15 +1161,11 @@ contains
              face_json => face_json%next
 
           end do
+       else
+          allocate(self%face_permeability_direction(0))
        end if
 
-    else
-       allocate(direction(0))
     end if
-
-    call ISCreateGeneral(PETSC_COMM_WORLD, size(direction), direction, &
-         PETSC_COPY_VALUES, self%face_permeability_direction, ierr); CHKERRQ(ierr)
-    deallocate(direction)
 
   end subroutine mesh_read_overridden_face_properties
 
@@ -1178,69 +1177,63 @@ contains
 
     use logfile_module
     use face_module
-    use dm_utils_module, only: dm_create_section, local_vec_section, &
+    use dm_utils_module, only: dm_label_sub_sf, local_vec_section, &
          section_offset
     class(mesh_type), intent(in out) :: self
     ! Locals:
     PetscMPIInt :: np
-    PetscInt :: dim
-    PetscSection :: serial_section, dist_section
-    IS :: dist_face_permeability_direction
+    PetscSF :: face_sf
+    DMLabel :: label
+    IS :: faceIS
+    PetscInt :: num_faces
+    PetscInt, pointer, contiguous :: faces(:)
     PetscSection :: face_section
     type(face_type) :: face
     PetscReal, pointer, contiguous :: face_geom_array(:)
-    PetscInt, pointer, contiguous :: face_perms(:)
-    PetscInt :: i, f, permeability_direction, face_offset
-    PetscInt :: start_face, end_face
+    PetscInt, allocatable :: face_perm_direction(:)
+    PetscInt :: i, face_offset
     PetscErrorCode :: ierr
 
-    ! Distribute face permeability direction IS:
     call MPI_comm_size(PETSC_COMM_WORLD, np, ierr)
-    call DMGetDimension(self%original_dm, dim, ierr); CHKERRQ(ierr)
+
+    call DMGetLabel(self%original_dm, face_property_override_label_name, &
+         label, ierr); CHKERRQ(ierr)
+    call DMLabelGetStratumIS(label, 1, faceIS, ierr); CHKERRQ(ierr)
+    call ISGetIndicesF90(faceIS, faces, ierr); CHKERRQ(ierr)
+    num_faces = size(faces)
+
     if (np > 1) then
-       serial_section = dm_create_section(self%serial_dm, [1], [dim - 1])
-       dist_section = dm_create_section(self%original_dm, [1], [dim - 1])
-       call DMPlexDistributeFieldIS(self%serial_dm, self%dist_sf, &
-            serial_section, self%face_permeability_direction, &
-            dist_section, dist_face_permeability_direction, ierr)
-       CHKERRQ(ierr)
-       call PetscSectionDestroy(serial_section, ierr); CHKERRQ(ierr)
-       call PetscSectionDestroy(dist_section, ierr); CHKERRQ(ierr)
-       if (dist_face_permeability_direction .ne. PETSC_NULL_IS) then
-          call ISDestroy(self%face_permeability_direction, ierr); CHKERRQ(ierr)
-          self%face_permeability_direction = dist_face_permeability_direction
-       end if
+       ! Distribute face permeability directions:
+       face_sf = dm_label_sub_sf(self%original_dm, self%dist_sf, label, 1)
+       allocate(face_perm_direction(num_faces))
+       call PetscSFBcastBegin(face_sf, MPI_INTEGER, self%face_permeability_direction, &
+            face_perm_direction, ierr); CHKERRQ(ierr)
+       call PetscSFBcastEnd(face_sf, MPI_INTEGER, self%face_permeability_direction, &
+            face_perm_direction, ierr); CHKERRQ(ierr)
+       self%face_permeability_direction = face_perm_direction
+       deallocate(face_perm_direction)
     end if
 
-    ! Apply overridden face permeability directions:
-    call DMPlexGetHeightStratum(self%original_dm, 1, start_face, end_face, ierr)
-    CHKERRQ(ierr)
     call local_vec_section(self%face_geom, face_section)
     call VecGetArrayF90(self%face_geom, face_geom_array, ierr); CHKERRQ(ierr)
     call face%init()
-    call ISGetIndicesF90(self%face_permeability_direction, face_perms, ierr)
-    CHKERRQ(ierr)
-    associate(num_faces => size(face_perms))
-      do i = 1, num_faces
-         f = start_face + i - 1
-         permeability_direction = face_perms(i)
-         if (permeability_direction > 0) then
-            if (self%ghost_face(f) < 0) then
-               call section_offset(face_section, f, face_offset, ierr)
-               CHKERRQ(ierr)
-               call face%assign_geometry(face_geom_array, face_offset)
-               face%permeability_direction = dble(permeability_direction)
-            end if
+
+    do i = 1, num_faces
+       associate(f => faces(i), dirn => self%face_permeability_direction(i))
+         if (self%ghost_face(f) < 0) then
+            call section_offset(face_section, f, face_offset, ierr)
+            CHKERRQ(ierr)
+            call face%assign_geometry(face_geom_array, face_offset)
+            face%permeability_direction = dble(dirn)
          end if
-      end do
-    end associate
-    call ISRestoreIndicesF90(self%face_permeability_direction, face_perms, ierr)
-    CHKERRQ(ierr)
+       end associate
+    end do
+
     call face%destroy()
     call VecRestoreArrayF90(self%face_geom, face_geom_array, ierr)
     CHKERRQ(ierr)
-
-    call ISDestroy(self%face_permeability_direction, ierr); CHKERRQ(ierr)
+    call ISRestoreIndicesF90(faceIS, faces, ierr); CHKERRQ(ierr)
+    deallocate(self%face_permeability_direction)
 
   end subroutine mesh_override_face_properties
 
