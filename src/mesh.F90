@@ -35,7 +35,7 @@ module mesh_module
 
   PetscInt, parameter, public :: max_mesh_filename_length = 200
   character(len = 16), public :: open_boundary_label_name = "open_boundary" !! Name of DMLabel for identifying open boundaries
-  character(len = 22) :: face_permeability_override_label_name = "face_permeability_override"
+  character(len = 22) :: face_permeability_override_label_name = "face_permeability_override" !! Name of DMLabel for overriding face permeabilities
 
   type, public :: mesh_type
      !! Mesh type.
