@@ -161,7 +161,6 @@ contains
           end select
           allocate(self%rocktype_zones(num_rocks))
 
-          call DMPlexGetHeightStratum(dm, 0, start_cell, end_cell, ierr)
           call DMGetLocalToGlobalMapping(dm, l2g, ierr); CHKERRQ(ierr)
           call DMPlexGetHeightStratum(dm, 0, start_cell, end_cell, ierr); CHKERRQ(ierr)
 
