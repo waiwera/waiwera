@@ -166,7 +166,6 @@ contains
 
           do irock = 1, num_rocks
              self%rocktype_zones(irock) = minc_rocktype_zone_index
-             call label_rock_cells(iminc, minc_rocktype_zone_index)
              call label_rock_zones(iminc, minc_rocktype_zone_index, err)
              if (err == 0) then
                 call label_rock_types(iminc, minc_rocktype_zone_index, err)

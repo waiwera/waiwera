@@ -77,6 +77,7 @@ module mesh_module
      procedure :: override_face_properties => mesh_override_face_properties
      procedure :: label_cell_array_rock_types => mesh_label_cell_array_rock_types
      procedure :: label_cell_array_zones => mesh_label_cell_array_zones
+     procedure :: label_cell_array_minc_zones => mesh_label_cell_array_minc_zones
      procedure :: setup_zones => mesh_setup_zones
      procedure :: setup_minc => mesh_setup_minc
      procedure :: setup_minc_dm => mesh_setup_minc_dm
@@ -596,6 +597,7 @@ contains
        call self%read_overridden_face_properties(json, logfile)
        call self%label_cell_array_zones(json)
        call self%label_cell_array_rock_types(json)
+       call self%label_cell_array_minc_zones(json)
        self%has_minc = PETSC_FALSE
     end if
 
@@ -1341,6 +1343,108 @@ contains
 
 !------------------------------------------------------------------------
 
+  subroutine mesh_label_cell_array_minc_zones(self, json)
+    !! Labels serial DM for cell array MINC zones, referring to
+    !! natural cell indices.
+
+    use fson
+    use fson_value_m, only : fson_value_count, TYPE_ARRAY, TYPE_OBJECT
+
+    class(mesh_type), intent(in out) :: self
+    type(fson_value), pointer, intent(in) :: json
+    ! Locals:
+    PetscMPIInt :: rank
+    type(fson_value), pointer :: minc_json, minci_json
+    PetscInt :: minc_type, iminc, num_minc_zones
+    PetscInt :: start_cell, end_cell, minc_rocktype_zone_index
+    PetscErrorCode :: ierr
+
+    call MPI_comm_rank(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
+       call fson_get(json, "mesh.minc", minc_json)
+       if (associated(minc_json)) then
+
+          call DMPlexGetHeightStratum(self%serial_dm, 0, start_cell, end_cell, &
+               ierr); CHKERRQ(ierr)
+          call DMCreateLabel(self%serial_dm, minc_zone_label_name, ierr)
+          CHKERRQ(ierr)
+          call DMCreateLabel(self%serial_dm, minc_rocktype_zone_label_name, &
+               ierr); CHKERRQ(ierr)
+          minc_rocktype_zone_index = 1
+
+          minc_type = minc_json%value_type
+          select case (minc_type)
+          case (TYPE_OBJECT)
+             call minc_label_cell_array_zones(minc_json, 1, minc_rocktype_zone_index)
+          case (TYPE_ARRAY)
+             num_minc_zones = fson_value_count(minc_json)
+             minci_json => minc_json%children
+             do iminc = 1, num_minc_zones
+                call minc_label_cell_array_zones(minci_json, iminc, &
+                     minc_rocktype_zone_index)
+                minci_json => minci_json%next
+             end do
+          end select
+
+       end if
+    end if
+
+  contains
+
+    subroutine minc_label_cell_array_zones(json, iminc, minc_rocktype_zone_index)
+      !! Labels serial DM for cell arrays in a particular MINC zone.
+
+      type(fson_value), pointer, intent(in) :: json
+      PetscInt, intent(in) :: iminc
+      PetscInt, intent(in out) :: minc_rocktype_zone_index
+      ! Locals:
+      type(fson_value), pointer :: rock_json, rocki_json, cells_json
+      PetscInt :: rock_type, num_rocks, irock, ic
+      PetscInt, allocatable :: cells(:)
+
+      call fson_get(json, "rock", rock_json)
+      if (associated(rock_json)) then
+
+         rock_type = rock_json%value_type
+         select case (rock_type)
+         case (TYPE_OBJECT)
+            num_rocks = 1
+            rocki_json => rock_json
+         case (TYPE_ARRAY)
+            num_rocks = fson_value_count(rock_json)
+            rocki_json => rock_json%children
+         end select
+
+         do irock = 1, num_rocks
+            call fson_get(rocki_json, "cells", cells_json)
+            if (associated(cells_json)) then
+               call fson_get(cells_json, ".", cells)
+               associate(num_cells => size(cells))
+                 do ic = 1, num_cells
+                    associate(c => cells(ic))
+                      if ((c >= start_cell) .and. (c < end_cell)) then
+                         call DMSetLabelValue(self%serial_dm, minc_zone_label_name, &
+                              c, iminc, ierr); CHKERRQ(ierr)
+                         call DMSetLabelValue(self%serial_dm, &
+                              minc_rocktype_zone_label_name, c, &
+                              minc_rocktype_zone_index, ierr); CHKERRQ(ierr)
+                      end if
+                    end associate
+                 end do
+               end associate
+               deallocate(cells)
+            end if
+            minc_rocktype_zone_index = minc_rocktype_zone_index + 1
+         end do
+
+      end if
+
+    end subroutine minc_label_cell_array_zones
+
+  end subroutine mesh_label_cell_array_minc_zones
+
+!------------------------------------------------------------------------
+
   subroutine mesh_setup_zones(self, json, logfile, err)
     !! Sets up zones (for defining e.g. rock types, MINC etc.) in the
     !! mesh, from JSON input.
@@ -1510,11 +1614,6 @@ contains
     err = 0
 
     if (fson_has_mpi(json, "mesh.minc")) then
-
-       call DMCreateLabel(self%dm, minc_zone_label_name, ierr)
-       CHKERRQ(ierr)
-       call DMCreateLabel(self%dm, minc_rocktype_zone_label_name, ierr)
-       CHKERRQ(ierr)
 
        call fson_get_mpi(json, "mesh.minc", minc_json)
        minc_type = fson_type_mpi(minc_json, ".")
