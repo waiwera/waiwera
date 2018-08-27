@@ -107,6 +107,7 @@ digraph waiwera{
         mesh_module -> face_module
         mesh_module -> fluid_module
         mesh_module -> fson_mpi_module
+        mesh_module -> fson_string_m
         mesh_module -> list_module
         mesh_module -> logfile_module
         mesh_module -> minc_module
@@ -165,6 +166,7 @@ digraph waiwera{
         source_setup_module -> source_module
         source_setup_module -> thermodynamics_module
         source_setup_module -> utils_module
+        source_setup_module -> zone_label_module
         thermodynamics_setup_module -> IAPWS_module
         thermodynamics_setup_module -> IFC67_module
         thermodynamics_setup_module -> fson_mpi_module

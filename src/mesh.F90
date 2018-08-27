@@ -35,7 +35,7 @@ module mesh_module
 
   PetscInt, parameter, public :: max_mesh_filename_length = 200
   character(len = 16), public :: open_boundary_label_name = "open_boundary" !! Name of DMLabel for identifying open boundaries
-  character(len = 22) :: face_permeability_override_label_name = "face_permeability_override" !! Name of DMLabel for overriding face permeabilities
+  character(len = 26) :: face_permeability_override_label_name = "face_permeability_override" !! Name of DMLabel for overriding face permeabilities
 
   type, public :: mesh_type
      !! Mesh type.
@@ -75,6 +75,8 @@ module mesh_module
      procedure :: modify_geometry => mesh_modify_geometry
      procedure :: read_overridden_face_properties => mesh_read_overridden_face_properties
      procedure :: override_face_properties => mesh_override_face_properties
+     procedure :: label_cell_array_rock_types => mesh_label_cell_array_rock_types
+     procedure :: label_cell_array_zones => mesh_label_cell_array_zones
      procedure :: setup_zones => mesh_setup_zones
      procedure :: setup_minc => mesh_setup_minc
      procedure :: setup_minc_dm => mesh_setup_minc_dm
@@ -592,7 +594,8 @@ contains
        call self%setup_coordinate_parameters(json, logfile)
        call self%set_permeability_rotation(json, logfile)
        call self%read_overridden_face_properties(json, logfile)
-       call self%rock_types%init(owner = PETSC_TRUE)
+       call self%label_cell_array_zones(json)
+       call self%label_cell_array_rock_types(json)
        self%has_minc = PETSC_FALSE
     end if
 
@@ -642,8 +645,7 @@ contains
 
       call self%setup_zones(json, logfile, err)
       if (err == 0) then
-         call setup_rock_types(json, self%dm, self%cell_order, &
-              self%rock_types, logfile, err)
+         call setup_rock_types(json, self%dm, self%rock_types, logfile, err)
          if (err == 0) then
             call self%setup_minc(json, logfile, err)
             if (err == 0) then
@@ -1221,6 +1223,124 @@ contains
 
 !------------------------------------------------------------------------
 
+  subroutine mesh_label_cell_array_zones(self, json)
+    !! Labels serial DM for cell array zones, referring to natural
+    !! cell indices.
+
+    use fson
+    use fson_string_m, only: fson_string_length, fson_string_copy
+    use fson_value_m, only : fson_value_count
+
+    class(mesh_type), intent(in out) :: self
+    type(fson_value), pointer, intent(in) :: json
+    ! Locals:
+    PetscMPIInt :: rank
+    type(fson_value), pointer :: zones_json, zone_json
+    PetscInt :: num_zones, i, ztype, name_len
+    type(zone_cell_array_type) :: zone
+    character(:), allocatable :: name
+    PetscErrorCode :: ierr
+
+    call MPI_comm_rank(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
+       call fson_get(json, "mesh.zones", zones_json)
+       if (associated(zones_json)) then
+          num_zones = fson_value_count(zones_json)
+          zone_json => zones_json%children
+          do i = 1, num_zones
+             ztype = get_zone_type(zone_json)
+             if (ztype == ZONE_TYPE_CELL_ARRAY) then
+                name_len = fson_string_length(zone_json%name)
+                allocate(character(name_len) :: name)
+                call fson_string_copy(zone_json%name, name)
+                call zone%init_serial(i - 1, name, zone_json)
+                call zone%label_serial_dm(self%serial_dm)
+                call zone%destroy()
+                deallocate(name)
+                zone_json => zone_json%next
+             end if
+          end do
+       end if
+    end if
+
+  end subroutine mesh_label_cell_array_zones
+
+!------------------------------------------------------------------------
+
+  subroutine mesh_label_cell_array_rock_types(self, json)
+    !! Labels serial DM for cell array rock types, referring to
+    !! natural cell indices.
+
+    use fson
+    use fson_value_m, only : fson_value_count
+    use rock_module, only: rock_type_label_name, label_rock_cell
+
+    class(mesh_type), intent(in out) :: self
+    type(fson_value), pointer, intent(in) :: json
+    ! Locals:
+    PetscMPIInt :: rank
+    type(fson_value), pointer :: rocktypes, r
+    PetscInt :: start_cell, end_cell, ir, num_rocktypes
+    DMLabel :: ghost_label
+    PetscErrorCode :: ierr
+
+    call MPI_comm_rank(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
+
+       call fson_get(json, "rock.types", rocktypes)
+       if (associated(rocktypes)) then
+
+          call DMCreateLabel(self%serial_dm, rock_type_label_name, ierr)
+          CHKERRQ(ierr)
+          call DMPlexGetHeightStratum(self%serial_dm, 0, start_cell, end_cell, &
+               ierr); CHKERRQ(ierr)
+          call DMGetLabel(self%serial_dm, "ghost", ghost_label, ierr)
+          CHKERRQ(ierr)
+
+          num_rocktypes = fson_value_count(rocktypes)
+          r => rocktypes%children
+          do ir = 1, num_rocktypes
+             call label_rock_cells(r, ir)
+             r => r%next
+          end do
+
+       end if
+    end if
+
+  contains
+
+    subroutine label_rock_cells(r, ir)
+      !! Sets serial DM rocktype label on specified cells.
+
+      type(fson_value), pointer, intent(in out) :: r
+      PetscInt, intent(in) :: ir !! Rock type index
+      ! Locals:
+      type(fson_value), pointer :: cell_indices_json
+      PetscInt, allocatable :: cell_indices(:)
+      PetscInt :: ic
+
+      call fson_get(r, "cells", cell_indices_json)
+      if (associated(cell_indices_json)) then
+         call fson_get(cell_indices_json, ".", cell_indices)
+         if (allocated(cell_indices)) then
+            associate(num_cells => size(cell_indices))
+              do ic = 1, num_cells
+                 associate(c => cell_indices(ic))
+                   call label_rock_cell(self%serial_dm, &
+                        start_cell, end_cell, c, ir)
+                 end associate
+              end do
+            end associate
+            deallocate(cell_indices)
+         end if
+      end if
+
+    end subroutine label_rock_cells
+
+  end subroutine mesh_label_cell_array_rock_types
+
+!------------------------------------------------------------------------
+
   subroutine mesh_setup_zones(self, json, logfile, err)
     !! Sets up zones (for defining e.g. rock types, MINC etc.) in the
     !! mesh, from JSON input.
@@ -1259,7 +1379,7 @@ contains
 
        do i = 1, num_zones
           zone => null()
-          ztype = get_zone_type(zone_json)
+          ztype = get_zone_type_mpi(zone_json)
           name = fson_get_name_mpi(zone_json)
           select case (ztype)
           case (ZONE_TYPE_CELL_ARRAY)
