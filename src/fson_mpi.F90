@@ -68,7 +68,7 @@ module fson_mpi_module
   public :: fson_get_default, fson_get_mpi, fson_has_mpi, fson_get_name_mpi
   public :: fson_type_mpi, fson_value_count_mpi, fson_value_get_mpi
   public :: fson_value_children_mpi, fson_value_next_mpi
-  public :: fson_mpi_array_rank, fson_parse_mpi, fson_destroy_mpi
+  public :: fson_array_rank, fson_mpi_array_rank, fson_parse_mpi, fson_destroy_mpi
 
 contains
 
@@ -1289,7 +1289,7 @@ contains
 
 !------------------------------------------------------------------------
 
-  PetscInt function fson_mpi_array_rank(self, path) result(r)
+  PetscInt function fson_array_rank(self, path) result(r)
     !! Returns array rank of object: -1 if the object does not exist,
     !! zero if it is a scalar or zero-length array, 1 or 2 if it is a
     !! non-empty array. (Arrays of rank higher than 2 are not
@@ -1302,34 +1302,49 @@ contains
     ! Locals:
     type(fson_value), pointer :: p, p1
     PetscInt :: t, count
+
+    call fson_get(self, path, p)
+    if (associated(p)) then
+       t = p%value_type
+       if (t == TYPE_ARRAY) then
+          count = fson_value_count(p)
+          if (count == 0) then
+             r = 0
+          else
+             p1 => fson_value_get(p, 1)
+             if (p1%value_type == TYPE_ARRAY) then
+                r = 2
+             else
+                r = 1
+             end if
+          end if
+       else
+          r = 0
+       end if
+    else
+       r = -1
+    end if
+
+  end function fson_array_rank
+
+!------------------------------------------------------------------------
+
+  PetscInt function fson_mpi_array_rank(self, path) result(r)
+    !! Returns array rank of object: -1 if the object does not exist,
+    !! zero if it is a scalar or zero-length array, 1 or 2 if it is a
+    !! non-empty array. (Arrays of rank higher than 2 are not
+    !! detected.)
+
+    type(fson_value), pointer, intent(in) :: self
+    character(len=*), intent(in) :: path
+    ! Locals:
     PetscMPIInt :: rank
     PetscInt :: ierr
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
     if (rank == 0) then
-       call fson_get(self, path, p)
-       if (associated(p)) then
-          t = p%value_type
-          if (t == TYPE_ARRAY) then
-             count = fson_value_count(p)
-             if (count == 0) then
-                r = 0
-             else
-                p1 => fson_value_get(p, 1)
-                if (p1%value_type == TYPE_ARRAY) then
-                   r = 2
-                else
-                   r = 1
-                end if
-             end if
-          else
-             r = 0
-          end if
-       else
-          r = -1
-       end if
+       r = fson_array_rank(self, path)
     end if
-
     call MPI_bcast(r, 1, MPI_INTEGER, 0, PETSC_COMM_WORLD, ierr)
 
   end function fson_mpi_array_rank
