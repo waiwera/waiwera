@@ -852,7 +852,7 @@ contains
     !! Reads in serial data structures for overridden face properties
     !! from JSON input - currently just face permeability directions.
 
-    use fson_mpi_module
+    use fson_utils_module, only: fson_get_default
     use fson_value_m, only : fson_value_count
     use logfile_module
 
@@ -1221,7 +1221,7 @@ contains
     use kinds_module
     use fson
     use fson_value_m, only : fson_value_count, TYPE_ARRAY, TYPE_OBJECT
-    use fson_mpi_module
+    use fson_utils_module, only: fson_get_default
     use logfile_module
     use dm_utils_module, only: dm_cell_normal_face
 
