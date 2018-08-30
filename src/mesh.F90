@@ -1603,7 +1603,7 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine mesh_setup_minc_dm(self, dof)
+  subroutine mesh_setup_minc_dm(self)
     !! Sets up augmented DM for MINC mesh, including MINC cells and
     !! faces. Although they are not used, edges and vertices are also
     !! created for the MINC faces, so that the depth of the DM is
@@ -1613,11 +1613,11 @@ contains
     use list_module
 
     class(mesh_type), intent(in out) :: self
-    PetscInt, intent(in) :: dof !! Degrees of freedom for discretization
     ! Locals:
     DM :: minc_dm
+    PetscSection :: section
     PetscInt :: start_chart, end_chart, m
-    PetscInt :: dim
+    PetscInt :: dim, dof
     PetscInt :: num_minc_cells
     PetscInt :: num_minc_zones, num_cells, num_new_points, max_num_levels
     PetscInt, allocatable :: minc_zone(:), minc_end_interior(:)
@@ -1672,6 +1672,8 @@ contains
          minc_level_cells)
 
     call dm_set_fv_adjacency(minc_dm)
+    call DMGetSection(self%dm, section, ierr); CHKERRQ(ierr)
+    call PetscSectionGetMaxDof(section, dof, ierr); CHKERRQ(ierr)
     call dm_setup_fv_discretization(minc_dm, dof)
     call set_dm_default_data_layout(minc_dm, dof)
     call self%setup_minc_point_sf(minc_dm)
