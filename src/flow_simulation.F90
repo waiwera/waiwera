@@ -688,11 +688,10 @@ contains
     call setup_thermodynamics(json, self%thermo, self%logfile)
     call setup_eos(json, self%thermo, self%eos, self%logfile)
 
-    call self%mesh%init(json, self%logfile)
+    call self%mesh%init(self%eos, json, self%logfile)
     call self%setup_gravity(json)
 
-    call self%mesh%configure(self%eos, self%gravity, json, &
-         self%logfile, self%hdf5_viewer, err)
+    call self%mesh%configure(self%gravity, json, self%logfile, self%hdf5_viewer, err)
     if (err == 0) then
        call self%mesh%override_face_properties()
        call self%output_mesh_geometry()

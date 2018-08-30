@@ -549,7 +549,7 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine mesh_init(self, json, logfile)
+  subroutine mesh_init(self, eos, json, logfile)
     !! Initializes mesh, reading filename from JSON input file.
     !! If the filename is not present, an error is raised.
     !! Otherwise, the PETSc DM is read in.
@@ -557,8 +557,11 @@ contains
     use logfile_module
     use fson_mpi_module
     use fson_value_m, only: TYPE_STRING, TYPE_OBJECT
+    use eos_module
+    use dm_utils_module, only: dm_set_fv_adjacency, dm_setup_fv_discretization
 
     class(mesh_type), intent(in out) :: self
+    class(eos_type), intent(in) :: eos !! EOS object
     type(fson_value), pointer, intent(in) :: json !! JSON file pointer
     type(logfile_type), intent(in out), optional :: logfile
     ! Locals:
@@ -589,6 +592,11 @@ contains
        ! Read in DM:
        call DMPlexCreateFromFile(PETSC_COMM_WORLD, self%filename, PETSC_TRUE, &
             self%serial_dm, ierr); CHKERRQ(ierr)
+       call dm_set_fv_adjacency(self%serial_dm)
+       associate(dof => eos%num_primary_variables)
+         call dm_setup_fv_discretization(self%serial_dm, dof)
+         call set_dm_default_data_layout(self%serial_dm, dof)
+       end associate
        call self%setup_coordinate_parameters(json, logfile)
        call self%set_permeability_rotation(json, logfile)
        call self%read_overridden_face_properties(json, logfile)
@@ -603,18 +611,16 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine mesh_configure(self, eos, gravity, json, logfile, viewer, err)
+  subroutine mesh_configure(self, gravity, json, logfile, viewer, err)
     !! Configures mesh, including distribution over processes and
     !! construction of ghost cells, setup of data layout, geometry and
     !! cell index set.
 
-    use eos_module, only: eos_type
     use dm_utils_module
     use logfile_module
     use rock_module, only: setup_rock_types
 
     class(mesh_type), intent(in out) :: self
-    class(eos_type), intent(in) :: eos !! EOS object
     PetscReal, intent(in) :: gravity(:) !! Gravity vector
     type(fson_value), pointer, intent(in) :: json !! JSON file pointer
     type(logfile_type), intent(in out), optional :: logfile !! Log file
@@ -629,36 +635,28 @@ contains
 
     call self%distribute()
 
-    associate(dof => eos%num_primary_variables)
+    call self%construct_ghost_cells()
+    call self%setup_geometry(gravity)
+    self%dm = self%original_dm
+    self%original_cell_order = dm_get_natural_to_global_ao(self%original_dm, &
+         self%dist_sf)
+    self%cell_order = self%original_cell_order
 
-      call dm_setup_fv_discretization(self%original_dm, dof)
-      call self%construct_ghost_cells()
-      call set_dm_default_data_layout(self%original_dm, dof)
-      call dm_set_fv_adjacency(self%original_dm)
-
-      call self%setup_geometry(gravity)
-      self%dm = self%original_dm
-      self%original_cell_order = dm_get_natural_to_global_ao(self%original_dm, &
-           self%dist_sf)
-      self%cell_order = self%original_cell_order
-
-      call self%setup_zones(json, logfile, err)
-      if (err == 0) then
-         call setup_rock_types(json, self%dm, self%rock_types, logfile, err)
-         if (err == 0) then
-            call self%setup_minc(json, logfile, err)
-            if (err == 0) then
-               if (self%has_minc) call self%setup_minc_dm(dof)
-               call dm_get_cell_index(self%dm, self%cell_order, &
-                    self%cell_index)
-               if (viewer /= PETSC_NULL_VIEWER) then
-                  call ISView(self%cell_index, viewer, ierr); CHKERRQ(ierr)
-               end if
-            end if
-         end if
-      end if
-
-    end associate
+    call self%setup_zones(json, logfile, err)
+    if (err == 0) then
+       call setup_rock_types(json, self%dm, self%rock_types, logfile, err)
+       if (err == 0) then
+          call self%setup_minc(json, logfile, err)
+          if (err == 0) then
+             if (self%has_minc) call self%setup_minc_dm()
+             call dm_get_cell_index(self%dm, self%cell_order, &
+                  self%cell_index)
+             if (viewer /= PETSC_NULL_VIEWER) then
+                call ISView(self%cell_index, viewer, ierr); CHKERRQ(ierr)
+             end if
+          end if
+       end if
+    end if
 
     call self%setup_ghost_arrays()
     
