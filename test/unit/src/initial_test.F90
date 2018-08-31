@@ -14,7 +14,7 @@ module initial_test
   implicit none
   private
 
-  public :: test_initial_hdf5
+  public :: test_initial
   ! public :: test_setup_initial_hdf5
 
 contains
@@ -39,26 +39,29 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine test_initial_hdf5
-    ! HDF5 initial conditions
+  subroutine test_initial
+    ! initial conditions
 
     character(:), allocatable :: json_str
     PetscMPIInt :: rank
+    character(:), allocatable :: initial_primary_json
     PetscErrorCode :: ierr
 
     call MPI_comm_rank(PETSC_COMM_WORLD, rank, ierr)
+
+    ! HDF5 initial tests:
 
     json_str = &
          '{"mesh": {"filename": "data/mesh/col100.exo"},' // &
          ' "eos": {"name": "we"}, ' // &
          ' "initial": {"filename": "data/initial/fluid.h5"}}'
-    call initial_hdf5_test('single porosity', json_str)
+    call initial_test_case('single porosity', json_str)
 
     json_str = &
          '{"mesh": {"filename": "data/mesh/col100.exo"},' // &
          ' "eos": {"name": "we"}, ' // &
          ' "initial": {"filename": "data/initial/fluid_minimal.h5"}}'
-    call initial_hdf5_test('single porosity minimal', json_str)
+    call initial_test_case('single porosity minimal', json_str)
 
     json_str = &
          '{"mesh": {"filename": "data/mesh/col100.exo", ' // &
@@ -68,7 +71,7 @@ contains
          '                                "matrix": {"volume": [0.3, 0.6]}}}},' // &
          ' "eos": {"name": "we"}, ' // &
          ' "initial": {"filename": "data/initial/fluid.h5", "minc": false}}'
-    call initial_hdf5_test('MINC', json_str)
+    call initial_test_case('MINC', json_str)
 
     json_str = &
          '{"mesh": {"filename": "data/mesh/col100.exo", ' // &
@@ -78,7 +81,7 @@ contains
          '                                "matrix": {"volume": [0.3, 0.6]}}}},' // &
          ' "eos": {"name": "we"}, ' // &
          ' "initial": {"filename": "data/initial/fluid_minimal.h5", "minc": false}}'
-    call initial_hdf5_test('MINC minimal false', json_str)
+    call initial_test_case('MINC minimal false', json_str)
 
     json_str = &
          '{"mesh": {"filename": "data/mesh/col100.exo", ' // &
@@ -88,21 +91,90 @@ contains
          '                                "matrix": {"volume": [0.3, 0.6]}}}},' // &
          ' "eos": {"name": "we"}, ' // &
          ' "initial": {"filename": "data/initial/fluid_minimal_minc.h5", "minc": true}}'
-    call initial_hdf5_test('MINC minimal true', json_str)
+    call initial_test_case('MINC minimal true', json_str)
 
     json_str = &
-         '{"mesh": {"filename": "data/mesh/col100.exo", ' // &
-         '          "boundaries": [{"faces": {"cells": [0], ' // &
-         '                          "normal": [0, 1, 0]}}]},' // &
+         '{"mesh": {"filename": "data/mesh/col100.exo"}, ' // &
+         ' "boundaries": [{"faces": {"cells": [0], ' // &
+         '                          "normal": [0, 1, 0]}}],' // &
          ' "eos": {"name": "we"}, ' // &
          ' "initial": {"filename": "data/initial/fluid_minimal.h5"}}'
-    call initial_hdf5_test('single porosity minimal boundary', json_str)
+    call initial_test_case('single porosity minimal boundary', json_str)
+
+    ! JSON initial tests:
+
+    initial_primary_json = &
+         '[ 588530.0, 21.25], ' // &
+         '[1565590.0, 23.75], ' // &
+         '[2542650.0, 26.25], ' // &
+         '[3519710.0, 28.75], ' // &
+         '[4496770.0, 31.25], ' // &
+         '[5473830.0, 33.75], ' // &
+         '[6450890.0, 36.25], ' // &
+         '[7427950.0, 38.75], ' // &
+         '[8405010.0, 41.25], ' // &
+         '[9382070.0, 43.75]'
+
+    json_str = &
+         '{"mesh": {"filename": "data/mesh/col10.exo"},' // &
+         ' "eos": {"name": "we"}, ' // &
+         '   "initial": {"primary": [' // &
+              initial_primary_json // &
+         '    ] , "region": 1}}'
+    call initial_test_case('JSON initial', json_str)
+
+    json_str = &
+         '{"mesh": {"filename": "data/mesh/col10.exo"},' // &
+         ' "boundaries": [{"faces": {"cells": [0], "normal": [0, 1, 0]}}], ' // &
+         ' "eos": {"name": "we"}, ' // &
+         '   "initial": {"primary": [' // &
+              initial_primary_json // &
+         '    ], "region": 1}}'
+    call initial_test_case('JSON initial boundary', json_str)
+
+    json_str = &
+         '{"mesh": {"filename": "data/mesh/col10.exo", ' // &
+         '          "zones": {"all": {"-": null}},' // &
+         '          "minc": {"rock": {"zones": ["all"]}, ' // &
+         '                   "geometry": {"fracture": {"volume": 0.1}, ' // &
+         '                                "matrix": {"volume": [0.3, 0.6]}}}},' // &
+         ' "eos": {"name": "we"}, ' // &
+         ' "initial": {"primary": [' // &
+            initial_primary_json // &
+         '  ], "minc": false}}'
+    call initial_test_case('MINC initial JSON false', json_str)
+
+    json_str = &
+         '{"mesh": {"filename": "data/mesh/col10.exo", ' // &
+         '          "zones": {"all": {"-": null}},' // &
+         '          "minc": {"rock": {"zones": ["all"]}, ' // &
+         '                   "geometry": {"fracture": {"volume": 0.1}, ' // &
+         '                                "matrix": {"volume": [0.3, 0.6]}}}},' // &
+         ' "boundaries": [{"faces": {"cells": [0], "normal": [0, 1, 0]}}], ' // &
+         ' "eos": {"name": "we"}, ' // &
+         ' "initial": {"primary": [' // &
+            initial_primary_json // &
+         '  ], "minc": false}}'
+    call initial_test_case('MINC initial boundary JSON false', json_str)
+
+    json_str = &
+         '{"mesh": {"filename": "data/mesh/col10.exo", ' // &
+         '          "zones": {"all": {"-": null}},' // &
+         '          "minc": {"rock": {"zones": ["all"]}, ' // &
+         '                   "geometry": {"fracture": {"volume": 0.1}, ' // &
+         '                                "matrix": {"volume": [0.3, 0.6]}}}},' // &
+         ' "eos": {"name": "we"}, ' // &
+         ' "initial": {"primary": [' // &
+            initial_primary_json // ', ' // &
+            initial_primary_json // &
+         '  ], "minc": true}}'
+    ! call initial_test_case('MINC initial JSON true', json_str)
 
   contains
 
 !........................................................................
 
-    subroutine initial_hdf5_test(name, json_str)
+    subroutine initial_test_case(name, json_str)
 
       use IAPWS_module
       use eos_we_module
@@ -110,8 +182,7 @@ contains
       use eos_module, only: max_component_name_length, &
            max_phase_name_length
       use fluid_module, only: fluid_type, setup_fluid_vector
-      use dm_utils_module, only: global_vec_section, global_section_offset, &
-           local_vec_section, section_offset, global_vec_range_start
+      use dm_utils_module
       use relative_permeability_module, only: relative_permeability_corey_type
       use capillary_pressure_module, only: capillary_pressure_zero_type
       use cell_module, only: cell_type
@@ -127,7 +198,8 @@ contains
       PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
       PetscViewer :: viewer
       Vec :: fluid_vector, y
-      PetscInt :: y_range_start, fluid_range_start, start_cell, end_cell
+      PetscInt :: y_range_start, fluid_range_start
+      PetscInt :: start_cell, end_cell, end_interior_cell
       PetscInt :: c, ghost, fluid_offset, cell_geom_offset, y_offset
       PetscSection :: fluid_section, cell_geom_section, y_section
       PetscReal, pointer, contiguous :: fluid_array(:), y_array(:)
@@ -136,6 +208,8 @@ contains
       PetscReal, allocatable :: expected_primary(:)
       PetscReal, pointer, contiguous :: primary(:)
       PetscReal, pointer, contiguous :: cell_geom_array(:)
+      Vec :: initial_primary
+      IS :: initial_region
       type(cell_type) :: cell
       PetscReal :: t
       type(logfile_type) :: logfile
@@ -149,8 +223,9 @@ contains
 
       call thermo%init()
       call eos%init(json, thermo)
-      call mesh%init(json)
-      call mesh%configure(eos, gravity, json, viewer = viewer, err = err)
+      call mesh%init(eos, json)
+      call read_array_initial(json, mesh, initial_primary, initial_region)
+      call mesh%configure(gravity, json, viewer = viewer, err = err)
 
       call DMCreateGlobalVector(mesh%dm, y, ierr); CHKERRQ(ierr)
       call PetscObjectSetName(y, "primary", ierr); CHKERRQ(ierr)
@@ -162,7 +237,8 @@ contains
 
       t = 0._dp
       call setup_initial(json, mesh, eos, t, y, fluid_vector, &
-           y_range_start, fluid_range_start, logfile)
+           y_range_start, fluid_range_start, initial_primary, &
+           initial_region, logfile)
 
       call global_vec_section(fluid_vector, fluid_section)
       call VecGetArrayF90(fluid_vector, fluid_array, ierr); CHKERRQ(ierr)
@@ -174,6 +250,7 @@ contains
 
       call DMPlexGetHeightStratum(mesh%dm, 0, start_cell, end_cell, ierr)
       CHKERRQ(ierr)
+      end_interior_cell = dm_get_end_interior_cell(mesh%dm, end_cell)
       call DMGetLabel(mesh%dm, "ghost", ghost_label, ierr)
       CHKERRQ(ierr)
       call fluid%init(eos%num_components, eos%num_phases)
@@ -184,7 +261,7 @@ contains
       CHKERRQ(ierr)
       call cell%init(eos%num_components, eos%num_phases)
 
-      do c = start_cell, end_cell - 1
+      do c = start_cell, end_interior_cell - 1
          call DMLabelGetValue(ghost_label, c, ghost, ierr); CHKERRQ(ierr)
          if (ghost < 0) then
             call global_section_offset(fluid_section, c, &
@@ -221,9 +298,9 @@ contains
       call logfile%destroy()
       deallocate(expected_primary)
 
-    end subroutine initial_hdf5_test
+    end subroutine initial_test_case
 
-  end subroutine test_initial_hdf5
+  end subroutine test_initial
 
 !------------------------------------------------------------------------
 
@@ -294,8 +371,8 @@ contains
 
     call thermo%init()
     call eos%init(json, thermo)
-    call mesh%init(json)
-    call mesh%configure(eos, gravity, json, viewer = viewer, err = err)
+    call mesh%init(eos, json)
+    call mesh%configure(gravity, json, viewer = viewer, err = err)
 
     call setup_fluid_vector(mesh%dm, max_component_name_length, &
          eos%component_names, max_phase_name_length, &
