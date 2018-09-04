@@ -82,56 +82,111 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine setup_initial_primary_array(mesh, primary, eos, y, &
-       range_start)
+  subroutine setup_initial_primary_array(json, mesh, eos, y, range_start, &
+       minc_specified)
 
     !! Initializes solution vector y from a rank-2 array of values for
-    !! all mesh cells.
+    !! all mesh cells in the JSON input.
 
-    use dm_utils_module, only: global_vec_section, global_section_offset, &
-         natural_to_local_cell_index
+    use fson_mpi_module
     use mesh_module, only: mesh_type
-    use eos_module, only: eos_type
+    use eos_module
+    use dm_utils_module, only: global_vec_section, global_section_offset, &
+         natural_to_local_cell_index, dm_get_end_interior_cell, &
+         dm_create_section
 
+    type(fson_value), pointer, intent(in) :: json
     type(mesh_type), intent(in) :: mesh
-    PetscReal, intent(in) :: primary(:,:)
     class(eos_type), intent(in) :: eos
     Vec, intent(in out) :: y
     PetscInt, intent(in) :: range_start
+    PetscBool, intent(in) :: minc_specified
     ! Locals:
-    PetscInt :: num_cells, np, i
-    PetscInt :: offset, ghost, c
-    PetscReal, pointer, contiguous :: cell_primary(:), y_array(:)
-    PetscSection :: section
+    PetscMPIInt :: np, rank
+    PetscInt :: num_data
+    PetscReal, allocatable :: primary_array(:,:)
+    PetscReal, pointer, contiguous :: primary_data(:)
+    Vec :: serial_primary
+    Vec :: local_y
+    PetscSection :: serial_section, section
+    IS :: interior
+    PetscErrorCode :: ierr
+    PetscReal, pointer, contiguous :: y_array(:)
     DMLabel :: ghost_label
     ISLocalToGlobalMapping :: l2g
-    PetscErrorCode :: ierr
+    PetscInt :: i, c, offset, ghost
+    PetscReal, pointer, contiguous :: cell_primary(:)
 
-    num_cells = size(primary, 1)
-    np = eos%num_primary_variables
+    call MPI_comm_rank(PETSC_COMM_WORLD, rank, ierr)
+    call MPI_comm_size(PETSC_COMM_WORLD, np, ierr)
 
-    call global_vec_section(y, section)
-    call VecGetArrayF90(y, y_array, ierr); CHKERRQ(ierr)
-    call DMGetLabel(mesh%dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
-    call DMGetLocalToGlobalMapping(mesh%dm, l2g, ierr); CHKERRQ(ierr)
+    if ((.not. mesh%has_minc) .or. (.not. minc_specified)) then
 
-    do i = 1, num_cells
-       associate(natural_cell_index => i - 1)
-         c = natural_to_local_cell_index(mesh%cell_order, l2g, &
-              natural_cell_index)
-         if (c >= 0) then
-            call DMLabelGetValue(ghost_label, c, ghost, ierr)
-            if (ghost < 0) then
-               call global_section_offset(section, c, range_start, &
-                    offset, ierr)
-               cell_primary => y_array(offset : offset + np - 1)
-               cell_primary = primary(i, :)
+       if (rank == 0) then
+          call fson_get(json, "initial.primary", primary_array)
+       else
+          allocate(primary_array(0, 0))
+       end if
+       num_data = size(primary_array)
+       call VecCreate(PETSC_COMM_WORLD, serial_primary, ierr); CHKERRQ(ierr)
+       call VecSetType(serial_primary, VECMPI, ierr); CHKERRQ(ierr)
+       call VecSetSizes(serial_primary, num_data, PETSC_DECIDE, ierr); CHKERRQ(ierr)
+       call VecGetArrayF90(serial_primary, primary_data, ierr); CHKERRQ(ierr)
+       primary_data = pack(transpose(primary_array), PETSC_TRUE)
+       call VecRestoreArrayF90(serial_primary, primary_data, ierr); CHKERRQ(ierr)
+       deallocate(primary_array)
+
+       if (np > 1) then
+          call DMGetGlobalSection(mesh%serial_dm, serial_section, ierr)
+          CHKERRQ(ierr)
+          call PetscSectionCreate(PETSC_COMM_WORLD, section, ierr); CHKERRQ(ierr)
+          call VecCreate(PETSC_COMM_WORLD, local_y, ierr); CHKERRQ(ierr)
+          call DMPlexDistributeField(mesh%dm, mesh%dist_sf, serial_section, &
+               serial_primary, section, local_y, ierr); CHKERRQ(ierr)
+          call PetscSectionDestroy(section, ierr); CHKERRQ(ierr)
+          call DMLocalToGlobalBegin(mesh%dm, local_y, INSERT_VALUES, y, &
+               ierr); CHKERRQ(ierr)
+          call DMLocalToGlobalEnd(mesh%dm, local_y, INSERT_VALUES, y, &
+               ierr); CHKERRQ(ierr)
+          call VecDestroy(local_y, ierr); CHKERRQ(ierr)
+       else
+          call VecGetLocalSize(serial_primary, num_data, ierr); CHKERRQ(ierr)
+          call ISCreateStride(PETSC_COMM_WORLD, num_data, &
+               0, 1, interior, ierr); CHKERRQ(ierr)
+          call VecISCopy(y, interior, SCATTER_FORWARD, serial_primary, &
+               ierr); CHKERRQ(ierr)
+          call ISDestroy(interior, ierr); CHKERRQ(ierr)
+       end if
+       call VecDestroy(serial_primary, ierr); CHKERRQ(ierr)
+
+    else
+
+       ! Initialising entire MINC solution from JSON array - note this is not scalable:
+       call fson_get_mpi(json, "initial.primary", val = primary_array)
+       num_data = size(primary_array, 1)
+       call global_vec_section(y, section)
+       call VecGetArrayF90(y, y_array, ierr); CHKERRQ(ierr)
+       call DMGetLabel(mesh%dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
+       call DMGetLocalToGlobalMapping(mesh%dm, l2g, ierr); CHKERRQ(ierr)
+       do i = 1, num_data
+          associate(natural_cell_index => i - 1)
+            c = natural_to_local_cell_index(mesh%cell_order, l2g, &
+                 natural_cell_index)
+            if (c >= 0) then
+               call DMLabelGetValue(ghost_label, c, ghost, ierr)
+               if (ghost < 0) then
+                  call global_section_offset(section, c, range_start, &
+                       offset, ierr)
+                  cell_primary => y_array(offset : offset + &
+                       eos%num_primary_variables - 1)
+                  cell_primary = primary_array(i, :)
+               end if
             end if
-         end if
-       end associate
-    end do
+          end associate
+       end do
+       call VecRestoreArrayF90(y, y_array, ierr); CHKERRQ(ierr)
 
-    call VecRestoreArrayF90(y, y_array, ierr); CHKERRQ(ierr)
+    end if
 
   end subroutine setup_initial_primary_array
 
@@ -187,58 +242,115 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine setup_initial_region_array(mesh, region, eos, fluid_vector, &
-       fluid_range_start)
+  subroutine setup_initial_region_array(json, mesh, eos, fluid_vector, &
+       fluid_range_start, minc_specified)
 
     !! Initializes fluid regions from a rank-1 array of values for
-    !! all mesh cells.
+    !! all mesh cells in the JSON input.
 
+    use fson_mpi_module
+    use mesh_module, only: mesh_type
+    use eos_module
     use dm_utils_module, only: global_vec_section, global_section_offset, &
          natural_to_local_cell_index
-    use mesh_module, only: mesh_type
-    use eos_module, only: eos_type
     use fluid_module, only: fluid_type
 
+    type(fson_value), pointer, intent(in) :: json
     type(mesh_type), intent(in) :: mesh
-    PetscInt, intent(in) :: region(:)
     class(eos_type), intent(in) :: eos
     Vec, intent(in out) :: fluid_vector
     PetscInt, intent(in) :: fluid_range_start
+    PetscBool, intent(in) :: minc_specified
     ! Locals:
-    PetscInt :: num_cells, i, ghost
-    PetscInt :: offset, c
-    type(fluid_type) :: fluid
-    PetscReal, pointer, contiguous :: fluid_array(:)
-    PetscSection :: section
-    ISLocalToGlobalMapping :: l2g
+    PetscMPIInt :: np, rank
+    PetscInt :: start_cell, end_cell, num_cells
+    PetscInt, allocatable :: region_array(:)
+    IS :: serial_region
+    PetscSection :: serial_section, section
+    IS :: region
+    PetscInt :: i, c, ghost, offset
     DMLabel :: ghost_label
+    type(fluid_type) :: fluid
+    PetscInt, pointer, contiguous :: region_indices(:)
+    PetscReal, pointer, contiguous :: fluid_array(:)
+    ISLocalToGlobalMapping :: l2g
     PetscErrorCode :: ierr
 
-    num_cells = size(region, 1)
+    call MPI_comm_rank(PETSC_COMM_WORLD, rank, ierr)
+    call MPI_comm_size(PETSC_COMM_WORLD, np, ierr)
 
-    call global_vec_section(fluid_vector, section)
-    call VecGetArrayF90(fluid_vector, fluid_array, ierr); CHKERRQ(ierr)
-    call fluid%init(eos%num_components, eos%num_phases)
-    call DMGetLabel(mesh%dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
-    call DMGetLocalToGlobalMapping(mesh%dm, l2g, ierr); CHKERRQ(ierr)
+    if ((.not. mesh%has_minc) .or. (.not. minc_specified)) then
 
-    do i = 1, num_cells
-       associate(natural_cell_index => i - 1)
-         c = natural_to_local_cell_index(mesh%cell_order, l2g, &
-              natural_cell_index)
-         if (c >= 0) then
-            call DMLabelGetValue(ghost_label, c, ghost, ierr)
-            if (ghost < 0) then
-               call global_section_offset(section, c, &
-                    fluid_range_start, offset, ierr); CHKERRQ(ierr)
-               call fluid%assign(fluid_array, offset)
-               fluid%region = dble(region(i))
-            end if
-         end if
-       end associate
-    end do
+       if (rank == 0) then
+          call fson_get(json, "initial.region", region_array)
+       else
+          allocate(region_array(0))
+       end if
+       call DMPlexGetHeightStratum(mesh%serial_dm, 0, start_cell, &
+            end_cell, ierr); CHKERRQ(ierr)
+       num_cells = end_cell - start_cell
+       call ISCreateGeneral(PETSC_COMM_WORLD, num_cells, region_array, &
+            PETSC_COPY_VALUES, serial_region, ierr); CHKERRQ(ierr)
+       deallocate(region_array)
 
-    call VecRestoreArrayF90(fluid_vector, fluid_array, ierr); CHKERRQ(ierr)
+       if (np > 1) then
+          call DMGetGlobalSection(mesh%serial_dm, serial_section, ierr)
+          CHKERRQ(ierr)
+          call PetscSectionCreate(PETSC_COMM_WORLD, section, ierr); CHKERRQ(ierr)
+          call DMPlexDistributeFieldIS(mesh%dm, mesh%dist_sf, serial_section, &
+               serial_region, section, region, ierr); CHKERRQ(ierr)
+          call PetscSectionDestroy(section, ierr); CHKERRQ(ierr)
+       else
+          call ISDuplicate(serial_region, region, ierr); CHKERRQ(ierr)
+       end if
+
+       call global_vec_section(fluid_vector, section)
+       call DMPlexGetHeightStratum(mesh%dm, 0, start_cell, end_cell, ierr)
+       CHKERRQ(ierr)
+       call ISGetIndicesF90(region, region_indices, ierr); CHKERRQ(ierr)
+       do c = start_cell, end_cell - 1
+          call DMLabelGetValue(ghost_label, c, ghost, ierr)
+          if (ghost < 0) then
+             call global_section_offset(section, c, &
+                  fluid_range_start, offset, ierr); CHKERRQ(ierr)
+             call fluid%assign(fluid_array, offset)
+             fluid%region = dble(region_indices(c - start_cell + 1))
+          end if
+       end do
+
+       call ISRestoreIndicesF90(region, region_indices, ierr); CHKERRQ(ierr)
+       call ISDestroy(region, ierr); CHKERRQ(ierr)
+       call ISDestroy(serial_region, ierr); CHKERRQ(ierr)
+
+    else
+
+       ! Initialising entire MINC solution from JSON array - note this is not scalable:
+       call fson_get_mpi(json, "initial.region", val = region_array)
+       num_cells = size(region_array, 1)
+       call global_vec_section(fluid_vector, section)
+       call VecGetArrayF90(fluid_vector, fluid_array, ierr); CHKERRQ(ierr)
+       call fluid%init(eos%num_components, eos%num_phases)
+       call DMGetLabel(mesh%dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
+       call DMGetLocalToGlobalMapping(mesh%dm, l2g, ierr); CHKERRQ(ierr)
+
+       do i = 1, num_cells
+          associate(natural_cell_index => i - 1)
+          c = natural_to_local_cell_index(mesh%cell_order, l2g, &
+               natural_cell_index)
+          if (c >= 0) then
+             call DMLabelGetValue(ghost_label, c, ghost, ierr)
+             if (ghost < 0) then
+                call global_section_offset(section, c, &
+                     fluid_range_start, offset, ierr); CHKERRQ(ierr)
+                call fluid%assign(fluid_array, offset)
+                fluid%region = dble(region_array(i))
+             end if
+          end if
+        end associate
+     end do
+
+     call VecRestoreArrayF90(fluid_vector, fluid_array, ierr); CHKERRQ(ierr)
+  end if
 
   end subroutine setup_initial_region_array
 
@@ -524,7 +636,6 @@ contains
     use eos_module
     use dm_utils_module, only: global_vec_section, global_section_offset
     use logfile_module
-    use fson_value_m, only: TYPE_ARRAY
 
     type(fson_value), pointer, intent(in) :: json
     type(mesh_type), intent(in) :: mesh
@@ -535,9 +646,8 @@ contains
     type(logfile_type), intent(in out) :: logfile
     ! Locals:
     PetscReal, parameter :: default_start_time = 0.0_dp
-    PetscReal, allocatable :: primary(:), primary_array(:,:)
+    PetscReal, allocatable :: primary(:)
     PetscInt :: region
-    PetscInt, allocatable :: region_array(:)
     PetscReal :: primary_scalar
     PetscInt :: primary_rank, region_rank
     PetscInt, parameter :: max_filename_length = 240
@@ -571,50 +681,42 @@ contains
 
           primary_rank = fson_mpi_array_rank(json, "initial.primary")
           select case (primary_rank)
-          case(0)
-             call fson_get_mpi(json, "initial.primary", val = primary_scalar)
-             primary = [primary_scalar]
-          case(1)
-             call fson_get_mpi(json, "initial.primary", val = primary)
-          case(2)
-             call fson_get_mpi(json, "initial.primary", val = primary_array)
+          case (0, 1)
+             if (primary_rank == 0) then
+                call fson_get_mpi(json, "initial.primary", val = primary_scalar)
+                primary = [primary_scalar]
+             else
+                call fson_get_mpi(json, "initial.primary", val = primary)
+             end if
+             call setup_initial_primary_constant(mesh, primary, eos, y, &
+                  y_range_start)
+             deallocate(primary)
+          case (2)
+             call setup_initial_primary_array(json, mesh, eos, y, y_range_start, &
+                  minc_specified)
+          case default
+             call logfile%write(LOG_LEVEL_WARN, 'input', &
+                  '"unrecognised initial.primary"')
           end select
           
           region_rank = fson_mpi_array_rank(json, "initial.region")
           select case (region_rank)
-          case(-1)
-             region = eos%default_region
-             call logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
-                  int_keys = ['initial.region'], &
-                  int_values = [eos%default_region])
-          case(0)
-             call fson_get_mpi(json, "initial.region", val = region)
-          case(1)
-             call fson_get_mpi(json, "initial.region", val = region_array)
-          end select
-
-          if (primary_rank < 2) then
-             call setup_initial_primary_constant(mesh, primary, eos, y, &
-                  y_range_start)
-             deallocate(primary)
-          else
-             call setup_initial_primary_array(mesh, primary_array, eos, y, &
-                  y_range_start)
-             deallocate(primary_array)
-          end if
-
-          if (region_rank < 1) then
+          case (-1, 0)
+             if (region_rank == -1) then
+                region = eos%default_region
+                call logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
+                     int_keys = ['initial.region'], &
+                     int_values = [eos%default_region])
+             else
+                call fson_get_mpi(json, "initial.region", val = region)
+             end if
              call setup_initial_region_constant(mesh, region, eos, fluid_vector, &
                   fluid_range_start)
-          else
-             call setup_initial_region_array(mesh, region_array, eos, &
-                  fluid_vector, fluid_range_start)
-             deallocate(region_array)
-          end if
+          case (1)
+             call setup_initial_region_array(json, mesh, eos, fluid_vector, &
+                  fluid_range_start, minc_specified)
+          end select
 
-       else
-          call logfile%write(LOG_LEVEL_WARN, 'input', &
-               '"unrecognised initial.primary"')
        end if
 
     else

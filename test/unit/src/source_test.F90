@@ -58,9 +58,9 @@ contains
     call eos%init(json, thermo)
     viewer = PETSC_NULL_VIEWER
 
-    call mesh%init(json)
+    call mesh%init(eos, json)
     call fluid%init(eos%num_components, eos%num_phases)
-    call mesh%configure(eos, gravity, json, viewer = viewer, err = err)
+    call mesh%configure(gravity, json, viewer = viewer, err = err)
     call setup_fluid_vector(mesh%dm, max_component_name_length, &
          eos%component_names, max_phase_name_length, eos%phase_names, &
          fluid_vector, fluid_range_start)

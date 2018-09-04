@@ -261,9 +261,9 @@ contains
     json => fson_parse_mpi(str = '{"mesh": {' // &
          '"filename": "data/mesh/2D.msh"}}')
     call eos%init(json, thermo)
-    call sim%mesh%init(json)
+    call sim%mesh%init(eos, json)
     call sim%setup_gravity(json)
-    call sim%mesh%configure(eos, sim%gravity, json, viewer = viewer, err = err)
+    call sim%mesh%configure(sim%gravity, json, viewer = viewer, err = err)
     call fson_destroy_mpi(json)
     call sim%mesh%destroy_distribution_data()
     if (rank == 0) then
@@ -274,9 +274,9 @@ contains
 
     json => fson_parse_mpi(str = '{"mesh": {' // &
          '"filename": "data/mesh/2D.msh"}, "gravity": null}')
-    call sim%mesh%init(json)
+    call sim%mesh%init(eos, json)
     call sim%setup_gravity(json)
-    call sim%mesh%configure(eos, sim%gravity, json, viewer = viewer, err = err)
+    call sim%mesh%configure(sim%gravity, json, viewer = viewer, err = err)
     call fson_destroy_mpi(json)
     call sim%mesh%destroy_distribution_data()
     if (rank == 0) then
@@ -288,9 +288,9 @@ contains
     json => fson_parse_mpi(str = '{"mesh": {' // &
          '"filename": "data/mesh/2D.msh"}, ' // &
          '"gravity": 9.81}')
-    call sim%mesh%init(json)
+    call sim%mesh%init(eos, json)
     call sim%setup_gravity(json)
-    call sim%mesh%configure(eos, sim%gravity, json, viewer = viewer, err = err)
+    call sim%mesh%configure(sim%gravity, json, viewer = viewer, err = err)
     call fson_destroy_mpi(json)
     call sim%mesh%destroy_distribution_data()
     if (rank == 0) then
@@ -302,9 +302,9 @@ contains
     json => fson_parse_mpi(str = '{"mesh": {' // &
          '"filename": "data/mesh/2D.msh"}, ' // &
          '"gravity": [-9.8, 0.0]}')
-    call sim%mesh%init(json)
+    call sim%mesh%init(eos, json)
     call sim%setup_gravity(json)
-    call sim%mesh%configure(eos, sim%gravity, json, viewer = viewer, err = err)
+    call sim%mesh%configure(sim%gravity, json, viewer = viewer, err = err)
     call fson_destroy_mpi(json)
     call sim%mesh%destroy_distribution_data()
     if (rank == 0) then
@@ -315,9 +315,9 @@ contains
 
     json => fson_parse_mpi(str = '{"mesh": {' // &
          '"filename": "data/mesh/block3.exo"}}')
-    call sim%mesh%init(json)
+    call sim%mesh%init(eos, json)
     call sim%setup_gravity(json)
-    call sim%mesh%configure(eos, sim%gravity, json, viewer = viewer, err = err)
+    call sim%mesh%configure(sim%gravity, json, viewer = viewer, err = err)
     call sim%mesh%destroy_distribution_data()
     call fson_destroy_mpi(json)
     if (rank == 0) then
@@ -329,9 +329,9 @@ contains
     json => fson_parse_mpi(str = '{"mesh": {' // &
          '"filename": "data/mesh/block3.exo"}, ' // &
          '"gravity": 9.80665}')
-    call sim%mesh%init(json)
+    call sim%mesh%init(eos, json)
     call sim%setup_gravity(json)
-    call sim%mesh%configure(eos, sim%gravity, json, viewer = viewer, err = err)
+    call sim%mesh%configure(sim%gravity, json, viewer = viewer, err = err)
     call fson_destroy_mpi(json)
     call sim%mesh%destroy_distribution_data()
     if (rank == 0) then
@@ -343,9 +343,9 @@ contains
     json => fson_parse_mpi(str = '{"mesh": {' // &
          '"filename": "data/mesh/block3.exo"}, ' // &
          '"gravity": [0., 0., -9.81]}')
-    call sim%mesh%init(json)
+    call sim%mesh%init(eos, json)
     call sim%setup_gravity(json)
-    call sim%mesh%configure(eos, sim%gravity, json, viewer = viewer, err = err)
+    call sim%mesh%configure(sim%gravity, json, viewer = viewer, err = err)
     call fson_destroy_mpi(json)
     call sim%mesh%destroy_distribution_data()
     if (rank == 0) then

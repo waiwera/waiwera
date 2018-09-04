@@ -162,13 +162,13 @@ contains
          '          "zones": {"all": {"-": null}},' // &
          '          "minc": {"rock": {"zones": ["all"]}, ' // &
          '                   "geometry": {"fracture": {"volume": 0.1}, ' // &
-         '                                "matrix": {"volume": [0.3, 0.6]}}}},' // &
+         '                                "matrix": {"volume": 0.9}}}},' // &
          ' "eos": {"name": "we"}, ' // &
          ' "initial": {"primary": [' // &
             initial_primary_json // ', ' // &
             initial_primary_json // &
          '  ], "minc": true}}'
-    ! call initial_test_case('MINC initial JSON true', json_str)
+    call initial_test_case('MINC initial JSON true', json_str)
 
   contains
 
@@ -208,8 +208,6 @@ contains
       PetscReal, allocatable :: expected_primary(:)
       PetscReal, pointer, contiguous :: primary(:)
       PetscReal, pointer, contiguous :: cell_geom_array(:)
-      Vec :: initial_primary
-      IS :: initial_region
       type(cell_type) :: cell
       PetscReal :: t
       type(logfile_type) :: logfile
@@ -224,7 +222,6 @@ contains
       call thermo%init()
       call eos%init(json, thermo)
       call mesh%init(eos, json)
-      call read_array_initial(json, mesh, initial_primary, initial_region)
       call mesh%configure(gravity, json, viewer = viewer, err = err)
 
       call DMCreateGlobalVector(mesh%dm, y, ierr); CHKERRQ(ierr)
@@ -237,8 +234,7 @@ contains
 
       t = 0._dp
       call setup_initial(json, mesh, eos, t, y, fluid_vector, &
-           y_range_start, fluid_range_start, initial_primary, &
-           initial_region, logfile)
+           y_range_start, fluid_range_start, logfile)
 
       call global_vec_section(fluid_vector, fluid_section)
       call VecGetArrayF90(fluid_vector, fluid_array, ierr); CHKERRQ(ierr)

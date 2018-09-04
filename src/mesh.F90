@@ -61,6 +61,7 @@ module mesh_module
      type(dictionary_type), public :: rock_types !! Dictionary of rock types by name
      PetscBool, public :: radial !! If mesh coordinate system is radial or Cartesian
      PetscBool, public :: has_minc !! If mesh has any MINC cells
+     PetscInt, public :: dof !! Degrees of freedom for default section
    contains
      procedure :: distribute => mesh_distribute
      procedure :: construct_ghost_cells => mesh_construct_ghost_cells
@@ -558,7 +559,7 @@ contains
     use fson_mpi_module
     use fson_value_m, only: TYPE_STRING, TYPE_OBJECT
     use eos_module
-    use dm_utils_module, only: dm_set_fv_adjacency, dm_setup_fv_discretization
+    use dm_utils_module
 
     class(mesh_type), intent(in out) :: self
     class(eos_type), intent(in) :: eos !! EOS object
@@ -593,10 +594,9 @@ contains
        call DMPlexCreateFromFile(PETSC_COMM_WORLD, self%filename, PETSC_TRUE, &
             self%serial_dm, ierr); CHKERRQ(ierr)
        call dm_set_fv_adjacency(self%serial_dm)
-       associate(dof => eos%num_primary_variables)
-         call dm_setup_fv_discretization(self%serial_dm, dof)
-         call set_dm_default_data_layout(self%serial_dm, dof)
-       end associate
+       self%dof = eos%num_primary_variables
+       call dm_setup_fv_discretization(self%serial_dm, self%dof)
+       call set_dm_default_data_layout(self%serial_dm, self%dof)
        call self%setup_coordinate_parameters(json, logfile)
        call self%set_permeability_rotation(json, logfile)
        call self%read_overridden_face_properties(json, logfile)
@@ -635,7 +635,10 @@ contains
 
     call self%distribute()
 
+    call dm_setup_fv_discretization(self%original_dm, self%dof)
     call self%construct_ghost_cells()
+    call set_dm_default_data_layout(self%original_dm, self%dof)
+    call dm_set_fv_adjacency(self%original_dm)
     call self%setup_geometry(gravity)
     self%dm = self%original_dm
     self%original_cell_order = dm_get_natural_to_global_ao(self%original_dm, &
@@ -1615,9 +1618,8 @@ contains
     class(mesh_type), intent(in out) :: self
     ! Locals:
     DM :: minc_dm
-    PetscSection :: section
     PetscInt :: start_chart, end_chart, m
-    PetscInt :: dim, dof
+    PetscInt :: dim
     PetscInt :: num_minc_cells
     PetscInt :: num_minc_zones, num_cells, num_new_points, max_num_levels
     PetscInt, allocatable :: minc_zone(:), minc_end_interior(:)
@@ -1672,10 +1674,8 @@ contains
          minc_level_cells)
 
     call dm_set_fv_adjacency(minc_dm)
-    call DMGetSection(self%dm, section, ierr); CHKERRQ(ierr)
-    call PetscSectionGetMaxDof(section, dof, ierr); CHKERRQ(ierr)
-    call dm_setup_fv_discretization(minc_dm, dof)
-    call set_dm_default_data_layout(minc_dm, dof)
+    call dm_setup_fv_discretization(minc_dm, self%dof)
+    call set_dm_default_data_layout(minc_dm, self%dof)
     call self%setup_minc_point_sf(minc_dm)
     call dm_setup_global_section(minc_dm)
 
