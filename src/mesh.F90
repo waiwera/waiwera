@@ -78,6 +78,7 @@ module mesh_module
      procedure :: label_cell_array_zones => mesh_label_cell_array_zones
      procedure :: label_cell_array_minc_zones => mesh_label_cell_array_minc_zones
      procedure :: label_boundaries => mesh_label_boundaries
+     procedure :: label_sources => mesh_label_sources
      procedure :: setup_zones => mesh_setup_zones
      procedure :: setup_minc => mesh_setup_minc
      procedure :: setup_minc_dm => mesh_setup_minc_dm
@@ -604,6 +605,7 @@ contains
        call self%label_cell_array_rock_types(json)
        call self%label_cell_array_minc_zones(json)
        call self%label_boundaries(json, logfile)
+       call self%label_sources(json)
        self%has_minc = PETSC_FALSE
     end if
 
@@ -1390,6 +1392,98 @@ contains
     end subroutine get_cell_faces
 
   end subroutine mesh_label_boundaries
+
+!------------------------------------------------------------------------
+
+  subroutine mesh_label_sources(self, json)
+    !! Labels serial DM for source locations defined by cell indices
+    !! (not zones).
+
+    use source_module
+    use fson_value_m, only : fson_value_count, TYPE_INTEGER, TYPE_ARRAY
+
+    class(mesh_type), intent(in out) :: self
+    type(fson_value), pointer, intent(in) :: json !! JSON file pointer
+    ! Locals:
+    PetscMPIInt :: rank
+    PetscBool :: mesh_has_label
+    type(fson_value), pointer :: sources_json, source_json
+    PetscInt :: source_index, num_source_specs, start_cell, end_cell
+    DMLabel :: source_label
+    PetscErrorCode :: ierr
+
+    call MPI_comm_rank(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
+
+       call fson_get(json, "source", sources_json)
+       if (associated(sources_json)) then
+
+          call DMHasLabel(self%serial_dm, source_label_name, mesh_has_label, &
+               ierr); CHKERRQ(ierr)
+          if (.not. mesh_has_label) then
+             call DMCreateLabel(self%serial_dm, source_label_name, &
+                  ierr); CHKERRQ(ierr)
+          end if
+          call DMGetLabel(self%serial_dm, source_label_name, &
+               source_label, ierr); CHKERRQ(ierr)
+          call DMPlexGetHeightStratum(self%serial_dm, 0, start_cell, &
+               end_cell, ierr); CHKERRQ(ierr)
+
+          num_source_specs = fson_value_count(sources_json)
+          source_json => sources_json%children
+          do source_index = 0, num_source_specs - 1
+             call label_source_cells(source_json, source_index)
+             source_json => source_json%next
+          end do
+
+       end if
+
+    end if
+
+  contains
+
+    subroutine label_source_cells(json, source_index)
+
+      type(fson_value), pointer, intent(in) :: json
+      PetscInt, intent(in) :: source_index
+      ! Locals:
+      type(fson_value), pointer :: cell_json, cells_json
+      PetscInt :: cell, i
+      PetscInt, allocatable :: cells(:)
+      PetscErrorCode :: ierr
+
+      call fson_get(json, "cell", cell_json)
+      if (associated(cell_json)) then
+         call fson_get(cell_json, ".", cell)
+         cells = [cell]
+      end if
+
+      call fson_get(json, "cells", cells_json)
+      if (associated(cells_json)) then
+         select case (cells_json%value_type)
+         case (TYPE_INTEGER)
+            call fson_get(cells_json, ".", cell)
+            cells = [cell]
+          case (TYPE_ARRAY)
+            call fson_get(cells_json, ".", cells)
+         end select
+      end if
+
+      if (allocated(cells)) then
+         do i = 1, size(cells)
+            associate(c => cells(i))
+              if ((start_cell <= c) .and. (c < end_cell)) then
+                 call DMSetLabelValue(self%serial_dm, source_label_name, &
+                      c, source_index, ierr); CHKERRQ(ierr)
+              end if
+            end associate
+         end do
+         deallocate(cells)
+      end if
+
+    end subroutine label_source_cells
+
+  end subroutine mesh_label_sources
 
 !------------------------------------------------------------------------
 

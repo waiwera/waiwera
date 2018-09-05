@@ -116,6 +116,7 @@ digraph waiwera{
         mesh_module -> minc_module
         mesh_module -> mpi_utils_module
         mesh_module -> rock_module
+        mesh_module -> source_module
         mesh_module -> utils_module
         mesh_module -> zone_label_module
         mesh_module -> zone_module
@@ -165,6 +166,7 @@ digraph waiwera{
         source_setup_module -> interpolation_module
         source_setup_module -> list_module
         source_setup_module -> logfile_module
+        source_setup_module -> mpi_utils_module
         source_setup_module -> source_control_module
         source_setup_module -> source_module
         source_setup_module -> thermodynamics_module
