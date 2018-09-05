@@ -251,8 +251,7 @@ contains
     use fson_mpi_module
     use mesh_module, only: mesh_type
     use eos_module
-    use dm_utils_module, only: global_vec_section, global_section_offset, &
-         natural_to_local_cell_index
+    use dm_utils_module
     use fluid_module, only: fluid_type
 
     type(fson_value), pointer, intent(in) :: json
@@ -263,10 +262,10 @@ contains
     PetscBool, intent(in) :: minc_specified
     ! Locals:
     PetscMPIInt :: np, rank
-    PetscInt :: start_cell, end_cell, num_cells
+    PetscInt :: start_cell, end_cell, num_cells, end_interior_cell
     PetscInt, allocatable :: region_array(:)
     IS :: serial_region
-    PetscSection :: serial_section, section
+    PetscSection :: serial_section, section, fluid_section
     IS :: region
     PetscInt :: i, c, ghost, offset
     DMLabel :: ghost_label
@@ -278,6 +277,8 @@ contains
 
     call MPI_comm_rank(PETSC_COMM_WORLD, rank, ierr)
     call MPI_comm_size(PETSC_COMM_WORLD, np, ierr)
+    call DMGetLabel(mesh%dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
+    call fluid%init(eos%num_components, eos%num_phases)
 
     if ((.not. mesh%has_minc) .or. (.not. minc_specified)) then
 
@@ -286,9 +287,7 @@ contains
        else
           allocate(region_array(0))
        end if
-       call DMPlexGetHeightStratum(mesh%serial_dm, 0, start_cell, &
-            end_cell, ierr); CHKERRQ(ierr)
-       num_cells = end_cell - start_cell
+       num_cells = size(region_array)
        call ISCreateGeneral(PETSC_COMM_WORLD, num_cells, region_array, &
             PETSC_COPY_VALUES, serial_region, ierr); CHKERRQ(ierr)
        deallocate(region_array)
@@ -304,20 +303,23 @@ contains
           call ISDuplicate(serial_region, region, ierr); CHKERRQ(ierr)
        end if
 
-       call global_vec_section(fluid_vector, section)
+       call global_vec_section(fluid_vector, fluid_section)
+       call VecGetArrayF90(fluid_vector, fluid_array, ierr); CHKERRQ(ierr)
        call DMPlexGetHeightStratum(mesh%dm, 0, start_cell, end_cell, ierr)
        CHKERRQ(ierr)
+       end_interior_cell = dm_get_end_interior_cell(mesh%dm, end_cell)
        call ISGetIndicesF90(region, region_indices, ierr); CHKERRQ(ierr)
-       do c = start_cell, end_cell - 1
+       do c = start_cell, end_interior_cell - 1
           call DMLabelGetValue(ghost_label, c, ghost, ierr)
           if (ghost < 0) then
-             call global_section_offset(section, c, &
+             call global_section_offset(fluid_section, c, &
                   fluid_range_start, offset, ierr); CHKERRQ(ierr)
              call fluid%assign(fluid_array, offset)
              fluid%region = dble(region_indices(c - start_cell + 1))
           end if
        end do
 
+       call VecRestoreArrayF90(fluid_vector, fluid_array, ierr); CHKERRQ(ierr)
        call ISRestoreIndicesF90(region, region_indices, ierr); CHKERRQ(ierr)
        call ISDestroy(region, ierr); CHKERRQ(ierr)
        call ISDestroy(serial_region, ierr); CHKERRQ(ierr)
@@ -327,10 +329,8 @@ contains
        ! Initialising entire MINC solution from JSON array - note this is not scalable:
        call fson_get_mpi(json, "initial.region", val = region_array)
        num_cells = size(region_array, 1)
-       call global_vec_section(fluid_vector, section)
+       call global_vec_section(fluid_vector, fluid_section)
        call VecGetArrayF90(fluid_vector, fluid_array, ierr); CHKERRQ(ierr)
-       call fluid%init(eos%num_components, eos%num_phases)
-       call DMGetLabel(mesh%dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
        call DMGetLocalToGlobalMapping(mesh%dm, l2g, ierr); CHKERRQ(ierr)
 
        do i = 1, num_cells
@@ -340,7 +340,7 @@ contains
           if (c >= 0) then
              call DMLabelGetValue(ghost_label, c, ghost, ierr)
              if (ghost < 0) then
-                call global_section_offset(section, c, &
+                call global_section_offset(fluid_section, c, &
                      fluid_range_start, offset, ierr); CHKERRQ(ierr)
                 call fluid%assign(fluid_array, offset)
                 fluid%region = dble(region_array(i))
@@ -351,6 +351,8 @@ contains
 
      call VecRestoreArrayF90(fluid_vector, fluid_array, ierr); CHKERRQ(ierr)
   end if
+
+  call fluid%destroy()
 
   end subroutine setup_initial_region_array
 
