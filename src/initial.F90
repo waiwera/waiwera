@@ -267,7 +267,7 @@ contains
     IS :: serial_region
     PetscSection :: serial_section, section, fluid_section
     IS :: region
-    PetscInt :: i, c, ghost, offset
+    PetscInt :: i, c, ghost, offset, dim
     DMLabel :: ghost_label
     type(fluid_type) :: fluid
     PetscInt, pointer, contiguous :: region_indices(:)
@@ -293,11 +293,12 @@ contains
        deallocate(region_array)
 
        if (np > 1) then
-          call DMGetGlobalSection(mesh%serial_dm, serial_section, ierr)
-          CHKERRQ(ierr)
+          call DMGetDimension(mesh%serial_dm, dim, ierr); CHKERRQ(ierr)
+          serial_section = dm_create_section(mesh%serial_dm, [1], [dim])
           call PetscSectionCreate(PETSC_COMM_WORLD, section, ierr); CHKERRQ(ierr)
           call DMPlexDistributeFieldIS(mesh%dm, mesh%dist_sf, serial_section, &
                serial_region, section, region, ierr); CHKERRQ(ierr)
+          call PetscSectionDestroy(serial_section, ierr); CHKERRQ(ierr)
           call PetscSectionDestroy(section, ierr); CHKERRQ(ierr)
        else
           call ISDuplicate(serial_region, region, ierr); CHKERRQ(ierr)
@@ -309,13 +310,15 @@ contains
        CHKERRQ(ierr)
        end_interior_cell = dm_get_end_interior_cell(mesh%dm, end_cell)
        call ISGetIndicesF90(region, region_indices, ierr); CHKERRQ(ierr)
+       i = 1
        do c = start_cell, end_interior_cell - 1
           call DMLabelGetValue(ghost_label, c, ghost, ierr)
           if (ghost < 0) then
              call global_section_offset(fluid_section, c, &
                   fluid_range_start, offset, ierr); CHKERRQ(ierr)
              call fluid%assign(fluid_array, offset)
-             fluid%region = dble(region_indices(c - start_cell + 1))
+             fluid%region = dble(region_indices(i))
+             i = i + 1
           end if
        end do
 
