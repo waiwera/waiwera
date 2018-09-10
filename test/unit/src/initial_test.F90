@@ -14,7 +14,7 @@ module initial_test
   implicit none
   private
 
-  public :: test_initial
+  public :: test_initial, test_initial_region
   ! public :: test_setup_initial_hdf5
 
 contains
@@ -451,6 +451,128 @@ contains
     call rock%destroy()
 
   end subroutine write_initial_hdf5
+
+!------------------------------------------------------------------------
+
+  subroutine test_initial_region
+    ! initial region array
+
+    use IAPWS_module
+    use eos_we_module
+    use mesh_module
+    use dm_utils_module
+    use logfile_module
+    use eos_module, only: max_component_name_length, &
+         max_phase_name_length
+    use fluid_module, only: fluid_type, setup_fluid_vector
+    use cell_module, only: cell_type
+
+    character(:), allocatable :: json_str
+    PetscMPIInt :: rank
+    type(fson_value), pointer :: json
+    type(IAPWS_type) :: thermo
+    type(eos_we_type) :: eos
+    type(mesh_type) :: mesh
+    PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
+    PetscViewer :: viewer
+    type(logfile_type) :: logfile
+    Vec :: y, fluid_vector
+    PetscInt :: y_range_start, fluid_range_start, ghost
+    PetscInt :: start_cell, end_cell, end_interior_cell, c
+    PetscInt :: cell_geom_offset, fluid_offset, expected_region
+    PetscReal :: t
+    type(fluid_type) :: fluid
+    type(cell_type) :: cell
+    DMLabel :: ghost_label
+    PetscSection :: cell_geom_section, fluid_section
+    PetscReal, pointer, contiguous :: fluid_array(:), cell_geom_array(:)
+    PetscErrorCode :: ierr, err
+
+    call MPI_comm_rank(PETSC_COMM_WORLD, rank, ierr)
+
+    json_str = &
+         '{"mesh": {"filename": "data/mesh/col10.exo"},' // &
+         ' "eos": {"name": "we"}, ' // &
+         '   "initial": {"primary": [' // &
+         '                          [ 1e5, 20], [ 1e5, 20], [ 1e5, 20], ' // &
+         '                          [ 1e5, 120], [ 1e5, 120], [ 1e5, 120], ' // &
+         '                          [ 1e5, 0.4], [ 1e5, 0.4], [ 1e5, 0.4], [ 1e5, 0.4]], ' // &
+         '               "region":  [1, 1, 1, 2, 2, 2, 4, 4, 4, 4]}}'
+
+    json => fson_parse_mpi(str = json_str)
+    viewer = PETSC_NULL_VIEWER
+    call logfile%init('', echo = PETSC_FALSE)
+
+    call thermo%init()
+    call eos%init(json, thermo)
+    call mesh%init(eos, json)
+    call mesh%configure(gravity, json, viewer = viewer, err = err)
+
+    call DMCreateGlobalVector(mesh%dm, y, ierr); CHKERRQ(ierr)
+    call PetscObjectSetName(y, "primary", ierr); CHKERRQ(ierr)
+    call global_vec_range_start(y, y_range_start)
+
+    call setup_fluid_vector(mesh%dm, max_component_name_length, &
+         eos%component_names, max_phase_name_length, &
+         eos%phase_names, fluid_vector, fluid_range_start)
+
+    t = 0._dp
+    call setup_initial(json, mesh, eos, t, y, fluid_vector, &
+         y_range_start, fluid_range_start, logfile)
+
+    call fson_destroy_mpi(json)
+    call mesh%destroy_distribution_data()
+
+    call DMPlexGetHeightStratum(mesh%dm, 0, start_cell, end_cell, ierr)
+    CHKERRQ(ierr)
+    end_interior_cell = dm_get_end_interior_cell(mesh%dm, end_cell)
+    call DMGetLabel(mesh%dm, "ghost", ghost_label, ierr)
+    CHKERRQ(ierr)
+    call fluid%init(eos%num_components, eos%num_phases)
+
+    call local_vec_section(mesh%cell_geom, cell_geom_section)
+    call VecGetArrayReadF90(mesh%cell_geom, cell_geom_array, ierr)
+    CHKERRQ(ierr)
+    call cell%init(eos%num_components, eos%num_phases)
+    call global_vec_section(fluid_vector, fluid_section)
+    call VecGetArrayF90(fluid_vector, fluid_array, ierr); CHKERRQ(ierr)
+
+    do c = start_cell, end_interior_cell - 1
+       call DMLabelGetValue(ghost_label, c, ghost, ierr); CHKERRQ(ierr)
+       if (ghost < 0) then
+          call global_section_offset(fluid_section, c, &
+               fluid_range_start, fluid_offset, ierr); CHKERRQ(ierr)
+          call fluid%assign(fluid_array, fluid_offset)
+          call section_offset(cell_geom_section, c, cell_geom_offset, ierr)
+          CHKERRQ(ierr)
+          call cell%assign_geometry(cell_geom_array, cell_geom_offset)
+          associate(z => cell%centroid(3))
+            if (z > -300._dp) then
+               expected_region = 1
+            else if (z > -600._dp) then
+               expected_region = 2
+            else
+               expected_region = 4
+            end if
+          end associate
+        call assert_equals(expected_region, nint(fluid%region), &
+             'region')
+     end if
+  end do
+
+  call fluid%destroy()
+  call cell%destroy()
+  call VecRestoreArrayReadF90(mesh%cell_geom, cell_geom_array, ierr)
+  CHKERRQ(ierr)
+  call VecRestoreArrayF90(fluid_vector, fluid_array, ierr); CHKERRQ(ierr)
+  call VecDestroy(fluid_vector, ierr); CHKERRQ(ierr)
+  call VecDestroy(y, ierr); CHKERRQ(ierr)
+  call mesh%destroy()
+  call eos%destroy()
+  call thermo%destroy()
+  call logfile%destroy()
+
+  end subroutine test_initial_region
 
 !------------------------------------------------------------------------
 
