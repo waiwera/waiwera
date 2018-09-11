@@ -1,0 +1,163 @@
+{
+  "boundaries": [], 
+  "eos": {
+    "name": "we"
+  }, 
+  "gravity": 0, 
+  "initial": {
+    "primary": [
+      8500000, 
+      0.01
+    ], 
+    "region": 4
+  }, 
+  "mesh": {
+    "filename": "gminc_1d.exo", 
+    "minc": {
+      "geometry": {
+        "fracture": {
+          "planes": 3, 
+          "spacing": 100, 
+          "volume": 0.1
+        }, 
+        "matrix": {
+          "volume": [
+            0.9
+          ]
+        }
+      }, 
+      "rock": {
+        "fracture": {
+          "type": "fract"
+        }, 
+        "matrix": {
+          "type": "matrx"
+        }, 
+        "zones": "all"
+      }
+    }, 
+    "zones": {
+      "all": {
+        "-": null
+      }
+    }
+  }, 
+  "output": {
+    "checkpoint": {
+      "repeat": false, 
+      "time": [
+        157790000, 
+        788940000
+      ], 
+      "tolerance": 0.1
+    }, 
+    "filename": "minc_1d_100.h5", 
+    "final": true, 
+    "frequency": 0
+  }, 
+  "rock": {
+    "capillary_pressure": {
+      "pressure": 0, 
+      "saturation_limits": [
+        0, 
+        1
+      ], 
+      "type": "linear"
+    }, 
+    "relative_permeability": {
+      "slr": 0.3, 
+      "ssr": 0.05, 
+      "type": "corey"
+    }, 
+    "types": [
+      {
+        "cells": [], 
+        "density": 2650, 
+        "dry_conductivity": 2.1, 
+        "name": "matrx", 
+        "permeability": [
+          1e-18, 
+          1e-18, 
+          1e-18
+        ], 
+        "porosity": 0.0555555555556, 
+        "specific_heat": 1000, 
+        "wet_conductivity": 2.1
+      }, 
+      {
+        "cells": [
+          0, 
+          1, 
+          2, 
+          3, 
+          4, 
+          5, 
+          6, 
+          7, 
+          8, 
+          9
+        ], 
+        "density": 2650, 
+        "dry_conductivity": 2.1, 
+        "name": "fract", 
+        "permeability": [
+          6e-15, 
+          6e-15, 
+          6e-15
+        ], 
+        "porosity": 0.5, 
+        "specific_heat": 1000, 
+        "wet_conductivity": 2.1
+      }
+    ]
+  }, 
+  "source": [
+    {
+      "cell": 0, 
+      "component": 1, 
+      "enthalpy": 500000, 
+      "name": "inj 1", 
+      "rate": 0.1
+    }, 
+    {
+      "cell": 9, 
+      "name": "pro 1", 
+      "rate": -0.1
+    }
+  ], 
+  "thermodynamics": "ifc67", 
+  "time": {
+    "start": 0, 
+    "step": {
+      "adapt": {
+        "amplification": 2, 
+        "maximum": 8, 
+        "method": "iteration", 
+        "minimum": 4, 
+        "on": true, 
+        "reduction": 0.2
+      }, 
+      "maximum": {
+        "number": 99, 
+        "size": 63120000
+      }, 
+      "method": "beuler", 
+      "size": 100000, 
+      "solver": {
+        "nonlinear": {
+          "maximum": {
+            "iterations": 8
+          }, 
+          "tolerance": {
+            "function": {
+              "absolute": null, 
+              "relative": 1e-05
+            }
+          }
+        }
+      }
+    }, 
+    "stop": 1578000000
+  }, 
+  "title": "1-D MINC problem: fracture spacing = 100"
+}

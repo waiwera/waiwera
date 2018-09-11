@@ -1,3 +1,6 @@
-run/
+run/*
+!run/gproblem2.*
+!run/*.json
+!run/*.listing
 output/
 *.pyc

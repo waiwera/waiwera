@@ -1,3 +1,6 @@
-run/
+run/*
+!run/ginfiltration.*
+!run/*.json
+!run/*.listing
 output/
 *.pyc

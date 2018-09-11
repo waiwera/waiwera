@@ -1,0 +1,168 @@
+{
+  "boundaries": [
+    {
+      "faces": {
+        "cells": [
+          0
+        ], 
+        "normal": [
+          -1, 
+          0
+        ]
+      }, 
+      "primary": [
+        100000, 
+        20, 
+        0
+      ], 
+      "region": 1
+    }
+  ], 
+  "eos": {
+    "name": "wae"
+  }, 
+  "gravity": null, 
+  "initial": {
+    "primary": [
+      100000, 
+      0.56, 
+      97663.4384504
+    ], 
+    "region": 4
+  }, 
+  "mesh": {
+    "filename": "ginfiltration.msh"
+  }, 
+  "output": {
+    "checkpoint": {
+      "repeat": false, 
+      "time": [
+        864, 
+        5184, 
+        9504
+      ], 
+      "tolerance": 0.1
+    }, 
+    "fields": {
+      "fluid": [
+        "liquid_saturation"
+      ]
+    }, 
+    "filename": "infiltration.h5", 
+    "final": false, 
+    "frequency": 0, 
+    "initial": true
+  }, 
+  "rock": {
+    "capillary_pressure": {
+      "pressure": 9790.2, 
+      "saturation_limits": [
+        0.333, 
+        1
+      ], 
+      "type": "linear"
+    }, 
+    "relative_permeability": {
+      "liquid": [
+        0.333, 
+        1
+      ], 
+      "type": "linear", 
+      "vapour": [
+        -0.1, 
+        0
+      ]
+    }, 
+    "types": [
+      {
+        "cells": [
+          0, 
+          1, 
+          2, 
+          3, 
+          4, 
+          5, 
+          6, 
+          7, 
+          8, 
+          9, 
+          10, 
+          11, 
+          12, 
+          13, 
+          14, 
+          15, 
+          16, 
+          17, 
+          18, 
+          19, 
+          20, 
+          21, 
+          22, 
+          23, 
+          24, 
+          25, 
+          26, 
+          27, 
+          28, 
+          29, 
+          30, 
+          31, 
+          32, 
+          33, 
+          34, 
+          35, 
+          36, 
+          37, 
+          38, 
+          39
+        ], 
+        "density": 2385, 
+        "dry_conductivity": 1.045, 
+        "name": "dfalt", 
+        "permeability": [
+          1.2e-14, 
+          1.2e-14
+        ], 
+        "porosity": 0.45, 
+        "specific_heat": 1030, 
+        "wet_conductivity": 1.045
+      }
+    ]
+  }, 
+  "thermodynamics": "ifc67", 
+  "time": {
+    "start": 0, 
+    "step": {
+      "adapt": {
+        "amplification": 2, 
+        "maximum": 8, 
+        "method": "iteration", 
+        "minimum": 4, 
+        "on": true, 
+        "reduction": 0.2
+      }, 
+      "maximum": {
+        "number": 100, 
+        "size": 500
+      }, 
+      "method": "beuler", 
+      "size": 100, 
+      "solver": {
+        "nonlinear": {
+          "maximum": {
+            "iterations": 8
+          }, 
+          "tolerance": {
+            "function": {
+              "absolute": 1, 
+              "relative": 1e-05
+            }
+          }
+        }
+      }
+    }, 
+    "stop": 10000
+  }, 
+  "title": "1-D infiltration"
+}

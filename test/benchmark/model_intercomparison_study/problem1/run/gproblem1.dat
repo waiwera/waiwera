@@ -1,0 +1,333 @@
+GENER02  1.00e+25  1.00e-06                                0.00
+VERTICES
+  a      0.00      0.00
+  b     25.00      0.00
+  c     50.00      0.00
+  d     75.00      0.00
+  e    100.00      0.00
+  f    125.00      0.00
+  g    150.00      0.00
+  h    175.00      0.00
+  i    200.00      0.00
+  j    225.00      0.00
+  k    250.00      0.00
+  l    275.00      0.00
+  m    300.00      0.00
+  n    325.00      0.00
+  o    350.00      0.00
+  p    375.00      0.00
+  q    400.00      0.00
+  r    425.00      0.00
+  s    450.00      0.00
+  t    475.00      0.00
+  u    500.00      0.00
+  v    525.00      0.00
+  w    550.00      0.00
+  x    575.00      0.00
+  y    600.00      0.00
+  z    625.00      0.00
+ aa    650.00      0.00
+ ab    675.00      0.00
+ ac    700.00      0.00
+ ad    725.00      0.00
+ ae    750.00      0.00
+ af    775.00      0.00
+ ag    800.00      0.00
+ ah    825.00      0.00
+ ai    850.00      0.00
+ aj    875.00      0.00
+ ak    900.00      0.00
+ al    925.00      0.00
+ am    950.00      0.00
+ an    975.00      0.00
+ ao   1000.00      0.00
+ ap      0.00    100.00
+ aq     25.00    100.00
+ ar     50.00    100.00
+ as     75.00    100.00
+ at    100.00    100.00
+ au    125.00    100.00
+ av    150.00    100.00
+ aw    175.00    100.00
+ ax    200.00    100.00
+ ay    225.00    100.00
+ az    250.00    100.00
+ ba    275.00    100.00
+ bb    300.00    100.00
+ bc    325.00    100.00
+ bd    350.00    100.00
+ be    375.00    100.00
+ bf    400.00    100.00
+ bg    425.00    100.00
+ bh    450.00    100.00
+ bi    475.00    100.00
+ bj    500.00    100.00
+ bk    525.00    100.00
+ bl    550.00    100.00
+ bm    575.00    100.00
+ bn    600.00    100.00
+ bo    625.00    100.00
+ bp    650.00    100.00
+ bq    675.00    100.00
+ br    700.00    100.00
+ bs    725.00    100.00
+ bt    750.00    100.00
+ bu    775.00    100.00
+ bv    800.00    100.00
+ bw    825.00    100.00
+ bx    850.00    100.00
+ by    875.00    100.00
+ bz    900.00    100.00
+ ca    925.00    100.00
+ cb    950.00    100.00
+ cc    975.00    100.00
+ cd   1000.00    100.00
+
+GRID
+  a0 4                    
+  b
+ aq
+ ap
+  a
+  b0 4                    
+  c
+ ar
+ aq
+  b
+  c0 4                    
+  d
+ as
+ ar
+  c
+  d0 4                    
+  e
+ at
+ as
+  d
+  e0 4                    
+  f
+ au
+ at
+  e
+  f0 4                    
+  g
+ av
+ au
+  f
+  g0 4                    
+  h
+ aw
+ av
+  g
+  h0 4                    
+  i
+ ax
+ aw
+  h
+  i0 4                    
+  j
+ ay
+ ax
+  i
+  j0 4                    
+  k
+ az
+ ay
+  j
+  k0 4                    
+  l
+ ba
+ az
+  k
+  l0 4                    
+  m
+ bb
+ ba
+  l
+  m0 4                    
+  n
+ bc
+ bb
+  m
+  n0 4                    
+  o
+ bd
+ bc
+  n
+  o0 4                    
+  p
+ be
+ bd
+  o
+  p0 4                    
+  q
+ bf
+ be
+  p
+  q0 4                    
+  r
+ bg
+ bf
+  q
+  r0 4                    
+  s
+ bh
+ bg
+  r
+  s0 4                    
+  t
+ bi
+ bh
+  s
+  t0 4                    
+  u
+ bj
+ bi
+  t
+  u0 4                    
+  v
+ bk
+ bj
+  u
+  v0 4                    
+  w
+ bl
+ bk
+  v
+  w0 4                    
+  x
+ bm
+ bl
+  w
+  x0 4                    
+  y
+ bn
+ bm
+  x
+  y0 4                    
+  z
+ bo
+ bn
+  y
+  z0 4                    
+ aa
+ bp
+ bo
+  z
+ aa0 4                    
+ ab
+ bq
+ bp
+ aa
+ ab0 4                    
+ ac
+ br
+ bq
+ ab
+ ac0 4                    
+ ad
+ bs
+ br
+ ac
+ ad0 4                    
+ ae
+ bt
+ bs
+ ad
+ ae0 4                    
+ af
+ bu
+ bt
+ ae
+ af0 4                    
+ ag
+ bv
+ bu
+ af
+ ag0 4                    
+ ah
+ bw
+ bv
+ ag
+ ah0 4                    
+ ai
+ bx
+ bw
+ ah
+ ai0 4                    
+ aj
+ by
+ bx
+ ai
+ aj0 4                    
+ ak
+ bz
+ by
+ aj
+ ak0 4                    
+ al
+ ca
+ bz
+ ak
+ al0 4                    
+ am
+ cb
+ ca
+ al
+ am0 4                    
+ an
+ cc
+ cb
+ am
+ an0 4                    
+ ao
+ cd
+ cc
+ an
+
+CONNECTIONS
+  a  b
+  b  c
+  c  d
+  d  e
+  e  f
+  f  g
+  g  h
+  h  i
+  i  j
+  j  k
+  k  l
+  l  m
+  m  n
+  n  o
+  o  p
+  p  q
+  q  r
+  r  s
+  s  t
+  t  u
+  u  v
+  v  w
+  w  x
+  x  y
+  y  z
+  z aa
+ aa ab
+ ab ac
+ ac ad
+ ad ae
+ ae af
+ af ag
+ ag ah
+ ah ai
+ ai aj
+ aj ak
+ ak al
+ al am
+ am an
+
+LAYERS
+ 0       0.00      0.00
+ 1    -100.00    -50.00
+
+

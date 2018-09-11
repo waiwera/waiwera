@@ -1,0 +1,91 @@
+{
+  "boundaries": [], 
+  "initial": {
+    "region": 4, 
+    "primary": [
+      7694336.789042256, 
+      0.2, 
+      3000000.0
+    ]
+  }, 
+  "title": "CO2 one cell", 
+  "time": {
+    "start": 0.0, 
+    "step": {
+      "size": 0.5, 
+      "adapt": {
+        "on": true, 
+        "reduction": 0.2, 
+        "amplification": 2.0, 
+        "minimum": 5.0, 
+        "method": "iteration", 
+        "maximum": 8.0
+      }, 
+      "solver": {
+        "nonlinear": {
+          "tolerance": {
+            "function": {
+              "relative": null, 
+              "absolute": null
+            }
+          }, 
+          "maximum": {
+            "iterations": 8
+          }
+        }
+      }, 
+      "maximum": {
+        "number": 50, 
+        "size": 0.5
+      }, 
+      "method": "beuler"
+    }, 
+    "stop": 19.0
+  }, 
+  "gravity": null, 
+  "eos": {
+    "name": "wce"
+  }, 
+  "thermodynamics": "ifc67", 
+  "mesh": {
+    "filename": "gco2_one_cell.msh"
+  }, 
+  "source": [
+    {
+      "cell": 0, 
+      "rate": -5.0, 
+      "name": "gen 1"
+    }
+  ], 
+  "rock": {
+    "capillary_pressure": null, 
+    "relative_permeability": {
+      "type": "corey", 
+      "slr": 0.3, 
+      "ssr": 0.05
+    }, 
+    "types": [
+      {
+        "name": "dfalt", 
+        "density": 2500.0, 
+        "cells": [
+          0
+        ], 
+        "specific_heat": 900.0, 
+        "porosity": 0.15, 
+        "permeability": [
+          1e-15, 
+          1e-15
+        ], 
+        "wet_conductivity": 1.5, 
+        "dry_conductivity": 1.5
+      }
+    ]
+  }, 
+  "output": {
+    "initial": true, 
+    "frequency": 1, 
+    "final": true, 
+    "filename": "co2_one_cell.h5"
+  }
+}

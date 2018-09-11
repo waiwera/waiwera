@@ -1,0 +1,334 @@
+{
+  "boundaries": [
+    {
+      "faces": {
+        "cells": [
+          0
+        ], 
+        "normal": [
+          0, 
+          1
+        ]
+      }, 
+      "primary": [
+        100000, 
+        10, 
+        0
+      ], 
+      "region": 1
+    }
+  ], 
+  "eos": {
+    "name": "wce"
+  }, 
+  "gravity": 9.8, 
+  "initial": {
+    "primary": [
+      [
+        246706, 
+        10, 
+        0
+      ], 
+      [
+        540118, 
+        10, 
+        0
+      ], 
+      [
+        833530, 
+        10, 
+        0
+      ], 
+      [
+        1126942, 
+        10, 
+        0
+      ], 
+      [
+        1420354, 
+        10, 
+        0
+      ], 
+      [
+        1713766, 
+        10, 
+        0
+      ], 
+      [
+        2007178, 
+        10, 
+        0
+      ], 
+      [
+        2300590, 
+        10, 
+        0
+      ], 
+      [
+        2594002, 
+        10, 
+        0
+      ], 
+      [
+        2887414, 
+        10, 
+        0
+      ], 
+      [
+        3205277, 
+        10, 
+        0
+      ], 
+      [
+        3547591, 
+        10, 
+        0
+      ], 
+      [
+        3889905, 
+        10, 
+        0
+      ], 
+      [
+        4232219, 
+        10, 
+        0
+      ], 
+      [
+        4574533, 
+        10, 
+        0
+      ], 
+      [
+        4916847, 
+        10, 
+        0
+      ], 
+      [
+        5259161, 
+        10, 
+        0
+      ], 
+      [
+        5601475, 
+        10, 
+        0
+      ], 
+      [
+        5943789, 
+        10, 
+        0
+      ], 
+      [
+        6286103, 
+        10, 
+        0
+      ], 
+      [
+        6628417, 
+        10, 
+        0
+      ], 
+      [
+        6970731, 
+        10, 
+        0
+      ], 
+      [
+        7313045, 
+        10, 
+        0
+      ], 
+      [
+        7655359, 
+        10, 
+        0
+      ], 
+      [
+        7997673, 
+        10, 
+        0
+      ], 
+      [
+        8339987, 
+        10, 
+        0
+      ], 
+      [
+        8682301, 
+        10, 
+        0
+      ], 
+      [
+        9024615, 
+        10, 
+        0
+      ], 
+      [
+        9366929, 
+        10, 
+        0
+      ], 
+      [
+        9709243, 
+        10, 
+        0
+      ]
+    ], 
+    "region": 1
+  }, 
+  "mesh": {
+    "filename": "gco2_column.msh", 
+    "thickness": 100
+  }, 
+  "output": {
+    "fields": {
+      "fluid": [
+        "liquid_saturation", 
+        "liquid_density", 
+        "liquid_CO2_mass_fraction", 
+        "vapour_saturation", 
+        "vapour_density", 
+        "vapour_CO2_mass_fraction"
+      ]
+    }, 
+    "filename": "co2_column_0.1.h5", 
+    "final": true, 
+    "frequency": 1, 
+    "initial": true
+  }, 
+  "rock": {
+    "capillary_pressure": null, 
+    "relative_permeability": {
+      "liquid": [
+        0.35, 
+        1
+      ], 
+      "type": "linear", 
+      "vapour": [
+        0, 
+        0.7
+      ]
+    }, 
+    "types": [
+      {
+        "cells": [
+          10, 
+          11, 
+          12, 
+          13, 
+          14, 
+          15, 
+          16, 
+          17, 
+          18, 
+          19, 
+          20, 
+          21, 
+          22, 
+          23, 
+          24, 
+          25, 
+          26, 
+          27, 
+          28, 
+          29
+        ], 
+        "density": 2600, 
+        "dry_conductivity": 2, 
+        "name": "dfalt", 
+        "permeability": [
+          2e-14, 
+          2e-14
+        ], 
+        "porosity": 0.1, 
+        "specific_heat": 900, 
+        "wet_conductivity": 2
+      }, 
+      {
+        "cells": [
+          0, 
+          1, 
+          2, 
+          3, 
+          4, 
+          5, 
+          6, 
+          7, 
+          8, 
+          9
+        ], 
+        "density": 2600, 
+        "dry_conductivity": 2, 
+        "name": "capr", 
+        "permeability": [
+          5e-16, 
+          5e-16
+        ], 
+        "porosity": 0.1, 
+        "specific_heat": 900, 
+        "wet_conductivity": 2
+      }
+    ]
+  }, 
+  "source": [
+    {
+      "cell": 29, 
+      "component": 1, 
+      "enthalpy": 1300000, 
+      "name": "inj 1", 
+      "rate": 0.01998
+    }, 
+    {
+      "cell": 29, 
+      "component": 2, 
+      "enthalpy": 1300000, 
+      "name": "inj 2", 
+      "rate": 2e-05
+    }
+  ], 
+  "thermodynamics": "ifc67", 
+  "time": {
+    "start": 0, 
+    "step": {
+      "adapt": {
+        "amplification": 2, 
+        "maximum": 8, 
+        "method": "iteration", 
+        "minimum": 5, 
+        "on": true, 
+        "reduction": 0.2
+      }, 
+      "maximum": {
+        "number": 500, 
+        "size": null
+      }, 
+      "method": "beuler", 
+      "size": 100000, 
+      "solver": {
+        "linear": {
+          "preconditioner": {
+            "type": "bjacobi"
+          }, 
+          "type": "bcgs"
+        }, 
+        "nonlinear": {
+          "maximum": {
+            "iterations": 8
+          }, 
+          "minimum": {
+            "iterations": 1
+          }, 
+          "tolerance": {
+            "function": {
+              "absolute": null, 
+              "relative": null
+            }
+          }
+        }
+      }
+    }, 
+    "stop": 1e+15
+  }, 
+  "title": "CO2 column"
+}

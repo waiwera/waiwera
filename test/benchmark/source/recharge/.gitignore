@@ -1,2 +1,5 @@
-run/
+run/*
+!run/grecharge.*
+!run/*.json
+!run/*.listing
 output/
