@@ -218,13 +218,14 @@
     ]
   }, 
   "output": {
+    "initial": true, 
+    "frequency": 1, 
+    "final": true, 
     "fields": {
       "fluid": [
         "liquid_saturation"
       ]
     }, 
-    "frequency": 1, 
-    "final": true, 
     "filename": "problem4.h5"
   }
 }
