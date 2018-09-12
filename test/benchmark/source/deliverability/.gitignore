@@ -1,2 +1,5 @@
-run/
+run/*
+!run/gdeliv.*
+!run/*.json
+!run/*.listing
 output/

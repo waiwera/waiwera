@@ -1,3 +1,6 @@
-run/
+run/*
+!run/gco2_column.*
+!run/*.json
+!run/*.listing
 output/
 *.pyc

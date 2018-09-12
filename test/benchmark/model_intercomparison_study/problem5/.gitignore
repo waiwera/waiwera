@@ -1,2 +1,5 @@
-run/
+run/*
+!run/gproblem5.*
+!run/*.json
+!run/*.listing
 output/

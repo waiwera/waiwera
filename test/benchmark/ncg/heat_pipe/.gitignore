@@ -1,3 +1,6 @@
-run/
+run/*
+!run/gheat_pipe.*
+!run/*.json
+!run/*.listing
 output/
 *.pyc

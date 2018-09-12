@@ -865,8 +865,11 @@ contains
 !------------------------------------------------------------------------
 
   subroutine timestepper_initial_function_calls(self, err)
-    !! Performs initial LHS function call at start of run (and pre-evaluation
-    !! procedure if needed).
+    !! Performs initial LHS function call at start of run (and
+    !! pre-evaluation procedure if needed). If self%output_initial is
+    !! true, an initial RHS function call is also carried out, to
+    !! initialise e.g. source parameters which may appear in the
+    !! output.
 
     class(timestepper_type), intent(in out) :: self
     PetscErrorCode, intent(out) :: err
@@ -882,6 +885,10 @@ contains
     if (err == 0) then
        call self%ode%lhs(t, interval, self%steps%current%solution, &
             self%steps%current%lhs, err)
+       if ((err == 0) .and. (self%output_initial)) then
+          call self%ode%rhs(t, interval, self%steps%current%solution, &
+               self%steps%current%rhs, err)
+       end if
     end if
 
   end subroutine timestepper_initial_function_calls

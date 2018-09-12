@@ -1,0 +1,138 @@
+{
+  "boundaries": [], 
+  "initial": {
+    "primary": [
+      200000.0, 
+      20.0
+    ]
+  }, 
+  "title": "Recharge source test", 
+  "time": {
+    "start": 0.0, 
+    "step": {
+      "size": [
+        10000.0, 
+        12115.276586285876, 
+        14677.992676220705, 
+        17782.794100389227, 
+        21544.346900318822, 
+        26101.572156825387, 
+        31622.776601683792, 
+        38311.86849557285, 
+        46415.88833612782, 
+        56234.13251903491, 
+        68129.20690579608, 
+        82540.41852680189, 
+        100000.0, 
+        121152.76586285877, 
+        146779.92676220674, 
+        177827.94100389228, 
+        215443.46900318822, 
+        261015.72156825333, 
+        316227.7660168379, 
+        383118.68495572853, 
+        464158.8833612772, 
+        562341.3251903491, 
+        681292.0690579609, 
+        825404.1852680173, 
+        1000000.0
+      ], 
+      "adapt": {
+        "on": false
+      }, 
+      "solver": {
+        "nonlinear": {
+          "tolerance": {
+            "function": {
+              "relative": 1e-07, 
+              "absolute": null
+            }
+          }, 
+          "maximum": {
+            "iterations": 8
+          }
+        }
+      }, 
+      "maximum": {
+        "number": 25, 
+        "size": null
+      }, 
+      "method": "beuler"
+    }, 
+    "stop": 5680239.011855628
+  }, 
+  "gravity": 0.0, 
+  "eos": {
+    "name": "we"
+  }, 
+  "thermodynamics": "ifc67", 
+  "mesh": {
+    "filename": "grecharge.exo"
+  }, 
+  "source": [
+    {
+      "cell": 0, 
+      "direction": "out", 
+      "recharge": {
+        "coefficient": 0.001, 
+        "pressure": 100000.0
+      }, 
+      "name": "rec 1", 
+      "enthalpy": 0.0
+    }
+  ], 
+  "rock": {
+    "capillary_pressure": {
+      "pressure": 0.0, 
+      "type": "linear", 
+      "saturation_limits": [
+        0.0, 
+        0.0
+      ]
+    }, 
+    "relative_permeability": {
+      "type": "linear", 
+      "liquid": [
+        0.0, 
+        1.0
+      ], 
+      "vapour": [
+        0.0, 
+        1.0
+      ]
+    }, 
+    "types": [
+      {
+        "name": "dfalt", 
+        "density": 2600.0, 
+        "cells": [
+          0, 
+          1, 
+          2, 
+          3, 
+          4, 
+          5, 
+          6, 
+          7, 
+          8, 
+          9
+        ], 
+        "specific_heat": 900.0, 
+        "porosity": 0.1, 
+        "permeability": [
+          1e-13, 
+          1e-13, 
+          1e-13
+        ], 
+        "wet_conductivity": 1.5, 
+        "dry_conductivity": 1.5
+      }
+    ]
+  }, 
+  "output": {
+    "initial": true, 
+    "frequency": 1, 
+    "final": true, 
+    "filename": "recharge_outflow.h5"
+  }
+}

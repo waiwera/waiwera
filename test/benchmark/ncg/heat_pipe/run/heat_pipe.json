@@ -1,0 +1,252 @@
+{
+  "boundaries": [
+    {
+      "region": 4, 
+      "primary": [
+        100000.0, 
+        0.2, 
+        97937.634152778
+      ], 
+      "faces": {
+        "cells": [
+          119
+        ], 
+        "normal": [
+          1.0, 
+          0.0
+        ]
+      }
+    }
+  ], 
+  "initial": {
+    "region": 4, 
+    "primary": [
+      100000.0, 
+      0.2, 
+      97937.634152778
+    ]
+  }, 
+  "title": "1-D radial heat pipe", 
+  "time": {
+    "start": 0.0, 
+    "step": {
+      "size": 1000.0, 
+      "adapt": {
+        "on": true, 
+        "reduction": 0.2, 
+        "amplification": 2.0, 
+        "minimum": 4.0, 
+        "method": "iteration", 
+        "maximum": 8.0
+      }, 
+      "solver": {
+        "nonlinear": {
+          "tolerance": {
+            "function": {
+              "relative": 1e-05, 
+              "absolute": 1.0
+            }
+          }, 
+          "maximum": {
+            "iterations": 8
+          }
+        }
+      }, 
+      "maximum": {
+        "number": 250, 
+        "size": null
+      }, 
+      "method": "beuler"
+    }, 
+    "stop": 315576000.0
+  }, 
+  "gravity": null, 
+  "eos": {
+    "name": "wae"
+  }, 
+  "thermodynamics": "ifc67", 
+  "mesh": {
+    "radial": true, 
+    "filename": "gheat_pipe.msh"
+  }, 
+  "source": [
+    {
+      "cell": 0, 
+      "rate": 3000.0, 
+      "component": 3, 
+      "name": "HTR 1"
+    }
+  ], 
+  "rock": {
+    "capillary_pressure": {
+      "P0": 12499.999999999998, 
+      "slr": 0.001, 
+      "sls": 1.0, 
+      "type": "van Genuchten", 
+      "Pmax": 500000000.0, 
+      "lambda": 0.45
+    }, 
+    "relative_permeability": {
+      "sum_unity": true, 
+      "sls": 1.0, 
+      "type": "van Genuchten", 
+      "slr": 0.00096, 
+      "lambda": 0.45
+    }, 
+    "types": [
+      {
+        "name": "dfalt", 
+        "density": 2550.0, 
+        "cells": [
+          0, 
+          1, 
+          2, 
+          3, 
+          4, 
+          5, 
+          6, 
+          7, 
+          8, 
+          9, 
+          10, 
+          11, 
+          12, 
+          13, 
+          14, 
+          15, 
+          16, 
+          17, 
+          18, 
+          19, 
+          20, 
+          21, 
+          22, 
+          23, 
+          24, 
+          25, 
+          26, 
+          27, 
+          28, 
+          29, 
+          30, 
+          31, 
+          32, 
+          33, 
+          34, 
+          35, 
+          36, 
+          37, 
+          38, 
+          39, 
+          40, 
+          41, 
+          42, 
+          43, 
+          44, 
+          45, 
+          46, 
+          47, 
+          48, 
+          49, 
+          50, 
+          51, 
+          52, 
+          53, 
+          54, 
+          55, 
+          56, 
+          57, 
+          58, 
+          59, 
+          60, 
+          61, 
+          62, 
+          63, 
+          64, 
+          65, 
+          66, 
+          67, 
+          68, 
+          69, 
+          70, 
+          71, 
+          72, 
+          73, 
+          74, 
+          75, 
+          76, 
+          77, 
+          78, 
+          79, 
+          80, 
+          81, 
+          82, 
+          83, 
+          84, 
+          85, 
+          86, 
+          87, 
+          88, 
+          89, 
+          90, 
+          91, 
+          92, 
+          93, 
+          94, 
+          95, 
+          96, 
+          97, 
+          98, 
+          99, 
+          100, 
+          101, 
+          102, 
+          103, 
+          104, 
+          105, 
+          106, 
+          107, 
+          108, 
+          109, 
+          110, 
+          111, 
+          112, 
+          113, 
+          114, 
+          115, 
+          116, 
+          117, 
+          118, 
+          119
+        ], 
+        "specific_heat": 800.0, 
+        "porosity": 0.1, 
+        "permeability": [
+          2e-14, 
+          2e-14
+        ], 
+        "wet_conductivity": 2.0, 
+        "dry_conductivity": 2.0
+      }
+    ]
+  }, 
+  "output": {
+    "checkpoint": {
+      "repeat": false, 
+      "tolerance": 0.1, 
+      "time": [
+        31557600.0, 
+        125590000.0, 
+        315576000.0
+      ]
+    }, 
+    "fields": {
+      "fluid": [
+        "vapour_air_mass_fraction"
+      ]
+    }, 
+    "frequency": 0, 
+    "final": true, 
+    "filename": "heat_pipe.h5"
+  }
+}

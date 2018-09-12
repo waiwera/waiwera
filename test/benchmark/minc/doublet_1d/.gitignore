@@ -1,3 +1,6 @@
-run/
+run/*
+!run/gminc_1d.*
+!run/*.json
+!run/*.listing
 output/
 *.pyc

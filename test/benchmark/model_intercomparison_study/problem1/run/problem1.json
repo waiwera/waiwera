@@ -1,0 +1,175 @@
+{
+  "boundaries": [
+    {
+      "region": 1, 
+      "primary": [
+        5000000.0, 
+        170.0
+      ], 
+      "faces": {
+        "cells": [
+          39
+        ], 
+        "normal": [
+          1.0, 
+          0.0
+        ]
+      }
+    }
+  ], 
+  "initial": {
+    "region": 1, 
+    "primary": [
+      5000000.0, 
+      170.0
+    ]
+  }, 
+  "title": "Model intercomparison study problem 1", 
+  "time": {
+    "start": 0.0, 
+    "step": {
+      "size": [
+        100000.0, 
+        150000.0, 
+        225000.0, 
+        337500.0, 
+        506250.0, 
+        759380.0, 
+        1139100.0, 
+        1708600.0, 
+        2562900.0, 
+        3844300.0, 
+        5766500.0, 
+        8649800.0, 
+        12975000.0, 
+        16700000.0, 
+        16700000.0, 
+        16700000.0
+      ], 
+      "adapt": {
+        "on": false, 
+        "reduction": 0.2, 
+        "amplification": 2.0, 
+        "minimum": 5.0, 
+        "method": "iteration", 
+        "maximum": 8.0
+      }, 
+      "solver": {
+        "nonlinear": {
+          "tolerance": {
+            "function": {
+              "relative": 1e-06, 
+              "absolute": 1.0
+            }
+          }, 
+          "maximum": {
+            "iterations": 8
+          }
+        }
+      }, 
+      "maximum": {
+        "number": 500, 
+        "size": 16700000.0
+      }, 
+      "method": "beuler"
+    }, 
+    "stop": 1000000000.0
+  }, 
+  "gravity": [
+    0.0, 
+    -9.8
+  ], 
+  "eos": {
+    "name": "we"
+  }, 
+  "thermodynamics": "ifc67", 
+  "mesh": {
+    "radial": true, 
+    "filename": "gproblem1.msh"
+  }, 
+  "source": [
+    {
+      "cell": 0, 
+      "rate": 10.0, 
+      "component": 1, 
+      "name": "  a 1", 
+      "enthalpy": 678052.7777224329
+    }
+  ], 
+  "rock": {
+    "capillary_pressure": null, 
+    "relative_permeability": {
+      "type": "linear", 
+      "liquid": [
+        0.0, 
+        0.0
+      ], 
+      "vapour": [
+        0.0, 
+        0.0
+      ]
+    }, 
+    "types": [
+      {
+        "name": "dfalt", 
+        "density": 2500.0, 
+        "cells": [
+          0, 
+          1, 
+          2, 
+          3, 
+          4, 
+          5, 
+          6, 
+          7, 
+          8, 
+          9, 
+          10, 
+          11, 
+          12, 
+          13, 
+          14, 
+          15, 
+          16, 
+          17, 
+          18, 
+          19, 
+          20, 
+          21, 
+          22, 
+          23, 
+          24, 
+          25, 
+          26, 
+          27, 
+          28, 
+          29, 
+          30, 
+          31, 
+          32, 
+          33, 
+          34, 
+          35, 
+          36, 
+          37, 
+          38, 
+          39
+        ], 
+        "specific_heat": 1000.0, 
+        "porosity": 0.2, 
+        "permeability": [
+          1e-12, 
+          1e-12
+        ], 
+        "wet_conductivity": 20.0, 
+        "dry_conductivity": 20.0
+      }
+    ]
+  }, 
+  "output": {
+    "initial": true, 
+    "frequency": 1, 
+    "final": true, 
+    "filename": "problem1.h5"
+  }
+}

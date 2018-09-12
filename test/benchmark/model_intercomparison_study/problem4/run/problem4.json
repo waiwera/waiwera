@@ -1,0 +1,231 @@
+{
+  "boundaries": [
+    {
+      "region": 1, 
+      "primary": [
+        101300.0, 
+        10.0
+      ], 
+      "faces": {
+        "cells": [
+          0
+        ], 
+        "normal": [
+          0.0, 
+          1.0
+        ]
+      }
+    }
+  ], 
+  "initial": {
+    "region": 1, 
+    "primary": [
+      [
+        590669.6771732369, 
+        24.0
+      ], 
+      [
+        1563524.1998562953, 
+        52.0
+      ], 
+      [
+        2524194.024829112, 
+        80.0
+      ], 
+      [
+        3468238.3070886442, 
+        108.0
+      ], 
+      [
+        4392121.0222457405, 
+        136.0
+      ], 
+      [
+        5292646.26650576, 
+        164.0
+      ], 
+      [
+        6166574.273677722, 
+        192.0
+      ], 
+      [
+        7010285.108225424, 
+        220.0
+      ], 
+      [
+        7819348.05597756, 
+        248.0
+      ], 
+      [
+        8587750.066138307, 
+        276.0
+      ], 
+      [
+        9320366.22288307, 
+        291.0
+      ], 
+      [
+        10037915.284258673, 
+        293.0
+      ], 
+      [
+        10752699.58820605, 
+        295.0
+      ], 
+      [
+        11464697.228046179, 
+        297.0
+      ], 
+      [
+        12173886.13653326, 
+        299.0
+      ], 
+      [
+        12880244.089644551, 
+        301.0
+      ], 
+      [
+        13583748.711143538, 
+        303.0
+      ], 
+      [
+        14284377.477995543, 
+        305.0
+      ], 
+      [
+        14982107.726719674, 
+        307.0
+      ], 
+      [
+        15676916.66076559, 
+        309.0
+      ]
+    ]
+  }, 
+  "title": "Model intercomparison study problem 4", 
+  "time": {
+    "start": 0.0, 
+    "step": {
+      "size": 100000.0, 
+      "adapt": {
+        "on": true, 
+        "reduction": 0.2, 
+        "amplification": 2.0, 
+        "minimum": 5.0, 
+        "method": "iteration", 
+        "maximum": 8.0
+      }, 
+      "solver": {
+        "nonlinear": {
+          "tolerance": {
+            "function": {
+              "relative": 1e-06, 
+              "absolute": 1.0
+            }
+          }, 
+          "maximum": {
+            "iterations": 8
+          }
+        }
+      }, 
+      "maximum": {
+        "number": 150, 
+        "size": 15768000.0
+      }, 
+      "method": "beuler"
+    }, 
+    "stop": 1261440000.0
+  }, 
+  "gravity": 9.8, 
+  "eos": {
+    "name": "we"
+  }, 
+  "thermodynamics": "ifc67", 
+  "mesh": {
+    "thickness": 100.0, 
+    "filename": "gproblem4.msh"
+  }, 
+  "source": [
+    {
+      "cell": 19, 
+      "rate": -1.0, 
+      "name": "  a20"
+    }
+  ], 
+  "rock": {
+    "capillary_pressure": {
+      "pressure": 0.0, 
+      "type": "linear", 
+      "saturation_limits": [
+        0.0, 
+        1.0
+      ]
+    }, 
+    "relative_permeability": {
+      "type": "corey", 
+      "slr": 0.3, 
+      "ssr": 0.05
+    }, 
+    "types": [
+      {
+        "name": "upper", 
+        "density": 2500.0, 
+        "cells": [
+          0, 
+          1, 
+          2, 
+          3, 
+          4, 
+          5, 
+          6, 
+          7, 
+          8, 
+          9
+        ], 
+        "specific_heat": 1000.0, 
+        "porosity": 0.15, 
+        "permeability": [
+          5e-15, 
+          5e-15
+        ], 
+        "wet_conductivity": 1.0, 
+        "dry_conductivity": 1.0
+      }, 
+      {
+        "name": "lower", 
+        "density": 2500.0, 
+        "cells": [
+          10, 
+          11, 
+          12, 
+          13, 
+          14, 
+          15, 
+          16, 
+          17, 
+          18, 
+          19
+        ], 
+        "specific_heat": 1000.0, 
+        "porosity": 0.25, 
+        "permeability": [
+          1e-13, 
+          1e-13
+        ], 
+        "wet_conductivity": 1.0, 
+        "dry_conductivity": 1.0
+      }
+    ]
+  }, 
+  "output": {
+    "initial": true, 
+    "frequency": 1, 
+    "final": true, 
+    "fields": {
+      "fluid": [
+        "liquid_saturation"
+      ]
+    }, 
+    "filename": "problem4.h5"
+  }
+}

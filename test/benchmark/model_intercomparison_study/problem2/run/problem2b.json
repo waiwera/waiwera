@@ -1,0 +1,159 @@
+{
+  "boundaries": [], 
+  "initial": {
+    "region": 4, 
+    "primary": [
+      3000000.0, 
+      0.35
+    ]
+  }, 
+  "title": "Model intercomparison study problem 2", 
+  "time": {
+    "start": 0.0, 
+    "step": {
+      "size": [
+        5.0, 
+        7.5, 
+        11.25, 
+        16.875, 
+        25.3125, 
+        37.96875, 
+        56.953125, 
+        85.4296875, 
+        128.14453125, 
+        192.216796875, 
+        288.3251953125, 
+        432.48779296875, 
+        648.731689453125, 
+        973.0975341796875, 
+        1459.6463012695312, 
+        2189.469451904297, 
+        3284.2041778564453, 
+        4926.306266784668, 
+        7389.459400177002, 
+        11084.189100265503, 
+        16626.283650398254, 
+        24939.42547559738, 
+        37409.13821339607
+      ], 
+      "adapt": {
+        "on": false, 
+        "reduction": 0.2, 
+        "amplification": 2.0, 
+        "minimum": 5.0, 
+        "method": "iteration", 
+        "maximum": 8.0
+      }, 
+      "solver": {
+        "nonlinear": {
+          "tolerance": {
+            "function": {
+              "relative": 1e-06, 
+              "absolute": 1.0
+            }
+          }, 
+          "maximum": {
+            "iterations": 8
+          }
+        }
+      }, 
+      "maximum": {
+        "number": 23, 
+        "size": null
+      }, 
+      "method": "beuler"
+    }, 
+    "stop": 86400.0
+  }, 
+  "gravity": null, 
+  "eos": {
+    "name": "we"
+  }, 
+  "thermodynamics": "ifc67", 
+  "mesh": {
+    "radial": true, 
+    "filename": "gproblem2.msh"
+  }, 
+  "source": [
+    {
+      "cell": 0, 
+      "rate": -16.7, 
+      "name": "  a 1"
+    }
+  ], 
+  "rock": {
+    "capillary_pressure": {
+      "pressure": 0.0, 
+      "type": "linear", 
+      "saturation_limits": [
+        0.0, 
+        1.0
+      ]
+    }, 
+    "relative_permeability": {
+      "type": "corey", 
+      "slr": 0.3, 
+      "ssr": 0.05
+    }, 
+    "types": [
+      {
+        "name": "dfalt", 
+        "density": 2650.0, 
+        "cells": [
+          0, 
+          1, 
+          2, 
+          3, 
+          4, 
+          5, 
+          6, 
+          7, 
+          8, 
+          9, 
+          10, 
+          11, 
+          12, 
+          13, 
+          14, 
+          15, 
+          16, 
+          17, 
+          18, 
+          19, 
+          20, 
+          21, 
+          22, 
+          23, 
+          24, 
+          25, 
+          26, 
+          27, 
+          28, 
+          29, 
+          30, 
+          31, 
+          32
+        ], 
+        "specific_heat": 754.7169811320755, 
+        "porosity": 0.15, 
+        "permeability": [
+          2.4e-13, 
+          2.4e-13
+        ], 
+        "wet_conductivity": 0.0, 
+        "dry_conductivity": 0.0
+      }
+    ]
+  }, 
+  "output": {
+    "initial": false, 
+    "frequency": 1, 
+    "final": true, 
+    "fields": {
+      "fluid": [
+        "liquid_saturation"
+      ]
+    }, 
+    "filename": "problem2b.h5"
+  }
+}

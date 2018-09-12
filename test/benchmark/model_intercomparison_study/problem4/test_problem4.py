@@ -28,6 +28,7 @@ WAIWERA_FIELDMAP = {
     'Pressure': 'fluid_pressure',
     'Temperature': 'fluid_temperature',
     'Liquid saturation': 'fluid_liquid_saturation',
+    'Enthalpy': 'source_enthalpy'
 }
 
 model_dir = './run'
@@ -44,6 +45,7 @@ digitised_test_fields = {550: ["Pressure"],
                          1050: ["Pressure", "Liquid saturation"],
                          1550: ["Pressure", "Liquid saturation"],
                          1950: ["Pressure", "Liquid saturation"]}
+test_source_fields = ["Enthalpy"]
 
 geo = mulgrid(t2geo_filename)
 map_out_atm = range(geo.num_atmosphere_blocks, geo.num_blocks)
@@ -86,6 +88,15 @@ for depth in depths:
         data[field, obs_cell_index[depth]] = np.loadtxt(data_filename)
 ref_result = HistoryDataResult(ref_sim, data)
 
+source_data = {}
+source_index = 0
+for field in test_source_fields:
+    data_filename = '_'.join((model_name, "source", field, ref_sim))
+    data_filename = data_filename.lower().replace(' ', '_')
+    data_filename = os.path.join(data_dir, data_filename + '.dat')
+    source_data[field, source_index] = np.loadtxt(data_filename)
+ref_source_result = HistoryDataResult(ref_sim, source_data)
+
 for depth in depths:
     obspt = str(depth)
     problem4_test.addTestComp(run_index, "AUTOUGH2 z = " + obspt,
@@ -101,21 +112,35 @@ for depth in depths:
                                                  testCellIndex = obs_cell_index[depth],
                                                  orthogonalError = True))
 
+problem4_test.addTestComp(run_index, "AUTOUGH2 source",
+                          HistoryWithinTolTC(fieldsToTest = test_source_fields,
+                                             defFieldTol = 5.e-3,
+                                             expected = AUTOUGH2_result,
+                                             testSourceIndex = source_index))
+
+problem4_test.addTestComp(run_index, ref_sim + " source",
+                          HistoryWithinTolTC(fieldsToTest = test_source_fields,
+                                             defFieldTol = 1.e-2,
+                                             expected = ref_source_result,
+                                             testSourceIndex = source_index,
+                                             orthogonalError = True))
+
 jrunner = SimpleJobRunner(mpi = True)
 testResult, mResults = problem4_test.runTest(jrunner, createReports = True)
 
 # plots:
-scale = {"Pressure": 1.e6, "Temperature": 1., "Liquid saturation": 1.}
-unit = {"Pressure": "MPa", "Temperature": "$^{\circ}$C", "Liquid saturation": ""}
+scale = {"Pressure": 1.e6, "Temperature": 1., "Liquid saturation": 1.,
+         "Enthalpy": 1.e3}
+unit = {"Pressure": "MPa", "Temperature": "$^{\circ}$C", "Liquid saturation": "",
+        "Enthalpy": "kJ/kg"}
 symbol = {ref_sim: 'o'}
-yr = 365. * 24. * 60. * 60.
+yr = 365.25 * 24. * 60. * 60.
 
 for depth in depths:
     obspt = str(depth)
     obs_position = np.array([50., 50., -depth])
     obs_blk = geo.block_name_containing_point(obs_position)
     obs_cell_index = geo.block_name_index[obs_blk] - geo.num_atmosphere_blocks
-    tc_name = "AUTOUGH2 z = " + obspt
 
     for field_name in digitised_test_fields[depth]:
 
@@ -145,6 +170,36 @@ for depth in depths:
         plt.savefig(img_filename + '.pdf')
         plt.clf()
         problem4_test.mSuite.analysisImages.append(img_filename + '.png')
+
+obspt = "source"
+for field_name in test_source_fields:
+
+    t, var = problem4_test.mSuite.resultsList[run_index].\
+             getFieldHistoryAtSource(field_name, source_index)
+    plt.plot(t / yr, var / scale[field_name], '-', label = 'Waiwera', zorder = 3)
+
+    t, var = AUTOUGH2_result.getFieldHistoryAtSource(field_name, source_index)
+    plt.plot(t[::3] / yr, var[::3] / scale[field_name], 's', label = 'AUTOUGH2', zorder = 2)
+
+    t, var = ref_source_result.getFieldHistoryAtSource(field_name, source_index)
+    plt.plot(t / yr, var / scale[field_name], symbol[ref_sim], label = ref_sim,
+             zorder = 1)
+
+    plt.xlabel('time (years)')
+    plt.ylabel(field_name + ' (' + unit[field_name] + ')')
+    plt.legend(loc = 'best')
+    plt.title(' '.join((model_name, field_name.lower(),
+                        'results at', obspt)))
+    img_filename_base = '_'.join((model_name, obspt, field_name))
+    img_filename_base = img_filename_base.replace(' ', '_')
+    img_filename = os.path.join(problem4_test.mSuite.runs[run_index].basePath,
+                                problem4_test.mSuite.outputPathBase,
+                                img_filename_base)
+    plt.tight_layout(pad = 3.)
+    plt.savefig(img_filename + '.png', dpi = 300)
+    plt.savefig(img_filename + '.pdf')
+    plt.clf()
+    problem4_test.mSuite.analysisImages.append(img_filename + '.png')
 
 # generate report:
 
