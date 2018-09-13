@@ -1743,7 +1743,7 @@ contains
     ! Locals:
     PetscErrorCode :: ierr
 
-    if (self%output_filename /= "") then
+    if ((self%output_filename /= "") .and. (self%num_sources > 0)) then
        call ISView(self%source_index, self%hdf5_viewer, ierr); CHKERRQ(ierr)
     end if
 
@@ -1767,7 +1767,7 @@ contains
     IS :: is_cell_indices
     PetscErrorCode :: ierr
 
-    if (self%output_filename /= "") then
+    if ((self%output_filename /= "") .and. (self%num_sources > 0)) then
 
        call global_vec_section(self%source, source_section)
        call VecGetArrayReadF90(self%source, source_data, ierr); CHKERRQ(ierr)
@@ -1817,9 +1817,11 @@ contains
        call vec_sequence_view_hdf5(self%fluid, &
             self%output_fluid_field_indices, "/cell_fields", time_index, &
             time, self%hdf5_viewer)
-       call vec_sequence_view_hdf5(self%source, &
-            self%output_source_field_indices, "/source_fields", time_index, &
-            time, self%hdf5_viewer)
+       if (self%num_sources > 0) then
+          call vec_sequence_view_hdf5(self%source, &
+               self%output_source_field_indices, "/source_fields", time_index, &
+               time, self%hdf5_viewer)
+       end if
     end if
 
     call PetscLogEventEnd(output_event, ierr); CHKERRQ(ierr)
