@@ -27,6 +27,8 @@ WAIWERA_FIELDMAP = {
     'Pressure': 'fluid_pressure',
     'Temperature': 'fluid_temperature',
     'Vapour saturation': 'fluid_vapour_saturation',
+    'Generation rate': 'source_rate',
+    'Enthalpy': 'source_enthalpy'
 }
 
 model_dir = './run'
@@ -36,13 +38,19 @@ num_procs = 1
 
 run_names = ['outflow']
 test_fields = ["Pressure", "Temperature"]
+test_source_fields = ["Generation rate", "Enthalpy"]
 plot_fields = ["Pressure"]
+plot_source_fields = ["Generation rate"]
+scale = {"Generation rate": 1.}
+unit = {"Generation rate": "kg/s"}
 
 geo = mulgrid(t2geo_filename)
 map_out_atm = range(geo.num_atmosphere_blocks, geo.num_blocks)
 
 test = SciBenchmarkTest("Recharge", nproc = num_procs)
 test.description = """Tests recharge sources"""
+
+source_index = 0
 
 for run_index, run_name in enumerate(run_names):
 
@@ -79,6 +87,11 @@ for run_index, run_name in enumerate(run_names):
                                                        defFieldTol = 1.e-3,
                                                        expected = reference_result,
                                                        testCellIndex = -1))
+    test.addTestComp(run_index, "source",
+                     HistoryWithinTolTC(fieldsToTest = test_source_fields,
+                                        defFieldTol = 1.e-2,
+                                        expected = reference_result,
+                                        testSourceIndex = source_index))
     
 jrunner = SimpleJobRunner(mpi = True)
 testResult, mResults = test.runTest(jrunner, createReports = True)
@@ -90,33 +103,21 @@ for run_index, run_name in enumerate(run_names):
 
     run_base_name = '_'.join((model_name, run_name))
 
-    tc_name = "time history LH end"
-    t = test.testComps[run_index][tc_name].times
-    for field_name in plot_fields:
-        var = np.array(test.testComps[run_index][tc_name].fieldErrors[field_name])
-        plt.plot(t, var, '-o')
-        plt.xlabel('t (s)')
-        plt.ylabel(field_name + ' error')
-        plt.title(run_name + ' ' + tc_name)
-        img_filename_base = '_'.join((run_base_name, tc_name, 'error', field_name))
-        img_filename_base = img_filename_base.replace(' ', '_')
-        img_filename = os.path.join(test.mSuite.runs[run_index].basePath,
-                                    test.mSuite.outputPathBase,
-                                    img_filename_base + '.png')
-        plt.tight_layout(pad = 3.)
-        plt.savefig(img_filename)
-        plt.clf()
-        test.mSuite.analysisImages.append(img_filename)
+    tc_name = "source"
+    for field_name in plot_source_fields:
 
-    tc_name = "time history RH end"
-    t = test.testComps[run_index][tc_name].times
-    for field_name in plot_fields:
-        var = np.array(test.testComps[run_index][tc_name].fieldErrors[field_name])
-        plt.plot(t, var, '-o')
-        plt.xlabel('t (s)')
-        plt.ylabel(field_name + ' error')
-        plt.title(run_name + ' ' + tc_name)
-        img_filename_base = '_'.join((run_base_name, tc_name, 'error', field_name))
+        t, var = test.mSuite.resultsList[run_index].\
+                 getFieldHistoryAtSource(field_name, source_index)
+        plt.semilogx(t[1:], var[1:] / scale[field_name], '-', label = 'Waiwera')
+
+        t, var = reference_result.getFieldHistoryAtSource(field_name, source_index)
+        plt.semilogx(t[1:], var[1:] / scale[field_name], '+', label = 'AUTOUGH2')
+
+        plt.xlabel('time (s)')
+        plt.ylabel(field_name + ' (' + unit[field_name] + ')')
+        plt.legend(loc = 'lower right')
+        plt.title(' '.join((run_name, field_name.lower())))
+        img_filename_base = '_'.join((model_name, run_name, tc_name, field_name))
         img_filename_base = img_filename_base.replace(' ', '_')
         img_filename = os.path.join(test.mSuite.runs[run_index].basePath,
                                     test.mSuite.outputPathBase,
@@ -139,23 +140,6 @@ for run_index, run_name in enumerate(run_names):
         plt.legend()
         plt.title(run_name + ' results')
         img_filename_base = '_'.join((run_base_name, field_name))
-        img_filename_base = img_filename_base.replace(' ', '_')
-        img_filename = os.path.join(test.mSuite.runs[run_index].basePath,
-                                    test.mSuite.outputPathBase,
-                                    img_filename_base + '.png')
-        plt.tight_layout(pad = 3.)
-        plt.savefig(img_filename)
-        plt.clf()
-        test.mSuite.analysisImages.append(img_filename)
-
-    tc_name = "final errors"
-    for field_name in plot_fields:
-        var = np.array(test.testComps[run_index][tc_name].fieldErrors[field_name])
-        plt.plot(x, var, 'o-')
-        plt.xlabel('x (m)')
-        plt.ylabel(field_name + ' error')
-        plt.title(run_name + ' ' + tc_name)
-        img_filename_base = '_'.join((run_base_name, tc_name, field_name))
         img_filename_base = img_filename_base.replace(' ', '_')
         img_filename = os.path.join(test.mSuite.runs[run_index].basePath,
                                     test.mSuite.outputPathBase,
