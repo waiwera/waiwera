@@ -223,7 +223,6 @@
     ]
   }, 
   "output": {
-    "initial": true, 
     "frequency": 1, 
     "final": true, 
     "filename": "deliv_delg_pi_table.h5"

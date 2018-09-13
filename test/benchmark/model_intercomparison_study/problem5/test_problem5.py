@@ -47,6 +47,7 @@ WAIWERA_FIELDMAP = {
     'Temperature': 'fluid_temperature',
     'Vapour saturation': 'fluid_vapour_saturation',
     'Vapour density': 'fluid_vapour_density',
+    'Enthalpy': 'source_enthalpy',
     'Steam': total_steam_history
 }
 
@@ -63,6 +64,7 @@ digitised_test_fields = {'production': ["Pressure", "Temperature"],
                          'injection': ["Pressure"],
                          'total': ["Steam"]}
 digitised_simulators = ["LBL", "S-Cubed"] 
+test_source_fields = ["Enthalpy"]
 
 geo = mulgrid(t2geo_filename)
 map_out_atm = range(geo.num_atmosphere_blocks, geo.num_blocks)
@@ -97,7 +99,9 @@ for run_index, run_name in enumerate(run_names):
 
 problem5_test.setupEmptyTestCompsList()
 digitised_result = {}
+digitised_source_result = {}
 AUTOUGH2_result = {}
+source_index = 0
 
 for run_index, run_name in enumerate(run_names):
 
@@ -118,6 +122,12 @@ for run_index, run_name in enumerate(run_names):
                 data_filename = os.path.join(data_dir, data_filename.lower() + '.dat')
                 data[field_name, obs_cell_index[obspt]] = np.loadtxt(data_filename)
         digitised_result[run_name, sim] = HistoryDataResult(sim, data)
+        obspt = "production"
+        for field_name in test_source_fields:
+            data_filename = '_'.join((model_name + run_name, obspt, field_name, sim))
+            data_filename = os.path.join(data_dir, data_filename.lower() + '.dat')
+            data[field_name, source_index] = np.loadtxt(data_filename)
+        digitised_source_result[run_name, sim] = HistoryDataResult(sim, data)
     
     for obspt in obs_points:
         blk_index = obs_cell_index[obspt]
@@ -137,14 +147,29 @@ for run_index, run_name in enumerate(run_names):
                                                          expected = digitised_result[run_name, sim],
                                                          testCellIndex = obs_cell_index[obspt],
                                                          orthogonalError = True))
+    obspt = "production"
+    problem5_test.addTestComp(run_index, "AUTOUGH2 " + obspt + " source",
+                              HistoryWithinTolTC(fieldsToTest = test_source_fields,
+                                                 defFieldTol = 1.e-3,
+                                                 expected = AUTOUGH2_result[run_name],
+                                                 testSourceIndex = source_index))
+    for sim in digitised_simulators:
+        problem5_test.addTestComp(run_index, ' '.join((sim, obspt, "source")),
+                                  HistoryWithinTolTC(fieldsToTest = \
+                                                     test_source_fields,
+                                                     defFieldTol = 1.5e-2,
+                                                     expected = digitised_source_result[run_name, sim],
+                                                     testSourceIndex = source_index,
+                                                     orthogonalError = True))
 
 jrunner = SimpleJobRunner(mpi = True)
 testResult, mResults = problem5_test.runTest(jrunner, createReports = True)
 
 # plots:
 elevations = [layer.centre for layer in geo.layerlist[1:]]
-scale = {"Pressure": 1.e5, "Temperature": 1., "Steam": 1.}
-unit = {"Pressure": "bar", "Temperature": "$^{\circ}$C", "Steam": "tonnes/m"}
+scale = {"Pressure": 1.e5, "Temperature": 1., "Steam": 1., "Enthalpy": 1.e3}
+unit = {"Pressure": "bar", "Temperature": "$^{\circ}$C", "Steam": "tonnes/m",
+        "Enthalpy": "kJ/kg"}
 symbol = {"LBL": 's', "S-Cubed": 'o'}
 yr = 365. * 24. * 60. * 60.
 
@@ -201,6 +226,36 @@ for run_index, run_name in enumerate(run_names):
                     plt.savefig(img_filename)
                     plt.clf()
                     problem5_test.mSuite.analysisImages.append(img_filename)
+
+    obspt = "production"
+    source_index = 0
+    for field_name in test_source_fields:
+
+        t, var = problem5_test.mSuite.resultsList[run_index].\
+                 getFieldHistoryAtSource(field_name, source_index)
+        plt.plot(t / yr, var / scale[field_name], '-', label = 'Waiwera')
+
+        t, var = AUTOUGH2_result[run_name].getFieldHistoryAtSource(field_name, source_index)
+        plt.plot(t / yr, var / scale[field_name], '+', label = 'AUTOUGH2')
+
+        for sim in digitised_simulators:
+            result = digitised_source_result[run_name, sim]
+            t, var = result.getFieldHistoryAtSource(field_name, source_index)
+            plt.plot(t / yr, var / scale[field_name], symbol[sim], label = sim)
+        plt.xlabel('time (years)')
+        plt.ylabel(field_name + ' (' + unit[field_name] + ')')
+        plt.legend()
+        plt.title(' '.join((model_name + run_name, field_name.lower(),
+                            'results:', obspt)))
+        img_filename_base = '_'.join((model_name, run_name, obspt, field_name))
+        img_filename_base = img_filename_base.replace(' ', '_')
+        img_filename = os.path.join(problem5_test.mSuite.runs[run_index].basePath,
+                                    problem5_test.mSuite.outputPathBase,
+                                    img_filename_base + '.png')
+        plt.tight_layout(pad = 3.)
+        plt.savefig(img_filename)
+        plt.clf()
+        problem5_test.mSuite.analysisImages.append(img_filename)
 
 # generate report:
 

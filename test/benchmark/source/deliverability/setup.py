@@ -51,7 +51,6 @@ dat.parameter.update(
 
 dat.parameter['option'][1] = 1
 dat.parameter['option'][16] = 0
-dat.parameter['option'][24] = 2 # output initial results
 
 dat.parameter['timestep'] = list(dts)
 dat.parameter['const_timestep'] = -int(round(ndt // 8))
@@ -131,6 +130,11 @@ from os.path import isfile
 for run_name in run_names:
 
     dat = t2data_export_json(model_name + '.dat')
+    if run_name == 'delg_pi_table':
+        # AUTOUGH2 initial flow rate appears to be wrong for this case:
+        dat.parameter['option'][24] = 0
+    else: # output initial results
+        dat.parameter['option'][24] = 2
     dat.add_generator(run_sources[run_name])
     run_base_name = model_name + '_' + run_name
     dat.write(run_base_name + '.dat')
