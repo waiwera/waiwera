@@ -55,7 +55,8 @@ module flow_simulation_module
      Vec, public :: update_cell !! Which cells have primary variables being updated
      Vec, public :: flux !! Mass or energy fluxes through cell faces for each component
      Vec, public :: source !! Source/sink terms
-     PetscInt, public :: num_sources !! Number of source/sink terms on current process
+     PetscInt, public :: num_local_sources !! Number of source/sink terms on current process
+     PetscInt, public :: num_sources !! Total number of source/sink terms on all processes
      IS, public :: source_index !! Index set defining natural to global source ordering
      type(list_type), public :: source_controls !! Source/sink controls
      class(thermodynamics_type), allocatable, public :: thermo !! Fluid thermodynamic formulation
@@ -736,8 +737,8 @@ contains
                       call setup_sources(json, self%mesh%dm, self%mesh%cell_order, &
                            self%eos, self%thermo, self%time, self%fluid, &
                            self%fluid_range_start, self%source, self%source_range_start, &
-                           self%num_sources, self%source_controls, self%source_index, &
-                           self%logfile, err)
+                           self%num_local_sources, self%num_sources, self%source_controls, &
+                           self%source_index, self%logfile, err)
                       if (err == 0) then
                          call self%output_source_indices()
                          call self%output_source_cell_indices()
@@ -1165,7 +1166,7 @@ contains
       call cell%init(self%eos%num_components, self%eos%num_phases)
       call source%init(self%eos)
 
-      do s = 0, self%num_sources - 1
+      do s = 0, self%num_local_sources - 1
 
          call global_section_offset(source_section, s, &
               self%source_range_start, source_offset, ierr); CHKERRQ(ierr)
@@ -1771,8 +1772,8 @@ contains
        call global_vec_section(self%source, source_section)
        call VecGetArrayReadF90(self%source, source_data, ierr); CHKERRQ(ierr)
        call source%init(self%eos)
-       allocate(source_cell_indices(self%num_sources))
-       do i = 1, self%num_sources
+       allocate(source_cell_indices(self%num_local_sources))
+       do i = 1, self%num_local_sources
           call global_section_offset(source_section, i - 1, &
                self%source_range_start, source_offset, ierr); CHKERRQ(ierr)
           call source%assign(source_data, source_offset)
@@ -1780,7 +1781,7 @@ contains
        end do
        call VecRestoreArrayReadF90(self%source, source_data, ierr); CHKERRQ(ierr)
        call source%destroy()
-       call ISCreateGeneral(PETSC_COMM_WORLD, self%num_sources, &
+       call ISCreateGeneral(PETSC_COMM_WORLD, self%num_local_sources, &
             source_cell_indices, PETSC_COPY_VALUES, is_cell_indices, ierr)
        CHKERRQ(ierr)
        deallocate(source_cell_indices)
