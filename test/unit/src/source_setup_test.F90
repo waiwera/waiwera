@@ -73,11 +73,9 @@ contains
 
     call setup_sources(json, mesh%dm, mesh%cell_order, eos, thermo, start_time, &
          fluid_vector, fluid_range_start, source_vector, source_range_start, &
-         num_sources, source_controls, source_is, err = err)
+         num_sources, total_num_sources, source_controls, source_is, err = err)
     call assert_equals(0, err, "error")
 
-    call MPI_reduce(num_sources, total_num_sources, 1, MPI_INTEGER, MPI_SUM, &
-         0, PETSC_COMM_WORLD, ierr)
     if (rank == 0) then
       call assert_equals(expected_num_sources, total_num_sources, "number of sources")
     end if

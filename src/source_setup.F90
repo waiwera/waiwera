@@ -44,7 +44,7 @@ contains
 
   subroutine setup_sources(json, dm, ao, eos, thermo, start_time, &
        fluid_vector, fluid_range_start, source_vector, source_range_start, &
-       num_sources, source_controls, source_index, logfile, err)
+       num_local_sources, num_sources, source_controls, source_index, logfile, err)
     !! Sets up sinks / sources and source controls.
 
     use dm_utils_module
@@ -59,7 +59,8 @@ contains
     PetscInt, intent(in) :: fluid_range_start !! Range start for global fluid vector
     Vec, intent(out) :: source_vector !! Source vector
     PetscInt, intent(out) :: source_range_start !! Range start for global source vector
-    PetscInt, intent(out) :: num_sources !! Number of sources created
+    PetscInt, intent(out) :: num_local_sources !! Number of sources created on current process
+    PetscInt, intent(out) :: num_sources !! Total number of sources created on all processes
     type(list_type), intent(in out) :: source_controls !! List of source controls
     IS, intent(in out) :: source_index !! IS defining natural-to-global source ordering
     type(logfile_type), intent(in out), optional :: logfile !! Logfile for log output
@@ -74,14 +75,14 @@ contains
     PetscSection :: fluid_section, source_section
     PetscErrorCode :: ierr
 
-    num_sources = 0
+    num_local_sources = 0
     call source%init(eos)
     err = 0
 
     call label_source_zones(json, num_sources, logfile, err)
     if (err == 0) then
 
-       call create_path_dm(num_sources, dm_source)
+       call create_path_dm(num_local_sources, dm_source)
        call setup_source_dm_data_layout(dm_source)
        call DMCreateGlobalVector(dm_source, source_vector, ierr); CHKERRQ(ierr)
        call PetscObjectSetName(source_vector, "source", ierr); CHKERRQ(ierr)
@@ -111,7 +112,7 @@ contains
        end if
 
        if (err == 0) then
-          call setup_source_index(num_sources, source_data, source_section, &
+          call setup_source_index(num_local_sources, source_data, source_section, &
                source_range_start, source, source_index)
        end if
 
@@ -122,6 +123,9 @@ contains
     end if
 
     call source%destroy()
+
+    call MPI_reduce(num_local_sources, num_sources, 1, MPI_INTEGER, MPI_SUM, &
+         0, PETSC_COMM_WORLD, ierr)
 
   contains
 
@@ -340,7 +344,7 @@ contains
 
 !........................................................................
 
-    subroutine setup_source_index(num_sources, source_data, &
+    subroutine setup_source_index(num_local_sources, source_data, &
          source_section, source_range_start, source, source_index)
       !! Sets up natural-to-global source ordering IS. This gives the
       !! global index corresponding to a natural source index.
@@ -348,14 +352,14 @@ contains
       use utils_module, only: get_mpi_int_gather_array, &
            array_cumulative_sum
 
-      PetscInt, intent(in) :: num_sources
+      PetscInt, intent(in) :: num_local_sources
       PetscReal, contiguous, pointer, intent(in) :: source_data(:)
       PetscSection, intent(in) :: source_section
       PetscInt, intent(in) :: source_range_start
       type(source_type), intent(in out) :: source
       IS, intent(in out) :: source_index
       ! Locals:
-      PetscInt :: indices(num_sources)
+      PetscInt :: indices(num_local_sources)
       PetscInt :: i, source_offset
       PetscMPIInt :: rank, num_procs, num_all, is_count
       PetscInt, allocatable :: counts(:), displacements(:)
@@ -365,7 +369,7 @@ contains
       call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
       call MPI_COMM_SIZE(PETSC_COMM_WORLD, num_procs, ierr)
 
-      do i = 1, num_sources
+      do i = 1, num_local_sources
          call global_section_offset(source_section, i - 1, &
               source_range_start, source_offset, ierr); CHKERRQ(ierr)
          call source%assign(source_data, source_offset)
@@ -374,7 +378,7 @@ contains
 
       counts = get_mpi_int_gather_array()
       displacements = get_mpi_int_gather_array()
-      call MPI_gather(num_sources, 1, MPI_INTEGER, counts, 1, &
+      call MPI_gather(num_local_sources, 1, MPI_INTEGER, counts, 1, &
            MPI_INTEGER, 0, PETSC_COMM_WORLD, ierr)
       if (rank == 0) then
          displacements = [[0], &
@@ -386,7 +390,7 @@ contains
          is_count = 0
       end if
       allocate(indices_all(0: num_all - 1), global_indices(0: num_all - 1))
-      call MPI_gatherv(indices, num_sources, MPI_INTEGER, &
+      call MPI_gatherv(indices, num_local_sources, MPI_INTEGER, &
            indices_all, counts, displacements, &
            MPI_INTEGER, 0, PETSC_COMM_WORLD, ierr)
       if (rank == 0) then

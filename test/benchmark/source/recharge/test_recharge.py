@@ -47,7 +47,7 @@ unit = {"Generation rate": "kg/s"}
 geo = mulgrid(t2geo_filename)
 map_out_atm = range(geo.num_atmosphere_blocks, geo.num_blocks)
 
-test = SciBenchmarkTest("Recharge", nproc = num_procs)
+test = SciBenchmarkTest("recharge_test", nproc = num_procs)
 test.description = """Tests recharge sources"""
 
 source_index = 0
