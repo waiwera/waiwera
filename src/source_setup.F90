@@ -79,7 +79,7 @@ contains
     call source%init(eos)
     err = 0
 
-    call label_source_zones(json, num_sources, logfile, err)
+    call label_source_zones(json, num_local_sources, logfile, err)
     if (err == 0) then
 
        call create_path_dm(num_local_sources, dm_source)
