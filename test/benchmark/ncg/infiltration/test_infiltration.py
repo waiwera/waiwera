@@ -3,6 +3,7 @@ TOUGH2 infiltration test from TOUGH user guide
 """
 
 import os
+import sys
 
 from credo.systest import SciBenchmarkTest
 
@@ -25,7 +26,9 @@ rcParams['mathtext.default'] = 'regular'
 
 import numpy as np
 from docutils.core import publish_file
-    
+
+num_procs = int(sys.argv[1]) if len(sys.argv) > 1 else 1
+
 model_name = 'infiltration'
 
 def liquid_sat(mResult, index):
@@ -44,7 +47,6 @@ t2geo_filename = os.path.join(model_dir, 'g' + model_name + '.dat')
 geo = mulgrid(t2geo_filename)
 map_out_bdy = range(0, geo.num_blocks)
 
-num_procs = 1
 run_index = 0
 run_name = 'run'
 run_base_name = model_name

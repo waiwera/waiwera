@@ -3,6 +3,7 @@ Tests for sources on deliverability
 """
 
 import os
+import sys
 
 from credo.systest import SciBenchmarkTest
 from credo.systest import FieldWithinTolTC
@@ -21,6 +22,8 @@ import numpy as np
 
 from docutils.core import publish_file
 
+num_procs = int(sys.argv[1]) if len(sys.argv) > 1 else 1
+
 model_name = 'deliv'
 
 WAIWERA_FIELDMAP = {
@@ -33,8 +36,6 @@ WAIWERA_FIELDMAP = {
 
 model_dir = './run'
 t2geo_filename = os.path.join(model_dir, 'g' + model_name + '.dat')
-
-num_procs = 1
 
 run_names = ['delv', 'delg_flow', 'delg_pi_table', 'delg_pwb_table', 'delg_limit', 'delt', 'delw']
 test_fields = ["Pressure", "Temperature", "Vapour saturation"]

@@ -3,6 +3,7 @@ Radial heat pipe problem ('rhp') from TOUGH2 user guide
 """
 
 import os
+import sys
 
 from credo.systest import SciBenchmarkTest
 
@@ -25,6 +26,8 @@ rcParams['mathtext.default'] = 'regular'
 import numpy as np
 from docutils.core import publish_file
 
+num_procs = int(sys.argv[1]) if len(sys.argv) > 1 else 1
+
 model_name = 'heat_pipe'
 
 AUTOUGH2_FIELDMAP = {
@@ -45,7 +48,6 @@ t2geo_filename = os.path.join(model_dir, 'g' + model_name + '.dat')
 geo = mulgrid(t2geo_filename)
 min_radius, max_radius = 1.e-1, 400.
 
-num_procs = 1
 run_name = 'run'
 run_index = 0
 

@@ -3,6 +3,7 @@ Model Intercomparison Study problem 5
 """
 
 import os
+import sys
 
 from credo.systest import SciBenchmarkTest
 from credo.systest import FieldWithinTolTC
@@ -21,6 +22,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from docutils.core import publish_file
+
+num_procs = int(sys.argv[1]) if len(sys.argv) > 1 else 1
 
 def total_steam_history(mResult, index):
     """Returns history of total steam in place (per unit reservoir
@@ -54,8 +57,6 @@ WAIWERA_FIELDMAP = {
 model_dir = './run'
 data_dir = './data'
 t2geo_filename = os.path.join(model_dir, 'g' + model_name + '.dat')
-
-num_procs = 1
 
 run_names = ['a', 'b']
 test_fields = ["Pressure", "Temperature", "Vapour saturation"]

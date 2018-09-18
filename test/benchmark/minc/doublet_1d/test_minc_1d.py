@@ -3,6 +3,7 @@
 """
 
 import os
+import sys
 
 from credo.systest import SciBenchmarkTest
 
@@ -24,7 +25,9 @@ rcParams['mathtext.default'] = 'regular'
 import numpy as np
 import json
 from docutils.core import publish_file
-    
+
+num_procs = int(sys.argv[1]) if len(sys.argv) > 1 else 1
+
 model_name = 'minc_1d'
 
 AUTOUGH2_FIELDMAP = {
@@ -52,7 +55,6 @@ def minc_level_map(num_levels):
         m += level_map
     return m
 
-num_procs = 2
 spacings = [50, 100, 200] # fracture spacings
 run_names = ['single'] + [str(s) for s in spacings]
 

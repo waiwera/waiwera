@@ -3,6 +3,7 @@ CO2 column test from O'Sullivan et al. (1985)
 """
 
 import os
+import sys
 
 from credo.systest import SciBenchmarkTest
 
@@ -25,6 +26,8 @@ rcParams['mathtext.default'] = 'regular'
 
 import numpy as np
 from docutils.core import publish_file
+
+num_procs = int(sys.argv[1]) if len(sys.argv) > 1 else 1
 
 def total_CO2_mass_fraction(mResult, index):
     """Returns total CO2 mass fraction across all phases, from Waiwera
@@ -57,7 +60,6 @@ t2geo_filename = os.path.join(model_dir, 'g' + model_name + '.dat')
 geo = mulgrid(t2geo_filename)
 map_out_atm = range(geo.num_atmosphere_blocks, geo.num_blocks)
 
-num_procs = 1
 CO2_mass_fractions = [0, 0.1, 1, 5] # percent
 run_names = [str(xgp) for xgp in CO2_mass_fractions]
 obs_cell_index = 0
