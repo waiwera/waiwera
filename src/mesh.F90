@@ -1688,10 +1688,8 @@ contains
        call DMGetLabelSize(self%dm, minc_zone_label_name, &
             num_minc_cells, ierr); CHKERRQ(ierr)
        has_minc_local = (num_minc_cells > 0)
-       call MPI_reduce(has_minc_local, self%has_minc, 1, MPI_LOGICAL, MPI_LOR, &
-         0, PETSC_COMM_WORLD, ierr)
-       call MPI_bcast(self%has_minc, 1, MPI_LOGICAL, 0, &
-            PETSC_COMM_WORLD, ierr)
+       call MPI_allreduce(has_minc_local, self%has_minc, 1, MPI_LOGICAL, MPI_LOR, &
+         PETSC_COMM_WORLD, ierr)
     else
        self%has_minc = PETSC_FALSE
     end if
