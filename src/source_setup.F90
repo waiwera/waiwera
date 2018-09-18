@@ -143,8 +143,8 @@ contains
     call source%destroy()
     if (allocated(source_cells)) deallocate(source_cells)
 
-    call MPI_reduce(num_local_sources, num_sources, 1, MPI_INTEGER, MPI_SUM, &
-         0, PETSC_COMM_WORLD, ierr)
+    call MPI_allreduce(num_local_sources, num_sources, 1, MPI_INTEGER, MPI_SUM, &
+         PETSC_COMM_WORLD, ierr)
 
   contains
 
