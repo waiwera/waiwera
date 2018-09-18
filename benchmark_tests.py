@@ -15,6 +15,8 @@ from docutils.core import publish_file
 
 start_time = str(datetime.datetime.now())
 
+num_procs = sys.argv[1] if len(sys.argv) > 1 else '1'
+
 orig_path = os.getcwd()
 summary = {"tests": []}
 passed = True
@@ -26,7 +28,7 @@ for path, dirs, files in os.walk(tests_path):
     for script in scripts:
         print(os.path.join(path, script), '...', end = "")
         sys.stdout.flush()
-        subprocess.call(['python', script], stdout = open(os.devnull, 'wb'))
+        subprocess.call(['python', script, num_procs], stdout = open(os.devnull, 'wb'))
         if os.path.isdir('output'):
             os.chdir('output')
             outpaths = [p.strip('/') for p in glob.glob('*/')]
@@ -64,6 +66,14 @@ rstfile.write("*****************************\n\n")
 rstfile.write("Overall Result: %s\n" % ("Pass" if passed else "Fail"))
 rstfile.write("====================\n\n")
 summary['pass'] = passed
+
+rstfile.write("Description\n")
+rstfile.write("===========\n\n")
+rstfile.write("Waiwera benchmark tests\n\n")
+
+rstfile.write("Specification\n")
+rstfile.write("=============\n\n")
+rstfile.write(" * nproc: %s\n\n" % num_procs)
 
 rstfile.write("Provenance\n")
 rstfile.write("==========\n\n")

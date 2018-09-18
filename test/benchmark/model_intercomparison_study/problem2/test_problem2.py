@@ -3,6 +3,7 @@ Model Intercomparison Study problem 2
 """
 
 import os
+import sys
 
 from credo.systest import SciBenchmarkTest
 from similarity import DigitisedSimilarityResult, \
@@ -28,6 +29,8 @@ from scipy.special import expi
 
 from docutils.core import publish_file
 
+num_procs = int(sys.argv[1]) if len(sys.argv) > 1 else 1
+
 model_name = 'problem2'
 
 WAIWERA_FIELDMAP = {
@@ -39,7 +42,6 @@ data_dir = './data'
 t2geo_filename = os.path.join(model_dir, 'g' + model_name + '.dat')
 geo = mulgrid(t2geo_filename)
 
-num_procs = 1
 run_names = ['a', 'b', 'c']
 test_fields = {
     'a': ["Pressure"],
