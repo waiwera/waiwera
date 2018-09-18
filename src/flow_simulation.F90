@@ -857,10 +857,8 @@ contains
     else
        local_num_perturbed = 0
     end if
-    call MPI_reduce(local_num_perturbed == 0, self%unperturbed, 1, &
-         MPI_LOGICAL, MPI_LAND, 0, PETSC_COMM_WORLD, ierr)
-    call MPI_bcast(self%unperturbed, 1, MPI_LOGICAL, 0, PETSC_COMM_WORLD, &
-         ierr)
+    call MPI_allreduce(local_num_perturbed == 0, self%unperturbed, 1, &
+         MPI_LOGICAL, MPI_LAND, PETSC_COMM_WORLD, ierr)
 
     if (self%unperturbed) then ! update all
        call VecSet(self%update_cell, 1._dp, ierr); CHKERRQ(ierr)

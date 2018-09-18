@@ -38,20 +38,15 @@ contains
     PetscErrorCode, intent(in out) :: err
     ! Locals:
     PetscBool :: any_err
-    PetscMPIInt :: rank
     PetscErrorCode :: ierr
 
-    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
-    call MPI_reduce(err > 0, any_err, 1, MPI_LOGICAL, MPI_LOR, &
-         0, PETSC_COMM_WORLD, ierr)
-    if (rank == 0) then
-       if (any_err) then
-          err = 1
-       else
-          err = 0
-       end if
+    call MPI_allreduce(err > 0, any_err, 1, MPI_LOGICAL, MPI_LOR, &
+         PETSC_COMM_WORLD, ierr)
+    if (any_err) then
+       err = 1
+    else
+       err = 0
     end if
-    call MPI_bcast(err, 1, MPI_INTEGER, 0, PETSC_COMM_WORLD, ierr)
 
   end subroutine mpi_broadcast_error_flag
 
@@ -63,17 +58,11 @@ contains
     PetscBool, intent(in out) :: val
     ! Locals:
     PetscBool :: any_val
-    PetscMPIInt :: rank
     PetscErrorCode :: ierr
 
-    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
-
-    call MPI_reduce(val, any_val, 1, MPI_LOGICAL, MPI_LOR, &
-         0, PETSC_COMM_WORLD, ierr)
-    if (rank == 0) then
-       val = any_val
-    end if
-    call MPI_bcast(val, 1, MPI_LOGICAL, 0, PETSC_COMM_WORLD, ierr)
+    call MPI_allreduce(val, any_val, 1, MPI_LOGICAL, MPI_LOR, &
+         PETSC_COMM_WORLD, ierr)
+    val = any_val
 
   end subroutine mpi_broadcast_logical
 
