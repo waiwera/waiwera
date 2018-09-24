@@ -224,41 +224,6 @@ contains
 
 !........................................................................
 
-    subroutine label_rock_cells(iminc, minc_rocktype_zone_index)
-      !! Sets MINC zone and rocktype labels on specified cells.
-
-      PetscInt, intent(in) :: iminc, minc_rocktype_zone_index
-      ! Locals:
-      PetscInt, allocatable :: natural_cell_indices(:), &
-           local_cell_indices(:)
-      PetscInt :: c, ic
-      PetscErrorCode :: ierr
-
-      if (fson_has_mpi(rocki_json, "cells")) then
-         call fson_get_mpi(rocki_json, "cells", val = natural_cell_indices)
-         associate(num_cells => size(natural_cell_indices))
-           if (num_cells > 0) then
-              allocate(local_cell_indices(num_cells))
-              local_cell_indices = natural_to_local_cell_index(ao, &
-                   l2g, natural_cell_indices)
-              do ic = 1, num_cells
-                 c = local_cell_indices(ic)
-                 if ((c >= start_cell) .and. (c < end_cell)) then
-                    call DMSetLabelValue(dm, minc_zone_label_name, &
-                         c, iminc, ierr); CHKERRQ(ierr)
-                    call DMSetLabelValue(dm, minc_rocktype_zone_label_name, &
-                         c, minc_rocktype_zone_index, ierr); CHKERRQ(ierr)
-                 end if
-              end do
-           end if
-           deallocate(natural_cell_indices, local_cell_indices)
-         end associate
-      end if
-
-    end subroutine label_rock_cells
-
-!........................................................................
-
     subroutine label_rock_zones(iminc, minc_rocktype_zone_index, err)
       !! Sets MINC zone and rocktype labels on specified zones.
 
