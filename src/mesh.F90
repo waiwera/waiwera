@@ -629,11 +629,9 @@ contains
     PetscViewer, intent(in out) :: viewer !! PetscViewer for output of cell index sets to HDF5 file
     PetscErrorCode, intent(out) :: err !! Error flag
     ! Locals:
-    PetscMPIInt :: np
     PetscErrorCode :: ierr
 
     err = 0
-    call MPI_comm_size(PETSC_COMM_WORLD, np, ierr)
 
     call self%distribute()
 
