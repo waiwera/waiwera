@@ -3,6 +3,7 @@ from __future__ import print_function
 
 tests_path = "test/benchmark"
 
+import argparse
 import datetime
 import os
 import sys
@@ -15,7 +16,11 @@ from docutils.core import publish_file
 
 start_time = str(datetime.datetime.now())
 
-num_procs = sys.argv[1] if len(sys.argv) > 1 else '1'
+parser = argparse.ArgumentParser()
+parser.add_argument("-np", help = "number of processes")
+args = parser.parse_args()
+if args.np: num_procs = args.np
+else: num_procs = '1'
 
 orig_path = os.getcwd()
 summary = {"tests": []}
