@@ -963,8 +963,8 @@ contains
     PetscInt :: i, face_offset, dirn
     PetscErrorCode :: ierr
 
-    call DMGetDimension(self%original_dm, dim, ierr); CHKERRQ(ierr)
-    call DMGetLabel(self%original_dm, face_permeability_override_label_name, &
+    call DMGetDimension(self%dm, dim, ierr); CHKERRQ(ierr)
+    call DMGetLabel(self%dm, face_permeability_override_label_name, &
          label, ierr); CHKERRQ(ierr)
 
     call local_vec_section(self%face_geom, face_section)
