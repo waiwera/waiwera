@@ -1206,6 +1206,7 @@ contains
                deallocate(cells)
             end if
             minc_rocktype_zone_index = minc_rocktype_zone_index + 1
+            rocki_json => rocki_json%next
          end do
 
       end if
