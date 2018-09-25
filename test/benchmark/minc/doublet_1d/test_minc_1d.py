@@ -2,6 +2,7 @@
 1-D MINC doublet test
 """
 
+import argparse
 import os
 import sys
 
@@ -26,7 +27,11 @@ import numpy as np
 import json
 from docutils.core import publish_file
 
-num_procs = int(sys.argv[1]) if len(sys.argv) > 1 else 1
+parser = argparse.ArgumentParser()
+parser.add_argument("-np", help = "number of processes")
+args = parser.parse_args()
+if args.np: num_procs = int(args.np)
+else: num_procs = 1
 
 model_name = 'minc_1d'
 

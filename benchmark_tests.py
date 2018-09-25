@@ -33,7 +33,7 @@ for path, dirs, files in os.walk(tests_path):
     for script in scripts:
         print(os.path.join(path, script), '...', end = "")
         sys.stdout.flush()
-        subprocess.call(['python', script, num_procs], stdout = open(os.devnull, 'wb'))
+        subprocess.call(['python', script, '-np', num_procs], stdout = open(os.devnull, 'wb'))
         if os.path.isdir('output'):
             os.chdir('output')
             outpaths = [p.strip('/') for p in glob.glob('*/')]
