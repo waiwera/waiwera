@@ -2,6 +2,7 @@
 Model Intercomparison Study problem 2
 """
 
+import argparse
 import os
 import sys
 
@@ -29,7 +30,11 @@ from scipy.special import expi
 
 from docutils.core import publish_file
 
-num_procs = int(sys.argv[1]) if len(sys.argv) > 1 else 1
+parser = argparse.ArgumentParser()
+parser.add_argument("-np", help = "number of processes")
+args = parser.parse_args()
+if args.np: num_procs = int(args.np)
+else: num_procs = 1
 
 model_name = 'problem2'
 

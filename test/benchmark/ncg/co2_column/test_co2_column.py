@@ -2,6 +2,7 @@
 CO2 column test from O'Sullivan et al. (1985)
 """
 
+import argparse
 import os
 import sys
 
@@ -27,7 +28,11 @@ rcParams['mathtext.default'] = 'regular'
 import numpy as np
 from docutils.core import publish_file
 
-num_procs = int(sys.argv[1]) if len(sys.argv) > 1 else 1
+parser = argparse.ArgumentParser()
+parser.add_argument("-np", help = "number of processes")
+args = parser.parse_args()
+if args.np: num_procs = int(args.np)
+else: num_procs = 1
 
 def total_CO2_mass_fraction(mResult, index):
     """Returns total CO2 mass fraction across all phases, from Waiwera
