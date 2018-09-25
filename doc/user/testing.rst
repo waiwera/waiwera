@@ -23,7 +23,7 @@ Installing FRUIT and FRUITPy
 Running unit tests
 ^^^^^^^^^^^^^^^^^^
 
-To run all unit tests , navigate to the main Waiwera directory and type:
+To run all unit tests, navigate to the main Waiwera directory and type:
 
 .. code-block:: bash
 
@@ -72,4 +72,20 @@ Installing CREDO
 Running benchmark tests
 ^^^^^^^^^^^^^^^^^^^^^^^
 
-.. todo:: add instructions on running benchmark tests
+To run all benchmark tests, navigate to the main Waiwera directory and type:
+
+.. code-block:: bash
+
+  python benchmark_tests.py
+
+This will run the benchmark tests in serial. To run them in parallel with a specified number of processors, use the ``-np`` argument after the script name. For example, the benchmark tests can be run on two processors as follows:
+
+.. code-block:: bash
+
+  python benchmark_tests.py -np 2
+
+As the tests are run, the path to each individual test script will be displayed, with a ``Pass`` or ``Fail`` after each one. When they are all finished, an overall ``Pass`` or ``Fail`` will be displayed.
+
+In addition, an HTML page with a summary of the test results is written to the benchmark test directory: ``test/benchmark/test_summary.html``. This contains a list of all tests and a link to the results page for each one. These individual test results pages contain the results of all comparisons with reference solutions for each test, together with plots of relevant quantities.
+
+It is also possible to run tests individually. The tests are all contained in sub-directories under the ``test/benchmark`` directory. Within each test directory there is a Python script named ``test_*.py`` (the exact name depending on the test). Executing this test script will run the test. These test scripts can also be run either in serial (the default) or in parallel by adding the ``-np`` argument after the script name, followed by the number of processors.
