@@ -883,8 +883,9 @@ contains
     use fson_mpi_module
     use dictionary_module
     use rock_module
-    use minc_module, only: minc_level_label_name
-    use dm_utils_module, only: global_section_offset, global_vec_section
+    use minc_module, only: minc_level_label_name, minc_rocktype_zone_label_name
+    use dm_utils_module, only: global_section_offset, global_vec_section, &
+         natural_to_local_cell_index
     use IAPWS_module
     use eos_we_module
 
@@ -907,7 +908,7 @@ contains
          '                    {"name": "fracture", "porosity": 0.6}, ' // &
          '                    {"name": "matrix", "porosity": 0.02}]}}'
 
-    call minc_rock_test_case(json_str, "case 1", 1, 0.6_dp, 0.02_dp)
+    call minc_rock_test_case(json_str, "case 1", 1, [0.6_dp], [0.02_dp], [49])
 
     json_str = &
          '{"mesh": {"filename": "data/mesh/7x7grid.exo",' // &
@@ -922,25 +923,52 @@ contains
          '                    {"name": "fracture", "porosity": 0.6}, ' // &
          '                    {"name": "matrix"}]}}'
 
-    call minc_rock_test_case(json_str, "case 2", 2, 0.6_dp, 2._dp / 45._dp)
+    call minc_rock_test_case(json_str, "case 2", 2, [0.6_dp], [2._dp / 45._dp], [49])
+
+    json_str = &
+         '{"mesh": {"filename": "data/mesh/7x7grid.exo",' // &
+         '  "zones": {"all": {"-": null}, "S": {"y": [0, 1500]}, "N": {"-": "S"}},' // &
+         '  "minc": {"rock": [{"zones": "S", ' // &
+         '                      "fracture": {"type": "fractureS"}, ' // &
+         '                      "matrix": {"type": "matrixS"}}, ' // &
+         '                    {"zones": "N", ' // &
+         '                       "fracture": {"type": "fractureN"}, ' // &
+         '                       "matrix": {"type": "matrixN"}}], ' // &
+         '           "geometry": {"fracture": {"volume": 0.1, "planes": 3, ' // &
+         '                          "spacing": 100}, ' // &
+         '                        "matrix": {"volume": 0.9}}}},' // &
+         ' "rock": {"types": [{"name": "original", "porosity": 0.1, "zones": "all"}, ' // &
+         '                    {"name": "fractureS", "porosity": 0.6}, ' // &
+         '                    {"name": "matrixS", "porosity": 0.02}, ' // &
+         '                    {"name": "fractureN", "porosity": 0.7}, ' // &
+         '                    {"name": "matrixN"}]}}'
+
+    call minc_rock_test_case(json_str, "case 3", 1, [0.6_dp, 0.7_dp], &
+         [0.02_dp, 1._dp / 30._dp], [14, 35])
 
   contains
 
     subroutine minc_rock_test_case(json_str, title, num_levels, &
-         expected_fracture_porosity, expected_matrix_porosity)
+         expected_fracture_porosity, expected_matrix_porosity, &
+         expected_num_minc_rock_cells)
 
       character(*), intent(in) :: json_str
       character(*), intent(in) :: title
       PetscInt, intent(in) :: num_levels
-      PetscReal, intent(in) :: expected_fracture_porosity, expected_matrix_porosity
+      PetscReal, intent(in) :: expected_fracture_porosity(:), expected_matrix_porosity(:)
+      PetscInt, intent(in) :: expected_num_minc_rock_cells(:)
       ! Locals:
       type(fson_value), pointer :: json
       type(mesh_type) :: mesh
       type(IAPWS_type) :: thermo
       type(eos_we_type) :: eos
       PetscViewer :: viewer
+      PetscInt :: num_local_minc_rock_cells, num_minc_rock_cells, num_minc_rocktypes
       Vec :: rock_vector
       type(dictionary_type) :: rock_dict
+      PetscInt :: fracture_natural, fracture_local, r
+      ISLocalToGlobalMapping :: l2g
+      DMLabel :: minc_rocktype_label
       PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
       PetscErrorCode :: err
       PetscInt :: rock_range_start, c, i, m, num_cells, offset
@@ -949,13 +977,12 @@ contains
       PetscSection :: section
       IS :: minc_IS
       PetscInt, pointer :: minc_points(:)
-      PetscReal :: expected_porosity(0 : num_levels)
+      PetscReal :: expected_porosity
       character(8) :: levelstr
       PetscReal, parameter :: tol = 1.e-6
 
       viewer = PETSC_NULL_VIEWER
-      expected_porosity = expected_matrix_porosity
-      expected_porosity(0) = expected_fracture_porosity
+      num_minc_rocktypes = size(expected_fracture_porosity)
 
       call thermo%init()
       json => fson_parse_mpi(str = json_str)
@@ -978,6 +1005,19 @@ contains
       call VecGetArrayReadF90(rock_vector, rock_array, ierr); CHKERRQ(ierr)
       call global_vec_section(rock_vector, section)
       call rock%init()
+      call DMGetLocalToGlobalMapping(mesh%dm, l2g, ierr); CHKERRQ(ierr)
+      call DMGetLabel(mesh%dm, minc_rocktype_zone_label_name, minc_rocktype_label, ierr)
+
+      do r = 1, num_minc_rocktypes
+         call DMGetStratumSize(mesh%dm, minc_rocktype_zone_label_name, r, &
+              num_local_minc_rock_cells, ierr); CHKERRQ(ierr)
+         call mpi_reduce(num_local_minc_rock_cells, num_minc_rock_cells, 1, &
+              MPI_INTEGER, MPI_SUM, 0, PETSC_COMM_WORLD, ierr)
+         if (rank == 0) then
+            call assert_equals(expected_num_minc_rock_cells(r), num_minc_rock_cells, &
+              title // " MINC rock cell count")
+         end if
+      end do
 
       do m = 0, num_levels
          write(levelstr, '(a, i1)') ' level ', m
@@ -990,10 +1030,20 @@ contains
             do i = 1, size(minc_points)
                c = minc_points(i)
                if (mesh%ghost_cell(c) < 0) then
+                  fracture_natural = mesh%local_to_fracture_natural(c)
+                  fracture_local = natural_to_local_cell_index(mesh%cell_order, &
+                       l2g, fracture_natural)
+                  call DMLabelGetValue(minc_rocktype_label, fracture_local, &
+                       r, ierr); CHKERRQ(ierr)
+                  if (m == 0) then
+                     expected_porosity = expected_fracture_porosity(r)
+                  else
+                     expected_porosity = expected_matrix_porosity(r)
+                  end if
                   call global_section_offset(section, c, rock_range_start, &
                        offset, ierr); CHKERRQ(ierr)
                   call rock%assign(rock_array, offset)
-                  call assert_equals(expected_porosity(m), rock%porosity, tol, &
+                  call assert_equals(expected_porosity, rock%porosity, tol, &
                        title // levelstr)
                end if
             end do
