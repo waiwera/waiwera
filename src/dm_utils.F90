@@ -510,7 +510,7 @@ contains
          indices, PETSC_COPY_VALUES, new_index_block, ierr); CHKERRQ(ierr)
     call ISRestoreIndicesF90(new_index, indices, ierr); CHKERRQ(ierr)
 
-    call VecScatterCreate(vinitial, old_index_block, v, &
+    call VecScatterCreateWithData(vinitial, old_index_block, v, &
          new_index_block, scatter, ierr); CHKERRQ(ierr)
     call ISDestroy(old_index_block, ierr); CHKERRQ(ierr)
     call ISDestroy(new_index_block, ierr); CHKERRQ(ierr)
