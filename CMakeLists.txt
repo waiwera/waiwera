@@ -11,7 +11,7 @@ project (waiwera
 
 # external libraries:
 set(CMAKE_MODULE_PATH ${CMAKE_HOME_DIRECTORY}/cmake-modules)
-find_package(PETSc REQUIRED)
+find_package(PETSc 3.10 REQUIRED)
 find_package(FSON REQUIRED)
 
 # compiler options:
