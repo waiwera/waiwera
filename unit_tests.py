@@ -6,7 +6,7 @@ from sys import argv
 from glob import glob
 import FRUIT
 
-build_command = 'make tests'
+build_command = ['make', '--directory', 'build', '--no-print-directory', 'test_all']
 driver_name = 'test_all'
 test_dir = 'test/unit/src/'
 output_dir = 'test/unit/dist/'
