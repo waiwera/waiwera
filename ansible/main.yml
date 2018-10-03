@@ -1,0 +1,6 @@
+---
+- hosts: all
+  remote_user: vagrant
+  tasks:
+    - name: execute unit
+      script: /home/vagrant/supermodels-test/unit_tests.py
