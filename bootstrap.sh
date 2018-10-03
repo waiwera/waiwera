@@ -8,12 +8,12 @@ apt install -y software-properties-common
 apt-add-repository ppa:ansible/ansible
 apt update
 apt install -y ansible
-cp /vagrant/ansible/ansible.cfg /etc/ansible/ansible.cfg
+# cp /vagrant/ansible/ansible.cfg /etc/ansible/ansible.cfg
 
 echo "Installing Waiwera requirements..."
 
 apt install -y gfortran libopenmpi-dev bison flex cmake git valgrind cvs zlib1g-dev openmpi-bin python g++ vim screen cvs gem rake
-# long  build
+## long  build
 # apt install -y  xfce4 virtualbox-guest-dkms virtualbox-guest-utils virtualbox-guest-x11
 
 # Python stuff

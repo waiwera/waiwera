@@ -2,22 +2,31 @@
 
 This is the base level setup needed to start deploying software to a server
 
-Vagrant needs to be installed for this to work. See step below to setup vagrant:
+## Local Machine Setup
+Git, Vagrant, and VirtualBox need to be installed for this to work. The repository which sets up the test environment also needs to be cloned. See step below to setup vagrant:
 
+1. Install Git from: https://git-scm.com/book/en/v2/Getting-Started-Installing-Git
 1. Install VirtualBox from: https://www.virtualbox.org/wiki/Downloads
 1. Install Vagrant from: https://www.vagrantup.com/downloads.html
-1. Download the vagrant setup from: link to be added
+1. Download the vagrant setup from:
+```
+git clone ssh://git@stargate.esc.auckland.ac.nz/~thar102/geo-deploy.git
+```
+This will have to change to a public repository for other users to test.
 
-Run `vagrant init` and within the geo-deploy directory
+## Vagrant Virtual Machine setup
 
-- `vagrant up` - starts all machines in the configuration, `vagrant up waiwera` starts a machine called `waiwera`
-- `vagrant ssh waiwera` - connects via ssh to the machine
-- `cd ~/supermodels-test/`
-- `python unit_tests.py`
-- `vagrant suspend waiwera` - suspends the machine called dm
+Open the command line for your operating system and follow these steps:
+- Navigate to the he directory geo-deploy was cloned into and run `vagrant init`
+  - This only has to be done once to tell the system that this is vagrant deployment directory
+- `vagrant up` - starts a VM (virtual machine) named `waiwera`
+  - This could take some time as it builds and installs all the dependencies required
+- `vagrant ssh` - connects via ssh to the machine. Within the `ssh` session run:
+  - `cd ~/supermodels-test/`
+  - `python unit_tests.py`, all tests should pass
+  - `exit` will leave the ssh connection
+- You are now done you can either destroy or suspend the `waiwera` VM
+  - `vagrant suspend` - suspends the VM
+  - `vagrant destroy` - destroys the VM
 
-Current machine:
-
-- `waiwera` - has a basic ansible configuration
-
-ssh_key files are encrypted using ansible vault
+All commands should be run be run from the deployment directory. Otherwise the name of the machine can be added to the end of the vagrant command i.e. `vagrant suspend waiwera`.

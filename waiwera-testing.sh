@@ -1,5 +1,6 @@
 # export PETSC_DIR=/home/vagrant/petsc
 # export PETSC_ARCH=arch-linux2-c-debug
+source /root/.bashrc
 
 ### FRUITpy, required for unit testing
 cp /home/vagrant/fruitpy/fruit_makefile /home/vagrant/fruit/makefile
