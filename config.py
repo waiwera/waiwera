@@ -14,6 +14,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument("-d", "--debug", action = "store_true", help = "Debug mode")
 parser.add_argument("--release", action = "store_true", help = "Release mode")
 parser.add_argument("--fson_dir", help = "FSON library directory")
+parser.add_argument("--fruit_dir", help = "FRUIT library directory")
 args = parser.parse_args()
 
 if args.release: config_mode = "Release"
@@ -25,6 +26,12 @@ if args.fson_dir:
         env["FSON_DIR"] = args.fson_dir
     else: raise Exception("Specified FSON library directory does not exist: " +
                           args.fson_dir)
+if args.fruit_dir:
+    if os.path.isdir(args.fruit_dir):
+        env["FRUIT_DIR"] = args.fruit_dir
+    else: raise Exception("Specified FRUIT library directory does not exist: " +
+                          args.fruit_dir)
+
 unit_test_driver_source_filename = "test/unit/src/test_all.F90"
 if not os.path.isfile(unit_test_driver_source_filename):
     open(unit_test_driver_source_filename, 'a').close()
