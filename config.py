@@ -25,6 +25,9 @@ if args.fson_dir:
         env["FSON_DIR"] = args.fson_dir
     else: raise Exception("Specified FSON library directory does not exist: " +
                           args.fson_dir)
+unit_test_driver_source_filename = "test/unit/src/test_all.F90"
+if not os.path.isfile(unit_test_driver_source_filename):
+    open(unit_test_driver_source_filename, 'a').close()
 
 os.chdir("build")
 
