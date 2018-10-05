@@ -10,9 +10,10 @@ Git, Vagrant, and VirtualBox need to be installed for this to work. The reposito
 1. Install Vagrant from: https://www.vagrantup.com/downloads.html
 1. Download the vagrant setup from:
 ```
-git clone ssh://git@stargate.esc.auckland.ac.nz/~thar102/geo-deploy.git
+git clone http://stargate.esc.auckland.ac.nz/bitbucket/scm/~thar102/geo-deploy.git
 ```
-This will have to change to a public repository for other users to test.
+
+**Make sure to use http not https**
 
 ## Vagrant Virtual Machine setup
 
