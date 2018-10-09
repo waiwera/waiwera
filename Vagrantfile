@@ -2,6 +2,7 @@
 # vi: set ft=ruby :
 
 VAGRANTFILE_API_VERSION = "2"
+Vagrant.require_version ">= 2.1.4"
 
 Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
   config.vm.box = "bento/debian-9"
@@ -18,7 +19,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
     waiwera.vm.hostname = "waiwera"
   end
   config.vm.provider :virtualbox do |v|
-    v.gui = true
+#    v.gui = true
     v.memory = 4096
   end
   if Vagrant.has_plugin?("vagrant-cachier")
