@@ -13,8 +13,6 @@ Git, Vagrant, and VirtualBox need to be installed for this to work. The reposito
 git clone https://timharton@bitbucket.org/timharton/geo-deploy.git
 ```
 
-**Make sure to use http not https**
-
 ## Vagrant Virtual Machine setup
 
 Open the command line for your operating system and follow these steps:
