@@ -18,6 +18,7 @@ git clone https://timharton@bitbucket.org/timharton/geo-deploy.git
 ## Vagrant Virtual Machine setup
 
 Open the command line for your operating system and follow these steps:
+
 - Navigate to the he directory geo-deploy was cloned into and run `vagrant init`
   - This only has to be done once to tell the system that this is vagrant deployment directory
 - `vagrant up` - starts a VM (virtual machine) named `waiwera`
