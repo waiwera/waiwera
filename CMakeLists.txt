@@ -5,6 +5,9 @@ if(${CMAKE_VERSION} VERSION_LESS 3.12)
   cmake_policy(VERSION ${CMAKE_MAJOR_VERSION}.${CMAKE_MINOR_VERSION})
 endif()
 
+include(ExternalProject)
+find_package(Git REQUIRED)
+
 project (waiwera
   VERSION 0.5.0
   LANGUAGES Fortran C)
@@ -13,9 +16,12 @@ set(EXENAME waiwera)
 set(TEST_EXENAME test_all)
 
 # external libraries:
-set(CMAKE_MODULE_PATH ${CMAKE_HOME_DIRECTORY}/cmake-modules)
+set (CMAKE_MODULE_PATH "${CMAKE_MODULE_PATH};${CMAKE_HOME_DIRECTORY}/cmake-modules")
 find_package(PETSc 3.10 REQUIRED)
-find_package(FSON REQUIRED)
+find_package(FSON)
+if (NOT ${FSON_LIBRARY})
+  include(install_FSON)
+endif()
 find_package(FRUIT)
 
 # compiler options:

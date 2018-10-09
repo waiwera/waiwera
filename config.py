@@ -26,6 +26,7 @@ if args.fson_dir:
         env["FSON_DIR"] = args.fson_dir
     else: raise Exception("Specified FSON library directory does not exist: " +
                           args.fson_dir)
+
 if args.fruit_dir:
     if os.path.isdir(args.fruit_dir):
         env["FRUIT_DIR"] = args.fruit_dir

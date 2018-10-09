@@ -12,3 +12,4 @@ test/unit/src/test_all.F90
 doc/ford/*
 !doc/ford/readme
 utils/*.pyc
+external/*
