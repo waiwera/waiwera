@@ -57,12 +57,17 @@ waiwera_sources = [
   'src/zone_label.F90']
 
 waiwera_executable_sources = waiwera_sources + ['src/waiwera.F90']
-
 waiwera_deps = [PETSc, FSON]
-waiwera_rpath = ''
-foreach dep: waiwera_deps
-  waiwera_rpath += dep.get_pkgconfig_variable('libdir') + ':'
-endforeach
+
+set_rpath = get_option('set_rpath')
+if set_rpath
+  waiwera_rpath = ''
+  foreach dep: waiwera_deps
+    waiwera_rpath += dep.get_pkgconfig_variable('libdir') + ':'
+  endforeach
+else
+  waiwera_rpath = ''
+endif
 
 executable('waiwera',
            waiwera_executable_sources,
