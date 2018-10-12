@@ -2,10 +2,10 @@
 
 # configure Waiwera Meson build
 
-from __future__ import print_function
 import os
 import argparse
 import subprocess
+from fruit_config import write_fruit_pkgconfig_file
 
 env = os.environ.copy()
 orig_path = os.getcwd()
@@ -21,7 +21,6 @@ args = parser.parse_args()
 
 if args.release: build_type = "release"
 else: build_type = "debugoptimized" if args.debug else "release"
-print("Build type:", build_type)
 
 def env_update(key, value, separator = ' '):
     if key in env: env[key] += separator + value
@@ -48,11 +47,16 @@ if args.fson_dir:
     else: raise Exception("Specified FSON library directory does not exist: " +
                           args.fson_dir)
 
-# if args.fruit_dir:
-#     if os.path.isdir(args.fruit_dir):
-#         env["FRUIT_DIR"] = args.fruit_dir
-#     else: raise Exception("Specified FRUIT library directory does not exist: " +
-#                           args.fruit_dir)
+if args.fruit_dir:
+    if os.path.isdir(args.fruit_dir):
+        fruit_pkgconfig_path = os.path.join(args.fruit_dir, "pkgconfig")
+        if not os.path.isdir(fruit_pkgconfig_path): os.mkdir(fruit_pkgconfig_path)
+        fruit_pkgconfig_filename = os.path.join(fruit_pkgconfig_path, "FRUIT.pc")
+        if not os.path.isfile(fruit_pkgconfig_filename):
+            write_fruit_pkgconfig_file(args.fruit_dir)
+        env_update('PKG_CONFIG_PATH', fruit_pkgconfig_path, ':')
+    else: raise Exception("Specified FRUIT library directory does not exist: " +
+                          args.fruit_dir)
 
 # unit_test_driver_source_filename = "test/unit/src/test_all.F90"
 # if not os.path.isfile(unit_test_driver_source_filename):
