@@ -5,8 +5,9 @@ project('waiwera', ['c', 'fortran'],
         license: 'GPL3',
         meson_version: '>=0.43.0')
 
-PETSc = dependency('PETSc', version: '>=3.10.1')
-FSON  = dependency('FSON',  version: '>=1.0.0')
+PETSc = dependency('PETSc',  version: '>=3.10.1')
+FSON  = dependency('FSON',   version: '>=1.0.0')
+FRUIT  = dependency('FRUIT', version: '>=3.4.1')
 
 waiwera_sources = [
   'src/capillary_pressure.F90',

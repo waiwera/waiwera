@@ -6,6 +6,7 @@ import os
 import argparse
 import subprocess
 from fruit_config import write_fruit_pkgconfig_file
+from fson_config import write_fson_pkgconfig_file
 
 env = os.environ.copy()
 orig_path = os.getcwd()
@@ -43,6 +44,10 @@ if "PETSC_DIR" in env and "PETSC_ARCH" in env:
 if args.fson_dir:
     if os.path.isdir(args.fson_dir):
         fson_pkgconfig_path = os.path.join(args.fson_dir, "dist", "pkgconfig")
+        if not os.path.isdir(fson_pkgconfig_path): os.mkdir(fson_pkgconfig_path)
+        fson_pkgconfig_filename = os.path.join(fson_pkgconfig_path, "FSON.pc")
+        if not os.path.isfile(fson_pkgconfig_filename):
+            write_fson_pkgconfig_file(args.fson_dir)
         env_update('PKG_CONFIG_PATH', fson_pkgconfig_path, ':')
     else: raise Exception("Specified FSON library directory does not exist: " +
                           args.fson_dir)

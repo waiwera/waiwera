@@ -18,7 +18,9 @@ def get_fruit_version(base_path):
 def write_fruit_pkgconfig_file(base_path):
     """Write pkg-config file for FRUIT shared library, for specified FRUIT base path"""
 
-    filename = os.path.join(base_path, "pkgconfig", "FRUIT.pc")
+    config_dir = os.path.join(base_path, "pkgconfig")
+    if not os.path.isdir(config_dir): os.mkdir(config_dir)
+    filename = os.path.join(config_dir, "FRUIT.pc")
 
     f = open(filename, 'w')
     f.write("prefix=%s\n" % base_path)
