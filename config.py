@@ -16,7 +16,6 @@ parser.add_argument("-d", "--debug", action = "store_true", help = "debug mode")
 parser.add_argument("--release", action = "store_true", help = "release mode")
 parser.add_argument("--fson_dir", help = "FSON library directory")
 parser.add_argument("--fruit_dir", help = "FRUIT library directory")
-parser.add_argument("--reconfigure", action = "store_true", help = "reconfigure")
 parser.add_argument("--no_rpath", action = "store_true", help = "do not set RPATH in executable")
 args = parser.parse_args()
 
@@ -76,14 +75,10 @@ set_rpath = 'false' if args.no_rpath else 'true'
 os.chdir("build")
 env["CC"] = "mpicc"; env["FC"] = "mpif90"
 
-if args.reconfigure:
-    subprocess.Popen(["ninja", "reconfigure"],
-                     env = env).wait()
-else:
-    subprocess.Popen(["meson",
-                      "--buildtype", build_type, "..",
-                      "--prefix", install_prefix,
-                      "-Dset_rpath=" + set_rpath],
-                     env = env).wait()
+subprocess.Popen(["meson",
+                  "--buildtype", build_type, "..",
+                  "--prefix", install_prefix,
+                  "-Dset_rpath=" + set_rpath],
+                 env = env).wait()
 
 os.chdir(orig_path)
