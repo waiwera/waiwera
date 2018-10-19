@@ -23,7 +23,8 @@ if args.release: build_type = "release"
 else: build_type = "debugoptimized" if args.debug else "release"
 
 def env_update(key, value, separator = ' '):
-    if key in env: env[key] += separator + value
+    if key in env:
+        if value not in env[key]: env[key] += separator + value
     else: env[key] = value
 
 fflags = " ".join(["-fPIC",
