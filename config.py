@@ -43,7 +43,7 @@ if "PETSC_DIR" in env and "PETSC_ARCH" in env:
 
 if args.fson_dir:
     if os.path.isdir(args.fson_dir):
-        fson_pkgconfig_path = os.path.join(args.fson_dir, "dist", "pkgconfig")
+        fson_pkgconfig_path = os.path.join(args.fson_dir, "pkgconfig")
         if not os.path.isdir(fson_pkgconfig_path): os.mkdir(fson_pkgconfig_path)
         fson_pkgconfig_filename = os.path.join(fson_pkgconfig_path, "FSON.pc")
         if not os.path.isfile(fson_pkgconfig_filename):
