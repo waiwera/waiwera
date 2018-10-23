@@ -175,10 +175,6 @@ module timestepper_module
      type(timestepper_steps_type), pointer, public :: steps
      procedure(method_residual), pointer, nopass, public :: residual
      MatFDColoring, public :: fd_coloring !! Finite difference colouring for Jacobian matrix
-   contains
-     private
-     procedure, public :: init => timestepper_solver_context_init
-     procedure, public :: destroy => timestepper_solver_context_destroy
   end type timestepper_solver_context_type
 
   type, public :: timestepper_type
@@ -1246,8 +1242,11 @@ end subroutine timestepper_steps_set_next_stepsize
   end subroutine timestepper_method_init
 
 !------------------------------------------------------------------------
-! Timestepper procedures
-!------------------------------------------------------------------------
+! Timestepper solver context procedures
+! Note these cannot be bound to the solver context type, as the context
+! variable goes through PETSc function interfaces where it is declared as
+! type(*), which does not allow type-bound procedures.
+! ------------------------------------------------------------------------
 
   subroutine timestepper_solver_context_init(self, ode, steps, residual)
     !! Sets up timestepper SNES solver context.
@@ -1300,7 +1299,8 @@ end subroutine timestepper_steps_set_next_stepsize
     PetscReal, parameter :: default_mat_fd_err = 1.e-8_dp
     PetscReal, parameter :: default_mat_fd_umin = 1.e-2_dp
 
-    call self%context%init(self%ode, self%steps, self%method%residual)
+    call timestepper_solver_context_init(self%context, self%ode, self%steps, &
+         self%method%residual)
 
     call SNESCreate(PETSC_COMM_WORLD, self%solver, ierr); CHKERRQ(ierr)
     call SNESSetApplicationContext(self%solver, self%context, ierr); CHKERRQ(ierr)
@@ -1989,7 +1989,7 @@ end subroutine timestepper_steps_set_next_stepsize
     ! Locals:
     PetscErrorCode :: ierr
 
-    call self%context%destroy()
+    call timestepper_solver_context_destroy(self%context)
 
     call SNESDestroy(self%solver, ierr);  CHKERRQ(ierr)
     call VecDestroy(self%residual, ierr); CHKERRQ(ierr)
