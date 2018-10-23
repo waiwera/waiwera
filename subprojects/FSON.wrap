@@ -1,0 +1,4 @@
+[wrap-git]
+directory = FSON
+url = https://github.com/josephalevin/fson.git
+revision = meson

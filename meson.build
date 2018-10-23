@@ -6,7 +6,7 @@ project('waiwera', ['c', 'fortran'],
         meson_version: '>=0.43.0')
 
 PETSc = dependency('PETSc',  version: '>=3.10.1')
-FSON  = dependency('FSON',   version: '>=1.0.0')
+FSON  = dependency('FSON',   version: '>=1.0.0', fallback: ['FSON', 'FSON_dep'])
 FRUIT  = dependency('FRUIT', version: '>=3.4.1')
 
 waiwera_sources = [
