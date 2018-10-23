@@ -64,7 +64,9 @@ set_rpath = get_option('set_rpath')
 if set_rpath
   waiwera_rpath = ''
   foreach dep: waiwera_deps
-    waiwera_rpath += dep.get_pkgconfig_variable('libdir') + ':'
+    if dep.type_name() == 'pkgconfig'
+      waiwera_rpath += dep.get_pkgconfig_variable('libdir') + ':'
+    endif
   endforeach
 else
   waiwera_rpath = ''
