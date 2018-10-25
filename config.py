@@ -16,6 +16,7 @@ parser.add_argument("-d", "--debug", action = "store_true", help = "debug mode")
 parser.add_argument("--release", action = "store_true", help = "release mode")
 parser.add_argument("--no_rpath", action = "store_true", help = "do not set RPATH in executable")
 parser.add_argument("--prefix", default = os.path.expanduser("~"), help = "prefix for installation path")
+parser.add_argument("--libdir", default = "lib", help = "library installation directory")
 args = parser.parse_args()
 
 if args.release: build_type = "release"
@@ -50,6 +51,7 @@ env["CC"] = "mpicc"; env["FC"] = "mpif90"
 subprocess.Popen(["meson",
                   "--buildtype", build_type, "..",
                   "--prefix", args.prefix,
+                  "-Dlibdir=" + args.libdir,
                   "-Dset_rpath=" + set_rpath],
                  env = env).wait()
 
