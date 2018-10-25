@@ -25,14 +25,6 @@ def env_update(key, value, separator = ' '):
         if value not in env[key]: env[key] += separator + value
     else: env[key] = value
 
-fflags = " ".join(["-fPIC",
-                   "-ffree-line-length-none",
-                   "-Wno-unused-dummy-argument",
-                   "-Wno-unused-function",
-                   "-Wno-return-type",
-                   "-Wno-maybe-uninitialized"])
-env_update('FFLAGS', fflags)
-
 # set pkg-config path:
 env_update('PKG_CONFIG_PATH',
            os.path.join(args.prefix, args.libdir, 'pkgconfig'), ':')

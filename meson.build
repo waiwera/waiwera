@@ -60,6 +60,16 @@ waiwera_sources = [
 waiwera_executable_sources = waiwera_sources + ['src/waiwera.F90']
 waiwera_deps = [PETSc, FSON]
 
+if meson.get_compiler('fortran').get_id() == 'gcc'
+  f_args = ['-ffree-line-length-none',
+            '-Wno-unused-dummy-argument',
+            '-Wno-unused-function',
+            '-Wno-return-type',
+            '-Wno-maybe-uninitialized']
+else
+  f_args = []
+endif
+
 if get_option('set_rpath')
   waiwera_rpath = join_paths(get_option('prefix'), get_option('libdir'))
   waiwera_rpath += ':' + PETSc.get_pkgconfig_variable('libdir')
@@ -70,5 +80,6 @@ endif
 executable('waiwera',
            waiwera_executable_sources,
            dependencies: waiwera_deps,
+           fortran_args: f_args,
            install_rpath: waiwera_rpath,
            install: true)
