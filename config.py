@@ -33,7 +33,9 @@ fflags = " ".join(["-fPIC",
                    "-Wno-maybe-uninitialized"])
 env_update('FFLAGS', fflags)
 
-# set pkg-config path for PETSc:
+# set pkg-config path:
+env_update('PKG_CONFIG_PATH',
+           os.path.join(args.prefix, args.libdir, 'pkgconfig'), ':')
 if "PETSC_DIR" in env and "PETSC_ARCH" in env:
     petsc_pkgconfig_path = os.path.join(env["PETSC_DIR"], env["PETSC_ARCH"],
                                         "lib", "pkgconfig")
