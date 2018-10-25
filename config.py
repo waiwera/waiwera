@@ -5,8 +5,6 @@
 import os
 import argparse
 import subprocess
-from fruit_config import write_fruit_pkgconfig_file
-from fson_config import write_fson_pkgconfig_file
 
 env = os.environ.copy()
 orig_path = os.getcwd()
