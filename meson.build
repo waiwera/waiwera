@@ -60,14 +60,9 @@ waiwera_sources = [
 waiwera_executable_sources = waiwera_sources + ['src/waiwera.F90']
 waiwera_deps = [PETSc, FSON]
 
-set_rpath = get_option('set_rpath')
-if set_rpath
-  waiwera_rpath = ''
-  foreach dep: waiwera_deps
-    if dep.type_name() == 'pkgconfig'
-      waiwera_rpath += dep.get_pkgconfig_variable('libdir') + ':'
-    endif
-  endforeach
+if get_option('set_rpath')
+  waiwera_rpath = join_paths(get_option('prefix'), get_option('libdir'))
+  waiwera_rpath += ':' + PETSc.get_pkgconfig_variable('libdir')
 else
   waiwera_rpath = ''
 endif
