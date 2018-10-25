@@ -18,7 +18,7 @@ parser.add_argument("--no_rpath", action = "store_true", help = "do not set RPAT
 args = parser.parse_args()
 
 if args.release: build_type = "release"
-else: build_type = "debugoptimized" if args.debug else "release"
+else: build_type = "debug" if args.debug else "release"
 
 def env_update(key, value, separator = ' '):
     if key in env:
