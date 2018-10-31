@@ -1,5 +1,10 @@
 - hosts: all
   tasks:
+  - name: Clean supermodels-test path
+    file:
+      state: absent
+      path: /opt/app/supermodels-test
+
   - name: Fetch supermodels-test from github
     git:
       repo: 'https://jposunz:wapiti21@github.com/johnburnell/supermodels-test.git'

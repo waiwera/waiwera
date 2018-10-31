@@ -1,5 +1,15 @@
 - hosts: all
+  become_user: root
+  become_method: sudo
   tasks:
+  - name: Clean fruitpy and fruit paths
+    file:
+      state: absent
+      path: /opt/app/{{ item }}
+    with_items:
+    - fruitpy
+    - fruit
+
   - name: Fetch fruitpy from github
     git:
       repo: 'https://github.com/acroucher/FRUITPy.git'
@@ -16,10 +26,10 @@
       dest: /opt/app/
       remote_src: yes
 
-  - name: Move fruit no non-versioned directory name
-    command: mv /opt/app/fruit_3.4.3 /opt/app/fruit
+  - name: Move fruit no non-versioned directory name, if it doesn't exist
+    command: mv -n /opt/app/fruit_3.4.3 /opt/app/fruit
 
-  - name: example copying file with owner and permissions
+  - name: copy fruit makefile from fruitpy
     copy:
       src: /opt/app/fruitpy/fruit_makefile
       dest: /opt/app/fruit/makefile
@@ -34,13 +44,24 @@
     make:
       chdir: /opt/app/fruit
 
-  - name: Make fruit
+  - name: Make install fruit
     make:
       chdir: /opt/app/fruit
       target: install
 
   - name: Copy .mod files from fruit to the include directory
-    command: >
-      cp /opt/app/fruit/*.mod /opt/app/include/
+    copy:
+      src: '/opt/app/fruit/{{ item }}.mod'
+      dest: '/opt/app/include/{{ item }}.mod'
+      remote_src: yes
+    with_items:
+      - fruit
+      - fruit_util
+      - fruit_mpi
 
+  - name: Rake install fruit
+    gem:
+      gem_source: /opt/app/fruit/fruit_processor_gem
+      state: present
+    become: yes
 # cp /home/vagrant/fruit/*.mod /home/vagrant/include
