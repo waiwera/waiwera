@@ -1,0 +1,23 @@
+- hosts: all
+  tasks:
+  - name: Fetch supermodels-test from github
+    git:
+      repo: 'https://jposunz:wapiti21@github.com/johnburnell/supermodels-test.git'
+      dest: /opt/app/supermodels-test
+      version: testing
+
+  - name: replace HOME with app directory
+    replace:
+      dest: /opt/app/supermodels-test/makefile
+      regexp: '\$\(HOME\)'
+      replace: '/opt/app'
+
+  - name: Make the supermodels-test
+    make:
+      chdir: /opt/app/supermodels-test
+
+  - name: Execute supermodels unit_tests
+    script: unit_tests.py
+    args:
+      executable: python
+      chdir: /opt/apt/supermodels-test

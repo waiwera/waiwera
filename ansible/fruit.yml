@@ -1,0 +1,46 @@
+- hosts: all
+  tasks:
+  - name: Fetch fruitpy from github
+    git:
+      repo: 'https://github.com/acroucher/FRUITPy.git'
+      dest: /opt/app/fruitpy
+      version: v.0.3.2
+
+  - name: pip install fruitpy
+    pip:
+      name: file:///opt/app/fruitpy
+
+  - name: Dowload and unarchive fruit
+    unarchive:
+      src: https://sourceforge.net/projects/fortranxunit/files/fruit_3.4.3/fruit_3.4.3.zip/download
+      dest: /opt/app/
+      remote_src: yes
+
+  - name: Move fruit no non-versioned directory name
+    command: mv /opt/app/fruit_3.4.3 /opt/app/fruit
+
+  - name: example copying file with owner and permissions
+    copy:
+      src: /opt/app/fruitpy/fruit_makefile
+      dest: /opt/app/fruit/makefile
+
+  - name: replace HOME with app directory
+    replace:
+      dest: /opt/app/fruit/makefile
+      regexp: '\$\(HOME\)'
+      replace: '/opt/app'
+
+  - name: Make fruit
+    make:
+      chdir: /opt/app/fruit
+
+  - name: Make fruit
+    make:
+      chdir: /opt/app/fruit
+      target: install
+
+  - name: Copy .mod files from fruit to the include directory
+    command: >
+      cp /opt/app/fruit/*.mod /opt/app/include/
+
+# cp /home/vagrant/fruit/*.mod /home/vagrant/include

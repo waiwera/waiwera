@@ -53,5 +53,8 @@ Thumbs.db
 # Local Settings #
 ##################
 
-
 *~
+
+# Ansible Files #
+#################
+*.retry 

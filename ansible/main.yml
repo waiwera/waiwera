@@ -89,29 +89,30 @@
   become_user: root
   become_method: sudo
   tasks:
-    - name: Dowload and unarchive openmpi
-      unarchive:
-        src: https://download.open-mpi.org/release/open-mpi/v3.1/openmpi-3.1.3.tar.gz
-        dest: /opt/app/
-        remote_src: yes
+  - name: Dowload and unarchive openmpi
+    unarchive:
+      src: https://download.open-mpi.org/release/open-mpi/v3.1/openmpi-3.1.3.tar.gz
+      dest: /opt/app/
+      remote_src: yes
 
   - name: Move openmpi no non-versioned directory name
     command: mv /opt/app/openmpi-3.1.3 /opt/app/openmpi
 
-  - name: Running ./configure for PETSc
+  - name: Running ./configure for openmpi
     command: >
-      ./configure --prefix="/opt/app/openmpi"  FC=gfortran-6
+      ./configure --prefix="/opt/app/"  FC=gfortran-6
     args:
       chdir: /opt/app/openmpi
+
   - name: Make openmpi
     make:
       chdir: /opt/app/openmpi
 
   - name: Make install openmpi
     make:
-      chdir: /opt/app/fruit
+      chdir: /opt/app/openmpi
       target: install
-      become: yes
+    become: yes
 
   - name: Fetch PETSc from bitbucket
     git:
@@ -123,8 +124,10 @@
     command: >
       ./configure --download-fblaslapack --download-triangle --download-netcdf
        --download-exodusii --download-pnetcdf --download-hdf5
-       --download-ptscotch  --download-chaco --download-openmpi
-       --with-zlib --with-fc=gfortran-6
+       --download-ptscotch  --download-chaco
+       --with-mpi-dir=/opt/app/openmpi
+       --with-zlib
+       # --with-fc=gfortran-6
     args:
       chdir: /opt/app/petsc/
 
@@ -132,42 +135,8 @@
     make:
       chdir: /opt/app/petsc
 
-
-- hosts: all
-  tasks:
-  - name: Fetch fruitpy from github
-    git:
-      repo: 'https://github.com/acroucher/FRUITPy.git'
-      dest: /opt/app/fruitpy
-      version: v.0.3.2
-
-  - name: pip install fruitpy
-    pip:
-      name: file:///opt/app/fruitpy
-
-  - name: Dowload and unarchive fruit
-    unarchive:
-      src: https://sourceforge.net/projects/fortranxunit/files/fruit_3.4.3/fruit_3.4.3.zip/download
-      dest: /opt/app/
-      remote_src: yes
-
-  - name: Move fruit no non-versioned directory name
-    command: mv /opt/app/fruit_3.4.3 /opt/app/fruit
-
-  - name: example copying file with owner and permissions
-    copy:
-      src: /opt/app/fruitpy/fruit_makefile
-      dest: /opt/app/fruit/makefile
-
-  - name: Make fruit
-    make:
-      chdir: /opt/app/fruit
-
-  - name: Make fruit
-    make:
-      chdir: /opt/app/fruit
-      target: install
-
+- import_playbook: fruit.yml
+- import_playbook: fson.yml
 # - hosts: all
 #   remote_user: vagrant
 #   tasks:
