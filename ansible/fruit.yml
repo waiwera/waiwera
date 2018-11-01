@@ -60,8 +60,8 @@
       - fruit_mpi
 
   - name: Rake install fruit
-    gem:
-      gem_source: /opt/app/fruit/fruit_processor_gem
-      state: present
+    command: rake install
+    args:
+      chdir: /opt/app/fruit/fruit_processor_gem
     become: yes
 # cp /home/vagrant/fruit/*.mod /home/vagrant/include

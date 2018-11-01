@@ -22,8 +22,6 @@
       - gem
       - rake
       - gfortran-6=6.3.0*
-      # - openmpi-bin
-      # - libopenmpi-dev
 
   - name: Symlink gfortran-6 to gfortran
     file:
@@ -61,17 +59,6 @@
       dest: /etc/profile.d/opt_paths.sh
       remote_src: yes
 
-  # - name: add to environment
-  #   lineinfile:
-  #     path: /etc/profiile.d/petsc_paths.sh
-  #     state: present
-  #     line: "exyort {{ item }}"
-  #   with_items:
-  #     - PETSC_DIR=/opt/app/petsc
-  #     - PETSC_ARCH=arch-linux2-c-debug
-  #     - LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/opt/app/lib
-  #     - PYTHONPATH=/opt/PyTOUGH:/opt/app/credo2:/opt/app/supermodels-test/utils
-  #     - PATH=$PATH:/opt/app/bin:/opt/app/supermodels-test/dist
   - name: Clean app directory structure
     file:
       state: absent
@@ -93,69 +80,8 @@
       - /opt/app/lib
       - /opt/app/include
 
-- hosts: all
-  become_user: root
-  become_method: sudo
-  tasks:
-  - name: Clean openmpi and petsc paths
-    file:
-      state: absent
-      path: /opt/app/{{ item }}
-    with_items:
-    - openmpi
-    - petsc
-
-  - name: Dowload and unarchive openmpi
-    unarchive:
-      src: https://download.open-mpi.org/release/open-mpi/v3.1/openmpi-3.1.3.tar.gz
-      dest: /opt/app/
-      remote_src: yes
-
-  - name: Move openmpi no non-versioned directory name,
-    command: mv -n /opt/app/openmpi-3.1.3 /opt/app/openmpi
-
-  - name: Running ./configure for openmpi
-    command: >
-      ./configure --prefix="/opt/app/"  FC=gfortran-6
-    args:
-      chdir: /opt/app/openmpi
-
-  - name: Make openmpi
-    make:
-      chdir: /opt/app/openmpi
-
-  - name: Make install openmpi
-    make:
-      chdir: /opt/app/openmpi
-      target: install
-    become: yes
-
-  - name: Fetch PETSc from bitbucket
-    git:
-      repo: 'https://bitbucket.org/petsc/petsc.git'
-      dest: /opt/app/petsc
-      version: v3.10.1
-
-  - name: Running ./configure for PETSc
-    command: >
-      ./configure --download-fblaslapack --download-triangle --download-netcdf
-       --download-exodusii --download-pnetcdf --download-hdf5
-       --download-ptscotch  --download-chaco
-       --with-mpi-dir=/opt/app/
-       --with-zlib
-    args:
-      chdir: /opt/app/petsc/
- # --with-fc=gfortran-6
-
-  - name: Make PETSc
-    make:
-      chdir: /opt/app/petsc
-
+- import_playbook: openmpi.yml
+- import_playbook: petsc.yml
 - import_playbook: fruit.yml
 - import_playbook: fson.yml
 - import_playbook: supermodels.yml
-# - hosts: all
-#   remote_user: vagrant
-#   tasks:
-#     - name: execute unit
-#       script: /home/vagrant/supermodels-test/unit_tests.py

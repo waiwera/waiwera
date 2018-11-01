@@ -1,0 +1,29 @@
+- hosts: all
+  tasks:
+  - name: Clean petsc paths
+    file:
+      state: absent
+      path: /opt/app/{{ item }}
+    with_items:
+    - petsc
+
+  - name: Fetch PETSc from bitbucket
+    git:
+      repo: 'https://bitbucket.org/petsc/petsc.git'
+      dest: /opt/app/petsc
+      version: v3.10.1
+
+  - name: Running ./configure for PETSc
+    command: >
+      ./configure --download-fblaslapack --download-triangle --download-netcdf
+       --download-exodusii --download-pnetcdf --download-hdf5
+       --download-ptscotch  --download-chaco
+       --with-mpi-dir=/opt/app/
+       --with-zlib
+    args:
+      chdir: /opt/app/petsc/
+  # --with-fc=gfortran-6
+
+  - name: Make PETSc
+    make:
+      chdir: /opt/app/petsc
