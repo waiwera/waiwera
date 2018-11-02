@@ -22,7 +22,6 @@
       chdir: /opt/app/supermodels-test
 
   - name: Execute supermodels unit_tests
-    script: unit_tests.py
+    command: python unit_tests.py
     args:
-      executable: python
-      chdir: /opt/apt/supermodels-test
+      chdir: /opt/app/supermodels-test

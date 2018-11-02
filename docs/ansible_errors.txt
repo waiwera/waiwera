@@ -1,0 +1,6 @@
+TASK [Make fruit] **************************************************************
+fatal: [waiwera]: FAILED! => {"changed": false, "cmd": "/usr/bin/make", "msg": "make: mpif90: Command not found\nmake: *** [src/fruit.o] Error 127", "rc": 2, "stderr": "make: mpif90: Command not found\nmake: *** [src/fruit.o] Error 127\n", "stderr_lines": ["make: mpif90: Command not found", "make: *** [src/fruit.o] Error 127"], "stdout": "mpif90 -c -fpic -O3 -c src/fruit.f90 -o src/fruit.o\nmakefile:25: recipe for target 'src/fruit.o' failed\n", "stdout_lines": ["mpif90 -c -fpic -O3 -c src/fruit.f90 -o src/fruit.o", "makefile:25: recipe for target 'src/fruit.o' failed"]}
+	to retry, use: --limit @/vagrant/ansible/main.retry
+
+PLAY RECAP *********************************************************************
+waiwera                    : ok=29   changed=19   unreachable=0    failed=1  

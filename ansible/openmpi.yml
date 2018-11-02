@@ -20,7 +20,7 @@
 
   - name: Running ./configure for openmpi
     command: >
-      ./configure --prefix="/opt/app/" 
+      ./configure --prefix="/opt/app/" --with-tm
     args:
       chdir: /opt/app/openmpi
 

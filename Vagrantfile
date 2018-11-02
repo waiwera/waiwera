@@ -18,7 +18,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
     # waiwera.vm.provision :shell, path: "waiwera-testing.sh", privileged: false
     waiwera.vm.provision "ansible_local" do |ansible|
       ansible.verbose = "v"
-      ansible.playbook = "/vagrant/ansible/supermodels.yml"
+      ansible.playbook = "/vagrant/ansible/main.yml"
     end
     waiwera.vm.hostname = "waiwera"
   end
