@@ -1,4 +1,11 @@
 - hosts: all
+  environment:
+    PETSC_DIR: /opt/app/petsc
+    PETSC_ARCH: arch-linux2-c-debug
+    LD_LIBRARY_PATH: "/opt/app/lib"
+    PYTHONPATH: "/opt/app/PyTOUGH:/opt/app/credo2:/opt/app/supermodels-test/utils"
+    PATH: "{{ ansible_env.PATH }}:/opt/app/bin:/opt/app/supermodels-test/dist"
+
   tasks:
   - name: Clean supermodels-test path
     file:
@@ -17,11 +24,16 @@
       regexp: '\$\(HOME\)'
       replace: '/opt/app'
 
+  - name: echo path
+    shell: echo $PATH
+
+
   - name: Make the supermodels-test
-    make:
+    shell: make
+    args:
       chdir: /opt/app/supermodels-test
 
   - name: Execute supermodels unit_tests
-    command: python unit_tests.py
+    shell: python unit_tests.py
     args:
       chdir: /opt/app/supermodels-test

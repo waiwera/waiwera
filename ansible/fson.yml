@@ -1,5 +1,12 @@
 - hosts: all
   tasks:
+  - name: Clean fruitpy and fruit paths
+    file:
+      state: absent
+      path: /opt/app/{{ item }}
+    with_items:
+    - fson
+
   - name: Fetch fson from github
     git:
       repo: 'https://github.com/josephalevin/fson.git'
