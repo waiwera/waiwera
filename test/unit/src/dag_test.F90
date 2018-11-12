@@ -7,20 +7,46 @@ module dag_test
   use petscsys
   use kinds_module
   use dag_module
-  use fruit
+  use zofu
 
   implicit none
   private
 
-  public :: test_dag
+  public :: setup, teardown, test_dag
 
 contains
 
 !------------------------------------------------------------------------
 
-  subroutine test_dag
+  subroutine setup()
+
+    use profiling_module, only: init_profiling
+
+    ! Locals:
+    PetscErrorCode :: ierr
+
+    call PetscInitialize(PETSC_NULL_CHARACTER, ierr); CHKERRQ(ierr)
+    call init_profiling()
+
+  end subroutine setup
+
+!------------------------------------------------------------------------
+
+  subroutine teardown()
+
+    PetscErrorCode :: ierr
+
+    call PetscFinalize(ierr); CHKERRQ(ierr)
+
+  end subroutine teardown
+
+!------------------------------------------------------------------------
+
+  subroutine test_dag(test)
     ! DAG
 
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
     type(dag_type) :: dag
     PetscInt, allocatable :: order(:)
     PetscErrorCode :: err
@@ -38,14 +64,14 @@ contains
     call dag%sort(order, err)
 
     if (rank == 0) then
-       call assert_equals(0, err, "sort error")
-       call assert_equals([0, 1, 4, 2, 3], order, 5, "sort order")
+       call test%assert(0, err, "sort error")
+       call test%assert([0, 1, 4, 2, 3], order, "sort order")
     end if
 
     call dag%set_edges(4, [2])
     call dag%sort(order, err)
     if (rank == 0) then
-       call assert_equals(1, err, "circular dependency")
+       call test%assert(1, err, "circular dependency")
     end if
 
   end subroutine test_dag
