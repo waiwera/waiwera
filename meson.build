@@ -95,6 +95,7 @@ test_sources = ['capillary_pressure_test',
                 'dag_test',
                 'dictionary_test',
                 'dm_utils_test',
+                'eos_test',
                 'IFC67_test',
                 'IAPWS_test']
 foreach test_name: test_sources

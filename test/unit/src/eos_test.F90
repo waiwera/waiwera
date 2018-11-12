@@ -5,212 +5,84 @@ module eos_test
 
   use petsc
   use kinds_module
-  use fruit
+  use zofu
   use fson
   use fson_mpi_module
-  use eos_module
+  use eos_module, only: max_component_name_length
+  use eos_wge_module
 
   implicit none
   private
 
-  type, extends(eos_type), public :: eos_test_type
-     !! Dummy EOS used only for testing.
-   contains
-     private
-     procedure, public :: init => eos_test_init
-     procedure, public :: transition => eos_test_transition
-     procedure, public :: bulk_properties => eos_test_bulk_properties
-     procedure, public :: phase_properties => eos_test_phase_properties
-     procedure, public :: primary_variables => eos_test_primary_variables
-     procedure, public :: check_primary_variables => eos_test_check_primary_variables
-     procedure, public :: scale => eos_test_scale
-     procedure, public :: unscale => eos_test_unscale
-  end type eos_test_type
-
+  public :: setup, teardown
   public :: test_eos_component_index
 
 contains
 
 !------------------------------------------------------------------------
 
-  subroutine eos_test_init(self, json, thermo, logfile)
+  subroutine setup()
 
-    use fson
-    use fson_mpi_module, only: fson_get_mpi
-    use logfile_module
-    use thermodynamics_module
+    use profiling_module, only: init_profiling
 
-    class(eos_test_type), intent(in out) :: self
-    type(fson_value), pointer, intent(in) :: json
-    class(thermodynamics_type), intent(in), target :: thermo
-    type(logfile_type), intent(in out), optional :: logfile
     ! Locals:
-    PetscReal, parameter :: default_pressure = 1.0e5_dp
-    PetscReal, parameter :: default_temperature = 20._dp
-    PetscReal, parameter :: default_gas_partial_pressure = 0._dp
+    PetscErrorCode :: ierr
 
-    self%name = "test"
-    self%description = "Test EOS"
-    self%primary_variable_names = [&
-         "pressure                     ", &
-         "temperature/vapour_saturation", &
-         "gas partial pressure         "]
+    call PetscInitialize(PETSC_NULL_CHARACTER, ierr); CHKERRQ(ierr)
+    call init_profiling()
 
-    self%num_primary_variables = size(self%primary_variable_names)
-    self%num_phases = 2
-    self%phase_names = ["liquid", "vapour"]
-    self%num_components = 2
-    self%component_names = ["water", "gas  "]
-
-    self%default_primary = [default_pressure, default_temperature, &
-         default_gas_partial_pressure]
-    self%default_region = 1
-
-    self%thermo => thermo
-
-  end subroutine eos_test_init
+  end subroutine setup
 
 !------------------------------------------------------------------------
 
-  subroutine eos_test_transition(self, old_primary, primary, &
-       old_fluid, fluid, transition, err)
+  subroutine teardown()
 
-    use fluid_module, only: fluid_type
+    PetscErrorCode :: ierr
 
-    class(eos_test_type), intent(in out) :: self
-    PetscReal, intent(in) :: old_primary(self%num_primary_variables)
-    PetscReal, intent(in out) :: primary(self%num_primary_variables)
-    type(fluid_type), intent(in) :: old_fluid
-    type(fluid_type), intent(in out) :: fluid
-    PetscBool, intent(out) :: transition
-    PetscErrorCode, intent(out) :: err
+    call PetscFinalize(ierr); CHKERRQ(ierr)
 
-    transition = PETSC_FALSE
-    err = 0
-
-  end subroutine eos_test_transition
+  end subroutine teardown
 
 !------------------------------------------------------------------------
 
-  subroutine eos_test_bulk_properties(self, primary, fluid, err)
-
-    use fluid_module, only: fluid_type
-
-    class(eos_test_type), intent(in out) :: self
-    PetscReal, intent(in) :: primary(self%num_primary_variables)
-    type(fluid_type), intent(in out) :: fluid
-    PetscErrorCode, intent(out) :: err
-
-    err = 0
-
-  end subroutine eos_test_bulk_properties
-
-!------------------------------------------------------------------------
-
-  subroutine eos_test_phase_properties(self, primary, rock, fluid, err)
-
-    use rock_module, only: rock_type
-    use fluid_module, only: fluid_type
-
-    class(eos_test_type), intent(in out) :: self
-    PetscReal, intent(in) :: primary(self%num_primary_variables)
-    type(rock_type), intent(in out) :: rock
-    type(fluid_type), intent(in out) :: fluid
-    PetscErrorCode, intent(out) :: err
-
-    err = 0
-
-  end subroutine eos_test_phase_properties
-
-!------------------------------------------------------------------------
-
-  subroutine eos_test_primary_variables(self, fluid, primary)
-
-    use fluid_module, only: fluid_type
-
-    class(eos_test_type), intent(in) :: self
-    type(fluid_type), intent(in) :: fluid
-    PetscReal, intent(out) :: primary(self%num_primary_variables)
-
-    primary = 0._dp
-
-  end subroutine eos_test_primary_variables
-
-!------------------------------------------------------------------------
-
-  subroutine eos_test_check_primary_variables(self, fluid, &
-       primary, changed, err)
-
-    use fluid_module, only: fluid_type
-
-    class(eos_test_type), intent(in) :: self
-    type(fluid_type), intent(in) :: fluid
-    PetscReal, intent(in out) :: primary(self%num_primary_variables)
-    PetscBool, intent(out) :: changed
-    PetscErrorCode, intent(out) :: err
-
-    changed = PETSC_FALSE
-    err = 0
-
-  end subroutine eos_test_check_primary_variables
-
-!------------------------------------------------------------------------
-
-  function eos_test_scale(self, primary, region) result(scaled_primary)
-
-    class(eos_test_type), intent(in) :: self
-    PetscReal, intent(in) :: primary(self%num_primary_variables)
-    PetscInt, intent(in) :: region
-    PetscReal :: scaled_primary(self%num_primary_variables)
-
-    scaled_primary = primary
-
-  end function eos_test_scale
-
-!------------------------------------------------------------------------
-
-  function eos_test_unscale(self, scaled_primary, region) result(primary)
-
-    class(eos_test_type), intent(in) :: self
-    PetscReal, intent(in) :: scaled_primary(self%num_primary_variables)
-    PetscInt, intent(in) :: region
-    PetscReal :: primary(self%num_primary_variables)
-
-    primary = scaled_primary
-
-  end function eos_test_unscale
-
-!------------------------------------------------------------------------
-
-  subroutine test_eos_component_index
+  subroutine test_eos_component_index(test)
     ! eos component_index() test
 
     use IAPWS_module
 
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
     type(IAPWS_type) :: thermo
-    type(eos_test_type) :: eos
+    type(eos_wge_type) :: eos
     type(fson_value), pointer :: json
     character(max_component_name_length) :: name
+    PetscMPIInt :: rank
+    PetscInt :: ierr
 
     json => fson_parse_mpi(str = "{}")
     call thermo%init()
     call eos%init(json, thermo)
 
-    name = "water"
-    call assert_equals(1, eos%component_index(name), name)
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
 
-    name = "Water"
-    call assert_equals(1, eos%component_index(name), name)
+       name = "water"
+       call test%assert(1, eos%component_index(name), name)
 
-    name = "gas"
-    call assert_equals(2, eos%component_index(name), name)
+       name = "Water"
+       call test%assert(1, eos%component_index(name), name)
 
-    name = "energy"
-    call assert_equals(eos%num_primary_variables, &
-         eos%component_index(name), name)
+       name = "gas"
+       call test%assert(2, eos%component_index(name), name)
 
-    name = "fred"
-    call assert_equals(-1, eos%component_index(name), name)
+       name = "energy"
+       call test%assert(eos%num_primary_variables, &
+            eos%component_index(name), name)
+
+       name = "fred"
+       call test%assert(-1, eos%component_index(name), name)
+
+    end if
 
     call eos%destroy()
     call thermo%destroy()
