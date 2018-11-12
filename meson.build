@@ -5,9 +5,9 @@ project('waiwera', ['c', 'fortran'],
         license: 'GPL3',
         meson_version: '>=0.43.0')
 
-PETSc = dependency('PETSc',  version: '>=3.10.1')
-FSON  = dependency('FSON',   version: '>=1.0.0', fallback: ['FSON', 'FSON_dep'])
-FRUIT  = dependency('FRUIT', version: '>=3.4.1')
+PETSc = dependency('PETSc', version: '>=3.10.1')
+fson  = dependency('fson',  version: '>=1.0.0', fallback: ['fson', 'fson_dep'])
+zofu  = dependency('zofu',  version: '>=0.1.0')
 
 waiwera_sources = [
   'src/capillary_pressure.F90',
@@ -58,7 +58,7 @@ waiwera_sources = [
   'src/zone_label.F90']
 
 waiwera_executable_sources = waiwera_sources + ['src/waiwera.F90']
-waiwera_deps = [PETSc, FSON]
+waiwera_deps = [PETSc, fson]
 
 if meson.get_compiler('fortran').get_id() == 'gcc'
   f_args = ['-ffree-line-length-none',
@@ -83,3 +83,26 @@ executable('waiwera',
            fortran_args: f_args,
            install_rpath: waiwera_rpath,
            install: true)
+
+waiwera = shared_library('waiwera',
+           waiwera_executable_sources,
+           dependencies: waiwera_deps,
+           fortran_args: f_args,
+           install: false)
+
+test_sources = ['IFC67_test']
+foreach test_name: test_sources
+  test_src = join_paths(meson.current_source_dir(),
+                        'test', 'unit', 'src', test_name + '.F90')
+  driver_src_name = test_name + '_driver.F90'
+
+  test_driver_src = configure_file(
+    output: driver_src_name,
+    command: ['zofu-driver', test_src, driver_src_name, '--mpi'])
+
+  test_exe = executable(test_name,
+                      [test_driver_src, test_src],
+                      link_with: waiwera,
+                      dependencies: [zofu, PETSc, fson])
+  test(test_name, test_exe, is_parallel: false)
+endforeach
