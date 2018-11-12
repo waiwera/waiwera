@@ -91,6 +91,7 @@ waiwera = shared_library('waiwera',
            install: false)
 
 test_sources = ['capillary_pressure_test',
+                'cell_test',
                 'IFC67_test',
                 'IAPWS_test']
 foreach test_name: test_sources

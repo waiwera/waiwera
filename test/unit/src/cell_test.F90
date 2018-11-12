@@ -6,22 +6,59 @@ module cell_test
 
   use petscsys
   use kinds_module
-  use fruit
+  use zofu
   use cell_module
 
   implicit none
   private
 
-public :: test_cell_assign_geometry, test_cell_balance
+  public :: setup, teardown, setup_test
+  public :: test_cell_assign_geometry, test_cell_balance
 
 contains
   
 !------------------------------------------------------------------------
 
-  subroutine test_cell_assign_geometry
+  subroutine setup()
+
+    use profiling_module, only: init_profiling
+
+    ! Locals:
+    PetscErrorCode :: ierr
+
+    call PetscInitialize(PETSC_NULL_CHARACTER, ierr); CHKERRQ(ierr)
+    call init_profiling()
+
+  end subroutine setup
+
+!------------------------------------------------------------------------
+
+  subroutine teardown()
+
+    PetscErrorCode :: ierr
+
+    call PetscFinalize(ierr); CHKERRQ(ierr)
+
+  end subroutine teardown
+
+!------------------------------------------------------------------------
+
+  subroutine setup_test(test)
+
+    class(unit_test_type), intent(in out) :: test
+
+    test%tolerance = 1.e-8
+
+  end subroutine setup_test
+
+!------------------------------------------------------------------------
+
+  subroutine test_cell_assign_geometry(test)
 
     ! Cell assign_geometry() test
 
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
     type(cell_type) :: cell
     PetscInt, parameter :: num_components = 1, num_phases = 2
     PetscReal, parameter :: volume = 1.e3_dp
@@ -29,7 +66,6 @@ contains
     PetscInt, parameter :: offset = 6
     PetscReal :: offset_padding(offset-1) = 0._dp
     PetscReal, pointer, contiguous :: cell_data(:)
-    PetscReal, parameter :: tol = 1.e-6_dp
     PetscMPIInt :: rank
     PetscInt :: ierr
 
@@ -41,12 +77,12 @@ contains
 
        call cell%init(num_components, num_phases)
 
-       call assert_equals(cell%dof, size(cell_data) - (offset-1), "cell dof")
+       call test%assert(cell%dof, size(cell_data) - (offset-1), "cell dof")
 
        call cell%assign_geometry(cell_data, offset)
 
-       call assert_equals(volume, cell%volume, tol, "volume")
-       call assert_equals(0._dp, norm2(cell%centroid - centroid), tol, "centroid")
+       call test%assert(volume, cell%volume, "volume")
+       call test%assert(0._dp, norm2(cell%centroid - centroid), "centroid")
 
        call cell%destroy()
        deallocate(cell_data)
@@ -57,11 +93,14 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine test_cell_balance
+  subroutine test_cell_balance(test)
     !! Test cell mass and energy balance routine
 
     use rock_module, only: rock_variable_num_components
     use fluid_module, only: num_fluid_variables, num_phase_variables
+
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
     type(cell_type) :: cell
     PetscReal, pointer, contiguous :: rock_data(:), fluid_data(:)
     PetscInt, parameter :: rock_offset = 1, fluid_offset = 1
@@ -70,7 +109,6 @@ contains
     PetscReal :: bal(num_primary)
     PetscReal, parameter :: expected_bal(num_components + 1) = &
          [52.372_dp, 22.458_dp, 2.8545448e8_dp]
-    PetscReal, parameter :: tol = 1.e-6_dp
     PetscMPIInt :: rank
     PetscInt :: ierr
 
@@ -93,7 +131,7 @@ contains
 
        bal = cell%balance(num_primary)
 
-       call assert_equals(expected_bal, bal, num_primary, tol, "cell balance")
+       call test%assert(expected_bal, bal, "cell balance")
 
        call cell%destroy()
        deallocate(rock_data, fluid_data)
