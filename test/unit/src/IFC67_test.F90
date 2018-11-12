@@ -13,13 +13,9 @@ module IFC67_test
   implicit none
   private
 
-  PetscReal, parameter :: density_tol = 1.e-5_dp, energy_tol = 1.e-2_dp
-  PetscReal, parameter :: pressure_tol = 1.e-1_dp, temperature_tol = 1.e-6_dp
-  PetscReal, parameter :: viscosity_tol = 1.e-9_dp
-
   type(IFC67_type) :: IFC67
 
-  public :: setup, teardown
+  public :: setup, teardown, setup_test
   public :: test_IFC67_region1, test_IFC67_region2
   public :: test_IFC67_saturation, test_IFC67_viscosity
   public :: test_IFC67_phase_composition
@@ -51,6 +47,16 @@ contains
     call PetscFinalize(ierr); CHKERRQ(ierr)
 
   end subroutine teardown
+
+!------------------------------------------------------------------------
+
+  subroutine setup_test(test)
+
+    class(unit_test_type), intent(in out) :: test
+
+    test%tolerance = 1.e-7
+
+  end subroutine setup_test
 
 !------------------------------------------------------------------------
 
