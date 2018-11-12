@@ -6,22 +6,49 @@ module dm_utils_test
 
   use petsc
   use kinds_module
-  use fruit
+  use zofu
   use dm_utils_module
 
   implicit none
   private
 
-public :: test_vec_reorder, test_dm_cell_normal_face, test_field_subvector
+  public :: setup, teardown
+  public :: test_vec_reorder, test_dm_cell_normal_face, test_field_subvector
 
 contains
 
 !------------------------------------------------------------------------
 
-  subroutine test_vec_reorder
+  subroutine setup()
+
+    use profiling_module, only: init_profiling
+
+    ! Locals:
+    PetscErrorCode :: ierr
+
+    call PetscInitialize(PETSC_NULL_CHARACTER, ierr); CHKERRQ(ierr)
+    call init_profiling()
+
+  end subroutine setup
+
+!------------------------------------------------------------------------
+
+  subroutine teardown()
+
+    PetscErrorCode :: ierr
+
+    call PetscFinalize(ierr); CHKERRQ(ierr)
+
+  end subroutine teardown
+
+!------------------------------------------------------------------------
+
+  subroutine test_vec_reorder(test)
 
     ! vec_reorder() test
 
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
     Vec :: v
     IS :: is1, is2
     PetscInt :: istart, iend, num_local, i, j, ij
@@ -33,7 +60,6 @@ contains
     PetscInt, parameter :: ind1(n) = [3, 6, 1, 0, 2, 5, 4, 7]
     PetscInt, parameter :: ind2(n) = [4, 0, 7, 3, 6, 1, 2, 5]
     PetscInt, parameter :: expected(n) = [6, 5, 4, 0, 3, 7, 2, 1]
-    PetscReal, parameter :: tol = 1.e-6_dp
 
     call VecCreate(PETSC_COMM_WORLD, v, ierr); CHKERRQ(ierr)
     call VecSetBlockSize(v, bs, ierr); CHKERRQ(ierr)
@@ -68,7 +94,7 @@ contains
     deallocate(ind1_array, ind2_array)
 
     call vec_reorder(v, is1, is2)
-    call assert_equals(expected_local, v_array, num_local, tol)
+    call test%assert(expected_local, v_array)
 
     call VecRestoreArrayF90(v, v_array, ierr); CHKERRQ(ierr)
     call VecDestroy(v, ierr); CHKERRQ(ierr)
@@ -79,10 +105,12 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine test_dm_cell_normal_face
+  subroutine test_dm_cell_normal_face(test)
 
     ! dm_cell_normal_face() test
 
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
     DM :: dm
     character(len = 80) :: filename
     PetscErrorCode :: ierr
@@ -92,7 +120,7 @@ contains
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
 
     ! 2D tests:
-    filename = "data/mesh/2D.msh"
+    filename = "../test/unit/dist/data/mesh/2D.msh"
 
     call DMPlexCreateFromFile(PETSC_COMM_WORLD, filename, &
          PETSC_TRUE, dm, ierr); CHKERRQ(ierr)
@@ -100,26 +128,26 @@ contains
     if (rank == 0) then
 
        call dm_cell_normal_face(dm, 0, [0._dp, -1._dp, 0._dp], f)
-       call assert_equals(216, f, "2D cell 0 down")
+       call test%assert(216, f, "2D cell 0 down")
 
        call dm_cell_normal_face(dm, 0, [-1._dp, 0._dp, 0._dp], f)
-       call assert_equals(215, f, "2D cell 0 left")
+       call test%assert(215, f, "2D cell 0 left")
 
        call dm_cell_normal_face(dm, 9, [0._dp, -1._dp, 0._dp], f)
-       call assert_equals(243, f, "2D cell 9 down")
+       call test%assert(243, f, "2D cell 9 down")
 
        call dm_cell_normal_face(dm, 59, [1._dp, 0._dp, 0._dp], f)
-       call assert_equals(348, f, "2D cell 59 right")
+       call test%assert(348, f, "2D cell 59 right")
 
        call dm_cell_normal_face(dm, 95, [0._dp, 1._dp, 0._dp], f)
-       call assert_equals(424, f, "2D cell 95 up")
+       call test%assert(424, f, "2D cell 95 up")
 
     end if
 
     call DMDestroy(dm, ierr); CHKERRQ(ierr)
 
     ! 3D tests:
-    filename = "data/mesh/block3.exo"
+    filename = "../test/unit/dist/data/mesh/block3.exo"
 
     call DMPlexCreateFromFile(PETSC_COMM_WORLD, filename, &
          PETSC_TRUE, dm, ierr); CHKERRQ(ierr)
@@ -127,22 +155,22 @@ contains
     if (rank == 0) then
 
        call dm_cell_normal_face(dm, 0, [0._dp, 0._dp, 1._dp], f)
-       call assert_equals(20, f, "3D top")
+       call test%assert(20, f, "3D top")
 
        call dm_cell_normal_face(dm, 2, [0._dp, 0._dp, -1._dp], f)
-       call assert_equals(30, f, "3D bottom")
+       call test%assert(30, f, "3D bottom")
 
        call dm_cell_normal_face(dm, 1, [1._dp, 0._dp, 0._dp], f)
-       call assert_equals(26, f, "3D middle +x side")
+       call test%assert(26, f, "3D middle +x side")
 
        call dm_cell_normal_face(dm, 1, [-2._dp, 0._dp, 0.1_dp], f)
-       call assert_equals(27, f, "3D middle -x side")
+       call test%assert(27, f, "3D middle -x side")
 
        call dm_cell_normal_face(dm, 0, [0.1_dp, 0.9_dp, 0._dp], f)
-       call assert_equals(23, f, "3D top +y side")
+       call test%assert(23, f, "3D top +y side")
 
        call dm_cell_normal_face(dm, 2, [2._dp, -8._dp, 0.1_dp], f)
-       call assert_equals(34, f, "3S bottom -y side")
+       call test%assert(34, f, "3S bottom -y side")
 
     end if
 
@@ -152,9 +180,11 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine test_field_subvector
+  subroutine test_field_subvector(test)
     ! get_field_subvector test
 
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
     PetscMPIInt :: rank
     PetscErrorCode :: ierr
     PetscInt :: num_vertices, f, i, val
@@ -176,7 +206,7 @@ contains
 
     call DMCreateGlobalVector(dm, v, ierr); CHKERRQ(ierr)
     call VecGetLocalSize(v, local_size, ierr); CHKERRQ(ierr)
-    call assert_equals(num_vertices * num_fields, local_size, "vec size")
+    call test%assert(num_vertices * num_fields, local_size, "vec size")
 
     ! Fill each field with its field index:
     call VecGetArrayF90(v, v_array, ierr); CHKERRQ(ierr)
@@ -191,9 +221,9 @@ contains
     do f = 0, num_fields - 1
        call get_field_subvector(v, f, index_set, sub_v)
        call VecGetLocalSize(sub_v, sub_local_size, ierr); CHKERRQ(ierr)
-       call assert_equals(num_vertices, sub_local_size, "subvec size")
+       call test%assert(num_vertices, sub_local_size, "subvec size")
        call VecGetArrayReadF90(sub_v, v_array, ierr); CHKERRQ(ierr)
-       call assert_true(all(nint(v_array) == f), "subvec value")
+       call test%assert(all(nint(v_array) == f), "subvec value")
        call VecRestoreArrayReadF90(sub_v, v_array, ierr); CHKERRQ(ierr)
        call VecRestoreSubVector(v, index_set, sub_v, ierr); CHKERRQ(ierr)
        call ISDestroy(index_set, ierr); CHKERRQ(ierr)
