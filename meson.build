@@ -90,8 +90,9 @@ waiwera = shared_library('waiwera',
            fortran_args: f_args,
            install: false)
 
-test_sources = ['IFC67_test',
-               'IAPWS_test']
+test_sources = ['capillary_pressure_test',
+                'IFC67_test',
+                'IAPWS_test']
 foreach test_name: test_sources
   test_src = join_paths(meson.current_source_dir(),
                         'test', 'unit', 'src', test_name + '.F90')

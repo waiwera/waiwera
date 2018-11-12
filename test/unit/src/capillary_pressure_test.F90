@@ -6,15 +6,14 @@ module capillary_pressure_test
 
   use petscsys
   use kinds_module
-  use fruit
+  use zofu
   use capillary_pressure_module
   use fson
 
   implicit none
   private
 
-  PetscReal, parameter :: tol = 1.e-6_dp
-
+  public :: setup, teardown
   public :: test_capillary_pressure_zero, &
        test_capillary_pressure_linear, &
        test_capillary_pressure_van_genuchten, &
@@ -24,12 +23,37 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine test_capillary_pressure_zero
+  subroutine setup()
+
+    use profiling_module, only: init_profiling
+
+    ! Locals:
+    PetscErrorCode :: ierr
+
+    call PetscInitialize(PETSC_NULL_CHARACTER, ierr); CHKERRQ(ierr)
+    call init_profiling()
+
+  end subroutine setup
+
+!------------------------------------------------------------------------
+
+  subroutine teardown()
+
+    PetscErrorCode :: ierr
+
+    call PetscFinalize(ierr); CHKERRQ(ierr)
+
+  end subroutine teardown
+
+!------------------------------------------------------------------------
+
+  subroutine test_capillary_pressure_zero(test)
 
     ! Zero capillary pressure function
 
-    type(capillary_pressure_zero_type) :: cp
+    class(unit_test_type), intent(in out) :: test
     ! Locals:
+    type(capillary_pressure_zero_type) :: cp
     type(fson_value), pointer :: json
     character(100), parameter :: json_str = '{"type": "zero"}'
     PetscMPIInt :: rank
@@ -45,11 +69,11 @@ contains
 
     if (rank == 0) then
 
-       call assert_equals(0, err, "error")
-       call assert_equals("zero", cp%name, "Name")
-       call assert_equals(0._dp, cp%value(0._dp, t), tol, "0")
-       call assert_equals(0._dp, cp%value(0.6_dp, t), tol, "0.6")
-       call assert_equals(0._dp, cp%value(0.9_dp, t), tol, "0.9")
+       call test%assert(0, err, "error")
+       call test%assert("zero", cp%name, "Name")
+       call test%assert(0._dp, cp%value(0._dp, t), "0")
+       call test%assert(0._dp, cp%value(0.6_dp, t), "0.6")
+       call test%assert(0._dp, cp%value(0.9_dp, t), "0.9")
 
     end if
 
@@ -59,12 +83,13 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine test_capillary_pressure_linear
+  subroutine test_capillary_pressure_linear(test)
 
     ! Linear capillary pressure function
 
-    type(capillary_pressure_linear_type) :: cp
+    class(unit_test_type), intent(in out) :: test
     ! Locals:
+    type(capillary_pressure_linear_type) :: cp
     type(fson_value), pointer :: json
     character(100), parameter :: json_str = &
          '{"type": "linear", "saturation_limits": [0.1, 0.8], "pressure": 0.2e5}'
@@ -81,11 +106,11 @@ contains
 
     if (rank == 0) then
 
-       call assert_equals(0, err, "error")
-       call assert_equals("linear", cp%name, "Name")
-       call assert_equals(-0.2e5_dp, cp%value(0._dp, t), tol, "0")
-       call assert_equals(-0.0571428571428e5_dp, cp%value(0.6_dp, t), tol, "0.6")
-       call assert_equals(0._dp, cp%value(0.9_dp, t), tol, "0.9")
+       call test%assert(0, err, "error")
+       call test%assert("linear", cp%name, "Name")
+       call test%assert(-0.2e5_dp, cp%value(0._dp, t), "0")
+       call test%assert(-0.0571428571428e5_dp, cp%value(0.6_dp, t), "0.6")
+       call test%assert(0._dp, cp%value(0.9_dp, t), "0.9")
 
     end if
 
@@ -95,12 +120,13 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine test_capillary_pressure_van_genuchten
+  subroutine test_capillary_pressure_van_genuchten(test)
 
     ! Van Genuchten capillary pressure function
 
-    type(capillary_pressure_van_genuchten_type) :: cp
+    class(unit_test_type), intent(in out) :: test
     ! Locals:
+    type(capillary_pressure_van_genuchten_type) :: cp
     type(fson_value), pointer :: json
     character(100) :: json_str
     PetscMPIInt :: rank
@@ -117,14 +143,14 @@ contains
     call fson_destroy(json)
 
     if (rank == 0) then
-       call assert_equals(0, err, "error")
-       call assert_equals("van Genuchten", cp%name, "Name")
-       call assert_equals(-0.2e5_dp, cp%value(0._dp, t), tol, "0")
-       call assert_equals(-6.99714227381e5_dp, cp%value(0.12_dp, t), tol, "0.12")
-       call assert_equals(-2.79284800875e5_dp, cp%value(0.15_dp, t), tol, "0.15")
-       call assert_equals(-0.911652955412e5_dp, cp%value(0.25_dp, t), tol, "0.25")
-       call assert_equals(-0.195959179423e5_dp, cp%value(0.6_dp, t), tol, "0.6")
-       call assert_equals(0._dp, cp%value(0.9_dp, t), tol, "0.9")
+       call test%assert(0, err, "error")
+       call test%assert("van Genuchten", cp%name, "Name")
+       call test%assert(-0.2e5_dp, cp%value(0._dp, t), "0")
+       call test%assert(-6.99714227381e5_dp, cp%value(0.12_dp, t), "0.12")
+       call test%assert(-2.79284800875e5_dp, cp%value(0.15_dp, t), "0.15")
+       call test%assert(-0.911652955412e5_dp, cp%value(0.25_dp, t), "0.25")
+       call test%assert(-0.195959179423e5_dp, cp%value(0.6_dp, t), "0.6")
+       call test%assert(0._dp, cp%value(0.9_dp, t), "0.9")
     end if
 
     call cp%destroy()
@@ -136,9 +162,9 @@ contains
     call fson_destroy(json)
 
     if (rank == 0) then
-       call assert_equals(0, err, "error")
-       call assert_equals(-6.e5_dp, cp%value(0.12_dp, t), tol, "0.12 Pmax")
-       call assert_equals(-0.195959179423e5_dp, cp%value(0.6_dp, t), tol, "0.6 Pmax")
+       call test%assert(0, err, "error")
+       call test%assert(-6.e5_dp, cp%value(0.12_dp, t), "0.12 Pmax")
+       call test%assert(-0.195959179423e5_dp, cp%value(0.6_dp, t), "0.6 Pmax")
     end if
 
     call cp%destroy()
@@ -147,13 +173,13 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine test_capillary_pressure_table
+  subroutine test_capillary_pressure_table(test)
 
     ! Table capillary pressure function
 
-    type(capillary_pressure_table_type) :: cp
+    class(unit_test_type), intent(in out) :: test
     ! Locals:
-    
+    type(capillary_pressure_table_type) :: cp
     type(fson_value), pointer :: json
     character(100) :: json_str
     PetscMPIInt :: rank
@@ -170,12 +196,12 @@ contains
     call fson_destroy(json)
 
     if (rank == 0) then
-       call assert_equals(0, err, "error")
-       call assert_equals("table", cp%name, "Name")
-       call assert_equals(-5.e5_dp, cp%value(0._dp, t), tol, "0")
-       call assert_equals(-2.e5_dp, cp%value(0.3_dp, t), tol, "0.3")
-       call assert_equals(0.e5_dp, cp%value(0.7_dp, t), tol, "0.7")
-       call assert_equals(0.e5_dp, cp%value(0.9_dp, t), tol, "0.9")
+       call test%assert(0, err, "error")
+       call test%assert("table", cp%name, "Name")
+       call test%assert(-5.e5_dp, cp%value(0._dp, t), "0")
+       call test%assert(-2.e5_dp, cp%value(0.3_dp, t), "0.3")
+       call test%assert(0.e5_dp, cp%value(0.7_dp, t), "0.7")
+       call test%assert(0.e5_dp, cp%value(0.9_dp, t), "0.9")
     end if
 
     call cp%destroy() 
