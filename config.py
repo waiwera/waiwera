@@ -5,6 +5,7 @@
 import os
 import argparse
 import subprocess
+from shutil import copyfile
 
 env = os.environ.copy()
 orig_path = os.getcwd()
@@ -26,12 +27,14 @@ def env_update(key, value, separator = ' '):
     else: env[key] = value
 
 # set pkg-config path:
-env_update('PKG_CONFIG_PATH',
-           os.path.join(args.prefix, args.libdir, 'pkgconfig'), ':')
+pkg_config_dir = os.path.join(args.prefix, args.libdir, 'pkgconfig')
+env_update('PKG_CONFIG_PATH', pkg_config_dir, ':')
 if "PETSC_DIR" in env and "PETSC_ARCH" in env:
-    petsc_pkgconfig_path = os.path.join(env["PETSC_DIR"], env["PETSC_ARCH"],
-                                        "lib", "pkgconfig")
-    env_update('PKG_CONFIG_PATH', petsc_pkgconfig_path, ':')
+    petsc_pkgconfig_file = os.path.join(env["PETSC_DIR"], env["PETSC_ARCH"],
+                                        "lib", "pkgconfig", "PETSc.pc")
+    dest_petsc_pkgconfig_file = os.path.join(pkg_config_dir, "PETSc.pc")
+    if os.path.isfile(petsc_pkgconfig_file) and not os.path.isfile(dest_petsc_pkgconfig_file):
+        copyfile(petsc_pkgconfig_file, dest_petsc_pkgconfig_file)
 
 set_rpath = 'false' if args.no_rpath else 'true'
 
