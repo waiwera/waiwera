@@ -6,7 +6,7 @@ module dictionary_test
 
   use petscsys
   use kinds_module
-  use fruit
+  use zofu
   use dictionary_module
   use list_module, only: list_node_type, list_type
 
@@ -19,9 +19,34 @@ module dictionary_test
      procedure :: destroy => thing_destroy
   end type thing_type
 
+  public :: setup, teardown
   public :: test_integer, test_thing, test_dict_list
 
 contains
+
+!------------------------------------------------------------------------
+
+  subroutine setup()
+
+    use profiling_module, only: init_profiling
+
+    ! Locals:
+    PetscErrorCode :: ierr
+
+    call PetscInitialize(PETSC_NULL_CHARACTER, ierr); CHKERRQ(ierr)
+    call init_profiling()
+
+  end subroutine setup
+
+!------------------------------------------------------------------------
+
+  subroutine teardown()
+
+    PetscErrorCode :: ierr
+
+    call PetscFinalize(ierr); CHKERRQ(ierr)
+
+  end subroutine teardown
 
 !------------------------------------------------------------------------
 
@@ -36,9 +61,11 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine test_integer
+  subroutine test_integer(test)
     ! dictionary of integers
 
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
     type(dictionary_type) :: dict
     PetscInt :: i, count
     PetscMPIInt :: rank
@@ -57,14 +84,14 @@ contains
     call dict%add("ZZZZZZ", 103)
     
     if (rank == 0) then
-       call assert_equals(PETSC_TRUE, dict%has("fred"), 'fred present')
+       call test%assert(dict%has("fred"), 'fred present')
     end if
     
     count = dict%count()
     call dict%delete("fred")
     if (rank == 0) then
-       call assert_equals(PETSC_FALSE, dict%has("fred"), 'fred gone')
-       call assert_equals(count - 1, dict%count(), 'count with fred gone')
+       call test%assert(.not. dict%has("fred"), 'fred gone')
+       call test%assert(count - 1, dict%count(), 'count with fred gone')
     end if
 
     do i = ichar("a"), ichar("z")
@@ -89,7 +116,7 @@ contains
       if (rank == 0) then
          select type (data => node%data)
          type is (PetscInt)
-            call assert_equals(expected, data, key)
+            call test%assert(expected, data, key)
          end select
       end if
 
@@ -99,9 +126,11 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine test_thing
+  subroutine test_thing(test)
     ! dictionary of objects
 
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
     type(thing_type), pointer :: thing
     type(dictionary_type) :: dict
     type(list_node_type), pointer :: node
@@ -119,19 +148,19 @@ contains
     call dict%add("thing1", thing)
 
     if (rank == 0) then
-       call assert_equals(PETSC_TRUE, dict%has("thing1"), "has thing1")
+       call test%assert(dict%has("thing1"), "has thing1")
     end if
 
     node => dict%get("another thing")
     if (rank == 0) then
-       call assert_equals(PETSC_FALSE, associated(node), "get thing2")
+       call test%assert(.not. associated(node), "get thing2")
     end if
 
     node => dict%get("thing1")
     select type (data => node%data)
     type is (thing_type)
        if (rank == 0) then
-          call assert_equals([1._dp, 2._dp, 3._dp], data%x, 3, "thing x")
+          call test%assert([1._dp, 2._dp, 3._dp], data%x, "thing x")
        end if
     end select
 
@@ -155,9 +184,11 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine test_dict_list
+  subroutine test_dict_list(test)
     ! list to dict
 
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
     type(list_type) :: list
     type(dictionary_type) :: dict
     PetscInt :: i, j
@@ -179,10 +210,10 @@ contains
     call dict%init(list)
 
     if (rank == 0) then
-       call assert_equals(3, dict%count(), "count")
-       call assert_equals(PETSC_TRUE, dict%has("i"), "has i")
-       call assert_equals(PETSC_TRUE, dict%has("j"), "has j")
-       call assert_equals(PETSC_TRUE, dict%has("x"), "has x")
+       call test%assert(3, dict%count(), "count")
+       call test%assert(dict%has("i"), "has i")
+       call test%assert(dict%has("j"), "has j")
+       call test%assert(dict%has("x"), "has x")
     end if
 
     call dict%destroy()

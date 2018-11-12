@@ -93,6 +93,7 @@ waiwera = shared_library('waiwera',
 test_sources = ['capillary_pressure_test',
                 'cell_test',
                 'dag_test',
+                'dictionary_test',
                 'IFC67_test',
                 'IAPWS_test']
 foreach test_name: test_sources
