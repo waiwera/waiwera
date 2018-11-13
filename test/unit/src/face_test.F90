@@ -6,7 +6,7 @@ module face_test
 
   use petscsys
   use kinds_module
-  use fruit
+  use zofu
   use face_module
   use IAPWS_module
   use fson
@@ -14,23 +14,46 @@ module face_test
   implicit none
   private
 
-public :: test_face_assign, test_face_permeability_direction, &
-     test_face_normal_gradient, test_face_harmonic_average, &
-     test_face_flux_zero_horizontal, test_face_flux_vertical_gravity, &
-     test_face_flux_hydrostatic, test_face_flux_two_phase_vertical
-
-PetscReal, parameter :: tol = 1.e-6_dp
-PetscReal, parameter :: mass_tol = 1.e-10_dp, heat_tol = 1.e-6
-PetscReal, parameter :: density_tol = 1.e-6_dp
+  public :: setup, teardown
+  public :: test_face_assign, test_face_permeability_direction, &
+       test_face_normal_gradient, test_face_harmonic_average, &
+       test_face_flux_zero_horizontal, test_face_flux_vertical_gravity, &
+       test_face_flux_hydrostatic, test_face_flux_two_phase_vertical
 
 contains
   
 !------------------------------------------------------------------------
 
-  subroutine test_face_assign
+  subroutine setup()
+
+    use profiling_module, only: init_profiling
+
+    ! Locals:
+    PetscErrorCode :: ierr
+
+    call PetscInitialize(PETSC_NULL_CHARACTER, ierr); CHKERRQ(ierr)
+    call init_profiling()
+
+  end subroutine setup
+
+!------------------------------------------------------------------------
+
+  subroutine teardown()
+
+    PetscErrorCode :: ierr
+
+    call PetscFinalize(ierr); CHKERRQ(ierr)
+
+  end subroutine teardown
+
+!------------------------------------------------------------------------
+
+  subroutine test_face_assign(test)
 
     ! Face assign() test
 
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
     type(face_type) :: face
     PetscReal, parameter :: area = 300._dp
     PetscReal, parameter :: distance(2) = [20._dp, 30._dp]
@@ -54,17 +77,17 @@ contains
        face_data = [offset_padding, area, distance, normal, gravity_normal, &
             centroid, permeability_direction]
 
-       call assert_equals(face%dof, size(face_data) - (offset-1), "face dof")
+       call test%assert(face%dof, size(face_data) - (offset-1), "face dof")
 
        call face%assign_geometry(face_data, offset)
 
-       call assert_equals(area, face%area, tol, "area")
-       call assert_equals(0._dp, norm2(face%distance - distance), tol, "distances")
-       call assert_equals(0._dp, norm2(face%normal - normal), tol, "normal")
-       call assert_equals(-7.35_dp, face%gravity_normal, tol, "gravity normal")
-       call assert_equals(0._dp, norm2(face%centroid - centroid), tol, "centroid")
-       call assert_equals(permeability_direction, face%permeability_direction, &
-            tol, "permeability direction")
+       call test%assert(area, face%area, "area")
+       call test%assert(0._dp, norm2(face%distance - distance), "distances")
+       call test%assert(0._dp, norm2(face%normal - normal), "normal")
+       call test%assert(-7.35_dp, face%gravity_normal, "gravity normal")
+       call test%assert(0._dp, norm2(face%centroid - centroid), "centroid")
+       call test%assert(permeability_direction, face%permeability_direction, &
+            "permeability direction")
 
        call face%destroy()
        deallocate(face_data)
@@ -75,10 +98,12 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine test_face_permeability_direction
+  subroutine test_face_permeability_direction(test)
 
     ! Face permeability_direction() test
 
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
     type(face_type) :: face
     PetscReal, parameter :: area = 10._dp
     PetscReal, parameter :: distance(2) = [10._dp, 10._dp]
@@ -120,8 +145,8 @@ contains
           call face%calculate_permeability_direction(rotation)
 
           write(msg, '(a, i2)') "Permeability direction test ", i
-          call assert_equals(expected_permeability_direction(i), &
-               face%permeability_direction, tol, trim(msg))
+          call test%assert(expected_permeability_direction(i), &
+               face%permeability_direction, trim(msg))
 
           call face%destroy()
           deallocate(face_data)
@@ -134,12 +159,14 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine test_face_normal_gradient
+  subroutine test_face_normal_gradient(test)
 
     ! Face normal_gradient() test
 
     use cell_module
 
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
     type(face_type) :: face
     type(cell_type) :: cell
     PetscReal, parameter :: distance(2) = [25._dp, 32._dp]
@@ -172,8 +199,8 @@ contains
 
        g = face%normal_gradient(x)
 
-       call assert_equals(expected_d12, face%distance12, tol, "face distance12")
-       call assert_equals(expected_g, g, tol, "face normal gradient")
+       call test%assert(expected_d12, face%distance12, "face distance12")
+       call test%assert(expected_g, g, "face normal gradient")
 
        call cell%destroy()
        call face%destroy()
@@ -185,12 +212,14 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine test_face_harmonic_average
+  subroutine test_face_harmonic_average(test)
 
     ! Face harmonic_average() test
 
     use cell_module
 
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
     type(face_type) :: face
     type(cell_type) :: cell
     PetscReal, pointer, contiguous :: face_data(:)
@@ -237,7 +266,7 @@ contains
           call face%assign_cell_geometry(cell_data, cell_offsets)
           xh = face%harmonic_average(x(:, i))
           write(msg, '(a, i2)') "Face harmonic average test ", i
-          call assert_equals(expected_xh(i), xh, tol, msg)
+          call test%assert(expected_xh(i), xh, msg)
        end do
 
        call cell%destroy()
@@ -250,7 +279,7 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine test_face_flux_zero_horizontal
+  subroutine test_face_flux_zero_horizontal(test)
 
     ! Face flux() test, 1-phase horizontal
     ! Fluid properties in the two cells are identical, so the fluxes
@@ -261,6 +290,8 @@ contains
     use fluid_module
     use eos_we_module
 
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
     PetscInt, parameter :: nc = 1, num_phases = 1, num_primary = 2
     type(face_type) :: face
     type(cell_type) :: cell
@@ -315,9 +346,9 @@ contains
 
        flux = face%flux(eos)
 
-       call assert_equals(num_primary, size(flux), "Flux array size")
-       call assert_equals(expected_mass_flux, flux(1), tol, "Mass flux")
-       call assert_equals(expected_heat_flux, flux(2), tol, "Heat flux")
+       call test%assert(num_primary, size(flux), "Flux array size")
+       call test%assert(expected_mass_flux, flux(1), "Mass flux")
+       call test%assert(expected_heat_flux, flux(2), "Heat flux")
 
        call cell%destroy()
        call face%destroy()
@@ -335,7 +366,7 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine test_face_flux_vertical_gravity
+  subroutine test_face_flux_vertical_gravity(test)
 
     ! Face flux() test, 1-phase vertical, gravity only
     ! Fluid properties in both cells are identical, so the only flow
@@ -346,6 +377,8 @@ contains
     use fluid_module
     use eos_we_module
 
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
     PetscInt, parameter :: nc = 1, num_phases = 1, num_primary = 2
     type(face_type) :: face
     type(cell_type) :: cell
@@ -400,8 +433,8 @@ contains
 
        flux = face%flux(eos)
 
-       call assert_equals(expected_mass_flux, flux(1), mass_tol, "Mass flux")
-       call assert_equals(expected_heat_flux, flux(2), heat_tol, "Heat flux")
+       call test%assert(expected_mass_flux, flux(1), "Mass flux")
+       call test%assert(expected_heat_flux, flux(2), "Heat flux")
 
        call cell%destroy()
        call face%destroy()
@@ -419,7 +452,7 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine test_face_flux_hydrostatic
+  subroutine test_face_flux_hydrostatic(test)
 
     ! Face flux() test, vertical hydrostatic
     ! Pressure in cell 2 is chosen (by solving a nonlinear equation)
@@ -430,6 +463,8 @@ contains
     use fluid_module
     use eos_we_module
 
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
     PetscInt, parameter :: nc = 1, num_phases = 1, num_primary = 2
     type(face_type) :: face
     type(cell_type) :: cell
@@ -487,8 +522,8 @@ contains
 
        flux = face%flux(eos)
 
-       call assert_equals(expected_mass_flux, flux(1), mass_tol, "Mass flux")
-       call assert_equals(expected_heat_flux, flux(2), heat_tol, "Heat flux")
+       call test%assert(expected_mass_flux, flux(1), "Mass flux")
+       call test%assert(expected_heat_flux, flux(2), "Heat flux")
 
        call cell%destroy()
        call face%destroy()
@@ -506,7 +541,7 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine test_face_flux_two_phase_vertical
+  subroutine test_face_flux_two_phase_vertical(test)
 
     ! Face flux() test, 2-phase vertical
     ! The cells have different rock and two-phase fluid properties.
@@ -516,6 +551,8 @@ contains
     use fluid_module
     use eos_we_module
 
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
     PetscInt, parameter :: nc = 1, num_phases = 2, num_primary = 2
     type(face_type) :: face
     type(cell_type) :: cell
@@ -581,13 +618,13 @@ contains
        call face%assign_cell_fluid(fluid_data, fluid_offsets)
 
        density = face%phase_density(1)
-       call assert_equals(expected_liquid_density, density, density_tol, "Liquid density")
+       call test%assert(expected_liquid_density, density, "Liquid density")
        density = face%phase_density(2)
-       call assert_equals(expected_vapour_density, density, density_tol, "Vapour density")
+       call test%assert(expected_vapour_density, density, "Vapour density")
        flux = face%flux(eos)
 
-       call assert_equals(expected_mass_flux, flux(1), mass_tol, "Mass flux")
-       call assert_equals(expected_heat_flux, flux(2), heat_tol, "Heat flux")
+       call test%assert(expected_mass_flux, flux(1), "Mass flux")
+       call test%assert(expected_heat_flux, flux(2), "Heat flux")
 
        call cell%destroy()
        call face%destroy()
