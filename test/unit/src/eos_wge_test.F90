@@ -6,7 +6,7 @@ module eos_wge_test_module
 
   use petsc
   use kinds_module
-  use fruit
+  use zofu
   use fluid_module
   use rock_module
   use relative_permeability_module
@@ -14,21 +14,48 @@ module eos_wge_test_module
   use fson
   use fson_mpi_module
   use eos_wge_module
-  use eos_we_test_module, only: transition_compare
+  use unit_test_utils_module, only: transition_compare
 
   implicit none
   private
 
-public :: test_eos_wge_transition
+  public :: setup, teardown
+  public :: test_eos_wge_transition
 
 contains
 
 !------------------------------------------------------------------------
 
-  subroutine test_eos_wge_transition
+  subroutine setup()
+
+    use profiling_module, only: init_profiling
+
+    ! Locals:
+    PetscErrorCode :: ierr
+
+    call PetscInitialize(PETSC_NULL_CHARACTER, ierr); CHKERRQ(ierr)
+    call init_profiling()
+
+  end subroutine setup
+
+!------------------------------------------------------------------------
+
+  subroutine teardown()
+
+    PetscErrorCode :: ierr
+
+    call PetscFinalize(ierr); CHKERRQ(ierr)
+
+  end subroutine teardown
+
+!------------------------------------------------------------------------
+
+  subroutine test_eos_wge_transition(test)
 
     ! eos_wge_transition() test
 
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
     type(fluid_type) :: old_fluid, fluid
     PetscInt,  parameter :: offset = 1, num_primary_variables = 3
     PetscReal, pointer, contiguous :: old_fluid_data(:), fluid_data(:)
@@ -70,7 +97,7 @@ contains
        old_primary = expected_primary
        primary = expected_primary
        call eos%transition(old_primary, primary, old_fluid, fluid, transition, err)
-       call transition_compare(expected_primary, expected_region, &
+       call transition_compare(test, expected_primary, expected_region, &
             expected_transition, primary, fluid, transition, err, title)
 
        title = "Region 1 null transition, Pg > 0"
@@ -82,7 +109,7 @@ contains
        old_primary = expected_primary
        primary = expected_primary
        call eos%transition(old_primary, primary, old_fluid, fluid, transition, err)
-       call transition_compare(expected_primary, expected_region, &
+       call transition_compare(test, expected_primary, expected_region, &
             expected_transition, primary, fluid, transition, err, title)
 
        title = "Region 1 to 4, Pg = 0"
@@ -94,7 +121,7 @@ contains
        old_primary = [20.e5_dp, 210._dp, 0._dp]
        primary = [15.e5_dp, 200._dp, 0._dp]
        call eos%transition(old_primary, primary, old_fluid, fluid, transition, err)
-       call transition_compare(expected_primary, expected_region, &
+       call transition_compare(test, expected_primary, expected_region, &
             expected_transition, primary, fluid, transition, err, title)
 
        title = "Region 1 to 4, Pg > 0"
@@ -106,7 +133,7 @@ contains
        old_primary = [21.e5_dp, 210._dp, 1.e5_dp]
        primary = [17.e5_dp, 200._dp, 2.e5_dp]
        call eos%transition(old_primary, primary, old_fluid, fluid, transition, err)
-       call transition_compare(expected_primary, expected_region, &
+       call transition_compare(test, expected_primary, expected_region, &
             expected_transition, primary, fluid, transition, err, title)
 
        title = "Region 2 null transition, Pg = 0"
@@ -118,7 +145,7 @@ contains
        primary = expected_primary
        expected_transition = PETSC_FALSE
        call eos%transition(old_primary, primary, old_fluid, fluid, transition, err)
-       call transition_compare(expected_primary, expected_region, &
+       call transition_compare(test, expected_primary, expected_region, &
             expected_transition, primary, fluid, transition, err, title)
 
        title = "Region 2 null transition, Pg > 0"
@@ -130,7 +157,7 @@ contains
        primary = expected_primary
        expected_transition = PETSC_FALSE
        call eos%transition(old_primary, primary, old_fluid, fluid, transition, err)
-       call transition_compare(expected_primary, expected_region, &
+       call transition_compare(test, expected_primary, expected_region, &
             expected_transition, primary, fluid, transition, err, title)
 
        title = "Region 2 to 4, Pg = 0"
@@ -142,7 +169,7 @@ contains
        old_primary = [84.0e5_dp, 302._dp, 0._dp]
        primary = [86.e5_dp, 299.27215502281706_dp, 0._dp]
        call eos%transition(old_primary, primary, old_fluid, fluid, transition, err)
-       call transition_compare(expected_primary, expected_region, &
+       call transition_compare(test, expected_primary, expected_region, &
             expected_transition, primary, fluid, transition, err, title)
 
        title = "Region 2 to 4, Pg > 0"
@@ -155,7 +182,7 @@ contains
        old_primary = [86.0e5_dp, 302._dp, 2.e5_dp]
        primary = [87.e5_dp, 299.27215502281706_dp, 1.e5_dp]
        call eos%transition(old_primary, primary, old_fluid, fluid, transition, err)
-       call transition_compare(expected_primary, expected_region, &
+       call transition_compare(test, expected_primary, expected_region, &
             expected_transition, primary, fluid, transition, err, title)
 
        title = "Region 4 null transition, Pg = 0"
@@ -167,7 +194,7 @@ contains
        primary = expected_primary
        expected_transition = PETSC_FALSE
        call eos%transition(old_primary, primary, old_fluid, fluid, transition, err)
-       call transition_compare(expected_primary, expected_region, &
+       call transition_compare(test, expected_primary, expected_region, &
             expected_transition, primary, fluid, transition, err, title)
 
        title = "Region 4 null transition, Pg > 0"
@@ -179,7 +206,7 @@ contains
        primary = expected_primary
        expected_transition = PETSC_FALSE
        call eos%transition(old_primary, primary, old_fluid, fluid, transition, err)
-       call transition_compare(expected_primary, expected_region, &
+       call transition_compare(test, expected_primary, expected_region, &
             expected_transition, primary, fluid, transition, err, title)
 
        title = "Region 4 to 1, Pg = 0"
@@ -193,7 +220,7 @@ contains
        old_primary = [85.e5_dp, 0.1_dp, 0._dp]
        primary = [86.e5_dp, -0.01_dp, 0._dp]
        call eos%transition(old_primary, primary, old_fluid, fluid, transition, err)
-       call transition_compare(expected_primary, expected_region, &
+       call transition_compare(test, expected_primary, expected_region, &
             expected_transition, primary, fluid, transition, err, title)
 
        title = "Region 4 to 1, Pg > 0"
@@ -208,7 +235,7 @@ contains
        old_primary = [88.e5_dp, 0.1_dp, 3.e5_dp]
        primary = [87.5e5_dp, -0.01_dp, 1.5e5_dp]
        call eos%transition(old_primary, primary, old_fluid, fluid, transition, err)
-       call transition_compare(expected_primary, expected_region, &
+       call transition_compare(test, expected_primary, expected_region, &
             expected_transition, primary, fluid, transition, err, title)
 
        title = "Region 4 to 2, Pg = 0"
@@ -222,7 +249,7 @@ contains
        old_primary = [20.e5_dp, 0.9_dp, 0._dp]
        primary = [20.1e5_dp, 1.02_dp, 0._dp]
        call eos%transition(old_primary, primary, old_fluid, fluid, transition, err)
-       call transition_compare(expected_primary, expected_region, &
+       call transition_compare(test, expected_primary, expected_region, &
             expected_transition, primary, fluid, transition, err, title)
 
        title = "Region 4 to 2, Pg > 0"
@@ -237,7 +264,7 @@ contains
        old_primary = [22.e5_dp, 0.9_dp, 2.e5_dp]
        primary = [24.1e5_dp, 1.02_dp, 4.e5_dp]
        call eos%transition(old_primary, primary, old_fluid, fluid, transition, err)
-       call transition_compare(expected_primary, expected_region, &
+       call transition_compare(test, expected_primary, expected_region, &
             expected_transition, primary, fluid, transition, err, title)
 
     end if

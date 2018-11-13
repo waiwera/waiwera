@@ -90,6 +90,11 @@ waiwera = shared_library('waiwera',
            fortran_args: f_args,
            install: false)
 
+unit_test_utils = shared_library('unit_test_utils',
+                            [join_paths(meson.current_source_dir(),
+                                        'test', 'unit', 'src', 'unit_test_utils.F90')],
+                            link_with: waiwera,
+                            dependencies: [zofu, PETSc])
 test_sources = ['capillary_pressure_test',
                 'cell_test',
                 'dag_test',
@@ -97,6 +102,7 @@ test_sources = ['capillary_pressure_test',
                 'dm_utils_test',
                 'eos_test',
                 'eos_we_test',
+                'eos_wge_test',
                 'IFC67_test',
                 'IAPWS_test']
 foreach test_name: test_sources
@@ -110,7 +116,7 @@ foreach test_name: test_sources
 
   test_exe = executable(test_name,
                       [test_driver_src, test_src],
-                      link_with: waiwera,
+                      link_with: [waiwera, unit_test_utils],
                       dependencies: [zofu, PETSc, fson])
   test(test_name, test_exe, is_parallel: false)
 endforeach

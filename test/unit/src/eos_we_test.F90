@@ -15,6 +15,7 @@ module eos_we_test_module
   use fson
   use fson_mpi_module
   use eos_we_module
+  use unit_test_utils_module, only: transition_compare
 
   implicit none
   private
@@ -22,7 +23,6 @@ module eos_we_test_module
   public :: setup, teardown, setup_test
   public :: test_eos_we_fluid_properties, test_eos_we_transition, &
        test_eos_we_errors, test_eos_we_conductivity
-  public :: transition_compare
 
 contains
 
@@ -59,31 +59,6 @@ contains
     test%tolerance = 1.e-9
 
   end subroutine setup_test
-
-!------------------------------------------------------------------------
-
-  subroutine transition_compare(test, expected_primary, expected_region, &
-       expected_transition, primary, fluid, transition, err, message)
-
-    ! Runs asserts to test EOS transition
-
-    class(unit_test_type), intent(in out) :: test
-    PetscReal, intent(in) :: expected_primary(:), primary(:)
-    PetscInt, intent(in) :: expected_region
-    type(fluid_type), intent(in) :: fluid
-    PetscBool, intent(in) :: expected_transition, transition
-    PetscErrorCode, intent(in) :: err
-    character(60), intent(in) :: message
-
-    call test%assert(expected_primary, primary, &
-         trim(message) // "primary")
-    call test%assert(expected_region, nint(fluid%region), &
-         trim(message) // " region")
-    call test%assert(expected_transition, transition, &
-         trim(message) // " transition")
-    call test%assert(0, err, trim(message) // " error")
-
-  end subroutine transition_compare
 
 !------------------------------------------------------------------------
 
