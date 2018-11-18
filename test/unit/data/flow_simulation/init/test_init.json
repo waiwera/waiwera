@@ -1,6 +1,6 @@
 {
     "title": "Test flow simulation init",
-    "mesh": "data/flow_simulation/mesh/3x3_2d.exo",
+    "mesh": "../test/unit/data/flow_simulation/mesh/3x3_2d.exo",
     "initial": {"primary": [2.0e5]},
     "eos": {"name": "w", "temperature": 20},
     "rock": {
