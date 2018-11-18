@@ -1,4 +1,4 @@
-- hosts: all
+- hosts: localhost
   environment:
     PETSC_DIR: /opt/app/petsc
     PETSC_ARCH: arch-linux2-c-debug

@@ -1,4 +1,5 @@
 FROM phusion/baseimage:0.11
+# FROM debian/9
 
 RUN apt update && \
     apt install -y python python-dev python-pip && \
@@ -6,6 +7,4 @@ RUN apt update && \
 
 RUN pip install ansible
 ADD ansible /srv/ansible
-RUN /usr/local/bin/ansible-playbook /srv/ansible/docker.yml
-
-CMD ["/sbin/my_init"]
+RUN /usr/local/bin/ansible-playbook /srv/ansible/main.yml -v

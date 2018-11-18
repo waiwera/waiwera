@@ -1,4 +1,4 @@
-- hosts: all
+- hosts: localhost
   become_user: root
   become_method: sudo
   tasks:

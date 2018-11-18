@@ -1,4 +1,4 @@
-- hosts: all
+- hosts: localhost
   become_user: root
   become_method: sudo
   tasks:
@@ -64,4 +64,3 @@
     args:
       chdir: /opt/app/fruit/fruit_processor_gem
     become: yes
-# cp /home/vagrant/fruit/*.mod /home/vagrant/include

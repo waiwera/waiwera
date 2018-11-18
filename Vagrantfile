@@ -12,13 +12,16 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
     waiwera.vm.network :forwarded_port, host: 5050, guest: 5000
     waiwera.vm.network :forwarded_port, host: 2201, guest: 22, id: "ssh", auto_correct: true
     waiwera.vm.network "private_network", ip: "192.168.50.91"
-    waiwera.vm.provision :shell, path: "bootstrap.sh"
+    # waiwera.vm.provision :shell, path: "bootstrap.sh"
     # waiwera.vm.provision :shell, path: "waiwera-setup.sh", privileged: false
     # waiwera.vm.provision :shell, path: "fruit_processor.sh"
     # waiwera.vm.provision :shell, path: "waiwera-testing.sh", privileged: false
-    waiwera.vm.provision "ansible_local" do |ansible|
-      ansible.verbose = "v"
-      ansible.playbook = "/vagrant/ansible/main.yml"
+    # waiwera.vm.provision "ansible_local" do |ansible|
+    #   ansible.verbose = "v"
+    #   ansible.playbook = "/vagrant/ansible/main.yml"
+    # end
+    config.vm.provision "docker" do |d|
+      d.build_image "/vagrant/"
     end
     waiwera.vm.hostname = "waiwera"
   end
