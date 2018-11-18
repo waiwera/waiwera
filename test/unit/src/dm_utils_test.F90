@@ -120,7 +120,7 @@ contains
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
 
     ! 2D tests:
-    filename = "../test/unit/dist/data/mesh/2D.msh"
+    filename = "../test/unit/data/mesh/2D.msh"
 
     call DMPlexCreateFromFile(PETSC_COMM_WORLD, filename, &
          PETSC_TRUE, dm, ierr); CHKERRQ(ierr)
@@ -147,7 +147,7 @@ contains
     call DMDestroy(dm, ierr); CHKERRQ(ierr)
 
     ! 3D tests:
-    filename = "../test/unit/dist/data/mesh/block3.exo"
+    filename = "../test/unit/data/mesh/block3.exo"
 
     call DMPlexCreateFromFile(PETSC_COMM_WORLD, filename, &
          PETSC_TRUE, dm, ierr); CHKERRQ(ierr)
