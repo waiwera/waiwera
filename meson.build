@@ -105,6 +105,7 @@ test_sources = ['capillary_pressure_test',
                 'eos_wge_test',
                 'eos_w_test',
                 'face_test',
+                'flow_simulation_test',
                 'IFC67_test',
                 'IAPWS_test']
 foreach test_name: test_sources
