@@ -1,6 +1,6 @@
 {
     "title": "Test table source controls",
-    "mesh": "data/flow_simulation/mesh/3x3_2d.exo",
+    "mesh": "../test/unit/data/flow_simulation/mesh/3x3_2d.exo",
     "source": [
         {"name": "rate table single source", "cell": 0,
          "rate":[

@@ -120,7 +120,8 @@ test_sources = ['capillary_pressure_test',
                 'powertable_test',
                 'relative_permeability_test',
                 'rock_test',
-                'root_finder_test']
+                'root_finder_test',
+                'source_control_test']
 foreach test_name: test_sources
   test_src = join_paths(meson.current_source_dir(),
                         'test', 'unit', 'src', test_name + '.F90')

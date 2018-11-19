@@ -6,7 +6,7 @@ module source_control_test
 
   use petsc
   use kinds_module
-  use fruit
+  use zofu
   use source_module
   use source_control_module
   use source_setup_module
@@ -14,13 +14,38 @@ module source_control_test
   implicit none
   private
 
+  public :: setup, teardown
   public :: test_source_control_table, test_source_control_pressure_reference
 
 contains
 
 !------------------------------------------------------------------------
 
-  subroutine test_source_control_table
+  subroutine setup()
+
+    use profiling_module, only: init_profiling
+
+    ! Locals:
+    PetscErrorCode :: ierr
+
+    call PetscInitialize(PETSC_NULL_CHARACTER, ierr); CHKERRQ(ierr)
+    call init_profiling()
+
+  end subroutine setup
+
+!------------------------------------------------------------------------
+
+  subroutine teardown()
+
+    PetscErrorCode :: ierr
+
+    call PetscFinalize(ierr); CHKERRQ(ierr)
+
+  end subroutine teardown
+
+!------------------------------------------------------------------------
+
+  subroutine test_source_control_table(test)
     ! Table source control
 
     use fson
@@ -29,14 +54,16 @@ contains
     use list_module
     use IAPWS_module
     use eos_module, only: max_component_name_length, max_phase_name_length
-    use eos_test
+    use eos_wge_module
     use fluid_module, only: setup_fluid_vector
     use dm_utils_module, only: global_vec_section, global_section_offset, &
          global_to_local_vec_section, restore_dm_local_vec
 
-    character(16), parameter :: path = "data/source/"
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
+    character(25), parameter :: path = "../test/unit/data/source/"
     type(IAPWS_type) :: thermo
-    type(eos_test_type) :: eos
+    type(eos_wge_type) :: eos
     type(fson_value), pointer :: json
     type(mesh_type) :: mesh
     type(list_type) :: source_controls
@@ -53,7 +80,6 @@ contains
     PetscErrorCode :: ierr, err
     PetscReal, parameter :: start_time = 0._dp
     PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
-    PetscReal, parameter :: tol = 1.e-6_dp
     PetscInt, parameter :: expected_num_sources = 8
     PetscMPIInt :: rank
     PetscViewer :: viewer
@@ -77,17 +103,17 @@ contains
     call setup_sources(json, mesh%dm, mesh%cell_order, eos, thermo, start_time, &
          fluid_vector, fluid_range_start, source_vector, source_range_start, &
          num_sources, total_num_sources, source_controls, source_is, err = err)
-    call assert_equals(0, err, "source setup error")
+    call test%assert(0, err, "source setup error")
     call source%init(eos)
-    call assert_equals(13, source%dof, "source dof")
+    call test%assert(13, source%dof, "source dof")
 
     call VecRestoreArrayF90(fluid_vector, fluid_array, ierr); CHKERRQ(ierr)
 
     call VecGetSize(source_vector, source_vector_size, ierr); CHKERRQ(ierr)
     if (rank == 0) then
-       call assert_equals(expected_num_sources, total_num_sources, &
+       call test%assert(expected_num_sources, total_num_sources, &
             "number of sources")
-       call assert_equals(expected_num_sources * source%dof, &
+       call test%assert(expected_num_sources * source%dof, &
             source_vector_size, "source vector size")
     end if
 
@@ -101,7 +127,6 @@ contains
     t = 120._dp
     interval = [30._dp, t]
     call source_controls%traverse(source_control_iterator)
-    call VecView(source_vector, PETSC_VIEWER_STDOUT_WORLD, ierr)
     do s = 0, num_sources - 1
        call global_section_offset(source_section, s, &
             source_range_start, source_offset, ierr); CHKERRQ(ierr)
@@ -110,16 +135,16 @@ contains
        write(srcstr, '(a, i1)') 'source ', source_index
        select case (source_index)
        case (0)
-          call assert_equals(-2.25_dp, source%rate, tol, trim(srcstr))
+          call test%assert(-2.25_dp, source%rate, trim(srcstr))
        case (1)
-          call assert_equals(2.25_dp, source%rate, tol, trim(srcstr))
+          call test%assert(2.25_dp, source%rate, trim(srcstr))
        case (2)
-          call assert_equals(104.5e3_dp, source%injection_enthalpy, &
-               tol, trim(srcstr))
+          call test%assert(104.5e3_dp, source%injection_enthalpy, &
+               trim(srcstr))
        case (3)
-          call assert_equals(-2.5_dp * 0.75_dp, source%rate, tol, trim(srcstr))
+          call test%assert(-2.5_dp * 0.75_dp, source%rate, trim(srcstr))
        case (4)
-          call assert_equals(-2.5_dp * 0.5_dp, source%rate, tol, trim(srcstr))
+          call test%assert(-2.5_dp * 0.5_dp, source%rate, trim(srcstr))
        end select
     end do
 
@@ -165,7 +190,7 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine test_source_control_pressure_reference
+  subroutine test_source_control_pressure_reference(test)
     ! Pressure reference source controls
 
     use fson
@@ -174,15 +199,17 @@ contains
     use list_module
     use IAPWS_module
     use eos_module, only: max_component_name_length, max_phase_name_length
-    use eos_test
+    use eos_wge_module
     use fluid_module, only: fluid_type, setup_fluid_vector
     use dm_utils_module, only: global_vec_section, global_section_offset, &
          global_to_local_vec_section, restore_dm_local_vec, section_offset
     use interpolation_module, only: INTERP_STEP, INTERP_AVERAGING_ENDPOINT
 
-    character(16), parameter :: path = "data/source/"
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
+    character(25), parameter :: path = "../test/unit/data/source/"
     type(IAPWS_type) :: thermo
-    type(eos_test_type) :: eos
+    type(eos_wge_type) :: eos
     type(fson_value), pointer :: json
     type(mesh_type) :: mesh
     type(list_type) :: source_controls
@@ -214,7 +241,6 @@ contains
     PetscMPIInt :: rank
     PetscViewer :: viewer
     character(len = 16) :: srcstr
-    PetscReal, parameter :: tol = 1.e-6_dp
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
     json => fson_parse_mpi(trim(path) // "test_source_controls_pressure_reference.json")
@@ -283,17 +309,17 @@ contains
     call setup_sources(json, mesh%dm, mesh%cell_order, eos, thermo, start_time, &
          fluid_vector, fluid_range_start, source_vector, source_range_start, &
          num_sources, total_num_sources, source_controls, source_is, err = err)
-    call assert_equals(0, err, "source setup error")
+    call test%assert(0, err, "source setup error")
     call source%init(eos)
 
     if (rank == 0) then
-      call assert_equals(15, total_num_sources, "number of sources")
+      call test%assert(15, total_num_sources, "number of sources")
     end if
 
     call MPI_reduce(source_controls%count, num_source_controls, 1, &
          MPI_INTEGER, MPI_SUM, 0, PETSC_COMM_WORLD, ierr)
     if (rank == 0) then
-      call assert_equals(28, num_source_controls, "number of source controls")
+      call test%assert(28, num_source_controls, "number of source controls")
     end if
 
     call global_to_local_vec_section(fluid_vector, local_fluid_vector, &
@@ -317,7 +343,7 @@ contains
        call source%assign(source_array, source_offset)
        source_index = nint(source%source_index)
        write(srcstr, '(a, i1, a)') 'source ', source_index + 1, ' rate'
-       call assert_equals(expected_rates(source_index), source%rate, tol, &
+       call test%assert(expected_rates(source_index), source%rate, &
             trim(srcstr))
        if (source_index == 12) s12 = s
     end do
@@ -329,18 +355,18 @@ contains
        call global_section_offset(source_section, s12, &
             source_range_start, source_offset, ierr); CHKERRQ(ierr)
        call source%assign(source_array, source_offset)
-       call assert_equals(-2.25_dp, source%rate, tol, "source 13 rate P = 6 bar")
+       call test%assert(-2.25_dp, source%rate, "source 13 rate P = 6 bar")
     end if
 
     call reset_fluid_pressures(4.e5_dp)
     call source_controls%traverse(source_control_update_iterator)
     if (s12 >= 0) then
-       call assert_equals(-1.125_dp, source%rate, tol, "source 13 rate P = 4 bar")
+       call test%assert(-1.125_dp, source%rate, "source 13 rate P = 4 bar")
     end if
     call reset_fluid_pressures(3.e5_dp)
     call source_controls%traverse(source_control_update_iterator)
     if (s12 >= 0) then
-       call assert_equals(-0.5625_dp, source%rate, tol, "source 13 rate P = 3 bar")
+       call test%assert(-0.5625_dp, source%rate, "source 13 rate P = 3 bar")
     end if
 
     call VecRestoreArrayF90(local_fluid_vector, local_fluid_array, ierr)
@@ -377,7 +403,6 @@ contains
     subroutine source_control_test_iterator(node, stopped)
       type(list_node_type), pointer, intent(in out) :: node
       PetscBool, intent(out) :: stopped
-      PetscReal, parameter :: PI_tol = 1.e-16_dp, tol = 1.e-6_dp
       PetscInt :: s, source_index
 
       select type (source_control => node%data)
@@ -390,38 +415,38 @@ contains
          source_index = nint(source%source_index)
          select case (source_index)
          case (1)
-            call assert_equals(1.e-12_dp, &
-                 source_control%productivity%val(1,1), PI_tol, &
+            call test%assert(1.e-12_dp, &
+                 source_control%productivity%val(1,1), &
                  "source 2 productivity")
-            call assert_equals(2.e5_dp, &
-                 source_control%reference_pressure%val(1,1), tol, &
+            call test%assert(2.e5_dp, &
+                 source_control%reference_pressure%val(1,1), &
                  "source 2 reference pressure")
          case (3)
-            call assert_equals(8.54511496085953E-13_dp, &
-                 source_control%productivity%val(1,1), PI_tol, &
+            call test%assert(8.54511496085953E-13_dp, &
+                 source_control%productivity%val(1,1), &
                  "source 4 productivity")
          case (9)
-            call assert_equals(SRC_PRESSURE_TABLE_COORD_TIME, &
+            call test%assert(SRC_PRESSURE_TABLE_COORD_TIME, &
                  source_control%pressure_table_coordinate, &
                  "source 10 pressure table coordinate")
-            call assert_equals(4, &
+            call test%assert(4, &
                  source_control%reference_pressure%coord%size, &
                  "source 10 pressure table size")
-            call assert_equals(INTERP_STEP, &
+            call test%assert(INTERP_STEP, &
                  source_control%reference_pressure%interpolation_type, &
                  "source 10 interpolation type")
-            call assert_equals(INTERP_AVERAGING_ENDPOINT, &
+            call test%assert(INTERP_AVERAGING_ENDPOINT, &
                  source_control%reference_pressure%averaging_type, &
                  "source 10 averaging type")
-            call assert_equals(1.8e5_dp, &
+            call test%assert(1.8e5_dp, &
                  source_control%reference_pressure%average(interval, 1), &
-                 tol, "source 10 reference pressure")
+                 "source 10 reference pressure")
          case (10)
-            call assert_equals(SRC_PRESSURE_TABLE_COORD_ENTHALPY, &
+            call test%assert(SRC_PRESSURE_TABLE_COORD_ENTHALPY, &
                  source_control%pressure_table_coordinate, &
                  "source 11 pressure table coordinate")
          case (12)
-            call assert_equals(5.e5_dp, source_control%threshold, tol, &
+            call test%assert(5.e5_dp, source_control%threshold, &
                  "source 13 deliverability threshold")
          end select
 
@@ -433,35 +458,35 @@ contains
          source_index = nint(source%source_index)
          select case (source_index)
          case (6)
-            call assert_equals(1.3e-2_dp, &
-                 source_control%coefficient%val(1, 1), tol, &
+            call test%assert(1.3e-2_dp, &
+                 source_control%coefficient%val(1, 1), &
                  "source 7 recharge coefficient")
-            call assert_equals(50.1e5_dp, &
+            call test%assert(50.1e5_dp, &
                  source_control%reference_pressure%val(1, 1), &
-                 tol, "source 7 reference pressure")
+                 "source 7 reference pressure")
          case (11)
-            call assert_equals(cell_pressure, &
+            call test%assert(cell_pressure, &
                  source_control%reference_pressure%val(1, 1), &
-                 tol, "source 12 reference pressure")
+                 "source 12 reference pressure")
          end select
 
       type is (source_control_limiter_type)
          select case (source_control%type)
          case (SRC_CONTROL_LIMITER_TYPE_TOTAL)
-            call assert_equals(10._dp, source_control%limit, tol, "total limiter limit")
+            call test%assert(10._dp, source_control%limit, "total limiter limit")
          case (SRC_CONTROL_LIMITER_TYPE_STEAM)
-            call assert_equals(5._dp, source_control%limit, tol, "steam limiter limit")
+            call test%assert(5._dp, source_control%limit, "steam limiter limit")
          end select
 
       type is (source_control_separator_type)
-         call assert_equals(10.e5_dp, &
-              source_control%separator_pressure, tol, "separator pressure")
-         call assert_equals(0.5371645375_dp, &
-              source_control%steam_fraction, tol, "separator steam fraction")
-         call assert_equals(-5.9580123975_dp, &
-              source_control%water_flow_rate, tol, "separator water flow rate")
-         call assert_equals(-6.9148395774_dp, &
-              source_control%steam_flow_rate, tol, "separator steam flow rate")
+         call test%assert(10.e5_dp, &
+              source_control%separator_pressure, "separator pressure")
+         call test%assert(0.5371645375_dp, &
+              source_control%steam_fraction, "separator steam fraction")
+         call test%assert(-5.9580123975_dp, &
+              source_control%water_flow_rate, "separator water flow rate")
+         call test%assert(-6.9148395774_dp, &
+              source_control%steam_flow_rate, "separator steam flow rate")
       end select
       stopped = PETSC_FALSE
 
