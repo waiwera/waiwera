@@ -6,19 +6,44 @@ module source_test
 
   use petsc
   use kinds_module
-  use fruit
+  use zofu
   use source_module
 
   implicit none
   private
 
-public :: test_source_update_flow
+  public :: setup, teardown
+  public :: test_source_update_flow
 
 contains
 
 !------------------------------------------------------------------------
 
-  subroutine test_source_update_flow
+  subroutine setup()
+
+    use profiling_module, only: init_profiling
+
+    ! Locals:
+    PetscErrorCode :: ierr
+
+    call PetscInitialize(PETSC_NULL_CHARACTER, ierr); CHKERRQ(ierr)
+    call init_profiling()
+
+  end subroutine setup
+
+!------------------------------------------------------------------------
+
+  subroutine teardown()
+
+    PetscErrorCode :: ierr
+
+    call PetscFinalize(ierr); CHKERRQ(ierr)
+
+  end subroutine teardown
+
+!------------------------------------------------------------------------
+
+  subroutine test_source_update_flow(test)
     ! update_flow() test
 
     use fson
@@ -26,17 +51,19 @@ contains
     use IAPWS_module, only: IAPWS_type
     use eos_module, only: max_component_name_length, max_phase_name_length
     use IAPWS_module
-    use eos_test
+    use eos_wge_module
     use mesh_module
     use fluid_module, only: fluid_type, setup_fluid_vector
     use dm_utils_module, only: global_vec_section, global_section_offset, &
          global_to_local_vec_section, restore_dm_local_vec
 
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
     type(source_type) :: source
     type(fluid_type) :: fluid
     type(fson_value), pointer :: json
     type(IAPWS_type) :: thermo
-    type(eos_test_type) :: eos
+    type(eos_wge_type) :: eos
     type(mesh_type) :: mesh
     Vec :: fluid_vector, local_fluid_vector
     PetscSection :: fluid_section, local_fluid_section
@@ -47,13 +74,12 @@ contains
     PetscReal, pointer, contiguous :: source_data(:)
     PetscErrorCode :: ierr, err
     PetscInt, parameter :: offset = 1
-    PetscReal, parameter :: tol = 1.e-6_dp
     PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
     PetscMPIInt :: rank
     PetscViewer :: viewer
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
-    json => fson_parse_mpi(str = '{"mesh": "data/flow_simulation/mesh/3x3_2d.exo"}')
+    json => fson_parse_mpi(str = '{"mesh": "../test/unit/data/flow_simulation/mesh/3x3_2d.exo"}')
     call thermo%init()
     call eos%init(json, thermo)
     viewer = PETSC_NULL_VIEWER
@@ -145,9 +171,8 @@ contains
       call source%setup(0, 0, 0, 0, rate, enthalpy, &
            injection_component, production_component)
       call source%update_flow(local_fluid_array, local_fluid_section)
-      call assert_equals(flow, source%flow, &
-           eos%num_primary_variables, tol, trim(tag) // " flow")
-      call assert_equals(component, nint(source%component), &
+      call test%assert(flow, source%flow, trim(tag) // " flow")
+      call test%assert(component, nint(source%component), &
            trim(tag) // " component")
 
     end subroutine source_flow_test
