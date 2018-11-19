@@ -6,7 +6,7 @@ module initial_test
 
   use petsc
   use kinds_module
-  use fruit
+  use zofu
   use fson
   use initial_module
   use fson_mpi_module
@@ -14,12 +14,37 @@ module initial_test
   implicit none
   private
 
+  public :: setup, teardown
   public :: test_initial_hdf5
   ! public :: test_setup_initial_hdf5
 
 contains
 
-!........................................................................
+!------------------------------------------------------------------------
+
+  subroutine setup()
+
+    use profiling_module, only: init_profiling
+
+    ! Locals:
+    PetscErrorCode :: ierr
+
+    call PetscInitialize(PETSC_NULL_CHARACTER, ierr); CHKERRQ(ierr)
+    call init_profiling()
+
+  end subroutine setup
+
+!------------------------------------------------------------------------
+
+  subroutine teardown()
+
+    PetscErrorCode :: ierr
+
+    call PetscFinalize(ierr); CHKERRQ(ierr)
+
+  end subroutine teardown
+
+!------------------------------------------------------------------------
 
   subroutine primary_variables(z, g, primary)
     !! Return primary variables as function of elevation z.
@@ -39,9 +64,11 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine test_initial_hdf5
+  subroutine test_initial_hdf5(test)
     ! HDF5 initial conditions
 
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
     character(:), allocatable :: json_str
     PetscMPIInt :: rank
     PetscErrorCode :: ierr
@@ -49,60 +76,60 @@ contains
     call MPI_comm_rank(PETSC_COMM_WORLD, rank, ierr)
 
     json_str = &
-         '{"mesh": {"filename": "data/mesh/col100.exo"},' // &
+         '{"mesh": {"filename": "../test/unit/data/mesh/col100.exo"},' // &
          ' "eos": {"name": "we"}, ' // &
-         ' "initial": {"filename": "data/initial/fluid.h5"}}'
-    call initial_hdf5_test('single porosity', json_str)
+         ' "initial": {"filename": "../test/unit/data/initial/fluid.h5"}}'
+    call initial_hdf5_test(test, 'single porosity', json_str)
 
     json_str = &
-         '{"mesh": {"filename": "data/mesh/col100.exo"},' // &
+         '{"mesh": {"filename": "../test/unit/data/mesh/col100.exo"},' // &
          ' "eos": {"name": "we"}, ' // &
-         ' "initial": {"filename": "data/initial/fluid_minimal.h5"}}'
-    call initial_hdf5_test('single porosity minimal', json_str)
+         ' "initial": {"filename": "../test/unit/data/initial/fluid_minimal.h5"}}'
+    call initial_hdf5_test(test, 'single porosity minimal', json_str)
 
     json_str = &
-         '{"mesh": {"filename": "data/mesh/col100.exo", ' // &
+         '{"mesh": {"filename": "../test/unit/data/mesh/col100.exo", ' // &
          '          "zones": {"all": {"-": null}},' // &
          '          "minc": {"rock": {"zones": ["all"]}, ' // &
          '                   "geometry": {"fracture": {"volume": 0.1}, ' // &
          '                                "matrix": {"volume": [0.3, 0.6]}}}},' // &
          ' "eos": {"name": "we"}, ' // &
-         ' "initial": {"filename": "data/initial/fluid.h5", "minc": false}}'
-    call initial_hdf5_test('MINC', json_str)
+         ' "initial": {"filename": "../test/unit/data/initial/fluid.h5", "minc": false}}'
+    call initial_hdf5_test(test, 'MINC', json_str)
 
     json_str = &
-         '{"mesh": {"filename": "data/mesh/col100.exo", ' // &
+         '{"mesh": {"filename": "../test/unit/data/mesh/col100.exo", ' // &
          '          "zones": {"all": {"-": null}},' // &
          '          "minc": {"rock": {"zones": ["all"]}, ' // &
          '                   "geometry": {"fracture": {"volume": 0.1}, ' // &
          '                                "matrix": {"volume": [0.3, 0.6]}}}},' // &
          ' "eos": {"name": "we"}, ' // &
-         ' "initial": {"filename": "data/initial/fluid_minimal.h5", "minc": false}}'
-    call initial_hdf5_test('MINC minimal false', json_str)
+         ' "initial": {"filename": "../test/unit/data/initial/fluid_minimal.h5", "minc": false}}'
+    call initial_hdf5_test(test, 'MINC minimal false', json_str)
 
     json_str = &
-         '{"mesh": {"filename": "data/mesh/col100.exo", ' // &
+         '{"mesh": {"filename": "../test/unit/data/mesh/col100.exo", ' // &
          '          "zones": {"all": {"-": null}},' // &
          '          "minc": {"rock": {"zones": ["all"]}, ' // &
          '                   "geometry": {"fracture": {"volume": 0.1}, ' // &
          '                                "matrix": {"volume": [0.3, 0.6]}}}},' // &
          ' "eos": {"name": "we"}, ' // &
-         ' "initial": {"filename": "data/initial/fluid_minimal_minc.h5", "minc": true}}'
-    call initial_hdf5_test('MINC minimal true', json_str)
+         ' "initial": {"filename": "../test/unit/data/initial/fluid_minimal_minc.h5", "minc": true}}'
+    call initial_hdf5_test(test, 'MINC minimal true', json_str)
 
     json_str = &
-         '{"mesh": {"filename": "data/mesh/col100.exo", ' // &
+         '{"mesh": {"filename": "../test/unit/data/mesh/col100.exo", ' // &
          '          "boundaries": [{"faces": {"cells": [0], ' // &
          '                          "normal": [0, 1, 0]}}]},' // &
          ' "eos": {"name": "we"}, ' // &
-         ' "initial": {"filename": "data/initial/fluid_minimal.h5"}}'
-    call initial_hdf5_test('single porosity minimal boundary', json_str)
+         ' "initial": {"filename": "../test/unit/data/initial/fluid_minimal.h5"}}'
+    call initial_hdf5_test(test, 'single porosity minimal boundary', json_str)
 
   contains
 
 !........................................................................
 
-    subroutine initial_hdf5_test(name, json_str)
+    subroutine initial_hdf5_test(test, name, json_str)
 
       use IAPWS_module
       use eos_we_module
@@ -117,6 +144,7 @@ contains
       use cell_module, only: cell_type
       use logfile_module
 
+      class(unit_test_type), intent(in out) :: test
       character(*), intent(in) :: name
       character(*), intent(in) :: json_str
       ! Locals:
@@ -140,7 +168,6 @@ contains
       PetscReal :: t
       type(logfile_type) :: logfile
       PetscErrorCode :: err
-      PetscReal, parameter :: tol = 1.e-3
       PetscInt, parameter :: expected_region = 1
 
       json => fson_parse_mpi(str = json_str)
@@ -198,9 +225,9 @@ contains
             call global_section_offset(y_section, c, &
                  y_range_start, y_offset, ierr); CHKERRQ(ierr)
             primary => y_array(y_offset: y_offset + eos%num_primary_variables - 1)
-            call assert_equals(expected_primary, primary, &
-                 eos%num_primary_variables, tol, name // ': primary')
-            call assert_equals(expected_region, nint(fluid%region), &
+            call test%assert(expected_primary, primary, &
+                 name // ': primary')
+            call test%assert(expected_region, nint(fluid%region), &
                  name // ': region')
          end if
       end do
@@ -226,7 +253,7 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine write_initial_hdf5
+  subroutine write_initial_hdf5(test)
     !! Writes HDF5 reference results for initial conditions unit tests.
     !! Rename to test_setup_initial_hdf5() to execute.
 
@@ -243,11 +270,13 @@ contains
     use relative_permeability_module, only: relative_permeability_corey_type
     use capillary_pressure_module, only: capillary_pressure_zero_type
     use cell_module, only: cell_type
-    use flow_simulation_test, only: vec_write
+    use unit_test_utils_module, only: vec_write
     use logfile_module
     use hdf5io_module, only: max_field_name_length
     use utils_module, only: str_array_index, str_to_lower
 
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
     character(:), allocatable :: json_str
     PetscMPIInt :: rank
     PetscErrorCode :: ierr
@@ -280,7 +309,7 @@ contains
     call MPI_comm_rank(PETSC_COMM_WORLD, rank, ierr)
 
     json_str = &
-         '{"mesh": {"filename": "data/mesh/col100.exo",' // &
+         '{"mesh": {"filename": "../test/unit/data/mesh/col100.exo",' // &
          '          "zones": {"all": {"-": null}},' // &
          '          "minc": {"rock": {"zones": ["all"]}, ' // &
          '                   "geometry": {"fracture": {"volume": 0.1}, ' // &
@@ -311,7 +340,7 @@ contains
       do i = 1, num_fields
          output_field_indices(i) = str_array_index( &
               str_to_lower(eos%required_output_fluid_fields(i)), fields) - 1
-         call assert_true(output_field_indices(i) >= 0, "setup field")
+         call test%assert(output_field_indices(i) >= 0, "setup field")
       end do
     end associate
 
@@ -356,8 +385,8 @@ contains
        end if
     end do
 
-    call vec_write(fluid_vector, "fluid_minimal_minc", "data/initial/", mesh%cell_index, &
-         output_field_indices, "/cell_fields")
+    call vec_write(fluid_vector, "fluid_minimal_minc", "../test/unit/data/initial/", &
+         mesh%cell_index, output_field_indices, "/cell_fields")
 
     call VecRestoreArrayReadF90(mesh%cell_geom, cell_geom_array, ierr)
     CHKERRQ(ierr)
