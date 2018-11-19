@@ -6,29 +6,54 @@ module fluid_test
 
   use petscsys
   use kinds_module
-  use fruit
+  use zofu
   use fluid_module
 
   implicit none
   private
 
-public :: test_fluid_assign, test_fluid_component_density, &
+  public :: setup, teardown
+  public :: test_fluid_assign, test_fluid_component_density, &
      test_fluid_energy, test_fluid_enthalpy
 
 contains
   
 !------------------------------------------------------------------------
 
-  subroutine test_fluid_assign
+  subroutine setup()
+
+    use profiling_module, only: init_profiling
+
+    ! Locals:
+    PetscErrorCode :: ierr
+
+    call PetscInitialize(PETSC_NULL_CHARACTER, ierr); CHKERRQ(ierr)
+    call init_profiling()
+
+  end subroutine setup
+
+!------------------------------------------------------------------------
+
+  subroutine teardown()
+
+    PetscErrorCode :: ierr
+
+    call PetscFinalize(ierr); CHKERRQ(ierr)
+
+  end subroutine teardown
+
+!------------------------------------------------------------------------
+
+  subroutine test_fluid_assign(test)
 
     ! Test fluid assign()
 
+    class(unit_test_type), intent(in out) :: test
     type(fluid_type) :: fluid
     PetscInt, parameter :: num_components = 2, num_phases = 2
     PetscInt,  parameter :: offset = 7
     PetscReal, pointer, contiguous :: fluid_data(:)
     PetscInt :: i, ip, nc, phase_dof
-    PetscReal, parameter :: tol = 1.e-6_dp
     PetscMPIInt :: rank
     PetscInt :: ierr
     PetscInt, parameter :: expected_dof = 6 + 2 * 9
@@ -37,7 +62,7 @@ contains
     if (rank == 0) then
 
        call fluid%init(num_components, num_phases)
-       call assert_equals(expected_dof, fluid%dof, "dof")
+       call test%assert(expected_dof, fluid%dof, "dof")
 
        allocate(fluid_data(offset-1 + fluid%dof))
        do i = 1, size(fluid_data)
@@ -47,32 +72,32 @@ contains
 
        phase_dof = num_phase_variables + num_components - 1
 
-       call assert_equals(fluid_data(offset), fluid%pressure, tol, "pressure")
-       call assert_equals(fluid_data(offset+1), fluid%temperature, tol, "temperature")
-       call assert_equals(fluid_data(offset+2), fluid%region, tol, "region")
-       call assert_equals(fluid_data(offset+3), fluid%phase_composition, tol, "phase composition")
-       call assert_equals(fluid_data(offset+4: offset+4 + num_components - 1), &
-            fluid%partial_pressure, num_components, tol, "partial pressure")
+       call test%assert(fluid_data(offset), fluid%pressure, "pressure")
+       call test%assert(fluid_data(offset+1), fluid%temperature, "temperature")
+       call test%assert(fluid_data(offset+2), fluid%region, "region")
+       call test%assert(fluid_data(offset+3), fluid%phase_composition, "phase composition")
+       call test%assert(fluid_data(offset+4: offset+4 + num_components - 1), &
+            fluid%partial_pressure, "partial pressure")
 
        i = offset + num_fluid_variables + num_components - 1
        do ip = 1, num_phases
-          call assert_equals(fluid_data(i), &
-               fluid%phase(ip)%density, tol, "density")
-          call assert_equals(fluid_data(i+1), &
-               fluid%phase(ip)%viscosity, tol, "viscosity")
-          call assert_equals(fluid_data(i+2), &
-               fluid%phase(ip)%saturation, tol, "saturation")
-          call assert_equals(fluid_data(i+3), &
-               fluid%phase(ip)%relative_permeability, tol, "relative permeability")
-          call assert_equals(fluid_data(i+4), &
-               fluid%phase(ip)%capillary_pressure, tol, "capillary pressure")
-          call assert_equals(fluid_data(i+5), &
-               fluid%phase(ip)%specific_enthalpy, tol, "specific enthalpy")
-          call assert_equals(fluid_data(i+6), &
-               fluid%phase(ip)%internal_energy, tol, "internal energy")
+          call test%assert(fluid_data(i), &
+               fluid%phase(ip)%density, "density")
+          call test%assert(fluid_data(i+1), &
+               fluid%phase(ip)%viscosity, "viscosity")
+          call test%assert(fluid_data(i+2), &
+               fluid%phase(ip)%saturation, "saturation")
+          call test%assert(fluid_data(i+3), &
+               fluid%phase(ip)%relative_permeability, "relative permeability")
+          call test%assert(fluid_data(i+4), &
+               fluid%phase(ip)%capillary_pressure, "capillary pressure")
+          call test%assert(fluid_data(i+5), &
+               fluid%phase(ip)%specific_enthalpy, "specific enthalpy")
+          call test%assert(fluid_data(i+6), &
+               fluid%phase(ip)%internal_energy, "internal energy")
           nc = size(fluid%phase(ip)%mass_fraction)
-          call assert_equals(0._dp, norm2(fluid_data(i+7: i + 7 + nc-1) - &
-               fluid%phase(ip)%mass_fraction), tol, "mass fraction")
+          call test%assert(0._dp, norm2(fluid_data(i+7: i + 7 + nc-1) - &
+               fluid%phase(ip)%mass_fraction), "mass fraction")
           i = i + phase_dof
        end do
 
@@ -85,16 +110,17 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine test_fluid_component_density
+  subroutine test_fluid_component_density(test)
     ! Test fluid component_density()
 
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
     type(fluid_type) :: fluid
     PetscInt, parameter :: num_components = 2, num_phases = 2
     PetscInt,  parameter :: offset = 1
     PetscReal, pointer, contiguous :: fluid_data(:)
     PetscReal :: cd(num_components)
     PetscReal, parameter :: expected_cd(num_components) = [523.72_dp, 224.58_dp]
-    PetscReal, parameter :: tol = 1.e-3_dp
     PetscMPIInt :: rank
     PetscInt :: ierr
 
@@ -113,7 +139,7 @@ contains
 
        cd = fluid%component_density()
 
-       call assert_equals(expected_cd, cd, num_components, tol, "Fluid component density")
+       call test%assert(expected_cd, cd, "Fluid component density")
 
        call fluid%destroy()
        deallocate(fluid_data)
@@ -124,16 +150,17 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine test_fluid_energy
+  subroutine test_fluid_energy(test)
     ! Test fluid energy()
 
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
     type(fluid_type) :: fluid
     PetscInt, parameter :: num_components = 2, num_phases = 2
     PetscInt,  parameter :: offset = 1
     PetscReal, pointer, contiguous :: fluid_data(:)
     PetscReal :: ef
     PetscReal, parameter :: expected_ef = 4.092448e8_dp
-    PetscReal, parameter :: tol = 1.e-3_dp
     PetscMPIInt :: rank
     PetscInt :: ierr
 
@@ -151,7 +178,7 @@ contains
 
        ef = fluid%energy()
 
-       call assert_equals(expected_ef, ef, tol, "Fluid energy")
+       call test%assert(expected_ef, ef, "Fluid energy")
 
        call fluid%destroy()
        deallocate(fluid_data)
@@ -162,10 +189,12 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine test_fluid_enthalpy
+  subroutine test_fluid_enthalpy(test)
     ! Test fluid phase_mobilities(), phase_flow_fractions(),
     ! component_flow_fractions() and specific_enthalpy()
 
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
     type(fluid_type) :: fluid
     PetscInt, parameter :: num_components = 2, num_phases = 2
     PetscInt,  parameter :: offset = 1
@@ -176,7 +205,6 @@ contains
     PetscReal, parameter :: expected_ff(num_phases) = [0.9965740388_dp, 0.0034259612_dp]
     PetscReal, parameter :: expected_cff(num_phases) = [0.6989722116_dp, 0.3010277884_dp]
     PetscReal, parameter :: expected_h = 86353.3307955843_dp
-    PetscReal, parameter :: tol = 1.e-6_dp
     PetscMPIInt :: rank
     PetscInt :: ierr
 
@@ -193,18 +221,17 @@ contains
        call fluid%assign(fluid_data, offset)
 
        mob = fluid%phase_mobilities()
-       call assert_equals(expected_mob, mob, num_phases, tol, "Fluid phase mobilities")
+       call test%assert(expected_mob, mob, "Fluid phase mobilities")
 
        ff = fluid%phase_flow_fractions()
-       call assert_equals(expected_ff, ff, num_phases, tol, "Fluid phase flow fractions")
+       call test%assert(expected_ff, ff, "Fluid phase flow fractions")
 
        cff = fluid%component_flow_fractions(ff)
 
-       call assert_equals(expected_cff, cff, num_components, tol, &
-            "Fluid component flow fractions")
+       call test%assert(expected_cff, cff, "Fluid component flow fractions")
 
        h = fluid%specific_enthalpy(ff)
-       call assert_equals(expected_h, h, tol, "Fluid enthalpy")
+       call test%assert(expected_h, h, "Fluid enthalpy")
 
        call fluid%destroy()
        deallocate(fluid_data)
