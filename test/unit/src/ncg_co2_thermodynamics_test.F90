@@ -7,11 +7,12 @@ module ncg_co2_thermodynamics_test
   use petscsys
   use kinds_module
   use ncg_co2_thermodynamics_module
-  use fruit
+  use zofu
 
   implicit none
   private
 
+  public :: setup, teardown
   public :: test_ncg_co2_henrys_constant, test_ncg_co2_energy_solution, &
        test_ncg_co2_viscosity, test_ncg_co2_properties
 
@@ -19,18 +20,43 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine test_ncg_co2_henrys_constant
+  subroutine setup()
 
-    ! CO2 Henry's constant.
+    use profiling_module, only: init_profiling
+
+    ! Locals:
+    PetscErrorCode :: ierr
+
+    call PetscInitialize(PETSC_NULL_CHARACTER, ierr); CHKERRQ(ierr)
+    call init_profiling()
+
+  end subroutine setup
+
+!------------------------------------------------------------------------
+
+  subroutine teardown()
+
+    PetscErrorCode :: ierr
+
+    call PetscFinalize(ierr); CHKERRQ(ierr)
+
+  end subroutine teardown
+
+!------------------------------------------------------------------------
+
+  subroutine test_ncg_co2_henrys_constant(test)
+
+    ! CO2 Henry constant.
     ! Expected values are from AUTOUGH2.
 
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
     type(ncg_co2_thermodynamics_type) :: gas
     PetscReal :: temperature, expected, hc
     PetscErrorCode :: err
-    character(33) :: s = "CO2 Henry's constant, temperature"
+    character(31) :: s = "CO2 Henry constant, temperature"
     PetscMPIInt :: rank
     PetscInt :: ierr
-    PetscReal, parameter :: tol = 1.e-15_dp
 
     call gas%init()
 
@@ -41,26 +67,26 @@ contains
        temperature = 20._dp
        expected = 0.690552871945e-08_dp
        call gas%henrys_constant(temperature, hc, err)
-       call assert_equals(0, err, trim(s) // " 20 deg C error")
-       call assert_equals(expected, hc, tol, trim(s) // " 20 deg C")
+       call test%assert(0, err, trim(s) // " 20 deg C error")
+       call test%assert(expected, hc, trim(s) // " 20 deg C")
 
        temperature = 100._dp
        expected = 0.181629386327e-08_dp
        call gas%henrys_constant(temperature, hc, err)
-       call assert_equals(0, err, trim(s) // " 100 deg C error")
-       call assert_equals(expected, hc, tol, trim(s) // " 100 deg C")
+       call test%assert(0, err, trim(s) // " 100 deg C error")
+       call test%assert(expected, hc, trim(s) // " 100 deg C")
 
        temperature = 240._dp
        expected = 0.191626750106e-08_dp
        call gas%henrys_constant(temperature, hc, err)
-       call assert_equals(0, err, trim(s) // " 240 deg C error")
-       call assert_equals(expected, hc, tol, trim(s) // " 240 deg C")
+       call test%assert(0, err, trim(s) // " 240 deg C error")
+       call test%assert(expected, hc, trim(s) // " 240 deg C")
 
        temperature = 300._dp
        expected = 0.268879436880e-08_dp
        call gas%henrys_constant(temperature, hc, err)
-       call assert_equals(0, err, trim(s) // " 300 deg C error")
-       call assert_equals(expected, hc, tol, trim(s) // " 300 deg C")
+       call test%assert(0, err, trim(s) // " 300 deg C error")
+       call test%assert(expected, hc, trim(s) // " 300 deg C")
 
     end if
 
@@ -68,16 +94,18 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine test_ncg_co2_energy_solution
+  subroutine test_ncg_co2_energy_solution(test)
     ! CO2 energy of solution
 
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
     type(ncg_co2_thermodynamics_type) :: gas
     PetscReal :: temperature, expected, hs, hc
     PetscErrorCode :: err
     character(35) :: s = "CO2 energy of solution, temperature"
     PetscMPIInt :: rank
     PetscInt :: ierr
-    PetscReal, parameter :: tol = 1.e-4_dp
+    PetscReal, parameter :: tol = 1.e-10_dp
 
     call gas%init()
 
@@ -89,29 +117,29 @@ contains
        expected = -495750.87299689_dp
        call gas%henrys_constant(temperature, hc, err)
        call gas%energy_solution(temperature, hc, hs, err)
-       call assert_equals(0, err, trim(s) // " 20 deg C error")
-       call assert_equals(expected, hs, tol, trim(s) // " 20 deg C")
+       call test%assert(0, err, trim(s) // " 20 deg C error")
+       call test%assert(expected, hs, trim(s) // " 20 deg C", tol)
 
        temperature = 100._dp
        expected = -180685.98723494_dp
        call gas%henrys_constant(temperature, hc, err)
        call gas%energy_solution(temperature, hc, hs, err)
-       call assert_equals(0, err, trim(s) // " 100 deg C error")
-       call assert_equals(expected, hs, tol, trim(s) // " 100 deg C")
+       call test%assert(0, err, trim(s) // " 100 deg C error")
+       call test%assert(expected, hs, trim(s) // " 100 deg C", tol)
 
        temperature = 240._dp
        expected = 242741.64505202_dp
        call gas%henrys_constant(temperature, hc, err)
        call gas%energy_solution(temperature, hc, hs, err)
-       call assert_equals(0, err, trim(s) // " 240 deg C error")
-       call assert_equals(expected, hs, tol, trim(s) // " 240 deg C")
+       call test%assert(0, err, trim(s) // " 240 deg C error")
+       call test%assert(expected, hs, trim(s) // " 240 deg C", tol)
 
        temperature = 300._dp
        expected = 407409.27618764_dp
        call gas%henrys_constant(temperature, hc, err)
        call gas%energy_solution(temperature, hc, hs, err)
-       call assert_equals(0, err, trim(s) // " 300 deg C error")
-       call assert_equals(expected, hs, tol, trim(s) // " 300 deg C")
+       call test%assert(0, err, trim(s) // " 300 deg C error")
+       call test%assert(expected, hs, trim(s) // " 300 deg C", tol)
 
     end if
 
@@ -119,16 +147,18 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine test_ncg_co2_viscosity
+  subroutine test_ncg_co2_viscosity(test)
     ! CO2 viscosity
 
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
     type(ncg_co2_thermodynamics_type) :: gas
     PetscMPIInt :: rank
     PetscInt :: ierr, err
     PetscInt :: ip, it
     PetscReal :: visc
     character(40) :: s
-    PetscReal, parameter :: tol = 1.e-13_dp
+    PetscReal, parameter :: tol = 1.e-8_dp
     PetscReal, parameter :: pc(6) = [0.1e6_dp, 1.e6_dp, 5.e6_dp, &
          10.e6_dp, 20.e6_dp, 30.e6_dp]
     PetscReal, parameter :: t(5) = [20._dp, 100._dp, 200._dp, 300._dp, 350._dp]
@@ -156,8 +186,8 @@ contains
              call gas%viscosity(pc(ip), t(it), visc, err)
              write(s, '(a, e8.3, a, f6.2)') 'p = ', &
                   pc(ip), ', t = ', t(it)
-             call assert_equals(0, err, trim(s) // ' error')
-             call assert_equals(expected_visc(ip, it), visc, tol, s)
+             call test%assert(0, err, trim(s) // ' error')
+             call test%assert(expected_visc(ip, it), visc, s, tol)
           end do
        end do
 
@@ -167,15 +197,17 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine test_ncg_co2_properties
+  subroutine test_ncg_co2_properties(test)
     ! CO2 properties
 
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
     type(ncg_co2_thermodynamics_type) :: gas
     PetscMPIInt :: rank
     PetscInt :: ierr, err, i
     PetscReal :: props(2)
     character(40) :: s
-    PetscReal, parameter :: htol = 1.e-3_dp, dtol = 1.e-7_dp
+    PetscReal, parameter :: tol = 1.e-9_dp
     PetscInt, parameter :: num_cases = 14
     PetscReal, parameter :: data(4, num_cases) = reshape([ &
          0.0_dp, 20.0_dp, 17140.18077231938_dp, 0.0_dp, &
@@ -206,9 +238,9 @@ contains
                d => props(1), h => props(2))
             call gas%properties(pc, t, props, err)
             write(s, '(a, e8.3, a, f6.2)') 'pc = ', pc, ', t = ', t
-            call assert_equals(0, err, trim(s) // ' error')
-            call assert_equals(expected_h, h, htol, trim(s) // ' enthalpy')
-            call assert_equals(expected_d, d, dtol, trim(s) // ' density')
+            call test%assert(0, err, trim(s) // ' error')
+            call test%assert(expected_h, h, trim(s) // ' enthalpy', tol)
+            call test%assert(expected_d, d, trim(s) // ' density', tol)
           end associate
        end do
 
