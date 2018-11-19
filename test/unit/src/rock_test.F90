@@ -6,22 +6,59 @@ module rock_test
 
   use petscsys
   use kinds_module
-  use fruit
+  use zofu
   use rock_module
 
   implicit none
   private
 
-public :: test_rock_assign, test_rock_energy
+  public :: setup, teardown, setup_test
+  public :: test_rock_assign, test_rock_energy
 
 contains
 
 !------------------------------------------------------------------------
 
-  subroutine test_rock_assign
+  subroutine setup()
+
+    use profiling_module, only: init_profiling
+
+    ! Locals:
+    PetscErrorCode :: ierr
+
+    call PetscInitialize(PETSC_NULL_CHARACTER, ierr); CHKERRQ(ierr)
+    call init_profiling()
+
+  end subroutine setup
+
+!------------------------------------------------------------------------
+
+  subroutine teardown()
+
+    PetscErrorCode :: ierr
+
+    call PetscFinalize(ierr); CHKERRQ(ierr)
+
+  end subroutine teardown
+
+!------------------------------------------------------------------------
+
+  subroutine setup_test(test)
+
+    class(unit_test_type), intent(in out) :: test
+
+    test%tolerance = 1.e-9
+
+  end subroutine setup_test
+
+!------------------------------------------------------------------------
+
+  subroutine test_rock_assign(test)
 
     ! Rock assign() test
 
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
     type(rock_type) :: rock
     PetscReal, parameter :: permeability(3) = [1.e-12_dp, 1.e-13_dp, 1.e-14_dp]
     PetscReal, parameter :: porosity = 0.1_dp
@@ -30,7 +67,6 @@ contains
     PetscReal, parameter :: density = 2200._dp
     PetscReal, parameter :: specific_heat = 1000._dp
     PetscInt,  parameter :: offset = 5
-    PetscReal, parameter :: tol = 1.e-6_dp
     PetscReal :: offset_padding(offset-1) = 0._dp
     PetscReal, pointer, contiguous :: rock_data(:)
     PetscMPIInt :: rank
@@ -44,16 +80,16 @@ contains
        rock_data = [offset_padding, permeability, wet_conductivity, &
             dry_conductivity, porosity, density, specific_heat]
 
-       call assert_equals(rock%dof, size(rock_data) - (offset-1), "rock dof")
+       call test%assert(rock%dof, size(rock_data) - (offset-1), "rock dof")
 
        call rock%assign(rock_data, offset)
 
-       call assert_equals(0._dp, norm2(permeability - rock%permeability), tol, "rock permeability")
-       call assert_equals(porosity, rock%porosity, tol, "rock porosity")
-       call assert_equals(wet_conductivity, rock%wet_conductivity, tol, "rock wet heat conductivity")
-       call assert_equals(dry_conductivity, rock%dry_conductivity, tol, "rock dry heat conductivity")
-       call assert_equals(density, rock%density, tol, "rock density")
-       call assert_equals(specific_heat, rock%specific_heat, tol, "rock specific heat")
+       call test%assert(permeability, rock%permeability, "rock permeability")
+       call test%assert(porosity, rock%porosity, "rock porosity")
+       call test%assert(wet_conductivity, rock%wet_conductivity, "rock wet heat conductivity")
+       call test%assert(dry_conductivity, rock%dry_conductivity, "rock dry heat conductivity")
+       call test%assert(density, rock%density, "rock density")
+       call test%assert(specific_heat, rock%specific_heat, "rock specific heat")
        
        call rock%destroy()
        deallocate(rock_data)
@@ -64,16 +100,17 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine test_rock_energy
+  subroutine test_rock_energy(test)
 
     ! Rock energy() test
 
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
     type(rock_type) :: rock
     PetscReal, pointer, contiguous :: rock_data(:)
     PetscReal :: er
     PetscReal, parameter :: temp = 130._dp
     PetscReal, parameter :: expected_er = 2.717e8
-    PetscReal, parameter :: tol = 1.e-3_dp
     PetscInt,  parameter :: offset = 1
     PetscMPIInt :: rank
     PetscInt :: ierr
@@ -88,7 +125,7 @@ contains
        call rock%assign(rock_data, offset)
 
        er = rock%energy(temp)
-       call assert_equals(expected_er, er, tol, "rock energy")
+       call test%assert(expected_er, er, "rock energy")
 
        call rock%destroy()
        deallocate(rock_data)
