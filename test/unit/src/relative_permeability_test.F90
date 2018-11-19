@@ -6,31 +6,55 @@ module relative_permeability_test
 
   use petscsys
   use kinds_module
-  use fruit
+  use zofu
   use relative_permeability_module
   use fson
 
   implicit none
   private
 
-  PetscReal, parameter :: tol = 1.e-6_dp
-
-public :: test_relative_permeability_linear, &
-     test_relative_permeability_pickens, &
-     test_relative_permeability_corey, &
-     test_relative_permeability_grant, &
-     test_relative_permeability_van_genuchten, &
-     test_relative_permeability_table, &
-     test_relative_permeability_fully_mobile
+  public :: setup, teardown
+  public :: test_relative_permeability_linear, &
+       test_relative_permeability_pickens, &
+       test_relative_permeability_corey, &
+       test_relative_permeability_grant, &
+       test_relative_permeability_van_genuchten, &
+       test_relative_permeability_table, &
+       test_relative_permeability_fully_mobile
 
 contains
 
 !------------------------------------------------------------------------
 
-  subroutine relative_permeability_case(sl, relp, expected)
+  subroutine setup()
+
+    use profiling_module, only: init_profiling
+
+    ! Locals:
+    PetscErrorCode :: ierr
+
+    call PetscInitialize(PETSC_NULL_CHARACTER, ierr); CHKERRQ(ierr)
+    call init_profiling()
+
+  end subroutine setup
+
+!------------------------------------------------------------------------
+
+  subroutine teardown()
+
+    PetscErrorCode :: ierr
+
+    call PetscFinalize(ierr); CHKERRQ(ierr)
+
+  end subroutine teardown
+
+!------------------------------------------------------------------------
+
+  subroutine relative_permeability_case(test, sl, relp, expected)
 
     ! Test one case
 
+    class(unit_test_type), intent(in out) :: test
     PetscReal, intent(in) :: sl
     class(relative_permeability_type), intent(in out) :: relp
     PetscReal, intent(in) :: expected(2)
@@ -40,19 +64,20 @@ contains
 
     rp = relp%values(sl)
     write(msg, '(a, f4.2)') ' sl = ', sl
-    call assert_equals(expected(1), rp(1), tol, "Liquid" // trim(msg))
-    call assert_equals(expected(2), rp(2), tol, "Vapour" // trim(msg))
+    call test%assert(expected(1), rp(1), "Liquid" // trim(msg))
+    call test%assert(expected(2), rp(2), "Vapour" // trim(msg))
 
   end subroutine relative_permeability_case
 
 !------------------------------------------------------------------------
 
-  subroutine test_relative_permeability_linear
+  subroutine test_relative_permeability_linear(test)
 
     ! Linear relative permeability functions
 
-    type(relative_permeability_linear_type) :: linear
+    class(unit_test_type), intent(in out) :: test
     ! Locals:
+    type(relative_permeability_linear_type) :: linear
     type(fson_value), pointer :: json
     character(100), parameter :: json_str = &
          '{"type": "linear", "liquid": [0.1, 0.8], "vapour": [0.3, 0.75]}'
@@ -68,13 +93,13 @@ contains
 
     if (rank == 0) then
 
-       call assert_equals(0, err, "error")
-       call assert_equals("Linear", linear%name, "Name")
+       call test%assert(0, err, "error")
+       call test%assert("Linear", linear%name, "Name")
 
-       call relative_permeability_case(0.01_dp, linear, [0._dp, 1._dp])
-       call relative_permeability_case(0.2_dp, linear, [1._dp / 7._dp, 1._dp])
-       call relative_permeability_case(0.5_dp, linear, [4._dp / 7._dp, 4._dp / 9._dp])
-       call relative_permeability_case(0.9_dp, linear, [1._dp, 0._dp])
+       call relative_permeability_case(test, 0.01_dp, linear, [0._dp, 1._dp])
+       call relative_permeability_case(test, 0.2_dp, linear, [1._dp / 7._dp, 1._dp])
+       call relative_permeability_case(test, 0.5_dp, linear, [4._dp / 7._dp, 4._dp / 9._dp])
+       call relative_permeability_case(test, 0.9_dp, linear, [1._dp, 0._dp])
 
     end if
 
@@ -84,12 +109,13 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine test_relative_permeability_pickens
+  subroutine test_relative_permeability_pickens(test)
 
     ! Pickens relative permeability functions
 
-    type(relative_permeability_pickens_type) :: pickens
+    class(unit_test_type), intent(in out) :: test
     ! Locals:
+    type(relative_permeability_pickens_type) :: pickens
     type(fson_value), pointer :: json
     character(100), parameter :: json_str = &
          '{"type": "Pickens", "power": 2.0}'
@@ -105,11 +131,11 @@ contains
 
     if (rank == 0) then
 
-       call assert_equals(0, err, "error")
-       call assert_equals("Pickens", pickens%name, "Name")
-       call relative_permeability_case(0.01_dp, pickens, [1.e-4_dp, 1._dp])
-       call relative_permeability_case(0.5_dp, pickens, [0.25_dp, 1._dp])
-       call relative_permeability_case(0.9_dp, pickens, [0.81_dp, 1._dp])
+       call test%assert(0, err, "error")
+       call test%assert("Pickens", pickens%name, "Name")
+       call relative_permeability_case(test, 0.01_dp, pickens, [1.e-4_dp, 1._dp])
+       call relative_permeability_case(test, 0.5_dp, pickens, [0.25_dp, 1._dp])
+       call relative_permeability_case(test, 0.9_dp, pickens, [0.81_dp, 1._dp])
 
     end if
 
@@ -119,12 +145,13 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine test_relative_permeability_corey
+  subroutine test_relative_permeability_corey(test)
 
-    ! Corey's relative permeability functions
+    ! Corey relative permeability functions
 
-    type(relative_permeability_corey_type) :: corey
+    class(unit_test_type), intent(in out) :: test
     ! Locals:
+    type(relative_permeability_corey_type) :: corey
     type(fson_value), pointer :: json
     character(100), parameter :: json_str = &
     '{"type": "Corey", "slr": 0.3, "ssr": 0.1}'
@@ -140,11 +167,11 @@ contains
 
     if (rank == 0) then
 
-       call assert_equals(0, err, "error")
-       call assert_equals("Corey", corey%name, "Name")
-       call relative_permeability_case(0.01_dp, corey, [0._dp, 1._dp])
-       call relative_permeability_case(0.5_dp, corey, [1._dp / 81._dp, 32._dp/ 81._dp])
-       call relative_permeability_case(0.95_dp, corey, [1._dp, 0._dp])
+       call test%assert(0, err, "error")
+       call test%assert("Corey", corey%name, "Name")
+       call relative_permeability_case(test, 0.01_dp, corey, [0._dp, 1._dp])
+       call relative_permeability_case(test, 0.5_dp, corey, [1._dp / 81._dp, 32._dp/ 81._dp])
+       call relative_permeability_case(test, 0.95_dp, corey, [1._dp, 0._dp])
 
     end if
 
@@ -154,12 +181,13 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine test_relative_permeability_grant
+  subroutine test_relative_permeability_grant(test)
 
-    ! Grant's relative permeability functions
+    ! Grant relative permeability functions
 
-    type(relative_permeability_grant_type) :: grant
+    class(unit_test_type), intent(in out) :: test
     ! Locals:
+    type(relative_permeability_grant_type) :: grant
     type(fson_value), pointer :: json
     character(100), parameter :: json_str = &
     '{"type": "Grant", "slr": 0.3, "ssr": 0.1}'
@@ -175,11 +203,11 @@ contains
 
     if (rank == 0) then
 
-       call assert_equals(0, err, "error")
-       call assert_equals("Grant", grant%name, "Name")
-       call relative_permeability_case(0.01_dp, grant, [0._dp, 1._dp])
-       call relative_permeability_case(0.5_dp, grant, [1._dp / 81._dp, 80._dp/ 81._dp])
-       call relative_permeability_case(0.95_dp, grant, [1._dp, 0._dp])
+       call test%assert(0, err, "error")
+       call test%assert("Grant", grant%name, "Name")
+       call relative_permeability_case(test, 0.01_dp, grant, [0._dp, 1._dp])
+       call relative_permeability_case(test, 0.5_dp, grant, [1._dp / 81._dp, 80._dp/ 81._dp])
+       call relative_permeability_case(test, 0.95_dp, grant, [1._dp, 0._dp])
 
     end if
 
@@ -189,12 +217,13 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine test_relative_permeability_van_genuchten
+  subroutine test_relative_permeability_van_genuchten(test)
 
     ! van Genuchten relative permeability functions
 
-    type(relative_permeability_van_genuchten_type) :: vg
+    class(unit_test_type), intent(in out) :: test
     ! Locals:
+    type(relative_permeability_van_genuchten_type) :: vg
     type(fson_value), pointer :: json
     character(100), parameter :: json_str = &
     '{"type": "van Genuchten", "slr": 0.1, "sls": 0.8, "lambda": 0.5}'
@@ -210,16 +239,16 @@ contains
 
     if (rank == 0) then
 
-       call assert_equals(0, err, "error")
-       call assert_equals("van Genuchten", vg%name, "Name")
-       call relative_permeability_case(0.01_dp, vg, [0._dp, 1._dp])
-       call relative_permeability_case(0.25_dp, vg, &
+       call test%assert(0, err, "error")
+       call test%assert("van Genuchten", vg%name, "Name")
+       call relative_permeability_case(test, 0.01_dp, vg, [0._dp, 1._dp])
+       call relative_permeability_case(test, 0.25_dp, vg, &
             [0.00024977947758877213_dp, 0.9997502205224112_dp])
-       call relative_permeability_case(0.5_dp, vg, &
+       call relative_permeability_case(test, 0.5_dp, vg, &
             [0.024315039984298164_dp, 0.9756849600157018_dp])
-       call relative_permeability_case(0.75_dp, vg, &
+       call relative_permeability_case(test, 0.75_dp, vg, &
             [0.38106285486468433_dp, 0.6189371451353156_dp])
-       call relative_permeability_case(0.95_dp, vg, [1._dp, 0._dp])
+       call relative_permeability_case(test, 0.95_dp, vg, [1._dp, 0._dp])
 
     end if
 
@@ -229,13 +258,13 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine test_relative_permeability_table
+  subroutine test_relative_permeability_table(test)
 
     ! Table relative permeability functions
 
-    type(relative_permeability_table_type) :: rp
-
+    class(unit_test_type), intent(in out) :: test
     ! Locals:
+    type(relative_permeability_table_type) :: rp
     type(fson_value), pointer :: json
     character(160) :: json_str
     PetscMPIInt :: rank
@@ -254,15 +283,15 @@ contains
 
     if (rank == 0) then
 
-       call assert_equals(0, err, "error")
-       call assert_equals("table", rp%name, "Name")
-       call relative_permeability_case(0._dp, rp, [0._dp, 1._dp])
-       call relative_permeability_case(0.3_dp, rp, &
+       call test%assert(0, err, "error")
+       call test%assert("table", rp%name, "Name")
+       call relative_permeability_case(test, 0._dp, rp, [0._dp, 1._dp])
+       call relative_permeability_case(test, 0.3_dp, rp, &
             [0.01_dp * 3._dp / 7._dp, (4._dp + 3._dp * 0.99_dp) / 7._dp])
-       call relative_permeability_case(0.7_dp, rp, [0.01_dp, 0.99_dp])
-       call relative_permeability_case(0.9_dp, rp, &
+       call relative_permeability_case(test, 0.7_dp, rp, [0.01_dp, 0.99_dp])
+       call relative_permeability_case(test, 0.9_dp, rp, &
             [0.2_dp * 0.01_dp + 0.8_dp * 0.99_dp, 0.8_dp * 0.01_dp + 0.2_dp * 0.99_dp])
-       call relative_permeability_case(1._dp, rp, [1._dp, 0._dp])
+       call relative_permeability_case(test, 1._dp, rp, [1._dp, 0._dp])
 
     end if
 
@@ -272,12 +301,13 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine test_relative_permeability_fully_mobile
+  subroutine test_relative_permeability_fully_mobile(test)
 
     ! Fully mobile relative permeability functions
 
-    type(relative_permeability_fully_mobile_type) :: mobile
+    class(unit_test_type), intent(in out) :: test
     ! Locals:
+    type(relative_permeability_fully_mobile_type) :: mobile
     type(fson_value), pointer :: json
     character(100), parameter :: json_str = &
     '{"type": "Fully mobile"}'
@@ -293,10 +323,10 @@ contains
 
     if (rank == 0) then
 
-       call assert_equals(0, err, "error")
-       call assert_equals("Fully mobile", mobile%name, "Name")
-       call relative_permeability_case(0.2_dp, mobile, [1._dp, 1._dp])
-       call relative_permeability_case(0.9_dp, mobile, [1._dp, 1._dp])
+       call test%assert(0, err, "error")
+       call test%assert("Fully mobile", mobile%name, "Name")
+       call relative_permeability_case(test, 0.2_dp, mobile, [1._dp, 1._dp])
+       call relative_permeability_case(test, 0.9_dp, mobile, [1._dp, 1._dp])
 
     end if
 
