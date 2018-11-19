@@ -6,12 +6,13 @@ module root_finder_test
 
   use petscsys
   use kinds_module
-  use fruit
+  use zofu
   use root_finder_module
 
   implicit none
   private
 
+  public :: setup, teardown
   public :: test_root_finder_linear, test_root_finder_quadratic, &
        test_root_finder_Zhang, test_root_finder_inverse_quadratic, &
        test_root_finder_saturation
@@ -20,9 +21,35 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine test_root_finder_linear
-    ! Linear equation.
+  subroutine setup()
 
+    use profiling_module, only: init_profiling
+
+    ! Locals:
+    PetscErrorCode :: ierr
+
+    call PetscInitialize(PETSC_NULL_CHARACTER, ierr); CHKERRQ(ierr)
+    call init_profiling()
+
+  end subroutine setup
+
+!------------------------------------------------------------------------
+
+  subroutine teardown()
+
+    PetscErrorCode :: ierr
+
+    call PetscFinalize(ierr); CHKERRQ(ierr)
+
+  end subroutine teardown
+
+!------------------------------------------------------------------------
+
+  subroutine test_root_finder_linear(test)
+    ! Linear equation
+
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
     type(root_finder_type) :: finder
     PetscMPIInt :: rank
     PetscInt :: ierr
@@ -36,10 +63,10 @@ contains
     call finder%init(f)
     call finder%find()
     if (rank == 0) then
-       call assert_equals(0, finder%err, "Linear function error")
-       call assert_equals(expected_root, finder%root, finder%root_tolerance, &
-            "Linear function root")
-       call assert_true(finder%iterations <= expected_iterations, &
+       call test%assert(0, finder%err, "Linear function error")
+       call test%assert(expected_root, finder%root, &
+            "Linear function root", finder%root_tolerance / finder%root)
+       call test%assert(finder%iterations <= expected_iterations, &
             "Linear function iterations")
     end if
     call finder%destroy()
@@ -48,7 +75,7 @@ contains
     call finder%init(f, [0.75_dp, 1._dp])
     call finder%find()
     if (rank == 0) then
-       call assert_equals(ROOT_FINDER_INTERVAL_NOT_BRACKETED, &
+       call test%assert(ROOT_FINDER_INTERVAL_NOT_BRACKETED, &
             finder%err, "Linear function non-bracketing error")
     end if
     call finder%destroy()
@@ -65,9 +92,11 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine test_root_finder_quadratic
-    ! Quadratic equation.
+  subroutine test_root_finder_quadratic(test)
+    ! Quadratic equation
 
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
     type(root_finder_type) :: finder
     PetscMPIInt :: rank
     PetscInt :: ierr
@@ -82,10 +111,10 @@ contains
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
     if (rank == 0) then
 
-       call assert_equals(0, finder%err, "Quadratic function error")
-       call assert_equals(expected_root, finder%root, &
-            finder%root_tolerance, "Quadratic function root")
-       call assert_true(finder%iterations <= expected_iterations, &
+       call test%assert(0, finder%err, "Quadratic function error")
+       call test%assert(expected_root, finder%root, &
+            "Quadratic function root", finder%root_tolerance / finder%root)
+       call test%assert(finder%iterations <= expected_iterations, &
             "Quadratic function iterations")
     end if
 
@@ -103,12 +132,14 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine test_root_finder_Zhang
-    ! Zhang's function
+  subroutine test_root_finder_Zhang(test)
+    ! Zhang function
 
     ! Zhang (2011), "An Improvement to the Brent’s Method", IJEA,
     ! vol. 2, pp. 21-26.
 
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
     type(root_finder_type) :: finder
     PetscMPIInt :: rank
     PetscInt :: ierr
@@ -123,10 +154,10 @@ contains
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
     if (rank == 0) then
 
-       call assert_equals(0, finder%err, "Zhang function error")
-       call assert_equals(expected_root, finder%root, &
-            finder%root_tolerance, "Zhang function root")
-       call assert_true(finder%iterations <= expected_iterations, &
+       call test%assert(0, finder%err, "Zhang function error")
+       call test%assert(expected_root, finder%root, &
+            "Zhang function root", finder%root_tolerance / finder%root)
+       call test%assert(finder%iterations <= expected_iterations, &
             "Zhang function iterations")
     end if
 
@@ -144,12 +175,14 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine test_root_finder_inverse_quadratic
+  subroutine test_root_finder_inverse_quadratic(test)
     ! Inverse quadratic function
 
     ! From Stage (2013), "Comments on An Improvement to Brent's Method", IJEA,
     ! vol. 4(1).
 
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
     type(root_finder_type) :: finder
     PetscMPIInt :: rank
     PetscInt :: ierr
@@ -164,10 +197,10 @@ contains
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
     if (rank == 0) then
 
-       call assert_equals(0, finder%err, "Inverse quadratic function error")
-       call assert_equals(expected_root, finder%root, &
-            finder%root_tolerance, "Inverse quadratic function root")
-       call assert_true(finder%iterations <= expected_iterations, &
+       call test%assert(0, finder%err, "Inverse quadratic function error")
+       call test%assert(expected_root, finder%root, &
+            "Inverse quadratic function root", finder%root_tolerance / finder%root)
+       call test%assert(finder%iterations <= expected_iterations, &
             "Inverse quadratic function iterations")
     end if
 
@@ -190,12 +223,14 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine test_root_finder_saturation
+  subroutine test_root_finder_saturation(test)
     ! Saturation line intersection
 
     use IAPWS_module
     use interpolation_module, only: interpolation_table_type
 
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
     type(root_finder_type) :: finder
     type(interpolation_table_type), target :: inc
     class(*), pointer :: pinc
@@ -214,7 +249,7 @@ contains
     data(:, 2) = [20.e5_dp, 23.e5_dp]
     data(:, 3) = [210._dp, 220._dp]
     call inc%init(data, err = err)
-    call assert_equals(0, err, "error")
+    call test%assert(0, err, "error")
 
     pinc => inc
     f => saturation_difference
@@ -224,13 +259,13 @@ contains
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
     if (rank == 0) then
 
-       call assert_equals(0, finder%err, "Saturation line error")
+       call test%assert(0, finder%err, "Saturation line error")
        var = inc%interpolate(finder%root)
        associate(T => var(2))
-         call assert_equals(expected_temperature, T, &
-              finder%root_tolerance, "Saturation line temperature")
+         call test%assert(expected_temperature, T, &
+              "Saturation line temperature", finder%root_tolerance / finder%root)
        end associate
-       call assert_true(finder%iterations <= expected_iterations, &
+       call test%assert(finder%iterations <= expected_iterations, &
             "Saturation line iterations")
     end if
 
