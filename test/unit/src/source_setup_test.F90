@@ -6,20 +6,45 @@ module source_setup_test
 
   use petsc
   use kinds_module
-  use fruit
+  use zofu
   use source_setup_module
-  use eos_test
+  use eos_wge_module
 
   implicit none
   private
 
-public :: test_setup_sources
+  public :: setup, teardown
+  public :: test_setup_sources
 
 contains
 
 !------------------------------------------------------------------------
 
-  subroutine test_setup_sources
+  subroutine setup()
+
+    use profiling_module, only: init_profiling
+
+    ! Locals:
+    PetscErrorCode :: ierr
+
+    call PetscInitialize(PETSC_NULL_CHARACTER, ierr); CHKERRQ(ierr)
+    call init_profiling()
+
+  end subroutine setup
+
+!------------------------------------------------------------------------
+
+  subroutine teardown()
+
+    PetscErrorCode :: ierr
+
+    call PetscFinalize(ierr); CHKERRQ(ierr)
+
+  end subroutine teardown
+
+!------------------------------------------------------------------------
+
+  subroutine test_setup_sources(test)
 
     ! setup_sources() test
 
@@ -33,9 +58,11 @@ contains
     use dm_utils_module, only: global_vec_section, global_section_offset
     use utils_module, only: array_cumulative_sum, get_mpi_int_gather_array
 
-    character(16), parameter :: path = "data/source/"
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
+    character(25), parameter :: path = "../test/unit/data/source/"
     type(IAPWS_type) :: thermo
-    type(eos_test_type) :: eos
+    type(eos_wge_type) :: eos
     type(fson_value), pointer :: json
     type(mesh_type) :: mesh
     type(source_type) :: source
@@ -74,10 +101,10 @@ contains
     call setup_sources(json, mesh%dm, mesh%cell_order, eos, thermo, start_time, &
          fluid_vector, fluid_range_start, source_vector, source_range_start, &
          num_sources, total_num_sources, source_controls, source_is, err = err)
-    call assert_equals(0, err, "error")
+    call test%assert(0, err, "error")
 
     if (rank == 0) then
-      call assert_equals(expected_num_sources, total_num_sources, "number of sources")
+      call test%assert(expected_num_sources, total_num_sources, "number of sources")
     end if
 
     call global_vec_section(source_vector, source_section)
@@ -93,52 +120,52 @@ contains
        source_index = nint(source%source_index)
        select case (source_index)
        case (0)
-            call source_test(source_index, source, &
+            call source_test(test, source_index, source, &
                  0, 10._dp, 90.e3_dp, 0, 0)
          case (1)
-            call source_test(source_index, source, &
+            call source_test(test, source_index, source, &
                  1, 5._dp, 100.e3_dp, 2, 0)
          case (2)
-            call source_test(source_index, source, &
+            call source_test(test, source_index, source, &
                  2, 1000._dp, 0._dp, 3, 3)
          case (3)
-            call source_test(source_index, source, &
+            call source_test(test, source_index, source, &
                  3, -2._dp, default_source_injection_enthalpy, 1, 0)
          case (4)
-            call source_test(source_index, source, &
+            call source_test(test, source_index, source, &
                  4, -3._dp, 200.e3_dp, 1, 0)
          case (5)
-            call source_test(source_index, source, &
+            call source_test(test, source_index, source, &
                  5, -5._dp, default_source_injection_enthalpy, 0, 0)
          case (6)
-            call source_test(source_index, source, &
+            call source_test(test, source_index, source, &
                  6, -2000._dp, 0._dp, 3, 3)
          case (7)
-            call source_test(source_index, source, &
+            call source_test(test, source_index, source, &
                  7, default_source_rate, default_source_injection_enthalpy, 1, 0)
          case (8)
-            call source_test(source_index, source, &
+            call source_test(test, source_index, source, &
                  8, default_source_rate, 1000.e3_dp, 2, 0)
          case (9)
-            call source_test(source_index, source, &
+            call source_test(test, source_index, source, &
                  0, default_source_rate, 0._dp, 3, 3)
          case (10)
-            call source_test(source_index, source, &
+            call source_test(test, source_index, source, &
                  1, 3._dp, 150.e3_dp, 1, 1)
          case (11)
-            call source_test(source_index, source, &
+            call source_test(test, source_index, source, &
                  2, default_source_rate, default_source_injection_enthalpy, 1, 1)
          case (12)
-            call source_test(source_index, source, &
+            call source_test(test, source_index, source, &
                  3, default_source_rate, 80.e3_dp, 2, 2)
          case (13)
-            call source_test(source_index, source, &
+            call source_test(test, source_index, source, &
                  4, default_source_rate, 90.e3_dp, 1, 2)
          case (14)
-            call source_test(source_index, source, &
+            call source_test(test, source_index, source, &
                  5, default_source_rate, 500.e3_dp, 2, 3)
          case (15)
-            call source_test(source_index, source, &
+            call source_test(test, source_index, source, &
                  6, default_source_rate, 100.e3_dp, default_source_component, 2)
          case (16)
             num_zone_sources = num_zone_sources + 1
@@ -172,8 +199,8 @@ contains
        do i = 1, n_all
           zone_source_sorted(i) = zone_source_all(isort(i))
        end do
-       call assert_equals(expected_zone_source_cells, zone_source_sorted, &
-            n_all, "zone source cells")
+       call test%assert(expected_zone_source_cells, zone_source_sorted, &
+            "zone source cells")
        deallocate(zone_source_sorted, isort)
     end if
 
@@ -192,9 +219,11 @@ contains
 
   contains
 
-    subroutine source_test(source_index, source, index, rate, enthalpy, &
+    subroutine source_test(test, source_index, source, index, rate, enthalpy, &
          injection_component, production_component)
       !! Runs asserts for a single source.
+
+      class(unit_test_type), intent(in out) :: test
       PetscInt, intent(in) :: source_index
       type(source_type), intent(in) :: source
       PetscInt, intent(in) :: index
@@ -205,15 +234,15 @@ contains
       PetscReal, parameter :: tol = 1.e-6_dp
 
       write(srcstr, '(a, i2, a)') 'source[', source_index, ']'
-      call assert_equals(index, nint(source%natural_cell_index), &
+      call test%assert(index, nint(source%natural_cell_index), &
            trim(srcstr) // ": natural index")
-      call assert_equals(rate, source%rate, tol, &
+      call test%assert(rate, source%rate, &
            trim(srcstr) // ": rate")
-      call assert_equals(enthalpy, source%injection_enthalpy, tol, &
+      call test%assert(enthalpy, source%injection_enthalpy, &
            trim(srcstr) // ": enthalpy")
-      call assert_equals(injection_component, nint(source%injection_component), &
+      call test%assert(injection_component, nint(source%injection_component), &
            trim(srcstr) // ": injection component")
-      call assert_equals(production_component, nint(source%production_component), &
+      call test%assert(production_component, nint(source%production_component), &
            trim(srcstr) // ": production component")
 
     end subroutine source_test
