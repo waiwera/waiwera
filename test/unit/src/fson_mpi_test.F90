@@ -5,7 +5,7 @@ module fson_mpi_test
 #include <petsc/finclude/petscsys.h>
 
   use petscsys
-  use fruit
+  use zofu
   use fson
   use kinds_module
   use fson_mpi_module
@@ -13,7 +13,8 @@ module fson_mpi_test
   implicit none
   private 
 
-  character(len = 32), parameter :: filename = "data/fson_mpi/test_fson_mpi.json"
+  character(len = 45), parameter :: filename = "../test/unit/data/fson_mpi/test_fson_mpi.json"
+  public :: setup, teardown, setup_test
   public :: test_fson_mpi_int, test_fson_mpi_real, test_fson_mpi_double
   public :: test_fson_mpi_logical, test_fson_mpi_char
   public :: test_fson_mpi_array_rank, test_fson_get_name_mpi
@@ -23,10 +24,46 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine test_fson_mpi_int
+  subroutine setup()
+
+    use profiling_module, only: init_profiling
+
+    ! Locals:
+    PetscErrorCode :: ierr
+
+    call PetscInitialize(PETSC_NULL_CHARACTER, ierr); CHKERRQ(ierr)
+    call init_profiling()
+
+  end subroutine setup
+
+!------------------------------------------------------------------------
+
+  subroutine teardown()
+
+    PetscErrorCode :: ierr
+
+    call PetscFinalize(ierr); CHKERRQ(ierr)
+
+  end subroutine teardown
+
+!------------------------------------------------------------------------
+
+  subroutine setup_test(test)
+
+    class(unit_test_type), intent(in out) :: test
+
+    test%tolerance = 1.e-7
+
+  end subroutine setup_test
+
+!------------------------------------------------------------------------
+
+  subroutine test_fson_mpi_int(test)
 
     ! Test fson_get_mpi integer routines
 
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
     type(fson_value), pointer :: json
     PetscInt :: val
     PetscInt, parameter :: expected = 7
@@ -39,18 +76,17 @@ contains
     json => fson_parse_mpi(filename)
 
     call fson_get_mpi(json, "int", val=val)
-    call assert_equals(expected, val, "int")
+    call test%assert(expected, val, "int")
     call fson_get_mpi(json, "missing_int", expected, val)
-    call assert_equals(expected, val, "int")
+    call test%assert(expected, val, "int")
     call fson_get_mpi(json, "int_array", val=arr)
-    call assert_equals(expected_arr, arr, size(expected_arr), "int array")
+    call test%assert(expected_arr, arr, "int array")
     deallocate(arr)
     call fson_get_mpi(json, "int_array_2d", val=arr_2d)
-    call assert_equals(expected_arr_2d, arr_2d, size(expected_arr_2d,1), &
-         size(expected_arr_2d,2), "2d int array")
+    call test%assert(expected_arr_2d, arr_2d, "2d int array")
     deallocate(arr_2d)
     call fson_get_mpi(json, "empty_array", val=arr)
-    call assert_equals(PETSC_FALSE, allocated(arr), "empty array")
+    call test%assert(PETSC_FALSE, allocated(arr), "empty array")
 
     call fson_destroy_mpi(json)
 
@@ -58,13 +94,14 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine test_fson_mpi_real
+  subroutine test_fson_mpi_real(test)
 
     ! Test fson_get_mpi real routines
 
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
     type(fson_value), pointer :: json
     real :: val
-    real, parameter :: tol = 1.e-7
     real, parameter :: expected = 2.71818284
     real, allocatable :: arr(:)
     real, parameter :: expected_arr(5) = [200.0, -1.8, 5.22004, 78.6, -1000.5]
@@ -75,18 +112,17 @@ contains
     json => fson_parse_mpi(filename)
 
     call fson_get_mpi(json, "real", val=val)
-    call assert_equals(expected, val, tol, "real")
+    call test%assert(expected, val, "real")
     call fson_get_mpi(json, "missing_real", expected, val)
-    call assert_equals(expected, val, tol, "real")
+    call test%assert(expected, val, "real")
     call fson_get_mpi(json, "real_array", val=arr)
-    call assert_equals(expected_arr, arr, size(expected_arr), "real array")
+    call test%assert(expected_arr, arr, "real array")
     deallocate(arr)
     call fson_get_mpi(json, "real_array_2d", val=arr_2d)
-    call assert_equals(expected_arr_2d, arr_2d, size(expected_arr_2d,1), &
-         size(expected_arr_2d,2), "2d real array")
+    call test%assert(expected_arr_2d, arr_2d, "2d real array")
     deallocate(arr_2d)
     call fson_get_mpi(json, "empty_array", val=arr)
-    call assert_equals(PETSC_FALSE, allocated(arr), "empty array")
+    call test%assert(PETSC_FALSE, allocated(arr), "empty array")
 
     call fson_destroy_mpi(json)
 
@@ -94,10 +130,12 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine test_fson_mpi_double
+  subroutine test_fson_mpi_double(test)
 
     ! Test fson_get_mpi double routines
 
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
     type(fson_value), pointer :: json
     PetscReal :: val
     PetscReal, parameter :: tol = 1.e-10_dp
@@ -112,19 +150,17 @@ contains
     json => fson_parse_mpi(filename)
 
     call fson_get_mpi(json, "double", val=val)
-    call assert_equals(expected, val, tol, "double")
+    call test%assert(expected, val, "double", tol = tol)
     call fson_get_mpi(json, "missing_double", expected, val)
-    call assert_equals(expected, val, tol, "double")
+    call test%assert(expected, val, "double", tol = tol)
     call fson_get_mpi(json, "double_array", val=arr)
-    call assert_equals(expected_arr, arr, &
-         size(expected_arr), "double array")
+    call test%assert(expected_arr, arr, "double array")
     deallocate(arr)
     call fson_get_mpi(json, "double_array_2d", val=arr_2d)
-    call assert_equals(expected_arr_2d, arr_2d, size(expected_arr_2d,1), &
-         size(expected_arr_2d,2), "2d double array")
+    call test%assert(expected_arr_2d, arr_2d, "2d double array")
     deallocate(arr_2d)
     call fson_get_mpi(json, "empty_array", val=arr)
-    call assert_equals(PETSC_FALSE, allocated(arr), "empty array")
+    call test%assert(PETSC_FALSE, allocated(arr), "empty array")
 
     call fson_destroy_mpi(json)
 
@@ -132,10 +168,12 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine test_fson_mpi_logical
+  subroutine test_fson_mpi_logical(test)
 
     ! Test fson_get_mpi logical routines
 
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
     type(fson_value), pointer :: json
     PetscBool :: val
     PetscBool, parameter :: expected = .false.
@@ -149,19 +187,17 @@ contains
     json => fson_parse_mpi(filename)
 
     call fson_get_mpi(json, "logical", val=val)
-    call assert_equals(expected, val, "logical")
+    call test%assert(expected, val, "logical")
     call fson_get_mpi(json, "missing_logical", expected, val)
-    call assert_equals(expected, val, "logical")
+    call test%assert(expected, val, "logical")
     call fson_get_mpi(json, "logical_array", val=arr)
-    call assert_equals(expected_arr, arr, &
-         size(expected_arr), "logical array")
+    call test%assert(expected_arr, arr, "logical array")
     deallocate(arr)
     call fson_get_mpi(json, "logical_array_2d", val=arr_2d)
-    call assert_equals(expected_arr_2d, arr_2d, size(expected_arr_2d,1), &
-         size(expected_arr_2d,2), "2d logical array")
+    call test%assert(expected_arr_2d, arr_2d, "2d logical array")
     deallocate(arr_2d)
     call fson_get_mpi(json, "empty_array", val=arr)
-    call assert_equals(PETSC_FALSE, allocated(arr), "empty array")
+    call test%assert(PETSC_FALSE, allocated(arr), "empty array")
 
     call fson_destroy_mpi(json)
 
@@ -169,10 +205,12 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine test_fson_mpi_char
+  subroutine test_fson_mpi_char(test)
 
     ! Test fson_get_mpi character routines
 
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
     type(fson_value), pointer :: json
     PetscInt, parameter :: char_len = 12
     character(len = char_len) :: val
@@ -185,12 +223,12 @@ contains
     json => fson_parse_mpi(filename)
 
     call fson_get_mpi(json, "character", val=val)
-    call assert_equals(expected, val, "character")
+    call test%assert(expected, val, "character")
     call fson_get_mpi(json, "missing_character", expected, val)
-    call assert_equals(expected, val, "character")
+    call test%assert(expected, val, "character")
 
     call fson_get_mpi(json, "char_array", default_arr, char_len, arr)
-    call assert_equals(expected_arr, arr, 3, "character array")
+    call test%assert(expected_arr, arr, "character array")
 
     call fson_destroy_mpi(json)
 
@@ -198,26 +236,28 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine test_fson_mpi_array_rank
+  subroutine test_fson_mpi_array_rank(test)
 
     ! Test fson_mpi_array_rank routine
 
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
     type(fson_value), pointer :: json
     PetscInt :: r
 
     json => fson_parse_mpi(filename)
 
     r = fson_mpi_array_rank(json, "missing")
-    call assert_equals(-1, r, "missing")
+    call test%assert(-1, r, "missing")
 
     r = fson_mpi_array_rank(json, "real")
-    call assert_equals(0, r, "scalar")
+    call test%assert(0, r, "scalar")
 
     r = fson_mpi_array_rank(json, "int_array")
-    call assert_equals(1, r, "rank 1")
+    call test%assert(1, r, "rank 1")
 
     r = fson_mpi_array_rank(json, "double_array_2d")
-    call assert_equals(2, r, "rank 2")
+    call test%assert(2, r, "rank 2")
 
     call fson_destroy_mpi(json)
 
@@ -225,10 +265,12 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine test_fson_get_name_mpi
+  subroutine test_fson_get_name_mpi(test)
 
     ! fson_get_name_mpi()
 
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
     type(fson_value), pointer :: json, sub_json
     character(:), allocatable :: name
     PetscInt :: num_items
@@ -236,16 +278,15 @@ contains
     json => fson_parse_mpi(str = '{"foo": 1, "bar": 2}')
 
     num_items = fson_value_count_mpi(json, ".")
-    call assert_equals(2, num_items, "num items")
+    call test%assert(2, num_items, "num items")
 
     sub_json => fson_value_get_mpi(json, 1)
     name = fson_get_name_mpi(sub_json)
-    call assert_equals("foo", name, "foo name")
-    write(*,*) 'name:', name
+    call test%assert("foo", name, "foo name")
 
     sub_json => fson_value_get_mpi(json, 2)
     name = fson_get_name_mpi(sub_json)
-    call assert_equals("bar", name, "bar name")
+    call test%assert("bar", name, "bar name")
 
     call fson_destroy_mpi(json)
 
@@ -253,9 +294,11 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine test_fson_value_next_mpi
+  subroutine test_fson_value_next_mpi(test)
     ! fson_value_next_mpi()
 
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
     type(fson_value), pointer :: json, arr_json, elt_json
     PetscInt, allocatable :: arr(:)
     PetscInt :: n, i
@@ -274,7 +317,7 @@ contains
        elt_json => fson_value_next_mpi(elt_json)
     end do
 
-    call assert_equals(expected_arr, arr, n, "array")
+    call test%assert(expected_arr, arr, "array")
 
     deallocate(arr)
     call fson_destroy_mpi(json)
