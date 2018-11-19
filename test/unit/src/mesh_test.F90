@@ -6,26 +6,49 @@ module mesh_test
 
   use petsc
   use kinds_module
-  use fruit
+  use zofu
   use fson
   use mesh_module
 
   implicit none
   private
 
+  public :: setup, teardown
   public :: test_mesh_init, test_2d_cartesian_geometry, &
        test_2d_radial_geometry, test_mesh_face_permeability_direction, &
        test_setup_minc_dm, test_minc_rock, &
        test_rock_assignment, test_cell_order, test_minc_cell_order, &
        test_global_to_fracture_natural
 
-  PetscReal, parameter :: tol = 1.e-6_dp
-
 contains
 
 !------------------------------------------------------------------------
 
-  subroutine test_mesh_init
+  subroutine setup()
+
+    use profiling_module, only: init_profiling
+
+    ! Locals:
+    PetscErrorCode :: ierr
+
+    call PetscInitialize(PETSC_NULL_CHARACTER, ierr); CHKERRQ(ierr)
+    call init_profiling()
+
+  end subroutine setup
+
+!------------------------------------------------------------------------
+
+  subroutine teardown()
+
+    PetscErrorCode :: ierr
+
+    call PetscFinalize(ierr); CHKERRQ(ierr)
+
+  end subroutine teardown
+
+!------------------------------------------------------------------------
+
+  subroutine test_mesh_init(test)
 
     ! Mesh init test
 
@@ -36,6 +59,8 @@ contains
     use IAPWS_module
     use eos_we_module
 
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
     type(fson_value), pointer :: json
     type(IAPWS_type) :: thermo
     type(eos_we_type) :: eos
@@ -70,7 +95,7 @@ contains
     call eos%init(json, thermo)
     viewer = PETSC_NULL_VIEWER
 
-    json => fson_parse_mpi(str = '{"mesh": "data/mesh/block3.exo"}')
+    json => fson_parse_mpi(str = '{"mesh": "../test/unit/data/mesh/block3.exo"}')
     call mesh%init(json)
     call DMCreateLabel(mesh%original_dm, open_boundary_label_name, ierr); CHKERRQ(ierr)
     call mesh%configure(eos, gravity, json, viewer = viewer, err = err)
@@ -78,13 +103,13 @@ contains
 
     call DMGetDimension(mesh%dm, dim, ierr); CHKERRQ(ierr)
     if (rank == 0) then
-       call assert_equals(expected_dim, dim, "mesh dimension")
+       call test%assert(expected_dim, dim, "mesh dimension")
     end if
 
     call DMGetGlobalVector(mesh%dm, x, ierr); CHKERRQ(ierr)
     call VecGetSize(x, global_solution_dof, ierr); CHKERRQ(ierr)
     if (rank == 0) then
-       call assert_equals(num_cells * eos%num_primary_variables, &
+       call test%assert(num_cells * eos%num_primary_variables, &
             global_solution_dof, "global solution dof")
     end if
     call DMRestoreGlobalVector(mesh%dm, x, ierr); CHKERRQ(ierr)
@@ -105,7 +130,7 @@ contains
           call section_offset(section, f, offset, ierr); CHKERRQ(ierr)
           call face%assign_geometry(fg, offset)
           write(msg, '(a, i2)') 'face area ', f
-          call assert_equals(face_area, face%area, tol, msg)
+          call test%assert(face_area, face%area, msg)
           dist = face%distance
           call DMPlexGetSupport(mesh%dm, f, cells, ierr); CHKERRQ(ierr)
           order = local_to_natural_cell_index(mesh%cell_order, l2g, cells)
@@ -118,10 +143,10 @@ contains
           end if
           if (gf > 0) then
              write(msg, '(a, i2)') 'face distance ', f
-             call assert_equals(0._dp, norm2(dist - face_distance(:, gf)), tol, msg)
+             call test%assert(0._dp, norm2(dist - face_distance(:, gf)), msg)
              write(msg, '(a, i2)') 'face centroid ', f
-             call assert_equals(0._dp, norm2(face%centroid - face_centroid(:, gf)), &
-                  tol, msg)
+             call test%assert(0._dp, norm2(face%centroid - face_centroid(:, gf)), &
+                  msg)
           end if
        end if
     end do
@@ -136,7 +161,7 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine test_2d_cartesian_geometry
+  subroutine test_2d_cartesian_geometry(test)
     ! Test 2D Cartesian volumes and areas
 
     use fson_mpi_module
@@ -146,6 +171,8 @@ contains
     use IAPWS_module
     use eos_we_module
 
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
     type(fson_value), pointer :: json
     type(IAPWS_type) :: thermo
     type(eos_we_type) :: eos
@@ -163,6 +190,7 @@ contains
     PetscReal, parameter :: expected_cell_vol = 62500._dp
     PetscReal, parameter :: expected_face_area = 2500._dp
     PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
+    PetscReal, parameter :: tol = 1.e-6_dp
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
     call thermo%init()
@@ -170,7 +198,7 @@ contains
     viewer = PETSC_NULL_VIEWER
 
     json => fson_parse_mpi(str = '{"mesh": {' // &
-         '"filename": "data/mesh/2D.msh",' // &
+         '"filename": "../test/unit/data/mesh/2D.msh",' // &
          '"thickness": 100.}}')
     call mesh%init(json)
     call mesh%configure(eos, gravity, json, viewer = viewer, err = err)
@@ -196,7 +224,7 @@ contains
     end do
 
     write(msg, '(a, i3)') 'cell volumes on proc', rank
-    call assert_true(volumes_OK, msg)
+    call test%assert(volumes_OK, msg)
 
     call VecRestoreArrayReadF90(mesh%cell_geom, cell_geom_array, ierr)
     CHKERRQ(ierr)
@@ -220,7 +248,7 @@ contains
     end do
 
     write(msg, '(a, i3)') 'face areas on proc', rank
-    call assert_true(areas_OK, msg)
+    call test%assert(areas_OK, msg)
 
     call VecRestoreArrayReadF90(mesh%face_geom, face_geom_array, ierr)
     CHKERRQ(ierr)
@@ -234,7 +262,7 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine test_2d_radial_geometry
+  subroutine test_2d_radial_geometry(test)
     ! Test 2D radial volumes and areas
 
     use fson_mpi_module
@@ -245,6 +273,8 @@ contains
     use IAPWS_module
     use eos_we_module
 
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
     type(fson_value), pointer :: json
     type(mesh_type) :: mesh
     type(IAPWS_type) :: thermo
@@ -263,6 +293,7 @@ contains
     PetscBool :: vertical
     PetscReal, parameter :: dr = 300._dp / 12, dy = 200._dp / 8
     PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
+    PetscReal, parameter :: tol = 1.e-6_dp
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
     call thermo%init()
@@ -270,7 +301,7 @@ contains
     viewer = PETSC_NULL_VIEWER
 
     json => fson_parse_mpi(str = '{"mesh": {' // &
-         '"filename": "data/mesh/2D.msh",' // &
+         '"filename": "../test/unit/data/mesh/2D.msh",' // &
          '"radial": true}}')
     call mesh%init(json)
     call mesh%configure(eos, gravity, json, viewer = viewer, err = err)
@@ -299,7 +330,7 @@ contains
     end do
 
     write(msg, '(a, i3)') 'cell volumes on proc', rank
-    call assert_true(volumes_OK, msg)
+    call test%assert(volumes_OK, msg)
 
     call VecRestoreArrayReadF90(mesh%cell_geom, cell_geom_array, ierr)
     CHKERRQ(ierr)
@@ -331,7 +362,7 @@ contains
     end do
 
     write(msg, '(a, i3)') 'face areas on proc', rank
-    call assert_true(areas_OK, msg)
+    call test%assert(areas_OK, msg)
 
     call VecRestoreArrayReadF90(mesh%face_geom, face_geom_array, ierr)
     CHKERRQ(ierr)
@@ -345,7 +376,7 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine test_mesh_face_permeability_direction
+  subroutine test_mesh_face_permeability_direction(test)
     ! Test face permeability direction
 
     use fson_mpi_module
@@ -354,6 +385,8 @@ contains
     use IAPWS_module
     use eos_we_module
 
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
     type(fson_value), pointer :: json
     type(IAPWS_type) :: thermo
     type(eos_we_type) :: eos
@@ -375,7 +408,7 @@ contains
     viewer = PETSC_NULL_VIEWER
 
     json => fson_parse_mpi(str = &
-         '{"mesh": {"filename": "data/mesh/7x7grid.exo", ' // &
+         '{"mesh": {"filename": "../test/unit/data/mesh/7x7grid.exo", ' // &
          '"faces": [' // &
          '{"cells": [16, 23], "permeability direction": 1}' // &
          ']}}')
@@ -399,7 +432,7 @@ contains
           call face%assign_geometry(face_geom_array, offset)
           dist = norm2(face%centroid - position)
           if (dist <= tol) then
-             call assert_equals(expected_direction, &
+             call test%assert(expected_direction, &
                   nint(face%permeability_direction), &
                   'face [16, 23] direction')
           end if
@@ -417,11 +450,13 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine test_setup_minc_dm
+  subroutine test_setup_minc_dm(test)
     ! Test setup_minc_dm
 
     use fson_mpi_module
 
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
     character(:), allocatable :: json_str
     PetscMPIInt :: rank
     PetscErrorCode :: ierr
@@ -429,21 +464,21 @@ contains
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
 
     json_str = &
-         '{"mesh": {"filename": "data/mesh/7x7grid.exo",' // &
+         '{"mesh": {"filename": "../test/unit/data/mesh/7x7grid.exo",' // &
          '  "zones": {"all": {"-": null}},' // &
          '  "minc": {"rock": {"zones": ["all"]}, ' // &
          '           "geometry": {"fracture": {"volume": 0.1}}}}}'
     call minc_test('all', json_str, 1, 2 * 49, 1, [49, 49])
 
     json_str = &
-         '{"mesh": {"filename": "data/mesh/7x7grid.exo",' // &
+         '{"mesh": {"filename": "../test/unit/data/mesh/7x7grid.exo",' // &
          '  "zones": {"left": {"x": [0, 1500]}},' // &
          '  "minc": {"rock": {"zones": ["left"]}, ' // &
          '           "geometry": {"matrix": {"volume": 0.9}}}}}'
     call minc_test('partial', json_str, 1, 63, 1, [49, 14])
 
     json_str = &
-         '{"mesh": {"filename": "data/mesh/7x7grid.exo",' // &
+         '{"mesh": {"filename": "../test/unit/data/mesh/7x7grid.exo",' // &
          '  "zones": {"left": {"x": [0, 1500]}, "right": {"-": "left"}},' // &
          '  "minc": [{"rock": {"zones": ["left"]}, ' // &
          '                     "geometry": {"fracture": {"volume": 0.1}}}, ' // &
@@ -453,7 +488,7 @@ contains
     call minc_test('two-zone', json_str, 2, 133, 2, [49, 49, 35])
 
     json_str = &
-         '{"mesh": {"filename": "data/mesh/7x7grid.exo",' // &
+         '{"mesh": {"filename": "../test/unit/data/mesh/7x7grid.exo",' // &
          '  "zones": {"left": {"x": [0, 1500]}, ' // &
          '            "right corner": {"x": [2500, 4500], "y": [3000, 4500]}},' // &
          '  "minc": [{"rock": {"zones": ["right corner"]}, ' // &
@@ -463,7 +498,7 @@ contains
     call minc_test('two-zone partial', json_str, 2, 83, 2, [49, 20, 14])
 
     json_str = &
-         '{"mesh": {"filename": "data/mesh/7x7grid.exo",' // &
+         '{"mesh": {"filename": "../test/unit/data/mesh/7x7grid.exo",' // &
          '  "zones": {"left": {"x": [0, 1500]}, ' // &
          '            "right": {"-": "left"}},' // &
          '  "minc": {"rock": [{"zones": ["left"]}, {"zones": ["right"]}], ' // &
@@ -472,7 +507,7 @@ contains
     call minc_test('two sub-zone', json_str, 1, 2 * 49, 1, [49, 49])
 
     json_str = &
-         '{"mesh": {"filename": "data/mesh/7x7grid.exo",' // &
+         '{"mesh": {"filename": "../test/unit/data/mesh/7x7grid.exo",' // &
          '  "zones": {"left": {"x": [0, 1500]}, "right": {"-": "left"}},' // &
          '  "minc": [{"rock": {"types": ["rock1"]}, ' // &
          '                     "geometry": {"fracture": {"volume": 0.1}}}, ' // &
@@ -531,7 +566,6 @@ contains
       PetscInt :: face_offset, cell_p, face_p, h
       PetscReal :: expected_vol, expected_area
       PetscInt :: ic(expected_max_level)
-      PetscReal, parameter :: tol = 1.e-6_dp
 
       viewer = PETSC_NULL_VIEWER
       call thermo%init()
@@ -539,7 +573,7 @@ contains
       call eos%init(json, thermo)
       call mesh%init(json)
       call mesh%configure(eos, gravity, json, viewer = viewer, err = err)
-      call assert_equals(0, err, name // ": minc config error")
+      call test%assert(0, err, name // ": minc config error")
       call fson_destroy_mpi(json)
 
       orig_json_str = get_orig_json_str(json_str)
@@ -551,20 +585,20 @@ contains
       call DMGetLocalToGlobalMapping(orig_mesh%dm, l2g, ierr); CHKERRQ(ierr)
 
       if (rank == 0) then
-         call assert_true(mesh%has_minc, name // ": mesh has minc")
+         call test%assert(mesh%has_minc, name // ": mesh has minc")
       end if
       num_minc_zones = size(mesh%minc)
       max_num_levels = maxval(mesh%minc%num_levels)
       if (rank == 0) then
-         call assert_equals(expected_num_zones, &
+         call test%assert(expected_num_zones, &
               num_minc_zones, name // ": num minc zones")
-         call assert_equals(expected_max_level, &
+         call test%assert(expected_max_level, &
               max_num_levels, name // ": num minc levels")
       end if
 
       num_cells = total_interior_cell_count(mesh)
       if (rank == 0) then
-         call assert_equals(expected_num_cells, &
+         call test%assert(expected_num_cells, &
               num_cells, name  // ": num cells")
       end if
 
@@ -575,7 +609,7 @@ contains
               0, PETSC_COMM_WORLD, ierr)
          if (rank == 0) then
             write(str, '(a, i1)') ": num minc points, level ", m
-            call assert_equals(expected_num_minc_level_cells(m), &
+            call test%assert(expected_num_minc_level_cells(m), &
                  num, name  // str)
          end if
       end do
@@ -623,7 +657,7 @@ contains
                     call cell%assign_geometry(cell_geom_array, cell_offset)
                     expected_vol = orig_cell%volume * minc%volume(1)
                     write(str, '(a, a, i3, a)') name, ": fracture volume(", order, ")"
-                    call assert_equals(expected_vol, cell%volume, tol, str)
+                    call test%assert(expected_vol, cell%volume, str)
                     do m = 1, minc%num_levels
                        cell_p = mesh%strata(h)%minc_point(ic(m), m)
                        call section_offset(cell_section, cell_p, &
@@ -632,7 +666,7 @@ contains
                        expected_vol = orig_cell%volume * minc%volume(m + 1)
                        write(str, '(a, a, i3, a, i1, a)') name, ": minc volume(", &
                             order, ", ", m, ")"
-                       call assert_equals(expected_vol, cell%volume, tol, str)
+                       call test%assert(expected_vol, cell%volume, str)
                        face_p = mesh%strata(h + 1)%minc_point(ic(m), m)
                        call section_offset(face_section, face_p, &
                             face_offset, ierr); CHKERRQ(ierr)
@@ -640,15 +674,15 @@ contains
                        expected_area = orig_cell%volume * minc%connection_area(m)
                        write(str, '(a, a, i3, a, i1, a, i1, a)') name, &
                             ": minc area(", order, ", ", m-1, ":", m, ")"
-                       call assert_equals(expected_area, face%area, tol, str)
+                       call test%assert(expected_area, face%area, str)
                        write(str, '(a, a, i3, a, i1, a, i1, a)') name, ": minc distance 1(", &
                             order, ", ", m-1, ":", m, ")"
-                       call assert_equals(minc%connection_distance(m), face%distance(1), &
-                            tol, str)
+                       call test%assert(minc%connection_distance(m), face%distance(1), &
+                            str)
                        write(str, '(a, a, i3, a, i1, a, i1, a)') name, ": minc distance 2(", &
                             order, ", ", m-1, ":", m, ")"
-                       call assert_equals(minc%connection_distance(m + 1), face%distance(2), &
-                            tol, str)
+                       call test%assert(minc%connection_distance(m + 1), face%distance(2), &
+                            str)
                        ic(m) = ic(m) + 1
                     end do
                  end if
@@ -719,7 +753,7 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine test_rock_assignment
+  subroutine test_rock_assignment(test)
     ! rock assignment
 
     use fson_mpi_module
@@ -729,6 +763,8 @@ contains
     use IAPWS_module
     use eos_we_module
 
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
     type(fson_value), pointer :: json
     character(:), allocatable :: json_str
     PetscErrorCode :: ierr
@@ -744,7 +780,7 @@ contains
     viewer = PETSC_NULL_VIEWER
 
     json_str = &
-         '{"mesh": {"filename": "data/mesh/7x7grid.exo"}, ' // &
+         '{"mesh": {"filename": "../test/unit/data/mesh/7x7grid.exo"}, ' // &
          '"rock": {"types": [' // &
          '  {"name": "rock1", "porosity": 0.1, ' // &
          '   "cells": [0,1,2,3,4,5,6,7,8,9,' // &
@@ -757,7 +793,7 @@ contains
     call rock_test_case(json_str, [21, 28], "cells")
 
     json_str = &
-         '{"mesh": {"filename": "data/mesh/7x7grid.exo", ' // &
+         '{"mesh": {"filename": "../test/unit/data/mesh/7x7grid.exo", ' // &
          '"zones": {' // &
          '"left_zone": {"x": [0, 3000]},' // &
          '"right_zone": {"-": "left_zone"}' // &
@@ -772,7 +808,7 @@ contains
     call rock_test_case(json_str, [35, 14], "zones")
 
     json_str = &
-         '{"mesh": {"filename": "data/mesh/7x7grid.exo", ' // &
+         '{"mesh": {"filename": "../test/unit/data/mesh/7x7grid.exo", ' // &
          '"zones": {' // &
          '"zone4": {"-": "zone3"},' // &
          '"zone3": {"+": "zone1", "-": "zone2"},' // &
@@ -812,7 +848,6 @@ contains
       PetscErrorCode :: ierr, err
       PetscInt :: rock_count_local(num_rocktypes), rock_count(num_rocktypes)
       PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
-      PetscReal, parameter :: tol = 1.e-6
 
       json => fson_parse_mpi(str = json_str)
       call mesh%init(json)
@@ -822,7 +857,7 @@ contains
       call mesh%configure(eos, gravity, json, viewer = viewer, err = err)
       call setup_rock_vector(json, mesh%dm, mesh%cell_order, rock_vector, &
            rock_dict, rock_range_start, mesh%ghost_cell, err = err)
-      call assert_equals(0, err, "setup rock vector error")
+      call test%assert(0, err, "setup rock vector error")
       call fson_destroy_mpi(json)
 
       call VecGetArrayF90(rock_vector, rock_array, ierr); CHKERRQ(ierr)
@@ -853,7 +888,7 @@ contains
            MPI_INTEGER, MPI_SUM, 0, PETSC_COMM_WORLD, ierr)
 
       if (rank == 0) then
-         call assert_equals(expected_count, rock_count, num_rocktypes, &
+         call test%assert(expected_count, rock_count, &
               "rock counts: " // trim(title))
       end if
 
@@ -870,7 +905,7 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine test_minc_rock
+  subroutine test_minc_rock(test)
     ! MINC rock assignment
 
     use fson_mpi_module
@@ -882,6 +917,8 @@ contains
     use IAPWS_module
     use eos_we_module
 
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
     PetscMPIInt :: rank
     PetscErrorCode :: ierr
     character(:), allocatable :: json_str
@@ -889,7 +926,7 @@ contains
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
 
     json_str = &
-         '{"mesh": {"filename": "data/mesh/7x7grid.exo",' // &
+         '{"mesh": {"filename": "../test/unit/data/mesh/7x7grid.exo",' // &
          '  "zones": {"all": {"-": null}},' // &
          '  "minc": {"rock": {"zones": "all", ' // &
          '                    "fracture": {"type": "fracture"}, ' // &
@@ -904,7 +941,7 @@ contains
     call minc_rock_test_case(json_str, "case 1", 1, [0.6_dp], [0.02_dp], [49])
 
     json_str = &
-         '{"mesh": {"filename": "data/mesh/7x7grid.exo",' // &
+         '{"mesh": {"filename": "../test/unit/data/mesh/7x7grid.exo",' // &
          '  "zones": {"all": {"-": null}},' // &
          '  "minc": {"rock": {"zones": "all", ' // &
          '                    "fracture": {"type": "fracture"}, ' // &
@@ -919,7 +956,7 @@ contains
     call minc_rock_test_case(json_str, "case 2", 2, [0.6_dp], [2._dp / 45._dp], [49])
 
     json_str = &
-         '{"mesh": {"filename": "data/mesh/7x7grid.exo",' // &
+         '{"mesh": {"filename": "../test/unit/data/mesh/7x7grid.exo",' // &
          '  "zones": {"all": {"-": null}, "S": {"y": [0, 1500]}, "N": {"-": "S"}},' // &
          '  "minc": {"rock": [{"zones": "S", ' // &
          '                      "fracture": {"type": "fractureS"}, ' // &
@@ -972,7 +1009,6 @@ contains
       PetscInt, pointer :: minc_points(:)
       PetscReal :: expected_porosity
       character(8) :: levelstr
-      PetscReal, parameter :: tol = 1.e-6
 
       viewer = PETSC_NULL_VIEWER
       num_minc_rocktypes = size(expected_fracture_porosity)
@@ -984,14 +1020,14 @@ contains
 
       call DMCreateLabel(mesh%original_dm, open_boundary_label_name, ierr); CHKERRQ(ierr)
       call mesh%configure(eos, gravity, json, viewer = viewer, err = err)
-      call assert_equals(0, err, title // " mesh configure error")
+      call test%assert(0, err, title // " mesh configure error")
       call rock_dict%init(owner = PETSC_TRUE)
       call setup_rock_vector(json, mesh%dm, mesh%cell_order, rock_vector, rock_dict, &
            rock_range_start, mesh%ghost_cell, err = err)
-      call assert_equals(0, err, title // " setup rock vector error")
+      call test%assert(0, err, title // " setup rock vector error")
       call mesh%setup_minc_rock_properties(json, rock_vector, &
            rock_range_start, err = err)
-      call assert_equals(0, err, title // " setup MINC rock properties error")
+      call test%assert(0, err, title // " setup MINC rock properties error")
       call fson_destroy_mpi(json)
 
       call VecGetArrayReadF90(rock_vector, rock_array, ierr); CHKERRQ(ierr)
@@ -1006,7 +1042,7 @@ contains
          call mpi_reduce(num_local_minc_rock_cells, num_minc_rock_cells, 1, &
               MPI_INTEGER, MPI_SUM, 0, PETSC_COMM_WORLD, ierr)
          if (rank == 0) then
-            call assert_equals(expected_num_minc_rock_cells(r), num_minc_rock_cells, &
+            call test%assert(expected_num_minc_rock_cells(r), num_minc_rock_cells, &
               title // " MINC rock cell count")
          end if
       end do
@@ -1035,7 +1071,7 @@ contains
                   call global_section_offset(section, c, rock_range_start, &
                        offset, ierr); CHKERRQ(ierr)
                   call rock%assign(rock_array, offset)
-                  call assert_equals(expected_porosity, rock%porosity, tol, &
+                  call test%assert(expected_porosity, rock%porosity, &
                        title // levelstr)
                end if
             end do
@@ -1055,7 +1091,7 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine test_cell_order
+  subroutine test_cell_order(test)
     ! cell_order AO
 
     use fson_mpi_module
@@ -1065,6 +1101,8 @@ contains
          global_vec_section, global_section_offset, &
          global_vec_range_start, local_to_natural_cell_index
 
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
     PetscMPIInt :: rank
     character(:), allocatable :: json_str
     PetscErrorCode :: ierr
@@ -1072,11 +1110,11 @@ contains
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
 
     json_str = '{"mesh": {' // &
-         '"filename": "data/mesh/7x7grid.exo"}}'
+         '"filename": "../test/unit/data/mesh/7x7grid.exo"}}'
     call cell_order_test_case(json_str, ' no bdy')
 
     json_str = '{"mesh": {' // &
-         '"filename": "data/mesh/7x7grid.exo"}, ' // &
+         '"filename": "../test/unit/data/mesh/7x7grid.exo"}, ' // &
          '"boundaries": [{"faces": {"cells": [0, 1, 2, 3, 4, 5], ' // &
          '  "normal": [0, -1, 0]}}]' // &
          '}'
@@ -1131,8 +1169,7 @@ contains
       end do
       order = local_to_natural_cell_index(mesh%cell_order, l2g, &
            [(c, c = start_cell, end_cell - 1)])
-      call assert_equals(label_order, order, end_cell - start_cell, &
-           "cell order " // trim(title))
+      call test%assert(label_order, order, "cell order " // trim(title))
       deallocate(label_order, order)
 
       call mesh%destroy()
@@ -1145,7 +1182,7 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine test_minc_cell_order
+  subroutine test_minc_cell_order(test)
     ! MINC cell order
 
     use fson_mpi_module
@@ -1154,13 +1191,15 @@ contains
     use dm_utils_module, only: dm_get_end_interior_cell, local_to_natural_cell_index
     use minc_module, only: minc_zone_label_name
 
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
     character(:), allocatable :: json_str
     PetscInt, allocatable :: expected_minc_order(:,:)
     PetscInt :: c, i
     PetscInt, allocatable :: natural(:), minc_natural(:)
 
     json_str = &
-         '{"mesh": {"filename": "data/mesh/7x7grid.exo",' // &
+         '{"mesh": {"filename": "../test/unit/data/mesh/7x7grid.exo",' // &
          '  "zones": {"all": {"-": null}},' // &
          '  "minc": {"rock": {"zones": ["all"]}, ' // &
          '           "geometry": {"fracture": {"volume": 0.1}}}}}'
@@ -1170,7 +1209,7 @@ contains
     deallocate(expected_minc_order)
 
     json_str = &
-         '{"mesh": {"filename": "data/mesh/7x7grid.exo",' // &
+         '{"mesh": {"filename": "../test/unit/data/mesh/7x7grid.exo",' // &
          '  "zones": {"all": {"-": null}},' // &
          '  "minc": {"rock": {"zones": ["all"]}, ' // &
          '           "geometry": {"fracture": {"volume": 0.1}}}}, ' // &
@@ -1183,7 +1222,7 @@ contains
     deallocate(expected_minc_order)
 
     json_str = &
-         '{"mesh": {"filename": "data/mesh/7x7grid.exo",' // &
+         '{"mesh": {"filename": "../test/unit/data/mesh/7x7grid.exo",' // &
          '  "zones": {"sw": {"x": [0, 3000], "y": [0, 1500]}},' // &
          '  "minc": {"rock": {"zones": ["sw"]}, ' // &
          '           "geometry": {"fracture": {"volume": 0.1}}}}}'
@@ -1195,7 +1234,7 @@ contains
     deallocate(expected_minc_order)
 
     json_str = &
-         '{"mesh": {"filename": "data/mesh/7x7grid.exo",' // &
+         '{"mesh": {"filename": "../test/unit/data/mesh/7x7grid.exo",' // &
          '  "zones": {"sw": {"x": [0, 3000], "y": [0, 1500]}},' // &
          '  "minc": {"rock": {"zones": ["sw"]}, ' // &
          '           "geometry": {"fracture": {"volume": 0.1}}}},' // &
@@ -1210,7 +1249,7 @@ contains
     deallocate(expected_minc_order)
 
     json_str = &
-         '{"mesh": {"filename": "data/mesh/7x7grid.exo",' // &
+         '{"mesh": {"filename": "../test/unit/data/mesh/7x7grid.exo",' // &
          '  "zones": {"sws": {"x": [0, 3000], "y": [0, 1000]}, ' // &
          '            "swn": {"x": [0, 3000], "y": [1000, 1500]}},' // &
          '  "minc": {"rock": [{"zones": ["swn"]}, {"zones": ["sws"]}], ' // &
@@ -1226,7 +1265,7 @@ contains
     deallocate(expected_minc_order)
 
     json_str = &
-         '{"mesh": {"filename": "data/mesh/7x7grid.exo",' // &
+         '{"mesh": {"filename": "../test/unit/data/mesh/7x7grid.exo",' // &
          '  "zones": {"sw": {"x": [0, 3000], "y": [0, 1500]}, ' // &
          '           "ne": {"x": [3000, 4500], "y": [2000, 4500]}},' // &
          '  "minc": [{"rock": {"zones": ["sw"]}, ' // &
@@ -1298,7 +1337,7 @@ contains
                     write(natural_str, '(i6)') natural
                     minc_natural = local_to_natural_cell_index(mesh%cell_order, l2g, p)
                     expected_natural = expected_minc_order(m, natural)
-                    call assert_equals(expected_natural, minc_natural, &
+                    call test%assert(expected_natural, minc_natural, &
                          'minc natural ' // title // ' ' // trim(natural_str))
                     ic(m) = ic(m) + 1
                  end do
@@ -1318,53 +1357,56 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine test_global_to_fracture_natural
+  subroutine test_global_to_fracture_natural(test)
     ! global_to_fracture_natural()
 
     use fson_mpi_module
     use IAPWS_module
     use eos_we_module
 
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
     character(:), allocatable :: json_str
 
     json_str = &
-         '{"mesh": {"filename": "data/mesh/7x7grid.exo"}}'
-    call global_to_fracture_natural_test_case(json_str, 'single porosity', &
+         '{"mesh": {"filename": "../test/unit/data/mesh/7x7grid.exo"}}'
+    call global_to_fracture_natural_test_case(test, json_str, 'single porosity', &
          [0, 10, 46], [0, 10, 46], [0, 0, 0])
 
     json_str = &
-         '{"mesh": {"filename": "data/mesh/7x7grid.exo",' // &
+         '{"mesh": {"filename": "../test/unit/data/mesh/7x7grid.exo",' // &
          '  "zones": {"all": {"-": null}},' // &
          '  "minc": {"rock": {"zones": ["all"]}, ' // &
          '           "geometry": {"fracture": {"volume": 0.1}}}}}'
-    call global_to_fracture_natural_test_case(json_str, 'MINC all no bdy', &
+    call global_to_fracture_natural_test_case(test, json_str, 'MINC all no bdy', &
          [0, 10, 46, 49, 59, 95], [0, 10, 46, 0, 10, 46], [0, 0, 0, 1, 1, 1])
     
     json_str = &
-         '{"mesh": {"filename": "data/mesh/7x7grid.exo",' // &
+         '{"mesh": {"filename": "../test/unit/data/mesh/7x7grid.exo",' // &
          '  "zones": {"all": {"-": null}},' // &
          '  "minc": {"rock": {"zones": ["all"]}, ' // &
          '           "geometry": {"fracture": {"volume": 0.1}}}}, ' // &
          '"boundaries": [{"faces": {"cells": [0, 1, 2, 3, 4, 5], ' // &
          '  "normal": [0, -1, 0]}}]' // &
          '}'
-    call global_to_fracture_natural_test_case(json_str, 'MINC all bdy', &
+    call global_to_fracture_natural_test_case(test, json_str, 'MINC all bdy', &
          [0, 10, 46, 49, 59, 95], [0, 10, 46, 0, 10, 46], [0, 0, 0, 1, 1, 1])
 
     json_str = &
-         '{"mesh": {"filename": "data/mesh/7x7grid.exo",' // &
+         '{"mesh": {"filename": "../test/unit/data/mesh/7x7grid.exo",' // &
          '  "zones": {"sw": {"x": [0, 3000], "y": [0, 1500]}},' // &
          '  "minc": {"rock": {"zones": ["sw"]}, ' // &
          '           "geometry": {"fracture": {"volume": 0.1}}}}}'
-    call global_to_fracture_natural_test_case(json_str, 'MINC partial no bdy', &
+    call global_to_fracture_natural_test_case(test, json_str, 'MINC partial no bdy', &
          [0, 10, 46, 49, 58], [0, 10, 46, 0, 11], [0, 0, 0, 1, 1])
 
   contains
 
-    subroutine global_to_fracture_natural_test_case(json_str, title, &
+    subroutine global_to_fracture_natural_test_case(test, json_str, title, &
          natural_indices, expected_fracture_natural_indices, &
          expected_minc_levels)
 
+      class(unit_test_type), intent(in out) :: test
       character(*), intent(in) :: json_str
       character(*), intent(in) :: title
       PetscInt, intent(in) :: natural_indices(:)
@@ -1395,9 +1437,9 @@ contains
          call AOApplicationToPetsc(mesh%cell_order, 1, idx, ierr); CHKERRQ(ierr)
          global = idx(1)
          call mesh%global_to_fracture_natural(global, natural, minc_level)
-         call assert_equals(expected_fracture_natural_indices(i), natural, &
+         call test%assert(expected_fracture_natural_indices(i), natural, &
               trim(title) // ' ' // trim(natural_str) // ' natural')
-         call assert_equals(expected_minc_levels(i), minc_level, trim(title) &
+         call test%assert(expected_minc_levels(i), minc_level, trim(title) &
               // ' ' // trim(natural_str) // ' minc level')
       end do
 
