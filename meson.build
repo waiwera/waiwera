@@ -121,6 +121,7 @@ foreach test_name: test_sources
   test_exe = executable(test_name,
                       [test_driver_src, test_src],
                       link_with: [waiwera, unit_test_utils],
-                      dependencies: [zofu, PETSc, fson])
+                      dependencies: [zofu, PETSc, fson],
+                      fortran_args: f_args)
   test(test_name, test_exe, is_parallel: false)
 endforeach
