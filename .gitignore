@@ -4,11 +4,6 @@ src/*.s
 test/unit/src/*~
 build/*
 test/benchmark/test_summary.*
-test/unit/build/*.o
-test/unit/build/*.mod
-test/unit/dist/test_all*
-dist/waiwera*
-test/unit/src/test_all.F90
 doc/depends.dot
 doc/depends.eps
 doc/ford/*
