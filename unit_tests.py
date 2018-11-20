@@ -3,32 +3,23 @@
 
 from __future__ import print_function
 from sys import argv
-from glob import glob
-import FRUIT
+import os
+import multiprocessing
+import subprocess
 
-build_command = 'make tests'
-driver_name = 'test_all'
-test_dir = 'test/unit/src/'
-output_dir = 'test/unit/dist/'
-testsuffix = '_test'
-f90 = '.F90'
-setup_source = test_dir + 'setup' + testsuffix + f90
-num_procs = [1, 2, 3, 4]
-mpi_comm = 'PETSC_COMM_WORLD'
+test_modules = [m + '_test' for m in argv[1:]]
 
-if len(argv) > 1: test_sources = [test_dir + arg + testsuffix + f90 for arg in argv[1:]]
-else: test_sources = glob(test_dir + '*' + f90)
+os.chdir('build')
 
-driver_source = test_dir + driver_name + f90
-if driver_source in test_sources: test_sources.remove(driver_source)
-if setup_source not in test_sources: test_sources.append(setup_source)
-
-suite = FRUIT.test_suite(test_sources)
+try:
+    num_available_procs = multiprocessing.cpu_count()
+except (NotImplementedError):
+    num_available_procs = 1
+num_procs = range(1, min(num_available_procs, 4) + 1)
 
 for np in num_procs:
     print('-'*72)
-    print('Processors:', np)
-    suite.build_run(driver_source, build_command, output_dir = output_dir,
-                    num_procs = np, mpi_comm = mpi_comm, mpi = True)
-    if suite.built: suite.summary()
-    else: print('Failed to build/run tests')
+    print('Processors:', np, '/', num_procs[-1])
+    cmd = ['meson', 'test'] + test_modules + \
+          ['--wrap="mpiexec -np ' + str(np) + '"']
+    subprocess.call(" ".join(cmd), shell = True)
