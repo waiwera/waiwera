@@ -6,7 +6,7 @@ module zone_test
 
   use petsc
   use kinds_module
-  use fruit
+  use zofu
   use fson
   use zone_module
   use zone_label_module
@@ -16,6 +16,7 @@ module zone_test
   implicit none
   private
 
+  public :: setup, teardown
   public :: test_get_zone_type, test_cell_array, test_zone_depends, &
        test_cell_array_label, test_box_label, test_combine_label
 
@@ -23,10 +24,36 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine test_get_zone_type
+  subroutine setup()
+
+    use profiling_module, only: init_profiling
+
+    ! Locals:
+    PetscErrorCode :: ierr
+
+    call PetscInitialize(PETSC_NULL_CHARACTER, ierr); CHKERRQ(ierr)
+    call init_profiling()
+
+  end subroutine setup
+
+!------------------------------------------------------------------------
+
+  subroutine teardown()
+
+    PetscErrorCode :: ierr
+
+    call PetscFinalize(ierr); CHKERRQ(ierr)
+
+  end subroutine teardown
+
+!------------------------------------------------------------------------
+
+  subroutine test_get_zone_type(test)
 
     ! get_zone_type
 
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
     type(fson_value), pointer :: json
     PetscInt :: zone_type
     PetscMPIInt :: rank
@@ -37,56 +64,56 @@ contains
     json => fson_parse_mpi(str = '[1, 2, 3]')
     zone_type = get_zone_type(json)
     if (rank == 0) then
-       call assert_equals(ZONE_TYPE_CELL_ARRAY, zone_type, "array")
+       call test%assert(ZONE_TYPE_CELL_ARRAY, zone_type, "array")
     end if
     call fson_destroy_mpi(json)
 
     json => fson_parse_mpi(str = '{"type": "array", "cells": [1, 2, 3]}')
     zone_type = get_zone_type(json)
     if (rank == 0) then
-       call assert_equals(ZONE_TYPE_CELL_ARRAY, zone_type, "type array")
+       call test%assert(ZONE_TYPE_CELL_ARRAY, zone_type, "type array")
     end if
     call fson_destroy_mpi(json)
 
     json => fson_parse_mpi(str = '{"cells": [1, 2, 3]}')
     zone_type = get_zone_type(json)
     if (rank == 0) then
-       call assert_equals(ZONE_TYPE_CELL_ARRAY, zone_type, "cells")
+       call test%assert(ZONE_TYPE_CELL_ARRAY, zone_type, "cells")
     end if
     call fson_destroy_mpi(json)
 
     json => fson_parse_mpi(str = '{"type": "foo"}')
     zone_type = get_zone_type(json)
     if (rank == 0) then
-       call assert_equals(-1, zone_type, "unknown type")
+       call test%assert(-1, zone_type, "unknown type")
     end if
     call fson_destroy_mpi(json)
 
     json => fson_parse_mpi(str = '{"type": "box"}')
     zone_type = get_zone_type(json)
     if (rank == 0) then
-       call assert_equals(ZONE_TYPE_BOX, zone_type, "type box")
+       call test%assert(ZONE_TYPE_BOX, zone_type, "type box")
     end if
     call fson_destroy_mpi(json)
 
     json => fson_parse_mpi(str = '{"x": [0, 100]}')
     zone_type = get_zone_type(json)
     if (rank == 0) then
-       call assert_equals(ZONE_TYPE_BOX, zone_type, "x box")
+       call test%assert(ZONE_TYPE_BOX, zone_type, "x box")
     end if
     call fson_destroy_mpi(json)
 
     json => fson_parse_mpi(str = '{"r": [100, 200]}')
     zone_type = get_zone_type(json)
     if (rank == 0) then
-       call assert_equals(ZONE_TYPE_BOX, zone_type, "r box")
+       call test%assert(ZONE_TYPE_BOX, zone_type, "r box")
     end if
     call fson_destroy_mpi(json)
 
     json => fson_parse_mpi(str = '{"y": [100, 200], "z": [-50, 50]}')
     zone_type = get_zone_type(json)
     if (rank == 0) then
-       call assert_equals(ZONE_TYPE_BOX, zone_type, "y-z box")
+       call test%assert(ZONE_TYPE_BOX, zone_type, "y-z box")
     end if
     call fson_destroy_mpi(json)
 
@@ -94,9 +121,11 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine test_cell_array
+  subroutine test_cell_array(test)
     ! cell array
 
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
     type(fson_value), pointer :: json
     type(zone_cell_array_type) :: zone
     PetscMPIInt :: rank
@@ -107,7 +136,7 @@ contains
     json => fson_parse_mpi(str = '[1, 2, 3]')
     call zone%init(1, 'zone1', json)
     if (rank == 0) then
-       call assert_equals([1, 2, 3], zone%cells, 3, 'array cells')
+       call test%assert([1, 2, 3], zone%cells, 'array cells')
     end if
     call zone%destroy()
     call fson_destroy_mpi(json)
@@ -115,7 +144,7 @@ contains
     json => fson_parse_mpi(str = '{"cells": [1, 2, 3]}')
     call zone%init(1, 'zone1', json)
     if (rank == 0) then
-       call assert_equals([1, 2, 3], zone%cells, 3, 'cells cells')
+       call test%assert([1, 2, 3], zone%cells, 'cells cells')
     end if
     call zone%destroy()
     call fson_destroy_mpi(json)
@@ -124,9 +153,11 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine test_zone_depends
+  subroutine test_zone_depends(test)
     ! dependencies
 
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
     type(fson_value), pointer :: json
     class(zone_type), pointer :: zone
     character(max_zone_name_length), allocatable :: expected_depends(:)
@@ -142,7 +173,7 @@ contains
     call zone%init(1, 'zone', json)
     call zone%dependencies(depends)
     if (rank == 0) then
-       call assert_equals(expected_depends, depends, 0, 'cells')
+       call test%assert(expected_depends, depends, 'cells')
     end if
     call zone%destroy()
     deallocate(zone)
@@ -154,7 +185,7 @@ contains
     call zone%init(1, 'zone', json)
     call zone%dependencies(depends)
     if (rank == 0) then
-       call assert_equals(expected_depends, depends, 0, 'box')
+       call test%assert(expected_depends, depends, 'box')
     end if
     call zone%destroy()
     deallocate(zone)
@@ -167,7 +198,7 @@ contains
     call zone%init(1, 'zone', json)
     call zone%dependencies(depends)
     if (rank == 0) then
-       call assert_equals(expected_depends, depends, 4, 'combine')
+       call test%assert(expected_depends, depends, 'combine')
     end if
     call zone%destroy()
     deallocate(zone)
@@ -177,13 +208,15 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine test_cell_array_label
+  subroutine test_cell_array_label(test)
     ! cell array label
 
     use mesh_module
     use IAPWS_module
     use eos_we_module
 
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
     type(fson_value), pointer :: json
     type(mesh_type) :: mesh
     PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
@@ -199,18 +232,18 @@ contains
     viewer = PETSC_NULL_VIEWER
 
     json => fson_parse_mpi(str = &
-         '{"mesh": {"filename": "data/mesh/7x7grid.exo", ' // &
+         '{"mesh": {"filename": "../test/unit/data/mesh/7x7grid.exo", ' // &
          '"zones": {"zone1": [10, 15, 20, 27, 34, 44], ' // &
          '"zone2": [40, 30, 5]}}}')
     call mesh%init(json)
     call mesh%configure(eos, gravity, json, viewer = viewer, err = err)
-    call assert_equals(0, err, 'config error')
+    call test%assert(0, err, 'config error')
     call fson_destroy_mpi(json)
 
     if (err == 0) then
 
        if (rank == 0) then
-          call assert_equals(2, mesh%zones%count, 'num zones')
+          call test%assert(2, mesh%zones%count, 'num zones')
        end if
 
        call zone_test(0, [10, 15, 20, 27, 34, 44])
@@ -241,15 +274,15 @@ contains
         select type(zone => node%data)
         type is (zone_cell_array_type)
 
-           call assert_equals(cells, zone%cells, &
-                num_cells, 'cell array cells ' // trim(istr))
+           call test%assert(cells, zone%cells, &
+                'cell array cells ' // trim(istr))
 
            call DMGetStratumSize(mesh%dm, zone_label_name(zone%name), 1, &
                 num_found_local, ierr); CHKERRQ(ierr)
            call MPI_reduce(num_found_local, num_found, 1, MPI_INTEGER, &
                 MPI_SUM, 0, PETSC_COMM_WORLD, ierr)
            if (rank == 0) then
-              call assert_equals(num_cells, num_found, 'num found ' // istr)
+              call test%assert(num_cells, num_found, 'num found ' // istr)
            end if
 
         end select
@@ -261,13 +294,15 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine test_box_label
+  subroutine test_box_label(test)
     ! box label
 
     use IAPWS_module
     use eos_we_module
     use mesh_module
 
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
     type(fson_value), pointer :: json
     type(IAPWS_type) :: thermo
     type(eos_we_type) :: eos
@@ -283,14 +318,14 @@ contains
     viewer = PETSC_NULL_VIEWER
 
     json => fson_parse_mpi(str = &
-         '{"mesh": {"filename": "data/mesh/7x7grid.exo", ' // &
+         '{"mesh": {"filename": "../test/unit/data/mesh/7x7grid.exo", ' // &
          '"zones": {' // &
          '"xzone": {"x": [2000, 3000]}, ' // &
          '"all": {"type": "box"}, ' // &
          '"xyzone": {"x": [0, 2000], "y": [2500, 4500]}}}}')
     call mesh%init(json)
     call mesh%configure(eos, gravity, json, viewer = viewer, err = err)
-    call assert_equals(0, err, 'config error')
+    call test%assert(0, err, 'config error')
     call fson_destroy_mpi(json)
 
     if (err == 0) then
@@ -327,7 +362,7 @@ contains
             case ('xyzone')
                num_expected = 9
             end select
-            call assert_equals(num_expected, num_found, &
+            call test%assert(num_expected, num_found, &
                  'num found ' //  zone%name)
          end if
       end select
@@ -339,13 +374,15 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine test_combine_label
+  subroutine test_combine_label(test)
     ! combine label
 
     use mesh_module
     use IAPWS_module
     use eos_we_module
 
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
     type(fson_value), pointer :: json
     type(mesh_type) :: mesh
     PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
@@ -361,7 +398,7 @@ contains
     viewer = PETSC_NULL_VIEWER
 
     json => fson_parse_mpi(str = &
-         '{"mesh": {"filename": "data/mesh/7x7grid.exo", ' // &
+         '{"mesh": {"filename": "../test/unit/data/mesh/7x7grid.exo", ' // &
          '"zones": {' // &
          '"zone1": {"x": [2000, 3000]}, ' // &
          '"zone2": {"x": [3500, 4500]}, ' // &
@@ -373,7 +410,7 @@ contains
          '"all": {"-": null}}}}')
     call mesh%init(json)
     call mesh%configure(eos, gravity, json, viewer = viewer, err = err)
-    call assert_equals(0, err, 'config error')
+    call test%assert(0, err, 'config error')
     call fson_destroy_mpi(json)
 
     if (err == 0) then
@@ -418,7 +455,7 @@ contains
             case ('all')
                num_expected = 49
             end select
-            call assert_equals(num_expected, num_found, &
+            call test%assert(num_expected, num_found, &
                  'num found: ' //  zone%name)
          end if
       end select
