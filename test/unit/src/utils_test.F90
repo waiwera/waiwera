@@ -5,13 +5,14 @@ module utils_test
 #include <petsc/finclude/petscsys.h>
 
   use petscsys
-  use fruit
+  use zofu
   use utils_module
   use kinds_module
 
   implicit none
   private 
 
+  public :: setup, teardown, setup_test
   public :: test_str_to_upper, test_str_to_lower, &
        test_split_filename, test_change_filename_extension, &
        test_int_str_len, test_str_array_index, &
@@ -24,10 +25,46 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine test_str_to_upper
+  subroutine setup()
+
+    use profiling_module, only: init_profiling
+
+    ! Locals:
+    PetscErrorCode :: ierr
+
+    call PetscInitialize(PETSC_NULL_CHARACTER, ierr); CHKERRQ(ierr)
+    call init_profiling()
+
+  end subroutine setup
+
+!------------------------------------------------------------------------
+
+  subroutine teardown()
+
+    PetscErrorCode :: ierr
+
+    call PetscFinalize(ierr); CHKERRQ(ierr)
+
+  end subroutine teardown
+
+!------------------------------------------------------------------------
+
+  subroutine setup_test(test)
+
+    class(unit_test_type), intent(in out) :: test
+
+    test%tolerance = 1.e-9
+
+  end subroutine setup_test
+
+!------------------------------------------------------------------------
+
+  subroutine test_str_to_upper(test)
 
     ! Test str_to_upper()
     
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
     PetscInt, parameter :: strlen = 8
     character(len = strlen) :: str, upper_str
     character(len = strlen), parameter :: expected = "ABCABC12"
@@ -38,17 +75,19 @@ contains
     if (rank == 0) then
        str = "abcABC12"
        upper_str = str_to_upper(str)
-       call assert_equals(expected, upper_str, 'str_to_upper')
+       call test%assert(expected, upper_str, 'str_to_upper')
     end if
 
   end subroutine test_str_to_upper
 
 !------------------------------------------------------------------------
 
-  subroutine test_str_to_lower
+  subroutine test_str_to_lower(test)
 
     ! Test str_to_lower()
     
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
     PetscInt, parameter :: strlen = 8
     character(len = strlen) :: str, lower_str
     character(len = strlen), parameter :: expected = "abcabc12"
@@ -59,17 +98,19 @@ contains
     if (rank == 0) then
        str = "abcABC12"
        lower_str = str_to_lower(str)
-       call assert_equals(expected, lower_str, 'str_to_lower')
+       call test%assert(expected, lower_str, 'str_to_lower')
     end if
 
   end subroutine test_str_to_lower
 
 !------------------------------------------------------------------------
 
-  subroutine test_split_filename
+  subroutine test_split_filename(test)
 
     ! Test split_filename()
 
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
     character(:), allocatable :: filename
     character(:), allocatable :: expected_base, expected_ext
     character(:), allocatable :: base, ext
@@ -83,22 +124,22 @@ contains
        expected_base = "model"
        expected_ext = "h5"
        call split_filename(filename, base, ext)
-       call assert_equals(expected_base, base, 'base ' // filename)
-       call assert_equals(expected_ext, ext, 'extension ' // filename)
+       call test%assert(expected_base, base, 'base ' // filename)
+       call test%assert(expected_ext, ext, 'extension ' // filename)
 
        filename = "/path/to/model.json"
        expected_base = "/path/to/model"
        expected_ext = "json"
        call split_filename(filename, base, ext)
-       call assert_equals(expected_base, base, 'base ' // filename)
-       call assert_equals(expected_ext, ext, 'extension ' // filename)
+       call test%assert(expected_base, base, 'base ' // filename)
+       call test%assert(expected_ext, ext, 'extension ' // filename)
 
        filename = "/path/to/model"
        expected_base = "/path/to/model"
        expected_ext = " "
        call split_filename(filename, base, ext)
-       call assert_equals(expected_base, base, 'base ' // filename)
-       call assert_equals(expected_ext, ext, 'extension ' // filename)
+       call test%assert(expected_base, base, 'base ' // filename)
+       call test%assert(expected_ext, ext, 'extension ' // filename)
 
     end if
     
@@ -106,10 +147,12 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine test_change_filename_extension
+  subroutine test_change_filename_extension(test)
 
     ! Test change_filename_extension()
 
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
     character(:), allocatable :: filename, ext
     character(:), allocatable :: new_filename, expected_filename
     PetscMPIInt :: rank
@@ -122,19 +165,19 @@ contains
        ext = "log"
        expected_filename = "model.log"
        new_filename = change_filename_extension(filename, ext)
-       call assert_equals(expected_filename, new_filename, 'filename')
+       call test%assert(expected_filename, new_filename, 'filename')
 
        filename = "/path/to/model.json"
        ext = "log"
        expected_filename = "/path/to/model.log"
        new_filename = change_filename_extension(filename, ext)
-       call assert_equals(expected_filename, new_filename, 'filename')
+       call test%assert(expected_filename, new_filename, 'filename')
 
        filename = "/path/to/file"
        ext = "json"
        expected_filename = "/path/to/file.json"
        new_filename = change_filename_extension(filename, ext)
-       call assert_equals(expected_filename, new_filename, 'filename')
+       call test%assert(expected_filename, new_filename, 'filename')
 
     end if
     
@@ -143,21 +186,23 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine test_int_str_len
+  subroutine test_int_str_len(test)
 
     ! Test int_str_len()
 
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
     PetscMPIInt :: rank
     PetscInt :: ierr
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
     if (rank == 0) then
 
-       call assert_equals(1, int_str_len(0), '0')
-       call assert_equals(1, int_str_len(5), '5')
-       call assert_equals(2, int_str_len(79), '79')
-       call assert_equals(4, int_str_len(2001), '2001')
-       call assert_equals(3, int_str_len(-47), '-47')
+       call test%assert(1, int_str_len(0), '0')
+       call test%assert(1, int_str_len(5), '5')
+       call test%assert(2, int_str_len(79), '79')
+       call test%assert(4, int_str_len(2001), '2001')
+       call test%assert(3, int_str_len(-47), '-47')
 
     end if
 
@@ -165,10 +210,12 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine test_str_array_index
+  subroutine test_str_array_index(test)
 
     ! Test str_array_index()
 
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
     PetscInt, parameter :: strlen = 3
     character(len = strlen) :: arr(3), str
     PetscMPIInt :: rank
@@ -180,11 +227,11 @@ contains
        arr = ["foo", "baz", "bar"]
 
        str = "foo"
-       call assert_equals(1, str_array_index(str, arr), str)
+       call test%assert(1, str_array_index(str, arr), str)
        str = "bar"
-       call assert_equals(3, str_array_index(str, arr), str)
+       call test%assert(3, str_array_index(str, arr), str)
        str = "pog"
-       call assert_equals(-1, str_array_index(str, arr), str)
+       call test%assert(-1, str_array_index(str, arr), str)
 
     end if
 
@@ -192,35 +239,37 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine test_degrees_to_radians
+  subroutine test_degrees_to_radians(test)
 
     ! Test degrees_to_radians()
 
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
     PetscMPIInt :: rank
     PetscInt :: ierr
-    PetscReal, parameter :: tol = 1.e-9_dp
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
     if (rank == 0) then
-       call assert_equals(pi / 2._dp, &
-            degrees_to_radians(90._dp), tol, '90 degrees')
-       call assert_equals(pi, &
-            degrees_to_radians(180._dp), tol, '180 degrees')
+       call test%assert(pi / 2._dp, &
+            degrees_to_radians(90._dp), '90 degrees')
+       call test%assert(pi, &
+            degrees_to_radians(180._dp), '180 degrees')
     end if
 
   end subroutine test_degrees_to_radians
 
 !------------------------------------------------------------------------
 
-  subroutine test_rotation_matrix_2d
+  subroutine test_rotation_matrix_2d(test)
 
     ! Test rotation_matrix_2d
 
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
     PetscReal :: angle, rotation(4)
     PetscReal :: expected_rotation(4)
     PetscMPIInt :: rank
     PetscInt :: ierr
-    PetscReal, parameter :: tol = 1.e-9_dp
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
     if (rank == 0) then
@@ -228,16 +277,16 @@ contains
        angle = 0._dp
        rotation = reshape(rotation_matrix_2d(angle), [4])
        expected_rotation = [1._dp, 0._dp, 0._dp, 1._dp]
-       call assert_equals(expected_rotation, &
-            rotation, 4, tol, 'angle = 0')
+       call test%assert(expected_rotation, &
+            rotation, 'angle = 0')
 
        angle = 1._dp
        rotation = reshape(rotation_matrix_2d(angle), [4])
        expected_rotation = [&
             0.540302305868_dp, -0.841470984808_dp,&
             0.841470984808_dp, 0.540302305868_dp]
-       call assert_equals(expected_rotation, &
-            rotation, 4, tol, 'angle = 1 rad')
+       call test%assert(expected_rotation, &
+            rotation, 'angle = 1 rad')
 
     end if
 
@@ -245,30 +294,31 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine test_polynomial
+  subroutine test_polynomial(test)
     ! Test polynomial
 
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
     PetscReal :: x
     PetscReal, parameter :: a(5) = [1._dp, 1._dp, 0.5_dp, &
          1._dp / 6._dp, 1._dp / 24._dp]
     PetscMPIInt :: rank
     PetscInt :: ierr
-    PetscReal, parameter :: tol = 1.e-9_dp
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
     if (rank == 0) then
 
        x = 0._dp
-       call assert_equals(1._dp, polynomial(a, x), tol, '0')
+       call test%assert(1._dp, polynomial(a, x), '0')
 
        x = 1._dp
-       call assert_equals(2.708333333333_dp, polynomial(a, x), tol, '1')
+       call test%assert(2.708333333333_dp, polynomial(a, x), '1')
 
        x = -1._dp
-       call assert_equals(0.375_dp, polynomial(a, x), tol, '-1')
+       call test%assert(0.375_dp, polynomial(a, x), '-1')
 
        x = 2.3_dp
-       call assert_equals(9.1388375_dp, polynomial(a, x), tol, '2.3')
+       call test%assert(9.1388375_dp, polynomial(a, x), '2.3')
 
     end if
 
@@ -276,9 +326,11 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine test_multipolynomial
+  subroutine test_multipolynomial(test)
     ! Test multipolynomial
 
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
     PetscReal :: x
     PetscInt, parameter :: m = 2, n = 5
     PetscReal, parameter :: a(m, n) = reshape([&
@@ -290,25 +342,24 @@ contains
          [m, n])
     PetscMPIInt :: rank
     PetscInt :: ierr
-    PetscReal, parameter :: tol = 1.e-9_dp
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
     if (rank == 0) then
 
        x = 0._dp
-       call assert_equals([1._dp, 1._dp], polynomial(a, x), m, tol, '0')
+       call test%assert([1._dp, 1._dp], polynomial(a, x), '0')
 
        x = 1._dp
-       call assert_equals([2.708333333333_dp, 0.541666666667_dp], &
-            polynomial(a, x), m, tol, '1')
+       call test%assert([2.708333333333_dp, 0.541666666667_dp], &
+            polynomial(a, x), '1')
 
        x = -1._dp
-       call assert_equals([0.375_dp, 0.541666666667_dp], &
-            polynomial(a, x), m, tol, '-1')
+       call test%assert([0.375_dp, 0.541666666667_dp], &
+            polynomial(a, x), '-1')
 
        x = 2.3_dp
-       call assert_equals([9.1388375_dp, -0.47899583333_dp], &
-            polynomial(a, x), m, tol, '2.3')
+       call test%assert([9.1388375_dp, -0.47899583333_dp], &
+            polynomial(a, x), '2.3')
 
     end if
 
@@ -316,22 +367,22 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine test_array_pair_sum
+  subroutine test_array_pair_sum(test)
     ! Test array_pair_sum
 
     use kinds_module
 
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
     PetscMPIInt :: rank
     PetscInt :: ierr
-    PetscReal, parameter :: tol = 1.e-9_dp
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
     if (rank == 0) then
 
-       call assert_equals(2._dp, array_pair_sum([2._dp]), tol, '1-D')
-       call assert_equals(12._dp, array_pair_sum([2._dp, 3._dp]), tol, '2-D')
-       call assert_equals(26._dp, array_pair_sum([2._dp, 3._dp, 4._dp]), &
-            tol, '3-D')
+       call test%assert(2._dp, array_pair_sum([2._dp]), '1-D')
+       call test%assert(12._dp, array_pair_sum([2._dp, 3._dp]), '2-D')
+       call test%assert(26._dp, array_pair_sum([2._dp, 3._dp, 4._dp]), '3-D')
 
     end if
 
@@ -339,54 +390,54 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine test_array_cumulative_sum
+  subroutine test_array_cumulative_sum(test)
     ! Test array_cumulative_sum
 
     use kinds_module
 
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
     PetscMPIInt :: rank
     PetscInt :: ierr
-    PetscReal, parameter :: tol = 1.e-9_dp
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
     if (rank == 0) then
 
-       call assert_equals([PetscInt::], &
-            array_cumulative_sum([PetscInt::]), 0, '0-D')
-       call assert_equals([2._dp], &
-            array_cumulative_sum([2._dp]), 1, tol, '1-D')
-       call assert_equals([2._dp, 5._dp], &
-            array_cumulative_sum([2._dp, 3._dp]), 2, tol, '2-D')
-       call assert_equals([2._dp, 5._dp, 9._dp], &
-            array_cumulative_sum([2._dp, 3._dp, 4._dp]), 3, &
-            tol, '3-D')
-       call assert_equals([2, 5, 9], &
-            array_cumulative_sum([2, 3, 4]), 3, 'integer')
+       call test%assert([PetscInt::], &
+            array_cumulative_sum([PetscInt::]), '0-D')
+       call test%assert([2._dp], &
+            array_cumulative_sum([2._dp]), '1-D')
+       call test%assert([2._dp, 5._dp], &
+            array_cumulative_sum([2._dp, 3._dp]), '2-D')
+       call test%assert([2._dp, 5._dp, 9._dp], &
+            array_cumulative_sum([2._dp, 3._dp, 4._dp]), '3-D')
+       call test%assert([2, 5, 9], &
+            array_cumulative_sum([2, 3, 4]), 'integer')
     end if
 
   end subroutine test_array_cumulative_sum
 
 !------------------------------------------------------------------------
 
-  subroutine test_array_exclusive_products
+  subroutine test_array_exclusive_products(test)
     ! Test array_exclusive_products
 
     use kinds_module
 
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
     PetscMPIInt :: rank
     PetscInt :: ierr
-    PetscReal, parameter :: tol = 1.e-9_dp
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
     if (rank == 0) then
 
-       call assert_equals([1._dp], &
-            array_exclusive_products([2._dp]), 1, tol, '1-D')
-       call assert_equals([3._dp, 2._dp], &
-            array_exclusive_products([2._dp, 3._dp]), 2, tol, '2-D')
-       call assert_equals([12._dp, 8._dp, 6._dp], &
-            array_exclusive_products([2._dp, 3._dp, 4._dp]), 3, &
-            tol, '3-D')
+       call test%assert([1._dp], &
+            array_exclusive_products([2._dp]), '1-D')
+       call test%assert([3._dp, 2._dp], &
+            array_exclusive_products([2._dp, 3._dp]), '2-D')
+       call test%assert([12._dp, 8._dp, 6._dp], &
+            array_exclusive_products([2._dp, 3._dp, 4._dp]), '3-D')
 
     end if
 
@@ -394,20 +445,22 @@ contains
 
 !------------------------------------------------------------------------
 
-    subroutine test_array_sorted
+    subroutine test_array_sorted(test)
     ! Test array sorted
 
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
     PetscMPIInt :: rank
     PetscInt :: ierr
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
     if (rank == 0) then
 
-       call assert_true(array_sorted([-1, 3, 4]), '[-1, 3, 4]')
-       call assert_true(array_sorted([-1._dp, 3._dp, 4._dp]), '[-1., 3., 4.]')
-       call assert_false(array_sorted([1, 3, 2, 5]), '[1, 3, 2, 5]')
-       call assert_false(array_sorted([1._dp, 3._dp, 2._dp, 5._dp]), '[1., 3., 2., 5.]')
-       call assert_true(array_sorted([1._dp, 3._dp, 3._dp]), '[1., 3., 3.]')
+       call test%assert(array_sorted([-1, 3, 4]), '[-1, 3, 4]')
+       call test%assert(array_sorted([-1._dp, 3._dp, 4._dp]), '[-1., 3., 4.]')
+       call test%assert(.not. array_sorted([1, 3, 2, 5]), '[1, 3, 2, 5]')
+       call test%assert(.not. array_sorted([1._dp, 3._dp, 2._dp, 5._dp]), '[1., 3., 2., 5.]')
+       call test%assert(array_sorted([1._dp, 3._dp, 3._dp]), '[1., 3., 3.]')
 
     end if
 
