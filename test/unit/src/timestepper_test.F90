@@ -6,7 +6,7 @@ module timestepper_test
 
   use petsc
   use kinds_module
-  use fruit
+  use zofu
   use ode_module
   use timestepper_module
   use fson
@@ -23,6 +23,8 @@ module timestepper_test
      PetscReal, public :: start_time
      PetscReal, public :: maxdiff
      Vec, public :: exact_solution, diff
+     class(unit_test_type), pointer, public :: test
+     character(:), allocatable, public :: case_name
    contains
      private
      procedure, public :: init => init_test_ode
@@ -121,6 +123,7 @@ module timestepper_test
   PetscInt, parameter :: max_json_len = 256
   PetscReal, parameter :: time_tolerance = 1.e-6_dp
 
+  public :: setup, teardown
   public :: test_timestepper_read, &
        test_timestepper_linear, test_timestepper_exponential, &
        test_timestepper_logistic, test_timestepper_nontrivial_lhs, &
@@ -129,6 +132,30 @@ module timestepper_test
        test_timestepper_steady, test_checkpoints
 
 contains
+
+!------------------------------------------------------------------------
+
+  subroutine setup()
+
+    use profiling_module, only: init_profiling
+
+    ! Locals:
+    PetscErrorCode :: ierr
+
+    call PetscInitialize(PETSC_NULL_CHARACTER, ierr); CHKERRQ(ierr)
+    call init_profiling()
+
+  end subroutine setup
+
+!------------------------------------------------------------------------
+
+  subroutine teardown()
+
+    PetscErrorCode :: ierr
+
+    call PetscFinalize(ierr); CHKERRQ(ierr)
+
+  end subroutine teardown
 
 !------------------------------------------------------------------------
 ! Utility routines
@@ -156,10 +183,11 @@ contains
 ! Default test ode functions
 !------------------------------------------------------------------------
 
-  subroutine init_test_ode(self, initial_array, err)
+  subroutine init_test_ode(self, initial_array, test, err)
     ! Default ode initialization.
     class(test_ode_type), intent(in out) :: self
     PetscReal, intent(in), optional :: initial_array(:)
+    class(unit_test_type), target, intent(in out) :: test
     PetscErrorCode, intent(out) :: err
     ! Locals:
     PetscErrorCode :: ierr
@@ -168,6 +196,7 @@ contains
     self%dim = 8
     self%dof = 1
     self%stencil = 0
+    self%test => test
 
     call DMDACreate1d(PETSC_COMM_WORLD, DM_BOUNDARY_NONE, self%dim, self%dof, &
          self%stencil, PETSC_NULL_INTEGER, self%mesh%dm, ierr); CHKERRQ(ierr)
@@ -246,10 +275,10 @@ contains
     PetscInt, intent(in) :: time_index
     PetscReal, intent(in) :: time
     ! Locals:
-    PetscReal, pointer :: y(:), yex(:), diffa(:)
+    PetscReal, pointer :: y(:), yex(:)
     PetscErrorCode :: ierr
-    PetscReal :: normdiff
-    PetscInt :: i, local_size, low, hi
+    PetscInt :: local_size, low, hi
+    character(len = 50) :: msg
 
     call self%exact(self%time, self%exact_solution)
     call VecGetLocalSize(self%exact_solution, local_size, ierr)
@@ -258,33 +287,12 @@ contains
     CHKERRQ(ierr)
     call VecGetArrayReadF90(self%solution, y, ierr); CHKERRQ(ierr)
     call VecGetArrayReadF90(self%exact_solution, yex, ierr); CHKERRQ(ierr)
-    call VecGetArrayF90(self%diff, diffa, ierr); CHKERRQ(ierr)
-    do i = 1, local_size
-       diffa(i) = relerr(yex(i), y(i))
-    end do
-    call VecRestoreArrayF90(self%diff, diffa, ierr); CHKERRQ(ierr)
+    write(msg, '(a, i0)') " solution at time index ", time_index
+    call self%test%assert(yex, y, self%case_name // trim(msg))
     call VecRestoreArrayReadF90(self%exact_solution, yex, ierr)
     CHKERRQ(ierr)
     call VecRestoreArrayReadF90(self%solution, y, ierr)
     CHKERRQ(ierr)
-    call VecNorm(self%diff, NORM_INFINITY, normdiff, ierr)
-    CHKERRQ(ierr)
-    self%maxdiff = max(self%maxdiff, normdiff)
-
-  contains
-
-    PetscReal function relerr(exact, val)
-      ! Calculates relative error of val with respect to exact, unless
-      ! exact is near zero, in which case the absolute difference is returned.
-      PetscReal, intent(in) :: exact, val
-      ! Locals:
-      PetscReal, parameter :: tol = 1.e-6_dp
-      if (abs(exact) > tol) then
-         relerr = abs((val - exact) / exact)
-      else
-         relerr = abs(val - exact)
-      end if
-    end function relerr
 
   end subroutine output_test_ode
 
@@ -483,10 +491,11 @@ contains
 
   end subroutine exact_heat1d
 
-  subroutine init_heat1d(self, initial_array, err)
+  subroutine init_heat1d(self, initial_array, test, err)
     ! Initialization for heat equation.
     class(heat1d_ode_type), intent(in out) :: self
     PetscReal, intent(in), optional :: initial_array(:)
+    class(unit_test_type), target, intent(in out) :: test
     PetscErrorCode, intent(out) :: err
     ! Locals:
     PetscReal :: dx
@@ -497,6 +506,7 @@ contains
     self%dim = 21
     self%dof = 1
     self%stencil = 1
+    self%test => test
 
     dx = self%L / (self%dim - 1._dp)
     self%a = 1._dp / (dx*dx)
@@ -660,15 +670,17 @@ contains
 
 !------------------------------------------------------------------------
   
-  subroutine init_pre_eval(self, initial_array, err)
+  subroutine init_pre_eval(self, initial_array, test, err)
     class(pre_eval_ode_type), intent(in out) :: self
     PetscReal, intent(in), optional :: initial_array(:)
+    class(unit_test_type), target, intent(in out) :: test
     PetscErrorCode, intent(out) :: err
     ! Locals:
     PetscErrorCode :: ierr
     err = 0
-    call self%test_ode_type%init(initial_array, err)
+    call self%test_ode_type%init(initial_array, test, err)
     call VecDuplicate(self%solution, self%secondary, ierr); CHKERRQ(ierr)
+    self%test => test
   end subroutine init_pre_eval
 
   subroutine destroy_pre_eval(self)
@@ -804,15 +816,17 @@ contains
        ts%after_step_output => timestepper_step_output
        call SNESMonitorSet(ts%solver, PETSC_NULL_FUNCTION, 0, &
             PETSC_NULL_FUNCTION, ierr); CHKERRQ(ierr)
- 
+
+       self%test%tolerance = real(tol(i))
+       self%case_name = trim(ts%method%name)
+
        call ts%run()
 
        if (rank == 0) then
-          call assert_equals(ts%steps%stop_time, &
-               ts%steps%current%time, time_tolerance, &
-               trim(ts%method%name) // ' stop time')
-          call assert_equals(0._dp, self%maxdiff, tol(i), &
-               trim(ts%method%name) // ' max. relative error')
+          call self%test%assert(ts%steps%stop_time, &
+               ts%steps%current%time, &
+               trim(ts%method%name) // ' stop time', &
+               time_tolerance)
        end if
 
        call ts%destroy()
@@ -837,9 +851,10 @@ contains
 ! Test routines
 !------------------------------------------------------------------------
 
-  subroutine test_timestepper_read
+  subroutine test_timestepper_read(test)
     ! Tests assigning timestepper parameters from JSON string.
 
+    class(unit_test_type), intent(in out) :: test
     ! Locals:
     character(len = max_json_len) :: json_str
     type(fson_value), pointer :: json
@@ -862,23 +877,23 @@ contains
          '"maximum": 0.2, "reduction": 0.6, "amplification": 1.9}}}}'
 
     json => fson_parse_mpi(str = trim(json_str))
-    call test_ode%init(initial, err)
+    call test_ode%init(initial, test, err)
     call ts%init(json, test_ode)
 
     if (rank == 0) then
-       call assert_equals(1.0_dp, ts%steps%stop_time, time_tolerance, &
-            "Timestepper stop time")
-       call assert_equals(0.01_dp, ts%steps%next_stepsize, &
-            time_tolerance, "Timestepper initial stepsize")
-       call assert_equals(200, ts%steps%max_num, "Timestepper max. num steps")
-       call assert_equals("Backward Euler", ts%method%name, "Timestepper method")
-       call assert_equals(PETSC_FALSE, ts%steps%fixed, "Timestepper steps fixed")
-       call assert_equals("change", trim(ts%steps%adaptor%name), "Timestepper adapt method")
-       call assert_equals(0.01_dp, ts%steps%adaptor%monitor_min, "Timestepper monitor min")
-       call assert_equals(0.2_dp, ts%steps%adaptor%monitor_max, "Timestepper monitor max")
-       call assert_equals(0.6_dp, ts%steps%adaptor%reduction, "Timestepper monitor reduction")
-       call assert_equals(1.9_dp, ts%steps%adaptor%amplification, "Timestepper monitor amplification")
-       call assert_equals(3.e6_dp, ts%steps%adaptor%max_stepsize, "Timestepper max stepsize")
+       call test%assert(1.0_dp, ts%steps%stop_time, &
+            "Timestepper stop time", time_tolerance)
+       call test%assert(0.01_dp, ts%steps%next_stepsize, &
+            "Timestepper initial stepsize", time_tolerance)
+       call test%assert(200, ts%steps%max_num, "Timestepper max. num steps")
+       call test%assert("Backward Euler", ts%method%name, "Timestepper method")
+       call test%assert(.not. ts%steps%fixed, "Timestepper steps fixed")
+       call test%assert("change", trim(ts%steps%adaptor%name), "Timestepper adapt method")
+       call test%assert(0.01_dp, ts%steps%adaptor%monitor_min, "Timestepper monitor min")
+       call test%assert(0.2_dp, ts%steps%adaptor%monitor_max, "Timestepper monitor max")
+       call test%assert(0.6_dp, ts%steps%adaptor%reduction, "Timestepper monitor reduction")
+       call test%assert(1.9_dp, ts%steps%adaptor%amplification, "Timestepper monitor amplification")
+       call test%assert(3.e6_dp, ts%steps%adaptor%max_stepsize, "Timestepper max stepsize")
     end if
 
     call ts%destroy()
@@ -889,10 +904,12 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine test_timestepper_linear
+  subroutine test_timestepper_linear(test)
 
     ! Linear function
 
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
     type(linear_ode_type), target :: linear
     PetscInt,  parameter :: num_cases = 3
     character(len = max_json_len) :: json_str(num_cases)
@@ -902,7 +919,7 @@ contains
 
     initial = [-4._dp, -3.0_dp, -2.0_dp, -1.0_dp, &
          0.0_dp, 1.0_dp, 2.0_dp, 3.0_dp]
-    call linear%init(initial, err)
+    call linear%init(initial, test, err)
 
     json_str(1) = '{"time": {"start": 0.0, "stop": 1.0, ' // &
          '"step": {"size": 0.1, "maximum": {"number": 20, "size": null}, ' // &
@@ -926,20 +943,22 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine test_timestepper_exponential
+  subroutine test_timestepper_exponential(test)
 
     ! Exponential function
 
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
     type(exponential_ode_type), target :: exponential
     PetscInt,  parameter :: num_cases = 3
     character(len = max_json_len) :: json_str(num_cases)
-    PetscReal, parameter :: tol(num_cases) = [0.15_dp, 0.05_dp, 0.2_dp]
+    PetscReal, parameter :: tol(num_cases) = [0.12_dp, 0.04_dp, 0.18_dp]
     PetscReal, allocatable :: initial(:)
     PetscErrorCode :: err
 
     initial = [-4._dp, -3.0_dp, -2.0_dp, -1.0_dp, &
          0.0_dp, 1.0_dp, 2.0_dp, 3.0_dp]
-    call exponential%init(initial, err)
+    call exponential%init(initial, test, err)
 
     json_str(1) = '{"time": {"start": 0.0, "stop": 1.0, ' // &
          '"step": {"size": 0.01, "maximum": {"number": 200}, ' // &
@@ -967,10 +986,12 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine test_timestepper_logistic
+  subroutine test_timestepper_logistic(test)
 
     ! Logistic equation
 
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
     type(logistic_ode_type), target :: logistic
     PetscInt,  parameter :: num_cases = 2
     character(len = max_json_len) :: json_str(num_cases)
@@ -981,7 +1002,7 @@ contains
     logistic%c = [0.0_dp, 0.5_dp, 1._dp, 1.5_dp, 2._dp, &
          2.5_dp, 3._dp, 3.5_dp]
     initial = 3._dp * logistic%c / (1._dp + 2._dp * logistic%c)
-    call logistic%init(initial, err)
+    call logistic%init(initial, test, err)
 
     json_str(1) = '{"time": {"start": 0.0, "stop": 1.0, ' // &
          '"step": {"size": 0.1, "maximum": {"number": 100}, ' // &
@@ -1004,10 +1025,12 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine test_timestepper_nontrivial_lhs
+  subroutine test_timestepper_nontrivial_lhs(test)
 
     ! Nontrivial LHS
 
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
     type(nontrivial_lhs_ode_type), target :: nontrivial_lhs
     PetscInt,  parameter :: num_cases = 2
     character(len = max_json_len) :: json_str(num_cases)
@@ -1018,7 +1041,7 @@ contains
     nontrivial_lhs%k = -1._dp
     initial = [-4._dp, -3.0_dp, -2.0_dp, -1.0_dp, &
          0.0_dp, 1.0_dp, 2.0_dp, 3.0_dp]
-    call nontrivial_lhs%init(initial, err)
+    call nontrivial_lhs%init(initial, test, err)
 
     json_str(1) = '{"time": {"start": 1.0, "stop": 10.0, ' // &
          '"step": {"size": 0.01, "maximum": {"number": 100}, ' // &
@@ -1041,10 +1064,12 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine test_timestepper_nonlinear_lhs
+  subroutine test_timestepper_nonlinear_lhs(test)
 
     ! Nonlinear LHS
 
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
     type(nonlinear_lhs_ode_type), target :: nonlinear_lhs
     PetscInt,  parameter :: num_cases = 2
     character(len = max_json_len) :: json_str(num_cases)
@@ -1054,7 +1079,7 @@ contains
 
     initial = [-4._dp, -3.0_dp, -2.0_dp, -1.0_dp, &
          0.0_dp, 2.0_dp, 3.0_dp, 4.0_dp]
-    call nonlinear_lhs%init(initial, err)
+    call nonlinear_lhs%init(initial, test, err)
 
     json_str(1) = '{"time": {"start": 0.0, "stop": 1.0, ' // &
          '"step": {"size": 0.01, "maximum": {"number": 200}, ' // &
@@ -1077,18 +1102,20 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine test_timestepper_heat1d
+  subroutine test_timestepper_heat1d(test)
 
     ! 1-D heat equation PDE
     ! Solved in its usual form: dc/dt = d2c/dx2
 
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
     type(heat1d_ode_type), target :: heat1d
     PetscInt,  parameter :: num_cases = 2
     character(len = max_json_len) :: json_str(num_cases)
     PetscReal, parameter :: tol(num_cases) = [0.10_dp, 0.05_dp]
     PetscErrorCode :: err
 
-    call heat1d%init(err = err)
+    call heat1d%init(test = test, err = err)
 
     json_str(1) = '{"time": {"start": 0.0, "stop": 0.2, ' // &
          '"step": {"size": 0.01, "maximum": {"number": 20}, ' // &
@@ -1110,18 +1137,20 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine test_timestepper_heat1d_nonlinear
+  subroutine test_timestepper_heat1d_nonlinear(test)
 
     ! 1-D heat equation PDE (nonlinear form)
     ! d/dt(y2) = 2 y d2y/dx2
 
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
     type(heat1d_nonlinear_ode_type), target :: heat1d
     PetscInt,  parameter :: num_cases = 2
     character(len = max_json_len) :: json_str(num_cases)
     PetscReal, parameter :: tol(num_cases) = [0.10_dp, 0.05_dp]
     PetscErrorCode :: err
 
-    call heat1d%init(err = err)
+    call heat1d%init(test = test, err = err)
 
     json_str(1) = '{"time": {"start": 0.0, "stop": 0.2, ' // &
          '"step": {"size": [0.005], "maximum": {"number": 100}, ' // &
@@ -1143,13 +1172,15 @@ contains
 
 !------------------------------------------------------------------------
   
-  subroutine test_timestepper_pre_eval
+  subroutine test_timestepper_pre_eval(test)
 
     ! Pre-evaluation procedure problem
     ! (This is just a re-casting of test_timestepper_nontrivial_lhs,
     ! with the LHS function essentially computed in the pre-evaluation
     ! routine, and just copied in the actual LHS function routine.)
 
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
     type(pre_eval_ode_type), target :: pre_eval
     PetscInt,  parameter :: num_cases = 2
     character(len = max_json_len) :: json_str(num_cases)
@@ -1160,7 +1191,7 @@ contains
     pre_eval%k = -1._dp
     initial = [-4._dp, -3.0_dp, -2.0_dp, -1.0_dp, &
          0.0_dp, 1.0_dp, 2.0_dp, 3.0_dp]
-    call pre_eval%init(initial, err)
+    call pre_eval%init(initial, test, err)
 
     json_str(1) = '{"time": {"start": 1.0, "stop": 10.0, ' // &
          '"step": {"size": 0.01, "maximum": {"number": 100}, ' // &
@@ -1183,10 +1214,12 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine test_timestepper_steady
+  subroutine test_timestepper_steady(test)
 
     ! Steady state solution of dy/dt = 1 - y2
 
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
     type(ss_ode_type), target :: ss
     PetscInt,  parameter :: num_cases = 1
     character(len = max_json_len) :: json_str(num_cases)
@@ -1196,7 +1229,7 @@ contains
 
     allocate(initial(8))
     initial = 0._dp
-    call ss%init(initial, err)
+    call ss%init(initial, test, err)
 
     json_str(1) = '{"time": {"step": {"method": "directss"}}, ' // &
          '"output": {"initial": false}}'
@@ -1210,10 +1243,12 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine test_checkpoints
+  subroutine test_checkpoints(test)
 
     ! Timestepper checkpoints
 
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
     type(timestepper_checkpoints_type) :: checkpoints
     PetscReal, allocatable :: times(:)
     PetscInt :: repeat
@@ -1230,43 +1265,43 @@ contains
        start_time = 0._dp
        call checkpoints%init(times, repeat, tolerance, start_time)
 
-       call assert_equals(PETSC_FALSE, checkpoints%done, 'initial done')
-       call assert_equals(times(1), checkpoints%next_time, 'initial next_time')
+       call test%assert(.not. checkpoints%done, 'initial done')
+       call test%assert(times(1), checkpoints%next_time, 'initial next_time')
 
        call checkpoints%check(0.4_dp, 0.4_dp)
-       call assert_equals(PETSC_FALSE, checkpoints%hit, 't = 0.4 hit')
+       call test%assert(.not. checkpoints%hit, 't = 0.4 hit')
 
        call checkpoints%check(1.0_dp, 0.6_dp)
-       call assert_equals(PETSC_TRUE, checkpoints%hit, 't = 1.0 hit')
+       call test%assert(checkpoints%hit, 't = 1.0 hit')
        call checkpoints%update()
 
        call checkpoints%check(2.5_dp, 0.8_dp)
-       call assert_equals(PETSC_FALSE, checkpoints%hit, 't = 2.5 hit')
+       call test%assert(.not. checkpoints%hit, 't = 2.5 hit')
 
        call checkpoints%check(3.2_dp, 1.0_dp)
-       call assert_equals(PETSC_TRUE, checkpoints%hit, 't = 3.2 hit')
+       call test%assert(checkpoints%hit, 't = 3.2 hit')
        call checkpoints%update()
 
        call checkpoints%check(4.5_dp, 1.3_dp)
-       call assert_equals(PETSC_TRUE, checkpoints%hit, 't = 4.5 hit')
+       call test%assert(checkpoints%hit, 't = 4.5 hit')
        call checkpoints%update()
-       call assert_equals(5._dp, checkpoints%next_time, 't = 4.5 next_time')
-       call assert_equals(2, checkpoints%repeat_index, 't = 4.5 repeat_index')
+       call test%assert(5._dp, checkpoints%next_time, 't = 4.5 next_time')
+       call test%assert(2, checkpoints%repeat_index, 't = 4.5 repeat_index')
 
        call checkpoints%check(5.1_dp, 1.2_dp)
-       call assert_equals(PETSC_TRUE, checkpoints%hit, 't = 5.1 hit')
+       call test%assert(checkpoints%hit, 't = 5.1 hit')
        call checkpoints%update()
 
        call checkpoints%update()
-       call assert_equals(3, checkpoints%index, 'last index')
-       call assert_equals(8._dp, checkpoints%next_time, 'last next_time')
+       call test%assert(3, checkpoints%index, 'last index')
+       call test%assert(8._dp, checkpoints%next_time, 'last next_time')
        call checkpoints%check(7.9_dp, 1.5_dp)
-       call assert_equals(PETSC_FALSE, checkpoints%hit, 't = 7.9 hit')
+       call test%assert(.not. checkpoints%hit, 't = 7.9 hit')
        call checkpoints%check(7.99_dp, 1.5_dp)
-       call assert_equals(PETSC_TRUE, checkpoints%hit, 't = 7.99 hit')
+       call test%assert(checkpoints%hit, 't = 7.99 hit')
 
        call checkpoints%update()
-       call assert_equals(PETSC_TRUE, checkpoints%done, 'last done')
+       call test%assert(checkpoints%done, 'last done')
 
        call checkpoints%destroy()
 
@@ -1274,14 +1309,14 @@ contains
        times = [1._dp]
        repeat = -1
        call checkpoints%init(times, repeat, tolerance, start_time)
-       call assert_equals(PETSC_FALSE, checkpoints%done, 'indefinite repeat done 1')
+       call test%assert(.not. checkpoints%done, 'indefinite repeat done 1')
        call checkpoints%update()
-       call assert_equals(PETSC_FALSE, checkpoints%done, 'indefinite repeat done 2')
+       call test%assert(.not. checkpoints%done, 'indefinite repeat done 2')
        call checkpoints%update()
-       call assert_equals(PETSC_FALSE, checkpoints%done, 'indefinite repeat done 3')
+       call test%assert(.not. checkpoints%done, 'indefinite repeat done 3')
        call checkpoints%update()
        call checkpoints%check(4.1_dp, 0.5_dp)
-       call assert_equals(PETSC_TRUE, checkpoints%hit, 'indefinite repeat t = 4.1 hit')
+       call test%assert(checkpoints%hit, 'indefinite repeat t = 4.1 hit')
        call checkpoints%destroy()
 
        deallocate(times)

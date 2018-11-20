@@ -124,6 +124,7 @@ test_sources = ['capillary_pressure_test',
                 'source_control_test',
                 'source_setup_test',
                 'source_test',
+                'timestepper_test',
                 'utils_test',
                 'zone_test']
 foreach test_name: test_sources
