@@ -1,0 +1,3 @@
+[wrap-git]
+directory = zofu
+url = https://github.com/acroucher/zofu.git
