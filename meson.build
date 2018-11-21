@@ -7,7 +7,7 @@ project('waiwera', ['c', 'fortran'],
 
 PETSc = dependency('PETSc', version: '>=3.10.1')
 fson  = dependency('fson',  version: '>=1.0.0', fallback: ['fson', 'fson_dep'])
-zofu  = dependency('zofu',  version: '>=0.1.0')
+zofu  = dependency('zofu',  version: '>=0.1.0', fallback: ['zofu', 'zofu_dep'])
 
 waiwera_sources = [
   'src/capillary_pressure.F90',
