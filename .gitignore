@@ -10,4 +10,5 @@ doc/ford/*
 !doc/ford/readme
 *.pyc
 utils/*.pyc
-subprojects/FSON
+subprojects/fson
+subprojects/zofu
