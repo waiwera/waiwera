@@ -95,6 +95,7 @@ unit_test_utils = shared_library('unit_test_utils',
                                         'test', 'unit', 'src', 'unit_test_utils.F90')],
                             link_with: waiwera,
                             dependencies: [zofu, PETSc])
+
 test_sources = ['capillary_pressure_test',
                 'cell_test',
                 'dag_test',
@@ -127,19 +128,35 @@ test_sources = ['capillary_pressure_test',
                 'timestepper_test',
                 'utils_test',
                 'zone_test']
+
+zofu_driver = find_program('zofu-driver', required: false)
+if not zofu_driver.found()
+  zofu_subproject = subproject('zofu')
+  zofu_driver = zofu_subproject.get_variable('driver_exe')
+endif
+
 foreach test_name: test_sources
+
   test_src = join_paths(meson.current_source_dir(),
                         'test', 'unit', 'src', test_name + '.F90')
-  driver_src_name = test_name + '_driver.F90'
 
-  test_driver_src = configure_file(
-    output: driver_src_name,
-    command: ['zofu-driver', test_src, driver_src_name, '--mpi'])
+  test_lib = static_library(test_name + '_lib', test_src,
+                            link_with: [waiwera, unit_test_utils],
+                            dependencies: [waiwera_deps, zofu],
+                            fortran_args: f_args)
+
+  test_driver_src = custom_target(
+    test_name + '_driver',
+    input: test_src,
+    output: test_name + '_driver.F90',
+    command: [zofu_driver, '@INPUT@', '@OUTPUT@', '--mpi'])
 
   test_exe = executable(test_name,
-                      [test_driver_src, test_src],
-                      link_with: [waiwera, unit_test_utils],
-                      dependencies: [zofu, PETSc, fson],
-                      fortran_args: f_args)
+                        [test_src, test_driver_src],
+                        link_with: [waiwera, unit_test_utils, test_lib],
+                        dependencies: [waiwera_deps, zofu],
+                        fortran_args: f_args)
+
   test(test_name, test_exe, is_parallel: false)
+
 endforeach
