@@ -12,6 +12,8 @@ module source_test
   implicit none
   private
 
+  character(len = 512) :: data_path
+
   public :: setup, teardown
   public :: test_source_update_flow
 
@@ -25,9 +27,14 @@ contains
 
     ! Locals:
     PetscErrorCode :: ierr
+    PetscInt :: ios
 
     call PetscInitialize(PETSC_NULL_CHARACTER, ierr); CHKERRQ(ierr)
     call init_profiling()
+
+    call get_environment_variable('WAIWERA_TEST_DATA_PATH', &
+         data_path, status = ios)
+    if (ios /= 0) data_path = ''
 
   end subroutine setup
 
@@ -79,7 +86,8 @@ contains
     PetscViewer :: viewer
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
-    json => fson_parse_mpi(str = '{"mesh": "../test/unit/data/flow_simulation/mesh/3x3_2d.exo"}')
+    json => fson_parse_mpi(str = '{"mesh": "' // trim(adjustl(data_path)) // &
+         'flow_simulation/mesh/3x3_2d.exo"}')
     call thermo%init()
     call eos%init(json, thermo)
     viewer = PETSC_NULL_VIEWER

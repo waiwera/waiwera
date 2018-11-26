@@ -12,6 +12,8 @@ module dm_utils_test
   implicit none
   private
 
+  character(len = 512) :: data_path
+
   public :: setup, teardown
   public :: test_vec_reorder, test_dm_cell_normal_face, test_field_subvector
 
@@ -25,9 +27,14 @@ contains
 
     ! Locals:
     PetscErrorCode :: ierr
+    PetscInt :: ios
 
     call PetscInitialize(PETSC_NULL_CHARACTER, ierr); CHKERRQ(ierr)
     call init_profiling()
+
+    call get_environment_variable('WAIWERA_TEST_DATA_PATH', &
+         data_path, status = ios)
+    if (ios /= 0) data_path = ''
 
   end subroutine setup
 
@@ -112,7 +119,7 @@ contains
     class(unit_test_type), intent(in out) :: test
     ! Locals:
     DM :: dm
-    character(len = 80) :: filename
+    character(:), allocatable :: filename
     PetscErrorCode :: ierr
     PetscInt :: f
     PetscMPIInt :: rank
@@ -120,7 +127,7 @@ contains
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
 
     ! 2D tests:
-    filename = "../test/unit/data/mesh/2D.msh"
+    filename = trim(adjustl(data_path)) // "mesh/2D.msh"
 
     call DMPlexCreateFromFile(PETSC_COMM_WORLD, filename, &
          PETSC_TRUE, dm, ierr); CHKERRQ(ierr)
@@ -147,7 +154,7 @@ contains
     call DMDestroy(dm, ierr); CHKERRQ(ierr)
 
     ! 3D tests:
-    filename = "../test/unit/data/mesh/block3.exo"
+    filename = trim(adjustl(data_path)) // "mesh/block3.exo"
 
     call DMPlexCreateFromFile(PETSC_COMM_WORLD, filename, &
          PETSC_TRUE, dm, ierr); CHKERRQ(ierr)

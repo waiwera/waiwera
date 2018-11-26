@@ -14,6 +14,8 @@ module initial_test
   implicit none
   private
 
+  character(len = 512) :: data_path
+
   public :: setup, teardown
   public :: test_initial_hdf5
   ! public :: test_setup_initial_hdf5
@@ -28,9 +30,14 @@ contains
 
     ! Locals:
     PetscErrorCode :: ierr
+    PetscInt :: ios
 
     call PetscInitialize(PETSC_NULL_CHARACTER, ierr); CHKERRQ(ierr)
     call init_profiling()
+
+    call get_environment_variable('WAIWERA_TEST_DATA_PATH', &
+         data_path, status = ios)
+    if (ios /= 0) data_path = ''
 
   end subroutine setup
 
@@ -76,53 +83,55 @@ contains
     call MPI_comm_rank(PETSC_COMM_WORLD, rank, ierr)
 
     json_str = &
-         '{"mesh": {"filename": "../test/unit/data/mesh/col100.exo"},' // &
+         '{"mesh": {"filename": "' // trim(adjustl(data_path)) // 'mesh/col100.exo"},' // &
          ' "eos": {"name": "we"}, ' // &
-         ' "initial": {"filename": "../test/unit/data/initial/fluid.h5"}}'
+         ' "initial": {"filename": "' // trim(adjustl(data_path)) // 'initial/fluid.h5"}}'
     call initial_hdf5_test(test, 'single porosity', json_str)
 
     json_str = &
-         '{"mesh": {"filename": "../test/unit/data/mesh/col100.exo"},' // &
+         '{"mesh": {"filename": "' // trim(adjustl(data_path)) // 'mesh/col100.exo"},' // &
          ' "eos": {"name": "we"}, ' // &
-         ' "initial": {"filename": "../test/unit/data/initial/fluid_minimal.h5"}}'
+         ' "initial": {"filename": "' // trim(adjustl(data_path)) // 'initial/fluid_minimal.h5"}}'
     call initial_hdf5_test(test, 'single porosity minimal', json_str)
 
     json_str = &
-         '{"mesh": {"filename": "../test/unit/data/mesh/col100.exo", ' // &
+         '{"mesh": {"filename": "' // trim(adjustl(data_path)) // 'mesh/col100.exo", ' // &
          '          "zones": {"all": {"-": null}},' // &
          '          "minc": {"rock": {"zones": ["all"]}, ' // &
          '                   "geometry": {"fracture": {"volume": 0.1}, ' // &
          '                                "matrix": {"volume": [0.3, 0.6]}}}},' // &
          ' "eos": {"name": "we"}, ' // &
-         ' "initial": {"filename": "../test/unit/data/initial/fluid.h5", "minc": false}}'
+         ' "initial": {"filename": "' // trim(adjustl(data_path)) // 'initial/fluid.h5", "minc": false}}'
     call initial_hdf5_test(test, 'MINC', json_str)
 
     json_str = &
-         '{"mesh": {"filename": "../test/unit/data/mesh/col100.exo", ' // &
+         '{"mesh": {"filename": "' // trim(adjustl(data_path)) // 'mesh/col100.exo", ' // &
          '          "zones": {"all": {"-": null}},' // &
          '          "minc": {"rock": {"zones": ["all"]}, ' // &
          '                   "geometry": {"fracture": {"volume": 0.1}, ' // &
          '                                "matrix": {"volume": [0.3, 0.6]}}}},' // &
          ' "eos": {"name": "we"}, ' // &
-         ' "initial": {"filename": "../test/unit/data/initial/fluid_minimal.h5", "minc": false}}'
+         ' "initial": {"filename": "' // trim(adjustl(data_path)) // 'initial/fluid_minimal.h5",' // &
+         ' "minc": false}}'
     call initial_hdf5_test(test, 'MINC minimal false', json_str)
 
     json_str = &
-         '{"mesh": {"filename": "../test/unit/data/mesh/col100.exo", ' // &
+         '{"mesh": {"filename": "' // trim(adjustl(data_path)) // 'mesh/col100.exo", ' // &
          '          "zones": {"all": {"-": null}},' // &
          '          "minc": {"rock": {"zones": ["all"]}, ' // &
          '                   "geometry": {"fracture": {"volume": 0.1}, ' // &
          '                                "matrix": {"volume": [0.3, 0.6]}}}},' // &
          ' "eos": {"name": "we"}, ' // &
-         ' "initial": {"filename": "../test/unit/data/initial/fluid_minimal_minc.h5", "minc": true}}'
+         ' "initial": {"filename": "' // trim(adjustl(data_path)) // 'initial/fluid_minimal_minc.h5",' // &
+         ' "minc": true}}'
     call initial_hdf5_test(test, 'MINC minimal true', json_str)
 
     json_str = &
-         '{"mesh": {"filename": "../test/unit/data/mesh/col100.exo", ' // &
+         '{"mesh": {"filename": "' // trim(adjustl(data_path)) // 'mesh/col100.exo", ' // &
          '          "boundaries": [{"faces": {"cells": [0], ' // &
          '                          "normal": [0, 1, 0]}}]},' // &
          ' "eos": {"name": "we"}, ' // &
-         ' "initial": {"filename": "../test/unit/data/initial/fluid_minimal.h5"}}'
+         ' "initial": {"filename": "' // trim(adjustl(data_path)) // 'initial/fluid_minimal.h5"}}'
     call initial_hdf5_test(test, 'single porosity minimal boundary', json_str)
 
   contains
@@ -309,7 +318,7 @@ contains
     call MPI_comm_rank(PETSC_COMM_WORLD, rank, ierr)
 
     json_str = &
-         '{"mesh": {"filename": "../test/unit/data/mesh/col100.exo",' // &
+         '{"mesh": {"filename": "' // trim(adjustl(data_path)) // 'mesh/col100.exo",' // &
          '          "zones": {"all": {"-": null}},' // &
          '          "minc": {"rock": {"zones": ["all"]}, ' // &
          '                   "geometry": {"fracture": {"volume": 0.1}, ' // &
@@ -385,7 +394,7 @@ contains
        end if
     end do
 
-    call vec_write(fluid_vector, "fluid_minimal_minc", "../test/unit/data/initial/", &
+    call vec_write(fluid_vector, "fluid_minimal_minc", trim(adjustl(data_path)) // "initial/", &
          mesh%cell_index, output_field_indices, "/cell_fields")
 
     call VecRestoreArrayReadF90(mesh%cell_geom, cell_geom_array, ierr)

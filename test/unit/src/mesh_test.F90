@@ -13,6 +13,8 @@ module mesh_test
   implicit none
   private
 
+  character(len = 512) :: data_path
+
   public :: setup, teardown
   public :: test_mesh_init, test_2d_cartesian_geometry, &
        test_2d_radial_geometry, test_mesh_face_permeability_direction, &
@@ -30,9 +32,14 @@ contains
 
     ! Locals:
     PetscErrorCode :: ierr
+    PetscInt :: ios
 
     call PetscInitialize(PETSC_NULL_CHARACTER, ierr); CHKERRQ(ierr)
     call init_profiling()
+
+    call get_environment_variable('WAIWERA_TEST_DATA_PATH', &
+         data_path, status = ios)
+    if (ios /= 0) data_path = ''
 
   end subroutine setup
 
@@ -95,7 +102,7 @@ contains
     call eos%init(json, thermo)
     viewer = PETSC_NULL_VIEWER
 
-    json => fson_parse_mpi(str = '{"mesh": "../test/unit/data/mesh/block3.exo"}')
+    json => fson_parse_mpi(str = '{"mesh": "' // trim(adjustl(data_path)) // 'mesh/block3.exo"}')
     call mesh%init(json)
     call DMCreateLabel(mesh%original_dm, open_boundary_label_name, ierr); CHKERRQ(ierr)
     call mesh%configure(eos, gravity, json, viewer = viewer, err = err)
@@ -198,7 +205,7 @@ contains
     viewer = PETSC_NULL_VIEWER
 
     json => fson_parse_mpi(str = '{"mesh": {' // &
-         '"filename": "../test/unit/data/mesh/2D.msh",' // &
+         '"filename": "' // trim(adjustl(data_path)) // 'mesh/2D.msh",' // &
          '"thickness": 100.}}')
     call mesh%init(json)
     call mesh%configure(eos, gravity, json, viewer = viewer, err = err)
@@ -301,7 +308,7 @@ contains
     viewer = PETSC_NULL_VIEWER
 
     json => fson_parse_mpi(str = '{"mesh": {' // &
-         '"filename": "../test/unit/data/mesh/2D.msh",' // &
+         '"filename": "' // trim(adjustl(data_path)) // 'mesh/2D.msh",' // &
          '"radial": true}}')
     call mesh%init(json)
     call mesh%configure(eos, gravity, json, viewer = viewer, err = err)
@@ -408,7 +415,7 @@ contains
     viewer = PETSC_NULL_VIEWER
 
     json => fson_parse_mpi(str = &
-         '{"mesh": {"filename": "../test/unit/data/mesh/7x7grid.exo", ' // &
+         '{"mesh": {"filename": "' // trim(adjustl(data_path)) // 'mesh/7x7grid.exo", ' // &
          '"faces": [' // &
          '{"cells": [16, 23], "permeability direction": 1}' // &
          ']}}')
@@ -464,21 +471,21 @@ contains
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
 
     json_str = &
-         '{"mesh": {"filename": "../test/unit/data/mesh/7x7grid.exo",' // &
+         '{"mesh": {"filename": "' // trim(adjustl(data_path)) // 'mesh/7x7grid.exo",' // &
          '  "zones": {"all": {"-": null}},' // &
          '  "minc": {"rock": {"zones": ["all"]}, ' // &
          '           "geometry": {"fracture": {"volume": 0.1}}}}}'
     call minc_test('all', json_str, 1, 2 * 49, 1, [49, 49])
 
     json_str = &
-         '{"mesh": {"filename": "../test/unit/data/mesh/7x7grid.exo",' // &
+         '{"mesh": {"filename": "' // trim(adjustl(data_path)) // 'mesh/7x7grid.exo",' // &
          '  "zones": {"left": {"x": [0, 1500]}},' // &
          '  "minc": {"rock": {"zones": ["left"]}, ' // &
          '           "geometry": {"matrix": {"volume": 0.9}}}}}'
     call minc_test('partial', json_str, 1, 63, 1, [49, 14])
 
     json_str = &
-         '{"mesh": {"filename": "../test/unit/data/mesh/7x7grid.exo",' // &
+         '{"mesh": {"filename": "' // trim(adjustl(data_path)) // 'mesh/7x7grid.exo",' // &
          '  "zones": {"left": {"x": [0, 1500]}, "right": {"-": "left"}},' // &
          '  "minc": [{"rock": {"zones": ["left"]}, ' // &
          '                     "geometry": {"fracture": {"volume": 0.1}}}, ' // &
@@ -488,7 +495,7 @@ contains
     call minc_test('two-zone', json_str, 2, 133, 2, [49, 49, 35])
 
     json_str = &
-         '{"mesh": {"filename": "../test/unit/data/mesh/7x7grid.exo",' // &
+         '{"mesh": {"filename": "' // trim(adjustl(data_path)) // 'mesh/7x7grid.exo",' // &
          '  "zones": {"left": {"x": [0, 1500]}, ' // &
          '            "right corner": {"x": [2500, 4500], "y": [3000, 4500]}},' // &
          '  "minc": [{"rock": {"zones": ["right corner"]}, ' // &
@@ -498,7 +505,7 @@ contains
     call minc_test('two-zone partial', json_str, 2, 83, 2, [49, 20, 14])
 
     json_str = &
-         '{"mesh": {"filename": "../test/unit/data/mesh/7x7grid.exo",' // &
+         '{"mesh": {"filename": "' // trim(adjustl(data_path)) // 'mesh/7x7grid.exo",' // &
          '  "zones": {"left": {"x": [0, 1500]}, ' // &
          '            "right": {"-": "left"}},' // &
          '  "minc": {"rock": [{"zones": ["left"]}, {"zones": ["right"]}], ' // &
@@ -507,7 +514,7 @@ contains
     call minc_test('two sub-zone', json_str, 1, 2 * 49, 1, [49, 49])
 
     json_str = &
-         '{"mesh": {"filename": "../test/unit/data/mesh/7x7grid.exo",' // &
+         '{"mesh": {"filename": "' // trim(adjustl(data_path)) // 'mesh/7x7grid.exo",' // &
          '  "zones": {"left": {"x": [0, 1500]}, "right": {"-": "left"}},' // &
          '  "minc": [{"rock": {"types": ["rock1"]}, ' // &
          '                     "geometry": {"fracture": {"volume": 0.1}}}, ' // &
@@ -780,7 +787,7 @@ contains
     viewer = PETSC_NULL_VIEWER
 
     json_str = &
-         '{"mesh": {"filename": "../test/unit/data/mesh/7x7grid.exo"}, ' // &
+         '{"mesh": {"filename": "' // trim(adjustl(data_path)) // 'mesh/7x7grid.exo"}, ' // &
          '"rock": {"types": [' // &
          '  {"name": "rock1", "porosity": 0.1, ' // &
          '   "cells": [0,1,2,3,4,5,6,7,8,9,' // &
@@ -793,7 +800,7 @@ contains
     call rock_test_case(json_str, [21, 28], "cells")
 
     json_str = &
-         '{"mesh": {"filename": "../test/unit/data/mesh/7x7grid.exo", ' // &
+         '{"mesh": {"filename": "' // trim(adjustl(data_path)) // 'mesh/7x7grid.exo", ' // &
          '"zones": {' // &
          '"left_zone": {"x": [0, 3000]},' // &
          '"right_zone": {"-": "left_zone"}' // &
@@ -808,7 +815,7 @@ contains
     call rock_test_case(json_str, [35, 14], "zones")
 
     json_str = &
-         '{"mesh": {"filename": "../test/unit/data/mesh/7x7grid.exo", ' // &
+         '{"mesh": {"filename": "' //trim(adjustl(data_path)) // 'mesh/7x7grid.exo", ' // &
          '"zones": {' // &
          '"zone4": {"-": "zone3"},' // &
          '"zone3": {"+": "zone1", "-": "zone2"},' // &
@@ -926,7 +933,7 @@ contains
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
 
     json_str = &
-         '{"mesh": {"filename": "../test/unit/data/mesh/7x7grid.exo",' // &
+         '{"mesh": {"filename": "' // trim(adjustl(data_path)) // 'mesh/7x7grid.exo",' // &
          '  "zones": {"all": {"-": null}},' // &
          '  "minc": {"rock": {"zones": "all", ' // &
          '                    "fracture": {"type": "fracture"}, ' // &
@@ -941,7 +948,7 @@ contains
     call minc_rock_test_case(json_str, "case 1", 1, [0.6_dp], [0.02_dp], [49])
 
     json_str = &
-         '{"mesh": {"filename": "../test/unit/data/mesh/7x7grid.exo",' // &
+         '{"mesh": {"filename": "' // trim(adjustl(data_path)) // 'mesh/7x7grid.exo",' // &
          '  "zones": {"all": {"-": null}},' // &
          '  "minc": {"rock": {"zones": "all", ' // &
          '                    "fracture": {"type": "fracture"}, ' // &
@@ -956,7 +963,7 @@ contains
     call minc_rock_test_case(json_str, "case 2", 2, [0.6_dp], [2._dp / 45._dp], [49])
 
     json_str = &
-         '{"mesh": {"filename": "../test/unit/data/mesh/7x7grid.exo",' // &
+         '{"mesh": {"filename": "' // trim(adjustl(data_path)) // 'mesh/7x7grid.exo",' // &
          '  "zones": {"all": {"-": null}, "S": {"y": [0, 1500]}, "N": {"-": "S"}},' // &
          '  "minc": {"rock": [{"zones": "S", ' // &
          '                      "fracture": {"type": "fractureS"}, ' // &
@@ -1110,11 +1117,11 @@ contains
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
 
     json_str = '{"mesh": {' // &
-         '"filename": "../test/unit/data/mesh/7x7grid.exo"}}'
+         '"filename": "' // trim(adjustl(data_path)) // 'mesh/7x7grid.exo"}}'
     call cell_order_test_case(json_str, ' no bdy')
 
     json_str = '{"mesh": {' // &
-         '"filename": "../test/unit/data/mesh/7x7grid.exo"}, ' // &
+         '"filename": "' // trim(adjustl(data_path)) // 'mesh/7x7grid.exo"}, ' // &
          '"boundaries": [{"faces": {"cells": [0, 1, 2, 3, 4, 5], ' // &
          '  "normal": [0, -1, 0]}}]' // &
          '}'
@@ -1199,7 +1206,7 @@ contains
     PetscInt, allocatable :: natural(:), minc_natural(:)
 
     json_str = &
-         '{"mesh": {"filename": "../test/unit/data/mesh/7x7grid.exo",' // &
+         '{"mesh": {"filename": "' // trim(adjustl(data_path)) // 'mesh/7x7grid.exo",' // &
          '  "zones": {"all": {"-": null}},' // &
          '  "minc": {"rock": {"zones": ["all"]}, ' // &
          '           "geometry": {"fracture": {"volume": 0.1}}}}}'
@@ -1209,7 +1216,7 @@ contains
     deallocate(expected_minc_order)
 
     json_str = &
-         '{"mesh": {"filename": "../test/unit/data/mesh/7x7grid.exo",' // &
+         '{"mesh": {"filename": "' // trim(adjustl(data_path)) // 'mesh/7x7grid.exo",' // &
          '  "zones": {"all": {"-": null}},' // &
          '  "minc": {"rock": {"zones": ["all"]}, ' // &
          '           "geometry": {"fracture": {"volume": 0.1}}}}, ' // &
@@ -1222,7 +1229,7 @@ contains
     deallocate(expected_minc_order)
 
     json_str = &
-         '{"mesh": {"filename": "../test/unit/data/mesh/7x7grid.exo",' // &
+         '{"mesh": {"filename": "' // trim(adjustl(data_path)) // 'mesh/7x7grid.exo",' // &
          '  "zones": {"sw": {"x": [0, 3000], "y": [0, 1500]}},' // &
          '  "minc": {"rock": {"zones": ["sw"]}, ' // &
          '           "geometry": {"fracture": {"volume": 0.1}}}}}'
@@ -1234,7 +1241,7 @@ contains
     deallocate(expected_minc_order)
 
     json_str = &
-         '{"mesh": {"filename": "../test/unit/data/mesh/7x7grid.exo",' // &
+         '{"mesh": {"filename": "' // trim(adjustl(data_path)) // 'mesh/7x7grid.exo",' // &
          '  "zones": {"sw": {"x": [0, 3000], "y": [0, 1500]}},' // &
          '  "minc": {"rock": {"zones": ["sw"]}, ' // &
          '           "geometry": {"fracture": {"volume": 0.1}}}},' // &
@@ -1249,7 +1256,7 @@ contains
     deallocate(expected_minc_order)
 
     json_str = &
-         '{"mesh": {"filename": "../test/unit/data/mesh/7x7grid.exo",' // &
+         '{"mesh": {"filename": "' // trim(adjustl(data_path)) // 'mesh/7x7grid.exo",' // &
          '  "zones": {"sws": {"x": [0, 3000], "y": [0, 1000]}, ' // &
          '            "swn": {"x": [0, 3000], "y": [1000, 1500]}},' // &
          '  "minc": {"rock": [{"zones": ["swn"]}, {"zones": ["sws"]}], ' // &
@@ -1265,7 +1272,7 @@ contains
     deallocate(expected_minc_order)
 
     json_str = &
-         '{"mesh": {"filename": "../test/unit/data/mesh/7x7grid.exo",' // &
+         '{"mesh": {"filename": "' // trim(adjustl(data_path)) // 'mesh/7x7grid.exo",' // &
          '  "zones": {"sw": {"x": [0, 3000], "y": [0, 1500]}, ' // &
          '           "ne": {"x": [3000, 4500], "y": [2000, 4500]}},' // &
          '  "minc": [{"rock": {"zones": ["sw"]}, ' // &
@@ -1369,12 +1376,12 @@ contains
     character(:), allocatable :: json_str
 
     json_str = &
-         '{"mesh": {"filename": "../test/unit/data/mesh/7x7grid.exo"}}'
+         '{"mesh": {"filename": "' // trim(adjustl(data_path)) // 'mesh/7x7grid.exo"}}'
     call global_to_fracture_natural_test_case(test, json_str, 'single porosity', &
          [0, 10, 46], [0, 10, 46], [0, 0, 0])
 
     json_str = &
-         '{"mesh": {"filename": "../test/unit/data/mesh/7x7grid.exo",' // &
+         '{"mesh": {"filename": "' // trim(adjustl(data_path)) // 'mesh/7x7grid.exo",' // &
          '  "zones": {"all": {"-": null}},' // &
          '  "minc": {"rock": {"zones": ["all"]}, ' // &
          '           "geometry": {"fracture": {"volume": 0.1}}}}}'
@@ -1382,7 +1389,7 @@ contains
          [0, 10, 46, 49, 59, 95], [0, 10, 46, 0, 10, 46], [0, 0, 0, 1, 1, 1])
     
     json_str = &
-         '{"mesh": {"filename": "../test/unit/data/mesh/7x7grid.exo",' // &
+         '{"mesh": {"filename": "' // trim(adjustl(data_path)) // 'mesh/7x7grid.exo",' // &
          '  "zones": {"all": {"-": null}},' // &
          '  "minc": {"rock": {"zones": ["all"]}, ' // &
          '           "geometry": {"fracture": {"volume": 0.1}}}}, ' // &
@@ -1393,7 +1400,7 @@ contains
          [0, 10, 46, 49, 59, 95], [0, 10, 46, 0, 10, 46], [0, 0, 0, 1, 1, 1])
 
     json_str = &
-         '{"mesh": {"filename": "../test/unit/data/mesh/7x7grid.exo",' // &
+         '{"mesh": {"filename": "' // trim(adjustl(data_path)) // 'mesh/7x7grid.exo",' // &
          '  "zones": {"sw": {"x": [0, 3000], "y": [0, 1500]}},' // &
          '  "minc": {"rock": {"zones": ["sw"]}, ' // &
          '           "geometry": {"fracture": {"volume": 0.1}}}}}'

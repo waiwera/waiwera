@@ -13,6 +13,8 @@ module source_setup_test
   implicit none
   private
 
+  character(len = 512) :: data_path
+
   public :: setup, teardown
   public :: test_setup_sources
 
@@ -26,9 +28,14 @@ contains
 
     ! Locals:
     PetscErrorCode :: ierr
+    PetscInt :: ios
 
     call PetscInitialize(PETSC_NULL_CHARACTER, ierr); CHKERRQ(ierr)
     call init_profiling()
+
+    call get_environment_variable('WAIWERA_TEST_DATA_PATH', &
+         data_path, status = ios)
+    if (ios /= 0) data_path = ''
 
   end subroutine setup
 
@@ -60,7 +67,6 @@ contains
 
     class(unit_test_type), intent(in out) :: test
     ! Locals:
-    character(25), parameter :: path = "../test/unit/data/source/"
     type(IAPWS_type) :: thermo
     type(eos_wge_type) :: eos
     type(fson_value), pointer :: json
@@ -87,7 +93,7 @@ contains
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
     call MPI_COMM_SIZE(PETSC_COMM_WORLD, num_procs, ierr)
-    json => fson_parse_mpi(trim(path) // "test_source.json")
+    json => fson_parse_mpi(trim(adjustl(data_path)) // "source/test_source.json")
     viewer = PETSC_NULL_VIEWER
 
     call thermo%init()

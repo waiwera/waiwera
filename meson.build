@@ -135,6 +135,11 @@ if not zofu_driver.found()
   zofu_driver = zofu_subproject.get_variable('driver_exe')
 endif
 
+test_env = environment()
+test_env.set('WAIWERA_TEST_DATA_PATH',
+             join_paths(meson.current_source_dir(),
+                        'test', 'unit', 'data', ''))
+
 foreach test_name: test_sources
 
   test_src = join_paths(meson.current_source_dir(),
@@ -157,6 +162,6 @@ foreach test_name: test_sources
                         dependencies: [waiwera_deps, zofu],
                         fortran_args: f_args)
 
-  test(test_name, test_exe, is_parallel: false)
+  test(test_name, test_exe, env: test_env, is_parallel: false)
 
 endforeach

@@ -13,7 +13,7 @@ module fson_mpi_test
   implicit none
   private 
 
-  character(len = 45), parameter :: filename = "../test/unit/data/fson_mpi/test_fson_mpi.json"
+  character(len = 512) :: data_path, filename
   public :: setup, teardown, setup_test
   public :: test_fson_mpi_int, test_fson_mpi_real, test_fson_mpi_double
   public :: test_fson_mpi_logical, test_fson_mpi_char
@@ -30,9 +30,15 @@ contains
 
     ! Locals:
     PetscErrorCode :: ierr
+    PetscInt :: ios
 
     call PetscInitialize(PETSC_NULL_CHARACTER, ierr); CHKERRQ(ierr)
     call init_profiling()
+
+    call get_environment_variable('WAIWERA_TEST_DATA_PATH', &
+         data_path, status = ios)
+    if (ios /= 0) data_path = ''
+    filename = trim(adjustl(data_path)) // "fson_mpi/test_fson_mpi.json"
 
   end subroutine setup
 

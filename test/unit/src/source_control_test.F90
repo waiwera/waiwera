@@ -14,6 +14,8 @@ module source_control_test
   implicit none
   private
 
+  character(len = 512) :: data_path
+
   public :: setup, teardown
   public :: test_source_control_table, test_source_control_pressure_reference
 
@@ -27,9 +29,14 @@ contains
 
     ! Locals:
     PetscErrorCode :: ierr
+    PetscInt :: ios
 
     call PetscInitialize(PETSC_NULL_CHARACTER, ierr); CHKERRQ(ierr)
     call init_profiling()
+
+    call get_environment_variable('WAIWERA_TEST_DATA_PATH', &
+         data_path, status = ios)
+    if (ios /= 0) data_path = ''
 
   end subroutine setup
 
@@ -61,7 +68,6 @@ contains
 
     class(unit_test_type), intent(in out) :: test
     ! Locals:
-    character(25), parameter :: path = "../test/unit/data/source/"
     type(IAPWS_type) :: thermo
     type(eos_wge_type) :: eos
     type(fson_value), pointer :: json
@@ -86,7 +92,7 @@ contains
     IS :: source_is
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
-    json => fson_parse_mpi(trim(path) // "test_source_controls_table.json")
+    json => fson_parse_mpi(trim(adjustl(data_path)) // "source/test_source_controls_table.json")
     viewer = PETSC_NULL_VIEWER
 
     call thermo%init()
@@ -207,7 +213,6 @@ contains
 
     class(unit_test_type), intent(in out) :: test
     ! Locals:
-    character(25), parameter :: path = "../test/unit/data/source/"
     type(IAPWS_type) :: thermo
     type(eos_wge_type) :: eos
     type(fson_value), pointer :: json
@@ -243,7 +248,8 @@ contains
     character(len = 16) :: srcstr
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
-    json => fson_parse_mpi(trim(path) // "test_source_controls_pressure_reference.json")
+    json => fson_parse_mpi(trim(adjustl(data_path)) // &
+         "source/test_source_controls_pressure_reference.json")
     viewer = PETSC_NULL_VIEWER
 
     call thermo%init()

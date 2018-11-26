@@ -16,6 +16,8 @@ module zone_test
   implicit none
   private
 
+  character(len = 512) :: data_path
+
   public :: setup, teardown
   public :: test_get_zone_type, test_cell_array, test_zone_depends, &
        test_cell_array_label, test_box_label, test_combine_label
@@ -30,9 +32,14 @@ contains
 
     ! Locals:
     PetscErrorCode :: ierr
+    PetscInt :: ios
 
     call PetscInitialize(PETSC_NULL_CHARACTER, ierr); CHKERRQ(ierr)
     call init_profiling()
+
+    call get_environment_variable('WAIWERA_TEST_DATA_PATH', &
+         data_path, status = ios)
+    if (ios /= 0) data_path = ''
 
   end subroutine setup
 
@@ -232,7 +239,7 @@ contains
     viewer = PETSC_NULL_VIEWER
 
     json => fson_parse_mpi(str = &
-         '{"mesh": {"filename": "../test/unit/data/mesh/7x7grid.exo", ' // &
+         '{"mesh": {"filename": "' // trim(adjustl(data_path)) // 'mesh/7x7grid.exo", ' // &
          '"zones": {"zone1": [10, 15, 20, 27, 34, 44], ' // &
          '"zone2": [40, 30, 5]}}}')
     call mesh%init(json)
@@ -318,7 +325,7 @@ contains
     viewer = PETSC_NULL_VIEWER
 
     json => fson_parse_mpi(str = &
-         '{"mesh": {"filename": "../test/unit/data/mesh/7x7grid.exo", ' // &
+         '{"mesh": {"filename": "' // trim(adjustl(data_path)) // 'mesh/7x7grid.exo", ' // &
          '"zones": {' // &
          '"xzone": {"x": [2000, 3000]}, ' // &
          '"all": {"type": "box"}, ' // &
@@ -398,7 +405,7 @@ contains
     viewer = PETSC_NULL_VIEWER
 
     json => fson_parse_mpi(str = &
-         '{"mesh": {"filename": "../test/unit/data/mesh/7x7grid.exo", ' // &
+         '{"mesh": {"filename": "' // trim(adjustl(data_path)) // 'mesh/7x7grid.exo", ' // &
          '"zones": {' // &
          '"zone1": {"x": [2000, 3000]}, ' // &
          '"zone2": {"x": [3500, 4500]}, ' // &

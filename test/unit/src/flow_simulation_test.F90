@@ -14,6 +14,8 @@ module flow_simulation_test
   implicit none
   private
 
+  character(len = 512) :: data_path
+
   public :: setup, teardown
   public :: test_flow_simulation_init, &
        test_flow_simulation_fluid_properties, test_flow_simulation_lhs
@@ -31,9 +33,14 @@ contains
 
     ! Locals:
     PetscErrorCode :: ierr
+    PetscInt :: ios
 
     call PetscInitialize(PETSC_NULL_CHARACTER, ierr); CHKERRQ(ierr)
     call init_profiling()
+
+    call get_environment_variable('WAIWERA_TEST_DATA_PATH', &
+         data_path, status = ios)
+    if (ios /= 0) data_path = ''
 
   end subroutine setup
 
@@ -91,11 +98,12 @@ contains
 
     class(unit_test_type), intent(in out) :: test
     ! Locals:
-    character(44), parameter :: path = "../test/unit/data/flow_simulation/init/"
+    character(:), allocatable :: path
     type(fson_value), pointer :: json
     PetscErrorCode :: err
 
-    json => fson_parse_mpi(trim(path) // "test_init.json")
+    path = trim(adjustl(data_path)) // "flow_simulation/init/"
+    json => fson_parse_mpi(path // "test_init.json")
 
     call sim%init(json, err = err)
     call fson_destroy_mpi(json)
@@ -123,10 +131,11 @@ contains
     class(unit_test_type), intent(in out) :: test
     ! Locals:
     type(fson_value), pointer :: json
-    character(64), parameter :: path = "../test/unit/data/flow_simulation/fluid_properties/"
+    character(:), allocatable :: path
     PetscReal :: time = 0._dp
     PetscErrorCode :: err
 
+    path = trim(adjustl(data_path)) // "flow_simulation/fluid_properties/"
     json => fson_parse_mpi(trim(path) // "test_fluid_properties.json")
 
     call sim%init(json, err = err)
@@ -150,12 +159,13 @@ contains
     class(unit_test_type), intent(in out) :: test
     ! Locals:
     type(fson_value), pointer :: json
-    character(64), parameter :: path = "../test/unit/data/flow_simulation/lhs/"
+    character(:), allocatable :: path
     PetscReal, parameter :: time = 0._dp
     PetscReal :: interval(2) = [time, time]
     Vec :: lhs
     PetscErrorCode :: ierr, err
 
+    path = trim(adjustl(data_path)) // "flow_simulation/lhs/"
     json => fson_parse_mpi(trim(path) // "test_lhs.json")
 
     call sim%init(json, err = err)
@@ -197,7 +207,7 @@ contains
     call thermo%init()
 
     json => fson_parse_mpi(str = '{"mesh": {' // &
-         '"filename": "../test/unit/data/mesh/2D.msh"}}')
+         '"filename": "' // trim(adjustl(data_path)) // 'mesh/2D.msh"}}')
     call eos%init(json, thermo)
     call sim%mesh%init(json)
     call sim%setup_gravity(json)
@@ -209,7 +219,7 @@ contains
     call sim%mesh%destroy()
 
     json => fson_parse_mpi(str = '{"mesh": {' // &
-         '"filename": "../test/unit/data/mesh/2D.msh"}, "gravity": null}')
+         '"filename": "' // trim(adjustl(data_path)) // 'mesh/2D.msh"}, "gravity": null}')
     call sim%mesh%init(json)
     call sim%setup_gravity(json)
     call sim%mesh%configure(eos, sim%gravity, json, viewer = viewer, err = err)
@@ -220,7 +230,7 @@ contains
     call sim%mesh%destroy()
 
     json => fson_parse_mpi(str = '{"mesh": {' // &
-         '"filename": "../test/unit/data/mesh/2D.msh"}, ' // &
+         '"filename": "' // trim(adjustl(data_path)) // 'mesh/2D.msh"}, ' // &
          '"gravity": 9.81}')
     call sim%mesh%init(json)
     call sim%setup_gravity(json)
@@ -232,7 +242,7 @@ contains
     call sim%mesh%destroy()
 
     json => fson_parse_mpi(str = '{"mesh": {' // &
-         '"filename": "../test/unit/data/mesh/2D.msh"}, ' // &
+         '"filename": "' // trim(adjustl(data_path)) // 'mesh/2D.msh"}, ' // &
          '"gravity": [-9.8, 0.0]}')
     call sim%mesh%init(json)
     call sim%setup_gravity(json)
@@ -244,7 +254,7 @@ contains
     call sim%mesh%destroy()
 
     json => fson_parse_mpi(str = '{"mesh": {' // &
-         '"filename": "../test/unit/data/mesh/block3.exo"}}')
+         '"filename": "' // trim(adjustl(data_path)) // 'mesh/block3.exo"}}')
     call sim%mesh%init(json)
     call sim%setup_gravity(json)
     call sim%mesh%configure(eos, sim%gravity, json, viewer = viewer, err = err)
@@ -255,7 +265,7 @@ contains
     call sim%mesh%destroy()
 
     json => fson_parse_mpi(str = '{"mesh": {' // &
-         '"filename": "../test/unit/data/mesh/block3.exo"}, ' // &
+         '"filename": "' // trim(adjustl(data_path)) // 'mesh/block3.exo"}, ' // &
          '"gravity": 9.80665}')
     call sim%mesh%init(json)
     call sim%setup_gravity(json)
@@ -267,7 +277,7 @@ contains
     call sim%mesh%destroy()
 
     json => fson_parse_mpi(str = '{"mesh": {' // &
-         '"filename": "../test/unit/data/mesh/block3.exo"}, ' // &
+         '"filename": "' // trim(adjustl(data_path)) // 'mesh/block3.exo"}, ' // &
          '"gravity": [0., 0., -9.81]}')
     call sim%mesh%init(json)
     call sim%setup_gravity(json)
