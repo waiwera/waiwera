@@ -41,7 +41,6 @@ set_rpath = 'false' if args.no_rpath else 'true'
 build_dir = "build"
 if not os.path.isdir(build_dir): os.mkdir(build_dir)
 os.chdir(build_dir)
-env["CC"] = "mpicc"; env["FC"] = "mpif90"
 
 subprocess.Popen(["meson",
                   "--buildtype", build_type, "..",
