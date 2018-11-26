@@ -1,6 +1,7 @@
 - hosts: localhost
-  become_user: root
-  become_method: sudo
+  become_user: waiwera
+  become_method: su
+  become: yes
   tasks:
   - name: Clean fruitpy and fruit paths
     file:
@@ -19,6 +20,9 @@
   - name: pip install fruitpy
     pip:
       name: file:///opt/app/fruitpy
+    become_user: root
+    become_method: su
+    become: yes
 
   - name: Dowload and unarchive fruit
     unarchive:
@@ -63,4 +67,6 @@
     command: rake install
     args:
       chdir: /opt/app/fruit/fruit_processor_gem
+    become_user: root
+    become_method: su
     become: yes

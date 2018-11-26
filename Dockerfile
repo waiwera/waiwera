@@ -1,5 +1,6 @@
-FROM phusion/baseimage:0.11
-# FROM debian/9
+# FROM phusion/baseimage:0.11
+FROM debian:stretch
+RUN groupadd -r waiwera && useradd --no-log-init -r -g waiwera waiwera
 
 RUN apt update && \
     apt install -y python python-dev python-pip && \

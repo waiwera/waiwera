@@ -1,4 +1,7 @@
 - hosts: localhost
+  become_user: waiwera
+  become_method: su
+  become: yes
   tasks:
   - name: Clean fruitpy and fruit paths
     file:

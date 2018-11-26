@@ -1,7 +1,7 @@
 - hosts: localhost
   become: yes
   become_user: root
-  become_method: sudo
+  become_method: su
   tasks:
   - name: Install multiple base packages
     apt:
@@ -73,8 +73,8 @@
     file:
       path: "{{ item }}"
       state: directory
-      owner: root
-      group: root
+      owner: waiwera
+      group: waiwera
     with_items:
       - /opt/app
       - /opt/app/bin
