@@ -12,3 +12,4 @@ doc/ford/*
 utils/*.pyc
 subprojects/fson
 subprojects/zofu
+external/
