@@ -1,8 +1,0 @@
----
-
-- import_playbook: base.yml
-# - import_playbook: openmpi.yml
-- import_playbook: petsc.yml
-- import_playbook: fruit.yml
-- import_playbook: fson.yml
-- import_playbook: supermodels.yml

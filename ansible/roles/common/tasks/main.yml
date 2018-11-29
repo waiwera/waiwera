@@ -1,0 +1,37 @@
+---
+
+- name: Run the common tasks to setup waiwera
+  include: base.yml
+
+- name: Setup PETSc
+  become_user: waiwera
+  become_method: su
+  become: yes
+  include: petsc.yml
+
+- name: Setup fruit
+  become_user: waiwera
+  become_method: su
+  become: yes
+  include: fruit.yml
+
+- name: Setup fson
+  become_user: waiwera
+  become_method: su
+  become: yes
+  include: fson.yml
+
+- name: Setup and test waiwera
+  become_user: waiwera
+  become_method: su
+  become: yes
+  environment:
+    PETSC_DIR: /opt/app/petsc
+    PETSC_ARCH: arch-linux2-c-debug
+    LD_LIBRARY_PATH: "/opt/app/lib"
+    PYTHONPATH: "/opt/app/PyTOUGH:/opt/app/credo2:/opt/app/supermodels-test/utils"
+    PATH: "{{ ansible_env.PATH }}:/opt/app/bin:/opt/app/supermodels-test/dist"
+  include: supermodels.yml
+
+- name: Cleanup
+  include: cleanup.yml

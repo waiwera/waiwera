@@ -1,34 +1,32 @@
-- hosts: all
-  become_user: root
-  become_method: sudo
-  tasks:
-  - name: Clean openmpi paths
-    file:
-      state: absent
-      path: /opt/app/{{ item }}
-    with_items:
-    - openmpi
+---
 
-  - name: Dowload and unarchive openmpi
-    unarchive:
-      src: https://download.open-mpi.org/release/open-mpi/v3.1/openmpi-3.1.3.tar.gz
-      dest: /opt/app/
-      remote_src: yes
+- name: Clean openmpi paths
+  file:
+    state: absent
+    path: /opt/app/{{ item }}
+  with_items:
+  - openmpi
 
-  - name: Move openmpi no non-versioned directory name,
-    command: mv -n /opt/app/openmpi-3.1.3 /opt/app/openmpi
+- name: Dowload and unarchive openmpi
+  unarchive:
+    src: https://download.open-mpi.org/release/open-mpi/v3.1/openmpi-3.1.3.tar.gz
+    dest: /opt/app/
+    remote_src: yes
 
-  - name: Running ./configure for openmpi
-    command: >
-      ./configure --prefix="/opt/app/" --with-tm
-    args:
-      chdir: /opt/app/openmpi
+- name: Move openmpi no non-versioned directory name,
+  command: mv -n /opt/app/openmpi-3.1.3 /opt/app/openmpi
 
-  - name: Make openmpi
-    make:
-      chdir: /opt/app/openmpi
+- name: Running ./configure for openmpi
+  command: >
+    ./configure --prefix="/opt/app/" --with-tm
+  args:
+    chdir: /opt/app/openmpi
 
-  - name: Make install openmpi
-    make:
-      chdir: /opt/app/openmpi
+- name: Make openmpi
+  make:
+    chdir: /opt/app/openmpi
+
+- name: Make install openmpi
+  make:
+    chdir: /opt/app/openmpi
       target: install
