@@ -1,0 +1,29 @@
+---
+
+- name: remove unused base packages
+  apt:
+    name: "{{ packages }}"
+    state: absent
+    purge: yes
+  vars:
+    packages:
+    - gem
+    - rake
+    - unzip
+
+- name: apt autoremove
+  apt:
+    autoremove: yes
+
+- name: apt clean
+  apt:
+    autoclean: yes
+
+- name: Cleanup leftover files
+  shell: rm -rf {{ item }}
+  with_items:
+    - /var/lib/apt/lists/*
+    - /tmp/*
+    - /var/tmp/*
+    - /root/.pip/cache/*
+    - /usr/share/doc/*
