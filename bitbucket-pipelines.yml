@@ -5,10 +5,12 @@
 # You can specify a custom docker image from Docker Hub as your build environment.
 image: debian:9
 
+options:
+  size: 2x
+  
 pipelines:
   default:
     - step:
-        size: 2x # Double resources available for this step.
         services:
           - docker
         script: # Modify the commands below to build your repository.
