@@ -20,3 +20,7 @@ pipelines:
           # - docker login --username $DOCKER_HUB_USERNAME --password $DOCKER_HUB_PASSWORD
           # push the new Docker image to the Docker registry
           # - docker push $IMAGE_NAME
+definitions:
+    services:
+        docker: # we specifically disallow modifying image.
+            memory: 2048 #Megabytes
