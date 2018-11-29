@@ -6,7 +6,7 @@
 image: debian:9
 
 options:
-  size: 2x
+  size: 1x
 
 pipelines:
   default:
@@ -26,4 +26,4 @@ pipelines:
 definitions:
     services:
         docker: # we specifically disallow modifying image.
-            memory: 2048 #Megabytes
+            memory: 3072 #Megabytes
