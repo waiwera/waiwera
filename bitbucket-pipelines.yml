@@ -7,7 +7,7 @@ image: debian:9
 
 options:
   size: 2x
-  
+
 pipelines:
   default:
     - step:
@@ -23,3 +23,7 @@ pipelines:
           # - docker login --username $DOCKER_HUB_USERNAME --password $DOCKER_HUB_PASSWORD
           # push the new Docker image to the Docker registry
           # - docker push $IMAGE_NAME
+definitions:
+    service:
+        docker: # we specifically disallow modifying image.
+            memory: 2048 #Megabytes
