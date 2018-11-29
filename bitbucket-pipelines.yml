@@ -8,6 +8,7 @@ image: debian:9
 pipelines:
   default:
     - step:
+        size: 2x # Double resources available for this step.
         services:
           - docker
         script: # Modify the commands below to build your repository.
@@ -20,7 +21,3 @@ pipelines:
           # - docker login --username $DOCKER_HUB_USERNAME --password $DOCKER_HUB_PASSWORD
           # push the new Docker image to the Docker registry
           # - docker push $IMAGE_NAME
-definitions:
-    services:
-        docker: # we specifically disallow modifying image.
-            memory: 2048 #Megabytes
