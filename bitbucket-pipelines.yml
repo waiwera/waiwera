@@ -24,6 +24,6 @@ pipelines:
           # push the new Docker image to the Docker registry
           # - docker push $IMAGE_NAME
 definitions:
-    service:
+    services:
         docker: # we specifically disallow modifying image.
             memory: 2048 #Megabytes
