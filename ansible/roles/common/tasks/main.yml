@@ -4,27 +4,15 @@
   include: base.yml
 
 - name: Setup PETSc
-  become_user: waiwera
-  become_method: su
-  become: yes
   include: petsc.yml
 
 - name: Setup fruit
-  become_user: waiwera
-  become_method: su
-  become: yes
   include: fruit.yml
 
 - name: Setup fson
-  become_user: waiwera
-  become_method: su
-  become: yes
   include: fson.yml
 
 - name: Setup and test waiwera
-  become_user: waiwera
-  become_method: su
-  become: yes
   environment:
     PETSC_DIR: /opt/app/petsc
     PETSC_ARCH: arch-linux2-c-debug

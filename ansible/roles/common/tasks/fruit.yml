@@ -69,9 +69,6 @@
   command: rake install
   args:
     chdir: /opt/app/fruit/fruit_processor_gem
-  become_user: root
-  become_method: su
-  become: yes
 
 - name: Clean fruitpy and fruit paths
   file:

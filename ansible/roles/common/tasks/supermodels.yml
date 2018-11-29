@@ -34,7 +34,7 @@
   args:
     chdir: /opt/app/supermodels-test
 
-- name: Execute supermodels unit_tests
-  shell: python unit_tests.py
-  args:
-    chdir: /opt/app/supermodels-test
+# - name: Execute supermodels unit_tests
+#   shell: python unit_tests.py
+#   args:
+#     chdir: /opt/app/supermodels-test

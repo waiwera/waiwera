@@ -70,8 +70,6 @@
   file:
     path: "{{ item }}"
     state: directory
-    owner: waiwera
-    group: waiwera
   with_items:
     - /opt/app
     - /opt/app/bin
