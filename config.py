@@ -87,7 +87,9 @@ def copy_petsc_pkgconfig():
     petsc_pkgconfig_file = os.path.join(env["PETSC_DIR"], env["PETSC_ARCH"],
                                         "lib", "pkgconfig", "PETSc.pc")
     dest_petsc_pkgconfig_file = os.path.join(pkg_config_dir, "PETSc.pc")
-    if os.path.isfile(petsc_pkgconfig_file) and not os.path.isfile(dest_petsc_pkgconfig_file):
+    if os.path.isfile(petsc_pkgconfig_file):
+        if not os.path.exists(pkg_config_dir):
+            os.makedirs(pkg_config_dir)
         print("Copying PETSc.pc to", pkg_config_dir)
         copyfile(petsc_pkgconfig_file, dest_petsc_pkgconfig_file)
 
