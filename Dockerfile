@@ -2,6 +2,12 @@
 FROM debian:9
 RUN groupadd -r waiwera && useradd --no-log-init -r -g waiwera waiwera
 
+ENV PETSC_DIR=/opt/app/petsc
+ENV PETSC_ARCH=arch-linux2-c-debug
+ENV LD_LIBRARY_PATH="/opt/app/lib"
+ENV PYTHONPATH=/"/opt/app/PyTOUGH:/opt/app/credo2:/opt/app/supermodels-test/utils"
+ENV PATH="$PATH:/opt/app/bin:/opt/app/supermodels-test/dist"
+
 RUN apt update && \
     apt install -y python python-dev python-pip && \
     apt-get autoremove -y && apt-get autoclean -y && apt-get clean -y && \
@@ -12,6 +18,8 @@ RUN pip install ansible
 
 ADD ansible /srv/ansible
 RUN /usr/local/bin/ansible-playbook -c local /srv/ansible/site.yml  -v
+
+WORKDIR /opt/app/supermodels-test
 
 RUN pip uninstall ansible -y && \
     apt-get autoremove -y && apt-get autoclean -y && apt-get clean -y && \
