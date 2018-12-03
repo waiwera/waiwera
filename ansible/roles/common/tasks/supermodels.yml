@@ -38,3 +38,11 @@
 #   shell: python unit_tests.py
 #   args:
 #     chdir: /opt/app/supermodels-test
+
+- name: Set file permissions supermodels
+  file:
+    dest: /opt/app/supermodels-test
+    owner: root
+    group: root
+    mode: u=rwX,g=rwX,o=rwX
+    recurse: yes
