@@ -786,8 +786,8 @@ contains
     character(len=64) :: bdystr
     character(len=12) :: istr
 
-    default_faces = [PetscInt::] ! empty integer array
-    default_cells = [PetscInt::]
+    allocate(default_faces(0))
+    allocate(default_cells(0))
     np = eos%num_primary_variables
 
     call DMHasLabel(self%original_dm, open_boundary_label_name, mesh_has_label, &
@@ -1084,7 +1084,7 @@ contains
     PetscErrorCode :: ierr
     PetscInt, parameter :: default_permeability_direction = 1
 
-    default_cells = [PetscInt::] ! empty integer array
+    allocate(default_cells(0))
     call local_vec_section(self%face_geom, face_section)
     call VecGetArrayF90(self%face_geom, face_geom_array, ierr); CHKERRQ(ierr)
     call face%init()

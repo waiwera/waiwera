@@ -437,7 +437,7 @@ contains
       PetscInt :: json_type
       character(max_zone_name_length), allocatable :: default_zones(:)
 
-      default_zones = [character(max_zone_name_length)::]
+      allocate(default_zones(0))
 
       if (fson_has_mpi(json, key)) then
          json_type = fson_type_mpi(json, key)
