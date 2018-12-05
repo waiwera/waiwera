@@ -937,6 +937,7 @@ contains
     PetscReal, allocatable :: initial(:)
     PetscErrorCode :: err
 
+    allocate(initial(exponential%dim))
     initial = [-4._dp, -3.0_dp, -2.0_dp, -1.0_dp, &
          0.0_dp, 1.0_dp, 2.0_dp, 3.0_dp]
     call exponential%init(initial, err)
@@ -1016,6 +1017,7 @@ contains
     PetscErrorCode :: err
 
     nontrivial_lhs%k = -1._dp
+    allocate(initial(nontrivial_lhs%dim))
     initial = [-4._dp, -3.0_dp, -2.0_dp, -1.0_dp, &
          0.0_dp, 1.0_dp, 2.0_dp, 3.0_dp]
     call nontrivial_lhs%init(initial, err)
@@ -1052,6 +1054,7 @@ contains
     PetscReal, allocatable :: initial(:)
     PetscErrorCode :: err
 
+    allocate(initial(nonlinear_lhs%dim))
     initial = [-4._dp, -3.0_dp, -2.0_dp, -1.0_dp, &
          0.0_dp, 2.0_dp, 3.0_dp, 4.0_dp]
     call nonlinear_lhs%init(initial, err)
@@ -1158,6 +1161,7 @@ contains
     PetscErrorCode :: err
 
     pre_eval%k = -1._dp
+    allocate(initial(pre_eval%dim))
     initial = [-4._dp, -3.0_dp, -2.0_dp, -1.0_dp, &
          0.0_dp, 1.0_dp, 2.0_dp, 3.0_dp]
     call pre_eval%init(initial, err)
