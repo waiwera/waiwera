@@ -852,6 +852,7 @@ contains
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
 
+    allocate(initial(test_ode%dim))
     initial = [-4._dp, -3.0_dp, -2.0_dp, -1.0_dp, &
          0.0_dp, 1.0_dp, 2.0_dp, 3.0_dp]
 
@@ -900,6 +901,7 @@ contains
     PetscReal, allocatable :: initial(:)
     PetscErrorCode :: err
 
+    allocate(initial(linear%dim))
     initial = [-4._dp, -3.0_dp, -2.0_dp, -1.0_dp, &
          0.0_dp, 1.0_dp, 2.0_dp, 3.0_dp]
     call linear%init(initial, err)
@@ -979,6 +981,7 @@ contains
     PetscReal, allocatable :: initial(:)
     PetscErrorCode :: err
 
+    allocate(logistic%c(logistic%dim), initial(logistic%dim))
     logistic%c = [0.0_dp, 0.5_dp, 1._dp, 1.5_dp, 2._dp, &
          2.5_dp, 3._dp, 3.5_dp]
     initial = 3._dp * logistic%c / (1._dp + 2._dp * logistic%c)
@@ -1198,7 +1201,7 @@ contains
     PetscReal, allocatable :: initial(:)
     PetscErrorCode :: err
 
-    allocate(initial(8))
+    allocate(initial(ss%dim))
     initial = 0._dp
     call ss%init(initial, err)
 
