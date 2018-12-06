@@ -1,6 +1,6 @@
 # FROM phusion/baseimage:0.11
 FROM debian:9
-RUN groupadd -r waiwera && useradd --no-log-init -r -g waiwera waiwera
+# RUN groupadd -r waiwera && useradd --no-log-init -r -g waiwera waiwera
 
 ENV PETSC_DIR=/opt/app/petsc
 ENV PETSC_ARCH=arch-linux2-c-debug
@@ -17,7 +17,9 @@ RUN pip install pip
 RUN pip install ansible
 
 ADD ansible /srv/ansible
-RUN /usr/local/bin/ansible-playbook -c local /srv/ansible/site.yml  -v
+WORKDIR /srv/
+
+RUN /usr/local/bin/ansible-playbook -c local ansible/site.yml 
 
 WORKDIR /opt/app/supermodels-test
 
