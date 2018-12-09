@@ -3,7 +3,7 @@
 project('waiwera', ['c', 'fortran'],
         version: '0.5.0',
         license: 'GPL3',
-        meson_version: '>=0.43.0')
+        meson_version: '>=0.46.0')
 
 mpi   = dependency('mpi', language: 'fortran')
 PETSc = dependency('PETSc', version: '>=3.10.1')
