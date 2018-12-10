@@ -1,6 +1,4 @@
-# FROM phusion/baseimage:0.11
 FROM debian:9
-# RUN groupadd -r waiwera && useradd --no-log-init -r -g waiwera waiwera
 
 ENV PETSC_DIR=/opt/app/petsc
 ENV PETSC_ARCH=arch-linux2-c-debug
@@ -19,7 +17,7 @@ RUN pip install ansible
 ADD ansible /srv/ansible
 WORKDIR /srv/
 
-RUN /usr/local/bin/ansible-playbook -c local ansible/site.yml 
+RUN /usr/local/bin/ansible-playbook -c local ansible/site.yml -e "waiwera_user=${waiwera_user} waiwera_pwd=${waiwera_pwd}"
 
 WORKDIR /opt/app/supermodels-test
 
@@ -27,3 +25,5 @@ RUN pip uninstall ansible -y && \
     apt-get autoremove -y && apt-get autoclean -y && apt-get clean -y && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /root/.cache/* /srv/ansible /usr/share/doc/*
 RUN for dep in $(pip show ansible | grep Requires | sed 's/Requires: //g; s/,//g'); do pip uninstall -y $dep; done
+
+RUN find / -uid|-gid 165586 -ls
