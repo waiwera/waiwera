@@ -1,5 +1,8 @@
 FROM debian:9
 
+ARG waiwera_user
+ARG waiwera_pwd
+
 ENV PETSC_DIR=/opt/app/petsc
 ENV PETSC_ARCH=arch-linux2-c-debug
 ENV LD_LIBRARY_PATH="/opt/app/lib"
