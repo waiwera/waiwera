@@ -1,7 +1,5 @@
 FROM debian:9
 
-
-
 ARG waiwera_user
 ARG waiwera_pwd
 
@@ -25,9 +23,6 @@ WORKDIR /srv/
 RUN /usr/local/bin/ansible-playbook -c local ansible/site.yml -e "waiwera_user=${waiwera_user} waiwera_pwd=${waiwera_pwd}"
 
 WORKDIR /opt/app/supermodels-test
-
-RUN find / -uid 165586 -ls
-RUN find / -gid 165586 -ls
 
 RUN pip uninstall ansible -y && \
     apt-get autoremove -y && apt-get autoclean -y && apt-get clean -y && \
