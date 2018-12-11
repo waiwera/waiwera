@@ -25,9 +25,16 @@
 - name: Cleanup
   include: cleanup.yml
 
-- name: change deployment ownership
+- name: change app deployment ownership
   file:
-    dest: /
+    dest: /opt/app
+    owner: root
+    group: root
+    recurse: yes
+
+- name: change /usr/local deployment ownership
+  file:
+    dest: /usr/local
     owner: root
     group: root
     recurse: yes
