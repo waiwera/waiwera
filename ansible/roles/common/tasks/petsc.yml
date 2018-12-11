@@ -1,8 +1,3 @@
-# - hosts: localhost
-#   become_user: waiwera
-#   become_method: su
-#   become: yes
-#   tasks:
 ---
 
 - name: Clean petsc paths
@@ -18,6 +13,13 @@
     dest: /opt/app/petsc
     version: master
     # v3.10.2 doesn't work
+    
+- name: change PETSc ownership
+  file:
+    dest: /opt/app/supermodels-test
+    owner: root
+    group: root
+    recurse: yes
 
 - name: Running ./configure for PETSc
   command: >

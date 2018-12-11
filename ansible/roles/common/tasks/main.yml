@@ -13,6 +13,7 @@
   include: fson.yml
 
 - name: Setup and test waiwera
+  #vars_file: secrets.yml
   environment:
     PETSC_DIR: /opt/app/petsc
     PETSC_ARCH: arch-linux2-c-debug
@@ -23,3 +24,10 @@
 
 - name: Cleanup
   include: cleanup.yml
+
+- name: change deployment ownership
+  file:
+    dest: /opt/app/
+    owner: root
+    group: root
+    recurse: yes
