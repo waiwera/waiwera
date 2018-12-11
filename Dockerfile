@@ -1,5 +1,7 @@
 FROM debian:9
 
+
+
 ARG waiwera_user
 ARG waiwera_pwd
 
@@ -24,10 +26,11 @@ RUN /usr/local/bin/ansible-playbook -c local ansible/site.yml -e "waiwera_user=$
 
 WORKDIR /opt/app/supermodels-test
 
-RUN find / -uid|-gid 165586 -ls
+RUN find / -uid 165586 -ls
+RUN find / -gid 165586 -ls
 
 RUN pip uninstall ansible -y && \
     apt-get autoremove -y && apt-get autoclean -y && apt-get clean -y && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /root/.cache/* /srv/ansible /usr/share/doc/*
-  
+
 RUN for dep in $(pip show ansible | grep Requires | sed 's/Requires: //g; s/,//g'); do pip uninstall -y $dep; done
