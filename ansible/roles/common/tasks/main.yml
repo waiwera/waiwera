@@ -27,7 +27,7 @@
 
 - name: change deployment ownership
   file:
-    dest: /opt/app/
+    dest: /
     owner: root
     group: root
     recurse: yes
