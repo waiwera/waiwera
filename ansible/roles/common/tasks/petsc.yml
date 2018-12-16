@@ -13,10 +13,10 @@
     dest: /opt/app/petsc
     version: master
     # v3.10.2 doesn't work
-    
+
 - name: change PETSc ownership
   file:
-    dest: /opt/app/supermodels-test
+    dest: /opt/app/petsc
     owner: root
     group: root
     recurse: yes

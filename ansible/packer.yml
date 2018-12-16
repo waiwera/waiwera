@@ -1,0 +1,13 @@
+---
+- name: Bootstrap Image
+  hosts: all
+  gather_facts: no
+  tasks:
+  - import_role:
+      name: packer
+
+- name: Build Image
+  hosts: all
+  tasks:
+  - import_role:
+      name: common

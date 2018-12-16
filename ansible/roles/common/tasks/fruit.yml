@@ -22,7 +22,7 @@
 - name: pip install fruitpy
   pip:
     name: file:///opt/app/fruitpy
-    
+
 - name: Dowload and unarchive fruit
   unarchive:
     src: https://sourceforge.net/projects/fortranxunit/files/fruit_3.4.3/fruit_3.4.3.zip/download
@@ -36,6 +36,7 @@
   copy:
     src: /opt/app/fruitpy/fruit_makefile
     dest: /opt/app/fruit/makefile
+    remote_src: yes
 
 - name: replace HOME with app directory
   replace:

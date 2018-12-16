@@ -18,9 +18,10 @@
     - gem
     - rake
     - gfortran-6
-    - openmpi-bin
-    - libopenmpi-dev
     - unzip
+    - libopenmpi-dev
+    - liblapack-dev
+    - libblas-dev
 
 - name: Symlink gfortran-6 to gfortran
   file:
@@ -53,9 +54,11 @@
 
 - name: set opt_paths
   copy:
-    src: roles/common/files/opt_paths.sh
+    src: "{{ role_path }}/files/opt_paths.sh"
     dest: /etc/profile.d/opt_paths.sh
     remote_src: yes
+  tags:
+    - not_packer
 
 - name: Clean app directory structure
   file:

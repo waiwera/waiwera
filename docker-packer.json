@@ -1,0 +1,34 @@
+{
+    "builders": [{
+        "type": "docker",
+        "image": "debian:9",
+        "commit": true,
+        "changes": [
+            "WORKDIR /opt/app/supermodels-test",
+            "ENV PETSC_DIR=/opt/app/petsc",
+            "ENV PETSC_ARCH=arch-linux2-c-debug",
+            "ENV LD_LIBRARY_PATH=/opt/app/lib",
+            "ENV PYTHONPATH=\"/opt/app/PyTOUGH:/opt/app/credo2:/opt/app/supermodels-test/utils\"",
+            "ENV PATH=\"$PATH:/opt/app/bin:/opt/app/supermodels-test/dist\""
+        ]
+    }],
+
+    "provisioners": [
+      {
+        "type": "file",
+        "source": "ansible/roles/common/files/opt_paths.sh",
+        "destination": "/etc/profile.d/opt_paths.sh"
+      },
+      {
+        "type": "ansible",
+        "user": "root",
+        "playbook_file": "ansible/packer.yml",
+        "extra_arguments": [ "-v" , "--skip-tags=not_packer"]
+    }],
+
+    "post-processors": [[ {
+        "type": "docker-tag",
+        "repository": "thar102/waiwera",
+        "tag": "packer"
+    } ]]
+}

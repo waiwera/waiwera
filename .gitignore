@@ -52,7 +52,7 @@ Thumbs.db
 
 # Local Settings #
 ##################
-
+ansible/secrets.yml
 *~
 
 # Ansible Files #
