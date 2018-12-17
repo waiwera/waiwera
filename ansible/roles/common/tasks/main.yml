@@ -3,14 +3,14 @@
 - name: Run the common tasks to setup waiwera
   include: base.yml
 
-- name: Setup PETSc
-  include: petsc.yml
-
-- name: Setup fruit
-  include: fruit.yml
-
-- name: Setup fson
-  include: fson.yml
+# - name: Setup PETSc
+#   include: petsc.yml
+#
+# - name: Setup fruit
+#   include: fruit.yml
+#
+# - name: Setup fson
+#   include: fson.yml
 
 - name: Setup and test waiwera
   #vars_file: secrets.yml

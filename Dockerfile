@@ -10,12 +10,12 @@ ENV PYTHONPATH=/"/opt/app/PyTOUGH:/opt/app/credo2:/opt/app/supermodels-test/util
 ENV PATH="$PATH:/opt/app/bin:/opt/app/supermodels-test/dist"
 
 RUN apt update && \
-    apt install -y python python-dev python-pip && \
+    apt install -y python3-minimal python3-pip && \
     apt-get autoremove -y && apt-get autoclean -y && apt-get clean -y && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /usr/share/doc/*  /root/.cache/*
 
-RUN pip install pip
-RUN pip install ansible
+RUN pip3 install pip
+RUN pip3 install ansible
 
 ADD ansible /srv/ansible
 WORKDIR /srv/
@@ -24,7 +24,7 @@ RUN /usr/local/bin/ansible-playbook -c local ansible/site.yml -e "waiwera_user=$
 
 WORKDIR /opt/app/supermodels-test
 
-RUN pip uninstall ansible -y && \
+RUN pip3 uninstall ansible -y && \
     apt-get autoremove -y && apt-get autoclean -y && apt-get clean -y && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /root/.cache/* /srv/ansible /usr/share/doc/*
 

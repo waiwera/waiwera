@@ -3,28 +3,28 @@
 - name: Clean supermodels-test path
   file:
     state: absent
-    path: /opt/app/supermodels-test
+    path: /opt/app/waiwera
 
 - name: Fetch supermodels-test from github
   git:
     repo: "https://{{ waiwera_user | urlencode }}:{{ waiwera_pwd  | urlencode }}@github.com/johnburnell/supermodels-test.git"
-    dest: /opt/app/supermodels-test
-    version: testing
+    dest: /opt/app/waiwera
+    version: meson-petsc
 
-- name: replace HOME with app directory
-  replace:
-    dest: /opt/app/supermodels-test/makefile
-    regexp: '\$\(HOME\)'
-    replace: '/opt/app'
+# - name: replace HOME with app directory
+#   replace:
+#     dest: /opt/app/supermodels-test/makefile
+#     regexp: '\$\(HOME\)'
+#     replace: '/opt/app'
 
 - name: Make the supermodels-test
-  shell: make
+  shell: meson
   args:
-    chdir: /opt/app/supermodels-test
+    chdir: /opt/app/waiwera
 
 - name: Set file permissions supermodels
   file:
-    dest: /opt/app/supermodels-test
+    dest: /opt/app/waiwera
     owner: root
     group: root
     mode: u=rwX,g=rwX,o=rwX

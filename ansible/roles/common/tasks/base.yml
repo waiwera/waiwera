@@ -1,56 +1,51 @@
 ---
 
-- name: Install multiple base packages
+- name: Install build-related tools
   apt:
     name: "{{ packages }}"
     state: present
     update_cache: yes
   vars:
     packages:
-    - g++-6
-    - bison
-    - flex
-    - cmake
     - git
+    - pkg-config
     - valgrind
-    - zlib1g-dev
-    - python
-    - gem
-    - rake
-    - gfortran-6
-    - unzip
-    - libopenmpi-dev
-    - liblapack-dev
-    - libblas-dev
+    - ninja-build
+    - make
+    - cmake
 
-- name: Symlink gfortran-6 to gfortran
-  file:
-    src: /usr/bin/gfortran-6
-    dest: /usr/bin/gfortran
-    state: link
-
-- name: Install python pip
+- name: Install compilers
   apt:
-    name: python-pip
+    name: "{{ packages }}"
+    state: present
+  vars:
+    packages:
+    - gcc
+    - g++
+    - gfortran
+
+- name: Install libraries
+  apt:
+    name: "{{ packages }}"
+    state: present
+  vars:
+    packages:
+    - libopenmpi-dev
+    - libblas-dev
+    - liblapack-dev
+
+- name: Install pip
+  apt:
+    name: python3-pip
     state: present
 
 - name: Update pip to lates version with pip
   pip:
     name: pip
 
-- name: Intall pip packages
+- name: Intall meson
   pip:
-    name:
-      - virtualenv
-      - h5py
-      - virtualenvwrapper
-      - numpy
-      - shapely
-      - future
-      - pillow
-      - matplotlib
-      - scipy
-      - meshio
+    name: meson
 
 - name: set opt_paths
   copy:
@@ -60,14 +55,14 @@
   tags:
     - not_packer
 
-- name: Clean app directory structure
-  file:
-    state: absent
-    path: /opt/app/{{ item }}
-  with_items:
-  - bin
-  - lib
-  - include
+# - name: Clean app directory structure
+#   file:
+#     state: absent
+#     path: /opt/app/{{ item }}
+#   with_items:
+#   - bin
+#   - lib
+#   - include
 
 - name: Creates app directory structure
   file:
