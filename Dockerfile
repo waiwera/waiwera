@@ -20,7 +20,7 @@ RUN pip install ansible
 ADD ansible /srv/ansible
 WORKDIR /srv/
 
-RUN /usr/local/bin/ansible-playbook -c local ansible/site.yml -e "waiwera_user=${waiwera_user} waiwera_pwd=${waiwera_pwd}"
+RUN /usr/local/bin/ansible-playbook -c local ansible/site.yml -e "waiwera_user=${waiwera_user}" -e "waiwera_pwd=${waiwera_pwd}"
 
 WORKDIR /opt/app/supermodels-test
 

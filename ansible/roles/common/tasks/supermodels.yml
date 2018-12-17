@@ -7,7 +7,7 @@
 
 - name: Fetch supermodels-test from github
   git:
-    repo: "https://{{ waiwera_user }}:{{ waiwera_pwd }}@github.com/johnburnell/supermodels-test.git"
+    repo: "https://{{ waiwera_user | urlencode }}:{{ waiwera_pwd  | urlencode }}@github.com/johnburnell/supermodels-test.git"
     dest: /opt/app/supermodels-test
     version: testing
 
