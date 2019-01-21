@@ -4,35 +4,61 @@
 Installing Waiwera
 ******************
 
-.. index:: Waiwera; dependencies, PETSc, FSON
+Installing Waiwera on Linux
+===========================
 
-Installing libraries
-====================
+.. also needs various other software packages to be installed (compilers, build tools and other libraries needed by PETSc):
+.. gcc g++ gfortran
+.. git pkg-config valgrind ninja make meson cmake
+.. openmpi | mpich blas lapack bison flex
+.. can install these using preconfig script appropriate for your Linux distibution (or adapt nearest one if using another distribution). Needs root privileges. Or use Ansible?
+.. substitute other C, C++ and Fortran compilers if desired
+.. if installing on compute cluster, generally load appropriate modules if they are available, or build yourself if they are not, or pip install if possible (meson, ninja)
 
-Waiwera depends on two other software libraries, which must be installed first before Waiwera itself can be compiled:
+.. then run Waiwera configure script (distro-independent) in Waiwera root directory:
 
-* `PETSc <https://www.mcs.anl.gov/petsc/>`_, the Portable Extensible Toolkit for Scientific Computation
-* `FSON <https://github.com/josephalevin/fson>`_, a library for parsing JSON input files in Fortran
+.. code-block:: bash
 
-.. index:: PETSc; installation
+   python config.py
 
-Installing PETSc
-----------------
+.. this has some optional parameters: --debug or --release, --no_rpath, --prefix, --libdir, --petsc_revision
 
-.. todo:: add PETSc install instructions
+.. this will detect PETSc on your system (via pkg-config) if it exists, otherwise will download it (check out from git repo) configure and build in external/PETSc directory.
+.. will also detect FSON and Zofu (similarly via pkg-config) if they exists, otherwise will check out and configure as subprojects
+.. creates build/ directory to do the build. When configure complete, build using:
 
-.. index:: FSON; installation
+.. code-block:: bash
 
-Installing FSON
----------------
+   ninja -C build
 
-.. todo:: add FSON install instructions
+.. can run unit tests (or put this in separate testing section?) using:
 
-Installing Waiwera
-==================
+.. code-block:: bash
 
-At the command line, navigate to the Waiwera directory and type::
+   python unit_tests.py
 
-  make waiwera install
+.. optional parameters: module names to test. Will run on 1 .. 4 parallel processes (or as many as there are, if that is less than 4).
 
-  
+.. install Waiwera using:
+
+.. code-block:: bash
+
+   ninja -C build install
+
+.. will install Waiwera executable to prefix/bin. This should be on your $PATH if you want to be able to execute Waiwera from any directory.
+
+.. uninstall using:
+
+.. code-block:: bash
+
+   ninja -C build uninstall
+
+Installing Waiwera on Mac OSX
+=============================
+
+.. use Docker image
+
+Installing Waiwera on MS Windows
+================================
+
+.. use Docker image
