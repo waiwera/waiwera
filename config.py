@@ -17,7 +17,7 @@ parser.add_argument("--release", action = "store_true", help = "release mode")
 parser.add_argument("--no_rpath", action = "store_true", help = "do not set RPATH in executable")
 parser.add_argument("--prefix", default = os.path.expanduser("~"), help = "prefix for installation path")
 parser.add_argument("--libdir", default = "lib", help = "library installation directory")
-parser.add_argument("--petsc_revision", default = "master", help = "PETSc git revision")
+parser.add_argument("--petsc_revision", default = "81b0e57", help = "PETSc git revision")
 args = parser.parse_args()
 
 if args.release: build_type = "release"
