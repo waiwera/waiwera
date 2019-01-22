@@ -13,6 +13,11 @@
     - ninja-build
     - make
     - cmake
+    # - python
+    # - python-dev
+    - python3
+    - python3-dev
+    - python-setuptools
 
 - name: Install compilers
   apt:
@@ -34,24 +39,44 @@
     - libblas-dev
     - liblapack-dev
 
+- name: Install PETSc dependencies
+  apt:
+    name: "{{ packages }}"
+    state: present
+    update_cache: yes
+  vars:
+    packages:
+    - bison
+    - flex
+
 - name: Install pip
   apt:
-    name: python3-pip
+    name:  "{{ packages }}"
     state: present
+  vars:
+    packages:
+    - python3-pip
 
 - name: Update pip to lates version with pip
   pip:
-    name: pip
+    name: "{{ packages }}"
+    executable: pip3
+  vars:
+      packages:
+      - pip
+
 
 - name: Intall meson
   pip:
     name: meson
+    executable: pip3
 
 - name: set opt_paths
   copy:
     src: "{{ role_path }}/files/opt_paths.sh"
     dest: /etc/profile.d/opt_paths.sh
-    remote_src: yes
+    # remote_src: yes
+    remote_src: no
   tags:
     - not_packer
 
@@ -73,3 +98,12 @@
     - /opt/app/bin
     - /opt/app/lib
     - /opt/app/include
+
+- name: change app deployment ownership
+  file:
+    dest: /opt/app
+    owner: vagrant
+    group: vagrant
+    recurse: yes
+  tags:
+    - vagrant

@@ -4,23 +4,38 @@
   file:
     state: absent
     path: /opt/app/waiwera
+  tags:
+    - clean
 
 - name: Fetch supermodels-test from github
   git:
     repo: "https://{{ waiwera_user | urlencode }}:{{ waiwera_pwd  | urlencode }}@github.com/johnburnell/supermodels-test.git"
     dest: /opt/app/waiwera
-    version: meson-petsc
+    version: meson
+
+# - name: Setup PETSc
+#   include: petsc.yml
 
 # - name: replace HOME with app directory
 #   replace:
 #     dest: /opt/app/supermodels-test/makefile
 #     regexp: '\$\(HOME\)'
 #     replace: '/opt/app'
-
-- name: Make the supermodels-test
-  shell: meson
+- name: Run config.py
+  shell: python config.py --prefix /opt/app/waiwera  --petsc_revision=81b0e57
   args:
     chdir: /opt/app/waiwera
+
+
+# - name: Meson build
+#   shell: meson build --buildtype release --prefix /opt/app/waiwera # -Dlibdir=/opt/app/lib
+#   args:
+#     chdir: /opt/app/waiwera
+
+- name: Ninja build
+  shell: ninja -C build
+  args:
+    chdir: /opt/app/waiwera/
 
 - name: Set file permissions supermodels
   file:
@@ -29,3 +44,5 @@
     group: root
     mode: u=rwX,g=rwX,o=rwX
     recurse: yes
+  tags:
+    - docker

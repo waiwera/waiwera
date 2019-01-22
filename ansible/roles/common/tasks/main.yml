@@ -2,6 +2,7 @@
 
 - name: Run the common tasks to setup waiwera
   include: base.yml
+  become: yes
 
 # - name: Setup PETSc
 #   include: petsc.yml
@@ -9,21 +10,24 @@
 # - name: Setup fruit
 #   include: fruit.yml
 #
-# - name: Setup fson
-#   include: fson.yml
+- name: Setup fson
+  include: fson.yml
 
 - name: Setup and test waiwera
   #vars_file: secrets.yml
   environment:
-    PETSC_DIR: /opt/app/petsc
+    PETSC_DIR: /opt/app/waiwera/external/PETSc
     PETSC_ARCH: arch-linux2-c-debug
     LD_LIBRARY_PATH: "/opt/app/lib"
     PYTHONPATH: "/opt/app/PyTOUGH:/opt/app/credo2:/opt/app/supermodels-test/utils"
     PATH: "{{ ansible_env.PATH }}:/opt/app/bin:/opt/app/supermodels-test/dist"
-  include: supermodels.yml
+    PKG_CONFIG_PATH: "/opt/app/waiwera/lib/pkgconfig"
+  include: waiwera.yml
 
 - name: Cleanup
   include: cleanup.yml
+  tags:
+    - docker
 
 - name: change app deployment ownership
   file:
@@ -31,6 +35,8 @@
     owner: root
     group: root
     recurse: yes
+  tags:
+    - docker
 
 - name: change /usr/local deployment ownership
   file:
@@ -38,3 +44,5 @@
     owner: root
     group: root
     recurse: yes
+  tags:
+    - docker

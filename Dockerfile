@@ -3,7 +3,7 @@ FROM debian:9
 ARG waiwera_user
 ARG waiwera_pwd
 
-ENV PETSC_DIR=/opt/app/petsc
+ENV PETSC_DIR=/opt/app/waiwera/external/PETSc
 ENV PETSC_ARCH=arch-linux2-c-debug
 ENV LD_LIBRARY_PATH="/opt/app/lib"
 ENV PYTHONPATH=/"/opt/app/PyTOUGH:/opt/app/credo2:/opt/app/supermodels-test/utils"
@@ -20,7 +20,7 @@ RUN pip3 install ansible
 ADD ansible /srv/ansible
 WORKDIR /srv/
 
-RUN /usr/local/bin/ansible-playbook -c local ansible/site.yml -e "waiwera_user=${waiwera_user}" -e "waiwera_pwd=${waiwera_pwd}"
+RUN /usr/local/bin/ansible-playbook -c local ansible/site.yml -v -e "waiwera_user=${waiwera_user}" -e "waiwera_pwd=${waiwera_pwd}"
 
 WORKDIR /opt/app/supermodels-test
 

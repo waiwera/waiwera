@@ -11,6 +11,8 @@
     path: /opt/app/{{ item }}
   with_items:
   - fson
+  tags:
+    - clean
 
 - name: Fetch fson from github
   git:
@@ -33,7 +35,7 @@
     chdir: /opt/app/fson
     target: install
 
-- name: Clean fson paths
+- name: Remove fson downloads
   file:
     state: absent
     path: /opt/app/{{ item }}

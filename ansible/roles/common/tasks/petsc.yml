@@ -3,35 +3,64 @@
 - name: Clean petsc paths
   file:
     state: absent
-    path: /opt/app/{{ item }}
+    path: /opt/app/waiwera/external/{{ item }}
   with_items:
-  - petsc
+  - PETSc
+  tags:
+    - clean
 
 - name: Fetch PETSc from bitbucket
   git:
     repo: 'https://bitbucket.org/petsc/petsc.git'
-    dest: /opt/app/petsc
+    # dest: /opt/app/petsc
+    dest: /opt/app/waiwera/external/PETSc
     version: master
     # v3.10.2 doesn't work
 
+- name: Create build directory structure
+  file:
+    path: "{{ item }}"
+    state: directory
+  with_items:
+    - /opt/app/waiwera/build
+    - /opt/app/waiwera/lib/pkgconfig
+
 - name: change PETSc ownership
   file:
-    dest: /opt/app/petsc
+    dest: /opt/app/waiwera/external/PETSc
     owner: root
     group: root
     recurse: yes
+  tags:
+    - docker
 
 - name: Running ./configure for PETSc
   command: >
     ./configure --download-fblaslapack --download-triangle --download-netcdf
      --download-exodusii --download-pnetcdf --download-hdf5
-     --download-ptscotch  --download-chaco
+     --download-ptscotch  --download-chaco --download-zlib
      --with-zlib
   args:
-    chdir: /opt/app/petsc/
-       # --with-mpi-dir=/opt/app/
+    chdir: /opt/app/waiwera/external/PETSc
+  #With_items:
+    # downloads
+
+# --with-mpi-dir=/opt/app/
 # --with-fc=gfortran-6
 
 - name: Make PETSc
   make:
-    chdir: /opt/app/petsc
+    target: all
+    chdir: /opt/app/waiwera/external/PETSc
+
+- name:  Check PETSc
+  make:
+    target: check
+    chdir: /opt/app/waiwera/external/PETSc
+
+
+- name: Copy petsc pkgconfig
+  copy:
+    src: /opt/app/waiwera/external/PETSc/arch-linux2-c-debug/lib/pkgconfig/PETSc.pc
+    dest: /opt/app/waiwera/lib/pkgconfig/PETSc.pc
+    remote_src: yes
