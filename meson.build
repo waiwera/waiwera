@@ -6,7 +6,7 @@ project('waiwera', ['c', 'fortran'],
         meson_version: '>=0.46.0')
 
 mpi   = dependency('mpi', language: 'fortran')
-PETSc = dependency('PETSc', version: '>=3.10.1')
+PETSc = dependency('PETSc', version: ['>=3.10.1', '<=3.10.3'])
 fson  = dependency('fson',  version: '>=1.0.0', fallback: ['fson', 'fson_dep'])
 zofu  = dependency('zofu',  version: '>=0.1.0', fallback: ['zofu', 'zofu_dep'])
 
