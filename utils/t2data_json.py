@@ -87,8 +87,8 @@ class t2data_export_json(t2data):
                         "cells": blkindices,
                         "permeability_direction": con.direction})
             else:
-                d = con.block[1].centre - con.block[0].centre
-                d2 = np.dot(rotation, d[0:2])
+                d = geo.column[colnames[1]].centre - geo.column[colnames[0]].centre
+                d2 = np.dot(rotation, d)
                 expected_direction = np.argmax(abs(d2)) + 1
                 if con.direction != expected_direction:
                     face_directions.append({
