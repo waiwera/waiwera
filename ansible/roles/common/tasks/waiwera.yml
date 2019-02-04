@@ -13,24 +13,24 @@
     dest: /opt/app/waiwera
     version: meson
 
-# - name: Setup PETSc
-#   include: petsc.yml
+- name: Setup PETSc
+  include: petsc.yml
 
 # - name: replace HOME with app directory
 #   replace:
 #     dest: /opt/app/supermodels-test/makefile
 #     regexp: '\$\(HOME\)'
 #     replace: '/opt/app'
-- name: Run config.py
-  shell: python config.py --prefix /opt/app/waiwera  --petsc_revision=81b0e57
-  args:
-    chdir: /opt/app/waiwera
-
-
-# - name: Meson build
-#   shell: meson build --buildtype release --prefix /opt/app/waiwera # -Dlibdir=/opt/app/lib
+# - name: Run config.py
+#   shell: python config.py --prefix /opt/app/waiwera  --petsc_revision=81b0e57
 #   args:
 #     chdir: /opt/app/waiwera
+
+
+- name: Meson build
+  shell: meson build --buildtype release --prefix /opt/app/waiwera # -Dlibdir=/opt/app/lib
+  args:
+    chdir: /opt/app/waiwera
 
 - name: Ninja build
   shell: ninja -C build

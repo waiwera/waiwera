@@ -14,7 +14,7 @@
     repo: 'https://bitbucket.org/petsc/petsc.git'
     # dest: /opt/app/petsc
     dest: /opt/app/waiwera/external/PETSc
-    version: master
+    version: 81b0e57
     # v3.10.2 doesn't work
 
 - name: Create build directory structure
