@@ -1,5 +1,6 @@
 run/*
 !run/gproblem5.*
+!run/problem5*.dat
 !run/*.json
 !run/*.listing
 output/
