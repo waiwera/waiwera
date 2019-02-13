@@ -102,7 +102,7 @@ if not petsc_found():
     petsc_config(petsc_dir)
     petsc_build(petsc_dir)
     petsc_check(petsc_dir)
-copy_petsc_pkgconfig()
+    copy_petsc_pkgconfig()
 
 set_rpath = 'false' if args.no_rpath else 'true'
 
