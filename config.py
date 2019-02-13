@@ -32,8 +32,7 @@ def env_update(key, value, separator = ' '):
 def petsc_found():
     """Returns true if PETSc library is discoverable by pkg-config and
     PETSc environment variables are set"""
-    return subprocess.Popen(["pkg-config", "--exists", "PETSc"]).wait() == 0 and \
-        "PETSC_DIR" in env and "PETSC_ARCH" in env
+    return subprocess.Popen(["pkg-config", "--exists", "PETSc"]).wait() == 0
 
 def petsc_mkdir():
     """Creates directory for building PETSc and returns the path to it"""
