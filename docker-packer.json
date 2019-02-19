@@ -4,16 +4,34 @@
         "image": "debian:9",
         "commit": true,
         "changes": [
-            "WORKDIR /opt/app/supermodels-test",
-            "ENV PETSC_DIR=/opt/app/petsc",
-            "ENV PETSC_ARCH=arch-linux2-c-debug",
-            "ENV LD_LIBRARY_PATH=/opt/app/lib",
-            "ENV PYTHONPATH=\"/opt/app/PyTOUGH:/opt/app/credo2:/opt/app/supermodels-test/utils\"",
-            "ENV PATH=\"$PATH:/opt/app/bin:/opt/app/supermodels-test/dist\""
-        ]
-    }],
+            "WORKDIR {{`app_location`}}/{{`waiwera`}}",
+            "ENV PETSC_DIR /opt/app/waiwera/external/petsc",
+            "ENV PETSC_ARCH arch-linux2-c-debug",
+            "ENV LD_LIBRARY_PATH /opt/app/lib",
+            "ENV PYTHONPATH \"/opt/app/PyTOUGH:/opt/app/credo2:/opt/app/supermodels-test/utils\"",
+            "ENV PATH \"$PATH:/opt/app/bin:/opt/app/waiwera/dist\""
+        ],
+      }
+    ],
 
     "provisioners": [
+      {
+        "type": "shell",
+        "inline": [
+          "apt-get -y update && apt-get install -y  locales "
+        ]
+      },
+      {
+        "type": "shell",
+        "inline": [
+          "sed -i 's/^# *\\(en_US.UTF-8\\)/\\1/' /etc/locale.gen && locale-gen"
+        ],
+        "environment_vars": [
+            "LANG=en_US.UTF-8",
+            "LC_ALL=en_US.UTF-8",
+            "LC_TYPE=en_US.UTF-8"
+           ]
+      },
       {
         "type": "file",
         "source": "ansible/roles/common/files/opt_paths.sh",
@@ -23,7 +41,7 @@
         "type": "ansible",
         "user": "root",
         "playbook_file": "ansible/packer.yml",
-        "extra_arguments": [ "-v" , "--skip-tags=not_packer"]
+        "extra_arguments": [ "-v" , "--skip-tags=vagrant"]
     }],
 
     "post-processors": [[ {

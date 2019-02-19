@@ -1,5 +1,4 @@
 ---
-
 - name: Run the common tasks to setup waiwera
   include: base.yml
   become: yes
@@ -22,6 +21,9 @@
     PYTHONPATH: "/opt/app/PyTOUGH:/opt/app/credo2:/opt/app/supermodels-test/utils"
     PATH: "{{ ansible_env.PATH }}:/opt/app/bin:/opt/app/supermodels-test/dist"
     PKG_CONFIG_PATH: "/opt/app/waiwera/lib/pkgconfig"
+    LANG: en_US.UTF-8
+    LC_ALL: en_US.UTF-8
+    LC_TYPE: en_US.UTF-8
   include: waiwera.yml
 
 - name: Cleanup
