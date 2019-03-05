@@ -1,4 +1,17 @@
 ---
+- name: Setup secrets
+  include_vars: secrets.yml
+  tags:
+    - packer
+
+- name: Get Variables
+  include_vars: "{{ item }}"
+  with_first_found:
+    - "../vars/{{ ansible_distribution }}-{{ ansible_distribution_major_version | int}}.yml"
+    - "../vars/{{ ansible_distribution }}.yml"
+    - "../vars/{{ ansible_os_family }}.yml"
+    - "../vars/default.yml"
+
 - name: Run the common tasks to setup waiwera
   include: base.yml
   become: yes
@@ -18,8 +31,8 @@
     PETSC_DIR: /opt/app/waiwera/external/PETSc
     PETSC_ARCH: arch-linux2-c-debug
     LD_LIBRARY_PATH: "/opt/app/lib"
-    PYTHONPATH: "/opt/app/PyTOUGH:/opt/app/credo2:/opt/app/supermodels-test/utils"
-    PATH: "{{ ansible_env.PATH }}:/opt/app/bin:/opt/app/supermodels-test/dist"
+    PYTHONPATH: "/opt/app/PyTOUGH:/opt/app/credo2:/opt/app/waiwera/utils"
+    PATH: "{{ ansible_env.PATH }}:/opt/app/bin:/opt/app/waiwera/dist"
     PKG_CONFIG_PATH: "/opt/app/waiwera/lib/pkgconfig"
     LANG: en_US.UTF-8
     LC_ALL: en_US.UTF-8

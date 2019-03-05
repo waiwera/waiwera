@@ -1,61 +1,74 @@
 ---
 
 - name: Install build-related tools
-  apt:
-    name: "{{ packages }}"
+  package:
+    name: "{{ build_tools }}"
     state: present
     update_cache: yes
-  vars:
-    packages:
-    - git
-    - pkg-config
-    - valgrind
-    - ninja-build
-    - make
-    - cmake
-    # - python
-    # - python-dev
-    - python3
-    - python3-dev
-    - python-setuptools
+  # vars:
+  #   packages:
+  #   - git
+  #   - pkg-config
+  #   - valgrind
+  #   - ninja-build
+  #   - make
+  #   - cmake
+  #   # - python
+  #   # - python-dev
+  #   - python3
+  #   - python3-dev
+  #   - python-setuptools
 
 - name: Install compilers
-  apt:
-    name: "{{ packages }}"
+  package:
+    name: "{{ compilers }}"
     state: present
-  vars:
-    packages:
-    - gcc
-    - g++
-    - gfortran
+  # vars:
+  #   packages:
+  #   - gcc
+  #   - g++
+  #   - gfortran
 
 - name: Install libraries
-  apt:
-    name: "{{ packages }}"
+  package:
+    name: "{{ libraries }}"
     state: present
-  vars:
-    packages:
-    - libopenmpi-dev
-    - libblas-dev
-    - liblapack-dev
+  # vars:
+  #   packages:
+  #   - libopenmpi-dev
+  #   - libblas-dev
+  #   - liblapack-dev
+
+# - debug:
+#     msg: "distribution {{ ansible_distribution }} "
+
+- name: load openmpi module on fedora
+  shell: "module load mpi/openmpi-x86_64"
+  when: ansible_distribution == 'Fedora'
+  become: no
+
+# - name: list modules
+#   shell: module list
+#   when: ansible_distribution == 'Fedora'
+#   become: no
 
 - name: Install PETSc dependencies
-  apt:
-    name: "{{ packages }}"
+  package:
+    name: "{{ petsc_dependencies }}"
     state: present
     update_cache: yes
-  vars:
-    packages:
-    - bison
-    - flex
+  # vars:
+  #   packages:
+  #   - bison
+  #   - flex
 
 - name: Install pip
-  apt:
-    name:  "{{ packages }}"
+  package:
+    name:  "{{ pip }}"
     state: present
-  vars:
-    packages:
-    - python3-pip
+  # vars:
+  #   packages:
+  #   - python3-pip
 
 - name: Update pip to lates version with pip
   pip:
