@@ -1,20 +1,23 @@
 build_tools:
+  # - centos-release-scl
   - git
-  - pkg-config
+  - pkgconfig
   - valgrind
   - ninja-build
   - make
   - cmake
   # - python
   # - python-dev
-  - python3
-  - python3-devel
+  - python36
+  - python36-devel
   - python-setuptools
   - libselinux-python
 
 compilers:
+  - gcc
   - gcc-gfortran
   - gcc-c++
+  - kernel-devel
 
 libraries:
   - openmpi-devel
@@ -26,7 +29,7 @@ petsc_dependencies:
   - bison
   - flex
 
-pip:
-  - python3-pip
+pip_install:
+  - python36-pip
 
-pip_ex: pip3
+pip_ex: pip3.6

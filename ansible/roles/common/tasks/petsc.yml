@@ -39,7 +39,7 @@
     ./configure --download-fblaslapack --download-triangle --download-netcdf
      --download-exodusii --download-pnetcdf --download-hdf5
      --download-ptscotch  --download-chaco --download-zlib
-     --with-zlib
+     --with-zlib 
   args:
     chdir: /opt/app/waiwera/external/PETSc
   #With_items:

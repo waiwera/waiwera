@@ -1,5 +1,27 @@
 ---
 
+# - debug:
+#     msg: "distribution {{ ansible_distribution }} family {{ ansible_os_family }}"
+
+# - name: load openmpi module on fedora
+#   shell: "module avail"
+#   when: ansible_os_family == 'RedHat'
+#   become: no
+#
+# - name: load openmpi module on fedora
+#   shell: "module add mpi/openmpi-x86_64; module list"
+#   when: ansible_os_family == 'RedHat'
+#   become: no
+#
+# - name: load openmpi module on fedora
+#   shell: "module list"
+#   when: ansible_os_family == 'RedHat'
+#   become: no
+
+# - name: list modules
+#   shell: module list
+#   when: ansible_distribution == 'Fedora'
+#   become: no
 - name: Clean supermodels-test path
   file:
     state: absent
@@ -34,6 +56,13 @@
 
 - name: Ninja build
   shell: ninja -C build
+  when: ansible_distribution != 'CentOS'
+  args:
+    chdir: /opt/app/waiwera/
+
+- name:  Ninja build - CentOS
+  shell: "ninja-build -C build"
+  when: ansible_distribution == 'CentOS'
   args:
     chdir: /opt/app/waiwera/
 

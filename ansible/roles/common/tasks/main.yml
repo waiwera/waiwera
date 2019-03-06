@@ -15,6 +15,8 @@
 - name: Run the common tasks to setup waiwera
   include: base.yml
   become: yes
+  tags:
+    - setup
 
 # - name: Setup PETSc
 #   include: petsc.yml
@@ -24,6 +26,8 @@
 #
 - name: Setup fson
   include: fson.yml
+  tags:
+    - app
 
 - name: Setup and test waiwera
   #vars_file: secrets.yml
@@ -38,6 +42,8 @@
     LC_ALL: en_US.UTF-8
     LC_TYPE: en_US.UTF-8
   include: waiwera.yml
+  tags:
+    - app
 
 - name: Cleanup
   include: cleanup.yml

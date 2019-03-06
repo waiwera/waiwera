@@ -25,5 +25,7 @@ petsc_dependencies:
   - bison
   - flex
 
-pip:
+pip_install:
   - python3-pip
+
+pip_ex: pip3
