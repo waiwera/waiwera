@@ -8,36 +8,32 @@
 - name: Clean fson paths
   file:
     state: absent
-    path: /opt/app/{{ item }}
-  with_items:
-  - fson
+    path: "{{ fson_path }}"
   tags:
     - clean
 
 - name: Fetch fson from github
   git:
     repo: 'https://github.com/josephalevin/fson.git'
-    dest: /opt/app/fson
+    dest:  "{{ fson_path }}"
     version: master
 
 - name: replace HOME with app directory
   replace:
-    dest: /opt/app/fson/makefile
+    dest: "{{ fson_path + '/makefile' }}"
     regexp: '\$\(HOME\)'
-    replace: '/opt/app'
+    replace: '{{ install_location }}'
 
 - name: Make fson
   make:
-    chdir: /opt/app/fson
+    chdir: "{{ fson_path }}"
 
 - name: Make install fson
   make:
-    chdir: /opt/app/fson
+    chdir: "{{ fson_path }}"
     target: install
 
 - name: Remove fson downloads
   file:
     state: absent
-    path: /opt/app/{{ item }}
-  with_items:
-  - fson
+    path:  "{{ fson_path }}"

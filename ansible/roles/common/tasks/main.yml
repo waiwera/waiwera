@@ -4,6 +4,9 @@
   tags:
     - packer
 
+- name: Get default Variables
+  include_vars: "../vars/default.yml"
+
 - name: Get Variables
   include_vars: "{{ item }}"
   with_first_found:
@@ -11,6 +14,21 @@
     - "../vars/{{ ansible_distribution }}.yml"
     - "../vars/{{ ansible_os_family }}.yml"
     - "../vars/default.yml"
+
+- name: Set install location
+  set_fact:
+    install_location: "{{ app_dir }}/waiwera"
+
+- name: Set Paths
+  set_fact:
+    petsc_path: "{{ install_location + '/external/PETSc'}}"
+    ld_library_path: "{{ install_location + '/lib'}}"
+    fson_path: "{{ install_location + '/external/fson'}}"
+    bin_path: "{{ install_location + '/bin'}}"
+    pkgconfig_path: "{{ install_location + '/lib/pkgconfig'}}"
+    dist_path: "{{ install_location }}/dist"
+    util_path: "{{ install_location }}/utils"
+    include_path: "{{ install_location }}/include"
 
 - name: Run the common tasks to setup waiwera
   include: base.yml
@@ -24,20 +42,19 @@
 # - name: Setup fruit
 #   include: fruit.yml
 #
-- name: Setup fson
-  include: fson.yml
-  tags:
-    - app
+# - name: Setup fson
+#   include: fson.yml
+#   tags:
+#     - app
 
 - name: Setup and test waiwera
-  #vars_file: secrets.yml
   environment:
-    PETSC_DIR: /opt/app/waiwera/external/PETSc
+    PETSC_DIR: "{{ petsc_path }}"
     PETSC_ARCH: arch-linux2-c-debug
-    LD_LIBRARY_PATH: "/opt/app/lib"
-    PYTHONPATH: "/opt/app/PyTOUGH:/opt/app/credo2:/opt/app/waiwera/utils"
-    PATH: "{{ ansible_env.PATH }}:/opt/app/bin:/opt/app/waiwera/dist"
-    PKG_CONFIG_PATH: "/opt/app/waiwera/lib/pkgconfig"
+    LD_LIBRARY_PATH: "{{ ld_library_path }}"
+    PYTHONPATH: "{{ util_path }}"
+    PATH: "{{ ansible_env.PATH }}:{{ bin_path }}:{{dist_path}}"
+    PKG_CONFIG_PATH: "{{ pkgconfig_path }}"
     LANG: en_US.UTF-8
     LC_ALL: en_US.UTF-8
     LC_TYPE: en_US.UTF-8
@@ -52,7 +69,7 @@
 
 - name: change app deployment ownership
   file:
-    dest: /opt/app
+    dest: "{{ install_location }}"
     owner: root
     group: root
     recurse: yes

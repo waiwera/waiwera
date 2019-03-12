@@ -5,65 +5,40 @@
     name: "{{ build_tools }}"
     state: present
     update_cache: yes
-  # vars:
-  #   packages:
-  #   - git
-  #   - pkg-config
-  #   - valgrind
-  #   - ninja-build
-  #   - make
-  #   - cmake
-  #   # - python
-  #   # - python-dev
-  #   - python3
-  #   - python3-dev
-  #   - python-setuptools
+
 
 - name: Install compilers
   package:
     name: "{{ compilers }}"
     state: present
-  # vars:
-  #   packages:
-  #   - gcc
-  #   - g++
-  #   - gfortran
 
 - name: Install libraries
   package:
     name: "{{ libraries }}"
     state: present
-  # vars:
-  #   packages:
-  #   - libopenmpi-dev
-  #   - libblas-dev
-  #   - liblapack-dev
+
 
 - name: Install PETSc dependencies
   package:
     name: "{{ petsc_dependencies }}"
     state: present
     update_cache: yes
-  # vars:
-  #   packages:
-  #   - bison
-  #   - flex
+
 
 - name: Install pip
   package:
     name:  "{{ pip_install }}"
     state: present
-  # vars:
-  #   packages:
-  #   - python3-pip
 
-- name: Update pip to lates version with pip
+- name: Update pip to latest version with pip
   pip:
     name: "{{ packages }}"
     executable: "{{ pip_ex }}"
   vars:
       packages:
       - pip
+  # when: ansible_os_family != 'Archlinux'
+  become: no
 
 - name: Intall meson
   pip:
@@ -77,11 +52,6 @@
   when: ansible_os_family == 'RedHat'
   become: no
 
-# - name:  list module
-#   shell: module list
-#   when: ansible_os_family == 'RedHat'
-#   become: no
-
 - name: set opt_paths
   copy:
     src: "{{ role_path }}/files/opt_paths.sh"
@@ -91,28 +61,9 @@
   tags:
     - not_packer
 
-# - name: Clean app directory structure
-#   file:
-#     state: absent
-#     path: /opt/app/{{ item }}
-#   with_items:
-#   - bin
-#   - lib
-#   - include
-
-- name: Creates app directory structure
-  file:
-    path: "{{ item }}"
-    state: directory
-  with_items:
-    - /opt/app
-    - /opt/app/bin
-    - /opt/app/lib
-    - /opt/app/include
-
 - name: change app deployment ownership
   file:
-    dest: /opt/app
+    dest: "{{ install_location }}"
     owner: vagrant
     group: vagrant
     recurse: yes

@@ -2,31 +2,31 @@ build_tools:
   - git
   - pkg-config
   - valgrind
-  - ninja-build
+  - ninja
   - make
   - cmake
   # - python
   # - python-dev
   - python3
-  - python3-dev
-  - python-setuptools
+  # - python-setuptools
 
 compilers:
   - gcc
-  - g++
-  - gfortran
+  # - gcc-c++
+  - gcc-fortran
 
 libraries:
-  - libopenmpi-dev
-  - libblas-dev
-  - liblapack-dev
+  - openmpi
+  - blas
+  - lapack
+  - hdf5-openmpi
 
 petsc_dependencies:
   - bison
   - flex
 
 pip_install:
-  - python3-pip
+  - python-pip
 
 pip_ex: pip3
 
@@ -39,5 +39,5 @@ petsc_options:
   - download-ptscotch
   - download-chaco
   - download-zlib
-  - download-hdf5
   - with-zlib
+  - with-hdf5

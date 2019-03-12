@@ -25,18 +25,42 @@
 - name: Clean supermodels-test path
   file:
     state: absent
-    path: /opt/app/waiwera
+    path: "{{ install_location }}"
   tags:
     - clean
 
 - name: Fetch supermodels-test from github
   git:
     repo: "https://{{ waiwera_user | urlencode }}:{{ waiwera_pwd  | urlencode }}@github.com/johnburnell/supermodels-test.git"
-    dest: /opt/app/waiwera
+    dest:  "{{ install_location }}"
     version: meson
+
+- name: Creates app directory structure
+  file:
+    path: "{{ item }}"
+    state: directory
+  with_items:
+    - "{{ install_location }}"
+    - "{{ bin_path }}"
+    - "{{ ld_library_path }}"
+    - "{{ include_path }}"
+
+- name: change app deployment ownership
+  file:
+    dest: "{{ install_location }}"
+    owner: vagrant
+    group: vagrant
+    recurse: yes
+  tags:
+    - vagrant
 
 - name: Setup PETSc
   include: petsc.yml
+
+- name: Setup fson
+  include: fson.yml
+
+
 
 # - name: replace HOME with app directory
 #   replace:
@@ -50,25 +74,25 @@
 
 
 - name: Meson build
-  shell: meson build --buildtype release --prefix /opt/app/waiwera # -Dlibdir=/opt/app/lib
+  shell: "{{ 'meson build --buildtype release --prefix ' + install_location }}"
   args:
-    chdir: /opt/app/waiwera
+    chdir: "{{ install_location }}"
 
 - name: Ninja build
   shell: ninja -C build
   when: ansible_distribution != 'CentOS'
   args:
-    chdir: /opt/app/waiwera/
+    chdir: "{{ install_location }}"
 
 - name:  Ninja build - CentOS
   shell: "ninja-build -C build"
   when: ansible_distribution == 'CentOS'
   args:
-    chdir: /opt/app/waiwera/
+    chdir: "{{ install_location }}"
 
 - name: Set file permissions supermodels
   file:
-    dest: /opt/app/waiwera
+    dest: "{{ install_location }}"
     owner: root
     group: root
     mode: u=rwX,g=rwX,o=rwX

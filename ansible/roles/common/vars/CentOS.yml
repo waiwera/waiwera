@@ -33,3 +33,15 @@ pip_install:
   - python36-pip
 
 pip_ex: pip3.6
+
+petsc_options:
+  - download-fblaslapack
+  - download-triangle
+  - download-netcdf
+  - download-exodusii
+  - download-pnetcdf
+  - download-ptscotch
+  - download-chaco
+  - download-zlib
+  - download-hdf5
+  - with-zlib
