@@ -26,8 +26,8 @@
 - name: change PETSc ownership
   file:
     dest: "{{ petsc_path }}"
-    owner: root
-    group: root
+    owner: "{{ app_user }}"
+    group: "{{ app_group }}"
     recurse: yes
   tags:
     - docker

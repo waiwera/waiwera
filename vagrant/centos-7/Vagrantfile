@@ -29,6 +29,8 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
       ansible.raw_arguments = [
         '-e "waiwera_user=' + ENV['W_USER'] + '"',
         '-e "waiwera_pwd='+ ENV['W_PWD'] +'"',
+        '-e "app_user=vagrant"',
+        '-e "app_group=vagrant"',
         '--skip-tags=docker,clean,setup',
       ]
     end

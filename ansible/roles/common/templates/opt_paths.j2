@@ -1,0 +1,10 @@
+
+export PETSC_DIR={{ petsc_path }}
+export PETSC_ARCH=arch-linux2-c-debug
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:{{ ld_library_path }}
+export PYTHONPATH={{ util_path }}
+export PATH=$PATH:{{ bin_path }}:{{dist_path}}
+export PKG_CONFIG_PATH=$PKG_CONFIG_PATH:{{ pkgconfig_path }}
+export LANG=en_US.UTF-8
+export LC_ALL=en_US.UTF-8
+export LC_TYPE=en_US.UTF-8

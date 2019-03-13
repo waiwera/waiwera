@@ -45,27 +45,20 @@
     name: meson
     executable: "{{ pip_ex }}"
 
-- lineinfile:
+- name: Activate openmpi module at login RedHat OS family
+  lineinfile:
     path:  ~/.bashrc
     regexp: '^module add mpi'
     line: 'module add mpi/openmpi-x86_64'
   when: ansible_os_family == 'RedHat'
   become: no
 
-- name: set opt_paths
-  copy:
-    src: "{{ role_path }}/files/opt_paths.sh"
+
+- name: set opt_paths.sh with template
+  template:
+    src: opt_paths.j2
     dest: /etc/profile.d/opt_paths.sh
     # remote_src: yes
-    remote_src: no
+    # remote_src: no
   tags:
     - not_packer
-
-- name: change app deployment ownership
-  file:
-    dest: "{{ install_location }}"
-    owner: vagrant
-    group: vagrant
-    recurse: yes
-  tags:
-    - vagrant

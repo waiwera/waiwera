@@ -93,8 +93,8 @@
 - name: Set file permissions supermodels
   file:
     dest: "{{ install_location }}"
-    owner: root
-    group: root
+    owner: "{{ app_user }}"
+    group: "{{ app_group }}"
     mode: u=rwX,g=rwX,o=rwX
     recurse: yes
   tags:

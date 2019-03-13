@@ -4,8 +4,8 @@
   tags:
     - packer
 
-- name: Get default Variables
-  include_vars: "../vars/default.yml"
+# - name: Get default Variables
+#   include_vars: "../vars/default.yml"
 
 - name: Get Variables
   include_vars: "{{ item }}"
@@ -70,8 +70,8 @@
 - name: change app deployment ownership
   file:
     dest: "{{ install_location }}"
-    owner: root
-    group: root
+    owner: "{{ app_user }}"
+    group: "{{ app_group }}"
     recurse: yes
   tags:
     - docker

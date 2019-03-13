@@ -1,0 +1,6 @@
+---
+# file: roles/x/defaults/main.yml
+# if not overridden in inventory or as a parameter, this is the value that will be used
+app_dir: /opt/app
+app_user: root
+app_group: root
