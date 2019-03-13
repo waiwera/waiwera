@@ -4,16 +4,10 @@
         "image": "debian:9",
         "commit": true,
         "changes": [
-            "WORKDIR {{`app_location`}}/{{`waiwera`}}",
-            "ENV PETSC_DIR /opt/app/waiwera/external/petsc",
-            "ENV PETSC_ARCH arch-linux2-c-debug",
-            "ENV LD_LIBRARY_PATH /opt/app/lib",
-            "ENV PYTHONPATH \"/opt/app/PyTOUGH:/opt/app/credo2:/opt/app/supermodels-test/utils\"",
-            "ENV PATH \"$PATH:/opt/app/bin:/opt/app/waiwera/dist\""
-        ],
+            "WORKDIR {{`app_location`}}/{{`waiwera`}}"
+        ]
       }
     ],
-
     "provisioners": [
       {
         "type": "shell",
@@ -33,17 +27,15 @@
            ]
       },
       {
-        "type": "file",
-        "source": "ansible/roles/common/files/opt_paths.sh",
-        "destination": "/etc/profile.d/opt_paths.sh"
-      },
-      {
         "type": "ansible",
         "user": "root",
         "playbook_file": "ansible/packer.yml",
-        "extra_arguments": [ "-v" , "--skip-tags=vagrant"]
-    }],
-
+        "extra_arguments": [ "-v" ,
+                              "-e 'waiwera_user={{ w_user }}" ,
+                              "-e 'waiwera_pwd={{ w_pwd }}" ,
+                             "--skip-tags=vagrant"
+        ],
+      
     "post-processors": [[ {
         "type": "docker-tag",
         "repository": "thar102/waiwera",
