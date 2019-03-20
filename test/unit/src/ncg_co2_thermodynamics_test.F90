@@ -22,7 +22,7 @@ contains
   subroutine test_ncg_co2_henrys_constant
 
     ! CO2 Henry's constant.
-    ! Expected values are from AUTOUGH2.
+    ! Expected values are from the equation of Harvey (1996).
 
     type(ncg_co2_thermodynamics_type) :: gas
     PetscReal :: temperature, expected, hc
@@ -39,28 +39,34 @@ contains
     if (rank == 0) then
 
        temperature = 20._dp
-       expected = 0.690552871945e-08_dp
+       expected = 6.89540973891618e-09_dp
        call gas%henrys_constant(temperature, hc, err)
        call assert_equals(0, err, trim(s) // " 20 deg C error")
        call assert_equals(expected, hc, tol, trim(s) // " 20 deg C")
 
        temperature = 100._dp
-       expected = 0.181629386327e-08_dp
+       expected = 1.96974150544782e-09_dp
        call gas%henrys_constant(temperature, hc, err)
        call assert_equals(0, err, trim(s) // " 100 deg C error")
        call assert_equals(expected, hc, tol, trim(s) // " 100 deg C")
 
        temperature = 240._dp
-       expected = 0.191626750106e-08_dp
+       expected = 2.03954398651234e-09_dp
        call gas%henrys_constant(temperature, hc, err)
        call assert_equals(0, err, trim(s) // " 240 deg C error")
        call assert_equals(expected, hc, tol, trim(s) // " 240 deg C")
 
        temperature = 300._dp
-       expected = 0.268879436880e-08_dp
+       expected = 2.99647810782052e-09_dp
        call gas%henrys_constant(temperature, hc, err)
        call assert_equals(0, err, trim(s) // " 300 deg C error")
        call assert_equals(expected, hc, tol, trim(s) // " 300 deg C")
+
+       temperature = 350._dp
+       expected = 5.24213928223133e-09_dp
+       call gas%henrys_constant(temperature, hc, err)
+       call assert_equals(0, err, trim(s) // " 350 deg C error")
+       call assert_equals(expected, hc, tol, trim(s) // " 350 deg C")
 
     end if
 
@@ -86,32 +92,39 @@ contains
     if (rank == 0) then
 
        temperature = 20._dp
-       expected = -495750.87299689_dp
+       expected = -4.50707852456697e05_dp
        call gas%henrys_constant(temperature, hc, err)
        call gas%energy_solution(temperature, hc, hs, err)
        call assert_equals(0, err, trim(s) // " 20 deg C error")
        call assert_equals(expected, hs, tol, trim(s) // " 20 deg C")
 
        temperature = 100._dp
-       expected = -180685.98723494_dp
+       expected = -1.80438466198992e05_dp
        call gas%henrys_constant(temperature, hc, err)
        call gas%energy_solution(temperature, hc, hs, err)
        call assert_equals(0, err, trim(s) // " 100 deg C error")
        call assert_equals(expected, hs, tol, trim(s) // " 100 deg C")
 
        temperature = 240._dp
-       expected = 242741.64505202_dp
+       expected = 2.43784386673480e05_dp
        call gas%henrys_constant(temperature, hc, err)
        call gas%energy_solution(temperature, hc, hs, err)
        call assert_equals(0, err, trim(s) // " 240 deg C error")
        call assert_equals(expected, hs, tol, trim(s) // " 240 deg C")
 
        temperature = 300._dp
-       expected = 407409.27618764_dp
+       expected = 5.06046343233981e05_dp
        call gas%henrys_constant(temperature, hc, err)
        call gas%energy_solution(temperature, hc, hs, err)
        call assert_equals(0, err, trim(s) // " 300 deg C error")
        call assert_equals(expected, hs, tol, trim(s) // " 300 deg C")
+
+       temperature = 350._dp
+       expected = 1.23423791726917e06_dp
+       call gas%henrys_constant(temperature, hc, err)
+       call gas%energy_solution(temperature, hc, hs, err)
+       call assert_equals(0, err, trim(s) // " 350 deg C error")
+       call assert_equals(expected, hs, tol, trim(s) // " 350 deg C")
 
     end if
 
