@@ -19,6 +19,7 @@ module ncg_co2_thermodynamics_module
        vp3 = -11.7811_dp, vp4 = 22.6705_dp, vp5 = -15.9393_dp, vp6 = 1.77516_dp
   ! Coefficients of Harvey's equation for Henry's constant, from Fernandez-Prini et al (2003):
   PetscReal, parameter :: ha = -8.55445_dp, hb = 4.01195_dp, hc = 9.52345_dp
+  PetscReal, parameter :: hp1 = 0.355_dp, hp2 = -0.41_dp
   PetscReal, parameter :: logpc = log(pcritical)
   PetscReal, parameter :: viscosity_data(5, 6) = reshape([ &
        0._dp, 10._dp, 15._dp, 20._dp, 30._dp, &
@@ -137,8 +138,8 @@ contains
       a = vp1 * tau + vp2 * tau15 + vp3 * tau3 + &
            vp4 * tau35 + vp5 * tau4 + vp6 * tau75
       logps = logpc + tcriticalk / tk * a
-      logp = logps + (ha + hb * tau**0.355_dp) / tstar + &
-           hc * exp(tau) * tstar**(-0.41_dp)
+      logp = logps + (ha + hb * tau**hp1) / tstar + &
+           hc * exp(tau) * tstar**hp2
       henrys_constant = 1._dp / exp(logp)
 
     end associate
@@ -187,10 +188,10 @@ contains
            4._dp * vp5 * tau3 + 7.5_dp * vp6 * tau65
       dlogps = -(da * tstar + a) / (tstar2 * tcriticalk)
       henrys_derivative = dlogps - &
-           ((ha + hb * tau**0.355_dp * &
-           (0.355_dp / tau * tstar + 1._dp)) / tstar2 + &
-           hc * exp(tau) * tstar**-0.41_dp * &
-           (1._dp + 0.41_dp / tstar)) / tcriticalk
+           ((ha + hb * tau**hp1 * &
+           (hp1 / tau * tstar + 1._dp)) / tstar2 + &
+           hc * exp(tau) * tstar**hp2 * &
+           (1._dp - hp2 / tstar)) / tcriticalk
 
     end associate
 
