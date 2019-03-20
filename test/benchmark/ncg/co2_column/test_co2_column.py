@@ -115,7 +115,7 @@ for run_index, run_name in enumerate(run_names):
                                               ordering_map = map_out_atm)
     co2_column_test.addTestComp(run_index, "AUTOUGH2",
                       FieldWithinTolTC(fieldsToTest = test_fields,
-                                       defFieldTol = 1.e-3,
+                                       defFieldTol = 2.e-3,
                                        expected = AUTOUGH2_result[run_name],
                                        testOutputIndex = -1))
 
@@ -132,7 +132,7 @@ for run_index, run_name in enumerate(run_names):
                 co2_column_test.addTestComp(run_index, ' '.join((sim, field_name)),
                                           OneDSolutionWithinTolTC(
                                               fieldsToTest = [field_name],
-                                              defFieldTol = 0.07,
+                                              defFieldTol = 0.1,
                                               expected = result,
                                               coordinateIndex = 1,
                                               testOutputIndex = -1))

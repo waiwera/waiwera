@@ -83,13 +83,13 @@ AUTOUGH2_result = T2ModelResult("AUTOUGH2", run_filename,
 
 co2_one_cell_test.addTestComp(run_index, "AUTOUGH2 history",
                       HistoryWithinTolTC(fieldsToTest = test_fields,
-                                         defFieldTol = 1.e-3,
+                                         defFieldTol = 1.e-2,
                                          expected = AUTOUGH2_result,
                                          testCellIndex = obs_cell_index))
 
 co2_one_cell_test.addTestComp(run_index, "AUTOUGH2 source history",
                       HistoryWithinTolTC(fieldsToTest = test_source_fields,
-                                         defFieldTol = 1.e-3,
+                                         defFieldTol = 5.e-3,
                                          expected = AUTOUGH2_result,
                                          testSourceIndex = source_index))
 
