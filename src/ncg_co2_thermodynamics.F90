@@ -7,16 +7,19 @@ module ncg_co2_thermodynamics_module
   use kinds_module
   use ncg_thermodynamics_module
   use interpolation_module, only: interpolation_table_type
+  use thermodynamics_module, only: pcritical
 
   implicit none
   private
 
   PetscReal, parameter, public :: co2_molecular_weight = 44.01_dp ! g/mol
-  PetscReal, parameter :: henry_data(6) = [&
-       0.783666_dp, 1.96025_dp, 8.20574_dp, &
-       -7.40674_dp, 2.18380_dp, -0.220999_dp]
-  PetscReal, parameter :: henry_derivative_data(5) = 10._dp * &
-       henry_data(2: 6) * [1._dp, 2._dp, 3._dp, 4._dp, 5._dp]
+  ! Coefficients for water vapour pressure equation of Saul and Wagner (1987), used
+  ! in calculation of Henry's constant:
+  PetscReal, parameter :: vp1 = -7.85823_dp, vp2 = 1.83991_dp, &
+       vp3 = -11.7811_dp, vp4 = 22.6705_dp, vp5 = -15.9393_dp, vp6 = 1.77516_dp
+  ! Coefficients of Harvey's equation for Henry's constant, from Fernandez-Prini et al (2003):
+  PetscReal, parameter :: ha = -8.55445_dp, hb = 4.01195_dp, hc = 9.52345_dp
+  PetscReal, parameter :: logpc = log(pcritical)
   PetscReal, parameter :: viscosity_data(5, 6) = reshape([ &
        0._dp, 10._dp, 15._dp, 20._dp, 30._dp, &
        1.3578_dp, 3.9189_dp, 9.6607_dp, 13.1566_dp, 14.7968_dp, &
@@ -106,22 +109,39 @@ contains
 !------------------------------------------------------------------------
 
   subroutine ncg_co2_henrys_constant(self, temperature, henrys_constant, err)
-    !! Henry's constant for CO2 NCG.
+    !! Henry's constant for CO2 NCG, from Harvey (1996).
 
-    use utils_module, only: polynomial
+    use thermodynamics_module, only: tc_k, tcriticalk
 
     class(ncg_co2_thermodynamics_type), intent(in) :: self
     PetscReal, intent(in) :: temperature !! Temperature
     PetscReal, intent(out) :: henrys_constant !! Henry's constant
     PetscErrorCode, intent(out) :: err !! Error code
+    ! Locals:
+    PetscReal :: tstar, tau, sqrtau, tau15, tau3, tau35, tau4, tau75
+    PetscReal :: a, logps, logp
 
-    if (temperature <= 300._dp) then
-       henrys_constant = 1.e-8_dp / polynomial(henry_data, &
-            temperature / tscale)
-       err = 0
-    else
-       err = 1
-    end if
+    err = 0
+
+    associate(tk => temperature + tc_k)
+
+      tstar = tk / tcriticalk
+      tau = 1._dp - tstar
+      sqrtau = sqrt(tau)
+      tau15 = tau * sqrtau
+      tau3 = tau15 * tau15
+      tau35 = tau3 * sqrtau
+      tau4 = tau3 * tau
+      tau75 = tau35 * tau4
+      ! logps is log of vapour pressure, from Saul and Wagner (1987):
+      a = vp1 * tau + vp2 * tau15 + vp3 * tau3 + &
+           vp4 * tau35 + vp5 * tau4 + vp6 * tau75
+      logps = logpc + tcriticalk / tk * a
+      logp = logps + (ha + hb * tau**0.355_dp) / tstar + &
+           hc * exp(tau) * tstar**(-0.41_dp)
+      henrys_constant = 1._dp / exp(logp)
+
+    end associate
 
   end subroutine ncg_co2_henrys_constant
 
@@ -132,17 +152,47 @@ contains
     !! Returns derivative of natural logarithm of Henry's constant
     !! with respect to temperature.
 
-    use utils_module, only: polynomial
+    use thermodynamics_module, only: tc_k, tcriticalk
 
     class(ncg_co2_thermodynamics_type), intent(in) :: self
     PetscReal, intent(in) :: temperature !! Temperature
     PetscReal, intent(in) :: henrys_constant !! Henry's constant
     PetscReal, intent(out) :: henrys_derivative !! Henry's derivative
     PetscErrorCode, intent(out) :: err !! Error code
+    ! Locals:
+    PetscReal :: tstar, tau, sqrtau, tau15, tau2, tau25, &
+         tau3, tau35, tau4, tau65, tau75, tstar2
+    PetscReal :: a, da, dlogps
 
-    henrys_derivative = 1.e7_dp * henrys_constant / tscale * &
-         polynomial(henry_derivative_data, temperature / tscale)
     err = 0
+
+    associate(tk => temperature + tc_k)
+
+      tstar = tk / tcriticalk
+      tstar2 = tstar * tstar
+      tau = 1._dp - tstar
+      sqrtau = sqrt(tau)
+      tau15 = tau * sqrtau
+      tau2 = tau * tau
+      tau25 = tau * tau15
+      tau3 = tau15 * tau15
+      tau35 = tau3 * sqrtau
+      tau4 = tau3 * tau
+      tau65 = tau3 * tau35
+      tau75 = tau35 * tau4
+      a = vp1 * tau + vp2 * tau15 + vp3 * tau3 + &
+           vp4 * tau35 + vp5 * tau4 + vp6 * tau75
+      da = vp1 + 1.5_dp * vp2 * sqrtau + &
+           3._dp * vp3 * tau2 + 3.5_dp * vp4 * tau25 + &
+           4._dp * vp5 * tau3 + 7.5_dp * vp6 * tau65
+      dlogps = -(da * tstar + a) / (tstar2 * tcriticalk)
+      henrys_derivative = dlogps - &
+           ((ha + hb * tau**0.355_dp * &
+           (0.355_dp / tau * tstar + 1._dp)) / tstar2 + &
+           hc * exp(tau) * tstar**-0.41_dp * &
+           (1._dp + 0.41_dp / tstar)) / tcriticalk
+
+    end associate
 
   end subroutine ncg_co2_henrys_derivative
 
