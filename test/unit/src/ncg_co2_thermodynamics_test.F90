@@ -91,8 +91,8 @@ contains
        temperature = 350._dp
        expected = 2.23454746875e+08_dp
        call gas%henrys_constant(temperature, hc, err)
-       call assert_equals(0, err, trim(s) // " 350 deg C error")
-       call assert_equals(expected, hc, tol, trim(s) // " 350 deg C")
+       call test%assert(0, err, trim(s) // " 350 deg C error")
+       call test%assert(expected, hc, trim(s) // " 350 deg C")
 
     end if
 
