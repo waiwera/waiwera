@@ -116,7 +116,7 @@ contains
     PetscReal, intent(out) :: henrys_constant !! Henry's constant
     PetscErrorCode, intent(out) :: err !! Error code
 
-    henrys_constant = 1.e-8_dp / polynomial(henry_data, &
+    henrys_constant = 1.e8_dp * polynomial(henry_data, &
          temperature / tscale)
     err = 0
 
@@ -137,8 +137,9 @@ contains
     PetscReal, intent(out) :: henrys_derivative !! Henry's derivative
     PetscErrorCode, intent(out) :: err !! Error code
 
-    henrys_derivative = 1.e7_dp * henrys_constant / tscale * &
-         polynomial(henry_derivative_data, temperature / tscale)
+    henrys_derivative = 1.e7_dp * &
+         polynomial(henry_derivative_data, temperature / tscale) / &
+         (henrys_constant * tscale)
     err = 0
 
   end subroutine ncg_co2_henrys_derivative
