@@ -110,6 +110,7 @@ contains
 !------------------------------------------------------------------------
 
   subroutine ncg_co2_henrys_constant(self, temperature, henrys_constant, err)
+
     !! Henry's constant for CO2 NCG, from Harvey (1996).
 
     use thermodynamics_module, only: tc_k, tcriticalk
@@ -140,9 +141,11 @@ contains
       logps = logpc + tcriticalk / tk * a
       logp = logps + (ha + hb * tau**hp1) / tstar + &
            hc * exp(tau) * tstar**hp2
-      henrys_constant = 1._dp / exp(logp)
+      henrys_constant = exp(logp)
 
     end associate
+
+    err = 0
 
   end subroutine ncg_co2_henrys_constant
 

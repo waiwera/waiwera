@@ -214,7 +214,7 @@ contains
 
     err = 0
     if (phase == 1) then
-       xmole = henrys_constant * partial_pressure
+       xmole =  partial_pressure / henrys_constant
        xg = self%mole_to_mass_fraction(xmole)
     else
        total_density = gas_density + water_density
