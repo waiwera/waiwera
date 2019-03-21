@@ -413,9 +413,6 @@ contains
             call fson_get_mpi(json, "output.fields." // trim(name), &
                  default_fields, max_field_name_length, &
                  output_fields, self%logfile)
-            do i = 1, size(output_fields)
-               output_fields(i) = str_to_lower(output_fields(i))
-            end do
          case (TYPE_STRING)
             call fson_get_mpi(json, "output.fields." // trim(name), &
                  val = fields_str)
@@ -433,13 +430,14 @@ contains
               default_fields, max_field_name_length, &
               output_fields, self%logfile)
       end if
+      output_fields = str_to_lower(output_fields)
 
       ! Check if required fields are present:
       associate(num_required => size(required_fields))
         allocate(required_missing(num_required), &
              lower_required_fields(num_required))
+        lower_required_fields = str_to_lower(required_fields)
         do i = 1, num_required
-           lower_required_fields(i) = str_to_lower(required_fields(i))
            required_missing(i) = (str_array_index( &
                 lower_required_fields(i), output_fields) == -1)
         end do
