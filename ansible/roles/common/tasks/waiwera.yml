@@ -1,27 +1,5 @@
 ---
 
-# - debug:
-#     msg: "distribution {{ ansible_distribution }} family {{ ansible_os_family }}"
-
-# - name: load openmpi module on fedora
-#   shell: "module avail"
-#   when: ansible_os_family == 'RedHat'
-#   become: no
-#
-# - name: load openmpi module on fedora
-#   shell: "module add mpi/openmpi-x86_64; module list"
-#   when: ansible_os_family == 'RedHat'
-#   become: no
-#
-# - name: load openmpi module on fedora
-#   shell: "module list"
-#   when: ansible_os_family == 'RedHat'
-#   become: no
-
-# - name: list modules
-#   shell: module list
-#   when: ansible_distribution == 'Fedora'
-#   become: no
 - name: Clean supermodels-test path
   file:
     state: absent
@@ -29,18 +7,43 @@
   tags:
     - clean
 
+- name: Install meson
+  pip:
+    name: meson
+    executable: "{{ pip_ex }}"
+    extra_args: "--user"
+  tags:
+    - vagrant
+
+- name: Install meson
+  pip:
+    name: meson
+    executable: "{{ pip_ex }}"
+    # extra_args: "--user"
+  tags:
+    - packer
+
+- name: Creates app directory
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ app_user }}"
+    group: "{{ app_group }}"
+  with_items:
+    - "{{ install_location }}"
+  become: yes
+
 - name: Fetch supermodels-test from github
   git:
     repo: "https://{{ waiwera_user | urlencode }}:{{ waiwera_pwd  | urlencode }}@github.com/johnburnell/supermodels-test.git"
     dest:  "{{ install_location }}"
-    version: meson
+    version: "{{ waiwera_version }}"
 
 - name: Creates app directory structure
   file:
     path: "{{ item }}"
     state: directory
   with_items:
-    - "{{ install_location }}"
     - "{{ bin_path }}"
     - "{{ ld_library_path }}"
     - "{{ include_path }}"
@@ -48,19 +51,15 @@
 - name: change app deployment ownership
   file:
     dest: "{{ install_location }}"
-    owner: vagrant
-    group: vagrant
+    owner: "{{ app_user }}"
+    group: "{{ app_group }}"
     recurse: yes
-  tags:
-    - vagrant
 
 - name: Setup PETSc
   include: petsc.yml
 
-- name: Setup fson
-  include: fson.yml
-
-
+# - name: Setup fson
+#   include: fson.yml
 
 # - name: replace HOME with app directory
 #   replace:

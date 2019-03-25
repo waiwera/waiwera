@@ -4,6 +4,24 @@
   tags:
     - packer
 
+- name: create user
+  user:
+   name: "{{ app_user }}"
+   shell: /bin/bash
+   uid: 1000
+   comment: waiwera app user
+  tags:
+    - docker
+
+- name: create group
+  group:
+   name: "{{ app_group }}"
+   # shell: /bin/bash
+   gid: 1000
+   # comment: waiwera app user
+  tags:
+    - docker
+
 # - name: Get default Variables
 #   include_vars: "../vars/default.yml"
 
@@ -36,24 +54,13 @@
   tags:
     - setup
 
-# - name: Setup PETSc
-#   include: petsc.yml
-#
-# - name: Setup fruit
-#   include: fruit.yml
-#
-# - name: Setup fson
-#   include: fson.yml
-#   tags:
-#     - app
-
 - name: Setup and test waiwera
   environment:
     PETSC_DIR: "{{ petsc_path }}"
     PETSC_ARCH: arch-linux2-c-debug
     LD_LIBRARY_PATH: "{{ ld_library_path }}"
     PYTHONPATH: "{{ util_path }}"
-    PATH: "{{ ansible_env.PATH }}:{{ bin_path }}:{{dist_path}}"
+    PATH: "{{ ansible_env.PATH }}:{{ bin_path }}:{{dist_path}}:{{ ansible_env.HOME }}/.local/bin"
     PKG_CONFIG_PATH: "{{ pkgconfig_path }}"
     LANG: en_US.UTF-8
     LC_ALL: en_US.UTF-8

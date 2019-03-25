@@ -1,0 +1,54 @@
+{
+    "builders": [{
+        "type": "docker",
+        "image": "debian:9",
+        "commit": true,
+        "changes": [
+            "WORKDIR {{ user `app_dir` }}/waiwera",
+            "ENV PETSC_DIR /opt/app/waiwera/external/PETSc",
+            "ENV PETSC_ARCH arch-linux2-c-debug",
+            "ENV LD_LIBRARY_PATH /opt/app/lib",
+            "ENV PYTHONPATH /opt/app/PyTOUGH:/opt/app/credo2:/opt/app/waiwera/utils",
+            "ENV PATH $PATH:/opt/app/bin:/opt/app/waiwera/dist",
+            "ENV PKG_CONFIG_PATH $PKG_CONFIG_PATH:/opt/app/waiwera/lib/pkgconfig"
+        ]}
+    ],
+    "provisioners": [
+      {
+        "type": "shell",
+        "inline": [
+          "apt-get -y update && apt-get install -y locales "
+        ]
+      },
+      {
+        "type": "shell",
+        "inline": [
+          "sed -i 's/^# *\\(en_US.UTF-8\\)/\\1/' /etc/locale.gen && locale-gen"
+        ],
+        "environment_vars": [
+            "LANG=en_US.UTF-8",
+            "LC_ALL=en_US.UTF-8",
+            "LC_TYPE=en_US.UTF-8"
+           ]
+      },
+      {
+        "type": "ansible",
+        "user": "root",
+        "playbook_file": "../ansible/packer.yml",
+        "extra_arguments": [ "-v" ,
+                              "-e waiwera_user={{ user `w_user` }}" ,
+                              "-e waiwera_pwd={{ user `w_pwd` }}" ,
+                              "-e app_dir={{ user `app_dir` }}" ,
+                              "-e app_user=waiwera",
+                              "-e app_group=waiwera",
+                             "--skip-tags=vagrant"
+        ]
+      }
+    ],
+    "post-processors": [[
+       {
+        "type": "docker-tag",
+        "repository": "thar102/waiwera",
+        "tag": "packer"
+    } ]]
+}

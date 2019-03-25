@@ -2,13 +2,14 @@ FROM debian:9
 
 ARG waiwera_user
 ARG waiwera_pwd
+ARG app_dir
 
-ENV PETSC_DIR=/opt/app/waiwera/external/PETSc
+ENV PETSC_DIR=${app_dir}/waiwera/external/PETSc
 ENV PETSC_ARCH=arch-linux2-c-debug
-ENV LD_LIBRARY_PATH="/opt/app/lib"
-ENV PYTHONPATH=/"/opt/app/PyTOUGH:/opt/app/credo2:/opt/app/waiwera/utils"
-ENV PATH="$PATH:/opt/app/bin:/opt/app/waiwera/dist"
-ENV PKG_CONFIG_PATH=$"PKG_CONFIG_PATH:/opt/app/waiwera/lib/pkgconfig"
+ENV LD_LIBRARY_PATH="${app_dir}/lib"
+ENV PYTHONPATH=/"${app_dir}/PyTOUGH:${app_dir}/credo2:${app_dir}waiwera/utils"
+ENV PATH="$PATH:${app_dir}/bin:${app_dir}/waiwera/dist"
+ENV PKG_CONFIG_PATH=$"PKG_CONFIG_PATH:${app_dir}/lib/pkgconfig"
 
 RUN apt-get clean && apt-get update && apt-get install -y locales locales-all
 
@@ -29,9 +30,9 @@ RUN pip3 install ansible
 ADD ansible /srv/ansible
 WORKDIR /srv/
 
-RUN /usr/local/bin/ansible-playbook -c local ansible/site.yml -e "waiwera_user=${waiwera_user}" -e "waiwera_pwd=${waiwera_pwd}" --skip-tags=vagrant
+RUN /usr/local/bin/ansible-playbook --connection=local ansible/docker.yml -e "waiwera_user=${waiwera_user}" -e "waiwera_pwd=${waiwera_pwd}" -e "app_dir=${app_dir}" --skip-tags=vagrant
 
-WORKDIR /opt/app/waiwera
+WORKDIR ${app_dir}/waiwera
 
 RUN pip3 uninstall ansible -y && \
     apt-get autoremove -y && apt-get autoclean -y && apt-get clean -y && \

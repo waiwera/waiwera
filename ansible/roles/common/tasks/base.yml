@@ -6,7 +6,6 @@
     state: present
     update_cache: yes
 
-
 - name: Install compilers
   package:
     name: "{{ compilers }}"
@@ -16,7 +15,6 @@
   package:
     name: "{{ libraries }}"
     state: present
-
 
 - name: Install PETSc dependencies
   package:
@@ -32,20 +30,21 @@
 
 - name: Update pip to latest version with pip
   pip:
-    name: "{{ packages }}"
+    name: pip
     executable: "{{ pip_ex }}"
-  vars:
-      packages:
-      - pip
+    extra_args: "-U"
   # when: ansible_os_family != 'Archlinux'
+
+- name:  login directory for vagrant VM
+  lineinfile:
+    path:  ~/.bashrc
+    regexp: ^cd {{ install_location}}"
+    line: "cd {{ install_location }}"
   become: no
+  tags:
+    - vagrant
 
-- name: Intall meson
-  pip:
-    name: meson
-    executable: "{{ pip_ex }}"
-
-- name: Activate openmpi module at login RedHat OS family
+- name: Activate openmpi module at login RedHat OS family Change
   lineinfile:
     path:  ~/.bashrc
     regexp: '^module add mpi'
@@ -53,12 +52,9 @@
   when: ansible_os_family == 'RedHat'
   become: no
 
-
 - name: set opt_paths.sh with template
   template:
     src: opt_paths.j2
     dest: /etc/profile.d/opt_paths.sh
-    # remote_src: yes
-    # remote_src: no
   tags:
     - not_packer

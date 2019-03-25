@@ -17,12 +17,12 @@ git clone https://timharton@bitbucket.org/timharton/geo-deploy.git
 
 Open the command line for your operating system and follow these steps:
 
-- Navigate to the he directory geo-deploy was cloned into and run `vagrant init`
+- Navigate to the he directory geo-deploy  into  `vagrant init`
 - This only has to be done once to tell the system that this is vagrant deployment directory
 - `vagrant up` - starts a VM (virtual machine) named `waiwera`
 - This could take some time as it builds and installs all the dependencies required
 - `vagrant ssh` - connects via ssh to the machine. Within the `ssh` session run:
-- `cd ~/supermodels-test/`
+- should be logged in at `/vagrant` navigate to `/vagrant/waiwera`
 - `python unit_tests.py`, all tests should pass
 - `exit` will leave the ssh connection
 - You are now done you can either destroy or suspend the `waiwera` VM
@@ -30,3 +30,20 @@ Open the command line for your operating system and follow these steps:
 - `vagrant destroy` - destroys the VM
 
 All commands should be run be run from the deployment directory. Otherwise the name of the machine can be added to the end of the vagrant command i.e. `vagrant suspend waiwera`.
+
+Vagrant is recommended for Windows <10 pro
+
+## Packer
+
+Can use packer to create and test docker images in 1 stop 
+
+## Dockerfile
+
+```
+docker build -t waiwera . --build-arg "waiwera_user=######" --build-arg "waiwera_pwd=#########" --build-arg "app_dir=/opt/app"
+```
+```
+docker container run --rm -it --user 1000:1000 waiwera:latest python unit_tests.py
+```
+Get some timeout errors
+## bitbucket Pipelines

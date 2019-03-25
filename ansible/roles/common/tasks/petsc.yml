@@ -12,7 +12,7 @@
     repo: 'https://bitbucket.org/petsc/petsc.git'
     # dest: /opt/app/petsc
     dest: "{{ petsc_path }}"
-    version: 81b0e57
+    version: "{{ petsc_version }}"
     # v3.10.2 doesn't work
 
 - name: Create build directory structure
