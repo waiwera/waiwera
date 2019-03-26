@@ -21,7 +21,7 @@
     executable: "{{ pip_ex }}"
     # extra_args: "--user"
   tags:
-    - packer
+    - docker
 
 - name: Creates app directory
   file:
