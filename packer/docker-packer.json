@@ -5,12 +5,12 @@
         "commit": true,
         "changes": [
             "WORKDIR {{ user `app_dir` }}/waiwera",
-            "ENV PETSC_DIR /opt/app/waiwera/external/PETSc",
+            "ENV PETSC_DIR {{ user `app_dir` }}/external/PETSc",
             "ENV PETSC_ARCH arch-linux2-c-debug",
-            "ENV LD_LIBRARY_PATH /opt/app/lib",
-            "ENV PYTHONPATH /opt/app/PyTOUGH:/opt/app/credo2:/opt/app/waiwera/utils",
-            "ENV PATH $PATH:/opt/app/bin:/opt/app/waiwera/dist",
-            "ENV PKG_CONFIG_PATH $PKG_CONFIG_PATH:/opt/app/waiwera/lib/pkgconfig"
+            "ENV LD_LIBRARY_PATH {{ user `app_dir` }}/lib",
+            "ENV PYTHONPATH {{ user `app_dir` }}/PyTOUGH:{{ user `app_dir` }}/credo2:/{{ user `app_dir` }}/waiwera/utils",
+            "ENV PATH $PATH:{{ user `app_dir` }}/bin:{{ user `app_dir` }}/waiwera/dist",
+            "ENV PKG_CONFIG_PATH $PKG_CONFIG_PATH:{{ user `app_dir` }}/waiwera/lib/pkgconfig"
         ]}
     ],
     "provisioners": [
@@ -36,12 +36,20 @@
         "user": "root",
         "playbook_file": "../ansible/packer.yml",
         "extra_arguments": [ "-v" ,
-                              "-e waiwera_user={{ user `w_user` }}" ,
-                              "-e waiwera_pwd={{ user `w_pwd` }}" ,
+                              "-e waiwera_user={{ user `git_user` }}" ,
+                              "-e waiwera_pwd={{ user `git_pwd` }}" ,
                               "-e app_dir={{ user `app_dir` }}" ,
                               "-e app_user=waiwera",
                               "-e app_group=waiwera",
-                             "--skip-tags=vagrant"
+                             "--skip-tags=vagrant,local"
+        ]
+      },
+      {
+        "type": "shell",
+        "inline": [
+          "su - waiwera",
+          "cd { user `app_dir` }}/waiwera",
+          "python unit_tests.py"
         ]
       }
     ],

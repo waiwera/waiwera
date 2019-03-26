@@ -1,7 +1,7 @@
 FROM debian:9
 
-ARG waiwera_user
-ARG waiwera_pwd
+ARG git_user
+ARG git_pwd
 ARG app_dir
 
 ENV PETSC_DIR=${app_dir}/waiwera/external/PETSc
@@ -30,7 +30,7 @@ RUN pip3 install ansible
 ADD ansible /srv/ansible
 WORKDIR /srv/
 
-RUN /usr/local/bin/ansible-playbook --connection=local ansible/docker.yml -e "waiwera_user=${waiwera_user}" -e "waiwera_pwd=${waiwera_pwd}" -e "app_dir=${app_dir}" --skip-tags=vagrant
+RUN /usr/local/bin/ansible-playbook --connection=local ansible/local.yml -e "waiwera_user=${waiwera_user}" -e "waiwera_pwd=${waiwera_pwd}" -e "app_dir=${app_dir}" --skip-tags=vagrant,local
 
 WORKDIR ${app_dir}/waiwera
 

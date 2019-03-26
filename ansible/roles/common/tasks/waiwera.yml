@@ -13,7 +13,7 @@
     executable: "{{ pip_ex }}"
     extra_args: "--user"
   tags:
-    - vagrant
+    - local
 
 - name: Install meson
   pip:
