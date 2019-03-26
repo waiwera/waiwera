@@ -30,7 +30,7 @@ RUN pip3 install ansible
 ADD ansible /srv/ansible
 WORKDIR /srv/
 
-RUN /usr/local/bin/ansible-playbook --connection=local ansible/local.yml -e "waiwera_user=${waiwera_user}" -e "waiwera_pwd=${waiwera_pwd}" -e "app_dir=${app_dir}" --skip-tags=vagrant,local
+RUN /usr/local/bin/ansible-playbook --connection=local ansible/local.yml -e "waiwera_user=${waiwera_user}" -e "waiwera_pwd=${waiwera_pwd}" -e "app_dir=${app_dir}" --skip-tags=vagrant,local,packer
 
 WORKDIR ${app_dir}/waiwera
 
