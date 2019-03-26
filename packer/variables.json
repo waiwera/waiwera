@@ -1,0 +1,5 @@
+{
+  "app_dir": "/opt/app",
+  "install_name": "waiwera",
+  "petsc_arch": "arch-linux2-c-debug"
+}

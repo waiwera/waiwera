@@ -1,0 +1,44 @@
+build_tools:
+  - git
+  - pkg-config
+  - valgrind
+  - ninja-build
+  - make
+  - cmake
+  # - python
+  # - python-dev
+  - python3
+  - python3-devel
+  - python-setuptools
+  - libselinux-python
+
+compilers:
+  - gcc-gfortran
+  - gcc-c++
+
+libraries:
+  - openmpi-devel
+  - blas-devel
+  - lapack-devel
+  - valgrind-devel
+
+petsc_dependencies:
+  - bison
+  - flex
+
+pip:
+  - python3-pip
+
+pip_ex: pip3
+
+petsc_options:
+  - download-fblaslapack
+  - download-triangle
+  - download-netcdf
+  - download-exodusii
+  - download-pnetcdf
+  - download-ptscotch
+  - download-chaco
+  - download-zlib
+  - download-hdf5
+  - with-zlib

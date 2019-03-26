@@ -10,6 +10,14 @@
     - gem
     - rake
     - unzip
+    # - g++-6
+    # - bison
+    # - flex
+    # - cmake
+    # - git
+    # - zlib1g-dev
+    # - valgrind
+    # - gfortran-6
 
 - name: apt autoremove
   apt:

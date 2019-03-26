@@ -15,10 +15,10 @@ pipelines:
           - docker
         script: # Modify the commands below to build your repository.
           # Set $DOCKER_HUB_USERNAME and $DOCKER_HUB_PASSWORD as environment variables in repository settings
-          - export IMAGE_NAME=thar102/waiwera:$BITBUCKET_COMMIT
-
+          - export IMAGE_NAME=thar102/waiwera:$BITBUCKET_BRANCH
           # build the Docker image (this will use the Dockerfile in the root of the repo)
-          - docker build -t $IMAGE_NAME .
+          - docker build -t $IMAGE_NAME . --build-arg "git_user=$W_USER" --build-arg "git_pwd=$W_PWD"  --build-arg "app_dir=/opt/app"
+          - docker container run --rm --user 1000:1000 thar102/waiwera:$BITBUCKET_COMMIT python unit_tests.py
           # authenticate with the Docker Hub registry
           - docker login --username $DOCKER_HUB_USERNAME --password $DOCKER_HUB_PASSWORD
           # push the new Docker image to the Docker registry

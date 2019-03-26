@@ -1,35 +1,59 @@
-# - hosts: localhost
-#   become_user: waiwera
-#   become_method: su
-#   become: yes
-#   tasks:
 ---
 
-- name: Clean petsc paths
+- name: Clean petsc path
   file:
     state: absent
-    path: /opt/app/{{ item }}
-  with_items:
-  - petsc
+    path: "{{ petsc_path }}"
+  tags:
+    - clean
 
 - name: Fetch PETSc from bitbucket
   git:
     repo: 'https://bitbucket.org/petsc/petsc.git'
-    dest: /opt/app/petsc
-    version: master
+    # dest: /opt/app/petsc
+    dest: "{{ petsc_path }}"
+    version: "{{ petsc_version }}"
     # v3.10.2 doesn't work
 
+- name: Create build directory structure
+  file:
+    path: "{{ item }}"
+    state: directory
+  with_items:
+    - "{{ install_location + '/build'}}"
+    - "{{ install_location + '/lib/pkgconfig'}}"
+
+- name: change PETSc ownership
+  file:
+    dest: "{{ petsc_path }}"
+    owner: "{{ app_user }}"
+    group: "{{ app_group }}"
+    recurse: yes
+  tags:
+    - docker
+
+- name: create configure command
+  set_fact:
+    configure_cmd: "{{ './configure --'  + petsc_options | join(' --') }}"
+
 - name: Running ./configure for PETSc
-  command: >
-    ./configure --download-fblaslapack --download-triangle --download-netcdf
-     --download-exodusii --download-pnetcdf --download-hdf5
-     --download-ptscotch  --download-chaco
-     --with-zlib
+  command: "{{ configure_cmd }}"
   args:
-    chdir: /opt/app/petsc/
-       # --with-mpi-dir=/opt/app/
-# --with-fc=gfortran-6
+    chdir: "{{ petsc_path }}"
 
 - name: Make PETSc
   make:
-    chdir: /opt/app/petsc
+    target: all
+    chdir: "{{ petsc_path }}"
+
+- name:  Check PETSc
+  make:
+    target: check
+    chdir: "{{ petsc_path }}"
+
+
+- name: Copy petsc pkgconfig
+  copy:
+    src: "{{ petsc_path + '/arch-linux2-c-debug/lib/pkgconfig/PETSc.pc'}}"
+    dest: "{{ install_location + '/lib/pkgconfig/PETSc.pc'}}"
+    remote_src: yes

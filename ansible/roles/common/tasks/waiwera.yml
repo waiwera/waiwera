@@ -1,0 +1,100 @@
+---
+
+- name: Clean supermodels-test path
+  file:
+    state: absent
+    path: "{{ install_location }}"
+  tags:
+    - clean
+
+- name: Install meson
+  pip:
+    name: meson
+    executable: "{{ pip_ex }}"
+    extra_args: "--user"
+  tags:
+    - local
+
+- name: Install meson
+  pip:
+    name: meson
+    executable: "{{ pip_ex }}"
+    # extra_args: "--user"
+  tags:
+    - packer
+
+- name: Creates app directory
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ app_user }}"
+    group: "{{ app_group }}"
+  with_items:
+    - "{{ install_location }}"
+  become: yes
+
+- name: Fetch supermodels-test from github
+  git:
+    repo: "https://{{ waiwera_user | urlencode }}:{{ waiwera_pwd  | urlencode }}@github.com/johnburnell/supermodels-test.git"
+    dest:  "{{ install_location }}"
+    version: "{{ waiwera_version }}"
+
+- name: Creates app directory structure
+  file:
+    path: "{{ item }}"
+    state: directory
+  with_items:
+    - "{{ bin_path }}"
+    - "{{ ld_library_path }}"
+    - "{{ include_path }}"
+
+- name: change app deployment ownership
+  file:
+    dest: "{{ install_location }}"
+    owner: "{{ app_user }}"
+    group: "{{ app_group }}"
+    recurse: yes
+
+- name: Setup PETSc
+  include: petsc.yml
+
+# - name: Setup fson
+#   include: fson.yml
+
+# - name: replace HOME with app directory
+#   replace:
+#     dest: /opt/app/supermodels-test/makefile
+#     regexp: '\$\(HOME\)'
+#     replace: '/opt/app'
+# - name: Run config.py
+#   shell: python config.py --prefix /opt/app/waiwera  --petsc_revision=81b0e57
+#   args:
+#     chdir: /opt/app/waiwera
+
+
+- name: Meson build
+  shell: "{{ 'meson build --buildtype release --prefix ' + install_location }}"
+  args:
+    chdir: "{{ install_location }}"
+
+- name: Ninja build
+  shell: ninja -C build
+  when: ansible_distribution != 'CentOS'
+  args:
+    chdir: "{{ install_location }}"
+
+- name:  Ninja build - CentOS
+  shell: "ninja-build -C build"
+  when: ansible_distribution == 'CentOS'
+  args:
+    chdir: "{{ install_location }}"
+
+- name: Set file permissions supermodels
+  file:
+    dest: "{{ install_location }}"
+    owner: "{{ app_user }}"
+    group: "{{ app_group }}"
+    mode: u=rwX,g=rwX,o=rwX
+    recurse: yes
+  tags:
+    - docker

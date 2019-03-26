@@ -52,9 +52,13 @@ Thumbs.db
 
 # Local Settings #
 ##################
-
+ansible/secrets.yml
 *~
 
 # Ansible Files #
 #################
 *.retry
+
+# Vagrant waiwera #
+###################
+vagrant/*/waiwera

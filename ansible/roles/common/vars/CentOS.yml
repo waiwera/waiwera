@@ -1,0 +1,47 @@
+build_tools:
+  # - centos-release-scl
+  - git
+  - pkgconfig
+  - valgrind
+  - ninja-build
+  - make
+  - cmake
+  # - python
+  # - python-dev
+  - python36
+  - python36-devel
+  - python-setuptools
+  - libselinux-python
+
+compilers:
+  - gcc
+  - gcc-gfortran
+  - gcc-c++
+  - kernel-devel
+
+libraries:
+  - openmpi-devel
+  - blas-devel
+  - lapack-devel
+  - valgrind-devel
+
+petsc_dependencies:
+  - bison
+  - flex
+
+pip_install:
+  - python36-pip
+
+pip_ex: pip3.6
+
+petsc_options:
+  - download-fblaslapack
+  - download-triangle
+  - download-netcdf
+  - download-exodusii
+  - download-pnetcdf
+  - download-ptscotch
+  - download-chaco
+  - download-zlib
+  - download-hdf5
+  - with-zlib

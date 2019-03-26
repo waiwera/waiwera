@@ -22,9 +22,6 @@
 - name: pip install fruitpy
   pip:
     name: file:///opt/app/fruitpy
-  become_user: root
-  become_method: su
-  become: yes
 
 - name: Dowload and unarchive fruit
   unarchive:
@@ -39,6 +36,7 @@
   copy:
     src: /opt/app/fruitpy/fruit_makefile
     dest: /opt/app/fruit/makefile
+    remote_src: yes
 
 - name: replace HOME with app directory
   replace:
@@ -69,9 +67,6 @@
   command: rake install
   args:
     chdir: /opt/app/fruit/fruit_processor_gem
-  become_user: root
-  become_method: su
-  become: yes
 
 - name: Clean fruitpy and fruit paths
   file:
