@@ -32,7 +32,7 @@
   pip:
     name: pip
     executable: "{{ pip_ex }}"
-    extra_args: "-U"
+    # extra_args: "-U"
   # when: ansible_os_family != 'Archlinux'
 
 - name:  login directory for vagrant VM

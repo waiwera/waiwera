@@ -1,4 +1,4 @@
-FROM debian:9
+FROM debian:stretch-slim
 
 ARG git_user
 ARG git_pwd
@@ -11,31 +11,21 @@ ENV PYTHONPATH=/"${app_dir}/PyTOUGH:${app_dir}/credo2:${app_dir}waiwera/utils"
 ENV PATH="$PATH:${app_dir}/bin:${app_dir}/waiwera/dist"
 ENV PKG_CONFIG_PATH=$"PKG_CONFIG_PATH:${app_dir}/lib/pkgconfig"
 
-RUN apt-get clean && apt-get update && apt-get install -y locales locales-all
+RUN apt-get update && apt-get install -y locales && rm -rf /var/lib/apt/lists/* \
+    && localedef -i en_US -c -f UTF-8 -A /usr/share/locale/locale.alias en_US.UTF-8
+ENV LANG en_US.utf8
 
-ENV LANG=en_US.UTF-8
-ENV LANGUAGE=en_US.UTF-8
-ENV LC_ALL=en_US.UTF-8
-RUN locale-gen en_US.UTF-8
-RUN dpkg-reconfigure locales
+ADD ansible /ansible
 
 RUN apt update && \
     apt install -y python3-minimal python3-pip && \
+    pip3 install ansible &&\
+    usr/local/bin/ansible-playbook --connection=local /ansible/local.yml -e "waiwera_user=${git_user}" -e "waiwera_pwd=${git_pwd}" -e  "app_dir=${app_dir}" --skip-tags=vagrant,local,packer && \
+    pip3 uninstall ansible -y && \
+    for dep in $(pip3 show ansible | grep Requires | sed 's/Requires: //g; s/,//g'); do pip3 uninstall -y $dep; done && \
     apt-get autoremove -y && apt-get autoclean -y && apt-get clean -y && \
-    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /usr/share/doc/*  /root/.cache/*
+    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /usr/share/doc/*  /root/.pip/cache/*
 
-RUN pip3 install pip
-RUN pip3 install ansible
-
-ADD ansible /srv/ansible
-WORKDIR /srv/
-
-RUN /usr/local/bin/ansible-playbook --connection=local ansible/local.yml -e "waiwera_user=${git_user}" -e "waiwera_pwd=${git_pwd}" -e "app_dir=${app_dir}" --skip-tags=vagrant,local,packer
+RUN rm -r /ansible
 
 WORKDIR ${app_dir}/waiwera
-
-RUN pip3 uninstall ansible -y && \
-    apt-get autoremove -y && apt-get autoclean -y && apt-get clean -y && \
-    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /root/.cache/* /srv/ansible /usr/share/doc/*
-
-RUN for dep in $(pip3 show ansible | grep Requires | sed 's/Requires: //g; s/,//g'); do pip3 uninstall -y $dep; done
