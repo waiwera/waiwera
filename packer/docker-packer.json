@@ -43,14 +43,6 @@
                               "-e app_group=waiwera",
                              "--skip-tags=vagrant,local"
         ]
-      },
-      {
-        "type": "shell",
-        "inline": [
-          "su - waiwera",
-          "cd { user `app_dir` }}/waiwera",
-          "python unit_tests.py"
-        ]
       }
     ],
     "post-processors": [[
