@@ -5,14 +5,16 @@ build_tools:
   - ninja
   - make
   - cmake
-  # - python
-  # - python-dev
+
+required_tools:
+  - ninja
+  - openssh-client
+
+python_dependencies:
   - python3
-  # - python-setuptools
 
 compilers:
   - gcc
-  # - gcc-c++
   - gcc-fortran
 
 libraries:
@@ -21,6 +23,9 @@ libraries:
   - lapack
   - hdf5-openmpi
 
+openmpi:
+  - openmpi
+  
 petsc_dependencies:
   - bison
   - flex

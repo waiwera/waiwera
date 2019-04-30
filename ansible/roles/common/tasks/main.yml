@@ -41,7 +41,6 @@
   set_fact:
     petsc_path: "{{ install_location + '/external/PETSc'}}"
     ld_library_path: "{{ install_location + '/lib'}}"
-    fson_path: "{{ install_location + '/external/fson'}}"
     bin_path: "{{ install_location + '/bin'}}"
     pkgconfig_path: "{{ install_location + '/lib/pkgconfig'}}"
     dist_path: "{{ install_location }}/dist"
