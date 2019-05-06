@@ -6,8 +6,15 @@ from sys import argv
 import os
 import multiprocessing
 import subprocess
+import argparse
 
-test_modules = [m + '_test' for m in argv[1:]]
+parser = argparse.ArgumentParser()
+parser.add_argument("tests", default = [], help = "test modules", nargs="*")
+parser.add_argument("--exe", default = "mpiexec", help = "command for executing unit test")
+parser.add_argument("--procs", default = "np", help = "option for specifying number of processes ")
+args = parser.parse_args()
+
+test_modules = [m + '_test' for m in args.tests]
 
 os.chdir('build')
 
@@ -21,5 +28,5 @@ for np in num_procs:
     print('-'*72)
     print('Processors:', np, '/', num_procs[-1])
     cmd = ['meson', 'test'] + test_modules + \
-          ['--wrap="mpiexec -np ' + str(np) + '"']
+          ['--wrap="' + ' '.join([args.exe, "-" + args.procs, str(np)]) + '"']
     subprocess.call(" ".join(cmd), shell = True)
