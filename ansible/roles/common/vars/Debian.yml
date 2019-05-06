@@ -15,6 +15,7 @@ python_dependencies:
   - python3
   - python3-dev
   - python-setuptools
+  - python3-setuptools
 
 compilers:
   - gcc

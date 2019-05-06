@@ -41,7 +41,13 @@
                               "-e app_dir={{ user `app_dir` }}" ,
                               "-e app_user=waiwera",
                               "-e app_group=waiwera",
-                             "--skip-tags=vagrant,local"
+                              "--skip-tags=vagrant,local"
+        ]
+      },
+      {
+        "type": "shell",
+        "inline": [
+          "pip3 uninstall ansible -y && for dep in $(pip3 show ansible | grep Requires | sed 's/Requires: //g; s/,//g'); do pip3 uninstall -y $dep; done && apt-get autoremove -y && apt-get autoclean -y && apt-get clean -y && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /usr/share/doc/*  /root/.pip/cache/*"
         ]
       }
     ],
