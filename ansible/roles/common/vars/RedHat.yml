@@ -2,11 +2,14 @@ build_tools:
   - git
   - pkg-config
   - valgrind
-  - ninja-build
   - make
   - cmake
-  # - python
-  # - python-dev
+
+required_tools:
+  - ninja-build
+  - openssh-client
+
+python_dependencies:
   - python3
   - python3-devel
   - python-setuptools
@@ -17,14 +20,17 @@ compilers:
   - gcc-c++
 
 libraries:
-  - openmpi-devel
   - blas-devel
   - lapack-devel
   - valgrind-devel
 
+openmpi:
+  - openmpi-devel
+
 petsc_dependencies:
   - bison
   - flex
+
 
 pip:
   - python3-pip

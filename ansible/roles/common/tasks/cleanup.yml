@@ -1,23 +1,28 @@
 ---
 
-- name: remove unused base packages
+- name: remove build_tools
   apt:
-    name: "{{ packages }}"
+    name: "{{ build_tools }}"
     state: absent
     purge: yes
-  vars:
-    packages:
-    - gem
-    - rake
-    - unzip
-    # - g++-6
-    # - bison
-    # - flex
-    # - cmake
-    # - git
-    # - zlib1g-dev
-    # - valgrind
-    # - gfortran-6
+
+- name: remove compilers
+  apt:
+    name: "{{ compilers }}"
+    state: absent
+    purge: yes
+
+- name: remove petsc_dependencies
+  apt:
+    name: "{{ petsc_dependencies }}"
+    state: absent
+    purge: yes
+
+- name: remove libraries
+  apt:
+    name: "{{ libraries }}"
+    state: absent
+    purge: yes
 
 - name: apt autoremove
   apt:
@@ -28,10 +33,46 @@
     autoclean: yes
 
 - name: Cleanup leftover files
-  shell: rm -rf {{ item }}
+  file:
+    path: "{{ item }}"
+    state: absent
   with_items:
     - /var/lib/apt/lists/*
     - /tmp/*
     - /var/tmp/*
     - /root/.pip/cache/*
     - /usr/share/doc/*
+
+- name: Capture arch-linux2-c-debug files and directories to delete
+  find:
+    paths: "{{ petsc_path }}/arch-linux2-c-debug"
+    file_type: any
+    excludes:
+      - "lib"
+  register: found_arch
+
+- name: Capture PETSc files and directories to delete
+  find:
+    paths: "{{ petsc_path }}"
+    file_type: any
+    excludes:
+      - "arch-linux2-c-debug"
+  register: found_petsc
+
+- name: Capture .git directories to delete
+  find:
+    paths: "{{ install_location }}"
+    file_type: directory
+    patterns: '.git'
+    recurse: yes
+    hidden: yes
+  register: found_git
+
+- name: Delete files
+  file:
+    path: "{{ item.path }}"
+    state: absent
+  with_items:
+    - "{{ found_arch['files'] }}"
+    - "{{ found_petsc['files'] }}"
+    - "{{ found_git['files'] }}"

@@ -2,14 +2,20 @@ build_tools:
   - git
   - pkg-config
   - valgrind
-  - ninja-build
   - make
   - cmake
   # - python
   # - python-dev
+
+required_tools:
+  - ninja-build
+  - openssh-client
+
+python_dependencies:
   - python3
   - python3-dev
   - python-setuptools
+  - python3-setuptools
 
 compilers:
   - gcc
@@ -17,9 +23,11 @@ compilers:
   - gfortran
 
 libraries:
-  - libopenmpi-dev
   - libblas-dev
   - liblapack-dev
+
+openmpi:
+  - libopenmpi-dev
 
 petsc_dependencies:
   - bison
