@@ -11,14 +11,9 @@ Unit tests
 
 Unit tests are lower-level tests of individual subroutines in the code. These are used mostly during code development, but may also be run to help verify that Waiwera has been installed correctly.
 
-Unit tests are carried out using the `FRUIT <https://sourceforge.net/projects/fortranxunit/>`_ framework for Fortran unit testing, via a separate Python interface called `FRUITPy <https://github.com/acroucher/FRUITPy>`_. You will need to install both FRUIT and FRUITPy before running the unit tests.
+Unit tests are built using the `Zofu <https://github.com/acroucher/zofu>`_ framework for Fortran unit testing, and run using the `Meson <https://mesonbuild.com/>`_ build system. Waiwera will detect if Zofu is already installed on your machine, and install it for you if it is not.
 
-.. index:: FRUIT, FRUIT; installation, FRUITPy, FRUITPy; installation
-
-Installing FRUIT and FRUITPy
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-.. todo:: add instructions on installing FRUIT/FRUITPy
+.. index:: Zofu, Meson
 
 Running unit tests
 ^^^^^^^^^^^^^^^^^^
@@ -41,18 +36,26 @@ or to test only the `face` and `cell` modules, type:
 
   python unit_tests.py face cell
 
-If the tests have successfully passed, the output from FRUIT will appear something like this:
+If the tests have successfully passed, the unit test output will appear something like this:
 
 .. code-block:: bash
 
-  All tests passed.
-  Hit rate:
-  asserts:  670 / 670 (100%)
-  cases  :  86 / 86 (100%)
+  Ok:                   32
+  Expected Fail:         0
+  Fail:                  0
+  Unexpected Pass:       0
+  Skipped:               0
+  Timeout:               0
 
 The precise numbers of asserts and cases will vary, depending on how many modules are being tested (and how many tests are included for the version of Waiwera you are running). If any tests fail, there will be output regarding which tests are not passing.
 
-The tests will be repeated several times, using different numbers of processors each time (by default, using 1, 2, 3 and 4 processors). This can help show up any problems that occur only when running in parallel, or for specific numbers of processors.
+The tests will be repeated several times, using different numbers of parallel processes each time (by default, using 1, 2, 3 and 4 processes). This can help show up any problems that occur only when running in parallel, or for specific numbers of processes.
+
+By default, parallel unit test runs will be carried out using the `mpiexec` command, with the number of processes specified using the `-np` option. These can be changed by passing the `exe` and `procs` parameters to the `unit_tests.py` script. For example, if you are running the tests on a compute cluster and need to submit them via the `Slurm <https://slurm.schedmd.com/>`_ workload manager, the unit tests might be run using a command like this:
+
+.. code-block:: bash
+
+  python unit_tests.py mesh --exe "srun --qos=debug -A acc00100 --time=2:00 --mem-per-cpu=100" --procs "n"
 
 .. index:: testing; benchmark tests
 
