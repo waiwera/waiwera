@@ -3,9 +3,11 @@
 This is the base level setup needed to start deploying software to a server
 
 ## Machine Setup
+This section describes all the ways that waiwera model can be deployed on different operating systems and using different technologies.
+
 ### Setup Vagrant
 
-Vagrant is recommended for **Windows <10 pro**
+Docker is recommended for **Windows <10 pro**.
 
 Git, Vagrant, and VirtualBox need to be installed for this to work. The repository which sets up the test environment also needs to be cloned. See step below to setup vagrant:
 
@@ -16,7 +18,9 @@ Git, Vagrant, and VirtualBox need to be installed for this to work. The reposito
 
 ### Setup Docker Build
 
-Docker should only be used on Windows 10 Pro. Docker is compatible with both mac and linux.
+For Docker on Windows, Windows 10 Pro is recommended.
+Docker is compatible with both mac and linux as well.
+Docker is the quickest way to deploy Waiwera.
 
 Git and docker need to be installed for this to work. The repository which sets up the test environment also needs to be cloned. See step below to setup docker build:
 
@@ -35,7 +39,7 @@ Used for packaging docker images locally Similar to vagrant.
 
 ### Setup for Ansible
 
-Used directly on linux machines
+This setup can be used directly on linux machines
 
 * Use pip to install ansible
   - i.e. `pip install --user ansible`
@@ -85,6 +89,9 @@ Navigate to the root of the geo-deploy directory
 ```
 docker build -t waiwera . --build-arg "git_user=######" --build-arg "git_pwd=#########" --build-arg "app_dir=/opt/app"
 ```
+
+Test the image by creating an ephemeral container and running the tests, these may time out given the system they are run on.
+
 ```
 docker container run --rm -it --user 1000:1000 waiwera:latest python unit_tests.py
 ```
