@@ -371,7 +371,7 @@ contains
     use eos_module, only: eos_type, max_component_name_length, &
          max_phase_name_length
     use fluid_module, only: fluid_type, setup_fluid_vector
-    use utils_module, only: str_array_index
+    use utils_module, only: str_array_index, str_to_lower
     use hdf5io_module, only: max_field_name_length, vec_load_fields_hdf5
 
     character(len = *), intent(in) :: filename
@@ -427,7 +427,8 @@ contains
         call section_get_field_names(section, PETSC_TRUE, fields)
         do i = 1, num_required
            field_indices(i) = str_array_index( &
-                eos%required_output_fluid_fields(i), fields) - 1
+                str_to_lower(eos%required_output_fluid_fields(i)), &
+                fields) - 1
         end do
       end associate
       deallocate(fields)

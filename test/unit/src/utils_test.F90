@@ -12,7 +12,7 @@ module utils_test
   implicit none
   private 
 
-  public :: test_str_to_upper, test_str_to_lower, &
+  public :: test_str_to_lower, &
        test_split_filename, test_change_filename_extension, &
        test_int_str_len, test_str_array_index, &
        test_degrees_to_radians, test_rotation_matrix_2d, &
@@ -21,27 +21,6 @@ module utils_test
        test_array_sorted
 
 contains
-
-!------------------------------------------------------------------------
-
-  subroutine test_str_to_upper
-
-    ! Test str_to_upper()
-    
-    PetscInt, parameter :: strlen = 8
-    character(len = strlen) :: str, upper_str
-    character(len = strlen), parameter :: expected = "ABCABC12"
-    PetscMPIInt :: rank
-    PetscInt :: ierr
-
-    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
-    if (rank == 0) then
-       str = "abcABC12"
-       upper_str = str_to_upper(str)
-       call assert_equals(expected, upper_str, 'str_to_upper')
-    end if
-
-  end subroutine test_str_to_upper
 
 !------------------------------------------------------------------------
 

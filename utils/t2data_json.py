@@ -78,17 +78,17 @@ class t2data_export_json(t2data):
             con = self.grid.connection[blknames]
             blkindices = [geo.block_name_index[blkname] -
                           geo.num_atmosphere_blocks for blkname in blknames]
-            colnames = [geo.column_name(blkname) for blkname in blknames]
-            if colnames[0] == colnames[1] or con.block[0].centre is None or \
-               con.block[1].centre is None: # vertical connection
+            laynames = [geo.layer_name(blkname) for blkname in blknames]
+            if laynames[0] != laynames[1]: # vertical connection
                 underground = all([blkindex >= 0 for blkindex in blkindices])
                 if underground and con.direction != 3:
                     face_directions.append({
                         "cells": blkindices,
                         "permeability_direction": con.direction})
             else:
-                d = con.block[1].centre - con.block[0].centre
-                d2 = np.dot(rotation, d[0:2])
+                colnames = [geo.column_name(blkname) for blkname in blknames]
+                d = geo.column[colnames[1]].centre - geo.column[colnames[0]].centre
+                d2 = np.dot(rotation, d)
                 expected_direction = np.argmax(abs(d2)) + 1
                 if con.direction != expected_direction:
                     face_directions.append({

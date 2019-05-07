@@ -878,10 +878,10 @@ contains
     call MPI_comm_rank(PETSC_COMM_WORLD, rank, ierr)
     call DMCreateLabel(self%serial_dm, face_permeability_override_label_name, &
          ierr); CHKERRQ(ierr)
+    allocate(default_cells(0))
 
     if (rank == 0) then
 
-       default_cells = [PetscInt::] ! empty integer array
        call DMPlexGetHeightStratum(self%serial_dm, 1, start_face, end_face, ierr)
        CHKERRQ(ierr)
 
@@ -2926,7 +2926,7 @@ contains
             select type (item => node%data)
             type is (rock_dict_item_type)
                rockstr = trim(minc_str) // "." // trim(minc_rock_str) // "." &
-                    // trim(name) // ".type"
+                    // trim(name) // ".type."
                call read_rock_parameters(item%rock, rock, rockstr)
             end select
          else

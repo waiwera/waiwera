@@ -122,7 +122,7 @@ contains
 
     err = 0
     hinv = polynomial(henry_data, temperature / tscale)
-    henrys_constant = 1.e-10_dp / sum(henry_weight * henry_p0 * hinv)
+    henrys_constant = 1.e10_dp * sum(henry_weight * henry_p0 * hinv)
 
   end subroutine ncg_air_henrys_constant
 
@@ -145,8 +145,8 @@ contains
 
     err = 0
     dhinv = polynomial(henry_derivative_data, temperature / tscale)
-    henrys_derivative = henrys_constant * 1.e10_dp / tscale * &
-         sum(henry_weight * henry_p0 * dhinv)
+    henrys_derivative = 1.e10_dp * sum(henry_weight * henry_p0 * dhinv) &
+         / (henrys_constant * tscale)
 
   end subroutine ncg_air_henrys_derivative
 

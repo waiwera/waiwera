@@ -106,7 +106,8 @@ contains
 !------------------------------------------------------------------------
 
   subroutine ncg_co2_henrys_constant(self, temperature, henrys_constant, err)
-    !! Henry's constant for CO2 NCG.
+    !! Henry's constant for CO2 NCG. The formulation is from
+    !! Batistelli et al. (1997).
 
     use utils_module, only: polynomial
 
@@ -115,13 +116,9 @@ contains
     PetscReal, intent(out) :: henrys_constant !! Henry's constant
     PetscErrorCode, intent(out) :: err !! Error code
 
-    if (temperature <= 300._dp) then
-       henrys_constant = 1.e-8_dp / polynomial(henry_data, &
-            temperature / tscale)
-       err = 0
-    else
-       err = 1
-    end if
+    henrys_constant = 1.e8_dp * polynomial(henry_data, &
+         temperature / tscale)
+    err = 0
 
   end subroutine ncg_co2_henrys_constant
 
@@ -140,8 +137,9 @@ contains
     PetscReal, intent(out) :: henrys_derivative !! Henry's derivative
     PetscErrorCode, intent(out) :: err !! Error code
 
-    henrys_derivative = 1.e7_dp * henrys_constant / tscale * &
-         polynomial(henry_derivative_data, temperature / tscale)
+    henrys_derivative = 1.e7_dp * &
+         polynomial(henry_derivative_data, temperature / tscale) / &
+         (henrys_constant * tscale)
     err = 0
 
   end subroutine ncg_co2_henrys_derivative

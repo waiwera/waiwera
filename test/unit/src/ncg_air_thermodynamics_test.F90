@@ -82,7 +82,7 @@ contains
     character(33) :: s = "Air Henry's constant, temperature"
     PetscMPIInt :: rank
     PetscInt :: ierr
-    PetscReal, parameter :: tol = 1.e-15_dp
+    PetscReal, parameter :: tol = 100._dp
 
     call gas%init()
 
@@ -91,31 +91,31 @@ contains
     if (rank == 0) then
 
        temperature = 20._dp
-       expected = 1.37591939e-10_dp
+       expected = 7.26786761e+09_dp
        call gas%henrys_constant(temperature, hc, err)
        call assert_equals(0, err, trim(s) // " 20 deg C error")
        call assert_equals(expected, hc, tol, trim(s) // " 20 deg C")
 
        temperature = 100._dp
-       expected = 8.89730840e-11_dp
+       expected = 1.12393541e+10_dp
        call gas%henrys_constant(temperature, hc, err)
        call assert_equals(0, err, trim(s) // " 100 deg C error")
        call assert_equals(expected, hc, tol, trim(s) // " 100 deg C")
 
        temperature = 240._dp
-       expected = 2.52702897e-10_dp
+       expected = 3.95721621e+09_dp
        call gas%henrys_constant(temperature, hc, err)
        call assert_equals(0, err, trim(s) // " 240 deg C error")
        call assert_equals(expected, hc, tol, trim(s) // " 240 deg C")
 
        temperature = 300._dp
-       expected = 5.25847886e-10_dp
+       expected = 1.90169063e+09_dp
        call gas%henrys_constant(temperature, hc, err)
        call assert_equals(0, err, trim(s) // " 300 deg C error")
        call assert_equals(expected, hc, tol, trim(s) // " 300 deg C")
 
        temperature = 350._dp
-       expected = 1.63742619e-09_dp
+       expected = 6.10714550e+08_dp
        call gas%henrys_constant(temperature, hc, err)
        call assert_equals(0, err, trim(s) // " 300 deg C error")
        call assert_equals(expected, hc, tol, trim(s) // " 300 deg C")

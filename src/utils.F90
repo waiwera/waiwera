@@ -44,7 +44,7 @@ module utils_module
      module procedure array_sorted_real
   end interface array_sorted
 
-  public :: str_to_upper, str_to_lower, &
+  public :: str_to_lower, &
        int_str_len, str_array_index, &
        split_filename, change_filename_extension, &
        date_time_str, degrees_to_radians, rotation_matrix_2d, &
@@ -56,39 +56,18 @@ contains
 
 !------------------------------------------------------------------------
 
-  function str_to_upper(strIn) result(strOut)
-    !! Converts a string to all upper case.
-
-    character(len=*), intent(in) :: strIn !! Input string
-    character(len=len(strIn)) :: strOut !! Output uppercase string
-    PetscInt :: i,j
-
-    do i = 1, len(strIn)
-       j = iachar(strIn(i:i))
-       if (j>= iachar("a") .and. j<=iachar("z") ) then
-          strOut(i:i) = achar(iachar(strIn(i:i))-32)
-       else
-          strOut(i:i) = strIn(i:i)
-       end if
-    end do
-
-  end function str_to_upper
-
-!------------------------------------------------------------------------
-
-  function str_to_lower(strIn) result(strOut)
+  elemental function str_to_lower(a) result(b)
     !! Converts a string to all lower case.
 
-    character(len=*), intent(in) :: strIn !! Input string
-    character(len=len(strIn)) :: strOut !! Output lowercase string
-    PetscInt :: i,j
+    character(len = *), intent(in) :: a !! Input string
+    character(len = len(a)) :: b !! Output lowercase string
+    integer :: i,j
 
-    do i = 1, len(strIn)
-       j = iachar(strIn(i:i))
-       if (j>= iachar("A") .and. j<=iachar("Z") ) then
-          strOut(i:i) = achar(iachar(strIn(i:i))+32)
-       else
-          strOut(i:i) = strIn(i:i)
+    b = a
+    do i = 1, len(b)
+       j = iachar(b(i:i))
+       if (j >= iachar("A") .and. j <= iachar("Z") ) then
+          b(i:i) = achar(iachar(b(i:i)) + 32)
        end if
     end do
 
