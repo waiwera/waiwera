@@ -99,9 +99,9 @@ contains
     call thermo%init()
     call eos%init(json, thermo)
     call source%init(eos)
-    call mesh%init(json)
-    call DMCreateLabel(mesh%original_dm, open_boundary_label_name, ierr); CHKERRQ(ierr)
-    call mesh%configure(eos, gravity, json, viewer = viewer, err = err)
+    call mesh%init(eos, json)
+    call DMCreateLabel(mesh%serial_dm, open_boundary_label_name, ierr); CHKERRQ(ierr)
+    call mesh%configure(gravity, json, viewer = viewer, err = err)
     call DMGetGlobalVector(mesh%dm, fluid_vector, ierr); CHKERRQ(ierr) ! dummy- not used
 
     call setup_sources(json, mesh%dm, mesh%cell_order, eos, thermo, start_time, &
@@ -218,6 +218,7 @@ contains
     call VecDestroy(source_vector, ierr); CHKERRQ(ierr)
     call source_controls%destroy()
     call DMRestoreGlobalVector(mesh%dm, fluid_vector, ierr); CHKERRQ(ierr)
+    call mesh%destroy_distribution_data()
     call mesh%destroy()
     call eos%destroy()
     call thermo%destroy()

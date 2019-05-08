@@ -51,9 +51,9 @@ module zone_module
      private
      PetscInt, allocatable, public :: cells(:)
    contains
-     procedure, public :: init => zone_cell_array_init
+     procedure, public :: init_serial => zone_cell_array_init_serial
      procedure, public :: destroy => zone_cell_array_destroy
-     procedure, public :: label_dm => zone_cell_array_label_dm
+     procedure, public :: label_serial_dm => zone_cell_array_label_serial_dm
   end type zone_cell_array_type
 
   type, public, extends(zone_type) :: zone_box_type
@@ -82,14 +82,14 @@ module zone_module
      procedure, public :: dependencies => zone_combine_dependencies
   end type zone_combine_type
 
-  public :: get_zone_type
+  public :: get_zone_type, get_zone_type_mpi
 
 contains
 
 !------------------------------------------------------------------------
 
   PetscInt function get_zone_type(json) result(ztype)
-    !! Determines zone type from JSON input.
+    !! Determines zone type from JSON input (in serial).
 
     use utils_module, only: str_to_lower
     use fson_value_m, only: TYPE_ARRAY, TYPE_OBJECT
@@ -98,13 +98,13 @@ contains
     ! Locals:
     PetscInt, parameter :: max_type_str_len = 16
     character(max_type_str_len) :: type_str
-    PetscInt :: json_type
+    type(fson_value), pointer :: type_json, cells_json
+    type(fson_value), pointer :: x_json, y_json, z_json, r_json
+    type(fson_value), pointer :: plus_json, minus_json, times_json
 
     ztype = -1
 
-    json_type = fson_type_mpi(json, ".")
-
-    select case (json_type)
+    select case (json%value_type)
 
     case (TYPE_ARRAY)
 
@@ -112,9 +112,10 @@ contains
 
     case (TYPE_OBJECT)
 
-       if (fson_has_mpi(json, "type")) then
+       call fson_get(json, "type", type_json)
+       if (associated(type_json)) then
 
-          call fson_get_mpi(json, "type", val = type_str)
+          call fson_get(type_json, ".", type_str)
 
           select case (str_to_lower(type_str))
           case ('array')
@@ -127,20 +128,29 @@ contains
 
        else ! determine type from object keys:
 
-          if (fson_has_mpi(json, "cells")) then
+          call fson_get(json, "cells", cells_json)
+          call fson_get(json, "x", x_json)
+          call fson_get(json, "r", r_json)
+          call fson_get(json, "y", y_json)
+          call fson_get(json, "z", z_json)
+          call fson_get(json, "+", plus_json)
+          call fson_get(json, "-", minus_json)
+          call fson_get(json, "*", times_json)
+
+          if (associated(cells_json)) then
 
              ztype = ZONE_TYPE_CELL_ARRAY
 
-          else if (fson_has_mpi(json, "x") .or. &
-               fson_has_mpi(json, "r") .or. &
-               fson_has_mpi(json, "y") .or. &
-               fson_has_mpi(json, "z")) then
+          else if (associated(x_json) .or. &
+               associated(r_json) .or. &
+               associated(y_json) .or. &
+               associated(z_json)) then
 
              ztype = ZONE_TYPE_BOX
 
-          else if (fson_has_mpi(json, "+") .or. &
-               fson_has_mpi(json, "-") .or. &
-               fson_has_mpi(json, "*")) then
+          else if (associated(plus_json) .or. &
+               associated(minus_json) .or. &
+               associated(times_json)) then
 
              ztype = ZONE_TYPE_COMBINE
 
@@ -151,6 +161,24 @@ contains
     end select
 
   end function get_zone_type
+
+!------------------------------------------------------------------------
+
+  PetscInt function get_zone_type_mpi(json) result(ztype)
+    !! Determines zone type from JSON input (in parallel).
+
+    type(fson_value), pointer, intent(in) :: json
+    ! Locals:
+    PetscMPIInt :: rank
+    PetscInt :: ierr
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
+       ztype = get_zone_type(json)
+    end if
+    call MPI_bcast(ztype, 1, MPI_INTEGER, 0, PETSC_COMM_WORLD, ierr)
+
+  end function get_zone_type_mpi
 
 !------------------------------------------------------------------------
 ! zone_type
@@ -211,8 +239,8 @@ contains
 ! zone_cell_array_type
 !------------------------------------------------------------------------
 
-  subroutine zone_cell_array_init(self, index, name, json)
-    !! Initialise cell array zone.
+  subroutine zone_cell_array_init_serial(self, index, name, json)
+    !! Initialise cell array zone for serial DM.
 
     use fson_value_m, only: TYPE_ARRAY, TYPE_OBJECT
 
@@ -223,21 +251,25 @@ contains
     ! Locals:
     PetscInt :: json_type
     PetscInt, allocatable :: default_cells(:)
+    type(fson_value), pointer :: cells_json
 
     call self%zone_type%init(index, name, json)
 
-    json_type = fson_type_mpi(json, ".")
-
+    json_type = json%value_type
     select case (json_type)
     case (TYPE_ARRAY)
-       call fson_get_mpi(json, ".", val = self%cells)
+       call fson_get(json, ".", self%cells)
     case (TYPE_OBJECT)
        default_cells = [PetscInt::]
-       call fson_get_mpi(json, "cells", default_cells, &
-            self%cells)
+       call fson_get(json, "cells", cells_json)
+       if (associated(cells_json)) then
+          call fson_get(cells_json, ".", self%cells)
+       else
+          self%cells = default_cells
+       end if
     end select
 
-  end subroutine zone_cell_array_init
+  end subroutine zone_cell_array_init_serial
 
 !------------------------------------------------------------------------
 
@@ -254,49 +286,40 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine zone_cell_array_label_dm(self, dm, ao, cell_geometry, err)
-    !! Label cells on a DM in a zone defined by an array of natural
+  subroutine zone_cell_array_label_serial_dm(self, dm)
+    !! Label cells on a serial DM in a zone defined by an array of natural
     !! cell indices.
-
-    use dm_utils_module, only: natural_to_local_cell_index
 
     class(zone_cell_array_type), intent(in out) :: self
     DM, intent(in out) :: dm
-    AO, intent(in) :: ao
-    Vec, intent(in) :: cell_geometry
-    PetscErrorCode, intent(out) :: err
     ! Locals:
-    PetscInt, allocatable :: cell_local_index(:)
-    PetscInt :: ghost, ic
-    DMLabel :: ghost_label
-    ISLocalToGlobalMapping :: l2g
+    PetscMPIInt :: rank
+    PetscInt :: ic, start_cell, end_cell
     character(:), allocatable :: label_name
     PetscErrorCode :: ierr
 
-    err = 0
+    call MPI_comm_rank(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
 
-    label_name = zone_label_name(self%name)
-    call DMCreateLabel(dm, label_name, ierr); CHKERRQ(ierr)
-    call DMGetLabel(dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
-    call DMGetLocalToGlobalMapping(dm, l2g, ierr); CHKERRQ(ierr)
+       call DMPlexGetHeightStratum(dm, 0, start_cell, end_cell, &
+            ierr); CHKERRQ(ierr)
+       label_name = zone_label_name(self%name)
+       call DMCreateLabel(dm, label_name, ierr); CHKERRQ(ierr)
 
-    associate(num_cells => size(self%cells))
-      allocate(cell_local_index(num_cells))
-      cell_local_index = natural_to_local_cell_index(ao, l2g, self%cells)
-      do ic = 1, num_cells
-         associate(c => cell_local_index(ic))
-           if (c >= 0) then
-              call DMLabelGetValue(ghost_label, c, ghost, ierr)
-              if (ghost < 0) then
+       associate(num_cells => size(self%cells))
+         do ic = 1, num_cells
+            associate(c => self%cells(ic))
+              if ((start_cell <= c) .and. (c < end_cell)) then
                  call DMSetLabelValue(dm, label_name, c, 1, ierr)
                  CHKERRQ(ierr)
               end if
-           end if
-         end associate
-      end do
-    end associate
+            end associate
+         end do
+       end associate
 
-  end subroutine zone_cell_array_label_dm
+    end if
+
+  end subroutine zone_cell_array_label_serial_dm
 
 !------------------------------------------------------------------------
 ! zone_box_type

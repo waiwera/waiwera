@@ -85,7 +85,8 @@ module rock_module
 
   character(len = 9), public :: rock_type_label_name = "rock_type"
 
-  public :: rock_dict_item_type, rock_type, setup_rock_types, setup_rock_vector
+  public :: rock_dict_item_type, rock_type, setup_rock_types, setup_rock_vector, &
+       label_rock_cell
 
 contains
 
@@ -222,8 +223,26 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine setup_rock_types(json, dm, ao, rock_dict, logfile, err)
-    !! Sets up rock type dictionary and rock type labels on DM, from
+  subroutine label_rock_cell(dm, start_cell, end_cell, p, rock_type_index)
+    !! Sets DM rocktype label on single cell.
+
+    DM, intent(in out) :: dm
+    PetscInt, intent(in) :: start_cell, end_cell
+    PetscInt, intent(in) :: p, rock_type_index
+    ! Locals:
+    PetscErrorCode :: ierr
+
+    if ((p >= start_cell) .and. (p < end_cell)) then
+       call DMSetLabelValue(dm, rock_type_label_name, &
+            p, rock_type_index, ierr); CHKERRQ(ierr)
+    end if
+
+  end subroutine label_rock_cell
+
+!------------------------------------------------------------------------
+
+  subroutine setup_rock_types(json, dm, rock_dict, logfile, err)
+    !! Sets up rock type dictionary and rock type labels on serial DM, from
     !! JSON input.
 
     use dictionary_module
@@ -236,14 +255,12 @@ contains
 
     type(fson_value), pointer, intent(in) :: json
     DM, intent(in out) :: dm
-    AO, intent(in) :: ao
     type(dictionary_type), intent(in out) :: rock_dict
     type(logfile_type), intent(in out), optional :: logfile
     PetscErrorCode, intent(out) :: err
     ! Locals:
     PetscInt :: start_cell, end_cell, num_rocktypes, ir
     DMLabel :: ghost_label
-    ISLocalToGlobalMapping :: l2g
     type(fson_value), pointer :: rocktypes, r
     character(len=64) :: rockstr
     character(len=12) :: irstr
@@ -252,6 +269,7 @@ contains
     PetscErrorCode :: ierr
 
     err = 0
+    call rock_dict%init(owner = PETSC_TRUE)
 
     if (fson_has_mpi(json, "rock.types")) then
 
@@ -260,7 +278,6 @@ contains
        call DMPlexGetHeightStratum(dm, 0, start_cell, end_cell, ierr)
        CHKERRQ(ierr)
        call DMGetLabel(dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
-       call DMGetLocalToGlobalMapping(dm, l2g, ierr); CHKERRQ(ierr)
 
        call fson_get_mpi(json, "rock.types", rocktypes)
        num_rocktypes = fson_value_count_mpi(rocktypes, ".")
@@ -276,7 +293,6 @@ contains
              item%rock => r
              call rock_dict%add(name, item)
           end if
-          call label_rock_cells(ir)
           call label_rock_zones(ir, err)
           if (err > 0) exit
           r => fson_value_next_mpi(r)
@@ -289,58 +305,6 @@ contains
     end if
 
   contains
-
-!........................................................................
-
-    subroutine label_rock_cell(p, ir)
-      !! Sets rocktype label on single cell, if it is not a ghost cell.
-
-      PetscInt, intent(in) :: p, ir
-      ! Locals:
-      PetscInt :: ghost
-      PetscErrorCode :: ierr
-
-      if ((p >= start_cell) .and. (p < end_cell)) then
-         call DMLabelGetValue(ghost_label, p, ghost, ierr); CHKERRQ(ierr)
-         if (ghost < 0) then
-            call DMSetLabelValue(dm, rock_type_label_name, &
-                 p, ir, ierr); CHKERRQ(ierr)
-         end if
-      end if
-
-    end subroutine label_rock_cell
-
-!........................................................................
-
-    subroutine label_rock_cells(ir)
-      !! Sets DM rocktype label on specified cells.
-
-      PetscInt, intent(in) :: ir
-      ! Locals:
-      PetscInt, allocatable :: natural_cell_indices(:), &
-           local_cell_indices(:)
-      PetscInt :: ic
-      
-      if (fson_has_mpi(r, "cells")) then
-         call fson_get_mpi(r, "cells", val = natural_cell_indices)
-         if (allocated(natural_cell_indices)) then
-            associate(num_cells => size(natural_cell_indices))
-              allocate(local_cell_indices(num_cells))
-              local_cell_indices = natural_to_local_cell_index(ao, &
-                   l2g, natural_cell_indices)
-              do ic = 1, num_cells
-                 associate(c => local_cell_indices(ic))
-                   if (c >= 0) call label_rock_cell(c, ir)
-                 end associate
-              end do
-            end associate
-            deallocate(natural_cell_indices, local_cell_indices)
-         end if
-      end if
-
-    end subroutine label_rock_cells
-
-!........................................................................
 
     subroutine label_rock_zones(ir, err)
       !! Sets DM rocktype label in specified zones.
@@ -381,7 +345,7 @@ contains
                          ierr); CHKERRQ(ierr)
                     call ISGetIndicesF90(cell_IS, cells, ierr); CHKERRQ(ierr)
                     do c = 1, num_zone_cells
-                       call label_rock_cell(cells(c), ir)
+                       call label_rock_cell(dm, start_cell, end_cell, cells(c), ir)
                     end do
                     call ISRestoreIndicesF90(cell_IS, cells, ierr); CHKERRQ(ierr)
                     call ISDestroy(cell_IS, ierr); CHKERRQ(ierr)
@@ -426,9 +390,10 @@ contains
     PetscInt, intent(in) :: range_start
     type(logfile_type), intent(in out), optional :: logfile
     ! Locals:
-    PetscInt :: num_rocktypes, c, num_cells, offset
+    PetscInt :: num_rocktypes, ic, num_cells, offset, ghost
     PetscInt :: ir, permeability_type, dim
     PetscInt :: perm_size
+    DMLabel :: ghost_label
     type(fson_value), pointer :: rocktypes, r
     PetscInt, pointer :: cells(:)
     type(rock_type) :: rock
@@ -446,6 +411,7 @@ contains
 
     if (fson_has_mpi(json, "rock.types")) then
 
+       call DMGetLabel(dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
        call rock%init()
 
        call VecGetArrayF90(rock_vector, rock_array, ierr); CHKERRQ(ierr)
@@ -490,17 +456,22 @@ contains
              call DMGetStratumIS(dm, rock_type_label_name, ir, cell_IS, &
                   ierr); CHKERRQ(ierr)
              call ISGetIndicesF90(cell_IS, cells, ierr); CHKERRQ(ierr)
-             do c = 1, num_cells
-                call global_section_offset(section, cells(c), range_start, &
-                     offset, ierr); CHKERRQ(ierr)
-                call rock%assign(rock_array, offset)
-                rock%permeability = 0._dp
-                rock%permeability(1: perm_size) = permeability
-                rock%wet_conductivity = wet_conductivity
-                rock%dry_conductivity = dry_conductivity
-                rock%porosity = porosity
-                rock%density = density
-                rock%specific_heat = specific_heat
+             do ic = 1, num_cells
+                associate(c => cells(ic))
+                  call DMLabelGetValue(ghost_label, c, ghost, ierr)
+                  if (ghost < 0) then
+                     call global_section_offset(section, c, range_start, &
+                          offset, ierr); CHKERRQ(ierr)
+                     call rock%assign(rock_array, offset)
+                     rock%permeability = 0._dp
+                     rock%permeability(1: perm_size) = permeability
+                     rock%wet_conductivity = wet_conductivity
+                     rock%dry_conductivity = dry_conductivity
+                     rock%porosity = porosity
+                     rock%density = density
+                     rock%specific_heat = specific_heat
+                  end if
+                end associate
              end do
              call ISRestoreIndicesF90(cell_IS, cells, ierr); CHKERRQ(ierr)
              call ISDestroy(cell_IS, ierr); CHKERRQ(ierr)

@@ -161,13 +161,11 @@ contains
           end select
           allocate(self%rocktype_zones(num_rocks))
 
-          call DMPlexGetHeightStratum(dm, 0, start_cell, end_cell, ierr)
           call DMGetLocalToGlobalMapping(dm, l2g, ierr); CHKERRQ(ierr)
           call DMPlexGetHeightStratum(dm, 0, start_cell, end_cell, ierr); CHKERRQ(ierr)
 
           do irock = 1, num_rocks
              self%rocktype_zones(irock) = minc_rocktype_zone_index
-             call label_rock_cells(iminc, minc_rocktype_zone_index)
              call label_rock_zones(iminc, minc_rocktype_zone_index, err)
              if (err == 0) then
                 call label_rock_types(iminc, minc_rocktype_zone_index, err)
@@ -223,41 +221,6 @@ contains
       end if
 
     end subroutine get_matrix_volumes
-
-!........................................................................
-
-    subroutine label_rock_cells(iminc, minc_rocktype_zone_index)
-      !! Sets MINC zone and rocktype labels on specified cells.
-
-      PetscInt, intent(in) :: iminc, minc_rocktype_zone_index
-      ! Locals:
-      PetscInt, allocatable :: natural_cell_indices(:), &
-           local_cell_indices(:)
-      PetscInt :: c, ic
-      PetscErrorCode :: ierr
-
-      if (fson_has_mpi(rocki_json, "cells")) then
-         call fson_get_mpi(rocki_json, "cells", val = natural_cell_indices)
-         associate(num_cells => size(natural_cell_indices))
-           if (num_cells > 0) then
-              allocate(local_cell_indices(num_cells))
-              local_cell_indices = natural_to_local_cell_index(ao, &
-                   l2g, natural_cell_indices)
-              do ic = 1, num_cells
-                 c = local_cell_indices(ic)
-                 if ((c >= start_cell) .and. (c < end_cell)) then
-                    call DMSetLabelValue(dm, minc_zone_label_name, &
-                         c, iminc, ierr); CHKERRQ(ierr)
-                    call DMSetLabelValue(dm, minc_rocktype_zone_label_name, &
-                         c, minc_rocktype_zone_index, ierr); CHKERRQ(ierr)
-                 end if
-              end do
-           end if
-           deallocate(natural_cell_indices, local_cell_indices)
-         end associate
-      end if
-
-    end subroutine label_rock_cells
 
 !........................................................................
 

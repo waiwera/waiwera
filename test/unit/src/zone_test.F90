@@ -69,56 +69,56 @@ contains
     call MPI_comm_rank(PETSC_COMM_WORLD, rank, ierr)
 
     json => fson_parse_mpi(str = '[1, 2, 3]')
-    zone_type = get_zone_type(json)
+    zone_type = get_zone_type_mpi(json)
     if (rank == 0) then
        call test%assert(ZONE_TYPE_CELL_ARRAY, zone_type, "array")
     end if
     call fson_destroy_mpi(json)
 
     json => fson_parse_mpi(str = '{"type": "array", "cells": [1, 2, 3]}')
-    zone_type = get_zone_type(json)
+    zone_type = get_zone_type_mpi(json)
     if (rank == 0) then
        call test%assert(ZONE_TYPE_CELL_ARRAY, zone_type, "type array")
     end if
     call fson_destroy_mpi(json)
 
     json => fson_parse_mpi(str = '{"cells": [1, 2, 3]}')
-    zone_type = get_zone_type(json)
+    zone_type = get_zone_type_mpi(json)
     if (rank == 0) then
        call test%assert(ZONE_TYPE_CELL_ARRAY, zone_type, "cells")
     end if
     call fson_destroy_mpi(json)
 
     json => fson_parse_mpi(str = '{"type": "foo"}')
-    zone_type = get_zone_type(json)
+    zone_type = get_zone_type_mpi(json)
     if (rank == 0) then
        call test%assert(-1, zone_type, "unknown type")
     end if
     call fson_destroy_mpi(json)
 
     json => fson_parse_mpi(str = '{"type": "box"}')
-    zone_type = get_zone_type(json)
+    zone_type = get_zone_type_mpi(json)
     if (rank == 0) then
        call test%assert(ZONE_TYPE_BOX, zone_type, "type box")
     end if
     call fson_destroy_mpi(json)
 
     json => fson_parse_mpi(str = '{"x": [0, 100]}')
-    zone_type = get_zone_type(json)
+    zone_type = get_zone_type_mpi(json)
     if (rank == 0) then
        call test%assert(ZONE_TYPE_BOX, zone_type, "x box")
     end if
     call fson_destroy_mpi(json)
 
     json => fson_parse_mpi(str = '{"r": [100, 200]}')
-    zone_type = get_zone_type(json)
+    zone_type = get_zone_type_mpi(json)
     if (rank == 0) then
        call test%assert(ZONE_TYPE_BOX, zone_type, "r box")
     end if
     call fson_destroy_mpi(json)
 
     json => fson_parse_mpi(str = '{"y": [100, 200], "z": [-50, 50]}')
-    zone_type = get_zone_type(json)
+    zone_type = get_zone_type_mpi(json)
     if (rank == 0) then
        call test%assert(ZONE_TYPE_BOX, zone_type, "y-z box")
     end if
@@ -141,19 +141,19 @@ contains
     call MPI_comm_rank(PETSC_COMM_WORLD, rank, ierr)
 
     json => fson_parse_mpi(str = '[1, 2, 3]')
-    call zone%init(1, 'zone1', json)
     if (rank == 0) then
+       call zone%init_serial(1, 'zone1', json)
        call test%assert([1, 2, 3], zone%cells, 'array cells')
+       call zone%destroy()
     end if
-    call zone%destroy()
     call fson_destroy_mpi(json)
 
     json => fson_parse_mpi(str = '{"cells": [1, 2, 3]}')
-    call zone%init(1, 'zone1', json)
     if (rank == 0) then
+       call zone%init_serial(1, 'zone1', json)
        call test%assert([1, 2, 3], zone%cells, 'cells cells')
+       call zone%destroy()
     end if
-    call zone%destroy()
     call fson_destroy_mpi(json)
 
   end subroutine test_cell_array
@@ -242,10 +242,11 @@ contains
          '{"mesh": {"filename": "' // trim(adjustl(data_path)) // 'mesh/7x7grid.exo", ' // &
          '"zones": {"zone1": [10, 15, 20, 27, 34, 44], ' // &
          '"zone2": [40, 30, 5]}}}')
-    call mesh%init(json)
-    call mesh%configure(eos, gravity, json, viewer = viewer, err = err)
+    call mesh%init(eos, json)
+    call mesh%configure(gravity, json, viewer = viewer, err = err)
     call test%assert(0, err, 'config error')
     call fson_destroy_mpi(json)
+    call mesh%destroy_distribution_data()
 
     if (err == 0) then
 
@@ -270,7 +271,11 @@ contains
       PetscInt, intent(in) :: cells(:)
       ! Locals:
       type(list_node_type), pointer :: node
-      PetscInt :: num_found, num_found_local
+      PetscInt :: num_found, num_found_local, i
+      PetscInt :: num_found_non_ghost, c, ghost
+      DMLabel :: ghost_label
+      PetscInt, pointer, contiguous :: points_array(:)
+      IS :: points
       character(40) :: istr
 
       write(istr, '(a,i1,a)') '[', index, ']'
@@ -281,12 +286,24 @@ contains
         select type(zone => node%data)
         type is (zone_cell_array_type)
 
-           call test%assert(cells, zone%cells, &
-                'cell array cells ' // trim(istr))
-
+           num_found_non_ghost = 0
            call DMGetStratumSize(mesh%dm, zone_label_name(zone%name), 1, &
                 num_found_local, ierr); CHKERRQ(ierr)
-           call MPI_reduce(num_found_local, num_found, 1, MPI_INTEGER, &
+           if (num_found_local > 0) then
+              call DMGetStratumIS(mesh%dm, zone_label_name(zone%name), 1, &
+                   points, ierr); CHKERRQ(ierr)
+              call ISGetIndicesF90(points, points_array, ierr); CHKERRQ(ierr)
+              call DMGetLabel(mesh%dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
+              do i = 1, num_found_local
+                 c = points_array(i)
+                 call DMLabelGetValue(ghost_label, c, ghost, ierr); CHKERRQ(ierr)
+                 if (ghost < 0) then
+                    num_found_non_ghost = num_found_non_ghost + 1
+                 end if
+              end do
+              call ISRestoreIndicesF90(points, points_array, ierr); CHKERRQ(ierr)
+           end if
+           call MPI_reduce(num_found_non_ghost, num_found, 1, MPI_INTEGER, &
                 MPI_SUM, 0, PETSC_COMM_WORLD, ierr)
            if (rank == 0) then
               call test%assert(num_cells, num_found, 'num found ' // istr)
@@ -330,10 +347,11 @@ contains
          '"xzone": {"x": [2000, 3000]}, ' // &
          '"all": {"type": "box"}, ' // &
          '"xyzone": {"x": [0, 2000], "y": [2500, 4500]}}}}')
-    call mesh%init(json)
-    call mesh%configure(eos, gravity, json, viewer = viewer, err = err)
+    call mesh%init(eos, json)
+    call mesh%configure(gravity, json, viewer = viewer, err = err)
     call test%assert(0, err, 'config error')
     call fson_destroy_mpi(json)
+    call mesh%destroy_distribution_data()
 
     if (err == 0) then
        call mesh%zones%traverse(box_label_iterator)
@@ -415,10 +433,11 @@ contains
          '"zone_times": {"+": "zone_plus", "*": "zone3"}, ' // &
          '"zone_times2": {"*": ["zone_plus", "zone3"]}, ' // &
          '"all": {"-": null}}}}')
-    call mesh%init(json)
-    call mesh%configure(eos, gravity, json, viewer = viewer, err = err)
+    call mesh%init(eos, json)
+    call mesh%configure(gravity, json, viewer = viewer, err = err)
     call test%assert(0, err, 'config error')
     call fson_destroy_mpi(json)
+    call mesh%destroy_distribution_data()
 
     if (err == 0) then
        call mesh%zones%traverse(combine_label_iterator)

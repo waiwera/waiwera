@@ -27,6 +27,7 @@ waiwera_sources = [
   'src/flow_simulation.F90',
   'src/fluid.F90',
   'src/fson_mpi.F90',
+  'src/fson_utils.F90',
   'src/hdf5io.F90',
   'src/IAPWS.F90',
   'src/IFC67.F90',

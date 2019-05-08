@@ -51,6 +51,8 @@ module source_module
   character(max_field_name_length), parameter, public :: default_output_source_fields(3) = [&
        "component         ",  "rate              ", "enthalpy          "]
 
+  character(len = 6), public :: source_label_name = "source" !! Name of DMLabel for identifying source locations
+
   type, public :: source_type
      !! Type for mass / energy source, applying specified values of
      !! generation to each equation in a particular cell at the

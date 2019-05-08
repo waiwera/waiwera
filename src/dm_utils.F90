@@ -44,7 +44,7 @@ module dm_utils_module
 
   public :: dm_get_strata, dm_point_stratum_height
 
-  public :: set_dm_data_layout, set_dm_default_data_layout
+  public :: dm_create_section, set_dm_data_layout, set_dm_default_data_layout
   public :: dm_setup_global_section
   public :: section_offset, global_section_offset
 
@@ -210,17 +210,16 @@ contains
 ! DM utilities:
 !------------------------------------------------------------------------
 
-  subroutine set_dm_data_layout(dm, num_components, field_dim, &
-       field_name)
-    !! Sets data layout on default section of the given DM.
+    PetscSection function dm_create_section(dm, num_components, field_dim, &
+       field_name) result(section)
+    !! Creates section from the given DM and data layout parameters.
 
-    DM, intent(in out) :: dm !! DM object
+    DM, intent(in) :: dm !! DM object
     PetscInt, target, intent(in) :: num_components(:) !! Number of components in each field
     PetscInt, intent(in) :: field_dim(:)  !! Dimension each field is defined on (0 = nodes, etc.)
     character(*), intent(in), optional :: field_name(:) !! Name of each field
     ! Locals:
     PetscInt :: dim
-    PetscSection :: section
     PetscInt :: num_fields, i, num_bc
     PetscInt, allocatable, target :: num_dof(:)
     PetscInt, target :: bc_field(1)
@@ -258,10 +257,28 @@ contains
        end do
     end if
 
+    deallocate(num_dof)
+
+  end function dm_create_section
+
+!------------------------------------------------------------------------
+
+  subroutine set_dm_data_layout(dm, num_components, field_dim, &
+       field_name)
+    !! Sets data layout on default section of the given DM.
+
+    DM, intent(in out) :: dm !! DM object
+    PetscInt, target, intent(in) :: num_components(:) !! Number of components in each field
+    PetscInt, intent(in) :: field_dim(:)  !! Dimension each field is defined on (0 = nodes, etc.)
+    character(*), intent(in), optional :: field_name(:) !! Name of each field
+    PetscErrorCode :: ierr
+    ! Locals:
+    PetscSection :: section
+
+    section = dm_create_section(dm, num_components, field_dim, field_name)
     call DMSetSection(dm, section, ierr); CHKERRQ(ierr)
     ! Create the global section:
     call DMGetGlobalSection(dm, section, ierr); CHKERRQ(ierr)
-    deallocate(num_dof)
 
   end subroutine set_dm_data_layout
 
@@ -1122,4 +1139,4 @@ contains
 
 !------------------------------------------------------------------------
 
-end module dm_utils_module
+  end module dm_utils_module

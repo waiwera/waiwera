@@ -564,7 +564,7 @@ contains
     PetscInt :: gravity_type, ng, dim
     PetscErrorCode :: ierr
 
-    call DMGetDimension(self%mesh%original_dm, dim, ierr); CHKERRQ(ierr)
+    call DMGetDimension(self%mesh%serial_dm, dim, ierr); CHKERRQ(ierr)
     self%gravity = 0._dp
     if (fson_has_mpi(json, "gravity")) then
        gravity_type = fson_type_mpi(json, "gravity")
@@ -687,13 +687,12 @@ contains
     call setup_thermodynamics(json, self%thermo, self%logfile)
     call setup_eos(json, self%thermo, self%eos, self%logfile)
 
-    call self%mesh%init(json, self%logfile)
+    call self%mesh%init(self%eos, json, self%logfile)
     call self%setup_gravity(json)
 
-    call self%mesh%configure(self%eos, self%gravity, json, &
-         self%logfile, self%hdf5_viewer, err)
+    call self%mesh%configure(self%gravity, json, self%logfile, self%hdf5_viewer, err)
     if (err == 0) then
-       call self%mesh%override_face_properties(json, self%logfile)
+       call self%mesh%override_face_properties()
        call self%output_mesh_geometry()
        call self%setup_solution_vector()
        call setup_relative_permeabilities(json, &
@@ -725,9 +724,9 @@ contains
                         self%time, self%solution, self%fluid, &
                         self%solution_range_start, self%fluid_range_start, self%logfile)
                    call self%setup_update_cell()
-                   call self%mesh%set_boundary_values(self%solution, self%fluid, &
+                   call self%mesh%set_boundary_conditions(json, self%solution, self%fluid, &
                         self%rock, self%eos, self%solution_range_start, &
-                        self%fluid_range_start, self%rock_range_start)
+                        self%fluid_range_start, self%rock_range_start, self%logfile)
                    call scale_initial_primary(self%mesh, self%eos, self%solution, self%fluid, &
                         self%solution_range_start, self%fluid_range_start)
                    call self%fluid_init(self%time, self%solution, err)
@@ -748,6 +747,8 @@ contains
           end if
        end if
     end if
+
+    call self%mesh%destroy_distribution_data()
 
     if (self%mesh%has_minc) then
        call DMDestroy(self%mesh%original_dm, ierr); CHKERRQ(ierr)
