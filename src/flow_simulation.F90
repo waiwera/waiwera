@@ -68,7 +68,7 @@ module flow_simulation_module
      PetscViewer :: hdf5_viewer !! Viewer for HDF5 output
      PetscInt, allocatable :: output_fluid_field_indices(:) !! Field indices for fluid output
      PetscInt, allocatable :: output_source_field_indices(:) !! Field indices for source output
-     PetscLogDouble :: start_wall_time !! Start wall time of simulation
+     integer(int32) :: start_clock !! Start wall clock time of simulation
      PetscBool :: unperturbed !! Whether any primary variables are being perturbed for Jacobian calculation
    contains
      private
@@ -669,7 +669,7 @@ contains
 
     err = 0
     call PetscLogEventBegin(simulation_init_event, ierr); CHKERRQ(ierr)
-    call PetscTime(self%start_wall_time, ierr); CHKERRQ(ierr)
+    call system_clock(self%start_clock)
     datetimestr = date_time_str()
 
     if (present(filename)) then
@@ -771,7 +771,8 @@ contains
     class(flow_simulation_type), intent(in out) :: self
     ! Locals:
     PetscErrorCode :: ierr
-    PetscLogDouble :: end_wall_time, elapsed_time
+    integer(int32) :: end_clock, clock_rate
+    PetscReal :: elapsed_time
 
     call self%destroy_output()
 
@@ -798,8 +799,8 @@ contains
     call self%capillary_pressure%destroy()
     deallocate(self%capillary_pressure)
 
-    call PetscTime(end_wall_time, ierr); CHKERRQ(ierr)
-    elapsed_time = end_wall_time - self%start_wall_time
+    call system_clock(end_clock, clock_rate)
+    elapsed_time = real(end_clock - self%start_clock) / clock_rate
     call self%logfile%write(LOG_LEVEL_INFO, 'simulation', 'destroy', &
          real_keys = ['elapsed_seconds'], real_values = [elapsed_time], &
          str_key = 'wall_time', str_value = date_time_str())
