@@ -765,12 +765,11 @@ contains
   subroutine flow_simulation_destroy(self)
     !! Destroys the simulation.
 
-    use utils_module, only : date_time_str
+    use utils_module, only : date_time_str, clock_elapsed_time
 
     class(flow_simulation_type), intent(in out) :: self
     ! Locals:
     PetscErrorCode :: ierr
-    integer(int32) :: end_clock, clock_rate
     PetscReal :: elapsed_time
 
     call self%destroy_output()
@@ -798,8 +797,7 @@ contains
     call self%capillary_pressure%destroy()
     deallocate(self%capillary_pressure)
 
-    call system_clock(end_clock, clock_rate)
-    elapsed_time = real(end_clock - self%start_clock) / clock_rate
+    elapsed_time = clock_elapsed_time(self%start_clock)
     call self%logfile%write(LOG_LEVEL_INFO, 'simulation', 'destroy', &
          real_keys = ['elapsed_seconds'], real_values = [elapsed_time], &
          str_key = 'wall_time', str_value = date_time_str())
