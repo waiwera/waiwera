@@ -24,5 +24,6 @@ module kinds_module
   
   ! double precision:
   integer, parameter, public :: dp = kind(0.d0) !! double precision kind
+  integer, parameter, public :: int32 = selected_int_kind(32) !! 32-bit integer
 
 end module kinds_module
