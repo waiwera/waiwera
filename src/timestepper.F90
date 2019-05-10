@@ -2182,7 +2182,7 @@ end subroutine timestepper_steps_set_next_stepsize
     class(timestepper_type), intent(in out) :: self
     ! Locals:
     PetscInt :: since_output
-    PetscErrorCode :: err, ierr
+    PetscErrorCode :: err
     integer(int32) :: start_clock, end_clock, clock_rate
     PetscReal :: elapsed_time
 
