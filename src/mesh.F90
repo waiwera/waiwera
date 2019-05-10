@@ -2594,7 +2594,7 @@ contains
             select type (item => node%data)
             type is (rock_dict_item_type)
                rockstr = trim(minc_str) // "." // trim(minc_rock_str) // "." &
-                    // trim(name) // ".type"
+                    // trim(name) // ".type."
                call read_rock_parameters(item%rock, rock, rockstr)
             end select
          else
