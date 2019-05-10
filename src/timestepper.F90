@@ -2183,13 +2183,14 @@ end subroutine timestepper_steps_set_next_stepsize
     ! Locals:
     PetscInt :: since_output
     PetscErrorCode :: err, ierr
-    PetscLogDouble :: start_wall_time, end_wall_time, elapsed_time
+    integer(int32) :: start_clock, end_clock, clock_rate
+    PetscReal :: elapsed_time
 
     call self%ode%logfile%write(LOG_LEVEL_INFO, 'timestepper', 'start', &
          real_keys = ['time'], real_values = [self%steps%current%time], &
          str_key = 'wall_time            ', str_value = date_time_str())
     call self%ode%logfile%flush()
-    call PetscTime(start_wall_time, ierr); CHKERRQ(ierr)
+    call system_clock(start_clock)
 
     err = 0
     self%steps%taken = 0
@@ -2239,8 +2240,8 @@ end subroutine timestepper_steps_set_next_stepsize
 
     end if
 
-    call PetscTime(end_wall_time, ierr); CHKERRQ(ierr)
-    elapsed_time = end_wall_time - start_wall_time
+    call system_clock(end_clock, clock_rate)
+    elapsed_time = real(end_clock - start_clock) / clock_rate
 
     call self%ode%logfile%write_blank()
     call self%ode%logfile%write(LOG_LEVEL_INFO, 'timestepper', 'end', &
