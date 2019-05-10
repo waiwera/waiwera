@@ -2177,13 +2177,13 @@ end subroutine timestepper_steps_set_next_stepsize
   subroutine timestepper_run(self)
     !! Runs the timestepper until finished.
 
-    use utils_module, only : date_time_str
+    use utils_module, only : date_time_str, clock_elapsed_time
 
     class(timestepper_type), intent(in out) :: self
     ! Locals:
     PetscInt :: since_output
     PetscErrorCode :: err
-    integer(int32) :: start_clock, end_clock, clock_rate
+    integer(int32) :: start_clock
     PetscReal :: elapsed_time
 
     call self%ode%logfile%write(LOG_LEVEL_INFO, 'timestepper', 'start', &
@@ -2240,9 +2240,7 @@ end subroutine timestepper_steps_set_next_stepsize
 
     end if
 
-    call system_clock(end_clock, clock_rate)
-    elapsed_time = real(end_clock - start_clock) / clock_rate
-
+    elapsed_time = clock_elapsed_time(start_clock)
     call self%ode%logfile%write_blank()
     call self%ode%logfile%write(LOG_LEVEL_INFO, 'timestepper', 'end', &
          real_keys = ['elapsed_seconds'], real_values = [elapsed_time], &

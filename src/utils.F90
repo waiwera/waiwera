@@ -50,7 +50,7 @@ module utils_module
        date_time_str, degrees_to_radians, rotation_matrix_2d, &
        polynomial, array_pair_sum, array_cumulative_sum, &
        array_exclusive_products, get_mpi_int_gather_array, &
-       array_sorted
+       array_sorted, clock_elapsed_time
   
 contains
 
@@ -400,6 +400,22 @@ contains
     end associate
 
   end function array_sorted_real
+
+!------------------------------------------------------------------------
+
+  PetscReal function clock_elapsed_time(start)
+    !! Returns elapsed time from start clock time, using
+    !! the Fortran system_clock() function.
+
+    integer(int32), intent(in) :: start
+    ! Locals:
+    integer(int32) :: end, rate
+
+    call system_clock(end, rate)
+    clock_elapsed_time = real(real(end - start, real32) / &
+         real(rate, real32), dp)
+
+  end function clock_elapsed_time
 
 !------------------------------------------------------------------------
 
