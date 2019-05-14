@@ -35,7 +35,7 @@ program waiwera
   character(max_flow_simulation_filename_length) :: filename !! JSON input filename
   PetscErrorCode :: ierr !! Error code
 
-  call PetscInitialize(PETSC_NULL_CHARACTER, ierr); CHKERRQ(ierr)
+  call PetscInitialize(PETSC_NULL_CHARACTER, ierr); CHKERRA(ierr)
   call init_profiling()
 
   call get_filename(filename)
@@ -56,7 +56,7 @@ program waiwera
 
   call simulation%destroy()
 
-  call PetscFinalize(ierr); CHKERRQ(ierr)
+  call PetscFinalize(ierr); CHKERRA(ierr)
 
 contains
 
