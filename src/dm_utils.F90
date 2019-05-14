@@ -226,6 +226,7 @@ contains
     IS, target :: bc_comps(1), bc_points(1)
     PetscInt, pointer :: pnum_components(:), pnum_dof(:), pbc_field(:)
     IS, pointer :: pbc_comps(:), pbc_points(:)
+    DMLabel, pointer :: label(:)
     PetscErrorCode :: ierr
 
     call DMGetDimension(dm, dim, ierr); CHKERRQ(ierr)
@@ -245,8 +246,9 @@ contains
     pbc_field => bc_field
     pbc_comps => bc_comps
     pbc_points => bc_points
+    label => NULL()
 
-    call DMPlexCreateSection(dm, dim, num_fields, pnum_components, &
+    call DMPlexCreateSection(dm, label, pnum_components, &
          pnum_dof, num_bc, pbc_field, pbc_comps, pbc_points, &
          PETSC_NULL_IS, section, ierr); CHKERRQ(ierr)
 
