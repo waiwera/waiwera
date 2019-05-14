@@ -273,6 +273,7 @@ contains
       end do
       if (.not. eos%isothermal) field_names(i) = 'heat_' // &
            trim(source_variable_names(num_source_variables))
+      call DMSetNumFields(dm_source, source%dof, ierr); CHKERRQ(ierr)
       call set_dm_data_layout(dm_source, num_field_components, field_dim, &
            field_names)
       deallocate(num_field_components, field_dim, field_names)
