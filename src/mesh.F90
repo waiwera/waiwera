@@ -642,7 +642,6 @@ contains
 
     call self%distribute()
 
-    call dm_setup_fv_discretization(self%original_dm, self%dof)
     call self%construct_ghost_cells()
     call DMSetNumFields(self%original_dm, 1, ierr); CHKERRQ(ierr)
     call set_dm_default_data_layout(self%original_dm, self%dof)
