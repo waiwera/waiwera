@@ -602,7 +602,6 @@ contains
             self%serial_dm, ierr); CHKERRQ(ierr)
        call dm_set_fv_adjacency(self%serial_dm)
        self%dof = eos%num_primary_variables
-       call DMSetNumFields(self%serial_dm, 1, ierr); CHKERRQ(ierr)
        call dm_setup_fv_discretization(self%serial_dm, self%dof)
        call set_dm_default_data_layout(self%serial_dm, self%dof)
        call self%setup_coordinate_parameters(json, logfile)
@@ -643,7 +642,6 @@ contains
     call self%distribute()
 
     call self%construct_ghost_cells()
-    call DMSetNumFields(self%original_dm, 1, ierr); CHKERRQ(ierr)
     call set_dm_default_data_layout(self%original_dm, self%dof)
     call dm_set_fv_adjacency(self%original_dm)
     call self%setup_geometry(gravity)
@@ -1771,7 +1769,6 @@ contains
     call self%setup_minc_dm_level_label_and_cell_map(minc_dm, max_num_levels, &
          minc_level_cells)
 
-    call DMSetNumFields(minc_dm, 1, ierr); CHKERRQ(ierr)
     call dm_set_fv_adjacency(minc_dm)
     call dm_setup_fv_discretization(minc_dm, self%dof)
     call set_dm_default_data_layout(minc_dm, self%dof)
