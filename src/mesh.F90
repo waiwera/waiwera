@@ -111,6 +111,8 @@ contains
   subroutine mesh_distribute(self)
     !! Distributes mesh over processors, and returns star forest from
     !! mesh distribution.
+
+    use dm_utils_module, only: dm_setup_fv_discretization
     
     class(mesh_type), intent(in out) :: self
     ! Locals:
@@ -121,6 +123,8 @@ contains
          self%original_dm, ierr); CHKERRQ(ierr)
     if (self%original_dm .eq. PETSC_NULL_DM) then
        self%original_dm = self%serial_dm
+    else
+       call dm_setup_fv_discretization(self%original_dm, self%dof)
     end if
 
   end subroutine mesh_distribute
