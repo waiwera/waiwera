@@ -938,14 +938,10 @@ contains
 
     DM, intent(in out) :: dm
     ! Locals:
-    PetscInt :: f, num_fields
     PetscErrorCode :: ierr
 
-    call DMGetNumFields(dm, num_fields, ierr); CHKERRQ(ierr)
-    do f = 0, num_fields - 1
-       call DMSetAdjacency(dm, f, PETSC_TRUE, PETSC_FALSE, ierr)
-       CHKERRQ(ierr)
-    end do
+    call DMSetBasicAdjacency(dm, PETSC_TRUE, PETSC_FALSE, ierr)
+    CHKERRQ(ierr)
 
   end subroutine dm_set_fv_adjacency
 
