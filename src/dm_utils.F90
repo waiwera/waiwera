@@ -954,7 +954,6 @@ contains
     PetscInt, intent(in) :: dof
     ! Locals:
     PetscFV :: fvm
-    PetscDS :: ds
     PetscInt :: dim
     PetscErrorCode :: ierr
 
@@ -963,8 +962,8 @@ contains
     call PetscFVSetNumComponents(fvm, dof, ierr); CHKERRQ(ierr)
     call DMGetDimension(dm, dim, ierr); CHKERRQ(ierr)
     call PetscFVSetSpatialDimension(fvm, dim, ierr); CHKERRQ(ierr)
-    call DMGetDS(dm, ds, ierr); CHKERRQ(ierr)
-    call PetscDSAddDiscretization(ds, fvm, ierr); CHKERRQ(ierr)
+    call DMAddField(dm, PETSC_NULL_DMLABEL, fvm, ierr); CHKERRQ(ierr)
+    call DMCreateDS(dm, ierr); CHKERRQ(ierr)
     call PetscFVDestroy(fvm, ierr); CHKERRQ(ierr)
 
   end subroutine dm_setup_fv_discretization
