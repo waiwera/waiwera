@@ -209,6 +209,7 @@ contains
 
     num_vertices = min(rank, 4)
     call create_path_dm(num_vertices, dm)
+    call DMSetNumFields(dm, num_fields, ierr); CHKERRQ(ierr)
     call set_dm_data_layout(dm, num_field_components, field_dim, field_names)
 
     call DMCreateGlobalVector(dm, v, ierr); CHKERRQ(ierr)

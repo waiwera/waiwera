@@ -111,6 +111,8 @@ contains
   subroutine mesh_distribute(self)
     !! Distributes mesh over processors, and returns star forest from
     !! mesh distribution.
+
+    use dm_utils_module, only: dm_setup_fv_discretization
     
     class(mesh_type), intent(in out) :: self
     ! Locals:
@@ -121,6 +123,8 @@ contains
          self%original_dm, ierr); CHKERRQ(ierr)
     if (self%original_dm .eq. PETSC_NULL_DM) then
        self%original_dm = self%serial_dm
+    else
+       call dm_setup_fv_discretization(self%original_dm, self%dof)
     end if
 
   end subroutine mesh_distribute
@@ -325,6 +329,7 @@ contains
     ! Set up cell geometry vector:
     call VecGetDM(self%cell_geom, dm_cell, ierr); CHKERRQ(ierr)
     cell_variable_dim = dim
+    call DMSetNumFields(dm_cell, num_cell_variables, ierr); CHKERRQ(ierr)
     call set_dm_data_layout(dm_cell, cell_variable_num_components, &
          cell_variable_dim, cell_variable_names)
 
@@ -351,6 +356,7 @@ contains
     ! Set up face geometry vector:
     call DMClone(self%original_dm, dm_face, ierr); CHKERRQ(ierr)
     face_variable_dim = dim - 1
+    call DMSetNumFields(dm_face, num_face_variables, ierr); CHKERRQ(ierr)
     call set_dm_data_layout(dm_face, face_variable_num_components, &
          face_variable_dim, face_variable_names)
     call DMCreateLocalVector(dm_face, self%face_geom, ierr); CHKERRQ(ierr)
@@ -635,7 +641,6 @@ contains
 
     call self%distribute()
 
-    call dm_setup_fv_discretization(self%original_dm, self%dof)
     call self%construct_ghost_cells()
     call set_dm_default_data_layout(self%original_dm, self%dof)
     call dm_set_fv_adjacency(self%original_dm)
@@ -2581,6 +2586,7 @@ contains
 
     call DMClone(minc_dm, dm_cell, ierr); CHKERRQ(ierr)
     cell_variable_dim = dim
+    call DMSetNumFields(dm_cell, num_cell_variables, ierr); CHKERRQ(ierr)
     call set_dm_data_layout(dm_cell, cell_variable_num_components, &
          cell_variable_dim, cell_variable_names)
     call DMCreateLocalVector(dm_cell, minc_cell_geom, ierr); CHKERRQ(ierr)
@@ -2594,6 +2600,7 @@ contains
 
     call DMClone(minc_dm, dm_face, ierr); CHKERRQ(ierr)
     face_variable_dim = dim - 1
+    call DMSetNumFields(dm_face, num_face_variables, ierr); CHKERRQ(ierr)
     call set_dm_data_layout(dm_face, face_variable_num_components, &
          face_variable_dim, face_variable_names)
     call DMCreateLocalVector(dm_face, minc_face_geom, ierr); CHKERRQ(ierr)

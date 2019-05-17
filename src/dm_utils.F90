@@ -226,6 +226,7 @@ contains
     IS, target :: bc_comps(1), bc_points(1)
     PetscInt, pointer :: pnum_components(:), pnum_dof(:), pbc_field(:)
     IS, pointer :: pbc_comps(:), pbc_points(:)
+    DMLabel, pointer :: label(:)
     PetscErrorCode :: ierr
 
     call DMGetDimension(dm, dim, ierr); CHKERRQ(ierr)
@@ -245,8 +246,9 @@ contains
     pbc_field => bc_field
     pbc_comps => bc_comps
     pbc_points => bc_points
+    label => NULL()
 
-    call DMPlexCreateSection(dm, dim, num_fields, pnum_components, &
+    call DMPlexCreateSection(dm, label, pnum_components, &
          pnum_dof, num_bc, pbc_field, pbc_comps, pbc_points, &
          PETSC_NULL_IS, section, ierr); CHKERRQ(ierr)
 
@@ -510,7 +512,7 @@ contains
          indices, PETSC_COPY_VALUES, new_index_block, ierr); CHKERRQ(ierr)
     call ISRestoreIndicesF90(new_index, indices, ierr); CHKERRQ(ierr)
 
-    call VecScatterCreateWithData(vinitial, old_index_block, v, &
+    call VecScatterCreate(vinitial, old_index_block, v, &
          new_index_block, scatter, ierr); CHKERRQ(ierr)
     call ISDestroy(old_index_block, ierr); CHKERRQ(ierr)
     call ISDestroy(new_index_block, ierr); CHKERRQ(ierr)
@@ -938,8 +940,8 @@ contains
     ! Locals:
     PetscErrorCode :: ierr
 
-    call DMPlexSetAdjacencyUseCone(dm, PETSC_TRUE, ierr); CHKERRQ(ierr)
-    call DMPlexSetAdjacencyUseClosure(dm, PETSC_FALSE, ierr); CHKERRQ(ierr)
+    call DMSetBasicAdjacency(dm, PETSC_TRUE, PETSC_FALSE, ierr)
+    CHKERRQ(ierr)
 
   end subroutine dm_set_fv_adjacency
 
@@ -952,7 +954,6 @@ contains
     PetscInt, intent(in) :: dof
     ! Locals:
     PetscFV :: fvm
-    PetscDS :: ds
     PetscInt :: dim
     PetscErrorCode :: ierr
 
@@ -961,8 +962,8 @@ contains
     call PetscFVSetNumComponents(fvm, dof, ierr); CHKERRQ(ierr)
     call DMGetDimension(dm, dim, ierr); CHKERRQ(ierr)
     call PetscFVSetSpatialDimension(fvm, dim, ierr); CHKERRQ(ierr)
-    call DMGetDS(dm, ds, ierr); CHKERRQ(ierr)
-    call PetscDSAddDiscretization(ds, fvm, ierr); CHKERRQ(ierr)
+    call DMAddField(dm, PETSC_NULL_DMLABEL, fvm, ierr); CHKERRQ(ierr)
+    call DMCreateDS(dm, ierr); CHKERRQ(ierr)
     call PetscFVDestroy(fvm, ierr); CHKERRQ(ierr)
 
   end subroutine dm_setup_fv_discretization

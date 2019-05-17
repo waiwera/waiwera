@@ -2163,8 +2163,8 @@ end subroutine timestepper_steps_set_next_stepsize
             s = "NaN_or_Inf"
          case (KSP_DIVERGED_INDEFINITE_MAT)
             s = "indefinite matrix"
-         case (KSP_DIVERGED_PCSETUP_FAILED)
-            s = "PC setup failed"
+         case (KSP_DIVERGED_PC_FAILED)
+            s = "PC failed"
          case default
             s = "unknown"
       end select
