@@ -201,41 +201,45 @@ contains
     type(fson_value), pointer :: json
 
     json => fson_parse_mpi(str = '{"mesh": {' // &
-         '"filename": "' // trim(adjustl(data_path)) // 'mesh/2D.msh"}}')
+         '"filename": "' // trim(adjustl(data_path)) // 'mesh/2D.msh"}, ')
+         '"logfile": {"filename": "", "echo": false}}')
     call gravity_test(json, "2D default gravity", [0._dp, 0._dp, 0._dp])
     call fson_destroy_mpi(json)
 
     json => fson_parse_mpi(str = '{"mesh": {' // &
-         '"filename": "' // trim(adjustl(data_path)) // 'mesh/2D.msh"}, "gravity": null}')
+         '"filename": "' // trim(adjustl(data_path)) // 'mesh/2D.msh"}, ' // &
+         '"gravity": null, ' // &
+         '"logfile": {"filename": "", "echo": false}}')
     call gravity_test(json, "2D null gravity", [0._dp, 0._dp, 0._dp])
     call fson_destroy_mpi(json)
 
     json => fson_parse_mpi(str = '{"mesh": {' // &
          '"filename": "' // trim(adjustl(data_path)) // 'mesh/2D.msh"}, ' // &
-         '"gravity": 9.81}')
+         '"gravity": 9.81, "logfile": {"filename": "", "echo": false}}')
     call gravity_test(json, "2D scalar gravity", [0._dp, -9.81_dp, 0._dp])
     call fson_destroy_mpi(json)
 
     json => fson_parse_mpi(str = '{"mesh": {' // &
          '"filename": "' // trim(adjustl(data_path)) // 'mesh/2D.msh"}, ' // &
-         '"gravity": [-9.8, 0.0]}')
+         '"gravity": [-9.8, 0.0], "logfile": {"filename": "", "echo": false}}')
     call gravity_test(json, "2D vector gravity", [-9.8_dp, 0._dp, 0._dp])
     call fson_destroy_mpi(json)
 
     json => fson_parse_mpi(str = '{"mesh": {' // &
-         '"filename": "' // trim(adjustl(data_path)) // 'mesh/block3.exo"}}')
+         '"filename": "' // trim(adjustl(data_path)) // 'mesh/block3.exo"}, ')
+         '"logfile": {"filename": "", "echo": false}}')
     call gravity_test(json, "3D default gravity", [0._dp, 0._dp, -9.8_dp])
     call fson_destroy_mpi(json)
 
     json => fson_parse_mpi(str = '{"mesh": {' // &
          '"filename": "' // trim(adjustl(data_path)) // 'mesh/block3.exo"}, ' // &
-         '"gravity": 9.80665}')
+         '"gravity": 9.80665, "logfile": {"filename": "", "echo": false}}')
     call gravity_test(json, "3D scalar gravity", [0._dp, 0._dp, -9.80665_dp])
     call fson_destroy_mpi(json)
 
     json => fson_parse_mpi(str = '{"mesh": {' // &
          '"filename": "' // trim(adjustl(data_path)) // 'mesh/block3.exo"}, ' // &
-         '"gravity": [0., 0., -9.81]}')
+         '"gravity": [0., 0., -9.81], "logfile": {"filename": "", "echo": false}}')
     call gravity_test(json, "3D vector gravity", [0._dp, 0._dp, -9.81_dp])
     call fson_destroy_mpi(json)
 
