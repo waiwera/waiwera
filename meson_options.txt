@@ -1,1 +1,2 @@
 option('set_rpath', type : 'boolean', value : true)
+option('mpi_wrapper_compiler', type : 'boolean', value : false)
