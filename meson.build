@@ -5,7 +5,10 @@ project('waiwera', ['c', 'fortran'],
         license: 'GPL3',
         meson_version: '>=0.46.0')
 
-mpi   = dependency('mpi', language: 'fortran')
+if not get_option('mpi_wrapper_compiler')
+  mpi = dependency('mpi', language: 'fortran')
+endif
+
 PETSc = dependency('PETSc', version: '>=3.11.2')
 fson  = dependency('fson',  version: '>=1.0.0', fallback: ['fson', 'fson_dep'])
 zofu  = dependency('zofu',  version: '>=0.1.0', fallback: ['zofu', 'zofu_dep'])
@@ -60,7 +63,10 @@ waiwera_sources = [
   'src/zone_label.F90']
 
 waiwera_executable_sources = waiwera_sources + ['src/waiwera.F90']
-waiwera_deps = [mpi, PETSc, fson]
+waiwera_deps = [PETSc, fson]
+if not get_option('mpi_wrapper_compiler')
+  waiwera_deps += mpi
+endif
 
 if meson.get_compiler('fortran').get_id() == 'gcc'
   f_args = ['-ffree-line-length-none',
@@ -92,11 +98,16 @@ waiwera = shared_library('waiwera',
            fortran_args: f_args,
            install: false)
 
+unit_test_deps = [zofu, PETSc]
+if not get_option('mpi_wrapper_compiler')
+  unit_test_deps += mpi
+endif
+
 unit_test_utils = shared_library('unit_test_utils',
                             [join_paths(meson.current_source_dir(),
                                         'test', 'unit', 'src', 'unit_test_utils.F90')],
                             link_with: waiwera,
-                            dependencies: [zofu, mpi, PETSc])
+                            dependencies: unit_test_deps)
 
 test_sources = ['capillary_pressure_test',
                 'cell_test',

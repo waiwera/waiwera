@@ -118,7 +118,7 @@ meson_args = [
     "-Dset_rpath=" + set_rpath]
 
 if args.mpi_wrapper_compiler:
-    meson_args += "-Dmpi_wrapper_compiler=true"
+    meson_args.append("-Dmpi_wrapper_compiler=true")
 
 subprocess.Popen(["meson"] + meson_args, env = env).wait()
 
