@@ -201,7 +201,7 @@ contains
     type(fson_value), pointer :: json
 
     json => fson_parse_mpi(str = '{"mesh": {' // &
-         '"filename": "' // trim(adjustl(data_path)) // 'mesh/2D.msh"}, ')
+         '"filename": "' // trim(adjustl(data_path)) // 'mesh/2D.msh"}, ' // &
          '"logfile": {"filename": "", "echo": false}}')
     call gravity_test(json, "2D default gravity", [0._dp, 0._dp, 0._dp])
     call fson_destroy_mpi(json)
@@ -226,7 +226,7 @@ contains
     call fson_destroy_mpi(json)
 
     json => fson_parse_mpi(str = '{"mesh": {' // &
-         '"filename": "' // trim(adjustl(data_path)) // 'mesh/block3.exo"}, ')
+         '"filename": "' // trim(adjustl(data_path)) // 'mesh/block3.exo"}, ' // &
          '"logfile": {"filename": "", "echo": false}}')
     call gravity_test(json, "3D default gravity", [0._dp, 0._dp, -9.8_dp])
     call fson_destroy_mpi(json)
