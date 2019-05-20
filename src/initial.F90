@@ -39,7 +39,8 @@ contains
 
     !! Initializes solution vector y with constant values over the mesh.
 
-    use dm_utils_module, only: global_vec_section, global_section_offset
+    use dm_utils_module, only: global_vec_section, global_section_offset, &
+         dm_get_end_interior_cell
     use mesh_module, only: mesh_type
     use eos_module, only: eos_type
 
@@ -50,7 +51,7 @@ contains
     PetscInt, intent(in) :: y_range_start
     ! Locals:
     PetscInt :: np, c, ghost
-    PetscInt :: start_cell, end_cell, y_offset
+    PetscInt :: start_cell, end_cell, end_interior_cell, y_offset
     PetscErrorCode :: ierr
     PetscReal, pointer, contiguous :: cell_primary(:), y_array(:)
     PetscSection :: y_section
@@ -65,8 +66,9 @@ contains
     CHKERRQ(ierr)
     call DMPlexGetHeightStratum(mesh%dm, 0, start_cell, end_cell, ierr)
     CHKERRQ(ierr)
+    end_interior_cell = dm_get_end_interior_cell(mesh%dm, end_cell)
 
-    do c = start_cell, end_cell - 1
+    do c = start_cell, end_interior_cell - 1
        call DMLabelGetValue(ghost_label, c, ghost, ierr); CHKERRQ(ierr)
        if (ghost < 0) then
           call global_section_offset(y_section, c, &
@@ -197,7 +199,8 @@ contains
 
     !! Initializes fluid regions with constant values over the mesh.
 
-    use dm_utils_module, only: global_vec_section, global_section_offset
+    use dm_utils_module, only: global_vec_section, global_section_offset, &
+         dm_get_end_interior_cell
     use mesh_module, only: mesh_type
     use fluid_module, only: fluid_type
     use eos_module, only: eos_type
@@ -208,7 +211,7 @@ contains
     Vec, intent(in out) :: fluid_vector
     PetscInt, intent(in) :: fluid_range_start
     ! Locals:
-    PetscInt :: c, ghost, start_cell, end_cell
+    PetscInt :: c, ghost, start_cell, end_cell, end_interior_cell
     PetscInt :: fluid_offset
     PetscErrorCode :: ierr
     type(fluid_type) :: fluid
@@ -224,8 +227,9 @@ contains
     CHKERRQ(ierr)
     call DMPlexGetHeightStratum(mesh%dm, 0, start_cell, end_cell, ierr)
     CHKERRQ(ierr)
+    end_interior_cell = dm_get_end_interior_cell(mesh%dm, end_cell)
 
-    do c = start_cell, end_cell - 1
+    do c = start_cell, end_interior_cell - 1
        call DMLabelGetValue(ghost_label, c, ghost, ierr); CHKERRQ(ierr)
        if (ghost < 0) then
           call global_section_offset(fluid_section, c, &
