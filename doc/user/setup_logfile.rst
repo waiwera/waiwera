@@ -123,7 +123,7 @@ The "logfile" value can take a boolean value and be used simply to turn log outp
 
    {"logfile": false}
 
-Alternatively, the "logfile" value can be specified as an object, with a **"filename"** string value for specifying the filename. It also has an **"echo"** boolean value  which controls whether log output is echoed to the console display as the simulation runs.
+Alternatively, the "logfile" value can be specified as an object, with a **"filename"** string value for specifying the filename (this can be set to "" to disable log output). It also has an **"echo"** boolean value  which controls whether log output is echoed to the console display as the simulation runs.
 
 .. note::
    **JSON object**: log output
