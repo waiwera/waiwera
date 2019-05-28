@@ -4,5 +4,5 @@
 app_dir: /vagrant
 app_user: waiwera
 app_group: waiwera
-petsc_version: 81b0e57
+petsc_version: afbee2879a
 waiwera_version: meson

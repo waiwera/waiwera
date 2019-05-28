@@ -1,4 +1,4 @@
-FROM debian:stretch-slim AS build-env
+FROM debian:stretch-slim
 
 ARG git_user
 ARG git_pwd
