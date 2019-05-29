@@ -1,2 +1,8 @@
 #!/bin/bash
-python3 $APP_DIR/waiwera/unit_tests.py
+# python3 $APP_DIR/waiwera/unit_tests.py
+
+echo "------ HOOK START - TEST -------"
+printenv
+docker image ls
+
+echo "------ HOOK END - TEST -------"
