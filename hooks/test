@@ -1,8 +1,7 @@
 #!/bin/bash
-# python3 $APP_DIR/waiwera/unit_tests.py
 
 echo "------ HOOK START - TEST -------"
-printenv
-docker image ls
+
+docker container run --rm -it --user 1000:1000 $IMAGE_NAME  python unit_tests.py
 
 echo "------ HOOK END - TEST -------"

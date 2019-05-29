@@ -20,14 +20,14 @@ ENV LANG en_US.utf8
 
 ADD ansible /ansible
 
-# RUN apt update && \
-#    apt install -y --no-install-recommends python3-minimal python3-pip python3-setuptools python3-wheel && \
-#    pip3 install ansible &&\
-#    usr/local/bin/ansible-playbook --connection=local /ansible/local.yml -e "waiwera_user=${git_user}" -e "waiwera_pwd=${git_pwd}" -e  "app_dir=${app_dir}" --skip-tags=vagrant,local,packer,clean -v && \
-#    pip3 uninstall ansible -y && \
-#    for dep in $(pip3 show ansible | grep Requires | sed 's/Requires: //g; s/,//g'); do pip3 uninstall -y $dep; done && \
-#    apt-get autoremove -y && apt-get autoclean -y && apt-get clean -y && \
-#    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /usr/share/doc/*  /root/.pip/cache/*
+RUN apt update && \
+    apt install -y --no-install-recommends python3-minimal python3-pip python3-setuptools python3-wheel && \
+    pip3 install ansible &&\
+    usr/local/bin/ansible-playbook --connection=local /ansible/local.yml -e "waiwera_user=${git_user}" -e "waiwera_pwd=${git_pwd}" -e  "app_dir=${app_dir}" --skip-tags=vagrant,local,packer,clean -v && \
+    pip3 uninstall ansible -y && \
+    for dep in $(pip3 show ansible | grep Requires | sed 's/Requires: //g; s/,//g'); do pip3 uninstall -y $dep; done && \
+    apt-get autoremove -y && apt-get autoclean -y && apt-get clean -y && \
+    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /usr/share/doc/*  /root/.pip/cache/*
 
 RUN rm -r /ansible
 
