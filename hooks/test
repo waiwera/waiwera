@@ -1,2 +1,2 @@
 #!/bin/bash
-python3 unit_tests.py
+python3 $APP_DIR/waiwera/unit_tests.py
