@@ -84,7 +84,6 @@ contains
     PetscErrorCode, intent(out) :: err
     ! Locals:
     PetscInt :: start_cell, end_cell
-    ISLocalToGlobalMapping :: l2g
     PetscBool :: has_label
     type(fson_value), pointer :: spacing_json, rock_json, rocki_json
     PetscInt :: spacing_type, num_spacings, rock_type, num_rocks, irock
@@ -161,7 +160,6 @@ contains
           end select
           allocate(self%rocktype_zones(num_rocks))
 
-          call DMGetLocalToGlobalMapping(dm, l2g, ierr); CHKERRQ(ierr)
           call DMPlexGetHeightStratum(dm, 0, start_cell, end_cell, ierr); CHKERRQ(ierr)
 
           do irock = 1, num_rocks
