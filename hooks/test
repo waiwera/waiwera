@@ -2,6 +2,6 @@
 
 echo "------ HOOK START - TEST -------"
 
-docker container run --rm -it --user 1000:1000 $IMAGE_NAME  python unit_tests.py
+docker run --rm -it --user 1000:1000 $IMAGE_NAME  python unit_tests.py
 
 echo "------ HOOK END - TEST -------"
