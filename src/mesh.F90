@@ -1672,7 +1672,7 @@ contains
           iminc = 1
           mincstr = "minc."
           call self%minc(num_minc_zones)%init(minc_json, self%dm, &
-               self%cell_order, iminc, mincstr, self%rock_types, &
+               iminc, mincstr, self%rock_types, &
                minc_rocktype_zone_index, logfile, err)
        case (TYPE_ARRAY)
           num_minc_zones = fson_value_count_mpi(minc_json, ".")
@@ -1681,7 +1681,7 @@ contains
           do iminc = 1, num_minc_zones
              write(imincstr, '(i0)') iminc - 1
              mincstr = 'minc[' // trim(imincstr) // '].'
-             call self%minc(iminc)%init(minci_json, self%dm, self%cell_order, iminc, &
+             call self%minc(iminc)%init(minci_json, self%dm, iminc, &
                   mincstr, self%rock_types, minc_rocktype_zone_index, logfile, err)
              if (err > 0) exit
              minci_json => fson_value_next_mpi(minci_json)

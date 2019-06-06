@@ -67,7 +67,6 @@ contains
     ! Locals:
     type(minc_type) :: minc
     DM :: dm
-    AO :: ao
     PetscInt :: ir
     type(fson_value), pointer :: json
     PetscMPIInt :: rank
@@ -78,7 +77,7 @@ contains
     ir = 1
 
     json => fson_parse_mpi(str = '{"geometry": {"fracture": {"planes": 1, "spacing": 50.}}}')
-    call minc%init(json, dm, ao, 0, "minc", rock_types, ir, err = err)
+    call minc%init(json, dm, 0, "minc", rock_types, ir, err = err)
     if (rank == 0) then
        call test%assert(1, minc%num_fracture_planes, '1 set of fracture planes')
        call test%assert(0._dp, minc%proximity(0._dp), '1 plane x = 0')
@@ -91,7 +90,7 @@ contains
     call fson_destroy_mpi(json)
 
     json => fson_parse_mpi(str = '{"geometry": {"fracture": {"planes": 2, "spacing": [50, 80]}}}')
-    call minc%init(json, dm, ao, 0, "minc", rock_types, ir, err = err)
+    call minc%init(json, dm, 0, "minc", rock_types, ir, err = err)
     if (rank == 0) then
        call test%assert(2, minc%num_fracture_planes, '2 sets of fracture planes')
        call test%assert(0._dp, minc%proximity(0._dp), '2 planes x = 0')
@@ -105,7 +104,7 @@ contains
     call fson_destroy_mpi(json)
 
     json => fson_parse_mpi(str = '{"geometry": {"fracture": {"planes": 3, "spacing": [50, 80, 60]}}}')
-    call minc%init(json, dm, ao, 0, "minc", rock_types, ir, err = err)
+    call minc%init(json, dm, 0, "minc", rock_types, ir, err = err)
     if (rank == 0) then
        call test%assert(3, minc%num_fracture_planes, '3 sets of fracture planes')
        call test%assert(0._dp, minc%proximity(0._dp), '3 planes x = 0')
@@ -133,7 +132,6 @@ contains
     ! Locals:
     type(minc_type) :: minc
     DM :: dm
-    AO :: ao
     PetscInt :: ir
     type(fson_value), pointer :: json
     type(dictionary_type) :: rock_types
@@ -144,7 +142,7 @@ contains
     ir = 1
 
     json => fson_parse_mpi(str = '{"geometry": {"fracture": {"planes": 1, "spacing": 50.}}}')
-    call minc%init(json, dm, ao, 0, "minc", rock_types, ir, err = err)
+    call minc%init(json, dm, 0, "minc", rock_types, ir, err = err)
     if (rank == 0) then
        call test%assert(0.04_dp, &
             minc%proximity_derivative(0._dp), '1 plane x = 0')
@@ -159,7 +157,7 @@ contains
     call fson_destroy_mpi(json)
 
     json => fson_parse_mpi(str = '{"geometry": {"fracture": {"planes": 2, "spacing": [50, 80]}}}')
-    call minc%init(json, dm, ao, 0, "minc", rock_types, ir, err = err)
+    call minc%init(json, dm, 0, "minc", rock_types, ir, err = err)
     if (rank == 0) then
        call test%assert(0.065_dp, &
             minc%proximity_derivative(0._dp), '2 planes x = 0')
@@ -174,7 +172,7 @@ contains
     call fson_destroy_mpi(json)
 
     json => fson_parse_mpi(str = '{"geometry": {"fracture": {"planes": 2, "spacing": 50}}}')
-    call minc%init(json, dm, ao, 0, "minc", rock_types, ir, err = err)
+    call minc%init(json, dm, 0, "minc", rock_types, ir, err = err)
     if (rank == 0) then
        call test%assert([50._dp, 50._dp], minc%fracture_spacing, &
             '2 planes equal spacing fracture spacing')
@@ -191,7 +189,7 @@ contains
     call fson_destroy_mpi(json)
 
     json => fson_parse_mpi(str = '{"geometry": {"fracture": {"planes": 3, "spacing": [50, 80, 60]}}}')
-    call minc%init(json, dm, ao, 0, "minc", rock_types, ir, err = err)
+    call minc%init(json, dm, 0, "minc", rock_types, ir, err = err)
     if (rank == 0) then
        call test%assert(0.0983333333_dp, &
             minc%proximity_derivative(0._dp), '3 planes x = 0')
@@ -220,7 +218,6 @@ contains
     ! Locals:
     type(minc_type) :: minc
     DM :: dm
-    AO :: ao
     PetscInt :: ir
     type(fson_value), pointer :: json
     type(dictionary_type) :: rock_types
@@ -231,7 +228,7 @@ contains
     ir = 1
 
     json => fson_parse_mpi(str = '{"geometry": {"fracture": {"planes": 1, "spacing": 50.}}}')
-    call minc%init(json, dm, ao, 0, "minc", rock_types, ir, err = err)
+    call minc%init(json, dm, 0, "minc", rock_types, ir, err = err)
     if (rank == 0) then
        call test%assert(25._dp / 3._dp, &
             minc%inner_connection_distance(0._dp), '1 plane x = 0')
@@ -244,7 +241,7 @@ contains
     call fson_destroy_mpi(json)
 
     json => fson_parse_mpi(str = '{"geometry": {"fracture": {"planes": 2, "spacing": [50, 80]}}}')
-    call minc%init(json, dm, ao, 0, "minc", rock_types, ir, err = err)
+    call minc%init(json, dm, 0, "minc", rock_types, ir, err = err)
     if (rank == 0) then
        call test%assert(100._dp / 13._dp, &
             minc%inner_connection_distance(0._dp), '2 planes x = 0')
@@ -257,7 +254,7 @@ contains
     call fson_destroy_mpi(json)
 
     json => fson_parse_mpi(str = '{"geometry": {"fracture": {"planes": 3, "spacing": [50, 80, 60]}}}')
-    call minc%init(json, dm, ao, 0, "minc", rock_types, ir, err = err)
+    call minc%init(json, dm, 0, "minc", rock_types, ir, err = err)
     if (rank == 0) then
        call test%assert(360._dp / 59._dp, &
             minc%inner_connection_distance(0._dp), '3 planes x = 0')
@@ -284,7 +281,6 @@ contains
     ! Locals:
     type(minc_type) :: minc
     DM :: dm
-    AO :: ao
     PetscInt :: ir
     type(fson_value), pointer :: json
     type(dictionary_type) :: rock_types
@@ -295,7 +291,7 @@ contains
 
     json => fson_parse_mpi(str = '{"geometry": {' // &
          '"fracture": {"volume": 0.1, "planes": 1, "spacing": 50.}}}')
-    call minc%init(json, dm, ao, 0, "minc", rock_types, ir, err = err)
+    call minc%init(json, dm, 0, "minc", rock_types, ir, err = err)
     if (rank == 0) then
        call test%assert(0, err, '1 plane 1 level error')
        call test%assert([0.1_dp, 0.9_dp], minc%volume, &
@@ -311,7 +307,7 @@ contains
     json => fson_parse_mpi(str = '{"geometry": {' // &
          '"fracture": {"volume": 0.1, "planes": 1, "spacing": 100.}, ' // &
          '"matrix": {"volume": [0.3, 0.6]}}}')
-    call minc%init(json, dm, ao, 0, "minc", rock_types, ir, err = err)
+    call minc%init(json, dm, 0, "minc", rock_types, ir, err = err)
     if (rank == 0) then
        call test%assert(0, err, '1 plane 2 levels error')
        call test%assert([0.1_dp, 0.3_dp, 0.6_dp], minc%volume, &
@@ -327,7 +323,7 @@ contains
     json => fson_parse_mpi(str = '{"geometry": {' // &
          '"fracture": {"volume": 10, "planes": 1, "spacing": 100.}, ' // &
          '"matrix": {"volume": [20, 30, 40]}}}')
-    call minc%init(json, dm, ao, 0, "minc", rock_types, ir, err = err)
+    call minc%init(json, dm, 0, "minc", rock_types, ir, err = err)
     if (rank == 0) then
        call test%assert(0, err, '1 plane 3 levels error')
        call test%assert([0.1_dp, 0.2_dp, 0.3_dp, 0.4_dp], minc%volume, &
@@ -343,7 +339,7 @@ contains
     json => fson_parse_mpi(str = '{"geometry": {' // &
          '"fracture": {"volume": 5, "planes": 2, "spacing": 100}, ' // &
          '"matrix": {"volume": [20, 30, 45]}}}')
-    call minc%init(json, dm, ao, 0, "minc", rock_types, ir, err = err)
+    call minc%init(json, dm, 0, "minc", rock_types, ir, err = err)
     if (rank == 0) then
        call test%assert(0, err, '2 planes 3 levels error')
        call test%assert([0.05_dp, 0.2_dp, 0.3_dp, 0.45_dp], minc%volume, &
@@ -361,7 +357,7 @@ contains
     json => fson_parse_mpi(str = '{"geometry": {' // &
          '"fracture": {"volume": 5, "planes": 2, "spacing": [100, 80]}, ' // &
          '"matrix": {"volume": [20, 30, 45]}}}')
-    call minc%init(json, dm, ao, 0, "minc", rock_types, ir, err = err)
+    call minc%init(json, dm, 0, "minc", rock_types, ir, err = err)
     if (rank == 0) then
        call test%assert(0, err, '2 planes 3 levels variable spacing error')
        call test%assert([0.05_dp, 0.2_dp, 0.3_dp, 0.45_dp], minc%volume, &
@@ -380,7 +376,7 @@ contains
     json => fson_parse_mpi(str = '{"geometry": {' // &
          '"fracture": {"volume": 10, "planes": 3, "spacing": [100, 80, 90]}, ' // &
          '"matrix": {"volume": [30, 60]}}}')
-    call minc%init(json, dm, ao, 0, "minc", rock_types, ir, err = err)
+    call minc%init(json, dm, 0, "minc", rock_types, ir, err = err)
     if (rank == 0) then
        call test%assert(0, err, '3 planes 2 levels error')
        call test%assert([0.10_dp, 0.3_dp, 0.6_dp], minc%volume, &
