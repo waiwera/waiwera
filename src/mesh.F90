@@ -94,6 +94,7 @@ module mesh_module
      procedure :: setup_minc_geometry => mesh_setup_minc_geometry
      procedure :: setup_minc_rock_properties => mesh_setup_minc_rock_properties
      procedure :: setup_minc_point_sf => mesh_setup_minc_point_sf
+     procedure :: redistribute_minc_dm => mesh_redistribute_minc_dm
      procedure, public :: init => mesh_init
      procedure, public :: configure => mesh_configure
      procedure, public :: set_boundary_conditions => mesh_set_boundary_conditions
@@ -1721,6 +1722,7 @@ contains
     PetscInt, allocatable :: minc_zone(:), minc_end_interior(:)
     PetscInt, allocatable :: stratum_shift(:)
     type(list_type), allocatable :: minc_level_cells(:)
+    PetscSF :: redist_sf
     PetscErrorCode :: ierr
 
     call dm_get_strata(self%dm, self%depth, self%strata)
@@ -1780,6 +1782,8 @@ contains
     call self%setup_minc_geometry(minc_dm, num_cells, max_num_levels, &
          num_minc_zones, minc_zone)
 
+    call self%redistribute_minc_dm(minc_dm, redist_sf)
+    call PetscSFDestroy(redist_sf, ierr); CHKERRQ(ierr)
     do m = 0, max_num_levels
        call minc_level_cells(m)%destroy()
     end do
@@ -3057,6 +3061,30 @@ contains
 
 !------------------------------------------------------------------------
 
+  subroutine mesh_redistribute_minc_dm(self, minc_dm, sf)
+    !! Redistributes MINC DM to improve load balancing, and returns SF
+    !! for the redistribution.
+
+    use dm_utils_module, only: dm_setup_fv_discretization
+
+    class(mesh_type), intent(in out) :: self
+    DM, intent(in out) :: minc_dm
+    PetscSF, intent(out) :: sf
+    ! Locals:
+    DM :: balanced_minc_dm
+    PetscErrorCode :: ierr
+
+    call DMPlexDistribute(minc_dm, partition_overlap, sf, &
+         balanced_minc_dm, ierr); CHKERRQ(ierr)
+    if (balanced_minc_dm .ne. PETSC_NULL_DM) then
+       call DMDestroy(minc_dm, ierr); CHKERRQ(ierr)
+       minc_dm = balanced_minc_dm
+       call dm_setup_fv_discretization(minc_dm, self%dof)
+    end if
+
+  end subroutine mesh_redistribute_minc_dm
+
+!------------------------------------------------------------------------
   PetscInt function mesh_local_cell_minc_level(self, local) result(minc_level)
     !! Takes local cell index and returns MINC level. If the mesh is
     !! not MINC, the returned value is zero.
