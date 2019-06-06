@@ -704,7 +704,7 @@ contains
           call setup_capillary_pressures(json, &
                self%capillary_pressure, self%logfile, err)
           if (err == 0) then
-             call setup_rock_vector(json, self%mesh%dm, self%mesh%cell_order, self%rock, &
+             call setup_rock_vector(json, self%mesh%dm, self%rock, &
                   self%mesh%rock_types, self%rock_range_start, self%mesh%ghost_cell, &
                   self%logfile, err)
              if (err == 0) then
