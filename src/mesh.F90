@@ -1723,7 +1723,6 @@ contains
     PetscInt, allocatable :: minc_zone(:), minc_end_interior(:)
     PetscInt, allocatable :: stratum_shift(:)
     type(list_type), allocatable :: minc_level_cells(:)
-    PetscSF :: redist_sf
     PetscErrorCode :: ierr
 
     call dm_get_strata(self%dm, self%depth, self%strata)
@@ -1783,17 +1782,29 @@ contains
     call self%setup_minc_geometry(minc_dm, num_cells, max_num_levels, &
          num_minc_zones, minc_zone)
 
-    call self%redistribute_minc_dm(minc_dm, redist_sf)
-    call self%redistribute_geometry(redist_sf)
-    ! redistribute cell_order AO
-    call PetscSFDestroy(redist_sf, ierr); CHKERRQ(ierr)
+    call redistribute_minc(minc_dm)
+
+    self%dm = minc_dm
 
     do m = 0, max_num_levels
        call minc_level_cells(m)%destroy()
     end do
     deallocate(minc_zone, minc_level_cells, stratum_shift)
 
-    self%dm = minc_dm
+  contains
+
+    subroutine redistribute_minc(minc_dm)
+      !! Redistributes MINC DM for load balancing.
+
+      DM, intent(in out) :: minc_dm
+      ! Locals:
+      PetscSF :: redist_sf
+
+      call self%redistribute_minc_dm(minc_dm, redist_sf)
+      call self%redistribute_geometry(redist_sf)
+      call PetscSFDestroy(redist_sf, ierr); CHKERRQ(ierr)
+
+    end subroutine redistribute_minc
 
   end subroutine mesh_setup_minc_dm
 
