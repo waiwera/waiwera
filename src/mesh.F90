@@ -34,6 +34,7 @@ module mesh_module
   private
 
   PetscInt, parameter, public :: max_mesh_filename_length = 200
+  PetscInt, parameter :: partition_overlap = 1 !! Cell overlap for parallel mesh distribution
   character(len = 16), public :: open_boundary_label_name = "open_boundary" !! Name of DMLabel for identifying open boundaries
   character(len = 26) :: face_permeability_override_label_name = "face_permeability_override" !! Name of DMLabel for overriding face permeabilities
 
@@ -117,9 +118,8 @@ contains
     class(mesh_type), intent(in out) :: self
     ! Locals:
     PetscErrorCode :: ierr
-    PetscInt, parameter :: overlap = 1
 
-    call DMPlexDistribute(self%serial_dm, overlap, self%dist_sf, &
+    call DMPlexDistribute(self%serial_dm, partition_overlap, self%dist_sf, &
          self%original_dm, ierr); CHKERRQ(ierr)
     if (self%original_dm .eq. PETSC_NULL_DM) then
        self%original_dm = self%serial_dm
