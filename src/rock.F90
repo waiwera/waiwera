@@ -369,7 +369,7 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine setup_rock_vector_types(json, dm, ao, rock_vector, rock_dict, &
+  subroutine setup_rock_vector_types(json, dm, rock_vector, rock_dict, &
        range_start, logfile)
     !! Sets up rock vector on DM from rock types in JSON input.
 
@@ -384,7 +384,6 @@ contains
 
     type(fson_value), pointer, intent(in) :: json
     DM, intent(in out) :: dm
-    AO, intent(in) :: ao
     Vec, intent(in out) :: rock_vector
     type(dictionary_type), intent(in out) :: rock_dict
     PetscInt, intent(in) :: range_start
@@ -491,7 +490,7 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine setup_rock_vector(json, dm, ao, rock_vector, rock_dict, &
+  subroutine setup_rock_vector(json, dm, rock_vector, rock_dict, &
        range_start, ghost_cell, logfile, err)
 
     !! Sets up rock vector on specified DM from JSON input. If
@@ -507,7 +506,6 @@ contains
 
     type(fson_value), pointer, intent(in) :: json
     DM, intent(in out) :: dm
-    AO, intent(in) :: ao
     Vec, intent(in out) :: rock_vector
     type(dictionary_type), intent(in out) :: rock_dict
     PetscInt, intent(out) :: range_start
@@ -540,7 +538,7 @@ contains
 
        if (fson_has_mpi(json, "rock.types")) then
 
-          call setup_rock_vector_types(json, dm, ao, rock_vector, rock_dict, &
+          call setup_rock_vector_types(json, dm, rock_vector, rock_dict, &
                range_start, logfile)
 
        else

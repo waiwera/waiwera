@@ -210,12 +210,11 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine zone_label_dm(self, dm, ao, cell_geometry, err)
+  subroutine zone_label_dm(self, dm, cell_geometry, err)
     !! Label cells in a zone on DM- dummy routine to be overridden.
 
     class(zone_type), intent(in out) :: self
     DM, intent(in out) :: dm
-    AO, intent(in) :: ao
     Vec, intent(in) :: cell_geometry
     PetscErrorCode, intent(out) :: err
 
@@ -362,7 +361,7 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine zone_box_label_dm(self, dm, ao, cell_geometry, err)
+  subroutine zone_box_label_dm(self, dm, cell_geometry, err)
     !! Label cells on a DM in a zone with specified coordinate ranges.
 
     use dm_utils_module, only: local_vec_section, section_offset, &
@@ -371,7 +370,6 @@ contains
 
     class(zone_box_type), intent(in out) :: self
     DM, intent(in out) :: dm
-    AO, intent(in) :: ao
     Vec, intent(in) :: cell_geometry
     PetscErrorCode, intent(out) :: err
     ! Locals:
@@ -495,14 +493,13 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine zone_combine_label_dm(self, dm, ao, cell_geometry, err)
+  subroutine zone_combine_label_dm(self, dm, cell_geometry, err)
     !! Label points in a combined zone on a DM.
 
     use dm_utils_module, only: dm_get_end_interior_cell
 
     class(zone_combine_type), intent(in out) :: self
     DM, intent(in out) :: dm
-    AO, intent(in) :: ao
     Vec, intent(in) :: cell_geometry
     PetscErrorCode, intent(out) :: err
     ! Locals:

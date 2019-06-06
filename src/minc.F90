@@ -55,7 +55,7 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine minc_init(self, json, dm, ao, iminc, str, rock_dict, &
+  subroutine minc_init(self, json, dm, iminc, str, rock_dict, &
        minc_rocktype_zone_index, logfile, err)
     !! Initialises MINC object from JSON input, and sets minc label on
     !! DM at cells where these MINC parameters are to be applied.
@@ -75,7 +75,6 @@ contains
     class(minc_type), intent(in out) :: self
     type(fson_value), pointer, intent(in) :: json !! JSON file pointer
     DM, intent(in out) :: dm !! DM to set labels on
-    AO, intent(in) :: ao !! Natural-to-global application ordering for DM
     PetscInt, intent(in) :: iminc !! Index of MINC zone (1-based)
     character(*), intent(in) :: str !! Logfile string for current MINC object
     type(dictionary_type), intent(in out) :: rock_dict

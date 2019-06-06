@@ -868,7 +868,7 @@ contains
       call DMCreateLabel(mesh%serial_dm, open_boundary_label_name, ierr); CHKERRQ(ierr)
       call rock_dict%init(owner = PETSC_TRUE)
       call mesh%configure(gravity, json, viewer = viewer, err = err)
-      call setup_rock_vector(json, mesh%dm, mesh%cell_order, rock_vector, &
+      call setup_rock_vector(json, mesh%dm, rock_vector, &
            rock_dict, rock_range_start, mesh%ghost_cell, err = err)
       call test%assert(0, err, "setup rock vector error")
       call fson_destroy_mpi(json)
@@ -1036,7 +1036,7 @@ contains
       call test%assert(0, err, title // " mesh configure error")
 
       call rock_dict%init(owner = PETSC_TRUE)
-      call setup_rock_vector(json, mesh%dm, mesh%cell_order, rock_vector, rock_dict, &
+      call setup_rock_vector(json, mesh%dm, rock_vector, rock_dict, &
            rock_range_start, mesh%ghost_cell, err = err)
       call test%assert(0, err, title // " setup rock vector error")
       call mesh%setup_minc_rock_properties(json, rock_vector, &
