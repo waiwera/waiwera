@@ -95,6 +95,7 @@ module mesh_module
      procedure :: setup_minc_rock_properties => mesh_setup_minc_rock_properties
      procedure :: setup_minc_point_sf => mesh_setup_minc_point_sf
      procedure :: redistribute_minc_dm => mesh_redistribute_minc_dm
+     procedure :: redistribute_geometry => mesh_redistribute_geometry
      procedure, public :: init => mesh_init
      procedure, public :: configure => mesh_configure
      procedure, public :: set_boundary_conditions => mesh_set_boundary_conditions
@@ -1783,7 +1784,10 @@ contains
          num_minc_zones, minc_zone)
 
     call self%redistribute_minc_dm(minc_dm, redist_sf)
+    call self%redistribute_geometry(redist_sf)
+    ! redistribute cell_order AO
     call PetscSFDestroy(redist_sf, ierr); CHKERRQ(ierr)
+
     do m = 0, max_num_levels
        call minc_level_cells(m)%destroy()
     end do
@@ -3085,6 +3089,52 @@ contains
   end subroutine mesh_redistribute_minc_dm
 
 !------------------------------------------------------------------------
+
+  subroutine mesh_redistribute_geometry(self, sf)
+    !! Redistributes cell and face geometry vectors after
+    !! redistributing DM according to the specified SF.
+
+    class(mesh_type), intent(in out) :: self
+    PetscSF, intent(in out) :: sf
+
+    if (sf .ne. PETSC_NULL_SF) then
+
+       call redistribute_vec(self%cell_geom, "cell_geometry", sf)
+       call redistribute_vec(self%face_geom, "face_geometry", sf)
+
+    end if
+
+  contains
+
+    subroutine redistribute_vec(v, name, sf)
+
+      Vec, intent(in out) :: v
+      character(*), intent(in) :: name
+      PetscSF, intent(in) :: sf
+      ! Locals:
+      DM :: dm
+      PetscSection :: section, dist_section
+      Vec :: newv
+      PetscErrorCode :: ierr
+
+      call VecGetDM(v, dm, ierr); CHKERRQ(ierr)
+      call DMGetSection(dm, section, ierr); CHKERRQ(ierr)
+      call VecCreate(PETSC_COMM_WORLD, newv, ierr); CHKERRQ(ierr)
+      call PetscSectionCreate(PETSC_COMM_WORLD, dist_section, ierr)
+      CHKERRQ(ierr)
+      call DMPlexDistributeField(dm, sf, section, &
+           v, dist_section, newv, ierr); CHKERRQ(ierr)
+      call PetscSectionDestroy(dist_section, ierr); CHKERRQ(ierr)
+      call VecDestroy(v, ierr); CHKERRQ(ierr)
+      v = newv
+      call PetscObjectSetName(newv, name, ierr); CHKERRQ(ierr)
+
+    end subroutine redistribute_vec
+
+  end subroutine mesh_redistribute_geometry
+
+!------------------------------------------------------------------------
+
   PetscInt function mesh_local_cell_minc_level(self, local) result(minc_level)
     !! Takes local cell index and returns MINC level. If the mesh is
     !! not MINC, the returned value is zero.
