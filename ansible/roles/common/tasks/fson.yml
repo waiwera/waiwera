@@ -1,39 +1,48 @@
-# - hosts: localhost
-#   become_user: waiwera
-#   become_method: su
-#   become: yes
-#   tasks:
 ---
 
-- name: Clean fson paths
+- name: fson - Set path variable
+  set_fact:
+    fson_path: "{{ install_location + '/software/fson'}}"
+    fson_build_path: "{{ fson_path + '/build' }}"
+
+- name: fson - Clean path
   file:
     state: absent
     path: "{{ fson_path }}"
   tags:
     - clean
 
-- name: Fetch fson from github
+- name: fson - Fetch from github
   git:
     repo: 'https://github.com/josephalevin/fson.git'
-    dest:  "{{ fson_path }}"
+    dest: "{{ fson_path }}"
     version: master
 
-- name: replace HOME with app directory
-  replace:
-    dest: "{{ fson_path + '/makefile' }}"
-    regexp: '\$\(HOME\)'
-    replace: '{{ install_location }}'
-
-- name: Make fson
-  make:
-    chdir: "{{ fson_path }}"
-
-- name: Make install fson
-  make:
-    chdir: "{{ fson_path }}"
-    target: install
-
-- name: Remove fson downloads
+- name: fson - change ownership
   file:
-    state: absent
-    path:  "{{ fson_path }}"
+    dest: "{{ fson_path }}"
+    owner: "{{ app_user }}"
+    group: "{{ app_group }}"
+    recurse: yes
+  tags:
+    - docker
+
+- name: fson - meson build
+  shell: "{{ 'meson build --buildtype release --prefix ' + install_location + ' --libdir=lib --includedir=include' }}"
+  args:
+    chdir: "{{ fson_path }}"
+
+- name: fson - ninja build
+  shell: ninja
+  args:
+    chdir: "{{ fson_build_path }}"
+
+- name: fson - ninja test
+  shell: ninja test
+  args:
+    chdir: "{{ fson_build_path }}"
+
+- name: fson - ninja install
+  shell: ninja install
+  args:
+    chdir: "{{ fson_build_path }}"

@@ -1,0 +1,48 @@
+---
+
+- name: zofu - Set path variable
+  set_fact:
+    zofu_path: "{{ install_location + '/software/zofu'}}"
+    zofu_build_path: "{{ zofu_path + '/build' }}"
+
+- name: zofu - Clean path
+  file:
+    state: absent
+    path: "{{ zofu_path }}"
+  tags:
+    - clean
+
+- name: zofu - Fetch from github
+  git:
+    repo: 'https://github.com/acroucher/zofu.git'
+    dest: "{{ zofu_path }}"
+    version: master
+
+- name: zofu - change ownership
+  file:
+    dest: "{{ zofu_path }}"
+    owner: "{{ app_user }}"
+    group: "{{ app_group }}"
+    recurse: yes
+  tags:
+    - docker
+
+- name: zofu - meson build
+  shell: "{{ 'meson build --buildtype release --prefix ' + install_location + ' --libdir=lib --includedir=include' }}"
+  args:
+    chdir: "{{ zofu_path }}"
+
+- name: zofu - ninja build
+  shell: ninja
+  args:
+    chdir: "{{ zofu_build_path }}"
+
+- name: zofu - ninja test
+  shell: ninja test
+  args:
+    chdir: "{{ zofu_build_path }}"
+
+- name: zofu - ninja install
+  shell: ninja install
+  args:
+    chdir: "{{ zofu_build_path }}"

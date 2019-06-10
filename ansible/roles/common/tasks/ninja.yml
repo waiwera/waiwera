@@ -1,0 +1,37 @@
+---
+
+- name: ninja - Set path variable
+  set_fact:
+    ninja_path: "{{ install_location + '/software/ninja'}}"
+
+- name: ninja - Clean path
+  file:
+    state: absent
+    path: "{{ ninja_path }}"
+  tags:
+    - clean
+
+- name: ninja - Fetch from github
+  git:
+    repo: 'https://github.com/ninja-build/ninja.git'
+    dest: "{{ ninja_path }}"
+    version: master
+
+- name: ninja - change ownership
+  file:
+    dest: "{{ ninja_path }}"
+    owner: "{{ app_user }}"
+    group: "{{ app_group }}"
+    recurse: yes
+  tags:
+    - docker
+
+- name: ninja - run configure script
+  script: configure.py --bootstrap
+    chdir: "{{ ninja_path }}"
+
+- name: ninja - Copy to bin directory
+  copy:
+    src: "{{ ninja_path + 'ninja'}}"
+    dest: "{{ bin_path }}"
+    remote_src: yes
