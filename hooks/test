@@ -1,7 +1,3 @@
 #!/bin/bash
 
-echo "------ HOOK START - TEST -------"
-
 docker run  --user 1000:1000 $IMAGE_NAME  python unit_tests.py
-
-echo "------ HOOK END - TEST -------"
