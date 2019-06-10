@@ -43,22 +43,25 @@
     ld_library_path: "{{ install_location + '/lib'}}"
     bin_path: "{{ install_location + '/bin'}}"
     pkgconfig_path: "{{ install_location + '/lib/pkgconfig'}}"
-    dist_path: "{{ install_location }}/dist"
-    util_path: "{{ install_location }}/utils"
     include_path: "{{ install_location }}/include"
 
-- name: Run the common tasks to setup waiwera
-  include: base.yml
+- name: Run the common tasks to setup waiwera on a system with root access
+  include: root.yml
   become: yes
+  tags:
+    - setup
+
+- name: Run the common tasks to setup waiwera on a system with no root access
+  include: noroot.yml
+  become: no
   tags:
     - setup
 
 - name: Setup and test waiwera
   environment:
     PETSC_DIR: "{{ petsc_path }}"
-    PETSC_ARCH: arch-linux2-c-debug
+    PETSC_ARCH: release
     LD_LIBRARY_PATH: "{{ ld_library_path }}"
-    PYTHONPATH: "{{ util_path }}"
     PATH: "{{ ansible_env.PATH }}:{{ bin_path }}:{{dist_path}}:{{ ansible_env.HOME }}/.local/bin"
     PKG_CONFIG_PATH: "{{ pkgconfig_path }}"
     LANG: en_US.UTF-8
