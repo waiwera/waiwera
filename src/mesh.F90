@@ -96,6 +96,7 @@ module mesh_module
      procedure :: setup_minc_point_sf => mesh_setup_minc_point_sf
      procedure :: redistribute_minc_dm => mesh_redistribute_minc_dm
      procedure :: redistribute_geometry => mesh_redistribute_geometry
+     procedure :: redistribute_cell_order => mesh_redistribute_cell_order
      procedure, public :: init => mesh_init
      procedure, public :: configure => mesh_configure
      procedure, public :: set_boundary_conditions => mesh_set_boundary_conditions
@@ -1796,13 +1797,34 @@ contains
     subroutine redistribute_minc(minc_dm)
       !! Redistributes MINC DM for load balancing.
 
+      use dm_utils_module, only: dm_create_section, dm_natural_order_IS
+
       DM, intent(in out) :: minc_dm
       ! Locals:
+      PetscMPIInt :: np
+      PetscInt :: dim
+      PetscSection :: section
       PetscSF :: redist_sf
+      IS :: natural_order
+      PetscErrorCode :: ierr
 
-      call self%redistribute_minc_dm(minc_dm, redist_sf)
-      call self%redistribute_geometry(redist_sf)
-      call PetscSFDestroy(redist_sf, ierr); CHKERRQ(ierr)
+      call MPI_comm_size(PETSC_COMM_WORLD, np, ierr)
+      if (np > 1) then
+
+         call DMGetDimension(minc_dm, dim, ierr); CHKERRQ(ierr)
+         section = dm_create_section(minc_dm, [1], [dim])
+         natural_order = dm_natural_order_IS(minc_dm, self%cell_order)
+
+         call self%redistribute_minc_dm(minc_dm, redist_sf)
+         call self%redistribute_geometry(redist_sf)
+         call self%redistribute_cell_order(minc_dm, redist_sf, &
+              section, natural_order)
+
+         call ISDestroy(natural_order, ierr); CHKERRQ(ierr)
+         call PetscSectionDestroy(section, ierr); CHKERRQ(ierr)
+         call PetscSFDestroy(redist_sf, ierr); CHKERRQ(ierr)
+
+      end if
 
     end subroutine redistribute_minc
 
