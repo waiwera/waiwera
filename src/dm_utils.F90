@@ -69,6 +69,7 @@ module dm_utils_module
   public :: dm_get_end_interior_cell
   public :: dm_get_natural_to_global_ao, dm_get_cell_index
   public :: natural_to_local_cell_index, local_to_natural_cell_index
+  public :: dm_natural_order_IS
   public :: create_path_dm
   public :: get_field_subvector, section_get_field_names
   public :: dm_global_cell_field_dof
@@ -863,6 +864,45 @@ contains
     natural = idx(1)
 
   end function local_to_natural_cell_index_single
+
+!------------------------------------------------------------------------
+
+  IS function dm_natural_order_IS(dm, ao) result(natural_IS)
+    !! Returns index set containing natural order for each cell,
+    !! according to the specified natural-to-global AO.  Ghost cells
+    !! are included but given natural order -1.
+
+    DM, intent(in) :: dm
+    AO, intent(in) :: ao
+    ! Locals:
+    ISLocalToGlobalMapping :: l2g
+    DMLabel :: ghost_label
+    PetscInt :: start_cell, end_cell, num_cells
+    PetscInt :: c, ghost
+    PetscInt, allocatable :: natural(:)
+    PetscErrorCode :: ierr
+
+    call DMGetLocalToGlobalMapping(dm, l2g, ierr); CHKERRQ(ierr)
+    call DMPlexGetHeightStratum(dm, 0, start_cell, end_cell, &
+         ierr); CHKERRQ(ierr)
+    num_cells = end_cell - start_cell
+    call DMGetLabel(dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
+    allocate(natural(0: num_cells - 1))
+
+    do c = start_cell, end_cell - 1
+       call DMLabelGetValue(ghost_label, c, ghost, ierr)
+       if (ghost < 0) then
+          natural(c) = local_to_natural_cell_index(ao, l2g, c)
+       else
+          natural(c) = -1
+       end if
+    end do
+
+    call ISCreateGeneral(PETSC_COMM_WORLD, num_cells, &
+         natural, PETSC_COPY_VALUES, natural_IS, ierr)
+    CHKERRQ(ierr)
+
+  end function dm_natural_order_IS
 
 !------------------------------------------------------------------------
 
