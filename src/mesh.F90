@@ -3146,6 +3146,70 @@ contains
 
 !------------------------------------------------------------------------
 
+  subroutine mesh_redistribute_cell_order(self, minc_dm, sf, &
+       section, natural_order)
+    !! Redistrbutes mesh cell_order AO using natural order IS created
+    !! on the DM before redistribution.
+
+    use dm_utils_module, only: dm_get_num_partition_ghost_cells, &
+         dm_get_end_interior_cell
+
+    class(mesh_type), intent(in out) :: self
+    DM, intent(in) :: minc_dm
+    PetscSF, intent(in) :: sf
+    PetscSection, intent(in) :: section
+    IS, intent(in) :: natural_order
+    ! Locals:
+    IS :: redist_natural_order
+    PetscSection :: redist_section
+    AO :: redist_cell_order
+    PetscInt, allocatable :: natural(:), global(:)
+    PetscInt, pointer :: natural_indices(:)
+    PetscInt :: start_cell, end_cell, end_interior_cell, c
+    PetscInt :: num_ghost_cells, num_non_ghost_cells, end_non_ghost_cell
+    ISLocalToGlobalMapping :: l2g
+    PetscErrorCode :: ierr
+
+    call PetscSectionCreate(PETSC_COMM_WORLD, redist_section, ierr)
+    CHKERRQ(ierr)
+    call ISCreate(PETSC_COMM_WORLD, redist_natural_order, ierr)
+    CHKERRQ(ierr)
+    call DMPlexDistributeFieldIS(minc_dm, sf, section, &
+         natural_order, redist_section, redist_natural_order, ierr)
+    CHKERRQ(ierr)
+    call PetscSectionDestroy(redist_section, ierr); CHKERRQ(ierr)
+
+    call DMPlexGetHeightStratum(minc_dm, 0, start_cell, end_cell, &
+         ierr); CHKERRQ(ierr)
+    end_interior_cell = dm_get_end_interior_cell(minc_dm, end_cell)
+    num_ghost_cells = dm_get_num_partition_ghost_cells(minc_dm)
+    num_non_ghost_cells = end_interior_cell - start_cell - num_ghost_cells
+    end_non_ghost_cell = start_cell + num_non_ghost_cells
+
+    call DMGetLocalToGlobalMapping(minc_dm, l2g, ierr); CHKERRQ(ierr)
+    allocate(global(start_cell: end_non_ghost_cell - 1))
+    call ISLocalToGlobalMappingApplyBlock(l2g, num_non_ghost_cells, &
+         [(c, c = start_cell, end_non_ghost_cell - 1)], global, ierr)
+    CHKERRQ(ierr)
+
+    call ISGetIndicesF90(redist_natural_order, natural_indices, ierr)
+    CHKERRQ(ierr)
+    natural = natural_indices(1: num_non_ghost_cells)
+    call ISRestoreIndicesF90(redist_natural_order, natural_indices, ierr)
+    CHKERRQ(ierr)
+    call ISDestroy(redist_natural_order, ierr); CHKERRQ(ierr)
+
+    call AOCreateMapping(PETSC_COMM_WORLD, num_non_ghost_cells, natural, &
+         global, redist_cell_order, ierr); CHKERRQ(ierr)
+    deallocate(natural, global)
+
+    call AODestroy(self%cell_order, ierr); CHKERRQ(ierr)
+    self%cell_order = redist_cell_order
+
+  end subroutine mesh_redistribute_cell_order
+
+!------------------------------------------------------------------------
+
   PetscInt function mesh_local_cell_minc_level(self, local) result(minc_level)
     !! Takes local cell index and returns MINC level. If the mesh is
     !! not MINC, the returned value is zero.
