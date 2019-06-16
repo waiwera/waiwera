@@ -3080,7 +3080,8 @@ contains
     !! Redistributes MINC DM to improve load balancing, and returns SF
     !! for the redistribution.
 
-    use dm_utils_module, only: dm_setup_fv_discretization
+    use dm_utils_module, only: set_dm_default_data_layout, &
+         dm_setup_fv_discretization, dm_set_fv_adjacency
 
     class(mesh_type), intent(in out) :: self
     DM, intent(in out) :: minc_dm
@@ -3095,6 +3096,8 @@ contains
        call DMDestroy(minc_dm, ierr); CHKERRQ(ierr)
        minc_dm = balanced_minc_dm
        call dm_setup_fv_discretization(minc_dm, self%dof)
+       call dm_set_fv_adjacency(minc_dm)
+       call set_dm_default_data_layout(minc_dm, self%dof)
     end if
 
   end subroutine mesh_redistribute_minc_dm
