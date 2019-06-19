@@ -757,6 +757,7 @@ contains
        call DMDestroy(self%mesh%original_dm, ierr); CHKERRQ(ierr)
     end if
 
+    self%unperturbed = PETSC_TRUE
     call mpi_broadcast_error_flag(err)
     call self%logfile%flush()
 
