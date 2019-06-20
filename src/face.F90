@@ -64,7 +64,7 @@ module face_module
   PetscInt, parameter, public :: &
        face_variable_num_components(num_face_variables) = &
        [1, 2, 3, 1, 3, 1]
-  PetscInt, parameter :: max_face_variable_name_length = 24
+  PetscInt, parameter, public :: max_face_variable_name_length = 24
   character(max_face_variable_name_length), parameter, public :: &
        face_variable_names(num_face_variables) = &
        [character(max_face_variable_name_length):: &

@@ -52,7 +52,7 @@ module cell_module
   PetscInt, parameter, public :: &
        cell_variable_num_components(num_cell_variables) = &
        [3, 1] !! Number of components in each cell variable
-  PetscInt, parameter :: max_cell_variable_name_length = 24
+  PetscInt, parameter, public :: max_cell_variable_name_length = 24
   character(max_cell_variable_name_length), parameter, public :: &
        cell_variable_names(num_cell_variables) = &
        [character(max_cell_variable_name_length):: "centroid", "volume"]
