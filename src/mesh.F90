@@ -3110,6 +3110,7 @@ contains
        call dm_setup_fv_discretization(minc_dm, self%dof)
        call dm_set_fv_adjacency(minc_dm)
        call set_dm_default_data_layout(minc_dm, self%dof)
+       call dm_label_ghosts(minc_dm)
     end if
 
   end subroutine mesh_redistribute_minc_dm
