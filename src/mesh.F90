@@ -3092,7 +3092,8 @@ contains
     !! for the redistribution.
 
     use dm_utils_module, only: set_dm_default_data_layout, &
-         dm_setup_fv_discretization, dm_set_fv_adjacency
+         dm_setup_fv_discretization, dm_set_fv_adjacency, &
+         dm_label_ghosts
 
     class(mesh_type), intent(in out) :: self
     DM, intent(in out) :: minc_dm

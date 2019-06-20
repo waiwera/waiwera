@@ -73,6 +73,7 @@ module dm_utils_module
   public :: create_path_dm
   public :: get_field_subvector, section_get_field_names
   public :: dm_global_cell_field_dof, dm_check_create_label
+  public :: dm_label_ghosts
 
 contains
 
@@ -1197,3 +1198,76 @@ contains
 
   end subroutine dm_check_create_label
 
+!------------------------------------------------------------------------
+
+  subroutine dm_label_ghosts(dm)
+    !! Sets ghost (and VTK) label on partition ghost cells and
+    !! faces. Based on code from PETSc DMPlexShiftLabels_Internal(),
+    !! which is called from DMPlexConstructGhostCells().
+
+    DM, intent(in out) :: dm
+    ! Locals:
+    PetscMPIInt :: rank
+    PetscSF :: point_sf
+    PetscInt :: start_cell, end_cell, start_face, end_face
+    PetscInt :: c, l, f, va, vb
+    PetscInt :: num_roots, num_leaves, num_cells
+    PetscInt, pointer :: local(:), cells(:)
+    type(PetscSFNode), pointer :: remote(:)
+    DMLabel :: ghost_label, vtk_label
+    PetscErrorCode :: ierr
+
+    call MPI_comm_rank(PETSC_COMM_WORLD, rank, ierr)
+    call DMGetPointSF(dm, point_sf, ierr); CHKERRQ(ierr)
+    call DMPlexGetHeightStratum(dm, 0, start_cell, end_cell, ierr)
+    call PetscSFGetGraph(point_sf, num_roots, num_leaves, &
+         local, remote, ierr); CHKERRQ(ierr)
+    call dm_check_create_label(dm, "ghost")
+    call dm_check_create_label(dm, "vtk")
+    call DMGetLabel(dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
+    call DMGetLabel(dm, "vtk", vtk_label, ierr); CHKERRQ(ierr)
+
+    l = 0
+    c = start_cell
+    do while ((l < num_leaves) .and. (c < end_cell))
+       do while ((c < local(l + 1)) .and. (c < end_cell))
+          call DMLabelSetValue(vtk_label, c, 1, ierr); CHKERRQ(ierr)
+          c = c + 1
+       end do
+       if (local(l + 1) >= end_cell) exit
+       if (remote(l + 1)%rank == rank) then
+          call DMLabelSetValue(vtk_label, c, 1, ierr); CHKERRQ(ierr)
+       else ! partition ghost cells:
+          call DMLabelSetValue(ghost_label, c, 2, ierr); CHKERRQ(ierr)
+       end if
+       l = l + 1
+       c = c + 1
+    end do
+
+    do while (c < end_cell)
+       call DMLabelSetValue(vtk_label, c, 1, ierr); CHKERRQ(ierr)
+       c = c + 1
+    end do
+
+    ! Label ghost faces:
+    call DMPlexGetHeightStratum(dm, 1, start_face, end_face, ierr)
+    CHKERRQ(ierr)
+    do f = start_face, end_face - 1
+       call DMPlexGetSupportSize(dm, f, num_cells, ierr); CHKERRQ(ierr)
+       if (num_cells < 2) then
+          call DMLabelSetValue(ghost_label, f, 1, ierr); CHKERRQ(ierr)
+       else
+          call DMPlexGetSupport(dm, f, cells, ierr); CHKERRQ(ierr)
+          call DMLabelGetValue(vtk_label, cells(1), va, ierr); CHKERRQ(ierr)
+          call DMLabelGetValue(vtk_label, cells(2), vb, ierr); CHKERRQ(ierr)
+          if ((va /= 1) .and. (vb /= 1)) then
+             call DMLabelSetValue(ghost_label, f, 1, ierr); CHKERRQ(ierr)
+          end if
+       end if
+    end do
+
+  end subroutine dm_label_ghosts
+
+!------------------------------------------------------------------------
+
+end module dm_utils_module
