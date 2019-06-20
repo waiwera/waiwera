@@ -72,7 +72,7 @@ module dm_utils_module
   public :: dm_natural_order_IS
   public :: create_path_dm
   public :: get_field_subvector, section_get_field_names
-  public :: dm_global_cell_field_dof
+  public :: dm_global_cell_field_dof, dm_check_create_label
 
 contains
 
@@ -1180,4 +1180,20 @@ contains
 
 !------------------------------------------------------------------------
 
-  end module dm_utils_module
+  subroutine dm_check_create_label(dm, label_name)
+    !! Checks if label with specified name exists, and creates it is
+    !! it doesn't.
+
+    DM, intent(in out) :: dm
+    character(*), intent(in) :: label_name
+    ! Locals:
+    PetscBool :: has_label
+    PetscErrorCode :: ierr
+
+    call DMHasLabel(dm, label_name, has_label, ierr); CHKERRQ(ierr)
+    if (.not. has_label) then
+       call DMCreateLabel(dm, label_name, ierr); CHKERRQ(ierr)
+    end if
+
+  end subroutine dm_check_create_label
+

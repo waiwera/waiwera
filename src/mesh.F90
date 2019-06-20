@@ -1234,14 +1234,13 @@ contains
     use fson_value_m, only : fson_value_count, TYPE_ARRAY, TYPE_OBJECT
     use fson_utils_module, only: fson_get_default
     use logfile_module
-    use dm_utils_module, only: dm_cell_normal_face
+    use dm_utils_module, only: dm_cell_normal_face, dm_check_create_label
 
     class(mesh_type), intent(in out) :: self
     type(fson_value), pointer, intent(in) :: json
     type(logfile_type), intent(in out), optional :: logfile !! Logfile for log output
     ! Locals:
     PetscMPIInt :: rank
-    PetscBool :: mesh_has_label
     type(fson_value), pointer :: boundaries_json, bdy_json
     type(fson_value), pointer :: faces_json, face_json, cells_json
     PetscInt :: num_boundaries, num_faces, num_cells, ibdy, offset, i
@@ -1261,12 +1260,7 @@ contains
        default_faces = [PetscInt::] ! empty integer array
        default_cells = [PetscInt::]
 
-       call DMHasLabel(self%serial_dm, open_boundary_label_name, mesh_has_label, &
-            ierr); CHKERRQ(ierr)
-       if (.not. mesh_has_label) then
-          call DMCreateLabel(self%serial_dm, open_boundary_label_name, &
-               ierr); CHKERRQ(ierr)
-       end if
+       call dm_check_create_label(self%serial_dm, open_boundary_label_name)
        call DMPlexGetHeightStratum(self%serial_dm, 0, start_cell, end_cell, ierr)
        CHKERRQ(ierr)
 
@@ -1409,12 +1403,12 @@ contains
 
     use source_module
     use fson_value_m, only : fson_value_count, TYPE_INTEGER, TYPE_ARRAY
+    use dm_utils_module, only: dm_check_create_label
 
     class(mesh_type), intent(in out) :: self
     type(fson_value), pointer, intent(in) :: json !! JSON file pointer
     ! Locals:
     PetscMPIInt :: rank
-    PetscBool :: mesh_has_label
     type(fson_value), pointer :: sources_json, source_json
     PetscInt :: source_index, num_source_specs, start_cell, end_cell
     DMLabel :: source_label
@@ -1426,12 +1420,7 @@ contains
        call fson_get(json, "source", sources_json)
        if (associated(sources_json)) then
 
-          call DMHasLabel(self%serial_dm, source_label_name, mesh_has_label, &
-               ierr); CHKERRQ(ierr)
-          if (.not. mesh_has_label) then
-             call DMCreateLabel(self%serial_dm, source_label_name, &
-                  ierr); CHKERRQ(ierr)
-          end if
+          call dm_check_create_label(self%serial_dm, source_label_name)
           call DMGetLabel(self%serial_dm, source_label_name, &
                source_label, ierr); CHKERRQ(ierr)
           call DMPlexGetHeightStratum(self%serial_dm, 0, start_cell, &
