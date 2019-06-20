@@ -1805,7 +1805,7 @@ contains
          natural_order = dm_natural_order_IS(minc_dm, self%cell_order)
 
          call self%redistribute_minc_dm(minc_dm, redist_sf)
-         call self%redistribute_geometry(redist_sf)
+         call self%redistribute_geometry(redist_sf, minc_dm)
          call self%redistribute_cell_order(minc_dm, redist_sf, &
               section, natural_order)
 
@@ -3117,44 +3117,47 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine mesh_redistribute_geometry(self, sf)
+  subroutine mesh_redistribute_geometry(self, sf, dm)
     !! Redistributes cell and face geometry vectors after
     !! redistributing DM according to the specified SF.
 
     class(mesh_type), intent(in out) :: self
     PetscSF, intent(in out) :: sf
+    DM, intent(in) :: dm
 
     if (sf .ne. PETSC_NULL_SF) then
 
-       call redistribute_vec(self%cell_geom, "cell_geometry", sf)
-       call redistribute_vec(self%face_geom, "face_geometry", sf)
+       call redistribute_vec(self%cell_geom, "cell_geometry", sf, dm)
+       call redistribute_vec(self%face_geom, "face_geometry", sf, dm)
 
     end if
 
   contains
 
-    subroutine redistribute_vec(v, name, sf)
+    subroutine redistribute_vec(v, name, sf, dm)
 
       Vec, intent(in out) :: v
       character(*), intent(in) :: name
       PetscSF, intent(in) :: sf
+      DM, intent(in) :: dm
       ! Locals:
-      DM :: dm
+      DM :: old_dm
       PetscSection :: section, dist_section
       Vec :: newv
       PetscErrorCode :: ierr
 
-      call VecGetDM(v, dm, ierr); CHKERRQ(ierr)
-      call DMGetSection(dm, section, ierr); CHKERRQ(ierr)
+      call VecGetDM(v, old_dm, ierr); CHKERRQ(ierr)
+      call DMGetSection(old_dm, section, ierr); CHKERRQ(ierr)
       call VecCreate(PETSC_COMM_WORLD, newv, ierr); CHKERRQ(ierr)
       call PetscSectionCreate(PETSC_COMM_WORLD, dist_section, ierr)
       CHKERRQ(ierr)
-      call DMPlexDistributeField(dm, sf, section, &
+      call DMPlexDistributeField(old_dm, sf, section, &
            v, dist_section, newv, ierr); CHKERRQ(ierr)
       call PetscSectionDestroy(dist_section, ierr); CHKERRQ(ierr)
       call VecDestroy(v, ierr); CHKERRQ(ierr)
       v = newv
-      call PetscObjectSetName(newv, name, ierr); CHKERRQ(ierr)
+      call PetscObjectSetName(v, name, ierr); CHKERRQ(ierr)
+      call VecSetDM(v, dm, ierr); CHKERRQ(ierr)
 
     end subroutine redistribute_vec
 
