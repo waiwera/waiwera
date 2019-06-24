@@ -3122,7 +3122,7 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine mesh_redistribute_geometry(self, sf, dm)
+  subroutine mesh_redistribute_geometry(self, sf, dist_dm)
     !! Redistributes cell and face geometry vectors after
     !! redistributing DM according to the specified SF.
 
@@ -3131,64 +3131,46 @@ contains
 
     class(mesh_type), intent(in out) :: self
     PetscSF, intent(in out) :: sf
-    DM, intent(in) :: dm
-    ! Locals:
-    PetscInt :: dim
-    PetscErrorCode :: ierr
+    DM, intent(in) :: dist_dm
 
     if (sf .ne. PETSC_NULL_SF) then
-
-       call DMGetDimension(dm, dim, ierr); CHKERRQ(ierr)
-       call redistribute_vec(self%cell_geom, "cell_geometry", sf, dm, &
-            dim, num_cell_variables, cell_variable_num_components, &
-            max_cell_variable_name_length, cell_variable_names)
-       call redistribute_vec(self%face_geom, "face_geometry", sf, dm, &
-            dim - 1, num_face_variables, face_variable_num_components, &
-            max_face_variable_name_length, face_variable_names)
-
+       call redistribute_vec(self%cell_geom, sf, dist_dm)
+       call redistribute_vec(self%face_geom, sf, dist_dm)
     end if
 
   contains
 
-    subroutine redistribute_vec(v, name, sf, dm, field_dim, &
-         num_variables, num_components, max_name_length, variable_names)
-
-      use dm_utils_module, only: set_dm_data_layout
+    subroutine redistribute_vec(v, sf, dist_dm)
 
       Vec, intent(in out) :: v
-      character(*), intent(in) :: name
       PetscSF, intent(in) :: sf
-      DM, intent(in) :: dm
-      PetscInt, intent(in) :: field_dim, num_variables
-      PetscInt, intent(in) :: num_components(:), max_name_length
-      character(max_name_length), intent(in) :: variable_names(:)
+      DM, intent(in) :: dist_dm
       ! Locals:
-      DM :: old_dm, vec_dm
+      character(80) :: name
+      DM :: dm, dist_v_dm
       PetscSection :: section, dist_section
-      Vec :: newv
-      PetscInt :: variable_dim(num_variables)
+      Vec :: dist_v
       PetscErrorCode :: ierr
 
-      call VecGetDM(v, old_dm, ierr); CHKERRQ(ierr)
-      call DMGetSection(old_dm, section, ierr); CHKERRQ(ierr)
+      call VecGetDM(v, dm, ierr); CHKERRQ(ierr)
+      call DMGetSection(dm, section, ierr); CHKERRQ(ierr)
 
-      call VecCreate(PETSC_COMM_WORLD, newv, ierr); CHKERRQ(ierr)
+      call VecCreate(PETSC_COMM_SELF, dist_v, ierr); CHKERRQ(ierr)
+      call PetscObjectGetName(v, name, ierr); CHKERRQ(ierr)
+      call PetscObjectSetName(dist_v, name, ierr); CHKERRQ(ierr)
 
       call PetscSectionCreate(PETSC_COMM_WORLD, dist_section, ierr)
       CHKERRQ(ierr)
-      call DMPlexDistributeField(old_dm, sf, section, &
-           v, dist_section, newv, ierr); CHKERRQ(ierr)
+      call DMPlexDistributeField(dm, sf, section, &
+           v, dist_section, dist_v, ierr); CHKERRQ(ierr)
+
+      call DMClone(dist_dm, dist_v_dm, ierr); CHKERRQ(ierr)
+      call DMSetSection(dist_v_dm, dist_section, ierr)
+      call VecSetDM(dist_v, dist_v_dm, ierr); CHKERRQ(ierr)
+
       call PetscSectionDestroy(dist_section, ierr); CHKERRQ(ierr)
       call VecDestroy(v, ierr); CHKERRQ(ierr)
-      v = newv
-      call PetscObjectSetName(v, name, ierr); CHKERRQ(ierr)
-
-      call DMClone(dm, vec_dm, ierr); CHKERRQ(ierr)
-      variable_dim = field_dim
-      call DMSetNumFields(vec_dm, num_variables, ierr); CHKERRQ(ierr)
-      call set_dm_data_layout(vec_dm, num_components, &
-         variable_dim, variable_names)
-      call VecSetDM(v, vec_dm, ierr); CHKERRQ(ierr)
+      v = dist_v
 
     end subroutine redistribute_vec
 
