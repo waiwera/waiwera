@@ -1805,7 +1805,7 @@ contains
          natural_order = dm_natural_order_IS(minc_dm, self%cell_order)
 
          call self%redistribute_minc_dm(minc_dm, redist_sf)
-         call self%redistribute_geometry(redist_sf, minc_dm)
+         call self%redistribute_geometry(minc_dm, redist_sf)
          call self%redistribute_cell_order(minc_dm, redist_sf, &
               section, natural_order)
 
@@ -3122,7 +3122,7 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine mesh_redistribute_geometry(self, sf, dist_dm)
+  subroutine mesh_redistribute_geometry(self, dist_dm, sf)
     !! Redistributes cell and face geometry vectors after
     !! redistributing DM according to the specified SF.
 
@@ -3130,21 +3130,21 @@ contains
     use face_module
 
     class(mesh_type), intent(in out) :: self
-    PetscSF, intent(in out) :: sf
     DM, intent(in) :: dist_dm
+    PetscSF, intent(in out) :: sf
 
     if (sf .ne. PETSC_NULL_SF) then
-       call redistribute_vec(self%cell_geom, sf, dist_dm)
-       call redistribute_vec(self%face_geom, sf, dist_dm)
+       call redistribute_vec(self%cell_geom, dist_dm, sf)
+       call redistribute_vec(self%face_geom, dist_dm, sf)
     end if
 
   contains
 
-    subroutine redistribute_vec(v, sf, dist_dm)
+    subroutine redistribute_vec(v, dist_dm, sf)
 
       Vec, intent(in out) :: v
-      PetscSF, intent(in) :: sf
       DM, intent(in) :: dist_dm
+      PetscSF, intent(in) :: sf
       ! Locals:
       character(80) :: name
       DM :: dm, dist_v_dm
