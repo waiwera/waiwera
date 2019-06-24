@@ -1,9 +1,8 @@
 
 export PETSC_DIR={{ petsc_path }}
-export PETSC_ARCH=arch-linux2-c-debug
-export LD_LIBRARY_PATH={{ ld_library_path }}:$LD_LIBRARY_PATH
-export PATH=$HOME/bin:$HOME/.local/bin:{{ bin_path }}:{{dist_path}}:$PATH
-export PKG_CONFIG_PATH={{ pkgconfig_path }}:$PKG_CONFIG_PATH:
+export PETSC_ARCH={{ petsc_arch }}
+export PATH=$HOME/bin:$HOME/.local/bin:{{ bin_path }}
+export PKG_CONFIG_PATH={{ pkgconfig_path }}:$PKG_CONFIG_PATH
 export LANG=en_US.UTF-8
 export LC_ALL=en_US.UTF-8
 export LC_TYPE=en_US.UTF-8

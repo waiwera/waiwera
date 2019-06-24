@@ -2,21 +2,24 @@
 
 - name: zofu - Set path variable
   set_fact:
-    zofu_path: "{{ install_location + '/software/zofu'}}"
+    zofu_path: "{{ software_path }}/zofu"
     zofu_build_path: "{{ zofu_path + '/build' }}"
 
-- name: zofu - Clean path
+- name: zofu - tidy path
   file:
     state: absent
     path: "{{ zofu_path }}"
   tags:
-    - clean
+    - never
+    - tidy
 
-- name: zofu - Fetch from github
+- name: zofu - fetch from github
   git:
     repo: 'https://github.com/acroucher/zofu.git'
     dest: "{{ zofu_path }}"
     version: master
+  tags:
+    - fetch
 
 - name: zofu - change ownership
   file:
@@ -24,25 +27,32 @@
     owner: "{{ app_user }}"
     group: "{{ app_group }}"
     recurse: yes
-  tags:
-    - docker
+  when: docker_run is defined
 
 - name: zofu - meson build
-  shell: "{{ 'meson build --buildtype release --prefix ' + install_location + ' --libdir=lib --includedir=include' }}"
+  shell: 'meson build --buildtype=release --prefix={{ base_dir }} --libdir={{ lib_path }} --includedir={{ include_path }}'
   args:
     chdir: "{{ zofu_path }}"
+  tags:
+    - meson
+    - build
 
-- name: zofu - ninja build
-  shell: ninja
-  args:
-    chdir: "{{ zofu_build_path }}"
+- name: zofu - ninja steps
+  block:
+    - name: zofu - ninja build
+      shell: ninja
+      args:
+        chdir: "{{ zofu_build_path }}"
 
-- name: zofu - ninja test
-  shell: ninja test
-  args:
-    chdir: "{{ zofu_build_path }}"
+    - name: zofu - ninja test
+      shell: ninja test
+      args:
+        chdir: "{{ zofu_build_path }}"
 
-- name: zofu - ninja install
-  shell: ninja install
-  args:
-    chdir: "{{ zofu_build_path }}"
+    - name: zofu - ninja install
+      shell: ninja install
+      args:
+        chdir: "{{ zofu_build_path }}"
+  tags:
+    - ninja
+    - build

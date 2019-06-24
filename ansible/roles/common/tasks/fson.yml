@@ -2,7 +2,7 @@
 
 - name: fson - Set path variable
   set_fact:
-    fson_path: "{{ install_location + '/software/fson'}}"
+    fson_path: "{{ base_dir + '/software/fson'}}"
     fson_build_path: "{{ fson_path + '/build' }}"
 
 - name: fson - Clean path
@@ -24,11 +24,10 @@
     owner: "{{ app_user }}"
     group: "{{ app_group }}"
     recurse: yes
-  tags:
-    - docker
+  when: docker_run is defined
 
 - name: fson - meson build
-  shell: "{{ 'meson build --buildtype release --prefix ' + install_location + ' --libdir=lib --includedir=include' }}"
+  shell: 'meson build --buildtype=release --prefix={{ base_dir }} --libdir={{ lib_path }} --includedir={{ include_path }}'
   args:
     chdir: "{{ fson_path }}"
 

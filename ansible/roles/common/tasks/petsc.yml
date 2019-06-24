@@ -1,59 +1,71 @@
 ---
 
-- name: Clean petsc path
-  file:
-    state: absent
-    path: "{{ petsc_path }}"
-  tags:
-    - clean
 
-- name: Fetch PETSc from bitbucket
+- name: petsc - Fetch from bitbucket
   git:
     repo: 'https://bitbucket.org/petsc/petsc.git'
-    # dest: /opt/app/petsc
     dest: "{{ petsc_path }}"
     version: "{{ petsc_version }}"
-    # v3.10.2 doesn't work
+  tags:
+    - fetch
 
-- name: Create build directory structure
-  file:
-    path: "{{ item }}"
-    state: directory
-  with_items:
-    - "{{ install_location + '/build'}}"
-    - "{{ install_location + '/lib/pkgconfig'}}"
+# - name: petsc - Create build directory
+#   file:
+#     path: "{{ item }}"
+#     state: directory
+#   with_items:
+#     - "{{ waiwera_path }}/build"
 
-- name: change PETSc ownership
+- name: petsc - change ownership folder ownership
   file:
     dest: "{{ petsc_path }}"
     owner: "{{ app_user }}"
     group: "{{ app_group }}"
     recurse: yes
+  when: docker_run is defined
+
+- name: petsc - configure make
+  block:
+
+  - set_fact:
+      configure_cmd: "{{ './configure --'  + petsc_options | join(' --') }}"
+
+  - set_fact:
+      configure_cmd: "{{ configure_cmd + petsc_variables | join(' ') }}"
+    tags:
+      - never
+      - nesi
+
+  - name: petsc - Run ./configure
+    command: "{{ configure_cmd }}"
+    args:
+      chdir: "{{ petsc_path }}"
   tags:
-    - docker
+    - configure
+    - build
 
-- name: create configure command
-  set_fact:
-    configure_cmd: "{{ './configure --'  + petsc_options | join(' --') }}"
+- name: petsc - make
+  block:
+  - name: petsc - make all
+    make:
+      target: all
+      chdir: "{{ petsc_path }}"
 
-- name: Running ./configure for PETSc
-  command: "{{ configure_cmd }}"
-  args:
-    chdir: "{{ petsc_path }}"
+  - name: petsc - make check
+    make:
+      target: check
+      chdir: "{{ petsc_path }}"
 
-- name: Make PETSc
-  make:
-    target: all
-    chdir: "{{ petsc_path }}"
+  - name: petsc - make test
+    make:
+      target: test
+      chdir: "{{ petsc_path }}"
+  tags:
+    - make
+    - build
 
-- name:  Check PETSc
-  make:
-    target: check
-    chdir: "{{ petsc_path }}"
-
-
-- name: Copy petsc pkgconfig
+- name: petsc - copy to pkgconfig
   copy:
-    src: "{{ petsc_path + '/arch-linux2-c-debug/lib/pkgconfig/PETSc.pc'}}"
-    dest: "{{ install_location + '/lib/pkgconfig/PETSc.pc'}}"
+    src: "{{ petsc_path + '/' + petsc_arch +  '/lib/pkgconfig/PETSc.pc'}}"
+    dest: "{{ pkgconfig_path }}/PETSc.pc"
     remote_src: yes

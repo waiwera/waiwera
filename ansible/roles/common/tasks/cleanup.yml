@@ -43,36 +43,45 @@
     - /root/.pip/cache/*
     - /usr/share/doc/*
 
-- name: Capture arch-linux2-c-debug files and directories to delete
-  find:
-    paths: "{{ petsc_path }}/arch-linux2-c-debug"
-    file_type: any
-    excludes:
-      - "lib"
-  register: found_arch
+# - name: Capture arch-linux2-c-debug files and directories to delete
+#   find:
+#     paths: "{{ petsc_path }}/arch-linux2-c-debug"
+#     file_type: any
+#     excludes:
+#       - "lib"
+#   register: found_arch
 
-- name: Capture PETSc files and directories to delete
-  find:
-    paths: "{{ petsc_path }}"
-    file_type: any
-    excludes:
-      - "arch-linux2-c-debug"
-  register: found_petsc
+# - name: Capture PETSc files and directories to delete
+#   find:
+#     paths: "{{ petsc_path }}"
+#     file_type: any
+#     excludes:
+#       - "arch-linux2-c-debug"
+#   register: found_petsc
 
 - name: Capture .git directories to delete
   find:
-    paths: "{{ install_location }}"
+    paths: "{{ base_dir }}"
     file_type: directory
     patterns: '.git'
     recurse: yes
     hidden: yes
   register: found_git
 
+# - name: Capture sofware directories to delete
+#   find:
+#     paths: "{{ software_path }}"
+#     file_type: directory
+#     recurse: yes
+#     hidden: yes
+#   register: found_software
+
 - name: Delete files
   file:
     path: "{{ item.path }}"
     state: absent
   with_items:
-    - "{{ found_arch['files'] }}"
-    - "{{ found_petsc['files'] }}"
+    # - "{{ found_arch['files'] }}"
+    # - "{{ found_petsc['files'] }}"
     - "{{ found_git['files'] }}"
+    # - "{{ found_software['files'] }}"
