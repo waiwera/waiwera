@@ -1182,19 +1182,21 @@ contains
 !------------------------------------------------------------------------
 
   subroutine dm_check_create_label(dm, label_name)
-    !! Checks if label with specified name exists, and creates it is
-    !! it doesn't.
+    !! Creates label on DM with specified name. If a label of that
+    !! name already exists it is removed and re-created.
 
     DM, intent(in out) :: dm
     character(*), intent(in) :: label_name
     ! Locals:
     PetscBool :: has_label
+    DMLabel :: label
     PetscErrorCode :: ierr
 
     call DMHasLabel(dm, label_name, has_label, ierr); CHKERRQ(ierr)
-    if (.not. has_label) then
-       call DMCreateLabel(dm, label_name, ierr); CHKERRQ(ierr)
+    if (has_label) then
+       call DMRemoveLabel(dm, label_name, label, ierr)
     end if
+    call DMCreateLabel(dm, label_name, ierr); CHKERRQ(ierr)
 
   end subroutine dm_check_create_label
 
