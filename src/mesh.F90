@@ -2607,6 +2607,7 @@ contains
     type(cell_type) :: cell
     type(face_type) :: face
     PetscReal :: orig_volume, orig_centroid(3)
+    character(80) :: name
     PetscErrorCode :: ierr
     PetscInt, parameter :: nc = 1, np = 1 ! dummy values for cell & face init
 
@@ -2620,6 +2621,8 @@ contains
     call set_dm_data_layout(dm_cell, cell_variable_num_components, &
          cell_variable_dim, cell_variable_names)
     call DMCreateLocalVector(dm_cell, minc_cell_geom, ierr); CHKERRQ(ierr)
+    call PetscObjectGetName(self%cell_geom, name, ierr); CHKERRQ(ierr)
+    call PetscObjectSetName(minc_cell_geom, name, ierr); CHKERRQ(ierr)
     call local_vec_section(minc_cell_geom, minc_cell_section)
     call VecGetArrayF90(minc_cell_geom, minc_cell_geom_array, ierr)
     CHKERRQ(ierr)
@@ -2634,6 +2637,8 @@ contains
     call set_dm_data_layout(dm_face, face_variable_num_components, &
          face_variable_dim, face_variable_names)
     call DMCreateLocalVector(dm_face, minc_face_geom, ierr); CHKERRQ(ierr)
+    call PetscObjectGetName(self%face_geom, name, ierr); CHKERRQ(ierr)
+    call PetscObjectSetName(minc_face_geom, name, ierr); CHKERRQ(ierr)
     call local_vec_section(minc_face_geom, minc_face_section)
     call VecGetArrayF90(minc_face_geom, minc_face_geom_array, ierr)
     CHKERRQ(ierr)
