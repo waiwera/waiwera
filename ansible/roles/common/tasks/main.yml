@@ -106,20 +106,30 @@
     - never
     - fson
 
-- name: petsc - Install
-  include: petsc.yml
-  environment:
-    PETSC_DIR: "{{ petsc_path }}"
-    PETSC_ARCH: "{{ petsc_arch }}"
-    PATH: "{{ ansible_env.PATH }}:{{ bin_path }}:{{ ansible_env.HOME }}/.local/bin"
-    PKG_CONFIG_PATH: "{{ pkgconfig_path }}"
-    LANG: en_US.UTF-8
-    LC_ALL: en_US.UTF-8
-    LC_TYPE: en_US.UTF-8
-  tags:
-    - petsc
+- name: petsc - test for pre-existing install
+  command: pkg-config --exists PETSc
+  register: petsc_test
+  ignore_errors: True
 
-- name: waiwera - Setup
+- name: petsc - local install
+  block:
+
+  - name: petsc - Install
+    include: petsc.yml
+    environment:
+      PETSC_DIR: "{{ petsc_path }}"
+      PETSC_ARCH: "{{ petsc_arch }}"
+      PATH: "{{ ansible_env.PATH }}:{{ bin_path }}:{{ ansible_env.HOME }}/.local/bin"
+      PKG_CONFIG_PATH: "{{ pkgconfig_path }}"
+      LANG: en_US.UTF-8
+      LC_ALL: en_US.UTF-8
+      LC_TYPE: en_US.UTF-8
+    tags:
+      - petsc
+
+  when: petsc_test is failed
+
+- name: waiwera - Setup after petsc install
   environment:
     PETSC_DIR: "{{ petsc_path }}"
     PETSC_ARCH: "{{ petsc_arch }}"
@@ -131,6 +141,18 @@
   include: waiwera.yml
   tags:
     - waiwera
+  when: petsc_test is failed
+
+- name: waiwera - Setup without petsc install
+  environment:
+    PATH: "{{ ansible_env.PATH }}:{{ bin_path }}:{{ ansible_env.HOME }}/.local/bin"
+    LANG: en_US.UTF-8
+    LC_ALL: en_US.UTF-8
+    LC_TYPE: en_US.UTF-8
+  include: waiwera.yml
+  tags:
+    - waiwera
+  when: petsc_test is succeeded
 
 - name: Cleanup
   include: cleanup.yml
