@@ -1,6 +1,6 @@
 # TOUGH2 radial heat pipe problem
 from __future__ import print_function
-from t2data_json import *
+from t2data import *
 from t2incons import *
 import json
 import os
@@ -47,7 +47,7 @@ dz = [4.5]
 geo = mulgrid().rectangular(dr, [1.], dz, atmos_type = 2)
 geo.write('g' + model_name + '.dat')
 
-dat = t2data_export_json()
+dat = t2data()
 dat.title = '1-D radial heat pipe'
 dat.simulator = 'AUTOUGH2.2EWAV'
 

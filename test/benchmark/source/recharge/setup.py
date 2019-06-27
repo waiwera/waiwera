@@ -1,7 +1,7 @@
 # Set up AUTOUGH2 and Waiwera runs
 
 import os
-from t2data_json import *
+from t2data import *
 from t2thermo import *
 import json
 import subprocess
@@ -30,7 +30,7 @@ geo.write(t2geo_filename)
 pressure = 2.e5
 temperature = 20.
 
-dat = t2data_export_json()
+dat = t2data()
 dat.title = 'Recharge source test'
 dat.simulator = 'AUTOUGH2.2'
 dat.grid = t2grid().fromgeo(geo)

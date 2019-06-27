@@ -1,4 +1,4 @@
-from t2data_json import *
+from t2data import *
 from t2incons import *
 from t2thermo import *
 from scipy.optimize import fsolve
@@ -22,7 +22,7 @@ zthick = [300.] * 4 + [600.]
 geo = mulgrid().rectangular([dx] * nx, [dy] * ny, zthick, atmos_type = 1)
 geo.write('g' + model_name +'.dat')
 
-dat = t2data_export_json()
+dat = t2data()
 dat.title = 'Model intercomparison study problem 6'
 dat.simulator = 'AUTOUGH2.2'
 
