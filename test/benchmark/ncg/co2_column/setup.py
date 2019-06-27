@@ -1,6 +1,6 @@
 # Vertical column CO2 test from O'Sullivan et al. (1985)
 from __future__ import print_function
-from t2data_json import *
+from t2data import *
 from t2incons import *
 from t2thermo import *
 import json
@@ -24,7 +24,7 @@ geo.write('g' + model_name + '.dat')
 mesh_filename = 'g' + model_name + '.msh'
 geo.write_mesh(mesh_filename, dimension = 2, slice = 'x')
 
-dat = t2data_export_json()
+dat = t2data()
 dat.title = 'CO2 column'
 dat.simulator = 'AUTOUGH2.2EWC'
 

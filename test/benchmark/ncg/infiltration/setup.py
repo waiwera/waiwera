@@ -1,6 +1,6 @@
 # TOUGH2 1-D infiltration problem
 from __future__ import print_function
-from t2data_json import *
+from t2data import *
 from t2incons import *
 import json
 json.encoder.FLOAT_REPR = lambda o: format(o, '0.12g')
@@ -19,7 +19,7 @@ geo = mulgrid().rectangular([dx] * nx, [1.], [1.], atmos_type = 2)
 mulgrid_format_specification['node'][1][1:] = ['10.3f'] * 2
 geo.write('g' + model_name + '.dat')
 
-dat = t2data_export_json()
+dat = t2data()
 dat.title = '1-D infiltration'
 dat.simulator = 'AUTOUGH2.2EWAV'
 

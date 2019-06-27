@@ -1,4 +1,4 @@
-from t2data_json import *
+from t2data import *
 from t2incons import *
 from t2thermo import cowat
 from builtins import zip
@@ -28,7 +28,7 @@ dz = np.array([thickness])
 geo = mulgrid().rectangular(dr, [1.], dz, atmos_type = 2)
 geo.write('g' + model_name + '.dat')
 
-dat = t2data_export_json()
+dat = t2data()
 dat.title = 'Model intercomparison study problem 2'
 dat.simulator = 'AUTOUGH2.2'
 

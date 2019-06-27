@@ -1,7 +1,7 @@
 # Set up deliverability benchmark test cases
 
 import os
-from t2data_json import *
+from t2data import *
 from t2thermo import *
 import json
 
@@ -29,7 +29,7 @@ dp = 1.e5
 temperature = 230.
 pressure = sat(temperature) + dp
 
-dat = t2data_export_json()
+dat = t2data()
 dat.title = 'Deliverability source test'
 dat.simulator = 'AUTOUGH2.2'
 dat.grid = t2grid().fromgeo(geo)
@@ -129,7 +129,7 @@ from os.path import isfile
 
 for run_name in run_names:
 
-    dat = t2data_export_json(model_name + '.dat')
+    dat = t2data(model_name + '.dat')
     if run_name == 'delg_pi_table':
         # AUTOUGH2 initial flow rate appears to be wrong for this case:
         dat.parameter['option'][24] = 0

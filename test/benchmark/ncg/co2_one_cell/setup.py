@@ -1,6 +1,6 @@
 # One-cell CO2 test from O'Sullivan et al. (1985)
 from __future__ import print_function
-from t2data_json import *
+from t2data import *
 from t2incons import *
 from t2thermo import *
 import json
@@ -19,7 +19,7 @@ dx = 1.
 geo = mulgrid().rectangular([dx], [dx], [dx], atmos_type = 2)
 geo.write('g' + model_name + '.dat')
 
-dat = t2data_export_json()
+dat = t2data()
 dat.title = 'CO2 one cell'
 dat.simulator = 'AUTOUGH2.2EWC'
 
