@@ -1,6 +1,6 @@
 # 1-D MINC doublet problem
 
-from t2data_json import *
+from t2data import *
 import json
 json.encoder.FLOAT_REPR = lambda o: format(o, '0.12g')
 import os
@@ -27,7 +27,7 @@ geo.write('g' + model_name + '.dat')
 mesh_filename = 'g' + model_name + '.exo'
 geo.write_mesh(mesh_filename)
 
-dat = t2data_export_json()
+dat = t2data()
 dat.title = '1-D MINC problem'
 dat.simulator = 'AUTOUGH2.2EW'
 dat.start = True
@@ -92,7 +92,7 @@ def minc_rockname(rockname, level):
 
 for spacing in [50, 100, 200]:
 
-    dat = t2data_export_json(single_model_name + '.dat')
+    dat = t2data(single_model_name + '.dat')
     dat.grid.minc(vol, spacing, nf, minc_rockname = minc_rockname)
     dat.grid.clean_rocktypes()
     dat.title += ': fracture spacing = %d' % spacing
