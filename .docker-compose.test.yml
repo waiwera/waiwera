@@ -1,0 +1,5 @@
+sut:
+  build: .
+  command: python unit_tests.py
+  environment:
+    - SOURCE_BRANCH

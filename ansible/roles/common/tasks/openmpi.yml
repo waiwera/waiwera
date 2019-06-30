@@ -1,32 +1,47 @@
 ---
 
-- name: Clean openmpi paths
+- name: openmpi - Set path variable
+  set_fact:
+    openmpi_path: "{{ software_path }}/openmpi"
+
+- name: openmpi - tidy paths
   file:
     state: absent
-    path: /opt/app/{{ item }}
-  with_items:
-  - openmpi
+    path: '{{ base_dir }}/openmpi'
+  tags:
+    - never
+    - tidy
 
-- name: Dowload and unarchive openmpi
+- name: openmpi - Dowload and unarchive openmpi
   unarchive:
     src: https://download.open-mpi.org/release/open-mpi/v3.1/openmpi-3.1.3.tar.gz
-    dest: /opt/app/
+    dest: '{{ software_path }}/openmpi'
     remote_src: yes
+  tags:
+    - fetch
 
-- name: Move openmpi no non-versioned directory name,
-  command: mv -n /opt/app/openmpi-3.1.3 /opt/app/openmpi
+# - name: openmpi -  Move to non-versioned directory name
+#   command: 'mv -n {{software_path}}/openmpi-3.1.3 {{openmpi_path }}'
 
-- name: Running ./configure for openmpi
+- name: openmpi - ./configure
   command: >
-    ./configure --prefix="/opt/app/" --with-tm
+    ./configure --prefix="{{ base_dir }}" --with-tm
   args:
-    chdir: /opt/app/openmpi
+    chdir: '{{ openmpi_path }}'
+  tags:
+    - configure
+    - build
 
-- name: Make openmpi
-  make:
-    chdir: /opt/app/openmpi
+- name: openmpi - make and install
+  block:
+  - name: openmpi - make
+    make:
+      chdir: '{{ openmpi_path }}'
 
-- name: Make install openmpi
-  make:
-    chdir: /opt/app/openmpi
-      target: install
+  - name: openmpi - make install
+    make:
+      chdir: '{{ openmpi_path }}'
+        target: install
+  tags:
+    - make
+    - build

@@ -1,8 +1,9 @@
 ---
 # file: roles/x/defaults/main.yml
 # if not overridden in inventory or as a parameter, this is the value that will be used
-app_dir: /vagrant
+base_dir: /vagrant
 app_user: waiwera
 app_group: waiwera
-petsc_version: 81b0e57
+petsc_version: afbee2879a
 waiwera_version: meson
+petsc_arch: release

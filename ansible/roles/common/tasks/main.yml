@@ -4,23 +4,26 @@
   tags:
     - packer
 
-- name: create user
-  user:
-   name: "{{ app_user }}"
-   shell: /bin/bash
-   uid: 1000
-   comment: waiwera app user
+- name: Set docker_status
+  set_fact:
+    docker_run: True
   tags:
     - docker
+    - never
 
-- name: create group
-  group:
-   name: "{{ app_group }}"
-   # shell: /bin/bash
-   gid: 1000
-   # comment: waiwera app user
-  tags:
-    - docker
+- name: create user and group
+  block:
+  - user:
+      name: "{{ app_user }}"
+      shell: /bin/bash
+      uid: 1000
+      comment: waiwera app user
+  - group:
+      name: "{{ app_group }}"
+      # shell: /bin/bash
+      gid: 1000
+      # comment: waiwera app user
+  when: docker_run is defined
 
 # - name: Get default Variables
 #   include_vars: "../vars/default.yml"
@@ -33,54 +36,140 @@
     - "../vars/{{ ansible_os_family }}.yml"
     - "../vars/default.yml"
 
-- name: Set install location
-  set_fact:
-    install_location: "{{ app_dir }}/waiwera"
+- name: Get Nesi variables
+  include_vars: nesi.yml
+  tags:
+    - never
+    - nesi
 
-- name: Set Paths
+- name: Set 1st layer path variables
   set_fact:
-    petsc_path: "{{ install_location + '/external/PETSc'}}"
-    ld_library_path: "{{ install_location + '/lib'}}"
-    bin_path: "{{ install_location + '/bin'}}"
-    pkgconfig_path: "{{ install_location + '/lib/pkgconfig'}}"
-    dist_path: "{{ install_location }}/dist"
-    util_path: "{{ install_location }}/utils"
-    include_path: "{{ install_location }}/include"
+    waiwera_path: "{{ base_dir }}/waiwera"
+    bin_path: "{{ base_dir }}/bin"
+    lib_path: "{{ base_dir }}/lib"
+    include_path: "{{ base_dir }}/include"
+    software_path: "{{ base_dir }}/software"
 
-- name: Run the common tasks to setup waiwera
-  include: base.yml
+- name: Set 2nd layer path variables
+  set_fact:
+    pkgconfig_path: "{{ lib_path }}/pkgconfig"
+    petsc_path: "{{ software_path }}/PETSc"
+
+- name: openmpi - test for pre-existing install
+  command: mpiexec --version
+  register: openmpi_test
+  ignore_errors: True
+
+- name: Setup packages
+  include: packages.yml
   become: yes
   tags:
-    - setup
+    - packages
 
-- name: Setup and test waiwera
+- name: set opt_paths.sh with template
+  template:
+    src: opt_paths.j2
+    dest: /etc/profile.d/opt_paths.sh
+  tags:
+    - never
+    - root
+    - docker
+  become: yes
+
+- name: Run the common tasks to setup waiwera on a system with no root access
+  include: setup.yml
+  become: no
+
+- name: meson - Install
+  include: meson.yml
+  become: no
+  tags:
+    - meson
+
+- name: ninja - Install
+  include: ninja.yml
+  become: no
+  tags:
+    - ninja
+
+- name: zofu - Install from source
+  include: zofu.yml
+  become: no
+  tags:
+    - never
+    - zofu
+
+- name: fson - Install from source
+  include: fson.yml
+  become: no
+  tags:
+    - never
+    - fson
+
+- name: petsc - test for pre-existing install
+  command: pkg-config --exists PETSc
+  register: petsc_test
+  ignore_errors: True
+
+- name: petsc - local install
+  block:
+
+  - name: petsc - Install
+    include: petsc.yml
+    environment:
+      PETSC_DIR: "{{ petsc_path }}"
+      PETSC_ARCH: "{{ petsc_arch }}"
+      PATH: "{{ ansible_env.PATH }}:{{ bin_path }}:{{ ansible_env.HOME }}/.local/bin"
+      PKG_CONFIG_PATH: "{{ pkgconfig_path }}"
+      LANG: en_US.UTF-8
+      LC_ALL: en_US.UTF-8
+      LC_TYPE: en_US.UTF-8
+    tags:
+      - petsc
+
+  when: petsc_test is failed
+
+- name: waiwera - Setup after petsc install
   environment:
     PETSC_DIR: "{{ petsc_path }}"
-    PETSC_ARCH: arch-linux2-c-debug
-    LD_LIBRARY_PATH: "{{ ld_library_path }}"
-    PYTHONPATH: "{{ util_path }}"
-    PATH: "{{ ansible_env.PATH }}:{{ bin_path }}:{{dist_path}}:{{ ansible_env.HOME }}/.local/bin"
+    PETSC_ARCH: "{{ petsc_arch }}"
+    PATH: "{{ ansible_env.PATH }}:{{ bin_path }}:{{ ansible_env.HOME }}/.local/bin"
     PKG_CONFIG_PATH: "{{ pkgconfig_path }}"
     LANG: en_US.UTF-8
     LC_ALL: en_US.UTF-8
     LC_TYPE: en_US.UTF-8
   include: waiwera.yml
   tags:
-    - app
+    - waiwera
+  when: petsc_test is failed
+
+- name: waiwera - Setup without petsc install
+  environment:
+    PATH: "{{ ansible_env.PATH }}:{{ bin_path }}:{{ ansible_env.HOME }}/.local/bin"
+    LANG: en_US.UTF-8
+    LC_ALL: en_US.UTF-8
+    LC_TYPE: en_US.UTF-8
+  include: waiwera.yml
+  tags:
+    - waiwera
+  when: petsc_test is succeeded
 
 - name: Cleanup
   include: cleanup.yml
   tags:
     - docker
+    - cleanup
 
 - name: change app deployment ownership
   file:
-    dest: "{{ install_location }}"
+    dest: "{{ waiwera_path }}"
     owner: "{{ app_user }}"
     group: "{{ app_group }}"
     recurse: yes
   tags:
+    - never
     - docker
+    - root
 
 - name: change /usr/local deployment ownership
   file:
@@ -89,4 +178,6 @@
     group: root
     recurse: yes
   tags:
+    - never
     - docker
+    - root
