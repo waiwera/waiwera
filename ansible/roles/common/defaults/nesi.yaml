@@ -1,0 +1,32 @@
+---
+petsc_options:
+  - download-fblaslapack
+  - download-triangle
+  - download-netcdf
+  - download-exodusii
+  - download-pnetcdf
+  - download-ptscotch
+  - download-chaco
+  - download-zlib
+  - download-hdf5
+  - with-x
+  - with-debugging=0
+
+petsc_variables:
+  - "COPTFLAGS='-O3 -march=native -mtune=native'"
+  - "CXXOPTFLAGS='-O3 -march=native -mtune=native'"
+  - "FOPTFLAGS='-O3 -march=native -mtune=native'"
+
+    # --with-x \
+    # --download-fblaslapack \
+    # --download-hdf5 \
+    # --download-zlib \
+    # --download-pnetcdf \
+    # --download-netcdf \
+    # --download-exodusii \
+    # --download-triangle \
+    # --download-ptscotch \
+    # --download-chaco \
+    # --with-debugging=0 \
+    # COPTFLAGS='-O3 -march=native -mtune=native' CXXOPTFLAGS='-O3 -march=native -mtune=native' \
+    # FOPTFLAGS='-O3 -march=native -mtune=native'

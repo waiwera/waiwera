@@ -1,0 +1,65 @@
+---
+
+- name:  login directory for vagrant VM
+  lineinfile:
+    path:  ~/.bashrc
+    regexp: ^cd {{ waiwera_path}}"
+    line: "cd {{ waiwera_path }}"
+  tags:
+    - never
+    - vagrant
+
+- name: Activate openmpi module at login RedHat OS family Change
+  lineinfile:
+    path:  ~/.bashrc
+    regexp: '^module add mpi'
+    line: 'module add mpi/openmpi-x86_64'
+  when: ansible_os_family == 'RedHat'
+
+- name: Activate necessary modules on nesi
+  command: "module load {{ item }}"
+  with_items:
+    - gimpi/2018b
+    - CMake/3.9.1
+    - Python/3.7.3-gimkl-2018b
+    - Valgrind/3.14.0-GCC-7.4.0
+  tags:
+    - never
+    - nesi
+
+- name: Add paths to bash_profile
+  blockinfile:
+    dest: ~/.bashrc
+    block: "{{ lookup('template', 'opt_paths.j2') }}"
+    marker: "# {mark} ANSIBLE MANAGED BLOCK - PATHS"
+  tags:
+    - never
+    - local
+
+- name: Tidy app directory structure
+  file:
+    path: "{{ item }}"
+    state: absent
+  with_items:
+    - "{{ bin_path }}"
+    - "{{ pkgconfig_path }}"
+    - "{{ lib_path }}"
+    - "{{ include_path }}"
+    - "{{ waiwera_path }}"
+    - "{{ software_path }}"
+    - "{{ petsc_path }}"
+  tags:
+    - never
+    - tidy
+
+- name: Creates app directory structure
+  file:
+    path: "{{ item }}"
+    state: directory
+  with_items:
+    - "{{ bin_path }}"
+    - "{{ pkgconfig_path }}"
+    - "{{ lib_path }}"
+    - "{{ include_path }}"
+    - "{{ software_path }}"
+    - "{{ petsc_path }}"
