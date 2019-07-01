@@ -3,6 +3,7 @@
   include_vars: secrets.yml
   tags:
     - packer
+    - never
 
 - name: Set docker_status
   set_fact:
