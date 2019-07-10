@@ -50,4 +50,6 @@ RUN apt update && \
 
 RUN rm -r /ansible
 
+USER 1000:1000
+
 WORKDIR ${base_dir}/waiwera
