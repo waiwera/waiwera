@@ -29,7 +29,6 @@ module minc_module
   character(9), parameter, public :: minc_zone_label_name = "minc_zone"
   character(18), parameter, public :: minc_rocktype_zone_label_name = "minc_rocktype_zone"
   character(10), parameter, public :: minc_level_label_name = "minc_level"
-  character(24), parameter, public :: minc_fracture_natural_label_name = "minc_fracture_natural"
 
   type, public :: minc_type
      !! MINC parameters for a particular zone.
