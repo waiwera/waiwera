@@ -53,7 +53,6 @@ module mesh_module
      AO, public :: cell_order !! Application ordering to convert between global and natural cell indices
      AO, public :: original_cell_order !! Global-to-natural AO for original DM
      PetscSF, public :: dist_sf !! Distribution star forest
-     PetscInt, allocatable, public :: minc_cell_map(:) !! Mapping from MINC cell local indices to original single-porosity cell local indices
      PetscInt, public, allocatable :: ghost_cell(:), ghost_face(:) !! Ghost label values for cells and faces
      type(minc_type), allocatable, public :: minc(:) !! Array of MINC zones, with parameters
      PetscReal, public :: permeability_rotation(3, 3) !! Rotation matrix of permeability axes
@@ -89,7 +88,7 @@ module mesh_module
      procedure :: set_minc_dm_cones => mesh_set_minc_dm_cones
      procedure :: setup_minc_dm_depth_label => mesh_setup_minc_dm_depth_label
      procedure :: transfer_labels_to_minc_dm => mesh_transfer_labels_to_minc_dm
-     procedure :: setup_minc_dm_level_label_and_cell_map => mesh_setup_minc_dm_level_label_and_cell_map
+     procedure :: setup_minc_dm_labels => mesh_setup_minc_dm_labels
      procedure :: setup_minc_dm_cell_order => mesh_setup_minc_dm_cell_order
      procedure :: setup_minc_geometry => mesh_setup_minc_geometry
      procedure :: setup_minc_rock_properties => mesh_setup_minc_rock_properties
@@ -701,7 +700,6 @@ contains
        call AODestroy(self%original_cell_order, ierr); CHKERRQ(ierr)
        call self%destroy_minc()
        call self%destroy_strata()
-       deallocate(self%minc_cell_map)
     end if
     call self%zones%destroy(mesh_zones_node_data_destroy)
 
@@ -1758,8 +1756,7 @@ contains
     call self%transfer_labels_to_minc_dm(minc_dm, max_num_levels)
     call self%setup_minc_dm_depth_label(minc_dm, max_num_levels, &
          minc_level_cells)
-    call self%setup_minc_dm_level_label_and_cell_map(minc_dm, max_num_levels, &
-         minc_level_cells)
+    call self%setup_minc_dm_labels(minc_dm, max_num_levels, minc_level_cells)
 
     call dm_set_fv_adjacency(minc_dm)
     call dm_setup_fv_discretization(minc_dm, self%dof)
@@ -2285,13 +2282,16 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine mesh_setup_minc_dm_level_label_and_cell_map(self, minc_dm, &
-       max_num_levels, minc_level_cells)
-    !! Sets up minc_level label on MINC DM, with MINC level assigned
-    !! to all cells. Non-MINC cells are assigned level 0 (as are
-    !! fracture cells in MINC zones). Also creates minc_cell_map
-    !! array, mapping MINC DM cell local indices to their original
-    !! single-porosity cell local indices.
+  subroutine mesh_setup_minc_dm_labels(self, minc_dm, max_num_levels, &
+       minc_level_cells)
+    !! Sets up minc_level and minc_fracture_natural labels on MINC
+    !! DM. The minc_level label contains the MINC level assigned to each
+    !! cell. Non-MINC cells are assigned level 0 (as are fracture
+    !! cells in MINC zones). The minc_fracture_natural label contains
+    !! the natural index of the corresponding original single-porosity
+    !! cell (used for output purposes).
+
+    use dm_utils_module, only: local_to_natural_cell_index
 
     class(mesh_type), intent(in out) :: self
     DM, intent(in out) :: minc_dm
@@ -2299,22 +2299,20 @@ contains
     type(list_type), intent(in out) :: minc_level_cells(0: max_num_levels)
     ! Locals:
     PetscInt :: m, ic, h, c, ghost, minc_p
-    PetscInt :: start_cell, end_cell
+    PetscInt :: natural
     DMLabel :: ghost_label
+    ISLocalToGlobalMapping :: l2g
     PetscErrorCode :: ierr
 
     call DMGetLabel(minc_dm, "ghost", ghost_label, ierr)
     CHKERRQ(ierr)
     call DMCreateLabel(minc_dm, minc_level_label_name, ierr)
     CHKERRQ(ierr)
+    call DMCreateLabel(minc_dm, minc_fracture_natural_label_name, ierr)
+    CHKERRQ(ierr)
+    call DMGetLocalToGlobalMapping(self%dm, l2g, ierr); CHKERRQ(ierr)
 
     h = 0
-    call DMPlexGetHeightStratum(minc_dm, h, start_cell, end_cell, &
-         ierr); CHKERRQ(ierr)
-    associate(num_cells => end_cell - start_cell)
-      allocate(self%minc_cell_map(0: num_cells - 1))
-    end associate
-
     m = 0
     do c = self%strata(h)%start, self%strata(h)%end - 1
        call DMLabelGetValue(ghost_label, c, ghost, ierr)
@@ -2322,7 +2320,9 @@ contains
           minc_p = self%strata(h)%minc_point(c, m)
           call DMSetLabelValue(minc_dm, minc_level_label_name, &
                minc_p, m, ierr); CHKERRQ(ierr)
-          self%minc_cell_map(minc_p) = c
+          natural = local_to_natural_cell_index(self%cell_order, l2g, c)
+          call DMSetLabelValue(minc_dm, minc_fracture_natural_label_name, &
+               minc_p, natural, ierr); CHKERRQ(ierr)
        end if
     end do
 
@@ -2334,7 +2334,8 @@ contains
   contains
 
     subroutine minc_level_label_iterator(node, stopped)
-      !! Sets level label for all MINC cells and faces.
+      !! Sets level and fracture_natural labels for all MINC cells and
+      !! faces.
 
       type(list_node_type), pointer, intent(in out) :: node
       PetscBool, intent(out) :: stopped
@@ -2347,13 +2348,15 @@ contains
          minc_p = self%strata(h)%minc_point(ic, m)
          call DMSetLabelValue(minc_dm, minc_level_label_name, &
               minc_p, m, ierr); CHKERRQ(ierr)
-         self%minc_cell_map(minc_p) = c
+         natural = local_to_natural_cell_index(self%cell_order, l2g, c)
+         call DMSetLabelValue(minc_dm, minc_fracture_natural_label_name, &
+              minc_p, natural, ierr); CHKERRQ(ierr)
       end select
       ic = ic + 1
 
     end subroutine minc_level_label_iterator
 
-  end subroutine mesh_setup_minc_dm_level_label_and_cell_map
+  end subroutine mesh_setup_minc_dm_labels
 
 !------------------------------------------------------------------------
 
@@ -3275,19 +3278,18 @@ contains
     class(mesh_type), intent(in out) :: self
     PetscInt, intent(in) :: local !! Local cell index
     ! Locals:
-    PetscInt :: fracture_local
+    DMLabel :: minc_fracture_natural_label
     ISLocalToGlobalMapping :: l2g
     PetscErrorCode :: ierr
 
     if (self%has_minc) then
-       fracture_local = self%minc_cell_map(local)
+       call DMGetLabel(self%dm, minc_fracture_natural_label_name, &
+            minc_fracture_natural_label, ierr); CHKERRQ(ierr)
+       call DMLabelGetValue(minc_fracture_natural_label, local, natural, ierr)
     else
-       fracture_local = local
+       call DMGetLocalToGlobalMapping(self%dm, l2g, ierr); CHKERRQ(ierr)
+       natural = local_to_natural_cell_index(self%cell_order, l2g, local)
     end if
-
-    call DMGetLocalToGlobalMapping(self%dm, l2g, ierr); CHKERRQ(ierr)
-    natural = local_to_natural_cell_index(self%cell_order, &
-         l2g, fracture_local)
 
   end function mesh_local_to_fracture_natural
 
