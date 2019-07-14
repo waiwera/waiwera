@@ -3137,53 +3137,16 @@ contains
     !! Redistributes cell and face geometry vectors after
     !! redistributing DM according to the specified SF.
 
-    use cell_module
-    use face_module
+    use dm_utils_module, only: dm_distribute_local_vec
 
     class(mesh_type), intent(in out) :: self
     DM, intent(in) :: dist_dm
     PetscSF, intent(in out) :: sf
 
     if (sf .ne. PETSC_NULL_SF) then
-       call redistribute_vec(self%cell_geom, dist_dm, sf)
-       call redistribute_vec(self%face_geom, dist_dm, sf)
+       call dm_distribute_local_vec(dist_dm, sf, self%cell_geom)
+       call dm_distribute_local_vec(dist_dm, sf, self%face_geom)
     end if
-
-  contains
-
-    subroutine redistribute_vec(v, dist_dm, sf)
-
-      Vec, intent(in out) :: v
-      DM, intent(in) :: dist_dm
-      PetscSF, intent(in) :: sf
-      ! Locals:
-      character(80) :: name
-      DM :: dm, dist_v_dm
-      PetscSection :: section, dist_section
-      Vec :: dist_v
-      PetscErrorCode :: ierr
-
-      call VecGetDM(v, dm, ierr); CHKERRQ(ierr)
-      call DMGetSection(dm, section, ierr); CHKERRQ(ierr)
-
-      call VecCreate(PETSC_COMM_SELF, dist_v, ierr); CHKERRQ(ierr)
-      call PetscObjectGetName(v, name, ierr); CHKERRQ(ierr)
-      call PetscObjectSetName(dist_v, name, ierr); CHKERRQ(ierr)
-
-      call PetscSectionCreate(PETSC_COMM_WORLD, dist_section, ierr)
-      CHKERRQ(ierr)
-      call DMPlexDistributeField(dm, sf, section, &
-           v, dist_section, dist_v, ierr); CHKERRQ(ierr)
-
-      call DMClone(dist_dm, dist_v_dm, ierr); CHKERRQ(ierr)
-      call DMSetSection(dist_v_dm, dist_section, ierr)
-      call VecSetDM(dist_v, dist_v_dm, ierr); CHKERRQ(ierr)
-
-      call PetscSectionDestroy(dist_section, ierr); CHKERRQ(ierr)
-      call VecDestroy(v, ierr); CHKERRQ(ierr)
-      v = dist_v
-
-    end subroutine redistribute_vec
 
   end subroutine mesh_redistribute_geometry
 

@@ -73,7 +73,7 @@ module dm_utils_module
   public :: create_path_dm
   public :: get_field_subvector, section_get_field_names
   public :: dm_global_cell_field_dof, dm_check_create_label
-  public :: dm_label_ghosts
+  public :: dm_label_ghosts, dm_distribute_local_vec
 
 contains
 
@@ -1269,6 +1269,45 @@ contains
     end do
 
   end subroutine dm_label_ghosts
+
+!------------------------------------------------------------------------
+
+  subroutine dm_distribute_local_vec(dm, sf, v)
+    !! Distributes local vector v from its original DM to the
+    !! specified one, via the supplied distribution star forest. The
+    !! original vector v is overwritten.
+
+    DM, intent(in) :: dm
+    PetscSF, intent(in) :: sf
+    Vec, intent(in out) :: v
+    ! Locals:
+    character(80) :: name
+    DM :: v_dm, dist_v_dm
+    PetscSection :: section, dist_section
+    Vec :: dist_v
+    PetscErrorCode :: ierr
+
+    call VecGetDM(v, v_dm, ierr); CHKERRQ(ierr)
+    call DMGetSection(v_dm, section, ierr); CHKERRQ(ierr)
+
+    call VecCreate(PETSC_COMM_WORLD, dist_v, ierr); CHKERRQ(ierr)
+    call PetscObjectGetName(v, name, ierr); CHKERRQ(ierr)
+    call PetscObjectSetName(dist_v, name, ierr); CHKERRQ(ierr)
+
+    call PetscSectionCreate(PETSC_COMM_WORLD, dist_section, ierr)
+    CHKERRQ(ierr)
+    call DMPlexDistributeField(v_dm, sf, section, v, &
+         dist_section, dist_v, ierr); CHKERRQ(ierr)
+
+    call DMClone(dm, dist_v_dm, ierr); CHKERRQ(ierr)
+    call DMSetSection(dist_v_dm, dist_section, ierr)
+    call VecSetDM(dist_v, dist_v_dm, ierr); CHKERRQ(ierr)
+
+    call PetscSectionDestroy(dist_section, ierr); CHKERRQ(ierr)
+    call VecDestroy(v, ierr); CHKERRQ(ierr)
+    v = dist_v
+
+  end subroutine dm_distribute_local_vec
 
 !------------------------------------------------------------------------
 
