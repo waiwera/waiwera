@@ -73,7 +73,8 @@ module dm_utils_module
   public :: create_path_dm
   public :: get_field_subvector, section_get_field_names
   public :: dm_global_cell_field_dof, dm_check_create_label
-  public :: dm_label_ghosts, dm_distribute_local_vec
+  public :: dm_label_ghosts
+  public :: dm_distribute_local_vec, dm_distribute_global_vec
 
 contains
 
@@ -1308,6 +1309,47 @@ contains
     v = dist_v
 
   end subroutine dm_distribute_local_vec
+
+!------------------------------------------------------------------------
+
+  subroutine dm_distribute_global_vec(dm, sf, v)
+    !! Distributes global vector v from its original DM to the
+    !! specified one, via the supplied distribution star forest. The
+    !! original vector v is overwritten.
+
+    DM, intent(in) :: dm
+    PetscSF, intent(in) :: sf
+    Vec, intent(in out) :: v
+    ! Locals:
+    DM :: v_dm, dist_v_dm
+    Vec :: local_v, global_v
+    character(80) :: name
+    PetscErrorCode :: ierr
+
+    call VecGetDM(v, v_dm, ierr); CHKERRQ(ierr)
+    call DMCreateLocalVector(v_dm, local_v, ierr); CHKERRQ(ierr)
+    call DMGlobalToLocalBegin(v_dm, v, INSERT_VALUES, local_v, ierr)
+    CHKERRQ(ierr)
+    call DMGlobalToLocalEnd(v_dm, v, INSERT_VALUES, local_v, ierr)
+    CHKERRQ(ierr)
+
+    call dm_distribute_local_vec(dm, sf, local_v)
+
+    call VecGetDM(local_v, dist_v_dm, ierr); CHKERRQ(ierr)
+    call DMCreateGlobalVector(dist_v_dm, global_v, ierr); CHKERRQ(ierr)
+    call PetscObjectGetName(v, name, ierr); CHKERRQ(ierr)
+    call PetscObjectSetName(global_v, name, ierr); CHKERRQ(ierr)
+
+    call DMLocalToGlobalBegin(dm, local_v, INSERT_VALUES, global_v, ierr)
+    CHKERRQ(ierr)
+    call DMLocalToGlobalEnd(dm, local_v, INSERT_VALUES, global_v, ierr)
+    CHKERRQ(ierr)
+
+    call VecDestroy(local_v, ierr); CHKERRQ(ierr)
+    call VecDestroy(v, ierr); CHKERRQ(ierr)
+    v = global_v
+
+  end subroutine dm_distribute_global_vec
 
 !------------------------------------------------------------------------
 
