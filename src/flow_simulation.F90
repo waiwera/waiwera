@@ -79,6 +79,7 @@ module flow_simulation_module
      procedure :: setup_update_cell => flow_simulation_setup_update_cell
      procedure :: setup_flux_vector => flow_simulation_setup_flux_vector
      procedure :: identify_update_cells => flow_simulation_identify_update_cells
+     procedure :: redistribute => flow_simulation_redistribute
      procedure :: destroy_output => flow_simulation_destroy_output
      procedure, public :: setup_gravity => flow_simulation_setup_gravity
      procedure, public :: input_summary => flow_simulation_input_summary
@@ -712,6 +713,13 @@ contains
                    call setup_fluid_vector(self%mesh%dm, max_component_name_length, &
                         self%eos%component_names, max_phase_name_length, &
                         self%eos%phase_names, self%fluid, self%fluid_range_start)
+
+                   call setup_initial(json, self%mesh, self%eos, &
+                        self%time, self%solution, self%fluid, &
+                        self%solution_range_start, self%fluid_range_start, self%logfile)
+
+                   if (self%mesh%has_minc) call self%redistribute()
+
                    call VecDuplicate(self%solution, self%balances, ierr); CHKERRQ(ierr)
                    call VecDuplicate(self%fluid, self%current_fluid, ierr); CHKERRQ(ierr)
                    call VecDuplicate(self%fluid, self%last_timestep_fluid, ierr)
@@ -720,9 +728,6 @@ contains
                    CHKERRQ(ierr)
                    call self%setup_flux_vector()
 
-                   call setup_initial(json, self%mesh, self%eos, &
-                        self%time, self%solution, self%fluid, &
-                        self%solution_range_start, self%fluid_range_start, self%logfile)
                    call self%setup_update_cell()
                    call self%mesh%set_boundary_conditions(json, self%solution, self%fluid, &
                         self%rock, self%eos, self%solution_range_start, &
@@ -875,6 +880,41 @@ contains
     end if
 
   end subroutine flow_simulation_identify_update_cells
+
+!------------------------------------------------------------------------
+
+  subroutine flow_simulation_redistribute(self)
+    !! Redistributes simulation mesh and data vectors.
+
+    use dm_utils_module, only: dm_distribute_global_vec, &
+         global_vec_range_start
+
+    class(flow_simulation_type), intent(in out) :: self
+    ! Locals:
+    PetscSF :: sf
+    PetscMPIInt :: np
+    PetscErrorCode :: ierr
+
+    call MPI_comm_size(PETSC_COMM_WORLD, np, ierr)
+
+    if (np > 1) then
+
+       call self%mesh%redistribute(sf)
+
+       call dm_distribute_global_vec(self%mesh%dm, sf, self%solution)
+       call global_vec_range_start(self%solution, self%solution_range_start)
+
+       call dm_distribute_global_vec(self%mesh%dm, sf, self%fluid)
+       call global_vec_range_start(self%fluid, self%fluid_range_start)
+
+       call dm_distribute_global_vec(self%mesh%dm, sf, self%rock)
+       call global_vec_range_start(self%rock, self%rock_range_start)
+
+       call PetscSFDestroy(sf, ierr); CHKERRQ(ierr)
+
+    end if
+
+  end subroutine flow_simulation_redistribute
 
 !------------------------------------------------------------------------
 
