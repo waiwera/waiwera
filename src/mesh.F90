@@ -95,7 +95,7 @@ module mesh_module
      procedure :: setup_minc_rock_properties => mesh_setup_minc_rock_properties
      procedure :: setup_minc_point_sf => mesh_setup_minc_point_sf
      procedure :: redistribute_minc => mesh_redistribute_minc
-     procedure :: redistribute_minc_dm => mesh_redistribute_minc_dm
+     procedure :: redistribute_dm => mesh_redistribute_dm
      procedure :: redistribute_geometry => mesh_redistribute_geometry
      procedure :: redistribute_fracture_natural => mesh_redistribute_fracture_natural
      procedure :: redistribute_cell_order => mesh_redistribute_cell_order
@@ -3103,9 +3103,9 @@ contains
 
 !------------------------------------------------------------------------
 
-    subroutine mesh_redistribute_minc_dm(self, sf)
-    !! Redistributes MINC DM to improve load balancing, and returns SF
-    !! for the redistribution.
+  subroutine mesh_redistribute_dm(self, sf)
+    !! Redistributes DM (e.g. to improve load balancing for MINC
+    !! simulations), and returns SF for the redistribution.
 
     use dm_utils_module, only: set_dm_default_data_layout, &
          dm_setup_fv_discretization, dm_set_fv_adjacency, &
@@ -3114,21 +3114,21 @@ contains
     class(mesh_type), intent(in out) :: self
     PetscSF, intent(out) :: sf
     ! Locals:
-    DM :: balanced_minc_dm
+    DM :: dm_dist
     PetscErrorCode :: ierr
 
     call DMPlexDistribute(self%dm, partition_overlap, sf, &
-         balanced_minc_dm, ierr); CHKERRQ(ierr)
-    if (balanced_minc_dm .ne. PETSC_NULL_DM) then
+         dm_dist, ierr); CHKERRQ(ierr)
+    if (dm_dist .ne. PETSC_NULL_DM) then
        call DMDestroy(self%dm, ierr); CHKERRQ(ierr)
-       self%dm = balanced_minc_dm
+       self%dm = dm_dist
        call dm_setup_fv_discretization(self%dm, self%dof)
        call dm_set_fv_adjacency(self%dm)
        call set_dm_default_data_layout(self%dm, self%dof)
        call dm_label_ghosts(self%dm)
     end if
 
-  end subroutine mesh_redistribute_minc_dm
+  end subroutine mesh_redistribute_dm
 
 !------------------------------------------------------------------------
 
