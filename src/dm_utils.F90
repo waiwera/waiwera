@@ -1295,14 +1295,14 @@ contains
     call PetscObjectGetName(v, name, ierr); CHKERRQ(ierr)
     call PetscObjectSetName(dist_v, name, ierr); CHKERRQ(ierr)
 
+    call DMClone(dm, dist_v_dm, ierr); CHKERRQ(ierr)
     call PetscSectionCreate(PETSC_COMM_WORLD, dist_section, ierr)
     CHKERRQ(ierr)
-    call DMPlexDistributeField(v_dm, sf, section, v, &
-         dist_section, dist_v, ierr); CHKERRQ(ierr)
-
-    call DMClone(dm, dist_v_dm, ierr); CHKERRQ(ierr)
     call DMSetSection(dist_v_dm, dist_section, ierr)
     call VecSetDM(dist_v, dist_v_dm, ierr); CHKERRQ(ierr)
+
+    call DMPlexDistributeField(v_dm, sf, section, v, &
+         dist_section, dist_v, ierr); CHKERRQ(ierr)
 
     call PetscSectionDestroy(dist_section, ierr); CHKERRQ(ierr)
     call VecDestroy(v, ierr); CHKERRQ(ierr)
