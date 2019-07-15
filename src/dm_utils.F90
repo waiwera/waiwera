@@ -1340,9 +1340,9 @@ contains
     call PetscObjectGetName(v, name, ierr); CHKERRQ(ierr)
     call PetscObjectSetName(global_v, name, ierr); CHKERRQ(ierr)
 
-    call DMLocalToGlobalBegin(dm, local_v, INSERT_VALUES, global_v, ierr)
+    call DMLocalToGlobalBegin(dist_v_dm, local_v, INSERT_VALUES, global_v, ierr)
     CHKERRQ(ierr)
-    call DMLocalToGlobalEnd(dm, local_v, INSERT_VALUES, global_v, ierr)
+    call DMLocalToGlobalEnd(dist_v_dm, local_v, INSERT_VALUES, global_v, ierr)
     CHKERRQ(ierr)
 
     call VecDestroy(local_v, ierr); CHKERRQ(ierr)
