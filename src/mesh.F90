@@ -94,7 +94,6 @@ module mesh_module
      procedure :: setup_minc_geometry => mesh_setup_minc_geometry
      procedure :: setup_minc_rock_properties => mesh_setup_minc_rock_properties
      procedure :: setup_minc_point_sf => mesh_setup_minc_point_sf
-     procedure :: redistribute_minc => mesh_redistribute_minc
      procedure :: redistribute_dm => mesh_redistribute_dm
      procedure :: redistribute_geometry => mesh_redistribute_geometry
      procedure :: redistribute_fracture_natural => mesh_redistribute_fracture_natural
@@ -108,6 +107,7 @@ module mesh_module
      procedure, public :: natural_cell_output_arrays =>  mesh_natural_cell_output_arrays
      procedure, public :: local_cell_minc_level => mesh_local_cell_minc_level
      procedure, public :: destroy_distribution_data => mesh_destroy_distribution_data
+     procedure, public :: redistribute => mesh_redistribute
   end type mesh_type
 
 contains
@@ -1780,8 +1780,6 @@ contains
 
     self%dm = minc_dm
 
-    call self%redistribute_minc()
-
   end subroutine mesh_setup_minc_dm
 
 !------------------------------------------------------------------------
@@ -3067,39 +3065,34 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine mesh_redistribute_minc(self)
-    !! Redistributes MINC DM and other data for load balancing.
+  subroutine mesh_redistribute(self, sf)
+    !! Redistributes DM and other mesh data for load balancing. Should
+    !! only be called when running in parallel. The redistribution
+    !! star forest is returned.
 
     use dm_utils_module, only: dm_create_section, dm_natural_order_IS
 
     class(mesh_type), intent(in out) :: self
+    PetscSF, intent(out) :: sf
     ! Locals:
-    PetscMPIInt :: np
     PetscInt :: dim
     PetscSection :: section
-    PetscSF :: redist_sf
     IS :: natural_order
     PetscErrorCode :: ierr
 
-    call MPI_comm_size(PETSC_COMM_WORLD, np, ierr)
-    if (np > 1) then
+    call DMGetDimension(self%dm, dim, ierr); CHKERRQ(ierr)
+    section = dm_create_section(self%dm, [1], [dim])
+    natural_order = dm_natural_order_IS(self%dm, self%cell_order)
 
-       call DMGetDimension(self%dm, dim, ierr); CHKERRQ(ierr)
-       section = dm_create_section(self%dm, [1], [dim])
-       natural_order = dm_natural_order_IS(self%dm, self%cell_order)
+    call self%redistribute_dm(sf)
+    call self%redistribute_geometry(sf)
+    call self%redistribute_fracture_natural(sf, section)
+    call self%redistribute_cell_order(sf, section, natural_order)
 
-       call self%redistribute_minc_dm(redist_sf)
-       call self%redistribute_geometry(redist_sf)
-       call self%redistribute_fracture_natural(redist_sf, section)
-       call self%redistribute_cell_order(redist_sf, section, natural_order)
+    call ISDestroy(natural_order, ierr); CHKERRQ(ierr)
+    call PetscSectionDestroy(section, ierr); CHKERRQ(ierr)
 
-       call ISDestroy(natural_order, ierr); CHKERRQ(ierr)
-       call PetscSectionDestroy(section, ierr); CHKERRQ(ierr)
-       call PetscSFDestroy(redist_sf, ierr); CHKERRQ(ierr)
-
-    end if
-
-  end subroutine mesh_redistribute_minc
+  end subroutine mesh_redistribute
 
 !------------------------------------------------------------------------
 
