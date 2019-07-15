@@ -508,6 +508,9 @@ contains
     call DMPlexGetHeightStratum(self%dm, 1, start_face, end_face, ierr)
     CHKERRQ(ierr)
 
+    if (allocated(self%ghost_cell)) deallocate(self%ghost_cell)
+    if (allocated(self%ghost_face)) deallocate(self%ghost_face)
+
     allocate(self%ghost_cell(start_cell: end_cell - 1))
     allocate(self%ghost_face(start_face: end_face - 1))
     self%ghost_cell = -1
