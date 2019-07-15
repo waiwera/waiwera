@@ -94,6 +94,7 @@ module mesh_module
      procedure :: setup_minc_geometry => mesh_setup_minc_geometry
      procedure :: setup_minc_rock_properties => mesh_setup_minc_rock_properties
      procedure :: setup_minc_point_sf => mesh_setup_minc_point_sf
+     procedure :: redistribute_minc => mesh_redistribute_minc
      procedure :: redistribute_minc_dm => mesh_redistribute_minc_dm
      procedure :: redistribute_geometry => mesh_redistribute_geometry
      procedure :: redistribute_fracture_natural => mesh_redistribute_fracture_natural
@@ -1772,51 +1773,14 @@ contains
     call self%setup_minc_geometry(minc_dm, num_cells, max_num_levels, &
          num_minc_zones, minc_zone)
 
-    call redistribute_minc(minc_dm)
-
-    self%dm = minc_dm
-
     do m = 0, max_num_levels
        call minc_level_cells(m)%destroy()
     end do
     deallocate(minc_zone, minc_level_cells, stratum_shift)
 
-  contains
+    self%dm = minc_dm
 
-    subroutine redistribute_minc(minc_dm)
-      !! Redistributes MINC DM for load balancing.
-
-      use dm_utils_module, only: dm_create_section, dm_natural_order_IS
-
-      DM, intent(in out) :: minc_dm
-      ! Locals:
-      PetscMPIInt :: np
-      PetscInt :: dim
-      PetscSection :: section
-      PetscSF :: redist_sf
-      IS :: natural_order
-      PetscErrorCode :: ierr
-
-      call MPI_comm_size(PETSC_COMM_WORLD, np, ierr)
-      if (np > 1) then
-
-         call DMGetDimension(minc_dm, dim, ierr); CHKERRQ(ierr)
-         section = dm_create_section(minc_dm, [1], [dim])
-         natural_order = dm_natural_order_IS(minc_dm, self%cell_order)
-
-         call self%redistribute_minc_dm(minc_dm, redist_sf)
-         call self%redistribute_geometry(minc_dm, redist_sf)
-         call self%redistribute_fracture_natural(minc_dm, redist_sf, section)
-         call self%redistribute_cell_order(minc_dm, redist_sf, &
-              section, natural_order)
-
-         call ISDestroy(natural_order, ierr); CHKERRQ(ierr)
-         call PetscSectionDestroy(section, ierr); CHKERRQ(ierr)
-         call PetscSFDestroy(redist_sf, ierr); CHKERRQ(ierr)
-
-      end if
-
-    end subroutine redistribute_minc
+    call self%redistribute_minc()
 
   end subroutine mesh_setup_minc_dm
 
@@ -3103,7 +3067,43 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine mesh_redistribute_minc_dm(self, minc_dm, sf)
+  subroutine mesh_redistribute_minc(self)
+    !! Redistributes MINC DM and other data for load balancing.
+
+    use dm_utils_module, only: dm_create_section, dm_natural_order_IS
+
+    class(mesh_type), intent(in out) :: self
+    ! Locals:
+    PetscMPIInt :: np
+    PetscInt :: dim
+    PetscSection :: section
+    PetscSF :: redist_sf
+    IS :: natural_order
+    PetscErrorCode :: ierr
+
+    call MPI_comm_size(PETSC_COMM_WORLD, np, ierr)
+    if (np > 1) then
+
+       call DMGetDimension(self%dm, dim, ierr); CHKERRQ(ierr)
+       section = dm_create_section(self%dm, [1], [dim])
+       natural_order = dm_natural_order_IS(self%dm, self%cell_order)
+
+       call self%redistribute_minc_dm(redist_sf)
+       call self%redistribute_geometry(redist_sf)
+       call self%redistribute_fracture_natural(redist_sf, section)
+       call self%redistribute_cell_order(redist_sf, section, natural_order)
+
+       call ISDestroy(natural_order, ierr); CHKERRQ(ierr)
+       call PetscSectionDestroy(section, ierr); CHKERRQ(ierr)
+       call PetscSFDestroy(redist_sf, ierr); CHKERRQ(ierr)
+
+    end if
+
+  end subroutine mesh_redistribute_minc
+
+!------------------------------------------------------------------------
+
+    subroutine mesh_redistribute_minc_dm(self, sf)
     !! Redistributes MINC DM to improve load balancing, and returns SF
     !! for the redistribution.
 
@@ -3112,53 +3112,50 @@ contains
          dm_label_ghosts
 
     class(mesh_type), intent(in out) :: self
-    DM, intent(in out) :: minc_dm
     PetscSF, intent(out) :: sf
     ! Locals:
     DM :: balanced_minc_dm
     PetscErrorCode :: ierr
 
-    call DMPlexDistribute(minc_dm, partition_overlap, sf, &
+    call DMPlexDistribute(self%dm, partition_overlap, sf, &
          balanced_minc_dm, ierr); CHKERRQ(ierr)
     if (balanced_minc_dm .ne. PETSC_NULL_DM) then
-       call DMDestroy(minc_dm, ierr); CHKERRQ(ierr)
-       minc_dm = balanced_minc_dm
-       call dm_setup_fv_discretization(minc_dm, self%dof)
-       call dm_set_fv_adjacency(minc_dm)
-       call set_dm_default_data_layout(minc_dm, self%dof)
-       call dm_label_ghosts(minc_dm)
+       call DMDestroy(self%dm, ierr); CHKERRQ(ierr)
+       self%dm = balanced_minc_dm
+       call dm_setup_fv_discretization(self%dm, self%dof)
+       call dm_set_fv_adjacency(self%dm)
+       call set_dm_default_data_layout(self%dm, self%dof)
+       call dm_label_ghosts(self%dm)
     end if
 
   end subroutine mesh_redistribute_minc_dm
 
 !------------------------------------------------------------------------
 
-  subroutine mesh_redistribute_geometry(self, dist_dm, sf)
+  subroutine mesh_redistribute_geometry(self, sf)
     !! Redistributes cell and face geometry vectors after
     !! redistributing DM according to the specified SF.
 
     use dm_utils_module, only: dm_distribute_local_vec
 
     class(mesh_type), intent(in out) :: self
-    DM, intent(in) :: dist_dm
     PetscSF, intent(in out) :: sf
 
     if (sf .ne. PETSC_NULL_SF) then
-       call dm_distribute_local_vec(dist_dm, sf, self%cell_geom)
-       call dm_distribute_local_vec(dist_dm, sf, self%face_geom)
+       call dm_distribute_local_vec(self%dm, sf, self%cell_geom)
+       call dm_distribute_local_vec(self%dm, sf, self%face_geom)
     end if
 
   end subroutine mesh_redistribute_geometry
 
 !------------------------------------------------------------------------
 
-  subroutine mesh_redistribute_fracture_natural(self, minc_dm, sf, section)
+  subroutine mesh_redistribute_fracture_natural(self, sf, section)
     !! Redistributes MINC fracture_natural IS.
 
     use dm_utils_module, only: dm_create_section
 
     class(mesh_type), intent(in out) :: self
-    DM, intent(in) :: minc_dm
     PetscSF, intent(in) :: sf
     PetscSection, intent(in) :: section
     ! Locals:
@@ -3170,7 +3167,7 @@ contains
     CHKERRQ(ierr)
     call ISCreate(PETSC_COMM_WORLD, redist_fracture_natural, ierr)
     CHKERRQ(ierr)
-    call DMPlexDistributeFieldIS(minc_dm, sf, section, &
+    call DMPlexDistributeFieldIS(self%dm, sf, section, &
          self%minc_fracture_natural, redist_section, &
          redist_fracture_natural, ierr); CHKERRQ(ierr)
     call PetscSectionDestroy(redist_section, ierr); CHKERRQ(ierr)
@@ -3181,8 +3178,8 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine mesh_redistribute_cell_order(self, minc_dm, sf, &
-       section, natural_order)
+  subroutine mesh_redistribute_cell_order(self, sf, section, &
+       natural_order)
     !! Redistrbutes mesh cell_order AO using natural order IS created
     !! on the DM before redistribution.
 
@@ -3190,7 +3187,6 @@ contains
          dm_get_end_interior_cell
 
     class(mesh_type), intent(in out) :: self
-    DM, intent(in) :: minc_dm
     PetscSF, intent(in) :: sf
     PetscSection, intent(in) :: section
     IS, intent(in) :: natural_order
@@ -3209,19 +3205,19 @@ contains
     CHKERRQ(ierr)
     call ISCreate(PETSC_COMM_WORLD, redist_natural_order, ierr)
     CHKERRQ(ierr)
-    call DMPlexDistributeFieldIS(minc_dm, sf, section, &
+    call DMPlexDistributeFieldIS(self%dm, sf, section, &
          natural_order, redist_section, redist_natural_order, ierr)
     CHKERRQ(ierr)
     call PetscSectionDestroy(redist_section, ierr); CHKERRQ(ierr)
 
-    call DMPlexGetHeightStratum(minc_dm, 0, start_cell, end_cell, &
+    call DMPlexGetHeightStratum(self%dm, 0, start_cell, end_cell, &
          ierr); CHKERRQ(ierr)
-    end_interior_cell = dm_get_end_interior_cell(minc_dm, end_cell)
-    num_ghost_cells = dm_get_num_partition_ghost_cells(minc_dm)
+    end_interior_cell = dm_get_end_interior_cell(self%dm, end_cell)
+    num_ghost_cells = dm_get_num_partition_ghost_cells(self%dm)
     num_non_ghost_cells = end_interior_cell - start_cell - num_ghost_cells
     end_non_ghost_cell = start_cell + num_non_ghost_cells
 
-    call DMGetLocalToGlobalMapping(minc_dm, l2g, ierr); CHKERRQ(ierr)
+    call DMGetLocalToGlobalMapping(self%dm, l2g, ierr); CHKERRQ(ierr)
     allocate(global(start_cell: end_non_ghost_cell - 1))
     call ISLocalToGlobalMappingApplyBlock(l2g, num_non_ghost_cells, &
          [(c, c = start_cell, end_non_ghost_cell - 1)], global, ierr)
