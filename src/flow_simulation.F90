@@ -120,9 +120,6 @@ contains
     call PetscObjectSetName(self%solution, "primary", ierr); CHKERRQ(ierr)
     call global_vec_range_start(self%solution, self%solution_range_start)
 
-    call VecDuplicate(self%solution, self%balances, ierr); CHKERRQ(ierr)
-    call PetscObjectSetName(self%balances, "balances", ierr); CHKERRQ(ierr)
-
   end subroutine flow_simulation_setup_solution_vector
 
 !------------------------------------------------------------------------
@@ -715,6 +712,7 @@ contains
                    call setup_fluid_vector(self%mesh%dm, max_component_name_length, &
                         self%eos%component_names, max_phase_name_length, &
                         self%eos%phase_names, self%fluid, self%fluid_range_start)
+                   call VecDuplicate(self%solution, self%balances, ierr); CHKERRQ(ierr)
                    call VecDuplicate(self%fluid, self%current_fluid, ierr); CHKERRQ(ierr)
                    call VecDuplicate(self%fluid, self%last_timestep_fluid, ierr)
                    CHKERRQ(ierr)
