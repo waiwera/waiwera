@@ -696,7 +696,6 @@ contains
     call self%mesh%configure(self%gravity, json, self%logfile, self%hdf5_viewer, err)
     if (err == 0) then
        call self%mesh%override_face_properties()
-       call self%output_mesh_geometry()
        call self%setup_solution_vector()
        call setup_relative_permeabilities(json, &
             self%relative_permeability, self%logfile, err)
@@ -740,6 +739,7 @@ contains
                            self%num_local_sources, self%num_sources, self%source_controls, &
                            self%source_index, self%logfile, err)
                       if (err == 0) then
+                         call self%output_mesh_geometry()
                          call self%output_source_indices()
                          call self%output_source_cell_indices()
                          call self%setup_output_fields(json)
