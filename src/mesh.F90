@@ -3092,6 +3092,8 @@ contains
     call self%redistribute_fracture_natural(sf, section)
     call self%redistribute_cell_order(sf, section, natural_order)
 
+    call self%setup_ghost_arrays()
+
     call ISDestroy(natural_order, ierr); CHKERRQ(ierr)
     call PetscSectionDestroy(section, ierr); CHKERRQ(ierr)
 
