@@ -177,7 +177,7 @@ contains
        call test%assert(23, f, "3D top +y side")
 
        call dm_cell_normal_face(dm, 2, [2._dp, -8._dp, 0.1_dp], f)
-       call test%assert(34, f, "3S bottom -y side")
+       call test%assert(34, f, "3D bottom -y side")
 
     end if
 
