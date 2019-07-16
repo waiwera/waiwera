@@ -20,7 +20,7 @@ module mesh_test
        test_2d_radial_geometry, test_mesh_face_permeability_direction, &
        test_setup_minc_dm, test_minc_rock, &
        test_rock_assignment, test_cell_order, test_minc_cell_order, &
-       test_global_to_fracture_natural
+       test_global_to_fracture_natural, test_redistribute
 
 contains
 
@@ -461,6 +461,62 @@ contains
 
 !------------------------------------------------------------------------
 
+  PetscInt function total_interior_cell_count(mesh) result(n)
+    ! Count mesh interior cells.
+
+    type(mesh_type), intent(in) :: mesh
+    ! Locals:
+    PetscInt :: c, n_local, start_cell, end_cell
+    PetscErrorCode :: ierr
+
+    call DMPlexGetHeightStratum(mesh%dm, 0, start_cell, end_cell, ierr)
+    CHKERRQ(ierr)
+
+    n_local = 0
+    do c = start_cell, end_cell - 1
+       if (mesh%ghost_cell(c) < 0) then
+          n_local = n_local + 1
+       end if
+    end do
+    call MPI_reduce(n_local, n, 1, MPI_INTEGER, MPI_SUM, &
+         0, PETSC_COMM_WORLD, ierr)
+
+  end function total_interior_cell_count
+
+!------------------------------------------------------------------------
+
+  PetscInt function total_interior_cell_label_count(mesh, label_name, &
+       label_value) result(n)
+    ! Count mesh interior cells with specified label value.
+
+    type(mesh_type), intent(in) :: mesh
+    character(*), intent(in) :: label_name
+    PetscInt, intent(in) :: label_value
+    ! Locals:
+    PetscInt :: c, n_local, start_cell, end_cell, val
+    DMLabel :: label
+    PetscErrorCode :: ierr
+
+    call DMPlexGetHeightStratum(mesh%dm, 0, start_cell, end_cell, ierr)
+    CHKERRQ(ierr)
+    call DMGetLabel(mesh%dm, label_name, label, ierr); CHKERRQ(ierr)
+
+    n_local = 0
+    do c = start_cell, end_cell - 1
+       if (mesh%ghost_cell(c) < 0) then
+          call DMLabelGetValue(label, c, val, ierr); CHKERRQ(ierr)
+          if (val == label_value) then
+             n_local = n_local + 1
+          end if
+       end if
+    end do
+    call MPI_reduce(n_local, n, 1, MPI_INTEGER, MPI_SUM, &
+         0, PETSC_COMM_WORLD, ierr)
+
+  end function total_interior_cell_label_count
+
+!------------------------------------------------------------------------
+
   subroutine test_setup_minc_dm(test)
     ! Test setup_minc_dm
 
@@ -737,30 +793,6 @@ contains
       end if
 
     end function get_orig_json_str
-
-!........................................................................
-
-    PetscInt function total_interior_cell_count(mesh) result(n)
-      ! Count interior cells.
-
-      type(mesh_type), intent(in) :: mesh
-      ! Locals:
-      PetscInt :: c, n_local, start_cell, end_cell
-      PetscErrorCode :: ierr
-
-      call DMPlexGetHeightStratum(mesh%dm, 0, start_cell, end_cell, ierr)
-      CHKERRQ(ierr)
-
-      n_local = 0
-      do c = start_cell, end_cell - 1
-         if (mesh%ghost_cell(c) < 0) then
-            n_local = n_local + 1
-         end if
-      end do
-      call MPI_reduce(n_local, n, 1, MPI_INTEGER, MPI_SUM, &
-           0, PETSC_COMM_WORLD, ierr)
-
-    end function total_interior_cell_count
 
   end subroutine test_setup_minc_dm
 
@@ -1468,6 +1500,128 @@ contains
     end subroutine global_to_fracture_natural_test_case
 
   end subroutine test_global_to_fracture_natural
+
+!------------------------------------------------------------------------
+
+  subroutine test_redistribute(test)
+    ! redistribute
+
+    use fson_mpi_module
+    use IAPWS_module
+    use eos_we_module
+    use minc_module, only: minc_level_label_name
+
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
+    character(:), allocatable :: json_str
+
+    json_str = &
+         '{"mesh": {"filename": "' // trim(adjustl(data_path)) // 'mesh/7x7grid.exo",' // &
+         '  "zones": {"all": {"-": null}},' // &
+         '  "minc": {"rock": {"zones": ["all"]}, ' // &
+         '           "geometry": {"fracture": {"volume": 0.1}}}}}'
+    call redistribute_test(test, json_str, 'all', 1, 2 * 49, 1, [49, 49])
+
+    json_str = &
+         '{"mesh": {"filename": "' // trim(adjustl(data_path)) // 'mesh/7x7grid.exo",' // &
+         '  "zones": {"left": {"x": [0, 1500]}},' // &
+         '  "minc": {"rock": {"zones": ["left"]}, ' // &
+         '           "geometry": {"matrix": {"volume": 0.9}}}}}'
+    call redistribute_test(test, json_str, 'partial', 1, 49 + 14, 1, [49, 14])
+
+    json_str = &
+         '{"mesh": {"filename": "' // trim(adjustl(data_path)) // 'mesh/7x7grid.exo",' // &
+         '  "zones": {"all": {"-": null}},' // &
+         '  "minc": {"rock": {"zones": ["all"]}, ' // &
+         '           "geometry": {"fracture": {"volume": 0.1}}}}, ' // &
+         '"boundaries": [{"faces": {"cells": [0, 1, 2, 3, 4, 5, 6], ' // &
+         '  "normal": [0, -1, 0]}}]' // &
+         '}'
+    call redistribute_test(test, json_str, 'all bdy', 1, 2 * 49, 1, [49, 49])
+
+  contains
+
+    subroutine redistribute_test(test, json_str, title, expected_num_zones, &
+         expected_num_cells, expected_max_level, expected_num_minc_level_cells)
+
+      class(unit_test_type), intent(in out) :: test
+      character(*), intent(in) :: json_str
+      character(*), intent(in) :: title
+      PetscInt, intent(in) :: expected_num_zones, expected_num_cells
+      PetscInt, intent(in) :: expected_max_level
+      PetscInt, intent(in) :: expected_num_minc_level_cells(0: expected_max_level)
+      ! Locals:
+      type(mesh_type) :: mesh
+      type(IAPWS_type) :: thermo
+      type(eos_we_type) :: eos
+      type(fson_value), pointer :: json
+      PetscViewer :: viewer
+      PetscSF :: sf
+      PetscMPIInt :: rank
+      PetscInt :: num_minc_zones, max_num_levels, num_cells
+      PetscInt :: m, num
+      PetscErrorCode :: err, ierr
+      character(48) :: str
+      PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
+
+      PetscInt :: c, start_cell, end_cell, ghost
+      DMLabel :: ghost_label
+
+      call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+
+      json => fson_parse_mpi(str = json_str)
+      call thermo%init()
+      call eos%init(json, thermo)
+      viewer = PETSC_NULL_VIEWER
+      call mesh%init(eos, json)
+      call mesh%configure(gravity, json, viewer = viewer, err = err)
+      call mesh%redistribute(sf)
+      call fson_destroy_mpi(json)
+      call mesh%destroy_distribution_data()
+
+      call DMGetLabel(mesh%dm, "ghost", ghost_label, ierr)
+      call DMPlexGetHeightStratum(mesh%dm, 0, start_cell, end_cell, ierr)
+      do c = start_cell, end_cell - 1
+         call DMLabelGetValue(ghost_label, c, ghost, ierr)
+         write(*, '(i1, 1x, i3, 1x, i3)') rank, c, ghost
+      end do
+
+      if (rank == 0) then
+         call test%assert(mesh%has_minc, title // ": mesh has minc")
+      end if
+      num_minc_zones = size(mesh%minc)
+      max_num_levels = maxval(mesh%minc%num_levels)
+      if (rank == 0) then
+         call test%assert(expected_num_zones, &
+              num_minc_zones, title // ": num minc zones")
+         call test%assert(expected_max_level, &
+              max_num_levels, title // ": num minc levels")
+      end if
+
+      num_cells = total_interior_cell_count(mesh)
+      if (rank == 0) then
+         call test%assert(expected_num_cells, &
+              num_cells, title  // ": num cells")
+      end if
+
+      do m = 0, expected_max_level
+         num = total_interior_cell_label_count(mesh, &
+              minc_level_label_name, m)
+         if (rank == 0) then
+            write(str, '(a, i1)') ": num minc points, level ", m
+            call test%assert(expected_num_minc_level_cells(m), &
+                 num, title  // str)
+         end if
+      end do
+
+      call PetscSFDestroy(sf, ierr); CHKERRQ(ierr)
+      call mesh%destroy()
+      call eos%destroy()
+      call thermo%destroy()
+
+    end subroutine redistribute_test
+
+  end subroutine test_redistribute
 
 !------------------------------------------------------------------------
 
