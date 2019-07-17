@@ -464,16 +464,19 @@ contains
   PetscInt function total_interior_cell_count(mesh) result(n)
     ! Count mesh interior cells.
 
+    use dm_utils_module, only: dm_get_end_interior_cell
+
     type(mesh_type), intent(in) :: mesh
     ! Locals:
-    PetscInt :: c, n_local, start_cell, end_cell
+    PetscInt :: c, n_local, start_cell, end_cell, end_interior_cell
     PetscErrorCode :: ierr
 
     call DMPlexGetHeightStratum(mesh%dm, 0, start_cell, end_cell, ierr)
     CHKERRQ(ierr)
+    end_interior_cell = dm_get_end_interior_cell(mesh%dm, end_cell)
 
     n_local = 0
-    do c = start_cell, end_cell - 1
+    do c = start_cell, end_interior_cell - 1
        if (mesh%ghost_cell(c) < 0) then
           n_local = n_local + 1
        end if
@@ -489,20 +492,23 @@ contains
        label_value) result(n)
     ! Count mesh interior cells with specified label value.
 
+    use dm_utils_module, only: dm_get_end_interior_cell
+
     type(mesh_type), intent(in) :: mesh
     character(*), intent(in) :: label_name
     PetscInt, intent(in) :: label_value
     ! Locals:
-    PetscInt :: c, n_local, start_cell, end_cell, val
+    PetscInt :: c, n_local, start_cell, end_cell, end_interior_cell, val
     DMLabel :: label
     PetscErrorCode :: ierr
 
     call DMPlexGetHeightStratum(mesh%dm, 0, start_cell, end_cell, ierr)
     CHKERRQ(ierr)
+    end_interior_cell = dm_get_end_interior_cell(mesh%dm, end_cell)
     call DMGetLabel(mesh%dm, label_name, label, ierr); CHKERRQ(ierr)
 
     n_local = 0
-    do c = start_cell, end_cell - 1
+    do c = start_cell, end_interior_cell - 1
        if (mesh%ghost_cell(c) < 0) then
           call DMLabelGetValue(label, c, val, ierr); CHKERRQ(ierr)
           if (val == label_value) then
