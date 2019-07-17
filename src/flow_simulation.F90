@@ -666,7 +666,7 @@ contains
     ! Locals:
     character(len = max_title_length), parameter :: default_title = ""
     character(25) :: datetimestr
-    PetscErrorCode :: ierr
+    PetscErrorCode :: ierr, redist_err
 
     err = 0
     call PetscLogEventBegin(simulation_init_event, ierr); CHKERRQ(ierr)
@@ -718,7 +718,14 @@ contains
                         self%time, self%solution, self%fluid, &
                         self%solution_range_start, self%fluid_range_start, self%logfile)
 
-                   if (self%mesh%has_minc) call self%redistribute()
+                   if (self%mesh%has_minc) then
+                      call self%redistribute(redist_err)
+                      if (redist_err > 0) then
+                         call self%logfile%write(LOG_LEVEL_WARN, 'simulation', &
+                              'redistribution', logical_keys = ['fail'], &
+                              logical_values = [PETSC_TRUE])
+                      end if
+                   end if
 
                    call VecDuplicate(self%solution, self%balances, ierr); CHKERRQ(ierr)
                    call VecDuplicate(self%fluid, self%current_fluid, ierr); CHKERRQ(ierr)
