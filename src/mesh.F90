@@ -158,6 +158,8 @@ contains
   subroutine mesh_construct_ghost_cells(self)
     !! Constructs ghost cells on open boundary faces.
 
+    use dm_utils_module, only: dm_label_boundary_ghosts
+
     class(mesh_type), intent(in out) :: self
     ! Locals:
     DM :: ghost_dm
@@ -169,6 +171,7 @@ contains
        call DMDestroy(self%original_dm, ierr); CHKERRQ(ierr);
        self%original_dm = ghost_dm
     end if
+    call dm_label_boundary_ghosts(self%original_dm, boundary_ghost_label_name)
 
   end subroutine mesh_construct_ghost_cells
 
@@ -3109,7 +3112,8 @@ contains
 
     use dm_utils_module, only: set_dm_default_data_layout, &
          dm_setup_fv_discretization, dm_set_fv_adjacency, &
-         dm_label_ghosts
+         dm_label_partition_ghosts, &
+         dm_set_cell_hybrid_bound_from_label
 
     class(mesh_type), intent(in out) :: self
     PetscSF, intent(out) :: sf
@@ -3125,7 +3129,9 @@ contains
        call dm_setup_fv_discretization(self%dm, self%dof)
        call dm_set_fv_adjacency(self%dm)
        call set_dm_default_data_layout(self%dm, self%dof)
-       call dm_label_ghosts(self%dm)
+       call dm_label_partition_ghosts(self%dm)
+       call dm_set_cell_hybrid_bound_from_label(self%dm, &
+            boundary_ghost_label_name)
     end if
 
   end subroutine mesh_redistribute_dm
