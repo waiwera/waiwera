@@ -35,7 +35,8 @@ module mesh_module
 
   PetscInt, parameter, public :: max_mesh_filename_length = 200
   PetscInt, parameter :: partition_overlap = 1 !! Cell overlap for parallel mesh distribution
-  character(len = 16), public :: open_boundary_label_name = "open_boundary" !! Name of DMLabel for identifying open boundaries
+  character(len = 16), public :: open_boundary_label_name = "open_boundary" !! Name of DMLabel for identifying open boundary faces
+  character(len = 16), public :: boundary_ghost_label_name = "boundary_ghost" !! Name of DMLabel for identifying boundary ghost cells
   character(len = 26) :: face_permeability_override_label_name = "face_permeability_override" !! Name of DMLabel for overriding face permeabilities
 
   type, public :: mesh_type
