@@ -1564,8 +1564,8 @@ contains
       character(48) :: str
       PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
 
-      PetscInt :: c, start_cell, end_cell, ghost
-      DMLabel :: ghost_label
+      PetscInt :: c, start_cell, end_cell, ghost, ibdy, iminc
+      DMLabel :: ghost_label, bdy_label, minc_label
 
       call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
 
@@ -1580,10 +1580,14 @@ contains
       call mesh%destroy_distribution_data()
 
       call DMGetLabel(mesh%dm, "ghost", ghost_label, ierr)
+      call DMGetLabel(mesh%dm, boundary_ghost_label_name, bdy_label, ierr)
+      call DMGetLabel(mesh%dm, minc_level_label_name, minc_label, ierr)
       call DMPlexGetHeightStratum(mesh%dm, 0, start_cell, end_cell, ierr)
       do c = start_cell, end_cell - 1
          call DMLabelGetValue(ghost_label, c, ghost, ierr)
-         write(*, '(i1, 1x, i3, 1x, i3)') rank, c, ghost
+         call DMLabelGetValue(bdy_label, c, ibdy, ierr)
+         call DMLabelGetValue(minc_label, c, iminc, ierr)
+         write(*, '(i1, 1x, i3, 1x, i3, 1x, i2, 1x, i2)') rank, c, ghost, iminc, ibdy
       end do
 
       if (rank == 0) then
