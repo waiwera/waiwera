@@ -73,7 +73,7 @@ module dm_utils_module
   public :: create_path_dm
   public :: get_field_subvector, section_get_field_names
   public :: dm_global_cell_field_dof, dm_check_create_label
-  public :: dm_label_ghosts
+  public :: dm_label_partition_ghosts, dm_label_boundary_ghosts
   public :: dm_distribute_local_vec, dm_distribute_global_vec
 
 contains
@@ -1203,7 +1203,7 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine dm_label_ghosts(dm)
+  subroutine dm_label_partition_ghosts(dm)
     !! Sets ghost (and VTK) label on partition ghost cells and
     !! faces. Based on code from PETSc DMPlexShiftLabels_Internal(),
     !! which is called from DMPlexConstructGhostCells().
@@ -1269,7 +1269,33 @@ contains
        end if
     end do
 
-  end subroutine dm_label_ghosts
+  end subroutine dm_label_partition_ghosts
+
+!------------------------------------------------------------------------
+
+  subroutine dm_label_boundary_ghosts(dm, label_name)
+    !! Labels boundary ghost cells with the specified label and value 1.
+
+    DM, intent(in out) :: dm
+    character(*), intent(in) :: label_name
+    ! Locals:
+    PetscInt :: start_cell, end_cell, end_interior_cell, dummy, c
+    PetscErrorCode :: ierr
+
+    call dm_check_create_label(dm, label_name)
+    call DMPlexGetHeightStratum(dm, 0, start_cell, end_cell, ierr)
+    CHKERRQ(ierr)
+    call DMPlexGetHybridBounds(dm, end_interior_cell, dummy, &
+         dummy, dummy, ierr); CHKERRQ(ierr)
+    if (end_interior_cell >= 0) then
+       do c = end_interior_cell, end_cell - 1
+          call DMSetLabelValue(dm, label_name, c, 1, ierr)
+          CHKERRQ(ierr)
+       end do
+    end if
+
+  end subroutine dm_label_boundary_ghosts
+
 
 !------------------------------------------------------------------------
 
