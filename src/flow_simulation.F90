@@ -883,34 +883,42 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine flow_simulation_redistribute(self)
+  subroutine flow_simulation_redistribute(self, err)
     !! Redistributes simulation mesh and data vectors.
 
     use dm_utils_module, only: dm_distribute_global_vec, &
          global_vec_range_start
 
     class(flow_simulation_type), intent(in out) :: self
+    PetscErrorCode, intent(out) :: err
     ! Locals:
     PetscSF :: sf
     PetscMPIInt :: np
     PetscErrorCode :: ierr
 
+    err = 0
     call MPI_comm_size(PETSC_COMM_WORLD, np, ierr)
 
     if (np > 1) then
 
        call self%mesh%redistribute(sf)
 
-       call dm_distribute_global_vec(self%mesh%dm, sf, self%solution)
-       call global_vec_range_start(self%solution, self%solution_range_start)
+       if (sf .ne. PETSC_NULL_SF) then
 
-       call dm_distribute_global_vec(self%mesh%dm, sf, self%fluid)
-       call global_vec_range_start(self%fluid, self%fluid_range_start)
+          call dm_distribute_global_vec(self%mesh%dm, sf, self%solution)
+          call global_vec_range_start(self%solution, self%solution_range_start)
 
-       call dm_distribute_global_vec(self%mesh%dm, sf, self%rock)
-       call global_vec_range_start(self%rock, self%rock_range_start)
+          call dm_distribute_global_vec(self%mesh%dm, sf, self%fluid)
+          call global_vec_range_start(self%fluid, self%fluid_range_start)
 
-       call PetscSFDestroy(sf, ierr); CHKERRQ(ierr)
+          call dm_distribute_global_vec(self%mesh%dm, sf, self%rock)
+          call global_vec_range_start(self%rock, self%rock_range_start)
+
+          call PetscSFDestroy(sf, ierr); CHKERRQ(ierr)
+
+       else
+          err = 1
+       end if
 
     end if
 
