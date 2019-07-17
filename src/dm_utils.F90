@@ -74,6 +74,7 @@ module dm_utils_module
   public :: get_field_subvector, section_get_field_names
   public :: dm_global_cell_field_dof, dm_check_create_label
   public :: dm_label_partition_ghosts, dm_label_boundary_ghosts
+  public :: dm_set_cell_hybrid_bound_from_label
   public :: dm_distribute_local_vec, dm_distribute_global_vec
 
 contains
@@ -1296,6 +1297,40 @@ contains
 
   end subroutine dm_label_boundary_ghosts
 
+!------------------------------------------------------------------------
+
+  subroutine dm_set_cell_hybrid_bound_from_label(dm, label_name)
+    !! Sets DMPlex hybrid bound for cells, based on DM label with
+    !! specified name. The hybrid bound is set at the first cell for
+    !! which the label has value >= 0.
+
+    DM, intent(in out) :: dm
+    character(*), intent(in) :: label_name
+    ! Locals:
+    PetscInt :: start_cell, end_cell, end_interior_cell, c, val
+    DMLabel :: label
+    PetscErrorCode :: ierr
+
+    call DMGetLabel(dm, label_name, label, ierr); CHKERRQ(ierr)
+    call DMPlexGetHeightStratum(dm, 0, start_cell, end_cell, ierr)
+    CHKERRQ(ierr)
+
+    end_interior_cell = -1
+    do c = start_cell, end_cell - 1
+       call DMLabelGetValue(label, c, val, ierr); CHKERRQ(ierr)
+       if (val >= 0) then
+          end_interior_cell = c
+          exit
+       end if
+    end do
+
+    if (end_interior_cell >= 0) then
+       call DMPlexSetHybridBounds(dm, end_interior_cell, &
+            PETSC_DETERMINE, PETSC_DETERMINE, PETSC_DETERMINE, &
+            ierr); CHKERRQ(ierr)
+    end if
+
+  end subroutine dm_set_cell_hybrid_bound_from_label
 
 !------------------------------------------------------------------------
 
