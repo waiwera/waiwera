@@ -3089,11 +3089,12 @@ contains
     natural_order = dm_natural_order_IS(self%dm, self%cell_order)
 
     call self%redistribute_dm(sf)
-    call self%redistribute_geometry(sf)
-    call self%redistribute_fracture_natural(sf, section)
-    call self%redistribute_cell_order(sf, section, natural_order)
-
-    call self%setup_ghost_arrays()
+    if (sf .ne. PETSC_NULL_SF) then
+       call self%redistribute_geometry(sf)
+       call self%redistribute_fracture_natural(sf, section)
+       call self%redistribute_cell_order(sf, section, natural_order)
+       call self%setup_ghost_arrays()
+    end if
 
     call ISDestroy(natural_order, ierr); CHKERRQ(ierr)
     call PetscSectionDestroy(section, ierr); CHKERRQ(ierr)
