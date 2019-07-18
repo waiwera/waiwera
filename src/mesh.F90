@@ -166,13 +166,13 @@ contains
     DM :: ghost_dm
     PetscErrorCode :: ierr
 
-    call DMPlexConstructGhostCells(self%original_dm, open_boundary_label_name, &
+    call DMPlexConstructGhostCells(self%dm, open_boundary_label_name, &
          PETSC_NULL_INTEGER, ghost_dm, ierr); CHKERRQ(ierr)
     if (ghost_dm .ne. PETSC_NULL_DM) then
-       call DMDestroy(self%original_dm, ierr); CHKERRQ(ierr);
-       self%original_dm = ghost_dm
+       call DMDestroy(self%dm, ierr); CHKERRQ(ierr);
+       self%dm = ghost_dm
     end if
-    call dm_label_boundary_ghosts(self%original_dm, boundary_ghost_label_name)
+    call dm_label_boundary_ghosts(self%dm, boundary_ghost_label_name)
 
   end subroutine mesh_construct_ghost_cells
 
