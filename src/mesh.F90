@@ -98,6 +98,7 @@ module mesh_module
      procedure :: redistribute_geometry => mesh_redistribute_geometry
      procedure :: redistribute_fracture_natural => mesh_redistribute_fracture_natural
      procedure :: redistribute_cell_order => mesh_redistribute_cell_order
+     procedure :: geometry_add_boundary => mesh_geometry_add_boundary
      procedure, public :: init => mesh_init
      procedure, public :: configure => mesh_configure
      procedure, public :: construct_ghost_cells => mesh_construct_ghost_cells
@@ -492,6 +493,50 @@ contains
     end subroutine modify_face_area_2d_radial
 
   end subroutine mesh_modify_geometry
+
+!------------------------------------------------------------------------
+
+  subroutine mesh_geometry_add_boundary(self)
+    !! Adds space for Dirichlet boundary condition ghost cells to mesh
+    !! geometry vectors.
+
+    use cell_module, only: num_cell_variables, &
+         cell_variable_num_components, cell_variable_names
+    use face_module, only: num_face_variables, &
+         face_variable_num_components, face_variable_names
+    use dm_utils_module, only: set_dm_data_layout, vec_copy_common_local
+
+    class(mesh_type), intent(in out) :: self
+    ! Locals:
+    Vec :: cell_geom, face_geom
+    DM :: dm_cell, dm_face
+    PetscInt :: dim
+    PetscInt :: cell_variable_dim(num_cell_variables)
+    PetscInt :: face_variable_dim(num_face_variables)
+    PetscErrorCode :: ierr
+
+    call DMGetDimension(self%dm, dim, ierr); CHKERRQ(ierr)
+    call DMClone(self%dm, dm_cell, ierr); CHKERRQ(ierr)
+    cell_variable_dim = dim
+    call DMSetNumFields(dm_cell, num_cell_variables, ierr); CHKERRQ(ierr)
+    call set_dm_data_layout(dm_cell, cell_variable_num_components, &
+         cell_variable_dim, cell_variable_names)
+    call DMCreateLocalVector(dm_cell, cell_geom, ierr); CHKERRQ(ierr)
+    call vec_copy_common_local(self%cell_geom, cell_geom)
+    call VecDestroy(self%cell_geom, ierr); CHKERRQ(ierr)
+    self%cell_geom = cell_geom
+
+    call DMClone(self%dm, dm_face, ierr); CHKERRQ(ierr)
+    face_variable_dim = dim - 1
+    call DMSetNumFields(dm_face, num_face_variables, ierr); CHKERRQ(ierr)
+    call set_dm_data_layout(dm_face, face_variable_num_components, &
+         face_variable_dim, face_variable_names)
+    call DMCreateLocalVector(dm_face, face_geom, ierr); CHKERRQ(ierr)
+    call vec_copy_common_local(self%face_geom, face_geom)
+    call VecDestroy(self%face_geom, ierr); CHKERRQ(ierr)
+    self%face_geom = face_geom
+
+  end subroutine mesh_geometry_add_boundary
 
 !------------------------------------------------------------------------
 
