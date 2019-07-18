@@ -730,6 +730,8 @@ contains
                       end if
                    end if
 
+                   call self%add_boundary_ghost_cells()
+
                    call VecDuplicate(self%solution, self%balances, ierr); CHKERRQ(ierr)
                    call VecDuplicate(self%fluid, self%current_fluid, ierr); CHKERRQ(ierr)
                    call VecDuplicate(self%fluid, self%last_timestep_fluid, ierr)
