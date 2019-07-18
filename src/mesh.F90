@@ -173,6 +173,7 @@ contains
        self%dm = ghost_dm
     end if
     call dm_label_boundary_ghosts(self%dm, boundary_ghost_label_name)
+    call self%geometry_add_boundary()
 
   end subroutine mesh_construct_ghost_cells
 
