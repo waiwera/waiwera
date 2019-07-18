@@ -72,7 +72,7 @@ module flow_simulation_module
      PetscBool :: unperturbed !! Whether any primary variables are being perturbed for Jacobian calculation
    contains
      private
-     procedure :: setup_solution_vector => flow_simulation_setup_solution_vector
+     procedure :: create_solution_vector => flow_simulation_create_solution_vector
      procedure :: setup_logfile => flow_simulation_setup_logfile
      procedure :: setup_output => flow_simulation_setup_output
      procedure :: setup_output_fields => flow_simulation_setup_output_fields
@@ -107,21 +107,23 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine flow_simulation_setup_solution_vector(self)
-    !! Sets up solution vector.
+  subroutine flow_simulation_create_solution_vector(self, solution, range_start)
+    !! Creates and returns solution vector, and corresponding range_start.
 
     use dm_utils_module, only: global_vec_range_start
 
     class(flow_simulation_type), intent(in out) :: self
+    Vec, intent(out) :: solution !! Solution vector
+    PetscInt, intent(out) :: range_start !! Range start, used for computing offsets
     ! Locals:
     PetscErrorCode :: ierr
 
-    call DMCreateGlobalVector(self%mesh%dm, self%solution, ierr)
+    call DMCreateGlobalVector(self%mesh%dm, solution, ierr)
     CHKERRQ(ierr)
-    call PetscObjectSetName(self%solution, "primary", ierr); CHKERRQ(ierr)
-    call global_vec_range_start(self%solution, self%solution_range_start)
+    call PetscObjectSetName(solution, "primary", ierr); CHKERRQ(ierr)
+    call global_vec_range_start(solution, range_start)
 
-  end subroutine flow_simulation_setup_solution_vector
+  end subroutine flow_simulation_create_solution_vector
 
 !------------------------------------------------------------------------
 
@@ -694,7 +696,7 @@ contains
     call self%mesh%configure(self%gravity, json, self%logfile, self%hdf5_viewer, err)
     if (err == 0) then
        call self%mesh%override_face_properties()
-       call self%setup_solution_vector()
+       call self%create_solution_vector(self%solution, self%solution_range_start)
        call setup_relative_permeabilities(json, &
             self%relative_permeability, self%logfile, err)
        if (err == 0) then
