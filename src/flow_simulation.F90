@@ -80,6 +80,7 @@ module flow_simulation_module
      procedure :: setup_flux_vector => flow_simulation_setup_flux_vector
      procedure :: identify_update_cells => flow_simulation_identify_update_cells
      procedure :: redistribute => flow_simulation_redistribute
+     procedure :: add_boundary_ghost_cells => flow_simulation_add_boundary_ghost_cells
      procedure :: destroy_output => flow_simulation_destroy_output
      procedure, public :: setup_gravity => flow_simulation_setup_gravity
      procedure, public :: input_summary => flow_simulation_input_summary
@@ -932,6 +933,49 @@ contains
     end if
 
   end subroutine flow_simulation_redistribute
+
+!------------------------------------------------------------------------
+
+  subroutine flow_simulation_add_boundary_ghost_cells(self)
+    !! Adds ghost cells for Dirichlet boundary conditions to the mesh,
+    !! and adds space for these cells to already-created simulation
+    !! vectors.
+
+    use rock_module, only: create_rock_vector
+    use fluid_module, only: create_fluid_vector
+    use eos_module, only: max_component_name_length, &
+         max_phase_name_length
+    use dm_utils_module, only: vec_copy_common_local
+
+    class(flow_simulation_type), intent(in out) :: self
+    ! Locals:
+    Vec :: solution, rock, fluid
+    PetscInt :: range_start
+    PetscErrorCode :: ierr
+
+    call self%mesh%construct_ghost_cells()
+
+    call self%create_solution_vector(solution, range_start)
+    call vec_copy_common_local(self%solution, solution)
+    call VecDestroy(self%solution, ierr); CHKERRQ(ierr)
+    self%solution = solution
+    self%solution_range_start = range_start
+
+    call create_rock_vector(self%mesh%dm, rock, range_start)
+    call vec_copy_common_local(self%rock, rock)
+    call VecDestroy(self%rock, ierr); CHKERRQ(ierr)
+    self%rock = rock
+    self%rock_range_start = range_start
+
+    call create_fluid_vector(self%mesh%dm, max_component_name_length, &
+         self%eos%component_names, max_phase_name_length, &
+         self%eos%phase_names, fluid, range_start)
+    call vec_copy_common_local(self%fluid, fluid)
+    call VecDestroy(self%fluid, ierr); CHKERRQ(ierr)
+    self%fluid = fluid
+    self%fluid_range_start = range_start
+
+  end subroutine flow_simulation_add_boundary_ghost_cells
 
 !------------------------------------------------------------------------
 
