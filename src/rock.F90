@@ -86,7 +86,7 @@ module rock_module
   character(len = 9), public :: rock_type_label_name = "rock_type"
 
   public :: rock_dict_item_type, rock_type, setup_rock_types, setup_rock_vector, &
-       label_rock_cell
+       create_rock_vector, label_rock_cell
 
 contains
 
@@ -490,34 +490,18 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine setup_rock_vector(json, dm, rock_vector, rock_dict, &
-       range_start, ghost_cell, logfile, err)
+  subroutine create_rock_vector(dm, rock_vector, range_start)
+    !! Creates and returns rock vector and corresponding range start.
 
-    !! Sets up rock vector on specified DM from JSON input. If
-    !! initialising rock properties using rock types, this routine
-    !! also sets up a dictionary of rock types for efficient access by
-    !! rock type name.
-
-    use dictionary_module
     use dm_utils_module, only: set_dm_data_layout, global_vec_range_start
-    use fson
-    use fson_mpi_module
-    use logfile_module
 
-    type(fson_value), pointer, intent(in) :: json
-    DM, intent(in out) :: dm
-    Vec, intent(in out) :: rock_vector
-    type(dictionary_type), intent(in out) :: rock_dict
-    PetscInt, intent(out) :: range_start
-    PetscInt, allocatable, intent(in) :: ghost_cell(:)
-    type(logfile_type), intent(in out), optional :: logfile
-    PetscErrorCode, intent(out) :: err
+    DM, intent(in) :: dm !! DM on which to create rock vector
+    Vec, intent(out) :: rock_vector !! Output rock vector
+    PetscInt, intent(out) :: range_start !! Range start, used for computing offsets
     ! Locals:
     DM :: dm_rock
     PetscInt :: dim, rock_variable_dim(num_rock_variables)
     PetscErrorCode :: ierr
-
-    err = 0
 
     call DMClone(dm, dm_rock, ierr); CHKERRQ(ierr)
 
@@ -530,7 +514,37 @@ contains
     call DMCreateGlobalVector(dm_rock, rock_vector, ierr); CHKERRQ(ierr)
     call PetscObjectSetName(rock_vector, "rock", ierr); CHKERRQ(ierr)
     call global_vec_range_start(rock_vector, range_start)
+    call DMDestroy(dm_rock, ierr); CHKERRQ(ierr)
 
+  end subroutine create_rock_vector
+
+!------------------------------------------------------------------------
+
+  subroutine setup_rock_vector(json, dm, rock_vector, rock_dict, &
+       range_start, ghost_cell, logfile, err)
+
+    !! Sets up rock vector on specified DM from JSON input. If
+    !! initialising rock properties using rock types, this routine
+    !! also sets up a dictionary of rock types for efficient access by
+    !! rock type name.
+
+    use dictionary_module
+    use fson
+    use fson_mpi_module
+    use logfile_module
+
+    type(fson_value), pointer, intent(in) :: json
+    DM, intent(in out) :: dm
+    Vec, intent(in out) :: rock_vector
+    type(dictionary_type), intent(in out) :: rock_dict
+    PetscInt, intent(out) :: range_start
+    PetscInt, allocatable, intent(in) :: ghost_cell(:)
+    type(logfile_type), intent(in out), optional :: logfile
+    PetscErrorCode, intent(out) :: err
+
+    err = 0
+
+    call create_rock_vector(dm, rock_vector, range_start)
     call set_default_rock_properties(dm, rock_vector, range_start, &
          ghost_cell)
 
@@ -547,8 +561,6 @@ contains
        end if
 
     end if
-
-    call DMDestroy(dm_rock, ierr); CHKERRQ(ierr)
 
   end subroutine setup_rock_vector
 
