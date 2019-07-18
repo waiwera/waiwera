@@ -76,6 +76,7 @@ module dm_utils_module
   public :: dm_label_partition_ghosts, dm_label_boundary_ghosts
   public :: dm_set_cell_hybrid_bound_from_label
   public :: dm_distribute_local_vec, dm_distribute_global_vec
+  public :: vec_copy_common_local
 
 contains
 
@@ -1411,6 +1412,31 @@ contains
     v = global_v
 
   end subroutine dm_distribute_global_vec
+
+!------------------------------------------------------------------------
+
+  subroutine vec_copy_common_local(v, w)
+    !! Copies data from Vec v to w, up to the minimum of the local
+    !! sizes of the two vectors.
+
+    Vec, intent(in) :: v
+    Vec, intent(in out) :: w
+    ! Locals:
+    PetscInt :: vsize, wsize, n
+    PetscReal, pointer :: v_array(:), w_array(:)
+    PetscErrorCode :: ierr
+
+    call VecGetLocalSize(v, vsize, ierr); CHKERRQ(ierr)
+    call VecGetLocalSize(w, wsize, ierr); CHKERRQ(ierr)
+    n = min(vsize, wsize)
+
+    call VecGetArrayReadF90(v, v_array, ierr); CHKERRQ(ierr)
+    call VecGetArrayF90(w, w_array, ierr); CHKERRQ(ierr)
+    w_array(1:n) = v_array(1:n)
+    call VecRestoreArrayF90(w, w_array, ierr); CHKERRQ(ierr)
+    call VecRestoreArrayReadF90(v, v_array, ierr); CHKERRQ(ierr)
+
+  end subroutine vec_copy_common_local
 
 !------------------------------------------------------------------------
 
