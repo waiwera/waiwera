@@ -374,7 +374,7 @@ contains
          dm_get_cell_index, vec_reorder, section_get_field_names
     use eos_module, only: eos_type, max_component_name_length, &
          max_phase_name_length
-    use fluid_module, only: fluid_type, setup_fluid_vector
+    use fluid_module, only: fluid_type, create_fluid_vector
     use utils_module, only: str_array_index, str_to_lower
     use hdf5io_module, only: max_field_name_length, vec_load_fields_hdf5
 
@@ -462,7 +462,7 @@ contains
       call dm_get_cell_index(mesh%original_dm, mesh%original_cell_order, &
            original_cell_index)
 
-      call setup_fluid_vector(mesh%original_dm, max_component_name_length, &
+      call create_fluid_vector(mesh%original_dm, max_component_name_length, &
            eos%component_names, max_phase_name_length, &
            eos%phase_names, original_fluid_vector, original_fluid_range_start)
 

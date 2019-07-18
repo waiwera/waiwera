@@ -102,7 +102,7 @@ module fluid_module
           fluid_update_phase_composition
   end type fluid_type
 
-  public :: fluid_type, phase_type, setup_fluid_vector
+  public :: fluid_type, phase_type, create_fluid_vector
 
 contains
 
@@ -416,11 +416,11 @@ contains
 ! Fluid vector setup routine
 !------------------------------------------------------------------------
 
-  subroutine setup_fluid_vector(dm, max_component_name_length, &
+  subroutine create_fluid_vector(dm, max_component_name_length, &
        component_names, max_phase_name_length, phase_names, &
        fluid_vec, range_start)
-    !! Sets up global vector and DM for fluid properties, with specified
-    !! numbers of components and phases.
+    !! Creates and returns global vector for fluid properties, with
+    !! specified numbers of components and phases.
 
     use dm_utils_module, only: set_dm_data_layout, global_vec_range_start
 
@@ -492,7 +492,7 @@ contains
     call DMDestroy(fluid_dm, ierr); CHKERRQ(ierr)
     call fluid%destroy()
 
-  end subroutine setup_fluid_vector
+  end subroutine create_fluid_vector
 
 !------------------------------------------------------------------------
 

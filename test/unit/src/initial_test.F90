@@ -217,7 +217,7 @@ contains
       use mesh_module
       use eos_module, only: max_component_name_length, &
            max_phase_name_length
-      use fluid_module, only: fluid_type, setup_fluid_vector
+      use fluid_module, only: fluid_type, create_fluid_vector
       use dm_utils_module
       use relative_permeability_module, only: relative_permeability_corey_type
       use capillary_pressure_module, only: capillary_pressure_zero_type
@@ -263,7 +263,7 @@ contains
       call PetscObjectSetName(y, "primary", ierr); CHKERRQ(ierr)
       call global_vec_range_start(y, y_range_start)
 
-      call setup_fluid_vector(mesh%dm, max_component_name_length, &
+      call create_fluid_vector(mesh%dm, max_component_name_length, &
            eos%component_names, max_phase_name_length, &
            eos%phase_names, fluid_vector, fluid_range_start)
 
@@ -344,7 +344,7 @@ contains
     use mesh_module
     use eos_module, only: max_component_name_length, &
          max_phase_name_length
-    use fluid_module, only: fluid_type, setup_fluid_vector
+    use fluid_module, only: fluid_type, create_fluid_vector
     use rock_module, only: rock_type
     use dm_utils_module, only: global_vec_section, global_section_offset, &
          local_vec_section, section_offset, global_vec_range_start, &
@@ -407,7 +407,7 @@ contains
     call mesh%init(eos, json)
     call mesh%configure(gravity, json, viewer = viewer, err = err)
 
-    call setup_fluid_vector(mesh%dm, max_component_name_length, &
+    call create_fluid_vector(mesh%dm, max_component_name_length, &
          eos%component_names, max_phase_name_length, &
          eos%phase_names, fluid_vector, fluid_range_start)
     call global_vec_section(fluid_vector, fluid_section)
@@ -501,7 +501,7 @@ contains
     use logfile_module
     use eos_module, only: max_component_name_length, &
          max_phase_name_length
-    use fluid_module, only: fluid_type, setup_fluid_vector
+    use fluid_module, only: fluid_type, create_fluid_vector
     use cell_module, only: cell_type
 
     class(unit_test_type), intent(in out) :: test
@@ -551,7 +551,7 @@ contains
     call PetscObjectSetName(y, "primary", ierr); CHKERRQ(ierr)
     call global_vec_range_start(y, y_range_start)
 
-    call setup_fluid_vector(mesh%dm, max_component_name_length, &
+    call create_fluid_vector(mesh%dm, max_component_name_length, &
          eos%component_names, max_phase_name_length, &
          eos%phase_names, fluid_vector, fluid_range_start)
 

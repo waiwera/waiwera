@@ -60,7 +60,7 @@ contains
     use IAPWS_module
     use eos_wge_module
     use mesh_module
-    use fluid_module, only: fluid_type, setup_fluid_vector
+    use fluid_module, only: fluid_type, create_fluid_vector
     use dm_utils_module, only: global_vec_section, global_section_offset, &
          global_to_local_vec_section, restore_dm_local_vec
 
@@ -95,7 +95,7 @@ contains
     call mesh%init(eos, json)
     call fluid%init(eos%num_components, eos%num_phases)
     call mesh%configure(gravity, json, viewer = viewer, err = err)
-    call setup_fluid_vector(mesh%dm, max_component_name_length, &
+    call create_fluid_vector(mesh%dm, max_component_name_length, &
          eos%component_names, max_phase_name_length, eos%phase_names, &
          fluid_vector, fluid_range_start)
     call DMPlexGetHeightStratum(mesh%dm, 0, start_cell, end_cell, ierr)
