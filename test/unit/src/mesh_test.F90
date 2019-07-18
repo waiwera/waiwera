@@ -1582,6 +1582,7 @@ contains
       call mesh%init(eos, json)
       call mesh%configure(gravity, json, viewer = viewer, err = err)
       call mesh%redistribute(sf)
+      call mesh%construct_ghost_cells()
       call fson_destroy_mpi(json)
       call mesh%destroy_distribution_data()
 
