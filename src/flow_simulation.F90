@@ -655,7 +655,7 @@ contains
          max_phase_name_length
     use eos_setup_module, only: setup_eos
     use initial_module
-    use fluid_module, only: setup_fluid_vector
+    use fluid_module, only: create_fluid_vector
     use rock_module, only: setup_rock_vector
     use source_setup_module, only: setup_sources
     use utils_module, only: date_time_str
@@ -713,7 +713,7 @@ contains
                         self%rock_range_start, self%logfile, err)
                 end if
                 if (err == 0) then
-                   call setup_fluid_vector(self%mesh%dm, max_component_name_length, &
+                   call create_fluid_vector(self%mesh%dm, max_component_name_length, &
                         self%eos%component_names, max_phase_name_length, &
                         self%eos%phase_names, self%fluid, self%fluid_range_start)
 
