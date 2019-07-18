@@ -918,11 +918,11 @@ contains
           call dm_distribute_global_vec(self%mesh%dm, sf, self%solution)
           call global_vec_range_start(self%solution, self%solution_range_start)
 
-          call dm_distribute_global_vec(self%mesh%dm, sf, self%fluid)
-          call global_vec_range_start(self%fluid, self%fluid_range_start)
-
           call dm_distribute_global_vec(self%mesh%dm, sf, self%rock)
           call global_vec_range_start(self%rock, self%rock_range_start)
+
+          call dm_distribute_global_vec(self%mesh%dm, sf, self%fluid)
+          call global_vec_range_start(self%fluid, self%fluid_range_start)
 
           call PetscSFDestroy(sf, ierr); CHKERRQ(ierr)
 
