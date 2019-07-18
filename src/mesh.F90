@@ -66,7 +66,6 @@ module mesh_module
      PetscInt, public :: dof !! Degrees of freedom for default section
    contains
      procedure :: distribute => mesh_distribute
-     procedure :: construct_ghost_cells => mesh_construct_ghost_cells
      procedure :: setup_geometry => mesh_setup_geometry
      procedure :: setup_ghost_arrays => mesh_setup_ghost_arrays
      procedure :: destroy_minc => mesh_destroy_minc
@@ -101,6 +100,7 @@ module mesh_module
      procedure :: redistribute_cell_order => mesh_redistribute_cell_order
      procedure, public :: init => mesh_init
      procedure, public :: configure => mesh_configure
+     procedure, public :: construct_ghost_cells => mesh_construct_ghost_cells
      procedure, public :: set_boundary_conditions => mesh_set_boundary_conditions
      procedure, public :: destroy => mesh_destroy
      procedure, public :: local_to_fracture_natural => mesh_local_to_fracture_natural
