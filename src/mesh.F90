@@ -682,7 +682,9 @@ contains
     !! construction of ghost cells, setup of data layout, geometry and
     !! cell index set.
 
-    use dm_utils_module
+    use dm_utils_module, only: dm_label_partition_ghosts, &
+         set_dm_default_data_layout, dm_set_fv_adjacency, &
+         dm_get_natural_to_global_ao, dm_get_cell_index
     use logfile_module
     use rock_module, only: setup_rock_types
 
@@ -698,8 +700,7 @@ contains
     err = 0
 
     call self%distribute()
-
-    call self%construct_ghost_cells()
+    call dm_label_partition_ghosts(self%original_dm)
     call set_dm_default_data_layout(self%original_dm, self%dof)
     call dm_set_fv_adjacency(self%original_dm)
     call self%setup_geometry(gravity)
