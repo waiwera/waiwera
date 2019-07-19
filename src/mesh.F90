@@ -74,6 +74,8 @@ module mesh_module
      procedure :: destroy_strata => mesh_destroy_strata
      procedure :: setup_coordinate_parameters => mesh_setup_coordinate_parameters
      procedure :: set_permeability_rotation => mesh_set_permeability_rotation
+     procedure :: modify_cell_geometry => mesh_modify_cell_geometry
+     procedure :: modify_face_geometry => mesh_modify_face_geometry
      procedure :: modify_geometry => mesh_modify_geometry
      procedure :: read_overridden_face_properties => mesh_read_overridden_face_properties
      procedure :: override_face_properties => mesh_override_face_properties
@@ -263,6 +265,112 @@ contains
 
 !------------------------------------------------------------------------
 
+  subroutine mesh_modify_cell_geometry(self, cell)
+    ! Modifies cell geometry parameters for 2-D and radial meshes.
+
+    class(mesh_type), intent(in) :: self
+    type(cell_type), intent(in out) :: cell
+    ! Locals:
+    PetscInt :: dim
+    PetscErrorCode :: ierr
+
+    call DMGetDimension(self%original_dm, dim, ierr); CHKERRQ(ierr)
+    if (dim == 2) then
+       if (self%radial) then
+          call modify_cell_geometry_2d_radial(cell)
+       else
+          call modify_cell_geometry_2d_cartesian(cell)
+       end if
+    end if
+
+  contains
+
+!........................................................................
+
+    subroutine modify_cell_geometry_2d_cartesian(cell)
+      ! Geometry modification for 2D Cartesian cells.
+
+      type(cell_type), intent(in out) :: cell
+
+      cell%volume = cell%volume * self%thickness
+
+    end subroutine modify_cell_geometry_2d_cartesian
+
+!........................................................................
+
+    subroutine modify_cell_geometry_2d_radial(cell)
+      ! Geometry modification for 2D radial cells- via Pappus' centroid
+      ! theorem.
+
+      use kinds_module, only: dp
+      use utils_module, only: pi
+
+      type(cell_type), intent(in out) :: cell
+      ! Locals:
+      PetscReal :: r
+
+      r = cell%centroid(1)
+      cell%volume = cell%volume * 2._dp * pi * r
+
+    end subroutine modify_cell_geometry_2d_radial
+
+  end subroutine mesh_modify_cell_geometry
+
+!------------------------------------------------------------------------
+
+  subroutine mesh_modify_face_geometry(self, face)
+    ! Modifies face geometry parameters for 2-D and radial meshes.
+
+    class(mesh_type), intent(in) :: self
+    type(face_type), intent(in out) :: face
+    ! Locals:
+    PetscInt :: dim
+    PetscErrorCode :: ierr
+
+    call DMGetDimension(self%original_dm, dim, ierr); CHKERRQ(ierr)
+    if (dim == 2) then
+       if (self%radial) then
+          call modify_face_geometry_2d_radial(face)
+       else
+          call modify_face_geometry_2d_cartesian(face)
+       end if
+    end if
+
+  contains
+
+!........................................................................
+
+    subroutine modify_face_geometry_2d_cartesian(face)
+      ! Geometry modification for 2D Cartesian faces.
+
+      type(face_type), intent(in out) :: face
+
+      face%area = face%area * self%thickness
+
+    end subroutine modify_face_geometry_2d_cartesian
+
+!........................................................................
+
+    subroutine modify_face_geometry_2d_radial(face)
+      ! Geometry modification for 2D radial faces- via Pappus' centroid
+      ! theorem.
+
+      use kinds_module, only: dp
+      use utils_module, only: pi
+
+      type(face_type), intent(in out) :: face
+      ! Locals:
+      PetscReal :: r
+
+      r = face%centroid(1)
+      face%area = face%area * 2._dp * pi * r
+
+    end subroutine modify_face_geometry_2d_radial
+
+  end subroutine mesh_modify_face_geometry
+
+!------------------------------------------------------------------------
+
   subroutine mesh_setup_geometry(self, gravity)
     !! Sets up global vectors containing geometry data (e.g. cell volumes,
     !! cell centroids, face areas, face-to-centroid distances) for the mesh.
@@ -322,22 +430,6 @@ contains
     PetscInt :: cell_variable_dim(num_cell_variables)
     PetscErrorCode :: ierr
 
-    interface
-
-       subroutine modify_cell_volume_routine(cell)
-         import :: cell_type
-         type(cell_type), intent(in out) :: cell
-       end subroutine modify_cell_volume_routine
-
-       subroutine modify_face_area_routine(face)
-         import :: face_type
-         type(face_type), intent(in out) :: face
-       end subroutine modify_face_area_routine
-
-    end interface
-    procedure(modify_cell_volume_routine), pointer :: modify_cell_volume
-    procedure(modify_face_area_routine), pointer :: modify_face_area
-
     call DMGetDimension(self%original_dm, dim, ierr); CHKERRQ(ierr)
     call DMGetLabel(self%original_dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
     call DMPlexGetHeightStratum(self%original_dm, 0, start_cell, end_cell, ierr)
@@ -357,17 +449,12 @@ contains
 
     if (dim == 2) then
        ! Adjust cell volumes:
-       if (self%radial) then
-          modify_cell_volume => modify_cell_volume_2d_radial
-       else
-          modify_cell_volume => modify_cell_volume_2d_cartesian
-       end if
        do c = start_cell, end_cell - 1
           call DMLabelGetValue(ghost_label, c, ghost_cell, ierr); CHKERRQ(ierr)
           if (ghost_cell < 0) then
              call section_offset(cell_section, c, offset, ierr); CHKERRQ(ierr)
              call cell%assign_geometry(cell_geom_array, offset)
-             call modify_cell_volume(cell)
+             call self%modify_cell_geometry(cell)
           end if
        end do
     end if
@@ -385,17 +472,6 @@ contains
     call VecGetArrayF90(petsc_face_geom, petsc_face_geom_array, ierr)
     CHKERRQ(ierr)
     call face%init()
-
-    select case (dim)
-    case (3)
-       modify_face_area => modify_face_area_null
-    case (2)
-       if (self%radial) then
-          modify_face_area => modify_face_area_2d_radial
-       else
-          modify_face_area => modify_face_area_2d_cartesian
-       end if
-    end select
 
     do f = start_face, end_face - 1
 
@@ -421,7 +497,7 @@ contains
           face%area = norm2(petsc_face%area_normal)
           face%normal = petsc_face%area_normal / face%area
           face%gravity_normal = dot_product(gravity, face%normal)
-          call modify_face_area(face)
+          call self%modify_face_geometry(face)
           do i = 1, 2
              face%distance(i) = norm2(face%centroid - face%cell(i)%centroid)
           end do
@@ -440,66 +516,6 @@ contains
 
     call PetscSectionDestroy(face_section, ierr); CHKERRQ(ierr)
     call DMDestroy(dm_face, ierr); CHKERRQ(ierr)
-
-  contains
-
-    subroutine modify_cell_volume_2d_cartesian(cell)
-      ! Volume modification for 2D Cartesian cells.
-      type(cell_type), intent(in out) :: cell
-
-      cell%volume = cell%volume * self%thickness
-
-    end subroutine modify_cell_volume_2d_cartesian
-
-!........................................................................
-
-    subroutine modify_cell_volume_2d_radial(cell)
-      ! Volume modification for 2D radial cells- via Pappus' centroid
-      ! theorem.
-      use utils_module, only: pi
-      type(cell_type), intent(in out) :: cell
-      ! Locals:
-      PetscReal :: r
-
-      r = cell%centroid(1)
-      cell%volume = cell%volume * 2._dp * pi * r
-
-    end subroutine modify_cell_volume_2d_radial
-
-!........................................................................
-
-    subroutine modify_face_area_null(face)
-      ! Do-nothing area modification- for 3D cells.
-      type(face_type), intent(in out) :: face
-
-      continue
-
-    end subroutine modify_face_area_null
-
-!........................................................................
-
-    subroutine modify_face_area_2d_cartesian(face)
-      ! Area modification for 2D Cartesian faces.
-      type(face_type), intent(in out) :: face
-
-      face%area = face%area * self%thickness
-
-    end subroutine modify_face_area_2d_cartesian
-
-!........................................................................
-
-    subroutine modify_face_area_2d_radial(face)
-      ! Area modification for 2D radial faces- via Pappus' centroid
-      ! theorem.
-      use utils_module, only: pi
-      type(face_type), intent(in out) :: face
-      ! Locals:
-      PetscReal :: r
-
-      r = face%centroid(1)
-      face%area = face%area * 2._dp * pi * r
-
-    end subroutine modify_face_area_2d_radial
 
   end subroutine mesh_modify_geometry
 
