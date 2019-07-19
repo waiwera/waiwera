@@ -1197,7 +1197,7 @@ contains
 
     call DMHasLabel(dm, label_name, has_label, ierr); CHKERRQ(ierr)
     if (has_label) then
-       call DMRemoveLabel(dm, label_name, label, ierr)
+       call DMRemoveLabel(dm, label_name, label, ierr); CHKERRQ(ierr)
     end if
     call DMCreateLabel(dm, label_name, ierr); CHKERRQ(ierr)
 
