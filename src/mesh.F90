@@ -177,6 +177,7 @@ contains
     call set_dm_default_data_layout(self%dm, self%dof)
     call dm_label_boundary_ghosts(self%dm, boundary_ghost_label_name)
     call self%geometry_add_boundary()
+    call self%setup_ghost_arrays()
 
   end subroutine mesh_construct_ghost_cells
 
