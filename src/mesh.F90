@@ -21,10 +21,12 @@ module mesh_module
 #include <petsc/finclude/petsc.h>
 
   use petsc
+  use fson
+  use cell_module
+  use face_module
   use zone_module
   use list_module
   use mpi_utils_module
-  use fson
   use minc_module
   use dm_utils_module, only: dm_stratum_type
   use dictionary_module
@@ -296,8 +298,6 @@ contains
     !! computed (e.g. distances, gravity normal).
 
     use kinds_module
-    use cell_module
-    use face_module
     use utils_module, only: rotation_matrix_2d
     use dm_utils_module, only: section_offset, local_vec_section, set_dm_data_layout
 
@@ -509,10 +509,6 @@ contains
     !! Adds space for Dirichlet boundary condition ghost cells to mesh
     !! geometry vectors.
 
-    use cell_module, only: num_cell_variables, &
-         cell_variable_num_components, cell_variable_names
-    use face_module, only: num_face_variables, &
-         face_variable_num_components, face_variable_names
     use dm_utils_module, only: set_dm_data_layout, vec_copy_common_local
 
     class(mesh_type), intent(in out) :: self
@@ -802,7 +798,6 @@ contains
     use eos_module, only: eos_type
     use fluid_module, only: fluid_type
     use rock_module, only: rock_type
-    use face_module
     use logfile_module
 
     class(mesh_type), intent(in) :: self
@@ -1020,7 +1015,6 @@ contains
     !! currently just face permeability directions.
 
     use logfile_module
-    use face_module
     use dm_utils_module, only: local_vec_section, section_offset
     class(mesh_type), intent(in out) :: self
     ! Locals:
@@ -2617,8 +2611,6 @@ contains
     use kinds_module
     use dm_utils_module, only: section_offset, local_vec_section, &
          set_dm_data_layout
-    use cell_module
-    use face_module
 
     class(mesh_type), intent(in out) :: self
     DM, intent(in out) :: minc_dm
