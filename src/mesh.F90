@@ -169,6 +169,8 @@ contains
     PetscErrorCode :: ierr
 
     call DMRemoveLabel(self%dm, "ghost", label, ierr); CHKERRQ(ierr)
+    call DMRemoveLabel(self%dm, "vtk", label, ierr); CHKERRQ(ierr)
+
     call DMPlexConstructGhostCells(self%dm, open_boundary_label_name, &
          PETSC_NULL_INTEGER, ghost_dm, ierr); CHKERRQ(ierr)
     if (ghost_dm .ne. PETSC_NULL_DM) then
