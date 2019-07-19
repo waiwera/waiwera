@@ -743,7 +743,8 @@ contains
                    call self%setup_update_cell()
                    call self%mesh%set_boundary_conditions(json, self%solution, self%fluid, &
                         self%rock, self%eos, self%solution_range_start, &
-                        self%fluid_range_start, self%rock_range_start, self%logfile)
+                        self%fluid_range_start, self%rock_range_start, &
+                        self%gravity, self%logfile)
                    call scale_initial_primary(self%mesh, self%eos, self%solution, self%fluid, &
                         self%solution_range_start, self%fluid_range_start)
                    call self%fluid_init(self%time, self%solution, err)

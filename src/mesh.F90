@@ -802,9 +802,9 @@ contains
 !------------------------------------------------------------------------
 
   subroutine mesh_set_boundary_conditions(self, json, y, fluid_vector, rock_vector, &
-       eos, y_range_start, fluid_range_start, rock_range_start, logfile)
+       eos, y_range_start, fluid_range_start, rock_range_start, gravity, logfile)
     !! Sets primary variables (and rock properties) in boundary ghost
-    !! cells. Also sets face distances from boundary ghost cells to zero.
+    !! cells. Also computes face geometry for boundary ghost faces.
 
     use fson
     use fson_mpi_module
@@ -825,24 +825,27 @@ contains
     PetscInt, intent(in) :: y_range_start !! Start of range for global primary variables vector
     PetscInt, intent(in) :: fluid_range_start !! Start of range for global fluid vector
     PetscInt, intent(in) :: rock_range_start !! Start of range for global rock vector
+    PetscReal, intent(in) :: gravity(:) !! Gravity vector
     type(logfile_type), intent(in out), optional :: logfile !! Logfile for log output
     ! Locals:
     type(fson_value), pointer :: boundaries, bdy
     PetscInt :: num_boundaries, ibdy, f, i, num_faces, iface, np, n
     PetscReal, pointer, contiguous :: y_array(:), fluid_array(:), rock_array(:)
     PetscReal, pointer, contiguous :: cell_primary(:), rock1(:), rock2(:)
-    PetscReal, pointer, contiguous :: face_geom_array(:)
-    PetscSection :: y_section, fluid_section, rock_section, face_section
+    PetscReal, pointer, contiguous :: cell_geom_array(:), face_geom_array(:)
+    PetscSection :: y_section, fluid_section, rock_section
+    PetscSection :: cell_section, face_section
     IS :: bdy_IS
     DMLabel :: ghost_label
     type(fluid_type):: fluid
     type(rock_type) :: rock
-    PetscInt :: y_offset, fluid_offset, rock_offsets(2), face_offset
+    PetscInt :: y_offset, fluid_offset, rock_offsets(2), cell_offset, face_offset
     PetscInt :: ghost, region
     PetscInt, pointer :: bdy_faces(:), cells(:)
     PetscReal, allocatable :: primary(:)
     character(len=64) :: bdystr
     character(len=12) :: istr
+    type(cell_type) :: cell
     type(face_type) :: face
     PetscErrorCode :: ierr
 
@@ -853,11 +856,14 @@ contains
     call global_vec_section(rock_vector, rock_section)
     call VecGetArrayF90(rock_vector, rock_array, ierr); CHKERRQ(ierr)
     call DMGetLabel(self%dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
+    call local_vec_section(self%cell_geom, cell_section)
+    call VecGetArrayF90(self%cell_geom, cell_geom_array, ierr); CHKERRQ(ierr)
     call local_vec_section(self%face_geom, face_section)
     call VecGetArrayF90(self%face_geom, face_geom_array, ierr); CHKERRQ(ierr)
     np = eos%num_primary_variables
     call fluid%init(eos%num_components, eos%num_phases)
     call rock%init()
+    call cell%init(1, 1)
     call face%init()
 
     if (fson_has_mpi(json, "boundaries")) then
@@ -907,10 +913,19 @@ contains
                       rock2 = rock1
                    end if
                 end if
-                call section_offset(face_section, f, face_offset, ierr)
-                CHKERRQ(ierr)
+                ! Compute boundary ghost face geometry:
+                call section_offset(cell_section, cells(1), cell_offset, &
+                     ierr); CHKERRQ(ierr)
+                call section_offset(face_section, f, face_offset, &
+                     ierr); CHKERRQ(ierr)
+                call cell%assign_geometry(cell_geom_array, cell_offset)
                 call face%assign_geometry(face_geom_array, face_offset)
-                face%distance(2) = 0._dp
+                call DMPlexComputeCellGeometryFVM(self%dm, f, face%area, &
+                     face%centroid, face%normal, ierr); CHKERRQ(ierr)
+                face%gravity_normal = dot_product(gravity, face%normal)
+                call self%modify_face_geometry(face)
+                face%distance = [norm2(face%centroid - cell%centroid), 0._dp]
+                call face%calculate_permeability_direction(self%permeability_rotation)
              end do
              call ISRestoreIndicesF90(bdy_IS, bdy_faces, ierr); CHKERRQ(ierr)
              call ISDestroy(bdy_IS, ierr); CHKERRQ(ierr)
