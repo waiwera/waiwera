@@ -101,7 +101,6 @@ module mesh_module
      procedure :: setup_minc_point_sf => mesh_setup_minc_point_sf
      procedure :: redistribute_dm => mesh_redistribute_dm
      procedure :: redistribute_geometry => mesh_redistribute_geometry
-     procedure :: redistribute_cell_parent_natural => mesh_redistribute_cell_parent_natural
      procedure :: redistribute_cell_order => mesh_redistribute_cell_order
      procedure :: geometry_add_boundary => mesh_geometry_add_boundary
      procedure :: setup_cell_natural => mesh_setup_cell_natural
@@ -127,11 +126,16 @@ contains
     !! Distributes mesh over processors, and returns star forest from
     !! mesh distribution.
 
-    use dm_utils_module, only: dm_setup_fv_discretization
+    use dm_utils_module, only: dm_create_section, dm_setup_fv_discretization
     
     class(mesh_type), intent(in out) :: self
     ! Locals:
+    PetscInt :: dim
+    PetscSection :: section
     PetscErrorCode :: ierr
+
+    call DMGetDimension(self%serial_dm, dim, ierr); CHKERRQ(ierr)
+    section = dm_create_section(self%serial_dm, [1], [dim])
 
     call DMPlexDistribute(self%serial_dm, partition_overlap, self%dist_sf, &
          self%original_dm, ierr); CHKERRQ(ierr)
@@ -139,6 +143,8 @@ contains
        self%original_dm = self%serial_dm
     else
        call dm_setup_fv_discretization(self%original_dm, self%dof)
+       call self%distribute_index_set(self%dist_sf, section, self%cell_natural)
+       call PetscSectionDestroy(section, ierr); CHKERRQ(ierr)
     end if
 
   end subroutine mesh_distribute
@@ -3197,7 +3203,8 @@ contains
     call self%redistribute_dm(sf)
     if (sf .ne. PETSC_NULL_SF) then
        call self%redistribute_geometry(sf)
-       call self%redistribute_cell_parent_natural(sf, section)
+       call self%distribute_index_set(sf, section, self%cell_natural)
+       call self%distribute_index_set(sf, section, self%cell_parent_natural)
        call self%redistribute_cell_order(sf, section, natural_order)
        call self%setup_ghost_arrays()
     end if
@@ -3256,34 +3263,6 @@ contains
     end if
 
   end subroutine mesh_redistribute_geometry
-
-!------------------------------------------------------------------------
-
-  subroutine mesh_redistribute_cell_parent_natural(self, sf, section)
-    !! Redistributes MINC cell_parent_natural IS.
-
-    use dm_utils_module, only: dm_create_section
-
-    class(mesh_type), intent(in out) :: self
-    PetscSF, intent(in) :: sf
-    PetscSection, intent(in) :: section
-    ! Locals:
-    PetscSection :: redist_section
-    IS :: redist_cell_parent_natural
-    PetscErrorCode :: ierr
-
-    call PetscSectionCreate(PETSC_COMM_WORLD, redist_section, ierr)
-    CHKERRQ(ierr)
-    call ISCreate(PETSC_COMM_WORLD, redist_cell_parent_natural, ierr)
-    CHKERRQ(ierr)
-    call DMPlexDistributeFieldIS(self%dm, sf, section, &
-         self%cell_parent_natural, redist_section, &
-         redist_cell_parent_natural, ierr); CHKERRQ(ierr)
-    call PetscSectionDestroy(redist_section, ierr); CHKERRQ(ierr)
-    call ISDestroy(self%cell_parent_natural, ierr); CHKERRQ(ierr)
-    self%cell_parent_natural = redist_cell_parent_natural
-
-  end subroutine mesh_redistribute_cell_parent_natural
 
 !------------------------------------------------------------------------
 
