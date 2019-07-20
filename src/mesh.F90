@@ -3186,7 +3186,8 @@ contains
     !! only be called when running in parallel. The redistribution
     !! star forest is returned.
 
-    use dm_utils_module, only: dm_create_section, dm_natural_order_IS
+    use dm_utils_module, only: dm_create_section, dm_natural_order_IS, &
+         dm_get_natural_to_global_ao
 
     class(mesh_type), intent(in out) :: self
     PetscSF, intent(out) :: sf
@@ -3205,7 +3206,8 @@ contains
        call self%redistribute_geometry(sf)
        call self%distribute_index_set(sf, section, self%cell_natural)
        call self%distribute_index_set(sf, section, self%cell_parent_natural)
-       call self%redistribute_cell_natural_global(sf, section, natural_order)
+       self%cell_natural_global = &
+         dm_get_natural_to_global_ao(self%dm, self%cell_natural)
        call self%setup_ghost_arrays()
     end if
 
