@@ -55,6 +55,7 @@ module mesh_module
      IS, public :: cell_index !! Index set defining natural to global cell ordering (without boundary cells)
      AO, public :: cell_order !! Application ordering to convert between global and natural cell indices
      AO, public :: original_cell_order !! Global-to-natural AO for original DM
+     IS, public :: cell_natural !! Natural indices of local cells
      IS, public :: cell_parent_natural !! Natural indices of parent cells (e.g. MINC fracture cells)
      PetscSF, public :: dist_sf !! Distribution star forest
      PetscInt, public, allocatable :: ghost_cell(:), ghost_face(:) !! Ghost label values for cells and faces
@@ -103,6 +104,7 @@ module mesh_module
      procedure :: redistribute_cell_parent_natural => mesh_redistribute_cell_parent_natural
      procedure :: redistribute_cell_order => mesh_redistribute_cell_order
      procedure :: geometry_add_boundary => mesh_geometry_add_boundary
+     procedure :: setup_cell_natural => mesh_setup_cell_natural
      procedure :: distribute_index_set => mesh_distribute_index_set
      procedure, public :: init => mesh_init
      procedure, public :: configure => mesh_configure
@@ -562,6 +564,26 @@ contains
 
 !------------------------------------------------------------------------
 
+  subroutine mesh_setup_cell_natural(self)
+    !! Sets up cell_natural IS on serial DM.
+
+    class(mesh_type), intent(in out) :: self
+    ! Locals:
+    PetscInt :: c, start_cell, end_cell
+    PetscInt, allocatable :: natural(:)
+    PetscErrorCode :: ierr
+
+    call DMPlexGetHeightStratum(self%serial_dm, 0, start_cell, &
+         end_cell, ierr); CHKERRQ(ierr)
+    natural = [(c, c = start_cell, end_cell -1)]
+    call ISCreateGeneral(PETSC_COMM_WORLD, end_cell - start_cell, &
+            natural, PETSC_COPY_VALUES, self%cell_natural, ierr)
+    deallocate(natural)
+
+  end subroutine mesh_setup_cell_natural
+
+!------------------------------------------------------------------------
+
   subroutine mesh_setup_ghost_arrays(self)
     !! Sets up arrays of ghost label values on cells and faces. This
     !! is just for faster access to these values in the rest of the
@@ -691,6 +713,7 @@ contains
        call self%label_cell_array_minc_zones(json)
        call self%label_boundaries(json, logfile)
        call self%label_sources(json)
+       call self%setup_cell_natural()
        self%has_minc = PETSC_FALSE
     end if
 
