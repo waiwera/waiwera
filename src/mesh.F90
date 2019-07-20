@@ -787,6 +787,7 @@ contains
     call DMDestroy(self%dm, ierr); CHKERRQ(ierr)
     call ISDestroy(self%cell_index, ierr); CHKERRQ(ierr)
 
+    call ISDestroy(self%cell_natural, ierr); CHKERRQ(ierr)
     call AODestroy(self%cell_order, ierr); CHKERRQ(ierr)
 
     if (allocated(self%ghost_cell)) then
