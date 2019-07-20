@@ -104,7 +104,7 @@ contains
     call mesh%configure(gravity, json, viewer = viewer, err = err)
     call DMGetGlobalVector(mesh%dm, fluid_vector, ierr); CHKERRQ(ierr) ! dummy- not used
 
-    call setup_sources(json, mesh%dm, mesh%cell_order, eos, thermo, start_time, &
+    call setup_sources(json, mesh%dm, mesh%cell_natural_global, eos, thermo, start_time, &
          fluid_vector, fluid_range_start, source_vector, source_range_start, &
          num_sources, total_num_sources, source_controls, source_is, err = err)
     call test%assert(0, err, "error")

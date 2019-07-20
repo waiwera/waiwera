@@ -749,7 +749,7 @@ contains
                         self%solution_range_start, self%fluid_range_start)
                    call self%fluid_init(self%time, self%solution, err)
                    if (err == 0) then
-                      call setup_sources(json, self%mesh%dm, self%mesh%cell_order, &
+                      call setup_sources(json, self%mesh%dm, self%mesh%cell_natural_global, &
                            self%eos, self%thermo, self%time, self%fluid, &
                            self%fluid_range_start, self%source, self%source_range_start, &
                            self%num_local_sources, self%num_sources, self%source_controls, &

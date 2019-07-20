@@ -53,8 +53,8 @@ module mesh_module
      PetscInt :: depth !! DM depth
      type(dm_stratum_type), allocatable, public :: strata(:) !! Mesh strata (used for MINC point calculations)
      IS, public :: cell_index !! Index set defining natural to global cell ordering (without boundary cells)
-     AO, public :: cell_order !! Application ordering to convert between global and natural cell indices
-     AO, public :: original_cell_order !! Global-to-natural AO for original DM
+     AO, public :: cell_natural_global !! Application ordering to convert between natural and global cell indices
+     AO, public :: original_cell_natural_global !! Natural-to-global AO for original DM
      IS, public :: cell_natural !! Natural indices of local cells
      IS, public :: cell_parent_natural !! Natural indices of parent cells (e.g. MINC fracture cells)
      PetscSF, public :: dist_sf !! Distribution star forest
@@ -95,13 +95,13 @@ module mesh_module
      procedure :: setup_minc_dm_depth_label => mesh_setup_minc_dm_depth_label
      procedure :: transfer_labels_to_minc_dm => mesh_transfer_labels_to_minc_dm
      procedure :: setup_minc_output_data => mesh_setup_minc_output_data
-     procedure :: setup_minc_dm_cell_order => mesh_setup_minc_dm_cell_order
+     procedure :: setup_minc_dm_cell_natural_global => mesh_setup_minc_dm_cell_natural_global
      procedure :: setup_minc_geometry => mesh_setup_minc_geometry
      procedure :: setup_minc_rock_properties => mesh_setup_minc_rock_properties
      procedure :: setup_minc_point_sf => mesh_setup_minc_point_sf
      procedure :: redistribute_dm => mesh_redistribute_dm
      procedure :: redistribute_geometry => mesh_redistribute_geometry
-     procedure :: redistribute_cell_order => mesh_redistribute_cell_order
+     procedure :: redistribute_cell_natural_global => mesh_redistribute_cell_natural_global
      procedure :: geometry_add_boundary => mesh_geometry_add_boundary
      procedure :: setup_cell_natural => mesh_setup_cell_natural
      procedure :: distribute_index_set => mesh_distribute_index_set
@@ -755,9 +755,9 @@ contains
     call dm_set_fv_adjacency(self%original_dm)
     call self%setup_geometry(gravity)
     self%dm = self%original_dm
-    self%original_cell_order = dm_get_natural_to_global_ao(self%original_dm, &
+    self%original_cell_natural_global = dm_get_natural_to_global_ao(self%original_dm, &
          self%dist_sf)
-    self%cell_order = self%original_cell_order
+    self%cell_natural_global = self%original_cell_natural_global
 
     call self%setup_zones(json, logfile, err)
     if (err == 0) then
@@ -766,7 +766,7 @@ contains
           call self%setup_minc(json, logfile, err)
           if (err == 0) then
              if (self%has_minc) call self%setup_minc_dm()
-             call dm_get_cell_index(self%dm, self%cell_order, &
+             call dm_get_cell_index(self%dm, self%cell_natural_global, &
                   self%cell_index)
              if (viewer /= PETSC_NULL_VIEWER) then
                 call ISView(self%cell_index, viewer, ierr); CHKERRQ(ierr)
@@ -794,7 +794,7 @@ contains
     call ISDestroy(self%cell_index, ierr); CHKERRQ(ierr)
 
     call ISDestroy(self%cell_natural, ierr); CHKERRQ(ierr)
-    call AODestroy(self%cell_order, ierr); CHKERRQ(ierr)
+    call AODestroy(self%cell_natural_global, ierr); CHKERRQ(ierr)
 
     if (allocated(self%ghost_cell)) then
        deallocate(self%ghost_cell)
@@ -805,7 +805,7 @@ contains
 
     if (self%has_minc) then
        call DMDestroy(self%original_dm, ierr); CHKERRQ(ierr)
-       call AODestroy(self%original_cell_order, ierr); CHKERRQ(ierr)
+       call AODestroy(self%original_cell_natural_global, ierr); CHKERRQ(ierr)
        call ISDestroy(self%cell_parent_natural, ierr); CHKERRQ(ierr)
        call self%destroy_minc()
        call self%destroy_strata()
@@ -1886,7 +1886,7 @@ contains
     call self%setup_minc_point_sf(minc_dm)
     call dm_setup_global_section(minc_dm)
 
-    call self%setup_minc_dm_cell_order(minc_dm, max_num_levels, &
+    call self%setup_minc_dm_cell_natural_global(minc_dm, max_num_levels, &
          minc_level_cells)
     call self%setup_minc_geometry(minc_dm, num_cells, max_num_levels, &
          num_minc_zones, minc_zone)
@@ -2408,7 +2408,7 @@ contains
           minc_p = self%strata(h)%minc_point(c, m)
           call DMSetLabelValue(minc_dm, minc_level_label_name, &
                minc_p, m, ierr); CHKERRQ(ierr)
-          natural(c) = local_to_natural_cell_index(self%cell_order, l2g, c)
+          natural(c) = local_to_natural_cell_index(self%cell_natural_global, l2g, c)
        end if
     end do
 
@@ -2438,7 +2438,7 @@ contains
          minc_p = self%strata(h)%minc_point(ic, m)
          call DMSetLabelValue(minc_dm, minc_level_label_name, &
               minc_p, m, ierr); CHKERRQ(ierr)
-         natural(minc_p) = local_to_natural_cell_index(self%cell_order, l2g, c)
+         natural(minc_p) = local_to_natural_cell_index(self%cell_natural_global, l2g, c)
       end select
       ic = ic + 1
 
@@ -2448,8 +2448,8 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine mesh_setup_minc_dm_cell_order(self, minc_dm, max_num_levels, &
-       minc_level_cells)
+  subroutine mesh_setup_minc_dm_cell_natural_global(self, minc_dm, &
+       max_num_levels, minc_level_cells)
     !! Sets up natural-to-global AO for MINC DM, and overwrites
     !! original AO.
 
@@ -2543,7 +2543,7 @@ contains
          natural, global, minc_ao, ierr); CHKERRQ(ierr)
     deallocate(natural, global)
 
-    self%cell_order = minc_ao
+    self%cell_natural_global = minc_ao
 
   contains
 
@@ -2564,7 +2564,7 @@ contains
          call DMLabelGetValue(ghost_label, c, ghost, ierr); CHKERRQ(ierr)
          if (ghost < 0) then
             ic = ic + 1
-            natural(ic) = local_to_natural_cell_index(self%cell_order, &
+            natural(ic) = local_to_natural_cell_index(self%cell_natural_global, &
                  l2g, c)
             carray = c
             call ISLocalToGlobalMappingApplyBlock(minc_l2g, 1, carray, &
@@ -2610,7 +2610,7 @@ contains
          p = self%strata(0)%minc_point(ic, m)
          ic = ic + 1
          minc_frac_natural(ic) = local_to_natural_cell_index( &
-              self%cell_order, l2g, c)
+              self%cell_natural_global, l2g, c)
          call ISLocalToGlobalMappingApplyBlock(minc_l2g, 1, p, &
               minc_global(ic:ic), ierr); CHKERRQ(ierr)
       end select
@@ -2661,7 +2661,7 @@ contains
 
 !........................................................................
 
-  end subroutine mesh_setup_minc_dm_cell_order
+  end subroutine mesh_setup_minc_dm_cell_natural_global
 
 !------------------------------------------------------------------------
 
@@ -3198,14 +3198,14 @@ contains
 
     call DMGetDimension(self%dm, dim, ierr); CHKERRQ(ierr)
     section = dm_create_section(self%dm, [1], [dim])
-    natural_order = dm_natural_order_IS(self%dm, self%cell_order)
+    natural_order = dm_natural_order_IS(self%dm, self%cell_natural_global)
 
     call self%redistribute_dm(sf)
     if (sf .ne. PETSC_NULL_SF) then
        call self%redistribute_geometry(sf)
        call self%distribute_index_set(sf, section, self%cell_natural)
        call self%distribute_index_set(sf, section, self%cell_parent_natural)
-       call self%redistribute_cell_order(sf, section, natural_order)
+       call self%redistribute_cell_natural_global(sf, section, natural_order)
        call self%setup_ghost_arrays()
     end if
 
@@ -3266,10 +3266,10 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine mesh_redistribute_cell_order(self, sf, section, &
+  subroutine mesh_redistribute_cell_natural_global(self, sf, section, &
        natural_order)
-    !! Redistrbutes mesh cell_order AO using natural order IS created
-    !! on the DM before redistribution.
+    !! Redistrbutes mesh cell_natural-to-global AO using natural order
+    !! IS created on the DM before redistribution.
 
     use dm_utils_module, only: dm_get_num_partition_ghost_cells, &
          dm_get_end_interior_cell
@@ -3281,7 +3281,7 @@ contains
     ! Locals:
     IS :: redist_natural_order
     PetscSection :: redist_section
-    AO :: redist_cell_order
+    AO :: redist_cell_natural_global
     PetscInt, allocatable :: natural(:), global(:)
     PetscInt, pointer :: natural_indices(:)
     PetscInt :: start_cell, end_cell, end_interior_cell, c
@@ -3319,13 +3319,13 @@ contains
     call ISDestroy(redist_natural_order, ierr); CHKERRQ(ierr)
 
     call AOCreateMapping(PETSC_COMM_WORLD, num_non_ghost_cells, natural, &
-         global, redist_cell_order, ierr); CHKERRQ(ierr)
+         global, redist_cell_natural_global, ierr); CHKERRQ(ierr)
     deallocate(natural, global)
 
-    call AODestroy(self%cell_order, ierr); CHKERRQ(ierr)
-    self%cell_order = redist_cell_order
+    call AODestroy(self%cell_natural_global, ierr); CHKERRQ(ierr)
+    self%cell_natural_global = redist_cell_natural_global
 
-  end subroutine mesh_redistribute_cell_order
+  end subroutine mesh_redistribute_cell_natural_global
 
 !------------------------------------------------------------------------
 
@@ -3402,7 +3402,7 @@ contains
             ierr); CHKERRQ(ierr)
     else
        call DMGetLocalToGlobalMapping(self%dm, l2g, ierr); CHKERRQ(ierr)
-       natural = local_to_natural_cell_index(self%cell_order, l2g, local)
+       natural = local_to_natural_cell_index(self%cell_natural_global, l2g, local)
     end if
 
   end function mesh_local_to_parent_natural
@@ -3450,7 +3450,8 @@ contains
             PETSC_COMM_WORLD, ierr)
        end associate
     else
-       call AOPetscToApplication(self%cell_order, 1, idx, ierr); CHKERRQ(ierr)
+       call AOPetscToApplication(self%cell_natural_global, 1, idx, ierr)
+       CHKERRQ(ierr)
        parent_natural = idx(1)
        minc_level = 0
     end if

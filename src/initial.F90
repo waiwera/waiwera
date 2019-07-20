@@ -172,7 +172,7 @@ contains
        call DMGetLocalToGlobalMapping(mesh%dm, l2g, ierr); CHKERRQ(ierr)
        do i = 1, num_data
           associate(natural_cell_index => i - 1)
-            c = natural_to_local_cell_index(mesh%cell_order, l2g, &
+            c = natural_to_local_cell_index(mesh%cell_natural_global, l2g, &
                  natural_cell_index)
             if (c >= 0) then
                call DMLabelGetValue(ghost_label, c, ghost, ierr)
@@ -342,7 +342,7 @@ contains
 
        do i = 1, num_cells
           associate(natural_cell_index => i - 1)
-          c = natural_to_local_cell_index(mesh%cell_order, l2g, &
+          c = natural_to_local_cell_index(mesh%cell_natural_global, l2g, &
                natural_cell_index)
           if (c >= 0) then
              call DMLabelGetValue(ghost_label, c, ghost, ierr)
@@ -459,7 +459,7 @@ contains
 
       call fluid%init(eos%num_components, eos%num_phases)
 
-      call dm_get_cell_index(mesh%original_dm, mesh%original_cell_order, &
+      call dm_get_cell_index(mesh%original_dm, mesh%original_cell_natural_global, &
            original_cell_index)
 
       call create_fluid_vector(mesh%original_dm, max_component_name_length, &

@@ -106,7 +106,7 @@ contains
     call global_vec_section(fluid_vector, fluid_section)
     call VecGetArrayF90(fluid_vector, fluid_array, ierr); CHKERRQ(ierr)
 
-    call setup_sources(json, mesh%dm, mesh%cell_order, eos, thermo, start_time, &
+    call setup_sources(json, mesh%dm, mesh%cell_natural_global, eos, thermo, start_time, &
          fluid_vector, fluid_range_start, source_vector, source_range_start, &
          num_sources, total_num_sources, source_controls, source_is, err = err)
     call test%assert(0, err, "source setup error")
@@ -313,7 +313,7 @@ contains
     end do
     call VecRestoreArrayF90(fluid_vector, fluid_array, ierr); CHKERRQ(ierr)
 
-    call setup_sources(json, mesh%dm, mesh%cell_order, eos, thermo, start_time, &
+    call setup_sources(json, mesh%dm, mesh%cell_natural_global, eos, thermo, start_time, &
          fluid_vector, fluid_range_start, source_vector, source_range_start, &
          num_sources, total_num_sources, source_controls, source_is, err = err)
     call test%assert(0, err, "source setup error")

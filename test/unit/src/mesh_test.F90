@@ -19,7 +19,7 @@ module mesh_test
   public :: test_mesh_init, test_2d_cartesian_geometry, &
        test_2d_radial_geometry, test_mesh_face_permeability_direction, &
        test_setup_minc_dm, test_minc_rock, &
-       test_rock_assignment, test_cell_order, test_minc_cell_order, &
+       test_rock_assignment, test_cell_natural_global, test_minc_cell_natural_global, &
        test_global_to_fracture_natural, test_redistribute
 
 contains
@@ -141,7 +141,7 @@ contains
           call test%assert(face_area, face%area, msg)
           dist = face%distance
           call DMPlexGetSupport(mesh%dm, f, cells, ierr); CHKERRQ(ierr)
-          order = local_to_natural_cell_index(mesh%cell_order, l2g, cells)
+          order = local_to_natural_cell_index(mesh%cell_natural_global, l2g, cells)
           if (all(order == [0,1])) then
              gf = 1
           else if (all(order == [1,2])) then
@@ -722,7 +722,7 @@ contains
                  c = minc_cells(i)
                  call DMLabelGetValue(ghost_label, c, ghost, ierr)
                  if (ghost < 0) then
-                    order = local_to_natural_cell_index(orig_mesh%cell_order, l2g, c)
+                    order = local_to_natural_cell_index(orig_mesh%cell_natural_global, l2g, c)
                     call section_offset(orig_cell_section, c, orig_cell_offset, ierr)
                     CHKERRQ(ierr)
                     call orig_cell%assign_geometry(orig_cell_geom_array, orig_cell_offset)
@@ -1112,7 +1112,7 @@ contains
                c = minc_points(i)
                if (mesh%ghost_cell(c) < 0) then
                   fracture_natural = mesh%local_to_parent_natural(c)
-                  fracture_local = natural_to_local_cell_index(mesh%cell_order, &
+                  fracture_local = natural_to_local_cell_index(mesh%cell_natural_global, &
                        l2g, fracture_natural)
                   call DMLabelGetValue(minc_rocktype_label, fracture_local, &
                        r, ierr); CHKERRQ(ierr)
@@ -1144,8 +1144,8 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine test_cell_order(test)
-    ! cell_order AO
+  subroutine test_cell_natural_global(test)
+    ! cell_natural_global AO
 
     use fson_mpi_module
     use IAPWS_module
@@ -1164,18 +1164,18 @@ contains
 
     json_str = '{"mesh": {' // &
          '"filename": "' // trim(adjustl(data_path)) // 'mesh/7x7grid.exo"}}'
-    call cell_order_test_case(json_str, ' no bdy')
+    call cell_natural_global_test_case(json_str, ' no bdy')
 
     json_str = '{"mesh": {' // &
          '"filename": "' // trim(adjustl(data_path)) // 'mesh/7x7grid.exo"}, ' // &
          '"boundaries": [{"faces": {"cells": [0, 1, 2, 3, 4, 5], ' // &
          '  "normal": [0, -1, 0]}}]' // &
          '}'
-    call cell_order_test_case(json_str, 'bdy')
+    call cell_natural_global_test_case(json_str, 'bdy')
 
   contains
 
-    subroutine cell_order_test_case(json_str, title)
+    subroutine cell_natural_global_test_case(json_str, title)
       
       character(*), intent(in) :: json_str
       character(*), intent(in) :: title
@@ -1221,7 +1221,7 @@ contains
       do c = start_cell, end_cell - 1
          call DMLabelGetValue(label, c, label_order(c), ierr); CHKERRQ(ierr)
       end do
-      order = local_to_natural_cell_index(mesh%cell_order, l2g, &
+      order = local_to_natural_cell_index(mesh%cell_natural_global, l2g, &
            [(c, c = start_cell, end_cell - 1)])
       call test%assert(label_order, order, "cell order " // trim(title))
       deallocate(label_order, order)
@@ -1230,13 +1230,13 @@ contains
       call eos%destroy()
       call thermo%destroy()
 
-    end subroutine cell_order_test_case
+    end subroutine cell_natural_global_test_case
 
-  end subroutine test_cell_order
+  end subroutine test_cell_natural_global
 
 !------------------------------------------------------------------------
 
-  subroutine test_minc_cell_order(test)
+  subroutine test_minc_cell_natural_global(test)
     ! MINC cell order
 
     use fson_mpi_module
@@ -1259,7 +1259,7 @@ contains
          '           "geometry": {"fracture": {"volume": 0.1}}}}}'
     allocate(expected_minc_order(1, 0:48))
     expected_minc_order(1, :) = [(c + 49, c = 0, 48)]
-    call minc_cell_order_test_case(json_str, ' full no bdy', expected_minc_order)
+    call minc_cell_natural_global_test_case(json_str, ' full no bdy', expected_minc_order)
     deallocate(expected_minc_order)
 
     json_str = &
@@ -1272,7 +1272,7 @@ contains
          '}'
     allocate(expected_minc_order(1, 0:48))
     expected_minc_order(1, :) = [(c + 49, c = 0, 48)]
-    call minc_cell_order_test_case(json_str, ' full bdy', expected_minc_order)
+    call minc_cell_natural_global_test_case(json_str, ' full bdy', expected_minc_order)
     deallocate(expected_minc_order)
 
     json_str = &
@@ -1284,7 +1284,7 @@ contains
     expected_minc_order = 0
     expected_minc_order(1, 0:4) = [(c + 49, c = 0, 4)]
     expected_minc_order(1, 7:11) = [(c + 47, c = 7, 11)]
-    call minc_cell_order_test_case(json_str, ' partial no bdy', expected_minc_order)
+    call minc_cell_natural_global_test_case(json_str, ' partial no bdy', expected_minc_order)
     deallocate(expected_minc_order)
 
     json_str = &
@@ -1299,7 +1299,7 @@ contains
     expected_minc_order = 0
     expected_minc_order(1, 0:4) = [(c + 49, c = 0, 4)]
     expected_minc_order(1, 7:11) = [(c + 47, c = 7, 11)]
-    call minc_cell_order_test_case(json_str, ' partial bdy', expected_minc_order)
+    call minc_cell_natural_global_test_case(json_str, ' partial bdy', expected_minc_order)
     deallocate(expected_minc_order)
 
     json_str = &
@@ -1315,7 +1315,7 @@ contains
     expected_minc_order = 0
     expected_minc_order(1, 0:4) = [(c + 49, c = 0, 4)]
     expected_minc_order(1, 7:11) = [(c + 47, c = 7, 11)]
-    call minc_cell_order_test_case(json_str, ' partial multi-rock bdy', expected_minc_order)
+    call minc_cell_natural_global_test_case(json_str, ' partial multi-rock bdy', expected_minc_order)
     deallocate(expected_minc_order)
 
     json_str = &
@@ -1341,12 +1341,12 @@ contains
     do i = 1, size(natural)
        expected_minc_order(2, natural(i)) = minc_natural(i)
     end do
-    call minc_cell_order_test_case(json_str, ' multizone bdy', expected_minc_order)
+    call minc_cell_natural_global_test_case(json_str, ' multizone bdy', expected_minc_order)
     deallocate(expected_minc_order, natural, minc_natural)
 
   contains
 
-    subroutine minc_cell_order_test_case(json_str, title, expected_minc_order)
+    subroutine minc_cell_natural_global_test_case(json_str, title, expected_minc_order)
 
       character(*), intent(in) :: json_str
       character(*), intent(in) :: title
@@ -1388,9 +1388,9 @@ contains
                associate(minc => mesh%minc(iminc))
                  do m = 1, minc%num_levels
                     p = mesh%strata(0)%minc_point(ic(m), m)
-                    natural = local_to_natural_cell_index(mesh%cell_order, l2g, c)
+                    natural = local_to_natural_cell_index(mesh%cell_natural_global, l2g, c)
                     write(natural_str, '(i6)') natural
-                    minc_natural = local_to_natural_cell_index(mesh%cell_order, l2g, p)
+                    minc_natural = local_to_natural_cell_index(mesh%cell_natural_global, l2g, p)
                     expected_natural = expected_minc_order(m, natural)
                     call test%assert(expected_natural, minc_natural, &
                          'minc natural ' // title // ' ' // trim(natural_str))
@@ -1406,9 +1406,9 @@ contains
       call thermo%destroy()
       deallocate(ic)
 
-    end subroutine minc_cell_order_test_case
+    end subroutine minc_cell_natural_global_test_case
 
-  end subroutine test_minc_cell_order
+  end subroutine test_minc_cell_natural_global
 
 !------------------------------------------------------------------------
 
@@ -1490,7 +1490,7 @@ contains
       do i = 1, size(natural_indices)
          idx(1) = natural_indices(i)
          write(natural_str, '(i2)') idx(1)
-         call AOApplicationToPetsc(mesh%cell_order, 1, idx, ierr); CHKERRQ(ierr)
+         call AOApplicationToPetsc(mesh%cell_natural_global, 1, idx, ierr); CHKERRQ(ierr)
          global = idx(1)
          call mesh%global_to_parent_natural(global, natural, minc_level)
          call test%assert(expected_fracture_natural_indices(i), natural, &
