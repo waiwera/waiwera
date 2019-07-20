@@ -3186,12 +3186,10 @@ contains
     ! Locals:
     PetscInt :: dim
     PetscSection :: section
-    IS :: natural_order
     PetscErrorCode :: ierr
 
     call DMGetDimension(self%dm, dim, ierr); CHKERRQ(ierr)
     section = dm_create_section(self%dm, [1], [dim])
-    natural_order = dm_natural_order_IS(self%dm, self%cell_natural_global)
 
     call self%redistribute_dm(sf)
     if (sf .ne. PETSC_NULL_SF) then
@@ -3203,7 +3201,6 @@ contains
        call self%setup_ghost_arrays()
     end if
 
-    call ISDestroy(natural_order, ierr); CHKERRQ(ierr)
     call PetscSectionDestroy(section, ierr); CHKERRQ(ierr)
 
   end subroutine mesh_redistribute
