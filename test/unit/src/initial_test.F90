@@ -257,8 +257,8 @@ contains
       call thermo%init()
       call eos%init(json, thermo)
       call mesh%init(eos, json)
-      call mesh%configure(gravity, json, viewer = viewer, err = err)
-
+      call mesh%configure(gravity, json, err = err)
+      call mesh%output_cell_index(viewer)
       call DMCreateGlobalVector(mesh%dm, y, ierr); CHKERRQ(ierr)
       call PetscObjectSetName(y, "primary", ierr); CHKERRQ(ierr)
       call global_vec_range_start(y, y_range_start)
@@ -405,7 +405,8 @@ contains
     call thermo%init()
     call eos%init(json, thermo)
     call mesh%init(eos, json)
-    call mesh%configure(gravity, json, viewer = viewer, err = err)
+    call mesh%configure(gravity, json, err = err)
+    call mesh%output_cell_index(viewer)
 
     call create_fluid_vector(mesh%dm, max_component_name_length, &
          eos%component_names, max_phase_name_length, &
@@ -545,7 +546,8 @@ contains
     call thermo%init()
     call eos%init(json, thermo)
     call mesh%init(eos, json)
-    call mesh%configure(gravity, json, viewer = viewer, err = err)
+    call mesh%configure(gravity, json, err = err)
+    call mesh%output_cell_index(viewer)
 
     call DMCreateGlobalVector(mesh%dm, y, ierr); CHKERRQ(ierr)
     call PetscObjectSetName(y, "primary", ierr); CHKERRQ(ierr)

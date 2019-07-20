@@ -94,7 +94,9 @@ contains
 
     call mesh%init(eos, json)
     call fluid%init(eos%num_components, eos%num_phases)
-    call mesh%configure(gravity, json, viewer = viewer, err = err)
+    call mesh%configure(gravity, json, err = err)
+    call mesh%output_cell_index(viewer)
+
     call create_fluid_vector(mesh%dm, max_component_name_length, &
          eos%component_names, max_phase_name_length, eos%phase_names, &
          fluid_vector, fluid_range_start)

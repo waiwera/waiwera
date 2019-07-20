@@ -661,6 +661,7 @@ contains
     use utils_module, only: date_time_str
     use profiling_module, only: simulation_init_event
     use mpi_utils_module, only: mpi_broadcast_error_flag
+    use dm_utils_module, only: dm_get_cell_index
 
     class(flow_simulation_type), intent(in out) :: self
     type(fson_value), pointer, intent(in) :: json
@@ -694,7 +695,7 @@ contains
     call self%mesh%init(self%eos, json, self%logfile)
     call self%setup_gravity(json)
 
-    call self%mesh%configure(self%gravity, json, self%logfile, self%hdf5_viewer, err)
+    call self%mesh%configure(self%gravity, json, self%logfile, err)
     if (err == 0) then
        call self%mesh%override_face_properties()
        call self%create_solution_vector(self%solution, self%solution_range_start)
@@ -730,6 +731,7 @@ contains
                       end if
                    end if
 
+                   call self%mesh%output_cell_index(self%hdf5_viewer)
                    call self%add_boundary_ghost_cells()
 
                    call VecDuplicate(self%solution, self%balances, ierr); CHKERRQ(ierr)

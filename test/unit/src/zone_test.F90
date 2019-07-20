@@ -243,7 +243,9 @@ contains
          '"zones": {"zone1": [10, 15, 20, 27, 34, 44], ' // &
          '"zone2": [40, 30, 5]}}}')
     call mesh%init(eos, json)
-    call mesh%configure(gravity, json, viewer = viewer, err = err)
+    call mesh%configure(gravity, json, err = err)
+    call mesh%output_cell_index(viewer)
+
     call test%assert(0, err, 'config error')
     call fson_destroy_mpi(json)
     call mesh%destroy_distribution_data()
@@ -348,7 +350,9 @@ contains
          '"all": {"type": "box"}, ' // &
          '"xyzone": {"x": [0, 2000], "y": [2500, 4500]}}}}')
     call mesh%init(eos, json)
-    call mesh%configure(gravity, json, viewer = viewer, err = err)
+    call mesh%configure(gravity, json, err = err)
+    call mesh%output_cell_index(viewer)
+
     call test%assert(0, err, 'config error')
     call fson_destroy_mpi(json)
     call mesh%destroy_distribution_data()
@@ -434,7 +438,9 @@ contains
          '"zone_times2": {"*": ["zone_plus", "zone3"]}, ' // &
          '"all": {"-": null}}}}')
     call mesh%init(eos, json)
-    call mesh%configure(gravity, json, viewer = viewer, err = err)
+    call mesh%configure(gravity, json, err = err)
+    call mesh%output_cell_index(viewer)
+
     call test%assert(0, err, 'config error')
     call fson_destroy_mpi(json)
     call mesh%destroy_distribution_data()

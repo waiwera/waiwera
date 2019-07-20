@@ -115,6 +115,7 @@ module mesh_module
      procedure, public :: local_cell_minc_level => mesh_local_cell_minc_level
      procedure, public :: destroy_distribution_data => mesh_destroy_distribution_data
      procedure, public :: redistribute => mesh_redistribute
+     procedure, public :: output_cell_index => mesh_output_cell_index
   end type mesh_type
 
 contains
@@ -726,7 +727,7 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine mesh_configure(self, gravity, json, logfile, viewer, err)
+  subroutine mesh_configure(self, gravity, json, logfile, err)
     !! Configures mesh, including distribution over processes and
     !! construction of ghost cells, setup of data layout, geometry and
     !! cell index set.
@@ -741,10 +742,7 @@ contains
     PetscReal, intent(in) :: gravity(:) !! Gravity vector
     type(fson_value), pointer, intent(in) :: json !! JSON file pointer
     type(logfile_type), intent(in out), optional :: logfile !! Log file
-    PetscViewer, intent(in out) :: viewer !! PetscViewer for output of cell index sets to HDF5 file
     PetscErrorCode, intent(out) :: err !! Error flag
-    ! Locals:
-    PetscErrorCode :: ierr
 
     err = 0
 
@@ -765,11 +763,6 @@ contains
           call self%setup_minc(json, logfile, err)
           if (err == 0) then
              if (self%has_minc) call self%setup_minc_dm()
-             call dm_get_cell_index(self%dm, self%cell_natural_global, &
-                  self%cell_index)
-             if (viewer /= PETSC_NULL_VIEWER) then
-                call ISView(self%cell_index, viewer, ierr); CHKERRQ(ierr)
-             end if
           end if
        end if
     end if
@@ -3422,6 +3415,27 @@ contains
     end if
 
   end subroutine mesh_natural_cell_output_arrays
+
+!------------------------------------------------------------------------
+
+  subroutine mesh_output_cell_index(self, viewer)
+    !! Creates cell_index IS and outputs to specified viewer.
+
+    use dm_utils_module, only: dm_get_cell_index
+
+    class(mesh_type), intent(in out) :: self
+    PetscViewer, intent(in out) :: viewer
+    ! Locals:
+    PetscErrorCode :: ierr
+
+    call dm_get_cell_index(self%dm, self%cell_natural_global, &
+         self%cell_index)
+    if (viewer /= PETSC_NULL_VIEWER) then
+       call ISView(self%cell_index, viewer, ierr)
+       CHKERRQ(ierr)
+    end if
+
+  end subroutine mesh_output_cell_index
 
 !------------------------------------------------------------------------
 

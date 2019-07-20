@@ -105,7 +105,8 @@ contains
     json => fson_parse_mpi(str = '{"mesh": "' // trim(adjustl(data_path)) // 'mesh/block3.exo"}')
     call mesh%init(eos, json)
     call DMCreateLabel(mesh%serial_dm, open_boundary_label_name, ierr); CHKERRQ(ierr)
-    call mesh%configure(gravity, json, viewer = viewer, err = err)
+    call mesh%configure(gravity, json, err = err)
+    call mesh%output_cell_index(viewer)
     call fson_destroy_mpi(json)
     call mesh%destroy_distribution_data()
 
@@ -209,7 +210,9 @@ contains
          '"filename": "' // trim(adjustl(data_path)) // 'mesh/2D.msh",' // &
          '"thickness": 100.}}')
     call mesh%init(eos, json)
-    call mesh%configure(gravity, json, viewer = viewer, err = err)
+    call mesh%configure(gravity, json, err = err)
+    call mesh%output_cell_index(viewer)
+
     call fson_destroy_mpi(json)
     call mesh%destroy_distribution_data()
 
@@ -313,7 +316,9 @@ contains
          '"filename": "' // trim(adjustl(data_path)) // 'mesh/2D.msh",' // &
          '"radial": true}}')
     call mesh%init(eos, json)
-    call mesh%configure(gravity, json, viewer = viewer, err = err)
+    call mesh%configure(gravity, json, err = err)
+    call mesh%output_cell_index(viewer)
+
     call fson_destroy_mpi(json)
     call mesh%destroy_distribution_data()
 
@@ -425,7 +430,9 @@ contains
     call mesh%init(eos, json)
 
     call DMCreateLabel(mesh%serial_dm, open_boundary_label_name, ierr); CHKERRQ(ierr)
-    call mesh%configure(gravity, json, viewer = viewer, err = err)
+    call mesh%configure(gravity, json, err = err)
+    call mesh%output_cell_index(viewer)
+
     call mesh%override_face_properties()
     call fson_destroy_mpi(json)
     call mesh%destroy_distribution_data()
@@ -645,7 +652,9 @@ contains
       json => fson_parse_mpi(str = json_str)
       call eos%init(json, thermo)
       call mesh%init(eos, json)
-      call mesh%configure(gravity, json, viewer = viewer, err = err)
+      call mesh%configure(gravity, json, err = err)
+      call mesh%output_cell_index(viewer)
+
       call test%assert(0, err, name // ": minc config error")
       call fson_destroy_mpi(json)
       call mesh%destroy_distribution_data()
@@ -653,7 +662,9 @@ contains
       orig_json_str = get_orig_json_str(json_str)
       orig_json => fson_parse_mpi(str = orig_json_str)
       call orig_mesh%init(eos, orig_json)
-      call orig_mesh%configure(gravity, orig_json, viewer = viewer, err = err)
+      call orig_mesh%configure(gravity, orig_json, err = err)
+      call orig_mesh%output_cell_index(viewer)
+
       call fson_destroy_mpi(orig_json)
       call mesh%destroy_distribution_data()
 
@@ -905,7 +916,9 @@ contains
 
       call DMCreateLabel(mesh%serial_dm, open_boundary_label_name, ierr); CHKERRQ(ierr)
       call rock_dict%init(owner = PETSC_TRUE)
-      call mesh%configure(gravity, json, viewer = viewer, err = err)
+      call mesh%configure(gravity, json, err = err)
+      call mesh%output_cell_index(viewer)
+
       call setup_rock_vector(json, mesh%dm, rock_vector, &
            rock_dict, rock_range_start, mesh%ghost_cell, err = err)
       call test%assert(0, err, "setup rock vector error")
@@ -1070,7 +1083,9 @@ contains
       call eos%init(json, thermo)
       call mesh%init(eos, json)
       call DMCreateLabel(mesh%serial_dm, open_boundary_label_name, ierr); CHKERRQ(ierr)
-      call mesh%configure(gravity, json, viewer = viewer, err = err)
+      call mesh%configure(gravity, json, err = err)
+      call mesh%output_cell_index(viewer)
+
       call test%assert(0, err, title // " mesh configure error")
 
       call rock_dict%init(owner = PETSC_TRUE)
@@ -1207,7 +1222,9 @@ contains
          call DMSetLabelValue(mesh%serial_dm, label_name, c, c, ierr); CHKERRQ(ierr)
       end do
 
-      call mesh%configure(gravity, json, viewer = viewer, err = err)
+      call mesh%configure(gravity, json, err = err)
+      call mesh%output_cell_index(viewer)
+
       call fson_destroy_mpi(json)
       call mesh%destroy_distribution_data()
 
@@ -1371,7 +1388,9 @@ contains
       call eos%init(json, thermo)
       viewer = PETSC_NULL_VIEWER
       call mesh%init(eos, json)
-      call mesh%configure(gravity, json, viewer = viewer, err = err)
+      call mesh%configure(gravity, json, err = err)
+      call mesh%output_cell_index(viewer)
+
       call fson_destroy_mpi(json)
       call mesh%destroy_distribution_data()
 
@@ -1483,7 +1502,9 @@ contains
       call eos%init(json, thermo)
       viewer = PETSC_NULL_VIEWER
       call mesh%init(eos, json)
-      call mesh%configure(gravity, json, viewer = viewer, err = err)
+      call mesh%configure(gravity, json, err = err)
+      call mesh%output_cell_index(viewer)
+
       call fson_destroy_mpi(json)
       call mesh%destroy_distribution_data()
 
@@ -1543,7 +1564,7 @@ contains
          '"boundaries": [{"faces": {"cells": [0, 1, 2, 3, 4, 5, 6], ' // &
          '  "normal": [0, -1, 0]}}]' // &
          '}'
-    call redistribute_test(test, json_str, 'all bdy', 1, 2 * 49, 1, [49, 49], 7)
+    ! call redistribute_test(test, json_str, 'all bdy', 1, 2 * 49, 1, [49, 49], 7)
 
   contains
 
@@ -1578,7 +1599,9 @@ contains
       call eos%init(json, thermo)
       viewer = PETSC_NULL_VIEWER
       call mesh%init(eos, json)
-      call mesh%configure(gravity, json, viewer = viewer, err = err)
+      call mesh%configure(gravity, json, err = err)
+      call mesh%output_cell_index(viewer)
+
       call mesh%redistribute(sf)
       call mesh%construct_ghost_cells()
       call fson_destroy_mpi(json)
