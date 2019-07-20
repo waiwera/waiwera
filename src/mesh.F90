@@ -55,7 +55,7 @@ module mesh_module
      IS, public :: cell_index !! Index set defining natural to global cell ordering (without boundary cells)
      AO, public :: cell_order !! Application ordering to convert between global and natural cell indices
      AO, public :: original_cell_order !! Global-to-natural AO for original DM
-     IS, public :: minc_fracture_natural !! Natural indices of MINC fracture cells
+     IS, public :: cell_parent_natural !! Natural indices of parent cells (e.g. MINC fracture cells)
      PetscSF, public :: dist_sf !! Distribution star forest
      PetscInt, public, allocatable :: ghost_cell(:), ghost_face(:) !! Ghost label values for cells and faces
      type(minc_type), allocatable, public :: minc(:) !! Array of MINC zones, with parameters
@@ -100,7 +100,7 @@ module mesh_module
      procedure :: setup_minc_point_sf => mesh_setup_minc_point_sf
      procedure :: redistribute_dm => mesh_redistribute_dm
      procedure :: redistribute_geometry => mesh_redistribute_geometry
-     procedure :: redistribute_fracture_natural => mesh_redistribute_fracture_natural
+     procedure :: redistribute_cell_parent_natural => mesh_redistribute_cell_parent_natural
      procedure :: redistribute_cell_order => mesh_redistribute_cell_order
      procedure :: geometry_add_boundary => mesh_geometry_add_boundary
      procedure, public :: init => mesh_init
@@ -108,8 +108,8 @@ module mesh_module
      procedure, public :: construct_ghost_cells => mesh_construct_ghost_cells
      procedure, public :: set_boundary_conditions => mesh_set_boundary_conditions
      procedure, public :: destroy => mesh_destroy
-     procedure, public :: local_to_fracture_natural => mesh_local_to_fracture_natural
-     procedure, public :: global_to_fracture_natural => mesh_global_to_fracture_natural
+     procedure, public :: local_to_parent_natural => mesh_local_to_parent_natural
+     procedure, public :: global_to_parent_natural => mesh_global_to_parent_natural
      procedure, public :: natural_cell_output_arrays =>  mesh_natural_cell_output_arrays
      procedure, public :: local_cell_minc_level => mesh_local_cell_minc_level
      procedure, public :: destroy_distribution_data => mesh_destroy_distribution_data
@@ -775,7 +775,7 @@ contains
     if (self%has_minc) then
        call DMDestroy(self%original_dm, ierr); CHKERRQ(ierr)
        call AODestroy(self%original_cell_order, ierr); CHKERRQ(ierr)
-       call ISDestroy(self%minc_fracture_natural, ierr); CHKERRQ(ierr)
+       call ISDestroy(self%cell_parent_natural, ierr); CHKERRQ(ierr)
        call self%destroy_minc()
        call self%destroy_strata()
     end if
@@ -2338,10 +2338,10 @@ contains
   subroutine mesh_setup_minc_output_data(self, minc_dm, max_num_levels, &
        minc_level_cells)
     !! Sets up minc_level DM label on MINC DM, and
-    !! minc_fracture_natural IS, both used for output purposes. The
+    !! cell_parent_natural IS, both used for output purposes. The
     !! minc_level label contains the MINC level assigned to each
     !! cell. Non-MINC cells are assigned level 0 (as are fracture
-    !! cells in MINC zones). The minc_fracture_natural IS contains,
+    !! cells in MINC zones). The cell_parent_natural IS contains,
     !! for each cell, the natural index of the corresponding original
     !! single-porosity cell.
 
@@ -2387,13 +2387,13 @@ contains
     end do
 
     call ISCreateGeneral(PETSC_COMM_WORLD, end_cell - start_cell, &
-         natural, PETSC_COPY_VALUES, self%minc_fracture_natural, ierr); CHKERRQ(ierr)
+         natural, PETSC_COPY_VALUES, self%cell_parent_natural, ierr); CHKERRQ(ierr)
     deallocate(natural)
 
   contains
 
     subroutine minc_level_label_iterator(node, stopped)
-      !! Sets level and fracture_natural labels for all MINC cells and
+      !! Sets level and parent_natural labels for all MINC cells and
       !! faces.
 
       type(list_node_type), pointer, intent(in out) :: node
@@ -3172,7 +3172,7 @@ contains
     call self%redistribute_dm(sf)
     if (sf .ne. PETSC_NULL_SF) then
        call self%redistribute_geometry(sf)
-       call self%redistribute_fracture_natural(sf, section)
+       call self%redistribute_cell_parent_natural(sf, section)
        call self%redistribute_cell_order(sf, section, natural_order)
        call self%setup_ghost_arrays()
     end if
@@ -3234,8 +3234,8 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine mesh_redistribute_fracture_natural(self, sf, section)
-    !! Redistributes MINC fracture_natural IS.
+  subroutine mesh_redistribute_cell_parent_natural(self, sf, section)
+    !! Redistributes MINC cell_parent_natural IS.
 
     use dm_utils_module, only: dm_create_section
 
@@ -3244,21 +3244,21 @@ contains
     PetscSection, intent(in) :: section
     ! Locals:
     PetscSection :: redist_section
-    IS :: redist_fracture_natural
+    IS :: redist_cell_parent_natural
     PetscErrorCode :: ierr
 
     call PetscSectionCreate(PETSC_COMM_WORLD, redist_section, ierr)
     CHKERRQ(ierr)
-    call ISCreate(PETSC_COMM_WORLD, redist_fracture_natural, ierr)
+    call ISCreate(PETSC_COMM_WORLD, redist_cell_parent_natural, ierr)
     CHKERRQ(ierr)
     call DMPlexDistributeFieldIS(self%dm, sf, section, &
-         self%minc_fracture_natural, redist_section, &
-         redist_fracture_natural, ierr); CHKERRQ(ierr)
+         self%cell_parent_natural, redist_section, &
+         redist_cell_parent_natural, ierr); CHKERRQ(ierr)
     call PetscSectionDestroy(redist_section, ierr); CHKERRQ(ierr)
-    call ISDestroy(self%minc_fracture_natural, ierr); CHKERRQ(ierr)
-    self%minc_fracture_natural = redist_fracture_natural
+    call ISDestroy(self%cell_parent_natural, ierr); CHKERRQ(ierr)
+    self%cell_parent_natural = redist_cell_parent_natural
 
-  end subroutine mesh_redistribute_fracture_natural
+  end subroutine mesh_redistribute_cell_parent_natural
 
 !------------------------------------------------------------------------
 
@@ -3347,11 +3347,11 @@ contains
 
 !------------------------------------------------------------------------
 
-  PetscInt function mesh_local_to_fracture_natural(self, local) &
+  PetscInt function mesh_local_to_parent_natural(self, local) &
        result(natural)
     !! Takes a local cell index and returns natural index of the
-    !! corresponding fracture cell. (For a non-MINC mesh, the
-    !! 'fracture' cell is just the original cell itself.)
+    !! corresponding parent cell. (For a non-MINC mesh, the
+    !! 'parent' cell is just the original cell itself.)
 
     use dm_utils_module, only: local_to_natural_cell_index
 
@@ -3363,30 +3363,30 @@ contains
     PetscErrorCode :: ierr
 
     if (self%has_minc) then
-       call ISGetIndicesF90(self%minc_fracture_natural, natural_array, &
+       call ISGetIndicesF90(self%cell_parent_natural, natural_array, &
             ierr); CHKERRQ(ierr)
        natural = natural_array(local + 1)
-       call ISRestoreIndicesF90(self%minc_fracture_natural, natural_array, &
+       call ISRestoreIndicesF90(self%cell_parent_natural, natural_array, &
             ierr); CHKERRQ(ierr)
     else
        call DMGetLocalToGlobalMapping(self%dm, l2g, ierr); CHKERRQ(ierr)
        natural = local_to_natural_cell_index(self%cell_order, l2g, local)
     end if
 
-  end function mesh_local_to_fracture_natural
+  end function mesh_local_to_parent_natural
 
 !------------------------------------------------------------------------
 
-  subroutine mesh_global_to_fracture_natural(self, global, &
-       fracture_natural, minc_level)
+  subroutine mesh_global_to_parent_natural(self, global, &
+       parent_natural, minc_level)
     !! Takes a global cell index and returns natural index of
-    !! corresponding fracture cell, together with the MINC level of
-    !! the cell. (For a non-MINC mesh, the 'fracture' cell is just the
+    !! corresponding parent cell, together with the MINC level of
+    !! the cell. (For a non-MINC mesh, the 'parent' cell is just the
     !! original cell itself, and the MINC level is zero.)
 
     class(mesh_type), intent(in out) :: self
     PetscInt, intent(in) :: global !! Global cell index
-    PetscInt, intent(out) :: fracture_natural !! Natural index of fracture cell
+    PetscInt, intent(out) :: parent_natural !! Natural index of parent cell
     PetscInt, intent(out) :: minc_level !! MINC level of cell
     ! Locals:
     PetscInt :: idx(1), local_array(1), n
@@ -3404,7 +3404,7 @@ contains
        associate(c => local_array(1))
          if (c >= 0) then
             if (self%ghost_cell(c) < 0) then
-               fracture_natural = self%local_to_fracture_natural(c)
+               parent_natural = self%local_to_parent_natural(c)
                minc_level = self%local_cell_minc_level(c)
                CHKERRQ(ierr)
                process_found_rank = rank
@@ -3412,18 +3412,18 @@ contains
          end if
          call MPI_Allreduce(process_found_rank, found_rank, 1, MPI_INT, &
               MPI_MAX, PETSC_COMM_WORLD, ierr)
-         call MPI_bcast(fracture_natural, 1, MPI_LOGICAL, found_rank, &
+         call MPI_bcast(parent_natural, 1, MPI_LOGICAL, found_rank, &
             PETSC_COMM_WORLD, ierr)
          call MPI_bcast(minc_level, 1, MPI_LOGICAL, found_rank, &
             PETSC_COMM_WORLD, ierr)
        end associate
     else
        call AOPetscToApplication(self%cell_order, 1, idx, ierr); CHKERRQ(ierr)
-       fracture_natural = idx(1)
+       parent_natural = idx(1)
        minc_level = 0
     end if
 
-  end subroutine mesh_global_to_fracture_natural
+  end subroutine mesh_global_to_parent_natural
 
 !------------------------------------------------------------------------
 

@@ -1481,7 +1481,7 @@ end subroutine timestepper_steps_set_next_stepsize
 
     if (num_iterations > 0) then
        associate(mesh => context%ode%mesh)
-         call mesh%global_to_fracture_natural( &
+         call mesh%global_to_parent_natural( &
               context%steps%current%max_residual_cell, &
               natural, minc_level)
          call mesh%natural_cell_output_arrays( &

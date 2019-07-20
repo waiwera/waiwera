@@ -1111,7 +1111,7 @@ contains
             do i = 1, size(minc_points)
                c = minc_points(i)
                if (mesh%ghost_cell(c) < 0) then
-                  fracture_natural = mesh%local_to_fracture_natural(c)
+                  fracture_natural = mesh%local_to_parent_natural(c)
                   fracture_local = natural_to_local_cell_index(mesh%cell_order, &
                        l2g, fracture_natural)
                   call DMLabelGetValue(minc_rocktype_label, fracture_local, &
@@ -1492,7 +1492,7 @@ contains
          write(natural_str, '(i2)') idx(1)
          call AOApplicationToPetsc(mesh%cell_order, 1, idx, ierr); CHKERRQ(ierr)
          global = idx(1)
-         call mesh%global_to_fracture_natural(global, natural, minc_level)
+         call mesh%global_to_parent_natural(global, natural, minc_level)
          call test%assert(expected_fracture_natural_indices(i), natural, &
               trim(title) // ' ' // trim(natural_str) // ' natural')
          call test%assert(expected_minc_levels(i), minc_level, trim(title) &

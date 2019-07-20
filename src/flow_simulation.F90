@@ -1471,7 +1471,7 @@ contains
              call self%eos%phase_properties(cell_primary, cell%rock, &
                   cell%fluid, err)
              if (err > 0) then
-                natural = self%mesh%local_to_fracture_natural(c)
+                natural = self%mesh%local_to_parent_natural(c)
                 minc_level = self%mesh%local_cell_minc_level(c)
                 call self%mesh%natural_cell_output_arrays( &
                      natural, minc_level, cell_keys, cell_values)
@@ -1484,7 +1484,7 @@ contains
                 exit
              end if
           else
-             natural = self%mesh%local_to_fracture_natural(c)
+             natural = self%mesh%local_to_parent_natural(c)
              minc_level = self%mesh%local_cell_minc_level(c)
              call self%mesh%natural_cell_output_arrays( &
                   natural, minc_level, cell_keys, cell_values)
@@ -1600,7 +1600,7 @@ contains
                 call self%eos%phase_properties(cell_primary, cell%rock, &
                      cell%fluid, err)
                 if (err > 0) then
-                   natural = self%mesh%local_to_fracture_natural(c)
+                   natural = self%mesh%local_to_parent_natural(c)
                    minc_level = self%mesh%local_cell_minc_level(c)
                    call self%mesh%natural_cell_output_arrays( &
                         natural, minc_level, cell_keys, cell_values)
@@ -1612,7 +1612,7 @@ contains
                    exit
                 end if
              else
-                natural = self%mesh%local_to_fracture_natural(c)
+                natural = self%mesh%local_to_parent_natural(c)
                 minc_level = self%mesh%local_cell_minc_level(c)
                 call self%mesh%natural_cell_output_arrays( &
                      natural, minc_level, cell_keys, cell_values)
@@ -1734,7 +1734,7 @@ contains
              if (err == 0) then
                 if (transition) then
                    changed_y = PETSC_TRUE
-                   natural = self%mesh%local_to_fracture_natural(c)
+                   natural = self%mesh%local_to_parent_natural(c)
                    minc_level = self%mesh%local_cell_minc_level(c)
                    call self%mesh%natural_cell_output_arrays( &
                         natural, minc_level, cell_keys, cell_values)
@@ -1748,7 +1748,7 @@ contains
                         real_array_value = cell_primary, rank = rank)
                 end if
              else
-                natural = self%mesh%local_to_fracture_natural(c)
+                natural = self%mesh%local_to_parent_natural(c)
                 minc_level = self%mesh%local_cell_minc_level(c)
                 call self%mesh%natural_cell_output_arrays( &
                      natural, minc_level, cell_keys, cell_values)
@@ -1766,7 +1766,7 @@ contains
                 scaled_cell_search = old_scaled_cell_primary - scaled_cell_primary
              end if
           else
-             natural = self%mesh%local_to_fracture_natural(c)
+             natural = self%mesh%local_to_parent_natural(c)
              minc_level = self%mesh%local_cell_minc_level(c)
              call self%mesh%natural_cell_output_arrays( &
                   natural, minc_level, cell_keys, cell_values)
