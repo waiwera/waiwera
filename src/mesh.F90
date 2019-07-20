@@ -103,6 +103,7 @@ module mesh_module
      procedure :: redistribute_cell_parent_natural => mesh_redistribute_cell_parent_natural
      procedure :: redistribute_cell_order => mesh_redistribute_cell_order
      procedure :: geometry_add_boundary => mesh_geometry_add_boundary
+     procedure :: distribute_index_set => mesh_distribute_index_set
      procedure, public :: init => mesh_init
      procedure, public :: configure => mesh_configure
      procedure, public :: construct_ghost_cells => mesh_construct_ghost_cells
@@ -3322,6 +3323,34 @@ contains
     self%cell_order = redist_cell_order
 
   end subroutine mesh_redistribute_cell_order
+
+!------------------------------------------------------------------------
+
+  subroutine mesh_distribute_index_set(self, sf, section, index_set)
+    !! Distributes IS according to the specified distribution star
+    !! forest.
+
+    class(mesh_type), intent(in out) :: self
+    PetscSF, intent(in) :: sf !! Distribution star forest
+    PetscSection, intent(in) :: section !! Section for existing IS
+    IS, intent(in out) :: index_set
+    ! Locals:
+    PetscSection :: dist_section
+    IS :: dist_index_set
+    PetscErrorCode :: ierr
+
+    call PetscSectionCreate(PETSC_COMM_WORLD, dist_section, ierr)
+    CHKERRQ(ierr)
+    call ISCreate(PETSC_COMM_WORLD, dist_index_set, ierr)
+    CHKERRQ(ierr)
+    call DMPlexDistributeFieldIS(self%dm, sf, section, &
+         index_set, dist_section, &
+         dist_index_set, ierr); CHKERRQ(ierr)
+    call PetscSectionDestroy(dist_section, ierr); CHKERRQ(ierr)
+    call ISDestroy(index_set, ierr); CHKERRQ(ierr)
+    index_set = dist_index_set
+
+  end subroutine mesh_distribute_index_set
 
 !------------------------------------------------------------------------
 
