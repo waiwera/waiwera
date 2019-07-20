@@ -3321,7 +3321,6 @@ contains
     class(mesh_type), intent(in out) :: self
     PetscInt, intent(in) :: local !! Local cell index
     ! Locals:
-    ISLocalToGlobalMapping :: l2g
     PetscInt, pointer :: natural_array(:)
     PetscErrorCode :: ierr
 
@@ -3332,8 +3331,11 @@ contains
        call ISRestoreIndicesF90(self%cell_parent_natural, natural_array, &
             ierr); CHKERRQ(ierr)
     else
-       call DMGetLocalToGlobalMapping(self%dm, l2g, ierr); CHKERRQ(ierr)
-       natural = local_to_natural_cell_index(self%cell_natural_global, l2g, local)
+       call ISGetIndicesF90(self%cell_natural, natural_array, &
+            ierr); CHKERRQ(ierr)
+       natural = natural_array(local + 1)
+       call ISRestoreIndicesF90(self%cell_natural, natural_array, &
+            ierr); CHKERRQ(ierr)
     end if
 
   end function mesh_local_to_parent_natural
