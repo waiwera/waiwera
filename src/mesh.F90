@@ -101,7 +101,6 @@ module mesh_module
      procedure :: setup_minc_point_sf => mesh_setup_minc_point_sf
      procedure :: redistribute_dm => mesh_redistribute_dm
      procedure :: redistribute_geometry => mesh_redistribute_geometry
-     procedure :: redistribute_cell_natural_global => mesh_redistribute_cell_natural_global
      procedure :: geometry_add_boundary => mesh_geometry_add_boundary
      procedure :: setup_cell_natural => mesh_setup_cell_natural
      procedure :: distribute_index_set => mesh_distribute_index_set
@@ -3265,69 +3264,6 @@ contains
     end if
 
   end subroutine mesh_redistribute_geometry
-
-!------------------------------------------------------------------------
-
-  subroutine mesh_redistribute_cell_natural_global(self, sf, section, &
-       natural_order)
-    !! Redistrbutes mesh cell_natural-to-global AO using natural order
-    !! IS created on the DM before redistribution.
-
-    use dm_utils_module, only: dm_get_num_partition_ghost_cells, &
-         dm_get_end_interior_cell
-
-    class(mesh_type), intent(in out) :: self
-    PetscSF, intent(in) :: sf
-    PetscSection, intent(in) :: section
-    IS, intent(in) :: natural_order
-    ! Locals:
-    IS :: redist_natural_order
-    PetscSection :: redist_section
-    AO :: redist_cell_natural_global
-    PetscInt, allocatable :: natural(:), global(:)
-    PetscInt, pointer :: natural_indices(:)
-    PetscInt :: start_cell, end_cell, end_interior_cell, c
-    PetscInt :: num_ghost_cells, num_non_ghost_cells, end_non_ghost_cell
-    ISLocalToGlobalMapping :: l2g
-    PetscErrorCode :: ierr
-
-    call PetscSectionCreate(PETSC_COMM_WORLD, redist_section, ierr)
-    CHKERRQ(ierr)
-    call ISCreate(PETSC_COMM_WORLD, redist_natural_order, ierr)
-    CHKERRQ(ierr)
-    call DMPlexDistributeFieldIS(self%dm, sf, section, &
-         natural_order, redist_section, redist_natural_order, ierr)
-    CHKERRQ(ierr)
-    call PetscSectionDestroy(redist_section, ierr); CHKERRQ(ierr)
-
-    call DMPlexGetHeightStratum(self%dm, 0, start_cell, end_cell, &
-         ierr); CHKERRQ(ierr)
-    end_interior_cell = dm_get_end_interior_cell(self%dm, end_cell)
-    num_ghost_cells = dm_get_num_partition_ghost_cells(self%dm)
-    num_non_ghost_cells = end_interior_cell - start_cell - num_ghost_cells
-    end_non_ghost_cell = start_cell + num_non_ghost_cells
-
-    call DMGetLocalToGlobalMapping(self%dm, l2g, ierr); CHKERRQ(ierr)
-    allocate(global(start_cell: end_non_ghost_cell - 1))
-    call ISLocalToGlobalMappingApplyBlock(l2g, num_non_ghost_cells, &
-         [(c, c = start_cell, end_non_ghost_cell - 1)], global, ierr)
-    CHKERRQ(ierr)
-
-    call ISGetIndicesF90(redist_natural_order, natural_indices, ierr)
-    CHKERRQ(ierr)
-    natural = natural_indices(1: num_non_ghost_cells)
-    call ISRestoreIndicesF90(redist_natural_order, natural_indices, ierr)
-    CHKERRQ(ierr)
-    call ISDestroy(redist_natural_order, ierr); CHKERRQ(ierr)
-
-    call AOCreateMapping(PETSC_COMM_WORLD, num_non_ghost_cells, natural, &
-         global, redist_cell_natural_global, ierr); CHKERRQ(ierr)
-    deallocate(natural, global)
-
-    call AODestroy(self%cell_natural_global, ierr); CHKERRQ(ierr)
-    self%cell_natural_global = redist_cell_natural_global
-
-  end subroutine mesh_redistribute_cell_natural_global
 
 !------------------------------------------------------------------------
 
