@@ -731,20 +731,18 @@ contains
 
 !------------------------------------------------------------------------
 
-  AO function dm_get_natural_to_global_ao(dm, dist_sf) result(ao)
+  AO function dm_get_natural_to_global_ao(dm, cell_natural) result(ao)
     !! Returns application ordering for natural to global mapping on
-    !! the DM, given the mesh distribution SF.
+    !! the DM, given the IS local-to-natural cell mapping.
 
     DM, intent(in) :: dm
-    PetscSF, intent(in) :: dist_sf
+    IS, intent(in) :: cell_natural
 
     PetscMPIInt :: np
-    PetscInt :: num_roots, num_leaves, c
-    PetscInt :: start_cell, end_cell, end_interior_cell, end_non_ghost_cell
+    PetscInt :: c, start_cell, end_cell, end_interior_cell, end_non_ghost_cell
     PetscInt :: num_ghost_cells, num_non_ghost_cells
-    PetscInt, pointer :: local(:)
-    type(PetscSFNode), pointer :: remote(:)
-    PetscInt, allocatable :: natural(:), global(:)
+    PetscInt, allocatable :: global(:), natural(:)
+    PetscInt, pointer :: cell_natural_array(:)
     ISLocalToGlobalMapping :: l2g
     PetscErrorCode :: ierr
 
@@ -757,11 +755,13 @@ contains
        num_non_ghost_cells = end_interior_cell - start_cell - num_ghost_cells
        end_non_ghost_cell = start_cell + num_non_ghost_cells
        call DMGetLocalToGlobalMapping(dm, l2g, ierr); CHKERRQ(ierr)
-       call PetscSFGetGraph(dist_sf, num_roots, num_leaves, &
-            local, remote, ierr); CHKERRQ(ierr)
        allocate(natural(start_cell: end_non_ghost_cell - 1), &
             global(start_cell: end_non_ghost_cell - 1))
-       natural = remote(1: num_non_ghost_cells)%index
+       call ISGetIndicesF90(cell_natural, cell_natural_array, ierr)
+       CHKERRQ(ierr)
+       natural = cell_natural_array(1: num_non_ghost_cells)
+       call ISRestoreIndicesF90(cell_natural, cell_natural_array, ierr)
+       CHKERRQ(ierr)
        call ISLocalToGlobalMappingApplyBlock(l2g, num_non_ghost_cells, &
             [(c, c = start_cell, end_non_ghost_cell - 1)], global, ierr)
        CHKERRQ(ierr)

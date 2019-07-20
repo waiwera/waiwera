@@ -755,8 +755,8 @@ contains
     call dm_set_fv_adjacency(self%original_dm)
     call self%setup_geometry(gravity)
     self%dm = self%original_dm
-    self%original_cell_natural_global = dm_get_natural_to_global_ao(self%original_dm, &
-         self%dist_sf)
+    self%original_cell_natural_global = &
+         dm_get_natural_to_global_ao(self%original_dm, self%cell_natural)
     self%cell_natural_global = self%original_cell_natural_global
 
     call self%setup_zones(json, logfile, err)
