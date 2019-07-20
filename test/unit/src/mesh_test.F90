@@ -1526,14 +1526,14 @@ contains
          '  "zones": {"all": {"-": null}},' // &
          '  "minc": {"rock": {"zones": ["all"]}, ' // &
          '           "geometry": {"fracture": {"volume": 0.1}}}}}'
-    call redistribute_test(test, json_str, 'all', 1, 2 * 49, 1, [49, 49])
+    call redistribute_test(test, json_str, 'all', 1, 2 * 49, 1, [49, 49], 0)
 
     json_str = &
          '{"mesh": {"filename": "' // trim(adjustl(data_path)) // 'mesh/7x7grid.exo",' // &
          '  "zones": {"left": {"x": [0, 1500]}},' // &
          '  "minc": {"rock": {"zones": ["left"]}, ' // &
          '           "geometry": {"matrix": {"volume": 0.9}}}}}'
-    call redistribute_test(test, json_str, 'partial', 1, 49 + 14, 1, [49, 14])
+    call redistribute_test(test, json_str, 'partial', 1, 49 + 14, 1, [49, 14], 0)
 
     json_str = &
          '{"mesh": {"filename": "' // trim(adjustl(data_path)) // 'mesh/7x7grid.exo",' // &
@@ -1543,18 +1543,19 @@ contains
          '"boundaries": [{"faces": {"cells": [0, 1, 2, 3, 4, 5, 6], ' // &
          '  "normal": [0, -1, 0]}}]' // &
          '}'
-    call redistribute_test(test, json_str, 'all bdy', 1, 2 * 49, 1, [49, 49])
+    call redistribute_test(test, json_str, 'all bdy', 1, 2 * 49, 1, [49, 49], 7)
 
   contains
 
     subroutine redistribute_test(test, json_str, title, expected_num_zones, &
-         expected_num_cells, expected_max_level, expected_num_minc_level_cells)
+         expected_num_cells, expected_max_level, expected_num_minc_level_cells, &
+         expected_num_bdy_cells)
 
       class(unit_test_type), intent(in out) :: test
       character(*), intent(in) :: json_str
       character(*), intent(in) :: title
       PetscInt, intent(in) :: expected_num_zones, expected_num_cells
-      PetscInt, intent(in) :: expected_max_level
+      PetscInt, intent(in) :: expected_max_level, expected_num_bdy_cells
       PetscInt, intent(in) :: expected_num_minc_level_cells(0: expected_max_level)
       ! Locals:
       type(mesh_type) :: mesh
@@ -1565,13 +1566,10 @@ contains
       PetscSF :: sf
       PetscMPIInt :: rank
       PetscInt :: num_minc_zones, max_num_levels, num_cells
-      PetscInt :: m, num
+      PetscInt :: m, num, num_local_bdy_cells, num_bdy_cells
       PetscErrorCode :: err, ierr
       character(48) :: str
       PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
-
-      PetscInt :: c, start_cell, end_cell, ghost, ibdy, iminc
-      DMLabel :: ghost_label, bdy_label, minc_label
 
       call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
 
@@ -1585,17 +1583,6 @@ contains
       call mesh%construct_ghost_cells()
       call fson_destroy_mpi(json)
       call mesh%destroy_distribution_data()
-
-      call DMGetLabel(mesh%dm, "ghost", ghost_label, ierr)
-      call DMGetLabel(mesh%dm, boundary_ghost_label_name, bdy_label, ierr)
-      call DMGetLabel(mesh%dm, minc_level_label_name, minc_label, ierr)
-      call DMPlexGetHeightStratum(mesh%dm, 0, start_cell, end_cell, ierr)
-      do c = start_cell, end_cell - 1
-         call DMLabelGetValue(ghost_label, c, ghost, ierr)
-         call DMLabelGetValue(bdy_label, c, ibdy, ierr)
-         call DMLabelGetValue(minc_label, c, iminc, ierr)
-         write(*, '(i1, 1x, i3, 1x, i3, 1x, i2, 1x, i2)') rank, c, ghost, iminc, ibdy
-      end do
 
       if (rank == 0) then
          call test%assert(mesh%has_minc, title // ": mesh has minc")
@@ -1625,6 +1612,14 @@ contains
          end if
       end do
 
+      call DMGetStratumSize(mesh%dm, boundary_ghost_label_name, 1, &
+           num_local_bdy_cells, ierr); CHKERRQ(ierr)
+      call mpi_reduce(num_local_bdy_cells, num_bdy_cells, 1, &
+              MPI_INTEGER, MPI_SUM, 0, PETSC_COMM_WORLD, ierr)
+      if (rank == 0) then
+         call test%assert(expected_num_bdy_cells, num_bdy_cells, &
+              title // " num boundary cells")
+      end if
       call PetscSFDestroy(sf, ierr); CHKERRQ(ierr)
       call mesh%destroy()
       call eos%destroy()
