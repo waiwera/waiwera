@@ -495,6 +495,46 @@ contains
 
 !------------------------------------------------------------------------
 
+  PetscInt function total_interior_cell_count_sf(mesh) result(n)
+    ! Count mesh interior cells using point SF.
+
+    use dm_utils_module, only: dm_get_end_interior_cell
+
+    type(mesh_type), intent(in) :: mesh
+    ! Locals:
+    PetscMPIInt :: np
+    PetscInt :: c, n_local, start_cell, end_cell, end_interior_cell
+    PetscSF :: point_sf
+    PetscInt :: num_roots, num_leaves
+    PetscInt, pointer :: local(:)
+    type(PetscSFNode), pointer :: remote(:)
+    PetscErrorCode :: ierr
+
+    call MPI_comm_size(PETSC_COMM_WORLD, np, ierr)
+    call DMPlexGetHeightStratum(mesh%dm, 0, start_cell, end_cell, ierr)
+    CHKERRQ(ierr)
+    end_interior_cell = dm_get_end_interior_cell(mesh%dm, end_cell)
+
+    if (np == 1) then
+       n_local = end_interior_cell - start_cell
+    else
+       n_local = 0
+       call DMGetPointSF(mesh%dm, point_sf, ierr); CHKERRQ(ierr)
+       call PetscSFGetGraph(point_sf, num_roots, num_leaves, &
+            local, remote, ierr); CHKERRQ(ierr)
+       do c = start_cell, end_interior_cell - 1
+          if (local(c + 1) >= end_cell) then
+             n_local = n_local + 1
+          end if
+       end do
+    end if
+    call MPI_reduce(n_local, n, 1, MPI_INTEGER, MPI_SUM, &
+         0, PETSC_COMM_WORLD, ierr)
+
+  end function total_interior_cell_count_sf
+
+!------------------------------------------------------------------------
+
   PetscInt function total_interior_cell_label_count(mesh, label_name, &
        label_value) result(n)
     ! Count mesh interior cells with specified label value.
@@ -626,7 +666,7 @@ contains
       type(IAPWS_type) :: thermo
       type(eos_we_type) :: eos
       PetscViewer :: viewer
-      PetscInt :: num_cells, num_minc_zones, m, num_local, num, max_num_levels
+      PetscInt :: num_cells, num_cells_sf, num_minc_zones, m, num, max_num_levels
       PetscErrorCode :: err
       PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
       character(48) :: str
@@ -683,16 +723,17 @@ contains
       end if
 
       num_cells = total_interior_cell_count(mesh)
+      num_cells_sf = total_interior_cell_count_sf(mesh)
       if (rank == 0) then
          call test%assert(expected_num_cells, &
               num_cells, name  // ": num cells")
+         call test%assert(expected_num_cells, &
+              num_cells_sf, name  // ": num cells SF")
       end if
 
       do m = 0, expected_max_level
-         call DMGetStratumSize(mesh%dm, minc_level_label_name, m, &
-               num_local, ierr); CHKERRQ(ierr)
-         call MPI_reduce(num_local, num, 1, MPI_INTEGER, MPI_SUM, &
-              0, PETSC_COMM_WORLD, ierr)
+         num = total_interior_cell_label_count(mesh, &
+              minc_level_label_name, m)
          if (rank == 0) then
             write(str, '(a, i1)') ": num minc points, level ", m
             call test%assert(expected_num_minc_level_cells(m), &
@@ -1564,7 +1605,7 @@ contains
          '"boundaries": [{"faces": {"cells": [0, 1, 2, 3, 4, 5, 6], ' // &
          '  "normal": [0, -1, 0]}}]' // &
          '}'
-    ! call redistribute_test(test, json_str, 'all bdy', 1, 2 * 49, 1, [49, 49], 7)
+    call redistribute_test(test, json_str, 'all bdy', 1, 2 * 49, 1, [49, 49], 7)
 
   contains
 
@@ -1586,7 +1627,7 @@ contains
       PetscViewer :: viewer
       PetscSF :: sf
       PetscMPIInt :: rank
-      PetscInt :: num_minc_zones, max_num_levels, num_cells
+      PetscInt :: num_minc_zones, max_num_levels, num_cells, num_cells_sf
       PetscInt :: m, num, num_local_bdy_cells, num_bdy_cells
       PetscErrorCode :: err, ierr
       character(48) :: str
@@ -1620,9 +1661,12 @@ contains
       end if
 
       num_cells = total_interior_cell_count(mesh)
+      num_cells_sf = total_interior_cell_count_sf(mesh)
       if (rank == 0) then
          call test%assert(expected_num_cells, &
               num_cells, title  // ": num cells")
+         call test%assert(expected_num_cells, &
+              num_cells_sf, title  // ": num cells SF")
       end if
 
       do m = 0, expected_max_level
