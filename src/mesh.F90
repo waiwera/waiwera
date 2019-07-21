@@ -1996,7 +1996,7 @@ contains
        self%strata(h)%minc_shift(0) = stratum_shift(h) * num_minc_cells
        do m = 1, max_num_levels
           self%strata(h)%minc_shift(m) = stratum_shift(h) * num_minc_cells + &
-               self%strata(h)%end_interior + minc_offset(m - 1)
+               self%strata(h)%end_non_ghost + minc_offset(m - 1)
        end do
     end do
 
