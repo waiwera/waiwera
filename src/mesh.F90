@@ -1882,6 +1882,7 @@ contains
 
     call self%setup_minc_dm_cell_natural_global(minc_dm, max_num_levels, &
          minc_level_cells)
+    self%cell_natural = dm_natural_order_IS(minc_dm, self%cell_natural_global)
     call self%setup_minc_geometry(minc_dm, num_cells, max_num_levels, &
          num_minc_zones, minc_zone)
 
