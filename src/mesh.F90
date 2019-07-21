@@ -190,13 +190,13 @@ contains
     if (ghost_dm .ne. PETSC_NULL_DM) then
        call DMDestroy(self%dm, ierr); CHKERRQ(ierr);
        self%dm = ghost_dm
+       call dm_set_fv_adjacency(self%dm)
+       call set_dm_default_data_layout(self%dm, self%dof)
+       call dm_label_boundary_ghosts(self%dm, boundary_ghost_label_name)
+       self%cell_natural_global = dm_get_natural_to_global_ao(self%dm, self%cell_natural)
+       call self%geometry_add_boundary()
+       call self%setup_ghost_arrays()
     end if
-    call dm_set_fv_adjacency(self%dm)
-    call set_dm_default_data_layout(self%dm, self%dof)
-    call dm_label_boundary_ghosts(self%dm, boundary_ghost_label_name)
-    self%cell_natural_global = dm_get_natural_to_global_ao(self%dm, self%cell_natural)
-    call self%geometry_add_boundary()
-    call self%setup_ghost_arrays()
 
   end subroutine mesh_construct_ghost_cells
 
