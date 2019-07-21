@@ -99,6 +99,7 @@ module mesh_module
      procedure :: setup_minc_geometry => mesh_setup_minc_geometry
      procedure :: setup_minc_rock_properties => mesh_setup_minc_rock_properties
      procedure :: setup_minc_point_sf => mesh_setup_minc_point_sf
+     procedure :: setup_minc_coordinates => mesh_setup_minc_coordinates
      procedure :: redistribute_dm => mesh_redistribute_dm
      procedure :: redistribute_geometry => mesh_redistribute_geometry
      procedure :: geometry_add_boundary => mesh_geometry_add_boundary
@@ -1885,6 +1886,7 @@ contains
     self%cell_natural = dm_natural_order_IS(minc_dm, self%cell_natural_global)
     call self%setup_minc_geometry(minc_dm, num_cells, max_num_levels, &
          num_minc_zones, minc_zone)
+    call self%setup_minc_coordinates(minc_dm)
 
     do m = 0, max_num_levels
        call minc_level_cells(m)%destroy()
@@ -3173,6 +3175,49 @@ contains
     end if
 
   end subroutine mesh_setup_minc_point_sf
+
+!------------------------------------------------------------------------
+
+  subroutine mesh_setup_minc_coordinates(self, minc_dm)
+    !! Sets coordinate section and vector in MINC DM. These do not
+    !! contain any values and are not used, but are expected to be
+    !! present by DMPlexConstructGhostCells().
+
+    class(mesh_type), intent(in out) :: self
+    DM, intent(in out) :: minc_dm
+    ! Locals:
+    PetscInt :: dim, v, vstart, vend
+    PetscSection :: section, minc_section
+    Vec :: coordinates, minc_coordinates
+    PetscErrorCode :: ierr
+
+    call DMGetCoordinateDim(self%dm, dim, ierr); CHKERRQ(ierr)
+    call DMSetCoordinateDim(minc_dm, dim, ierr); CHKERRQ(ierr)
+    call DMGetCoordinateSection(self%dm, section, ierr); CHKERRQ(ierr)
+    call PetscSectionCreate(PETSC_COMM_WORLD, minc_section, ierr); CHKERRQ(ierr)
+    call PetscSectionSetNumFields(minc_section, 1, ierr); CHKERRQ(ierr)
+    call PetscSectionSetFieldComponents(minc_section, 0, dim, ierr)
+    CHKERRQ(ierr)
+    call DMPlexGetDepthStratum(minc_dm, 0, vstart, vend, ierr)
+    CHKERRQ(ierr)
+    call PetscSectionSetChart(minc_section, vstart, vend, ierr)
+    CHKERRQ(ierr)
+    do v = vstart, vend - 1
+       call PetscSectionSetDof(minc_section, v, dim, ierr); CHKERRQ(ierr)
+       call PetscSectionSetFieldDof(minc_section, v, 0, dim, ierr)
+       CHKERRQ(ierr)
+    end do
+    call PetscSectionSetUp(minc_section, ierr); CHKERRQ(ierr)
+    call DMSetCoordinateSection(minc_dm, PETSC_DETERMINE, minc_section, ierr)
+    CHKERRQ(ierr)
+
+    call DMGetCoordinatesLocal(self%dm, coordinates, ierr); CHKERRQ(ierr)
+    call VecDuplicate(coordinates, minc_coordinates, ierr); CHKERRQ(ierr)
+    call DMSetCoordinatesLocal(minc_dm, minc_coordinates, ierr)
+    CHKERRQ(ierr)
+    call VecDestroy(minc_coordinates, ierr); CHKERRQ(ierr)
+
+  end subroutine mesh_setup_minc_coordinates
 
 !------------------------------------------------------------------------
 
