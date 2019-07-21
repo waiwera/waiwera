@@ -173,7 +173,8 @@ contains
     !! Constructs ghost cells on open boundary faces.
 
     use dm_utils_module, only: dm_set_fv_adjacency, &
-         set_dm_default_data_layout, dm_label_boundary_ghosts
+         set_dm_default_data_layout, dm_label_boundary_ghosts, &
+         dm_get_natural_to_global_ao
 
     class(mesh_type), intent(in out) :: self
     ! Locals:
@@ -193,6 +194,7 @@ contains
     call dm_set_fv_adjacency(self%dm)
     call set_dm_default_data_layout(self%dm, self%dof)
     call dm_label_boundary_ghosts(self%dm, boundary_ghost_label_name)
+    self%cell_natural_global = dm_get_natural_to_global_ao(self%dm, self%cell_natural)
     call self%geometry_add_boundary()
     call self%setup_ghost_arrays()
 
