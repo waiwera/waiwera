@@ -3261,8 +3261,7 @@ contains
 
     use dm_utils_module, only: set_dm_default_data_layout, &
          dm_setup_fv_discretization, dm_set_fv_adjacency, &
-         dm_label_partition_ghosts, &
-         dm_set_cell_hybrid_bound_from_label
+         dm_label_partition_ghosts
 
     class(mesh_type), intent(in out) :: self
     PetscSF, intent(out) :: sf
@@ -3279,8 +3278,6 @@ contains
        call dm_set_fv_adjacency(self%dm)
        call set_dm_default_data_layout(self%dm, self%dof)
        call dm_label_partition_ghosts(self%dm)
-       call dm_set_cell_hybrid_bound_from_label(self%dm, &
-            boundary_ghost_label_name)
     end if
 
   end subroutine mesh_redistribute_dm
