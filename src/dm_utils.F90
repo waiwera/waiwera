@@ -29,7 +29,7 @@ module dm_utils_module
      !! Type for point stratum (cells, faces, edges or vertices) in a
      !! DM. This includes functionality for MINC DM point calculations.
      private
-     PetscInt, public :: start, end, end_interior
+     PetscInt, public :: start, end, end_interior, end_non_ghost
      PetscInt, public, allocatable :: minc_shift(:)
      PetscInt, public :: num_minc_points
    contains
@@ -167,7 +167,12 @@ contains
     PetscInt, intent(out) :: depth
     type(dm_stratum_type), allocatable, intent(out) :: strata(:)
     ! Locals:
-    PetscErrorCode :: ierr, h
+    PetscMPIInt :: np
+    DMLabel :: ghost_label
+    PetscInt :: h, p, ghost
+    PetscErrorCode :: ierr
+
+    call MPI_comm_size(PETSC_COMM_WORLD, np, ierr)
 
     call DMPlexGetDepth(dm, depth, ierr); CHKERRQ(ierr)
     allocate(strata(0: depth))
@@ -185,6 +190,20 @@ contains
           strata(h)%end_interior = strata(h)%end
        end if
     end do
+
+    strata%end_non_ghost = strata%end
+    if (np > 1) then
+       call DMGetLabel(dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
+       do h = 0, depth
+          do p = strata(h)%start, strata(h)%end - 1
+             call DMLabelGetValue(ghost_label, p, ghost, ierr); CHKERRQ(ierr)
+             if (ghost > 0) then
+                strata(h)%end_non_ghost = p
+                exit
+             end if
+          end do
+       end do
+    end if
 
   end subroutine dm_get_strata
 
