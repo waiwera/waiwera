@@ -7,12 +7,6 @@
     update_cache: yes
     install_recommends: no
 
-- name: Install required tools
-  package:
-    name: "{{ required_tools }}"
-    state: present
-    update_cache: yes
-    install_recommends: no
 
 - name: Install python dependencies
   package:
@@ -33,15 +27,6 @@
     state: present
     install_recommends: no
 
-- name: Install Openmpi
-  block:
-
-  - package:
-      name: "{{ openmpi }}"
-      state: present
-
-  when: openmpi_test is failed
-
 - name: Install PETSc dependencies
   package:
     name: "{{ petsc_dependencies }}"
@@ -59,7 +44,10 @@
   pip:
     name: pip
     executable: "{{ pip_ex }}"
-    # extra_args: "-U"
+    extra_args: --upgrade
   # when: ansible_os_family != 'Archlinux'
   tags:
     - pip
+    # - packages
+  register: pip_error
+  ignore_errors: True

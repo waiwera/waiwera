@@ -23,9 +23,10 @@
   when: docker_run is defined
 
 - name: waiwera - Meson build
-  shell: 'meson build --buildtype=release --prefix={{ base_dir }} --libdir={{ lib_path }} --includedir={{ include_path }}'
+  shell: meson build --buildtype=release --prefix={{ base_dir }} --libdir={{ lib_path }} --includedir={{ include_path }}
   args:
     chdir: "{{ waiwera_path }}"
+    executable: /bin/bash
   tags:
     - meson
     - build

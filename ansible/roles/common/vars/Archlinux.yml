@@ -5,10 +5,10 @@ build_tools:
   - ninja
   - make
   - cmake
-
-required_tools:
-  - ninja
   - openssh-client
+
+ninja:
+  - ninja
 
 python_dependencies:
   - python3
@@ -25,7 +25,7 @@ libraries:
 
 openmpi:
   - openmpi
-  
+
 petsc_dependencies:
   - bison
   - flex

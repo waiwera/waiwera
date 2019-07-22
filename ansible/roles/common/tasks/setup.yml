@@ -29,7 +29,7 @@
 
 - name: Add paths to bash_profile
   blockinfile:
-    dest: ~/.bashrc
+    dest: ~/.profile
     block: "{{ lookup('template', 'opt_paths.j2') }}"
     marker: "# {mark} ANSIBLE MANAGED BLOCK - PATHS"
   tags:

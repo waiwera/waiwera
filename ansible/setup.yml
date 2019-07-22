@@ -1,0 +1,10 @@
+---
+
+- name: Basic env setup
+  hosts: all
+  tasks:
+
+  - name: common role
+    import_role:
+      name: setup
+
