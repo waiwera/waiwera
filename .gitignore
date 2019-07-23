@@ -54,6 +54,7 @@ Thumbs.db
 ##################
 ansible/secrets.yml
 *~
+*.sublime-*
 
 # Ansible Files #
 #################

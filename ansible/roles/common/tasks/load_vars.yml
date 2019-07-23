@@ -1,0 +1,37 @@
+---
+
+- name: Get Variables
+  include_vars: "{{ item }}"
+  with_first_found:
+    - "../vars/{{ ansible_distribution }}-{{ ansible_distribution_major_version | int}}.yml"
+    - "../vars/{{ ansible_distribution }}.yml"
+    - "../vars/{{ ansible_os_family }}.yml"
+    - "../vars/default.yml"
+  tags:
+    - always
+
+- name: Get Nesi variables
+  include_vars: ../defaults/nesi.yml
+  tags:
+    - never
+    - nesi
+
+- name: Set waiwera path variables
+  set_fact:
+    waiwera_path: "{{ base_dir }}/waiwera"
+    bin_path: "{{ base_dir }}/bin"
+    lib_path: "{{ base_dir }}/lib"
+    include_path: "{{ base_dir }}/include"
+    software_path: "{{ base_dir }}/software"
+    local_bin: "/home/{{ app_user }}/.local/bin"
+
+- name: Set petsc and pkgconfig layer path variables
+  set_fact:
+    pkgconfig_path: "{{ lib_path }}/pkgconfig"
+    petsc_path: "{{ software_path }}/PETSc"
+
+- name: Set petsc and pkgconfig layer path variables
+  set_fact:
+    petsc_bin: "{{ petsc_path }}/release/bin"
+
+

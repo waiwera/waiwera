@@ -4,10 +4,10 @@ build_tools:
   - valgrind
   - make
   - cmake
-
-required_tools:
-  - ninja-build
   - openssh-client
+
+ninja:
+  - ninja-build
 
 python_dependencies:
   - python3
@@ -31,9 +31,9 @@ petsc_dependencies:
   - bison
   - flex
 
-
 pip:
   - python3-pip
+  - python-pip
 
 pip_ex: pip3
 

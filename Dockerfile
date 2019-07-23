@@ -23,11 +23,11 @@ ADD ansible /ansible
 
 RUN apt update && \
     apt install -y --no-install-recommends  \
-        python3-minimal \
-        python3-pip \
-        python3-setuptools \
-        python3-wheel && \
-    pip3 install ansible &&\
+        python-minimal \
+        python-pip \
+        python-setuptools \
+        python-wheel && \
+    pip install ansible &&\
     usr/local/bin/ansible-playbook \
         --connection=local \
         /ansible/local.yml \
@@ -37,7 +37,7 @@ RUN apt update && \
         -e "base_dir=${base_dir}" \
         --tags=all,docker \
         --skip-tags=local,zofu,fson && \
-    pip3 uninstall ansible -y && \
+    pip uninstall ansible -y && \
     apt-get autoremove -y && \
     apt-get autoclean -y && \
     apt-get clean -y && \

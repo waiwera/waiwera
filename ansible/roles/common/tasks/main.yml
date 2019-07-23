@@ -3,6 +3,7 @@
   include_vars: secrets.yml
   tags:
     - packer
+    - never
 
 - name: Set docker_status
   set_fact:
@@ -18,50 +19,68 @@
       shell: /bin/bash
       uid: 1000
       comment: waiwera app user
+
   - group:
       name: "{{ app_group }}"
       # shell: /bin/bash
       gid: 1000
       # comment: waiwera app user
-  when: docker_run is defined
+  become: yes
+  tags:
+    - never
+    - docker
 
 # - name: Get default Variables
 #   include_vars: "../vars/default.yml"
 
-- name: Get Variables
-  include_vars: "{{ item }}"
-  with_first_found:
-    - "../vars/{{ ansible_distribution }}-{{ ansible_distribution_major_version | int}}.yml"
-    - "../vars/{{ ansible_distribution }}.yml"
-    - "../vars/{{ ansible_os_family }}.yml"
-    - "../vars/default.yml"
-
-- name: Get Nesi variables
-  include_vars: nesi.yml
+- name: Load Variables
+  include: load_vars.yml
   tags:
-    - never
-    - nesi
+    - variables
 
-- name: Set 1st layer path variables
-  set_fact:
-    waiwera_path: "{{ base_dir }}/waiwera"
-    bin_path: "{{ base_dir }}/bin"
-    lib_path: "{{ base_dir }}/lib"
-    include_path: "{{ base_dir }}/include"
-    software_path: "{{ base_dir }}/software"
+- name: Setup packages
+  include: packages.yml
+  become: yes
+  tags:
+    - packages
 
-- name: Set 2nd layer path variables
-  set_fact:
-    pkgconfig_path: "{{ lib_path }}/pkgconfig"
-    petsc_path: "{{ software_path }}/PETSc"
 
 - name: openmpi - test for pre-existing install
   command: mpiexec --version
   register: openmpi_test
   ignore_errors: True
 
-- name: Setup packages
-  include: packages.yml
+- name: openmpi - add openmpi to petsc install
+  block:
+
+  - set_fact:
+      petsc_openmpi:
+        - download-openmpi
+
+  - set_fact:
+      petsc_options: "{{petsc_options + petsc_openmpi}}"
+
+  when: openmpi_test is failed
+  tags:
+    - never
+    - local
+
+- name: Install Openmpi
+  block:
+    - package:
+        name: "{{ openmpi }}"
+        state: present
+
+  when: ((openmpi_test is failed) and (petsc_openmpi is not defined))
+  tags:
+    - packages
+
+- name: Install ninja
+  package:
+    name: "{{ ninja }}"
+    state: present
+    update_cache: yes
+    install_recommends: no
   become: yes
   tags:
     - packages
@@ -78,81 +97,17 @@
 
 - name: Run the common tasks to setup waiwera on a system with no root access
   include: setup.yml
-  become: no
 
-- name: meson - Install
-  include: meson.yml
-  become: no
-  tags:
-    - meson
-
-- name: ninja - Install
-  include: ninja.yml
-  become: no
-  tags:
-    - ninja
-
-- name: zofu - Install from source
-  include: zofu.yml
-  become: no
-  tags:
-    - never
-    - zofu
-
-- name: fson - Install from source
-  include: fson.yml
-  become: no
-  tags:
-    - never
-    - fson
-
-- name: petsc - test for pre-existing install
-  command: pkg-config --exists PETSc
-  register: petsc_test
-  ignore_errors: True
-
-- name: petsc - local install
-  block:
-
-  - name: petsc - Install
-    include: petsc.yml
-    environment:
-      PETSC_DIR: "{{ petsc_path }}"
-      PETSC_ARCH: "{{ petsc_arch }}"
-      PATH: "{{ ansible_env.PATH }}:{{ bin_path }}:{{ ansible_env.HOME }}/.local/bin"
-      PKG_CONFIG_PATH: "{{ pkgconfig_path }}"
-      LANG: en_US.UTF-8
-      LC_ALL: en_US.UTF-8
-      LC_TYPE: en_US.UTF-8
-    tags:
-      - petsc
-
-  when: petsc_test is failed
-
-- name: waiwera - Setup after petsc install
+- name:  Install the app
   environment:
+    PATH: "{{ ansible_env.PATH }}:{{ bin_path }}:{{ local_bin }}:{{ petsc_bin }}"
+    LANG: en_US.UTF-8
+    LC_ALL: en_US.UTF-8
+    LC_TYPE: en_US.UTF-8
     PETSC_DIR: "{{ petsc_path }}"
     PETSC_ARCH: "{{ petsc_arch }}"
-    PATH: "{{ ansible_env.PATH }}:{{ bin_path }}:{{ ansible_env.HOME }}/.local/bin"
     PKG_CONFIG_PATH: "{{ pkgconfig_path }}"
-    LANG: en_US.UTF-8
-    LC_ALL: en_US.UTF-8
-    LC_TYPE: en_US.UTF-8
-  include: waiwera.yml
-  tags:
-    - waiwera
-  when: petsc_test is failed
-
-- name: waiwera - Setup without petsc install
-  environment:
-    PATH: "{{ ansible_env.PATH }}:{{ bin_path }}:{{ ansible_env.HOME }}/.local/bin"
-    LANG: en_US.UTF-8
-    LC_ALL: en_US.UTF-8
-    LC_TYPE: en_US.UTF-8
-  include: waiwera.yml
-  tags:
-    - waiwera
-  when: petsc_test is succeeded
+  include: install.yml
 
 - name: Cleanup
   include: cleanup.yml
