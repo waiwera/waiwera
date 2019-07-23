@@ -4,7 +4,8 @@ ARG git_user
 ARG git_pwd
 ARG base_dir
 
-RUN apt-get update && \
+RUN DEBIAN_FRONTEND=noninteractive \
+    apt-get update && \
     apt-get install -y \
         locales && \
     rm -rf /var/lib/apt/lists/* && \
@@ -21,7 +22,8 @@ ENV LANG en_US.utf8
 
 ADD ansible /ansible
 
-RUN apt update && \
+RUN DEBIAN_FRONTEND=noninteractive \
+    apt update && \
     apt install -y --no-install-recommends  \
         python-minimal \
         python-pip \
