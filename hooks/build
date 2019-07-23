@@ -1,2 +1,2 @@
 #!/bin/bash
-docker build --build-arg git_user=$GIT_U --build-arg git_pwd=$GIT_P --build-arg app_dir=$APP_DIR -f $DOCKERFILE_PATH -t $IMAGE_NAME .
+docker build --build-arg git_user=$GIT_U --build-arg git_pwd=$GIT_P --build-arg base_dir=$APP_DIR -f $DOCKERFILE_PATH -t $IMAGE_NAME .
