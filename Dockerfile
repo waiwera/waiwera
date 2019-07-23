@@ -26,7 +26,8 @@ RUN apt update && \
         python-minimal \
         python-pip \
         python-setuptools \
-        python-wheel && \
+        python-wheel \
+        apt-utils && \
     pip install ansible &&\
     usr/local/bin/ansible-playbook \
         --connection=local \
