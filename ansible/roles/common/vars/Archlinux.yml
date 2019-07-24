@@ -1,48 +1,16 @@
-build_tools:
-  - git
-  - pkg-config
-  - valgrind
-  - ninja
-  - make
-  - cmake
-  - openssh-client
-
 ninja:
   - ninja
-
-python_dependencies:
-  - python3
 
 compilers:
   - gcc
   - gcc-fortran
 
 libraries:
-  - openmpi
   - blas
   - lapack
   - hdf5-openmpi
 
 openmpi:
   - openmpi
+  - openssh-client
 
-petsc_dependencies:
-  - bison
-  - flex
-
-pip_install:
-  - python-pip
-
-pip_ex: pip3
-
-petsc_options:
-  - download-fblaslapack
-  - download-triangle
-  - download-netcdf
-  - download-exodusii
-  - download-pnetcdf
-  - download-ptscotch
-  - download-chaco
-  - download-zlib
-  - with-zlib
-  - with-hdf5

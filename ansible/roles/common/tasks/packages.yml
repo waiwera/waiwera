@@ -7,7 +7,6 @@
     update_cache: yes
     install_recommends: no
 
-
 - name: Install python dependencies
   package:
     name: "{{ python_dependencies }}"

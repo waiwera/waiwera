@@ -1,18 +1,3 @@
-build_tools:
-  # - centos-release-scl
-  - git
-  - pkgconfig
-  - valgrind
-  - make
-  - cmake
-  # - python
-  # - python-dev
-  - openssh-client
-
-ninja:
-  - ninja-build
-
-
 python_dependencies:
   - python36
   - python36-devel
@@ -32,24 +17,9 @@ libraries:
 
 openmpi:
   - openmpi-devel
-
-petsc_dependencies:
-  - bison
-  - flex
+  - openssh-client
 
 pip_install:
   - python36-pip
 
 pip_ex: pip3.6
-
-petsc_options:
-  - download-fblaslapack
-  - download-triangle
-  - download-netcdf
-  - download-exodusii
-  - download-pnetcdf
-  - download-ptscotch
-  - download-chaco
-  - download-zlib
-  - download-hdf5
-  - with-zlib
