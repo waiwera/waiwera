@@ -51,7 +51,7 @@ contains
     type(fson_value), pointer, intent(in) :: json
     class(thermodynamics_type), intent(in) :: thermo
     class(eos_type), allocatable, intent(in out) :: eos
-    type(logfile_type), intent(in out) :: logfile
+    type(logfile_type), intent(in out), optional :: logfile
     ! Locals:
     PetscInt :: eos_json_type
     character(max_eos_name_length), parameter :: &
