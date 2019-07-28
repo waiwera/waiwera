@@ -58,6 +58,8 @@ module eos_module
      character(max_field_name_length), allocatable, public :: default_output_fluid_fields(:) !! Default fluid fields written to output
      class(thermodynamics_type), pointer, public :: thermo !! Thermodynamic formulation
      PetscBool, public :: isothermal = PETSC_FALSE !! Whether the EOS is restricted to isothermal fluid conditions
+     procedure(eos_scale_procedure), pointer, public :: scale => eos_scale_default
+     procedure(eos_unscale_procedure), pointer, public :: unscale => eos_unscale_default
    contains
      private
      procedure(eos_init_procedure), public, deferred :: init
@@ -68,8 +70,6 @@ module eos_module
      procedure(eos_phase_properties_procedure), public, deferred :: phase_properties
      procedure(eos_primary_variables_procedure), public, deferred :: primary_variables
      procedure(eos_check_primary_variables_procedure), public, deferred :: check_primary_variables
-     procedure(eos_scale_procedure), public, deferred :: scale
-     procedure(eos_unscale_procedure), public, deferred :: unscale
      procedure, public :: conductivity => eos_conductivity
      procedure, public :: component_index => eos_component_index
   end type eos_type
