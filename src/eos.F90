@@ -43,6 +43,7 @@ module eos_module
   type, public, abstract :: eos_type
      !! Abstract type for equation of state (EOS) objects.
      private
+     PetscReal, allocatable, public :: primary_scale(:, :)
      character(max_eos_name_length), public :: name !! EOS name
      character(max_eos_description_length), public :: description !! EOS description
      character(max_primary_variable_name_length), allocatable, public :: primary_variable_names(:) !! Names of primary variables

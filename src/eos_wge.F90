@@ -15,7 +15,6 @@ module eos_wge_module
   type, public, extends(eos_type) :: eos_wge_type
      !! Pure water, non-condensible gas and energy equation of state type.
      private
-     PetscReal, allocatable :: primary_scale(:, :)
      class(ncg_thermodynamics_type), allocatable, public :: gas
      type(root_finder_type) :: saturation_line_finder
      type(primary_variable_interpolator_type), pointer :: &

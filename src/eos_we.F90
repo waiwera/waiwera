@@ -32,7 +32,6 @@ module eos_we_module
   type, public, extends(eos_type) :: eos_we_type
      !! Pure water and energy equation of state type.
      private
-     PetscReal, allocatable :: primary_scale(:, :)
      type(root_finder_type) :: saturation_line_finder
      type(primary_variable_interpolator_type), pointer :: &
           primary_variable_interpolator
