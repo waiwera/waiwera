@@ -47,8 +47,6 @@ module eos_we_module
      procedure, public :: primary_variables => eos_we_primary_variables
      procedure, public :: phase_saturations => eos_we_phase_saturations
      procedure, public :: check_primary_variables => eos_we_check_primary_variables
-     procedure, public :: scale => eos_we_scale
-     procedure, public :: unscale => eos_we_unscale
   end type eos_we_type
 
 contains
@@ -517,34 +515,6 @@ contains
     end associate
 
   end subroutine eos_we_check_primary_variables
-
-!------------------------------------------------------------------------
-
-  function eos_we_scale(self, primary, region) result(scaled_primary)
-    !! Non-dimensionalise eos_we primary variables by scaling.
-
-    class(eos_we_type), intent(in) :: self
-    PetscReal, intent(in) :: primary(self%num_primary_variables)
-    PetscInt, intent(in) :: region
-    PetscReal :: scaled_primary(self%num_primary_variables)
-
-    scaled_primary = primary / self%primary_scale(:, region)
-
-  end function eos_we_scale
-
-!------------------------------------------------------------------------
-
-  function eos_we_unscale(self, scaled_primary, region) result(primary)
-    !! Re-dimensionalise eos_we scaled primary variables.
-
-    class(eos_we_type), intent(in) :: self
-    PetscReal, intent(in) :: scaled_primary(self%num_primary_variables)
-    PetscInt, intent(in) :: region
-    PetscReal :: primary(self%num_primary_variables)
-
-    primary = scaled_primary * self%primary_scale(:, region)
-
-  end function eos_we_unscale
 
 !------------------------------------------------------------------------
 

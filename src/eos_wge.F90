@@ -31,8 +31,6 @@ module eos_wge_module
      procedure, public :: primary_variables => eos_wge_primary_variables
      procedure, public :: phase_saturations => eos_wge_phase_saturations
      procedure, public :: check_primary_variables => eos_wge_check_primary_variables
-     procedure, public :: scale => eos_wge_scale
-     procedure, public :: unscale => eos_wge_unscale
   end type eos_wge_type
 
 contains
@@ -612,11 +610,11 @@ contains
 
 !------------------------------------------------------------------------
 
-  function eos_wge_scale(self, primary, region) result(scaled_primary)
+  function eos_wge_scale_adaptive(self, primary, region) result(scaled_primary)
     !! Non-dimensionalise eos_wge primary variables by scaling. The
     !! first two variables (pressure and temperature or saturation)
     !! are scaled by fixed constants. The third variable, NCG partial
-    !! pressure, is scaled by total pressure.
+    !! pressure, is scaled adaptively by total pressure in the cell.
 
     class(eos_wge_type), intent(in) :: self
     PetscReal, intent(in) :: primary(self%num_primary_variables)
@@ -629,11 +627,11 @@ contains
       scaled_partial_pressure = partial_pressure / pressure
     end associate
 
-  end function eos_wge_scale
+  end function eos_wge_scale_adaptive
 
 !------------------------------------------------------------------------
 
-  function eos_wge_unscale(self, scaled_primary, region) result(primary)
+  function eos_wge_unscale_adaptive(self, scaled_primary, region) result(primary)
     !! Re-dimensionalise eos_wge scaled primary variables.
 
     class(eos_wge_type), intent(in) :: self
@@ -647,7 +645,7 @@ contains
       partial_pressure = scaled_partial_pressure * pressure
     end associate
 
-  end function eos_wge_unscale
+  end function eos_wge_unscale_adaptive
 
 !------------------------------------------------------------------------
 

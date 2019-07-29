@@ -180,6 +180,34 @@ contains
 
 !------------------------------------------------------------------------
 
+  function eos_scale_default(self, primary, region) result(scaled_primary)
+    !! Default function for non-dimensionalising primary variables by scaling.
+
+    class(eos_type), intent(in) :: self
+    PetscReal, intent(in) :: primary(self%num_primary_variables)
+    PetscInt, intent(in) :: region
+    PetscReal :: scaled_primary(self%num_primary_variables)
+
+    scaled_primary = primary / self%primary_scale(:, region)
+
+  end function eos_scale_default
+
+!------------------------------------------------------------------------
+
+  function eos_unscale_default(self, scaled_primary, region) result(primary)
+    !! Default function for re-dimensionalising scaled primary variables.
+
+    class(eos_type), intent(in) :: self
+    PetscReal, intent(in) :: scaled_primary(self%num_primary_variables)
+    PetscInt, intent(in) :: region
+    PetscReal :: primary(self%num_primary_variables)
+
+    primary = scaled_primary * self%primary_scale(:, region)
+
+  end function eos_unscale_default
+
+!------------------------------------------------------------------------
+
   subroutine eos_phase_composition(self, fluid, err)
     !! Determines fluid phase composition from bulk properties and
     !! thermodynamic region.
