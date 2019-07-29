@@ -31,7 +31,6 @@ module eos_w_module
      !! Isothermal pure water equation of state type.
      private
      PetscReal, public :: temperature  !! Constant temperature
-     PetscReal :: pressure_scale = 1.e6_dp !! Scale factor for non-dimensionalising pressure
    contains
      private
      procedure, public :: init => eos_w_init
@@ -61,8 +60,10 @@ contains
     class(thermodynamics_type), intent(in), target :: thermo !! Thermodynamics object
     type(logfile_type), intent(in out), optional :: logfile
     ! Locals:
+    PetscReal :: pressure_scale
     PetscReal, parameter :: default_pressure = 1.0e5_dp
     PetscReal, parameter :: default_temperature = 20._dp ! deg C
+    PetscReal, parameter :: default_pressure_scale = 1.e6_dp !! Scale factor for non-dimensionalising pressure
 
     self%name = "w"
     self%description = "Isothermal pure water"
@@ -79,6 +80,13 @@ contains
     self%default_region = 1
     self%required_output_fluid_fields = ["pressure", "region  "]
     self%default_output_fluid_fields = ["pressure", "region  "]
+
+    call fson_get_mpi(json, "eos.primary.scale.pressure", default_pressure_scale, &
+         pressure_scale, logfile)
+
+    self%primary_scale = reshape([ &
+          pressure_scale, &
+          pressure_scale], [1, 2])
 
     self%thermo => thermo
 
