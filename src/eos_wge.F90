@@ -629,7 +629,7 @@ contains
     PetscInt, intent(in) :: region
     PetscReal :: scaled_primary(self%num_primary_variables)
 
-    scaled_primary(1:2) = primary(1:2) / self%primary_scale(:, region)
+    scaled_primary(1:2) = primary(1:2) / self%primary_scale(1:2, region)
     associate(scaled_partial_pressure => scaled_primary(3), &
          pressure => primary(1), partial_pressure => primary(3))
       scaled_partial_pressure = partial_pressure / pressure
@@ -647,7 +647,7 @@ contains
     PetscInt, intent(in) :: region
     PetscReal :: primary(self%num_primary_variables)
 
-    primary(1:2) = scaled_primary(1:2) * self%primary_scale(:, region)
+    primary(1:2) = scaled_primary(1:2) * self%primary_scale(1:2, region)
     associate(scaled_partial_pressure => scaled_primary(3), &
          pressure => primary(1), partial_pressure => primary(3))
       partial_pressure = scaled_partial_pressure * pressure
