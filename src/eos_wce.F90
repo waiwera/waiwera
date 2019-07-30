@@ -26,7 +26,6 @@ contains
     !! Initialise eos_wce object.
 
     use fson
-    use fson_mpi_module, only: fson_get_mpi, fson_has_mpi
     use logfile_module
     use thermodynamics_module
 
@@ -34,8 +33,6 @@ contains
     type(fson_value), pointer, intent(in) :: json !! JSON input object
     class(thermodynamics_type), intent(in), target :: thermo !! Thermodynamics object
     type(logfile_type), intent(in out), optional :: logfile
-    ! Locals:
-    PetscReal :: co2_partial_pressure_scale
 
     call self%eos_wge_type%init(json, thermo, logfile)
 
@@ -51,12 +48,6 @@ contains
          "pressure              ", "temperature           ", &
          "region                ", "CO2_partial_pressure  ", &
          "vapour_saturation     "]
-
-    if (fson_has_mpi(json, "eos.primary.scale.co2_partial_pressure")) then
-       call fson_get_mpi(json, "eos.primary.scale.co2_partial_pressure", &
-         val = co2_partial_pressure_scale)
-       self%primary_scale(3, :) = co2_partial_pressure_scale
-    end if
 
     allocate(ncg_co2_thermodynamics_type :: self%gas)
     call self%gas%init()
