@@ -75,6 +75,20 @@
                                                  "we", "WE",
                                                  "wce", "WCE",
                                                  "wae", "WAE"]},
+                               "primary": {"type": "object",
+                                           "properties": {
+                                               "scale": {
+                                                   "type": "object",
+                                                   "properties": {
+                                                       "pressure": {"type": "number", "minimum": 0},
+                                                       "temperature": {"type": "number", "minimum": 0},
+                                                       "partial_pressure": {"oneOf": [
+                                                           {"type": "number", "minimum": 0},
+                                                           {"type": "string",
+                                                            "enum": ["pressure", "Pressure"]}]}
+                                                   }, "additionalProperties": false
+                                               }
+                                           }, "additionalProperties": false},
                                "temperature": {"type": "number"}
                            },
                            "additionalProperties": false
