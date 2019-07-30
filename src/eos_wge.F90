@@ -41,7 +41,8 @@ contains
     !! Initialise pure water, non-condensible gas and energy EOS.
 
     use fson
-    use fson_mpi_module, only: fson_get_mpi
+    use fson_mpi_module, only: fson_get_mpi, fson_type_mpi
+    use fson_value_m, only: TYPE_STRING, TYPE_REAL, TYPE_NULL
     use logfile_module
     use thermodynamics_module
 
@@ -53,14 +54,15 @@ contains
     procedure(root_finder_function), pointer :: f
     class(*), pointer :: pinterp
     PetscReal, allocatable :: data(:, :)
-    PetscReal :: pressure_scale, temperature_scale, gas_partial_pressure_scale
+    PetscReal :: pressure_scale, temperature_scale, partial_pressure_scale
+    PetscInt :: scale_type
     PetscErrorCode :: err
     PetscReal, parameter :: default_pressure = 1.0e5_dp
     PetscReal, parameter :: default_temperature = 20._dp ! deg C
     PetscReal, parameter :: default_gas_partial_pressure = 0._dp
     PetscReal, parameter :: default_pressure_scale = 1.e6_dp !! Default scale factor for non-dimensionalising pressure
     PetscReal, parameter :: default_temperature_scale = 1.e2_dp !! Default scale factor for non-dimensionalising temperature
-    PetscReal, parameter :: default_gas_partial_pressure_scale = 1.e6_dp !! Default scale factor for non-dimensionalising gas partial pressure
+    PetscReal, parameter :: default_partial_pressure_scale = 1.e6_dp !! Default scale factor for non-dimensionalising partial pressure
 
     self%name = "wge"
     self%description = "Water, non-condensible gas and energy"
@@ -91,13 +93,22 @@ contains
          pressure_scale, logfile)
     call fson_get_mpi(json, "eos.primary.scale.temperature", default_temperature_scale, &
          temperature_scale, logfile)
-    call fson_get_mpi(json, "eos.primary.scale.gas_partial_pressure", &
-         default_gas_partial_pressure_scale, gas_partial_pressure_scale, logfile)
+
+    scale_type = fson_type_mpi(json, "eos.primary.scale.partial_pressure")
+    select case (scale_type)
+    case (TYPE_STRING, TYPE_NULL)
+       self%scale => eos_wge_scale_adaptive
+       self%unscale => eos_wge_unscale_adaptive
+       partial_pressure_scale = 0._dp
+    case (TYPE_REAL)
+       call fson_get_mpi(json, "eos.primary.scale.partial_pressure", &
+            default_partial_pressure_scale, partial_pressure_scale, logfile)
+    end select
     self%primary_scale = reshape([ &
-          pressure_scale, temperature_scale, gas_partial_pressure_scale, &
-          pressure_scale, temperature_scale, gas_partial_pressure_scale, &
+          pressure_scale, temperature_scale, partial_pressure_scale, &
+          pressure_scale, temperature_scale, partial_pressure_scale, &
           0._dp, 0._dp, 0._dp, &
-          pressure_scale, 1._dp, gas_partial_pressure_scale], [3, 4])
+          pressure_scale, 1._dp, partial_pressure_scale], [3, 4])
 
     self%thermo => thermo
 
