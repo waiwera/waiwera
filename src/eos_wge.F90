@@ -624,7 +624,7 @@ contains
     !! are scaled by fixed constants. The third variable, NCG partial
     !! pressure, is scaled adaptively by total pressure in the cell.
 
-    class(eos_wge_type), intent(in) :: self
+    class(eos_type), intent(in) :: self
     PetscReal, intent(in) :: primary(self%num_primary_variables)
     PetscInt, intent(in) :: region
     PetscReal :: scaled_primary(self%num_primary_variables)
@@ -642,7 +642,7 @@ contains
   function eos_wge_unscale_adaptive(self, scaled_primary, region) result(primary)
     !! Re-dimensionalise eos_wge scaled primary variables.
 
-    class(eos_wge_type), intent(in) :: self
+    class(eos_type), intent(in) :: self
     PetscReal, intent(in) :: scaled_primary(self%num_primary_variables)
     PetscInt, intent(in) :: region
     PetscReal :: primary(self%num_primary_variables)
