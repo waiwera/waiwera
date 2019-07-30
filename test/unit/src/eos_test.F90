@@ -129,14 +129,14 @@ contains
     call fson_destroy(json)
 
     json => fson_parse_mpi(str = '{"eos": {"name": "wce"}}')
-    call scale_test(json, [15.e5_dp, 40._dp, 2.e5_dp], 1, [1.5_dp, 0.4_dp, 0.2_dp], "wce region 1")
-    call scale_test(json, [0.7e5_dp, 110._dp, 0.6e5_dp], 2, [0.07_dp, 1.1_dp, 0.06_dp], "wce region 2")
-    call scale_test(json, [13.e5_dp, 0.4_dp, 10.e5_dp], 4, [1.3_dp, 0.4_dp, 1.0_dp], "wce region 4")
+    call scale_test(json, [15.e5_dp, 40._dp, 3.e5_dp], 1, [1.5_dp, 0.4_dp, 0.2_dp], "wce region 1")
+    call scale_test(json, [0.8e5_dp, 110._dp, 0.6e5_dp], 2, [0.08_dp, 1.1_dp, 0.75_dp], "wce region 2")
+    call scale_test(json, [20.e5_dp, 0.4_dp, 10.e5_dp], 4, [2.0_dp, 0.4_dp, 0.5_dp], "wce region 4")
     call fson_destroy(json)
 
     json => fson_parse_mpi(str = '{"eos": {"name": "wce", ' // &
          '"primary": {"scale": {"pressure": 1.e7, "temperature": 200, ' // &
-         '"gas_partial_pressure": 1.e5}}}}')
+         '"partial_pressure": 1.e5}}}}')
     call scale_test(json, [15.e5_dp, 40._dp, 2.e5_dp], 1, [0.15_dp, 0.2_dp, 2._dp], &
          "wce region 1 scale")
     call scale_test(json, [0.7e5_dp, 110._dp, 0.6e5_dp], 2, [0.007_dp, 0.55_dp, 0.6_dp], &
@@ -147,7 +147,7 @@ contains
 
     json => fson_parse_mpi(str = '{"eos": {"name": "wae", ' // &
          '"primary": {"scale": {"pressure": 1.e7, "temperature": 200, ' // &
-         '"air_partial_pressure": 1.e5}}}}')
+         '"partial_pressure": 1.e5}}}}')
     call scale_test(json, [15.e5_dp, 40._dp, 2.e5_dp], 1, [0.15_dp, 0.2_dp, 2._dp], &
          "wae region 1 scale")
     call scale_test(json, [0.7e5_dp, 110._dp, 0.6e5_dp], 2, [0.007_dp, 0.55_dp, 0.6_dp], &
@@ -155,6 +155,15 @@ contains
     call scale_test(json, [13.e5_dp, 0.4_dp, 10.e5_dp], 4, [0.13_dp, 0.4_dp, 10.0_dp], &
          "wae region 4 scale")
     call fson_destroy(json)
+
+    json => fson_parse_mpi(str = '{"eos": {"name": "wce", ' // &
+         '"primary": {"scale": {"partial_pressure": "pressure"}}}}')
+    call scale_test(json, [15.e5_dp, 40._dp, 3.e5_dp], 1, [1.5_dp, 0.4_dp, 0.2_dp], &
+         "wce region 1 adaptive scale")
+    call scale_test(json, [0.8e5_dp, 100._dp, 0.6e5_dp], 2, [0.08_dp, 1.0_dp, 0.75_dp], &
+         "wce region 2 adaptive scale")
+    call scale_test(json, [100.e5_dp, 0.5_dp, 50.e5_dp], 4, [10._dp, 0.5_dp, 0.5_dp], &
+         "wce region 4 adaptive scale")
 
   contains
 
@@ -177,10 +186,10 @@ contains
       end associate
 
       scaled_primary = eos%scale(primary, region)
-      call test%assert(expected_scaled_primary, scaled_primary, title // " scaled")
+      call test%assert(expected_scaled_primary, scaled_primary, title // ": scaled")
 
       unscaled_primary = eos%unscale(scaled_primary, region)
-      call test%assert(primary, unscaled_primary, title // " unscaled")
+      call test%assert(primary, unscaled_primary, title // ": unscaled")
 
       call eos%destroy()
       deallocate(eos, scaled_primary, unscaled_primary)
