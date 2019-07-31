@@ -68,6 +68,8 @@ However, for two-phase conditions, the pressure and temperature are not independ
 
 Because the choice of primary variables depends on the phase conditions, when the fluid in a cell changes phase, the primary variables must be changed.
 
+In practice, Waiwera does not solve for the raw primary variables in each cell, but for non-dimensionalised primary variables. This improves numerical behaviour, mostly because the raw primary variables typicallyhave very different magnitudes from each other. The non-dimensionalised variables are related to their corresponding raw primary variables in most cases via a simple scaling by a fixed constant. These scaling parameters have default values but can also be customised for particular problems (see :ref:`primary_variable_parameters`).
+
 .. index:: numerical methods; time evolution
 .. _time_evolution:
 
