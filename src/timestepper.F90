@@ -1563,17 +1563,8 @@ end subroutine timestepper_steps_set_next_stepsize
 
     class(timestepper_type), intent(in out) :: self
     ! Locals:
-    PetscInt :: blocksize
-    MatType :: mat_type
     PetscErrorCode :: ierr
 
-    call VecGetBlockSize(self%ode%solution, blocksize, ierr); CHKERRQ(ierr)
-    if (blocksize == 1) then
-       mat_type = MATAIJ
-    else
-       mat_type = MATBAIJ
-    end if
-    call DMSetMatType(self%ode%mesh%dm, mat_type, ierr); CHKERRQ(ierr)
     call DMCreateMatrix(self%ode%mesh%dm, self%jacobian, ierr); CHKERRQ(ierr)
     call MatSetFromOptions(self%jacobian, ierr); CHKERRQ(ierr)
 
