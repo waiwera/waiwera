@@ -1458,6 +1458,7 @@ end subroutine timestepper_steps_set_next_stepsize
           call PCSetType(sub_pc, sub_pc_type, ierr); CHKERRQ(ierr)
           call PCFactorSetLevels(sub_pc, factor_levels, ierr)
           CHKERRQ(ierr)
+          call PCSetFromOptions(sub_pc, ierr); CHKERRQ(ierr)
        end do
        deallocate(sub_ksp)
     end if
