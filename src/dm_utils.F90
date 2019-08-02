@@ -72,6 +72,7 @@ module dm_utils_module
   public :: create_path_dm
   public :: get_field_subvector, section_get_field_names
   public :: dm_global_cell_field_dof
+  public :: mat_type_is_block, mat_coloring_perturbed_columns
 
 contains
 
@@ -1140,4 +1141,55 @@ contains
 
 !------------------------------------------------------------------------
 
-  end module dm_utils_module
+  logical function mat_type_is_block(M) result(isblock)
+    !! Returns true if matrix type is a block type.
+
+    Mat, intent(in) :: M
+    ! Locals:
+    MatType :: mat_type
+    PetscErrorCode :: ierr
+
+    call MatGetType(M, mat_type, ierr); CHKERRQ(ierr)
+    select case (mat_type)
+    case (MATBAIJ, MATSEQBAIJ, MATMPIBAIJ, MATSBAIJ, &
+         MATSEQSBAIJ, MATMPISBAIJ)
+       isblock = PETSC_TRUE
+    case default
+       isblock = PETSC_FALSE
+    end select
+
+  end function mat_type_is_block
+
+!------------------------------------------------------------------------
+
+  function mat_coloring_perturbed_columns(M, fd_coloring) result(columns)
+    !! Returns perturbed columns from a finite difference matrix
+    !! colouring, corrected if necessary to block column indices. For
+    !! block-type matrices, the perturbed columns from
+    !! MatFDColoringGetPerturbedColumnsF90() are already block column
+    !! indices. But for other matrix types they are not.
+
+    Mat, intent(in) :: M
+    MatFDColoring, intent(in) :: fd_coloring
+    PetscInt, allocatable :: columns(:)
+    ! Locals:
+    PetscInt :: bs
+    PetscInt, pointer :: perturbed_columns(:)
+    PetscErrorCode :: ierr
+
+    call MatFDColoringGetPerturbedColumnsF90(fd_coloring, &
+         perturbed_columns, ierr); CHKERRQ(ierr)
+    if (mat_type_is_block(M)) then
+       columns = perturbed_columns
+    else
+       call MatGetBlockSize(M, bs, ierr); CHKERRQ(ierr)
+       columns = perturbed_columns / bs
+    end if
+    call MatFDColoringRestorePerturbedColumnsF90(fd_coloring, &
+         perturbed_columns, ierr); CHKERRQ(ierr)
+
+  end function mat_coloring_perturbed_columns
+
+!------------------------------------------------------------------------
+
+end module dm_utils_module
