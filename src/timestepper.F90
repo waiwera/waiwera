@@ -451,6 +451,8 @@ contains
     !! this routine still returns a zero error code (err), otherwise
     !! the SNES will stop.
 
+    use dm_utils_module, only: mat_coloring_perturbed_columns
+
     SNES, intent(in) :: solver
     Vec, intent(in) :: y
     Vec, intent(in out) :: residual
@@ -458,33 +460,17 @@ contains
     PetscErrorCode, intent(out) :: err
     ! Locals:
     Mat :: J
-    PetscInt :: bs, effective_bs
-    MatType :: mat_type
     PetscErrorCode :: ierr, ferr
-    PetscInt, pointer :: perturbed_columns(:)
-    PetscInt, allocatable :: perturbed_block_columns(:)
+    PetscInt, allocatable :: perturbed_columns(:)
 
     err = 0; ferr = 0
 
-    call MatFDColoringGetPerturbedColumnsF90(context%fd_coloring, &
-         perturbed_columns, ierr); CHKERRQ(ierr)
     call SNESGetJacobian(solver, J, PETSC_NULL_MAT, PETSC_NULL_FUNCTION, &
          PETSC_NULL_INTEGER, ierr); CHKERRQ(ierr)
-    call MatGetBlockSize(J, bs, ierr); CHKERRQ(ierr)
-    call MatGetType(J, mat_type, ierr); CHKERRQ(ierr)
-    select case (mat_type)
-    case (MATBAIJ, MATSEQBAIJ, MATMPIBAIJ, MATSBAIJ, MATSEQSBAIJ, MATMPISBAIJ)
-       effective_bs = 1
-    case default
-       effective_bs = bs
-    end select
-    perturbed_block_columns = perturbed_columns / effective_bs
-    call MatFDColoringRestorePerturbedColumnsF90(context%fd_coloring, &
-         perturbed_columns, ierr); CHKERRQ(ierr)
-
+    perturbed_columns = mat_coloring_perturbed_columns(J, context%fd_coloring)
     call context%ode%pre_eval(context%steps%current%time, y, &
-         perturbed_block_columns, ferr)
-    deallocate(perturbed_block_columns)
+         perturbed_columns, ferr)
+    deallocate(perturbed_columns)
 
     if (ferr == 0) then
        call context%residual(solver, y, residual, context, ferr)
