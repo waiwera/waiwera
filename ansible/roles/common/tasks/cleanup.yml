@@ -73,8 +73,9 @@
   find:
     paths: "{{ software_path }}"
     file_type: directory
-    recurse: yes
     hidden: yes
+    exclude:
+      - "PETSc"
   register: found_software
 
 - name: Delete files
