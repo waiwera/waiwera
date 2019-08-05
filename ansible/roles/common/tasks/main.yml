@@ -44,7 +44,6 @@
   tags:
     - packages
 
-
 - name: openmpi - test for pre-existing install
   command: mpiexec --version
   register: openmpi_test
@@ -70,6 +69,7 @@
     - package:
         name: "{{ openmpi }}"
         state: present
+      become: yes
 
   when: ((openmpi_test is failed) and (petsc_openmpi is not defined))
   tags:

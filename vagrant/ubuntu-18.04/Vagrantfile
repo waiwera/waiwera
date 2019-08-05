@@ -19,7 +19,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
         '-e "waiwera_pwd='+ ENV['GIT_PWD'] +'"',
         '-e "app_user=vagrant"',
         '-e "app_group=vagrant"',
-        '-e "app_dir=/vagrant"',
+        '-e "base_dir=/vagrant"',
         '--skip-tags=docker,clean',
       ]
     end

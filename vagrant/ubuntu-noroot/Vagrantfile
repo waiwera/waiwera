@@ -10,7 +10,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
   config.vm.define :waiwera, primary: true do |waiwera|
     waiwera.vm.provision :file, source: "../../ansible", destination: "/tmp/ansible"
     waiwera.vm.provision :shell, inline: "cp -r /tmp/ansible /"
-    waiwera.vm.provision :shell, inline: "apt install python3-pip -y && pip3 install --upgrade ansible"
+    waiwera.vm.provision :shell, inline: "apt install python-pip -y && pip install --upgrade ansible"
     # Root access for initial setup
     waiwera.vm.provision "ansible_local" do |ansible|
       # ansible.limit = 'waiwera'
