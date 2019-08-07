@@ -43,6 +43,7 @@ module eos_module
   type, public, abstract :: eos_type
      !! Abstract type for equation of state (EOS) objects.
      private
+     PetscReal, allocatable, public :: primary_scale(:, :)
      character(max_eos_name_length), public :: name !! EOS name
      character(max_eos_description_length), public :: description !! EOS description
      character(max_primary_variable_name_length), allocatable, public :: primary_variable_names(:) !! Names of primary variables
@@ -57,6 +58,8 @@ module eos_module
      character(max_field_name_length), allocatable, public :: default_output_fluid_fields(:) !! Default fluid fields written to output
      class(thermodynamics_type), pointer, public :: thermo !! Thermodynamic formulation
      PetscBool, public :: isothermal = PETSC_FALSE !! Whether the EOS is restricted to isothermal fluid conditions
+     procedure(eos_scale_procedure), pointer, public :: scale => eos_scale_default
+     procedure(eos_unscale_procedure), pointer, public :: unscale => eos_unscale_default
    contains
      private
      procedure(eos_init_procedure), public, deferred :: init
@@ -67,8 +70,6 @@ module eos_module
      procedure(eos_phase_properties_procedure), public, deferred :: phase_properties
      procedure(eos_primary_variables_procedure), public, deferred :: primary_variables
      procedure(eos_check_primary_variables_procedure), public, deferred :: check_primary_variables
-     procedure(eos_scale_procedure), public, deferred :: scale
-     procedure(eos_unscale_procedure), public, deferred :: unscale
      procedure, public :: conductivity => eos_conductivity
      procedure, public :: component_index => eos_component_index
   end type eos_type
@@ -176,6 +177,34 @@ module eos_module
   end interface
 
 contains
+
+!------------------------------------------------------------------------
+
+  function eos_scale_default(self, primary, region) result(scaled_primary)
+    !! Default function for non-dimensionalising primary variables by scaling.
+
+    class(eos_type), intent(in) :: self
+    PetscReal, intent(in) :: primary(self%num_primary_variables)
+    PetscInt, intent(in) :: region
+    PetscReal :: scaled_primary(self%num_primary_variables)
+
+    scaled_primary = primary / self%primary_scale(:, region)
+
+  end function eos_scale_default
+
+!------------------------------------------------------------------------
+
+  function eos_unscale_default(self, scaled_primary, region) result(primary)
+    !! Default function for re-dimensionalising scaled primary variables.
+
+    class(eos_type), intent(in) :: self
+    PetscReal, intent(in) :: scaled_primary(self%num_primary_variables)
+    PetscInt, intent(in) :: region
+    PetscReal :: primary(self%num_primary_variables)
+
+    primary = scaled_primary * self%primary_scale(:, region)
+
+  end function eos_unscale_default
 
 !------------------------------------------------------------------------
 

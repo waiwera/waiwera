@@ -235,13 +235,13 @@ contains
 
     call MPI_comm_rank(PETSC_COMM_WORLD, rank, ierr)
     call thermo%init()
-    call eos%init(json, thermo)
     viewer = PETSC_NULL_VIEWER
 
     json => fson_parse_mpi(str = &
          '{"mesh": {"filename": "' // trim(adjustl(data_path)) // 'mesh/7x7grid.exo", ' // &
          '"zones": {"zone1": [10, 15, 20, 27, 34, 44], ' // &
          '"zone2": [40, 30, 5]}}}')
+    call eos%init(json, thermo)
     call mesh%init(eos, json)
     call mesh%configure(gravity, json, err = err)
     call mesh%output_cell_index(viewer)
@@ -340,7 +340,6 @@ contains
 
     call MPI_comm_rank(PETSC_COMM_WORLD, rank, ierr)
     call thermo%init()
-    call eos%init(json, thermo)
     viewer = PETSC_NULL_VIEWER
 
     json => fson_parse_mpi(str = &
@@ -349,6 +348,7 @@ contains
          '"xzone": {"x": [2000, 3000]}, ' // &
          '"all": {"type": "box"}, ' // &
          '"xyzone": {"x": [0, 2000], "y": [2500, 4500]}}}}')
+    call eos%init(json, thermo)
     call mesh%init(eos, json)
     call mesh%configure(gravity, json, err = err)
     call mesh%output_cell_index(viewer)
@@ -423,7 +423,6 @@ contains
 
     call MPI_comm_rank(PETSC_COMM_WORLD, rank, ierr)
     call thermo%init()
-    call eos%init(json, thermo)
     viewer = PETSC_NULL_VIEWER
 
     json => fson_parse_mpi(str = &
@@ -437,6 +436,7 @@ contains
          '"zone_times": {"+": "zone_plus", "*": "zone3"}, ' // &
          '"zone_times2": {"*": ["zone_plus", "zone3"]}, ' // &
          '"all": {"-": null}}}}')
+    call eos%init(json, thermo)
     call mesh%init(eos, json)
     call mesh%configure(gravity, json, err = err)
     call mesh%output_cell_index(viewer)

@@ -1,0 +1,6 @@
+run/*
+!run/gminc_column.*
+!run/*.json
+!run/*.listing
+output/
+*.pyc
