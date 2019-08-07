@@ -2,7 +2,7 @@
 # names required in the test, otherwise all test modules are used.
 
 from __future__ import print_function
-from sys import argv
+import sys
 import os
 import multiprocessing
 import subprocess
@@ -24,9 +24,12 @@ except (NotImplementedError):
     num_available_procs = 1
 num_procs = range(1, min(num_available_procs, 4) + 1)
 
+ret = 0
 for np in num_procs:
     print('-'*72)
     print('Processors:', np, '/', num_procs[-1])
     cmd = ['meson', 'test'] + test_modules + \
           ['--wrap="' + ' '.join([args.exe, "-" + args.procs, str(np)]) + '"']
-    subprocess.call(" ".join(cmd), shell = True)
+    ret += subprocess.call(" ".join(cmd), shell = True)
+
+sys.exit(ret)

@@ -99,10 +99,10 @@ contains
     
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
     call thermo%init()
-    call eos%init(json, thermo)
     viewer = PETSC_NULL_VIEWER
 
     json => fson_parse_mpi(str = '{"mesh": "' // trim(adjustl(data_path)) // 'mesh/block3.exo"}')
+    call eos%init(json, thermo)
     call mesh%init(eos, json)
     call DMCreateLabel(mesh%serial_dm, open_boundary_label_name, ierr); CHKERRQ(ierr)
     call mesh%configure(gravity, json, viewer = viewer, err = err)
@@ -202,12 +202,12 @@ contains
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
     call thermo%init()
-    call eos%init(json, thermo)
     viewer = PETSC_NULL_VIEWER
 
     json => fson_parse_mpi(str = '{"mesh": {' // &
          '"filename": "' // trim(adjustl(data_path)) // 'mesh/2D.msh",' // &
          '"thickness": 100.}}')
+    call eos%init(json, thermo)
     call mesh%init(eos, json)
     call mesh%configure(gravity, json, viewer = viewer, err = err)
     call fson_destroy_mpi(json)
@@ -306,12 +306,12 @@ contains
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
     call thermo%init()
-    call eos%init(json, thermo)
     viewer = PETSC_NULL_VIEWER
 
     json => fson_parse_mpi(str = '{"mesh": {' // &
          '"filename": "' // trim(adjustl(data_path)) // 'mesh/2D.msh",' // &
          '"radial": true}}')
+    call eos%init(json, thermo)
     call mesh%init(eos, json)
     call mesh%configure(gravity, json, viewer = viewer, err = err)
     call fson_destroy_mpi(json)
@@ -414,7 +414,6 @@ contains
     PetscInt, parameter :: expected_direction = 1
 
     call thermo%init()
-    call eos%init(json, thermo)
     viewer = PETSC_NULL_VIEWER
 
     json => fson_parse_mpi(str = &
@@ -422,6 +421,7 @@ contains
          '"faces": [' // &
          '{"cells": [16, 23], "permeability direction": 1}' // &
          ']}}')
+    call eos%init(json, thermo)
     call mesh%init(eos, json)
 
     call DMCreateLabel(mesh%serial_dm, open_boundary_label_name, ierr); CHKERRQ(ierr)
@@ -820,14 +820,10 @@ contains
     character(:), allocatable :: json_str
     PetscErrorCode :: ierr
     PetscMPIInt :: rank
-    type(IAPWS_type) :: thermo
-    type(eos_we_type) :: eos
     PetscViewer :: viewer
     PetscInt, parameter :: num_rocktypes = 2
 
     call MPI_comm_rank(PETSC_COMM_WORLD, rank, ierr)
-    call thermo%init()
-    call eos%init(json, thermo)
     viewer = PETSC_NULL_VIEWER
 
     json_str = &
@@ -875,9 +871,6 @@ contains
 
     call rock_test_case(json_str, [31, 18], "zones")
 
-    call eos%destroy()
-    call thermo%destroy()
-
   contains
 
     subroutine rock_test_case(json_str, expected_count, title)
@@ -886,6 +879,8 @@ contains
       PetscInt, intent(in) :: expected_count(num_rocktypes)
       character(*), intent(in) :: title
       ! Locals:
+      type(IAPWS_type) :: thermo
+      type(eos_we_type) :: eos
       type(mesh_type) :: mesh
       PetscInt, parameter :: dof = 2
       Vec :: rock_vector
@@ -900,7 +895,9 @@ contains
       PetscInt :: rock_count_local(num_rocktypes), rock_count(num_rocktypes)
       PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
 
+      call thermo%init()
       json => fson_parse_mpi(str = json_str)
+      call eos%init(json, thermo)
       call mesh%init(eos, json)
 
       call DMCreateLabel(mesh%serial_dm, open_boundary_label_name, ierr); CHKERRQ(ierr)
@@ -950,6 +947,8 @@ contains
       call VecDestroy(rock_vector, ierr); CHKERRQ(ierr)
       call mesh%destroy()
       call rock_dict%destroy()
+      call eos%destroy()
+      call thermo%destroy()
 
     end subroutine rock_test_case
 

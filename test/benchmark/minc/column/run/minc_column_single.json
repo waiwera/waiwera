@@ -1,0 +1,187 @@
+{
+  "boundaries": [
+    {
+      "faces": {
+        "cells": [
+          0
+        ], 
+        "normal": [
+          0, 
+          0, 
+          1
+        ]
+      }, 
+      "primary": [
+        100000.022146, 
+        20.0000000004
+      ], 
+      "region": 1
+    }
+  ], 
+  "eos": {
+    "name": "we"
+  }, 
+  "gravity": 9.8, 
+  "initial": {
+    "primary": [
+      [
+        717717.413454, 
+        0.503103148299
+      ], 
+      [
+        1742965.02451, 
+        0.147702361056
+      ], 
+      [
+        2712274.32196, 
+        0.0388791998181
+      ], 
+      [
+        3654481.74475, 
+        240.041036163
+      ], 
+      [
+        4589586.8532, 
+        240.058860308
+      ], 
+      [
+        5525785.41149, 
+        240.038116765
+      ], 
+      [
+        6463099.63685, 
+        240.015444361
+      ], 
+      [
+        7401525.40915, 
+        239.990987066
+      ], 
+      [
+        8341058.6009, 
+        239.964773311
+      ], 
+      [
+        9281695.15748, 
+        239.936830404
+      ]
+    ], 
+    "region": [
+      4, 
+      4, 
+      4, 
+      1, 
+      1, 
+      1, 
+      1, 
+      1, 
+      1, 
+      1
+    ]
+  }, 
+  "mesh": {
+    "filename": "gminc_column.exo"
+  }, 
+  "output": {
+    "filename": "minc_column_single.h5", 
+    "final": true, 
+    "frequency": 1, 
+    "initial": true
+  }, 
+  "rock": {
+    "capillary_pressure": {
+      "pressure": 0, 
+      "saturation_limits": [
+        0, 
+        0
+      ], 
+      "type": "linear"
+    }, 
+    "relative_permeability": {
+      "liquid": [
+        0, 
+        1
+      ], 
+      "type": "linear", 
+      "vapour": [
+        0, 
+        1
+      ]
+    }, 
+    "types": [
+      {
+        "cells": [
+          0, 
+          1, 
+          2, 
+          3, 
+          4, 
+          5, 
+          6, 
+          7, 
+          8, 
+          9
+        ], 
+        "density": 2600, 
+        "dry_conductivity": 1.5, 
+        "name": "dfalt", 
+        "permeability": [
+          1e-13, 
+          1e-13, 
+          1e-13
+        ], 
+        "porosity": 0.1, 
+        "specific_heat": 900, 
+        "wet_conductivity": 1.5
+      }
+    ]
+  }, 
+  "source": [
+    {
+      "cell": 9, 
+      "component": 1, 
+      "enthalpy": 1037600.46717, 
+      "name": "gen 1", 
+      "rate": 10
+    }, 
+    {
+      "cell": 3, 
+      "name": "prd 1", 
+      "rate": -25
+    }
+  ], 
+  "thermodynamics": "ifc67", 
+  "time": {
+    "start": 0, 
+    "step": {
+      "adapt": {
+        "amplification": 2, 
+        "maximum": 8, 
+        "method": "iteration", 
+        "minimum": 6, 
+        "on": true, 
+        "reduction": 0.25
+      }, 
+      "maximum": {
+        "number": 40, 
+        "size": 259200
+      }, 
+      "method": "beuler", 
+      "size": 43200, 
+      "solver": {
+        "nonlinear": {
+          "maximum": {
+            "iterations": 8
+          }, 
+          "tolerance": {
+            "function": {
+              "absolute": null, 
+              "relative": 1e-05
+            }
+          }
+        }
+      }
+    }, 
+    "stop": 7776000
+  }, 
+  "title": "1-D MINC column problem: single porosity"
+}

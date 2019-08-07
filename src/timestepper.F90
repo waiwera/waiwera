@@ -451,23 +451,26 @@ contains
     !! this routine still returns a zero error code (err), otherwise
     !! the SNES will stop.
 
+    use dm_utils_module, only: mat_coloring_perturbed_columns
+
     SNES, intent(in) :: solver
     Vec, intent(in) :: y
     Vec, intent(in out) :: residual
     type(timestepper_solver_context_type), intent(in out) :: context
     PetscErrorCode, intent(out) :: err
     ! Locals:
+    Mat :: J
     PetscErrorCode :: ierr, ferr
-    PetscInt, pointer :: perturbed_columns(:)
+    PetscInt, allocatable :: perturbed_columns(:)
 
     err = 0; ferr = 0
 
-    call MatFDColoringGetPerturbedColumnsF90(context%fd_coloring, &
-         perturbed_columns, ierr); CHKERRQ(ierr)
+    call SNESGetJacobian(solver, J, PETSC_NULL_MAT, PETSC_NULL_FUNCTION, &
+         PETSC_NULL_INTEGER, ierr); CHKERRQ(ierr)
+    perturbed_columns = mat_coloring_perturbed_columns(J, context%fd_coloring)
     call context%ode%pre_eval(context%steps%current%time, y, &
          perturbed_columns, ferr)
-    call MatFDColoringRestorePerturbedColumnsF90(context%fd_coloring, &
-         perturbed_columns, ierr); CHKERRQ(ierr)
+    deallocate(perturbed_columns)
 
     if (ferr == 0) then
        call context%residual(solver, y, residual, context, ferr)
@@ -1458,6 +1461,7 @@ end subroutine timestepper_steps_set_next_stepsize
           call PCSetType(sub_pc, sub_pc_type, ierr); CHKERRQ(ierr)
           call PCFactorSetLevels(sub_pc, factor_levels, ierr)
           CHKERRQ(ierr)
+          call PCSetFromOptions(sub_pc, ierr); CHKERRQ(ierr)
        end do
        deallocate(sub_ksp)
     end if

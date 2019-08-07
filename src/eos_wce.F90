@@ -26,7 +26,6 @@ contains
     !! Initialise eos_wce object.
 
     use fson
-    use fson_mpi_module, only: fson_get_mpi
     use logfile_module
     use thermodynamics_module
 

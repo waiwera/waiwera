@@ -15,7 +15,6 @@ module eos_wge_module
   type, public, extends(eos_type) :: eos_wge_type
      !! Pure water, non-condensible gas and energy equation of state type.
      private
-     PetscReal, allocatable :: primary_scale(:, :)
      class(ncg_thermodynamics_type), allocatable, public :: gas
      type(root_finder_type) :: saturation_line_finder
      type(primary_variable_interpolator_type), pointer :: &
@@ -32,8 +31,6 @@ module eos_wge_module
      procedure, public :: primary_variables => eos_wge_primary_variables
      procedure, public :: phase_saturations => eos_wge_phase_saturations
      procedure, public :: check_primary_variables => eos_wge_check_primary_variables
-     procedure, public :: scale => eos_wge_scale
-     procedure, public :: unscale => eos_wge_unscale
   end type eos_wge_type
 
 contains
@@ -44,7 +41,8 @@ contains
     !! Initialise pure water, non-condensible gas and energy EOS.
 
     use fson
-    use fson_mpi_module, only: fson_get_mpi
+    use fson_mpi_module, only: fson_get_mpi, fson_type_mpi
+    use fson_value_m, only: TYPE_STRING, TYPE_REAL, TYPE_NULL
     use logfile_module
     use thermodynamics_module
 
@@ -56,12 +54,15 @@ contains
     procedure(root_finder_function), pointer :: f
     class(*), pointer :: pinterp
     PetscReal, allocatable :: data(:, :)
+    PetscReal :: pressure_scale, temperature_scale, partial_pressure_scale
+    PetscInt :: scale_type
     PetscErrorCode :: err
     PetscReal, parameter :: default_pressure = 1.0e5_dp
     PetscReal, parameter :: default_temperature = 20._dp ! deg C
     PetscReal, parameter :: default_gas_partial_pressure = 0._dp
-    PetscReal, parameter :: pressure_scale = 1.e6_dp !! Scale factor for non-dimensionalising pressure
-    PetscReal, parameter :: temperature_scale = 1.e2_dp !! Scale factor for non-dimensionalising temperature
+    PetscReal, parameter :: default_pressure_scale = 1.e6_dp !! Default scale factor for non-dimensionalising pressure
+    PetscReal, parameter :: default_temperature_scale = 1.e2_dp !! Default scale factor for non-dimensionalising temperature
+    PetscReal, parameter :: default_partial_pressure_scale = 1.e6_dp !! Default scale factor for non-dimensionalising partial pressure
 
     self%name = "wge"
     self%description = "Water, non-condensible gas and energy"
@@ -88,11 +89,26 @@ contains
          "region                ", "gas_partial_pressure  ", &
          "vapour_saturation     "]
 
+    call fson_get_mpi(json, "eos.primary.scale.pressure", default_pressure_scale, &
+         pressure_scale, logfile)
+    call fson_get_mpi(json, "eos.primary.scale.temperature", default_temperature_scale, &
+         temperature_scale, logfile)
+
+    scale_type = fson_type_mpi(json, "eos.primary.scale.partial_pressure")
+    select case (scale_type)
+    case (TYPE_STRING, TYPE_NULL)
+       self%scale => eos_wge_scale_adaptive
+       self%unscale => eos_wge_unscale_adaptive
+       partial_pressure_scale = 0._dp
+    case (TYPE_REAL)
+       call fson_get_mpi(json, "eos.primary.scale.partial_pressure", &
+            default_partial_pressure_scale, partial_pressure_scale, logfile)
+    end select
     self%primary_scale = reshape([ &
-          pressure_scale, temperature_scale, &
-          pressure_scale, temperature_scale, &
-          0._dp, 0._dp, &
-          pressure_scale, 1._dp], [2, 4])
+          pressure_scale, temperature_scale, partial_pressure_scale, &
+          pressure_scale, temperature_scale, partial_pressure_scale, &
+          0._dp, 0._dp, 0._dp, &
+          pressure_scale, 1._dp, partial_pressure_scale], [3, 4])
 
     self%thermo => thermo
 
@@ -613,42 +629,42 @@ contains
 
 !------------------------------------------------------------------------
 
-  function eos_wge_scale(self, primary, region) result(scaled_primary)
+  function eos_wge_scale_adaptive(self, primary, region) result(scaled_primary)
     !! Non-dimensionalise eos_wge primary variables by scaling. The
     !! first two variables (pressure and temperature or saturation)
     !! are scaled by fixed constants. The third variable, NCG partial
-    !! pressure, is scaled by total pressure.
+    !! pressure, is scaled adaptively by total pressure in the cell.
 
-    class(eos_wge_type), intent(in) :: self
+    class(eos_type), intent(in) :: self
     PetscReal, intent(in) :: primary(self%num_primary_variables)
     PetscInt, intent(in) :: region
     PetscReal :: scaled_primary(self%num_primary_variables)
 
-    scaled_primary(1:2) = primary(1:2) / self%primary_scale(:, region)
+    scaled_primary(1:2) = primary(1:2) / self%primary_scale(1:2, region)
     associate(scaled_partial_pressure => scaled_primary(3), &
          pressure => primary(1), partial_pressure => primary(3))
       scaled_partial_pressure = partial_pressure / pressure
     end associate
 
-  end function eos_wge_scale
+  end function eos_wge_scale_adaptive
 
 !------------------------------------------------------------------------
 
-  function eos_wge_unscale(self, scaled_primary, region) result(primary)
+  function eos_wge_unscale_adaptive(self, scaled_primary, region) result(primary)
     !! Re-dimensionalise eos_wge scaled primary variables.
 
-    class(eos_wge_type), intent(in) :: self
+    class(eos_type), intent(in) :: self
     PetscReal, intent(in) :: scaled_primary(self%num_primary_variables)
     PetscInt, intent(in) :: region
     PetscReal :: primary(self%num_primary_variables)
 
-    primary(1:2) = scaled_primary(1:2) * self%primary_scale(:, region)
+    primary(1:2) = scaled_primary(1:2) * self%primary_scale(1:2, region)
     associate(scaled_partial_pressure => scaled_primary(3), &
          pressure => primary(1), partial_pressure => primary(3))
       partial_pressure = scaled_partial_pressure * pressure
     end associate
 
-  end function eos_wge_unscale
+  end function eos_wge_unscale_adaptive
 
 !------------------------------------------------------------------------
 
