@@ -33,8 +33,8 @@ module dag_module
      private
      PetscInt, allocatable, public :: edges(:) !! Other vertices this one depends on
      PetscInt, public :: index = 0 !! Vertex index in DAG (zero-based)
-     logical, public :: checking !! Whether vertex is being checked during sort
-     logical, public :: done !! Whether vertex has been marked as done during sort
+     PetscBool, public :: checking !! Whether vertex is being checked during sort
+     PetscBool, public :: done !! Whether vertex has been marked as done during sort
    contains
      private
      procedure, public :: set_edges => vertex_set_edges

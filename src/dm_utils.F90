@@ -1460,7 +1460,7 @@ contains
 
 !------------------------------------------------------------------------
 
-  logical function mat_type_is_block(M) result(isblock)
+  PetscBool function mat_type_is_block(M) result(isblock)
     !! Returns true if matrix type is a block type.
 
     Mat, intent(in) :: M
