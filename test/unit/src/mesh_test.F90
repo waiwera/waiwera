@@ -55,6 +55,80 @@ contains
 
 !------------------------------------------------------------------------
 
+  subroutine mesh_geometry_sanity_check(mesh, test, title)
+    !! Returns true if mesh cell and face geometry vectors pass a
+    !! basic sanity check.
+
+    use cell_module, only: cell_type
+    use face_module, only: face_type
+    use dm_utils_module, only: local_vec_section, section_offset
+
+    class(mesh_type), intent(in) :: mesh
+    class(unit_test_type), intent(in out) :: test
+    character(*), intent(in) :: title
+    ! Locals:
+    PetscInt :: start_cell, end_cell, c, offset
+    PetscInt :: start_face, end_face, f
+    PetscSection :: cell_geom_section, face_geom_section
+    PetscReal, pointer, contiguous :: cell_geom_array(:), face_geom_array(:)
+    type(cell_type) :: cell
+    type(face_type) :: face
+    PetscInt :: dirn
+    character(80) :: msg
+    PetscErrorCode :: ierr
+
+    call local_vec_section(mesh%cell_geom, cell_geom_section)
+    call VecGetArrayReadF90(mesh%cell_geom, cell_geom_array, ierr)
+    CHKERRQ(ierr)
+
+    call DMPlexGetHeightStratum(mesh%dm, 0, start_cell, end_cell, ierr)
+    CHKERRQ(ierr)
+    call cell%init(1, 1)
+
+    do c = start_cell, end_cell - 1
+       if (mesh%ghost_cell(c) < 0) then
+          call section_offset(cell_geom_section, c, offset, ierr)
+          CHKERRQ(ierr)
+          call cell%assign_geometry(cell_geom_array, offset)
+          write(msg, '(a, i4, a, e10.4, a)') " : cell ", c, " volume (", cell%volume, ") <= 0"
+          call test%assert(cell%volume > 0._dp, trim(title) // trim(msg))
+       end if
+    end do
+
+    call cell%destroy()
+    call VecRestoreArrayReadF90(mesh%cell_geom, cell_geom_array, ierr)
+    CHKERRQ(ierr)
+
+    call local_vec_section(mesh%face_geom, face_geom_section)
+    call VecGetArrayReadF90(mesh%face_geom, face_geom_array, ierr)
+    CHKERRQ(ierr)
+
+    call DMPlexGetHeightStratum(mesh%dm, 1, start_face, end_face, ierr)
+    CHKERRQ(ierr)
+    call face%init(1, 1)
+    do f = start_face, end_face - 1
+       if (mesh%ghost_face(f) < 0) then
+          call section_offset(face_geom_section, f, offset, ierr)
+          CHKERRQ(ierr)
+          call face%assign_geometry(face_geom_array, offset)
+          write(msg, '(a, i4, a, e10.4, a)') " : face ", f, " area (", face%area, ") <= 0"
+          call test%assert(face%area > 0._dp, trim(title) // trim(msg))
+          write(msg, '(a, i4, a, e10.4, a)') " : face ", f, " distance12 (", face%distance12, ") <= 0"
+          call test%assert(face%distance12 > 0._dp, trim(title) // trim(msg))
+          dirn = nint(face%permeability_direction)
+          write(msg, '(a, i4, a, i2)') " : face ", f, " perm dirn =", dirn
+          call test%assert(((1 <= dirn) .and. (dirn <= 3)), trim(title) // trim(msg))
+       end if
+    end do
+
+    call face%destroy()
+    call VecRestoreArrayReadF90(mesh%face_geom, face_geom_array, ierr)
+    CHKERRQ(ierr)
+
+  end subroutine mesh_geometry_sanity_check
+
+!------------------------------------------------------------------------
+
   subroutine test_mesh_init(test)
 
     ! Mesh init test
@@ -114,6 +188,7 @@ contains
     if (rank == 0) then
        call test%assert(expected_dim, dim, "mesh dimension")
     end if
+    call mesh_geometry_sanity_check(mesh, test, "")
 
     call DMGetGlobalVector(mesh%dm, x, ierr); CHKERRQ(ierr)
     call VecGetSize(x, global_solution_dof, ierr); CHKERRQ(ierr)
@@ -215,6 +290,8 @@ contains
 
     call fson_destroy_mpi(json)
     call mesh%destroy_distribution_data()
+
+    call mesh_geometry_sanity_check(mesh, test, "")
 
     call local_vec_section(mesh%cell_geom, cell_geom_section)
     call VecGetArrayReadF90(mesh%cell_geom, cell_geom_array, ierr)
@@ -321,6 +398,8 @@ contains
 
     call fson_destroy_mpi(json)
     call mesh%destroy_distribution_data()
+
+    call mesh_geometry_sanity_check(mesh, test, "")
 
     call local_vec_section(mesh%cell_geom, cell_geom_section)
     call VecGetArrayReadF90(mesh%cell_geom, cell_geom_array, ierr)
@@ -436,6 +515,8 @@ contains
     call mesh%override_face_properties()
     call fson_destroy_mpi(json)
     call mesh%destroy_distribution_data()
+
+    call mesh_geometry_sanity_check(mesh, test, "")
 
     call local_vec_section(mesh%face_geom, face_geom_section)
     call VecGetArrayReadF90(mesh%face_geom, face_geom_array, ierr)
@@ -708,6 +789,8 @@ contains
       call fson_destroy_mpi(orig_json)
       call mesh%destroy_distribution_data()
 
+      call mesh_geometry_sanity_check(mesh, test, name)
+
       call DMGetLocalToGlobalMapping(orig_mesh%dm, l2g, ierr); CHKERRQ(ierr)
 
       if (rank == 0) then
@@ -957,6 +1040,8 @@ contains
       call mesh%configure(gravity, json, err = err)
       call mesh%output_cell_index(viewer)
 
+      call mesh_geometry_sanity_check(mesh, test, title)
+
       call setup_rock_vector(json, mesh%dm, rock_vector, &
            rock_dict, rock_range_start, mesh%ghost_cell, err = err)
       call test%assert(0, err, "setup rock vector error")
@@ -1138,6 +1223,8 @@ contains
       call fson_destroy_mpi(json)
       call mesh%destroy_distribution_data()
 
+      call mesh_geometry_sanity_check(mesh, test, title)
+
       call VecGetArrayReadF90(rock_vector, rock_array, ierr); CHKERRQ(ierr)
       call global_vec_section(rock_vector, section)
       call rock%init()
@@ -1267,6 +1354,8 @@ contains
 
       call fson_destroy_mpi(json)
       call mesh%destroy_distribution_data()
+
+      call mesh_geometry_sanity_check(mesh, test, title)
 
       ! Test distributed label values against mesh cell%order AO:
       call DMPlexGetHeightStratum(mesh%dm, 0, start_cell, end_cell, ierr)
@@ -1434,6 +1523,8 @@ contains
       call fson_destroy_mpi(json)
       call mesh%destroy_distribution_data()
 
+      call mesh_geometry_sanity_check(mesh, test, title)
+
       call DMGetLabel(mesh%dm, minc_zone_label_name, minc_label, ierr)
       CHKERRQ(ierr)
       call DMGetLocalToGlobalMapping(mesh%dm, l2g, ierr); CHKERRQ(ierr)
@@ -1548,6 +1639,8 @@ contains
       call fson_destroy_mpi(json)
       call mesh%destroy_distribution_data()
 
+      call mesh_geometry_sanity_check(mesh, test, title)
+
       do i = 1, size(natural_indices)
          idx(1) = natural_indices(i)
          write(natural_str, '(i2)') idx(1)
@@ -1646,6 +1739,8 @@ contains
       call mesh%construct_ghost_cells()
       call fson_destroy_mpi(json)
       call mesh%destroy_distribution_data()
+
+      call mesh_geometry_sanity_check(mesh, test, title)
 
       if (rank == 0) then
          call test%assert(mesh%has_minc, title // ": mesh has minc")
