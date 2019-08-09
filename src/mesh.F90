@@ -105,6 +105,7 @@ module mesh_module
      procedure :: redistribute_dm => mesh_redistribute_dm
      procedure :: redistribute_geometry => mesh_redistribute_geometry
      procedure :: geometry_add_boundary => mesh_geometry_add_boundary
+     procedure :: boundary_face_geometry => mesh_boundary_face_geometry
      procedure :: setup_cell_natural => mesh_setup_cell_natural
      procedure :: distribute_index_set => mesh_distribute_index_set
      procedure, public :: init => mesh_init
@@ -170,7 +171,7 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine mesh_construct_ghost_cells(self)
+  subroutine mesh_construct_ghost_cells(self, gravity)
     !! Constructs ghost cells on open boundary faces.
 
     use dm_utils_module, only: dm_set_fv_adjacency, &
@@ -178,6 +179,7 @@ contains
          dm_get_natural_to_global_ao
 
     class(mesh_type), intent(in out) :: self
+    PetscReal, intent(in) :: gravity(:) !! Gravity vector
     ! Locals:
     DM :: ghost_dm
     DMLabel :: label
@@ -195,7 +197,7 @@ contains
        call set_dm_default_data_layout(self%dm, self%dof)
        call dm_label_boundary_ghosts(self%dm, boundary_ghost_label_name)
        self%cell_natural_global = dm_get_natural_to_global_ao(self%dm, self%cell_natural)
-       call self%geometry_add_boundary()
+       call self%geometry_add_boundary(gravity)
        call self%setup_ghost_arrays()
     end if
 
@@ -521,13 +523,91 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine mesh_geometry_add_boundary(self)
+  subroutine mesh_boundary_face_geometry(self, gravity)
+    !! Computes face geometry parameters for open boundary faces.
+
+    use cell_module, only: cell_type
+    use face_module, only: face_type
+    use dm_utils_module, only: local_vec_section, section_offset
+
+    class(mesh_type), intent(in out) :: self
+    PetscReal, intent(in) :: gravity(:) !! Gravity vector
+    ! Locals:
+    PetscSection :: cell_section, face_section
+    PetscReal, pointer, contiguous :: cell_geom_array(:), face_geom_array(:)
+    DMLabel :: bdy_label, ghost_label
+    IS :: label_IS, bdy_IS
+    PetscInt, pointer :: label_values(:), bdy_faces(:)
+    PetscInt :: i, num_values, ibdy, num_faces, iface, ghost, f
+    PetscInt :: cell_offset, face_offset
+    PetscInt, pointer :: cells(:)
+    type(cell_type) :: cell
+    type(face_type) :: face
+    PetscErrorCode :: ierr
+
+    call local_vec_section(self%cell_geom, cell_section)
+    call VecGetArrayReadF90(self%cell_geom, cell_geom_array, ierr); CHKERRQ(ierr)
+    call local_vec_section(self%face_geom, face_section)
+    call VecGetArrayF90(self%face_geom, face_geom_array, ierr); CHKERRQ(ierr)
+
+    call DMGetLabel(self%dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
+    call DMGetLabel(self%dm, open_boundary_label_name, bdy_label, ierr)
+    CHKERRQ(ierr)
+    call DMLabelGetValueIS(bdy_label, label_IS, ierr); CHKERRQ(ierr)
+    call ISGetIndicesF90(label_IS, label_values, ierr); CHKERRQ(ierr)
+
+    call cell%init(1, 1)
+    call face%init()
+
+    num_values = size(label_values)
+    do i = 1, num_values
+       ibdy = label_values(i)
+       call DMGetStratumSize(self%dm, open_boundary_label_name, &
+            ibdy, num_faces, ierr); CHKERRQ(ierr)
+       if (num_faces > 0) then
+          call DMGetStratumIS(self%dm, open_boundary_label_name, &
+               ibdy, bdy_IS, ierr); CHKERRQ(ierr)
+          call ISGetIndicesF90(bdy_IS, bdy_faces, ierr); CHKERRQ(ierr)
+          do iface = 1, num_faces
+             f = bdy_faces(iface)
+             call DMPlexGetSupport(self%dm, f, cells, ierr); CHKERRQ(ierr)
+             call DMLabelGetValue(ghost_label, cells(1), ghost, ierr); CHKERRQ(ierr)
+             if (ghost < 0) then
+                call section_offset(face_section, f, face_offset, &
+                     ierr); CHKERRQ(ierr)
+                call face%assign_geometry(face_geom_array, face_offset)
+                call DMPlexComputeCellGeometryFVM(self%dm, f, face%area, &
+                     face%centroid, face%normal, ierr); CHKERRQ(ierr)
+                face%gravity_normal = dot_product(gravity, face%normal)
+                call face%calculate_permeability_direction(self%permeability_rotation)
+                call self%modify_face_geometry(face)
+                call section_offset(cell_section, cells(1), cell_offset, &
+                     ierr); CHKERRQ(ierr)
+                call cell%assign_geometry(cell_geom_array, cell_offset)
+                face%distance = [norm2(face%centroid - cell%centroid), 0._dp]
+             end if
+          end do
+       end if
+    end do
+
+    call ISRestoreIndicesF90(label_IS, label_values, ierr); CHKERRQ(ierr)
+    call VecRestoreArrayF90(self%face_geom, face_geom_array, ierr); CHKERRQ(ierr)
+    call VecRestoreArrayReadF90(self%cell_geom, cell_geom_array, ierr); CHKERRQ(ierr)
+    call cell%destroy()
+    call face%destroy()
+
+  end subroutine mesh_boundary_face_geometry
+
+!------------------------------------------------------------------------
+
+  subroutine mesh_geometry_add_boundary(self, gravity)
     !! Adds space for Dirichlet boundary condition ghost cells to mesh
     !! geometry vectors.
 
     use dm_utils_module, only: set_dm_data_layout, vec_copy_common_local
 
     class(mesh_type), intent(in out) :: self
+    PetscReal, intent(in) :: gravity(:) !! Gravity vector
     ! Locals:
     Vec :: cell_geom, face_geom
     DM :: dm_cell, dm_face
@@ -554,6 +634,8 @@ contains
     call vec_copy_common_local(self%face_geom, face_geom)
     call VecDestroy(self%face_geom, ierr); CHKERRQ(ierr)
     self%face_geom = face_geom
+
+    call self%boundary_face_geometry(gravity)
 
   end subroutine mesh_geometry_add_boundary
 
@@ -815,15 +897,14 @@ contains
 !------------------------------------------------------------------------
 
   subroutine mesh_set_boundary_conditions(self, json, y, fluid_vector, rock_vector, &
-       eos, y_range_start, fluid_range_start, rock_range_start, gravity, logfile)
+       eos, y_range_start, fluid_range_start, rock_range_start, logfile)
     !! Sets primary variables (and rock properties) in boundary ghost
-    !! cells. Also computes face geometry for boundary ghost faces.
+    !! cells.
 
     use fson
     use fson_mpi_module
     use kinds_module
-    use dm_utils_module, only: global_vec_section, global_section_offset, &
-         local_vec_section, section_offset
+    use dm_utils_module, only: global_vec_section, global_section_offset
     use eos_module, only: eos_type
     use fluid_module, only: fluid_type
     use rock_module, only: rock_type
@@ -838,28 +919,23 @@ contains
     PetscInt, intent(in) :: y_range_start !! Start of range for global primary variables vector
     PetscInt, intent(in) :: fluid_range_start !! Start of range for global fluid vector
     PetscInt, intent(in) :: rock_range_start !! Start of range for global rock vector
-    PetscReal, intent(in) :: gravity(:) !! Gravity vector
     type(logfile_type), intent(in out), optional :: logfile !! Logfile for log output
     ! Locals:
     type(fson_value), pointer :: boundaries, bdy
     PetscInt :: num_boundaries, ibdy, f, i, num_faces, iface, np, n
     PetscReal, pointer, contiguous :: y_array(:), fluid_array(:), rock_array(:)
     PetscReal, pointer, contiguous :: cell_primary(:), rock1(:), rock2(:)
-    PetscReal, pointer, contiguous :: cell_geom_array(:), face_geom_array(:)
     PetscSection :: y_section, fluid_section, rock_section
-    PetscSection :: cell_section, face_section
     IS :: bdy_IS
     DMLabel :: ghost_label
     type(fluid_type):: fluid
     type(rock_type) :: rock
-    PetscInt :: y_offset, fluid_offset, rock_offsets(2), cell_offset, face_offset
+    PetscInt :: y_offset, fluid_offset, rock_offsets(2)
     PetscInt :: ghost, region
     PetscInt, pointer :: bdy_faces(:), cells(:)
     PetscReal, allocatable :: primary(:)
     character(len=64) :: bdystr
     character(len=12) :: istr
-    type(cell_type) :: cell
-    type(face_type) :: face
     PetscErrorCode :: ierr
 
     call global_vec_section(y, y_section)
@@ -869,15 +945,9 @@ contains
     call global_vec_section(rock_vector, rock_section)
     call VecGetArrayF90(rock_vector, rock_array, ierr); CHKERRQ(ierr)
     call DMGetLabel(self%dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
-    call local_vec_section(self%cell_geom, cell_section)
-    call VecGetArrayF90(self%cell_geom, cell_geom_array, ierr); CHKERRQ(ierr)
-    call local_vec_section(self%face_geom, face_section)
-    call VecGetArrayF90(self%face_geom, face_geom_array, ierr); CHKERRQ(ierr)
     np = eos%num_primary_variables
     call fluid%init(eos%num_components, eos%num_phases)
     call rock%init()
-    call cell%init(1, 1)
-    call face%init()
 
     if (fson_has_mpi(json, "boundaries")) then
 
@@ -926,19 +996,6 @@ contains
                       rock2 = rock1
                    end if
                 end if
-                ! Compute boundary ghost face geometry:
-                call section_offset(cell_section, cells(1), cell_offset, &
-                     ierr); CHKERRQ(ierr)
-                call section_offset(face_section, f, face_offset, &
-                     ierr); CHKERRQ(ierr)
-                call cell%assign_geometry(cell_geom_array, cell_offset)
-                call face%assign_geometry(face_geom_array, face_offset)
-                call DMPlexComputeCellGeometryFVM(self%dm, f, face%area, &
-                     face%centroid, face%normal, ierr); CHKERRQ(ierr)
-                face%gravity_normal = dot_product(gravity, face%normal)
-                call self%modify_face_geometry(face)
-                face%distance = [norm2(face%centroid - cell%centroid), 0._dp]
-                call face%calculate_permeability_direction(self%permeability_rotation)
              end do
              call ISRestoreIndicesF90(bdy_IS, bdy_faces, ierr); CHKERRQ(ierr)
              call ISDestroy(bdy_IS, ierr); CHKERRQ(ierr)
@@ -950,11 +1007,9 @@ contains
 
     call fluid%destroy()
     call rock%destroy()
-    call face%destroy()
     call VecRestoreArrayF90(y, y_array, ierr); CHKERRQ(ierr)
     call VecRestoreArrayF90(fluid_vector, fluid_array, ierr); CHKERRQ(ierr)
     call VecRestoreArrayF90(rock_vector, rock_array, ierr); CHKERRQ(ierr)
-    call VecRestoreArrayF90(self%face_geom, face_geom_array, ierr); CHKERRQ(ierr)
 
   end subroutine mesh_set_boundary_conditions
 
