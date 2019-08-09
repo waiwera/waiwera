@@ -78,6 +78,7 @@ module dm_utils_module
   public :: dm_distribute_local_vec, dm_distribute_global_vec
   public :: vec_copy_common_local
   public :: mat_type_is_block, mat_coloring_perturbed_columns
+  public :: dm_copy_cone_orientation
 
 contains
 
@@ -1508,6 +1509,28 @@ contains
          perturbed_columns, ierr); CHKERRQ(ierr)
 
   end function mat_coloring_perturbed_columns
+
+!------------------------------------------------------------------------
+
+  subroutine dm_copy_cone_orientation(dm_source, p_source, dm_dest, p_dest)
+    !! Copies DMPlex cone orientation from point p_source in dm_source to point
+    !! p_dest in dm_dest.
+
+    DM, intent(in) :: dm_source
+    PetscInt, intent(in) :: p_source, p_dest
+    DM, intent(in out) :: dm_dest
+    ! Locals:
+    PetscInt, pointer :: orientation(:)
+    PetscErrorCode :: ierr
+
+    call DMPlexGetConeOrientation(dm_source, p_source, orientation, &
+         ierr); CHKERRQ(ierr)
+    call DMPlexSetConeOrientation(dm_dest, p_dest, orientation, &
+         ierr); CHKERRQ(ierr)
+    call DMPlexRestoreConeOrientation(dm_source, p_source, orientation, &
+         ierr); CHKERRQ(ierr)
+
+  end subroutine dm_copy_cone_orientation
 
 !------------------------------------------------------------------------
 
