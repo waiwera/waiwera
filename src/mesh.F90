@@ -3165,6 +3165,8 @@ contains
     !! coordinates are assigned to the (dummy) vertices added when
     !! the MINC DM is constructed.
 
+    use dm_utils_module, only: section_offset
+
     class(mesh_type), intent(in out) :: self
     DM, intent(in out) :: minc_dm
     ! Locals:
@@ -3217,11 +3219,10 @@ contains
     do v = vstart, vend - 1
        minc_v = v + shift
        call PetscSectionGetDof(section, v, dof, ierr); CHKERRQ(ierr)
-       call PetscSectionGetOffset(section, v, offset, ierr); CHKERRQ(ierr)
-       call PetscSectionGetOffset(minc_section, minc_v, minc_offset, ierr)
-       CHKERRQ(ierr)
-       pos => coord_array(offset + 1: offset + dof)
-       minc_pos => minc_coord_array(minc_offset + 1: minc_offset + dof)
+       call section_offset(section, v, offset, ierr); CHKERRQ(ierr)
+       call section_offset(minc_section, minc_v, minc_offset, ierr); CHKERRQ(ierr)
+       pos => coord_array(offset: offset + dof - 1)
+       minc_pos => minc_coord_array(minc_offset: minc_offset + dof - 1)
        minc_pos = pos
     end do
     call VecRestoreArrayF90(minc_coordinates, minc_coord_array, ierr); CHKERRQ(ierr)
