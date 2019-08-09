@@ -51,6 +51,7 @@ module mesh_module
      DM, public :: dm !! DM representing the mesh topology (may be modified from original_dm)
      Vec, public :: cell_geom !! Vector containing cell geometry data
      Vec, public :: face_geom !! Vector containing face geometry data
+     PetscInt, public :: dim !! DM dimension
      PetscInt :: depth !! DM depth
      type(dm_stratum_type), allocatable, public :: strata(:) !! Mesh strata (used for MINC point calculations)
      IS, public :: cell_index !! Index set defining natural to global cell ordering (without boundary cells)
@@ -132,12 +133,10 @@ contains
     
     class(mesh_type), intent(in out) :: self
     ! Locals:
-    PetscInt :: dim
     PetscSection :: section
     PetscErrorCode :: ierr
 
-    call DMGetDimension(self%serial_dm, dim, ierr); CHKERRQ(ierr)
-    section = dm_create_section(self%serial_dm, [1], [dim])
+    section = dm_create_section(self%serial_dm, [1], [self%dim])
 
     call DMPlexDistribute(self%serial_dm, partition_overlap, self%dist_sf, &
          self%original_dm, ierr); CHKERRQ(ierr)
@@ -215,14 +214,11 @@ contains
     type(fson_value), pointer, intent(in) :: json !! JSON file pointer
     type(logfile_type), intent(in out), optional :: logfile !! Logfile for log output
     ! Locals:
-    PetscInt :: dim
-    PetscErrorCode :: ierr
     PetscBool, parameter :: default_radial = PETSC_FALSE
     PetscReal, parameter :: default_thickness = 1._dp
 
     self%thickness = default_thickness
-    call DMGetDimension(self%serial_dm, dim, ierr); CHKERRQ(ierr)
-    select case (dim)
+    select case (self%dim)
     case(3)
        self%radial = PETSC_FALSE
     case(2)
@@ -283,12 +279,8 @@ contains
 
     class(mesh_type), intent(in) :: self
     type(cell_type), intent(in out) :: cell
-    ! Locals:
-    PetscInt :: dim
-    PetscErrorCode :: ierr
 
-    call DMGetDimension(self%original_dm, dim, ierr); CHKERRQ(ierr)
-    if (dim == 2) then
+    if (self%dim == 2) then
        if (self%radial) then
           call modify_cell_geometry_2d_radial(cell)
        else
@@ -336,12 +328,8 @@ contains
 
     class(mesh_type), intent(in) :: self
     type(face_type), intent(in out) :: face
-    ! Locals:
-    PetscInt :: dim
-    PetscErrorCode :: ierr
 
-    call DMGetDimension(self%original_dm, dim, ierr); CHKERRQ(ierr)
-    if (dim == 2) then
+    if (self%dim == 2) then
        if (self%radial) then
           call modify_face_geometry_2d_radial(face)
        else
@@ -439,11 +427,10 @@ contains
     PetscReal, pointer, contiguous :: cell_geom_array(:)
     DMLabel :: ghost_label
     PetscInt, pointer :: cells(:)
-    PetscInt :: dim, face_variable_dim(num_face_variables)
+    PetscInt :: face_variable_dim(num_face_variables)
     PetscInt :: cell_variable_dim(num_cell_variables)
     PetscErrorCode :: ierr
 
-    call DMGetDimension(self%original_dm, dim, ierr); CHKERRQ(ierr)
     call DMGetLabel(self%original_dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
     call DMPlexGetHeightStratum(self%original_dm, 0, start_cell, end_cell, ierr)
     CHKERRQ(ierr)
@@ -452,7 +439,7 @@ contains
 
     ! Set up cell geometry vector:
     call VecGetDM(self%cell_geom, dm_cell, ierr); CHKERRQ(ierr)
-    cell_variable_dim = dim
+    cell_variable_dim = self%dim
     call DMSetNumFields(dm_cell, num_cell_variables, ierr); CHKERRQ(ierr)
     call set_dm_data_layout(dm_cell, cell_variable_num_components, &
          cell_variable_dim, cell_variable_names)
@@ -460,7 +447,7 @@ contains
     call local_vec_section(self%cell_geom, cell_section)
     call VecGetArrayF90(self%cell_geom, cell_geom_array, ierr); CHKERRQ(ierr)
 
-    if (dim == 2) then
+    if (self%dim == 2) then
        ! Adjust cell volumes:
        do c = start_cell, end_cell - 1
           call DMLabelGetValue(ghost_label, c, ghost_cell, ierr); CHKERRQ(ierr)
@@ -474,7 +461,7 @@ contains
 
     ! Set up face geometry vector:
     call DMClone(self%original_dm, dm_face, ierr); CHKERRQ(ierr)
-    face_variable_dim = dim - 1
+    face_variable_dim = self%dim - 1
     call DMSetNumFields(dm_face, num_face_variables, ierr); CHKERRQ(ierr)
     call set_dm_data_layout(dm_face, face_variable_num_components, &
          face_variable_dim, face_variable_names)
@@ -544,14 +531,12 @@ contains
     ! Locals:
     Vec :: cell_geom, face_geom
     DM :: dm_cell, dm_face
-    PetscInt :: dim
     PetscInt :: cell_variable_dim(num_cell_variables)
     PetscInt :: face_variable_dim(num_face_variables)
     PetscErrorCode :: ierr
 
-    call DMGetDimension(self%dm, dim, ierr); CHKERRQ(ierr)
     call DMClone(self%dm, dm_cell, ierr); CHKERRQ(ierr)
-    cell_variable_dim = dim
+    cell_variable_dim = self%dim
     call DMSetNumFields(dm_cell, num_cell_variables, ierr); CHKERRQ(ierr)
     call set_dm_data_layout(dm_cell, cell_variable_num_components, &
          cell_variable_dim, cell_variable_names)
@@ -561,7 +546,7 @@ contains
     self%cell_geom = cell_geom
 
     call DMClone(self%dm, dm_face, ierr); CHKERRQ(ierr)
-    face_variable_dim = dim - 1
+    face_variable_dim = self%dim - 1
     call DMSetNumFields(dm_face, num_face_variables, ierr); CHKERRQ(ierr)
     call set_dm_data_layout(dm_face, face_variable_num_components, &
          face_variable_dim, face_variable_names)
@@ -713,6 +698,7 @@ contains
             self%serial_dm, ierr); CHKERRQ(ierr)
        call dm_set_fv_adjacency(self%serial_dm)
        self%dof = eos%num_primary_variables
+       call DMGetDimension(self%serial_dm, self%dim, ierr); CHKERRQ(ierr)
        call dm_setup_fv_discretization(self%serial_dm, self%dof)
        call set_dm_default_data_layout(self%serial_dm, self%dof)
        call self%setup_coordinate_parameters(json, logfile)
@@ -1078,7 +1064,7 @@ contains
     ! Locals:
     DMLabel :: label
     IS :: faceIS
-    PetscInt :: dim, num_faces
+    PetscInt :: num_faces
     PetscInt, pointer, contiguous :: faces(:)
     PetscSection :: face_section
     type(face_type) :: face
@@ -1086,7 +1072,6 @@ contains
     PetscInt :: i, face_offset, dirn
     PetscErrorCode :: ierr
 
-    call DMGetDimension(self%dm, dim, ierr); CHKERRQ(ierr)
     call DMGetLabel(self%dm, face_permeability_override_label_name, &
          label, ierr); CHKERRQ(ierr)
 
@@ -1094,7 +1079,7 @@ contains
     call VecGetArrayF90(self%face_geom, face_geom_array, ierr); CHKERRQ(ierr)
     call face%init()
 
-    do dirn = 1, dim
+    do dirn = 1, self%dim
        call DMLabelGetStratumSize(label, dirn, num_faces, ierr); CHKERRQ(ierr)
        if (num_faces > 0) then
           call DMLabelGetStratumIS(label, dirn, faceIS, ierr); CHKERRQ(ierr)
@@ -1823,7 +1808,6 @@ contains
     ! Locals:
     DM :: minc_dm
     PetscInt :: start_chart, end_chart, m
-    PetscInt :: dim
     PetscInt :: num_minc_cells
     PetscInt :: num_minc_zones, num_cells, num_new_points, max_num_levels
     PetscInt, allocatable :: minc_zone(:), minc_end_interior(:)
@@ -1836,8 +1820,7 @@ contains
 
     call DMPlexCreate(PETSC_COMM_WORLD, minc_dm, ierr); CHKERRQ(ierr)
 
-    call DMGetDimension(self%dm, dim, ierr); CHKERRQ(ierr)
-    call DMSetDimension(minc_dm, dim, ierr); CHKERRQ(ierr)
+    call DMSetDimension(minc_dm, self%dim, ierr); CHKERRQ(ierr)
     call DMPlexGetChart(self%dm, start_chart, end_chart, ierr)
     CHKERRQ(ierr)
 
@@ -2677,7 +2660,7 @@ contains
     PetscInt, intent(in) :: num_cells, max_num_levels, num_minc_zones
     PetscInt, intent(in) :: minc_zone(0: num_cells - 1)
     ! Locals:
-    PetscInt :: dim, cell_variable_dim(num_cell_variables), &
+    PetscInt :: cell_variable_dim(num_cell_variables), &
          face_variable_dim(num_face_variables)
     PetscInt :: iminc, c, f, h, i, m, minc_p, face_p, ghost
     PetscInt :: cell_offset, minc_cell_offset, face_offset, minc_face_offset
@@ -2698,12 +2681,11 @@ contains
     PetscErrorCode :: ierr
     PetscInt, parameter :: nc = 1, np = 1 ! dummy values for cell & face init
 
-    call DMGetDimension(self%dm, dim, ierr); CHKERRQ(ierr)
     call DMGetLabel(self%dm, "ghost", ghost_label, ierr)
     CHKERRQ(ierr)
 
     call DMClone(minc_dm, dm_cell, ierr); CHKERRQ(ierr)
-    cell_variable_dim = dim
+    cell_variable_dim = self%dim
     call DMSetNumFields(dm_cell, num_cell_variables, ierr); CHKERRQ(ierr)
     call set_dm_data_layout(dm_cell, cell_variable_num_components, &
          cell_variable_dim, cell_variable_names)
@@ -2719,7 +2701,7 @@ contains
     CHKERRQ(ierr)
 
     call DMClone(minc_dm, dm_face, ierr); CHKERRQ(ierr)
-    face_variable_dim = dim - 1
+    face_variable_dim = self%dim - 1
     call DMSetNumFields(dm_face, num_face_variables, ierr); CHKERRQ(ierr)
     call set_dm_data_layout(dm_face, face_variable_num_components, &
          face_variable_dim, face_variable_names)
@@ -3265,12 +3247,10 @@ contains
     class(mesh_type), intent(in out) :: self
     PetscSF, intent(out) :: sf
     ! Locals:
-    PetscInt :: dim
     PetscSection :: section
     PetscErrorCode :: ierr
 
-    call DMGetDimension(self%dm, dim, ierr); CHKERRQ(ierr)
-    section = dm_create_section(self%dm, [1], [dim])
+    section = dm_create_section(self%dm, [1], [self%dim])
 
     call self%redistribute_dm(sf)
     if (sf .ne. PETSC_NULL_SF) then

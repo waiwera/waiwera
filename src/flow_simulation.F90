@@ -137,7 +137,7 @@ contains
     class(flow_simulation_type), intent(in out) :: self
     ! Locals:
     DM :: dm_flux
-    PetscInt :: dim, num_variables
+    PetscInt :: num_variables
     PetscInt, allocatable :: flux_variable_num_components(:), &
          flux_variable_dim(:)
     character(max_primary_variable_name_length), allocatable :: &
@@ -150,8 +150,7 @@ contains
     flux_variable_num_components = 1
 
     call DMClone(self%mesh%dm, dm_flux, ierr); CHKERRQ(ierr)
-    call DMGetDimension(self%mesh%dm, dim, ierr); CHKERRQ(ierr)
-    flux_variable_dim = dim - 1
+    flux_variable_dim = self%mesh%dim - 1
 
     flux_variable_names(1: self%eos%num_components) = self%eos%component_names
     if (.not. (self%eos%isothermal)) then
@@ -563,17 +562,15 @@ contains
     ! Locals:
     PetscReal :: gravity_magnitude
     PetscReal, allocatable :: gravity(:)
-    PetscInt :: gravity_type, ng, dim
-    PetscErrorCode :: ierr
+    PetscInt :: gravity_type, ng
 
-    call DMGetDimension(self%mesh%serial_dm, dim, ierr); CHKERRQ(ierr)
     self%gravity = 0._dp
     if (fson_has_mpi(json, "gravity")) then
        gravity_type = fson_type_mpi(json, "gravity")
        select case (gravity_type)
        case (TYPE_REAL, TYPE_INTEGER)
           call fson_get_mpi(json, "gravity", val = gravity_magnitude)
-          self%gravity(dim) = -gravity_magnitude
+          self%gravity(self%mesh%dim) = -gravity_magnitude
        case (TYPE_ARRAY)
           call fson_get_mpi(json, "gravity", val = gravity)
           ng = size(gravity)
@@ -599,7 +596,7 @@ contains
       PetscReal :: default_gravity
       PetscReal, parameter :: default_gravity_2D = 0.0_dp
       PetscReal, parameter :: default_gravity_3D = 9.8_dp
-      select case (dim)
+      select case (self%mesh%dim)
       case(2)
          default_gravity = default_gravity_2D
       case(3)
@@ -607,7 +604,7 @@ contains
       end select
       call fson_get_mpi(json, "gravity", default_gravity, &
            gravity_magnitude, self%logfile) ! for logging purposes
-      self%gravity(dim) = -gravity_magnitude
+      self%gravity(self%mesh%dim) = -gravity_magnitude
     end subroutine set_default_gravity
 
   end subroutine flow_simulation_setup_gravity
@@ -629,13 +626,11 @@ contains
     class(flow_simulation_type), intent(in out) :: self
     ! Locals:
     DM :: dm_update
-    PetscInt :: dim
     PetscErrorCode :: ierr
 
     call DMClone(self%mesh%dm, dm_update, ierr); CHKERRQ(ierr)
-    call DMGetDimension(self%mesh%dm, dim, ierr); CHKERRQ(ierr)
     call dm_setup_fv_discretization(dm_update, 1)
-    call set_dm_data_layout(dm_update, [1], [dim], ["update"])
+    call set_dm_data_layout(dm_update, [1], [self%mesh%dim], ["update"])
     call DMCreateGlobalVector(dm_update, self%update_cell, ierr); CHKERRQ(ierr)
     call PetscObjectSetName(self%update_cell, "update_cell", ierr); CHKERRQ(ierr)
     call global_vec_range_start(self%update_cell, self%update_cell_range_start)

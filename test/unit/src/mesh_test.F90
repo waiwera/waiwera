@@ -150,7 +150,6 @@ contains
     type(face_type) :: face
     PetscInt :: global_solution_dof
 
-    PetscInt :: dim
     DM :: dm_face
     PetscSection :: section
     DMLabel :: ghost_label
@@ -184,9 +183,8 @@ contains
     call fson_destroy_mpi(json)
     call mesh%destroy_distribution_data()
 
-    call DMGetDimension(mesh%dm, dim, ierr); CHKERRQ(ierr)
     if (rank == 0) then
-       call test%assert(expected_dim, dim, "mesh dimension")
+       call test%assert(expected_dim, mesh%dim, "mesh dimension")
     end if
     call mesh_geometry_sanity_check(mesh, test, "")
 
