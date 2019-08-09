@@ -181,6 +181,7 @@ contains
     call mesh%configure(gravity, json, err = err)
     call mesh%output_cell_index(viewer)
     call fson_destroy_mpi(json)
+    call mesh%construct_ghost_cells(gravity)
     call mesh%destroy_distribution_data()
 
     if (rank == 0) then
@@ -285,6 +286,7 @@ contains
     call mesh%init(eos, json)
     call mesh%configure(gravity, json, err = err)
     call mesh%output_cell_index(viewer)
+    call mesh%construct_ghost_cells(gravity)
 
     call fson_destroy_mpi(json)
     call mesh%destroy_distribution_data()
@@ -393,6 +395,7 @@ contains
     call mesh%init(eos, json)
     call mesh%configure(gravity, json, err = err)
     call mesh%output_cell_index(viewer)
+    call mesh%construct_ghost_cells(gravity)
 
     call fson_destroy_mpi(json)
     call mesh%destroy_distribution_data()
@@ -509,6 +512,7 @@ contains
     call DMCreateLabel(mesh%serial_dm, open_boundary_label_name, ierr); CHKERRQ(ierr)
     call mesh%configure(gravity, json, err = err)
     call mesh%output_cell_index(viewer)
+    call mesh%construct_ghost_cells(gravity)
 
     call mesh%override_face_properties()
     call fson_destroy_mpi(json)
@@ -773,6 +777,7 @@ contains
       call mesh%init(eos, json)
       call mesh%configure(gravity, json, err = err)
       call mesh%output_cell_index(viewer)
+      call mesh%construct_ghost_cells(gravity)
 
       call test%assert(0, err, name // ": minc config error")
       call fson_destroy_mpi(json)
@@ -783,6 +788,7 @@ contains
       call orig_mesh%init(eos, orig_json)
       call orig_mesh%configure(gravity, orig_json, err = err)
       call orig_mesh%output_cell_index(viewer)
+      call orig_mesh%construct_ghost_cells(gravity)
 
       call fson_destroy_mpi(orig_json)
       call mesh%destroy_distribution_data()
@@ -1037,6 +1043,7 @@ contains
       call rock_dict%init(owner = PETSC_TRUE)
       call mesh%configure(gravity, json, err = err)
       call mesh%output_cell_index(viewer)
+      call mesh%construct_ghost_cells(gravity)
 
       call mesh_geometry_sanity_check(mesh, test, title)
 
@@ -1208,6 +1215,7 @@ contains
       call DMCreateLabel(mesh%serial_dm, open_boundary_label_name, ierr); CHKERRQ(ierr)
       call mesh%configure(gravity, json, err = err)
       call mesh%output_cell_index(viewer)
+      call mesh%construct_ghost_cells(gravity)
 
       call test%assert(0, err, title // " mesh configure error")
 
@@ -1350,8 +1358,9 @@ contains
       call mesh%configure(gravity, json, err = err)
       call mesh%output_cell_index(viewer)
 
-      call fson_destroy_mpi(json)
+      call mesh%construct_ghost_cells(gravity)
       call mesh%destroy_distribution_data()
+      call fson_destroy_mpi(json)
 
       call mesh_geometry_sanity_check(mesh, test, title)
 
@@ -1517,6 +1526,7 @@ contains
       call mesh%init(eos, json)
       call mesh%configure(gravity, json, err = err)
       call mesh%output_cell_index(viewer)
+      call mesh%construct_ghost_cells(gravity)
 
       call fson_destroy_mpi(json)
       call mesh%destroy_distribution_data()
@@ -1633,6 +1643,7 @@ contains
       call mesh%init(eos, json)
       call mesh%configure(gravity, json, err = err)
       call mesh%output_cell_index(viewer)
+      call mesh%construct_ghost_cells(gravity)
 
       call fson_destroy_mpi(json)
       call mesh%destroy_distribution_data()
@@ -1662,7 +1673,7 @@ contains
 !------------------------------------------------------------------------
 
   subroutine test_redistribute(test)
-    ! redistribute
+    ! MINC redistribute
 
     use fson_mpi_module
     use IAPWS_module
@@ -1734,7 +1745,7 @@ contains
       call mesh%output_cell_index(viewer)
 
       call mesh%redistribute(sf)
-      call mesh%construct_ghost_cells()
+      call mesh%construct_ghost_cells(gravity)
       call fson_destroy_mpi(json)
       call mesh%destroy_distribution_data()
 
