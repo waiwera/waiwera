@@ -114,12 +114,12 @@ contains
           call section_offset(face_geom_section, f, offset, ierr)
           CHKERRQ(ierr)
           call face%assign_geometry(face_geom_array, offset)
-          write(msg, '(a, i4, a, e10.4, a)') " : face ", f, " area (", face%area, ") <= 0"
+          write(msg, '(a, i0, a, e10.4, a)') " : face ", f, " area (", face%area, ") <= 0"
           call test%assert(face%area > 0._dp, trim(title) // trim(msg))
-          write(msg, '(a, i4, a, e10.4, a)') " : face ", f, " distance12 (", face%distance12, ") <= 0"
+          write(msg, '(a, i0, a, e10.4, a)') " : face ", f, " distance12 (", face%distance12, ") <= 0"
           call test%assert(face%distance12 > 0._dp, trim(title) // trim(msg))
           dirn = nint(face%permeability_direction)
-          write(msg, '(a, i4, a, i2)') " : face ", f, " perm dirn =", dirn
+          write(msg, '(a, i0, a, i2)') " : face ", f, " perm dirn =", dirn
           call test%assert(((1 <= dirn) .and. (dirn <= 3)), trim(title) // trim(msg))
        end if
     end do
