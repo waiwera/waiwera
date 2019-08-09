@@ -2100,9 +2100,9 @@ contains
 
   subroutine mesh_set_minc_dm_cones(self, minc_dm, num_cells, max_num_levels, &
        minc_zone, minc_level_cells)
-    !! Sets cones for MINC DM.
+    !! Sets cones and cone orientations for MINC DM.
 
-    use dm_utils_module, only: dm_stratum_type
+    use dm_utils_module, only: dm_stratum_type, dm_copy_cone_orientation
 
     class(mesh_type), intent(in out) :: self
     DM, intent(in out) :: minc_dm
@@ -2121,13 +2121,12 @@ contains
        iminc = minc_zone(p)
        if (iminc <= 0) then
           minc_p = self%strata(h)%minc_point(p, 0)
-          call DMPlexGetCone(self%dm, p, points, ierr)
-          CHKERRQ(ierr)
+          call DMPlexGetCone(self%dm, p, points, ierr); CHKERRQ(ierr)
           cell_cone = self%strata(h + 1)%minc_point(points, 0)
           call DMPlexSetCone(minc_dm, minc_p, cell_cone, ierr); CHKERRQ(ierr)
           deallocate(cell_cone)
-          call DMPlexRestoreCone(self%dm, p, points, ierr)
-          CHKERRQ(ierr)
+          call DMPlexRestoreCone(self%dm, p, points, ierr); CHKERRQ(ierr)
+          call dm_copy_cone_orientation(self%dm, p, minc_dm, minc_p)
        end if
     end do
     ! Fracture cells:
@@ -2145,11 +2144,10 @@ contains
           minc_p = self%strata(h)%minc_point(p, 0)
           call DMPlexGetCone(self%dm, p, points, ierr); CHKERRQ(ierr)
           minc_cone = self%strata(h + 1)%minc_point(points, 0)
-          call DMPlexSetCone(minc_dm, minc_p, minc_cone, ierr)
-          CHKERRQ(ierr)
+          call DMPlexSetCone(minc_dm, minc_p, minc_cone, ierr); CHKERRQ(ierr)
           deallocate(minc_cone)
-          call DMPlexRestoreCone(self%dm, p, points, ierr)
-          CHKERRQ(ierr)
+          call DMPlexRestoreCone(self%dm, p, points, ierr); CHKERRQ(ierr)
+          call dm_copy_cone_orientation(self%dm, p, minc_dm, minc_p)
        end do
     end do
     ! MINC DAG points for height h > 0:
@@ -2179,9 +2177,9 @@ contains
          face_p = self%strata(h + 1)%minc_point(ic, m + 1)
          cell_cone = [self%strata(h + 1)%minc_point(points, m), [face_p]]
          call DMPlexSetCone(minc_dm, minc_p, cell_cone, ierr); CHKERRQ(ierr)
-         call DMPlexRestoreCone(self%dm, c, points, ierr)
+         call DMPlexRestoreCone(self%dm, c, points, ierr); CHKERRQ(ierr)
          deallocate(cell_cone)
-         CHKERRQ(ierr)
+         call dm_copy_cone_orientation(self%dm, c, minc_dm, minc_p)
       end select
       ic = ic + 1
 
