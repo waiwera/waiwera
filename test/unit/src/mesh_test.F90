@@ -68,7 +68,7 @@ contains
     character(*), intent(in) :: title
     ! Locals:
     PetscInt :: start_cell, end_cell, c, offset
-    PetscInt :: start_face, end_face, f
+    PetscInt :: start_face, end_face, f, num_cells
     PetscSection :: cell_geom_section, face_geom_section
     PetscReal, pointer, contiguous :: cell_geom_array(:), face_geom_array(:)
     type(cell_type) :: cell
@@ -108,6 +108,9 @@ contains
     call face%init(1, 1)
     do f = start_face, end_face - 1
        if (mesh%ghost_face(f) < 0) then
+          call DMPlexGetSupportSize(mesh%dm, f, num_cells, ierr); CHKERRQ(ierr)
+          write(msg, '(a, i0, a)') " : face ", f, " num cells"
+          call test%assert(2, num_cells, trim(title) // trim(msg))
           call section_offset(face_geom_section, f, offset, ierr)
           CHKERRQ(ierr)
           call face%assign_geometry(face_geom_array, offset)
