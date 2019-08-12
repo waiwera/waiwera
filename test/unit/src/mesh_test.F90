@@ -794,9 +794,7 @@ contains
       call orig_mesh%construct_ghost_cells(gravity)
 
       call fson_destroy_mpi(orig_json)
-      call mesh%destroy_distribution_data()
-
-      call mesh_geometry_sanity_check(mesh, test, name)
+      call orig_mesh%destroy_distribution_data()
 
       call DMGetLocalToGlobalMapping(orig_mesh%dm, l2g, ierr); CHKERRQ(ierr)
 
