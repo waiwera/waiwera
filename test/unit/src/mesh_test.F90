@@ -180,7 +180,6 @@ contains
     json => fson_parse_mpi(str = '{"mesh": "' // trim(adjustl(data_path)) // 'mesh/block3.exo"}')
     call eos%init(json, thermo)
     call mesh%init(eos, json)
-    call DMCreateLabel(mesh%serial_dm, open_boundary_label_name, ierr); CHKERRQ(ierr)
     call mesh%configure(gravity, json, err = err)
     call mesh%output_cell_index(viewer)
     call fson_destroy_mpi(json)
@@ -512,7 +511,6 @@ contains
     call eos%init(json, thermo)
     call mesh%init(eos, json)
 
-    call DMCreateLabel(mesh%serial_dm, open_boundary_label_name, ierr); CHKERRQ(ierr)
     call mesh%configure(gravity, json, err = err)
     call mesh%output_cell_index(viewer)
     call mesh%construct_ghost_cells(gravity)
@@ -1040,7 +1038,6 @@ contains
       call eos%init(json, thermo)
       call mesh%init(eos, json)
 
-      call DMCreateLabel(mesh%serial_dm, open_boundary_label_name, ierr); CHKERRQ(ierr)
       call rock_dict%init(owner = PETSC_TRUE)
       call mesh%configure(gravity, json, err = err)
       call mesh%output_cell_index(viewer)
@@ -1213,7 +1210,6 @@ contains
       json => fson_parse_mpi(str = json_str)
       call eos%init(json, thermo)
       call mesh%init(eos, json)
-      call DMCreateLabel(mesh%serial_dm, open_boundary_label_name, ierr); CHKERRQ(ierr)
       call mesh%configure(gravity, json, err = err)
       call mesh%output_cell_index(viewer)
       call mesh%construct_ghost_cells(gravity)
