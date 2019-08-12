@@ -61,13 +61,15 @@ contains
 
     use cell_module, only: cell_type
     use face_module, only: face_type
-    use dm_utils_module, only: local_vec_section, section_offset
+    use dm_utils_module, only: local_vec_section, section_offset, &
+         dm_get_num_partition_ghost_points, dm_get_end_interior_cell
 
     class(mesh_type), intent(in) :: mesh
     class(unit_test_type), intent(in out) :: test
     character(*), intent(in) :: title
     ! Locals:
     PetscInt :: start_cell, end_cell, c, offset
+    PetscInt :: num_ghost_cells, end_non_ghost_cell, end_interior_cell
     PetscInt :: start_face, end_face, f, num_cells
     PetscSection :: cell_geom_section, face_geom_section
     PetscReal, pointer, contiguous :: cell_geom_array(:), face_geom_array(:)
@@ -83,6 +85,14 @@ contains
 
     call DMPlexGetHeightStratum(mesh%dm, 0, start_cell, end_cell, ierr)
     CHKERRQ(ierr)
+    end_interior_cell = dm_get_end_interior_cell(mesh%dm, end_cell)
+    num_ghost_cells = dm_get_num_partition_ghost_points(mesh%dm, 0)
+    end_non_ghost_cell = end_interior_cell - num_ghost_cells
+    call test%assert(all(mesh%ghost_cell(start_cell: end_non_ghost_cell - 1) < 0), &
+         trim(title) // " ghost cell array for non-ghost cells")
+    call test%assert(all(mesh%ghost_cell(end_non_ghost_cell: end_interior_cell - 1) > 0), &
+         trim(title) // " ghost cell array for ghost cells")
+    
     call cell%init(1, 1)
 
     do c = start_cell, end_cell - 1
