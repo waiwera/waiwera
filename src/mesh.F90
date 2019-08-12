@@ -571,20 +571,22 @@ contains
           do iface = 1, num_faces
              f = bdy_faces(iface)
              call DMPlexGetSupport(self%dm, f, cells, ierr); CHKERRQ(ierr)
-             call DMLabelGetValue(ghost_label, cells(1), ghost, ierr); CHKERRQ(ierr)
-             if (ghost < 0) then
-                call section_offset(face_section, f, face_offset, &
-                     ierr); CHKERRQ(ierr)
-                call face%assign_geometry(face_geom_array, face_offset)
-                call DMPlexComputeCellGeometryFVM(self%dm, f, face%area, &
-                     face%centroid, face%normal, ierr); CHKERRQ(ierr)
-                face%gravity_normal = dot_product(gravity, face%normal)
-                call face%calculate_permeability_direction(self%permeability_rotation)
-                call self%modify_face_geometry(face)
-                call section_offset(cell_section, cells(1), cell_offset, &
-                     ierr); CHKERRQ(ierr)
-                call cell%assign_geometry(cell_geom_array, cell_offset)
-                face%distance = [norm2(face%centroid - cell%centroid), 0._dp]
+             if (size(cells) == 2) then
+                call DMLabelGetValue(ghost_label, cells(1), ghost, ierr); CHKERRQ(ierr)
+                if (ghost < 0) then
+                   call section_offset(face_section, f, face_offset, &
+                        ierr); CHKERRQ(ierr)
+                   call face%assign_geometry(face_geom_array, face_offset)
+                   call DMPlexComputeCellGeometryFVM(self%dm, f, face%area, &
+                        face%centroid, face%normal, ierr); CHKERRQ(ierr)
+                   face%gravity_normal = dot_product(gravity, face%normal)
+                   call face%calculate_permeability_direction(self%permeability_rotation)
+                   call self%modify_face_geometry(face)
+                   call section_offset(cell_section, cells(1), cell_offset, &
+                        ierr); CHKERRQ(ierr)
+                   call cell%assign_geometry(cell_geom_array, cell_offset)
+                   face%distance = [norm2(face%centroid - cell%centroid), 0._dp]
+                end if
              end if
           end do
        end if
