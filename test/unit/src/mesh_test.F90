@@ -784,6 +784,8 @@ contains
       call fson_destroy_mpi(json)
       call mesh%destroy_distribution_data()
 
+      call mesh_geometry_sanity_check(mesh, test, name)
+
       orig_json_str = get_orig_json_str(json_str)
       orig_json => fson_parse_mpi(str = orig_json_str)
       call orig_mesh%init(eos, orig_json)
