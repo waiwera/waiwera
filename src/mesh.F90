@@ -2513,7 +2513,7 @@ contains
 
     start_cell = self%strata(0)%start
     end_interior_cell = self%strata(0)%end_interior
-    num_ghost_cells = dm_get_num_partition_ghost_cells(self%dm)
+    num_ghost_cells = dm_get_num_partition_ghost_points(self%dm, 0)
     num_non_ghost_cells = end_interior_cell - start_cell - num_ghost_cells
     ! Each rank has its own array elements for MINC level 0:
     mapping_count = num_non_ghost_cells

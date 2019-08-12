@@ -31,7 +31,7 @@ module dm_utils_module
      private
      PetscInt, public :: start, end, end_interior, end_non_ghost
      PetscInt, public, allocatable :: minc_shift(:)
-     PetscInt, public :: num_minc_points
+     PetscInt, public :: num_minc_points, num_partition_ghosts
    contains
      private
      procedure, public :: size => dm_stratum_size
@@ -65,7 +65,7 @@ module dm_utils_module
   public :: write_vec_vtk
   public :: vec_max_pointwise_abs_scale
   public :: dm_set_fv_adjacency, dm_setup_fv_discretization
-  public :: dm_get_num_partition_ghost_cells, dm_get_bdy_cell_shift
+  public :: dm_get_num_partition_ghost_points, dm_get_bdy_cell_shift
   public :: dm_get_end_interior_cell
   public :: dm_get_natural_to_global_ao, dm_get_cell_index
   public :: natural_to_local_cell_index, local_to_natural_cell_index
@@ -170,8 +170,7 @@ contains
     type(dm_stratum_type), allocatable, intent(out) :: strata(:)
     ! Locals:
     PetscMPIInt :: np
-    DMLabel :: ghost_label
-    PetscInt :: h, p, ghost
+    PetscInt :: h
     PetscErrorCode :: ierr
 
     call MPI_comm_size(PETSC_COMM_WORLD, np, ierr)
@@ -193,17 +192,12 @@ contains
        end if
     end do
 
-    strata%end_non_ghost = strata%end
-    if (np > 1) then
-       call DMGetLabel(dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
+    if (np == 1) then
+       strata%end_non_ghost = strata%end
+    else
        do h = 0, depth
-          do p = strata(h)%start, strata(h)%end - 1
-             call DMLabelGetValue(ghost_label, p, ghost, ierr); CHKERRQ(ierr)
-             if (ghost > 0) then
-                strata(h)%end_non_ghost = p
-                exit
-             end if
-          end do
+          strata(h)%num_partition_ghosts = dm_get_num_partition_ghost_points(dm, h)
+          strata(h)%end_non_ghost = strata(h)%end - strata(h)%num_partition_ghosts
        end do
     end if
 
@@ -662,14 +656,16 @@ contains
 
 !------------------------------------------------------------------------
 
-  PetscInt function dm_get_num_partition_ghost_cells(dm) result(n)
-    !! Returns number of DM partition ghost cells on current process.
+  PetscInt function dm_get_num_partition_ghost_points(dm, h) result(n)
+    !! Returns number of DM partition ghost points in stratum h on
+    !! current process.
 
-    DM, intent(in) :: dm
+    DM, intent(in) :: dm !! DM
+    PetscInt, intent(in) :: h !! stratum height
     ! Locals:
     PetscMPIInt :: np
     PetscSF :: point_sf
-    PetscInt :: start_cell, end_cell
+    PetscInt :: start_point, end_point
     PetscInt :: num_roots, num_leaves
     PetscInt, pointer :: local(:)
     type(PetscSFNode), pointer :: remote(:)
@@ -677,16 +673,16 @@ contains
 
     call MPI_comm_size(PETSC_COMM_WORLD, np, ierr)
     if (np > 1) then
-       call DMPlexGetHeightStratum(dm, 0, start_cell, end_cell, ierr)
+       call DMPlexGetHeightStratum(dm, h, start_point, end_point, ierr)
        call DMGetPointSF(dm, point_sf, ierr); CHKERRQ(ierr)
        call PetscSFGetGraph(point_sf, num_roots, num_leaves, &
             local, remote, ierr); CHKERRQ(ierr)
-       n = count(local < end_cell)
+       n = count((start_point <= local) .and. (local < end_point))
     else
        n = 0
     end if
 
-  end function dm_get_num_partition_ghost_cells
+  end function dm_get_num_partition_ghost_points
 
 !------------------------------------------------------------------------
 
@@ -772,7 +768,7 @@ contains
     end_interior_cell = dm_get_end_interior_cell(dm, end_cell)
     call MPI_comm_size(PETSC_COMM_WORLD, np, ierr)
     if (np > 1) then
-       num_ghost_cells = dm_get_num_partition_ghost_cells(dm)
+       num_ghost_cells = dm_get_num_partition_ghost_points(dm, 0)
        num_non_ghost_cells = end_interior_cell - start_cell - num_ghost_cells
        end_non_ghost_cell = start_cell + num_non_ghost_cells
        call DMGetLocalToGlobalMapping(dm, l2g, ierr); CHKERRQ(ierr)
@@ -953,7 +949,7 @@ contains
     call DMPlexGetHeightStratum(dm, 0, start_cell, end_cell, &
          ierr); CHKERRQ(ierr)
     end_interior_cell = dm_get_end_interior_cell(dm, end_cell)
-    num_ghost_cells = dm_get_num_partition_ghost_cells(dm)
+    num_ghost_cells = dm_get_num_partition_ghost_points(dm, 0)
     num_non_ghost_cells = end_interior_cell - start_cell - num_ghost_cells
     bdy_cell_shift = dm_get_bdy_cell_shift(dm)
 
