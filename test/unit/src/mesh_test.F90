@@ -1711,6 +1711,17 @@ contains
          '}'
     call redistribute_test(test, json_str, 'all bdy', 1, 2 * 49, 1, [49, 49], 7)
 
+    json_str = &
+         '{"mesh": {"filename": "' // trim(adjustl(data_path)) // 'mesh/col10.exo",' // &
+         '  "zones": {"minc": {"z": [-600, -100]}},' // &
+         '  "minc": {"rock": {"zones": ["minc"]}, ' // &
+         '           "geometry": {"fracture": {"volume": 0.1}, ' // &
+         '"matrix": {"volume": [0.3, 0.6]}}}}, ' // &
+         '"boundaries": [{"faces": {"cells": [0], ' // &
+         '  "normal": [0, 0, 1]}}]' // &
+         '}'
+    call redistribute_test(test, json_str, 'col bdy', 1, 20, 2, [10, 5, 5], 1)
+
   contains
 
     subroutine redistribute_test(test, json_str, title, expected_num_zones, &
