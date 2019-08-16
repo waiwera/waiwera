@@ -82,7 +82,7 @@ module mesh_module
      procedure :: setup_zones => mesh_setup_zones
      procedure :: setup_minc => mesh_setup_minc
      procedure :: setup_minc_dm => mesh_setup_minc_dm
-     procedure :: setup_minc_dm_zone_and_cells => mesh_setup_minc_dm_zone_and_cells
+     procedure :: setup_minc_level_cells => mesh_setup_minc_level_cells
      procedure :: setup_minc_dm_strata_shifts => mesh_setup_minc_dm_strata_shifts
      procedure :: set_minc_dm_cone_sizes => mesh_set_minc_dm_cone_sizes
      procedure :: set_minc_dm_cones => mesh_set_minc_dm_cones
@@ -1714,13 +1714,14 @@ contains
     class(mesh_type), intent(in out) :: self
     ! Locals:
     DM :: minc_dm
-    PetscInt :: start_chart, end_chart, m
+    PetscInt :: start_chart, end_chart
     PetscInt :: dim
     PetscInt :: num_minc_cells
-    PetscInt :: num_minc_zones, num_cells, num_new_points, max_num_levels
-    PetscInt, allocatable :: minc_zone(:), minc_end_interior(:)
+    PetscInt :: num_new_points, max_num_levels
+    PetscInt, allocatable :: minc_end_interior(:)
     PetscInt, allocatable :: stratum_shift(:)
-    type(list_type), allocatable :: minc_level_cells(:)
+    PetscInt, allocatable :: minc_level_cells(:,:)
+    PetscInt, allocatable :: minc_level_cell_count(:)
     PetscErrorCode :: ierr
 
     call dm_get_strata(self%dm, self%depth, self%strata)
@@ -1733,19 +1734,16 @@ contains
     call DMPlexGetChart(self%dm, start_chart, end_chart, ierr)
     CHKERRQ(ierr)
 
-    num_cells = self%strata(0)%size()
-    num_minc_zones = size(self%minc)
     max_num_levels = maxval(self%minc%num_levels)
 
-    call self%setup_minc_dm_zone_and_cells(num_cells, &
-       max_num_levels, num_minc_zones, minc_zone, minc_level_cells, &
-       num_minc_cells)
+    call self%setup_minc_level_cells(max_num_levels, &
+         minc_level_cells, minc_level_cell_count, num_minc_cells)
 
     num_new_points = num_minc_cells * (self%depth + 1)
     call DMPlexSetChart(minc_dm, start_chart, &
          end_chart + num_new_points, ierr); CHKERRQ(ierr)
     call self%setup_minc_dm_strata_shifts(num_minc_cells, &
-         max_num_levels, minc_level_cells, stratum_shift)
+         max_num_levels, minc_level_cell_count, stratum_shift)
 
     allocate(minc_end_interior(0: self%depth))
     minc_end_interior = self%strata%end_interior + &
@@ -1756,11 +1754,11 @@ contains
     deallocate(minc_end_interior)
     self%strata%num_minc_points = num_minc_cells
 
-    call self%set_minc_dm_cone_sizes(minc_dm, num_cells, num_minc_cells, &
-         max_num_levels, minc_zone, minc_level_cells)
+    call self%set_minc_dm_cone_sizes(minc_dm, num_minc_cells, &
+         max_num_levels, minc_level_cells)
     call DMSetUp(minc_dm, ierr); CHKERRQ(ierr)
-    call self%set_minc_dm_cones(minc_dm, num_cells, max_num_levels, &
-         minc_zone, minc_level_cells)
+    call self%set_minc_dm_cones(minc_dm, max_num_levels, &
+         minc_level_cells)
 
     call DMPlexSymmetrize(minc_dm, ierr); CHKERRQ(ierr)
     call self%transfer_labels_to_minc_dm(minc_dm, max_num_levels)
@@ -1776,14 +1774,12 @@ contains
     call dm_setup_global_section(minc_dm)
 
     call self%setup_minc_dm_cell_order(minc_dm, max_num_levels, &
+         minc_level_cells, minc_level_cell_count, num_minc_cells)
+    call self%setup_minc_geometry(minc_dm, max_num_levels, &
          minc_level_cells)
-    call self%setup_minc_geometry(minc_dm, num_cells, max_num_levels, &
-         num_minc_zones, minc_zone)
 
-    do m = 0, max_num_levels
-       call minc_level_cells(m)%destroy()
-    end do
-    deallocate(minc_zone, minc_level_cells, stratum_shift)
+    deallocate(minc_level_cells, minc_level_cell_count, &
+         stratum_shift)
 
     self%dm = minc_dm
 
@@ -1791,16 +1787,16 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine mesh_setup_minc_dm_zone_and_cells(self, num_cells, &
-       max_num_levels, num_minc_zones, minc_zone, minc_level_cells, &
-       num_minc_cells)
-    !! Set up minc_zone and minc_level_cells arrays, and minc
-    !! level label on DM.
+  subroutine mesh_setup_minc_level_cells(self, &
+       max_num_levels, minc_level_cells, &
+       minc_level_cell_count, num_minc_cells)
+    !! Set up minc_level_cells and minc_level_cell_count
+    !! arrays.
 
     class(mesh_type), intent(in out) :: self
-    PetscInt, intent(in) :: num_cells, max_num_levels, num_minc_zones 
-    PetscInt, allocatable, intent(out) :: minc_zone(:)
-    type(list_type), allocatable, intent(out) :: minc_level_cells(:)
+    PetscInt, intent(in) :: max_num_levels
+    PetscInt, allocatable, intent(out) :: minc_level_cells(:,:)
+    PetscInt, allocatable, intent(out) :: minc_level_cell_count(:)
     PetscInt, intent(out) :: num_minc_cells
     ! Locals:
     PetscInt :: iminc, i, c, m, ghost, num_minc_zone_cells
@@ -1808,19 +1804,16 @@ contains
     PetscInt, pointer :: minc_cells(:)
     DMLabel :: ghost_label
     PetscErrorCode :: ierr
-    PetscInt, pointer :: pc
 
-    allocate(minc_zone(0: num_cells - 1), &
-         minc_level_cells(0: max_num_levels))
-    minc_zone = -1
-    do m = 0, max_num_levels
-       call minc_level_cells(m)%init(owner = PETSC_TRUE)
-    end do
+    call DMGetLabel(self%dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
 
-    call DMGetLabel(self%dm, "ghost", ghost_label, ierr)
-    CHKERRQ(ierr)
+    allocate(minc_level_cells(max_num_levels, &
+         self%strata(0)%start: self%strata(0)%end - 1))
+    minc_level_cells = -1
+    allocate(minc_level_cell_count(max_num_levels))
+    minc_level_cell_count = 0
 
-    do iminc = 1, num_minc_zones
+    do iminc = 1, size(self%minc)
        call DMGetStratumSize(self%dm, minc_zone_label_name, iminc, &
             num_minc_zone_cells, ierr); CHKERRQ(ierr)
        if (num_minc_zone_cells > 0) then
@@ -1832,10 +1825,9 @@ contains
                c = minc_cells(i)
                call DMLabelGetValue(ghost_label, c, ghost, ierr)
                if (ghost < 0) then
-                  minc_zone(c) = iminc
-                  do m = 0, num_levels
-                     allocate(pc); pc = c
-                     call minc_level_cells(m)%append(pc)
+                  do m = 1, self%minc(iminc)%num_levels
+                     minc_level_cells(m, c) = minc_level_cell_count(m)
+                     minc_level_cell_count(m) = minc_level_cell_count(m) + 1
                   end do
                end if
             end do
@@ -1846,26 +1838,23 @@ contains
        end if
     end do
 
-    num_minc_cells = 0
-    do m = 1, max_num_levels
-       num_minc_cells = num_minc_cells + minc_level_cells(m)%count
-    end do
+    num_minc_cells = sum(minc_level_cell_count)
 
-  end subroutine mesh_setup_minc_dm_zone_and_cells
+  end subroutine mesh_setup_minc_level_cells
 
 !------------------------------------------------------------------------
 
   subroutine mesh_setup_minc_dm_strata_shifts(self, num_minc_cells, &
-       max_num_levels, minc_level_cells, stratum_shift)
+       max_num_levels, minc_level_cell_count, stratum_shift)
     !! Set up minc_shift array in DM strata, to determine index shift
     !! from original DM point to corresponding point in MINC DM.
 
     class(mesh_type), intent(in out) :: self
     PetscInt, intent(in) :: num_minc_cells, max_num_levels
-    type(list_type), intent(in out) :: minc_level_cells(0: max_num_levels)
+    PetscInt, intent(in) :: minc_level_cell_count(max_num_levels)
     PetscInt, intent(out) :: stratum_shift(0: self%depth)
     ! Locals:
-    PetscInt :: i, h, m
+    PetscInt :: h, m
     PetscInt :: minc_offset(0: max_num_levels)
 
     ! Set up stratum_shift array (taking account of the fact that
@@ -1874,13 +1863,13 @@ contains
     ! resulting from points added to lower-index strata in the DM.
     stratum_shift(0) = 0
     stratum_shift(self%depth) = 1
-    stratum_shift(1: self%depth - 1) = [(i + 1, i = 1, self%depth - 1)]
+    stratum_shift(1: self%depth - 1) = [(h + 1, h = 1, self%depth - 1)]
 
     ! Offset of the start of each MINC level within the stratum (note
     ! this is the same for all strata):
     minc_offset = 0
-    do i = 1, max_num_levels
-       minc_offset(i) = minc_offset(i - 1) + minc_level_cells(i)%count
+    do m = 1, max_num_levels
+       minc_offset(m) = minc_offset(m - 1) + minc_level_cell_count(m)
     end do
 
     do h = 0, self%depth
@@ -1896,158 +1885,155 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine mesh_set_minc_dm_cone_sizes(self, minc_dm, num_cells, &
-       num_minc_cells, max_num_levels, minc_zone, &
+  subroutine mesh_set_minc_dm_cone_sizes(self, minc_dm, &
+       num_minc_cells, max_num_levels, &
        minc_level_cells)
     !! Sets cone sizes for MINC DM.
 
     class(mesh_type), intent(in out) :: self
     DM, intent(in out) :: minc_dm
-    PetscInt, intent(in) :: num_cells, num_minc_cells, max_num_levels
-    PetscInt, intent(in) :: minc_zone(0: num_cells - 1)
-    type(list_type), intent(in out) :: minc_level_cells(0: max_num_levels)
+    PetscInt, intent(in) :: num_minc_cells, max_num_levels
+    PetscInt, intent(in) :: minc_level_cells(max_num_levels, &
+         self%strata(0)%start: self%strata(0)%end - 1)
     ! Locals:
-    PetscInt :: ic, p, minc_p, cone_size, new_cone_size
-    PetscInt :: iminc, m, h
+    PetscInt :: ic, p, minc_p, orig_cone_size, cone_size
+    PetscInt :: iminc, m, h, c
+    DMLabel :: minc_zone_label
     PetscErrorCode :: ierr
 
-    ! Non-MINC and fracture cells:
-    h = 0
-    do p = self%strata(h)%start, self%strata(h)%end - 1
-       iminc = minc_zone(p)
-       call DMPlexGetConeSize(self%dm, p, cone_size, ierr)
-       CHKERRQ(ierr)
+    call DMGetLabel(self%dm, minc_zone_label_name, minc_zone_label, &
+         ierr); CHKERRQ(ierr)
+
+    do c = self%strata(0)%start, self%strata(0)%end - 1
+
+       minc_p = self%strata(0)%minc_point(c, 0)
+       call DMLabelGetValue(minc_zone_label, c, iminc, ierr); CHKERRQ(ierr)
+       call DMPlexGetConeSize(self%dm, c, orig_cone_size, ierr); CHKERRQ(ierr)
        if (iminc > 0) then
-          new_cone_size = cone_size + 1
+
+          ! Fracture cells:
+          cone_size = orig_cone_size + 1
+          call DMPlexSetConeSize(minc_dm, minc_p, cone_size, ierr)
+          CHKERRQ(ierr)
+
+          do m = 1, self%minc(iminc)%num_levels
+             ! MINC cells:
+             ic = minc_level_cells(m, c)
+             minc_p = self%strata(0)%minc_point(ic, m)
+             if (m < self%minc(iminc)%num_levels) then
+                cone_size = 2
+             else
+                cone_size = 1
+             end if
+             call DMPlexSetConeSize(minc_dm, minc_p, cone_size, &
+                  ierr); CHKERRQ(ierr)
+             ! MINC DAG points (height h > 0):
+             do h = 1, self%depth -1
+                minc_p = self%strata(h)%minc_point(ic, m)
+                cone_size = 1
+                call DMPlexSetConeSize(minc_dm, minc_p, &
+                     cone_size, ierr); CHKERRQ(ierr)
+             end do
+          end do
+
        else
-          new_cone_size = cone_size
+          ! Non-MINC cells:
+          cone_size = orig_cone_size
+          call DMPlexSetConeSize(minc_dm, minc_p, cone_size, ierr)
+          CHKERRQ(ierr)
        end if
-       minc_p = self%strata(h)%minc_point(p, 0)
-       call DMPlexSetConeSize(minc_dm, minc_p, new_cone_size, ierr)
-       CHKERRQ(ierr)
-    end do
-    ! MINC cells:
-    do m = 1, max_num_levels
-       ic = 0
-       call minc_level_cells(m)%traverse(minc_cell_cone_size_iterator)
+
     end do
 
     ! Non-MINC and fracture DAG points for height h > 0:
     do h = 1, self%depth
        do p = self%strata(h)%start, self%strata(h)%end - 1
           minc_p = self%strata(h)%minc_point(p, 0)
-          call DMPlexGetConeSize(self%dm, p, cone_size, ierr)
+          call DMPlexGetConeSize(self%dm, p, orig_cone_size, ierr)
           CHKERRQ(ierr)
+          cone_size = orig_cone_size
           call DMPlexSetConeSize(minc_dm, minc_p, cone_size, ierr)
           CHKERRQ(ierr)
        end do
     end do
 
-    do m = 1, max_num_levels
-       ic = 0
-       call minc_level_cells(m)%traverse(minc_dag_cone_size_iterator)
-    end do
-
-  contains
-
-    subroutine minc_cell_cone_size_iterator(node, stopped)
-      !! Sets cone size for MINC cells.
-
-      type(list_node_type), pointer, intent(in out) :: node
-      PetscBool, intent(out) :: stopped
-      ! Locals:
-      PetscInt :: minc_p, iminc, cone_size
-      PetscInt, parameter :: h = 0
-
-      select type (c => node%data)
-      type is (PetscInt)
-         minc_p = self%strata(h)%minc_point(ic, m)
-         iminc = minc_zone(c)
-         associate(num_levels => self%minc(iminc)%num_levels)
-           if (m < num_levels) then
-              cone_size = 2
-           else
-              cone_size = 1
-           end if
-           call DMPlexSetConeSize(minc_dm, minc_p, &
-                cone_size, ierr); CHKERRQ(ierr)
-         end associate
-      end select
-      ic = ic + 1
-
-    end subroutine minc_cell_cone_size_iterator
-
-    subroutine minc_dag_cone_size_iterator(node, stopped)
-      !! Sets cone size for MINC DAG points (height h > 0).
-
-      type(list_node_type), pointer, intent(in out) :: node
-      PetscBool, intent(out) :: stopped
-      ! Locals:
-      PetscInt :: minc_p, cone_size, h
-
-      select type (c => node%data)
-      type is (PetscInt)
-         do h = 1, self%depth
-            minc_p = self%strata(h)%minc_point(ic, m)
-            if (h < self%depth) then
-               cone_size = 1
-            else
-               cone_size = 0
-            end if
-            call DMPlexSetConeSize(minc_dm, minc_p, &
-                 cone_size, ierr); CHKERRQ(ierr)
-         end do
-      end select
-      ic = ic + 1
-
-    end subroutine minc_dag_cone_size_iterator
-
   end subroutine mesh_set_minc_dm_cone_sizes
 
 !------------------------------------------------------------------------
 
-  subroutine mesh_set_minc_dm_cones(self, minc_dm, num_cells, max_num_levels, &
-       minc_zone, minc_level_cells)
+  subroutine mesh_set_minc_dm_cones(self, minc_dm, max_num_levels, &
+       minc_level_cells)
     !! Sets cones for MINC DM.
 
     use dm_utils_module, only: dm_stratum_type
 
     class(mesh_type), intent(in out) :: self
     DM, intent(in out) :: minc_dm
-    PetscInt, intent(in) :: num_cells, max_num_levels
-    PetscInt, intent(in) :: minc_zone(0: num_cells - 1)
-    type(list_type), intent(in out) :: minc_level_cells(0: max_num_levels)
+    PetscInt, intent(in) :: max_num_levels
+    PetscInt, intent(in) :: minc_level_cells(max_num_levels, &
+         self%strata(0)%start: self%strata(0)%end - 1)
     ! Locals:
-    PetscInt :: p, m, h, iminc, ic, minc_p
+    PetscInt :: c, p, m, h, iminc, ic, ic_m1
+    DMLabel :: minc_zone_label
+    PetscInt :: minc_p, above_p, face_p, inner_face_p
     PetscInt, pointer :: points(:)
     PetscInt, allocatable :: cell_cone(:), minc_cone(:)
     PetscErrorCode :: ierr
 
-    h = 0
-    ! Non-MINC cells:
-    do p = self%strata(h)%start, self%strata(h)%end - 1
-       iminc = minc_zone(p)
-       if (iminc <= 0) then
-          minc_p = self%strata(h)%minc_point(p, 0)
-          call DMPlexGetCone(self%dm, p, points, ierr)
-          CHKERRQ(ierr)
-          cell_cone = self%strata(h + 1)%minc_point(points, 0)
+    call DMGetLabel(self%dm, minc_zone_label_name, minc_zone_label, &
+         ierr); CHKERRQ(ierr)
+
+    do c = self%strata(0)%start, self%strata(0)%end - 1
+
+       minc_p = self%strata(0)%minc_point(c, 0)
+       call DMPlexGetCone(self%dm, c, points, ierr); CHKERRQ(ierr)
+       call DMLabelGetValue(minc_zone_label, c, iminc, ierr); CHKERRQ(ierr)
+       if (iminc > 0) then
+
+          ! Fracture cells:
+          ic_m1 = minc_level_cells(1, c)
+          face_p = self%strata(1)%minc_point(ic_m1, 1)
+          cell_cone = [self%strata(1)%minc_point(points, 0), [face_p]]
           call DMPlexSetCone(minc_dm, minc_p, cell_cone, ierr); CHKERRQ(ierr)
           deallocate(cell_cone)
-          call DMPlexRestoreCone(self%dm, p, points, ierr)
+
+          do m = 1, self%minc(iminc)%num_levels
+             ! MINC cells:
+             ic = minc_level_cells(m, c)
+             minc_p = self%strata(0)%minc_point(ic, m)
+             face_p = self%strata(1)%minc_point(ic, m)
+             ic_m1 = minc_level_cells(m + 1, c)
+             if (m < self%minc(iminc)%num_levels) then
+                inner_face_p = self%strata(1)%minc_point(ic_m1, m + 1)
+                minc_cone = [face_p, inner_face_p]
+             else
+                minc_cone = [face_p]
+             end if
+             call DMPlexSetCone(minc_dm, minc_p, minc_cone, ierr); CHKERRQ(ierr)
+             deallocate(minc_cone)
+
+             ! MINC DAG points for height h > 0:
+             do h = 1, self%depth - 1
+                minc_p = self%strata(h)%minc_point(ic, m)
+                above_p = self%strata(h + 1)%minc_point(ic, m)
+                call DMPlexSetCone(minc_dm, minc_p, [above_p], ierr)
+                CHKERRQ(ierr)
+             end do
+          end do
+
+       else
+          ! Non-MINC cells:
+          cell_cone = self%strata(1)%minc_point(points, 0)
+          call DMPlexSetCone(minc_dm, minc_p, cell_cone, ierr); CHKERRQ(ierr)
+          deallocate(cell_cone)
           CHKERRQ(ierr)
        end if
-    end do
-    ! Fracture cells:
-    m = 0; ic = 0
-    call minc_level_cells(m)%traverse(fracture_cell_cone_iterator)
-    ! MINC cells:
-    do m = 1, max_num_levels
-       ic = 0
-       call minc_level_cells(m)%traverse(minc_cell_cone_iterator)
+
+       call DMPlexRestoreCone(self%dm, c, points, ierr); CHKERRQ(ierr)
+
     end do
 
-    ! Fracture and non-MINC DAG points for height h > 0:
+    ! Non-MINC and fracture DAG points for height h > 0:
     do h = 1, self%depth - 1
        do p = self%strata(h)%start, self%strata(h)%end - 1
           minc_p = self%strata(h)%minc_point(p, 0)
@@ -2060,91 +2046,6 @@ contains
           CHKERRQ(ierr)
        end do
     end do
-    ! MINC DAG points for height h > 0:
-    do m = 1, max_num_levels
-       ic = 0
-       call minc_level_cells(m)%traverse(minc_dag_cone_iterator)
-    end do
-
-  contains
-
-    subroutine fracture_cell_cone_iterator(node, stopped)
-      !! Sets cone for fracture cells.
-
-      type(list_node_type), pointer, intent(in out) :: node
-      PetscBool, intent(out) :: stopped
-      ! Locals:
-      PetscInt :: minc_p, face_p
-      PetscInt, pointer :: points(:)
-      PetscInt, allocatable :: cell_cone(:)
-      PetscInt, parameter :: h = 0, m = 0
-
-      select type (c => node%data)
-      type is (PetscInt)
-         call DMPlexGetCone(self%dm, c, points, ierr)
-         CHKERRQ(ierr)
-         minc_p = self%strata(h)%minc_point(c, m)
-         face_p = self%strata(h + 1)%minc_point(ic, m + 1)
-         cell_cone = [self%strata(h + 1)%minc_point(points, m), [face_p]]
-         call DMPlexSetCone(minc_dm, minc_p, cell_cone, ierr); CHKERRQ(ierr)
-         call DMPlexRestoreCone(self%dm, c, points, ierr)
-         deallocate(cell_cone)
-         CHKERRQ(ierr)
-      end select
-      ic = ic + 1
-
-    end subroutine fracture_cell_cone_iterator
-
-    subroutine minc_cell_cone_iterator(node, stopped)
-      !! Sets cone for MINC cells (m > 0).
-
-      type(list_node_type), pointer, intent(in out) :: node
-      PetscBool, intent(out) :: stopped
-      ! Locals:
-      PetscInt :: minc_p, iminc, face_p, inner_face_p
-      PetscInt, parameter :: h = 0
-
-      select type (c => node%data)
-      type is (PetscInt)
-         minc_p = self%strata(h)%minc_point(ic, m)
-         face_p = self%strata(h + 1)%minc_point(ic, m)
-         iminc = minc_zone(c)
-         associate(num_levels => self%minc(iminc)%num_levels)
-           if (m < num_levels) then
-              inner_face_p = self%strata(h + 1)%minc_point(ic, m + 1)
-              minc_cone = [face_p, inner_face_p]
-           else
-              minc_cone = [face_p]
-           end if
-           call DMPlexSetCone(minc_dm, minc_p, minc_cone, ierr)
-           CHKERRQ(ierr)
-           deallocate(minc_cone)
-         end associate
-      end select
-      ic = ic + 1
-
-    end subroutine minc_cell_cone_iterator
-
-    subroutine minc_dag_cone_iterator(node, stopped)
-      !! Sets cone for MINC DAG points (height h > 0).
-
-      type(list_node_type), pointer, intent(in out) :: node
-      PetscBool, intent(out) :: stopped
-      ! Locals:
-      PetscInt :: minc_p, h, above_p
-
-      select type (c => node%data)
-      type is (PetscInt)
-         do h = 1, self%depth - 1
-            minc_p = self%strata(h)%minc_point(ic, m)
-            above_p = self%strata(h + 1)%minc_point(ic, m)
-            call DMPlexSetCone(minc_dm, minc_p, [above_p], ierr)
-            CHKERRQ(ierr)
-         end do
-      end select
-      ic = ic + 1
-
-    end subroutine minc_dag_cone_iterator
 
   end subroutine mesh_set_minc_dm_cones
 
@@ -2157,39 +2058,39 @@ contains
     class(mesh_type), intent(in out) :: self
     DM, intent(in out) :: minc_dm
     PetscInt, intent(in) :: max_num_levels
-    type(list_type), intent(in out) :: minc_level_cells(0: max_num_levels)
+    PetscInt, intent(in) :: minc_level_cells(max_num_levels, &
+         self%strata(0)%start: self%strata(0)%end - 1)
     ! Locals:
-    PetscInt :: m, ic
+    PetscInt :: iminc, num_minc_zone_cells
+    PetscInt :: i, c, m, ic, minc_p, h
+    IS :: minc_IS
+    PetscInt, pointer :: minc_cells(:)
+    PetscErrorCode :: ierr
 
-    do m = 1, max_num_levels
-       ic = 0
-       call minc_level_cells(m)%traverse(minc_depth_label_iterator)
+    do iminc = 1, size(self%minc)
+       call DMGetStratumSize(self%dm, minc_zone_label_name, iminc, &
+            num_minc_zone_cells, ierr); CHKERRQ(ierr)
+       if (num_minc_zone_cells > 0) then
+          call DMGetStratumIS(self%dm, minc_zone_label_name, &
+               iminc, minc_IS, ierr); CHKERRQ(ierr)
+          call ISGetIndicesF90(minc_IS, minc_cells, ierr); CHKERRQ(ierr)
+          associate(num_levels => self%minc(iminc)%num_levels)
+            do i = 1, num_minc_zone_cells
+               c = minc_cells(i)
+               do m = 1, self%minc(iminc)%num_levels
+                  ic = minc_level_cells(m, c)
+                  do h = 0, self%depth
+                     minc_p = self%strata(h)%minc_point(ic, m)
+                     associate(p_depth => self%depth - h)
+                       call DMSetLabelValue(minc_dm, "depth", &
+                            minc_p, p_depth, ierr); CHKERRQ(ierr)
+                     end associate
+                  end do
+               end do
+            end do
+          end associate
+       end if
     end do
-
-  contains
-
-    subroutine minc_depth_label_iterator(node, stopped)
-      !! Sets depth label for all MINC DAG points.
-
-      type(list_node_type), pointer, intent(in out) :: node
-      PetscBool, intent(out) :: stopped
-      ! Locals:
-      PetscInt :: minc_p, h
-      PetscErrorCode :: ierr
-
-      select type (c => node%data)
-      type is (PetscInt)
-         do h = 0, self%depth
-            minc_p = self%strata(h)%minc_point(ic, m)
-            associate(p_depth => self%depth - h)
-              call DMSetLabelValue(minc_dm, "depth", &
-                   minc_p, p_depth, ierr); CHKERRQ(ierr)
-            end associate
-         end do
-      end select
-      ic = ic + 1
-
-    end subroutine minc_depth_label_iterator
 
   end subroutine mesh_setup_minc_dm_depth_label
 
@@ -2266,10 +2167,14 @@ contains
     class(mesh_type), intent(in out) :: self
     DM, intent(in out) :: minc_dm
     PetscInt, intent(in) :: max_num_levels
-    type(list_type), intent(in out) :: minc_level_cells(0: max_num_levels)
+    PetscInt, intent(in) :: minc_level_cells(max_num_levels, &
+         self%strata(0)%start: self%strata(0)%end - 1)
     ! Locals:
-    PetscInt :: m, ic, h, c, ghost, minc_p
     PetscInt :: start_cell, end_cell
+    PetscInt :: iminc, num_minc_zone_cells
+    PetscInt :: i, c, m, ic, minc_p, ghost
+    IS :: minc_IS
+    PetscInt, pointer :: minc_cells(:)
     DMLabel :: ghost_label
     PetscErrorCode :: ierr
 
@@ -2278,57 +2183,53 @@ contains
     call DMCreateLabel(minc_dm, minc_level_label_name, ierr)
     CHKERRQ(ierr)
 
-    h = 0
-    call DMPlexGetHeightStratum(minc_dm, h, start_cell, end_cell, &
+    call DMPlexGetHeightStratum(minc_dm, 0, start_cell, end_cell, &
          ierr); CHKERRQ(ierr)
-    associate(num_cells => end_cell - start_cell)
-      allocate(self%minc_cell_map(0: num_cells - 1))
-    end associate
+    allocate(self%minc_cell_map(start_cell: end_cell - 1))
 
-    m = 0
-    do c = self%strata(h)%start, self%strata(h)%end - 1
+    ! Non-MINC cells:
+    do c = self%strata(0)%start, self%strata(0)%end - 1
        call DMLabelGetValue(ghost_label, c, ghost, ierr)
        if (ghost < 0) then
-          minc_p = self%strata(h)%minc_point(c, m)
+          minc_p = self%strata(0)%minc_point(c, 0)
           call DMSetLabelValue(minc_dm, minc_level_label_name, &
-               minc_p, m, ierr); CHKERRQ(ierr)
+               minc_p, 0, ierr); CHKERRQ(ierr)
           self%minc_cell_map(minc_p) = c
        end if
     end do
 
-    do m = 1, max_num_levels
-       ic = 0
-       call minc_level_cells(m)%traverse(minc_level_label_iterator)
+    ! MINC cells:
+    do iminc = 1, size(self%minc)
+       call DMGetStratumSize(self%dm, minc_zone_label_name, iminc, &
+            num_minc_zone_cells, ierr); CHKERRQ(ierr)
+       if (num_minc_zone_cells > 0) then
+          call DMGetStratumIS(self%dm, minc_zone_label_name, &
+               iminc, minc_IS, ierr); CHKERRQ(ierr)
+          call ISGetIndicesF90(minc_IS, minc_cells, ierr); CHKERRQ(ierr)
+          associate(num_levels => self%minc(iminc)%num_levels)
+            do i = 1, num_minc_zone_cells
+               c = minc_cells(i)
+               call DMLabelGetValue(ghost_label, c, ghost, ierr)
+               if (ghost < 0) then
+                  do m = 1, self%minc(iminc)%num_levels
+                     ic = minc_level_cells(m, c)
+                     minc_p = self%strata(0)%minc_point(ic, m)
+                     call DMSetLabelValue(minc_dm, minc_level_label_name, &
+                          minc_p, m, ierr); CHKERRQ(ierr)
+                     self%minc_cell_map(minc_p) = c
+                  end do
+               end if
+            end do
+          end associate
+       end if
     end do
-
-  contains
-
-    subroutine minc_level_label_iterator(node, stopped)
-      !! Sets level label for all MINC cells and faces.
-
-      type(list_node_type), pointer, intent(in out) :: node
-      PetscBool, intent(out) :: stopped
-      ! Locals:
-      PetscInt :: minc_p
-      PetscErrorCode :: ierr
-
-      select type (c => node%data)
-      type is (PetscInt)
-         minc_p = self%strata(h)%minc_point(ic, m)
-         call DMSetLabelValue(minc_dm, minc_level_label_name, &
-              minc_p, m, ierr); CHKERRQ(ierr)
-         self%minc_cell_map(minc_p) = c
-      end select
-      ic = ic + 1
-
-    end subroutine minc_level_label_iterator
 
   end subroutine mesh_setup_minc_dm_level_label_and_cell_map
 
 !------------------------------------------------------------------------
 
   subroutine mesh_setup_minc_dm_cell_order(self, minc_dm, max_num_levels, &
-       minc_level_cells)
+       minc_level_cells, minc_level_cell_count, num_minc_cells)
     !! Sets up natural-to-global AO for MINC DM, and overwrites
     !! original AO.
 
@@ -2338,7 +2239,10 @@ contains
     class(mesh_type), intent(in out) :: self
     DM, intent(in) :: minc_dm
     PetscInt, intent(in) :: max_num_levels
-    type(list_type), intent(in out) :: minc_level_cells(0: max_num_levels)
+    PetscInt, intent(in) :: minc_level_cells(max_num_levels, &
+         self%strata(0)%start: self%strata(0)%end - 1)
+    PetscInt, intent(in) :: minc_level_cell_count(max_num_levels)
+    PetscInt, intent(in) :: num_minc_cells
     ! Locals:
     AO :: minc_ao
     PetscMPIInt :: rank, num_procs
@@ -2346,8 +2250,8 @@ contains
     PetscInt :: start_cell, end_interior_cell, offset, n_all
     PetscInt :: mapping_count, num_ghost_cells, num_non_ghost_cells
     ISLocalToGlobalMapping :: l2g, minc_l2g
-    PetscInt :: local_minc_cell_count, total_minc_cell_count
-    PetscInt :: ic, c, m, inatural
+    PetscInt :: total_minc_cell_count
+    PetscInt :: ic, c, m, inatural, h, p(1)
     PetscInt, allocatable :: minc_global(:), minc_frac_natural(:)
     PetscInt, allocatable :: minc_global_all(:), minc_frac_natural_all(:)
     PetscInt, allocatable :: minc_counts(:), minc_displacements(:)
@@ -2364,8 +2268,7 @@ contains
     mapping_count = num_non_ghost_cells
 
     ! Rank 0 has array elements for MINC cells from all ranks:
-    local_minc_cell_count = sum(minc_level_cells(1:)%count)
-    call MPI_reduce(local_minc_cell_count, total_minc_cell_count, 1, &
+    call MPI_reduce(num_minc_cells, total_minc_cell_count, 1, &
          MPI_INTEGER, MPI_SUM, 0, PETSC_COMM_WORLD, ierr)
     if (rank == 0) then
        mapping_count = mapping_count + total_minc_cell_count
@@ -2382,9 +2285,10 @@ contains
     ! MINC cells (level > 0):
     minc_counts = get_mpi_int_gather_array()
     minc_displacements = get_mpi_int_gather_array()
+    h = 0
 
     do m = 1, max_num_levels
-       associate(n => minc_level_cells(m)%count)
+       associate(n => minc_level_cell_count(m))
 
          allocate(minc_frac_natural(n), minc_global(n))
          call MPI_gather(n, 1, MPI_INTEGER, minc_counts, 1, &
@@ -2397,8 +2301,17 @@ contains
             n_all = 1
          end if
 
-         ic = 0
-         call minc_level_cells(m)%traverse(minc_indices_iterator)
+         do c = self%strata(0)%start, self%strata(0)%end - 1
+            ic = minc_level_cells(m, c)
+            if (ic >= 0) then
+               p = self%strata(0)%minc_point(ic, m)
+               ic = ic + 1
+               minc_frac_natural(ic) = local_to_natural_cell_index( &
+                    self%cell_order, l2g, c)
+               call ISLocalToGlobalMappingApplyBlock(minc_l2g, 1, p, &
+                    minc_global(ic:ic), ierr); CHKERRQ(ierr)
+            end if
+         end do
 
          allocate(minc_global_all(n_all), minc_frac_natural_all(n_all))
          call MPI_gatherv(minc_global, n, MPI_INTEGER, &
@@ -2430,7 +2343,7 @@ contains
 
     subroutine get_original_cell_natural_global_indices()
       !! Gets natural and global indices for original cells on each
-      !! process, and returns number of cells.
+      !! process.
 
       ! Locals:
       PetscInt :: ic, ghost, carray(1)
@@ -2471,30 +2384,6 @@ contains
       end if
 
     end function get_new_natural_index
-
-!........................................................................
-
-    subroutine minc_indices_iterator(node, stopped)
-      !! Gets global indices and natural indices of fracture cells for
-      !! MINC cells on current process in specified MINC level.
-
-      type(list_node_type), pointer, intent(in out) :: node
-      PetscBool, intent(out) :: stopped
-      ! Locals:
-      PetscInt :: p(1)
-      PetscErrorCode :: ierr
-
-      select type (c => node%data)
-      type is (PetscInt)
-         p = self%strata(0)%minc_point(ic, m)
-         ic = ic + 1
-         minc_frac_natural(ic) = local_to_natural_cell_index( &
-              self%cell_order, l2g, c)
-         call ISLocalToGlobalMappingApplyBlock(minc_l2g, 1, p, &
-              minc_global(ic:ic), ierr); CHKERRQ(ierr)
-      end select
-
-    end subroutine minc_indices_iterator
 
 !........................................................................
 
@@ -2544,8 +2433,8 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine mesh_setup_minc_geometry(self, minc_dm, num_cells, &
-       max_num_levels, num_minc_zones, minc_zone)
+  subroutine mesh_setup_minc_geometry(self, minc_dm, max_num_levels, &
+       minc_level_cells)
     !! Sets up cell and face geometry vectors for MINC mesh. These
     !! overwrite the original geometry vectors.
 
@@ -2557,14 +2446,15 @@ contains
 
     class(mesh_type), intent(in out) :: self
     DM, intent(in out) :: minc_dm
-    PetscInt, intent(in) :: num_cells, max_num_levels, num_minc_zones
-    PetscInt, intent(in) :: minc_zone(0: num_cells - 1)
+    PetscInt, intent(in) :: max_num_levels
+    PetscInt, intent(in) :: minc_level_cells(max_num_levels, &
+         self%strata(0)%start: self%strata(0)%end - 1)
     ! Locals:
     PetscInt :: dim, cell_variable_dim(num_cell_variables), &
          face_variable_dim(num_face_variables)
-    PetscInt :: iminc, c, f, h, i, m, minc_p, face_p, ghost
+    PetscInt :: iminc, c, f, i, m, minc_p, face_p, ghost
     PetscInt :: cell_offset, minc_cell_offset, face_offset, minc_face_offset
-    PetscInt :: ic(max_num_levels), num_minc_zone_cells
+    PetscInt :: ic, num_minc_zone_cells
     DM :: dm_cell, dm_face
     DMLabel :: ghost_label
     IS :: minc_IS
@@ -2613,9 +2503,8 @@ contains
     CHKERRQ(ierr)
 
     ! Copy original cell geometry:
-    h = 0
     call cell%init(nc, np)
-    do c = self%strata(h)%start, self%strata(h)%end - 1
+    do c = self%strata(0)%start, self%strata(0)%end - 1
        call DMLabelGetValue(ghost_label, c, ghost, ierr); CHKERRQ(ierr)
        if (ghost < 0) then
           call section_offset(cell_section, c, cell_offset, ierr)
@@ -2629,14 +2518,13 @@ contains
     end do
 
     ! Copy original face geometry:
-    h = 1
     call face%init(nc, np)
-    do f = self%strata(h)%start, self%strata(h)%end - 1
+    do f = self%strata(1)%start, self%strata(1)%end - 1
        call DMLabelGetValue(ghost_label, f, ghost, ierr); CHKERRQ(ierr)
        if (ghost < 0) then
           call section_offset(face_section, f, face_offset, ierr)
           CHKERRQ(ierr)
-          minc_p = self%strata(h)%minc_point(f, 0)
+          minc_p = self%strata(1)%minc_point(f, 0)
           call section_offset(minc_face_section, minc_p, minc_face_offset, ierr)
           CHKERRQ(ierr)
           minc_face_geom_array(minc_face_offset: &
@@ -2645,9 +2533,7 @@ contains
        end if
     end do
 
-    h = 0
-    ic = 0
-    do iminc = 1, num_minc_zones
+    do iminc = 1, size(self%minc)
        associate(minc => self%minc(iminc))
          call DMGetStratumSize(self%dm, minc_zone_label_name, iminc, &
               num_minc_zone_cells, ierr); CHKERRQ(ierr)
@@ -2659,7 +2545,7 @@ contains
                c = minc_cells(i)
                call DMLabelGetValue(ghost_label, c, ghost, ierr)
                if (ghost < 0) then
-                  minc_p = self%strata(h)%minc_point(c, 0)
+                  minc_p = self%strata(0)%minc_point(c, 0)
                   call section_offset(minc_cell_section, minc_p, minc_cell_offset, ierr)
                   CHKERRQ(ierr)
                   call cell%assign_geometry(minc_cell_geom_array, minc_cell_offset)
@@ -2669,14 +2555,15 @@ contains
                   cell%volume = orig_volume * minc%volume(1)
                   do m = 1, minc%num_levels
                      ! Assign MINC cell geometry:
-                     minc_p = self%strata(h)%minc_point(ic(m), m)
+                     ic = minc_level_cells(m, c)
+                     minc_p = self%strata(0)%minc_point(ic, m)
                      call section_offset(minc_cell_section, minc_p, &
                           minc_cell_offset, ierr); CHKERRQ(ierr)
                      call cell%assign_geometry(minc_cell_geom_array, minc_cell_offset)
                      cell%volume = orig_volume * minc%volume(m + 1)
                      cell%centroid = orig_centroid
                      ! Assign MINC face geometry:
-                     face_p = self%strata(h + 1)%minc_point(ic(m), m)
+                     face_p = self%strata(1)%minc_point(ic, m)
                      call section_offset(minc_face_section, face_p, &
                           minc_face_offset, ierr); CHKERRQ(ierr)
                      call face%assign_geometry(minc_face_geom_array, minc_face_offset)
@@ -2686,7 +2573,6 @@ contains
                      face%gravity_normal = 0._dp
                      face%centroid = 0._dp
                      face%permeability_direction = dble(1)
-                     ic(m) = ic(m) + 1
                   end do
                end if
             end do
