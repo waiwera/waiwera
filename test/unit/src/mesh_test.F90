@@ -642,7 +642,7 @@ contains
       call orig_mesh%init(eos, orig_json)
       call orig_mesh%configure(gravity, orig_json, viewer = viewer, err = err)
       call fson_destroy_mpi(orig_json)
-      call mesh%destroy_distribution_data()
+      call orig_mesh%destroy_distribution_data()
 
       call DMGetLocalToGlobalMapping(orig_mesh%dm, l2g, ierr); CHKERRQ(ierr)
 
