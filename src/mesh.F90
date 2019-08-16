@@ -1921,7 +1921,7 @@ contains
     call dm_setup_global_section(minc_dm)
 
     call self%setup_minc_dm_cell_natural_global(minc_dm, max_num_levels, &
-         minc_level_cells)
+         minc_level_cells, minc_level_cell_count, num_minc_cells)
     self%cell_natural = dm_natural_order_IS(minc_dm, self%cell_natural_global)
     call self%setup_minc_geometry(minc_dm, max_num_levels, &
          minc_level_cells)
@@ -2323,9 +2323,8 @@ contains
     PetscInt, intent(in) :: minc_level_cells(max_num_levels, &
          self%strata(0)%start: self%strata(0)%end - 1)
     ! Locals:
-    PetscInt :: m, ic, h, i, c, ghost, minc_p, start_cell, end_cell
+    PetscInt :: m, ic, i, c, ghost, minc_p, start_cell, end_cell
     PetscInt, allocatable :: natural(:)
-    PetscInt :: start_cell, end_cell
     PetscInt :: iminc, num_minc_zone_cells
     IS :: minc_IS
     PetscInt, pointer :: minc_cells(:)
@@ -2393,7 +2392,8 @@ contains
 !------------------------------------------------------------------------
 
   subroutine mesh_setup_minc_dm_cell_natural_global(self, minc_dm, &
-       max_num_levels, minc_level_cells)
+       max_num_levels, minc_level_cells, minc_level_cell_count, &
+       num_minc_cells)
 
     !! Sets up natural-to-global AO for MINC DM, and overwrites
     !! original AO.
@@ -2472,7 +2472,7 @@ contains
                p = self%strata(0)%minc_point(ic, m)
                ic = ic + 1
                minc_frac_natural(ic) = local_to_natural_cell_index( &
-                    self%cell_order, l2g, c)
+                    self%cell_natural_global, l2g, c)
                call ISLocalToGlobalMappingApplyBlock(minc_l2g, 1, p, &
                     minc_global(ic:ic), ierr); CHKERRQ(ierr)
             end if
