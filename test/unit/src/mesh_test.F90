@@ -664,6 +664,53 @@ contains
 
 !------------------------------------------------------------------------
 
+  subroutine dm_dag_sanity_check(dm, test, title)
+    !! Sanity check for DM graph.
+
+    DM, intent(in) :: dm
+    class(unit_test_type), intent(in out) :: test
+    character(*), intent(in) :: title
+    ! Locals:
+    PetscInt :: p, h, depth!, i
+    PetscInt, allocatable :: pstart(:), pend(:)
+    PetscInt, pointer :: cone(:), support(:)
+    PetscMPIInt :: rank
+    character(80) :: msg
+    PetscErrorCode :: ierr
+
+    call mpi_comm_rank(PETSC_COMM_WORLD, rank, ierr)
+    call DMPlexGetDepth(dm, depth, ierr); CHKERRQ(ierr)
+    allocate(pstart(0:depth), pend(0:depth))
+    do h = 0, depth
+       call DMPlexGetHeightStratum(dm, h, pstart(h), pend(h), &
+            ierr); CHKERRQ(ierr)
+    end do
+
+    do h = 0, depth
+       do p = pstart(h), pend(h) - 1
+          call DMPlexGetCone(dm, p, cone, ierr)
+          call DMPlexGetSupport(dm, p, support, ierr)
+          if (h < depth) then
+             write(msg, '(a, i0, a, i0)') ': cone for h:', h, 'p:', p
+             call test%assert(all((pstart(h + 1) <= cone) .and. &
+                  (cone < pend(h + 1))), trim(title) // msg)
+          end if
+          if (h > 0) then
+             write(msg, '(a, i0, a, i0)') ': support for h:', h, 'p:', p
+             call test%assert(all((pstart(h - 1) <= support) .and. &
+                  (support < pend(h - 1))), trim(title) // msg)
+          end if
+          call DMPlexRestoreCone(dm, p, cone, ierr)
+          call DMPlexRestoreSupport(dm, p, support, ierr)
+       end do
+    end do
+
+    deallocate(pstart, pend)
+
+  end subroutine dm_dag_sanity_check
+
+!------------------------------------------------------------------------
+
   subroutine test_setup_minc_dm(test)
     ! Test setup_minc_dm
 
@@ -771,7 +818,7 @@ contains
       type(cell_type) :: orig_cell, cell
       type(face_type) :: face
       ISLocalToGlobalMapping :: l2g
-      DMLabel :: ghost_label, minc_level_label
+      DMLabel :: ghost_label
       PetscInt, parameter :: nc = 1, np = 1 ! dummy values for cell init
       PetscSection :: orig_cell_section, cell_section, face_section
       PetscReal, pointer, contiguous :: orig_cell_geom_array(:), cell_geom_array(:)
@@ -795,6 +842,7 @@ contains
       call mesh%destroy_distribution_data()
 
       call mesh_geometry_sanity_check(mesh, test, name)
+      call dm_dag_sanity_check(mesh%dm, test, name)
 
       orig_json_str = get_orig_json_str(json_str)
       orig_json => fson_parse_mpi(str = orig_json_str)
@@ -856,8 +904,7 @@ contains
       CHKERRQ(ierr)
       call DMGetLabel(orig_mesh%dm, "ghost", ghost_label, ierr)
       CHKERRQ(ierr)
-      call DMGetLabel(mesh%dm, minc_level_label_name, minc_level_label, ierr)
-      CHKERRQ(ierr)
+
       ic = 0
       h = 0
       do iminc = 1, size(mesh%minc)
@@ -915,6 +962,7 @@ contains
            end if
          end associate
       end do
+
       call VecRestoreArrayReadF90(orig_cell_geom, orig_cell_geom_array, ierr)
       call VecRestoreArrayReadF90(mesh%cell_geom, cell_geom_array, ierr)
       call VecRestoreArrayReadF90(mesh%face_geom, face_geom_array, ierr)
