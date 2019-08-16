@@ -615,7 +615,7 @@ contains
       type(cell_type) :: orig_cell, cell
       type(face_type) :: face
       ISLocalToGlobalMapping :: l2g
-      DMLabel :: ghost_label, minc_level_label
+      DMLabel :: ghost_label
       PetscInt, parameter :: nc = 1, np = 1 ! dummy values for cell init
       PetscSection :: orig_cell_section, cell_section, face_section
       PetscReal, pointer, contiguous :: orig_cell_geom_array(:), cell_geom_array(:)
@@ -693,8 +693,7 @@ contains
       CHKERRQ(ierr)
       call DMGetLabel(orig_mesh%dm, "ghost", ghost_label, ierr)
       CHKERRQ(ierr)
-      call DMGetLabel(mesh%dm, minc_level_label_name, minc_level_label, ierr)
-      CHKERRQ(ierr)
+
       ic = 0
       h = 0
       do iminc = 1, size(mesh%minc)
@@ -752,6 +751,7 @@ contains
            end if
          end associate
       end do
+
       call VecRestoreArrayReadF90(orig_cell_geom, orig_cell_geom_array, ierr)
       call VecRestoreArrayReadF90(mesh%cell_geom, cell_geom_array, ierr)
       call VecRestoreArrayReadF90(mesh%face_geom, face_geom_array, ierr)
