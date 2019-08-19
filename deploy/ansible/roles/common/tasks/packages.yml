@@ -1,0 +1,52 @@
+---
+
+- name: Install build-related tools
+  package:
+    name: "{{ build_tools }}"
+    state: present
+    update_cache: yes
+    install_recommends: no
+
+- name: Install python dependencies
+  package:
+    name: "{{ python_dependencies }}"
+    state: present
+    update_cache: yes
+    install_recommends: no
+
+- name: Install compilers
+  package:
+    name: "{{ compilers }}"
+    state: present
+    install_recommends: no
+
+- name: Install libraries
+  package:
+    name: "{{ libraries }}"
+    state: present
+    install_recommends: no
+
+- name: Install PETSc dependencies
+  package:
+    name: "{{ petsc_dependencies }}"
+    state: present
+    update_cache: yes
+    install_recommends: no
+
+- name: Install pip
+  package:
+    name:  "{{ pip_install }}"
+    state: present
+    install_recommends: no
+
+- name: Update pip to latest version with pip
+  pip:
+    name: pip
+    executable: "{{ pip_ex }}"
+    extra_args: --upgrade
+  # when: ansible_os_family != 'Archlinux'
+  tags:
+    - pip
+    # - packages
+  register: pip_error
+  ignore_errors: True

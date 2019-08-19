@@ -1,0 +1,18 @@
+python_dependencies:
+  - python3
+  - python3-devel
+  - python-setuptools
+  - libselinux-python
+
+compilers:
+  - gcc-gfortran
+  - gcc-c++
+
+libraries:
+  - blas-devel
+  - lapack-devel
+  - valgrind-devel
+
+openmpi:
+  - openmpi-devel
+  - openssh-client

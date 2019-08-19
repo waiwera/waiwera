@@ -1,0 +1,89 @@
+---
+
+- name: remove build_tools
+  apt:
+    name: "{{ build_tools }}"
+    state: absent
+    purge: yes
+
+- name: remove compilers
+  apt:
+    name: "{{ compilers }}"
+    state: absent
+    purge: yes
+
+- name: remove petsc_dependencies
+  apt:
+    name: "{{ petsc_dependencies }}"
+    state: absent
+    purge: yes
+
+- name: remove libraries
+  apt:
+    name: "{{ libraries }}"
+    state: absent
+    purge: yes
+
+- name: apt autoremove
+  apt:
+    autoremove: yes
+
+- name: apt clean
+  apt:
+    autoclean: yes
+
+- name: Cleanup leftover files
+  file:
+    path: "{{ item }}"
+    state: absent
+  with_items:
+    - /var/lib/apt/lists/*
+    - /tmp/*
+    - /var/tmp/*
+    - /root/.pip/cache/*
+    - /usr/share/doc/*
+
+- name: Capture petsc_path files and directories to delete
+  find:
+    paths: "{{ petsc_arch_path }}"
+    file_type: any
+    excludes:
+      - "lib"
+      - "bin"
+  register: found_arch
+
+- name: Capture PETSc files and directories to delete
+  find:
+    paths: "{{ petsc_path }}"
+    file_type: any
+    excludes:
+      - "{{ petsc_arch }}"
+  register: found_petsc
+
+- name: Capture .git directories to delete
+  find:
+    paths: "{{ base_dir }}"
+    file_type: directory
+    patterns: '.git'
+    recurse: yes
+    hidden: yes
+  register: found_git
+
+- name: Capture sofware directories to delete
+  find:
+    paths: "{{ software_path }}"
+    file_type: directory
+    hidden: yes
+    exclude:
+      - "PETSc"
+  register: found_software
+
+- name: Delete files
+  file:
+    path: "{{ item.path }}"
+    state: absent
+  with_items:
+    - "{{ found_arch['files'] }}"
+    - "{{ found_petsc['files'] }}"
+    - "{{ found_git['files'] }}"
+    - "{{ found_software['files'] }}"

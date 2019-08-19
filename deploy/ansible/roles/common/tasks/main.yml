@@ -1,0 +1,138 @@
+---
+- name: Setup secrets
+  include_vars: secrets.yml
+  tags:
+    - packer
+    - never
+
+- name: Set docker_status
+  set_fact:
+    docker_run: True
+  tags:
+    - docker
+    - never
+
+- name: create user and group
+  block:
+  - user:
+      name: "{{ app_user }}"
+      shell: /bin/bash
+      uid: 1000
+      comment: waiwera app user
+
+  - group:
+      name: "{{ app_group }}"
+      # shell: /bin/bash
+      gid: 1000
+      # comment: waiwera app user
+  become: yes
+  tags:
+    - never
+    - docker
+
+# - name: Get default Variables
+#   include_vars: "../vars/default.yml"
+
+- name: Load Variables
+  include: load_vars.yml
+  tags:
+    - variables
+
+- name: Setup packages
+  include: packages.yml
+  become: yes
+  tags:
+    - packages
+
+- name: openmpi - test for pre-existing install
+  command: mpiexec --version
+  register: openmpi_test
+  ignore_errors: True
+
+- name: openmpi - add openmpi to petsc install
+  block:
+
+  - set_fact:
+      petsc_openmpi:
+        - download-openmpi
+
+  - set_fact:
+      petsc_options: "{{petsc_options + petsc_openmpi}}"
+
+  when: openmpi_test is failed
+  tags:
+    - never
+    - local
+
+- name: Install Openmpi
+  block:
+    - package:
+        name: "{{ openmpi }}"
+        state: present
+      become: yes
+
+  when: ((openmpi_test is failed) and (petsc_openmpi is not defined))
+  tags:
+    - packages
+
+- name: Install ninja
+  package:
+    name: "{{ ninja }}"
+    state: present
+    update_cache: yes
+    install_recommends: no
+  become: yes
+  tags:
+    - packages
+
+- name: set opt_paths.sh with template
+  template:
+    src: opt_paths.j2
+    dest: /etc/profile.d/opt_paths.sh
+  tags:
+    - never
+    - root
+    - docker
+  become: yes
+
+- name: Run the common tasks to setup waiwera on a system with no root access
+  include: setup.yml
+
+- name:  Install the app
+  environment:
+    PATH: "{{ ansible_env.PATH }}:{{ bin_path }}:{{ local_bin }}:{{ petsc_bin }}"
+    LANG: en_US.UTF-8
+    LC_ALL: en_US.UTF-8
+    LC_TYPE: en_US.UTF-8
+    PETSC_DIR: "{{ petsc_path }}"
+    PETSC_ARCH: "{{ petsc_arch }}"
+    PKG_CONFIG_PATH: "{{ pkgconfig_path }}"
+  include: install.yml
+
+- name: Cleanup
+  include: cleanup.yml
+  tags:
+    - docker
+    - cleanup
+
+- name: change app deployment ownership
+  file:
+    dest: "{{ waiwera_path }}"
+    owner: "{{ app_user }}"
+    group: "{{ app_group }}"
+    recurse: yes
+  tags:
+    - never
+    - docker
+    - root
+
+- name: change /usr/local deployment ownership
+  file:
+    dest: /usr/local
+    owner: root
+    group: root
+    recurse: yes
+  tags:
+    - never
+    - docker
+    - root

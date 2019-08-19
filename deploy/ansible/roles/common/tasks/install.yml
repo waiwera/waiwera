@@ -1,0 +1,51 @@
+---
+
+- name: meson - Install
+  include: meson.yml
+  tags:
+    - meson
+
+- name: ninja - Install
+  include: ninja.yml
+  tags:
+    - ninja
+
+- name: zofu - Install from source
+  include: zofu.yml
+  tags:
+    - never
+    - zofu
+
+- name: fson - Install from source
+  include: fson.yml
+  tags:
+    - never
+    - fson
+
+- name: petsc - test for pre-existing install
+  command: pkg-config --exists PETSc
+  register: petsc_test
+  ignore_errors: True
+
+- name: petsc - local install
+  block:
+
+  - name: petsc - Install
+    include: petsc.yml
+
+
+  when: petsc_test is failed
+  tags:
+    - petsc
+
+- name: waiwera - Setup after petsc install
+  include: waiwera.yml
+  tags:
+    - waiwera
+  # when: petsc_test is failed
+
+# - name: waiwera - Setup without petsc install
+#   include: waiwera.yml
+#   tags:
+#     - waiwera
+#   when: petsc_test is succeeded

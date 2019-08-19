@@ -1,0 +1,9 @@
+---
+- name: Build Image
+  hosts: all
+  tasks:
+
+  - import_role:
+      name: common
+    become: yes
+    become_user: '{{ app_user }}'

@@ -1,0 +1,49 @@
+---
+
+# - name: waiwera - Creates app directory
+#   file:
+#     path: "{{ waiwera_path }}"
+#     state: directory
+
+- name: waiwera - Fetch waiwera from github
+  git:
+    repo: "https://{{ waiwera_user | urlencode }}:{{ waiwera_pwd  | urlencode }}@github.com/johnburnell/supermodels-test.git"
+    dest:  "{{ waiwera_path }}"
+    version: "{{ waiwera_version }}"
+  tags:
+    - fetch
+
+- name: waiwera - Set file permissions
+  file:
+    dest: "{{ waiwera_path }}"
+    owner: "{{ app_user }}"
+    group: "{{ app_group }}"
+    mode: u=rwX,g=rwX,o=rwX
+    recurse: yes
+  when: docker_run is defined
+
+- name: waiwera - Meson build
+  shell: meson build --buildtype=release --prefix={{ base_dir }} --libdir={{ lib_path }} --includedir={{ include_path }}
+  args:
+    chdir: "{{ waiwera_path }}"
+    executable: /bin/bash
+  tags:
+    - meson
+    - build
+
+- name: waiwera - ninja
+  block:
+  - name: waiwera - Ninja build
+    shell: ninja -C build
+    when: ansible_distribution != 'CentOS'
+    args:
+      chdir: "{{ waiwera_path }}"
+
+  - name: waiwera - Ninja build, CentOS
+    shell: "ninja-build -C build"
+    when: ansible_distribution == 'CentOS'
+    args:
+      chdir: "{{ waiwera_path }}"
+  tags:
+    - ninja
+    - build

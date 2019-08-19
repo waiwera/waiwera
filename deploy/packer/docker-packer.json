@@ -1,0 +1,60 @@
+{
+    "builders": [{
+        "type": "docker",
+        "image": "debian:9",
+        "commit": true,
+        "changes": [
+            "WORKDIR {{ user `app_dir` }}/waiwera",
+            "ENV PETSC_DIR {{ user `app_dir` }}/external/PETSc",
+            "ENV PETSC_ARCH arch-linux2-c-debug",
+            "ENV LD_LIBRARY_PATH {{ user `app_dir` }}/lib",
+            "ENV PYTHONPATH {{ user `app_dir` }}/PyTOUGH:{{ user `app_dir` }}/credo2:/{{ user `app_dir` }}/waiwera/utils",
+            "ENV PATH $PATH:{{ user `app_dir` }}/bin:{{ user `app_dir` }}/waiwera/dist",
+            "ENV PKG_CONFIG_PATH $PKG_CONFIG_PATH:{{ user `app_dir` }}/waiwera/lib/pkgconfig"
+        ]}
+    ],
+    "provisioners": [
+      {
+        "type": "shell",
+        "inline": [
+          "apt-get -y update && apt-get install -y locales "
+        ]
+      },
+      {
+        "type": "shell",
+        "inline": [
+          "sed -i 's/^# *\\(en_US.UTF-8\\)/\\1/' /etc/locale.gen && locale-gen"
+        ],
+        "environment_vars": [
+            "LANG=en_US.UTF-8",
+            "LC_ALL=en_US.UTF-8",
+            "LC_TYPE=en_US.UTF-8"
+           ]
+      },
+      {
+        "type": "ansible",
+        "user": "root",
+        "playbook_file": "../ansible/packer.yml",
+        "extra_arguments": [ "-v" ,
+                              "-e waiwera_user={{ user `git_user` }}" ,
+                              "-e waiwera_pwd={{ user `git_pwd` }}" ,
+                              "-e app_dir={{ user `app_dir` }}" ,
+                              "-e app_user=waiwera",
+                              "-e app_group=waiwera",
+                              "--skip-tags=vagrant,local"
+        ]
+      },
+      {
+        "type": "shell",
+        "inline": [
+          "pip3 uninstall ansible -y && for dep in $(pip3 show ansible | grep Requires | sed 's/Requires: //g; s/,//g'); do pip3 uninstall -y $dep; done && apt-get autoremove -y && apt-get autoclean -y && apt-get clean -y && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /usr/share/doc/*  /root/.pip/cache/*"
+        ]
+      }
+    ],
+    "post-processors": [[
+       {
+        "type": "docker-tag",
+        "repository": "thar102/waiwera",
+        "tag": "packer"
+    } ]]
+}

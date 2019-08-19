@@ -1,0 +1,30 @@
+---
+
+- name: meson - test for pre-existing install
+  command: meson --version
+  register: meson_test
+  ignore_errors: True
+
+- name: meson - pip install
+  block:
+    - name: meson - pip install local --user using pip3
+      pip:
+        name: meson
+        executable: "{{ pip_ex }}"
+        extra_args: "--user"
+      tags:
+        - local
+
+    - name: meson - install for root using pip3
+      pip:
+        name: meson
+        executable: "{{ pip_ex }}"
+        # extra_args: "--user"
+      tags:
+          - never
+          - docker
+          - root
+
+  when: meson_test is failed
+  tags:
+    - pip
