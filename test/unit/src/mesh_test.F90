@@ -95,7 +95,7 @@ contains
     
     call cell%init(1, 1)
 
-    do c = start_cell, end_cell - 1
+    do c = start_cell, end_interior_cell - 1
        if (mesh%ghost_cell(c) < 0) then
           call section_offset(cell_geom_section, c, offset, ierr)
           CHKERRQ(ierr)
