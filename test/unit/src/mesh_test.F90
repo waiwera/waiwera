@@ -78,6 +78,7 @@ contains
     PetscInt :: dirn
     character(80) :: msg
     PetscErrorCode :: ierr
+    PetscReal, parameter :: tol = 1.e-6_dp
 
     call local_vec_section(mesh%cell_geom, cell_geom_section)
     call VecGetArrayReadF90(mesh%cell_geom, cell_geom_array, ierr)
@@ -100,8 +101,8 @@ contains
           call section_offset(cell_geom_section, c, offset, ierr)
           CHKERRQ(ierr)
           call cell%assign_geometry(cell_geom_array, offset)
-          write(msg, '(a, i4, a, e10.4, a)') " : cell ", c, " volume (", cell%volume, ") <= 0"
-          call test%assert(cell%volume > 0._dp, trim(title) // trim(msg))
+          write(msg, '(a, i4, a, e10.4)') " : cell ", c, " volume = ", cell%volume
+          call test%assert(cell%volume > tol, trim(title) // trim(msg))
        end if
     end do
 
@@ -124,10 +125,10 @@ contains
           call section_offset(face_geom_section, f, offset, ierr)
           CHKERRQ(ierr)
           call face%assign_geometry(face_geom_array, offset)
-          write(msg, '(a, i0, a, e10.4, a)') " : face ", f, " area (", face%area, ") <= 0"
-          call test%assert(face%area > 0._dp, trim(title) // trim(msg))
-          write(msg, '(a, i0, a, e10.4, a)') " : face ", f, " distance12 (", face%distance12, ") <= 0"
-          call test%assert(face%distance12 > 0._dp, trim(title) // trim(msg))
+          write(msg, '(a, i0, a, e10.4)') " : face ", f, " area = ", face%area
+          call test%assert(face%area > tol, trim(title) // trim(msg))
+          write(msg, '(a, i0, a, e10.4)') " : face ", f, " distance12 = ", face%distance12
+          call test%assert(face%distance12 > tol, trim(title) // trim(msg))
           dirn = nint(face%permeability_direction)
           write(msg, '(a, i0, a, i2)') " : face ", f, " perm dirn =", dirn
           call test%assert(((1 <= dirn) .and. (dirn <= 3)), trim(title) // trim(msg))
