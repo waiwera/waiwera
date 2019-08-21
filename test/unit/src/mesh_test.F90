@@ -1819,6 +1819,7 @@ contains
       call mesh%destroy_distribution_data()
 
       call mesh_geometry_sanity_check(mesh, test, title)
+      call dm_dag_sanity_check(mesh%dm, test, title)
 
       if (rank == 0) then
          call test%assert(mesh%has_minc, title // ": mesh has minc")
