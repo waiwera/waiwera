@@ -524,7 +524,9 @@ contains
 !------------------------------------------------------------------------
 
   subroutine mesh_boundary_face_geometry(self, gravity)
-    !! Computes face geometry parameters for open boundary faces.
+    !! Computes face geometry parameters for open boundary faces. Also
+    !! sets the volumes of boundary ghost cells to zero (these are not
+    !! used).
 
     use cell_module, only: cell_type
     use face_module, only: face_type
@@ -546,7 +548,7 @@ contains
     PetscErrorCode :: ierr
 
     call local_vec_section(self%cell_geom, cell_section)
-    call VecGetArrayReadF90(self%cell_geom, cell_geom_array, ierr); CHKERRQ(ierr)
+    call VecGetArrayF90(self%cell_geom, cell_geom_array, ierr); CHKERRQ(ierr)
     call local_vec_section(self%face_geom, face_section)
     call VecGetArrayF90(self%face_geom, face_geom_array, ierr); CHKERRQ(ierr)
 
@@ -586,6 +588,10 @@ contains
                         ierr); CHKERRQ(ierr)
                    call cell%assign_geometry(cell_geom_array, cell_offset)
                    face%distance = [norm2(face%centroid - cell%centroid), 0._dp]
+                   call section_offset(cell_section, cells(2), cell_offset, &
+                        ierr); CHKERRQ(ierr)
+                   call cell%assign_geometry(cell_geom_array, cell_offset)
+                   cell%volume = 0._dp
                 end if
              end if
           end do
@@ -594,7 +600,7 @@ contains
 
     call ISRestoreIndicesF90(label_IS, label_values, ierr); CHKERRQ(ierr)
     call VecRestoreArrayF90(self%face_geom, face_geom_array, ierr); CHKERRQ(ierr)
-    call VecRestoreArrayReadF90(self%cell_geom, cell_geom_array, ierr); CHKERRQ(ierr)
+    call VecRestoreArrayF90(self%cell_geom, cell_geom_array, ierr); CHKERRQ(ierr)
     call cell%destroy()
     call face%destroy()
 
