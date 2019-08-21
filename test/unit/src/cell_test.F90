@@ -72,6 +72,8 @@ contains
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
     if (rank == 0) then
 
+       call test%assert(PETSC_FALSE, "false")
+
        allocate(cell_data(offset - 1 + sum(cell_variable_num_components)))
        cell_data = [offset_padding, centroid, volume]
 
