@@ -1770,6 +1770,20 @@ contains
     call redistribute_test(test, json_str, 'all bdy', 1, 2 * 49, 1, [49, 49], 7)
 
     json_str = &
+         '{"mesh": {"filename": "' // trim(adjustl(data_path)) // 'mesh/7x7grid.exo",' // &
+         '  "zones": {"sw": {"x": [0, 3000], "y": [0, 1500]}, ' // &
+         '           "ne": {"x": [3000, 4500], "y": [2000, 4500]}},' // &
+         '  "minc": [{"rock": {"zones": ["sw"]}, ' // &
+         '            "geometry": {"fracture": {"volume": 0.1}}}, ' // &
+         '           {"rock": {"zones": ["ne"]}, ' // &
+         '            "geometry": {"matrix": {"volume": [0.3, 0.6]}}}]}, ' // &
+         '"boundaries": [{"faces": {"cells": [0, 1, 2, 3, 4, 5, 6], ' // &
+         '  "normal": [0, -1, 0]}}]' // &
+         '}'
+    call redistribute_test(test, json_str, 'multizone bdy', 2, 49 + 10 + 16, &
+         2, [49, 10 + 8, 8], 7)
+
+    json_str = &
          '{"mesh": {"filename": "' // trim(adjustl(data_path)) // 'mesh/col10.exo",' // &
          '  "zones": {"minc": {"z": [-600, -100]}},' // &
          '  "minc": {"rock": {"zones": ["minc"]}, ' // &
