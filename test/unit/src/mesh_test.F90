@@ -64,6 +64,7 @@ contains
     use dm_utils_module, only: local_vec_section, section_offset, &
          dm_get_num_partition_ghost_points, dm_get_end_interior_cell
 
+
     class(mesh_type), intent(in) :: mesh
     class(unit_test_type), intent(in out) :: test
     character(*), intent(in) :: title
@@ -129,6 +130,8 @@ contains
           call test%assert(face%area > tol, trim(title) // trim(msg))
           write(msg, '(a, i0, a, e10.4)') " : face ", f, " distance12 = ", face%distance12
           call test%assert(face%distance12 > tol, trim(title) // trim(msg))
+          write(msg, '(a, i0, a)') " : face ", f, " distance12 = sum(distance)"
+          call test%assert(face%distance12, sum(face%distance), trim(title) // trim(msg))
           dirn = nint(face%permeability_direction)
           write(msg, '(a, i0, a, i2)') " : face ", f, " perm dirn =", dirn
           call test%assert(((1 <= dirn) .and. (dirn <= 3)), trim(title) // trim(msg))
