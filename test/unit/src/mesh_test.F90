@@ -1733,6 +1733,78 @@ contains
 
 !------------------------------------------------------------------------
 
+  subroutine mesh_face_geometry_check(mesh, test, title)
+    ! Checks mesh face geometry against values recomputed using
+    ! DMPlexComputeCellGeometryFVM().
+
+    use dm_utils_module, only: local_vec_section, section_offset
+    use face_module, only: face_type
+    use minc_module, only: minc_level_label_name
+
+    class(mesh_type), intent(in) :: mesh
+    class(unit_test_type), intent(in out) :: test
+    character(*), intent(in) :: title
+    ! Locals:
+    PetscSection :: face_geom_section
+    PetscReal, pointer, contiguous :: face_geom_array(:)
+    type(face_type) :: face, expected
+    PetscReal, pointer, contiguous :: expected_face_geom_array(:)
+    PetscInt :: start_face, end_face, f, offset, i
+    PetscInt :: minc_levels(2)
+    DMLabel :: minc_level_label
+    PetscInt, pointer :: cells(:)
+    character(80) :: msg
+    PetscErrorCode :: ierr
+
+    call local_vec_section(mesh%face_geom, face_geom_section)
+    call VecGetArrayReadF90(mesh%face_geom, face_geom_array, ierr)
+    CHKERRQ(ierr)
+
+    call face%init(1, 1)
+    call expected%init(1, 1)
+    allocate(expected_face_geom_array(face%dof))
+    call expected%assign_geometry(expected_face_geom_array, offset = 1)
+
+    call DMGetLabel(mesh%dm, minc_level_label_name, minc_level_label, ierr)
+    CHKERRQ(ierr)
+
+    call DMPlexGetHeightStratum(mesh%dm, 1, start_face, end_face, ierr)
+    CHKERRQ(ierr)
+    do f = start_face, end_face - 1
+       if (mesh%ghost_face(f) < 0) then
+          call DMPlexGetSupport(mesh%dm, f, cells, ierr); CHKERRQ(ierr)
+          do i = 1, 2
+             call DMLabelGetValue(minc_level_label, cells(i), &
+                  minc_levels(i), ierr); CHKERRQ(ierr)
+          end do
+          if (all(minc_levels <= 0)) then
+             call section_offset(face_geom_section, f, offset, ierr)
+             CHKERRQ(ierr)
+             call face%assign_geometry(face_geom_array, offset)
+             call DMPlexComputeCellGeometryFVM(mesh%dm, f, expected%area, &
+                  expected%centroid, expected%normal, ierr); CHKERRQ(ierr)
+             call mesh%modify_face_geometry(expected)
+             write(msg, '(a, i0, a)') ' face ', f, ' area'
+             call test%assert(expected%area, face%area, trim(title) // trim(msg))
+             write(msg, '(a, i0, a)') ' face ', f, ' centroid'
+             call test%assert(expected%centroid, face%centroid, trim(title) // trim(msg))
+             write(msg, '(a, i0, a)') ' face ', f, ' normal'
+             call test%assert(expected%normal, face%normal, trim(title) // trim(msg))
+          end if
+       end if
+    end do
+
+    call face%destroy()
+    call expected%destroy()
+    deallocate(expected_face_geom_array)
+
+    call VecRestoreArrayReadF90(mesh%face_geom, face_geom_array, ierr)
+    CHKERRQ(ierr)
+
+  end subroutine mesh_face_geometry_check
+
+!------------------------------------------------------------------------
+
   subroutine test_redistribute(test)
     ! MINC redistribute
 
@@ -1836,6 +1908,7 @@ contains
       call mesh%destroy_distribution_data()
 
       call mesh_geometry_sanity_check(mesh, test, title)
+      call mesh_face_geometry_check(mesh, test, title)
       call dm_dag_sanity_check(mesh%dm, test, title)
 
       if (rank == 0) then
