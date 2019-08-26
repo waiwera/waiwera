@@ -49,6 +49,7 @@ module face_module
      procedure, public :: destroy => face_destroy
      procedure, public :: calculate_permeability_direction => &
           face_calculate_permeability_direction
+     procedure, public :: calculate_distances => face_calculate_distances
      procedure, public :: normal_gradient => face_normal_gradient
      procedure, public :: pressure_gradient => face_pressure_gradient
      procedure, public :: temperature_gradient => face_temperature_gradient
@@ -220,6 +221,29 @@ contains
     self%permeability_direction = dble(index)
 
   end subroutine face_calculate_permeability_direction
+
+!------------------------------------------------------------------------
+
+  subroutine face_calculate_distances(self)
+    !! Calculates normal distances from cells to face, and normal
+    !! distance between cells.
+
+    class(face_type), intent(in out) :: self
+    ! Locals:
+    PetscReal :: correction
+
+    associate(centroid1 => self%cell(1)%centroid, &
+         centroid2 => self%cell(2)%centroid)
+      self%distance(1) = dot_product(self%centroid - centroid1, self%normal)
+      self%distance(2) = dot_product(centroid2 - self%centroid, self%normal)
+      self%distance12 = dot_product(centroid2 - centroid1, self%normal)
+    end associate
+
+    ! Correction for non-orthogonal meshes:
+    correction = self%distance12 / sum(self%distance)
+    self%distance = self%distance * correction
+
+  end subroutine face_calculate_distances
 
 !------------------------------------------------------------------------
 

@@ -403,9 +403,7 @@ contains
           face%normal = petsc_face%area_normal / face%area
           face%gravity_normal = dot_product(gravity, face%normal)
           call modify_face_area(face)
-          do i = 1, 2
-             face%distance(i) = norm2(face%centroid - face%cell(i)%centroid)
-          end do
+          call face%calculate_distances()
           call face%calculate_permeability_direction(self%permeability_rotation)
 
        end if
