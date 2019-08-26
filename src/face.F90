@@ -31,13 +31,13 @@ module face_module
      !! Type for accessing local face properties.
      private
      PetscReal, pointer, public :: area !! face area
-     PetscReal, pointer, contiguous, public :: distance(:) !! cell centroid distances on either side of the face
+     PetscReal, pointer, contiguous, public :: distance(:) !! cell centroid normal distances on either side of the face
+     PetscReal, pointer, public :: distance12 !! normal distance between cell centroids
      PetscReal, pointer, contiguous, public :: normal(:) !! normal vector to face
      PetscReal, pointer, public :: gravity_normal !! dot product of normal with gravity vector
      PetscReal, pointer, contiguous, public :: centroid(:) !! centroid of face
      PetscReal, pointer, public :: permeability_direction !! direction of permeability (1.. 3)
      type(cell_type), allocatable, public :: cell(:) !! cells on either side of face
-     PetscReal, public :: distance12 !! distance between cell centroids
      PetscInt, public :: dof !! Number of degrees of freedom
    contains
      private
@@ -60,15 +60,15 @@ module face_module
      procedure, public :: flux => face_flux
   end type face_type
 
-  PetscInt, parameter, public :: num_face_variables = 6
+  PetscInt, parameter, public :: num_face_variables = 7
   PetscInt, parameter, public :: &
        face_variable_num_components(num_face_variables) = &
-       [1, 2, 3, 1, 3, 1]
+       [1, 2, 1, 3, 1, 3, 1]
   PetscInt, parameter :: max_face_variable_name_length = 24
   character(max_face_variable_name_length), parameter, public :: &
        face_variable_names(num_face_variables) = &
        [character(max_face_variable_name_length):: &
-       "area", "distance", "normal", "gravity_normal", "centroid", &
+       "area", "distance", "distance12", "normal", "gravity_normal", "centroid", &
        "permeability_direction"]
 
   type petsc_face_type
@@ -122,11 +122,11 @@ contains
 
     self%area => data(offset)
     self%distance => data(offset + 1: offset + 2)
-    self%normal => data(offset + 3: offset + 5)
-    self%gravity_normal => data(offset + 6)
-    self%centroid => data(offset + 7: offset + 9)
-    self%permeability_direction => data(offset + 10)
-    self%distance12 = sum(self%distance)
+    self%distance12 => data(offset + 3)
+    self%normal => data(offset + 4: offset + 6)
+    self%gravity_normal => data(offset + 7)
+    self%centroid => data(offset + 8: offset + 10)
+    self%permeability_direction => data(offset + 11)
 
   end subroutine face_assign_geometry
 
@@ -190,6 +190,7 @@ contains
 
     nullify(self%area)
     nullify(self%distance)
+    nullify(self%distance12)
     nullify(self%normal)
     nullify(self%gravity_normal)
     nullify(self%centroid)
