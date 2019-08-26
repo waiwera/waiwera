@@ -104,6 +104,7 @@ module mesh_module
      procedure :: setup_minc_coordinates => mesh_setup_minc_coordinates
      procedure :: redistribute_dm => mesh_redistribute_dm
      procedure :: redistribute_geometry => mesh_redistribute_geometry
+     procedure :: check_face_orientations => mesh_check_face_orientations
      procedure :: geometry_add_boundary => mesh_geometry_add_boundary
      procedure :: boundary_face_geometry => mesh_boundary_face_geometry
      procedure :: setup_cell_natural => mesh_setup_cell_natural
@@ -3202,7 +3203,7 @@ contains
          dm_get_natural_to_global_ao
 
     class(mesh_type), intent(in out) :: self
-    PetscSF, intent(out) :: sf
+    PetscSF, intent(out) :: sf !! Redistribution star forest
     ! Locals:
     PetscSection :: section
     PetscErrorCode :: ierr
@@ -3261,14 +3262,92 @@ contains
     use dm_utils_module, only: dm_distribute_local_vec
 
     class(mesh_type), intent(in out) :: self
-    PetscSF, intent(in out) :: sf
+    PetscSF, intent(in out) :: sf !! Redistribution star forest
 
     if (sf .ne. PETSC_NULL_SF) then
        call dm_distribute_local_vec(self%dm, sf, self%cell_geom)
        call dm_distribute_local_vec(self%dm, sf, self%face_geom)
+       call self%check_face_orientations()
     end if
 
   end subroutine mesh_redistribute_geometry
+
+!------------------------------------------------------------------------
+
+  subroutine mesh_check_face_orientations(self)
+    !! Checks faces (non-MINC interior faces) to make sure they match
+    !! the orientation of the cells in their support. This is taken
+    !! from DMPlexComputeGeometryFVM() and needs to be done after mesh
+    !! redistribution.
+
+    use dm_utils_module, only: local_vec_section, section_offset, &
+         dm_get_end_interior_cell
+    use face_module, only: face_type
+    use minc_module, only: minc_level_label_name
+
+    class(mesh_type), intent(in out) :: self
+    ! Locals:
+    PetscSection :: cell_geom_section, face_geom_section
+    PetscReal, pointer, contiguous :: cell_geom_array(:), face_geom_array(:)
+    type(face_type) :: face
+    PetscInt :: start_cell, end_cell, end_interior_cell
+    PetscInt :: start_face, end_face, f, offset, i, cell_offset(2)
+    PetscInt :: ghost, minc_levels(2), num_cells
+    DMLabel :: ghost_label, minc_level_label
+    PetscInt, pointer :: cells(:)
+    PetscReal :: d12(self%dim)
+    PetscErrorCode :: ierr
+
+    call local_vec_section(self%cell_geom, cell_geom_section)
+    call VecGetArrayReadF90(self%cell_geom, cell_geom_array, ierr)
+    CHKERRQ(ierr)
+    call local_vec_section(self%face_geom, face_geom_section)
+    call VecGetArrayF90(self%face_geom, face_geom_array, ierr)
+    CHKERRQ(ierr)
+
+    call face%init(1, 1)
+
+    call DMGetLabel(self%dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
+    call DMGetLabel(self%dm, minc_level_label_name, minc_level_label, ierr)
+    CHKERRQ(ierr)
+    call DMPlexGetHeightStratum(self%dm, 0, start_cell, end_cell, ierr)
+    CHKERRQ(ierr)
+    end_interior_cell = dm_get_end_interior_cell(self%dm, end_cell)
+    call DMPlexGetHeightStratum(self%dm, 1, start_face, end_face, ierr)
+    CHKERRQ(ierr)
+
+    do f = start_face, end_face - 1
+       call DMLabelGetValue(ghost_label, f, ghost, ierr); CHKERRQ(ierr)
+       if (ghost < 0) then
+          call DMPlexGetSupportSize(self%dm, f, num_cells, ierr); CHKERRQ(ierr)
+          call DMPlexGetSupport(self%dm, f, cells, ierr); CHKERRQ(ierr)
+          do i = 1, 2
+             call DMLabelGetValue(minc_level_label, cells(i), &
+                  minc_levels(i), ierr); CHKERRQ(ierr)
+             call section_offset(cell_geom_section, cells(i), &
+                  cell_offset(i), ierr); CHKERRQ(ierr)
+          end do
+          if (all(minc_levels <= 0) .and. all(cells < end_interior_cell)) then
+             call section_offset(face_geom_section, f, offset, ierr)
+             CHKERRQ(ierr)
+             call face%assign_geometry(face_geom_array, offset)
+             call face%assign_cell_geometry(cell_geom_array, cell_offset)
+             d12 = face%cell(2)%centroid - face%cell(1)%centroid
+             if (dot_product(d12, face%normal) < 0._dp) then
+                face%normal = -face%normal
+                face%gravity_normal = -face%gravity_normal
+             end if
+          end if
+       end if
+    end do
+
+    call face%destroy()
+    call VecRestoreArrayReadF90(self%cell_geom, cell_geom_array, ierr)
+    CHKERRQ(ierr)
+    call VecRestoreArrayF90(self%face_geom, face_geom_array, ierr)
+    CHKERRQ(ierr)
+
+  end subroutine mesh_check_face_orientations
 
 !------------------------------------------------------------------------
 
