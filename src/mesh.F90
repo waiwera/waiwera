@@ -831,6 +831,7 @@ contains
                 CHKERRQ(ierr)
                 call face%assign_geometry(face_geom_array, face_offset)
                 face%distance(2) = 0._dp
+                face%distance12 = face%distance(1)
              end do
              call ISRestoreIndicesF90(bdy_IS, bdy_faces, ierr); CHKERRQ(ierr)
              call ISDestroy(bdy_IS, ierr); CHKERRQ(ierr)
@@ -2680,6 +2681,7 @@ contains
                      call face%assign_geometry(minc_face_geom_array, minc_face_offset)
                      face%area = orig_volume * minc%connection_area(m)
                      face%distance = minc%connection_distance(m: m + 1)
+                     face%distance12 = sum(face%distance)
                      face%normal = 0._dp
                      face%gravity_normal = 0._dp
                      face%centroid = 0._dp
