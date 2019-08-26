@@ -129,7 +129,7 @@ contains
           write(msg, '(a, i0, a, e10.4)') " : face ", f, " area = ", face%area
           call test%assert(face%area > tol, trim(title) // trim(msg))
           write(msg, '(a, i0, a, e10.4)') " : face ", f, " distance12 = ", face%distance12
-          call test%assert(face%distance12 > tol, trim(title) // trim(msg))
+          call test%assert(abs(face%distance12) > tol, trim(title) // trim(msg))
           write(msg, '(a, i0, a)') " : face ", f, " distance12 = sum(distance)"
           call test%assert(face%distance12, sum(face%distance), trim(title) // trim(msg))
           dirn = nint(face%permeability_direction)
@@ -1740,17 +1740,20 @@ contains
     class(unit_test_type), intent(in out) :: test
     character(*), intent(in) :: title
     ! Locals:
-    PetscSection :: face_geom_section
-    PetscReal, pointer, contiguous :: face_geom_array(:)
+    PetscSection :: cell_geom_section, face_geom_section
+    PetscReal, pointer, contiguous :: cell_geom_array(:), face_geom_array(:)
     type(face_type) :: face, expected
     PetscReal, pointer, contiguous :: expected_face_geom_array(:)
-    PetscInt :: start_face, end_face, f, offset, i
+    PetscInt :: start_face, end_face, f, offset, i, cell_offset(2)
     PetscInt :: minc_levels(2)
     DMLabel :: minc_level_label
     PetscInt, pointer :: cells(:)
     character(80) :: msg
     PetscErrorCode :: ierr
 
+    call local_vec_section(mesh%cell_geom, cell_geom_section)
+    call VecGetArrayReadF90(mesh%cell_geom, cell_geom_array, ierr)
+    CHKERRQ(ierr)
     call local_vec_section(mesh%face_geom, face_geom_section)
     call VecGetArrayReadF90(mesh%face_geom, face_geom_array, ierr)
     CHKERRQ(ierr)
@@ -1771,20 +1774,27 @@ contains
           do i = 1, 2
              call DMLabelGetValue(minc_level_label, cells(i), &
                   minc_levels(i), ierr); CHKERRQ(ierr)
+             call section_offset(cell_geom_section, cells(i), &
+                  cell_offset(i), ierr); CHKERRQ(ierr)
           end do
           if (all(minc_levels <= 0)) then
              call section_offset(face_geom_section, f, offset, ierr)
              CHKERRQ(ierr)
              call face%assign_geometry(face_geom_array, offset)
+             call face%assign_cell_geometry(cell_geom_array, cell_offset)
+             call expected%assign_cell_geometry(cell_geom_array, cell_offset)
              call DMPlexComputeCellGeometryFVM(mesh%dm, f, expected%area, &
                   expected%centroid, expected%normal, ierr); CHKERRQ(ierr)
              call mesh%modify_face_geometry(expected)
+             call expected%calculate_distances()
              write(msg, '(a, i0, a)') ' face ', f, ' area'
              call test%assert(expected%area, face%area, trim(title) // trim(msg))
              write(msg, '(a, i0, a)') ' face ', f, ' centroid'
              call test%assert(expected%centroid, face%centroid, trim(title) // trim(msg))
              write(msg, '(a, i0, a)') ' face ', f, ' normal'
              call test%assert(expected%normal, face%normal, trim(title) // trim(msg))
+             write(msg, '(a, i0, a)') ' face ', f, ' distance'
+             call test%assert(expected%distance, face%distance, trim(title) // trim(msg))
           end if
        end if
     end do
@@ -1793,6 +1803,8 @@ contains
     call expected%destroy()
     deallocate(expected_face_geom_array)
 
+    call VecRestoreArrayReadF90(mesh%cell_geom, cell_geom_array, ierr)
+    CHKERRQ(ierr)
     call VecRestoreArrayReadF90(mesh%face_geom, face_geom_array, ierr)
     CHKERRQ(ierr)
 
