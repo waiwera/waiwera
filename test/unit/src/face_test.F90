@@ -82,10 +82,10 @@ contains
        call face%assign_geometry(face_data, offset)
 
        call test%assert(area, face%area, "area")
-       call test%assert(0._dp, norm2(face%distance - distance), "distances")
-       call test%assert(0._dp, norm2(face%normal - normal), "normal")
+       call test%assert(distance, face%distance, "distances")
+       call test%assert(normal, face%normal, "normal")
        call test%assert(-7.35_dp, face%gravity_normal, "gravity normal")
-       call test%assert(0._dp, norm2(face%centroid - centroid), "centroid")
+       call test%assert(centroid, face%centroid, "centroid")
        call test%assert(permeability_direction, face%permeability_direction, &
             "permeability direction")
 
