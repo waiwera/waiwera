@@ -74,8 +74,8 @@ contains
        call face%init()
 
        allocate(face_data(offset - 1 + face%dof))
-       face_data = [offset_padding, area, distance, normal, gravity_normal, &
-            centroid, permeability_direction]
+       face_data = [offset_padding, area, distance, sum(distance), normal, &
+            gravity_normal, centroid, permeability_direction]
 
        call test%assert(face%dof, size(face_data) - (offset-1), "face dof")
 
@@ -133,14 +133,13 @@ contains
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
     if (rank == 0) then
 
-       call face%init()
-
        do i = 1, num_tests
 
+          call face%init()
           gravity_normal = dot_product(gravity, normal(:,i))
           allocate(face_data(offset - 1 + face%dof))
-          face_data = [area, distance, normal(:,i), gravity_normal, &
-               centroid, initial_permeability_direction]
+          face_data = [area, distance, sum(distance), normal(:,i), &
+               gravity_normal, centroid, initial_permeability_direction]
           call face%assign_geometry(face_data, offset)
           call face%calculate_permeability_direction(rotation)
 
@@ -192,6 +191,7 @@ contains
             cell_data(cell%dof * 2))
        face_data = 0._dp
        face_data(2:3) = distance
+       face_data(4) = sum(distance)
        cell_data = 0._dp
 
        call face%assign_geometry(face_data, face_offset)
@@ -262,6 +262,7 @@ contains
 
        do i = 1, num_tests
           face_data(2:3) = distance(:, i)
+          face_data(4) = sum(distance(:, i))
           call face%assign_geometry(face_data, face_offset)
           call face%assign_cell_geometry(cell_data, cell_offsets)
           xh = face%harmonic_average(x(:, i))
@@ -328,7 +329,7 @@ contains
        cell_offsets = [1, 1]
        rock_offsets = [1, 1]
        fluid_offsets = [1, 1]
-       face_data = [0._dp,  25._dp, 35._dp,  1._dp, 0._dp, 0._dp, &
+       face_data = [0._dp,  25._dp, 35._dp,  60._dp, 1._dp, 0._dp, 0._dp, &
             0._dp, 0._dp, 0._dp, 0._dp, 1._dp]
        cell_data = 0._dp ! not needed
        rock_data = [ &
@@ -415,7 +416,7 @@ contains
        cell_offsets = [1, 1]
        rock_offsets = [1, 1]
        fluid_offsets = [1, 1]
-       face_data = [0._dp,  25._dp, 35._dp,  0._dp, 0._dp, -1._dp, &
+       face_data = [0._dp,  25._dp, 35._dp,  60._dp, 0._dp, 0._dp, -1._dp, &
             9.8_dp, 0._dp, 0._dp, 0._dp, 3._dp]
        cell_data = 0._dp ! not needed
        rock_data = [ &
@@ -501,7 +502,7 @@ contains
        cell_offsets = [1, 1]
        rock_offsets = [1, 1]
        fluid_offsets = [1, 1 + fluid%dof]
-       face_data = [0._dp,  25._dp, 35._dp,  0._dp, 0._dp, -1._dp, &
+       face_data = [0._dp,  25._dp, 35._dp,  60._dp, 0._dp, 0._dp, -1._dp, &
             9.8_dp, 0._dp, 0._dp, 0._dp, 3._dp]
        cell_data = 0._dp ! not needed
        rock_data = [ &
@@ -592,7 +593,7 @@ contains
        cell_offsets = [1, 1]
        rock_offsets = [1, 1 + rock%dof]
        fluid_offsets = [1, 1 + fluid%dof]
-       face_data = [0._dp,  25._dp, 35._dp,  0._dp, 0._dp, -1._dp, 9.8_dp, &
+       face_data = [0._dp,  25._dp, 35._dp,  60._dp, 0._dp, 0._dp, -1._dp, 9.8_dp, &
             0._dp, 0._dp, 0._dp, 3._dp]
        cell_data = 0._dp ! not needed
        rock_data = [ &
