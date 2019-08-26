@@ -242,10 +242,9 @@ contains
           end if
           if (gf > 0) then
              write(msg, '(a, i2)') 'face distance ', f
-             call test%assert(0._dp, norm2(dist - face_distance(:, gf)), msg)
+             call test%assert(face_distance(:, gf), dist, msg)
              write(msg, '(a, i2)') 'face centroid ', f
-             call test%assert(0._dp, norm2(face%centroid - face_centroid(:, gf)), &
-                  msg)
+             call test%assert(face_centroid(:, gf), face%centroid, msg)
           end if
        end if
     end do
@@ -951,13 +950,9 @@ contains
                        write(str, '(a, a, i3, a, i1, a, i1, a)') name, &
                             ": minc area(", order, ", ", m-1, ":", m, ")"
                        call test%assert(expected_area, face%area, str)
-                       write(str, '(a, a, i3, a, i1, a, i1, a)') name, ": minc distance 1(", &
+                       write(str, '(a, a, i3, a, i1, a, i1, a)') name, ": minc distances(", &
                             order, ", ", m-1, ":", m, ")"
-                       call test%assert(minc%connection_distance(m), face%distance(1), &
-                            str)
-                       write(str, '(a, a, i3, a, i1, a, i1, a)') name, ": minc distance 2(", &
-                            order, ", ", m-1, ":", m, ")"
-                       call test%assert(minc%connection_distance(m + 1), face%distance(2), &
+                       call test%assert(minc%connection_distance(m: m + 1), face%distance, &
                             str)
                        ic(m) = ic(m) + 1
                     end do

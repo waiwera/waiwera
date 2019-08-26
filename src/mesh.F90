@@ -500,9 +500,7 @@ contains
           face%normal = petsc_face%area_normal / face%area
           face%gravity_normal = dot_product(gravity, face%normal)
           call self%modify_face_geometry(face)
-          do i = 1, 2
-             face%distance(i) = norm2(face%centroid - face%cell(i)%centroid)
-          end do
+          call face%calculate_distances()
           call face%calculate_permeability_direction(self%permeability_rotation)
 
        end if
@@ -587,7 +585,9 @@ contains
                    call section_offset(cell_section, cells(1), cell_offset, &
                         ierr); CHKERRQ(ierr)
                    call cell%assign_geometry(cell_geom_array, cell_offset)
-                   face%distance = [norm2(face%centroid - cell%centroid), 0._dp]
+                   face%distance = [dot_product(face%centroid - cell%centroid, &
+                        face%normal), 0._dp]
+                   face%distance12 = face%distance(1)
                    call section_offset(cell_section, cells(2), cell_offset, &
                         ierr); CHKERRQ(ierr)
                    call cell%assign_geometry(cell_geom_array, cell_offset)
@@ -2742,6 +2742,7 @@ contains
                      call face%assign_geometry(minc_face_geom_array, minc_face_offset)
                      face%area = orig_volume * minc%connection_area(m)
                      face%distance = minc%connection_distance(m: m + 1)
+                     face%distance12 = sum(face%distance)
                      face%normal = 0._dp
                      face%gravity_normal = 0._dp
                      face%centroid = 0._dp
