@@ -3295,7 +3295,6 @@ contains
     PetscInt :: ghost, minc_levels(2), num_cells
     DMLabel :: ghost_label, minc_level_label
     PetscInt, pointer :: cells(:)
-    PetscReal :: d12(self%dim)
     PetscErrorCode :: ierr
 
     call local_vec_section(self%cell_geom, cell_geom_section)
@@ -3332,11 +3331,7 @@ contains
              CHKERRQ(ierr)
              call face%assign_geometry(face_geom_array, offset)
              call face%assign_cell_geometry(cell_geom_array, cell_offset)
-             d12 = face%cell(2)%centroid - face%cell(1)%centroid
-             if (dot_product(d12, face%normal) < 0._dp) then
-                face%normal = -face%normal
-                face%gravity_normal = -face%gravity_normal
-             end if
+             call face%check_orientation()
           end if
        end if
     end do
