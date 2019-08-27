@@ -19,7 +19,7 @@ model_name = 'minc_column'
 d = 100.
 dx = [d]
 dy = [d]
-dz = [d] * 10
+dz = range(40, 140, 10) + [150]
 
 geo = mulgrid().rectangular(dx, dy, dz, atmos_type = 0)
 geo.write('g'+ model_name +'.dat')
