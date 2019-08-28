@@ -1062,7 +1062,7 @@
     ]
   }, 
   "mesh": {
-    "filename": "gminc3d.exo", 
+    "filename": "gminc_3d.exo", 
     "minc": {
       "geometry": {
         "fracture": {
@@ -1105,7 +1105,7 @@
     }
   }, 
   "output": {
-    "filename": "minc3d.h5", 
+    "filename": "minc_3d.h5", 
     "final": true, 
     "frequency": 1, 
     "initial": true

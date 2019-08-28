@@ -15,7 +15,7 @@ orig_dir = os.getcwd()
 if not os.path.isdir(model_dir): os.makedirs(model_dir)
 os.chdir(model_dir)
 
-model_name = 'minc3d'
+model_name = 'minc_3d'
 
 yr = 365. * 24. * 60 * 60.
 

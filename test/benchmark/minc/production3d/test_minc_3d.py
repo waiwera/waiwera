@@ -36,7 +36,7 @@ args = parser.parse_args()
 if args.np: num_procs = int(args.np)
 else: num_procs = 1
 
-model_name = 'minc3d'
+model_name = 'minc_3d'
 
 AUTOUGH2_FIELDMAP = {
     'Vapour saturation': 'Vapour saturation',
