@@ -1,0 +1,992 @@
+You are running AUTOUGH 2.42
+
+*******************************************************************************
+SVN Commit Rev.: 
+Date: 
+Update Range: 
+URL: 
+*******************************************************************************
+1EW   .  One water component, non-isothermal (default)
+  The primary variables are:
+   P - Pressure, T - Temperature, S - Gas phase saturation
+ _______________________________________________________
+      PHASE CONDITION               PRIMARY VARIABLES
+ _______________________________________________________
+      SINGLE-PHASE GAS                P, T
+      SINGLE-PHASE LIQUID             P, T
+      TWO-PHASE                       P, S
+ _______________________________________________________
+ Using SIMUL AUTOUGH2.2
+ STEAM FRACTION FOR SOURCE *  a99* AT ELEMENT *  a 5* IS  0.477122E-06*H+-.312898E+00
+ STEAM FRACTION FOR SOURCE *  b99* AT ELEMENT *  b 5* IS  0.477122E-06*H+-.312898E+00
+ STEAM FRACTION FOR SOURCE *  c99* AT ELEMENT *  c 5* IS  0.477122E-06*H+-.312898E+00
+ STEAM FRACTION FOR SOURCE *  d99* AT ELEMENT *  d 5* IS  0.477122E-06*H+-.312898E+00
+ STEAM FRACTION FOR SOURCE *  e99* AT ELEMENT *  e 5* IS  0.477122E-06*H+-.312898E+00
+ STEAM FRACTION FOR SOURCE *  f99* AT ELEMENT *  f 5* IS  0.477122E-06*H+-.312898E+00
+ STEAM FRACTION FOR SOURCE *  g99* AT ELEMENT *  g 5* IS  0.477122E-06*H+-.312898E+00
+ STEAM FRACTION FOR SOURCE *  h99* AT ELEMENT *  h 5* IS  0.477122E-06*H+-.312898E+00
+ STEAM FRACTION FOR SOURCE *  i99* AT ELEMENT *  i 5* IS  0.477122E-06*H+-.312898E+00
+ STEAM FRACTION FOR SOURCE *  j99* AT ELEMENT *  j 5* IS  0.477122E-06*H+-.312898E+00
+ STEAM FRACTION FOR SOURCE *  k99* AT ELEMENT *  k 5* IS  0.477122E-06*H+-.312898E+00
+ STEAM FRACTION FOR SOURCE *  l99* AT ELEMENT *  l 5* IS  0.477122E-06*H+-.312898E+00
+ STEAM FRACTION FOR SOURCE *  m99* AT ELEMENT *  m 5* IS  0.477122E-06*H+-.312898E+00
+ STEAM FRACTION FOR SOURCE *  n99* AT ELEMENT *  n 5* IS  0.477122E-06*H+-.312898E+00
+ STEAM FRACTION FOR SOURCE *  o99* AT ELEMENT *  o 5* IS  0.477122E-06*H+-.312898E+00
+ STEAM FRACTION FOR SOURCE *  p99* AT ELEMENT *  p 5* IS  0.477122E-06*H+-.312898E+00
+ STEAM FRACTION FOR SOURCE *  q99* AT ELEMENT *  q 5* IS  0.477122E-06*H+-.312898E+00
+ STEAM FRACTION FOR SOURCE *  r99* AT ELEMENT *  r 5* IS  0.477122E-06*H+-.312898E+00
+ STEAM FRACTION FOR SOURCE *  s99* AT ELEMENT *  s 5* IS  0.477122E-06*H+-.312898E+00
+ STEAM FRACTION FOR SOURCE *  t99* AT ELEMENT *  t 5* IS  0.477122E-06*H+-.312898E+00
+ STEAM FRACTION FOR SOURCE *  u99* AT ELEMENT *  u 5* IS  0.477122E-06*H+-.312898E+00
+ STEAM FRACTION FOR SOURCE *  v99* AT ELEMENT *  v 5* IS  0.477122E-06*H+-.312898E+00
+ STEAM FRACTION FOR SOURCE *  w99* AT ELEMENT *  w 5* IS  0.477122E-06*H+-.312898E+00
+ STEAM FRACTION FOR SOURCE *  x99* AT ELEMENT *  x 5* IS  0.477122E-06*H+-.312898E+00
+ STEAM FRACTION FOR SOURCE *  y99* AT ELEMENT *  y 5* IS  0.477122E-06*H+-.312898E+00
+1***********************************************************************************************************************************
+ *                    EOS1: EQUATION OF STATE FOR WATER (OPTIONAL: TWO-WATER MIXTURES)                                             *
+ ***********************************************************************************************************************************
+
+
+    OPTIONS SELECTED ARE: (NK,NEQ,NPH,NB) = (1,2,2,6)
+
+                           NK  =  1   - NUMBER OF FLUID COMPONENTS
+                           NEQ =  2   - NUMBER OF EQUATIONS PER GRID BLOCK
+                           NPH =  2   - NUMBER OF PHASES THAT CAN BE PRESENT
+                           NB  =  6   - NUMBER OF SECONDARY PARAMETERS (OTHER THAN COMPONENT MASS FRACTIONS)
+
+                   For NK = 2 and NB = 8, diffusion is "on", otherwise, diffusion is "off"
+
+
+   AVAILABLE OPTIONS ARE: (NK,NEQ,NPH,NB) = (1,2,2,6) - ONE WATER COMPONENT, NON-ISOTHERMAL (DEFAULT)
+                                            (1,1,2,6) - ONLY LIQUID, OR ONLY VAPOR, ISOTHERMAL
+                                            (2,3,2,6) - TWO WATERS, NON-ISOTHERMAL
+                                            (2,3,2,8) - TWO WATERS, NON-ISOTHERMAL, DIFFUSION
+
+ ***********************************************************************************************************************************
+
+
+ THE PRIMARY VARIABLES ARE
+  P - PRESSURE         T - TEMPERATURE         X2 - MASS FRACTION OF WATER "2"         S - GAS PHASE SATURATION
+
+ _______________________________________________________
+
+     PHASE CONDITION               PRIMARY VARIABLES
+ _______________________________________________________
+
+     SINGLE-PHASE GAS                P, T, [X2]
+
+     SINGLE-PHASE LIQUID             P, T, [X2]
+
+     TWO-PHASE                       P, S, [X2]
+
+ _______________________________________________________
+
+
+ ..... NEGLECT VAPOR PRESSURE LOWERING .....
+
+ ***********************************************************************************************************************************
+ BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB
+ 3-D MINC production model                                                       
+ OUTPUT AFTER   0 TIME STEPS    0.0000000000000000E+00 SECONDS
+ THE TIME IS 0.0000E+00 YEARS OR 0.0000E+00 DAYS OR 0.0000E+00 SECONDS
+ BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB
+ VOLUME BALANCE
+ Vapour 0.00000E+00 M**3;  Liquid 0.50000E+26 M**3;  
+ MASS BALANCE
+ Vapour 0.00000000E+00 KG;  Liquid 0.49960638E+29 KG;  
+ ENERGY BALANCE
+ Internal 0.10644E+35 J;  
+ BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB
+
+ EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
+ 3-D MINC production model                                                       
+ OUTPUT AFTER   0 TIME STEPS    0.0000000000000000E+00 SECONDS
+ THE TIME IS 0.0000E+00 YEARS OR 0.0000E+00 DAYS OR 0.0000E+00 SECONDS
+ EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
+                                                           ELEMENT TABLE
+
+  ELEMENT     INDEX       Pressure        Temperature     Vapour saturation   Liquid saturation   Vapour density   Liquid density  
+
+      a 0         1      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      b 0         2      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      c 0         3      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+1     d 0         4      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      e 0         5      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      f 0         6      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      g 0         7      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      h 0         8      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      i 0         9      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      j 0        10      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      k 0        11      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      l 0        12      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      m 0        13      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      n 0        14      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      o 0        15      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      p 0        16      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      q 0        17      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      r 0        18      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      s 0        19      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      t 0        20      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      u 0        21      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      v 0        22      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      w 0        23      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      x 0        24      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      y 0        25      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      a 1        26      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      b 1        27      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      c 1        28      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      d 1        29      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      e 1        30      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      f 1        31      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      g 1        32      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      h 1        33      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      i 1        34      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      j 1        35      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      k 1        36      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      l 1        37      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      m 1        38      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      n 1        39      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      o 1        40      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      p 1        41      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      q 1        42      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      r 1        43      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      s 1        44      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      t 1        45      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      u 1        46      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      v 1        47      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      w 1        48      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      x 1        49      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      y 1        50      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      a 2        51      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      b 2        52      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      c 2        53      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      d 2        54      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      e 2        55      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      f 2        56      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      g 2        57      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      h 2        58      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      i 2        59      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      j 2        60      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      k 2        61      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+1     l 2        62      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      m 2        63      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      n 2        64      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      o 2        65      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      p 2        66      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      q 2        67      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      r 2        68      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      s 2        69      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      t 2        70      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      u 2        71      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      v 2        72      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      w 2        73      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      x 2        74      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      y 2        75      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      a 3        76      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      b 3        77      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      c 3        78      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      d 3        79      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      e 3        80      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      f 3        81      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      g 3        82      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      h 3        83      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      i 3        84      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      j 3        85      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      k 3        86      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      l 3        87      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      m 3        88      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      n 3        89      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      o 3        90      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      p 3        91      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      q 3        92      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      r 3        93      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      s 3        94      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      t 3        95      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      u 3        96      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      v 3        97      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      w 3        98      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      x 3        99      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      y 3       100      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      a 4       101      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      b 4       102      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      c 4       103      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      d 4       104      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      e 4       105      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      f 4       106      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      g 4       107      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      h 4       108      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      i 4       109      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      j 4       110      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      k 4       111      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      l 4       112      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      m 4       113      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      n 4       114      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      o 4       115      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      p 4       116      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      q 4       117      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      r 4       118      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      s 4       119      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+1     t 4       120      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      u 4       121      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      v 4       122      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      w 4       123      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      x 4       124      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      y 4       125      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      a 5       126      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      b 5       127      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      c 5       128      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      d 5       129      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      e 5       130      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      f 5       131      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      g 5       132      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      h 5       133      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      i 5       134      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      j 5       135      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      k 5       136      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      l 5       137      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      m 5       138      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      n 5       139      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      o 5       140      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      p 5       141      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      q 5       142      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      r 5       143      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      s 5       144      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      t 5       145      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      u 5       146      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      v 5       147      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      w 5       148      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      x 5       149      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      y 5       150      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+ EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
+
+ GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG
+ 3-D MINC production model                                                       
+ OUTPUT AFTER   0 TIME STEPS    0.0000000000000000E+00 SECONDS
+ THE TIME IS 0.0000E+00 YEARS OR 0.0000E+00 DAYS OR 0.0000E+00 SECONDS
+ GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG
+                                                          GENERATION TABLE
+
+   ELEMENT       SOURCE      INDEX       Generation rate        Enthalpy          Steam frac.       Steam sepa.    Wellbore pressu 
+
+       a 5         a99           1         4.00000E+00        1.250000E+06       0.000000E+00       0.000000E+00     0.000000E+00
+       b 5         b99           2         6.00000E+00        1.250000E+06       0.000000E+00       0.000000E+00     0.000000E+00
+       c 5         c99           3         2.00000E+00        1.250000E+06       0.000000E+00       0.000000E+00     0.000000E+00
+       d 5         d99           4         2.00000E-02        1.250000E+06       0.000000E+00       0.000000E+00     0.000000E+00
+       e 5         e99           5         2.40000E-02        1.250000E+06       0.000000E+00       0.000000E+00     0.000000E+00
+       f 5         f99           6         6.00000E+00        1.250000E+06       0.000000E+00       0.000000E+00     0.000000E+00
+       g 5         g99           7         9.00000E+00        1.250000E+06       0.000000E+00       0.000000E+00     0.000000E+00
+       h 5         h99           8         3.00000E+00        1.250000E+06       0.000000E+00       0.000000E+00     0.000000E+00
+       i 5         i99           9         3.00000E-02        1.250000E+06       0.000000E+00       0.000000E+00     0.000000E+00
+       j 5         j99          10         3.60000E-02        1.250000E+06       0.000000E+00       0.000000E+00     0.000000E+00
+       k 5         k99          11         2.00000E+00        1.250000E+06       0.000000E+00       0.000000E+00     0.000000E+00
+       l 5         l99          12         3.00000E+00        1.250000E+06       0.000000E+00       0.000000E+00     0.000000E+00
+       m 5         m99          13         4.00000E+00        1.250000E+06       0.000000E+00       0.000000E+00     0.000000E+00
+       n 5         n99          14         4.00000E-02        1.250000E+06       0.000000E+00       0.000000E+00     0.000000E+00
+       o 5         o99          15         4.80000E-02        1.250000E+06       0.000000E+00       0.000000E+00     0.000000E+00
+       p 5         p99          16         2.00000E-02        1.250000E+06       0.000000E+00       0.000000E+00     0.000000E+00
+       q 5         q99          17         3.00000E-02        1.250000E+06       0.000000E+00       0.000000E+00     0.000000E+00
+       r 5         r99          18         4.00000E-02        1.250000E+06       0.000000E+00       0.000000E+00     0.000000E+00
+       s 5         s99          19         5.00000E-02        1.250000E+06       0.000000E+00       0.000000E+00     0.000000E+00
+1      t 5         t99          20         6.00000E-02        1.250000E+06       0.000000E+00       0.000000E+00     0.000000E+00
+       u 5         u99          21         2.40000E-02        1.250000E+06       0.000000E+00       0.000000E+00     0.000000E+00
+       v 5         v99          22         3.60000E-02        1.250000E+06       0.000000E+00       0.000000E+00     0.000000E+00
+       w 5         w99          23         4.80000E-02        1.250000E+06       0.000000E+00       0.000000E+00     0.000000E+00
+       x 5         x99          24         6.00000E-02        1.250000E+06       0.000000E+00       0.000000E+00     0.000000E+00
+       y 5         y99          25         7.20000E-02        1.250000E+06       0.000000E+00       0.000000E+00     0.000000E+00
+ GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG
+
+ ...ITERATING...  AT [   1,  1] --- DELTEX = 0.100000E+07   MAX. RES. = 0.749903E-03  AT ELEMENT   a 5  EQUATION   2
+   a 5(   1,  2) ST = 0.100000E+07 DT = 0.100000E+07 DX1= 0.384063E+06 DX2= 0.116195E-01 T =  15.012 P =   484063. S = 0.000000E+00
+ ...ITERATING...  AT [   2,  1] --- DELTEX = 0.200000E+07   MAX. RES. = 0.149698E-02  AT ELEMENT   a 5  EQUATION   2
+ ...ITERATING...  AT [   2,  2] --- DELTEX = 0.200000E+07   MAX. RES. = 0.859152E-04  AT ELEMENT   y 1  EQUATION   1
+   g 2(   2,  3) ST = 0.300000E+07 DT = 0.200000E+07 DX1= -.969617E+04 DX2= -.353864E-04 T =  15.000 P =    79112. S = 0.000000E+00
+ ...ITERATING...  AT [   3,  1] --- DELTEX = 0.400000E+07   MAX. RES. = 0.298168E-02  AT ELEMENT   a 5  EQUATION   2
+   a 5(   3,  2) ST = 0.700000E+07 DT = 0.400000E+07 DX1= 0.136185E+07 DX2= 0.459776E-01 T =  15.081 P =  2586298. S = 0.000000E+00
+ ...ITERATING...  AT [   4,  1] --- DELTEX = 0.800000E+07   MAX. RES. = 0.591266E-02  AT ELEMENT   a 5  EQUATION   2
+   a 5(   4,  2) ST = 0.150000E+08 DT = 0.800000E+07 DX1= 0.231619E+07 DX2= 0.907396E-01 T =  15.172 P =  4902490. S = 0.000000E+00
+ ...ITERATING...  AT [   5,  1] --- DELTEX = 0.160000E+08   MAX. RES. = 0.116388E-01  AT ELEMENT   a 5  EQUATION   2
+ ...ITERATING...  AT [   5,  2] --- DELTEX = 0.160000E+08   MAX. RES. = 0.584489E-04  AT ELEMENT   k 2  EQUATION   1
+   l 2(   5,  3) ST = 0.310000E+08 DT = 0.160000E+08 DX1= 0.226051E-02 DX2= 0.149994E+02 T =  15.000 P =     1704. S = 0.000000E+00
+ ...ITERATING...  AT [   6,  1] --- DELTEX = 0.320000E+08   MAX. RES. = 0.226813E-01  AT ELEMENT   a 5  EQUATION   2
+ ...ITERATING...  AT [   6,  2] --- DELTEX = 0.320000E+08   MAX. RES. = 0.123214E-02  AT ELEMENT   c 2  EQUATION   1
+ ...ITERATING...  AT [   6,  3] --- DELTEX = 0.320000E+08   MAX. RES. = 0.116862E-03  AT ELEMENT   s 2  EQUATION   1
+ ...ITERATING...  AT [   6,  4] --- DELTEX = 0.320000E+08   MAX. RES. = 0.204844E-04  AT ELEMENT   x 2  EQUATION   1
+   x 2(   6,  5) ST = 0.630000E+08 DT = 0.320000E+08 DX1= 0.548166E+04 DX2= 0.149992E+02 T =  15.000 P =     7186. S = 0.000000E+00
+ ...ITERATING...  AT [   7,  1] --- DELTEX = 0.640000E+08   MAX. RES. = 0.436153E-01  AT ELEMENT   a 5  EQUATION   2
+ ...ITERATING...  AT [   7,  2] --- DELTEX = 0.640000E+08   MAX. RES. = 0.515355E-02  AT ELEMENT   t 2  EQUATION   1
+ ...ITERATING...  AT [   7,  3] --- DELTEX = 0.640000E+08   MAX. RES. = 0.326240E-04  AT ELEMENT   y 2  EQUATION   2
+   y 2(   7,  4) ST = 0.127000E+09 DT = 0.640000E+08 DX1= 0.948127E+06 DX2= 0.150027E+02 T =  15.003 P =   949831. S = 0.000000E+00
+ ...ITERATING...  AT [   8,  1] --- DELTEX = 0.128000E+09   MAX. RES. = 0.820979E-01  AT ELEMENT   f 5  EQUATION   2
+ ...ITERATING...  AT [   8,  2] --- DELTEX = 0.128000E+09   MAX. RES. = 0.784338E-02  AT ELEMENT   k 1  EQUATION   1
+ ...ITERATING...  AT [   8,  3] --- DELTEX = 0.128000E+09   MAX. RES. = 0.196903E-04  AT ELEMENT   d 1  EQUATION   2
+   m 1(   8,  4) ST = 0.255000E+09 DT = 0.128000E+09 DX1= 0.486304E+06 DX2= 0.149989E+02 T =  15.001 P =   488007. S = 0.000000E+00
+ ...ITERATING...  AT [   9,  1] --- DELTEX = 0.256000E+09   MAX. RES. = 0.149122E+00  AT ELEMENT   g 5  EQUATION   2
+ ...ITERATING...  AT [   9,  2] --- DELTEX = 0.256000E+09   MAX. RES. = 0.230562E-03  AT ELEMENT   f 3  EQUATION   2
+   i 4(   9,  3) ST = 0.511000E+09 DT = 0.256000E+09 DX1= 0.474123E+07 DX2= 0.166277E-01 T =  15.052 P = 16039346. S = 0.000000E+00
+ ...ITERATING...  AT [  10,  1] --- DELTEX = 0.512000E+09   MAX. RES. = 0.254628E+00  AT ELEMENT   g 5  EQUATION   2
+ ...ITERATING...  AT [  10,  2] --- DELTEX = 0.512000E+09   MAX. RES. = 0.597087E-03  AT ELEMENT   g 4  EQUATION   2
+   b 4(  10,  3) ST = 0.102300E+10 DT = 0.512000E+09 DX1= 0.339574E+07 DX2= 0.126434E+00 T =  15.226 P = 22046265. S = 0.000000E+00
+ ...ITERATING...  AT [  11,  1] --- DELTEX = 0.102400E+10   MAX. RES. = 0.396877E+00  AT ELEMENT   g 5  EQUATION   2
+ ...ITERATING...  AT [  11,  2] --- DELTEX = 0.102400E+10   MAX. RES. = 0.460715E-02  AT ELEMENT   b 5  EQUATION   1
+   a 5(  11,  3) ST = 0.204700E+10 DT = 0.102400E+10 DX1= 0.748003E+06 DX2= 0.968725E+01 T =  35.044 P = 36243490. S = 0.000000E+00
+ ...ITERATING...  AT [  12,  1] --- DELTEX = 0.204800E+10   MAX. RES. = 0.551325E+00  AT ELEMENT   a 5  EQUATION   2
+ ...ITERATING...  AT [  12,  2] --- DELTEX = 0.204800E+10   MAX. RES. = 0.288163E-01  AT ELEMENT   a 5  EQUATION   1
+ ...ITERATING...  AT [  12,  3] --- DELTEX = 0.204800E+10   MAX. RES. = 0.262247E-04  AT ELEMENT   a 4  EQUATION   2
+   a 4(  12,  4) ST = 0.409500E+10 DT = 0.204800E+10 DX1= 0.324680E+06 DX2= 0.160007E+01 T =  17.298 P = 24172948. S = 0.000000E+00
+ ...ITERATING...  AT [  13,  1] --- DELTEX = 0.409600E+10   MAX. RES. = 0.676385E+00  AT ELEMENT   a 5  EQUATION   2
+ ...ITERATING...  AT [  13,  2] --- DELTEX = 0.409600E+10   MAX. RES. = 0.121377E+00  AT ELEMENT   a 5  EQUATION   1
+ ...ITERATING...  AT [  13,  3] --- DELTEX = 0.409600E+10   MAX. RES. = 0.263438E-03  AT ELEMENT   a 4  EQUATION   2
+   b 5(  13,  4) ST = 0.819100E+10 DT = 0.409600E+10 DX1= -.130051E+07 DX2= 0.312890E+02 T =  84.330 P = 33514939. S = 0.000000E+00
+ ...ITERATING...  AT [  14,  1] --- DELTEX = 0.819200E+10   MAX. RES. = 0.737252E+00  AT ELEMENT   a 5  EQUATION   2
+ ...ITERATING...  AT [  14,  2] --- DELTEX = 0.819200E+10   MAX. RES. = 0.308347E+00  AT ELEMENT   a 5  EQUATION   1
+ ...ITERATING...  AT [  14,  3] --- DELTEX = 0.819200E+10   MAX. RES. = 0.676370E-03  AT ELEMENT   k 5  EQUATION   2
+   a 4(  14,  4) ST = 0.163830E+11 DT = 0.819200E+10 DX1= -.637598E+06 DX2= 0.172697E+02 T =  40.028 P = 23357101. S = 0.000000E+00
+ ...ITERATING...  AT [  15,  1] --- DELTEX = 0.163840E+11   MAX. RES. = 0.860745E+00  AT ELEMENT   a 4  EQUATION   2
+ ...ITERATING...  AT [  15,  2] --- DELTEX = 0.163840E+11   MAX. RES. = 0.520782E+00  AT ELEMENT   a 4  EQUATION   1
+ ...ITERATING...  AT [  15,  3] --- DELTEX = 0.163840E+11   MAX. RES. = 0.265011E+00  AT ELEMENT   k 4  EQUATION   2
+ ...ITERATING...  AT [  15,  4] --- DELTEX = 0.163840E+11   MAX. RES. = 0.284306E-02  AT ELEMENT   f 4  EQUATION   2
+   f 4(  15,  5) ST = 0.327670E+11 DT = 0.163840E+11 DX1= -.971513E+06 DX2= 0.449923E+02 T =  84.583 P = 22237438. S = 0.000000E+00
+ ...ITERATING...  AT [  16,  1] --- DELTEX = 0.327680E+11   MAX. RES. = 0.106632E+01  AT ELEMENT   a 4  EQUATION   2
+ ...ITERATING...  AT [  16,  2] --- DELTEX = 0.327680E+11   MAX. RES. = 0.191353E+01  AT ELEMENT   a 4  EQUATION   1
+ ...ITERATING...  AT [  16,  3] --- DELTEX = 0.327680E+11   MAX. RES. = 0.275704E+01  AT ELEMENT   g 3  EQUATION   2
+ ...ITERATING...  AT [  16,  4] --- DELTEX = 0.327680E+11   MAX. RES. = 0.388526E+00  AT ELEMENT   g 3  EQUATION   2
+ ...ITERATING...  AT [  16,  5] --- DELTEX = 0.327680E+11   MAX. RES. = 0.834914E-02  AT ELEMENT   g 3  EQUATION   2
+   g 2(  16,  6) ST = 0.655350E+11 DT = 0.327680E+11 DX1= -.114057E+06 DX2= 0.341384E+02 T =  53.749 P =  7198991. S = 0.000000E+00
+ ...ITERATING...  AT [  17,  1] --- DELTEX = 0.327680E+11   MAX. RES. = 0.657937E+00  AT ELEMENT   a 2  EQUATION   2
+ ...ITERATING...  AT [  17,  2] --- DELTEX = 0.327680E+11   MAX. RES. = 0.728624E+00  AT ELEMENT   a 2  EQUATION   1
+ ...ITERATING...  AT [  17,  3] --- DELTEX = 0.327680E+11   MAX. RES. = 0.791836E+00  AT ELEMENT   g 2  EQUATION   2
+ ...ITERATING...  AT [  17,  4] --- DELTEX = 0.327680E+11   MAX. RES. = 0.795402E-01  AT ELEMENT   g 2  EQUATION   2
+ ...ITERATING...  AT [  17,  5] --- DELTEX = 0.327680E+11   MAX. RES. = 0.885111E-03  AT ELEMENT   g 2  EQUATION   2
+   g 1(  17,  6) ST = 0.983030E+11 DT = 0.327680E+11 DX1= -.912896E+05 DX2= 0.459619E+02 T =  80.180 P =  2182369. S = 0.000000E+00
+ ...ITERATING...  AT [  18,  1] --- DELTEX = 0.327680E+11   MAX. RES. = 0.584542E+00  AT ELEMENT   a 1  EQUATION   2
+ ...ITERATING...  AT [  18,  2] --- DELTEX = 0.327680E+11   MAX. RES. = 0.134951E+01  AT ELEMENT   a 1  EQUATION   1
+ ...ITERATING...  AT [  18,  3] --- DELTEX = 0.327680E+11   MAX. RES. = 0.170579E+00  AT ELEMENT   h 2  EQUATION   2
+ ...ITERATING...  AT [  18,  4] --- DELTEX = 0.327680E+11   MAX. RES. = 0.926973E-03  AT ELEMENT   h 1  EQUATION   2
+   g 1(  18,  5) ST = 0.131071E+12 DT = 0.327680E+11 DX1= -.978976E+05 DX2= 0.556219E+02 T = 135.802 P =  2084472. S = 0.000000E+00
+ ...ITERATING...  AT [  19,  1] --- DELTEX = 0.655360E+11   MAX. RES. = 0.814447E+00  AT ELEMENT   a 1  EQUATION   2
+ ...ITERATING...  AT [  19,  2] --- DELTEX = 0.655360E+11   MAX. RES. = 0.138850E+03  AT ELEMENT   a 1  EQUATION   1
+ TEMPERATURE = 0.506338E+03  OUT OF RANGE IN SAT 
+ ++++++++++ EOS CANNOT FIND PARAMETERS AT ELEMENT *  a 2*      XX(M) =  0.10156E+08  0.10000E-05
+ +++++++++ REDUCE TIME STEP AT (  19,  2) ++++++++++++++++   NEW DELT = 0.131072E+11
+ ...ITERATING...  AT [  19,  1] --- DELTEX = 0.131072E+11   MAX. RES. = 0.162889E+00  AT ELEMENT   a 1  EQUATION   2
+ ...ITERATING...  AT [  19,  2] --- DELTEX = 0.131072E+11   MAX. RES. = 0.546214E-01  AT ELEMENT   a 1  EQUATION   1
+ ...ITERATING...  AT [  19,  3] --- DELTEX = 0.131072E+11   MAX. RES. = 0.275212E-03  AT ELEMENT   c 2  EQUATION   1
+   b 1(  19,  4) ST = 0.144178E+12 DT = 0.131072E+11 DX1= -.274598E+05 DX2= 0.227074E+02 T = 172.418 P =  2060228. S = 0.000000E+00
+ ...ITERATING...  AT [  20,  1] --- DELTEX = 0.262144E+11   MAX. RES. = 0.260808E+00  AT ELEMENT   a 1  EQUATION   2
+ ...ITERATING...  AT [  20,  2] --- DELTEX = 0.262144E+11   MAX. RES. = 0.214775E+02  AT ELEMENT   a 1  EQUATION   1
+ ...ITERATING...  AT [  20,  3] --- DELTEX = 0.262144E+11   MAX. RES. = 0.572181E+01  AT ELEMENT   a 1  EQUATION   2
+ TEMPERATURE = -.308860E+04  OUT OF RANGE IN SAT 
+ ++++++++++ EOS CANNOT FIND PARAMETERS AT ELEMENT *  a 1*      XX(M) = -0.12597E+08 -0.30886E+04
+ +++++++++ REDUCE TIME STEP AT (  20,  3) ++++++++++++++++   NEW DELT = 0.524288E+10
+ ...ITERATING...  AT [  20,  1] --- DELTEX = 0.524288E+10   MAX. RES. = 0.521615E-01  AT ELEMENT   a 1  EQUATION   2
+ ...ITERATING...  AT [  20,  2] --- DELTEX = 0.524288E+10   MAX. RES. = 0.583855E-02  AT ELEMENT   m 5  EQUATION   1
+   m 5(  20,  3) ST = 0.149421E+12 DT = 0.524288E+10 DX1= -.106426E+06 DX2= 0.316450E+01 T = 207.785 P = 26162569. S = 0.000000E+00
+ ...ITERATING...  AT [  21,  1] --- DELTEX = 0.104858E+11   MAX. RES. = 0.938907E-01  AT ELEMENT   k 2  EQUATION   2
+ ...ITERATING...  AT [  21,  2] --- DELTEX = 0.104858E+11   MAX. RES. = 0.456195E+00  AT ELEMENT   a 1  EQUATION   1
+ ...ITERATING...  AT [  21,  3] --- DELTEX = 0.104858E+11   MAX. RES. = 0.229502E+01  AT ELEMENT   a 1  EQUATION   1
+ ...ITERATING...  AT [  21,  4] --- DELTEX = 0.104858E+11   MAX. RES. = 0.766526E+00  AT ELEMENT   a 1  EQUATION   1
+ ...ITERATING...  AT [  21,  5] --- DELTEX = 0.104858E+11   MAX. RES. = 0.427534E-02  AT ELEMENT   a 1  EQUATION   1
+ ...ITERATING...  AT [  21,  6] --- DELTEX = 0.104858E+11   MAX. RES. = 0.106512E-02  AT ELEMENT   a 1  EQUATION   1
+   a 1(  21,  7) ST = 0.159907E+12 DT = 0.104858E+11 DX1= -.266997E+04 DX2= -.197653E+03 T = 213.773 P =  2055918. S = 0.103107E+00
+ ...ITERATING...  AT [  22,  1] --- DELTEX = 0.104858E+11   MAX. RES. = 0.139047E+00  AT ELEMENT   a 1  EQUATION   1
+ ...ITERATING...  AT [  22,  2] --- DELTEX = 0.104858E+11   MAX. RES. = 0.156485E+01  AT ELEMENT   a 1  EQUATION   1
+ ...ITERATING...  AT [  22,  3] --- DELTEX = 0.104858E+11   MAX. RES. = 0.876387E+00  AT ELEMENT   a 1  EQUATION   1
+ ...ITERATING...  AT [  22,  4] --- DELTEX = 0.104858E+11   MAX. RES. = 0.549264E-01  AT ELEMENT   a 1  EQUATION   1
+ ...ITERATING...  AT [  22,  5] --- DELTEX = 0.104858E+11   MAX. RES. = 0.377739E-03  AT ELEMENT   a 1  EQUATION   1
+   f 2(  22,  6) ST = 0.170393E+12 DT = 0.104858E+11 DX1= -.894820E+04 DX2= 0.913700E+01 T = 218.984 P =  6351194. S = 0.000000E+00
+ ...ITERATING...  AT [  23,  1] --- DELTEX = 0.104858E+11   MAX. RES. = 0.164540E+00  AT ELEMENT   a 1  EQUATION   1
+ ...ITERATING...  AT [  23,  2] --- DELTEX = 0.104858E+11   MAX. RES. = 0.984793E+00  AT ELEMENT   b 1  EQUATION   1
+ ...ITERATING...  AT [  23,  3] --- DELTEX = 0.104858E+11   MAX. RES. = 0.389013E+01  AT ELEMENT   b 1  EQUATION   1
+ ...ITERATING...  AT [  23,  4] --- DELTEX = 0.104858E+11   MAX. RES. = 0.203339E+02  AT ELEMENT   b 1  EQUATION   1
+ ...ITERATING...  AT [  23,  5] --- DELTEX = 0.104858E+11   MAX. RES. = 0.568909E+01  AT ELEMENT   b 1  EQUATION   1
+ ...ITERATING...  AT [  23,  6] --- DELTEX = 0.104858E+11   MAX. RES. = 0.534148E+00  AT ELEMENT   b 1  EQUATION   1
+ ...ITERATING...  AT [  23,  7] --- DELTEX = 0.104858E+11   MAX. RES. = 0.913281E-01  AT ELEMENT   b 1  EQUATION   1
+ ...ITERATING...  AT [  23,  8] --- DELTEX = 0.104858E+11   MAX. RES. = 0.628649E-02  AT ELEMENT   b 1  EQUATION   1
+   b 1(  23,  9) ST = 0.180878E+12 DT = 0.104858E+11 DX1= 0.282156E+05 DX2= -.205401E+03 T = 213.929 P =  2062243. S = 0.115504E+00
+ ...ITERATING...  AT [  24,  1] --- DELTEX = 0.104858E+11   MAX. RES. = 0.142696E+00  AT ELEMENT   b 1  EQUATION   1
+ ...ITERATING...  AT [  24,  2] --- DELTEX = 0.104858E+11   MAX. RES. = 0.361706E+01  AT ELEMENT   f 1  EQUATION   1
+ ...ITERATING...  AT [  24,  3] --- DELTEX = 0.104858E+11   MAX. RES. = 0.208181E+01  AT ELEMENT   f 1  EQUATION   1
+ TEMPERATURE = -.487738E+03  OUT OF RANGE IN SAT 
+ ++++++++++ EOS CANNOT FIND PARAMETERS AT ELEMENT *  f 1*      XX(M) = -0.44389E+06 -0.48774E+03
+ +++++++++ REDUCE TIME STEP AT (  24,  3) ++++++++++++++++   NEW DELT = 0.209715E+10
+ ...ITERATING...  AT [  24,  1] --- DELTEX = 0.209715E+10   MAX. RES. = 0.285392E-01  AT ELEMENT   b 1  EQUATION   1
+ ...ITERATING...  AT [  24,  2] --- DELTEX = 0.209715E+10   MAX. RES. = 0.162099E-01  AT ELEMENT   b 1  EQUATION   1
+ ...ITERATING...  AT [  24,  3] --- DELTEX = 0.209715E+10   MAX. RES. = 0.769055E-04  AT ELEMENT   b 1  EQUATION   1
+   b 1(  24,  4) ST = 0.182976E+12 DT = 0.209715E+10 DX1= 0.577701E+05 DX2= 0.285830E-01 T = 215.340 P =  2120013. S = 0.144087E+00
+ ...ITERATING...  AT [  25,  1] --- DELTEX = 0.419430E+10   MAX. RES. = 0.699883E-01  AT ELEMENT   b 1  EQUATION   1
+ ...ITERATING...  AT [  25,  2] --- DELTEX = 0.419430E+10   MAX. RES. = 0.434208E+00  AT ELEMENT   f 1  EQUATION   1
+ ...ITERATING...  AT [  25,  3] --- DELTEX = 0.419430E+10   MAX. RES. = 0.159202E+01  AT ELEMENT   f 1  EQUATION   1
+ ...ITERATING...  AT [  25,  4] --- DELTEX = 0.419430E+10   MAX. RES. = 0.175328E+01  AT ELEMENT   f 1  EQUATION   1
+ ...ITERATING...  AT [  25,  5] --- DELTEX = 0.419430E+10   MAX. RES. = 0.115219E+00  AT ELEMENT   f 1  EQUATION   1
+ ...ITERATING...  AT [  25,  6] --- DELTEX = 0.419430E+10   MAX. RES. = 0.106066E-01  AT ELEMENT   f 1  EQUATION   1
+ ...ITERATING...  AT [  25,  7] --- DELTEX = 0.419430E+10   MAX. RES. = 0.162382E-04  AT ELEMENT   f 1  EQUATION   1
+   f 1(  25,  8) ST = 0.187170E+12 DT = 0.419430E+10 DX1= 0.446552E+05 DX2= -.210913E+03 T = 214.294 P =  2077066. S = 0.114531E+00
+ ...ITERATING...  AT [  26,  1] --- DELTEX = 0.419430E+10   MAX. RES. = 0.132992E+00  AT ELEMENT   f 1  EQUATION   1
+ ...ITERATING...  AT [  26,  2] --- DELTEX = 0.419430E+10   MAX. RES. = 0.988911E-01  AT ELEMENT   f 1  EQUATION   1
+ ...ITERATING...  AT [  26,  3] --- DELTEX = 0.419430E+10   MAX. RES. = 0.176622E-02  AT ELEMENT   f 1  EQUATION   1
+   f 1(  26,  4) ST = 0.191364E+12 DT = 0.419430E+10 DX1= 0.107608E+06 DX2= 0.527630E-01 T = 216.884 P =  2184674. S = 0.167294E+00
+ ...ITERATING...  AT [  27,  1] --- DELTEX = 0.838861E+10   MAX. RES. = 0.132699E+00  AT ELEMENT   f 1  EQUATION   1
+ ...ITERATING...  AT [  27,  2] --- DELTEX = 0.838861E+10   MAX. RES. = 0.171478E+00  AT ELEMENT   f 1  EQUATION   1
+ ...ITERATING...  AT [  27,  3] --- DELTEX = 0.838861E+10   MAX. RES. = 0.158633E-02  AT ELEMENT   f 1  EQUATION   1
+ ...ITERATING...  AT [  27,  4] --- DELTEX = 0.838861E+10   MAX. RES. = 0.232957E-04  AT ELEMENT   f 1  EQUATION   1
+   g 1(  27,  5) ST = 0.199753E+12 DT = 0.838861E+10 DX1= 0.484476E+04 DX2= 0.633588E+01 T = 205.251 P =  2034462. S = 0.000000E+00
+ ...ITERATING...  AT [  28,  1] --- DELTEX = 0.167772E+11   MAX. RES. = 0.202647E+00  AT ELEMENT   k 1  EQUATION   2
+ ...ITERATING...  AT [  28,  2] --- DELTEX = 0.167772E+11   MAX. RES. = 0.369995E+01  AT ELEMENT   g 1  EQUATION   1
+ ...ITERATING...  AT [  28,  3] --- DELTEX = 0.167772E+11   MAX. RES. = 0.327199E+01  AT ELEMENT   g 1  EQUATION   1
+ TEMPERATURE = -.938389E+03  OUT OF RANGE IN SAT 
+ ++++++++++ EOS CANNOT FIND PARAMETERS AT ELEMENT *  g 1*      XX(M) = -0.22269E+07 -0.93839E+03
+ +++++++++ REDUCE TIME STEP AT (  28,  3) ++++++++++++++++   NEW DELT = 0.335544E+10
+ ...ITERATING...  AT [  28,  1] --- DELTEX = 0.335544E+10   MAX. RES. = 0.405294E-01  AT ELEMENT   k 1  EQUATION   2
+ ...ITERATING...  AT [  28,  2] --- DELTEX = 0.335544E+10   MAX. RES. = 0.211513E-02  AT ELEMENT   f 1  EQUATION   1
+   g 1(  28,  3) ST = 0.203108E+12 DT = 0.335544E+10 DX1= 0.729726E+03 DX2= 0.248514E+01 T = 207.737 P =  2035192. S = 0.000000E+00
+ ...ITERATING...  AT [  29,  1] --- DELTEX = 0.671089E+10   MAX. RES. = 0.836580E-01  AT ELEMENT   k 1  EQUATION   2
+ ...ITERATING...  AT [  29,  2] --- DELTEX = 0.671089E+10   MAX. RES. = 0.380722E-02  AT ELEMENT   f 1  EQUATION   1
+   f 1(  29,  3) ST = 0.209819E+12 DT = 0.671089E+10 DX1= 0.370690E+05 DX2= 0.138642E-01 T = 221.122 P =  2370022. S = 0.238737E+00
+ ...ITERATING...  AT [  30,  1] --- DELTEX = 0.134218E+11   MAX. RES. = 0.174745E+00  AT ELEMENT   k 1  EQUATION   2
+ ...ITERATING...  AT [  30,  2] --- DELTEX = 0.134218E+11   MAX. RES. = 0.721089E+01  AT ELEMENT   g 1  EQUATION   1
+ ...ITERATING...  AT [  30,  3] --- DELTEX = 0.134218E+11   MAX. RES. = 0.185050E+01  AT ELEMENT   g 1  EQUATION   2
+ TEMPERATURE = -.744874E+03  OUT OF RANGE IN SAT 
+ ++++++++++ EOS CANNOT FIND PARAMETERS AT ELEMENT *  g 1*      XX(M) = -0.17058E+07 -0.74487E+03
+ +++++++++ REDUCE TIME STEP AT (  30,  3) ++++++++++++++++   NEW DELT = 0.268435E+10
+ ...ITERATING...  AT [  30,  1] --- DELTEX = 0.268435E+10   MAX. RES. = 0.349490E-01  AT ELEMENT   k 1  EQUATION   2
+ ...ITERATING...  AT [  30,  2] --- DELTEX = 0.268435E+10   MAX. RES. = 0.163535E+00  AT ELEMENT   g 1  EQUATION   1
+ ...ITERATING...  AT [  30,  3] --- DELTEX = 0.268435E+10   MAX. RES. = 0.140910E+00  AT ELEMENT   g 1  EQUATION   1
+ ...ITERATING...  AT [  30,  4] --- DELTEX = 0.268435E+10   MAX. RES. = 0.519828E-02  AT ELEMENT   g 1  EQUATION   1
+   g 1(  30,  5) ST = 0.212503E+12 DT = 0.268435E+10 DX1= 0.245253E+05 DX2= -.212174E+03 T = 213.841 P =  2058689. S = 0.101802E+00
+ ...ITERATING...  AT [  31,  1] --- DELTEX = 0.536871E+10   MAX. RES. = 0.228768E+00  AT ELEMENT   g 1  EQUATION   1
+ ...ITERATING...  AT [  31,  2] --- DELTEX = 0.536871E+10   MAX. RES. = 0.103497E+00  AT ELEMENT   g 1  EQUATION   1
+ ...ITERATING...  AT [  31,  3] --- DELTEX = 0.536871E+10   MAX. RES. = 0.154030E-02  AT ELEMENT   g 1  EQUATION   1
+   g 2(  31,  4) ST = 0.217872E+12 DT = 0.536871E+10 DX1= 0.170687E+05 DX2= 0.245427E+01 T = 231.794 P =  6357764. S = 0.000000E+00
+ ...ITERATING...  AT [  32,  1] --- DELTEX = 0.107374E+11   MAX. RES. = 0.151709E+00  AT ELEMENT   k 1  EQUATION   2
+ ...ITERATING...  AT [  32,  2] --- DELTEX = 0.107374E+11   MAX. RES. = 0.148362E+00  AT ELEMENT   g 1  EQUATION   1
+ ...ITERATING...  AT [  32,  3] --- DELTEX = 0.107374E+11   MAX. RES. = 0.132840E-02  AT ELEMENT   g 1  EQUATION   1
+   g 1(  32,  4) ST = 0.228610E+12 DT = 0.107374E+11 DX1= 0.982262E+05 DX2= 0.429310E-01 T = 218.470 P =  2252675. S = 0.199677E+00
+ ...ITERATING...  AT [  33,  1] --- DELTEX = 0.214748E+11   MAX. RES. = 0.309069E+00  AT ELEMENT   k 1  EQUATION   2
+ ...ITERATING...  AT [  33,  2] --- DELTEX = 0.214748E+11   MAX. RES. = 0.956357E-01  AT ELEMENT   k 1  EQUATION   1
+ ...ITERATING...  AT [  33,  3] --- DELTEX = 0.214748E+11   MAX. RES. = 0.263694E-02  AT ELEMENT   g 1  EQUATION   1
+   k 1(  33,  4) ST = 0.250084E+12 DT = 0.214748E+11 DX1= -.164776E+05 DX2= 0.339943E+02 T = 132.731 P =  2094243. S = 0.000000E+00
+ ...ITERATING...  AT [  34,  1] --- DELTEX = 0.429497E+11   MAX. RES. = 0.527843E+00  AT ELEMENT   c 1  EQUATION   2
+ ...ITERATING...  AT [  34,  2] --- DELTEX = 0.429497E+11   MAX. RES. = 0.525524E+00  AT ELEMENT   c 1  EQUATION   1
+ ...ITERATING...  AT [  34,  3] --- DELTEX = 0.429497E+11   MAX. RES. = 0.153342E-01  AT ELEMENT   c 1  EQUATION   1
+ ...ITERATING...  AT [  34,  4] --- DELTEX = 0.429497E+11   MAX. RES. = 0.775467E-04  AT ELEMENT   c 1  EQUATION   1
+   c 2(  34,  5) ST = 0.293034E+12 DT = 0.429497E+11 DX1= -.125198E+06 DX2= 0.343170E+02 T = 203.795 P =  6166752. S = 0.000000E+00
+ ...ITERATING...  AT [  35,  1] --- DELTEX = 0.858993E+11   MAX. RES. = 0.663809E+00  AT ELEMENT   p 1  EQUATION   2
+ ...ITERATING...  AT [  35,  2] --- DELTEX = 0.858993E+11   MAX. RES. = 0.475001E+01  AT ELEMENT   a 2  EQUATION   1
+ ...ITERATING...  AT [  35,  3] --- DELTEX = 0.858993E+11   MAX. RES. = 0.132195E+02  AT ELEMENT   a 1  EQUATION   1
+ ...ITERATING...  AT [  35,  4] --- DELTEX = 0.858993E+11   MAX. RES. = 0.240456E+01  AT ELEMENT   a 1  EQUATION   1
+ ...ITERATING...  AT [  35,  5] --- DELTEX = 0.858993E+11   MAX. RES. = 0.581844E+00  AT ELEMENT   a 2  EQUATION   1
+ ...ITERATING...  AT [  35,  6] --- DELTEX = 0.858993E+11   MAX. RES. = 0.627678E-01  AT ELEMENT   a 2  EQUATION   1
+ ...ITERATING...  AT [  35,  7] --- DELTEX = 0.858993E+11   MAX. RES. = 0.372968E-01  AT ELEMENT   a 2  EQUATION   1
+ ...ITERATING...  AT [  35,  8] --- DELTEX = 0.858993E+11   MAX. RES. = 0.416440E-02  AT ELEMENT   a 2  EQUATION   1
+ ...ITERATING...  AT [  35,  9] --- DELTEX = 0.858993E+11   MAX. RES. = 0.330582E-04  AT ELEMENT   a 2  EQUATION   1
+ +++++++++ REDUCE TIME STEP AT (  35,  9) ++++++++++++++++   NEW DELT = 0.171799E+11
+ ...ITERATING...  AT [  35,  1] --- DELTEX = 0.171799E+11   MAX. RES. = 0.132762E+00  AT ELEMENT   p 1  EQUATION   2
+ ...ITERATING...  AT [  35,  2] --- DELTEX = 0.171799E+11   MAX. RES. = 0.174511E-01  AT ELEMENT   c 1  EQUATION   1
+ ...ITERATING...  AT [  35,  3] --- DELTEX = 0.171799E+11   MAX. RES. = 0.283924E-04  AT ELEMENT   c 2  EQUATION   1
+   c 1(  35,  4) ST = 0.310214E+12 DT = 0.171799E+11 DX1= -.120022E+05 DX2= 0.162115E+02 T = 174.314 P =  2033266. S = 0.000000E+00
+ ...ITERATING...  AT [  36,  1] --- DELTEX = 0.343597E+11   MAX. RES. = 0.250299E+00  AT ELEMENT   p 1  EQUATION   2
+ ...ITERATING...  AT [  36,  2] --- DELTEX = 0.343597E+11   MAX. RES. = 0.553338E-01  AT ELEMENT   h 1  EQUATION   1
+ ...ITERATING...  AT [  36,  3] --- DELTEX = 0.343597E+11   MAX. RES. = 0.146247E-03  AT ELEMENT   h 1  EQUATION   1
+   c 1(  36,  4) ST = 0.344574E+12 DT = 0.343597E+11 DX1= -.180145E+05 DX2= 0.185540E+02 T = 192.868 P =  2015252. S = 0.000000E+00
+ ...ITERATING...  AT [  37,  1] --- DELTEX = 0.687195E+11   MAX. RES. = 0.428105E+00  AT ELEMENT   p 1  EQUATION   2
+ ...ITERATING...  AT [  37,  2] --- DELTEX = 0.687195E+11   MAX. RES. = 0.333050E+02  AT ELEMENT   a 2  EQUATION   1
+ ...ITERATING...  AT [  37,  3] --- DELTEX = 0.687195E+11   MAX. RES. = 0.276155E+02  AT ELEMENT   a 1  EQUATION   1
+ TEMPERATURE = -.176733E+04  OUT OF RANGE IN SAT 
+ ++++++++++ EOS CANNOT FIND PARAMETERS AT ELEMENT *  k 1*      XX(M) = -0.48516E+07 -0.17673E+04
+ +++++++++ REDUCE TIME STEP AT (  37,  3) ++++++++++++++++   NEW DELT = 0.137439E+11
+ ...ITERATING...  AT [  37,  1] --- DELTEX = 0.137439E+11   MAX. RES. = 0.856209E-01  AT ELEMENT   p 1  EQUATION   2
+ ...ITERATING...  AT [  37,  2] --- DELTEX = 0.137439E+11   MAX. RES. = 0.693080E+00  AT ELEMENT   a 2  EQUATION   1
+ ...ITERATING...  AT [  37,  3] --- DELTEX = 0.137439E+11   MAX. RES. = 0.102881E-03  AT ELEMENT   a 2  EQUATION   2
+   f 2(  37,  4) ST = 0.358318E+12 DT = 0.137439E+11 DX1= -.166680E+05 DX2= 0.772351E+00 T = 268.989 P =  6127926. S = 0.000000E+00
+ ...ITERATING...  AT [  38,  1] --- DELTEX = 0.274878E+11   MAX. RES. = 0.163570E+00  AT ELEMENT   p 1  EQUATION   2
+ ...ITERATING...  AT [  38,  2] --- DELTEX = 0.274878E+11   MAX. RES. = 0.103339E+02  AT ELEMENT   a 1  EQUATION   1
+ ...ITERATING...  AT [  38,  3] --- DELTEX = 0.274878E+11   MAX. RES. = 0.271171E+02  AT ELEMENT   a 1  EQUATION   1
+ ...ITERATING...  AT [  38,  4] --- DELTEX = 0.274878E+11   MAX. RES. = 0.105901E+03  AT ELEMENT   f 2  EQUATION   1
+ ...ITERATING...  AT [  38,  5] --- DELTEX = 0.274878E+11   MAX. RES. = 0.287307E+02  AT ELEMENT   k 1  EQUATION   1
+ ...ITERATING...  AT [  38,  6] --- DELTEX = 0.274878E+11   MAX. RES. = 0.453874E+03  AT ELEMENT   b 2  EQUATION   1
+ ...ITERATING...  AT [  38,  7] --- DELTEX = 0.274878E+11   MAX. RES. = 0.425068E+03  AT ELEMENT   b 2  EQUATION   1
+ TEMPERATURE = 0.521539E+03  OUT OF RANGE IN SAT 
+ ++++++++++ EOS CANNOT FIND PARAMETERS AT ELEMENT *  f 2*      XX(M) =  0.26916E+08  0.10000E-05
+ +++++++++ REDUCE TIME STEP AT (  38,  7) ++++++++++++++++   NEW DELT = 0.549756E+10
+ ...ITERATING...  AT [  38,  1] --- DELTEX = 0.549756E+10   MAX. RES. = 0.327141E-01  AT ELEMENT   p 1  EQUATION   2
+ ...ITERATING...  AT [  38,  2] --- DELTEX = 0.549756E+10   MAX. RES. = 0.344864E+00  AT ELEMENT   a 1  EQUATION   1
+ ...ITERATING...  AT [  38,  3] --- DELTEX = 0.549756E+10   MAX. RES. = 0.198733E-01  AT ELEMENT   a 2  EQUATION   1
+ ...ITERATING...  AT [  38,  4] --- DELTEX = 0.549756E+10   MAX. RES. = 0.280028E-03  AT ELEMENT   a 2  EQUATION   1
+   a 2(  38,  5) ST = 0.363815E+12 DT = 0.549756E+10 DX1= 0.222201E+04 DX2= 0.561407E-01 T = 277.258 P =  6158696. S = 0.114407E+00
+ ...ITERATING...  AT [  39,  1] --- DELTEX = 0.109951E+11   MAX. RES. = 0.120921E+00  AT ELEMENT   a 2  EQUATION   1
+ ...ITERATING...  AT [  39,  2] --- DELTEX = 0.109951E+11   MAX. RES. = 0.260205E+00  AT ELEMENT   a 2  EQUATION   1
+ ...ITERATING...  AT [  39,  3] --- DELTEX = 0.109951E+11   MAX. RES. = 0.569630E-02  AT ELEMENT   a 1  EQUATION   1
+ ...ITERATING...  AT [  39,  4] --- DELTEX = 0.109951E+11   MAX. RES. = 0.443950E-02  AT ELEMENT   a 2  EQUATION   1
+ ...ITERATING...  AT [  39,  5] --- DELTEX = 0.109951E+11   MAX. RES. = 0.242656E-04  AT ELEMENT   a 2  EQUATION   1
+   f 1(  39,  6) ST = 0.374810E+12 DT = 0.109951E+11 DX1= -.425902E+04 DX2= 0.739940E-03 T = 221.814 P =  2401430. S = 0.294009E+00
+ ...ITERATING...  AT [  40,  1] --- DELTEX = 0.109951E+11   MAX. RES. = 0.624824E-01  AT ELEMENT   p 1  EQUATION   2
+ ...ITERATING...  AT [  40,  2] --- DELTEX = 0.109951E+11   MAX. RES. = 0.140079E+00  AT ELEMENT   k 1  EQUATION   1
+ ...ITERATING...  AT [  40,  3] --- DELTEX = 0.109951E+11   MAX. RES. = 0.249339E-03  AT ELEMENT   a 2  EQUATION   1
+   a 2(  40,  4) ST = 0.385805E+12 DT = 0.109951E+11 DX1= -.577245E+04 DX2= 0.117009E-01 T = 277.218 P =  6154968. S = 0.165013E+00
+ ...ITERATING...  AT [  41,  1] --- DELTEX = 0.219902E+11   MAX. RES. = 0.145401E+00  AT ELEMENT   k 1  EQUATION   1
+ ...ITERATING...  AT [  41,  2] --- DELTEX = 0.219902E+11   MAX. RES. = 0.277695E+01  AT ELEMENT   k 1  EQUATION   1
+ ...ITERATING...  AT [  41,  3] --- DELTEX = 0.219902E+11   MAX. RES. = 0.373615E+01  AT ELEMENT   k 2  EQUATION   1
+ ...ITERATING...  AT [  41,  4] --- DELTEX = 0.219902E+11   MAX. RES. = 0.320687E+01  AT ELEMENT   k 1  EQUATION   1
+ ...ITERATING...  AT [  41,  5] --- DELTEX = 0.219902E+11   MAX. RES. = 0.187045E+01  AT ELEMENT   k 1  EQUATION   1
+ TEMPERATURE = -.396684E+03  OUT OF RANGE IN SAT 
+ ++++++++++ EOS CANNOT FIND PARAMETERS AT ELEMENT *  k 1*      XX(M) =  0.58941E+05 -0.39668E+03
+ +++++++++ REDUCE TIME STEP AT (  41,  5) ++++++++++++++++   NEW DELT = 0.439805E+10
+ ...ITERATING...  AT [  41,  1] --- DELTEX = 0.439805E+10   MAX. RES. = 0.290801E-01  AT ELEMENT   k 1  EQUATION   1
+ ...ITERATING...  AT [  41,  2] --- DELTEX = 0.439805E+10   MAX. RES. = 0.359016E+00  AT ELEMENT   k 1  EQUATION   1
+ ...ITERATING...  AT [  41,  3] --- DELTEX = 0.439805E+10   MAX. RES. = 0.532144E-01  AT ELEMENT   k 1  EQUATION   1
+ ...ITERATING...  AT [  41,  4] --- DELTEX = 0.439805E+10   MAX. RES. = 0.647654E-03  AT ELEMENT   k 1  EQUATION   1
+   k 1(  41,  5) ST = 0.390203E+12 DT = 0.439805E+10 DX1= 0.149578E+05 DX2= 0.422046E-01 T = 213.141 P =  2030515. S = 0.108813E+00
+ ...ITERATING...  AT [  42,  1] --- DELTEX = 0.879609E+10   MAX. RES. = 0.945654E-01  AT ELEMENT   k 1  EQUATION   1
+ ...ITERATING...  AT [  42,  2] --- DELTEX = 0.879609E+10   MAX. RES. = 0.171819E-02  AT ELEMENT   k 1  EQUATION   1
+   a 1(  42,  3) ST = 0.398999E+12 DT = 0.879609E+10 DX1= -.882465E+04 DX2= -.208546E-03 T = 220.340 P =  2334954. S = 0.303574E+00
+ ...ITERATING...  AT [  43,  1] --- DELTEX = 0.175922E+11   MAX. RES. = 0.921174E-01  AT ELEMENT   p 1  EQUATION   2
+ ...ITERATING...  AT [  43,  2] --- DELTEX = 0.175922E+11   MAX. RES. = 0.300108E-02  AT ELEMENT   k 1  EQUATION   1
+   k 1(  43,  3) ST = 0.416592E+12 DT = 0.175922E+11 DX1= 0.145653E+05 DX2= 0.132294E-01 T = 213.940 P =  2062693. S = 0.140517E+00
+ ...ITERATING...  AT [  44,  1] --- DELTEX = 0.351844E+11   MAX. RES. = 0.167219E+00  AT ELEMENT   p 1  EQUATION   2
+ ...ITERATING...  AT [  44,  2] --- DELTEX = 0.351844E+11   MAX. RES. = 0.211401E-01  AT ELEMENT   q 2  EQUATION   1
+ ...ITERATING...  AT [  44,  3] --- DELTEX = 0.351844E+11   MAX. RES. = 0.656344E-04  AT ELEMENT   k 1  EQUATION   1
+   p 1(  44,  4) ST = 0.451776E+12 DT = 0.351844E+11 DX1= -.411156E+04 DX2= 0.159383E+02 T = 121.149 P =  1909437. S = 0.000000E+00
+ ...ITERATING...  AT [  45,  1] --- DELTEX = 0.703687E+11   MAX. RES. = 0.276373E+00  AT ELEMENT   q 1  EQUATION   2
+ ...ITERATING...  AT [  45,  2] --- DELTEX = 0.703687E+11   MAX. RES. = 0.131010E+01  AT ELEMENT   c 1  EQUATION   1
+ ...ITERATING...  AT [  45,  3] --- DELTEX = 0.703687E+11   MAX. RES. = 0.112457E+02  AT ELEMENT   c 1  EQUATION   1
+ ...ITERATING...  AT [  45,  4] --- DELTEX = 0.703687E+11   MAX. RES. = 0.178978E+02  AT ELEMENT   c 1  EQUATION   1
+ ...ITERATING...  AT [  45,  5] --- DELTEX = 0.703687E+11   MAX. RES. = 0.164761E+01  AT ELEMENT   c 1  EQUATION   1
+ ...ITERATING...  AT [  45,  6] --- DELTEX = 0.703687E+11   MAX. RES. = 0.189043E-01  AT ELEMENT   h 1  EQUATION   1
+ ...ITERATING...  AT [  45,  7] --- DELTEX = 0.703687E+11   MAX. RES. = 0.100996E-01  AT ELEMENT   c 1  EQUATION   1
+   c 1(  45,  8) ST = 0.522145E+12 DT = 0.703687E+11 DX1= -.158137E+04 DX2= -.210793E+03 T = 212.029 P =  1986363. S = 0.104610E+00
+ ...ITERATING...  AT [  46,  1] --- DELTEX = 0.703687E+11   MAX. RES. = 0.185597E+00  AT ELEMENT   q 1  EQUATION   2
+ ...ITERATING...  AT [  46,  2] --- DELTEX = 0.703687E+11   MAX. RES. = 0.149040E-01  AT ELEMENT   p 1  EQUATION   1
+ ...ITERATING...  AT [  46,  3] --- DELTEX = 0.703687E+11   MAX. RES. = 0.131157E-02  AT ELEMENT   v 2  EQUATION   1
+   g 1(  46,  4) ST = 0.592514E+12 DT = 0.703687E+11 DX1= -.764374E+04 DX2= 0.844683E-03 T = 219.170 P =  2283196. S = 0.281829E+00
+ ...ITERATING...  AT [  47,  1] --- DELTEX = 0.140737E+12   MAX. RES. = 0.313116E+00  AT ELEMENT   u 3  EQUATION   2
+ ...ITERATING...  AT [  47,  2] --- DELTEX = 0.140737E+12   MAX. RES. = 0.249417E+00  AT ELEMENT   i 2  EQUATION   1
+ ...ITERATING...  AT [  47,  3] --- DELTEX = 0.140737E+12   MAX. RES. = 0.197188E-02  AT ELEMENT   i 1  EQUATION   2
+   i 2(  47,  4) ST = 0.733251E+12 DT = 0.140737E+12 DX1= -.255441E+05 DX2= 0.102159E+02 T = 163.803 P =  5811470. S = 0.000000E+00
+ ...ITERATING...  AT [  48,  1] --- DELTEX = 0.281475E+12   MAX. RES. = 0.441567E+00  AT ELEMENT   v 3  EQUATION   2
+ ...ITERATING...  AT [  48,  2] --- DELTEX = 0.281475E+12   MAX. RES. = 0.230532E+00  AT ELEMENT   r 1  EQUATION   2
+ ...ITERATING...  AT [  48,  3] --- DELTEX = 0.281475E+12   MAX. RES. = 0.167299E-02  AT ELEMENT   k 1  EQUATION   1
+   k 1(  48,  4) ST = 0.101473E+13 DT = 0.281475E+12 DX1= 0.896491E+04 DX2= 0.894377E-02 T = 214.814 P =  2098326. S = 0.188067E+00
+ ...ITERATING...  AT [  49,  1] --- DELTEX = 0.562950E+12   MAX. RES. = 0.594914E+00  AT ELEMENT   w 3  EQUATION   2
+ ...ITERATING...  AT [  49,  2] --- DELTEX = 0.562950E+12   MAX. RES. = 0.328173E+02  AT ELEMENT   l 1  EQUATION   1
+ ...ITERATING...  AT [  49,  3] --- DELTEX = 0.562950E+12   MAX. RES. = 0.301630E+02  AT ELEMENT   l 1  EQUATION   2
+ TEMPERATURE = 0.104268E+04  OUT OF RANGE IN SAT 
+ ++++++++++ EOS CANNOT FIND PARAMETERS AT ELEMENT *  d 1*      XX(M) =  0.77228E+07  0.10000E-05
+ +++++++++ REDUCE TIME STEP AT (  49,  3) ++++++++++++++++   NEW DELT = 0.112590E+12
+ ...ITERATING...  AT [  49,  1] --- DELTEX = 0.112590E+12   MAX. RES. = 0.118983E+00  AT ELEMENT   w 3  EQUATION   2
+ ...ITERATING...  AT [  49,  2] --- DELTEX = 0.112590E+12   MAX. RES. = 0.548791E-02  AT ELEMENT   u 2  EQUATION   1
+ ...ITERATING...  AT [  49,  3] --- DELTEX = 0.112590E+12   MAX. RES. = 0.464609E-04  AT ELEMENT   k 1  EQUATION   1
+   g 1(  49,  4) ST = 0.112732E+13 DT = 0.112590E+12 DX1= -.154865E+04 DX2= 0.474937E-03 T = 218.829 P =  2268318. S = 0.284759E+00
+ ...ITERATING...  AT [  50,  1] --- DELTEX = 0.225180E+12   MAX. RES. = 0.203415E+00  AT ELEMENT   w 3  EQUATION   2
+ ...ITERATING...  AT [  50,  2] --- DELTEX = 0.225180E+12   MAX. RES. = 0.580770E+01  AT ELEMENT   l 1  EQUATION   1
+ ...ITERATING...  AT [  50,  3] --- DELTEX = 0.225180E+12   MAX. RES. = 0.133255E+02  AT ELEMENT   l 1  EQUATION   1
+ TEMPERATURE = -.363389E+02  OUT OF RANGE IN SAT 
+ ++++++++++ EOS CANNOT FIND PARAMETERS AT ELEMENT *  i 1*      XX(M) =  0.16810E+07 -0.36339E+02
+ +++++++++ REDUCE TIME STEP AT (  50,  3) ++++++++++++++++   NEW DELT = 0.450360E+11
+ ...ITERATING...  AT [  50,  1] --- DELTEX = 0.450360E+11   MAX. RES. = 0.406831E-01  AT ELEMENT   w 3  EQUATION   2
+ ...ITERATING...  AT [  50,  2] --- DELTEX = 0.450360E+11   MAX. RES. = 0.322884E-03  AT ELEMENT   g 1  EQUATION   1
+   k 5(  50,  3) ST = 0.117235E+13 DT = 0.450360E+11 DX1= -.766209E+04 DX2= 0.180859E+00 T = 254.102 P = 24351687. S = 0.000000E+00
+ ...ITERATING...  AT [  51,  1] --- DELTEX = 0.900720E+11   MAX. RES. = 0.759859E-01  AT ELEMENT   w 3  EQUATION   2
+ ...ITERATING...  AT [  51,  2] --- DELTEX = 0.900720E+11   MAX. RES. = 0.413103E+00  AT ELEMENT   l 1  EQUATION   1
+ ...ITERATING...  AT [  51,  3] --- DELTEX = 0.900720E+11   MAX. RES. = 0.207302E+01  AT ELEMENT   l 1  EQUATION   1
+ ...ITERATING...  AT [  51,  4] --- DELTEX = 0.900720E+11   MAX. RES. = 0.762718E-01  AT ELEMENT   l 1  EQUATION   1
+ ...ITERATING...  AT [  51,  5] --- DELTEX = 0.900720E+11   MAX. RES. = 0.196824E+01  AT ELEMENT   l 1  EQUATION   1
+ ...ITERATING...  AT [  51,  6] --- DELTEX = 0.900720E+11   MAX. RES. = 0.686360E-01  AT ELEMENT   l 1  EQUATION   1
+ ...ITERATING...  AT [  51,  7] --- DELTEX = 0.900720E+11   MAX. RES. = 0.196730E+01  AT ELEMENT   l 1  EQUATION   1
+ ...ITERATING...  AT [  51,  8] --- DELTEX = 0.900720E+11   MAX. RES. = 0.685764E-01  AT ELEMENT   l 1  EQUATION   1
+ ...ITERATING...  AT [  51,  9] --- DELTEX = 0.900720E+11   MAX. RES. = 0.196718E+01  AT ELEMENT   l 1  EQUATION   1
+ +++++++++ REDUCE TIME STEP AT (  51,  9) ++++++++++++++++   NEW DELT = 0.180144E+11
+ ...ITERATING...  AT [  51,  1] --- DELTEX = 0.180144E+11   MAX. RES. = 0.151972E-01  AT ELEMENT   w 3  EQUATION   2
+ ...ITERATING...  AT [  51,  2] --- DELTEX = 0.180144E+11   MAX. RES. = 0.536184E-04  AT ELEMENT   g 1  EQUATION   1
+   g 1(  51,  3) ST = 0.119037E+13 DT = 0.180144E+11 DX1= -.202772E+03 DX2= 0.704709E-04 T = 218.812 P =  2267579. S = 0.285009E+00
+ ...ITERATING...  AT [  52,  1] --- DELTEX = 0.360288E+11   MAX. RES. = 0.295437E-01  AT ELEMENT   w 3  EQUATION   2
+ ...ITERATING...  AT [  52,  2] --- DELTEX = 0.360288E+11   MAX. RES. = 0.199181E-03  AT ELEMENT   g 1  EQUATION   1
+   k 5(  52,  3) ST = 0.122640E+13 DT = 0.360288E+11 DX1= -.593382E+04 DX2= 0.152310E+00 T = 254.328 P = 24342708. S = 0.000000E+00
+ ...ITERATING...  AT [  53,  1] --- DELTEX = 0.720576E+11   MAX. RES. = 0.564450E-01  AT ELEMENT   w 4  EQUATION   2
+ ...ITERATING...  AT [  53,  2] --- DELTEX = 0.720576E+11   MAX. RES. = 0.114193E+01  AT ELEMENT   l 1  EQUATION   1
+ ...ITERATING...  AT [  53,  3] --- DELTEX = 0.720576E+11   MAX. RES. = 0.103341E+02  AT ELEMENT   l 1  EQUATION   1
+ ...ITERATING...  AT [  53,  4] --- DELTEX = 0.720576E+11   MAX. RES. = 0.103870E+02  AT ELEMENT   l 1  EQUATION   1
+ ...ITERATING...  AT [  53,  5] --- DELTEX = 0.720576E+11   MAX. RES. = 0.145371E+01  AT ELEMENT   l 1  EQUATION   1
+ ...ITERATING...  AT [  53,  6] --- DELTEX = 0.720576E+11   MAX. RES. = 0.527263E-01  AT ELEMENT   l 1  EQUATION   1
+ ...ITERATING...  AT [  53,  7] --- DELTEX = 0.720576E+11   MAX. RES. = 0.514727E-03  AT ELEMENT   l 1  EQUATION   1
+   g 1(  53,  8) ST = 0.129845E+13 DT = 0.720576E+11 DX1= -.384386E+02 DX2= 0.268778E-03 T = 218.803 P =  2267180. S = 0.285414E+00
+ ...ITERATING...  AT [  54,  1] --- DELTEX = 0.720576E+11   MAX. RES. = 0.114377E+00  AT ELEMENT   l 1  EQUATION   1
+ ...ITERATING...  AT [  54,  2] --- DELTEX = 0.720576E+11   MAX. RES. = 0.704794E-02  AT ELEMENT   l 1  EQUATION   1
+   k 5(  54,  3) ST = 0.137051E+13 DT = 0.720576E+11 DX1= -.104106E+05 DX2= 0.312926E+00 T = 254.951 P = 24321503. S = 0.000000E+00
+ ...ITERATING...  AT [  55,  1] --- DELTEX = 0.144115E+12   MAX. RES. = 0.100305E+00  AT ELEMENT   w 4  EQUATION   2
+ ...ITERATING...  AT [  55,  2] --- DELTEX = 0.144115E+12   MAX. RES. = 0.366877E-01  AT ELEMENT   l 1  EQUATION   1
+ ...ITERATING...  AT [  55,  3] --- DELTEX = 0.144115E+12   MAX. RES. = 0.386544E-04  AT ELEMENT   k 1  EQUATION   1
+   g 1(  55,  4) ST = 0.151463E+13 DT = 0.144115E+12 DX1= 0.126798E+03 DX2= 0.481137E-03 T = 218.810 P =  2267488. S = 0.286161E+00
+ ...ITERATING...  AT [  56,  1] --- DELTEX = 0.288230E+12   MAX. RES. = 0.181131E+00  AT ELEMENT   x 2  EQUATION   2
+ ...ITERATING...  AT [  56,  2] --- DELTEX = 0.288230E+12   MAX. RES. = 0.158873E+00  AT ELEMENT   l 1  EQUATION   1
+ ...ITERATING...  AT [  56,  3] --- DELTEX = 0.288230E+12   MAX. RES. = 0.251149E-03  AT ELEMENT   k 1  EQUATION   1
+   g 1(  56,  4) ST = 0.180286E+13 DT = 0.288230E+12 DX1= -.160337E+03 DX2= 0.777318E-03 T = 218.807 P =  2267328. S = 0.286939E+00
+ ...ITERATING...  AT [  57,  1] --- DELTEX = 0.576461E+12   MAX. RES. = 0.292949E+00  AT ELEMENT   x 3  EQUATION   2
+ ...ITERATING...  AT [  57,  2] --- DELTEX = 0.576461E+12   MAX. RES. = 0.977344E+02  AT ELEMENT   f 2  EQUATION   1
+ ...ITERATING...  AT [  57,  3] --- DELTEX = 0.576461E+12   MAX. RES. = 0.230957E+03  AT ELEMENT   f 1  EQUATION   1
+ TEMPERATURE = -.178119E+02  OUT OF RANGE IN SAT 
+ ++++++++++ EOS CANNOT FIND PARAMETERS AT ELEMENT *  f 2*      XX(M) =  0.52604E+07 -0.17812E+02
+ +++++++++ REDUCE TIME STEP AT (  57,  3) ++++++++++++++++   NEW DELT = 0.115292E+12
+ ...ITERATING...  AT [  57,  1] --- DELTEX = 0.115292E+12   MAX. RES. = 0.585898E-01  AT ELEMENT   x 3  EQUATION   2
+ ...ITERATING...  AT [  57,  2] --- DELTEX = 0.115292E+12   MAX. RES. = 0.162252E+01  AT ELEMENT   f 2  EQUATION   1
+ ...ITERATING...  AT [  57,  3] --- DELTEX = 0.115292E+12   MAX. RES. = 0.445416E+01  AT ELEMENT   f 1  EQUATION   1
+ ...ITERATING...  AT [  57,  4] --- DELTEX = 0.115292E+12   MAX. RES. = 0.124865E+00  AT ELEMENT   f 1  EQUATION   1
+ ...ITERATING...  AT [  57,  5] --- DELTEX = 0.115292E+12   MAX. RES. = 0.201271E-01  AT ELEMENT   f 2  EQUATION   1
+ ...ITERATING...  AT [  57,  6] --- DELTEX = 0.115292E+12   MAX. RES. = 0.251029E-02  AT ELEMENT   f 2  EQUATION   1
+ ...ITERATING...  AT [  57,  7] --- DELTEX = 0.115292E+12   MAX. RES. = 0.437394E-04  AT ELEMENT   f 1  EQUATION   1
+   g 1(  57,  8) ST = 0.191815E+13 DT = 0.115292E+12 DX1= 0.999340E+03 DX2= 0.429704E-03 T = 218.829 P =  2268327. S = 0.287368E+00
+ ...ITERATING...  AT [  58,  1] --- DELTEX = 0.115292E+12   MAX. RES. = 0.116537E+00  AT ELEMENT   f 2  EQUATION   1
+ ...ITERATING...  AT [  58,  2] --- DELTEX = 0.115292E+12   MAX. RES. = 0.806988E+01  AT ELEMENT   f 2  EQUATION   1
+ ...ITERATING...  AT [  58,  3] --- DELTEX = 0.115292E+12   MAX. RES. = 0.306336E+01  AT ELEMENT   f 2  EQUATION   1
+ ...ITERATING...  AT [  58,  4] --- DELTEX = 0.115292E+12   MAX. RES. = 0.135181E+01  AT ELEMENT   f 2  EQUATION   1
+ ...ITERATING...  AT [  58,  5] --- DELTEX = 0.115292E+12   MAX. RES. = 0.138998E+00  AT ELEMENT   f 2  EQUATION   1
+ ...ITERATING...  AT [  58,  6] --- DELTEX = 0.115292E+12   MAX. RES. = 0.922830E-01  AT ELEMENT   f 2  EQUATION   1
+ ...ITERATING...  AT [  58,  7] --- DELTEX = 0.115292E+12   MAX. RES. = 0.908614E-02  AT ELEMENT   f 2  EQUATION   1
+ ...ITERATING...  AT [  58,  8] --- DELTEX = 0.115292E+12   MAX. RES. = 0.868793E-04  AT ELEMENT   f 2  EQUATION   1
+   g 1(  58,  9) ST = 0.203344E+13 DT = 0.115292E+12 DX1= 0.299112E+04 DX2= 0.714421E-03 T = 218.898 P =  2271318. S = 0.288083E+00
+ ...ITERATING...  AT [  59,  1] --- DELTEX = 0.115292E+12   MAX. RES. = 0.509843E-01  AT ELEMENT   x 3  EQUATION   2
+ ...ITERATING...  AT [  59,  2] --- DELTEX = 0.115292E+12   MAX. RES. = 0.807991E-01  AT ELEMENT   f 2  EQUATION   1
+ ...ITERATING...  AT [  59,  3] --- DELTEX = 0.115292E+12   MAX. RES. = 0.253507E-02  AT ELEMENT   f 2  EQUATION   1
+   g 1(  59,  4) ST = 0.214873E+13 DT = 0.115292E+12 DX1= 0.865335E+03 DX2= 0.447575E-03 T = 218.918 P =  2272183. S = 0.288530E+00
+ ...ITERATING...  AT [  60,  1] --- DELTEX = 0.230584E+12   MAX. RES. = 0.940419E-01  AT ELEMENT   x 3  EQUATION   2
+ ...ITERATING...  AT [  60,  2] --- DELTEX = 0.230584E+12   MAX. RES. = 0.109833E+00  AT ELEMENT   f 2  EQUATION   1
+ ...ITERATING...  AT [  60,  3] --- DELTEX = 0.230584E+12   MAX. RES. = 0.286695E-02  AT ELEMENT   f 2  EQUATION   1
+   g 1(  60,  4) ST = 0.237932E+13 DT = 0.230584E+12 DX1= 0.427199E+03 DX2= 0.566030E-03 T = 218.928 P =  2272611. S = 0.289096E+00
+ ...ITERATING...  AT [  61,  1] --- DELTEX = 0.461169E+12   MAX. RES. = 0.160289E+00  AT ELEMENT   x 4  EQUATION   2
+ ...ITERATING...  AT [  61,  2] --- DELTEX = 0.461169E+12   MAX. RES. = 0.167178E+00  AT ELEMENT   f 2  EQUATION   1
+ ...ITERATING...  AT [  61,  3] --- DELTEX = 0.461169E+12   MAX. RES. = 0.499883E-02  AT ELEMENT   f 2  EQUATION   1
+   g 1(  61,  4) ST = 0.284049E+13 DT = 0.461169E+12 DX1= -.270101E+02 DX2= 0.741094E-03 T = 218.927 P =  2272584. S = 0.289837E+00
+ ...ITERATING...  AT [  62,  1] --- DELTEX = 0.922337E+12   MAX. RES. = 0.241087E+00  AT ELEMENT   x 4  EQUATION   2
+ ...ITERATING...  AT [  62,  2] --- DELTEX = 0.922337E+12   MAX. RES. = 0.768094E+02  AT ELEMENT   b 2  EQUATION   1
+ ...ITERATING...  AT [  62,  3] --- DELTEX = 0.922337E+12   MAX. RES. = 0.366046E+03  AT ELEMENT   b 1  EQUATION   1
+ TEMPERATURE = 0.551787E+03  OUT OF RANGE IN SAT 
+ ++++++++++ EOS CANNOT FIND PARAMETERS AT ELEMENT *  d 1*      XX(M) =  0.20646E+07  0.55179E+03
+ +++++++++ REDUCE TIME STEP AT (  62,  3) ++++++++++++++++   NEW DELT = 0.184467E+12
+ ...ITERATING...  AT [  62,  1] --- DELTEX = 0.184467E+12   MAX. RES. = 0.482173E-01  AT ELEMENT   x 4  EQUATION   2
+ ...ITERATING...  AT [  62,  2] --- DELTEX = 0.184467E+12   MAX. RES. = 0.498579E-02  AT ELEMENT   l 1  EQUATION   1
+ ...ITERATING...  AT [  62,  3] --- DELTEX = 0.184467E+12   MAX. RES. = 0.278424E-04  AT ELEMENT   g 1  EQUATION   1
+   g 1(  62,  4) ST = 0.302495E+13 DT = 0.184467E+12 DX1= -.152162E+03 DX2= 0.246656E-03 T = 218.924 P =  2272431. S = 0.290084E+00
+ ...ITERATING...  AT [  63,  1] --- DELTEX = 0.368935E+12   MAX. RES. = 0.858098E-01  AT ELEMENT   t 4  EQUATION   2
+ ...ITERATING...  AT [  63,  2] --- DELTEX = 0.368935E+12   MAX. RES. = 0.166760E+02  AT ELEMENT   b 2  EQUATION   1
+ ...ITERATING...  AT [  63,  3] --- DELTEX = 0.368935E+12   MAX. RES. = 0.145567E+03  AT ELEMENT   b 1  EQUATION   1
+ TEMPERATURE = -.265457E+02  OUT OF RANGE IN SAT 
+ ++++++++++ EOS CANNOT FIND PARAMETERS AT ELEMENT *  a 1*      XX(M) = -0.12286E+07  0.14869E+00
+ +++++++++ REDUCE TIME STEP AT (  63,  3) ++++++++++++++++   NEW DELT = 0.737870E+11
+ ...ITERATING...  AT [  63,  1] --- DELTEX = 0.737870E+11   MAX. RES. = 0.171620E-01  AT ELEMENT   t 4  EQUATION   2
+ ...ITERATING...  AT [  63,  2] --- DELTEX = 0.737870E+11   MAX. RES. = 0.261922E+00  AT ELEMENT   h 1  EQUATION   1
+ ...ITERATING...  AT [  63,  3] --- DELTEX = 0.737870E+11   MAX. RES. = 0.223059E-04  AT ELEMENT   h 1  EQUATION   1
+   h 2(  63,  4) ST = 0.309874E+13 DT = 0.737870E+11 DX1= -.511607E+03 DX2= 0.179172E+00 T = 235.352 P =  5835949. S = 0.000000E+00
+ ...ITERATING...  AT [  64,  1] --- DELTEX = 0.147574E+12   MAX. RES. = 0.154935E+00  AT ELEMENT   h 1  EQUATION   1
+ ...ITERATING...  AT [  64,  2] --- DELTEX = 0.147574E+12   MAX. RES. = 0.978125E+01  AT ELEMENT   h 1  EQUATION   1
+ ...ITERATING...  AT [  64,  3] --- DELTEX = 0.147574E+12   MAX. RES. = 0.618322E+02  AT ELEMENT   b 1  EQUATION   1
+ ...ITERATING...  AT [  64,  4] --- DELTEX = 0.147574E+12   MAX. RES. = 0.234706E+04  AT ELEMENT   b 2  EQUATION   1
+ TEMPERATURE = 0.596969E+03  OUT OF RANGE IN SAT 
+ ++++++++++ EOS CANNOT FIND PARAMETERS AT ELEMENT *  b 1*      XX(M) =  0.46849E+07  0.59697E+03
+ +++++++++ REDUCE TIME STEP AT (  64,  4) ++++++++++++++++   NEW DELT = 0.295148E+11
+ ...ITERATING...  AT [  64,  1] --- DELTEX = 0.295148E+11   MAX. RES. = 0.309870E-01  AT ELEMENT   h 1  EQUATION   1
+ ...ITERATING...  AT [  64,  2] --- DELTEX = 0.295148E+11   MAX. RES. = 0.975143E+00  AT ELEMENT   h 1  EQUATION   1
+ ...ITERATING...  AT [  64,  3] --- DELTEX = 0.295148E+11   MAX. RES. = 0.805672E-01  AT ELEMENT   h 1  EQUATION   1
+ ...ITERATING...  AT [  64,  4] --- DELTEX = 0.295148E+11   MAX. RES. = 0.293666E-03  AT ELEMENT   h 1  EQUATION   1
+   h 2(  64,  5) ST = 0.312825E+13 DT = 0.295148E+11 DX1= -.272459E+02 DX2= 0.671900E-01 T = 235.419 P =  5835921. S = 0.000000E+00
+ ...ITERATING...  AT [  65,  1] --- DELTEX = 0.590296E+11   MAX. RES. = 0.628450E-01  AT ELEMENT   h 1  EQUATION   1
+ ...ITERATING...  AT [  65,  2] --- DELTEX = 0.590296E+11   MAX. RES. = 0.574633E+00  AT ELEMENT   b 2  EQUATION   1
+ ...ITERATING...  AT [  65,  3] --- DELTEX = 0.590296E+11   MAX. RES. = 0.269285E-04  AT ELEMENT   a 2  EQUATION   1
+   g 2(  65,  4) ST = 0.318728E+13 DT = 0.590296E+11 DX1= 0.375124E+02 DX2= 0.631126E-01 T = 270.356 P =  5933083. S = 0.000000E+00
+ ...ITERATING...  AT [  66,  1] --- DELTEX = 0.118059E+12   MAX. RES. = 0.768597E-01  AT ELEMENT   b 2  EQUATION   1
+ ...ITERATING...  AT [  66,  2] --- DELTEX = 0.118059E+12   MAX. RES. = 0.206896E+02  AT ELEMENT   b 1  EQUATION   1
+ ...ITERATING...  AT [  66,  3] --- DELTEX = 0.118059E+12   MAX. RES. = 0.115373E+02  AT ELEMENT   b 2  EQUATION   1
+ ...ITERATING...  AT [  66,  4] --- DELTEX = 0.118059E+12   MAX. RES. = 0.261283E+01  AT ELEMENT   b 2  EQUATION   1
+ ...ITERATING...  AT [  66,  5] --- DELTEX = 0.118059E+12   MAX. RES. = 0.694913E-01  AT ELEMENT   b 2  EQUATION   1
+ ...ITERATING...  AT [  66,  6] --- DELTEX = 0.118059E+12   MAX. RES. = 0.151338E+00  AT ELEMENT   b 2  EQUATION   1
+ ...ITERATING...  AT [  66,  7] --- DELTEX = 0.118059E+12   MAX. RES. = 0.331855E-01  AT ELEMENT   b 2  EQUATION   1
+ ...ITERATING...  AT [  66,  8] --- DELTEX = 0.118059E+12   MAX. RES. = 0.332750E-02  AT ELEMENT   b 2  EQUATION   1
+ ...ITERATING...  AT [  66,  9] --- DELTEX = 0.118059E+12   MAX. RES. = 0.188833E-04  AT ELEMENT   b 2  EQUATION   1
+ +++++++++ REDUCE TIME STEP AT (  66,  9) ++++++++++++++++   NEW DELT = 0.236118E+11
+ ...ITERATING...  AT [  66,  1] --- DELTEX = 0.236118E+11   MAX. RES. = 0.153719E-01  AT ELEMENT   b 2  EQUATION   1
+ ...ITERATING...  AT [  66,  2] --- DELTEX = 0.236118E+11   MAX. RES. = 0.709109E-04  AT ELEMENT   h 1  EQUATION   1
+   g 1(  66,  3) ST = 0.321090E+13 DT = 0.236118E+11 DX1= 0.137976E+03 DX2= 0.383549E-04 T = 218.937 P =  2273033. S = 0.290349E+00
+ ...ITERATING...  AT [  67,  1] --- DELTEX = 0.472237E+11   MAX. RES. = 0.438046E-01  AT ELEMENT   b 2  EQUATION   1
+ ...ITERATING...  AT [  67,  2] --- DELTEX = 0.472237E+11   MAX. RES. = 0.221987E+01  AT ELEMENT   b 1  EQUATION   1
+ ...ITERATING...  AT [  67,  3] --- DELTEX = 0.472237E+11   MAX. RES. = 0.118393E+00  AT ELEMENT   b 2  EQUATION   1
+ ...ITERATING...  AT [  67,  4] --- DELTEX = 0.472237E+11   MAX. RES. = 0.158023E-01  AT ELEMENT   b 2  EQUATION   1
+ ...ITERATING...  AT [  67,  5] --- DELTEX = 0.472237E+11   MAX. RES. = 0.383633E-03  AT ELEMENT   b 2  EQUATION   1
+   g 1(  67,  6) ST = 0.325812E+13 DT = 0.472237E+11 DX1= 0.108542E+04 DX2= 0.165447E-03 T = 218.962 P =  2274119. S = 0.290515E+00
+ ...ITERATING...  AT [  68,  1] --- DELTEX = 0.472237E+11   MAX. RES. = 0.511122E-01  AT ELEMENT   b 2  EQUATION   1
+ ...ITERATING...  AT [  68,  2] --- DELTEX = 0.472237E+11   MAX. RES. = 0.115702E+00  AT ELEMENT   b 2  EQUATION   1
+ ...ITERATING...  AT [  68,  3] --- DELTEX = 0.472237E+11   MAX. RES. = 0.574429E-02  AT ELEMENT   b 2  EQUATION   1
+ ...ITERATING...  AT [  68,  4] --- DELTEX = 0.472237E+11   MAX. RES. = 0.249519E-03  AT ELEMENT   b 2  EQUATION   1
+   g 1(  68,  5) ST = 0.330534E+13 DT = 0.472237E+11 DX1= 0.180438E+04 DX2= 0.271558E-03 T = 219.003 P =  2275923. S = 0.290786E+00
+ ...ITERATING...  AT [  69,  1] --- DELTEX = 0.944473E+11   MAX. RES. = 0.321954E-01  AT ELEMENT   b 2  EQUATION   1
+ ...ITERATING...  AT [  69,  2] --- DELTEX = 0.944473E+11   MAX. RES. = 0.996086E-01  AT ELEMENT   b 2  EQUATION   1
+ ...ITERATING...  AT [  69,  3] --- DELTEX = 0.944473E+11   MAX. RES. = 0.504899E-02  AT ELEMENT   b 2  EQUATION   1
+ ...ITERATING...  AT [  69,  4] --- DELTEX = 0.944473E+11   MAX. RES. = 0.482585E-04  AT ELEMENT   b 2  EQUATION   1
+   c 1(  69,  5) ST = 0.339979E+13 DT = 0.944473E+11 DX1= -.117801E+04 DX2= -.584133E-03 T = 213.832 P =  2058303. S = 0.180802E+00
+ ...ITERATING...  AT [  70,  1] --- DELTEX = 0.188895E+12   MAX. RES. = 0.362238E-01  AT ELEMENT   t 4  EQUATION   2
+ ...ITERATING...  AT [  70,  2] --- DELTEX = 0.188895E+12   MAX. RES. = 0.874497E-01  AT ELEMENT   b 2  EQUATION   1
+ ...ITERATING...  AT [  70,  3] --- DELTEX = 0.188895E+12   MAX. RES. = 0.274709E-02  AT ELEMENT   b 2  EQUATION   1
+   g 1(  70,  4) ST = 0.358869E+13 DT = 0.188895E+12 DX1= 0.120614E+04 DX2= 0.394661E-03 T = 219.069 P =  2278776. S = 0.291540E+00
+ ...ITERATING...  AT [  71,  1] --- DELTEX = 0.377789E+12   MAX. RES. = 0.660186E-01  AT ELEMENT   t 4  EQUATION   2
+ ...ITERATING...  AT [  71,  2] --- DELTEX = 0.377789E+12   MAX. RES. = 0.148784E+00  AT ELEMENT   b 2  EQUATION   1
+ ...ITERATING...  AT [  71,  3] --- DELTEX = 0.377789E+12   MAX. RES. = 0.424978E-02  AT ELEMENT   b 2  EQUATION   1
+ ...ITERATING...  AT [  71,  4] --- DELTEX = 0.377789E+12   MAX. RES. = 0.104300E-04  AT ELEMENT   g 1  EQUATION   1
+   g 1(  71,  5) ST = 0.396647E+13 DT = 0.377789E+12 DX1= 0.998386E+03 DX2= 0.493277E-03 T = 219.091 P =  2279774. S = 0.292034E+00
+ ...ITERATING...  AT [  72,  1] --- DELTEX = 0.755579E+12   MAX. RES. = 0.110289E+00  AT ELEMENT   t 4  EQUATION   2
+ ...ITERATING...  AT [  72,  2] --- DELTEX = 0.755579E+12   MAX. RES. = 0.264981E+00  AT ELEMENT   b 2  EQUATION   1
+ ...ITERATING...  AT [  72,  3] --- DELTEX = 0.755579E+12   MAX. RES. = 0.108435E-01  AT ELEMENT   b 2  EQUATION   1
+ ...ITERATING...  AT [  72,  4] --- DELTEX = 0.755579E+12   MAX. RES. = 0.240643E-04  AT ELEMENT   g 1  EQUATION   1
+   g 1(  72,  5) ST = 0.472205E+13 DT = 0.755579E+12 DX1= 0.400860E+03 DX2= 0.577510E-03 T = 219.101 P =  2280175. S = 0.292611E+00
+ ...ITERATING...  AT [  73,  1] --- DELTEX = 0.151116E+13   MAX. RES. = 0.155506E+00  AT ELEMENT   t 4  EQUATION   2
+ ...ITERATING...  AT [  73,  2] --- DELTEX = 0.151116E+13   MAX. RES. = 0.399006E+00  AT ELEMENT   h 1  EQUATION   1
+ ...ITERATING...  AT [  73,  3] --- DELTEX = 0.151116E+13   MAX. RES. = 0.619408E-02  AT ELEMENT   b 2  EQUATION   1
+   c 1(  73,  4) ST = 0.623321E+13 DT = 0.151116E+13 DX1= 0.599449E+04 DX2= 0.417414E-02 T = 214.165 P =  2071816. S = 0.190614E+00
+ ...ITERATING...  AT [  74,  1] --- DELTEX = 0.302231E+13   MAX. RES. = 0.173793E+00  AT ELEMENT   y 4  EQUATION   2
+ ...ITERATING...  AT [  74,  2] --- DELTEX = 0.302231E+13   MAX. RES. = 0.417025E+00  AT ELEMENT   h 1  EQUATION   1
+ ...ITERATING...  AT [  74,  3] --- DELTEX = 0.302231E+13   MAX. RES. = 0.221419E-02  AT ELEMENT   g 1  EQUATION   1
+   c 1(  74,  4) ST = 0.925553E+13 DT = 0.302231E+13 DX1= 0.522455E+04 DX2= 0.352906E-02 T = 214.293 P =  2077041. S = 0.194143E+00
+ ...ITERATING...  AT [  75,  1] --- DELTEX = 0.604463E+13   MAX. RES. = 0.132672E+00  AT ELEMENT   y 4  EQUATION   2
+ ...ITERATING...  AT [  75,  2] --- DELTEX = 0.604463E+13   MAX. RES. = 0.199335E+00  AT ELEMENT   h 1  EQUATION   1
+ ...ITERATING...  AT [  75,  3] --- DELTEX = 0.604463E+13   MAX. RES. = 0.136365E-02  AT ELEMENT   g 1  EQUATION   1
+   g 1(  75,  4) ST = 0.153002E+14 DT = 0.604463E+13 DX1= -.296363E+03 DX2= 0.195147E-03 T = 219.081 P =  2279315. S = 0.293804E+00
+ ...ITERATING...  AT [  76,  1] --- DELTEX = 0.120893E+14   MAX. RES. = 0.623159E-01  AT ELEMENT   y 4  EQUATION   2
+ ...ITERATING...  AT [  76,  2] --- DELTEX = 0.120893E+14   MAX. RES. = 0.547003E-01  AT ELEMENT   h 1  EQUATION   1
+ ...ITERATING...  AT [  76,  3] --- DELTEX = 0.120893E+14   MAX. RES. = 0.424644E-03  AT ELEMENT   g 1  EQUATION   1
+   g 1(  76,  4) ST = 0.273894E+14 DT = 0.120893E+14 DX1= -.930485E+02 DX2= 0.523745E-04 T = 219.079 P =  2279222. S = 0.293856E+00
+ ...ITERATING...  AT [  77,  1] --- DELTEX = 0.241785E+14   MAX. RES. = 0.167172E-01  AT ELEMENT   y 4  EQUATION   2
+ ...ITERATING...  AT [  77,  2] --- DELTEX = 0.241785E+14   MAX. RES. = 0.129730E-01  AT ELEMENT   k 1  EQUATION   1
+ ...ITERATING...  AT [  77,  3] --- DELTEX = 0.241785E+14   MAX. RES. = 0.934692E-04  AT ELEMENT   g 1  EQUATION   1
+   g 1(  77,  4) ST = 0.515679E+14 DT = 0.241785E+14 DX1= -.140377E+02 DX2= 0.761863E-05 T = 219.078 P =  2279208. S = 0.293864E+00
+ ...ITERATING...  AT [  78,  1] --- DELTEX = 0.483570E+14   MAX. RES. = 0.241920E-02  AT ELEMENT   y 4  EQUATION   2
+ ...ITERATING...  AT [  78,  2] --- DELTEX = 0.483570E+14   MAX. RES. = 0.196382E-02  AT ELEMENT   k 1  EQUATION   1
+ ...ITERATING...  AT [  78,  3] --- DELTEX = 0.483570E+14   MAX. RES. = 0.132141E-04  AT ELEMENT   g 1  EQUATION   1
+   g 1(  78,  4) ST = 0.999250E+14 DT = 0.483570E+14 DX1= -.106664E+01 DX2= 0.575654E-06 T = 219.078 P =  2279207. S = 0.293864E+00
+ ...ITERATING...  AT [  79,  1] --- DELTEX = 0.967141E+14   MAX. RES. = 0.182163E-03  AT ELEMENT   y 4  EQUATION   2
+ ...ITERATING...  AT [  79,  2] --- DELTEX = 0.967141E+14   MAX. RES. = 0.151241E-03  AT ELEMENT   k 1  EQUATION   1
+   g 1(  79,  3) ST = 0.196639E+15 DT = 0.967141E+14 DX1= -.408576E-01 DX2= 0.221303E-07 T = 219.078 P =  2279207. S = 0.293864E+00
+ ...ITERATING...  AT [  80,  1] --- DELTEX = 0.193428E+15   MAX. RES. = 0.700020E-05  AT ELEMENT   y 4  EQUATION   2
+   k 1(  80,  2) ST = 0.390067E+15 DT = 0.193428E+15 DX1= 0.555276E-02 DX2= 0.286651E-08 T = 216.984 P =  2188920. S = 0.238417E+00
+ ...ITERATING...  AT [  81,  1] --- DELTEX = 0.386856E+15   MAX. RES. = 0.122490E-04  AT ELEMENT   k 1  EQUATION   1
+   k 1(  81,  2) ST = 0.776923E+15 DT = 0.386856E+15 DX1= 0.113752E-02 DX2= 0.138161E-09 T = 216.984 P =  2188920. S = 0.238417E+00
+ ...ITERATING...  AT [  82,  1] --- DELTEX = 0.773713E+15   MAX. RES. = 0.207925E-05  AT ELEMENT   k 1  EQUATION   1
+   k 1(  82,  2) ST = 0.155064E+16 DT = 0.773713E+15 DX1= 0.222590E-02 DX2= 0.252786E-09 T = 216.984 P =  2188920. S = 0.238417E+00
+ ...ITERATING...  AT [  83,  1] --- DELTEX = 0.154743E+16   MAX. RES. = 0.794888E-05  AT ELEMENT   k 1  EQUATION   1
+ ...ITERATING...  AT [  83,  2] --- DELTEX = 0.154743E+16   MAX. RES. = 0.158744E-04  AT ELEMENT   k 1  EQUATION   1
+   n 1(  83,  3) ST = 0.309806E+16 DT = 0.154743E+16 DX1= 0.316156E-02 DX2= 0.397343E-05 T =  78.502 P =  1804671. S = 0.000000E+00
+ ...ITERATING...  AT [  84,  1] --- DELTEX = 0.309485E+16   MAX. RES. = 0.304912E-06  AT ELEMENT   g 2  EQUATION   2
+ ...ITERATING...  AT [  84,  2] --- DELTEX = 0.309485E+16   MAX. RES. = 0.636948E-04  AT ELEMENT   k 1  EQUATION   1
+   h 1(  84,  3) ST = 0.619291E+16 DT = 0.309485E+16 DX1= 0.125293E-01 DX2= 0.909151E-09 T = 212.809 P =  2017231. S = 0.161655E+00
+ ...ITERATING...  AT [  85,  1] --- DELTEX = 0.380709E+16   MAX. RES. = 0.495261E-06  AT ELEMENT   g 1  EQUATION   1
+ ...ITERATING...  AT [  85,  2] --- DELTEX = 0.380709E+16   MAX. RES. = 0.963739E-04  AT ELEMENT   k 1  EQUATION   1
+   b 2(  85,  3) ST = 0.100000E+17 DT = 0.380709E+16 DX1= 0.353819E-02 DX2= 0.303569E-08 T = 275.184 P =  5966471. S = 0.167564E+00
+ EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
+ 3-D MINC production model                                                       
+ OUTPUT AFTER  85 TIME STEPS    0.1000000000000000E+17 SECONDS
+ THE TIME IS 0.3169E+09 YEARS OR 0.1157E+12 DAYS OR 0.1000E+17 SECONDS
+ EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
+                                                           ELEMENT TABLE
+
+  ELEMENT     INDEX       Pressure        Temperature     Vapour saturation   Liquid saturation   Vapour density   Liquid density  
+
+      a 0         1      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      b 0         2      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      c 0         3      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      d 0         4      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      e 0         5      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      f 0         6      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      g 0         7      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      h 0         8      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      i 0         9      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      j 0        10      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      k 0        11      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      l 0        12      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      m 0        13      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      n 0        14      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      o 0        15      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      p 0        16      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      q 0        17      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      r 0        18      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      s 0        19      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      t 0        20      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      u 0        21      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      v 0        22      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      w 0        23      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      x 0        24      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      y 0        25      1.00000E+05      1.50000E+01        0.00000E+00          1.00000E+00       1.28241E-02      9.99213E+02
+      a 1        26      2.20276E+06      2.17309E+02        3.00966E-01          6.99034E-01       1.10449E+01      8.43769E+02
+      b 1        27      2.21165E+06      2.17517E+02        2.95501E-01          7.04499E-01       1.10887E+01      8.43507E+02
+      c 1        28      2.08052E+06      2.14379E+02        1.96471E-01          8.03529E-01       1.04426E+01      8.47428E+02
+      d 1        29      1.85304E+06      1.52628E+02        0.00000E+00          1.00000E+00       2.72175E+00      9.15106E+02
+      e 1        30      1.71283E+06      3.95391E+01        0.00000E+00          1.00000E+00       4.99885E-02      9.93175E+02
+      f 1        31      2.19696E+06      2.17173E+02        2.97771E-01          7.02229E-01       1.10162E+01      8.43940E+02
+      g 1        32      2.27921E+06      2.19078E+02        2.93864E-01          7.06136E-01       1.14221E+01      8.41536E+02
+      h 1        33      2.01723E+06      2.12809E+02        1.61655E-01          8.38345E-01       1.01313E+01      8.49368E+02
+      i 1        34      1.84578E+06      1.41418E+02        0.00000E+00          1.00000E+00       2.04184E+00      9.25434E+02
+      j 1        35      1.70906E+06      3.80970E+01        0.00000E+00          1.00000E+00       4.64667E-02      9.93717E+02
+      k 1        36      2.18892E+06      2.16984E+02        2.38417E-01          7.61583E-01       1.09766E+01      8.44178E+02
+      l 1        37      2.10986E+06      2.15094E+02        2.08023E-01          7.91977E-01       1.05871E+01      8.46540E+02
+      m 1        38      1.89919E+06      1.87583E+02        0.00000E+00          1.00000E+00       6.07842E+00      8.79215E+02
+      n 1        39      1.80467E+06      7.85022E+01        0.00000E+00          1.00000E+00       2.77056E-01      9.73373E+02
+      o 1        40      1.69784E+06      3.29513E+01        0.00000E+00          1.00000E+00       3.55691E-02      9.95521E+02
+      p 1        41      1.88696E+06      1.85738E+02        0.00000E+00          1.00000E+00       5.84366E+00      8.81254E+02
+      q 1        42      1.87551E+06      1.75344E+02        0.00000E+00          1.00000E+00       4.65374E+00      8.92450E+02
+      r 1        43      1.83409E+06      1.25291E+02        0.00000E+00          1.00000E+00       1.30923E+00      9.39349E+02
+      s 1        44      1.73179E+06      4.63765E+01        0.00000E+00          1.00000E+00       6.99467E-02      9.90394E+02
+1     t 1        45      1.68218E+06      2.52605E+01        0.00000E+00          1.00000E+00       2.33807E-02      9.97800E+02
+      u 1        46      1.76636E+06      5.61456E+01        0.00000E+00          1.00000E+00       1.09898E-01      9.85872E+02
+      v 1        47      1.75303E+06      5.24659E+01        0.00000E+00          1.00000E+00       9.30454E-02      9.87648E+02
+      w 1        48      1.72181E+06      4.24279E+01        0.00000E+00          1.00000E+00       5.77314E-02      9.92042E+02
+      x 1        49      1.68728E+06      2.85574E+01        0.00000E+00          1.00000E+00       2.80734E-02      9.96887E+02
+      y 1        50      1.67771E+06      1.86351E+01        0.00000E+00          1.00000E+00       1.59542E-02      9.99313E+02
+      a 2        51      6.02440E+06      2.75814E+02        1.96813E-01          8.03187E-01       3.09644E+01      7.57876E+02
+      b 2        52      5.96647E+06      2.75184E+02        1.67564E-01          8.32436E-01       3.06413E+01      7.58965E+02
+      c 2        53      5.84113E+06      2.46704E+02        0.00000E+00          1.00000E+00       1.88688E+01      8.06374E+02
+      d 2        54      5.71823E+06      2.00228E+02        0.00000E+00          1.00000E+00       7.90042E+00      8.67615E+02
+      e 2        55      5.66931E+06      1.08339E+02        0.00000E+00          1.00000E+00       7.84234E-01      9.54674E+02
+      f 2        56      5.98848E+06      2.75424E+02        1.85931E-01          8.14069E-01       3.07639E+01      7.58551E+02
+      g 2        57      5.92369E+06      2.72945E+02        0.00000E+00          1.00000E+00       2.95184E+01      7.63041E+02
+      h 2        58      5.82517E+06      2.41475E+02        0.00000E+00          1.00000E+00       1.72084E+01      8.14099E+02
+      i 2        59      5.71537E+06      1.95587E+02        0.00000E+00          1.00000E+00       7.18647E+00      8.72963E+02
+      j 2        60      5.66565E+06      1.04636E+02        0.00000E+00          1.00000E+00       6.96318E-01      9.57423E+02
+      k 2        61      5.87844E+06      2.57635E+02        0.00000E+00          1.00000E+00       2.27953E+01      7.89342E+02
+      l 2        62      5.85300E+06      2.49349E+02        0.00000E+00          1.00000E+00       1.97601E+01      8.02371E+02
+      m 2        63      5.77641E+06      2.18880E+02        0.00000E+00          1.00000E+00       1.13793E+01      8.44880E+02
+      n 2        64      5.70655E+06      1.74612E+02        0.00000E+00          1.00000E+00       4.57802E+00      8.95728E+02
+      o 2        65      5.65470E+06      9.10735E+01        0.00000E+00          1.00000E+00       4.39916E-01      9.66988E+02
+      p 2        66      5.74525E+06      2.19350E+02        0.00000E+00          1.00000E+00       1.14810E+01      8.44250E+02
+      q 2        67      5.73610E+06      2.12822E+02        0.00000E+00          1.00000E+00       1.01339E+01      8.52483E+02
+      r 2        68      5.71306E+06      1.87587E+02        0.00000E+00          1.00000E+00       6.07895E+00      8.81909E+02
+      s 2        69      5.67541E+06      1.30250E+02        0.00000E+00          1.00000E+00       1.50724E+00      9.37222E+02
+      t 2        70      5.63676E+06      6.04982E+01        0.00000E+00          1.00000E+00       1.33078E-01      9.85354E+02
+      u 2        71      5.70808E+06      1.47351E+02        0.00000E+00          1.00000E+00       2.38217E+00      9.22237E+02
+      v 2        72      5.69908E+06      1.39437E+02        0.00000E+00          1.00000E+00       1.93734E+00      9.29326E+02
+      w 2        73      5.67548E+06      1.17228E+02        0.00000E+00          1.00000E+00       1.03244E+00      9.47836E+02
+      x 2        74      5.64320E+06      7.41181E+01        0.00000E+00          1.00000E+00       2.33646E-01      9.77759E+02
+      y 2        75      5.62418E+06      3.08437E+01        0.00000E+00          1.00000E+00       3.17838E-02      9.97926E+02
+      a 3        76      1.08728E+07      2.82478E+02        0.00000E+00          1.00000E+00       3.45847E+01      7.53140E+02
+      b 3        77      1.08718E+07      2.78694E+02        0.00000E+00          1.00000E+00       3.24826E+01      7.60123E+02
+      c 3        78      1.08804E+07      2.39364E+02        0.00000E+00          1.00000E+00       1.65745E+01      8.22271E+02
+      d 3        79      1.09083E+07      1.28685E+02        0.00000E+00          1.00000E+00       1.44229E+00      9.41243E+02
+      e 3        80      1.09934E+07      1.03904E+02        0.00000E+00          1.00000E+00       6.79917E-01      9.60492E+02
+      f 3        81      1.08708E+07      2.80680E+02        0.00000E+00          1.00000E+00       3.35702E+01      7.56484E+02
+      g 3        82      1.08709E+07      2.74195E+02        0.00000E+00          1.00000E+00       3.01401E+01      7.68147E+02
+      h 3        83      1.08827E+07      2.27924E+02        0.00000E+00          1.00000E+00       1.34727E+01      8.37686E+02
+      i 3        84      1.09129E+07      1.22542E+02        0.00000E+00          1.00000E+00       1.20888E+00      9.46238E+02
+      j 3        85      1.09963E+07      9.85815E+01        0.00000E+00          1.00000E+00       5.69953E-01      9.64289E+02
+      k 3        86      1.08686E+07      2.53669E+02        0.00000E+00          1.00000E+00       2.12951E+01      8.01512E+02
+      l 3        87      1.08735E+07      2.39016E+02        0.00000E+00          1.00000E+00       1.64718E+01      8.22748E+02
+      m 3        88      1.08912E+07      1.89985E+02        0.00000E+00          1.00000E+00       6.39535E+00      8.82878E+02
+      n 3        89      1.09293E+07      1.10746E+02        0.00000E+00          1.00000E+00       8.46073E-01      9.55408E+02
+      o 3        90      1.10063E+07      8.48388E+01        0.00000E+00          1.00000E+00       3.51418E-01      9.73527E+02
+      p 3        91      1.08728E+07      1.50647E+02        0.00000E+00          1.00000E+00       2.59003E+00      9.22134E+02
+      q 3        92      1.08801E+07      1.39595E+02        0.00000E+00          1.00000E+00       1.94554E+00      9.31987E+02
+      r 3        93      1.09065E+07      1.19948E+02        0.00000E+00          1.00000E+00       1.11995E+00      9.48298E+02
+      s 3        94      1.09602E+07      1.00031E+02        0.00000E+00          1.00000E+00       5.98349E-01      9.63251E+02
+      t 3        95      1.10260E+07      6.05742E+01        0.00000E+00          1.00000E+00       1.33516E-01      9.87648E+02
+      u 3        96      1.09216E+07      1.32856E+02        0.00000E+00          1.00000E+00       1.62051E+00      9.37773E+02
+      v 3        97      1.09287E+07      1.23497E+02        0.00000E+00          1.00000E+00       1.24301E+00      9.45480E+02
+      w 3        98      1.09524E+07      1.03782E+02        0.00000E+00          1.00000E+00       6.77235E-01      9.60561E+02
+      x 3        99      1.09984E+07      7.10575E+01        0.00000E+00          1.00000E+00       2.06818E-01      9.81906E+02
+      y 3       100      1.10443E+07      3.67712E+01        0.00000E+00          1.00000E+00       4.34177E-02      9.98252E+02
+      a 4       101      1.69842E+07      2.83279E+02        0.00000E+00          1.00000E+00       3.50466E+01      7.61072E+02
+      b 4       102      1.69963E+07      2.81142E+02        0.00000E+00          1.00000E+00       3.38282E+01      7.64821E+02
+1     c 4       103      1.70406E+07      2.47604E+02        0.00000E+00          1.00000E+00       1.91681E+01      8.16897E+02
+      d 4       104      1.71851E+07      1.23818E+02        0.00000E+00          1.00000E+00       1.25465E+00      9.48331E+02
+      e 4       105      1.73226E+07      1.00647E+02        0.00000E+00          1.00000E+00       6.10756E-01      9.65751E+02
+      f 4       106      1.69869E+07      2.81828E+02        0.00000E+00          1.00000E+00       3.42148E+01      7.63616E+02
+      g 4       107      1.70032E+07      2.78372E+02        0.00000E+00          1.00000E+00       3.23095E+01      7.69578E+02
+      h 4       108      1.70558E+07      2.39097E+02        0.00000E+00          1.00000E+00       1.64958E+01      8.28546E+02
+      i 4       109      1.71949E+07      1.18174E+02        0.00000E+00          1.00000E+00       1.06224E+00      9.52758E+02
+      j 4       110      1.73303E+07      9.55683E+01        0.00000E+00          1.00000E+00       5.14441E-01      9.69268E+02
+      k 4       111      1.70044E+07      2.56998E+02        0.00000E+00          1.00000E+00       2.25483E+01      8.03359E+02
+      l 4       112      1.70291E+07      2.47194E+02        0.00000E+00          1.00000E+00       1.90312E+01      8.17459E+02
+      m 4       113      1.71006E+07      2.06683E+02        0.00000E+00          1.00000E+00       8.98853E+00      8.68645E+02
+      n 4       114      1.72262E+07      1.06343E+02        0.00000E+00          1.00000E+00       7.35787E-01      9.61638E+02
+      o 4       115      1.73557E+07      8.32770E+01        0.00000E+00          1.00000E+00       3.31719E-01      9.77329E+02
+      p 4       116      1.70883E+07      1.44101E+02        0.00000E+00          1.00000E+00       2.19058E+00      9.31370E+02
+      q 4       117      1.71083E+07      1.34102E+02        0.00000E+00          1.00000E+00       1.67705E+00      9.39917E+02
+      r 4       118      1.71702E+07      1.15123E+02        0.00000E+00          1.00000E+00       9.68600E-01      9.55086E+02
+      s 4       119      1.72816E+07      9.00451E+01        0.00000E+00          1.00000E+00       4.24176E-01      9.72945E+02
+      t 4       120      1.74012E+07      6.44235E+01        0.00000E+00          1.00000E+00       1.57369E-01      9.88341E+02
+      u 4       121      1.71663E+07      1.21163E+02        0.00000E+00          1.00000E+00       1.16091E+00      9.50418E+02
+      v 4       122      1.71849E+07      1.13258E+02        0.00000E+00          1.00000E+00       9.14734E-01      9.56505E+02
+      w 4       123      1.72434E+07      9.67012E+01        0.00000E+00          1.00000E+00       5.34768E-01      9.68454E+02
+      x 4       124      1.73471E+07      7.18907E+01        0.00000E+00          1.00000E+00       2.13853E-01      9.84172E+02
+      y 4       125      1.74414E+07      4.65482E+01        0.00000E+00          1.00000E+00       7.05239E-02      9.97050E+02
+      a 5       126      2.41772E+07      2.83917E+02        0.00000E+00          1.00000E+00       3.54184E+01      7.70019E+02
+      b 5       127      2.41477E+07      2.83607E+02        0.00000E+00          1.00000E+00       3.52371E+01      7.70491E+02
+      c 5       128      2.39744E+07      2.58929E+02        0.00000E+00          1.00000E+00       2.33047E+01      8.07963E+02
+      d 5       129      2.41915E+07      1.25576E+02        0.00000E+00          1.00000E+00       1.32002E+00      9.50350E+02
+      e 5       130      2.43891E+07      1.05320E+02        0.00000E+00          1.00000E+00       7.11917E-01      9.65658E+02
+      f 5       131      2.41352E+07      2.83624E+02        0.00000E+00          1.00000E+00       3.52471E+01      7.70446E+02
+      g 5       132      2.41173E+07      2.83141E+02        0.00000E+00          1.00000E+00       3.49664E+01      7.71215E+02
+      h 5       133      2.39881E+07      2.53229E+02        0.00000E+00          1.00000E+00       2.11340E+01      8.15963E+02
+      i 5       134      2.42073E+07      1.19632E+02        0.00000E+00          1.00000E+00       1.10948E+00      9.54984E+02
+      j 5       135      2.44025E+07      9.99494E+01        0.00000E+00          1.00000E+00       5.96721E-01      9.69433E+02
+      k 5       136      2.39530E+07      2.67139E+02        0.00000E+00          1.00000E+00       2.67814E+01      7.95994E+02
+      l 5       137      2.39727E+07      2.60618E+02        0.00000E+00          1.00000E+00       2.39846E+01      8.05548E+02
+      m 5       138      2.40334E+07      2.26892E+02        0.00000E+00          1.00000E+00       1.32186E+01      8.50102E+02
+      n 5       139      2.42574E+07      1.07372E+02        0.00000E+00          1.00000E+00       7.60458E-01      9.64128E+02
+      o 5       140      2.44448E+07      8.90086E+01        0.00000E+00          1.00000E+00       4.08783E-01      9.76769E+02
+      p 5       141      2.40496E+07      1.42443E+02        0.00000E+00          1.00000E+00       2.09767E+00      9.36433E+02
+      q 5       142      2.40795E+07      1.32236E+02        0.00000E+00          1.00000E+00       1.59299E+00      9.44953E+02
+      r 5       143      2.41708E+07      1.14038E+02        0.00000E+00          1.00000E+00       9.36957E-01      9.59200E+02
+      s 5       144      2.43525E+07      9.07386E+01        0.00000E+00          1.00000E+00       4.34739E-01      9.75604E+02
+      t 5       145      2.45171E+07      7.53144E+01        0.00000E+00          1.00000E+00       2.44888E-01      9.85239E+02
+      u 5       146      2.41701E+07      1.20157E+02        0.00000E+00          1.00000E+00       1.12691E+00      9.54563E+02
+      v 5       147      2.41996E+07      1.11258E+02        0.00000E+00          1.00000E+00       8.59715E-01      9.61273E+02
+      w 5       148      2.42889E+07      9.66110E+01        0.00000E+00          1.00000E+00       5.33126E-01      9.71667E+02
+      x 5       149      2.44425E+07      7.93151E+01        0.00000E+00          1.00000E+00       2.85795E-01      9.82828E+02
+      y 5       150      2.45833E+07      6.34963E+01        0.00000E+00          1.00000E+00       1.51321E-01      9.91853E+02
+ EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
+
+1GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG
+ 3-D MINC production model                                                       
+ OUTPUT AFTER  85 TIME STEPS    0.1000000000000000E+17 SECONDS
+ THE TIME IS 0.3169E+09 YEARS OR 0.1157E+12 DAYS OR 0.1000E+17 SECONDS
+ GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG
+                                                          GENERATION TABLE
+
+   ELEMENT       SOURCE      INDEX       Generation rate        Enthalpy          Steam frac.       Steam sepa.    Wellbore pressu 
+
+       a 5         a99           1         4.00000E+00        1.250000E+06       0.000000E+00       0.000000E+00     0.000000E+00
+       b 5         b99           2         6.00000E+00        1.250000E+06       0.000000E+00       0.000000E+00     0.000000E+00
+       c 5         c99           3         2.00000E+00        1.250000E+06       0.000000E+00       0.000000E+00     0.000000E+00
+       d 5         d99           4         2.00000E-02        1.250000E+06       0.000000E+00       0.000000E+00     0.000000E+00
+       e 5         e99           5         2.40000E-02        1.250000E+06       0.000000E+00       0.000000E+00     0.000000E+00
+       f 5         f99           6         6.00000E+00        1.250000E+06       0.000000E+00       0.000000E+00     0.000000E+00
+       g 5         g99           7         9.00000E+00        1.250000E+06       0.000000E+00       0.000000E+00     0.000000E+00
+       h 5         h99           8         3.00000E+00        1.250000E+06       0.000000E+00       0.000000E+00     0.000000E+00
+       i 5         i99           9         3.00000E-02        1.250000E+06       0.000000E+00       0.000000E+00     0.000000E+00
+       j 5         j99          10         3.60000E-02        1.250000E+06       0.000000E+00       0.000000E+00     0.000000E+00
+       k 5         k99          11         2.00000E+00        1.250000E+06       0.000000E+00       0.000000E+00     0.000000E+00
+       l 5         l99          12         3.00000E+00        1.250000E+06       0.000000E+00       0.000000E+00     0.000000E+00
+       m 5         m99          13         4.00000E+00        1.250000E+06       0.000000E+00       0.000000E+00     0.000000E+00
+       n 5         n99          14         4.00000E-02        1.250000E+06       0.000000E+00       0.000000E+00     0.000000E+00
+       o 5         o99          15         4.80000E-02        1.250000E+06       0.000000E+00       0.000000E+00     0.000000E+00
+       p 5         p99          16         2.00000E-02        1.250000E+06       0.000000E+00       0.000000E+00     0.000000E+00
+       q 5         q99          17         3.00000E-02        1.250000E+06       0.000000E+00       0.000000E+00     0.000000E+00
+       r 5         r99          18         4.00000E-02        1.250000E+06       0.000000E+00       0.000000E+00     0.000000E+00
+       s 5         s99          19         5.00000E-02        1.250000E+06       0.000000E+00       0.000000E+00     0.000000E+00
+       t 5         t99          20         6.00000E-02        1.250000E+06       0.000000E+00       0.000000E+00     0.000000E+00
+       u 5         u99          21         2.40000E-02        1.250000E+06       0.000000E+00       0.000000E+00     0.000000E+00
+       v 5         v99          22         3.60000E-02        1.250000E+06       0.000000E+00       0.000000E+00     0.000000E+00
+       w 5         w99          23         4.80000E-02        1.250000E+06       0.000000E+00       0.000000E+00     0.000000E+00
+       x 5         x99          24         6.00000E-02        1.250000E+06       0.000000E+00       0.000000E+00     0.000000E+00
+       y 5         y99          25         7.20000E-02        1.250000E+06       0.000000E+00       0.000000E+00     0.000000E+00
+ GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG
+
+ BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB
+ 3-D MINC production model                                                       
+ OUTPUT AFTER  85 TIME STEPS    0.1000000000000000E+17 SECONDS
+ THE TIME IS 0.3169E+09 YEARS OR 0.1157E+12 DAYS OR 0.1000E+17 SECONDS
+ BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB
+ VOLUME BALANCE
+ Vapour 0.71809E+08 M**3;  Liquid 0.50000E+26 M**3;  
+ MASS BALANCE
+ Vapour 0.11413687E+10 KG;  Liquid 0.49960638E+29 KG;  
+ ENERGY BALANCE
+ Internal 0.10644E+35 J;  
+ BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB
+
+
+
+ END OF TOUGH2 SIMULATION RUN --- ELAPSED TIME =      0.4 SEC-- CALCULATION TIME =      0.4 SEC-- DATA INPUT TIME =      0.0 SEC
+
