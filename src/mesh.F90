@@ -2131,9 +2131,10 @@ contains
     ! Locals:
     PetscInt :: c, p, m, h, iminc, ic, ic_m1
     DMLabel :: minc_zone_label
-    PetscInt :: minc_p, above_p, face_p, inner_face_p
+    PetscInt :: minc_p, above_p, face_p, inner_face_p, orig_cone_size
     PetscInt, pointer :: points(:)
-    PetscInt, allocatable :: cell_cone(:), minc_cone(:)
+    PetscInt, allocatable :: cell_cone(:), minc_cone(:), minc_orientation(:)
+    PetscInt, pointer :: orientation(:)
     PetscErrorCode :: ierr
 
     call DMGetLabel(self%dm, minc_zone_label_name, minc_zone_label, &
@@ -2152,7 +2153,14 @@ contains
           cell_cone = [self%strata(1)%minc_point(points, 0), [face_p]]
           call DMPlexSetCone(minc_dm, minc_p, cell_cone, ierr); CHKERRQ(ierr)
           deallocate(cell_cone)
-          call dm_copy_cone_orientation(self%dm, c, minc_dm, minc_p)
+          call DMPlexGetConeSize(self%dm, c, orig_cone_size, ierr); CHKERRQ(ierr)
+          call DMPlexGetConeOrientation(self%dm, c, orientation, ierr); CHKERRQ(ierr)
+          minc_orientation = [orientation, [0]]
+          call DMPlexSetConeOrientation(minc_dm, minc_p, minc_orientation, &
+               ierr); CHKERRQ(ierr)
+          call DMPlexRestoreConeOrientation(self%dm, c, orientation, &
+               ierr); CHKERRQ(ierr)
+          deallocate(minc_orientation)
 
           do m = 1, self%minc(iminc)%num_levels
              ! MINC cells:
