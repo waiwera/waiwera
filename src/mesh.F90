@@ -2131,7 +2131,7 @@ contains
     ! Locals:
     PetscInt :: c, p, m, h, iminc, ic, ic_m1
     DMLabel :: minc_zone_label
-    PetscInt :: minc_p, above_p, face_p, inner_face_p, orig_cone_size
+    PetscInt :: minc_p, above_p, face_p, inner_face_p
     PetscInt, pointer :: points(:)
     PetscInt, allocatable :: cell_cone(:), minc_cone(:), minc_orientation(:)
     PetscInt, pointer :: orientation(:)
@@ -2153,7 +2153,6 @@ contains
           cell_cone = [self%strata(1)%minc_point(points, 0), [face_p]]
           call DMPlexSetCone(minc_dm, minc_p, cell_cone, ierr); CHKERRQ(ierr)
           deallocate(cell_cone)
-          call DMPlexGetConeSize(self%dm, c, orig_cone_size, ierr); CHKERRQ(ierr)
           call DMPlexGetConeOrientation(self%dm, c, orientation, ierr); CHKERRQ(ierr)
           minc_orientation = [orientation, [0]]
           call DMPlexSetConeOrientation(minc_dm, minc_p, minc_orientation, &
