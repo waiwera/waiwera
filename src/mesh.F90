@@ -2177,8 +2177,8 @@ contains
              ic = minc_level_cells(m, c)
              minc_p = self%strata(0)%minc_point(ic, m)
              face_p = self%strata(1)%minc_point(ic, m)
-             ic_m1 = minc_level_cells(m + 1, c)
              if (m < self%minc(iminc)%num_levels) then
+                ic_m1 = minc_level_cells(m + 1, c)
                 inner_face_p = self%strata(1)%minc_point(ic_m1, m + 1)
                 minc_cone = [face_p, inner_face_p]
              else
