@@ -1872,6 +1872,7 @@ contains
     ! Locals:
     DM :: minc_dm
     PetscInt :: coord_dim, start_chart, end_chart
+    PetscBool :: balance
     PetscInt :: num_minc_cells
     PetscInt :: num_new_points, max_num_levels
     PetscInt, allocatable :: minc_end_interior(:)
@@ -1889,6 +1890,8 @@ contains
     call DMGetCoordinateDim(self%dm, coord_dim, ierr); CHKERRQ(ierr)
     call DMSetCoordinateDim(minc_dm, coord_dim, ierr); CHKERRQ(ierr)
     call PetscObjectSetName(minc_dm, 'MINC mesh', ierr); CHKERRQ(ierr)
+    call DMPlexGetPartitionBalance(self%dm, balance, ierr); CHKERRQ(ierr)
+    call DMPlexSetPartitionBalance(minc_dm, balance, ierr); CHKERRQ(ierr)
 
     call DMPlexGetChart(self%dm, start_chart, end_chart, ierr)
     CHKERRQ(ierr)
