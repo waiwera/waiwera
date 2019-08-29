@@ -1888,6 +1888,7 @@ contains
     call DMSetDimension(minc_dm, self%dim, ierr); CHKERRQ(ierr)
     call DMGetCoordinateDim(self%dm, coord_dim, ierr); CHKERRQ(ierr)
     call DMSetCoordinateDim(minc_dm, coord_dim, ierr); CHKERRQ(ierr)
+    call PetscObjectSetName(minc_dm, 'MINC mesh', ierr); CHKERRQ(ierr)
 
     call DMPlexGetChart(self%dm, start_chart, end_chart, ierr)
     CHKERRQ(ierr)
