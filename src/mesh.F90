@@ -68,6 +68,7 @@ module mesh_module
      type(dictionary_type), public :: rock_types !! Dictionary of rock types by name
      PetscBool, public :: radial !! If mesh coordinate system is radial or Cartesian
      PetscBool, public :: has_minc !! If mesh has any MINC cells
+     PetscBool, public :: rebalance !! Set false to disable MINC mesh rebalancing
      PetscInt, public :: dof !! Degrees of freedom for default section
    contains
      procedure :: distribute => mesh_distribute
@@ -761,6 +762,7 @@ contains
     type(logfile_type), intent(in out), optional :: logfile
     ! Locals:
     PetscInt :: mesh_type
+    PetscBool, parameter :: default_rebalance = PETSC_TRUE
     PetscErrorCode :: ierr
 
     if (fson_has_mpi(json, "mesh")) then
@@ -802,6 +804,8 @@ contains
        call self%label_sources(json)
        call self%setup_cell_natural()
        self%has_minc = PETSC_FALSE
+       call fson_get_mpi(json, "mesh.rebalance", default_rebalance, &
+               self%rebalance, logfile)
     end if
 
   end subroutine mesh_init

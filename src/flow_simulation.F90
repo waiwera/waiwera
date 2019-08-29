@@ -717,7 +717,7 @@ contains
                         self%time, self%solution, self%fluid, &
                         self%solution_range_start, self%fluid_range_start, self%logfile)
 
-                   if (self%mesh%has_minc) then
+                   if (self%mesh%has_minc .and. self%mesh%rebalance) then
                       call self%redistribute(redist_err)
                       if (redist_err > 0) then
                          call self%logfile%write(LOG_LEVEL_WARN, 'simulation', &
