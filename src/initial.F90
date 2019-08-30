@@ -146,9 +146,7 @@ contains
           call DMPlexDistributeField(mesh%dm, mesh%dist_sf, serial_section, &
                serial_primary, section, local_y, ierr); CHKERRQ(ierr)
           call PetscSectionDestroy(section, ierr); CHKERRQ(ierr)
-          call DMLocalToGlobalBegin(mesh%dm, local_y, INSERT_VALUES, y, &
-               ierr); CHKERRQ(ierr)
-          call DMLocalToGlobalEnd(mesh%dm, local_y, INSERT_VALUES, y, &
+          call DMLocalToGlobal(mesh%dm, local_y, INSERT_VALUES, y, &
                ierr); CHKERRQ(ierr)
           call VecDestroy(local_y, ierr); CHKERRQ(ierr)
        else

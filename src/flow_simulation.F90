@@ -1817,9 +1817,7 @@ contains
        call PetscObjectSetName(global_cell_geom, "cell_geometry", ierr)
        CHKERRQ(ierr)
 
-       call DMLocalToGlobalBegin(geom_dm, self%mesh%cell_geom, &
-            INSERT_VALUES, global_cell_geom, ierr); CHKERRQ(ierr)
-       call DMLocalToGlobalEnd(geom_dm, self%mesh%cell_geom, &
+       call DMLocalToGlobal(geom_dm, self%mesh%cell_geom, &
             INSERT_VALUES, global_cell_geom, ierr); CHKERRQ(ierr)
 
        call vec_view_fields_hdf5(global_cell_geom, cell_geom_indices, &
