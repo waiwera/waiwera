@@ -1780,6 +1780,15 @@ contains
 
     json_str = &
          '{"mesh": {"filename": "' // trim(adjustl(data_path)) // 'mesh/col10.exo",' // &
+         '  "zones": {"all": {"-": null}},' // &
+         '  "minc": {"rock": {"zones": ["all"]}, ' // &
+         '           "geometry": {"fracture": {"volume": 0.1}, ' // &
+         '"matrix": {"volume": 0.9}}}}, ' // &
+         '}'
+    call redistribute_test(test, json_str, 'col no bdy', 1, 20, 1, [10, 10], 0)
+
+    json_str = &
+         '{"mesh": {"filename": "' // trim(adjustl(data_path)) // 'mesh/col10.exo",' // &
          '  "zones": {"minc": {"z": [-600, -100]}},' // &
          '  "minc": {"rock": {"zones": ["minc"]}, ' // &
          '           "geometry": {"fracture": {"volume": 0.1}, ' // &
