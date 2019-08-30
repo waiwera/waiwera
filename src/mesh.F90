@@ -2697,16 +2697,13 @@ contains
     ! Copy original cell geometry:
     call cell%init(nc, np)
     do c = self%strata(0)%start, self%strata(0)%end - 1
-       call DMLabelGetValue(ghost_label, c, ghost, ierr); CHKERRQ(ierr)
-       if (ghost < 0) then
-          call section_offset(cell_section, c, cell_offset, ierr)
-          CHKERRQ(ierr)
-          call section_offset(minc_cell_section, c, minc_cell_offset, ierr)
-          CHKERRQ(ierr)
-          minc_cell_geom_array(minc_cell_offset: &
-               minc_cell_offset + cell%dof - 1) = cell_geom_array(cell_offset: &
-               cell_offset + cell%dof - 1)
-       end if
+       call section_offset(cell_section, c, cell_offset, ierr); CHKERRQ(ierr)
+       minc_p = self%strata(0)%minc_point(c, 0)
+       call section_offset(minc_cell_section, minc_p, minc_cell_offset, ierr)
+       CHKERRQ(ierr)
+       minc_cell_geom_array(minc_cell_offset: &
+            minc_cell_offset + cell%dof - 1) = cell_geom_array(cell_offset: &
+            cell_offset + cell%dof - 1)
     end do
 
     ! Copy original face geometry:
