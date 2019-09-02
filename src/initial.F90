@@ -255,6 +255,7 @@ contains
     use eos_module
     use dm_utils_module
     use fluid_module, only: fluid_type
+    use minc_module, only: minc_level_label_name
 
     type(fson_value), pointer, intent(in) :: json
     type(mesh_type), intent(in) :: mesh
@@ -269,8 +270,8 @@ contains
     IS :: serial_region
     PetscSection :: serial_section, section, fluid_section
     IS :: region
-    PetscInt :: i, c, ghost, offset, dim
-    DMLabel :: ghost_label
+    PetscInt :: i, c, ghost, offset, dim, minc_level
+    DMLabel :: ghost_label, minc_label
     type(fluid_type) :: fluid
     PetscInt, pointer, contiguous :: region_indices(:)
     PetscReal, pointer, contiguous :: fluid_array(:)
@@ -280,6 +281,11 @@ contains
     call MPI_comm_rank(PETSC_COMM_WORLD, rank, ierr)
     call MPI_comm_size(PETSC_COMM_WORLD, np, ierr)
     call DMGetLabel(mesh%dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
+    if (mesh%has_minc) then
+       call DMGetLabel(mesh%dm, minc_level_label_name, minc_label, &
+            ierr); CHKERRQ(ierr)
+    end if
+
     call fluid%init(eos%num_components, eos%num_phases)
 
     if ((.not. mesh%has_minc) .or. (.not. minc_specified)) then
@@ -316,11 +322,19 @@ contains
        do c = start_cell, end_interior_cell - 1
           call DMLabelGetValue(ghost_label, c, ghost, ierr)
           if (ghost < 0) then
-             call global_section_offset(fluid_section, c, &
-                  fluid_range_start, offset, ierr); CHKERRQ(ierr)
-             call fluid%assign(fluid_array, offset)
-             fluid%region = dble(region_indices(i))
-             i = i + 1
+             if (mesh%has_minc) then
+                call DMLabelGetValue(minc_label, c, minc_level, ierr)
+                CHKERRQ(ierr)
+             else
+                minc_level = 0
+             end if
+             if (minc_level == 0) then
+                call global_section_offset(fluid_section, c, &
+                     fluid_range_start, offset, ierr); CHKERRQ(ierr)
+                call fluid%assign(fluid_array, offset)
+                fluid%region = dble(region_indices(i))
+                i = i + 1
+             end if
           end if
        end do
 
