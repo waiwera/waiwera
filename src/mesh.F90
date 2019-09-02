@@ -3421,7 +3421,7 @@ contains
 
     use dm_utils_module, only: local_to_natural_cell_index
 
-    class(mesh_type), intent(in out) :: self
+    class(mesh_type), intent(in) :: self
     PetscInt, intent(in) :: local !! Local cell index
     ! Locals:
     PetscInt, pointer :: natural_array(:)
