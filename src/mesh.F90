@@ -540,8 +540,8 @@ contains
     DMLabel :: bdy_label, ghost_label
     IS :: label_IS, bdy_IS
     PetscInt, pointer :: label_values(:), bdy_faces(:)
-    PetscInt :: i, num_values, ibdy, num_faces, iface, ghost, f
-    PetscInt :: cell_offset, face_offset
+    PetscInt :: i, j, num_values, ibdy, num_faces, iface, ghost, f
+    PetscInt :: cell_offsets(2), face_offset
     PetscInt, pointer :: cells(:)
     type(cell_type) :: cell
     type(face_type) :: face
@@ -578,22 +578,22 @@ contains
                 if (ghost < 0) then
                    call section_offset(face_section, f, face_offset, &
                         ierr); CHKERRQ(ierr)
+                   do j = 1, 2
+                      call section_offset(cell_section, cells(j), cell_offsets(j), &
+                        ierr); CHKERRQ(ierr)
+                   end do
                    call face%assign_geometry(face_geom_array, face_offset)
+                   call face%assign_cell_geometry(cell_geom_array, cell_offsets)
                    call DMPlexComputeCellGeometryFVM(self%dm, f, face%area, &
                         face%centroid, face%normal, ierr); CHKERRQ(ierr)
                    face%gravity_normal = dot_product(gravity, face%normal)
                    call face%calculate_permeability_direction(self%permeability_rotation)
                    call self%modify_face_geometry(face)
-                   call section_offset(cell_section, cells(1), cell_offset, &
-                        ierr); CHKERRQ(ierr)
-                   call cell%assign_geometry(cell_geom_array, cell_offset)
-                   face%distance = [dot_product(face%centroid - cell%centroid, &
+                   face%distance = [dot_product(face%centroid - face%cell(1)%centroid, &
                         face%normal), 0._dp]
                    face%distance12 = face%distance(1)
-                   call section_offset(cell_section, cells(2), cell_offset, &
-                        ierr); CHKERRQ(ierr)
-                   call cell%assign_geometry(cell_geom_array, cell_offset)
-                   cell%volume = 0._dp
+                   face%cell(2)%volume = 0._dp
+                   face%cell(2)%centroid = face%centroid
                 end if
              end if
           end do
