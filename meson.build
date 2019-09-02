@@ -74,6 +74,9 @@ if meson.get_compiler('fortran').get_id() == 'gcc'
             '-Wno-unused-function',
             '-Wno-return-type',
             '-Wno-maybe-uninitialized']
+  if not get_option('buildtype').startswith('release')
+    f_args += ['-fcheck=all']
+  endif
 else
   f_args = []
 endif
