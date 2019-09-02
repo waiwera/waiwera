@@ -1817,14 +1817,15 @@ contains
       type(fson_value), pointer :: json
       PetscViewer :: viewer
       PetscSF :: sf
-      PetscMPIInt :: rank
+      PetscMPIInt :: rank, np
       PetscInt :: num_minc_zones, max_num_levels, num_cells, num_cells_sf
       PetscInt :: m, num, num_local_bdy_cells, num_bdy_cells
       PetscErrorCode :: err, ierr
       character(48) :: str
       PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
 
-      call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+      call mpi_comm_rank(PETSC_COMM_WORLD, rank, ierr)
+      call mpi_comm_size(PETSC_COMM_WORLD, np, ierr)
 
       json => fson_parse_mpi(str = json_str)
       call thermo%init()
@@ -1834,7 +1835,10 @@ contains
       call mesh%configure(gravity, json, err = err)
       call mesh%output_cell_index(viewer)
 
-      call mesh%redistribute(sf)
+      if (np > 1) then
+         call mesh%redistribute(sf)
+         call test%assert(sf .ne. PETSC_NULL_SF, title // ": null redistribution SF")
+      end if
       call mesh%construct_ghost_cells(gravity)
       call fson_destroy_mpi(json)
       call mesh%destroy_distribution_data()
@@ -1881,7 +1885,9 @@ contains
          call test%assert(expected_num_bdy_cells, num_bdy_cells, &
               title // " num boundary cells")
       end if
-      call PetscSFDestroy(sf, ierr); CHKERRQ(ierr)
+      if (np > 1) then
+         call PetscSFDestroy(sf, ierr); CHKERRQ(ierr)
+      end if
       call mesh%destroy()
       call eos%destroy()
       call thermo%destroy()
