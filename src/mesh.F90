@@ -453,6 +453,7 @@ contains
 
     if (self%dim == 2) then
        ! Adjust cell volumes:
+       call cell%init(1, 1)
        do c = start_cell, end_cell - 1
           call DMLabelGetValue(ghost_label, c, ghost_cell, ierr); CHKERRQ(ierr)
           if (ghost_cell < 0) then
@@ -461,6 +462,7 @@ contains
              call self%modify_cell_geometry(cell)
           end if
        end do
+       call cell%destroy()
     end if
 
     ! Set up face geometry vector:
