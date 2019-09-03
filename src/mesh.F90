@@ -2763,7 +2763,7 @@ contains
                      face%distance12 = sum(face%distance)
                      face%normal = 0._dp
                      face%gravity_normal = 0._dp
-                     face%centroid = 0._dp
+                     face%centroid = orig_centroid
                      face%permeability_direction = dble(1)
                   end do
                end if
