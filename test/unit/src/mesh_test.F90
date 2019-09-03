@@ -716,6 +716,46 @@ contains
 
 !------------------------------------------------------------------------
 
+  subroutine minc_mesh_natural_check(mesh, test, title)
+    !! Checks natural cell index data structures on MINC mesh.
+
+    use dm_utils_module, only: local_to_natural_cell_index
+    use minc_module, only: minc_level_label_name
+
+    class(mesh_type), intent(in) :: mesh
+    class(unit_test_type), intent(in out) :: test
+    character(*), intent(in) :: title
+    ! Locals:
+    ISLocalToGlobalMapping :: l2g
+    DMLabel :: ghost_label, minc_label
+    PetscInt :: start_cell, end_cell, c
+    PetscInt :: ghost, minc_level, natural, parent_natural
+    character(80) :: msg
+    PetscErrorCode :: ierr
+
+    call DMGetLocalToGlobalMapping(mesh%dm, l2g, ierr); CHKERRQ(ierr)
+    call DMGetLabel(mesh%dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
+    call DMGetLabel(mesh%dm, minc_level_label_name, minc_label, ierr)
+    CHKERRQ(ierr)
+
+    call DMPlexGetHeightStratum(mesh%dm, 0, start_cell, end_cell, &
+         ierr); CHKERRQ(ierr)
+
+    do c = start_cell, end_cell - 1
+       call DMLabelGetValue(ghost_label, c, ghost, ierr); CHKERRQ(ierr)
+       call DMLabelGetValue(minc_label, c, minc_level, ierr); CHKERRQ(ierr)
+       if ((ghost < 0) .and. (minc_level == 0)) then
+          natural = local_to_natural_cell_index(mesh%cell_natural_global, l2g, c)
+          parent_natural = mesh%local_to_parent_natural(c)
+          write(msg, '(a, i0)') ': natural ', c
+          call test%assert(parent_natural, natural, trim(title) // msg)
+       end if
+    end do
+
+  end subroutine minc_mesh_natural_check
+
+!------------------------------------------------------------------------
+
   subroutine test_setup_minc_dm(test)
     ! Test setup_minc_dm
 
@@ -1848,6 +1888,7 @@ contains
 
       call mesh_geometry_sanity_check(mesh, test, title)
       call dm_dag_sanity_check(mesh%dm, test, title)
+      call minc_mesh_natural_check(mesh, test, title)
 
       if (rank == 0) then
          call test%assert(mesh%has_minc, title // ": mesh has minc")
