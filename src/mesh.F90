@@ -132,7 +132,8 @@ contains
     !! Distributes mesh over processors, and returns star forest from
     !! mesh distribution.
 
-    use dm_utils_module, only: dm_create_section, dm_setup_fv_discretization
+    use dm_utils_module, only: dm_create_section, dm_setup_fv_discretization, &
+         dm_label_partition_ghosts
     
     class(mesh_type), intent(in out) :: self
     ! Locals:
@@ -150,6 +151,7 @@ contains
        call self%distribute_index_set(self%dist_sf, section, self%cell_natural)
        call PetscSectionDestroy(section, ierr); CHKERRQ(ierr)
     end if
+    call dm_label_partition_ghosts(self%original_dm)
 
   end subroutine mesh_distribute
 
@@ -819,9 +821,9 @@ contains
     !! construction of ghost cells, setup of data layout, geometry and
     !! cell index set.
 
-    use dm_utils_module, only: dm_label_partition_ghosts, &
-         set_dm_default_data_layout, dm_set_fv_adjacency, &
-         dm_get_natural_to_global_ao, dm_get_cell_index
+    use dm_utils_module, only: set_dm_default_data_layout, &
+         dm_set_fv_adjacency, dm_get_natural_to_global_ao, &
+         dm_get_cell_index
     use logfile_module
     use rock_module, only: setup_rock_types
 
@@ -834,7 +836,6 @@ contains
     err = 0
 
     call self%distribute()
-    call dm_label_partition_ghosts(self%original_dm)
     call set_dm_default_data_layout(self%original_dm, self%dof)
     call dm_set_fv_adjacency(self%original_dm)
     call self%setup_geometry(gravity)
