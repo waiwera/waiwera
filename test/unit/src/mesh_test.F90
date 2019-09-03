@@ -1414,6 +1414,7 @@ contains
       end do
 
       call mesh%configure(gravity, json, err = err)
+      call test%assert(0, err, "mesh config " // trim(title))
       call mesh%output_cell_index(viewer)
 
       call mesh%construct_ghost_cells(gravity)
