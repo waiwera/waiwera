@@ -91,11 +91,13 @@ contains
     num_ghost_cells = dm_get_num_partition_ghost_points(mesh%dm, 0)
     end_non_ghost_cell = end_interior_cell - num_ghost_cells
     call test%assert(all(mesh%ghost_cell(start_cell: end_non_ghost_cell - 1) < 0), &
-         trim(title) // " ghost cell array for non-ghost cells")
+         trim(title) // ": ghost cell array for non-ghost cells")
     call test%assert(all(mesh%ghost_cell(end_non_ghost_cell: end_interior_cell - 1) > 0), &
-         trim(title) // " ghost cell array for ghost cells")
-    
+         trim(title) // ": ghost cell array for ghost cells")
     call cell%init(1, 1)
+    call section_offset(cell_geom_section, end_cell - 1, offset, ierr)
+    call test%assert(offset + cell%dof - 1, size(cell_geom_array), &
+         trim(title) // ": cell geom array size")
 
     do c = start_cell, end_interior_cell - 1
        if (mesh%ghost_cell(c) < 0) then
