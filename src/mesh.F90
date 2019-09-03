@@ -3292,10 +3292,13 @@ contains
 !------------------------------------------------------------------------
 
   subroutine mesh_check_face_orientations(self)
-    !! Checks faces (non-MINC interior faces) to make sure they match
-    !! the orientation of the cells in their support. This is taken
-    !! from DMPlexComputeGeometryFVM() and needs to be done after mesh
-    !! redistribution.
+    !! Checks interior faces to make sure they match the orientation
+    !! of the cells in their support (sometimes the orientations can
+    !! be reversed during redistribution). If the order of cells in
+    !! the face has been reversed, it is necessary also to reverse the
+    !! normal vector and centroid distance array in the face
+    !! geometry. For MINC faces a reversed orientation is detected by
+    !! MINC levels that decrease from the first cell to the second.
 
     use dm_utils_module, only: local_vec_section, section_offset, &
          dm_get_end_interior_cell
@@ -3312,6 +3315,7 @@ contains
     PetscInt :: ghost, minc_levels(2), num_cells
     DMLabel :: ghost_label, minc_level_label
     PetscInt, pointer :: cells(:)
+    PetscBool :: reversed
     PetscErrorCode :: ierr
 
     call local_vec_section(self%cell_geom, cell_geom_section)
@@ -3343,12 +3347,17 @@ contains
              call section_offset(cell_geom_section, cells(i), &
                   cell_offset(i), ierr); CHKERRQ(ierr)
           end do
-          if (all(minc_levels <= 0) .and. all(cells < end_interior_cell)) then
-             call section_offset(face_geom_section, f, offset, ierr)
-             CHKERRQ(ierr)
-             call face%assign_geometry(face_geom_array, offset)
-             call face%assign_cell_geometry(cell_geom_array, cell_offset)
-             call face%check_orientation()
+          call section_offset(face_geom_section, f, offset, ierr)
+          CHKERRQ(ierr)
+          call face%assign_geometry(face_geom_array, offset)
+          call face%assign_cell_geometry(cell_geom_array, cell_offset)
+          if (all(cells < end_interior_cell)) then
+             if (all(minc_levels <= 0)) then
+                reversed = face%reversed_orientation()
+             else
+                reversed = (minc_levels(1) > minc_levels(2))
+             end if
+             if (reversed) call face%reverse_geometry()
           end if
        end if
     end do
