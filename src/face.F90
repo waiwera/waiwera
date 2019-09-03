@@ -50,7 +50,8 @@ module face_module
      procedure, public :: calculate_permeability_direction => &
           face_calculate_permeability_direction
      procedure, public :: calculate_distances => face_calculate_distances
-     procedure, public :: check_orientation => face_check_orientation
+     procedure, public :: reversed_orientation => face_reversed_orientation
+     procedure, public :: reverse_geometry => face_reverse_geometry
      procedure, public :: normal_gradient => face_normal_gradient
      procedure, public :: pressure_gradient => face_pressure_gradient
      procedure, public :: temperature_gradient => face_temperature_gradient
@@ -248,22 +249,32 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine face_check_orientation(self)
-    !! Checks face orientation to make sure it matches the order of
-    !! its cells. If it does not match, the normal direction and
-    !! distance array are both reversed.
+  PetscBool function face_reversed_orientation(self) result(reversed)
+    !! Returns true if the face does not have the canonical
+    !! orientation (i.e. order of cells in its support) but has been
+    !! reversed.
+
+    class(face_type), intent(in) :: self
+
+    associate(d12 => self%cell(2)%centroid - self%cell(1)%centroid)
+      reversed = (dot_product(d12, self%normal) < 0._dp)
+    end associate
+
+  end function face_reversed_orientation
+
+!------------------------------------------------------------------------
+
+  subroutine face_reverse_geometry(self)
+    !! Reverses face geometry: flips normal vector by 180 degrees and
+    !! reverses centroid distance array.
 
     class(face_type), intent(in out) :: self
 
-    associate(d12 => self%cell(2)%centroid - self%cell(1)%centroid)
-      if (dot_product(d12, self%normal) < 0._dp) then
-         self%normal = -self%normal
-         self%gravity_normal = -self%gravity_normal
-         self%distance = self%distance(2:1:-1)
-      end if
-    end associate
+    self%normal = -self%normal
+    self%gravity_normal = -self%gravity_normal
+    self%distance = self%distance(2:1:-1)
 
-  end subroutine face_check_orientation
+  end subroutine face_reverse_geometry
 
 !------------------------------------------------------------------------
 
