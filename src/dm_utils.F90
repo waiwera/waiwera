@@ -294,14 +294,12 @@ contains
     PetscInt, target, intent(in) :: num_components(:) !! Number of components in each field
     PetscInt, intent(in) :: field_dim(:)  !! Dimension each field is defined on (0 = nodes, etc.)
     character(*), intent(in), optional :: field_name(:) !! Name of each field
-    PetscErrorCode :: ierr
     ! Locals:
     PetscSection :: section
+    PetscErrorCode :: ierr
 
     section = dm_create_section(dm, num_components, field_dim, field_name)
     call DMSetSection(dm, section, ierr); CHKERRQ(ierr)
-    ! Create the global section:
-    call DMGetGlobalSection(dm, section, ierr); CHKERRQ(ierr)
 
   end subroutine set_dm_data_layout
 
