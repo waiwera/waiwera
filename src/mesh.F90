@@ -446,7 +446,6 @@ contains
     ! Set up cell geometry vector:
     call VecGetDM(self%cell_geom, dm_cell, ierr); CHKERRQ(ierr)
     cell_variable_dim = self%dim
-    call DMSetNumFields(dm_cell, num_cell_variables, ierr); CHKERRQ(ierr)
     call set_dm_data_layout(dm_cell, cell_variable_num_components, &
          cell_variable_dim, cell_variable_names)
 
@@ -470,7 +469,6 @@ contains
     ! Set up face geometry vector:
     call DMClone(self%original_dm, dm_face, ierr); CHKERRQ(ierr)
     face_variable_dim = self%dim - 1
-    call DMSetNumFields(dm_face, num_face_variables, ierr); CHKERRQ(ierr)
     call set_dm_data_layout(dm_face, face_variable_num_components, &
          face_variable_dim, face_variable_names)
     call DMCreateLocalVector(dm_face, self%face_geom, ierr); CHKERRQ(ierr)
@@ -631,7 +629,6 @@ contains
 
     call DMClone(self%dm, dm_cell, ierr); CHKERRQ(ierr)
     cell_variable_dim = self%dim
-    call DMSetNumFields(dm_cell, num_cell_variables, ierr); CHKERRQ(ierr)
     call set_dm_data_layout(dm_cell, cell_variable_num_components, &
          cell_variable_dim, cell_variable_names)
     call DMCreateLocalVector(dm_cell, cell_geom, ierr); CHKERRQ(ierr)
@@ -641,7 +638,6 @@ contains
 
     call DMClone(self%dm, dm_face, ierr); CHKERRQ(ierr)
     face_variable_dim = self%dim - 1
-    call DMSetNumFields(dm_face, num_face_variables, ierr); CHKERRQ(ierr)
     call set_dm_data_layout(dm_face, face_variable_num_components, &
          face_variable_dim, face_variable_names)
     call DMCreateLocalVector(dm_face, face_geom, ierr); CHKERRQ(ierr)
@@ -2667,7 +2663,6 @@ contains
 
     call DMClone(minc_dm, dm_cell, ierr); CHKERRQ(ierr)
     cell_variable_dim = self%dim
-    call DMSetNumFields(dm_cell, num_cell_variables, ierr); CHKERRQ(ierr)
     call set_dm_data_layout(dm_cell, cell_variable_num_components, &
          cell_variable_dim, cell_variable_names)
     call DMCreateLocalVector(dm_cell, minc_cell_geom, ierr); CHKERRQ(ierr)
@@ -2683,7 +2678,6 @@ contains
 
     call DMClone(minc_dm, dm_face, ierr); CHKERRQ(ierr)
     face_variable_dim = self%dim - 1
-    call DMSetNumFields(dm_face, num_face_variables, ierr); CHKERRQ(ierr)
     call set_dm_data_layout(dm_face, face_variable_num_components, &
          face_variable_dim, face_variable_names)
     call DMCreateLocalVector(dm_face, minc_face_geom, ierr); CHKERRQ(ierr)

@@ -256,6 +256,7 @@ contains
     do i = 1, num_fields
        num_dof((i-1) * (dim+1) + field_dim(i) + 1) = num_components(i)
     end do
+    call DMSetNumFields(dm, num_fields, ierr); CHKERRQ(ierr)
 
     ! Boundary conditions (none):
     num_bc = 0

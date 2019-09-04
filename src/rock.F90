@@ -507,7 +507,6 @@ contains
 
     call DMGetDimension(dm, dim, ierr); CHKERRQ(ierr)
     rock_variable_dim = dim
-    call DMSetNumFields(dm_rock, num_rock_variables, ierr); CHKERRQ(ierr)
     call set_dm_data_layout(dm_rock, rock_variable_num_components, &
          rock_variable_dim, rock_variable_names)
 

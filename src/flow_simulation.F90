@@ -157,7 +157,6 @@ contains
        flux_variable_names(self%eos%num_primary_variables) = energy_component_name
     end if
 
-    call DMSetNumFields(dm_flux, num_variables, ierr); CHKERRQ(ierr)
     call set_dm_data_layout(dm_flux, flux_variable_num_components, &
          flux_variable_dim, flux_variable_names)
 

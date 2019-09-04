@@ -480,7 +480,6 @@ contains
 
     call DMGetDimension(dm, dim, ierr); CHKERRQ(ierr)
     field_dim = dim
-    call DMSetNumFields(fluid_dm, fluid%dof, ierr); CHKERRQ(ierr)
     call set_dm_data_layout(fluid_dm, num_field_components, field_dim, &
          field_names)
 
