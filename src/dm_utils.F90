@@ -230,7 +230,37 @@ contains
 ! DM utilities:
 !------------------------------------------------------------------------
 
-    PetscSection function dm_create_section(dm, num_components, field_dim, &
+  subroutine dm_set_fields(dm, num_components)
+    !! Sets fields in the DM.
+
+    DM, intent(in out) :: dm
+    PetscInt, intent(in) :: num_components(:) !! Number of components in each field
+    ! Locals:
+    PetscInt :: dim, f
+    PetscFV :: fvm
+    PetscErrorCode :: ierr
+
+    call DMGetDimension(dm, dim, ierr); CHKERRQ(ierr)
+    call DMClearFields(dm, ierr); CHKERRQ(ierr)
+
+    associate(num_fields => size(num_components))
+      do f = 1, num_fields
+         call PetscFVCreate(PETSC_COMM_WORLD, fvm, ierr); CHKERRQ(ierr)
+         call PetscFVSetFromOptions(fvm, ierr); CHKERRQ(ierr)
+         call PetscFVSetNumComponents(fvm, num_components(f), ierr); CHKERRQ(ierr)
+         call PetscFVSetSpatialDimension(fvm, dim, ierr); CHKERRQ(ierr)
+         call DMAddField(dm, PETSC_NULL_DMLABEL, fvm, ierr); CHKERRQ(ierr)
+         call PetscFVDestroy(fvm, ierr); CHKERRQ(ierr)
+      end do
+    end associate
+
+    call DMCreateDS(dm, ierr); CHKERRQ(ierr)
+
+  end subroutine dm_set_fields
+
+!------------------------------------------------------------------------
+
+  PetscSection function dm_create_section(dm, num_components, field_dim, &
        field_name) result(section)
     !! Creates section from the given DM and data layout parameters.
 
