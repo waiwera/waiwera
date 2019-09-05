@@ -328,6 +328,7 @@ contains
     PetscSection :: section
     PetscErrorCode :: ierr
 
+    call dm_set_fields(dm, num_components)
     section = dm_create_section(dm, num_components, field_dim, field_name)
     call DMSetSection(dm, section, ierr); CHKERRQ(ierr)
 
