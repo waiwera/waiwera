@@ -179,7 +179,7 @@ contains
     !! Constructs ghost cells on open boundary faces.
 
     use dm_utils_module, only: dm_set_fv_adjacency, &
-         set_dm_default_data_layout, dm_label_boundary_ghosts, &
+         dm_set_default_data_layout, dm_label_boundary_ghosts, &
          dm_get_natural_to_global_ao
 
     class(mesh_type), intent(in out) :: self
@@ -198,7 +198,7 @@ contains
        call DMDestroy(self%dm, ierr); CHKERRQ(ierr);
        self%dm = ghost_dm
        call dm_set_fv_adjacency(self%dm)
-       call set_dm_default_data_layout(self%dm, self%dof)
+       call dm_set_default_data_layout(self%dm, self%dof)
        call dm_label_boundary_ghosts(self%dm, boundary_ghost_label_name)
        self%cell_natural_global = dm_get_natural_to_global_ao(self%dm, self%cell_natural)
        call self%geometry_add_boundary(gravity)
@@ -793,7 +793,7 @@ contains
        self%dof = eos%num_primary_variables
        call DMGetDimension(self%serial_dm, self%dim, ierr); CHKERRQ(ierr)
        call dm_setup_fv_discretization(self%serial_dm, self%dof)
-       call set_dm_default_data_layout(self%serial_dm, self%dof)
+       call dm_set_default_data_layout(self%serial_dm, self%dof)
        call self%setup_coordinate_parameters(json, logfile)
        call self%set_permeability_rotation(json, logfile)
        call self%read_overridden_face_properties(json, logfile)
@@ -817,7 +817,7 @@ contains
     !! construction of ghost cells, setup of data layout, geometry and
     !! cell index set.
 
-    use dm_utils_module, only: set_dm_default_data_layout, &
+    use dm_utils_module, only: dm_set_default_data_layout, &
          dm_set_fv_adjacency, dm_get_natural_to_global_ao, &
          dm_get_cell_index
     use logfile_module
@@ -832,7 +832,7 @@ contains
     err = 0
 
     call self%distribute()
-    call set_dm_default_data_layout(self%original_dm, self%dof)
+    call dm_set_default_data_layout(self%original_dm, self%dof)
     call dm_set_fv_adjacency(self%original_dm)
     call self%setup_geometry(gravity)
     self%dm = self%original_dm
@@ -1933,7 +1933,7 @@ contains
 
     call dm_set_fv_adjacency(minc_dm)
     call dm_setup_fv_discretization(minc_dm, self%dof)
-    call set_dm_default_data_layout(minc_dm, self%dof)
+    call dm_set_default_data_layout(minc_dm, self%dof)
     call self%setup_minc_point_sf(minc_dm)
     call dm_setup_global_section(minc_dm)
 
@@ -3242,7 +3242,7 @@ contains
     !! Redistributes DM (e.g. to improve load balancing for MINC
     !! simulations), and returns SF for the redistribution.
 
-    use dm_utils_module, only: set_dm_default_data_layout, &
+    use dm_utils_module, only: dm_set_default_data_layout, &
          dm_setup_fv_discretization, dm_set_fv_adjacency, &
          dm_label_partition_ghosts
 
@@ -3259,7 +3259,7 @@ contains
        self%dm = dm_dist
        call dm_setup_fv_discretization(self%dm, self%dof)
        call dm_set_fv_adjacency(self%dm)
-       call set_dm_default_data_layout(self%dm, self%dof)
+       call dm_set_default_data_layout(self%dm, self%dof)
        call dm_label_partition_ghosts(self%dm)
     end if
 

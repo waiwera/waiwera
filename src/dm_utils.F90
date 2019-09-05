@@ -44,7 +44,7 @@ module dm_utils_module
 
   public :: dm_get_strata, dm_point_stratum_height
 
-  public :: dm_create_section, dm_set_data_layout, set_dm_default_data_layout
+  public :: dm_create_section, dm_set_data_layout, dm_set_default_data_layout
   public :: dm_setup_global_section
   public :: section_offset, global_section_offset
 
@@ -305,7 +305,7 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine set_dm_default_data_layout(dm, dof)
+  subroutine dm_set_default_data_layout(dm, dof)
     !! Sets default data layout on DM, for primary variable vector
     !! with specified number of degrees of freedom.
 
@@ -324,7 +324,7 @@ contains
     call dm_set_data_layout(dm, num_components, field_dim, &
          field_names)
 
-  end subroutine set_dm_default_data_layout
+  end subroutine dm_set_default_data_layout
 
 !------------------------------------------------------------------------
 
