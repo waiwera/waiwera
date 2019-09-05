@@ -619,8 +619,7 @@ contains
     !! except those for cells in which variables are being perturbed,
     !! which have the value 1.
 
-    use dm_utils_module, only: dm_set_data_layout, global_vec_range_start, &
-         dm_setup_fv_discretization
+    use dm_utils_module, only: dm_set_data_layout, global_vec_range_start
 
     class(flow_simulation_type), intent(in out) :: self
     ! Locals:
@@ -628,7 +627,6 @@ contains
     PetscErrorCode :: ierr
 
     call DMClone(self%mesh%dm, dm_update, ierr); CHKERRQ(ierr)
-    call dm_setup_fv_discretization(dm_update, 1)
     call dm_set_data_layout(dm_update, [1], [self%mesh%dim], ["update"])
     call DMCreateGlobalVector(dm_update, self%update_cell, ierr); CHKERRQ(ierr)
     call PetscObjectSetName(self%update_cell, "update_cell", ierr); CHKERRQ(ierr)

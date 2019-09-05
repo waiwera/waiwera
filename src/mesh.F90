@@ -132,7 +132,7 @@ contains
     !! Distributes mesh over processors, and returns star forest from
     !! mesh distribution.
 
-    use dm_utils_module, only: dm_create_section, dm_setup_fv_discretization, &
+    use dm_utils_module, only: dm_set_default_data_layout, &
          dm_label_partition_ghosts
     
     class(mesh_type), intent(in out) :: self
@@ -147,7 +147,6 @@ contains
     if (self%original_dm .eq. PETSC_NULL_DM) then
        self%original_dm = self%serial_dm
     else
-       call dm_setup_fv_discretization(self%original_dm, self%dof)
        call self%distribute_index_set(self%dist_sf, section, self%cell_natural)
        call PetscSectionDestroy(section, ierr); CHKERRQ(ierr)
     end if
@@ -792,7 +791,6 @@ contains
        call dm_set_fv_adjacency(self%serial_dm)
        self%dof = eos%num_primary_variables
        call DMGetDimension(self%serial_dm, self%dim, ierr); CHKERRQ(ierr)
-       call dm_setup_fv_discretization(self%serial_dm, self%dof)
        call dm_set_default_data_layout(self%serial_dm, self%dof)
        call self%setup_coordinate_parameters(json, logfile)
        call self%set_permeability_rotation(json, logfile)
@@ -1932,7 +1930,6 @@ contains
     call self%setup_minc_output_data(minc_dm, max_num_levels, minc_level_cells)
 
     call dm_set_fv_adjacency(minc_dm)
-    call dm_setup_fv_discretization(minc_dm, self%dof)
     call dm_set_default_data_layout(minc_dm, self%dof)
     call self%setup_minc_point_sf(minc_dm)
     call dm_setup_global_section(minc_dm)
@@ -3243,8 +3240,7 @@ contains
     !! simulations), and returns SF for the redistribution.
 
     use dm_utils_module, only: dm_set_default_data_layout, &
-         dm_setup_fv_discretization, dm_set_fv_adjacency, &
-         dm_label_partition_ghosts
+         dm_set_fv_adjacency, dm_label_partition_ghosts
 
     class(mesh_type), intent(in out) :: self
     PetscSF, intent(out) :: sf
@@ -3257,7 +3253,6 @@ contains
     if (dm_dist .ne. PETSC_NULL_DM) then
        call DMDestroy(self%dm, ierr); CHKERRQ(ierr)
        self%dm = dm_dist
-       call dm_setup_fv_discretization(self%dm, self%dof)
        call dm_set_fv_adjacency(self%dm)
        call dm_set_default_data_layout(self%dm, self%dof)
        call dm_label_partition_ghosts(self%dm)
