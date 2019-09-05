@@ -139,7 +139,7 @@ contains
        deallocate(primary_array)
 
        if (np > 1) then
-          call DMGetGlobalSection(mesh%serial_dm, serial_section, ierr)
+          call DMGetSection(mesh%serial_dm, serial_section, ierr)
           CHKERRQ(ierr)
           call PetscSectionCreate(PETSC_COMM_WORLD, section, ierr); CHKERRQ(ierr)
           call VecCreate(PETSC_COMM_WORLD, local_y, ierr); CHKERRQ(ierr)
