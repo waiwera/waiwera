@@ -529,8 +529,8 @@ contains
 
   subroutine mesh_boundary_face_geometry(self, gravity)
     !! Computes face geometry parameters for open boundary faces. Also
-    !! sets the volumes of boundary ghost cells to zero (these are not
-    !! used).
+    !! sets the volumes of boundary ghost cells to zero, and their
+    !! centroids to the face centroids (these are not used).
 
     use cell_module, only: cell_type
     use face_module, only: face_type
