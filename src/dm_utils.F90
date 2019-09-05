@@ -270,7 +270,7 @@ contains
     character(*), intent(in), optional :: field_name(:) !! Name of each field
     ! Locals:
     PetscInt :: dim
-    PetscInt :: num_fields, i, num_bc
+    PetscInt :: i, num_bc
     PetscInt, allocatable, target :: num_dof(:)
     PetscInt, target :: bc_field(1)
     IS, target :: bc_comps(1), bc_points(1)
@@ -280,37 +280,39 @@ contains
     PetscErrorCode :: ierr
 
     call DMGetDimension(dm, dim, ierr); CHKERRQ(ierr)
-    num_fields = size(num_components)
-    allocate(num_dof(num_fields*(dim+1)))
-    num_dof = 0
-    do i = 1, num_fields
-       num_dof((i-1) * (dim+1) + field_dim(i) + 1) = num_components(i)
-    end do
-    call DMSetNumFields(dm, num_fields, ierr); CHKERRQ(ierr)
+    associate (num_fields => size(num_components))
 
-    ! Boundary conditions (none):
-    num_bc = 0
-    bc_field(1) = 0
+      allocate(num_dof(num_fields*(dim+1)))
+      num_dof = 0
+      do i = 1, num_fields
+         num_dof((i-1) * (dim+1) + field_dim(i) + 1) = num_components(i)
+      end do
 
-    pnum_components => num_components
-    pnum_dof => num_dof
-    pbc_field => bc_field
-    pbc_comps => bc_comps
-    pbc_points => bc_points
-    label => NULL()
+      ! Boundary conditions (none):
+      num_bc = 0
+      bc_field(1) = 0
 
-    call DMPlexCreateSection(dm, label, pnum_components, &
-         pnum_dof, num_bc, pbc_field, pbc_comps, pbc_points, &
-         PETSC_NULL_IS, section, ierr); CHKERRQ(ierr)
+      pnum_components => num_components
+      pnum_dof => num_dof
+      pbc_field => bc_field
+      pbc_comps => bc_comps
+      pbc_points => bc_points
+      label => NULL()
 
-    if (present(field_name)) then
-       do i = 1, num_fields
-          call PetscSectionSetFieldName(section, i-1, field_name(i), ierr)
-          CHKERRQ(ierr)
-       end do
-    end if
+      call DMPlexCreateSection(dm, label, pnum_components, &
+           pnum_dof, num_bc, pbc_field, pbc_comps, pbc_points, &
+           PETSC_NULL_IS, section, ierr); CHKERRQ(ierr)
 
-    deallocate(num_dof)
+      if (present(field_name)) then
+         do i = 1, num_fields
+            call PetscSectionSetFieldName(section, i-1, field_name(i), ierr)
+            CHKERRQ(ierr)
+         end do
+      end if
+
+      deallocate(num_dof)
+
+    end associate
 
   end function dm_create_section
 
