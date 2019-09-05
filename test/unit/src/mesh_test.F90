@@ -87,29 +87,30 @@ contains
 
     call DMPlexGetHeightStratum(mesh%dm, 0, start_cell, end_cell, ierr)
     CHKERRQ(ierr)
-    end_interior_cell = dm_get_end_interior_cell(mesh%dm, end_cell)
-    num_ghost_cells = dm_get_num_partition_ghost_points(mesh%dm, 0)
-    end_non_ghost_cell = end_interior_cell - num_ghost_cells
-    call test%assert(all(mesh%ghost_cell(start_cell: end_non_ghost_cell - 1) < 0), &
-         trim(title) // ": ghost cell array for non-ghost cells")
-    call test%assert(all(mesh%ghost_cell(end_non_ghost_cell: end_interior_cell - 1) > 0), &
-         trim(title) // ": ghost cell array for ghost cells")
-    call cell%init(1, 1)
-    call section_offset(cell_geom_section, end_cell - 1, offset, ierr)
-    call test%assert(offset + cell%dof - 1, size(cell_geom_array), &
-         trim(title) // ": cell geom array size")
+    if (end_cell > start_cell) then
+       end_interior_cell = dm_get_end_interior_cell(mesh%dm, end_cell)
+       num_ghost_cells = dm_get_num_partition_ghost_points(mesh%dm, 0)
+       end_non_ghost_cell = end_interior_cell - num_ghost_cells
+       call test%assert(all(mesh%ghost_cell(start_cell: end_non_ghost_cell - 1) < 0), &
+            trim(title) // ": ghost cell array for non-ghost cells")
+       call test%assert(all(mesh%ghost_cell(end_non_ghost_cell: end_interior_cell - 1) > 0), &
+            trim(title) // ": ghost cell array for ghost cells")
+       call cell%init(1, 1)
+       call section_offset(cell_geom_section, end_cell - 1, offset, ierr)
+       call test%assert(offset + cell%dof - 1, size(cell_geom_array), &
+            trim(title) // ": cell geom array size")
+       do c = start_cell, end_interior_cell - 1
+          if (mesh%ghost_cell(c) < 0) then
+             call section_offset(cell_geom_section, c, offset, ierr)
+             CHKERRQ(ierr)
+             call cell%assign_geometry(cell_geom_array, offset)
+             write(msg, '(a, i4, a, e10.4)') " : cell ", c, " volume = ", cell%volume
+             call test%assert(cell%volume > tol, trim(title) // trim(msg))
+          end if
+       end do
+       call cell%destroy()
+    end if
 
-    do c = start_cell, end_interior_cell - 1
-       if (mesh%ghost_cell(c) < 0) then
-          call section_offset(cell_geom_section, c, offset, ierr)
-          CHKERRQ(ierr)
-          call cell%assign_geometry(cell_geom_array, offset)
-          write(msg, '(a, i4, a, e10.4)') " : cell ", c, " volume = ", cell%volume
-          call test%assert(cell%volume > tol, trim(title) // trim(msg))
-       end if
-    end do
-
-    call cell%destroy()
     call VecRestoreArrayReadF90(mesh%cell_geom, cell_geom_array, ierr)
     CHKERRQ(ierr)
 
