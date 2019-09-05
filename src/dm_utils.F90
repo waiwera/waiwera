@@ -64,7 +64,7 @@ module dm_utils_module
   public :: dm_cell_normal_face
   public :: write_vec_vtk
   public :: vec_max_pointwise_abs_scale
-  public :: dm_set_fv_adjacency, dm_setup_fv_discretization
+  public :: dm_set_fv_adjacency
   public :: dm_get_num_partition_ghost_points, dm_get_bdy_cell_shift
   public :: dm_get_end_interior_cell
   public :: dm_get_natural_to_global_ao, dm_get_cell_index
@@ -1031,29 +1031,6 @@ contains
     CHKERRQ(ierr)
 
   end subroutine dm_set_fv_adjacency
-
-!------------------------------------------------------------------------
-
-  subroutine dm_setup_fv_discretization(dm, dof)
-    !! Sets up finite-volume discretization on DM.
-
-    DM, intent(in out) :: dm
-    PetscInt, intent(in) :: dof
-    ! Locals:
-    PetscFV :: fvm
-    PetscInt :: dim
-    PetscErrorCode :: ierr
-
-    call PetscFVCreate(PETSC_COMM_WORLD, fvm, ierr); CHKERRQ(ierr)
-    call PetscFVSetFromOptions(fvm, ierr); CHKERRQ(ierr)
-    call PetscFVSetNumComponents(fvm, dof, ierr); CHKERRQ(ierr)
-    call DMGetDimension(dm, dim, ierr); CHKERRQ(ierr)
-    call PetscFVSetSpatialDimension(fvm, dim, ierr); CHKERRQ(ierr)
-    call DMAddField(dm, PETSC_NULL_DMLABEL, fvm, ierr); CHKERRQ(ierr)
-    call DMCreateDS(dm, ierr); CHKERRQ(ierr)
-    call PetscFVDestroy(fvm, ierr); CHKERRQ(ierr)
-
-  end subroutine dm_setup_fv_discretization
 
 !------------------------------------------------------------------------
 
