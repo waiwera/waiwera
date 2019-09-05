@@ -1148,16 +1148,12 @@ contains
        if (self%mesh%ghost_face(f) < 0) then
 
           call DMPlexGetSupport(self%mesh%dm, f, cells, ierr); CHKERRQ(ierr)
-          do i = 1, 2
-             call section_offset(update_section, cells(i), &
-                  update_offsets(i), ierr); CHKERRQ(ierr)
-             call section_offset(cell_geom_section, cells(i), &
-                  cell_geom_offsets(i), ierr); CHKERRQ(ierr)
-             call global_section_offset(rhs_section, cells(i), &
-                  self%solution_range_start, rhs_offsets(i), ierr)
-             CHKERRQ(ierr)
-          end do
-
+          call section_offset(update_section, cells, &
+               update_offsets, ierr); CHKERRQ(ierr)
+          call section_offset(cell_geom_section, cells, &
+               cell_geom_offsets, ierr); CHKERRQ(ierr)
+          call global_section_offset(rhs_section, cells, &
+               self%solution_range_start, rhs_offsets, ierr); CHKERRQ(ierr)
           call section_offset(face_geom_section, f, face_geom_offset, &
                ierr); CHKERRQ(ierr)
           call face%assign_geometry(face_geom_array, face_geom_offset)
@@ -1165,12 +1161,10 @@ contains
 
           if ((update(update_offsets(1)) > 0) .or. &
                (update(update_offsets(2)) > 0)) then
-             do i = 1, 2
-                call section_offset(fluid_section, cells(i), &
-                     fluid_offsets(i), ierr); CHKERRQ(ierr)
-                call section_offset(rock_section, cells(i), &
-                     rock_offsets(i), ierr); CHKERRQ(ierr)
-             end do
+             call section_offset(fluid_section, cells, &
+                  fluid_offsets, ierr); CHKERRQ(ierr)
+             call section_offset(rock_section, cells, &
+                  rock_offsets, ierr); CHKERRQ(ierr)
              call face%assign_cell_fluid(fluid_array, fluid_offsets)
              call face%assign_cell_rock(rock_array, rock_offsets)
              face_flux = face%flux(self%eos)

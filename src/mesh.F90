@@ -424,7 +424,7 @@ contains
     ! Locals:
     DM :: dm_cell, dm_face
     PetscSection :: face_section, petsc_face_section, cell_section
-    PetscInt :: c, f, ghost_cell, ghost_face, i
+    PetscInt :: c, f, ghost_cell, ghost_face
     PetscInt :: start_cell, end_cell, start_face, end_face
     PetscInt :: face_offset, petsc_face_offset
     PetscInt :: cell_offset(2), offset
@@ -492,10 +492,7 @@ contains
           CHKERRQ(ierr)
 
           call DMPlexGetSupport(self%original_dm, f, cells, ierr); CHKERRQ(ierr)
-          do i = 1, 2
-             call section_offset(cell_section, cells(i), cell_offset(i), ierr)
-             CHKERRQ(ierr)
-          end do
+          call section_offset(cell_section, cells, cell_offset, ierr); CHKERRQ(ierr)
 
           call petsc_face%assign_geometry(petsc_face_geom_array, petsc_face_offset)
           call face%assign_geometry(face_geom_array, face_offset)
@@ -544,7 +541,7 @@ contains
     DMLabel :: bdy_label, ghost_label
     IS :: label_IS, bdy_IS
     PetscInt, pointer :: label_values(:), bdy_faces(:)
-    PetscInt :: i, j, num_values, ibdy, num_faces, iface, ghost, f
+    PetscInt :: i, num_values, ibdy, num_faces, iface, ghost, f
     PetscInt :: cell_offsets(2), face_offset
     PetscInt, pointer :: cells(:)
     type(cell_type) :: cell
@@ -582,10 +579,8 @@ contains
                 if (ghost < 0) then
                    call section_offset(face_section, f, face_offset, &
                         ierr); CHKERRQ(ierr)
-                   do j = 1, 2
-                      call section_offset(cell_section, cells(j), cell_offsets(j), &
+                   call section_offset(cell_section, cells, cell_offsets, &
                         ierr); CHKERRQ(ierr)
-                   end do
                    call face%assign_geometry(face_geom_array, face_offset)
                    call face%assign_cell_geometry(cell_geom_array, cell_offsets)
                    call DMPlexComputeCellGeometryFVM(self%dm, f, face%area, &
@@ -932,7 +927,7 @@ contains
     type(logfile_type), intent(in out), optional :: logfile !! Logfile for log output
     ! Locals:
     type(fson_value), pointer :: boundaries, bdy
-    PetscInt :: num_boundaries, ibdy, f, i, num_faces, iface, np, n
+    PetscInt :: num_boundaries, ibdy, f, num_faces, iface, np, n
     PetscReal, pointer, contiguous :: y_array(:), fluid_array(:), rock_array(:)
     PetscReal, pointer, contiguous :: cell_primary(:), rock1(:), rock2(:)
     PetscSection :: y_section, fluid_section, rock_section
@@ -989,11 +984,9 @@ contains
                            y_range_start, y_offset, ierr); CHKERRQ(ierr)
                       call global_section_offset(fluid_section, cells(2), &
                            fluid_range_start, fluid_offset, ierr); CHKERRQ(ierr)
-                      do i = 1, 2
-                         call global_section_offset(rock_section, cells(i), &
-                              rock_range_start, rock_offsets(i), ierr)
-                         CHKERRQ(ierr)
-                      end do
+                      call global_section_offset(rock_section, cells, &
+                           rock_range_start, rock_offsets, ierr)
+                      CHKERRQ(ierr)
                       ! Set primary variables and region:
                       cell_primary => y_array(y_offset : y_offset + np - 1)
                       call fluid%assign(fluid_array, fluid_offset)

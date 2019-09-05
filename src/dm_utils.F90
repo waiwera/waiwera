@@ -42,12 +42,6 @@ module dm_utils_module
      generic, public :: minc_point => minc_point_single, minc_point_array
   end type dm_stratum_type
 
-  public :: dm_get_strata, dm_point_stratum_height
-
-  public :: dm_create_section, dm_set_data_layout, dm_set_default_data_layout
-  public :: dm_setup_global_section
-  public :: section_offset, global_section_offset
-
   interface natural_to_local_cell_index
      module procedure natural_to_local_cell_index_single
      module procedure natural_to_local_cell_index_array
@@ -58,6 +52,20 @@ module dm_utils_module
      module procedure local_to_natural_cell_index_array
   end interface local_to_natural_cell_index
 
+  interface section_offset
+     module procedure section_offset_single
+     module procedure section_offset_array
+  end interface section_offset
+
+  interface global_section_offset
+     module procedure global_section_offset_single
+     module procedure global_section_offset_array
+  end interface global_section_offset
+
+  public :: dm_get_strata, dm_point_stratum_height
+  public :: dm_create_section, dm_set_data_layout, dm_set_default_data_layout
+  public :: dm_setup_global_section
+  public :: section_offset, global_section_offset
   public :: global_vec_section, local_vec_section
   public :: global_to_local_vec_section, restore_dm_local_vec
   public :: global_vec_range_start, vec_reorder
@@ -407,7 +415,7 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine section_offset(section, p, offset, ierr)
+  subroutine section_offset_single(section, p, offset, ierr)
     !! Wrapper for PetscSectionGetOffset(), adding one to the result for
     !! Fortran 1-based indexing.
 
@@ -419,11 +427,32 @@ contains
     call PetscSectionGetOffset(section, p, offset, ierr)
     offset = offset + 1
 
-  end subroutine section_offset
+  end subroutine section_offset_single
 
 !------------------------------------------------------------------------
 
-  subroutine global_section_offset(section, p, range_start, offset, ierr)
+  subroutine section_offset_array(section, p, offset, ierr)
+    !! Array version of section_offset().
+
+    PetscSection, intent(in) :: section !! Local section
+    PetscInt, intent(in) :: p(:) !! Mesh points in DM
+    PetscInt, intent(out) :: offset(:) !! Offset value
+    PetscErrorCode, intent(out) :: ierr !! Error flag
+    ! Locals:
+    PetscInt :: i
+    PetscErrorCode :: ierri(size(p))
+
+      do i = 1, size(p)
+         call section_offset_single(section, p(i), offset(i), ierri(i))
+      end do
+      ierr = maxval(ierri)
+
+  end subroutine section_offset_array
+
+!------------------------------------------------------------------------
+
+  subroutine global_section_offset_single(section, p, range_start, &
+       offset, ierr)
     !! Wrapper for PetscSectionGetOffset(), adding one to the result for
     !! Fortran 1-based indexing. For global sections, we also need to
     !! subtract the layout range start to get indices suitable for
@@ -434,12 +463,34 @@ contains
     PetscInt, intent(in) :: range_start !! Start of PetscLayout range
     PetscInt, intent(out) :: offset !! Offset value
     PetscErrorCode, intent(out) :: ierr !! Error flag
-    ! Locals:
 
     call PetscSectionGetOffset(section, p, offset, ierr)
     offset = offset + 1 - range_start
 
-  end subroutine global_section_offset
+  end subroutine global_section_offset_single
+
+!------------------------------------------------------------------------
+
+  subroutine global_section_offset_array(section, p, range_start, &
+       offset, ierr)
+    !! Array version of global_section_offset().
+
+    PetscSection, intent(in) :: section !! Global section
+    PetscInt, intent(in) :: p(:) !! Mesh points
+    PetscInt, intent(in) :: range_start !! Start of PetscLayout range
+    PetscInt, intent(out) :: offset(:) !! Offset values
+    PetscErrorCode, intent(out) :: ierr !! Error flag
+    ! Locals:
+    PetscInt :: i
+    PetscErrorCode :: ierri(size(p))
+
+    do i = 1, size(p)
+       call global_section_offset_single(section, p(i), range_start, &
+            offset(i), ierri(i))
+    end do
+    ierr = maxval(ierri)
+
+  end subroutine global_section_offset_array
 
 !------------------------------------------------------------------------
 
