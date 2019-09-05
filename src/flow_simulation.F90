@@ -132,7 +132,7 @@ contains
     !! Sets up flux vector, for storing mass and energy fluxes through
     !! cell faces.
 
-    use dm_utils_module, only: set_dm_data_layout, global_vec_range_start
+    use dm_utils_module, only: dm_set_data_layout, global_vec_range_start
 
     class(flow_simulation_type), intent(in out) :: self
     ! Locals:
@@ -157,7 +157,7 @@ contains
        flux_variable_names(self%eos%num_primary_variables) = energy_component_name
     end if
 
-    call set_dm_data_layout(dm_flux, flux_variable_num_components, &
+    call dm_set_data_layout(dm_flux, flux_variable_num_components, &
          flux_variable_dim, flux_variable_names)
 
     call DMCreateLocalVector(dm_flux, self%flux, ierr); CHKERRQ(ierr)
@@ -619,7 +619,7 @@ contains
     !! except those for cells in which variables are being perturbed,
     !! which have the value 1.
 
-    use dm_utils_module, only: set_dm_data_layout, global_vec_range_start, &
+    use dm_utils_module, only: dm_set_data_layout, global_vec_range_start, &
          dm_setup_fv_discretization
 
     class(flow_simulation_type), intent(in out) :: self
@@ -629,7 +629,7 @@ contains
 
     call DMClone(self%mesh%dm, dm_update, ierr); CHKERRQ(ierr)
     call dm_setup_fv_discretization(dm_update, 1)
-    call set_dm_data_layout(dm_update, [1], [self%mesh%dim], ["update"])
+    call dm_set_data_layout(dm_update, [1], [self%mesh%dim], ["update"])
     call DMCreateGlobalVector(dm_update, self%update_cell, ierr); CHKERRQ(ierr)
     call PetscObjectSetName(self%update_cell, "update_cell", ierr); CHKERRQ(ierr)
     call global_vec_range_start(self%update_cell, self%update_cell_range_start)

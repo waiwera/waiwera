@@ -493,7 +493,7 @@ contains
   subroutine create_rock_vector(dm, rock_vector, range_start)
     !! Creates and returns rock vector and corresponding range start.
 
-    use dm_utils_module, only: set_dm_data_layout, global_vec_range_start
+    use dm_utils_module, only: dm_set_data_layout, global_vec_range_start
 
     DM, intent(in) :: dm !! DM on which to create rock vector
     Vec, intent(out) :: rock_vector !! Output rock vector
@@ -507,7 +507,7 @@ contains
 
     call DMGetDimension(dm, dim, ierr); CHKERRQ(ierr)
     rock_variable_dim = dim
-    call set_dm_data_layout(dm_rock, rock_variable_num_components, &
+    call dm_set_data_layout(dm_rock, rock_variable_num_components, &
          rock_variable_dim, rock_variable_names)
 
     call DMCreateGlobalVector(dm_rock, rock_vector, ierr); CHKERRQ(ierr)

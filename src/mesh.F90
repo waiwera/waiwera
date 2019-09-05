@@ -414,7 +414,7 @@ contains
 
     use kinds_module
     use utils_module, only: rotation_matrix_2d
-    use dm_utils_module, only: section_offset, local_vec_section, set_dm_data_layout
+    use dm_utils_module, only: section_offset, local_vec_section, dm_set_data_layout
 
     class(mesh_type), intent(in out) :: self
     Vec, intent(in) :: petsc_face_geom
@@ -446,7 +446,7 @@ contains
     ! Set up cell geometry vector:
     call VecGetDM(self%cell_geom, dm_cell, ierr); CHKERRQ(ierr)
     cell_variable_dim = self%dim
-    call set_dm_data_layout(dm_cell, cell_variable_num_components, &
+    call dm_set_data_layout(dm_cell, cell_variable_num_components, &
          cell_variable_dim, cell_variable_names)
 
     call local_vec_section(self%cell_geom, cell_section)
@@ -469,7 +469,7 @@ contains
     ! Set up face geometry vector:
     call DMClone(self%original_dm, dm_face, ierr); CHKERRQ(ierr)
     face_variable_dim = self%dim - 1
-    call set_dm_data_layout(dm_face, face_variable_num_components, &
+    call dm_set_data_layout(dm_face, face_variable_num_components, &
          face_variable_dim, face_variable_names)
     call DMCreateLocalVector(dm_face, self%face_geom, ierr); CHKERRQ(ierr)
     call local_vec_section(self%face_geom, face_section)
@@ -616,7 +616,7 @@ contains
     !! Adds space for Dirichlet boundary condition ghost cells to mesh
     !! geometry vectors.
 
-    use dm_utils_module, only: set_dm_data_layout, vec_copy_common_local
+    use dm_utils_module, only: dm_set_data_layout, vec_copy_common_local
 
     class(mesh_type), intent(in out) :: self
     PetscReal, intent(in) :: gravity(:) !! Gravity vector
@@ -629,7 +629,7 @@ contains
 
     call DMClone(self%dm, dm_cell, ierr); CHKERRQ(ierr)
     cell_variable_dim = self%dim
-    call set_dm_data_layout(dm_cell, cell_variable_num_components, &
+    call dm_set_data_layout(dm_cell, cell_variable_num_components, &
          cell_variable_dim, cell_variable_names)
     call DMCreateLocalVector(dm_cell, cell_geom, ierr); CHKERRQ(ierr)
     call vec_copy_common_local(self%cell_geom, cell_geom)
@@ -638,7 +638,7 @@ contains
 
     call DMClone(self%dm, dm_face, ierr); CHKERRQ(ierr)
     face_variable_dim = self%dim - 1
-    call set_dm_data_layout(dm_face, face_variable_num_components, &
+    call dm_set_data_layout(dm_face, face_variable_num_components, &
          face_variable_dim, face_variable_names)
     call DMCreateLocalVector(dm_face, face_geom, ierr); CHKERRQ(ierr)
     call vec_copy_common_local(self%face_geom, face_geom)
@@ -2629,7 +2629,7 @@ contains
 
     use kinds_module
     use dm_utils_module, only: section_offset, local_vec_section, &
-         set_dm_data_layout
+         dm_set_data_layout
 
     class(mesh_type), intent(in out) :: self
     DM, intent(in out) :: minc_dm
@@ -2663,7 +2663,7 @@ contains
 
     call DMClone(minc_dm, dm_cell, ierr); CHKERRQ(ierr)
     cell_variable_dim = self%dim
-    call set_dm_data_layout(dm_cell, cell_variable_num_components, &
+    call dm_set_data_layout(dm_cell, cell_variable_num_components, &
          cell_variable_dim, cell_variable_names)
     call DMCreateLocalVector(dm_cell, minc_cell_geom, ierr); CHKERRQ(ierr)
     call PetscObjectGetName(self%cell_geom, name, ierr); CHKERRQ(ierr)
@@ -2678,7 +2678,7 @@ contains
 
     call DMClone(minc_dm, dm_face, ierr); CHKERRQ(ierr)
     face_variable_dim = self%dim - 1
-    call set_dm_data_layout(dm_face, face_variable_num_components, &
+    call dm_set_data_layout(dm_face, face_variable_num_components, &
          face_variable_dim, face_variable_names)
     call DMCreateLocalVector(dm_face, minc_face_geom, ierr); CHKERRQ(ierr)
     call PetscObjectGetName(self%face_geom, name, ierr); CHKERRQ(ierr)

@@ -422,7 +422,7 @@ contains
     !! Creates and returns global vector for fluid properties, with
     !! specified numbers of components and phases.
 
-    use dm_utils_module, only: set_dm_data_layout, global_vec_range_start
+    use dm_utils_module, only: dm_set_data_layout, global_vec_range_start
 
     DM, intent(in) :: dm
     PetscInt, intent(in) :: max_component_name_length
@@ -480,7 +480,7 @@ contains
 
     call DMGetDimension(dm, dim, ierr); CHKERRQ(ierr)
     field_dim = dim
-    call set_dm_data_layout(fluid_dm, num_field_components, field_dim, &
+    call dm_set_data_layout(fluid_dm, num_field_components, field_dim, &
          field_names)
 
     call DMCreateGlobalVector(fluid_dm, fluid_vec, ierr); CHKERRQ(ierr)

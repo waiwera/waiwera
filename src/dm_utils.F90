@@ -44,7 +44,7 @@ module dm_utils_module
 
   public :: dm_get_strata, dm_point_stratum_height
 
-  public :: dm_create_section, set_dm_data_layout, set_dm_default_data_layout
+  public :: dm_create_section, dm_set_data_layout, set_dm_default_data_layout
   public :: dm_setup_global_section
   public :: section_offset, global_section_offset
 
@@ -286,7 +286,7 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine set_dm_data_layout(dm, num_components, field_dim, &
+  subroutine dm_set_data_layout(dm, num_components, field_dim, &
        field_name)
     !! Sets data layout on default section of the given DM.
 
@@ -301,7 +301,7 @@ contains
     section = dm_create_section(dm, num_components, field_dim, field_name)
     call DMSetSection(dm, section, ierr); CHKERRQ(ierr)
 
-  end subroutine set_dm_data_layout
+  end subroutine dm_set_data_layout
 
 !------------------------------------------------------------------------
 
@@ -321,7 +321,7 @@ contains
     field_dim = dim
     field_names(1) = "Primary"
 
-    call set_dm_data_layout(dm, num_components, field_dim, &
+    call dm_set_data_layout(dm, num_components, field_dim, &
          field_names)
 
   end subroutine set_dm_default_data_layout
