@@ -94,8 +94,7 @@ contains
     use mesh_module, only: mesh_type
     use eos_module
     use dm_utils_module, only: global_vec_section, global_section_offset, &
-         natural_to_local_cell_index, dm_get_end_interior_cell, &
-         dm_create_section
+         natural_to_local_cell_index, dm_distribute_local_vec
 
     type(fson_value), pointer, intent(in) :: json
     type(mesh_type), intent(in) :: mesh
@@ -108,9 +107,8 @@ contains
     PetscInt :: num_data
     PetscReal, allocatable :: primary_array(:,:)
     PetscReal, pointer, contiguous :: primary_data(:)
-    Vec :: serial_primary
-    Vec :: local_y
-    PetscSection :: serial_section, section
+    Vec :: primary
+    PetscSection :: section
     IS :: interior
     PetscErrorCode :: ierr
     PetscReal, pointer, contiguous :: y_array(:)
@@ -129,35 +127,25 @@ contains
        else
           allocate(primary_array(0, 0))
        end if
-       num_data = size(primary_array)
-       call VecCreate(PETSC_COMM_WORLD, serial_primary, ierr); CHKERRQ(ierr)
-       call VecSetType(serial_primary, VECMPI, ierr); CHKERRQ(ierr)
-       call VecSetSizes(serial_primary, num_data, PETSC_DECIDE, ierr); CHKERRQ(ierr)
-       call VecGetArrayF90(serial_primary, primary_data, ierr); CHKERRQ(ierr)
+       call DMCreateLocalVector(mesh%serial_dm, primary, ierr); CHKERRQ(ierr)
+       call VecGetArrayF90(primary, primary_data, ierr); CHKERRQ(ierr)
        primary_data = pack(transpose(primary_array), PETSC_TRUE)
-       call VecRestoreArrayF90(serial_primary, primary_data, ierr); CHKERRQ(ierr)
+       call VecRestoreArrayF90(primary, primary_data, ierr); CHKERRQ(ierr)
        deallocate(primary_array)
 
        if (np > 1) then
-          call DMGetSection(mesh%serial_dm, serial_section, ierr)
-          CHKERRQ(ierr)
-          call PetscSectionCreate(PETSC_COMM_WORLD, section, ierr); CHKERRQ(ierr)
-          call VecCreate(PETSC_COMM_WORLD, local_y, ierr); CHKERRQ(ierr)
-          call DMPlexDistributeField(mesh%dm, mesh%dist_sf, serial_section, &
-               serial_primary, section, local_y, ierr); CHKERRQ(ierr)
-          call PetscSectionDestroy(section, ierr); CHKERRQ(ierr)
-          call DMLocalToGlobal(mesh%dm, local_y, INSERT_VALUES, y, &
+          call dm_distribute_local_vec(mesh%dm, mesh%dist_sf, primary)
+          call DMLocalToGlobal(mesh%dm, primary, INSERT_VALUES, y, &
                ierr); CHKERRQ(ierr)
-          call VecDestroy(local_y, ierr); CHKERRQ(ierr)
        else
-          call VecGetLocalSize(serial_primary, num_data, ierr); CHKERRQ(ierr)
+          call VecGetLocalSize(primary, num_data, ierr); CHKERRQ(ierr)
           call ISCreateStride(PETSC_COMM_WORLD, num_data, &
                0, 1, interior, ierr); CHKERRQ(ierr)
-          call VecISCopy(y, interior, SCATTER_FORWARD, serial_primary, &
+          call VecISCopy(y, interior, SCATTER_FORWARD, primary, &
                ierr); CHKERRQ(ierr)
           call ISDestroy(interior, ierr); CHKERRQ(ierr)
        end if
-       call VecDestroy(serial_primary, ierr); CHKERRQ(ierr)
+       call VecDestroy(primary, ierr); CHKERRQ(ierr)
 
     else
 
