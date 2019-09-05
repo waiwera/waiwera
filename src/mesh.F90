@@ -764,7 +764,6 @@ contains
     type(logfile_type), intent(in out), optional :: logfile
     ! Locals:
     PetscInt :: mesh_type
-    PetscBool, parameter :: default_rebalance = PETSC_TRUE
     PetscErrorCode :: ierr
 
     if (fson_has_mpi(json, "mesh")) then
@@ -805,8 +804,6 @@ contains
        call self%label_sources(json)
        call self%setup_cell_natural()
        self%has_minc = PETSC_FALSE
-       call fson_get_mpi(json, "mesh.rebalance", default_rebalance, &
-               self%rebalance, logfile)
     end if
 
   end subroutine mesh_init
@@ -1817,6 +1814,7 @@ contains
     PetscMPIInt :: rank
     PetscErrorCode :: ierr
     PetscBool :: has_minc_local
+    PetscBool, parameter :: default_rebalance = PETSC_TRUE
 
     err = 0
 
@@ -1854,7 +1852,11 @@ contains
             num_minc_cells, ierr); CHKERRQ(ierr)
        has_minc_local = (num_minc_cells > 0)
        call MPI_allreduce(has_minc_local, self%has_minc, 1, MPI_LOGICAL, MPI_LOR, &
-         PETSC_COMM_WORLD, ierr)
+            PETSC_COMM_WORLD, ierr)
+
+       call fson_get_mpi(json, "mesh.rebalance", default_rebalance, &
+               self%rebalance, logfile)
+
     else
        self%has_minc = PETSC_FALSE
     end if
