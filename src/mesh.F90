@@ -137,10 +137,13 @@ contains
     
     class(mesh_type), intent(in out) :: self
     ! Locals:
+    DM :: dm_is
     PetscSection :: section
     PetscErrorCode :: ierr
 
-    section = dm_create_section(self%serial_dm, [1], [self%dim])
+    call DMClone(self%serial_dm, dm_is, ierr); CHKERRQ(ierr)
+    call dm_set_default_data_layout(dm_is, 1)
+    call DMGetSection(dm_is, section, ierr); CHKERRQ(ierr)
 
     call DMPlexDistribute(self%serial_dm, partition_overlap, self%dist_sf, &
          self%original_dm, ierr); CHKERRQ(ierr)
@@ -148,9 +151,9 @@ contains
        self%original_dm = self%serial_dm
     else
        call self%distribute_index_set(self%dist_sf, section, self%cell_natural)
-       call PetscSectionDestroy(section, ierr); CHKERRQ(ierr)
     end if
     call dm_label_partition_ghosts(self%original_dm)
+    call DMDestroy(dm_is, ierr); CHKERRQ(ierr)
 
   end subroutine mesh_distribute
 
@@ -3208,16 +3211,19 @@ contains
     !! only be called when running in parallel. The redistribution
     !! star forest is returned.
 
-    use dm_utils_module, only: dm_create_section, dm_natural_order_IS, &
-         dm_get_natural_to_global_ao
+    use dm_utils_module, only: dm_set_default_data_layout, &
+         dm_natural_order_IS, dm_get_natural_to_global_ao
 
     class(mesh_type), intent(in out) :: self
     PetscSF, intent(out) :: sf !! Redistribution star forest
     ! Locals:
+    DM :: dm_is
     PetscSection :: section
     PetscErrorCode :: ierr
 
-    section = dm_create_section(self%dm, [1], [self%dim])
+    call DMClone(self%dm, dm_is, ierr); CHKERRQ(ierr)
+    call dm_set_default_data_layout(dm_is, 1)
+    call DMGetSection(dm_is, section, ierr); CHKERRQ(ierr)
 
     call self%redistribute_dm(sf)
     if (sf .ne. PETSC_NULL_SF) then
@@ -3229,7 +3235,7 @@ contains
        call self%setup_ghost_arrays()
     end if
 
-    call PetscSectionDestroy(section, ierr); CHKERRQ(ierr)
+    call DMDestroy(dm_is, ierr); CHKERRQ(ierr)
 
   end subroutine mesh_redistribute
 

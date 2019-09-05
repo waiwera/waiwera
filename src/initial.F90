@@ -269,8 +269,9 @@ contains
     PetscInt, allocatable :: region_array(:)
     IS :: serial_region
     PetscSection :: serial_section, section, fluid_section
+    DM :: dm_is
     IS :: region
-    PetscInt :: i, c, ghost, offset, dim, minc_level
+    PetscInt :: i, c, ghost, offset, minc_level
     DMLabel :: ghost_label, minc_label
     type(fluid_type) :: fluid
     PetscInt, pointer, contiguous :: region_indices(:)
@@ -301,12 +302,13 @@ contains
        deallocate(region_array)
 
        if (np > 1) then
-          call DMGetDimension(mesh%serial_dm, dim, ierr); CHKERRQ(ierr)
-          serial_section = dm_create_section(mesh%serial_dm, [1], [dim])
+          call DMClone(mesh%serial_dm, dm_is, ierr); CHKERRQ(ierr)
+          call dm_set_default_data_layout(dm_is, 1)
+          call DMGetSection(dm_is, serial_section, ierr); CHKERRQ(ierr)
           call PetscSectionCreate(PETSC_COMM_WORLD, section, ierr); CHKERRQ(ierr)
           call DMPlexDistributeFieldIS(mesh%dm, mesh%dist_sf, serial_section, &
                serial_region, section, region, ierr); CHKERRQ(ierr)
-          call PetscSectionDestroy(serial_section, ierr); CHKERRQ(ierr)
+          call DMDestroy(dm_is, ierr); CHKERRQ(ierr)
           call PetscSectionDestroy(section, ierr); CHKERRQ(ierr)
        else
           call ISDuplicate(serial_region, region, ierr); CHKERRQ(ierr)
