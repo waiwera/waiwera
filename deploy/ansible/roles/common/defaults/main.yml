@@ -8,6 +8,7 @@ app_group: waiwera
 petsc_version: afbee2879a
 waiwera_version: meson
 petsc_arch: release
+petsc_repo: https://gitlab.com/petsc/petsc.git
 
 build_tools:
   - git

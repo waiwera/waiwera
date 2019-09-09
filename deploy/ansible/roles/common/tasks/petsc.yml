@@ -2,7 +2,7 @@
 
 - name: petsc - Fetch from bitbucket
   git:
-    repo: 'https://bitbucket.org/petsc/petsc.git'
+    repo: "{{ petsc_repo }}"
     dest: "{{ petsc_path }}"
     version: "{{ petsc_version }}"
   tags:
