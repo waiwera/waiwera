@@ -3137,13 +3137,16 @@ contains
     DM, intent(in out) :: minc_dm
     ! Locals:
     PetscInt :: dim, v, coord_size, dof, offset, minc_offset
-    PetscInt :: minc_v, shift
+    PetscInt :: minc_v, depth
     PetscInt :: vstart, vend, minc_vstart, minc_vend
     PetscSection :: section, minc_section
     Vec :: coordinates, minc_coordinates
     PetscReal, pointer :: coord_array(:), minc_coord_array(:)
     PetscReal, pointer :: pos(:), minc_pos(:)
     PetscErrorCode :: ierr
+
+    PetscMPIInt :: rank
+    call mpi_comm_rank(PETSC_COMM_WORLD, rank, ierr)
 
     call DMGetCoordinateDim(self%dm, dim, ierr); CHKERRQ(ierr)
     call DMGetCoordinatesLocal(self%dm, coordinates, ierr); CHKERRQ(ierr)
@@ -3181,9 +3184,9 @@ contains
     call VecGetArrayReadF90(coordinates, coord_array, ierr); CHKERRQ(ierr)
     call VecGetArrayF90(minc_coordinates, minc_coord_array, ierr); CHKERRQ(ierr)
     minc_coord_array = 0._dp
-    shift = minc_vstart - vstart
+    call DMPlexGetDepth(self%dm, depth, ierr); CHKERRQ(ierr)
     do v = vstart, vend - 1
-       minc_v = v + shift
+       minc_v = self%strata(depth)%minc_point(v, 0)
        call PetscSectionGetDof(section, v, dof, ierr); CHKERRQ(ierr)
        call section_offset(section, v, offset, ierr); CHKERRQ(ierr)
        call section_offset(minc_section, minc_v, minc_offset, ierr); CHKERRQ(ierr)
