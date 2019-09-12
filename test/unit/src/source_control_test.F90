@@ -88,19 +88,16 @@ contains
     PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
     PetscInt, parameter :: expected_num_sources = 8
     PetscMPIInt :: rank
-    PetscViewer :: viewer
     IS :: source_is
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
     json => fson_parse_mpi(trim(adjustl(data_path)) // "source/test_source_controls_table.json")
-    viewer = PETSC_NULL_VIEWER
 
     call thermo%init()
     call eos%init(json, thermo)
     call mesh%init(eos, json)
     call DMCreateLabel(mesh%serial_dm, open_boundary_label_name, ierr); CHKERRQ(ierr)
     call mesh%configure(gravity, json, err = err)
-    call mesh%output_cell_index(viewer)
 
     call create_fluid_vector(mesh%dm, max_component_name_length, &
          eos%component_names, max_phase_name_length, eos%phase_names, &
@@ -247,13 +244,11 @@ contains
          -10.3366086953508_dp, 0._dp, -2.25_dp, -12.8728519749_dp * 0.75_dp, &
          -12.8728519749_dp * 0.375_dp]
     PetscMPIInt :: rank
-    PetscViewer :: viewer
     character(len = 16) :: srcstr
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
     json => fson_parse_mpi(trim(adjustl(data_path)) // &
          "source/test_source_controls_pressure_reference.json")
-    viewer = PETSC_NULL_VIEWER
 
     call thermo%init()
     call eos%init(json, thermo)
@@ -277,7 +272,6 @@ contains
     call fluid%init(eos%num_components, eos%num_phases)
     call DMCreateLabel(mesh%serial_dm, open_boundary_label_name, ierr); CHKERRQ(ierr)
     call mesh%configure(gravity, json, err = err)
-    call mesh%output_cell_index(viewer)
 
     call create_fluid_vector(mesh%dm, max_component_name_length, &
          eos%component_names, max_phase_name_length, eos%phase_names, &

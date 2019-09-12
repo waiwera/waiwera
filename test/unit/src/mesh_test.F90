@@ -180,7 +180,6 @@ contains
     PetscErrorCode :: ierr, err
     PetscMPIInt :: rank
     character(len = 24) :: msg
-    PetscViewer :: viewer
     ISLocalToGlobalMapping :: l2g
     PetscInt, parameter :: expected_dim = 3, num_cells = 3, num_faces = 16
     PetscReal, parameter :: face_area = 200._dp
@@ -192,13 +191,11 @@ contains
     
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
     call thermo%init()
-    viewer = PETSC_NULL_VIEWER
 
     json => fson_parse_mpi(str = '{"mesh": "' // trim(adjustl(data_path)) // 'mesh/block3.exo"}')
     call eos%init(json, thermo)
     call mesh%init(eos, json)
     call mesh%configure(gravity, json, err = err)
-    call mesh%output_cell_index(viewer)
     call fson_destroy_mpi(json)
     call mesh%construct_ghost_cells(gravity)
     call mesh%destroy_distribution_data()
@@ -278,7 +275,6 @@ contains
     type(IAPWS_type) :: thermo
     type(eos_we_type) :: eos
     type(mesh_type) :: mesh
-    PetscViewer :: viewer
     PetscReal, pointer, contiguous :: cell_geom_array(:), face_geom_array(:)
     PetscSection :: cell_geom_section, face_geom_section
     PetscInt :: c, offset, f, start_cell, end_cell, start_face, end_face
@@ -295,7 +291,6 @@ contains
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
     call thermo%init()
-    viewer = PETSC_NULL_VIEWER
 
     json => fson_parse_mpi(str = '{"mesh": {' // &
          '"filename": "' // trim(adjustl(data_path)) // 'mesh/2D.msh",' // &
@@ -303,7 +298,6 @@ contains
     call eos%init(json, thermo)
     call mesh%init(eos, json)
     call mesh%configure(gravity, json, err = err)
-    call mesh%output_cell_index(viewer)
     call mesh%construct_ghost_cells(gravity)
 
     call fson_destroy_mpi(json)
@@ -386,7 +380,6 @@ contains
     type(mesh_type) :: mesh
     type(IAPWS_type) :: thermo
     type(eos_we_type) :: eos
-    PetscViewer :: viewer
     PetscReal, pointer, contiguous :: cell_geom_array(:), face_geom_array(:)
     PetscSection :: cell_geom_section, face_geom_section
     PetscInt :: c, offset, f, start_cell, end_cell, start_face, end_face
@@ -404,7 +397,6 @@ contains
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
     call thermo%init()
-    viewer = PETSC_NULL_VIEWER
 
     json => fson_parse_mpi(str = '{"mesh": {' // &
          '"filename": "' // trim(adjustl(data_path)) // 'mesh/2D.msh",' // &
@@ -412,7 +404,6 @@ contains
     call eos%init(json, thermo)
     call mesh%init(eos, json)
     call mesh%configure(gravity, json, err = err)
-    call mesh%output_cell_index(viewer)
     call mesh%construct_ghost_cells(gravity)
 
     call fson_destroy_mpi(json)
@@ -504,7 +495,6 @@ contains
     type(IAPWS_type) :: thermo
     type(eos_we_type) :: eos
     type(mesh_type) :: mesh
-    PetscViewer :: viewer
     PetscInt :: f, offset, start_face, end_face
     PetscErrorCode :: ierr, err
     PetscSection :: face_geom_section
@@ -517,7 +507,6 @@ contains
     PetscInt, parameter :: expected_direction = 1
 
     call thermo%init()
-    viewer = PETSC_NULL_VIEWER
 
     json => fson_parse_mpi(str = &
          '{"mesh": {"filename": "' // trim(adjustl(data_path)) // 'mesh/7x7grid.exo", ' // &
@@ -528,7 +517,6 @@ contains
     call mesh%init(eos, json)
 
     call mesh%configure(gravity, json, err = err)
-    call mesh%output_cell_index(viewer)
     call mesh%construct_ghost_cells(gravity)
 
     call mesh%override_face_properties()
@@ -852,7 +840,6 @@ contains
       character(:), allocatable :: orig_json_str
       type(IAPWS_type) :: thermo
       type(eos_we_type) :: eos
-      PetscViewer :: viewer
       PetscInt :: num_cells, num_cells_sf, num_minc_zones, m, num, max_num_levels
       PetscErrorCode :: err
       PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
@@ -874,13 +861,11 @@ contains
       PetscReal :: expected_vol, expected_area
       PetscInt :: ic(expected_max_level)
 
-      viewer = PETSC_NULL_VIEWER
       call thermo%init()
       json => fson_parse_mpi(str = json_str)
       call eos%init(json, thermo)
       call mesh%init(eos, json)
       call mesh%configure(gravity, json, err = err)
-      call mesh%output_cell_index(viewer)
       call mesh%construct_ghost_cells(gravity)
 
       call test%assert(0, err, name // ": minc config error")
@@ -894,7 +879,6 @@ contains
       orig_json => fson_parse_mpi(str = orig_json_str)
       call orig_mesh%init(eos, orig_json)
       call orig_mesh%configure(gravity, orig_json, err = err)
-      call orig_mesh%output_cell_index(viewer)
       call orig_mesh%construct_ghost_cells(gravity)
 
       call fson_destroy_mpi(orig_json)
@@ -1060,11 +1044,9 @@ contains
     character(:), allocatable :: json_str
     PetscErrorCode :: ierr
     PetscMPIInt :: rank
-    PetscViewer :: viewer
     PetscInt, parameter :: num_rocktypes = 2
 
     call MPI_comm_rank(PETSC_COMM_WORLD, rank, ierr)
-    viewer = PETSC_NULL_VIEWER
 
     json_str = &
          '{"mesh": {"filename": "' // trim(adjustl(data_path)) // 'mesh/7x7grid.exo"}, ' // &
@@ -1142,7 +1124,6 @@ contains
 
       call rock_dict%init(owner = PETSC_TRUE)
       call mesh%configure(gravity, json, err = err)
-      call mesh%output_cell_index(viewer)
       call mesh%construct_ghost_cells(gravity)
 
       call mesh_geometry_sanity_check(mesh, test, title)
@@ -1287,7 +1268,6 @@ contains
       type(mesh_type) :: mesh
       type(IAPWS_type) :: thermo
       type(eos_we_type) :: eos
-      PetscViewer :: viewer
       PetscInt :: num_local_minc_rock_cells, num_minc_rock_cells, num_minc_rocktypes
       Vec :: rock_vector
       type(dictionary_type) :: rock_dict
@@ -1305,7 +1285,6 @@ contains
       PetscReal :: expected_porosity
       character(8) :: levelstr
 
-      viewer = PETSC_NULL_VIEWER
       num_minc_rocktypes = size(expected_fracture_porosity)
 
       call thermo%init()
@@ -1313,7 +1292,6 @@ contains
       call eos%init(json, thermo)
       call mesh%init(eos, json)
       call mesh%configure(gravity, json, err = err)
-      call mesh%output_cell_index(viewer)
       call mesh%construct_ghost_cells(gravity)
 
       call test%assert(0, err, title // " mesh configure error")
@@ -1431,7 +1409,6 @@ contains
       type(IAPWS_type) :: thermo
       type(eos_we_type) :: eos
       type(fson_value), pointer :: json
-      PetscViewer :: viewer
       PetscErrorCode :: err
       PetscInt :: c, start_cell, end_cell
       PetscInt, allocatable :: label_order(:), order(:)
@@ -1443,7 +1420,6 @@ contains
       json => fson_parse_mpi(str = json_str)
       call thermo%init()
       call eos%init(json, thermo)
-      viewer = PETSC_NULL_VIEWER
       call mesh%init(eos, json)
 
       call DMPlexGetHeightStratum(mesh%serial_dm, 0, start_cell, end_cell, ierr)
@@ -1456,7 +1432,6 @@ contains
 
       call mesh%configure(gravity, json, err = err)
       call test%assert(0, err, "mesh config " // trim(title))
-      call mesh%output_cell_index(viewer)
 
       call mesh%construct_ghost_cells(gravity)
       call mesh%destroy_distribution_data()
@@ -1609,7 +1584,6 @@ contains
       type(IAPWS_type) :: thermo
       type(eos_we_type) :: eos
       type(fson_value), pointer :: json
-      PetscViewer :: viewer
       PetscInt :: c, p, m, natural, minc_natural, expected_natural
       PetscInt, allocatable :: ic(:)
       PetscInt :: iminc
@@ -1622,10 +1596,8 @@ contains
       json => fson_parse_mpi(str = json_str)
       call thermo%init()
       call eos%init(json, thermo)
-      viewer = PETSC_NULL_VIEWER
       call mesh%init(eos, json)
       call mesh%configure(gravity, json, err = err)
-      call mesh%output_cell_index(viewer)
       call mesh%construct_ghost_cells(gravity)
 
       call fson_destroy_mpi(json)
@@ -1730,7 +1702,6 @@ contains
       type(IAPWS_type) :: thermo
       type(eos_we_type) :: eos
       type(fson_value), pointer :: json
-      PetscViewer :: viewer
       PetscInt :: i, idx(1), natural, global, minc_level
       PetscErrorCode :: err, ierr
       character(2) :: natural_str
@@ -1739,10 +1710,8 @@ contains
       json => fson_parse_mpi(str = json_str)
       call thermo%init()
       call eos%init(json, thermo)
-      viewer = PETSC_NULL_VIEWER
       call mesh%init(eos, json)
       call mesh%configure(gravity, json, err = err)
-      call mesh%output_cell_index(viewer)
       call mesh%construct_ghost_cells(gravity)
 
       call fson_destroy_mpi(json)
@@ -1859,7 +1828,6 @@ contains
       type(IAPWS_type) :: thermo
       type(eos_we_type) :: eos
       type(fson_value), pointer :: json
-      PetscViewer :: viewer
       PetscSF :: sf
       PetscMPIInt :: rank, np
       PetscInt :: num_minc_zones, max_num_levels, num_cells, num_cells_sf
@@ -1874,10 +1842,8 @@ contains
       json => fson_parse_mpi(str = json_str)
       call thermo%init()
       call eos%init(json, thermo)
-      viewer = PETSC_NULL_VIEWER
       call mesh%init(eos, json)
       call mesh%configure(gravity, json, err = err)
-      call mesh%output_cell_index(viewer)
 
       if (np > 1) then
          call mesh%redistribute(sf)

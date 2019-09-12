@@ -232,7 +232,6 @@ contains
       type(eos_we_type) :: eos
       type(mesh_type) :: mesh
       PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
-      PetscViewer :: viewer
       Vec :: fluid_vector, y
       PetscInt :: y_range_start, fluid_range_start
       PetscInt :: start_cell, end_cell, end_interior_cell
@@ -251,14 +250,12 @@ contains
       PetscInt, parameter :: expected_region = 1
 
       json => fson_parse_mpi(str = json_str)
-      viewer = PETSC_NULL_VIEWER
       call logfile%init('', echo = PETSC_FALSE)
 
       call thermo%init()
       call eos%init(json, thermo)
       call mesh%init(eos, json)
       call mesh%configure(gravity, json, err = err)
-      call mesh%output_cell_index(viewer)
       call DMCreateGlobalVector(mesh%dm, y, ierr); CHKERRQ(ierr)
       call PetscObjectSetName(y, "primary", ierr); CHKERRQ(ierr)
       call global_vec_range_start(y, y_range_start)
@@ -367,7 +364,6 @@ contains
     type(eos_we_type) :: eos
     type(mesh_type) :: mesh
     PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
-    PetscViewer :: viewer
     Vec :: fluid_vector
     PetscInt :: fluid_range_start, start_cell, end_cell, i
     PetscInt :: c, ghost, fluid_offset, cell_geom_offset
@@ -399,14 +395,12 @@ contains
          ' "eos": "we"}'
 
     json => fson_parse_mpi(str = json_str)
-    viewer = PETSC_NULL_VIEWER
     call logfile%init('', echo = PETSC_FALSE)
 
     call thermo%init()
     call eos%init(json, thermo)
     call mesh%init(eos, json)
     call mesh%configure(gravity, json, err = err)
-    call mesh%output_cell_index(viewer)
 
     call create_fluid_vector(mesh%dm, max_component_name_length, &
          eos%component_names, max_phase_name_length, &
@@ -514,7 +508,6 @@ contains
     type(eos_we_type) :: eos
     type(mesh_type) :: mesh
     PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
-    PetscViewer :: viewer
     type(logfile_type) :: logfile
     Vec :: y, fluid_vector
     PetscInt :: y_range_start, fluid_range_start, ghost
@@ -540,14 +533,12 @@ contains
          '               "region":  [1, 1, 1, 2, 2, 2, 4, 4, 4, 4]}}'
 
     json => fson_parse_mpi(str = json_str)
-    viewer = PETSC_NULL_VIEWER
     call logfile%init('', echo = PETSC_FALSE)
 
     call thermo%init()
     call eos%init(json, thermo)
     call mesh%init(eos, json)
     call mesh%configure(gravity, json, err = err)
-    call mesh%output_cell_index(viewer)
 
     call DMCreateGlobalVector(mesh%dm, y, ierr); CHKERRQ(ierr)
     call PetscObjectSetName(y, "primary", ierr); CHKERRQ(ierr)

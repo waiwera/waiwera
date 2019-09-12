@@ -83,19 +83,16 @@ contains
     PetscInt, parameter :: offset = 1
     PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
     PetscMPIInt :: rank
-    PetscViewer :: viewer
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
     json => fson_parse_mpi(str = '{"mesh": "' // trim(adjustl(data_path)) // &
          'flow_simulation/mesh/3x3_2d.exo"}')
     call thermo%init()
     call eos%init(json, thermo)
-    viewer = PETSC_NULL_VIEWER
 
     call mesh%init(eos, json)
     call fluid%init(eos%num_components, eos%num_phases)
     call mesh%configure(gravity, json, err = err)
-    call mesh%output_cell_index(viewer)
 
     call create_fluid_vector(mesh%dm, max_component_name_length, &
          eos%component_names, max_phase_name_length, eos%phase_names, &

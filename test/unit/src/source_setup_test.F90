@@ -84,7 +84,6 @@ contains
     PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
     PetscInt, parameter :: expected_num_sources = 19
     PetscMPIInt :: rank, num_procs
-    PetscViewer :: viewer
     IS :: source_is
     PetscInt, allocatable :: zone_source(:), isort(:)
     PetscInt, allocatable :: zone_source_sorted(:), zone_source_all(:)
@@ -94,7 +93,6 @@ contains
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
     call MPI_COMM_SIZE(PETSC_COMM_WORLD, num_procs, ierr)
     json => fson_parse_mpi(trim(adjustl(data_path)) // "source/test_source.json")
-    viewer = PETSC_NULL_VIEWER
 
     call thermo%init()
     call eos%init(json, thermo)
@@ -102,7 +100,6 @@ contains
     call mesh%init(eos, json)
     call DMCreateLabel(mesh%serial_dm, open_boundary_label_name, ierr); CHKERRQ(ierr)
     call mesh%configure(gravity, json, err = err)
-    call mesh%output_cell_index(viewer)
     call DMGetGlobalVector(mesh%dm, fluid_vector, ierr); CHKERRQ(ierr) ! dummy- not used
 
     call setup_sources(json, mesh%dm, mesh%cell_natural_global, eos, thermo, start_time, &

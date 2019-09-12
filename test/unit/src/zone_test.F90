@@ -230,12 +230,10 @@ contains
     type(IAPWS_type) :: thermo
     type(eos_we_type) :: eos
     PetscMPIInt :: rank
-    PetscViewer :: viewer
     PetscErrorCode :: ierr, err
 
     call MPI_comm_rank(PETSC_COMM_WORLD, rank, ierr)
     call thermo%init()
-    viewer = PETSC_NULL_VIEWER
 
     json => fson_parse_mpi(str = &
          '{"mesh": {"filename": "' // trim(adjustl(data_path)) // 'mesh/7x7grid.exo", ' // &
@@ -244,7 +242,6 @@ contains
     call eos%init(json, thermo)
     call mesh%init(eos, json)
     call mesh%configure(gravity, json, err = err)
-    call mesh%output_cell_index(viewer)
 
     call test%assert(0, err, 'config error')
     call fson_destroy_mpi(json)
@@ -336,11 +333,9 @@ contains
     PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
     PetscMPIInt :: rank
     PetscErrorCode :: ierr, err
-    PetscViewer :: viewer
 
     call MPI_comm_rank(PETSC_COMM_WORLD, rank, ierr)
     call thermo%init()
-    viewer = PETSC_NULL_VIEWER
 
     json => fson_parse_mpi(str = &
          '{"mesh": {"filename": "' // trim(adjustl(data_path)) // 'mesh/7x7grid.exo", ' // &
@@ -351,7 +346,6 @@ contains
     call eos%init(json, thermo)
     call mesh%init(eos, json)
     call mesh%configure(gravity, json, err = err)
-    call mesh%output_cell_index(viewer)
 
     call test%assert(0, err, 'config error')
     call fson_destroy_mpi(json)
@@ -419,11 +413,9 @@ contains
     type(eos_we_type) :: eos
     PetscMPIInt :: rank
     PetscErrorCode :: ierr, err
-    PetscViewer :: viewer
 
     call MPI_comm_rank(PETSC_COMM_WORLD, rank, ierr)
     call thermo%init()
-    viewer = PETSC_NULL_VIEWER
 
     json => fson_parse_mpi(str = &
          '{"mesh": {"filename": "' // trim(adjustl(data_path)) // 'mesh/7x7grid.exo", ' // &
@@ -439,7 +431,6 @@ contains
     call eos%init(json, thermo)
     call mesh%init(eos, json)
     call mesh%configure(gravity, json, err = err)
-    call mesh%output_cell_index(viewer)
 
     call test%assert(0, err, 'config error')
     call fson_destroy_mpi(json)
