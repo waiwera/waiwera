@@ -3211,7 +3211,8 @@ contains
     !! star forest is returned.
 
     use dm_utils_module, only: dm_set_default_data_layout, &
-         dm_natural_order_IS, dm_get_natural_to_global_ao
+         dm_natural_order_IS, dm_get_natural_to_global_ao, &
+         dm_get_cell_index
 
     class(mesh_type), intent(in out) :: self
     PetscSF, intent(out) :: sf !! Redistribution star forest
@@ -3230,7 +3231,10 @@ contains
        call self%distribute_index_set(sf, section, self%cell_natural)
        call self%distribute_index_set(sf, section, self%cell_parent_natural)
        self%cell_natural_global = &
-         dm_get_natural_to_global_ao(self%dm, self%cell_natural)
+            dm_get_natural_to_global_ao(self%dm, self%cell_natural)
+       call ISDestroy(self%cell_index, ierr); CHKERRQ(ierr)
+       call dm_get_cell_index(self%dm, self%cell_natural_global, &
+                  self%cell_index)
        call self%setup_ghost_arrays()
     end if
 
