@@ -839,6 +839,8 @@ contains
           call self%setup_minc(json, logfile, err)
           if (err == 0) then
              if (self%has_minc) call self%setup_minc_dm()
+             call dm_get_cell_index(self%dm, self%cell_natural_global, &
+                  self%cell_index)
           end if
        end if
     end if
