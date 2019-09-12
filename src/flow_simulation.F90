@@ -723,7 +723,11 @@ contains
                       end if
                    end if
 
-                   call self%mesh%output_cell_index(self%hdf5_viewer)
+                   if (self%hdf5_viewer /= PETSC_NULL_VIEWER) then
+                      call ISView(self%mesh%cell_index, self%hdf5_viewer, &
+                           ierr); CHKERRQ(ierr)
+                   end if
+
                    call self%add_boundary_ghost_cells()
 
                    call VecDuplicate(self%solution, self%balances, ierr); CHKERRQ(ierr)
