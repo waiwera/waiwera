@@ -121,7 +121,6 @@ module mesh_module
      procedure, public :: local_cell_minc_level => mesh_local_cell_minc_level
      procedure, public :: destroy_distribution_data => mesh_destroy_distribution_data
      procedure, public :: redistribute => mesh_redistribute
-     procedure, public :: output_cell_index => mesh_output_cell_index
   end type mesh_type
 
 contains
@@ -3523,27 +3522,6 @@ contains
     end if
 
   end subroutine mesh_natural_cell_output_arrays
-
-!------------------------------------------------------------------------
-
-  subroutine mesh_output_cell_index(self, viewer)
-    !! Creates cell_index IS and outputs to specified viewer.
-
-    use dm_utils_module, only: dm_get_cell_index
-
-    class(mesh_type), intent(in out) :: self
-    PetscViewer, intent(in out) :: viewer
-    ! Locals:
-    PetscErrorCode :: ierr
-
-    call dm_get_cell_index(self%dm, self%cell_natural_global, &
-         self%cell_index)
-    if (viewer /= PETSC_NULL_VIEWER) then
-       call ISView(self%cell_index, viewer, ierr)
-       CHKERRQ(ierr)
-    end if
-
-  end subroutine mesh_output_cell_index
 
 !------------------------------------------------------------------------
 
