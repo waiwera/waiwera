@@ -83,6 +83,7 @@ module dm_utils_module
   public :: dm_global_cell_field_dof, dm_check_create_label
   public :: dm_label_partition_ghosts, dm_label_boundary_ghosts
   public :: dm_distribute_local_vec, dm_distribute_global_vec
+  public :: dm_distribute_index_set
   public :: vec_copy_common_local
   public :: mat_type_is_block, mat_coloring_perturbed_columns
   public :: dm_copy_cone_orientation
@@ -1445,6 +1446,34 @@ contains
     v = global_v
 
   end subroutine dm_distribute_global_vec
+
+!------------------------------------------------------------------------
+
+  subroutine dm_distribute_index_set(dm, sf, section, index_set)
+    !! Distributes IS according to the specified distribution star
+    !! forest.
+
+    DM, intent(in) :: dm
+    PetscSF, intent(in) :: sf !! Distribution star forest
+    PetscSection, intent(in) :: section !! Section for existing IS
+    IS, intent(in out) :: index_set
+    ! Locals:
+    PetscSection :: dist_section
+    IS :: dist_index_set
+    PetscErrorCode :: ierr
+
+    call PetscSectionCreate(PETSC_COMM_WORLD, dist_section, ierr)
+    CHKERRQ(ierr)
+    call ISCreate(PETSC_COMM_WORLD, dist_index_set, ierr)
+    CHKERRQ(ierr)
+    call DMPlexDistributeFieldIS(dm, sf, section, &
+         index_set, dist_section, &
+         dist_index_set, ierr); CHKERRQ(ierr)
+    call PetscSectionDestroy(dist_section, ierr); CHKERRQ(ierr)
+    call ISDestroy(index_set, ierr); CHKERRQ(ierr)
+    index_set = dist_index_set
+
+  end subroutine dm_distribute_index_set
 
 !------------------------------------------------------------------------
 

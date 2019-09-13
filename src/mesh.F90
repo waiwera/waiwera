@@ -109,7 +109,6 @@ module mesh_module
      procedure :: geometry_add_boundary => mesh_geometry_add_boundary
      procedure :: boundary_face_geometry => mesh_boundary_face_geometry
      procedure :: setup_cell_natural => mesh_setup_cell_natural
-     procedure :: distribute_index_set => mesh_distribute_index_set
      procedure, public :: init => mesh_init
      procedure, public :: configure => mesh_configure
      procedure, public :: construct_ghost_cells => mesh_construct_ghost_cells
@@ -132,7 +131,7 @@ contains
     !! mesh distribution.
 
     use dm_utils_module, only: dm_set_default_data_layout, &
-         dm_label_partition_ghosts
+         dm_label_partition_ghosts, dm_distribute_index_set
     
     class(mesh_type), intent(in out) :: self
     ! Locals:
@@ -149,7 +148,8 @@ contains
     if (self%original_dm .eq. PETSC_NULL_DM) then
        self%original_dm = self%serial_dm
     else
-       call self%distribute_index_set(self%dist_sf, section, self%cell_natural)
+       call dm_distribute_index_set(self%original_dm, self%dist_sf, &
+            section, self%cell_natural)
     end if
     call dm_label_partition_ghosts(self%original_dm)
     call DMDestroy(dm_is, ierr); CHKERRQ(ierr)
@@ -3212,7 +3212,7 @@ contains
 
     use dm_utils_module, only: dm_set_default_data_layout, &
          dm_natural_order_IS, dm_get_natural_to_global_ao, &
-         dm_get_cell_index
+         dm_get_cell_index, dm_distribute_index_set
 
     class(mesh_type), intent(in out) :: self
     PetscSF, intent(out) :: sf !! Redistribution star forest
@@ -3228,8 +3228,8 @@ contains
     call self%redistribute_dm(sf)
     if (sf .ne. PETSC_NULL_SF) then
        call self%redistribute_geometry(sf)
-       call self%distribute_index_set(sf, section, self%cell_natural)
-       call self%distribute_index_set(sf, section, self%cell_parent_natural)
+       call dm_distribute_index_set(self%dm, sf, section, self%cell_natural)
+       call dm_distribute_index_set(self%dm, sf, section, self%cell_parent_natural)
        self%cell_natural_global = &
             dm_get_natural_to_global_ao(self%dm, self%cell_natural)
        call ISDestroy(self%cell_index, ierr); CHKERRQ(ierr)
@@ -3368,34 +3368,6 @@ contains
     CHKERRQ(ierr)
 
   end subroutine mesh_check_face_orientations
-
-!------------------------------------------------------------------------
-
-  subroutine mesh_distribute_index_set(self, sf, section, index_set)
-    !! Distributes IS according to the specified distribution star
-    !! forest.
-
-    class(mesh_type), intent(in out) :: self
-    PetscSF, intent(in) :: sf !! Distribution star forest
-    PetscSection, intent(in) :: section !! Section for existing IS
-    IS, intent(in out) :: index_set
-    ! Locals:
-    PetscSection :: dist_section
-    IS :: dist_index_set
-    PetscErrorCode :: ierr
-
-    call PetscSectionCreate(PETSC_COMM_WORLD, dist_section, ierr)
-    CHKERRQ(ierr)
-    call ISCreate(PETSC_COMM_WORLD, dist_index_set, ierr)
-    CHKERRQ(ierr)
-    call DMPlexDistributeFieldIS(self%dm, sf, section, &
-         index_set, dist_section, &
-         dist_index_set, ierr); CHKERRQ(ierr)
-    call PetscSectionDestroy(dist_section, ierr); CHKERRQ(ierr)
-    call ISDestroy(index_set, ierr); CHKERRQ(ierr)
-    index_set = dist_index_set
-
-  end subroutine mesh_distribute_index_set
 
 !------------------------------------------------------------------------
 
