@@ -1030,18 +1030,18 @@ contains
 
        if (self%mesh%ghost_cell(c) < 0) then
 
-          call global_section_offset(update_section, c, &
-               self%update_cell_range_start, update_offset, ierr); CHKERRQ(ierr)
+          update_offset = global_section_offset(update_section, c, &
+               self%update_cell_range_start)
           if (update(update_offset) > 0) then
 
-             call global_section_offset(lhs_section, c, &
-                  self%solution_range_start, lhs_offset, ierr); CHKERRQ(ierr)
+             lhs_offset = global_section_offset(lhs_section, c, &
+                  self%solution_range_start)
              balance => lhs_array(lhs_offset : lhs_offset + np - 1)
 
-             call global_section_offset(fluid_section, c, &
-                  self%fluid_range_start, fluid_offset, ierr); CHKERRQ(ierr)
-             call global_section_offset(rock_section, c, &
-                  self%rock_range_start, rock_offset, ierr); CHKERRQ(ierr)
+             fluid_offset = global_section_offset(fluid_section, c, &
+                  self%fluid_range_start)
+             rock_offset = global_section_offset(rock_section, c, &
+                  self%rock_range_start)
 
              call cell%rock%assign(rock_array, rock_offset)
              call cell%fluid%assign(fluid_array, fluid_offset)
@@ -1152,34 +1152,31 @@ contains
        if (self%mesh%ghost_face(f) < 0) then
 
           call DMPlexGetSupport(self%mesh%dm, f, cells, ierr); CHKERRQ(ierr)
-          call section_offset(update_section, cells, &
-               update_offsets, ierr); CHKERRQ(ierr)
-          call section_offset(cell_geom_section, cells, &
-               cell_geom_offsets, ierr); CHKERRQ(ierr)
-          call global_section_offset(rhs_section, cells, &
-               self%solution_range_start, rhs_offsets, ierr); CHKERRQ(ierr)
-          call section_offset(face_geom_section, f, face_geom_offset, &
-               ierr); CHKERRQ(ierr)
+          do i = 1, 2
+             update_offsets(i) = section_offset(update_section, cells(i))
+             cell_geom_offsets(i) = section_offset(cell_geom_section, cells(i))
+             rhs_offsets(i) = global_section_offset(rhs_section, cells(i), &
+                  self%solution_range_start)
+          end do
+          face_geom_offset = section_offset(face_geom_section, f)
           call face%assign_geometry(face_geom_array, face_geom_offset)
           call face%assign_cell_geometry(cell_geom_array, cell_geom_offsets)
 
           if ((update(update_offsets(1)) > 0) .or. &
                (update(update_offsets(2)) > 0)) then
-             call section_offset(fluid_section, cells, &
-                  fluid_offsets, ierr); CHKERRQ(ierr)
-             call section_offset(rock_section, cells, &
-                  rock_offsets, ierr); CHKERRQ(ierr)
+             do i = 1, 2
+                fluid_offsets(i) = section_offset(fluid_section, cells(i))
+                rock_offsets(i) = section_offset(rock_section, cells(i))
+             end do
              call face%assign_cell_fluid(fluid_array, fluid_offsets)
              call face%assign_cell_rock(rock_array, rock_offsets)
              face_flux = face%flux(self%eos)
              if (self%unperturbed) then
-                call section_offset(flux_section, f, flux_offset, ierr)
-                CHKERRQ(ierr)
+                flux_offset = section_offset(flux_section, f)
                 flux_array(flux_offset : flux_offset + np - 1) = face_flux
              end if
           else
-             call section_offset(flux_section, f, flux_offset, ierr)
-             CHKERRQ(ierr)
+             flux_offset = section_offset(flux_section, f)
              face_flux = flux_array(flux_offset : flux_offset + np - 1)
           end if
 
@@ -1254,25 +1251,22 @@ contains
       type(cell_type) :: cell
       type(source_type) :: source
       PetscInt :: source_offset
-      PetscErrorCode :: ierr
 
       call cell%init(self%eos%num_components, self%eos%num_phases)
       call source%init(self%eos)
 
       do s = 0, self%num_local_sources - 1
 
-         call global_section_offset(source_section, s, &
-              self%source_range_start, source_offset, ierr); CHKERRQ(ierr)
+         source_offset = global_section_offset(source_section, s, &
+              self%source_range_start)
          call source%assign(source_data, source_offset)
          c = nint(source%local_cell_index)
 
-         call global_section_offset(rhs_section, c, &
-              self%solution_range_start, rhs_offset, ierr)
-         CHKERRQ(ierr)
+         rhs_offset = global_section_offset(rhs_section, c, &
+              self%solution_range_start)
          inflow => rhs_array(rhs_offset : rhs_offset + np - 1)
 
-         call section_offset(cell_geom_section, c, &
-              cell_geom_offset, ierr); CHKERRQ(ierr)
+         cell_geom_offset = section_offset(cell_geom_section, c)
          call cell%assign_geometry(cell_geom_array, cell_geom_offset)
 
          call source%update_flow(fluid_array, fluid_section)
@@ -1440,15 +1434,12 @@ contains
 
        if (self%mesh%ghost_cell(c) < 0) then
 
-          call global_section_offset(y_section, c, &
-               self%solution_range_start, y_offset, ierr); CHKERRQ(ierr)
+          y_offset = global_section_offset(y_section, c, &
+               self%solution_range_start)
           scaled_cell_primary => y_array(y_offset : y_offset + np - 1)
 
-          call global_section_offset(fluid_section, c, &
-               self%fluid_range_start, fluid_offset, ierr); CHKERRQ(ierr)
-
-          call global_section_offset(rock_section, c, &
-               self%rock_range_start, rock_offset, ierr); CHKERRQ(ierr)
+          fluid_offset = global_section_offset(fluid_section, c, self%fluid_range_start)
+          rock_offset = global_section_offset(rock_section, c, self%rock_range_start)
 
           call cell%rock%assign(rock_array, rock_offset)
           call cell%rock%assign_relative_permeability(self%relative_permeability)
@@ -1565,19 +1556,18 @@ contains
 
        if ((self%mesh%ghost_cell(c) < 0)) then
 
-          call global_section_offset(update_section, c, &
-               self%update_cell_range_start, update_offset, ierr); CHKERRQ(ierr)
+          update_offset = global_section_offset(update_section, c, &
+               self%update_cell_range_start)
           if (update(update_offset) > 0) then
 
-             call global_section_offset(y_section, c, &
-                  self%solution_range_start, y_offset, ierr); CHKERRQ(ierr)
+             y_offset = global_section_offset(y_section, c, &
+                  self%solution_range_start)
              scaled_cell_primary => y_array(y_offset : y_offset + np - 1)
 
-             call global_section_offset(fluid_section, c, &
-                  self%fluid_range_start, fluid_offset, ierr); CHKERRQ(ierr)
-
-             call global_section_offset(rock_section, c, &
-                  self%rock_range_start, rock_offset, ierr); CHKERRQ(ierr)
+             fluid_offset = global_section_offset(fluid_section, c, &
+                  self%fluid_range_start)
+             rock_offset = global_section_offset(rock_section, c, &
+                  self%rock_range_start)
 
              call cell%rock%assign(rock_array, rock_offset)
              call cell%rock%assign_relative_permeability(self%relative_permeability)
@@ -1699,15 +1689,15 @@ contains
 
        if (self%mesh%ghost_cell(c) < 0) then
 
-          call global_section_offset(primary_section, c, &
-               self%solution_range_start, primary_offset, ierr); CHKERRQ(ierr)
+          primary_offset = global_section_offset(primary_section, c, &
+               self%solution_range_start)
           scaled_cell_primary => primary_array(primary_offset : primary_offset + np - 1)
           old_scaled_cell_primary => old_primary_array(primary_offset : &
                primary_offset + np - 1)
           scaled_cell_search => search_array(primary_offset : primary_offset + np - 1)
 
-          call global_section_offset(fluid_section, c, &
-               self%fluid_range_start, fluid_offset, ierr); CHKERRQ(ierr)
+          fluid_offset = global_section_offset(fluid_section, c, &
+               self%fluid_range_start)
 
           call old_fluid%assign(last_iteration_fluid_array, &
                fluid_offset)
@@ -1865,8 +1855,8 @@ contains
        call source%init(self%eos)
        allocate(source_cell_indices(self%num_local_sources))
        do i = 1, self%num_local_sources
-          call global_section_offset(source_section, i - 1, &
-               self%source_range_start, source_offset, ierr); CHKERRQ(ierr)
+          source_offset = global_section_offset(source_section, i - 1, &
+               self%source_range_start)
           call source%assign(source_data, source_offset)
           source_cell_indices(i) = nint(source%natural_cell_index)
        end do
@@ -1967,15 +1957,15 @@ contains
 
        if (self%mesh%ghost_cell(c) < 0) then
 
-          call global_section_offset(lhs_section, c, &
-               self%solution_range_start, lhs_offset, ierr); CHKERRQ(ierr)
+          lhs_offset = global_section_offset(lhs_section, c, &
+               self%solution_range_start)
           cell_lhs => lhs_array(lhs_offset : lhs_offset + np - 1)
           cell_residual => residual_array(lhs_offset : lhs_offset + np - 1)
 
-          call global_section_offset(fluid_section, c, &
-               self%fluid_range_start, fluid_offset, ierr); CHKERRQ(ierr)
-          call global_section_offset(rock_section, c, &
-               self%rock_range_start, rock_offset, ierr); CHKERRQ(ierr)
+          fluid_offset = global_section_offset(fluid_section, c, &
+               self%fluid_range_start)
+          rock_offset = global_section_offset(rock_section, c, &
+               self%rock_range_start)
 
           call cell%rock%assign(rock_array, rock_offset)
           call cell%fluid%assign(fluid_array, fluid_offset)

@@ -204,8 +204,7 @@ contains
 
     do c = start_cell, end_cell - 1
        if (ghost_cell(c) < 0) then
-          call global_section_offset(rock_section, c, range_start, &
-               offset, ierr); CHKERRQ(ierr)
+          offset = global_section_offset(rock_section, c, range_start)
           call rock%assign(rock_array, offset)
           rock%permeability = default_permeability
           rock%wet_conductivity = default_heat_conductivity
@@ -459,8 +458,7 @@ contains
                 associate(c => cells(ic))
                   call DMLabelGetValue(ghost_label, c, ghost, ierr)
                   if (ghost < 0) then
-                     call global_section_offset(section, c, range_start, &
-                          offset, ierr); CHKERRQ(ierr)
+                     offset = global_section_offset(section, c, range_start)
                      call rock%assign(rock_array, offset)
                      rock%permeability = 0._dp
                      rock%permeability(1: perm_size) = permeability

@@ -71,8 +71,7 @@ contains
     do c = start_cell, end_interior_cell - 1
        call DMLabelGetValue(ghost_label, c, ghost, ierr); CHKERRQ(ierr)
        if (ghost < 0) then
-          call global_section_offset(y_section, c, &
-               y_range_start, y_offset, ierr); CHKERRQ(ierr)
+          y_offset = global_section_offset(y_section, c, y_range_start)
           cell_primary => y_array(y_offset : y_offset + np - 1)
           cell_primary = primary
        end if
@@ -163,8 +162,7 @@ contains
             if (c >= 0) then
                call DMLabelGetValue(ghost_label, c, ghost, ierr)
                if (ghost < 0) then
-                  call global_section_offset(section, c, range_start, &
-                       offset, ierr)
+                  offset = global_section_offset(section, c, range_start)
                   cell_primary => y_array(offset : offset + &
                        eos%num_primary_variables - 1)
                   cell_primary = primary_array(i, :)
@@ -218,8 +216,7 @@ contains
     do c = start_cell, end_interior_cell - 1
        call DMLabelGetValue(ghost_label, c, ghost, ierr); CHKERRQ(ierr)
        if (ghost < 0) then
-          call global_section_offset(fluid_section, c, &
-               fluid_range_start, fluid_offset, ierr); CHKERRQ(ierr)
+          fluid_offset = global_section_offset(fluid_section, c, fluid_range_start)
           call fluid%assign(fluid_array, fluid_offset)
           fluid%region = dble(region)
        end if
@@ -319,8 +316,7 @@ contains
                 minc_level = 0
              end if
              if (minc_level == 0) then
-                call global_section_offset(fluid_section, c, &
-                     fluid_range_start, offset, ierr); CHKERRQ(ierr)
+                offset =  global_section_offset(fluid_section, c, fluid_range_start)
                 call fluid%assign(fluid_array, offset)
                 fluid%region = dble(region_indices(i))
                 i = i + 1
@@ -349,8 +345,7 @@ contains
           if (c >= 0) then
              call DMLabelGetValue(ghost_label, c, ghost, ierr)
              if (ghost < 0) then
-                call global_section_offset(fluid_section, c, &
-                     fluid_range_start, offset, ierr); CHKERRQ(ierr)
+                offset = global_section_offset(fluid_section, c, fluid_range_start)
                 call fluid%assign(fluid_array, offset)
                 fluid%region = dble(region_array(i))
              end if
@@ -490,11 +485,10 @@ contains
       do c = start_cell, end_cell - 1
          call DMLabelGetValue(ghost_label, c, ghost, ierr); CHKERRQ(ierr)
          if (ghost < 0) then
-            call global_section_offset(original_fluid_section, c, &
-                 original_fluid_range_start, original_fluid_offset, ierr)
-            CHKERRQ(ierr)
-            call global_section_offset(fluid_section, c, &
-                 fluid_range_start, fluid_offset, ierr); CHKERRQ(ierr)
+            original_fluid_offset = global_section_offset( &
+                 original_fluid_section, c, original_fluid_range_start)
+            fluid_offset = global_section_offset(fluid_section, c, &
+                 fluid_range_start)
             fluid_array(fluid_offset: fluid_offset + fluid%dof - 1) = &
                  original_fluid_array(original_fluid_offset: &
                  original_fluid_offset + fluid%dof - 1)
@@ -554,11 +548,10 @@ contains
       do c = start_cell, end_cell - 1
          call DMLabelGetValue(ghost_label, c, ghost, ierr); CHKERRQ(ierr)
          if (ghost < 0) then
-            call global_section_offset(fluid_section, c, &
-                 fluid_range_start, fluid_offset, ierr); CHKERRQ(ierr)
+            fluid_offset =  global_section_offset(fluid_section, c, &
+                 fluid_range_start)
             if (fluid_array(fluid_offset) > 0._dp) then
-               call global_section_offset(y_section, c, &
-                    y_range_start, y_offset, ierr); CHKERRQ(ierr)
+               y_offset = global_section_offset(y_section, c, y_range_start)
                cell_primary => y_array(y_offset : y_offset + np - 1)
                call fluid%assign(fluid_array, fluid_offset)
                call eos%primary_variables(fluid, cell_primary)
@@ -617,11 +610,10 @@ contains
     do c = start_cell, end_cell - 1
        call DMLabelGetValue(ghost_label, c, ghost, ierr); CHKERRQ(ierr)
        if (ghost < 0) then
-          call global_section_offset(y_section, c, &
-               y_range_start, y_offset, ierr); CHKERRQ(ierr)
+          y_offset = global_section_offset(y_section, c, y_range_start)
           cell_primary => y_array(y_offset : y_offset + np - 1)
-          call global_section_offset(fluid_section, c, &
-               fluid_range_start, fluid_offset, ierr); CHKERRQ(ierr)
+          fluid_offset = global_section_offset(fluid_section, c, &
+               fluid_range_start)
           call fluid%assign(fluid_array, fluid_offset)
           cell_primary = eos%scale(cell_primary, nint(fluid%region))
        end if
@@ -813,24 +805,21 @@ contains
                if (mesh%ghost_cell(c) < 0) then
 
                   minc_p = mesh%strata(h)%minc_point(c, 0)
-                  call global_section_offset(y_section, minc_p, y_range_start, &
-                       y_offset, ierr); CHKERRQ(ierr)
+                  y_offset = global_section_offset(y_section, minc_p, y_range_start)
                   associate(frac_primary => y_array(y_offset : y_offset + np - 1))
-                    call global_section_offset(fluid_section, minc_p, fluid_range_start, &
-                         fluid_offset, ierr); CHKERRQ(ierr)
+                    fluid_offset = global_section_offset(fluid_section, minc_p, fluid_range_start)
                     call fluid%assign(fluid_array, fluid_offset)
                     frac_region = nint(fluid%region)
 
                     do m = 1, minc%num_levels
                       minc_p = mesh%strata(h)%minc_point(ic(m), m)
-                       call global_section_offset(y_section, minc_p, y_range_start, &
-                            y_minc_offset, ierr); CHKERRQ(ierr)
+                       y_minc_offset = global_section_offset(y_section, minc_p, y_range_start)
                        associate (primary => y_array(y_minc_offset : &
                             y_minc_offset + np - 1))
                          primary = frac_primary
                        end associate
-                       call global_section_offset(fluid_section, minc_p, &
-                            fluid_range_start, fluid_minc_offset, ierr); CHKERRQ(ierr)
+                       fluid_minc_offset = global_section_offset(fluid_section, minc_p, &
+                            fluid_range_start)
                        call fluid%assign(fluid_array, fluid_minc_offset)
                        fluid%region = dble(frac_region)
                        ic(m) = ic(m) + 1

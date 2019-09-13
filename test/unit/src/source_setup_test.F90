@@ -118,8 +118,7 @@ contains
     num_zone_sources = 0
 
     do s = 0, num_sources - 1
-       call global_section_offset(source_section, s, &
-            source_range_start, source_offset, ierr); CHKERRQ(ierr)
+       source_offset = global_section_offset(source_section, s, source_range_start)
        call source%assign(source_array, source_offset)
        source_index = nint(source%source_index)
        select case (source_index)

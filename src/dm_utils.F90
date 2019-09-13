@@ -52,16 +52,6 @@ module dm_utils_module
      module procedure local_to_natural_cell_index_array
   end interface local_to_natural_cell_index
 
-  interface section_offset
-     module procedure section_offset_single
-     module procedure section_offset_array
-  end interface section_offset
-
-  interface global_section_offset
-     module procedure global_section_offset_single
-     module procedure global_section_offset_array
-  end interface global_section_offset
-
   public :: dm_get_strata, dm_point_stratum_height
   public :: dm_create_section, dm_set_data_layout, dm_set_default_data_layout
   public :: dm_setup_global_section
@@ -415,44 +405,24 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine section_offset_single(section, p, offset, ierr)
+  PetscInt function section_offset(section, p) result(offset)
     !! Wrapper for PetscSectionGetOffset(), adding one to the result for
     !! Fortran 1-based indexing.
 
     PetscSection, intent(in) :: section !! Local section
     PetscInt, intent(in) :: p !! Mesh point in DM
-    PetscInt, intent(out) :: offset !! Offset value
-    PetscErrorCode, intent(out) :: ierr !! Error flag
+    ! Locals:
+    PetscErrorCode :: ierr
 
-    call PetscSectionGetOffset(section, p, offset, ierr)
+    call PetscSectionGetOffset(section, p, offset, ierr); CHKERRQ(ierr)
     offset = offset + 1
 
-  end subroutine section_offset_single
+  end function section_offset
 
 !------------------------------------------------------------------------
 
-  subroutine section_offset_array(section, p, offset, ierr)
-    !! Array version of section_offset().
-
-    PetscSection, intent(in) :: section !! Local section
-    PetscInt, intent(in) :: p(:) !! Mesh points in DM
-    PetscInt, intent(out) :: offset(:) !! Offset value
-    PetscErrorCode, intent(out) :: ierr !! Error flag
-    ! Locals:
-    PetscInt :: i
-    PetscErrorCode :: ierri(size(p))
-
-      do i = 1, size(p)
-         call section_offset_single(section, p(i), offset(i), ierri(i))
-      end do
-      ierr = maxval(ierri)
-
-  end subroutine section_offset_array
-
-!------------------------------------------------------------------------
-
-  subroutine global_section_offset_single(section, p, range_start, &
-       offset, ierr)
+  PetscInt function global_section_offset(section, p, &
+       range_start) result(offset)
     !! Wrapper for PetscSectionGetOffset(), adding one to the result for
     !! Fortran 1-based indexing. For global sections, we also need to
     !! subtract the layout range start to get indices suitable for
@@ -461,36 +431,13 @@ contains
     PetscSection, intent(in) :: section !! Global section
     PetscInt, intent(in) :: p !! Mesh point
     PetscInt, intent(in) :: range_start !! Start of PetscLayout range
-    PetscInt, intent(out) :: offset !! Offset value
-    PetscErrorCode, intent(out) :: ierr !! Error flag
+    ! Locals:
+    PetscErrorCode :: ierr
 
-    call PetscSectionGetOffset(section, p, offset, ierr)
+    call PetscSectionGetOffset(section, p, offset, ierr); CHKERRQ(ierr)
     offset = offset + 1 - range_start
 
-  end subroutine global_section_offset_single
-
-!------------------------------------------------------------------------
-
-  subroutine global_section_offset_array(section, p, range_start, &
-       offset, ierr)
-    !! Array version of global_section_offset().
-
-    PetscSection, intent(in) :: section !! Global section
-    PetscInt, intent(in) :: p(:) !! Mesh points
-    PetscInt, intent(in) :: range_start !! Start of PetscLayout range
-    PetscInt, intent(out) :: offset(:) !! Offset values
-    PetscErrorCode, intent(out) :: ierr !! Error flag
-    ! Locals:
-    PetscInt :: i
-    PetscErrorCode :: ierri(size(p))
-
-    do i = 1, size(p)
-       call global_section_offset_single(section, p(i), range_start, &
-            offset(i), ierri(i))
-    end do
-    ierr = maxval(ierri)
-
-  end subroutine global_section_offset_array
+  end function global_section_offset
 
 !------------------------------------------------------------------------
 

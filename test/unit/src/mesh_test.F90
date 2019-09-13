@@ -96,13 +96,12 @@ contains
        call test%assert(all(mesh%ghost_cell(end_non_ghost_cell: end_interior_cell - 1) > 0), &
             trim(title) // ": ghost cell array for ghost cells")
        call cell%init(1, 1)
-       call section_offset(cell_geom_section, end_cell - 1, offset, ierr)
+       offset = section_offset(cell_geom_section, end_cell - 1)
        call test%assert(offset + cell%dof - 1, size(cell_geom_array), &
             trim(title) // ": cell geom array size")
        do c = start_cell, end_interior_cell - 1
           if (mesh%ghost_cell(c) < 0) then
-             call section_offset(cell_geom_section, c, offset, ierr)
-             CHKERRQ(ierr)
+             offset = section_offset(cell_geom_section, c)
              call cell%assign_geometry(cell_geom_array, offset)
              write(msg, '(a, i4, a, e10.4)') " : cell ", c, " volume = ", cell%volume
              call test%assert(cell%volume > tol, trim(title) // trim(msg))
@@ -126,8 +125,7 @@ contains
           call DMPlexGetSupportSize(mesh%dm, f, num_cells, ierr); CHKERRQ(ierr)
           write(msg, '(a, i0, a)') " : face ", f, " num cells"
           call test%assert(2, num_cells, trim(title) // trim(msg))
-          call section_offset(face_geom_section, f, offset, ierr)
-          CHKERRQ(ierr)
+          offset = section_offset(face_geom_section, f)
           call face%assign_geometry(face_geom_array, offset)
           write(msg, '(a, i0, a, e10.4)') " : face ", f, " area = ", face%area
           call test%assert(face%area > tol, trim(title) // trim(msg))
@@ -226,7 +224,7 @@ contains
     do f = fstart, fend - 1
        call DMLabelGetValue(ghost_label, f, ghost_face, ierr); CHKERRQ(ierr)
        if (ghost_face < 0) then
-          call section_offset(section, f, offset, ierr); CHKERRQ(ierr)
+          offset = section_offset(section, f)
           call face%assign_geometry(fg, offset)
           write(msg, '(a, i2)') 'face area ', f
           call test%assert(face_area, face%area, msg)
@@ -316,8 +314,7 @@ contains
 
     do c = start_cell, end_cell - 1
        if (mesh%ghost_cell(c) < 0) then
-          call section_offset(cell_geom_section, c, offset, &
-               ierr); CHKERRQ(ierr)
+          offset = section_offset(cell_geom_section, c)
           call cell%assign_geometry(cell_geom_array, offset)
           volumes_OK = (volumes_OK .and. &
                abs(cell%volume - expected_cell_vol) <= tol)
@@ -340,8 +337,7 @@ contains
     CHKERRQ(ierr)
     do f = start_face, end_face - 1
        if (mesh%ghost_face(f) < 0) then
-          call section_offset(face_geom_section, f, offset, &
-               ierr); CHKERRQ(ierr)
+          offset = section_offset(face_geom_section, f)
           call face%assign_geometry(face_geom_array, offset)
           areas_OK = (areas_OK .and. &
                abs(face%area - expected_face_area) <= tol)
@@ -421,8 +417,7 @@ contains
 
     do c = start_cell, end_cell - 1
        if (mesh%ghost_cell(c) < 0) then
-          call section_offset(cell_geom_section, c, offset, &
-               ierr); CHKERRQ(ierr)
+          offset = section_offset(cell_geom_section, c)
           call cell%assign_geometry(cell_geom_array, offset)
           r = cell%centroid(1)
           r1 = r - 0.5_dp * dr
@@ -449,8 +444,7 @@ contains
 
     do f = start_face, end_face - 1
        if (mesh%ghost_face(f) < 0) then
-          call section_offset(face_geom_section, f, offset, &
-               ierr); CHKERRQ(ierr)
+          offset = section_offset(face_geom_section, f)
           call face%assign_geometry(face_geom_array, offset)
           r = face%centroid(1)
           vertical = (abs(face%normal(2)) > tol)
@@ -534,7 +528,7 @@ contains
 
     do f = start_face, end_face - 1
        if (mesh%ghost_face(f) < 0) then
-          call section_offset(face_geom_section, f, offset, ierr); CHKERRQ(ierr)
+          offset = section_offset(face_geom_section, f)
           call face%assign_geometry(face_geom_array, offset)
           dist = norm2(face%centroid - position)
           if (dist <= tol) then
@@ -950,28 +944,24 @@ contains
                  call DMLabelGetValue(ghost_label, c, ghost, ierr)
                  if (ghost < 0) then
                     order = local_to_natural_cell_index(orig_mesh%cell_natural_global, l2g, c)
-                    call section_offset(orig_cell_section, c, orig_cell_offset, ierr)
-                    CHKERRQ(ierr)
+                    orig_cell_offset = section_offset(orig_cell_section, c)
                     call orig_cell%assign_geometry(orig_cell_geom_array, orig_cell_offset)
                     cell_p = mesh%strata(h)%minc_point(c, 0)
-                    call section_offset(cell_section, cell_p, cell_offset, ierr)
-                    CHKERRQ(ierr)
+                    cell_offset = section_offset(cell_section, cell_p)
                     call cell%assign_geometry(cell_geom_array, cell_offset)
                     expected_vol = orig_cell%volume * minc%volume(1)
                     write(str, '(a, a, i3, a)') name, ": fracture volume(", order, ")"
                     call test%assert(expected_vol, cell%volume, str)
                     do m = 1, minc%num_levels
                        cell_p = mesh%strata(h)%minc_point(ic(m), m)
-                       call section_offset(cell_section, cell_p, &
-                            cell_offset, ierr); CHKERRQ(ierr)
+                       cell_offset = section_offset(cell_section, cell_p)
                        call cell%assign_geometry(cell_geom_array, cell_offset)
                        expected_vol = orig_cell%volume * minc%volume(m + 1)
                        write(str, '(a, a, i3, a, i1, a)') name, ": minc volume(", &
                             order, ", ", m, ")"
                        call test%assert(expected_vol, cell%volume, str)
                        face_p = mesh%strata(h + 1)%minc_point(ic(m), m)
-                       call section_offset(face_section, face_p, &
-                            face_offset, ierr); CHKERRQ(ierr)
+                       face_offset = section_offset(face_section, face_p)
                        call face%assign_geometry(face_geom_array, face_offset)
                        expected_area = orig_cell%volume * minc%connection_area(m)
                        write(str, '(a, a, i3, a, i1, a, i1, a)') name, &
@@ -1146,8 +1136,7 @@ contains
       do c = start_cell, end_cell - 1
          call DMLabelGetValue(ghost_label, c, ghost, ierr); CHKERRQ(ierr)
          if (ghost < 0) then
-            call global_section_offset(section, c, rock_range_start, &
-                 offset, ierr); CHKERRQ(ierr)
+            offset = global_section_offset(section, c, rock_range_start)
             call rock%assign(rock_array, offset)
             if (rock%porosity < 0.15_dp) then
                irock = 1
@@ -1346,8 +1335,7 @@ contains
                   else
                      expected_porosity = expected_matrix_porosity(r)
                   end if
-                  call global_section_offset(section, c, rock_range_start, &
-                       offset, ierr); CHKERRQ(ierr)
+                  offset = global_section_offset(section, c, rock_range_start)
                   call rock%assign(rock_array, offset)
                   call test%assert(expected_porosity, rock%porosity, &
                        title // levelstr)

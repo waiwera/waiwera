@@ -401,7 +401,7 @@ contains
        call DMLabelGetValue(ghost_label, c, ghost, ierr); CHKERRQ(ierr)
        if (ghost < 0) then
 
-          call section_offset(section, c, offset, ierr); CHKERRQ(ierr)
+          offset = section_offset(section, c)
           call cell%assign_geometry(cell_geom_array, offset)
           found = PETSC_TRUE
 

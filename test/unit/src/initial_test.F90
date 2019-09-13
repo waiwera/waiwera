@@ -292,17 +292,15 @@ contains
       do c = start_cell, end_interior_cell - 1
          call DMLabelGetValue(ghost_label, c, ghost, ierr); CHKERRQ(ierr)
          if (ghost < 0) then
-            call global_section_offset(fluid_section, c, &
-                 fluid_range_start, fluid_offset, ierr); CHKERRQ(ierr)
+            fluid_offset = global_section_offset(fluid_section, c, &
+                 fluid_range_start)
             call fluid%assign(fluid_array, fluid_offset)
-            call section_offset(cell_geom_section, c, cell_geom_offset, ierr)
-            CHKERRQ(ierr)
+            cell_geom_offset = section_offset(cell_geom_section, c)
             call cell%assign_geometry(cell_geom_array, cell_geom_offset)
             associate(z => cell%centroid(3))
               call primary_variables(z, gravity(3), expected_primary)
             end associate
-            call global_section_offset(y_section, c, &
-                 y_range_start, y_offset, ierr); CHKERRQ(ierr)
+            y_offset = global_section_offset(y_section, c, y_range_start)
             primary => y_array(y_offset: y_offset + eos%num_primary_variables - 1)
             call test%assert(expected_primary, primary, &
                  name // ': primary')
@@ -448,11 +446,9 @@ contains
     do c = start_cell, end_cell - 1
        call DMLabelGetValue(ghost_label, c, ghost, ierr); CHKERRQ(ierr)
        if (ghost < 0) then
-          call global_section_offset(fluid_section, c, &
-               fluid_range_start, fluid_offset, ierr); CHKERRQ(ierr)
+          fluid_offset = global_section_offset(fluid_section, c, fluid_range_start)
           call fluid%assign(fluid_array, fluid_offset)
-          call section_offset(cell_geom_section, c, cell_geom_offset, ierr)
-          CHKERRQ(ierr)
+          cell_geom_offset = section_offset(cell_geom_section, c)
           call cell%assign_geometry(cell_geom_array, cell_geom_offset)
           associate(z => cell%centroid(3))
             call primary_variables(z, gravity(3), primary)
@@ -572,11 +568,10 @@ contains
     do c = start_cell, end_interior_cell - 1
        call DMLabelGetValue(ghost_label, c, ghost, ierr); CHKERRQ(ierr)
        if (ghost < 0) then
-          call global_section_offset(fluid_section, c, &
-               fluid_range_start, fluid_offset, ierr); CHKERRQ(ierr)
+          fluid_offset = global_section_offset(fluid_section, c, &
+               fluid_range_start)
           call fluid%assign(fluid_array, fluid_offset)
-          call section_offset(cell_geom_section, c, cell_geom_offset, ierr)
-          CHKERRQ(ierr)
+          cell_geom_offset = section_offset(cell_geom_section, c)
           call cell%assign_geometry(cell_geom_array, cell_geom_offset)
           associate(z => cell%centroid(3))
             if (z > -300._dp) then

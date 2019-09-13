@@ -133,8 +133,8 @@ contains
     interval = [30._dp, t]
     call source_controls%traverse(source_control_iterator)
     do s = 0, num_sources - 1
-       call global_section_offset(source_section, s, &
-            source_range_start, source_offset, ierr); CHKERRQ(ierr)
+       source_offset = global_section_offset(source_section, s, &
+            source_range_start)
        call source%assign(source_array, source_offset)
        source_index = nint(source%source_index)
        write(srcstr, '(a, i1)') 'source ', source_index
@@ -283,9 +283,7 @@ contains
 
     do c = start_cell, end_cell - 1
        if (mesh%ghost_cell(c) < 0) then
-          call global_section_offset(fluid_section, c, fluid_range_start, &
-               fluid_offset, ierr)
-          CHKERRQ(ierr)
+          fluid_offset = global_section_offset(fluid_section, c, fluid_range_start)
           call fluid%assign(fluid_array, fluid_offset)
           fluid%pressure = cell_pressure
           fluid%temperature = cell_temperature
@@ -343,8 +341,7 @@ contains
 
     s12 = -1
     do s = 0, num_sources - 1
-       call global_section_offset(source_section, s, &
-            source_range_start, source_offset, ierr); CHKERRQ(ierr)
+       source_offset = global_section_offset(source_section, s, source_range_start)
        call source%assign(source_array, source_offset)
        source_index = nint(source%source_index)
        write(srcstr, '(a, i1, a)') 'source ', source_index + 1, ' rate'
@@ -357,8 +354,7 @@ contains
     call reset_fluid_pressures(6.e5_dp)
     call source_controls%traverse(source_control_update_iterator)
     if (s12 >= 0) then
-       call global_section_offset(source_section, s12, &
-            source_range_start, source_offset, ierr); CHKERRQ(ierr)
+       source_offset = global_section_offset(source_section, s12, source_range_start)
        call source%assign(source_array, source_offset)
        call test%assert(-2.25_dp, source%rate, "source 13 rate P = 6 bar")
     end if
@@ -415,8 +411,8 @@ contains
 
       type is (source_control_deliverability_type)
          s = source_control%local_source_index
-         call global_section_offset(source_section, s, &
-              source_range_start, source_offset, ierr); CHKERRQ(ierr)
+         source_offset = global_section_offset(source_section, s, &
+              source_range_start)
          call source%assign(source_array, source_offset)
          source_index = nint(source%source_index)
          select case (source_index)
@@ -458,8 +454,7 @@ contains
 
       type is (source_control_recharge_type)
          s = source_control%local_source_index
-         call global_section_offset(source_section, s, &
-              source_range_start, source_offset, ierr); CHKERRQ(ierr)
+         source_offset = global_section_offset(source_section, s, source_range_start)
          call source%assign(source_array, source_offset)
          source_index = nint(source%source_index)
          select case (source_index)
@@ -502,8 +497,7 @@ contains
       PetscReal, intent(in) :: P
       do c = start_cell, end_cell - 1
          if (mesh%ghost_cell(c) < 0) then
-            call section_offset(local_fluid_section, c, fluid_offset, ierr)
-            CHKERRQ(ierr)
+            fluid_offset = section_offset(local_fluid_section, c)
             call fluid%assign(local_fluid_array, fluid_offset)
             fluid%pressure = P
          end if

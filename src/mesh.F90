@@ -423,7 +423,7 @@ contains
     ! Locals:
     DM :: dm_cell, dm_face
     PetscSection :: face_section, petsc_face_section, cell_section
-    PetscInt :: c, f, ghost_cell, ghost_face
+    PetscInt :: c, f, i, ghost_cell, ghost_face
     PetscInt :: start_cell, end_cell, start_face, end_face
     PetscInt :: face_offset, petsc_face_offset
     PetscInt :: cell_offset(2), offset
@@ -459,7 +459,7 @@ contains
        do c = start_cell, end_cell - 1
           call DMLabelGetValue(ghost_label, c, ghost_cell, ierr); CHKERRQ(ierr)
           if (ghost_cell < 0) then
-             call section_offset(cell_section, c, offset, ierr); CHKERRQ(ierr)
+             offset = section_offset(cell_section, c)
              call cell%assign_geometry(cell_geom_array, offset)
              call self%modify_cell_geometry(cell)
           end if
@@ -486,12 +486,13 @@ contains
 
        if (ghost_face < 0) then
 
-          call section_offset(face_section, f, face_offset, ierr); CHKERRQ(ierr)
-          call section_offset(petsc_face_section, f, petsc_face_offset, ierr)
-          CHKERRQ(ierr)
+          face_offset = section_offset(face_section, f)
+          petsc_face_offset = section_offset(petsc_face_section, f)
 
           call DMPlexGetSupport(self%original_dm, f, cells, ierr); CHKERRQ(ierr)
-          call section_offset(cell_section, cells, cell_offset, ierr); CHKERRQ(ierr)
+          do i = 1, 2
+             cell_offset(i) = section_offset(cell_section, cells(i))
+          end do
 
           call petsc_face%assign_geometry(petsc_face_geom_array, petsc_face_offset)
           call face%assign_geometry(face_geom_array, face_offset)
@@ -540,7 +541,7 @@ contains
     DMLabel :: bdy_label, ghost_label
     IS :: label_IS, bdy_IS
     PetscInt, pointer :: label_values(:), bdy_faces(:)
-    PetscInt :: i, num_values, ibdy, num_faces, iface, ghost, f
+    PetscInt :: i, j, num_values, ibdy, num_faces, iface, ghost, f
     PetscInt :: cell_offsets(2), face_offset
     PetscInt, pointer :: cells(:)
     type(cell_type) :: cell
@@ -576,10 +577,10 @@ contains
              if (size(cells) == 2) then
                 call DMLabelGetValue(ghost_label, cells(1), ghost, ierr); CHKERRQ(ierr)
                 if (ghost < 0) then
-                   call section_offset(face_section, f, face_offset, &
-                        ierr); CHKERRQ(ierr)
-                   call section_offset(cell_section, cells, cell_offsets, &
-                        ierr); CHKERRQ(ierr)
+                   face_offset = section_offset(face_section, f)
+                   do j = 1, 2
+                      cell_offsets(j) = section_offset(cell_section, cells(j))
+                   end do
                    call face%assign_geometry(face_geom_array, face_offset)
                    call face%assign_cell_geometry(cell_geom_array, cell_offsets)
                    call DMPlexComputeCellGeometryFVM(self%dm, f, face%area, &
@@ -937,7 +938,7 @@ contains
     type(fluid_type):: fluid
     type(rock_type) :: rock
     PetscInt :: y_offset, fluid_offset, rock_offsets(2)
-    PetscInt :: ghost, region
+    PetscInt :: ghost, region, i
     PetscInt, pointer :: bdy_faces(:), cells(:)
     PetscReal, allocatable :: primary(:)
     character(len=64) :: bdystr
@@ -981,13 +982,14 @@ contains
                    call DMLabelGetValue(ghost_label, cells(1), ghost, ierr)
                    CHKERRQ(ierr)
                    if (ghost < 0) then
-                      call global_section_offset(y_section, cells(2), &
-                           y_range_start, y_offset, ierr); CHKERRQ(ierr)
-                      call global_section_offset(fluid_section, cells(2), &
-                           fluid_range_start, fluid_offset, ierr); CHKERRQ(ierr)
-                      call global_section_offset(rock_section, cells, &
-                           rock_range_start, rock_offsets, ierr)
-                      CHKERRQ(ierr)
+                      y_offset = global_section_offset(y_section, cells(2), &
+                           y_range_start)
+                      fluid_offset = global_section_offset(fluid_section, cells(2), &
+                           fluid_range_start)
+                      do i = 1, 2
+                         rock_offsets(i) = global_section_offset(rock_section, cells(i), &
+                              rock_range_start)
+                      end do
                       ! Set primary variables and region:
                       cell_primary => y_array(y_offset : y_offset + np - 1)
                       call fluid%assign(fluid_array, fluid_offset)
@@ -1146,8 +1148,7 @@ contains
           do i = 1, num_faces
              associate(f => faces(i))
                if (self%ghost_face(f) < 0) then
-                  call section_offset(face_section, f, face_offset, ierr)
-                  CHKERRQ(ierr)
+                  face_offset = section_offset(face_section, f)
                   call face%assign_geometry(face_geom_array, face_offset)
                   face%permeability_direction = dble(dirn)
                end if
@@ -2690,10 +2691,9 @@ contains
     ! Copy original cell geometry:
     call cell%init(nc, np)
     do c = self%strata(0)%start, self%strata(0)%end - 1
-       call section_offset(cell_section, c, cell_offset, ierr); CHKERRQ(ierr)
+       cell_offset = section_offset(cell_section, c)
        minc_p = self%strata(0)%minc_point(c, 0)
-       call section_offset(minc_cell_section, minc_p, minc_cell_offset, ierr)
-       CHKERRQ(ierr)
+       minc_cell_offset = section_offset(minc_cell_section, minc_p)
        minc_cell_geom_array(minc_cell_offset: &
             minc_cell_offset + cell%dof - 1) = cell_geom_array(cell_offset: &
             cell_offset + cell%dof - 1)
@@ -2704,11 +2704,9 @@ contains
     do f = self%strata(1)%start, self%strata(1)%end - 1
        call DMLabelGetValue(ghost_label, f, ghost, ierr); CHKERRQ(ierr)
        if (ghost < 0) then
-          call section_offset(face_section, f, face_offset, ierr)
-          CHKERRQ(ierr)
+          face_offset = section_offset(face_section, f)
           minc_p = self%strata(1)%minc_point(f, 0)
-          call section_offset(minc_face_section, minc_p, minc_face_offset, ierr)
-          CHKERRQ(ierr)
+          minc_face_offset = section_offset(minc_face_section, minc_p)
           minc_face_geom_array(minc_face_offset: &
                minc_face_offset + face%dof - 1) = face_geom_array(face_offset: &
                face_offset + face%dof - 1)
@@ -2728,8 +2726,7 @@ contains
                call DMLabelGetValue(ghost_label, c, ghost, ierr)
                if (ghost < 0) then
                   minc_p = self%strata(0)%minc_point(c, 0)
-                  call section_offset(minc_cell_section, minc_p, minc_cell_offset, ierr)
-                  CHKERRQ(ierr)
+                  minc_cell_offset = section_offset(minc_cell_section, minc_p)
                   call cell%assign_geometry(minc_cell_geom_array, minc_cell_offset)
                   orig_volume = cell%volume
                   orig_centroid = cell%centroid
@@ -2739,15 +2736,13 @@ contains
                      ! Assign MINC cell geometry:
                      ic = minc_level_cells(m, c)
                      minc_p = self%strata(0)%minc_point(ic, m)
-                     call section_offset(minc_cell_section, minc_p, &
-                          minc_cell_offset, ierr); CHKERRQ(ierr)
+                     minc_cell_offset = section_offset(minc_cell_section, minc_p)
                      call cell%assign_geometry(minc_cell_geom_array, minc_cell_offset)
                      cell%volume = orig_volume * minc%volume(m + 1)
                      cell%centroid = orig_centroid
                      ! Assign MINC face geometry:
                      face_p = self%strata(1)%minc_point(ic, m)
-                     call section_offset(minc_face_section, face_p, &
-                          minc_face_offset, ierr); CHKERRQ(ierr)
+                     minc_face_offset = section_offset(minc_face_section, face_p)
                      call face%assign_geometry(minc_face_geom_array, minc_face_offset)
                      face%area = orig_volume * minc%connection_area(m)
                      face%distance = minc%connection_distance(m: m + 1)
@@ -2898,8 +2893,7 @@ contains
                         do i = 1, num_minc_zone_cells
                            c = minc_cells(i)
                            if (self%ghost_cell(c) < 0) then
-                              call global_section_offset(section, c, rock_range_start, &
-                                   orig_offset, ierr); CHKERRQ(ierr)
+                              orig_offset = global_section_offset(section, c, rock_range_start)
                               call orig_rock%assign(rock_array, orig_offset)
 
                               if (fracture_rock%porosity < 0._dp) then
@@ -2924,8 +2918,7 @@ contains
 
                                 do m = 1, minc%num_levels
                                    cell_p = self%strata(h)%minc_point(ic(m), m)
-                                   call global_section_offset(section, cell_p, rock_range_start, &
-                                        offset, ierr); CHKERRQ(ierr)
+                                   offset = global_section_offset(section, cell_p, rock_range_start)
                                    ! Update specified matrix properties:
                                    associate(matrix_properties => rock_array(offset: &
                                         offset + dof - 1))
@@ -3189,8 +3182,8 @@ contains
     do v = vstart, vend - 1
        minc_v = self%strata(depth)%minc_point(v, 0)
        call PetscSectionGetDof(section, v, dof, ierr); CHKERRQ(ierr)
-       call section_offset(section, v, offset, ierr); CHKERRQ(ierr)
-       call section_offset(minc_section, minc_v, minc_offset, ierr); CHKERRQ(ierr)
+       offset = section_offset(section, v)
+       minc_offset = section_offset(minc_section, minc_v)
        pos => coord_array(offset: offset + dof - 1)
        minc_pos => minc_coord_array(minc_offset: minc_offset + dof - 1)
        minc_pos = pos
@@ -3343,11 +3336,9 @@ contains
           do i = 1, 2
              call DMLabelGetValue(minc_level_label, cells(i), &
                   minc_levels(i), ierr); CHKERRQ(ierr)
-             call section_offset(cell_geom_section, cells(i), &
-                  cell_offset(i), ierr); CHKERRQ(ierr)
+             cell_offset(i) = section_offset(cell_geom_section, cells(i))
           end do
-          call section_offset(face_geom_section, f, offset, ierr)
-          CHKERRQ(ierr)
+          offset = section_offset(face_geom_section, f)
           call face%assign_geometry(face_geom_array, offset)
           call face%assign_cell_geometry(cell_geom_array, cell_offset)
           if (all(cells < end_interior_cell)) then

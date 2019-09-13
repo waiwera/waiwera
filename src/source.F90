@@ -145,10 +145,8 @@ contains
     PetscSection, intent(in) :: local_fluid_section
     ! Locals:
     PetscInt :: fluid_offset
-    PetscErrorCode :: ierr
 
-    call section_offset(local_fluid_section, nint(self%local_cell_index), &
-         fluid_offset, ierr); CHKERRQ(ierr)
+    fluid_offset = section_offset(local_fluid_section, nint(self%local_cell_index))
     call self%fluid%assign(local_fluid_data, fluid_offset)
 
   end subroutine source_assign_fluid

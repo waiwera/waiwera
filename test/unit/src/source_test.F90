@@ -108,9 +108,7 @@ contains
 
     do c = start_cell, end_cell - 1
        if (mesh%ghost_cell(c) < 0) then
-          call global_section_offset(fluid_section, c, fluid_range_start, &
-               fluid_offset, ierr)
-          CHKERRQ(ierr)
+          fluid_offset = global_section_offset(fluid_section, c, fluid_range_start)
           fluid_array(fluid_offset: fluid_offset + fluid%dof - 1) = fluid_cell_data
        end if
     end do

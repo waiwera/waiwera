@@ -321,8 +321,8 @@ contains
          allocate(natural_cell_index(num_cells))
          natural_cell_index = local_to_natural_cell_index(ao, l2g, local_cell_index)
          do i = 1, num_cells
-            call global_section_offset(source_section, local_source_index, &
-                 source_range_start, source_offset, ierr); CHKERRQ(ierr)
+            source_offset = global_section_offset(source_section, local_source_index, &
+                 source_range_start)
             call source%assign(source_data, source_offset)
             call source%setup(source_index, local_source_index, &
                  natural_cell_index(i), local_cell_index(i), &
@@ -370,8 +370,8 @@ contains
       call MPI_COMM_SIZE(PETSC_COMM_WORLD, num_procs, ierr)
 
       do i = 1, num_local_sources
-         call global_section_offset(source_section, i - 1, &
-              source_range_start, source_offset, ierr); CHKERRQ(ierr)
+         source_offset = global_section_offset(source_section, i - 1, &
+              source_range_start)
          call source%assign(source_data, source_offset)
          indices(i) = nint(source%source_index)
       end do
