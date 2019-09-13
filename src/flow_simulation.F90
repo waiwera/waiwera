@@ -1384,8 +1384,7 @@ contains
     !! thermodynamic variables. This is called before the timestepper
     !! starts to run.
 
-    use dm_utils_module, only: global_section_offset, global_vec_section, &
-         local_to_natural_cell_index
+    use dm_utils_module, only: global_section_offset, global_vec_section
     use cell_module, only: cell_type
     use profiling_module, only: fluid_init_event
     use mpi_utils_module, only: mpi_broadcast_error_flag
@@ -1502,8 +1501,7 @@ contains
     !! composition, based on the current time and primary
     !! thermodynamic variables.
 
-    use dm_utils_module, only: global_section_offset, global_vec_section, &
-         local_to_natural_cell_index
+    use dm_utils_module, only: global_section_offset, global_vec_section
     use cell_module, only: cell_type
     use profiling_module, only: fluid_properties_event
     use mpi_utils_module, only: mpi_broadcast_error_flag
@@ -1629,8 +1627,7 @@ contains
     !! Checks primary variables and thermodynamic regions in all mesh
     !! cells and updates if region transitions have occurred.
 
-    use dm_utils_module, only: global_section_offset, global_vec_section, &
-         local_to_natural_cell_index
+    use dm_utils_module, only: global_section_offset, global_vec_section
     use fluid_module, only: fluid_type
     use profiling_module, only: fluid_transitions_event
     use mpi_utils_module, only: mpi_broadcast_error_flag, mpi_broadcast_logical
