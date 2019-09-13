@@ -2120,7 +2120,7 @@ end subroutine timestepper_steps_set_next_stepsize
          s = "update_relative"
       case (SNES_CONVERGED_ITS)
          s = "iterations"
-      case (SNES_CONVERGED_TR_DELTA)
+      case (SNES_DIVERGED_TR_DELTA)
          s = "tr_delta"
       case (SNES_DIVERGED_FUNCTION_DOMAIN)
          s = "function_domain"

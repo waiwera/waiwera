@@ -66,7 +66,6 @@ contains
     use fson_value_m, only: TYPE_ARRAY, TYPE_REAL, TYPE_INTEGER, &
          TYPE_STRING, TYPE_OBJECT
     use zone_label_module
-    use dm_utils_module, only: natural_to_local_cell_index
     use rock_module, only: max_rockname_length, rock_type_label_name, &
          rock_dict_item_type
     use list_module

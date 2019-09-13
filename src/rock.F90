@@ -250,7 +250,6 @@ contains
     use fson_value_m, only : TYPE_STRING, TYPE_ARRAY
     use logfile_module
     use zone_label_module
-    use dm_utils_module, only: natural_to_local_cell_index
 
     type(fson_value), pointer, intent(in) :: json
     DM, intent(in out) :: dm
@@ -373,8 +372,7 @@ contains
     !! Sets up rock vector on DM from rock types in JSON input.
 
     use dictionary_module
-    use dm_utils_module, only: global_section_offset, global_vec_section, &
-         natural_to_local_cell_index
+    use dm_utils_module, only: global_section_offset, global_vec_section
     use zone_label_module
     use fson
     use fson_mpi_module
