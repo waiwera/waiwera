@@ -3390,8 +3390,6 @@ contains
     !! corresponding parent cell. (For a non-MINC mesh, the
     !! 'parent' cell is just the original cell itself.)
 
-    use dm_utils_module, only: local_to_natural_cell_index
-
     class(mesh_type), intent(in) :: self
     PetscInt, intent(in) :: local !! Local cell index
     ! Locals:
