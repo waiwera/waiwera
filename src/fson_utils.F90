@@ -456,7 +456,7 @@ contains
                 key = path
              end if
              if (size(val) > 0) then
-                write(logstr, '(L)') val(1)
+                write(logstr, '(l1)') val(1)
                 str = '[' // logstr // ',...]'
              else
                 str = '[]'
@@ -677,7 +677,7 @@ contains
                 key = path
              end if
              if (size(val) > 0) then
-                write(logstr, '(L)') val(1,1)
+                write(logstr, '(l1)') val(1,1)
                 str ='[[' // logstr // ',...]]'
              else
                 str  = '[]'
