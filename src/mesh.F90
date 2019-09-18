@@ -1959,6 +1959,7 @@ contains
       PetscInt :: minc_p, iminc, cone_size
       PetscInt, parameter :: h = 0
 
+      stopped = PETSC_FALSE
       select type (c => node%data)
       type is (PetscInt)
          minc_p = self%strata(h)%minc_point(ic, m)
@@ -1985,6 +1986,7 @@ contains
       ! Locals:
       PetscInt :: minc_p, cone_size, h
 
+      stopped = PETSC_FALSE
       select type (c => node%data)
       type is (PetscInt)
          do h = 1, self%depth
@@ -2079,6 +2081,7 @@ contains
       PetscInt, allocatable :: cell_cone(:)
       PetscInt, parameter :: h = 0, m = 0
 
+      stopped = PETSC_FALSE
       select type (c => node%data)
       type is (PetscInt)
          call DMPlexGetCone(self%dm, c, points, ierr)
@@ -2104,6 +2107,7 @@ contains
       PetscInt :: minc_p, iminc, face_p, inner_face_p
       PetscInt, parameter :: h = 0
 
+      stopped = PETSC_FALSE
       select type (c => node%data)
       type is (PetscInt)
          minc_p = self%strata(h)%minc_point(ic, m)
@@ -2133,6 +2137,7 @@ contains
       ! Locals:
       PetscInt :: minc_p, h, above_p
 
+      stopped = PETSC_FALSE
       select type (c => node%data)
       type is (PetscInt)
          do h = 1, self%depth - 1
@@ -2177,6 +2182,7 @@ contains
       PetscInt :: minc_p, h
       PetscErrorCode :: ierr
 
+      stopped = PETSC_FALSE
       select type (c => node%data)
       type is (PetscInt)
          do h = 0, self%depth
@@ -2312,6 +2318,7 @@ contains
       PetscInt :: minc_p
       PetscErrorCode :: ierr
 
+      stopped = PETSC_FALSE
       select type (c => node%data)
       type is (PetscInt)
          minc_p = self%strata(h)%minc_point(ic, m)
@@ -2484,6 +2491,7 @@ contains
       PetscInt :: p(1)
       PetscErrorCode :: ierr
 
+      stopped = PETSC_FALSE
       select type (c => node%data)
       type is (PetscInt)
          p = self%strata(0)%minc_point(ic, m)
