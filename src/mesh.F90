@@ -2408,8 +2408,6 @@ contains
          natural, PETSC_COPY_VALUES, self%cell_parent_natural, ierr); CHKERRQ(ierr)
     deallocate(natural)
 
-  end subroutine mesh_setup_minc_output_data
-
 !------------------------------------------------------------------------
 
   subroutine mesh_setup_minc_dm_cell_natural_global(self, minc_dm, &
