@@ -2060,12 +2060,13 @@ contains
          self%strata(0)%start: self%strata(0)%end - 1)
     ! Locals:
     PetscInt :: ic, p, minc_p, orig_cone_size, cone_size
-    PetscInt :: iminc, m, h, c
-    DMLabel :: minc_zone_label
+    PetscInt :: iminc, m, h, c, ghost
+    DMLabel :: minc_zone_label, ghost_label
     PetscErrorCode :: ierr
 
     call DMGetLabel(self%dm, minc_zone_label_name, minc_zone_label, &
          ierr); CHKERRQ(ierr)
+    call DMGetLabel(self%dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
 
     do c = self%strata(0)%start, self%strata(0)%end - 1
 
@@ -2079,26 +2080,28 @@ contains
           call DMPlexSetConeSize(minc_dm, minc_p, cone_size, ierr)
           CHKERRQ(ierr)
 
-          do m = 1, self%minc(iminc)%num_levels
-             ! MINC cells:
-             ic = minc_level_cells(m, c)
-             minc_p = self%strata(0)%minc_point(ic, m)
-             if (m < self%minc(iminc)%num_levels) then
-                cone_size = 2
-             else
-                cone_size = 1
-             end if
-             call DMPlexSetConeSize(minc_dm, minc_p, cone_size, &
-                  ierr); CHKERRQ(ierr)
-             ! MINC DAG points (height h > 0):
-             do h = 1, self%depth -1
-                minc_p = self%strata(h)%minc_point(ic, m)
-                cone_size = 1
-                call DMPlexSetConeSize(minc_dm, minc_p, &
-                     cone_size, ierr); CHKERRQ(ierr)
+          call DMLabelGetValue(ghost_label, c, ghost, ierr)
+          if (ghost < 0) then
+             do m = 1, self%minc(iminc)%num_levels
+                ! MINC cells:
+                ic = minc_level_cells(m, c)
+                minc_p = self%strata(0)%minc_point(ic, m)
+                if (m < self%minc(iminc)%num_levels) then
+                   cone_size = 2
+                else
+                   cone_size = 1
+                end if
+                call DMPlexSetConeSize(minc_dm, minc_p, cone_size, &
+                     ierr); CHKERRQ(ierr)
+                ! MINC DAG points (height h > 0):
+                do h = 1, self%depth -1
+                   minc_p = self%strata(h)%minc_point(ic, m)
+                   cone_size = 1
+                   call DMPlexSetConeSize(minc_dm, minc_p, &
+                        cone_size, ierr); CHKERRQ(ierr)
+                end do
              end do
-          end do
-
+          end if
        else
           ! Non-MINC cells:
           cone_size = orig_cone_size
@@ -2136,8 +2139,8 @@ contains
     PetscInt, intent(in) :: minc_level_cells(max_num_levels, &
          self%strata(0)%start: self%strata(0)%end - 1)
     ! Locals:
-    PetscInt :: c, p, m, h, iminc, ic, ic_m1
-    DMLabel :: minc_zone_label
+    PetscInt :: c, p, m, h, iminc, ic, ic_m1, ghost
+    DMLabel :: minc_zone_label, ghost_label
     PetscInt :: minc_p, above_p, face_p, inner_face_p
     PetscInt, pointer :: points(:)
     PetscInt, allocatable :: cell_cone(:), minc_cone(:), minc_orientation(:)
@@ -2146,6 +2149,7 @@ contains
 
     call DMGetLabel(self%dm, minc_zone_label_name, minc_zone_label, &
          ierr); CHKERRQ(ierr)
+    call DMGetLabel(self%dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
 
     do c = self%strata(0)%start, self%strata(0)%end - 1
 
@@ -2168,28 +2172,31 @@ contains
                ierr); CHKERRQ(ierr)
           deallocate(minc_orientation)
 
-          do m = 1, self%minc(iminc)%num_levels
-             ! MINC cells:
-             ic = minc_level_cells(m, c)
-             minc_p = self%strata(0)%minc_point(ic, m)
-             face_p = self%strata(1)%minc_point(ic, m)
-             if (m < self%minc(iminc)%num_levels) then
-                ic_m1 = minc_level_cells(m + 1, c)
-                inner_face_p = self%strata(1)%minc_point(ic_m1, m + 1)
-                minc_cone = [face_p, inner_face_p]
-             else
-                minc_cone = [face_p]
-             end if
-             call DMPlexSetCone(minc_dm, minc_p, minc_cone, ierr); CHKERRQ(ierr)
-             deallocate(minc_cone)
-             ! MINC DAG points for height h > 0:
-             do h = 1, self%depth - 1
-                minc_p = self%strata(h)%minc_point(ic, m)
-                above_p = self%strata(h + 1)%minc_point(ic, m)
-                call DMPlexSetCone(minc_dm, minc_p, [above_p], ierr)
-                CHKERRQ(ierr)
+          call DMLabelGetValue(ghost_label, c, ghost, ierr)
+          if (ghost < 0) then
+             do m = 1, self%minc(iminc)%num_levels
+                ! MINC cells:
+                ic = minc_level_cells(m, c)
+                minc_p = self%strata(0)%minc_point(ic, m)
+                face_p = self%strata(1)%minc_point(ic, m)
+                if (m < self%minc(iminc)%num_levels) then
+                   ic_m1 = minc_level_cells(m + 1, c)
+                   inner_face_p = self%strata(1)%minc_point(ic_m1, m + 1)
+                   minc_cone = [face_p, inner_face_p]
+                else
+                   minc_cone = [face_p]
+                end if
+                call DMPlexSetCone(minc_dm, minc_p, minc_cone, ierr); CHKERRQ(ierr)
+                deallocate(minc_cone)
+                ! MINC DAG points for height h > 0:
+                do h = 1, self%depth - 1
+                   minc_p = self%strata(h)%minc_point(ic, m)
+                   above_p = self%strata(h + 1)%minc_point(ic, m)
+                   call DMPlexSetCone(minc_dm, minc_p, [above_p], ierr)
+                   CHKERRQ(ierr)
+                end do
              end do
-          end do
+          end if
 
        else
           ! Non-MINC cells:
