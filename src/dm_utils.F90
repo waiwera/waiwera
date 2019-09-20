@@ -76,7 +76,7 @@ module dm_utils_module
   public :: dm_distribute_index_set
   public :: vec_copy_common_local
   public :: mat_type_is_block, mat_coloring_perturbed_columns
-  public :: dm_copy_cone_orientation
+  public :: dm_copy_cone_orientation, dm_cell_counts
 
 contains
 
@@ -1519,6 +1519,34 @@ contains
          ierr); CHKERRQ(ierr)
 
   end subroutine dm_copy_cone_orientation
+
+!------------------------------------------------------------------------
+
+  subroutine dm_cell_counts(dm, cells_total, cells_min, cells_max)
+    !! Returns total DM cell count over all processes (excluding ghost
+    !! cells), and minimum and maximum count per process, on rank 0.
+
+    DM, intent(in) :: dm
+    PetscInt, intent(out) :: cells_total, cells_min, cells_max
+    ! Locals:
+    PetscInt :: start_cell, end_cell, end_interior_cell
+    PetscInt :: num_ghost_cells, cells_local
+    PetscErrorCode :: ierr
+
+    call DMPlexGetHeightStratum(dm, 0, start_cell, end_cell, ierr)
+    CHKERRQ(ierr)
+    end_interior_cell = dm_get_end_interior_cell(dm, end_cell)
+    num_ghost_cells = dm_get_num_partition_ghost_points(dm, 0)
+    cells_local = end_interior_cell - start_cell - num_ghost_cells
+
+    call MPI_reduce(cells_local, cells_total, 1, MPI_INTEGER, &
+           MPI_SUM, 0, PETSC_COMM_WORLD, ierr)
+    call MPI_reduce(cells_local, cells_min, 1, MPI_INTEGER, &
+           MPI_MIN, 0, PETSC_COMM_WORLD, ierr)
+    call MPI_reduce(cells_local, cells_max, 1, MPI_INTEGER, &
+           MPI_MAX, 0, PETSC_COMM_WORLD, ierr)
+
+  end subroutine dm_cell_counts
 
 !------------------------------------------------------------------------
 
