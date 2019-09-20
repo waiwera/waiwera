@@ -102,6 +102,7 @@ module flow_simulation_module
      procedure, public :: output_source_cell_indices => flow_simulation_output_source_cell_indices
      procedure, public :: output => flow_simulation_output
      procedure, public :: boundary_residuals => flow_simulation_boundary_residuals
+     procedure, public :: get_dof => flow_simulation_get_dof
   end type flow_simulation_type
 
 contains
@@ -1980,6 +1981,31 @@ contains
     call VecRestoreArrayF90(residual, residual_array, ierr); CHKERRQ(ierr)
 
   end subroutine flow_simulation_boundary_residuals
+
+!------------------------------------------------------------------------
+
+  subroutine flow_simulation_get_dof(self, dof_total, dof_min, dof_max, &
+       dof_imbalance)
+    !! Returns total simulation degrees of freedom, and minimum and
+    !! maximum over processes. Also returns the imbalance measure
+    !! defined by Kumar et al. (1994).
+
+    use dm_utils_module, only: dm_cell_counts
+
+    class(flow_simulation_type), intent(in) :: self
+    PetscInt, intent(out) :: dof_total, dof_min, dof_max
+    PetscReal, intent(out) :: dof_imbalance
+    ! Locals:
+    PetscInt :: cells_total, cells_min, cells_max
+
+    call dm_cell_counts(self%mesh%dm, cells_total, cells_min, cells_max)
+    dof_total = cells_total * self%eos%num_primary_variables
+    dof_min = cells_min * self%eos%num_primary_variables
+    dof_max = cells_max * self%eos%num_primary_variables
+
+    dof_imbalance = dble(dof_max - dof_min) / dble(dof_min)
+
+  end subroutine flow_simulation_get_dof
 
 !------------------------------------------------------------------------
 
