@@ -477,6 +477,9 @@ contains
     !! Writes summary of important inputs to logfile.
 
     class(flow_simulation_type), intent(in out) :: self
+    ! Locals:
+    PetscInt :: dof_total, dof_min, dof_max
+    PetscReal :: dof_imbalance
 
     call self%logfile%write(LOG_LEVEL_INFO, 'input', 'summary', &
          str_key = 'input.filename', str_value = self%filename)
@@ -500,6 +503,13 @@ contains
          str_key = 'eos.name', str_value = self%eos%name)
     call self%logfile%write(LOG_LEVEL_INFO, 'input', 'summary', &
          str_key = 'thermodynamics', str_value = self%thermo%name)
+    call self%get_dof(dof_total, dof_min, dof_max, dof_imbalance)
+    call self%logfile%write(LOG_LEVEL_INFO, 'simulation', 'dof', &
+         int_keys = ['total', 'min  ', 'max  '], &
+         int_values = [dof_total, dof_min, dof_max], &
+         real_keys = ['imbalance'], &
+         real_values = [dof_imbalance], rank = 0)
+    call self%logfile%write_blank()
 
   end subroutine flow_simulation_input_summary
 
