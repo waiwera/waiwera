@@ -1479,11 +1479,15 @@ end subroutine timestepper_steps_set_next_stepsize
     type(timestepper_solver_context_type), intent(in out) :: context
     PetscErrorCode :: ierr
     ! Locals:
-    PetscInt :: natural, minc_level
-    character(len = 8), allocatable :: cell_keys(:)
+    PetscInt :: natural, minc_level, num_linear_solver_iterations
+    character(len = 24), allocatable :: cell_keys(:)
     PetscInt, allocatable :: cell_values(:)
+    KSP :: ksp
 
     if (num_iterations > 0) then
+       call SNESGetKSP(solver, ksp, ierr); CHKERRQ(ierr)
+       call KSPGetIterationNumber(ksp, num_linear_solver_iterations, ierr)
+       CHKERRQ(ierr)
        associate(mesh => context%ode%mesh)
          call mesh%global_to_parent_natural( &
               context%steps%current%max_residual_cell, &
@@ -1492,8 +1496,9 @@ end subroutine timestepper_steps_set_next_stepsize
               natural, minc_level, cell_keys, cell_values)
          call context%ode%logfile%write(LOG_LEVEL_INFO, &
               'nonlinear_solver', 'iteration', &
-              [['count   '], cell_keys, ['equation']], &
-              [[num_iterations], cell_values, &
+              [['count                   ', 'linear_solver_iterations'], &
+              cell_keys, ['equation                ']], &
+              [[num_iterations, num_linear_solver_iterations], cell_values, &
               [context%steps%current%max_residual_equation]], &
               ['residual'], [context%steps%current%max_residual])
        end associate
