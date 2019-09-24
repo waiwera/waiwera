@@ -407,6 +407,8 @@ contains
     !! Returns elapsed time from start clock time, using
     !! the Fortran system_clock() function.
 
+    use iso_fortran_env, only: int32, real32
+
     integer(int32), intent(in) :: start
     ! Locals:
     integer(int32) :: end, rate
