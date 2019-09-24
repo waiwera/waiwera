@@ -2746,7 +2746,7 @@ contains
     class(mesh_type), intent(in out) :: self
     type(fson_value), pointer, intent(in) :: json
     Vec, intent(in out) :: rock_vector
-    PetscInt, intent(out) :: rock_range_start
+    PetscInt, intent(in) :: rock_range_start
     type(logfile_type), intent(in out), optional :: logfile
     PetscErrorCode, intent(out) :: err
     ! Locals:
