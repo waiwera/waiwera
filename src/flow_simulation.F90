@@ -21,6 +21,7 @@ module flow_simulation_module
 #include <petsc/finclude/petsc.h>
 
   use petsc
+  use iso_fortran_env, only: int32
   use kinds_module
   use ode_module
   use mesh_module

@@ -2186,6 +2186,7 @@ end subroutine timestepper_steps_set_next_stepsize
   subroutine timestepper_run(self)
     !! Runs the timestepper until finished.
 
+    use iso_fortran_env, only: int32
     use utils_module, only : date_time_str, clock_elapsed_time
 
     class(timestepper_type), intent(in out) :: self
