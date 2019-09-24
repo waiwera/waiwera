@@ -391,8 +391,9 @@ contains
     PetscReal, intent(out):: props(:) !! Properties
     PetscInt, intent(out) :: err !! error code
 
-    continue
-    
+    props = 0._dp
+    err = 0
+
   end subroutine region_properties
 
 !------------------------------------------------------------------------
