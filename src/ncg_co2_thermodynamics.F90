@@ -15,8 +15,6 @@ module ncg_co2_thermodynamics_module
   PetscReal, parameter :: henry_data(6) = [&
        0.783666_dp, 1.96025_dp, 8.20574_dp, &
        -7.40674_dp, 2.18380_dp, -0.220999_dp]
-  PetscReal, parameter :: henry_derivative_data(5) = 10._dp * &
-       henry_data(2: 6) * [1._dp, 2._dp, 3._dp, 4._dp, 5._dp]
   PetscReal, parameter :: viscosity_data(5, 6) = reshape([ &
        0._dp, 10._dp, 15._dp, 20._dp, 30._dp, &
        1.3578_dp, 3.9189_dp, 9.6607_dp, 13.1566_dp, 14.7968_dp, &
@@ -31,6 +29,7 @@ module ncg_co2_thermodynamics_module
      !! Type for CO2 NCG thermodynamics.
      private
      type(interpolation_table_type) :: viscosity_table
+     PetscReal :: henry_derivative_data(5)
    contains
      private
      procedure, public :: init => ncg_co2_init
@@ -49,6 +48,8 @@ contains
   subroutine ncg_co2_init(self)
     !! Initialises CO2 NCG thermodynamics object.
 
+    use utils_module, only: polynomial_derivative
+    
     class(ncg_co2_thermodynamics_type), intent(in out) :: self
     ! Locals:
     PetscErrorCode :: err
@@ -56,6 +57,7 @@ contains
     self%name = "CO2"
     self%molecular_weight = co2_molecular_weight
     call self%viscosity_table%init(viscosity_data, err)
+    self%henry_derivative_data = 10._dp * polynomial_derivative(henry_data)
 
   end subroutine ncg_co2_init
 
@@ -138,7 +140,7 @@ contains
     PetscErrorCode, intent(out) :: err !! Error code
 
     henrys_derivative = 1.e7_dp * &
-         polynomial(henry_derivative_data, temperature / tscale) / &
+         polynomial(self%henry_derivative_data, temperature / tscale) / &
          (henrys_constant * tscale)
     err = 0
 
