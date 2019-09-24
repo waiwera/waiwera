@@ -24,11 +24,6 @@ module ncg_air_thermodynamics_module
        -1.21388e-1_dp, -1.54216e-1_dp, &
        1.00041e-2_dp, 1.23190e-2_dp], &
        [2, 7])
-  PetscReal, parameter :: poly_deriv(6) = &
-       [1._dp, 2._dp, 3._dp, 4._dp, 5._dp, 6._dp]
-  PetscReal, parameter :: henry_derivative_data(2, 6) = &
-       henry_data(:, 2: 7) * &
-       transpose(reshape([poly_deriv, poly_deriv], [6, 2]))
   PetscReal, parameter :: tscale = 100._dp
 
   type, public, extends(ncg_thermodynamics_type) :: ncg_air_thermodynamics_type
@@ -40,6 +35,7 @@ module ncg_air_thermodynamics_module
      PetscReal :: cwat = 2.655_dp
      PetscReal :: fmix, cmix
      PetscReal :: enthalpy_shift
+     PetscReal :: henry_derivative_data(2, 6)
    contains
      private
      procedure, public :: init => ncg_air_init
@@ -61,6 +57,9 @@ contains
     use utils_module, only: polynomial
 
     class(ncg_air_thermodynamics_type), intent(in out) :: self
+    ! Locals:
+    PetscReal, parameter :: poly_deriv(6) = &
+         [1._dp, 2._dp, 3._dp, 4._dp, 5._dp, 6._dp]
 
     self%name = "Air"
     self%molecular_weight = air_molecular_weight
@@ -73,6 +72,9 @@ contains
     associate(tk => ttriple + tc_k)
       self%enthalpy_shift = polynomial(enthalpy_data, tk / tscale)
     end associate
+
+    self%henry_derivative_data = henry_data(:, 2: 7) * &
+         transpose(reshape([poly_deriv, poly_deriv], [6, 2]))
 
   end subroutine ncg_air_init
 
@@ -144,7 +146,7 @@ contains
     PetscReal :: dhinv(2)
 
     err = 0
-    dhinv = polynomial(henry_derivative_data, temperature / tscale)
+    dhinv = polynomial(self%henry_derivative_data, temperature / tscale)
     henrys_derivative = 1.e10_dp * sum(henry_weight * henry_p0 * dhinv) &
          / (henrys_constant * tscale)
 

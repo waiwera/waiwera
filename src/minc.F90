@@ -534,9 +534,7 @@ contains
 
       select type (context)
       type is (PetscReal)
-         associate(v => context)
-           y = self%proximity(x) - v
-         end associate
+         y = self%proximity(x) - context
       end select
 
     end function volume_difference
