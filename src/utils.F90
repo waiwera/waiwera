@@ -34,6 +34,11 @@ module utils_module
      module procedure polynomial_multiple
   end interface polynomial
 
+  interface polynomial_derivative
+     module procedure polynomial_derivative_single
+     module procedure polynomial_derivative_multiple
+  end interface polynomial_derivative
+
   interface array_cumulative_sum
      module procedure array_cumulative_sum_real
      module procedure array_cumulative_sum_integer
@@ -48,7 +53,8 @@ module utils_module
        int_str_len, str_array_index, &
        split_filename, change_filename_extension, &
        date_time_str, degrees_to_radians, rotation_matrix_2d, &
-       polynomial, array_pair_sum, array_cumulative_sum, &
+       polynomial, polynomial_derivative, &
+       array_pair_sum, array_cumulative_sum, &
        array_exclusive_products, get_mpi_int_gather_array, &
        array_sorted, clock_elapsed_time
   
@@ -267,6 +273,40 @@ contains
     end associate
 
   end function array_pair_sum
+
+!------------------------------------------------------------------------
+
+  function polynomial_derivative_single(a) result(da)
+    !! Takes coefficient array of a polynomial and returns the
+    !! coefficient array of its derivative.
+
+    PetscReal, intent(in) :: a(:)
+    PetscReal :: da(size(a) - 1)
+    ! Locals:
+    PetscInt :: i
+
+    do i = 1, size(a) - 1
+       da(i) = i * a(i + 1)
+    end do
+
+  end function polynomial_derivative_single
+
+!------------------------------------------------------------------------
+
+  function polynomial_derivative_multiple(a) result(da)
+    !! Takes coefficient array for multiple polynomials and returns
+    !! the coefficient array of their derivatives.
+
+    PetscReal, intent(in) :: a(:, :)
+    PetscReal :: da(size(a, 1), size(a, 2) - 1)
+    ! Locals:
+    PetscInt :: i
+
+    do i = 1, size(a, 2) - 1
+       da(:, i) = i * a(:, i + 1)
+    end do
+
+  end function polynomial_derivative_multiple
 
 !------------------------------------------------------------------------
 
