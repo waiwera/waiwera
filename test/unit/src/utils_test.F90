@@ -17,9 +17,9 @@ module utils_test
        test_split_filename, test_change_filename_extension, &
        test_int_str_len, test_str_array_index, &
        test_degrees_to_radians, test_rotation_matrix_2d, &
-       test_polynomial, test_multipolynomial, test_array_pair_sum, &
-       test_array_cumulative_sum, test_array_exclusive_products, &
-       test_array_sorted
+       test_polynomial, test_multipolynomial, test_polynomial_derivative, &
+       test_array_pair_sum, test_array_cumulative_sum, &
+       test_array_exclusive_products, test_array_sorted
 
 contains
 
@@ -341,6 +341,41 @@ contains
     end if
 
   end subroutine test_multipolynomial
+
+!------------------------------------------------------------------------
+
+  subroutine test_polynomial_derivative(test)
+    ! Test polynomial derivative
+
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
+    PetscReal :: x
+    PetscReal, parameter :: a(5) = [1._dp, 1._dp, 0.5_dp, &
+         1._dp / 6._dp, 1._dp / 24._dp]
+    PetscReal, allocatable :: da(:)
+    PetscMPIInt :: rank
+    PetscInt :: ierr
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
+
+       da = polynomial_derivative(a)
+
+       x = 0._dp
+       call test%assert(polynomial(a(1:4), x), polynomial(da, x), '0')
+
+       x = 1._dp
+       call test%assert(polynomial(a(1:4), x), polynomial(da, x), '1')
+
+       x = -1._dp
+       call test%assert(polynomial(a(1:4), x), polynomial(da, x), '-1')
+
+       x = 2.3_dp
+       call test%assert(polynomial(a(1:4), x), polynomial(da, x), '2.3')
+
+    end if
+
+  end subroutine test_polynomial_derivative
 
 !------------------------------------------------------------------------
 

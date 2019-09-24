@@ -54,7 +54,7 @@ contains
     !! Initialises air NCG thermodynamics object.
 
     use thermodynamics_module, only: ttriple, tc_k
-    use utils_module, only: polynomial
+    use utils_module, only: polynomial, polynomial_derivative
 
     class(ncg_air_thermodynamics_type), intent(in out) :: self
     ! Locals:
@@ -73,8 +73,7 @@ contains
       self%enthalpy_shift = polynomial(enthalpy_data, tk / tscale)
     end associate
 
-    self%henry_derivative_data = henry_data(:, 2: 7) * &
-         transpose(reshape([poly_deriv, poly_deriv], [6, 2]))
+    self%henry_derivative_data = polynomial_derivative(henry_data)
 
   end subroutine ncg_air_init
 
