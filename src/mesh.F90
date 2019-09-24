@@ -2468,7 +2468,7 @@ contains
     call DMGetLocalToGlobalMapping(self%dm, l2g, ierr); CHKERRQ(ierr)
     call DMGetLocalToGlobalMapping(minc_dm, minc_l2g, ierr); CHKERRQ(ierr)
 
-    call get_original_cell_natural_global_indices()
+    call original_natural_global_indices()
     inatural = get_new_natural_index()
     offset = num_non_ghost_cells + 1
 
@@ -2531,7 +2531,7 @@ contains
 
 !........................................................................
 
-    subroutine get_original_cell_natural_global_indices()
+    subroutine original_natural_global_indices()
       !! Gets natural and global indices for original cells on each
       !! process.
 
@@ -2554,7 +2554,7 @@ contains
          end if
       end do
 
-    end subroutine get_original_cell_natural_global_indices
+    end subroutine original_natural_global_indices
 
 !........................................................................
 
