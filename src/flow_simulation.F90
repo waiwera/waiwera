@@ -85,6 +85,7 @@ module flow_simulation_module
      procedure :: destroy_output => flow_simulation_destroy_output
      procedure, public :: setup_gravity => flow_simulation_setup_gravity
      procedure, public :: input_summary => flow_simulation_input_summary
+     procedure, public :: log_statistics => flow_simulation_log_statistics
      procedure, public :: run_info => flow_simulation_run_info
      procedure, public :: init => flow_simulation_init
      procedure, public :: destroy => flow_simulation_destroy
@@ -478,9 +479,6 @@ contains
     !! Writes summary of important inputs to logfile.
 
     class(flow_simulation_type), intent(in out) :: self
-    ! Locals:
-    PetscInt :: dof_total, dof_min, dof_max
-    PetscReal :: dof_imbalance
 
     call self%logfile%write(LOG_LEVEL_INFO, 'input', 'summary', &
          str_key = 'input.filename', str_value = self%filename)
@@ -504,15 +502,31 @@ contains
          str_key = 'eos.name', str_value = self%eos%name)
     call self%logfile%write(LOG_LEVEL_INFO, 'input', 'summary', &
          str_key = 'thermodynamics', str_value = self%thermo%name)
+
+  end subroutine flow_simulation_input_summary
+
+!------------------------------------------------------------------------
+
+  subroutine flow_simulation_log_statistics(self)
+    !! Writes simulation statistics to logfile.
+
+    class(flow_simulation_type), intent(in out) :: self
+    ! Locals:
+    PetscInt :: dof_total, dof_min, dof_max
+    PetscReal :: dof_imbalance
+
     call self%get_dof(dof_total, dof_min, dof_max, dof_imbalance)
     call self%logfile%write(LOG_LEVEL_INFO, 'simulation', 'dof', &
          int_keys = ['total', 'min  ', 'max  '], &
          int_values = [dof_total, dof_min, dof_max], &
          real_keys = ['imbalance'], &
          real_values = [dof_imbalance], rank = 0)
+    call self%logfile%write(LOG_LEVEL_INFO, 'simulation', 'sources', &
+         int_keys = ['count'], int_values = [self%num_sources])
+
     call self%logfile%write_blank()
 
-  end subroutine flow_simulation_input_summary
+  end subroutine flow_simulation_log_statistics
 
 !------------------------------------------------------------------------
 

@@ -48,6 +48,7 @@ program waiwera
      call fson_destroy_mpi(json)
      call simulation%input_summary()
      call timestepper%input_summary()
+     call simulation%log_statistics()
      call timestepper%run()
      call timestepper%destroy()
   else
