@@ -6,7 +6,7 @@ app_user: waiwera
 app_group: waiwera
 # petsc_version: v3.11.2
 petsc_version: afbee2879a
-waiwera_version: meson
+waiwera_version: meson-fail-unit-test
 petsc_arch: release
 petsc_repo: https://gitlab.com/petsc/petsc.git
 
