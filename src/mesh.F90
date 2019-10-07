@@ -1809,7 +1809,7 @@ contains
     PetscMPIInt :: rank
     PetscErrorCode :: ierr
     PetscBool :: has_minc_local
-    PetscBool, parameter :: default_rebalance = PETSC_TRUE
+    PetscBool :: default_rebalance
 
     err = 0
 
@@ -1849,12 +1849,15 @@ contains
        call MPI_allreduce(has_minc_local, self%has_minc, 1, MPI_LOGICAL, MPI_LOR, &
             PETSC_COMM_WORLD, ierr)
 
-       call fson_get_mpi(json, "mesh.rebalance", default_rebalance, &
-               self%rebalance, logfile)
+       default_rebalance = PETSC_TRUE
 
     else
        self%has_minc = PETSC_FALSE
+       default_rebalance = PETSC_FALSE
     end if
+
+    call fson_get_mpi(json, "mesh.rebalance", default_rebalance, &
+         self%rebalance, logfile)
 
   end subroutine mesh_setup_minc
 
@@ -3226,7 +3229,9 @@ contains
     if (sf .ne. PETSC_NULL_SF) then
        call self%redistribute_geometry(sf)
        call dm_distribute_index_set(self%dm, sf, section, self%cell_natural)
-       call dm_distribute_index_set(self%dm, sf, section, self%cell_parent_natural)
+       if (self%has_minc) then
+          call dm_distribute_index_set(self%dm, sf, section, self%cell_parent_natural)
+       end if
        self%cell_natural_global = &
             dm_get_natural_to_global_ao(self%dm, self%cell_natural)
        call ISDestroy(self%cell_index, ierr); CHKERRQ(ierr)
@@ -3324,13 +3329,16 @@ contains
     call face%init(1, 1)
 
     call DMGetLabel(self%dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
-    call DMGetLabel(self%dm, minc_level_label_name, minc_level_label, ierr)
-    CHKERRQ(ierr)
+    if (self%has_minc) then
+       call DMGetLabel(self%dm, minc_level_label_name, minc_level_label, ierr)
+       CHKERRQ(ierr)
+    end if
     call DMPlexGetHeightStratum(self%dm, 0, start_cell, end_cell, ierr)
     CHKERRQ(ierr)
     end_interior_cell = dm_get_end_interior_cell(self%dm, end_cell)
     call DMPlexGetHeightStratum(self%dm, 1, start_face, end_face, ierr)
     CHKERRQ(ierr)
+    minc_levels = 0
 
     do f = start_face, end_face - 1
        call DMLabelGetValue(ghost_label, f, ghost, ierr); CHKERRQ(ierr)
@@ -3338,8 +3346,10 @@ contains
           call DMPlexGetSupportSize(self%dm, f, num_cells, ierr); CHKERRQ(ierr)
           call DMPlexGetSupport(self%dm, f, cells, ierr); CHKERRQ(ierr)
           do i = 1, 2
-             call DMLabelGetValue(minc_level_label, cells(i), &
-                  minc_levels(i), ierr); CHKERRQ(ierr)
+             if (self%has_minc) then
+                call DMLabelGetValue(minc_level_label, cells(i), &
+                     minc_levels(i), ierr); CHKERRQ(ierr)
+             end if
              cell_offset(i) = section_offset(cell_geom_section, cells(i))
           end do
           offset = section_offset(face_geom_section, f)
