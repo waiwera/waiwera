@@ -1,4 +1,4 @@
-supermodels-test
-================
+Waiwera
+=======
 
-Repository for testing code for the Geothermal SuperModels project
+Waiwera is an open-source geothermal flow simulator.
