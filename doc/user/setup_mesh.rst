@@ -69,8 +69,8 @@ Note that the mesh filename (specified in either of the above two ways) is a req
    |                    |           |                   |                                         |
    |                    |           |                   |                                         |
    +--------------------+-----------+-------------------+-----------------------------------------+
-   |"rebalance"         |boolean    |``true``           |whether to rebalance MINC mesh           |
-   |                    |           |                   |                                         |
+   |"rebalance"         |boolean    |``true`` for MINC, |whether to rebalance MINC mesh           |
+   |                    |           |otherwise ``false``|                                         |
    +--------------------+-----------+-------------------+-----------------------------------------+
    |"zones"             |object     |{}                 |definitions of :ref:`mesh_zones`         |
    |                    |           |                   |                                         |
@@ -171,7 +171,7 @@ Mesh rebalancing
 
 When MINC is used to simulate flows in fractured media (see :ref:`minc`), MINC matrix rock cells are added to the mesh. This process is carried out in parallel. If MINC is applied only to some parts of the mesh, this may result in some parallel processes having significantly more cells than others, which degrades load balancing and reduces parallel scaling performance.
 
-If the **"mesh.rebalance"** value is set to true (the default), then Waiwera will rebalance the mesh after adding MINC cells, to restore optimal load balancing.
+If the **"mesh.rebalance"** value is set to true (the default for MINC meshes), then Waiwera will rebalance the mesh after adding MINC cells, to restore optimal load balancing.
 
 .. index:: mesh; zones, zones
 .. _mesh_zones:
