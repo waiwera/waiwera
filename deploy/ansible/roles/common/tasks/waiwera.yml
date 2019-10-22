@@ -7,7 +7,7 @@
 
 - name: waiwera - Fetch waiwera from github
   git:
-    repo: "https://{{ waiwera_user | urlencode }}:{{ waiwera_pwd  | urlencode }}@github.com/johnburnell/supermodels-test.git"
+    repo: "https://{{ waiwera_user | urlencode }}:{{ waiwera_pwd  | urlencode }}@{{ waiwera_repo }}"
     dest:  "{{ waiwera_path }}"
     version: "{{ waiwera_version }}"
   tags:
