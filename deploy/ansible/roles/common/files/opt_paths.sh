@@ -1,3 +1,4 @@
+#!/bin/bash
 
 export PETSC_DIR=/opt/app/waiwera/external/PETSc
 export PETSC_ARCH=arch-linux2-c-debug

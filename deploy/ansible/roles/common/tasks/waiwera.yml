@@ -5,7 +5,7 @@
 #     path: "{{ waiwera_path }}"
 #     state: directory
 
-- name: waiwera - Fetch waiwera from github
+- name: waiwera - Fetch waiwera from repository
   git:
     repo: "https://{{ waiwera_user | urlencode }}:{{ waiwera_pwd  | urlencode }}@{{ waiwera_repo }}"
     dest:  "{{ waiwera_path }}"

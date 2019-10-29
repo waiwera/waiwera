@@ -32,10 +32,10 @@
     dest: ~/.profile
     block: "{{ lookup('template', 'opt_paths.j2') }}"
     marker: "# {mark} ANSIBLE MANAGED BLOCK - PATHS"
-  tags:
-    - never
-    - local
-    - bash
+  # tags:
+    # # - never
+    # - local
+    # - bash
 
 - name: Tidy app directory structure
   file:
@@ -59,7 +59,7 @@
     state: directory
   with_items:
     - "{{ bin_path }}"
-    - "{{ pkgconfig_path }}"
+    # - "{{ pkgconfig_path }}"
     - "{{ lib_path }}"
     - "{{ include_path }}"
     - "{{ software_path }}"

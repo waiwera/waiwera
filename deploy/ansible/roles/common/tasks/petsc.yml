@@ -1,6 +1,6 @@
 ---
 
-- name: petsc - Fetch from bitbucket
+- name: petsc - Fetch from petsc from repository
   git:
     repo: "{{ petsc_repo }}"
     dest: "{{ petsc_path }}"
@@ -58,6 +58,6 @@
 
 - name: petsc - copy to pkgconfig
   copy:
-    src: "{{ petsc_path + '/' + petsc_arch +  '/lib/pkgconfig/PETSc.pc'}}"
-    dest: "{{ pkgconfig_path }}/PETSc.pc"
+    src: "{{ petsc_path + '/' + petsc_arch +  '/lib/'}}"
+    dest: "{{ lib_path }}/"
     remote_src: yes

@@ -6,6 +6,7 @@ export PATH=$PATH:$HOME/.local/bin
 export PATH=$PATH:{{ bin_path }}
 export PATH=$PATH:{{ petsc_bin }}
 export PKG_CONFIG_PATH={{ pkgconfig_path }}:$PKG_CONFIG_PATH
+export LD_LIBRARY_PATH={{ lib_path }}:{{ petsc_lib }}
 export LANG=en_US.UTF-8
 export LC_ALL=en_US.UTF-8
 export LC_TYPE=en_US.UTF-8

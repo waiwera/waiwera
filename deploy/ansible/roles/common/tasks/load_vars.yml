@@ -25,9 +25,8 @@
     software_path: "{{ base_dir }}/software"
     local_bin: "/home/{{ app_user }}/.local/bin"
 
-- name: Set petsc and pkgconfig layer path variables
+- name: Set petsc layer path variables
   set_fact:
-    pkgconfig_path: "{{ lib_path }}/pkgconfig"
     petsc_path: "{{ software_path }}/PETSc"
 
 - name: Set petsc petsc_arch path
@@ -36,4 +35,9 @@
 
 - name: Set petsc bin bath
   set_fact:
+    petsc_lib: "{{ petsc_arch_path }}/lib"
     petsc_bin: "{{ petsc_arch_path }}/bin"
+
+- name: Set pkgconfig layer path variables
+  set_fact:
+     pkgconfig_path: "{{ petsc_lib }}/pkgconfig"

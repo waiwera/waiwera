@@ -85,16 +85,6 @@
   tags:
     - packages
 
-- name: set opt_paths.sh with template
-  template:
-    src: opt_paths.j2
-    dest: /etc/profile.d/opt_paths.sh
-  tags:
-    - never
-    - root
-    - docker
-  become: yes
-
 - name: Run the common tasks to setup waiwera on a system with no root access
   include: setup.yml
 
@@ -108,6 +98,26 @@
     PETSC_ARCH: "{{ petsc_arch }}"
     PKG_CONFIG_PATH: "{{ pkgconfig_path }}"
   include: install.yml
+
+- name: set entrypoint.sh with template
+  # template:
+  #   src: opt_paths.j2
+  #   dest: /etc/profile.d/opt_paths.sh
+  # blockinfile:
+  #   dest: /home/{{ app_user }}/entrypoint.sh
+  #   block: "{{ lookup('template', 'opt_paths.j2') }}"
+  #   marker: "# {mark} ANSIBLE MANAGED BLOCK - PATHS"
+   #   src: opt_paths.j2
+  template:
+    src: entrypoint.j2
+    dest: '{{ waiwera_path }}/entrypoint.sh'
+    mode: a+x
+  # blockinfile:
+  tags:
+    - never
+    - root
+    - docker
+  become: no
 
 - name: Cleanup
   include: cleanup.yml
