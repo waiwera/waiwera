@@ -345,22 +345,22 @@ sets up a steady-state simulation using adaptive time-stepping, with a starting 
 Solution of non-linear equations
 ================================
 
-At each time step the `PETSc <https://www.mcs.anl.gov/petsc/>`_ "SNES" non-linear solver (with Newton-Raphson iteration by default) is used to solve the discretised mass and energy conservation equations, e.g. equation :eq:`beuler` for the backwards Euler time-stepping method. The conservation equations are re-written as a function, known as the **residual** function, so that finding the root of this function corresponds to solving the original equation. For example, for the backwards Euler time-stepping method, the residual :math:`\mathbf{r}` is:
+At each time step the `PETSc <https://www.mcs.anl.gov/petsc/>`_ "SNES" non-linear solver (with Newton-Raphson iteration by default) is used to solve the discretised mass and energy conservation equations, e.g. equation :eq:`beuler` for the backwards Euler time-stepping method. The conservation equations are re-written as a function, known as the **residual** function, so that finding the root of this function corresponds to solving the original equation. For example, for the backwards Euler time-stepping method, the residual function :math:`\mathbf{f}` is:
 
 .. math::
 
-   \mathbf{r} = \mathbf{L}^{n+1} - \mathbf{L}^n - \Delta t \: \mathbf{R}^{n+1}
+   \mathbf{f} = \mathbf{L}^{n+1} - \mathbf{L}^n - \Delta t \: \mathbf{R}^{n+1}
 
 Convergence in the residual
 ---------------------------
 
-The non-linear solution process is considered converged when all the elements of the residual :math:`\mathbf{r}` are sufficiently small. Note, however, that the left- and right-hand side vectors :math:`\mathbf{L}` and :math:`\mathbf{R}`, and hence also :math:`\mathbf{r}`, usually contain values of differing magnitudes, depending on whether they arise from mass or energy components. Hence, for the purpose of checking convergence, it is necessary to non-dimensionalise the residual :math:`\mathbf{r}` so that its elements are all of comparable sizes. The non-dimensionalised residual :math:`\mathbf{r'}` is defined as:
+The non-linear solution process is considered converged when all the elements of the residual :math:`\mathbf{f}` are sufficiently small. Note, however, that the left- and right-hand side vectors :math:`\mathbf{L}` and :math:`\mathbf{R}`, and hence also :math:`\mathbf{f}`, usually contain values of differing magnitudes, depending on whether they arise from mass or energy components. Hence, for the purpose of checking convergence, it is necessary to non-dimensionalise the residual :math:`\mathbf{f}` so that its elements are all of comparable sizes. The non-dimensionalised residual :math:`\mathbf{f'}` is defined as:
 
 .. math::
 
-   r'_i = \frac{r_i}{\max{(|L^n_i|, \epsilon_a)}}
+   f'_i = \frac{f_i}{\max{(|L^n_i|, \epsilon_a)}}
 
-and the non-linear solution process is then considered converged when :math:`\|\mathbf{r}'\|_{\infty} < \epsilon_r`. Here :math:`\epsilon_a` and :math:`\epsilon_r` are specified tolerances, set in the Waiwera JSON input file via the **"tolerance.function.absolute"** and **"tolerance.function.relative"** values respectively in the **"time.step.solver.nonlinear"** object.
+and the non-linear solution process is then considered converged when :math:`\|\mathbf{f}'\|_{\infty} < \epsilon_r`. Here :math:`\epsilon_a` and :math:`\epsilon_r` are specified tolerances, set in the Waiwera JSON input file via the **"tolerance.function.absolute"** and **"tolerance.function.relative"** values respectively in the **"time.step.solver.nonlinear"** object.
 
 .. note::
    **JSON object**: non-linear solver parameters
@@ -437,9 +437,9 @@ At each iteration of the non-linear solver (see :ref:`nonlinear_equations`), a l
 
 .. math::
 
-   \mathbf{J} \Delta \mathbf{Y} = -\mathbf{r}
+   \mathbf{J} \Delta \mathbf{Y} = -\mathbf{f}
 
-where :math:`\mathbf{J}` is the Jacobian matrix of the residual :math:`\mathbf{r}`.
+where :math:`\mathbf{J}` is the Jacobian matrix of the residual function :math:`\mathbf{f}`.
 
 This system of linear equations is solved using the `PETSc <https://www.mcs.anl.gov/petsc/>`_ "KSP" suite of parallelised linear equation solvers. Linear solver parameters can be specified via the **"time.step.solver.linear"** value in the Waiwera JSON input file. This value is an object.
 
