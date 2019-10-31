@@ -6,7 +6,7 @@ app_user: waiwera
 app_group: waiwera
 #petsc_version: v3.11.4
 petsc_version: afbee2879a
-waiwera_version: meson
+waiwera_version: master
 petsc_arch: release
 petsc_repo: https://gitlab.com/petsc/petsc.git
 waiwera_repo: github.com/waiwera/waiwera.git

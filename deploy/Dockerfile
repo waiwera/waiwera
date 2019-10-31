@@ -55,4 +55,11 @@ RUN rm -r /ansible
 
 USER 1000:1000
 
+#COPY entrypoint.sh ${base_dir}/waiwera/
+
 WORKDIR ${base_dir}/waiwera
+#ARG entry=${base_dir}/waiwera/entrypoint.sh
+#ENV entry $entry
+
+# ARGs can't be used with ENTRYPOINT command
+ENTRYPOINT [ "/opt/waiwera/entrypoint.sh" ]
