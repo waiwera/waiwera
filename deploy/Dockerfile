@@ -2,7 +2,7 @@ FROM debian:stretch-slim
 
 ARG git_user
 ARG git_pwd
-ARG base_dir
+ARG base_dir=/opt
 
 RUN DEBIAN_FRONTEND=noninteractive \
     apt-get update && \
