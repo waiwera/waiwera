@@ -7,7 +7,7 @@
 
 - name: waiwera - Fetch waiwera from repository
   git:
-    repo: "https://{{ waiwera_user | urlencode }}:{{ waiwera_pwd  | urlencode }}@{{ waiwera_repo }}"
+    repo: "https://{{ waiwera_repo }}"
     dest:  "{{ waiwera_path }}"
     version: "{{ waiwera_version }}"
   tags:

@@ -1,7 +1,7 @@
 FROM debian:stretch-slim
 
-ARG git_user
-ARG git_pwd
+# ARG git_user
+# ARG git_pwd
 ARG base_dir=/opt
 
 RUN DEBIAN_FRONTEND=noninteractive \
@@ -35,8 +35,6 @@ RUN DEBIAN_FRONTEND=noninteractive \
         --connection=local \
         /ansible/local.yml \
         -v \
-        -e "waiwera_user=${git_user}" \
-        -e "waiwera_pwd=${git_pwd}" \
         -e "base_dir=${base_dir}" \
         --tags=all,docker \
         --skip-tags=local,zofu,fson && \
