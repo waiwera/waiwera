@@ -19,8 +19,6 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
      ansible.verbose = "vv"
      ansible.playbook = "site.yml"
      ansible.raw_arguments = [
-       '-e "waiwera_user=' + ENV['GIT_USER'] + '"',
-       '-e "waiwera_pwd='+ ENV['GIT_PWD'] +'"',
        '-e "app_user=vagrant"',
        '-e "app_group=vagrant"',
        '-e "base_dir=/home/vagrant"',

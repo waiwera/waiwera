@@ -13,12 +13,9 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
     waiwera.vm.provision :shell, inline: "apt install python-pip -y && pip install --upgrade ansible"
     # Root access for initial setup
     waiwera.vm.provision "ansible_local" do |ansible|
-      # ansible.limit = 'waiwera'
       ansible.verbose = "vv"
       ansible.playbook = "/ansible/setup.yml"
       ansible.raw_arguments = [
-        '-e "waiwera_user='+ ENV['GIT_USER'] + '"',
-        '-e "waiwera_pwd='+  ENV['GIT_PWD'] +'"',
         '-e "app_user=waiwera"',
         '-e "app_group=waiwera"',
         '-e "base_dir=/home/waiwera"',
@@ -26,12 +23,9 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
     end
     # Non root for local app install
     waiwera.vm.provision "ansible_local" do |ansible|
-      # ansible.limit = 'waiwera'
       ansible.verbose = "vv"
       ansible.playbook = "/ansible/site_remoteuser.yml"
       ansible.raw_arguments = [
-        '-e "waiwera_user='+ ENV['GIT_USER'] + '"',
-        '-e "waiwera_pwd='+  ENV['GIT_PWD'] +'"',
         '-e "app_user=waiwera"',
         '-e "app_group=waiwera"',
         '-e "base_dir=/home/waiwera"',

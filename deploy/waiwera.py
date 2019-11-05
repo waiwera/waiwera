@@ -13,8 +13,6 @@ def convert_path_nt_to_posix(path):
     return '/{0}'.format(path.replace("\\","/").replace(":",""))
 
 ##########
-# Author: Tim Harton
-# Date: 4/11/19
 # A simple python wrapper around the docker image for waiwera
 #########
 
@@ -22,15 +20,23 @@ if __name__ == "__main__":
     """
     Args:
     """
-    parser = argparse.ArgumentParser(description='Runs Waiwera, the open-source geothermal flow simulator.')
-    parser.add_argument('command', nargs='+', help='the command passed to waiwera')
-    parser.add_argument('-np', '--num_processors', help='The number of'\
-        ' processors to utilize, otherwise uses the docker default for'\
-        ' your system')
-    parser.add_argument('-r', '--repo', default=REPO)
-    parser.add_argument('-t', '--tag', default=TAG)
-    parser.add_argument('-i', '--image', help='The docker image to use'
-                        'e.g. waiwera/waiwera:latest')
+    parser = argparse.ArgumentParser(description='Runs Waiwera, \
+                        the open-source geothermal flow simulator')
+    parser.add_argument('command', nargs='+', help='the command passed to \
+                        waiwera')
+    parser.add_argument('-np', '--num_processors', help='The number of \
+                        processors to utilize, otherwise uses the docker \
+                        default for your system')
+    parser.add_argument('-r', '--repo',
+                        default=REPO)
+    parser.add_argument('-t', '--tag',
+                        default=TAG)
+    parser.add_argument('-i', '--image', help='The docker image to use \
+                        e.g. waiwera/waiwera:latest')
+    parser.add_argument('-it','--interactive',
+                        help='starts an interactive terminal and does NOT run \
+                        mpiexec by default',
+                        action='store_true')
 
     args = parser.parse_args()
 
@@ -50,19 +56,35 @@ if __name__ == "__main__":
     else:
         np = ''
 
+    if args.interactive:
+        it ='--interactive --tty'
+        mpiexec = ''
+    else:
+        it  = ''
+        # Change the working directory to
+        mpiexec = '--workdir {0} mpiexec {1} {3}'.format(data_path,
+                                                         np,
+                                                         WAIWERA_PATH)
+
     command = ''
     for string in args.command:
         command = '{0} {1}'.format(command, string)
 
+    print('Checking for Waiwera update')
     pull_cmd = "docker pull {0}".format(image)
-    output = subprocess.check_output(shlex.split(pull_cmd))
+    os.system(pull_cmd)
+    # print(subprocess.check_output(shlex.split(pull_cmd)))
 
-    run_cmd = "docker run --rm --volume {0}:{1} --workdir {1} {2} mpiexec {3} {4} {5}" \
-            .format(current_path,
+    #  docker run -v ${p}:/data -w /data waiwera-phusion-debian mpiexec -np $args[1] /home/mpirun/waiwera/dist/waiwera $args[0]
+    print('Running Waiwera')
+    run_cmd = "docker run --rm {0} --volume {1}:{2} {3} {4} \
+                {5}" \
+                .format(it,
+                    current_path,
                     data_path,
                     image,
-                    np,
-                    WAIWERA_PATH,
+                    mpiexec,
                     command)
-
-    output = subprocess.check_output(shlex.split(run_cmd))
+    # print(run_cmd)
+    os.system(run_cmd)
+    #print(subprocess.check_output(shlex.split(run_cmd)))
