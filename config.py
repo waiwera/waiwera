@@ -44,7 +44,7 @@ def petsc_mkdir():
 
 def petsc_download(petsc_dir):
     """Downloads PETSc to external projects directory"""
-    petsc_url = "https://bitbucket.org/petsc/petsc.git"
+    petsc_url = "https://gitlab.com/petsc/petsc.git"
     print("PETSc library not found: installing PETSc in", petsc_dir)
     os.chdir(petsc_dir)
     subprocess.Popen(["git", "clone",
