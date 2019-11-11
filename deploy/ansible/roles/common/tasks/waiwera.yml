@@ -23,7 +23,7 @@
   when: docker_run is defined
 
 - name: waiwera - Meson build
-  shell: meson build --buildtype=release --prefix={{ base_dir }} --libdir={{ lib_path }} --includedir={{ include_path }}
+  shell: meson build --buildtype={{ petsc_arch }} --prefix={{ base_dir }} -Dlibdir=lib -Dset_rpath=true
   args:
     chdir: "{{ waiwera_path }}"
     executable: /bin/bash

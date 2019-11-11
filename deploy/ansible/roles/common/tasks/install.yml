@@ -32,7 +32,7 @@
 
   - name: petsc - Install
     include: petsc.yml
-
+    become: no
 
   when: petsc_test is failed
   tags:

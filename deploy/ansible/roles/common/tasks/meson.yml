@@ -9,7 +9,7 @@
   block:
     - name: meson - pip install local --user using pip3
       pip:
-        name: meson
+        name: "{{ meson_version }}"
         executable: "{{ pip_ex }}"
         extra_args: "--user"
       tags:
@@ -17,7 +17,7 @@
 
     - name: meson - install for root using pip3
       pip:
-        name: meson
+        name: "{{ meson_version }}"
         executable: "{{ pip_ex }}"
         # extra_args: "--user"
       tags:

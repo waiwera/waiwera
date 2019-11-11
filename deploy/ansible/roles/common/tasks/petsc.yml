@@ -24,9 +24,9 @@
 
   - set_fact:
       configure_cmd: "{{ configure_cmd + petsc_variables | join(' ') }}"
-    tags:
-      - never
-      - nesi
+    # tags:
+    #   - never
+    #   - nesi
 
   - name: petsc - Run ./configure
     command: "{{ configure_cmd }}"
@@ -58,6 +58,6 @@
 
 - name: petsc - copy to pkgconfig
   copy:
-    src: "{{ petsc_path + '/' + petsc_arch +  '/lib/'}}"
+    src: "{{ petsc_path + '/' + petsc_arch +  '/lib/pkgconfig'}}"
     dest: "{{ lib_path }}/"
     remote_src: yes

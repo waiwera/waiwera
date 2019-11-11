@@ -58,7 +58,7 @@
     state: directory
   with_items:
     - "{{ bin_path }}"
-    # - "{{ pkgconfig_path }}"
+    - "{{ pkgconfig_path }}"
     - "{{ lib_path }}"
     - "{{ include_path }}"
     - "{{ software_path }}"

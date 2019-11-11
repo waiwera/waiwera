@@ -4,7 +4,7 @@
         "image": "debian:9",
         "commit": true,
         "changes": [
-            "WORKDIR {{ user `app_dir` }}/waiwera",
+            "WORKDIR /opt/waiwera",
             "ENV PETSC_DIR {{ user `app_dir` }}/external/PETSc",
             "ENV PETSC_ARCH arch-linux2-c-debug",
             "ENV LD_LIBRARY_PATH {{ user `app_dir` }}/lib",
@@ -36,8 +36,6 @@
         "user": "root",
         "playbook_file": "../ansible/packer.yml",
         "extra_arguments": [ "-v" ,
-                              "-e waiwera_user={{ user `git_user` }}" ,
-                              "-e waiwera_pwd={{ user `git_pwd` }}" ,
                               "-e app_dir={{ user `app_dir` }}" ,
                               "-e app_user=waiwera",
                               "-e app_group=waiwera",
@@ -54,7 +52,7 @@
     "post-processors": [[
        {
         "type": "docker-tag",
-        "repository": "thar102/waiwera",
+        "repository": "waiwera/waiwera:packer",
         "tag": "packer"
     } ]]
 }

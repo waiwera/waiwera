@@ -56,7 +56,7 @@ Open the command line for your operating system and follow these steps:
 
 - Navigate to the he directory geo-deploy   `vagrant init`
 - This only has to be done once to tell the system that this is vagrant deployment directory
-- `GIT_USER='#########' GIT_PWD='#######' vagrant up` - starts a VM (virtual machine) named `waiwera`
+- `vagrant up` - starts a VM (virtual machine) named `waiwera`
 - This could take some time as it builds and installs all the dependencies required
 - `vagrant ssh` - connects via ssh to the machine. Within the `ssh` session run:
 - should be logged in at `/vagrant` navigate to `/vagrant/waiwera`
@@ -68,32 +68,18 @@ Open the command line for your operating system and follow these steps:
 
 All commands should be run be run from the deployment directory. Otherwise the name of the machine can be added to the end of the vagrant command i.e. `vagrant suspend waiwera`.
 
-
-### Packer Build
-_For waiwera developers only_
-
-Navigate to packer directory inside the geo-deploy directory
-
-You can use packer to create and test docker images in 1 stop command. Which builds then tests the image locally. It can be extended to also push to the docker repository.
-
-```
-packer build -var-file=variables.json -var 'git_user=#####' -var 'git_pwd=##########' docker-packer.json
-```
-
-_Get some timeout errors during tests_
-
 ### Dockerfile Build
 
-Navigate to the root of the geo-deploy directory
+Navigate to the root of the deploy directory in the waiwera repository
 
 ```
-docker build -t waiwera . --build-arg "git_user=######" --build-arg "git_pwd=#########" --build-arg "app_dir=/opt/app"
+docker build -t waiwera .
 ```
 
 Test the image by creating an ephemeral container and running the tests, these may time out given the system they are run on.
 
 ```
-docker container run --rm -it --user 1000:1000 waiwera:latest python unit_tests.py
+docker container run --rm -it waiwera:latest python unit_tests.py
 ```
 _Get some timeout errors during tests_
 
@@ -105,8 +91,19 @@ File used to build and test the docker image using bitbucket continuous integrat
 
 To do an ansible build locally run the following command for the root of the geo-deploy directory
 
-`ansible-playbook -c=local -vv -e "waiwera_user=#####" -e "waiwera_pwd=#####" -e "app_dir=#####" --skip-tags=docker,clean,vagrant /ansible/local.yml`
+`ansible-playbook -c=local -vv -e "app_dir=#####" --skip-tags=docker,clean,vagrant /ansible/local.yml`
 
-* `waiwera_user`= git user
-* `waiwera_pwd` = git password
 * `app_dir` = install location
+
+### Packer Build
+_For waiwera developers only_
+
+Navigate to packer directory inside the geo-deploy directory
+
+You can use packer to create and test docker images in 1 stop command. Which builds then tests the image locally. It can be extended to also push to the docker repository.
+
+```
+packer build -var-file=variables.json docker-packer.json
+```
+
+_Get some timeout errors during tests_

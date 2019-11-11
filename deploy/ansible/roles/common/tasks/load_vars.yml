@@ -40,4 +40,4 @@
 
 - name: Set pkgconfig layer path variables
   set_fact:
-     pkgconfig_path: "{{ petsc_lib }}/pkgconfig"
+     pkgconfig_path: "{{ lib_path }}/pkgconfig"
