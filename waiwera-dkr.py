@@ -62,7 +62,7 @@ if __name__ == "__main__":
     else:
         it  = ''
         # Change the working directory to
-        mpiexec = '--workdir {0} mpiexec {1} {3}'.format(data_path,
+        mpiexec = '--workdir {0} mpiexec {1} {2}'.format(data_path,
                                                          np,
                                                          WAIWERA_PATH)
 
