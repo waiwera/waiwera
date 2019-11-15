@@ -33,11 +33,12 @@ RUN DEBIAN_FRONTEND=noninteractive \
     pip install ansible &&\
     usr/local/bin/ansible-playbook \
         --connection=local \
-        /ansible/local.yml \
+        /ansible/docker.yml \
         -v \
-        -e "base_dir=${base_dir}" \
-        --tags=all,docker \
-        --skip-tags=local,zofu,fson && \
+#        -e "base_dir=${base_dir}" \
+#        --tags=all,docker \
+#        --skip-tags=local,zofu,fson
+         && \
     pip uninstall ansible -y && \
     apt-get autoremove -y && \
     apt-get autoclean -y && \

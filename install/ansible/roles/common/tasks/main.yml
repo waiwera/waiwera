@@ -5,38 +5,10 @@
     - packer
     - never
 
-- name: Set docker_status
-  set_fact:
-    docker_run: True
-  tags:
-    - docker
-    - never
-
-- name: create user and group
-  block:
-  - user:
-      name: "{{ app_user }}"
-      shell: /bin/bash
-      uid: 1000
-      comment: waiwera app user
-
-  - group:
-      name: "{{ app_group }}"
-      # shell: /bin/bash
-      gid: 1000
-      # comment: waiwera app user
-  become: yes
-  tags:
-    - never
-    - docker
-
-# - name: Get default Variables
-#   include_vars: "../vars/default.yml"
-
-- name: Load Variables
-  include: load_vars.yml
-  tags:
-    - variables
+# - name: Load Variables
+#   include: load_vars.yml
+#   tags:
+#     - variables
 
 - name: Setup packages
   include: packages.yml
@@ -98,38 +70,3 @@
     PETSC_ARCH: "{{ petsc_arch }}"
     PKG_CONFIG_PATH: "{{ pkgconfig_path }}"
   include: install.yml
-
-- name: set entrypoint.sh with template
-  template:
-    src: entrypoint.j2
-    dest: '{{ waiwera_path }}/entrypoint.sh'
-    mode: a+x
-  become: no
-
-- name: Cleanup
-  include: cleanup.yml
-  tags:
-    - docker
-    - cleanup
-
-- name: change app deployment ownership
-  file:
-    dest: "{{ waiwera_path }}"
-    owner: "{{ app_user }}"
-    group: "{{ app_group }}"
-    recurse: yes
-  tags:
-    - never
-    - docker
-    - root
-
-- name: change /usr/local deployment ownership
-  file:
-    dest: /usr/local
-    owner: root
-    group: root
-    recurse: yes
-  tags:
-    - never
-    - docker
-    - root

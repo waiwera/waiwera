@@ -10,12 +10,6 @@
   tags:
     - always
 
-- name: Get Nesi variables
-  include_vars: ../defaults/nesi.yml
-  tags:
-    - never
-    - nesi
-
 - name: Set waiwera path variables
   set_fact:
     waiwera_path: "{{ base_dir }}/waiwera"

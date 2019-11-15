@@ -16,7 +16,7 @@
     line: 'module add mpi/openmpi-x86_64'
   when: ansible_os_family == 'RedHat'
 
-- name: Activate necessary modules on nesi
+- name: Activate necessary modules on cluster
   command: "module load {{ item }}"
   with_items:
     - gimpi/2018b
@@ -25,7 +25,7 @@
     - Valgrind/3.14.0-GCC-7.4.0
   tags:
     - never
-    - nesi
+    - cluster
 
 - name: Add paths to bash_profile
   blockinfile:

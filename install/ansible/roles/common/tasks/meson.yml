@@ -14,6 +14,7 @@
         extra_args: "--user"
       tags:
         - local
+      when: docker_run is not defined
 
     - name: meson - install for root using pip3
       pip:
@@ -21,9 +22,9 @@
         executable: "{{ pip_ex }}"
         # extra_args: "--user"
       tags:
-          - never
           - docker
           - root
+      when: docker_run is defined
 
   when: meson_test is failed
   tags:
