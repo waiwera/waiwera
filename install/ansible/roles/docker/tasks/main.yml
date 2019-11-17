@@ -17,7 +17,10 @@
       # comment: waiwera app user
   become: yes
 
-- include_role:
+- debug:
+    msg: "openmpi {{ openmpi }}"
+
+- import_role:
     name: common
 
 - name: set entrypoint.sh with template

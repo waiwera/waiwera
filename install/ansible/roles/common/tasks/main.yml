@@ -36,6 +36,9 @@
     - never
     - local
 
+- debug:
+    msg: "openmpi {{ openmpi }}"
+
 - name: Install Openmpi
   block:
     - package:

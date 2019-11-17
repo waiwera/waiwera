@@ -1,69 +1,69 @@
 ---
 # file: roles/x/defaults/main.yml
 # if not overridden in inventory or as a parameter, this is the value that will be used
-# base_dir: /opt
-# app_user: waiwera
-# app_group: waiwera
-# petsc_version: afbee2879a
-# waiwera_version: master
-# petsc_arch: release
-# petsc_repo: https://gitlab.com/petsc/petsc.git
-# waiwera_repo: github.com/waiwera/waiwera.git
+base_dir: /opt
+app_user: waiwera
+app_group: waiwera
+petsc_version: afbee2879a
+waiwera_version: master
+petsc_arch: release
+petsc_repo: https://gitlab.com/petsc/petsc.git
+waiwera_repo: github.com/waiwera/waiwera.git
 
-# build_tools:
-#   - git
-#   - pkg-config
-#   - valgrind
-#   - make
-#   - cmake
+build_tools:
+  - git
+  - pkg-config
+  - valgrind
+  - make
+  - cmake
 
-# ninja:
-#   - ninja-build
+ninja:
+  - ninja-build
 
-# python_dependencies:
-#   - python3
-#   - python3-dev
-#   - python-setuptools
-#   - python3-setuptools
+python_dependencies:
+  - python3
+  - python3-dev
+  - python-setuptools
+  - python3-setuptools
 
-# compilers:
-#   - gcc
-#   - g++
-#   - gfortran
+compilers:
+  - gcc
+  - g++
+  - gfortran
 
-# libraries:
-#   - libblas-dev
-#   - liblapack-dev
+libraries:
+  - libblas-dev
+  - liblapack-dev
 
-# openmpi:
-#   - libopenmpi-dev
-#   - openssh-client
+openmpi:
+  - libopenmpi-dev
+  - openssh-client
 
-# petsc_dependencies:
-#   - bison
-#   - flex
+petsc_dependencies:
+  - bison
+  - flex
 
-# pip_install:
-#   - python3-pip
-#   - python-pip
+pip_install:
+  - python3-pip
+  - python-pip
 
-# pip_ex: pip3
+pip_ex: pip3
 
-# meson_version: meson==0.51
+meson_version: meson==0.51
 
-# petsc_options:
-#   - download-fblaslapack
-#   - download-triangle
-#   - download-netcdf
-#   - download-exodusii
-#   - download-pnetcdf
-#   - download-ptscotch
-#   - download-chaco
-#   - download-zlib
-#   - download-hdf5
-#   - with-zlib
+petsc_options:
+  - download-fblaslapack
+  - download-triangle
+  - download-netcdf
+  - download-exodusii
+  - download-pnetcdf
+  - download-ptscotch
+  - download-chaco
+  - download-zlib
+  - download-hdf5
+  - with-zlib
 
-# petsc_variables:
-#   - "COPTFLAGS='-O3 -march=native -mtune=native'"
-#   - "CXXOPTFLAGS='-O3 -march=native -mtune=native'"
-#   - "FOPTFLAGS='-O3 -march=native -mtune=native'"
+petsc_variables:
+  - "COPTFLAGS='-O3 -march=native -mtune=native'"
+  - "CXXOPTFLAGS='-O3 -march=native -mtune=native'"
+  - "FOPTFLAGS='-O3 -march=native -mtune=native'"
