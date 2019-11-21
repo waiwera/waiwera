@@ -36,6 +36,31 @@ export LANG=en_US.UTF-8
 export LC_ALL=en_US.UTF-8
 export LC_TYPE=en_US.UTF-8
 
+set -x
+
+# In Prod, this may be configured with a GID already matching the container
+# allowing the container to be run directly as Jenkins. In Dev, or on unknown
+# environments, run the container as root to automatically correct docker
+# group in container to match the docker.sock GID mounted from the host.
+if [ "$(id -u)" = "0" ]; then
+  # get gid of docker socket file
+  CHECK_GID=`ls -n /data/uidcheck.txt | cut -f4 -d' '`
+
+  # get group of docker inside container
+  CUR_DOCKER_GID=`getent group docker | cut -f3 -d: || true`
+
+  # if they don't match, adjust
+  if [ ! -z "$CHECK_GID" -a "$CHECK_GID" != "$CUR_DOCKER_GID" ]; then
+    groupmod -g ${CHECK_GID} -o docker
+  fi
+  if ! groups waiwera | grep -q docker; then
+    usermod -aG docker waiwera
+  fi
+  # Add call to gosu to drop from root user to jenkins user
+  # when running original entrypoint
+  set -- gosu waiwera "$@"
+fi
+
 # Execute the container CMD under tini for better hygiene
 exec "$@"
 

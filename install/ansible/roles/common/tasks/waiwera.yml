@@ -1,9 +1,4 @@
 ---
-# - name: waiwera - Creates app directory
-#   file:
-#     path: "{{ waiwera_path }}"
-#     state: directory
-
 - name: waiwera - Fetch waiwera from repository
   git:
     repo: "https://{{ waiwera_repo }}"

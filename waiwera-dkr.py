@@ -1,3 +1,6 @@
+#!/usr/bin/env python
+from __future__ import print_function
+
 import argparse
 import os
 import subprocess
@@ -8,6 +11,7 @@ import sys
 REPO = 'waiwera/waiwera'
 TAG = 'latest'
 WAIWERA_PATH = '/opt/waiwera'
+VERSION = '0.1'
 
 def convert_path_nt_to_posix(path):
     return '/{0}'.format(path.replace("\\","/").replace(":",""))
@@ -15,6 +19,23 @@ def convert_path_nt_to_posix(path):
 ##########
 # A simple python wrapper around the docker image for waiwera
 #########
+
+# docker --check
+
+
+# list check for write
+# bind succesfulu
+# list
+
+# function instead of main
+# --version
+# User guide
+
+# SEGFAULTS user guide
+
+# PETSC check for version
+# Update
+# file sharing directory
 
 if __name__ == "__main__":
     """
@@ -37,6 +58,10 @@ if __name__ == "__main__":
                         help='starts an interactive terminal and does NOT run \
                         mpiexec by default',
                         action='store_true')
+    parser.add_argument('-u','--noupdate',
+                    help='stops the script pulling an image update',
+                    action='store_true')
+
 
     args = parser.parse_args()
 
@@ -44,7 +69,7 @@ if __name__ == "__main__":
     if sys.platform == 'win32':
         current_path = convert_path_nt_to_posix(current_path)
 
-    data_path = posixpath.join(WAIWERA_PATH, 'data')
+    data_path = '/data'
 
     if args.image == None:
         image = '{0}:{1}'.format(args.repo, args.tag)
@@ -71,10 +96,14 @@ if __name__ == "__main__":
     for string in args.command:
         command = '{0} {1}'.format(command, string)
 
-    print('Checking for Waiwera update')
-    pull_cmd = "docker pull {0}".format(image)
-    os.system(pull_cmd)
-    # print(subprocess.check_output(shlex.split(pull_cmd)))
+    if not args.noupdate:
+        print('Checking for Waiwera update')
+        pull_cmd = "docker pull {0}".format(image)
+        os.system(pull_cmd)
+        # print(subprocess.check_output(shlex.split(pull_cmd)))
+
+    fo = open("uidcheck.txt", "wb")
+    fo.close()
 
     #  docker run -v ${p}:/data -w /data waiwera-phusion-debian mpiexec -np $args[1] /home/mpirun/waiwera/dist/waiwera $args[0]
     print('Running Waiwera')
