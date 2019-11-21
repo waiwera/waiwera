@@ -1,14 +1,14 @@
 ---
+- debug:
+    msg: "directory  {{ base_dir }}
+        user {{ app_user }}
+        group {{ app_group }} "
+
 - name: Setup secrets
   include_vars: secrets.yml
   tags:
     - packer
     - never
-
-# - name: Load Variables
-#   include: load_vars.yml
-#   tags:
-#     - variables
 
 - name: Setup packages
   include: packages.yml
@@ -62,6 +62,7 @@
 
 - name: Run the common tasks to setup waiwera on a system with no root access
   include: setup.yml
+  become: no
 
 - name:  Install the app
   environment:

@@ -42,6 +42,7 @@
   include: waiwera.yml
   tags:
     - waiwera
+  become: no
   # when: petsc_test is failed
 
 # - name: waiwera - Setup without petsc install

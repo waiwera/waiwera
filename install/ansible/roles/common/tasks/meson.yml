@@ -12,6 +12,7 @@
         name: "{{ meson_version }}"
         executable: "{{ pip_ex }}"
         extra_args: "--user"
+      become: no
       tags:
         - local
       when: docker_run is not defined

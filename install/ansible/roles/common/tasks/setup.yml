@@ -56,6 +56,8 @@
   file:
     path: "{{ item }}"
     state: directory
+    # owner: "{{ app_user }}"
+    # group: "{{ app_group }}"
   with_items:
     - "{{ bin_path }}"
     - "{{ pkgconfig_path }}"
