@@ -4,12 +4,16 @@
 Installing Waiwera
 ******************
 
-Waiwera can be run on most operating systems (e.g. Linux, Windows, Mac OS) using `Docker <https://www.docker.com/>`_, and for many users this is likely to be the easiest option. Linux users also have the option of building a native Waiwera executable.
+Waiwera can be run on most operating systems (e.g. Linux, Windows, Mac OS) using `Docker <https://www.docker.com/>`_, and for many users this is likely to be the easiest option. Linux users also have the option of building a native Waiwera executable (see :ref:`native_linux_build`).
+
+.. index:: Docker
 
 Using Docker
 ============
 
 Docker is a "`containerisation <https://www.docker.com/resources/what-container>`_" technology, in which a software application is deployed in a standard unit containing not only the code itself but all its dependencies as well. Because a container isolates the software from its environment, it should always run the same way, regardless of which kind of operating system it is run on.
+
+.. index:: Docker; installation
 
 Installing Docker
 -----------------
@@ -20,15 +24,22 @@ Once Docker is installed, by default it should have access to all the processors
 
 For Windows users, Windows 10 is recommended for running Waiwera via Docker. On Windows 7, it should still work, but Docker uses different underlying technology (based on virtual machines) which is slower and less reliable.
 
+.. index:: Docker; running
+
 Running Waiwera using Docker
 ----------------------------
 
 Waiwera provides a Python script to simplify running the Waiwera Docker container. This script will check if the Waiwera Docker container image is already installed on your system, and if not, it will automatically install it before running your Waiwera model. It also handles the sharing of files between the Docker container and your system. For more details, see *TODO link to running Docker section*.
 
+.. index:: Waiwera; building
+.. _native_linux_build:
+
 Native Linux build
 ==================
 
-For building a native Waiwera executable on Linux, Waiwera uses the `Ansible <https://www.ansible.com/>`_ deployment system, which automates the build process. This includes checking if the necessary tools (e.g. compilers, build tools) are present on your system, installing them if they are not, building Waiwera's dependency libraries (e.g. `PETSc <https://www.mcs.anl.gov/petsc/>`_), and building Waiwera itself.
+For building a native Waiwera executable on Linux, Waiwera uses the `Ansible <https://www.ansible.com/>`_ deployment system, which automates the build process. This includes checking if the necessary tools (e.g. compilers, build tools) are present on your system, installing them if they are not, building Waiwera's dependency libraries (e.g. `PETSc <https://www.mcs.anl.gov/petsc/>`_), and building Waiwera itself (which is carried out using the `Meson <https://mesonbuild.com/>`_ build system).
+
+.. index:: Ansible
 
 Install Ansible
 ---------------
@@ -59,10 +70,12 @@ Finally, build Waiwera by executing:
 
 *TODO: does this also install as well as build?*
 
+.. index:: testing; unit tests, Zofu
+
 Running the unit tests
 ----------------------
 
-You can check the Waiwera build by running the unit tests. In the Waiwera base directory, execute:
+You can check the Waiwera build by running the unit tests. The unit tests (which test individual routines in the Waiwera code) are created using the `Zofu <https://github.com/acroucher/zofu>`_ framework for Fortran unit testing, and run using Meson. In the Waiwera base directory, execute:
 
 .. code-block:: bash
 
@@ -70,4 +83,42 @@ You can check the Waiwera build by running the unit tests. In the Waiwera base d
 
 This will run the Waiwera unit tests on 1, 2, 3 and 4 processes (or up to the number of processes available, if that is less than 4).
 
-*TODO: how to tell if the unit tests have passed*
+It is also possible to run subsets of the unit tests by specifying the module names, e.g.:
+
+.. code-block:: bash
+
+  python unit_tests.py IAPWS
+
+which tests only the `IAPWS` module, or:
+
+.. code-block:: bash
+
+  python unit_tests.py face cell
+
+which tests only the `face` and `cell` modules.
+
+If the tests have successfully passed, the unit test output will appear something like this:
+
+.. code-block:: bash
+
+  Ok:                   32
+  Expected Fail:         0
+  Fail:                  0
+  Unexpected Pass:       0
+  Skipped:               0
+  Timeout:               0
+
+The precise numbers of asserts and cases will vary, depending on how many modules are being tested (and how many tests are included for the version of Waiwera you are running). If any tests fail, there will be output regarding which tests are not passing.
+
+..
+   Section on cluster install?
+
+..
+   --mpi_wrapper_compiler option in config?
+
+..
+   By default, parallel unit test runs will be carried out using the `mpiexec` command, with the number of processes specified using the `-np` option. These can be changed by passing the `exe` and `procs` parameters to the `unit_tests.py` script. For example, if you are running the tests on a compute cluster and need to submit them via the `Slurm <https://slurm.schedmd.com/>`_ workload manager, the unit tests might be run using a command like this:
+
+   .. code-block:: bash
+
+     python unit_tests.py mesh --exe "srun --qos=debug -A acc00100 --time=2:00 --mem-per-cpu=100" --procs "n"
