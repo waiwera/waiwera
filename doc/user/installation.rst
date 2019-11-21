@@ -7,6 +7,7 @@ Installing Waiwera
 Waiwera can be run on most operating systems (e.g. Linux, Windows, Mac OS) using `Docker <https://www.docker.com/>`_, and for many users this is likely to be the easiest option. Linux users also have the option of building a native Waiwera executable (see :ref:`native_linux_build`).
 
 .. index:: Docker
+.. _using_docker:
 
 Using Docker
 ============
@@ -29,7 +30,7 @@ For Windows users, Windows 10 is recommended for running Waiwera via Docker. On 
 Running Waiwera using Docker
 ----------------------------
 
-Waiwera provides a Python script to simplify running the Waiwera Docker container. This script will check if the Waiwera Docker container image is already installed on your system, and if not, it will automatically install it before running your Waiwera model. It also handles the sharing of files between the Docker container and your system. For more details, see *TODO link to running Docker section*.
+Waiwera provides a Python script to simplify running the Waiwera Docker container. This script will check if the Waiwera Docker container image is already installed on your system, and if not, it will automatically install it before running your Waiwera model. It also handles the sharing of files between the Docker container and your system. For more details, see :ref:`run_docker`.
 
 .. index:: Waiwera; building
 .. _native_linux_build:
