@@ -5,6 +5,6 @@ d_dir: /opt
 d_user: waiwera
 d_group: waiwera
 
-d_openmpi:
-  - libmpich-dev
+# d_openmpi:
+#   - libmpich-dev
 # - openssh-client
