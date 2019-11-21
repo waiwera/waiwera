@@ -1,9 +1,4 @@
 ---
-- debug:
-    msg: "directory  {{ base_dir }}
-        user {{ app_user }}
-        group {{ app_group }} "
-
 - name: Setup secrets
   include_vars: secrets.yml
   tags:

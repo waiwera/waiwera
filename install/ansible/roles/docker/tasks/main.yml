@@ -7,13 +7,13 @@
   - user:
       name: "{{ app_user }}"
       shell: /bin/bash
-      uid: 1000
+      uid: 9999
       comment: waiwera app user
 
   - group:
       name: "{{ app_group }}"
       # shell: /bin/bash
-      gid: 1000
+      gid: 9999
       # comment: waiwera app user
   become: yes
 

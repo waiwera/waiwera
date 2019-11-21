@@ -36,8 +36,6 @@ export LANG=en_US.UTF-8
 export LC_ALL=en_US.UTF-8
 export LC_TYPE=en_US.UTF-8
 
-set -x
-
 # In Prod, this may be configured with a GID already matching the container
 # allowing the container to be run directly as Jenkins. In Dev, or on unknown
 # environments, run the container as root to automatically correct docker
@@ -45,21 +43,30 @@ set -x
 if [ "$(id -u)" = "0" ]; then
   # get gid of docker socket file
   CHECK_GID=`ls -n /data/uidcheck.txt | cut -f4 -d' '`
+  CHECK_UID=`ls -n /data/uidcheck.txt | cut -f3 -d' '`
 
   # get group of docker inside container
-  CUR_DOCKER_GID=`getent group docker | cut -f3 -d: || true`
+  CUR_GID=`getent group waiwera | cut -f3 -d: || true`
+  CUR_UID=`id -u waiwera`
 
   # if they don't match, adjust
-  if [ ! -z "$CHECK_GID" -a "$CHECK_GID" != "$CUR_DOCKER_GID" ]; then
-    groupmod -g ${CHECK_GID} -o docker
+  if [ ! -z "$CHECK_GID" -a "$CHECK_GID" != "$CUR_GID" ]; then
+    groupmod -g ${CHECK_GID} -o waiwera
   fi
-  if ! groups waiwera | grep -q docker; then
-    usermod -aG docker waiwera
+  if [ ! -z "$CHECK_UID" -a "$CHECK_UID" != "$CUR_UID" ]; then
+    usermod -u ${CHECK_UID} -o waiwera
   fi
+  if ! groups waiwera | grep -q waiwera; then
+    usermod -aG waiwera waiwera
+  fi
+  chown -R waiwera:waiwera /opt
   # Add call to gosu to drop from root user to jenkins user
   # when running original entrypoint
   set -- gosu waiwera "$@"
+
 fi
+
+set -x
 
 # Execute the container CMD under tini for better hygiene
 exec "$@"
