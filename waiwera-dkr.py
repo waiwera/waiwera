@@ -59,12 +59,13 @@ if __name__ == "__main__":
     if args.interactive:
         it ='--interactive --tty'
         mpiexec = ''
+        work_dir = ''
     else:
         it  = ''
         # Change the working directory to
-        mpiexec = '--workdir {0} mpiexec {1} {2}'.format(data_path,
-                                                         np,
-                                                         WAIWERA_PATH)
+        build_path = posixpath.join(WAIWERA_PATH, 'build', 'waiwera')
+        mpiexec = 'mpiexec {0} {1}'.format(np, build_path)
+        work_dir = '--workdir {0}'.format(data_path)
 
     command = ''
     for string in args.command:
@@ -78,13 +79,15 @@ if __name__ == "__main__":
     #  docker run -v ${p}:/data -w /data waiwera-phusion-debian mpiexec -np $args[1] /home/mpirun/waiwera/dist/waiwera $args[0]
     print('Running Waiwera')
     run_cmd = "docker run --rm {0} --volume {1}:{2} {3} {4} \
-                {5}" \
+                {5} {6}" \
                 .format(it,
                     current_path,
                     data_path,
+                    work_dir,
                     image,
                     mpiexec,
                     command)
+    print(run_cmd)
     # print(run_cmd)
     os.system(run_cmd)
     #print(subprocess.check_output(shlex.split(run_cmd)))
