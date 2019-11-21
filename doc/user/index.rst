@@ -12,7 +12,6 @@ Waiwera user guide
 
    intro
    installation
-   testing
    methods
    input
    setup
