@@ -60,8 +60,8 @@ RUN rm -r /ansible
 
 # USER 1000:1000
 # Setup docker group
-RUN groupadd -r docker \
- && usermod -aG docker waiwera
+#RUN groupadd -r docker \
+# && usermod -aG docker waiwera
 
 #COPY entrypoint.sh ${base_dir}/waiwera/
 

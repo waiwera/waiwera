@@ -31,21 +31,18 @@ export PATH=$PATH:$HOME/.local/bin
 export PATH=$PATH:{{ bin_path }}
 export PATH=$PATH:{{ petsc_bin }}
 export PKG_CONFIG_PATH={{ pkgconfig_path }}:$PKG_CONFIG_PATH
-# export LD_LIBRARY_PATH={{ lib_path }}:{{ petsc_lib }}
 export LANG=en_US.UTF-8
 export LC_ALL=en_US.UTF-8
 export LC_TYPE=en_US.UTF-8
 
-# In Prod, this may be configured with a GID already matching the container
-# allowing the container to be run directly as Jenkins. In Dev, or on unknown
-# environments, run the container as root to automatically correct docker
-# group in container to match the docker.sock GID mounted from the host.
+
+# checks and starts up the waiwera group
 if [ "$(id -u)" = "0" ]; then
-  # get gid of docker socket file
+  # get gid and uid for check file created by python
   CHECK_GID=`ls -n /data/uidcheck.txt | cut -f4 -d' '`
   CHECK_UID=`ls -n /data/uidcheck.txt | cut -f3 -d' '`
 
-  # get group of docker inside container
+  # get group and user id  of waiwera inside container
   CUR_GID=`getent group waiwera | cut -f3 -d: || true`
   CUR_UID=`id -u waiwera`
 

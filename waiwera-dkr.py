@@ -107,7 +107,7 @@ if __name__ == "__main__":
 
     #  docker run -v ${p}:/data -w /data waiwera-phusion-debian mpiexec -np $args[1] /home/mpirun/waiwera/dist/waiwera $args[0]
     print('Running Waiwera')
-    run_cmd = "docker run --rm {0} --volume {1}:{2} {3} {4} \
+    run_cmd = "docker run --cidfile .cid --rm {0} --volume {1}:{2} {3} {4} \
                 {5} {6}" \
                 .format(it,
                     current_path,
@@ -119,4 +119,9 @@ if __name__ == "__main__":
     print(run_cmd)
     # print(run_cmd)
     os.system(run_cmd)
+    os.remove("uidcheck.txt")
     #print(subprocess.check_output(shlex.split(run_cmd)))
+    with open('.cid', 'r') as f:
+        cid = f.readline()
+    os.remove('.cid')
+    print(cid)
