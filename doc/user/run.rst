@@ -14,7 +14,7 @@ Running Waiwera using Docker
 
 The easiest way to run Waiwera via Docker (see :ref:`using_docker`) is by using the Python script `waiwera-dkr.py <https://raw.githubusercontent.com/waiwera/waiwera/master/waiwera-dkr.py>`_, which is part of the Waiwera source code repository.  You will need `Python <https://www.python.org/>`_ (as well as `Docker <https://www.docker.com/>`_) installed on your machine to be able to run it.
 
-Download the ``waiwera-dkr.py`` script to your machine, from the link above. If you want to be able to use it from any directory, you can add its location to your ``PATH`` environment variable (or save it to a directory that is already in your ``PATH``).
+Download the ``waiwera-dkr.py`` script to your machine, from the link above. (If you have already cloned or downloaded the Waiwera source code repository, for example to do a :ref:`native_linux_build`, then you can alternatively copy it from the root directory of the source.)
 
 What the ``waiwera-dkr.py`` script does
 ---------------------------------------
@@ -57,6 +57,19 @@ The Waiwera JSON input file (see :ref:`waiwera_input`) contains some paths to ot
 
 - file paths must always be specified using POSIX (i.e. Linux-style) file path syntax, i.e. forward slashes for directory delimiters (not backslashes as on Windows), and any spaces in the file path (usually better avoided if possible) should be "escaped" by preceding them with backslashes. This is because Waiwera is run using Linux inside the Docker container.
 - any files specified in the JSON input file name need to be in the directory that Waiwera is being run in, or a subdirectory of it. This is because those are the only directories that are shared with the Docker container.
+
+Running the script from any directory
+-------------------------------------
+
+On Linux and Mac OS systems, you can use the ``waiwera-dkr.py`` script from any directory by adding its location to your ``PATH`` environment variable (or saving it to a directory that is already in your ``PATH``). If you have downloaded the script from the link above, you will also need to make it executable using ``chmod +x waiwera-dkr.py`` (this is not necessary if you have cloned or downloaded the Waiwera source code repository and copied the script from there).
+
+You can then run the script without the ``python`` command from any directory, e.g.:
+
+.. code-block:: bash
+
+   waiwera-dkr.py -np 16 model.json
+
+On Windows this is also possible (though slightly more involved). First it may be necessary to associate files with the ``*.py`` extension with Python. Then the ``PATHEXT`` and ``PATH`` environment variables need to be set: ``*.py`` should be appended to ``PATHEXT``, and the directory containing the ``waiwera-dkr.py`` script should be appended to ``PATH`` (with semicolon separators in both cases).
 
 .. index:: running; native Linux executable
 .. _run_native:
