@@ -102,7 +102,7 @@ if __name__ == "__main__":
         os.system(pull_cmd)
         # print(subprocess.check_output(shlex.split(pull_cmd)))
 
-    fo = open("uidcheck.txt", "wb")
+    fo = open(".idcheck", "wb")
     fo.close()
 
     #  docker run -v ${p}:/data -w /data waiwera-phusion-debian mpiexec -np $args[1] /home/mpirun/waiwera/dist/waiwera $args[0]
@@ -119,7 +119,7 @@ if __name__ == "__main__":
     print(run_cmd)
     # print(run_cmd)
     os.system(run_cmd)
-    os.remove("uidcheck.txt")
+    os.remove(".idcheck")
     #print(subprocess.check_output(shlex.split(run_cmd)))
     with open('.cid', 'r') as f:
         cid = f.readline()

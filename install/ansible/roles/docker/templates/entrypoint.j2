@@ -39,8 +39,8 @@ export LC_TYPE=en_US.UTF-8
 # checks and starts up the waiwera group
 if [ "$(id -u)" = "0" ]; then
   # get gid and uid for check file created by python
-  CHECK_GID=`ls -n /data/uidcheck.txt | cut -f4 -d' '`
-  CHECK_UID=`ls -n /data/uidcheck.txt | cut -f3 -d' '`
+  CHECK_GID=`ls -n /data/.idcheck | cut -f4 -d' '`
+  CHECK_UID=`ls -n /data/.idcheck | cut -f3 -d' '`
 
   # get group and user id  of waiwera inside container
   CUR_GID=`getent group waiwera | cut -f3 -d: || true`
