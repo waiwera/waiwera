@@ -52,6 +52,7 @@ petsc_options:
   - download-zlib
   - download-hdf5
   - with-zlib
+  - with-debugging=0
 
 petsc_variables:
   - "COPTFLAGS='-O3 -march=native -mtune=native'"
