@@ -27,8 +27,8 @@ For Windows users, Windows 10 is recommended for running Waiwera via Docker. On 
 
 .. index:: Docker; running
 
-Running Waiwera using Docker
-----------------------------
+Running the Waiwera Docker container
+------------------------------------
 
 Waiwera provides a Python script to simplify running the Waiwera Docker container. This script will check if the Waiwera Docker container image is already installed on your system, and if not, it will automatically install it before running your Waiwera model. It also handles the sharing of files between the Docker container and your system. For more details, see :ref:`run_docker`.
 
