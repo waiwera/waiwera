@@ -92,7 +92,6 @@ def waiwera_docker(args):
     with open('.cid', 'r') as f:
         cid = f.readline()
     os.remove('.cid')
-    print(cid)
 
 signal.signal(signal.SIGINT, signal_handler)
 
