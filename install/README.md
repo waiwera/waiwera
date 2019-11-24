@@ -89,7 +89,7 @@ To do an ansible build locally run the following command from the install direct
 
 `ansible-playbook /ansible/install.yml`
 
-This command builds and installs dependencies. Waiwera will build to a users home directory by default. You can us extra variables to change some parameters.
+This command builds and installs dependencies. Waiwera will build to a users home directory by default. You can use extra variables to change some parameters.
 
 `ansible-playbook /ansible/install.yml -e "base_dir=/home/user/waiwera"`
 
