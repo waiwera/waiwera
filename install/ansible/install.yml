@@ -1,0 +1,47 @@
+---
+
+- name: Build Waiwera with and install dependencies
+  hosts: localhost
+  tasks:
+  # - name: get the username running the deploy
+  #   become: false
+  #   local_action: command whoami
+  #   register: user
+
+  - set_fact:
+      install_dir: "/home/{{ ansible_user_id }}/waiwera"
+
+  - import_role:
+      name: packages
+    vars:
+      app_group: "{{ ansible_user_id }}"
+      app_user: "{{ ansible_user_id }}"
+      base_dir: "{{ install_dir }}"
+    become: yes
+
+  - name: Import common role
+    import_role:
+      name: common
+    vars:
+      app_group: "{{ ansible_user_id }}"
+      app_user: "{{ ansible_user_id }}"
+      base_dir: "{{ install_dir }}"
+    become: no
+
+  - name: Waiwera install
+    block:
+    - name: waiwera - Ninja build install
+      shell: ninja -C build install
+      when: ansible_distribution != 'CentOS'
+      args:
+        chdir: "{{ waiwera_path }}"
+
+    - name: waiwera - Ninja build install, CentOS
+      shell: "ninja-build -C build install"
+      when: ansible_distribution == 'CentOS'
+      args:
+        chdir: "{{ waiwera_path }}"
+    tags:
+      - ninja
+      - build
+    become: no

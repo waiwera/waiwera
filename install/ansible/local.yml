@@ -1,0 +1,19 @@
+---
+
+- name: Build Waiwera without privileges
+  hosts: localhost
+  tasks:
+  # - name: get the username running the deploy
+  #   become: false
+  #   local_action: command whoami
+  #   register: user
+
+  - set_fact:
+      install_dir: "/home/{{ ansible_user_id }}/waiwera"
+
+  - import_role:
+      name: common
+    vars:
+      base_dir: "{{ install_dir }}"
+      app_user: "{{ ansible_user_id }}"
+      app_group: "{{ ansible_user_id }}"

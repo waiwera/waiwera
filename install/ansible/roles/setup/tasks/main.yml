@@ -1,0 +1,17 @@
+---
+
+- name: Create User
+  user:
+    name: "{{ app_user }}"
+    shell: /bin/bash
+    comment: waiwera app user
+    create_home: yes
+  become: yes
+
+- name: Create Group
+  group:
+    name: "{{ app_group }}"
+    # shell: /bin/bash
+    # comment: waiwera app user
+  become: yes
+

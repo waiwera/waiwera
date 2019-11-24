@@ -1,0 +1,58 @@
+---
+
+- name: Test for pre-existing meson install
+  command: meson --version
+  register: meson_test
+  ignore_errors: True
+
+- name: Install meson via pip
+  import_role:
+    name: meson
+  tags:
+    - meson
+    - pip
+  when: meson_test is failed
+
+- name: Test for pre-existing ninja install
+  command: ninja --version
+  register: ninja_test
+  ignore_errors: True
+
+- name: Install from ninja source
+  import_role:
+    name: ninja
+  tags:
+    - ninja
+  when: (ninja_test is failed) or (ninja_build == 'true')
+
+- name: Install zofu from source
+  import_role:
+    name: zofu
+  tags:
+    - zofu
+  when: zofu_build == 'true'
+
+- name: Install fson from source
+  import_role:
+    name: fson
+  tags:
+    - fson
+  when: fson_build == 'true'
+
+- name: Test for pre-existing PETSc install
+  command: pkg-config --exists PETSc
+  register: petsc_test
+  ignore_errors: True
+
+- name: Install PETSc
+  import_role:
+    name: petsc
+  when: (petsc_test is failed) or (petsc_update == 'true')
+  tags:
+    - petsc
+
+- name: Setup and build Waiwera
+  import_role:
+    name: waiwera
+  tags:
+    - waiwera

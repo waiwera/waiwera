@@ -1,0 +1,25 @@
+python_dependencies:
+  - python36
+  - python36-devel
+  - python-setuptools
+  - libselinux-python
+
+compilers:
+  - gcc
+  - gcc-gfortran
+  - gcc-c++
+  - kernel-devel
+
+libraries:
+  - blas-devel
+  - lapack-devel
+  - valgrind-devel
+
+openmpi:
+  - openmpi-devel
+  - openssh-client
+
+pip_install:
+  - python36-pip
+
+pip_ex: pip3.6
