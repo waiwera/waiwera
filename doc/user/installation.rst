@@ -98,6 +98,24 @@ Other example varibles which can be :
 * ``ninja_build=true``
     * defaults to ``false`` and only builds locally if no ninja install is detected
 
+.. index:: Waiwera; installing
+
+Installing Waiwera
+------------------
+
+From the Waiwera ``install/`` directory, the Waiwera executable can be
+installed on your system as follows:
+
+.. code-block:: bash
+
+   ninja install
+
+It can subsequently be uninstalled using:
+
+.. code-block:: bash
+
+   ninja uninstall
+
 .. index:: testing; unit tests, Zofu
 
 Running the unit tests
