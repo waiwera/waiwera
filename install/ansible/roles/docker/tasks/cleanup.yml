@@ -87,3 +87,10 @@
     - "{{ found_petsc['files'] }}"
     - "{{ found_git['files'] }}"
     - "{{ found_software['files'] }}"
+
+- name: Change app folder ownership
+  file:
+    dest: "{{ base_dir }}"
+    owner: "{{ app_user }}"
+    group: "{{ app_group }}"
+    recurse: yes

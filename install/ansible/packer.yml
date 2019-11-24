@@ -12,5 +12,14 @@
 - name: Build Image
   hosts: all
   tasks:
+  - name: Setup secrets
+    include_vars: secrets.yml
+    tags:
+      - packer
+
+  - include_role:
+      name: packages
+    become: yes
+
   - import_role:
       name: common

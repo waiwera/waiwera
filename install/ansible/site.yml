@@ -1,6 +1,0 @@
----
-- name: Build Image
-  hosts: all
-  tasks:
-  - import_role:
-      name: common

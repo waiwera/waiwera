@@ -1,6 +1,19 @@
 ---
-- name: Build Image
+
+- name: Build Waiwera without privileges
   hosts: localhost
   tasks:
+  - name: get the username running the deploy
+    become: false
+    local_action: command whoami
+    register: user
+
+  - set_fact:
+    install_dir: "/home/{{ user }}/waiwera"
+
   - import_role:
       name: common
+    vars:
+      base_dir: "{{ install_dir }}"
+      app_user: "{{ user }}"
+      app_group: "{{ user }}"

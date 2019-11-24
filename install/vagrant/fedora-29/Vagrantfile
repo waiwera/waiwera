@@ -14,12 +14,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
     waiwera.vm.provision "ansible_local" do |ansible|
       # ansible.limit = 'waiwera'
       ansible.verbose = "vv"
-      ansible.playbook = "/ansible/site.yml"
-      ansible.raw_arguments = [
-        '-e "app_user=vagrant"',
-        '-e "app_group=vagrant"',
-        '--skip-tags=docker,clean',
-      ]
+      ansible.playbook = "/ansible/vagrant.yml"
     end
     waiwera.vm.provision :shell, inline: "sh /etc/profile.d/opt_paths.sh; cd /opt/app/waiwera; python unit_tests.py", privileged: false
     waiwera.vm.hostname = "waiwera-fedora"

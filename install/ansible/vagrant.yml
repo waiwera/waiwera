@@ -1,5 +1,5 @@
 ---
-- name: Build Docker Image
+- name: Build Vagrant Image
   hosts: all
   tasks:
   - import_role:

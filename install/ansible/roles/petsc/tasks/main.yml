@@ -1,16 +1,5 @@
 ---
 
-# - name: get the username running the deploy
-#   local_action: command whoami
-#   register: username_on_the_host
-
-# - debug: var=username_on_the_host
-
-# - name: remove previous petsc install
-#   file:
-#     dest: "{{ petsc_path }}"
-#     state: absent
-
 - name: petsc - Fetch from petsc from repository
   git:
     repo: "{{ petsc_repo }}"
@@ -32,9 +21,6 @@
       - set_fact:
           configure_cmd: "{{ configure_cmd + petsc_variables | join(' ') }}"
         when: petsc_arch == 'release'
-        # tags:
-        #   - never
-        #   - nesi
 
       - name: configure PETSc
         command: "{{ configure_cmd }}"

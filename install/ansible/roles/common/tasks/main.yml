@@ -1,17 +1,6 @@
 ---
-- name: Setup secrets
-  include_vars: secrets.yml
-  tags:
-    - packer
-    - never
 
-- name: Setup packages
-  include: packages.yml
-  become: yes
-  tags:
-    - packages
-
-- name: openmpi - test for pre-existing install
+- name: Test for pre-existing openmpi install
   command: mpiexec --version
   register: openmpi_test
   ignore_errors: True
@@ -31,35 +20,10 @@
     - never
     - local
 
-- debug:
-    msg: "openmpi {{ openmpi }}"
-
-- name: Install Openmpi
-  block:
-    - package:
-        name: "{{ openmpi }}"
-        state: present
-      become: yes
-
-  when: ((openmpi_test is failed) and (petsc_openmpi is not defined))
-  tags:
-    - packages
-
-- name: Install ninja
-  package:
-    name: "{{ ninja }}"
-    state: present
-    update_cache: yes
-    install_recommends: no
-  become: yes
-  tags:
-    - packages
-
 - name: Run the common tasks to setup waiwera on a system with no root access
   include: setup.yml
-  become: no
 
-- name:  Install the app
+- name:  Build waiwera and depencies
   environment:
     PATH: "{{ ansible_env.PATH }}:{{ bin_path }}:{{ local_bin }}:{{ petsc_bin }}"
     LANG: en_US.UTF-8
@@ -68,4 +32,4 @@
     PETSC_DIR: "{{ petsc_path }}"
     PETSC_ARCH: "{{ petsc_arch }}"
     PKG_CONFIG_PATH: "{{ pkgconfig_path }}"
-  include: install.yml
+  include: build.yml

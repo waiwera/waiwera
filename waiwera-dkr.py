@@ -7,64 +7,32 @@ import subprocess
 import posixpath
 import shlex
 import sys
+import signal
 
 REPO = 'waiwera/waiwera'
 TAG = 'latest'
 WAIWERA_PATH = '/opt/waiwera'
 VERSION = '0.1'
 
-def convert_path_nt_to_posix(path):
-    return '/{0}'.format(path.replace("\\","/").replace(":",""))
-
 ##########
 # A simple python wrapper around the docker image for waiwera
 #########
 
-# docker --check
+def signal_handler(sig, frame):
+        with open('.cid', 'r') as f:
+            cid = f.readline()
+        print('You pressed Ctrl+C! Killing Waiwera container %s' % cid)
+        os.system('docker ps')
+        print('docker kill %s' % cid)
+        os.system('docker kill %s' % cid)
+        os.system('docker ps')
+        os.remove('.cid')
+        sys.exit(0)
 
+def convert_path_nt_to_posix(path):
+    return '/{0}'.format(path.replace("\\","/").replace(":",""))
 
-# list check for write
-# bind succesfulu
-# list
-
-# function instead of main
-# --version
-# User guide
-
-# SEGFAULTS user guide
-
-# PETSC check for version
-# Update
-# file sharing directory
-
-if __name__ == "__main__":
-    """
-    Args:
-    """
-    parser = argparse.ArgumentParser(description='Runs Waiwera, \
-                        the open-source geothermal flow simulator')
-    parser.add_argument('command', nargs='+', help='the command passed to \
-                        waiwera')
-    parser.add_argument('-np', '--num_processors', help='The number of \
-                        processors to utilize, otherwise uses the docker \
-                        default for your system')
-    parser.add_argument('-r', '--repo',
-                        default=REPO)
-    parser.add_argument('-t', '--tag',
-                        default=TAG)
-    parser.add_argument('-i', '--image', help='The docker image to use \
-                        e.g. waiwera/waiwera:latest')
-    parser.add_argument('-it','--interactive',
-                        help='starts an interactive terminal and does NOT run \
-                        mpiexec by default',
-                        action='store_true')
-    parser.add_argument('-u','--noupdate',
-                    help='stops the script pulling an image update',
-                    action='store_true')
-
-
-    args = parser.parse_args()
-
+def waiwera_docker(args):
     current_path = os.getcwd()
     if sys.platform == 'win32':
         current_path = convert_path_nt_to_posix(current_path)
@@ -125,3 +93,33 @@ if __name__ == "__main__":
         cid = f.readline()
     os.remove('.cid')
     print(cid)
+
+signal.signal(signal.SIGINT, signal_handler)
+
+if __name__ == "__main__":
+    """
+    Args:
+    """
+    parser = argparse.ArgumentParser(description='Runs Waiwera, \
+                        the open-source geothermal flow simulator')
+    parser.add_argument('command', nargs='+', help='the command passed to \
+                        waiwera')
+    parser.add_argument('-np', '--num_processors', help='The number of \
+                        processors to utilize, otherwise uses the docker \
+                        default for your system')
+    parser.add_argument('-r', '--repo',
+                        default=REPO)
+    parser.add_argument('-t', '--tag',
+                        default=TAG)
+    parser.add_argument('-i', '--image', help='The docker image to use \
+                        e.g. waiwera/waiwera:latest')
+    parser.add_argument('-it','--interactive',
+                        help='starts an interactive terminal and does NOT run \
+                        mpiexec by default',
+                        action='store_true')
+    parser.add_argument('-u','--noupdate',
+                    help='stops the script pulling an image update',
+                    action='store_true')
+
+    args = parser.parse_args()
+    waiwera_docker(args)

@@ -20,7 +20,56 @@
 # set -ex
 
 # load custom paths
-source /home/waiwera/.profile
+# source /home/waiwera/.profile
+# echo "entrypoint.sh started"
+# echo $entry
+
+export PETSC_DIR=/opt/software/PETSc
+export PETSC_ARCH=release
+export PATH=$PATH:$HOME/bin
+export PATH=$PATH:$HOME/.local/bin
+export PATH=$PATH:/opt/bin
+export PATH=$PATH:/opt/software/PETSc/release/bin
+export PKG_CONFIG_PATH=/opt/lib/pkgconfig:$PKG_CONFIG_PATH
+export LANG=en_US.UTF-8
+export LC_ALL=en_US.UTF-8
+export LC_TYPE=en_US.UTF-8
+
+
+# checks and starts up the waiwera group
+if [ "$(id -u)" = "0" ]; then
+
+  # get gid and uid for check file created by python
+  CHECK_GID=`ls -n /data/.idcheck | cut -f4 -d' '`
+  CHECK_UID=`ls -n /data/.idcheck | cut -f3 -d' '`
+
+  if [ ! -z "$CHECK_UID" -a "$CHECK_UID" != "0" ]; then
+    # get group and user id  of waiwera inside container
+    CUR_GID=`getent group waiwera | cut -f3 -d: || true`
+    CUR_UID=`id -u waiwera`
+
+    # if they don't match, adjust
+    if [ ! -z "$CHECK_GID" -a "$CHECK_GID" != "$CUR_GID" ]; then
+      groupmod -g ${CHECK_GID} -o waiwera
+    fi
+    if [ ! -z "$CHECK_UID" -a "$CHECK_UID" != "$CUR_UID" ]; then
+      usermod -u ${CHECK_UID} -o waiwera
+    fi
+    if ! groups waiwera | grep -q waiwera; then
+      usermod -aG waiwera waiwera
+    fi
+    chown -R waiwera:waiwera /opt
+    # Add call to gosu to drop from root user to jenkins user
+    # when running original entrypoint
+    set -- gosu waiwera "$@"
+  else
+    chown -R waiwera:waiwera /data
+    set -- gosu waiwera "$@"
+  fi
+
+fi
+
+set -x
 
 # Execute the container CMD under tini for better hygiene
 exec "$@"

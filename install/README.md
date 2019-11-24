@@ -27,15 +27,7 @@ Git and docker need to be installed for this to work. The repository which sets 
 1. Install Git from: https://git-scm.com/book/en/v2/Getting-Started-Installing-Git
 2. Install docker from https://www.docker.com/get-started
 3. Download the  setup from:
-`git clone https://timharton@bitbucket.org/timharton/geo-deploy.git`
-
-### Setup Packer
-Used for packaging docker images locally Similar to vagrant.
-
-1. Install Git from: https://git-scm.com/book/en/v2/Getting-Started-Installing-Git
-2. Install docker from https://www.docker.com/get-started
-3. Download the  setup from:
-`git clone https://timharton@bitbucket.org/timharton/geo-deploy.git`
+`git clone https://github.com/waiwera/waiwera.git
 
 ### Setup for Ansible
 
@@ -43,6 +35,15 @@ This setup can be used directly on linux machines
 
 * Use pip to install ansible
   - i.e. `pip install --user ansible`
+
+### Setup Packer
+
+Used for packaging docker images locally Similar to vagrant.
+
+1. Install Git from: https://git-scm.com/book/en/v2/Getting-Started-Installing-Git
+2. Install docker from https://www.docker.com/get-started
+3. Download the  setup from:
+`git clone https://github.com/waiwera/waiwera.git`
 
 ## Build Instructions
 
@@ -81,21 +82,38 @@ Test the image by creating an ephemeral container and running the tests, these m
 ```
 docker container run --rm -it waiwera:latest python unit_tests.py
 ```
-_Get some timeout errors during tests_
-
-### Bitbucket Pipelines
-
-File used to build and test the docker image using bitbucket continuous integration.
 
 ### Ansible Builds
 
-To do an ansible build locally run the following command for the root of the geo-deploy directory
+To do an ansible build locally run the following command from the install directory in waiwera.
 
-`ansible-playbook -c=local -vv -e "app_dir=#####" --skip-tags=docker,clean,vagrant /ansible/local.yml`
+`ansible-playbook /ansible/install.yml`
 
-* `app_dir` = install location
+This command builds and installs dependencies. Waiwera will build to a users home directory by default. You can us extra variables to change some parameters.
+
+`ansible-playbook /ansible/install.yml -e "base_dir=/home/user/waiwera"`
+
+* `base_dir` is the build location for waiwera
+
+`ansible-playbook /ansible/local.yml`
+
+* builds waiwera and associated packages and doesn't need root priveledges because it does not try to install root directories
+
+Other example varibles:
+
+* `petsc_update=true` will build a new version of petsc even if an installed version is detected
+	* defaults to `false` meaning PETSc will only be built if an installed version isn't detected
+* `waiwera_update=true` will build waiwera every time even a new version isn't pulled by git
+	* defaults to `false`
+* `zofu_build=true`
+	* defaults to `false` and uses meson to build zofu
+* `fson_build=true`
+	* defaults to `false` and uses meson to build zofu
+* `ninja_build=true`
+	* defaults to `false` and only builds locally if no ninja install is detected
 
 ### Packer Build
+
 _For waiwera developers only_
 
 Navigate to packer directory inside the geo-deploy directory
@@ -106,4 +124,3 @@ You can use packer to create and test docker images in 1 stop command. Which bui
 packer build -var-file=variables.json docker-packer.json
 ```
 
-_Get some timeout errors during tests_

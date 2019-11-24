@@ -60,16 +60,43 @@ Alternatively, you can download a ZIP archive of the code `here <https://github.
 
 Build Waiwera
 -------------
-
-Finally, build Waiwera by executing:
-
-*TODO. Need to go to install/ directory?*
+Navigate to the install directory in the Waiwera repository
 
 .. code-block:: bash
 
-   ansible-playbook etc etc
+   cd install
 
-*TODO: does this also install as well as build?*
+Finally, build Waiwera by executing:
+
+.. code-block:: bash
+
+   ansible-playbook /ansible/install.yml
+
+This command builds and installs waiwera and also installs Waiwera's various dependencies. Waiwera will build to a users home directory by default. You can use extra variables to change some parameters. See the following example:
+
+.. code-block:: bash
+
+   ansible-playbook /ansible/install.yml -e "base_dir=/home/USER/waiwera"
+
+Where ``base_dir`` is the build location for Waiwera.  The following command builds waiwera and associated packages (but does not install it). Due to this it doesn't need root privileges because it does not try to install root directories:
+
+.. code-block:: bash
+
+  ansible-playbook /ansible/local.yml
+
+
+Other example varibles which can be :
+
+* ``petsc_update=true`` will build a new version of petsc even if an installed version is detected
+    * defaults to ``false`` meaning PETSc will only be built if an installed version isn't detected
+* ``waiwera_update=true`` will build waiwera every time even a new version isn't pulled by git
+    * defaults to ``false``
+* ``zofu_build=true``
+    * defaults to ``false`` and uses meson to build zofu
+* ``fson_build=true``
+    * defaults to ``false`` and uses meson to build zofu
+* ``ninja_build=true``
+    * defaults to ``false`` and only builds locally if no ninja install is detected
 
 .. index:: testing; unit tests, Zofu
 

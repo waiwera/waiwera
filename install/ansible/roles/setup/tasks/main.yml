@@ -15,10 +15,3 @@
     # comment: waiwera app user
   become: yes
 
-- name: Load Variables
-  include: ../../common/tasks/load_vars.yml
-
-- name: Setup packages
-  include: ../../common/tasks/packages.yml
-  become: yes
-

@@ -1,4 +1,3 @@
 # dependencies:
-#    - { # role: spark,
-#     # role: get_variables,
+#    - { role: packages,
 #     }
