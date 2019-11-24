@@ -70,13 +70,15 @@ Finally, build Waiwera by executing:
 
 .. code-block:: bash
 
-   ansible-playbook /ansible/install.yml
+   ansible-playbook /ansible/install.yml --ask-become-pass
+
+``--ask-become-pass`` is the password required to escalate the current accounts privileges to root.
 
 This command builds and installs waiwera and also installs Waiwera's various dependencies. Waiwera will build to a users home directory by default. You can use extra variables to change some parameters. See the following example:
 
 .. code-block:: bash
 
-   ansible-playbook /ansible/install.yml -e "base_dir=/home/USER/waiwera"
+   ansible-playbook /ansible/install.yml -e "base_dir=/home/USER/waiwera" --ask-become-pass
 
 Where ``base_dir`` is the build location for Waiwera.  The following command builds waiwera and associated packages (but does not install it). Due to this it doesn't need root privileges because it does not try to install root directories:
 

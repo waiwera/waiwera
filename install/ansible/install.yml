@@ -3,19 +3,19 @@
 - name: Build Waiwera with and install dependencies
   hosts: localhost
   tasks:
-  - name: get the username running the deploy
-    become: false
-    local_action: command whoami
-    register: user
+  # - name: get the username running the deploy
+  #   become: false
+  #   local_action: command whoami
+  #   register: user
 
   - set_fact:
-    install_dir: "/home/{{ user }}/waiwera"
+      install_dir: "/home/{{ ansible_user_id }}/waiwera"
 
-  - include_role:
+  - import_role:
       name: packages
     vars:
-      app_group: "{{ user }}"
-      app_user: "{{ user }}"
+      app_group: "{{ ansible_user_id }}"
+      app_user: "{{ ansible_user_id }}"
       base_dir: "{{ install_dir }}"
     become: yes
 
@@ -23,8 +23,8 @@
     import_role:
       name: common
     vars:
-      app_group: "{{ user }}"
-      app_user: "{{ user }}"
+      app_group: "{{ ansible_user_id }}"
+      app_user: "{{ ansible_user_id }}"
       base_dir: "{{ install_dir }}"
     become: no
 
