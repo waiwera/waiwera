@@ -98,10 +98,8 @@ Other example varibles which can be :
 * ``ninja_build=true``
     * defaults to ``false`` and only builds locally if no ninja install is detected
 
-.. index:: Waiwera; installing
-
-Installing Waiwera
-------------------
+Installing Waiwera on your system
+---------------------------------
 
 From the Waiwera ``install/`` directory, the Waiwera executable can be
 installed on your system as follows:
