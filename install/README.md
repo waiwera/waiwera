@@ -1,4 +1,4 @@
-# Geothermal VM Base Setup
+# Waiwera Base Setup
 
 This is the base level setup needed to start deploying software to a server
 
