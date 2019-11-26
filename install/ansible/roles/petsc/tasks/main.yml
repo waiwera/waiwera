@@ -19,7 +19,7 @@
           configure_cmd: "{{ './configure --'  + petsc_options | join(' --') }}"
 
       - set_fact:
-          configure_cmd: "{{ configure_cmd + petsc_variables | join(' ') }}"
+          configure_cmd: "{{ configure_cmd + ' ' + petsc_variables | join(' ') }}"
         when: petsc_arch == 'release'
 
       - name: configure PETSc
