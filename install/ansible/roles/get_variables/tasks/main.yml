@@ -19,7 +19,8 @@
     local_bin: "/home/{{ app_user }}/.local/bin"
 
 - name: Set external software path
-  software_path: "{{ waiwera_path }}/external"
+  set_fact:
+    software_path: "{{ waiwera_path }}/external"
 
 - name: Set petsc layer path variables
   set_fact:
