@@ -44,10 +44,8 @@
     name: pip
     executable: "{{ pip_ex }}"
     extra_args: --upgrade
-  # when: ansible_os_family != 'Archlinux'
   tags:
     - pip
-    # - packages
   register: pip_error
   ignore_errors: True
 
@@ -62,7 +60,6 @@
         name: "{{ openmpi }}"
         state: present
   when: (openmpi_test is failed)
-  # and (petsc_openmpi is not defined))
 
 - name: Install ninja
   package:

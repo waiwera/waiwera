@@ -1,21 +1,14 @@
 ---
 
-- name: check for user install of meson
+- name: check for root install of meson
   set_fact:
-  extra_args: "--user"
-  when: ansible_user_id != root
-  tags:
-    - local
-
-- name: check for user install of meson
-  set_fact:
-  extra_args: ""
-  when: ansible_user_id == root
+    extra_args: ""
+  when: app_user == 'root'
   tags:
     - docker
     - root
 
-- name: pip3 install
+- name: pip install
   pip:
     name: "{{ meson_version }}"
     executable: "{{ pip_ex }}"
