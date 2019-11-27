@@ -11,22 +11,6 @@
   tags:
     - fetch
 
-# - name: get the username running the deploy
-#   local_action: command whoami
-#   register: username_on_the_host
-
-# - debug: var=username_on_the_host
-
-#
-# - name: waiwera - Set file permissions
-#   file:
-#     dest: "{{ waiwera_path }}"
-#     owner: "{{ app_user }}"
-#     group: "{{ app_group }}"
-#     mode: u=rwX,g=rwX,o=rwX
-#     recurse: yes
-#   when: docker_run is defined
-
 - name: Build
   block:
 

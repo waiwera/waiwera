@@ -9,7 +9,7 @@
   #   register: user
 
   - set_fact:
-      install_dir: "/home/{{ ansible_user_id }}/waiwera"
+      install_dir: "/home/{{ ansible_user_id }}"
 
   - import_role:
       name: common

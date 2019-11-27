@@ -16,8 +16,10 @@
     bin_path: "{{ base_dir }}/bin"
     lib_path: "{{ base_dir }}/lib"
     include_path: "{{ base_dir }}/include"
-    software_path: "{{ base_dir }}/software"
     local_bin: "/home/{{ app_user }}/.local/bin"
+
+- name: Set external software path
+  software_path: "{{ waiwera_path }}/external"
 
 - name: Set petsc layer path variables
   set_fact:

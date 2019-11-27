@@ -3,13 +3,9 @@
 - name: Build Waiwera with and install dependencies
   hosts: localhost
   tasks:
-  # - name: get the username running the deploy
-  #   become: false
-  #   local_action: command whoami
-  #   register: user
 
   - set_fact:
-      install_dir: "/home/{{ ansible_user_id }}/waiwera"
+      install_dir: "/home/{{ ansible_user_id }}"
 
   - import_role:
       name: packages
