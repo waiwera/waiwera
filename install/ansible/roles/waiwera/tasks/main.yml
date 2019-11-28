@@ -1,16 +1,5 @@
 ---
 
-- name: waiwera - Fetch waiwera from repository
-  git:
-    repo: "https://{{ waiwera_repo }}"
-    dest:  "{{ waiwera_path }}"
-    version: "{{ waiwera_version }}"
-    update: yes
-    force: yes
-  register: waiwera_git
-  tags:
-    - fetch
-
 - name: Build
   block:
 

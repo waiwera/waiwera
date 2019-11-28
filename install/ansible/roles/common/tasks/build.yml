@@ -44,6 +44,27 @@
   register: petsc_test
   ignore_errors: True
 
+- name: Fetch waiwera from repo
+  git:
+    repo: "https://{{ waiwera_repo }}"
+    dest:  "{{ waiwera_path }}"
+    version: "{{ waiwera_version }}"
+    update: yes
+    force: yes
+  register: waiwera_git
+  tags:
+    - fetch
+
+# - name: Copy waiwera
+#   copy:
+#     src: ../../../../../../waiwera
+#     dest: "{{ waiwera_path }}"
+
+# - name: Creates petsc
+#   file:
+#     path: "{{ petsc_path }}"
+#     state: directory
+
 - name: Install PETSc
   import_role:
     name: petsc
