@@ -98,24 +98,23 @@ Finally, build Waiwera by executing:
 
    ansible-playbook ansible/install.yml --ask-become-pass
 
-``--ask-become-pass`` is the password required to escalate the current accounts privileges to root.
+Using the ``--ask-become-pass`` option prompts the user to provide the sudo password, to escalate the current account's privileges to root where necessary during installation.
 
-This command builds and installs waiwera and also installs Waiwera's various dependencies. Waiwera will build to a users home directory by default. You can use extra variables to change some parameters. See the following example:
+This command builds and installs waiwera and also installs Waiwera's various dependencies. Waiwera will build to the user's home directory by default. You can use extra variables to change some parameters. See the following example:
 
 .. code-block:: bash
 
    ansible-playbook ansible/install.yml -e "base_dir=/home/USER/waiwera" --ask-become-pass
 
-Where ``base_dir`` is the build location for Waiwera.  The following command builds waiwera and associated packages (but does not install it). Due to this it doesn't need root privileges because it does not try to install root directories:
+where ``base_dir`` is the build location for Waiwera.  The following command builds waiwera and associated packages (but does not install it). As a result, it doesn't need root privileges because it does not try to install to directories requiring them:
 
 .. code-block:: bash
 
   ansible-playbook ansible/local.yml
 
+Other example variables include :
 
-Other example varibles which can be :
-
-* ``petsc_update=true`` will build a new version of petsc even if an installed version is detected
+* ``petsc_update=true`` will build a new version of PETSc even if an installed version is detected
     * defaults to ``false`` meaning PETSc will only be built if an installed version isn't detected
 * ``waiwera_update=true`` will build waiwera every time even a new version isn't pulled by git
     * defaults to ``false``
