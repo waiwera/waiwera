@@ -56,8 +56,7 @@ The following Python script reads in a MULgrid geometry file, together with a TO
    dat = t2data('model.dat')
    inc = t2incon('model.incon')
 
-   jsondata = dat.json(geo, mesh_filename, mesh_coords = 'xz', incons = inc,
-                        bdy_incons = inc)
+   jsondata = dat.json(geo, mesh_filename, mesh_coords = 'xz', incons = inc)
    jsondata['mesh']['thickness'] = 10
 
    json.dump(jsondata, file('model.json', 'w'), indent = 2, sort_keys = True)
