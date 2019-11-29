@@ -53,6 +53,6 @@
     - name: petsc - copy to pkgconfig
       copy:
         src: "{{ petsc_path + '/' + petsc_arch +  '/lib/pkgconfig/PETSc.pc' }}"
-        dest: "{{ lib_path }}/"
+        dest: "{{ lib_path }}/pkgconfig/"
         remote_src: yes
-  when: ((petsc_git.changed == true) or (petsc_force == 'true'))
+  when: ((petsc_git.changed == true) or (petsc_update == 'true'))

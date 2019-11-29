@@ -3,7 +3,7 @@
 - name: check for root install of meson
   set_fact:
     extra_args: ""
-  when: app_user == 'root'
+  when: ( app_user == 'root') or docker_run == true
   tags:
     - docker
     - root

@@ -1,5 +1,5 @@
 
-- include_role:
+- import_role:
     name: packages
   vars:
     app_group: "{{ v_group }}"
@@ -18,7 +18,7 @@
 - name: Change login directory for vagrant VM
   lineinfile:
     path:  ~/.bashrc
-    regexp: ^cd {{ waiwera_path}}"
+    regexp: "cd {{ waiwera_path}}"
     line: "cd {{ waiwera_path }}"
   tags:
     - never
