@@ -29,4 +29,4 @@
       - ninja
       - build
 
-  when: ((waiwera_git.changed == true) or ( waiwera_update == 'true'))
+  when: (waiwera_build == 'true')

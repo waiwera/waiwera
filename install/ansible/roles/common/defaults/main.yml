@@ -4,8 +4,11 @@ app_user: waiwera
 app_group: waiwera
 
 petsc_update: "false"
-waiwera_update: "false"
+waiwera_build: "true"
+waiwera_version: "local"
 
 zofu_build: "false"
 fson_build: "false"
 ninja_build: 'false'
+
+docker_run: false

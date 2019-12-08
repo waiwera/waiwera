@@ -54,16 +54,7 @@
   register: waiwera_git
   tags:
     - fetch
-
-# - name: Copy waiwera
-#   copy:
-#     src: ../../../../../../waiwera
-#     dest: "{{ waiwera_path }}"
-
-# - name: Creates petsc
-#   file:
-#     path: "{{ petsc_path }}"
-#     state: directory
+  when: waiwera_version != 'local'
 
 - name: Install PETSc
   import_role:

@@ -30,7 +30,8 @@ RUN dpkgArch="$(dpkg --print-architecture | awk -F- '{ print $NF }')" \
  && chmod +x /usr/local/bin/gosu \
  && gosu nobody true
 
-ADD ansible /ansible
+ADD install/ansible /ansible
+ADD . /opt/waiwera
 
 RUN DEBIAN_FRONTEND=noninteractive \
     apt update && \
