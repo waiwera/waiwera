@@ -1,4 +1,11 @@
 
+- name: Creates vagrant directory
+  file:
+    path: "{{ v_dir }}"
+    state: directory
+    owner: "{{ v_user }}"
+    group: "{{ v_group }}"
+
 - import_role:
     name: packages
   vars:

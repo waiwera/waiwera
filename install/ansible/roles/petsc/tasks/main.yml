@@ -1,4 +1,8 @@
 ---
+- name: Test for pre-existing PETSc install
+  command: pkg-config --exists PETSc
+  register: petsc_test
+  ignore_errors: True
 
 - name: petsc - Fetch from petsc from repository
   git:
@@ -10,6 +14,14 @@
   register: petsc_git
   tags:
     - fetch
+  when: petsc_test is failed
+
+- name: Change PETSc permissions
+  file:
+    path: "{{ petsc_path }}"
+    owner: "{{ app_user }}"
+    group: "{{ app_group }}"
+    mode: u+rw,g+r
 
 - name: Build
   block:
@@ -55,4 +67,4 @@
         src: "{{ petsc_path + '/' + petsc_arch +  '/lib/pkgconfig/PETSc.pc' }}"
         dest: "{{ lib_path }}/pkgconfig/"
         remote_src: yes
-  when: ((petsc_git.changed == true) or (petsc_update == 'true'))
+  when: ((petsc_git.changed == true) or (petsc_update == 'true') or (petsc_test is failed))

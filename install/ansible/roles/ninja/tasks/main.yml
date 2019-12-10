@@ -24,7 +24,7 @@
     owner: "{{ app_user }}"
     group: "{{ app_group }}"
     recurse: yes
-  when: docker_run is defined
+  when: docker_run == true
 
 - name: ninja - run configure script
   command: ./configure.py --bootstrap

@@ -25,6 +25,7 @@
 - name: Set petsc layer path variables
   set_fact:
     petsc_path: "{{ software_path }}/PETSc"
+    petsc_arch: "{{ build_type }}"
 
 - name: Set petsc petsc_arch path
   set_fact:

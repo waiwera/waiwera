@@ -27,7 +27,7 @@
     owner: "{{ app_user }}"
     group: "{{ app_group }}"
     recurse: yes
-  when: docker_run is defined
+  when: docker_run == true
 
 - name: zofu - meson build
   shell: 'meson build --buildtype=release --prefix={{ base_dir }} --libdir={{ lib_path }} --includedir={{ include_path }}'

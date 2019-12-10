@@ -39,12 +39,19 @@
     - fson
   when: fson_build == 'true'
 
-- name: Test for pre-existing PETSc install
-  command: pkg-config --exists PETSc
-  register: petsc_test
-  ignore_errors: True
+- name: Check if waiwera directory exists already
+  stat:
+    path: "{{ waiwera_path }}"
+  register: waiwera_dir
 
-- name: Fetch waiwera from repo
+- name: Copy waiwera
+  copy:
+    src: ../../../waiwera
+    dest: "{{ waiwera_path }}"
+    remote_src: yes
+  when: (waiwera_version == 'local') and (waiwera_dir.stat.exists != true)
+
+- name: Fetch waiwera from repo if version is changed from local
   git:
     repo: "https://{{ waiwera_repo }}"
     dest:  "{{ waiwera_path }}"
