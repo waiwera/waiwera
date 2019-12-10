@@ -41,14 +41,31 @@
 
 - name: Check if waiwera directory exists already
   stat:
-    path: "{{ waiwera_path }}"
+    path: "{{ waiwera_path }}/LICENSE"
   register: waiwera_dir
 
 - name: Copy waiwera
-  copy:
-    src: ../../../waiwera
-    dest: "{{ waiwera_path }}"
-    remote_src: yes
+  block:
+   - file:
+      path: ../../../waiwera
+      owner: "{{ app_user }}"
+      group: "{{ app_group }}"
+      mode: u+rw,g+r
+
+      #  - copy:
+      #  src: ../../../waiwera
+      #  dest: "{{ waiwera_path }}"
+      #  remote_src: yes
+   - synchronize:
+       src: ../../../waiwera/
+       dest: "{{ waiwera_path }}"
+       dirs: yes
+       mode: pull
+       rsync_opts:
+          - "--exclude=.vagrant"
+          - "--exclude=*/.vagrant"
+          - "--exclude=*external"
+
   when: (waiwera_version == 'local') and (waiwera_dir.stat.exists != true)
 
 - name: Fetch waiwera from repo if version is changed from local
