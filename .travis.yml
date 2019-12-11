@@ -11,7 +11,7 @@ addons:
       - python-pip
 
 install:
-  - pip install ansible
+  - sudo pip install ansible
 
 script:
   - cd install
