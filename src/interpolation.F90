@@ -259,44 +259,105 @@ contains
     !! Updates index property so that val(index) <= x < val(index + 1).
     !! If x is below the lower coordinate limit, index = 0.
     !! If x is above the upper coordinate limit, index = size.
+    !! Search algorithm adapted from Press, Teukolsky, Vetterling and Flannery,
+    !! "Numerical Recipes in Fortran", 2nd ed., 1992.
 
     class(interpolation_coordinate_type), intent(in out) :: self
     PetscReal, intent(in) :: x !! x value to interpolate at
     ! Locals:
-    PetscInt :: i, end_index, direction
+    PetscInt :: i1, i2
 
     if (x <= self%val(1)) then
-       ! Below lower coordinate limit:
        self%index = 0
     else if (x >= self%val(self%size)) then
-       ! Above upper table limit:
        self%index = self%size
     else
-
-       ! Check starting index:
-       if (self%index <= 0) then
-          self%index = 1
-       else if (self%index >= self%size) then
-          self%index = self%size - 1
-       end if
-
-       ! Determine search direction:
-       if (x < self%val(self%index)) then
-          end_index = 1
-          direction = -1
-       else
-          end_index = self%size - 1
-          direction = 1
-       end if
-
-       do i = self%index, end_index, direction
-          if ((self%val(i) <= x) .and. (x < self%val(i + 1))) then
-             self%index = i
-             exit
-          end if
-       end do
-
+       call bracket(x, i1, i2)
+       call bisect(x, i1, i2)
+       self%index = i1
     end if
+
+  contains
+
+!........................................................................
+
+    subroutine bracket(x, i1, i2)
+      !! Find indices i1, i2 which bracket value x, using self%index
+      !! as an initial estimate of i1 if possible.
+
+      PetscReal, intent(in) :: x
+      PetscInt, intent(out) :: i1, i2
+      ! Locals:
+      PetscInt :: inc
+      PetscBool :: found
+
+
+      if ((self%index >= 1) .and. (self%index <= self%size)) then
+
+         i1 = self%index
+         inc = 1
+         found = PETSC_FALSE
+         if (x >= self%val(i1)) then
+
+            ! Search up:
+            do while (.not. found)
+               i2 = i1 + inc
+               if (i2 > self%size) then
+                  i2 = self%size + 1
+                  found = PETSC_TRUE
+               else if (x >= self%val(i2)) then
+                  i1 = i2
+                  inc = inc + inc
+               else
+                  found = PETSC_TRUE
+               end if
+            end do
+         else
+
+            ! Search down:
+            i2 = i1
+            do while (.not. found)
+               i1 = i2 - inc
+               if (i1 < 1) then
+                  i1 = 0
+                  found = PETSC_TRUE
+               else if (x < self%val(i1)) then
+                  i2 = i1
+                  inc = inc + inc
+               else
+                  found = PETSC_TRUE
+               end if
+            end do
+         end if
+
+      else
+         i1 = 0
+         i2 = self%size + 1
+      end if
+
+    end subroutine bracket
+
+!........................................................................
+
+    subroutine bisect(x, i1, i2)
+      !! Do bisection to narrow initial bracketing interval i1, i2 so
+      !! that i2 = i1 + 1.
+
+      PetscReal, intent(in) :: x
+      PetscInt, intent(in out) :: i1, i2
+      ! Locals:
+      PetscInt :: im
+
+      do while (i2 - i1 > 1)
+         im = (i1 + i2) / 2
+         if (x >= self%val(im)) then
+            i1 = im
+         else
+            i2 = im
+         end if
+      end do
+
+    end subroutine bisect
 
   end subroutine interpolation_coordinate_find
 

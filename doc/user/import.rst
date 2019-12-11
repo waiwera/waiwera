@@ -20,7 +20,7 @@ Full details of the parameters to be passed into the ``json()`` method can be fo
 Limitations of the import process
 =================================
 
-* Only certain equations of state are supported: EOS1 ('W' or 'EW'), EOS2 ('EWC'), EOS3 ('EWA') and EOS4 ('EWAV').
+* Only certain equations of state are supported: EOS1 ('W' or 'EW'), EOS2 ('EWC') and EOS4 ('EWAV').
 * Some generator types (mostly AUTOUGH2 types) are not supported: 'CO2', 'DMAK', 'FEED', 'FINJ', 'HLOS', 'IMAK', 'MAKE', 'PINJ', 'POWR', 'RINJ', 'TMAK', 'TOST', 'VOL.', 'WBRE', 'WFLO', 'XINJ', 'XIN2'.
 * Only some relative permeability curves are supported: linear, Pickens, Corey, Grant, fully mobile, van Genuchten, and the AUTOUGH2 tri-linear relative permeability curve (type 19).
 * Only some capillary pressure functions are supported: linear, van Genuchten and zero.
@@ -56,8 +56,7 @@ The following Python script reads in a MULgrid geometry file, together with a TO
    dat = t2data('model.dat')
    inc = t2incon('model.incon')
 
-   jsondata = dat.json(geo, mesh_filename, mesh_coords = 'xz', incons = inc,
-                        bdy_incons = inc)
+   jsondata = dat.json(geo, mesh_filename, mesh_coords = 'xz', incons = inc)
    jsondata['mesh']['thickness'] = 10
 
    json.dump(jsondata, file('model.json', 'w'), indent = 2, sort_keys = True)

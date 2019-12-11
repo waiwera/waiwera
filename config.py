@@ -12,6 +12,7 @@ env = os.environ.copy()
 base_dir = os.getcwd()
 
 parser = argparse.ArgumentParser()
+parser.add_argument("--builddir", default = "build", help = "build subdirectory")
 parser.add_argument("-d", "--debug", action = "store_true", help = "debug mode")
 parser.add_argument("--release", action = "store_true", help = "release mode")
 parser.add_argument("--no_rpath", action = "store_true", help = "do not set RPATH in executable")
@@ -43,7 +44,7 @@ def petsc_mkdir():
 
 def petsc_download(petsc_dir):
     """Downloads PETSc to external projects directory"""
-    petsc_url = "https://bitbucket.org/petsc/petsc.git"
+    petsc_url = "https://gitlab.com/petsc/petsc.git"
     print("PETSc library not found: installing PETSc in", petsc_dir)
     os.chdir(petsc_dir)
     subprocess.Popen(["git", "clone",
@@ -107,7 +108,7 @@ if not petsc_found():
 
 set_rpath = 'false' if args.no_rpath else 'true'
 
-build_dir = "build"
+build_dir = args.builddir
 if not os.path.isdir(build_dir): os.mkdir(build_dir)
 os.chdir(build_dir)
 

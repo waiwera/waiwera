@@ -4,7 +4,7 @@
 Installing Waiwera
 ******************
 
-Waiwera can be run on most operating systems (e.g. Linux, Windows, Mac OS) using `Docker <https://www.docker.com/>`_, and for many users this is likely to be the easiest option. Linux users also have the option of building a native Waiwera executable (see :ref:`native_linux_build`).
+Waiwera can be run on most operating systems (e.g. Linux, Windows, macOS) using `Docker <https://www.docker.com/>`_, and for many users this is likely to be the easiest option. Linux users also have the option of building a native Waiwera executable (see :ref:`native_linux_build`).
 
 .. index:: Docker
 .. _using_docker:
@@ -19,11 +19,35 @@ Docker is a "`containerisation <https://www.docker.com/resources/what-container>
 Installing Docker
 -----------------
 
-To run Waiwera this way, first Docker must be installed on your system. You will need administrator privileges to install Docker. The Docker website has instructions for installing it on `Windows <https://docs.docker.com/docker-for-windows/install/>`_ and `Mac OS <https://docs.docker.com/docker-for-mac/install/>`_. On Linux systems, Docker may be installed directly from your package manager. Alternatively (e.g. if you need a newer version than your package manager is able to provide) you can install it from the Docker repositories. The Docker website has instructions on how to do that for various Linux distributions (e.g. `Ubuntu <https://docs.docker.com/install/linux/docker-ce/ubuntu/>`_, `Debian <https://docs.docker.com/install/linux/docker-ce/debian/>`_).
+To run Waiwera this way, first Docker must be installed on your system. You will need administrator privileges to install Docker.
 
-Once Docker is installed, by default it should have access to all the processors on your system, a sensible amount of RAM, and the directories you are likely to want to run it in. However, it is possible to configure these settings if needed. The Docker Desktop application on Windows and Mac OS provides a graphical interface for doing this. You may also need to add your user account to the 'docker' user group in order to be able to run Docker containers without administrator privileges. Check the `Docker documentation <https://docs.docker.com/>`_ for more details on configuring Docker.
+Linux
+.....
 
-For Windows users, Windows 10 is recommended for running Waiwera via Docker. On Windows 7, it should still work, but Docker uses different underlying technology (based on virtual machines) which is slower and less reliable.
+On Linux systems, Docker may be installed directly from your package manager. Alternatively (e.g. if you need a newer version than your package manager is able to provide) you can install it from the Docker repositories. The Docker website has instructions on how to do that for various Linux distributions (e.g. `Ubuntu <https://docs.docker.com/install/linux/docker-ce/ubuntu/>`_, `Debian <https://docs.docker.com/install/linux/docker-ce/debian/>`_). It is also important to follow the `post-install instructions <https://docs.docker.com/install/linux/linux-postinstall/>`_, particularly to add your user account to the ``docker`` group (so you can run Docker containers without root privileges).
+
+Windows
+.......
+
+For running Waiwera on Windows using Docker, the Windows 10 Pro, Enterprise or Education versions are recommended. Users of these versions can install `Docker Desktop for Windows <https://docs.docker.com/docker-for-windows/install/>`_, which provides the best performance and also an easy-to-use graphical interface for configuring Docker.
+
+Users of the Windows 7, 8 or 10 Home versions cannot use Docker Desktop, but can use the older `Docker Toolbox for Windows <https://docs.docker.com/toolbox/toolbox_install_windows/>`_ instead. This has a higher performance overhead than Docker Desktop, so Waiwera will run more slowly. Installing and configuring it are also not as convenient.
+
+macOS
+.....
+
+For running Waiwera on macOS using Docker, macOS version 10.13 or newer is recommended, in which case `Docker Desktop for macOS <https://docs.docker.com/docker-for-mac/install/>`_ can be installed. This provides the best performance and also an easy-to-use graphical interface for configuring Docker.
+
+Users of older versions of macOS cannot install Docker Desktop, but can use the older `Docker Toolbox for macOS <https://docs.docker.com/toolbox/toolbox_install_mac/>`_ instead. This has a higher performance overhead than Docker Desktop, so Waiwera will run more slowly. Installing and configuring it are also not as convenient.
+
+.. index:: Docker; configuring
+
+Configuring Docker
+..................
+
+Once Docker is installed, by default it should have access to all the processors on your system, a sensible amount of RAM, and the directories you are likely to want to run it in. However, it is possible to configure these settings if needed, for example if you have other drives you want to make available to Docker.
+
+The Docker Desktop application on Windows and Mac OS provides a graphical interface for doing this.
 
 .. index:: Docker; running
 
@@ -74,24 +98,23 @@ Finally, build Waiwera by executing:
 
    ansible-playbook ansible/install.yml --ask-become-pass
 
-``--ask-become-pass`` is the password required to escalate the current accounts privileges to root.
+Using the ``--ask-become-pass`` option prompts the user to provide the sudo password, to escalate the current account's privileges to root where necessary during installation.
 
-This command builds and installs waiwera and also installs Waiwera's various dependencies. Waiwera will build to a users home directory by default. You can use extra variables to change some parameters. See the following example:
+This command builds and installs waiwera and also installs Waiwera's various dependencies. Waiwera will build to the user's home directory by default. You can use extra variables to change some parameters. See the following example:
 
 .. code-block:: bash
 
    ansible-playbook ansible/install.yml -e "base_dir=/home/USER/waiwera" --ask-become-pass
 
-Where ``base_dir`` is the build location for Waiwera.  The following command builds waiwera and associated packages (but does not install it). Due to this it doesn't need root privileges because it does not try to install root directories:
+where ``base_dir`` is the build location for Waiwera.  The following command builds waiwera and associated packages (but does not install it). As a result, it doesn't need root privileges because it does not try to install to directories requiring them:
 
 .. code-block:: bash
 
   ansible-playbook ansible/local.yml
 
+Other example variables include :
 
-Other example varibles which can be :
-
-* ``petsc_update=true`` will build a new version of petsc even if an installed version is detected
+* ``petsc_update=true`` will build a new version of PETSc even if an installed version is detected
     * defaults to ``false`` meaning PETSc will only be built if an installed version isn't detected
 * ``waiwera_update=true`` will build waiwera every time even a new version isn't pulled by git
     * defaults to ``false``

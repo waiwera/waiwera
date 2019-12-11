@@ -19,11 +19,11 @@ The mass and energy conservation equations over an arbitrary volume :math:`V` ar
 .. math::
    :label: conservation
 
-   \frac{d}{dt} \int_{V} {M^c \, dV} = \int_{\partial V} {\mathbf{F^c} \cdot \hat{n} \, dA} + \int_{V} {q^c \, dV}
+   \frac{d}{dt} \int_{V} {M^\kappa \, dV} = \int_{\partial V} {\mathbf{F^\kappa} \cdot \hat{n} \, dA} + \int_{V} {q^\kappa \, dV}
 
-where :math:`c = 1,\ldots C+1` (and :math:`C` is the number of mass components, e.g. 1 for pure water). Component :math:`C+1` is the energy component.
+where :math:`\kappa = 1,\ldots N+1` (and :math:`N` is the number of mass components, e.g. 1 for pure water). Component :math:`N+1` is the energy component.
 
-For component :math:`c`, :math:`M^c` is the mass or energy density in :math:`V`, :math:`\mathbf{F^c}` is the flux of that component through the boundary :math:`\partial V` and :math:`q^c` represents source or sink terms (per unit volume).
+For component :math:`\kappa`, :math:`M^\kappa` is the mass or energy density in :math:`V`, :math:`\mathbf{F^\kappa}` is the flux of that component through the boundary :math:`\partial V` and :math:`q^\kappa` represents source or sink terms (per unit volume).
 
 .. index:: numerical methods; finite volume discretisation
 .. _finite_volume_discretisation:
@@ -31,28 +31,28 @@ For component :math:`c`, :math:`M^c` is the mass or energy density in :math:`V`,
 Finite volume discretisation
 ============================
 
-The flow domain is discretised using a finite volume mesh made up of :math:`N` cells. In the :math:`i`\ :sup:`th` cell with volume :math:`V_i`, for each component we can define cell-averaged mass or energy densities :math:`M_i^c` for each component, and cell-averaged source terms :math:`q_i^c` as:
+The flow domain is discretised using a finite volume mesh. In the :math:`i`\ :sup:`th` cell with volume :math:`V_i`, for each component we can define cell-averaged mass or energy densities :math:`M_i^\kappa` for each component, and cell-averaged source terms :math:`q_i^\kappa` as:
 
 .. math::
 
-   M_i^c = \frac{1}{V_i} \int_{V_i} {M^c \, dV}
+   M_i^\kappa = \frac{1}{V_i} \int_{V_i} {M^\kappa \, dV}
 
-   q_i^c = \frac{1}{V_i} \int_{V_i} {q^c \, dV}
+   q_i^\kappa = \frac{1}{V_i} \int_{V_i} {q^\kappa \, dV}
 
 We can also represent the flux integral in :eq:`conservation` as:
 
 .. math::
 
-   \int_{\partial V_i} {\mathbf{F^c} \cdot \hat{n} \, dA} = \sum_j {A_{ij} F_{ij}^c}
+   \int_{\partial V_i} {\mathbf{F^\kappa} \cdot \hat{n} \, dA} = \sum_j {A_{ij} F_{ij}^\kappa}
 
-where :math:`A_{ij}` is the area of the face connecting cells :math:`i` and :math:`j`, and :math:`F_{ij}^c` is the normal component of the flux through it.
+where :math:`A_{ij}` is the area of the face connecting cells :math:`i` and :math:`j`, and :math:`F_{ij}^\kappa` is the normal component of the flux through it.
 
 Then the discretised conservation equations for cell :math:`V_i` can be written:
 
 .. math::
    :label: discretised_conservation
 
-   \frac{d}{dt} M_i^c = \frac{1}{V_i} \sum_j {A_{ij} F_{ij}^c} + q_i^c
+   \frac{d}{dt} M_i^\kappa = \frac{1}{V_i} \sum_j {A_{ij} F_{ij}^\kappa} + q_i^\kappa
 
 .. index:: thermodynamics; primary variables, primary variables
 .. _primary_variables:
@@ -83,7 +83,7 @@ The discretised conservation equations :eq:`discretised_conservation` are of the
 
    \frac{d}{dt} \mathbf{L}(t, \mathbf{Y}) = \mathbf{R}(t, \mathbf{Y})
 
-where :math:`t` is time and :math:`\mathbf{Y}` is the vector of primary variables for all cells in the simulation mesh (of total length :math:`N(C+1)` for non-isothermal simulations). Here :math:`\mathbf{L}` represents the cell-averaged mass and energy balances, as a function of time and the primary thermodynamic variables. Similarly, :math:`\mathbf{R}` represents inflows (per unit volume) into the cells from flows through the cell faces, together with sources and sinks within the cell.
+where :math:`t` is time and :math:`\mathbf{Y}` is the vector of primary variables for all cells in the simulation mesh. Here :math:`\mathbf{L}` represents the cell-averaged mass and energy balances, as a function of time and the primary thermodynamic variables. Similarly, :math:`\mathbf{R}` represents inflows (per unit volume) into the cells from flows through the cell faces, together with sources and sinks within the cell.
 
 Solving the set of ordinary differential equations :eq:`RLeqn` with respect to time, we can compute the time evolution of :math:`\mathbf{Y}`, the thermodynamic state of the entire discretised simulation domain.
 
@@ -104,48 +104,48 @@ where :math:`t^n` is the :math:`n^{th}` discretised time, and :math:`\Delta t` i
 Function evaluations
 ====================
 
-Waiwera needs to evaluate the functions :math:`\mathbf{L}` and :math:`\mathbf{R}` for any given set of primary variables (and time). The function :math:`\mathbf{L}`, representing the mass and energy densities :math:`M_i^c` in the cells, is relatively straightforward to evaluate, by summing the contributions of the different phases. Considering a particular cell:
+Waiwera needs to evaluate the functions :math:`\mathbf{L}` and :math:`\mathbf{R}` for any given set of primary variables (and time). The function :math:`\mathbf{L}`, representing the mass and energy densities :math:`M_i^\kappa` in the cells, is relatively straightforward to evaluate, by summing the contributions of the different phases. Considering a particular cell:
 
 .. math::
 
-   M_i^c =
+   M_i^\kappa =
    \begin{cases}
-   \phi \sum_p{S_p \rho_p X_p^c} & c \leq C \\
-   (1 - \phi) \rho_{r} c_{r} T + \phi \sum_p {S_p \rho_p u_p} & c = C + 1
+   \phi_i \sum_p{S_{i,p} \rho_{i,p} X_{i,p}^\kappa} & \kappa \leq N \\
+   (1 - \phi_i) \rho_i^r c_i T_i + \phi_i \sum_p {S_{i,p} \rho_{i,p} u_{i,p}} & \kappa = N + 1
    \end{cases}
 
-where the :math:`p` subscripts refer to phases, and the :math:`r` subscripts refer to rock properties. Here :math:`\phi` is the porosity in the cell, :math:`S` is phase saturation, :math:`\rho` is density, :math:`X` is mass fraction, :math:`u` is internal energy density, :math:`c_r` is the rock specific heat and :math:`T` is temperature.
+where for cell :math:`i`, :math:`\phi_i` is the rock porosity, :math:`c_i` is rock specific heat and :math:`T_i` is temperature. For phase :math:`p`, :math:`S_{i,p}` is the phase saturation, :math:`\rho_{i,p}` is phase density, :math:`X_{i,p}^\kappa` is phase mass fraction for component :math:`\kappa` and :math:`u_{i,p}` is phase internal energy density.
 
 The function :math:`\mathbf{R}`, representing fluxes into the cells, has contributions from source and sink terms (which are easily evaluated), and from fluxes through faces. This latter contribution is computed by summing the component face fluxes in each phase:
 
 .. math::
 
-   F_{ij}^c = \sum_p{F_{ij,p}^c}
+   F_{ij}^\kappa = \sum_p{F_{ij,p}^\kappa}
 
 where the phase fluxes are given by:
 
 .. math::
    :label: flux
 
-   F_{ij,p}^c =
+   F_{ij,p}^\kappa =
    \begin{cases}
-   -k \frac{k_r^p}{\mu_p} \rho_p X_p^c (\frac{\partial P}{\partial n} - \bar{\rho}_p \mathbf{g}.\hat{n}) & c \leq C \\
-   -K \frac{\partial T}{\partial n} + \sum_{l=1}^{C} {\sum_p{h_p^l F_{ij,p}^l}} & c = C + 1
+   -k \frac{k \cdot k^r_p}{\nu_p} X_p^\kappa (\frac{\partial P}{\partial n} - \rho_{ij,p} \mathbf{g}.\hat{n}) & \kappa \leq N \\
+   -K \frac{\partial T}{\partial n} + \sum_{m=1}^{N} {\sum_p{h_p^m F_{ij,p}^m}} & \kappa = N + 1
    \end{cases}
 
-Here :math:`k` is effective permeability normal to the face, :math:`k_r` is relative permeability, :math:`\mu` is viscosity, :math:`P` is pressure, :math:`\mathbf{g}` is the gravity vector, :math:`K` is rock heat conductivity and :math:`h` is enthalpy. :math:`\hat{n}` is the unit vector normal to the face, and :math:`\bar{\rho}_p` is the effective phase density on the face.
+Here :math:`k` is effective rock permeability normal to the face, :math:`K` is rock heat conductivity, :math:`P` is pressure, :math:`\mathbf{g}` is the gravity vector and :math:`\hat{n}` is the unit vector normal to the face. For phase :math:`p`, :math:`k^r_p` is the phase relative permeability, :math:`\nu_p` is phase kinematic viscosity, :math:`h_p^m` is phase enthalpy for component :math:`m` and :math:`\rho_{ij, p}` is the effective phase density on the face.
 
 The normal gradients of pressure and temperature are evaluated by finite differencing across the phase, i.e. taking the difference between the values in the cells on either side of the face and dividing by the distance between the cell centres. This "two-point flux approximation" relies on the assumption that the mesh satisfies the "orthogonality criterion", i.e. that the line joining the cell centres is orthogonal to the face (see :ref:`mesh_orthogonality`).
 
-When evaluating the phase fluxes using equation :eq:`flux`, the flow quantities :math:`k_r`, :math:`\rho_p`, :math:`\mu`, :math:`X_c^p` and :math:`h_p` are "upstream weighted", i.e. their values are taken from the cell upstream from the face. This is needed for numerical stability. The rock permeability :math:`k` and heat conductivity :math:`K` on the face are evaluated using harmonic weighting of the values in the cells on either side of the face.
+When evaluating the phase fluxes using equation :eq:`flux`, the flow quantities :math:`k^r_p`, :math:`\rho_p`, :math:`\nu_p`, :math:`X_p^\kappa` and :math:`h_p^m` are "upstream weighted", i.e. their values are taken from the cell upstream from the face. This is needed for numerical stability. The rock permeability :math:`k` and heat conductivity :math:`K` on the face are evaluated using harmonic weighting of the values in the cells on either side of the face.
 
 For the gravity term, Waiwera calculates the effective phase density on the face as a saturation-weighted average of the phase densities in the cells on either side:
 
 .. math::
 
-   \bar{\rho}_p = \frac{S_p^1 \rho_p^1 + S_p^2 \rho_p^2}{S_p^1 + S_p^2}
+   \rho_{ij,p} = \frac{S_{i,p} \rho_{i,p} + S_{j,p} \rho_{j,p}}{S_{i,p} + S_{j,p}}
 
-where :math:`S_p^1`, :math:`S_p^2` are the phase saturations in the two cells, and :math:`\rho_p^1`, :math:`\rho_p^2` are the corresponding phase densities. This formulation can be derived by considering a force balance over the two cells, and ensures a smooth variation in effective phase density on the face when the adjoining cells change phase. If both adjoining cells have the same saturation (e.g. in single-phase conditions) then this weighted average reduces to a simple arithmetic average of :math:`\rho_p^1` and :math:`\rho_p^2`.
+This formulation can be derived by considering a force balance over the two cells, and ensures a smooth variation in effective phase density on the face when the adjoining cells change phase. If both adjoining cells have the same saturation (e.g. in single-phase conditions) then this weighted average reduces to a simple arithmetic average of :math:`\rho_{i,p}` and :math:`\rho_{j,p}`.
 
 .. index:: solver
 .. _nonlinear_equations:
@@ -158,7 +158,7 @@ Regardless of the time stepping method used, the discretised equations to be sol
 .. math::
    :label: fx0
 
-   \mathbf{r}(\mathbf{Y}) = \mathbf{0}
+   \mathbf{f}(\mathbf{Y}) = \mathbf{0}
 
 then at each time step we must solve this for the solution :math:`\mathbf{Y} = \mathbf{Y}^{n+1}`. Because of the non-linearity, it must be solved numerically using a non-linear solution technique such as Newton's method. Newton's method is an iterative method which starts from an initial estimate of the solution (here taken as :math:`\mathbf{Y} = \mathbf{Y}^n`) and adjusts the provisional solution :math:`\mathbf{Y}` at each iteration until equation :eq:`fx0` is satisfied, to within a pre-specified tolerance.
 
@@ -167,9 +167,9 @@ At each iteration, Newton's method adds an update :math:`\Delta \mathbf{Y}` to t
 .. math::
    :label: newton
 
-   \mathbf{J} \Delta \mathbf{Y} = -\mathbf{r}
+   \mathbf{J} \Delta \mathbf{Y} = -\mathbf{f}
 
-where :math:`\mathbf{J}` is the Jacobian matrix of the function :math:`\mathbf{r}`, i.e. the matrix of partial derivatives of :math:`\mathbf{r}` with respect to :math:`\mathbf{Y}`.
+where :math:`\mathbf{J}` is the Jacobian matrix of the function :math:`\mathbf{f}`, i.e. the matrix of partial derivatives of :math:`\mathbf{f}` with respect to :math:`\mathbf{Y}`.
 
 .. index:: solver; non-linear, numerical methods; non-linear equations
 

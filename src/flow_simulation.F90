@@ -21,6 +21,7 @@ module flow_simulation_module
 #include <petsc/finclude/petsc.h>
 
   use petsc
+  use iso_fortran_env, only: int32
   use kinds_module
   use ode_module
   use mesh_module
@@ -1141,13 +1142,13 @@ contains
       type(list_node_type), pointer, intent(in out) :: node
       PetscBool, intent(out) :: stopped
 
+      stopped = PETSC_FALSE
       select type (source_control => node%data)
       class is (source_control_type)
          call source_control%update(t, interval, source_data, &
               source_section, self%source_range_start, fluid_array, &
               fluid_section, self%eos)
       end select
-      stopped = PETSC_FALSE
 
     end subroutine source_control_iterator
 

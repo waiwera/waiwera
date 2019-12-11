@@ -135,6 +135,7 @@ contains
       type(list_node_type), pointer, intent(in out) :: node
       PetscBool, intent(out) :: stopped
 
+      stopped = PETSC_FALSE
       if (node%tag /= "") then
          call self%add(node%tag, node%data)
       end if

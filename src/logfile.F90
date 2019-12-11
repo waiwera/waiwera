@@ -251,7 +251,7 @@ contains
 
     num_logical = size(logical_keys)
     do i = 1, num_logical
-       write(logical_str, '(L)') logical_values(i)
+       write(logical_str, '(l1)') logical_values(i)
        content = content // '"' // trim(logical_keys(i)) // &
             '": ' // trim(adjustl(logical_str))
        if (i < num_logical) then

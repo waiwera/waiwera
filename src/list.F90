@@ -215,12 +215,14 @@ contains
     subroutine append_to_self_iterator(node, stopped)
       type(list_node_type), pointer, intent(in out)  :: node
       PetscBool, intent(out) :: stopped
+
+      stopped = PETSC_FALSE
       if (allocated(node%tag)) then
          call self%append(node%data, node%tag)
       else
          call self%append(node%data)
       end if
-      stopped = PETSC_FALSE
+
     end subroutine append_to_self_iterator
 
   end subroutine list_add
@@ -438,6 +440,7 @@ contains
          stopped = PETSC_TRUE
          found_node => node
       else
+         stopped = PETSC_FALSE
          count = count + 1
       end if
     end subroutine get_iterator
@@ -544,8 +547,11 @@ contains
     subroutine get_tag_iterator(node, stopped)
        type(list_node_type), pointer, intent(in out)  :: node
        PetscBool, intent(out) :: stopped
+
+       stopped = PETSC_FALSE
        tags(i) = node%tag
        i = i + 1
+
      end subroutine get_tag_iterator
 
   end subroutine list_tags
