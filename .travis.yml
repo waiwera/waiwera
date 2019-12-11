@@ -1,3 +1,7 @@
+branches:
+  only:
+  - travis
+
 language: generic
 
 os: linux
