@@ -24,12 +24,9 @@
 
 - name: Change login directory for vagrant VM
   lineinfile:
-    path:  ~/.bashrc
+    path:  "/home/{{ v_user }}/.bashrc"
     regexp: "cd {{ waiwera_path}}"
     line: "cd {{ waiwera_path }}"
-  tags:
-    - never
-    - vagrant
 
 - name: Waiwera install
   environment:

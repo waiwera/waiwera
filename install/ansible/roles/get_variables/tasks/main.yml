@@ -10,13 +10,25 @@
   tags:
     - always
 
-- name: Set waiwera path variables
+- name: Set path variables
   set_fact:
-    waiwera_path: "{{ base_dir }}/waiwera"
     bin_path: "{{ base_dir }}/bin"
     lib_path: "{{ base_dir }}/lib"
     include_path: "{{ base_dir }}/include"
     local_bin: "/home/{{ app_user }}/.local/bin"
+
+- name: Set waiwera path variable as local repo
+  set_fact:
+    waiwera_path: "{{ playbook_dir }}/../.."
+  when: waiwera_version == 'local'
+  
+- name: Set waiwera path variable for pulling repo to
+  set_fact:
+    waiwera_path: "{{ base_dir }}/waiwera"
+  when: waiwera_version != 'local'
+ 
+- debug:
+    var: waiwera_path
 
 - name: Set external software path
   set_fact:
