@@ -1,0 +1,18 @@
+language: generic
+
+os: linux
+dist: bionic
+
+addons:
+  apt:
+    packages:
+      - python-pip
+
+install:
+  - pip install ansible
+
+script:
+  - cd install
+  - ansible-playbook ansible/install_local.yml
+  - cd ..
+  - python unit_tests.py
