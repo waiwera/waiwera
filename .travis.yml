@@ -15,6 +15,6 @@ install:
 
 script:
   - cd install
-  - travis_wait ansible-playbook ansible/install_local.yml -vv
+  - travis_wait 30 ansible-playbook ansible/install_local.yml
   - cd ..
   - python unit_tests.py
