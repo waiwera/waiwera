@@ -1,6 +1,4 @@
-branches:
-  only:
-  - travis
+if: branch = travis
 
 language: generic
 
