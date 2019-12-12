@@ -58,9 +58,11 @@ end_time = str(datetime.datetime.now())
 
 if passed:
     print('Result: Pass')
+    ret = 0
 else:
     print('Result: %d/%d tests passed (%d%%)' %
           (passcount, testcount, int(100. * passcount / float(testcount))))
+    ret = 1
 
 summary_rst_filename = os.path.join(tests_path, 'test_summary.rst')
 rstfile = open(summary_rst_filename, 'w')
@@ -112,3 +114,4 @@ html = publish_file(source_path = summary_rst_filename,
 summary_json_filename = os.path.join(tests_path, 'test_summary.json')
 json.dump(summary, file(summary_json_filename, 'w'))
 
+sys.exit(ret)
