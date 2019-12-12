@@ -64,7 +64,7 @@
   #
   #  when: (waiwera_version == 'local') and (waiwera_dir.stat.exists != true)
 
-- name: Fetch waiwera from repo if version is changed from local
+- name: Fetch waiwera from repository if version is not local
   git:
     repo: "https://{{ waiwera_repo }}"
     dest:  "{{ waiwera_path }}"

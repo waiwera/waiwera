@@ -12,11 +12,11 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
     waiwera.vm.provision :shell, inline: "yum install python-pip -y && pip install -U ansible"
     waiwera.vm.provision "ansible_local" do |ansible|
       # ansible.limit = 'waiwera'
-      ansible.provisioning_path = "/vagrant/waiwera/install/ansible"
+      ansible.provisioning_path = "/vagrant/install/ansible"
       ansible.verbose = "vv"
       ansible.playbook = "vagrant.yml"
     end
-    waiwera.vm.provision :shell, inline: "sh /etc/profile.d/opt_paths.sh; cd /opt/app/waiwera; python unit_tests.py", privileged: false
+    waiwera.vm.provision :shell, inline: " d /vagrant ; python unit_tests.py", privileged: false
     waiwera.vm.hostname = "waiwera-centos"
   end
   config.vm.provider :virtualbox do |v|

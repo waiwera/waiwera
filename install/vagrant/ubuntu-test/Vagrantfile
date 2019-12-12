@@ -11,7 +11,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
     waiwera.vm.provision :shell, inline: "apt install python-pip -y && pip install --upgrade ansible"
     # Root access for initial setup
     waiwera.vm.provision "ansible_local" do |ansible|
-      ansible.provisioning_path = "/vagrant/waiwera/install/ansible"
+      ansible.provisioning_path = "/vagrant/install/ansible"
       ansible.verbose = "vv"
       ansible.playbook = "vagrant_setup.yml"
       ansible.raw_arguments = [

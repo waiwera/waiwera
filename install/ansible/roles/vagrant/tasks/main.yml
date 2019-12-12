@@ -13,8 +13,7 @@
     app_user: "{{ v_user }}"
     base_dir: "{{ v_dir }}"
 
-- name: Include common role
-  import_role:
+- import_role:
     name: common
   vars:
     app_group: "{{ v_group }}"

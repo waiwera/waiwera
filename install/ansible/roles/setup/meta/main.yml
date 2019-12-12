@@ -1,4 +1,5 @@
 ---
 dependencies:
-   - { role: packages,
+   - { role: get_variables,
+       role: packages,
     }

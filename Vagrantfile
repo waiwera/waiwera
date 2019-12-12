@@ -12,13 +12,10 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
    waiwera.vm.provision "ansible_local" do |ansible|
      #ansible.limit = 'waiwera'
      ansible.provisioning_path = "/vagrant/install/ansible"
-     ansible.verbose = "vv"
+     ansible.verbose = "v"
      ansible.playbook = "vagrant.yml"
-     ansible.raw_arguments = [
-      '-vv',
-      '-e waiwera_version=master',
-      '-e base_dir=/home/vagrant',
-     ]
+     # ansible.raw_arguments = [
+     # ]
    end
    waiwera.vm.provision :shell, inline: "cd /vagrant ; python unit_tests.py", privileged: false
    waiwera.vm.hostname = "waiwera-debian"
