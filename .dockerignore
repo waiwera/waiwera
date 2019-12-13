@@ -1,1 +1,5 @@
-install/vagrant
+install/vagrant/*
+**/.git
+**/.vagrant
+external
+**/build
