@@ -19,7 +19,6 @@
     app_group: "{{ v_group }}"
     app_user: "{{ v_user }}"
     base_dir: "{{ v_dir }}"
-    petsc_update: 'true'
   become: no
 
 - name: Change login directory for vagrant VM
