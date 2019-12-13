@@ -41,33 +41,27 @@ def waiwera_docker(args):
     data_path = '/data'
 
     if args.image == None:
-        image = '{0}:{1}'.format(args.repo, args.tag)
+        image = ['{0}:{1}'.format(args.repo, args.tag)]
     else:
-        image = args.image
+        image = [args.image]
 
     if args.num_processors:
-        np ='-np {0}'.format(args.num_processors)
+        np = ['-np', '{}'.format(args.num_processors)]
     else:
-        np = ''
+        np = ['']
 
     if args.interactive:
-        it ='--interactive --tty'
-        mpiexec = ''
-        work_dir = ''
+        it = ['--interactive', '--tty']
+        work_dir = ['']
+        mpiexec = ['']
     else:
-        it  = ''
-        # Change the working directory to
-        build_path = posixpath.join(WAIWERA_PATH, 'build', 'waiwera')
-        mpiexec = 'mpiexec {0} {1}'.format(np, build_path)
-        work_dir = '--workdir {0}'.format(data_path)
-
-    command = ''
-    for string in args.command:
-        command = '{0} {1}'.format(command, string)
+        it  = ['']
+        work_dir = ['--workdir', data_path]
+        mpiexec = ['mpiexec'] + np + [posixpath.join(WAIWERA_PATH, 'build', 'waiwera')]
 
     if not args.noupdate:
         print('Checking for Waiwera update')
-        pull_cmd = "docker pull {0}".format(image)
+        pull_cmd = "docker pull {0}".format(image[0])
         os.system(pull_cmd)
         # print(subprocess.check_output(shlex.split(pull_cmd)))
 
@@ -76,22 +70,23 @@ def waiwera_docker(args):
 
     #  docker run -v ${p}:/data -w /data waiwera-phusion-debian mpiexec -np $args[1] /home/mpirun/waiwera/dist/waiwera $args[0]
     print('Running Waiwera')
-    run_cmd = "docker run --cidfile .cid --rm {0} --volume {1}:{2} {3} {4} \
-                {5} {6}" \
-                .format(it,
-                    current_path,
-                    data_path,
-                    work_dir,
-                    image,
-                    mpiexec,
-                    command)
+    run_cmd = ['docker',
+               'run',
+               '--cidfile', '.cid',
+               '--rm',
+               '--volume', '{}:{}'.format(current_path, data_path),
+               ] + it + work_dir + image + mpiexec + args.command
+    run_cmd = [c for c in run_cmd if c] # remove empty strings
     print(run_cmd)
-    # print(run_cmd)
-    os.system(run_cmd)
-    os.remove(".idcheck")
-    #print(subprocess.check_output(shlex.split(run_cmd)))
+    p = subprocess.Popen(run_cmd)
+    ret = p.wait()
     with open('.cid', 'r') as f:
         cid = f.readline()
+    if ret == 0:
+        print('\nWaiwera finished running using Docker container {}.\n'.format(cid.strip()[:20]))
+    else:
+        print('\nError running Waiwera in Docker container {}.\n'.format(cid.strip()[:20]))
+    os.remove(".idcheck")
     os.remove('.cid')
 
 signal.signal(signal.SIGINT, signal_handler)
