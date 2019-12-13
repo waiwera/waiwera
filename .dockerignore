@@ -2,4 +2,4 @@ install/vagrant/*
 **/.git
 **/.vagrant
 external
-**/build/*
+build/*
