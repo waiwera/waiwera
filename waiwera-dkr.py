@@ -13,6 +13,7 @@ REPO = 'waiwera/waiwera'
 TAG = 'latest'
 WAIWERA_PATH = '/opt/waiwera'
 VERSION = '0.2'
+CID_LEN = 12
 
 ##########
 # A simple python wrapper around the docker image for waiwera
@@ -21,12 +22,12 @@ VERSION = '0.2'
 def signal_handler(sig, frame):
         if os.path.isfile('.cid'):
             with open('.cid', 'r') as f:
-                cid = f.readline()
+                cid = f.readline().strip()[:CID_LEN]
             print('You pressed Ctrl+C! Killing Waiwera container %s' % cid)
-            os.system('docker ps')
+            # os.system('docker ps')
             print('docker kill %s' % cid)
             os.system('docker kill %s' % cid)
-            os.system('docker ps')
+            # os.system('docker ps')
             os.remove('.cid')
         sys.exit(1)
 
@@ -81,11 +82,11 @@ def waiwera_docker(args):
     p = subprocess.Popen(run_cmd)
     ret = p.wait()
     with open('.cid', 'r') as f:
-        cid = f.readline()
+        cid = f.readline().strip()[:CID_LEN]
     if ret == 0:
-        print('\nWaiwera finished running using Docker container {}.\n'.format(cid.strip()[:20]))
+        print('\nWaiwera finished running using Docker container {}.\n'.format(cid))
     else:
-        print('\nError running Waiwera in Docker container {}.\n'.format(cid.strip()[:20]))
+        print('\nError running Waiwera in Docker container {}.\n'.format(cid))
     os.remove(".idcheck")
     os.remove('.cid')
 
