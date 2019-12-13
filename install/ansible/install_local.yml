@@ -9,6 +9,13 @@
       install_dir: "/home/{{ ansible_user_id }}"
 
   - import_role:
+      name: get_variables
+    vars:
+      app_group: "{{ ansible_user_id }}"
+      app_user: "{{ ansible_user_id }}"
+      base_dir: "{{ install_dir }}"
+
+  - import_role:
       name: packages
     vars:
       app_group: "{{ ansible_user_id }}"

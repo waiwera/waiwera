@@ -4,7 +4,7 @@
   register: petsc_test
   ignore_errors: True
 
-- name: petsc - Fetch from petsc from repository
+- name: Fetch from PETSc from repository
   git:
     repo: "{{ petsc_repo }}"
     dest: "{{ petsc_path }}"
@@ -34,7 +34,7 @@
           configure_cmd: "{{ configure_cmd + ' ' + petsc_variables | join(' ') }}"
         when: petsc_arch == 'release'
 
-      - name: configure PETSc
+      - name: Configure PETSc
         command: "{{ configure_cmd }}"
         args:
           chdir: "{{ petsc_path }}"
@@ -42,19 +42,19 @@
         - configure
         - build
 
-    - name: Make PETSc
+    - name: Make
       block:
       - name: make all
         make:
           target: all
           chdir: "{{ petsc_path }}"
 
-      - name: make check
+      - name: Make check
         make:
           target: check
           chdir: "{{ petsc_path }}"
 
-      - name: make test
+      - name: Make test
         make:
           target: test
           chdir: "{{ petsc_path }}"
@@ -62,7 +62,7 @@
         - make
         - build
 
-    - name: petsc - copy to pkgconfig
+    - name: Copy to pkgconfig
       copy:
         src: "{{ petsc_path + '/' + petsc_arch +  '/lib/pkgconfig/PETSc.pc' }}"
         dest: "{{ lib_path }}/pkgconfig/"

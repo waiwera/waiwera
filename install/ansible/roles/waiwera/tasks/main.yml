@@ -3,6 +3,11 @@
 - name: Build
   block:
 
+  - name: Clean build path
+    file:
+      state: absent
+      path: "{{ waiwera_path }}/build/"
+
   - name: waiwera - Meson build
     shell: meson build --buildtype={{ petsc_arch }} --prefix={{ base_dir }} -Dlibdir=lib -Dset_rpath=true
     args:

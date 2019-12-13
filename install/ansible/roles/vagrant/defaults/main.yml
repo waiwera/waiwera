@@ -1,5 +1,5 @@
 ---
-v_dir: /vagrant
+v_dir: /home/vagrant
 v_user: vagrant
 v_group: vagrant
 
