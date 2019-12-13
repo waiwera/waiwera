@@ -44,26 +44,6 @@
     path: "{{ waiwera_path }}/LICENSE"
   register: waiwera_dir
 
-  #- name: Copy waiwera
-  #  block:
-  #   - file:
-  #      path: "{{ playbook_dir }}../../"
-  #      owner: "{{ app_user }}"
-  #      group: "{{ app_group }}"
-  #      mode: u+rw,g+r
-  #
-  #   - synchronize:
-  #       src: "{{ playbook_dir }}../../"
-  #       dest: "{{ waiwera_path }}"
-  #       dirs: yes
-  #       mode: pull
-  #       rsync_opts:
-  #          - "--exclude=.vagrant"
-  #          - "--exclude=*/.vagrant"
-  #          - "--exclude=*external"
-  #
-  #  when: (waiwera_version == 'local') and (waiwera_dir.stat.exists != true)
-
 - name: Fetch waiwera from repository if version is not local
   git:
     repo: "https://{{ waiwera_repo }}"
@@ -79,7 +59,7 @@
 - name: Install PETSc
   import_role:
     name: petsc
-  when: (petsc_test is failed) or (petsc_update == 'true')
+  when: petsc_update == 'true'
   tags:
     - petsc
 
