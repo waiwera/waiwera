@@ -12,7 +12,7 @@ import signal
 REPO = 'waiwera/waiwera'
 TAG = 'latest'
 WAIWERA_PATH = '/opt/waiwera'
-VERSION = '0.1'
+VERSION = '0.2'
 
 ##########
 # A simple python wrapper around the docker image for waiwera
@@ -101,8 +101,8 @@ if __name__ == "__main__":
     """
     parser = argparse.ArgumentParser(description='Runs Waiwera, \
                         the open-source geothermal flow simulator')
-    parser.add_argument('command', nargs='+', help='the command passed to \
-                        waiwera')
+    parser.add_argument('command', nargs=argparse.REMAINDER,
+                        help='the command passed to waiwera')
     parser.add_argument('-np', '--num_processors', help='The number of \
                         processors to utilize, otherwise uses the docker \
                         default for your system')
