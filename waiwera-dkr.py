@@ -19,15 +19,16 @@ VERSION = '0.2'
 #########
 
 def signal_handler(sig, frame):
-        with open('.cid', 'r') as f:
-            cid = f.readline()
-        print('You pressed Ctrl+C! Killing Waiwera container %s' % cid)
-        os.system('docker ps')
-        print('docker kill %s' % cid)
-        os.system('docker kill %s' % cid)
-        os.system('docker ps')
-        os.remove('.cid')
-        sys.exit(0)
+        if os.path.isfile('.cid'):
+            with open('.cid', 'r') as f:
+                cid = f.readline()
+            print('You pressed Ctrl+C! Killing Waiwera container %s' % cid)
+            os.system('docker ps')
+            print('docker kill %s' % cid)
+            os.system('docker kill %s' % cid)
+            os.system('docker ps')
+            os.remove('.cid')
+        sys.exit(1)
 
 def convert_path_nt_to_posix(path):
     return '/{0}'.format(path.replace("\\","/").replace(":",""))
