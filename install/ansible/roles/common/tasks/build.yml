@@ -59,7 +59,6 @@
 - name: Install PETSc
   import_role:
     name: petsc
-  when: petsc_update == 'true'
   tags:
     - petsc
 

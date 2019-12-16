@@ -14,7 +14,7 @@
   register: petsc_git
   tags:
     - fetch
-  when: petsc_test is failed
+  when: (petsc_test is failed) or (petsc_update == 'true')
 
 - name: Change PETSc permissions
   file:
