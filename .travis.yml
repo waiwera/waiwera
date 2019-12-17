@@ -9,6 +9,8 @@ addons:
   apt:
     packages:
       - python-pip
+      - mpich
+      - libmpich-dev
 
 install:
   - sudo pip install ansible
