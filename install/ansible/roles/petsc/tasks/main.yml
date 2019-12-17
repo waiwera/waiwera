@@ -4,7 +4,7 @@
   register: petsc_test
   ignore_errors: True
 
-- name: Fetch from PETSc from repository
+- name: Fetch PETSc from repository
   git:
     repo: "{{ petsc_repo }}"
     dest: "{{ petsc_path }}"
@@ -22,6 +22,7 @@
     owner: "{{ app_user }}"
     group: "{{ app_group }}"
     mode: u+rw,g+r
+  when: petsc_test is failed
 
 - name: Build
   block:

@@ -1,7 +1,7 @@
 ---
 # Installs packages but installs to user space
 
-- name: Build Waiwera with and install dependencies
+- name: Build Waiwera and install dependencies
   hosts: localhost
   tasks:
 

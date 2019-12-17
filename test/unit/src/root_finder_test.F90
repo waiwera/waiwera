@@ -135,7 +135,7 @@ contains
   subroutine test_root_finder_Zhang(test)
     ! Zhang function
 
-    ! Zhang (2011), "An Improvement to the Brent’s Method", IJEA,
+    ! Zhang (2011), "An Improvement to the Brent's Method", IJEA,
     ! vol. 2, pp. 21-26.
 
     class(unit_test_type), intent(in out) :: test
