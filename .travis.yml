@@ -1,5 +1,3 @@
-if: branch = travis
-
 language: generic
 
 os: linux
