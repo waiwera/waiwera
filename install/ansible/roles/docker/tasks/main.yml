@@ -5,13 +5,13 @@
 - name: create user and group
   block:
   - user:
-      name: "{{ app_user }}"
+      name: "{{ d_user }}"
       shell: /bin/bash
       uid: 9999
       comment: waiwera app user
 
   - group:
-      name: "{{ app_group }}"
+      name: "{{ d_group }}"
       # shell: /bin/bash
       gid: 9999
       # comment: waiwera app user

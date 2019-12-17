@@ -10,18 +10,44 @@
   tags:
     - always
 
-- name: Set waiwera path variables
+- name: Set path variables
   set_fact:
-    waiwera_path: "{{ base_dir }}/waiwera"
     bin_path: "{{ base_dir }}/bin"
     lib_path: "{{ base_dir }}/lib"
     include_path: "{{ base_dir }}/include"
-    software_path: "{{ base_dir }}/software"
     local_bin: "/home/{{ app_user }}/.local/bin"
+
+- name: Get waiwera path if waiwera_version is local
+  block:
+  - name: Set waiwera path variable as local repo relative to playbook_dir
+    set_fact:
+      waiwera_path: "{{ playbook_dir }}/../.."
+
+  - name: Get waiwera path via pwd
+    command: "pwd"
+    args:
+      chdir: "{{ waiwera_path }}"
+    register: result
+
+  - name: Set waiwera path variable as local repo
+    set_fact:
+      waiwera_path: "{{ result.stdout }}"
+
+  when: waiwera_version == 'local'
+
+- name: Set waiwera path variable for pulling repo to
+  set_fact:
+    waiwera_path: "{{ base_dir }}/waiwera"
+  when: waiwera_version != 'local'
+
+- name: Set external software path
+  set_fact:
+    software_path: "{{ waiwera_path }}/external"
 
 - name: Set petsc layer path variables
   set_fact:
     petsc_path: "{{ software_path }}/PETSc"
+    petsc_arch: "{{ build_type }}"
 
 - name: Set petsc petsc_arch path
   set_fact:

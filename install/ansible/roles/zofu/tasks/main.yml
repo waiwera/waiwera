@@ -1,11 +1,11 @@
 ---
 
-- name: zofu - Set path variable
+- name: Set path variable
   set_fact:
     zofu_path: "{{ software_path }}/zofu"
     zofu_build_path: "{{ zofu_path + '/build' }}"
 
-- name: zofu - tidy path
+- name: Tidy path
   file:
     state: absent
     path: "{{ zofu_path }}"
@@ -13,7 +13,7 @@
     - never
     - tidy
 
-- name: zofu - fetch from github
+- name: Fetch from github
   git:
     repo: 'https://github.com/acroucher/zofu.git'
     dest: "{{ zofu_path }}"
@@ -21,15 +21,15 @@
   tags:
     - fetch
 
-- name: zofu - change ownership
+- name: Change ownership
   file:
     dest: "{{ zofu_path }}"
     owner: "{{ app_user }}"
     group: "{{ app_group }}"
     recurse: yes
-  when: docker_run is defined
+  when: docker_run == true
 
-- name: zofu - meson build
+- name: Meson build
   shell: 'meson build --buildtype=release --prefix={{ base_dir }} --libdir={{ lib_path }} --includedir={{ include_path }}'
   args:
     chdir: "{{ zofu_path }}"
@@ -37,19 +37,19 @@
     - meson
     - build
 
-- name: zofu - ninja steps
+- name: Ninja steps
   block:
-    - name: zofu - ninja build
+    - name: Ninja build
       shell: ninja
       args:
         chdir: "{{ zofu_build_path }}"
 
-    - name: zofu - ninja test
+    - name: Ninja test
       shell: ninja test
       args:
         chdir: "{{ zofu_build_path }}"
 
-    - name: zofu - ninja install
+    - name: Ninja install
       shell: ninja install
       args:
         chdir: "{{ zofu_build_path }}"

@@ -39,15 +39,26 @@
     - fson
   when: fson_build == 'true'
 
-- name: Test for pre-existing PETSc install
-  command: pkg-config --exists PETSc
-  register: petsc_test
-  ignore_errors: True
+- name: Check if waiwera directory exists already
+  stat:
+    path: "{{ waiwera_path }}/LICENSE"
+  register: waiwera_dir
+
+- name: Fetch waiwera from repository if version is not local
+  git:
+    repo: "https://{{ waiwera_repo }}"
+    dest:  "{{ waiwera_path }}"
+    version: "{{ waiwera_version }}"
+    update: yes
+    force: yes
+  register: waiwera_git
+  tags:
+    - fetch
+  when: waiwera_version != 'local'
 
 - name: Install PETSc
   import_role:
     name: petsc
-  when: (petsc_test is failed) or (petsc_update == 'true')
   tags:
     - petsc
 

@@ -1,11 +1,5 @@
 ---
 dependencies:
-   - { # role: spark,
-    role: packages,
-    # linux_add_packages_repositories: "{{ dkr_common_add_packages_repositories }}",
-    # linux_add_packages_keys: "{{ dkr_common_add_packages_keys }}",
-    # linux_add_packages_names: "{{ dkr_common_add_packages_names }}",
-    # linux_remove_packages_names: "{{ dkr_common_remove_packages_names }}",
-    # linux_add_packages_noinstall: "{{ dkr_common_add_packages_noinstall }}",
-    # linux_add_pip_packages: "{{ dkr_common_add_pip_packages_names }}",
+   - { role: get_variables,
+       role: packages,
     }

@@ -21,17 +21,6 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
       ]
     end
     # Non root for local app install
-    waiwera.vm.provision "ansible_local" do |ansible|
-      ansible.provisioning_path = "/vagrant/install/ansible"
-      ansible.verbose = "vv"
-      ansible.playbook = "vagrant_remote.yml"
-      ansible.raw_arguments = [
-        '-e "app_user=waiwera"',
-        '-e "app_group=waiwera"',
-        '-e "base_dir=/home/waiwera"',
-      ]
-    end
-    waiwera.vm.provision :shell, inline: "su - waiwera -c 'cd /home/waiwera/waiwera; python unit_tests.py'"
     waiwera.vm.hostname = "waiwera-ubuntu"
   end
   config.vm.provider :virtualbox do |v|

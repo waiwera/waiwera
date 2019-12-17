@@ -8,21 +8,15 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
   config.vm.box = "bento/centos-7"
   config.vm.synced_folder ".", "/vagrant/"
   config.vm.define :waiwera, primary: true do |waiwera|
-    waiwera.vm.provision :file, source: "../../ansible", destination: "/tmp/ansible"
-    waiwera.vm.provision :shell, inline: "cp -r /tmp/ansible /"
     waiwera.vm.provision :shell, inline: 'yum --enablerepo=extras install -y epel-release'
     waiwera.vm.provision :shell, inline: "yum install python-pip -y && pip install -U ansible"
     waiwera.vm.provision "ansible_local" do |ansible|
       # ansible.limit = 'waiwera'
+      ansible.provisioning_path = "/vagrant/install/ansible"
       ansible.verbose = "vv"
-      ansible.playbook = "/ansible/vagrant.yml"
-      # ansible.raw_arguments = [
-      #   '-e "app_user=vagrant"',
-      #   '-e "app_group=vagrant"',
-      #   '--skip-tags=docker,clean,setup',
-      # ]
+      ansible.playbook = "vagrant.yml"
     end
-    waiwera.vm.provision :shell, inline: "sh /etc/profile.d/opt_paths.sh; cd /opt/app/waiwera; python unit_tests.py", privileged: false
+    waiwera.vm.provision :shell, inline: " d /vagrant ; python unit_tests.py", privileged: false
     waiwera.vm.hostname = "waiwera-centos"
   end
   config.vm.provider :virtualbox do |v|

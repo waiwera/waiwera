@@ -1,6 +1,10 @@
 ---
+- name: Test for pre-existing PETSc install
+  command: pkg-config --exists PETSc
+  register: petsc_test
+  ignore_errors: True
 
-- name: petsc - Fetch from petsc from repository
+- name: Fetch PETSc from repository
   git:
     repo: "{{ petsc_repo }}"
     dest: "{{ petsc_path }}"
@@ -10,6 +14,15 @@
   register: petsc_git
   tags:
     - fetch
+  when: (petsc_test is failed) or (petsc_update == 'true')
+
+- name: Change PETSc permissions
+  file:
+    path: "{{ petsc_path }}"
+    owner: "{{ app_user }}"
+    group: "{{ app_group }}"
+    mode: u+rw,g+r
+  when: petsc_test is failed
 
 - name: Build
   block:
@@ -22,7 +35,7 @@
           configure_cmd: "{{ configure_cmd + ' ' + petsc_variables | join(' ') }}"
         when: petsc_arch == 'release'
 
-      - name: configure PETSc
+      - name: Configure PETSc
         command: "{{ configure_cmd }}"
         args:
           chdir: "{{ petsc_path }}"
@@ -30,19 +43,19 @@
         - configure
         - build
 
-    - name: Make PETSc
+    - name: Make
       block:
       - name: make all
         make:
           target: all
           chdir: "{{ petsc_path }}"
 
-      - name: make check
+      - name: Make check
         make:
           target: check
           chdir: "{{ petsc_path }}"
 
-      - name: make test
+      - name: Make test
         make:
           target: test
           chdir: "{{ petsc_path }}"
@@ -50,9 +63,9 @@
         - make
         - build
 
-    - name: petsc - copy to pkgconfig
+    - name: Copy to pkgconfig
       copy:
-        src: "{{ petsc_path + '/' + petsc_arch +  '/lib/pkgconfig'}}"
-        dest: "{{ lib_path }}/"
+        src: "{{ petsc_path + '/' + petsc_arch +  '/lib/pkgconfig/PETSc.pc' }}"
+        dest: "{{ lib_path }}/pkgconfig/"
         remote_src: yes
-  when: ((petsc_git.changed == true) or (petsc_force == 'true'))
+  when: ((petsc_git.changed == true) or (petsc_update == 'true') or (petsc_test is failed))

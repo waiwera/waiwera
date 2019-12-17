@@ -12,7 +12,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
    waiwera.vm.provision "ansible_local" do |ansible|
      #ansible.limit = 'waiwera'
      ansible.provisioning_path = "/vagrant/install/ansible"
-     ansible.verbose = "vv"
+     ansible.verbose = "v"
      ansible.playbook = "vagrant.yml"
      # ansible.raw_arguments = [
      # ]
@@ -28,3 +28,4 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
    config.cache.scope = :box
  end
 end
+

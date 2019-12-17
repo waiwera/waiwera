@@ -59,6 +59,10 @@ Thumbs.db
 ###############
 
 */.vagrant
+.vagrant
+external
+bin
+lib
 
 # Vim files #
 #############

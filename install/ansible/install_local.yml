@@ -1,15 +1,19 @@
 ---
+# Installs packages but installs to user space
 
-- name: Build Waiwera with and install dependencies
+- name: Build Waiwera and install dependencies
   hosts: localhost
   tasks:
-  # - name: get the username running the deploy
-  #   become: false
-  #   local_action: command whoami
-  #   register: user
 
   - set_fact:
-      install_dir: "/home/{{ ansible_user_id }}/waiwera"
+      install_dir: "/home/{{ ansible_user_id }}"
+
+  - import_role:
+      name: get_variables
+    vars:
+      app_group: "{{ ansible_user_id }}"
+      app_user: "{{ ansible_user_id }}"
+      base_dir: "{{ install_dir }}"
 
   - import_role:
       name: packages
