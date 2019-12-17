@@ -421,9 +421,8 @@ class DockerEnv(object):
         run_cmd = [c for c in run_cmd if c] # remove empty strings
         print(run_cmd)
         # TODO: window+git bash+toolbox need shell=True to handle path with space
-        # p = subprocess.Popen(run_cmd)
-        # ret = p.wait()
-        ret = os.system(' '.join(run_cmd))
+        p = subprocess.Popen(run_cmd)
+        ret = p.wait()
         with open('.cid', 'r') as f:
             cid = f.readline().strip()[:CID_LEN]
         if ret == 0:
