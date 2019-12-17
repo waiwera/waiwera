@@ -107,7 +107,8 @@ class DockerEnv(object):
                         if not self.running:
                             raise Exception('Error, unable to repair Docker Toolbox!')
                 else:
-                    raise Exception('Error, Docker is not running: {}'.format(self.info['ServerErrors']) )
+                    svr_err = 'n'.join(self.info['ServerErrors'])
+                    raise Exception('Error, Docker is not running: {}'.format(svr_err) )
         if self.is_toolbox and len(self.folder_map) == 0:
             self.folder_map = self.get_vbox_share(verbose=True)
 
@@ -148,7 +149,8 @@ class DockerEnv(object):
         if self.running:
             if 'ServerErrors' in self.info:
                 # docker info return ok, but docker server not working
-                if verbose: print('    Docker daemon error: \n     {0}'.format(self.info['ServerErrors']))
+                svr_err = 'n'.join(self.info['ServerErrors'])
+                if verbose: print('    Docker daemon error: \n     {0}'.format(svr_err))
                 self.running = False
             else:
                 if verbose: print('    Running on {0}'.format(self.info['OperatingSystem']))
