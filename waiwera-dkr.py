@@ -23,6 +23,14 @@ CID_LEN = 12
 
 ### TODO, separate module in new package
 
+def bytes2str(s):
+    """ Handle suprocess routines often return bytes instead of str in python3,
+    which is different from python2 """
+    if hasattr(s, 'decode'):
+        return s.decode()
+    else:
+        return s
+
 def call(cmds, input=None, verbose=False, error_fmt='{}'):
     try:
         p = subprocess.Popen(cmds, stdin=subprocess.PIPE,
@@ -31,6 +39,7 @@ def call(cmds, input=None, verbose=False, error_fmt='{}'):
         if verbose: print(error_fmt.format(e))
         return False, '', str(e)
     out, err = p.communicate(input=input)
+    out, err = bytes2str(out), bytes2str(err)
     retcode = p.wait()
     if retcode == 0:
         return True, out, err
@@ -57,6 +66,7 @@ def check_tool(name, pth_env, exe_name, cmds, fmt='Found {}', default_pth='',
         else:
             raise Exception('Failed to find {0}'.format(name))
     v = subprocess.check_output(cmds).strip()
+    v = bytes2str(v)
     if verbose: print(fmt.format(v))
     return True
 
@@ -108,6 +118,7 @@ class DockerEnv(object):
         self.exists, out, err = call(['docker', '--version'],
                             input=None, verbose=verbose,
                             error_fmt='    Cannot find docker command: \n    {0}')
+        out, err = bytes2str(out), bytes2str(err)
         if self.exists and verbose:
             print('    {}'.format(out.strip()))
         return self.exists
@@ -184,6 +195,7 @@ class DockerEnv(object):
         ## checking has vm for docker-machine, create one if not
         if verbose: print('Checking if VM {0} exists...'.format(vm))
         vms = subprocess.check_output(['VBoxManage', 'list', 'vms']).strip()
+        vms = bytes2str(vms)
         if '"{0}"'.format(vm) not in vms:
             if verbose: print('    VM {0} does not exist, cleanup and re-create one...'.format(vm))
             subprocess.call(['docker-machine', 'rm', '-f', vm])
@@ -207,6 +219,7 @@ class DockerEnv(object):
         ## checking status of the machine, if not running, start docker-machine
         if verbose: print('Checking if docker-machine is running...')
         vmstatus = subprocess.check_output(['docker-machine', 'status', vm]).strip()
+        vmstatus = bytes2str(vmstatus)
         if vmstatus != 'Running':
             if verbose: print('    docker-machine is not running, starting...')
             # start
@@ -229,7 +242,9 @@ class DockerEnv(object):
             time.sleep(5)
         ## final checking docker-machine status
         vmstatus = subprocess.check_output(['docker-machine', 'status', vm]).strip()
+        vmstatus = bytes2str(vmstatus)
         vmip = subprocess.check_output(['docker-machine', 'ip', vm]).strip()
+        vmip = bytes2str(vmip)
         if verbose: print('    Docker is {0}, configured to use the {1} machine with IP {2}'.format(vmstatus, vm, vmip))
 
         ## this sets current users environment (within this script)
@@ -267,6 +282,7 @@ class DockerEnv(object):
         vm = self.toolbox_vm()
         self._find_vboxmanage(verbose=False)
         vminfo = subprocess.check_output(['vboxmanage', 'showvminfo', vm])
+        vminfo = bytes2str(vminfo)
         return parse_vminfo(vminfo)
 
     def convert_path_vbox_share(self, path):
@@ -361,9 +377,8 @@ class DockerEnv(object):
             ])
         # python2 returns strings, python2 returns bytes
         # in python2 b'' == '', in python3 it matters
-        fs1 = [f.rstrip(b'\\') for f in lsout.splitlines() if f]
-        if hasattr(fs1[0], 'decode'):
-            fs1 = [s.decode() for s in fs1]
+        lsout = bytes2str(lsout)
+        fs1 = [f.rstrip('\\') for f in lsout.splitlines() if f]
         fs2 = [f for f in glob.glob('*')]
         if set(fs1) != set(fs2):
             msg = str(fs1) + ' != ' + str(fs2)
