@@ -76,7 +76,7 @@ def waiwera_docker(args):
                '--cidfile', '.cid',
                '--rm',
                '--volume', '{}:{}'.format(current_path, data_path),
-               ] + it + work_dir + image + mpiexec + args.command
+               ] + it + work_dir + image + mpiexec + args.waiwera_args
     run_cmd = [c for c in run_cmd if c] # remove empty strings
     print(run_cmd)
     p = subprocess.Popen(run_cmd)
@@ -98,7 +98,7 @@ if __name__ == "__main__":
     """
     parser = argparse.ArgumentParser(description='Runs Waiwera, \
                         the open-source geothermal flow simulator')
-    parser.add_argument('command', nargs=argparse.REMAINDER,
+    parser.add_argument('waiwera_args', nargs=argparse.REMAINDER,
                         help='the command passed to waiwera')
     parser.add_argument('-np', '--num_processors', help='The number of \
                         processors to utilize, otherwise uses the docker \
