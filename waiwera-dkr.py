@@ -541,7 +541,7 @@ if __name__ == "__main__":
     Args:
     """
     parser = argparse.ArgumentParser(description='Runs Waiwera, \
-                        the open-source geothermal flow simulator')
+                        the parallel open-source geothermal flow simulator')
     parser.add_argument('waiwera_args', nargs=argparse.REMAINDER,
                         help='the command passed to waiwera')
     parser.add_argument('-np', '--num_processes', help='the number of \
@@ -559,7 +559,7 @@ if __name__ == "__main__":
                         action='store_true')
     group = parser.add_mutually_exclusive_group()
     group.add_argument('-nu','--noupdate',
-                    help='do not check for an updated image before running',
+                    help='do not check for an updated waiwera image before running',
                     action='store_true')
     group.add_argument('-u','--update',
                     help='pull an updated waiwera image and exit',
@@ -568,7 +568,7 @@ if __name__ == "__main__":
                     help='test docker --volume (bind mount) with current directory and exit',
                     action='store_true')
     parser.add_argument('-v','--verbose',
-                    help='print more diagnosis message while running',
+                    help='print additional diagnostic messages while running',
                     action='store_true')
 
     if len(sys.argv)==1:
