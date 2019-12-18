@@ -48,6 +48,31 @@ runs Waiwera in parallel with 16 processes.
 
 The ``waiwera-dkr.py`` script has some other optional parameters for more advanced features. Documentation for these parameters can be found by running ``python waiwera-dkr.py --help``.
 
+.. index:: Docker; options
+
+Optional parameters for the ``waiwera-dkr.py`` script
+-----------------------------------------------------
+
+Besides the ``-np`` option for specifying the number of processes, the ``waiwera-dkr.py`` script has some other optional parameters for controlling its behaviour. Details of all available options can be displayed using the ``--help`` (or ``-h``) option, e.g.:
+
+.. code-block:: bash
+
+   python waiwera-dkr.py --help
+
+or:
+
+.. code-block:: bash
+
+   python waiwera-dkr.py -h
+
+These options include:
+
+- ``--noupdate`` (or ``-nu``): do not check for or download an updated Waiwera Docker image before running (the default behaviour is to check before each run, and download an updated image if there is one available)
+- ``--update`` (or ``-u``): check for an updated Waiwera Docker image and download if available, and then exit (without running anything)
+- ``--test_volume`` (or ``-tv``): test that the sharing of files between the current directory and the Docker container is working correctly, and then exit
+- ``--verbose`` (or ``-v``): output additional diagnostic message while running (for debugging Docker-related problems)
+- ``--interactive`` (or ``-it``): start an interactive Linux terminal inside the Docker container. If a command is also specified then this will be run.
+
 .. index:: Docker; file paths
 
 File paths when running with Docker
