@@ -455,7 +455,8 @@ class DockerEnv(object):
         ret = p.wait()
 
     def run_waiwera(self, waiwera_args=[], image=None, repo=REPO, tag=TAG,
-                    num_processes=None, interactive=False, noupdate=False):
+                    num_processes=None, interactive=False, noupdate=False,
+                    verbose=False):
         """ run waiwera """
         current_path = self.volume_path()
         data_path = '/data'
@@ -482,12 +483,12 @@ class DockerEnv(object):
             mpiexec = ['']
             if len(waiwera_args) == 0:
                 mpiexec = ['/bin/bash']
-            print('Running {}'.format(mpiexec + waiwera_args))
+            # print('Interactive {}'.format(mpiexec + waiwera_args))
         else:
             it  = ['']
             work_dir = ['--workdir', data_path]
             mpiexec = ['mpiexec'] + np + [WAIWERA_PATH]
-            print('Running Waiwera')
+            # print('Running Waiwera')
 
         fo = open(".idcheck", "wb")
         fo.close()
@@ -500,7 +501,8 @@ class DockerEnv(object):
                    '--volume', '{}:{}'.format(current_path, data_path),
                    ] + it + work_dir + image + mpiexec + waiwera_args
         run_cmd = [c for c in run_cmd if c] # remove empty strings
-        print(run_cmd)
+        if verbose: print('Docker command:', run_cmd)
+        print('Running Docker...')
         # TODO: window+git bash+toolbox need shell=True to handle path with space
         p = subprocess.Popen(run_cmd)
         ret = p.wait()
@@ -565,6 +567,9 @@ if __name__ == "__main__":
     parser.add_argument('-tv','--test_volume',
                     help='test docker --volume (bind mount) with current directory and exit',
                     action='store_true')
+    parser.add_argument('-v','--verbose',
+                    help='print more diagnosis message while running',
+                    action='store_true')
 
     if len(sys.argv)==1:
         parser.print_help(sys.stderr)
@@ -587,7 +592,7 @@ if __name__ == "__main__":
     if args.waiwera_args or args.interactive:
         # ONLY run with at least one waiwera_args (usually input .json file)
         accept_kws = ['waiwera_args', 'image', 'repo', 'tag', 'num_processes',
-                      'interactive', 'noupdate']
+                      'interactive', 'noupdate', 'verbose']
         kw_run_waiwera = {k:v for k,v in vars(args).items() if k in accept_kws}
         dkr.run_waiwera(**kw_run_waiwera)
 
