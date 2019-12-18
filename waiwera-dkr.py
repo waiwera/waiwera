@@ -461,7 +461,9 @@ class DockerEnv(object):
         if interactive:
             it = ['--interactive', '--tty']
             work_dir = ['']
-            mpiexec = ['/bin/bash']
+            mpiexec = ['']
+            if len(waiwera_args) == 0:
+                mpiexec = ['/bin/bash']
         else:
             it  = ['']
             work_dir = ['--workdir', data_path]
