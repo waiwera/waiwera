@@ -604,7 +604,7 @@ if __name__ == "__main__":
                         default=REPO)
     parser.add_argument('-t', '--tag',
                         default=TAG)
-    parser.add_argument('-i', '--image', help='The docker image to use \
+    parser.add_argument('-i', '--image', help='the docker image to use \
                         e.g. waiwera/waiwera:latest')
     parser.add_argument('-it','--interactive',
                         help='starts an interactive terminal and does NOT run \
@@ -618,7 +618,7 @@ if __name__ == "__main__":
                     help='pulling an image update to update waiwera (without running simulation)',
                     action='store_true')
     parser.add_argument('-tv','--test_volume',
-                    help='Test docker --volume (bind mount) with current directory',
+                    help='test docker --volume (bind mount) with current directory',
                     action='store_true')
 
     if len(sys.argv)==1:
