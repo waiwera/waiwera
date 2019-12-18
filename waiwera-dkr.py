@@ -17,7 +17,8 @@ import shutil
 
 REPO = 'waiwera/waiwera'
 TAG = 'latest'
-WAIWERA_PATH = '/opt/waiwera/build/waiwera'
+WAIWERA_PATH = '/opt/waiwera'
+WAIWERA_EXE = '/opt/waiwera/build/waiwera'
 VERSION = '0.3'
 CID_LEN = 12
 
@@ -454,6 +455,49 @@ class DockerEnv(object):
         p = subprocess.Popen(pull_cmd)
         ret = p.wait()
 
+    def run_copy_examples(self, image=None, repo=REPO, tag=TAG, verbose=False):
+        current_path = self.volume_path()
+        data_path = '/data'
+
+        if image == None:
+            image = ['{0}:{1}'.format(repo, tag)]
+        else:
+            image = [image]
+
+        work_dir = ['--workdir', data_path]
+        cmd = ['/bin/bash', '.copy_examples.sh']
+        # cmd = ['pwd']
+
+        fo = open(".idcheck", "wb")
+        fo.close()
+
+        with open(".copy_examples.sh", 'w') as fo:
+            fo.write('n'.join([
+                'cp -R /opt/waiwera/test/benchmark ./examples'.format(WAIWERA_PATH + ''),
+                ]))
+
+        run_cmd = ['docker',
+                   'run',
+                   '--cidfile', '.cid',
+                   '--rm',
+                   '--volume', '{}:{}'.format(current_path, data_path),
+                   ] + work_dir + image + cmd
+        run_cmd = [c for c in run_cmd if c] # remove empty strings
+        if verbose: print('Docker command:', run_cmd)
+        print('Running Docker...')
+        # TODO: window+git bash+toolbox need shell=True to handle path with space
+        p = subprocess.Popen(run_cmd)
+        ret = p.wait()
+        with open('.cid', 'r') as f:
+            cid = f.readline().strip()[:CID_LEN]
+        if ret == 0:
+            print('\nWaiwera finished running using Docker container {}.\n'.format(cid))
+        else:
+            print('\nError running Waiwera in Docker container {}.\n'.format(cid))
+        os.remove(".idcheck")
+        os.remove('.cid')
+        os.remove('.copy_examples.sh')
+
     def run_waiwera(self, waiwera_args=[], image=None, repo=REPO, tag=TAG,
                     num_processes=None, interactive=False, noupdate=False,
                     verbose=False):
@@ -487,7 +531,7 @@ class DockerEnv(object):
         else:
             it  = ['']
             work_dir = ['--workdir', data_path]
-            mpiexec = ['mpiexec'] + np + [WAIWERA_PATH]
+            mpiexec = ['mpiexec'] + np + [WAIWERA_EXE]
             # print('Running Waiwera')
 
         fo = open(".idcheck", "wb")
@@ -570,6 +614,9 @@ if __name__ == "__main__":
     parser.add_argument('-v','--verbose',
                     help='print additional diagnostic messages while running',
                     action='store_true')
+    parser.add_argument('-e','--examples',
+                    help='create example models (./examples) at current directory and exit',
+                    action='store_true')
 
     if len(sys.argv)==1:
         parser.print_help(sys.stderr)
@@ -587,6 +634,12 @@ if __name__ == "__main__":
         accept_kws = ['image', 'repo', 'tag']
         kws = {k:v for k,v in vars(args).items() if k in accept_kws}
         dkr.run_docker_pull(**kws)
+        exit(0)
+
+    if args.examples:
+        accept_kws = ['image', 'repo', 'tag', 'verbose']
+        kws = {k:v for k,v in vars(args).items() if k in accept_kws}
+        dkr.run_copy_examples(**kws)
         exit(0)
 
     if args.waiwera_args or args.interactive:
