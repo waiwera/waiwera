@@ -455,7 +455,7 @@ class DockerEnv(object):
         ret = p.wait()
 
     def run_waiwera(self, waiwera_args=[], image=None, repo=REPO, tag=TAG,
-                    num_processors=None, interactive=False, noupdate=False):
+                    num_processes=None, interactive=False, noupdate=False):
         """ run waiwera """
         current_path = self.volume_path()
         data_path = '/data'
@@ -465,8 +465,8 @@ class DockerEnv(object):
         else:
             image = [image]
 
-        if num_processors:
-            np = ['-np', '{}'.format(num_processors)]
+        if num_processes:
+            np = ['-np', '{}'.format(num_processes)]
         else:
             np = ['']
 
@@ -543,8 +543,8 @@ def waiwera_docker(args):
     else:
         image = [args.image]
 
-    if args.num_processors:
-        np = ['-np', '{}'.format(args.num_processors)]
+    if args.num_processes:
+        np = ['-np', '{}'.format(args.num_processes)]
     else:
         np = ['']
 
@@ -597,7 +597,7 @@ if __name__ == "__main__":
                         the open-source geothermal flow simulator')
     parser.add_argument('waiwera_args', nargs=argparse.REMAINDER,
                         help='the command passed to waiwera')
-    parser.add_argument('-np', '--num_processors', help='The number of \
+    parser.add_argument('-np', '--num_processes', help='The number of \
                         processors to utilize, otherwise uses the docker \
                         default for your system')
     parser.add_argument('-r', '--repo',
@@ -641,7 +641,7 @@ if __name__ == "__main__":
 
     if args.waiwera_args or args.interactive:
         # ONLY run with at least one waiwera_args (usually input .json file)
-        accept_kws = ['waiwera_args', 'image', 'repo', 'tag', 'num_processors',
+        accept_kws = ['waiwera_args', 'image', 'repo', 'tag', 'num_processes',
                       'interactive', 'noupdate']
         kw_run_waiwera = {k:v for k,v in vars(args).items() if k in accept_kws}
         dkr.run_waiwera(**kw_run_waiwera)
