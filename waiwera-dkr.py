@@ -614,7 +614,7 @@ if __name__ == "__main__":
     group.add_argument('-nu','--noupdate',
                     help='stops the script pulling an image update',
                     action='store_true')
-    group.add_argument('-up','--update',
+    group.add_argument('-u','--update',
                     help='pulling an image update to update waiwera (without running simulation)',
                     action='store_true')
     parser.add_argument('-tv','--test_volume',
