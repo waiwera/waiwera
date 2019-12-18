@@ -563,7 +563,7 @@ if __name__ == "__main__":
                     help='pull an updated waiwera image and exit',
                     action='store_true')
     parser.add_argument('-tv','--test_volume',
-                    help='test docker --volume (bind mount) with current directory',
+                    help='test docker --volume (bind mount) with current directory and exit',
                     action='store_true')
 
     if len(sys.argv)==1:
@@ -576,6 +576,7 @@ if __name__ == "__main__":
     # print('docker.exist', dkr.exists, 'dkr.running', dkr.running, 'dkr.is_toolbox', dkr.is_toolbox)
     if args.test_volume:
         dkr.run_ls_test()
+        exit(0)
 
     if args.update:
         accept_kws = ['image', 'repo', 'tag']
