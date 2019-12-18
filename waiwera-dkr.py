@@ -470,28 +470,29 @@ class DockerEnv(object):
         else:
             np = ['']
 
-        if interactive:
-            it = ['--interactive', '--tty']
-            work_dir = ['']
-            mpiexec = ['']
-            if len(waiwera_args) == 0:
-                mpiexec = ['/bin/bash']
-        else:
-            it  = ['']
-            work_dir = ['--workdir', data_path]
-            mpiexec = ['mpiexec'] + np + [WAIWERA_PATH]
-
         if not noupdate:
             print('Checking for Waiwera update')
             pull_cmd = ['docker', 'pull'] + image
             p = subprocess.Popen(pull_cmd)
             ret = p.wait()
 
+        if interactive:
+            it = ['--interactive', '--tty']
+            work_dir = ['']
+            mpiexec = ['']
+            if len(waiwera_args) == 0:
+                mpiexec = ['/bin/bash']
+            print('Running {}'.format(mpiexec + waiwera_args))
+        else:
+            it  = ['']
+            work_dir = ['--workdir', data_path]
+            mpiexec = ['mpiexec'] + np + [WAIWERA_PATH]
+            print('Running Waiwera')
+
         fo = open(".idcheck", "wb")
         fo.close()
 
         #  docker run -v ${p}:/data -w /data waiwera-phusion-debian mpiexec -np $args[1] /home/mpirun/waiwera/dist/waiwera $args[0]
-        print('Running Waiwera')
         run_cmd = ['docker',
                    'run',
                    '--cidfile', '.cid',
@@ -556,10 +557,10 @@ if __name__ == "__main__":
                         action='store_true')
     group = parser.add_mutually_exclusive_group()
     group.add_argument('-nu','--noupdate',
-                    help='stops the script pulling an image update',
+                    help='do not check for an updated image before running',
                     action='store_true')
     group.add_argument('-u','--update',
-                    help='pulling an image update to update waiwera (without running simulation)',
+                    help='pull an updated waiwera image and exit',
                     action='store_true')
     parser.add_argument('-tv','--test_volume',
                     help='test docker --volume (bind mount) with current directory',
