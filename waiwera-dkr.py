@@ -401,7 +401,7 @@ class DockerEnv(object):
                 if 'y' in ymnt.lower():
                     drv = drv + '\\'
                     sname = drv[0].upper()
-                    toolbox_conf_share_win(self.info['Name'], to_mount=[(drv, sname)],
+                    self.conf_vbox_share(self.info['Name'], to_mount=[(drv, sname)],
                                            start_after_config=True)
                     self.folder_map = self.get_vbox_share(verbose=True)
                 else:
@@ -599,11 +599,17 @@ if __name__ == "__main__":
                     help='stops the script pulling an image update',
                     action='store_true')
 
+    if len(sys.argv)==1:
+        parser.print_help(sys.stderr)
+        sys.exit(1)
+
     args = parser.parse_args()
     # waiwera_docker(args)
 
     dkr = DockerEnv(check=True)
     # print('docker.exist', dkr.exists, 'dkr.running', dkr.running, 'dkr.is_toolbox', dkr.is_toolbox)
     # dkr.run_ls_test()
-    dkr.run_waiwera(**(vars(args)))
+    if args.waiwera_args or args.interactive:
+        # ONLY run with at least one waiwera_args (usually input .json file)
+        dkr.run_waiwera(**(vars(args)))
 
