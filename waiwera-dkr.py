@@ -598,7 +598,7 @@ if __name__ == "__main__":
                         help='starts an interactive terminal and does NOT run \
                         mpiexec by default',
                         action='store_true')
-    parser.add_argument('-u','--noupdate',
+    parser.add_argument('-nu','--noupdate',
                     help='stops the script pulling an image update',
                     action='store_true')
     parser.add_argument('-tv','--test_volume',
