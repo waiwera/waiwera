@@ -491,9 +491,9 @@ class DockerEnv(object):
         with open('.cid', 'r') as f:
             cid = f.readline().strip()[:CID_LEN]
         if ret == 0:
-            print('\nWaiwera finished running using Docker container {}.\n'.format(cid))
+            print('\nFinished running using Docker container {}.\n'.format(cid))
         else:
-            print('\nError running Waiwera in Docker container {}.\n'.format(cid))
+            print('\nError copying examples from Docker container {}.\n'.format(cid))
         os.remove(".idcheck")
         os.remove('.cid')
         os.remove('.copy_examples.sh')
