@@ -472,8 +472,16 @@ class DockerEnv(object):
         fo.close()
 
         with open(".copy_examples.sh", 'w') as fo:
+            cp = '(cd {0}/test/benchmark/ && '\
+                 'find . -type f -name \\{1} -exec tar cf - \{\} +)'\
+                 ' | (cd /data/examples && tar xf -)'
             fo.write('n'.join([
-                'cp -R !(*.py,.gitignore,*.listing) {}/test/benchmark ./examples'.format(WAIWERA_PATH),
+                'mkdir -p examples',
+                cp.format(WAIWERA_PATH, '*.json'),
+                cp.format(WAIWERA_PATH, 'g*.dat'),
+                cp.format(WAIWERA_PATH, '*.exo'),
+                cp.format(WAIWERA_PATH, '*.msh'),
+                # 'cp -R !(*.py,.gitignore,*.listing) {}/test/benchmark ./examples'.format(WAIWERA_PATH),
                 ]))
 
         run_cmd = ['docker',
