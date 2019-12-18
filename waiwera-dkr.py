@@ -542,7 +542,7 @@ if __name__ == "__main__":
                         the open-source geothermal flow simulator')
     parser.add_argument('waiwera_args', nargs=argparse.REMAINDER,
                         help='the command passed to waiwera')
-    parser.add_argument('-np', '--num_processes', help='The number of \
+    parser.add_argument('-np', '--num_processes', help='the number of \
                         processors to utilize, otherwise uses the docker \
                         default for your system')
     parser.add_argument('-r', '--repo',
