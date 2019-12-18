@@ -442,7 +442,7 @@ class DockerEnv(object):
                           '        {1}'.format(len(fs1), '\n        '.join(sorted(list(fs1)))))
         return True
 
-    def run_ducker_pull(self, image=None, repo=REPO, tag=TAG):
+    def run_docker_pull(self, image=None, repo=REPO, tag=TAG):
         """ TODO: should we do an docker images to show what available? """
         if image == None:
             image = ['{0}:{1}'.format(repo, tag)]
@@ -586,7 +586,7 @@ if __name__ == "__main__":
     if args.update:
         accept_kws = ['image', 'repo', 'tag']
         kws = {k:v for k,v in vars(args).items() if k in accept_kws}
-        dkr.run_ducker_pull(**kws)
+        dkr.run_docker_pull(**kws)
         exit(0)
 
     if args.waiwera_args or args.interactive:
