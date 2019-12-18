@@ -473,7 +473,7 @@ class DockerEnv(object):
 
         with open(".copy_examples.sh", 'w') as fo:
             fo.write('n'.join([
-                'cp -R /opt/waiwera/test/benchmark ./examples'.format(WAIWERA_PATH + ''),
+                'cp -R !(*.py,.gitignore,*.listing) {}/test/benchmark ./examples'.format(WAIWERA_PATH),
                 ]))
 
         run_cmd = ['docker',
