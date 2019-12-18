@@ -531,62 +531,6 @@ def signal_handler(sig, frame):
 def convert_path_nt_to_posix(path):
     return '/{0}'.format(path.replace("\\","/").replace(":",""))
 
-def waiwera_docker(args):
-    current_path = os.getcwd()
-    if sys.platform == 'win32':
-        current_path = convert_path_nt_to_posix(current_path)
-
-    data_path = '/data'
-
-    if args.image == None:
-        image = ['{0}:{1}'.format(args.repo, args.tag)]
-    else:
-        image = [args.image]
-
-    if args.num_processes:
-        np = ['-np', '{}'.format(args.num_processes)]
-    else:
-        np = ['']
-
-    if args.interactive:
-        it = ['--interactive', '--tty']
-        work_dir = ['']
-        mpiexec = ['']
-    else:
-        it  = ['']
-        work_dir = ['--workdir', data_path]
-        mpiexec = ['mpiexec'] + np + [posixpath.join(WAIWERA_PATH, 'build', 'waiwera')]
-
-    if not args.noupdate:
-        print('Checking for Waiwera update')
-        pull_cmd = "docker pull {0}".format(image[0])
-        os.system(pull_cmd)
-        # print(subprocess.check_output(shlex.split(pull_cmd)))
-
-    fo = open(".idcheck", "wb")
-    fo.close()
-
-    #  docker run -v ${p}:/data -w /data waiwera-phusion-debian mpiexec -np $args[1] /home/mpirun/waiwera/dist/waiwera $args[0]
-    print('Running Waiwera')
-    run_cmd = ['docker',
-               'run',
-               '--cidfile', '.cid',
-               '--rm',
-               '--volume', '{}:{}'.format(current_path, data_path),
-               ] + it + work_dir + image + mpiexec + args.waiwera_args
-    run_cmd = [c for c in run_cmd if c] # remove empty strings
-    print(run_cmd)
-    p = subprocess.Popen(run_cmd)
-    ret = p.wait()
-    with open('.cid', 'r') as f:
-        cid = f.readline().strip()[:CID_LEN]
-    if ret == 0:
-        print('\nWaiwera finished running using Docker container {}.\n'.format(cid))
-    else:
-        print('\nError running Waiwera in Docker container {}.\n'.format(cid))
-    os.remove(".idcheck")
-    os.remove('.cid')
-
 signal.signal(signal.SIGINT, signal_handler)
 
 if __name__ == "__main__":
@@ -626,7 +570,6 @@ if __name__ == "__main__":
         sys.exit(1)
 
     args = parser.parse_args()
-    # waiwera_docker(args)
 
     dkr = DockerEnv(check=True)
     # print('docker.exist', dkr.exists, 'dkr.running', dkr.running, 'dkr.is_toolbox', dkr.is_toolbox)
