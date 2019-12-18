@@ -442,6 +442,18 @@ class DockerEnv(object):
                           '        {1}'.format(len(fs1), '\n        '.join(sorted(list(fs1)))))
         return True
 
+    def run_ducker_pull(self, image=None, repo=REPO, tag=TAG):
+        """ TODO: should we do an docker images to show what available? """
+        if image == None:
+            image = ['{0}:{1}'.format(repo, tag)]
+        else:
+            image = [image]
+
+        print('Checking for Waiwera update')
+        pull_cmd = ['docker', 'pull'] + image
+        p = subprocess.Popen(pull_cmd)
+        ret = p.wait()
+
     def run_waiwera(self, waiwera_args=[], image=None, repo=REPO, tag=TAG,
                     num_processors=None, interactive=False, noupdate=False):
         """ run waiwera """
@@ -601,6 +613,9 @@ if __name__ == "__main__":
     parser.add_argument('-nu','--noupdate',
                     help='stops the script pulling an image update',
                     action='store_true')
+    parser.add_argument('-up','--update',
+                    help='pulling an image update to update waiwera (without running simulation)',
+                    action='store_true')
     parser.add_argument('-tv','--test_volume',
                     help='Test docker --volume (bind mount) with current directory',
                     action='store_true')
@@ -616,6 +631,12 @@ if __name__ == "__main__":
     # print('docker.exist', dkr.exists, 'dkr.running', dkr.running, 'dkr.is_toolbox', dkr.is_toolbox)
     if args.test_volume:
         dkr.run_ls_test()
+
+    if args.update:
+        accept_kws = ['image', 'repo', 'tag']
+        kws = {k:v for k,v in vars(args).items() if k in accept_kws}
+        dkr.run_ducker_pull(**kws)
+        exit(0)
 
     if args.waiwera_args or args.interactive:
         # ONLY run with at least one waiwera_args (usually input .json file)
