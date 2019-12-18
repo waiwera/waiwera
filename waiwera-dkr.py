@@ -610,10 +610,11 @@ if __name__ == "__main__":
                         help='starts an interactive terminal and does NOT run \
                         mpiexec by default',
                         action='store_true')
-    parser.add_argument('-nu','--noupdate',
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument('-nu','--noupdate',
                     help='stops the script pulling an image update',
                     action='store_true')
-    parser.add_argument('-up','--update',
+    group.add_argument('-up','--update',
                     help='pulling an image update to update waiwera (without running simulation)',
                     action='store_true')
     parser.add_argument('-tv','--test_volume',
