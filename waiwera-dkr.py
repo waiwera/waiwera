@@ -252,6 +252,53 @@ class DockerEnv(object):
         ## this sets current users environment (within this script)
         self.update_env(verbose=verbose)
 
+    def conf_vbox_cpu(self, vm, verbose=True):
+        """
+        VBoxManage modifyvm %vm% --cpus %NUMBER_OF_PROCESSORS%
+        VBoxManage modifyvm default --memory !memory!
+        """
+        vm = self.toolbox_vm()
+        self._find_vboxmanage(verbose=verbose)
+        ncpu = multiprocessing.cpu_count()
+        subprocess.call(['VBoxManage', 'modifyvm', vm, '--cpus', str(ncpu)])
+
+    def conf_vbox_share(self, vm, to_mount=[], start_after_config=True, verbose=True):
+        """ configure VM to use more resources, and shared folders """
+        vm = self.toolbox_vm()
+        self._find_vboxmanage(verbose=False)
+        if verbose: print('Configure shared folders in Docker Toolbox...')
+        subprocess.call(['docker-machine', 'start'])
+
+        # TODO help user mount all drives
+        # mapping = dict(self.folder_map)
+        # to_mount = []
+        # for drvltr in 'ABCDEFGHIJKLMNOPQRSTUVWXYZ':
+        #     drv = drvltr+':\\'
+        #     if drv not in mapping and os.path.exists(drv):
+        #         ymnt = raw_input('    Drive {} not shared, do you want to mount it? (Y/[N])?'.format(drv))
+        #         if 'y' in ymnt.lower():
+        #             to_mount.append((drvltr, drvltr))
+
+        if to_mount:
+            subprocess.call(['docker-machine', 'stop'])
+            for drvltr,sname in to_mount:
+                hpath = '{0}\\'.format(drvltr)
+                # hpath = '{0}\\\\'.format(drvltr)
+                # VBoxManage sharedfolder add %1 --name "!lc_drive!" --hostpath "%%I:\\" --automount
+                ok, out, err = call(['VBoxManage', 'sharedfolder', 'add', vm,
+                    '--name', sname, '--hostpath', hpath,
+                    '--automount'],
+                    input=None, verbose=True, error_fmt='    {}')
+                if not ok:
+                    if verbose: print('ERROR! Failed to add share folder in ({0}: --name {1} --hostpath {2}:'.format(
+                    vm, sname, hpath))
+                    if verbose: print(out + err)
+                    raise Exception(out + err)
+            if start_after_config:
+                if verbose: print('    Restart docker-machine after adding share.')
+                subprocess.call(['docker-machine', 'start'])
+                self.update_env(verbose=False)
+
     def get_vbox_share(self, verbose=True):
         """ obtain vm shared drive mapping. VM name can be found in dkr_info['Name']
         """
@@ -285,7 +332,8 @@ class DockerEnv(object):
         self._find_vboxmanage(verbose=False)
         vminfo = subprocess.check_output(['vboxmanage', 'showvminfo', vm])
         vminfo = bytes2str(vminfo)
-        return parse_vminfo(vminfo)
+        self.folder_map = parse_vminfo(vminfo)
+        return self.folder_map
 
     def convert_path_vbox_share(self, path):
         """ might return None if not found in mapping, this should work for both tool """
