@@ -438,7 +438,8 @@ class DockerEnv(object):
                 exit(1)
             raise Exception(msg)
         # print(fs1)
-        if verbose: print('    Bind mount OK! Found {0} files in current directory: \n{1}'.format(len(fs1), '\n'.join(sorted(list(fs1)))))
+        if verbose: print('    Bind mount OK! Found {0} files in current directory:\n'\
+                          '        {1}'.format(len(fs1), '\n        '.join(sorted(list(fs1)))))
         return True
 
     def run_waiwera(self, waiwera_args=[], image=None, repo=REPO, tag=TAG,
@@ -598,6 +599,9 @@ if __name__ == "__main__":
     parser.add_argument('-u','--noupdate',
                     help='stops the script pulling an image update',
                     action='store_true')
+    parser.add_argument('-tv','--test_volume',
+                    help='Test docker --volume (bind mount) with current directory',
+                    action='store_true')
 
     if len(sys.argv)==1:
         parser.print_help(sys.stderr)
@@ -608,8 +612,13 @@ if __name__ == "__main__":
 
     dkr = DockerEnv(check=True)
     # print('docker.exist', dkr.exists, 'dkr.running', dkr.running, 'dkr.is_toolbox', dkr.is_toolbox)
-    # dkr.run_ls_test()
+    if args.test_volume:
+        dkr.run_ls_test()
+
     if args.waiwera_args or args.interactive:
         # ONLY run with at least one waiwera_args (usually input .json file)
-        dkr.run_waiwera(**(vars(args)))
+        accept_kws = ['waiwera_args', 'image', 'repo', 'tag', 'num_processors',
+                      'interactive', 'noupdate']
+        kw_run_waiwera = {k:v for k,v in vars(args).items() if k in accept_kws}
+        dkr.run_waiwera(**kw_run_waiwera)
 
