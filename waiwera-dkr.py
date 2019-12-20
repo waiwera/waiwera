@@ -471,6 +471,28 @@ class DockerEnv(object):
         fo = open(".idcheck", "wb")
         fo.close()
 
+        # TODO: replace the .sh sript with this .py one, copies only some files
+        py_lines = '\n'.join([
+            "import os",
+            "import glob",
+            "import shutil",
+            "DEST_PATH = '/data/examples'",
+            "SOURCE_PATH = '/opt/waiwera/test/benchmark'",
+            "COPY_TYPES = ['g*.dat', '*.json', 'g*.exo', 'g*.msh']",
+            "def md(pth):",
+            "    if not os.path.exists(pth):",
+            "        os.mkdir(pth)",
+            "for root, dirs, files in os.walk(SOURCE_PATH):",
+            "    if os.path.basename(root) not in ['run', 'data']:",
+            "        to_dir = root.replace(SOURCE_PATH, DEST_PATH)",
+            "        md(to_dir)",
+            "        if 'run' in dirs:",
+            "            for fn in COPY_TYPES:",
+            "                for f in glob.glob(os.path.join(root, 'run', fn)):",
+            "                    print('Copying file: {}'.format(f))",
+            "                    shutil.copy2(f, to_dir)",
+            ])
+
         with open(".copy_examples.sh", 'w') as fo:
             # cp = '(cd {0}/test/benchmark/ && '\
             #      'find . -type f -name \\{1} -exec tar cf - \{\} +)'\
