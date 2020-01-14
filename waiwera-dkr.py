@@ -464,8 +464,9 @@ class DockerEnv(object):
         else:
             image = [image]
 
+        script_name = '.copy_examples.py'
         work_dir = ['--workdir', data_path]
-        cmd = ['/bin/bash', '.copy_examples.sh']
+        cmd = ['/usr/bin/python', script_name]
         # cmd = ['pwd']
 
         fo = open(".idcheck", "wb")
@@ -493,19 +494,8 @@ class DockerEnv(object):
             "                    shutil.copy2(f, to_dir)",
             ])
 
-        with open(".copy_examples.sh", 'w') as fo:
-            # cp = '(cd {0}/test/benchmark/ && '\
-            #      'find . -type f -name \\{1} -exec tar cf - \{\} +)'\
-            #      ' | (cd /data/examples && tar xf -)'
-            fo.write('\n'.join([
-                # 'mkdir -p examples',
-                # cp.format(WAIWERA_PATH, '*.json'),
-                # cp.format(WAIWERA_PATH, 'g*.dat'),
-                # cp.format(WAIWERA_PATH, '*.exo'),
-                # cp.format(WAIWERA_PATH, '*.msh'),
-                # 'cp -R !(*.py,.gitignore,*.listing) {}/test/benchmark ./examples'.format(WAIWERA_PATH),
-                'cp -R {}/test/benchmark ./examples'.format(WAIWERA_PATH),
-                ]))
+        with open(script_name, 'w') as fo:
+            fo.write(py_lines)
 
         run_cmd = ['docker',
                    'run',
@@ -527,7 +517,7 @@ class DockerEnv(object):
             print('\nError copying examples from Docker container {}.\n'.format(cid))
         os.remove(".idcheck")
         os.remove('.cid')
-        os.remove('.copy_examples.sh')
+        os.remove(script_name)
 
     def run_waiwera(self, waiwera_args=[], image=None, repo=REPO, tag=TAG,
                     num_processes=None, interactive=False, noupdate=False,
