@@ -601,7 +601,7 @@ def convert_path_nt_to_posix(path):
 
 signal.signal(signal.SIGINT, signal_handler)
 
-if __name__ == "__main__":
+def main():
     """
     Args:
     """
