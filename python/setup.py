@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="waiwera", # Replace with your own username
-    version="0.0.1",
+    version="0.0.2",
     author="Example Author",
     author_email="cyeh015@aucklanduni.ac.nz",
     description="Python package for the Waiwera simulator",
