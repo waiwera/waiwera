@@ -36,4 +36,37 @@ To run a model, please navigate to the input file's location, and run the comman
     python setup.py sdist bdist_wheel
     twine upload --repository-url https://test.pypi.org/legacy/ dist/*
 
-    
+In GitHub I am trying to use workflow/action, to trigger building and uploading of the package.  This is done by creating a workflow file `.github/workflows/pythonpublish.yml`:
+
+    name: Build and Upload Python Package
+
+    on:
+      push:
+        branches:
+        - py-package
+        
+    jobs:
+      deploy:
+        runs-on: ubuntu-latest
+        steps:
+        - uses: actions/checkout@v1
+        - name: Set up Python
+          uses: actions/setup-python@v1
+          with:
+            python-version: '3.x'
+        - name: Install dependencies
+          run: |
+            python -m pip install --upgrade pip
+            pip install setuptools wheel twine
+        - name: Build and publish
+          env:
+            TWINE_USERNAME: ${{ secrets.PYPI_USERNAME }}
+            TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
+          run: |
+            cd python
+            python setup.py sdist bdist_wheel
+            twine upload --repository-url https://test.pypi.org/legacy/ dist/*
+
+
+Also needs to setup [secrets](https://help.github.com/en/actions/automating-your-workflow-with-github-actions/creating-and-using-encrypted-secrets#creating-encrypted-secrets)
+
