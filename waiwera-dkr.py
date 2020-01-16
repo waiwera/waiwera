@@ -580,6 +580,40 @@ class DockerEnv(object):
         os.remove(".idcheck")
         os.remove('.cid')
 
+def in_directory(file, directory):
+    """ checks if a file is within a directory (or its sub-directories).
+
+    https://stackoverflow.com/q/3812849/2368167
+    make both absolute, true if the common prefix of both is equal to
+    directory e.g. /a/b/c/d.rst and directory is /a/b, the common prefix is
+    /a/b
+    """
+    directory = os.path.join(os.path.realpath(directory), '')
+    file = os.path.realpath(file)
+    return os.path.commonprefix([file, directory]) == directory
+
+def input_file_ok(f):
+    """ ensures input.json ok:
+        1. may or may not be ok, but decided to disencourage users to use abs path
+        2. has to be in sub-folder because Docker --volume bind mount
+        3. has to be linux path sep
+    """
+    ok = True
+    if os.path.isfile(f):
+        if os.path.isabs(f):
+            print('Error, waiwera-dkr (using Docker) does not support absolute file path!')
+            ok = False
+        if not in_directory(f, os.getcwd()):
+            print('Error, waiwera-dkr (using Docker) requires input file to be contained inside current (or sub-directory) directory!')
+            ok = False
+        if '\\' in f:
+            print('Error, waiwera-dkr (using Docker) requires linux-style relative path!')
+            ok = False
+    else:
+        print('Error, simulation input file not found: {0}'.format(f))
+        ok = False
+    return ok
+
 ##########
 # A simple python wrapper around the docker image for waiwera
 #########
@@ -644,6 +678,12 @@ if __name__ == "__main__":
         sys.exit(1)
 
     args = parser.parse_args()
+
+    if args.waiwera_args:
+        if not args.interactive:
+            inok = input_file_ok(args.waiwera_args[0]) # first one always input.json
+            if not inok:
+                exit(1)
 
     dkr = DockerEnv(check=True)
     # print('docker.exist', dkr.exists, 'dkr.running', dkr.running, 'dkr.is_toolbox', dkr.is_toolbox)
