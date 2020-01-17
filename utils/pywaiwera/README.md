@@ -31,6 +31,18 @@ To run a model, please navigate to the input file's location, and run the comman
 
 [User guide](https://waiwera.readthedocs.io/en/latest/)
 
+# Using the PyWaiwera package
+
+    import pywaiwera
+    print(pywaiwera.__version__)
+    env = pywaiwera.docker.DockerEnv()
+    env.run_waiwera(['input.json'])
+
+Or you can import it differently
+
+    from pywaiwera import docker
+
+
 # (Developer) compile and upload package
 
     python setup.py sdist bdist_wheel
