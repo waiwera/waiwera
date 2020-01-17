@@ -23,6 +23,6 @@ jobs:
         TWINE_USERNAME: __token__
         TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
       run: |
-        cd python
+        cd utils/pywaiwera
         python setup.py sdist bdist_wheel
         twine upload --verbose --repository-url https://test.pypi.org/legacy/ dist/*
