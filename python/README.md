@@ -39,12 +39,12 @@ To run a model, please navigate to the input file's location, and run the comman
 In GitHub I am trying to use workflow/action, to trigger building and uploading of the package.  This is done by creating a workflow file `.github/workflows/pythonpublish.yml`:
 
     name: Build and Upload Python Package
-    
+
     on:
       push:
         branches:
         - py-package
-    
+
     jobs:
       deploy:
         runs-on: ubuntu-latest
@@ -60,19 +60,13 @@ In GitHub I am trying to use workflow/action, to trigger building and uploading 
             pip install setuptools wheel twine
         - name: Build and publish
           env:
-            TWINE_USERNAME: ${{ secrets.PYPI_USERNAME }}
+            TWINE_USERNAME: __token__
             TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
           run: |
             cd python
             python setup.py sdist bdist_wheel
             twine upload --repository-url https://test.pypi.org/legacy/ dist/*
 
-
-Also needs to setup [secrets](https://help.github.com/en/actions/automating-your-workflow-with-github-actions/creating-and-using-encrypted-secrets#creating-encrypted-secrets)
-
-TODO, I should probably try to use PyPI token by:
-
-            TWINE_USERNAME: __token__
-            TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
-
 See [PyPA page](https://packaging.python.org/guides/publishing-package-distribution-releases-using-github-actions-ci-cd-workflows/) and [GitHub example code](https://github.com/marketplace/actions/pypi-publish).
+
+Also needs to setup [secrets](https://help.github.com/en/actions/automating-your-workflow-with-github-actions/creating-and-using-encrypted-secrets#creating-encrypted-secrets).  Just add the value of `PYPI_PASSWORD`.
