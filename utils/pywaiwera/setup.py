@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
     long_description = fh.read()
 
 # use official waiwera version number from fortran source
-with open('../src/version.F90', 'r') as fv:
+with open('../../src/version.F90', 'r') as fv:
     matches = re.findall('waiwera_version += +"(.+?)"', fv.read())
     if matches:
         wai_version = matches[0]
@@ -13,7 +13,7 @@ with open('../src/version.F90', 'r') as fv:
         raise Exception('Unable to find waiwera version string.')
 
 setuptools.setup(
-    name="waiwera",
+    name="pywaiwera",
     version=wai_version,
     author="Example Author",
     author_email="cyeh015@aucklanduni.ac.nz",
