@@ -10,6 +10,9 @@ doc/ford/*
 !doc/ford/readme
 *.pyc
 utils/*.pyc
+utils/pywaiwera/build/*
+utils/pywaiwera/dist/*
+utils/pywaiwera/*.egg-info/
 subprojects/fson
 subprojects/zofu
 external/
