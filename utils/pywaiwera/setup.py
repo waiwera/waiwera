@@ -29,5 +29,5 @@ setuptools.setup(
         "Operating System :: OS Independent",
     ],
     python_requires='>=2.7',
-    entry_points={'console_scripts': ['waiwera-dkr = waiwera.docker:main']},
+    entry_points={'console_scripts': ['waiwera-dkr = pywaiwera.docker:main']},
 )
