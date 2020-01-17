@@ -70,3 +70,10 @@ In GitHub I am trying to use workflow/action, to trigger building and uploading 
 See [PyPA page](https://packaging.python.org/guides/publishing-package-distribution-releases-using-github-actions-ci-cd-workflows/) and [GitHub example code](https://github.com/marketplace/actions/pypi-publish).
 
 Also needs to setup [secrets](https://help.github.com/en/actions/automating-your-workflow-with-github-actions/creating-and-using-encrypted-secrets#creating-encrypted-secrets).  Just add the value of `PYPI_PASSWORD`.
+
+It is possible to check package version by `pip freeze`.  However it is slightly more difficult to have a builtin version number that can be displayed when the console script or module is used.  The following code would work, but requires user to have setuptools, which is often available, but not quranteed.
+
+    import pkg_resources
+    dist = pkg_resources.get_distribution("waiwera")
+    VERSION = dist.version
+

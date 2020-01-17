@@ -14,12 +14,13 @@ import re
 import time
 import shutil
 
+import common
 
 REPO = 'waiwera/waiwera'
 TAG = 'latest'
 WAIWERA_PATH = '/opt/waiwera'
 WAIWERA_EXE = '/opt/waiwera/build/waiwera'
-VERSION = '0.3'
+VERSION = common.__version__
 CID_LEN = 12
 
 ### TODO, separate module in new package
