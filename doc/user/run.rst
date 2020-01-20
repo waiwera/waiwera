@@ -12,11 +12,23 @@ How Waiwera is executed depends on whether it is being run as a Docker container
 Running Waiwera using Docker
 ============================
 
-The easiest way to run Waiwera via Docker (see :ref:`using_docker`) is by using the Python script `waiwera-dkr.py <https://raw.githubusercontent.com/waiwera/waiwera/master/waiwera-dkr.py>`_, which is part of the Waiwera source code repository.  You will need `Python <https://www.python.org/>`_ (as well as `Docker <https://www.docker.com/>`_) installed on your machine to be able to run it.
+The easiest way to run Waiwera via Docker (see :ref:`using_docker`) is by using the Python script `waiwera-dkr`, which is part of the Waiwera source code repository.  You will need `Python <https://www.python.org/>`_ (as well as `Docker <https://www.docker.com/>`_) installed on your machine to be able to run it.
 
-Download the ``waiwera-dkr.py`` script to your machine, from the link above. (If you have already cloned or downloaded the Waiwera source code repository, for example to do a :ref:`native_linux_build`, then you can alternatively copy it from the root directory of the source.)
+The easiest way to install is using pip:
 
-What the ``waiwera-dkr.py`` script does
+.. code-block:: bash
+
+   pip install -U pywaiwera
+
+or install as user if you don't have permission to install to the system's Python:
+
+.. code-block:: bash
+
+   pip install -U --user pywaiwera
+
+This will automatically download (and update) the PyWaiwera package.  The ``waiwera-dkr`` script is supplied with the Python package.  Note, you may have to set your environment variable PATH to include where pip installs the ``waiwera-dkr`` script.
+
+What the ``waiwera-dkr`` script does
 ---------------------------------------
 
 This script does three main things:
@@ -25,14 +37,14 @@ This script does three main things:
 - runs Waiwera inside the Docker container
 - manages sharing of files between the Docker container and the directory in which you run Waiwera
 
-How to run the ``waiwera-dkr.py`` script
+How to run the ``waiwera-dkr`` script
 ----------------------------------------
 
-The script is run from the command line in the same way as any other Python script, by typing ``python`` followed by the script name. The name of the JSON input file (see :ref:`waiwera_input`) for your simulation is specified as an argument, e.g. if the simulation has the filename ``model.json``, you can run it as follows:
+The script is run from the command line in the same way as any other program. The name of the JSON input file (see :ref:`waiwera_input`) for your simulation is specified as an argument, e.g. if the simulation has the filename ``model.json``, you can run it as follows:
 
 .. code-block:: bash
 
-   python waiwera-dkr.py model.json
+   waiwera-dkr model.json
 
 This would run simulation in serial. Running in serial is only suitable for small problems. Waiwera is designed primarily for large problems that need to be run in parallel.
 
@@ -42,28 +54,28 @@ To run Waiwera using Docker in parallel, the number of parallel processes must b
 
 .. code-block:: bash
 
-   python waiwera-dkr.py -np 16 model.json
+   waiwera-dkr -np 16 model.json
 
 runs Waiwera in parallel with 16 processes.
 
-The ``waiwera-dkr.py`` script has some other optional parameters for more advanced features. Documentation for these parameters can be found by running ``python waiwera-dkr.py --help``.
+The ``waiwera-dkr`` script has some other optional parameters for more advanced features. Documentation for these parameters can be found by running ``waiwera-dkr --help``.
 
 .. index:: Docker; options
 
-Optional parameters for the ``waiwera-dkr.py`` script
+Optional parameters for the ``waiwera-dkr`` script
 -----------------------------------------------------
 
 Besides the ``-np`` option for specifying the number of processes, the ``waiwera-dkr.py`` script has some other optional parameters for controlling its behaviour. Details of all available options can be displayed using the ``--help`` (or ``-h``) option, e.g.:
 
 .. code-block:: bash
 
-   python waiwera-dkr.py --help
+   waiwera-dkr --help
 
 or:
 
 .. code-block:: bash
 
-   python waiwera-dkr.py -h
+   waiwera-dkr -h
 
 These options include:
 
@@ -87,15 +99,7 @@ The Waiwera JSON input file (see :ref:`waiwera_input`) contains some paths to ot
 Running the script from any directory
 -------------------------------------
 
-On Linux and Mac OS systems, you can use the ``waiwera-dkr.py`` script from any directory by adding its location to your ``PATH`` environment variable (or saving it to a directory that is already in your ``PATH``). If you have downloaded the script from the link above, you will also need to make it executable using ``chmod +x waiwera-dkr.py`` (this is not necessary if you have cloned or downloaded the Waiwera source code repository and copied the script from there).
-
-You can then run the script without the ``python`` command from any directory, e.g.:
-
-.. code-block:: bash
-
-   waiwera-dkr.py -np 16 model.json
-
-On Windows this is also possible (though slightly more involved). First it may be necessary to associate files with the ``*.py`` extension with Python. Then the ``PATHEXT`` and ``PATH`` environment variables need to be set: ``*.py`` should be appended to ``PATHEXT``, and the directory containing the ``waiwera-dkr.py`` script should be appended to ``PATH`` (with semicolon separators in both cases).
+On all systems, you can use the ``waiwera-dkr`` script from any directory by adding its location to your ``PATH`` environment variable (or saving it to a directory that is already in your ``PATH``).  Generally pip would inform you if the location it places the ``waiwera-dkr`` script is in your ``PATH`` environment variable.  
 
 .. index:: running; native Linux executable
 .. _run_native:
@@ -159,7 +163,7 @@ again runs Waiwera in parallel on 16 processes, but also displays PETSc profilin
 
 .. code-block:: bash
 
-   python waiwera-dkr.py -np 16 model.json -log_view
+   waiwera-dkr -np 16 model.json -log_view
 
 More information about specific PETSc command line parameters can be found in the `PETSc <https://www.mcs.anl.gov/petsc/>`_ documentation.
 
