@@ -43,7 +43,7 @@ Or you can import it differently
     from pywaiwera import docker
 
 
-# (Developer) compile and upload package
+# (Developer) Compile and upload package
 
     python setup.py sdist bdist_wheel
     twine upload --repository-url https://test.pypi.org/legacy/ dist/*
@@ -89,3 +89,10 @@ It is possible to check package version by `pip freeze`.  However it is slightly
     dist = pkg_resources.get_distribution("waiwera")
     VERSION = dist.version
 
+# (Developer) Install PyWaiwera as developer
+
+It is possible to install the PyWaiwera package while developing.
+
+  pip install -e utils/pywaiwera
+
+This will install the package in editable mode (develop mode) from a local project path or a version control url.
