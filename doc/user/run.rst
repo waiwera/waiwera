@@ -12,9 +12,9 @@ How Waiwera is executed depends on whether it is being run as a Docker container
 Running Waiwera using Docker
 ============================
 
-The easiest way to run Waiwera via Docker (see :ref:`using_docker`) is by using the Python script `waiwera-dkr`, which is part of the Waiwera source code repository.  You will need `Python <https://www.python.org/>`_ (as well as `Docker <https://www.docker.com/>`_) installed on your machine to be able to run it.
+The easiest way to run Waiwera via Docker (see :ref:`using_docker`) is by using the script `waiwera-dkr`, which is part of the Waiwera source code repository.  You will need `Python <https://www.python.org/>`_ (as well as `Docker <https://www.docker.com/>`_) installed on your machine to be able to run it.
 
-The easiest way to install is using pip:
+The easiest way to install is using ``pip``, Python's package manager:
 
 .. code-block:: bash
 
@@ -26,7 +26,7 @@ or install as user if you don't have permission to install to the system's Pytho
 
    pip install -U --user pywaiwera
 
-This will automatically download (and update) the PyWaiwera package.  The ``waiwera-dkr`` script is supplied with the Python package.  Note, you may have to set your environment variable PATH to include where pip installs the ``waiwera-dkr`` script.
+This will automatically download (and update) the PyWaiwera package.  The ``waiwera-dkr`` script is supplied as part of the Python package.  Note, you may have to set your environment variable PATH to include where pip installs the ``waiwera-dkr`` script.
 
 What the ``waiwera-dkr`` script does
 ---------------------------------------
@@ -99,7 +99,7 @@ The Waiwera JSON input file (see :ref:`waiwera_input`) contains some paths to ot
 Running the script from any directory
 -------------------------------------
 
-On all systems, you can use the ``waiwera-dkr`` script from any directory by adding its location to your ``PATH`` environment variable (or saving it to a directory that is already in your ``PATH``).  Generally pip would inform you if the location it places the ``waiwera-dkr`` script is in your ``PATH`` environment variable.  
+On all systems, you can use the ``waiwera-dkr`` script from any directory by adding its location to your ``PATH`` environment variable.  Generally ``pip`` would inform you if the location it places the ``waiwera-dkr`` script is not in your ``PATH`` environment variable.
 
 .. index:: running; native Linux executable
 .. _run_native:
