@@ -3,7 +3,7 @@ name: Build and Upload Python Package
 on:
   push:
     branches:
-    - py-package
+    - master
 
 jobs:
   deploy:
@@ -25,4 +25,4 @@ jobs:
       run: |
         cd utils/pywaiwera
         python setup.py sdist bdist_wheel
-        twine upload --verbose --repository-url https://test.pypi.org/legacy/ dist/*
+        twine upload --verbose dist/*
