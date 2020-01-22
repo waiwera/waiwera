@@ -1,0 +1,5 @@
+{
+  "app_dir": "/opt",
+  "install_name": "waiwera",
+  "petsc_arch": "release"
+}

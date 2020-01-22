@@ -1,0 +1,35 @@
+---
+
+- name: Test for pre-existing openmpi install
+  command: mpiexec --version
+  register: openmpi_test
+  ignore_errors: True
+
+- name: openmpi - add openmpi to petsc install
+  block:
+
+  - set_fact:
+      petsc_openmpi:
+        - download-openmpi
+
+  - set_fact:
+      petsc_options: "{{petsc_options + petsc_openmpi}}"
+
+  when: openmpi_test is failed
+  tags:
+    - never
+    - local
+
+- name: Run the common tasks to setup waiwera on a system with no root access
+  include: setup.yml
+
+- name:  Build waiwera and depencies
+  environment:
+    PATH: "{{ ansible_env.PATH }}:{{ bin_path }}:{{ local_bin }}:{{ petsc_bin }}"
+    LANG: en_US.UTF-8
+    LC_ALL: en_US.UTF-8
+    LC_TYPE: en_US.UTF-8
+    PETSC_DIR: "{{ petsc_path }}"
+    PETSC_ARCH: "{{ petsc_arch }}"
+    PKG_CONFIG_PATH: "{{ lookup('env','PKG_CONFIG_PATH') }}:{{ pkgconfig_path }}"
+  include: build.yml

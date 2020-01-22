@@ -13,3 +13,78 @@ utils/*.pyc
 subprojects/fson
 subprojects/zofu
 external/
+
+# Compiled source #
+###################
+*.com
+*.class
+*.dll
+*.exe
+*.o
+*.so
+*.pyc
+
+# Packages #
+############
+# it's better to unpack these files and commit the raw source
+# git has its own built in compression methods
+*.7z
+*.dmg
+*.gz
+*.iso
+*.jar
+*.rar
+*.tar
+*.zip
+
+# Logs and databases #
+######################
+*.log
+*.sql
+*.sqlite
+*.csv
+*.pid
+
+# OS generated files #
+######################
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Directories #
+###############
+
+*/.vagrant
+.vagrant
+external
+bin
+lib
+
+# Vim files #
+#############
+
+*.swp
+*.swo
+
+# Local Settings #
+##################
+install/ansible/secrets.yml
+*~
+*.sublime-*
+
+# Ansible Files #
+#################
+*.retry
+
+# Vagrant waiwera #
+###################
+install/vagrant/*/waiwera
+install/vagrant/*/bin
+install/vagrant/*/lib
+install/vagrant/*/software
+install/vagrant/*/include
+

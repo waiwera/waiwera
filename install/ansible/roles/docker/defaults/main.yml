@@ -1,0 +1,10 @@
+---
+# file: roles/x/defaults/main.yml
+# if not overridden in inventory or as a parameter, this is the value that will be used
+d_dir: /opt
+d_user: waiwera
+d_group: waiwera
+
+# d_openmpi:
+#   - libmpich-dev
+# - openssh-client

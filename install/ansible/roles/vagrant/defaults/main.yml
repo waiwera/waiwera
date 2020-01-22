@@ -1,0 +1,8 @@
+---
+v_dir: /home/vagrant
+v_user: vagrant
+v_group: vagrant
+
+# openmpi:
+#   - libmpich-dev
+#  - openssh-client

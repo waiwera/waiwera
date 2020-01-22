@@ -1,0 +1,15 @@
+---
+# Assumes packages have been installed and setup correctly so only builds the repositories locally
+- name: Build Waiwera without privileges
+  hosts: localhost
+  tasks:
+
+  - set_fact:
+      install_dir: "/home/{{ ansible_user_id }}"
+
+  - import_role:
+      name: common
+    vars:
+      base_dir: "{{ install_dir }}"
+      app_user: "{{ ansible_user_id }}"
+      app_group: "{{ ansible_user_id }}"

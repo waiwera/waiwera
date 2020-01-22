@@ -1,0 +1,63 @@
+---
+
+- name: Get Variables
+  include_vars: "{{ item }}"
+  with_first_found:
+    - "../vars/{{ ansible_distribution }}-{{ ansible_distribution_major_version | int}}.yml"
+    - "../vars/{{ ansible_distribution }}.yml"
+    - "../vars/{{ ansible_os_family }}.yml"
+    - "../vars/default.yml"
+  tags:
+    - always
+
+- name: Set path variables
+  set_fact:
+    bin_path: "{{ base_dir }}/bin"
+    lib_path: "{{ base_dir }}/lib"
+    include_path: "{{ base_dir }}/include"
+    local_bin: "/home/{{ app_user }}/.local/bin"
+
+- name: Get waiwera path if waiwera_version is local
+  block:
+  - name: Set waiwera path variable as local repo relative to playbook_dir
+    set_fact:
+      waiwera_path: "{{ playbook_dir }}/../.."
+
+  - name: Get waiwera path via pwd
+    command: "pwd"
+    args:
+      chdir: "{{ waiwera_path }}"
+    register: result
+
+  - name: Set waiwera path variable as local repo
+    set_fact:
+      waiwera_path: "{{ result.stdout }}"
+
+  when: waiwera_version == 'local'
+
+- name: Set waiwera path variable for pulling repo to
+  set_fact:
+    waiwera_path: "{{ base_dir }}/waiwera"
+  when: waiwera_version != 'local'
+
+- name: Set external software path
+  set_fact:
+    software_path: "{{ waiwera_path }}/external"
+
+- name: Set petsc layer path variables
+  set_fact:
+    petsc_path: "{{ software_path }}/PETSc"
+    petsc_arch: "{{ build_type }}"
+
+- name: Set petsc petsc_arch path
+  set_fact:
+    petsc_arch_path: "{{ petsc_path }}/{{ petsc_arch }}"
+
+- name: Set petsc bin bath
+  set_fact:
+    petsc_lib: "{{ petsc_arch_path }}/lib"
+    petsc_bin: "{{ petsc_arch_path }}/bin"
+
+- name: Set pkgconfig layer path variables
+  set_fact:
+     pkgconfig_path: "{{ lib_path }}/pkgconfig"

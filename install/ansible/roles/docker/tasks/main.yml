@@ -1,0 +1,86 @@
+- name: Set docker_status
+  set_fact:
+    docker_run: True
+
+- name: create user and group
+  block:
+  - user:
+      name: "{{ d_user }}"
+      shell: /bin/bash
+      uid: 9999
+      comment: waiwera app user
+
+  - group:
+      name: "{{ d_group }}"
+      # shell: /bin/bash
+      gid: 9999
+      # comment: waiwera app user
+  become: yes
+
+- debug:
+    msg: "openmpi {{ openmpi }}"
+
+- import_role:
+    name: packages
+  vars:
+    app_group: "{{ d_group }}"
+    app_user: "{{ d_user }}"
+    base_dir: "{{ d_dir }}"
+
+- import_role:
+    name: common
+  vars:
+    base_dir: "{{ d_dir }}"
+    app_user: "{{ d_group }}"
+    app_group: "{{ d_user }}"
+    # openmpi:  "{{ d_openmpi }}"
+
+- name: Waiwera install
+  block:
+  - name: waiwera - Ninja build install
+    shell: ninja -C build install
+    when: ansible_distribution != 'CentOS'
+    args:
+      chdir: "{{ waiwera_path }}"
+
+  - name: waiwera - Ninja build install, CentOS
+    shell: "ninja-build -C build install"
+    when: ansible_distribution == 'CentOS'
+    args:
+      chdir: "{{ waiwera_path }}"
+  tags:
+    - ninja
+    - build
+  become: yes
+
+- name: set entrypoint.sh with template
+  template:
+    src: entrypoint.j2
+    dest: '{{ waiwera_path }}/entrypoint.sh'
+    mode: a+x
+  become: no
+
+- name: Cleanup
+  include: cleanup.yml
+  tags:
+    - cleanup
+
+- name: change app deployment ownership
+  file:
+    dest: "{{ waiwera_path }}"
+    owner: "{{ app_user }}"
+    group: "{{ app_group }}"
+    recurse: yes
+  tags:
+    - docker
+    - root
+
+- name: change /usr/local deployment ownership
+  file:
+    dest: /usr/local
+    owner: root
+    group: root
+    recurse: yes
+  tags:
+    - docker
+    - root

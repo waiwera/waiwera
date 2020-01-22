@@ -85,7 +85,7 @@ Time stepping methods
 The time evolution of the solution vector of primary thermodynamic variables :math:`\mathbf{Y}` is found by solving the discretised mass and energy conservation equations, which can be written (see :ref:`time_evolution`) in the general form:
 
 .. math::
-   :label: RLeqn
+   :label: RLeqn2
 
    \frac{d}{dt} \mathbf{L}(t, \mathbf{Y}) = \mathbf{R}(t, \mathbf{Y})
 
@@ -113,10 +113,10 @@ Backwards Euler
 
 The simplest time-stepping method included is the "backwards Euler" method, selected in the Waiwera JSON input file by setting the "method" value in the "time.step" object to **"beuler"**. This fully-implicit method is only first-order accurate, but is highly stable. At least for the present, it is recommended for most applications.
 
-The backwards Euler method discretises equation :eq:`RLeqn` as follows:
+The backwards Euler method discretises equation :eq:`RLeqn2` as follows:
 
 .. math::
-   :label: beuler
+   :label: beuler2
 
    \frac{1}{\Delta t^n} \big(\mathbf{L}^{n+1} - \mathbf{L}^n \big) = \mathbf{R}^{n+1}
 
@@ -129,7 +129,7 @@ BDF2
 
 BDF2 (selected in the Waiwera JSON input file by setting the "method" value in the "time.step" object to **"bdf2"**) is one of a series of "backward differentiation formula" methods (also known as "Gear algorithms") designed for solving stiff differential equations. It is an implicit "linear multistep" method: the new solution :math:`\mathbf{Y}^{n+1}` is found not only from the previous solution :math:`\mathbf{Y}^n` but also from :math:`\mathbf{Y}^{n-1}`. BDF2 is second-order accurate but has a slightly smaller stability region than the backwards Euler method (which can be considered the lowest-order member of the family of BDF methods).
 
-The variable-stepsize BDF2 method discretises equation :eq:`RLeqn` as follows:
+The variable-stepsize BDF2 method discretises equation :eq:`RLeqn2` as follows:
 
 .. math::
    :label: BDF2
@@ -313,13 +313,13 @@ However, the main problem with this approach lies in the fact that the non-linea
 Using adaptive time-stepping
 ----------------------------
 
-The usual approach to finding steady-state solutions is to solve the transient conservation equations using :ref:`adaptive_time_stepping`, using the :ref:`backwards_euler` time-stepping method, without limiting the time step size, and letting the time stepper run until a very large time step size has been achieved. As the time step size :math:`\Delta t^n` increases, it gradually reduces the left-hand side time derivative term in equation :eq:`beuler`, until at very large time step sizes it is effectively zero.
+The usual approach to finding steady-state solutions is to solve the transient conservation equations using :ref:`adaptive_time_stepping`, using the :ref:`backwards_euler` time-stepping method, without limiting the time step size, and letting the time stepper run until a very large time step size has been achieved. As the time step size :math:`\Delta t^n` increases, it gradually reduces the left-hand side time derivative term in equation :eq:`beuler2`, until at very large time step sizes it is effectively zero.
 
 This approach has the advantage that it usually still converges to the steady-state solution, even if it is started from an initial condition that is not close to the solution. The time-stepping process can be seen as effectively an outer iteration procedure that drives the problem from being transient to steady-state.
 
-What constitutes a "very large" time step size is somewhat problem-dependent, and is determined mainly by numerical considerations rather than any physical time-scales of the transient problem. The main criterion is that the final time step size needs to be large enough to make the left-hand side derivative terms in equation :eq:`beuler` negligibly small. For typical geothermal reservoir models a time step size of at least 10\ :sup:`15` s is usually needed for a reliable steady-state solution.
+What constitutes a "very large" time step size is somewhat problem-dependent, and is determined mainly by numerical considerations rather than any physical time-scales of the transient problem. The main criterion is that the final time step size needs to be large enough to make the left-hand side derivative terms in equation :eq:`beuler2` negligibly small. For typical geothermal reservoir models a time step size of at least 10\ :sup:`15` s is usually needed for a reliable steady-state solution.
 
-As the time step size increases and the left-hand side time derivative term in equation :eq:`beuler` decreases in magnitude, the linear equations to be solved at each non-linear solver iteration generally become progressively more ill-conditioned. In the later stages of a steady-state simulation it is common for the linear solver to take more iterations to solve, or to fail. To obtain a properly converged steady state solution it may be necessary to experiment with different linear solvers and preconditioners (see :ref:`linear_equation_solution`).
+As the time step size increases and the left-hand side time derivative term in equation :eq:`beuler2` decreases in magnitude, the linear equations to be solved at each non-linear solver iteration generally become progressively more ill-conditioned. In the later stages of a steady-state simulation it is common for the linear solver to take more iterations to solve, or to fail. To obtain a properly converged steady state solution it may be necessary to experiment with different linear solvers and preconditioners (see :ref:`linear_equation_solution`).
 
 Setting up a steady-state simulation using this approach can be done by specifying a large maximum stopping time step size (via "time.step.stop.size.maximum"), e.g. 10\ :sup:`15` s, and no stop time ("time.stop" = ``null``, the default). A limit on the total number of time steps ("time.step.maximum.number") is usually set, so that the simulation still stops even if a large time step size (and hence a true steady state) is never attained. After the simulation has finished, it is important to check that it has reached the specified stopping time step size rather than the maximum number of time steps.
 
@@ -345,22 +345,22 @@ sets up a steady-state simulation using adaptive time-stepping, with a starting 
 Solution of non-linear equations
 ================================
 
-At each time step the `PETSc <https://www.mcs.anl.gov/petsc/>`_ "SNES" non-linear solver (with Newton-Raphson iteration by default) is used to solve the discretised mass and energy conservation equations, e.g. equation :eq:`beuler` for the backwards Euler time-stepping method. The conservation equations are re-written as a function, known as the **residual** function, so that finding the root of this function corresponds to solving the original equation. For example, for the backwards Euler time-stepping method, the residual :math:`\mathbf{r}` is:
+At each time step the `PETSc <https://www.mcs.anl.gov/petsc/>`_ "SNES" non-linear solver (with Newton-Raphson iteration by default) is used to solve the discretised mass and energy conservation equations, e.g. equation :eq:`beuler2` for the backwards Euler time-stepping method. The conservation equations are re-written as a function, known as the **residual** function, so that finding the root of this function corresponds to solving the original equation. For example, for the backwards Euler time-stepping method, the residual function :math:`\mathbf{r}` is:
 
 .. math::
 
-   \mathbf{r} = \mathbf{L}^{n+1} - \mathbf{L}^n - \Delta t \: \mathbf{R}^{n+1}
+   \mathbf{f} = \mathbf{L}^{n+1} - \mathbf{L}^n - \Delta t \: \mathbf{R}^{n+1}
 
 Convergence in the residual
 ---------------------------
 
-The non-linear solution process is considered converged when all the elements of the residual :math:`\mathbf{r}` are sufficiently small. Note, however, that the left- and right-hand side vectors :math:`\mathbf{L}` and :math:`\mathbf{R}`, and hence also :math:`\mathbf{r}`, usually contain values of differing magnitudes, depending on whether they arise from mass or energy components. Hence, for the purpose of checking convergence, it is necessary to non-dimensionalise the residual :math:`\mathbf{r}` so that its elements are all of comparable sizes. The non-dimensionalised residual :math:`\mathbf{r'}` is defined as:
+The non-linear solution process is considered converged when all the elements of the residual :math:`\mathbf{f}` are sufficiently small. Note, however, that the left- and right-hand side vectors :math:`\mathbf{L}` and :math:`\mathbf{R}`, and hence also :math:`\mathbf{f}`, usually contain values of differing magnitudes, depending on whether they arise from mass or energy components. Hence, for the purpose of checking convergence, it is necessary to non-dimensionalise the residual :math:`\mathbf{f}` so that its elements are all of comparable sizes. The non-dimensionalised residual :math:`\mathbf{f'}` is defined as:
 
 .. math::
 
-   r'_i = \frac{r_i}{\max{(|L^n_i|, \epsilon_a)}}
+   f'_i = \frac{f_i}{\max{(|L^n_i|, \epsilon_a)}}
 
-and the non-linear solution process is then considered converged when :math:`\|\mathbf{r}'\|_{\infty} < \epsilon_r`. Here :math:`\epsilon_a` and :math:`\epsilon_r` are specified tolerances, set in the Waiwera JSON input file via the **"tolerance.function.absolute"** and **"tolerance.function.relative"** values respectively in the **"time.step.solver.nonlinear"** object.
+and the non-linear solution process is then considered converged when :math:`\|\mathbf{f}'\|_{\infty} < \epsilon_r`. Here :math:`\epsilon_a` and :math:`\epsilon_r` are specified tolerances, set in the Waiwera JSON input file via the **"tolerance.function.absolute"** and **"tolerance.function.relative"** values respectively in the **"time.step.solver.nonlinear"** object.
 
 .. note::
    **JSON object**: non-linear solver parameters
@@ -437,9 +437,9 @@ At each iteration of the non-linear solver (see :ref:`nonlinear_equations`), a l
 
 .. math::
 
-   \mathbf{J} \Delta \mathbf{Y} = -\mathbf{r}
+   \mathbf{J} \Delta \mathbf{Y} = -\mathbf{f}
 
-where :math:`\mathbf{J}` is the Jacobian matrix of the residual :math:`\mathbf{r}`.
+where :math:`\mathbf{J}` is the Jacobian matrix of the residual function :math:`\mathbf{f}`.
 
 This system of linear equations is solved using the `PETSc <https://www.mcs.anl.gov/petsc/>`_ "KSP" suite of parallelised linear equation solvers. Linear solver parameters can be specified via the **"time.step.solver.linear"** value in the Waiwera JSON input file. This value is an object.
 

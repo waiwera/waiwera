@@ -541,6 +541,8 @@ contains
     if (err > 0) then
        call SNESLineSearchGetSNES(linesearch, solver, ierr); CHKERRQ(ierr)
        call SNESSetFunctionDomainError(solver, ierr); CHKERRQ(ierr)
+       call SNESLineSearchSetReason(linesearch, SNES_LINESEARCH_FAILED_DOMAIN, &
+            ierr); CHKERRQ(ierr)
     end if
     SNES_linesearch_post_check = 0
 

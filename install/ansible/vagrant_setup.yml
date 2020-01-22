@@ -1,0 +1,11 @@
+---
+
+- name: Basic env setup
+  hosts: all
+  tasks:
+
+  - name: Setup for a local installation install packages required first
+    import_role:
+      name: setup
+    become: yes
+

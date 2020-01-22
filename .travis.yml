@@ -1,0 +1,20 @@
+language: generic
+
+os: linux
+dist: bionic
+
+addons:
+  apt:
+    packages:
+      - python-pip
+      - mpich
+      - libmpich-dev
+
+install:
+  - sudo pip install ansible
+
+script:
+  - cd install
+  - travis_wait 45 ansible-playbook ansible/install_local.yml
+  - cd ..
+  - python unit_tests.py

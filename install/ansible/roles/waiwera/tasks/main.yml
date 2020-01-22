@@ -1,0 +1,37 @@
+---
+
+- name: Build
+  block:
+
+  - name: Clean build path
+    file:
+      state: absent
+      path: "{{ waiwera_path }}/build/"
+
+  - name: waiwera - Meson build
+    shell: meson build --buildtype={{ petsc_arch }} --prefix={{ base_dir }} -Dlibdir=lib -Dset_rpath=true
+    args:
+      chdir: "{{ waiwera_path }}"
+      executable: /bin/bash
+    tags:
+      - meson
+      - build
+
+  - name: waiwera - ninja
+    block:
+    - name: waiwera - Ninja build
+      shell: ninja -C build
+      when: ansible_distribution != 'CentOS'
+      args:
+        chdir: "{{ waiwera_path }}"
+
+    - name: waiwera - Ninja build, CentOS
+      shell: "ninja-build -C build"
+      when: ansible_distribution == 'CentOS'
+      args:
+        chdir: "{{ waiwera_path }}"
+    tags:
+      - ninja
+      - build
+
+  when: (waiwera_build == 'true')

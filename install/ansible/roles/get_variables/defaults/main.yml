@@ -1,0 +1,61 @@
+---
+
+build_tools:
+  - git
+  - pkg-config
+  - valgrind
+  - make
+  - cmake
+#  - rsync
+
+ninja:
+  - ninja-build
+
+python_dependencies:
+  - python3
+  - python3-dev
+  - python-setuptools
+  - python3-setuptools
+
+compilers:
+  - gcc
+  - g++
+  - gfortran
+
+libraries:
+  - libblas-dev
+  - liblapack-dev
+
+openmpi:
+  - libopenmpi-dev
+  - openssh-client
+
+petsc_dependencies:
+  - bison
+  - flex
+
+pip_install:
+  - python3-pip
+  - python-pip
+
+pip_ex: pip3
+
+meson_version: meson==0.51
+
+petsc_options:
+  - download-fblaslapack
+  - download-triangle
+  - download-netcdf
+  - download-exodusii
+  - download-pnetcdf
+  - download-ptscotch
+  - download-chaco
+  - download-zlib
+  - download-hdf5
+  - with-zlib
+  - with-debugging=0
+
+petsc_variables:
+  - "COPTFLAGS='-O3 -march=native -mtune=native'"
+  - "CXXOPTFLAGS='-O3 -march=native -mtune=native'"
+  - "FOPTFLAGS='-O3 -march=native -mtune=native'"

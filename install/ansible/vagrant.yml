@@ -1,0 +1,9 @@
+---
+# Uses the vagrant role to setup a VM
+
+- name: Build Vagrant Image
+  hosts: all
+  tasks:
+  - import_role:
+      name: vagrant
+  become: yes

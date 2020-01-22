@@ -1,0 +1,9 @@
+---
+
+petsc_version: afbee2879a
+waiwera_version: local
+build_type: release
+# build_type: debug
+petsc_repo: https://gitlab.com/petsc/petsc.git
+waiwera_repo: github.com/waiwera/waiwera.git
+

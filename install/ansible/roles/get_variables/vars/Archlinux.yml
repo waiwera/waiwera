@@ -1,0 +1,16 @@
+ninja:
+  - ninja
+
+compilers:
+  - gcc
+  - gcc-fortran
+
+libraries:
+  - blas
+  - lapack
+  - hdf5-openmpi
+
+openmpi:
+  - openmpi
+  - openssh-client
+

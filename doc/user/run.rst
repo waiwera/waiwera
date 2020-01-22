@@ -4,14 +4,83 @@
 Running Waiwera
 ***************
 
-Like all programs based on the `PETSc <https://www.mcs.anl.gov/petsc/>`_ library, Waiwera can be run either in serial or in parallel.
+How Waiwera is executed depends on whether it is being run as a Docker container, or as a natively built executable (Linux only).
 
-.. index:: running; serial
+.. index:: running; Docker, Docker; running
+.. _run_docker:
 
-Running in serial
-=================
+Running Waiwera using Docker
+============================
 
-Waiwera can be run in serial from the command line simply by typing ``waiwera`` followed by the name of the Waiwera JSON input file (see :ref:`waiwera_input`).
+The easiest way to run Waiwera via Docker (see :ref:`using_docker`) is by using the Python script `waiwera-dkr.py <https://raw.githubusercontent.com/waiwera/waiwera/master/waiwera-dkr.py>`_, which is part of the Waiwera source code repository.  You will need `Python <https://www.python.org/>`_ (as well as `Docker <https://www.docker.com/>`_) installed on your machine to be able to run it.
+
+Download the ``waiwera-dkr.py`` script to your machine, from the link above. (If you have already cloned or downloaded the Waiwera source code repository, for example to do a :ref:`native_linux_build`, then you can alternatively copy it from the root directory of the source.)
+
+What the ``waiwera-dkr.py`` script does
+---------------------------------------
+
+This script does three main things:
+
+- checks if the Waiwera Docker container image has been installed, installs it if necessary, or updates it if a newer version is available
+- runs Waiwera inside the Docker container
+- manages sharing of files between the Docker container and the directory in which you run Waiwera
+
+How to run the ``waiwera-dkr.py`` script
+----------------------------------------
+
+The script is run from the command line in the same way as any other Python script, by typing ``python`` followed by the script name. The name of the JSON input file (see :ref:`waiwera_input`) for your simulation is specified as an argument, e.g. if the simulation has the filename ``model.json``, you can run it as follows:
+
+.. code-block:: bash
+
+   python waiwera-dkr.py model.json
+
+This would run simulation in serial. Running in serial is only suitable for small problems. Waiwera is designed primarily for large problems that need to be run in parallel.
+
+.. index:: running; number of processes
+
+To run Waiwera using Docker in parallel, the number of parallel processes must be specified using the ``-np`` parameter, e.g.:
+
+.. code-block:: bash
+
+   python waiwera-dkr.py -np 16 model.json
+
+runs Waiwera in parallel with 16 processes.
+
+The ``waiwera-dkr.py`` script has some other optional parameters for more advanced features. Documentation for these parameters can be found by running ``python waiwera-dkr.py --help``.
+
+.. index:: Docker; file paths
+
+File paths when running with Docker
+-----------------------------------
+
+The Waiwera JSON input file (see :ref:`waiwera_input`) contains some paths to other files, e.g. the mesh file (see :ref:`specifying_mesh`). There are a few things to note about file paths when running using Docker:
+
+- file paths must always be specified using POSIX (i.e. Linux-style) file path syntax, i.e. forward slashes for directory delimiters (not backslashes as on Windows), and any spaces in the file path (usually better avoided if possible) should be "escaped" by preceding them with backslashes. This is because Waiwera is run using Linux inside the Docker container. For the same reason, file paths are always case-sensitive.
+- any files specified in the JSON input file name need to be in the directory that Waiwera is being run in, or a subdirectory of it. This is because those are the only directories that are shared with the Docker container.
+- all file paths should be relative (not absolute).
+
+The same considerations apply when running Waiwera using the ``waiwera-dkr.py`` script and specifying a path to the simulation input file on the command line. In general, when running with Docker it is recommmended to run from the directory containing the simulation input file. Then avoids the need to specify a path to your file, and simplifies the directories that need to be shared with Docker.
+
+Running the script from any directory
+-------------------------------------
+
+On Linux and Mac OS systems, you can use the ``waiwera-dkr.py`` script from any directory by adding its location to your ``PATH`` environment variable (or saving it to a directory that is already in your ``PATH``). If you have downloaded the script from the link above, you will also need to make it executable using ``chmod +x waiwera-dkr.py`` (this is not necessary if you have cloned or downloaded the Waiwera source code repository and copied the script from there).
+
+You can then run the script without the ``python`` command from any directory, e.g.:
+
+.. code-block:: bash
+
+   waiwera-dkr.py -np 16 model.json
+
+On Windows this is also possible (though slightly more involved). First it may be necessary to associate files with the ``*.py`` extension with Python. Then the ``PATHEXT`` and ``PATH`` environment variables need to be set: ``*.py`` should be appended to ``PATHEXT``, and the directory containing the ``waiwera-dkr.py`` script should be appended to ``PATH`` (with semicolon separators in both cases).
+
+.. index:: running; native Linux executable
+.. _run_native:
+
+Running Waiwera as a native Linux executable
+============================================
+
+The native Linux Waiwera executable (see :ref:`native_linux_build`) can be run either in serial or in parallel. To run in serial from the command line simply type ``waiwera`` followed by the name of the Waiwera JSON input file (see :ref:`waiwera_input`).
 
 For example, if the JSON input file for the simulation has the filename ``model.json``, it can be run as follows:
 
@@ -19,17 +88,9 @@ For example, if the JSON input file for the simulation has the filename ``model.
 
    waiwera model.json
 
-Running in serial is only suitable for small problems. Waiwera is primarily designed for large problems that need to be run in parallel (see :ref:`run_parallel`).
+Running in serial is only suitable for small problems. Waiwera is designed primarily for large problems that need to be run in parallel.
 
-.. index:: running; parallel
-.. _run_parallel:
-
-Running in parallel
-===================
-
-Waiwera can be run in parallel using MPI (Message Passing Interface). Clearly, this requires that MPI is installed on the machine Waiwera is to be run on. There are various implementations of MPI available (e.g. `OpenMPI <https://www.open-mpi.org/>`_ or `MPICH <https://www.mpich.org/>`_), but which one is installed should not matter.
-
-Waiwera is run in parallel using the MPI ``mpiexec`` command. As in serial, the ``waiwera`` command is followed by the JSON input filename, but all of this is preceded by the ``mpiexec`` command and the ``-np`` flag to specify the number of processes the simulation is to be run on. For example:
+Waiwera is run in parallel using MPI (Message Passing Interface), via the ``mpiexec`` command. As in serial, the ``waiwera`` command is followed by the JSON input filename, but all of this is preceded by the ``mpiexec`` command and the ``-np`` parameter to specify the number of processes the simulation is to be run on. For example:
 
 .. code-block:: bash
 
@@ -39,14 +100,14 @@ runs Waiwera on the input file ``model.json``, in parallel on 16 processes.
 
 .. index:: running; number of processes
 
-Choosing the number of processes
---------------------------------
+Choosing the number of parallel processes
+=========================================
 
 The appropriate number of processes depends on how many are available, and on the size of the problem. Waiwera will generally run faster when more processes are used, but there is usually a point at which there are diminishing returns from adding more processes. In more extreme cases, using more processes can even start to slow the simulation down.
 
 This is because the processes need to communicate with each other, e.g. to communicate values at cells on the edges of the mesh partitions (see :ref:`mesh_partitioning`). There is a cost involved with this communication, which rises as the number of processes is increased. Eventually, if too many processes are used, the communication costs start to outweigh the benefits of increased parallelisation.
 
-These considerations apply to most MPI programs. The PETSc documentation recommends that there should be an absolute minimum of 10,000 unknowns per process for good parallel performance, with at least 20,000 unknowns per process being preferable.
+These considerations apply to most MPI programs. The `PETSc documentation <https://www.mcs.anl.gov/petsc/petsc-dev/docs/faq.html>`_ recommends that there should be an absolute minimum of 10,000 unknowns per process for good parallel performance, with at least 20,000 unknowns per process being preferable.
 
 For Waiwera the number of unknowns per process is equal to the number of cells on each process multiplied by the number of unknowns per cell. The cells are usually divided approximately evenly between the processes, so the number of cells per process is approximately the total number of cells divided by the number of processes. The number of unknowns per cell depends on the :ref:`eos` module being used.
 
@@ -58,17 +119,24 @@ For example, the :ref:`water_air_energy_eos` EOS has three unknowns per cell. Su
 PETSc command line parameters
 =============================
 
-When Waiwera is run, the main parameter it takes is the filename, which should follow the ``waiwera`` command. However, it is also possible to control many PETSc-related aspects of the simulation by adding other command line parameters, which can be specified after the filename.
+When Waiwera is run, the main parameter it takes is the filename, which should follow the ``waiwera`` command (or ``waiwera-dkr.py`` if :ref:`run_docker`). However, it is also possible to control many PETSc-related aspects of the simulation by adding other command line parameters, which can be specified after the filename.
 
 These PETSc command line parameters can be used, for example, to control the behaviour of the PETSc linear and non-linear solvers used by Waiwera, as well as many other options such as diagnostic or debugging output. Some of these options (e.g. the linear and non-linear solver parameters) can also be specified in the Waiwera JSON input file.
 
-For example:
+For example, if running a native Linux executable:
 
 .. code-block:: bash
 
    mpiexec -np 16 waiwera model.json -log_view
 
 again runs Waiwera in parallel on 16 processes, but also displays PETSc profiling information at the end of the run (data on how much time is spent in various parts of the code, etc.).
+
+..
+   TODO: how to do this when running with Docker
+
+.. code-block:: bash
+
+   python waiwera-dkr.py -np 16 model.json -log_view
 
 More information about specific PETSc command line parameters can be found in the `PETSc <https://www.mcs.anl.gov/petsc/>`_ documentation.
 

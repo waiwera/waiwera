@@ -1,0 +1,47 @@
+---
+
+- name: Set path variable
+  set_fact:
+    fson_path: "{{ base_dir + '/software/fson'}}"
+    fson_build_path: "{{ fson_path + '/build' }}"
+
+- name: Clean path
+  file:
+    state: absent
+    path: "{{ fson_path }}"
+  tags:
+    - clean
+
+- name: Fetch from github
+  git:
+    repo: 'https://github.com/josephalevin/fson.git'
+    dest: "{{ fson_path }}"
+    version: master
+
+- name: Change ownership
+  file:
+    dest: "{{ fson_path }}"
+    owner: "{{ app_user }}"
+    group: "{{ app_group }}"
+    recurse: yes
+  when: docker_run == true
+
+- name: Meson build
+  shell: 'meson build --buildtype=release --prefix={{ base_dir }} --libdir={{ lib_path }} --includedir={{ include_path }}'
+  args:
+    chdir: "{{ fson_path }}"
+
+- name: Ninja build
+  shell: ninja
+  args:
+    chdir: "{{ fson_build_path }}"
+
+- name: Ninja test
+  shell: ninja test
+  args:
+    chdir: "{{ fson_build_path }}"
+
+- name: Ninja install
+  shell: ninja install
+  args:
+    chdir: "{{ fson_build_path }}"

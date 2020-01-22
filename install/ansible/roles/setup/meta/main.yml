@@ -1,0 +1,5 @@
+---
+dependencies:
+   - { role: get_variables,
+       role: packages,
+    }

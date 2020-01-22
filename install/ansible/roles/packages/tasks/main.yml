@@ -1,0 +1,69 @@
+---
+
+- name: Install build-related tools
+  package:
+    name: "{{ build_tools }}"
+    state: present
+    update_cache: yes
+    install_recommends: no
+
+- name: Install python dependencies
+  package:
+    name: "{{ python_dependencies }}"
+    state: present
+    update_cache: yes
+    install_recommends: no
+
+- name: Install compilers
+  package:
+    name: "{{ compilers }}"
+    state: present
+    install_recommends: no
+
+- name: Install libraries
+  package:
+    name: "{{ libraries }}"
+    state: present
+    install_recommends: no
+
+- name: Install PETSc dependencies
+  package:
+    name: "{{ petsc_dependencies }}"
+    state: present
+    update_cache: yes
+    install_recommends: no
+
+- name: Install pip
+  package:
+    name:  "{{ pip_install }}"
+    state: present
+    install_recommends: no
+
+- name: Update pip to latest version with pip
+  pip:
+    name: pip
+    executable: "{{ pip_ex }}"
+    extra_args: --upgrade
+  tags:
+    - pip
+  register: pip_error
+  ignore_errors: True
+
+- name: Test for pre-existing openmpi install
+  command: mpiexec --version
+  register: openmpi_test
+  ignore_errors: True
+
+- name: Install Openmpi
+  block:
+    - package:
+        name: "{{ openmpi }}"
+        state: present
+  when: (openmpi_test is failed)
+
+- name: Install ninja
+  package:
+    name: "{{ ninja }}"
+    state: present
+    update_cache: yes
+    install_recommends: no

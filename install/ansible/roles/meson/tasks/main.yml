@@ -1,0 +1,15 @@
+---
+
+- name: check for root install of meson
+  set_fact:
+    extra_args: ""
+  when: ( app_user == 'root') or (docker_run == true)
+  tags:
+    - docker
+    - root
+
+- name: pip install
+  pip:
+    name: "{{ meson_version }}"
+    executable: "{{ pip_ex }}"
+    extra_args: "{{ extra_args }}"

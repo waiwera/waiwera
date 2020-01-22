@@ -1,0 +1,69 @@
+---
+
+- name: Test for pre-existing meson install
+  command: meson --version
+  register: meson_test
+  ignore_errors: True
+
+- name: Install meson via pip
+  import_role:
+    name: meson
+  tags:
+    - meson
+    - pip
+  when: meson_test is failed
+
+- name: Test for pre-existing ninja install
+  command: ninja --version
+  register: ninja_test
+  ignore_errors: True
+
+- name: Install from ninja source
+  import_role:
+    name: ninja
+  tags:
+    - ninja
+  when: (ninja_test is failed) or (ninja_build == 'true')
+
+- name: Install zofu from source
+  import_role:
+    name: zofu
+  tags:
+    - zofu
+  when: zofu_build == 'true'
+
+- name: Install fson from source
+  import_role:
+    name: fson
+  tags:
+    - fson
+  when: fson_build == 'true'
+
+- name: Check if waiwera directory exists already
+  stat:
+    path: "{{ waiwera_path }}/LICENSE"
+  register: waiwera_dir
+
+- name: Fetch waiwera from repository if version is not local
+  git:
+    repo: "https://{{ waiwera_repo }}"
+    dest:  "{{ waiwera_path }}"
+    version: "{{ waiwera_version }}"
+    update: yes
+    force: yes
+  register: waiwera_git
+  tags:
+    - fetch
+  when: waiwera_version != 'local'
+
+- name: Install PETSc
+  import_role:
+    name: petsc
+  tags:
+    - petsc
+
+- name: Setup and build Waiwera
+  import_role:
+    name: waiwera
+  tags:
+    - waiwera

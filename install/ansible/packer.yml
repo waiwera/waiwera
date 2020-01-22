@@ -1,0 +1,25 @@
+---
+- name: Bootstrap Image
+  hosts: all
+  gather_facts: no
+  become: yes
+  tasks:
+  - import_role:
+      name: packer
+  tags:
+    - packer
+
+- name: Build Image
+  hosts: all
+  tasks:
+  - name: Setup secrets
+    include_vars: secrets.yml
+    tags:
+      - packer
+
+  - include_role:
+      name: packages
+    become: yes
+
+  - import_role:
+      name: common
