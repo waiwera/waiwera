@@ -1308,8 +1308,8 @@ contains
     call dm_check_create_label(dm, label_name)
     call DMPlexGetHeightStratum(dm, 0, start_cell, end_cell, ierr)
     CHKERRQ(ierr)
-    call DMPlexGetHybridBounds(dm, end_interior_cell, dummy, &
-         dummy, dummy, ierr); CHKERRQ(ierr)
+    call DMPlexGetGhostCellStratum(dm, end_interior_cell, dummy, ierr)
+    CHKERRQ(ierr)
     if (end_interior_cell >= 0) then
        do c = end_interior_cell, end_cell - 1
           call DMSetLabelValue(dm, label_name, c, 1, ierr)
