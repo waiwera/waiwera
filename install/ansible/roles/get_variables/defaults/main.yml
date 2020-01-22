@@ -6,7 +6,7 @@ build_tools:
   - valgrind
   - make
   - cmake
-#  - rsync
+  - autoconf
 
 ninja:
   - ninja-build
