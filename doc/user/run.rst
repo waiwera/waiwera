@@ -6,27 +6,13 @@ Running Waiwera
 
 How Waiwera is executed depends on whether it is being run as a Docker container, or as a natively built executable (Linux only).
 
-.. index:: running; Docker, Docker; running
+.. index:: running; Docker, Docker; running, PyWaiwera; waiwera-dkr
 .. _run_docker:
 
 Running Waiwera using Docker
 ============================
 
-The easiest way to run Waiwera via Docker (see :ref:`using_docker`) is by using the script `waiwera-dkr`, which is part of the Waiwera source code repository.  You will need `Python <https://www.python.org/>`_ (as well as `Docker <https://www.docker.com/>`_) installed on your machine to be able to run it.
-
-The easiest way to install is using ``pip``, Python's package manager:
-
-.. code-block:: bash
-
-   pip install -U pywaiwera
-
-or install as user if you don't have permission to install to the system's Python:
-
-.. code-block:: bash
-
-   pip install -U --user pywaiwera
-
-This will automatically download (and update) the PyWaiwera package.  The ``waiwera-dkr`` script is supplied as part of the Python package.  Note, you may have to set your environment variable PATH to include where pip installs the ``waiwera-dkr`` script.
+The easiest way to run Waiwera via Docker is by using the script `waiwera-dkr`, which is part of the `PyWaiwera <https://pypi.org/project/pywaiwera>`_ Python library.  Besides PyWaiwera, You will need `Python <https://www.python.org/>`_ and `Docker <https://www.docker.com/>`_ installed on your machine to be able to use this script. For more details, see :ref:`using_docker`.
 
 What the ``waiwera-dkr`` script does
 ---------------------------------------
@@ -57,8 +43,6 @@ To run Waiwera using Docker in parallel, the number of parallel processes must b
    waiwera-dkr -np 16 model.json
 
 runs Waiwera in parallel with 16 processes.
-
-The ``waiwera-dkr`` script has some other optional parameters for more advanced features. Documentation for these parameters can be found by running ``waiwera-dkr --help``.
 
 .. index:: Docker; options
 
@@ -95,11 +79,6 @@ The Waiwera JSON input file (see :ref:`waiwera_input`) contains some paths to ot
 
 - file paths must always be specified using POSIX (i.e. Linux-style) file path syntax, i.e. forward slashes for directory delimiters (not backslashes as on Windows), and any spaces in the file path (usually better avoided if possible) should be "escaped" by preceding them with backslashes. This is because Waiwera is run using Linux inside the Docker container.
 - any files specified in the JSON input file name need to be in the directory that Waiwera is being run in, or a subdirectory of it. This is because those are the only directories that are shared with the Docker container.
-
-Running the script from any directory
--------------------------------------
-
-On all systems, you can use the ``waiwera-dkr`` script from any directory by adding its location to your ``PATH`` environment variable.  Generally ``pip`` would inform you if the location it places the ``waiwera-dkr`` script is not in your ``PATH`` environment variable.
 
 .. index:: running; native Linux executable
 .. _run_native:

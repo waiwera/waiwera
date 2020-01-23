@@ -49,12 +49,42 @@ Once Docker is installed, by default it should have access to all the processors
 
 The Docker Desktop application on Windows and Mac OS provides a graphical interface for doing this.
 
+.. index:: Docker; running, PyWaiwera; installation
+
+Installing the PyWaiwera Python library
+---------------------------------------
+
+The simplest way to run Waiwera via Docker is to use the ``waiwera-dkr`` executable script which is part of `PyWaiwera <https://pypi.org/project/pywaiwera>`_, a Python library for simplifying tasks related to working with Waiwera. To use this, you will need to:
+
+- have the `Python <https://www.python.org/>`_ scripting language installed on your machine
+- install the PyWaiwera library
+
+The easiest way to install PyWaiwera is using ``pip``, Python's package manager:
+
+.. code-block:: bash
+
+   pip install pywaiwera
+
+or if you don't have permissions for installing system-wide Python packages, you can just install it locally inside your own user account:
+
+.. code-block:: bash
+
+   pip install --user pywaiwera
+
+This will download and install PyWaiwera from the Python Package Index (`PyPI <https://pypi.org>`_). During the installation it may warn you that executable scripts are being installed to a directory that is not listed in your system's ``PATH`` environment variable. This means that you need to add this directory to your ``PATH`` if you want to be able to run it from anywhere on your machine.
+
+You can also upgrade PyWaiwera to the latest version at any time by running:
+
+.. code-block:: bash
+
+   pip install --upgrade pywaiwera
+
 .. index:: Docker; running
 
 Running the Waiwera Docker container
 ------------------------------------
 
-Waiwera provides a Python script to simplify running the Waiwera Docker container. This script will check if the Waiwera Docker container image is already installed on your system, and if not, it will automatically install it before running your Waiwera model. It also handles the sharing of files between the Docker container and your system. For more details, see :ref:`run_docker`.
+The `waiwera-dkr` script will check if the Waiwera Docker container image is already installed on your system, and if not, it will automatically install it before running your Waiwera model. It also handles the sharing of files between the Docker container and your system. For more details, see :ref:`run_docker`.
 
 .. index:: Waiwera; building
 .. _native_linux_build:
