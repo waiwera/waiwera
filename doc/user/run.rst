@@ -32,7 +32,7 @@ The script is run from the command line in the same way as any other program. Th
 
    waiwera-dkr model.json
 
-This would run simulation in serial. Running in serial is only suitable for small problems. Waiwera is designed primarily for large problems that need to be run in parallel.
+This would run the simulation in serial. Running in serial is only suitable for small problems. Waiwera is designed primarily for large problems that need to be run in parallel.
 
 .. index:: running; number of processes
 
