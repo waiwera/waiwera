@@ -1,3 +1,6 @@
-from common import __version__
+from .common import __version__
 
-import docker
+# allows use of `from pywaiwera import *`
+__all__ = ['common', 'docker']
+# allows use tof `import pywaiwera; pywaiwera.docker`
+from . import *

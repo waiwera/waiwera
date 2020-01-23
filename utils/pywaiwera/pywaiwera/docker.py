@@ -14,7 +14,7 @@ import re
 import time
 import shutil
 
-import common
+from . import common
 
 REPO = 'waiwera/waiwera'
 TAG = 'latest'
