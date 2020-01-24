@@ -1,27 +1,43 @@
 Waiwera Python Package
 ======================
 
-This is the official python package of the Waiwera simulator.
+PyWaiwera is the official Python package for use with the parallel open-source geothermal flow simulator, [Waiwera](https://waiwera.github.io/).
 
-# Install
+# Installation
 
-The easiest way to install is using pip:
+The easiest way to install PyWaiwera is using `pip`:
 
-    pip install --index-url https://test.pypi.org/simple/ waiwera
+    pip install pywaiwera
 
-Console executable scripts are supplied with this package, please ensure the install location of python scripts is added to PATH.
+or if you do not have permissions to install system-wide Python packages, you can install it locally in your own user account:
+
+   pip install --user pywaiwera
+
+During the installation it may warn you that executable scripts are being installed to a directory that is not listed in your system's ``PATH`` environment variable. This means that you need to add this directory to your ``PATH`` if you want to be able to run the supplied scripts from anywhere on your machine.
+
+PyWaiwera can be upgraded to the latest version at any time by running:
+
+   pip install --upgrade pywaiwera
 
 # Running Waiwera using Docker
 
-A console executable script `waiwera-dkr` is supplied with this package.  It should be accesible directly as a console command.
+PyWaiwera provides a console executable script `waiwera-dkr` for running Waiwera via [Docker](https://www.docker.com/).  It should be accesible directly as a console command.
 
-Waiwera examples can be obtained via the command:
+To run a Waiwera model using Docker, please navigate to the input file's location and run the command:
 
-    waiwera-dkr -e
+    waiwera-dkr filename.json
 
-To run a model, please navigate to the input file's location, and run the command:
+where `filename.json` is the name of the model JSON input file.
 
-    waiwera-dkr input.json
+Waiwera example problems to try can be obtained via the command:
+
+    waiwera-dkr --examples
+
+which will download a directory of example Waiwera benchmark test problems.
+
+For more detailed help on the options available with `waiwera-dkr`, run:
+
+    waiwera-dkr --help
 
 # Waiwera simulator
 
