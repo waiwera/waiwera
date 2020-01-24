@@ -39,7 +39,7 @@ class TestImport(unittest.TestCase):
             ]), 'test', 'exec')
         try:
             exec(c)
-            raise Exception('Shouuld raise NameError, but runs ok.')
+            raise Exception('Should raise NameError, but runs ok.')
         except NameError:
             # expected to fail
             pass
