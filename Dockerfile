@@ -30,7 +30,9 @@ RUN dpkgArch="$(dpkg --print-architecture | awk -F- '{ print $NF }')" \
  && chmod +x /usr/local/bin/gosu \
  && gosu nobody true
 
-ADD ansible /ansible
+#ADD install/ansible /ansible
+ADD . /opt/waiwera
+#RUN rm -rf /opt/waiwera/external && rm -rf /opt/waiwera/build
 
 RUN DEBIAN_FRONTEND=noninteractive \
     apt update && \
@@ -43,7 +45,7 @@ RUN DEBIAN_FRONTEND=noninteractive \
     pip install ansible &&\
     usr/local/bin/ansible-playbook \
         --connection=local \
-        /ansible/docker.yml \
+        /opt/waiwera/install/ansible/docker.yml \
         -v && \
     pip uninstall ansible -y && \
     apt-get autoremove -y && \
@@ -56,7 +58,7 @@ RUN DEBIAN_FRONTEND=noninteractive \
         /usr/share/doc/*  \
         /root/.pip/cache/*
 
-RUN rm -r /ansible
+#RUN rm -r /ansible
 
 # USER 1000:1000
 # Setup docker group

@@ -1,0 +1,6 @@
+run/*
+!run/gminc3d.*
+!run/*.json
+!run/*.listing
+output/
+*.pyc

@@ -15,10 +15,11 @@ module face_test
   private
 
   public :: setup, teardown
-  public :: test_face_assign, test_face_permeability_direction, &
-       test_face_normal_gradient, test_face_harmonic_average, &
-       test_face_flux_zero_horizontal, test_face_flux_vertical_gravity, &
-       test_face_flux_hydrostatic, test_face_flux_two_phase_vertical
+  public :: test_face_assign, test_face_distances, &
+       test_face_permeability_direction, test_face_normal_gradient, &
+       test_face_harmonic_average, test_face_flux_zero_horizontal, &
+       test_face_flux_vertical_gravity, test_face_flux_hydrostatic, &
+       test_face_flux_two_phase_vertical
 
 contains
   
@@ -74,18 +75,18 @@ contains
        call face%init()
 
        allocate(face_data(offset - 1 + face%dof))
-       face_data = [offset_padding, area, distance, normal, gravity_normal, &
-            centroid, permeability_direction]
+       face_data = [offset_padding, area, distance, sum(distance), normal, &
+            gravity_normal, centroid, permeability_direction]
 
        call test%assert(face%dof, size(face_data) - (offset-1), "face dof")
 
        call face%assign_geometry(face_data, offset)
 
        call test%assert(area, face%area, "area")
-       call test%assert(0._dp, norm2(face%distance - distance), "distances")
-       call test%assert(0._dp, norm2(face%normal - normal), "normal")
+       call test%assert(distance, face%distance, "distances")
+       call test%assert(normal, face%normal, "normal")
        call test%assert(-7.35_dp, face%gravity_normal, "gravity normal")
-       call test%assert(0._dp, norm2(face%centroid - centroid), "centroid")
+       call test%assert(centroid, face%centroid, "centroid")
        call test%assert(permeability_direction, face%permeability_direction, &
             "permeability direction")
 
@@ -95,6 +96,69 @@ contains
     end if
 
   end subroutine test_face_assign
+
+!------------------------------------------------------------------------
+
+  subroutine test_face_distances(test)
+
+    ! Face distance test
+
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
+    type(face_type) :: face
+    PetscInt, parameter :: num_tests = 2
+    PetscReal, parameter :: centroid(3, num_tests) = reshape([ &
+         0._dp, 200._dp, 50._dp, &
+         0._dp, 200._dp, 50._dp &
+         ], [3, num_tests])
+    PetscReal, parameter :: normal(3, num_tests) = reshape([ &
+         1._dp, 0._dp, 0._dp, &
+         -1._dp, 0._dp, 0._dp &
+         ], [3, num_tests])
+    PetscReal, parameter :: expected_distances(2, num_tests) = reshape([ &
+         80._dp, 100._dp, &
+         -80._dp, -100._dp &
+         ], [2, num_tests])
+    PetscReal, pointer, contiguous :: cell_data(:), face_data(:)
+    PetscInt :: i
+    PetscInt, parameter :: offset = 1
+    character(len = 32) :: msg
+    PetscMPIInt :: rank
+    PetscInt :: ierr
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
+
+       allocate(cell_data(8))
+       cell_data = [-80._dp, 200._dp, 50._dp, 0._dp, &
+            100._dp, 200._dp, 50._dp, 0._dp]
+
+       do i = 1, num_tests
+
+          call face%init()
+          allocate(face_data(offset - 1 + face%dof))
+          face_data = 0._dp
+          face_data(offset + 4: offset + 6) = normal(:, i)
+          face_data(offset + 8: offset + 10) = centroid(:, i)
+          call face%assign_geometry(face_data, offset)
+          call face%assign_cell_geometry(cell_data, [1, 5])
+
+          call face%calculate_distances()
+          write(msg, '(a, i2)') "Face distances", i
+          call test%assert(expected_distances(:, i), face%distance, msg)
+          write(msg, '(a, i2)') "Face distance12", i
+          call test%assert(sum(expected_distances(:, i)), face%distance12, msg)
+
+          call face%destroy()
+          deallocate(face_data)
+
+       end do
+
+       deallocate(cell_data)
+
+    end if
+
+  end subroutine test_face_distances
 
 !------------------------------------------------------------------------
 
@@ -133,14 +197,13 @@ contains
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
     if (rank == 0) then
 
-       call face%init()
-
        do i = 1, num_tests
 
+          call face%init()
           gravity_normal = dot_product(gravity, normal(:,i))
           allocate(face_data(offset - 1 + face%dof))
-          face_data = [area, distance, normal(:,i), gravity_normal, &
-               centroid, initial_permeability_direction]
+          face_data = [area, distance, sum(distance), normal(:,i), &
+               gravity_normal, centroid, initial_permeability_direction]
           call face%assign_geometry(face_data, offset)
           call face%calculate_permeability_direction(rotation)
 
@@ -192,6 +255,7 @@ contains
             cell_data(cell%dof * 2))
        face_data = 0._dp
        face_data(2:3) = distance
+       face_data(4) = sum(distance)
        cell_data = 0._dp
 
        call face%assign_geometry(face_data, face_offset)
@@ -262,6 +326,7 @@ contains
 
        do i = 1, num_tests
           face_data(2:3) = distance(:, i)
+          face_data(4) = sum(distance(:, i))
           call face%assign_geometry(face_data, face_offset)
           call face%assign_cell_geometry(cell_data, cell_offsets)
           xh = face%harmonic_average(x(:, i))
@@ -328,7 +393,7 @@ contains
        cell_offsets = [1, 1]
        rock_offsets = [1, 1]
        fluid_offsets = [1, 1]
-       face_data = [0._dp,  25._dp, 35._dp,  1._dp, 0._dp, 0._dp, &
+       face_data = [0._dp,  25._dp, 35._dp,  60._dp, 1._dp, 0._dp, 0._dp, &
             0._dp, 0._dp, 0._dp, 0._dp, 1._dp]
        cell_data = 0._dp ! not needed
        rock_data = [ &
@@ -415,7 +480,7 @@ contains
        cell_offsets = [1, 1]
        rock_offsets = [1, 1]
        fluid_offsets = [1, 1]
-       face_data = [0._dp,  25._dp, 35._dp,  0._dp, 0._dp, -1._dp, &
+       face_data = [0._dp,  25._dp, 35._dp,  60._dp, 0._dp, 0._dp, -1._dp, &
             9.8_dp, 0._dp, 0._dp, 0._dp, 3._dp]
        cell_data = 0._dp ! not needed
        rock_data = [ &
@@ -501,7 +566,7 @@ contains
        cell_offsets = [1, 1]
        rock_offsets = [1, 1]
        fluid_offsets = [1, 1 + fluid%dof]
-       face_data = [0._dp,  25._dp, 35._dp,  0._dp, 0._dp, -1._dp, &
+       face_data = [0._dp,  25._dp, 35._dp,  60._dp, 0._dp, 0._dp, -1._dp, &
             9.8_dp, 0._dp, 0._dp, 0._dp, 3._dp]
        cell_data = 0._dp ! not needed
        rock_data = [ &
@@ -592,7 +657,7 @@ contains
        cell_offsets = [1, 1]
        rock_offsets = [1, 1 + rock%dof]
        fluid_offsets = [1, 1 + fluid%dof]
-       face_data = [0._dp,  25._dp, 35._dp,  0._dp, 0._dp, -1._dp, 9.8_dp, &
+       face_data = [0._dp,  25._dp, 35._dp,  60._dp, 0._dp, 0._dp, -1._dp, 9.8_dp, &
             0._dp, 0._dp, 0._dp, 3._dp]
        cell_data = 0._dp ! not needed
        rock_data = [ &

@@ -269,15 +269,14 @@ contains
     PetscReal :: rate
     type(source_type) :: source
     PetscInt :: i, s, source_offset
-    PetscErrorCode :: ierr
 
     call source%init(eos)
     rate = self%table%average(interval, 1)
 
     do i = 1, size(self%source_indices)
        s = self%source_indices(i)
-       call global_section_offset(source_section, s, source_range_start, &
-            source_offset, ierr); CHKERRQ(ierr)
+       source_offset = global_section_offset(source_section, s, &
+            source_range_start)
        call source%assign(source_data, source_offset)
        source%rate = rate
     end do
@@ -309,15 +308,14 @@ contains
     PetscReal :: enthalpy
     type(source_type) :: source
     PetscInt :: i, s, source_offset
-    PetscErrorCode :: ierr
 
     call source%init(eos)
     enthalpy = self%table%average(interval, 1)
 
     do i = 1, size(self%source_indices)
        s = self%source_indices(i)
-       call global_section_offset(source_section, s, source_range_start, &
-            source_offset, ierr); CHKERRQ(ierr)
+       source_offset = global_section_offset(source_section, s, &
+            source_range_start)
        call source%assign(source_data, source_offset)
        source%injection_enthalpy = enthalpy
     end do
@@ -349,15 +347,14 @@ contains
     PetscReal :: factor
     type(source_type) :: source
     PetscInt :: i, s, source_offset
-    PetscErrorCode :: ierr
 
     call source%init(eos)
     factor = self%table%average(interval, 1)
 
     do i = 1, size(self%source_indices)
        s = self%source_indices(i)
-       call global_section_offset(source_section, s, source_range_start, &
-            source_offset, ierr); CHKERRQ(ierr)
+       source_offset = global_section_offset(source_section, s, &
+            source_range_start)
        call source%assign(source_data, source_offset)
        source%rate = source%rate * factor
     end do
@@ -389,16 +386,15 @@ contains
     ! Locals:
     type(source_type) :: source
     PetscInt :: c, fluid_offset, source_offset
-    PetscErrorCode :: ierr
 
     call source%init(eos)
-    call global_section_offset(source_section, self%local_source_index, &
-         source_range_start, source_offset, ierr); CHKERRQ(ierr)
+    source_offset = global_section_offset(source_section, &
+         self%local_source_index, source_range_start)
     call source%assign(source_data, source_offset)
 
     c = nint(source%local_cell_index)
-    call global_section_offset(global_fluid_section, c, &
-         fluid_range_start, fluid_offset, ierr); CHKERRQ(ierr)
+    fluid_offset = global_section_offset(global_fluid_section, c, &
+         fluid_range_start)
     call source%fluid%assign(global_fluid_data, fluid_offset)
 
     self%reference_pressure%val(1, 1) = source%fluid%pressure
@@ -477,12 +473,11 @@ contains
     type(source_type) :: source
     PetscInt :: source_offset
     PetscReal :: productivity
-    PetscErrorCode :: ierr
 
     call source%init(eos)
 
-    call global_section_offset(source_section, self%local_source_index, &
-         source_range_start, source_offset, ierr); CHKERRQ(ierr)
+    source_offset = global_section_offset(source_section, &
+         self%local_source_index, source_range_start)
     call source%assign(source_data, source_offset)
     call source%assign_fluid(local_fluid_data, local_fluid_section)
 
@@ -571,22 +566,20 @@ contains
     PetscInt :: c, fluid_offset, source_offset
     PetscReal, allocatable :: phase_mobilities(:)
     PetscReal :: reference_pressure, pressure_difference, factor
-    PetscErrorCode :: ierr
     PetscReal, parameter :: tol = 1.e-9_dp
 
     call source%init(eos)
-    call global_section_offset(source_section, self%local_source_index, &
-         source_range_start, source_offset, ierr); CHKERRQ(ierr)
+    source_offset = global_section_offset(source_section, self%local_source_index, &
+         source_range_start)
     call source%assign(source_data, source_offset)
 
     c = nint(source%local_cell_index)
     if (fluid_range_start >= 0) then ! global
-       call global_section_offset(fluid_section, c, &
-            fluid_range_start, fluid_offset, ierr)
+       fluid_offset = global_section_offset(fluid_section, c, &
+            fluid_range_start)
     else ! local
-       call section_offset(fluid_section, c, fluid_offset, ierr)
+       fluid_offset = section_offset(fluid_section, c)
     end if
-    CHKERRQ(ierr)
 
     call source%fluid%assign(fluid_data, fluid_offset)
     allocate(phase_mobilities(source%fluid%num_phases))
@@ -672,12 +665,11 @@ contains
     PetscInt :: source_offset
     PetscReal :: reference_pressure, pressure_difference
     PetscReal :: recharge_coefficient
-    PetscErrorCode :: ierr
 
     call source%init(eos)
 
-    call global_section_offset(source_section, self%local_source_index, &
-         source_range_start, source_offset, ierr); CHKERRQ(ierr)
+    source_offset = global_section_offset(source_section, &
+         self%local_source_index, source_range_start)
     call source%assign(source_data, source_offset)
     call source%assign_fluid(local_fluid_data, local_fluid_section)
 
@@ -784,11 +776,10 @@ contains
     PetscInt :: source_offset
     PetscReal, allocatable :: phase_flow_fractions(:)
     PetscReal :: enthalpy
-    PetscErrorCode :: ierr
 
     call source%init(eos)
-    call global_section_offset(source_section, self%local_source_index, &
-         source_range_start, source_offset, ierr); CHKERRQ(ierr)
+    source_offset = global_section_offset(source_section, &
+         self%local_source_index, source_range_start)
     call source%assign(source_data, source_offset)
 
     if ((source%rate < 0._dp) .and. (source%production_component < &
@@ -887,14 +878,12 @@ contains
     ! Locals:
     type(source_type) :: source
     PetscInt :: source_offset
-    PetscErrorCode :: ierr
 
     select case (self%type)
     case (SRC_CONTROL_LIMITER_TYPE_TOTAL)
        call source%init(eos)
-       call global_section_offset(source_section, &
-            self%input_local_source_index, source_range_start, &
-            source_offset, ierr); CHKERRQ(ierr)
+       source_offset = global_section_offset(source_section, &
+            self%input_local_source_index, source_range_start)
        call source%assign(source_data, source_offset)
        rate = source%rate
        call source%destroy()
@@ -962,7 +951,6 @@ contains
     type(source_type) :: source
     PetscReal :: scale
     PetscInt :: i, s, source_offset
-    PetscErrorCode :: ierr
 
     call source%init(eos)
     scale = self%rate_scale(source_data, source_section, &
@@ -971,8 +959,7 @@ contains
     do i = 1, size(self%local_source_indices)
 
        s = self%local_source_indices(i)
-       call global_section_offset(source_section, s, source_range_start, &
-            source_offset, ierr); CHKERRQ(ierr)
+       source_offset = global_section_offset(source_section, s, source_range_start)
        call source%assign(source_data, source_offset)
        source%rate = source%rate * scale
 
@@ -1032,15 +1019,13 @@ contains
     type(source_type) :: source
     PetscInt :: i, s, source_offset
     PetscBool :: flowing
-    PetscErrorCode :: ierr
 
     call source%init(eos)
 
     do i = 1, size(self%local_source_indices)
 
        s = self%local_source_indices(i)
-       call global_section_offset(source_section, s, source_range_start, &
-            source_offset, ierr); CHKERRQ(ierr)
+       source_offset = global_section_offset(source_section, s, source_range_start)
        call source%assign(source_data, source_offset)
 
          select case (self%direction)

@@ -84,7 +84,6 @@ contains
     PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
     PetscInt, parameter :: expected_num_sources = 19
     PetscMPIInt :: rank, num_procs
-    PetscViewer :: viewer
     IS :: source_is
     PetscInt, allocatable :: zone_source(:), isort(:)
     PetscInt, allocatable :: zone_source_sorted(:), zone_source_all(:)
@@ -94,17 +93,16 @@ contains
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
     call MPI_COMM_SIZE(PETSC_COMM_WORLD, num_procs, ierr)
     json => fson_parse_mpi(trim(adjustl(data_path)) // "source/test_source.json")
-    viewer = PETSC_NULL_VIEWER
 
     call thermo%init()
     call eos%init(json, thermo)
     call source%init(eos)
     call mesh%init(eos, json)
     call DMCreateLabel(mesh%serial_dm, open_boundary_label_name, ierr); CHKERRQ(ierr)
-    call mesh%configure(gravity, json, viewer = viewer, err = err)
+    call mesh%configure(gravity, json, err = err)
     call DMGetGlobalVector(mesh%dm, fluid_vector, ierr); CHKERRQ(ierr) ! dummy- not used
 
-    call setup_sources(json, mesh%dm, mesh%cell_order, eos, thermo, start_time, &
+    call setup_sources(json, mesh%dm, mesh%cell_natural_global, eos, thermo, start_time, &
          fluid_vector, fluid_range_start, source_vector, source_range_start, &
          num_sources, total_num_sources, source_controls, source_is, err = err)
     call test%assert(0, err, "error")
@@ -120,8 +118,7 @@ contains
     num_zone_sources = 0
 
     do s = 0, num_sources - 1
-       call global_section_offset(source_section, s, &
-            source_range_start, source_offset, ierr); CHKERRQ(ierr)
+       source_offset = global_section_offset(source_section, s, source_range_start)
        call source%assign(source_array, source_offset)
        source_index = nint(source%source_index)
        select case (source_index)

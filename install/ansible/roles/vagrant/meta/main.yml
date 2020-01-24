@@ -1,3 +1,6 @@
-# dependencies:
-#    - { role: packages,
-#     }
+dependencies:
+- { role: get_variables,
+    app_user: "{{ v_user }}",
+    app_group: "{{ v_group }}",
+    app_dir: "{{ v_dir }}",
+   }

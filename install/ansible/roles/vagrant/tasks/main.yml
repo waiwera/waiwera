@@ -1,13 +1,19 @@
 
-- include_role:
+- name: Creates vagrant directory
+  file:
+    path: "{{ v_dir }}"
+    state: directory
+    owner: "{{ v_user }}"
+    group: "{{ v_group }}"
+
+- import_role:
     name: packages
   vars:
     app_group: "{{ v_group }}"
     app_user: "{{ v_user }}"
     base_dir: "{{ v_dir }}"
 
-- name: Include common role
-  import_role:
+- import_role:
     name: common
   vars:
     app_group: "{{ v_group }}"
@@ -17,12 +23,9 @@
 
 - name: Change login directory for vagrant VM
   lineinfile:
-    path:  ~/.bashrc
-    regexp: ^cd {{ waiwera_path}}"
+    path:  "/home/{{ v_user }}/.bashrc"
+    regexp: "cd {{ waiwera_path}}"
     line: "cd {{ waiwera_path }}"
-  tags:
-    - never
-    - vagrant
 
 - name: Waiwera install
   environment:

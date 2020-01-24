@@ -100,6 +100,7 @@ contains
          pressure_scale, logfile)
     call fson_get_mpi(json, "eos.primary.scale.temperature", default_temperature_scale, &
          temperature_scale, logfile)
+    allocate(self%primary_scale(2, 4))
     self%primary_scale = reshape([ &
           pressure_scale, temperature_scale, &
           pressure_scale, temperature_scale, &

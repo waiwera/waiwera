@@ -51,9 +51,13 @@ Optional parameters for the ``waiwera-dkr`` script
 
 Besides the ``-np`` option for specifying the number of processes, the ``waiwera-dkr.py`` script has some other optional parameters for controlling its behaviour. Details of all available options can be displayed using the ``--help`` (or ``-h``) option, e.g.:
 
-.. code-block:: bash
+The Waiwera JSON input file (see :ref:`waiwera_input`) contains some paths to other files, e.g. the mesh file (see :ref:`specifying_mesh`). There are a few things to note about file paths when running using Docker:
 
-   waiwera-dkr --help
+- file paths must always be specified using POSIX (i.e. Linux-style) file path syntax, i.e. forward slashes for directory delimiters (not backslashes as on Windows), and any spaces in the file path (usually better avoided if possible) should be "escaped" by preceding them with backslashes. This is because Waiwera is run using Linux inside the Docker container. For the same reason, file paths are always case-sensitive.
+- any files specified in the JSON input file name need to be in the directory that Waiwera is being run in, or a subdirectory of it. This is because those are the only directories that are shared with the Docker container.
+- all file paths should be relative (not absolute).
+
+The same considerations apply when running Waiwera using the ``waiwera-dkr.py`` script and specifying a path to the simulation input file on the command line. In general, when running with Docker it is recommmended to run from the directory containing the simulation input file. Then avoids the need to specify a path to your file, and simplifies the directories that need to be shared with Docker.
 
 or:
 

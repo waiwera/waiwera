@@ -196,7 +196,7 @@ contains
       ! Iterator function to apply to nodes.
       implicit none
       type(list_node_type), pointer, intent(in out) :: node
-      logical, intent(out) :: stopped
+      PetscBool, intent(out) :: stopped
 
       select type(d => node%data)
       type is (PetscInt)

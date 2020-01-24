@@ -1,5 +1,8 @@
-# Build and run Waiwera tests. Optional command line arguments are the test module
-# names required in the test, otherwise all test modules are used.
+# Build and run Waiwera tests. Optional command line arguments are the
+# test module names required in the test, otherwise all test modules
+# are used. Named arguments specify the command for executing tests
+# (e.g. mpiexec), number of processes, and name of build directory to
+# run tests in.
 
 from __future__ import print_function
 import sys
@@ -11,12 +14,13 @@ import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument("tests", default = [], help = "test modules", nargs="*")
 parser.add_argument("--exe", default = "mpiexec", help = "command for executing unit test")
-parser.add_argument("--procs", default = "np", help = "option for specifying number of processes ")
+parser.add_argument("--procs", default = "np", help = "option for specifying number of processes")
+parser.add_argument("--builddir", default = "build", help = "build subdirectory")
 args = parser.parse_args()
 
 test_modules = [m + '_test' for m in args.tests]
 
-os.chdir('build')
+os.chdir(args.builddir)
 
 try:
     num_available_procs = multiprocessing.cpu_count()

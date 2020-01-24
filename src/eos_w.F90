@@ -84,6 +84,7 @@ contains
     call fson_get_mpi(json, "eos.primary.scale.pressure", default_pressure_scale, &
          pressure_scale, logfile)
 
+    allocate(self%primary_scale(1, 2))
     self%primary_scale = reshape([ &
           pressure_scale, &
           pressure_scale], [1, 2])

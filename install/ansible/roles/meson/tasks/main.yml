@@ -1,20 +1,15 @@
 ---
 
-- name: meson - pip install local --user using pip3
-  pip:
-    name: "{{ meson_version }}"
-    executable: "{{ pip_ex }}"
-    extra_args: "--user"
+- name: check for root install of meson
+  set_fact:
+    extra_args: ""
+  when: ( app_user == 'root') or (docker_run == true)
   tags:
-    - local
-  when: docker_run is not defined
+    - docker
+    - root
 
-- name: meson - install for root using pip3
+- name: pip install
   pip:
     name: "{{ meson_version }}"
     executable: "{{ pip_ex }}"
-    # extra_args: "--user"
-  tags:
-      - docker
-      - root
-  when: docker_run is defined
+    extra_args: "{{ extra_args }}"

@@ -217,7 +217,7 @@ contains
       use mesh_module
       use eos_module, only: max_component_name_length, &
            max_phase_name_length
-      use fluid_module, only: fluid_type, setup_fluid_vector
+      use fluid_module, only: fluid_type, create_fluid_vector
       use dm_utils_module
       use relative_permeability_module, only: relative_permeability_corey_type
       use capillary_pressure_module, only: capillary_pressure_zero_type
@@ -232,7 +232,6 @@ contains
       type(eos_we_type) :: eos
       type(mesh_type) :: mesh
       PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
-      PetscViewer :: viewer
       Vec :: fluid_vector, y
       PetscInt :: y_range_start, fluid_range_start
       PetscInt :: start_cell, end_cell, end_interior_cell
@@ -251,19 +250,17 @@ contains
       PetscInt, parameter :: expected_region = 1
 
       json => fson_parse_mpi(str = json_str)
-      viewer = PETSC_NULL_VIEWER
       call logfile%init('', echo = PETSC_FALSE)
 
       call thermo%init()
       call eos%init(json, thermo)
       call mesh%init(eos, json)
-      call mesh%configure(gravity, json, viewer = viewer, err = err)
-
+      call mesh%configure(gravity, json, err = err)
       call DMCreateGlobalVector(mesh%dm, y, ierr); CHKERRQ(ierr)
       call PetscObjectSetName(y, "primary", ierr); CHKERRQ(ierr)
       call global_vec_range_start(y, y_range_start)
 
-      call setup_fluid_vector(mesh%dm, max_component_name_length, &
+      call create_fluid_vector(mesh%dm, max_component_name_length, &
            eos%component_names, max_phase_name_length, &
            eos%phase_names, fluid_vector, fluid_range_start)
 
@@ -295,17 +292,15 @@ contains
       do c = start_cell, end_interior_cell - 1
          call DMLabelGetValue(ghost_label, c, ghost, ierr); CHKERRQ(ierr)
          if (ghost < 0) then
-            call global_section_offset(fluid_section, c, &
-                 fluid_range_start, fluid_offset, ierr); CHKERRQ(ierr)
+            fluid_offset = global_section_offset(fluid_section, c, &
+                 fluid_range_start)
             call fluid%assign(fluid_array, fluid_offset)
-            call section_offset(cell_geom_section, c, cell_geom_offset, ierr)
-            CHKERRQ(ierr)
+            cell_geom_offset = section_offset(cell_geom_section, c)
             call cell%assign_geometry(cell_geom_array, cell_geom_offset)
             associate(z => cell%centroid(3))
               call primary_variables(z, gravity(3), expected_primary)
             end associate
-            call global_section_offset(y_section, c, &
-                 y_range_start, y_offset, ierr); CHKERRQ(ierr)
+            y_offset = global_section_offset(y_section, c, y_range_start)
             primary => y_array(y_offset: y_offset + eos%num_primary_variables - 1)
             call test%assert(expected_primary, primary, &
                  name // ': primary')
@@ -344,7 +339,7 @@ contains
     use mesh_module
     use eos_module, only: max_component_name_length, &
          max_phase_name_length
-    use fluid_module, only: fluid_type, setup_fluid_vector
+    use fluid_module, only: fluid_type, create_fluid_vector
     use rock_module, only: rock_type
     use dm_utils_module, only: global_vec_section, global_section_offset, &
          local_vec_section, section_offset, global_vec_range_start, &
@@ -367,7 +362,6 @@ contains
     type(eos_we_type) :: eos
     type(mesh_type) :: mesh
     PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
-    PetscViewer :: viewer
     Vec :: fluid_vector
     PetscInt :: fluid_range_start, start_cell, end_cell, i
     PetscInt :: c, ghost, fluid_offset, cell_geom_offset
@@ -399,15 +393,14 @@ contains
          ' "eos": "we"}'
 
     json => fson_parse_mpi(str = json_str)
-    viewer = PETSC_NULL_VIEWER
     call logfile%init('', echo = PETSC_FALSE)
 
     call thermo%init()
     call eos%init(json, thermo)
     call mesh%init(eos, json)
-    call mesh%configure(gravity, json, viewer = viewer, err = err)
+    call mesh%configure(gravity, json, err = err)
 
-    call setup_fluid_vector(mesh%dm, max_component_name_length, &
+    call create_fluid_vector(mesh%dm, max_component_name_length, &
          eos%component_names, max_phase_name_length, &
          eos%phase_names, fluid_vector, fluid_range_start)
     call global_vec_section(fluid_vector, fluid_section)
@@ -453,11 +446,9 @@ contains
     do c = start_cell, end_cell - 1
        call DMLabelGetValue(ghost_label, c, ghost, ierr); CHKERRQ(ierr)
        if (ghost < 0) then
-          call global_section_offset(fluid_section, c, &
-               fluid_range_start, fluid_offset, ierr); CHKERRQ(ierr)
+          fluid_offset = global_section_offset(fluid_section, c, fluid_range_start)
           call fluid%assign(fluid_array, fluid_offset)
-          call section_offset(cell_geom_section, c, cell_geom_offset, ierr)
-          CHKERRQ(ierr)
+          cell_geom_offset = section_offset(cell_geom_section, c)
           call cell%assign_geometry(cell_geom_array, cell_geom_offset)
           associate(z => cell%centroid(3))
             call primary_variables(z, gravity(3), primary)
@@ -501,7 +492,7 @@ contains
     use logfile_module
     use eos_module, only: max_component_name_length, &
          max_phase_name_length
-    use fluid_module, only: fluid_type, setup_fluid_vector
+    use fluid_module, only: fluid_type, create_fluid_vector
     use cell_module, only: cell_type
 
     class(unit_test_type), intent(in out) :: test
@@ -513,7 +504,6 @@ contains
     type(eos_we_type) :: eos
     type(mesh_type) :: mesh
     PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
-    PetscViewer :: viewer
     type(logfile_type) :: logfile
     Vec :: y, fluid_vector
     PetscInt :: y_range_start, fluid_range_start, ghost
@@ -539,19 +529,18 @@ contains
          '               "region":  [1, 1, 1, 2, 2, 2, 4, 4, 4, 4]}}'
 
     json => fson_parse_mpi(str = json_str)
-    viewer = PETSC_NULL_VIEWER
     call logfile%init('', echo = PETSC_FALSE)
 
     call thermo%init()
     call eos%init(json, thermo)
     call mesh%init(eos, json)
-    call mesh%configure(gravity, json, viewer = viewer, err = err)
+    call mesh%configure(gravity, json, err = err)
 
     call DMCreateGlobalVector(mesh%dm, y, ierr); CHKERRQ(ierr)
     call PetscObjectSetName(y, "primary", ierr); CHKERRQ(ierr)
     call global_vec_range_start(y, y_range_start)
 
-    call setup_fluid_vector(mesh%dm, max_component_name_length, &
+    call create_fluid_vector(mesh%dm, max_component_name_length, &
          eos%component_names, max_phase_name_length, &
          eos%phase_names, fluid_vector, fluid_range_start)
 
@@ -579,11 +568,10 @@ contains
     do c = start_cell, end_interior_cell - 1
        call DMLabelGetValue(ghost_label, c, ghost, ierr); CHKERRQ(ierr)
        if (ghost < 0) then
-          call global_section_offset(fluid_section, c, &
-               fluid_range_start, fluid_offset, ierr); CHKERRQ(ierr)
+          fluid_offset = global_section_offset(fluid_section, c, &
+               fluid_range_start)
           call fluid%assign(fluid_array, fluid_offset)
-          call section_offset(cell_geom_section, c, cell_geom_offset, ierr)
-          CHKERRQ(ierr)
+          cell_geom_offset = section_offset(cell_geom_section, c)
           call cell%assign_geometry(cell_geom_array, cell_geom_offset)
           associate(z => cell%centroid(3))
             if (z > -300._dp) then

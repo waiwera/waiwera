@@ -55,7 +55,7 @@ _GIT_USER and GIT_PWD are the passwords for accesing the supermodels git repo_
 
 Open the command line for your operating system and follow these steps:
 
-- Navigate to the he directory geo-deploy   `vagrant init`
+- Navigate to the the directory waiwera directory and run `vagrant init`
 - This only has to be done once to tell the system that this is vagrant deployment directory
 - `vagrant up` - starts a VM (virtual machine) named `waiwera`
 - This could take some time as it builds and installs all the dependencies required

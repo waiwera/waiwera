@@ -177,7 +177,7 @@ contains
        call test%assert(23, f, "3D top +y side")
 
        call dm_cell_normal_face(dm, 2, [2._dp, -8._dp, 0.1_dp], f)
-       call test%assert(34, f, "3S bottom -y side")
+       call test%assert(34, f, "3D bottom -y side")
 
     end if
 
@@ -209,8 +209,7 @@ contains
 
     num_vertices = min(rank, 4)
     call create_path_dm(num_vertices, dm)
-    call DMSetNumFields(dm, num_fields, ierr); CHKERRQ(ierr)
-    call set_dm_data_layout(dm, num_field_components, field_dim, field_names)
+    call dm_set_data_layout(dm, num_field_components, field_dim, field_names)
 
     call DMCreateGlobalVector(dm, v, ierr); CHKERRQ(ierr)
     call VecGetLocalSize(v, local_size, ierr); CHKERRQ(ierr)

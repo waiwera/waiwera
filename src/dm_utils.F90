@@ -29,9 +29,9 @@ module dm_utils_module
      !! Type for point stratum (cells, faces, edges or vertices) in a
      !! DM. This includes functionality for MINC DM point calculations.
      private
-     PetscInt, public :: start, end, end_interior
+     PetscInt, public :: start, end, end_interior, end_non_ghost
      PetscInt, public, allocatable :: minc_shift(:)
-     PetscInt, public :: num_minc_points
+     PetscInt, public :: num_minc_points, num_partition_ghosts
    contains
      private
      procedure, public :: size => dm_stratum_size
@@ -42,15 +42,9 @@ module dm_utils_module
      generic, public :: minc_point => minc_point_single, minc_point_array
   end type dm_stratum_type
 
-  public :: dm_get_strata, dm_point_stratum_height
-
-  public :: dm_create_section, set_dm_data_layout, set_dm_default_data_layout
-  public :: dm_setup_global_section
-  public :: section_offset, global_section_offset
-
   interface natural_to_local_cell_index
-     module procedure natural_to_local_cell_index_array
      module procedure natural_to_local_cell_index_single
+     module procedure natural_to_local_cell_index_array
   end interface natural_to_local_cell_index
 
   interface local_to_natural_cell_index
@@ -58,21 +52,31 @@ module dm_utils_module
      module procedure local_to_natural_cell_index_array
   end interface local_to_natural_cell_index
 
+  public :: dm_get_strata, dm_point_stratum_height
+  public :: dm_create_section, dm_set_data_layout, dm_set_default_data_layout
+  public :: dm_setup_global_section
+  public :: section_offset, global_section_offset
   public :: global_vec_section, local_vec_section
   public :: global_to_local_vec_section, restore_dm_local_vec
   public :: global_vec_range_start, vec_reorder
   public :: dm_cell_normal_face
   public :: write_vec_vtk
   public :: vec_max_pointwise_abs_scale
-  public :: dm_set_fv_adjacency, dm_setup_fv_discretization
-  public :: dm_get_num_partition_ghost_cells, dm_get_bdy_cell_shift
+  public :: dm_set_fv_adjacency
+  public :: dm_get_num_partition_ghost_points, dm_get_bdy_cell_shift
   public :: dm_get_end_interior_cell
   public :: dm_get_natural_to_global_ao, dm_get_cell_index
   public :: natural_to_local_cell_index, local_to_natural_cell_index
+  public :: dm_natural_order_IS
   public :: create_path_dm
   public :: get_field_subvector, section_get_field_names
-  public :: dm_global_cell_field_dof
+  public :: dm_global_cell_field_dof, dm_check_create_label
+  public :: dm_label_partition_ghosts, dm_label_boundary_ghosts
+  public :: dm_distribute_local_vec, dm_distribute_global_vec
+  public :: dm_distribute_index_set
+  public :: vec_copy_common_local
   public :: mat_type_is_block, mat_coloring_perturbed_columns
+  public :: dm_copy_cone_orientation, dm_cell_counts
 
 contains
 
@@ -119,7 +123,7 @@ contains
   PetscInt function dm_stratum_minc_point_single(self, p, m) &
        result(minc_p)
     !! Returns point for MINC level m in MINC DM corresponding to
-    !! point p in original DM. Boundary ghost cells are shifted up by
+    !! point p in original DM. Partition ghost cells are shifted up by
     !! the number of MINC points in the stratum. For MINC points (m >
     !! 0), p should be the index of the fracture cell in the list of
     !! fracture cells for the given MINC level.
@@ -128,7 +132,7 @@ contains
     PetscInt, intent(in) :: p, m
 
     minc_p = p + self%minc_shift(m)
-    if ((m == 0) .and. (p >= self%end_interior)) then
+    if ((m == 0) .and. (p >= self%end_non_ghost)) then
        minc_p = minc_p + self%num_minc_points
     end if
 
@@ -163,7 +167,11 @@ contains
     PetscInt, intent(out) :: depth
     type(dm_stratum_type), allocatable, intent(out) :: strata(:)
     ! Locals:
-    PetscErrorCode :: ierr, h
+    PetscMPIInt :: np
+    PetscInt :: h, dummy, end_interior_cell
+    PetscErrorCode :: ierr
+
+    call MPI_comm_size(PETSC_COMM_WORLD, np, ierr)
 
     call DMPlexGetDepth(dm, depth, ierr); CHKERRQ(ierr)
     allocate(strata(0: depth))
@@ -171,16 +179,23 @@ contains
     do h = 0, depth
        call DMPlexGetHeightStratum(dm, h, strata(h)%start, &
             strata(h)%end, ierr); CHKERRQ(ierr)
+       strata(h)%end_interior = strata(h)%end
     end do
 
-    call DMPlexGetHybridBounds(dm, strata(0)%end_interior, &
-         strata(1)%end_interior, strata(depth - 1)%end_interior, &
-         strata(depth)%end_interior, ierr); CHKERRQ(ierr)
-    do h = 0, depth
-       if (strata(h)%end_interior < 0) then
-          strata(h)%end_interior = strata(h)%end
-       end if
-    end do
+    call DMPlexGetGhostCellStratum(dm, end_interior_cell, &
+         dummy, ierr); CHKERRQ(ierr)
+    if (end_interior_cell >= 0) then
+       strata(0)%end_interior = end_interior_cell
+    end if
+
+    if (np == 1) then
+       strata%end_non_ghost = strata%end
+    else
+       do h = 0, depth
+          strata(h)%num_partition_ghosts = dm_get_num_partition_ghost_points(dm, h)
+          strata(h)%end_non_ghost = strata(h)%end - strata(h)%num_partition_ghosts
+       end do
+    end if
 
   end subroutine dm_get_strata
 
@@ -211,7 +226,37 @@ contains
 ! DM utilities:
 !------------------------------------------------------------------------
 
-    PetscSection function dm_create_section(dm, num_components, field_dim, &
+  subroutine dm_set_fields(dm, num_components)
+    !! Sets fields in the DM.
+
+    DM, intent(in out) :: dm
+    PetscInt, intent(in) :: num_components(:) !! Number of components in each field
+    ! Locals:
+    PetscInt :: dim, f
+    PetscFV :: fvm
+    PetscErrorCode :: ierr
+
+    call DMGetDimension(dm, dim, ierr); CHKERRQ(ierr)
+    call DMClearFields(dm, ierr); CHKERRQ(ierr)
+
+    associate(num_fields => size(num_components))
+      do f = 1, num_fields
+         call PetscFVCreate(PETSC_COMM_WORLD, fvm, ierr); CHKERRQ(ierr)
+         call PetscFVSetFromOptions(fvm, ierr); CHKERRQ(ierr)
+         call PetscFVSetNumComponents(fvm, num_components(f), ierr); CHKERRQ(ierr)
+         call PetscFVSetSpatialDimension(fvm, dim, ierr); CHKERRQ(ierr)
+         call DMAddField(dm, PETSC_NULL_DMLABEL, fvm, ierr); CHKERRQ(ierr)
+         call PetscFVDestroy(fvm, ierr); CHKERRQ(ierr)
+      end do
+    end associate
+
+    call DMCreateDS(dm, ierr); CHKERRQ(ierr)
+
+  end subroutine dm_set_fields
+
+!------------------------------------------------------------------------
+
+  PetscSection function dm_create_section(dm, num_components, field_dim, &
        field_name) result(section)
     !! Creates section from the given DM and data layout parameters.
 
@@ -221,7 +266,7 @@ contains
     character(*), intent(in), optional :: field_name(:) !! Name of each field
     ! Locals:
     PetscInt :: dim
-    PetscInt :: num_fields, i, num_bc
+    PetscInt :: i, num_bc
     PetscInt, allocatable, target :: num_dof(:)
     PetscInt, target :: bc_field(1)
     IS, target :: bc_comps(1), bc_points(1)
@@ -231,42 +276,45 @@ contains
     PetscErrorCode :: ierr
 
     call DMGetDimension(dm, dim, ierr); CHKERRQ(ierr)
-    num_fields = size(num_components)
-    allocate(num_dof(num_fields*(dim+1)))
-    num_dof = 0
-    do i = 1, num_fields
-       num_dof((i-1) * (dim+1) + field_dim(i) + 1) = num_components(i)
-    end do
+    associate (num_fields => size(num_components))
 
-    ! Boundary conditions (none):
-    num_bc = 0
-    bc_field(1) = 0
+      allocate(num_dof(num_fields*(dim+1)))
+      num_dof = 0
+      do i = 1, num_fields
+         num_dof((i-1) * (dim+1) + field_dim(i) + 1) = num_components(i)
+      end do
 
-    pnum_components => num_components
-    pnum_dof => num_dof
-    pbc_field => bc_field
-    pbc_comps => bc_comps
-    pbc_points => bc_points
-    label => NULL()
+      ! Boundary conditions (none):
+      num_bc = 0
+      bc_field(1) = 0
 
-    call DMPlexCreateSection(dm, label, pnum_components, &
-         pnum_dof, num_bc, pbc_field, pbc_comps, pbc_points, &
-         PETSC_NULL_IS, section, ierr); CHKERRQ(ierr)
+      pnum_components => num_components
+      pnum_dof => num_dof
+      pbc_field => bc_field
+      pbc_comps => bc_comps
+      pbc_points => bc_points
+      label => NULL()
 
-    if (present(field_name)) then
-       do i = 1, num_fields
-          call PetscSectionSetFieldName(section, i-1, field_name(i), ierr)
-          CHKERRQ(ierr)
-       end do
-    end if
+      call DMPlexCreateSection(dm, label, pnum_components, &
+           pnum_dof, num_bc, pbc_field, pbc_comps, pbc_points, &
+           PETSC_NULL_IS, section, ierr); CHKERRQ(ierr)
 
-    deallocate(num_dof)
+      if (present(field_name)) then
+         do i = 1, num_fields
+            call PetscSectionSetFieldName(section, i-1, field_name(i), ierr)
+            CHKERRQ(ierr)
+         end do
+      end if
+
+      deallocate(num_dof)
+
+    end associate
 
   end function dm_create_section
 
 !------------------------------------------------------------------------
 
-  subroutine set_dm_data_layout(dm, num_components, field_dim, &
+  subroutine dm_set_data_layout(dm, num_components, field_dim, &
        field_name)
     !! Sets data layout on default section of the given DM.
 
@@ -274,20 +322,19 @@ contains
     PetscInt, target, intent(in) :: num_components(:) !! Number of components in each field
     PetscInt, intent(in) :: field_dim(:)  !! Dimension each field is defined on (0 = nodes, etc.)
     character(*), intent(in), optional :: field_name(:) !! Name of each field
-    PetscErrorCode :: ierr
     ! Locals:
     PetscSection :: section
+    PetscErrorCode :: ierr
 
+    call dm_set_fields(dm, num_components)
     section = dm_create_section(dm, num_components, field_dim, field_name)
     call DMSetSection(dm, section, ierr); CHKERRQ(ierr)
-    ! Create the global section:
-    call DMGetGlobalSection(dm, section, ierr); CHKERRQ(ierr)
 
-  end subroutine set_dm_data_layout
+  end subroutine dm_set_data_layout
 
 !------------------------------------------------------------------------
 
-  subroutine set_dm_default_data_layout(dm, dof)
+  subroutine dm_set_default_data_layout(dm, dof)
     !! Sets default data layout on DM, for primary variable vector
     !! with specified number of degrees of freedom.
 
@@ -303,10 +350,10 @@ contains
     field_dim = dim
     field_names(1) = "Primary"
 
-    call set_dm_data_layout(dm, num_components, field_dim, &
+    call dm_set_data_layout(dm, num_components, field_dim, &
          field_names)
 
-  end subroutine set_dm_default_data_layout
+  end subroutine dm_set_default_data_layout
 
 !------------------------------------------------------------------------
 
@@ -356,23 +403,24 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine section_offset(section, p, offset, ierr)
+  PetscInt function section_offset(section, p) result(offset)
     !! Wrapper for PetscSectionGetOffset(), adding one to the result for
     !! Fortran 1-based indexing.
 
     PetscSection, intent(in) :: section !! Local section
     PetscInt, intent(in) :: p !! Mesh point in DM
-    PetscInt, intent(out) :: offset !! Offset value
-    PetscErrorCode, intent(out) :: ierr !! Error flag
+    ! Locals:
+    PetscErrorCode :: ierr
 
-    call PetscSectionGetOffset(section, p, offset, ierr)
+    call PetscSectionGetOffset(section, p, offset, ierr); CHKERRQ(ierr)
     offset = offset + 1
 
-  end subroutine section_offset
+  end function section_offset
 
 !------------------------------------------------------------------------
 
-  subroutine global_section_offset(section, p, range_start, offset, ierr)
+  PetscInt function global_section_offset(section, p, &
+       range_start) result(offset)
     !! Wrapper for PetscSectionGetOffset(), adding one to the result for
     !! Fortran 1-based indexing. For global sections, we also need to
     !! subtract the layout range start to get indices suitable for
@@ -381,14 +429,13 @@ contains
     PetscSection, intent(in) :: section !! Global section
     PetscInt, intent(in) :: p !! Mesh point
     PetscInt, intent(in) :: range_start !! Start of PetscLayout range
-    PetscInt, intent(out) :: offset !! Offset value
-    PetscErrorCode, intent(out) :: ierr !! Error flag
     ! Locals:
+    PetscErrorCode :: ierr
 
-    call PetscSectionGetOffset(section, p, offset, ierr)
+    call PetscSectionGetOffset(section, p, offset, ierr); CHKERRQ(ierr)
     offset = offset + 1 - range_start
 
-  end subroutine global_section_offset
+  end function global_section_offset
 
 !------------------------------------------------------------------------
 
@@ -441,10 +488,7 @@ contains
     call DMGetSection(dm, section, ierr); CHKERRQ(ierr)
 
     call DMGetLocalVector(dm, local_v, ierr); CHKERRQ(ierr)
-    call DMGlobalToLocalBegin(dm, v, INSERT_VALUES, local_v, ierr)
-    CHKERRQ(ierr)
-    call DMGlobalToLocalEnd(dm, v, INSERT_VALUES, local_v, ierr)
-    CHKERRQ(ierr)
+    call DMGlobalToLocal(dm, v, INSERT_VALUES, local_v, ierr); CHKERRQ(ierr)
 
   end subroutine global_to_local_vec_section
 
@@ -637,14 +681,16 @@ contains
 
 !------------------------------------------------------------------------
 
-  PetscInt function dm_get_num_partition_ghost_cells(dm) result(n)
-    !! Returns number of DM partition ghost cells on current process.
+  PetscInt function dm_get_num_partition_ghost_points(dm, h) result(n)
+    !! Returns number of DM partition ghost points in stratum h on
+    !! current process.
 
-    DM, intent(in) :: dm
+    DM, intent(in) :: dm !! DM
+    PetscInt, intent(in) :: h !! stratum height
     ! Locals:
     PetscMPIInt :: np
     PetscSF :: point_sf
-    PetscInt :: start_cell, end_cell
+    PetscInt :: start_point, end_point
     PetscInt :: num_roots, num_leaves
     PetscInt, pointer :: local(:)
     type(PetscSFNode), pointer :: remote(:)
@@ -652,16 +698,16 @@ contains
 
     call MPI_comm_size(PETSC_COMM_WORLD, np, ierr)
     if (np > 1) then
-       call DMPlexGetHeightStratum(dm, 0, start_cell, end_cell, ierr)
+       call DMPlexGetHeightStratum(dm, h, start_point, end_point, ierr)
        call DMGetPointSF(dm, point_sf, ierr); CHKERRQ(ierr)
        call PetscSFGetGraph(point_sf, num_roots, num_leaves, &
             local, remote, ierr); CHKERRQ(ierr)
-       n = count(local < end_cell)
+       n = count((start_point <= local) .and. (local < end_point))
     else
        n = 0
     end if
 
-  end function dm_get_num_partition_ghost_cells
+  end function dm_get_num_partition_ghost_points
 
 !------------------------------------------------------------------------
 
@@ -710,7 +756,7 @@ contains
        result(end_interior_cell)
     !! Returns index (+1) of last interior (i.e. non-boundary) cell of
     !! the DM. In the serial case the result from
-    !! DMPlexGetHybridBounds() is -1, so here this is corrected to
+    !! DMPlexGetGhostCellStratum() is -1, so here this is corrected to
     !! end_cell.
 
     DM, intent(in) :: dm
@@ -719,28 +765,26 @@ contains
     PetscInt :: dummy
     PetscErrorCode :: ierr
 
-    call DMPlexGetHybridBounds(dm, end_interior_cell, dummy, &
-         dummy, dummy, ierr); CHKERRQ(ierr)
+    call DMPlexGetGhostCellStratum(dm, end_interior_cell, dummy, ierr)
+    CHKERRQ(ierr)
     if (end_interior_cell < 0) end_interior_cell = end_cell
 
   end function dm_get_end_interior_cell
 
 !------------------------------------------------------------------------
 
-  AO function dm_get_natural_to_global_ao(dm, dist_sf) result(ao)
+  AO function dm_get_natural_to_global_ao(dm, cell_natural) result(ao)
     !! Returns application ordering for natural to global mapping on
-    !! the DM, given the mesh distribution SF.
+    !! the DM, given the IS local-to-natural cell mapping.
 
     DM, intent(in) :: dm
-    PetscSF, intent(in) :: dist_sf
+    IS, intent(in) :: cell_natural
 
     PetscMPIInt :: np
-    PetscInt :: num_roots, num_leaves, c
-    PetscInt :: start_cell, end_cell, end_interior_cell, end_non_ghost_cell
+    PetscInt :: c, start_cell, end_cell, end_interior_cell, end_non_ghost_cell
     PetscInt :: num_ghost_cells, num_non_ghost_cells
-    PetscInt, pointer :: local(:)
-    type(PetscSFNode), pointer :: remote(:)
-    PetscInt, allocatable :: natural(:), global(:)
+    PetscInt, allocatable :: global(:), natural(:)
+    PetscInt, pointer :: cell_natural_array(:)
     ISLocalToGlobalMapping :: l2g
     PetscErrorCode :: ierr
 
@@ -749,15 +793,17 @@ contains
     end_interior_cell = dm_get_end_interior_cell(dm, end_cell)
     call MPI_comm_size(PETSC_COMM_WORLD, np, ierr)
     if (np > 1) then
-       num_ghost_cells = dm_get_num_partition_ghost_cells(dm)
+       num_ghost_cells = dm_get_num_partition_ghost_points(dm, 0)
        num_non_ghost_cells = end_interior_cell - start_cell - num_ghost_cells
        end_non_ghost_cell = start_cell + num_non_ghost_cells
        call DMGetLocalToGlobalMapping(dm, l2g, ierr); CHKERRQ(ierr)
-       call PetscSFGetGraph(dist_sf, num_roots, num_leaves, &
-            local, remote, ierr); CHKERRQ(ierr)
        allocate(natural(start_cell: end_non_ghost_cell - 1), &
             global(start_cell: end_non_ghost_cell - 1))
-       natural = remote(1: num_non_ghost_cells)%index
+       call ISGetIndicesF90(cell_natural, cell_natural_array, ierr)
+       CHKERRQ(ierr)
+       natural = cell_natural_array(1: num_non_ghost_cells)
+       call ISRestoreIndicesF90(cell_natural, cell_natural_array, ierr)
+       CHKERRQ(ierr)
        call ISLocalToGlobalMappingApplyBlock(l2g, num_non_ghost_cells, &
             [(c, c = start_cell, end_non_ghost_cell - 1)], global, ierr)
        CHKERRQ(ierr)
@@ -772,6 +818,28 @@ contains
     deallocate(natural, global)
 
   end function dm_get_natural_to_global_ao
+
+!------------------------------------------------------------------------
+
+  PetscInt function natural_to_local_cell_index_single(ao, l2g, &
+       natural) result(local)
+    !! Returns local cell index corresponding to natural cell
+    !! index. Off-process cells are given index values of -1.
+
+    AO, intent(in) :: ao !! Application ordering mapping natural to global cell indices
+    ISLocalToGlobalMapping, intent(in) :: l2g !! DM local to global mapping
+    PetscInt, intent(in) :: natural !! Natural cell index
+    ! Locals:
+    PetscInt :: n, idx(1), local_array(1)
+    PetscErrorCode :: ierr
+
+    idx(1) = natural
+    call AOApplicationToPetsc(ao, 1, idx, ierr); CHKERRQ(ierr)
+    call ISGlobalToLocalMappingApplyBlock(l2g, IS_GTOLM_MASK, 1, &
+         idx, n, local_array, ierr); CHKERRQ(ierr)
+    local = local_array(1)
+
+  end function natural_to_local_cell_index_single
 
 !------------------------------------------------------------------------
 
@@ -797,28 +865,6 @@ contains
     end associate
 
   end function natural_to_local_cell_index_array
-
-!------------------------------------------------------------------------
-
-  PetscInt function natural_to_local_cell_index_single(ao, l2g, &
-       natural) result(local)
-    !! Returns local cell index corresponding to natural cell
-    !! index. Off-process cells are given index values of -1.
-
-    AO, intent(in) :: ao !! Application ordering mapping natural to global cell indices
-    ISLocalToGlobalMapping, intent(in) :: l2g !! DM local to global mapping
-    PetscInt, intent(in) :: natural !! Natural cell index
-    ! Locals:
-    PetscInt :: n, idx(1), local_array(1)
-    PetscErrorCode :: ierr
-
-    idx(1) = natural
-    call AOApplicationToPetsc(ao, 1, idx, ierr); CHKERRQ(ierr)
-    call ISGlobalToLocalMappingApplyBlock(l2g, IS_GTOLM_MASK, 1, &
-         idx, n, local_array, ierr); CHKERRQ(ierr)
-    local = local_array(1)
-
-  end function natural_to_local_cell_index_single
 
 !------------------------------------------------------------------------
 
@@ -867,6 +913,45 @@ contains
 
 !------------------------------------------------------------------------
 
+  IS function dm_natural_order_IS(dm, ao) result(natural_IS)
+    !! Returns index set containing natural order for each cell,
+    !! according to the specified natural-to-global AO.  Ghost cells
+    !! are included but given natural order -1.
+
+    DM, intent(in) :: dm
+    AO, intent(in) :: ao
+    ! Locals:
+    ISLocalToGlobalMapping :: l2g
+    DMLabel :: ghost_label
+    PetscInt :: start_cell, end_cell, num_cells
+    PetscInt :: c, ghost
+    PetscInt, allocatable :: natural(:)
+    PetscErrorCode :: ierr
+
+    call DMGetLocalToGlobalMapping(dm, l2g, ierr); CHKERRQ(ierr)
+    call DMPlexGetHeightStratum(dm, 0, start_cell, end_cell, &
+         ierr); CHKERRQ(ierr)
+    num_cells = end_cell - start_cell
+    call DMGetLabel(dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
+    allocate(natural(0: num_cells - 1))
+
+    do c = start_cell, end_cell - 1
+       call DMLabelGetValue(ghost_label, c, ghost, ierr)
+       if (ghost < 0) then
+          natural(c) = local_to_natural_cell_index(ao, l2g, c)
+       else
+          natural(c) = -1
+       end if
+    end do
+
+    call ISCreateGeneral(PETSC_COMM_WORLD, num_cells, &
+         natural, PETSC_COPY_VALUES, natural_IS, ierr)
+    CHKERRQ(ierr)
+
+  end function dm_natural_order_IS
+
+!------------------------------------------------------------------------
+
   subroutine dm_get_cell_index(dm, ao, cell_index)
     !! Returns cell_index IS mapping natural cell indices to global
     !! indices of a global vector (without boundary data included).
@@ -889,7 +974,7 @@ contains
     call DMPlexGetHeightStratum(dm, 0, start_cell, end_cell, &
          ierr); CHKERRQ(ierr)
     end_interior_cell = dm_get_end_interior_cell(dm, end_cell)
-    num_ghost_cells = dm_get_num_partition_ghost_cells(dm)
+    num_ghost_cells = dm_get_num_partition_ghost_points(dm, 0)
     num_non_ghost_cells = end_interior_cell - start_cell - num_ghost_cells
     bdy_cell_shift = dm_get_bdy_cell_shift(dm)
 
@@ -945,29 +1030,6 @@ contains
     CHKERRQ(ierr)
 
   end subroutine dm_set_fv_adjacency
-
-!------------------------------------------------------------------------
-
-  subroutine dm_setup_fv_discretization(dm, dof)
-    !! Sets up finite-volume discretization on DM.
-
-    DM, intent(in out) :: dm
-    PetscInt, intent(in) :: dof
-    ! Locals:
-    PetscFV :: fvm
-    PetscInt :: dim
-    PetscErrorCode :: ierr
-
-    call PetscFVCreate(PETSC_COMM_WORLD, fvm, ierr); CHKERRQ(ierr)
-    call PetscFVSetFromOptions(fvm, ierr); CHKERRQ(ierr)
-    call PetscFVSetNumComponents(fvm, dof, ierr); CHKERRQ(ierr)
-    call DMGetDimension(dm, dim, ierr); CHKERRQ(ierr)
-    call PetscFVSetSpatialDimension(fvm, dim, ierr); CHKERRQ(ierr)
-    call DMAddField(dm, PETSC_NULL_DMLABEL, fvm, ierr); CHKERRQ(ierr)
-    call DMCreateDS(dm, ierr); CHKERRQ(ierr)
-    call PetscFVDestroy(fvm, ierr); CHKERRQ(ierr)
-
-  end subroutine dm_setup_fv_discretization
 
 !------------------------------------------------------------------------
 
@@ -1141,7 +1203,251 @@ contains
 
 !------------------------------------------------------------------------
 
-  logical function mat_type_is_block(M) result(isblock)
+  subroutine dm_check_create_label(dm, label_name)
+    !! Creates label on DM with specified name. If a label of that
+    !! name already exists it is removed and re-created.
+
+    DM, intent(in out) :: dm
+    character(*), intent(in) :: label_name
+    ! Locals:
+    PetscBool :: has_label
+    DMLabel :: label
+    PetscErrorCode :: ierr
+
+    call DMHasLabel(dm, label_name, has_label, ierr); CHKERRQ(ierr)
+    if (has_label) then
+       call DMRemoveLabel(dm, label_name, label, ierr); CHKERRQ(ierr)
+    end if
+    call DMCreateLabel(dm, label_name, ierr); CHKERRQ(ierr)
+
+  end subroutine dm_check_create_label
+
+!------------------------------------------------------------------------
+
+  subroutine dm_label_partition_ghosts(dm)
+    !! Sets ghost (and VTK) label on partition ghost cells and
+    !! faces. Based on code from PETSc DMPlexShiftLabels_Internal(),
+    !! which is called from DMPlexConstructGhostCells().
+
+    DM, intent(in out) :: dm
+    ! Locals:
+    PetscMPIInt :: rank
+    PetscSF :: point_sf
+    PetscInt :: start_cell, end_cell, start_face, end_face
+    PetscInt :: c, l, f, va, vb
+    PetscInt :: num_roots, num_leaves, num_cells
+    PetscInt, pointer :: local(:), cells(:)
+    type(PetscSFNode), pointer :: remote(:)
+    DMLabel :: ghost_label, vtk_label
+    PetscErrorCode :: ierr
+
+    call MPI_comm_rank(PETSC_COMM_WORLD, rank, ierr)
+    call DMGetPointSF(dm, point_sf, ierr); CHKERRQ(ierr)
+    call DMPlexGetHeightStratum(dm, 0, start_cell, end_cell, ierr)
+    call PetscSFGetGraph(point_sf, num_roots, num_leaves, &
+         local, remote, ierr); CHKERRQ(ierr)
+    call dm_check_create_label(dm, "ghost")
+    call dm_check_create_label(dm, "vtk")
+    call DMGetLabel(dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
+    call DMGetLabel(dm, "vtk", vtk_label, ierr); CHKERRQ(ierr)
+
+    l = 0
+    c = start_cell
+    do while ((l < num_leaves) .and. (c < end_cell))
+       do while ((c < local(l + 1)) .and. (c < end_cell))
+          call DMLabelSetValue(vtk_label, c, 1, ierr); CHKERRQ(ierr)
+          c = c + 1
+       end do
+       if (local(l + 1) >= end_cell) exit
+       if (remote(l + 1)%rank == rank) then
+          call DMLabelSetValue(vtk_label, c, 1, ierr); CHKERRQ(ierr)
+       else ! partition ghost cells:
+          call DMLabelSetValue(ghost_label, c, 2, ierr); CHKERRQ(ierr)
+       end if
+       l = l + 1
+       c = c + 1
+    end do
+
+    do while (c < end_cell)
+       call DMLabelSetValue(vtk_label, c, 1, ierr); CHKERRQ(ierr)
+       c = c + 1
+    end do
+
+    ! Label ghost faces:
+    call DMPlexGetHeightStratum(dm, 1, start_face, end_face, ierr)
+    CHKERRQ(ierr)
+    do f = start_face, end_face - 1
+       call DMPlexGetSupportSize(dm, f, num_cells, ierr); CHKERRQ(ierr)
+       if (num_cells < 2) then
+          call DMLabelSetValue(ghost_label, f, 1, ierr); CHKERRQ(ierr)
+       else
+          call DMPlexGetSupport(dm, f, cells, ierr); CHKERRQ(ierr)
+          call DMLabelGetValue(vtk_label, cells(1), va, ierr); CHKERRQ(ierr)
+          call DMLabelGetValue(vtk_label, cells(2), vb, ierr); CHKERRQ(ierr)
+          if ((va /= 1) .and. (vb /= 1)) then
+             call DMLabelSetValue(ghost_label, f, 1, ierr); CHKERRQ(ierr)
+          end if
+       end if
+    end do
+
+  end subroutine dm_label_partition_ghosts
+
+!------------------------------------------------------------------------
+
+  subroutine dm_label_boundary_ghosts(dm, label_name)
+    !! Labels boundary ghost cells with the specified label and value 1.
+
+    DM, intent(in out) :: dm
+    character(*), intent(in) :: label_name
+    ! Locals:
+    PetscInt :: start_cell, end_cell, end_interior_cell, dummy, c
+    PetscErrorCode :: ierr
+
+    call dm_check_create_label(dm, label_name)
+    call DMPlexGetHeightStratum(dm, 0, start_cell, end_cell, ierr)
+    CHKERRQ(ierr)
+    call DMPlexGetGhostCellStratum(dm, end_interior_cell, dummy, ierr)
+    CHKERRQ(ierr)
+    if (end_interior_cell >= 0) then
+       do c = end_interior_cell, end_cell - 1
+          call DMSetLabelValue(dm, label_name, c, 1, ierr)
+          CHKERRQ(ierr)
+       end do
+    end if
+
+  end subroutine dm_label_boundary_ghosts
+
+!------------------------------------------------------------------------
+
+  subroutine dm_distribute_local_vec(dm, sf, v)
+    !! Distributes local vector v from its original DM to the
+    !! specified one, via the supplied distribution star forest. The
+    !! original vector v is overwritten.
+
+    DM, intent(in) :: dm
+    PetscSF, intent(in) :: sf
+    Vec, intent(in out) :: v
+    ! Locals:
+    character(80) :: name
+    DM :: v_dm, dist_v_dm
+    PetscSection :: section, dist_section
+    Vec :: dist_v
+    PetscErrorCode :: ierr
+
+    call VecGetDM(v, v_dm, ierr); CHKERRQ(ierr)
+    call DMGetSection(v_dm, section, ierr); CHKERRQ(ierr)
+
+    call VecCreate(PETSC_COMM_WORLD, dist_v, ierr); CHKERRQ(ierr)
+    call PetscObjectGetName(v, name, ierr); CHKERRQ(ierr)
+    call PetscObjectSetName(dist_v, name, ierr); CHKERRQ(ierr)
+
+    call DMClone(dm, dist_v_dm, ierr); CHKERRQ(ierr)
+    call PetscSectionCreate(PETSC_COMM_WORLD, dist_section, ierr)
+    CHKERRQ(ierr)
+    call DMSetSection(dist_v_dm, dist_section, ierr)
+    call VecSetDM(dist_v, dist_v_dm, ierr); CHKERRQ(ierr)
+
+    call DMPlexDistributeField(v_dm, sf, section, v, &
+         dist_section, dist_v, ierr); CHKERRQ(ierr)
+
+    call PetscSectionDestroy(dist_section, ierr); CHKERRQ(ierr)
+    call VecDestroy(v, ierr); CHKERRQ(ierr)
+    v = dist_v
+
+  end subroutine dm_distribute_local_vec
+
+!------------------------------------------------------------------------
+
+  subroutine dm_distribute_global_vec(dm, sf, v)
+    !! Distributes global vector v from its original DM to the
+    !! specified one, via the supplied distribution star forest. The
+    !! original vector v is overwritten.
+
+    DM, intent(in) :: dm
+    PetscSF, intent(in) :: sf
+    Vec, intent(in out) :: v
+    ! Locals:
+    DM :: v_dm, dist_v_dm
+    Vec :: local_v, global_v
+    character(80) :: name
+    PetscErrorCode :: ierr
+
+    call VecGetDM(v, v_dm, ierr); CHKERRQ(ierr)
+    call DMCreateLocalVector(v_dm, local_v, ierr); CHKERRQ(ierr)
+    call DMGlobalToLocal(v_dm, v, INSERT_VALUES, local_v, ierr); CHKERRQ(ierr)
+
+    call dm_distribute_local_vec(dm, sf, local_v)
+
+    call VecGetDM(local_v, dist_v_dm, ierr); CHKERRQ(ierr)
+    call DMCreateGlobalVector(dist_v_dm, global_v, ierr); CHKERRQ(ierr)
+    call PetscObjectGetName(v, name, ierr); CHKERRQ(ierr)
+    call PetscObjectSetName(global_v, name, ierr); CHKERRQ(ierr)
+
+    call DMLocalToGlobal(dist_v_dm, local_v, INSERT_VALUES, global_v, ierr)
+    CHKERRQ(ierr)
+
+    call VecDestroy(local_v, ierr); CHKERRQ(ierr)
+    call VecDestroy(v, ierr); CHKERRQ(ierr)
+    v = global_v
+
+  end subroutine dm_distribute_global_vec
+
+!------------------------------------------------------------------------
+
+  subroutine dm_distribute_index_set(dm, sf, section, index_set)
+    !! Distributes IS according to the specified distribution star
+    !! forest.
+
+    DM, intent(in) :: dm
+    PetscSF, intent(in) :: sf !! Distribution star forest
+    PetscSection, intent(in) :: section !! Section for existing IS
+    IS, intent(in out) :: index_set
+    ! Locals:
+    PetscSection :: dist_section
+    IS :: dist_index_set
+    PetscErrorCode :: ierr
+
+    call PetscSectionCreate(PETSC_COMM_WORLD, dist_section, ierr)
+    CHKERRQ(ierr)
+    call ISCreate(PETSC_COMM_WORLD, dist_index_set, ierr)
+    CHKERRQ(ierr)
+    call DMPlexDistributeFieldIS(dm, sf, section, &
+         index_set, dist_section, &
+         dist_index_set, ierr); CHKERRQ(ierr)
+    call PetscSectionDestroy(dist_section, ierr); CHKERRQ(ierr)
+    call ISDestroy(index_set, ierr); CHKERRQ(ierr)
+    index_set = dist_index_set
+
+  end subroutine dm_distribute_index_set
+
+!------------------------------------------------------------------------
+
+  subroutine vec_copy_common_local(v, w)
+    !! Copies data from Vec v to w, up to the minimum of the local
+    !! sizes of the two vectors.
+
+    Vec, intent(in) :: v
+    Vec, intent(in out) :: w
+    ! Locals:
+    PetscInt :: vsize, wsize, n
+    PetscReal, pointer :: v_array(:), w_array(:)
+    PetscErrorCode :: ierr
+
+    call VecGetLocalSize(v, vsize, ierr); CHKERRQ(ierr)
+    call VecGetLocalSize(w, wsize, ierr); CHKERRQ(ierr)
+    n = min(vsize, wsize)
+
+    call VecGetArrayReadF90(v, v_array, ierr); CHKERRQ(ierr)
+    call VecGetArrayF90(w, w_array, ierr); CHKERRQ(ierr)
+    w_array(1:n) = v_array(1:n)
+    call VecRestoreArrayF90(w, w_array, ierr); CHKERRQ(ierr)
+    call VecRestoreArrayReadF90(v, v_array, ierr); CHKERRQ(ierr)
+
+  end subroutine vec_copy_common_local
+
+!------------------------------------------------------------------------
+
+  PetscBool function mat_type_is_block(M) result(isblock)
     !! Returns true if matrix type is a block type.
 
     Mat, intent(in) :: M
@@ -1189,6 +1495,56 @@ contains
          perturbed_columns, ierr); CHKERRQ(ierr)
 
   end function mat_coloring_perturbed_columns
+
+!------------------------------------------------------------------------
+
+  subroutine dm_copy_cone_orientation(dm_source, p_source, dm_dest, p_dest)
+    !! Copies DMPlex cone orientation from point p_source in dm_source to point
+    !! p_dest in dm_dest.
+
+    DM, intent(in) :: dm_source
+    PetscInt, intent(in) :: p_source, p_dest
+    DM, intent(in out) :: dm_dest
+    ! Locals:
+    PetscInt, pointer :: orientation(:)
+    PetscErrorCode :: ierr
+
+    call DMPlexGetConeOrientation(dm_source, p_source, orientation, &
+         ierr); CHKERRQ(ierr)
+    call DMPlexSetConeOrientation(dm_dest, p_dest, orientation, &
+         ierr); CHKERRQ(ierr)
+    call DMPlexRestoreConeOrientation(dm_source, p_source, orientation, &
+         ierr); CHKERRQ(ierr)
+
+  end subroutine dm_copy_cone_orientation
+
+!------------------------------------------------------------------------
+
+  subroutine dm_cell_counts(dm, cells_total, cells_min, cells_max)
+    !! Returns total DM cell count over all processes (excluding ghost
+    !! cells), and minimum and maximum count per process, on rank 0.
+
+    DM, intent(in) :: dm
+    PetscInt, intent(out) :: cells_total, cells_min, cells_max
+    ! Locals:
+    PetscInt :: start_cell, end_cell, end_interior_cell
+    PetscInt :: num_ghost_cells, cells_local
+    PetscErrorCode :: ierr
+
+    call DMPlexGetHeightStratum(dm, 0, start_cell, end_cell, ierr)
+    CHKERRQ(ierr)
+    end_interior_cell = dm_get_end_interior_cell(dm, end_cell)
+    num_ghost_cells = dm_get_num_partition_ghost_points(dm, 0)
+    cells_local = end_interior_cell - start_cell - num_ghost_cells
+
+    call MPI_reduce(cells_local, cells_total, 1, MPI_INTEGER, &
+           MPI_SUM, 0, PETSC_COMM_WORLD, ierr)
+    call MPI_reduce(cells_local, cells_min, 1, MPI_INTEGER, &
+           MPI_MIN, 0, PETSC_COMM_WORLD, ierr)
+    call MPI_reduce(cells_local, cells_max, 1, MPI_INTEGER, &
+           MPI_MAX, 0, PETSC_COMM_WORLD, ierr)
+
+  end subroutine dm_cell_counts
 
 !------------------------------------------------------------------------
 

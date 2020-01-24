@@ -60,7 +60,7 @@ contains
     use IAPWS_module
     use eos_wge_module
     use mesh_module
-    use fluid_module, only: fluid_type, setup_fluid_vector
+    use fluid_module, only: fluid_type, create_fluid_vector
     use dm_utils_module, only: global_vec_section, global_section_offset, &
          global_to_local_vec_section, restore_dm_local_vec
 
@@ -83,19 +83,18 @@ contains
     PetscInt, parameter :: offset = 1
     PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
     PetscMPIInt :: rank
-    PetscViewer :: viewer
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
     json => fson_parse_mpi(str = '{"mesh": "' // trim(adjustl(data_path)) // &
          'flow_simulation/mesh/3x3_2d.exo"}')
     call thermo%init()
     call eos%init(json, thermo)
-    viewer = PETSC_NULL_VIEWER
 
     call mesh%init(eos, json)
     call fluid%init(eos%num_components, eos%num_phases)
-    call mesh%configure(gravity, json, viewer = viewer, err = err)
-    call setup_fluid_vector(mesh%dm, max_component_name_length, &
+    call mesh%configure(gravity, json, err = err)
+
+    call create_fluid_vector(mesh%dm, max_component_name_length, &
          eos%component_names, max_phase_name_length, eos%phase_names, &
          fluid_vector, fluid_range_start)
     call DMPlexGetHeightStratum(mesh%dm, 0, start_cell, end_cell, ierr)
@@ -109,9 +108,7 @@ contains
 
     do c = start_cell, end_cell - 1
        if (mesh%ghost_cell(c) < 0) then
-          call global_section_offset(fluid_section, c, fluid_range_start, &
-               fluid_offset, ierr)
-          CHKERRQ(ierr)
+          fluid_offset = global_section_offset(fluid_section, c, fluid_range_start)
           fluid_array(fluid_offset: fluid_offset + fluid%dof - 1) = fluid_cell_data
        end if
     end do

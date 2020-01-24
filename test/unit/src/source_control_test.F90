@@ -62,7 +62,7 @@ contains
     use IAPWS_module
     use eos_module, only: max_component_name_length, max_phase_name_length
     use eos_wge_module
-    use fluid_module, only: setup_fluid_vector
+    use fluid_module, only: create_fluid_vector
     use dm_utils_module, only: global_vec_section, global_section_offset, &
          global_to_local_vec_section, restore_dm_local_vec
 
@@ -88,25 +88,24 @@ contains
     PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
     PetscInt, parameter :: expected_num_sources = 8
     PetscMPIInt :: rank
-    PetscViewer :: viewer
     IS :: source_is
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
     json => fson_parse_mpi(trim(adjustl(data_path)) // "source/test_source_controls_table.json")
-    viewer = PETSC_NULL_VIEWER
 
     call thermo%init()
     call eos%init(json, thermo)
     call mesh%init(eos, json)
     call DMCreateLabel(mesh%serial_dm, open_boundary_label_name, ierr); CHKERRQ(ierr)
-    call mesh%configure(gravity, json, viewer = viewer, err = err)
-    call setup_fluid_vector(mesh%dm, max_component_name_length, &
+    call mesh%configure(gravity, json, err = err)
+
+    call create_fluid_vector(mesh%dm, max_component_name_length, &
          eos%component_names, max_phase_name_length, eos%phase_names, &
          fluid_vector, fluid_range_start)
     call global_vec_section(fluid_vector, fluid_section)
     call VecGetArrayF90(fluid_vector, fluid_array, ierr); CHKERRQ(ierr)
 
-    call setup_sources(json, mesh%dm, mesh%cell_order, eos, thermo, start_time, &
+    call setup_sources(json, mesh%dm, mesh%cell_natural_global, eos, thermo, start_time, &
          fluid_vector, fluid_range_start, source_vector, source_range_start, &
          num_sources, total_num_sources, source_controls, source_is, err = err)
     call test%assert(0, err, "source setup error")
@@ -134,8 +133,8 @@ contains
     interval = [30._dp, t]
     call source_controls%traverse(source_control_iterator)
     do s = 0, num_sources - 1
-       call global_section_offset(source_section, s, &
-            source_range_start, source_offset, ierr); CHKERRQ(ierr)
+       source_offset = global_section_offset(source_section, s, &
+            source_range_start)
        call source%assign(source_array, source_offset)
        source_index = nint(source%source_index)
        write(srcstr, '(a, i1)') 'source ', source_index
@@ -207,7 +206,7 @@ contains
     use IAPWS_module
     use eos_module, only: max_component_name_length, max_phase_name_length
     use eos_wge_module
-    use fluid_module, only: fluid_type, setup_fluid_vector
+    use fluid_module, only: fluid_type, create_fluid_vector
     use dm_utils_module, only: global_vec_section, global_section_offset, &
          global_to_local_vec_section, restore_dm_local_vec, section_offset
     use interpolation_module, only: INTERP_STEP, INTERP_AVERAGING_ENDPOINT
@@ -245,13 +244,11 @@ contains
          -10.3366086953508_dp, 0._dp, -2.25_dp, -12.8728519749_dp * 0.75_dp, &
          -12.8728519749_dp * 0.375_dp]
     PetscMPIInt :: rank
-    PetscViewer :: viewer
     character(len = 16) :: srcstr
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
     json => fson_parse_mpi(trim(adjustl(data_path)) // &
          "source/test_source_controls_pressure_reference.json")
-    viewer = PETSC_NULL_VIEWER
 
     call thermo%init()
     call eos%init(json, thermo)
@@ -274,8 +271,9 @@ contains
     call mesh%init(eos, json)
     call fluid%init(eos%num_components, eos%num_phases)
     call DMCreateLabel(mesh%serial_dm, open_boundary_label_name, ierr); CHKERRQ(ierr)
-    call mesh%configure(gravity, json, viewer = viewer, err = err)
-    call setup_fluid_vector(mesh%dm, max_component_name_length, &
+    call mesh%configure(gravity, json, err = err)
+
+    call create_fluid_vector(mesh%dm, max_component_name_length, &
          eos%component_names, max_phase_name_length, eos%phase_names, &
          fluid_vector, fluid_range_start)
     call DMPlexGetHeightStratum(mesh%dm, 0, start_cell, end_cell, ierr)
@@ -285,9 +283,7 @@ contains
 
     do c = start_cell, end_cell - 1
        if (mesh%ghost_cell(c) < 0) then
-          call global_section_offset(fluid_section, c, fluid_range_start, &
-               fluid_offset, ierr)
-          CHKERRQ(ierr)
+          fluid_offset = global_section_offset(fluid_section, c, fluid_range_start)
           call fluid%assign(fluid_array, fluid_offset)
           fluid%pressure = cell_pressure
           fluid%temperature = cell_temperature
@@ -313,7 +309,7 @@ contains
     end do
     call VecRestoreArrayF90(fluid_vector, fluid_array, ierr); CHKERRQ(ierr)
 
-    call setup_sources(json, mesh%dm, mesh%cell_order, eos, thermo, start_time, &
+    call setup_sources(json, mesh%dm, mesh%cell_natural_global, eos, thermo, start_time, &
          fluid_vector, fluid_range_start, source_vector, source_range_start, &
          num_sources, total_num_sources, source_controls, source_is, err = err)
     call test%assert(0, err, "source setup error")
@@ -345,8 +341,7 @@ contains
 
     s12 = -1
     do s = 0, num_sources - 1
-       call global_section_offset(source_section, s, &
-            source_range_start, source_offset, ierr); CHKERRQ(ierr)
+       source_offset = global_section_offset(source_section, s, source_range_start)
        call source%assign(source_array, source_offset)
        source_index = nint(source%source_index)
        write(srcstr, '(a, i1, a)') 'source ', source_index + 1, ' rate'
@@ -359,8 +354,7 @@ contains
     call reset_fluid_pressures(6.e5_dp)
     call source_controls%traverse(source_control_update_iterator)
     if (s12 >= 0) then
-       call global_section_offset(source_section, s12, &
-            source_range_start, source_offset, ierr); CHKERRQ(ierr)
+       source_offset = global_section_offset(source_section, s12, source_range_start)
        call source%assign(source_array, source_offset)
        call test%assert(-2.25_dp, source%rate, "source 13 rate P = 6 bar")
     end if
@@ -417,8 +411,8 @@ contains
 
       type is (source_control_deliverability_type)
          s = source_control%local_source_index
-         call global_section_offset(source_section, s, &
-              source_range_start, source_offset, ierr); CHKERRQ(ierr)
+         source_offset = global_section_offset(source_section, s, &
+              source_range_start)
          call source%assign(source_array, source_offset)
          source_index = nint(source%source_index)
          select case (source_index)
@@ -460,8 +454,7 @@ contains
 
       type is (source_control_recharge_type)
          s = source_control%local_source_index
-         call global_section_offset(source_section, s, &
-              source_range_start, source_offset, ierr); CHKERRQ(ierr)
+         source_offset = global_section_offset(source_section, s, source_range_start)
          call source%assign(source_array, source_offset)
          source_index = nint(source%source_index)
          select case (source_index)
@@ -504,8 +497,7 @@ contains
       PetscReal, intent(in) :: P
       do c = start_cell, end_cell - 1
          if (mesh%ghost_cell(c) < 0) then
-            call section_offset(local_fluid_section, c, fluid_offset, ierr)
-            CHKERRQ(ierr)
+            fluid_offset = section_offset(local_fluid_section, c)
             call fluid%assign(local_fluid_array, fluid_offset)
             fluid%pressure = P
          end if

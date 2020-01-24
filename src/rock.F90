@@ -86,7 +86,7 @@ module rock_module
   character(len = 9), public :: rock_type_label_name = "rock_type"
 
   public :: rock_dict_item_type, rock_type, setup_rock_types, setup_rock_vector, &
-       label_rock_cell
+       create_rock_vector, label_rock_cell
 
 contains
 
@@ -204,8 +204,7 @@ contains
 
     do c = start_cell, end_cell - 1
        if (ghost_cell(c) < 0) then
-          call global_section_offset(rock_section, c, range_start, &
-               offset, ierr); CHKERRQ(ierr)
+          offset = global_section_offset(rock_section, c, range_start)
           call rock%assign(rock_array, offset)
           rock%permeability = default_permeability
           rock%wet_conductivity = default_heat_conductivity
@@ -251,7 +250,6 @@ contains
     use fson_value_m, only : TYPE_STRING, TYPE_ARRAY
     use logfile_module
     use zone_label_module
-    use dm_utils_module, only: natural_to_local_cell_index
 
     type(fson_value), pointer, intent(in) :: json
     DM, intent(in out) :: dm
@@ -374,8 +372,7 @@ contains
     !! Sets up rock vector on DM from rock types in JSON input.
 
     use dictionary_module
-    use dm_utils_module, only: global_section_offset, global_vec_section, &
-         natural_to_local_cell_index
+    use dm_utils_module, only: global_section_offset, global_vec_section
     use zone_label_module
     use fson
     use fson_mpi_module
@@ -459,8 +456,7 @@ contains
                 associate(c => cells(ic))
                   call DMLabelGetValue(ghost_label, c, ghost, ierr)
                   if (ghost < 0) then
-                     call global_section_offset(section, c, range_start, &
-                          offset, ierr); CHKERRQ(ierr)
+                     offset = global_section_offset(section, c, range_start)
                      call rock%assign(rock_array, offset)
                      rock%permeability = 0._dp
                      rock%permeability(1: perm_size) = permeability
@@ -490,6 +486,35 @@ contains
 
 !------------------------------------------------------------------------
 
+  subroutine create_rock_vector(dm, rock_vector, range_start)
+    !! Creates and returns rock vector and corresponding range start.
+
+    use dm_utils_module, only: dm_set_data_layout, global_vec_range_start
+
+    DM, intent(in) :: dm !! DM on which to create rock vector
+    Vec, intent(out) :: rock_vector !! Output rock vector
+    PetscInt, intent(out) :: range_start !! Range start, used for computing offsets
+    ! Locals:
+    DM :: dm_rock
+    PetscInt :: dim, rock_variable_dim(num_rock_variables)
+    PetscErrorCode :: ierr
+
+    call DMClone(dm, dm_rock, ierr); CHKERRQ(ierr)
+
+    call DMGetDimension(dm, dim, ierr); CHKERRQ(ierr)
+    rock_variable_dim = dim
+    call dm_set_data_layout(dm_rock, rock_variable_num_components, &
+         rock_variable_dim, rock_variable_names)
+
+    call DMCreateGlobalVector(dm_rock, rock_vector, ierr); CHKERRQ(ierr)
+    call PetscObjectSetName(rock_vector, "rock", ierr); CHKERRQ(ierr)
+    call global_vec_range_start(rock_vector, range_start)
+    call DMDestroy(dm_rock, ierr); CHKERRQ(ierr)
+
+  end subroutine create_rock_vector
+
+!------------------------------------------------------------------------
+
   subroutine setup_rock_vector(json, dm, rock_vector, rock_dict, &
        range_start, ghost_cell, logfile, err)
 
@@ -499,7 +524,6 @@ contains
     !! rock type name.
 
     use dictionary_module
-    use dm_utils_module, only: set_dm_data_layout, global_vec_range_start
     use fson
     use fson_mpi_module
     use logfile_module
@@ -512,25 +536,10 @@ contains
     PetscInt, allocatable, intent(in) :: ghost_cell(:)
     type(logfile_type), intent(in out), optional :: logfile
     PetscErrorCode, intent(out) :: err
-    ! Locals:
-    DM :: dm_rock
-    PetscInt :: dim, rock_variable_dim(num_rock_variables)
-    PetscErrorCode :: ierr
 
     err = 0
 
-    call DMClone(dm, dm_rock, ierr); CHKERRQ(ierr)
-
-    call DMGetDimension(dm, dim, ierr); CHKERRQ(ierr)
-    rock_variable_dim = dim
-    call DMSetNumFields(dm_rock, num_rock_variables, ierr); CHKERRQ(ierr)
-    call set_dm_data_layout(dm_rock, rock_variable_num_components, &
-         rock_variable_dim, rock_variable_names)
-
-    call DMCreateGlobalVector(dm_rock, rock_vector, ierr); CHKERRQ(ierr)
-    call PetscObjectSetName(rock_vector, "rock", ierr); CHKERRQ(ierr)
-    call global_vec_range_start(rock_vector, range_start)
-
+    call create_rock_vector(dm, rock_vector, range_start)
     call set_default_rock_properties(dm, rock_vector, range_start, &
          ghost_cell)
 
@@ -547,8 +556,6 @@ contains
        end if
 
     end if
-
-    call DMDestroy(dm_rock, ierr); CHKERRQ(ierr)
 
   end subroutine setup_rock_vector
 

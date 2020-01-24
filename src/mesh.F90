@@ -21,10 +21,13 @@ module mesh_module
 #include <petsc/finclude/petsc.h>
 
   use petsc
+  use fson
+  use kinds_module
+  use cell_module
+  use face_module
   use zone_module
   use list_module
   use mpi_utils_module
-  use fson
   use minc_module
   use dm_utils_module, only: dm_stratum_type
   use dictionary_module
@@ -34,7 +37,9 @@ module mesh_module
   private
 
   PetscInt, parameter, public :: max_mesh_filename_length = 200
-  character(len = 16), public :: open_boundary_label_name = "open_boundary" !! Name of DMLabel for identifying open boundaries
+  PetscInt, parameter :: partition_overlap = 1 !! Cell overlap for parallel mesh distribution
+  character(len = 16), public :: open_boundary_label_name = "open_boundary" !! Name of DMLabel for identifying open boundary faces
+  character(len = 16), public :: boundary_ghost_label_name = "boundary_ghost" !! Name of DMLabel for identifying boundary ghost cells
   character(len = 26) :: face_permeability_override_label_name = "face_permeability_override" !! Name of DMLabel for overriding face permeabilities
 
   type, public :: mesh_type
@@ -46,13 +51,15 @@ module mesh_module
      DM, public :: dm !! DM representing the mesh topology (may be modified from original_dm)
      Vec, public :: cell_geom !! Vector containing cell geometry data
      Vec, public :: face_geom !! Vector containing face geometry data
+     PetscInt, public :: dim !! DM dimension
      PetscInt :: depth !! DM depth
      type(dm_stratum_type), allocatable, public :: strata(:) !! Mesh strata (used for MINC point calculations)
      IS, public :: cell_index !! Index set defining natural to global cell ordering (without boundary cells)
-     AO, public :: cell_order !! Application ordering to convert between global and natural cell indices
-     AO, public :: original_cell_order !! Global-to-natural AO for original DM
+     AO, public :: cell_natural_global !! Application ordering to convert between natural and global cell indices
+     AO, public :: original_cell_natural_global !! Natural-to-global AO for original DM
+     IS, public :: cell_natural !! Natural indices of local cells
+     IS, public :: cell_parent_natural !! Natural indices of parent cells (e.g. MINC fracture cells)
      PetscSF, public :: dist_sf !! Distribution star forest
-     PetscInt, allocatable, public :: minc_cell_map(:) !! Mapping from MINC cell local indices to original single-porosity cell local indices
      PetscInt, public, allocatable :: ghost_cell(:), ghost_face(:) !! Ghost label values for cells and faces
      type(minc_type), allocatable, public :: minc(:) !! Array of MINC zones, with parameters
      PetscReal, public :: permeability_rotation(3, 3) !! Rotation matrix of permeability axes
@@ -61,16 +68,18 @@ module mesh_module
      type(dictionary_type), public :: rock_types !! Dictionary of rock types by name
      PetscBool, public :: radial !! If mesh coordinate system is radial or Cartesian
      PetscBool, public :: has_minc !! If mesh has any MINC cells
+     PetscBool, public :: rebalance !! Set false to disable MINC mesh rebalancing
      PetscInt, public :: dof !! Degrees of freedom for default section
    contains
      procedure :: distribute => mesh_distribute
-     procedure :: construct_ghost_cells => mesh_construct_ghost_cells
      procedure :: setup_geometry => mesh_setup_geometry
      procedure :: setup_ghost_arrays => mesh_setup_ghost_arrays
      procedure :: destroy_minc => mesh_destroy_minc
      procedure :: destroy_strata => mesh_destroy_strata
      procedure :: setup_coordinate_parameters => mesh_setup_coordinate_parameters
      procedure :: set_permeability_rotation => mesh_set_permeability_rotation
+     procedure :: modify_cell_geometry => mesh_modify_cell_geometry
+     procedure :: modify_face_geometry => mesh_modify_face_geometry
      procedure :: modify_geometry => mesh_modify_geometry
      procedure :: read_overridden_face_properties => mesh_read_overridden_face_properties
      procedure :: override_face_properties => mesh_override_face_properties
@@ -82,26 +91,35 @@ module mesh_module
      procedure :: setup_zones => mesh_setup_zones
      procedure :: setup_minc => mesh_setup_minc
      procedure :: setup_minc_dm => mesh_setup_minc_dm
-     procedure :: setup_minc_dm_zone_and_cells => mesh_setup_minc_dm_zone_and_cells
+     procedure :: setup_minc_level_cells => mesh_setup_minc_level_cells
      procedure :: setup_minc_dm_strata_shifts => mesh_setup_minc_dm_strata_shifts
      procedure :: set_minc_dm_cone_sizes => mesh_set_minc_dm_cone_sizes
      procedure :: set_minc_dm_cones => mesh_set_minc_dm_cones
      procedure :: setup_minc_dm_depth_label => mesh_setup_minc_dm_depth_label
      procedure :: transfer_labels_to_minc_dm => mesh_transfer_labels_to_minc_dm
-     procedure :: setup_minc_dm_level_label_and_cell_map => mesh_setup_minc_dm_level_label_and_cell_map
-     procedure :: setup_minc_dm_cell_order => mesh_setup_minc_dm_cell_order
+     procedure :: setup_minc_output_data => mesh_setup_minc_output_data
+     procedure :: setup_minc_dm_cell_natural_global => mesh_setup_minc_dm_cell_natural_global
      procedure :: setup_minc_geometry => mesh_setup_minc_geometry
      procedure :: setup_minc_rock_properties => mesh_setup_minc_rock_properties
      procedure :: setup_minc_point_sf => mesh_setup_minc_point_sf
+     procedure :: setup_minc_coordinates => mesh_setup_minc_coordinates
+     procedure :: redistribute_dm => mesh_redistribute_dm
+     procedure :: redistribute_geometry => mesh_redistribute_geometry
+     procedure :: check_face_orientations => mesh_check_face_orientations
+     procedure :: geometry_add_boundary => mesh_geometry_add_boundary
+     procedure :: boundary_face_geometry => mesh_boundary_face_geometry
+     procedure :: setup_cell_natural => mesh_setup_cell_natural
      procedure, public :: init => mesh_init
      procedure, public :: configure => mesh_configure
+     procedure, public :: construct_ghost_cells => mesh_construct_ghost_cells
      procedure, public :: set_boundary_conditions => mesh_set_boundary_conditions
      procedure, public :: destroy => mesh_destroy
-     procedure, public :: local_to_fracture_natural => mesh_local_to_fracture_natural
-     procedure, public :: global_to_fracture_natural => mesh_global_to_fracture_natural
+     procedure, public :: local_to_parent_natural => mesh_local_to_parent_natural
+     procedure, public :: global_to_parent_natural => mesh_global_to_parent_natural
      procedure, public :: natural_cell_output_arrays =>  mesh_natural_cell_output_arrays
      procedure, public :: local_cell_minc_level => mesh_local_cell_minc_level
      procedure, public :: destroy_distribution_data => mesh_destroy_distribution_data
+     procedure, public :: redistribute => mesh_redistribute
   end type mesh_type
 
 contains
@@ -112,20 +130,29 @@ contains
     !! Distributes mesh over processors, and returns star forest from
     !! mesh distribution.
 
-    use dm_utils_module, only: dm_setup_fv_discretization
+    use dm_utils_module, only: dm_set_default_data_layout, &
+         dm_label_partition_ghosts, dm_distribute_index_set
     
     class(mesh_type), intent(in out) :: self
     ! Locals:
+    DM :: dm_is
+    PetscSection :: section
     PetscErrorCode :: ierr
-    PetscInt, parameter :: overlap = 1
 
-    call DMPlexDistribute(self%serial_dm, overlap, self%dist_sf, &
+    call DMClone(self%serial_dm, dm_is, ierr); CHKERRQ(ierr)
+    call dm_set_default_data_layout(dm_is, 1)
+    call DMGetSection(dm_is, section, ierr); CHKERRQ(ierr)
+
+    call DMPlexDistribute(self%serial_dm, partition_overlap, self%dist_sf, &
          self%original_dm, ierr); CHKERRQ(ierr)
     if (self%original_dm .eq. PETSC_NULL_DM) then
        self%original_dm = self%serial_dm
     else
-       call dm_setup_fv_discretization(self%original_dm, self%dof)
+       call dm_distribute_index_set(self%original_dm, self%dist_sf, &
+            section, self%cell_natural)
     end if
+    call dm_label_partition_ghosts(self%original_dm)
+    call DMDestroy(dm_is, ierr); CHKERRQ(ierr)
 
   end subroutine mesh_distribute
 
@@ -149,19 +176,34 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine mesh_construct_ghost_cells(self)
+  subroutine mesh_construct_ghost_cells(self, gravity)
     !! Constructs ghost cells on open boundary faces.
 
+    use dm_utils_module, only: dm_set_fv_adjacency, &
+         dm_set_default_data_layout, dm_label_boundary_ghosts, &
+         dm_get_natural_to_global_ao
+
     class(mesh_type), intent(in out) :: self
+    PetscReal, intent(in) :: gravity(:) !! Gravity vector
     ! Locals:
     DM :: ghost_dm
+    DMLabel :: label
     PetscErrorCode :: ierr
 
-    call DMPlexConstructGhostCells(self%original_dm, open_boundary_label_name, &
+    call DMRemoveLabel(self%dm, "ghost", label, ierr); CHKERRQ(ierr)
+    call DMRemoveLabel(self%dm, "vtk", label, ierr); CHKERRQ(ierr)
+
+    call DMPlexConstructGhostCells(self%dm, open_boundary_label_name, &
          PETSC_NULL_INTEGER, ghost_dm, ierr); CHKERRQ(ierr)
     if (ghost_dm .ne. PETSC_NULL_DM) then
-       call DMDestroy(self%original_dm, ierr); CHKERRQ(ierr);
-       self%original_dm = ghost_dm
+       call DMDestroy(self%dm, ierr); CHKERRQ(ierr);
+       self%dm = ghost_dm
+       call dm_set_fv_adjacency(self%dm)
+       call dm_set_default_data_layout(self%dm, self%dof)
+       call dm_label_boundary_ghosts(self%dm, boundary_ghost_label_name)
+       self%cell_natural_global = dm_get_natural_to_global_ao(self%dm, self%cell_natural)
+       call self%geometry_add_boundary(gravity)
+       call self%setup_ghost_arrays()
     end if
 
   end subroutine mesh_construct_ghost_cells
@@ -179,14 +221,11 @@ contains
     type(fson_value), pointer, intent(in) :: json !! JSON file pointer
     type(logfile_type), intent(in out), optional :: logfile !! Logfile for log output
     ! Locals:
-    PetscInt :: dim
-    PetscErrorCode :: ierr
     PetscBool, parameter :: default_radial = PETSC_FALSE
     PetscReal, parameter :: default_thickness = 1._dp
 
     self%thickness = default_thickness
-    call DMGetDimension(self%serial_dm, dim, ierr); CHKERRQ(ierr)
-    select case (dim)
+    select case (self%dim)
     case(3)
        self%radial = PETSC_FALSE
     case(2)
@@ -242,6 +281,104 @@ contains
 
 !------------------------------------------------------------------------
 
+  subroutine mesh_modify_cell_geometry(self, cell)
+    ! Modifies cell geometry parameters for 2-D and radial meshes.
+
+    class(mesh_type), intent(in) :: self
+    type(cell_type), intent(in out) :: cell
+
+    if (self%dim == 2) then
+       if (self%radial) then
+          call modify_cell_geometry_2d_radial(cell)
+       else
+          call modify_cell_geometry_2d_cartesian(cell)
+       end if
+    end if
+
+  contains
+
+!........................................................................
+
+    subroutine modify_cell_geometry_2d_cartesian(cell)
+      ! Geometry modification for 2D Cartesian cells.
+
+      type(cell_type), intent(in out) :: cell
+
+      cell%volume = cell%volume * self%thickness
+
+    end subroutine modify_cell_geometry_2d_cartesian
+
+!........................................................................
+
+    subroutine modify_cell_geometry_2d_radial(cell)
+      ! Geometry modification for 2D radial cells- via Pappus' centroid
+      ! theorem.
+
+      use kinds_module, only: dp
+      use utils_module, only: pi
+
+      type(cell_type), intent(in out) :: cell
+      ! Locals:
+      PetscReal :: r
+
+      r = cell%centroid(1)
+      cell%volume = cell%volume * 2._dp * pi * r
+
+    end subroutine modify_cell_geometry_2d_radial
+
+  end subroutine mesh_modify_cell_geometry
+
+!------------------------------------------------------------------------
+
+  subroutine mesh_modify_face_geometry(self, face)
+    ! Modifies face geometry parameters for 2-D and radial meshes.
+
+    class(mesh_type), intent(in) :: self
+    type(face_type), intent(in out) :: face
+
+    if (self%dim == 2) then
+       if (self%radial) then
+          call modify_face_geometry_2d_radial(face)
+       else
+          call modify_face_geometry_2d_cartesian(face)
+       end if
+    end if
+
+  contains
+
+!........................................................................
+
+    subroutine modify_face_geometry_2d_cartesian(face)
+      ! Geometry modification for 2D Cartesian faces.
+
+      type(face_type), intent(in out) :: face
+
+      face%area = face%area * self%thickness
+
+    end subroutine modify_face_geometry_2d_cartesian
+
+!........................................................................
+
+    subroutine modify_face_geometry_2d_radial(face)
+      ! Geometry modification for 2D radial faces- via Pappus' centroid
+      ! theorem.
+
+      use kinds_module, only: dp
+      use utils_module, only: pi
+
+      type(face_type), intent(in out) :: face
+      ! Locals:
+      PetscReal :: r
+
+      r = face%centroid(1)
+      face%area = face%area * 2._dp * pi * r
+
+    end subroutine modify_face_geometry_2d_radial
+
+  end subroutine mesh_modify_face_geometry
+
+!------------------------------------------------------------------------
+
   subroutine mesh_setup_geometry(self, gravity)
     !! Sets up global vectors containing geometry data (e.g. cell volumes,
     !! cell centroids, face areas, face-to-centroid distances) for the mesh.
@@ -277,10 +414,8 @@ contains
     !! computed (e.g. distances, gravity normal).
 
     use kinds_module
-    use cell_module
-    use face_module
     use utils_module, only: rotation_matrix_2d
-    use dm_utils_module, only: section_offset, local_vec_section, set_dm_data_layout
+    use dm_utils_module, only: section_offset, local_vec_section, dm_set_data_layout
 
     class(mesh_type), intent(in out) :: self
     Vec, intent(in) :: petsc_face_geom
@@ -288,7 +423,7 @@ contains
     ! Locals:
     DM :: dm_cell, dm_face
     PetscSection :: face_section, petsc_face_section, cell_section
-    PetscInt :: c, f, ghost_cell, ghost_face, i
+    PetscInt :: c, f, i, ghost_cell, ghost_face
     PetscInt :: start_cell, end_cell, start_face, end_face
     PetscInt :: face_offset, petsc_face_offset
     PetscInt :: cell_offset(2), offset
@@ -299,27 +434,10 @@ contains
     PetscReal, pointer, contiguous :: cell_geom_array(:)
     DMLabel :: ghost_label
     PetscInt, pointer :: cells(:)
-    PetscInt :: dim, face_variable_dim(num_face_variables)
+    PetscInt :: face_variable_dim(num_face_variables)
     PetscInt :: cell_variable_dim(num_cell_variables)
     PetscErrorCode :: ierr
 
-    interface
-
-       subroutine modify_cell_volume_routine(cell)
-         import :: cell_type
-         type(cell_type), intent(in out) :: cell
-       end subroutine modify_cell_volume_routine
-
-       subroutine modify_face_area_routine(face)
-         import :: face_type
-         type(face_type), intent(in out) :: face
-       end subroutine modify_face_area_routine
-
-    end interface
-    procedure(modify_cell_volume_routine), pointer :: modify_cell_volume
-    procedure(modify_face_area_routine), pointer :: modify_face_area
-
-    call DMGetDimension(self%original_dm, dim, ierr); CHKERRQ(ierr)
     call DMGetLabel(self%original_dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
     call DMPlexGetHeightStratum(self%original_dm, 0, start_cell, end_cell, ierr)
     CHKERRQ(ierr)
@@ -328,36 +446,31 @@ contains
 
     ! Set up cell geometry vector:
     call VecGetDM(self%cell_geom, dm_cell, ierr); CHKERRQ(ierr)
-    cell_variable_dim = dim
-    call DMSetNumFields(dm_cell, num_cell_variables, ierr); CHKERRQ(ierr)
-    call set_dm_data_layout(dm_cell, cell_variable_num_components, &
+    cell_variable_dim = self%dim
+    call dm_set_data_layout(dm_cell, cell_variable_num_components, &
          cell_variable_dim, cell_variable_names)
 
     call local_vec_section(self%cell_geom, cell_section)
     call VecGetArrayF90(self%cell_geom, cell_geom_array, ierr); CHKERRQ(ierr)
 
-    if (dim == 2) then
+    if (self%dim == 2) then
        ! Adjust cell volumes:
-       if (self%radial) then
-          modify_cell_volume => modify_cell_volume_2d_radial
-       else
-          modify_cell_volume => modify_cell_volume_2d_cartesian
-       end if
+       call cell%init(1, 1)
        do c = start_cell, end_cell - 1
           call DMLabelGetValue(ghost_label, c, ghost_cell, ierr); CHKERRQ(ierr)
           if (ghost_cell < 0) then
-             call section_offset(cell_section, c, offset, ierr); CHKERRQ(ierr)
+             offset = section_offset(cell_section, c)
              call cell%assign_geometry(cell_geom_array, offset)
-             call modify_cell_volume(cell)
+             call self%modify_cell_geometry(cell)
           end if
        end do
+       call cell%destroy()
     end if
 
     ! Set up face geometry vector:
     call DMClone(self%original_dm, dm_face, ierr); CHKERRQ(ierr)
-    face_variable_dim = dim - 1
-    call DMSetNumFields(dm_face, num_face_variables, ierr); CHKERRQ(ierr)
-    call set_dm_data_layout(dm_face, face_variable_num_components, &
+    face_variable_dim = self%dim - 1
+    call dm_set_data_layout(dm_face, face_variable_num_components, &
          face_variable_dim, face_variable_names)
     call DMCreateLocalVector(dm_face, self%face_geom, ierr); CHKERRQ(ierr)
     call local_vec_section(self%face_geom, face_section)
@@ -367,31 +480,18 @@ contains
     CHKERRQ(ierr)
     call face%init()
 
-    select case (dim)
-    case (3)
-       modify_face_area => modify_face_area_null
-    case (2)
-       if (self%radial) then
-          modify_face_area => modify_face_area_2d_radial
-       else
-          modify_face_area => modify_face_area_2d_cartesian
-       end if
-    end select
-
     do f = start_face, end_face - 1
 
        call DMLabelGetValue(ghost_label, f, ghost_face, ierr); CHKERRQ(ierr)
 
        if (ghost_face < 0) then
 
-          call section_offset(face_section, f, face_offset, ierr); CHKERRQ(ierr)
-          call section_offset(petsc_face_section, f, petsc_face_offset, ierr)
-          CHKERRQ(ierr)
+          face_offset = section_offset(face_section, f)
+          petsc_face_offset = section_offset(petsc_face_section, f)
 
           call DMPlexGetSupport(self%original_dm, f, cells, ierr); CHKERRQ(ierr)
           do i = 1, 2
-             call section_offset(cell_section, cells(i), cell_offset(i), ierr)
-             CHKERRQ(ierr)
+             cell_offset(i) = section_offset(cell_section, cells(i))
           end do
 
           call petsc_face%assign_geometry(petsc_face_geom_array, petsc_face_offset)
@@ -402,10 +502,8 @@ contains
           face%area = norm2(petsc_face%area_normal)
           face%normal = petsc_face%area_normal / face%area
           face%gravity_normal = dot_product(gravity, face%normal)
-          call modify_face_area(face)
-          do i = 1, 2
-             face%distance(i) = norm2(face%centroid - face%cell(i)%centroid)
-          end do
+          call self%modify_face_geometry(face)
+          call face%calculate_distances()
           call face%calculate_permeability_direction(self%permeability_rotation)
 
        end if
@@ -422,67 +520,151 @@ contains
     call PetscSectionDestroy(face_section, ierr); CHKERRQ(ierr)
     call DMDestroy(dm_face, ierr); CHKERRQ(ierr)
 
-  contains
-
-    subroutine modify_cell_volume_2d_cartesian(cell)
-      ! Volume modification for 2D Cartesian cells.
-      type(cell_type), intent(in out) :: cell
-
-      cell%volume = cell%volume * self%thickness
-
-    end subroutine modify_cell_volume_2d_cartesian
-
-!........................................................................
-
-    subroutine modify_cell_volume_2d_radial(cell)
-      ! Volume modification for 2D radial cells- via Pappus' centroid
-      ! theorem.
-      use utils_module, only: pi
-      type(cell_type), intent(in out) :: cell
-      ! Locals:
-      PetscReal :: r
-
-      r = cell%centroid(1)
-      cell%volume = cell%volume * 2._dp * pi * r
-
-    end subroutine modify_cell_volume_2d_radial
-
-!........................................................................
-
-    subroutine modify_face_area_null(face)
-      ! Do-nothing area modification- for 3D cells.
-      type(face_type), intent(in out) :: face
-
-      continue
-
-    end subroutine modify_face_area_null
-
-!........................................................................
-
-    subroutine modify_face_area_2d_cartesian(face)
-      ! Area modification for 2D Cartesian faces.
-      type(face_type), intent(in out) :: face
-
-      face%area = face%area * self%thickness
-
-    end subroutine modify_face_area_2d_cartesian
-
-!........................................................................
-
-    subroutine modify_face_area_2d_radial(face)
-      ! Area modification for 2D radial faces- via Pappus' centroid
-      ! theorem.
-      use utils_module, only: pi
-      type(face_type), intent(in out) :: face
-      ! Locals:
-      PetscReal :: r
-
-      r = face%centroid(1)
-      face%area = face%area * 2._dp * pi * r
-
-    end subroutine modify_face_area_2d_radial
-
   end subroutine mesh_modify_geometry
+
+!------------------------------------------------------------------------
+
+  subroutine mesh_boundary_face_geometry(self, gravity)
+    !! Computes face geometry parameters for open boundary faces. Also
+    !! sets the volumes of boundary ghost cells to zero, and their
+    !! centroids to the face centroids (these are not used).
+
+    use cell_module, only: cell_type
+    use face_module, only: face_type
+    use dm_utils_module, only: local_vec_section, section_offset
+
+    class(mesh_type), intent(in out) :: self
+    PetscReal, intent(in) :: gravity(:) !! Gravity vector
+    ! Locals:
+    PetscSection :: cell_section, face_section
+    PetscReal, pointer, contiguous :: cell_geom_array(:), face_geom_array(:)
+    DMLabel :: bdy_label, ghost_label
+    IS :: label_IS, bdy_IS
+    PetscInt, pointer :: label_values(:), bdy_faces(:)
+    PetscInt :: i, j, num_values, ibdy, num_faces, iface, ghost, f
+    PetscInt :: cell_offsets(2), face_offset
+    PetscInt, pointer :: cells(:)
+    type(cell_type) :: cell
+    type(face_type) :: face
+    PetscErrorCode :: ierr
+
+    call local_vec_section(self%cell_geom, cell_section)
+    call VecGetArrayF90(self%cell_geom, cell_geom_array, ierr); CHKERRQ(ierr)
+    call local_vec_section(self%face_geom, face_section)
+    call VecGetArrayF90(self%face_geom, face_geom_array, ierr); CHKERRQ(ierr)
+
+    call DMGetLabel(self%dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
+    call DMGetLabel(self%dm, open_boundary_label_name, bdy_label, ierr)
+    CHKERRQ(ierr)
+    call DMLabelGetValueIS(bdy_label, label_IS, ierr); CHKERRQ(ierr)
+    call ISGetIndicesF90(label_IS, label_values, ierr); CHKERRQ(ierr)
+
+    call cell%init(1, 1)
+    call face%init()
+
+    num_values = size(label_values)
+    do i = 1, num_values
+       ibdy = label_values(i)
+       call DMGetStratumSize(self%dm, open_boundary_label_name, &
+            ibdy, num_faces, ierr); CHKERRQ(ierr)
+       if (num_faces > 0) then
+          call DMGetStratumIS(self%dm, open_boundary_label_name, &
+               ibdy, bdy_IS, ierr); CHKERRQ(ierr)
+          call ISGetIndicesF90(bdy_IS, bdy_faces, ierr); CHKERRQ(ierr)
+          do iface = 1, num_faces
+             f = bdy_faces(iface)
+             call DMPlexGetSupport(self%dm, f, cells, ierr); CHKERRQ(ierr)
+             if (size(cells) == 2) then
+                call DMLabelGetValue(ghost_label, cells(1), ghost, ierr); CHKERRQ(ierr)
+                if (ghost < 0) then
+                   face_offset = section_offset(face_section, f)
+                   do j = 1, 2
+                      cell_offsets(j) = section_offset(cell_section, cells(j))
+                   end do
+                   call face%assign_geometry(face_geom_array, face_offset)
+                   call face%assign_cell_geometry(cell_geom_array, cell_offsets)
+                   call DMPlexComputeCellGeometryFVM(self%dm, f, face%area, &
+                        face%centroid, face%normal, ierr); CHKERRQ(ierr)
+                   face%gravity_normal = dot_product(gravity, face%normal)
+                   call face%calculate_permeability_direction(self%permeability_rotation)
+                   call self%modify_face_geometry(face)
+                   face%distance = [dot_product(face%centroid - face%cell(1)%centroid, &
+                        face%normal), 0._dp]
+                   face%distance12 = face%distance(1)
+                   face%cell(2)%volume = 0._dp
+                   face%cell(2)%centroid = face%centroid
+                end if
+             end if
+          end do
+       end if
+    end do
+
+    call ISRestoreIndicesF90(label_IS, label_values, ierr); CHKERRQ(ierr)
+    call VecRestoreArrayF90(self%face_geom, face_geom_array, ierr); CHKERRQ(ierr)
+    call VecRestoreArrayF90(self%cell_geom, cell_geom_array, ierr); CHKERRQ(ierr)
+    call cell%destroy()
+    call face%destroy()
+
+  end subroutine mesh_boundary_face_geometry
+
+!------------------------------------------------------------------------
+
+  subroutine mesh_geometry_add_boundary(self, gravity)
+    !! Adds space for Dirichlet boundary condition ghost cells to mesh
+    !! geometry vectors.
+
+    use dm_utils_module, only: dm_set_data_layout, vec_copy_common_local
+
+    class(mesh_type), intent(in out) :: self
+    PetscReal, intent(in) :: gravity(:) !! Gravity vector
+    ! Locals:
+    Vec :: cell_geom, face_geom
+    DM :: dm_cell, dm_face
+    PetscInt :: cell_variable_dim(num_cell_variables)
+    PetscInt :: face_variable_dim(num_face_variables)
+    PetscErrorCode :: ierr
+
+    call DMClone(self%dm, dm_cell, ierr); CHKERRQ(ierr)
+    cell_variable_dim = self%dim
+    call dm_set_data_layout(dm_cell, cell_variable_num_components, &
+         cell_variable_dim, cell_variable_names)
+    call DMCreateLocalVector(dm_cell, cell_geom, ierr); CHKERRQ(ierr)
+    call vec_copy_common_local(self%cell_geom, cell_geom)
+    call VecDestroy(self%cell_geom, ierr); CHKERRQ(ierr)
+    self%cell_geom = cell_geom
+
+    call DMClone(self%dm, dm_face, ierr); CHKERRQ(ierr)
+    face_variable_dim = self%dim - 1
+    call dm_set_data_layout(dm_face, face_variable_num_components, &
+         face_variable_dim, face_variable_names)
+    call DMCreateLocalVector(dm_face, face_geom, ierr); CHKERRQ(ierr)
+    call vec_copy_common_local(self%face_geom, face_geom)
+    call VecDestroy(self%face_geom, ierr); CHKERRQ(ierr)
+    self%face_geom = face_geom
+
+    call self%boundary_face_geometry(gravity)
+
+  end subroutine mesh_geometry_add_boundary
+
+!------------------------------------------------------------------------
+
+  subroutine mesh_setup_cell_natural(self)
+    !! Sets up cell_natural IS on serial DM.
+
+    class(mesh_type), intent(in out) :: self
+    ! Locals:
+    PetscInt :: c, start_cell, end_cell
+    PetscInt, allocatable :: natural(:)
+    PetscErrorCode :: ierr
+
+    call DMPlexGetHeightStratum(self%serial_dm, 0, start_cell, &
+         end_cell, ierr); CHKERRQ(ierr)
+    natural = [(c, c = start_cell, end_cell -1)]
+    call ISCreateGeneral(PETSC_COMM_WORLD, end_cell - start_cell, &
+            natural, PETSC_COPY_VALUES, self%cell_natural, ierr)
+    deallocate(natural)
+
+  end subroutine mesh_setup_cell_natural
 
 !------------------------------------------------------------------------
 
@@ -502,6 +684,9 @@ contains
     CHKERRQ(ierr)
     call DMPlexGetHeightStratum(self%dm, 1, start_face, end_face, ierr)
     CHKERRQ(ierr)
+
+    if (allocated(self%ghost_cell)) deallocate(self%ghost_cell)
+    if (allocated(self%ghost_face)) deallocate(self%ghost_face)
 
     allocate(self%ghost_cell(start_cell: end_cell - 1))
     allocate(self%ghost_face(start_face: end_face - 1))
@@ -602,8 +787,8 @@ contains
             self%serial_dm, ierr); CHKERRQ(ierr)
        call dm_set_fv_adjacency(self%serial_dm)
        self%dof = eos%num_primary_variables
-       call dm_setup_fv_discretization(self%serial_dm, self%dof)
-       call set_dm_default_data_layout(self%serial_dm, self%dof)
+       call DMGetDimension(self%serial_dm, self%dim, ierr); CHKERRQ(ierr)
+       call dm_set_default_data_layout(self%serial_dm, self%dof)
        call self%setup_coordinate_parameters(json, logfile)
        call self%set_permeability_rotation(json, logfile)
        call self%read_overridden_face_properties(json, logfile)
@@ -612,6 +797,7 @@ contains
        call self%label_cell_array_minc_zones(json)
        call self%label_boundaries(json, logfile)
        call self%label_sources(json)
+       call self%setup_cell_natural()
        self%has_minc = PETSC_FALSE
     end if
 
@@ -619,12 +805,14 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine mesh_configure(self, gravity, json, logfile, viewer, err)
+  subroutine mesh_configure(self, gravity, json, logfile, err)
     !! Configures mesh, including distribution over processes and
     !! construction of ghost cells, setup of data layout, geometry and
     !! cell index set.
 
-    use dm_utils_module
+    use dm_utils_module, only: dm_set_default_data_layout, &
+         dm_set_fv_adjacency, dm_get_natural_to_global_ao, &
+         dm_get_cell_index
     use logfile_module
     use rock_module, only: setup_rock_types
 
@@ -632,23 +820,18 @@ contains
     PetscReal, intent(in) :: gravity(:) !! Gravity vector
     type(fson_value), pointer, intent(in) :: json !! JSON file pointer
     type(logfile_type), intent(in out), optional :: logfile !! Log file
-    PetscViewer, intent(in out) :: viewer !! PetscViewer for output of cell index sets to HDF5 file
     PetscErrorCode, intent(out) :: err !! Error flag
-    ! Locals:
-    PetscErrorCode :: ierr
 
     err = 0
 
     call self%distribute()
-
-    call self%construct_ghost_cells()
-    call set_dm_default_data_layout(self%original_dm, self%dof)
+    call dm_set_default_data_layout(self%original_dm, self%dof)
     call dm_set_fv_adjacency(self%original_dm)
     call self%setup_geometry(gravity)
     self%dm = self%original_dm
-    self%original_cell_order = dm_get_natural_to_global_ao(self%original_dm, &
-         self%dist_sf)
-    self%cell_order = self%original_cell_order
+    self%original_cell_natural_global = &
+         dm_get_natural_to_global_ao(self%original_dm, self%cell_natural)
+    self%cell_natural_global = self%original_cell_natural_global
 
     call self%setup_zones(json, logfile, err)
     if (err == 0) then
@@ -657,11 +840,8 @@ contains
           call self%setup_minc(json, logfile, err)
           if (err == 0) then
              if (self%has_minc) call self%setup_minc_dm()
-             call dm_get_cell_index(self%dm, self%cell_order, &
+             call dm_get_cell_index(self%dm, self%cell_natural_global, &
                   self%cell_index)
-             if (viewer /= PETSC_NULL_VIEWER) then
-                call ISView(self%cell_index, viewer, ierr); CHKERRQ(ierr)
-             end if
           end if
        end if
     end if
@@ -684,7 +864,8 @@ contains
     call DMDestroy(self%dm, ierr); CHKERRQ(ierr)
     call ISDestroy(self%cell_index, ierr); CHKERRQ(ierr)
 
-    call AODestroy(self%cell_order, ierr); CHKERRQ(ierr)
+    call ISDestroy(self%cell_natural, ierr); CHKERRQ(ierr)
+    call AODestroy(self%cell_natural_global, ierr); CHKERRQ(ierr)
 
     if (allocated(self%ghost_cell)) then
        deallocate(self%ghost_cell)
@@ -695,10 +876,10 @@ contains
 
     if (self%has_minc) then
        call DMDestroy(self%original_dm, ierr); CHKERRQ(ierr)
-       call AODestroy(self%original_cell_order, ierr); CHKERRQ(ierr)
+       call AODestroy(self%original_cell_natural_global, ierr); CHKERRQ(ierr)
+       call ISDestroy(self%cell_parent_natural, ierr); CHKERRQ(ierr)
        call self%destroy_minc()
        call self%destroy_strata()
-       deallocate(self%minc_cell_map)
     end if
     call self%zones%destroy(mesh_zones_node_data_destroy)
 
@@ -725,17 +906,15 @@ contains
   subroutine mesh_set_boundary_conditions(self, json, y, fluid_vector, rock_vector, &
        eos, y_range_start, fluid_range_start, rock_range_start, logfile)
     !! Sets primary variables (and rock properties) in boundary ghost
-    !! cells. Also sets face distances from boundary ghost cells to zero.
+    !! cells.
 
     use fson
     use fson_mpi_module
     use kinds_module
-    use dm_utils_module, only: global_vec_section, global_section_offset, &
-         local_vec_section, section_offset
+    use dm_utils_module, only: global_vec_section, global_section_offset
     use eos_module, only: eos_type
     use fluid_module, only: fluid_type
     use rock_module, only: rock_type
-    use face_module
     use logfile_module
 
     class(mesh_type), intent(in) :: self
@@ -750,22 +929,20 @@ contains
     type(logfile_type), intent(in out), optional :: logfile !! Logfile for log output
     ! Locals:
     type(fson_value), pointer :: boundaries, bdy
-    PetscInt :: num_boundaries, ibdy, f, i, num_faces, iface, np, n
+    PetscInt :: num_boundaries, ibdy, f, num_faces, iface, np, n
     PetscReal, pointer, contiguous :: y_array(:), fluid_array(:), rock_array(:)
     PetscReal, pointer, contiguous :: cell_primary(:), rock1(:), rock2(:)
-    PetscReal, pointer, contiguous :: face_geom_array(:)
-    PetscSection :: y_section, fluid_section, rock_section, face_section
+    PetscSection :: y_section, fluid_section, rock_section
     IS :: bdy_IS
     DMLabel :: ghost_label
     type(fluid_type):: fluid
     type(rock_type) :: rock
-    PetscInt :: y_offset, fluid_offset, rock_offsets(2), face_offset
-    PetscInt :: ghost, region
+    PetscInt :: y_offset, fluid_offset, rock_offsets(2)
+    PetscInt :: ghost, region, i
     PetscInt, pointer :: bdy_faces(:), cells(:)
     PetscReal, allocatable :: primary(:)
     character(len=64) :: bdystr
     character(len=12) :: istr
-    type(face_type) :: face
     PetscErrorCode :: ierr
 
     call global_vec_section(y, y_section)
@@ -775,12 +952,9 @@ contains
     call global_vec_section(rock_vector, rock_section)
     call VecGetArrayF90(rock_vector, rock_array, ierr); CHKERRQ(ierr)
     call DMGetLabel(self%dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
-    call local_vec_section(self%face_geom, face_section)
-    call VecGetArrayF90(self%face_geom, face_geom_array, ierr); CHKERRQ(ierr)
     np = eos%num_primary_variables
     call fluid%init(eos%num_components, eos%num_phases)
     call rock%init()
-    call face%init()
 
     if (fson_has_mpi(json, "boundaries")) then
 
@@ -808,14 +982,13 @@ contains
                    call DMLabelGetValue(ghost_label, cells(1), ghost, ierr)
                    CHKERRQ(ierr)
                    if (ghost < 0) then
-                      call global_section_offset(y_section, cells(2), &
-                           y_range_start, y_offset, ierr); CHKERRQ(ierr)
-                      call global_section_offset(fluid_section, cells(2), &
-                           fluid_range_start, fluid_offset, ierr); CHKERRQ(ierr)
+                      y_offset = global_section_offset(y_section, cells(2), &
+                           y_range_start)
+                      fluid_offset = global_section_offset(fluid_section, cells(2), &
+                           fluid_range_start)
                       do i = 1, 2
-                         call global_section_offset(rock_section, cells(i), &
-                              rock_range_start, rock_offsets(i), ierr)
-                         CHKERRQ(ierr)
+                         rock_offsets(i) = global_section_offset(rock_section, cells(i), &
+                              rock_range_start)
                       end do
                       ! Set primary variables and region:
                       cell_primary => y_array(y_offset : y_offset + np - 1)
@@ -829,10 +1002,6 @@ contains
                       rock2 = rock1
                    end if
                 end if
-                call section_offset(face_section, f, face_offset, ierr)
-                CHKERRQ(ierr)
-                call face%assign_geometry(face_geom_array, face_offset)
-                face%distance(2) = 0._dp
              end do
              call ISRestoreIndicesF90(bdy_IS, bdy_faces, ierr); CHKERRQ(ierr)
              call ISDestroy(bdy_IS, ierr); CHKERRQ(ierr)
@@ -844,11 +1013,9 @@ contains
 
     call fluid%destroy()
     call rock%destroy()
-    call face%destroy()
     call VecRestoreArrayF90(y, y_array, ierr); CHKERRQ(ierr)
     call VecRestoreArrayF90(fluid_vector, fluid_array, ierr); CHKERRQ(ierr)
     call VecRestoreArrayF90(rock_vector, rock_array, ierr); CHKERRQ(ierr)
-    call VecRestoreArrayF90(self%face_geom, face_geom_array, ierr); CHKERRQ(ierr)
 
   end subroutine mesh_set_boundary_conditions
 
@@ -953,13 +1120,12 @@ contains
     !! currently just face permeability directions.
 
     use logfile_module
-    use face_module
     use dm_utils_module, only: local_vec_section, section_offset
     class(mesh_type), intent(in out) :: self
     ! Locals:
     DMLabel :: label
     IS :: faceIS
-    PetscInt :: dim, num_faces
+    PetscInt :: num_faces
     PetscInt, pointer, contiguous :: faces(:)
     PetscSection :: face_section
     type(face_type) :: face
@@ -967,7 +1133,6 @@ contains
     PetscInt :: i, face_offset, dirn
     PetscErrorCode :: ierr
 
-    call DMGetDimension(self%dm, dim, ierr); CHKERRQ(ierr)
     call DMGetLabel(self%dm, face_permeability_override_label_name, &
          label, ierr); CHKERRQ(ierr)
 
@@ -975,7 +1140,7 @@ contains
     call VecGetArrayF90(self%face_geom, face_geom_array, ierr); CHKERRQ(ierr)
     call face%init()
 
-    do dirn = 1, dim
+    do dirn = 1, self%dim
        call DMLabelGetStratumSize(label, dirn, num_faces, ierr); CHKERRQ(ierr)
        if (num_faces > 0) then
           call DMLabelGetStratumIS(label, dirn, faceIS, ierr); CHKERRQ(ierr)
@@ -983,8 +1148,7 @@ contains
           do i = 1, num_faces
              associate(f => faces(i))
                if (self%ghost_face(f) < 0) then
-                  call section_offset(face_section, f, face_offset, ierr)
-                  CHKERRQ(ierr)
+                  face_offset = section_offset(face_section, f)
                   call face%assign_geometry(face_geom_array, face_offset)
                   face%permeability_direction = dble(dirn)
                end if
@@ -1231,14 +1395,13 @@ contains
     use fson_value_m, only : fson_value_count, TYPE_ARRAY, TYPE_OBJECT
     use fson_utils_module, only: fson_get_default
     use logfile_module
-    use dm_utils_module, only: dm_cell_normal_face
+    use dm_utils_module, only: dm_cell_normal_face, dm_check_create_label
 
     class(mesh_type), intent(in out) :: self
     type(fson_value), pointer, intent(in) :: json
     type(logfile_type), intent(in out), optional :: logfile !! Logfile for log output
     ! Locals:
     PetscMPIInt :: rank
-    PetscBool :: mesh_has_label
     type(fson_value), pointer :: boundaries_json, bdy_json
     type(fson_value), pointer :: faces_json, face_json, cells_json
     PetscInt :: num_boundaries, num_faces, num_cells, ibdy, offset, i
@@ -1258,12 +1421,7 @@ contains
        default_faces = [PetscInt::] ! empty integer array
        default_cells = [PetscInt::]
 
-       call DMHasLabel(self%serial_dm, open_boundary_label_name, mesh_has_label, &
-            ierr); CHKERRQ(ierr)
-       if (.not. mesh_has_label) then
-          call DMCreateLabel(self%serial_dm, open_boundary_label_name, &
-               ierr); CHKERRQ(ierr)
-       end if
+       call dm_check_create_label(self%serial_dm, open_boundary_label_name)
        call DMPlexGetHeightStratum(self%serial_dm, 0, start_cell, end_cell, ierr)
        CHKERRQ(ierr)
 
@@ -1406,12 +1564,12 @@ contains
 
     use source_module
     use fson_value_m, only : fson_value_count, TYPE_INTEGER, TYPE_ARRAY
+    use dm_utils_module, only: dm_check_create_label
 
     class(mesh_type), intent(in out) :: self
     type(fson_value), pointer, intent(in) :: json !! JSON file pointer
     ! Locals:
     PetscMPIInt :: rank
-    PetscBool :: mesh_has_label
     type(fson_value), pointer :: sources_json, source_json
     PetscInt :: source_index, num_source_specs, start_cell, end_cell
     DMLabel :: source_label
@@ -1423,12 +1581,7 @@ contains
        call fson_get(json, "source", sources_json)
        if (associated(sources_json)) then
 
-          call DMHasLabel(self%serial_dm, source_label_name, mesh_has_label, &
-               ierr); CHKERRQ(ierr)
-          if (.not. mesh_has_label) then
-             call DMCreateLabel(self%serial_dm, source_label_name, &
-                  ierr); CHKERRQ(ierr)
-          end if
+          call dm_check_create_label(self%serial_dm, source_label_name)
           call DMGetLabel(self%serial_dm, source_label_name, &
                source_label, ierr); CHKERRQ(ierr)
           call DMPlexGetHeightStratum(self%serial_dm, 0, start_cell, &
@@ -1656,6 +1809,7 @@ contains
     PetscMPIInt :: rank
     PetscErrorCode :: ierr
     PetscBool :: has_minc_local
+    PetscBool :: default_rebalance
 
     err = 0
 
@@ -1693,10 +1847,17 @@ contains
             num_minc_cells, ierr); CHKERRQ(ierr)
        has_minc_local = (num_minc_cells > 0)
        call MPI_allreduce(has_minc_local, self%has_minc, 1, MPI_LOGICAL, MPI_LOR, &
-         PETSC_COMM_WORLD, ierr)
+            PETSC_COMM_WORLD, ierr)
+
+       default_rebalance = PETSC_TRUE
+
     else
        self%has_minc = PETSC_FALSE
+       default_rebalance = PETSC_FALSE
     end if
+
+    call fson_get_mpi(json, "mesh.rebalance", default_rebalance, &
+         self%rebalance, logfile)
 
   end subroutine mesh_setup_minc
 
@@ -1714,76 +1875,73 @@ contains
     class(mesh_type), intent(in out) :: self
     ! Locals:
     DM :: minc_dm
-    PetscInt :: start_chart, end_chart, m
-    PetscInt :: dim
-    PetscInt :: num_minc_cells
-    PetscInt :: num_minc_zones, num_cells, num_new_points, max_num_levels
-    PetscInt, allocatable :: minc_zone(:), minc_end_interior(:)
+    PetscInt :: coord_dim, start_chart, end_chart
+    PetscBool :: balance
+    PetscInt :: num_minc_cells, minc_end_interior_cell
+    PetscInt :: num_new_points, max_num_levels
     PetscInt, allocatable :: stratum_shift(:)
-    type(list_type), allocatable :: minc_level_cells(:)
+    PetscInt, allocatable :: minc_level_cells(:,:)
+    PetscInt, allocatable :: minc_level_cell_count(:)
     PetscErrorCode :: ierr
 
     call dm_get_strata(self%dm, self%depth, self%strata)
     allocate(stratum_shift(0: self%depth))
 
     call DMPlexCreate(PETSC_COMM_WORLD, minc_dm, ierr); CHKERRQ(ierr)
+    call PetscObjectSetName(minc_dm, 'MINC mesh', ierr); CHKERRQ(ierr)
 
-    call DMGetDimension(self%dm, dim, ierr); CHKERRQ(ierr)
-    call DMSetDimension(minc_dm, dim, ierr); CHKERRQ(ierr)
+    call DMSetDimension(minc_dm, self%dim, ierr); CHKERRQ(ierr)
+    call DMGetCoordinateDim(self%dm, coord_dim, ierr); CHKERRQ(ierr)
+    call DMSetCoordinateDim(minc_dm, coord_dim, ierr); CHKERRQ(ierr)
+    call DMPlexGetPartitionBalance(self%dm, balance, ierr); CHKERRQ(ierr)
+    call DMPlexSetPartitionBalance(minc_dm, balance, ierr); CHKERRQ(ierr)
+
     call DMPlexGetChart(self%dm, start_chart, end_chart, ierr)
     CHKERRQ(ierr)
 
-    num_cells = self%strata(0)%size()
-    num_minc_zones = size(self%minc)
     max_num_levels = maxval(self%minc%num_levels)
 
-    call self%setup_minc_dm_zone_and_cells(num_cells, &
-       max_num_levels, num_minc_zones, minc_zone, minc_level_cells, &
-       num_minc_cells)
+    call self%setup_minc_level_cells(max_num_levels, &
+         minc_level_cells, minc_level_cell_count, num_minc_cells)
 
     num_new_points = num_minc_cells * (self%depth + 1)
     call DMPlexSetChart(minc_dm, start_chart, &
          end_chart + num_new_points, ierr); CHKERRQ(ierr)
     call self%setup_minc_dm_strata_shifts(num_minc_cells, &
-         max_num_levels, minc_level_cells, stratum_shift)
+         max_num_levels, minc_level_cell_count, stratum_shift)
 
-    allocate(minc_end_interior(0: self%depth))
-    minc_end_interior = self%strata%end_interior + &
-         (stratum_shift + 1) * num_minc_cells
-    call DMPlexSetHybridBounds(minc_dm, minc_end_interior(0), &
-         minc_end_interior(1), minc_end_interior(self%depth - 1), &
-         minc_end_interior(self%depth), ierr); CHKERRQ(ierr)
-    deallocate(minc_end_interior)
+    minc_end_interior_cell = self%strata(0)%end_interior + &
+         (stratum_shift(0) + 1) * num_minc_cells
+    call DMPlexSetGhostCellStratum(minc_dm, minc_end_interior_cell, -1, &
+         ierr); CHKERRQ(ierr)
     self%strata%num_minc_points = num_minc_cells
 
-    call self%set_minc_dm_cone_sizes(minc_dm, num_cells, num_minc_cells, &
-         max_num_levels, minc_zone, minc_level_cells)
+    call self%set_minc_dm_cone_sizes(minc_dm, num_minc_cells, &
+         max_num_levels, minc_level_cells)
     call DMSetUp(minc_dm, ierr); CHKERRQ(ierr)
-    call self%set_minc_dm_cones(minc_dm, num_cells, max_num_levels, &
-         minc_zone, minc_level_cells)
+    call self%set_minc_dm_cones(minc_dm, max_num_levels, &
+         minc_level_cells)
 
     call DMPlexSymmetrize(minc_dm, ierr); CHKERRQ(ierr)
     call self%transfer_labels_to_minc_dm(minc_dm, max_num_levels)
     call self%setup_minc_dm_depth_label(minc_dm, max_num_levels, &
          minc_level_cells)
-    call self%setup_minc_dm_level_label_and_cell_map(minc_dm, max_num_levels, &
-         minc_level_cells)
+    call self%setup_minc_output_data(minc_dm, max_num_levels, minc_level_cells)
 
     call dm_set_fv_adjacency(minc_dm)
-    call dm_setup_fv_discretization(minc_dm, self%dof)
-    call set_dm_default_data_layout(minc_dm, self%dof)
+    call dm_set_default_data_layout(minc_dm, self%dof)
     call self%setup_minc_point_sf(minc_dm)
     call dm_setup_global_section(minc_dm)
 
-    call self%setup_minc_dm_cell_order(minc_dm, max_num_levels, &
+    call self%setup_minc_dm_cell_natural_global(minc_dm, max_num_levels, &
+         minc_level_cells, minc_level_cell_count, num_minc_cells)
+    self%cell_natural = dm_natural_order_IS(minc_dm, self%cell_natural_global)
+    call self%setup_minc_geometry(minc_dm, max_num_levels, &
          minc_level_cells)
-    call self%setup_minc_geometry(minc_dm, num_cells, max_num_levels, &
-         num_minc_zones, minc_zone)
+    call self%setup_minc_coordinates(minc_dm)
 
-    do m = 0, max_num_levels
-       call minc_level_cells(m)%destroy()
-    end do
-    deallocate(minc_zone, minc_level_cells, stratum_shift)
+    deallocate(minc_level_cells, minc_level_cell_count, &
+         stratum_shift)
 
     self%dm = minc_dm
 
@@ -1791,16 +1949,16 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine mesh_setup_minc_dm_zone_and_cells(self, num_cells, &
-       max_num_levels, num_minc_zones, minc_zone, minc_level_cells, &
-       num_minc_cells)
-    !! Set up minc_zone and minc_level_cells arrays, and minc
-    !! level label on DM.
+  subroutine mesh_setup_minc_level_cells(self, &
+       max_num_levels, minc_level_cells, &
+       minc_level_cell_count, num_minc_cells)
+    !! Set up minc_level_cells and minc_level_cell_count
+    !! arrays.
 
     class(mesh_type), intent(in out) :: self
-    PetscInt, intent(in) :: num_cells, max_num_levels, num_minc_zones 
-    PetscInt, allocatable, intent(out) :: minc_zone(:)
-    type(list_type), allocatable, intent(out) :: minc_level_cells(:)
+    PetscInt, intent(in) :: max_num_levels
+    PetscInt, allocatable, intent(out) :: minc_level_cells(:,:)
+    PetscInt, allocatable, intent(out) :: minc_level_cell_count(:)
     PetscInt, intent(out) :: num_minc_cells
     ! Locals:
     PetscInt :: iminc, i, c, m, ghost, num_minc_zone_cells
@@ -1808,19 +1966,16 @@ contains
     PetscInt, pointer :: minc_cells(:)
     DMLabel :: ghost_label
     PetscErrorCode :: ierr
-    PetscInt, pointer :: pc
 
-    allocate(minc_zone(0: num_cells - 1), &
-         minc_level_cells(0: max_num_levels))
-    minc_zone = -1
-    do m = 0, max_num_levels
-       call minc_level_cells(m)%init(owner = PETSC_TRUE)
-    end do
+    call DMGetLabel(self%dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
 
-    call DMGetLabel(self%dm, "ghost", ghost_label, ierr)
-    CHKERRQ(ierr)
+    allocate(minc_level_cells(max_num_levels, &
+         self%strata(0)%start: self%strata(0)%end - 1))
+    minc_level_cells = -1
+    allocate(minc_level_cell_count(max_num_levels))
+    minc_level_cell_count = 0
 
-    do iminc = 1, num_minc_zones
+    do iminc = 1, size(self%minc)
        call DMGetStratumSize(self%dm, minc_zone_label_name, iminc, &
             num_minc_zone_cells, ierr); CHKERRQ(ierr)
        if (num_minc_zone_cells > 0) then
@@ -1832,10 +1987,9 @@ contains
                c = minc_cells(i)
                call DMLabelGetValue(ghost_label, c, ghost, ierr)
                if (ghost < 0) then
-                  minc_zone(c) = iminc
-                  do m = 0, num_levels
-                     allocate(pc); pc = c
-                     call minc_level_cells(m)%append(pc)
+                  do m = 1, self%minc(iminc)%num_levels
+                     minc_level_cells(m, c) = minc_level_cell_count(m)
+                     minc_level_cell_count(m) = minc_level_cell_count(m) + 1
                   end do
                end if
             end do
@@ -1846,26 +2000,23 @@ contains
        end if
     end do
 
-    num_minc_cells = 0
-    do m = 1, max_num_levels
-       num_minc_cells = num_minc_cells + minc_level_cells(m)%count
-    end do
+    num_minc_cells = sum(minc_level_cell_count)
 
-  end subroutine mesh_setup_minc_dm_zone_and_cells
+  end subroutine mesh_setup_minc_level_cells
 
 !------------------------------------------------------------------------
 
   subroutine mesh_setup_minc_dm_strata_shifts(self, num_minc_cells, &
-       max_num_levels, minc_level_cells, stratum_shift)
+       max_num_levels, minc_level_cell_count, stratum_shift)
     !! Set up minc_shift array in DM strata, to determine index shift
     !! from original DM point to corresponding point in MINC DM.
 
     class(mesh_type), intent(in out) :: self
     PetscInt, intent(in) :: num_minc_cells, max_num_levels
-    type(list_type), intent(in out) :: minc_level_cells(0: max_num_levels)
+    PetscInt, intent(in) :: minc_level_cell_count(max_num_levels)
     PetscInt, intent(out) :: stratum_shift(0: self%depth)
     ! Locals:
-    PetscInt :: i, h, m
+    PetscInt :: h, m
     PetscInt :: minc_offset(0: max_num_levels)
 
     ! Set up stratum_shift array (taking account of the fact that
@@ -1874,13 +2025,13 @@ contains
     ! resulting from points added to lower-index strata in the DM.
     stratum_shift(0) = 0
     stratum_shift(self%depth) = 1
-    stratum_shift(1: self%depth - 1) = [(i + 1, i = 1, self%depth - 1)]
+    stratum_shift(1: self%depth - 1) = [(h + 1, h = 1, self%depth - 1)]
 
     ! Offset of the start of each MINC level within the stratum (note
     ! this is the same for all strata):
     minc_offset = 0
-    do i = 1, max_num_levels
-       minc_offset(i) = minc_offset(i - 1) + minc_level_cells(i)%count
+    do m = 1, max_num_levels
+       minc_offset(m) = minc_offset(m - 1) + minc_level_cell_count(m)
     end do
 
     do h = 0, self%depth
@@ -1888,7 +2039,7 @@ contains
        self%strata(h)%minc_shift(0) = stratum_shift(h) * num_minc_cells
        do m = 1, max_num_levels
           self%strata(h)%minc_shift(m) = stratum_shift(h) * num_minc_cells + &
-               self%strata(h)%end_interior + minc_offset(m - 1)
+               self%strata(h)%end_non_ghost + minc_offset(m - 1)
        end do
     end do
 
@@ -1896,260 +2047,178 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine mesh_set_minc_dm_cone_sizes(self, minc_dm, num_cells, &
-       num_minc_cells, max_num_levels, minc_zone, &
+  subroutine mesh_set_minc_dm_cone_sizes(self, minc_dm, &
+       num_minc_cells, max_num_levels, &
        minc_level_cells)
     !! Sets cone sizes for MINC DM.
 
     class(mesh_type), intent(in out) :: self
     DM, intent(in out) :: minc_dm
-    PetscInt, intent(in) :: num_cells, num_minc_cells, max_num_levels
-    PetscInt, intent(in) :: minc_zone(0: num_cells - 1)
-    type(list_type), intent(in out) :: minc_level_cells(0: max_num_levels)
+    PetscInt, intent(in) :: num_minc_cells, max_num_levels
+    PetscInt, intent(in) :: minc_level_cells(max_num_levels, &
+         self%strata(0)%start: self%strata(0)%end - 1)
     ! Locals:
-    PetscInt :: ic, p, minc_p, cone_size, new_cone_size
-    PetscInt :: iminc, m, h
+    PetscInt :: ic, p, minc_p, orig_cone_size, cone_size
+    PetscInt :: iminc, m, h, c, ghost
+    DMLabel :: minc_zone_label, ghost_label
     PetscErrorCode :: ierr
 
-    ! Non-MINC and fracture cells:
-    h = 0
-    do p = self%strata(h)%start, self%strata(h)%end - 1
-       iminc = minc_zone(p)
-       call DMPlexGetConeSize(self%dm, p, cone_size, ierr)
-       CHKERRQ(ierr)
-       if (iminc > 0) then
-          new_cone_size = cone_size + 1
+    call DMGetLabel(self%dm, minc_zone_label_name, minc_zone_label, &
+         ierr); CHKERRQ(ierr)
+    call DMGetLabel(self%dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
+
+    do c = self%strata(0)%start, self%strata(0)%end - 1
+
+       minc_p = self%strata(0)%minc_point(c, 0)
+       call DMLabelGetValue(minc_zone_label, c, iminc, ierr); CHKERRQ(ierr)
+       call DMLabelGetValue(ghost_label, c, ghost, ierr)
+       call DMPlexGetConeSize(self%dm, c, orig_cone_size, ierr); CHKERRQ(ierr)
+       if ((iminc > 0) .and. (ghost < 0)) then
+
+          ! Fracture cells:
+          cone_size = orig_cone_size + 1
+          call DMPlexSetConeSize(minc_dm, minc_p, cone_size, ierr)
+          CHKERRQ(ierr)
+
+          do m = 1, self%minc(iminc)%num_levels
+             ! MINC cells:
+             ic = minc_level_cells(m, c)
+             minc_p = self%strata(0)%minc_point(ic, m)
+             if (m < self%minc(iminc)%num_levels) then
+                cone_size = 2
+             else
+                cone_size = 1
+             end if
+             call DMPlexSetConeSize(minc_dm, minc_p, cone_size, &
+                  ierr); CHKERRQ(ierr)
+             ! MINC DAG points (height h > 0):
+             do h = 1, self%depth -1
+                minc_p = self%strata(h)%minc_point(ic, m)
+                cone_size = 1
+                call DMPlexSetConeSize(minc_dm, minc_p, &
+                     cone_size, ierr); CHKERRQ(ierr)
+             end do
+          end do
+
        else
-          new_cone_size = cone_size
+          ! Non-MINC and ghost cells:
+          cone_size = orig_cone_size
+          call DMPlexSetConeSize(minc_dm, minc_p, cone_size, ierr)
+          CHKERRQ(ierr)
        end if
-       minc_p = self%strata(h)%minc_point(p, 0)
-       call DMPlexSetConeSize(minc_dm, minc_p, new_cone_size, ierr)
-       CHKERRQ(ierr)
-    end do
-    ! MINC cells:
-    do m = 1, max_num_levels
-       ic = 0
-       call minc_level_cells(m)%traverse(minc_cell_cone_size_iterator)
+
     end do
 
     ! Non-MINC and fracture DAG points for height h > 0:
     do h = 1, self%depth
        do p = self%strata(h)%start, self%strata(h)%end - 1
           minc_p = self%strata(h)%minc_point(p, 0)
-          call DMPlexGetConeSize(self%dm, p, cone_size, ierr)
+          call DMPlexGetConeSize(self%dm, p, orig_cone_size, ierr)
           CHKERRQ(ierr)
+          cone_size = orig_cone_size
           call DMPlexSetConeSize(minc_dm, minc_p, cone_size, ierr)
           CHKERRQ(ierr)
        end do
     end do
 
-    do m = 1, max_num_levels
-       ic = 0
-       call minc_level_cells(m)%traverse(minc_dag_cone_size_iterator)
-    end do
-
-  contains
-
-    subroutine minc_cell_cone_size_iterator(node, stopped)
-      !! Sets cone size for MINC cells.
-
-      type(list_node_type), pointer, intent(in out) :: node
-      PetscBool, intent(out) :: stopped
-      ! Locals:
-      PetscInt :: minc_p, iminc, cone_size
-      PetscInt, parameter :: h = 0
-
-      stopped = PETSC_FALSE
-      select type (c => node%data)
-      type is (PetscInt)
-         minc_p = self%strata(h)%minc_point(ic, m)
-         iminc = minc_zone(c)
-         associate(num_levels => self%minc(iminc)%num_levels)
-           if (m < num_levels) then
-              cone_size = 2
-           else
-              cone_size = 1
-           end if
-           call DMPlexSetConeSize(minc_dm, minc_p, &
-                cone_size, ierr); CHKERRQ(ierr)
-         end associate
-      end select
-      ic = ic + 1
-
-    end subroutine minc_cell_cone_size_iterator
-
-    subroutine minc_dag_cone_size_iterator(node, stopped)
-      !! Sets cone size for MINC DAG points (height h > 0).
-
-      type(list_node_type), pointer, intent(in out) :: node
-      PetscBool, intent(out) :: stopped
-      ! Locals:
-      PetscInt :: minc_p, cone_size, h
-
-      stopped = PETSC_FALSE
-      select type (c => node%data)
-      type is (PetscInt)
-         do h = 1, self%depth
-            minc_p = self%strata(h)%minc_point(ic, m)
-            if (h < self%depth) then
-               cone_size = 1
-            else
-               cone_size = 0
-            end if
-            call DMPlexSetConeSize(minc_dm, minc_p, &
-                 cone_size, ierr); CHKERRQ(ierr)
-         end do
-      end select
-      ic = ic + 1
-
-    end subroutine minc_dag_cone_size_iterator
-
   end subroutine mesh_set_minc_dm_cone_sizes
 
 !------------------------------------------------------------------------
 
-  subroutine mesh_set_minc_dm_cones(self, minc_dm, num_cells, max_num_levels, &
-       minc_zone, minc_level_cells)
-    !! Sets cones for MINC DM.
+  subroutine mesh_set_minc_dm_cones(self, minc_dm, max_num_levels, &
+       minc_level_cells)
+    !! Sets cones and cone orientations for MINC DM.
 
-    use dm_utils_module, only: dm_stratum_type
+    use dm_utils_module, only: dm_stratum_type, dm_copy_cone_orientation
 
     class(mesh_type), intent(in out) :: self
     DM, intent(in out) :: minc_dm
-    PetscInt, intent(in) :: num_cells, max_num_levels
-    PetscInt, intent(in) :: minc_zone(0: num_cells - 1)
-    type(list_type), intent(in out) :: minc_level_cells(0: max_num_levels)
+    PetscInt, intent(in) :: max_num_levels
+    PetscInt, intent(in) :: minc_level_cells(max_num_levels, &
+         self%strata(0)%start: self%strata(0)%end - 1)
     ! Locals:
-    PetscInt :: p, m, h, iminc, ic, minc_p
+    PetscInt :: c, p, m, h, iminc, ic, ic_m1, ghost
+    DMLabel :: minc_zone_label, ghost_label
+    PetscInt :: minc_p, above_p, face_p, inner_face_p
     PetscInt, pointer :: points(:)
-    PetscInt, allocatable :: cell_cone(:), minc_cone(:)
+    PetscInt, allocatable :: cell_cone(:), minc_cone(:), minc_orientation(:)
+    PetscInt, pointer :: orientation(:)
     PetscErrorCode :: ierr
 
-    h = 0
-    ! Non-MINC cells:
-    do p = self%strata(h)%start, self%strata(h)%end - 1
-       iminc = minc_zone(p)
-       if (iminc <= 0) then
-          minc_p = self%strata(h)%minc_point(p, 0)
-          call DMPlexGetCone(self%dm, p, points, ierr)
-          CHKERRQ(ierr)
-          cell_cone = self%strata(h + 1)%minc_point(points, 0)
+    call DMGetLabel(self%dm, minc_zone_label_name, minc_zone_label, &
+         ierr); CHKERRQ(ierr)
+    call DMGetLabel(self%dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
+
+    do c = self%strata(0)%start, self%strata(0)%end - 1
+
+       minc_p = self%strata(0)%minc_point(c, 0)
+       call DMPlexGetCone(self%dm, c, points, ierr); CHKERRQ(ierr)
+       call DMLabelGetValue(minc_zone_label, c, iminc, ierr); CHKERRQ(ierr)
+       call DMLabelGetValue(ghost_label, c, ghost, ierr)
+       if ((iminc > 0) .and. (ghost < 0)) then
+
+          ! Fracture cells:
+          ic_m1 = minc_level_cells(1, c)
+          face_p = self%strata(1)%minc_point(ic_m1, 1)
+          cell_cone = [self%strata(1)%minc_point(points, 0), [face_p]]
           call DMPlexSetCone(minc_dm, minc_p, cell_cone, ierr); CHKERRQ(ierr)
           deallocate(cell_cone)
-          call DMPlexRestoreCone(self%dm, p, points, ierr)
+          call DMPlexGetConeOrientation(self%dm, c, orientation, ierr); CHKERRQ(ierr)
+          minc_orientation = [orientation, [0]]
+          call DMPlexSetConeOrientation(minc_dm, minc_p, minc_orientation, &
+               ierr); CHKERRQ(ierr)
+          call DMPlexRestoreConeOrientation(self%dm, c, orientation, &
+               ierr); CHKERRQ(ierr)
+          deallocate(minc_orientation)
+
+          do m = 1, self%minc(iminc)%num_levels
+             ! MINC cells:
+             ic = minc_level_cells(m, c)
+             minc_p = self%strata(0)%minc_point(ic, m)
+             face_p = self%strata(1)%minc_point(ic, m)
+             if (m < self%minc(iminc)%num_levels) then
+                ic_m1 = minc_level_cells(m + 1, c)
+                inner_face_p = self%strata(1)%minc_point(ic_m1, m + 1)
+                minc_cone = [face_p, inner_face_p]
+             else
+                minc_cone = [face_p]
+             end if
+             call DMPlexSetCone(minc_dm, minc_p, minc_cone, ierr); CHKERRQ(ierr)
+             deallocate(minc_cone)
+             ! MINC DAG points for height h > 0:
+             do h = 1, self%depth - 1
+                minc_p = self%strata(h)%minc_point(ic, m)
+                above_p = self%strata(h + 1)%minc_point(ic, m)
+                call DMPlexSetCone(minc_dm, minc_p, [above_p], ierr)
+                CHKERRQ(ierr)
+             end do
+          end do
+
+       else
+          ! Non-MINC and ghost cells:
+          cell_cone = self%strata(1)%minc_point(points, 0)
+          call DMPlexSetCone(minc_dm, minc_p, cell_cone, ierr); CHKERRQ(ierr)
+          deallocate(cell_cone)
+          call dm_copy_cone_orientation(self%dm, c, minc_dm, minc_p)
           CHKERRQ(ierr)
        end if
-    end do
-    ! Fracture cells:
-    m = 0; ic = 0
-    call minc_level_cells(m)%traverse(fracture_cell_cone_iterator)
-    ! MINC cells:
-    do m = 1, max_num_levels
-       ic = 0
-       call minc_level_cells(m)%traverse(minc_cell_cone_iterator)
+
+       call DMPlexRestoreCone(self%dm, c, points, ierr); CHKERRQ(ierr)
+
     end do
 
-    ! Fracture and non-MINC DAG points for height h > 0:
+    ! Non-MINC and fracture DAG points for height h > 0:
     do h = 1, self%depth - 1
        do p = self%strata(h)%start, self%strata(h)%end - 1
           minc_p = self%strata(h)%minc_point(p, 0)
           call DMPlexGetCone(self%dm, p, points, ierr); CHKERRQ(ierr)
           minc_cone = self%strata(h + 1)%minc_point(points, 0)
-          call DMPlexSetCone(minc_dm, minc_p, minc_cone, ierr)
-          CHKERRQ(ierr)
+          call DMPlexSetCone(minc_dm, minc_p, minc_cone, ierr); CHKERRQ(ierr)
           deallocate(minc_cone)
-          call DMPlexRestoreCone(self%dm, p, points, ierr)
-          CHKERRQ(ierr)
+          call DMPlexRestoreCone(self%dm, p, points, ierr); CHKERRQ(ierr)
+          call dm_copy_cone_orientation(self%dm, p, minc_dm, minc_p)
        end do
     end do
-    ! MINC DAG points for height h > 0:
-    do m = 1, max_num_levels
-       ic = 0
-       call minc_level_cells(m)%traverse(minc_dag_cone_iterator)
-    end do
-
-  contains
-
-    subroutine fracture_cell_cone_iterator(node, stopped)
-      !! Sets cone for fracture cells.
-
-      type(list_node_type), pointer, intent(in out) :: node
-      PetscBool, intent(out) :: stopped
-      ! Locals:
-      PetscInt :: minc_p, face_p
-      PetscInt, pointer :: points(:)
-      PetscInt, allocatable :: cell_cone(:)
-      PetscInt, parameter :: h = 0, m = 0
-
-      stopped = PETSC_FALSE
-      select type (c => node%data)
-      type is (PetscInt)
-         call DMPlexGetCone(self%dm, c, points, ierr)
-         CHKERRQ(ierr)
-         minc_p = self%strata(h)%minc_point(c, m)
-         face_p = self%strata(h + 1)%minc_point(ic, m + 1)
-         cell_cone = [self%strata(h + 1)%minc_point(points, m), [face_p]]
-         call DMPlexSetCone(minc_dm, minc_p, cell_cone, ierr); CHKERRQ(ierr)
-         call DMPlexRestoreCone(self%dm, c, points, ierr)
-         deallocate(cell_cone)
-         CHKERRQ(ierr)
-      end select
-      ic = ic + 1
-
-    end subroutine fracture_cell_cone_iterator
-
-    subroutine minc_cell_cone_iterator(node, stopped)
-      !! Sets cone for MINC cells (m > 0).
-
-      type(list_node_type), pointer, intent(in out) :: node
-      PetscBool, intent(out) :: stopped
-      ! Locals:
-      PetscInt :: minc_p, iminc, face_p, inner_face_p
-      PetscInt, parameter :: h = 0
-
-      stopped = PETSC_FALSE
-      select type (c => node%data)
-      type is (PetscInt)
-         minc_p = self%strata(h)%minc_point(ic, m)
-         face_p = self%strata(h + 1)%minc_point(ic, m)
-         iminc = minc_zone(c)
-         associate(num_levels => self%minc(iminc)%num_levels)
-           if (m < num_levels) then
-              inner_face_p = self%strata(h + 1)%minc_point(ic, m + 1)
-              minc_cone = [face_p, inner_face_p]
-           else
-              minc_cone = [face_p]
-           end if
-           call DMPlexSetCone(minc_dm, minc_p, minc_cone, ierr)
-           CHKERRQ(ierr)
-           deallocate(minc_cone)
-         end associate
-      end select
-      ic = ic + 1
-
-    end subroutine minc_cell_cone_iterator
-
-    subroutine minc_dag_cone_iterator(node, stopped)
-      !! Sets cone for MINC DAG points (height h > 0).
-
-      type(list_node_type), pointer, intent(in out) :: node
-      PetscBool, intent(out) :: stopped
-      ! Locals:
-      PetscInt :: minc_p, h, above_p
-
-      stopped = PETSC_FALSE
-      select type (c => node%data)
-      type is (PetscInt)
-         do h = 1, self%depth - 1
-            minc_p = self%strata(h)%minc_point(ic, m)
-            above_p = self%strata(h + 1)%minc_point(ic, m)
-            call DMPlexSetCone(minc_dm, minc_p, [above_p], ierr)
-            CHKERRQ(ierr)
-         end do
-      end select
-      ic = ic + 1
-
-    end subroutine minc_dag_cone_iterator
 
   end subroutine mesh_set_minc_dm_cones
 
@@ -2162,40 +2231,39 @@ contains
     class(mesh_type), intent(in out) :: self
     DM, intent(in out) :: minc_dm
     PetscInt, intent(in) :: max_num_levels
-    type(list_type), intent(in out) :: minc_level_cells(0: max_num_levels)
+    PetscInt, intent(in) :: minc_level_cells(max_num_levels, &
+         self%strata(0)%start: self%strata(0)%end - 1)
     ! Locals:
-    PetscInt :: m, ic
+    PetscInt :: iminc, num_minc_zone_cells
+    PetscInt :: i, c, m, ic, minc_p, h
+    IS :: minc_IS
+    PetscInt, pointer :: minc_cells(:)
+    PetscErrorCode :: ierr
 
-    do m = 1, max_num_levels
-       ic = 0
-       call minc_level_cells(m)%traverse(minc_depth_label_iterator)
+    do iminc = 1, size(self%minc)
+       call DMGetStratumSize(self%dm, minc_zone_label_name, iminc, &
+            num_minc_zone_cells, ierr); CHKERRQ(ierr)
+       if (num_minc_zone_cells > 0) then
+          call DMGetStratumIS(self%dm, minc_zone_label_name, &
+               iminc, minc_IS, ierr); CHKERRQ(ierr)
+          call ISGetIndicesF90(minc_IS, minc_cells, ierr); CHKERRQ(ierr)
+          associate(num_levels => self%minc(iminc)%num_levels)
+            do i = 1, num_minc_zone_cells
+               c = minc_cells(i)
+               do m = 1, self%minc(iminc)%num_levels
+                  ic = minc_level_cells(m, c)
+                  do h = 0, self%depth
+                     minc_p = self%strata(h)%minc_point(ic, m)
+                     associate(p_depth => self%depth - h)
+                       call DMSetLabelValue(minc_dm, "depth", &
+                            minc_p, p_depth, ierr); CHKERRQ(ierr)
+                     end associate
+                  end do
+               end do
+            end do
+          end associate
+       end if
     end do
-
-  contains
-
-    subroutine minc_depth_label_iterator(node, stopped)
-      !! Sets depth label for all MINC DAG points.
-
-      type(list_node_type), pointer, intent(in out) :: node
-      PetscBool, intent(out) :: stopped
-      ! Locals:
-      PetscInt :: minc_p, h
-      PetscErrorCode :: ierr
-
-      stopped = PETSC_FALSE
-      select type (c => node%data)
-      type is (PetscInt)
-         do h = 0, self%depth
-            minc_p = self%strata(h)%minc_point(ic, m)
-            associate(p_depth => self%depth - h)
-              call DMSetLabelValue(minc_dm, "depth", &
-                   minc_p, p_depth, ierr); CHKERRQ(ierr)
-            end associate
-         end do
-      end select
-      ic = ic + 1
-
-    end subroutine minc_depth_label_iterator
 
   end subroutine mesh_setup_minc_dm_depth_label
 
@@ -2261,81 +2329,96 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine mesh_setup_minc_dm_level_label_and_cell_map(self, minc_dm, &
-       max_num_levels, minc_level_cells)
-    !! Sets up minc_level label on MINC DM, with MINC level assigned
-    !! to all cells. Non-MINC cells are assigned level 0 (as are
-    !! fracture cells in MINC zones). Also creates minc_cell_map
-    !! array, mapping MINC DM cell local indices to their original
-    !! single-porosity cell local indices.
+  subroutine mesh_setup_minc_output_data(self, minc_dm, max_num_levels, &
+       minc_level_cells)
+    !! Sets up minc_level DM label on MINC DM, and
+    !! cell_parent_natural IS, both used for output purposes. The
+    !! minc_level label contains the MINC level assigned to each
+    !! cell. Non-MINC cells are assigned level 0 (as are fracture
+    !! cells in MINC zones). The cell_parent_natural IS contains,
+    !! for each cell, the natural index of the corresponding original
+    !! single-porosity cell.
+
+    use dm_utils_module, only: local_to_natural_cell_index
 
     class(mesh_type), intent(in out) :: self
     DM, intent(in out) :: minc_dm
     PetscInt, intent(in) :: max_num_levels
-    type(list_type), intent(in out) :: minc_level_cells(0: max_num_levels)
+    PetscInt, intent(in) :: minc_level_cells(max_num_levels, &
+         self%strata(0)%start: self%strata(0)%end - 1)
     ! Locals:
-    PetscInt :: m, ic, h, c, ghost, minc_p
-    PetscInt :: start_cell, end_cell
+    PetscInt :: m, ic, i, c, ghost, minc_p, start_cell, end_cell
+    PetscInt, allocatable :: natural(:)
+    PetscInt :: iminc, num_minc_zone_cells
+    IS :: minc_IS
+    PetscInt, pointer :: minc_cells(:)
     DMLabel :: ghost_label
+    ISLocalToGlobalMapping :: l2g
     PetscErrorCode :: ierr
 
     call DMGetLabel(minc_dm, "ghost", ghost_label, ierr)
     CHKERRQ(ierr)
     call DMCreateLabel(minc_dm, minc_level_label_name, ierr)
     CHKERRQ(ierr)
+    call DMGetLocalToGlobalMapping(self%dm, l2g, ierr); CHKERRQ(ierr)
 
-    h = 0
-    call DMPlexGetHeightStratum(minc_dm, h, start_cell, end_cell, &
+    call DMPlexGetHeightStratum(minc_dm, 0, start_cell, end_cell, &
          ierr); CHKERRQ(ierr)
-    associate(num_cells => end_cell - start_cell)
-      allocate(self%minc_cell_map(0: num_cells - 1))
-    end associate
 
-    m = 0
-    do c = self%strata(h)%start, self%strata(h)%end - 1
+    allocate(natural(start_cell: end_cell - 1))
+    natural = -1
+
+    ! Non-MINC and fracture cells:
+    do c = self%strata(0)%start, self%strata(0)%end - 1
        call DMLabelGetValue(ghost_label, c, ghost, ierr)
        if (ghost < 0) then
-          minc_p = self%strata(h)%minc_point(c, m)
+          minc_p = self%strata(0)%minc_point(c, 0)
           call DMSetLabelValue(minc_dm, minc_level_label_name, &
-               minc_p, m, ierr); CHKERRQ(ierr)
-          self%minc_cell_map(minc_p) = c
+               minc_p, 0, ierr); CHKERRQ(ierr)
+          natural(c) = local_to_natural_cell_index( &
+               self%cell_natural_global, l2g, c)
        end if
     end do
 
-    do m = 1, max_num_levels
-       ic = 0
-       call minc_level_cells(m)%traverse(minc_level_label_iterator)
+    ! MINC cells:
+    do iminc = 1, size(self%minc)
+       call DMGetStratumSize(self%dm, minc_zone_label_name, iminc, &
+            num_minc_zone_cells, ierr); CHKERRQ(ierr)
+       if (num_minc_zone_cells > 0) then
+          call DMGetStratumIS(self%dm, minc_zone_label_name, &
+               iminc, minc_IS, ierr); CHKERRQ(ierr)
+          call ISGetIndicesF90(minc_IS, minc_cells, ierr); CHKERRQ(ierr)
+          associate(num_levels => self%minc(iminc)%num_levels)
+            do i = 1, num_minc_zone_cells
+               c = minc_cells(i)
+               call DMLabelGetValue(ghost_label, c, ghost, ierr)
+               if (ghost < 0) then
+                  do m = 1, self%minc(iminc)%num_levels
+                     ic = minc_level_cells(m, c)
+                     minc_p = self%strata(0)%minc_point(ic, m)
+                     call DMSetLabelValue(minc_dm, minc_level_label_name, &
+                          minc_p, m, ierr); CHKERRQ(ierr)
+                     natural(minc_p) = local_to_natural_cell_index( &
+                          self%cell_natural_global, l2g, c)
+                  end do
+               end if
+            end do
+          end associate
+       end if
     end do
 
-  contains
+    call ISCreateGeneral(PETSC_COMM_WORLD, end_cell - start_cell, &
+         natural, PETSC_COPY_VALUES, self%cell_parent_natural, ierr); CHKERRQ(ierr)
+    deallocate(natural)
 
-    subroutine minc_level_label_iterator(node, stopped)
-      !! Sets level label for all MINC cells and faces.
-
-      type(list_node_type), pointer, intent(in out) :: node
-      PetscBool, intent(out) :: stopped
-      ! Locals:
-      PetscInt :: minc_p
-      PetscErrorCode :: ierr
-
-      stopped = PETSC_FALSE
-      select type (c => node%data)
-      type is (PetscInt)
-         minc_p = self%strata(h)%minc_point(ic, m)
-         call DMSetLabelValue(minc_dm, minc_level_label_name, &
-              minc_p, m, ierr); CHKERRQ(ierr)
-         self%minc_cell_map(minc_p) = c
-      end select
-      ic = ic + 1
-
-    end subroutine minc_level_label_iterator
-
-  end subroutine mesh_setup_minc_dm_level_label_and_cell_map
+  end subroutine mesh_setup_minc_output_data
 
 !------------------------------------------------------------------------
 
-  subroutine mesh_setup_minc_dm_cell_order(self, minc_dm, max_num_levels, &
-       minc_level_cells)
+  subroutine mesh_setup_minc_dm_cell_natural_global(self, minc_dm, &
+       max_num_levels, minc_level_cells, minc_level_cell_count, &
+       num_minc_cells)
+
     !! Sets up natural-to-global AO for MINC DM, and overwrites
     !! original AO.
 
@@ -2345,7 +2428,10 @@ contains
     class(mesh_type), intent(in out) :: self
     DM, intent(in) :: minc_dm
     PetscInt, intent(in) :: max_num_levels
-    type(list_type), intent(in out) :: minc_level_cells(0: max_num_levels)
+    PetscInt, intent(in) :: minc_level_cells(max_num_levels, &
+         self%strata(0)%start: self%strata(0)%end - 1)
+    PetscInt, intent(in) :: minc_level_cell_count(max_num_levels)
+    PetscInt, intent(in) :: num_minc_cells
     ! Locals:
     AO :: minc_ao
     PetscMPIInt :: rank, num_procs
@@ -2353,8 +2439,8 @@ contains
     PetscInt :: start_cell, end_interior_cell, offset, n_all
     PetscInt :: mapping_count, num_ghost_cells, num_non_ghost_cells
     ISLocalToGlobalMapping :: l2g, minc_l2g
-    PetscInt :: local_minc_cell_count, total_minc_cell_count
-    PetscInt :: ic, c, m, inatural
+    PetscInt :: total_minc_cell_count
+    PetscInt :: ic, c, m, inatural, h, p(1)
     PetscInt, allocatable :: minc_global(:), minc_frac_natural(:)
     PetscInt, allocatable :: minc_global_all(:), minc_frac_natural_all(:)
     PetscInt, allocatable :: minc_counts(:), minc_displacements(:)
@@ -2365,14 +2451,13 @@ contains
 
     start_cell = self%strata(0)%start
     end_interior_cell = self%strata(0)%end_interior
-    num_ghost_cells = dm_get_num_partition_ghost_cells(self%dm)
+    num_ghost_cells = dm_get_num_partition_ghost_points(self%dm, 0)
     num_non_ghost_cells = end_interior_cell - start_cell - num_ghost_cells
     ! Each rank has its own array elements for MINC level 0:
     mapping_count = num_non_ghost_cells
 
     ! Rank 0 has array elements for MINC cells from all ranks:
-    local_minc_cell_count = sum(minc_level_cells(1:)%count)
-    call MPI_reduce(local_minc_cell_count, total_minc_cell_count, 1, &
+    call MPI_reduce(num_minc_cells, total_minc_cell_count, 1, &
          MPI_INTEGER, MPI_SUM, 0, PETSC_COMM_WORLD, ierr)
     if (rank == 0) then
        mapping_count = mapping_count + total_minc_cell_count
@@ -2389,9 +2474,10 @@ contains
     ! MINC cells (level > 0):
     minc_counts = get_mpi_int_gather_array()
     minc_displacements = get_mpi_int_gather_array()
+    h = 0
 
     do m = 1, max_num_levels
-       associate(n => minc_level_cells(m)%count)
+       associate(n => minc_level_cell_count(m))
 
          allocate(minc_frac_natural(n), minc_global(n))
          call MPI_gather(n, 1, MPI_INTEGER, minc_counts, 1, &
@@ -2404,8 +2490,17 @@ contains
             n_all = 1
          end if
 
-         ic = 0
-         call minc_level_cells(m)%traverse(minc_indices_iterator)
+         do c = self%strata(0)%start, self%strata(0)%end - 1
+            ic = minc_level_cells(m, c)
+            if (ic >= 0) then
+               p = self%strata(0)%minc_point(ic, m)
+               ic = ic + 1
+               minc_frac_natural(ic) = local_to_natural_cell_index( &
+                    self%cell_natural_global, l2g, c)
+               call ISLocalToGlobalMappingApplyBlock(minc_l2g, 1, p, &
+                    minc_global(ic:ic), ierr); CHKERRQ(ierr)
+            end if
+         end do
 
          allocate(minc_global_all(n_all), minc_frac_natural_all(n_all))
          call MPI_gatherv(minc_global, n, MPI_INTEGER, &
@@ -2429,7 +2524,7 @@ contains
          natural, global, minc_ao, ierr); CHKERRQ(ierr)
     deallocate(natural, global)
 
-    self%cell_order = minc_ao
+    self%cell_natural_global = minc_ao
 
   contains
 
@@ -2437,7 +2532,7 @@ contains
 
     subroutine get_original_cell_natural_global_indices()
       !! Gets natural and global indices for original cells on each
-      !! process, and returns number of cells.
+      !! process.
 
       ! Locals:
       PetscInt :: ic, ghost, carray(1)
@@ -2450,7 +2545,7 @@ contains
          call DMLabelGetValue(ghost_label, c, ghost, ierr); CHKERRQ(ierr)
          if (ghost < 0) then
             ic = ic + 1
-            natural(ic) = local_to_natural_cell_index(self%cell_order, &
+            natural(ic) = local_to_natural_cell_index(self%cell_natural_global, &
                  l2g, c)
             carray = c
             call ISLocalToGlobalMappingApplyBlock(minc_l2g, 1, carray, &
@@ -2478,31 +2573,6 @@ contains
       end if
 
     end function get_new_natural_index
-
-!........................................................................
-
-    subroutine minc_indices_iterator(node, stopped)
-      !! Gets global indices and natural indices of fracture cells for
-      !! MINC cells on current process in specified MINC level.
-
-      type(list_node_type), pointer, intent(in out) :: node
-      PetscBool, intent(out) :: stopped
-      ! Locals:
-      PetscInt :: p(1)
-      PetscErrorCode :: ierr
-
-      stopped = PETSC_FALSE
-      select type (c => node%data)
-      type is (PetscInt)
-         p = self%strata(0)%minc_point(ic, m)
-         ic = ic + 1
-         minc_frac_natural(ic) = local_to_natural_cell_index( &
-              self%cell_order, l2g, c)
-         call ISLocalToGlobalMappingApplyBlock(minc_l2g, 1, p, &
-              minc_global(ic:ic), ierr); CHKERRQ(ierr)
-      end select
-
-    end subroutine minc_indices_iterator
 
 !........................................................................
 
@@ -2548,31 +2618,30 @@ contains
 
 !........................................................................
 
-  end subroutine mesh_setup_minc_dm_cell_order
+  end subroutine mesh_setup_minc_dm_cell_natural_global
 
 !------------------------------------------------------------------------
 
-  subroutine mesh_setup_minc_geometry(self, minc_dm, num_cells, &
-       max_num_levels, num_minc_zones, minc_zone)
+  subroutine mesh_setup_minc_geometry(self, minc_dm, max_num_levels, &
+       minc_level_cells)
     !! Sets up cell and face geometry vectors for MINC mesh. These
     !! overwrite the original geometry vectors.
 
     use kinds_module
     use dm_utils_module, only: section_offset, local_vec_section, &
-         set_dm_data_layout
-    use cell_module
-    use face_module
+         dm_set_data_layout
 
     class(mesh_type), intent(in out) :: self
     DM, intent(in out) :: minc_dm
-    PetscInt, intent(in) :: num_cells, max_num_levels, num_minc_zones
-    PetscInt, intent(in) :: minc_zone(0: num_cells - 1)
+    PetscInt, intent(in) :: max_num_levels
+    PetscInt, intent(in) :: minc_level_cells(max_num_levels, &
+         self%strata(0)%start: self%strata(0)%end - 1)
     ! Locals:
-    PetscInt :: dim, cell_variable_dim(num_cell_variables), &
+    PetscInt :: cell_variable_dim(num_cell_variables), &
          face_variable_dim(num_face_variables)
-    PetscInt :: iminc, c, f, h, i, m, minc_p, face_p, ghost
+    PetscInt :: iminc, c, f, i, m, minc_p, face_p, ghost
     PetscInt :: cell_offset, minc_cell_offset, face_offset, minc_face_offset
-    PetscInt :: ic(max_num_levels), num_minc_zone_cells
+    PetscInt :: ic, num_minc_zone_cells
     DM :: dm_cell, dm_face
     DMLabel :: ghost_label
     IS :: minc_IS
@@ -2585,19 +2654,20 @@ contains
     type(cell_type) :: cell
     type(face_type) :: face
     PetscReal :: orig_volume, orig_centroid(3)
+    character(80) :: name
     PetscErrorCode :: ierr
     PetscInt, parameter :: nc = 1, np = 1 ! dummy values for cell & face init
 
-    call DMGetDimension(self%dm, dim, ierr); CHKERRQ(ierr)
     call DMGetLabel(self%dm, "ghost", ghost_label, ierr)
     CHKERRQ(ierr)
 
     call DMClone(minc_dm, dm_cell, ierr); CHKERRQ(ierr)
-    cell_variable_dim = dim
-    call DMSetNumFields(dm_cell, num_cell_variables, ierr); CHKERRQ(ierr)
-    call set_dm_data_layout(dm_cell, cell_variable_num_components, &
+    cell_variable_dim = self%dim
+    call dm_set_data_layout(dm_cell, cell_variable_num_components, &
          cell_variable_dim, cell_variable_names)
     call DMCreateLocalVector(dm_cell, minc_cell_geom, ierr); CHKERRQ(ierr)
+    call PetscObjectGetName(self%cell_geom, name, ierr); CHKERRQ(ierr)
+    call PetscObjectSetName(minc_cell_geom, name, ierr); CHKERRQ(ierr)
     call local_vec_section(minc_cell_geom, minc_cell_section)
     call VecGetArrayF90(minc_cell_geom, minc_cell_geom_array, ierr)
     CHKERRQ(ierr)
@@ -2607,11 +2677,12 @@ contains
     CHKERRQ(ierr)
 
     call DMClone(minc_dm, dm_face, ierr); CHKERRQ(ierr)
-    face_variable_dim = dim - 1
-    call DMSetNumFields(dm_face, num_face_variables, ierr); CHKERRQ(ierr)
-    call set_dm_data_layout(dm_face, face_variable_num_components, &
+    face_variable_dim = self%dim - 1
+    call dm_set_data_layout(dm_face, face_variable_num_components, &
          face_variable_dim, face_variable_names)
     call DMCreateLocalVector(dm_face, minc_face_geom, ierr); CHKERRQ(ierr)
+    call PetscObjectGetName(self%face_geom, name, ierr); CHKERRQ(ierr)
+    call PetscObjectSetName(minc_face_geom, name, ierr); CHKERRQ(ierr)
     call local_vec_section(minc_face_geom, minc_face_section)
     call VecGetArrayF90(minc_face_geom, minc_face_geom_array, ierr)
     CHKERRQ(ierr)
@@ -2621,41 +2692,31 @@ contains
     CHKERRQ(ierr)
 
     ! Copy original cell geometry:
-    h = 0
     call cell%init(nc, np)
-    do c = self%strata(h)%start, self%strata(h)%end - 1
-       call DMLabelGetValue(ghost_label, c, ghost, ierr); CHKERRQ(ierr)
-       if (ghost < 0) then
-          call section_offset(cell_section, c, cell_offset, ierr)
-          CHKERRQ(ierr)
-          call section_offset(minc_cell_section, c, minc_cell_offset, ierr)
-          CHKERRQ(ierr)
-          minc_cell_geom_array(minc_cell_offset: &
-               minc_cell_offset + cell%dof - 1) = cell_geom_array(cell_offset: &
-               cell_offset + cell%dof - 1)
-       end if
+    do c = self%strata(0)%start, self%strata(0)%end - 1
+       cell_offset = section_offset(cell_section, c)
+       minc_p = self%strata(0)%minc_point(c, 0)
+       minc_cell_offset = section_offset(minc_cell_section, minc_p)
+       minc_cell_geom_array(minc_cell_offset: &
+            minc_cell_offset + cell%dof - 1) = cell_geom_array(cell_offset: &
+            cell_offset + cell%dof - 1)
     end do
 
     ! Copy original face geometry:
-    h = 1
     call face%init(nc, np)
-    do f = self%strata(h)%start, self%strata(h)%end - 1
+    do f = self%strata(1)%start, self%strata(1)%end - 1
        call DMLabelGetValue(ghost_label, f, ghost, ierr); CHKERRQ(ierr)
        if (ghost < 0) then
-          call section_offset(face_section, f, face_offset, ierr)
-          CHKERRQ(ierr)
-          minc_p = self%strata(h)%minc_point(f, 0)
-          call section_offset(minc_face_section, minc_p, minc_face_offset, ierr)
-          CHKERRQ(ierr)
+          face_offset = section_offset(face_section, f)
+          minc_p = self%strata(1)%minc_point(f, 0)
+          minc_face_offset = section_offset(minc_face_section, minc_p)
           minc_face_geom_array(minc_face_offset: &
                minc_face_offset + face%dof - 1) = face_geom_array(face_offset: &
                face_offset + face%dof - 1)
        end if
     end do
 
-    h = 0
-    ic = 0
-    do iminc = 1, num_minc_zones
+    do iminc = 1, size(self%minc)
        associate(minc => self%minc(iminc))
          call DMGetStratumSize(self%dm, minc_zone_label_name, iminc, &
               num_minc_zone_cells, ierr); CHKERRQ(ierr)
@@ -2667,9 +2728,8 @@ contains
                c = minc_cells(i)
                call DMLabelGetValue(ghost_label, c, ghost, ierr)
                if (ghost < 0) then
-                  minc_p = self%strata(h)%minc_point(c, 0)
-                  call section_offset(minc_cell_section, minc_p, minc_cell_offset, ierr)
-                  CHKERRQ(ierr)
+                  minc_p = self%strata(0)%minc_point(c, 0)
+                  minc_cell_offset = section_offset(minc_cell_section, minc_p)
                   call cell%assign_geometry(minc_cell_geom_array, minc_cell_offset)
                   orig_volume = cell%volume
                   orig_centroid = cell%centroid
@@ -2677,24 +2737,23 @@ contains
                   cell%volume = orig_volume * minc%volume(1)
                   do m = 1, minc%num_levels
                      ! Assign MINC cell geometry:
-                     minc_p = self%strata(h)%minc_point(ic(m), m)
-                     call section_offset(minc_cell_section, minc_p, &
-                          minc_cell_offset, ierr); CHKERRQ(ierr)
+                     ic = minc_level_cells(m, c)
+                     minc_p = self%strata(0)%minc_point(ic, m)
+                     minc_cell_offset = section_offset(minc_cell_section, minc_p)
                      call cell%assign_geometry(minc_cell_geom_array, minc_cell_offset)
                      cell%volume = orig_volume * minc%volume(m + 1)
                      cell%centroid = orig_centroid
                      ! Assign MINC face geometry:
-                     face_p = self%strata(h + 1)%minc_point(ic(m), m)
-                     call section_offset(minc_face_section, face_p, &
-                          minc_face_offset, ierr); CHKERRQ(ierr)
+                     face_p = self%strata(1)%minc_point(ic, m)
+                     minc_face_offset = section_offset(minc_face_section, face_p)
                      call face%assign_geometry(minc_face_geom_array, minc_face_offset)
                      face%area = orig_volume * minc%connection_area(m)
                      face%distance = minc%connection_distance(m: m + 1)
+                     face%distance12 = sum(face%distance)
                      face%normal = 0._dp
                      face%gravity_normal = 0._dp
-                     face%centroid = 0._dp
+                     face%centroid = orig_centroid
                      face%permeability_direction = dble(1)
-                     ic(m) = ic(m) + 1
                   end do
                end if
             end do
@@ -2837,8 +2896,7 @@ contains
                         do i = 1, num_minc_zone_cells
                            c = minc_cells(i)
                            if (self%ghost_cell(c) < 0) then
-                              call global_section_offset(section, c, rock_range_start, &
-                                   orig_offset, ierr); CHKERRQ(ierr)
+                              orig_offset = global_section_offset(section, c, rock_range_start)
                               call orig_rock%assign(rock_array, orig_offset)
 
                               if (fracture_rock%porosity < 0._dp) then
@@ -2863,8 +2921,7 @@ contains
 
                                 do m = 1, minc%num_levels
                                    cell_p = self%strata(h)%minc_point(ic(m), m)
-                                   call global_section_offset(section, cell_p, rock_range_start, &
-                                        offset, ierr); CHKERRQ(ierr)
+                                   offset = global_section_offset(section, cell_p, rock_range_start)
                                    ! Update specified matrix properties:
                                    associate(matrix_properties => rock_array(offset: &
                                         offset + dof - 1))
@@ -3065,6 +3122,256 @@ contains
 
 !------------------------------------------------------------------------
 
+  subroutine mesh_setup_minc_coordinates(self, minc_dm)
+    !! Sets coordinate section and vector in MINC DM. Coordinates are
+    !! copied from the vertices of the original single-porosity DM. No
+    !! coordinates are assigned to the (dummy) vertices added when
+    !! the MINC DM is constructed.
+
+    use dm_utils_module, only: section_offset
+
+    class(mesh_type), intent(in out) :: self
+    DM, intent(in out) :: minc_dm
+    ! Locals:
+    PetscInt :: dim, v, coord_size, dof, offset, minc_offset
+    PetscInt :: minc_v, depth
+    PetscInt :: vstart, vend, minc_vstart, minc_vend
+    PetscSection :: section, minc_section
+    Vec :: coordinates, minc_coordinates
+    PetscReal, pointer :: coord_array(:), minc_coord_array(:)
+    PetscReal, pointer :: pos(:), minc_pos(:)
+    PetscErrorCode :: ierr
+
+    PetscMPIInt :: rank
+    call mpi_comm_rank(PETSC_COMM_WORLD, rank, ierr)
+
+    call DMGetCoordinateDim(self%dm, dim, ierr); CHKERRQ(ierr)
+    call DMGetCoordinatesLocal(self%dm, coordinates, ierr); CHKERRQ(ierr)
+    call DMGetCoordinateSection(self%dm, section, ierr); CHKERRQ(ierr)
+    call DMPlexGetDepthStratum(self%dm, 0, vstart, vend, ierr); CHKERRQ(ierr)
+
+    call DMSetCoordinateDim(minc_dm, dim, ierr); CHKERRQ(ierr)
+    call PetscSectionCreate(PETSC_COMM_WORLD, minc_section, ierr); CHKERRQ(ierr)
+    call PetscSectionSetNumFields(minc_section, 1, ierr); CHKERRQ(ierr)
+    call PetscSectionSetFieldComponents(minc_section, 0, dim, ierr)
+    CHKERRQ(ierr)
+    call DMPlexGetDepthStratum(minc_dm, 0, minc_vstart, minc_vend, ierr)
+    CHKERRQ(ierr)
+    call PetscSectionSetChart(minc_section, minc_vstart, minc_vend, ierr)
+    CHKERRQ(ierr)
+    do v = minc_vstart, minc_vend - 1
+       call PetscSectionSetDof(minc_section, v, dim, ierr); CHKERRQ(ierr)
+       call PetscSectionSetFieldDof(minc_section, v, 0, dim, ierr)
+       CHKERRQ(ierr)
+    end do
+    call PetscSectionSetUp(minc_section, ierr); CHKERRQ(ierr)
+    call DMSetCoordinateSection(minc_dm, PETSC_DETERMINE, minc_section, ierr)
+    CHKERRQ(ierr)
+
+    call VecCreate(PETSC_COMM_SELF, minc_coordinates, ierr); CHKERRQ(ierr)
+    call PetscObjectSetName(minc_coordinates, "coordinates", ierr); CHKERRQ(ierr)
+    call PetscSectionGetStorageSize(minc_section, coord_size, ierr); CHKERRQ(ierr)
+    call VecSetSizes(minc_coordinates, coord_size, PETSC_DETERMINE, ierr)
+    CHKERRQ(ierr)
+    call VecSetBlockSize(minc_coordinates, dim, ierr); CHKERRQ(ierr)
+    call VecSetType(minc_coordinates, VECSTANDARD, ierr); CHKERRQ(ierr)
+    call DMSetCoordinatesLocal(minc_dm, minc_coordinates, ierr); CHKERRQ(ierr)
+
+    ! Copy vertex coordinates from original DM:
+    call VecGetArrayReadF90(coordinates, coord_array, ierr); CHKERRQ(ierr)
+    call VecGetArrayF90(minc_coordinates, minc_coord_array, ierr); CHKERRQ(ierr)
+    minc_coord_array = 0._dp
+    call DMPlexGetDepth(self%dm, depth, ierr); CHKERRQ(ierr)
+    do v = vstart, vend - 1
+       minc_v = self%strata(depth)%minc_point(v, 0)
+       call PetscSectionGetDof(section, v, dof, ierr); CHKERRQ(ierr)
+       offset = section_offset(section, v)
+       minc_offset = section_offset(minc_section, minc_v)
+       pos => coord_array(offset: offset + dof - 1)
+       minc_pos => minc_coord_array(minc_offset: minc_offset + dof - 1)
+       minc_pos = pos
+    end do
+    call VecRestoreArrayF90(minc_coordinates, minc_coord_array, ierr); CHKERRQ(ierr)
+    call VecRestoreArrayReadF90(coordinates, coord_array, ierr); CHKERRQ(ierr)
+
+    call VecDestroy(minc_coordinates, ierr); CHKERRQ(ierr)
+    call PetscSectionDestroy(minc_section, ierr); CHKERRQ(ierr)
+
+  end subroutine mesh_setup_minc_coordinates
+
+!------------------------------------------------------------------------
+
+  subroutine mesh_redistribute(self, sf)
+    !! Redistributes DM and other mesh data for load balancing. Should
+    !! only be called when running in parallel. The redistribution
+    !! star forest is returned.
+
+    use dm_utils_module, only: dm_set_default_data_layout, &
+         dm_natural_order_IS, dm_get_natural_to_global_ao, &
+         dm_get_cell_index, dm_distribute_index_set
+
+    class(mesh_type), intent(in out) :: self
+    PetscSF, intent(out) :: sf !! Redistribution star forest
+    ! Locals:
+    DM :: dm_is
+    PetscSection :: section
+    PetscErrorCode :: ierr
+
+    call DMClone(self%dm, dm_is, ierr); CHKERRQ(ierr)
+    call dm_set_default_data_layout(dm_is, 1)
+    call DMGetSection(dm_is, section, ierr); CHKERRQ(ierr)
+
+    call self%redistribute_dm(sf)
+    if (sf .ne. PETSC_NULL_SF) then
+       call self%redistribute_geometry(sf)
+       call dm_distribute_index_set(self%dm, sf, section, self%cell_natural)
+       if (self%has_minc) then
+          call dm_distribute_index_set(self%dm, sf, section, self%cell_parent_natural)
+       end if
+       self%cell_natural_global = &
+            dm_get_natural_to_global_ao(self%dm, self%cell_natural)
+       call ISDestroy(self%cell_index, ierr); CHKERRQ(ierr)
+       call dm_get_cell_index(self%dm, self%cell_natural_global, &
+                  self%cell_index)
+       call self%setup_ghost_arrays()
+    end if
+
+    call DMDestroy(dm_is, ierr); CHKERRQ(ierr)
+
+  end subroutine mesh_redistribute
+
+!------------------------------------------------------------------------
+
+  subroutine mesh_redistribute_dm(self, sf)
+    !! Redistributes DM (e.g. to improve load balancing for MINC
+    !! simulations), and returns SF for the redistribution.
+
+    use dm_utils_module, only: dm_set_default_data_layout, &
+         dm_set_fv_adjacency, dm_label_partition_ghosts
+
+    class(mesh_type), intent(in out) :: self
+    PetscSF, intent(out) :: sf
+    ! Locals:
+    DM :: dm_dist
+    PetscErrorCode :: ierr
+
+    call DMPlexDistribute(self%dm, partition_overlap, sf, &
+         dm_dist, ierr); CHKERRQ(ierr)
+    if (dm_dist .ne. PETSC_NULL_DM) then
+       call DMDestroy(self%dm, ierr); CHKERRQ(ierr)
+       self%dm = dm_dist
+       call dm_set_fv_adjacency(self%dm)
+       call dm_set_default_data_layout(self%dm, self%dof)
+       call dm_label_partition_ghosts(self%dm)
+    end if
+
+  end subroutine mesh_redistribute_dm
+
+!------------------------------------------------------------------------
+
+  subroutine mesh_redistribute_geometry(self, sf)
+    !! Redistributes cell and face geometry vectors after
+    !! redistributing DM according to the specified SF.
+
+    use dm_utils_module, only: dm_distribute_local_vec
+
+    class(mesh_type), intent(in out) :: self
+    PetscSF, intent(in out) :: sf !! Redistribution star forest
+
+    if (sf .ne. PETSC_NULL_SF) then
+       call dm_distribute_local_vec(self%dm, sf, self%cell_geom)
+       call dm_distribute_local_vec(self%dm, sf, self%face_geom)
+       call self%check_face_orientations()
+    end if
+
+  end subroutine mesh_redistribute_geometry
+
+!------------------------------------------------------------------------
+
+  subroutine mesh_check_face_orientations(self)
+    !! Checks interior faces to make sure they match the orientation
+    !! of the cells in their support (sometimes the orientations can
+    !! be reversed during redistribution). If the order of cells in
+    !! the face has been reversed, it is necessary also to reverse the
+    !! normal vector and centroid distance array in the face
+    !! geometry. For MINC faces a reversed orientation is detected by
+    !! MINC levels that decrease from the first cell to the second.
+
+    use dm_utils_module, only: local_vec_section, section_offset, &
+         dm_get_end_interior_cell
+    use face_module, only: face_type
+    use minc_module, only: minc_level_label_name
+
+    class(mesh_type), intent(in out) :: self
+    ! Locals:
+    PetscSection :: cell_geom_section, face_geom_section
+    PetscReal, pointer, contiguous :: cell_geom_array(:), face_geom_array(:)
+    type(face_type) :: face
+    PetscInt :: start_cell, end_cell, end_interior_cell
+    PetscInt :: start_face, end_face, f, offset, i, cell_offset(2)
+    PetscInt :: ghost, minc_levels(2), num_cells
+    DMLabel :: ghost_label, minc_level_label
+    PetscInt, pointer :: cells(:)
+    PetscBool :: reversed
+    PetscErrorCode :: ierr
+
+    call local_vec_section(self%cell_geom, cell_geom_section)
+    call VecGetArrayReadF90(self%cell_geom, cell_geom_array, ierr)
+    CHKERRQ(ierr)
+    call local_vec_section(self%face_geom, face_geom_section)
+    call VecGetArrayF90(self%face_geom, face_geom_array, ierr)
+    CHKERRQ(ierr)
+
+    call face%init(1, 1)
+
+    call DMGetLabel(self%dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
+    if (self%has_minc) then
+       call DMGetLabel(self%dm, minc_level_label_name, minc_level_label, ierr)
+       CHKERRQ(ierr)
+    end if
+    call DMPlexGetHeightStratum(self%dm, 0, start_cell, end_cell, ierr)
+    CHKERRQ(ierr)
+    end_interior_cell = dm_get_end_interior_cell(self%dm, end_cell)
+    call DMPlexGetHeightStratum(self%dm, 1, start_face, end_face, ierr)
+    CHKERRQ(ierr)
+    minc_levels = 0
+
+    do f = start_face, end_face - 1
+       call DMLabelGetValue(ghost_label, f, ghost, ierr); CHKERRQ(ierr)
+       if (ghost < 0) then
+          call DMPlexGetSupportSize(self%dm, f, num_cells, ierr); CHKERRQ(ierr)
+          call DMPlexGetSupport(self%dm, f, cells, ierr); CHKERRQ(ierr)
+          do i = 1, 2
+             if (self%has_minc) then
+                call DMLabelGetValue(minc_level_label, cells(i), &
+                     minc_levels(i), ierr); CHKERRQ(ierr)
+             end if
+             cell_offset(i) = section_offset(cell_geom_section, cells(i))
+          end do
+          offset = section_offset(face_geom_section, f)
+          call face%assign_geometry(face_geom_array, offset)
+          call face%assign_cell_geometry(cell_geom_array, cell_offset)
+          if (all(cells < end_interior_cell)) then
+             if (all(minc_levels <= 0)) then
+                reversed = face%reversed_orientation()
+             else
+                reversed = (minc_levels(1) > minc_levels(2))
+             end if
+             if (reversed) call face%reverse_geometry()
+          end if
+       end if
+    end do
+
+    call face%destroy()
+    call VecRestoreArrayReadF90(self%cell_geom, cell_geom_array, ierr)
+    CHKERRQ(ierr)
+    call VecRestoreArrayF90(self%face_geom, face_geom_array, ierr)
+    CHKERRQ(ierr)
+
+  end subroutine mesh_check_face_orientations
+
+!------------------------------------------------------------------------
+
   PetscInt function mesh_local_cell_minc_level(self, local) result(minc_level)
     !! Takes local cell index and returns MINC level. If the mesh is
     !! not MINC, the returned value is zero.
@@ -3087,45 +3394,46 @@ contains
 
 !------------------------------------------------------------------------
 
-  PetscInt function mesh_local_to_fracture_natural(self, local) &
+  PetscInt function mesh_local_to_parent_natural(self, local) &
        result(natural)
     !! Takes a local cell index and returns natural index of the
-    !! corresponding fracture cell. (For a non-MINC mesh, the
-    !! 'fracture' cell is just the original cell itself.)
+    !! corresponding parent cell. (For a non-MINC mesh, the
+    !! 'parent' cell is just the original cell itself.)
 
-    use dm_utils_module, only: local_to_natural_cell_index
-
-    class(mesh_type), intent(in out) :: self
+    class(mesh_type), intent(in) :: self
     PetscInt, intent(in) :: local !! Local cell index
     ! Locals:
-    PetscInt :: fracture_local
-    ISLocalToGlobalMapping :: l2g
+    PetscInt, pointer :: natural_array(:)
     PetscErrorCode :: ierr
 
     if (self%has_minc) then
-       fracture_local = self%minc_cell_map(local)
+       call ISGetIndicesF90(self%cell_parent_natural, natural_array, &
+            ierr); CHKERRQ(ierr)
+       natural = natural_array(local + 1)
+       call ISRestoreIndicesF90(self%cell_parent_natural, natural_array, &
+            ierr); CHKERRQ(ierr)
     else
-       fracture_local = local
+       call ISGetIndicesF90(self%cell_natural, natural_array, &
+            ierr); CHKERRQ(ierr)
+       natural = natural_array(local + 1)
+       call ISRestoreIndicesF90(self%cell_natural, natural_array, &
+            ierr); CHKERRQ(ierr)
     end if
 
-    call DMGetLocalToGlobalMapping(self%dm, l2g, ierr); CHKERRQ(ierr)
-    natural = local_to_natural_cell_index(self%cell_order, &
-         l2g, fracture_local)
-
-  end function mesh_local_to_fracture_natural
+  end function mesh_local_to_parent_natural
 
 !------------------------------------------------------------------------
 
-  subroutine mesh_global_to_fracture_natural(self, global, &
-       fracture_natural, minc_level)
+  subroutine mesh_global_to_parent_natural(self, global, &
+       parent_natural, minc_level)
     !! Takes a global cell index and returns natural index of
-    !! corresponding fracture cell, together with the MINC level of
-    !! the cell. (For a non-MINC mesh, the 'fracture' cell is just the
+    !! corresponding parent cell, together with the MINC level of
+    !! the cell. (For a non-MINC mesh, the 'parent' cell is just the
     !! original cell itself, and the MINC level is zero.)
 
     class(mesh_type), intent(in out) :: self
     PetscInt, intent(in) :: global !! Global cell index
-    PetscInt, intent(out) :: fracture_natural !! Natural index of fracture cell
+    PetscInt, intent(out) :: parent_natural !! Natural index of parent cell
     PetscInt, intent(out) :: minc_level !! MINC level of cell
     ! Locals:
     PetscInt :: idx(1), local_array(1), n
@@ -3143,7 +3451,7 @@ contains
        associate(c => local_array(1))
          if (c >= 0) then
             if (self%ghost_cell(c) < 0) then
-               fracture_natural = self%local_to_fracture_natural(c)
+               parent_natural = self%local_to_parent_natural(c)
                minc_level = self%local_cell_minc_level(c)
                CHKERRQ(ierr)
                process_found_rank = rank
@@ -3151,18 +3459,19 @@ contains
          end if
          call MPI_Allreduce(process_found_rank, found_rank, 1, MPI_INT, &
               MPI_MAX, PETSC_COMM_WORLD, ierr)
-         call MPI_bcast(fracture_natural, 1, MPI_LOGICAL, found_rank, &
+         call MPI_bcast(parent_natural, 1, MPI_LOGICAL, found_rank, &
             PETSC_COMM_WORLD, ierr)
          call MPI_bcast(minc_level, 1, MPI_LOGICAL, found_rank, &
             PETSC_COMM_WORLD, ierr)
        end associate
     else
-       call AOPetscToApplication(self%cell_order, 1, idx, ierr); CHKERRQ(ierr)
-       fracture_natural = idx(1)
+       call AOPetscToApplication(self%cell_natural_global, 1, idx, ierr)
+       CHKERRQ(ierr)
+       parent_natural = idx(1)
        minc_level = 0
     end if
 
-  end subroutine mesh_global_to_fracture_natural
+  end subroutine mesh_global_to_parent_natural
 
 !------------------------------------------------------------------------
 

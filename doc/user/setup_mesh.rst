@@ -69,6 +69,9 @@ Note that the mesh filename (specified in either of the above two ways) is a req
    |                    |           |                   |                                         |
    |                    |           |                   |                                         |
    +--------------------+-----------+-------------------+-----------------------------------------+
+   |"rebalance"         |boolean    |``true`` for MINC, |whether to rebalance MINC mesh           |
+   |                    |           |otherwise ``false``|                                         |
+   +--------------------+-----------+-------------------+-----------------------------------------+
    |"zones"             |object     |{}                 |definitions of :ref:`mesh_zones`         |
    |                    |           |                   |                                         |
    +--------------------+-----------+-------------------+-----------------------------------------+
@@ -159,6 +162,16 @@ Mesh partitioning
 When running Waiwera in parallel, the mesh is "partitioned" so that each parallel process contains only part of the mesh. The mesh partitioning algorithm attempts to balance the computational load between the different processes, while also making the interfaces between the partitions as small as possible, so that the minimum amount of data need be communicated between partitions during the solution process.
 
 Waiwera uses the mesh partitioning algorithms provided by PETSc. By default, the Chaco partitioner is used.
+
+.. index:: mesh; rebalancing
+.. _mesh_rebalancing:
+
+Mesh rebalancing
+================
+
+When MINC is used to simulate flows in fractured media (see :ref:`minc`), MINC matrix rock cells are added to the mesh. This process is carried out in parallel. If MINC is applied only to some parts of the mesh, this may result in some parallel processes having significantly more cells than others, which degrades load balancing and reduces parallel scaling performance.
+
+If the **"mesh.rebalance"** value is set to true (the default for MINC meshes), then Waiwera will rebalance the mesh after adding MINC cells, to restore optimal load balancing.
 
 .. index:: mesh; zones, zones
 .. _mesh_zones:

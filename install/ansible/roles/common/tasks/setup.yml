@@ -54,5 +54,3 @@
     - "{{ pkgconfig_path }}"
     - "{{ lib_path }}"
     - "{{ include_path }}"
-    - "{{ software_path }}"
-    - "{{ petsc_path }}"

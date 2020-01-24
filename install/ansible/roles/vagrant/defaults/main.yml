@@ -1,7 +1,5 @@
 ---
-# file: roles/x/defaults/main.yml
-# if not overridden in inventory or as a parameter, this is the value that will be used
-v_dir: /vagrant
+v_dir: /home/vagrant
 v_user: vagrant
 v_group: vagrant
 

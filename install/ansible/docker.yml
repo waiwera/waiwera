@@ -1,4 +1,6 @@
 ---
+# Uses the docker role to setup a docker image
+
 - name: Build Docker Image
   hosts: localhost
   tasks:

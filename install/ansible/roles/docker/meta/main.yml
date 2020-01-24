@@ -1,4 +1,6 @@
-# dependencies:
-#    - { # role: spark,
-#     # role: get_variables,
-#     }
+dependencies:
+   - { role: get_variables,
+       app_user: "{{ d_user }}",
+       app_group: "{{ d_group}}",
+       app_dir: "{{ d_dir }}",
+    }

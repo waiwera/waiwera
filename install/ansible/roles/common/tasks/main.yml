@@ -31,5 +31,5 @@
     LC_TYPE: en_US.UTF-8
     PETSC_DIR: "{{ petsc_path }}"
     PETSC_ARCH: "{{ petsc_arch }}"
-    PKG_CONFIG_PATH: "{{ pkgconfig_path }}"
+    PKG_CONFIG_PATH: "{{ lookup('env','PKG_CONFIG_PATH') }}:{{ pkgconfig_path }}"
   include: build.yml

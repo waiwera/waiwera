@@ -18,7 +18,7 @@ parser.add_argument("--release", action = "store_true", help = "release mode")
 parser.add_argument("--no_rpath", action = "store_true", help = "do not set RPATH in executable")
 parser.add_argument("--prefix", default = os.path.expanduser("~"), help = "prefix for installation path")
 parser.add_argument("--libdir", default = "lib", help = "library installation directory")
-parser.add_argument("--petsc_revision", default = "afbee2879a", help = "PETSc git revision")
+parser.add_argument("--petsc_revision", default = "339143f02b", help = "PETSc git revision")
 parser.add_argument("--mpi_wrapper_compiler", default = False, help = "Use MPI wrapper compiler (specified in FC environment variable)")
 args = parser.parse_args()
 

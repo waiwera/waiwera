@@ -269,6 +269,7 @@
                           }, "additionalProperties": false}
                      }
                  ]},
+                 "rebalance": {"type": "boolean"},
                  "zones": {"type": "object", "items": {"oneOf": [
                      {"type": "array", "items": {"type": "string"}},
                      {"type": "object",

@@ -230,12 +230,10 @@ contains
     type(IAPWS_type) :: thermo
     type(eos_we_type) :: eos
     PetscMPIInt :: rank
-    PetscViewer :: viewer
     PetscErrorCode :: ierr, err
 
     call MPI_comm_rank(PETSC_COMM_WORLD, rank, ierr)
     call thermo%init()
-    viewer = PETSC_NULL_VIEWER
 
     json => fson_parse_mpi(str = &
          '{"mesh": {"filename": "' // trim(adjustl(data_path)) // 'mesh/7x7grid.exo", ' // &
@@ -243,7 +241,8 @@ contains
          '"zone2": [40, 30, 5]}}}')
     call eos%init(json, thermo)
     call mesh%init(eos, json)
-    call mesh%configure(gravity, json, viewer = viewer, err = err)
+    call mesh%configure(gravity, json, err = err)
+
     call test%assert(0, err, 'config error')
     call fson_destroy_mpi(json)
     call mesh%destroy_distribution_data()
@@ -334,11 +333,9 @@ contains
     PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
     PetscMPIInt :: rank
     PetscErrorCode :: ierr, err
-    PetscViewer :: viewer
 
     call MPI_comm_rank(PETSC_COMM_WORLD, rank, ierr)
     call thermo%init()
-    viewer = PETSC_NULL_VIEWER
 
     json => fson_parse_mpi(str = &
          '{"mesh": {"filename": "' // trim(adjustl(data_path)) // 'mesh/7x7grid.exo", ' // &
@@ -348,7 +345,8 @@ contains
          '"xyzone": {"x": [0, 2000], "y": [2500, 4500]}}}}')
     call eos%init(json, thermo)
     call mesh%init(eos, json)
-    call mesh%configure(gravity, json, viewer = viewer, err = err)
+    call mesh%configure(gravity, json, err = err)
+
     call test%assert(0, err, 'config error')
     call fson_destroy_mpi(json)
     call mesh%destroy_distribution_data()
@@ -415,11 +413,9 @@ contains
     type(eos_we_type) :: eos
     PetscMPIInt :: rank
     PetscErrorCode :: ierr, err
-    PetscViewer :: viewer
 
     call MPI_comm_rank(PETSC_COMM_WORLD, rank, ierr)
     call thermo%init()
-    viewer = PETSC_NULL_VIEWER
 
     json => fson_parse_mpi(str = &
          '{"mesh": {"filename": "' // trim(adjustl(data_path)) // 'mesh/7x7grid.exo", ' // &
@@ -434,7 +430,8 @@ contains
          '"all": {"-": null}}}}')
     call eos%init(json, thermo)
     call mesh%init(eos, json)
-    call mesh%configure(gravity, json, viewer = viewer, err = err)
+    call mesh%configure(gravity, json, err = err)
+
     call test%assert(0, err, 'config error')
     call fson_destroy_mpi(json)
     call mesh%destroy_distribution_data()

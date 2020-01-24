@@ -9,7 +9,7 @@ if not get_option('mpi_wrapper_compiler')
   mpi = dependency('mpi', language: 'fortran')
 endif
 
-PETSc = dependency('PETSc', version: '>=3.11.2')
+PETSc = dependency('PETSc', version: '>=3.12.0')
 fson  = dependency('fson',  version: '>=1.0.0', fallback: ['fson', 'fson_dep'])
 zofu  = dependency('zofu',  version: '>=0.1.0', fallback: ['zofu', 'zofu_dep'])
 
@@ -74,6 +74,9 @@ if meson.get_compiler('fortran').get_id() == 'gcc'
             '-Wno-unused-function',
             '-Wno-return-type',
             '-Wno-maybe-uninitialized']
+  if not get_option('buildtype').startswith('release')
+    f_args += ['-fcheck=all']
+  endif
 else
   f_args = []
 endif
