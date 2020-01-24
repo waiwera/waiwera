@@ -18,3 +18,5 @@ script:
   - travis_wait 45 ansible-playbook ansible/install_local.yml
   - cd ..
   - python unit_tests.py
+  - cd utils\pywaiwera
+  - python -m unittest discover -v
