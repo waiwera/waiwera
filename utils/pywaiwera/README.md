@@ -11,13 +11,13 @@ The easiest way to install PyWaiwera is using `pip`:
 
 or if you do not have permissions to install system-wide Python packages, you can install it locally in your own user account:
 
-   pip install --user pywaiwera
+    pip install --user pywaiwera
 
 During the installation it may warn you that executable scripts are being installed to a directory that is not listed in your system's ``PATH`` environment variable. This means that you need to add this directory to your ``PATH`` if you want to be able to run the supplied scripts from anywhere on your machine.
 
 PyWaiwera can be upgraded to the latest version at any time by running:
 
-   pip install --upgrade pywaiwera
+    pip install --upgrade pywaiwera
 
 # Running Waiwera using Docker
 
