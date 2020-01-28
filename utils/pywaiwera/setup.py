@@ -15,8 +15,8 @@ with open('../../src/version.F90', 'r') as fv:
 setuptools.setup(
     name="pywaiwera",
     version=wai_version,
-    author="Example Author",
-    author_email="cyeh015@aucklanduni.ac.nz",
+    author="Waiwera Project",
+    author_email="waiwera.project@gmail.com",
     description="Python package for the Waiwera simulator",
     long_description=long_description,
     long_description_content_type="text/markdown",
