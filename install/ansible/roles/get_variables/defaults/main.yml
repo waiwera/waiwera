@@ -53,7 +53,6 @@ petsc_options:
   - download-chaco
   - download-zlib
   - download-hdf5
-  - with-zlib
   - with-debugging=0
 
 petsc_variables:
