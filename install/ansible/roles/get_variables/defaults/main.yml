@@ -33,6 +33,7 @@ openmpi:
 petsc_dependencies:
   - bison
   - flex
+  - zlib1g-dev
 
 pip_install:
   - python3-pip
