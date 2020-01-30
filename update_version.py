@@ -13,7 +13,7 @@ def output(found, filename, lines):
         with open(filename, 'wt') as f:
             f.writelines(lines)
     else:
-        print('Could not find version in ', filename)
+        print('Could not find version in', filename)
 
 def meson(version):
     """Update version in meson build file"""
@@ -63,19 +63,20 @@ def userdoc(version):
     """Update version in user docs"""
     filename = os.path.join('doc', 'user', 'conf.py')
     lines = []
-    found = False
+    found_version, found_release = False, False
     with open(filename, 'rt') as f:
         for line in f:
             if line.strip().startswith('version'):
                 short_version = '.'.join(version.split('.')[:-1])
                 newline = "version = u'" + short_version + "'\n"
                 lines.append(newline)
-                found = True
+                found_version = True
             elif line.strip().startswith('release'):
                 newline = "release = u'" + version + "'\n"
                 lines.append(newline)
+                found_release = True
             else: lines.append(line)
-    output(found, filename, lines)
+    output(found_version and found_release, filename, lines)
 
 version = sys.argv[1]
 for update in [meson, ford, src, userdoc]:
