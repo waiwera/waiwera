@@ -92,7 +92,7 @@ within a Python script. This is done by importing the ``pywaiwera``
 package, creating a Docker environment, and using that to run the
 Waiwera simulation, as in the following example:
 
-.. code-block:: bash
+.. code-block:: python
 
    import pywaiwera
 
