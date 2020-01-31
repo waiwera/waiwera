@@ -12,7 +12,7 @@ How Waiwera is executed depends on whether it is being run as a Docker container
 Running Waiwera using Docker
 ============================
 
-The easiest way to run Waiwera via Docker is by using the script `waiwera-dkr`, which is part of the `PyWaiwera <https://pypi.org/project/pywaiwera>`_ Python library.  Besides PyWaiwera, You will need `Python <https://www.python.org/>`_ and `Docker <https://www.docker.com/>`_ installed on your machine to be able to use this script. For more details, see :ref:`using_docker`.
+The easiest way to run Waiwera via Docker is by using the script ``waiwera-dkr``, which is part of the `PyWaiwera <https://pypi.org/project/pywaiwera>`_ Python library.  Besides PyWaiwera, You will need `Python <https://www.python.org/>`_ and `Docker <https://www.docker.com/>`_ installed on your machine to be able to use this script. For more details, see :ref:`using_docker`.
 
 What the ``waiwera-dkr`` script does
 ---------------------------------------
@@ -49,15 +49,11 @@ runs Waiwera in parallel with 16 processes.
 Optional parameters for the ``waiwera-dkr`` script
 -----------------------------------------------------
 
-Besides the ``-np`` option for specifying the number of processes, the ``waiwera-dkr.py`` script has some other optional parameters for controlling its behaviour. Details of all available options can be displayed using the ``--help`` (or ``-h``) option, e.g.:
+Besides the ``-np`` option for specifying the number of processes, the ``waiwera-dkr`` script has some other optional parameters for controlling its behaviour. Details of all available options can be displayed using the ``--help`` (or ``-h``) option, e.g.:
 
-The Waiwera JSON input file (see :ref:`waiwera_input`) contains some paths to other files, e.g. the mesh file (see :ref:`specifying_mesh`). There are a few things to note about file paths when running using Docker:
+.. code-block:: bash
 
-- file paths must always be specified using POSIX (i.e. Linux-style) file path syntax, i.e. forward slashes for directory delimiters (not backslashes as on Windows), and any spaces in the file path (usually better avoided if possible) should be "escaped" by preceding them with backslashes. This is because Waiwera is run using Linux inside the Docker container. For the same reason, file paths are always case-sensitive.
-- any files specified in the JSON input file name need to be in the directory that Waiwera is being run in, or a subdirectory of it. This is because those are the only directories that are shared with the Docker container.
-- all file paths should be relative (not absolute).
-
-The same considerations apply when running Waiwera using the ``waiwera-dkr.py`` script and specifying a path to the simulation input file on the command line. In general, when running with Docker it is recommmended to run from the directory containing the simulation input file. Then avoids the need to specify a path to your file, and simplifies the directories that need to be shared with Docker.
+   waiwera-dkr --help
 
 or:
 
@@ -83,6 +79,25 @@ The Waiwera JSON input file (see :ref:`waiwera_input`) contains some paths to ot
 
 - file paths must always be specified using POSIX (i.e. Linux-style) file path syntax, i.e. forward slashes for directory delimiters (not backslashes as on Windows), and any spaces in the file path (usually better avoided if possible) should be "escaped" by preceding them with backslashes. This is because Waiwera is run using Linux inside the Docker container.
 - any files specified in the JSON input file name need to be in the directory that Waiwera is being run in, or a subdirectory of it. This is because those are the only directories that are shared with the Docker container.
+
+The same considerations apply when running Waiwera using the ``waiwera-dkr`` script and specifying a path to the simulation input file on the command line. In general, when running with Docker it is recommmended to run from the directory containing the simulation input file. Then avoids the need to specify a path to your file, and simplifies the directories that need to be shared with Docker.
+
+.. index:: Docker; Python
+
+Running Waiwera via Docker from a Python script
+-----------------------------------------------
+
+It is also possible to use PyWaiwera to run Waiwera via Docker from
+within a Python script. This is done by importing the ``pywaiwera``
+package, creating a Docker environment, and using that to run the
+Waiwera simulation, as in the following example:
+
+.. code-block:: bash
+
+   import pywaiwera
+
+   env = pywaiwera.docker.DockerEnv()
+   env.run_waiwera(['model.json'])
 
 .. index:: running; native Linux executable
 .. _run_native:
@@ -129,7 +144,7 @@ For example, the :ref:`water_air_energy_eos` EOS has three unknowns per cell. Su
 PETSc command line parameters
 =============================
 
-When Waiwera is run, the main parameter it takes is the filename, which should follow the ``waiwera`` command (or ``waiwera-dkr.py`` if :ref:`run_docker`). However, it is also possible to control many PETSc-related aspects of the simulation by adding other command line parameters, which can be specified after the filename.
+When Waiwera is run, the main parameter it takes is the filename, which should follow the ``waiwera`` command (or ``waiwera-dkr`` if :ref:`run_docker`). However, it is also possible to control many PETSc-related aspects of the simulation by adding other command line parameters, which can be specified after the filename.
 
 These PETSc command line parameters can be used, for example, to control the behaviour of the PETSc linear and non-linear solvers used by Waiwera, as well as many other options such as diagnostic or debugging output. Some of these options (e.g. the linear and non-linear solver parameters) can also be specified in the Waiwera JSON input file.
 

@@ -99,7 +99,7 @@ For building a native Waiwera executable on Linux, Waiwera uses the `Ansible <ht
 Install Ansible
 ---------------
 
-First, Ansible itself must be installed. Ansible is Python-based, so it can be installed either via your system package manager (e.g. ``sudo apt install ansible`` on Debian-based systems), or via `PYPI <https://pypi.org/>`_ and pip. For more details, consult the Ansible `documentation <https://docs.ansible.com/ansible/latest/installation_guide/intro_installation.html>`_.
+First, Ansible itself must be installed. Ansible is Python-based, so it can be installed either via your system package manager (e.g. ``sudo apt install ansible`` on Debian-based systems), or via `PyPI <https://pypi.org/>`_ and `pip`. For more details, consult the Ansible `documentation <https://docs.ansible.com/ansible/latest/installation_guide/intro_installation.html>`_.
 
 Note that the Waiwera build requires Ansible version 2.4 or later.
 
