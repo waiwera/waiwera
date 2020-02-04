@@ -12,11 +12,13 @@ addons:
 
 install:
   - sudo pip install ansible
+  - sudo pip install waiwera-credo
 
 script:
   - cd install
   - travis_wait 45 ansible-playbook ansible/install_local.yml
   - cd ..
   - python unit_tests.py
+  - python benchmark_tests.py -np 2
   - cd utils/pywaiwera
   - python -m unittest discover -v
