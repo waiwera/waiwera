@@ -13,6 +13,11 @@ addons:
 install:
   - sudo pip install ansible
   - sudo pip install waiwera-credo
+  - mkdir -p external/PyTOUGH
+  - cd external/PyTOUGH
+  - git clone https://github.com/acroucher/PyTOUGH.git .
+  - sudo pip install .
+  - cd ../..
 
 script:
   - cd install
