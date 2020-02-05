@@ -7,12 +7,12 @@ addons:
   apt:
     packages:
       - python-pip
+      - python-tk
       - mpich
       - libmpich-dev
 
 install:
   - sudo pip install ansible
-  - sudo pip install python-tk
   - sudo pip install waiwera-credo
   - mkdir -p external/PyTOUGH
   - cd external/PyTOUGH
