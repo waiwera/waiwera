@@ -7,7 +7,6 @@ addons:
   apt:
     packages:
       - python-pip
-      - python-tk
       - mpich
       - libmpich-dev
 

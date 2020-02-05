@@ -6,6 +6,9 @@ import argparse
 import os
 import sys
 
+import matplotlib
+matplotlib.use('Agg')
+
 from credo.systest import SciBenchmarkTest
 from similarity import DigitisedSimilarityResult, \
     SimilaritySolutionWithinTolTC
