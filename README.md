@@ -1,7 +1,7 @@
 Waiwera
 =======
 
-![Travis (.org) branch](https://img.shields.io/travis/waiwera/waiwera/testing?label=build%3Atesting) ![Docker Cloud Build Status](https://img.shields.io/docker/cloud/build/waiwera/waiwera) [![Documentation Status](https://readthedocs.org/projects/waiwera/badge/?version=latest)](https://waiwera.readthedocs.io/en/latest/?badge=latest)
+![Travis (.org) branch](https://img.shields.io/travis/waiwera/waiwera/master?label=build%3Amaster) ![Travis (.org) branch](https://img.shields.io/travis/waiwera/waiwera/testing?label=build%3Atesting) ![Docker Cloud Build Status](https://img.shields.io/docker/cloud/build/waiwera/waiwera) [![Documentation Status](https://readthedocs.org/projects/waiwera/badge/?version=latest)](https://waiwera.readthedocs.io/en/latest/?badge=latest)
 
 Waiwera is a parallel, open-source geothermal flow simulator.
 
