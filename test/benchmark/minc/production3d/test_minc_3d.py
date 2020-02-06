@@ -7,6 +7,9 @@ import argparse
 import os
 import sys
 
+import matplotlib
+matplotlib.use('Agg')
+
 from credo.systest import SciBenchmarkTest
 
 from credo.jobrunner import SimpleJobRunner
@@ -23,7 +26,6 @@ from mulgrids import mulgrid
 from t2listing import t2listing
 
 import matplotlib.pyplot as plt
-plt.switch_backend('agg')
 from matplotlib import rcParams
 rcParams['mathtext.default'] = 'regular'
 

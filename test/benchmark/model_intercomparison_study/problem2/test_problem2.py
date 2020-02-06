@@ -6,6 +6,9 @@ import argparse
 import os
 import sys
 
+import matplotlib
+matplotlib.use('Agg')
+
 from credo.systest import SciBenchmarkTest
 from similarity import DigitisedSimilarityResult, \
     SimilaritySolutionWithinTolTC
@@ -21,7 +24,6 @@ from credo.reporting import getGenerators
 from mulgrids import mulgrid
 
 import matplotlib.pyplot as plt
-plt.switch_backend('agg')
 from matplotlib import rcParams
 rcParams['mathtext.default'] = 'regular'
 

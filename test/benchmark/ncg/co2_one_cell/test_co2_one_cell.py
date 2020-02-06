@@ -4,6 +4,9 @@ One-cell CO2 test from O'Sullivan et al. (1985)
 
 import os
 
+import matplotlib
+matplotlib.use('Agg')
+
 from credo.systest import SciBenchmarkTest
 
 from credo.jobrunner import SimpleJobRunner
@@ -19,7 +22,6 @@ from credo.systest import HistoryWithinTolTC
 from mulgrids import mulgrid
 
 import matplotlib.pyplot as plt
-plt.switch_backend('agg')
 from matplotlib import rcParams
 rcParams['mathtext.default'] = 'regular'
 
