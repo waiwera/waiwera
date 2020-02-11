@@ -27,6 +27,7 @@ passed = True
 testcount, passcount = 0, 0
 
 for path, dirs, files in os.walk(tests_path):
+    dirs.sort()
     os.chdir(path)
     scripts = glob.glob("test_*.py")
     for script in scripts:
