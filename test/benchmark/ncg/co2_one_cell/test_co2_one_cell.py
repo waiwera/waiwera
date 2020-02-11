@@ -2,6 +2,7 @@
 One-cell CO2 test from O'Sullivan et al. (1985)
 """
 
+import argparse
 import os
 
 import matplotlib
@@ -28,6 +29,15 @@ rcParams['mathtext.default'] = 'regular'
 import numpy as np
 from docutils.core import publish_file
 
+parser = argparse.ArgumentParser()
+parser.add_argument("-np", type = int, default = 1, help = "number of processes") # not used
+parser.add_argument("-d", "--docker", action = "store_true",
+                    help = "run via Docker (waiwera-dkr)")
+args = parser.parse_args()
+num_procs = 1
+mpi = False
+simulator = 'waiwera-dkr -np %d' % num_procs if args.docker else 'waiwera'
+
 model_name = 'co2_one_cell'
 
 AUTOUGH2_FIELDMAP = {
@@ -47,7 +57,6 @@ data_dir = './data'
 t2geo_filename = os.path.join(model_dir, 'g' + model_name + '.dat')
 geo = mulgrid(t2geo_filename)
 
-num_procs = 1
 run_name = 'run'
 run_index = 0
 obs_cell_index = 0
@@ -71,7 +80,7 @@ run_base_name = model_name
 run_filename = run_base_name + '.json'
 model_run = WaiweraModelRun(run_name, run_filename,
                           fieldname_map = WAIWERA_FIELDMAP,
-                          simulator = 'waiwera',
+                          simulator = simulator,
                           basePath = os.path.realpath(model_dir))
 model_run.jobParams['nproc'] = num_procs
 co2_one_cell_test.mSuite.addRun(model_run, run_name)
@@ -114,7 +123,7 @@ for sim in digitised_simulators:
                                                  testCellIndex = obs_cell_index,
                                                  orthogonalError = True))
 
-jrunner = SimpleJobRunner(mpi = True)
+jrunner = SimpleJobRunner(mpi = mpi)
 testResult, mResults = co2_one_cell_test.runTest(jrunner, createReports = True)
 
 symbol = {"MULKOM": 'o'}

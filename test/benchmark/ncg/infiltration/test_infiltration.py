@@ -33,7 +33,11 @@ from docutils.core import publish_file
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-np", type = int, default = 1, help = "number of processes")
+parser.add_argument("-d", "--docker", action = "store_true",
+                    help = "run via Docker (waiwera-dkr)")
 args = parser.parse_args()
+mpi = args.np > 1 and not args.docker
+simulator = 'waiwera-dkr -np %d' % args.np if args.docker else 'waiwera'
 
 model_name = 'infiltration'
 
@@ -69,7 +73,7 @@ infiltration_test.description = """1-D horizontal infiltration test from TOUGH U
 run_filename = run_base_name + '.json'
 model_run = WaiweraModelRun(run_name, run_filename,
                             fieldname_map = WAIWERA_FIELDMAP,
-                            simulator = 'waiwera',
+                            simulator = simulator,
                             basePath = os.path.realpath(model_dir))
 model_run.jobParams['nproc'] = args.np
 infiltration_test.mSuite.addRun(model_run, run_name)
@@ -110,7 +114,7 @@ for sim in digitised_simulators:
                                           maxCoordinate = xmax,
                                           testOutputIndex = output_index))
 
-jrunner = SimpleJobRunner(mpi = True)
+jrunner = SimpleJobRunner(mpi = mpi)
 testResult, mResults = infiltration_test.runTest(jrunner, createReports = True)
 
 result = infiltration_test.mSuite.resultsList[run_index]

@@ -32,7 +32,11 @@ from docutils.core import publish_file
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-np", type = int, default = 1, help = "number of processes")
+parser.add_argument("-d", "--docker", action = "store_true",
+                    help = "run via Docker (waiwera-dkr)")
 args = parser.parse_args()
+mpi = args.np > 1 and not args.docker
+simulator = 'waiwera-dkr -np %d' % args.np if args.docker else 'waiwera'
 
 model_name = 'heat_pipe'
 
@@ -80,7 +84,7 @@ run_base_name = model_name
 run_filename = run_base_name + '.json'
 model_run = WaiweraModelRun(run_name, run_filename,
                           fieldname_map = WAIWERA_FIELDMAP,
-                          simulator = 'waiwera',
+                          simulator = simulator,
                           basePath = os.path.realpath(model_dir))
 model_run.jobParams['nproc'] = args.np
 heat_pipe_test.mSuite.addRun(model_run, run_name)
@@ -121,7 +125,7 @@ for sim in digitised_simulators:
                                       logCoordinate = True,
                                       testOutputIndex = -1))
 
-jrunner = SimpleJobRunner(mpi = True)
+jrunner = SimpleJobRunner(mpi = mpi)
 testResult, mResults = heat_pipe_test.runTest(jrunner, createReports = True)
 
 # plots:

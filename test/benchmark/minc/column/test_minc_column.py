@@ -34,7 +34,11 @@ from docutils.core import publish_file
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-np", type = int, default = 1, help = "number of processes")
+parser.add_argument("-d", "--docker", action = "store_true",
+                    help = "run via Docker (waiwera-dkr)")
 args = parser.parse_args()
+mpi = args.np > 1 and not args.docker
+simulator = 'waiwera-dkr -np %d' % args.np if args.docker else 'waiwera'
 
 model_name = 'minc_column'
 
@@ -82,7 +86,7 @@ for run_index, run_name in enumerate(run_names):
     run_filename = run_base_name + '.json'
     model_run = WaiweraModelRun(run_name, run_filename,
                                 fieldname_map = WAIWERA_FIELDMAP,
-                                simulator = 'waiwera',
+                                simulator = simulator,
                                 basePath = base_path)
     model_run.jobParams['nproc'] = args.np
     minc_column_test.mSuite.addRun(model_run, run_name)
@@ -130,7 +134,7 @@ for run_index, run_name in enumerate(run_names):
                                              expected = AUTOUGH2_result[run_name],
                                              testSourceIndex = source_index))
 
-jrunner = SimpleJobRunner(mpi = True)
+jrunner = SimpleJobRunner(mpi = mpi)
 testResult, mResults = minc_column_test.runTest(jrunner, createReports = True)
 
 day = 24. * 60. * 60.

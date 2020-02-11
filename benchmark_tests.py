@@ -18,6 +18,8 @@ start_time = str(datetime.datetime.now())
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-np", type = int, default = 1, help = "number of processes")
+parser.add_argument("-d", "--docker", action = "store_true",
+                    help = "run via Docker (waiwera-dkr)")
 args = parser.parse_args()
 npstr = str(args.np)
 
@@ -33,7 +35,9 @@ for path, dirs, files in os.walk(tests_path):
     for script in scripts:
         print(os.path.join(path, script), '...', end = "")
         sys.stdout.flush()
-        subprocess.call(['python', script, '-np', npstr], stdout = open(os.devnull, 'wb'))
+        cmd = ['python', script, '-np', npstr]
+        if args.docker: cmd += ['-d']
+        subprocess.call(cmd, stdout = open(os.devnull, 'wb'))
         if os.path.isdir('output'):
             os.chdir('output')
             outpaths = [p.strip('/') for p in glob.glob('*/')]
