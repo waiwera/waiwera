@@ -32,10 +32,8 @@ import numpy as np
 from docutils.core import publish_file
 
 parser = argparse.ArgumentParser()
-parser.add_argument("-np", help = "number of processes")
+parser.add_argument("-np", type = int, default = 1, help = "number of processes")
 args = parser.parse_args()
-if args.np: num_procs = int(args.np)
-else: num_procs = 1
 
 model_name = 'infiltration'
 
@@ -64,7 +62,7 @@ test_fields = ['Liquid saturation']
 digitised_test_fields = test_fields
 digitised_simulators = ["semi-analytical"]
 
-infiltration_test = SciBenchmarkTest(model_name + "_test", nproc = num_procs)
+infiltration_test = SciBenchmarkTest(model_name + "_test", nproc = args.np)
 infiltration_test.description = """1-D horizontal infiltration test from TOUGH User Guide
 """
 
@@ -73,7 +71,7 @@ model_run = WaiweraModelRun(run_name, run_filename,
                             fieldname_map = WAIWERA_FIELDMAP,
                             simulator = 'waiwera',
                             basePath = os.path.realpath(model_dir))
-model_run.jobParams['nproc'] = num_procs
+model_run.jobParams['nproc'] = args.np
 infiltration_test.mSuite.addRun(model_run, run_name)
 
 infiltration_test.setupEmptyTestCompsList()

@@ -31,10 +31,8 @@ import numpy as np
 from docutils.core import publish_file
 
 parser = argparse.ArgumentParser()
-parser.add_argument("-np", help = "number of processes")
+parser.add_argument("-np", type = int, default = 1, help = "number of processes")
 args = parser.parse_args()
-if args.np: num_procs = int(args.np)
-else: num_procs = 1
 
 model_name = 'heat_pipe'
 
@@ -71,7 +69,7 @@ digitised_simulators = ["TOUGH2"]
 
 map_out_bdy = range(0, geo.num_blocks)
 
-heat_pipe_test = SciBenchmarkTest(model_name + "_test", nproc = num_procs)
+heat_pipe_test = SciBenchmarkTest(model_name + "_test", nproc = args.np)
 heat_pipe_test.description = """Radial heat pipe problem,
 from the TOUGH2 user guide. (problem 'rhp').
 Here the TOUGH2 results are digitised from the user guide. There is some uncertainty about the
@@ -84,7 +82,7 @@ model_run = WaiweraModelRun(run_name, run_filename,
                           fieldname_map = WAIWERA_FIELDMAP,
                           simulator = 'waiwera',
                           basePath = os.path.realpath(model_dir))
-model_run.jobParams['nproc'] = num_procs
+model_run.jobParams['nproc'] = args.np
 heat_pipe_test.mSuite.addRun(model_run, run_name)
 
 heat_pipe_test.setupEmptyTestCompsList()

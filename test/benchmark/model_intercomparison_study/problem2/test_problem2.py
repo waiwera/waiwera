@@ -34,10 +34,8 @@ from scipy.special import expi
 from docutils.core import publish_file
 
 parser = argparse.ArgumentParser()
-parser.add_argument("-np", help = "number of processes")
+parser.add_argument("-np", type = int, default = 1, help = "number of processes")
 args = parser.parse_args()
-if args.np: num_procs = int(args.np)
-else: num_procs = 1
 
 model_name = 'problem2'
 
@@ -119,7 +117,7 @@ case_b_s_cubed = DigitisedSimilarityResult('S-Cubed',
 # reference there. However both semi-analytical and S-Cubed results
 # are shown on plots for cases b and c.
 
-problem2_test = SciBenchmarkTest(model_name + "_test", nproc = num_procs)
+problem2_test = SciBenchmarkTest(model_name + "_test", nproc = args.np)
 problem2_test.description = """Model Intercomparison Study problem 2
 (case a: Theis problem, case b: radial two-phase production, case c: radial flashing front)"""
 
@@ -131,7 +129,7 @@ for run_index, run_name in enumerate(run_names):
                               fieldname_map = WAIWERA_FIELDMAP,
                               simulator = 'waiwera',
                               basePath = os.path.realpath(model_dir))
-    model_run.jobParams['nproc'] = num_procs
+    model_run.jobParams['nproc'] = args.np
     problem2_test.mSuite.addRun(model_run, run_name)
 
 problem2_test.setupEmptyTestCompsList()

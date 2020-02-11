@@ -32,10 +32,8 @@ import numpy as np
 from docutils.core import publish_file
 
 parser = argparse.ArgumentParser()
-parser.add_argument("-np", help = "number of processes")
+parser.add_argument("-np", type = int, default = 1, help = "number of processes")
 args = parser.parse_args()
-if args.np: num_procs = int(args.np)
-else: num_procs = 1
 
 def total_CO2_mass_fraction(mResult, index):
     """Returns total CO2 mass fraction across all phases, from Waiwera
@@ -83,7 +81,7 @@ digitised_test_fields = {'CO2 partial pressure'}
 digitised_simulators = ['MULKOM']
 digitised_run_names = ['0.1', '1', '5']
 
-co2_column_test = SciBenchmarkTest(model_name + "_test", nproc = num_procs)
+co2_column_test = SciBenchmarkTest(model_name + "_test", nproc = args.np)
 co2_column_test.description = """Vertical column CO2 test from O'Sullivan et al. (1985). The original
 problem (figs 10 and 11) specified CO2 input in terms of partial pressure, though the text indicated
 that mass fraction (%) may actually have been used. Here, CO2 input is in terms of mass fraction. The
@@ -98,7 +96,7 @@ for run_index, run_name in enumerate(run_names):
                                 fieldname_map = WAIWERA_FIELDMAP,
                                 simulator = 'waiwera',
                                 basePath = os.path.realpath(model_dir))
-    model_run.jobParams['nproc'] = num_procs
+    model_run.jobParams['nproc'] = args.np
     co2_column_test.mSuite.addRun(model_run, run_name)
 
 co2_column_test.setupEmptyTestCompsList()

@@ -28,10 +28,8 @@ import numpy as np
 from docutils.core import publish_file
 
 parser = argparse.ArgumentParser()
-parser.add_argument("-np", help = "number of processes")
+parser.add_argument("-np", type = int, default = 1, help = "number of processes")
 args = parser.parse_args()
-if args.np: num_procs = int(args.np)
-else: num_procs = 1
 
 def total_steam_history(mResult, index):
     """Returns history of total steam in place (per unit reservoir
@@ -78,7 +76,7 @@ test_source_fields = ["Enthalpy"]
 geo = mulgrid(t2geo_filename)
 map_out_atm = range(geo.num_atmosphere_blocks, geo.num_blocks)
 
-problem5_test = SciBenchmarkTest(model_name + "_test", nproc = num_procs)
+problem5_test = SciBenchmarkTest(model_name + "_test", nproc = args.np)
 problem5_test.description = """Model Intercomparison Study problem 5"""
 
 def geo_pos_block_index(pos):
@@ -103,7 +101,7 @@ for run_index, run_name in enumerate(run_names):
                               fieldname_map = WAIWERA_FIELDMAP,
                               simulator = 'waiwera',
                               basePath = os.path.realpath(model_dir))
-    model_run.jobParams['nproc'] = num_procs
+    model_run.jobParams['nproc'] = args.np
     problem5_test.mSuite.addRun(model_run, run_name)
 
 problem5_test.setupEmptyTestCompsList()

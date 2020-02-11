@@ -34,10 +34,8 @@ import json
 from docutils.core import publish_file
 
 parser = argparse.ArgumentParser()
-parser.add_argument("-np", help = "number of processes")
+parser.add_argument("-np", type = int, default = 1, help = "number of processes")
 args = parser.parse_args()
-if args.np: num_procs = int(args.np)
-else: num_procs = 1
 
 model_name = 'minc_3d'
 
@@ -76,7 +74,7 @@ field_scale = {'Pressure': 1.e5, 'Temperature': 1., 'Vapour saturation': 1.,
 field_unit = {'Pressure': 'bar', 'Temperature': '$^{\circ}$C', 'Vapour saturation': '',
               'Enthalpy': 'kJ/kg', 'Generation rate': 'kg/s'}
 
-minc_production_test = SciBenchmarkTest(model_name + "_test", nproc = num_procs)
+minc_production_test = SciBenchmarkTest(model_name + "_test", nproc = args.np)
 minc_production_test.description = """3-D MINC production problem, with well on deliverability,
 time-dependent productivity index and steam flow limiter.
 """
@@ -89,7 +87,7 @@ for run_index, run_name in enumerate(run_names):
                                 fieldname_map = WAIWERA_FIELDMAP,
                                 simulator = 'waiwera',
                                 basePath = base_path)
-    model_run.jobParams['nproc'] = num_procs
+    model_run.jobParams['nproc'] = args.np
     minc_production_test.mSuite.addRun(model_run, run_name)
 
 obs_cell_elev = -1000.

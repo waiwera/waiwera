@@ -28,10 +28,8 @@ import numpy as np
 from docutils.core import publish_file
 
 parser = argparse.ArgumentParser()
-parser.add_argument("-np", help = "number of processes")
+parser.add_argument("-np", type = int, default = 1, help = "number of processes")
 args = parser.parse_args()
-if args.np: num_procs = int(args.np)
-else: num_procs = 1
 
 model_name = 'problem4'
 
@@ -59,7 +57,7 @@ test_source_fields = ["Enthalpy"]
 geo = mulgrid(t2geo_filename)
 map_out_atm = range(geo.num_atmosphere_blocks, geo.num_blocks)
 
-problem4_test = SciBenchmarkTest(model_name + "_test", nproc = num_procs)
+problem4_test = SciBenchmarkTest(model_name + "_test", nproc = args.np)
 problem4_test.description = """Model Intercomparison Study problem 4"""
 
 run_base_name = model_name
@@ -68,7 +66,7 @@ model_run = WaiweraModelRun(run_name, run_filename,
                           fieldname_map = WAIWERA_FIELDMAP,
                           simulator = 'waiwera',
                           basePath = os.path.realpath(model_dir))
-model_run.jobParams['nproc'] = num_procs
+model_run.jobParams['nproc'] = args.np
 problem4_test.mSuite.addRun(model_run, run_name)
 
 problem4_test.setupEmptyTestCompsList()

@@ -17,10 +17,9 @@ from docutils.core import publish_file
 start_time = str(datetime.datetime.now())
 
 parser = argparse.ArgumentParser()
-parser.add_argument("-np", help = "number of processes")
+parser.add_argument("-np", type = int, default = 1, help = "number of processes")
 args = parser.parse_args()
-if args.np: num_procs = args.np
-else: num_procs = '1'
+npstr = str(args.np)
 
 orig_path = os.getcwd()
 summary = {"tests": []}
@@ -33,7 +32,7 @@ for path, dirs, files in os.walk(tests_path):
     for script in scripts:
         print(os.path.join(path, script), '...', end = "")
         sys.stdout.flush()
-        subprocess.call(['python', script, '-np', num_procs], stdout = open(os.devnull, 'wb'))
+        subprocess.call(['python', script, '-np', npstr], stdout = open(os.devnull, 'wb'))
         if os.path.isdir('output'):
             os.chdir('output')
             outpaths = [p.strip('/') for p in glob.glob('*/')]
@@ -80,7 +79,7 @@ rstfile.write("Waiwera benchmark tests\n\n")
 
 rstfile.write("Specification\n")
 rstfile.write("=============\n\n")
-rstfile.write(" * nproc: %s\n\n" % num_procs)
+rstfile.write(" * nproc: %s\n\n" % npstr)
 
 rstfile.write("Provenance\n")
 rstfile.write("==========\n\n")
