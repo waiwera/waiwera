@@ -156,6 +156,8 @@ The **"eos.primary.scale"** object contains values for customising the non-dimen
 
 selects the water/energy equation of state and overrides the non-dimensionalisation of temperatures, so that they are scaled by a factor of 20.
 
+.. _water_ncg_eos:
+
 Water / NCG EOS modules
 =======================
 

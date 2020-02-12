@@ -12,6 +12,7 @@ Waiwera user guide
 
    intro
    installation
+   benchmark
    methods
    input
    setup
