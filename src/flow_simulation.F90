@@ -37,7 +37,6 @@ module flow_simulation_module
   private
 
   PetscInt, parameter, public :: max_title_length = 120
-  PetscInt, parameter, public :: max_flow_simulation_filename_length = 200
   PetscInt, parameter :: max_output_filename_length = 200
 
   type, public, extends(ode_type) :: flow_simulation_type
@@ -45,7 +44,7 @@ module flow_simulation_module
      private
      PetscInt :: solution_range_start, rock_range_start
      PetscInt :: fluid_range_start, update_cell_range_start, source_range_start
-     character(max_flow_simulation_filename_length), public :: filename !! JSON input filename
+     character(:), allocatable, public :: filename !! JSON input filename
      character(max_title_length), public :: title !! Descriptive title for the simulation
      Vec, public :: rock !! Rock properties in each cell
      Vec, public :: fluid !! Fluid properties in each cell, for unperturbed primary variables
