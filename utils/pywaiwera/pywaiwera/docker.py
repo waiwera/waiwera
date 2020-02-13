@@ -645,8 +645,8 @@ def main():
     parser.add_argument('waiwera_args', nargs=argparse.REMAINDER,
                         help='the command passed to waiwera')
     parser.add_argument('-np', '--num_processes', help='the number of \
-                        processors to utilize, otherwise uses the docker \
-                        default for your system')
+                        processors to utilize, default is 1 (serial)',
+                        default=1)
     parser.add_argument('-r', '--repo',
                         default=REPO)
     parser.add_argument('-t', '--tag',
