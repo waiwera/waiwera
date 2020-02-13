@@ -653,6 +653,9 @@ def main():
     parser.add_argument('waiwera_args', nargs=argparse.REMAINDER,
                         help='the command passed to waiwera')
 
+    # without default=1, mpiexec will utilise max num of processes within
+    # container, this can cause slow down small models, and crash very small
+    # models from examples
     parser.add_argument('-np', '--num_processes', help='the number of \
                         processors to utilize, default is 1 (serial)',
                         default=1)
