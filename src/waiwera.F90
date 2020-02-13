@@ -96,10 +96,11 @@ contains
 
     character(:), allocatable, intent(out) :: filename !! JSON input filename
     ! Locals:
-    PetscInt :: num_args, len_arg, ierr
+    PetscInt :: num_args, len_arg, len_filename, ierr
     character(:), allocatable :: arg
     PetscMPIInt :: rank
 
+    len_filename = 0
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
     if (rank == 0) then
 
@@ -117,12 +118,21 @@ contains
              write(*, '(a)') waiwera_version
           case default
              filename = arg
-             call MPI_bcast(filename, len_arg, MPI_CHARACTER, &
-                  0, PETSC_COMM_WORLD, ierr)
+             len_filename = len_arg
           end select
           deallocate(arg)
        end if
 
+    end if
+
+    ! Broadcast filename:
+    call MPI_bcast(len_filename, 1, MPI_INTEGER, 0, PETSC_COMM_WORLD, ierr)
+    if (len_filename > 0) then
+       if (rank > 0) then
+          allocate(character(len_filename) :: filename)
+       end if
+       call MPI_bcast(filename, len_filename, MPI_CHARACTER, &
+            0, PETSC_COMM_WORLD, ierr)
     end if
 
   end subroutine process_arguments
