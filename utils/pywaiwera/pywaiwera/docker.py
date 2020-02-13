@@ -640,13 +640,23 @@ def main():
     """
     Args:
     """
-    parser = argparse.ArgumentParser(description='Runs Waiwera, \
-                        the parallel open-source geothermal flow simulator')
+    examples = "\n".join([
+        "examples:",
+        "  waiwera-dkr input.json",
+        "  waiwera-dkr -np 2 input.json",
+        "  waiwera-dkr --tag testing input.json",
+        "  waiwera-dkr --interactive",
+        ])
+    parser = argparse.ArgumentParser(description='Runs Waiwera, the parallel open-source geothermal flow simulator, via Docker',
+                        epilog=examples, formatter_class=argparse.RawDescriptionHelpFormatter)
+
     parser.add_argument('waiwera_args', nargs=argparse.REMAINDER,
                         help='the command passed to waiwera')
+
     parser.add_argument('-np', '--num_processes', help='the number of \
                         processors to utilize, default is 1 (serial)',
                         default=1)
+
     parser.add_argument('-r', '--repo',
                         default=REPO)
     parser.add_argument('-t', '--tag',
@@ -657,6 +667,7 @@ def main():
                         help='starts an interactive terminal and does NOT run \
                         mpiexec by default',
                         action='store_true')
+
     group = parser.add_mutually_exclusive_group()
     group.add_argument('-nu','--noupdate',
                     help='do not check for an updated waiwera image before running',
@@ -664,6 +675,7 @@ def main():
     group.add_argument('-u','--update',
                     help='pull an updated waiwera image and exit',
                     action='store_true')
+
     parser.add_argument('-tv','--test_volume',
                     help='test docker --volume (bind mount) with current directory and exit',
                     action='store_true')
