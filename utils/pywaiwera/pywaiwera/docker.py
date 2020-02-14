@@ -520,16 +520,21 @@ class DockerEnv(object):
         os.remove('.cid')
         os.remove(script_name)
 
-    def run_waiwera(self, waiwera_args=[], image=None,
+    def run_waiwera(self, filename='', waiwera_args=[], image=None,
                     repo=REPO, tag=TAG, num_processes=None, interactive=False,
                     noupdate=False, verbose=False, dryrun=False):
         """ run waiwera
+
+        If interactive is True, docker withh run with --iteractive --tty using
+        waiwera_args as command to execute. If waiwera_args is left empty, a
+        simple '/bin/bash' will be used.
 
         If dryrun is True, final command will not be run but returned instead.
         This is useful for testing.
         """
         current_path = self.volume_path()
         data_path = '/data'
+        waiwera_args = [a for a in waiwera_args if a] # remove empty strings
 
         if image == None:
             image = ['{0}:{1}'.format(repo, tag)]
@@ -550,15 +555,14 @@ class DockerEnv(object):
         if interactive:
             it = ['--interactive', '--tty']
             work_dir = ['']
-            mpiexec = ['']
             if len(waiwera_args) == 0:
-                mpiexec = ['/bin/bash']
-            # print('Interactive {}'.format(mpiexec + waiwera_args))
+                native_cmd = ['/bin/bash']
+            else:
+                native_cmd = waiwera_args
         else:
             it  = ['']
             work_dir = ['--workdir', data_path]
-            mpiexec = ['mpiexec'] + np + [WAIWERA_EXE]
-            # print('Running Waiwera')
+            native_cmd = ['mpiexec'] + np + [WAIWERA_EXE] + [filename] + waiwera_args
 
         #  docker run -v ${p}:/data -w /data waiwera-phusion-debian mpiexec -np $args[1] /home/mpirun/waiwera/dist/waiwera $args[0]
         run_cmd = ['docker',
@@ -566,7 +570,7 @@ class DockerEnv(object):
                    '--cidfile', '.cid',
                    '--rm',
                    '--volume', '{}:{}'.format(current_path, data_path),
-                   ] + it + work_dir + image + mpiexec + waiwera_args
+                   ] + it + work_dir + image + native_cmd
         run_cmd = [c for c in run_cmd if c] # remove empty strings
 
         if verbose:
@@ -658,8 +662,11 @@ def main():
     parser = argparse.ArgumentParser(description='Runs Waiwera, the parallel open-source geothermal flow simulator, via Docker',
                         epilog=examples, formatter_class=argparse.RawDescriptionHelpFormatter)
 
-    parser.add_argument('waiwera_args', nargs=argparse.REMAINDER,
-                        help='the command passed to waiwera')
+    parser.add_argument('filename', metavar='FILENAME', nargs='?',
+                        help='waiwera input file name (must come after optional arguments)',
+                        default='')
+    parser.add_argument('waiwera_args', metavar='...', nargs=argparse.REMAINDER,
+                        help='additional arguments passed to waiwera (must come last)')
 
     # without default=1, mpiexec will utilise max num of processes within
     # container, this can cause slow down small models, and crash very small
@@ -703,11 +710,23 @@ def main():
 
     args = parser.parse_args()
 
-    if args.waiwera_args:
+    # early check (faster) on inputfile
+    if args.filename:
         if not args.interactive:
-            inok = input_file_ok(args.waiwera_args[0]) # first one always input.json
+            inok = input_file_ok(args.filename) # first one always input.json
             if not inok:
                 exit(1)
+
+    if args.interactive:
+        # interactive assumes remainder arguments are commands to run container
+        #   waiwera-dkr -it
+        #     => docker run --interactive --tty waiwera/waiwera:latest /bin/bash
+        #   waiwera-dkr -it touch x
+        #     => docker run --interactive --tty waiwera/waiwera:latest touch x
+        if args.filename:
+            args.waiwera_args = [args.filename] + args.waiwera_args
+            args.filename = ''
+
 
     dkr = DockerEnv(check=True)
     # print('docker.exist', dkr.exists, 'dkr.running', dkr.running, 'dkr.is_toolbox', dkr.is_toolbox)
@@ -727,10 +746,9 @@ def main():
         dkr.run_copy_examples(**kws)
         exit(0)
 
-    if args.waiwera_args or args.interactive:
-        # ONLY run with at least one waiwera_args (usually input .json file)
-        accept_kws = ['waiwera_args', 'image', 'repo', 'tag', 'num_processes',
-                      'interactive', 'noupdate', 'verbose']
+    if args.filename or args.interactive:
+        accept_kws = ['filename', 'waiwera_args', 'image', 'repo', 'tag',
+                      'num_processes', 'interactive', 'noupdate', 'verbose']
         kw_run_waiwera = {k:v for k,v in vars(args).items() if k in accept_kws}
         dkr.run_waiwera(**kw_run_waiwera)
 
