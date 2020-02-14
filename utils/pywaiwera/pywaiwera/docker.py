@@ -711,8 +711,8 @@ def main():
     args = parser.parse_args()
 
     # early check (faster) on inputfile
-    if args.filename:
-        if not args.interactive:
+    if not args.interactive:
+        if args.filename:
             inok = input_file_ok(args.filename) # first one always input.json
             if not inok:
                 exit(1)
