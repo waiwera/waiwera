@@ -58,7 +58,7 @@ geo = mulgrid(t2geo_filename)
 
 def minc_level_map(num_levels, num_minc_cells):
     # return mapping to reorder AUTOUGH2 cells into MINC levels, as in Waiwera
-    m = range(geo.num_atmosphere_blocks, geo.num_blocks)
+    m = list(range(geo.num_atmosphere_blocks, geo.num_blocks))
     for l in range(num_levels):
         level_map = list(range(geo.num_blocks + l,
                                geo.num_blocks + l + num_minc_cells,
@@ -104,7 +104,7 @@ for run_index, run_name in enumerate(run_names):
     run_base_name = model_name + '_' + run_name
     results_filename = os.path.join(model_dir, run_base_name + ".listing")
     run_filename = run_base_name + '.json'
-    inp = json.load(file(os.path.join(base_path, run_filename)))
+    inp = json.load(open(os.path.join(base_path, run_filename)))
     if 'minc' in inp['mesh']:
         num_levels = len(inp['mesh']['minc']['geometry']['matrix']['volume'])
     else: num_levels = 0

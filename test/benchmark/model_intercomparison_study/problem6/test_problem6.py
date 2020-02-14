@@ -57,7 +57,7 @@ test_source_fields = ["Enthalpy"]
 digitised_simulators = ["LBL", "S-Cubed"]    
 
 geo = mulgrid(t2geo_filename)
-map_out_atm = range(geo.num_atmosphere_blocks, geo.num_blocks)
+map_out_atm = list(range(geo.num_atmosphere_blocks, geo.num_blocks))
 
 problem6_test = SciBenchmarkTest(model_name + "_test", nproc = args.np)
 problem6_test.description = """Model Intercomparison Study problem 6"""

@@ -71,7 +71,7 @@ field_unit = {'Pressure': 'bar', 'Temperature': '$^{\circ}$C',
 digitised_test_fields = test_fields
 digitised_simulators = ["TOUGH2"]
 
-map_out_bdy = range(0, geo.num_blocks)
+map_out_bdy = list(range(0, geo.num_blocks))
 
 heat_pipe_test = SciBenchmarkTest(model_name + "_test", nproc = args.np)
 heat_pipe_test.description = """Radial heat pipe problem,

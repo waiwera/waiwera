@@ -68,7 +68,7 @@ model_dir = './run'
 data_dir = './data'
 t2geo_filename = os.path.join(model_dir, 'g' + model_name + '.dat')
 geo = mulgrid(t2geo_filename)
-map_out_atm = range(geo.num_atmosphere_blocks, geo.num_blocks)
+map_out_atm = list(range(geo.num_atmosphere_blocks, geo.num_blocks))
 
 CO2_mass_fractions = [0, 0.1, 1, 5] # percent
 run_names = [str(xgp) for xgp in CO2_mass_fractions]
@@ -108,7 +108,6 @@ co2_column_test.setupEmptyTestCompsList()
 digitised_test_fields = ['CO2 partial pressure']
 digitised_simulators = ['MULKOM']
 digitised_result = {}
-map_out_bdy = range(0, geo.num_blocks)
 AUTOUGH2_result = {}
 
 for run_index, run_name in enumerate(run_names):

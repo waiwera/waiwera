@@ -52,7 +52,7 @@ digitised_test_fields = ["Temperature"]
 digitised_simulators = ["S-Cubed"]
 
 geo = mulgrid(t2geo_filename)
-map_out_atm = range(geo.num_atmosphere_blocks, geo.num_blocks)
+map_out_atm = list(range(geo.num_atmosphere_blocks, geo.num_blocks))
 
 problem1_test = SciBenchmarkTest(model_name + "_test", nproc = args.np)
 problem1_test.description = """Model Intercomparison Study problem 1

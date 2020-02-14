@@ -56,7 +56,7 @@ scale = {"Generation rate": 1.}
 unit = {"Generation rate": "kg/s"}
 
 geo = mulgrid(t2geo_filename)
-map_out_atm = range(geo.num_atmosphere_blocks, geo.num_blocks)
+map_out_atm = list(range(geo.num_atmosphere_blocks, geo.num_blocks))
 
 deliverability_test = SciBenchmarkTest("deliverability_test", nproc = args.np)
 deliverability_test.description = """Tests sources on deliverability"""
