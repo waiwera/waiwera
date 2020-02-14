@@ -522,7 +522,7 @@ class DockerEnv(object):
 
     def run_waiwera(self, filename='', waiwera_args=[], image=None,
                     repo=REPO, tag=TAG, num_processes=None, interactive=False,
-                    noupdate=False, verbose=False, dryrun=False):
+                    noupdate=False, verbose=False, dryrun=False, get_output=False):
         """ run waiwera
 
         If interactive is True, docker withh run with --iteractive --tty using
@@ -531,6 +531,10 @@ class DockerEnv(object):
 
         If dryrun is True, final command will not be run but returned instead.
         This is useful for testing.
+
+        If get_output is True, the STDOUT from docker run will be returned as
+        string.  Note this option has no effect when dryrun is True (the actual
+        command will be returned instead).
         """
         current_path = self.volume_path()
         data_path = '/data'
@@ -582,8 +586,13 @@ class DockerEnv(object):
         fo.close()
         print('Running Docker...')
         # TODO: window+git bash+toolbox need shell=True to handle path with space
-        p = subprocess.Popen(run_cmd)
-        ret = p.wait()
+        if get_output:
+            p = subprocess.Popen(run_cmd, stdout=subprocess.PIPE)
+            ret = p.wait()
+            output = p.stdout.read()
+        else:
+            p = subprocess.Popen(run_cmd)
+            ret = p.wait()
         with open('.cid', 'r') as f:
             cid = f.readline().strip()[:CID_LEN]
         if ret == 0:
@@ -592,6 +601,8 @@ class DockerEnv(object):
             print('\nError running Waiwera in Docker container {}.\n'.format(cid))
         os.remove(".idcheck")
         os.remove('.cid')
+        if get_output:
+            return output
 
 def in_directory(file, directory):
     """ checks if a file is within a directory (or its sub-directories).
