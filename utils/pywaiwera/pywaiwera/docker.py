@@ -106,6 +106,7 @@ class DockerEnv(object):
                         # more aggressive repair for Docker Toolbox on Windows
                         if sys.platform == 'win32':
                             self.repair_win_toolbox(verbose=verbose)
+                            self.check_running(verbose=True)
                         if not self.running:
                             raise Exception('Error, unable to repair Docker Toolbox!')
                 else:
