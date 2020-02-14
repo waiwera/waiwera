@@ -713,6 +713,9 @@ def main():
     parser.add_argument('-e','--examples',
                     help='create example models (./examples) at current directory and exit',
                     action='store_true')
+    parser.add_argument('--version',
+                    help='show PyWaiwera version, together with Waiwera version',
+                    action='store_true')
 
     if len(sys.argv)==1:
         parser.print_help(sys.stderr)
@@ -742,6 +745,21 @@ def main():
     # print('docker.exist', dkr.exists, 'dkr.running', dkr.running, 'dkr.is_toolbox', dkr.is_toolbox)
     if args.test_volume:
         dkr.run_ls_test()
+        exit(0)
+
+    if args.version:
+        accept_kws = ['waiwera_args', 'image', 'repo', 'tag',
+                      'num_processes', 'noupdate', 'verbose']
+        kw_run_waiwera = {k:v for k,v in vars(args).items() if k in accept_kws}
+        kw_run_waiwera['waiwera_args'] = ['--version']
+        kw_run_waiwera['get_output'] = True
+        v = dkr.run_waiwera(**kw_run_waiwera)
+        if args.image == None:
+            image = '{0}:{1}'.format(args.repo, args.tag)
+        else:
+            image = args.image
+        print('PyWaiwera {}'.format(common.__version__))
+        print('Waiwera {} (Docker image {})'.format(v.strip(), image))
         exit(0)
 
     if args.update:
