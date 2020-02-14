@@ -520,10 +520,14 @@ class DockerEnv(object):
         os.remove('.cid')
         os.remove(script_name)
 
-    def run_waiwera(self, waiwera_args=[], image=None, repo=REPO, tag=TAG,
-                    num_processes=None, interactive=False, noupdate=False,
-                    verbose=False):
-        """ run waiwera """
+    def run_waiwera(self, waiwera_args=[], image=None,
+                    repo=REPO, tag=TAG, num_processes=None, interactive=False,
+                    noupdate=False, verbose=False, dryrun=False):
+        """ run waiwera
+
+        If dryrun is True, final command will not be run but returned instead.
+        This is useful for testing.
+        """
         current_path = self.volume_path()
         data_path = '/data'
 
@@ -556,9 +560,6 @@ class DockerEnv(object):
             mpiexec = ['mpiexec'] + np + [WAIWERA_EXE]
             # print('Running Waiwera')
 
-        fo = open(".idcheck", "wb")
-        fo.close()
-
         #  docker run -v ${p}:/data -w /data waiwera-phusion-debian mpiexec -np $args[1] /home/mpirun/waiwera/dist/waiwera $args[0]
         run_cmd = ['docker',
                    'run',
@@ -567,7 +568,14 @@ class DockerEnv(object):
                    '--volume', '{}:{}'.format(current_path, data_path),
                    ] + it + work_dir + image + mpiexec + waiwera_args
         run_cmd = [c for c in run_cmd if c] # remove empty strings
-        if verbose: print('Docker command:', run_cmd)
+
+        if verbose:
+            print('Docker command:', run_cmd)
+        if dryrun:
+            return run_cmd
+
+        fo = open(".idcheck", "wb")
+        fo.close()
         print('Running Docker...')
         # TODO: window+git bash+toolbox need shell=True to handle path with space
         p = subprocess.Popen(run_cmd)
