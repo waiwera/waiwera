@@ -663,10 +663,10 @@ def main():
                         epilog=examples, formatter_class=argparse.RawDescriptionHelpFormatter)
 
     parser.add_argument('filename', metavar='FILENAME', nargs='?',
-                        help='waiwera input file name (must come after optional arguments)',
+                        help='Waiwera input file name (must come after optional arguments)',
                         default='')
     parser.add_argument('waiwera_args', metavar='...', nargs=argparse.REMAINDER,
-                        help='additional arguments passed to waiwera (must come last)')
+                        help='additional arguments passed to Waiwera (must come last)')
 
     # without default=1, mpiexec will utilise max num of processes within
     # container, this can cause slow down small models, and crash very small
@@ -682,16 +682,15 @@ def main():
     parser.add_argument('-i', '--image', help='the docker image to use \
                         e.g. waiwera/waiwera:latest')
     parser.add_argument('-it','--interactive',
-                        help='starts an interactive terminal and does NOT run \
-                        mpiexec by default',
+                        help='starts an interactive terminal (and does not run Waiwera)',
                         action='store_true')
 
     group = parser.add_mutually_exclusive_group()
     group.add_argument('-nu','--noupdate',
-                    help='do not check for an updated waiwera image before running',
+                    help='do not check for an updated Waiwera image before running',
                     action='store_true')
     group.add_argument('-u','--update',
-                    help='pull an updated waiwera image and exit',
+                    help='pull an updated Waiwera image and exit',
                     action='store_true')
 
     parser.add_argument('-tv','--test_volume',
