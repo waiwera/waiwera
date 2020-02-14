@@ -198,18 +198,18 @@ The precise numbers of asserts and cases will vary, depending on how many module
 Installing Waiwera on your system
 ---------------------------------
 
-From the Waiwera ``install/`` directory, the Waiwera executable can be
+From the Waiwera root directory, the Waiwera executable can be
 installed on your system as follows:
 
 .. code-block:: bash
 
-   ninja install
+   ninja -C build install
 
 It can subsequently be uninstalled using:
 
 .. code-block:: bash
 
-   ninja uninstall
+   ninja -C build uninstall
 
 ..
    Section on cluster install?
