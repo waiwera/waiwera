@@ -32,30 +32,35 @@ program waiwera
   type(fson_value), pointer :: json !! JSON object for simulation input
   type(flow_simulation_type) :: simulation !! Flow simulation object
   type(timestepper_type) :: timestepper !! Timestepper for time-stepping the simulation
-  character(max_flow_simulation_filename_length) :: filename !! JSON input filename
+  character(:), allocatable :: filename !! JSON input filename
   PetscErrorCode :: ierr !! Error code
 
   call PetscInitialize(PETSC_NULL_CHARACTER, ierr); CHKERRA(ierr)
   call init_profiling()
 
-  call get_filename(filename)
-  json => fson_parse_mpi(filename)
+  call process_arguments(filename)
 
-  call simulation%init(json, filename, ierr)
+  if (allocated(filename)) then
 
-  if (ierr == 0) then
-     call timestepper%init(json, simulation)
-     call fson_destroy_mpi(json)
-     call simulation%input_summary()
-     call timestepper%input_summary()
-     call simulation%log_statistics()
-     call timestepper%run()
-     call timestepper%destroy()
-  else
-     call fson_destroy_mpi(json)
+     json => fson_parse_mpi(filename)
+
+     call simulation%init(json, filename, ierr)
+
+     if (ierr == 0) then
+        call timestepper%init(json, simulation)
+        call fson_destroy_mpi(json)
+        call simulation%input_summary()
+        call timestepper%input_summary()
+        call simulation%log_statistics()
+        call timestepper%run()
+        call timestepper%destroy()
+     else
+        call fson_destroy_mpi(json)
+     end if
+
+     call simulation%destroy()
+
   end if
-
-  call simulation%destroy()
 
   call PetscFinalize(ierr); CHKERRA(ierr)
 
@@ -63,32 +68,74 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine get_filename(filename)
-    !! Gets filename from program argument or input.
+  subroutine waiwera_help()
+    !! Waiwera command line help.
 
-    character(*), intent(out) :: filename !! JSON input filename
+    write(*,'(a)') 'Usage:'
+    write(*,'(a)') '  waiwera --help | -h | --version | -v'
+    write(*,'(a)') '  waiwera <filename> [PETSc-option...]'
+
+    write(*,'(a)')
+    write(*,'(a)') 'Options:'
+    write(*,'(a)') '  --help          Show this help.'
+    write(*,'(a)') '  -h              Show this help, together with PETSc help.'
+    write(*,'(a)') '  --version       Show Waiwera version.'
+    write(*,'(a)') '  -v              Show Waiwera version, togther with PETSc version.'
+    write(*,'(a)') '  filename        Name of JSON input file.'
+    write(*,'(a)') '  PETSc-option    PETSc command line options.'
+
+  end subroutine waiwera_help
+
+!------------------------------------------------------------------------
+
+  subroutine process_arguments(filename)
+    !! Process command line arguments, returning usage message if no
+    !! arguments are specified, otherwise returning filename.
+
+    use version_module, only: waiwera_version
+
+    character(:), allocatable, intent(out) :: filename !! JSON input filename
     ! Locals:
-    PetscInt :: num_args, filename_length, ierr
+    PetscInt :: num_args, len_arg, len_filename, ierr
+    character(:), allocatable :: arg
     PetscMPIInt :: rank
 
+    len_filename = 0
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
     if (rank == 0) then
 
        num_args = command_argument_count()
        if (num_args == 0) then
-          write (*,*) 'Input file:'
-          read (*,'(a120)') filename
-       else 
-          call get_command_argument(1, filename)
-          filename = trim(filename)
+          call waiwera_help()
+       else
+          call get_command_argument(1, length = len_arg)
+          allocate(character(len_arg) :: arg)
+          call get_command_argument(1, value = arg)
+          select case (arg)
+          case ('--help', '-h')
+             call waiwera_help()
+          case ('--version', '-v')
+             write(*, '(a)') waiwera_version
+          case default
+             filename = arg
+             len_filename = len_arg
+          end select
+          deallocate(arg)
        end if
 
     end if
-    filename_length = len(filename)
-    call MPI_bcast(filename, filename_length, MPI_CHARACTER, &
-         0, PETSC_COMM_WORLD, ierr)
 
-  end subroutine get_filename
+    ! Broadcast filename:
+    call MPI_bcast(len_filename, 1, MPI_INTEGER, 0, PETSC_COMM_WORLD, ierr)
+    if (len_filename > 0) then
+       if (rank > 0) then
+          allocate(character(len_filename) :: filename)
+       end if
+       call MPI_bcast(filename, len_filename, MPI_CHARACTER, &
+            0, PETSC_COMM_WORLD, ierr)
+    end if
+
+  end subroutine process_arguments
 
 !------------------------------------------------------------------------
 

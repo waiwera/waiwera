@@ -102,8 +102,8 @@ Waiwera simulation, as in the following example:
 .. index:: running; native Linux executable
 .. _run_native:
 
-Running Waiwera as a native Linux executable
-============================================
+Running the native Linux Waiwera executable
+===========================================
 
 The native Linux Waiwera executable (see :ref:`native_linux_build`) can be run either in serial or in parallel. To run in serial from the command line simply type ``waiwera`` followed by the name of the Waiwera JSON input file (see :ref:`waiwera_input`).
 
@@ -122,6 +122,10 @@ Waiwera is run in parallel using MPI (Message Passing Interface), via the ``mpie
    mpiexec -np 16 waiwera model.json
 
 runs Waiwera on the input file ``model.json``, in parallel on 16 processes.
+
+Running Waiwera with the ``--help`` option (or no arguments at all) instead of a filename prints a help message on basic usage to the console. The ``-h`` option does the same thing, but also prints out PETSc-related help.
+
+Similarly, running Waiwera with the ``--version`` option instead of a filename prints the Waiwera version to the console, and the ``-v`` option does the same thing but also prints PETSc version information.
 
 .. index:: running; number of processes
 
