@@ -116,6 +116,6 @@ html = publish_file(source_path = summary_rst_filename,
                     writer_name = "html")
 
 summary_json_filename = os.path.join(tests_path, 'test_summary.json')
-json.dump(summary, file(summary_json_filename, 'w'))
+json.dump(summary, open(summary_json_filename, 'w'))
 
 sys.exit(ret)
