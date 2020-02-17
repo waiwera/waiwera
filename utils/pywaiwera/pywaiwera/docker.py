@@ -106,6 +106,7 @@ class DockerEnv(object):
                         # more aggressive repair for Docker Toolbox on Windows
                         if sys.platform == 'win32':
                             self.repair_win_toolbox(verbose=verbose)
+                            self.check_running(verbose=True)
                         if not self.running:
                             raise Exception('Error, unable to repair Docker Toolbox!')
                 else:
@@ -520,12 +521,25 @@ class DockerEnv(object):
         os.remove('.cid')
         os.remove(script_name)
 
-    def run_waiwera(self, waiwera_args=[], image=None, repo=REPO, tag=TAG,
-                    num_processes=None, interactive=False, noupdate=False,
-                    verbose=False):
-        """ run waiwera """
+    def run_waiwera(self, filename='', waiwera_args=[], image=None,
+                    repo=REPO, tag=TAG, num_processes=None, interactive=False,
+                    noupdate=False, verbose=False, dryrun=False, get_output=False):
+        """ run waiwera
+
+        If interactive is True, docker withh run with --iteractive --tty using
+        waiwera_args as command to execute. If waiwera_args is left empty, a
+        simple '/bin/bash' will be used.
+
+        If dryrun is True, final command will not be run but returned instead.
+        This is useful for testing.
+
+        If get_output is True, the STDOUT from docker run will be returned as
+        string.  Note this option has no effect when dryrun is True (the actual
+        command will be returned instead).
+        """
         current_path = self.volume_path()
         data_path = '/data'
+        waiwera_args = [a for a in waiwera_args if a] # remove empty strings
 
         if image == None:
             image = ['{0}:{1}'.format(repo, tag)]
@@ -546,18 +560,14 @@ class DockerEnv(object):
         if interactive:
             it = ['--interactive', '--tty']
             work_dir = ['']
-            mpiexec = ['']
             if len(waiwera_args) == 0:
-                mpiexec = ['/bin/bash']
-            # print('Interactive {}'.format(mpiexec + waiwera_args))
+                native_cmd = ['/bin/bash']
+            else:
+                native_cmd = waiwera_args
         else:
             it  = ['']
             work_dir = ['--workdir', data_path]
-            mpiexec = ['mpiexec'] + np + [WAIWERA_EXE]
-            # print('Running Waiwera')
-
-        fo = open(".idcheck", "wb")
-        fo.close()
+            native_cmd = ['mpiexec'] + np + [WAIWERA_EXE] + [filename] + waiwera_args
 
         #  docker run -v ${p}:/data -w /data waiwera-phusion-debian mpiexec -np $args[1] /home/mpirun/waiwera/dist/waiwera $args[0]
         run_cmd = ['docker',
@@ -565,13 +575,25 @@ class DockerEnv(object):
                    '--cidfile', '.cid',
                    '--rm',
                    '--volume', '{}:{}'.format(current_path, data_path),
-                   ] + it + work_dir + image + mpiexec + waiwera_args
+                   ] + it + work_dir + image + native_cmd
         run_cmd = [c for c in run_cmd if c] # remove empty strings
-        if verbose: print('Docker command:', run_cmd)
+
+        if verbose:
+            print('Docker command:', run_cmd)
+        if dryrun:
+            return run_cmd
+
+        fo = open(".idcheck", "wb")
+        fo.close()
         print('Running Docker...')
         # TODO: window+git bash+toolbox need shell=True to handle path with space
-        p = subprocess.Popen(run_cmd)
-        ret = p.wait()
+        if get_output:
+            p = subprocess.Popen(run_cmd, stdout=subprocess.PIPE)
+            ret = p.wait()
+            output = p.stdout.read()
+        else:
+            p = subprocess.Popen(run_cmd)
+            ret = p.wait()
         with open('.cid', 'r') as f:
             cid = f.readline().strip()[:CID_LEN]
         if ret == 0:
@@ -580,6 +602,8 @@ class DockerEnv(object):
             print('\nError running Waiwera in Docker container {}.\n'.format(cid))
         os.remove(".idcheck")
         os.remove('.cid')
+        if get_output:
+            return output
 
 def in_directory(file, directory):
     """ checks if a file is within a directory (or its sub-directories).
@@ -640,13 +664,29 @@ def main():
     """
     Args:
     """
-    parser = argparse.ArgumentParser(description='Runs Waiwera, \
-                        the parallel open-source geothermal flow simulator')
-    parser.add_argument('waiwera_args', nargs=argparse.REMAINDER,
-                        help='the command passed to waiwera')
+    examples = "\n".join([
+        "examples:",
+        "  waiwera-dkr input.json",
+        "  waiwera-dkr -np 2 input.json",
+        "  waiwera-dkr --tag testing input.json",
+        "  waiwera-dkr --interactive",
+        ])
+    parser = argparse.ArgumentParser(description='Runs Waiwera, the parallel open-source geothermal flow simulator, via Docker',
+                        epilog=examples, formatter_class=argparse.RawDescriptionHelpFormatter)
+
+    parser.add_argument('filename', metavar='FILENAME', nargs='?',
+                        help='Waiwera input file name (must come after optional arguments)',
+                        default='')
+    parser.add_argument('waiwera_args', metavar='...', nargs=argparse.REMAINDER,
+                        help='additional arguments passed to Waiwera (must come last)')
+
+    # without default=1, mpiexec will utilise max num of processes within
+    # container, this can cause slow down small models, and crash very small
+    # models from examples
     parser.add_argument('-np', '--num_processes', help='the number of \
-                        processors to utilize, otherwise uses the docker \
-                        default for your system')
+                        processors to utilize, default is 1 (serial)',
+                        default=1)
+
     parser.add_argument('-r', '--repo',
                         default=REPO)
     parser.add_argument('-t', '--tag',
@@ -654,16 +694,17 @@ def main():
     parser.add_argument('-i', '--image', help='the docker image to use \
                         e.g. waiwera/waiwera:latest')
     parser.add_argument('-it','--interactive',
-                        help='starts an interactive terminal and does NOT run \
-                        mpiexec by default',
+                        help='starts an interactive terminal (and does not run Waiwera)',
                         action='store_true')
+
     group = parser.add_mutually_exclusive_group()
     group.add_argument('-nu','--noupdate',
-                    help='do not check for an updated waiwera image before running',
+                    help='do not check for an updated Waiwera image before running',
                     action='store_true')
     group.add_argument('-u','--update',
-                    help='pull an updated waiwera image and exit',
+                    help='pull an updated Waiwera image and exit',
                     action='store_true')
+
     parser.add_argument('-tv','--test_volume',
                     help='test docker --volume (bind mount) with current directory and exit',
                     action='store_true')
@@ -673,6 +714,9 @@ def main():
     parser.add_argument('-e','--examples',
                     help='create example models (./examples) at current directory and exit',
                     action='store_true')
+    parser.add_argument('--version',
+                    help='show PyWaiwera version, together with Waiwera version',
+                    action='store_true')
 
     if len(sys.argv)==1:
         parser.print_help(sys.stderr)
@@ -680,16 +724,43 @@ def main():
 
     args = parser.parse_args()
 
-    if args.waiwera_args:
-        if not args.interactive:
-            inok = input_file_ok(args.waiwera_args[0]) # first one always input.json
+    # early check (faster) on inputfile
+    if not args.interactive:
+        if args.filename:
+            inok = input_file_ok(args.filename) # first one always input.json
             if not inok:
                 exit(1)
+
+    if args.interactive:
+        # interactive assumes remainder arguments are commands to run container
+        #   waiwera-dkr -it
+        #     => docker run --interactive --tty waiwera/waiwera:latest /bin/bash
+        #   waiwera-dkr -it touch x
+        #     => docker run --interactive --tty waiwera/waiwera:latest touch x
+        if args.filename:
+            args.waiwera_args = [args.filename] + args.waiwera_args
+            args.filename = ''
+
 
     dkr = DockerEnv(check=True)
     # print('docker.exist', dkr.exists, 'dkr.running', dkr.running, 'dkr.is_toolbox', dkr.is_toolbox)
     if args.test_volume:
         dkr.run_ls_test()
+        exit(0)
+
+    if args.version:
+        accept_kws = ['waiwera_args', 'image', 'repo', 'tag',
+                      'num_processes', 'noupdate', 'verbose']
+        kw_run_waiwera = {k:v for k,v in vars(args).items() if k in accept_kws}
+        kw_run_waiwera['waiwera_args'] = ['--version']
+        kw_run_waiwera['get_output'] = True
+        v = dkr.run_waiwera(**kw_run_waiwera)
+        if args.image == None:
+            image = '{0}:{1}'.format(args.repo, args.tag)
+        else:
+            image = args.image
+        print('PyWaiwera {}'.format(common.__version__))
+        print('Waiwera {} (Docker image {})'.format(v.strip(), image))
         exit(0)
 
     if args.update:
@@ -704,10 +775,9 @@ def main():
         dkr.run_copy_examples(**kws)
         exit(0)
 
-    if args.waiwera_args or args.interactive:
-        # ONLY run with at least one waiwera_args (usually input .json file)
-        accept_kws = ['waiwera_args', 'image', 'repo', 'tag', 'num_processes',
-                      'interactive', 'noupdate', 'verbose']
+    if args.filename or args.interactive:
+        accept_kws = ['filename', 'waiwera_args', 'image', 'repo', 'tag',
+                      'num_processes', 'interactive', 'noupdate', 'verbose']
         kw_run_waiwera = {k:v for k,v in vars(args).items() if k in accept_kws}
         dkr.run_waiwera(**kw_run_waiwera)
 
