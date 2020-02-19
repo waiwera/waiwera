@@ -27,3 +27,6 @@ script:
   - python benchmark_tests.py -np 2
   - cd utils/pywaiwera
   - python -m unittest discover -v
+  - sudo pip install .
+  - cd ../..
+  - python benchmark_tests.py --docker -np 2
