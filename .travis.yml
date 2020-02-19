@@ -11,12 +11,12 @@ addons:
       - libmpich-dev
 
 install:
-  - sudo pip install ansible
-  - sudo pip install waiwera-credo
+  - pip install --user ansible
+  - pip install --user waiwera-credo
   - mkdir -p external/PyTOUGH
   - cd external/PyTOUGH
   - git clone https://github.com/acroucher/PyTOUGH.git .
-  - sudo pip install .
+  - pip install --user .
   - cd ../..
 
 script:
@@ -27,6 +27,6 @@ script:
   - python benchmark_tests.py -np 2
   - cd utils/pywaiwera
   - python -m unittest discover -v
-  - sudo pip install .
+  - pip install --user .
   - cd ../..
   - python benchmark_tests.py --docker -np 2
