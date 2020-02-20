@@ -1,20 +1,11 @@
 import setuptools
-import re
 
 with open("README.md", "r") as fh:
     long_description = fh.read()
 
-# use official waiwera version number from fortran source
-with open('../../src/version.F90', 'r') as fv:
-    matches = re.findall('waiwera_version += +"(.+?)"', fv.read())
-    if matches:
-        wai_version = matches[0]
-    else:
-        raise Exception('Unable to find waiwera version string.')
-
 setuptools.setup(
     name="pywaiwera",
-    version=wai_version,
+    version="1.1.0",
     author="Waiwera Project",
     author_email="waiwera.project@gmail.com",
     description="Python package for the Waiwera simulator",
