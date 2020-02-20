@@ -3,15 +3,21 @@
 # where version is a string containing the version, e.g. '1.2.3'.
 
 from __future__ import print_function
+from builtins import str
 import sys
 import os
+import re
+import io
 
 def output(found, filename, lines):
     """Writes lines to specified file if found is True, otherwise prints
     warning"""
     if found:
-        with open(filename, 'wt') as f:
-            f.writelines(lines)
+        with io.open(filename, 'wt', newline='\n', encoding='utf-8') as f:
+            if isinstance(lines, list):
+                f.write(str(''.join(lines))) # works for python 2
+            else:
+                f.write(str(lines))
     else:
         print('Could not find version in', filename)
 
@@ -78,6 +84,14 @@ def userdoc(version):
             else: lines.append(line)
     output(found_version and found_release, filename, lines)
 
+def pywaiwera(version):
+    """Update version in PyWaiwera's setup.py"""
+    filename = os.path.join('utils', 'pywaiwera', 'setup.py')
+    with open(filename, 'rt') as f:
+        lines, n_changed = re.subn(r'(\sversion *= *")(.+?)(")',
+                                   r'\g<1>{}\g<3>'.format(version), f.read())
+    output(n_changed == 1, filename, lines)
+
 version = sys.argv[1]
-for update in [meson, ford, src, userdoc]:
+for update in [meson, ford, src, userdoc, pywaiwera]:
     update(version)
