@@ -46,4 +46,4 @@ It is also possible to use the PyWaiwera package from within Python scripts. For
     import pywaiwera
     print(pywaiwera.__version__)
     env = pywaiwera.docker.DockerEnv()
-    env.run_waiwera(['input.json'])
+    env.run_waiwera('input.json')

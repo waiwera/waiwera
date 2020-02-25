@@ -97,7 +97,7 @@ Waiwera simulation, as in the following example:
    import pywaiwera
 
    env = pywaiwera.docker.DockerEnv()
-   env.run_waiwera(['model.json'])
+   env.run_waiwera('model.json')
 
 .. index:: running; native Linux executable
 .. _run_native:
