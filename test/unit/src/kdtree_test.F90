@@ -122,7 +122,7 @@ contains
     PetscInt :: i
 
     do i = 1, size(filenames)
-       call mesh_test_case(trim(adjustl(data_path)) // 'mesh' // &
+       call mesh_test_case(trim(adjustl(data_path)) // 'mesh/' // &
             trim(adjustl(filenames(i))))
     end do
 
