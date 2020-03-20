@@ -116,9 +116,9 @@ contains
 
     class(unit_test_type), intent(in out) :: test
     ! Locals:
-    character(24), parameter :: filenames(4) = &
-         [' col100.exo', '7x7grid.exo', '     2D.msh', &
-         ' triopt.msh']
+    character(24), parameter :: filenames(5) = &
+         ['   col100.exo', '  7x7grid.exo', '       2D.msh', &
+         '   triopt.msh', '3Drefined.msh']
     PetscInt :: i
 
     do i = 1, size(filenames)
