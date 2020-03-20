@@ -2,9 +2,9 @@ module kdtree_test
 
   ! Tests for k-d tree module
 
-#include <petsc/finclude/petscsys.h>
+#include <petsc/finclude/petsc.h>
 
-  use petscsys
+  use petsc
   use kinds_module
   use zofu
   use kdtree_module
@@ -12,8 +12,10 @@ module kdtree_test
   implicit none
   private
 
+  character(len = 512) :: data_path
+
   public :: setup, teardown
-  public :: test_kdtree_linear
+  public :: test_kdtree_linear, test_kdtree_mesh
 
 contains
 
@@ -25,9 +27,14 @@ contains
 
     ! Locals:
     PetscErrorCode :: ierr
+    PetscInt :: ios
 
     call PetscInitialize(PETSC_NULL_CHARACTER, ierr); CHKERRQ(ierr)
     call init_profiling()
+
+    call get_environment_variable('WAIWERA_TEST_DATA_PATH', &
+         data_path, status = ios)
+    if (ios /= 0) data_path = ''
 
   end subroutine setup
 
@@ -100,6 +107,102 @@ contains
     end subroutine linear_test_case
 
   end subroutine test_kdtree_linear
+
+!------------------------------------------------------------------------
+
+  subroutine test_kdtree_mesh(test)
+
+    !! Test k-d tree on mesh centroids
+
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
+    character(24), parameter :: filenames(4) = &
+         [' col100.exo', '7x7grid.exo', '     2D.msh', &
+         ' triopt.msh']
+    PetscInt :: i
+
+    do i = 1, size(filenames)
+       call mesh_test_case(trim(adjustl(data_path)) // 'mesh' // &
+            trim(adjustl(filenames(i))))
+    end do
+
+  contains
+
+    subroutine mesh_test_case(filename)
+
+      !! Test case for mesh centroids
+
+      use dm_utils_module, only: local_vec_section, section_offset
+      use cell_module, only: cell_type
+
+      character(*), intent(in) :: filename
+      ! Locals:
+      DM :: dm, dist_dm
+      PetscSF :: dist_sf
+      PetscErrorCode :: ierr
+      Vec :: cell_geom, face_geom
+      PetscReal, allocatable :: centroids(:, :), x(:)
+      PetscInt :: c, start_cell, end_cell, offset, i, n, dim
+      PetscSection :: cell_section
+      type(cell_type) :: cell
+      PetscReal, contiguous, pointer :: cell_geom_array(:)
+      type(kdtree_type) :: kdt
+      PetscInt, allocatable :: index(:), expected_index(:)
+      PetscErrorCode, allocatable :: err(:)
+      character(:), allocatable :: msg
+
+      call DMPlexCreateFromFile(PETSC_COMM_WORLD, filename, PETSC_TRUE, &
+            dm, ierr); CHKERRQ(ierr)
+      call DMPlexDistribute(dm, 1, dist_sf, dist_dm, ierr); CHKERRQ(ierr)
+      if (dist_dm .ne. PETSC_NULL_DM) then
+         dm = dist_dm
+      end if
+
+      call DMPlexComputeGeometryFVM(dm, cell_geom, face_geom, ierr); CHKERRQ(ierr)
+
+      call local_vec_section(cell_geom, cell_section)
+      call VecGetArrayReadF90(cell_geom, cell_geom_array, ierr); CHKERRQ(ierr)
+
+      call cell%init(1, 1)
+      call DMPlexGetHeightStratum(dm, 0, start_cell, end_cell, ierr)
+      CHKERRQ(ierr)
+      n = end_cell - start_cell
+      call DMGetDimension(dm, dim, ierr); CHKERRQ(ierr)
+      allocate(centroids(dim, n))
+      do c = start_cell, end_cell - 1
+         offset = section_offset(cell_section, c)
+         call cell%assign_geometry(cell_geom_array, offset)
+         i = c - start_cell + 1
+         centroids(:, i) = cell%centroid(1: dim)
+      end do
+
+      call cell%destroy()
+      call VecRestoreArrayReadF90(cell_geom, cell_geom_array, ierr); CHKERRQ(ierr)
+
+      call VecDestroy(cell_geom, ierr); CHKERRQ(ierr)
+      call VecDestroy(face_geom, ierr); CHKERRQ(ierr)
+      call PetscSFDestroy(dist_sf, ierr); CHKERRQ(ierr)
+      call DMDestroy(dm, ierr); CHKERRQ(ierr)
+
+      call kdt%init(centroids)
+      allocate(x(dim), index(n), expected_index(n), err(n))
+      msg = 'mesh ' // filename
+
+      do i = 1, n
+         x = centroids(:, i)
+         call kdt%search(x, index(i), err = err(i))
+         expected_index(i) = i
+      end do
+
+      call test%assert(index, expected_index, msg // ' indices')
+      call test%assert(all(err == 0), msg // ' error')
+
+      call kdt%destroy()
+      deallocate(centroids, x, index, expected_index, err)
+
+    end subroutine mesh_test_case
+
+  end subroutine test_kdtree_mesh
 
 !------------------------------------------------------------------------
 
