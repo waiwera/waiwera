@@ -92,7 +92,7 @@ contains
       end do
 
       call test%assert(index, expected_index, msg // ' indices')
-      call test%assert(err, [(0, i = 1, n)], msg // ' error')
+      call test%assert(all(err == 0), msg // ' error')
 
       call kdt%destroy()
       deallocate(data, x, index, expected_index, err)
