@@ -132,7 +132,8 @@ contains
 
       !! Test case for mesh centroids
 
-      use dm_utils_module, only: local_vec_section, section_offset
+      use dm_utils_module, only: local_vec_section, section_offset, &
+           dm_set_fv_adjacency, dm_set_default_data_layout
       use cell_module, only: cell_type
 
       character(*), intent(in) :: filename
@@ -142,7 +143,7 @@ contains
       PetscErrorCode :: ierr
       Vec :: cell_geom, face_geom
       PetscReal, allocatable :: centroids(:, :), x(:)
-      PetscInt :: c, start_cell, end_cell, offset, i, n, dim
+      PetscInt :: c, start_cell, end_cell, offset, i, n, dim, np
       PetscSection :: cell_section
       type(cell_type) :: cell
       PetscReal, contiguous, pointer :: cell_geom_array(:)
@@ -151,11 +152,18 @@ contains
       PetscErrorCode, allocatable :: err(:)
       character(:), allocatable :: msg
 
+      call MPI_comm_size(PETSC_COMM_WORLD, np, ierr)
+
       call DMPlexCreateFromFile(PETSC_COMM_WORLD, filename, PETSC_TRUE, &
-            dm, ierr); CHKERRQ(ierr)
-      call DMPlexDistribute(dm, 1, dist_sf, dist_dm, ierr); CHKERRQ(ierr)
-      if (dist_dm .ne. PETSC_NULL_DM) then
-         dm = dist_dm
+           dm, ierr); CHKERRQ(ierr)
+      call DMSetBasicAdjacency(dm, PETSC_TRUE, PETSC_FALSE, ierr)
+      if (np > 1) then
+         call DMPlexDistribute(dm, 1, dist_sf, dist_dm, ierr)
+         if (dist_dm .ne. PETSC_NULL_DM) then
+            call DMDestroy(dm, ierr)
+            dm = dist_dm
+            call PetscSFDestroy(dist_sf, ierr)
+         end if
       end if
 
       call DMPlexComputeGeometryFVM(dm, cell_geom, face_geom, ierr); CHKERRQ(ierr)
@@ -181,7 +189,6 @@ contains
 
       call VecDestroy(cell_geom, ierr); CHKERRQ(ierr)
       call VecDestroy(face_geom, ierr); CHKERRQ(ierr)
-      call PetscSFDestroy(dist_sf, ierr); CHKERRQ(ierr)
       call DMDestroy(dm, ierr); CHKERRQ(ierr)
 
       call kdt%init(centroids)
