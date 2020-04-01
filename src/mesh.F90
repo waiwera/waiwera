@@ -1877,7 +1877,7 @@ contains
     DM :: minc_dm
     PetscInt :: coord_dim, start_chart, end_chart
     PetscBool :: balance
-    PetscInt :: num_minc_cells, minc_end_interior_cell
+    PetscInt :: num_minc_cells
     PetscInt :: num_new_points, max_num_levels
     PetscInt, allocatable :: stratum_shift(:)
     PetscInt, allocatable :: minc_level_cells(:,:)
@@ -1909,11 +1909,6 @@ contains
          end_chart + num_new_points, ierr); CHKERRQ(ierr)
     call self%setup_minc_dm_strata_shifts(num_minc_cells, &
          max_num_levels, minc_level_cell_count, stratum_shift)
-
-    minc_end_interior_cell = self%strata(0)%end_interior + &
-         (stratum_shift(0) + 1) * num_minc_cells
-    call DMPlexSetGhostCellStratum(minc_dm, minc_end_interior_cell, -1, &
-         ierr); CHKERRQ(ierr)
     self%strata%num_minc_points = num_minc_cells
 
     call self%set_minc_dm_cone_sizes(minc_dm, num_minc_cells, &
