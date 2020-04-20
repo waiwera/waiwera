@@ -2122,7 +2122,8 @@ contains
 
   subroutine mesh_set_minc_dm_cones(self, minc_dm, max_num_levels, &
        minc_level_cells)
-    !! Sets cones and cone orientations for MINC DM.
+    !! Sets cones and cone orientations for MINC DM. Also sets cell type
+    !! for MINC cells.
 
     use dm_utils_module, only: dm_stratum_type, dm_copy_cone_orientation
 
@@ -2180,6 +2181,8 @@ contains
              end if
              call DMPlexSetCone(minc_dm, minc_p, minc_cone, ierr); CHKERRQ(ierr)
              deallocate(minc_cone)
+             call DMPlexSetCellType(minc_dm, minc_p, &
+                  DM_POLYTOPE_INTERIOR_GHOST, ierr); CHKERRQ(ierr)
              ! MINC DAG points for height h > 0:
              do h = 1, self%depth - 1
                 minc_p = self%strata(h)%minc_point(ic, m)
