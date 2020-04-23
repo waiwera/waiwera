@@ -819,6 +819,7 @@ contains
        call ISLocalToGlobalMappingApplyBlock(l2g, num_non_ghost_cells, &
             local, global, ierr)
        CHKERRQ(ierr)
+       deallocate(local)
     else ! serial:
        num_non_ghost_cells = end_interior_cell - start_cell
        end_non_ghost_cell = start_cell + num_non_ghost_cells
@@ -827,7 +828,7 @@ contains
     end if
     call AOCreateMapping(PETSC_COMM_WORLD, num_non_ghost_cells, natural, &
          global, ao, ierr); CHKERRQ(ierr)
-    deallocate(local, natural, global)
+    deallocate(natural, global)
 
   end function dm_get_natural_to_global_ao
 
