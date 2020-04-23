@@ -781,11 +781,13 @@ contains
     IS, intent(in) :: cell_natural
 
     PetscMPIInt :: np
-    PetscInt :: c, start_cell, end_cell, end_interior_cell, end_non_ghost_cell
-    PetscInt :: num_ghost_cells, num_non_ghost_cells
-    PetscInt, allocatable :: global(:), natural(:)
+    PetscInt :: c, ic, start_cell, end_cell
+    PetscInt :: end_interior_cell, end_non_ghost_cell
+    PetscInt :: num_ghost_cells, num_non_ghost_cells, ghost
+    PetscInt, allocatable :: local(:), global(:), natural(:)
     PetscInt, pointer :: cell_natural_array(:)
     ISLocalToGlobalMapping :: l2g
+    DMLabel :: ghost_label
     PetscErrorCode :: ierr
 
     call DMPlexGetHeightStratum(dm, 0, start_cell, end_cell, &
@@ -797,15 +799,25 @@ contains
        num_non_ghost_cells = end_interior_cell - start_cell - num_ghost_cells
        end_non_ghost_cell = start_cell + num_non_ghost_cells
        call DMGetLocalToGlobalMapping(dm, l2g, ierr); CHKERRQ(ierr)
-       allocate(natural(start_cell: end_non_ghost_cell - 1), &
+       allocate(local(start_cell: end_non_ghost_cell - 1), &
+            natural(start_cell: end_non_ghost_cell - 1), &
             global(start_cell: end_non_ghost_cell - 1))
        call ISGetIndicesF90(cell_natural, cell_natural_array, ierr)
        CHKERRQ(ierr)
-       natural = cell_natural_array(1: num_non_ghost_cells)
+       call DMGetLabel(dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
+       ic = start_cell
+       do c = start_cell, end_interior_cell - 1
+          call DMLabelGetValue(ghost_label, c, ghost, ierr); CHKERRQ(ierr)
+          if (ghost < 0) then
+             local(ic) = c
+             natural(ic) = cell_natural_array(c + 1)
+             ic = ic + 1
+          end if
+       end do
        call ISRestoreIndicesF90(cell_natural, cell_natural_array, ierr)
        CHKERRQ(ierr)
        call ISLocalToGlobalMappingApplyBlock(l2g, num_non_ghost_cells, &
-            [(c, c = start_cell, end_non_ghost_cell - 1)], global, ierr)
+            local, global, ierr)
        CHKERRQ(ierr)
     else ! serial:
        num_non_ghost_cells = end_interior_cell - start_cell
@@ -815,7 +827,7 @@ contains
     end if
     call AOCreateMapping(PETSC_COMM_WORLD, num_non_ghost_cells, natural, &
          global, ao, ierr); CHKERRQ(ierr)
-    deallocate(natural, global)
+    deallocate(local, natural, global)
 
   end function dm_get_natural_to_global_ao
 
