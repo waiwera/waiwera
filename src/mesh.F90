@@ -97,6 +97,7 @@ module mesh_module
      procedure :: set_minc_dm_cones => mesh_set_minc_dm_cones
      procedure :: setup_minc_dm_depth_label => mesh_setup_minc_dm_depth_label
      procedure :: transfer_labels_to_minc_dm => mesh_transfer_labels_to_minc_dm
+     procedure :: set_minc_dm_cell_types => mesh_set_minc_dm_cell_types
      procedure :: setup_minc_output_data => mesh_setup_minc_output_data
      procedure :: setup_minc_dm_cell_natural_global => mesh_setup_minc_dm_cell_natural_global
      procedure :: setup_minc_geometry => mesh_setup_minc_geometry
@@ -1919,6 +1920,7 @@ contains
 
     call DMPlexSymmetrize(minc_dm, ierr); CHKERRQ(ierr)
     call self%transfer_labels_to_minc_dm(minc_dm, max_num_levels)
+    call self%set_minc_dm_cell_types(minc_dm, max_num_levels, minc_level_cells)
     call self%setup_minc_dm_depth_label(minc_dm, max_num_levels, &
          minc_level_cells)
     call self%setup_minc_output_data(minc_dm, max_num_levels, minc_level_cells)
@@ -2181,8 +2183,6 @@ contains
              end if
              call DMPlexSetCone(minc_dm, minc_p, minc_cone, ierr); CHKERRQ(ierr)
              deallocate(minc_cone)
-             call DMPlexSetCellType(minc_dm, minc_p, &
-                  DM_POLYTOPE_INTERIOR_GHOST, ierr); CHKERRQ(ierr)
              ! MINC DAG points for height h > 0:
              do h = 1, self%depth - 1
                 minc_p = self%strata(h)%minc_point(ic, m)
@@ -2324,6 +2324,47 @@ contains
     end do
 
   end subroutine mesh_transfer_labels_to_minc_dm
+
+!------------------------------------------------------------------------
+
+  subroutine mesh_set_minc_dm_cell_types(self, minc_dm, max_num_levels, &
+       minc_level_cells)
+    !! Set cell types for MINC cells. Types for fracture and non-MINC
+    !! cells should be set automatically as the cell type label is
+    !! copied from the original DM.
+
+    class(mesh_type), intent(in out) :: self
+    DM, intent(in out) :: minc_dm
+    PetscInt, intent(in) :: max_num_levels
+    PetscInt, intent(in) :: minc_level_cells(max_num_levels, &
+         self%strata(0)%start: self%strata(0)%end - 1)
+    ! Locals:
+    PetscInt :: ic, minc_p
+    PetscInt :: iminc, m, c, ghost
+    DMLabel :: minc_zone_label, ghost_label
+    PetscErrorCode :: ierr
+
+    call DMGetLabel(self%dm, minc_zone_label_name, minc_zone_label, &
+         ierr); CHKERRQ(ierr)
+    call DMGetLabel(self%dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
+
+    do c = self%strata(0)%start, self%strata(0)%end - 1
+
+       minc_p = self%strata(0)%minc_point(c, 0)
+       call DMLabelGetValue(minc_zone_label, c, iminc, ierr); CHKERRQ(ierr)
+       call DMLabelGetValue(ghost_label, c, ghost, ierr)
+       if ((iminc > 0) .and. (ghost < 0)) then
+          do m = 1, self%minc(iminc)%num_levels
+             ic = minc_level_cells(m, c)
+             minc_p = self%strata(0)%minc_point(ic, m)
+             call DMPlexSetCellType(minc_dm, minc_p, DM_POLYTOPE_INTERIOR_GHOST, &
+                  ierr); CHKERRQ(ierr)
+          end do
+       end if
+
+    end do
+
+  end subroutine mesh_set_minc_dm_cell_types
 
 !------------------------------------------------------------------------
 
