@@ -29,7 +29,7 @@ module dm_utils_module
      !! Type for point stratum (cells, faces, edges or vertices) in a
      !! DM. This includes functionality for MINC DM point calculations.
      private
-     PetscInt, public :: start, end, end_interior, end_non_ghost
+     PetscInt, public :: start, end, end_interior
      PetscInt, public, allocatable :: minc_shift(:)
      PetscInt, public :: num_minc_points, num_partition_ghosts
    contains
@@ -123,18 +123,14 @@ contains
   PetscInt function dm_stratum_minc_point_single(self, p, m) &
        result(minc_p)
     !! Returns point for MINC level m in MINC DM corresponding to
-    !! point p in original DM. Partition ghost cells are shifted up by
-    !! the number of MINC points in the stratum. For MINC points (m >
-    !! 0), p should be the index of the fracture cell in the list of
-    !! fracture cells for the given MINC level.
+    !! point p in original DM. For MINC points (m > 0), p should be
+    !! the index of the fracture cell in the list of fracture cells
+    !! for the given MINC level.
 
     class(dm_stratum_type), intent(in) :: self
     PetscInt, intent(in) :: p, m
 
     minc_p = p + self%minc_shift(m)
-    if ((m == 0) .and. (p >= self%end_non_ghost)) then
-       minc_p = minc_p + self%num_minc_points
-    end if
 
   end function dm_stratum_minc_point_single
 
@@ -188,12 +184,9 @@ contains
        strata(0)%end_interior = end_interior_cell
     end if
 
-    if (np == 1) then
-       strata%end_non_ghost = strata%end
-    else
+    if (np > 1) then
        do h = 0, depth
           strata(h)%num_partition_ghosts = dm_get_num_partition_ghost_points(dm, h)
-          strata(h)%end_non_ghost = strata(h)%end - strata(h)%num_partition_ghosts
        end do
     end if
 
