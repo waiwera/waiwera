@@ -2124,8 +2124,7 @@ contains
 
   subroutine mesh_set_minc_dm_cones(self, minc_dm, max_num_levels, &
        minc_level_cells)
-    !! Sets cones and cone orientations for MINC DM. Also sets cell type
-    !! for MINC cells.
+    !! Sets cones and cone orientations for MINC DM.
 
     use dm_utils_module, only: dm_stratum_type, dm_copy_cone_orientation
 
