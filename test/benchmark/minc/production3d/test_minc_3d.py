@@ -55,10 +55,8 @@ WAIWERA_FIELDMAP = {
     'Generation rate': 'source_rate'}
 
 model_dir = './run'
-t2geo_filename = os.path.join(model_dir, 'g' + model_name + '.dat')
-geo = mulgrid(t2geo_filename)
 
-def minc_level_map(num_levels, num_minc_cells):
+def minc_level_map(geo, num_levels, num_minc_cells):
     # return mapping to reorder AUTOUGH2 cells into MINC levels, as in Waiwera
     m = list(range(geo.num_atmosphere_blocks, geo.num_blocks))
     for l in range(num_levels):
@@ -68,7 +66,7 @@ def minc_level_map(num_levels, num_minc_cells):
         m += level_map
     return m
 
-run_names = ['MINC']
+run_names = ['base', 'refined']
 
 test_fields = ['Pressure', 'Temperature', 'Vapour saturation']
 plot_fields = test_fields
@@ -83,9 +81,19 @@ minc_production_test.description = """3-D MINC production problem, with well on 
 time-dependent productivity index and steam flow limiter.
 """
 
+obs_cell_elev = -1000.
+obs_position = np.array([10., 10., obs_cell_elev])
+obs_cell_index = {}
+source_index = -1
+t2geo_filename = {}
+geo = {}
+
 for run_index, run_name in enumerate(run_names):
     base_path = os.path.realpath(model_dir)
-    run_base_name = model_name
+    run_base_name = model_name + '_' + run_name
+    t2geo_filename[run_name] = os.path.join(model_dir, 'g' + run_base_name + '.dat')
+    block_order = 'dmplex' if run_name == 'refined' else 'layer_column'
+    geo[run_name] = mulgrid(t2geo_filename[run_name], block_order = block_order)
     run_filename = run_base_name + '.json'
     model_run = WaiweraModelRun(run_name, run_filename,
                                 fieldname_map = WAIWERA_FIELDMAP,
@@ -94,17 +102,15 @@ for run_index, run_name in enumerate(run_names):
     model_run.jobParams['nproc'] = args.np
     minc_production_test.mSuite.addRun(model_run, run_name)
 
-obs_cell_elev = -1000.
-obs_position = np.array([10., 10., obs_cell_elev])
-obs_blk = geo.block_name_containing_point(obs_position)
-obs_cell_index = geo.block_name_index[obs_blk] - geo.num_atmosphere_blocks
-source_index = -1
+    obs_blk = geo[run_name].block_name_containing_point(obs_position)
+    obs_cell_index[run_name] = geo[run_name].block_name_index[obs_blk] - \
+                               geo[run_name].num_atmosphere_blocks
 
 minc_production_test.setupEmptyTestCompsList()
 AUTOUGH2_result = {}
 
 for run_index, run_name in enumerate(run_names):
-    run_base_name = model_name
+    run_base_name = model_name + '_' + run_name
     results_filename = os.path.join(model_dir, run_base_name + ".listing")
     run_filename = run_base_name + '.json'
     inp = json.load(open(os.path.join(base_path, run_filename)))
@@ -113,11 +119,12 @@ for run_index, run_name in enumerate(run_names):
     else: num_levels = 0
     lst = t2listing(results_filename)
     lst.last()
-    num_minc_cells = lst.element.num_rows - geo.num_blocks
+    num_minc_cells = lst.element.num_rows - geo[run_name].num_blocks
     AUTOUGH2_result[run_name] = T2ModelResult("AUTOUGH2", results_filename,
-                                              geo_filename = t2geo_filename,
+                                              geo_filename = t2geo_filename[run_name],
                                               fieldname_map = AUTOUGH2_FIELDMAP,
-                                              ordering_map = minc_level_map(num_levels,
+                                              ordering_map = minc_level_map(geo[run_name],
+                                                                            num_levels,
                                                                             num_minc_cells))
     minc_production_test.addTestComp(run_index, "AUTOUGH2",
                       FieldWithinTolTC(fieldsToTest = test_fields,
@@ -129,7 +136,7 @@ for run_index, run_name in enumerate(run_names):
                           HistoryWithinTolTC(fieldsToTest = test_fields,
                                              defFieldTol = 0.01,
                                              expected = AUTOUGH2_result[run_name],
-                                             testCellIndex = obs_cell_index))
+                                             testCellIndex = obs_cell_index[run_name]))
 
     minc_production_test.addTestComp(run_index, "AUTOUGH2 source",
                           HistoryWithinTolTC(fieldsToTest = test_source_fields,
@@ -147,11 +154,12 @@ for field_name in plot_fields:
     unit = field_unit[field_name]
     for run_index, run_name in enumerate(run_names):
         t, var = minc_production_test.mSuite.resultsList[run_index].\
-                 getFieldHistoryAtCell(field_name, obs_cell_index)
-        plt.plot(t / yr, var / scale, '-', label = 'Waiwera', zorder = 3)
+                 getFieldHistoryAtCell(field_name, obs_cell_index[run_name])
+        plt.plot(t / yr, var / scale, '-', label = 'Waiwera (%s)' % run_name, zorder = 3)
 
-        t, var = AUTOUGH2_result[run_name].getFieldHistoryAtCell(field_name, obs_cell_index)
-        plt.plot(t[::3] / yr, var[::3] / scale, 's', label = 'AUTOUGH2', zorder = 2)
+        t, var = AUTOUGH2_result[run_name].getFieldHistoryAtCell(field_name,
+                                                                 obs_cell_index[run_name])
+        plt.plot(t[::3] / yr, var[::3] / scale, 's', label = 'AUTOUGH2 (%s)' % run_name, zorder = 2)
 
         plt.xlabel('time (years)')
         plt.ylabel(field_name + ' (' + unit + ')')
@@ -174,10 +182,10 @@ for field_name in test_source_fields:
     for run_index, run_name in enumerate(run_names):
         t, var = minc_production_test.mSuite.resultsList[run_index].\
                  getFieldHistoryAtSource(field_name, source_index)
-        plt.plot(t / yr, var / scale, '-', label = 'Waiwera', zorder = 3)
+        plt.plot(t / yr, var / scale, '-', label = 'Waiwera (%s)' % run_name, zorder = 3)
 
         t, var = AUTOUGH2_result[run_name].getFieldHistoryAtSource(field_name, source_index)
-        plt.plot(t[::3] / yr, var[::3] / scale, 's', label = 'AUTOUGH2', zorder = 2)
+        plt.plot(t[::3] / yr, var[::3] / scale, 's', label = 'AUTOUGH2 (%s)' % run_name, zorder = 2)
 
         plt.xlabel('time (years)')
         plt.ylabel(field_name + ' (' + unit + ')')

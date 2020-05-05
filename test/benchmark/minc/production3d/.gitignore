@@ -1,5 +1,5 @@
 run/*
-!run/gminc_3d.*
+!run/gminc_3d*.*
 !run/*.json
 !run/*.listing
 output/
