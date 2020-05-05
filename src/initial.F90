@@ -319,9 +319,9 @@ contains
                 offset =  global_section_offset(fluid_section, c, fluid_range_start)
                 call fluid%assign(fluid_array, offset)
                 fluid%region = dble(region_indices(i))
-                i = i + 1
              end if
           end if
+          i = i + 1
        end do
 
        call VecRestoreArrayF90(fluid_vector, fluid_array, ierr); CHKERRQ(ierr)
