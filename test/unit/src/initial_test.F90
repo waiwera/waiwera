@@ -18,6 +18,7 @@ module initial_test
 
   public :: setup, teardown
   public :: test_initial, test_initial_region
+  public :: test_initial_hybrid_mesh
   ! public :: test_setup_initial_hdf5
 
 contains
@@ -53,8 +54,9 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine primary_variables(z, g, primary)
-    !! Return primary variables as function of elevation z.
+  subroutine column_primary_variables(z, g, primary)
+    !! Return primary variables for column mesh as function of
+    !! elevation z.
 
     PetscReal, intent(in) :: z, g
     PetscReal, intent(out) :: primary(:)
@@ -67,7 +69,7 @@ contains
       temperature = T0 - dtdz * z
     end associate
 
-  end subroutine primary_variables
+  end subroutine column_primary_variables
 
 !------------------------------------------------------------------------
 
@@ -77,11 +79,8 @@ contains
     class(unit_test_type), intent(in out) :: test
     ! Locals:
     character(:), allocatable :: json_str
-    PetscMPIInt :: rank
     character(:), allocatable :: initial_primary_json
     PetscErrorCode :: ierr
-
-    call MPI_comm_rank(PETSC_COMM_WORLD, rank, ierr)
 
     ! HDF5 initial tests:
 
@@ -298,7 +297,7 @@ contains
             cell_geom_offset = section_offset(cell_geom_section, c)
             call cell%assign_geometry(cell_geom_array, cell_geom_offset)
             associate(z => cell%centroid(3))
-              call primary_variables(z, gravity(3), expected_primary)
+              call column_primary_variables(z, gravity(3), expected_primary)
             end associate
             y_offset = global_section_offset(y_section, c, y_range_start)
             primary => y_array(y_offset: y_offset + eos%num_primary_variables - 1)
@@ -451,7 +450,7 @@ contains
           cell_geom_offset = section_offset(cell_geom_section, c)
           call cell%assign_geometry(cell_geom_array, cell_geom_offset)
           associate(z => cell%centroid(3))
-            call primary_variables(z, gravity(3), primary)
+            call column_primary_variables(z, gravity(3), primary)
           end associate
           fluid%region = region
           call eos%bulk_properties(primary, fluid, err)
@@ -600,6 +599,222 @@ contains
   call logfile%destroy()
 
   end subroutine test_initial_region
+
+!------------------------------------------------------------------------
+
+  subroutine test_initial_hybrid_mesh(test)
+    ! Initial conditions on hybrid mesh
+
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
+    character(:), allocatable :: json_str
+    character(:), allocatable :: initial_primary_json, initial_region_json
+    PetscErrorCode :: ierr
+
+    initial_primary_json = &
+         '[10.e5, 43.4375], ' // &
+         '[10.e5, 27.8125], ' // &
+         '[10.e5, 74.6875], ' // &
+         '[10.e5, 59.0625], ' // &
+         '[10.e5, 22.77777778], ' // &
+         '[10.e5, 33.88888889], ' // &
+         '[10.e5, 24.16666667], ' // &
+         '[10.e5, 39.44444444], ' // &
+         '[10.e5, 50.55555556], ' // &
+         '[10.e5, 32.5000]'
+
+    ! Clearly unphysical regions (chosen so each cell's region is unique):
+    initial_region_json = '33, 8, 83, 58, 1, 35, 16, 51, 85, 66'
+
+    json_str = &
+         '{"mesh": {"filename": "' // trim(adjustl(data_path)) // &
+         'mesh/hybrid10.msh"},' // &
+         ' "eos": {"name": "we"}, ' // &
+         '   "initial": {"primary": [' // &
+              initial_primary_json // &
+         '    ] , "region": [' // initial_region_json // ']}}'
+    call initial_test_case('no bdy', json_str)
+
+    json_str = &
+         '{"mesh": {"filename": "' // trim(adjustl(data_path)) // &
+         'mesh/hybrid10.msh"},' // &
+         ' "boundaries": [{"faces": {"cells": [0,1,2,3], "normal": [1, 0, 0]}}], ' // &
+         ' "eos": {"name": "we"}, ' // &
+         '   "initial": {"primary": [' // &
+              initial_primary_json // &
+         '    ] , "region": [' // initial_region_json // ']}}'
+    call initial_test_case('hex bdy', json_str)
+
+    json_str = &
+         '{"mesh": {"filename": "' // trim(adjustl(data_path)) // &
+         'mesh/hybrid10.msh"},' // &
+         ' "boundaries": [{"faces": {"cells": [6,9], "normal": [-1, 0, 0]}}], ' // &
+         ' "eos": {"name": "we"}, ' // &
+         '   "initial": {"primary": [' // &
+              initial_primary_json // &
+         '    ] , "region": [' // initial_region_json // ']}}'
+    call initial_test_case('wedge bdy', json_str)
+
+    json_str = &
+         '{"mesh": {"filename": "' // trim(adjustl(data_path)) // &
+         'mesh/hybrid10.msh",' // &
+         '          "zones": {"all": {"-": null}},' // &
+         '          "minc": {"rock": {"zones": ["all"]}, ' // &
+         '                   "geometry": {"fracture": {"volume": 0.1}, ' // &
+         '                      "matrix": {"volume": [0.3, 0.6]}}}},' // &
+         ' "eos": {"name": "we"}, ' // &
+         '   "initial": {"primary": [' // &
+              initial_primary_json // &
+              '    ] , "region": [' // initial_region_json // '], ' // &
+              '"minc": false}}'
+    call initial_test_case('MINC no bdy', json_str)
+
+    json_str = &
+         '{"mesh": {"filename": "' // trim(adjustl(data_path)) // &
+         'mesh/hybrid10.msh",' // &
+         '          "zones": {"all": {"-": null}},' // &
+         '          "minc": {"rock": {"zones": ["all"]}, ' // &
+         '                   "geometry": {"fracture": {"volume": 0.1}, ' // &
+         '                      "matrix": {"volume": [0.3, 0.6]}}}},' // &
+         ' "boundaries": [{"faces": {"cells": [0,1,2,3], "normal": [1, 0, 0]}}], ' // &
+         ' "eos": {"name": "we"}, ' // &
+         '   "initial": {"primary": [' // &
+              initial_primary_json // &
+              '    ] , "region": [' // initial_region_json // '], ' // &
+              '"minc": false}}'
+    call initial_test_case('MINC bdy', json_str)
+    
+  contains
+
+    subroutine initial_test_case(name, json_str)
+
+      use IAPWS_module
+      use eos_we_module
+      use mesh_module
+      use eos_module, only: max_component_name_length, &
+           max_phase_name_length
+      use fluid_module, only: fluid_type, create_fluid_vector
+      use dm_utils_module
+      use relative_permeability_module, only: relative_permeability_corey_type
+      use capillary_pressure_module, only: capillary_pressure_zero_type
+      use cell_module, only: cell_type
+      use logfile_module
+
+      character(*), intent(in) :: name
+      character(*), intent(in) :: json_str
+      ! Locals:
+      type(fson_value), pointer :: json
+      type(IAPWS_type) :: thermo
+      type(eos_we_type) :: eos
+      type(mesh_type) :: mesh
+      PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
+      Vec :: fluid_vector, y
+      PetscInt :: y_range_start, fluid_range_start
+      PetscInt :: start_cell, end_cell, end_interior_cell
+      PetscInt :: c, ghost, fluid_offset, cell_geom_offset, y_offset
+      PetscSection :: fluid_section, cell_geom_section, y_section
+      PetscReal, pointer, contiguous :: fluid_array(:), y_array(:)
+      DMLabel :: ghost_label
+      type(fluid_type) :: fluid
+      PetscReal, allocatable :: expected_primary(:)
+      PetscInt :: expected_region
+      PetscReal, pointer, contiguous :: primary(:)
+      PetscReal, pointer, contiguous :: cell_geom_array(:)
+      type(cell_type) :: cell
+      PetscReal :: t
+      type(logfile_type) :: logfile
+      PetscErrorCode :: err
+
+      json => fson_parse_mpi(str = json_str)
+      call logfile%init('', echo = PETSC_FALSE)
+
+      call thermo%init()
+      call eos%init(json, thermo)
+      call mesh%init(eos, json)
+      call mesh%configure(gravity, json, err = err)
+      call DMCreateGlobalVector(mesh%dm, y, ierr); CHKERRQ(ierr)
+      call PetscObjectSetName(y, "primary", ierr); CHKERRQ(ierr)
+      call global_vec_range_start(y, y_range_start)
+
+      call create_fluid_vector(mesh%dm, max_component_name_length, &
+           eos%component_names, max_phase_name_length, &
+           eos%phase_names, fluid_vector, fluid_range_start)
+
+      t = 0._dp
+      call setup_initial(json, mesh, eos, t, y, fluid_vector, &
+           y_range_start, fluid_range_start, logfile)
+
+      call global_vec_section(fluid_vector, fluid_section)
+      call VecGetArrayF90(fluid_vector, fluid_array, ierr); CHKERRQ(ierr)
+      call global_vec_section(y, y_section)
+      call VecGetArrayF90(y, y_array, ierr); CHKERRQ(ierr)
+
+      call fson_destroy_mpi(json)
+      call mesh%destroy_distribution_data()
+
+      call DMPlexGetHeightStratum(mesh%dm, 0, start_cell, end_cell, ierr)
+      CHKERRQ(ierr)
+      end_interior_cell = dm_get_end_interior_cell(mesh%dm, end_cell)
+      call DMGetLabel(mesh%dm, "ghost", ghost_label, ierr)
+      CHKERRQ(ierr)
+      call fluid%init(eos%num_components, eos%num_phases)
+      allocate(expected_primary(eos%num_primary_variables))
+
+      call local_vec_section(mesh%cell_geom, cell_geom_section)
+      call VecGetArrayReadF90(mesh%cell_geom, cell_geom_array, ierr)
+      CHKERRQ(ierr)
+      call cell%init(eos%num_components, eos%num_phases)
+
+      do c = start_cell, end_interior_cell - 1
+         call DMLabelGetValue(ghost_label, c, ghost, ierr); CHKERRQ(ierr)
+         if (ghost < 0) then
+            fluid_offset = global_section_offset(fluid_section, c, &
+                 fluid_range_start)
+            call fluid%assign(fluid_array, fluid_offset)
+            cell_geom_offset = section_offset(cell_geom_section, c)
+            call cell%assign_geometry(cell_geom_array, cell_geom_offset)
+            call get_expected(cell%centroid, expected_primary, expected_region)
+            y_offset = global_section_offset(y_section, c, y_range_start)
+            primary => y_array(y_offset: y_offset + eos%num_primary_variables - 1)
+            call test%assert(expected_primary, primary, &
+                 name // ': primary')
+            call test%assert(expected_region, nint(fluid%region), &
+                 name // ': region')
+         end if
+      end do
+
+      call VecRestoreArrayReadF90(mesh%cell_geom, cell_geom_array, ierr)
+      CHKERRQ(ierr)
+      call fluid%destroy()
+      call VecRestoreArrayF90(fluid_vector, fluid_array, ierr); CHKERRQ(ierr)
+      call VecRestoreArrayF90(y, y_array, ierr); CHKERRQ(ierr)
+
+      call VecDestroy(fluid_vector, ierr); CHKERRQ(ierr)
+      call VecDestroy(y, ierr); CHKERRQ(ierr)
+      call mesh%destroy()
+      call eos%destroy()
+      call thermo%destroy()
+      call cell%destroy()
+      call logfile%destroy()
+      deallocate(expected_primary)
+
+    end subroutine initial_test_case
+
+    subroutine get_expected(centroid, primary, region)
+
+      PetscReal, intent(in) :: centroid(:)
+      PetscReal, intent(out) :: primary(:)
+      PetscInt, intent(out) :: region
+
+      associate(x => centroid(1), y => centroid(2))
+        primary(1) = 10.e5
+        primary(2) = 20._dp + 100._dp * x * y
+        region = int(10 * x + 100 * y) - 10
+      end associate
+
+    end subroutine get_expected
+
+  end subroutine test_initial_hybrid_mesh
 
 !------------------------------------------------------------------------
 
