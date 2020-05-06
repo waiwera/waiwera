@@ -805,6 +805,20 @@ contains
          '}'
     call minc_test('rocktype', json_str, 2, 133, 2, [49, 49, 35])
 
+    json_str = &
+         '{"mesh": {"filename": "' // trim(adjustl(data_path)) // 'mesh/hybrid10.msh",' // &
+         '  "zones": {"all": {"-": null}},' // &
+         '  "minc": {"rock": {"zones": ["all"]}, ' // &
+         '           "geometry": {"fracture": {"volume": 0.1}}}}}'
+    call minc_test('hybrid all', json_str, 1, 2 * 10, 1, [10, 10])
+
+    json_str = &
+         '{"mesh": {"filename": "' // trim(adjustl(data_path)) // 'mesh/hybrid10.msh",' // &
+         '  "zones": {"left": {"x": [0, 0.5]}},' // &
+         '  "minc": {"rock": {"zones": ["left"]}, ' // &
+         '           "geometry": {"matrix": {"volume": 0.9}}}}}'
+    call minc_test('hybrid partial', json_str, 1, 16, 1, [10, 6])
+
   contains
 
 !........................................................................
@@ -1045,7 +1059,6 @@ contains
          '    "cells": [21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,' // &
          '    36,37,38,39,40,41,42,43,44,45,46,47,48]},' // &
          '  ]}}'
-
     call rock_test_case(json_str, [21, 28], "cells")
 
     json_str = &
@@ -1060,7 +1073,6 @@ contains
          '  {"name": "rock2", "porosity": 0.2, ' // &
          '    "zones": ["right_zone"]}' // &
          '  ]}}'
-
     call rock_test_case(json_str, [35, 14], "zones")
 
     json_str = &
@@ -1077,8 +1089,31 @@ contains
          '  {"name": "rock2", "porosity": 0.2, ' // &
          '    "zones": ["zone4"]}' // &
          '  ]}}'
-
     call rock_test_case(json_str, [31, 18], "zones")
+
+    json_str = &
+         '{"mesh": {"filename": "' // trim(adjustl(data_path)) // 'mesh/hybrid10.msh"}, ' // &
+         '"rock": {"types": [' // &
+         '  {"name": "rock1", "porosity": 0.1, ' // &
+         '   "cells": [0,3,5,7]},' // &
+         '  {"name": "rock2", "porosity": 0.2, ' // &
+         '    "cells": [1,2,4,6,8,9]}' // &
+         '  ]}}'
+    call rock_test_case(json_str, [4, 6], "hybrid cells")
+
+    json_str = &
+         '{"mesh": {"filename": "' // trim(adjustl(data_path)) // 'mesh/hybrid10.msh", ' // &
+         '"zones": {' // &
+         '"left_zone": {"x": [0, 0.5]},' // &
+         '"right_zone": {"-": "left_zone"}' // &
+         '}}, ' // &
+         '"rock": {"types": [' // &
+         '  {"name": "rock1", "porosity": 0.1, ' // &
+         '   "zones": ["left_zone"]}, ' // &
+         '  {"name": "rock2", "porosity": 0.2, ' // &
+         '    "zones": ["right_zone"]}' // &
+         '  ]}}'
+    call rock_test_case(json_str, [6, 4], "hybrid zones")
 
   contains
 
@@ -1374,7 +1409,7 @@ contains
 
     json_str = '{"mesh": {' // &
          '"filename": "' // trim(adjustl(data_path)) // 'mesh/7x7grid.exo"}}'
-    call cell_natural_global_test_case(json_str, ' no bdy')
+    call cell_natural_global_test_case(json_str, 'no bdy')
 
     json_str = '{"mesh": {' // &
          '"filename": "' // trim(adjustl(data_path)) // 'mesh/7x7grid.exo"}, ' // &
@@ -1382,6 +1417,17 @@ contains
          '  "normal": [0, -1, 0]}}]' // &
          '}'
     call cell_natural_global_test_case(json_str, 'bdy')
+
+    json_str = '{"mesh": {' // &
+         '"filename": "' // trim(adjustl(data_path)) // 'mesh/hybrid10.msh"}}'
+    call cell_natural_global_test_case(json_str, 'hybrid no bdy')
+
+    json_str = '{"mesh": {' // &
+         '"filename": "' // trim(adjustl(data_path)) // 'mesh/hybrid10.msh"}, ' // &
+         '"boundaries": [{"faces": {"cells": [4, 5, 6, 7, 8, 9], ' // &
+         '  "normal": [-1, 0, 0]}}]' // &
+         '}'
+    call cell_natural_global_test_case(json_str, 'hybrid bdy')
 
   contains
 
@@ -1670,6 +1716,14 @@ contains
     call global_to_fracture_natural_test_case(test, json_str, 'MINC partial no bdy', &
          [0, 10, 46, 49, 58], [0, 10, 46, 0, 11], [0, 0, 0, 1, 1])
 
+    json_str = &
+         '{"mesh": {"filename": "' // trim(adjustl(data_path)) // 'mesh/hybrid10.msh",' // &
+         '  "zones": {"nw": {"x": [0.5, 0.75], "y": [0.5, 1.0]}},' // &
+         '  "minc": {"rock": {"zones": ["nw"]}, ' // &
+         '           "geometry": {"fracture": {"volume": 0.1}}}}}'
+    call global_to_fracture_natural_test_case(test, json_str, 'hybrid MINC partial no bdy', &
+         [0, 7, 10, 11], [0, 7, 2, 3], [0, 0, 1, 1])
+
   contains
 
     subroutine global_to_fracture_natural_test_case(test, json_str, title, &
@@ -1795,6 +1849,22 @@ contains
          '  "normal": [0, 0, 1]}}]' // &
          '}'
     call redistribute_test(test, json_str, 'col bdy', 1, 20, 2, [10, 5, 5], 1)
+
+    json_str = &
+         '{"mesh": {"filename": "' // trim(adjustl(data_path)) // 'mesh/hybrid10.msh",' // &
+         '  "zones": {"all": {"-": null}},' // &
+         '  "minc": {"rock": {"zones": ["all"]}, ' // &
+         '           "geometry": {"fracture": {"volume": 0.1}}}}}'
+    call redistribute_test(test, json_str, 'hybrid all', 1, 2 * 10, 1, [10, 10], 0)
+
+    json_str = &
+         '{"mesh": {"filename": "' // trim(adjustl(data_path)) // 'mesh/hybrid10.msh",' // &
+         '  "zones": {"nw": {"x": [0, 0.5], "y": [0.5, 1.0]}, "minc": {"-": "nw"}},' // &
+         '  "minc": {"rock": {"zones": ["minc"]}, ' // &
+         '           "geometry": {"matrix": {"volume": [0.3, 0.6]}}}},' // &
+         '"boundaries": [{"faces": {"cells": [6, 9], ' // &
+         '  "normal": [0, 0, 1]}}]}'
+    call redistribute_test(test, json_str, 'hybrid partial bdy', 1, 10 + 14, 2, [10, 7, 7], 2)
 
   contains
 
