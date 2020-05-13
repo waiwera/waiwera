@@ -102,7 +102,7 @@ Mesh coordinate systems
 3-D Cartesian meshes
 --------------------
 
-This is the default mesh type. PETSc's DMPlex implementation supports most common 3-D element types such as 8-node hexahedral ("brick") and 4-node tetrahedral elements, but does not currently support 6-node prism (or "wedge") elements.
+This is the default mesh type. PETSc's DMPlex implementation supports most common 3-D cell types such as 8-node hexahedral ("brick") cells, 6-node prism (or "wedge") and 4-node tetrahedral cells.
 
 .. index:: mesh; 2-D Cartesian
 .. _2d_mesh:
@@ -135,6 +135,16 @@ For example:
   {"mesh": {"filename": "cylindrical.msh", "radial": true}}
 
 In this case, the mesh is interpreted as being in :math:`r-z` (cylindrical) coordinates.
+
+.. index:: mesh; cell ordering
+.. _mesh_cell_ordering:
+
+Mesh cell ordering
+==================
+
+For meshes containing multiple cell types, DMPlex will sort the mesh cells according to type (for numerical efficiency reasons). For example, a mesh made up of hexahedral and wedge cells will be sorted so that hexahedral cells will all come first, followed by the wedge cells.
+
+This has implications when cell indices are used to refer to specific cells in the Waiwera input JSON file (for example, for defining rock properties, source terms or boundary conditions). These indices must reference the cell ordering used by DMPlex, with cells sorted by type.
 
 .. index:: mesh; orthogonality
 .. _mesh_orthogonality:
