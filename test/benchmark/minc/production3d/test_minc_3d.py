@@ -92,8 +92,7 @@ for run_index, run_name in enumerate(run_names):
     base_path = os.path.realpath(model_dir)
     run_base_name = model_name + '_' + run_name
     t2geo_filename[run_name] = os.path.join(model_dir, 'g' + run_base_name + '.dat')
-    block_order = 'dmplex' if run_name == 'refined' else 'layer_column'
-    geo[run_name] = mulgrid(t2geo_filename[run_name], block_order = block_order)
+    geo[run_name] = mulgrid(t2geo_filename[run_name])
     run_filename = run_base_name + '.json'
     model_run = WaiweraModelRun(run_name, run_filename,
                                 fieldname_map = WAIWERA_FIELDMAP,
