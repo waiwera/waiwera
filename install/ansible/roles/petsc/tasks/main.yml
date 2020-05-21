@@ -54,11 +54,6 @@
         make:
           target: check
           chdir: "{{ petsc_path }}"
-
-      - name: Make test
-        make:
-          target: test
-          chdir: "{{ petsc_path }}"
       tags:
         - make
         - build
