@@ -25,8 +25,3 @@ script:
   - cd ..
   - python unit_tests.py
   - python benchmark_tests.py -np 2
-  - cd utils/pywaiwera
-  - python -m unittest discover -v
-  - pip install --user .
-  - cd ../..
-  - python benchmark_tests.py --docker -np 2
