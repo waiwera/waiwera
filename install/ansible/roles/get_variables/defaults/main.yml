@@ -41,7 +41,7 @@ pip_install:
 
 pip_ex: pip3
 
-meson_version: meson
+meson_version: meson==0.51
 
 petsc_options:
   - download-fblaslapack
