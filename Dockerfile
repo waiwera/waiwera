@@ -1,5 +1,5 @@
 #FROM phusion/baseimage
-FROM debian:stretch-slim
+FROM debian:buster-slim
 
 USER root
 
