@@ -27,6 +27,7 @@ libraries:
   - liblapack-dev
 
 openmpi:
+  - openmpi-bin
   - libopenmpi-dev
   - openssh-client
 
