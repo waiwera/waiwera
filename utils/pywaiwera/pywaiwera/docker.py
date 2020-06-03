@@ -416,6 +416,18 @@ class DockerEnv(object):
             cwd = self.convert_path_nt_to_posix(_cwd)
         return cwd
 
+    def run_command(self, current_path, data_path, interactive_cmd, work_dir,
+                    image, native_cmd):
+        """Returns run command for given run parameters."""
+        run_cmd = ['docker',
+                   'run',
+                   '--cidfile', '.cid',
+                   '--rm',
+                   '--volume', '{}:{}'.format(current_path, data_path),
+                   ] + interactive_cmd + work_dir + image + native_cmd
+        run_cmd = [c for c in run_cmd if c] # remove empty strings
+        return run_cmd
+
     def run_ls_test(self, verbose=True):
         """ run docker test if --volume works by list file/folders in current
         directory. """
@@ -499,13 +511,9 @@ class DockerEnv(object):
         with open(script_name, 'w') as fo:
             fo.write(py_lines)
 
-        run_cmd = ['docker',
-                   'run',
-                   '--cidfile', '.cid',
-                   '--rm',
-                   '--volume', '{}:{}'.format(current_path, data_path),
-                   ] + work_dir + image + cmd
-        run_cmd = [c for c in run_cmd if c] # remove empty strings
+        it = ['']
+        run_cmd = self.run_command(current_path, data_path, it, work_dir,
+                    image, cmd)
         if verbose: print('Docker command:', run_cmd)
         print('Running Docker...')
         # TODO: window+git bash+toolbox need shell=True to handle path with space
@@ -570,14 +578,8 @@ class DockerEnv(object):
             native_cmd = ['mpiexec'] + np + [WAIWERA_EXE] + [filename] + waiwera_args
 
         #  docker run -v ${p}:/data -w /data waiwera-phusion-debian mpiexec -np $args[1] /home/mpirun/waiwera/dist/waiwera $args[0]
-        run_cmd = ['docker',
-                   'run',
-                   '--cidfile', '.cid',
-                   '--rm',
-                   '--volume', '{}:{}'.format(current_path, data_path),
-                   ] + it + work_dir + image + native_cmd
-        run_cmd = [c for c in run_cmd if c] # remove empty strings
-
+        run_cmd = self.run_command(current_path, data_path, it, work_dir,
+                                   image, native_cmd)
         if verbose:
             print('Docker command:', run_cmd)
         if dryrun:
