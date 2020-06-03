@@ -16,10 +16,12 @@ class TestRunWaiwera(unittest.TestCase):
             'dryrun': True,
         }
         cmd = self.env.run_waiwera(**args)
-        self.assertEqual(cmd[:6],
-                         ['docker', 'run', '--cidfile', '.cid', '--rm', '--volume'])
+        self.assertEqual(cmd[:7],
+                         ['docker', 'run', '--cidfile', '.cid',
+                          '--cap-add=SYS_PTRACE',
+                          '--rm', '--volume'])
         # skip the 7th (volume binding depends in os and docker environment)
-        self.assertEqual(cmd[7:],
+        self.assertEqual(cmd[8:],
                          ['--workdir', '/data', 'waiwera/waiwera:latest',
                           'mpiexec', '-np', '1', '/opt/waiwera/build/waiwera',
                           'input.json'])
@@ -34,10 +36,12 @@ class TestRunWaiwera(unittest.TestCase):
             'dryrun': True,
         }
         cmd = self.env.run_waiwera(**args)
-        self.assertEqual(cmd[:6],
-                         ['docker', 'run', '--cidfile', '.cid', '--rm', '--volume'])
+        self.assertEqual(cmd[:7],
+                         ['docker', 'run', '--cidfile', '.cid',
+                          '--cap-add=SYS_PTRACE',
+                          '--rm', '--volume'])
         # skip the 7th (volume binding depends in os and docker environment)
-        self.assertEqual(cmd[7:],
+        self.assertEqual(cmd[8:],
                          ['--workdir', '/data', 'waiwera/waiwera:latest',
                           'mpiexec', '-np', '2', '/opt/waiwera/build/waiwera',
                           'input.json', 'a', 'b'])
@@ -53,10 +57,12 @@ class TestRunWaiwera(unittest.TestCase):
             'tag': 'testing',
         }
         cmd = self.env.run_waiwera(**args)
-        self.assertEqual(cmd[:6],
-                         ['docker', 'run', '--cidfile', '.cid', '--rm', '--volume'])
+        self.assertEqual(cmd[:7],
+                         ['docker', 'run', '--cidfile', '.cid',
+                          '--cap-add=SYS_PTRACE',
+                          '--rm', '--volume'])
         # skip the 7th (volume binding depends in os and docker environment)
-        self.assertEqual(cmd[7:],
+        self.assertEqual(cmd[8:],
                          ['--workdir', '/data', 'waiwera/waiwera:testing',
                           'mpiexec', '-np', '1', '/opt/waiwera/build/waiwera',
                           'input.json'])
@@ -72,10 +78,12 @@ class TestRunWaiwera(unittest.TestCase):
             'image': 'wai/wai:latest',
         }
         cmd = self.env.run_waiwera(**args)
-        self.assertEqual(cmd[:6],
-                         ['docker', 'run', '--cidfile', '.cid', '--rm', '--volume'])
+        self.assertEqual(cmd[:7],
+                         ['docker', 'run', '--cidfile', '.cid',
+                          '--cap-add=SYS_PTRACE',
+                          '--rm', '--volume'])
         # skip the 7th (volume binding depends in os and docker environment)
-        self.assertEqual(cmd[7:],
+        self.assertEqual(cmd[8:],
                          ['--workdir', '/data', 'wai/wai:latest',
                           'mpiexec', '-np', '1', '/opt/waiwera/build/waiwera',
                           'input.json'])
@@ -92,10 +100,12 @@ class TestRunWaiwera(unittest.TestCase):
             'dryrun': True,
         }
         cmd = self.env.run_waiwera(**args)
-        self.assertEqual(cmd[:6],
-                         ['docker', 'run', '--cidfile', '.cid', '--rm', '--volume'])
+        self.assertEqual(cmd[:7],
+                         ['docker', 'run', '--cidfile', '.cid',
+                          '--cap-add=SYS_PTRACE',
+                          '--rm', '--volume'])
         # skip the 7th (volume binding depends in os and docker environment)
-        self.assertEqual(cmd[7:],
+        self.assertEqual(cmd[8:],
                          ['--interactive', '--tty', 'waiwera/waiwera:latest',
                           '/bin/bash'])
 
@@ -110,10 +120,12 @@ class TestRunWaiwera(unittest.TestCase):
             'dryrun': True,
         }
         cmd = self.env.run_waiwera(**args)
-        self.assertEqual(cmd[:6],
-                         ['docker', 'run', '--cidfile', '.cid', '--rm', '--volume'])
+        self.assertEqual(cmd[:7],
+                         ['docker', 'run', '--cidfile', '.cid',
+                          '--cap-add=SYS_PTRACE',
+                          '--rm', '--volume'])
         # skip the 7th (volume binding depends in os and docker environment)
-        self.assertEqual(cmd[7:],
+        self.assertEqual(cmd[8:],
                          ['--interactive', '--tty', 'waiwera/waiwera:latest',
                           'python', '--version'])
 
