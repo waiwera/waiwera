@@ -472,7 +472,7 @@ contains
     ! Locals:
     type(source_type) :: source
     PetscInt :: source_offset
-    PetscReal :: productivity
+    PetscReal :: productivity, qd
 
     call source%init(eos)
 
@@ -483,10 +483,18 @@ contains
 
     if (self%threshold <= 0._dp) then
        productivity = self%productivity%average(interval, 1)
-       call update_flow_rate(source, productivity)
+       source%rate = flow_rate(source, productivity)
     else
        if (source%fluid%pressure < self%threshold) then
-          call update_flow_rate(source, self%threshold_productivity)
+          qd = flow_rate(source, self%threshold_productivity)
+          if (qd > source%rate) then
+             source%rate = qd
+          else ! don't use qd, but update PI
+             call self%calculate_PI_from_rate(t, source%rate, &
+                  source_data, source_section, source_range_start, &
+                  local_fluid_data, local_fluid_section, -1, &
+                  eos, self%threshold_productivity)
+          end if
        else
           call self%calculate_PI_from_rate(t, source%rate, &
                source_data, source_section, source_range_start, &
@@ -499,10 +507,10 @@ contains
 
   contains
 
-    subroutine update_flow_rate(source, productivity)
-      !! Updates flow rate using deliverability relation and the
+    PetscReal function flow_rate(source, productivity)
+      !! Computes flow rate using deliverability relation and the
       !! specified productivity index.
-      type(source_type), intent(in out)  :: source
+      type(source_type), intent(in)  :: source
       PetscReal, intent(in) :: productivity
       ! Locals:
       PetscInt :: p, phases
@@ -523,19 +531,19 @@ contains
       end select
 
       pressure_difference = source%fluid%pressure - reference_pressure
-      source%rate = 0._dp
+      flow_rate = 0._dp
 
       phases = nint(source%fluid%phase_composition)
       do p = 1, source%fluid%num_phases
          if (btest(phases, p - 1)) then
-            source%rate = source%rate - productivity * &
+            flow_rate = flow_rate - productivity * &
                  phase_mobilities(p) * pressure_difference
          end if
       end do
 
       deallocate(phase_mobilities, phase_flow_fractions)
 
-    end subroutine update_flow_rate
+    end function flow_rate
 
   end subroutine source_control_deliverability_update
 
