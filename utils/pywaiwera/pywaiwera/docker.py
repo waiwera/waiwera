@@ -1,6 +1,12 @@
 #!/usr/bin/env python
 from __future__ import print_function
 
+# Python 2 and 3 compatible, see: https://stackoverflow.com/a/5868543/2368167
+try:
+    input = raw_input
+except NameError:
+    pass
+
 import argparse
 import os
 import subprocess
@@ -278,7 +284,7 @@ class DockerEnv(object):
         # for drvltr in 'ABCDEFGHIJKLMNOPQRSTUVWXYZ':
         #     drv = drvltr+':\\'
         #     if drv not in mapping and os.path.exists(drv):
-        #         ymnt = raw_input('    Drive {} not shared, do you want to mount it? (Y/[N])?'.format(drv))
+        #         ymnt = input('    Drive {} not shared, do you want to mount it? (Y/[N])?'.format(drv))
         #         if 'y' in ymnt.lower():
         #             to_mount.append((drvltr, drvltr))
 
@@ -400,7 +406,7 @@ class DockerEnv(object):
             if _cwd is None and sys.platform == 'win32':
                 print('You are running Docker Toolbox which requires directory to be shared.')
                 drv, pth = os.path.splitdrive(path)
-                ymnt = raw_input('    Do you want drive {} to be shared (Y/[N])?'.format(drv))
+                ymnt = input('    Do you want drive {} to be shared (Y/[N])?'.format(drv))
                 if 'y' in ymnt.lower():
                     drv = drv + '\\'
                     sname = drv[0].upper()
