@@ -370,6 +370,14 @@ contains
        call test%assert(-0.5625_dp, source%rate, "source 13 rate P = 3 bar")
     end if
 
+    t = t + 90._dp
+    interval = [150._dp, t]
+    call source_controls%traverse(source_control_update_iterator)
+    if (s12 >= 0) then
+       call test%assert(-0.0291666666667_dp, source%rate, &
+            "source 13 rate P = 3 bar case 2")
+    end if
+
     call VecRestoreArrayF90(local_fluid_vector, local_fluid_array, ierr)
     CHKERRQ(ierr)
     call restore_dm_local_vec(local_fluid_vector)
