@@ -110,7 +110,7 @@ The Waiwera source code is version-controlled using `Git <https://git-scm.com/>`
 
 .. code-block:: bash
 
-   git clone git@github.com:waiwera/waiwera.git .
+   git clone https://github.com/waiwera/waiwera.git .
 
 Alternatively, you can download a ZIP archive of the code `here <https://github.com/waiwera/waiwera/archive/master.zip>`_.
 
