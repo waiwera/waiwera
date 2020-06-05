@@ -1,6 +1,6 @@
 ---
 
-petsc_version: 483a0ff0
+petsc_version: 19cef4a6
 waiwera_version: local
 build_type: release
 # build_type: debug
