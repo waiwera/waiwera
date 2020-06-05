@@ -128,7 +128,7 @@ To build and install Waiwera (and its various dependencies, if needed), execute 
 
    ansible-playbook ansible/install_local.yml
 
-Waiwera will be installed into the user's home directory (`~/bin/waiwera`) by default. Additional command line parameters can be used to customise the installation. For example:
+Waiwera will be installed into the user's home directory (``~/bin/waiwera``) by default. Additional command line parameters can be used to customise the installation. For example:
 
 .. code-block:: bash
 
@@ -136,7 +136,7 @@ Waiwera will be installed into the user's home directory (`~/bin/waiwera`) by de
 
 where ``base_dir`` is the desired Waiwera installation directory. The ``--ask-become-pass`` option can be used to escalate privileges to root if necessary during installation (e.g. if installing to a directory the user does not have write access to). The user will then be prompted to provide the sudo password.
 
-To ensure Waiwera can be run from any directory, the Waiwera installation directory should be on the user's `PATH`. If this is not the case then it can be added by editing the `PATH` environment variable.
+To ensure Waiwera can be run from any directory, the Waiwera installation directory should be on the user's ``PATH``. If this is not the case then it can be added by editing the ``PATH`` environment variable.
 
 The following command builds Waiwera (and dependencies), but does not install it. As a result, it does not need root privileges (because it does not try to install to directories requiring them):
 
