@@ -122,7 +122,7 @@ Navigate to the install directory in the Waiwera repository
 
    cd install
 
-Finally, build Waiwera by executing:
+Build and install Waiwera by executing:
 
 .. code-block:: bash
 
@@ -130,7 +130,7 @@ Finally, build Waiwera by executing:
 
 Using the ``--ask-become-pass`` option prompts the user to provide the sudo password, to escalate the current account's privileges to root where necessary during installation.
 
-This command builds and installs waiwera and also installs Waiwera's various dependencies. Waiwera will build to the user's home directory by default. You can use extra variables to change some parameters. See the following example:
+This command builds and installs Waiwera and also installs its various dependencies. Waiwera will build to the user's home directory by default. You can use extra variables to change some parameters. See the following example:
 
 .. code-block:: bash
 
@@ -146,7 +146,7 @@ Other example variables include :
 
 * ``petsc_update=true`` will build a new version of PETSc even if an installed version is detected
     * defaults to ``false`` meaning PETSc will only be built if an installed version isn't detected
-* ``waiwera_update=true`` will build waiwera every time even a new version isn't pulled by git
+* ``waiwera_update=true`` will build Waiwera every time even a new version isn't pulled by git
     * defaults to ``false``
 * ``zofu_build=true``
     * defaults to ``false`` and uses meson to build zofu
