@@ -197,6 +197,7 @@ contains
     self%dof = 1
     self%stencil = 0
     self%test => test
+    self%auxiliary = PETSC_FALSE
 
     call DMDACreate1d(PETSC_COMM_WORLD, DM_BOUNDARY_NONE, self%dim, self%dof, &
          self%stencil, PETSC_NULL_INTEGER, self%mesh%dm, ierr); CHKERRQ(ierr)
@@ -507,6 +508,7 @@ contains
     self%dof = 1
     self%stencil = 1
     self%test => test
+    self%auxiliary = PETSC_FALSE
 
     dx = self%L / (self%dim - 1._dp)
     self%a = 1._dp / (dx*dx)
