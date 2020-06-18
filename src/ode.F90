@@ -35,8 +35,10 @@ module ode_module
      private
      PetscReal, public :: time
      Vec, public :: solution
+     Vec, public :: aux_solution
      type(mesh_type),  public :: mesh
      type(logfile_type), public :: logfile
+     PetscBool, public :: auxiliary
    contains
      private
      procedure(lhs_function), public, deferred :: lhs
