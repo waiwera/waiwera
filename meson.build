@@ -57,6 +57,7 @@ waiwera_sources = [
   'src/thermodynamics.F90',
   'src/thermodynamics_setup.F90',
   'src/timestepper.F90',
+  'src/tracer.F90',
   'src/utils.F90',
   'src/version.F90',
   'src/zone.F90',
