@@ -1529,6 +1529,7 @@ end subroutine timestepper_steps_set_next_stepsize
          PETSC_DEFAULT_REAL, PETSC_DEFAULT_REAL, max_iterations, ierr)
     CHKERRQ(ierr)
     call KSPSetFromOptions(self%solver_aux, ierr); CHKERRQ(ierr)
+       call KSPCreate(PETSC_COMM_WORLD, self%solver_aux, ierr); CHKERRQ(ierr)
 
     call KSPGetPC(snes_ksp, snes_pc, ierr); CHKERRQ(ierr)
     call PCGetType(snes_pc, pc_type, ierr); CHKERRQ(ierr)
