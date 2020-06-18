@@ -51,12 +51,15 @@ module timestepper_module
      Vec, public :: solution !! Global solution vector
      Vec, public :: lhs !! Global left-hand side vector
      Vec, public :: rhs !! Global right-hand side vector
+     Vec, public :: aux_solution !! Solution vector for auxiliary linear problem
+     Vec, public :: aux_lhs_matrix !! Auxiliary LHS matrix
      PetscInt, public :: num_tries !! Number of attempts at carrying out the step (with step size reductions after first attempt)
      PetscInt, public :: num_iterations !! Number of non-linear solver iterations
      PetscInt, public :: status = TIMESTEP_OK !! Step status
      PetscReal, public :: max_residual !! Maximum residual over the mesh cells
      PetscInt, public :: max_residual_cell !! Global cell index at which maximum residual occurs
      PetscInt, public :: max_residual_equation !! Equation number at which maximum residual occurs
+     PetscBool, public :: auxiliary !! Whether auxiliary linear problem is being solved
    contains
      private
      procedure, public :: init => timestepper_step_init
@@ -180,10 +183,13 @@ module timestepper_module
   type, public :: timestepper_type
      !! Timestepper class.
      private
-     SNES, public :: solver
-     Vec :: residual
-     Mat :: jacobian
-     type(timestepper_solver_context_type) :: context
+     SNES, public :: solver !! Nonlinear solver
+     Vec :: residual !! Nonlinear residual vector
+     Mat :: jacobian !! Jacobian for nonlinear solver
+     KSP :: solver_aux !! Linear solver for auxiliary linear problem
+     Mat :: A_aux !! Left-hand side matrix for auxiliary linear problem
+     Vec :: b_aux !! Right-hand side vector for auxiliary linear problem
+     type(timestepper_solver_context_type) :: context !! Context for nonlinear solver
      class(ode_type), pointer, public :: ode !! ODE to be solved
      type(timestepper_steps_type), public :: steps !! Time steps object
      type(timestepper_method_type), public :: method !! Time stepping method
@@ -198,8 +204,10 @@ module timestepper_module
    contains
      private
      procedure :: setup_jacobian => timestepper_setup_jacobian
+     procedure :: setup_auxiliary => timestepper_setup_auxiliary
      procedure :: setup_nonlinear_solver => timestepper_setup_nonlinear_solver
      procedure :: setup_linear_solver => timestepper_setup_linear_solver
+     procedure :: setup_auxiliary_solver => timestepper_setup_auxiliary_solver
      procedure :: setup_linear_solver_options => timestepper_setup_linear_solver_options
      procedure :: setup_linear_sub_solver => timestepper_setup_linear_sub_solver
      procedure :: step => timestepper_step
@@ -552,17 +560,27 @@ contains
 ! Timestepper_step procedures
 !------------------------------------------------------------------------
 
-  subroutine timestepper_step_init(self, template_vec)
+  subroutine timestepper_step_init(self, template_vec, auxiliary, &
+       template_aux_vec)
     !! Initializes a timestep.
 
     class(timestepper_step_type), intent(in out) :: self
     Vec, intent(in) :: template_vec
+    PetscBool, intent(in) :: auxiliary
+    Vec, intent(in) :: template_aux_vec
     ! Locals:
     PetscErrorCode :: ierr
 
     call VecDuplicate(template_vec, self%solution, ierr); CHKERRQ(ierr)
     call VecDuplicate(template_vec, self%lhs, ierr); CHKERRQ(ierr)
     call VecDuplicate(template_vec, self%rhs, ierr); CHKERRQ(ierr)
+    self%auxiliary = auxiliary
+    if (self%auxiliary) then
+       call VecDuplicate(template_aux_vec, self%aux_solution, ierr)
+       CHKERRQ(ierr)
+       call VecDuplicate(template_aux_vec, self%aux_lhs_matrix, ierr)
+       CHKERRQ(ierr)
+    end if
 
   end subroutine timestepper_step_init
 
@@ -575,9 +593,13 @@ contains
     ! Locals:
     PetscErrorCode :: ierr
 
-    call VecDestroy(self%solution,ierr); CHKERRQ(ierr)
+    call VecDestroy(self%solution, ierr); CHKERRQ(ierr)
     call VecDestroy(self%lhs, ierr); CHKERRQ(ierr)
     call VecDestroy(self%rhs, ierr); CHKERRQ(ierr)
+    if (self%auxiliary) then
+       call VecDestroy(self%aux_solution, ierr); CHKERRQ(ierr)
+       call VecDestroy(self%aux_lhs_matrix, ierr); CHKERRQ(ierr)
+    end if
 
   end subroutine timestepper_step_destroy
 
@@ -764,7 +786,7 @@ contains
 !------------------------------------------------------------------------
 
   subroutine timestepper_steps_init(self, num_stored, &
-       time, solution, stop_time_specified, &
+       time, solution, auxiliary, aux_solution, stop_time_specified, &
        stop_time, max_num_steps, max_stepsize, &
        adapt_on, adapt_method, adapt_min, adapt_max, &
        adapt_reduction, adapt_amplification, step_sizes, &
@@ -779,8 +801,10 @@ contains
     class(timestepper_steps_type), intent(in out) :: self
     PetscInt, intent(in) :: num_stored
     PetscReal, intent(in) :: time
-    PetscBool, intent(in) :: stop_time_specified
     Vec, intent(in) :: solution
+    PetscBool, intent(in) :: auxiliary
+    Vec, intent(in) :: aux_solution
+    PetscBool, intent(in) :: stop_time_specified
     PetscReal, intent(in) :: stop_time
     PetscInt, intent(in) :: max_num_steps
     PetscReal, intent(in) :: max_stepsize
@@ -811,7 +835,7 @@ contains
     self%num_stored = num_stored
     allocate(self%store(num_stored), self%pstore(num_stored))
     do i = 1, num_stored
-       call self%store(i)%init(solution)
+       call self%store(i)%init(solution, auxiliary, aux_solution)
        call self%set_pstore(self%store, i, i)
     end do
     call self%set_aliases()
@@ -820,6 +844,10 @@ contains
     self%finished = PETSC_FALSE
     self%current%time = time
     call VecCopy(solution, self%current%solution, ierr); CHKERRQ(ierr)
+    if (auxiliary) then
+       call VecCopy(aux_solution, self%current%aux_solution, ierr)
+       CHKERRQ(ierr)
+    end if
 
     self%stop_time_specified = stop_time_specified
     self%stop_time = stop_time
@@ -963,6 +991,10 @@ contains
     if (self%num_stored > 1) then
        ! Last solution is initial guess for current solution:
        call VecCopy(self%last%solution, self%current%solution, ierr); CHKERRQ(ierr)
+       if (self%current%auxiliary) then
+          call VecCopy(self%last%aux_solution, self%current%aux_solution, ierr)
+          CHKERRQ(ierr)
+       end if
     end if
 
     self%current%stepsize = self%next_stepsize
@@ -1472,6 +1504,47 @@ end subroutine timestepper_steps_set_next_stepsize
 
 !------------------------------------------------------------------------
 
+  subroutine timestepper_setup_auxiliary_solver(self)
+    !! Sets up linear solver and preconditioner for auxiliary linear
+    !! problem.  These are copied from the linear solver used in the
+    !! main nonlinear problem.
+
+    class(timestepper_type), intent(in out) :: self
+    ! Locals:
+    KSP :: snes_ksp
+    KSPType :: ksp_type
+    PetscReal :: relative_tolerance
+    PetscInt :: max_iterations
+    PC :: snes_pc, pc
+    PCType :: pc_type
+    PetscErrorCode :: ierr
+
+    call SNESGetKSP(self%solver, snes_ksp, ierr); CHKERRQ(ierr)
+    call KSPGetType(snes_ksp, ksp_type, ierr); CHKERRQ(ierr)
+    call KSPSetType(self%solver_aux, ksp_type, ierr); CHKERRQ(ierr)
+
+    call KSPGetTolerances(snes_ksp, relative_tolerance, PETSC_DEFAULT_REAL, &
+         PETSC_DEFAULT_REAL, max_iterations, ierr); CHKERRQ(ierr)
+    call KSPSetTolerances(self%solver_aux, relative_tolerance, &
+         PETSC_DEFAULT_REAL, PETSC_DEFAULT_REAL, max_iterations, ierr)
+    CHKERRQ(ierr)
+    call KSPSetFromOptions(self%solver_aux, ierr); CHKERRQ(ierr)
+
+    call KSPGetPC(snes_ksp, snes_pc, ierr); CHKERRQ(ierr)
+    call PCGetType(snes_pc, pc_type, ierr); CHKERRQ(ierr)
+    call KSPGetPC(self%solver_aux, pc, ierr); CHKERRQ(ierr)
+    call PCSetType(pc, pc_type, ierr); CHKERRQ(ierr)
+
+    ! TODO: set sub-ksp options, factor levels etc.
+    ! Probably want to be able to give auxiliary solver its own
+    ! independent config from JSON input.
+
+    call PCSetFromOptions(pc, ierr); CHKERRQ(ierr)
+
+  end subroutine timestepper_setup_auxiliary_solver
+
+!------------------------------------------------------------------------
+
   subroutine SNES_monitor(solver, num_iterations, fnorm, context, ierr)
     !! SNES monitor routine for output at each nonlinear iteration.
 
@@ -1591,6 +1664,25 @@ end subroutine timestepper_steps_set_next_stepsize
 
 !------------------------------------------------------------------------
 
+  subroutine timestepper_setup_auxiliary(self)
+    !! Sets up linear system for auxiliary problem.
+
+    class(timestepper_type), intent(in out) :: self
+    ! Locals:
+    DM :: dm_aux
+    PetscErrorCode :: ierr
+
+    if (self%ode%auxiliary) then
+       call VecGetDM(self%ode%aux_solution, dm_aux, ierr); CHKERRQ(ierr)
+       call DMCreateMatrix(dm_aux, self%A_aux, ierr); CHKERRQ(ierr)
+       call MatSetFromOptions(self%A_aux, ierr); CHKERRQ(ierr)
+       call VecDuplicate(self%ode%aux_solution, self%b_aux, ierr); CHKERRQ(ierr)
+    end if
+
+  end subroutine timestepper_setup_auxiliary
+
+!------------------------------------------------------------------------
+
   subroutine timestepper_init(self, json, ode)
     !! Initializes a timestepper.
 
@@ -1669,7 +1761,8 @@ end subroutine timestepper_steps_set_next_stepsize
     self%ode => ode
     call VecDuplicate(self%ode%solution, self%residual, ierr); CHKERRQ(ierr)
     call self%setup_jacobian()
-       
+    call self%setup_auxiliary()
+
     call fson_get_mpi(json, "time.step.method", &
          default_method_str, method_str, self%ode%logfile)
     method = time_step_method_from_str(method_str)
@@ -1748,6 +1841,8 @@ end subroutine timestepper_steps_set_next_stepsize
             default_sub_pc_factor_levels, sub_pc_factor_levels, self%ode%logfile)
        call self%setup_linear_sub_solver(sub_pc_type, sub_pc_factor_levels)
     end if
+
+    call self%setup_auxiliary_solver()
 
     if (method == TS_DIRECTSS) then
 
@@ -1907,6 +2002,7 @@ end subroutine timestepper_steps_set_next_stepsize
 
     call self%steps%init(self%method%num_stored_steps, &
          self%ode%time, self%ode%solution, &
+         self%ode%auxiliary, self%ode%aux_solution, &
          stop_time_specified, stop_time, max_num_steps, max_stepsize, &
          adapt_on, adapt_method, adapt_min, adapt_max, &
          adapt_reduction, adapt_amplification, step_sizes, &
@@ -2006,6 +2102,12 @@ end subroutine timestepper_steps_set_next_stepsize
     call VecDestroy(self%residual, ierr); CHKERRQ(ierr)
     call MatDestroy(self%jacobian, ierr); CHKERRQ(ierr)
 
+    if (self%ode%auxiliary) then
+       call MatDestroy(self%A_aux, ierr); CHKERRQ(ierr)
+       call VecDestroy(self%b_aux, ierr); CHKERRQ(ierr)
+       call KSPDestroy(self%solver_aux, ierr); CHKERRQ(ierr)
+    end if
+
     call self%steps%destroy()
 
     nullify(self%ode)
@@ -2054,6 +2156,10 @@ end subroutine timestepper_steps_set_next_stepsize
     self%ode%time = self%steps%current%time
     call VecCopy(self%steps%current%solution, self%ode%solution, ierr)
     CHKERRQ(ierr)
+    if (self%ode%auxiliary) then
+       call VecCopy(self%steps%current%aux_solution, self%ode%aux_solution, &
+            ierr); CHKERRQ(ierr)
+    end if
     call self%ode%post_timestep()
     call self%ode%logfile%flush()
 
