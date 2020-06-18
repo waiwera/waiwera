@@ -42,7 +42,7 @@ module flow_simulation_module
   type, public, extends(ode_type) :: flow_simulation_type
      !! Type for simulation of fluid mass and energy flows in porous media.
      private
-     PetscInt :: solution_range_start, rock_range_start
+     PetscInt :: solution_range_start, aux_solution_range_start, rock_range_start
      PetscInt :: fluid_range_start, update_cell_range_start, source_range_start
      character(:), allocatable, public :: filename !! JSON input filename
      character(max_title_length), public :: title !! Descriptive title for the simulation
@@ -679,6 +679,7 @@ contains
     use profiling_module, only: simulation_init_event
     use mpi_utils_module, only: mpi_broadcast_error_flag
     use dm_utils_module, only: dm_get_cell_index
+    use tracer_module, only: setup_tracer
 
     class(flow_simulation_type), intent(in out) :: self
     type(fson_value), pointer, intent(in) :: json
@@ -716,6 +717,8 @@ contains
     if (err == 0) then
        call self%mesh%override_face_properties()
        call self%create_solution_vector(self%solution, self%solution_range_start)
+       call setup_tracer(json, self%mesh%dm, self%auxiliary, self%aux_solution, &
+            self%aux_solution_range_start)
        call setup_relative_permeabilities(json, &
             self%relative_permeability, self%logfile, err)
        if (err == 0) then
@@ -830,6 +833,9 @@ contains
     call ISDestroy(self%source_index, ierr); CHKERRQ(ierr)
     call self%source_controls%destroy(source_control_list_node_data_destroy, &
          reverse = PETSC_TRUE)
+    if (self%auxiliary) then
+       call VecDestroy(self%aux_solution, ierr); CHKERRQ(ierr)
+    end if
     call self%mesh%destroy()
     call self%thermo%destroy()
     call self%eos%destroy()
