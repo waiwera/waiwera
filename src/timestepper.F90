@@ -1519,28 +1519,33 @@ end subroutine timestepper_steps_set_next_stepsize
     PCType :: pc_type
     PetscErrorCode :: ierr
 
-    call SNESGetKSP(self%solver, snes_ksp, ierr); CHKERRQ(ierr)
-    call KSPGetType(snes_ksp, ksp_type, ierr); CHKERRQ(ierr)
-    call KSPSetType(self%solver_aux, ksp_type, ierr); CHKERRQ(ierr)
+    if (self%ode%auxiliary) then
 
-    call KSPGetTolerances(snes_ksp, relative_tolerance, PETSC_DEFAULT_REAL, &
-         PETSC_DEFAULT_REAL, max_iterations, ierr); CHKERRQ(ierr)
-    call KSPSetTolerances(self%solver_aux, relative_tolerance, &
-         PETSC_DEFAULT_REAL, PETSC_DEFAULT_REAL, max_iterations, ierr)
-    CHKERRQ(ierr)
-    call KSPSetFromOptions(self%solver_aux, ierr); CHKERRQ(ierr)
        call KSPCreate(PETSC_COMM_WORLD, self%solver_aux, ierr); CHKERRQ(ierr)
 
-    call KSPGetPC(snes_ksp, snes_pc, ierr); CHKERRQ(ierr)
-    call PCGetType(snes_pc, pc_type, ierr); CHKERRQ(ierr)
-    call KSPGetPC(self%solver_aux, pc, ierr); CHKERRQ(ierr)
-    call PCSetType(pc, pc_type, ierr); CHKERRQ(ierr)
+       call SNESGetKSP(self%solver, snes_ksp, ierr); CHKERRQ(ierr)
+       call KSPGetType(snes_ksp, ksp_type, ierr); CHKERRQ(ierr)
+       call KSPSetType(self%solver_aux, ksp_type, ierr); CHKERRQ(ierr)
 
-    ! TODO: set sub-ksp options, factor levels etc.
-    ! Probably want to be able to give auxiliary solver its own
-    ! independent config from JSON input.
+       call KSPGetTolerances(snes_ksp, relative_tolerance, PETSC_DEFAULT_REAL, &
+            PETSC_DEFAULT_REAL, max_iterations, ierr); CHKERRQ(ierr)
+       call KSPSetTolerances(self%solver_aux, relative_tolerance, &
+            PETSC_DEFAULT_REAL, PETSC_DEFAULT_REAL, max_iterations, ierr)
+       CHKERRQ(ierr)
+       call KSPSetFromOptions(self%solver_aux, ierr); CHKERRQ(ierr)
 
-    call PCSetFromOptions(pc, ierr); CHKERRQ(ierr)
+       call KSPGetPC(snes_ksp, snes_pc, ierr); CHKERRQ(ierr)
+       call PCGetType(snes_pc, pc_type, ierr); CHKERRQ(ierr)
+       call KSPGetPC(self%solver_aux, pc, ierr); CHKERRQ(ierr)
+       call PCSetType(pc, pc_type, ierr); CHKERRQ(ierr)
+
+       ! TODO: set sub-ksp options, factor levels etc.
+       ! Probably want to be able to give auxiliary solver its own
+       ! independent config from JSON input.
+
+       call PCSetFromOptions(pc, ierr); CHKERRQ(ierr)
+
+    end if
 
   end subroutine timestepper_setup_auxiliary_solver
 
