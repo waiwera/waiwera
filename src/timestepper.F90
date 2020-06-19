@@ -2111,9 +2111,9 @@ end subroutine timestepper_steps_set_next_stepsize
     call MatDestroy(self%jacobian, ierr); CHKERRQ(ierr)
 
     if (self%ode%auxiliary) then
+       call KSPDestroy(self%solver_aux, ierr); CHKERRQ(ierr)
        call MatDestroy(self%A_aux, ierr); CHKERRQ(ierr)
        call VecDestroy(self%b_aux, ierr); CHKERRQ(ierr)
-       call KSPDestroy(self%solver_aux, ierr); CHKERRQ(ierr)
     end if
 
     call self%steps%destroy()
