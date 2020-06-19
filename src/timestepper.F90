@@ -1522,6 +1522,8 @@ end subroutine timestepper_steps_set_next_stepsize
     if (self%ode%auxiliary) then
 
        call KSPCreate(PETSC_COMM_WORLD, self%solver_aux, ierr); CHKERRQ(ierr)
+       call KSPSetOperators(self%solver_aux, self%A_aux, self%A_aux, ierr)
+       CHKERRQ(ierr)
 
        call SNESGetKSP(self%solver, snes_ksp, ierr); CHKERRQ(ierr)
        call KSPGetType(snes_ksp, ksp_type, ierr); CHKERRQ(ierr)
