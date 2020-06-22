@@ -35,6 +35,11 @@ module ode_module
   private
 
   type, public, abstract :: ode_type
+     !! ODE type, of the form \(\frac{d}{dt} L(t,y) = R(t,y)\). The
+     !! main ODE is assumed to be non-linear. An auxiliary linear
+     !! problem can also optionally be solved, in which L = Al * y and
+     !! R = Ar * y + br, where Al and Ar are matrices (Al is assumed
+     !! diagonal) and br is a vector.
      private
      PetscReal, public :: time
      Vec, public :: solution
