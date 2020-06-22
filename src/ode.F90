@@ -21,11 +21,14 @@ module ode_module
 
 #include <petsc/finclude/petscsys.h>
 #include <petsc/finclude/petscvec.h>
+#include <petsc/finclude/petscmat.h>
 
   use petscsys
   use petscvec
+  use petscmat
   use mesh_module
   use logfile_module
+  use kinds_module
 
   implicit none
 
@@ -43,6 +46,8 @@ module ode_module
      private
      procedure(lhs_function), public, deferred :: lhs
      procedure(rhs_function), public, deferred :: rhs
+     procedure, public :: aux_lhs => ode_aux_lhs
+     procedure, public :: aux_rhs => ode_aux_rhs
      procedure, public :: pre_solve => ode_pre_eval
      procedure, public :: pre_iteration => ode_pre_iteration
      procedure, public :: pre_eval => ode_pre_eval
@@ -201,4 +206,42 @@ contains
 
 !------------------------------------------------------------------------
 
-end module ode_module
+  subroutine ode_aux_lhs(self, t, interval, Al, err)
+    !! Default routine returning diagonal left-hand side matrix Al
+    !! where lhs = Al * X. Here Al = I.
+
+    class(ode_type), intent(in out) :: self
+    PetscReal, intent(in) :: t, interval(2)
+    Vec, intent(in out) :: Al
+    PetscErrorCode, intent(out) :: err
+    ! Locals:
+    PetscErrorCode :: ierr
+
+    err = 0
+    call VecSet(Al, 1._dp, ierr); CHKERRQ(ierr)
+
+  end subroutine ode_aux_lhs
+
+!------------------------------------------------------------------------
+
+  subroutine ode_aux_rhs(self, t, interval, Ar, br, err)
+    !! Default routine returning right-hand side matrix Al and vector
+    !! br where rhs = Ar * X + br. Here Ar and br are zero.
+
+    class(ode_type), intent(in out) :: self
+    PetscReal, intent(in) :: t, interval(2)
+    Mat, intent(in out) :: Ar
+    Vec, intent(in out) :: br
+    PetscErrorCode, intent(out) :: err
+    ! Locals:
+    PetscErrorCode :: ierr
+
+    err = 0
+    call MatZeroEntries(Ar, ierr); CHKERRQ(ierr)
+    call VecSet(br, 0._dp, ierr); CHKERRQ(ierr)
+
+  end subroutine ode_aux_rhs
+
+!------------------------------------------------------------------------
+
+   end module ode_module
