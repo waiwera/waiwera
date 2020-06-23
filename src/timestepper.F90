@@ -1514,7 +1514,7 @@ end subroutine timestepper_steps_set_next_stepsize
     ! Locals:
     KSP :: snes_ksp
     KSPType :: ksp_type
-    PetscReal :: relative_tolerance
+    PetscReal :: rtol, abstol, dtol
     PetscInt :: max_iterations
     PC :: snes_pc, pc
     PCType :: pc_type
@@ -1530,11 +1530,10 @@ end subroutine timestepper_steps_set_next_stepsize
        call KSPGetType(snes_ksp, ksp_type, ierr); CHKERRQ(ierr)
        call KSPSetType(self%solver_aux, ksp_type, ierr); CHKERRQ(ierr)
 
-       call KSPGetTolerances(snes_ksp, relative_tolerance, PETSC_DEFAULT_REAL, &
-            PETSC_DEFAULT_REAL, max_iterations, ierr); CHKERRQ(ierr)
-       call KSPSetTolerances(self%solver_aux, relative_tolerance, &
-            PETSC_DEFAULT_REAL, PETSC_DEFAULT_REAL, max_iterations, ierr)
-       CHKERRQ(ierr)
+       call KSPGetTolerances(snes_ksp, rtol, abstol, dtol, max_iterations, &
+            ierr); CHKERRQ(ierr)
+       call KSPSetTolerances(self%solver_aux, rtol, abstol, dtol, &
+            max_iterations, ierr); CHKERRQ(ierr)
        call KSPSetFromOptions(self%solver_aux, ierr); CHKERRQ(ierr)
 
        call KSPGetPC(snes_ksp, snes_pc, ierr); CHKERRQ(ierr)
