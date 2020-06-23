@@ -300,6 +300,7 @@ contains
     call VecAXPY(diff, -1.0_dp, last%lhs, ierr); CHKERRQ(ierr)
     call vec_max_pointwise_abs_scale(diff, last%lhs, &
          eps, relative_change_monitor, index)
+    call VecDestroy(diff, ierr); CHKERRQ(ierr)
 
   end function relative_change_monitor
 
