@@ -44,8 +44,10 @@ module timestepper_test
      PetscReal :: k = -0.5_dp
    contains
      private
+     procedure, public :: init => init_linear
      procedure, public :: rhs => rhs_const
      procedure, public :: exact => exact_linear
+     procedure, public :: aux_rhs => aux_rhs_const
   end type linear_ode_type
 
   type, extends(test_ode_type) :: exponential_ode_type
@@ -53,8 +55,10 @@ module timestepper_test
      PetscReal :: k = -5._dp
    contains
      private
+     procedure, public :: init => init_exponential
      procedure, public :: rhs => rhs_linear
      procedure, public :: exact => exact_exponential
+     procedure, public :: aux_rhs => aux_rhs_linear
   end type exponential_ode_type
 
   type, extends(test_ode_type) :: logistic_ode_type
@@ -71,6 +75,7 @@ module timestepper_test
      private
      procedure, public :: lhs => lhs_nontrivial_lhs
      procedure, public :: exact => exact_nontrivial_lhs
+     procedure, public :: aux_lhs => aux_lhs_nontrivial_lhs
   end type nontrivial_lhs_ode_type
 
   type, extends(test_ode_type) :: nonlinear_lhs_ode_type
@@ -183,21 +188,27 @@ contains
 ! Default test ode functions
 !------------------------------------------------------------------------
 
-  subroutine init_test_ode(self, initial_array, test, err)
+  subroutine init_test_ode(self, initial_array, auxiliary, test, err)
     ! Default ode initialization.
     class(test_ode_type), intent(in out) :: self
     PetscReal, intent(in), optional :: initial_array(:)
+    PetscBool, intent(in), optional :: auxiliary
     class(unit_test_type), target, intent(in out) :: test
     PetscErrorCode, intent(out) :: err
     ! Locals:
     PetscErrorCode :: ierr
+
+    if (present(auxiliary)) then
+       self%auxiliary = auxiliary
+    else
+       self%auxiliary = PETSC_FALSE
+    end if
 
     err = 0
     self%dim = 8
     self%dof = 1
     self%stencil = 0
     self%test => test
-    self%auxiliary = PETSC_FALSE
 
     call DMDACreate1d(PETSC_COMM_WORLD, DM_BOUNDARY_NONE, self%dim, self%dof, &
          self%stencil, PETSC_NULL_INTEGER, self%mesh%dm, ierr); CHKERRQ(ierr)
@@ -205,6 +216,9 @@ contains
     call DMCreateGlobalVector(self%mesh%dm, self%solution, ierr); CHKERRQ(ierr)
     call VecDuplicate(self%solution, self%exact_solution, ierr); CHKERRQ(ierr)
     call VecDuplicate(self%solution, self%diff, ierr); CHKERRQ(ierr)
+    if (self%auxiliary) then
+       call VecDuplicate(self%solution, self%aux_solution, ierr); CHKERRQ(ierr)
+    end if
     if (present(initial_array)) then
        self%initial_values = initial_array
     end if
@@ -220,6 +234,9 @@ contains
     PetscErrorCode :: ierr
     call VecDestroy(self%solution, ierr); CHKERRQ(ierr)
     call VecDestroy(self%exact_solution, ierr); CHKERRQ(ierr)
+    if (self%auxiliary) then
+       call VecDestroy(self%aux_solution, ierr); CHKERRQ(ierr)
+    end if
     call VecDestroy(self%diff, ierr); CHKERRQ(ierr)
     call DMDestroy(self%mesh%dm, ierr); CHKERRQ(ierr)
     call self%logfile%destroy()
@@ -276,7 +293,7 @@ contains
     PetscInt, intent(in) :: time_index
     PetscReal, intent(in) :: time
     ! Locals:
-    PetscReal, pointer :: y(:), yex(:)
+    PetscReal, pointer :: y(:), yex(:), yaux(:)
     PetscErrorCode :: ierr
     PetscInt :: local_size, low, hi
     character(len = 50) :: msg
@@ -290,6 +307,11 @@ contains
     call VecGetArrayReadF90(self%exact_solution, yex, ierr); CHKERRQ(ierr)
     write(msg, '(a, i0)') " solution at time index ", time_index
     call self%test%assert(yex, y, self%case_name // trim(msg))
+    if (self%auxiliary) then
+       call VecGetArrayReadF90(self%aux_solution, yaux, ierr); CHKERRQ(ierr)
+       call self%test%assert(yex, yaux, self%case_name // " aux" // trim(msg))
+       call VecRestoreArrayReadF90(self%aux_solution, yaux, ierr); CHKERRQ(ierr)
+    end if
     call VecRestoreArrayReadF90(self%exact_solution, yex, ierr)
     CHKERRQ(ierr)
     call VecRestoreArrayReadF90(self%solution, y, ierr)
@@ -300,6 +322,17 @@ contains
 !------------------------------------------------------------------------
 ! Specific test ode functions
 !------------------------------------------------------------------------
+
+  subroutine init_linear(self, initial_array, auxiliary, test, err)
+    ! Linear ode initialization.
+    class(linear_ode_type), intent(in out) :: self
+    PetscReal, intent(in), optional :: initial_array(:)
+    PetscBool, intent(in), optional :: auxiliary
+    class(unit_test_type), target, intent(in out) :: test
+    PetscErrorCode, intent(out) :: err
+    call self%test_ode_type%init(initial_array, auxiliary = PETSC_TRUE, &
+         test = test, err = err)
+  end subroutine init_linear
 
   subroutine rhs_const(self, t, interval, y, rhs, err)
     ! rhs(t, y) = k
@@ -323,8 +356,34 @@ contains
          self%k * (t - self%start_time))
   end subroutine exact_linear
 
+  subroutine aux_rhs_const(self, t, interval, Ar, br, err)
+    class(linear_ode_type), intent(in out) :: self
+    PetscReal, intent(in) :: t, interval(2)
+    Mat, intent(in out) :: Ar
+    Vec, intent(in out) :: br
+    PetscErrorCode, intent(out) :: err
+    ! Locals:
+    PetscErrorCode :: ierr
+    err = 0
+    call MatZeroEntries(Ar, ierr); CHKERRQ(ierr)
+    call VecSet(br, self%k, ierr); CHKERRQ(ierr)
+  end subroutine aux_rhs_const
+
 !------------------------------------------------------------------------
-  
+
+  subroutine init_exponential(self, initial_array, auxiliary, test, err)
+    ! Exponential ode initialization.
+    class(exponential_ode_type), intent(in out) :: self
+    PetscReal, intent(in), optional :: initial_array(:)
+    PetscBool, intent(in), optional :: auxiliary
+    class(unit_test_type), target, intent(in out) :: test
+    PetscErrorCode, intent(out) :: err
+    call self%test_ode_type%init(initial_array, auxiliary = PETSC_TRUE, &
+         test = test, err = err)
+  end subroutine init_exponential
+
+!------------------------------------------------------------------------
+
   subroutine rhs_linear(self, t, interval, y, rhs, err)
     ! rhs(t, y) = k * y
     class(exponential_ode_type), intent(in out) :: self
@@ -349,6 +408,23 @@ contains
     call VecSetArray(v, self%initial_values * &
          exp(self%k * (t - self%start_time)))
   end subroutine exact_exponential
+
+!------------------------------------------------------------------------
+
+  subroutine aux_rhs_linear(self, t, interval, Ar, br, err)
+    ! Auxiliary rhs(t, y) = k * y
+    class(exponential_ode_type), intent(in out) :: self
+    PetscReal, intent(in) :: t, interval(2)
+    Mat, intent(in out) :: Ar
+    Vec, intent(in out) :: br
+    PetscErrorCode, intent(out) :: err
+    ! Locals:
+    PetscErrorCode :: ierr
+    err = 0
+    call MatZeroEntries(Ar, ierr); CHKERRQ(ierr)
+    call MatShift(Ar, self%k, ierr); CHKERRQ(ierr)
+    call VecSet(br, 0._dp, ierr); CHKERRQ(ierr)
+  end subroutine aux_rhs_linear
 
 !------------------------------------------------------------------------
 
@@ -410,6 +486,18 @@ contains
     Vec, intent(in out) :: v
     call VecSetArray(v, self%initial_values * t ** (self%k - 1._dp))
   end subroutine exact_nontrivial_lhs
+
+  subroutine aux_lhs_nontrivial_lhs(self, t, interval, Al, err)
+    ! Al = t * I
+    class(nontrivial_lhs_ode_type), intent(in out) :: self
+    PetscReal, intent(in) :: t, interval(2)
+    Vec, intent(in out) :: Al
+    PetscErrorCode, intent(out) :: err
+    ! Locals:
+    PetscErrorCode :: ierr
+    err = 0
+    call VecSet(Al, t, ierr); CHKERRQ(ierr)
+  end subroutine aux_lhs_nontrivial_lhs
 
 !------------------------------------------------------------------------
   
@@ -492,15 +580,22 @@ contains
 
   end subroutine exact_heat1d
 
-  subroutine init_heat1d(self, initial_array, test, err)
+  subroutine init_heat1d(self, initial_array, auxiliary, test, err)
     ! Initialization for heat equation.
     class(heat1d_ode_type), intent(in out) :: self
     PetscReal, intent(in), optional :: initial_array(:)
+    PetscBool, intent(in), optional :: auxiliary
     class(unit_test_type), target, intent(in out) :: test
     PetscErrorCode, intent(out) :: err
     ! Locals:
     PetscReal :: dx
     PetscErrorCode :: ierr
+
+    if (present(auxiliary)) then
+       self%auxiliary = auxiliary
+    else
+       self%auxiliary = PETSC_FALSE
+    end if
 
     err = 0
     self%L = 1._dp
@@ -508,7 +603,6 @@ contains
     self%dof = 1
     self%stencil = 1
     self%test => test
-    self%auxiliary = PETSC_FALSE
 
     dx = self%L / (self%dim - 1._dp)
     self%a = 1._dp / (dx*dx)
@@ -672,15 +766,16 @@ contains
 
 !------------------------------------------------------------------------
   
-  subroutine init_pre_eval(self, initial_array, test, err)
+  subroutine init_pre_eval(self, initial_array, auxiliary, test, err)
     class(pre_eval_ode_type), intent(in out) :: self
     PetscReal, intent(in), optional :: initial_array(:)
+    PetscBool, intent(in), optional :: auxiliary
     class(unit_test_type), target, intent(in out) :: test
     PetscErrorCode, intent(out) :: err
     ! Locals:
     PetscErrorCode :: ierr
     err = 0
-    call self%test_ode_type%init(initial_array, test, err)
+    call self%test_ode_type%init(initial_array, auxiliary, test, err)
     call VecDuplicate(self%solution, self%secondary, ierr); CHKERRQ(ierr)
     self%test => test
   end subroutine init_pre_eval
@@ -779,9 +874,14 @@ contains
     ! Sets initial conditions for ODE.
 
     class(test_ode_type), intent(in out) :: self
+    ! Locals:
+    PetscErrorCode :: ierr
 
     self%time = self%start_time
     call self%exact(self%time, self%solution)
+    if (self%auxiliary) then
+       call VecCopy(self%solution, self%aux_solution, ierr); CHKERRQ(ierr)
+    end if
 
   end subroutine set_initial_conditions_test_ode
 
@@ -880,7 +980,7 @@ contains
          '"maximum": 0.2, "reduction": 0.6, "amplification": 1.9}}}}'
 
     json => fson_parse_mpi(str = trim(json_str))
-    call test_ode%init(initial, test, err)
+    call test_ode%init(initial, test = test, err = err)
     call ts%init(json, test_ode)
 
     if (rank == 0) then
@@ -923,7 +1023,7 @@ contains
     allocate(initial(linear%dim))
     initial = [-4._dp, -3.0_dp, -2.0_dp, -1.0_dp, &
          0.0_dp, 1.0_dp, 2.0_dp, 3.0_dp]
-    call linear%init(initial, test, err)
+    call linear%init(initial, test = test, err = err)
 
     json_str(1) = '{"time": {"start": 0.0, "stop": 1.0, ' // &
          '"step": {"size": 0.1, "maximum": {"number": 20, "size": null}, ' // &
@@ -963,7 +1063,7 @@ contains
     allocate(initial(exponential%dim))
     initial = [-4._dp, -3.0_dp, -2.0_dp, -1.0_dp, &
          0.0_dp, 1.0_dp, 2.0_dp, 3.0_dp]
-    call exponential%init(initial, test, err)
+    call exponential%init(initial, test = test, err = err)
 
     json_str(1) = '{"time": {"start": 0.0, "stop": 1.0, ' // &
          '"step": {"size": 0.01, "maximum": {"number": 200}, ' // &
@@ -1008,7 +1108,7 @@ contains
     logistic%c = [0.0_dp, 0.5_dp, 1._dp, 1.5_dp, 2._dp, &
          2.5_dp, 3._dp, 3.5_dp]
     initial = 3._dp * logistic%c / (1._dp + 2._dp * logistic%c)
-    call logistic%init(initial, test, err)
+    call logistic%init(initial, test = test, err = err)
 
     json_str(1) = '{"time": {"start": 0.0, "stop": 1.0, ' // &
          '"step": {"size": 0.1, "maximum": {"number": 100}, ' // &
@@ -1048,7 +1148,7 @@ contains
     allocate(initial(nontrivial_lhs%dim))
     initial = [-4._dp, -3.0_dp, -2.0_dp, -1.0_dp, &
          0.0_dp, 1.0_dp, 2.0_dp, 3.0_dp]
-    call nontrivial_lhs%init(initial, test, err)
+    call nontrivial_lhs%init(initial, test = test, err = err)
 
     json_str(1) = '{"time": {"start": 1.0, "stop": 10.0, ' // &
          '"step": {"size": 0.01, "maximum": {"number": 100}, ' // &
@@ -1087,7 +1187,7 @@ contains
     allocate(initial(nonlinear_lhs%dim))
     initial = [-4._dp, -3.0_dp, -2.0_dp, -1.0_dp, &
          0.0_dp, 2.0_dp, 3.0_dp, 4.0_dp]
-    call nonlinear_lhs%init(initial, test, err)
+    call nonlinear_lhs%init(initial, test = test, err = err)
 
     json_str(1) = '{"time": {"start": 0.0, "stop": 1.0, ' // &
          '"step": {"size": 0.01, "maximum": {"number": 200}, ' // &
@@ -1200,7 +1300,7 @@ contains
     allocate(initial(pre_eval%dim))
     initial = [-4._dp, -3.0_dp, -2.0_dp, -1.0_dp, &
          0.0_dp, 1.0_dp, 2.0_dp, 3.0_dp]
-    call pre_eval%init(initial, test, err)
+    call pre_eval%init(initial, test = test, err = err)
 
     json_str(1) = '{"time": {"start": 1.0, "stop": 10.0, ' // &
          '"step": {"size": 0.01, "maximum": {"number": 100}, ' // &
@@ -1238,7 +1338,7 @@ contains
 
     allocate(initial(ss%dim))
     initial = 0._dp
-    call ss%init(initial, test, err)
+    call ss%init(initial, test = test, err = err)
 
     json_str(1) = '{"time": {"step": {"method": "directss"}}, ' // &
          '"output": {"initial": false}}'
