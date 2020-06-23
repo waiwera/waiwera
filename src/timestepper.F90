@@ -165,6 +165,7 @@ module timestepper_module
      private
      character(20), public :: name
      procedure(method_residual), pointer, nopass, public :: residual
+     procedure(method_setup_linear), pointer, nopass, public :: setup_linear
      PetscInt, public :: num_steps, num_stored_steps
    contains
      private
@@ -232,6 +233,17 @@ module timestepper_module
        type(timestepper_solver_context_type), intent(in out) :: context
        PetscErrorCode, intent(out) :: err
      end subroutine method_residual
+
+     subroutine method_setup_linear(A, b, context, err)
+       !! Routine for setting up system of equations for linear problem.
+       use petscmat
+       use petscvec
+       import :: timestepper_solver_context_type
+       Mat, intent(in out) :: A
+       Vec, intent(in out) :: b
+       type(timestepper_solver_context_type), intent(in out) :: context
+       PetscErrorCode, intent(out) :: err
+     end subroutine method_setup_linear
 
      PetscReal function monitor_function(current, last)
        !! Function for monitoring timestep acceptability.
@@ -450,6 +462,137 @@ contains
 
   end subroutine direct_ss_residual
 
+!------------------------------------------------------------------------
+! Linear system setup routines
+!------------------------------------------------------------------------
+
+  subroutine backwards_Euler_setup_linear(A, b, context, err)
+    !! Sets up linear system for Backwards Euler method applied to a
+    !! linear problem.
+    !! A = Al(1) - dt * Ar(1)
+    !! b = Al(0) * y(0) + dt * br(1)
+
+    Mat, intent(in out) :: A
+    Vec, intent(in out) :: b
+    type(timestepper_solver_context_type), intent(in out) :: context
+    PetscErrorCode, intent(out) :: err
+    ! Locals:
+    PetscReal :: t, dt, interval(2)
+    Vec :: br
+    PetscErrorCode :: ierr
+
+    err = 0
+    t = context%steps%current%time
+    interval = [context%steps%last%time, t]
+    dt = context%steps%current%stepsize
+
+    call context%ode%aux_lhs(t, interval, context%steps%current%aux_lhs_matrix, err)
+    if (err == 0) then
+       call VecDuplicate(b, br, ierr); CHKERRQ(ierr)
+       call context%ode%aux_rhs(t, interval, A, br, err)
+       if (err == 0) then
+          call MatScale(A, -dt, ierr); CHKERRQ(ierr)
+          call MatDiagonalSet(A, context%steps%current%aux_lhs_matrix, &
+               ADD_VALUES, ierr); CHKERRQ(ierr)
+          call VecPointwiseMult(b, context%steps%last%aux_lhs_matrix, &
+               context%steps%last%aux_solution, ierr); CHKERRQ(ierr)
+          call VecAXPY(b, dt, br, ierr); CHKERRQ(ierr)
+       end if
+       call VecDestroy(br, ierr); CHKERRQ(ierr)
+    end if
+
+  end subroutine backwards_Euler_setup_linear
+
+!------------------------------------------------------------------------
+
+  subroutine BDF2_setup_linear(A, b, context, err)
+    !! Sets up linear system for BDF2 method applied to a
+    !! linear problem.
+    !! A = (1 + 2r) * Al(1) - (r+1) * dt * Ar(1)
+    !! b = (r+1)^2 * Al(0) * y(0) - r^2 * Al(-1) * y(-1) + dt * (r+1) * br(1)
+
+    Mat, intent(in out) :: A
+    Vec, intent(in out) :: b
+    type(timestepper_solver_context_type), intent(in out) :: context
+    PetscErrorCode, intent(out) :: err
+    ! Locals:
+    type(timestepper_step_type), pointer :: last2
+    PetscReal :: t, dt, dtlast, interval(2)
+    PetscReal :: r, r1
+    Vec :: br, tmp
+    PetscErrorCode :: ierr
+
+    if (context%steps%taken == 0) then
+
+       ! Startup- use backwards Euler
+       call backwards_Euler_setup_linear(A, b, context, err)
+
+    else
+
+       err = 0
+       t  = context%steps%current%time
+       interval = [context%steps%last%time, t]
+       dt = context%steps%current%stepsize
+       dtlast = context%steps%last%stepsize
+       r = dt / dtlast
+       r1 = r + 1._dp
+
+       last2 => context%steps%pstore(3)%p
+
+       call context%ode%aux_lhs(t, interval, &
+            context%steps%current%aux_lhs_matrix, err)
+       if (err == 0) then
+          call VecDuplicate(b, br, ierr); CHKERRQ(ierr)
+          call context%ode%aux_rhs(t, interval, A, br, err)
+          if (err == 0) then
+             call MatScale(A, -dt * r1, ierr); CHKERRQ(ierr)
+             call VecDuplicate(b, tmp, ierr); CHKERRQ(ierr)
+             call VecCopy(context%steps%current%aux_lhs_matrix, tmp, ierr)
+             CHKERRQ(ierr)
+             call VecScale(tmp, 1._dp + 2._dp * r, ierr); CHKERRQ(ierr)
+             call MatDiagonalSet(A, tmp, ADD_VALUES, ierr); CHKERRQ(ierr)
+             call VecPointwiseMult(b, context%steps%last%aux_lhs_matrix, &
+                  context%steps%last%aux_solution, ierr); CHKERRQ(ierr)
+             call VecScale(b, r1 * r1, ierr); CHKERRQ(ierr)
+             call VecPointwiseMult(tmp, last2%aux_lhs_matrix, &
+                  last2%aux_solution, ierr); CHKERRQ(ierr)
+             call VecAXPY(b, -r * r, tmp, ierr); CHKERRQ(ierr)
+             call VecDestroy(tmp, ierr); CHKERRQ(ierr)
+             call VecAXPY(b, dt * r1, br, ierr); CHKERRQ(ierr)
+          end if
+          call VecDestroy(br, ierr); CHKERRQ(ierr)
+       end if
+
+    end if
+
+  end subroutine BDF2_setup_linear
+
+!------------------------------------------------------------------------
+
+  subroutine direct_ss_setup_linear(A, b, context, err)
+    !! Sets up linear system for direct steady-state solution of a
+    !! linear problem.
+
+    Mat, intent(in out) :: A
+    Vec, intent(in out) :: b
+    type(timestepper_solver_context_type), intent(in out) :: context
+    PetscErrorCode, intent(out) :: err
+    ! Locals:
+    PetscReal :: t, interval(2)
+    PetscErrorCode :: ierr
+
+    err = 0
+    t = context%steps%stop_time
+    interval = [t, t]
+    call context%ode%aux_rhs(t, interval, A, b, err)
+    if (err == 0) then
+       call VecScale(b, -1._dp, ierr); CHKERRQ(ierr)
+    end if
+
+  end subroutine direct_ss_setup_linear
+
+!------------------------------------------------------------------------
+! SNES-related routines
 !------------------------------------------------------------------------
 
   subroutine SNES_residual(solver, y, residual, context, err)
@@ -918,6 +1061,10 @@ contains
        if ((err == 0) .and. (self%output_initial)) then
           call self%ode%rhs(t, interval, self%steps%current%solution, &
                self%steps%current%rhs, err)
+          if ((err == 0) .and. (self%ode%auxiliary)) then
+             call self%ode%aux_lhs(t, interval, &
+                  self%steps%current%aux_lhs_matrix, err)
+          end if
        end if
     end if
 
@@ -1268,14 +1415,17 @@ end subroutine timestepper_steps_set_next_stepsize
     select case (method)
     case (TS_BDF2)
        self%residual => BDF2_residual
+       self%setup_linear => BDF2_setup_linear
        self%num_steps = 2
        self%name = "BDF2"
     case (TS_DIRECTSS)
        self%residual => direct_ss_residual
+       self%setup_linear => direct_ss_setup_linear
        self%num_steps = 0
        self%name = "Direct steady state"
     case default
        self%residual => backwards_Euler_residual
+       self%setup_linear => backwards_Euler_setup_linear
        self%num_steps = 1
        self%name = "Backward Euler"
     end select
