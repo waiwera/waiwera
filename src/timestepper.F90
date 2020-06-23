@@ -39,7 +39,7 @@ module timestepper_module
   ! Timestep status
      PetscInt, parameter, public :: TIMESTEP_OK = 0, TIMESTEP_NOT_CONVERGED = 1, &
      TIMESTEP_TOO_SMALL = 2, TIMESTEP_TOO_BIG = 3, TIMESTEP_ABORTED = 4, &
-     TIMESTEP_FINAL = 5
+     TIMESTEP_FINAL = 5, TIMESTEP_AUX_NOT_CONVERGED = 6
 
      PetscInt, parameter :: max_ksp_type_str_len = 8, max_pc_type_str_len = 8
 
@@ -1112,11 +1112,13 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine timestepper_steps_set_current_status(self, converged_reason)
+  subroutine timestepper_steps_set_current_status(self, converged_reason, &
+       converged_reason_aux)
     !! Sets status of current step.
 
     class(timestepper_steps_type), intent(in out) :: self
-    SNESConvergedReason, intent(in) :: converged_reason
+    SNESConvergedReason, intent(in) :: converged_reason !! Nonlinear solver convergence
+    SNESConvergedReason, intent(in) :: converged_reason_aux !! Auxiliary solver convergence
     ! Locals:
     PetscReal :: eta
 
@@ -1129,24 +1131,28 @@ contains
        self%finished = PETSC_TRUE
     else
        if (converged_reason >= 0 ) then
-          if ((self%finished) .and. (self%current%status /= &
-               TIMESTEP_ABORTED)) then
-             self%current%status = TIMESTEP_FINAL
-          else
-             eta = self%adaptor%monitor(self%current, self%last)
-             if ((self%adaptor%on) .or. &
-                  (self%fixed_step_index == size(self%sizes)) .and. &
-                  (.not. self%fixed)) then
-                if (eta < self%adaptor%monitor_min) then
-                   self%current%status = TIMESTEP_TOO_SMALL
-                else if (eta > self%adaptor%monitor_max) then
-                   self%current%status = TIMESTEP_TOO_BIG
+          if (converged_reason_aux >= 0) then
+             if ((self%finished) .and. (self%current%status /= &
+                  TIMESTEP_ABORTED)) then
+                self%current%status = TIMESTEP_FINAL
+             else
+                eta = self%adaptor%monitor(self%current, self%last)
+                if ((self%adaptor%on) .or. &
+                     (self%fixed_step_index == size(self%sizes)) .and. &
+                     (.not. self%fixed)) then
+                   if (eta < self%adaptor%monitor_min) then
+                      self%current%status = TIMESTEP_TOO_SMALL
+                   else if (eta > self%adaptor%monitor_max) then
+                      self%current%status = TIMESTEP_TOO_BIG
+                   else
+                      self%current%status = TIMESTEP_OK
+                   end if
                 else
                    self%current%status = TIMESTEP_OK
                 end if
-             else
-                self%current%status = TIMESTEP_OK
              end if
+          else
+             self%current%status = TIMESTEP_AUX_NOT_CONVERGED
           end if
        else if (self%current%num_tries >= self%max_num_tries) then
           self%current%status = TIMESTEP_ABORTED
@@ -1213,7 +1219,7 @@ contains
        else
 
           select case (self%current%status)
-          case (TIMESTEP_TOO_BIG, TIMESTEP_NOT_CONVERGED)
+          case (TIMESTEP_TOO_BIG, TIMESTEP_NOT_CONVERGED, TIMESTEP_AUX_NOT_CONVERGED)
              ! temporarily switch to adaptive time stepping:
              self%adaptor%on = PETSC_TRUE
              call self%adapt(accepted)
@@ -1239,7 +1245,7 @@ end subroutine timestepper_steps_set_next_stepsize
     case (TIMESTEP_TOO_SMALL)
        accepted = PETSC_TRUE
        self%next_stepsize = self%adaptor%increase(self%current%stepsize)
-    case (TIMESTEP_TOO_BIG, TIMESTEP_NOT_CONVERGED)
+    case (TIMESTEP_TOO_BIG, TIMESTEP_NOT_CONVERGED, TIMESTEP_AUX_NOT_CONVERGED)
        accepted = PETSC_FALSE
        self%next_stepsize = self%adaptor%reduce(self%current%stepsize)
     case default
@@ -2132,6 +2138,7 @@ end subroutine timestepper_steps_set_next_stepsize
     PetscErrorCode :: ierr
     PetscBool :: accepted
     SNESConvergedReason :: converged_reason
+    KSPConvergedReason :: converged_reason_aux
 
     call self%steps%update()
     call self%ode%pre_timestep()
@@ -2153,8 +2160,18 @@ end subroutine timestepper_steps_set_next_stepsize
             ierr); CHKERRQ(ierr)
        call SNESGetConvergedReason(self%solver, converged_reason, ierr); CHKERRQ(ierr)
 
+       if ((self%ode%auxiliary) .and. (converged_reason >= 0)) then
+          call self%method%setup_linear(self%A_aux, self%b_aux, self%context, ierr)
+          call KSPSolve(self%solver_aux, self%b_aux, self%steps%current%aux_solution, &
+               ierr); CHKERRQ(ierr)
+          call KSPGetConvergedReason(self%solver_aux, converged_reason_aux, ierr)
+          CHKERRQ(ierr)
+       else
+          converged_reason_aux = 0
+       end if
+
        self%steps%current%num_tries = self%steps%current%num_tries + 1
-       call self%steps%set_current_status(converged_reason)
+       call self%steps%set_current_status(converged_reason, converged_reason_aux)
        call self%steps%set_next_stepsize(accepted)
        call self%log_step_status(accepted, converged_reason)
 
