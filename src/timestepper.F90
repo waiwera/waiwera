@@ -2312,6 +2312,7 @@ end subroutine timestepper_steps_set_next_stepsize
 
        if ((self%ode%auxiliary) .and. (converged_reason >= 0)) then
           call self%method%setup_linear(self%A_aux, self%b_aux, self%context, ierr)
+          call self%ode%aux_pre_solve(self%A_aux, self%b_aux)
           call KSPSolve(self%solver_aux, self%b_aux, self%steps%current%aux_solution, &
                ierr); CHKERRQ(ierr)
           call KSPGetConvergedReason(self%solver_aux, converged_reason_aux, ierr)

@@ -53,6 +53,7 @@ module ode_module
      procedure(rhs_function), public, deferred :: rhs
      procedure, public :: aux_lhs => ode_aux_lhs
      procedure, public :: aux_rhs => ode_aux_rhs
+     procedure, public :: aux_pre_solve => ode_aux_pre_solve
      procedure, public :: pre_solve => ode_pre_eval
      procedure, public :: pre_iteration => ode_pre_iteration
      procedure, public :: pre_eval => ode_pre_eval
@@ -249,4 +250,18 @@ contains
 
 !------------------------------------------------------------------------
 
-   end module ode_module
+  subroutine ode_aux_pre_solve(self, A, b)
+    !! Default routine for modifying auxiliary linear system Ax = b
+    !! before solving it.
+
+    class(ode_type), intent(in out) :: self
+    Mat, intent(in out) :: A
+    Vec, intent(in out) :: b
+
+    ! Do nothing
+
+  end subroutine ode_aux_pre_solve
+
+!------------------------------------------------------------------------
+
+end module ode_module
