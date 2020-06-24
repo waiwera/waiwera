@@ -26,6 +26,7 @@ module tracer_module
   private
 
   PetscInt, parameter :: max_tracer_name_length = 32
+  PetscInt, parameter, public :: tracer_phase_index = 1 ! assume liquid phase tracers
 
   public :: setup_tracer
 
