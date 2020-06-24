@@ -46,6 +46,7 @@ module cell_module
      procedure, public :: assign_geometry => cell_assign_geometry
      procedure, public :: destroy => cell_destroy
      procedure, public :: balance => cell_balance
+     procedure, public :: tracer_balance_coefs => cell_tracer_balance_coefs
   end type cell_type
 
   PetscInt, parameter, public :: num_cell_variables = 2
@@ -139,5 +140,24 @@ contains
   end function cell_balance
 
 !------------------------------------------------------------------------
-  
+
+  function cell_tracer_balance_coefs(self, num_tracers) result(coefs)
+    !! Returns tracer balance coefficients for the cell. These are the
+    !! coefficients which when multiplied by the tracer mass fractions
+    !! give the tracer mass balances (per unit volume) in the cell.
+
+    use tracer_module, only: tracer_phase_index
+
+    class(cell_type), intent(in) :: self
+    PetscInt, intent(in) :: num_tracers
+    PetscReal :: coefs(num_tracers)
+
+    associate(phase => self%fluid%phase(tracer_phase_index))
+      coefs = self%rock%porosity * phase%saturation * phase%density
+    end associate
+
+  end function cell_tracer_balance_coefs
+
+!------------------------------------------------------------------------
+
 end module cell_module
