@@ -90,6 +90,7 @@ module flow_simulation_module
      procedure, public :: destroy => flow_simulation_destroy
      procedure, public :: lhs => flow_simulation_cell_balances
      procedure, public :: rhs => flow_simulation_cell_inflows
+     procedure, public :: aux_lhs => flow_simulation_tracer_cell_balances
      procedure, public :: pre_timestep => flow_simulation_pre_timestep
      procedure, public :: pre_retry_timestep => flow_simulation_pre_retry_timestep
      procedure, public :: pre_iteration => flow_simulation_pre_iteration
@@ -1311,6 +1312,74 @@ contains
     end subroutine apply_sources
 
   end subroutine flow_simulation_cell_inflows
+
+!------------------------------------------------------------------------
+
+  subroutine flow_simulation_tracer_cell_balances(self, t, interval, Al, err)
+    !! Computes tracer mass balance coefficients for each cell and returns
+    !! diagonal left-hand side matrix Al.
+
+    use dm_utils_module, only: global_section_offset, global_vec_section
+    use cell_module, only: cell_type
+
+    class(flow_simulation_type), intent(in out) :: self
+    PetscReal, intent(in) :: t !! time (s)
+    PetscReal, intent(in) :: interval(2) !! time interval bounds
+    Vec, intent(in out) :: Al
+    PetscErrorCode, intent(out) :: err
+    ! Locals:
+    PetscSection :: tracer_section, fluid_section, rock_section
+    PetscReal, pointer, contiguous :: Al_array(:), fluid_array(:), rock_array(:)
+    PetscReal, pointer, contiguous :: cell_coefs(:)
+    PetscInt :: start_cell, end_cell, c
+    PetscInt :: tracer_offset, fluid_offset, rock_offset
+    PetscInt :: nt, nc
+    type(cell_type) :: cell
+    PetscErrorCode :: ierr
+
+    err = 0
+    nc = self%eos%num_components
+
+    call VecGetBlockSize(Al, nt, ierr); CHKERRQ(ierr)
+    call global_vec_section(Al, tracer_section)
+    call VecGetArrayF90(Al, Al_array, ierr); CHKERRQ(ierr)
+    call global_vec_section(self%fluid, fluid_section)
+    call VecGetArrayReadF90(self%fluid, fluid_array, ierr); CHKERRQ(ierr)
+    call global_vec_section(self%rock, rock_section)
+    call VecGetArrayReadF90(self%rock, rock_array, ierr); CHKERRQ(ierr)
+
+    call cell%init(nc, self%eos%num_phases)
+    call DMPlexGetHeightStratum(self%mesh%dm, 0, start_cell, end_cell, ierr)
+    CHKERRQ(ierr)
+
+    do c = start_cell, end_cell - 1
+
+       if (self%mesh%ghost_cell(c) < 0) then
+
+          tracer_offset = global_section_offset(tracer_section, c, &
+                  self%aux_solution_range_start)
+          cell_coefs => Al_array(tracer_offset: tracer_offset + nt - 1)
+
+          fluid_offset = global_section_offset(fluid_section, c, &
+               self%fluid_range_start)
+          rock_offset = global_section_offset(rock_section, c, &
+               self%rock_range_start)
+
+          call cell%rock%assign(rock_array, rock_offset)
+          call cell%fluid%assign(fluid_array, fluid_offset)
+          cell_coefs = cell%tracer_balance_coefs(nt)
+
+       end if
+
+    end do
+
+    call cell%destroy()
+    nullify(cell_coefs)
+    call VecRestoreArrayReadF90(self%rock, rock_array, ierr); CHKERRQ(ierr)
+    call VecRestoreArrayReadF90(self%fluid, fluid_array, ierr); CHKERRQ(ierr)
+    call VecRestoreArrayF90(Al, Al_array, ierr); CHKERRQ(ierr)
+
+  end subroutine flow_simulation_tracer_cell_balances
 
 !------------------------------------------------------------------------
 
