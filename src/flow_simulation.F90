@@ -91,6 +91,7 @@ module flow_simulation_module
      procedure, public :: lhs => flow_simulation_cell_balances
      procedure, public :: rhs => flow_simulation_cell_inflows
      procedure, public :: aux_lhs => flow_simulation_tracer_cell_balances
+     procedure, public :: aux_pre_solve => flow_simulation_tracer_pre_solve
      procedure, public :: pre_timestep => flow_simulation_pre_timestep
      procedure, public :: pre_retry_timestep => flow_simulation_pre_retry_timestep
      procedure, public :: pre_iteration => flow_simulation_pre_iteration
@@ -1380,6 +1381,108 @@ contains
     call VecRestoreArrayF90(Al, Al_array, ierr); CHKERRQ(ierr)
 
   end subroutine flow_simulation_tracer_cell_balances
+
+!------------------------------------------------------------------------
+
+  subroutine flow_simulation_tracer_pre_solve(self, A, b)
+    !! Routine for modifying linear system Ax = b for tracer problem
+    !! before solving it. For cells in which the tracer phase is not
+    !! present, the equations are modified to set the tracer mass
+    !! fraction to zero.
+
+    use dm_utils_module, only: global_section_offset, global_vec_section
+    use fluid_module, only: fluid_type
+    use list_module, only: list_type
+    use tracer_module, only: tracer_phase_index
+
+    class(flow_simulation_type), intent(in out) :: self
+    Mat, intent(in out) :: A
+    Vec, intent(in out) :: b
+    ! Locals:
+    PetscInt :: start_cell, end_cell, c, i, it
+    PetscInt :: nc, np, nt, num_indices
+    PetscInt :: tracer_offset, fluid_offset
+    PetscSection :: tracer_section, fluid_section
+    PetscReal, pointer, contiguous :: fluid_array(:)
+    type(fluid_type) :: fluid
+    type(list_type) :: index_list
+    PetscInt, allocatable :: indices(:)
+    PetscInt :: phases
+    PetscReal, allocatable :: zeros(:)
+    PetscErrorCode :: ierr
+
+    nc = self%eos%num_components
+    np = self%eos%num_phases
+
+    call VecGetBlockSize(b, nt, ierr); CHKERRQ(ierr)
+    call global_vec_section(b, tracer_section)
+    call global_vec_section(self%fluid, fluid_section)
+    call VecGetArrayReadF90(self%fluid, fluid_array, ierr); CHKERRQ(ierr)
+
+    call fluid%init(nc, np)
+
+    call DMPlexGetHeightStratum(self%mesh%dm, 0, start_cell, end_cell, ierr)
+    CHKERRQ(ierr)
+    call index_list%init()
+
+    do c = start_cell, end_cell - 1
+
+       if (self%mesh%ghost_cell(c) < 0) then
+
+          tracer_offset = global_section_offset(tracer_section, c, &
+               self%aux_solution_range_start)
+          fluid_offset = global_section_offset(fluid_section, c, &
+               self%fluid_range_start)
+          call fluid%assign(fluid_array, fluid_offset)
+          phases = nint(fluid%phase_composition)
+          if (.not. btest(phases, tracer_phase_index - 1)) then
+             do it = 1, nt
+                call index_list%append(tracer_offset + it - 1)
+             end do
+          end if
+
+       end if
+
+    end do
+
+    call fluid%destroy()
+    call VecRestoreArrayReadF90(self%fluid, fluid_array, ierr)
+    CHKERRQ(ierr)
+
+    num_indices = index_list%count
+    allocate(indices(num_indices))
+    i = 1
+    call index_list%traverse(index_list_iterator)
+    call index_list%destroy()
+
+    call MatZeroRowsLocal(A, num_indices, indices, 1._dp, &
+         PETSC_NULL_VEC, PETSC_NULL_VEC, ierr); CHKERRQ(ierr)
+    allocate(zeros(num_indices))
+    zeros = 0._dp
+    call VecSetValuesLocal(b, num_indices, indices, zeros, INSERT_VALUES, &
+         ierr); CHKERRQ(ierr)
+    deallocate(indices, zeros)
+    call VecAssemblyBegin(b, ierr); CHKERRQ(ierr)
+    call VecAssemblyEnd(b, ierr); CHKERRQ(ierr)
+
+  contains
+
+    subroutine index_list_iterator(node, stopped)
+      !! Convert list of indices to array.
+
+      type(list_node_type), pointer, intent(in out)  :: node
+      PetscBool, intent(out) :: stopped
+
+      stopped = PETSC_FALSE
+      select type (offset => node%data)
+      type is (PetscInt)
+         indices(i) = offset
+      end select
+      i = i + 1
+
+    end subroutine index_list_iterator
+
+  end subroutine flow_simulation_tracer_pre_solve
 
 !------------------------------------------------------------------------
 
