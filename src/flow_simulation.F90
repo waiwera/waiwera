@@ -1389,9 +1389,11 @@ contains
     !! Routine for modifying linear system Ax = b for tracer problem
     !! before solving it. For cells in which the tracer phase is not
     !! present, the equations are modified to set the tracer mass
-    !! fraction to zero.
+    !! fraction to zero. Equations in boundary cells are modified to
+    !! enforce the boundary conditions.
 
-    use dm_utils_module, only: global_section_offset, global_vec_section
+    use dm_utils_module, only: global_section_offset, global_vec_section, &
+          dm_get_end_interior_cell
     use fluid_module, only: fluid_type
     use list_module, only: list_type
     use tracer_module, only: tracer_phase_index
@@ -1400,16 +1402,17 @@ contains
     Mat, intent(in out) :: A
     Vec, intent(in out) :: b
     ! Locals:
-    PetscInt :: start_cell, end_cell, c, i, it
-    PetscInt :: nc, np, nt, num_indices
-    PetscInt :: tracer_offset, fluid_offset
+    PetscInt :: start_cell, end_cell, end_interior_cell, c, i, it
+    PetscInt :: nc, np, nt, num_indices, num_bdy
+    PetscInt :: tracer_offset, fluid_offset, idx
     PetscSection :: tracer_section, fluid_section
-    PetscReal, pointer, contiguous :: fluid_array(:)
+    PetscReal, pointer, contiguous :: fluid_array(:), &
+         previous_solution_array(:)
     type(fluid_type) :: fluid
     type(list_type) :: index_list
     PetscInt, allocatable :: indices(:)
     PetscInt :: phases
-    PetscReal, allocatable :: zeros(:)
+    PetscReal, allocatable :: mass_fraction(:)
     PetscErrorCode :: ierr
 
     nc = self%eos%num_components
@@ -1424,12 +1427,11 @@ contains
 
     call DMPlexGetHeightStratum(self%mesh%dm, 0, start_cell, end_cell, ierr)
     CHKERRQ(ierr)
+    end_interior_cell = dm_get_end_interior_cell(self%mesh%dm, end_cell)
     call index_list%init()
 
-    do c = start_cell, end_cell - 1
-
+    do c = start_cell, end_interior_cell - 1
        if (self%mesh%ghost_cell(c) < 0) then
-
           tracer_offset = global_section_offset(tracer_section, c, &
                self%aux_solution_range_start)
           fluid_offset = global_section_offset(fluid_section, c, &
@@ -1441,28 +1443,45 @@ contains
                 call index_list%append(tracer_offset + it - 1)
              end do
           end if
-
        end if
-
     end do
 
     call fluid%destroy()
     call VecRestoreArrayReadF90(self%fluid, fluid_array, ierr)
     CHKERRQ(ierr)
 
-    num_indices = index_list%count
-    allocate(indices(num_indices))
+    num_bdy = end_cell - end_interior_cell
+    num_indices = index_list%count + num_bdy * nt
+    allocate(indices(num_indices), mass_fraction(num_indices))
+    mass_fraction = 0._dp
+
     i = 1
     call index_list%traverse(index_list_iterator)
     call index_list%destroy()
 
+    ! Apply boundary conditions:
+    call VecGetArrayReadF90(self%aux_solution, previous_solution_array, ierr)
+    CHKERRQ(ierr)
+    do c = end_interior_cell, end_cell - 1
+       if (self%mesh%ghost_cell(c) < 0) then
+          tracer_offset = global_section_offset(tracer_section, c, &
+               self%aux_solution_range_start)
+          do it = 1, nt
+             idx = tracer_offset + it - 1
+             indices(i) = idx
+             mass_fraction(i) = previous_solution_array(idx)
+             i = i + 1
+          end do
+       end if
+    end do
+    call VecRestoreArrayReadF90(self%aux_solution, previous_solution_array, ierr)
+    CHKERRQ(ierr)
+
     call MatZeroRowsLocal(A, num_indices, indices, 1._dp, &
          PETSC_NULL_VEC, PETSC_NULL_VEC, ierr); CHKERRQ(ierr)
-    allocate(zeros(num_indices))
-    zeros = 0._dp
-    call VecSetValuesLocal(b, num_indices, indices, zeros, INSERT_VALUES, &
+    call VecSetValuesLocal(b, num_indices, indices, mass_fraction, INSERT_VALUES, &
          ierr); CHKERRQ(ierr)
-    deallocate(indices, zeros)
+    deallocate(indices, mass_fraction)
     call VecAssemblyBegin(b, ierr); CHKERRQ(ierr)
     call VecAssemblyEnd(b, ierr); CHKERRQ(ierr)
 
