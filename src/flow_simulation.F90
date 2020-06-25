@@ -1344,6 +1344,7 @@ contains
     call VecGetBlockSize(Al, nt, ierr); CHKERRQ(ierr)
     call global_vec_section(Al, tracer_section)
     call VecGetArrayF90(Al, Al_array, ierr); CHKERRQ(ierr)
+    Al_array = 0._dp
     call global_vec_section(self%fluid, fluid_section)
     call VecGetArrayReadF90(self%fluid, fluid_array, ierr); CHKERRQ(ierr)
     call global_vec_section(self%rock, rock_section)
