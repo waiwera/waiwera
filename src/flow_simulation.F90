@@ -91,6 +91,7 @@ module flow_simulation_module
      procedure, public :: lhs => flow_simulation_cell_balances
      procedure, public :: rhs => flow_simulation_cell_inflows
      procedure, public :: aux_lhs => flow_simulation_tracer_cell_balances
+     procedure, public :: aux_rhs => flow_simulation_tracer_cell_inflows
      procedure, public :: aux_pre_solve => flow_simulation_tracer_pre_solve
      procedure, public :: pre_timestep => flow_simulation_pre_timestep
      procedure, public :: pre_retry_timestep => flow_simulation_pre_retry_timestep
@@ -1385,6 +1386,121 @@ contains
     call VecRestoreArrayF90(Al, Al_array, ierr); CHKERRQ(ierr)
 
   end subroutine flow_simulation_tracer_cell_balances
+
+!------------------------------------------------------------------------
+
+  subroutine flow_simulation_tracer_cell_inflows(self, t, interval, Ar, br, err)
+    !! Computes net tracer mass inflow (per unit volume) into each
+    !! cell, from flows through faces and source terms.
+
+    use dm_utils_module, only: local_vec_section, section_offset, &
+         dm_get_end_interior_cell
+    use face_module, only: face_type
+    use tracer_module, only: tracer_phase_index
+
+    class(flow_simulation_type), intent(in out) :: self
+    PetscReal, intent(in) :: t !! time (s)
+    PetscReal, intent(in) :: interval(2) !! time interval bounds
+    Mat, intent(in out) :: Ar
+    Vec, intent(in out) :: br
+    PetscErrorCode, intent(out) :: err
+    ! Locals:
+    PetscSection :: cell_geom_section, face_geom_section, flux_section
+    PetscReal, pointer, contiguous :: cell_geom_array(:), face_geom_array(:), &
+         flux_array(:)
+    PetscInt :: start_cell, end_cell, end_interior_cell, start_face, end_face, f
+    PetscInt :: cell_geom_offsets(2), face_geom_offset, flux_offset
+    PetscInt :: np, nf, up, c_up, i, irow(2), icol(2)
+    type(face_type) :: face
+    PetscInt, pointer :: cells(:)
+    PetscReal, pointer, contiguous :: face_flux(:), phase_flux(:)
+    PetscReal :: tracer_phase_flux, tracer_flow, Ft(2)
+    PetscReal, parameter :: flux_sign(2) = [-1._dp, 1._dp]
+    PetscErrorCode :: ierr
+
+    err = 0
+
+    np = self%eos%num_primary_variables
+    nf = np + self%eos%num_phases ! total number of fluxes stored
+
+    call MatZeroEntries(Ar, ierr); CHKERRQ(ierr)
+    call VecSet(br, 0._dp, ierr); CHKERRQ(ierr)
+
+    call local_vec_section(self%mesh%cell_geom, cell_geom_section)
+    call VecGetArrayReadF90(self%mesh%cell_geom, cell_geom_array, ierr)
+    CHKERRQ(ierr)
+    call local_vec_section(self%mesh%face_geom, face_geom_section)
+    call VecGetArrayReadF90(self%mesh%face_geom, face_geom_array, ierr)
+    CHKERRQ(ierr)
+    call face%init(self%eos%num_components, self%eos%num_phases)
+
+    call local_vec_section(self%flux, flux_section)
+    call VecGetArrayReadF90(self%flux, flux_array, ierr); CHKERRQ(ierr)
+
+    call DMPlexGetHeightStratum(self%mesh%dm, 0, start_cell, end_cell, ierr)
+    CHKERRQ(ierr)
+    call DMPlexGetHeightStratum(self%mesh%dm, 1, start_face, end_face, ierr)
+    CHKERRQ(ierr)
+    end_interior_cell = dm_get_end_interior_cell(self%mesh%dm, end_cell)
+
+    do f = start_face, end_face - 1
+
+       if (self%mesh%ghost_face(f) < 0) then
+
+          call DMPlexGetSupport(self%mesh%dm, f, cells, ierr); CHKERRQ(ierr)
+          do i = 1, 2
+             cell_geom_offsets(i) = section_offset(cell_geom_section, cells(i))
+          end do
+          call face%assign_cell_geometry(cell_geom_array, cell_geom_offsets)
+          face_geom_offset = section_offset(face_geom_section, f)
+          call face%assign_geometry(face_geom_array, face_geom_offset)
+
+          flux_offset = section_offset(flux_section, f)
+          face_flux => flux_array(flux_offset : flux_offset + nf - 1)
+          associate(phase_flux => face_flux(np + 1 : nf))
+            tracer_phase_flux = phase_flux(tracer_phase_index)
+            if (tracer_phase_flux >= 0._dp) then
+               up = 1
+            else
+               up = 2
+            end if
+            c_up = cells(up)
+            tracer_flow = tracer_phase_flux * face%area
+            do i = 1, 2
+               if ((self%mesh%ghost_cell(cells(i)) < 0) .and. &
+                    (cells(i) <= end_interior_cell - 1)) then
+                  Ft(i) = flux_sign(i) * tracer_flow / face%cell(i)%volume
+                  irow(i) = cells(i)
+                  icol(i) = c_up
+               else
+                  Ft(i) = 0._dp
+                  irow(i) = -1
+                  icol(i) = -1
+               end if
+            end do
+          end associate
+          ! TODO generalise for > 1 tracer, using MatSetValuesBlockedLocal():
+          call MatSetValuesLocal(Ar, 2, irow, 2, icol, Ft, ADD_VALUES, &
+               ierr); CHKERRQ(ierr)
+
+       end if
+    end do
+
+    call face%destroy()
+    call VecRestoreArrayReadF90(self%flux, flux_array, ierr); CHKERRQ(ierr)
+    call VecRestoreArrayReadF90(self%mesh%face_geom, face_geom_array, ierr)
+    CHKERRQ(ierr)
+
+    ! TODO: assemble sources into br vector
+    ! TODO: assemble decay term into diagonal of Ar
+
+    call VecRestoreArrayReadF90(self%mesh%cell_geom, cell_geom_array, ierr)
+    CHKERRQ(ierr)
+
+    call MatAssemblyBegin(Ar, MAT_FINAL_ASSEMBLY, ierr); CHKERRQ(ierr)
+    call MatAssemblyEnd(Ar, MAT_FINAL_ASSEMBLY, ierr); CHKERRQ(ierr)
+
+  end subroutine flow_simulation_tracer_cell_inflows
 
 !------------------------------------------------------------------------
 
