@@ -53,7 +53,7 @@ module flow_simulation_module
      Vec, public :: last_iteration_fluid !! Fluid properties at previous nonlinear solver iteration
      Vec, public :: balances !! Mass and energy balances for unperturbed primary variables
      Vec, public :: update_cell !! Which cells have primary variables being updated
-     Vec, public :: flux !! Mass or energy fluxes through cell faces for each component
+     Vec, public :: flux !! Mass or energy fluxes through cell faces for each component and phase
      Vec, public :: source !! Source/sink terms
      PetscInt, public :: num_local_sources !! Number of source/sink terms on current process
      PetscInt, public :: num_sources !! Total number of source/sink terms on all processes
@@ -133,8 +133,8 @@ contains
 !------------------------------------------------------------------------
 
   subroutine flow_simulation_setup_flux_vector(self)
-    !! Sets up flux vector, for storing mass and energy fluxes through
-    !! cell faces.
+    !! Sets up flux vector, for storing mass, energy and phase fluxes
+    !! through cell faces.
 
     use dm_utils_module, only: dm_set_data_layout, global_vec_range_start
 
@@ -148,7 +148,7 @@ contains
          flux_variable_names(:)
     PetscErrorCode :: ierr
 
-    num_variables = self%eos%num_primary_variables
+    num_variables = self%eos%num_primary_variables + self%eos%num_phases
     allocate(flux_variable_num_components(num_variables), &
          flux_variable_dim(num_variables), flux_variable_names(num_variables))
     flux_variable_num_components = 1
@@ -160,6 +160,8 @@ contains
     if (.not. (self%eos%isothermal)) then
        flux_variable_names(self%eos%num_primary_variables) = energy_component_name
     end if
+    flux_variable_names(self%eos%num_primary_variables + 1: &
+         self%eos%num_primary_variables + self%eos%num_phases) = self%eos%phase_names
 
     call dm_set_data_layout(dm_flux, flux_variable_num_components, &
          flux_variable_dim, flux_variable_names)
@@ -1121,7 +1123,7 @@ contains
     Vec, intent(in out) :: rhs
     PetscErrorCode, intent(out) :: err
     ! Locals:
-    PetscInt :: f, i, np
+    PetscInt :: f, i, np, nf
     PetscInt :: start_cell, end_cell, end_interior_cell
     PetscInt :: start_face, end_face
     Vec :: local_fluid, local_rock, local_update
@@ -1139,14 +1141,15 @@ contains
     PetscInt :: cell_geom_offset, rhs_offset, flux_offset
     PetscInt, pointer :: cells(:)
     PetscReal, pointer, contiguous :: inflow(:)
-    PetscReal, allocatable :: face_flux(:), face_flow(:)
+    PetscReal, allocatable :: face_flux(:), face_component_flow(:)
     PetscReal, parameter :: flux_sign(2) = [-1._dp, 1._dp]
     PetscErrorCode :: ierr
 
     call PetscLogEventBegin(cell_inflows_event, ierr); CHKERRQ(ierr)
     err = 0
     np = self%eos%num_primary_variables
-    allocate(face_flux(np), face_flow(np))
+    nf = np + self%eos%num_phases ! total number of fluxes stored
+    allocate(face_flux(nf), face_component_flow(np))
 
     call global_vec_section(rhs, rhs_section)
     call VecGetArrayF90(rhs, rhs_array, ierr); CHKERRQ(ierr)
@@ -1206,20 +1209,20 @@ contains
              face_flux = face%flux(self%eos)
              if (self%unperturbed) then
                 flux_offset = section_offset(flux_section, f)
-                flux_array(flux_offset : flux_offset + np - 1) = face_flux
+                flux_array(flux_offset : flux_offset + nf - 1) = face_flux
              end if
           else
              flux_offset = section_offset(flux_section, f)
-             face_flux = flux_array(flux_offset : flux_offset + np - 1)
+             face_flux = flux_array(flux_offset : flux_offset + nf - 1)
           end if
 
-          face_flow = face_flux * face%area
+          face_component_flow = face_flux(1:np) * face%area
 
           do i = 1, 2
              if ((self%mesh%ghost_cell(cells(i)) < 0) .and. &
                   (cells(i) <= end_interior_cell - 1)) then
-                inflow => rhs_array(rhs_offsets(i) : rhs_offsets(i) + np - 1)
-                inflow = inflow + flux_sign(i) * face_flow / &
+                inflow => rhs_array(rhs_offsets(i) : rhs_offsets(i) + nf - 1)
+                inflow = inflow + flux_sign(i) * face_component_flow / &
                      face%cell(i)%volume
              end if
           end do
@@ -1252,7 +1255,7 @@ contains
     call VecRestoreArrayF90(rhs, rhs_array, ierr); CHKERRQ(ierr)
     call restore_dm_local_vec(local_fluid)
     call restore_dm_local_vec(local_rock)
-    deallocate(face_flux, face_flow)
+    deallocate(face_flux, face_component_flow)
 
   contains
 
