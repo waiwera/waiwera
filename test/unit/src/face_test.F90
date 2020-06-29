@@ -357,7 +357,6 @@ contains
 
     class(unit_test_type), intent(in out) :: test
     ! Locals:
-    PetscInt, parameter :: nc = 1, num_phases = 1, num_primary = 2
     type(face_type) :: face
     type(cell_type) :: cell
     type(rock_type) :: rock
@@ -372,6 +371,8 @@ contains
     PetscInt :: rock_offsets(2), fluid_offsets(2)
     PetscReal, parameter :: expected_mass_flux = 0._dp
     PetscReal, parameter :: expected_heat_flux = 0._dp
+    PetscReal, parameter :: expected_liquid_flux = 0._dp
+    PetscReal, parameter :: expected_vapour_flux = 0._dp
     PetscMPIInt :: rank
     PetscInt :: ierr
 
@@ -382,13 +383,13 @@ contains
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
     if (rank == 0) then
 
-       call cell%init(nc, num_phases)
-       call face%init(nc, num_phases)
-       call fluid%init(nc, num_phases)
+       call cell%init(eos%num_components, eos%num_phases)
+       call face%init(eos%num_components, eos%num_phases)
+       call fluid%init(eos%num_components, eos%num_phases)
        call rock%init()
        allocate(face_data(face%dof), cell_data(cell%dof))
        allocate(rock_data(rock%dof), fluid_data(fluid%dof))
-       allocate(flux(num_primary))
+       allocate(flux(eos%num_primary_variables + eos%num_phases))
        face_offset = 1
        cell_offsets = [1, 1]
        rock_offsets = [1, 1]
@@ -402,7 +403,9 @@ contains
        fluid_data = [ &
             1.e5_dp, 20._dp, 1._dp, 1._dp, 0._dp, &
             998.2_dp, 1.e-3_dp, 1._dp, 1._dp, 0._dp, &
-            84011.8_dp, 83911.6_dp, 1._dp]
+            84011.8_dp, 83911.6_dp, 1._dp, &
+            0._dp, 0._dp, 0._dp, 0._dp, 0._dp, &
+            0._dp, 0._dp, 0._dp]
 
        call face%assign_geometry(face_data, face_offset)
        call face%assign_cell_geometry(cell_data, cell_offsets)
@@ -411,9 +414,12 @@ contains
 
        flux = face%flux(eos)
 
-       call test%assert(num_primary, size(flux), "Flux array size")
+       call test%assert(eos%num_primary_variables + eos%num_phases, &
+            size(flux), "Flux array size")
        call test%assert(expected_mass_flux, flux(1), "Mass flux")
        call test%assert(expected_heat_flux, flux(2), "Heat flux")
+       call test%assert(expected_liquid_flux, flux(3), "Liquid flux")
+       call test%assert(expected_vapour_flux, flux(4), "Vapour flux")
 
        call cell%destroy()
        call face%destroy()
@@ -444,7 +450,6 @@ contains
 
     class(unit_test_type), intent(in out) :: test
     ! Locals:
-    PetscInt, parameter :: nc = 1, num_phases = 1, num_primary = 2
     type(face_type) :: face
     type(cell_type) :: cell
     type(rock_type) :: rock
@@ -459,6 +464,8 @@ contains
     PetscInt :: rock_offsets(2), fluid_offsets(2)
     PetscReal, parameter :: expected_mass_flux = 2.9294255256e-5_dp
     PetscReal, parameter :: expected_heat_flux = 2.4610631137_dp
+    PetscReal, parameter :: expected_liquid_flux = expected_mass_flux
+    PetscReal, parameter :: expected_vapour_flux = 0._dp
     PetscMPIInt :: rank
     PetscInt :: ierr
 
@@ -469,13 +476,13 @@ contains
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
     if (rank == 0) then
 
-       call cell%init(nc, num_phases)
-       call face%init(nc, num_phases)
-       call fluid%init(nc, num_phases)
+       call cell%init(eos%num_components, eos%num_phases)
+       call face%init(eos%num_components, eos%num_phases)
+       call fluid%init(eos%num_components, eos%num_phases)
        call rock%init()
        allocate(face_data(face%dof), cell_data(cell%dof))
        allocate(rock_data(rock%dof), fluid_data(fluid%dof))
-       allocate(flux(num_primary))
+       allocate(flux(eos%num_primary_variables + eos%num_phases))
        face_offset = 1
        cell_offsets = [1, 1]
        rock_offsets = [1, 1]
@@ -489,7 +496,9 @@ contains
        fluid_data = [ &
             1.e5_dp, 20._dp, 1._dp, 1._dp, 0._dp, &
             998.2_dp, 1.e-3_dp, 1._dp, 1._dp, 0._dp, &
-            84011.8_dp, 83911.6_dp, 1._dp]
+            84011.8_dp, 83911.6_dp, 1._dp, &
+            0._dp, 0._dp, 0._dp, 0._dp, 0._dp, &
+            0._dp, 0._dp, 0._dp]
 
        call face%assign_geometry(face_data, face_offset)
        call face%assign_cell_geometry(cell_data, cell_offsets)
@@ -500,6 +509,8 @@ contains
 
        call test%assert(expected_mass_flux, flux(1), "Mass flux")
        call test%assert(expected_heat_flux, flux(2), "Heat flux")
+       call test%assert(expected_liquid_flux, flux(3), "Liquid flux")
+       call test%assert(expected_vapour_flux, flux(4), "Vapour flux")
 
        call cell%destroy()
        call face%destroy()
@@ -530,7 +541,6 @@ contains
 
     class(unit_test_type), intent(in out) :: test
     ! Locals:
-    PetscInt, parameter :: nc = 1, num_phases = 1, num_primary = 2
     type(face_type) :: face
     type(cell_type) :: cell
     type(rock_type) :: rock
@@ -545,6 +555,8 @@ contains
     PetscInt :: rock_offsets(2), fluid_offsets(2)
     PetscReal, parameter :: expected_mass_flux = 0._dp
     PetscReal, parameter :: expected_heat_flux = 0._dp
+    PetscReal, parameter :: expected_liquid_flux = 0._dp
+    PetscReal, parameter :: expected_vapour_flux = 0._dp
     PetscMPIInt :: rank
     PetscInt :: ierr
 
@@ -555,13 +567,13 @@ contains
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
     if (rank == 0) then
 
-       call cell%init(nc, num_phases)
-       call face%init(nc, num_phases)
-       call fluid%init(nc, num_phases)
+       call cell%init(eos%num_components, eos%num_phases)
+       call face%init(eos%num_components, eos%num_phases)
+       call fluid%init(eos%num_components, eos%num_phases)
        call rock%init()
        allocate(face_data(face%dof), cell_data(cell%dof))
        allocate(rock_data(rock%dof), fluid_data(fluid%dof*2))
-       allocate(flux(num_primary))
+       allocate(flux(eos%num_primary_variables + eos%num_phases))
        face_offset = 1
        cell_offsets = [1, 1]
        rock_offsets = [1, 1]
@@ -576,9 +588,13 @@ contains
             2.e5_dp, 20._dp, 1._dp, 1._dp, 0._dp, &                ! cell 1
             998.2512244888_dp, 0.00100156652270771_dp, 1._dp, 1._dp, 0._dp, &
             84105.9189422008_dp, 83905.5685743839_dp, 1._dp, &
+            0._dp, 0._dp, 0._dp, 0._dp, 0._dp, &
+            0._dp, 0._dp, 0._dp, &
             7.87050606076185e5_dp, 20._dp, 1._dp, 1._dp, 0._dp, &  ! cell 2
             998.5195444779_dp, 0.00100138700807062_dp, 1._dp, 1._dp, 0._dp, &
-            84658.2021844106_dp, 83869.9846573438_dp, 1._dp]
+            84658.2021844106_dp, 83869.9846573438_dp, 1._dp, &
+            0._dp, 0._dp, 0._dp, 0._dp, 0._dp, &
+            0._dp, 0._dp, 0._dp]
 
        call face%assign_geometry(face_data, face_offset)
        call face%assign_cell_geometry(cell_data, cell_offsets)
@@ -589,6 +605,8 @@ contains
 
        call test%assert(expected_mass_flux, flux(1), "Mass flux")
        call test%assert(expected_heat_flux, flux(2), "Heat flux")
+       call test%assert(expected_liquid_flux, flux(3), "Liquid flux")
+       call test%assert(expected_vapour_flux, flux(4), "Vapour flux")
 
        call cell%destroy()
        call face%destroy()
@@ -609,7 +627,8 @@ contains
   subroutine test_face_flux_two_phase_vertical(test)
 
     ! Face flux() test, 2-phase vertical
-    ! The cells have different rock and two-phase fluid properties.
+    ! The cells have different rock and two-phase fluid properties, and
+    ! there is counter-flow between the phases.
 
     use cell_module
     use rock_module
@@ -618,7 +637,6 @@ contains
 
     class(unit_test_type), intent(in out) :: test
     ! Locals:
-    PetscInt, parameter :: nc = 1, num_phases = 2, num_primary = 2
     type(face_type) :: face
     type(cell_type) :: cell
     type(rock_type) :: rock
@@ -636,6 +654,8 @@ contains
     PetscReal, parameter :: expected_vapour_density = 3.7044444444_dp
     PetscReal, parameter :: expected_mass_flux = 9.14772841429594e-5_dp
     PetscReal, parameter :: expected_heat_flux = 57.9124776818_dp
+    PetscReal, parameter :: expected_liquid_flux = 9.30959555690338e-5_dp
+    PetscReal, parameter :: expected_vapour_flux = -1.61867142607443e-6_dp
     PetscMPIInt :: rank
     PetscInt :: ierr
 
@@ -646,13 +666,13 @@ contains
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
     if (rank == 0) then
 
-       call cell%init(nc, num_phases)
-       call face%init(nc, num_phases)
-       call fluid%init(nc, num_phases)
+       call cell%init(eos%num_components, eos%num_phases)
+       call face%init(eos%num_components, eos%num_phases)
+       call fluid%init(eos%num_components, eos%num_phases)
        call rock%init()
        allocate(face_data(face%dof), cell_data(cell%dof))
        allocate(rock_data(rock%dof * 2), fluid_data(fluid%dof * 2))
-       allocate(flux(num_primary))
+       allocate(flux(eos%num_primary_variables + eos%num_phases))
        face_offset = 1
        cell_offsets = [1, 1]
        rock_offsets = [1, 1 + rock%dof]
@@ -690,6 +710,8 @@ contains
 
        call test%assert(expected_mass_flux, flux(1), "Mass flux")
        call test%assert(expected_heat_flux, flux(2), "Heat flux")
+       call test%assert(expected_liquid_flux, flux(3), "Liquid flux")
+       call test%assert(expected_vapour_flux, flux(4), "Vapour flux")
 
        call cell%destroy()
        call face%destroy()
