@@ -1221,7 +1221,7 @@ contains
           do i = 1, 2
              if ((self%mesh%ghost_cell(cells(i)) < 0) .and. &
                   (cells(i) <= end_interior_cell - 1)) then
-                inflow => rhs_array(rhs_offsets(i) : rhs_offsets(i) + nf - 1)
+                inflow => rhs_array(rhs_offsets(i) : rhs_offsets(i) + np - 1)
                 inflow = inflow + flux_sign(i) * face_component_flow / &
                      face%cell(i)%volume
              end if
