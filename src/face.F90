@@ -439,22 +439,24 @@ contains
 
   function face_flux(self, eos) result(flux)
     !! Returns array containing the mass fluxes for each component
-    !! through the face, from cell(1) to cell(2), and energy flux
-    !! for non-isothermal simulations.
+    !! through the face, from cell(1) to cell(2), and energy flux for
+    !! non-isothermal simulations. The last part of the array contains
+    !! the total phase fluxes for the mass components.
 
     use eos_module, only: eos_type
 
     class(face_type), intent(in) :: self
     class(eos_type), intent(in) :: eos
-    PetscReal :: flux(eos%num_primary_variables)
+    PetscReal :: flux(eos%num_primary_variables + eos%num_phases)
     ! Locals:
     PetscInt :: nc, np
     PetscInt :: i, p, up
     PetscReal :: dpdn, dtdn, G, face_density, F
-    PetscReal :: phase_flux(self%cell(1)%fluid%num_components)
+    PetscReal :: phase_component_flux(eos%num_components)
     PetscReal :: k, h, cond
     PetscInt :: phases(2), phase_present
 
+    flux = 0._dp
     nc = eos%num_components
     np = eos%num_primary_variables
 
@@ -464,43 +466,48 @@ contains
        dtdn = self%temperature_gradient()
        flux(np) = -cond * dtdn
     end if
-    flux(1: nc) = 0._dp
 
     do i = 1, 2
        phases(i) = nint(self%cell(i)%fluid%phase_composition)
     end do
     phase_present = ior(phases(1), phases(2))
 
-    do p = 1, eos%num_phases
+    associate (phase_flux => flux(np + 1: np + eos%num_phases))
 
-       if (btest(phase_present, p - 1)) then
+      do p = 1, eos%num_phases
 
-          face_density = self%phase_density(p)
-          dpdn = self%pressure_gradient(p)
-          G = dpdn - face_density * self%gravity_normal
+         if (btest(phase_present, p - 1)) then
 
-          up = self%upstream_index(G)
+            face_density = self%phase_density(p)
+            dpdn = self%pressure_gradient(p)
+            G = dpdn - face_density * self%gravity_normal
 
-          if (btest(phases(up), p - 1)) then
+            up = self%upstream_index(G)
 
-             k = self%permeability()
-             associate(upstream => self%cell(up)%fluid%phase(p))
-               ! Mass flows:
-               F = -k * upstream%mobility() * G
-               phase_flux = F * upstream%mass_fraction
-               flux(1:nc) = flux(1:nc) + phase_flux
-               if (.not. eos%isothermal) then
-                  ! Heat convection:
-                  h = upstream%specific_enthalpy
-                  flux(np) = flux(np) + h * F
-               end if
-             end associate
+            if (btest(phases(up), p - 1)) then
 
-          end if
+               k = self%permeability()
+               associate(upstream => self%cell(up)%fluid%phase(p))
+                 ! Mass flows:
+                 F = -k * upstream%mobility() * G
+                 phase_component_flux = F * upstream%mass_fraction
+                 flux(1:nc) = flux(1:nc) + phase_component_flux
+                 if (.not. eos%isothermal) then
+                    ! Heat convection:
+                    h = upstream%specific_enthalpy
+                    flux(np) = flux(np) + h * F
+                 end if
+                 ! Total phase flux:
+                 phase_flux(p) = sum(phase_component_flux)
+               end associate
 
-       end if
+            end if
 
-    end do
+         end if
+
+      end do
+
+    end associate
 
   end function face_flux
 
