@@ -1139,7 +1139,7 @@ contains
     type(face_type) :: face
     PetscInt :: face_geom_offset, cell_geom_offsets(2), update_offsets(2)
     PetscInt :: rock_offsets(2), fluid_offsets(2), rhs_offsets(2)
-    PetscInt :: cell_geom_offset, rhs_offset, flux_offset
+    PetscInt :: rhs_offset, flux_offset
     PetscInt, pointer :: cells(:)
     PetscReal, pointer, contiguous :: inflow(:)
     PetscReal, allocatable :: face_flux(:), face_component_flow(:)
@@ -1287,7 +1287,7 @@ contains
       PetscInt :: s, c
       type(cell_type) :: cell
       type(source_type) :: source
-      PetscInt :: source_offset
+      PetscInt :: source_offset, cell_geom_offset
 
       call cell%init(self%eos%num_components, self%eos%num_phases)
       call source%init(self%eos)
@@ -1394,8 +1394,11 @@ contains
     !! cell, from flows through faces and source terms.
 
     use dm_utils_module, only: local_vec_section, section_offset, &
-         dm_get_end_interior_cell
+         dm_get_end_interior_cell, global_vec_section, global_section_offset, &
+         global_to_local_vec_section
+    use cell_module, only: cell_type
     use face_module, only: face_type
+    use source_module, only: source_type
     use tracer_module, only: tracer_phase_index
 
     class(flow_simulation_type), intent(in out) :: self
@@ -1405,15 +1408,16 @@ contains
     Vec, intent(in out) :: br
     PetscErrorCode, intent(out) :: err
     ! Locals:
-    PetscSection :: cell_geom_section, face_geom_section, flux_section
+    PetscSection :: cell_geom_section, face_geom_section, flux_section, &
+         source_section
     PetscReal, pointer, contiguous :: cell_geom_array(:), face_geom_array(:), &
-         flux_array(:)
+         flux_array(:), source_data(:)
     PetscInt :: start_cell, end_cell, end_interior_cell, start_face, end_face, f
     PetscInt :: cell_geom_offsets(2), face_geom_offset, flux_offset
     PetscInt :: np, nf, nt, nt2, i1, i2, up, c_up, i, irow(2), icol(2)
     type(face_type) :: face
     PetscInt, pointer :: cells(:)
-    PetscReal, pointer, contiguous :: face_flux(:), phase_flux(:)
+    PetscReal, pointer, contiguous :: face_flux(:)
     PetscReal :: tracer_phase_flux, tracer_flow
     PetscReal, allocatable :: Ft(:), Im(:,:), Iv(:)
     PetscReal, parameter :: flux_sign(2) = [-1._dp, 1._dp]
@@ -1501,7 +1505,11 @@ contains
     call VecRestoreArrayReadF90(self%mesh%face_geom, face_geom_array, ierr)
     CHKERRQ(ierr)
 
-    ! TODO: assemble sources into br vector
+    call global_vec_section(self%source, source_section)
+    call VecGetArrayF90(self%source, source_data, ierr); CHKERRQ(ierr)
+    call apply_tracer_sources()
+    call VecRestoreArrayF90(self%source, source_data, ierr); CHKERRQ(ierr)
+
     ! TODO: assemble decay term into diagonal of Ar
 
     call VecRestoreArrayReadF90(self%mesh%cell_geom, cell_geom_array, ierr)
@@ -1510,6 +1518,58 @@ contains
     call MatAssemblyBegin(Ar, MAT_FINAL_ASSEMBLY, ierr); CHKERRQ(ierr)
     call MatAssemblyEnd(Ar, MAT_FINAL_ASSEMBLY, ierr); CHKERRQ(ierr)
     deallocate(Ft, Im, Iv)
+
+  contains
+
+    subroutine apply_tracer_sources()
+      !! Assembles contributions from source terms to tracer RHS matrix
+      !! and vector.
+
+      ! Locals:
+      type(cell_type) :: cell
+      type(source_type) :: source
+      Vec :: local_fluid
+      PetscSection :: fluid_section
+      PetscReal, pointer, contiguous :: fluid_array(:)
+      PetscInt :: s, c
+      PetscInt :: source_offset, cell_geom_offset
+      PetscReal :: q(nt2), phase_flow_fractions(np)
+
+      call cell%init(self%eos%num_components, self%eos%num_phases)
+      call source%init(self%eos)
+      call global_to_local_vec_section(self%current_fluid, local_fluid, &
+           fluid_section)
+      call VecGetArrayReadF90(local_fluid, fluid_array, ierr); CHKERRQ(ierr)
+
+      do s = 0, self%num_local_sources - 1
+
+         source_offset = global_section_offset(source_section, s, &
+              self%source_range_start)
+         call source%assign(source_data, source_offset)
+         call source%assign_fluid(fluid_array, fluid_section)
+         c = nint(source%local_cell_index)
+
+         cell_geom_offset = section_offset(cell_geom_section, c)
+         call cell%assign_geometry(cell_geom_array, cell_geom_offset)
+
+         if (nint(source%component) < np) then
+            if (source%rate < 0._dp) then
+               phase_flow_fractions = source%fluid%phase_flow_fractions()
+               q = Iv * phase_flow_fractions(tracer_phase_index) * source%rate &
+                    / cell%volume
+               call MatSetValuesBlockedLocal(Ar, 1, c, 1, c, q, ADD_VALUES, &
+                    ierr); CHKERRQ(ierr)
+            else ! TODO: injection (assemble into br vector)
+            end if
+         end if
+
+      end do
+
+      call VecRestoreArrayReadF90(local_fluid, fluid_array, ierr); CHKERRQ(ierr)
+      call source%destroy()
+      call cell%destroy()
+
+    end subroutine apply_tracer_sources
 
   end subroutine flow_simulation_tracer_cell_inflows
 
