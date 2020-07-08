@@ -82,6 +82,7 @@ contains
     PetscErrorCode :: ierr, err
     PetscInt, parameter :: offset = 1
     PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
+    PetscInt, parameter :: nt = 0 ! number of tracers
     PetscMPIInt :: rank
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
@@ -120,7 +121,7 @@ contains
     call VecGetArrayReadF90(local_fluid_vector, local_fluid_array, ierr)
     CHKERRQ(ierr)
 
-    call source%init(eos)
+    call source%init(eos, nt)
     allocate(source_data(source%dof))
     call source%assign(source_data, 1)
 
@@ -173,9 +174,11 @@ contains
       PetscInt, intent(in) :: injection_component, production_component
       PetscReal, intent(in) :: flow(:)
       PetscInt, intent(in) :: component
+      ! Locals:
+      PetscReal :: injection_tracer(0)
 
       call source%setup(0, 0, 0, 0, rate, enthalpy, &
-           injection_component, production_component)
+           injection_component, production_component, injection_tracer)
       call source%update_flow(local_fluid_array, local_fluid_section)
       call test%assert(flow, source%flow, trim(tag) // " flow")
       call test%assert(component, nint(source%component), &

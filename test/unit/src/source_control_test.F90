@@ -86,6 +86,7 @@ contains
     PetscErrorCode :: ierr, err
     PetscReal, parameter :: start_time = 0._dp
     PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
+    character :: tracer_names(0)
     PetscInt, parameter :: expected_num_sources = 8
     PetscMPIInt :: rank
     IS :: source_is
@@ -105,11 +106,12 @@ contains
     call global_vec_section(fluid_vector, fluid_section)
     call VecGetArrayF90(fluid_vector, fluid_array, ierr); CHKERRQ(ierr)
 
-    call setup_sources(json, mesh%dm, mesh%cell_natural_global, eos, thermo, start_time, &
-         fluid_vector, fluid_range_start, source_vector, source_range_start, &
-         num_sources, total_num_sources, source_controls, source_is, err = err)
+    call setup_sources(json, mesh%dm, mesh%cell_natural_global, eos, tracer_names, &
+         thermo, start_time, fluid_vector, fluid_range_start, source_vector, &
+         source_range_start, num_sources, total_num_sources, source_controls, &
+         source_is, err = err)
     call test%assert(0, err, "source setup error")
-    call source%init(eos)
+    call source%init(eos, size(tracer_names))
     call test%assert(13, source%dof, "source dof")
 
     call VecRestoreArrayF90(fluid_vector, fluid_array, ierr); CHKERRQ(ierr)
@@ -238,6 +240,7 @@ contains
     PetscInt, parameter :: cell_region = 4
     PetscReal, parameter :: start_time = 0._dp
     PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
+    character :: tracer_names(0)
     PetscReal, parameter :: expected_rates(0: 14) = [ &
          -12.8728519749_dp, -10._dp, -9.3081349399_dp, -11._dp, -10.1910078135_dp, &
          0.0_dp, 130.0_dp, -13.0_dp, 0.0_dp, -12.9264888581701_dp, &
@@ -309,11 +312,12 @@ contains
     end do
     call VecRestoreArrayF90(fluid_vector, fluid_array, ierr); CHKERRQ(ierr)
 
-    call setup_sources(json, mesh%dm, mesh%cell_natural_global, eos, thermo, start_time, &
-         fluid_vector, fluid_range_start, source_vector, source_range_start, &
-         num_sources, total_num_sources, source_controls, source_is, err = err)
+    call setup_sources(json, mesh%dm, mesh%cell_natural_global, eos, tracer_names, &
+         thermo, start_time, fluid_vector, fluid_range_start, source_vector, &
+         source_range_start, num_sources, total_num_sources, source_controls, &
+         source_is, err = err)
     call test%assert(0, err, "source setup error")
-    call source%init(eos)
+    call source%init(eos, size(tracer_names))
 
     if (rank == 0) then
       call test%assert(15, total_num_sources, "number of sources")

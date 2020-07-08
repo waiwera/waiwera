@@ -725,7 +725,7 @@ contains
        call self%mesh%override_face_properties()
        call self%create_solution_vector(self%solution, self%solution_range_start)
        call setup_tracer(json, self%mesh%dm, self%auxiliary, self%aux_solution, &
-            self%aux_solution_range_start, self%num_tracers)
+            self%aux_solution_range_start, self%tracers)
        call setup_relative_permeabilities(json, &
             self%relative_permeability, self%logfile, err)
        if (err == 0) then
@@ -782,7 +782,7 @@ contains
                    call self%fluid_init(self%time, self%solution, err)
                    if (err == 0) then
                       call setup_sources(json, self%mesh%dm, self%mesh%cell_natural_global, &
-                           self%eos, self%thermo, self%time, self%fluid, &
+                           self%eos, self%tracers%name, self%thermo, self%time, self%fluid, &
                            self%fluid_range_start, self%source, self%source_range_start, &
                            self%num_local_sources, self%num_sources, self%source_controls, &
                            self%source_index, self%logfile, err)
@@ -1292,7 +1292,7 @@ contains
       PetscInt :: source_offset, cell_geom_offset
 
       call cell%init(self%eos%num_components, self%eos%num_phases)
-      call source%init(self%eos)
+      call source%init(self%eos, size(self%tracers))
 
       do s = 0, self%num_local_sources - 1
 
@@ -1538,7 +1538,7 @@ contains
       PetscReal :: q(nt2), phase_flow_fractions(np)
 
       call cell%init(self%eos%num_components, self%eos%num_phases)
-      call source%init(self%eos)
+      call source%init(self%eos, size(self%tracers))
       call global_to_local_vec_section(self%current_fluid, local_fluid, &
            fluid_section)
       call VecGetArrayReadF90(local_fluid, fluid_array, ierr); CHKERRQ(ierr)
@@ -2264,7 +2264,7 @@ contains
 
        call global_vec_section(self%source, source_section)
        call VecGetArrayReadF90(self%source, source_data, ierr); CHKERRQ(ierr)
-       call source%init(self%eos)
+       call source%init(self%eos, size(self%tracers))
        allocate(source_cell_indices(self%num_local_sources))
        do i = 1, self%num_local_sources
           source_offset = global_section_offset(source_section, i - 1, &

@@ -82,6 +82,7 @@ contains
     PetscErrorCode :: ierr, err
     PetscReal, parameter :: start_time = 0._dp
     PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
+    character :: tracer_names(0)
     PetscInt, parameter :: expected_num_sources = 19
     PetscMPIInt :: rank, num_procs
     IS :: source_is
@@ -96,15 +97,16 @@ contains
 
     call thermo%init()
     call eos%init(json, thermo)
-    call source%init(eos)
+    call source%init(eos, size(tracer_names))
     call mesh%init(eos, json)
     call DMCreateLabel(mesh%serial_dm, open_boundary_label_name, ierr); CHKERRQ(ierr)
     call mesh%configure(gravity, json, err = err)
     call DMGetGlobalVector(mesh%dm, fluid_vector, ierr); CHKERRQ(ierr) ! dummy- not used
 
-    call setup_sources(json, mesh%dm, mesh%cell_natural_global, eos, thermo, start_time, &
-         fluid_vector, fluid_range_start, source_vector, source_range_start, &
-         num_sources, total_num_sources, source_controls, source_is, err = err)
+    call setup_sources(json, mesh%dm, mesh%cell_natural_global, eos, tracer_names, &
+         thermo, start_time, fluid_vector, fluid_range_start, source_vector, &
+         source_range_start, num_sources, total_num_sources, source_controls, &
+         source_is, err = err)
     call test%assert(0, err, "error")
 
     if (rank == 0) then
