@@ -28,6 +28,13 @@ module tracer_module
   PetscInt, parameter :: max_tracer_name_length = 32
   PetscInt, parameter, public :: tracer_phase_index = 1 ! assume liquid phase tracers
 
+  type, public :: tracer_type
+     !! Type for passive tracer.
+     private
+     character(max_tracer_name_length), public :: name !! Tracer name
+     PetscReal, public :: decay !! Decay rate (1/s)
+  end type tracer_type
+
   public :: setup_tracer
 
 contains
