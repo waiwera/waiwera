@@ -31,6 +31,7 @@ module flow_simulation_module
   use capillary_pressure_module
   use logfile_module
   use list_module
+  use tracer_module, only: tracer_type
 
   implicit none
 
@@ -57,7 +58,7 @@ module flow_simulation_module
      Vec, public :: source !! Source/sink terms
      PetscInt, public :: num_local_sources !! Number of source/sink terms on current process
      PetscInt, public :: num_sources !! Total number of source/sink terms on all processes
-     PetscInt, public :: num_tracers !! Number of tracers
+     type(tracer_type), allocatable, public :: tracers(:) !! Tracers
      IS, public :: source_index !! Index set defining natural to global source ordering
      type(list_type), public :: source_controls !! Source/sink controls
      class(thermodynamics_type), allocatable, public :: thermo !! Fluid thermodynamic formulation
@@ -1345,7 +1346,7 @@ contains
 
     err = 0
     nc = self%eos%num_components
-    nt = self%num_tracers
+    nt = size(self%tracers)
 
     call global_vec_section(Al, tracer_section)
     call VecGetArrayF90(Al, Al_array, ierr); CHKERRQ(ierr)
@@ -1428,7 +1429,7 @@ contains
 
     np = self%eos%num_primary_variables
     nf = np + self%eos%num_phases ! total number of fluxes stored
-    nt = self%num_tracers
+    nt = size(self%tracers)
     nt2 = nt * nt
     allocate(Ft(2 * nt2), Im(nt, nt), Iv(nt2))
     Im = 0._dp
@@ -1609,7 +1610,7 @@ contains
     nc = self%eos%num_components
     np = self%eos%num_phases
 
-    nt = self%num_tracers
+    nt = size(self%tracers)
     call global_vec_section(b, tracer_section)
     call global_vec_section(self%fluid, fluid_section)
     call VecGetArrayReadF90(self%fluid, fluid_array, ierr); CHKERRQ(ierr)
