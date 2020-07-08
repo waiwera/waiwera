@@ -35,16 +35,20 @@ module source_module
   PetscReal, parameter, public :: default_source_rate = 0._dp
   PetscReal, parameter, public :: default_source_injection_enthalpy = 83.9e3
 
-  PetscInt, parameter, public :: num_source_variables = 11
-  PetscInt, parameter, public :: max_source_variable_name_length = 20
+  PetscInt, parameter, public :: num_source_scalar_variables = 10
+  PetscInt, parameter, public :: max_source_variable_name_length = 24
   character(max_source_variable_name_length), public :: &
-       source_variable_names(num_source_variables) = [ &
+       source_scalar_variable_names(num_source_scalar_variables) = [ &
        "source_index        ", "local_source_index  ", &
        "natural_cell_index  ", "local_cell_index    ", &
        "injection_enthalpy  ", "injection_component ", &
        "production_component", "component           ", &
-       "rate                ", "enthalpy            ", &
-       "flow                "]
+       "rate                ", "enthalpy            "]
+  PetscInt, parameter, public :: num_source_array_variables = 2
+  character(max_source_variable_name_length), public :: &
+       source_array_variable_names(num_source_array_variables) = [ &
+       "flow                   ", &
+       "injection_mass_fraction"]
 
   character(max_field_name_length), parameter, public :: required_output_source_fields(0) = [&
        character(max_field_name_length)::]
