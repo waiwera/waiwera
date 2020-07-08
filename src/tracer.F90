@@ -34,7 +34,8 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine setup_tracer(json, dm, auxiliary, aux_solution, range_start)
+  subroutine setup_tracer(json, dm, auxiliary, aux_solution, range_start, &
+       num_tracers)
 
     !! Sets up tracers from JSON input.
 
@@ -47,9 +48,10 @@ contains
     PetscBool, intent(out) :: auxiliary
     Vec, intent(in out) :: aux_solution
     PetscInt, intent(out) :: range_start
+    PetscInt, intent(out) :: num_tracers
     ! Locals:
     DM :: dm_aux
-    PetscInt :: dim, num_tracers
+    PetscInt :: dim
     PetscInt, allocatable :: tracer_num_components(:), tracer_dim(:)
     character(max_tracer_name_length), allocatable :: tracer_names(:)
     PetscErrorCode :: ierr

@@ -57,6 +57,7 @@ module flow_simulation_module
      Vec, public :: source !! Source/sink terms
      PetscInt, public :: num_local_sources !! Number of source/sink terms on current process
      PetscInt, public :: num_sources !! Total number of source/sink terms on all processes
+     PetscInt, public :: num_tracers !! Number of tracers
      IS, public :: source_index !! Index set defining natural to global source ordering
      type(list_type), public :: source_controls !! Source/sink controls
      class(thermodynamics_type), allocatable, public :: thermo !! Fluid thermodynamic formulation
@@ -723,7 +724,7 @@ contains
        call self%mesh%override_face_properties()
        call self%create_solution_vector(self%solution, self%solution_range_start)
        call setup_tracer(json, self%mesh%dm, self%auxiliary, self%aux_solution, &
-            self%aux_solution_range_start)
+            self%aux_solution_range_start, self%num_tracers)
        call setup_relative_permeabilities(json, &
             self%relative_permeability, self%logfile, err)
        if (err == 0) then
@@ -1344,8 +1345,8 @@ contains
 
     err = 0
     nc = self%eos%num_components
+    nt = self%num_tracers
 
-    call VecGetBlockSize(Al, nt, ierr); CHKERRQ(ierr)
     call global_vec_section(Al, tracer_section)
     call VecGetArrayF90(Al, Al_array, ierr); CHKERRQ(ierr)
     Al_array = 0._dp
@@ -1427,7 +1428,7 @@ contains
 
     np = self%eos%num_primary_variables
     nf = np + self%eos%num_phases ! total number of fluxes stored
-    call VecGetBlockSize(br, nt, ierr); CHKERRQ(ierr)
+    nt = self%num_tracers
     nt2 = nt * nt
     allocate(Ft(2 * nt2), Im(nt, nt), Iv(nt2))
     Im = 0._dp
@@ -1608,7 +1609,7 @@ contains
     nc = self%eos%num_components
     np = self%eos%num_phases
 
-    call VecGetBlockSize(b, nt, ierr); CHKERRQ(ierr)
+    nt = self%num_tracers
     call global_vec_section(b, tracer_section)
     call global_vec_section(self%fluid, fluid_section)
     call VecGetArrayReadF90(self%fluid, fluid_array, ierr); CHKERRQ(ierr)
