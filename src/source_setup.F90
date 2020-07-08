@@ -42,7 +42,7 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine setup_sources(json, dm, ao, eos, thermo, start_time, &
+  subroutine setup_sources(json, dm, ao, eos, tracer_names, thermo, start_time, &
        fluid_vector, fluid_range_start, source_vector, source_range_start, &
        num_local_sources, num_sources, source_controls, source_index, logfile, err)
     !! Sets up sinks / sources and source controls.
@@ -53,6 +53,7 @@ contains
     DM, intent(in) :: dm !! Mesh DM
     AO, intent(in) :: ao !! Application ordering for natural to global cell indexing
     class(eos_type), intent(in) :: eos !! Equation of state
+    character(*), intent(in) :: tracer_names(:) !! Tracer names
     class(thermodynamics_type), intent(in) :: thermo !! Thermodynamics formulation
     PetscReal, intent(in) :: start_time
     Vec, intent(in) :: fluid_vector !! Fluid vector
@@ -70,13 +71,14 @@ contains
     type(source_type) :: source
     PetscInt :: source_spec_index, local_source_index
     type(fson_value), pointer :: sources_json, source_json
-    PetscInt :: num_source_specs
+    PetscInt :: num_source_specs, num_tracers
     PetscReal, pointer, contiguous :: fluid_data(:), source_data(:)
     PetscSection :: fluid_section, source_section
     PetscErrorCode :: ierr
 
     num_local_sources = 0
-    call source%init(eos)
+    num_tracers = size(tracer_names)
+    call source%init(eos, num_tracers)
     err = 0
 
     call label_source_zones(json, num_local_sources, logfile, err)
@@ -262,17 +264,26 @@ contains
            field_names(source%dof))
       num_field_components = 1
       field_dim = 0
-      field_names(1: num_source_variables - 1) = &
-           source_variable_names(1: num_source_variables - 1) ! scalar fields
-      i = num_source_variables
-      ! array fields (flow):
+      field_names(1: num_source_scalar_variables) = &
+           source_scalar_variable_names ! scalar fields
+      i = num_source_scalar_variables + 1
+      ! flow fields:
       do j = 1, eos%num_components
          field_names(i) = trim(eos%component_names(j)) // '_' // &
-              trim(source_variable_names(num_source_variables))
+              trim(source_array_variable_names(1))
          i = i + 1
       end do
-      if (.not. eos%isothermal) field_names(i) = 'heat_' // &
-           trim(source_variable_names(num_source_variables))
+      if (.not. eos%isothermal) then
+         field_names(i) = 'heat_' // &
+              trim(source_array_variable_names(1))
+         i = i + 1
+      end if
+      ! tracer injection mass fractions:
+      do j = 1, num_tracers
+         field_names(i) = trim(tracer_names(j)) // '_' // &
+              trim(source_array_variable_names(2))
+         i = i + 1
+      end do
       call dm_set_data_layout(dm_source, num_field_components, field_dim, &
            field_names)
       deallocate(num_field_components, field_dim, field_names)
