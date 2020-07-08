@@ -312,6 +312,7 @@ contains
       IS :: cell_IS
       PetscInt, pointer, contiguous :: local_cell_index(:)
       ISLocalToGlobalMapping :: l2g
+      PetscReal :: injection_tracer_mass_fraction(num_tracers)
 
       err = 0
       call DMGetLocalToGlobalMapping(dm, l2g, ierr); CHKERRQ(ierr)
@@ -324,6 +325,8 @@ contains
       call get_initial_rate(source_json, initial_rate)
       call get_initial_enthalpy(source_json, eos, &
            injection_component, initial_enthalpy)
+      call get_injection_tracer_mass_fraction(source_json, num_tracers, &
+           injection_tracer_mass_fraction)
       allocate(local_source_indices(num_cells))
       if (num_cells > 0) then
          call DMGetStratumIS(dm, source_label_name, source_index, &
@@ -338,7 +341,8 @@ contains
             call source%setup(source_index, local_source_index, &
                  natural_cell_index(i), local_cell_index(i), &
                  initial_rate, initial_enthalpy, &
-                 injection_component, production_component)
+                 injection_component, production_component, &
+                 injection_tracer_mass_fraction)
             local_source_indices(i) = local_source_index
             local_source_index = local_source_index + 1
          end do
@@ -546,6 +550,44 @@ contains
     end associate
 
   end subroutine get_initial_enthalpy
+
+!------------------------------------------------------------------------
+
+  subroutine get_injection_tracer_mass_fraction(source_json, num_tracers, &
+       injection_tracer_mass_fraction)
+    !! Gets tracer mass fractions for injection.
+
+    type(fson_value), pointer, intent(in) :: source_json
+    PetscInt, intent(in) :: num_tracers
+    PetscReal, intent(out) :: injection_tracer_mass_fraction(:)
+    ! Locals:
+    PetscReal, allocatable :: mass_fraction(:)
+    PetscReal :: scalar_mass_fraction
+    PetscInt :: tracer_type
+    PetscReal, parameter :: default_tracer_mass_fraction = 0._dp
+
+    if (num_tracers > 0) then
+
+       if (fson_has_mpi(source_json, "tracer")) then
+          tracer_type = fson_type_mpi(source_json, "tracer")
+          select case (tracer_type)
+          case (TYPE_REAL, TYPE_INTEGER)
+             call fson_get_mpi(source_json, "tracer", val = scalar_mass_fraction)
+             injection_tracer_mass_fraction = scalar_mass_fraction
+          case (TYPE_ARRAY)
+             call fson_get_mpi(source_json, "tracer", val = mass_fraction)
+             injection_tracer_mass_fraction = default_tracer_mass_fraction
+             injection_tracer_mass_fraction(1: size(mass_fraction)) = &
+                  mass_fraction
+          case default
+             injection_tracer_mass_fraction = default_tracer_mass_fraction
+          end select
+       else
+          injection_tracer_mass_fraction = default_tracer_mass_fraction
+       end if
+    end if
+
+  end subroutine get_injection_tracer_mass_fraction
 
 !------------------------------------------------------------------------
 
