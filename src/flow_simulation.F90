@@ -1530,7 +1530,6 @@ contains
       ! Locals:
       type(cell_type) :: cell
       type(source_type) :: source
-      Vec :: local_fluid
       PetscSection :: fluid_section
       PetscReal, pointer, contiguous :: fluid_array(:)
       PetscInt :: s, c
@@ -1539,16 +1538,17 @@ contains
 
       call cell%init(self%eos%num_components, self%eos%num_phases)
       call source%init(self%eos, size(self%tracers))
-      call global_to_local_vec_section(self%current_fluid, local_fluid, &
-           fluid_section)
-      call VecGetArrayReadF90(local_fluid, fluid_array, ierr); CHKERRQ(ierr)
+      call global_vec_section(self%current_fluid, fluid_section)
+      call VecGetArrayReadF90(self%current_fluid, fluid_array, ierr)
+      CHKERRQ(ierr)
 
       do s = 0, self%num_local_sources - 1
 
          source_offset = global_section_offset(source_section, s, &
               self%source_range_start)
          call source%assign(source_data, source_offset)
-         call source%assign_fluid(fluid_array, fluid_section)
+         call source%assign_fluid(fluid_array, fluid_section, &
+              self%fluid_range_start)
          c = nint(source%local_cell_index)
 
          cell_geom_offset = section_offset(cell_geom_section, c)
@@ -1567,7 +1567,8 @@ contains
 
       end do
 
-      call VecRestoreArrayReadF90(local_fluid, fluid_array, ierr); CHKERRQ(ierr)
+      call VecRestoreArrayReadF90(self%current_fluid, fluid_array, ierr)
+      CHKERRQ(ierr)
       call source%destroy()
       call cell%destroy()
 
