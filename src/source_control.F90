@@ -479,7 +479,7 @@ contains
     source_offset = global_section_offset(source_section, &
          self%local_source_index, source_range_start)
     call source%assign(source_data, source_offset)
-    call source%assign_fluid(local_fluid_data, local_fluid_section)
+    call source%assign_fluid_local(local_fluid_data, local_fluid_section)
 
     if (self%threshold <= 0._dp) then
        productivity = self%productivity%average(interval, 1)
@@ -679,7 +679,7 @@ contains
     source_offset = global_section_offset(source_section, &
          self%local_source_index, source_range_start)
     call source%assign(source_data, source_offset)
-    call source%assign_fluid(local_fluid_data, local_fluid_section)
+    call source%assign_fluid_local(local_fluid_data, local_fluid_section)
 
     reference_pressure = self%reference_pressure%average(interval, 1)
     pressure_difference = source%fluid%pressure - reference_pressure
@@ -793,7 +793,7 @@ contains
     if ((source%rate < 0._dp) .and. (source%production_component < &
          eos%num_primary_variables)) then
 
-       call source%assign_fluid(local_fluid_data, local_fluid_section)
+       call source%assign_fluid_local(local_fluid_data, local_fluid_section)
        allocate(phase_flow_fractions(source%fluid%num_phases))
        phase_flow_fractions = source%fluid%phase_flow_fractions()
        enthalpy = source%fluid%specific_enthalpy(phase_flow_fractions)

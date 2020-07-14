@@ -88,7 +88,7 @@ module source_module
      procedure :: update_component_injection => source_update_component_injection
      procedure, public :: init => source_init
      procedure, public :: assign => source_assign
-     procedure, public :: assign_fluid => source_assign_fluid
+     procedure, public :: assign_fluid_local => source_assign_fluid_local
      procedure, public :: setup => source_setup
      procedure, public :: update_component => source_update_component
      procedure, public :: update_flow => source_update_flow
@@ -156,8 +156,8 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine source_assign_fluid(self, local_fluid_data, local_fluid_section)
-    !! Updates fluid object from given data array and section, and
+  subroutine source_assign_fluid_local(self, local_fluid_data, local_fluid_section)
+    !! Updates fluid object from given data array and local section, and
     !! calculates the fluid phase flow fractions.
 
     use dm_utils_module, only: section_offset
@@ -171,7 +171,7 @@ contains
     fluid_offset = section_offset(local_fluid_section, nint(self%local_cell_index))
     call self%fluid%assign(local_fluid_data, fluid_offset)
 
-  end subroutine source_assign_fluid
+  end subroutine source_assign_fluid_local
 
 !------------------------------------------------------------------------
 
@@ -297,7 +297,7 @@ contains
   subroutine source_update_production_mass_flow(self)
     !! Updates the mass components of the flow array (and the
     !! enthalpy) for production. Only to be called if self%rate <
-    !! 0. Should always be preceded by a call to assign_fluid().
+    !! 0. Should always be preceded by a call to assign_fluid_local().
 
     use fluid_module, only: fluid_type
 
@@ -363,7 +363,7 @@ contains
        call self%update_injection_mass_flow()
     else
        call self%update_component_production()
-       call self%assign_fluid(local_fluid_data, local_fluid_section)
+       call self%assign_fluid_local(local_fluid_data, local_fluid_section)
        call self%update_production_mass_flow()
     end if
 
