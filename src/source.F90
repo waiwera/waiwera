@@ -89,6 +89,7 @@ module source_module
      procedure, public :: init => source_init
      procedure, public :: assign => source_assign
      procedure, public :: assign_fluid_local => source_assign_fluid_local
+     procedure, public :: assign_fluid => source_assign_fluid
      procedure, public :: setup => source_setup
      procedure, public :: update_component => source_update_component
      procedure, public :: update_flow => source_update_flow
@@ -172,6 +173,27 @@ contains
     call self%fluid%assign(local_fluid_data, fluid_offset)
 
   end subroutine source_assign_fluid_local
+
+!------------------------------------------------------------------------
+
+  subroutine source_assign_fluid(self, fluid_data, fluid_section, fluid_range_start)
+    !! Updates fluid object from given data array and global section, and
+    !! calculates the fluid phase flow fractions.
+
+    use dm_utils_module, only: global_section_offset
+
+    class(source_type), intent(in out) :: self
+    PetscReal, pointer, contiguous, intent(in) :: fluid_data(:)
+    PetscSection, intent(in) :: fluid_section
+    PetscInt, intent(in) :: fluid_range_start
+    ! Locals:
+    PetscInt :: fluid_offset
+
+    fluid_offset = global_section_offset(fluid_section, &
+         nint(self%local_cell_index), fluid_range_start)
+    call self%fluid%assign(fluid_data, fluid_offset)
+
+  end subroutine source_assign_fluid
 
 !------------------------------------------------------------------------
 
