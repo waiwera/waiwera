@@ -26,9 +26,9 @@ libraries:
   - libblas-dev
   - liblapack-dev
 
-openmpi:
-  - openmpi-bin
-  - libopenmpi-dev
+mpi:
+  - mpich
+  - libmpich-dev
   - openssh-client
 
 petsc_dependencies:

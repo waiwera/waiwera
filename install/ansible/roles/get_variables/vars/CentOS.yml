@@ -15,7 +15,7 @@ libraries:
   - lapack-devel
   - valgrind-devel
 
-openmpi:
+mpi:
   - openmpi-devel
   - openssh-client
 

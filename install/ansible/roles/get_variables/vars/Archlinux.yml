@@ -10,7 +10,7 @@ libraries:
   - lapack
   - hdf5-openmpi
 
-openmpi:
+mpi:
   - openmpi
   - openssh-client
 
