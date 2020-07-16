@@ -35,6 +35,7 @@ petsc_dependencies:
   - bison
   - flex
   - zlib1g-dev
+  - libtool
 
 pip_install:
   - python3-pip
