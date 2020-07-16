@@ -428,7 +428,6 @@ class DockerEnv(object):
         run_cmd = ['docker',
                    'run',
                    '--cidfile', '.cid',
-                   '--cap-add=SYS_PTRACE', # workaround for OpenMPI 3 bug
                    '--rm',
                    '--volume', '{}:{}'.format(current_path, data_path),
                    ] + interactive_cmd + work_dir + image + native_cmd
