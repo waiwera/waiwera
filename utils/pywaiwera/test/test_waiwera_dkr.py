@@ -18,7 +18,6 @@ class TestRunWaiwera(unittest.TestCase):
         cmd = self.env.run_waiwera(**args)
         self.assertEqual(cmd[:7],
                          ['docker', 'run', '--cidfile', '.cid',
-                          '--cap-add=SYS_PTRACE',
                           '--rm', '--volume'])
         # skip the 7th (volume binding depends in os and docker environment)
         self.assertEqual(cmd[8:],
@@ -38,7 +37,6 @@ class TestRunWaiwera(unittest.TestCase):
         cmd = self.env.run_waiwera(**args)
         self.assertEqual(cmd[:7],
                          ['docker', 'run', '--cidfile', '.cid',
-                          '--cap-add=SYS_PTRACE',
                           '--rm', '--volume'])
         # skip the 7th (volume binding depends in os and docker environment)
         self.assertEqual(cmd[8:],
@@ -59,7 +57,6 @@ class TestRunWaiwera(unittest.TestCase):
         cmd = self.env.run_waiwera(**args)
         self.assertEqual(cmd[:7],
                          ['docker', 'run', '--cidfile', '.cid',
-                          '--cap-add=SYS_PTRACE',
                           '--rm', '--volume'])
         # skip the 7th (volume binding depends in os and docker environment)
         self.assertEqual(cmd[8:],
@@ -80,7 +77,6 @@ class TestRunWaiwera(unittest.TestCase):
         cmd = self.env.run_waiwera(**args)
         self.assertEqual(cmd[:7],
                          ['docker', 'run', '--cidfile', '.cid',
-                          '--cap-add=SYS_PTRACE',
                           '--rm', '--volume'])
         # skip the 7th (volume binding depends in os and docker environment)
         self.assertEqual(cmd[8:],
@@ -102,7 +98,6 @@ class TestRunWaiwera(unittest.TestCase):
         cmd = self.env.run_waiwera(**args)
         self.assertEqual(cmd[:7],
                          ['docker', 'run', '--cidfile', '.cid',
-                          '--cap-add=SYS_PTRACE',
                           '--rm', '--volume'])
         # skip the 7th (volume binding depends in os and docker environment)
         self.assertEqual(cmd[8:],
@@ -122,7 +117,6 @@ class TestRunWaiwera(unittest.TestCase):
         cmd = self.env.run_waiwera(**args)
         self.assertEqual(cmd[:7],
                          ['docker', 'run', '--cidfile', '.cid',
-                          '--cap-add=SYS_PTRACE',
                           '--rm', '--volume'])
         # skip the 7th (volume binding depends in os and docker environment)
         self.assertEqual(cmd[8:],
