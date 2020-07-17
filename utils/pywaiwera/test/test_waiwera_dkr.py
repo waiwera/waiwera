@@ -16,7 +16,7 @@ class TestRunWaiwera(unittest.TestCase):
             'dryrun': True,
         }
         cmd = self.env.run_waiwera(**args)
-        self.assertEqual(cmd[:7],
+        self.assertEqual(cmd[:6],
                          ['docker', 'run', '--cidfile', '.cid',
                           '--rm', '--volume'])
         # skip the 7th (volume binding depends in os and docker environment)
@@ -35,7 +35,7 @@ class TestRunWaiwera(unittest.TestCase):
             'dryrun': True,
         }
         cmd = self.env.run_waiwera(**args)
-        self.assertEqual(cmd[:7],
+        self.assertEqual(cmd[:6],
                          ['docker', 'run', '--cidfile', '.cid',
                           '--rm', '--volume'])
         # skip the 7th (volume binding depends in os and docker environment)
@@ -55,7 +55,7 @@ class TestRunWaiwera(unittest.TestCase):
             'tag': 'testing',
         }
         cmd = self.env.run_waiwera(**args)
-        self.assertEqual(cmd[:7],
+        self.assertEqual(cmd[:6],
                          ['docker', 'run', '--cidfile', '.cid',
                           '--rm', '--volume'])
         # skip the 7th (volume binding depends in os and docker environment)
@@ -75,7 +75,7 @@ class TestRunWaiwera(unittest.TestCase):
             'image': 'wai/wai:latest',
         }
         cmd = self.env.run_waiwera(**args)
-        self.assertEqual(cmd[:7],
+        self.assertEqual(cmd[:6],
                          ['docker', 'run', '--cidfile', '.cid',
                           '--rm', '--volume'])
         # skip the 7th (volume binding depends in os and docker environment)
@@ -96,7 +96,7 @@ class TestRunWaiwera(unittest.TestCase):
             'dryrun': True,
         }
         cmd = self.env.run_waiwera(**args)
-        self.assertEqual(cmd[:7],
+        self.assertEqual(cmd[:6],
                          ['docker', 'run', '--cidfile', '.cid',
                           '--rm', '--volume'])
         # skip the 7th (volume binding depends in os and docker environment)
@@ -115,7 +115,7 @@ class TestRunWaiwera(unittest.TestCase):
             'dryrun': True,
         }
         cmd = self.env.run_waiwera(**args)
-        self.assertEqual(cmd[:7],
+        self.assertEqual(cmd[:6],
                          ['docker', 'run', '--cidfile', '.cid',
                           '--rm', '--volume'])
         # skip the 7th (volume binding depends in os and docker environment)
