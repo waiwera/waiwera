@@ -1,21 +1,21 @@
 ---
 
-- name: Test for pre-existing openmpi install
+- name: Test for pre-existing mpi install
   command: mpiexec --version
-  register: openmpi_test
+  register: mpi_test
   ignore_errors: True
 
-- name: openmpi - add openmpi to petsc install
+- name: mpi - add mpi to petsc install
   block:
 
   - set_fact:
-      petsc_openmpi:
-        - download-openmpi
+      petsc_mpi:
+        - download-mpich
 
   - set_fact:
-      petsc_options: "{{petsc_options + petsc_openmpi}}"
+      petsc_options: "{{petsc_options + petsc_mpi}}"
 
-  when: openmpi_test is failed
+  when: mpi_test is failed
   tags:
     - never
     - local

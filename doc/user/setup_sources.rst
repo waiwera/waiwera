@@ -177,7 +177,7 @@ For example:
 
 specifies a source with time-varying flow rate, defined by tabulated points at three times (0, 1 hour and 2 hours). Step (i.e. piecewise constant) interpolation is used. Since an explicit "averaging" value is not specified, the default (integration) is used.
 
-The following example has a production source with both flow rate and enthalpy varying piecewise-linearly with time:
+The following example has an injection source with both flow rate and enthalpy varying piecewise-linearly with time:
 
 .. code-block:: json
 

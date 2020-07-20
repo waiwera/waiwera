@@ -7,8 +7,6 @@ addons:
   apt:
     packages:
       - python-pip
-      - mpich
-      - libmpich-dev
 
 install:
   - pip install --user ansible

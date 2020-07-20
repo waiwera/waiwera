@@ -26,15 +26,16 @@ libraries:
   - libblas-dev
   - liblapack-dev
 
-openmpi:
-  - openmpi-bin
-  - libopenmpi-dev
+mpi:
+  - mpich
+  - libmpich-dev
   - openssh-client
 
 petsc_dependencies:
   - bison
   - flex
   - zlib1g-dev
+  - libtool
 
 pip_install:
   - python3-pip

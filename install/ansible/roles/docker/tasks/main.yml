@@ -18,7 +18,7 @@
   become: yes
 
 - debug:
-    msg: "openmpi {{ openmpi }}"
+    msg: "mpi {{ mpi }}"
 
 - import_role:
     name: packages
@@ -33,7 +33,6 @@
     base_dir: "{{ d_dir }}"
     app_user: "{{ d_group }}"
     app_group: "{{ d_user }}"
-    # openmpi:  "{{ d_openmpi }}"
 
 - name: Waiwera install
   block:
