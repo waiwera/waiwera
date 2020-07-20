@@ -1530,17 +1530,19 @@ contains
       ! Locals:
       type(cell_type) :: cell
       type(source_type) :: source
-      PetscSection :: fluid_section
-      PetscReal, pointer, contiguous :: fluid_array(:)
+      PetscSection :: fluid_section, br_section
+      PetscReal, pointer, contiguous :: fluid_array(:), br_array(:)
       PetscInt :: s, c
-      PetscInt :: source_offset, cell_geom_offset
-      PetscReal :: q(nt2), phase_flow_fractions(np)
+      PetscInt :: source_offset, cell_geom_offset, br_offset
+      PetscReal :: q(nt2), phase_flow_fractions(np), qv(nt)
 
       call cell%init(self%eos%num_components, self%eos%num_phases)
       call source%init(self%eos, size(self%tracers))
       call global_vec_section(self%current_fluid, fluid_section)
       call VecGetArrayReadF90(self%current_fluid, fluid_array, ierr)
       CHKERRQ(ierr)
+      call global_vec_section(br, br_section)
+      call VecGetArrayF90(br, br_array, ierr); CHKERRQ(ierr)
 
       do s = 0, self%num_local_sources - 1
 
@@ -1561,12 +1563,20 @@ contains
                     / cell%volume
                call MatSetValuesBlockedLocal(Ar, 1, c, 1, c, q, ADD_VALUES, &
                     ierr); CHKERRQ(ierr)
-            else ! TODO: injection (assemble into br vector)
+            else ! injection:
+               qv = source%rate * source%injection_tracer_mass_fraction &
+                    / cell%volume
+               br_offset = global_section_offset(br_section, c, &
+                    self%aux_solution_range_start)
+               associate(br_cell => br_array(br_offset: br_offset + nt - 1))
+                 br_cell = br_cell + qv
+               end associate
             end if
          end if
 
       end do
 
+      call VecRestoreArrayF90(br, br_array, ierr); CHKERRQ(ierr)
       call VecRestoreArrayReadF90(self%current_fluid, fluid_array, ierr)
       CHKERRQ(ierr)
       call source%destroy()
