@@ -905,11 +905,13 @@ contains
 !------------------------------------------------------------------------
 
   subroutine mesh_set_boundary_conditions(self, json, y, fluid_vector, rock_vector, &
-       eos, y_range_start, fluid_range_start, rock_range_start, logfile)
+       tracer_vector, eos, y_range_start, fluid_range_start, rock_range_start, &
+       tracer_range_start, num_tracers, logfile)
     !! Sets primary variables (and rock properties) in boundary ghost
     !! cells.
 
     use fson
+    use fson_value_m, only: TYPE_INTEGER, TYPE_REAL, TYPE_ARRAY
     use fson_mpi_module
     use kinds_module
     use dm_utils_module, only: global_vec_section, global_section_offset
@@ -923,28 +925,36 @@ contains
     Vec, intent(in out) :: y !! Primary variables vector
     Vec, intent(in out) :: fluid_vector !! Fluid properties vector
     Vec, intent(in out) :: rock_vector !! Rock properties vector
+    Vec, intent(in out) :: tracer_vector !! Tracer solution vector
     class(eos_type), intent(in) :: eos !! EOS module
     PetscInt, intent(in) :: y_range_start !! Start of range for global primary variables vector
     PetscInt, intent(in) :: fluid_range_start !! Start of range for global fluid vector
     PetscInt, intent(in) :: rock_range_start !! Start of range for global rock vector
+    PetscInt, intent(in) :: tracer_range_start !! Start of range for global tracer vector
+    PetscInt, intent(in) :: num_tracers !! Number of tracers
     type(logfile_type), intent(in out), optional :: logfile !! Logfile for log output
     ! Locals:
     type(fson_value), pointer :: boundaries, bdy
     PetscInt :: num_boundaries, ibdy, f, num_faces, iface, np, n
-    PetscReal, pointer, contiguous :: y_array(:), fluid_array(:), rock_array(:)
-    PetscReal, pointer, contiguous :: cell_primary(:), rock1(:), rock2(:)
-    PetscSection :: y_section, fluid_section, rock_section
+    PetscReal, pointer, contiguous :: y_array(:), fluid_array(:), rock_array(:), &
+         tracer_array(:)
+    PetscReal, pointer, contiguous :: cell_primary(:), rock1(:), rock2(:), &
+         cell_tracer(:)
+    PetscSection :: y_section, fluid_section, rock_section, tracer_section
     IS :: bdy_IS
     DMLabel :: ghost_label
     type(fluid_type):: fluid
     type(rock_type) :: rock
-    PetscInt :: y_offset, fluid_offset, rock_offsets(2)
-    PetscInt :: ghost, region, i
+    PetscInt :: y_offset, fluid_offset, rock_offsets(2), tracer_offset
+    PetscInt :: ghost, region, i, tracer_type
     PetscInt, pointer :: bdy_faces(:), cells(:)
     PetscReal, allocatable :: primary(:)
+    PetscReal, allocatable :: tracer(:)
+    PetscReal :: tracer_scalar
     character(len=64) :: bdystr
     character(len=12) :: istr
     PetscErrorCode :: ierr
+    PetscReal, parameter :: default_tracer_mass_fraction = 0._dp
 
     call global_vec_section(y, y_section)
     call VecGetArrayF90(y, y_array, ierr); CHKERRQ(ierr)
@@ -952,6 +962,10 @@ contains
     call VecGetArrayF90(fluid_vector, fluid_array, ierr); CHKERRQ(ierr)
     call global_vec_section(rock_vector, rock_section)
     call VecGetArrayF90(rock_vector, rock_array, ierr); CHKERRQ(ierr)
+    if (num_tracers > 0) then
+       call global_vec_section(tracer_vector, tracer_section)
+       call VecGetArrayF90(tracer_vector, tracer_array, ierr); CHKERRQ(ierr)
+    end if
     call DMGetLabel(self%dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
     np = eos%num_primary_variables
     call fluid%init(eos%num_components, eos%num_phases)
@@ -970,6 +984,22 @@ contains
                primary, logfile, log_key = trim(bdystr) // ".primary")
           call fson_get_mpi(bdy, "region", eos%default_region, &
                region, logfile, log_key = trim(bdystr) // ".region")
+          if (num_tracers > 0) then
+             if (fson_has_mpi(bdy, "tracer")) then
+                tracer_type = fson_type_mpi(bdy, "tracer")
+                select case (tracer_type)
+                case (TYPE_REAL, TYPE_INTEGER)
+                   call fson_get_mpi(bdy, "tracer", val = tracer_scalar)
+                   allocate(tracer(num_tracers))
+                   tracer = tracer_scalar
+                case (TYPE_ARRAY)
+                   call fson_get_mpi(bdy, "tracer", val = tracer)
+                end select
+             else
+                allocate(tracer(num_tracers))
+                tracer = default_tracer_mass_fraction
+             end if
+          end if
           call DMGetStratumSize(self%dm, open_boundary_label_name, &
                ibdy, num_faces, ierr); CHKERRQ(ierr)
           if (num_faces > 0) then
@@ -996,6 +1026,14 @@ contains
                       call fluid%assign(fluid_array, fluid_offset)
                       cell_primary = primary
                       fluid%region = dble(region)
+                      if (num_tracers > 0) then
+                         ! Set tracer boundary conditions:
+                         tracer_offset = global_section_offset(tracer_section, cells(2), &
+                              tracer_range_start)
+                         cell_tracer => tracer_array(tracer_offset: tracer_offset + &
+                              num_tracers - 1)
+                         cell_tracer = tracer
+                      end if
                       ! Copy rock type data from interior cell to boundary ghost cell:
                       n = rock%dof - 1
                       rock1 => rock_array(rock_offsets(1) : rock_offsets(1) + n)
@@ -1017,6 +1055,10 @@ contains
     call VecRestoreArrayF90(y, y_array, ierr); CHKERRQ(ierr)
     call VecRestoreArrayF90(fluid_vector, fluid_array, ierr); CHKERRQ(ierr)
     call VecRestoreArrayF90(rock_vector, rock_array, ierr); CHKERRQ(ierr)
+    if (num_tracers > 0) then
+       call VecRestoreArrayF90(tracer_vector, tracer_array, ierr)
+       CHKERRQ(ierr)
+    end if
 
   end subroutine mesh_set_boundary_conditions
 
