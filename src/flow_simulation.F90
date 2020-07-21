@@ -957,6 +957,11 @@ contains
           call dm_distribute_global_vec(self%mesh%dm, sf, self%solution)
           call global_vec_range_start(self%solution, self%solution_range_start)
 
+          if (size(self%tracers) > 0) then
+             call dm_distribute_global_vec(self%mesh%dm, sf, self%aux_solution)
+             call global_vec_range_start(self%aux_solution, self%fluid_range_start)
+          end if
+
           call dm_distribute_global_vec(self%mesh%dm, sf, self%rock)
           call global_vec_range_start(self%rock, self%rock_range_start)
 
