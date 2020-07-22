@@ -686,7 +686,7 @@ contains
     use profiling_module, only: simulation_init_event
     use mpi_utils_module, only: mpi_broadcast_error_flag
     use dm_utils_module, only: dm_get_cell_index
-    use tracer_module, only: setup_tracer
+    use tracer_module, only: setup_tracers, create_tracer_vector
 
     class(flow_simulation_type), intent(in out) :: self
     type(fson_value), pointer, intent(in) :: json
@@ -724,8 +724,12 @@ contains
     if (err == 0) then
        call self%mesh%override_face_properties()
        call self%create_solution_vector(self%solution, self%solution_range_start)
-       call setup_tracer(json, self%mesh%dm, self%auxiliary, self%aux_solution, &
-            self%aux_solution_range_start, self%tracers)
+       call setup_tracers(json, self%tracers)
+       self%auxiliary = (size(self%tracers) > 0)
+       if (self%auxiliary) then
+          call create_tracer_vector(self%mesh%dm, self%tracers, &
+               self%aux_solution, self%aux_solution_range_start)
+       end if
        call setup_relative_permeabilities(json, &
             self%relative_permeability, self%logfile, err)
        if (err == 0) then
