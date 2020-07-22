@@ -995,10 +995,11 @@ contains
     use eos_module, only: max_component_name_length, &
          max_phase_name_length
     use dm_utils_module, only: vec_copy_common_local
+    use tracer_module, only: create_tracer_vector
 
     class(flow_simulation_type), intent(in out) :: self
     ! Locals:
-    Vec :: solution, rock, fluid
+    Vec :: solution, aux_solution, rock, fluid
     PetscInt :: range_start
     PetscErrorCode :: ierr
 
@@ -1009,6 +1010,15 @@ contains
     call VecDestroy(self%solution, ierr); CHKERRQ(ierr)
     self%solution = solution
     self%solution_range_start = range_start
+
+    if (self%auxiliary) then
+       call create_tracer_vector(self%mesh%dm, self%tracers, aux_solution, &
+            range_start)
+       call vec_copy_common_local(self%aux_solution, aux_solution)
+       call VecDestroy(self%aux_solution, ierr); CHKERRQ(ierr)
+       self%aux_solution = aux_solution
+       self%aux_solution_range_start = range_start
+    end if
 
     call create_rock_vector(self%mesh%dm, rock, range_start)
     call vec_copy_common_local(self%rock, rock)
