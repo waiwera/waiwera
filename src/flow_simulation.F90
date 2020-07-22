@@ -845,9 +845,6 @@ contains
     call ISDestroy(self%source_index, ierr); CHKERRQ(ierr)
     call self%source_controls%destroy(source_control_list_node_data_destroy, &
          reverse = PETSC_TRUE)
-    if (self%auxiliary) then
-       call VecDestroy(self%aux_solution, ierr); CHKERRQ(ierr)
-    end if
     call self%mesh%destroy()
     call self%thermo%destroy()
     call self%eos%destroy()
@@ -857,6 +854,10 @@ contains
     deallocate(self%relative_permeability)
     call self%capillary_pressure%destroy()
     deallocate(self%capillary_pressure)
+    if (self%auxiliary) then
+       call VecDestroy(self%aux_solution, ierr); CHKERRQ(ierr)
+       deallocate(self%tracers)
+    end if
 
     elapsed_time = clock_elapsed_time(self%start_clock)
     call self%logfile%write(LOG_LEVEL_INFO, 'simulation', 'destroy', &
