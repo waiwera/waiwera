@@ -70,6 +70,7 @@ module flow_simulation_module
      PetscViewer :: hdf5_viewer !! Viewer for HDF5 output
      PetscInt, allocatable :: output_fluid_field_indices(:) !! Field indices for fluid output
      PetscInt, allocatable :: output_source_field_indices(:) !! Field indices for source output
+     PetscInt, allocatable :: output_tracer_field_indices(:) !! Field indices for tracer output
      integer(int32) :: start_clock !! Start wall clock time of simulation
      PetscBool :: unperturbed !! Whether any primary variables are being perturbed for Jacobian calculation
    contains
@@ -359,6 +360,9 @@ contains
     if (allocated(self%output_source_field_indices)) then
        deallocate(self%output_source_field_indices)
     end if
+    if (allocated(self%output_tracer_field_indices)) then
+       deallocate(self%output_tracer_field_indices)
+    end if
 
   end subroutine flow_simulation_destroy_output
 
@@ -382,6 +386,10 @@ contains
     call setup_vector_output_fields("source", self%source, &
          default_output_source_fields, required_output_source_fields, &
          self%output_source_field_indices)
+
+    if (self%auxiliary) then
+       call setup_tracer_output_fields()
+    end if
 
   contains
 
@@ -476,6 +484,24 @@ contains
       deallocate(fields, required_missing, lower_required_fields)
 
     end subroutine setup_vector_output_fields
+
+!........................................................................
+
+    subroutine setup_tracer_output_fields()
+      !! Set up tracer output fields. If tracers are being simulated,
+      !! it is assumed that all tracers will be output.
+
+      ! Locals:
+      PetscInt :: i
+
+      associate(num_tracers => size(self%tracers))
+        allocate(self%output_tracer_field_indices(num_tracers))
+        do i = 1, num_tracers
+           self%output_tracer_field_indices(i) = i - 1
+        end do
+      end associate
+
+    end subroutine setup_tracer_output_fields
 
   end subroutine flow_simulation_setup_output_fields
 
@@ -2345,6 +2371,11 @@ contains
        if (self%num_sources > 0) then
           call vec_sequence_view_hdf5(self%source, &
                self%output_source_field_indices, "/source_fields", time_index, &
+               time, self%hdf5_viewer)
+       end if
+       if (self%auxiliary) then
+          call vec_sequence_view_hdf5(self%aux_solution, &
+               self%output_tracer_field_indices, "/cell_fields", time_index, &
                time, self%hdf5_viewer)
        end if
     end if
