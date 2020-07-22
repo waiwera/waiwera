@@ -894,7 +894,19 @@
                     }, "additionalProperties": false
                 }
             },
-            "additionalProperties": false}
+            "additionalProperties": false},
+        "tracer": {"oneOf": [
+            {"type": "object",
+             "properties": {
+                 "name": {"type": "string"}
+             }, "additionalProperties": false},
+            {"type": "array",
+             "items": {
+                 "type": "object",
+                 "properties": {
+                     "name": {"type": "string"}
+                 }, "additionalProperties": false}}
+        ]}
     },
     "required": ["mesh"],
     "additionalProperties": false

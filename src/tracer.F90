@@ -41,26 +41,46 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine setup_tracers(json, tracers)
+  subroutine setup_tracers(json, tracers, logfile)
 
     !! Sets up tracers from JSON input.
 
     use fson
+    use fson_value_m, only : TYPE_ARRAY, TYPE_OBJECT
     use fson_mpi_module
     use kinds_module
+    use logfile_module
 
     type(fson_value), pointer, intent(in) :: json
-    type(tracer_type), allocatable, intent(out) :: tracers(:)
+    type(tracer_type), allocatable, intent(out) :: tracers(:) !! Array of tracer objects
+    type(logfile_type), intent(in out), optional :: logfile !! Logfile for log output
     ! Locals:
-    PetscInt :: num_tracers
+    type(fson_value), pointer :: tracer_json, traceri_json
+    PetscInt :: tracer_json_type, num_tracers, i
+    character(max_tracer_name_length) :: default_name
     PetscReal, parameter :: default_decay_rate = 0._dp
 
     if (fson_has_mpi(json, "tracer")) then
 
-       ! TODO get tracer parameters
-       num_tracers = 1
+       call fson_get_mpi(json, "tracer", tracer_json)
+       tracer_json_type = fson_type_mpi(json, "tracer")
+       select case (tracer_json_type)
+       case (TYPE_OBJECT)
+          num_tracers = 1
+          traceri_json => tracer_json
+       case (TYPE_ARRAY)
+          num_tracers = fson_value_count_mpi(json, "tracer")
+          traceri_json => tracer_json%children
+       end select
        allocate(tracers(num_tracers))
-       tracers(1) = tracer_type("tracer", default_decay_rate)
+
+       do i = 1, num_tracers
+          write(default_name, '(a, i0)') 'tracer_', i - 1
+          call fson_get_mpi(traceri_json, "name", default_name, &
+               tracers(i)%name, logfile)
+          tracers(i)%decay = default_decay_rate ! decay not implemented yet
+          traceri_json => traceri_json%next
+       end do
 
     else
        num_tracers = 0

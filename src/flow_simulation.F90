@@ -724,7 +724,7 @@ contains
     if (err == 0) then
        call self%mesh%override_face_properties()
        call self%create_solution_vector(self%solution, self%solution_range_start)
-       call setup_tracers(json, self%tracers)
+       call setup_tracers(json, self%tracers, self%logfile)
        self%auxiliary = (size(self%tracers) > 0)
        if (self%auxiliary) then
           call create_tracer_vector(self%mesh%dm, self%tracers, &
