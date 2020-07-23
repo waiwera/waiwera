@@ -96,7 +96,7 @@ contains
 
     use dm_utils_module, only: dm_set_data_layout, global_vec_range_start
 
-    DM, intent(in out) :: dm
+    DM, intent(in) :: dm
     type(tracer_type), intent(in) :: tracers(:)
     Vec, intent(in out) :: tracer_vector
     PetscInt, intent(out) :: range_start
