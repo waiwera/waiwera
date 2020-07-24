@@ -221,6 +221,7 @@ contains
       use relative_permeability_module, only: relative_permeability_corey_type
       use capillary_pressure_module, only: capillary_pressure_zero_type
       use cell_module, only: cell_type
+      use tracer_module, only: tracer_type
       use logfile_module
 
       character(*), intent(in) :: name
@@ -231,8 +232,9 @@ contains
       type(eos_we_type) :: eos
       type(mesh_type) :: mesh
       PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
-      Vec :: fluid_vector, y
-      PetscInt :: y_range_start, fluid_range_start
+      Vec :: fluid_vector, y, tracer_vector
+      PetscInt :: y_range_start, fluid_range_start, tracer_range_start
+      type(tracer_type) :: tracers(0)
       PetscInt :: start_cell, end_cell, end_interior_cell
       PetscInt :: c, ghost, fluid_offset, cell_geom_offset, y_offset
       PetscSection :: fluid_section, cell_geom_section, y_section
@@ -265,7 +267,8 @@ contains
 
       t = 0._dp
       call setup_initial(json, mesh, eos, t, y, fluid_vector, &
-           y_range_start, fluid_range_start, logfile)
+           tracer_vector, y_range_start, fluid_range_start, tracer_range_start, &
+           tracers, logfile)
 
       call global_vec_section(fluid_vector, fluid_section)
       call VecGetArrayF90(fluid_vector, fluid_array, ierr); CHKERRQ(ierr)
@@ -493,6 +496,7 @@ contains
          max_phase_name_length
     use fluid_module, only: fluid_type, create_fluid_vector
     use cell_module, only: cell_type
+    use tracer_module, only: tracer_type
 
     class(unit_test_type), intent(in out) :: test
     ! Locals:
@@ -504,8 +508,9 @@ contains
     type(mesh_type) :: mesh
     PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
     type(logfile_type) :: logfile
-    Vec :: y, fluid_vector
-    PetscInt :: y_range_start, fluid_range_start, ghost
+    Vec :: y, fluid_vector, tracer_vector
+    PetscInt :: y_range_start, fluid_range_start, tracer_range_start, ghost
+    type(tracer_type) :: tracers(0)
     PetscInt :: start_cell, end_cell, end_interior_cell, c
     PetscInt :: cell_geom_offset, fluid_offset, expected_region
     PetscReal :: t
@@ -544,8 +549,8 @@ contains
          eos%phase_names, fluid_vector, fluid_range_start)
 
     t = 0._dp
-    call setup_initial(json, mesh, eos, t, y, fluid_vector, &
-         y_range_start, fluid_range_start, logfile)
+    call setup_initial(json, mesh, eos, t, y, fluid_vector, tracer_vector, &
+         y_range_start, fluid_range_start, tracer_range_start, tracers, logfile)
 
     call fson_destroy_mpi(json)
     call mesh%destroy_distribution_data()
@@ -698,6 +703,7 @@ contains
       use relative_permeability_module, only: relative_permeability_corey_type
       use capillary_pressure_module, only: capillary_pressure_zero_type
       use cell_module, only: cell_type
+      use tracer_module, only: tracer_type
       use logfile_module
 
       character(*), intent(in) :: name
@@ -708,8 +714,9 @@ contains
       type(eos_we_type) :: eos
       type(mesh_type) :: mesh
       PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
-      Vec :: fluid_vector, y
-      PetscInt :: y_range_start, fluid_range_start
+      Vec :: fluid_vector, y, tracer_vector
+      PetscInt :: y_range_start, fluid_range_start, tracer_range_start
+      type(tracer_type) :: tracers(0)
       PetscInt :: start_cell, end_cell, end_interior_cell
       PetscInt :: c, ghost, fluid_offset, cell_geom_offset, y_offset
       PetscSection :: fluid_section, cell_geom_section, y_section
@@ -741,8 +748,8 @@ contains
            eos%phase_names, fluid_vector, fluid_range_start)
 
       t = 0._dp
-      call setup_initial(json, mesh, eos, t, y, fluid_vector, &
-           y_range_start, fluid_range_start, logfile)
+      call setup_initial(json, mesh, eos, t, y, fluid_vector, tracer_vector, &
+           y_range_start, fluid_range_start, tracer_range_start, tracers, logfile)
 
       call global_vec_section(fluid_vector, fluid_section)
       call VecGetArrayF90(fluid_vector, fluid_array, ierr); CHKERRQ(ierr)

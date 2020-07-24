@@ -363,8 +363,10 @@ contains
 !------------------------------------------------------------------------
 
   subroutine setup_initial_file(filename, mesh, eos, t, y, fluid_vector, &
-       y_range_start, fluid_range_start, index, use_original_dm)
-    !! Initializes fluid vector and solution vector y from HDF5 file.
+       tracer_vector, y_range_start, fluid_range_start, tracer_range_start, &
+       index, use_original_dm, tracers, tracer_initialised)
+    !! Initializes fluid vector, solution vector y and tracer vector
+    !! (if tracers are being simulated) from HDF5 file.
 
     use mesh_module
     use dm_utils_module, only: global_vec_section, global_section_offset, &
@@ -374,18 +376,24 @@ contains
     use fluid_module, only: fluid_type, create_fluid_vector
     use utils_module, only: str_array_index, str_to_lower
     use hdf5io_module, only: max_field_name_length, vec_load_fields_hdf5
+    use tracer_module, only: tracer_type
 
     character(len = *), intent(in) :: filename
     type(mesh_type), intent(in) :: mesh
     class(eos_type), intent(in) :: eos
     PetscReal, intent(in) :: t
-    Vec, intent(in out) :: y, fluid_vector
-    PetscInt, intent(in) :: y_range_start, fluid_range_start
+    Vec, intent(in out) :: y, fluid_vector, tracer_vector
+    PetscInt, intent(in) :: y_range_start, fluid_range_start, tracer_range_start
     PetscInt, intent(in) :: index !! time index to fetch initial conditions from
     PetscBool, intent(in) :: use_original_dm !! Whether file results correspond to original_dm
+    type(tracer_type), intent(in) :: tracers(:)
+    PetscBool, intent(in out) :: tracer_initialised
     ! Locals:
     PetscViewer :: viewer
     PetscInt, allocatable :: field_indices(:)
+    PetscInt :: tracer_field_indices(size(tracers))
+    PetscInt :: i, num_tracers
+    IS :: original_cell_index
     PetscErrorCode :: ierr
 
     call PetscViewerHDF5Open(PETSC_COMM_WORLD, filename, FILE_MODE_READ, &
@@ -393,11 +401,20 @@ contains
     call PetscViewerHDF5PushGroup(viewer, "/", ierr); CHKERRQ(ierr)
 
     call get_required_field_indices()
+    num_tracers = size(tracers)
+    if (num_tracers > 0) then
+       tracer_field_indices = [(i - 1, i = 1, num_tracers)]
+    end if
 
     if (use_original_dm) then
+       call dm_get_cell_index(mesh%original_dm, mesh%original_cell_natural_global, &
+            original_cell_index)
        call load_fluid_original_dm()
+       if (num_tracers > 0) call load_tracers_original_dm()
+       call ISDestroy(original_cell_index, ierr); CHKERRQ(ierr)
     else
        call load_fluid()
+       if (num_tracers > 0) call load_tracers()
     end if
 
     call PetscViewerHDF5PopGroup(viewer, ierr); CHKERRQ(ierr)
@@ -443,7 +460,6 @@ contains
 
       ! Locals:
       DM :: fluid_dm
-      IS :: original_cell_index
       Vec :: original_fluid_vector
       PetscInt :: original_fluid_range_start
       PetscSection :: fluid_section, original_fluid_section
@@ -456,9 +472,6 @@ contains
 
       call fluid%init(eos%num_components, eos%num_phases)
 
-      call dm_get_cell_index(mesh%original_dm, mesh%original_cell_natural_global, &
-           original_cell_index)
-
       call create_fluid_vector(mesh%original_dm, max_component_name_length, &
            eos%component_names, max_phase_name_length, &
            eos%phase_names, original_fluid_vector, original_fluid_range_start)
@@ -467,7 +480,6 @@ contains
       call DMSetOutputSequenceNumber(fluid_dm, index, t, ierr); CHKERRQ(ierr)
       call vec_load_fields_hdf5(original_fluid_vector, field_indices, &
            "/cell_fields", viewer, original_cell_index)
-      call ISDestroy(original_cell_index, ierr); CHKERRQ(ierr)
 
       call DMGetLabel(mesh%original_dm, "ghost", ghost_label, ierr)
       CHKERRQ(ierr)
@@ -477,8 +489,7 @@ contains
       call VecGetArrayReadF90(original_fluid_vector, original_fluid_array, ierr)
       CHKERRQ(ierr)
       call global_vec_section(fluid_vector, fluid_section)
-      call VecGetArrayReadF90(fluid_vector, fluid_array, ierr)
-      CHKERRQ(ierr)
+      call VecGetArrayF90(fluid_vector, fluid_array, ierr); CHKERRQ(ierr)
       fluid_array = -1._dp ! flag values missing from input
 
       ! Copy original fluid values to fluid vector:
@@ -495,6 +506,9 @@ contains
          end if
       end do
 
+      call VecRestoreArrayF90(fluid_vector, fluid_array, ierr); CHKERRQ(ierr)
+      call VecRestoreArrayReadF90(original_fluid_vector, original_fluid_array, &
+           ierr); CHKERRQ(ierr)
       call VecDestroy(original_fluid_vector, ierr); CHKERRQ(ierr)
       call fluid%destroy()
 
@@ -515,6 +529,78 @@ contains
            "/cell_fields", viewer, mesh%cell_index)
 
     end subroutine load_fluid
+
+!........................................................................
+
+    subroutine load_tracers_original_dm()
+      !! Loads tracer vector corresponding to original DM from HDF5 file.
+
+      use tracer_module, only: create_tracer_vector
+
+      ! Locals:
+      DM :: tracer_dm
+      Vec :: original_tracer_vector
+      PetscInt :: original_tracer_range_start, num_tracers
+      PetscSection :: tracer_section, original_tracer_section
+      PetscReal, pointer, contiguous :: tracer_array(:), original_tracer_array(:)
+      PetscInt :: start_cell, end_cell, c, ghost
+      PetscInt :: tracer_offset, original_tracer_offset
+      DMLabel :: ghost_label
+      PetscErrorCode :: ierr
+
+      call create_tracer_vector(mesh%original_dm, tracers, &
+           original_tracer_vector, original_tracer_range_start)
+
+      call VecGetDM(original_tracer_vector, tracer_dm, ierr); CHKERRQ(ierr)
+      call DMSetOutputSequenceNumber(tracer_dm, index, t, ierr); CHKERRQ(ierr)
+      call vec_load_fields_hdf5(original_tracer_vector, tracer_field_indices, &
+           "/cell_fields", viewer, original_cell_index)
+
+      call DMGetLabel(mesh%original_dm, "ghost", ghost_label, ierr)
+      CHKERRQ(ierr)
+      call DMPlexGetHeightStratum(mesh%original_dm, 0, start_cell, end_cell, ierr)
+      CHKERRQ(ierr)
+      call global_vec_section(original_tracer_vector, original_tracer_section)
+      call VecGetArrayReadF90(original_tracer_vector, original_tracer_array, ierr)
+      CHKERRQ(ierr)
+      call global_vec_section(tracer_vector, tracer_section)
+      call VecGetArrayReadF90(tracer_vector, tracer_array, ierr)
+      CHKERRQ(ierr)
+      tracer_array = -1._dp ! flag values missing from input
+
+      ! Copy original tracer values to tracer vector:
+      do c = start_cell, end_cell - 1
+         call DMLabelGetValue(ghost_label, c, ghost, ierr); CHKERRQ(ierr)
+         if (ghost < 0) then
+            original_tracer_offset = global_section_offset( &
+                 original_tracer_section, c, original_tracer_range_start)
+            tracer_offset = global_section_offset(tracer_section, c, &
+                 tracer_range_start)
+            tracer_array(tracer_offset: tracer_offset + num_tracers - 1) = &
+                 original_tracer_array(original_tracer_offset: &
+                 original_tracer_offset + num_tracers - 1)
+         end if
+      end do
+
+      call VecDestroy(original_tracer_vector, ierr); CHKERRQ(ierr)
+
+    end subroutine load_tracers_original_dm
+
+!........................................................................
+
+    subroutine load_tracers()
+      !! Loads tracer vector from HDF5 file.
+
+      ! Locals:
+      DM :: tracer_dm
+      PetscErrorCode :: ierr
+
+      call VecGetDM(tracer_vector, tracer_dm, ierr); CHKERRQ(ierr)
+      call DMSetOutputSequenceNumber(tracer_dm, index, t, ierr); CHKERRQ(ierr)
+      call vec_load_fields_hdf5(tracer_vector, tracer_field_indices, &
+           "/cell_fields", viewer, mesh%cell_index)
+
+    end subroutine load_tracers
 
 !........................................................................
 
@@ -628,38 +714,47 @@ contains
 !------------------------------------------------------------------------
 
   subroutine setup_initial(json, mesh, eos, t, y, fluid_vector, &
-       y_range_start, fluid_range_start, logfile)
+       tracer_vector, y_range_start, fluid_range_start, tracer_range_start, &
+       tracers, logfile)
     !! Initializes time t and a Vec y with initial conditions read
     !! from JSON input 'initial'.  A full set of initial conditions
     !! may be read in from an HDF5 file, or a constant set of primary
     !! variables can be read from the JSON input and applied to all
     !! cells. The fluid thermodynamic region for each cell is also
-    !! initialised (in the fluid vector).
+    !! initialised (in the fluid vector), and the tracer mass
+    !! fractions (if tracers are being simulated).
 
     use mesh_module
     use eos_module
     use dm_utils_module, only: global_vec_section, global_section_offset
+    use tracer_module, only: tracer_type
     use logfile_module
 
     type(fson_value), pointer, intent(in) :: json
     type(mesh_type), intent(in) :: mesh
     class(eos_type), intent(in) :: eos
     PetscReal, intent(out) :: t
-    Vec, intent(in out) :: y, fluid_vector
-    PetscInt, intent(in) :: y_range_start, fluid_range_start
+    Vec, intent(in out) :: y, fluid_vector, tracer_vector
+    PetscInt, intent(in) :: y_range_start, fluid_range_start, tracer_range_start
+    type(tracer_type), intent(in) :: tracers(:)
     type(logfile_type), intent(in out) :: logfile
     ! Locals:
     PetscReal, parameter :: default_start_time = 0.0_dp
     PetscReal, allocatable :: primary(:)
-    PetscInt :: region
-    PetscReal :: primary_scalar
-    PetscInt :: primary_rank, region_rank
+    PetscInt :: region, num_tracers
+    PetscReal :: primary_scalar, tracer_scalar
+    PetscInt :: primary_rank, region_rank, tracer_rank
+    PetscReal, allocatable :: tracer_values(:)
     PetscInt, parameter :: max_filename_length = 240
     character(len = max_filename_length) :: filename
     PetscInt, parameter :: default_index = 0
-    PetscInt :: index
-    PetscBool :: minc_specified, use_original_dm
+    PetscInt :: index, tracer_array_size
+    PetscBool :: minc_specified, use_original_dm, tracer_initialised
     PetscBool, parameter :: default_minc_specified = PETSC_FALSE
+    PetscReal, parameter :: default_tracer = 0._dp
+
+    num_tracers = size(tracers)
+    if (num_tracers > 0) tracer_initialised = PETSC_FALSE
 
     call fson_get_mpi(json, "time.start", default_start_time, t, logfile)
 
@@ -679,7 +774,8 @@ contains
           call fson_get_mpi(json, "initial.filename", val = filename)
           call fson_get_mpi(json, "initial.index", default_index, index, logfile)
           call setup_initial_file(filename, mesh, eos, t, y, fluid_vector, &
-               y_range_start, fluid_range_start, index, use_original_dm)
+               tracer_vector, y_range_start, fluid_range_start, tracer_range_start, &
+               index, use_original_dm, tracers, tracer_initialised)
 
        else if (fson_has_mpi(json, "initial.primary")) then
 
@@ -723,6 +819,26 @@ contains
 
        end if
 
+       if ((num_tracers > 0) .and. (.not. tracer_initialised)) then
+          tracer_rank = fson_mpi_array_rank(json, "initial.tracer")
+          select case (tracer_rank)
+          case (-1)
+             call setup_initial_tracer_scalar(mesh, default_tracer, &
+                  tracer_vector, num_tracers, tracer_range_start)
+          case (0)
+             call fson_get_mpi(json, "initial.tracer", val = tracer_scalar)
+             call setup_initial_tracer_scalar(mesh, tracer_scalar, &
+                  tracer_vector, num_tracers, tracer_range_start)
+          case (1)
+             tracer_array_size = fson_value_count_mpi(json, "initial.tracer")
+             call fson_get_mpi(json, "initial.tracer", val = tracer_values)
+             call setup_initial_tracer_constant(mesh, tracer_values, &
+                  tracer_vector, num_tracers, tracer_range_start)
+          ! could add option here for initialising tracer from array of
+          ! values over entire mesh
+          end select
+       end if
+
     else
 
        call setup_initial_primary_constant(mesh, eos%default_primary, &
@@ -735,13 +851,21 @@ contains
        call logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
             int_keys = ['initial.region'], &
             int_values = [eos%default_region])
-       minc_specified = PETSC_FALSE
+       if (num_tracers > 0) then
+          call setup_initial_tracer_scalar(mesh, default_tracer, &
+               tracer_vector, num_tracers, tracer_range_start)
+       end if
+       minc_specified = PETSC_TRUE
 
     end if
 
     if (mesh%has_minc .and. (.not. minc_specified)) then
        call setup_minc_initial(mesh, eos, y, fluid_vector, y_range_start, &
             fluid_range_start)
+       if (num_tracers > 0) then
+          call setup_minc_initial_tracer(mesh, tracer_vector, &
+               tracer_range_start, num_tracers)
+       end if
     end if
 
   end subroutine setup_initial
@@ -837,9 +961,157 @@ contains
     call VecRestoreArrayF90(y, y_array, ierr); CHKERRQ(ierr)
     call VecRestoreArrayF90(fluid_vector, fluid_array, ierr); CHKERRQ(ierr)
     call fluid%destroy()
+    deallocate(ic)
 
   end subroutine setup_minc_initial
 
 !------------------------------------------------------------------------
 
-end module
+  subroutine setup_initial_tracer_constant(mesh, tracer_values, &
+       tracer_vector, num_tracers, tracer_range_start)
+    !! Initialise tracer vector with constant values (one per tracer)
+    !! over the mesh.
+
+    use dm_utils_module, only: global_vec_section, global_section_offset, &
+         dm_get_end_interior_cell
+    use mesh_module, only: mesh_type
+
+    type(mesh_type), intent(in) :: mesh
+    PetscReal, intent(in) :: tracer_values(:)
+    Vec, intent(in out) :: tracer_vector
+    PetscInt, intent(in) :: num_tracers
+    PetscInt, intent(in) :: tracer_range_start
+    ! Locals:
+    PetscSection :: section
+    PetscReal, pointer, contiguous :: tracer_array(:), cell_tracer(:)
+    DMLabel :: ghost_label
+    PetscInt :: c, start_cell, end_cell, end_interior_cell, ghost, offset
+    PetscErrorCode :: ierr
+
+    call global_vec_section(tracer_vector, section)
+    call VecGetArrayF90(tracer_vector, tracer_array, ierr); CHKERRQ(ierr)
+
+    call DMGetLabel(mesh%dm, "ghost", ghost_label, ierr)
+    CHKERRQ(ierr)
+    call DMPlexGetHeightStratum(mesh%dm, 0, start_cell, end_cell, ierr)
+    CHKERRQ(ierr)
+    end_interior_cell = dm_get_end_interior_cell(mesh%dm, end_cell)
+
+    do c = start_cell, end_interior_cell - 1
+       call DMLabelGetValue(ghost_label, c, ghost, ierr); CHKERRQ(ierr)
+       if (ghost < 0) then
+          offset = global_section_offset(section, c, tracer_range_start)
+          cell_tracer => tracer_array(offset : offset + num_tracers - 1)
+          cell_tracer = tracer_values
+       end if
+    end do
+
+    call VecRestoreArrayF90(tracer_vector, tracer_array, ierr); CHKERRQ(ierr)
+
+  end subroutine setup_initial_tracer_constant
+
+!------------------------------------------------------------------------
+
+  subroutine setup_initial_tracer_scalar(mesh, tracer_scalar, &
+       tracer_vector, num_tracers, tracer_range_start)
+    !! Initialise tracer vector with the same scalar value for each tracer.
+
+    use mesh_module, only: mesh_type
+
+    type(mesh_type), intent(in) :: mesh
+    PetscReal, intent(in) :: tracer_scalar
+    Vec, intent(in out) :: tracer_vector
+    PetscInt, intent(in) :: num_tracers
+    PetscInt, intent(in) :: tracer_range_start
+    ! Locals:
+    PetscReal :: tracer_values(num_tracers)
+
+    tracer_values = tracer_scalar
+    call setup_initial_tracer_constant(mesh, tracer_values, &
+         tracer_vector, num_tracers, tracer_range_start)
+
+  end subroutine setup_initial_tracer_scalar
+
+!------------------------------------------------------------------------
+
+  subroutine setup_minc_initial_tracer(mesh, tracer_vector, &
+       tracer_range_start, num_tracers)
+
+    !! Sets up tracer initial conditions in MINC matrix cells. These
+    !! are simply copied from the corresponding fracture cells, which
+    !! are assumed already initialised.
+
+    use mesh_module
+    use dm_utils_module, only: global_vec_section, global_section_offset
+    use minc_module, only: minc_zone_label_name
+
+    class(mesh_type), intent(in) :: mesh !! Mesh object
+    Vec, intent(in out) :: tracer_vector !! Tracer vector
+    PetscInt, intent(in) :: tracer_range_start !! Range start for tracer vector
+    PetscInt, intent(in) :: num_tracers !! Number of tracers (> 0)
+    ! Locals:
+    PetscSection :: tracer_section
+    PetscReal, pointer, contiguous :: tracer_array(:)
+    PetscInt :: iminc, c, h, i, m, minc_p, num_minc_zone_cells, max_num_levels
+    PetscInt, allocatable :: ic(:)
+    PetscInt :: tracer_offset, tracer_minc_offset
+    IS :: minc_IS
+    PetscInt, pointer :: minc_cells(:)
+    PetscErrorCode :: ierr
+
+    call global_vec_section(tracer_vector, tracer_section)
+    call VecGetArrayF90(tracer_vector, tracer_array, ierr); CHKERRQ(ierr)
+
+    max_num_levels = maxval(mesh%minc%num_levels)
+    allocate(ic(max_num_levels))
+    ic = 0
+    h = 0
+
+    do iminc = 1, size(mesh%minc)
+       associate(minc => mesh%minc(iminc))
+         call DMGetStratumSize(mesh%dm, minc_zone_label_name, iminc, &
+              num_minc_zone_cells, ierr); CHKERRQ(ierr)
+         if (num_minc_zone_cells > 0) then
+            call DMGetStratumIS(mesh%dm, minc_zone_label_name, &
+                 iminc, minc_IS, ierr); CHKERRQ(ierr)
+            call ISGetIndicesF90(minc_IS, minc_cells, ierr); CHKERRQ(ierr)
+
+            do i = 1, num_minc_zone_cells
+
+               c = minc_cells(i)
+               if (mesh%ghost_cell(c) < 0) then
+
+                  minc_p = mesh%strata(h)%minc_point(c, 0)
+                  tracer_offset = global_section_offset(tracer_section, &
+                       minc_p, tracer_range_start)
+                  associate(frac_tracer => tracer_array(tracer_offset : &
+                       tracer_offset + num_tracers - 1))
+
+                    do m = 1, minc%num_levels
+                      minc_p = mesh%strata(h)%minc_point(ic(m), m)
+                      tracer_minc_offset = global_section_offset(tracer_section, &
+                           minc_p, tracer_range_start)
+                       associate (tracer => tracer_array(tracer_minc_offset : &
+                            tracer_minc_offset + num_tracers - 1))
+                         tracer = frac_tracer
+                       end associate
+                       ic(m) = ic(m) + 1
+                    end do
+
+                  end associate
+               end if
+            end do
+
+            call ISRestoreIndicesF90(minc_IS, minc_cells, ierr); CHKERRQ(ierr)
+         end if
+       end associate
+    end do
+
+    call VecRestoreArrayF90(tracer_vector, tracer_array, ierr); CHKERRQ(ierr)
+    deallocate(ic)
+
+  end subroutine setup_minc_initial_tracer
+
+!------------------------------------------------------------------------
+
+end module initial_module

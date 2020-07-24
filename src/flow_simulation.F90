@@ -776,8 +776,10 @@ contains
                         self%eos%phase_names, self%fluid, self%fluid_range_start)
 
                    call setup_initial(json, self%mesh, self%eos, &
-                        self%time, self%solution, self%fluid, &
-                        self%solution_range_start, self%fluid_range_start, self%logfile)
+                        self%time, self%solution, self%fluid, self%aux_solution, &
+                        self%solution_range_start, self%fluid_range_start, &
+                        self%aux_solution_range_start, size(self%tracers), &
+                        self%logfile)
 
                    if (self%mesh%rebalance) then
                       call self%redistribute(redist_err)
