@@ -472,7 +472,12 @@
                                                        "items": {"type": "number"},
                                                        "minItems": 2, "maxItems": 3}},
                                         "additionalProperties": false}
-                                   }]}
+                                   }]},
+                               "tracer": {"oneOf": [
+                                   {"type": "number"},
+                                   {"type": "array",
+                                    "items": {"type": "number"}}
+                               ]}
                            }, "additionalProperties": false}
                       },
         "source": {"type": "array",
@@ -693,9 +698,12 @@
              "properties": {
                  "filename": {"type": "string"},
                  "index": {"type": "integer", "minimum": 0},
-                 "minc": {"type": "boolean"}},
-             "additionalProperties": false},
-            {"type": "object",
+                 "minc": {"type": "boolean"},
+                 "tracer": {"oneOf": [
+                     {"type": "number"},
+                     {"type": "array", "items": {"type": "number"}}]}},
+                 "additionalProperties": false},
+             {"type": "object",
              "properties": {
                  "primary": {"oneOf": [
                      {"type": "number"},
@@ -709,7 +717,10 @@
                      {"type": "integer"},
                      {"type": "array", "items": {"type": "integer"}}
                  ]},
-                 "minc": {"type": "boolean"}
+                 "minc": {"type": "boolean"},
+                 "tracer": {"oneOf": [
+                     {"type": "number"},
+                     {"type": "array", "items": {"type": "number"}}]}
              },
              "additionalProperties": false
             }]},
