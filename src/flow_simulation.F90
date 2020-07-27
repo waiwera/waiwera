@@ -778,7 +778,7 @@ contains
                    call setup_initial(json, self%mesh, self%eos, &
                         self%time, self%solution, self%fluid, self%aux_solution, &
                         self%solution_range_start, self%fluid_range_start, &
-                        self%aux_solution_range_start, size(self%tracers), &
+                        self%aux_solution_range_start, self%tracers, &
                         self%logfile)
 
                    if (self%mesh%rebalance) then
