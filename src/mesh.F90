@@ -1047,6 +1047,7 @@ contains
           end if
           bdy => fson_value_next_mpi(bdy)
           deallocate(primary)
+          if (allocated(tracer)) deallocate(tracer)
        end do
     end if
 
