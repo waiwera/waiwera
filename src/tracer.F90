@@ -70,7 +70,7 @@ contains
           traceri_json => tracer_json
        case (TYPE_ARRAY)
           num_tracers = fson_value_count_mpi(json, "tracer")
-          traceri_json => tracer_json%children
+          traceri_json => fson_value_children_mpi(tracer_json)
        end select
        allocate(tracers(num_tracers))
 
@@ -79,9 +79,8 @@ contains
           call fson_get_mpi(traceri_json, "name", default_name, &
                tracers(i)%name, logfile)
           tracers(i)%decay = default_decay_rate ! decay not implemented yet
-          traceri_json => traceri_json%next
+          traceri_json => fson_value_next_mpi(traceri_json)
        end do
-
     else
        num_tracers = 0
        allocate(tracers(num_tracers))
