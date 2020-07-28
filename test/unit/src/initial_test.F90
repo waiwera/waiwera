@@ -19,6 +19,7 @@ module initial_test
   public :: setup, teardown
   public :: test_initial, test_initial_region
   public :: test_initial_hybrid_mesh
+  public :: test_initial_tracer
   ! public :: test_setup_initial_hdf5
 
 contains
@@ -822,6 +823,154 @@ contains
     end subroutine get_expected
 
   end subroutine test_initial_hybrid_mesh
+
+!------------------------------------------------------------------------
+
+  subroutine test_initial_tracer(test)
+    ! tracer initial conditions
+
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
+    character(:), allocatable :: json_str
+
+    ! json_str = &
+    !      '{"mesh": {"filename": "' // trim(adjustl(data_path)) // 'mesh/col10.exo"},' // &
+    !      ' "eos": {"name": "we"}, ' // &
+    !      ' "initial": {}, ' // &
+    !      ' "tracer": {"name": "foo"}}'
+    ! call tracer_initial_test_case('null1', json_str, 1, [0._dp])
+
+    json_str = &
+         '{"mesh": {"filename": "' // trim(adjustl(data_path)) // 'mesh/col10.exo"},' // &
+         ' "eos": {"name": "we"}, ' // &
+         ' "initial": {}, ' // &
+         ' "tracer": [{"name": "foo"}, {"name": "bar"}]}'
+    call tracer_initial_test_case('null2', json_str, 2, [0._dp, 0._dp])
+
+    ! json_str = &
+    !      '{"mesh": {"filename": "' // trim(adjustl(data_path)) // 'mesh/col10.exo"},' // &
+    !      ' "eos": {"name": "we"}, ' // &
+    !      ' "initial": {"tracer": 1.e-6}, ' // &
+    !      ' "tracer": {"name": "foo"}}'
+    ! call tracer_initial_test_case('scalar1', json_str, 1, [1.e-6_dp])
+
+    ! json_str = &
+    !      '{"mesh": {"filename": "' // trim(adjustl(data_path)) // 'mesh/col10.exo"},' // &
+    !      ' "eos": {"name": "we"}, ' // &
+    !      ' "initial": {"tracer": 1.e-6}, ' // &
+    !      ' "tracer": [{"name": "foo"}, {"name": "bar"}]}'
+    ! call tracer_initial_test_case('scalar2', json_str, 2, [1.e-6_dp, 1.e-6_dp])
+
+    ! json_str = &
+    !      '{"mesh": {"filename": "' // trim(adjustl(data_path)) // 'mesh/col10.exo"},' // &
+    !      ' "eos": {"name": "we"}, ' // &
+    !      ' "initial": {"tracer": [1.e-6, 2.e-6]}, ' // &
+    !      ' "tracer": [{"name": "foo"}, {"name": "bar"}]}'
+    ! call tracer_initial_test_case('array', json_str, 2, [1.e-6_dp, 2.e-6_dp])
+
+  contains
+
+    subroutine tracer_initial_test_case(name, json_str, expected_num_tracers, &
+         expected_tracer_values)
+
+      use IAPWS_module
+      use eos_we_module
+      use mesh_module
+      use eos_module, only: max_component_name_length, &
+           max_phase_name_length
+      use fluid_module, only: fluid_type, create_fluid_vector
+      use dm_utils_module
+      use relative_permeability_module, only: relative_permeability_corey_type
+      use capillary_pressure_module, only: capillary_pressure_zero_type
+      use cell_module, only: cell_type
+      use tracer_module
+      use logfile_module
+
+      character(*), intent(in) :: name
+      character(*), intent(in) :: json_str
+      PetscInt, intent(in) :: expected_num_tracers
+      PetscReal, intent(in) :: expected_tracer_values(:)
+      ! Locals:
+      type(fson_value), pointer :: json
+      type(IAPWS_type) :: thermo
+      type(eos_we_type) :: eos
+      type(mesh_type) :: mesh
+      PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
+      Vec :: fluid_vector, y, tracer_vector
+      PetscInt :: y_range_start, fluid_range_start, tracer_range_start
+      type(tracer_type), allocatable :: tracers(:)
+      PetscReal :: t
+      PetscInt :: start_cell, end_cell, end_interior_cell, c, ghost
+      PetscInt :: offset, num_tracers
+      DMLabel :: ghost_label
+      PetscSection :: section
+      PetscReal, pointer, contiguous :: tracer_array(:), tracer(:)
+      character(24) :: msg
+      type(logfile_type) :: logfile
+      PetscErrorCode :: err, ierr
+
+      json => fson_parse_mpi(str = json_str)
+      call logfile%init('', echo = PETSC_FALSE)
+
+      call thermo%init()
+      call eos%init(json, thermo)
+      call mesh%init(eos, json)
+      call mesh%configure(gravity, json, err = err)
+      call DMCreateGlobalVector(mesh%dm, y, ierr); CHKERRQ(ierr)
+      call PetscObjectSetName(y, "primary", ierr); CHKERRQ(ierr)
+      call global_vec_range_start(y, y_range_start)
+
+      call create_fluid_vector(mesh%dm, max_component_name_length, &
+           eos%component_names, max_phase_name_length, &
+           eos%phase_names, fluid_vector, fluid_range_start)
+      call setup_tracers(json, tracers, logfile)
+      call create_tracer_vector(mesh%dm, tracers, tracer_vector, &
+           tracer_range_start)
+
+      t = 0._dp
+      call setup_initial(json, mesh, eos, t, y, fluid_vector, &
+           tracer_vector, y_range_start, fluid_range_start, tracer_range_start, &
+           tracers, logfile)
+
+      num_tracers = size(tracers)
+      call test%assert(expected_num_tracers, num_tracers, &
+           name // ': num tracers')
+
+      call global_vec_section(tracer_vector, section)
+      call VecGetArrayReadF90(tracer_vector, tracer_array, ierr); CHKERRQ(ierr)
+      call DMPlexGetHeightStratum(mesh%dm, 0, start_cell, end_cell, ierr)
+      CHKERRQ(ierr)
+      end_interior_cell = dm_get_end_interior_cell(mesh%dm, end_cell)
+      call DMGetLabel(mesh%dm, "ghost", ghost_label, ierr)
+      CHKERRQ(ierr)
+
+      do c = start_cell, end_interior_cell - 1
+         call DMLabelGetValue(ghost_label, c, ghost, ierr); CHKERRQ(ierr)
+         if (ghost < 0) then
+            offset = global_section_offset(section, c, tracer_range_start)
+            tracer => tracer_array(offset: offset + num_tracers - 1)
+            write(msg, '(i0)') c
+            call test%assert(expected_tracer_values, tracer, &
+                 name // ': values ' // trim(msg))
+         end if
+      end do
+
+      call VecRestoreArrayReadF90(tracer_vector, tracer_array, ierr); CHKERRQ(ierr)
+      call fson_destroy_mpi(json)
+      call mesh%destroy_distribution_data()
+
+      call VecDestroy(fluid_vector, ierr); CHKERRQ(ierr)
+      call VecDestroy(y, ierr); CHKERRQ(ierr)
+      call VecDestroy(tracer_vector, ierr); CHKERRQ(ierr)
+      call mesh%destroy()
+      call eos%destroy()
+      call thermo%destroy()
+      call logfile%destroy()
+      deallocate(tracers)
+
+    end subroutine tracer_initial_test_case
+
+  end subroutine test_initial_tracer
 
 !------------------------------------------------------------------------
 
