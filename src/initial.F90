@@ -364,7 +364,7 @@ contains
 
   subroutine setup_initial_file(filename, mesh, eos, t, y, fluid_vector, &
        tracer_vector, y_range_start, fluid_range_start, tracer_range_start, &
-       index, use_original_dm, tracers, tracer_initialised)
+       index, use_original_dm, tracers)
     !! Initializes fluid vector, solution vector y and tracer vector
     !! (if tracers are being simulated) from HDF5 file.
 
@@ -387,7 +387,6 @@ contains
     PetscInt, intent(in) :: index !! time index to fetch initial conditions from
     PetscBool, intent(in) :: use_original_dm !! Whether file results correspond to original_dm
     type(tracer_type), intent(in) :: tracers(:)
-    PetscBool, intent(in out) :: tracer_initialised
     ! Locals:
     PetscViewer :: viewer
     PetscInt, allocatable :: field_indices(:)
@@ -749,13 +748,11 @@ contains
     character(len = max_filename_length) :: filename
     PetscInt, parameter :: default_index = 0
     PetscInt :: index, tracer_array_size
-    PetscBool :: minc_specified, use_original_dm, tracer_initialised
+    PetscBool :: minc_specified, use_original_dm
     PetscBool, parameter :: default_minc_specified = PETSC_FALSE
     PetscReal, parameter :: default_tracer = 0._dp
 
     num_tracers = size(tracers)
-    if (num_tracers > 0) tracer_initialised = PETSC_FALSE
-
     call fson_get_mpi(json, "time.start", default_start_time, t, logfile)
 
     if (fson_has_mpi(json, "initial")) then
@@ -775,7 +772,7 @@ contains
           call fson_get_mpi(json, "initial.index", default_index, index, logfile)
           call setup_initial_file(filename, mesh, eos, t, y, fluid_vector, &
                tracer_vector, y_range_start, fluid_range_start, tracer_range_start, &
-               index, use_original_dm, tracers, tracer_initialised)
+               index, use_original_dm, tracers)
 
        else if (fson_has_mpi(json, "initial.primary")) then
 
@@ -819,7 +816,7 @@ contains
 
        end if
 
-       if ((num_tracers > 0) .and. (.not. tracer_initialised)) then
+       if (num_tracers > 0) then
           tracer_rank = fson_mpi_array_rank(json, "initial.tracer")
           select case (tracer_rank)
           case (-1)
