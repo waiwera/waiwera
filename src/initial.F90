@@ -370,7 +370,8 @@ contains
 
     use mesh_module
     use dm_utils_module, only: global_vec_section, global_section_offset, &
-         dm_get_cell_index, vec_reorder, section_get_field_names
+         dm_get_cell_index, vec_reorder, section_get_field_names, &
+         vec_copy_subvector
     use eos_module, only: eos_type, max_component_name_length, &
          max_phase_name_length
     use fluid_module, only: fluid_type, create_fluid_vector
@@ -461,15 +462,7 @@ contains
       DM :: fluid_dm
       Vec :: original_fluid_vector
       PetscInt :: original_fluid_range_start
-      PetscSection :: fluid_section, original_fluid_section
-      PetscReal, pointer, contiguous :: fluid_array(:), original_fluid_array(:)
-      PetscInt :: start_cell, end_cell, c, ghost
-      PetscInt :: fluid_offset, original_fluid_offset
-      type(fluid_type) :: fluid
-      DMLabel :: ghost_label
       PetscErrorCode :: ierr
-
-      call fluid%init(eos%num_components, eos%num_phases)
 
       call create_fluid_vector(mesh%original_dm, max_component_name_length, &
            eos%component_names, max_phase_name_length, &
@@ -479,37 +472,8 @@ contains
       call DMSetOutputSequenceNumber(fluid_dm, index, t, ierr); CHKERRQ(ierr)
       call vec_load_fields_hdf5(original_fluid_vector, field_indices, &
            "/cell_fields", viewer, original_cell_index)
-
-      call DMGetLabel(mesh%original_dm, "ghost", ghost_label, ierr)
-      CHKERRQ(ierr)
-      call DMPlexGetHeightStratum(mesh%original_dm, 0, start_cell, end_cell, ierr)
-      CHKERRQ(ierr)
-      call global_vec_section(original_fluid_vector, original_fluid_section)
-      call VecGetArrayReadF90(original_fluid_vector, original_fluid_array, ierr)
-      CHKERRQ(ierr)
-      call global_vec_section(fluid_vector, fluid_section)
-      call VecGetArrayF90(fluid_vector, fluid_array, ierr); CHKERRQ(ierr)
-      fluid_array = -1._dp ! flag values missing from input
-
-      ! Copy original fluid values to fluid vector:
-      do c = start_cell, end_cell - 1
-         call DMLabelGetValue(ghost_label, c, ghost, ierr); CHKERRQ(ierr)
-         if (ghost < 0) then
-            original_fluid_offset = global_section_offset( &
-                 original_fluid_section, c, original_fluid_range_start)
-            fluid_offset = global_section_offset(fluid_section, c, &
-                 fluid_range_start)
-            fluid_array(fluid_offset: fluid_offset + fluid%dof - 1) = &
-                 original_fluid_array(original_fluid_offset: &
-                 original_fluid_offset + fluid%dof - 1)
-         end if
-      end do
-
-      call VecRestoreArrayF90(fluid_vector, fluid_array, ierr); CHKERRQ(ierr)
-      call VecRestoreArrayReadF90(original_fluid_vector, original_fluid_array, &
-           ierr); CHKERRQ(ierr)
+      call vec_copy_subvector(original_fluid_vector, fluid_vector)
       call VecDestroy(original_fluid_vector, ierr); CHKERRQ(ierr)
-      call fluid%destroy()
 
     end subroutine load_fluid_original_dm
 
@@ -539,12 +503,7 @@ contains
       ! Locals:
       DM :: tracer_dm
       Vec :: original_tracer_vector
-      PetscInt :: original_tracer_range_start, num_tracers
-      PetscSection :: tracer_section, original_tracer_section
-      PetscReal, pointer, contiguous :: tracer_array(:), original_tracer_array(:)
-      PetscInt :: start_cell, end_cell, c, ghost
-      PetscInt :: tracer_offset, original_tracer_offset
-      DMLabel :: ghost_label
+      PetscInt :: original_tracer_range_start
       PetscErrorCode :: ierr
 
       call create_tracer_vector(mesh%original_dm, tracers, &
@@ -554,33 +513,7 @@ contains
       call DMSetOutputSequenceNumber(tracer_dm, index, t, ierr); CHKERRQ(ierr)
       call vec_load_fields_hdf5(original_tracer_vector, tracer_field_indices, &
            "/cell_fields", viewer, original_cell_index)
-
-      call DMGetLabel(mesh%original_dm, "ghost", ghost_label, ierr)
-      CHKERRQ(ierr)
-      call DMPlexGetHeightStratum(mesh%original_dm, 0, start_cell, end_cell, ierr)
-      CHKERRQ(ierr)
-      call global_vec_section(original_tracer_vector, original_tracer_section)
-      call VecGetArrayReadF90(original_tracer_vector, original_tracer_array, ierr)
-      CHKERRQ(ierr)
-      call global_vec_section(tracer_vector, tracer_section)
-      call VecGetArrayReadF90(tracer_vector, tracer_array, ierr)
-      CHKERRQ(ierr)
-      tracer_array = -1._dp ! flag values missing from input
-
-      ! Copy original tracer values to tracer vector:
-      do c = start_cell, end_cell - 1
-         call DMLabelGetValue(ghost_label, c, ghost, ierr); CHKERRQ(ierr)
-         if (ghost < 0) then
-            original_tracer_offset = global_section_offset( &
-                 original_tracer_section, c, original_tracer_range_start)
-            tracer_offset = global_section_offset(tracer_section, c, &
-                 tracer_range_start)
-            tracer_array(tracer_offset: tracer_offset + num_tracers - 1) = &
-                 original_tracer_array(original_tracer_offset: &
-                 original_tracer_offset + num_tracers - 1)
-         end if
-      end do
-
+      call vec_copy_subvector(original_tracer_vector, tracer_vector)
       call VecDestroy(original_tracer_vector, ierr); CHKERRQ(ierr)
 
     end subroutine load_tracers_original_dm
