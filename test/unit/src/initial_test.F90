@@ -833,12 +833,12 @@ contains
     ! Locals:
     character(:), allocatable :: json_str
 
-    ! json_str = &
-    !      '{"mesh": {"filename": "' // trim(adjustl(data_path)) // 'mesh/col10.exo"},' // &
-    !      ' "eos": {"name": "we"}, ' // &
-    !      ' "initial": {}, ' // &
-    !      ' "tracer": {"name": "foo"}}'
-    ! call tracer_initial_test_case('null1', json_str, 1, [0._dp])
+    json_str = &
+         '{"mesh": {"filename": "' // trim(adjustl(data_path)) // 'mesh/col10.exo"},' // &
+         ' "eos": {"name": "we"}, ' // &
+         ' "initial": {}, ' // &
+         ' "tracer": {"name": "foo"}}'
+    call tracer_initial_test_case('null1', json_str, 1, [0._dp])
 
     json_str = &
          '{"mesh": {"filename": "' // trim(adjustl(data_path)) // 'mesh/col10.exo"},' // &
@@ -847,26 +847,26 @@ contains
          ' "tracer": [{"name": "foo"}, {"name": "bar"}]}'
     call tracer_initial_test_case('null2', json_str, 2, [0._dp, 0._dp])
 
-    ! json_str = &
-    !      '{"mesh": {"filename": "' // trim(adjustl(data_path)) // 'mesh/col10.exo"},' // &
-    !      ' "eos": {"name": "we"}, ' // &
-    !      ' "initial": {"tracer": 1.e-6}, ' // &
-    !      ' "tracer": {"name": "foo"}}'
-    ! call tracer_initial_test_case('scalar1', json_str, 1, [1.e-6_dp])
+    json_str = &
+         '{"mesh": {"filename": "' // trim(adjustl(data_path)) // 'mesh/col10.exo"},' // &
+         ' "eos": {"name": "we"}, ' // &
+         ' "initial": {"tracer": 1.e-6}, ' // &
+         ' "tracer": {"name": "foo"}}'
+    call tracer_initial_test_case('scalar1', json_str, 1, [1.e-6_dp])
 
-    ! json_str = &
-    !      '{"mesh": {"filename": "' // trim(adjustl(data_path)) // 'mesh/col10.exo"},' // &
-    !      ' "eos": {"name": "we"}, ' // &
-    !      ' "initial": {"tracer": 1.e-6}, ' // &
-    !      ' "tracer": [{"name": "foo"}, {"name": "bar"}]}'
-    ! call tracer_initial_test_case('scalar2', json_str, 2, [1.e-6_dp, 1.e-6_dp])
+    json_str = &
+         '{"mesh": {"filename": "' // trim(adjustl(data_path)) // 'mesh/col10.exo"},' // &
+         ' "eos": {"name": "we"}, ' // &
+         ' "initial": {"tracer": 1.e-6}, ' // &
+         ' "tracer": [{"name": "foo"}, {"name": "bar"}]}'
+    call tracer_initial_test_case('scalar2', json_str, 2, [1.e-6_dp, 1.e-6_dp])
 
-    ! json_str = &
-    !      '{"mesh": {"filename": "' // trim(adjustl(data_path)) // 'mesh/col10.exo"},' // &
-    !      ' "eos": {"name": "we"}, ' // &
-    !      ' "initial": {"tracer": [1.e-6, 2.e-6]}, ' // &
-    !      ' "tracer": [{"name": "foo"}, {"name": "bar"}]}'
-    ! call tracer_initial_test_case('array', json_str, 2, [1.e-6_dp, 2.e-6_dp])
+    json_str = &
+         '{"mesh": {"filename": "' // trim(adjustl(data_path)) // 'mesh/col10.exo"},' // &
+         ' "eos": {"name": "we"}, ' // &
+         ' "initial": {"tracer": [1.e-6, 2.e-6]}, ' // &
+         ' "tracer": [{"name": "foo"}, {"name": "bar"}]}'
+    call tracer_initial_test_case('array', json_str, 2, [1.e-6_dp, 2.e-6_dp])
 
   contains
 
