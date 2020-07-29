@@ -74,7 +74,7 @@ module dm_utils_module
   public :: dm_label_partition_ghosts, dm_label_boundary_ghosts
   public :: dm_distribute_local_vec, dm_distribute_global_vec
   public :: dm_distribute_index_set
-  public :: vec_copy_common_local
+  public :: vec_copy_common_local, vec_copy_subvector
   public :: mat_type_is_block, mat_coloring_perturbed_columns
   public :: dm_copy_cone_orientation, dm_cell_counts
 
@@ -1453,7 +1453,56 @@ contains
 
 !------------------------------------------------------------------------
 
-  PetscBool function mat_type_is_block(M) result(isblock)
+  subroutine vec_copy_subvector(subv, v)
+    !! Copies values from global vector subv to global vector v. The
+    !! subvector subv is assumed to be defined on a sub-mesh of the
+    !! one that the vector v is defined on.
+
+    use kinds_module, only: dp
+
+    Vec, intent(in out) :: subv
+    Vec, intent(in out) :: v
+    ! Locals:
+    DM :: sub_dm
+    DMLabel :: ghost_label
+    PetscInt :: range_start, sub_range_start
+    PetscInt :: start_cell, end_cell, c, dof, ghost
+    PetscInt :: offset, sub_offset
+    PetscSection :: sub_section, section
+    PetscReal, pointer, contiguous :: v_array(:), sub_array(:)
+    PetscErrorCode :: ierr
+
+    call VecGetBlockSize(v, dof, ierr); CHKERRQ(ierr)
+    call VecGetDM(subv, sub_dm, ierr); CHKERRQ(ierr)
+    call DMGetLabel(sub_dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
+    call DMPlexGetHeightStratum(sub_dm, 0, start_cell, end_cell, ierr)
+    CHKERRQ(ierr)
+    call global_vec_section(subv, sub_section)
+    call VecGetArrayReadF90(subv, sub_array, ierr); CHKERRQ(ierr)
+    call global_vec_section(v, section)
+    call global_vec_range_start(v, range_start)
+    call global_vec_range_start(subv, sub_range_start)
+    call VecGetArrayF90(v, v_array, ierr); CHKERRQ(ierr)
+    v_array = -1._dp ! flag values missing from subv
+
+    do c = start_cell, end_cell - 1
+       call DMLabelGetValue(ghost_label, c, ghost, ierr); CHKERRQ(ierr)
+       if (ghost < 0) then
+          sub_offset = global_section_offset(sub_section, c, sub_range_start)
+          offset = global_section_offset(section, c, range_start)
+          v_array(offset: offset + dof - 1) = &
+               sub_array(sub_offset: sub_offset + dof - 1)
+       end if
+    end do
+
+    call VecRestoreArrayF90(v, v_array, ierr); CHKERRQ(ierr)
+    call VecRestoreArrayReadF90(subv, sub_array, ierr); CHKERRQ(ierr)
+
+  end subroutine vec_copy_subvector
+
+!------------------------------------------------------------------------
+
+    PetscBool function mat_type_is_block(M) result(isblock)
     !! Returns true if matrix type is a block type.
 
     Mat, intent(in) :: M
