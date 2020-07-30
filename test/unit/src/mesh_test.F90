@@ -20,7 +20,7 @@ module mesh_test
        test_2d_radial_geometry, test_mesh_face_permeability_direction, &
        test_setup_minc_dm, test_minc_rock, &
        test_rock_assignment, test_cell_natural_global, test_minc_cell_natural_global, &
-       test_global_to_fracture_natural, test_redistribute
+       test_global_to_fracture_natural, test_redistribute, test_boundaries
 
 contains
 
@@ -1961,6 +1961,175 @@ contains
     end subroutine redistribute_test
 
   end subroutine test_redistribute
+
+!------------------------------------------------------------------------
+
+  subroutine test_boundaries(test)
+    ! boundary conditions
+
+    use fson_mpi_module
+    use IAPWS_module
+    use eos_module, only: max_component_name_length, max_phase_name_length
+    use eos_we_module
+    use dm_utils_module, only: global_vec_range_start, global_vec_section, &
+         global_section_offset, dm_get_end_interior_cell
+    use rock_module, only: setup_rock_vector
+    use fluid_module, only: create_fluid_vector
+    use tracer_module
+
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
+    character(:), allocatable :: json_str
+
+    json_str = &
+         '{"mesh": {"filename": "' // trim(adjustl(data_path)) // 'mesh/col10.exo"},' // &
+         '}'
+    call boundary_test(test, json_str, 'null', [0._dp, 0._dp])
+
+    json_str = &
+         '{"mesh": {"filename": "' // trim(adjustl(data_path)) // 'mesh/col10.exo"},' // &
+         ' "boundaries": [{"faces": {"cells": [0], "normal": [0, 0, 1]}}]' // &
+         '}'
+    call boundary_test(test, json_str, '1-D default', [1.e5_dp, 20._dp])
+
+    json_str = &
+         '{"mesh": {"filename": "' // trim(adjustl(data_path)) // 'mesh/col10.exo"},' // &
+         ' "boundaries": [{"faces": {"cells": [0], "normal": [0, 0, 1]}, ' // &
+         '   "primary": [2.e5, 40]}]' // &
+         '}'
+    call boundary_test(test, json_str, '1-D', [2.e5_dp, 40._dp])
+
+    json_str = &
+         '{"mesh": {"filename": "' // trim(adjustl(data_path)) // 'mesh/7x7grid.exo"},' // &
+         ' "boundaries": [{"faces": {"cells": [0, 1, 2, 3, 4, 5], ' // &
+         '   "normal": [0, -1, 0]}, "primary": [25.e5, 60]}]' // &
+         '}'
+    call boundary_test(test, json_str, '2-D', [25.e5_dp, 60._dp])
+
+    json_str = &
+         '{"mesh": {"filename": "' // trim(adjustl(data_path)) // 'mesh/7x7grid.exo"},' // &
+         ' "tracer": {"name": "foo"}, ' // &
+         ' "boundaries": [{"faces": {"cells": [0, 1, 2, 3, 4, 5], ' // &
+         '   "normal": [0, -1, 0]}, "primary": [25.e5, 60]}]' // &
+         '}'
+    call boundary_test(test, json_str, '2-D tracer default', [25.e5_dp, 60._dp], [0._dp])
+
+    json_str = &
+         '{"mesh": {"filename": "' // trim(adjustl(data_path)) // 'mesh/7x7grid.exo"},' // &
+         ' "tracer": {"name": "foo"}, ' // &
+         ' "boundaries": [{"faces": {"cells": [0, 1, 2, 3, 4, 5], ' // &
+         '   "normal": [0, -1, 0]}, "primary": [25.e5, 60], "tracer": 1.e-6}]' // &
+         '}'
+    call boundary_test(test, json_str, '2-D tracer scalar', [25.e5_dp, 60._dp], [1.e-6_dp])
+
+    json_str = &
+         '{"mesh": {"filename": "' // trim(adjustl(data_path)) // 'mesh/7x7grid.exo"},' // &
+         ' "tracer": [{"name": "foo"}, {"name": "bar"}], ' // &
+         ' "boundaries": [{"faces": {"cells": [0, 1, 2, 3, 4, 5], ' // &
+         '   "normal": [0, -1, 0]}, "primary": [25.e5, 60], "tracer": [1.e-6, 2.e-6]}]' // &
+         '}'
+    call boundary_test(test, json_str, '2-D 2-tracer', [25.e5_dp, 60._dp], &
+         [1.e-6_dp, 2.e-6_dp])
+
+  contains
+
+    subroutine boundary_test(test, json_str, title, expected_primary, &
+         expected_tracer)
+
+      class(unit_test_type), intent(in out) :: test
+      character(*), intent(in) :: json_str
+      character(*), intent(in) :: title
+      PetscReal, intent(in) :: expected_primary(:)
+      PetscReal, intent(in), optional :: expected_tracer(:)
+      ! Locals:
+      type(mesh_type) :: mesh
+      type(IAPWS_type) :: thermo
+      type(eos_we_type) :: eos
+      type(fson_value), pointer :: json
+      Vec :: y, fluid_vector, rock_vector, tracer_vector
+      PetscInt :: y_range_start, fluid_range_start, rock_range_start, &
+           tracer_range_start
+      type(tracer_type), allocatable :: tracers(:)
+      PetscInt :: num_tracers, np, c
+      PetscInt :: start_cell, end_cell, end_interior_cell
+      PetscInt :: y_offset, tracer_offset
+      PetscSection :: y_section, tracer_section
+      PetscReal, pointer, contiguous :: y_array(:), tracer_array(:)
+      PetscReal, pointer, contiguous :: cell_primary(:), cell_tracer(:)
+      PetscMPIInt :: rank
+      character(24) :: msg
+      PetscErrorCode :: err, ierr
+      PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
+
+      call mpi_comm_rank(PETSC_COMM_WORLD, rank, ierr)
+      json => fson_parse_mpi(str = json_str)
+      call thermo%init()
+      call eos%init(json, thermo)
+      np = eos%num_primary_variables
+      call mesh%init(eos, json)
+      call mesh%configure(gravity, json, err = err)
+
+      call mesh%construct_ghost_cells(gravity)
+      call DMCreateGlobalVector(mesh%dm, y, ierr); CHKERRQ(ierr)
+      call global_vec_range_start(y, y_range_start)
+      call setup_tracers(json, tracers)
+      num_tracers = size(tracers)
+      call setup_rock_vector(json, mesh%dm, rock_vector, &
+           mesh%rock_types, rock_range_start, mesh%ghost_cell, err = err)
+      call create_fluid_vector(mesh%dm, max_component_name_length, &
+           eos%component_names, max_phase_name_length, &
+           eos%phase_names, fluid_vector, fluid_range_start)
+      if (num_tracers > 0) call create_tracer_vector(mesh%dm, tracers, &
+           tracer_vector, tracer_range_start)
+
+      call mesh%set_boundary_conditions(json, y, fluid_vector, rock_vector, &
+       tracer_vector, eos, y_range_start, fluid_range_start, rock_range_start, &
+       tracer_range_start, num_tracers)
+
+      call fson_destroy_mpi(json)
+      call mesh%destroy_distribution_data()
+
+      call global_vec_section(y, y_section)
+      call VecGetArrayReadF90(y, y_array, ierr); CHKERRQ(ierr)
+      if (num_tracers > 0) then
+         call global_vec_section(tracer_vector, tracer_section)
+         call VecGetArrayReadF90(tracer_vector, tracer_array, ierr); CHKERRQ(ierr)
+      end if
+      call DMPlexGetHeightStratum(mesh%dm, 0, start_cell, end_cell, ierr)
+      CHKERRQ(ierr)
+      end_interior_cell = dm_get_end_interior_cell(mesh%dm, end_cell)
+      do c = end_interior_cell, end_cell - 1
+         if (mesh%ghost_cell(c) < 0) then
+            y_offset = global_section_offset(y_section, c, y_range_start)
+            cell_primary => y_array(y_offset : y_offset + np - 1)
+            write(msg, '(a, i0)') 'primary ', c
+            call test%assert(expected_primary, cell_primary, title // trim(msg))
+            if (num_tracers > 0) then
+               tracer_offset = global_section_offset(tracer_section, c, &
+                    tracer_range_start)
+               cell_tracer => tracer_array(tracer_offset : tracer_offset + &
+                    num_tracers - 1)
+               write(msg, '(a, i0)') 'tracer ', c
+               call test%assert(expected_tracer, cell_tracer, title // trim(msg))
+            end if
+         end if
+      end do
+      call VecRestoreArrayReadF90(y, y_array, ierr); CHKERRQ(ierr)
+      if (num_tracers > 0) then
+         call VecRestoreArrayReadF90(tracer_vector, tracer_array, ierr); CHKERRQ(ierr)
+      end if
+
+      call VecDestroy(y, ierr); CHKERRQ(ierr)
+      call VecDestroy(rock_vector, ierr); CHKERRQ(ierr)
+      call VecDestroy(fluid_vector, ierr); CHKERRQ(ierr)
+      if (num_tracers > 0) call VecDestroy(tracer_vector, ierr); CHKERRQ(ierr)
+      call mesh%destroy()
+      call eos%destroy()
+      call thermo%destroy()
+
+    end subroutine boundary_test
+
+  end subroutine test_boundaries
 
 !------------------------------------------------------------------------
 
