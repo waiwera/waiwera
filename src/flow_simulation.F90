@@ -1720,7 +1720,7 @@ contains
                self%aux_solution_range_start)
           do it = 1, nt
              idx = tracer_offset + it - 1
-             indices(i) = idx
+             indices(i) = idx - 1 ! zero-based
              mass_fraction(i) = previous_solution_array(idx)
              i = i + 1
           end do
