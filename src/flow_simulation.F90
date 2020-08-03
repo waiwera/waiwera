@@ -534,6 +534,10 @@ contains
          str_key = 'eos.name', str_value = self%eos%name)
     call self%logfile%write(LOG_LEVEL_INFO, 'input', 'summary', &
          str_key = 'thermodynamics', str_value = self%thermo%name)
+    if (self%auxiliary) then
+       call self%logfile%write(LOG_LEVEL_INFO, 'input', 'summary', &
+            logical_keys = ['tracer'], logical_values = [PETSC_TRUE])
+    end if
 
   end subroutine flow_simulation_input_summary
 
