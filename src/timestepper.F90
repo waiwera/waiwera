@@ -2324,7 +2324,7 @@ end subroutine timestepper_steps_set_next_stepsize
        self%steps%current%num_tries = self%steps%current%num_tries + 1
        call self%steps%set_current_status(converged_reason, converged_reason_aux)
        call self%steps%set_next_stepsize(accepted)
-       call self%log_step_status(accepted, converged_reason)
+       call self%log_step_status(accepted, converged_reason, converged_reason_aux)
 
     end do
 
@@ -2343,12 +2343,14 @@ end subroutine timestepper_steps_set_next_stepsize
 
 !------------------------------------------------------------------------
 
-  subroutine timestepper_log_step_status(self, accepted, converged_reason)
+  subroutine timestepper_log_step_status(self, accepted, converged_reason, &
+       converged_reason_aux)
     !! Writes logfile messages about timestep status.
 
     class(timestepper_type), intent(in out) :: self
     PetscBool, intent(in) :: accepted
     SNESConvergedReason, intent(in) :: converged_reason
+    KSPConvergedReason, intent(in) :: converged_reason_aux
     ! Locals:
     PetscInt, parameter :: reason_str_len = 80
     character(len = reason_str_len) :: reason_str
@@ -2382,6 +2384,15 @@ end subroutine timestepper_steps_set_next_stepsize
          int_keys = ['iterations'], &
          int_values = [self%steps%current%num_iterations], &
          str_key = 'reason', str_value = trim(reason_str))
+
+    if (self%ode%auxiliary .and. (converged_reason_aux < 0)) then
+       call KSPGetIterationNumber(self%solver_aux, iterations, ierr); CHKERRQ(ierr)
+       reason_str = KSP_reason_str(converged_reason_aux)
+       call self%ode%logfile%write(LOG_LEVEL_WARN, 'aux_linear_solver', 'end', &
+            logical_keys = ['converged'], logical_values = [PETSC_FALSE], &
+            int_keys = ['iterations'], int_values = [iterations], &
+            str_key = 'reason', str_value = trim(reason_str))
+    end if
 
     if (self%steps%current%status == TIMESTEP_ABORTED) then
        call self%ode%logfile%write(LOG_LEVEL_WARN, 'timestep', 'aborted', &
