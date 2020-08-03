@@ -104,6 +104,7 @@ contains
     PetscInt :: dim
     PetscInt, allocatable :: tracer_num_components(:), tracer_dim(:)
     character(max_tracer_name_length), allocatable :: tracer_names(:)
+    ISLocalToGlobalMapping :: l2g
     PetscErrorCode :: ierr
 
     call DMClone(dm, dm_tracer, ierr); CHKERRQ(ierr)
@@ -123,6 +124,9 @@ contains
       call DMCreateGlobalVector(dm_tracer, tracer_vector, ierr); CHKERRQ(ierr)
       call PetscObjectSetName(tracer_vector, "tracer", ierr); CHKERRQ(ierr)
       call global_vec_range_start(tracer_vector, range_start)
+
+      call DMGetLocalToGlobalMapping(dm_tracer, l2g, ierr); CHKERRQ(ierr)
+      call VecSetLocalToGlobalMapping(tracer_vector, l2g, ierr); CHKERRQ(ierr)
 
       call DMDestroy(dm_tracer, ierr); CHKERRQ(ierr)
       deallocate(tracer_num_components, tracer_dim, tracer_names)
