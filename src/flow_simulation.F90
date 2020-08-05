@@ -1469,7 +1469,7 @@ contains
          flux_array(:), source_data(:)
     PetscInt :: start_cell, end_cell, end_interior_cell, start_face, end_face, f
     PetscInt :: cell_geom_offsets(2), face_geom_offset, flux_offset
-    PetscInt :: np, nf, nt, nt2, i1, i2, up, c_up, i, irow(2), icol(2)
+    PetscInt :: np, nf, nt, nt2, up, c_up, i
     type(face_type) :: face
     PetscInt, pointer :: cells(:)
     PetscReal, pointer, contiguous :: face_flux(:)
@@ -1484,7 +1484,7 @@ contains
     nf = np + self%eos%num_phases ! total number of fluxes stored
     nt = size(self%tracers)
     nt2 = nt * nt
-    allocate(Ft(2 * nt2), Im(nt, nt), Iv(nt2))
+    allocate(Ft(nt2), Im(nt, nt), Iv(nt2))
     Im = 0._dp
     do i = 1, nt
        Im(i,i) = 1._dp
@@ -1535,23 +1535,14 @@ contains
             c_up = cells(up)
             tracer_flow = tracer_phase_flux * face%area
             do i = 1, 2
-               i1 = 1 + (i - 1) * nt2
-               i2 = i1 + nt2 - 1
                if ((self%mesh%ghost_cell(cells(i)) < 0) .and. &
                     (cells(i) <= end_interior_cell - 1)) then
-                  Ft(i1: i2) = Iv * flux_sign(i) * tracer_flow / face%cell(i)%volume
-                  irow(i) = cells(i)
-                  icol(i) = c_up
-               else
-                  Ft(i1: i2) = 0._dp
-                  irow(i) = -1
-                  icol(i) = -1
+                  Ft = Iv * flux_sign(i) * tracer_flow / face%cell(i)%volume
+                  call MatSetValuesBlockedLocal(Ar, 1, cells(i), 1, c_up, Ft, ADD_VALUES, &
+                       ierr); CHKERRQ(ierr)
                end if
             end do
           end associate
-          call MatSetValuesBlockedLocal(Ar, 2, irow, 2, icol, Ft, ADD_VALUES, &
-               ierr); CHKERRQ(ierr)
-
        end if
     end do
 
