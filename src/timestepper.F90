@@ -1839,6 +1839,8 @@ end subroutine timestepper_steps_set_next_stepsize
     if (self%ode%auxiliary) then
        call VecGetDM(self%ode%aux_solution, dm_aux, ierr); CHKERRQ(ierr)
        call DMCreateMatrix(dm_aux, self%A_aux, ierr); CHKERRQ(ierr)
+       call MatSetOption(self%A_aux, MAT_KEEP_NONZERO_PATTERN, &
+            PETSC_TRUE, ierr); CHKERRQ(ierr)
        call MatSetFromOptions(self%A_aux, ierr); CHKERRQ(ierr)
        call VecDuplicate(self%ode%aux_solution, self%b_aux, ierr); CHKERRQ(ierr)
     end if
