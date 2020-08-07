@@ -1651,8 +1651,8 @@ contains
     ! Locals:
     PetscInt :: start_cell, end_cell, end_interior_cell, c, i, it
     PetscInt :: nc, np, nt, num_indices, num_bdy
-    PetscInt :: tracer_offset, fluid_offset, idx
-    PetscSection :: tracer_section, fluid_section
+    PetscInt :: tracer_offset, fluid_offset, aux_offset, idx
+    PetscSection :: tracer_section, fluid_section, aux_section
     PetscReal, pointer, contiguous :: fluid_array(:), &
          previous_solution_array(:)
     type(fluid_type) :: fluid
@@ -1660,13 +1660,16 @@ contains
     PetscInt, allocatable :: indices(:)
     PetscInt :: phases
     PetscReal, allocatable :: mass_fraction(:)
+    DM :: dm_tracer
     PetscErrorCode :: ierr
 
     nc = self%eos%num_components
     np = self%eos%num_phases
 
     nt = size(self%tracers)
-    call global_vec_section(b, tracer_section)
+    call MatGetDM(A, dm_tracer, ierr); CHKERRQ(ierr)
+    call DMGetSection(dm_tracer, tracer_section, ierr); CHKERRQ(ierr)
+    call global_vec_section(self%aux_solution, aux_section)
     call global_vec_section(self%fluid, fluid_section)
     call VecGetArrayReadF90(self%fluid, fluid_array, ierr); CHKERRQ(ierr)
 
@@ -1679,8 +1682,8 @@ contains
 
     do c = start_cell, end_interior_cell - 1
        if (self%mesh%ghost_cell(c) < 0) then
-          tracer_offset = global_section_offset(tracer_section, c, &
-               self%aux_solution_range_start)
+          call PetscSectionGetOffset(tracer_section, c, &
+               tracer_offset, ierr); CHKERRQ(ierr)
           fluid_offset = global_section_offset(fluid_section, c, &
                self%fluid_range_start)
           call fluid%assign(fluid_array, fluid_offset)
@@ -1711,12 +1714,14 @@ contains
     CHKERRQ(ierr)
     do c = end_interior_cell, end_cell - 1
        if (self%mesh%ghost_cell(c) < 0) then
-          tracer_offset = global_section_offset(tracer_section, c, &
+          call PetscSectionGetOffset(tracer_section, c, &
+               tracer_offset, ierr); CHKERRQ(ierr)
+          aux_offset = global_section_offset(aux_section, c, &
                self%aux_solution_range_start)
           do it = 1, nt
              idx = tracer_offset + it - 1
-             indices(i) = idx - 1 ! zero-based
-             mass_fraction(i) = previous_solution_array(idx)
+             indices(i) = idx
+             mass_fraction(i) = previous_solution_array(aux_offset + it - 1)
              i = i + 1
           end do
        end if
