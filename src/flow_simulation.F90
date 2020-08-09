@@ -1651,8 +1651,8 @@ contains
     ! Locals:
     PetscInt :: start_cell, end_cell, end_interior_cell, c, i, it
     PetscInt :: nc, np, nt, num_indices, num_bdy
-    PetscInt :: tracer_offset, fluid_offset, aux_offset, idx
-    PetscSection :: tracer_section, fluid_section, aux_section
+    PetscInt :: local_tracer_offset, fluid_offset, tracer_offset, idx
+    PetscSection :: local_tracer_section, fluid_section, tracer_section
     PetscReal, pointer, contiguous :: fluid_array(:), &
          previous_solution_array(:)
     type(fluid_type) :: fluid
@@ -1668,8 +1668,8 @@ contains
 
     nt = size(self%tracers)
     call MatGetDM(A, dm_tracer, ierr); CHKERRQ(ierr)
-    call DMGetSection(dm_tracer, tracer_section, ierr); CHKERRQ(ierr)
-    call global_vec_section(self%aux_solution, aux_section)
+    call DMGetSection(dm_tracer, local_tracer_section, ierr); CHKERRQ(ierr)
+    call global_vec_section(self%aux_solution, tracer_section)
     call global_vec_section(self%fluid, fluid_section)
     call VecGetArrayReadF90(self%fluid, fluid_array, ierr); CHKERRQ(ierr)
 
@@ -1682,15 +1682,15 @@ contains
 
     do c = start_cell, end_interior_cell - 1
        if (self%mesh%ghost_cell(c) < 0) then
-          call PetscSectionGetOffset(tracer_section, c, &
-               tracer_offset, ierr); CHKERRQ(ierr)
+          call PetscSectionGetOffset(local_tracer_section, c, &
+               local_tracer_offset, ierr); CHKERRQ(ierr) ! zero-based
           fluid_offset = global_section_offset(fluid_section, c, &
                self%fluid_range_start)
           call fluid%assign(fluid_array, fluid_offset)
           phases = nint(fluid%phase_composition)
           if (.not. btest(phases, tracer_phase_index - 1)) then
              do it = 1, nt
-                call index_list%append(tracer_offset + it - 1)
+                call index_list%append(local_tracer_offset + it - 1)
              end do
           end if
        end if
@@ -1714,14 +1714,14 @@ contains
     CHKERRQ(ierr)
     do c = end_interior_cell, end_cell - 1
        if (self%mesh%ghost_cell(c) < 0) then
-          call PetscSectionGetOffset(tracer_section, c, &
-               tracer_offset, ierr); CHKERRQ(ierr)
-          aux_offset = global_section_offset(aux_section, c, &
+          call PetscSectionGetOffset(local_tracer_section, c, &
+               local_tracer_offset, ierr); CHKERRQ(ierr)
+          tracer_offset = global_section_offset(tracer_section, c, &
                self%aux_solution_range_start)
           do it = 1, nt
-             idx = tracer_offset + it - 1
+             idx = local_tracer_offset + it - 1
              indices(i) = idx
-             mass_fraction(i) = previous_solution_array(aux_offset + it - 1)
+             mass_fraction(i) = previous_solution_array(tracer_offset + it - 1)
              i = i + 1
           end do
        end if
