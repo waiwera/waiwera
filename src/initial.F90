@@ -393,12 +393,17 @@ contains
     PetscInt, allocatable :: field_indices(:)
     PetscInt :: tracer_field_indices(size(tracers))
     PetscInt :: i, num_tracers
-    IS :: original_cell_index
+    IS :: original_cell_index, output_cell_index
     PetscErrorCode :: ierr
 
     call PetscViewerHDF5Open(PETSC_COMM_WORLD, filename, FILE_MODE_READ, &
          viewer, ierr); CHKERRQ(ierr)
     call PetscViewerHDF5PushGroup(viewer, "/", ierr); CHKERRQ(ierr)
+
+    call ISDuplicate(mesh%cell_index, output_cell_index, ierr); CHKERRQ(ierr)
+    call PetscObjectSetName(output_cell_index, "cell_index", ierr)
+    CHKERRQ(ierr)
+    call ISLoad(output_cell_index, viewer, ierr); CHKERRQ(ierr)
 
     call get_required_field_indices()
     num_tracers = size(tracers)
@@ -419,6 +424,8 @@ contains
 
     call PetscViewerHDF5PopGroup(viewer, ierr); CHKERRQ(ierr)
     call PetscViewerDestroy(viewer, ierr); CHKERRQ(ierr)
+    call ISDestroy(output_cell_index, ierr); CHKERRQ(ierr)
+
     deallocate(field_indices)
 
     call assign_solution_vector()
@@ -471,7 +478,7 @@ contains
       call VecGetDM(original_fluid_vector, fluid_dm, ierr); CHKERRQ(ierr)
       call DMSetOutputSequenceNumber(fluid_dm, index, t, ierr); CHKERRQ(ierr)
       call vec_load_fields_hdf5(original_fluid_vector, field_indices, &
-           "/cell_fields", viewer, original_cell_index)
+           "/cell_fields", viewer, original_cell_index, output_cell_index)
       call vec_copy_subvector(original_fluid_vector, fluid_vector)
       call VecDestroy(original_fluid_vector, ierr); CHKERRQ(ierr)
 
@@ -489,7 +496,7 @@ contains
       call VecGetDM(fluid_vector, fluid_dm, ierr); CHKERRQ(ierr)
       call DMSetOutputSequenceNumber(fluid_dm, index, t, ierr); CHKERRQ(ierr)
       call vec_load_fields_hdf5(fluid_vector, field_indices, &
-           "/cell_fields", viewer, mesh%cell_index)
+           "/cell_fields", viewer, mesh%cell_index, output_cell_index)
 
     end subroutine load_fluid
 
@@ -512,7 +519,7 @@ contains
       call VecGetDM(original_tracer_vector, tracer_dm, ierr); CHKERRQ(ierr)
       call DMSetOutputSequenceNumber(tracer_dm, index, t, ierr); CHKERRQ(ierr)
       call vec_load_fields_hdf5(original_tracer_vector, tracer_field_indices, &
-           "/cell_fields", viewer, original_cell_index)
+           "/cell_fields", viewer, original_cell_index, output_cell_index)
       call vec_copy_subvector(original_tracer_vector, tracer_vector)
       call VecDestroy(original_tracer_vector, ierr); CHKERRQ(ierr)
 
@@ -530,7 +537,7 @@ contains
       call VecGetDM(tracer_vector, tracer_dm, ierr); CHKERRQ(ierr)
       call DMSetOutputSequenceNumber(tracer_dm, index, t, ierr); CHKERRQ(ierr)
       call vec_load_fields_hdf5(tracer_vector, tracer_field_indices, &
-           "/cell_fields", viewer, mesh%cell_index)
+           "/cell_fields", viewer, mesh%cell_index, output_cell_index)
 
     end subroutine load_tracers
 
