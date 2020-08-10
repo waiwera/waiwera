@@ -400,11 +400,6 @@ contains
          viewer, ierr); CHKERRQ(ierr)
     call PetscViewerHDF5PushGroup(viewer, "/", ierr); CHKERRQ(ierr)
 
-    call ISDuplicate(mesh%cell_index, output_cell_index, ierr); CHKERRQ(ierr)
-    call PetscObjectSetName(output_cell_index, "cell_index", ierr)
-    CHKERRQ(ierr)
-    call ISLoad(output_cell_index, viewer, ierr); CHKERRQ(ierr)
-
     call get_required_field_indices()
     num_tracers = size(tracers)
     if (num_tracers > 0) then
@@ -414,6 +409,14 @@ contains
     if (use_original_dm) then
        call dm_get_cell_index(mesh%original_dm, mesh%original_cell_natural_global, &
             original_cell_index)
+       call ISDuplicate(original_cell_index, output_cell_index, ierr); CHKERRQ(ierr)
+    else
+       call ISDuplicate(mesh%cell_index, output_cell_index, ierr); CHKERRQ(ierr)
+    end if
+    call PetscObjectSetName(output_cell_index, "cell_index", ierr); CHKERRQ(ierr)
+    call ISLoad(output_cell_index, viewer, ierr); CHKERRQ(ierr)
+
+    if (use_original_dm) then
        call load_fluid_original_dm()
        if (num_tracers > 0) call load_tracers_original_dm()
        call ISDestroy(original_cell_index, ierr); CHKERRQ(ierr)
