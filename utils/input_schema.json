@@ -864,6 +864,79 @@
                                             },
                                             "additionalProperties": false
                                         }
+                                    }, "additionalProperties": false},
+                                "auxiliary": {
+                                    "type": "object",
+                                    "properties": {
+                                        "type": {"type": "string",
+                                                 "enum": ["gmres", "GMRES",
+                                                          "lgmres", "LGMRES",
+                                                          "bcgs", "BCGS",
+                                                          "bcgsl", "BCGSL"]},
+                                        "options": {
+                                            "type": "object",
+                                            "properties": {
+                                                "gmres": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "restart": {
+                                                            "type": "integer",
+                                                            "minimum": 0
+                                                        }
+                                                    },
+                                                    "additionalProperties": false
+                                                }
+                                            },
+                                            "additionalProperties": false
+                                        },
+                                        "tolerance": {
+                                            "type": "object",
+                                            "properties": {
+                                                "relative": {
+                                                    "type": "number",
+                                                    "minimum": 0}
+                                            }, "additionalProperties": false
+                                        },
+                                        "maximum": {
+                                            "type": "object",
+                                            "properties": {
+                                                "iterations": {
+                                                    "type": "integer",
+                                                    "minimum": 0
+                                                }
+                                            }, "additionalProperties": false
+                                        },
+                                        "preconditioner": {
+                                            "type": "object",
+                                            "properties": {
+                                                "type": {"type": "string",
+                                                         "enum": ["none", "NONE",
+                                                                  "ilu", "ILU",
+                                                                  "lu", "LU",
+                                                                  "bjacobi", "BJACOBI",
+                                                                  "asm", "ASM"]},
+                                                "sub": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "preconditioner": {
+                                                            "type": "object",
+                                                            "properties": {
+                                                                "type": {"type": "string"},
+                                                                "factor": {
+                                                                    "type": "object",
+                                                                    "properties": {
+                                                                        "levels": {
+                                                                            "type": "number",
+                                                                            "minimum": 0}
+                                                                    },
+                                                                    "additionalProperties": false
+                                                                }
+                                                            }, "additionalProperties": false
+                                                        }
+                                                    }, "additionalProperties": false
+                                                }
+                                            }, "additionalProperties": false
+                                        }
                                     }, "additionalProperties": false}
                             }, "additionalProperties": false},
                         "maximum": {

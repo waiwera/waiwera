@@ -207,10 +207,8 @@ module timestepper_module
      procedure :: setup_jacobian => timestepper_setup_jacobian
      procedure :: setup_auxiliary => timestepper_setup_auxiliary
      procedure :: setup_nonlinear_solver => timestepper_setup_nonlinear_solver
-     procedure :: setup_linear_solver => timestepper_setup_linear_solver
+     procedure :: configure_linear_solver => timestepper_configure_linear_solver
      procedure :: setup_auxiliary_solver => timestepper_setup_auxiliary_solver
-     procedure :: setup_linear_solver_options => timestepper_setup_linear_solver_options
-     procedure :: setup_linear_sub_solver => timestepper_setup_linear_sub_solver
      procedure :: step => timestepper_step
      procedure :: log_step_status => timestepper_log_step_status
      procedure, public :: init => timestepper_init
@@ -1548,162 +1546,211 @@ end subroutine timestepper_steps_set_next_stepsize
 
 !------------------------------------------------------------------------
 
-  subroutine timestepper_setup_linear_solver(self, ksp_type, &
-       relative_tolerance, max_iterations, pc_type)
-    !! Sets up KSP linear solver and PC preconditioner for the timestepper.
+  subroutine timestepper_configure_linear_solver(self, json, path, ksp, &
+       default_ksp_type_str, default_pc_type_str)
+    !! Configures KSP linear solver and PC preconditioner from specified
+    !! path in JSON input.
+
+    use fson
+    use fson_mpi_module
+    use utils_module, only : str_to_lower
 
     class(timestepper_type), intent(in out) :: self
-    KSPType, intent(in) :: ksp_type
-    PetscReal, intent(in) :: relative_tolerance
-    PetscInt, intent(in) :: max_iterations
-    PCType, intent(in) :: pc_type
+    type(fson_value), pointer, intent(in) :: json
+    character(*), intent(in) :: path
+    KSP, intent(in out) :: ksp
+    character(*), intent(in) :: default_ksp_type_str
+    character(*), intent(in) :: default_pc_type_str
     ! Locals:
-    KSP :: ksp
+    KSPType :: ksp_type
+    PCType :: pc_type, sub_pc_type
     PC :: pc
+    character(max_ksp_type_str_len) :: ksp_type_str
+    character(max_pc_type_str_len) :: pc_type_str, sub_pc_type_str
+    PetscReal :: relative_tol
+    PetscInt :: max_iterations, sub_pc_factor_levels
+    character(max_pc_type_str_len), parameter :: default_sub_pc_type_str = "ilu"
+    PetscInt, parameter :: default_sub_pc_factor_levels = 0
     PetscErrorCode :: ierr
 
-    call SNESGetKSP(self%solver, ksp, ierr); CHKERRQ(ierr)
+    call fson_get_mpi(json, path // ".type", &
+         default_ksp_type_str, ksp_type_str, self%ode%logfile)
+    ksp_type = ksp_type_from_str(ksp_type_str)
     call KSPSetType(ksp, ksp_type, ierr); CHKERRQ(ierr)
-    call KSPSetTolerances(ksp, relative_tolerance, PETSC_DEFAULT_REAL, &
+
+    if (fson_has_mpi(json, path // ".tolerance.relative")) then
+       call fson_get_mpi(json, path // ".tolerance.relative", &
+            val = relative_tol)
+    else
+       relative_tol = PETSC_DEFAULT_REAL
+       call self%ode%logfile%write(LOG_LEVEL_INFO, 'input', &
+            'default', str_key = &
+            path // '.tolerance.relative', &
+            str_value = "PETSc_default")
+    end if
+    if (fson_has_mpi(json, path // ".maximum.iterations")) then
+       call fson_get_mpi(json, path // ".maximum.iterations", &
+         val = max_iterations)
+    else
+       max_iterations = PETSC_DEFAULT_INTEGER
+       call self%ode%logfile%write(LOG_LEVEL_INFO, 'input', &
+            'default', str_key = &
+            path // '.maximum.iterations', &
+            str_value = "PETSc_default")
+    end if
+
+    call KSPSetTolerances(ksp, relative_tol, PETSC_DEFAULT_REAL, &
          PETSC_DEFAULT_REAL, max_iterations, ierr); CHKERRQ(ierr)
 
+    call configure_linear_solver_options(ksp_type)
+
+    call fson_get_mpi(json, path // ".preconditioner.type", &
+         default_pc_type_str, pc_type_str, self%ode%logfile)
+    pc_type = pc_type_from_str(pc_type_str)
     call KSPGetPC(ksp, pc, ierr); CHKERRQ(ierr)
     call PCSetType(pc, pc_type, ierr); CHKERRQ(ierr)
     call PCSetFromOptions(pc, ierr); CHKERRQ(ierr)
 
-  end subroutine timestepper_setup_linear_solver
-
-!------------------------------------------------------------------------
-
-  subroutine timestepper_setup_linear_solver_options(self, json, ksp_type)
-    !! Sets up KSP linear solver options.
-
-    use fson
-    use fson_mpi_module
-
-    class(timestepper_type), intent(in out) :: self
-    type(fson_value), pointer, intent(in) :: json
-    KSPType, intent(in) :: ksp_type
-    ! Locals:
-    KSP :: ksp
-    PetscErrorCode :: ierr
-    type(fson_value), pointer :: opt_json
-    PetscInt :: restart
-
-    call SNESGetKSP(self%solver, ksp, ierr); CHKERRQ(ierr)
-
-    if (((ksp_type == KSPGMRES) .or. (ksp_type == KSPLGMRES)) .and. &
-         fson_has_mpi(json, 'time.step.solver.linear.options.gmres')) then
-       call fson_get_mpi(json, 'time.step.solver.linear.options.gmres', opt_json)
-
-       if (fson_has_mpi(opt_json, 'restart')) then
-          call fson_get_mpi(opt_json, 'restart', val = restart)
-          call KSPGMRESSetRestart(ksp, restart, ierr); CHKERRQ(ierr)
-       end if
-
+    if ((pc_type == PCBJACOBI) .or. (pc_type == PCASM)) then
+       call fson_get_mpi(json, &
+            path // ".preconditioner.sub.preconditioner.type", &
+            default_sub_pc_type_str, sub_pc_type_str, self%ode%logfile)
+       sub_pc_type = pc_type_from_str(sub_pc_type_str)
+       call fson_get_mpi(json, &
+            path // ".preconditioner.sub.preconditioner.factor.levels", &
+            default_sub_pc_factor_levels, sub_pc_factor_levels, self%ode%logfile)
+       call configure_linear_sub_solver(sub_pc_type, sub_pc_factor_levels)
     end if
+    
+  contains
 
-    call KSPSetFromOptions(ksp, ierr); CHKERRQ(ierr)
+!........................................................................
 
-  end subroutine timestepper_setup_linear_solver_options
+    KSPType function ksp_type_from_str(ksp_type_str) result(ksp_type)
+      character(*), intent(in) :: ksp_type_str
+      select case(str_to_lower(ksp_type_str))
+      case ("gmres")
+         ksp_type = KSPGMRES
+      case ("lgmres")
+         ksp_type = KSPLGMRES
+      case ("bcgs")
+         ksp_type = KSPBCGS
+      case ("bcgsl")
+         ksp_type = KSPBCGSL
+      case default
+         ksp_type = KSPBCGS
+      end select
+    end function ksp_type_from_str
 
-!------------------------------------------------------------------------
+!........................................................................
 
-  subroutine timestepper_setup_linear_sub_solver(self, sub_pc_type, &
-       factor_levels)
-    !! Sets up linear sub-solver for block Jacobi and ASM preconditioners.
+    PCType function pc_type_from_str(pc_type_str) result(pc_type)
+      character(*), intent(in) :: pc_type_str
+      select case(str_to_lower(pc_type_str))
+      case ("none")
+         pc_type = PCNONE
+      case ("lu")
+         pc_type = PCLU
+      case ("ilu")
+         pc_type = PCILU
+      case ("bjacobi")
+         pc_type = PCBJACOBI
+      case ("asm")
+         pc_type = PCASM
+      case default
+         pc_type = PCASM
+      end select
+    end function pc_type_from_str
 
-    class(timestepper_type), intent(in out) :: self
-    PCType, intent(in) :: sub_pc_type
-    PetscInt, intent(in) :: factor_levels
-    ! Locals:
-    KSP :: ksp
-    PC :: pc, sub_pc
-    PCType :: pc_type
-    PetscInt :: num_local, first_local, i
-    KSP, allocatable :: sub_ksp(:)
-    PetscErrorCode :: ierr
+!........................................................................
 
-    call SNESGetKSP(self%solver, ksp, ierr); CHKERRQ(ierr)
-    call KSPSetUp(ksp, ierr); CHKERRQ(ierr)
-    call KSPGetPC(ksp, pc, ierr); CHKERRQ(ierr)
-    call PCGetType(pc, pc_type, ierr); CHKERRQ(ierr)
+    subroutine configure_linear_solver_options(ksp_type)
 
-    num_local = 0
+      KSPType, intent(in) :: ksp_type
+      ! Locals:
+      PetscErrorCode :: ierr
+      type(fson_value), pointer :: opt_json
+      PetscInt :: restart
 
-    select case (pc_type)
-    case (PCBJACOBI)
-       call PCBJacobiGetSubKSP(pc, num_local, first_local, &
-            PETSC_NULL_KSP, ierr); CHKERRQ(ierr)
-       allocate(sub_ksp(num_local))
-       call PCBJacobiGetSubKSP(pc, num_local, first_local, &
-            sub_ksp, ierr); CHKERRQ(ierr)
-    case (PCASM)
-       call PCASMGetSubKSP(pc, num_local, first_local, &
-            PETSC_NULL_KSP, ierr); CHKERRQ(ierr)
-       allocate(sub_ksp(num_local))
-       call PCASMGetSubKSP(pc, num_local, first_local, &
-            sub_ksp, ierr); CHKERRQ(ierr)
-    end select
+      if (((ksp_type == KSPGMRES) .or. (ksp_type == KSPLGMRES)) .and. &
+           fson_has_mpi(json, path // '.options.gmres')) then
 
-    if (allocated(sub_ksp)) then
-       do i = 1, num_local
-          call KSPGetPC(sub_ksp(i), sub_pc, ierr); CHKERRQ(ierr)
-          call PCSetType(sub_pc, sub_pc_type, ierr); CHKERRQ(ierr)
-          call PCFactorSetLevels(sub_pc, factor_levels, ierr)
-          CHKERRQ(ierr)
-          call PCSetFromOptions(sub_pc, ierr); CHKERRQ(ierr)
-       end do
-       deallocate(sub_ksp)
-    end if
+         call fson_get_mpi(json, path // '.options.gmres', opt_json)
 
-  end subroutine timestepper_setup_linear_sub_solver
+         if (fson_has_mpi(opt_json, 'restart')) then
+            call fson_get_mpi(opt_json, 'restart', val = restart)
+            call KSPGMRESSetRestart(ksp, restart, ierr); CHKERRQ(ierr)
+         end if
+
+      end if
+
+      call KSPSetFromOptions(ksp, ierr); CHKERRQ(ierr)
+
+    end subroutine configure_linear_solver_options
+    
+!........................................................................
+
+    subroutine configure_linear_sub_solver(sub_pc_type, factor_levels)
+      !! Configures linear sub-solver for block Jacobi and ASM
+      !! preconditioners.
+
+      PCType, intent(in) :: sub_pc_type
+      PetscInt, intent(in) :: factor_levels
+      ! Locals:
+      PC :: pc, sub_pc
+      PCType :: pc_type
+      PetscInt :: num_local, first_local, i
+      KSP, allocatable :: sub_ksp(:)
+      PetscErrorCode :: ierr
+
+      call KSPSetUp(ksp, ierr); CHKERRQ(ierr)
+      call KSPGetPC(ksp, pc, ierr); CHKERRQ(ierr)
+      call PCGetType(pc, pc_type, ierr); CHKERRQ(ierr)
+
+      num_local = 0
+
+      select case (pc_type)
+      case (PCBJACOBI)
+         call PCBJacobiGetSubKSP(pc, num_local, first_local, &
+              PETSC_NULL_KSP, ierr); CHKERRQ(ierr)
+         allocate(sub_ksp(num_local))
+         call PCBJacobiGetSubKSP(pc, num_local, first_local, &
+              sub_ksp, ierr); CHKERRQ(ierr)
+      case (PCASM)
+         call PCASMGetSubKSP(pc, num_local, first_local, &
+              PETSC_NULL_KSP, ierr); CHKERRQ(ierr)
+         allocate(sub_ksp(num_local))
+         call PCASMGetSubKSP(pc, num_local, first_local, &
+              sub_ksp, ierr); CHKERRQ(ierr)
+      end select
+
+      if (allocated(sub_ksp)) then
+         do i = 1, num_local
+            call KSPGetPC(sub_ksp(i), sub_pc, ierr); CHKERRQ(ierr)
+            call PCSetType(sub_pc, sub_pc_type, ierr); CHKERRQ(ierr)
+            call PCFactorSetLevels(sub_pc, factor_levels, ierr)
+            CHKERRQ(ierr)
+            call PCSetFromOptions(sub_pc, ierr); CHKERRQ(ierr)
+         end do
+         deallocate(sub_ksp)
+      end if
+
+    end subroutine configure_linear_sub_solver
+
+  end subroutine timestepper_configure_linear_solver
 
 !------------------------------------------------------------------------
 
   subroutine timestepper_setup_auxiliary_solver(self)
-    !! Sets up linear solver and preconditioner for auxiliary linear
-    !! problem.  These are copied from the linear solver used in the
-    !! main nonlinear problem.
+    !! Sets up linear solver for auxiliary linear problem.
 
     class(timestepper_type), intent(in out) :: self
     ! Locals:
-    KSP :: snes_ksp
-    KSPType :: ksp_type
-    PetscReal :: rtol, abstol, dtol
-    PetscInt :: max_iterations
-    PC :: snes_pc, pc
-    PCType :: pc_type
     PetscErrorCode :: ierr
 
-    if (self%ode%auxiliary) then
-
-       call KSPCreate(PETSC_COMM_WORLD, self%solver_aux, ierr); CHKERRQ(ierr)
-       call KSPSetOperators(self%solver_aux, self%A_aux, self%A_aux, ierr)
-       CHKERRQ(ierr)
-
-       call SNESGetKSP(self%solver, snes_ksp, ierr); CHKERRQ(ierr)
-       call KSPGetType(snes_ksp, ksp_type, ierr); CHKERRQ(ierr)
-       call KSPSetType(self%solver_aux, ksp_type, ierr); CHKERRQ(ierr)
-
-       call KSPGetTolerances(snes_ksp, rtol, abstol, dtol, max_iterations, &
-            ierr); CHKERRQ(ierr)
-       call KSPSetTolerances(self%solver_aux, rtol, abstol, dtol, &
-            max_iterations, ierr); CHKERRQ(ierr)
-       call KSPSetFromOptions(self%solver_aux, ierr); CHKERRQ(ierr)
-
-       call KSPGetPC(snes_ksp, snes_pc, ierr); CHKERRQ(ierr)
-       call PCGetType(snes_pc, pc_type, ierr); CHKERRQ(ierr)
-       call KSPGetPC(self%solver_aux, pc, ierr); CHKERRQ(ierr)
-       call PCSetType(pc, pc_type, ierr); CHKERRQ(ierr)
-
-       ! TODO: set sub-ksp options, factor levels etc.
-       ! Probably want to be able to give auxiliary solver its own
-       ! independent config from JSON input.
-
-       call PCSetFromOptions(pc, ierr); CHKERRQ(ierr)
-
-    end if
+    call KSPCreate(PETSC_COMM_WORLD, self%solver_aux, ierr); CHKERRQ(ierr)
+    call KSPSetOperators(self%solver_aux, self%A_aux, self%A_aux, ierr)
+    CHKERRQ(ierr)
 
   end subroutine timestepper_setup_auxiliary_solver
 
@@ -1906,22 +1953,17 @@ end subroutine timestepper_steps_set_next_stepsize
     PetscBool, parameter :: default_output_initial = PETSC_TRUE
     PetscBool, parameter :: default_output_final = PETSC_TRUE
     PetscBool :: stop_time_specified, steady_state
-    character(max_ksp_type_str_len) :: ksp_type_str
-    character(max_ksp_type_str_len), parameter :: default_ksp_type_str = "bcgs"
-    KSPType :: ksp_type
-    character(max_pc_type_str_len) :: pc_type_str, sub_pc_type_str
-    character(max_pc_type_str_len), parameter :: default_pc_type_str = "asm"
-    character(max_pc_type_str_len), parameter :: default_sub_pc_type_str = "ilu"
-    PetscInt, parameter :: default_sub_pc_factor_levels = 0
-    PCType :: pc_type, sub_pc_type
-    PetscReal :: linear_relative_tol
-    PetscInt :: linear_max_iterations, sub_pc_factor_levels
+    KSP :: ksp
     PetscInt, parameter :: default_checkpoint_repeat = 1
     PetscInt :: checkpoint_repeat_type, checkpoint_repeat, i
     PetscBool :: checkpoint_do_repeat
     PetscReal, allocatable :: checkpoint_time(:), checkpoint_step(:)
     PetscReal :: checkpoint_tol
     PetscReal, parameter :: default_checkpoint_tol = 0.1_dp
+    character(max_ksp_type_str_len), parameter :: default_flow_ksp_type_str = "bcgs"
+    character(max_pc_type_str_len), parameter :: default_flow_pc_type_str = "asm"
+    character(max_ksp_type_str_len), parameter :: default_aux_ksp_type_str = "gmres"
+    character(max_pc_type_str_len), parameter :: default_aux_pc_type_str = "bjacobi"
     PetscErrorCode :: ierr
 
     self%ode => ode
@@ -1959,56 +2001,18 @@ end subroutine timestepper_steps_set_next_stepsize
          "time.step.solver.nonlinear.minimum.iterations", &
          default_nonlinear_min_iterations, &
          nonlinear_min_iterations, self%ode%logfile)
-    call fson_get_mpi(json, &
-         "time.step.solver.linear.type", &
-         default_ksp_type_str, ksp_type_str, self%ode%logfile)
-    if (fson_has_mpi(json, &
-         "time.step.solver.linear.tolerance.relative")) then
-       call fson_get_mpi(json, &
-         "time.step.solver.linear.tolerance.relative", &
-         val = linear_relative_tol)
-    else
-       linear_relative_tol = PETSC_DEFAULT_REAL
-       call self%ode%logfile%write(LOG_LEVEL_INFO, 'input', &
-            'default', str_key = &
-            'time.step.solver.linear.tolerance.relative', &
-            str_value = "PETSc_default")
-    end if
-    if (fson_has_mpi(json, &
-         "time.step.solver.linear.maximum.iterations")) then
-       call fson_get_mpi(json, &
-         "time.step.solver.linear.maximum.iterations", &
-         val = linear_max_iterations)
-    else
-       linear_max_iterations = PETSC_DEFAULT_INTEGER
-       call self%ode%logfile%write(LOG_LEVEL_INFO, 'input', &
-            'default', str_key = &
-            'time.step.solver.linear.maximum.iterations', &
-            str_value = "PETSc_default")
-    end if
-    ksp_type = ksp_type_from_str(ksp_type_str)
-    call fson_get_mpi(json, &
-         "time.step.solver.linear.preconditioner.type", &
-         default_pc_type_str, pc_type_str, self%ode%logfile)
-    pc_type = pc_type_from_str(pc_type_str)
 
     call self%setup_nonlinear_solver(nonlinear_max_iterations)
-    call self%setup_linear_solver(ksp_type, linear_relative_tol, &
-         linear_max_iterations, pc_type)
-    call self%setup_linear_solver_options(json, ksp_type)
 
-    if ((pc_type == PCBJACOBI) .or. (pc_type == PCASM)) then
-       call fson_get_mpi(json, &
-            "time.step.solver.linear.preconditioner.sub.preconditioner.type", &
-            default_sub_pc_type_str, sub_pc_type_str, self%ode%logfile)
-       sub_pc_type = pc_type_from_str(sub_pc_type_str)
-       call fson_get_mpi(json, &
-            "time.step.solver.linear.preconditioner.sub.preconditioner.factor.levels", &
-            default_sub_pc_factor_levels, sub_pc_factor_levels, self%ode%logfile)
-       call self%setup_linear_sub_solver(sub_pc_type, sub_pc_factor_levels)
+    call SNESGetKSP(self%solver, ksp, ierr); CHKERRQ(ierr)
+    call self%configure_linear_solver(json, "time.step.solver.linear", &
+         ksp, default_flow_ksp_type_str, default_flow_pc_type_str)
+
+    if (self%ode%auxiliary) then
+       call self%setup_auxiliary_solver()
+       call self%configure_linear_solver(json, "time.step.solver.auxiliary", &
+            self%solver_aux, default_aux_ksp_type_str, default_aux_pc_type_str)
     end if
-
-    call self%setup_auxiliary_solver()
 
     if (method == TS_DIRECTSS) then
 
@@ -2216,40 +2220,6 @@ end subroutine timestepper_steps_set_next_stepsize
          method = TS_ADAPT_CHANGE
       end select
     end function adapt_method_from_str
-
-    KSPType function ksp_type_from_str(ksp_type_str) result(ksp_type)
-      character(*), intent(in) :: ksp_type_str
-      select case(str_to_lower(ksp_type_str))
-      case ("gmres")
-         ksp_type = KSPGMRES
-      case ("lgmres")
-         ksp_type = KSPLGMRES
-      case ("bcgs")
-         ksp_type = KSPBCGS
-      case ("bcgsl")
-         ksp_type = KSPBCGSL
-      case default
-         ksp_type = KSPBCGS
-      end select
-    end function ksp_type_from_str
-
-    PCType function pc_type_from_str(pc_type_str) result(pc_type)
-      character(*), intent(in) :: pc_type_str
-      select case(str_to_lower(pc_type_str))
-      case ("none")
-         pc_type = PCNONE
-      case ("lu")
-         pc_type = PCLU
-      case ("ilu")
-         pc_type = PCILU
-      case ("bjacobi")
-         pc_type = PCBJACOBI
-      case ("asm")
-         pc_type = PCASM
-      case default
-         pc_type = PCASM
-      end select
-    end function pc_type_from_str
     
   end subroutine timestepper_init
 
