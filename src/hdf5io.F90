@@ -196,6 +196,7 @@ contains
     character(:), allocatable :: subvector_name
     PetscInt :: i, f, time_index
     PetscReal :: time
+    PetscBool :: has_field
     PetscErrorCode :: ierr
 
     call PetscObjectGetName(v, vector_name, ierr); CHKERRQ(ierr)
@@ -215,8 +216,11 @@ contains
           subvector_name = trim(vector_name) // "_" // trim(field_name)
           call get_field_subvector(v, f, index_set, sub_v)
           call PetscObjectSetName(sub_v, subvector_name, ierr); CHKERRQ(ierr)
-          call VecLoad(sub_v, viewer, ierr); CHKERRQ(ierr)
-          call vec_reorder(sub_v, file_cell_index, cell_index)
+          call PetscViewerHDF5HasObject(viewer, sub_v, has_field, ierr); CHKERRQ(ierr)
+          if (has_field) then
+             call VecLoad(sub_v, viewer, ierr); CHKERRQ(ierr)
+             call vec_reorder(sub_v, file_cell_index, cell_index)
+          end if
           call VecRestoreSubVector(v, index_set, sub_v, ierr); CHKERRQ(ierr)
           call ISDestroy(index_set, ierr); CHKERRQ(ierr)
           call PetscViewerHDF5PopGroup(viewer, ierr); CHKERRQ(ierr)
