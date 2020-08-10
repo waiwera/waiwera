@@ -172,7 +172,7 @@ contains
 !------------------------------------------------------------------------
 
   subroutine vec_load_fields_hdf5(v, field_indices, field_group, viewer, &
-       cell_index)
+       cell_index, file_cell_index)
     !! Loads specified fields of vector v from specified group in HDF5
     !! file, and reorders them according to the specified cell_index
     !! ordering.
@@ -184,9 +184,9 @@ contains
     character(*), intent(in) :: field_group !! Group to read from in HDF5 file
     PetscViewer, intent(in) :: viewer !! HDF5 viewer
     IS, intent(in) :: cell_index !! Desired cell index ordering
+    IS, intent(in) :: file_cell_index !! Cell index ordering in HDF5 file
     ! Locals:
     DM :: dm
-    IS :: output_cell_index
     PetscSection :: section
     Vec :: sub_v
     IS :: index_set
@@ -197,11 +197,6 @@ contains
     PetscInt :: i, f, time_index
     PetscReal :: time
     PetscErrorCode :: ierr
-
-    call ISDuplicate(cell_index, output_cell_index, ierr); CHKERRQ(ierr)
-    call PetscObjectSetName(output_cell_index, "cell_index", ierr)
-    CHKERRQ(ierr)
-    call ISLoad(output_cell_index, viewer, ierr); CHKERRQ(ierr)
 
     call PetscObjectGetName(v, vector_name, ierr); CHKERRQ(ierr)
     call VecGetDM(v, dm, ierr); CHKERRQ(ierr)
@@ -217,18 +212,16 @@ contains
        if (field_name /= "") then
           call PetscViewerHDF5PushGroup(viewer, field_group, ierr)
           CHKERRQ(ierr)
-          call get_field_subvector(v, f, index_set, sub_v)
           subvector_name = trim(vector_name) // "_" // trim(field_name)
+          call get_field_subvector(v, f, index_set, sub_v)
           call PetscObjectSetName(sub_v, subvector_name, ierr); CHKERRQ(ierr)
           call VecLoad(sub_v, viewer, ierr); CHKERRQ(ierr)
-          call vec_reorder(sub_v, output_cell_index, cell_index)
+          call vec_reorder(sub_v, file_cell_index, cell_index)
           call VecRestoreSubVector(v, index_set, sub_v, ierr); CHKERRQ(ierr)
           call ISDestroy(index_set, ierr); CHKERRQ(ierr)
           call PetscViewerHDF5PopGroup(viewer, ierr); CHKERRQ(ierr)
        end if
     end do
-
-    call ISDestroy(output_cell_index, ierr); CHKERRQ(ierr)
 
   end subroutine vec_load_fields_hdf5
 
