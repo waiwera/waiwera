@@ -693,37 +693,28 @@
                            ]}
                        }, "additionalProperties": false
                    }},
-        "initial": {"oneOf": [
-            {"type": "object",
-             "properties": {
-                 "filename": {"type": "string"},
-                 "index": {"type": "integer", "minimum": 0},
-                 "minc": {"type": "boolean"},
-                 "tracer": {"oneOf": [
-                     {"type": "number"},
-                     {"type": "array", "items": {"type": "number"}}]}},
-                 "additionalProperties": false},
-             {"type": "object",
-             "properties": {
-                 "primary": {"oneOf": [
-                     {"type": "number"},
-                     {"type": "array",
-                      "items": {"oneOf": [
-                          {"type": "number"},
-                          {"type": "array", "items": {"type": "number"}}
-                      ]}
-                     }]},
-                 "region": {"oneOf": [
-                     {"type": "integer"},
-                     {"type": "array", "items": {"type": "integer"}}
-                 ]},
-                 "minc": {"type": "boolean"},
-                 "tracer": {"oneOf": [
-                     {"type": "number"},
-                     {"type": "array", "items": {"type": "number"}}]}
-             },
-             "additionalProperties": false
-            }]},
+        "initial": {
+            "type": "object",
+            "properties": {
+                "filename": {"type": "string"},
+                "index": {"type": "integer", "minimum": 0},
+                "primary": {"oneOf": [
+                    {"type": "number"},
+                    {"type": "array",
+                     "items": {"oneOf": [
+                         {"type": "number"},
+                         {"type": "array", "items": {"type": "number"}}
+                     ]}
+                    }]},
+                "region": {"oneOf": [
+                    {"type": "integer"},
+                    {"type": "array", "items": {"type": "integer"}}
+                ]},
+                "minc": {"type": "boolean"},
+                "tracer": {"oneOf": [
+                    {"type": "number"},
+                    {"type": "array", "items": {"type": "number"}}]}},
+            "additionalProperties": false},
         "time": {
             "type": "object",
             "properties": {

@@ -10,36 +10,39 @@ Before the simulation can run, the :ref:`primary_variables` in each cell at the 
 
 There are two ways of doing this. However, both ways specify the initial conditions via the **"initial"** value in the Waiwera JSON input file, and in both cases this value is an object (although some of its values are different in each case).
 
+.. note::
+   **JSON object**: initial conditions
+
+   **JSON path**: initial
+
+   +------------+----------------+----------------+-------------------------------+
+   |**name**    |**type**        |**default**     |**value**                      |
+   +------------+----------------+----------------+-------------------------------+
+   |"primary"   |number | array  |(`no default`)  |initial                        |
+   |            |                |                |:ref:`primary_variables`       |
+   |            |                |                |                               |
+   +------------+----------------+----------------+-------------------------------+
+   |"region"    |integer | array |depends on EOS  |initial                        |
+   |            |                |                |:ref:`thermodynamic_regions`   |
+   +------------+----------------+----------------+-------------------------------+
+   |"filename"  |string          | (`no default`) |name of Waiwera output HDF5    |
+   |            |                |                |file to restart from           |
+   +------------+----------------+----------------+-------------------------------+
+   |"index"     |integer         |0               |results index (zero-based)     |
+   |            |                |                |in file to restart from        |
+   +------------+----------------+----------------+-------------------------------+
+   |"minc"      |boolean         |false           |whether initial conditions     |
+   |            |                |                |include values for MINC cells  |
+   |            |                |                |(see                           |
+   |            |                |                |:ref:`minc_initial_conditions`)|
+   +------------+----------------+----------------+-------------------------------+
+
 .. index:: initial conditions; in JSON input file
 
 Specifying initial conditions in the JSON input file
 ----------------------------------------------------
 
 It is possible to specify initial conditions directly in the Waiwera JSON input file. Normally this is practical only for relatively small models.
-
-.. index::
-   pair: MINC; initial conditions
-
-.. note::
-   **JSON object**: initial condition specification in JSON input file
-
-   **JSON path**: initial
-
-   +------------+----------------+---------------+-------------------------------+
-   |**name**    |**type**        |**default**    |**value**                      |
-   +------------+----------------+---------------+-------------------------------+
-   |"primary"   |number | array  |(`no default`) |initial                        |
-   |            |                |               |:ref:`primary_variables`       |
-   |            |                |               |                               |
-   +------------+----------------+---------------+-------------------------------+
-   |"region"    |integer | array |depends on EOS |initial                        |
-   |            |                |               |:ref:`thermodynamic_regions`   |
-   +------------+----------------+---------------+-------------------------------+
-   |"minc"      |boolean         |false          |whether initial conditions     |
-   |            |                |               |include values for MINC cells  |
-   |            |                |               |(see                           |
-   |            |                |               |:ref:`minc_initial_conditions`)|
-   +------------+----------------+---------------+-------------------------------+
 
 In this case the primary variables for each cell are specified via the **"primary"** value in the "initial" object. This value can be either:
 
@@ -107,29 +110,11 @@ In this case, the "initial" object in the JSON input file for the restarted simu
 .. index::
    pair: MINC; initial conditions
 
-.. note::
-   **JSON object**: restart initial condition specification
-
-   **JSON path**: initial
-   
-   +------------+------------+----------------+-------------------------------+
-   |**name**    |**type**    |**default**     |**value**                      |
-   +------------+------------+----------------+-------------------------------+
-   |"filename"  |string      | (`no default`) |name of Waiwera output HDF5    |
-   |            |            |                |file to restart from           |
-   +------------+------------+----------------+-------------------------------+
-   |"index"     |integer     |0               |results index (zero-based)     |
-   |            |            |                |in file to restart from        |
-   +------------+------------+----------------+-------------------------------+
-   |"minc"      |boolean     |false           |whether initial conditions     |
-   |            |            |                |include values for MINC cells  |
-   |            |            |                |(see                           |
-   |            |            |                |:ref:`minc_initial_conditions`)|
-   +------------+------------+----------------+-------------------------------+
-
 The filename of the output from the previous simulation is specified using the **"filename"** value. In general, an output file may contain results for more than one time. The new simulation can be restarted from any of the results in the previous output file. The index of the desired set of results can be specified using the **"index"** value, which defaults to zero.
 
 Restarting from a previous output file will read both the primary variables and the thermodynamic regions from the file. Clearly, the output file should contain results for the same number of cells as the restarted simulation (except in the case of restarting a MINC simulation from single-porosity initial conditions -- see :ref:`minc_initial_conditions`).
+
+Initial conditions read from an HDF5 output file via the **filename** value will override any initial conditions specified directly in the JSON input file (via the **primary** or **region** values).
 
 Generally the previous output file should have been generated using the same :ref:`eos` used by the restarted simulation. However, this is not strictly necessary, as long as the output file contains results for all the primary variables of the EOS used in the restarted run.
 
