@@ -1,0 +1,129 @@
+"""
+1-D single-phase liquid tracer test with Dirichlet upstream boundary condition
+"""
+
+import argparse
+import os
+import sys
+
+import matplotlib
+matplotlib.use('Agg')
+
+from credo.systest import SciBenchmarkTest
+
+from credo.jobrunner import SimpleJobRunner
+from credo.t2model import T2ModelRun, T2ModelResult
+from credo.waiwera import WaiweraModelRun
+from credo.modelresult import DigitisedOneDFieldResult
+
+import credo.reporting.standardReports as sReps
+from credo.reporting import getGenerators
+
+from credo.systest import FieldWithinTolTC
+
+from mulgrids import mulgrid
+
+import matplotlib.pyplot as plt
+
+from matplotlib import rcParams
+rcParams['mathtext.default'] = 'regular'
+
+day = 24. * 60. * 60.
+import numpy as np
+from docutils.core import publish_file
+
+parser = argparse.ArgumentParser()
+parser.add_argument("-np", type = int, default = 1, help = "number of processes")
+parser.add_argument("-d", "--docker", action = "store_true",
+                    help = "run via Docker (waiwera-dkr)")
+args = parser.parse_args()
+mpi = args.np > 1 and not args.docker
+simulator = 'waiwera-dkr -np %d' % args.np if args.docker else 'waiwera'
+
+model_name = 'oned'
+    
+AUTOUGH2_FIELDMAP = {
+    'Pressure': 'Pressure',
+    'Tracer mass fraction': 'Tracer/liquid'}
+
+WAIWERA_FIELDMAP = {
+    'Pressure': 'fluid_pressure',
+    'Tracer mass fraction': 'tracer_1'}
+
+model_dir = './run'
+data_dir = './data'
+t2geo_filename = os.path.join(model_dir, 'g' + model_name + '.dat')
+geo = mulgrid(t2geo_filename)
+map_out_bdy = list(range(0, geo.num_blocks))
+
+run_index = 0
+run_name = 'run'
+run_base_name = model_name
+
+test_fields = ['Pressure', 'Tracer mass fraction']
+field_unit = {'Pressure': 'bar', 'Tracer mass fraction': '-'}
+field_scale = {'Pressure': 1.e5, 'Tracer mass fraction': 1.}
+
+tracer_test = SciBenchmarkTest(model_name + "_test", nproc = args.np)
+tracer_test.description = """1-D single-phase liquid tracer test with Dirichlet upstream boundary condition
+"""
+
+run_filename = run_base_name + '.json'
+model_run = WaiweraModelRun(run_name, run_filename,
+                            fieldname_map = WAIWERA_FIELDMAP,
+                            simulator = simulator,
+                            basePath = os.path.realpath(model_dir))
+model_run.jobParams['nproc'] = args.np
+tracer_test.mSuite.addRun(model_run, run_name)
+
+tracer_test.setupEmptyTestCompsList()
+
+results_filename = os.path.join(model_dir, run_base_name + ".listing")
+AUTOUGH2_result = T2ModelResult("AUTOUGH2", results_filename,
+                                geo_filename = t2geo_filename,
+                                fieldname_map = AUTOUGH2_FIELDMAP,
+                                ordering_map = map_out_bdy)
+tracer_test.addTestComp(run_index, "AUTOUGH2",
+                        FieldWithinTolTC(fieldsToTest = test_fields,
+                                         defFieldTol = 1.e-3,
+                                         expected = AUTOUGH2_result,
+                                         testOutputIndex = -1))
+
+jrunner = SimpleJobRunner(mpi = mpi)
+testResult, mResults = tracer_test.runTest(jrunner, createReports = True)
+
+result = tracer_test.mSuite.resultsList[run_index]
+t = result.getTimes()
+x = np.array([col.centre[0] for col in geo.columnlist])
+
+for field_name in test_fields:
+    var = result.getFieldAtOutputIndex(field_name, -1) / field_scale[field_name]
+    plt.plot(x, var, 'b-', label = 'Waiwera', zorder = 2)
+    var = AUTOUGH2_result.getFieldAtOutputIndex(field_name, -1) / field_scale[field_name]
+    plt.plot(x, var, 'gs', label = 'AUTOUGH2', zorder = 1)
+    plt.xlabel('x (m)')
+    plt.ylabel('%s (%s)' % (field_name, field_unit[field_name]))
+    img_filename_base = '_'.join((model_name, run_name, field_name))
+    img_filename_base = img_filename_base.replace(' ', '_')
+    img_filename = os.path.join(tracer_test.mSuite.runs[run_index].basePath,
+                                tracer_test.mSuite.outputPathBase,
+                                img_filename_base)
+    plt.legend(loc = 'best')
+    plt.title('%s at time %2.0f days' % (field_name, t[-1] / day))
+    plt.tight_layout(pad = 3.)
+    plt.savefig(img_filename + '.png', dpi = 300)
+    plt.savefig(img_filename + '.pdf')
+    plt.clf()
+    tracer_test.mSuite.analysisImages.append(img_filename + '.png')
+
+# generate report:
+
+for rGen in getGenerators(["RST"], tracer_test.outputPathBase):
+    report_filename = os.path.join(tracer_test.outputPathBase,
+                     "%s-report.%s" % (tracer_test.testName, rGen.stdExt))
+    sReps.makeSciBenchReport(tracer_test, mResults, rGen, report_filename)
+    html_filename = os.path.join(tracer_test.outputPathBase,
+                     "%s-report.%s" % (tracer_test.testName, 'html'))
+    html = publish_file(source_path = report_filename,
+                        destination_path = html_filename,
+                        writer_name = "html")
