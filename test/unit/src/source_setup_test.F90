@@ -64,6 +64,7 @@ contains
     use eos_module
     use dm_utils_module, only: global_vec_section, global_section_offset
     use utils_module, only: array_cumulative_sum, get_mpi_int_gather_array
+    use tracer_module
 
     class(unit_test_type), intent(in out) :: test
     ! Locals:
@@ -82,8 +83,8 @@ contains
     PetscErrorCode :: ierr, err
     PetscReal, parameter :: start_time = 0._dp
     PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
-    character :: tracer_names(0)
-    PetscInt, parameter :: expected_num_sources = 19
+    type(tracer_type), allocatable :: tracers(:)
+    PetscInt, parameter :: expected_num_sources = 23
     PetscMPIInt :: rank, num_procs
     IS :: source_is
     PetscInt, allocatable :: zone_source(:), isort(:)
@@ -97,13 +98,14 @@ contains
 
     call thermo%init()
     call eos%init(json, thermo)
-    call source%init(eos, size(tracer_names))
+    call setup_tracers(json, tracers)
+    call source%init(eos, size(tracers))
     call mesh%init(eos, json)
     call DMCreateLabel(mesh%serial_dm, open_boundary_label_name, ierr); CHKERRQ(ierr)
     call mesh%configure(gravity, json, err = err)
     call DMGetGlobalVector(mesh%dm, fluid_vector, ierr); CHKERRQ(ierr) ! dummy- not used
 
-    call setup_sources(json, mesh%dm, mesh%cell_natural_global, eos, tracer_names, &
+    call setup_sources(json, mesh%dm, mesh%cell_natural_global, eos, tracers%name, &
          thermo, start_time, fluid_vector, fluid_range_start, source_vector, &
          source_range_start, num_sources, total_num_sources, source_controls, &
          source_is, err = err)
@@ -126,7 +128,7 @@ contains
        select case (source_index)
        case (0)
             call source_test(test, source_index, source, &
-                 0, 10._dp, 90.e3_dp, 0, 0)
+                 0, 10._dp, 90.e3_dp, 0, 0, [0._dp, 0._dp])
          case (1)
             call source_test(test, source_index, source, &
                  1, 5._dp, 100.e3_dp, 2, 0)
@@ -173,12 +175,28 @@ contains
             call source_test(test, source_index, source, &
                  6, default_source_rate, 100.e3_dp, default_source_component, 2)
          case (16)
+            call source_test(test, source_index, source, &
+                 1, 10._dp, 50.e3_dp, default_source_component, 0, &
+                 [1.e-3_dp, 1.e-3_dp])
+         case (17)
+            call source_test(test, source_index, source, &
+                 2, 5._dp, 40.e3_dp, default_source_component, 0, &
+                 [2.e-3_dp, 3.e-3_dp])
+         case (18)
+            call source_test(test, source_index, source, &
+                 3, 7.5_dp, 30.e3_dp, default_source_component, 0, &
+                 [3.e-3_dp, 5.e-3_dp])
+         case (19)
+            call source_test(test, source_index, source, &
+                 4, 3.5_dp, 60.e3_dp, default_source_component, 0, &
+                 [0._dp, 2.e-3_dp])
+         case (20)
             num_zone_sources = num_zone_sources + 1
             zone_source(num_zone_sources) = nint(source%natural_cell_index)
          end select
     end do
 
-    ! Test cells in source 16, defined on a zone:
+    ! Test cells in last source, defined on a zone:
     zone_source = pack(zone_source, zone_source >= 0)
     zone_source_counts = get_mpi_int_gather_array()
     zone_source_displacements = get_mpi_int_gather_array()
@@ -210,7 +228,7 @@ contains
     end if
 
     deallocate(zone_source, zone_source_counts, zone_source_displacements, &
-         zone_source_all)
+         zone_source_all, tracers)
     call ISDestroy(source_is, ierr); CHKERRQ(ierr)
     call source%destroy()
     call VecRestoreArrayReadF90(source_vector, source_array, ierr); CHKERRQ(ierr)
@@ -226,7 +244,7 @@ contains
   contains
 
     subroutine source_test(test, source_index, source, index, rate, enthalpy, &
-         injection_component, production_component)
+         injection_component, production_component, tracer)
       !! Runs asserts for a single source.
 
       class(unit_test_type), intent(in out) :: test
@@ -235,6 +253,7 @@ contains
       PetscInt, intent(in) :: index
       PetscInt, intent(in) :: injection_component, production_component
       PetscReal, intent(in) :: rate, enthalpy
+      PetscReal, intent(in), optional :: tracer(:)
       ! Locals:
       character(12) :: srcstr
       PetscReal, parameter :: tol = 1.e-6_dp
@@ -250,6 +269,10 @@ contains
            trim(srcstr) // ": injection component")
       call test%assert(production_component, nint(source%production_component), &
            trim(srcstr) // ": production component")
+      if (present(tracer)) then
+         call test%assert(tracer, source%injection_tracer_mass_fraction, &
+              trim(srcstr) // ": tracer")
+      end if
 
     end subroutine source_test
 

@@ -2,6 +2,7 @@
     "title": "Test source setup",
     "mesh": {"filename": "../test/unit/data/flow_simulation/mesh/3x3_2d.exo",
              "zones": {"LH": {"x": [0, 100]}}},
+    "tracer": [{"name": "foo"}, {"name": "bar"}],
     "source": [
         {"name": "mass injection 1", "cell": 0, "rate": 10,   "enthalpy": 90e3},
         {"name": "mass injection 2", "cells": 1, "component": 2, "rate": 5,    "enthalpy": 100e3},
@@ -26,6 +27,13 @@
          "production_component": "energy", "enthalpy": 500e3},
         {"name": "production component 6", "cell": 6, "production_component": 2,
          "enthalpy": 100e3},
+        {"name": "tracer scalar", "cell": 1, "rate": 10., "enthalpy": 50e3, "tracer": 1.e-3},
+        {"name": "tracer array", "cell": 2, "rate": 5, "enthalpy": 40.0e3,
+         "tracer": [2.e-3, 3.e-3]},
+        {"name": "tracer dict all", "cell": 3, "rate": 7.5, "enthalpy": 30.0e3,
+         "tracer": {"foo": 3.e-3, "bar": 5.e-3}},
+        {"name": "tracer dict partial", "cell": 4, "rate": 3.5, "enthalpy": 60.0e3,
+         "tracer": {"bar": 2.e-3}},
         {"name": "zone source", "zones": ["LH"], "rate": 0.1, "enthalpy": 80e3}
     ]
 }
