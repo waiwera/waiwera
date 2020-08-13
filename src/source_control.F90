@@ -91,6 +91,16 @@ module source_control_module
      procedure, public :: update => source_control_rate_factor_update
   end type source_control_rate_factor_type
 
+  type, public, extends(source_control_table_type) :: source_control_tracer_table_type
+     !! Controls source tracer mass fraction via a table of values
+     !! vs. time. Each control applies to only one tracer.
+     private
+     PetscInt, public :: tracer_index !! Index of tracer
+   contains
+     private
+     procedure, public :: update => source_control_tracer_table_update
+  end type source_control_tracer_table_type
+
   type, public, abstract, extends(source_control_type) :: source_control_pressure_reference_type
      !! Controls a source by comparing fluid pressure with a reference
      !! pressure (e.g. deliverability or recharge).
@@ -362,6 +372,46 @@ contains
     call source%destroy()
 
   end subroutine source_control_rate_factor_update
+
+!------------------------------------------------------------------------
+! Tracer table source control:
+!------------------------------------------------------------------------
+
+  subroutine source_control_tracer_table_update(self, t, interval, &
+       source_data, source_section, source_range_start, &
+       local_fluid_data, local_fluid_section, eos)
+    !! Update injection tracer mass fraction for source_control_tracer_table_type.
+
+    use dm_utils_module, only: global_section_offset
+
+    class(source_control_tracer_table_type), intent(in out) :: self
+    PetscReal, intent(in) :: t, interval(2)
+    PetscReal, pointer, contiguous, intent(in) :: source_data(:)
+    PetscSection, intent(in) :: source_section
+    PetscInt, intent(in) :: source_range_start
+    PetscReal, pointer, contiguous, intent(in) :: local_fluid_data(:)
+    PetscSection, intent(in) :: local_fluid_section
+    class(eos_type), intent(in) :: eos
+    ! Locals:
+    PetscReal :: tracer_mass_fraction
+    type(source_type) :: source
+    PetscInt :: i, s, source_offset
+
+    call source%init(eos)
+    tracer_mass_fraction = self%table%average(interval, 1)
+
+    do i = 1, size(self%source_indices)
+       s = self%source_indices(i)
+       source_offset = global_section_offset(source_section, s, &
+            source_range_start)
+       call source%assign(source_data, source_offset)
+       source%injection_tracer_mass_fraction(self%tracer_index) = &
+            tracer_mass_fraction
+    end do
+
+    call source%destroy()
+
+  end subroutine source_control_tracer_table_update
 
 !------------------------------------------------------------------------
 ! Pressure reference source control:
