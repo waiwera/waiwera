@@ -25,7 +25,7 @@ module tracer_module
   implicit none
   private
 
-  PetscInt, parameter :: max_tracer_name_length = 32
+  PetscInt, parameter, public :: max_tracer_name_length = 32
   PetscInt, parameter, public :: tracer_phase_index = 1 ! assume liquid phase tracers
 
   type, public :: tracer_type
