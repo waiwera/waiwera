@@ -684,69 +684,91 @@ contains
     type(list_type), intent(in out) :: source_controls
     type(logfile_type), intent(in out), optional :: logfile
     PetscErrorCode, intent(out) :: err
-    ! Locals:
-    type(source_control_rate_table_type), pointer :: rate_control
-    type(source_control_enthalpy_table_type), pointer :: enthalpy_control
-    PetscInt :: variable_type
-    PetscReal, allocatable :: rate_data_array(:,:), enthalpy_data_array(:,:)
-    type(fson_value), pointer :: table
 
-    ! Rate table:
-    if (fson_has_mpi(source_json, "rate")) then
-       variable_type = fson_type_mpi(source_json, "rate")
-       if (variable_type == TYPE_ARRAY) then
-          call fson_get_mpi(source_json, "rate", val = rate_data_array)
-       else if (variable_type == TYPE_OBJECT) then
-          call fson_get_mpi(source_json, "rate", table)
-          if (fson_has_mpi(table, "time")) then
-             call fson_get_mpi(table, "time", val = rate_data_array)
-          end if
-       end if
-    end if
-
-    if (allocated(rate_data_array) .and. size(local_source_indices) > 0) then
-       allocate(rate_control)
-       call rate_control%init(rate_data_array, interpolation_type, &
-            averaging_type, local_source_indices, err)
-       if (err == 0) call source_controls%append(rate_control)
-    end if
-
+    call setup_rate_table_control()
     if (err == 0) then
-
-       ! Enthalpy table:
-       if (fson_has_mpi(source_json, "enthalpy")) then
-          variable_type = fson_type_mpi(source_json, "enthalpy")
-          if (variable_type == TYPE_ARRAY) then
-             call fson_get_mpi(source_json, "enthalpy", val = enthalpy_data_array)
-          else if (variable_type == TYPE_OBJECT) then
-             call fson_get_mpi(source_json, "enthalpy", table)
-             if (fson_has_mpi(table, "time")) then
-                call fson_get_mpi(table, "time", val = enthalpy_data_array)
-             end if
-          end if
-       end if
-
-       if (allocated(enthalpy_data_array) .and. size(local_source_indices) > 0) then
-          allocate(enthalpy_control)
-          call enthalpy_control%init(enthalpy_data_array, interpolation_type, &
-               averaging_type, local_source_indices, err)
-          if (err == 0) call source_controls%append(enthalpy_control)
-       end if
-
-       if (err > 0) then
-          call logfile%write(LOG_LEVEL_ERR, "input", "unsorted_array", &
-               real_array_key = trim(srcstr) // "enthalpy", &
-               real_array_value = enthalpy_data_array(:, 1))
-       end if
-
-    else
-       call logfile%write(LOG_LEVEL_ERR, "input", "unsorted_array", &
-            real_array_key = trim(srcstr) // "rate", &
-            real_array_value = rate_data_array(:, 1))
+       call setup_enthalpy_table_control()
     end if
 
-    if (allocated(rate_data_array)) deallocate(rate_data_array)
-    if (allocated(enthalpy_data_array)) deallocate(enthalpy_data_array)
+  contains
+
+!........................................................................
+
+    subroutine setup_rate_table_control()
+
+      PetscInt :: variable_type
+      type(fson_value), pointer :: table
+      type(source_control_rate_table_type), pointer :: control
+      PetscReal, allocatable :: data_array(:,:)
+
+      if (fson_has_mpi(source_json, "rate")) then
+         variable_type = fson_type_mpi(source_json, "rate")
+         if (variable_type == TYPE_ARRAY) then
+            call fson_get_mpi(source_json, "rate", val = data_array)
+         else if (variable_type == TYPE_OBJECT) then
+            call fson_get_mpi(source_json, "rate", table)
+            if (fson_has_mpi(table, "time")) then
+               call fson_get_mpi(table, "time", val = data_array)
+            end if
+         end if
+      end if
+
+      if (allocated(data_array)) then
+         if (size(local_source_indices) > 0) then
+            allocate(control)
+            call control%init(data_array, interpolation_type, &
+                 averaging_type, local_source_indices, err)
+            if (err == 0) call source_controls%append(control)
+         end if
+         deallocate(data_array)
+      end if
+      
+      if (err > 0) then
+         call logfile%write(LOG_LEVEL_ERR, "input", "unsorted_array", &
+              real_array_key = trim(srcstr) // "rate", &
+              real_array_value = data_array(:, 1))
+      end if
+
+    end subroutine setup_rate_table_control
+
+!........................................................................
+
+    subroutine setup_enthalpy_table_control()
+
+      PetscInt :: variable_type
+      type(fson_value), pointer :: table
+      type(source_control_enthalpy_table_type), pointer :: control
+      PetscReal, allocatable :: data_array(:,:)
+
+      if (fson_has_mpi(source_json, "enthalpy")) then
+         variable_type = fson_type_mpi(source_json, "enthalpy")
+         if (variable_type == TYPE_ARRAY) then
+            call fson_get_mpi(source_json, "enthalpy", val = data_array)
+         else if (variable_type == TYPE_OBJECT) then
+            call fson_get_mpi(source_json, "enthalpy", table)
+            if (fson_has_mpi(table, "time")) then
+               call fson_get_mpi(table, "time", val = data_array)
+            end if
+         end if
+      end if
+
+      if (allocated(data_array)) then
+         if (size(local_source_indices) > 0) then
+            allocate(control)
+            call control%init(data_array, interpolation_type, &
+                 averaging_type, local_source_indices, err)
+            if (err == 0) call source_controls%append(control)
+         end if
+         deallocate(data_array)
+      end if
+
+      if (err > 0) then
+         call logfile%write(LOG_LEVEL_ERR, "input", "unsorted_array", &
+              real_array_key = trim(srcstr) // "enthalpy", &
+              real_array_value = data_array(:, 1))
+      end if
+
+    end subroutine setup_enthalpy_table_control
 
   end subroutine setup_table_source_control
 
