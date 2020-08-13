@@ -103,7 +103,7 @@ contains
           local_source_index = 0
           do source_spec_index = 0, num_source_specs - 1
              call setup_source(source_spec_index, local_source_index, &
-                  source_json, ao, err)
+                  source_json, ao, tracer_names, err)
              if (err > 0) exit
              source_json => fson_value_next_mpi(source_json)
           end do
@@ -293,13 +293,14 @@ contains
 !........................................................................
 
     subroutine setup_source(source_index, local_source_index, source_json, &
-         ao, err)
+         ao, tracer_names, err)
       !! Iterator for setting up cell sources for a source specification.
 
       PetscInt, intent(in) :: source_index !! Index of source specification
       PetscInt, intent(in out) :: local_source_index !! Index of source
       type(fson_value), pointer, intent(in) :: source_json !! JSON input for specification
       AO, intent(in) :: ao !! Application ordering for natural to global cell indexing
+      character(*), intent(in) :: tracer_names(:) !! Tracer names
       PetscErrorCode, intent(out) :: err
       ! Locals:
       character(len=64) :: srcstr
@@ -312,7 +313,7 @@ contains
       IS :: cell_IS
       PetscInt, pointer, contiguous :: local_cell_index(:)
       ISLocalToGlobalMapping :: l2g
-      PetscReal :: injection_tracer_mass_fraction(num_tracers)
+      PetscReal :: injection_tracer_mass_fraction(size(tracer_names))
 
       err = 0
       call DMGetLocalToGlobalMapping(dm, l2g, ierr); CHKERRQ(ierr)
@@ -325,35 +326,37 @@ contains
       call get_initial_rate(source_json, initial_rate)
       call get_initial_enthalpy(source_json, eos, &
            injection_component, initial_enthalpy)
-      call get_injection_tracer_mass_fraction(source_json, num_tracers, &
-           injection_tracer_mass_fraction)
-      allocate(local_source_indices(num_cells))
-      if (num_cells > 0) then
-         call DMGetStratumIS(dm, source_label_name, source_index, &
-              cell_IS, ierr); CHKERRQ(ierr)
-         call ISGetIndicesF90(cell_IS, local_cell_index, ierr); CHKERRQ(ierr)
-         allocate(natural_cell_index(num_cells))
-         natural_cell_index = local_to_natural_cell_index(ao, l2g, local_cell_index)
-         do i = 1, num_cells
-            source_offset = global_section_offset(source_section, local_source_index, &
-                 source_range_start)
-            call source%assign(source_data, source_offset)
-            call source%setup(source_index, local_source_index, &
-                 natural_cell_index(i), local_cell_index(i), &
-                 initial_rate, initial_enthalpy, &
-                 injection_component, production_component, &
-                 injection_tracer_mass_fraction)
-            local_source_indices(i) = local_source_index
-            local_source_index = local_source_index + 1
-         end do
-         call ISRestoreIndicesF90(cell_IS, local_cell_index, ierr); CHKERRQ(ierr)
-         deallocate(natural_cell_index)
+      call get_injection_tracer_mass_fraction(source_json, tracer_names, &
+           srcstr, injection_tracer_mass_fraction, logfile, err)
+      if (err == 0) then
+         allocate(local_source_indices(num_cells))
+         if (num_cells > 0) then
+            call DMGetStratumIS(dm, source_label_name, source_index, &
+                 cell_IS, ierr); CHKERRQ(ierr)
+            call ISGetIndicesF90(cell_IS, local_cell_index, ierr); CHKERRQ(ierr)
+            allocate(natural_cell_index(num_cells))
+            natural_cell_index = local_to_natural_cell_index(ao, l2g, local_cell_index)
+            do i = 1, num_cells
+               source_offset = global_section_offset(source_section, local_source_index, &
+                    source_range_start)
+               call source%assign(source_data, source_offset)
+               call source%setup(source_index, local_source_index, &
+                    natural_cell_index(i), local_cell_index(i), &
+                    initial_rate, initial_enthalpy, &
+                    injection_component, production_component, &
+                    injection_tracer_mass_fraction)
+               local_source_indices(i) = local_source_index
+               local_source_index = local_source_index + 1
+            end do
+            call ISRestoreIndicesF90(cell_IS, local_cell_index, ierr); CHKERRQ(ierr)
+            deallocate(natural_cell_index)
+         end if
+         call setup_inline_source_controls(source_json, eos, thermo, &
+              start_time, source_data, source_section, source_range_start, &
+              fluid_data, fluid_section, fluid_range_start, srcstr, &
+              local_source_indices, source_controls, logfile, err)
+         deallocate(local_source_indices)
       end if
-      call setup_inline_source_controls(source_json, eos, thermo, &
-           start_time, source_data, source_section, source_range_start, &
-           fluid_data, fluid_section, fluid_range_start, srcstr, &
-           local_source_indices, source_controls, logfile, err)
-      deallocate(local_source_indices)
 
     end subroutine setup_source
 
@@ -553,32 +556,72 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine get_injection_tracer_mass_fraction(source_json, num_tracers, &
-       injection_tracer_mass_fraction)
-    !! Gets tracer mass fractions for injection.
+  subroutine get_injection_tracer_mass_fraction(source_json, tracer_names, &
+       srcstr, injection_tracer_mass_fraction, logfile, err)
+    !! Gets constant tracer mass fractions for injection.
+
+    use tracer_module, only: max_tracer_name_length
+    use utils_module, only: str_array_index
 
     type(fson_value), pointer, intent(in) :: source_json
-    PetscInt, intent(in) :: num_tracers
+    character(*), intent(in) :: tracer_names(:) !! Tracer names
+    character(*), intent(in) :: srcstr !! source identifier
     PetscReal, intent(out) :: injection_tracer_mass_fraction(:)
+    type(logfile_type), intent(in out), optional :: logfile
+    PetscErrorCode, intent(out) :: err
     ! Locals:
     PetscReal, allocatable :: mass_fraction(:)
     PetscReal :: scalar_mass_fraction
-    PetscInt :: tracer_type
+    PetscInt :: tracer_json_type, tracer_type
+    PetscInt :: num_tracers_specified, i, tracer_index
+    type(fson_value), pointer :: tracers_json, tracer_json
+    character(max_tracer_name_length) :: name
     PetscReal, parameter :: default_tracer_mass_fraction = 0._dp
 
-    if (num_tracers > 0) then
+    err = 0
+
+    if (size(tracer_names) > 0) then
 
        if (fson_has_mpi(source_json, "tracer")) then
-          tracer_type = fson_type_mpi(source_json, "tracer")
-          select case (tracer_type)
+          tracer_json_type = fson_type_mpi(source_json, "tracer")
+          select case (tracer_json_type)
           case (TYPE_REAL, TYPE_INTEGER)
+             ! apply same value to all tracers:
              call fson_get_mpi(source_json, "tracer", val = scalar_mass_fraction)
              injection_tracer_mass_fraction = scalar_mass_fraction
           case (TYPE_ARRAY)
+             ! array of values for different tracers:
              call fson_get_mpi(source_json, "tracer", val = mass_fraction)
              injection_tracer_mass_fraction = default_tracer_mass_fraction
              injection_tracer_mass_fraction(1: size(mass_fraction)) = &
                   mass_fraction
+          case (TYPE_OBJECT)
+             ! values specified by tracer name:
+             injection_tracer_mass_fraction = default_tracer_mass_fraction
+             call fson_get_mpi(source_json, "tracer", tracers_json)
+             num_tracers_specified = fson_value_count_mpi(tracers_json, ".")
+             tracer_json => fson_value_children_mpi(tracers_json)
+             do i = 1, num_tracers_specified
+                tracer_type = fson_type_mpi(tracer_json, ".")
+                select case (tracer_type)
+                case (TYPE_REAL, TYPE_INTEGER)
+                   name = fson_get_name_mpi(tracer_json)
+                   call fson_get_mpi(tracer_json, ".", val = scalar_mass_fraction)
+                   tracer_index = str_array_index(name, tracer_names)
+                   if (tracer_index > 0) then
+                      injection_tracer_mass_fraction(tracer_index) = &
+                           scalar_mass_fraction
+                   else
+                      call logfile%write(LOG_LEVEL_ERR, "input", &
+                           "unrecognised_tracer", &
+                           str_key = trim(srcstr) // "name", &
+                           str_value = name)
+                      err = 1
+                      exit
+                   end if
+                end select
+                tracer_json => fson_value_next_mpi(tracer_json)
+             end do
           case default
              injection_tracer_mass_fraction = default_tracer_mass_fraction
           end select
