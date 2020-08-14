@@ -354,7 +354,7 @@ contains
          call setup_inline_source_controls(source_json, eos, thermo, &
               start_time, source_data, source_section, source_range_start, &
               fluid_data, fluid_section, fluid_range_start, srcstr, &
-              local_source_indices, source_controls, logfile, err)
+              tracer_names, local_source_indices, source_controls, logfile, err)
          deallocate(local_source_indices)
       end if
 
@@ -640,7 +640,8 @@ contains
   subroutine setup_inline_source_controls(source_json, eos, thermo, &
        start_time, source_data, source_section, source_range_start, &
        fluid_data, fluid_section, fluid_range_start, &
-       srcstr, local_source_indices, source_controls, logfile, err)
+       srcstr, tracer_names, local_source_indices, source_controls, &
+       logfile, err)
     !! Sets up any 'inline' source controls for the source specification,
     !! i.e. controls defined implicitly in the specification.
 
@@ -660,6 +661,7 @@ contains
     PetscSection, intent(in) :: fluid_section
     PetscInt, intent(in) :: fluid_range_start
     character(len = *), intent(in) :: srcstr
+    character(len = *), intent(in) :: tracer_names(:)
     PetscInt, intent(in) :: local_source_indices(:)
     type(list_type), intent(in out) :: source_controls
     type(logfile_type), intent(in out), optional :: logfile
@@ -678,7 +680,8 @@ contains
     averaging_type = averaging_type_from_str(averaging_str)
 
     call setup_table_source_control(source_json, srcstr, interpolation_type, &
-         averaging_type, local_source_indices, source_controls, logfile, err)
+         averaging_type, tracer_names, local_source_indices, source_controls, &
+         logfile, err)
 
     if (err == 0) then
 
@@ -719,13 +722,14 @@ contains
 !------------------------------------------------------------------------
 
   subroutine setup_table_source_control(source_json, srcstr, &
-       interpolation_type, averaging_type, local_source_indices, &
-       source_controls, logfile, err)
-    !! Set up rate or enthalpy table source controls.
+       interpolation_type, averaging_type, tracer_names, &
+       local_source_indices, source_controls, logfile, err)
+    !! Set up rate, enthalpy and tracer table source controls.
 
     type(fson_value), pointer, intent(in) :: source_json
     character(len=*) :: srcstr
     PetscInt, intent(in) :: interpolation_type, averaging_type
+    character(*), intent(in) :: tracer_names(:)
     PetscInt, intent(in) :: local_source_indices(:)
     type(list_type), intent(in out) :: source_controls
     type(logfile_type), intent(in out), optional :: logfile
@@ -734,6 +738,9 @@ contains
     call setup_rate_table_control()
     if (err == 0) then
        call setup_enthalpy_table_control()
+       if (err == 0) then
+          call setup_tracer_table_controls()
+       end if
     end if
 
   contains
@@ -815,6 +822,97 @@ contains
       end if
 
     end subroutine setup_enthalpy_table_control
+
+!........................................................................
+
+    subroutine setup_tracer_table_controls()
+
+      use utils_module, only: str_array_index
+      use tracer_module, only: max_tracer_name_length
+
+      PetscInt :: variable_type, rank
+      type(fson_value), pointer :: tracers_json, tracer_json
+      PetscInt :: num_tracers_specified, i, tracer_type, tracer_index
+      type(source_control_tracer_table_type), pointer :: control
+      PetscReal, allocatable :: data_array(:,:)
+      character(max_tracer_name_length) :: name
+
+      if (fson_has_mpi(source_json, "tracer")) then
+
+         variable_type = fson_type_mpi(source_json, "tracer")
+         select case (variable_type)
+         case (TYPE_ARRAY)
+
+            rank = fson_mpi_array_rank(source_json, "tracer")
+            if (rank == 2) then
+               call fson_get_mpi(source_json, "tracer", val = data_array)
+               if (allocated(data_array)) then
+                  if (size(local_source_indices) > 0) then
+                     do i = 1, size(tracer_names)
+                        allocate(control)
+                        call control%init(data_array, interpolation_type, &
+                             averaging_type, local_source_indices, err)
+                        control%tracer_index = i
+                        if (err == 0) then
+                           call source_controls%append(control)
+                        else
+                           call logfile%write(LOG_LEVEL_ERR, &
+                                "input", "unsorted_array", &
+                                real_array_key = trim(srcstr) // "tracer", &
+                                real_array_value = data_array(:, 1))
+                        end if
+                     end do
+                  end if
+                  deallocate(data_array)
+               end if
+            end if
+
+         case (TYPE_OBJECT)
+
+            call fson_get_mpi(source_json, "tracer", tracers_json)
+            num_tracers_specified = fson_value_count_mpi(tracers_json, ".")
+            tracer_json => fson_value_children_mpi(tracers_json)
+            do i = 1, num_tracers_specified
+               tracer_type = fson_type_mpi(tracer_json, ".")
+               select case (tracer_type)
+               case (TYPE_ARRAY)
+                  rank = fson_mpi_array_rank(tracer_json, ".")
+                  if (rank == 2) then
+                     name = fson_get_name_mpi(tracer_json)
+                     call fson_get_mpi(tracer_json, ".", val = data_array)
+                     if (allocated(data_array)) then
+                        tracer_index = str_array_index(name, tracer_names)
+                        if (tracer_index > 0) then
+                           allocate(control)
+                           call control%init(data_array, interpolation_type, &
+                                averaging_type, local_source_indices, err)
+                           control%tracer_index = tracer_index
+                           if (err == 0) then
+                              call source_controls%append(control)
+                           else
+                              call logfile%write(LOG_LEVEL_ERR, &
+                                   "input", "unsorted_array", &
+                                   real_array_key = trim(srcstr) // "tracer", &
+                                   real_array_value = data_array(:, 1))
+                           end if
+                        else
+                           call logfile%write(LOG_LEVEL_ERR, "input", &
+                                "unrecognised_tracer", &
+                                str_key = trim(srcstr) // "name", &
+                                str_value = name)
+                           err = 1
+                           exit
+                        end if
+                        deallocate(data_array)
+                     end if
+                  end if
+               end select
+               tracer_json => fson_value_next_mpi(tracer_json)
+            end do
+         end select
+      end if
+
+    end subroutine setup_tracer_table_controls
 
   end subroutine setup_table_source_control
 
