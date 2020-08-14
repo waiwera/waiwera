@@ -65,6 +65,7 @@ contains
     use fluid_module, only: create_fluid_vector
     use dm_utils_module, only: global_vec_section, global_section_offset, &
          global_to_local_vec_section, restore_dm_local_vec
+    use tracer_module
 
     class(unit_test_type), intent(in out) :: test
     ! Locals:
@@ -86,8 +87,8 @@ contains
     PetscErrorCode :: ierr, err
     PetscReal, parameter :: start_time = 0._dp
     PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
-    character :: tracer_names(0)
-    PetscInt, parameter :: expected_num_sources = 8
+    type(tracer_type), allocatable :: tracers(:)
+    PetscInt, parameter :: expected_num_sources = 10
     PetscMPIInt :: rank
     IS :: source_is
 
@@ -96,6 +97,7 @@ contains
 
     call thermo%init()
     call eos%init(json, thermo)
+    call setup_tracers(json, tracers)
     call mesh%init(eos, json)
     call DMCreateLabel(mesh%serial_dm, open_boundary_label_name, ierr); CHKERRQ(ierr)
     call mesh%configure(gravity, json, err = err)
@@ -106,13 +108,13 @@ contains
     call global_vec_section(fluid_vector, fluid_section)
     call VecGetArrayF90(fluid_vector, fluid_array, ierr); CHKERRQ(ierr)
 
-    call setup_sources(json, mesh%dm, mesh%cell_natural_global, eos, tracer_names, &
+    call setup_sources(json, mesh%dm, mesh%cell_natural_global, eos, tracers%name, &
          thermo, start_time, fluid_vector, fluid_range_start, source_vector, &
          source_range_start, num_sources, total_num_sources, source_controls, &
          source_is, err = err)
     call test%assert(0, err, "source setup error")
-    call source%init(eos, size(tracer_names))
-    call test%assert(13, source%dof, "source dof")
+    call source%init(eos, size(tracers))
+    call test%assert(13 + size(tracers), source%dof, "source dof")
 
     call VecRestoreArrayF90(fluid_vector, fluid_array, ierr); CHKERRQ(ierr)
 
@@ -152,6 +154,12 @@ contains
           call test%assert(-2.5_dp * 0.75_dp, source%rate, trim(srcstr))
        case (4)
           call test%assert(-2.5_dp * 0.5_dp, source%rate, trim(srcstr))
+       case (5)
+          call test%assert([0.001_dp / 3._dp, 0.001_dp / 3._dp], &
+               source%injection_tracer_mass_fraction, trim(srcstr))
+       case (6)
+          call test%assert([0.001_dp / 3._dp, 0.001_dp * 7._dp / 9._dp], &
+               source%injection_tracer_mass_fraction, trim(srcstr))
        end select
     end do
 
@@ -170,6 +178,7 @@ contains
     call mesh%destroy()
     call eos%destroy()
     call thermo%destroy()
+    deallocate(tracers)
     call fson_destroy_mpi(json)
 
   contains
@@ -181,7 +190,7 @@ contains
       class is (source_control_type)
          call source_control%update(t, interval, source_array, &
               source_section, source_range_start, fluid_array, &
-              fluid_section, eos)
+              fluid_section, eos, size(tracers))
       end select
       stopped = PETSC_FALSE
     end subroutine source_control_iterator
@@ -409,7 +418,7 @@ contains
       class is (source_control_type)
          call source_control%update(t, interval, source_array, &
               source_section, source_range_start, local_fluid_array, &
-              local_fluid_section, eos)
+              local_fluid_section, eos, size(tracer_names))
       end select
       stopped = PETSC_FALSE
     end subroutine source_control_update_iterator

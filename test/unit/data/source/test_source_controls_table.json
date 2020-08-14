@@ -1,6 +1,7 @@
 {
     "title": "Test table source controls",
     "mesh": "../test/unit/data/flow_simulation/mesh/3x3_2d.exo",
+    "tracer": [{"name": "foo"}, {"name": "bar"}],
     "source": [
         {"name": "rate table single source", "cell": 0,
          "rate":[
@@ -45,6 +46,22 @@
              [30., -2.0],
              [120., -3.0]],
          "factor": 0.5
+        },
+        {"name": "tracer array", "cell": 2,
+         "rate": 10.,
+         "tracer": [[0., 0.],
+                    [60., 0.001],
+                    [90., 0.]],
+         "interpolation": "step"
+        },
+        {"name": "tracer dict all", "cell": 3,
+         "rate": 10.,
+         "tracer": {"foo": [[0., 0.],
+                            [60., 0.001],
+                            [90., 0.]],
+                    "bar": [[0., 0.001],
+                            [100, 0]]},
+         "interpolation": "step"
         }
     ]
 }
