@@ -1328,7 +1328,7 @@ contains
       class is (source_control_type)
          call source_control%update(t, interval, source_data, &
               source_section, self%source_range_start, fluid_array, &
-              fluid_section, self%eos)
+              fluid_section, self%eos, size(self%tracers))
       end select
 
     end subroutine source_control_iterator
