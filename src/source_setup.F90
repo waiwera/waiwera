@@ -572,7 +572,7 @@ contains
     ! Locals:
     PetscReal, allocatable :: mass_fraction(:)
     PetscReal :: scalar_mass_fraction
-    PetscInt :: tracer_json_type, tracer_type
+    PetscInt :: tracer_json_type, tracer_type, rank
     PetscInt :: num_tracers_specified, i, tracer_index
     type(fson_value), pointer :: tracers_json, tracer_json
     character(max_tracer_name_length) :: name
@@ -590,11 +590,14 @@ contains
              call fson_get_mpi(source_json, "tracer", val = scalar_mass_fraction)
              injection_tracer_mass_fraction = scalar_mass_fraction
           case (TYPE_ARRAY)
-             ! array of values for different tracers:
-             call fson_get_mpi(source_json, "tracer", val = mass_fraction)
-             injection_tracer_mass_fraction = default_tracer_mass_fraction
-             injection_tracer_mass_fraction(1: size(mass_fraction)) = &
-                  mass_fraction
+            rank = fson_mpi_array_rank(source_json, "tracer")
+            if (rank == 1) then
+               ! array of values for different tracers:
+               call fson_get_mpi(source_json, "tracer", val = mass_fraction)
+               injection_tracer_mass_fraction = default_tracer_mass_fraction
+               injection_tracer_mass_fraction(1: size(mass_fraction)) = &
+                    mass_fraction
+            end if
           case (TYPE_OBJECT)
              ! values specified by tracer name:
              injection_tracer_mass_fraction = default_tracer_mass_fraction
