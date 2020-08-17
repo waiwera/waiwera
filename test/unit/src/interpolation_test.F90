@@ -26,8 +26,9 @@ module interpolation_test
   public :: setup, teardown, setup_test
   public :: test_interpolation_linear, test_interpolation_single, &
        test_interpolation_step, test_average_linear, test_average_step, &
-       test_average_linear_integration, test_interpolation_linear_array, &
-       test_find, test_unsorted, test_duplicate
+       test_average_linear_integration, test_average_step_integration, &
+       test_interpolation_linear_array, test_find, test_unsorted, &
+       test_duplicate
 
 contains
 
@@ -85,6 +86,7 @@ contains
 
        call test%assert(0, err, "error")
        call test%assert(1, table%dim, "dim")
+       call test%assert(table%continuous, "continuous")
 
        call test%assert(1._dp, table%interpolate(-0.5_dp, 1), "-0.5")
        call test%assert(0, table%coord%index, "-0.5 index")
@@ -165,6 +167,7 @@ contains
 
        call test%assert(0, err, "error")
        call test%assert(1._dp, table%interpolate(-0.5_dp, 1), "-0.5")
+       call test%assert(.not. table%continuous, "continuous")
 
        call test%assert(1._dp, table%interpolate(0.0_dp, 1), "0.0")
 
@@ -306,6 +309,45 @@ contains
     end if
 
   end subroutine test_average_linear_integration
+
+!------------------------------------------------------------------------
+
+  subroutine test_average_step_integration(test)
+    ! Step interpolation integration averaging
+
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
+    type(interpolation_table_type) :: table
+    PetscMPIInt :: rank
+    PetscInt :: ierr
+    PetscErrorCode :: err
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+
+    if (rank == 0) then
+
+       call table%init(data5, INTERP_STEP, INTERP_AVERAGING_INTEGRATE, err = err)
+       call test%assert(0, err, "error")
+
+       call test%assert(1._dp, table%average([-0.5_dp, -0.1_dp], 1), "[-0.5, -0.1]")
+
+       call test%assert(1._dp, table%average([-0.5_dp, 0.1_dp], 1), "[-0.5, 0.1]")
+
+       call test%assert(1._dp, table%average([0.1_dp, 2._dp], 1), "[0.1, 2.]")
+
+       call test%assert(3.8_dp / 2.9_dp, table%average([0.1_dp, 3._dp], 1), "[0.1, 3.]")
+
+       call test%assert(1.73_dp / 3.9_dp, table%average([3.1_dp, 7._dp], 1), "[3.1, 7.]")
+
+       call test%assert(-0.325_dp, table%average([8._dp, 12._dp], 1), "[8., 12.]")
+
+       call test%assert(1._dp, table%average([1._dp, 1._dp], 1), "[1., 1.]")
+
+       call table%destroy()
+
+    end if
+
+  end subroutine test_average_step_integration
 
 !------------------------------------------------------------------------
 
