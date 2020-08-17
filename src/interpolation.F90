@@ -630,7 +630,12 @@ contains
           y2 = self%interpolate_at_index(x2)
           call update_integral(x1, x2, y1, y2, integral)
           x1 = x2
-          y1 = y2
+          if (self%continuous) then
+             y1 = y2
+          else
+             self%coord%index = i + 1
+             y1 = self%interpolate_at_index(x1)
+          end if
           if (finished) exit
        end do
 
