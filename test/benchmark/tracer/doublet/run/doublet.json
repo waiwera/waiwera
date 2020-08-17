@@ -1,0 +1,134 @@
+{
+  "boundaries": [], 
+  "initial": {
+    "filename": "doublet_ss.h5"
+  }, 
+  "title": "1-D tracer doublet problem", 
+  "time": {
+    "start": 0, 
+    "step": {
+      "size": 864, 
+      "adapt": {
+        "on": true, 
+        "reduction": 0.2, 
+        "amplification": 2, 
+        "minimum": 5, 
+        "method": "iteration", 
+        "maximum": 8
+      }, 
+      "solver": {
+        "nonlinear": {
+          "tolerance": {
+            "function": {
+              "relative": null, 
+              "absolute": null
+            }
+          }, 
+          "maximum": {
+            "iterations": 8
+          }
+        }
+      }, 
+      "maximum": {
+        "number": 300, 
+        "size": 86400
+      }, 
+      "method": "beuler"
+    }, 
+    "stop": 15778800
+  }, 
+  "gravity": 0, 
+  "eos": {
+    "name": "we"
+  }, 
+  "thermodynamics": "ifc67", 
+  "mesh": {
+    "zones": {
+      "all": {
+        "type": "box"
+      }
+    }, 
+    "thickness": 10, 
+    "filename": "gdoublet.msh"
+  }, 
+  "source": [
+    {
+      "name": "inj 1", 
+      "component": 1, 
+      "enthalpy": 421000, 
+      "cell": 0, 
+      "rate": 0.5, 
+      "tracer": [
+        [
+          0, 
+          0.001
+        ], 
+        [
+          12960, 
+          0
+        ]
+      ], 
+      "interpolation": "step"
+    }, 
+    {
+      "cell": 99, 
+      "deliverability": {
+        "pressure": 5000000, 
+        "productivity": 4e-11
+      }, 
+      "direction": "production", 
+      "name": "prd 1", 
+      "limiter": {
+        "limit": 5, 
+        "type": "total"
+      }
+    }
+  ], 
+  "rock": {
+    "capillary_pressure": {
+      "pressure": 0, 
+      "type": "linear", 
+      "saturation_limits": [
+        0, 
+        1
+      ]
+    }, 
+    "relative_permeability": {
+      "type": "linear", 
+      "liquid": [
+        0.5, 
+        1
+      ], 
+      "vapour": [
+        0, 
+        0.5
+      ]
+    }, 
+    "types": [
+      {
+        "name": "dfalt", 
+        "density": 2600, 
+        "specific_heat": 900, 
+        "zones": "all", 
+        "porosity": 0.1, 
+        "permeability": [
+          2e-13, 
+          2e-15
+        ], 
+        "wet_conductivity": 1.5, 
+        "dry_conductivity": 1.5
+      }
+    ]
+  }, 
+  "output": {
+    "initial": false, 
+    "frequency": 10, 
+    "final": true
+  }, 
+  "logfile": {
+    "echo": true
+  }, 
+  "tracer": {
+    "name": "1"
+  }
+}

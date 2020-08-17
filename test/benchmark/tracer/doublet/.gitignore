@@ -1,0 +1,7 @@
+run/*
+!run/gdoublet.*
+!run/*.json
+!run/*.listing
+!run/doublet_ss.h5
+output/
+*.pyc
