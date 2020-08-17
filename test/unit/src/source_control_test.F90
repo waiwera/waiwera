@@ -88,7 +88,7 @@ contains
     PetscReal, parameter :: start_time = 0._dp
     PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
     type(tracer_type), allocatable :: tracers(:)
-    PetscInt, parameter :: expected_num_sources = 10
+    PetscInt, parameter :: expected_num_sources = 11
     PetscMPIInt :: rank
     IS :: source_is
 
@@ -159,6 +159,9 @@ contains
                source%injection_tracer_mass_fraction, trim(srcstr))
        case (6)
           call test%assert([0.001_dp / 3._dp, 0.001_dp * 7._dp / 9._dp], &
+               source%injection_tracer_mass_fraction, trim(srcstr))
+       case (7)
+          call test%assert([0._dp, 0.001_dp * 7._dp / 9._dp], &
                source%injection_tracer_mass_fraction, trim(srcstr))
        end select
     end do
