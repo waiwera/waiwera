@@ -56,6 +56,7 @@ module interpolation_module
      PetscInt, public :: dim !! Dimension of arrays being interpolated
      PetscInt, public :: interpolation_type !! Interpolation type
      PetscInt, public :: averaging_type !! Averaging type
+     PetscBool, public :: continuous !! Whether interpolant is continuous or not
      procedure(interpolation_function), pointer, nopass, public :: interpolant
      procedure(inverse_interpolation_function), pointer, nopass, public :: inverse_interpolant
      procedure(averaging_function), pointer, public :: average_array_internal
@@ -432,12 +433,15 @@ contains
     case (INTERP_LINEAR)
        self%interpolant => interpolant_linear
        self%inverse_interpolant => inverse_interpolant_linear
+       self%continuous = PETSC_TRUE
     case (INTERP_STEP)
        self%interpolant => interpolant_step
        self%inverse_interpolant => null()
+       self%continuous = PETSC_FALSE
     case default
        self%interpolant => interpolant_linear
        self%inverse_interpolant => inverse_interpolant_linear
+       self%continuous = PETSC_TRUE
     end select
 
   end subroutine interpolation_table_set_interpolation_type
