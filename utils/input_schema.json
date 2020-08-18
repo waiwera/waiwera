@@ -519,6 +519,25 @@
                                            }
                                }, "additionalProperties": false}
                            ]},
+                           "tracer": {"oneOf": [
+                               {"type": "number"},
+                               {"type": "array",
+                                "items": {"type": "number"}},
+                               {"type": "object", "patternProperties":
+                                {"^.*$": {"type": "number"}},
+                                "additionalProperties": false},
+                               {"type": "array",
+                                "items": {"type": "array",
+                                          "items": {"type": "number"},
+                                          "minItems": 2, "maxItems": 2}},
+                               {"type": "object", "patternProperties":
+                                {"^.*$": {"type": "array",
+                                          "items": {"type": "array",
+                                                    "items": {"type": "number"},
+                                                    "minItems": 2, "maxItems": 2}}
+                                },
+                                "additionalProperties": false}
+                           ]},
                            "cell": {"type": "integer", "minimum": 0},
                            "cells": {"oneOf": [
                                {"type": "integer", "minimum": 0},
