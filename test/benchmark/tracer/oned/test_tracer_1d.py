@@ -56,65 +56,71 @@ t2geo_filename = os.path.join(model_dir, 'g' + model_name + '.dat')
 geo = mulgrid(t2geo_filename)
 map_out_bdy = list(range(0, geo.num_blocks))
 
-run_index = 0
-run_name = 'run'
-run_base_name = model_name
+run_names = ['single', 'two']
 
 test_fields = ['Pressure', 'Tracer mass fraction']
 field_unit = {'Pressure': 'bar', 'Tracer mass fraction': '-'}
 field_scale = {'Pressure': 1.e5, 'Tracer mass fraction': 1.}
 
 tracer_test = SciBenchmarkTest(model_name + "_test", nproc = args.np)
-tracer_test.description = """1-D single-phase liquid tracer test with Dirichlet upstream boundary condition
+tracer_test.description = """1-D single-phase and two-phase liquid tracer test cases
+with Dirichlet upstream boundary condition
 """
-
-run_filename = run_base_name + '.json'
-model_run = WaiweraModelRun(run_name, run_filename,
-                            fieldname_map = WAIWERA_FIELDMAP,
-                            simulator = simulator,
-                            basePath = os.path.realpath(model_dir))
-model_run.jobParams['nproc'] = args.np
-tracer_test.mSuite.addRun(model_run, run_name)
+for run_index, run_name in enumerate(run_names):
+    run_base_name = model_name + '_' + run_name + '_phase'
+    run_filename = run_base_name + '.json'
+    model_run = WaiweraModelRun(run_name, run_filename,
+                                fieldname_map = WAIWERA_FIELDMAP,
+                                simulator = simulator,
+                                basePath = os.path.realpath(model_dir))
+    model_run.jobParams['nproc'] = args.np
+    tracer_test.mSuite.addRun(model_run, run_name)
 
 tracer_test.setupEmptyTestCompsList()
+AUTOUGH2_result = {}
 
-results_filename = os.path.join(model_dir, run_base_name + ".listing")
-AUTOUGH2_result = T2ModelResult("AUTOUGH2", results_filename,
-                                geo_filename = t2geo_filename,
-                                fieldname_map = AUTOUGH2_FIELDMAP,
-                                ordering_map = map_out_bdy)
-tracer_test.addTestComp(run_index, "AUTOUGH2",
-                        FieldWithinTolTC(fieldsToTest = test_fields,
-                                         defFieldTol = 1.e-3,
-                                         expected = AUTOUGH2_result,
-                                         testOutputIndex = -1))
+for run_index, run_name in enumerate(run_names):
+    run_base_name = model_name + '_' + run_name + '_phase'
+    results_filename = os.path.join(model_dir, run_base_name + ".listing")
+    AUTOUGH2_result[run_name] = T2ModelResult("AUTOUGH2", results_filename,
+                                              geo_filename = t2geo_filename,
+                                              fieldname_map = AUTOUGH2_FIELDMAP,
+                                              ordering_map = map_out_bdy)
+    tracer_test.addTestComp(run_index, "AUTOUGH2",
+                            FieldWithinTolTC(fieldsToTest = test_fields,
+                                             defFieldTol = 1.e-3,
+                                             expected = AUTOUGH2_result[run_name],
+                                             testOutputIndex = -1))
 
 jrunner = SimpleJobRunner(mpi = mpi)
 testResult, mResults = tracer_test.runTest(jrunner, createReports = True)
 
-result = tracer_test.mSuite.resultsList[run_index]
-t = result.getTimes()
 x = np.array([col.centre[0] for col in geo.columnlist])
 
-for field_name in test_fields:
-    var = result.getFieldAtOutputIndex(field_name, -1) / field_scale[field_name]
-    plt.plot(x, var, 'b-', label = 'Waiwera', zorder = 2)
-    var = AUTOUGH2_result.getFieldAtOutputIndex(field_name, -1) / field_scale[field_name]
-    plt.plot(x, var, 'gs', label = 'AUTOUGH2', zorder = 1)
-    plt.xlabel('x (m)')
-    plt.ylabel('%s (%s)' % (field_name, field_unit[field_name]))
-    img_filename_base = '_'.join((model_name, run_name, field_name))
-    img_filename_base = img_filename_base.replace(' ', '_')
-    img_filename = os.path.join(tracer_test.mSuite.runs[run_index].basePath,
-                                tracer_test.mSuite.outputPathBase,
-                                img_filename_base)
-    plt.legend(loc = 'best')
-    plt.title('%s at time %2.0f days' % (field_name, t[-1] / day))
-    plt.tight_layout(pad = 3.)
-    plt.savefig(img_filename + '.png', dpi = 300)
-    plt.savefig(img_filename + '.pdf')
-    plt.clf()
-    tracer_test.mSuite.analysisImages.append(img_filename + '.png')
+for run_index, run_name in enumerate(run_names):
+    for field_name in test_fields:
+        scale = field_scale[field_name]
+        unit = field_unit[field_name]
+        result = tracer_test.mSuite.resultsList[run_index]
+        t = result.getTimes()
+        var = result.getFieldAtOutputIndex(field_name, -1) / scale
+        plt.plot(x, var, 'b-', label = 'Waiwera', zorder = 2)
+        var = AUTOUGH2_result[run_name].getFieldAtOutputIndex(field_name, -1) / scale
+        plt.plot(x, var, 'gs', label = 'AUTOUGH2', zorder = 1)
+        plt.xlabel('x (m)')
+        plt.ylabel('%s (%s)' % (field_name, unit))
+        img_filename_base = '_'.join((model_name, run_name, field_name))
+        img_filename_base = img_filename_base.replace(' ', '_')
+        img_filename = os.path.join(tracer_test.mSuite.runs[run_index].basePath,
+                                    tracer_test.mSuite.outputPathBase,
+                                    img_filename_base)
+        plt.legend(loc = 'best')
+        plt.title('%s at time %2.0f days: %s phase' % (field_name, t[-1] / day, run_name))
+        plt.tight_layout(pad = 3.)
+        plt.savefig(img_filename + '.png', dpi = 300)
+        plt.savefig(img_filename + '.pdf')
+        plt.clf()
+        tracer_test.mSuite.analysisImages.append(img_filename + '.png')
 
 # generate report:
 

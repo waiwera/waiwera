@@ -1,10 +1,10 @@
 {
   "boundaries": [
     {
-      "region": 1, 
+      "region": 4, 
       "primary": [
-        3000000, 
-        20
+        100000, 
+        0.5
       ], 
       "tracer": 0.01, 
       "faces": {
@@ -19,9 +19,9 @@
     }
   ], 
   "initial": {
-    "filename": "oned_ss.h5"
+    "filename": "oned_two_phase_ss.h5"
   }, 
-  "title": "1-D single-phase liquid tracer problem", 
+  "title": "1-D two-phase liquid tracer problem, steady state", 
   "time": {
     "start": 0, 
     "step": {
@@ -48,12 +48,12 @@
         }
       }, 
       "maximum": {
-        "number": 5, 
+        "number": 50, 
         "size": null
       }, 
       "method": "beuler"
     }, 
-    "stop": 8640000
+    "stop": 25920000
   }, 
   "gravity": 0, 
   "eos": {
@@ -72,7 +72,7 @@
   "source": [
     {
       "cell": 9, 
-      "rate": -0.00277777777778, 
+      "rate": -2.77777777778e-05, 
       "name": "  j 1"
     }
   ], 

@@ -1,10 +1,10 @@
 {
   "boundaries": [
     {
-      "region": 1, 
+      "region": 4, 
       "primary": [
-        3000000, 
-        20
+        100000, 
+        0.5
       ], 
       "faces": {
         "cells": [
@@ -18,17 +18,17 @@
     }
   ], 
   "initial": {
-    "region": 1, 
+    "region": 4, 
     "primary": [
-      3000000, 
-      20
+      100000, 
+      0.5
     ]
   }, 
-  "title": "1-D single-phase liquid tracer problem", 
+  "title": "1-D two-phase liquid tracer problem, steady state", 
   "time": {
     "start": 0, 
     "step": {
-      "size": 1000000, 
+      "size": 864000, 
       "adapt": {
         "on": true, 
         "reduction": 0.2, 
@@ -75,7 +75,7 @@
   "source": [
     {
       "cell": 9, 
-      "rate": -0.00277777777778, 
+      "rate": -2.77777777778e-05, 
       "name": "  j 1"
     }
   ], 

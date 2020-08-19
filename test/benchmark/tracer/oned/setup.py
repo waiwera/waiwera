@@ -1,4 +1,4 @@
-# 1-D single-phase liquid tracer problem
+# 1-D single-phase and two-phase liquid tracer
 from __future__ import print_function
 from t2data import *
 from t2incons import *
@@ -26,9 +26,16 @@ dx = [[gridsize] * nblk for gridsize, nblk in zip(gridsizes, nblks)]
 
 geo = mulgrid().rectangular(dx[0], dx[1], dx[2], atmos_type = 2)
 geo.write('g'+ model_name +'.dat')
+mesh_filename = 'g' + model_name + '.msh'
+geo.write_mesh(mesh_filename, dimension = 2, slice = 'x',
+               file_format = 'gmsh2-binary')
+
+phases = ['single', 'two']
+initial = {'single': [30.e5, 20.], 'two': [1.e5, 0.5]}
+genrate = {'single': -10. / hr, 'two': -0.1 / hr}
+tstop = {'single': 100 * day, 'two': 300 * day}
 
 dat = t2data()
-dat.title = '1-D single-phase liquid tracer problem'
 dat.simulator = 'AUTOUGH2.2'
 
 dat.grid = t2grid().fromgeo(geo)
@@ -46,26 +53,15 @@ dat.capillarity = {'type': 1,
 
 dat.lineq = {'type': 1, 'epsilon': 1.e-11}
 
-ndt = 100
-P0, T0 = 30.e5, 20.
-dat.parameter.update(
-    {'max_timesteps': ndt,
-     'tstop': 1.e15,
-     'print_interval': ndt,
+dat.parameter.update({
      'print_level': 1,
-     'default_incons': [P0, T0],
-     'const_timestep': 1.e6,
      'relative_error': 1.e-9,
      'absolute_error': 1.
      })
 
 dat.parameter['option'][11] = 2 # permeability weighting
 dat.parameter['option'][12] = 1 # generation table interpolation
-dat.parameter['option'][16] = 5 # time step control
 dat.parameter['option'][24] = 0 # initial output
-
-dat.multi = {'eos': 'EW', 'num_components': 1, 'num_phases': 2,
-             'num_equations': 2, 'num_secondary_parameters': 6}
 
 # inflow BC:
 col = geo.columnlist[0]
@@ -80,83 +76,88 @@ con = t2connection([bcblk, blk], 1, [geo.atmosphere_connection, 0.5 * gridsizes[
 dat.grid.add_connection(con)
 
 # outflow BC:
-genrate = -10. / hr
 col = geo.columnlist[-1]
 lay = geo.layerlist[-1]
 blkname = geo.block_name(lay.name, col.name)
-gen = t2generator(name = blkname, block = blkname,
-                  gx = genrate, type = 'MASS')
+gen = t2generator(name = blkname, block = blkname, type = 'MASS')
 dat.add_generator(gen)
 
-inc = dat.grid.incons([P0, T0])
+for phase in phases:
 
-mesh_filename = 'g' + model_name + '.msh'
-geo.write_mesh(mesh_filename, dimension = 2, slice = 'x',
-               file_format = 'gmsh2-binary')
+    case_model_name = '%s_%s_phase' % (model_name, phase)
+    case_title = '1-D %s-phase liquid tracer problem' % phase 
+    dat.title = case_title + ', steady state'
+    dat.multi = {'eos': 'EW', 'num_components': 1, 'num_phases': 2,
+                 'num_equations': 2, 'num_secondary_parameters': 6}
+    dat.generatorlist[-1].gx = genrate[phase]
+    ndt = 100
+    dat.parameter.update({
+        'max_timesteps': ndt,
+        'tstop': 1.e15,
+        'print_interval': ndt,
+        'default_incons': initial[phase]})
+    dat.parameter['option'][16] = 5 # time step control
+    inc = dat.grid.incons(initial[phase])
 
-jsondata = dat.json(geo, mesh_filename, incons = inc, mesh_coords = 'xz')
-jsondata['mesh']['thickness'] = dimensions[1]
-jsondata['mesh']['zones'] = {"all": {"type": "box"}}
-del jsondata['rock']['types'][0]['cells']
-jsondata['rock']['types'][0]['zones'] = 'all'
-del jsondata['output']['filename']
-jsondata['output']['initial'] = False
-jsondata['logfile'] = {'echo': False}
-json.dump(jsondata, file(model_name + '_ss.json', 'w'), indent = 2)
-
-# add tracer to TOUGH2 model:
-dat.simulator = 'AUTOUGH2.2EWT'
-tracer_incons = [P0, T0, 0]
-dat.multi = {'eos': 'EWT', 'num_components': 2, 'num_phases': 2,
+    jsondata = dat.json(geo, mesh_filename, incons = inc, mesh_coords = 'xz')
+    jsondata['mesh']['thickness'] = dimensions[1]
+    jsondata['mesh']['zones'] = {"all": {"type": "box"}}
+    del jsondata['rock']['types'][0]['cells']
+    jsondata['rock']['types'][0]['zones'] = 'all'
+    del jsondata['output']['filename']
+    jsondata['output']['initial'] = False
+    jsondata['logfile'] = {'echo': False}
+    json.dump(jsondata, file(case_model_name + '_ss.json', 'w'), indent = 2)
+    subprocess.call(['waiwera', case_model_name + '_ss.json'])
+    
+    dat.simulator = 'AUTOUGH2.2EWT'
+    dat.multi = {'eos': 'EWT', 'num_components': 2, 'num_phases': 2,
              'num_equations': 3, 'num_secondary_parameters': 6}
-dat.parameter.update({
-    'default_incons': tracer_incons})
-dat.write(model_name + '_ss.dat')
+    tracer_incons = initial[phase] + [0]
+    dat.parameter.update({
+        'default_incons': tracer_incons})
+    dat.write(case_model_name + '_ss.dat')
+    inc = dat.grid.incons(tracer_incons)
+    inc.write(case_model_name + '_ss.incon')
+    dat.run(simulator = AUTOUGH2,
+            incon_filename = case_model_name + '_ss.incon',
+            silent = True)
 
-inc = dat.grid.incons(tracer_incons)
-inc.write(model_name + '_ss.incon')
+    # transient model:
+    dat.parameter.update(
+        {'max_timesteps': 50,
+         'tstop': tstop[phase],
+         'print_interval': 1,
+         'const_timestep': 10. * day,
+        })
+    dat.parameter['option'][16] = 0
+    dat.title = case_title + ', transient'
+    dat.write(case_model_name + '.dat')
 
-dat.run(simulator = AUTOUGH2,
-        incon_filename = model_name + '_ss.incon',
-        silent = True)
+    # tracer inflow:
+    inflow_mass_fraction = 0.01
+    inc = t2incon(case_model_name + '_ss.save')
+    blk  = dat.grid.blocklist[-1]
+    inc[blk.name][2] = inflow_mass_fraction
+    inc.write(case_model_name + '.incon')
 
-subprocess.call(['waiwera', model_name + '_ss.json'])
+    dat.run(simulator = AUTOUGH2,
+            incon_filename = case_model_name + '.incon',
+            silent = True)
 
-# transient model:
-ndt = 5
-dat.parameter.update(
-    {'max_timesteps': ndt,
-     'tstop': 100. * day,
-     'print_interval': 1,
-     'const_timestep': 10. * day,
-     })
-dat.parameter['option'][16] = 0
-dat.write(model_name + '.dat')
+    jsondata['output']['initial'] = True
+    jsondata['output']['frequency'] = dat.parameter['print_interval']
+    jsondata['time']['step']['size'] = dat.parameter['const_timestep']
+    jsondata['time']['stop'] = dat.parameter['tstop']
+    jsondata['time']['step']['maximum']['number'] = dat.parameter['max_timesteps']
+    jsondata['time']['step']['adapt']['on'] = False
 
-# tracer inflow:
-inflow_mass_fraction = 0.01
-inc = t2incon(model_name + '_ss.save')
-blk  = dat.grid.blocklist[-1]
-inc[blk.name][2] = inflow_mass_fraction
-inc.write(model_name + '.incon')
+    jsondata['tracer'] = {"name": "1"}
+    jsondata['boundaries'][0]['tracer'] = inflow_mass_fraction
 
-dat.run(simulator = AUTOUGH2,
-        incon_filename = model_name + '.incon',
-        silent = True)
+    jsondata['initial'] = {'filename': case_model_name + '_ss.h5'}
+    jsondata['logfile'] = {'echo': True}
 
-jsondata['output']['initial'] = True
-jsondata['output']['frequency'] = dat.parameter['print_interval']
-jsondata['time']['step']['size'] = dat.parameter['const_timestep']
-jsondata['time']['stop'] = dat.parameter['tstop']
-jsondata['time']['step']['maximum']['number'] = ndt
-jsondata['time']['step']['adapt']['on'] = False
-
-jsondata['tracer'] = {"name": "1"}
-jsondata['boundaries'][0]['tracer'] = inflow_mass_fraction
-
-jsondata['initial'] = {'filename': model_name + '_ss.h5'}
-jsondata['logfile'] = {'echo': True}
-
-json.dump(jsondata, file(model_name + '.json', 'w'), indent = 2)
+    json.dump(jsondata, file(case_model_name + '.json', 'w'), indent = 2)
 
 os.chdir(orig_dir)
