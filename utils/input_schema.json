@@ -1004,13 +1004,15 @@
         "tracer": {"oneOf": [
             {"type": "object",
              "properties": {
-                 "name": {"type": "string"}
+                 "name": {"type": "string"},
+                 "phase": {"type": "string"}
              }, "additionalProperties": false},
             {"type": "array",
              "items": {
                  "type": "object",
                  "properties": {
-                     "name": {"type": "string"}
+                     "name": {"type": "string"},
+                     "phase": {"type": "string"}
                  }, "additionalProperties": false}}
         ]}
     },
