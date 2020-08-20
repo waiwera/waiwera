@@ -923,7 +923,7 @@ contains
       call create_fluid_vector(mesh%dm, max_component_name_length, &
            eos%component_names, max_phase_name_length, &
            eos%phase_names, fluid_vector, fluid_range_start)
-      call setup_tracers(json, tracers, logfile)
+      call setup_tracers(json, eos, tracers, logfile, err)
       call create_tracer_vector(mesh%dm, tracers, tracer_vector, &
            tracer_range_start)
 

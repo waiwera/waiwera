@@ -2072,7 +2072,7 @@ contains
       call mesh%construct_ghost_cells(gravity)
       call DMCreateGlobalVector(mesh%dm, y, ierr); CHKERRQ(ierr)
       call global_vec_range_start(y, y_range_start)
-      call setup_tracers(json, tracers)
+      call setup_tracers(json, eos, tracers, err = err)
       num_tracers = size(tracers)
       call setup_rock_vector(json, mesh%dm, rock_vector, &
            mesh%rock_types, rock_range_start, mesh%ghost_cell, err = err)

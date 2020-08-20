@@ -98,7 +98,7 @@ contains
 
     call thermo%init()
     call eos%init(json, thermo)
-    call setup_tracers(json, tracers)
+    call setup_tracers(json, eos, tracers, err = err)
     call source%init(eos, size(tracers))
     call mesh%init(eos, json)
     call DMCreateLabel(mesh%serial_dm, open_boundary_label_name, ierr); CHKERRQ(ierr)
