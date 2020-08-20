@@ -754,80 +754,82 @@ contains
     if (err == 0) then
        call self%mesh%override_face_properties()
        call self%create_solution_vector(self%solution, self%solution_range_start)
-       call setup_tracers(json, self%tracers, self%logfile)
-       self%auxiliary = (size(self%tracers) > 0)
-       if (self%auxiliary) then
-          call create_tracer_vector(self%mesh%dm, self%tracers, &
-               self%aux_solution, self%aux_solution_range_start)
-       end if
-       call setup_relative_permeabilities(json, &
-            self%relative_permeability, self%logfile, err)
+       call setup_tracers(json, self%eos, self%tracers, self%logfile, err)
        if (err == 0) then
-          call setup_capillary_pressures(json, &
-               self%capillary_pressure, self%logfile, err)
+          self%auxiliary = (size(self%tracers) > 0)
+          if (self%auxiliary) then
+             call create_tracer_vector(self%mesh%dm, self%tracers, &
+                  self%aux_solution, self%aux_solution_range_start)
+          end if
+          call setup_relative_permeabilities(json, &
+               self%relative_permeability, self%logfile, err)
           if (err == 0) then
-             call setup_rock_vector(json, self%mesh%dm, self%rock, &
-                  self%mesh%rock_types, self%rock_range_start, self%mesh%ghost_cell, &
-                  self%logfile, err)
+             call setup_capillary_pressures(json, &
+                  self%capillary_pressure, self%logfile, err)
              if (err == 0) then
-                if (self%mesh%has_minc) then
-                   call self%mesh%setup_minc_rock_properties(json, self%rock, &
-                        self%rock_range_start, self%logfile, err)
-                end if
+                call setup_rock_vector(json, self%mesh%dm, self%rock, &
+                     self%mesh%rock_types, self%rock_range_start, self%mesh%ghost_cell, &
+                     self%logfile, err)
                 if (err == 0) then
-                   call create_fluid_vector(self%mesh%dm, max_component_name_length, &
-                        self%eos%component_names, max_phase_name_length, &
-                        self%eos%phase_names, self%fluid, self%fluid_range_start)
-
-                   call setup_initial(json, self%mesh, self%eos, &
-                        self%time, self%solution, self%fluid, self%aux_solution, &
-                        self%solution_range_start, self%fluid_range_start, &
-                        self%aux_solution_range_start, self%tracers, &
-                        self%logfile)
-
-                   if (self%mesh%rebalance) then
-                      call self%redistribute(redist_err)
-                      if (redist_err > 0) then
-                         call self%logfile%write(LOG_LEVEL_WARN, 'simulation', &
-                              'redistribution', logical_keys = ['fail'], &
-                              logical_values = [PETSC_TRUE])
-                      end if
+                   if (self%mesh%has_minc) then
+                      call self%mesh%setup_minc_rock_properties(json, self%rock, &
+                           self%rock_range_start, self%logfile, err)
                    end if
-
-                   if (self%hdf5_viewer /= PETSC_NULL_VIEWER) then
-                      call ISView(self%mesh%cell_index, self%hdf5_viewer, &
-                           ierr); CHKERRQ(ierr)
-                   end if
-
-                   call self%add_boundary_ghost_cells()
-
-                   call VecDuplicate(self%solution, self%balances, ierr); CHKERRQ(ierr)
-                   call VecDuplicate(self%fluid, self%current_fluid, ierr); CHKERRQ(ierr)
-                   call VecDuplicate(self%fluid, self%last_timestep_fluid, ierr)
-                   CHKERRQ(ierr)
-                   call VecDuplicate(self%fluid, self%last_iteration_fluid, ierr)
-                   CHKERRQ(ierr)
-                   call self%setup_flux_vector()
-
-                   call self%setup_update_cell()
-                   call self%mesh%set_boundary_conditions(json, self%solution, self%fluid, &
-                        self%rock, self%aux_solution, self%eos, self%solution_range_start, &
-                        self%fluid_range_start, self%rock_range_start, &
-                        self%aux_solution_range_start, size(self%tracers), self%logfile)
-                   call scale_initial_primary(self%mesh, self%eos, self%solution, self%fluid, &
-                        self%solution_range_start, self%fluid_range_start)
-                   call self%fluid_init(self%time, self%solution, err)
                    if (err == 0) then
-                      call setup_sources(json, self%mesh%dm, self%mesh%cell_natural_global, &
-                           self%eos, self%tracers%name, self%thermo, self%time, self%fluid, &
-                           self%fluid_range_start, self%source, self%source_range_start, &
-                           self%num_local_sources, self%num_sources, self%source_controls, &
-                           self%source_index, self%logfile, err)
+                      call create_fluid_vector(self%mesh%dm, max_component_name_length, &
+                           self%eos%component_names, max_phase_name_length, &
+                           self%eos%phase_names, self%fluid, self%fluid_range_start)
+
+                      call setup_initial(json, self%mesh, self%eos, &
+                           self%time, self%solution, self%fluid, self%aux_solution, &
+                           self%solution_range_start, self%fluid_range_start, &
+                           self%aux_solution_range_start, self%tracers, &
+                           self%logfile)
+
+                      if (self%mesh%rebalance) then
+                         call self%redistribute(redist_err)
+                         if (redist_err > 0) then
+                            call self%logfile%write(LOG_LEVEL_WARN, 'simulation', &
+                                 'redistribution', logical_keys = ['fail'], &
+                                 logical_values = [PETSC_TRUE])
+                         end if
+                      end if
+
+                      if (self%hdf5_viewer /= PETSC_NULL_VIEWER) then
+                         call ISView(self%mesh%cell_index, self%hdf5_viewer, &
+                              ierr); CHKERRQ(ierr)
+                      end if
+
+                      call self%add_boundary_ghost_cells()
+
+                      call VecDuplicate(self%solution, self%balances, ierr); CHKERRQ(ierr)
+                      call VecDuplicate(self%fluid, self%current_fluid, ierr); CHKERRQ(ierr)
+                      call VecDuplicate(self%fluid, self%last_timestep_fluid, ierr)
+                      CHKERRQ(ierr)
+                      call VecDuplicate(self%fluid, self%last_iteration_fluid, ierr)
+                      CHKERRQ(ierr)
+                      call self%setup_flux_vector()
+
+                      call self%setup_update_cell()
+                      call self%mesh%set_boundary_conditions(json, self%solution, self%fluid, &
+                           self%rock, self%aux_solution, self%eos, self%solution_range_start, &
+                           self%fluid_range_start, self%rock_range_start, &
+                           self%aux_solution_range_start, size(self%tracers), self%logfile)
+                      call scale_initial_primary(self%mesh, self%eos, self%solution, self%fluid, &
+                           self%solution_range_start, self%fluid_range_start)
+                      call self%fluid_init(self%time, self%solution, err)
                       if (err == 0) then
-                         call self%output_mesh_geometry()
-                         call self%output_source_indices()
-                         call self%output_source_cell_indices()
-                         call self%setup_output_fields(json)
+                         call setup_sources(json, self%mesh%dm, self%mesh%cell_natural_global, &
+                              self%eos, self%tracers%name, self%thermo, self%time, self%fluid, &
+                              self%fluid_range_start, self%source, self%source_range_start, &
+                              self%num_local_sources, self%num_sources, self%source_controls, &
+                              self%source_index, self%logfile, err)
+                         if (err == 0) then
+                            call self%output_mesh_geometry()
+                            call self%output_source_indices()
+                            call self%output_source_cell_indices()
+                            call self%setup_output_fields(json)
+                         end if
                       end if
                    end if
                 end if
@@ -1428,7 +1430,7 @@ contains
 
           call cell%rock%assign(rock_array, rock_offset)
           call cell%fluid%assign(fluid_array, fluid_offset)
-          cell_coefs = cell%tracer_balance_coefs(nt)
+          cell_coefs = cell%tracer_balance_coefs(self%tracers%phase_index)
 
        end if
 
@@ -1454,7 +1456,6 @@ contains
     use cell_module, only: cell_type
     use face_module, only: face_type
     use source_module, only: source_type
-    use tracer_module, only: tracer_phase_index
 
     class(flow_simulation_type), intent(in out) :: self
     PetscReal, intent(in) :: t !! time (s)
@@ -1464,17 +1465,18 @@ contains
     PetscErrorCode, intent(out) :: err
     ! Locals:
     PetscSection :: cell_geom_section, face_geom_section, flux_section, &
-         source_section
+         source_section, local_tracer_section
     PetscReal, pointer, contiguous :: cell_geom_array(:), face_geom_array(:), &
          flux_array(:), source_data(:)
     PetscInt :: start_cell, end_cell, end_interior_cell, start_face, end_face, f
     PetscInt :: cell_geom_offsets(2), face_geom_offset, flux_offset
-    PetscInt :: np, nf, nt, nt2, up, c_up, i
+    PetscInt :: np, nf, nt, up, c_up, i, it, irow, icol
+    DM :: dm_tracer
+    PetscInt :: tracer_offset_i, tracer_offset_up
     type(face_type) :: face
     PetscInt, pointer :: cells(:)
     PetscReal, pointer, contiguous :: face_flux(:)
-    PetscReal :: tracer_phase_flux, tracer_flow
-    PetscReal, allocatable :: Ft(:), Im(:,:), Iv(:)
+    PetscReal :: tracer_phase_flux, tracer_flow, Ft
     PetscReal, parameter :: flux_sign(2) = [-1._dp, 1._dp]
     PetscErrorCode :: ierr
 
@@ -1483,13 +1485,6 @@ contains
     np = self%eos%num_primary_variables
     nf = np + self%eos%num_phases ! total number of fluxes stored
     nt = size(self%tracers)
-    nt2 = nt * nt
-    allocate(Ft(nt2), Im(nt, nt), Iv(nt2))
-    Im = 0._dp
-    do i = 1, nt
-       Im(i,i) = 1._dp
-    end do
-    Iv = reshape(Im, [nt2])
 
     call MatZeroEntries(Ar, ierr); CHKERRQ(ierr)
     call VecSet(br, 0._dp, ierr); CHKERRQ(ierr)
@@ -1504,6 +1499,9 @@ contains
 
     call local_vec_section(self%flux, flux_section)
     call VecGetArrayReadF90(self%flux, flux_array, ierr); CHKERRQ(ierr)
+
+    call MatGetDM(Ar, dm_tracer, ierr); CHKERRQ(ierr)
+    call DMGetSection(dm_tracer, local_tracer_section, ierr); CHKERRQ(ierr)
 
     call DMPlexGetHeightStratum(self%mesh%dm, 0, start_cell, end_cell, ierr)
     CHKERRQ(ierr)
@@ -1526,21 +1524,29 @@ contains
           flux_offset = section_offset(flux_section, f)
           face_flux => flux_array(flux_offset : flux_offset + nf - 1)
           associate(phase_flux => face_flux(np + 1 : nf))
-            tracer_phase_flux = phase_flux(tracer_phase_index)
-            if (tracer_phase_flux >= 0._dp) then
-               up = 1
-            else
-               up = 2
-            end if
-            c_up = cells(up)
-            tracer_flow = tracer_phase_flux * face%area
-            do i = 1, 2
-               if ((self%mesh%ghost_cell(cells(i)) < 0) .and. &
-                    (cells(i) <= end_interior_cell - 1)) then
-                  Ft = Iv * flux_sign(i) * tracer_flow / face%cell(i)%volume
-                  call MatSetValuesBlockedLocal(Ar, 1, cells(i), 1, c_up, Ft, ADD_VALUES, &
-                       ierr); CHKERRQ(ierr)
+            do it = 1, nt
+               tracer_phase_flux = phase_flux(self%tracers(it)%phase_index)
+               if (tracer_phase_flux >= 0._dp) then
+                  up = 1
+               else
+                  up = 2
                end if
+               c_up = cells(up)
+               tracer_flow = tracer_phase_flux * face%area
+               do i = 1, 2
+                  if ((self%mesh%ghost_cell(cells(i)) < 0) .and. &
+                       (cells(i) <= end_interior_cell - 1)) then
+                     call PetscSectionGetOffset(local_tracer_section, cells(i), &
+                          tracer_offset_i, ierr); CHKERRQ(ierr)
+                     irow = tracer_offset_i + it - 1
+                     call PetscSectionGetOffset(local_tracer_section, c_up, &
+                          tracer_offset_up, ierr); CHKERRQ(ierr)
+                     icol = tracer_offset_up + it - 1
+                     Ft = flux_sign(i) * tracer_flow / face%cell(i)%volume
+                     call MatSetValuesLocal(Ar, 1, irow, 1, icol, Ft, &
+                          ADD_VALUES, ierr); CHKERRQ(ierr)
+                  end if
+               end do
             end do
           end associate
        end if
@@ -1563,7 +1569,6 @@ contains
 
     call MatAssemblyBegin(Ar, MAT_FINAL_ASSEMBLY, ierr); CHKERRQ(ierr)
     call MatAssemblyEnd(Ar, MAT_FINAL_ASSEMBLY, ierr); CHKERRQ(ierr)
-    deallocate(Ft, Im, Iv)
 
   contains
 
@@ -1577,8 +1582,8 @@ contains
       PetscSection :: fluid_section, br_section
       PetscReal, pointer, contiguous :: fluid_array(:), br_array(:)
       PetscInt :: s, c
-      PetscInt :: source_offset, cell_geom_offset, br_offset
-      PetscReal :: q(nt2), phase_flow_fractions(np), qv(nt)
+      PetscInt :: source_offset, cell_geom_offset, br_offset, irow
+      PetscReal :: q, phase_flow_fractions(np), qv(nt)
 
       call cell%init(self%eos%num_components, self%eos%num_phases)
       call source%init(self%eos, size(self%tracers))
@@ -1603,10 +1608,15 @@ contains
          if (nint(source%component) < np) then
             if (source%rate < 0._dp) then
                phase_flow_fractions = source%fluid%phase_flow_fractions()
-               q = Iv * phase_flow_fractions(tracer_phase_index) * source%rate &
-                    / cell%volume
-               call MatSetValuesBlockedLocal(Ar, 1, c, 1, c, q, ADD_VALUES, &
-                    ierr); CHKERRQ(ierr)
+               do it = 1, nt
+                  call PetscSectionGetOffset(local_tracer_section, c, &
+                       tracer_offset_i, ierr); CHKERRQ(ierr)
+                  irow = tracer_offset_i + it - 1
+                  q = phase_flow_fractions(self%tracers(it)%phase_index) * &
+                       source%rate / cell%volume
+                  call MatSetValuesLocal(Ar, 1, irow, 1, irow, q, &
+                       ADD_VALUES, ierr); CHKERRQ(ierr)
+               end do
             else ! injection:
                qv = source%rate * source%injection_tracer_mass_fraction &
                     / cell%volume
@@ -1643,7 +1653,6 @@ contains
           dm_get_end_interior_cell
     use fluid_module, only: fluid_type
     use list_module, only: list_type
-    use tracer_module, only: tracer_phase_index
 
     class(flow_simulation_type), intent(in out) :: self
     Mat, intent(in out) :: A
@@ -1688,11 +1697,11 @@ contains
                self%fluid_range_start)
           call fluid%assign(fluid_array, fluid_offset)
           phases = nint(fluid%phase_composition)
-          if (.not. btest(phases, tracer_phase_index - 1)) then
-             do it = 1, nt
+          do it = 1, nt
+             if (.not. btest(phases, self%tracers(it)%phase_index - 1)) then
                 call index_list%append(local_tracer_offset + it - 1)
-             end do
-          end if
+             end if
+          end do
        end if
     end do
 
