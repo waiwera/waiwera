@@ -54,6 +54,7 @@ module eos_module
      PetscInt, public :: num_components !! Number of mass components
      PetscReal, allocatable, public :: default_primary(:) !! Default primary variable values
      PetscInt, public :: default_region !! Default thermodynamic region
+     character(max_phase_name_length), public :: default_tracer_phase !! Default tracer phase name
      character(max_field_name_length), allocatable, public :: required_output_fluid_fields(:) !! Fluid output fields that are required in output (for restarting)
      character(max_field_name_length), allocatable, public :: default_output_fluid_fields(:) !! Default fluid fields written to output
      class(thermodynamics_type), pointer, public :: thermo !! Thermodynamic formulation

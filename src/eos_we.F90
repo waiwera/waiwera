@@ -89,6 +89,7 @@ contains
 
     self%default_primary = [default_pressure, default_temperature]
     self%default_region = 1
+    self%default_tracer_phase = "liquid"
     self%required_output_fluid_fields = [ &
          "pressure         ", "temperature      ", &
          "region           ", "vapour_saturation"]
