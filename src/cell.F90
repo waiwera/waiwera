@@ -141,20 +141,23 @@ contains
 
 !------------------------------------------------------------------------
 
-  function cell_tracer_balance_coefs(self, num_tracers) result(coefs)
+  function cell_tracer_balance_coefs(self, tracer_phase_indices) result(coefs)
     !! Returns tracer balance coefficients for the cell. These are the
     !! coefficients which when multiplied by the tracer mass fractions
     !! give the tracer mass balances (per unit volume) in the cell.
 
-    use tracer_module, only: tracer_phase_index
-
     class(cell_type), intent(in) :: self
-    PetscInt, intent(in) :: num_tracers
-    PetscReal :: coefs(num_tracers)
+    PetscInt, intent(in) :: tracer_phase_indices(:) !! phase index for each tracer
+    PetscReal :: coefs(size(tracer_phase_indices))
+    ! Locals:
+    PetscInt :: i
 
-    associate(phase => self%fluid%phase(tracer_phase_index))
-      coefs = self%rock%porosity * phase%saturation * phase%density
-    end associate
+    coefs = 0._dp
+    do i = 1, size(tracer_phase_indices)
+       associate(phase => self%fluid%phase(tracer_phase_indices(i)))
+         coefs(i) = self%rock%porosity * phase%saturation * phase%density
+       end associate
+    end do
 
   end function cell_tracer_balance_coefs
 
