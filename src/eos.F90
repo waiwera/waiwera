@@ -72,6 +72,7 @@ module eos_module
      procedure(eos_check_primary_variables_procedure), public, deferred :: check_primary_variables
      procedure, public :: conductivity => eos_conductivity
      procedure, public :: component_index => eos_component_index
+     procedure, public :: phase_index => eos_phase_index
   end type eos_type
 
   type, public, extends(interpolation_table_type) :: primary_variable_interpolator_type
@@ -276,6 +277,24 @@ contains
     end if
 
   end function eos_component_index
+
+!------------------------------------------------------------------------
+
+  PetscInt function eos_phase_index(self, phase_name) result (index)
+    !! Returns index of specified phase name (or -1 if no such
+    !! phase exists).
+
+    use utils_module, only: str_to_lower, str_array_index
+
+    class(eos_type), intent(in) :: self
+    character(len = *), intent(in) :: phase_name
+    ! Locals:
+    character(len = len(phase_name)) :: lowercase_name
+
+    lowercase_name = str_to_lower(phase_name)
+    index = str_array_index(lowercase_name, self%phase_names)
+
+  end function eos_phase_index
 
 !------------------------------------------------------------------------
 
