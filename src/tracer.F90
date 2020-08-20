@@ -26,12 +26,12 @@ module tracer_module
   private
 
   PetscInt, parameter, public :: max_tracer_name_length = 32
-  PetscInt, parameter, public :: tracer_phase_index = 1 ! assume liquid phase tracers
 
   type, public :: tracer_type
      !! Type for passive tracer.
      private
      character(max_tracer_name_length), public :: name !! Tracer name
+     PetscInt, public :: phase_index !! Tracer phase index
      PetscReal, public :: decay !! Decay rate (1/s)
   end type tracer_type
 
@@ -41,24 +41,30 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine setup_tracers(json, tracers, logfile)
+  subroutine setup_tracers(json, eos, tracers, logfile, err)
 
     !! Sets up tracers from JSON input.
 
     use fson
     use fson_value_m, only : TYPE_ARRAY, TYPE_OBJECT
     use fson_mpi_module
+    use eos_module, only: eos_type, max_phase_name_length
     use kinds_module
     use logfile_module
 
     type(fson_value), pointer, intent(in) :: json
+    class(eos_type), intent(in) :: eos
     type(tracer_type), allocatable, intent(out) :: tracers(:) !! Array of tracer objects
     type(logfile_type), intent(in out), optional :: logfile !! Logfile for log output
+    PetscErrorCode, intent(out) :: err
     ! Locals:
     type(fson_value), pointer :: tracer_json, traceri_json
     PetscInt :: tracer_json_type, num_tracers, i
     character(max_tracer_name_length) :: default_name
+    character(max_phase_name_length) :: phase_name
     PetscReal, parameter :: default_decay_rate = 0._dp
+
+    err = 0
 
     if (fson_has_mpi(json, "tracer")) then
 
@@ -78,6 +84,17 @@ contains
           write(default_name, '(a, i0)') 'tracer_', i - 1
           call fson_get_mpi(traceri_json, "name", default_name, &
                tracers(i)%name, logfile)
+          call fson_get_mpi(traceri_json, "phase", eos%default_tracer_phase, &
+               phase_name, logfile)
+          tracers(i)%phase_index = eos%phase_index(phase_name)
+          if (tracers(i)%phase_index < 0) then
+             if (present(logfile)) then
+                call logfile%write(LOG_LEVEL_ERR, "input", "unrecognised_phase", &
+                     str_key = "name", str_value = phase_name)
+             end if
+             err = 1
+             exit
+          end if
           tracers(i)%decay = default_decay_rate ! decay not implemented yet
           traceri_json => fson_value_next_mpi(traceri_json)
        end do
