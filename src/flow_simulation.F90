@@ -1561,9 +1561,7 @@ contains
     call VecGetArrayF90(self%source, source_data, ierr); CHKERRQ(ierr)
     call apply_tracer_sources()
     call VecRestoreArrayF90(self%source, source_data, ierr); CHKERRQ(ierr)
-
-    ! TODO: assemble decay term into diagonal of Ar
-
+    call apply_tracer_decay()
     call VecRestoreArrayReadF90(self%mesh%cell_geom, cell_geom_array, ierr)
     CHKERRQ(ierr)
 
@@ -1571,6 +1569,8 @@ contains
     call MatAssemblyEnd(Ar, MAT_FINAL_ASSEMBLY, ierr); CHKERRQ(ierr)
 
   contains
+
+!........................................................................
 
     subroutine apply_tracer_sources()
       !! Assembles contributions from source terms to tracer RHS matrix
@@ -1637,6 +1637,66 @@ contains
       call cell%destroy()
 
     end subroutine apply_tracer_sources
+
+!........................................................................
+
+    subroutine apply_tracer_decay()
+      !! Assembles decay contributions to tracer RHS matrix.
+
+      ! Locals:
+      PetscSection :: fluid_section, rock_section
+      PetscReal, pointer, contiguous :: fluid_array(:), rock_array(:)
+      PetscInt :: start_cell, end_cell, c
+      PetscInt :: tracer_offset, fluid_offset, rock_offset
+      PetscInt :: nt, nc, it
+      type(cell_type) :: cell
+      PetscReal, allocatable :: cell_coefs(:)
+      PetscReal :: a
+      PetscErrorCode :: ierr
+
+      nc = self%eos%num_components
+      nt = size(self%tracers)
+      allocate(cell_coefs(nt))
+
+      call global_vec_section(self%fluid, fluid_section)
+      call VecGetArrayReadF90(self%fluid, fluid_array, ierr); CHKERRQ(ierr)
+      call global_vec_section(self%rock, rock_section)
+      call VecGetArrayReadF90(self%rock, rock_array, ierr); CHKERRQ(ierr)
+
+      call cell%init(nc, self%eos%num_phases)
+      call DMPlexGetHeightStratum(self%mesh%dm, 0, start_cell, end_cell, ierr)
+      CHKERRQ(ierr)
+
+      do c = start_cell, end_cell - 1
+
+         if (self%mesh%ghost_cell(c) < 0) then
+
+            fluid_offset = global_section_offset(fluid_section, c, &
+                 self%fluid_range_start)
+            rock_offset = global_section_offset(rock_section, c, &
+                 self%rock_range_start)
+
+            call cell%rock%assign(rock_array, rock_offset)
+            call cell%fluid%assign(fluid_array, fluid_offset)
+            cell_coefs = cell%tracer_balance_coefs(self%tracers%phase_index)
+            call PetscSectionGetOffset(local_tracer_section, c, &
+                 tracer_offset_i, ierr); CHKERRQ(ierr)
+            do it = 1, nt
+               a = -self%tracers(it)%decay * cell_coefs(it)
+               irow = tracer_offset_i + it - 1
+               call MatSetValuesLocal(Ar, 1, irow, 1, irow, a, &
+                    ADD_VALUES, ierr); CHKERRQ(ierr)
+            end do
+         end if
+
+      end do
+
+      call cell%destroy()
+      deallocate(cell_coefs)
+      call VecRestoreArrayReadF90(self%rock, rock_array, ierr); CHKERRQ(ierr)
+      call VecRestoreArrayReadF90(self%fluid, fluid_array, ierr); CHKERRQ(ierr)
+
+    end subroutine apply_tracer_decay
 
   end subroutine flow_simulation_tracer_cell_inflows
 
