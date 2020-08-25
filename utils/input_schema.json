@@ -1005,14 +1005,16 @@
             {"type": "object",
              "properties": {
                  "name": {"type": "string"},
-                 "phase": {"type": "string"}
+                 "phase": {"type": "string"},
+                 "decay": {"type": "number"}
              }, "additionalProperties": false},
             {"type": "array",
              "items": {
                  "type": "object",
                  "properties": {
                      "name": {"type": "string"},
-                     "phase": {"type": "string"}
+                     "phase": {"type": "string"},
+                     "decay": {"type": "number"}
                  }, "additionalProperties": false}}
         ]}
     },
