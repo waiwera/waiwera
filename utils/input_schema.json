@@ -1006,7 +1006,8 @@
              "properties": {
                  "name": {"type": "string"},
                  "phase": {"type": "string"},
-                 "decay": {"type": "number"}
+                 "decay": {"type": "number"},
+                 "activation": {"type": "number"}
              }, "additionalProperties": false},
             {"type": "array",
              "items": {
@@ -1014,7 +1015,8 @@
                  "properties": {
                      "name": {"type": "string"},
                      "phase": {"type": "string"},
-                     "decay": {"type": "number"}
+                     "decay": {"type": "number"},
+                     "activation": {"type": "number"}
                  }, "additionalProperties": false}}
         ]}
     },

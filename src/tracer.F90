@@ -33,6 +33,7 @@ module tracer_module
      character(max_tracer_name_length), public :: name !! Tracer name
      PetscInt, public :: phase_index !! Tracer phase index
      PetscReal, public :: decay !! Decay rate (1/s)
+     PetscReal, public :: activation !! Activation energy (J/mol)
   end type tracer_type
 
   public :: setup_tracers, create_tracer_vector
@@ -64,6 +65,7 @@ contains
     character(max_phase_name_length) :: phase_name
     character(32) :: tracer_str
     PetscReal, parameter :: default_decay_rate = 0._dp
+    PetscReal, parameter :: default_activation_energy = 0._dp
 
     err = 0
 
@@ -99,6 +101,8 @@ contains
           end if
           call fson_get_mpi(traceri_json, "decay", default_decay_rate, &
                tracers(i)%decay, logfile, tracer_str // ".decay")
+          call fson_get_mpi(traceri_json, "activation", default_activation_energy, &
+               tracers(i)%activation, logfile, tracer_str // ".activation")
           traceri_json => fson_value_next_mpi(traceri_json)
        end do
     else
