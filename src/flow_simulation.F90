@@ -1682,7 +1682,7 @@ contains
             call PetscSectionGetOffset(local_tracer_section, c, &
                  tracer_offset_i, ierr); CHKERRQ(ierr)
             do it = 1, nt
-               a = -self%tracers(it)%decay * cell_coefs(it)
+               a = -self%tracers(it)%decay(cell%fluid%temperature) * cell_coefs(it)
                irow = tracer_offset_i + it - 1
                call MatSetValuesLocal(Ar, 1, irow, 1, irow, a, &
                     ADD_VALUES, ierr); CHKERRQ(ierr)
