@@ -34,11 +34,30 @@ module tracer_module
      PetscInt, public :: phase_index !! Tracer phase index
      PetscReal, public :: decay_constant !! Decay constant (1/s)
      PetscReal, public :: activation !! Activation energy (J/mol)
+   contains
+     procedure, public :: decay => tracer_decay
   end type tracer_type
 
   public :: setup_tracers, create_tracer_vector
 
 contains
+
+!------------------------------------------------------------------------
+
+  PetscReal function tracer_decay(self, temperature) result(k)
+    !! Returns tracer decay rate as a function of temperature,
+    !! calculated from the Arrhenius equation.
+
+    use thermodynamics_module, only: tc_k, gas_constant
+
+    class(tracer_type), intent(in) :: self
+    PetscReal, intent(in) :: temperature !! temperature in degrees Celcius
+
+    associate(Tk => temperature + tc_k)
+      k = self%decay_constant * exp(-self%activation / (gas_constant * Tk))
+    end associate
+
+  end function tracer_decay
 
 !------------------------------------------------------------------------
 
