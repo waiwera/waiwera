@@ -1608,9 +1608,9 @@ contains
          if (nint(source%component) < np) then
             if (source%rate < 0._dp) then
                phase_flow_fractions = source%fluid%phase_flow_fractions()
+               call PetscSectionGetOffset(local_tracer_section, c, &
+                    tracer_offset_i, ierr); CHKERRQ(ierr)
                do it = 1, nt
-                  call PetscSectionGetOffset(local_tracer_section, c, &
-                       tracer_offset_i, ierr); CHKERRQ(ierr)
                   irow = tracer_offset_i + it - 1
                   q = phase_flow_fractions(self%tracers(it)%phase_index) * &
                        source%rate / cell%volume
