@@ -1,0 +1,62 @@
+{
+  "title": "one-cell tracer decay", 
+  "initial": {
+    "region": 1, 
+    "primary": [
+      1000000, 
+      60
+    ], 
+    "tracer": 0.001
+  }, 
+  "eos": "we", 
+  "mesh": {
+    "thickness": 10, 
+    "filename": "decay.msh"
+  }, 
+  "time": {
+    "step": {
+      "adapt": {
+        "on": false
+      }, 
+      "method": "bdf2", 
+      "maximum": {
+        "number": 20
+      }, 
+      "size": 86400
+    }, 
+    "stop": 1728000
+  }, 
+  "rock": {
+    "relative_permeability": {
+      "type": "linear"
+    }, 
+    "types": [
+      {
+        "cells": [
+          0
+        ], 
+        "porosity": 0.1, 
+        "name": "rock"
+      }
+    ]
+  }, 
+  "output": {
+    "initial": true, 
+    "frequency": 1, 
+    "final": true
+  }, 
+  "tracer": [
+    {
+      "name": "no_decay"
+    }, 
+    {
+      "name": "constant", 
+      "decay": 1e-06
+    }, 
+    {
+      "activation": 2000, 
+      "name": "temperature", 
+      "decay": 1e-06
+    }
+  ]
+}

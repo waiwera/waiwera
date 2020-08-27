@@ -1,0 +1,5 @@
+run/*
+!run/*.msh
+!run/*.json
+output/
+*.pyc
