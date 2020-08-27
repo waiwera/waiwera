@@ -89,6 +89,7 @@ for output_index in output_indices:
     doublet_test.addTestComp(run_index, "AUTOUGH2_%d" % output_index,
                              FieldWithinTolTC(fieldsToTest = test_fields,
                                               defFieldTol = 1.e-3,
+                                              absoluteErrorTol = 1.e-6,
                                               expected = AUTOUGH2_result,
                                               testOutputIndex = output_index))
 
