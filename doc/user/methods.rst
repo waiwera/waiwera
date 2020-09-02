@@ -4,7 +4,7 @@
 How Waiwera works
 *****************
 
-.. index:: conservation equations
+.. index:: conservation equations; fluid
 .. _conservation_equations:
 
 Mass and energy conservation equations
@@ -182,3 +182,106 @@ Waiwera uses the "SNES" non-linear solver provided by the `PETSc <https://www.mc
 .. index:: PETSc; KSP, solver; linear, numerical methods; linear equations
 
 The SNES solver in turn makes use of the "KSP" suite of linear solvers, also provided by PETSc, to solve the linear system :eq:`newton` at each Newton iteration.
+
+Simulating tracers
+==================
+
+.. index:: conservation equations; tracer
+
+Tracer conservation equations
+-----------------------------
+
+Waiwera can also simulate the movement of tracers, by solving separate tracer mass conservation equations. These are very similar to the fluid mass conservation equation :eq:`conservation`, but with an extra term representing decay:
+
+.. math::
+   :label: tracer_conservation
+
+   \frac{d}{dt} \int_{V} {M^T \, dV} = \int_{\partial V} {\mathbf{F}^T \cdot \hat{n} \, dA} + \int_{V} {q^T \, dV} - \int_{V} {\alpha M^T \, dV}
+
+where :math:`M^T` is the mass density of tracer in :math:`V`, :math:`\mathbf{F}^T` is is the flux of tracer through the boundary :math:`\partial V`, :math:`q^T` represents tracer source or sink terms (per unit volume) and :math:`\alpha` is the decay rate of tracer in :math:`V`.
+
+.. index:: numerical methods; finite volume discretisation
+
+Finite volume discretisation of the tracer conservation equation is done in exactly the same way as for the fluid mass conservation equation, by introducing the cell-averaged quantities:
+
+.. math::
+
+   M_i^T = \frac{1}{V_i} \int_{V_i} {M^T \, dV}
+
+   q_i^T = \frac{1}{V_i} \int_{V_i} {q^T \, dV}
+
+   \alpha_i = \frac{1}{V_i} \int_{V_i} {\alpha \, dV}
+
+We can represent the flux integral in :eq:`tracer_conservation` as
+
+.. math::
+
+   \int_{\partial V_i} {\mathbf{F^T} \cdot \hat{n} \, dA} = \sum_j {A_{ij} F_{ij}^T}
+
+and approximate the decay term by
+
+.. math::
+
+   \int_{V} {\alpha M^T \, dV} \approx \alpha_i V_i M_i^T
+
+Then the discretised tracer conservation equation can be written as
+
+.. math::
+   :label: discretised_tracer_conservation
+
+   \frac{d}{dt} M_i^T = \frac{1}{V_i} \sum_j {A_{ij} F_{ij}^T} + q_i^T - \alpha_i M_i^T
+
+Multiple tracers may be simulated simultaneously, in which case a discretised conservation equation of this form is solved for each one. Each equation is solved for the mass fraction of tracer :math:`X_i^T` in each cell.
+
+Evaluating the terms in the tracer equations
+--------------------------------------------
+
+The mass term :math:`M_i^T` represents the tracer mass per unit volume in each cell. Currently, tracers in Waiwera are assumed to be specific to a particular fluid phase (e.g. liquid or vapour), so that the mass term may be evaluated as:
+
+.. math::
+
+   M_i^T = \phi_i S_{i,p} \rho_{i,p} X_i^T
+
+where :math:`p` is the tracer phase. The tracer flux term can be written as
+
+.. math::
+
+   F_{ij}^T = X_{ij}^T F_{ij,p}
+
+where :math:`F_{ij, p}` is the total mass flux (over all mass components) in phase :math:`p`. The quantity :math:`X_{ij}^T` represents the effective tracer mass fraction on the face between cells :math:`i` and :math:`j`, and is upstream weighted (e.g. :math:`X_{ij}^T = X_i^T` if flow is from cell :math:`i` to cell :math:`j`).
+
+The tracer source term :math:`q_i^T` takes slightly different forms depending on whether fluid is being produced or injected. For injection, an injected mass fraction of tracer :math:`X_{in}^T` is specified, and the source term can be written
+
+.. math::
+
+   q_i^T = X_{in}^T q_{i,p}
+
+where :math:`q_{i,p}` is the total injection rate in phase :math:`p`. (Here it is assumed that the source does not inject any phases other than the tracer phase :math:`p`.) For production, the tracer source term is:
+
+.. math::
+
+   q_i^T = X_i^T q_i f_p
+
+where :math:`q_i` is the total mass production rate and :math:`f_p` is the fluid flow fraction for phase :math:`p` (computed based on the phase mobilities).
+
+Temperature-dependent decay
+---------------------------
+
+The tracer decay rate :math:`\alpha_i` defaults to zero, but can be given a non-zero value (specific to each tracer, but independent of the cell). Alternatively, each tracer can be assigned a temperature-dependent decay rate, evaluated according to the Arrhenius equation:
+
+.. math::
+   :label: arrhenius
+
+   \alpha_i = \alpha^0 e^{-E_0 / (R T_i^k)}
+
+where :math:`\alpha^0` is a constant decay rate, :math:`E_0` is the "activation energy" for the tracer, :math:`R` is the universal gas constant and :math:`T_i^k` is the cell temperature in Kelvin.
+
+Solution of tracer equations at each time step
+----------------------------------------------
+
+Like the discretised fluid conservation equations :eq:`discretised_conservation`, the discretised tracer conservation equation :eq:`discretised_tracer_conservation` can be written in the form :eq:`RLeqn`. However, the terms in the tracer equation are all linear in the tracer mass fractions :math:`X_i^T`. Hence, for tracer, the functions :math:`\mathbf{L}` and :math:`\mathbf{R}` are also linear.
+
+.. index:: PETSc; KSP, solver; linear, numerical methods; linear equations
+.. index:: numerical methods; time evolution
+
+In Waiwera, tracers are assumed to be passive, that is, their presence does not affect the properties of the fluid through which they move. This means that the tracer mass conservation equations can be solved independently from the fluid conservation equations. At each time step, the nonlinear flow equations are solved as described above (see :ref:`nonlinear_equations`), using a nonlinear solver, after which the tracer mass fractions can be found by solving a single auxiliary set of linear equations. Again, the "KSP" suite of linear equation solvers provided by PETSc are used for this.
