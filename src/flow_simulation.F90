@@ -1680,10 +1680,10 @@ contains
             call cell%fluid%assign(fluid_array, fluid_offset)
             cell_coefs = cell%tracer_balance_coefs(self%tracers%phase_index)
             call PetscSectionGetOffset(local_tracer_section, c, &
-                 tracer_offset_i, ierr); CHKERRQ(ierr)
+                 tracer_offset, ierr); CHKERRQ(ierr)
             do it = 1, nt
                a = -self%tracers(it)%decay(cell%fluid%temperature) * cell_coefs(it)
-               irow = tracer_offset_i + it - 1
+               irow = tracer_offset + it - 1
                call MatSetValuesLocal(Ar, 1, irow, 1, irow, a, &
                     ADD_VALUES, ierr); CHKERRQ(ierr)
             end do
