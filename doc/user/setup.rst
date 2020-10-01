@@ -21,5 +21,6 @@ This section describes how to set up the various aspects of a Waiwera simulation
    setup_interpolation_tables
    setup_initial
    setup_time
+   setup_tracer
    setup_logfile
    setup_output 
