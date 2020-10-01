@@ -183,10 +183,13 @@ Waiwera uses the "SNES" non-linear solver provided by the `PETSc <https://www.mc
 
 The SNES solver in turn makes use of the "KSP" suite of linear solvers, also provided by PETSc, to solve the linear system :eq:`newton` at each Newton iteration.
 
+.. _tracers:
+
 Simulating tracers
 ==================
 
 .. index:: conservation equations; tracer
+.. _tracer_eqns:
 
 Tracer conservation equations
 -----------------------------
@@ -233,6 +236,8 @@ Then the discretised tracer conservation equation can be written as
 
 Multiple tracers may be simulated simultaneously, in which case a discretised conservation equation of this form is solved for each one. Each equation is solved for the mass fraction of tracer :math:`X_i^T` in each cell.
 
+.. _tracer_terms:
+
 Evaluating the terms in the tracer equations
 --------------------------------------------
 
@@ -263,6 +268,8 @@ where :math:`q_{i,p}` is the total injection rate in phase :math:`p`. (Here it i
    q_i^T = X_i^T q_i f_p
 
 where :math:`q_i` is the total mass production rate and :math:`f_p` is the fluid flow fraction for phase :math:`p` (computed based on the phase mobilities).
+
+.. _tracer_temp_decay:
 
 Temperature-dependent decay
 ---------------------------
