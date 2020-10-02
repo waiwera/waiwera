@@ -183,12 +183,12 @@ Waiwera uses the "SNES" non-linear solver provided by the `PETSc <https://www.mc
 
 The SNES solver in turn makes use of the "KSP" suite of linear solvers, also provided by PETSc, to solve the linear system :eq:`newton` at each Newton iteration.
 
-.. _tracers:
+.. _simulating_tracers:
 
 Simulating tracers
 ==================
 
-.. index:: conservation equations; tracer
+.. index:: conservation equations; tracer, tracers; conservation equations
 .. _tracer_eqns:
 
 Tracer conservation equations
@@ -273,6 +273,8 @@ where :math:`q_i` is the total mass production rate and :math:`f_p` is the fluid
 
 Temperature-dependent decay
 ---------------------------
+
+.. index:: tracers; temperature-dependent decay
 
 The tracer decay rate :math:`\alpha_i` defaults to zero, but can be given a non-zero value (specific to each tracer, but independent of the cell). Alternatively, each tracer can be assigned a temperature-dependent decay rate, evaluated according to the Arrhenius equation:
 

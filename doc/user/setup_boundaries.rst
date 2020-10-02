@@ -17,6 +17,10 @@ In each boundary condition, the primary variables are specified via the **"prima
 
 As well as the primary variables, the thermodynamic region (see :ref:`thermodynamic_regions`) must be specified as part of the boundary condition, via the **"region"** integer value. This is needed so that the primary variables can be interpreted correctly for the desired phase conditions on the boundary. If it is not specified, a default region is used, which generally depends on the EOS (but usually corresponds to liquid conditions).
 
+.. index:: tracers; boundary conditions, boundary conditions; tracer
+
+If tracers are being simulated (see :ref:`setup_tracers`) then tracer mass fractions on the boundary may be specified via the **"tracer"** value. This can be either a scalar, to be applied to all tracers defined in the simulation, or an array, with one value for each tracer. It defaults to zero.
+
 .. note::
 
    **JSON object**: boundary condition
@@ -36,6 +40,10 @@ As well as the primary variables, the thermodynamic region (see :ref:`thermodyna
    +------------+---------------+------------+-------------------------+
    |"faces"     |object | array |{}          |faces on which to apply  |
    |            |               |            |boundary condition       |
+   |            |               |            |                         |
+   +------------+---------------+------------+-------------------------+
+   |"tracer"    |number | array |0           |prescribed tracer mass   |
+   |            |               |            |fractions                |
    |            |               |            |                         |
    +------------+---------------+------------+-------------------------+
 

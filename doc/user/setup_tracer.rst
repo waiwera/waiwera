@@ -1,10 +1,11 @@
-.. index:: tracer
+.. index:: tracers
+.. _setup_tracers:
 
 *******
 Tracers
 *******
 
-Parameters related to the configuration of tracers (see :ref:`tracers`) are specified in the Waiwera JSON input file via the **"tracer"** value. This value is an object, and may contain the values shown below. Multiple tracers can be simulated simultaneously by specifying the **tracer** value as an array of these objects.
+Parameters related to the configuration of tracers (see :ref:`simulating_tracers`) are specified in the Waiwera JSON input file via the **"tracer"** value. This value is an object, and may contain the values shown below. Multiple tracers can be simulated simultaneously by specifying the **tracer** value as an array of these objects.
 
 .. note::
 
@@ -32,7 +33,7 @@ The **"name"** value is a string identifying each tracer. If it is not specified
 
 Each tracer is assumed to be specific to a particular fluid phase (see :ref:`tracer_terms`). This phase can be specified via the **"phase"** string value. If not specified, a default value is used, which is specific to the :ref:`eos`. However, for most equations of state, the default tracer phase is "liquid".
 
-Each tracer can be given a decay rate (see :ref:`tracer_eqns`), which can be either constant or temperature-dependent (see :ref:`tracer_temp_decay`). A constant decay rate can be set via the **"decay"** value.
+Each tracer can be given a decay rate (see :ref:`tracer_eqns`), which can be either constant or temperature-dependent (see :ref:`tracer_temp_decay`). A constant decay rate can be set directly via the **"decay"** value.
 
 Temperature-dependent decay is introduced by specifying the activation energy for the tracer (:math:`E_0` in equation :eq:`arrhenius`), via the **"activation"** value. In this case the "decay" value specifies the constant decay rate :math:`\alpha^0` in the same equation.
 

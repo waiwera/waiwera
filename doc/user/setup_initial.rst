@@ -36,6 +36,8 @@ There are two ways of doing this. However, both ways specify the initial conditi
    |            |                |                |(see                           |
    |            |                |                |:ref:`minc_initial_conditions`)|
    +------------+----------------+----------------+-------------------------------+
+   |"tracer"    |number | array  |0               |:ref:`initial_tracer`          |
+   +------------+----------------+----------------+-------------------------------+
 
 .. index:: initial conditions; in JSON input file
 
@@ -135,3 +137,14 @@ If no **"initial"** value is present in the Waiwera JSON input file, default ini
 
 In this case, the default primary variables (and thermodynamic region) for the :ref:`eos` being used will be assigned to all cells.
 
+.. index:: initial conditions; tracer, tracers; initial conditions
+.. _initial_tracer:
+
+Tracer initial conditions
+-------------------------
+
+If tracers are being simulated (see :ref:`setup_tracers`) then it is possible to set initial conditions for the tracer mass fractions, via the **"tracer"** value. This can be either a scalar, to be applied to all tracers defined in the simulation, or an array, with one value for each tracer. In either case, the specified tracer initial conditions will be applied over all cells in the mesh (note there is no provision for specifying different tracer initial conditions in different cells via the **"tracer"** value, as this is usually not needed).
+
+If no initial conditions for tracer are specified, then all tracer mass fractions will be initialised to zero. For most problems, this is what is desired.
+
+Tracer initial conditions can be specified via the **"tracer"** value regardless of whether the fluid initial conditions are specified using the **"primary"** and **"region"** values, or by :ref:`restarting`. If restarting from an output file which does not contain any tracer results (e.g. a steady-state solution), initial conditions from the **"tracer"** value will be applied. However, if restarting from an output file which does contain tracer results, these will override the **"tracer"** value.
