@@ -9,7 +9,7 @@ A **source** injects or produces (i.e. extracts) mass or energy at a particular 
 
 Sources may be used to represent physical sources or sinks such as wells or springs. They may also be used to implement :ref:`neumann_boundary_conditions`, i.e. to model boundaries where flow rates of mass or energy are prescribed.
 
-Sources are set up in the Waiwera JSON input file via the **"source"** value. This is an array of objects. Each object in the array contains a source specification, which can set up a single source, or multiple sources with similar parameters in different cells.
+Sources are set up in the Waiwera JSON input file via the **"source"** value. This is an array of objects. Each object in the array contains a source specification, which can set up a single source, or multiple sources with similar parameters in different cells. The flow rate for each source can be specified using its **"rate"** value.
 
 .. note::
    **JSON object**: source specification
@@ -38,6 +38,9 @@ Sources are set up in the Waiwera JSON input file via the **"source"** value. Th
    |"enthalpy"             |number | array ||83.9×10\    |injection enthalpy (J/kg)|
    |                       |object          |:sup:`3`    |                         |
    |                       |                |J/kg        |                         |
+   +-----------------------+----------------+------------+-------------------------+
+   |"tracer"               |number | array ||0           |injection tracer mass    |
+   |                       |object          |            |fraction                 |
    +-----------------------+----------------+------------+-------------------------+
    |"cell" | "cells"       |integer | array |[]          |indices of cells with    |
    |                       |                |            |this source specification|
@@ -76,9 +79,12 @@ Each source specification object has a **"cell"** value which can be used to spe
 There is also a **"zones"** array value which can be used to specify :ref:`mesh_zones`, instead of (or as well as) cells containing the sources. When this is used, a source will be added to each cell in any of the specified zones.
 
 .. index:: sources; injection
+.. _injection:
 
 Injection
 =========
+
+Specifying a positive **"rate"** value gives an injection source. It is also possible to specify time-dependent injection rates using a "table" source control (see :ref:`table_source_controls`), i.e. a rank-2 array of times and rates instead of a single fixed scalar flow rate.
 
 When injecting mass, each source can inject only one mass component at a time. Depending on the :ref:`eos` (EOS) module being used, there may be multiple mass components being simulated (see :ref:`conservation_equations`). Hence, it is necessary to specify which component is being injected, via the **"component"** value. Components can be referred to either by name (string) or by index (1-based), according to the list of component names for the EOS being used. If no component is specified, the default "water" will be used. 
 
@@ -106,10 +112,21 @@ For example:
 
 specifies 1 kW heat sources in three different cells.
 
+The following example shows how time-dependent injection may be specified using a rank-2 array of times and flow rates for the **"rate"** value. For more detail, see :ref:`table_source_controls`.
+
+.. code-block:: json
+
+   {"source": [
+     {"cell": 313, "enthalpy": 350e3,
+      "rate": [[0, 3.5], [3600, 2.4], [7200, 3.3]]}
+   ]}
+
 .. index:: sources; production
 
 Production
 ==========
+
+Specifying a negative **"rate"** value gives a production source. It is also possible to specify time-dependent production rates using a "table" source control (see :ref:`table_source_controls`), i.e. a rank-2 array of times and rates instead of a single fixed scalar flow rate.
 
 For production, it is possible to specify a mass component to be produced (again via the "component" value), in which case only that component will be extracted from the cell. However, it is more usual to produce all mass components present in the cell. This can be done by either not specifying the "component" value, or setting it to zero.
 
@@ -135,6 +152,14 @@ As for injection, it is also possible to produce heat only, rather than mass (e.
 
 specifies three sources each extracting 1 kW of heat.
 
+The following example shows how a time-dependent production rate can be specified using a rank-2 array of times and flow rates for the **"rate"** value. For more detail, see :ref:`table_source_controls`.
+
+.. code-block:: json
+
+   {"source": [
+     {"cell": 313, "rate": [[0, -2.5], [3600, -2.8], [7200, -3.2]]}
+   ]}
+
 .. index:: sources; mixed flow
 .. _mixed_flow:
 
@@ -147,24 +172,82 @@ For mixed-flow sources, it is possible to specify the production component indep
 
 Note that it is not necessary to set the "production_component" value except in this special case of mixed-flow sources with different components for production and injection. In all other cases, setting the "component" value by itself is sufficient.
 
+.. index:: tracers; sources, sources; tracer
+
+Tracer injection
+================
+
+If tracers are being simulated (see :ref:`setup_tracers`), then for :ref:`injection` sources it is possible to specify the mass fractions of tracers in the injected fluid, via the **"tracer"** value. This can be either:
+
+- a scalar, representing a constant value to be applied to all tracers defined in the simulation
+- a rank-1 array of numbers, with one constant value for each tracer
+- a rank-2 array of numbers, representing a table of tracer mass fractions vs. time (to be applied to all tracers)
+- an object, with tracer names as keys and corresponding number or rank-2 array values, representing constant or time-dependent mass fractions
+
+For example:
+
+.. code-block:: json
+
+   {"source": [
+     {"cell": 331, "component": "water",
+      "enthalpy": 350e3, "rate": 2.5, "tracer": 1e-6}
+   ]}
+
+specifies a source injecting water with enthalpy 350 kJ/kg at a constant rate of 2.5 kg/s, with tracer mass fraction :math:`10^{-6}`. In the following example:
+
+.. code-block:: json
+
+   {"source": [
+     {"cell": 331, "component": "water",
+      "enthalpy": 350e3, "rate": 2.5, "tracer": [1e-6, 1e-5, 0]}
+   ]}
+
+constant mass fractions are specified for three tracers, the third one being zero. In the following example:
+
+.. code-block:: json
+
+   {"source": [
+     {"cell": 331, "component": "water",
+      "enthalpy": 350e3, "rate": 2.5,
+       "tracer": [[0, 1e-6], [3600, 1e-7], [9600, 5e-8]]}
+   ]}
+
+a time-dependent tracer injection mass fraction is specified, with values provided for three times (see :ref:`table_source_controls`).
+
+Here is an example of specifying tracer injection using an object to refer to individual tracers by name:
+
+.. code-block:: json
+
+   {"source": [
+     {"cell": 331, "component": "water",
+      "enthalpy": 350e3, "rate": 2.5,
+      "interpolation": "step",
+       "tracer": {
+         "T1": [[0, 1e-6], [3600, 0]],
+         "T2": [[0, 0], [3600, 1e-5], [7200, 0]]}}
+   ]}
+
+In this case, it is assumed that tracers with names "T1" and "T2" have been defined separately in the input JSON file (see :ref:`setup_tracers`). For this source, tracer "T1" injects with mass fraction :math:`10^{-6}` for the first hour, after which tracer "T2" injects with mass fraction :math:`10^{-5}` for the second hour. Any tracers not included in this type of source specification will be given the default mass fraction of zero.
+
 .. index:: sources; controls, source controls
 .. _source_controls:
 
 Source controls
 ===============
 
-In many cases, it is necessary to simulate sources with flow rates (and possibly enthalpies, for injection) that vary with time. To do this, a variety of different "source controls" may be added to a source, depending on what type of time variation is needed.
+In many cases, it is necessary to simulate sources with flow rates (and possibly other quantities such as enthalpy or tracer mass fractions, for injection) that vary with time. To do this, a variety of different "source controls" may be added to a source, depending on what type of time variation is needed.
 
 These may be straight-forward controls in which the time variation is simply prescribed, or dynamic controls which vary flow rates in response to fluid conditions in the cell or other factors. Most types of controls may be combined together to simulate more complex source behaviour (see :ref:`combining_source_controls`).
 
 .. index:: source controls; table
+.. _table_source_controls:
 
 Tables
 ------
 
-The simplest type of time variation results from flow rates and / or injection enthalpies being prescribed in the form of tables of values vs. time.
+The simplest type of time variation results from flow rates or other quantities (e.g. enthalpy, tracer mass fraction) being prescribed in the form of tables of values vs. time.
 
-In the JSON input for a source specification, this can be achieved simply by specifying the "rate" and / or "enthalpy" values as rank-2 arrays (rather than numbers). These are treated as :ref:`interpolation_tables` to enable Waiwera to compute the flow rate and / or enthalpy at any time, and compute average values over the time step. The associated **"interpolation"** and **"averaging"** JSON values control the details of how these processes are carried out. (Note that the same interpolation and averaging parameters apply to both flow rate and enthalpy.)
+In the JSON input for a source specification, this can be achieved simply by specifying these values as rank-2 arrays (rather than numbers). These arrays are treated as :ref:`interpolation_tables` to enable Waiwera to compute the quantity at any time, and compute average values over the time step. The associated **"interpolation"** and **"averaging"** JSON values control the details of how these processes are carried out. (Note that the same interpolation and averaging parameters apply to different tables in the same source.)
 
 For example:
 
