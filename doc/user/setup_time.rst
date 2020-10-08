@@ -670,3 +670,44 @@ For example:
                                             }}}}}
 
 specifies a Bi-CGStab linear solver. The default ILU sub-preconditioner is used, but with the level of fill-in increased to 3.
+
+Solution of tracer equations
+============================
+
+When tracers are being simulated (see :ref:`setup_tracers`), the tracer mass fractions are updated at each time step by solving a single auxiliary system of linear equations (separate from the main flow solution process). This is carried out using the `PETSc <https://www.mcs.anl.gov/petsc/>`_ "KSP" suite of parallelised linear equation solvers, as is done at each iteration of the non-linear flow solution process (see :ref:`linear_equation_solution`).
+
+However, the linear solver parameters for the auxiliary tracer solution can be specified independently of those for the main flow solution, via the **"time.step.solver.auxiliary"** value in the Waiwera JSON input file.
+
+This object is identical in structure to the **"time.step.solver.linear"** value, but has some slightly different default values. Specifically, the auxiliary linear solver and preconditioner types have different defaults (see table below), more suitable for solving the discretised tracer conservation equations.
+
+All other values within the **"time.step.solver.auxiliary"** object can be specified in the same way as their counterparts in the **"time.step.solver.linear"** object, and have the same defaults.
+
+.. note::
+   **JSON object**: auxiliary linear solver parameters
+
+   **JSON path**: time.step.solver.auxiliary
+
+   +-----------------+------------+---------------------+----------------+
+   |**name**         |**type**    |**default**          |**value**       |
+   +-----------------+------------+---------------------+----------------+
+   |"type"           |string      |"gmres"              |linear solver   |
+   |                 |            |                     |type            |
+   +-----------------+------------+---------------------+----------------+
+   |"options"        |object      |{}                   |linear solver   |
+   |                 |            |                     |options         |
+   |                 |            |                     |                |
+   +-----------------+------------+---------------------+----------------+
+   |"tolerance"      |object      |{}                   |linear solver   |
+   |                 |            |                     |tolerance       |
+   +-----------------+------------+---------------------+----------------+
+   |"maximum"        |object      |{}                   |maximum         |
+   |                 |            |                     |iterations      |
+   +-----------------+------------+---------------------+----------------+
+   |"preconditioner" |object      |{"type": "bjacobi",  |preconditioner  |
+   |                 |            |"sub":               |options         |
+   |                 |            |{"preconditioner":   |                |
+   |                 |            |{"type": "ilu",      |                |
+   |                 |            |"factor": {"levels": |                |
+   |                 |            |0}}}}                |                |
+   +-----------------+------------+---------------------+----------------+
+
