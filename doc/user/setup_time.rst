@@ -522,7 +522,7 @@ The convergence tolerance may be specified via the **"tolerance"** value in the 
    |            |            |              |                     |
    +------------+------------+--------------+---------------------+
 
-The maximum allowed number of linear solver iterations can be specified using the **"maximum"** value in the "time.step.solver.linear" object, which again is itself an object, this time containing a **"iterations"** integer value for specifying the iteration limit. If not specified, the the PETSc default is used.
+The maximum allowed number of linear solver iterations can be specified using the **"maximum"** value in the "time.step.solver.linear" object, which again is itself an object, this time containing a **"iterations"** integer value for specifying the iteration limit. If not specified, then the PETSc default is used.
 
 .. note::
    **JSON object**: linear solver iteration limit
