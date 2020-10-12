@@ -129,7 +129,7 @@ where the phase fluxes are given by:
 
    F_{ij,p}^\kappa =
    \begin{cases}
-   -k \frac{k \cdot k^r_p}{\nu_p} X_p^\kappa (\frac{\partial P}{\partial n} - \rho_{ij,p} \mathbf{g}.\hat{n}) & \kappa \leq N \\
+   -\frac{k \cdot k^r_p}{\nu_p} X_p^\kappa (\frac{\partial P}{\partial n} - \rho_{ij,p} \mathbf{g}.\hat{n}) & \kappa \leq N \\
    -K \frac{\partial T}{\partial n} + \sum_{m=1}^{N} {\sum_p{h_p^m F_{ij,p}^m}} & \kappa = N + 1
    \end{cases}
 
