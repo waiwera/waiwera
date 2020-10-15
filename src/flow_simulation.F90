@@ -73,6 +73,7 @@ module flow_simulation_module
      PetscInt, allocatable :: output_tracer_field_indices(:) !! Field indices for tracer output
      integer(int32) :: start_clock !! Start wall clock time of simulation
      PetscBool :: unperturbed !! Whether any primary variables are being perturbed for Jacobian calculation
+     PetscBool :: source_tracer_output !! Whether to output source tracer flow rates
    contains
      private
      procedure :: create_solution_vector => flow_simulation_create_solution_vector
@@ -85,6 +86,7 @@ module flow_simulation_module
      procedure :: redistribute => flow_simulation_redistribute
      procedure :: add_boundary_ghost_cells => flow_simulation_add_boundary_ghost_cells
      procedure :: destroy_output => flow_simulation_destroy_output
+     procedure :: source_tracer_flows => flow_simulation_source_tracer_flows
      procedure, public :: setup_gravity => flow_simulation_setup_gravity
      procedure, public :: input_summary => flow_simulation_input_summary
      procedure, public :: log_statistics => flow_simulation_log_statistics
@@ -374,30 +376,38 @@ contains
     use fson
     use source_module, only: default_output_source_fields, &
          required_output_source_fields
+    use hdf5io_module, only: max_field_name_length
 
     class(flow_simulation_type), intent(in out) :: self
     type(fson_value), pointer, intent(in) :: json
+    ! Locals:
+      character(max_field_name_length), allocatable :: &
+           output_fields(:)
 
     call setup_vector_output_fields("fluid", self%fluid, &
          self%eos%default_output_fluid_fields, &
          self%eos%required_output_fluid_fields, &
-         self%output_fluid_field_indices)
+         self%output_fluid_field_indices, output_fields)
+    deallocate(output_fields)
 
     call setup_vector_output_fields("source", self%source, &
          default_output_source_fields, required_output_source_fields, &
-         self%output_source_field_indices)
+         self%output_source_field_indices, output_fields)
 
     if (self%auxiliary) then
+       self%source_tracer_output = get_source_tracer_output(output_fields)
        call setup_tracer_output_fields()
+    else
+       self%source_tracer_output = PETSC_FALSE
     end if
+    deallocate(output_fields)
 
   contains
 
     subroutine setup_vector_output_fields(name, v, default_fields, &
-         required_fields, field_indices)
+         required_fields, field_indices, output_fields)
 
       use fson_mpi_module
-      use hdf5io_module, only: max_field_name_length
       use dm_utils_module, only: section_get_field_names
       use utils_module, only: str_to_lower, str_array_index
       use fson_value_m, only: TYPE_ARRAY, TYPE_STRING
@@ -407,9 +417,11 @@ contains
       character(max_field_name_length), intent(in) :: &
            default_fields(:), required_fields(:)
       PetscInt, allocatable, intent(out) :: field_indices(:)
+      character(max_field_name_length), allocatable, intent(out) :: &
+           output_fields(:)
       ! Locals:
       character(max_field_name_length), allocatable :: &
-           output_fields(:), fields(:), lower_required_fields(:)
+           fields(:), lower_required_fields(:)
       DM :: dm
       PetscSection :: section
       PetscInt :: i
@@ -484,6 +496,31 @@ contains
       deallocate(fields, required_missing, lower_required_fields)
 
     end subroutine setup_vector_output_fields
+
+!........................................................................
+
+    PetscBool function get_source_tracer_output(output_fields) result(output)
+      !! Returns true if tracer flow rate output is required at sources.
+
+      use utils_module, only: str_to_lower, str_array_index
+      use source_module, only: source_array_variable_names
+
+      character(*), intent(in) :: output_fields(:)
+      ! Locals:
+      PetscInt :: i
+      character(max_field_name_length) :: name
+
+      output = PETSC_FALSE
+      do i = 1, size(self%tracers)
+         name = str_to_lower(trim(self%tracers(i)%name) // '_' // &
+              trim(source_array_variable_names(3)))
+         if (str_array_index(name, output_fields) > 0) then
+            output = PETSC_TRUE
+            exit
+         end if
+      end do
+
+    end function get_source_tracer_output
 
 !........................................................................
 
@@ -1826,6 +1863,50 @@ contains
 
 !------------------------------------------------------------------------
 
+  subroutine flow_simulation_source_tracer_flows(self)
+    !! Computes tracer flow rates at sources, for output.
+
+    use source_module, only: source_type
+    use dm_utils_module, only: global_vec_section, global_section_offset
+
+    class(flow_simulation_type), intent(in out) :: self
+    ! Locals:
+    type(source_type) :: source
+    PetscSection :: fluid_section, tracer_section, source_section
+    PetscReal, pointer, contiguous :: fluid_array(:), tracer_array(:), &
+         source_data(:)
+    PetscInt :: s, source_offset
+    PetscErrorCode :: ierr
+
+    call source%init(self%eos, size(self%tracers))
+    call global_vec_section(self%current_fluid, fluid_section)
+    call VecGetArrayReadF90(self%current_fluid, fluid_array, ierr)
+    CHKERRQ(ierr)
+    call global_vec_section(self%aux_solution, tracer_section)
+    call VecGetArrayF90(self%aux_solution, tracer_array, ierr); CHKERRQ(ierr)
+    call global_vec_section(self%source, source_section)
+    call VecGetArrayF90(self%source, source_data, ierr); CHKERRQ(ierr)
+
+    do s = 0, self%num_local_sources - 1
+       source_offset = global_section_offset(source_section, s, &
+            self%source_range_start)
+       call source%assign(source_data, source_offset)
+       call source%update_tracer_flow(fluid_array, fluid_section, &
+            self%fluid_range_start, tracer_array, tracer_section, &
+            self%aux_solution_range_start, self%tracers%phase_index)
+    end do
+
+    call VecRestoreArrayF90(self%source, source_data, ierr); CHKERRQ(ierr)
+    call VecRestoreArrayF90(self%aux_solution, tracer_array, ierr)
+    CHKERRQ(ierr)
+    call VecRestoreArrayReadF90(self%current_fluid, fluid_array, ierr)
+    CHKERRQ(ierr)
+    call source%destroy()
+
+  end subroutine flow_simulation_source_tracer_flows
+
+!------------------------------------------------------------------------
+
   subroutine flow_simulation_pre_timestep(self)
     !! Routine to be called before starting each time step. Here the
     !! last_timestep_fluid vector is initialized from the fluid
@@ -2439,6 +2520,9 @@ contains
             self%output_fluid_field_indices, "/cell_fields", time_index, &
             time, self%hdf5_viewer)
        if (self%num_sources > 0) then
+          if (self%source_tracer_output) then
+             call self%source_tracer_flows()
+          end if
           call vec_sequence_view_hdf5(self%source, &
                self%output_source_field_indices, "/source_fields", time_index, &
                time, self%hdf5_viewer)

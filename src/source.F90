@@ -94,6 +94,7 @@ module source_module
      procedure, public :: setup => source_setup
      procedure, public :: update_component => source_update_component
      procedure, public :: update_flow => source_update_flow
+     procedure, public :: update_tracer_flow => source_update_tracer_flow
      procedure, public :: destroy => source_destroy
   end type source_type
 
@@ -162,8 +163,7 @@ contains
 !------------------------------------------------------------------------
 
   subroutine source_assign_fluid_local(self, local_fluid_data, local_fluid_section)
-    !! Updates fluid object from given data array and local section, and
-    !! calculates the fluid phase flow fractions.
+    !! Updates fluid object from given data array and local section.
 
     use dm_utils_module, only: section_offset
 
@@ -181,8 +181,7 @@ contains
 !------------------------------------------------------------------------
 
   subroutine source_assign_fluid(self, fluid_data, fluid_section, fluid_range_start)
-    !! Updates fluid object from given data array and global section, and
-    !! calculates the fluid phase flow fractions.
+    !! Updates fluid object from given data array and global section.
 
     use dm_utils_module, only: global_section_offset
 
@@ -399,6 +398,48 @@ contains
     end if
 
   end subroutine source_update_flow
+
+!------------------------------------------------------------------------
+
+  subroutine source_update_tracer_flow(self, fluid_data, fluid_section, &
+       fluid_range_start, tracer_data, tracer_section, &
+       tracer_range_start, tracer_phase_index)
+    !! Updates tracer flow rates from given global fluid and tracer
+    !! arrays.
+
+    use dm_utils_module, only: global_section_offset
+
+    class(source_type), intent(in out) :: self
+    PetscReal, pointer, contiguous, intent(in) :: fluid_data(:)
+    PetscSection, intent(in) :: fluid_section
+    PetscInt, intent(in) :: fluid_range_start
+    PetscReal, pointer, contiguous, intent(in) :: tracer_data(:)
+    PetscSection, intent(in) :: tracer_section
+    PetscInt, intent(in) :: tracer_range_start
+    PetscInt, intent(in) :: tracer_phase_index(:)
+    ! Locals:
+    PetscInt :: tracer_offset, i
+    PetscReal, pointer, contiguous :: tracer_mass_fraction(:)
+    PetscReal :: phase_flow_fractions(self%fluid%num_phases)
+
+    if (self%rate >= 0._dp) then
+       self%tracer_flow = self%tracer_injection_rate
+    else
+       call self%assign_fluid(fluid_data, fluid_section, &
+            fluid_range_start)
+       tracer_offset = global_section_offset(tracer_section, &
+            nint(self%local_cell_index), tracer_range_start)
+       tracer_mass_fraction => tracer_data(tracer_offset: &
+            tracer_offset + self%num_tracers - 1)
+       phase_flow_fractions = self%fluid%phase_flow_fractions()
+       do i = 1, self%num_tracers
+          self%tracer_flow(i) = tracer_mass_fraction(i) * &
+               phase_flow_fractions(tracer_phase_index(i)) * &
+               self%rate
+       end do
+    end if
+
+  end subroutine source_update_tracer_flow
 
 !------------------------------------------------------------------------
 
