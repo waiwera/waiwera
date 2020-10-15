@@ -47,9 +47,9 @@ module source_module
   PetscInt, parameter, public :: num_source_array_variables = 3
   character(max_source_variable_name_length), public :: &
        source_array_variable_names(num_source_array_variables) = [ &
-       "flow                    ", &
-       "injection_rate          ", &
-       "flow                    "]
+       "flow          ", &
+       "injection_rate", &
+       "flow          "]
   character(max_field_name_length), parameter, public :: required_output_source_fields(0) = [&
        character(max_field_name_length)::]
   character(max_field_name_length), parameter, public :: default_output_source_fields(3) = [&
