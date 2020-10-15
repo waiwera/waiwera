@@ -123,12 +123,15 @@
   "output": {
     "initial": false, 
     "frequency": 10, 
-    "final": true
+    "final": true, 
+    "source": [
+      "tracer1_flow"
+    ]
   }, 
   "logfile": {
     "echo": true
   }, 
   "tracer": {
-    "name": "1"
+    "name": "tracer1"
   }
 }

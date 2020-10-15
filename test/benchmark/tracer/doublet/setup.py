@@ -153,12 +153,13 @@ dat.run(simulator = AUTOUGH2,
         silent = True)
 
 jsondata['output']['frequency'] = dat.parameter['print_interval']
+jsondata['output']['source'] = ['tracer1_flow']
 jsondata['time']['step']['size'] = dat.parameter['const_timestep']
 jsondata['time']['stop'] = dat.parameter['tstop']
 jsondata['time']['step']['maximum']['number'] = ndt
 jsondata['time']['step']['maximum']['size'] = dat.parameter['max_timestep']
 
-jsondata['tracer'] = {"name": "1"}
+jsondata['tracer'] = {'name': 'tracer1'}
 jsondata['source'][0]['tracer'] = [[0, qt], [end_time, 0]]
 jsondata['source'][0]['interpolation'] = 'step'
 

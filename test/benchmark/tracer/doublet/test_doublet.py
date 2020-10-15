@@ -48,7 +48,7 @@ AUTOUGH2_FIELDMAP = {
 
 WAIWERA_FIELDMAP = {
     'Pressure': 'fluid_pressure',
-    'Tracer mass fraction': 'tracer_1'}
+    'Tracer mass fraction': 'tracer_tracer1'}
 
 model_dir = './run'
 data_dir = './data'
