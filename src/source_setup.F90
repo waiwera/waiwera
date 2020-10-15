@@ -313,7 +313,7 @@ contains
       IS :: cell_IS
       PetscInt, pointer, contiguous :: local_cell_index(:)
       ISLocalToGlobalMapping :: l2g
-      PetscReal :: injection_tracer_mass_fraction(size(tracer_names))
+      PetscReal :: tracer_injection_rate(size(tracer_names))
 
       err = 0
       call DMGetLocalToGlobalMapping(dm, l2g, ierr); CHKERRQ(ierr)
@@ -326,8 +326,8 @@ contains
       call get_initial_rate(source_json, initial_rate)
       call get_initial_enthalpy(source_json, eos, &
            injection_component, initial_enthalpy)
-      call get_injection_tracer_mass_fraction(source_json, tracer_names, &
-           srcstr, injection_tracer_mass_fraction, logfile, err)
+      call get_tracer_injection_rate(source_json, tracer_names, &
+           srcstr, tracer_injection_rate, logfile, err)
       if (err == 0) then
          allocate(local_source_indices(num_cells))
          if (num_cells > 0) then
@@ -344,7 +344,7 @@ contains
                     natural_cell_index(i), local_cell_index(i), &
                     initial_rate, initial_enthalpy, &
                     injection_component, production_component, &
-                    injection_tracer_mass_fraction)
+                    tracer_injection_rate)
                local_source_indices(i) = local_source_index
                local_source_index = local_source_index + 1
             end do
@@ -556,9 +556,9 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine get_injection_tracer_mass_fraction(source_json, tracer_names, &
-       srcstr, injection_tracer_mass_fraction, logfile, err)
-    !! Gets constant tracer mass fractions for injection.
+  subroutine get_tracer_injection_rate(source_json, tracer_names, &
+       srcstr, tracer_injection_rate, logfile, err)
+    !! Gets constant tracer injection rates.
 
     use tracer_module, only: max_tracer_name_length
     use utils_module, only: str_array_index
@@ -566,17 +566,17 @@ contains
     type(fson_value), pointer, intent(in) :: source_json
     character(*), intent(in) :: tracer_names(:) !! Tracer names
     character(*), intent(in) :: srcstr !! source identifier
-    PetscReal, intent(out) :: injection_tracer_mass_fraction(:)
+    PetscReal, intent(out) :: tracer_injection_rate(:)
     type(logfile_type), intent(in out), optional :: logfile
     PetscErrorCode, intent(out) :: err
     ! Locals:
-    PetscReal, allocatable :: mass_fraction(:)
-    PetscReal :: scalar_mass_fraction
+    PetscReal, allocatable :: injection_rate(:)
+    PetscReal :: scalar_injection_rate
     PetscInt :: tracer_json_type, tracer_type, rank
     PetscInt :: num_tracers_specified, i, tracer_index
     type(fson_value), pointer :: tracers_json, tracer_json
     character(max_tracer_name_length) :: name
-    PetscReal, parameter :: default_tracer_mass_fraction = 0._dp
+    PetscReal, parameter :: default_tracer_injection_rate = 0._dp
 
     err = 0
 
@@ -587,20 +587,20 @@ contains
           select case (tracer_json_type)
           case (TYPE_REAL, TYPE_INTEGER)
              ! apply same value to all tracers:
-             call fson_get_mpi(source_json, "tracer", val = scalar_mass_fraction)
-             injection_tracer_mass_fraction = scalar_mass_fraction
+             call fson_get_mpi(source_json, "tracer", val = scalar_injection_rate)
+             tracer_injection_rate = scalar_injection_rate
           case (TYPE_ARRAY)
             rank = fson_mpi_array_rank(source_json, "tracer")
             if (rank == 1) then
                ! array of values for different tracers:
-               call fson_get_mpi(source_json, "tracer", val = mass_fraction)
-               injection_tracer_mass_fraction = default_tracer_mass_fraction
-               injection_tracer_mass_fraction(1: size(mass_fraction)) = &
-                    mass_fraction
+               call fson_get_mpi(source_json, "tracer", val = injection_rate)
+               tracer_injection_rate = default_tracer_injection_rate
+               tracer_injection_rate(1: size(injection_rate)) = &
+                    injection_rate
             end if
           case (TYPE_OBJECT)
              ! values specified by tracer name:
-             injection_tracer_mass_fraction = default_tracer_mass_fraction
+             tracer_injection_rate = default_tracer_injection_rate
              call fson_get_mpi(source_json, "tracer", tracers_json)
              num_tracers_specified = fson_value_count_mpi(tracers_json, ".")
              tracer_json => fson_value_children_mpi(tracers_json)
@@ -609,11 +609,11 @@ contains
                 select case (tracer_type)
                 case (TYPE_REAL, TYPE_INTEGER)
                    name = fson_get_name_mpi(tracer_json)
-                   call fson_get_mpi(tracer_json, ".", val = scalar_mass_fraction)
+                   call fson_get_mpi(tracer_json, ".", val = scalar_injection_rate)
                    tracer_index = str_array_index(name, tracer_names)
                    if (tracer_index > 0) then
-                      injection_tracer_mass_fraction(tracer_index) = &
-                           scalar_mass_fraction
+                      tracer_injection_rate(tracer_index) = &
+                           scalar_injection_rate
                    else
                       call logfile%write(LOG_LEVEL_ERR, "input", &
                            "unrecognised_tracer", &
@@ -626,14 +626,14 @@ contains
                 tracer_json => fson_value_next_mpi(tracer_json)
              end do
           case default
-             injection_tracer_mass_fraction = default_tracer_mass_fraction
+             tracer_injection_rate = default_tracer_injection_rate
           end select
        else
-          injection_tracer_mass_fraction = default_tracer_mass_fraction
+          tracer_injection_rate = default_tracer_injection_rate
        end if
     end if
 
-  end subroutine get_injection_tracer_mass_fraction
+  end subroutine get_tracer_injection_rate
 
 !------------------------------------------------------------------------
 

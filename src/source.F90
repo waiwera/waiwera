@@ -74,7 +74,7 @@ module source_module
      PetscReal, pointer, public :: enthalpy !! Enthalpy of produced or injected fluid
      PetscReal, pointer, contiguous, public :: flow(:) !! Flows in each mass and energy component
      type(fluid_type), public :: fluid !! Fluid properties in cell (for production)
-     PetscReal, pointer, contiguous, public :: injection_tracer_mass_fraction(:) !! Tracer mass fractions for injection
+     PetscReal, pointer, contiguous, public :: tracer_injection_rate(:) !! Tracer injection rates
      PetscInt, public :: dof !! Number of degrees of freedom
      PetscInt, public :: num_primary_variables !! Number of primary thermodynamic variables
      PetscInt, public :: num_tracers !! Number of tracers
@@ -147,10 +147,10 @@ contains
     iflow_end = offset + 10 + self%num_primary_variables - 1
     self%flow => data(offset + 10: iflow_end)
     if (self%num_tracers > 0) then
-       self%injection_tracer_mass_fraction => data(iflow_end + 1: &
+       self%tracer_injection_rate => data(iflow_end + 1: &
             iflow_end + self%num_tracers)
     else
-       self%injection_tracer_mass_fraction => null()
+       self%tracer_injection_rate => null()
     end if
 
   end subroutine source_assign
@@ -200,7 +200,7 @@ contains
   subroutine source_setup(self, source_index, local_source_index, &
        natural_cell_index, local_cell_index, rate, &
        injection_enthalpy, injection_component, production_component, &
-       injection_tracer_mass_fraction)
+       tracer_injection_rate)
     !! Sets up main parameters of a source object.
 
     class(source_type), intent(in out) :: self
@@ -212,7 +212,7 @@ contains
     PetscReal, intent(in) :: injection_enthalpy !! enthalpy for injection
     PetscInt, intent(in) :: injection_component !! mass (or energy) component for injection
     PetscInt, intent(in) :: production_component !! mass (or energy) component for production
-    PetscReal, intent(in) :: injection_tracer_mass_fraction(:)
+    PetscReal, intent(in) :: tracer_injection_rate(:) !! tracer injection rates
 
     self%source_index = source_index
     self%local_source_index = local_source_index
@@ -221,7 +221,7 @@ contains
     self%injection_enthalpy = injection_enthalpy
     self%injection_component = injection_component
     if (self%num_tracers > 0) then
-       self%injection_tracer_mass_fraction = injection_tracer_mass_fraction
+       self%tracer_injection_rate = tracer_injection_rate
     end if
     self%production_component = production_component
     self%rate = rate
@@ -246,7 +246,7 @@ contains
     self%rate => null()
     self%enthalpy => null()
     self%flow => null()
-    self%injection_tracer_mass_fraction => null()
+    self%tracer_injection_rate => null()
 
     call self%fluid%destroy()
 

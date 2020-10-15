@@ -92,7 +92,7 @@ module source_control_module
   end type source_control_rate_factor_type
 
   type, public, extends(source_control_table_type) :: source_control_tracer_table_type
-     !! Controls source tracer mass fraction via a table of values
+     !! Controls source tracer injection rate via a table of values
      !! vs. time. Each control applies to only one tracer.
      private
      PetscInt, public :: tracer_index !! Index of tracer
@@ -384,7 +384,7 @@ contains
   subroutine source_control_tracer_table_update(self, t, interval, &
        source_data, source_section, source_range_start, &
        local_fluid_data, local_fluid_section, eos, num_tracers)
-    !! Update injection tracer mass fraction for source_control_tracer_table_type.
+    !! Update tracer injection rate for source_control_tracer_table_type.
 
     use dm_utils_module, only: global_section_offset
 
@@ -398,19 +398,19 @@ contains
     class(eos_type), intent(in) :: eos
     PetscInt, intent(in) :: num_tracers
     ! Locals:
-    PetscReal :: tracer_mass_fraction
+    PetscReal :: tracer_injection_rate
     type(source_type) :: source
     PetscInt :: i, s, source_offset
 
     call source%init(eos, num_tracers)
-    tracer_mass_fraction = self%table%average(interval, 1)
+    tracer_injection_rate = self%table%average(interval, 1)
     do i = 1, size(self%source_indices)
        s = self%source_indices(i)
        source_offset = global_section_offset(source_section, s, &
             source_range_start)
        call source%assign(source_data, source_offset)
-       source%injection_tracer_mass_fraction(self%tracer_index) = &
-            tracer_mass_fraction
+       source%tracer_injection_rate(self%tracer_index) = &
+            tracer_injection_rate
     end do
 
     call source%destroy()

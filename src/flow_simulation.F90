@@ -1618,8 +1618,7 @@ contains
                        ADD_VALUES, ierr); CHKERRQ(ierr)
                end do
             else ! injection:
-               qv = source%rate * source%injection_tracer_mass_fraction &
-                    / cell%volume
+               qv = source%tracer_injection_rate / cell%volume
                br_offset = global_section_offset(br_section, c, &
                     self%aux_solution_range_start)
                associate(br_cell => br_array(br_offset: br_offset + nt - 1))
