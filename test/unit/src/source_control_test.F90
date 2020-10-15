@@ -114,7 +114,7 @@ contains
          source_is, err = err)
     call test%assert(0, err, "source setup error")
     call source%init(eos, size(tracers))
-    call test%assert(13 + size(tracers), source%dof, "source dof")
+    call test%assert(13 + size(tracers) * 2, source%dof, "source dof")
 
     call VecRestoreArrayF90(fluid_vector, fluid_array, ierr); CHKERRQ(ierr)
 

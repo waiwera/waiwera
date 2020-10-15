@@ -284,6 +284,12 @@ contains
               trim(source_array_variable_names(2))
          i = i + 1
       end do
+      ! tracer flow rates:
+      do j = 1, num_tracers
+         field_names(i) = trim(tracer_names(j)) // '_' // &
+              trim(source_array_variable_names(3))
+         i = i + 1
+      end do
       call dm_set_data_layout(dm_source, num_field_components, field_dim, &
            field_names)
       deallocate(num_field_components, field_dim, field_names)

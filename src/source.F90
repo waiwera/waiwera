@@ -44,12 +44,12 @@ module source_module
        "injection_enthalpy  ", "injection_component ", &
        "production_component", "component           ", &
        "rate                ", "enthalpy            "]
-  PetscInt, parameter, public :: num_source_array_variables = 2
+  PetscInt, parameter, public :: num_source_array_variables = 3
   character(max_source_variable_name_length), public :: &
        source_array_variable_names(num_source_array_variables) = [ &
-       "flow                   ", &
-       "injection_rate"]
-
+       "flow                    ", &
+       "injection_rate          ", &
+       "flow                    "]
   character(max_field_name_length), parameter, public :: required_output_source_fields(0) = [&
        character(max_field_name_length)::]
   character(max_field_name_length), parameter, public :: default_output_source_fields(3) = [&
@@ -75,6 +75,7 @@ module source_module
      PetscReal, pointer, contiguous, public :: flow(:) !! Flows in each mass and energy component
      type(fluid_type), public :: fluid !! Fluid properties in cell (for production)
      PetscReal, pointer, contiguous, public :: tracer_injection_rate(:) !! Tracer injection rates
+     PetscReal, pointer, contiguous, public :: tracer_flow(:) !! Tracer flow rates
      PetscInt, public :: dof !! Number of degrees of freedom
      PetscInt, public :: num_primary_variables !! Number of primary thermodynamic variables
      PetscInt, public :: num_tracers !! Number of tracers
@@ -118,7 +119,7 @@ contains
        self%num_tracers = 0
     end if
     self%dof = num_source_scalar_variables + self%num_primary_variables + &
-         self%num_tracers
+         self%num_tracers * 2
 
   end subroutine source_init
 
@@ -149,8 +150,11 @@ contains
     if (self%num_tracers > 0) then
        self%tracer_injection_rate => data(iflow_end + 1: &
             iflow_end + self%num_tracers)
+       self%tracer_flow => data(iflow_end + self%num_tracers + 1: &
+            iflow_end + self%num_tracers * 2)
     else
        self%tracer_injection_rate => null()
+       self%tracer_flow => null()
     end if
 
   end subroutine source_assign
@@ -247,6 +251,7 @@ contains
     self%enthalpy => null()
     self%flow => null()
     self%tracer_injection_rate => null()
+    self%tracer_flow => null()
 
     call self%fluid%destroy()
 
