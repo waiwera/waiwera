@@ -48,7 +48,7 @@ module source_module
   character(max_source_variable_name_length), public :: &
        source_array_variable_names(num_source_array_variables) = [ &
        "flow                   ", &
-       "injection_mass_fraction"]
+       "injection_rate"]
 
   character(max_field_name_length), parameter, public :: required_output_source_fields(0) = [&
        character(max_field_name_length)::]

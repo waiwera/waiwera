@@ -278,7 +278,7 @@ contains
               trim(source_array_variable_names(1))
          i = i + 1
       end if
-      ! tracer injection mass fractions:
+      ! tracer injection rates:
       do j = 1, num_tracers
          field_names(i) = trim(tracer_names(j)) // '_' // &
               trim(source_array_variable_names(2))
