@@ -156,13 +156,13 @@ contains
           call test%assert(-2.5_dp * 0.5_dp, source%rate, trim(srcstr))
        case (5)
           call test%assert([0.001_dp / 3._dp, 0.001_dp / 3._dp], &
-               source%injection_tracer_mass_fraction, trim(srcstr))
+               source%tracer_injection_rate, trim(srcstr))
        case (6)
           call test%assert([0.001_dp / 3._dp, 0.001_dp * 7._dp / 9._dp], &
-               source%injection_tracer_mass_fraction, trim(srcstr))
+               source%tracer_injection_rate, trim(srcstr))
        case (7)
           call test%assert([0._dp, 0.001_dp * 7._dp / 9._dp], &
-               source%injection_tracer_mass_fraction, trim(srcstr))
+               source%tracer_injection_rate, trim(srcstr))
        end select
     end do
 

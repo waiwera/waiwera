@@ -270,7 +270,7 @@ contains
       call test%assert(production_component, nint(source%production_component), &
            trim(srcstr) // ": production component")
       if (present(tracer)) then
-         call test%assert(tracer, source%injection_tracer_mass_fraction, &
+         call test%assert(tracer, source%tracer_injection_rate, &
               trim(srcstr) // ": tracer")
       end if
 
