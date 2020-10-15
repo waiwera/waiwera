@@ -101,10 +101,14 @@ contains
           traceri_json => fson_value_children_mpi(tracer_json)
        end select
        allocate(tracers(num_tracers))
+       tracer_str = 'tracer'
+       default_name = 'tracer'
 
        do i = 1, num_tracers
-          write(tracer_str, '(a, i0, a)') 'tracer(', i, ')'
-          write(default_name, '(a, i0)') 'tracer_', i - 1
+          if (tracer_json_type == TYPE_ARRAY) then
+             write(tracer_str, '(a, i0, a)') 'tracer(', i - 1, ')'
+             write(default_name, '(a, i0)') 'tracer_', i - 1
+          end if
           call fson_get_mpi(traceri_json, "name", default_name, &
                tracers(i)%name, logfile, tracer_str // ".name")
           call fson_get_mpi(traceri_json, "phase", eos%default_tracer_phase, &

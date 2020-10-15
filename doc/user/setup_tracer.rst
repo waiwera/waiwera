@@ -16,7 +16,8 @@ Parameters related to the configuration of tracers (see :ref:`simulating_tracers
    +-----------------------+--------------+----------------------+-----------------------+
    |**name**               |**type**      |**default**           |**value**              |
    +-----------------------+--------------+----------------------+-----------------------+
-   |"name"                 |string        |"tracer_i" where i is |tracer name            |
+   |"name"                 |string        |"tracer", or          |tracer name            |
+   |                       |              |"tracer_i" where i is |                       |
    |                       |              |the tracer index      |                       |
    +-----------------------+--------------+----------------------+-----------------------+
    |"phase"                |string        |depends on EOS, but   |tracer phase           |
@@ -29,7 +30,7 @@ Parameters related to the configuration of tracers (see :ref:`simulating_tracers
    |                       |              |                      |(J/mol)                |
    +-----------------------+--------------+----------------------+-----------------------+
 
-The **"name"** value is a string identifying each tracer. If it is not specified, the tracer is given a default name based on its index, e.g. "tracer_0", "tracer_1", etc.
+The **"name"** value is a string identifying each tracer. If it is not specified, the default name "tracer" is used if there is a single tracer specified. If an array of tracers is specified, the default name for each is  based on its (zero-based) index, e.g. "tracer_0", "tracer_1", etc.
 
 Each tracer is assumed to be specific to a particular fluid phase (see :ref:`tracer_terms`). This phase can be specified via the **"phase"** string value. If not specified, a default value is used, which is specific to the :ref:`eos`. However, for most equations of state, the default tracer phase is "liquid".
 
