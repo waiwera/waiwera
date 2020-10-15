@@ -255,19 +255,13 @@ where :math:`p` is the tracer phase. The tracer flux term can be written as
 
 where :math:`F_{ij, p}` is the total mass flux (over all mass components) in phase :math:`p`. The quantity :math:`X_{ij}^T` represents the effective tracer mass fraction on the face between cells :math:`i` and :math:`j`, and is upstream weighted (e.g. :math:`X_{ij}^T = X_i^T` if flow is from cell :math:`i` to cell :math:`j`).
 
-The tracer source term :math:`q_i^T` takes slightly different forms depending on whether fluid is being produced or injected. For injection, an injected mass fraction of tracer :math:`X_{in}^T` is specified, and the source term can be written
+The tracer source term :math:`q_i^T` is specified for injection, while for production it is evaluated from:
 
 .. math::
 
-   q_i^T = X_{in}^T q_{i,p}
+   q_i^T = X_i^T f_{i,p} q_i
 
-where :math:`q_{i,p}` is the total injection rate in phase :math:`p`. (Here it is assumed that the source does not inject any phases other than the tracer phase :math:`p`.) For production, the tracer source term is:
-
-.. math::
-
-   q_i^T = X_i^T q_i f_p
-
-where :math:`q_i` is the total mass production rate and :math:`f_p` is the fluid flow fraction for phase :math:`p` (computed based on the phase mobilities).
+where :math:`f_{i,p}` is the fluid flow fraction for phase :math:`p` in cell :math:`i` (computed based on the phase mobilities) and :math:`q_i` is the mass production rate.
 
 .. _tracer_temp_decay:
 

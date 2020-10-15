@@ -39,8 +39,8 @@ Sources are set up in the Waiwera JSON input file via the **"source"** value. Th
    |                       |object          |:sup:`3`    |                         |
    |                       |                |J/kg        |                         |
    +-----------------------+----------------+------------+-------------------------+
-   |"tracer"               |number | array ||0           |injection tracer mass    |
-   |                       |object          |            |fraction                 |
+   |"tracer"               |number | array ||0           |tracer injection rate    |
+   |                       |object          |            |(kg/s)                   |
    +-----------------------+----------------+------------+-------------------------+
    |"cell" | "cells"       |integer | array |[]          |indices of cells with    |
    |                       |                |            |this source specification|
@@ -177,12 +177,12 @@ Note that it is not necessary to set the "production_component" value except in 
 Tracer injection
 ================
 
-If tracers are being simulated (see :ref:`setup_tracers`), then for :ref:`injection` sources it is possible to specify the mass fractions of tracers in the injected fluid, via the **"tracer"** value. This can be either:
+If tracers are being simulated (see :ref:`setup_tracers`), then for :ref:`injection` sources it is possible to specify the tracer injection rates via the **"tracer"** value. This can be either:
 
 - a scalar, representing a constant value to be applied to all tracers defined in the simulation
 - a rank-1 array of numbers, with one constant value for each tracer
-- a rank-2 array of numbers, representing a table of tracer mass fractions vs. time (to be applied to all tracers)
-- an object, with tracer names as keys and corresponding number or rank-2 array values, representing constant or time-dependent mass fractions
+- a rank-2 array of numbers, representing a table of tracer injection rates vs. time (to be applied to all tracers)
+- an object, with tracer names as keys and corresponding number or rank-2 array values, representing constant or time-dependent tracer injection rates
 
 For example:
 
@@ -193,7 +193,7 @@ For example:
       "enthalpy": 350e3, "rate": 2.5, "tracer": 1e-6}
    ]}
 
-specifies a source injecting water with enthalpy 350 kJ/kg at a constant rate of 2.5 kg/s, with tracer mass fraction :math:`10^{-6}`. In the following example:
+specifies a source injecting water with enthalpy 350 kJ/kg at a constant rate of 2.5 kg/s, with tracer injected at :math:`10^{-6}` kg/s. In the following example:
 
 .. code-block:: json
 
@@ -202,17 +202,17 @@ specifies a source injecting water with enthalpy 350 kJ/kg at a constant rate of
       "enthalpy": 350e3, "rate": 2.5, "tracer": [1e-6, 1e-5, 0]}
    ]}
 
-constant mass fractions are specified for three tracers, the third one being zero. In the following example:
+constant injection rates are specified for three tracers, the third one being zero. In the following example:
 
 .. code-block:: json
 
    {"source": [
      {"cell": 331, "component": "water",
       "enthalpy": 350e3, "rate": 2.5,
-       "tracer": [[0, 1e-6], [3600, 1e-7], [9600, 5e-8]]}
+       "tracer": [[0, 1e-5], [3600, 1e-6], [9600, 5e-7]]}
    ]}
 
-a time-dependent tracer injection mass fraction is specified, with values provided for three times (see :ref:`table_source_controls`).
+a time-dependent tracer injection rate is specified, with values provided for three times (see :ref:`table_source_controls`).
 
 Here is an example of specifying tracer injection using an object to refer to individual tracers by name:
 
@@ -227,7 +227,7 @@ Here is an example of specifying tracer injection using an object to refer to in
          "T2": [[0, 0], [3600, 1e-5], [7200, 0]]}}
    ]}
 
-In this case, it is assumed that tracers with names "T1" and "T2" have been defined separately in the input JSON file (see :ref:`setup_tracers`). For this source, tracer "T1" injects with mass fraction :math:`10^{-6}` for the first hour, after which tracer "T2" injects with mass fraction :math:`10^{-5}` for the second hour. Any tracers not included in this type of source specification will be given the default mass fraction of zero.
+In this case, it is assumed that tracers with names "T1" and "T2" have been defined separately in the input JSON file (see :ref:`setup_tracers`). For this source, tracer "T1" is injected at :math:`10^{-6}` kg/s for the first hour, after which tracer "T2" is injected at :math:`10^{-5}` kg/s for the second hour. Any tracers not included in this type of source specification will be given the default injection rate of zero.
 
 .. index:: sources; controls, source controls
 .. _source_controls:
@@ -235,7 +235,7 @@ In this case, it is assumed that tracers with names "T1" and "T2" have been defi
 Source controls
 ===============
 
-In many cases, it is necessary to simulate sources with flow rates (and possibly other quantities such as enthalpy or tracer mass fractions, for injection) that vary with time. To do this, a variety of different "source controls" may be added to a source, depending on what type of time variation is needed.
+In many cases, it is necessary to simulate sources with flow rates (and possibly other quantities such as enthalpy or tracer flow rates, for injection) that vary with time. To do this, a variety of different "source controls" may be added to a source, depending on what type of time variation is needed.
 
 These may be straight-forward controls in which the time variation is simply prescribed, or dynamic controls which vary flow rates in response to fluid conditions in the cell or other factors. Most types of controls may be combined together to simulate more complex source behaviour (see :ref:`combining_source_controls`).
 
@@ -245,7 +245,7 @@ These may be straight-forward controls in which the time variation is simply pre
 Tables
 ------
 
-The simplest type of time variation results from flow rates or other quantities (e.g. enthalpy, tracer mass fraction) being prescribed in the form of tables of values vs. time.
+The simplest type of time variation results from flow rates or other quantities (e.g. enthalpy, tracer injection rate) being prescribed in the form of tables of values vs. time.
 
 In the JSON input for a source specification, this can be achieved simply by specifying these values as rank-2 arrays (rather than numbers). These arrays are treated as :ref:`interpolation_tables` to enable Waiwera to compute the quantity at any time, and compute average values over the time step. The associated **"interpolation"** and **"averaging"** JSON values control the details of how these processes are carried out. (Note that the same interpolation and averaging parameters apply to different tables in the same source.)
 
