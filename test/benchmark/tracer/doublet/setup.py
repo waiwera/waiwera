@@ -133,7 +133,7 @@ dat.parameter.update(
      })
 
 inflow_mass_fraction = 1.e-3
-tq = 0.15 * day
+end_time = 0.15 * day
 qt = q * inflow_mass_fraction
 col = geo.columnlist[0]
 blkname = geo.block_name(lay.name, col.name)
@@ -141,7 +141,7 @@ gen = t2generator(name = 'trc 1', block = blkname,
                   type = 'COM2')
 gen.ltab = 4
 gen.itab = '1'
-gen.time = [0., tq, tq + 1.e-3, 1. * yr]
+gen.time = [0., end_time, end_time + 1.e-3, 1. * yr]
 gen.rate = [qt, qt, 0., 0.]
 gen.enthalpy = [h] * 4
 dat.add_generator(gen)
@@ -159,7 +159,7 @@ jsondata['time']['step']['maximum']['number'] = ndt
 jsondata['time']['step']['maximum']['size'] = dat.parameter['max_timestep']
 
 jsondata['tracer'] = {"name": "1"}
-jsondata['source'][0]['tracer'] = [[0, inflow_mass_fraction], [tq, 0]]
+jsondata['source'][0]['tracer'] = [[0, qt], [end_time, 0]]
 jsondata['source'][0]['interpolation'] = 'step'
 
 jsondata['initial'] = {'filename': model_name + '_ss.h5'}
