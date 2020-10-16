@@ -115,12 +115,20 @@
   "output": {
     "initial": true, 
     "frequency": 1, 
-    "final": true
+    "final": true, 
+    "fields": {
+      "source": [
+        "component", 
+        "rate", 
+        "enthalpy", 
+        "tracer_flow"
+      ]
+    }
   }, 
   "logfile": {
     "echo": true
   }, 
   "tracer": {
-    "name": "1"
+    "name": "tracer"
   }
 }

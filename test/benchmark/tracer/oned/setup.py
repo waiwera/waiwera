@@ -147,12 +147,15 @@ for phase in phases:
 
     jsondata['output']['initial'] = True
     jsondata['output']['frequency'] = dat.parameter['print_interval']
+    jsondata['output']['fields'] = {'source':
+                                    ['component', 'rate', 'enthalpy',
+                                     'tracer_flow']}
     jsondata['time']['step']['size'] = dat.parameter['const_timestep']
     jsondata['time']['stop'] = dat.parameter['tstop']
     jsondata['time']['step']['maximum']['number'] = dat.parameter['max_timesteps']
     jsondata['time']['step']['adapt']['on'] = False
 
-    jsondata['tracer'] = {"name": "1"}
+    jsondata['tracer'] = {"name": "tracer"}
     jsondata['boundaries'][0]['tracer'] = inflow_mass_fraction
 
     jsondata['initial'] = {'filename': case_model_name + '_ss.h5'}
