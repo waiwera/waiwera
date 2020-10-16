@@ -99,7 +99,7 @@ for output_index in output_indices:
                                               testOutputIndex = output_index))
 doublet_test.addTestComp(run_index, 'AUTOUGH2 source',
                           HistoryWithinTolTC(fieldsToTest = test_source_fields,
-                                             defFieldTol = 2.e-2,
+                                             defFieldTol = 1.e-3,
                                              expected = AUTOUGH2_result,
                                              testSourceIndex = source_index))
 
