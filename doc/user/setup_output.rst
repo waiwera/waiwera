@@ -188,6 +188,7 @@ The main simulation results consist of fluid and source properties, or "fields",
 
 Each of these values can be specified as an array of strings, containing the field names. Alternatively, they can be set to the single string value **"all"**, in which case all available fields will be output.
 
+.. index:: output; fluid
 .. _output_fluid_fields:
 
 Fluid fields
@@ -261,6 +262,7 @@ For example, for the :ref:`water_energy_eos` EOS, the fluid output fields must i
 
 If the necessary primary variable fields are not specified in the "output.fields.fluid" array, Waiwera will automatically add them. 
 
+.. index:: output; sources
 .. _output_source_fields:
 
 Source fields
@@ -297,12 +299,23 @@ The available source output fields are:
 +-----------------------+-------------------------------+
 |"production_component" |component for production       |
 +-----------------------+-------------------------------+
+|`tracer_name` + "_flow"|tracer flow rate (kg/s)        |
++-----------------------+-------------------------------+
 
 There is a mass component flow field for each mass component in the :ref:`eos` module being used. For example, for the :ref:`water_air_energy_eos` EOS, there will be two mass component flow fields, "water_flow" and "air_flow".
 
 For non-isothermal EOS modules there is also a "heat_flow" field, for flow in the energy component.
 
+If tracers are being simulated (see :ref:`setup_tracers`), then there is an additional flow field for each tracer, with "_flow" appended to the tracer name. (Note that tracer flow rates at sources are not output by default.)
+
 Regardless of the :ref:`eos`, the default source output fields are ["component", "rate", "enthalpy"].
+
+.. index:: output; tracers
+
+Tracer fields
+-------------
+
+If tracers are being simulated (see :ref:`setup_tracers`), then an output field is automatically included for each tracer (there is usually little point in simulating a tracer unless it is going to be output). The field name is the same as the tracer name.
 
 Examples
 --------
@@ -338,3 +351,12 @@ In this example all available fluid fields will be output:
 
    {"eos": {"name": "we"},
     "output": {"fields": {"fluid": "all"}}}
+
+The following example defines two tracers named "T1" and "T2" and specifies that their flow rates should be included in the source output (along with the fluid flow rate and enthalpy):
+
+.. code-block:: json
+
+   {"tracer": [{"name": "T1"}, {"name": "T2"}],
+    "output": {"fields": {
+                  "source": ["rate", "enthalpy", "T1_flow", "T2_flow"]}}}
+

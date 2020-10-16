@@ -31,7 +31,7 @@ Data in HDF5 files are generally organised into **groups**, which may be conside
 
 Under the root group, a Waiwera HDF5 output file contains two groups, "cell_fields" and "source_fields".
 
-.. index:: output; cells, HDF5; cell_fields group
+.. index:: output; cells, HDF5; cell_fields group, tracers; output, output; tracers
 
 Output at cells
 ---------------
@@ -41,6 +41,8 @@ The **"cell_fields"** group in a Waiwera HDF5 output file contains output data d
 Because the fluid datasets are generally time-dependent, there is one row in the dataset for each output time (see :ref:`time_output`), and on each row there is one column per cell.
 
 The "cell_fields" group also contains datasets related to **cell geometry**, which have names beginning with "cell_geometry". For example, the "cell_geometry_volume" dataset contains the volumes of all the cells. These datasets are not time-dependent, so there is just one row per cell. The "cell_geometry_centroid" dataset contains a three-element array for each cell, so there are three columns on each row.
+
+If tracers are being simulated (see :ref:`setup_tracers`), then the "cell_fields" group also contains datasets for the tracer mass fractions, one dataset for each tracer. The names of these datasets are "tracer\_" followed by the tracer name. These datasets are automatically included whenever tracers are simulated.
 
 .. index:: output; sources, HDF5; source_fields group
 
