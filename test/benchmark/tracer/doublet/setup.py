@@ -153,7 +153,9 @@ dat.run(simulator = AUTOUGH2,
         silent = True)
 
 jsondata['output']['frequency'] = dat.parameter['print_interval']
-jsondata['output']['source'] = ['tracer1_flow']
+jsondata['output']['fields'] = {'source':
+                                 ['component', 'rate', 'enthalpy',
+                                  'tracer1_flow']}
 jsondata['time']['step']['size'] = dat.parameter['const_timestep']
 jsondata['time']['stop'] = dat.parameter['tstop']
 jsondata['time']['step']['maximum']['number'] = ndt

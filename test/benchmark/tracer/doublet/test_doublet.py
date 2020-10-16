@@ -20,6 +20,7 @@ import credo.reporting.standardReports as sReps
 from credo.reporting import getGenerators
 
 from credo.systest import FieldWithinTolTC
+from credo.systest import HistoryWithinTolTC
 
 from mulgrids import mulgrid
 
@@ -44,11 +45,13 @@ model_name = 'doublet'
     
 AUTOUGH2_FIELDMAP = {
     'Pressure': 'Pressure',
-    'Tracer mass fraction': 'Tracer/liquid'}
+    'Tracer mass fraction': 'Tracer/liquid',
+    'Tracer production rate': 'Tracer mass flow'}
 
 WAIWERA_FIELDMAP = {
     'Pressure': 'fluid_pressure',
-    'Tracer mass fraction': 'tracer_tracer1'}
+    'Tracer mass fraction': 'tracer_tracer1',
+    'Tracer production rate': 'source_tracer1_flow'}
 
 model_dir = './run'
 data_dir = './data'
@@ -60,10 +63,12 @@ run_index = 0
 run_name = 'run'
 run_base_name = model_name
 output_indices = [0, 1, 2, 3, 6, 8]
+source_index = 1
 
 test_fields = ['Tracer mass fraction']
-field_unit = {'Tracer mass fraction': '10$^{-6}$'}
-field_scale = {'Tracer mass fraction': 1.e-6}
+field_unit = {'Tracer mass fraction': '10$^{-6}$', 'Tracer production rate': 'mg/s'}
+field_scale = {'Tracer mass fraction': 1.e-6, 'Tracer production rate': 1.e-6}
+test_source_fields = ['Tracer production rate']
 
 doublet_test = SciBenchmarkTest(model_name + "_test", nproc = args.np)
 doublet_test.description = """1-D single-phase doublet problem with tracer injection
@@ -92,6 +97,11 @@ for output_index in output_indices:
                                               absoluteErrorTol = 1.e-6,
                                               expected = AUTOUGH2_result,
                                               testOutputIndex = output_index))
+doublet_test.addTestComp(run_index, 'AUTOUGH2 source',
+                          HistoryWithinTolTC(fieldsToTest = test_source_fields,
+                                             defFieldTol = 2.e-2,
+                                             expected = AUTOUGH2_result,
+                                             testSourceIndex = source_index))
 
 jrunner = SimpleJobRunner(mpi = mpi)
 testResult, mResults = doublet_test.runTest(jrunner, createReports = True)
@@ -123,6 +133,30 @@ for field_name in test_fields:
         plt.savefig(img_filename + '.pdf')
         plt.clf()
         doublet_test.mSuite.analysisImages.append(img_filename + '.png')
+
+for field_name in test_source_fields:
+
+    t, var = doublet_test.mSuite.resultsList[run_index].\
+             getFieldHistoryAtSource(field_name, source_index)
+    plt.plot(t / day, var / field_scale[field_name], 'b-', label = 'Waiwera')
+
+    t, var = AUTOUGH2_result.getFieldHistoryAtSource(field_name, source_index)
+    plt.plot(t / day, var / field_scale[field_name], 'gs', label = 'AUTOUGH2')
+
+    plt.xlabel('time (days)')
+    plt.ylabel(field_name + ' (' + field_unit[field_name] + ')')
+    plt.legend(loc = 'best')
+    plt.title(field_name)
+    img_filename_base = '_'.join((model_name, field_name))
+    img_filename_base = img_filename_base.replace(' ', '_')
+    img_filename = os.path.join(doublet_test.mSuite.runs[run_index].basePath,
+                                doublet_test.mSuite.outputPathBase,
+                                img_filename_base + '.png')
+    plt.tight_layout(pad = 3.)
+    plt.savefig(img_filename + '.png', dpi = 300)
+    plt.savefig(img_filename + '.pdf')
+    plt.clf()
+    doublet_test.mSuite.analysisImages.append(img_filename + '.png')
 
 # generate report:
 

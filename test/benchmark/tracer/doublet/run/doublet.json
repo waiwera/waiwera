@@ -124,9 +124,14 @@
     "initial": false, 
     "frequency": 10, 
     "final": true, 
-    "source": [
-      "tracer1_flow"
-    ]
+    "fields": {
+      "source": [
+        "component", 
+        "rate", 
+        "enthalpy", 
+        "tracer1_flow"
+      ]
+    }
   }, 
   "logfile": {
     "echo": true
