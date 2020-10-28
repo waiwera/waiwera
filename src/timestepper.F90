@@ -1297,16 +1297,31 @@ contains
                 end if
              end if
           else
-             self%current%status = TIMESTEP_AUX_NOT_CONVERGED
+             call check_num_tries(TIMESTEP_AUX_NOT_CONVERGED)
           end if
-       else if (self%current%num_tries >= self%max_num_tries) then
-          self%current%status = TIMESTEP_ABORTED
-          self%finished = PETSC_TRUE
        else
-          self%current%status = TIMESTEP_NOT_CONVERGED
-          self%finished = PETSC_FALSE
+          call check_num_tries(TIMESTEP_NOT_CONVERGED)
        end if
     end if
+
+  contains
+
+    subroutine check_num_tries(ok_status)
+      !! Checks if maximum number of tries has been exceeded and sets
+      !! status accordingly if it has. Otherwise the specified
+      !! ok_status is set.
+
+      PetscInt, intent(in) :: ok_status
+
+      if (self%current%num_tries >= self%max_num_tries) then
+         self%current%status = TIMESTEP_ABORTED
+         self%finished = PETSC_TRUE
+      else
+         self%current%status = ok_status
+         self%finished = PETSC_FALSE
+      end if
+
+    end subroutine check_num_tries
     
   end subroutine timestepper_steps_set_current_status
 
