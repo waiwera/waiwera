@@ -1764,6 +1764,7 @@ contains
     type(list_type) :: index_list
     PetscInt, allocatable :: indices(:)
     PetscInt :: phases
+    PetscInt, pointer :: izero
     PetscReal, allocatable :: mass_fraction(:)
     DM :: dm_tracer
     PetscErrorCode :: ierr
@@ -1783,7 +1784,7 @@ contains
     call DMPlexGetHeightStratum(self%mesh%dm, 0, start_cell, end_cell, ierr)
     CHKERRQ(ierr)
     end_interior_cell = dm_get_end_interior_cell(self%mesh%dm, end_cell)
-    call index_list%init()
+    call index_list%init(PETSC_TRUE)
 
     do c = start_cell, end_interior_cell - 1
        if (self%mesh%ghost_cell(c) < 0) then
@@ -1795,7 +1796,9 @@ contains
           phases = nint(fluid%phase_composition)
           do it = 1, nt
              if (.not. btest(phases, self%tracers(it)%phase_index - 1)) then
-                call index_list%append(local_tracer_offset + it - 1)
+                allocate(izero)
+                izero = local_tracer_offset + it - 1
+                call index_list%append(izero)
              end if
           end do
        end if
@@ -1854,8 +1857,8 @@ contains
       select type (offset => node%data)
       type is (PetscInt)
          indices(i) = offset
+         i = i + 1
       end select
-      i = i + 1
 
     end subroutine index_list_iterator
 
