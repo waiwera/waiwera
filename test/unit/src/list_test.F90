@@ -114,7 +114,7 @@ contains
        call list%append(i, 'number')
        call test%assert(4, list%count, 'list count after append')
 
-       call list%traverse(list_node_adjust, .true.)
+       call list%traverse(list_node_adjust, PETSC_TRUE)
        call test%assert(4, list%count, 'list count after adjust')
 
        node => list%find('number')
@@ -207,7 +207,7 @@ contains
          d%name = 'boris'
       end select
 
-      stopped = .false.
+      stopped = PETSC_FALSE
 
     end subroutine list_node_adjust
 

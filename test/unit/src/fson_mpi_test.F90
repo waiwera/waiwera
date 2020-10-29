@@ -182,12 +182,14 @@ contains
     ! Locals:
     type(fson_value), pointer :: json
     PetscBool :: val
-    PetscBool, parameter :: expected = .false.
+    PetscBool, parameter :: expected = PETSC_FALSE
     PetscBool, allocatable :: arr(:)
-    PetscBool, parameter :: expected_arr(4) = [.false., .false., .true., .true.]
+    PetscBool, parameter :: expected_arr(4) = [PETSC_FALSE, PETSC_FALSE, &
+         PETSC_TRUE, PETSC_TRUE]
     PetscBool, allocatable :: arr_2d(:,:)
     PetscBool, parameter :: expected_arr_2d(3,2) = &
-         transpose(reshape([.true., .false., .false., .false., .true., .true.],&
+         transpose(reshape([PETSC_TRUE, PETSC_FALSE, PETSC_FALSE, &
+         PETSC_FALSE, PETSC_TRUE, PETSC_TRUE],&
          [2,3]))
 
     json => fson_parse_mpi(filename)
