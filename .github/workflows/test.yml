@@ -1,0 +1,31 @@
+name: Unit and benchmark tests
+
+on:
+  push
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: 3.8
+    - name: Install Python dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install --user ansible
+        pip install --user waiwera-credo
+        mkdir -p external/PyTOUGH
+        cd external/PyTOUGH
+        git clone https://github.com/acroucher/PyTOUGH.git .
+        pip install --user .
+        cd ../..
+    - name: Install Waiwera
+      run: ansible-playbook ansible/install_local.yml
+      working-directory: ./install
+    - name: Unit tests
+      run: python unit_tests.py
+    - name: Benchmark tests
+      run: python benchmark_tests.py -np 2
