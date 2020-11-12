@@ -26,8 +26,8 @@ jobs:
       run: ansible-playbook ansible/install_local.yml
       working-directory: ./install
     - name: Set path
-      run: echo "${HOME}/.local/bin" >> $GITHUB_PATH
-      run: echo "${HOME}/bin" >> $GITHUB_PATH
+    - run: echo "${HOME}/.local/bin" >> $GITHUB_PATH
+    - run: echo "${HOME}/bin" >> $GITHUB_PATH
     - name: Unit tests
       run: python unit_tests.py
     - name: Benchmark tests
