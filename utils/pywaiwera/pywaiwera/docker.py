@@ -381,7 +381,7 @@ class DockerEnv(object):
         machine.  NOTE, env only in this script.  Follow on-screen instruction
         if user wish to have the valid env within the current shell.
         """
-        if verbose: print('Updating environment varibales...')
+        if verbose: print('Updating environment variables...')
         ok, out, err = call(['docker-machine', 'env', '--shell=cmd'])
         if not ok:
             print('    {}'.format(err.strip()))

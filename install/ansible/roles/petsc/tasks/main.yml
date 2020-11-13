@@ -16,14 +16,6 @@
     - fetch
   when: (petsc_test is failed) or (petsc_update == 'true')
 
-- name: Change PETSc permissions
-  file:
-    path: "{{ petsc_path }}"
-    owner: "{{ app_user }}"
-    group: "{{ app_group }}"
-    mode: u+rw,g+r
-  when: petsc_test is failed
-
 - name: Build
   block:
     - name: configure
