@@ -9,10 +9,12 @@ jobs:
     if: "!contains(github.event.head_commit.message, 'ci skip')"
     steps:
     - uses: actions/checkout@v2
+
     - name: Set up Python
       uses: actions/setup-python@v2
       with:
         python-version: 3.8
+
     - name: Install Python dependencies
       run: |
         python -m pip install --upgrade pip
@@ -23,14 +25,32 @@ jobs:
         git clone https://github.com/acroucher/PyTOUGH.git .
         pip install --user .
         cd ../..
+
+    - name: Get PETSc version
+      id: get-petsc-version
+      run: |
+        echo "::set-output name=version::$(grep petsc_version install/ansible/group_vars/all.yml | awk '{print $NF}')"
+      shell: bash
+
+    - name: Cache PETSc
+      uses: actions/cache@v2
+      with:
+        path: |
+          external/PETSc
+          ~/lib/pkgconfig/PETSc.pc
+        key: ${{ runner.os }}-PETSc-${{ steps.get-petsc-version.outputs.version }}
+
     - name: Install Waiwera
       run: ansible-playbook ansible/install_local.yml
       working-directory: ./install
+
     - name: Set path
       run: |
         echo "${HOME}/.local/bin" >> $GITHUB_PATH
         echo "${HOME}/bin" >> $GITHUB_PATH
+
     - name: Unit tests
       run: python unit_tests.py
+
     - name: Benchmark tests
       run: python benchmark_tests.py -np 2
