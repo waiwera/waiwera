@@ -2343,7 +2343,7 @@ end subroutine timestepper_steps_set_next_stepsize
     character(len = reason_str_len) :: reason_str
     KSP :: linear_solver
     PetscInt :: iterations, log_level
-    PetscBool :: snes_converged
+    PetscBool :: converged
     KSPConvergedReason :: ksp_reason
     PetscErrorCode :: ierr
 
@@ -2359,26 +2359,30 @@ end subroutine timestepper_steps_set_next_stepsize
     end if
 
     reason_str = SNES_reason_str(converged_reason)
-    snes_converged = (converged_reason >= 0)
-    if (snes_converged) then
-       log_level = LOG_LEVEL_INFO
-    else
-       log_level = LOG_LEVEL_WARN
-    end if
+    converged = (converged_reason >= 0)
+    log_level = converged_log_level(converged)
 
     call self%ode%logfile%write(log_level, 'nonlinear_solver', 'end', &
-         logical_keys = ['converged'], logical_values = [snes_converged], &
+         logical_keys = ['converged'], logical_values = [converged], &
          int_keys = ['iterations'], &
          int_values = [self%steps%current%num_iterations], &
          str_key = 'reason', str_value = trim(reason_str))
 
-    if (self%ode%auxiliary .and. (converged_reason_aux < 0)) then
+    if (self%ode%auxiliary) then
        call KSPGetIterationNumber(self%solver_aux, iterations, ierr); CHKERRQ(ierr)
        reason_str = KSP_reason_str(converged_reason_aux)
-       call self%ode%logfile%write(LOG_LEVEL_WARN, 'aux_linear_solver', 'end', &
-            logical_keys = ['converged'], logical_values = [PETSC_FALSE], &
-            int_keys = ['iterations'], int_values = [iterations], &
-            str_key = 'reason', str_value = trim(reason_str))
+       converged = (converged_reason_aux >= 0)
+       log_level = converged_log_level(converged)
+       if (converged) then
+          call self%ode%logfile%write(log_level, 'aux_linear_solver', 'end', &
+               logical_keys = ['converged'], logical_values = [converged], &
+               int_keys = ['iterations'], int_values = [iterations])
+       else
+          call self%ode%logfile%write(log_level, 'aux_linear_solver', 'end', &
+               logical_keys = ['converged'], logical_values = [converged], &
+               int_keys = ['iterations'], int_values = [iterations], &
+               str_key = 'reason', str_value = trim(reason_str))
+       end if
     end if
 
     if (self%steps%current%status == TIMESTEP_ABORTED) then
@@ -2460,6 +2464,17 @@ end subroutine timestepper_steps_set_next_stepsize
             s = "unknown"
       end select
     end function KSP_reason_str
+
+    PetscInt function converged_log_level(converged)
+      !! Returns appropriate log level for convergence or
+      !! non-convergence.
+      PetscBool, intent(in) :: converged
+       if (converged) then
+          converged_log_level = LOG_LEVEL_INFO
+       else
+          converged_log_level = LOG_LEVEL_WARN
+       end if
+    end function converged_log_level
 
   end subroutine timestepper_log_step_status
 
