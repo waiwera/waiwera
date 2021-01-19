@@ -3065,14 +3065,26 @@ contains
       type(rock_type), intent(out) :: rock
       character(*), intent(in) :: rockstr
       ! Locals:
+      PetscInt :: permeability_type
       PetscReal, parameter :: default = -1._dp ! Flag missing values with -1
-      PetscReal, parameter :: default_permeability(3) = [-1._dp, -1._dp, -1._dp]
+      PetscReal, allocatable :: default_permeability(:)
       PetscReal, allocatable :: permeability(:)
+      PetscReal :: permeability_scalar
 
-      call fson_get_mpi(json, "permeability", default_permeability, &
-           permeability, logfile, trim(rockstr) // "permeability")
-      rock%permeability = 0._dp
-      rock%permeability(1: size(permeability)) = permeability
+      rock%permeability = default
+      permeability_type = fson_type_mpi(json, "permeability")
+      select case (permeability_type)
+      case (TYPE_ARRAY)
+         allocate(default_permeability(self%dim))
+         default_permeability = default
+         call fson_get_mpi(json, "permeability", default_permeability, &
+              permeability, logfile, trim(rockstr) // "permeability")
+         rock%permeability(1: size(permeability)) = permeability
+      case default ! real or null
+         call fson_get_mpi(json, "permeability", default, &
+                  permeability_scalar, logfile, trim(rockstr) // "permeability")
+         rock%permeability = permeability_scalar
+      end select
       call fson_get_mpi(json, "wet_conductivity", default, &
            rock%wet_conductivity, logfile, trim(rockstr) // "wet_conductivity")
       call fson_get_mpi(json, "dry_conductivity", default, &
