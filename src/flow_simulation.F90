@@ -1620,7 +1620,7 @@ contains
       PetscReal, pointer, contiguous :: fluid_array(:), br_array(:)
       PetscInt :: s, c
       PetscInt :: source_offset, cell_geom_offset, br_offset, irow
-      PetscReal :: q, phase_flow_fractions(np), qv(nt)
+      PetscReal :: q, phase_flow_fractions(self%eos%num_phases), qv(nt)
 
       call cell%init(self%eos%num_components, self%eos%num_phases)
       call source%init(self%eos, size(self%tracers))
