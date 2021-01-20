@@ -84,7 +84,7 @@ For example:
       "faces": {"cells": [101, 102, 103, 104], "normal": [0, 0, 1]}}
    ]}
 
-specifies a liquid water boundary condition on four faces at the top surface of the mesh (normal vector pointing up). Because the water / energy EOS is used, which has liquid water primary variables of pressure and temperature, the boundary condition sets a pressure 1 bar and temperature 18\ :math:`^{\circ}`\ C.
+specifies a liquid water boundary condition on four faces at the top surface of the mesh (normal vector pointing up). Because the :ref:`water_energy_eos` EOS is used, which has liquid water primary variables of pressure and temperature, the boundary condition sets a pressure 1 bar and temperature 18\ :math:`^{\circ}`\ C. This might represent an atmospheric boundary condition.
 
 In this example:
 
@@ -93,13 +93,11 @@ In this example:
   {"mesh": {"filename": "my_mesh.exo"},
    "eos": {"name": "wae"},
    "boundaries": [
-     {"primary": [1e5, 18, 0.99e5], "region": 1,
-      "faces": {"cells": [101, 102, 103, 104], "normal": [0, 0, 1]}},
-     {"primary": [2e5, 0.5, 0], "region": 4,
-     "faces": {"cells": [200, 201, 202, 203], "normal": [1, 0, 0]}}
+     {"primary": [1e5, 18, 0.99e5], "region": 2,
+      "faces": {"cells": [101, 102, 103, 104], "normal": [0, 0, 1]}}
    ]}
 
-two boundaries are set up, the first again on four faces at the top surface of the mesh and with liquid conditions. Because the water, air and energy EOS is used, the region 1 boundary conditions specify pressure, temperature and air partial pressure. The second boundary sets two-phase conditions (pressure, vapour saturation and air partial pressure) with zero partial pressure of air on a horizontal boundary in the positive :math:`x`\ -direction.
+an atmospheric boundary condition is also specified, but for the :ref:`water_air_energy_eos` EOS. Here the primary variables are pressure, temperature and air partial pressure. Again the pressure and temperature are 1 bar and 18\ :math:`^{\circ}`\ C. An atmospheric boundary for this EOS usually specifies conditions that are almost completely saturated with air, so here the air partial pressure is set to be just slightly less than the total pressure. Under these conditions the water is present in the form of vapour (because the partial pressure of water is only 0.01 bar), so the thermodynamic region must be set to 2 (see :ref:`thermodynamic_regions`).
 
 .. index:: boundary conditions; Neumann
 .. _neumann_boundary_conditions:
