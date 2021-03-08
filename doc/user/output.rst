@@ -87,7 +87,8 @@ This index array can be used to re-order output in global output ordering back i
 
 Similarly, there is another dataset called **"source_index"** which maps the natural source ordering onto the global source ordering in the output.
 
-.. index:: HDF5; scripting, output; scripting
+.. index:: HDF5; scripting, output; scripting, scripting; output
+.. _output_script:
 
 Simulation output and scripts
 =============================
@@ -101,7 +102,7 @@ For example, `h5py <https://www.h5py.org/>`_ is a Python library for interacting
    import h5py
    import matplotlib.pyplot as plt
 
-   out = h5py.File('model.h5')
+   out = h5py.File('model.h5', 'r')
 
    index = out['cell_index'][:,0]
    z = out['cell_fields']['cell_geometry_centroid'][index, 1]
@@ -122,6 +123,44 @@ Here the second column (:math:`y`-coordinate) of the centroid array is read in, 
            :align: center
 
            Temperature vs. elevation plot from Waiwera HDF5 output
+
+If the `Layermesh <https://github.com/acroucher/layermesh>`_ library is used to create the Waiwera simulation mesh (see :ref:`creating_meshes`), it can also be used to produce 2-D layer and vertical slice plots of Waiwera results. For example, the following script produces plots of steady-state temperatures and vapour saturations along a vertical slice through the centre of the 3-D geothermal model created in :ref:`setup_script`:
+
+.. code-block:: python
+
+   import h5py
+   import matplotlib.pyplot as plt
+   import layermesh.mesh as lm
+
+   mesh = lm.mesh('demo_mesh.h5')
+   results = h5py.File('demo.h5', 'r')
+   index = results['cell_index'][:,0]
+
+   T = results['cell_fields']['fluid_temperature'][-1][index]
+   S = results['cell_fields']['fluid_vapour_saturation'][-1][index]
+
+   fig = plt.figure(figsize = (5, 6))
+
+   ax = fig.add_subplot(2, 1, 1)
+   mesh.slice_plot('x', value = T, axes = ax,
+                   value_label = 'Temperature',
+                   value_unit = '$^{\circ}$C',
+                   colourmap = 'jet')
+
+   ax = fig.add_subplot(2, 1, 2)
+   mesh.slice_plot('x', value = S, axes = ax,
+                   value_label = 'Vapour saturation',
+                   colourmap = 'jet')
+
+   plt.savefig('results.pdf')
+   plt.show()
+
+This script produces the plots below:
+
+.. figure:: setup_demo_results.*
+           :align: center
+
+           Steady-state temperature and vapour saturation results for demo simulation
 
 Log output
 ==========

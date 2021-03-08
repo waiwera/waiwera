@@ -96,7 +96,8 @@ For example, the following two JSON files are completely equivalent:
 
    {"name": "Ted Smith", "age": 76}
 
-.. index:: JSON; scripting
+.. index:: JSON; scripting, scripting; JSON
+.. _json_script:
 
 JSON files in scripts
 =====================

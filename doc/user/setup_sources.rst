@@ -298,9 +298,9 @@ The total mass flow rate :math:`q` (kg/s) is given by:
 .. math::
    :label: deliverability
 
-   q = - \alpha \sum_p { \frac{k_r^p \rho_p}{\mu_p} (P - P_0)}
+   q = - \alpha \sum_p { \frac{k^r_p \rho_p}{\mu_p} (P - P_0)}
 
-where the sum is taken over all phases present. The quantity :math:`\alpha` is a specified "productivity index", :math:`P` is the pressure and :math:`P_0` is the reference pressure. The quantities :math:`k_r^p`, :math:`\rho_p` and :math:`\mu_p` are respectively the phase relative permeability, density and viscosity of the fluid in the cell.
+where the sum is taken over all phases present. The quantity :math:`\alpha` is a specified "productivity index", :math:`P` is the pressure and :math:`P_0` is the reference pressure. The quantities :math:`k^r_p`, :math:`\rho_p` and :math:`\mu_p` are respectively the phase relative permeability, density and viscosity of the fluid in the cell.
 
 In the Waiwera JSON input file, a deliverability control is added to a source specification via its **"deliverability"** value.
 

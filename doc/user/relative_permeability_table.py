@@ -7,6 +7,6 @@ kr = [0, 0.01, 0.99, 1]
 
 plt.plot(s, kr)
 plt.xlabel('$s_p$')
-plt.ylabel('$k_r^p$')
+plt.ylabel('$k^r_p$')
 plt.savefig('relative_permeability_table.svg')
 plt.savefig('relative_permeability_table.pdf')

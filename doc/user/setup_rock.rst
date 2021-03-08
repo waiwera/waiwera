@@ -165,7 +165,7 @@ Relative permeability curves
 
 Relative permeability curves are a way of adapting Darcy's law to multi-phase flow. When multiple phases are present in a cell, the flow in a given phase may be inhibited by the presence of the other phases. For example, in two-phase flow, the presence of the vapour phase (steam) may reduce the effective permeability for the liquid water phase.
 
-In the equation for mass flux through the cell faces (see :ref:`function_evaluations`) the relative permeability :math:`k_r^p` is a factor applied the rock permeability :math:`k` for phase :math:`p`. The relative permeability curves describe how :math:`k_r^p` for each phase varies as a function of saturation.
+In the equation for mass flux through the cell faces (see :ref:`function_evaluations`) the relative permeability :math:`k^r_p` is a factor applied the rock permeability :math:`k` for phase :math:`p`. The relative permeability curves describe how :math:`k^r_p` for each phase varies as a function of saturation.
 
 A variety of different types of relative permeability curves have been proposed. Waiwera offers several of these, and allows the desired curves to be specified in the JSON input file via the **"rock.relative_permeability"** value. This value is an object, containing a **"type"** string value which selects the type of curve, along with other parameters which depend on the curve type.
 
@@ -176,7 +176,7 @@ The different types of relative permeability curves available in Waiwera are des
 Fully mobile
 ------------
 
-This type of relative permeability curve maintains full mobility for all phases, regardless of saturation (i.e. :math:`k_r^p = 1` for all phases). It can be specified by setting the **"type"** value to "fully mobile" (or "fully_mobile"). There are no other parameters.
+This type of relative permeability curve maintains full mobility for all phases, regardless of saturation (i.e. :math:`k^r_p = 1` for all phases). It can be specified by setting the **"type"** value to "fully mobile" (or "fully_mobile"). There are no other parameters.
 
 .. note::
 
@@ -444,7 +444,7 @@ specifies Van Genuchten relative permeability curves with :math:`\lambda = 0.4` 
 
 Table
 -----
-Setting the relative permeability **"type"** value to "table" allows specification of relative permeability curves defined as general piecewise-linear tables. For each phase :math:`p`, the relative permeability curve is specified as a table of :math:`(S_p, k_r^p)` values. In the Waiwera JSON input file these tables take the form of rank-2 arrays (i.e. arrays of arrays), specified via the **"liquid"** and **"vapour"** values.
+Setting the relative permeability **"type"** value to "table" allows specification of relative permeability curves defined as general piecewise-linear tables. For each phase :math:`p`, the relative permeability curve is specified as a table of :math:`(S_p, k^r_p)` values. In the Waiwera JSON input file these tables take the form of rank-2 arrays (i.e. arrays of arrays), specified via the **"liquid"** and **"vapour"** values.
 
 .. note::
 

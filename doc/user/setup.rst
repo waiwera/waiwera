@@ -24,3 +24,4 @@ This section describes how to set up the various aspects of a Waiwera simulation
    setup_tracer
    setup_logfile
    setup_output 
+   setup_script
