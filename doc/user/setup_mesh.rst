@@ -91,6 +91,7 @@ Mesh handling in Waiwera makes use of the `PETSc <https://www.mcs.anl.gov/petsc/
 .. [ScYa95] Schoof, L.A. and Yarberry, V.R. (1995). "ExodusII: a finite element data model". Technical Report SAND92-2137, Sandia National Laboratories, Albuquerque, New Mexico, USA.
 
 .. index:: mesh; creating
+.. _creating_meshes:
 
 Creating meshes
 ===============
