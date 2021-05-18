@@ -385,13 +385,23 @@ contains
     class(flow_simulation_type), intent(in out) :: self
     type(fson_value), pointer, intent(in) :: json
     ! Locals:
-      character(max_field_name_length), allocatable :: &
-           output_fields(:)
+    character(max_field_name_length), allocatable :: &
+         output_fields(:)
+    ! Always default to no flux output:
+    character(max_field_name_length), parameter :: &
+         default_output_flux_fields(0), &
+         required_output_flux_fields(0)
 
     call setup_vector_output_fields("fluid", self%fluid, &
          self%eos%default_output_fluid_fields, &
          self%eos%required_output_fluid_fields, &
          self%output_fluid_field_indices, output_fields)
+    deallocate(output_fields)
+
+    call setup_vector_output_fields("flux", self%flux, &
+         default_output_flux_fields, &
+         required_output_flux_fields, &
+         self%output_flux_field_indices, output_fields)
     deallocate(output_fields)
 
     call setup_vector_output_fields("source", self%source, &
