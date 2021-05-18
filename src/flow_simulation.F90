@@ -75,6 +75,7 @@ module flow_simulation_module
      integer(int32) :: start_clock !! Start wall clock time of simulation
      PetscBool :: unperturbed !! Whether any primary variables are being perturbed for Jacobian calculation
      PetscBool :: source_tracer_output !! Whether to output source tracer flow rates
+     PetscBool :: flux_output !! Whether to output fluxes
    contains
      private
      procedure :: create_solution_vector => flow_simulation_create_solution_vector
@@ -403,6 +404,7 @@ contains
          required_output_flux_fields, &
          self%output_flux_field_indices, output_fields)
     deallocate(output_fields)
+    self%flux_output = (len(self%output_flux_field_indices) > 0)
 
     call setup_vector_output_fields("source", self%source, &
          default_output_source_fields, required_output_source_fields, &
@@ -2536,6 +2538,11 @@ contains
        call vec_sequence_view_hdf5(self%fluid, &
             self%output_fluid_field_indices, "/cell_fields", time_index, &
             time, self%hdf5_viewer)
+       if (self%flux_output) then
+          call vec_sequence_view_hdf5(self%flux, &
+               self%output_flux_field_indices, "/face_fields", time_index, &
+               time, self%hdf5_viewer)
+       end if
        if (self%num_sources > 0) then
           if (self%source_tracer_output) then
              call self%source_tracer_flows()
