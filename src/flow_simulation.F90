@@ -69,6 +69,7 @@ module flow_simulation_module
      character(max_output_filename_length), public :: output_filename !! HDF5 output filename
      PetscViewer :: hdf5_viewer !! Viewer for HDF5 output
      PetscInt, allocatable :: output_fluid_field_indices(:) !! Field indices for fluid output
+     PetscInt, allocatable :: output_flux_field_indices(:)  !! Field indices for flux output
      PetscInt, allocatable :: output_source_field_indices(:) !! Field indices for source output
      PetscInt, allocatable :: output_tracer_field_indices(:) !! Field indices for tracer output
      integer(int32) :: start_clock !! Start wall clock time of simulation
@@ -358,6 +359,9 @@ contains
     end if
     if (allocated(self%output_fluid_field_indices)) then
        deallocate(self%output_fluid_field_indices)
+    end if
+    if (allocated(self%output_flux_field_indices)) then
+       deallocate(self%output_flux_field_indices)
     end if
     if (allocated(self%output_source_field_indices)) then
        deallocate(self%output_source_field_indices)
