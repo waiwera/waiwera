@@ -2531,6 +2531,8 @@ contains
     PetscInt, intent(in) :: time_index
     PetscReal, intent(in) :: time
     ! Locals:
+    DM :: flux_dm
+    Vec :: global_flux
     PetscErrorCode :: ierr
 
     call PetscLogEventBegin(output_event, ierr); CHKERRQ(ierr)
@@ -2540,9 +2542,15 @@ contains
             self%output_fluid_field_indices, "/cell_fields", time_index, &
             time, self%hdf5_viewer)
        if (self%flux_output) then
-          call vec_sequence_view_hdf5(self%flux, &
+          call VecGetDM(self%flux, flux_dm, ierr); CHKERRQ(ierr)
+          call DMGetGlobalVector(flux_dm, global_flux, ierr); CHKERRQ(ierr)
+          call PetscObjectSetName(global_flux, "flux", ierr); CHKERRQ(ierr)
+          call DMLocalToGlobal(flux_dm, self%flux, &
+               INSERT_VALUES, global_flux, ierr); CHKERRQ(ierr)
+          call vec_sequence_view_hdf5(global_flux, &
                self%output_flux_field_indices, "/face_fields", time_index, &
                time, self%hdf5_viewer)
+          call DMRestoreGlobalVector(flux_dm, global_flux, ierr); CHKERRQ(ierr)
        end if
        if (self%num_sources > 0) then
           if (self%source_tracer_output) then
