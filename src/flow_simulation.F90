@@ -388,10 +388,11 @@ contains
     ! Locals:
     character(max_field_name_length), allocatable :: &
          output_fields(:)
-    ! Always default to no flux output:
-    character(max_field_name_length), parameter :: &
-         default_output_flux_fields(0), &
-         required_output_flux_fields(0)
+    character(max_field_name_length), allocatable :: &
+         default_output_flux_fields(:), &
+         required_output_flux_fields(:)
+    allocate(default_output_flux_fields(0), &
+         required_output_flux_fields(0))
 
     call setup_vector_output_fields("fluid", self%fluid, &
          self%eos%default_output_fluid_fields, &
