@@ -405,7 +405,7 @@ contains
          required_output_flux_fields, &
          self%output_flux_field_indices, output_fields)
     deallocate(output_fields)
-    self%flux_output = (len(self%output_flux_field_indices) > 0)
+    self%flux_output = (size(self%output_flux_field_indices) > 0)
 
     call setup_vector_output_fields("source", self%source, &
          default_output_source_fields, required_output_source_fields, &
