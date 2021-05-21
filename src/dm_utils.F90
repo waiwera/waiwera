@@ -1085,7 +1085,8 @@ contains
 
   subroutine get_field_subvector(v, field, index_set, subv)
     !! Gets subvector of v for the specified field. Based on
-    !! PetscSectionGetField_Internal().
+    !! PetscSectionGetField_Internal(). Boundary ghost cells are
+    !! excluded.
 
     Vec, intent(in) :: v
     PetscInt, intent(in) :: field
@@ -1095,24 +1096,17 @@ contains
     DM :: dm
     PetscSection :: section, global_section
     PetscInt :: pstart, pend, p, f, fc, fdof
-    PetscInt :: start_cell, end_cell, end_interior_cell
     PetscInt :: num_components, gdof, poff, goff, suboff
-    PetscInt :: subsize
+    PetscInt :: subsize, cell_type
     PetscInt, allocatable :: subindices(:)
+    DMLabel :: celltype_label
     PetscErrorCode :: ierr
 
     call VecGetDM(v, dm, ierr); CHKERRQ(ierr)
     call DMGetSection(dm, section, ierr); CHKERRQ(ierr)
     call DMGetGlobalSection(dm, global_section, ierr); CHKERRQ(ierr)
-    call DMPlexGetHeightStratum(dm, 0, start_cell, end_cell, ierr); CHKERRQ(ierr)
-    end_interior_cell = dm_get_end_interior_cell(dm, end_cell)
-
     call PetscSectionGetChart(section, pstart, pend, ierr); CHKERRQ(ierr)
-    ! Modify point range for cells- to exclude boundary ghosts:
-    if ((end_cell > start_cell) .and. &
-         (start_cell >= pstart) .and. (start_cell < pend)) then
-       pend = end_interior_cell
-    end if
+    call DMPlexGetCellTypeLabel(dm, celltype_label, ierr); CHKERRQ(ierr)
 
     call PetscSectionGetFieldComponents(section, field, &
          num_components, ierr); CHKERRQ(ierr)
@@ -1120,9 +1114,13 @@ contains
     do p = pstart, pend - 1
        call PetscSectionGetDof(global_section, p, gdof, ierr); CHKERRQ(ierr)
        if (gdof > 0) then
-          call PetscSectionGetFieldDof(section, p, field, fdof, ierr)
+          call DMLabelGetValue(celltype_label, p, cell_type, ierr)
           CHKERRQ(ierr)
-          subsize = subsize + fdof
+          if (cell_type /= DM_POLYTOPE_FV_GHOST) then
+             call PetscSectionGetFieldDof(section, p, field, fdof, ierr)
+             CHKERRQ(ierr)
+             subsize = subsize + fdof
+          end if
        end if
     end do
     allocate(subindices(0: subsize - 1))
@@ -1131,19 +1129,23 @@ contains
     do p = pstart, pend - 1
        call PetscSectionGetDof(global_section, p, gdof, ierr); CHKERRQ(ierr)
        if (gdof > 0) then
-          call PetscSectionGetOffset(global_section, p, goff, ierr)
+          call DMLabelGetValue(celltype_label, p, cell_type, ierr)
           CHKERRQ(ierr)
-          poff = 0
-          do f = 0, field - 1
-             call PetscSectionGetFieldDof(section, p, f, fdof, ierr)
+          if (cell_type /= DM_POLYTOPE_FV_GHOST) then
+             call PetscSectionGetOffset(global_section, p, goff, ierr)
              CHKERRQ(ierr)
-             poff = poff + fdof
-          end do
-          call PetscSectionGetFieldDof(section, p, field, fdof, ierr)
-          CHKERRQ(ierr)
-          subindices(suboff: suboff + fdof - 1) = &
-               goff + poff + [(fc, fc = 0, fdof - 1)]
-          suboff = suboff + fdof
+             poff = 0
+             do f = 0, field - 1
+                call PetscSectionGetFieldDof(section, p, f, fdof, ierr)
+                CHKERRQ(ierr)
+                poff = poff + fdof
+             end do
+             call PetscSectionGetFieldDof(section, p, field, fdof, ierr)
+             CHKERRQ(ierr)
+             subindices(suboff: suboff + fdof - 1) = &
+                  goff + poff + [(fc, fc = 0, fdof - 1)]
+             suboff = suboff + fdof
+          end if
        end if
     end do
 
