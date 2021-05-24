@@ -1622,7 +1622,7 @@ contains
     do f = start_face, end_face - 1
        if (self%ghost_face(f) < 0) then
           call DMPlexGetSupportSize(self%dm, f, num_cells, ierr); CHKERRQ(ierr)
-          if (num_cells == 2) then
+          if (num_cells > 1) then
              call DMSetLabelValue(self%dm, interior_face_label_name, &
                   f, 1, ierr); CHKERRQ(ierr)
           end if
