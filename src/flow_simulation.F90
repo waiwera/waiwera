@@ -1243,9 +1243,8 @@ contains
     Vec, intent(in out) :: rhs
     PetscErrorCode, intent(out) :: err
     ! Locals:
-    PetscInt :: f, i, np, nf
+    PetscInt :: f, i, np, nf, iface
     PetscInt :: start_cell, end_cell, end_interior_cell
-    PetscInt :: start_face, end_face
     Vec :: local_fluid, local_rock, local_update
     PetscReal, pointer, contiguous :: rhs_array(:)
     PetscReal, pointer, contiguous :: cell_geom_array(:), face_geom_array(:)
@@ -1299,55 +1298,52 @@ contains
     call face%init(self%eos%num_components, self%eos%num_phases)
     call DMPlexGetHeightStratum(self%mesh%dm, 0, start_cell, end_cell, ierr)
     CHKERRQ(ierr)
-    call DMPlexGetHeightStratum(self%mesh%dm, 1, start_face, end_face, ierr)
-    CHKERRQ(ierr)
     end_interior_cell = dm_get_end_interior_cell(self%mesh%dm, end_cell)
 
-    do f = start_face, end_face - 1
+    do iface = 1, size(self%mesh%interior_face)
 
-       if (self%mesh%ghost_face(f) < 0) then
+       f = self%mesh%interior_face(iface)
 
-          call DMPlexGetSupport(self%mesh%dm, f, cells, ierr); CHKERRQ(ierr)
+       call DMPlexGetSupport(self%mesh%dm, f, cells, ierr); CHKERRQ(ierr)
+       do i = 1, 2
+          update_offsets(i) = section_offset(update_section, cells(i))
+          cell_geom_offsets(i) = section_offset(cell_geom_section, cells(i))
+          rhs_offsets(i) = global_section_offset(rhs_section, cells(i), &
+               self%solution_range_start)
+       end do
+       face_geom_offset = section_offset(face_geom_section, f)
+       call face%assign_geometry(face_geom_array, face_geom_offset)
+       call face%assign_cell_geometry(cell_geom_array, cell_geom_offsets)
+
+       if ((update(update_offsets(1)) > 0) .or. &
+            (update(update_offsets(2)) > 0)) then
           do i = 1, 2
-             update_offsets(i) = section_offset(update_section, cells(i))
-             cell_geom_offsets(i) = section_offset(cell_geom_section, cells(i))
-             rhs_offsets(i) = global_section_offset(rhs_section, cells(i), &
-                  self%solution_range_start)
+             fluid_offsets(i) = section_offset(fluid_section, cells(i))
+             rock_offsets(i) = section_offset(rock_section, cells(i))
           end do
-          face_geom_offset = section_offset(face_geom_section, f)
-          call face%assign_geometry(face_geom_array, face_geom_offset)
-          call face%assign_cell_geometry(cell_geom_array, cell_geom_offsets)
-
-          if ((update(update_offsets(1)) > 0) .or. &
-               (update(update_offsets(2)) > 0)) then
-             do i = 1, 2
-                fluid_offsets(i) = section_offset(fluid_section, cells(i))
-                rock_offsets(i) = section_offset(rock_section, cells(i))
-             end do
-             call face%assign_cell_fluid(fluid_array, fluid_offsets)
-             call face%assign_cell_rock(rock_array, rock_offsets)
-             face_flux = face%flux(self%eos)
-             if (self%unperturbed) then
-                flux_offset = section_offset(flux_section, f)
-                flux_array(flux_offset : flux_offset + nf - 1) = face_flux
-             end if
-          else
+          call face%assign_cell_fluid(fluid_array, fluid_offsets)
+          call face%assign_cell_rock(rock_array, rock_offsets)
+          face_flux = face%flux(self%eos)
+          if (self%unperturbed) then
              flux_offset = section_offset(flux_section, f)
-             face_flux = flux_array(flux_offset : flux_offset + nf - 1)
+             flux_array(flux_offset : flux_offset + nf - 1) = face_flux
           end if
-
-          face_component_flow = face_flux(1:np) * face%area
-
-          do i = 1, 2
-             if ((self%mesh%ghost_cell(cells(i)) < 0) .and. &
-                  (cells(i) <= end_interior_cell - 1)) then
-                inflow => rhs_array(rhs_offsets(i) : rhs_offsets(i) + np - 1)
-                inflow = inflow + flux_sign(i) * face_component_flow / &
-                     face%cell(i)%volume
-             end if
-          end do
-
+       else
+          flux_offset = section_offset(flux_section, f)
+          face_flux = flux_array(flux_offset : flux_offset + nf - 1)
        end if
+
+       face_component_flow = face_flux(1:np) * face%area
+
+       do i = 1, 2
+          if ((self%mesh%ghost_cell(cells(i)) < 0) .and. &
+               (cells(i) <= end_interior_cell - 1)) then
+             inflow => rhs_array(rhs_offsets(i) : rhs_offsets(i) + np - 1)
+             inflow = inflow + flux_sign(i) * face_component_flow / &
+                  face%cell(i)%volume
+          end if
+       end do
+
     end do
 
     call face%destroy()
