@@ -313,19 +313,20 @@ contains
 !------------------------------------------------------------------------
 
   subroutine dm_set_data_layout(dm, num_components, field_dim, &
-       field_name)
+       field_name, label)
     !! Sets data layout on default section of the given DM.
 
     DM, intent(in out) :: dm !! DM object
     PetscInt, target, intent(in) :: num_components(:) !! Number of components in each field
     PetscInt, intent(in) :: field_dim(:)  !! Dimension each field is defined on (0 = nodes, etc.)
     character(*), intent(in), optional :: field_name(:) !! Name of each field
+    DMLabel, intent(in), optional :: label(:) !! Label defining mesh support of each field
     ! Locals:
     PetscSection :: section
     PetscErrorCode :: ierr
 
     call dm_set_fields(dm, num_components)
-    section = dm_create_section(dm, num_components, field_dim, field_name)
+    section = dm_create_section(dm, num_components, field_dim, field_name, label)
     call DMSetSection(dm, section, ierr); CHKERRQ(ierr)
 
   end subroutine dm_set_data_layout
