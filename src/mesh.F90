@@ -88,7 +88,6 @@ module mesh_module
      procedure :: label_cell_array_zones => mesh_label_cell_array_zones
      procedure :: label_cell_array_minc_zones => mesh_label_cell_array_minc_zones
      procedure :: label_boundaries => mesh_label_boundaries
-     procedure :: label_interior_faces => mesh_label_interior_faces
      procedure :: label_sources => mesh_label_sources
      procedure :: setup_zones => mesh_setup_zones
      procedure :: setup_minc => mesh_setup_minc
@@ -123,6 +122,7 @@ module mesh_module
      procedure, public :: local_cell_minc_level => mesh_local_cell_minc_level
      procedure, public :: destroy_distribution_data => mesh_destroy_distribution_data
      procedure, public :: redistribute => mesh_redistribute
+     procedure, public :: label_interior_faces => mesh_label_interior_faces
   end type mesh_type
 
 contains
