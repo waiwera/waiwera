@@ -850,7 +850,6 @@ contains
     end if
 
     call self%setup_ghost_arrays()
-    call self%label_interior_faces()
     
   end subroutine mesh_configure
 
