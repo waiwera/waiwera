@@ -1122,7 +1122,6 @@ contains
     type(fson_value), pointer :: faces_json, face_json
     PetscInt :: num_faces, iface, f, i, num_cell_faces
     PetscInt :: permeability_direction
-    PetscInt :: start_face, end_face
     PetscInt, pointer :: cell_faces(:)
     PetscInt, pointer :: pcells(:)
     character(len=64) :: facestr
@@ -1136,9 +1135,6 @@ contains
     allocate(default_cells(0))
 
     if (rank == 0) then
-
-       call DMPlexGetHeightStratum(self%serial_dm, 1, start_face, end_face, ierr)
-       CHKERRQ(ierr)
 
        call fson_get(json, "mesh.faces", faces_json)
        if (associated(faces_json)) then
