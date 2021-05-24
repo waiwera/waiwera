@@ -62,6 +62,7 @@ module mesh_module
      IS, public :: cell_parent_natural !! Natural indices of parent cells (e.g. MINC fracture cells)
      PetscSF, public :: dist_sf !! Distribution star forest
      PetscInt, public, allocatable :: ghost_cell(:), ghost_face(:) !! Ghost label values for cells and faces
+     PetscInt, public, allocatable :: interior_face(:) !! Array of interior face points
      type(minc_type), allocatable, public :: minc(:) !! Array of MINC zones, with parameters
      PetscReal, public :: permeability_rotation(3, 3) !! Rotation matrix of permeability axes
      PetscReal, public :: thickness !! Mesh thickness (for dimension < 3)
@@ -123,6 +124,7 @@ module mesh_module
      procedure, public :: destroy_distribution_data => mesh_destroy_distribution_data
      procedure, public :: redistribute => mesh_redistribute
      procedure, public :: label_interior_faces => mesh_label_interior_faces
+     procedure, public :: setup_interior_face_array => mesh_setup_interior_face_array
   end type mesh_type
 
 contains
@@ -719,6 +721,31 @@ contains
 
 !------------------------------------------------------------------------
 
+  subroutine mesh_setup_interior_face_array(self)
+    !! Sets up array of DM point indices for interior faces (through
+    !! which fluxes are computed).
+
+    class(mesh_type), intent(in out) :: self
+    ! Locals:
+    DMLabel :: face_label
+    PetscInt :: num_faces
+    IS :: faceIS
+    PetscInt, pointer, contiguous :: faces(:)
+    PetscErrorCode :: ierr
+
+    call DMGetLabel(self%dm, interior_face_label_name, face_label, ierr)
+    CHKERRQ(ierr)
+    call DMLabelGetStratumSize(face_label, 1, num_faces, ierr); CHKERRQ(ierr)
+    call DMLabelGetStratumIS(face_label, 1, faceIS, ierr); CHKERRQ(ierr)
+    allocate(self%interior_face(num_faces))
+    call ISGetIndicesF90(faceIS, faces, ierr); CHKERRQ(ierr)
+    self%interior_face = faces
+    call ISRestoreIndicesF90(faceIS, faces, ierr); CHKERRQ(ierr)
+
+  end subroutine mesh_setup_interior_face_array
+
+!------------------------------------------------------------------------
+
   subroutine mesh_destroy_minc(self)
     !! Destroys MINC objects.
 
@@ -881,6 +908,9 @@ contains
     end if
     if (allocated(self%ghost_face)) then
        deallocate(self%ghost_face)
+    end if
+    if (allocated(self%interior_face)) then
+       deallocate(self%interior_face)
     end if
 
     if (self%has_minc) then
