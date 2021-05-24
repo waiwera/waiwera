@@ -250,13 +250,14 @@ contains
 !------------------------------------------------------------------------
 
   PetscSection function dm_create_section(dm, num_components, field_dim, &
-       field_name) result(section)
+       field_name, label) result(section)
     !! Creates section from the given DM and data layout parameters.
 
     DM, intent(in) :: dm !! DM object
     PetscInt, target, intent(in) :: num_components(:) !! Number of components in each field
     PetscInt, intent(in) :: field_dim(:)  !! Dimension each field is defined on (0 = nodes, etc.)
     character(*), intent(in), optional :: field_name(:) !! Name of each field
+    DMLabel, target, intent(in), optional :: label(:) !! Label defining mesh support of each field
     ! Locals:
     PetscInt :: dim
     PetscInt :: i, num_bc
@@ -265,7 +266,7 @@ contains
     IS, target :: bc_comps(1), bc_points(1)
     PetscInt, pointer :: pnum_components(:), pnum_dof(:), pbc_field(:)
     IS, pointer :: pbc_comps(:), pbc_points(:)
-    DMLabel, pointer :: label(:)
+    DMLabel, pointer :: plabel(:)
     PetscErrorCode :: ierr
 
     call DMGetDimension(dm, dim, ierr); CHKERRQ(ierr)
@@ -286,9 +287,13 @@ contains
       pbc_field => bc_field
       pbc_comps => bc_comps
       pbc_points => bc_points
-      label => NULL()
+      if (present(label)) then
+         plabel => label
+      else
+         plabel => NULL()
+      end if
 
-      call DMPlexCreateSection(dm, label, pnum_components, &
+      call DMPlexCreateSection(dm, plabel, pnum_components, &
            pnum_dof, num_bc, pbc_field, pbc_comps, pbc_points, &
            PETSC_NULL_IS, section, ierr); CHKERRQ(ierr)
 
