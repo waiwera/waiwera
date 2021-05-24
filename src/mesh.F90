@@ -435,7 +435,8 @@ contains
     type(petsc_face_type) :: petsc_face
     PetscReal, pointer, contiguous :: face_geom_array(:), petsc_face_geom_array(:)
     PetscReal, pointer, contiguous :: cell_geom_array(:)
-    DMLabel :: ghost_label
+    DMLabel :: ghost_label, interior_face_label
+    DMLabel, allocatable :: labels(:)
     PetscInt, pointer :: cells(:)
     PetscInt :: face_variable_dim(num_face_variables)
     PetscInt :: cell_variable_dim(num_cell_variables)
@@ -473,8 +474,13 @@ contains
     ! Set up face geometry vector:
     call DMClone(self%original_dm, dm_face, ierr); CHKERRQ(ierr)
     face_variable_dim = self%dim - 1
+    allocate(labels(num_face_variables))
+    call DMGetLabel(dm_face, interior_face_label_name, interior_face_label, &
+         ierr); CHKERRQ(ierr)
+    labels = interior_face_label
     call dm_set_data_layout(dm_face, face_variable_num_components, &
-         face_variable_dim, face_variable_names)
+         face_variable_dim, face_variable_names, labels)
+    deallocate(labels)
     call DMCreateLocalVector(dm_face, self%face_geom, ierr); CHKERRQ(ierr)
     call local_vec_section(self%face_geom, face_section)
     call VecGetArrayF90(self%face_geom, face_geom_array, ierr); CHKERRQ(ierr)
