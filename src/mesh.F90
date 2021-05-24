@@ -40,6 +40,7 @@ module mesh_module
   PetscInt, parameter :: partition_overlap = 1 !! Cell overlap for parallel mesh distribution
   character(len = 16), public :: open_boundary_label_name = "open_boundary" !! Name of DMLabel for identifying open boundary faces
   character(len = 16), public :: boundary_ghost_label_name = "boundary_ghost" !! Name of DMLabel for identifying boundary ghost cells
+  character(len = 16), public :: interior_face_label_name = "interior_face" !! Name of DMLabel for identifying interior faces 
   character(len = 26) :: face_permeability_override_label_name = "face_permeability_override" !! Name of DMLabel for overriding face permeabilities
 
   type, public :: mesh_type
@@ -87,6 +88,7 @@ module mesh_module
      procedure :: label_cell_array_zones => mesh_label_cell_array_zones
      procedure :: label_cell_array_minc_zones => mesh_label_cell_array_minc_zones
      procedure :: label_boundaries => mesh_label_boundaries
+     procedure :: label_interior_faces => mesh_label_interior_faces
      procedure :: label_sources => mesh_label_sources
      procedure :: setup_zones => mesh_setup_zones
      procedure :: setup_minc => mesh_setup_minc
@@ -848,6 +850,7 @@ contains
     end if
 
     call self%setup_ghost_arrays()
+    call self%label_interior_faces()
     
   end subroutine mesh_configure
 
@@ -1599,6 +1602,34 @@ contains
     end subroutine get_cell_faces
 
   end subroutine mesh_label_boundaries
+
+!------------------------------------------------------------------------
+
+  subroutine mesh_label_interior_faces(self)
+    !! Labels interior mesh faces.
+
+    use dm_utils_module, only: dm_check_create_label
+
+    class(mesh_type), intent(in out) :: self
+    ! Locals:
+    PetscInt :: start_face, end_face, f, num_cells
+    PetscErrorCode :: ierr
+
+    call dm_check_create_label(self%dm, interior_face_label_name)
+
+    call DMPlexGetHeightStratum(self%dm, 1, start_face, end_face, ierr)
+    CHKERRQ(ierr)
+    do f = start_face, end_face - 1
+       if (self%ghost_face(f) < 0) then
+          call DMPlexGetSupportSize(self%dm, f, num_cells, ierr); CHKERRQ(ierr)
+          if (num_cells == 2) then
+             call DMSetLabelValue(self%dm, interior_face_label_name, &
+                  f, 1, ierr); CHKERRQ(ierr)
+          end if
+       end if
+    end do
+
+  end subroutine mesh_label_interior_faces
 
 !------------------------------------------------------------------------
 
