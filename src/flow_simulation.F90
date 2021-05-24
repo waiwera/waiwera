@@ -862,6 +862,7 @@ contains
                       CHKERRQ(ierr)
                       call VecDuplicate(self%fluid, self%last_iteration_fluid, ierr)
                       CHKERRQ(ierr)
+                      call self%mesh%label_interior_faces()
                       call self%setup_flux_vector()
 
                       call self%setup_update_cell()
