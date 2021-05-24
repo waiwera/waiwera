@@ -154,11 +154,14 @@ contains
          flux_variable_dim(:)
     character(max_primary_variable_name_length), allocatable :: &
          flux_variable_names(:)
+    DMLabel :: interior_face_label
+    DMLabel, allocatable :: labels(:)
     PetscErrorCode :: ierr
 
     num_variables = self%eos%num_primary_variables + self%eos%num_phases
     allocate(flux_variable_num_components(num_variables), &
-         flux_variable_dim(num_variables), flux_variable_names(num_variables))
+         flux_variable_dim(num_variables), flux_variable_names(num_variables), &
+         labels(num_variables))
     flux_variable_num_components = 1
 
     call DMClone(self%mesh%dm, dm_flux, ierr); CHKERRQ(ierr)
@@ -170,9 +173,12 @@ contains
     end if
     flux_variable_names(self%eos%num_primary_variables + 1: &
          self%eos%num_primary_variables + self%eos%num_phases) = self%eos%phase_names
+    call DMGetLabel(dm_flux, interior_face_label_name, interior_face_label, &
+         ierr); CHKERRQ(ierr)
+    labels = interior_face_label
 
     call dm_set_data_layout(dm_flux, flux_variable_num_components, &
-         flux_variable_dim, flux_variable_names)
+         flux_variable_dim, flux_variable_names, labels)
 
     call DMCreateLocalVector(dm_flux, self%flux, ierr); CHKERRQ(ierr)
     call PetscObjectSetName(self%flux, "flux", ierr); CHKERRQ(ierr)
@@ -180,7 +186,7 @@ contains
 
     call DMDestroy(dm_flux, ierr); CHKERRQ(ierr)
     deallocate(flux_variable_dim, flux_variable_num_components, &
-         flux_variable_names)
+         flux_variable_names, labels)
 
   end subroutine flow_simulation_setup_flux_vector
 
