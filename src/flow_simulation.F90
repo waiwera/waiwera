@@ -1526,7 +1526,7 @@ contains
          source_section, local_tracer_section
     PetscReal, pointer, contiguous :: cell_geom_array(:), face_geom_array(:), &
          flux_array(:), source_data(:)
-    PetscInt :: start_cell, end_cell, end_interior_cell, start_face, end_face, f
+    PetscInt :: start_cell, end_cell, end_interior_cell, iface, f
     PetscInt :: cell_geom_offsets(2), face_geom_offset, flux_offset
     PetscInt :: np, nf, nt, up, c_up, i, it, irow, icol
     DM :: dm_tracer
@@ -1563,51 +1563,48 @@ contains
 
     call DMPlexGetHeightStratum(self%mesh%dm, 0, start_cell, end_cell, ierr)
     CHKERRQ(ierr)
-    call DMPlexGetHeightStratum(self%mesh%dm, 1, start_face, end_face, ierr)
-    CHKERRQ(ierr)
     end_interior_cell = dm_get_end_interior_cell(self%mesh%dm, end_cell)
 
-    do f = start_face, end_face - 1
+    do iface = 1, size(self%mesh%interior_face)
 
-       if (self%mesh%ghost_face(f) < 0) then
+       f = self%mesh%interior_face(iface)
 
-          call DMPlexGetSupport(self%mesh%dm, f, cells, ierr); CHKERRQ(ierr)
-          do i = 1, 2
-             cell_geom_offsets(i) = section_offset(cell_geom_section, cells(i))
-          end do
-          call face%assign_cell_geometry(cell_geom_array, cell_geom_offsets)
-          face_geom_offset = section_offset(face_geom_section, f)
-          call face%assign_geometry(face_geom_array, face_geom_offset)
+       call DMPlexGetSupport(self%mesh%dm, f, cells, ierr); CHKERRQ(ierr)
+       do i = 1, 2
+          cell_geom_offsets(i) = section_offset(cell_geom_section, cells(i))
+       end do
+       call face%assign_cell_geometry(cell_geom_array, cell_geom_offsets)
+       face_geom_offset = section_offset(face_geom_section, f)
+       call face%assign_geometry(face_geom_array, face_geom_offset)
 
-          flux_offset = section_offset(flux_section, f)
-          face_flux => flux_array(flux_offset : flux_offset + nf - 1)
-          associate(phase_flux => face_flux(np + 1 : nf))
-            do it = 1, nt
-               tracer_phase_flux = phase_flux(self%tracers(it)%phase_index)
-               if (tracer_phase_flux >= 0._dp) then
-                  up = 1
-               else
-                  up = 2
+       flux_offset = section_offset(flux_section, f)
+       face_flux => flux_array(flux_offset : flux_offset + nf - 1)
+       associate(phase_flux => face_flux(np + 1 : nf))
+         do it = 1, nt
+            tracer_phase_flux = phase_flux(self%tracers(it)%phase_index)
+            if (tracer_phase_flux >= 0._dp) then
+               up = 1
+            else
+               up = 2
+            end if
+            c_up = cells(up)
+            tracer_flow = tracer_phase_flux * face%area
+            do i = 1, 2
+               if ((self%mesh%ghost_cell(cells(i)) < 0) .and. &
+                    (cells(i) <= end_interior_cell - 1)) then
+                  call PetscSectionGetOffset(local_tracer_section, cells(i), &
+                       tracer_offset_i, ierr); CHKERRQ(ierr)
+                  irow = tracer_offset_i + it - 1
+                  call PetscSectionGetOffset(local_tracer_section, c_up, &
+                       tracer_offset_up, ierr); CHKERRQ(ierr)
+                  icol = tracer_offset_up + it - 1
+                  Ft = flux_sign(i) * tracer_flow / face%cell(i)%volume
+                  call MatSetValuesLocal(Ar, 1, irow, 1, icol, Ft, &
+                       ADD_VALUES, ierr); CHKERRQ(ierr)
                end if
-               c_up = cells(up)
-               tracer_flow = tracer_phase_flux * face%area
-               do i = 1, 2
-                  if ((self%mesh%ghost_cell(cells(i)) < 0) .and. &
-                       (cells(i) <= end_interior_cell - 1)) then
-                     call PetscSectionGetOffset(local_tracer_section, cells(i), &
-                          tracer_offset_i, ierr); CHKERRQ(ierr)
-                     irow = tracer_offset_i + it - 1
-                     call PetscSectionGetOffset(local_tracer_section, c_up, &
-                          tracer_offset_up, ierr); CHKERRQ(ierr)
-                     icol = tracer_offset_up + it - 1
-                     Ft = flux_sign(i) * tracer_flow / face%cell(i)%volume
-                     call MatSetValuesLocal(Ar, 1, irow, 1, icol, Ft, &
-                          ADD_VALUES, ierr); CHKERRQ(ierr)
-                  end if
-               end do
             end do
-          end associate
-       end if
+         end do
+       end associate
     end do
 
     call face%destroy()
