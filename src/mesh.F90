@@ -729,7 +729,7 @@ contains
     class(mesh_type), intent(in out) :: self
     ! Locals:
     DMLabel :: face_label
-    PetscInt :: num_faces
+    PetscInt :: num_faces, iface, f, num_cells
     IS :: faceIS
     PetscInt, pointer, contiguous :: faces(:)
     PetscErrorCode :: ierr
@@ -739,9 +739,19 @@ contains
     call DMLabelGetStratumSize(face_label, 1, num_faces, ierr); CHKERRQ(ierr)
     call DMLabelGetStratumIS(face_label, 1, faceIS, ierr); CHKERRQ(ierr)
     allocate(self%flux_face(num_faces))
+    self%flux_face = -1
     call ISGetIndicesF90(faceIS, faces, ierr); CHKERRQ(ierr)
-    self%flux_face = faces
+    do iface = 1, num_faces
+       f = faces(iface)
+       if (self%ghost_face(f) < 0) then
+          call DMPlexGetSupportSize(self%dm, f, num_cells, ierr); CHKERRQ(ierr)
+          if (num_cells == 2) then
+             self%flux_face(iface) = f
+          end if
+       end if
+    end do
     call ISRestoreIndicesF90(faceIS, faces, ierr); CHKERRQ(ierr)
+    self%flux_face = pack(self%flux_face, self%flux_face > -1)
 
   end subroutine mesh_setup_flux_face_array
 
