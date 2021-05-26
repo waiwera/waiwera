@@ -1653,27 +1653,37 @@ contains
 !------------------------------------------------------------------------
 
   subroutine mesh_label_flux_faces(self)
-    !! Labels flux mesh faces.
+    !! Labels flux mesh faces. These are faces on which fluxes are to
+    !! be computed on any process. The label is used to create the
+    !! flux vector.
 
     use dm_utils_module, only: dm_check_create_label
 
     class(mesh_type), intent(in out) :: self
     ! Locals:
-    PetscInt :: start_face, end_face, f, num_cells
+    PetscInt :: start_face, end_face, f, num_cells, bdy
+    DMLabel :: bdy_label
     PetscErrorCode :: ierr
 
     call dm_check_create_label(self%dm, flux_face_label_name)
+    call DMGetLabel(self%dm, boundary_label_name, bdy_label, ierr)
+    CHKERRQ(ierr)
 
     call DMPlexGetHeightStratum(self%dm, 1, start_face, end_face, ierr)
     CHKERRQ(ierr)
     do f = start_face, end_face - 1
-       if (self%ghost_face(f) < 0) then
-          call DMPlexGetSupportSize(self%dm, f, num_cells, ierr); CHKERRQ(ierr)
-          if (num_cells > 1) then
+       call DMPlexGetSupportSize(self%dm, f, num_cells, ierr); CHKERRQ(ierr)
+       select case (num_cells)
+       case (1)
+          call DMLabelGetValue(bdy_label, f, bdy, ierr); CHKERRQ(ierr)
+          if (bdy == 0) then
              call DMSetLabelValue(self%dm, flux_face_label_name, &
                   f, 1, ierr); CHKERRQ(ierr)
           end if
-       end if
+       case (2)
+          call DMSetLabelValue(self%dm, flux_face_label_name, &
+               f, 1, ierr); CHKERRQ(ierr)
+       end select
     end do
 
   end subroutine mesh_label_flux_faces
