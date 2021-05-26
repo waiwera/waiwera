@@ -38,6 +38,7 @@ module mesh_module
 
   PetscInt, parameter, public :: max_mesh_filename_length = 200
   PetscInt, parameter :: partition_overlap = 1 !! Cell overlap for parallel mesh distribution
+  character(len = 16), public :: boundary_label_name = "boundary" !! Name of DMLabel for identifying mesh boundary faces
   character(len = 16), public :: open_boundary_label_name = "open_boundary" !! Name of DMLabel for identifying open boundary faces
   character(len = 16), public :: boundary_ghost_label_name = "boundary_ghost" !! Name of DMLabel for identifying boundary ghost cells
   character(len = 16), public :: flux_face_label_name = "flux_face" !! Name of DMLabel for identifying flux faces 
@@ -1466,7 +1467,8 @@ contains
 !------------------------------------------------------------------------
 
   subroutine mesh_label_boundaries(self, json, logfile)
-    !! Labels serial DM for boundary conditions.
+    !! Labels boundary faces on serial DM, and open boundary faces (on
+    !! which boundary conditions are applied).
 
     use kinds_module
     use fson
@@ -1482,6 +1484,7 @@ contains
     PetscMPIInt :: rank
     type(fson_value), pointer :: boundaries_json, bdy_json
     type(fson_value), pointer :: faces_json, face_json, cells_json
+    PetscInt :: start_face, end_face, f
     PetscInt :: num_boundaries, num_faces, num_cells, ibdy, offset, i
     PetscInt :: faces_type, num_face_items, face1_type
     PetscInt :: start_cell, end_cell
@@ -1496,6 +1499,19 @@ contains
     call MPI_comm_rank(PETSC_COMM_WORLD, rank, ierr)
     if (rank == 0) then
 
+       ! Label all mesh boundary faces:
+       call dm_check_create_label(self%serial_dm, boundary_label_name)
+       call DMPlexGetHeightStratum(self%serial_dm, 1, start_face, end_face, ierr)
+       CHKERRQ(ierr)
+       do f = start_face, end_face - 1
+          call DMPlexGetSupportSize(self%serial_dm, f, num_cells, ierr); CHKERRQ(ierr)
+          if (num_cells == 1) then
+             call DMSetLabelValue(self%serial_dm, boundary_label_name, &
+                     f, 1, ierr); CHKERRQ(ierr)
+          end if
+       end do
+
+       ! Label open boundary faces:
        default_faces = [PetscInt::] ! empty integer array
        default_cells = [PetscInt::]
 
