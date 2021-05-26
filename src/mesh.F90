@@ -1676,7 +1676,7 @@ contains
        select case (num_cells)
        case (1)
           call DMLabelGetValue(bdy_label, f, bdy, ierr); CHKERRQ(ierr)
-          if (bdy == 0) then
+          if (bdy < 0) then
              call DMSetLabelValue(self%dm, flux_face_label_name, &
                   f, 1, ierr); CHKERRQ(ierr)
           end if
