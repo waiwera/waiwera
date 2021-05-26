@@ -40,7 +40,7 @@ module mesh_module
   PetscInt, parameter :: partition_overlap = 1 !! Cell overlap for parallel mesh distribution
   character(len = 16), public :: open_boundary_label_name = "open_boundary" !! Name of DMLabel for identifying open boundary faces
   character(len = 16), public :: boundary_ghost_label_name = "boundary_ghost" !! Name of DMLabel for identifying boundary ghost cells
-  character(len = 16), public :: interior_face_label_name = "interior_face" !! Name of DMLabel for identifying interior faces 
+  character(len = 16), public :: flux_face_label_name = "flux_face" !! Name of DMLabel for identifying flux faces 
   character(len = 26) :: face_permeability_override_label_name = "face_permeability_override" !! Name of DMLabel for overriding face permeabilities
 
   type, public :: mesh_type
@@ -62,7 +62,7 @@ module mesh_module
      IS, public :: cell_parent_natural !! Natural indices of parent cells (e.g. MINC fracture cells)
      PetscSF, public :: dist_sf !! Distribution star forest
      PetscInt, public, allocatable :: ghost_cell(:), ghost_face(:) !! Ghost label values for cells and faces
-     PetscInt, public, allocatable :: interior_face(:) !! Array of interior face points
+     PetscInt, public, allocatable :: flux_face(:) !! Array of flux face points
      type(minc_type), allocatable, public :: minc(:) !! Array of MINC zones, with parameters
      PetscReal, public :: permeability_rotation(3, 3) !! Rotation matrix of permeability axes
      PetscReal, public :: thickness !! Mesh thickness (for dimension < 3)
@@ -123,8 +123,8 @@ module mesh_module
      procedure, public :: local_cell_minc_level => mesh_local_cell_minc_level
      procedure, public :: destroy_distribution_data => mesh_destroy_distribution_data
      procedure, public :: redistribute => mesh_redistribute
-     procedure, public :: label_interior_faces => mesh_label_interior_faces
-     procedure, public :: setup_interior_face_array => mesh_setup_interior_face_array
+     procedure, public :: label_flux_faces => mesh_label_flux_faces
+     procedure, public :: setup_flux_face_array => mesh_setup_flux_face_array
   end type mesh_type
 
 contains
@@ -437,7 +437,7 @@ contains
     type(petsc_face_type) :: petsc_face
     PetscReal, pointer, contiguous :: face_geom_array(:), petsc_face_geom_array(:)
     PetscReal, pointer, contiguous :: cell_geom_array(:)
-    DMLabel :: ghost_label, interior_face_label
+    DMLabel :: ghost_label, flux_face_label
     DMLabel, allocatable :: labels(:)
     PetscInt, pointer :: cells(:)
     PetscInt :: face_variable_dim(num_face_variables)
@@ -477,9 +477,9 @@ contains
     call DMClone(self%original_dm, dm_face, ierr); CHKERRQ(ierr)
     face_variable_dim = self%dim - 1
     allocate(labels(num_face_variables))
-    call DMGetLabel(dm_face, interior_face_label_name, interior_face_label, &
+    call DMGetLabel(dm_face, flux_face_label_name, flux_face_label, &
          ierr); CHKERRQ(ierr)
-    labels = interior_face_label
+    labels = flux_face_label
     call dm_set_data_layout(dm_face, face_variable_num_components, &
          face_variable_dim, face_variable_names, labels)
     deallocate(labels)
@@ -721,8 +721,8 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine mesh_setup_interior_face_array(self)
-    !! Sets up array of DM point indices for interior faces (through
+  subroutine mesh_setup_flux_face_array(self)
+    !! Sets up array of DM point indices for flux faces (through
     !! which fluxes are computed).
 
     class(mesh_type), intent(in out) :: self
@@ -733,16 +733,16 @@ contains
     PetscInt, pointer, contiguous :: faces(:)
     PetscErrorCode :: ierr
 
-    call DMGetLabel(self%dm, interior_face_label_name, face_label, ierr)
+    call DMGetLabel(self%dm, flux_face_label_name, face_label, ierr)
     CHKERRQ(ierr)
     call DMLabelGetStratumSize(face_label, 1, num_faces, ierr); CHKERRQ(ierr)
     call DMLabelGetStratumIS(face_label, 1, faceIS, ierr); CHKERRQ(ierr)
-    allocate(self%interior_face(num_faces))
+    allocate(self%flux_face(num_faces))
     call ISGetIndicesF90(faceIS, faces, ierr); CHKERRQ(ierr)
-    self%interior_face = faces
+    self%flux_face = faces
     call ISRestoreIndicesF90(faceIS, faces, ierr); CHKERRQ(ierr)
 
-  end subroutine mesh_setup_interior_face_array
+  end subroutine mesh_setup_flux_face_array
 
 !------------------------------------------------------------------------
 
@@ -909,8 +909,8 @@ contains
     if (allocated(self%ghost_face)) then
        deallocate(self%ghost_face)
     end if
-    if (allocated(self%interior_face)) then
-       deallocate(self%interior_face)
+    if (allocated(self%flux_face)) then
+       deallocate(self%flux_face)
     end if
 
     if (self%has_minc) then
@@ -1636,8 +1636,8 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine mesh_label_interior_faces(self)
-    !! Labels interior mesh faces.
+  subroutine mesh_label_flux_faces(self)
+    !! Labels flux mesh faces.
 
     use dm_utils_module, only: dm_check_create_label
 
@@ -1646,7 +1646,7 @@ contains
     PetscInt :: start_face, end_face, f, num_cells
     PetscErrorCode :: ierr
 
-    call dm_check_create_label(self%dm, interior_face_label_name)
+    call dm_check_create_label(self%dm, flux_face_label_name)
 
     call DMPlexGetHeightStratum(self%dm, 1, start_face, end_face, ierr)
     CHKERRQ(ierr)
@@ -1654,13 +1654,13 @@ contains
        if (self%ghost_face(f) < 0) then
           call DMPlexGetSupportSize(self%dm, f, num_cells, ierr); CHKERRQ(ierr)
           if (num_cells > 1) then
-             call DMSetLabelValue(self%dm, interior_face_label_name, &
+             call DMSetLabelValue(self%dm, flux_face_label_name, &
                   f, 1, ierr); CHKERRQ(ierr)
           end if
        end if
     end do
 
-  end subroutine mesh_label_interior_faces
+  end subroutine mesh_label_flux_faces
 
 !------------------------------------------------------------------------
 

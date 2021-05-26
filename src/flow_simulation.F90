@@ -154,7 +154,7 @@ contains
          flux_variable_dim(:)
     character(max_primary_variable_name_length), allocatable :: &
          flux_variable_names(:)
-    DMLabel :: interior_face_label
+    DMLabel :: flux_face_label
     DMLabel, allocatable :: labels(:)
     PetscErrorCode :: ierr
 
@@ -173,9 +173,9 @@ contains
     end if
     flux_variable_names(self%eos%num_primary_variables + 1: &
          self%eos%num_primary_variables + self%eos%num_phases) = self%eos%phase_names
-    call DMGetLabel(dm_flux, interior_face_label_name, interior_face_label, &
+    call DMGetLabel(dm_flux, flux_face_label_name, flux_face_label, &
          ierr); CHKERRQ(ierr)
-    labels = interior_face_label
+    labels = flux_face_label
 
     call dm_set_data_layout(dm_flux, flux_variable_num_components, &
          flux_variable_dim, flux_variable_names, labels)
@@ -868,8 +868,8 @@ contains
                       CHKERRQ(ierr)
                       call VecDuplicate(self%fluid, self%last_iteration_fluid, ierr)
                       CHKERRQ(ierr)
-                      call self%mesh%label_interior_faces()
-                      call self%mesh%setup_interior_face_array()
+                      call self%mesh%label_flux_faces()
+                      call self%mesh%setup_flux_face_array()
                       call self%setup_flux_vector()
 
                       call self%setup_update_cell()
@@ -1300,9 +1300,9 @@ contains
     CHKERRQ(ierr)
     end_interior_cell = dm_get_end_interior_cell(self%mesh%dm, end_cell)
 
-    do iface = 1, size(self%mesh%interior_face)
+    do iface = 1, size(self%mesh%flux_face)
 
-       f = self%mesh%interior_face(iface)
+       f = self%mesh%flux_face(iface)
 
        call DMPlexGetSupport(self%mesh%dm, f, cells, ierr); CHKERRQ(ierr)
        do i = 1, 2
@@ -1565,9 +1565,9 @@ contains
     CHKERRQ(ierr)
     end_interior_cell = dm_get_end_interior_cell(self%mesh%dm, end_cell)
 
-    do iface = 1, size(self%mesh%interior_face)
+    do iface = 1, size(self%mesh%flux_face)
 
-       f = self%mesh%interior_face(iface)
+       f = self%mesh%flux_face(iface)
 
        call DMPlexGetSupport(self%mesh%dm, f, cells, ierr); CHKERRQ(ierr)
        do i = 1, 2
