@@ -68,6 +68,7 @@ module flow_simulation_module
      class(capillary_pressure_type), allocatable, public :: capillary_pressure !! Rock capillary pressure function
      character(max_output_filename_length), public :: output_filename !! HDF5 output filename
      PetscViewer :: hdf5_viewer !! Viewer for HDF5 output
+     PetscInt, allocatable :: output_cell_geom_field_indices(:) !! Field indices for cell geometry output
      PetscInt, allocatable :: output_fluid_field_indices(:) !! Field indices for fluid output
      PetscInt, allocatable :: output_flux_field_indices(:)  !! Field indices for flux output
      PetscInt, allocatable :: output_source_field_indices(:) !! Field indices for source output
@@ -364,6 +365,9 @@ contains
     if (self%output_filename /= "") then
        call PetscViewerDestroy(self%hdf5_viewer, ierr); CHKERRQ(ierr)
     end if
+    if (allocated(self%output_cell_geom_field_indices)) then
+       deallocate(self%output_cell_geom_field_indices)
+    end if
     if (allocated(self%output_fluid_field_indices)) then
        deallocate(self%output_fluid_field_indices)
     end if
@@ -395,10 +399,22 @@ contains
     character(max_field_name_length), allocatable :: &
          output_fields(:)
     character(max_field_name_length), allocatable :: &
+         required_output_cell_geom_fields(:), &
          default_output_flux_fields(:), &
          required_output_flux_fields(:)
-    allocate(default_output_flux_fields(0), &
+    character(max_field_name_length), parameter :: &
+         default_output_cell_geom_fields(2) = ["centroid", "volume  "]
+
+    allocate(required_output_cell_geom_fields(0), &
+         default_output_flux_fields(0), &
          required_output_flux_fields(0))
+
+    call setup_vector_output_fields("cell_geometry", &
+         self%mesh%cell_geom, &
+         default_output_cell_geom_fields, &
+         required_output_cell_geom_fields, &
+         self%output_cell_geom_field_indices, output_fields)
+    deallocate(output_fields)
 
     call setup_vector_output_fields("fluid", self%fluid, &
          self%eos%default_output_fluid_fields, &
@@ -887,10 +903,10 @@ contains
                               self%num_local_sources, self%num_sources, self%source_controls, &
                               self%source_index, self%logfile, err)
                          if (err == 0) then
+                            call self%setup_output_fields(json)
                             call self%output_mesh_geometry()
                             call self%output_source_indices()
                             call self%output_source_cell_indices()
-                            call self%setup_output_fields(json)
                          end if
                       end if
                    end if
@@ -2435,7 +2451,6 @@ contains
     PetscErrorCode :: ierr
     DM :: geom_dm
     Vec :: global_cell_geom
-    PetscInt, parameter :: cell_geom_indices(2) = [0, 1]
 
     if (self%output_filename /= "") then
 
@@ -2447,7 +2462,8 @@ contains
        call DMLocalToGlobal(geom_dm, self%mesh%cell_geom, &
             INSERT_VALUES, global_cell_geom, ierr); CHKERRQ(ierr)
 
-       call vec_view_fields_hdf5(global_cell_geom, cell_geom_indices, &
+       call vec_view_fields_hdf5(global_cell_geom, &
+            self%output_cell_geom_field_indices, &
             "/cell_fields", self%hdf5_viewer)
 
        call DMRestoreGlobalVector(geom_dm, global_cell_geom, ierr)
