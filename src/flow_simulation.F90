@@ -69,6 +69,7 @@ module flow_simulation_module
      character(max_output_filename_length), public :: output_filename !! HDF5 output filename
      PetscViewer :: hdf5_viewer !! Viewer for HDF5 output
      PetscInt, allocatable :: output_cell_geom_field_indices(:) !! Field indices for cell geometry output
+     PetscInt, allocatable :: output_face_geom_field_indices(:) !! Field indices for face geometry output
      PetscInt, allocatable :: output_fluid_field_indices(:) !! Field indices for fluid output
      PetscInt, allocatable :: output_flux_field_indices(:)  !! Field indices for flux output
      PetscInt, allocatable :: output_source_field_indices(:) !! Field indices for source output
@@ -368,6 +369,9 @@ contains
     if (allocated(self%output_cell_geom_field_indices)) then
        deallocate(self%output_cell_geom_field_indices)
     end if
+    if (allocated(self%output_face_geom_field_indices)) then
+       deallocate(self%output_face_geom_field_indices)
+    end if
     if (allocated(self%output_fluid_field_indices)) then
        deallocate(self%output_fluid_field_indices)
     end if
@@ -400,12 +404,15 @@ contains
          output_fields(:)
     character(max_field_name_length), allocatable :: &
          required_output_cell_geom_fields(:), &
+         required_output_face_geom_fields(:), &
          default_output_flux_fields(:), &
          required_output_flux_fields(:)
     character(max_field_name_length), parameter :: &
-         default_output_cell_geom_fields(2) = ["centroid", "volume  "]
+         default_output_cell_geom_fields(2) = ["centroid", "volume  "], &
+         default_output_face_geom_fields(1) = ["area"]
 
     allocate(required_output_cell_geom_fields(0), &
+         required_output_face_geom_fields(0), &
          default_output_flux_fields(0), &
          required_output_flux_fields(0))
 
@@ -414,6 +421,13 @@ contains
          default_output_cell_geom_fields, &
          required_output_cell_geom_fields, &
          self%output_cell_geom_field_indices, output_fields)
+    deallocate(output_fields)
+
+    call setup_vector_output_fields("face_geometry", &
+         self%mesh%face_geom, &
+         default_output_face_geom_fields, &
+         required_output_face_geom_fields, &
+         self%output_face_geom_field_indices, output_fields)
     deallocate(output_fields)
 
     call setup_vector_output_fields("fluid", self%fluid, &
@@ -2450,23 +2464,32 @@ contains
     ! Locals:
     PetscErrorCode :: ierr
     DM :: geom_dm
-    Vec :: global_cell_geom
+    Vec :: global_geom
 
     if (self%output_filename /= "") then
 
        call VecGetDM(self%mesh%cell_geom, geom_dm, ierr); CHKERRQ(ierr)
-       call DMGetGlobalVector(geom_dm, global_cell_geom, ierr); CHKERRQ(ierr)
-       call PetscObjectSetName(global_cell_geom, "cell_geometry", ierr)
+       call DMGetGlobalVector(geom_dm, global_geom, ierr); CHKERRQ(ierr)
+       call PetscObjectSetName(global_geom, "cell_geometry", ierr)
        CHKERRQ(ierr)
-
        call DMLocalToGlobal(geom_dm, self%mesh%cell_geom, &
-            INSERT_VALUES, global_cell_geom, ierr); CHKERRQ(ierr)
-
-       call vec_view_fields_hdf5(global_cell_geom, &
+            INSERT_VALUES, global_geom, ierr); CHKERRQ(ierr)
+       call vec_view_fields_hdf5(global_geom, &
             self%output_cell_geom_field_indices, &
             "/cell_fields", self%hdf5_viewer)
+       call DMRestoreGlobalVector(geom_dm, global_geom, ierr)
+       CHKERRQ(ierr)
 
-       call DMRestoreGlobalVector(geom_dm, global_cell_geom, ierr)
+       call VecGetDM(self%mesh%face_geom, geom_dm, ierr); CHKERRQ(ierr)
+       call DMGetGlobalVector(geom_dm, global_geom, ierr); CHKERRQ(ierr)
+       call PetscObjectSetName(global_geom, "face_geometry", ierr)
+       CHKERRQ(ierr)
+       call DMLocalToGlobal(geom_dm, self%mesh%face_geom, &
+            INSERT_VALUES, global_geom, ierr); CHKERRQ(ierr)
+       call vec_view_fields_hdf5(global_geom, &
+            self%output_face_geom_field_indices, &
+            "/face_fields", self%hdf5_viewer)
+       call DMRestoreGlobalVector(geom_dm, global_geom, ierr)
        CHKERRQ(ierr)
 
     end if
