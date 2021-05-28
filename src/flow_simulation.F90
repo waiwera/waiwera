@@ -2506,8 +2506,6 @@ contains
     ! Locals:
     PetscErrorCode :: ierr
 
-    if ((self%output_filename /= "") .and. (self%num_sources > 0)) then
-       call ISView(self%source_index, self%hdf5_viewer, ierr); CHKERRQ(ierr)
     if ((self%hdf5_viewer /= PETSC_NULL_VIEWER) .and. &
          (self%num_sources > 0)) then
        call ISView(self%source_index, self%hdf5_viewer, ierr)
