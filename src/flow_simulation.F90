@@ -111,6 +111,7 @@ module flow_simulation_module
      procedure, public :: fluid_transitions => flow_simulation_fluid_transitions
      procedure, public :: fluid_properties => flow_simulation_fluid_properties
      procedure, public :: output_mesh_geometry => flow_simulation_output_mesh_geometry
+     procedure, public :: output_cell_indices => flow_simulation_output_cell_indices
      procedure, public :: output_source_indices => flow_simulation_output_source_indices
      procedure, public :: output_source_cell_indices => flow_simulation_output_source_cell_indices
      procedure, public :: output => flow_simulation_output
@@ -885,11 +886,7 @@ contains
                          end if
                       end if
 
-                      if (self%hdf5_viewer /= PETSC_NULL_VIEWER) then
-                         call ISView(self%mesh%cell_index, self%hdf5_viewer, &
-                              ierr); CHKERRQ(ierr)
-                      end if
-
+                      call self%output_cell_indices()
                       call self%add_boundary_ghost_cells()
 
                       call VecDuplicate(self%solution, self%balances, ierr); CHKERRQ(ierr)
@@ -2496,6 +2493,22 @@ contains
     end if
 
   end subroutine flow_simulation_output_mesh_geometry
+
+!------------------------------------------------------------------------
+
+  subroutine flow_simulation_output_cell_indices(self)
+    !! Writes cell indices to output.
+
+    class(flow_simulation_type), intent(in out) :: self
+    ! Locals:
+    PetscErrorCode :: ierr
+
+    if (self%hdf5_viewer /= PETSC_NULL_VIEWER) then
+       call ISView(self%mesh%cell_index, self%hdf5_viewer, &
+            ierr); CHKERRQ(ierr)
+    end if
+
+  end subroutine flow_simulation_output_cell_indices
 
 !------------------------------------------------------------------------
 
