@@ -2466,7 +2466,7 @@ contains
     DM :: geom_dm
     Vec :: global_geom
 
-    if (self%output_filename /= "") then
+    if (self%hdf5_viewer /= PETSC_NULL_VIEWER) then
 
        call VecGetDM(self%mesh%cell_geom, geom_dm, ierr); CHKERRQ(ierr)
        call DMGetGlobalVector(geom_dm, global_geom, ierr); CHKERRQ(ierr)
