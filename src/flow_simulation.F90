@@ -2480,17 +2480,19 @@ contains
        call DMRestoreGlobalVector(geom_dm, global_geom, ierr)
        CHKERRQ(ierr)
 
-       call VecGetDM(self%mesh%face_geom, geom_dm, ierr); CHKERRQ(ierr)
-       call DMGetGlobalVector(geom_dm, global_geom, ierr); CHKERRQ(ierr)
-       call PetscObjectSetName(global_geom, "face_geometry", ierr)
-       CHKERRQ(ierr)
-       call DMLocalToGlobal(geom_dm, self%mesh%face_geom, &
-            INSERT_VALUES, global_geom, ierr); CHKERRQ(ierr)
-       call vec_view_fields_hdf5(global_geom, &
-            self%output_face_geom_field_indices, &
-            "/face_fields", self%hdf5_viewer)
-       call DMRestoreGlobalVector(geom_dm, global_geom, ierr)
-       CHKERRQ(ierr)
+       if (self%flux_output) then
+          call VecGetDM(self%mesh%face_geom, geom_dm, ierr); CHKERRQ(ierr)
+          call DMGetGlobalVector(geom_dm, global_geom, ierr); CHKERRQ(ierr)
+          call PetscObjectSetName(global_geom, "face_geometry", ierr)
+          CHKERRQ(ierr)
+          call DMLocalToGlobal(geom_dm, self%mesh%face_geom, &
+               INSERT_VALUES, global_geom, ierr); CHKERRQ(ierr)
+          call vec_view_fields_hdf5(global_geom, &
+               self%output_face_geom_field_indices, &
+               "/face_fields", self%hdf5_viewer)
+          call DMRestoreGlobalVector(geom_dm, global_geom, ierr)
+          CHKERRQ(ierr)
+       end if
 
     end if
 
