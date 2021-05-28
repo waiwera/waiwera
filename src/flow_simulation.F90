@@ -2532,7 +2532,8 @@ contains
     PetscInt, pointer, contiguous :: fc(:)
     PetscErrorCode :: ierr
 
-    if (self%hdf5_viewer /= PETSC_NULL_VIEWER) then
+    if ((self%hdf5_viewer /= PETSC_NULL_VIEWER) .and. &
+         self%flux_output) then
 
        associate(num_faces => size(self%mesh%flux_face))
 
