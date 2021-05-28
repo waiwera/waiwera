@@ -112,6 +112,7 @@ module flow_simulation_module
      procedure, public :: fluid_properties => flow_simulation_fluid_properties
      procedure, public :: output_mesh_geometry => flow_simulation_output_mesh_geometry
      procedure, public :: output_cell_indices => flow_simulation_output_cell_indices
+     procedure, public :: output_face_cell_indices => flow_simulation_output_face_cell_indices
      procedure, public :: output_source_indices => flow_simulation_output_source_indices
      procedure, public :: output_source_cell_indices => flow_simulation_output_source_cell_indices
      procedure, public :: output => flow_simulation_output
@@ -916,6 +917,7 @@ contains
                               self%source_index, self%logfile, err)
                          if (err == 0) then
                             call self%setup_output_fields(json)
+                            call self%output_face_cell_indices()
                             call self%output_mesh_geometry()
                             call self%output_source_indices()
                             call self%output_source_cell_indices()
@@ -2509,6 +2511,72 @@ contains
     end if
 
   end subroutine flow_simulation_output_cell_indices
+
+!------------------------------------------------------------------------
+
+  subroutine flow_simulation_output_face_cell_indices(self)
+    !! Writes face cell indices to output. For interior faces these
+    !! are the natural indices for the cells on either side of each
+    !! face. For boundary faces, the boundary ghost cell has no
+    !! natural index. Instead the output index is the negative of the
+    !! index (in the input) of the corresponding boundary condition
+    !! specification. Note that this index is 1-based (not zero-based)
+    !! to avoid ambiguity with indices having value zero.
+
+    class(flow_simulation_type), intent(in out) :: self
+    ! Locals:
+    PetscInt, allocatable :: cells(:, :)
+    DMLabel :: celltype_label, open_boundary_label
+    IS :: cell1, cell2
+    PetscInt :: iface, ic, f, c, cell_type, natural, ibdy
+    PetscInt, pointer, contiguous :: fc(:)
+    PetscErrorCode :: ierr
+
+    if (self%hdf5_viewer /= PETSC_NULL_VIEWER) then
+
+       associate(num_faces => size(self%mesh%flux_face))
+
+         call DMPlexGetCellTypeLabel(self%mesh%dm, celltype_label, &
+              ierr); CHKERRQ(ierr)
+         call DMGetLabel(self%mesh%dm, open_boundary_label_name, &
+              open_boundary_label, ierr); CHKERRQ(ierr)
+         allocate(cells(num_faces, 2))
+         do iface = 1, num_faces
+            f = self%mesh%flux_face(iface)
+            call DMPlexGetSupport(self%mesh%dm, f, fc, ierr); CHKERRQ(ierr)
+            do ic = 1, 2
+               c = fc(ic)
+               call DMLabelGetValue(celltype_label, c, cell_type, ierr)
+               CHKERRQ(ierr)
+               if (cell_type == DM_POLYTOPE_FV_GHOST) then
+                  call DMLabelGetValue(open_boundary_label, f, ibdy, &
+                       ierr); CHKERRQ(ierr)
+                  cells(iface, ic) = -ibdy
+               else
+                  natural = self%mesh%local_to_parent_natural(c)
+                  cells(iface, ic) = natural
+               end if
+            end do
+         end do
+
+         call ISCreateGeneral(PETSC_COMM_WORLD, num_faces, cells(:,1), &
+              PETSC_COPY_VALUES, cell1, ierr); CHKERRQ(ierr)
+         call PetscObjectSetName(cell1, "face_cell_index_1", ierr); CHKERRQ(ierr)
+         call ISCreateGeneral(PETSC_COMM_WORLD, num_faces, cells(:,2), &
+              PETSC_COPY_VALUES, cell2, ierr); CHKERRQ(ierr)
+         call PetscObjectSetName(cell2, "face_cell_index_2", ierr); CHKERRQ(ierr)
+         deallocate(cells)
+
+       end associate
+
+       call ISView(cell1, self%hdf5_viewer, ierr); CHKERRQ(ierr)
+       call ISDestroy(cell1, ierr); CHKERRQ(ierr)
+       call ISView(cell2, self%hdf5_viewer, ierr); CHKERRQ(ierr)
+       call ISDestroy(cell2, ierr); CHKERRQ(ierr)
+
+    end if
+
+  end subroutine flow_simulation_output_face_cell_indices
 
 !------------------------------------------------------------------------
 
