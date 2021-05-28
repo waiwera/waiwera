@@ -900,6 +900,7 @@ contains
                       CHKERRQ(ierr)
                       call self%mesh%label_flux_faces()
                       call self%mesh%setup_flux_face_array()
+                      call self%mesh%compact_face_geometry()
                       call self%setup_flux_vector()
 
                       call self%setup_update_cell()

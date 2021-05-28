@@ -126,6 +126,7 @@ module mesh_module
      procedure, public :: redistribute => mesh_redistribute
      procedure, public :: label_flux_faces => mesh_label_flux_faces
      procedure, public :: setup_flux_face_array => mesh_setup_flux_face_array
+     procedure, public :: compact_face_geometry => mesh_compact_face_geometry
   end type mesh_type
 
 contains
@@ -750,6 +751,66 @@ contains
     end if
 
   end subroutine mesh_setup_flux_face_array
+
+!------------------------------------------------------------------------
+
+  subroutine mesh_compact_face_geometry(self)
+    !! Removes unused entries for boundary faces from mesh face
+    !! geometry vector. This vector has to be created early on, before
+    !! the flux face label can be set up. This routine removes the
+    !! unused entries prior to output.
+
+    use dm_utils_module, only: dm_set_data_layout, local_vec_section, &
+         section_offset
+
+    class(mesh_type), intent(in out) :: self
+    ! Locals:
+    Vec :: face_geom
+    DM :: dm_face
+    DMLabel :: flux_face_label
+    DMLabel, allocatable :: labels(:)
+    PetscInt :: face_variable_dim(num_face_variables)
+    PetscInt :: f, iface, face_offset, face_offset_orig, dof
+    PetscSection :: face_section, face_section_orig
+    PetscReal, pointer, contiguous :: face_geom_array(:), face_geom_orig_array(:)
+    PetscErrorCode :: ierr
+
+    call DMClone(self%dm, dm_face, ierr); CHKERRQ(ierr)
+    face_variable_dim = self%dim - 1
+
+    allocate(labels(num_face_variables))
+    call DMGetLabel(dm_face, flux_face_label_name, flux_face_label, &
+         ierr); CHKERRQ(ierr)
+    labels = flux_face_label
+
+    call dm_set_data_layout(dm_face, face_variable_num_components, &
+         face_variable_dim, face_variable_names, labels)
+    deallocate(labels)
+    call DMCreateLocalVector(dm_face, face_geom, ierr); CHKERRQ(ierr)
+
+    call local_vec_section(face_geom, face_section)
+    call local_vec_section(self%face_geom, face_section_orig)
+    call VecGetArrayF90(face_geom, face_geom_array, ierr); CHKERRQ(ierr)
+    call VecGetArrayReadF90(self%face_geom, face_geom_orig_array, ierr)
+    CHKERRQ(ierr)
+
+    do iface = 1, size(self%flux_face)
+       f = self%flux_face(iface)
+       call PetscSectionGetDof(face_section, f, dof, ierr); CHKERRQ(ierr)
+       face_offset = section_offset(face_section, f)
+       face_offset_orig = section_offset(face_section_orig, f)
+       face_geom_array(face_offset: face_offset + dof - 1) = &
+            face_geom_orig_array(face_offset_orig: face_offset_orig + dof - 1)
+    end do
+
+    call VecRestoreArrayReadF90(self%face_geom, face_geom_orig_array, ierr)
+    CHKERRQ(ierr)
+    call VecRestoreArrayF90(face_geom, face_geom_array, ierr); CHKERRQ(ierr)
+
+    call VecDestroy(self%face_geom, ierr); CHKERRQ(ierr)
+    self%face_geom = face_geom
+
+  end subroutine mesh_compact_face_geometry
 
 !------------------------------------------------------------------------
 
