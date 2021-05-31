@@ -2527,50 +2527,67 @@ contains
 
     class(flow_simulation_type), intent(in out) :: self
     ! Locals:
-    PetscInt, allocatable :: cells(:, :)
+    PetscInt, allocatable :: c1(:), c2(:), leaf_faces(:)
+    PetscBool, allocatable :: local(:)
     DMLabel :: celltype_label, open_boundary_label
     IS :: cell1, cell2
-    PetscInt :: iface, ic, f, c, cell_type, natural, ibdy
+    PetscInt :: num_faces, iface, ic, f, start_face, end_face
+    PetscInt :: c, cell_type, natural, ibdy, cells(2)
     PetscInt, pointer, contiguous :: fc(:)
+    PetscSF :: sf
+    PetscInt :: num_roots, num_leaves
+    PetscInt, pointer :: leaves(:)
+    type(PetscSFNode), pointer :: roots(:)
     PetscErrorCode :: ierr
 
     if ((self%hdf5_viewer /= PETSC_NULL_VIEWER) .and. &
          self%flux_output) then
 
-       associate(num_faces => size(self%mesh%flux_face))
+       num_faces = size(self%mesh%flux_face)
 
-         call DMPlexGetCellTypeLabel(self%mesh%dm, celltype_label, &
-              ierr); CHKERRQ(ierr)
-         call DMGetLabel(self%mesh%dm, open_boundary_label_name, &
-              open_boundary_label, ierr); CHKERRQ(ierr)
-         allocate(cells(num_faces, 2))
-         do iface = 1, num_faces
-            f = self%mesh%flux_face(iface)
-            call DMPlexGetSupport(self%mesh%dm, f, fc, ierr); CHKERRQ(ierr)
-            do ic = 1, 2
-               c = fc(ic)
-               call DMLabelGetValue(celltype_label, c, cell_type, ierr)
-               CHKERRQ(ierr)
-               if (cell_type == DM_POLYTOPE_FV_GHOST) then
-                  call DMLabelGetValue(open_boundary_label, f, ibdy, &
-                       ierr); CHKERRQ(ierr)
-                  cells(iface, ic) = -ibdy
-               else
-                  natural = self%mesh%local_to_parent_natural(c)
-                  cells(iface, ic) = natural
-               end if
-            end do
-         end do
+       call DMPlexGetCellTypeLabel(self%mesh%dm, celltype_label, &
+            ierr); CHKERRQ(ierr)
+       call DMGetLabel(self%mesh%dm, open_boundary_label_name, &
+            open_boundary_label, ierr); CHKERRQ(ierr)
+       allocate(c1(num_faces), c2(num_faces), local(num_faces))
+       call DMGetPointSF(self%mesh%dm, sf, ierr); CHKERRQ(ierr)
+       call PetscSFGetGraph(sf, num_roots, num_leaves, leaves, roots, ierr)
+       CHKERRQ(ierr)
+       call DMPlexGetHeightStratum(self%mesh%dm, 1, start_face, end_face, ierr)
+       leaf_faces = pack(leaves, (start_face <= leaves) .and. (leaves < end_face))
 
-         call ISCreateGeneral(PETSC_COMM_WORLD, num_faces, cells(:,1), &
-              PETSC_COPY_VALUES, cell1, ierr); CHKERRQ(ierr)
-         call PetscObjectSetName(cell1, "face_cell_index_1", ierr); CHKERRQ(ierr)
-         call ISCreateGeneral(PETSC_COMM_WORLD, num_faces, cells(:,2), &
-              PETSC_COPY_VALUES, cell2, ierr); CHKERRQ(ierr)
-         call PetscObjectSetName(cell2, "face_cell_index_2", ierr); CHKERRQ(ierr)
-         deallocate(cells)
+       do iface = 1, num_faces
+          f = self%mesh%flux_face(iface)
+          call DMPlexGetSupport(self%mesh%dm, f, fc, ierr); CHKERRQ(ierr)
+          do ic = 1, 2
+             c = fc(ic)
+             call DMLabelGetValue(celltype_label, c, cell_type, ierr)
+             CHKERRQ(ierr)
+             if (cell_type == DM_POLYTOPE_FV_GHOST) then
+                call DMLabelGetValue(open_boundary_label, f, ibdy, &
+                     ierr); CHKERRQ(ierr)
+                cells(ic) = -ibdy
+             else
+                natural = self%mesh%local_to_parent_natural(c)
+                cells(ic) = natural
+             end if
+          end do
+          local(iface) = (.not. any(leaf_faces == f))
+          c1(iface) = cells(1)
+          c2(iface) = cells(2)
+       end do
 
-       end associate
+       num_faces = count(local)
+       c1 = pack(c1, local)
+       c2 = pack(c2, local)
+
+       call ISCreateGeneral(PETSC_COMM_WORLD, num_faces, c1, &
+            PETSC_COPY_VALUES, cell1, ierr); CHKERRQ(ierr)
+       call PetscObjectSetName(cell1, "face_cell_index_1", ierr); CHKERRQ(ierr)
+       call ISCreateGeneral(PETSC_COMM_WORLD, num_faces, c2, &
+            PETSC_COPY_VALUES, cell2, ierr); CHKERRQ(ierr)
+       call PetscObjectSetName(cell2, "face_cell_index_2", ierr); CHKERRQ(ierr)
+       deallocate(c1, c2)
 
        call ISView(cell1, self%hdf5_viewer, ierr); CHKERRQ(ierr)
        call ISDestroy(cell1, ierr); CHKERRQ(ierr)
