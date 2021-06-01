@@ -2528,54 +2528,50 @@ contains
 
     class(flow_simulation_type), intent(in out) :: self
     ! Locals:
-    PetscInt, allocatable :: c1(:), c2(:), leaf_faces(:)
+    PetscInt, allocatable :: c1(:), c2(:)
     PetscBool, allocatable :: local(:)
-    DMLabel :: celltype_label, open_boundary_label
+    DMLabel :: celltype_label, open_boundary_label, remote_label
     IS :: cell1, cell2
-    PetscInt :: num_faces, iface, ic, f, start_face, end_face
+    PetscInt :: num_faces, iface, ic, f, remote
     PetscInt :: c, cell_type, natural, ibdy, cells(2)
     PetscInt, pointer, contiguous :: fc(:)
-    PetscSF :: sf
-    PetscInt :: num_roots, num_leaves
-    PetscInt, pointer :: leaves(:)
-    type(PetscSFNode), pointer :: roots(:)
     PetscErrorCode :: ierr
 
     if ((self%hdf5_viewer /= PETSC_NULL_VIEWER) .and. &
          self%flux_output) then
 
        num_faces = size(self%mesh%flux_face)
+       allocate(c1(num_faces), c2(num_faces), local(num_faces))
 
        call DMPlexGetCellTypeLabel(self%mesh%dm, celltype_label, &
             ierr); CHKERRQ(ierr)
        call DMGetLabel(self%mesh%dm, open_boundary_label_name, &
             open_boundary_label, ierr); CHKERRQ(ierr)
-       allocate(c1(num_faces), c2(num_faces), local(num_faces))
-       call DMGetPointSF(self%mesh%dm, sf, ierr); CHKERRQ(ierr)
-       call PetscSFGetGraph(sf, num_roots, num_leaves, leaves, roots, ierr)
-       CHKERRQ(ierr)
-       call DMPlexGetHeightStratum(self%mesh%dm, 1, start_face, end_face, ierr)
-       leaf_faces = pack(leaves, (start_face <= leaves) .and. (leaves < end_face))
+       call DMGetLabel(self%mesh%dm, remote_point_label_name, &
+            remote_label, ierr); CHKERRQ(ierr)
 
        do iface = 1, num_faces
           f = self%mesh%flux_face(iface)
-          call DMPlexGetSupport(self%mesh%dm, f, fc, ierr); CHKERRQ(ierr)
-          do ic = 1, 2
-             c = fc(ic)
-             call DMLabelGetValue(celltype_label, c, cell_type, ierr)
-             CHKERRQ(ierr)
-             if (cell_type == DM_POLYTOPE_FV_GHOST) then
-                call DMLabelGetValue(open_boundary_label, f, ibdy, &
-                     ierr); CHKERRQ(ierr)
-                cells(ic) = -ibdy
-             else
-                natural = self%mesh%local_to_parent_natural(c)
-                cells(ic) = natural
-             end if
-          end do
-          local(iface) = (.not. any(leaf_faces == f))
-          c1(iface) = cells(1)
-          c2(iface) = cells(2)
+          call DMLabelGetValue(remote_label, f, remote, ierr)
+          local(iface) = (remote < 0)
+          if (local(iface)) then
+             call DMPlexGetSupport(self%mesh%dm, f, fc, ierr); CHKERRQ(ierr)
+             do ic = 1, 2
+                c = fc(ic)
+                call DMLabelGetValue(celltype_label, c, cell_type, ierr)
+                CHKERRQ(ierr)
+                if (cell_type == DM_POLYTOPE_FV_GHOST) then
+                   call DMLabelGetValue(open_boundary_label, f, ibdy, &
+                        ierr); CHKERRQ(ierr)
+                   cells(ic) = -ibdy
+                else
+                   natural = self%mesh%local_to_parent_natural(c)
+                   cells(ic) = natural
+                end if
+             end do
+             c1(iface) = cells(1)
+             c2(iface) = cells(2)
+          end if
        end do
 
        num_faces = count(local)
