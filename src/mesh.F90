@@ -38,11 +38,12 @@ module mesh_module
 
   PetscInt, parameter, public :: max_mesh_filename_length = 200
   PetscInt, parameter :: partition_overlap = 1 !! Cell overlap for parallel mesh distribution
+  character(len = 26) :: face_permeability_override_label_name = "face_permeability_override" !! Name of DMLabel for overriding face permeabilities
   character(len = 16), public :: boundary_label_name = "boundary" !! Name of DMLabel for identifying mesh boundary faces
   character(len = 16), public :: open_boundary_label_name = "open_boundary" !! Name of DMLabel for identifying open boundary faces
   character(len = 16), public :: boundary_ghost_label_name = "boundary_ghost" !! Name of DMLabel for identifying boundary ghost cells
   character(len = 16), public :: flux_face_label_name = "flux_face" !! Name of DMLabel for identifying flux faces 
-  character(len = 26) :: face_permeability_override_label_name = "face_permeability_override" !! Name of DMLabel for overriding face permeabilities
+  character(len = 16), public :: remote_point_label_name = "remote_point" !! Name of DMLabel for remotely owned DM points
 
   type, public :: mesh_type
      !! Mesh type.
@@ -125,6 +126,7 @@ module mesh_module
      procedure, public :: destroy_distribution_data => mesh_destroy_distribution_data
      procedure, public :: redistribute => mesh_redistribute
      procedure, public :: label_flux_faces => mesh_label_flux_faces
+     procedure, public :: label_remote_faces => mesh_label_remote_faces
      procedure, public :: setup_flux_face_array => mesh_setup_flux_face_array
      procedure, public :: compact_face_geometry => mesh_compact_face_geometry
   end type mesh_type
@@ -1716,6 +1718,42 @@ contains
     end subroutine get_cell_faces
 
   end subroutine mesh_label_boundaries
+
+!------------------------------------------------------------------------
+
+  subroutine mesh_label_remote_faces(self)
+    !! Labels faces owned by a different process (i.e. faces which are
+    !! leaves of a remote root).
+
+    use dm_utils_module, only: dm_check_create_label
+
+    class(mesh_type), intent(in out) :: self
+    ! Locals:
+    PetscMPIInt :: rank
+    PetscSF :: sf
+    PetscInt :: num_roots, num_leaves
+    PetscInt :: start_face, end_face, f, l
+    PetscInt, pointer :: leaves(:)
+    type(PetscSFNode), pointer :: roots(:)
+    PetscErrorCode :: ierr
+
+    call MPI_comm_rank(PETSC_COMM_WORLD, rank, ierr)
+    call dm_check_create_label(self%dm, remote_point_label_name)
+    call DMGetPointSF(self%dm, sf, ierr); CHKERRQ(ierr)
+    call PetscSFGetGraph(sf, num_roots, num_leaves, leaves, roots, ierr)
+    CHKERRQ(ierr)
+    call DMPlexGetHeightStratum(self%dm, 1, start_face, end_face, ierr)
+
+    do l = 1, num_leaves
+       f = leaves(l)
+       if ((start_face <= f) .and. (f < end_face) .and. &
+            (roots(l)%rank /= rank)) then
+          call DMSetLabelValue(self%dm, remote_point_label_name, &
+               f, 1, ierr); CHKERRQ(ierr)
+       end if
+    end do
+
+  end subroutine mesh_label_remote_faces
 
 !------------------------------------------------------------------------
 
