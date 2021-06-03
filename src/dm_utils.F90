@@ -1419,6 +1419,7 @@ contains
     ! Locals:
     PetscSection :: dist_section
     IS :: dist_index_set
+    character(80) :: name
     PetscErrorCode :: ierr
 
     call PetscSectionCreate(PETSC_COMM_WORLD, dist_section, ierr)
@@ -1429,6 +1430,8 @@ contains
          index_set, dist_section, &
          dist_index_set, ierr); CHKERRQ(ierr)
     call PetscSectionDestroy(dist_section, ierr); CHKERRQ(ierr)
+    call PetscObjectGetName(index_set, name, ierr); CHKERRQ(ierr)
+    call PetscObjectSetName(dist_index_set, name, ierr); CHKERRQ(ierr)
     call ISDestroy(index_set, ierr); CHKERRQ(ierr)
     index_set = dist_index_set
 
