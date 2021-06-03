@@ -2685,6 +2685,8 @@ contains
     call ISCreateGeneral(PETSC_COMM_WORLD, end_cell - start_cell, &
          natural, PETSC_COPY_VALUES, self%cell_parent_natural, ierr); CHKERRQ(ierr)
     deallocate(natural)
+    call PetscObjectSetName(self%cell_parent_natural, "parent", &
+         ierr); CHKERRQ(ierr)
 
   end subroutine mesh_setup_minc_output_data
 
