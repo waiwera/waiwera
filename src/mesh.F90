@@ -2646,9 +2646,6 @@ contains
     do c = self%strata(0)%start, self%strata(0)%end - 1
        call DMLabelGetValue(ghost_label, c, ghost, ierr)
        if (ghost < 0) then
-          minc_p = self%strata(0)%minc_point(c, 0)
-          call DMSetLabelValue(minc_dm, minc_level_label_name, &
-               minc_p, 0, ierr); CHKERRQ(ierr)
           natural(c) = local_to_natural_cell_index( &
                self%cell_natural_global, l2g, c)
        end if
@@ -2667,13 +2664,17 @@ contains
                c = minc_cells(i)
                call DMLabelGetValue(ghost_label, c, ghost, ierr)
                if (ghost < 0) then
-                  do m = 1, self%minc(iminc)%num_levels
-                     ic = minc_level_cells(m, c)
-                     minc_p = self%strata(0)%minc_point(ic, m)
+                  do m = 0, self%minc(iminc)%num_levels
+                     if (m == 0) then
+                        minc_p = c
+                     else
+                        ic = minc_level_cells(m, c)
+                        minc_p = self%strata(0)%minc_point(ic, m)
+                        natural(minc_p) = local_to_natural_cell_index( &
+                             self%cell_natural_global, l2g, c)
+                     end if
                      call DMSetLabelValue(minc_dm, minc_level_label_name, &
                           minc_p, m, ierr); CHKERRQ(ierr)
-                     natural(minc_p) = local_to_natural_cell_index( &
-                          self%cell_natural_global, l2g, c)
                   end do
                end if
             end do
@@ -3673,7 +3674,7 @@ contains
             minc_level_label, ierr); CHKERRQ(ierr)
        call DMLabelGetValue(minc_level_label, local, minc_level, ierr)
     else
-       minc_level = 0
+       minc_level = -1
     end if
 
   end function mesh_local_cell_minc_level
@@ -3764,11 +3765,11 @@ contains
   subroutine mesh_natural_cell_output_arrays(self, natural, minc_level, &
        keys, values)
     !! Takes a natural cell index and MINC level, and returns arrays
-    !! of keys and values for output. If the mesh is MINC, these
-    !! arrays have two entries, one for natural cell index
-    !! and one for MINC level; otherwise, the arrays have only one
-    !! entry each, for natural cell index. These arrays are intended
-    !! for output to logfile.
+    !! of keys and values for output. If the mesh is MINC, and the
+    !! cell is in a MINC zone, these arrays have two entries, one for
+    !! natural cell index and one for MINC level; otherwise, the
+    !! arrays have only one entry each, for natural cell index. These
+    !! arrays are intended for output to logfile.
 
     class(mesh_type), intent(in out) :: self
     PetscInt, intent(in) :: natural !! Natural cell index
@@ -3776,7 +3777,7 @@ contains
     character(len = *), allocatable :: keys(:) !! Key array
     PetscInt, allocatable :: values(:)
 
-    if (self%has_minc) then
+    if ((self%has_minc) .and. (minc_level >= 0)) then
        keys = ['cell', 'minc']
        values = [natural, minc_level]
     else
