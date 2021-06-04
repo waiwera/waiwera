@@ -111,6 +111,7 @@ module flow_simulation_module
      procedure, public :: fluid_transitions => flow_simulation_fluid_transitions
      procedure, public :: fluid_properties => flow_simulation_fluid_properties
      procedure, public :: output_mesh_geometry => flow_simulation_output_mesh_geometry
+     procedure, public :: output_minc_data => flow_simulation_output_minc_data
      procedure, public :: output_cell_indices => flow_simulation_output_cell_indices
      procedure, public :: output_face_cell_indices => flow_simulation_output_face_cell_indices
      procedure, public :: output_source_indices => flow_simulation_output_source_indices
@@ -920,6 +921,7 @@ contains
                             call self%setup_output_fields(json)
                             call self%output_face_cell_indices()
                             call self%output_mesh_geometry()
+                            call self%output_minc_data()
                             call self%output_source_indices()
                             call self%output_source_cell_indices()
                          end if
@@ -2498,6 +2500,76 @@ contains
     end if
 
   end subroutine flow_simulation_output_mesh_geometry
+
+!------------------------------------------------------------------------
+
+  subroutine flow_simulation_output_minc_data(self)
+    !! Writes MINC data (MINC level and parent cell natural index for
+    !! each cell) to output.
+
+    use dm_utils_module, only: dm_get_end_interior_cell, &
+         dm_get_num_partition_ghost_points
+    use minc_module, only: minc_level_label_name
+
+    class(flow_simulation_type), intent(in out) :: self
+    ! Locals:
+    PetscInt :: start_cell, end_cell, end_interior_cell
+    PetscInt :: num_ghost_cells, num_non_ghost_cells, c, ic, ghost
+    IS :: level, parent
+    PetscInt, allocatable :: level_array(:), parent_array(:)
+    PetscInt, pointer, contiguous :: natural_array(:)
+    DMLabel :: ghost_label, minc_level_label
+    PetscErrorCode :: ierr
+
+    if ((self%hdf5_viewer /= PETSC_NULL_VIEWER) .and. &
+         (self%mesh%has_minc)) then
+
+       call PetscViewerHDF5PushGroup(self%hdf5_viewer, "/minc", &
+            ierr); CHKERRQ(ierr)
+
+       call DMPlexGetHeightStratum(self%mesh%dm, 0, start_cell, end_cell, &
+            ierr); CHKERRQ(ierr)
+       end_interior_cell = dm_get_end_interior_cell(self%mesh%dm, end_cell)
+       num_ghost_cells = dm_get_num_partition_ghost_points(self%mesh%dm, 0)
+       num_non_ghost_cells = end_interior_cell - start_cell - num_ghost_cells
+       allocate(level_array(num_non_ghost_cells), parent_array(num_non_ghost_cells))
+
+       call DMGetLabel(self%mesh%dm, minc_level_label_name, &
+            minc_level_label, ierr); CHKERRQ(ierr)
+       call ISGetIndicesF90(self%mesh%cell_parent_natural, natural_array, &
+            ierr); CHKERRQ(ierr)
+       call DMGetLabel(self%mesh%dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
+       ic = 1
+       do c = start_cell, end_interior_cell - 1
+          call DMLabelGetValue(ghost_label, c, ghost, ierr); CHKERRQ(ierr)
+          if (ghost < 0) then
+             call DMLabelGetValue(minc_level_label, c, level_array(ic), ierr)
+             parent_array(ic) = natural_array(c + 1)
+             ic = ic + 1
+          end if
+       end do
+       call ISRestoreIndicesF90(self%mesh%cell_parent_natural, natural_array, &
+            ierr); CHKERRQ(ierr)
+
+       call ISCreateGeneral(PETSC_COMM_WORLD, num_non_ghost_cells, &
+            level_array, PETSC_COPY_VALUES, level, ierr); CHKERRQ(ierr)
+       deallocate(level_array)
+       call PetscObjectSetName(level, "level", ierr); CHKERRQ(ierr)
+       call ISView(level, self%hdf5_viewer, ierr); CHKERRQ(ierr)
+       call ISDestroy(level, ierr); CHKERRQ(ierr)
+
+       call ISCreateGeneral(PETSC_COMM_WORLD, num_non_ghost_cells, &
+            parent_array, PETSC_COPY_VALUES, parent, ierr); CHKERRQ(ierr)
+       deallocate(parent_array)
+       call PetscObjectSetName(parent, "parent", ierr); CHKERRQ(ierr)
+       call ISView(parent, self%hdf5_viewer, ierr); CHKERRQ(ierr)
+       call ISDestroy(parent, ierr); CHKERRQ(ierr)
+
+       call PetscViewerHDF5PopGroup(self%hdf5_viewer, ierr); CHKERRQ(ierr)
+
+    end if
+
+  end subroutine flow_simulation_output_minc_data
 
 !------------------------------------------------------------------------
 
