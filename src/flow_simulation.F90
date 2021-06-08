@@ -2605,8 +2605,8 @@ contains
     DMLabel :: celltype_label, open_boundary_label, remote_label
     IS :: cell1, cell2
     PetscInt :: num_faces, iface, ic, f, remote
-    PetscInt :: c, cell_type, natural, ibdy, cells(2)
-    PetscInt, pointer, contiguous :: fc(:)
+    PetscInt :: c, cell_type, ibdy, cells(2)
+    PetscInt, pointer, contiguous :: fc(:), natural(:)
     PetscErrorCode :: ierr
 
     if ((self%hdf5_viewer /= PETSC_NULL_VIEWER) .and. &
@@ -2621,6 +2621,8 @@ contains
             open_boundary_label, ierr); CHKERRQ(ierr)
        call DMGetLabel(self%mesh%dm, remote_point_label_name, &
             remote_label, ierr); CHKERRQ(ierr)
+       call ISGetIndicesF90(self%mesh%cell_natural, natural, &
+            ierr); CHKERRQ(ierr)
 
        do iface = 1, num_faces
           f = self%mesh%flux_face(iface)
@@ -2637,8 +2639,7 @@ contains
                         ierr); CHKERRQ(ierr)
                    cells(ic) = -ibdy
                 else
-                   natural = self%mesh%local_to_parent_natural(c)
-                   cells(ic) = natural
+                   cells(ic) = natural(c + 1)
                 end if
              end do
              c1(iface) = cells(1)
@@ -2646,16 +2647,19 @@ contains
           end if
        end do
 
+       call ISRestoreIndicesF90(self%mesh%cell_natural, natural, &
+            ierr); CHKERRQ(ierr)
+
        num_faces = count(local)
        c1 = pack(c1, local)
        c2 = pack(c2, local)
 
        call ISCreateGeneral(PETSC_COMM_WORLD, num_faces, c1, &
             PETSC_COPY_VALUES, cell1, ierr); CHKERRQ(ierr)
-       call PetscObjectSetName(cell1, "face_cell_index_1", ierr); CHKERRQ(ierr)
+       call PetscObjectSetName(cell1, "face_cell_1", ierr); CHKERRQ(ierr)
        call ISCreateGeneral(PETSC_COMM_WORLD, num_faces, c2, &
             PETSC_COPY_VALUES, cell2, ierr); CHKERRQ(ierr)
-       call PetscObjectSetName(cell2, "face_cell_index_2", ierr); CHKERRQ(ierr)
+       call PetscObjectSetName(cell2, "face_cell_2", ierr); CHKERRQ(ierr)
        deallocate(c1, c2)
 
        call ISView(cell1, self%hdf5_viewer, ierr); CHKERRQ(ierr)
