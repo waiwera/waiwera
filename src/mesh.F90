@@ -1766,29 +1766,38 @@ contains
 
     class(mesh_type), intent(in out) :: self
     ! Locals:
-    PetscInt :: start_face, end_face, f, num_cells, bdy
-    DMLabel :: bdy_label
+    PetscInt :: start_face, end_face, f, num_cells, bdy, open_bdy
+    DMLabel :: bdy_label, open_bdy_label
     PetscErrorCode :: ierr
 
     call dm_check_create_label(self%dm, flux_face_label_name)
     call DMGetLabel(self%dm, boundary_label_name, bdy_label, ierr)
     CHKERRQ(ierr)
+    call DMGetLabel(self%dm, open_boundary_label_name, open_bdy_label, &
+         ierr); CHKERRQ(ierr)
 
     call DMPlexGetHeightStratum(self%dm, 1, start_face, end_face, ierr)
     CHKERRQ(ierr)
     do f = start_face, end_face - 1
-       call DMPlexGetSupportSize(self%dm, f, num_cells, ierr); CHKERRQ(ierr)
-       select case (num_cells)
-       case (1)
-          call DMLabelGetValue(bdy_label, f, bdy, ierr); CHKERRQ(ierr)
-          if (bdy < 0) then
-             call DMSetLabelValue(self%dm, flux_face_label_name, &
-                  f, 1, ierr); CHKERRQ(ierr)
-          end if
-       case (2)
+       call DMLabelGetValue(open_bdy_label, f, open_bdy, ierr); CHKERRQ(ierr)
+       if (open_bdy > 0) then
           call DMSetLabelValue(self%dm, flux_face_label_name, &
                f, 1, ierr); CHKERRQ(ierr)
-       end select
+       else
+          call DMPlexGetSupportSize(self%dm, f, num_cells, ierr); CHKERRQ(ierr)
+          select case (num_cells)
+          case (1)
+             call DMLabelGetValue(bdy_label, f, bdy, ierr); CHKERRQ(ierr)
+             if (bdy < 0) then
+                ! partition ghost boundary
+                call DMSetLabelValue(self%dm, flux_face_label_name, &
+                     f, 1, ierr); CHKERRQ(ierr)
+             end if
+          case (2)
+             call DMSetLabelValue(self%dm, flux_face_label_name, &
+                  f, 1, ierr); CHKERRQ(ierr)
+          end select
+       end if
     end do
 
   end subroutine mesh_label_flux_faces
