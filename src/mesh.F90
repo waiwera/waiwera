@@ -1784,19 +1784,11 @@ contains
           call DMSetLabelValue(self%dm, flux_face_label_name, &
                f, 1, ierr); CHKERRQ(ierr)
        else
-          call DMPlexGetSupportSize(self%dm, f, num_cells, ierr); CHKERRQ(ierr)
-          select case (num_cells)
-          case (1)
-             call DMLabelGetValue(bdy_label, f, bdy, ierr); CHKERRQ(ierr)
-             if (bdy < 0) then
-                ! partition ghost boundary
-                call DMSetLabelValue(self%dm, flux_face_label_name, &
-                     f, 1, ierr); CHKERRQ(ierr)
-             end if
-          case (2)
+          call DMLabelGetValue(bdy_label, f, bdy, ierr); CHKERRQ(ierr)
+          if (bdy < 0) then
              call DMSetLabelValue(self%dm, flux_face_label_name, &
                   f, 1, ierr); CHKERRQ(ierr)
-          end select
+          end if
        end if
     end do
 
