@@ -337,6 +337,32 @@ contains
     call fson_destroy_mpi(json)
 
     json => fson_parse_mpi(str = '{"mesh": {' // &
+         '  "filename": "' // trim(adjustl(data_path)) // 'mesh/3D.exo", ' // &
+         '  "zones": {"all": {"-": null}}, ' // &
+         '  "minc": {"rock": {"zones": "all", ' // &
+         '                    "fracture": {"type": "rock"}, ' // &
+         '                    "matrix": {"type": "rock"}}, ' // &
+         '           "geometry": {"fracture": {"volume": 0.1}}}}, ' // &
+         '"rock": {"types": [{"name": "rock", "zones": "all"}]}, ' // &
+         '"output": {"fields": {"flux": ["water"]}}, ' // &
+         '"logfile": {"filename": "", "echo": false}}')
+    call flux_test(json, "3D MINC", 4, 75 + 36)
+    call fson_destroy_mpi(json)
+
+    json => fson_parse_mpi(str = '{"mesh": {' // &
+         '  "filename": "' // trim(adjustl(data_path)) // 'mesh/3D.exo", ' // &
+         '  "zones": {"all": {"-": null}, "top": {"z": [-125, 0]}}, ' // &
+         '  "minc": {"rock": {"zones": "top", ' // &
+         '                    "fracture": {"type": "rock"}, ' // &
+         '                    "matrix": {"type": "rock"}}, ' // &
+         '           "geometry": {"fracture": {"volume": 0.1}}}}, ' // &
+         '"rock": {"types": [{"name": "rock", "zones": "all"}]}, ' // &
+         '"output": {"fields": {"flux": ["water"]}}, ' // &
+         '"logfile": {"filename": "", "echo": false}}')
+    call flux_test(json, "3D partial MINC", 4, 75 + 24)
+    call fson_destroy_mpi(json)
+
+    json => fson_parse_mpi(str = '{"mesh": {' // &
          '"filename": "' // trim(adjustl(data_path)) // 'mesh/hybrid10.msh"}, ' // &
          '"output": {"fields": {"flux": ["water"]}}, ' // &
          '"logfile": {"filename": "", "echo": false}}')
