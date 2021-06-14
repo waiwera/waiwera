@@ -1766,7 +1766,7 @@ contains
 
     class(mesh_type), intent(in out) :: self
     ! Locals:
-    PetscInt :: start_face, end_face, f, num_cells, bdy, open_bdy
+    PetscInt :: start_face, end_face, f, bdy, open_bdy
     DMLabel :: bdy_label, open_bdy_label
     PetscErrorCode :: ierr
 
