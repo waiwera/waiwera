@@ -343,6 +343,15 @@ contains
     call flux_test(json, "hybrid", 4, 12)
     call fson_destroy_mpi(json)
 
+    json => fson_parse_mpi(str = '{"mesh": {' // &
+         '"filename": "' // trim(adjustl(data_path)) // 'mesh/hybrid10.msh"}, ' // &
+         '"boundaries": [{"faces": {"cells": [6, 9], ' // &
+         '  "normal": [0, 0, 1]}}], ' // &
+         '"output": {"fields": {"flux": ["water"]}}, ' // &
+         '"logfile": {"filename": "", "echo": false}}')
+    call flux_test(json, "hybrid bdy", 4, 14)
+    call fson_destroy_mpi(json)
+
   contains
 
     subroutine flux_test(json, title, expected_vector_blocksize, &
