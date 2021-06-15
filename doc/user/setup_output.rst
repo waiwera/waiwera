@@ -382,6 +382,20 @@ In this example all available fluid fields will be output:
    {"eos": {"name": "we"},
     "output": {"fields": {"fluid": "all"}}}
 
+The next example specifies the water / air / energy EOS, with default fluid output fields, but also requires water and air mass fluxes to be output:
+
+.. code-block:: json
+
+   {"eos": {"name": "wae"},
+    "output": {"fields": {"flux": ["water", "air"]}}}
+
+Here the liquid and vapour mass fluxes are output instead of component fluxes:
+
+.. code-block:: json
+
+   {"eos": {"name": "wae"},
+    "output": {"fields": {"flux": ["liquid", "vapour"]}}}
+
 The following example defines two tracers named "T1" and "T2" and specifies that their flow rates should be included in the source output (along with the fluid flow rate and enthalpy):
 
 .. code-block:: json
