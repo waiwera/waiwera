@@ -10,6 +10,7 @@ Waiwera outputs the simulation results (not log messages, which are written to t
 Waiwera simulation results consist mainly of:
 
 * selected fluid properties (e.g. pressures, temperatures) in each cell
+* selected flux properties (e.g. mass fluxes) through each face
 * selected source properties (e.g. flow rates, enthalpies) at each source (see :ref:`source_terms`)
 
 which are written to the HDF5 file at specified times.
@@ -168,7 +169,7 @@ Secondly, the tolerance can give better time-stepping behaviour if a time step h
 Output fields
 =============
 
-The main simulation results consist of fluid and source properties, or "fields", output for each cell and source. It is possible to control which fields are output using the **"output.fields"** value. This is an object, with two values, **"fluid"** and **"source"**, specifying the fluid and source output fields respectively.
+The main simulation results consist of fluid, flux and source properties, or "fields", output for each cell, face and source. It is possible to control which fields are output using the **"output.fields"** value. This is an object, with three values, **"fluid"**, **flux** and **"source"**, specifying the fluid, flux and source output fields respectively.
 
 .. note::
    **JSON object**: output fields
@@ -180,6 +181,10 @@ The main simulation results consist of fluid and source properties, or "fields",
    +------------+---------------+--------------+--------------+
    |"fluid"     |array | string |depends on    |fluid output  |
    |            |               |EOS           |fields        |
+   +------------+---------------+--------------+--------------+
+   |"flux"      |array | string |[]            |flux output   |
+   |            |               |              |fields        |
+   |            |               |              |              |
    +------------+---------------+--------------+--------------+
    |"source"    |array | string |["component", |source output |
    |            |               |"rate",       |fields        |
@@ -261,6 +266,31 @@ The Waiwera HDF5 output files can be used to provide initial conditions for rest
 For example, for the :ref:`water_energy_eos` EOS, the fluid output fields must include "pressure", "temperature" and "vapour_saturation".
 
 If the necessary primary variable fields are not specified in the "output.fields.fluid" array, Waiwera will automatically add them. 
+
+.. index:: output; flux
+.. _output_flux_fields:
+
+Flux fields
+-----------
+
+Flux fields may be output for any of the fluid mass or energy components, or the fluid phases:
+
++--------------------------+-------------------------+
+|**field name**            |**value**                |
++--------------------------+-------------------------+
+|`component_name`          |mass or energy component |
+|                          |flux (kg/m\ :sup:`2`/s or|
+|                          |W/m\ :sup:`2`)           |
++--------------------------+-------------------------+
+|`phase_name`              |phase flux (kg/m\        |
+|                          |:sup:`2`/s)              |
++--------------------------+-------------------------+
+
+There is a flux field for each mass or energy component in the :ref:`eos` module being used. For example, for the :ref:`water_air_energy_eos` EOS, the mass component names are "water" and "air", so the corresponding mass component flux field names are also simply "water" and "air". As this EOS is non-isothermal, it also has an energy component, so there is an additional "energy" flux component field name.
+
+There is also a flux field for each fluid phase in the :ref:`eos` module. For the :ref:`water_air_energy_eos` EOS, for example, the phases are "liquid" and "vapour", so the corresponding flux field names are also "liquid" and "vapour".
+
+By default (regardless of the equation of state), no flux fields are output. Note that for a typical mesh, particularly in 3-D, there are significantly more faces than cells, so specifying flux output will considerably increase output file sizes.
 
 .. index:: output; sources
 .. _output_source_fields:
