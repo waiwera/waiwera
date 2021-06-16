@@ -412,6 +412,8 @@ The available face geometry fields are:
 |                          |                         |
 +--------------------------+-------------------------+
 
+Note that if no :ref:`output_flux_fields` are specified (the default), then no face geometry fields will be output either.
+
 Examples
 --------
 
