@@ -99,6 +99,10 @@ This index array can be used to re-order output in global output ordering back i
 
 Similarly, there is another dataset called **"source_index"** which maps the natural source ordering onto the global source ordering in the output.
 
+If there is :ref:`output_at_faces` (in the "face_fields" HDF5 group) then two more index datasets will be present in the root group: **"face_cell_1"** and **"face_cell_2"**. These contain the natural indices of the cells on either side of each face, and can be used to identify the correct face field data for a given face in the simulation mesh.
+
+Besides the internal mesh faces, the face field datasets also contain data for boundary faces on which :ref:`dirichlet_bcs` are applied. These faces cannot be identified by a pair of natural cell indices, because there is no mesh cell on the outside of the boundary. Dirichlet boundary conditions are specified via the **"boundaries"** array value in the Waiwera JSON input file. Each item of this array specifies a different boundary condition. For boundary faces in the output, the "face_cell_1" dataset contains the natural index of the cell on the inside of the boundary, but the "face_cell_2" dataset contains the negative of the (1-based) index of the boundary condition specification in the input. Hence, for example, a boundary face with the first boundary condition applied to it has a "face_cell_2" value of -1, a face with the second boundary condition applied has a "face_cell_2" value of -2, etc.
+
 .. index:: HDF5; scripting, output; scripting, scripting; output
 .. _output_script:
 
