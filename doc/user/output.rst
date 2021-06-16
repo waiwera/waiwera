@@ -29,7 +29,7 @@ How simulation output is structured
 
 Data in HDF5 files are generally organised into **groups**, which may be considered analogous to directories in a file system. A group may contain one or more **datasets**. All the groups and datasets in an HDF5 file are contained in a top-level group called the "root" group. For more information on the HDF5 data model, refer to the `HDF5 documentation <https://portal.hdfgroup.org/display/HDF5/HDF5>`_.
 
-Under the root group, a Waiwera HDF5 output file contains two groups, "cell_fields" and "source_fields".
+Under the root group, a Waiwera HDF5 output file usually contains two groups, "cell_fields" and "source_fields". Two other groups, "face_fields" and "minc",  may also be present, depending on how the simulation is configured.
 
 .. index:: output; cells, HDF5; cell_fields group, tracers; output, output; tracers
 
@@ -52,6 +52,18 @@ Output at sources
 The **"source_fields"** group in a Waiwera HDF5 output file contains output data defined at the sources (see :ref:`source_terms`), for example the flow rate and enthalpy at each source. These datasets have names beginning with "source\_", e.g. "source_rate". The datasets included here can be selected in the Waiwera JSON input file (see :ref:`output_source_fields`).
 
 Like the fluid datasets, most of the source datasets are time-dependent, having one row per output time, with each row having one column per source.
+
+.. index:: output; cells, HDF5; cell_fields group, tracers; output, output; tracers
+.. _output_at_faces:
+
+Output at faces
+---------------
+
+The **"face_fields"** group in a Waiwera HDF5 output file contains output data defined at the mesh faces. The main datasets in this group contain **fluid fluxes** computed through the faces. These datasets have names beginning with "flux\_" (e.g. "flux_water", "flux_energy" or "flux_vapour"). The specific flux datasets included here can be selected in the Waiwera JSON input file (see :ref:`output_flux_fields`). Note that if no flux fields are specified for output (which is the default), the "face_fields" group will not be present.
+
+As for the cell fields, the flux datasets are usually time-dependent, so there is one row for each output time (see :ref:`time_output`), and on each row there is one column per face.
+
+The "face_fields" group also contains datasets related to **face geometry**, which have names beginning with "face_geometry". For example, the "face_geometry_area" dataset contains the face areas. These datasets are not time-dependent, so there is just one row per face. Some of the face geometry datasets (e.g. "face_geometry_distance", "face_geometry_normal", "face_geometry_centroid") contain arrays for each face, so there are multiple columns on each row.
 
 .. index:: output; time, HDF5; time
 .. _time_output:
