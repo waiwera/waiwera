@@ -48,7 +48,22 @@
                                  {"type": "array", "items": {"type": "string"}},
                                  {"type": "string", "enum": ["all", "All", "ALL"]}
                              ]},
+                         "flux": {
+                             "oneOf": [
+                                 {"type": "array", "items": {"type": "string"}},
+                                 {"type": "string", "enum": ["all", "All", "ALL"]}
+                             ]},
                          "source": {
+                             "oneOf": [
+                                 {"type": "array", "items": {"type": "string"}},
+                                 {"type": "string", "enum": ["all", "All", "ALL"]}
+                             ]},
+                         "cell_geometry": {
+                             "oneOf": [
+                                 {"type": "array", "items": {"type": "string"}},
+                                 {"type": "string", "enum": ["all", "All", "ALL"]}
+                             ]},
+                         "face_geometry": {
                              "oneOf": [
                                  {"type": "array", "items": {"type": "string"}},
                                  {"type": "string", "enum": ["all", "All", "ALL"]}
