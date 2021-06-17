@@ -29,7 +29,7 @@ How simulation output is structured
 
 Data in HDF5 files are generally organised into **groups**, which may be considered analogous to directories in a file system. A group may contain one or more **datasets**. All the groups and datasets in an HDF5 file are contained in a top-level group called the "root" group. For more information on the HDF5 data model, refer to the `HDF5 documentation <https://portal.hdfgroup.org/display/HDF5/HDF5>`_.
 
-Under the root group, a Waiwera HDF5 output file usually contains two groups, "cell_fields" and "source_fields". Two other groups, "face_fields" and "minc",  may also be present, depending on how the simulation is configured.
+Under the root group, a Waiwera HDF5 output file usually contains two groups, **"cell_fields"** and **"source_fields"**. Two other groups, **"face_fields"** and **"minc"**,  may also be present, depending on how the simulation is configured. The contents of these four groups is described below, along with other datasets which may be present in the root group.
 
 .. index:: output; cells, HDF5; cell_fields group, tracers; output, output; tracers
 
@@ -71,7 +71,7 @@ The "face_fields" group also contains datasets related to **face geometry**, whi
 Output time dataset
 -------------------
 
-The root group in a Waiwera HDF5 output file also contains a **"time"** dataset. This is a simple array containing all the output times, one per row.
+The root group in a Waiwera HDF5 output file also contains a **"time"** dataset. This is a simple array containing all the output times, one per row. These rows correspond to the rows in time-dependent datasets in the "cell_fields", "face_fields and "source_fields" groups.
 
 .. index:: output; ordering, HDF5; ordering, output; index datasets, HDF5; index datasets
 .. _index_datasets:
@@ -102,6 +102,36 @@ Similarly, there is another dataset called **"source_index"** which maps the nat
 If there is :ref:`output_at_faces` (in the "face_fields" HDF5 group) then two more index datasets will be present in the root group: **"face_cell_1"** and **"face_cell_2"**. These contain the natural indices of the cells on either side of each face, and can be used to identify the correct face field data for a given face in the simulation mesh.
 
 Besides the internal mesh faces, the face field datasets also contain data for boundary faces on which :ref:`dirichlet_bcs` are applied. These faces cannot be identified by a pair of natural cell indices, because there is no mesh cell on the outside of the boundary. Dirichlet boundary conditions are specified via the **"boundaries"** array value in the Waiwera JSON input file. Each item of this array specifies a different boundary condition. For boundary faces in the output, the "face_cell_1" dataset contains the natural index of the cell on the inside of the boundary, but the "face_cell_2" dataset contains the negative of the (1-based) index of the boundary condition specification in the input. Hence, for example, a boundary face with the first boundary condition applied to it has a "face_cell_2" value of -1, a face with the second boundary condition applied has a "face_cell_2" value of -2, etc.
+
+.. index:: output; index datasets, HDF5; index datasets, HDF5; MINC datasets
+.. _minc_indexing:
+
+MINC cell indexing
+------------------
+
+For MINC simulations, MINC matrix cells are added inside the corresponding fracture cells (see :ref:`minc`). Datasets in the "cell_fields" group contain results for all cells, including MINC matrix cells.
+
+Extended natural cell indices
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+As MINC matrix cells are not present in the original mesh, they do not have a "natural" index. Hence, they must be assigned an "extended" natural index.
+
+MINC matrix cells are added after the single-porosity and fracture cells (which retain the natural cell indices of the original mesh), and are added in order of MINC matrix level (all level 1 cells first, then level 2, etc.). Within each matrix level, matrix cells are added following the natural order of their associated fracture cells. The extended natural indexing of MINC cells corresponds to this order in which they are added to the mesh.
+
+For MINC simulations, the "cell_index" dataset maps extended natural cell indices to the global cell ordering used in the output. The cell indices in the "face_cell_1" and "face_cell_2" datasets are also then extended natural indices.
+
+Datasets in the "minc" group
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Waiwera HDF5 output files from MINC simulations also contain an additional **"minc"** group. This contains two datasets to assist with post-processing the results of MINC simulations.
+
+The **"level"** dataset contains the MINC level for each cell. For MINC matrix cells, this corresponds to the MINC matrix level. For example, for dual-porosity simulations each fracture cell has only one matrix cell inside it, so all matrix cells have level 1. If there are two MINC matrix levels, matrix cells will have levels 1 and 2, etc.
+
+Fracture cells are assigned MINC level 0. If MINC is applied over only part of the simulation mesh, there will be single-porosity cells outside it, and these are assigned MINC level -1.
+
+The **"parent"** dataset contains, for each cell, the natural index of its parent cell. For MINC matrix cells, the parent cell is the corresponding fracture cell. For fracture cells and single-porosity cells, the parent cell is just the cell itself.
+
+Together, these two datasets can be used to identify the cell results corresponding to the MINC matrix cell of any level within a particular fracture cell.
 
 .. index:: HDF5; scripting, output; scripting, scripting; output
 .. _output_script:
