@@ -3189,9 +3189,9 @@ contains
           new_locations(p) = self%strata(h)%minc_point(p, m)
        end do
        call PetscSFBcastBegin(sf, MPI_INTEGER, new_locations, &
-            new_remote_locations, ierr); CHKERRQ(ierr)
+            new_remote_locations, MPI_REPLACE, ierr); CHKERRQ(ierr)
        call PetscSFBcastEnd(sf, MPI_INTEGER, new_locations, &
-            new_remote_locations, ierr); CHKERRQ(ierr)
+            new_remote_locations, MPI_REPLACE, ierr); CHKERRQ(ierr)
 
        ! Determine MINC roots and leaves:
        allocate(minc_leaves(num_leaves), minc_roots(num_leaves))
