@@ -39,7 +39,6 @@ module mesh_module
   PetscInt, parameter, public :: max_mesh_filename_length = 200
   PetscInt, parameter :: partition_overlap = 1 !! Cell overlap for parallel mesh distribution
   character(len = 16), public :: open_boundary_label_name = "open_boundary" !! Name of DMLabel for identifying open boundary faces
-  character(len = 16), public :: boundary_ghost_label_name = "boundary_ghost" !! Name of DMLabel for identifying boundary ghost cells
   character(len = 26) :: face_permeability_override_label_name = "face_permeability_override" !! Name of DMLabel for overriding face permeabilities
 
   type, public :: mesh_type
@@ -181,8 +180,7 @@ contains
     !! Constructs ghost cells on open boundary faces.
 
     use dm_utils_module, only: dm_set_fv_adjacency, &
-         dm_set_default_data_layout, dm_label_boundary_ghosts, &
-         dm_get_natural_to_global_ao
+         dm_set_default_data_layout, dm_get_natural_to_global_ao
 
     class(mesh_type), intent(in out) :: self
     PetscReal, intent(in) :: gravity(:) !! Gravity vector
@@ -201,7 +199,6 @@ contains
        self%dm = ghost_dm
        call dm_set_fv_adjacency(self%dm)
        call dm_set_default_data_layout(self%dm, self%dof)
-       call dm_label_boundary_ghosts(self%dm, boundary_ghost_label_name)
        self%cell_natural_global = dm_get_natural_to_global_ao(self%dm, self%cell_natural)
        call self%geometry_add_boundary(gravity)
        call self%setup_ghost_arrays()
