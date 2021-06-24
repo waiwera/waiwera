@@ -63,8 +63,8 @@ module dm_utils_module
   public :: write_vec_vtk
   public :: vec_max_pointwise_abs_scale
   public :: dm_set_fv_adjacency
-  public :: dm_get_num_partition_ghost_points, dm_get_bdy_cell_shift
   public :: dm_get_end_interior_cell
+  public :: dm_get_num_partition_ghost_points
   public :: dm_get_natural_to_global_ao, dm_get_cell_index
   public :: natural_to_local_cell_index, local_to_natural_cell_index
   public :: dm_natural_order_IS
@@ -704,47 +704,6 @@ contains
 
 !------------------------------------------------------------------------
 
-  PetscInt function dm_get_bdy_cell_shift(dm) result(shift)
-    !! Returns number of boundary cells on processes of rank lower
-    !! than the current process.
-
-    use utils_module, only: get_mpi_int_gather_array, array_cumulative_sum
-
-    DM, intent(in) :: dm
-    ! Locals:
-    PetscInt :: start_cell, end_cell, end_interior_cell
-    PetscInt :: num_bdy_cells
-    PetscMPIInt :: rank, np
-    PetscInt, allocatable :: proc_num_bdy_cells(:), &
-         proc_sum_bdy_cells(:)
-    PetscErrorCode :: ierr
-
-    call MPI_comm_rank(PETSC_COMM_WORLD, rank, ierr)
-    call MPI_comm_size(PETSC_COMM_WORLD, np, ierr)
-
-    call DMPlexGetHeightStratum(dm, 0, start_cell, end_cell, ierr)
-    CHKERRQ(ierr)
-    end_interior_cell = dm_get_end_interior_cell(dm, end_cell)
-    num_bdy_cells = end_cell - end_interior_cell
-
-    proc_num_bdy_cells = get_mpi_int_gather_array()
-    proc_sum_bdy_cells = get_mpi_int_gather_array()
-
-    call MPI_gather(num_bdy_cells, 1, MPI_INTEGER, proc_num_bdy_cells, &
-         1, MPI_INTEGER, 0, PETSC_COMM_WORLD, ierr)
-    if (rank == 0) then
-       proc_sum_bdy_cells = [[0], &
-            array_cumulative_sum(proc_num_bdy_cells(1: np - 1))]
-    end if
-    call MPI_scatter(proc_sum_bdy_cells, 1, MPI_INTEGER, shift, &
-         1, MPI_INTEGER, 0, PETSC_COMM_WORLD, ierr)
-
-    deallocate(proc_num_bdy_cells, proc_sum_bdy_cells)
-
-  end function dm_get_bdy_cell_shift
-
-!------------------------------------------------------------------------
-
   PetscInt function dm_get_end_interior_cell(dm, end_cell) &
        result(end_interior_cell)
     !! Returns index (+1) of last interior (i.e. non-boundary) cell of
@@ -962,6 +921,8 @@ contains
     !! Returns cell_index IS mapping natural cell indices to global
     !! indices of a global vector (without boundary data included).
 
+    use mpi_utils_module, only: mpi_lower_rank_sum
+
     DM, intent(in) :: dm !! Input DM
     AO, intent(in) :: ao !! Natural-to-global AO for the DM
     IS, intent(out) :: cell_index !! Natural-to-global IS (without boundary data)
@@ -982,7 +943,7 @@ contains
     end_interior_cell = dm_get_end_interior_cell(dm, end_cell)
     num_ghost_cells = dm_get_num_partition_ghost_points(dm, 0)
     num_non_ghost_cells = end_interior_cell - start_cell - num_ghost_cells
-    bdy_cell_shift = dm_get_bdy_cell_shift(dm)
+    bdy_cell_shift = mpi_lower_rank_sum(num_bdy_cells)
 
     allocate(global(0: num_non_ghost_cells - 1))
     ic = 0
