@@ -108,7 +108,7 @@ contains
          1.5_dp,  2.e-7_dp, 0.2_dp, 0.3_dp, 0._dp, 800.e3_dp, 2.540e6_dp, 0.4_dp, 0.6_dp]
 
     do c = start_cell, end_cell - 1
-       if (mesh%ghost_cell(c) < 0) then
+       if (mesh%ghost_cell(c) <= 0) then
           fluid_offset = global_section_offset(fluid_section, c, fluid_range_start)
           fluid_array(fluid_offset: fluid_offset + fluid%dof - 1) = fluid_cell_data
        end if

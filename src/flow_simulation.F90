@@ -1158,7 +1158,7 @@ contains
 
     do c = start_cell, end_cell - 1
 
-       if (self%mesh%ghost_cell(c) < 0) then
+       if (self%mesh%ghost_cell(c) <= 0) then
 
           update_offset = global_section_offset(update_section, c, &
                self%update_cell_range_start)
@@ -1314,8 +1314,7 @@ contains
           face_component_flow = face_flux(1:np) * face%area
 
           do i = 1, 2
-             if ((self%mesh%ghost_cell(cells(i)) < 0) .and. &
-                  (cells(i) <= end_interior_cell - 1)) then
+             if (self%mesh%ghost_cell(cells(i)) < 0) then
                 inflow => rhs_array(rhs_offsets(i) : rhs_offsets(i) + np - 1)
                 inflow = inflow + flux_sign(i) * face_component_flow / &
                      face%cell(i)%volume
@@ -1454,7 +1453,7 @@ contains
 
     do c = start_cell, end_cell - 1
 
-       if (self%mesh%ghost_cell(c) < 0) then
+       if (self%mesh%ghost_cell(c) <= 0) then
 
           tracer_offset = global_section_offset(tracer_section, c, &
                   self%aux_solution_range_start)
@@ -1571,8 +1570,7 @@ contains
                c_up = cells(up)
                tracer_flow = tracer_phase_flux * face%area
                do i = 1, 2
-                  if ((self%mesh%ghost_cell(cells(i)) < 0) .and. &
-                       (cells(i) <= end_interior_cell - 1)) then
+                  if (self%mesh%ghost_cell(cells(i)) < 0) then
                      call PetscSectionGetOffset(local_tracer_section, cells(i), &
                           tracer_offset_i, ierr); CHKERRQ(ierr)
                      irow = tracer_offset_i + it - 1
@@ -1705,7 +1703,7 @@ contains
 
       do c = start_cell, end_cell - 1
 
-         if (self%mesh%ghost_cell(c) < 0) then
+         if (self%mesh%ghost_cell(c) <= 0) then
 
             fluid_offset = global_section_offset(fluid_section, c, &
                  self%fluid_range_start)
@@ -1787,7 +1785,7 @@ contains
     call index_list%init(PETSC_TRUE)
 
     do c = start_cell, end_interior_cell - 1
-       if (self%mesh%ghost_cell(c) < 0) then
+       if (self%mesh%ghost_cell(c) <= 0) then
           call PetscSectionGetOffset(local_tracer_section, c, &
                local_tracer_offset, ierr); CHKERRQ(ierr) ! zero-based
           fluid_offset = global_section_offset(fluid_section, c, &
@@ -1821,7 +1819,7 @@ contains
     call VecGetArrayReadF90(self%aux_solution, previous_solution_array, ierr)
     CHKERRQ(ierr)
     do c = end_interior_cell, end_cell - 1
-       if (self%mesh%ghost_cell(c) < 0) then
+       if (self%mesh%ghost_cell(c) <= 0) then
           call PetscSectionGetOffset(local_tracer_section, c, &
                local_tracer_offset, ierr); CHKERRQ(ierr)
           tracer_offset = global_section_offset(tracer_section, c, &
@@ -2058,7 +2056,7 @@ contains
 
     do c = start_cell, end_cell - 1
 
-       if (self%mesh%ghost_cell(c) < 0) then
+       if (self%mesh%ghost_cell(c) <= 0) then
 
           y_offset = global_section_offset(y_section, c, &
                self%solution_range_start)
@@ -2179,7 +2177,7 @@ contains
 
     do c = start_cell, end_cell - 1
 
-       if ((self%mesh%ghost_cell(c) < 0)) then
+       if (self%mesh%ghost_cell(c) <= 0) then
 
           update_offset = global_section_offset(update_section, c, &
                self%update_cell_range_start)
@@ -2311,7 +2309,7 @@ contains
 
     do c = start_cell, end_cell - 1
 
-       if (self%mesh%ghost_cell(c) < 0) then
+       if (self%mesh%ghost_cell(c) <= 0) then
 
           primary_offset = global_section_offset(primary_section, c, &
                self%solution_range_start)
@@ -2587,7 +2585,7 @@ contains
 
     do c = end_interior_cell, end_cell - 1
 
-       if (self%mesh%ghost_cell(c) < 0) then
+       if (self%mesh%ghost_cell(c) <= 0) then
 
           lhs_offset = global_section_offset(lhs_section, c, &
                self%solution_range_start)

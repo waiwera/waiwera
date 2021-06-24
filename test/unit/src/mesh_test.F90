@@ -310,7 +310,7 @@ contains
     CHKERRQ(ierr)
 
     do c = start_cell, end_cell - 1
-       if (mesh%ghost_cell(c) < 0) then
+       if (mesh%ghost_cell(c) <= 0) then
           offset = section_offset(cell_geom_section, c)
           call cell%assign_geometry(cell_geom_array, offset)
           volumes_OK = (volumes_OK .and. &
@@ -413,7 +413,7 @@ contains
     CHKERRQ(ierr)
 
     do c = start_cell, end_cell - 1
-       if (mesh%ghost_cell(c) < 0) then
+       if (mesh%ghost_cell(c) <= 0) then
           offset = section_offset(cell_geom_section, c)
           call cell%assign_geometry(cell_geom_array, offset)
           r = cell%centroid(1)
@@ -1943,8 +1943,7 @@ contains
          end if
       end do
 
-      call DMGetStratumSize(mesh%dm, boundary_ghost_label_name, 1, &
-           num_local_bdy_cells, ierr); CHKERRQ(ierr)
+      num_local_bdy_cells = count(mesh%ghost_cell == BDY_GHOST_CELL_TYPE)
       call mpi_reduce(num_local_bdy_cells, num_bdy_cells, 1, &
               MPI_INTEGER, MPI_SUM, 0, PETSC_COMM_WORLD, ierr)
       if (rank == 0) then
@@ -2099,7 +2098,7 @@ contains
       CHKERRQ(ierr)
       end_interior_cell = dm_get_end_interior_cell(mesh%dm, end_cell)
       do c = end_interior_cell, end_cell - 1
-         if (mesh%ghost_cell(c) < 0) then
+         if (mesh%ghost_cell(c) <= 0) then
             y_offset = global_section_offset(y_section, c, y_range_start)
             cell_primary => y_array(y_offset : y_offset + np - 1)
             write(msg, '(a, i0)') 'primary ', c

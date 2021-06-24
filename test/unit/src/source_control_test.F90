@@ -297,7 +297,7 @@ contains
     call VecGetArrayF90(fluid_vector, fluid_array, ierr); CHKERRQ(ierr)
 
     do c = start_cell, end_cell - 1
-       if (mesh%ghost_cell(c) < 0) then
+       if (mesh%ghost_cell(c) <= 0) then
           fluid_offset = global_section_offset(fluid_section, c, fluid_range_start)
           call fluid%assign(fluid_array, fluid_offset)
           fluid%pressure = cell_pressure
@@ -520,7 +520,7 @@ contains
     subroutine reset_fluid_pressures(P)
       PetscReal, intent(in) :: P
       do c = start_cell, end_cell - 1
-         if (mesh%ghost_cell(c) < 0) then
+         if (mesh%ghost_cell(c) <= 0) then
             fluid_offset = section_offset(local_fluid_section, c)
             call fluid%assign(local_fluid_array, fluid_offset)
             fluid%pressure = P

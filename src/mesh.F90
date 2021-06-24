@@ -40,6 +40,7 @@ module mesh_module
   PetscInt, parameter :: partition_overlap = 1 !! Cell overlap for parallel mesh distribution
   character(len = 16), public :: open_boundary_label_name = "open_boundary" !! Name of DMLabel for identifying open boundary faces
   character(len = 26) :: face_permeability_override_label_name = "face_permeability_override" !! Name of DMLabel for overriding face permeabilities
+  PetscInt, parameter, public :: BDY_GHOST_CELL_TYPE = 0 !! Marker for boundary ghost cells in ghost_cell array
 
   type, public :: mesh_type
      !! Mesh type.
@@ -667,15 +668,18 @@ contains
 !------------------------------------------------------------------------
 
   subroutine mesh_setup_ghost_arrays(self)
-    !! Sets up arrays of ghost label values on cells and faces. This
-    !! is just for faster access to these values in the rest of the
-    !! code.
+    !! Sets up arrays of ghost label values on cells and faces. Cells
+    !! are assigned values of ghost_cell from the DM "ghost" label,
+    !! which marks partition ghosts with the value 2. In addition,
+    !! boundary ghost cells are assigned values of ghost_cell =
+    !! BDY_GHOST_CELL_TYPE. Faces are assigned values of ghost_face
+    !! from the DM "ghost" label.
 
     class(mesh_type), intent(in out) :: self
     ! Locals:
-    PetscInt :: c, f
+    PetscInt :: c, f, ct
     PetscInt :: start_cell, end_cell, start_face, end_face
-    DMLabel :: ghost_label
+    DMLabel :: ghost_label, cell_type_label
     PetscErrorCode :: ierr
 
     call DMPlexGetHeightStratum(self%dm, 0, start_cell, end_cell, ierr)
@@ -691,12 +695,18 @@ contains
     self%ghost_cell = -1
     self%ghost_face = -1
 
-    call DMGetLabel(self%dm, "ghost", ghost_label, ierr)
+    call DMGetLabel(self%dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
+    call DMPlexGetCellTypeLabel(self%dm, cell_type_label, ierr)
     CHKERRQ(ierr)
 
     do c = start_cell, end_cell - 1
        call DMLabelGetValue(ghost_label, c, self%ghost_cell(c), ierr)
        CHKERRQ(ierr)
+       call DMLabelGetValue(cell_type_label, c, ct, ierr)
+       CHKERRQ(ierr)
+       if (ct == DM_POLYTOPE_FV_GHOST) then
+          self%ghost_cell(c) = BDY_GHOST_CELL_TYPE
+       end if
     end do
 
     do f = start_face, end_face - 1
