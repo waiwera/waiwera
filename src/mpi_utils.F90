@@ -103,7 +103,6 @@ contains
 
     PetscInt, intent(in) :: x
     ! Locals:
-    PetscInt :: num_bdy_cells
     PetscMPIInt :: rank, np
     PetscInt, allocatable :: proc_x(:), proc_sum_x(:)
     PetscErrorCode :: ierr
