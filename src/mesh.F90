@@ -3406,8 +3406,7 @@ contains
     !! geometry. For MINC faces a reversed orientation is detected by
     !! MINC levels that decrease from the first cell to the second.
 
-    use dm_utils_module, only: local_vec_section, section_offset, &
-         dm_get_end_interior_cell
+    use dm_utils_module, only: local_vec_section, section_offset
     use face_module, only: face_type
     use minc_module, only: minc_level_label_name
 
