@@ -1740,8 +1740,7 @@ contains
     !! fraction to zero. Equations in boundary cells are modified to
     !! enforce the boundary conditions.
 
-    use dm_utils_module, only: global_section_offset, global_vec_section, &
-          dm_get_end_interior_cell
+    use dm_utils_module, only: global_section_offset, global_vec_section
     use fluid_module, only: fluid_type
     use list_module, only: list_type
 
@@ -1749,8 +1748,11 @@ contains
     Mat, intent(in out) :: A
     Vec, intent(in out) :: b
     ! Locals:
-    PetscInt :: start_cell, end_cell, end_interior_cell, c, i, it
+    PetscInt :: start_cell, end_cell, c, i, it, ic
     PetscInt :: nc, np, nt, num_indices, num_bdy
+    DMLabel :: celltype_label
+    IS :: bdy_IS
+    PetscInt, pointer, contiguous :: bdy_cells(:)
     PetscInt :: local_tracer_offset, fluid_offset, tracer_offset, idx
     PetscSection :: local_tracer_section, fluid_section, tracer_section
     PetscReal, pointer, contiguous :: fluid_array(:), &
@@ -1778,11 +1780,10 @@ contains
 
     call DMPlexGetHeightStratum(self%mesh%dm, 0, start_cell, end_cell, ierr)
     CHKERRQ(ierr)
-    end_interior_cell = dm_get_end_interior_cell(self%mesh%dm, end_cell)
     call index_list%init(PETSC_TRUE)
 
-    do c = start_cell, end_interior_cell - 1
-       if (self%mesh%ghost_cell(c) <= 0) then
+    do c = start_cell, end_cell - 1
+       if (self%mesh%ghost_cell(c) < 0) then
           call PetscSectionGetOffset(local_tracer_section, c, &
                local_tracer_offset, ierr); CHKERRQ(ierr) ! zero-based
           fluid_offset = global_section_offset(fluid_section, c, &
@@ -1803,7 +1804,9 @@ contains
     call VecRestoreArrayReadF90(self%fluid, fluid_array, ierr)
     CHKERRQ(ierr)
 
-    num_bdy = end_cell - end_interior_cell
+    call DMPlexGetCellTypeLabel(self%mesh%dm, celltype_label, ierr); CHKERRQ(ierr)
+    call DMLabelGetStratumSize(celltype_label, DM_POLYTOPE_FV_GHOST, num_bdy, &
+         ierr); CHKERRQ(ierr)
     num_indices = index_list%count + num_bdy * nt
     allocate(indices(num_indices), mass_fraction(num_indices))
     mass_fraction = 0._dp
@@ -1813,10 +1816,14 @@ contains
     call index_list%destroy()
 
     ! Apply boundary conditions:
-    call VecGetArrayReadF90(self%aux_solution, previous_solution_array, ierr)
-    CHKERRQ(ierr)
-    do c = end_interior_cell, end_cell - 1
-       if (self%mesh%ghost_cell(c) <= 0) then
+    if (num_bdy > 0) then
+       call VecGetArrayReadF90(self%aux_solution, previous_solution_array, ierr)
+       CHKERRQ(ierr)
+       call DMLabelGetStratumIS(celltype_label, DM_POLYTOPE_FV_GHOST, bdy_IS, &
+            ierr); CHKERRQ(ierr)
+       call ISGetIndicesF90(bdy_IS, bdy_cells, ierr); CHKERRQ(ierr)
+       do ic = 1, num_bdy
+          c = bdy_cells(ic)
           call PetscSectionGetOffset(local_tracer_section, c, &
                local_tracer_offset, ierr); CHKERRQ(ierr)
           tracer_offset = global_section_offset(tracer_section, c, &
@@ -1827,10 +1834,11 @@ contains
              mass_fraction(i) = previous_solution_array(tracer_offset + it - 1)
              i = i + 1
           end do
-       end if
-    end do
-    call VecRestoreArrayReadF90(self%aux_solution, previous_solution_array, ierr)
-    CHKERRQ(ierr)
+       end do
+       call ISRestoreIndicesF90(bdy_IS, bdy_cells, ierr); CHKERRQ(ierr)
+       call VecRestoreArrayReadF90(self%aux_solution, previous_solution_array, ierr)
+       CHKERRQ(ierr)
+    end if
 
     call MatZeroRowsLocal(A, num_indices, indices, 1._dp, &
          PETSC_NULL_VEC, PETSC_NULL_VEC, ierr); CHKERRQ(ierr)
