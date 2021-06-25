@@ -1943,7 +1943,7 @@ contains
          end if
       end do
 
-      num_local_bdy_cells = count(mesh%ghost_cell == BDY_GHOST_CELL_TYPE)
+      num_local_bdy_cells = count(mesh%ghost_cell == 0)
       call mpi_reduce(num_local_bdy_cells, num_bdy_cells, 1, &
               MPI_INTEGER, MPI_SUM, 0, PETSC_COMM_WORLD, ierr)
       if (rank == 0) then
