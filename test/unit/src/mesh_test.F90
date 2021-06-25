@@ -1642,7 +1642,7 @@ contains
 
       allocate(ic(maxval(mesh%minc%num_levels)))
       ic = 0
-      do c = mesh%strata(0)%start, mesh%strata(0)%end_interior - 1
+      do c = mesh%strata(0)%start, mesh%strata(0)%end - 1
          if (mesh%ghost_cell(c) < 0) then
             call DMLabelGetValue(minc_label, c, iminc, ierr); CHKERRQ(ierr)
             if (iminc > 0) then
