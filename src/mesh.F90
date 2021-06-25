@@ -2525,8 +2525,10 @@ contains
     AO :: minc_ao
     PetscMPIInt :: rank, num_procs
     PetscInt, allocatable :: natural(:), global(:)
-    PetscInt :: start_cell, end_interior_cell, offset, n_all
-    PetscInt :: mapping_count, num_ghost_cells, num_non_ghost_cells
+    PetscInt :: start_cell, end_cell, offset, n_all
+    PetscInt :: mapping_count, num_ghost_cells, num_bdy_ghost_cells, &
+         num_non_ghost_cells
+    DMLabel :: celltype_label
     ISLocalToGlobalMapping :: l2g, minc_l2g
     PetscInt :: total_minc_cell_count
     PetscInt :: ic, c, m, inatural, h, p(1)
@@ -2539,9 +2541,13 @@ contains
     call MPI_COMM_SIZE(PETSC_COMM_WORLD, num_procs, ierr)
 
     start_cell = self%strata(0)%start
-    end_interior_cell = self%strata(0)%end_interior
+    end_cell = self%strata(0)%end
     num_ghost_cells = dm_get_num_partition_ghost_points(self%dm, 0)
-    num_non_ghost_cells = end_interior_cell - start_cell - num_ghost_cells
+    call DMPlexGetCellTypeLabel(self%dm, celltype_label, ierr); CHKERRQ(ierr)
+    call DMLabelGetStratumSize(celltype_label, DM_POLYTOPE_FV_GHOST, &
+         num_bdy_ghost_cells, ierr); CHKERRQ(ierr)
+    num_non_ghost_cells = end_cell - start_cell - num_ghost_cells - &
+         num_bdy_ghost_cells
     ! Each rank has its own array elements for MINC level 0:
     mapping_count = num_non_ghost_cells
 
@@ -2624,21 +2630,24 @@ contains
       !! process.
 
       ! Locals:
-      PetscInt :: ic, ghost, carray(1)
+      PetscInt :: ic, ghost, celltype, carray(1)
       DMLabel :: ghost_label
       PetscErrorCode :: ierr
 
       call DMGetLabel(self%dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
       ic = 0
-      do c = start_cell, end_interior_cell - 1
+      do c = start_cell, end_cell - 1
          call DMLabelGetValue(ghost_label, c, ghost, ierr); CHKERRQ(ierr)
          if (ghost < 0) then
-            ic = ic + 1
-            natural(ic) = local_to_natural_cell_index(self%cell_natural_global, &
-                 l2g, c)
-            carray = c
-            call ISLocalToGlobalMappingApplyBlock(minc_l2g, 1, carray, &
-                 global(ic:ic), ierr); CHKERRQ(ierr)
+            call DMLabelGetValue(celltype_label, c, celltype, ierr); CHKERRQ(ierr)
+            if (celltype /= DM_POLYTOPE_FV_GHOST) then
+               ic = ic + 1
+               natural(ic) = local_to_natural_cell_index(self%cell_natural_global, &
+                    l2g, c)
+               carray = c
+               call ISLocalToGlobalMappingApplyBlock(minc_l2g, 1, carray, &
+                    global(ic:ic), ierr); CHKERRQ(ierr)
+            end if
          end if
       end do
 
