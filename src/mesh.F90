@@ -40,7 +40,6 @@ module mesh_module
   PetscInt, parameter :: partition_overlap = 1 !! Cell overlap for parallel mesh distribution
   character(len = 16), public :: open_boundary_label_name = "open_boundary" !! Name of DMLabel for identifying open boundary faces
   character(len = 26) :: face_permeability_override_label_name = "face_permeability_override" !! Name of DMLabel for overriding face permeabilities
-  PetscInt, parameter, public :: BDY_GHOST_CELL_TYPE = 0 !! Marker for boundary ghost cells in ghost_cell array
 
   type, public :: mesh_type
      !! Mesh type.
@@ -672,8 +671,8 @@ contains
     !! are assigned values of ghost_cell from the DM "ghost" label,
     !! which marks partition ghosts with the value 2. In addition,
     !! boundary ghost cells are assigned values of ghost_cell =
-    !! BDY_GHOST_CELL_TYPE. Faces are assigned values of ghost_face
-    !! from the DM "ghost" label.
+    !! 0. Faces are assigned values of ghost_face from the DM "ghost"
+    !! label.
 
     class(mesh_type), intent(in out) :: self
     ! Locals:
@@ -705,7 +704,7 @@ contains
        call DMLabelGetValue(cell_type_label, c, ct, ierr)
        CHKERRQ(ierr)
        if (ct == DM_POLYTOPE_FV_GHOST) then
-          self%ghost_cell(c) = BDY_GHOST_CELL_TYPE
+          self%ghost_cell(c) = 0
        end if
     end do
 
