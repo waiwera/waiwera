@@ -928,9 +928,9 @@ contains
     IS, intent(out) :: cell_index !! Natural-to-global IS (without boundary data)
     ! Locals:
     ISLocalToGlobalMapping :: l2g
-    DMLabel :: ghost_label
-    PetscInt :: start_cell, end_cell, end_interior_cell
-    PetscInt :: c, ic, ghost, carray(1)
+    DMLabel :: ghost_label, celltype_label
+    PetscInt :: start_cell, end_cell, celltype
+    PetscInt :: c, ic, ghost, carray(1), num_bdy_ghost_cells
     PetscInt :: num_ghost_cells, num_non_ghost_cells, bdy_cell_shift
     PetscInt, allocatable :: global(:), natural(:), global_interior(:)
     PetscInt, allocatable :: index_natural(:), index_global(:)
@@ -940,21 +940,27 @@ contains
     call DMGetLocalToGlobalMapping(dm, l2g, ierr); CHKERRQ(ierr)
     call DMPlexGetHeightStratum(dm, 0, start_cell, end_cell, &
          ierr); CHKERRQ(ierr)
-    end_interior_cell = dm_get_end_interior_cell(dm, end_cell)
     num_ghost_cells = dm_get_num_partition_ghost_points(dm, 0)
-    num_non_ghost_cells = end_interior_cell - start_cell - num_ghost_cells
-    bdy_cell_shift = mpi_lower_rank_sum(num_bdy_cells)
+    call DMPlexGetCellTypeLabel(dm, celltype_label, ierr); CHKERRQ(ierr)
+    call DMLabelGetStratumSize(celltype_label, DM_POLYTOPE_FV_GHOST, &
+         num_bdy_ghost_cells, ierr); CHKERRQ(ierr)
+    num_non_ghost_cells = end_cell - start_cell - num_ghost_cells - &
+         num_bdy_ghost_cells
+    bdy_cell_shift = mpi_lower_rank_sum(num_bdy_ghost_cells)
 
     allocate(global(0: num_non_ghost_cells - 1))
     ic = 0
     call DMGetLabel(dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
-    do c = start_cell, end_interior_cell - 1
+    do c = start_cell, end_cell - 1
        call DMLabelGetValue(ghost_label, c, ghost, ierr)
        if (ghost < 0) then
-          carray = c
-          call ISLocalToGlobalMappingApplyBlock(l2g, 1, carray, &
-               global(ic:ic), ierr); CHKERRQ(ierr)
-          ic = ic + 1
+          call DMLabelGetValue(celltype_label, c, celltype, ierr)
+          if (celltype /= DM_POLYTOPE_FV_GHOST) then
+             carray = c
+             call ISLocalToGlobalMappingApplyBlock(l2g, 1, carray, &
+                  global(ic:ic), ierr); CHKERRQ(ierr)
+             ic = ic + 1
+          end if
        end if
     end do
 
