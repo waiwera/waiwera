@@ -1219,7 +1219,7 @@ contains
     PetscErrorCode, intent(out) :: err
     ! Locals:
     PetscInt :: f, i, np, nf
-    PetscInt :: start_cell, end_cell, end_interior_cell
+    PetscInt :: start_cell, end_cell
     PetscInt :: start_face, end_face
     Vec :: local_fluid, local_rock, local_update
     PetscReal, pointer, contiguous :: rhs_array(:)
@@ -1276,7 +1276,6 @@ contains
     CHKERRQ(ierr)
     call DMPlexGetHeightStratum(self%mesh%dm, 1, start_face, end_face, ierr)
     CHKERRQ(ierr)
-    end_interior_cell = dm_get_end_interior_cell(self%mesh%dm, end_cell)
 
     do f = start_face, end_face - 1
 
