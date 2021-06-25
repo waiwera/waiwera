@@ -2549,8 +2549,7 @@ contains
   subroutine flow_simulation_boundary_residuals(self, y, lhs, residual, err)
     !! Computes residual terms for boundary ghost cells.
 
-    use dm_utils_module, only: global_section_offset, global_vec_section, &
-         dm_get_end_interior_cell
+    use dm_utils_module, only: global_section_offset, global_vec_section
     use cell_module, only: cell_type
 
     class(flow_simulation_type), intent(in out) :: self
@@ -2559,8 +2558,11 @@ contains
     Vec, intent(in out) :: residual !! residual vector
     PetscErrorCode, intent(out) :: err !! error code
     ! Locals:
-    PetscInt :: c, np, nc
-    PetscInt :: start_cell, end_cell, end_interior_cell
+    PetscInt :: c, np, nc, num_bdy, ic
+    PetscInt :: start_cell, end_cell
+    DMLabel :: celltype_label
+    IS :: bdy_IS
+    PetscInt, pointer, contiguous :: bdy_cells(:)
     PetscSection :: fluid_section, rock_section, lhs_section
     PetscInt :: fluid_offset, rock_offset, lhs_offset
     PetscReal, pointer, contiguous :: fluid_array(:), rock_array(:)
@@ -2586,12 +2588,19 @@ contains
     call cell%init(nc, self%eos%num_phases)
     call DMPlexGetHeightStratum(self%mesh%dm, 0, start_cell, end_cell, ierr)
     CHKERRQ(ierr)
-    end_interior_cell = dm_get_end_interior_cell(self%mesh%dm, end_cell)
+    call DMPlexGetCellTypeLabel(self%mesh%dm, celltype_label, ierr); CHKERRQ(ierr)
+    call DMLabelGetStratumSize(celltype_label, DM_POLYTOPE_FV_GHOST, num_bdy, &
+         ierr); CHKERRQ(ierr)
 
-    do c = end_interior_cell, end_cell - 1
+    if (num_bdy > 0) then
 
-       if (self%mesh%ghost_cell(c) <= 0) then
+       call DMLabelGetStratumIS(celltype_label, DM_POLYTOPE_FV_GHOST, bdy_IS, &
+            ierr); CHKERRQ(ierr)
+       call ISGetIndicesF90(bdy_IS, bdy_cells, ierr); CHKERRQ(ierr)
 
+       do ic = 1, num_bdy
+
+          c = bdy_cells(ic)
           lhs_offset = global_section_offset(lhs_section, c, &
                self%solution_range_start)
           cell_lhs => lhs_array(lhs_offset : lhs_offset + np - 1)
@@ -2607,9 +2616,8 @@ contains
 
           cell_residual = cell%balance(np) - cell_lhs
 
-       end if
-
-    end do
+       end do
+    end if
 
     call cell%destroy()
     call VecRestoreArrayReadF90(self%current_fluid, fluid_array, ierr); CHKERRQ(ierr)
