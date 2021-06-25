@@ -3416,10 +3416,10 @@ contains
     PetscSection :: cell_geom_section, face_geom_section
     PetscReal, pointer, contiguous :: cell_geom_array(:), face_geom_array(:)
     type(face_type) :: face
-    PetscInt :: start_cell, end_cell, end_interior_cell
-    PetscInt :: start_face, end_face, f, offset, i, cell_offset(2)
+    PetscInt :: start_cell, end_cell
+    PetscInt :: start_face, end_face, f, offset, i, cell_offset(2), bdy
     PetscInt :: ghost, minc_levels(2), num_cells
-    DMLabel :: ghost_label, minc_level_label
+    DMLabel :: ghost_label, minc_level_label, bdy_label
     PetscInt, pointer :: cells(:)
     PetscBool :: reversed
     PetscErrorCode :: ierr
@@ -3438,9 +3438,10 @@ contains
        call DMGetLabel(self%dm, minc_level_label_name, minc_level_label, ierr)
        CHKERRQ(ierr)
     end if
+    call DMGetLabel(self%dm, open_boundary_label_name, bdy_label, ierr)
+    CHKERRQ(ierr)
     call DMPlexGetHeightStratum(self%dm, 0, start_cell, end_cell, ierr)
     CHKERRQ(ierr)
-    end_interior_cell = dm_get_end_interior_cell(self%dm, end_cell)
     call DMPlexGetHeightStratum(self%dm, 1, start_face, end_face, ierr)
     CHKERRQ(ierr)
     minc_levels = 0
@@ -3448,19 +3449,20 @@ contains
     do f = start_face, end_face - 1
        call DMLabelGetValue(ghost_label, f, ghost, ierr); CHKERRQ(ierr)
        if (ghost < 0) then
-          call DMPlexGetSupportSize(self%dm, f, num_cells, ierr); CHKERRQ(ierr)
-          call DMPlexGetSupport(self%dm, f, cells, ierr); CHKERRQ(ierr)
-          do i = 1, 2
-             if (self%has_minc) then
-                call DMLabelGetValue(minc_level_label, cells(i), &
-                     minc_levels(i), ierr); CHKERRQ(ierr)
-             end if
-             cell_offset(i) = section_offset(cell_geom_section, cells(i))
-          end do
-          offset = section_offset(face_geom_section, f)
-          call face%assign_geometry(face_geom_array, offset)
-          call face%assign_cell_geometry(cell_geom_array, cell_offset)
-          if (all(cells < end_interior_cell)) then
+          call DMLabelGetValue(bdy_label, f, bdy, ierr); CHKERRQ(ierr)
+          if (bdy < 0) then
+             call DMPlexGetSupportSize(self%dm, f, num_cells, ierr); CHKERRQ(ierr)
+             call DMPlexGetSupport(self%dm, f, cells, ierr); CHKERRQ(ierr)
+             do i = 1, 2
+                if (self%has_minc) then
+                   call DMLabelGetValue(minc_level_label, cells(i), &
+                        minc_levels(i), ierr); CHKERRQ(ierr)
+                end if
+                cell_offset(i) = section_offset(cell_geom_section, cells(i))
+             end do
+             offset = section_offset(face_geom_section, f)
+             call face%assign_geometry(face_geom_array, offset)
+             call face%assign_cell_geometry(cell_geom_array, cell_offset)
              if (all(minc_levels <= 0)) then
                 reversed = face%reversed_orientation()
              else
