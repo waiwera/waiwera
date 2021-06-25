@@ -2511,7 +2511,8 @@ contains
     !! original AO.
 
     use dm_utils_module
-    use utils_module, only: array_cumulative_sum, get_mpi_int_gather_array
+    use utils_module, only: array_cumulative_sum
+    use mpi_utils_module, only: get_mpi_int_gather_array
 
     class(mesh_type), intent(in out) :: self
     DM, intent(in) :: minc_dm

@@ -373,8 +373,8 @@ contains
       !! Sets up natural-to-global source ordering IS. This gives the
       !! global index corresponding to a natural source index.
 
-      use utils_module, only: get_mpi_int_gather_array, &
-           array_cumulative_sum
+      use utils_module, only: array_cumulative_sum
+      use mpi_utils_module, only: get_mpi_int_gather_array
 
       PetscInt, intent(in) :: num_local_sources
       PetscReal, contiguous, pointer, intent(in) :: source_data(:)
