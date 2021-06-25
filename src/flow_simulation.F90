@@ -1486,8 +1486,7 @@ contains
     !! cell, from flows through faces and source terms.
 
     use dm_utils_module, only: local_vec_section, section_offset, &
-         dm_get_end_interior_cell, global_vec_section, global_section_offset, &
-         global_to_local_vec_section
+         global_vec_section, global_section_offset, global_to_local_vec_section
     use cell_module, only: cell_type
     use face_module, only: face_type
     use source_module, only: source_type
@@ -1503,7 +1502,7 @@ contains
          source_section, local_tracer_section
     PetscReal, pointer, contiguous :: cell_geom_array(:), face_geom_array(:), &
          flux_array(:), source_data(:)
-    PetscInt :: start_cell, end_cell, end_interior_cell, start_face, end_face, f
+    PetscInt :: start_cell, end_cell, start_face, end_face, f
     PetscInt :: cell_geom_offsets(2), face_geom_offset, flux_offset
     PetscInt :: np, nf, nt, up, c_up, i, it, irow, icol
     DM :: dm_tracer
@@ -1542,7 +1541,6 @@ contains
     CHKERRQ(ierr)
     call DMPlexGetHeightStratum(self%mesh%dm, 1, start_face, end_face, ierr)
     CHKERRQ(ierr)
-    end_interior_cell = dm_get_end_interior_cell(self%mesh%dm, end_cell)
 
     do f = start_face, end_face - 1
 
