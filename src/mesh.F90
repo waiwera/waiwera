@@ -1780,8 +1780,8 @@ contains
              zone_name = zone_names(order(i))
              node => zone_dict%get(zone_name)
              select type(zone => node%data)
-                class is (zone_type)
-                   call zone%label_dm(self%dm, self%cell_geom, err)
+             class is (zone_type)
+                call zone%label_dm(self%dm, self%cell_geom, err)
                 if (err > 0) then
                    if (present(logfile)) then
                       call logfile%write(LOG_LEVEL_WARN, 'zone', &
