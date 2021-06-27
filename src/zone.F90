@@ -364,8 +364,7 @@ contains
   subroutine zone_box_label_dm(self, dm, cell_geometry, err)
     !! Label cells on a DM in a zone with specified coordinate ranges.
 
-    use dm_utils_module, only: local_vec_section, section_offset, &
-         dm_get_end_interior_cell
+    use dm_utils_module, only: local_vec_section, section_offset
     use cell_module
 
     class(zone_box_type), intent(in out) :: self
@@ -373,9 +372,9 @@ contains
     Vec, intent(in) :: cell_geometry
     PetscErrorCode, intent(out) :: err
     ! Locals:
-    PetscInt :: dim, ghost, i, c, offset
-    DMLabel :: ghost_label
-    PetscInt :: start_cell, end_cell, end_interior_cell
+    PetscInt :: dim, ghost, i, c, offset, celltype
+    DMLabel :: ghost_label, celltype_label
+    PetscInt :: start_cell, end_cell
     PetscSection :: section
     PetscReal, contiguous, pointer :: cell_geom_array(:)
     type(cell_type) :: cell
@@ -391,35 +390,40 @@ contains
     call DMGetDimension(dm, dim, ierr); CHKERRQ(ierr)
     call DMPlexGetHeightStratum(dm, 0, start_cell, end_cell, ierr)
     CHKERRQ(ierr)
-    end_interior_cell = dm_get_end_interior_cell(dm, end_cell)
     call DMGetLabel(dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
+    call DMPlexGetCellTypeLabel(dm, celltype_label, ierr); CHKERRQ(ierr)
     call local_vec_section(cell_geometry, section)
     call VecGetArrayReadF90(cell_geometry, cell_geom_array, ierr); CHKERRQ(ierr)
 
-    do c = start_cell, end_interior_cell - 1
+    do c = start_cell, end_cell - 1
 
        call DMLabelGetValue(ghost_label, c, ghost, ierr); CHKERRQ(ierr)
        if (ghost < 0) then
 
-          offset = section_offset(section, c)
-          call cell%assign_geometry(cell_geom_array, offset)
-          found = PETSC_TRUE
+          call DMLabelGetValue(celltype_label, c, celltype, ierr)
+          CHKERRQ(ierr)
+          if (celltype /= DM_POLYTOPE_FV_GHOST) then
 
-          do i = 1, dim
-             if (self%coord_specified(i)) then
-                found(i) = &
-                     (self%coord_range(1, i) <= cell%centroid(i)) .and. &
-                     (cell%centroid(i) <= self%coord_range(2, i))
-             else
-                found(i) = PETSC_TRUE
+             offset = section_offset(section, c)
+             call cell%assign_geometry(cell_geom_array, offset)
+             found = PETSC_TRUE
+
+             do i = 1, dim
+                if (self%coord_specified(i)) then
+                   found(i) = &
+                        (self%coord_range(1, i) <= cell%centroid(i)) .and. &
+                        (cell%centroid(i) <= self%coord_range(2, i))
+                else
+                   found(i) = PETSC_TRUE
+                end if
+             end do
+
+             if (all(found)) then
+                call DMSetLabelValue(dm, label_name, c, 1, &
+                     ierr); CHKERRQ(ierr)
              end if
-          end do
 
-          if (all(found)) then
-             call DMSetLabelValue(dm, label_name, c, 1, &
-                  ierr); CHKERRQ(ierr)
           end if
-
        end if
     end do
 
@@ -496,17 +500,15 @@ contains
   subroutine zone_combine_label_dm(self, dm, cell_geometry, err)
     !! Label points in a combined zone on a DM.
 
-    use dm_utils_module, only: dm_get_end_interior_cell
-
     class(zone_combine_type), intent(in out) :: self
     DM, intent(in out) :: dm
     Vec, intent(in) :: cell_geometry
     PetscErrorCode, intent(out) :: err
     ! Locals:
-    DMLabel :: ghost_label, label
+    DMLabel :: ghost_label, celltype_label, label
     DMLabel, allocatable :: times_label(:)
-    PetscInt :: start_cell, end_cell, end_interior_cell
-    PetscInt :: i, c, p, num_matching, ghost, times
+    PetscInt :: start_cell, end_cell
+    PetscInt :: i, c, p, num_matching, ghost, times, celltype
     IS :: zone_IS
     PetscInt, pointer :: cells(:)
     character(:), allocatable :: label_name, plus_label_name, &
@@ -519,20 +521,24 @@ contains
     call DMGetLabel(dm, label_name, label, ierr); CHKERRQ(ierr)
 
     call DMGetLabel(dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
+    call DMPlexGetCellTypeLabel(dm, celltype_label, ierr); CHKERRQ(ierr)
     call DMPlexGetHeightStratum(dm, 0, start_cell, end_cell, ierr)
     CHKERRQ(ierr)
-    end_interior_cell = dm_get_end_interior_cell(dm, end_cell)
 
     associate(num_plus => size(self%plus), num_minus => size(self%minus), &
          num_times => size(self%times))
 
       if (num_plus == 0) then
          ! Label all cells:
-         do c = start_cell, end_interior_cell - 1
+         do c = start_cell, end_cell - 1
             call DMLabelGetValue(ghost_label, c, ghost, ierr); CHKERRQ(ierr)
             if (ghost < 0) then
-               call DMSetLabelValue(dm, label_name, c, 1, ierr)
+               call DMLabelGetValue(celltype_label, c, celltype, ierr)
                CHKERRQ(ierr)
+               if (celltype /= DM_POLYTOPE_FV_GHOST) then
+                  call DMSetLabelValue(dm, label_name, c, 1, ierr)
+                  CHKERRQ(ierr)
+               end if
             end if
          end do
       else ! Label all zones in plus array:
@@ -548,8 +554,12 @@ contains
                   p = cells(c)
                   call DMLabelGetValue(ghost_label, p, ghost, ierr); CHKERRQ(ierr)
                   if (ghost < 0) then
-                     call DMSetLabelValue(dm, label_name, p, &
-                          1, ierr); CHKERRQ(ierr)
+                     call DMLabelGetValue(celltype_label, c, celltype, ierr)
+                     CHKERRQ(ierr)
+                     if (celltype /= DM_POLYTOPE_FV_GHOST) then
+                        call DMSetLabelValue(dm, label_name, p, &
+                             1, ierr); CHKERRQ(ierr)
+                     end if
                   end if
                end do
                call ISRestoreIndicesF90(zone_IS, cells, ierr); CHKERRQ(ierr)
@@ -576,14 +586,18 @@ contains
                p = cells(c)
                call DMLabelGetValue(ghost_label, p, ghost, ierr); CHKERRQ(ierr)
                if (ghost < 0) then
-                  do i = 1, num_times
-                     call DMLabelGetValue(times_label(i), p, times, ierr)
-                     CHKERRQ(ierr)
-                     if (times <= 0) then
-                        call DMLabelClearValue(label, p, 1, ierr); CHKERRQ(ierr)
-                        exit
-                     end if
-                  end do
+                  call DMLabelGetValue(celltype_label, c, celltype, ierr)
+                  CHKERRQ(ierr)
+                  if (celltype /= DM_POLYTOPE_FV_GHOST) then
+                     do i = 1, num_times
+                        call DMLabelGetValue(times_label(i), p, times, ierr)
+                        CHKERRQ(ierr)
+                        if (times <= 0) then
+                           call DMLabelClearValue(label, p, 1, ierr); CHKERRQ(ierr)
+                           exit
+                        end if
+                     end do
+                  end if
                end if
             end do
             deallocate(times_label)
@@ -604,7 +618,11 @@ contains
                p = cells(c)
                call DMLabelGetValue(ghost_label, p, ghost, ierr)
                if (ghost < 0) then
-                  call DMLabelClearValue(label, p, 1, ierr); CHKERRQ(ierr)
+                  call DMLabelGetValue(celltype_label, c, celltype, ierr)
+                  CHKERRQ(ierr)
+                  if (celltype /= DM_POLYTOPE_FV_GHOST) then
+                     call DMLabelClearValue(label, p, 1, ierr); CHKERRQ(ierr)
+                  end if
                end if
             end do
             call ISRestoreIndicesF90(zone_IS, cells, ierr); CHKERRQ(ierr)
