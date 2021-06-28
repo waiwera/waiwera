@@ -39,8 +39,7 @@ contains
 
     !! Initializes solution vector y with constant values over the mesh.
 
-    use dm_utils_module, only: global_vec_section, global_section_offset, &
-         dm_get_end_interior_cell
+    use dm_utils_module, only: global_vec_section, global_section_offset
     use mesh_module, only: mesh_type
     use eos_module, only: eos_type
 
@@ -50,30 +49,32 @@ contains
     Vec, intent(in out) :: y
     PetscInt, intent(in) :: y_range_start
     ! Locals:
-    PetscInt :: np, c, ghost
-    PetscInt :: start_cell, end_cell, end_interior_cell, y_offset
-    PetscErrorCode :: ierr
+    PetscInt :: np, c, ghost, celltype
+    PetscInt :: start_cell, end_cell, y_offset
+    DMLabel :: celltype_label, ghost_label
     PetscReal, pointer, contiguous :: cell_primary(:), y_array(:)
     PetscSection :: y_section
-    DMLabel :: ghost_label
+    PetscErrorCode :: ierr
 
     np = eos%num_primary_variables
 
     call global_vec_section(y, y_section)
     call VecGetArrayF90(y, y_array, ierr); CHKERRQ(ierr)
 
-    call DMGetLabel(mesh%dm, "ghost", ghost_label, ierr)
-    CHKERRQ(ierr)
+    call DMGetLabel(mesh%dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
+    call DMPlexGetCellTypeLabel(mesh%dm, celltype_label, ierr); CHKERRQ(ierr)
     call DMPlexGetHeightStratum(mesh%dm, 0, start_cell, end_cell, ierr)
     CHKERRQ(ierr)
-    end_interior_cell = dm_get_end_interior_cell(mesh%dm, end_cell)
 
-    do c = start_cell, end_interior_cell - 1
+    do c = start_cell, end_cell - 1
        call DMLabelGetValue(ghost_label, c, ghost, ierr); CHKERRQ(ierr)
        if (ghost < 0) then
-          y_offset = global_section_offset(y_section, c, y_range_start)
-          cell_primary => y_array(y_offset : y_offset + np - 1)
-          cell_primary = primary
+          call DMLabelGetValue(celltype_label, c, celltype, ierr); CHKERRQ(ierr)
+          if (celltype /= DM_POLYTOPE_FV_GHOST) then
+             y_offset = global_section_offset(y_section, c, y_range_start)
+             cell_primary => y_array(y_offset : y_offset + np - 1)
+             cell_primary = primary
+          end if
        end if
     end do
 
@@ -183,8 +184,7 @@ contains
 
     !! Initializes fluid regions with constant values over the mesh.
 
-    use dm_utils_module, only: global_vec_section, global_section_offset, &
-         dm_get_end_interior_cell
+    use dm_utils_module, only: global_vec_section, global_section_offset
     use mesh_module, only: mesh_type
     use fluid_module, only: fluid_type
     use eos_module, only: eos_type
@@ -195,13 +195,13 @@ contains
     Vec, intent(in out) :: fluid_vector
     PetscInt, intent(in) :: fluid_range_start
     ! Locals:
-    PetscInt :: c, ghost, start_cell, end_cell, end_interior_cell
-    PetscInt :: fluid_offset
-    PetscErrorCode :: ierr
+    PetscInt :: c, ghost, start_cell, end_cell, celltype, fluid_offset
+    DMLabel :: celltype_label
     type(fluid_type) :: fluid
     PetscReal, pointer, contiguous :: fluid_array(:)
     PetscSection :: fluid_section
     DMLabel :: ghost_label
+    PetscErrorCode :: ierr
 
     call global_vec_section(fluid_vector, fluid_section)
     call VecGetArrayF90(fluid_vector, fluid_array, ierr); CHKERRQ(ierr)
@@ -209,16 +209,19 @@ contains
 
     call DMGetLabel(mesh%dm, "ghost", ghost_label, ierr)
     CHKERRQ(ierr)
+    call DMPlexGetCellTypeLabel(mesh%dm, celltype_label, ierr); CHKERRQ(ierr)
     call DMPlexGetHeightStratum(mesh%dm, 0, start_cell, end_cell, ierr)
     CHKERRQ(ierr)
-    end_interior_cell = dm_get_end_interior_cell(mesh%dm, end_cell)
 
-    do c = start_cell, end_interior_cell - 1
+    do c = start_cell, end_cell - 1
        call DMLabelGetValue(ghost_label, c, ghost, ierr); CHKERRQ(ierr)
        if (ghost < 0) then
-          fluid_offset = global_section_offset(fluid_section, c, fluid_range_start)
-          call fluid%assign(fluid_array, fluid_offset)
-          fluid%region = dble(region)
+          call DMLabelGetValue(celltype_label, c, celltype, ierr); CHKERRQ(ierr)
+          if (celltype /= DM_POLYTOPE_FV_GHOST) then
+             fluid_offset = global_section_offset(fluid_section, c, fluid_range_start)
+             call fluid%assign(fluid_array, fluid_offset)
+             fluid%region = dble(region)
+          end if
        end if
     end do
 
@@ -250,14 +253,14 @@ contains
     PetscBool, intent(in) :: minc_specified
     ! Locals:
     PetscMPIInt :: np, rank
-    PetscInt :: start_cell, end_cell, num_cells, end_interior_cell
+    PetscInt :: start_cell, end_cell, num_cells, celltype
     PetscInt, allocatable :: region_array(:)
     IS :: serial_region
     PetscSection :: serial_section, section, fluid_section
     DM :: dm_is
     IS :: region
     PetscInt :: i, c, ghost, offset, minc_level
-    DMLabel :: ghost_label, minc_label
+    DMLabel :: ghost_label, minc_label, celltype_label
     type(fluid_type) :: fluid
     PetscInt, pointer, contiguous :: region_indices(:)
     PetscReal, pointer, contiguous :: fluid_array(:)
@@ -267,6 +270,7 @@ contains
     call MPI_comm_rank(PETSC_COMM_WORLD, rank, ierr)
     call MPI_comm_size(PETSC_COMM_WORLD, np, ierr)
     call DMGetLabel(mesh%dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
+    call DMPlexGetCellTypeLabel(mesh%dm, celltype_label, ierr); CHKERRQ(ierr)
     if (mesh%has_minc) then
        call DMGetLabel(mesh%dm, minc_level_label_name, minc_label, &
             ierr); CHKERRQ(ierr)
@@ -303,22 +307,24 @@ contains
        call VecGetArrayF90(fluid_vector, fluid_array, ierr); CHKERRQ(ierr)
        call DMPlexGetHeightStratum(mesh%dm, 0, start_cell, end_cell, ierr)
        CHKERRQ(ierr)
-       end_interior_cell = dm_get_end_interior_cell(mesh%dm, end_cell)
        call ISGetIndicesF90(region, region_indices, ierr); CHKERRQ(ierr)
        i = 1
-       do c = start_cell, end_interior_cell - 1
-          call DMLabelGetValue(ghost_label, c, ghost, ierr)
+       do c = start_cell, end_cell - 1
+          call DMLabelGetValue(ghost_label, c, ghost, ierr); CHKERRQ(ierr)
           if (ghost < 0) then
-             if (mesh%has_minc) then
-                call DMLabelGetValue(minc_label, c, minc_level, ierr)
-                CHKERRQ(ierr)
-             else
-                minc_level = 0
-             end if
-             if (minc_level == 0) then
-                offset =  global_section_offset(fluid_section, c, fluid_range_start)
-                call fluid%assign(fluid_array, offset)
-                fluid%region = dble(region_indices(i))
+             call DMLabelGetValue(celltype_label, c, celltype, ierr); CHKERRQ(ierr)
+             if (celltype /= DM_POLYTOPE_FV_GHOST) then
+                if (mesh%has_minc) then
+                   call DMLabelGetValue(minc_label, c, minc_level, ierr)
+                   CHKERRQ(ierr)
+                else
+                   minc_level = 0
+                end if
+                if (minc_level == 0) then
+                   offset =  global_section_offset(fluid_section, c, fluid_range_start)
+                   call fluid%assign(fluid_array, offset)
+                   fluid%region = dble(region_indices(i))
+                end if
              end if
           end if
           i = i + 1
@@ -930,8 +936,7 @@ contains
     !! Initialise tracer vector with constant values (one per tracer)
     !! over the mesh.
 
-    use dm_utils_module, only: global_vec_section, global_section_offset, &
-         dm_get_end_interior_cell
+    use dm_utils_module, only: global_vec_section, global_section_offset
     use mesh_module, only: mesh_type
 
     type(mesh_type), intent(in) :: mesh
@@ -942,25 +947,27 @@ contains
     ! Locals:
     PetscSection :: section
     PetscReal, pointer, contiguous :: tracer_array(:), cell_tracer(:)
-    DMLabel :: ghost_label
-    PetscInt :: c, start_cell, end_cell, end_interior_cell, ghost, offset
+    DMLabel :: ghost_label, celltype_label
+    PetscInt :: c, start_cell, end_cell, ghost, offset, celltype
     PetscErrorCode :: ierr
 
     call global_vec_section(tracer_vector, section)
     call VecGetArrayF90(tracer_vector, tracer_array, ierr); CHKERRQ(ierr)
 
-    call DMGetLabel(mesh%dm, "ghost", ghost_label, ierr)
-    CHKERRQ(ierr)
+    call DMGetLabel(mesh%dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
+    call DMPlexGetCellTypeLabel(mesh%dm, celltype_label, ierr); CHKERRQ(ierr)
     call DMPlexGetHeightStratum(mesh%dm, 0, start_cell, end_cell, ierr)
     CHKERRQ(ierr)
-    end_interior_cell = dm_get_end_interior_cell(mesh%dm, end_cell)
 
-    do c = start_cell, end_interior_cell - 1
+    do c = start_cell, end_cell - 1
        call DMLabelGetValue(ghost_label, c, ghost, ierr); CHKERRQ(ierr)
        if (ghost < 0) then
-          offset = global_section_offset(section, c, tracer_range_start)
-          cell_tracer => tracer_array(offset : offset + num_tracers - 1)
-          cell_tracer = tracer_values
+          call DMLabelGetValue(celltype_label, c, celltype, ierr); CHKERRQ(ierr)
+          if (celltype /= DM_POLYTOPE_FV_GHOST) then
+             offset = global_section_offset(section, c, tracer_range_start)
+             cell_tracer => tracer_array(offset : offset + num_tracers - 1)
+             cell_tracer = tracer_values
+          end if
        end if
     end do
 
