@@ -76,7 +76,7 @@ module dm_utils_module
   public :: dm_distribute_index_set
   public :: vec_copy_common_local, vec_copy_subvector
   public :: mat_type_is_block, mat_coloring_perturbed_columns
-  public :: dm_copy_cone_orientation, dm_cell_counts
+  public :: dm_copy_cone_orientation, dm_num_non_ghost_cells, dm_cell_counts
 
 contains
 
@@ -727,7 +727,7 @@ contains
 
     PetscMPIInt :: np
     PetscInt :: c, ic, start_cell, end_cell, ghost, celltype
-    PetscInt :: num_ghost_cells, num_non_ghost_cells, num_bdy_ghost_cells
+    PetscInt :: num_non_ghost_cells
     DMLabel :: celltype_label
     PetscInt, allocatable :: local(:), global(:), natural(:)
     PetscInt, pointer :: cell_natural_array(:)
@@ -737,20 +737,16 @@ contains
 
     call DMPlexGetHeightStratum(dm, 0, start_cell, end_cell, &
          ierr); CHKERRQ(ierr)
-    call DMPlexGetCellTypeLabel(dm, celltype_label, ierr); CHKERRQ(ierr)
-    call DMLabelGetStratumSize(celltype_label, DM_POLYTOPE_FV_GHOST, &
-         num_bdy_ghost_cells, ierr); CHKERRQ(ierr)
+    num_non_ghost_cells = dm_num_non_ghost_cells(dm)
     call MPI_comm_size(PETSC_COMM_WORLD, np, ierr)
     if (np > 1) then
-       num_ghost_cells = dm_get_num_partition_ghost_points(dm, 0)
-       num_non_ghost_cells = end_cell - start_cell - num_ghost_cells - &
-            num_bdy_ghost_cells
        call DMGetLocalToGlobalMapping(dm, l2g, ierr); CHKERRQ(ierr)
        allocate(local(num_non_ghost_cells), natural(num_non_ghost_cells), &
             global(num_non_ghost_cells))
        call ISGetIndicesF90(cell_natural, cell_natural_array, ierr)
        CHKERRQ(ierr)
        call DMGetLabel(dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
+       call DMPlexGetCellTypeLabel(dm, celltype_label, ierr); CHKERRQ(ierr)
        ic = 1
        do c = start_cell, end_cell - 1
           call DMLabelGetValue(ghost_label, c, ghost, ierr); CHKERRQ(ierr)
@@ -770,7 +766,6 @@ contains
        CHKERRQ(ierr)
        deallocate(local)
     else ! serial:
-       num_non_ghost_cells = end_cell - start_cell - num_bdy_ghost_cells
        natural = [(start_cell + ic - 1, ic = 1, num_non_ghost_cells)]
        global = natural
     end if
@@ -926,8 +921,8 @@ contains
     ISLocalToGlobalMapping :: l2g
     DMLabel :: ghost_label, celltype_label
     PetscInt :: start_cell, end_cell, celltype
-    PetscInt :: c, ic, ghost, carray(1), num_bdy_ghost_cells
-    PetscInt :: num_ghost_cells, num_non_ghost_cells, bdy_cell_shift
+    PetscInt :: c, ic, ghost, carray(1), num_non_ghost_cells
+    PetscInt :: num_bdy_ghost_cells, bdy_cell_shift
     PetscInt, allocatable :: global(:), natural(:), global_interior(:)
     PetscInt, allocatable :: index_natural(:), index_global(:)
     AO :: ao_interior
@@ -936,12 +931,10 @@ contains
     call DMGetLocalToGlobalMapping(dm, l2g, ierr); CHKERRQ(ierr)
     call DMPlexGetHeightStratum(dm, 0, start_cell, end_cell, &
          ierr); CHKERRQ(ierr)
-    num_ghost_cells = dm_get_num_partition_ghost_points(dm, 0)
     call DMPlexGetCellTypeLabel(dm, celltype_label, ierr); CHKERRQ(ierr)
+    num_non_ghost_cells = dm_num_non_ghost_cells(dm)
     call DMLabelGetStratumSize(celltype_label, DM_POLYTOPE_FV_GHOST, &
          num_bdy_ghost_cells, ierr); CHKERRQ(ierr)
-    num_non_ghost_cells = end_cell - start_cell - num_ghost_cells - &
-         num_bdy_ghost_cells
     bdy_cell_shift = mpi_lower_rank_sum(num_bdy_ghost_cells)
 
     allocate(global(0: num_non_ghost_cells - 1))
@@ -1511,6 +1504,30 @@ contains
 
 !------------------------------------------------------------------------
 
+  PetscInt function dm_num_non_ghost_cells(dm) result(num_cells)
+    !! Returns number of local non-ghost cells (either partition or
+    !! boundary ghosts).
+
+    DM, intent(in) :: dm
+    ! Locals:
+    PetscInt :: start_cell, end_cell, num_bdy_ghost_cells
+    PetscInt :: num_partition_ghost_cells
+    DMLabel :: celltype_label
+    PetscErrorCode :: ierr
+
+    call DMPlexGetHeightStratum(dm, 0, start_cell, end_cell, ierr)
+    CHKERRQ(ierr)
+    num_partition_ghost_cells = dm_get_num_partition_ghost_points(dm, 0)
+    call DMPlexGetCellTypeLabel(dm, celltype_label, ierr); CHKERRQ(ierr)
+    call DMLabelGetStratumSize(celltype_label, DM_POLYTOPE_FV_GHOST, &
+         num_bdy_ghost_cells, ierr); CHKERRQ(ierr)
+    num_cells = end_cell - start_cell - num_partition_ghost_cells - &
+         num_bdy_ghost_cells
+
+  end function dm_num_non_ghost_cells
+
+!------------------------------------------------------------------------
+
   subroutine dm_cell_counts(dm, cells_total, cells_min, cells_max)
     !! Returns total DM cell count over all processes (excluding ghost
     !! cells), and minimum and maximum count per process, on rank 0.
@@ -1518,15 +1535,10 @@ contains
     DM, intent(in) :: dm
     PetscInt, intent(out) :: cells_total, cells_min, cells_max
     ! Locals:
-    PetscInt :: start_cell, end_cell, end_interior_cell
-    PetscInt :: num_ghost_cells, cells_local
+    PetscInt :: cells_local
     PetscErrorCode :: ierr
 
-    call DMPlexGetHeightStratum(dm, 0, start_cell, end_cell, ierr)
-    CHKERRQ(ierr)
-    end_interior_cell = dm_get_end_interior_cell(dm, end_cell)
-    num_ghost_cells = dm_get_num_partition_ghost_points(dm, 0)
-    cells_local = end_interior_cell - start_cell - num_ghost_cells
+    cells_local = dm_num_non_ghost_cells(dm)
 
     call MPI_reduce(cells_local, cells_total, 1, MPI_INTEGER, &
            MPI_SUM, 0, PETSC_COMM_WORLD, ierr)

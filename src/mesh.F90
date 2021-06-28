@@ -2525,8 +2525,7 @@ contains
     PetscMPIInt :: rank, num_procs
     PetscInt, allocatable :: natural(:), global(:)
     PetscInt :: start_cell, end_cell, offset, n_all
-    PetscInt :: mapping_count, num_ghost_cells, num_bdy_ghost_cells, &
-         num_non_ghost_cells
+    PetscInt :: mapping_count, num_non_ghost_cells
     DMLabel :: celltype_label
     ISLocalToGlobalMapping :: l2g, minc_l2g
     PetscInt :: total_minc_cell_count
@@ -2539,14 +2538,9 @@ contains
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
     call MPI_COMM_SIZE(PETSC_COMM_WORLD, num_procs, ierr)
 
-    start_cell = self%strata(0)%start
-    end_cell = self%strata(0)%end
-    num_ghost_cells = dm_get_num_partition_ghost_points(self%dm, 0)
+    call DMPlexGetHeightStratum(self%dm, 0, start_cell, end_cell, ierr)
     call DMPlexGetCellTypeLabel(self%dm, celltype_label, ierr); CHKERRQ(ierr)
-    call DMLabelGetStratumSize(celltype_label, DM_POLYTOPE_FV_GHOST, &
-         num_bdy_ghost_cells, ierr); CHKERRQ(ierr)
-    num_non_ghost_cells = end_cell - start_cell - num_ghost_cells - &
-         num_bdy_ghost_cells
+    num_non_ghost_cells = dm_num_non_ghost_cells(self%dm)
     ! Each rank has its own array elements for MINC level 0:
     mapping_count = num_non_ghost_cells
 
