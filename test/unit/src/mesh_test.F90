@@ -62,14 +62,15 @@ contains
     use cell_module, only: cell_type
     use face_module, only: face_type
     use dm_utils_module, only: local_vec_section, section_offset, &
-         dm_get_num_partition_ghost_points, dm_get_end_interior_cell
+         dm_get_num_partition_ghost_points
 
     class(mesh_type), intent(in) :: mesh
     class(unit_test_type), intent(in out) :: test
     character(*), intent(in) :: title
     ! Locals:
     PetscInt :: start_cell, end_cell, c, offset
-    PetscInt :: num_ghost_cells, end_interior_cell
+    PetscInt :: num_partition_ghost_cells, num_bdy_ghost_cells
+    DMLabel :: celltype_label
     PetscInt :: start_face, end_face, f, num_cells
     PetscSection :: cell_geom_section, face_geom_section
     PetscReal, pointer, contiguous :: cell_geom_array(:), face_geom_array(:)
@@ -87,16 +88,19 @@ contains
     call DMPlexGetHeightStratum(mesh%dm, 0, start_cell, end_cell, ierr)
     CHKERRQ(ierr)
     if (end_cell > start_cell) then
-       end_interior_cell = dm_get_end_interior_cell(mesh%dm, end_cell)
-       num_ghost_cells = dm_get_num_partition_ghost_points(mesh%dm, 0)
-       call test%assert(count(mesh%ghost_cell(start_cell: &
-            end_interior_cell - 1) > 0), num_ghost_cells, &
-            trim(title) // ": ghost cell count")
+       num_partition_ghost_cells = dm_get_num_partition_ghost_points(mesh%dm, 0)
+       call test%assert(count(mesh%ghost_cell > 0), num_partition_ghost_cells, &
+            trim(title) // ": partition ghost cell count")
+       call DMPlexGetCellTypeLabel(mesh%dm, celltype_label, ierr); CHKERRQ(ierr)
+       call DMLabelGetStratumSize(celltype_label, DM_POLYTOPE_FV_GHOST, &
+            num_bdy_ghost_cells, ierr); CHKERRQ(ierr)
+       call test%assert(count(mesh%ghost_cell == 0), num_bdy_ghost_cells, &
+            trim(title) // ": bdy ghost cell count")
        call cell%init(1, 1)
        offset = section_offset(cell_geom_section, end_cell - 1)
        call test%assert(offset + cell%dof - 1, size(cell_geom_array), &
             trim(title) // ": cell geom array size")
-       do c = start_cell, end_interior_cell - 1
+       do c = start_cell, end_cell - 1
           if (mesh%ghost_cell(c) < 0) then
              offset = section_offset(cell_geom_section, c)
              call cell%assign_geometry(cell_geom_array, offset)
@@ -550,23 +554,12 @@ contains
   PetscInt function total_interior_cell_count(mesh) result(n)
     ! Count mesh interior cells.
 
-    use dm_utils_module, only: dm_get_end_interior_cell
-
     type(mesh_type), intent(in) :: mesh
     ! Locals:
-    PetscInt :: c, n_local, start_cell, end_cell, end_interior_cell
+    PetscInt :: n_local
     PetscErrorCode :: ierr
 
-    call DMPlexGetHeightStratum(mesh%dm, 0, start_cell, end_cell, ierr)
-    CHKERRQ(ierr)
-    end_interior_cell = dm_get_end_interior_cell(mesh%dm, end_cell)
-
-    n_local = 0
-    do c = start_cell, end_interior_cell - 1
-       if (mesh%ghost_cell(c) < 0) then
-          n_local = n_local + 1
-       end if
-    end do
+    n_local = count(mesh%ghost_cell < 0)
     call MPI_reduce(n_local, n, 1, MPI_INTEGER, MPI_SUM, &
          0, PETSC_COMM_WORLD, ierr)
 
@@ -577,14 +570,13 @@ contains
   PetscInt function total_interior_cell_count_sf(mesh) result(n)
     ! Count mesh interior cells using point SF.
 
-    use dm_utils_module, only: dm_get_end_interior_cell
-
     type(mesh_type), intent(in) :: mesh
     ! Locals:
     PetscMPIInt :: np
-    PetscInt :: c, n_local, start_cell, end_cell, end_interior_cell
+    PetscInt :: c, n_local, start_cell, end_cell, celltype
+    DMLabel :: celltype_label
     PetscSF :: point_sf
-    PetscInt :: num_roots, num_leaves
+    PetscInt :: num_roots, num_leaves, num_bdy
     PetscInt, pointer :: local(:)
     type(PetscSFNode), pointer :: remote(:)
     PetscErrorCode :: ierr
@@ -592,18 +584,23 @@ contains
     call MPI_comm_size(PETSC_COMM_WORLD, np, ierr)
     call DMPlexGetHeightStratum(mesh%dm, 0, start_cell, end_cell, ierr)
     CHKERRQ(ierr)
-    end_interior_cell = dm_get_end_interior_cell(mesh%dm, end_cell)
+    call DMPlexGetCellTypeLabel(mesh%dm, celltype_label, ierr); CHKERRQ(ierr)
 
     if (np == 1) then
-       n_local = end_interior_cell - start_cell
+       call DMLabelGetStratumSize(celltype_label, DM_POLYTOPE_FV_GHOST, &
+            num_bdy, ierr); CHKERRQ(ierr)
+       n_local = end_cell - start_cell - num_bdy
     else
        n_local = 0
        call DMGetPointSF(mesh%dm, point_sf, ierr); CHKERRQ(ierr)
        call PetscSFGetGraph(point_sf, num_roots, num_leaves, &
             local, remote, ierr); CHKERRQ(ierr)
-       do c = start_cell, end_interior_cell - 1
-          if (local(c + 1) >= end_cell) then
-             n_local = n_local + 1
+       do c = start_cell, end_cell - 1
+          call DMLabelGetValue(celltype_label, c, celltype, ierr); CHKERRQ(ierr)
+          if (celltype /= DM_POLYTOPE_FV_GHOST) then
+             if (local(c + 1) >= end_cell) then
+                n_local = n_local + 1
+             end if
           end if
        end do
     end if
@@ -618,23 +615,20 @@ contains
        label_value) result(n)
     ! Count mesh interior cells with specified label value.
 
-    use dm_utils_module, only: dm_get_end_interior_cell
-
     type(mesh_type), intent(in) :: mesh
     character(*), intent(in) :: label_name
     PetscInt, intent(in) :: label_value
     ! Locals:
-    PetscInt :: c, n_local, start_cell, end_cell, end_interior_cell, val
+    PetscInt :: c, n_local, start_cell, end_cell, val
     DMLabel :: label
     PetscErrorCode :: ierr
 
     call DMPlexGetHeightStratum(mesh%dm, 0, start_cell, end_cell, ierr)
     CHKERRQ(ierr)
-    end_interior_cell = dm_get_end_interior_cell(mesh%dm, end_cell)
     call DMGetLabel(mesh%dm, label_name, label, ierr); CHKERRQ(ierr)
 
     n_local = 0
-    do c = start_cell, end_interior_cell - 1
+    do c = start_cell, end_cell - 1
        if (mesh%ghost_cell(c) < 0) then
           call DMLabelGetValue(label, c, val, ierr); CHKERRQ(ierr)
           if (val == label_value) then
@@ -656,7 +650,7 @@ contains
     class(unit_test_type), intent(in out) :: test
     character(*), intent(in) :: title
     ! Locals:
-    PetscInt :: p, h, depth!, i
+    PetscInt :: p, h, depth
     PetscInt, allocatable :: pstart(:), pend(:)
     PetscInt, pointer :: cone(:), support(:)
     PetscMPIInt :: rank
@@ -1501,7 +1495,7 @@ contains
     use fson_mpi_module
     use IAPWS_module
     use eos_we_module
-    use dm_utils_module, only: dm_get_end_interior_cell, local_to_natural_cell_index
+    use dm_utils_module, only: local_to_natural_cell_index
     use minc_module, only: minc_zone_label_name
 
     class(unit_test_type), intent(in out) :: test
@@ -1971,7 +1965,7 @@ contains
     use eos_module, only: max_component_name_length, max_phase_name_length
     use eos_we_module
     use dm_utils_module, only: global_vec_range_start, global_vec_section, &
-         global_section_offset, dm_get_end_interior_cell
+         global_section_offset
     use rock_module, only: setup_rock_vector
     use fluid_module, only: create_fluid_vector
     use tracer_module
@@ -2049,8 +2043,11 @@ contains
       PetscInt :: y_range_start, fluid_range_start, rock_range_start, &
            tracer_range_start
       type(tracer_type), allocatable :: tracers(:)
-      PetscInt :: num_tracers, np, c
-      PetscInt :: start_cell, end_cell, end_interior_cell
+      PetscInt :: num_tracers, np, c, ic, num_bdy
+      PetscInt :: start_cell, end_cell
+      DMLabel :: celltype_label
+      IS :: bdy_IS
+      PetscInt, pointer, contiguous :: bdy_cells(:)
       PetscInt :: y_offset, tracer_offset
       PetscSection :: y_section, tracer_section
       PetscReal, pointer, contiguous :: y_array(:), tracer_array(:)
@@ -2094,11 +2091,16 @@ contains
          call global_vec_section(tracer_vector, tracer_section)
          call VecGetArrayReadF90(tracer_vector, tracer_array, ierr); CHKERRQ(ierr)
       end if
-      call DMPlexGetHeightStratum(mesh%dm, 0, start_cell, end_cell, ierr)
-      CHKERRQ(ierr)
-      end_interior_cell = dm_get_end_interior_cell(mesh%dm, end_cell)
-      do c = end_interior_cell, end_cell - 1
-         if (mesh%ghost_cell(c) <= 0) then
+      call DMPlexGetHeightStratum(mesh%dm, 0, start_cell, end_cell, ierr); CHKERRQ(ierr)
+      call DMPlexGetCellTypeLabel(mesh%dm, celltype_label, ierr); CHKERRQ(ierr)
+      call DMLabelGetStratumSize(celltype_label, DM_POLYTOPE_FV_GHOST, num_bdy, &
+           ierr); CHKERRQ(ierr)
+      if (num_bdy > 0) then
+         call DMLabelGetStratumIS(celltype_label, DM_POLYTOPE_FV_GHOST, bdy_IS, &
+              ierr); CHKERRQ(ierr)
+         call ISGetIndicesF90(bdy_IS, bdy_cells, ierr); CHKERRQ(ierr)
+         do ic = 1, num_bdy
+            c = bdy_cells(ic)
             y_offset = global_section_offset(y_section, c, y_range_start)
             cell_primary => y_array(y_offset : y_offset + np - 1)
             write(msg, '(a, i0)') 'primary ', c
@@ -2111,8 +2113,9 @@ contains
                write(msg, '(a, i0)') 'tracer ', c
                call test%assert(expected_tracer, cell_tracer, title // trim(msg))
             end if
-         end if
-      end do
+         end do
+         call ISRestoreIndicesF90(bdy_IS, bdy_cells, ierr); CHKERRQ(ierr)
+      end if
       call VecRestoreArrayReadF90(y, y_array, ierr); CHKERRQ(ierr)
       if (num_tracers > 0) then
          call VecRestoreArrayReadF90(tracer_vector, tracer_array, ierr); CHKERRQ(ierr)
