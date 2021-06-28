@@ -236,11 +236,10 @@ contains
       Vec :: fluid_vector, y, tracer_vector
       PetscInt :: y_range_start, fluid_range_start, tracer_range_start
       type(tracer_type) :: tracers(0)
-      PetscInt :: start_cell, end_cell, end_interior_cell
-      PetscInt :: c, ghost, fluid_offset, cell_geom_offset, y_offset
+      PetscInt :: start_cell, end_cell
+      PetscInt :: c, fluid_offset, cell_geom_offset, y_offset
       PetscSection :: fluid_section, cell_geom_section, y_section
       PetscReal, pointer, contiguous :: fluid_array(:), y_array(:)
-      DMLabel :: ghost_label
       type(fluid_type) :: fluid
       PetscReal, allocatable :: expected_primary(:)
       PetscReal, pointer, contiguous :: primary(:)
@@ -281,9 +280,6 @@ contains
 
       call DMPlexGetHeightStratum(mesh%dm, 0, start_cell, end_cell, ierr)
       CHKERRQ(ierr)
-      end_interior_cell = dm_get_end_interior_cell(mesh%dm, end_cell)
-      call DMGetLabel(mesh%dm, "ghost", ghost_label, ierr)
-      CHKERRQ(ierr)
       call fluid%init(eos%num_components, eos%num_phases)
       allocate(expected_primary(eos%num_primary_variables))
 
@@ -292,9 +288,8 @@ contains
       CHKERRQ(ierr)
       call cell%init(eos%num_components, eos%num_phases)
 
-      do c = start_cell, end_interior_cell - 1
-         call DMLabelGetValue(ghost_label, c, ghost, ierr); CHKERRQ(ierr)
-         if (ghost < 0) then
+      do c = start_cell, end_cell - 1
+         if (mesh%ghost_cell(c) < 0) then
             fluid_offset = global_section_offset(fluid_section, c, &
                  fluid_range_start)
             call fluid%assign(fluid_array, fluid_offset)
@@ -510,14 +505,13 @@ contains
     PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
     type(logfile_type) :: logfile
     Vec :: y, fluid_vector, tracer_vector
-    PetscInt :: y_range_start, fluid_range_start, tracer_range_start, ghost
+    PetscInt :: y_range_start, fluid_range_start, tracer_range_start
     type(tracer_type) :: tracers(0)
-    PetscInt :: start_cell, end_cell, end_interior_cell, c
+    PetscInt :: start_cell, end_cell, c
     PetscInt :: cell_geom_offset, fluid_offset, expected_region
     PetscReal :: t
     type(fluid_type) :: fluid
     type(cell_type) :: cell
-    DMLabel :: ghost_label
     PetscSection :: cell_geom_section, fluid_section
     PetscReal, pointer, contiguous :: fluid_array(:), cell_geom_array(:)
     PetscErrorCode :: ierr, err
@@ -558,9 +552,6 @@ contains
 
     call DMPlexGetHeightStratum(mesh%dm, 0, start_cell, end_cell, ierr)
     CHKERRQ(ierr)
-    end_interior_cell = dm_get_end_interior_cell(mesh%dm, end_cell)
-    call DMGetLabel(mesh%dm, "ghost", ghost_label, ierr)
-    CHKERRQ(ierr)
     call fluid%init(eos%num_components, eos%num_phases)
 
     call local_vec_section(mesh%cell_geom, cell_geom_section)
@@ -570,9 +561,8 @@ contains
     call global_vec_section(fluid_vector, fluid_section)
     call VecGetArrayF90(fluid_vector, fluid_array, ierr); CHKERRQ(ierr)
 
-    do c = start_cell, end_interior_cell - 1
-       call DMLabelGetValue(ghost_label, c, ghost, ierr); CHKERRQ(ierr)
-       if (ghost < 0) then
+    do c = start_cell, end_cell - 1
+       if (mesh%ghost_cell(c) < 0) then
           fluid_offset = global_section_offset(fluid_section, c, &
                fluid_range_start)
           call fluid%assign(fluid_array, fluid_offset)
@@ -587,22 +577,22 @@ contains
                expected_region = 4
             end if
           end associate
-        call test%assert(expected_region, nint(fluid%region), &
-             'region')
-     end if
-  end do
+          call test%assert(expected_region, nint(fluid%region), &
+               'region')
+       end if
+    end do
 
-  call fluid%destroy()
-  call cell%destroy()
-  call VecRestoreArrayReadF90(mesh%cell_geom, cell_geom_array, ierr)
-  CHKERRQ(ierr)
-  call VecRestoreArrayF90(fluid_vector, fluid_array, ierr); CHKERRQ(ierr)
-  call VecDestroy(fluid_vector, ierr); CHKERRQ(ierr)
-  call VecDestroy(y, ierr); CHKERRQ(ierr)
-  call mesh%destroy()
-  call eos%destroy()
-  call thermo%destroy()
-  call logfile%destroy()
+    call fluid%destroy()
+    call cell%destroy()
+    call VecRestoreArrayReadF90(mesh%cell_geom, cell_geom_array, ierr)
+    CHKERRQ(ierr)
+    call VecRestoreArrayF90(fluid_vector, fluid_array, ierr); CHKERRQ(ierr)
+    call VecDestroy(fluid_vector, ierr); CHKERRQ(ierr)
+    call VecDestroy(y, ierr); CHKERRQ(ierr)
+    call mesh%destroy()
+    call eos%destroy()
+    call thermo%destroy()
+    call logfile%destroy()
 
   end subroutine test_initial_region
 
@@ -718,11 +708,10 @@ contains
       Vec :: fluid_vector, y, tracer_vector
       PetscInt :: y_range_start, fluid_range_start, tracer_range_start
       type(tracer_type) :: tracers(0)
-      PetscInt :: start_cell, end_cell, end_interior_cell
-      PetscInt :: c, ghost, fluid_offset, cell_geom_offset, y_offset
+      PetscInt :: start_cell, end_cell
+      PetscInt :: c, fluid_offset, cell_geom_offset, y_offset
       PetscSection :: fluid_section, cell_geom_section, y_section
       PetscReal, pointer, contiguous :: fluid_array(:), y_array(:)
-      DMLabel :: ghost_label
       type(fluid_type) :: fluid
       PetscReal, allocatable :: expected_primary(:)
       PetscInt :: expected_region
@@ -762,9 +751,6 @@ contains
 
       call DMPlexGetHeightStratum(mesh%dm, 0, start_cell, end_cell, ierr)
       CHKERRQ(ierr)
-      end_interior_cell = dm_get_end_interior_cell(mesh%dm, end_cell)
-      call DMGetLabel(mesh%dm, "ghost", ghost_label, ierr)
-      CHKERRQ(ierr)
       call fluid%init(eos%num_components, eos%num_phases)
       allocate(expected_primary(eos%num_primary_variables))
 
@@ -773,9 +759,8 @@ contains
       CHKERRQ(ierr)
       call cell%init(eos%num_components, eos%num_phases)
 
-      do c = start_cell, end_interior_cell - 1
-         call DMLabelGetValue(ghost_label, c, ghost, ierr); CHKERRQ(ierr)
-         if (ghost < 0) then
+      do c = start_cell, end_cell - 1
+         if (mesh%ghost_cell(c) < 0) then
             fluid_offset = global_section_offset(fluid_section, c, &
                  fluid_range_start)
             call fluid%assign(fluid_array, fluid_offset)
@@ -900,9 +885,8 @@ contains
       PetscInt :: y_range_start, fluid_range_start, tracer_range_start
       type(tracer_type), allocatable :: tracers(:)
       PetscReal :: t
-      PetscInt :: start_cell, end_cell, end_interior_cell, c, ghost
+      PetscInt :: start_cell, end_cell, c
       PetscInt :: offset, num_tracers
-      DMLabel :: ghost_label
       PetscSection :: section
       PetscReal, pointer, contiguous :: tracer_array(:), tracer(:)
       character(24) :: msg
@@ -940,13 +924,9 @@ contains
       call VecGetArrayReadF90(tracer_vector, tracer_array, ierr); CHKERRQ(ierr)
       call DMPlexGetHeightStratum(mesh%dm, 0, start_cell, end_cell, ierr)
       CHKERRQ(ierr)
-      end_interior_cell = dm_get_end_interior_cell(mesh%dm, end_cell)
-      call DMGetLabel(mesh%dm, "ghost", ghost_label, ierr)
-      CHKERRQ(ierr)
 
-      do c = start_cell, end_interior_cell - 1
-         call DMLabelGetValue(ghost_label, c, ghost, ierr); CHKERRQ(ierr)
-         if (ghost < 0) then
+      do c = start_cell, end_cell - 1
+         if (mesh%ghost_cell(c) < 0) then
             offset = global_section_offset(section, c, tracer_range_start)
             tracer => tracer_array(offset: offset + num_tracers - 1)
             write(msg, '(i0)') c
