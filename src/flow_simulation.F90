@@ -1510,7 +1510,6 @@ contains
     PetscInt :: tracer_offsets(2)
     PetscInt :: np, nf, nt, up, i, it, irow, icol
     DM :: dm_tracer
-    PetscInt :: tracer_offset_i, tracer_offset_up
     type(face_type) :: face
     PetscInt, pointer :: cells(:)
     PetscReal, pointer, contiguous :: face_flux(:)
@@ -1616,7 +1615,7 @@ contains
       type(source_type) :: source
       PetscSection :: fluid_section, br_section
       PetscReal, pointer, contiguous :: fluid_array(:), br_array(:)
-      PetscInt :: s, c
+      PetscInt :: s, c, tracer_offset_i
       PetscInt :: source_offset, cell_geom_offset, br_offset, irow
       PetscReal :: q, phase_flow_fractions(self%eos%num_phases), qv(nt)
 
