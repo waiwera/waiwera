@@ -34,6 +34,7 @@ module tracer_module
      PetscInt, public :: phase_index !! Tracer phase index
      PetscReal, public :: decay_constant !! Decay constant (1/s)
      PetscReal, public :: activation !! Activation energy (J/mol)
+     PetscReal, public :: diffusion !! Diffusion coefficient (\(m^{2}/s\))
    contains
      procedure, public :: decay => tracer_decay
   end type tracer_type
@@ -85,6 +86,7 @@ contains
     character(32) :: tracer_str
     PetscReal, parameter :: default_decay_constant = 0._dp
     PetscReal, parameter :: default_activation_energy = 0._dp
+    PetscReal, parameter :: default_diffusion = 0._dp
 
     err = 0
 
@@ -126,6 +128,8 @@ contains
                tracers(i)%decay_constant, logfile, trim(tracer_str) // ".decay")
           call fson_get_mpi(traceri_json, "activation", default_activation_energy, &
                tracers(i)%activation, logfile, trim(tracer_str) // ".activation")
+          call fson_get_mpi(traceri_json, "diffusion", default_diffusion, &
+               tracers(i)%diffusion, logfile, trim(tracer_str) // ".diffusion")
           traceri_json => fson_value_next_mpi(traceri_json)
        end do
     else
