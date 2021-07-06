@@ -1507,7 +1507,8 @@ contains
          flux_array(:), source_data(:)
     PetscInt :: start_cell, end_cell, end_interior_cell, start_face, end_face, f
     PetscInt :: cell_geom_offsets(2), face_geom_offset, flux_offset
-    PetscInt :: np, nf, nt, up, c_up, i, it, irow, icol
+    PetscInt :: tracer_offsets(2)
+    PetscInt :: np, nf, nt, up, i, it, irow, icol
     DM :: dm_tracer
     PetscInt :: tracer_offset_i, tracer_offset_up
     type(face_type) :: face
@@ -1553,6 +1554,8 @@ contains
           call DMPlexGetSupport(self%mesh%dm, f, cells, ierr); CHKERRQ(ierr)
           do i = 1, 2
              cell_geom_offsets(i) = section_offset(cell_geom_section, cells(i))
+             call PetscSectionGetOffset(local_tracer_section, cells(i), &
+                  tracer_offsets(i), ierr); CHKERRQ(ierr)
           end do
           call face%assign_cell_geometry(cell_geom_array, cell_geom_offsets)
           face_geom_offset = section_offset(face_geom_section, f)
@@ -1568,17 +1571,12 @@ contains
                else
                   up = 2
                end if
-               c_up = cells(up)
                tracer_flow = tracer_phase_flux * face%area
                do i = 1, 2
                   if ((self%mesh%ghost_cell(cells(i)) < 0) .and. &
                        (cells(i) <= end_interior_cell - 1)) then
-                     call PetscSectionGetOffset(local_tracer_section, cells(i), &
-                          tracer_offset_i, ierr); CHKERRQ(ierr)
-                     irow = tracer_offset_i + it - 1
-                     call PetscSectionGetOffset(local_tracer_section, c_up, &
-                          tracer_offset_up, ierr); CHKERRQ(ierr)
-                     icol = tracer_offset_up + it - 1
+                     irow = tracer_offsets(i) + it - 1
+                     icol = tracer_offsets(up) + it - 1
                      Ft = flux_sign(i) * tracer_flow / face%cell(i)%volume
                      call MatSetValuesLocal(Ar, 1, irow, 1, icol, Ft, &
                           ADD_VALUES, ierr); CHKERRQ(ierr)
