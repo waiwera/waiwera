@@ -1489,7 +1489,7 @@ contains
 
     use dm_utils_module, only: local_vec_section, section_offset, &
          dm_get_end_interior_cell, global_vec_section, global_section_offset, &
-         global_to_local_vec_section
+         global_to_local_vec_section, restore_dm_local_vec
     use cell_module, only: cell_type
     use face_module, only: face_type
     use source_module, only: source_type
@@ -1502,18 +1502,20 @@ contains
     PetscErrorCode, intent(out) :: err
     ! Locals:
     PetscSection :: cell_geom_section, face_geom_section, flux_section, &
-         source_section, local_tracer_section
+         source_section, local_tracer_section, fluid_section, rock_section
+    Vec :: local_fluid, local_rock
     PetscReal, pointer, contiguous :: cell_geom_array(:), face_geom_array(:), &
-         flux_array(:), source_data(:)
+         flux_array(:), source_data(:), fluid_array(:), rock_array(:)
     PetscInt :: start_cell, end_cell, end_interior_cell, start_face, end_face, f
     PetscInt :: cell_geom_offsets(2), face_geom_offset, flux_offset
-    PetscInt :: tracer_offsets(2)
-    PetscInt :: np, nf, nt, up, i, it, irow, icol
+    PetscInt :: tracer_offsets(2), fluid_offsets(2), rock_offsets(2)
+    PetscInt :: np, nf, nt, up, i, it, irow, icol, j
     DM :: dm_tracer
     type(face_type) :: face
     PetscInt, pointer :: cells(:)
     PetscReal, pointer, contiguous :: face_flux(:)
     PetscReal :: tracer_phase_flux, tracer_flow, Ft
+    PetscReal :: cell_phi_rho(2), phi_rho ! porosity * density
     PetscReal, parameter :: flux_sign(2) = [-1._dp, 1._dp]
     PetscErrorCode :: ierr
 
@@ -1536,6 +1538,11 @@ contains
 
     call local_vec_section(self%flux, flux_section)
     call VecGetArrayReadF90(self%flux, flux_array, ierr); CHKERRQ(ierr)
+    call global_to_local_vec_section(self%current_fluid, local_fluid, &
+         fluid_section)
+    call VecGetArrayReadF90(local_fluid, fluid_array, ierr); CHKERRQ(ierr)
+    call global_to_local_vec_section(self%rock, local_rock, rock_section)
+    call VecGetArrayReadF90(local_rock, rock_array, ierr); CHKERRQ(ierr)
 
     call MatGetDM(Ar, dm_tracer, ierr); CHKERRQ(ierr)
     call DMGetSection(dm_tracer, local_tracer_section, ierr); CHKERRQ(ierr)
@@ -1555,41 +1562,68 @@ contains
              cell_geom_offsets(i) = section_offset(cell_geom_section, cells(i))
              call PetscSectionGetOffset(local_tracer_section, cells(i), &
                   tracer_offsets(i), ierr); CHKERRQ(ierr)
+             fluid_offsets(i) = section_offset(fluid_section, cells(i))
+             rock_offsets(i) = section_offset(rock_section, cells(i))
           end do
           call face%assign_cell_geometry(cell_geom_array, cell_geom_offsets)
           face_geom_offset = section_offset(face_geom_section, f)
           call face%assign_geometry(face_geom_array, face_geom_offset)
+          call face%assign_cell_fluid(fluid_array, fluid_offsets)
+          call face%assign_cell_rock(rock_array, rock_offsets)
 
           flux_offset = section_offset(flux_section, f)
           face_flux => flux_array(flux_offset : flux_offset + nf - 1)
           associate(phase_flux => face_flux(np + 1 : nf))
             do it = 1, nt
-               tracer_phase_flux = phase_flux(self%tracers(it)%phase_index)
-               if (tracer_phase_flux >= 0._dp) then
-                  up = 1
-               else
-                  up = 2
-               end if
-               tracer_flow = tracer_phase_flux * face%area
-               do i = 1, 2
-                  if ((self%mesh%ghost_cell(cells(i)) < 0) .and. &
-                       (cells(i) <= end_interior_cell - 1)) then
-                     irow = tracer_offsets(i) + it - 1
-                     icol = tracer_offsets(up) + it - 1
-                     Ft = flux_sign(i) * tracer_flow / face%cell(i)%volume
-                     call MatSetValuesLocal(Ar, 1, irow, 1, icol, Ft, &
-                          ADD_VALUES, ierr); CHKERRQ(ierr)
-                  end if
-               end do
+               associate(tracer => self%tracers(it))
+                 tracer_phase_flux = phase_flux(tracer%phase_index)
+                 if (tracer_phase_flux >= 0._dp) then
+                    up = 1
+                 else
+                    up = 2
+                 end if
+                 tracer_flow = tracer_phase_flux * face%area
+                 do i = 1, 2
+                    associate(cell => face%cell(i))
+                      cell_phi_rho(i) = cell%rock%porosity * &
+                           cell%fluid%phase(tracer%phase_index)%density
+                    end associate
+                 end do
+                 phi_rho = face%harmonic_average(cell_phi_rho)
+                 do i = 1, 2
+                    if ((self%mesh%ghost_cell(cells(i)) < 0) .and. &
+                         (cells(i) <= end_interior_cell - 1)) then
+                       ! Advective flux:
+                       irow = tracer_offsets(i) + it - 1
+                       icol = tracer_offsets(up) + it - 1
+                       Ft = flux_sign(i) * tracer_flow / face%cell(i)%volume
+                       call MatSetValuesLocal(Ar, 1, irow, 1, icol, Ft, &
+                            ADD_VALUES, ierr); CHKERRQ(ierr)
+                       ! Diffusive flux:
+                       do j = 1, 2
+                          icol = tracer_offsets(j) + it - 1
+                          Ft = -flux_sign(i) * flux_sign(j) * &
+                               face%area * phi_rho * tracer%diffusion / &
+                               (face%distance12 * face%cell(i)%volume)
+                          call MatSetValuesLocal(Ar, 1, irow, 1, icol, Ft, &
+                               ADD_VALUES, ierr); CHKERRQ(ierr)
+                       end do
+                    end if
+                 end do
+               end associate
             end do
           end associate
        end if
     end do
 
     call face%destroy()
+    call VecRestoreArrayReadF90(local_fluid, fluid_array, ierr); CHKERRQ(ierr)
+    call VecRestoreArrayReadF90(local_rock, rock_array, ierr); CHKERRQ(ierr)
     call VecRestoreArrayReadF90(self%flux, flux_array, ierr); CHKERRQ(ierr)
     call VecRestoreArrayReadF90(self%mesh%face_geom, face_geom_array, ierr)
     CHKERRQ(ierr)
+    call restore_dm_local_vec(local_fluid)
+    call restore_dm_local_vec(local_rock)
 
     call global_vec_section(self%source, source_section)
     call VecGetArrayF90(self%source, source_data, ierr); CHKERRQ(ierr)
