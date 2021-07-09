@@ -1514,8 +1514,7 @@ contains
     type(face_type) :: face
     PetscInt, pointer :: cells(:)
     PetscReal, pointer, contiguous :: face_flux(:)
-    PetscReal :: tracer_phase_flux, tracer_flow, Ft
-    PetscReal :: cell_phi_rho(2), phi_rho ! porosity * density
+    PetscReal :: tracer_phase_flux, tracer_flow, Ft, diffusion_factor
     PetscReal, parameter :: flux_sign(2) = [-1._dp, 1._dp]
     PetscErrorCode :: ierr
 
@@ -1583,13 +1582,7 @@ contains
                     up = 2
                  end if
                  tracer_flow = tracer_phase_flux * face%area
-                 do i = 1, 2
-                    associate(cell => face%cell(i))
-                      cell_phi_rho(i) = cell%rock%porosity * &
-                           cell%fluid%phase(tracer%phase_index)%density
-                    end associate
-                 end do
-                 phi_rho = face%harmonic_average(cell_phi_rho)
+                 diffusion_factor = face%diffusion_factor(tracer%phase_index)
                  do i = 1, 2
                     if ((self%mesh%ghost_cell(cells(i)) < 0) .and. &
                          (cells(i) <= end_interior_cell - 1)) then
@@ -1603,7 +1596,7 @@ contains
                        do j = 1, 2
                           icol = tracer_offsets(j) + it - 1
                           Ft = -flux_sign(i) * flux_sign(j) * &
-                               face%area * phi_rho * tracer%diffusion / &
+                               face%area * diffusion_factor * tracer%diffusion / &
                                (face%distance12 * face%cell(i)%volume)
                           call MatSetValuesLocal(Ar, 1, irow, 1, icol, Ft, &
                                ADD_VALUES, ierr); CHKERRQ(ierr)

@@ -47,6 +47,8 @@ module cell_module
      procedure, public :: destroy => cell_destroy
      procedure, public :: balance => cell_balance
      procedure, public :: tracer_balance_coefs => cell_tracer_balance_coefs
+     procedure, public :: diffusion_factor => cell_diffusion_factor
+     procedure, public :: tortuosity => cell_tortuosity
   end type cell_type
 
   PetscInt, parameter, public :: num_cell_variables = 2
@@ -160,6 +162,43 @@ contains
     end do
 
   end function cell_tracer_balance_coefs
+
+!------------------------------------------------------------------------
+
+  PetscReal function cell_diffusion_factor(self, p) result(factor)
+    !! Returns the diffusion factor for phase p, which multiplies the
+    !! diffusion coefficient in tracer diffusion. The diffusion factor
+    !! is given by the product of three quantities: rock porosity,
+    !! fluid phase density (for phase p) and tortuosity.
+
+    class(cell_type), intent(in) :: self
+    PetscInt, intent(in) :: p !! phase index
+
+    factor = self%rock%porosity * self%fluid%phase(p)%density * &
+              self%tortuosity(p)
+
+  end function cell_diffusion_factor
+
+!------------------------------------------------------------------------
+
+  PetscReal function cell_tortuosity(self, p) result(tortuosity)
+    !! Returns the effective tortuosity in the cell, for the specified
+    !! phase. In general, this is the product of two factors, a rock
+    !! tortuosity and a fluid tortuosity. Here, the rock tortuosity is
+    !! taken to be identically 1 and the fluid tortuosity is taken to
+    !! be equal to the phase saturation, giving a constant-diffusivity
+    !! formulation.
+
+    class(cell_type), intent(in) :: self
+    PetscInt, intent(in) :: p !! phase index
+    ! Locals:
+    PetscReal :: fluid_tortuosity
+    PetscReal, parameter :: rock_tortuosity = 1._dp
+
+    fluid_tortuosity = self%fluid%phase(p)%saturation
+    tortuosity = rock_tortuosity * fluid_tortuosity
+
+  end function cell_tortuosity
 
 !------------------------------------------------------------------------
 
