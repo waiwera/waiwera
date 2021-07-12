@@ -247,13 +247,27 @@ The mass term :math:`M_i^T` represents the tracer mass per unit volume in each c
 
    M_i^T = \phi_i S_{i,p} \rho_{i,p} X_i^T
 
-where :math:`p` is the tracer phase. The tracer flux term can be written as
+where :math:`p` is the tracer phase. The tracer flux term can be written as the sum of two terms, representing advection and diffusion respectively:
 
 .. math::
 
-   F_{ij}^T = X_{ij}^T F_{ij,p}
+   F_{ij}^T = X_{ij}^T F_{ij,p} - [\phi \rho_p \tau]_{ij} D^T \frac{\partial X^T}{\partial n}
 
-where :math:`F_{ij, p}` is the total mass flux (over all mass components) in phase :math:`p`. The quantity :math:`X_{ij}^T` represents the effective tracer mass fraction on the face between cells :math:`i` and :math:`j`, and is upstream weighted (e.g. :math:`X_{ij}^T = X_i^T` if flow is from cell :math:`i` to cell :math:`j`).
+In the advection term, :math:`F_{ij, p}` is the total mass flux (over all mass components) in phase :math:`p`. The quantity :math:`X_{ij}^T` represents the effective tracer mass fraction on the face between cells :math:`i` and :math:`j`, and is upstream weighted (e.g. :math:`X_{ij}^T = X_i^T` if flow is from cell :math:`i` to cell :math:`j`).
+
+In the diffusion term, :math:`D^T` is the tracer diffusion coefficient and the normal derivative of tracer mass fraction is evaluated by finite differencing across the face, as for the pressure and temperature gradients (see :ref:`function_evaluations`). The factor pre-multiplying the diffusion coefficient, :math:`[\phi \rho_p \tau]_{ij}`, is a product of three cell quantities, rock porosity :math:`\phi`, fluid phase density :math:`\rho_p` and a dimensionless "tortuosity" :math:`\tau`. The value of this total factor at the face is found using harmonic weighting of the values at the cells on either side.
+
+The tortuosity in cell :math:`i` is found from a product of rock and fluid contributions, :math:`\tau_{i,0}` and :math:`\tau_{i,p}` respectively:
+
+.. math::
+
+   \tau_{i} = \tau_{i,0} \tau_{i,p}
+
+At present a simple "constant-diffusivity" formulation is used for tortuosity, in which the rock contribution :math:`\tau_{i,0}` is identically 1 (i.e. no rock contribution), and the fluid contribution is equal to the phase saturation:
+
+.. math::
+
+   \tau_{i,p} = S_{i,p}
 
 The tracer source term :math:`q_i^T` is specified for injection, while for production it is evaluated from:
 

@@ -23,6 +23,9 @@ Parameters related to the configuration of tracers (see :ref:`simulating_tracers
    |"phase"                |string        |depends on EOS, but   |tracer phase           |
    |                       |              |usually "liquid"      |                       |
    +-----------------------+--------------+----------------------+-----------------------+
+   |"diffusion"            |number        |0                     |diffusion coefficient  |
+   |                       |              |                      |(m\ :sup:`2`/s)        |
+   +-----------------------+--------------+----------------------+-----------------------+
    |"decay"                |number        |0                     |constant decay rate    |
    |                       |              |                      |(1/s)                  |
    +-----------------------+--------------+----------------------+-----------------------+
@@ -34,11 +37,14 @@ The **"name"** value is a string identifying each tracer. If it is not specified
 
 Each tracer is assumed to be specific to a particular fluid phase (see :ref:`tracer_terms`). This phase can be specified via the **"phase"** string value. If not specified, a default value is used, which is specific to the :ref:`eos`. However, for most equations of state, the default tracer phase is "liquid".
 
+As well as being advected by the movement of fluid, tracers may also be transported by diffusion, which moves tracer from areas of high concentration to areas of low concentration. The strength of the diffusion effect is determined by a coefficient defined via the **"diffusion"** value. For the details of how this diffusion coefficient is defined and used, see :ref:`tracer_terms`.
+
 Each tracer can be given a decay rate (see :ref:`tracer_eqns`), which can be either constant or temperature-dependent (see :ref:`tracer_temp_decay`). A constant decay rate can be set directly via the **"decay"** value.
 
 Temperature-dependent decay is introduced by specifying the activation energy for the tracer (:math:`E_0` in equation :eq:`arrhenius`), via the **"activation"** value. In this case the "decay" value specifies the constant decay rate :math:`\alpha^0` in the same equation.
 
-For example:
+Examples
+========
 
 .. code-block:: json
 
@@ -46,7 +52,7 @@ For example:
    "tracer": {"name": "T1"}
   }
 
-defines a single non-decaying liquid-phase tracer named "T1". The phase is not specified, so it is determined by the default tracer phase for the "we" equation of state, which is "liquid".
+Here a single non-decaying liquid-phase tracer named "T1" is defined. The phase is not specified, so it is determined by the default tracer phase for the "we" equation of state, which is "liquid".
 
 The following example defines a single non-decaying vapour phase tracer, with the phase specified explicitly:
 
@@ -74,8 +80,8 @@ This example defines three tracers with various properties:
 .. code-block:: json
 
   {"tracer": [
-              {"name": "T1", "phase": "liquid"},
-              {"name": "T2", "phase": "vapour", "decay": 2e-7},
+              {"name": "T1", "phase": "liquid", "diffusion": 1e-6},
+              {"name": "T2", "phase": "vapour", "decay": 2e-7, "diffusion": 1.5e-6},
               {"name": "T3", "phase": "liquid", "decay": 1e-6, "activation": 1850}
              ]
   }
