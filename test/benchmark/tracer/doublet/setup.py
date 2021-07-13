@@ -104,12 +104,14 @@ jsondata['logfile'] = {'echo': False}
 json.dump(jsondata, file(model_name + '_ss.json', 'w'), indent = 2)
 
 # add tracer to TOUGH2 model:
-dat.simulator = 'AUTOUGH2.2EWT'
+dat.simulator = 'AUTOUGH2.2EWTD'
 tracer_incons = [P0, T0, 0]
-dat.multi = {'eos': 'EWT', 'num_components': 2, 'num_phases': 2,
-             'num_equations': 3, 'num_secondary_parameters': 6}
+dat.multi = {'eos': 'EWTD', 'num_components': 2, 'num_phases': 2,
+             'num_equations': 3, 'num_secondary_parameters': 8}
 dat.parameter.update({
     'default_incons': tracer_incons})
+D = 1.e-4
+dat.diffusion = [[-D, -D], [-D, -D]]
 dat.write(model_name + '_ss.dat')
 
 inc = dat.grid.incons(tracer_incons)
@@ -161,7 +163,7 @@ jsondata['time']['stop'] = dat.parameter['tstop']
 jsondata['time']['step']['maximum']['number'] = ndt
 jsondata['time']['step']['maximum']['size'] = dat.parameter['max_timestep']
 
-jsondata['tracer'] = {'name': 'tracer1'}
+jsondata['tracer'] = {'name': 'tracer1', "diffusion": D}
 jsondata['source'][0]['tracer'] = [[0, qt], [end_time, 0]]
 jsondata['source'][0]['interpolation'] = 'step'
 
