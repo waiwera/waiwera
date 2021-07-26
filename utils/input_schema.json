@@ -1022,7 +1022,8 @@
                  "name": {"type": "string"},
                  "phase": {"type": "string"},
                  "decay": {"type": "number"},
-                 "activation": {"type": "number"}
+                 "activation": {"type": "number"},
+                 "diffusion": {"type": "number"}
              }, "additionalProperties": false},
             {"type": "array",
              "items": {
@@ -1031,7 +1032,8 @@
                      "name": {"type": "string"},
                      "phase": {"type": "string"},
                      "decay": {"type": "number"},
-                     "activation": {"type": "number"}
+                     "activation": {"type": "number"},
+                     "diffusion": {"type": "number"}
                  }, "additionalProperties": false}}
         ]}
     },

@@ -1,5 +1,5 @@
 """
-1-D single-phase doublet problem with tracer injection and production
+1-D single-phase doublet problem with tracer injection, production and diffusion
 """
 
 import argparse
@@ -71,9 +71,8 @@ field_scale = {'Tracer mass fraction': 1.e-6, 'Tracer production rate': 1.e-6}
 test_source_fields = ['Tracer production rate']
 
 doublet_test = SciBenchmarkTest(model_name + "_test", nproc = args.np)
-doublet_test.description = """1-D single-phase doublet problem with tracer injection
-and production
-"""
+doublet_test.description = """1-D single-phase doublet problem with tracer injection, production
+and diffusion """
 
 run_filename = run_base_name + '.json'
 model_run = WaiweraModelRun(run_name, run_filename,
