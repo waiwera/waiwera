@@ -68,12 +68,16 @@ module flow_simulation_module
      class(capillary_pressure_type), allocatable, public :: capillary_pressure !! Rock capillary pressure function
      character(max_output_filename_length), public :: output_filename !! HDF5 output filename
      PetscViewer :: hdf5_viewer !! Viewer for HDF5 output
+     PetscInt, allocatable :: output_cell_geom_field_indices(:) !! Field indices for cell geometry output
+     PetscInt, allocatable :: output_face_geom_field_indices(:) !! Field indices for face geometry output
      PetscInt, allocatable :: output_fluid_field_indices(:) !! Field indices for fluid output
+     PetscInt, allocatable :: output_flux_field_indices(:)  !! Field indices for flux output
      PetscInt, allocatable :: output_source_field_indices(:) !! Field indices for source output
      PetscInt, allocatable :: output_tracer_field_indices(:) !! Field indices for tracer output
      integer(int32) :: start_clock !! Start wall clock time of simulation
      PetscBool :: unperturbed !! Whether any primary variables are being perturbed for Jacobian calculation
      PetscBool :: source_tracer_output !! Whether to output source tracer flow rates
+     PetscBool :: flux_output !! Whether to output fluxes
    contains
      private
      procedure :: create_solution_vector => flow_simulation_create_solution_vector
@@ -107,6 +111,9 @@ module flow_simulation_module
      procedure, public :: fluid_transitions => flow_simulation_fluid_transitions
      procedure, public :: fluid_properties => flow_simulation_fluid_properties
      procedure, public :: output_mesh_geometry => flow_simulation_output_mesh_geometry
+     procedure, public :: output_minc_data => flow_simulation_output_minc_data
+     procedure, public :: output_cell_indices => flow_simulation_output_cell_indices
+     procedure, public :: output_face_cell_indices => flow_simulation_output_face_cell_indices
      procedure, public :: output_source_indices => flow_simulation_output_source_indices
      procedure, public :: output_source_cell_indices => flow_simulation_output_source_cell_indices
      procedure, public :: output => flow_simulation_output
@@ -152,11 +159,14 @@ contains
          flux_variable_dim(:)
     character(max_primary_variable_name_length), allocatable :: &
          flux_variable_names(:)
+    DMLabel :: flux_face_label
+    DMLabel, allocatable :: labels(:)
     PetscErrorCode :: ierr
 
     num_variables = self%eos%num_primary_variables + self%eos%num_phases
     allocate(flux_variable_num_components(num_variables), &
-         flux_variable_dim(num_variables), flux_variable_names(num_variables))
+         flux_variable_dim(num_variables), flux_variable_names(num_variables), &
+         labels(num_variables))
     flux_variable_num_components = 1
 
     call DMClone(self%mesh%dm, dm_flux, ierr); CHKERRQ(ierr)
@@ -168,9 +178,12 @@ contains
     end if
     flux_variable_names(self%eos%num_primary_variables + 1: &
          self%eos%num_primary_variables + self%eos%num_phases) = self%eos%phase_names
+    call DMGetLabel(dm_flux, flux_face_label_name, flux_face_label, &
+         ierr); CHKERRQ(ierr)
+    labels = flux_face_label
 
     call dm_set_data_layout(dm_flux, flux_variable_num_components, &
-         flux_variable_dim, flux_variable_names)
+         flux_variable_dim, flux_variable_names, labels)
 
     call DMCreateLocalVector(dm_flux, self%flux, ierr); CHKERRQ(ierr)
     call PetscObjectSetName(self%flux, "flux", ierr); CHKERRQ(ierr)
@@ -178,7 +191,7 @@ contains
 
     call DMDestroy(dm_flux, ierr); CHKERRQ(ierr)
     deallocate(flux_variable_dim, flux_variable_num_components, &
-         flux_variable_names)
+         flux_variable_names, labels)
 
   end subroutine flow_simulation_setup_flux_vector
 
@@ -356,8 +369,17 @@ contains
     if (self%output_filename /= "") then
        call PetscViewerDestroy(self%hdf5_viewer, ierr); CHKERRQ(ierr)
     end if
+    if (allocated(self%output_cell_geom_field_indices)) then
+       deallocate(self%output_cell_geom_field_indices)
+    end if
+    if (allocated(self%output_face_geom_field_indices)) then
+       deallocate(self%output_face_geom_field_indices)
+    end if
     if (allocated(self%output_fluid_field_indices)) then
        deallocate(self%output_fluid_field_indices)
+    end if
+    if (allocated(self%output_flux_field_indices)) then
+       deallocate(self%output_flux_field_indices)
     end if
     if (allocated(self%output_source_field_indices)) then
        deallocate(self%output_source_field_indices)
@@ -381,14 +403,48 @@ contains
     class(flow_simulation_type), intent(in out) :: self
     type(fson_value), pointer, intent(in) :: json
     ! Locals:
-      character(max_field_name_length), allocatable :: &
-           output_fields(:)
+    character(max_field_name_length), allocatable :: &
+         output_fields(:)
+    character(max_field_name_length), allocatable :: &
+         required_output_cell_geom_fields(:), &
+         required_output_face_geom_fields(:), &
+         default_output_flux_fields(:), &
+         required_output_flux_fields(:)
+    character(max_field_name_length), parameter :: &
+         default_output_cell_geom_fields(2) = ["centroid", "volume  "], &
+         default_output_face_geom_fields(1) = ["area"]
+
+    allocate(required_output_cell_geom_fields(0), &
+         required_output_face_geom_fields(0), &
+         default_output_flux_fields(0), &
+         required_output_flux_fields(0))
+
+    call setup_vector_output_fields("cell_geometry", &
+         self%mesh%cell_geom, &
+         default_output_cell_geom_fields, &
+         required_output_cell_geom_fields, &
+         self%output_cell_geom_field_indices, output_fields)
+    deallocate(output_fields)
+
+    call setup_vector_output_fields("face_geometry", &
+         self%mesh%face_geom, &
+         default_output_face_geom_fields, &
+         required_output_face_geom_fields, &
+         self%output_face_geom_field_indices, output_fields)
+    deallocate(output_fields)
 
     call setup_vector_output_fields("fluid", self%fluid, &
          self%eos%default_output_fluid_fields, &
          self%eos%required_output_fluid_fields, &
          self%output_fluid_field_indices, output_fields)
     deallocate(output_fields)
+
+    call setup_vector_output_fields("flux", self%flux, &
+         default_output_flux_fields, &
+         required_output_flux_fields, &
+         self%output_flux_field_indices, output_fields)
+    deallocate(output_fields)
+    self%flux_output = (size(self%output_flux_field_indices) > 0)
 
     call setup_vector_output_fields("source", self%source, &
          default_output_source_fields, required_output_source_fields, &
@@ -832,11 +888,7 @@ contains
                          end if
                       end if
 
-                      if (self%hdf5_viewer /= PETSC_NULL_VIEWER) then
-                         call ISView(self%mesh%cell_index, self%hdf5_viewer, &
-                              ierr); CHKERRQ(ierr)
-                      end if
-
+                      call self%output_cell_indices()
                       call self%add_boundary_ghost_cells()
 
                       call VecDuplicate(self%solution, self%balances, ierr); CHKERRQ(ierr)
@@ -845,6 +897,10 @@ contains
                       CHKERRQ(ierr)
                       call VecDuplicate(self%fluid, self%last_iteration_fluid, ierr)
                       CHKERRQ(ierr)
+                      call self%mesh%label_remote_faces()
+                      call self%mesh%label_flux_faces()
+                      call self%mesh%setup_flux_face_array()
+                      call self%mesh%compact_face_geometry()
                       call self%setup_flux_vector()
 
                       call self%setup_update_cell()
@@ -862,10 +918,12 @@ contains
                               self%num_local_sources, self%num_sources, self%source_controls, &
                               self%source_index, self%logfile, err)
                          if (err == 0) then
+                            call self%setup_output_fields(json)
+                            call self%output_face_cell_indices()
                             call self%output_mesh_geometry()
+                            call self%output_minc_data()
                             call self%output_source_indices()
                             call self%output_source_cell_indices()
-                            call self%setup_output_fields(json)
                          end if
                       end if
                    end if
@@ -1218,9 +1276,8 @@ contains
     Vec, intent(in out) :: rhs
     PetscErrorCode, intent(out) :: err
     ! Locals:
-    PetscInt :: f, i, np, nf
+    PetscInt :: f, i, np, nf, iface
     PetscInt :: start_cell, end_cell, end_interior_cell
-    PetscInt :: start_face, end_face
     Vec :: local_fluid, local_rock, local_update
     PetscReal, pointer, contiguous :: rhs_array(:)
     PetscReal, pointer, contiguous :: cell_geom_array(:), face_geom_array(:)
@@ -1274,55 +1331,52 @@ contains
     call face%init(self%eos%num_components, self%eos%num_phases)
     call DMPlexGetHeightStratum(self%mesh%dm, 0, start_cell, end_cell, ierr)
     CHKERRQ(ierr)
-    call DMPlexGetHeightStratum(self%mesh%dm, 1, start_face, end_face, ierr)
-    CHKERRQ(ierr)
     end_interior_cell = dm_get_end_interior_cell(self%mesh%dm, end_cell)
 
-    do f = start_face, end_face - 1
+    do iface = 1, size(self%mesh%flux_face)
 
-       if (self%mesh%ghost_face(f) < 0) then
+       f = self%mesh%flux_face(iface)
 
-          call DMPlexGetSupport(self%mesh%dm, f, cells, ierr); CHKERRQ(ierr)
+       call DMPlexGetSupport(self%mesh%dm, f, cells, ierr); CHKERRQ(ierr)
+       do i = 1, 2
+          update_offsets(i) = section_offset(update_section, cells(i))
+          cell_geom_offsets(i) = section_offset(cell_geom_section, cells(i))
+          rhs_offsets(i) = global_section_offset(rhs_section, cells(i), &
+               self%solution_range_start)
+       end do
+       face_geom_offset = section_offset(face_geom_section, f)
+       call face%assign_geometry(face_geom_array, face_geom_offset)
+       call face%assign_cell_geometry(cell_geom_array, cell_geom_offsets)
+
+       if ((update(update_offsets(1)) > 0) .or. &
+            (update(update_offsets(2)) > 0)) then
           do i = 1, 2
-             update_offsets(i) = section_offset(update_section, cells(i))
-             cell_geom_offsets(i) = section_offset(cell_geom_section, cells(i))
-             rhs_offsets(i) = global_section_offset(rhs_section, cells(i), &
-                  self%solution_range_start)
+             fluid_offsets(i) = section_offset(fluid_section, cells(i))
+             rock_offsets(i) = section_offset(rock_section, cells(i))
           end do
-          face_geom_offset = section_offset(face_geom_section, f)
-          call face%assign_geometry(face_geom_array, face_geom_offset)
-          call face%assign_cell_geometry(cell_geom_array, cell_geom_offsets)
-
-          if ((update(update_offsets(1)) > 0) .or. &
-               (update(update_offsets(2)) > 0)) then
-             do i = 1, 2
-                fluid_offsets(i) = section_offset(fluid_section, cells(i))
-                rock_offsets(i) = section_offset(rock_section, cells(i))
-             end do
-             call face%assign_cell_fluid(fluid_array, fluid_offsets)
-             call face%assign_cell_rock(rock_array, rock_offsets)
-             face_flux = face%flux(self%eos)
-             if (self%unperturbed) then
-                flux_offset = section_offset(flux_section, f)
-                flux_array(flux_offset : flux_offset + nf - 1) = face_flux
-             end if
-          else
+          call face%assign_cell_fluid(fluid_array, fluid_offsets)
+          call face%assign_cell_rock(rock_array, rock_offsets)
+          face_flux = face%flux(self%eos)
+          if (self%unperturbed) then
              flux_offset = section_offset(flux_section, f)
-             face_flux = flux_array(flux_offset : flux_offset + nf - 1)
+             flux_array(flux_offset : flux_offset + nf - 1) = face_flux
           end if
-
-          face_component_flow = face_flux(1:np) * face%area
-
-          do i = 1, 2
-             if ((self%mesh%ghost_cell(cells(i)) < 0) .and. &
-                  (cells(i) <= end_interior_cell - 1)) then
-                inflow => rhs_array(rhs_offsets(i) : rhs_offsets(i) + np - 1)
-                inflow = inflow + flux_sign(i) * face_component_flow / &
-                     face%cell(i)%volume
-             end if
-          end do
-
+       else
+          flux_offset = section_offset(flux_section, f)
+          face_flux = flux_array(flux_offset : flux_offset + nf - 1)
        end if
+
+       face_component_flow = face_flux(1:np) * face%area
+
+       do i = 1, 2
+          if ((self%mesh%ghost_cell(cells(i)) < 0) .and. &
+               (cells(i) <= end_interior_cell - 1)) then
+             inflow => rhs_array(rhs_offsets(i) : rhs_offsets(i) + np - 1)
+             inflow = inflow + flux_sign(i) * face_component_flow / &
+                  face%cell(i)%volume
+          end if
+       end do
+
     end do
 
     call face%destroy()
@@ -1489,7 +1543,7 @@ contains
 
     use dm_utils_module, only: local_vec_section, section_offset, &
          dm_get_end_interior_cell, global_vec_section, global_section_offset, &
-         global_to_local_vec_section
+         global_to_local_vec_section, restore_dm_local_vec
     use cell_module, only: cell_type
     use face_module, only: face_type
     use source_module, only: source_type
@@ -1502,18 +1556,19 @@ contains
     PetscErrorCode, intent(out) :: err
     ! Locals:
     PetscSection :: cell_geom_section, face_geom_section, flux_section, &
-         source_section, local_tracer_section
+         source_section, local_tracer_section, fluid_section, rock_section
+    Vec :: local_fluid, local_rock
     PetscReal, pointer, contiguous :: cell_geom_array(:), face_geom_array(:), &
-         flux_array(:), source_data(:)
-    PetscInt :: start_cell, end_cell, end_interior_cell, start_face, end_face, f
+         flux_array(:), source_data(:), fluid_array(:), rock_array(:)
+    PetscInt :: start_cell, end_cell, end_interior_cell, f
     PetscInt :: cell_geom_offsets(2), face_geom_offset, flux_offset
-    PetscInt :: np, nf, nt, up, c_up, i, it, irow, icol
+    PetscInt :: tracer_offsets(2), fluid_offsets(2), rock_offsets(2)
+    PetscInt :: np, nf, nt, up, i, it, irow, icol, j, iface
     DM :: dm_tracer
-    PetscInt :: tracer_offset_i, tracer_offset_up
     type(face_type) :: face
     PetscInt, pointer :: cells(:)
     PetscReal, pointer, contiguous :: face_flux(:)
-    PetscReal :: tracer_phase_flux, tracer_flow, Ft
+    PetscReal :: tracer_phase_flux, tracer_flow, Ft, diffusion_factor
     PetscReal, parameter :: flux_sign(2) = [-1._dp, 1._dp]
     PetscErrorCode :: ierr
 
@@ -1536,63 +1591,83 @@ contains
 
     call local_vec_section(self%flux, flux_section)
     call VecGetArrayReadF90(self%flux, flux_array, ierr); CHKERRQ(ierr)
+    call global_to_local_vec_section(self%current_fluid, local_fluid, &
+         fluid_section)
+    call VecGetArrayReadF90(local_fluid, fluid_array, ierr); CHKERRQ(ierr)
+    call global_to_local_vec_section(self%rock, local_rock, rock_section)
+    call VecGetArrayReadF90(local_rock, rock_array, ierr); CHKERRQ(ierr)
 
     call MatGetDM(Ar, dm_tracer, ierr); CHKERRQ(ierr)
     call DMGetSection(dm_tracer, local_tracer_section, ierr); CHKERRQ(ierr)
 
     call DMPlexGetHeightStratum(self%mesh%dm, 0, start_cell, end_cell, ierr)
     CHKERRQ(ierr)
-    call DMPlexGetHeightStratum(self%mesh%dm, 1, start_face, end_face, ierr)
-    CHKERRQ(ierr)
     end_interior_cell = dm_get_end_interior_cell(self%mesh%dm, end_cell)
 
-    do f = start_face, end_face - 1
+    do iface = 1, size(self%mesh%flux_face)
 
-       if (self%mesh%ghost_face(f) < 0) then
+       f = self%mesh%flux_face(iface)
 
-          call DMPlexGetSupport(self%mesh%dm, f, cells, ierr); CHKERRQ(ierr)
-          do i = 1, 2
-             cell_geom_offsets(i) = section_offset(cell_geom_section, cells(i))
-          end do
-          call face%assign_cell_geometry(cell_geom_array, cell_geom_offsets)
-          face_geom_offset = section_offset(face_geom_section, f)
-          call face%assign_geometry(face_geom_array, face_geom_offset)
+       call DMPlexGetSupport(self%mesh%dm, f, cells, ierr); CHKERRQ(ierr)
+       do i = 1, 2
+          cell_geom_offsets(i) = section_offset(cell_geom_section, cells(i))
+          call PetscSectionGetOffset(local_tracer_section, cells(i), &
+               tracer_offsets(i), ierr); CHKERRQ(ierr)
+          fluid_offsets(i) = section_offset(fluid_section, cells(i))
+          rock_offsets(i) = section_offset(rock_section, cells(i))
+       end do
+       call face%assign_cell_geometry(cell_geom_array, cell_geom_offsets)
+       face_geom_offset = section_offset(face_geom_section, f)
+       call face%assign_geometry(face_geom_array, face_geom_offset)
+       call face%assign_cell_fluid(fluid_array, fluid_offsets)
+       call face%assign_cell_rock(rock_array, rock_offsets)
 
-          flux_offset = section_offset(flux_section, f)
-          face_flux => flux_array(flux_offset : flux_offset + nf - 1)
-          associate(phase_flux => face_flux(np + 1 : nf))
-            do it = 1, nt
-               tracer_phase_flux = phase_flux(self%tracers(it)%phase_index)
-               if (tracer_phase_flux >= 0._dp) then
-                  up = 1
-               else
-                  up = 2
-               end if
-               c_up = cells(up)
-               tracer_flow = tracer_phase_flux * face%area
-               do i = 1, 2
-                  if ((self%mesh%ghost_cell(cells(i)) < 0) .and. &
-                       (cells(i) <= end_interior_cell - 1)) then
-                     call PetscSectionGetOffset(local_tracer_section, cells(i), &
-                          tracer_offset_i, ierr); CHKERRQ(ierr)
-                     irow = tracer_offset_i + it - 1
-                     call PetscSectionGetOffset(local_tracer_section, c_up, &
-                          tracer_offset_up, ierr); CHKERRQ(ierr)
-                     icol = tracer_offset_up + it - 1
-                     Ft = flux_sign(i) * tracer_flow / face%cell(i)%volume
-                     call MatSetValuesLocal(Ar, 1, irow, 1, icol, Ft, &
-                          ADD_VALUES, ierr); CHKERRQ(ierr)
-                  end if
-               end do
-            end do
-          end associate
-       end if
+       flux_offset = section_offset(flux_section, f)
+       face_flux => flux_array(flux_offset : flux_offset + nf - 1)
+       associate(phase_flux => face_flux(np + 1 : nf))
+         do it = 1, nt
+            associate(tracer => self%tracers(it))
+              tracer_phase_flux = phase_flux(tracer%phase_index)
+              if (tracer_phase_flux >= 0._dp) then
+                 up = 1
+              else
+                 up = 2
+              end if
+              tracer_flow = tracer_phase_flux * face%area
+              diffusion_factor = face%diffusion_factor(tracer%phase_index)
+              do i = 1, 2
+                 if ((self%mesh%ghost_cell(cells(i)) < 0) .and. &
+                      (cells(i) <= end_interior_cell - 1)) then
+                    ! Advective flux:
+                    irow = tracer_offsets(i) + it - 1
+                    icol = tracer_offsets(up) + it - 1
+                    Ft = flux_sign(i) * tracer_flow / face%cell(i)%volume
+                    call MatSetValuesLocal(Ar, 1, irow, 1, icol, Ft, &
+                         ADD_VALUES, ierr); CHKERRQ(ierr)
+                    ! Diffusive flux:
+                    do j = 1, 2
+                       icol = tracer_offsets(j) + it - 1
+                       Ft = -flux_sign(i) * flux_sign(j) * &
+                            face%area * diffusion_factor * tracer%diffusion / &
+                            (face%distance12 * face%cell(i)%volume)
+                       call MatSetValuesLocal(Ar, 1, irow, 1, icol, Ft, &
+                            ADD_VALUES, ierr); CHKERRQ(ierr)
+                    end do
+                 end if
+              end do
+            end associate
+         end do
+       end associate
     end do
 
     call face%destroy()
+    call VecRestoreArrayReadF90(local_fluid, fluid_array, ierr); CHKERRQ(ierr)
+    call VecRestoreArrayReadF90(local_rock, rock_array, ierr); CHKERRQ(ierr)
     call VecRestoreArrayReadF90(self%flux, flux_array, ierr); CHKERRQ(ierr)
     call VecRestoreArrayReadF90(self%mesh%face_geom, face_geom_array, ierr)
     CHKERRQ(ierr)
+    call restore_dm_local_vec(local_fluid)
+    call restore_dm_local_vec(local_rock)
 
     call global_vec_section(self%source, source_section)
     call VecGetArrayF90(self%source, source_data, ierr); CHKERRQ(ierr)
@@ -1618,7 +1693,7 @@ contains
       type(source_type) :: source
       PetscSection :: fluid_section, br_section
       PetscReal, pointer, contiguous :: fluid_array(:), br_array(:)
-      PetscInt :: s, c
+      PetscInt :: s, c, tracer_offset_i
       PetscInt :: source_offset, cell_geom_offset, br_offset, irow
       PetscReal :: q, phase_flow_fractions(self%eos%num_phases), qv(nt)
 
@@ -2416,28 +2491,209 @@ contains
     ! Locals:
     PetscErrorCode :: ierr
     DM :: geom_dm
-    Vec :: global_cell_geom
-    PetscInt, parameter :: cell_geom_indices(2) = [0, 1]
+    Vec :: global_geom
 
-    if (self%output_filename /= "") then
+    if (self%hdf5_viewer /= PETSC_NULL_VIEWER) then
 
        call VecGetDM(self%mesh%cell_geom, geom_dm, ierr); CHKERRQ(ierr)
-       call DMGetGlobalVector(geom_dm, global_cell_geom, ierr); CHKERRQ(ierr)
-       call PetscObjectSetName(global_cell_geom, "cell_geometry", ierr)
+       call DMGetGlobalVector(geom_dm, global_geom, ierr); CHKERRQ(ierr)
+       call PetscObjectSetName(global_geom, "cell_geometry", ierr)
        CHKERRQ(ierr)
-
        call DMLocalToGlobal(geom_dm, self%mesh%cell_geom, &
-            INSERT_VALUES, global_cell_geom, ierr); CHKERRQ(ierr)
-
-       call vec_view_fields_hdf5(global_cell_geom, cell_geom_indices, &
+            INSERT_VALUES, global_geom, ierr); CHKERRQ(ierr)
+       call vec_view_fields_hdf5(global_geom, &
+            self%output_cell_geom_field_indices, &
             "/cell_fields", self%hdf5_viewer)
-
-       call DMRestoreGlobalVector(geom_dm, global_cell_geom, ierr)
+       call DMRestoreGlobalVector(geom_dm, global_geom, ierr)
        CHKERRQ(ierr)
+
+       if (self%flux_output) then
+          call VecGetDM(self%mesh%face_geom, geom_dm, ierr); CHKERRQ(ierr)
+          call DMGetGlobalVector(geom_dm, global_geom, ierr); CHKERRQ(ierr)
+          call PetscObjectSetName(global_geom, "face_geometry", ierr)
+          CHKERRQ(ierr)
+          call DMLocalToGlobal(geom_dm, self%mesh%face_geom, &
+               INSERT_VALUES, global_geom, ierr); CHKERRQ(ierr)
+          call vec_view_fields_hdf5(global_geom, &
+               self%output_face_geom_field_indices, &
+               "/face_fields", self%hdf5_viewer)
+          call DMRestoreGlobalVector(geom_dm, global_geom, ierr)
+          CHKERRQ(ierr)
+       end if
 
     end if
 
   end subroutine flow_simulation_output_mesh_geometry
+
+!------------------------------------------------------------------------
+
+  subroutine flow_simulation_output_minc_data(self)
+    !! Writes MINC data (MINC level and parent cell natural index for
+    !! each cell) to output.
+
+    use dm_utils_module, only: dm_get_end_interior_cell, &
+         dm_get_num_partition_ghost_points
+    use minc_module, only: minc_level_label_name
+
+    class(flow_simulation_type), intent(in out) :: self
+    ! Locals:
+    PetscInt :: start_cell, end_cell, end_interior_cell
+    PetscInt :: num_ghost_cells, num_non_ghost_cells, c, ic, ghost
+    IS :: level, parent
+    PetscInt, allocatable :: level_array(:), parent_array(:)
+    PetscInt, pointer, contiguous :: natural_array(:)
+    DMLabel :: ghost_label, minc_level_label
+    PetscErrorCode :: ierr
+
+    if ((self%hdf5_viewer /= PETSC_NULL_VIEWER) .and. &
+         (self%mesh%has_minc)) then
+
+       call PetscViewerHDF5PushGroup(self%hdf5_viewer, "/minc", &
+            ierr); CHKERRQ(ierr)
+
+       call DMPlexGetHeightStratum(self%mesh%dm, 0, start_cell, end_cell, &
+            ierr); CHKERRQ(ierr)
+       end_interior_cell = dm_get_end_interior_cell(self%mesh%dm, end_cell)
+       num_ghost_cells = dm_get_num_partition_ghost_points(self%mesh%dm, 0)
+       num_non_ghost_cells = end_interior_cell - start_cell - num_ghost_cells
+       allocate(level_array(num_non_ghost_cells), parent_array(num_non_ghost_cells))
+
+       call DMGetLabel(self%mesh%dm, minc_level_label_name, &
+            minc_level_label, ierr); CHKERRQ(ierr)
+       call ISGetIndicesF90(self%mesh%cell_parent_natural, natural_array, &
+            ierr); CHKERRQ(ierr)
+       call DMGetLabel(self%mesh%dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
+       ic = 1
+       do c = start_cell, end_interior_cell - 1
+          call DMLabelGetValue(ghost_label, c, ghost, ierr); CHKERRQ(ierr)
+          if (ghost < 0) then
+             call DMLabelGetValue(minc_level_label, c, level_array(ic), ierr)
+             parent_array(ic) = natural_array(c + 1)
+             ic = ic + 1
+          end if
+       end do
+       call ISRestoreIndicesF90(self%mesh%cell_parent_natural, natural_array, &
+            ierr); CHKERRQ(ierr)
+
+       call ISCreateGeneral(PETSC_COMM_WORLD, num_non_ghost_cells, &
+            level_array, PETSC_COPY_VALUES, level, ierr); CHKERRQ(ierr)
+       deallocate(level_array)
+       call PetscObjectSetName(level, "level", ierr); CHKERRQ(ierr)
+       call ISView(level, self%hdf5_viewer, ierr); CHKERRQ(ierr)
+       call ISDestroy(level, ierr); CHKERRQ(ierr)
+
+       call ISCreateGeneral(PETSC_COMM_WORLD, num_non_ghost_cells, &
+            parent_array, PETSC_COPY_VALUES, parent, ierr); CHKERRQ(ierr)
+       deallocate(parent_array)
+       call PetscObjectSetName(parent, "parent", ierr); CHKERRQ(ierr)
+       call ISView(parent, self%hdf5_viewer, ierr); CHKERRQ(ierr)
+       call ISDestroy(parent, ierr); CHKERRQ(ierr)
+
+       call PetscViewerHDF5PopGroup(self%hdf5_viewer, ierr); CHKERRQ(ierr)
+
+    end if
+
+  end subroutine flow_simulation_output_minc_data
+
+!------------------------------------------------------------------------
+
+  subroutine flow_simulation_output_cell_indices(self)
+    !! Writes cell indices to output.
+
+    class(flow_simulation_type), intent(in out) :: self
+    ! Locals:
+    PetscErrorCode :: ierr
+
+    if (self%hdf5_viewer /= PETSC_NULL_VIEWER) then
+       call ISView(self%mesh%cell_index, self%hdf5_viewer, &
+            ierr); CHKERRQ(ierr)
+    end if
+
+  end subroutine flow_simulation_output_cell_indices
+
+!------------------------------------------------------------------------
+
+  subroutine flow_simulation_output_face_cell_indices(self)
+    !! Writes face cell indices to output. For interior faces these
+    !! are the natural indices for the cells on either side of each
+    !! face. For boundary faces, the boundary ghost cell has no
+    !! natural index. Instead the output index is the negative of the
+    !! index (in the input) of the corresponding boundary condition
+    !! specification. Note that this index is 1-based (not zero-based)
+    !! to avoid ambiguity with indices having value zero.
+
+    class(flow_simulation_type), intent(in out) :: self
+    ! Locals:
+    PetscInt, allocatable :: c1(:), c2(:)
+    PetscBool, allocatable :: local(:)
+    DMLabel :: celltype_label, open_boundary_label, remote_label
+    IS :: cell1, cell2
+    PetscInt :: num_faces, iface, ic, f, remote
+    PetscInt :: c, cell_type, ibdy, cells(2)
+    PetscInt, pointer, contiguous :: fc(:), natural(:)
+    PetscErrorCode :: ierr
+
+    if ((self%hdf5_viewer /= PETSC_NULL_VIEWER) .and. &
+         self%flux_output) then
+
+       num_faces = size(self%mesh%flux_face)
+       allocate(c1(num_faces), c2(num_faces), local(num_faces))
+
+       call DMPlexGetCellTypeLabel(self%mesh%dm, celltype_label, &
+            ierr); CHKERRQ(ierr)
+       call DMGetLabel(self%mesh%dm, open_boundary_label_name, &
+            open_boundary_label, ierr); CHKERRQ(ierr)
+       call DMGetLabel(self%mesh%dm, remote_point_label_name, &
+            remote_label, ierr); CHKERRQ(ierr)
+       call ISGetIndicesF90(self%mesh%cell_natural, natural, &
+            ierr); CHKERRQ(ierr)
+
+       do iface = 1, num_faces
+          f = self%mesh%flux_face(iface)
+          call DMLabelGetValue(remote_label, f, remote, ierr)
+          local(iface) = (remote < 0)
+          if (local(iface)) then
+             call DMPlexGetSupport(self%mesh%dm, f, fc, ierr); CHKERRQ(ierr)
+             do ic = 1, 2
+                c = fc(ic)
+                call DMLabelGetValue(celltype_label, c, cell_type, ierr)
+                CHKERRQ(ierr)
+                if (cell_type == DM_POLYTOPE_FV_GHOST) then
+                   call DMLabelGetValue(open_boundary_label, f, ibdy, &
+                        ierr); CHKERRQ(ierr)
+                   cells(ic) = -ibdy
+                else
+                   cells(ic) = natural(c + 1)
+                end if
+             end do
+             c1(iface) = cells(1)
+             c2(iface) = cells(2)
+          end if
+       end do
+
+       call ISRestoreIndicesF90(self%mesh%cell_natural, natural, &
+            ierr); CHKERRQ(ierr)
+
+       num_faces = count(local)
+       c1 = pack(c1, local)
+       c2 = pack(c2, local)
+
+       call ISCreateGeneral(PETSC_COMM_WORLD, num_faces, c1, &
+            PETSC_COPY_VALUES, cell1, ierr); CHKERRQ(ierr)
+       call PetscObjectSetName(cell1, "face_cell_1", ierr); CHKERRQ(ierr)
+       call ISCreateGeneral(PETSC_COMM_WORLD, num_faces, c2, &
+            PETSC_COPY_VALUES, cell2, ierr); CHKERRQ(ierr)
+       call PetscObjectSetName(cell2, "face_cell_2", ierr); CHKERRQ(ierr)
+       deallocate(c1, c2)
+
+       call ISView(cell1, self%hdf5_viewer, ierr); CHKERRQ(ierr)
+       call ISDestroy(cell1, ierr); CHKERRQ(ierr)
+       call ISView(cell2, self%hdf5_viewer, ierr); CHKERRQ(ierr)
+       call ISDestroy(cell2, ierr); CHKERRQ(ierr)
+
+    end if
+
+  end subroutine flow_simulation_output_face_cell_indices
 
 !------------------------------------------------------------------------
 
@@ -2448,8 +2704,10 @@ contains
     ! Locals:
     PetscErrorCode :: ierr
 
-    if ((self%output_filename /= "") .and. (self%num_sources > 0)) then
-       call ISView(self%source_index, self%hdf5_viewer, ierr); CHKERRQ(ierr)
+    if ((self%hdf5_viewer /= PETSC_NULL_VIEWER) .and. &
+         (self%num_sources > 0)) then
+       call ISView(self%source_index, self%hdf5_viewer, ierr)
+       CHKERRQ(ierr)
     end if
 
   end subroutine flow_simulation_output_source_indices
@@ -2514,6 +2772,8 @@ contains
     PetscInt, intent(in) :: time_index
     PetscReal, intent(in) :: time
     ! Locals:
+    DM :: flux_dm
+    Vec :: global_flux
     PetscErrorCode :: ierr
 
     call PetscLogEventBegin(output_event, ierr); CHKERRQ(ierr)
@@ -2522,6 +2782,17 @@ contains
        call vec_sequence_view_hdf5(self%fluid, &
             self%output_fluid_field_indices, "/cell_fields", time_index, &
             time, self%hdf5_viewer)
+       if (self%flux_output) then
+          call VecGetDM(self%flux, flux_dm, ierr); CHKERRQ(ierr)
+          call DMGetGlobalVector(flux_dm, global_flux, ierr); CHKERRQ(ierr)
+          call PetscObjectSetName(global_flux, "flux", ierr); CHKERRQ(ierr)
+          call DMLocalToGlobal(flux_dm, self%flux, &
+               INSERT_VALUES, global_flux, ierr); CHKERRQ(ierr)
+          call vec_sequence_view_hdf5(global_flux, &
+               self%output_flux_field_indices, "/face_fields", time_index, &
+               time, self%hdf5_viewer)
+          call DMRestoreGlobalVector(flux_dm, global_flux, ierr); CHKERRQ(ierr)
+       end if
        if (self%num_sources > 0) then
           if (self%source_tracer_output) then
              call self%source_tracer_flows()

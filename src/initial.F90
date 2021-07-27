@@ -313,9 +313,9 @@ contains
                 call DMLabelGetValue(minc_label, c, minc_level, ierr)
                 CHKERRQ(ierr)
              else
-                minc_level = 0
+                minc_level = -1
              end if
-             if (minc_level == 0) then
+             if (minc_level <= 0) then
                 offset =  global_section_offset(fluid_section, c, fluid_range_start)
                 call fluid%assign(fluid_array, offset)
                 fluid%region = dble(region_indices(i))

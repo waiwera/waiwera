@@ -19,7 +19,7 @@ module flow_simulation_test
   public :: setup, teardown
   public :: test_flow_simulation_init, &
        test_flow_simulation_fluid_properties, test_flow_simulation_lhs
-  public :: test_setup_gravity
+  public :: test_setup_gravity, test_setup_flux
 
 contains
 
@@ -265,6 +265,164 @@ contains
     end subroutine gravity_test
 
   end subroutine test_setup_gravity
+
+!------------------------------------------------------------------------
+
+  subroutine test_setup_flux(test)
+    ! Test flux setup
+
+    use fson_mpi_module
+
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
+    type(fson_value), pointer :: json
+
+    json => fson_parse_mpi(str = '{"mesh": {' // &
+         '"filename": "' // trim(adjustl(data_path)) // 'mesh/2D.msh"}, ' // &
+         '"output": {"fields": {"flux": ["water"]}}, ' // &
+         '"logfile": {"filename": "", "echo": false}}')
+    call flux_test(json, "2D", 4, 172)
+    call fson_destroy_mpi(json)
+
+    json => fson_parse_mpi(str = '{"mesh": {' // &
+         '"filename": "' // trim(adjustl(data_path)) // 'mesh/2D.msh"}, ' // &
+         '"boundaries": [{"faces": {"cells": [0, 12, 24, 36, 48, 60, 72, 84], ' // &
+         '  "normal": [-1, 0]}}], ' // &
+         '"output": {"fields": {"flux": ["water"]}}, ' // &
+         '"logfile": {"filename": "", "echo": false}}')
+    call flux_test(json, "2D -x bdy", 4, 180)
+    call fson_destroy_mpi(json)
+
+    json => fson_parse_mpi(str = '{"mesh": {' // &
+         '"filename": "' // trim(adjustl(data_path)) // 'mesh/2D.msh"}, ' // &
+         '"boundaries": [{"faces": ' // &
+         '  {"cells": [84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95], ' // &
+         '  "normal": [0, 1]}}], ' // &
+         '"output": {"fields": {"flux": ["water"]}}, ' // &
+         '"logfile": {"filename": "", "echo": false}}')
+    call flux_test(json, "2D +y bdy", 4, 184)
+    call fson_destroy_mpi(json)
+
+    json => fson_parse_mpi(str = '{"mesh": {' // &
+         '"filename": "' // trim(adjustl(data_path)) // 'mesh/col10.exo"}, ' // &
+         '"output": {"fields": {"flux": ["water"]}}, ' // &
+         '"logfile": {"filename": "", "echo": false}}')
+    call flux_test(json, "column", 4, 9)
+    call fson_destroy_mpi(json)
+
+    json => fson_parse_mpi(str = '{"mesh": {' // &
+         '"filename": "' // trim(adjustl(data_path)) // 'mesh/col10.exo"}, ' // &
+         '"boundaries": [{"faces": ' // &
+         '  {"cells": [0], "normal": [0, 0, 1]}}], ' // &
+         '"output": {"fields": {"flux": ["water"]}}, ' // &
+         '"logfile": {"filename": "", "echo": false}}')
+    call flux_test(json, "column bdy", 4, 10)
+    call fson_destroy_mpi(json)
+
+    json => fson_parse_mpi(str = '{"mesh": {' // &
+         '"filename": "' // trim(adjustl(data_path)) // 'mesh/3D.exo"}, ' // &
+         '"output": {"fields": {"flux": ["water"]}}, ' // &
+         '"logfile": {"filename": "", "echo": false}}')
+    call flux_test(json, "3D", 4, 75)
+    call fson_destroy_mpi(json)
+
+    json => fson_parse_mpi(str = '{"mesh": {' // &
+         '"filename": "' // trim(adjustl(data_path)) // 'mesh/3D.exo"}, ' // &
+         '"boundaries": [{"faces": ' // &
+         '  {"cells": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11], ' // &
+         '  "normal": [0, 0, 1]}}], ' // &
+         '"output": {"fields": {"flux": ["water"]}}, ' // &
+         '"logfile": {"filename": "", "echo": false}}')
+    call flux_test(json, "3D bdy", 4, 87)
+    call fson_destroy_mpi(json)
+
+    json => fson_parse_mpi(str = '{"mesh": {' // &
+         '  "filename": "' // trim(adjustl(data_path)) // 'mesh/3D.exo", ' // &
+         '  "zones": {"all": {"-": null}}, ' // &
+         '  "minc": {"rock": {"zones": "all", ' // &
+         '                    "fracture": {"type": "rock"}, ' // &
+         '                    "matrix": {"type": "rock"}}, ' // &
+         '           "geometry": {"fracture": {"volume": 0.1}}}}, ' // &
+         '"rock": {"types": [{"name": "rock", "zones": "all"}]}, ' // &
+         '"output": {"fields": {"flux": ["water"]}}, ' // &
+         '"logfile": {"filename": "", "echo": false}}')
+    call flux_test(json, "3D MINC", 4, 75 + 36)
+    call fson_destroy_mpi(json)
+
+    json => fson_parse_mpi(str = '{"mesh": {' // &
+         '  "filename": "' // trim(adjustl(data_path)) // 'mesh/3D.exo", ' // &
+         '  "zones": {"all": {"-": null}, "top": {"z": [-125, 0]}}, ' // &
+         '  "minc": {"rock": {"zones": "top", ' // &
+         '                    "fracture": {"type": "rock"}, ' // &
+         '                    "matrix": {"type": "rock"}}, ' // &
+         '           "geometry": {"fracture": {"volume": 0.1}}}}, ' // &
+         '"rock": {"types": [{"name": "rock", "zones": "all"}]}, ' // &
+         '"output": {"fields": {"flux": ["water"]}}, ' // &
+         '"logfile": {"filename": "", "echo": false}}')
+    call flux_test(json, "3D partial MINC", 4, 75 + 24)
+    call fson_destroy_mpi(json)
+
+    json => fson_parse_mpi(str = '{"mesh": {' // &
+         '"filename": "' // trim(adjustl(data_path)) // 'mesh/hybrid10.msh"}, ' // &
+         '"output": {"fields": {"flux": ["water"]}}, ' // &
+         '"logfile": {"filename": "", "echo": false}}')
+    call flux_test(json, "hybrid", 4, 12)
+    call fson_destroy_mpi(json)
+
+    json => fson_parse_mpi(str = '{"mesh": {' // &
+         '"filename": "' // trim(adjustl(data_path)) // 'mesh/hybrid10.msh"}, ' // &
+         '"boundaries": [{"faces": {"cells": [6, 9], ' // &
+         '  "normal": [0, 0, 1]}}], ' // &
+         '"output": {"fields": {"flux": ["water"]}}, ' // &
+         '"logfile": {"filename": "", "echo": false}}')
+    call flux_test(json, "hybrid bdy", 4, 14)
+    call fson_destroy_mpi(json)
+
+  contains
+
+    subroutine flux_test(json, title, expected_vector_blocksize, &
+         expected_vector_size)
+
+      type(fson_value), pointer, intent(in out) :: json
+      character(*), intent(in) :: title
+      PetscInt, intent(in) :: expected_vector_blocksize
+      PetscInt, intent(in) :: expected_vector_size ! number of blocks
+      ! Locals:
+      PetscMPIInt :: rank
+      type(flow_simulation_type) :: sim
+      DM :: flux_dm
+      Vec :: global_flux
+      PetscInt :: bs, vec_size
+      PetscErrorCode :: err, ierr
+
+      call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+
+      call sim%init(json = json, err = err)
+      if (rank == 0) then
+         call test%assert(0, err, title // ': init error')
+      end if
+
+      call VecGetDM(sim%flux, flux_dm, ierr); CHKERRQ(ierr)
+      call DMGetGlobalVector(flux_dm, global_flux, ierr); CHKERRQ(ierr)
+      call DMLocalToGlobal(flux_dm, sim%flux, &
+           INSERT_VALUES, global_flux, ierr); CHKERRQ(ierr)
+
+      call VecGetBlockSize(global_flux, bs, ierr); CHKERRQ(ierr)
+      call VecGetSize(global_flux, vec_size, ierr); CHKERRQ(ierr)
+      call DMRestoreGlobalVector(flux_dm, global_flux, ierr); CHKERRQ(ierr)
+
+      if (rank == 0) then
+         call test%assert(expected_vector_blocksize, bs, &
+              title // ': vector blocksize')
+         call test%assert(expected_vector_size, vec_size / bs, &
+              title // ': vector size')
+      end if
+
+      call sim%destroy()
+
+    end subroutine flux_test
+
+  end subroutine test_setup_flux
 
 !------------------------------------------------------------------------
 

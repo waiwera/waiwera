@@ -761,7 +761,7 @@ contains
          '  "zones": {"left": {"x": [0, 1500]}},' // &
          '  "minc": {"rock": {"zones": ["left"]}, ' // &
          '           "geometry": {"matrix": {"volume": 0.9}}}}}'
-    call minc_test('partial', json_str, 1, 63, 1, [49, 14])
+    call minc_test('partial', json_str, 1, 63, 1, [14, 14])
 
     json_str = &
          '{"mesh": {"filename": "' // trim(adjustl(data_path)) // 'mesh/7x7grid.exo",' // &
@@ -781,7 +781,7 @@ contains
          '            "geometry": {"fracture": {"volume": 0.1}}}, ' // &
          '           {"rock": {"zones": ["left"]}, ' // &
          '            "geometry": {"matrix": {"volume": [0.3, 0.6]}}}]}}'
-    call minc_test('two-zone partial', json_str, 2, 83, 2, [49, 20, 14])
+    call minc_test('two-zone partial', json_str, 2, 83, 2, [20, 20, 14])
 
     json_str = &
          '{"mesh": {"filename": "' // trim(adjustl(data_path)) // 'mesh/7x7grid.exo",' // &
@@ -817,7 +817,7 @@ contains
          '  "zones": {"left": {"x": [0, 0.5]}},' // &
          '  "minc": {"rock": {"zones": ["left"]}, ' // &
          '           "geometry": {"matrix": {"volume": 0.9}}}}}'
-    call minc_test('hybrid partial', json_str, 1, 16, 1, [10, 6])
+    call minc_test('hybrid partial', json_str, 1, 16, 1, [6, 6])
 
   contains
 
@@ -1714,7 +1714,7 @@ contains
          '  "minc": {"rock": {"zones": ["sw"]}, ' // &
          '           "geometry": {"fracture": {"volume": 0.1}}}}}'
     call global_to_fracture_natural_test_case(test, json_str, 'MINC partial no bdy', &
-         [0, 10, 46, 49, 58], [0, 10, 46, 0, 11], [0, 0, 0, 1, 1])
+         [0, 10, 46, 49, 58], [0, 10, 46, 0, 11], [0, 0, -1, 1, 1])
 
     json_str = &
          '{"mesh": {"filename": "' // trim(adjustl(data_path)) // 'mesh/hybrid10.msh",' // &
@@ -1722,7 +1722,7 @@ contains
          '  "minc": {"rock": {"zones": ["nw"]}, ' // &
          '           "geometry": {"fracture": {"volume": 0.1}}}}}'
     call global_to_fracture_natural_test_case(test, json_str, 'hybrid MINC partial no bdy', &
-         [0, 7, 10, 11], [0, 7, 2, 3], [0, 0, 1, 1])
+         [0, 7, 10, 11], [0, 7, 2, 3], [-1, -1, 1, 1])
 
   contains
 
@@ -1804,7 +1804,7 @@ contains
          '  "zones": {"left": {"x": [0, 1500]}},' // &
          '  "minc": {"rock": {"zones": ["left"]}, ' // &
          '           "geometry": {"matrix": {"volume": 0.9}}}}}'
-    call redistribute_test(test, json_str, 'partial', 1, 49 + 14, 1, [49, 14], 0)
+    call redistribute_test(test, json_str, 'partial', 1, 49 + 14, 1, [14, 14], 0)
 
     json_str = &
          '{"mesh": {"filename": "' // trim(adjustl(data_path)) // 'mesh/7x7grid.exo",' // &
@@ -1828,7 +1828,7 @@ contains
          '  "normal": [0, -1, 0]}}]' // &
          '}'
     call redistribute_test(test, json_str, 'multizone bdy', 2, 49 + 10 + 16, &
-         2, [49, 10 + 8, 8], 7)
+         2, [10 + 8, 10 + 8, 8], 7)
 
     json_str = &
          '{"mesh": {"filename": "' // trim(adjustl(data_path)) // 'mesh/col10.exo",' // &
@@ -1848,7 +1848,7 @@ contains
          '"boundaries": [{"faces": {"cells": [0], ' // &
          '  "normal": [0, 0, 1]}}]' // &
          '}'
-    call redistribute_test(test, json_str, 'col bdy', 1, 20, 2, [10, 5, 5], 1)
+    call redistribute_test(test, json_str, 'col bdy', 1, 20, 2, [5, 5, 5], 1)
 
     json_str = &
          '{"mesh": {"filename": "' // trim(adjustl(data_path)) // 'mesh/hybrid10.msh",' // &
@@ -1864,7 +1864,7 @@ contains
          '           "geometry": {"matrix": {"volume": [0.3, 0.6]}}}},' // &
          '"boundaries": [{"faces": {"cells": [6, 9], ' // &
          '  "normal": [0, 0, 1]}}]}'
-    call redistribute_test(test, json_str, 'hybrid partial bdy', 1, 10 + 14, 2, [10, 7, 7], 2)
+    call redistribute_test(test, json_str, 'hybrid partial bdy', 1, 10 + 14, 2, [7, 7, 7], 2)
 
   contains
 

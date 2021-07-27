@@ -250,13 +250,14 @@ contains
 !------------------------------------------------------------------------
 
   PetscSection function dm_create_section(dm, num_components, field_dim, &
-       field_name) result(section)
+       field_name, label) result(section)
     !! Creates section from the given DM and data layout parameters.
 
     DM, intent(in) :: dm !! DM object
     PetscInt, target, intent(in) :: num_components(:) !! Number of components in each field
     PetscInt, intent(in) :: field_dim(:)  !! Dimension each field is defined on (0 = nodes, etc.)
     character(*), intent(in), optional :: field_name(:) !! Name of each field
+    DMLabel, target, intent(in), optional :: label(:) !! Label defining mesh support of each field
     ! Locals:
     PetscInt :: dim
     PetscInt :: i, num_bc
@@ -265,7 +266,7 @@ contains
     IS, target :: bc_comps(1), bc_points(1)
     PetscInt, pointer :: pnum_components(:), pnum_dof(:), pbc_field(:)
     IS, pointer :: pbc_comps(:), pbc_points(:)
-    DMLabel, pointer :: label(:)
+    DMLabel, pointer :: plabel(:)
     PetscErrorCode :: ierr
 
     call DMGetDimension(dm, dim, ierr); CHKERRQ(ierr)
@@ -286,9 +287,13 @@ contains
       pbc_field => bc_field
       pbc_comps => bc_comps
       pbc_points => bc_points
-      label => NULL()
+      if (present(label)) then
+         plabel => label
+      else
+         plabel => NULL()
+      end if
 
-      call DMPlexCreateSection(dm, label, pnum_components, &
+      call DMPlexCreateSection(dm, plabel, pnum_components, &
            pnum_dof, num_bc, pbc_field, pbc_comps, pbc_points, &
            PETSC_NULL_IS, section, ierr); CHKERRQ(ierr)
 
@@ -308,19 +313,20 @@ contains
 !------------------------------------------------------------------------
 
   subroutine dm_set_data_layout(dm, num_components, field_dim, &
-       field_name)
+       field_name, label)
     !! Sets data layout on default section of the given DM.
 
     DM, intent(in out) :: dm !! DM object
     PetscInt, target, intent(in) :: num_components(:) !! Number of components in each field
     PetscInt, intent(in) :: field_dim(:)  !! Dimension each field is defined on (0 = nodes, etc.)
     character(*), intent(in), optional :: field_name(:) !! Name of each field
+    DMLabel, intent(in), optional :: label(:) !! Label defining mesh support of each field
     ! Locals:
     PetscSection :: section
     PetscErrorCode :: ierr
 
     call dm_set_fields(dm, num_components)
-    section = dm_create_section(dm, num_components, field_dim, field_name)
+    section = dm_create_section(dm, num_components, field_dim, field_name, label)
     call DMSetSection(dm, section, ierr); CHKERRQ(ierr)
 
   end subroutine dm_set_data_layout
@@ -1085,7 +1091,8 @@ contains
 
   subroutine get_field_subvector(v, field, index_set, subv)
     !! Gets subvector of v for the specified field. Based on
-    !! PetscSectionGetField_Internal().
+    !! PetscSectionGetField_Internal(). Boundary ghost cells are
+    !! excluded.
 
     Vec, intent(in) :: v
     PetscInt, intent(in) :: field
@@ -1095,24 +1102,17 @@ contains
     DM :: dm
     PetscSection :: section, global_section
     PetscInt :: pstart, pend, p, f, fc, fdof
-    PetscInt :: start_cell, end_cell, end_interior_cell
     PetscInt :: num_components, gdof, poff, goff, suboff
-    PetscInt :: subsize
+    PetscInt :: subsize, cell_type
     PetscInt, allocatable :: subindices(:)
+    DMLabel :: celltype_label
     PetscErrorCode :: ierr
 
     call VecGetDM(v, dm, ierr); CHKERRQ(ierr)
     call DMGetSection(dm, section, ierr); CHKERRQ(ierr)
     call DMGetGlobalSection(dm, global_section, ierr); CHKERRQ(ierr)
-    call DMPlexGetHeightStratum(dm, 0, start_cell, end_cell, ierr); CHKERRQ(ierr)
-    end_interior_cell = dm_get_end_interior_cell(dm, end_cell)
-
     call PetscSectionGetChart(section, pstart, pend, ierr); CHKERRQ(ierr)
-    ! Modify point range for cells- to exclude boundary ghosts:
-    if ((end_cell > start_cell) .and. &
-         (start_cell >= pstart) .and. (start_cell < pend)) then
-       pend = end_interior_cell
-    end if
+    call DMPlexGetCellTypeLabel(dm, celltype_label, ierr); CHKERRQ(ierr)
 
     call PetscSectionGetFieldComponents(section, field, &
          num_components, ierr); CHKERRQ(ierr)
@@ -1120,9 +1120,13 @@ contains
     do p = pstart, pend - 1
        call PetscSectionGetDof(global_section, p, gdof, ierr); CHKERRQ(ierr)
        if (gdof > 0) then
-          call PetscSectionGetFieldDof(section, p, field, fdof, ierr)
+          call DMLabelGetValue(celltype_label, p, cell_type, ierr)
           CHKERRQ(ierr)
-          subsize = subsize + fdof
+          if (cell_type /= DM_POLYTOPE_FV_GHOST) then
+             call PetscSectionGetFieldDof(section, p, field, fdof, ierr)
+             CHKERRQ(ierr)
+             subsize = subsize + fdof
+          end if
        end if
     end do
     allocate(subindices(0: subsize - 1))
@@ -1131,19 +1135,23 @@ contains
     do p = pstart, pend - 1
        call PetscSectionGetDof(global_section, p, gdof, ierr); CHKERRQ(ierr)
        if (gdof > 0) then
-          call PetscSectionGetOffset(global_section, p, goff, ierr)
+          call DMLabelGetValue(celltype_label, p, cell_type, ierr)
           CHKERRQ(ierr)
-          poff = 0
-          do f = 0, field - 1
-             call PetscSectionGetFieldDof(section, p, f, fdof, ierr)
+          if (cell_type /= DM_POLYTOPE_FV_GHOST) then
+             call PetscSectionGetOffset(global_section, p, goff, ierr)
              CHKERRQ(ierr)
-             poff = poff + fdof
-          end do
-          call PetscSectionGetFieldDof(section, p, field, fdof, ierr)
-          CHKERRQ(ierr)
-          subindices(suboff: suboff + fdof - 1) = &
-               goff + poff + [(fc, fc = 0, fdof - 1)]
-          suboff = suboff + fdof
+             poff = 0
+             do f = 0, field - 1
+                call PetscSectionGetFieldDof(section, p, f, fdof, ierr)
+                CHKERRQ(ierr)
+                poff = poff + fdof
+             end do
+             call PetscSectionGetFieldDof(section, p, field, fdof, ierr)
+             CHKERRQ(ierr)
+             subindices(suboff: suboff + fdof - 1) = &
+                  goff + poff + [(fc, fc = 0, fdof - 1)]
+             suboff = suboff + fdof
+          end if
        end if
     end do
 
@@ -1411,6 +1419,7 @@ contains
     ! Locals:
     PetscSection :: dist_section
     IS :: dist_index_set
+    character(80) :: name
     PetscErrorCode :: ierr
 
     call PetscSectionCreate(PETSC_COMM_WORLD, dist_section, ierr)
@@ -1421,6 +1430,8 @@ contains
          index_set, dist_section, &
          dist_index_set, ierr); CHKERRQ(ierr)
     call PetscSectionDestroy(dist_section, ierr); CHKERRQ(ierr)
+    call PetscObjectGetName(index_set, name, ierr); CHKERRQ(ierr)
+    call PetscObjectSetName(dist_index_set, name, ierr); CHKERRQ(ierr)
     call ISDestroy(index_set, ierr); CHKERRQ(ierr)
     index_set = dist_index_set
 

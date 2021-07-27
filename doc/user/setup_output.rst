@@ -10,7 +10,9 @@ Waiwera outputs the simulation results (not log messages, which are written to t
 Waiwera simulation results consist mainly of:
 
 * selected fluid properties (e.g. pressures, temperatures) in each cell
+* selected flux properties (e.g. mass fluxes) through each face
 * selected source properties (e.g. flow rates, enthalpies) at each source (see :ref:`source_terms`)
+* selected mesh geometry properties (e.g. cell centroids and volumes, and face areas)
 
 which are written to the HDF5 file at specified times.
 
@@ -168,23 +170,35 @@ Secondly, the tolerance can give better time-stepping behaviour if a time step h
 Output fields
 =============
 
-The main simulation results consist of fluid and source properties, or "fields", output for each cell and source. It is possible to control which fields are output using the **"output.fields"** value. This is an object, with two values, **"fluid"** and **"source"**, specifying the fluid and source output fields respectively.
+The main simulation results consist of fluid, flux and source properties, or "fields", output for each cell, face and source. It is possible to control which fields are output using the **"output.fields"** value. This is an object, with five values, **"fluid"**, **flux**, **"source"**, **"cell_geometry"** and **"face_geometry"**, specifying the fluid, flux, source, cell geometry and face geometry output fields respectively.
 
 .. note::
    **JSON object**: output fields
 
    **JSON path**: output.fields
 
-   +------------+---------------+--------------+--------------+
-   |**name**    |**type**       |**default**   |**value**     |
-   +------------+---------------+--------------+--------------+
-   |"fluid"     |array | string |depends on    |fluid output  |
-   |            |               |EOS           |fields        |
-   +------------+---------------+--------------+--------------+
-   |"source"    |array | string |["component", |source output |
-   |            |               |"rate",       |fields        |
-   |            |               |"enthalpy"]   |              |
-   +------------+---------------+--------------+--------------+
+   +---------------+---------------+--------------+--------------+
+   |**name**       |**type**       |**default**   |**value**     |
+   +---------------+---------------+--------------+--------------+
+   |"fluid"        |array | string |depends on    |fluid output  |
+   |               |               |EOS           |fields        |
+   +---------------+---------------+--------------+--------------+
+   |"flux"         |array | string |[]            |flux output   |
+   |               |               |              |fields        |
+   |               |               |              |              |
+   +---------------+---------------+--------------+--------------+
+   |"source"       |array | string |["component", |source output |
+   |               |               |"rate",       |fields        |
+   |               |               |"enthalpy"]   |              |
+   +---------------+---------------+--------------+--------------+
+   |"cell_geometry"|array | string |["centroid",  |cell geometry |
+   |               |               |"volume"]     |fields        |
+   |               |               |              |              |
+   +---------------+---------------+--------------+--------------+
+   |"face_geometry"|array | string |["area"]      |face geometry |
+   |               |               |              |fields        |
+   |               |               |              |              |
+   +---------------+---------------+--------------+--------------+
 
 Each of these values can be specified as an array of strings, containing the field names. Alternatively, they can be set to the single string value **"all"**, in which case all available fields will be output.
 
@@ -262,6 +276,38 @@ For example, for the :ref:`water_energy_eos` EOS, the fluid output fields must i
 
 If the necessary primary variable fields are not specified in the "output.fields.fluid" array, Waiwera will automatically add them. 
 
+.. index:: output; tracers
+
+Tracer fields
+-------------
+
+If tracers are being simulated (see :ref:`setup_tracers`), then an output field for cell tracer mass fraction is automatically included for each tracer (there is usually little point in simulating a tracer unless it is going to be output). The field name is the same as the tracer name.
+
+.. index:: output; flux
+.. _output_flux_fields:
+
+Flux fields
+-----------
+
+Flux fields may be output for any of the fluid mass or energy components, or the fluid phases:
+
++--------------------------+-------------------------+
+|**field name**            |**value**                |
++--------------------------+-------------------------+
+|`component_name`          |mass or energy component |
+|                          |flux (kg/m\ :sup:`2`/s or|
+|                          |W/m\ :sup:`2`)           |
++--------------------------+-------------------------+
+|`phase_name`              |phase flux (kg/m\        |
+|                          |:sup:`2`/s)              |
++--------------------------+-------------------------+
+
+There is a flux field for each mass or energy component in the :ref:`eos` module being used. For example, for the :ref:`water_air_energy_eos` EOS, the mass component names are "water" and "air", so the corresponding mass component flux field names are also simply "water" and "air". As this EOS is non-isothermal, it also has an energy component, so there is an additional "energy" flux component field name.
+
+There is also a flux field for each fluid phase in the :ref:`eos` module. For the :ref:`water_air_energy_eos` EOS, for example, the phases are "liquid" and "vapour", so the corresponding flux field names are also "liquid" and "vapour".
+
+By default (regardless of the equation of state), no flux fields are output. Note that for a typical mesh, particularly in 3-D, there are significantly more faces than cells, so specifying flux output will considerably increase output file sizes.
+
 .. index:: output; sources
 .. _output_source_fields:
 
@@ -310,12 +356,63 @@ If tracers are being simulated (see :ref:`setup_tracers`), then there is an addi
 
 Regardless of the :ref:`eos`, the default source output fields are ["component", "rate", "enthalpy"].
 
-.. index:: output; tracers
+.. index:: output; mesh geometry
+.. _output_geometry_fields:
 
-Tracer fields
--------------
+Mesh geometry fields
+--------------------
 
-If tracers are being simulated (see :ref:`setup_tracers`), then an output field is automatically included for each tracer (there is usually little point in simulating a tracer unless it is going to be output). The field name is the same as the tracer name.
+Selected geometric properties of the :ref:`simulation_mesh` can optionally be output. These can be useful for post-processing purposes.
+
+The available cell geometry fields are:
+
++--------------------------+-------------------------+
+|**field name**            |**value**                |
++--------------------------+-------------------------+
+|"centroid"                |array containing         |
+|                          |coordinates (m) of cell  |
+|                          |centroid                 |
++--------------------------+-------------------------+
+|"volume"                  |cell volume (m\ :sup:`3`)|
+|                          |                         |
++--------------------------+-------------------------+
+
+The available face geometry fields are:
+
++--------------------------+-------------------------+
+|**field name**            |**value**                |
++--------------------------+-------------------------+
+|"area"                    |face area (m\ :sup:`2`)  |
+|                          |                         |
+|                          |                         |
++--------------------------+-------------------------+
+|"distance"                |array containing distance|
+|                          |(m) from face to cell    |
+|                          |centroids on either side |
++--------------------------+-------------------------+
+|"distance12"              |distance (m) between cell|
+|                          |centroids on either side |
+|                          |of the face              |
++--------------------------+-------------------------+
+|"normal"                  |unit normal vector to    |
+|                          |face (m)                 |
+|                          |                         |
++--------------------------+-------------------------+
+|"gravity_normal"          |dot product of unit      |
+|                          |normal with gravity      |
+|                          |vector (m/s\ :sup:`2`)   |
++--------------------------+-------------------------+
+|"centroid"                |array containing         |
+|                          |coordinates (m) of face  |
+|                          |centroid                 |
++--------------------------+-------------------------+
+|"permeability_direction"  |:ref:`rock_permeability` |
+|                          |direction assigned to    |
+|                          |face                     |
+|                          |                         |
++--------------------------+-------------------------+
+
+Note that if no :ref:`output_flux_fields` are specified (the default), then no face geometry fields will be output either.
 
 Examples
 --------
@@ -352,6 +449,20 @@ In this example all available fluid fields will be output:
    {"eos": {"name": "we"},
     "output": {"fields": {"fluid": "all"}}}
 
+The next example specifies the water / air / energy EOS, with default fluid output fields, but also requires water and air mass fluxes to be output:
+
+.. code-block:: json
+
+   {"eos": {"name": "wae"},
+    "output": {"fields": {"flux": ["water", "air"]}}}
+
+Here the liquid and vapour mass fluxes are output instead of component fluxes:
+
+.. code-block:: json
+
+   {"eos": {"name": "wae"},
+    "output": {"fields": {"flux": ["liquid", "vapour"]}}}
+
 The following example defines two tracers named "T1" and "T2" and specifies that their flow rates should be included in the source output (along with the fluid flow rate and enthalpy):
 
 .. code-block:: json
@@ -359,4 +470,13 @@ The following example defines two tracers named "T1" and "T2" and specifies that
    {"tracer": [{"name": "T1"}, {"name": "T2"}],
     "output": {"fields": {
                   "source": ["rate", "enthalpy", "T1_flow", "T2_flow"]}}}
+
+In this example, the output mesh geometry fields are specified, so that only cell volumes (and no face geometry fields) are output:
+
+.. code-block:: json
+
+   {"output": {"fields": {
+                  "cell_geometry": ["volume"],
+                  "face_geometry": []}}}
+
 

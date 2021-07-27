@@ -1,4 +1,5 @@
 .. index:: mesh, simulation; mesh
+.. _simulation_mesh:
 
 ***************
 Simulation mesh

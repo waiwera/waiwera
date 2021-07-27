@@ -61,6 +61,7 @@ module face_module
      procedure, public :: heat_conductivity => face_heat_conductivity
      procedure, public :: upstream_index => face_upstream_index
      procedure, public :: flux => face_flux
+     procedure, public :: diffusion_factor => face_diffusion_factor
   end type face_type
 
   PetscInt, parameter, public :: num_face_variables = 7
@@ -510,6 +511,27 @@ contains
     end associate
 
   end function face_flux
+
+!------------------------------------------------------------------------
+
+  PetscReal function face_diffusion_factor(self, p) result(factor)
+
+    !! Returns factor multiplying diffusion coefficient in tracer
+    !! diffusion. This is harmonically weighted between the diffusion
+    !! factors in the two cells.
+
+    class(face_type), intent(in) :: self
+    PetscInt, intent(in) :: p !! phase index
+    ! Locals:
+    PetscReal :: cell_factor(2)
+    PetscInt :: i
+
+    do i = 1, 2
+       cell_factor(i) = self%cell(i)%diffusion_factor(p)
+    end do
+    factor = self%harmonic_average(cell_factor)
+
+  end function face_diffusion_factor
 
 !------------------------------------------------------------------------
 ! petsc_face_type routines

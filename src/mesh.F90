@@ -38,9 +38,12 @@ module mesh_module
 
   PetscInt, parameter, public :: max_mesh_filename_length = 200
   PetscInt, parameter :: partition_overlap = 1 !! Cell overlap for parallel mesh distribution
+  character(len = 26) :: face_permeability_override_label_name = "face_permeability_override" !! Name of DMLabel for overriding face permeabilities
+  character(len = 16), public :: boundary_label_name = "boundary" !! Name of DMLabel for identifying mesh boundary faces
   character(len = 16), public :: open_boundary_label_name = "open_boundary" !! Name of DMLabel for identifying open boundary faces
   character(len = 16), public :: boundary_ghost_label_name = "boundary_ghost" !! Name of DMLabel for identifying boundary ghost cells
-  character(len = 26) :: face_permeability_override_label_name = "face_permeability_override" !! Name of DMLabel for overriding face permeabilities
+  character(len = 16), public :: flux_face_label_name = "flux_face" !! Name of DMLabel for identifying flux faces 
+  character(len = 16), public :: remote_point_label_name = "remote_point" !! Name of DMLabel for remotely owned DM points
 
   type, public :: mesh_type
      !! Mesh type.
@@ -61,6 +64,7 @@ module mesh_module
      IS, public :: cell_parent_natural !! Natural indices of parent cells (e.g. MINC fracture cells)
      PetscSF, public :: dist_sf !! Distribution star forest
      PetscInt, public, allocatable :: ghost_cell(:), ghost_face(:) !! Ghost label values for cells and faces
+     PetscInt, public, allocatable :: flux_face(:) !! Array of flux face points
      type(minc_type), allocatable, public :: minc(:) !! Array of MINC zones, with parameters
      PetscReal, public :: permeability_rotation(3, 3) !! Rotation matrix of permeability axes
      PetscReal, public :: thickness !! Mesh thickness (for dimension < 3)
@@ -121,6 +125,10 @@ module mesh_module
      procedure, public :: local_cell_minc_level => mesh_local_cell_minc_level
      procedure, public :: destroy_distribution_data => mesh_destroy_distribution_data
      procedure, public :: redistribute => mesh_redistribute
+     procedure, public :: label_flux_faces => mesh_label_flux_faces
+     procedure, public :: label_remote_faces => mesh_label_remote_faces
+     procedure, public :: setup_flux_face_array => mesh_setup_flux_face_array
+     procedure, public :: compact_face_geometry => mesh_compact_face_geometry
   end type mesh_type
 
 contains
@@ -711,6 +719,103 @@ contains
 
 !------------------------------------------------------------------------
 
+  subroutine mesh_setup_flux_face_array(self)
+    !! Sets up array of DM point indices for flux faces (through
+    !! which fluxes are computed).
+
+    class(mesh_type), intent(in out) :: self
+    ! Locals:
+    DMLabel :: face_label
+    PetscInt :: num_faces, iface, f, num_cells
+    IS :: faceIS
+    PetscInt, pointer, contiguous :: faces(:)
+    PetscErrorCode :: ierr
+
+    call DMGetLabel(self%dm, flux_face_label_name, face_label, ierr)
+    CHKERRQ(ierr)
+    call DMLabelGetStratumSize(face_label, 1, num_faces, ierr); CHKERRQ(ierr)
+    call DMLabelGetStratumIS(face_label, 1, faceIS, ierr); CHKERRQ(ierr)
+    allocate(self%flux_face(num_faces))
+    if (num_faces > 0) then
+       self%flux_face = -1
+       call ISGetIndicesF90(faceIS, faces, ierr); CHKERRQ(ierr)
+       do iface = 1, num_faces
+          f = faces(iface)
+          if (self%ghost_face(f) < 0) then
+             call DMPlexGetSupportSize(self%dm, f, num_cells, ierr); CHKERRQ(ierr)
+             if (num_cells == 2) then
+                self%flux_face(iface) = f
+             end if
+          end if
+       end do
+       call ISRestoreIndicesF90(faceIS, faces, ierr); CHKERRQ(ierr)
+       self%flux_face = pack(self%flux_face, self%flux_face > -1)
+    end if
+
+  end subroutine mesh_setup_flux_face_array
+
+!------------------------------------------------------------------------
+
+  subroutine mesh_compact_face_geometry(self)
+    !! Removes unused entries for boundary faces from mesh face
+    !! geometry vector. This vector has to be created early on, before
+    !! the flux face label can be set up. This routine removes the
+    !! unused entries prior to output.
+
+    use dm_utils_module, only: dm_set_data_layout, local_vec_section, &
+         section_offset
+
+    class(mesh_type), intent(in out) :: self
+    ! Locals:
+    Vec :: face_geom
+    DM :: dm_face
+    DMLabel :: flux_face_label
+    DMLabel, allocatable :: labels(:)
+    PetscInt :: face_variable_dim(num_face_variables)
+    PetscInt :: f, iface, face_offset, face_offset_orig, dof
+    PetscSection :: face_section, face_section_orig
+    PetscReal, pointer, contiguous :: face_geom_array(:), face_geom_orig_array(:)
+    PetscErrorCode :: ierr
+
+    call DMClone(self%dm, dm_face, ierr); CHKERRQ(ierr)
+    face_variable_dim = self%dim - 1
+
+    allocate(labels(num_face_variables))
+    call DMGetLabel(dm_face, flux_face_label_name, flux_face_label, &
+         ierr); CHKERRQ(ierr)
+    labels = flux_face_label
+
+    call dm_set_data_layout(dm_face, face_variable_num_components, &
+         face_variable_dim, face_variable_names, labels)
+    deallocate(labels)
+    call DMCreateLocalVector(dm_face, face_geom, ierr); CHKERRQ(ierr)
+
+    call local_vec_section(face_geom, face_section)
+    call local_vec_section(self%face_geom, face_section_orig)
+    call VecGetArrayF90(face_geom, face_geom_array, ierr); CHKERRQ(ierr)
+    call VecGetArrayReadF90(self%face_geom, face_geom_orig_array, ierr)
+    CHKERRQ(ierr)
+
+    do iface = 1, size(self%flux_face)
+       f = self%flux_face(iface)
+       call PetscSectionGetDof(face_section, f, dof, ierr); CHKERRQ(ierr)
+       face_offset = section_offset(face_section, f)
+       face_offset_orig = section_offset(face_section_orig, f)
+       face_geom_array(face_offset: face_offset + dof - 1) = &
+            face_geom_orig_array(face_offset_orig: face_offset_orig + dof - 1)
+    end do
+
+    call VecRestoreArrayReadF90(self%face_geom, face_geom_orig_array, ierr)
+    CHKERRQ(ierr)
+    call VecRestoreArrayF90(face_geom, face_geom_array, ierr); CHKERRQ(ierr)
+
+    call VecDestroy(self%face_geom, ierr); CHKERRQ(ierr)
+    self%face_geom = face_geom
+
+  end subroutine mesh_compact_face_geometry
+
+!------------------------------------------------------------------------
+
   subroutine mesh_destroy_minc(self)
     !! Destroys MINC objects.
 
@@ -873,6 +978,9 @@ contains
     end if
     if (allocated(self%ghost_face)) then
        deallocate(self%ghost_face)
+    end if
+    if (allocated(self%flux_face)) then
+       deallocate(self%flux_face)
     end if
 
     if (self%has_minc) then
@@ -1084,7 +1192,6 @@ contains
     type(fson_value), pointer :: faces_json, face_json
     PetscInt :: num_faces, iface, f, i, num_cell_faces
     PetscInt :: permeability_direction
-    PetscInt :: start_face, end_face
     PetscInt, pointer :: cell_faces(:)
     PetscInt, pointer :: pcells(:)
     character(len=64) :: facestr
@@ -1098,9 +1205,6 @@ contains
     allocate(default_cells(0))
 
     if (rank == 0) then
-
-       call DMPlexGetHeightStratum(self%serial_dm, 1, start_face, end_face, ierr)
-       CHKERRQ(ierr)
 
        call fson_get(json, "mesh.faces", faces_json)
        if (associated(faces_json)) then
@@ -1432,7 +1536,8 @@ contains
 !------------------------------------------------------------------------
 
   subroutine mesh_label_boundaries(self, json, logfile)
-    !! Labels serial DM for boundary conditions.
+    !! Labels boundary faces on serial DM, and open boundary faces (on
+    !! which boundary conditions are applied).
 
     use kinds_module
     use fson
@@ -1448,6 +1553,7 @@ contains
     PetscMPIInt :: rank
     type(fson_value), pointer :: boundaries_json, bdy_json
     type(fson_value), pointer :: faces_json, face_json, cells_json
+    PetscInt :: start_face, end_face, f
     PetscInt :: num_boundaries, num_faces, num_cells, ibdy, offset, i
     PetscInt :: faces_type, num_face_items, face1_type
     PetscInt :: start_cell, end_cell
@@ -1462,6 +1568,19 @@ contains
     call MPI_comm_rank(PETSC_COMM_WORLD, rank, ierr)
     if (rank == 0) then
 
+       ! Label all mesh boundary faces:
+       call dm_check_create_label(self%serial_dm, boundary_label_name)
+       call DMPlexGetHeightStratum(self%serial_dm, 1, start_face, end_face, ierr)
+       CHKERRQ(ierr)
+       do f = start_face, end_face - 1
+          call DMPlexGetSupportSize(self%serial_dm, f, num_cells, ierr); CHKERRQ(ierr)
+          if (num_cells == 1) then
+             call DMSetLabelValue(self%serial_dm, boundary_label_name, &
+                     f, 1, ierr); CHKERRQ(ierr)
+          end if
+       end do
+
+       ! Label open boundary faces:
        default_faces = [PetscInt::] ! empty integer array
        default_cells = [PetscInt::]
 
@@ -1599,6 +1718,81 @@ contains
     end subroutine get_cell_faces
 
   end subroutine mesh_label_boundaries
+
+!------------------------------------------------------------------------
+
+  subroutine mesh_label_remote_faces(self)
+    !! Labels faces owned by a different process (i.e. faces which are
+    !! leaves of a remote root).
+
+    use dm_utils_module, only: dm_check_create_label
+
+    class(mesh_type), intent(in out) :: self
+    ! Locals:
+    PetscMPIInt :: rank
+    PetscSF :: sf
+    PetscInt :: num_roots, num_leaves
+    PetscInt :: start_face, end_face, f, l
+    PetscInt, pointer :: leaves(:)
+    type(PetscSFNode), pointer :: roots(:)
+    PetscErrorCode :: ierr
+
+    call MPI_comm_rank(PETSC_COMM_WORLD, rank, ierr)
+    call dm_check_create_label(self%dm, remote_point_label_name)
+    call DMGetPointSF(self%dm, sf, ierr); CHKERRQ(ierr)
+    call PetscSFGetGraph(sf, num_roots, num_leaves, leaves, roots, ierr)
+    CHKERRQ(ierr)
+    call DMPlexGetHeightStratum(self%dm, 1, start_face, end_face, ierr)
+
+    do l = 1, num_leaves
+       f = leaves(l)
+       if ((start_face <= f) .and. (f < end_face) .and. &
+            (roots(l)%rank /= rank)) then
+          call DMSetLabelValue(self%dm, remote_point_label_name, &
+               f, 1, ierr); CHKERRQ(ierr)
+       end if
+    end do
+
+  end subroutine mesh_label_remote_faces
+
+!------------------------------------------------------------------------
+
+  subroutine mesh_label_flux_faces(self)
+    !! Labels flux mesh faces. These are faces on which fluxes are to
+    !! be computed on any process. The label is used to create the
+    !! flux vector.
+
+    use dm_utils_module, only: dm_check_create_label
+
+    class(mesh_type), intent(in out) :: self
+    ! Locals:
+    PetscInt :: start_face, end_face, f, bdy, open_bdy
+    DMLabel :: bdy_label, open_bdy_label
+    PetscErrorCode :: ierr
+
+    call dm_check_create_label(self%dm, flux_face_label_name)
+    call DMGetLabel(self%dm, boundary_label_name, bdy_label, ierr)
+    CHKERRQ(ierr)
+    call DMGetLabel(self%dm, open_boundary_label_name, open_bdy_label, &
+         ierr); CHKERRQ(ierr)
+
+    call DMPlexGetHeightStratum(self%dm, 1, start_face, end_face, ierr)
+    CHKERRQ(ierr)
+    do f = start_face, end_face - 1
+       call DMLabelGetValue(open_bdy_label, f, open_bdy, ierr); CHKERRQ(ierr)
+       if (open_bdy > 0) then
+          call DMSetLabelValue(self%dm, flux_face_label_name, &
+               f, 1, ierr); CHKERRQ(ierr)
+       else
+          call DMLabelGetValue(bdy_label, f, bdy, ierr); CHKERRQ(ierr)
+          if (bdy < 0) then
+             call DMSetLabelValue(self%dm, flux_face_label_name, &
+                  f, 1, ierr); CHKERRQ(ierr)
+          end if
+       end if
+    end do
+
+  end subroutine mesh_label_flux_faces
 
 !------------------------------------------------------------------------
 
@@ -2453,9 +2647,6 @@ contains
     do c = self%strata(0)%start, self%strata(0)%end - 1
        call DMLabelGetValue(ghost_label, c, ghost, ierr)
        if (ghost < 0) then
-          minc_p = self%strata(0)%minc_point(c, 0)
-          call DMSetLabelValue(minc_dm, minc_level_label_name, &
-               minc_p, 0, ierr); CHKERRQ(ierr)
           natural(c) = local_to_natural_cell_index( &
                self%cell_natural_global, l2g, c)
        end if
@@ -2474,13 +2665,17 @@ contains
                c = minc_cells(i)
                call DMLabelGetValue(ghost_label, c, ghost, ierr)
                if (ghost < 0) then
-                  do m = 1, self%minc(iminc)%num_levels
-                     ic = minc_level_cells(m, c)
-                     minc_p = self%strata(0)%minc_point(ic, m)
+                  do m = 0, self%minc(iminc)%num_levels
+                     if (m == 0) then
+                        minc_p = c
+                     else
+                        ic = minc_level_cells(m, c)
+                        minc_p = self%strata(0)%minc_point(ic, m)
+                        natural(minc_p) = local_to_natural_cell_index( &
+                             self%cell_natural_global, l2g, c)
+                     end if
                      call DMSetLabelValue(minc_dm, minc_level_label_name, &
                           minc_p, m, ierr); CHKERRQ(ierr)
-                     natural(minc_p) = local_to_natural_cell_index( &
-                          self%cell_natural_global, l2g, c)
                   end do
                end if
             end do
@@ -2491,6 +2686,8 @@ contains
     call ISCreateGeneral(PETSC_COMM_WORLD, end_cell - start_cell, &
          natural, PETSC_COPY_VALUES, self%cell_parent_natural, ierr); CHKERRQ(ierr)
     deallocate(natural)
+    call PetscObjectSetName(self%cell_parent_natural, "parent", &
+         ierr); CHKERRQ(ierr)
 
   end subroutine mesh_setup_minc_output_data
 
@@ -3480,7 +3677,7 @@ contains
             minc_level_label, ierr); CHKERRQ(ierr)
        call DMLabelGetValue(minc_level_label, local, minc_level, ierr)
     else
-       minc_level = 0
+       minc_level = -1
     end if
 
   end function mesh_local_cell_minc_level
@@ -3571,11 +3768,11 @@ contains
   subroutine mesh_natural_cell_output_arrays(self, natural, minc_level, &
        keys, values)
     !! Takes a natural cell index and MINC level, and returns arrays
-    !! of keys and values for output. If the mesh is MINC, these
-    !! arrays have two entries, one for natural cell index
-    !! and one for MINC level; otherwise, the arrays have only one
-    !! entry each, for natural cell index. These arrays are intended
-    !! for output to logfile.
+    !! of keys and values for output. If the mesh is MINC, and the
+    !! cell is in a MINC zone, these arrays have two entries, one for
+    !! natural cell index and one for MINC level; otherwise, the
+    !! arrays have only one entry each, for natural cell index. These
+    !! arrays are intended for output to logfile.
 
     class(mesh_type), intent(in out) :: self
     PetscInt, intent(in) :: natural !! Natural cell index
@@ -3583,7 +3780,7 @@ contains
     character(len = *), allocatable :: keys(:) !! Key array
     PetscInt, allocatable :: values(:)
 
-    if (self%has_minc) then
+    if ((self%has_minc) .and. (minc_level >= 0)) then
        keys = ['cell', 'minc']
        values = [natural, minc_level]
     else

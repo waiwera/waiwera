@@ -5,6 +5,7 @@ Boundary conditions
 *******************
 
 .. index:: boundary conditions; Dirichlet
+.. _dirichlet_bcs:
 
 Dirichlet boundary conditions
 =============================
