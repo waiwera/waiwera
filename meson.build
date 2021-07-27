@@ -9,7 +9,7 @@ if not get_option('mpi_wrapper_compiler')
   mpi = dependency('mpi', language: 'fortran')
 endif
 
-PETSc = dependency('PETSc', version: '>=3.15.0')
+PETSc = dependency('PETSc', version: '>=3.15.2')
 fson  = dependency('fson',  version: '>=1.0.0', fallback: ['fson', 'fson_dep'])
 zofu  = dependency('zofu',  version: '>=0.1.0', fallback: ['zofu', 'zofu_dep'])
 
