@@ -55,12 +55,12 @@ petsc_options:
   - download-hdf5
   - with-debugging=0
 
-petsc_options_compiler_release:
+petsc_options_compiler_release_native:
   - "COPTFLAGS='-O3 -march=native -mtune=native'"
   - "CXXOPTFLAGS='-O3 -march=native -mtune=native'"
   - "FOPTFLAGS='-O3 -march=native -mtune=native'"
 
-petsc_options_compiler_docker:
+petsc_options_compiler_release_generic:
   - "COPTFLAGS='-O3 -march=x86-64 -mtune=generic'"
   - "CXXOPTFLAGS='-O3 -march=x86-64 -mtune=generic'"
   - "FOPTFLAGS='-O3 -march=x86-64 -mtune=generic'"
