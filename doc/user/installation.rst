@@ -163,6 +163,36 @@ The following command builds Waiwera (and dependencies), but does not install it
 
   ansible-playbook ansible/build.yml
 
+.. index:: PETSc; linking
+
+Linking to your own PETSc library
+---------------------------------
+
+The build system will download and build its own version of the PETSc library, if it does not detect one already present on your computer. Note that Waiwera currently requires PETSc version 3.15.2 or newer.
+
+If you do have a suitably up-to-date version of PETSc on your machine, and want to link to it rather than having Waiwera build its own, you need to make sure your PETSc is discoverable by the ``pkg-config`` tool, before you start the build.
+
+This means that you need a ``pkg-config`` file called ``PETSc.pc`` somewhere on your system. You can generally find such a file in the ``lib/pkgconfig`` subdirectory of your PETSc build directory. You also need to have the directory containing this file included in your ``PKG_CONFIG_PATH`` environment variable.
+
+You can check the location of the PETSc library that ``pkg-config`` is going to detect using the command:
+
+.. code-block:: bash
+
+   pkg-config --libs PETSc
+
+It is also possible to check the PETSc version using:
+
+.. code-block:: bash
+
+   pkg-config --modversion PETSc
+
+.. index:: FSON; linking, Zofu; linking
+
+Linking to other libraries
+--------------------------
+
+Similar considerations apply to the other two libraries that Waiwera links to (`FSON <https://github.com/josephalevin/fson>`_ and `Zofu <https://github.com/acroucher/zofu>`_). If you have pre-existing versions already built on your system that you want to link to, just make sure there are ``pkg-config`` files for them in locations on your ``PKG_CONFIG_PATH``. Otherwise, the Waiwera build system will build its own versions.
+
 .. index:: Waiwera; setting path
 
 Setting the path
