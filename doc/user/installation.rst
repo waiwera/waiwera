@@ -128,21 +128,21 @@ To build and install Waiwera (and its various dependencies, if needed), execute 
 
    ansible-playbook ansible/install_local.yml
 
+Root privileges are often required if, for example, additional software packages (e.g. compilers) need to be installed as part of the build process. This can be done by using the ``--ask-become-pass`` option:
+
+.. code-block:: bash
+
+   ansible-playbook ansible/install_local.yml --ask-become-pass
+
+in which case you will be prompted for the ``sudo`` password at the start of the build.
+
 Waiwera will be installed into the user's home directory (``~/bin/waiwera``) by default. Additional command line parameters can be used to customise the installation. For example:
 
 .. code-block:: bash
 
-   ansible-playbook ansible/install_local.yml -e "base_dir=/home/USER/waiwera" --ask-become-pass
+   ansible-playbook ansible/install_local.yml -e "base_dir=/home/fred/waiwera/"
 
-where ``base_dir`` is the desired Waiwera installation directory. The ``--ask-become-pass`` option can be used to escalate privileges to root if necessary during installation (e.g. if installing to a directory the user does not have write access to). The user will then be prompted to provide the sudo password.
-
-To ensure Waiwera can be run from any directory, the Waiwera installation directory should be on the user's ``PATH``. If this is not the case then it can be added by editing the ``PATH`` environment variable.
-
-The following command builds Waiwera (and dependencies), but does not install it. As a result, it does not need root privileges (because it does not try to install to directories requiring them):
-
-.. code-block:: bash
-
-  ansible-playbook ansible/build.yml
+where ``base_dir`` is the desired Waiwera installation directory (in this example, ``/home/fred/waiwera/``).
 
 Other example variables include :
 
@@ -156,6 +156,18 @@ Other example variables include :
     * defaults to ``false`` and uses meson to build zofu
 * ``ninja_build=true``
     * defaults to ``false`` and only builds locally if no ninja install is detected
+
+The following command builds Waiwera (and dependencies), but does not install it.
+
+.. code-block:: bash
+
+  ansible-playbook ansible/build.yml
+
+.. index:: Waiwera; setting path
+
+Setting the path
+----------------
+To ensure Waiwera can be run from any directory, the Waiwera installation directory should be on the user's ``PATH``. If this is not the case then it can be added by editing the ``PATH`` environment variable. To make this change persistent, add the path modification to your login script (e.g. ``~/.profile``).
 
 .. index:: testing; unit tests, Zofu
 
