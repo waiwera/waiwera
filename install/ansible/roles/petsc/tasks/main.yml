@@ -24,8 +24,12 @@
           configure_cmd: "{{ './configure --'  + petsc_options | join(' --') }}"
 
       - set_fact:
-          configure_cmd: "{{ configure_cmd + ' ' + petsc_variables | join(' ') }}"
-        when: petsc_arch == 'release'
+          configure_cmd: "{{ configure_cmd + ' ' + petsc_options_compiler_release_native | join(' ') }}"
+        when: (petsc_arch == 'release') and (docker_run == false)
+
+      - set_fact:
+          configure_cmd: "{{ configure_cmd + ' ' + petsc_options_compiler_release_generic | join(' ') }}"
+        when: (petsc_arch == 'release') and (docker_run == true)
 
       - name: Configure PETSc
         command: "{{ configure_cmd }}"
