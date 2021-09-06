@@ -1,7 +1,7 @@
 # Waiwera Meson build script
 
 project('waiwera', ['c', 'fortran'],
-        version: '1.2.1',
+        version: '1.3.0',
         license: 'GPL3',
         meson_version: '>=0.46.0')
 
