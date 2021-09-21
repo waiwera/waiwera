@@ -131,6 +131,7 @@ module IAPWS_module
      PetscReal :: nI(34), nJ(34)
      PetscInt :: I_1(34), J_1(34)
      type(powertable_type) :: pi, pj
+     PetscReal :: max_temperature
    contains
      private
      procedure, public :: init => region1_init
@@ -259,10 +260,11 @@ contains
   ! IAPWS class
 !------------------------------------------------------------------------
 
-  subroutine IAPWS_init(self)
+  subroutine IAPWS_init(self, extrapolate)
     !! Initializes IAPWS object.
 
     class(IAPWS_type), intent(in out) :: self
+    PetscBool, intent(in), optional :: extrapolate
     ! Locals:
     PetscInt :: i
 
@@ -281,7 +283,7 @@ contains
     call self%region(3)%set(self%supercritical)
 
     do i = 1, self%num_regions
-       call self%region(i)%ptr%init()
+       call self%region(i)%ptr%init(extrapolate)
     end do
 
   end subroutine IAPWS_init
@@ -360,10 +362,11 @@ contains
   ! Abstract region type
 !------------------------------------------------------------------------
 
-  subroutine region_init(self)
+  subroutine region_init(self, extrapolate)
     !! Initializes abstract IAPWS-97 region object.
     
     class(IAPWS_region_type), intent(in out) :: self
+    PetscBool, intent(in), optional :: extrapolate
 
     call self%visc%init()
 
@@ -435,10 +438,14 @@ contains
   ! Region 1 (liquid water)
 !------------------------------------------------------------------------
 
-  subroutine region1_init(self)
+  subroutine region1_init(self, extrapolate)
     !! Initializes IAPWS region 1 object.
 
     class(IAPWS_region1_type), intent(in out) :: self
+    PetscBool, intent(in), optional :: extrapolate
+    ! Locals:
+    PetscReal, parameter :: default_max_temperature = 350._dp
+    PetscReal, parameter :: extrapolated_max_temperature = 360._dp
 
     call self%IAPWS_region_type%init()
 
@@ -455,6 +462,16 @@ contains
 
     call self%pj%configure(self%J)
     call self%pj%configure(self%J_1)
+
+    if (present(extrapolate)) then
+       if (extrapolate) then
+          self%max_temperature = extrapolated_max_temperature
+       else
+          self%max_temperature = default_max_temperature
+       end if
+    else
+       self%max_temperature = default_max_temperature
+    end if
 
   end subroutine region1_init
 
@@ -478,7 +495,7 @@ contains
     !! Calculates density and internal energy of liquid water as a function of
     !! pressure (Pa) and temperature (deg C).
     !!
-    !! Returns err = 1 if called outside its operating range (t<=350 deg C, p<=100 MPa).
+    !! Returns err = 1 if called outside its operating range (t<=self%max_temperature, p<=100 MPa).
 
     class(IAPWS_region1_type), intent(in out) :: self
     PetscReal, intent(in) :: param(:) !! Primary variables (pressure, temperature)
@@ -490,7 +507,7 @@ contains
     associate (p => param(1), t => param(2))
 
       ! Check input:
-      if ((t <= 350.0_dp).and.(p <= 100.e6_dp)) then
+      if ((t <= self%max_temperature).and.(p <= 100.e6_dp)) then
          !      
          tk = t + tc_k
          rt = rconst * tk
@@ -519,10 +536,11 @@ contains
   ! Region 2 (steam)
 !------------------------------------------------------------------------
 
-  subroutine region2_init(self)
+  subroutine region2_init(self, extrapolate)
     !! Initializes IAPWS region 2 object.
 
     class(IAPWS_region2_type), intent(in out) :: self
+    PetscBool, intent(in), optional :: extrapolate
 
     call self%IAPWS_region_type%init()
 
@@ -614,10 +632,11 @@ contains
   ! Region 3 (supercritical)
 !------------------------------------------------------------------------
 
-  subroutine region3_init(self)
+  subroutine region3_init(self, extrapolate)
     !! Initializes IAPWS region 3 object.
 
     class(IAPWS_region3_type), intent(in out) :: self
+    PetscBool, intent(in), optional :: extrapolate
 
     call self%IAPWS_region_type%init()
 

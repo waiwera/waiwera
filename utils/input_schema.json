@@ -75,9 +75,13 @@
             }
         ]},
         "title": {"type": "string"},
-        "thermodynamics": {
-            "type": "string",
-            "enum": ["ifc67", "IFC67", "iapws", "IAPWS"]},
+        "thermodynamics": {"oneOf": [
+            {"type": "string", "enum": ["ifc67", "IFC67", "iapws", "IAPWS"]},
+            {"type": "object",
+             "properties": {
+                 "name": {"type": "string", "enum": ["ifc67", "IFC67", "iapws", "IAPWS"]},
+                 "extrapolate": {"type": "boolean"}}}
+        ]},
         "eos": {"oneOf": [{"type": "string",
                            "enum": ["w", "W",
                                     "we", "WE",

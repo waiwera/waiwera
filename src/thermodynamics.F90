@@ -123,10 +123,13 @@ module thermodynamics_module
        PetscInt, intent(out) :: err  !! Error code
      end subroutine saturation_pressure
 
-     subroutine region_init(self)
-       !! Initializes region.
+     subroutine region_init(self, extrapolate)
+       !! Initializes region. The extrapolate parameter allows the
+       !! region's methods to be called slightly out of their usual
+       !! operating range if needed.
        import :: region_type
        class(region_type), intent(in out) :: self
+       PetscBool, intent(in), optional :: extrapolate
      end subroutine region_init
 
      subroutine region_destroy(self)
@@ -152,10 +155,11 @@ module thermodynamics_module
        PetscReal, intent(out) :: viscosity
      end subroutine region_viscosity
 
-     subroutine thermodynamics_init_procedure(self)
+     subroutine thermodynamics_init_procedure(self, extrapolate)
        !! Initializes thermodynamics.
        import :: thermodynamics_type
        class(thermodynamics_type), intent(in out) :: self
+       PetscBool, intent(in), optional :: extrapolate
      end subroutine thermodynamics_init_procedure
 
      subroutine thermodynamics_destroy_procedure(self)
