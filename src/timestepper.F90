@@ -1504,9 +1504,9 @@ end subroutine timestepper_steps_set_next_stepsize
     SNESLineSearch :: linesearch
     PetscInt :: max_iterations
     PetscReal :: mat_fd_err, mat_fd_umin
+    PetscInt, parameter :: default_max_iterations = 8
     ! This tolerance needs to be set very small so it doesn't override
     ! time step reduction when primary variables go out of bounds:
-    PetscInt, parameter :: default_max_iterations = 8
     PetscReal, parameter :: stol = 1.e-99_dp
     PetscReal, parameter :: dtol = 1.e8_dp
     PetscReal, parameter :: default_mat_fd_err = 1.e-8_dp
