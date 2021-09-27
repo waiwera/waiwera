@@ -904,7 +904,22 @@
                                                 }
                                             },
                                             "additionalProperties": false
-                                        }
+                                        },
+                                        "jacobian": {
+                                            "type": "object",
+                                            "properties": {
+                                                "differencing": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "increment": {
+                                                            "type": "number",
+                                                            "minimum": 0},
+                                                        "tolerance": {
+                                                            "type": "number",
+                                                            "minimum": 0}
+                                                    }, "additionalProperties": false
+                                                }},
+                                            "additionalProperties": false}
                                     }, "additionalProperties": false},
                                 "auxiliary": {
                                     "type": "object",

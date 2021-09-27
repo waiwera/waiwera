@@ -405,12 +405,58 @@ Limits on the number of non-linear solver iterations can be set via the **"maxim
 
 The "minimum.iterations" value defaults to zero, so that the non-linear solution process is allowed to converge without iterating, if it happens that either of the convergence checks are satisfied with the initial estimate of the solution. Under some conditions, it is useful to make sure the non-linear solver always takes at least one iteration. This can be done by setting the "minimum.iterations" value to 1.
 
-.. non-dimensionalised primary variables?
+.. index:: non-linear equations, Jacobian
+.. _jacobian_matrix:
+
+Computing the Jacobian matrix
+-----------------------------
+
+The nonlinear solution process requires the Jacobian matrix (i.e. the matrix of partial derivatives of the residual function :math:`\mathbf{f}` with respect to the primary variables) to be computed at each iteration (see :ref:`nonlinear_equations`). Waiwera makes use of PETSc's ability to compute the Jacobian automatically using finite differencing.
+
+Specifically, the Jacobian matrix :math:`\mathbf{J}` is computed using the formula:
+
+.. math::
+
+   J_{i,j} = \frac{f_i(\mathbf{Y} + h_j \mathbf{e}_j) - f_i(\mathbf{Y})}{h_j}
+
+where :math:`f_i` is the :math:`i^{th}` component of the residual function :math:`\mathbf{f}`, :math:`\mathbf{e}_j` is the :math:`j^{th}` standard basis vector and :math:`h_j` is the finite difference step size for the :math:`j^{th}` variable :math:`Y_j`.
+
+The step size :math:`h_j` is calculated from:
+
+.. math::
+
+    h_j =
+   \begin{cases}
+   \epsilon Y_j & |Y_j| > \delta \\
+   sgn(Y_j) \epsilon \delta & |Y_j| \leq \delta
+   \end{cases}
+
+where :math:`sgn` is the sign function,  :math:`\epsilon` is a fixed differencing increment parameter and :math:`\delta` is a differencing tolerance parameter (to prevent zero-division errors or loss of significance when the variable :math:`Y_j` is small). These two parameters may be set in the Waiwera JSON input file via the **"time.step.solver.nonlinear.jacobian.differencing"** object:
+
+.. note::
+   **JSON object**: Jacobian finite differencing parameters
+
+   **JSON path**: time.step.solver.nonlinear.jacobian.differencing
+
+   +------------+------------+------------------+--------------------------+
+   |**name**    |**type**    |**default**       |**value**                 |
+   +------------+------------+------------------+--------------------------+
+   |"increment" |number      |10\ :sup:`-8`     |differencing increment    |
+   |            |            |                  |:math:`\epsilon`          |
+   |            |            |                  |                          |
+   +------------+------------+------------------+--------------------------+
+   |"tolerance" |number      |10\ :sup:`-2`     |differencing tolerance    |
+   |            |            |                  |:math:`\delta`            |
+   +------------+------------+------------------+--------------------------+
+
+In the non-linear solution process, non-dimensionalised versions of the primary variables :math:`\mathbf{Y}` are used, rather than their raw values (see :ref:`primary_variable_parameters`). This is partly because raw variables representing different physical quantities (e.g. pressures and temperatures) may have very different magnitudes, which would make it difficult to choose differencing parameters appropriate for all of them.
+
+In most cases the default differencing parameters should give satisfactory results. However, for some problems, adjusting them can improve performance. If, for example, the non-linear solver is often converging slowly, or not converging, it may be that the Jacobian is not being computed with sufficient accuracy. Trying a smaller differencing increment may help. Alternatively, if non-linear solver convergence seems to be held up by variables with near-zero values (e.g. partial pressures of non-condensible gases) it may be worth experimenting with the differencing tolerance.
 
 Example
 -------
 
-In the following example, a steady-state simulation is specified with the maximum allowed number of non-linear solver iteration increased to 10, and the relative function tolerance reduced to 10\ :sup:`-6`:
+In the following example, a steady-state simulation is specified with the maximum allowed number of non-linear solver iteration increased to 10, and the relative function tolerance reduced to 10\ :sup:`-6`. Additionally, the Jacobian finite differencing increment is set to :math:`10^{-9}`:
 
 .. code-block:: json
 
@@ -423,7 +469,8 @@ In the following example, a steady-state simulation is specified with the maximu
                       "method": "beuler",
                       "solver": {
                          "nonlinear": {"maximum": {"iterations": 10},
-                                       "tolerance": {"function": {"relative": 1e-6}}}
+                                       "tolerance": {"function": {"relative": 1e-6}},
+                                       "jacobian": {"differencing": {"increment": 1e-9}}}
                       }},
              "stop": null}}
 

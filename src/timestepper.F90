@@ -1489,18 +1489,24 @@ end subroutine timestepper_steps_set_next_stepsize
 ! Timestepper procedures
 !------------------------------------------------------------------------
 
-  subroutine timestepper_setup_nonlinear_solver(self, max_iterations)
+  subroutine timestepper_setup_nonlinear_solver(self, json)
     !! Sets up SNES nonlinear solver for the timestepper.
 
+    use fson
+    use fson_mpi_module
+
     class(timestepper_type), intent(in out) :: self
-    PetscInt, intent(in) :: max_iterations
+    type(fson_value), pointer, intent(in) :: json
     ! Locals:
     PetscErrorCode :: ierr
     MatColoring :: matrix_coloring
     ISColoring :: is_coloring
     SNESLineSearch :: linesearch
+    PetscInt :: max_iterations
+    PetscReal :: mat_fd_err, mat_fd_umin
     ! This tolerance needs to be set very small so it doesn't override
     ! time step reduction when primary variables go out of bounds:
+    PetscInt, parameter :: default_max_iterations = 8
     PetscReal, parameter :: stol = 1.e-99_dp
     PetscReal, parameter :: dtol = 1.e8_dp
     PetscReal, parameter :: default_mat_fd_err = 1.e-8_dp
@@ -1525,8 +1531,16 @@ end subroutine timestepper_steps_set_next_stepsize
          self%context, ierr); CHKERRQ(ierr)
     call MatFDColoringSetType(self%context%fd_coloring, MATMFFD_DS, ierr)
     CHKERRQ(ierr)
+
+    call fson_get_mpi(json, &
+         "time.step.solver.nonlinear.jacobian.differencing.increment", &
+         default_mat_fd_err, mat_fd_err, self%ode%logfile)
+    call fson_get_mpi(json, &
+         "time.step.solver.nonlinear.jacobian.differencing.tolerance", &
+         default_mat_fd_umin, mat_fd_umin, self%ode%logfile)
+
     call MatFDColoringSetParameters(self%context%fd_coloring, &
-         default_mat_fd_err, default_mat_fd_umin, ierr); CHKERRQ(ierr)
+         mat_fd_err, mat_fd_umin, ierr); CHKERRQ(ierr)
     call MatFDColoringSetFromOptions(self%context%fd_coloring, ierr); CHKERRQ(ierr)
     call MatFDColoringSetUp(self%jacobian, is_coloring, self%context%fd_coloring, &
          ierr); CHKERRQ(ierr)
@@ -1535,6 +1549,11 @@ end subroutine timestepper_steps_set_next_stepsize
     call SNESSetJacobian(self%solver, self%jacobian, self%jacobian, &
          SNES_Jacobian, self%context, ierr)
     CHKERRQ(ierr)
+
+    call fson_get_mpi(json, &
+         "time.step.solver.nonlinear.maximum.iterations", &
+         default_max_iterations, &
+         max_iterations, self%ode%logfile)
 
     call SNESSetTolerances(self%solver, PETSC_DEFAULT_REAL, &
          PETSC_DEFAULT_REAL, stol, max_iterations, &
@@ -1953,13 +1972,12 @@ end subroutine timestepper_steps_set_next_stepsize
     PetscReal, parameter :: default_adapt_reduction = 0.2_dp, &
          default_adapt_amplification = 2.0_dp
     PetscReal :: adapt_reduction, adapt_amplification
-    PetscInt, parameter :: default_nonlinear_max_iterations = 8
     PetscReal, parameter :: default_nonlinear_relative_tol = 1.e-5_dp
     PetscReal, parameter :: default_nonlinear_abs_tol = 1._dp
     PetscReal, parameter :: default_nonlinear_update_relative_tol = 1.e-10_dp
     PetscReal, parameter :: default_nonlinear_update_abs_tol = 1._dp
     PetscInt, parameter :: default_nonlinear_min_iterations = 0
-    PetscInt :: nonlinear_max_iterations, nonlinear_min_iterations
+    PetscInt :: nonlinear_min_iterations
     PetscReal :: nonlinear_relative_tol, nonlinear_abs_tol
     PetscReal :: nonlinear_update_relative_tol, nonlinear_update_abs_tol
     PetscInt :: max_num_tries
@@ -1993,10 +2011,6 @@ end subroutine timestepper_steps_set_next_stepsize
     call self%method%init(method)
 
     call fson_get_mpi(json, &
-         "time.step.solver.nonlinear.maximum.iterations", &
-         default_nonlinear_max_iterations, &
-         nonlinear_max_iterations, self%ode%logfile)
-    call fson_get_mpi(json, &
          "time.step.solver.nonlinear.tolerance.function.relative", &
          default_nonlinear_relative_tol, &
          nonlinear_relative_tol, self%ode%logfile)
@@ -2017,7 +2031,7 @@ end subroutine timestepper_steps_set_next_stepsize
          default_nonlinear_min_iterations, &
          nonlinear_min_iterations, self%ode%logfile)
 
-    call self%setup_nonlinear_solver(nonlinear_max_iterations)
+    call self%setup_nonlinear_solver(json)
 
     call SNESGetKSP(self%solver, ksp, ierr); CHKERRQ(ierr)
     call self%configure_linear_solver(json, "time.step.solver.linear", &

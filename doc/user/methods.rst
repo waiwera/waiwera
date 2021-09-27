@@ -177,7 +177,7 @@ At each iteration, the Newton update equation :eq:`newton` represents a large, s
 
 .. index:: PETSc; SNES
 
-Waiwera uses the "SNES" non-linear solver provided by the `PETSc <https://www.mcs.anl.gov/petsc/>`_ library to solve equation :eq:`fx0` at each time step. For problems in which the Jacobian matrix :math:`\mathbf{J}` is difficult to calculate, the SNES solver offers an option to calculate it automatically using finite differencing. In this case the Jacobian partial derivatives are evaluated approximately by adding small increments onto the primary variable vector :math:`\mathbf{y}` and re-evaluating the function :math:`\mathbf{f}`. Waiwera makes use of this approach to calculate the Jacobian matrix.
+Waiwera uses the "SNES" non-linear solver provided by the `PETSc <https://www.mcs.anl.gov/petsc/>`_ library to solve equation :eq:`fx0` at each time step. For problems in which the Jacobian matrix :math:`\mathbf{J}` is difficult to calculate, the SNES solver offers an option to calculate it automatically using finite differencing. In this case the Jacobian partial derivatives are evaluated approximately by adding small increments onto the primary variable vector :math:`\mathbf{y}` and re-evaluating the function :math:`\mathbf{f}`. Waiwera makes use of this approach to calculate the Jacobian matrix (see :ref: `jacobian_matrix`).
 
 .. index:: PETSc; KSP, solver; linear, numerical methods; linear equations
 
