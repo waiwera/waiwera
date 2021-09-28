@@ -449,6 +449,8 @@ where :math:`sgn` is the sign function,  :math:`\epsilon` is a fixed differencin
    |            |            |                  |:math:`\delta`            |
    +------------+------------+------------------+--------------------------+
 
+(These differencing parameters can also be set using the PETSc command line options ``-mat_fd_coloring_err`` and ``-mat_fd_coloring_umin`` respectively.)
+
 In the non-linear solution process, non-dimensionalised versions of the primary variables :math:`\mathbf{Y}` are used, rather than their raw values (see :ref:`primary_variable_parameters`). This is partly because raw variables representing different physical quantities (e.g. pressures and temperatures) may have very different magnitudes, which would make it difficult to choose differencing parameters appropriate for all of them.
 
 In most cases the default differencing parameters should give satisfactory results. However, for some problems, adjusting them can improve performance. If, for example, the non-linear solver is often converging slowly, or not converging, it may be that the Jacobian is not being computed with sufficient accuracy. Trying a smaller differencing increment may help. Alternatively, if non-linear solver convergence seems to be held up by variables with near-zero values (e.g. partial pressures of non-condensible gases) it may be worth experimenting with the differencing tolerance.
