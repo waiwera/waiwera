@@ -449,7 +449,7 @@ where :math:`sgn` is the sign function,  :math:`\epsilon` is a fixed differencin
    |            |            |                  |:math:`\delta`            |
    +------------+------------+------------------+--------------------------+
 
-(These differencing parameters can also be set using the PETSc command line options ``-mat_fd_coloring_err`` and ``-mat_fd_coloring_umin`` respectively.)
+(These values can also be set using the :ref:`petsc_command_line_parameters` ``-mat_fd_coloring_err`` and ``-mat_fd_coloring_umin`` respectively.)
 
 In the non-linear solution process, non-dimensionalised versions of the primary variables :math:`\mathbf{Y}` are used, rather than their raw values (see :ref:`primary_variable_parameters`). This is partly because raw variables representing different physical quantities (e.g. pressures and temperatures) may have very different magnitudes, which would make it difficult to choose differencing parameters appropriate for all of them.
 
