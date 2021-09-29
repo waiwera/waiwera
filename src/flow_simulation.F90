@@ -997,19 +997,6 @@ contains
 
   contains
 
-    subroutine source_list_node_data_destroy(node)
-      ! Destroys source in each list node.
-
-      use source_module, only: source_type
-
-      type(list_node_type), pointer, intent(in out) :: node
-
-      select type (source => node%data)
-      type is (source_type)
-         call source%destroy()
-      end select
-    end subroutine source_list_node_data_destroy
-
     subroutine source_control_list_node_data_destroy(node)
       ! Destroys source control in each list node.
 
