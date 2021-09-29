@@ -59,6 +59,7 @@ module ode_module
      procedure, public :: pre_eval => ode_pre_eval
      procedure, public :: pre_timestep => ode_pre_timestep
      procedure, public :: post_timestep => ode_post_timestep
+     procedure, public :: pre_try_timestep => ode_pre_try_timestep
      procedure, public :: pre_retry_timestep => ode_pre_retry_timestep
      procedure, public :: post_linesearch => ode_post_linesearch
      procedure, public :: boundary_residuals => ode_boundary_residuals
@@ -159,6 +160,18 @@ contains
     ! Do nothing
 
   end subroutine ode_post_timestep
+
+!------------------------------------------------------------------------
+
+  subroutine ode_pre_try_timestep(self)
+    !! Default routine to be called before trying a timestep (on first
+    !! attempt or a re-try).
+
+    class(ode_type), intent(in out) :: self
+
+    ! Do nothing
+
+  end subroutine ode_pre_try_timestep
 
 !------------------------------------------------------------------------
 
