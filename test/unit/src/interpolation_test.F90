@@ -440,7 +440,13 @@ contains
     if (rank == 0) then
 
        call table%init(data, err = err)
-       call test%assert(1, err, "error")
+       call test%assert(0, err, "error")
+       call test%assert(0.75_dp, table%interpolate(1._dp, 1), "1")
+       call test%assert(1, table%coord%index, "1 index")
+       call test%assert(1.25_dp, table%interpolate(2.05_dp, 1), "2.05")
+       call test%assert(2, table%coord%index, "2.05 index")
+       call test%assert(2._dp, table%interpolate(3._dp, 1), "3")
+       call test%assert(3, table%coord%index, "3 index")
        call table%destroy()
 
     end if

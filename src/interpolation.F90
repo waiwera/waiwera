@@ -233,14 +233,10 @@ contains
     PetscReal, intent(in) :: values(:)
     PetscErrorCode, intent(out) :: err
 
-    if (array_sorted(values)) then
-       self%val = values
-       self%size = size(values, 1)
-       self%index = 1
-       err = 0
-    else
-       err = 1
-    end if
+    self%val = values
+    self%size = size(values, 1)
+    self%index = 1
+    err = 0
 
   end subroutine interpolation_coordinate_init
 
@@ -375,23 +371,44 @@ contains
     !! error code err returns > 0 if the table could not be
     !! initialised.
 
+    use utils_module, only: array_sorted
+
     class(interpolation_table_type), intent(in out) :: self
     PetscReal, intent(in) :: array(:,:)
     PetscInt, intent(in) :: interpolation_type
     PetscInt, intent(in) :: averaging_type
     PetscErrorCode, intent(out) :: err
     ! Locals:
-    PetscInt :: n(2)
+    PetscInt :: n(2), i
+    PetscInt, allocatable :: isort(:)
+    PetscReal, allocatable :: sorted_array(:, :)
+    PetscErrorCode :: ierr
 
-    call self%coord%init(array(:, 1), err)
+    n = shape(array)
+    self%dim = n(2) - 1
+
+    ! Sort coordinates if necessary:
+    if (.not. array_sorted(array(:, 1))) then
+       isort = [(i - 1, i = 1, n(1))]
+       call PetscSortRealWithPermutation(n(1), array(:, 1), &
+            isort, ierr); CHKERRQ(ierr)
+       allocate(sorted_array, mold = array)
+       do i = 1, n(1)
+          sorted_array(i, :) = array(isort(i) + 1, :)
+       end do
+       deallocate(isort)
+    else
+       sorted_array = array
+    end if
+
+    call self%coord%init(sorted_array(:, 1), err)
     if (err == 0) then
-       n = shape(array)
-       self%dim = n(2) - 1
        allocate(self%val(self%dim, n(1)))
-       self%val = transpose(array(:, 2:))
+       self%val = transpose(sorted_array(:, 2:))
        call self%set_interpolation_type(interpolation_type)
        call self%set_averaging_type(averaging_type)
     end if
+    deallocate(sorted_array)
 
   end subroutine interpolation_table_init
 
