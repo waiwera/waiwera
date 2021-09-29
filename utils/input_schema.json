@@ -466,6 +466,9 @@
                                                                      "type": "number", "minimum": 0},
                                                                  "minItems": 2, "maxItems": 4}}
                                                              ]},
+                                 "interpolation": {"type": "string",
+                                                   "enum": ["linear", "Linear",
+                                                            "step", "Step"]},
                                  "wet_conductivity": {"type": "number", "minimum": 0},
                                  "dry_conductivity": {"type": "number", "minimum": 0},
                                  "porosity": {"type": "number", "minimum": 0},
