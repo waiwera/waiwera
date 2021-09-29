@@ -61,6 +61,7 @@ module flow_simulation_module
      type(tracer_type), allocatable, public :: tracers(:) !! Tracers
      IS, public :: source_index !! Index set defining natural to global source ordering
      type(list_type), public :: source_controls !! Source/sink controls
+     type(list_type), public :: rock_controls !! Rock property controls
      class(thermodynamics_type), allocatable, public :: thermo !! Fluid thermodynamic formulation
      class(eos_type), allocatable, public :: eos !! Fluid equation of state
      PetscReal, public :: gravity(3) !! Acceleration of gravity vector (\(m.s^{-1}\))
@@ -103,6 +104,7 @@ module flow_simulation_module
      procedure, public :: aux_rhs => flow_simulation_tracer_cell_inflows
      procedure, public :: aux_pre_solve => flow_simulation_tracer_pre_solve
      procedure, public :: pre_timestep => flow_simulation_pre_timestep
+     procedure, public :: pre_try_timestep => flow_simulation_pre_try_timestep
      procedure, public :: pre_retry_timestep => flow_simulation_pre_retry_timestep
      procedure, public :: pre_iteration => flow_simulation_pre_iteration
      procedure, public :: pre_eval => flow_simulation_pre_eval
@@ -110,6 +112,7 @@ module flow_simulation_module
      procedure, public :: fluid_init => flow_simulation_fluid_init
      procedure, public :: fluid_transitions => flow_simulation_fluid_transitions
      procedure, public :: fluid_properties => flow_simulation_fluid_properties
+     procedure, public :: update_rock_properties => flow_simulation_update_rock_properties
      procedure, public :: output_mesh_geometry => flow_simulation_output_mesh_geometry
      procedure, public :: output_minc_data => flow_simulation_output_minc_data
      procedure, public :: output_cell_indices => flow_simulation_output_cell_indices
@@ -803,7 +806,7 @@ contains
     use eos_setup_module, only: setup_eos
     use initial_module
     use fluid_module, only: create_fluid_vector
-    use rock_module, only: setup_rock_vector
+    use rock_setup_module, only: setup_rocks
     use source_setup_module, only: setup_sources
     use utils_module, only: date_time_str
     use profiling_module, only: simulation_init_event
@@ -860,8 +863,9 @@ contains
              call setup_capillary_pressures(json, &
                   self%capillary_pressure, self%logfile, err)
              if (err == 0) then
-                call setup_rock_vector(json, self%mesh%dm, self%rock, &
-                     self%mesh%rock_types, self%rock_range_start, self%mesh%ghost_cell, &
+                call setup_rocks(json, self%mesh%dm, self%rock, &
+                     self%mesh%rock_types, self%rock_controls, &
+                     self%rock_range_start, self%mesh%ghost_cell, &
                      self%logfile, err)
                 if (err == 0) then
                    if (self%mesh%has_minc) then
@@ -974,6 +978,8 @@ contains
     call ISDestroy(self%source_index, ierr); CHKERRQ(ierr)
     call self%source_controls%destroy(source_control_list_node_data_destroy, &
          reverse = PETSC_TRUE)
+    call self%rock_controls%destroy(rock_control_list_node_data_destroy, &
+         reverse = PETSC_TRUE)
     call self%mesh%destroy()
     call self%thermo%destroy()
     call self%eos%destroy()
@@ -997,6 +1003,8 @@ contains
 
   contains
 
+!........................................................................
+
     subroutine source_control_list_node_data_destroy(node)
       ! Destroys source control in each list node.
 
@@ -1009,6 +1017,21 @@ contains
          call source_control%destroy()
       end select
     end subroutine source_control_list_node_data_destroy
+
+!........................................................................
+
+    subroutine rock_control_list_node_data_destroy(node)
+      ! Destroys rock control in each list node.
+
+      use rock_control_module, only: rock_control_type
+
+      type(list_node_type), pointer, intent(in out) :: node
+
+      select type (rock_control => node%data)
+      class is (rock_control_type)
+         call rock_control%destroy()
+      end select
+    end subroutine rock_control_list_node_data_destroy
 
   end subroutine flow_simulation_destroy
 
@@ -1106,7 +1129,7 @@ contains
     !! and adds space for these cells to already-created simulation
     !! vectors.
 
-    use rock_module, only: create_rock_vector
+    use rock_setup_module, only: create_rock_vector
     use fluid_module, only: create_fluid_vector
     use eos_module, only: max_component_name_length, &
          max_phase_name_length
@@ -1986,6 +2009,60 @@ contains
     CHKERRQ(ierr)
 
   end subroutine flow_simulation_pre_timestep
+
+!------------------------------------------------------------------------
+
+  subroutine flow_simulation_pre_try_timestep(self, t)
+    !! Routine to be called before trying a time step.
+
+    class(flow_simulation_type), intent(in out) :: self
+    PetscReal, intent(in) :: t !! time
+
+    call self%update_rock_properties(t)
+
+  end subroutine flow_simulation_pre_try_timestep
+
+!------------------------------------------------------------------------
+
+  subroutine flow_simulation_update_rock_properties(self, t)
+
+    !! Update any time-dependent rock properties from the list of rock
+    !! controls.
+
+    use dm_utils_module, only: global_vec_section
+    use rock_control_module, only: rock_control_type
+
+    class(flow_simulation_type), intent(in out) :: self
+    PetscReal, intent(in) :: t !! time
+
+    ! Locals:
+    PetscSection :: rock_section
+    PetscReal, pointer, contiguous :: rock_data(:)
+    PetscErrorCode :: ierr
+
+    call global_vec_section(self%rock, rock_section)
+    call VecGetArrayF90(self%rock, rock_data, ierr); CHKERRQ(ierr)
+    call self%rock_controls%traverse(rock_control_iterator)
+    call VecRestoreArrayF90(self%rock, rock_data, ierr); CHKERRQ(ierr)
+
+  contains
+
+    subroutine rock_control_iterator(node, stopped)
+      !! Applies rock controls.
+
+      type(list_node_type), pointer, intent(in out) :: node
+      PetscBool, intent(out) :: stopped
+
+      stopped = PETSC_FALSE
+      select type (rock_control => node%data)
+      class is (rock_control_type)
+         call rock_control%update(t, rock_data, &
+              rock_section, self%rock_range_start)
+      end select
+
+    end subroutine rock_control_iterator
+
+  end subroutine flow_simulation_update_rock_properties
 
 !------------------------------------------------------------------------
 
