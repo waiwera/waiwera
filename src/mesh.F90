@@ -920,7 +920,7 @@ contains
          dm_set_fv_adjacency, dm_get_natural_to_global_ao, &
          dm_get_cell_index
     use logfile_module
-    use rock_module, only: setup_rock_types
+    use rock_setup_module, only: setup_rock_types
 
     class(mesh_type), intent(in out) :: self
     PetscReal, intent(in) :: gravity(:) !! Gravity vector
@@ -1364,7 +1364,8 @@ contains
 
     use fson
     use fson_value_m, only : fson_value_count
-    use rock_module, only: rock_type_label_name, label_rock_cell
+    use rock_module, only: rock_type_label_name
+    use rock_setup_module, only: label_rock_cell
 
     class(mesh_type), intent(in out) :: self
     type(fson_value), pointer, intent(in) :: json
@@ -3077,6 +3078,7 @@ contains
     use logfile_module
     use dictionary_module
     use rock_module
+    use rock_setup_module, only: rock_dict_item_type
     use dm_utils_module, only: global_vec_section, global_section_offset
     use fson_value_m, only : TYPE_ARRAY, TYPE_OBJECT
 

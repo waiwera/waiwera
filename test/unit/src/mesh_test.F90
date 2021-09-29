@@ -1034,10 +1034,12 @@ contains
 
     use fson_mpi_module
     use rock_module
+    use rock_setup_module, only: setup_rocks
     use dm_utils_module, only: global_section_offset, global_vec_section
     use dictionary_module
     use IAPWS_module
     use eos_we_module
+    use list_module
 
     class(unit_test_type), intent(in out) :: test
     ! Locals:
@@ -1130,6 +1132,7 @@ contains
       Vec :: rock_vector
       type(dictionary_type) :: rock_dict
       type(rock_type) :: rock
+      type(list_type) :: rock_controls
       PetscReal, contiguous, pointer :: rock_array(:)
       PetscSection :: section
       DMLabel :: ghost_label
@@ -1150,8 +1153,9 @@ contains
 
       call mesh_geometry_sanity_check(mesh, test, title)
 
-      call setup_rock_vector(json, mesh%dm, rock_vector, &
-           rock_dict, rock_range_start, mesh%ghost_cell, err = err)
+      call setup_rocks(json, mesh%dm, rock_vector, &
+           rock_dict, rock_controls, rock_range_start, &
+           mesh%ghost_cell, err = err)
       call test%assert(0, err, "setup rock vector error")
       call fson_destroy_mpi(json)
       call mesh%destroy_distribution_data()
@@ -1208,11 +1212,13 @@ contains
     use fson_mpi_module
     use dictionary_module
     use rock_module
+    use rock_setup_module, only: setup_rocks
     use minc_module, only: minc_level_label_name, minc_rocktype_zone_label_name
     use dm_utils_module, only: global_section_offset, global_vec_section, &
          natural_to_local_cell_index
     use IAPWS_module
     use eos_we_module
+    use list_module
 
     class(unit_test_type), intent(in out) :: test
     ! Locals:
@@ -1292,6 +1298,7 @@ contains
       PetscInt :: num_local_minc_rock_cells, num_minc_rock_cells, num_minc_rocktypes
       Vec :: rock_vector
       type(dictionary_type) :: rock_dict
+      type(list_type) :: rock_controls
       PetscInt :: fracture_natural, fracture_local, r
       ISLocalToGlobalMapping :: l2g
       DMLabel :: minc_rocktype_label
@@ -1318,8 +1325,8 @@ contains
       call test%assert(0, err, title // " mesh configure error")
 
       call rock_dict%init(owner = PETSC_TRUE)
-      call setup_rock_vector(json, mesh%dm, rock_vector, rock_dict, &
-           rock_range_start, mesh%ghost_cell, err = err)
+      call setup_rocks(json, mesh%dm, rock_vector, rock_dict, &
+           rock_controls, rock_range_start, mesh%ghost_cell, err = err)
       call test%assert(0, err, title // " setup rock vector error")
       call mesh%setup_minc_rock_properties(json, rock_vector, &
            rock_range_start, err = err)
@@ -1973,9 +1980,10 @@ contains
     use eos_we_module
     use dm_utils_module, only: global_vec_range_start, global_vec_section, &
          global_section_offset, dm_get_end_interior_cell
-    use rock_module, only: setup_rock_vector
+    use rock_setup_module, only: setup_rocks
     use fluid_module, only: create_fluid_vector
     use tracer_module
+    use list_module
 
     class(unit_test_type), intent(in out) :: test
     ! Locals:
@@ -2049,6 +2057,7 @@ contains
       Vec :: y, fluid_vector, rock_vector, tracer_vector
       PetscInt :: y_range_start, fluid_range_start, rock_range_start, &
            tracer_range_start
+      type(list_type) :: rock_controls
       type(tracer_type), allocatable :: tracers(:)
       PetscInt :: num_tracers, np, c
       PetscInt :: start_cell, end_cell, end_interior_cell
@@ -2074,8 +2083,9 @@ contains
       call global_vec_range_start(y, y_range_start)
       call setup_tracers(json, eos, tracers, err = err)
       num_tracers = size(tracers)
-      call setup_rock_vector(json, mesh%dm, rock_vector, &
-           mesh%rock_types, rock_range_start, mesh%ghost_cell, err = err)
+      call setup_rocks(json, mesh%dm, rock_vector, &
+           mesh%rock_types, rock_controls, rock_range_start, mesh%ghost_cell, &
+           err = err)
       call create_fluid_vector(mesh%dm, max_component_name_length, &
            eos%component_names, max_phase_name_length, &
            eos%phase_names, fluid_vector, fluid_range_start)

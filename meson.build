@@ -50,6 +50,8 @@ waiwera_sources = [
   'src/profiling.F90',
   'src/relative_permeability.F90',
   'src/rock.F90',
+  'src/rock_control.F90',
+  'src/rock_setup.F90',
   'src/root_finder.F90',
   'src/source_control.F90',
   'src/source.F90',
