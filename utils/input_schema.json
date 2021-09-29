@@ -458,8 +458,14 @@
                                                             {"type": "array",
                                                              "items": {
                                                                  "type": "number", "minimum": 0},
-                                                             "minItems": 2, "maxItems": 3
-                                                            }]},
+                                                             "minItems": 2, "maxItems": 3},
+                                                            {"type": "array",
+                                                             "items": {
+                                                                 "type": "array",
+                                                                 "items": {
+                                                                     "type": "number", "minimum": 0},
+                                                                 "minItems": 2, "maxItems": 4}}
+                                                             ]},
                                  "wet_conductivity": {"type": "number", "minimum": 0},
                                  "dry_conductivity": {"type": "number", "minimum": 0},
                                  "porosity": {"type": "number", "minimum": 0},
