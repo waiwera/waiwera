@@ -163,11 +163,12 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine ode_pre_try_timestep(self)
+  subroutine ode_pre_try_timestep(self, t)
     !! Default routine to be called before trying a timestep (on first
     !! attempt or a re-try).
 
     class(ode_type), intent(in out) :: self
+    PetscReal, intent(in) :: t !! time
 
     ! Do nothing
 
