@@ -86,20 +86,16 @@ contains
 !------------------------------------------------------------------------
 
   subroutine rock_control_table_init(self, data, interpolation_type, &
-       averaging_type, cell_indices, err)
+       cell_indices)
     !! Initialises rock_control_table type.
 
     class(rock_control_table_type), intent(in out) :: self
     PetscReal, intent(in) :: data(:,:)
     PetscInt, intent(in) :: interpolation_type
-    PetscInt, intent(in) :: averaging_type
     PetscInt, intent(in) :: cell_indices(:)
-    PetscErrorCode, intent(out) :: err
 
-    call self%table%init(data, interpolation_type, averaging_type, err)
-    if (err == 0) then
-       self%cell_indices = cell_indices
-    end if
+    call self%table%init(data, interpolation_type)
+    self%cell_indices = cell_indices
 
   end subroutine rock_control_table_init
 
