@@ -858,78 +858,74 @@ contains
                   self%aux_solution, self%aux_solution_range_start)
           end if
           call setup_relative_permeabilities(json, &
-               self%relative_permeability, self%logfile, err)
+               self%relative_permeability, self%logfile)
+          call setup_capillary_pressures(json, &
+               self%capillary_pressure, self%logfile)
+          call setup_rocks(json, self%mesh%dm, self%rock, &
+               self%mesh%rock_types, self%rock_controls, &
+               self%rock_range_start, self%mesh%ghost_cell, &
+               self%logfile, err)
           if (err == 0) then
-             call setup_capillary_pressures(json, &
-                  self%capillary_pressure, self%logfile, err)
+             if (self%mesh%has_minc) then
+                call self%mesh%setup_minc_rock_properties(json, self%rock, &
+                     self%rock_range_start, self%logfile, err)
+             end if
              if (err == 0) then
-                call setup_rocks(json, self%mesh%dm, self%rock, &
-                     self%mesh%rock_types, self%rock_controls, &
-                     self%rock_range_start, self%mesh%ghost_cell, &
-                     self%logfile, err)
-                if (err == 0) then
-                   if (self%mesh%has_minc) then
-                      call self%mesh%setup_minc_rock_properties(json, self%rock, &
-                           self%rock_range_start, self%logfile, err)
+                call create_fluid_vector(self%mesh%dm, max_component_name_length, &
+                     self%eos%component_names, max_phase_name_length, &
+                     self%eos%phase_names, self%fluid, self%fluid_range_start)
+
+                call setup_initial(json, self%mesh, self%eos, &
+                     self%time, self%solution, self%fluid, self%aux_solution, &
+                     self%solution_range_start, self%fluid_range_start, &
+                     self%aux_solution_range_start, self%tracers, &
+                     self%logfile)
+
+                if (self%mesh%rebalance) then
+                   call self%redistribute(redist_err)
+                   if (redist_err > 0) then
+                      call self%logfile%write(LOG_LEVEL_WARN, 'simulation', &
+                           'redistribution', logical_keys = ['fail'], &
+                           logical_values = [PETSC_TRUE])
                    end if
+                end if
+
+                call self%output_cell_indices()
+                call self%add_boundary_ghost_cells()
+
+                call VecDuplicate(self%solution, self%balances, ierr); CHKERRQ(ierr)
+                call VecDuplicate(self%fluid, self%current_fluid, ierr); CHKERRQ(ierr)
+                call VecDuplicate(self%fluid, self%last_timestep_fluid, ierr)
+                CHKERRQ(ierr)
+                call VecDuplicate(self%fluid, self%last_iteration_fluid, ierr)
+                CHKERRQ(ierr)
+                call self%mesh%label_remote_faces()
+                call self%mesh%label_flux_faces()
+                call self%mesh%setup_flux_face_array()
+                call self%mesh%compact_face_geometry()
+                call self%setup_flux_vector()
+
+                call self%setup_update_cell()
+                call self%mesh%set_boundary_conditions(json, self%solution, self%fluid, &
+                     self%rock, self%aux_solution, self%eos, self%solution_range_start, &
+                     self%fluid_range_start, self%rock_range_start, &
+                     self%aux_solution_range_start, size(self%tracers), self%logfile)
+                call scale_initial_primary(self%mesh, self%eos, self%solution, self%fluid, &
+                     self%solution_range_start, self%fluid_range_start)
+                call self%fluid_init(self%time, self%solution, err)
+                if (err == 0) then
+                   call setup_sources(json, self%mesh%dm, self%mesh%cell_natural_global, &
+                        self%eos, self%tracers%name, self%thermo, self%time, self%fluid, &
+                        self%fluid_range_start, self%source, self%source_range_start, &
+                        self%num_local_sources, self%num_sources, self%source_controls, &
+                        self%source_index, self%logfile, err)
                    if (err == 0) then
-                      call create_fluid_vector(self%mesh%dm, max_component_name_length, &
-                           self%eos%component_names, max_phase_name_length, &
-                           self%eos%phase_names, self%fluid, self%fluid_range_start)
-
-                      call setup_initial(json, self%mesh, self%eos, &
-                           self%time, self%solution, self%fluid, self%aux_solution, &
-                           self%solution_range_start, self%fluid_range_start, &
-                           self%aux_solution_range_start, self%tracers, &
-                           self%logfile)
-
-                      if (self%mesh%rebalance) then
-                         call self%redistribute(redist_err)
-                         if (redist_err > 0) then
-                            call self%logfile%write(LOG_LEVEL_WARN, 'simulation', &
-                                 'redistribution', logical_keys = ['fail'], &
-                                 logical_values = [PETSC_TRUE])
-                         end if
-                      end if
-
-                      call self%output_cell_indices()
-                      call self%add_boundary_ghost_cells()
-
-                      call VecDuplicate(self%solution, self%balances, ierr); CHKERRQ(ierr)
-                      call VecDuplicate(self%fluid, self%current_fluid, ierr); CHKERRQ(ierr)
-                      call VecDuplicate(self%fluid, self%last_timestep_fluid, ierr)
-                      CHKERRQ(ierr)
-                      call VecDuplicate(self%fluid, self%last_iteration_fluid, ierr)
-                      CHKERRQ(ierr)
-                      call self%mesh%label_remote_faces()
-                      call self%mesh%label_flux_faces()
-                      call self%mesh%setup_flux_face_array()
-                      call self%mesh%compact_face_geometry()
-                      call self%setup_flux_vector()
-
-                      call self%setup_update_cell()
-                      call self%mesh%set_boundary_conditions(json, self%solution, self%fluid, &
-                           self%rock, self%aux_solution, self%eos, self%solution_range_start, &
-                           self%fluid_range_start, self%rock_range_start, &
-                           self%aux_solution_range_start, size(self%tracers), self%logfile)
-                      call scale_initial_primary(self%mesh, self%eos, self%solution, self%fluid, &
-                           self%solution_range_start, self%fluid_range_start)
-                      call self%fluid_init(self%time, self%solution, err)
-                      if (err == 0) then
-                         call setup_sources(json, self%mesh%dm, self%mesh%cell_natural_global, &
-                              self%eos, self%tracers%name, self%thermo, self%time, self%fluid, &
-                              self%fluid_range_start, self%source, self%source_range_start, &
-                              self%num_local_sources, self%num_sources, self%source_controls, &
-                              self%source_index, self%logfile, err)
-                         if (err == 0) then
-                            call self%setup_output_fields(json)
-                            call self%output_face_cell_indices()
-                            call self%output_mesh_geometry()
-                            call self%output_minc_data()
-                            call self%output_source_indices()
-                            call self%output_source_cell_indices()
-                         end if
-                      end if
+                      call self%setup_output_fields(json)
+                      call self%output_face_cell_indices()
+                      call self%output_mesh_geometry()
+                      call self%output_minc_data()
+                      call self%output_source_indices()
+                      call self%output_source_cell_indices()
                    end if
                 end if
              end if

@@ -236,7 +236,6 @@ contains
     class(*), pointer :: pinc
     PetscMPIInt :: rank
     PetscInt :: ierr
-    PetscErrorCode :: err
     procedure(root_finder_function), pointer :: f
     type(IAPWS_type) :: thermo
     PetscInt, parameter :: num_vars = 2
@@ -248,8 +247,7 @@ contains
     data(:, 1) = [0._dp, 1._dp]
     data(:, 2) = [20.e5_dp, 23.e5_dp]
     data(:, 3) = [210._dp, 220._dp]
-    call inc%init(data, err = err)
-    call test%assert(0, err, "error")
+    call inc%init(data)
 
     pinc => inc
     f => saturation_difference

@@ -70,7 +70,6 @@ contains
     class(*), pointer :: pinterp
     PetscReal, allocatable :: data(:, :)
     PetscReal :: pressure_scale, temperature_scale
-    PetscErrorCode :: err
     PetscReal, parameter :: default_pressure = 1.0e5_dp
     PetscReal, parameter :: default_temperature = 20._dp ! deg C
     PetscReal, parameter :: default_pressure_scale = 1.e6_dp !! Default scale factor for non-dimensionalising pressure
@@ -116,7 +115,7 @@ contains
     allocate(data(2, 1 + self%num_primary_variables))
     data = 0._dp
     data(:, 1) = [0._dp, 1._dp]
-    call self%primary_variable_interpolator%init(data, err)
+    call self%primary_variable_interpolator%init(data)
     deallocate(data)
     self%primary_variable_interpolator%thermo => self%thermo
     f => eos_we_saturation_difference

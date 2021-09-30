@@ -228,7 +228,7 @@ contains
 !------------------------------------------------------------------------
 
   subroutine source_control_table_init(self, data, interpolation_type, &
-       averaging_type, source_indices, err)
+       averaging_type, source_indices)
     !! Initialises source_control_table object.
 
     class(source_control_table_type), intent(in out) :: self
@@ -236,12 +236,9 @@ contains
     PetscInt, intent(in) :: interpolation_type
     PetscInt, intent(in) :: averaging_type
     PetscInt, intent(in) :: source_indices(:)
-    PetscErrorCode, intent(out) :: err
 
-    call self%table%init(data, interpolation_type, averaging_type, err)
-    if (err == 0) then
-       self%source_indices = source_indices
-    end if
+    call self%table%init(data, interpolation_type, averaging_type)
+    self%source_indices = source_indices
 
   end subroutine source_control_table_init
 
@@ -463,11 +460,8 @@ contains
 
   subroutine source_control_deliverability_init(self, productivity_data, &
        interpolation_type, averaging_type, reference_pressure_data, &
-       pressure_table_coordinate, threshold, local_source_index, err)
-    !! Initialises source_control_deliverability object. Error flag err
-    !! returns 1 if there are problems with the productivity index
-    !! array, or 2 if there are problems with the reference pressure
-    !! array.
+       pressure_table_coordinate, threshold, local_source_index)
+    !! Initialises source_control_deliverability object.
 
     class(source_control_deliverability_type), intent(in out) :: self
     PetscReal, intent(in) :: productivity_data(:,:)
@@ -476,21 +470,14 @@ contains
     PetscInt, intent(in) :: pressure_table_coordinate
     PetscReal, intent(in) :: threshold
     PetscInt, intent(in) :: local_source_index
-    PetscErrorCode, intent(out) :: err
 
     call self%productivity%init(productivity_data, &
-         interpolation_type, averaging_type, err)
-    if (err == 0) then
-       call self%reference_pressure%init(reference_pressure_data, &
-            interpolation_type, averaging_type, err)
-       if (err == 0) then
-          self%pressure_table_coordinate = pressure_table_coordinate
-          self%threshold = threshold
-          self%local_source_index = local_source_index
-       else
-          err = 2
-       end if
-    end if
+         interpolation_type, averaging_type)
+    call self%reference_pressure%init(reference_pressure_data, &
+         interpolation_type, averaging_type)
+    self%pressure_table_coordinate = pressure_table_coordinate
+    self%threshold = threshold
+    self%local_source_index = local_source_index
 
   end subroutine source_control_deliverability_init
 
@@ -667,30 +654,20 @@ contains
 
   subroutine source_control_recharge_init(self, recharge_data, &
        interpolation_type, averaging_type, reference_pressure_data, &
-       local_source_index, err)
-    !! Initialises source_control_recharge object. Error flag err
-    !! returns 1 if there are problems with the recharge coefficient
-    !! array, or 2 if there are problems with the reference pressure
-    !! array.
+       local_source_index)
+    !! Initialises source_control_recharge object.
 
     class(source_control_recharge_type), intent(in out) :: self
     PetscReal, intent(in) :: recharge_data(:,:)
     PetscInt, intent(in) :: interpolation_type, averaging_type
     PetscReal, intent(in) :: reference_pressure_data(:,:)
     PetscInt, intent(in) :: local_source_index
-    PetscErrorCode, intent(out) :: err
 
     call self%coefficient%init(recharge_data, &
-         interpolation_type, averaging_type, err)
-    if (err == 0) then
-       call self%reference_pressure%init(reference_pressure_data, &
-            interpolation_type, averaging_type, err)
-       if (err > 0) then
-          err = 2
-       else
-          self%local_source_index = local_source_index
-       end if
-    end if
+         interpolation_type, averaging_type)
+    call self%reference_pressure%init(reference_pressure_data, &
+         interpolation_type, averaging_type)
+    self%local_source_index = local_source_index
 
   end subroutine source_control_recharge_init
 

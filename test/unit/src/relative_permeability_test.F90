@@ -83,17 +83,15 @@ contains
          '{"type": "linear", "liquid": [0.1, 0.8], "vapour": [0.3, 0.75]}'
     PetscMPIInt :: rank
     PetscInt :: ierr
-    PetscErrorCode :: err
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
 
     json => fson_parse(str = json_str)
-    call linear%init(json, err = err)
+    call linear%init(json)
     call fson_destroy(json)
 
     if (rank == 0) then
 
-       call test%assert(0, err, "error")
        call test%assert("Linear", linear%name, "Name")
 
        call relative_permeability_case(test, 0.01_dp, linear, [0._dp, 1._dp])
@@ -121,17 +119,15 @@ contains
          '{"type": "Pickens", "power": 2.0}'
     PetscMPIInt :: rank
     PetscInt :: ierr
-    PetscErrorCode :: err
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
 
     json => fson_parse(str = json_str)
-    call pickens%init(json, err = err)
+    call pickens%init(json)
     call fson_destroy(json)
 
     if (rank == 0) then
 
-       call test%assert(0, err, "error")
        call test%assert("Pickens", pickens%name, "Name")
        call relative_permeability_case(test, 0.01_dp, pickens, [1.e-4_dp, 1._dp])
        call relative_permeability_case(test, 0.5_dp, pickens, [0.25_dp, 1._dp])
@@ -157,17 +153,15 @@ contains
     '{"type": "Corey", "slr": 0.3, "ssr": 0.1}'
     PetscMPIInt :: rank
     PetscInt :: ierr
-    PetscErrorCode :: err
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
 
     json => fson_parse(str = json_str)
-    call corey%init(json, err = err)
+    call corey%init(json)
     call fson_destroy(json)
 
     if (rank == 0) then
 
-       call test%assert(0, err, "error")
        call test%assert("Corey", corey%name, "Name")
        call relative_permeability_case(test, 0.01_dp, corey, [0._dp, 1._dp])
        call relative_permeability_case(test, 0.5_dp, corey, [1._dp / 81._dp, 32._dp/ 81._dp])
@@ -193,17 +187,15 @@ contains
     '{"type": "Grant", "slr": 0.3, "ssr": 0.1}'
     PetscMPIInt :: rank
     PetscInt :: ierr
-    PetscErrorCode :: err
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
 
     json => fson_parse(str = json_str)
-    call grant%init(json, err = err)
+    call grant%init(json)
     call fson_destroy(json)
 
     if (rank == 0) then
 
-       call test%assert(0, err, "error")
        call test%assert("Grant", grant%name, "Name")
        call relative_permeability_case(test, 0.01_dp, grant, [0._dp, 1._dp])
        call relative_permeability_case(test, 0.5_dp, grant, [1._dp / 81._dp, 80._dp/ 81._dp])
@@ -229,17 +221,15 @@ contains
     '{"type": "van Genuchten", "slr": 0.1, "sls": 0.8, "lambda": 0.5}'
     PetscMPIInt :: rank
     PetscInt :: ierr
-    PetscErrorCode :: err
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
 
     json => fson_parse(str = json_str)
-    call vg%init(json, err = err)
+    call vg%init(json)
     call fson_destroy(json)
 
     if (rank == 0) then
 
-       call test%assert(0, err, "error")
        call test%assert("van Genuchten", vg%name, "Name")
        call relative_permeability_case(test, 0.01_dp, vg, [0._dp, 1._dp])
        call relative_permeability_case(test, 0.25_dp, vg, &
@@ -269,7 +259,6 @@ contains
     character(160) :: json_str
     PetscMPIInt :: rank
     PetscInt :: ierr
-    PetscErrorCode :: err
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
 
@@ -278,12 +267,11 @@ contains
          '"vapour": [[0,0], [0.05, 0.01], [0.3, 0.99], [1,1]]}'
 
     json => fson_parse(str = json_str)
-    call rp%init(json, err = err)
+    call rp%init(json)
     call fson_destroy(json)
 
     if (rank == 0) then
 
-       call test%assert(0, err, "error")
        call test%assert("table", rp%name, "Name")
        call relative_permeability_case(test, 0._dp, rp, [0._dp, 1._dp])
        call relative_permeability_case(test, 0.3_dp, rp, &
@@ -313,17 +301,15 @@ contains
     '{"type": "Fully mobile"}'
     PetscMPIInt :: rank
     PetscInt :: ierr
-    PetscErrorCode :: err
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
 
     json => fson_parse(str = json_str)
-    call mobile%init(json, err = err)
+    call mobile%init(json)
     call fson_destroy(json)
 
     if (rank == 0) then
 
-       call test%assert(0, err, "error")
        call test%assert("Fully mobile", mobile%name, "Name")
        call relative_permeability_case(test, 0.2_dp, mobile, [1._dp, 1._dp])
        call relative_permeability_case(test, 0.9_dp, mobile, [1._dp, 1._dp])

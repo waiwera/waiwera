@@ -776,8 +776,8 @@ contains
          if (size(local_source_indices) > 0) then
             allocate(control)
             call control%init(data_array, interpolation_type, &
-                 averaging_type, local_source_indices, err)
-            if (err == 0) call source_controls%append(control)
+                 averaging_type, local_source_indices)
+            call source_controls%append(control)
          end if
          deallocate(data_array)
       end if
@@ -815,8 +815,8 @@ contains
          if (size(local_source_indices) > 0) then
             allocate(control)
             call control%init(data_array, interpolation_type, &
-                 averaging_type, local_source_indices, err)
-            if (err == 0) call source_controls%append(control)
+                 averaging_type, local_source_indices)
+            call source_controls%append(control)
          end if
          deallocate(data_array)
       end if
@@ -857,16 +857,9 @@ contains
                      do i = 1, size(tracer_names)
                         allocate(control)
                         call control%init(data_array, interpolation_type, &
-                             averaging_type, local_source_indices, err)
+                             averaging_type, local_source_indices)
                         control%tracer_index = i
-                        if (err == 0) then
-                           call source_controls%append(control)
-                        else
-                           call logfile%write(LOG_LEVEL_ERR, &
-                                "input", "unsorted_array", &
-                                real_array_key = trim(srcstr) // "tracer", &
-                                real_array_value = data_array(:, 1))
-                        end if
+                        call source_controls%append(control)
                      end do
                   end if
                   deallocate(data_array)
@@ -891,16 +884,9 @@ contains
                         if (tracer_index > 0) then
                            allocate(control)
                            call control%init(data_array, interpolation_type, &
-                                averaging_type, local_source_indices, err)
+                                averaging_type, local_source_indices)
                            control%tracer_index = tracer_index
-                           if (err == 0) then
-                              call source_controls%append(control)
-                           else
-                              call logfile%write(LOG_LEVEL_ERR, &
-                                   "input", "unsorted_array", &
-                                   real_array_key = trim(srcstr) // "tracer", &
-                                   real_array_value = data_array(:, 1))
-                           end if
+                           call source_controls%append(control)
                         else
                            call logfile%write(LOG_LEVEL_ERR, "input", &
                                 "unrecognised_tracer", &
@@ -985,15 +971,8 @@ contains
     if (allocated(factor_data_array) .and. size(local_source_indices) > 0) then
        allocate(factor_control)
        call factor_control%init(factor_data_array, effective_interpolation_type, &
-            effective_averaging_type, local_source_indices, err)
-       if (err == 0) call source_controls%append(factor_control)
-    end if
-
-    if (err > 0) then
-
-       call logfile%write(LOG_LEVEL_ERR, "input", "unsorted_array", &
-            real_array_key = trim(srcstr) // "factor", &
-            real_array_value = factor_data_array(:, 1))
+            effective_averaging_type, local_source_indices)
+       call source_controls%append(factor_control)
     end if
 
     if (allocated(factor_data_array)) deallocate(factor_data_array)
@@ -1201,39 +1180,24 @@ contains
           allocate(deliv)
           call deliv%init(productivity_array, interpolation_type, &
                averaging_type, reference_pressure_array, &
-               pressure_table_coordinate, threshold, s, err)
+               pressure_table_coordinate, threshold, s)
 
-          select case (err)
-          case (0)
-             if (calculate_reference_pressure) then
-                call deliv%set_reference_pressure_initial(source_data, &
-                     source_section, source_range_start, fluid_data, &
-                     fluid_section, fluid_range_start, eos)
-             end if
-             if (calculate_PI_from_rate) then
-                call deliv%calculate_PI_from_rate(start_time, initial_rate, &
-                     source_data, source_section, source_range_start, &
-                     fluid_data, fluid_section, fluid_range_start, eos, &
-                     deliv%productivity%val(1, 1))
-             end if
-             if (deliv%threshold > 0._dp) then
-                deliv%threshold_productivity = &
-                     deliv%productivity%interpolate(start_time, 1)
-             end if
-             call source_controls%append(deliv)
-          case (1)
-             call deliv%destroy()
-             deallocate(deliv)
-             call logfile%write(LOG_LEVEL_ERR, "input", "unsorted_array", &
-                  real_array_key = trim(srcstr) // "deliverability.productivity", &
-                  real_array_value = productivity_array(:, 1))
-          case (2)
-             call deliv%destroy()
-             deallocate(deliv)
-             call logfile%write(LOG_LEVEL_ERR, "input", "unsorted_array", &
-                  real_array_key = trim(srcstr) // "deliverability.pressure", &
-                  real_array_value = reference_pressure_array(:, 1))
-          end select
+          if (calculate_reference_pressure) then
+             call deliv%set_reference_pressure_initial(source_data, &
+                  source_section, source_range_start, fluid_data, &
+                  fluid_section, fluid_range_start, eos)
+          end if
+          if (calculate_PI_from_rate) then
+             call deliv%calculate_PI_from_rate(start_time, initial_rate, &
+                  source_data, source_section, source_range_start, &
+                  fluid_data, fluid_section, fluid_range_start, eos, &
+                  deliv%productivity%val(1, 1))
+          end if
+          if (deliv%threshold > 0._dp) then
+             deliv%threshold_productivity = &
+                  deliv%productivity%interpolate(start_time, 1)
+          end if
+          call source_controls%append(deliv)
 
        end do
 
@@ -1351,29 +1315,14 @@ contains
              s = local_source_indices(i)
              allocate(recharge)
              call recharge%init(recharge_array, interpolation_type, &
-                  averaging_type, reference_pressure_array, s, err)
+                  averaging_type, reference_pressure_array, s)
 
-             select case (err)
-             case (0)
-                if (calculate_reference_pressure) then
-                   call recharge%set_reference_pressure_initial(source_data, &
-                        source_section, source_range_start, fluid_data, &
-                        fluid_section, fluid_range_start, eos)
-                end if
-                call source_controls%append(recharge)
-             case (1)
-                call recharge%destroy()
-                deallocate(recharge)
-                call logfile%write(LOG_LEVEL_ERR, "input", "unsorted_array", &
-                     real_array_key = trim(srcstr) // "recharge.coefficient", &
-                     real_array_value = recharge_array(:, 1))
-             case (2)
-                call recharge%destroy()
-                deallocate(recharge)
-                call logfile%write(LOG_LEVEL_ERR, "input", "unsorted_array", &
-                     real_array_key = trim(srcstr) // "recharge.pressure", &
-                     real_array_value = reference_pressure_array(:, 1))
-             end select
+             if (calculate_reference_pressure) then
+                call recharge%set_reference_pressure_initial(source_data, &
+                     source_section, source_range_start, fluid_data, &
+                     fluid_section, fluid_range_start, eos)
+             end if
+             call source_controls%append(recharge)
 
           end do
 
