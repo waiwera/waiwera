@@ -245,6 +245,7 @@ contains
     use fson_mpi_module
     use logfile_module
     use fson_value_m, only : TYPE_ARRAY
+    use interpolation_module
 
     type(fson_value), pointer, intent(in) :: json
     DM, intent(in out) :: dm
@@ -255,7 +256,8 @@ contains
     type(logfile_type), intent(in out), optional :: logfile
     ! Locals:
     PetscInt :: num_rocktypes, ic, num_cells, offset, ghost
-    PetscInt :: ir, permeability_type, dim
+    PetscInt :: ir, permeability_type, permeability_rank, dim
+    PetscInt :: interpolation_type
     PetscInt :: perm_size
     DMLabel :: ghost_label
     type(fson_value), pointer :: rocktypes, r
@@ -267,9 +269,12 @@ contains
     PetscReal :: wet_conductivity, dry_conductivity
     PetscReal :: permeability_scalar
     PetscReal, allocatable :: permeability(:)
+    PetscReal, allocatable :: permeability_table(:,:)
+    type(rock_control_permeability_table_type), pointer :: control
+    character(max_interpolation_str_length) :: interpolation_str
     PetscReal, pointer, contiguous :: rock_array(:)
     PetscSection :: section
-    PetscErrorCode :: ierr
+    PetscErrorCode :: ierr, err
     character(len=64) :: rockstr
     character(len=12) :: irstr
 
@@ -291,17 +296,44 @@ contains
           write(irstr, '(i0)') ir - 1
           rockstr = 'rock.types[' // trim(irstr) // '].'
           call fson_get_mpi(r, "name", "", name, logfile, trim(rockstr) // "name")
+          call DMGetStratumSize(dm, rock_type_label_name, ir, num_cells, &
+               ierr); CHKERRQ(ierr)
+
           permeability_type = fson_type_mpi(r, "permeability")
           select case (permeability_type)
           case (TYPE_ARRAY)
-             call fson_get_mpi(r, "permeability", default_permeability, &
-                  permeability, logfile, trim(rockstr) // "permeability")
+             permeability_rank = fson_mpi_array_rank(r, "permeability")
+             select case (permeability_rank)
+             case (1)
+                call fson_get_mpi(r, "permeability", default_permeability, &
+                     permeability, logfile, trim(rockstr) // "permeability")
+             case (2) ! table of permeabilities vs. time
+                call fson_get_mpi(r, "permeability", val = permeability_table)
+                call fson_get_mpi(r, "interpolation", &
+                     default_interpolation_str, interpolation_str)
+                interpolation_type = interpolation_type_from_str(interpolation_str)
+                if (num_cells > 0) then
+                   call DMGetStratumIS(dm, rock_type_label_name, ir, cell_IS, &
+                        ierr); CHKERRQ(ierr)
+                   call ISGetIndicesF90(cell_IS, cells, ierr); CHKERRQ(ierr)
+                   allocate(control)
+                   call control%init(permeability_table, interpolation_type, cells)
+                   call ISRestoreIndicesF90(cell_IS, cells, ierr); CHKERRQ(ierr)
+                   call ISDestroy(cell_IS, ierr); CHKERRQ(ierr)
+                   if (err == 0) then
+                      call rock_controls%append(control)
+                   end if
+                end if
+                deallocate(permeability_table)
+                permeability = 0._dp ! don't need initial value
+             end select
           case default ! real or null
              call fson_get_mpi(r, "permeability", default_permeability_scalar, &
                   permeability_scalar, logfile, trim(rockstr) // "permeability")
              allocate(permeability(dim))
              permeability = permeability_scalar
           end select
+
           call fson_get_mpi(r, "wet_conductivity", default_heat_conductivity, &
                wet_conductivity, logfile, trim(rockstr) // "wet_conductivity")
           call fson_get_mpi(r, "dry_conductivity", wet_conductivity, &
@@ -314,8 +346,6 @@ contains
                specific_heat, logfile, trim(rockstr) // "specific_heat")
           perm_size = size(permeability)
 
-          call DMGetStratumSize(dm, rock_type_label_name, ir, num_cells, &
-               ierr); CHKERRQ(ierr)
           if (num_cells > 0) then
              call DMGetStratumIS(dm, rock_type_label_name, ir, cell_IS, &
                   ierr); CHKERRQ(ierr)
