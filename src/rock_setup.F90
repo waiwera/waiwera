@@ -256,8 +256,7 @@ contains
     type(logfile_type), intent(in out), optional :: logfile
     ! Locals:
     PetscInt :: num_rocktypes, ic, num_cells, offset, ghost
-    PetscInt :: ir, permeability_type, permeability_rank, dim
-    PetscInt :: interpolation_type
+    PetscInt :: i, ir, permeability_type, permeability_rank, dim
     PetscInt :: perm_size
     DMLabel :: ghost_label
     type(fson_value), pointer :: rocktypes, r
@@ -269,9 +268,6 @@ contains
     PetscReal :: wet_conductivity, dry_conductivity
     PetscReal :: permeability_scalar
     PetscReal, allocatable :: permeability(:)
-    PetscReal, allocatable :: permeability_table(:,:)
-    type(rock_control_permeability_table_type), pointer :: control
-    character(max_interpolation_str_length) :: interpolation_str
     PetscReal, pointer, contiguous :: rock_array(:)
     PetscSection :: section
     PetscErrorCode :: ierr, err
@@ -308,24 +304,8 @@ contains
                 call fson_get_mpi(r, "permeability", default_permeability, &
                      permeability, logfile, trim(rockstr) // "permeability")
              case (2) ! table of permeabilities vs. time
-                call fson_get_mpi(r, "permeability", val = permeability_table)
-                call fson_get_mpi(r, "interpolation", &
-                     default_interpolation_str, interpolation_str)
-                interpolation_type = interpolation_type_from_str(interpolation_str)
-                if (num_cells > 0) then
-                   call DMGetStratumIS(dm, rock_type_label_name, ir, cell_IS, &
-                        ierr); CHKERRQ(ierr)
-                   call ISGetIndicesF90(cell_IS, cells, ierr); CHKERRQ(ierr)
-                   allocate(control)
-                   call control%init(permeability_table, interpolation_type, cells)
-                   call ISRestoreIndicesF90(cell_IS, cells, ierr); CHKERRQ(ierr)
-                   call ISDestroy(cell_IS, ierr); CHKERRQ(ierr)
-                   if (err == 0) then
-                      call rock_controls%append(control)
-                   end if
-                end if
-                deallocate(permeability_table)
-                permeability = 0._dp ! don't need initial value
+                call setup_permeability_rock_control(r, ir, num_cells)
+                permeability = [(0._dp, i = 1, dim)] ! don't need initial value
              end select
           case default ! real or null
              call fson_get_mpi(r, "permeability", default_permeability_scalar, &
@@ -379,6 +359,48 @@ contains
        call VecRestoreArrayF90(rock_vector, rock_array, ierr); CHKERRQ(ierr)
 
     end if
+
+  contains
+
+    subroutine setup_permeability_rock_control(rock_json, ir, num_rock_cells)
+      !! Sets up permeability rock control from JSON input.
+
+      type(fson_value), pointer, intent(in) :: rock_json
+      PetscInt, intent(in) :: ir, num_rock_cells
+      ! Locals:
+      PetscReal, allocatable :: permeability_table(:,:)
+      type(rock_control_permeability_table_type), pointer :: control
+      character(max_interpolation_str_length) :: interpolation_str
+      PetscInt :: i, interpolation_type
+      IS :: cell_IS
+      PetscInt, pointer :: cells(:)
+      PetscInt, allocatable :: ghost_cell(:), rock_cell(:)
+      PetscErrorCode :: ierr
+
+      call fson_get_mpi(rock_json, "permeability", val = permeability_table)
+      call fson_get_mpi(rock_json, "interpolation", &
+           default_interpolation_str, interpolation_str)
+      interpolation_type = interpolation_type_from_str(interpolation_str)
+      if (num_rock_cells > 0) then
+         call DMGetStratumIS(dm, rock_type_label_name, ir, cell_IS, &
+              ierr); CHKERRQ(ierr)
+         call ISGetIndicesF90(cell_IS, cells, ierr); CHKERRQ(ierr)
+         allocate(ghost_cell(num_rock_cells))
+         do i = 1, num_rock_cells
+            call DMLabelGetValue(ghost_label, cells(i), ghost_cell(i), &
+                 ierr); CHKERRQ(ierr)
+         end do
+         rock_cell = pack(cells, ghost_cell < 0)
+         call ISRestoreIndicesF90(cell_IS, cells, ierr); CHKERRQ(ierr)
+         call ISDestroy(cell_IS, ierr); CHKERRQ(ierr)
+         allocate(control)
+         call control%init(permeability_table, interpolation_type, rock_cell)
+         deallocate(rock_cell, ghost_cell)
+         call rock_controls%append(control)
+      end if
+      deallocate(permeability_table)
+
+    end subroutine setup_permeability_rock_control
 
   end subroutine setup_rocks_from_types
 
