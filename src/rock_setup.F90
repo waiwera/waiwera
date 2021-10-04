@@ -270,7 +270,7 @@ contains
     PetscReal, allocatable :: permeability(:)
     PetscReal, pointer, contiguous :: rock_array(:)
     PetscSection :: section
-    PetscErrorCode :: ierr, err
+    PetscErrorCode :: ierr
     character(len=64) :: rockstr
     character(len=12) :: irstr
 

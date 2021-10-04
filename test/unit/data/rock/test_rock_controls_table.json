@@ -1,0 +1,17 @@
+{
+    "title": "Test table rock controls",
+    "mesh": "../test/unit/data/flow_simulation/mesh/3x3_2d.exo",
+    "rock": {"types": [
+        {"name": "constant",
+         "cells": [6, 7, 8],
+         "permeability": 1e-13},
+        {"name": "scalar",
+         "cells": [0, 1, 2],
+         "permeability": [[0, 10e-14], [3600, 7e-14], [7200, 4e-14], [9600, 3e-14]]},
+        {"name": "array",
+         "cells": [3, 4, 5],
+         "permeability": [[0, 1e-14, 2e-14, 3e-14],
+                          [4000, 7e-15, 8e-15, 9e-15],
+                          [5000, 1e-15, 2e-15, 3e-15]]}
+    ]}
+}
