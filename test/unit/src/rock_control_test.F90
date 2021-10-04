@@ -86,12 +86,14 @@ contains
     PetscInt, parameter :: expected_num_rocks = 3
     character(10), parameter :: rock_names(expected_num_rocks) = &
          ["constant", "scalar  ", "array   "]
-    PetscReal, parameter :: t = 4500._dp
+    PetscReal, parameter :: start_time = 0._dp, t = 4500._dp
     PetscReal, parameter :: expected_permeability(expected_num_rocks, 3) = reshape([ &
-         1.e-13_dp, 6.25e-14_dp, 4e-15_dp, &
-         1.e-13_dp, 6.25e-14_dp, 5e-15_dp, &
-         1.e-13_dp, 6.25e-14_dp, 6e-15_dp], &
+         1.e-13_dp, 7.e-14_dp, 4e-15_dp, &
+         1.e-13_dp, 7.e-14_dp, 5e-15_dp, &
+         1.e-13_dp, 7.e-14_dp, 6e-15_dp], &
          [expected_num_rocks, 3])
+    PetscReal, parameter :: expected_porosity(expected_num_rocks) = &
+         [0.1_dp, 0.05_dp, 0.2_dp]
     PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
     PetscReal, parameter :: ktol = 1.e-20_dp
 
@@ -104,7 +106,7 @@ contains
     call DMCreateLabel(mesh%serial_dm, open_boundary_label_name, ierr); CHKERRQ(ierr)
     call mesh%configure(gravity, json, err = err)
 
-    call setup_rocks(json, mesh%dm, rock_vector, mesh%rock_types, &
+    call setup_rocks(json, mesh%dm, start_time, rock_vector, mesh%rock_types, &
          rock_controls, rock_range_start, mesh%ghost_cell, err = err)
     call test%assert(0, err, "rock setup error")
     num_rock_types = mesh%rock_types%count()
@@ -137,7 +139,9 @@ contains
                         rock_range_start)
                    call rock%assign(rock_array, rock_offset)
                    call test%assert(expected_permeability(ir, :), &
-                        rock%permeability, "permeability", tol = ktol)
+                        rock%permeability, trim(rock_names(ir)) // " permeability", tol = ktol)
+                   call test%assert(expected_porosity(ir), &
+                        rock%porosity, trim(rock_names(ir)) // " porosity")
                 end if
              end do
              call ISRestoreIndicesF90(cell_IS, cells, ierr); CHKERRQ(ierr)

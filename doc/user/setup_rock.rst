@@ -67,7 +67,7 @@ Rock types may be specified in the Waiwera JSON input file via the **"rock.types
     |"dry_conductivity"|number        |= wet conductivity    |heat conductivity of unsaturated  |
     |                  |              |                      |rock (W / (m :math:`^{\circ}`\ C))|
     +------------------+--------------+----------------------+----------------------------------+
-    |"porosity"        |number        |0.1                   |porosity                          |
+    |"porosity"        |number | array|0.1                   |porosity                          |
     +------------------+--------------+----------------------+----------------------------------+
     |"density"         |number        |2200 kg / m\ :sup:`3` |grain density (kg / m\ :sup:`3`)  |
     +------------------+--------------+----------------------+----------------------------------+
@@ -103,28 +103,10 @@ Rock permeability
 -----------------
 Permeability is in many simulations the most influential rock property. In the Waiwera JSON input, permeability can be specified as a number (i.e. scalar) for isotropic permeability. To specify anisotropic permeability, the value should be a two-element array for 2-D simulations, or a three-element array for 3-D simulations.
 
-Time-dependent permeability can also be specified using a table of values (i.e. an array of arrays), the first column of which represents time, with the remaining columns representing the permeability values. For example:
+.. index:: rock; permeability direction
 
-.. code-block:: json
-
-   {"name": "greywacke",
-    "zones": ["basement"],
-    "permeability": [[0, 3e-15],
-                     [1e10, 2e-15],
-                     [3e10, 1e-15]]}
-
-defines a rock type with time-dependent isotropic permeability (reducing from 3 mD to 1 mD) defined by a table of three times. Permeabilities at times in between these values are interpolated using the default linear interpolation (this can be changed using the **"interpolation"** value). In the following example:
-
-.. code-block:: json
-
-   {"name": "greywacke",
-    "zones": ["basement"],
-    "permeability": [[0, 3e-14, 4e-14, 6e-15],
-                     [1e10, 2e-15, 2e-15, 3e-16],
-                     [3e10, 1e-15, 2e-15, 1e-14]],
-    "interpolation": "step"}
-
-a rock type is defined with time-dependent 3-D anisotropic permeability, changing using step interpolation, and again defined by values at three times.
+Permeability direction
+----------------------
 
 In the mass and energy balance equations, permeability appears only in the face flux terms (see :ref:`function_evaluations`), where the value at each mesh face is determined by harmonic weighting of the cell values on either side of the face. The scalar effective permeability normal to the face is chosen from the permeability array according to the **permeability direction** assigned to that face. By default, these directions are chosen according to the **permeability axes** of the mesh. These axes are, in turn, aligned by default with the mesh coordinate axes, so that the elements of the permeability array are associated with the :math:`x`, :math:`y` and :math:`z` axes (in a Cartesian mesh). For faces which are not perfectly aligned with any permeability axis (e.g. in non-rectangular, unstructured meshes) the axis most closely aligned with the face normal vector is used to determine the default permeability direction.
 
@@ -170,6 +152,43 @@ For example:
   }
 
 overrides the permeability directions for three faces in the mesh, leaving all others at their default values.
+
+.. index:: rock; time-dependent properties
+
+Time-dependent rock properties
+------------------------------
+
+Time-dependent rock permeabilities and porosities may be specified by using tables of values (i.e. arrays of arrays), the first column of which represents time, with the remaining columns representing the permeability or porosity values at those times. For example:
+
+.. code-block:: json
+
+   {"name": "greywacke",
+    "zones": ["basement"],
+    "permeability": [[0, 3e-15],
+                     [1e10, 2e-15],
+                     [3e10, 1e-15]]}
+
+defines a rock type with time-dependent isotropic permeability (reducing from 3 mD to 1 mD) defined by a table of three times. Permeabilities at times in between these values are interpolated using the default linear interpolation (this can be changed using the **"interpolation"** value). In the following example:
+
+.. code-block:: json
+
+   {"name": "greywacke",
+    "zones": ["basement"],
+    "permeability": [[0, 3e-14, 4e-14, 6e-15],
+                     [1e10, 2e-15, 2e-15, 3e-16],
+                     [3e10, 1e-15, 2e-15, 1e-14]],
+    "interpolation": "step"}
+
+a rock type is defined with time-dependent 3-D anisotropic permeability, changing using step interpolation, and again defined by values at three times. The following example defines a rock type with time-dependent porosity:
+
+.. code-block:: json
+
+   {"name": "formation",
+    "zones": ["west"],
+    "porosity": [[0, 0.15],
+                 [7200, 0.11],
+                 [9600, 0.08]],
+    "permeability": 3.5e-15}
 
 .. _rock_type_cells_and_zones:
 

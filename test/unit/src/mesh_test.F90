@@ -1141,6 +1141,7 @@ contains
       PetscErrorCode :: ierr, err
       PetscInt :: rock_count_local(num_rocktypes), rock_count(num_rocktypes)
       PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
+      PetscReal, parameter :: start_time = 0._dp
 
       call thermo%init()
       json => fson_parse_mpi(str = json_str)
@@ -1153,7 +1154,7 @@ contains
 
       call mesh_geometry_sanity_check(mesh, test, title)
 
-      call setup_rocks(json, mesh%dm, rock_vector, &
+      call setup_rocks(json, mesh%dm, start_time, rock_vector, &
            rock_dict, rock_controls, rock_range_start, &
            mesh%ghost_cell, err = err)
       call test%assert(0, err, "setup rock vector error")
@@ -1312,6 +1313,7 @@ contains
       PetscInt, pointer :: minc_points(:)
       PetscReal :: expected_porosity
       character(8) :: levelstr
+      PetscReal, parameter :: start_time = 0._dp
 
       num_minc_rocktypes = size(expected_fracture_porosity)
 
@@ -1325,7 +1327,7 @@ contains
       call test%assert(0, err, title // " mesh configure error")
 
       call rock_dict%init(owner = PETSC_TRUE)
-      call setup_rocks(json, mesh%dm, rock_vector, rock_dict, &
+      call setup_rocks(json, mesh%dm, start_time, rock_vector, rock_dict, &
            rock_controls, rock_range_start, mesh%ghost_cell, err = err)
       call test%assert(0, err, title // " setup rock vector error")
       call mesh%setup_minc_rock_properties(json, rock_vector, &
@@ -2069,6 +2071,7 @@ contains
       character(24) :: msg
       PetscErrorCode :: err, ierr
       PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
+      PetscReal, parameter :: start_time = 0._dp
 
       call mpi_comm_rank(PETSC_COMM_WORLD, rank, ierr)
       json => fson_parse_mpi(str = json_str)
@@ -2083,7 +2086,7 @@ contains
       call global_vec_range_start(y, y_range_start)
       call setup_tracers(json, eos, tracers, err = err)
       num_tracers = size(tracers)
-      call setup_rocks(json, mesh%dm, rock_vector, &
+      call setup_rocks(json, mesh%dm, start_time, rock_vector, &
            mesh%rock_types, rock_controls, rock_range_start, mesh%ghost_cell, &
            err = err)
       call create_fluid_vector(mesh%dm, max_component_name_length, &

@@ -57,6 +57,13 @@ module rock_control_module
      procedure, public :: update => rock_control_permeability_table_update
   end type rock_control_permeability_table_type
 
+  type, extends(rock_control_table_type), public :: rock_control_porosity_table_type
+     !! Controls rock porosity via a table of values vs. time.
+   contains
+     private
+     procedure, public :: update => rock_control_porosity_table_update
+  end type rock_control_porosity_table_type
+
   abstract interface
 
      subroutine rock_control_destroy_procedure(self)
@@ -150,6 +157,39 @@ contains
     call rock%destroy()
 
   end subroutine rock_control_permeability_table_update
+
+!------------------------------------------------------------------------
+
+  subroutine rock_control_porosity_table_update(self, t, &
+       rock_data, rock_section, rock_range_start)
+    !! Update porosity for rock_control_permeabiltiy_table_type.
+
+    use dm_utils_module, only: global_section_offset
+
+    class(rock_control_porosity_table_type), intent(in out) :: self
+    PetscReal, intent(in) :: t
+    PetscReal, pointer, contiguous, intent(in) :: rock_data(:)
+    PetscSection, intent(in) :: rock_section
+    PetscInt, intent(in) :: rock_range_start
+    ! Locals:
+    PetscReal :: porosity
+    type(rock_type) :: rock
+    PetscInt :: i, c, rock_offset
+
+    porosity = self%table%interpolate(t, 1)
+    call rock%init()
+
+    do i = 1, size(self%cell_indices)
+       c = self%cell_indices(i)
+       rock_offset = global_section_offset(rock_section, c, &
+            rock_range_start)
+       call rock%assign(rock_data, rock_offset)
+       rock%porosity = porosity
+    end do
+
+    call rock%destroy()
+
+  end subroutine rock_control_porosity_table_update
 
 !------------------------------------------------------------------------
 

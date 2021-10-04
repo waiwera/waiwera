@@ -471,7 +471,14 @@
                                                             "step", "Step"]},
                                  "wet_conductivity": {"type": "number", "minimum": 0},
                                  "dry_conductivity": {"type": "number", "minimum": 0},
-                                 "porosity": {"type": "number", "minimum": 0},
+                                 "porosity": {"oneOf": [
+                                     {"type": "number", "minimum": 0},
+                                     {"type": "array",
+                                      "items": {
+                                          "type": "array",
+                                          "items": {"type": "number"},
+                                          "minItems": 2, "maxItems": 2}}
+                                 ]},
                                  "density": {"type": "number", "minimum": 0},
                                  "specific_heat": {"type": "number", "minimum": 0},
                                  "cells": {"type": "array",

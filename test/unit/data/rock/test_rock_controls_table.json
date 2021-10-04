@@ -4,14 +4,18 @@
     "rock": {"types": [
         {"name": "constant",
          "cells": [6, 7, 8],
-         "permeability": 1e-13},
+         "permeability": 1e-13,
+         "porosity": 0.1},
         {"name": "scalar",
          "cells": [0, 1, 2],
-         "permeability": [[0, 10e-14], [3600, 7e-14], [7200, 4e-14], [9600, 3e-14]]},
+         "permeability": [[0, 10e-14], [3600, 7e-14], [7200, 4e-14], [9600, 3e-14]],
+         "porosity": [[0, 0.1], [4000, 0.05], [8000, 0.02]],
+         "interpolation": "step"},
         {"name": "array",
          "cells": [3, 4, 5],
          "permeability": [[0, 1e-14, 2e-14, 3e-14],
                           [4000, 7e-15, 8e-15, 9e-15],
-                          [5000, 1e-15, 2e-15, 3e-15]]}
+                          [5000, 1e-15, 2e-15, 3e-15]],
+         "porosity": 0.2}
     ]}
 }
