@@ -75,23 +75,26 @@ contains
     Vec :: rock_vector
     PetscReal, pointer, contiguous :: rock_array(:)
     PetscSection :: rock_section
-    PetscInt :: rock_range_start, num_rock_types, num_cells
+    PetscInt :: rock_range_start, num_rock_types
     PetscErrorCode :: ierr, err
-    PetscInt :: ir, ic, c, rock_offset, ghost
     PetscMPIInt :: rank
-    type(list_node_type), pointer :: node
     DMLabel :: ghost_label
-    IS :: cell_IS
-    PetscInt, pointer, contiguous :: cells(:)
     PetscInt, parameter :: expected_num_rocks = 3
     character(10), parameter :: rock_names(expected_num_rocks) = &
          ["constant", "scalar  ", "array   "]
     PetscReal, parameter :: start_time = 0._dp, t = 4500._dp
-    PetscReal, parameter :: expected_permeability(expected_num_rocks, 3) = reshape([ &
-         1.e-13_dp, 7.e-14_dp, 4e-15_dp, &
-         1.e-13_dp, 7.e-14_dp, 5e-15_dp, &
-         1.e-13_dp, 7.e-14_dp, 6e-15_dp], &
+    PetscReal, parameter :: expected_initial_permeability(expected_num_rocks, 3) = reshape([ &
+         1.e-13_dp, 1.e-13_dp, 1.e-14_dp, &
+         1.e-13_dp, 1.e-13_dp, 2.e-14_dp, &
+         1.e-13_dp, 1.e-13_dp, 3.e-14_dp], &
          [expected_num_rocks, 3])
+    PetscReal, parameter :: expected_permeability(expected_num_rocks, 3) = reshape([ &
+         1.e-13_dp, 7.e-14_dp, 4.e-15_dp, &
+         1.e-13_dp, 7.e-14_dp, 5.e-15_dp, &
+         1.e-13_dp, 7.e-14_dp, 6.e-15_dp], &
+         [expected_num_rocks, 3])
+    PetscReal, parameter :: expected_initial_porosity(expected_num_rocks) = &
+         [0.1_dp, 0.1_dp, 0.2_dp]
     PetscReal, parameter :: expected_porosity(expected_num_rocks) = &
          [0.1_dp, 0.05_dp, 0.2_dp]
     PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
@@ -119,35 +122,10 @@ contains
     call DMGetLabel(mesh%dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
     call rock%init()
 
-    call rock_controls%traverse(rock_control_iterator)
+    call rock_test("t = 0", expected_initial_permeability, expected_initial_porosity)
 
-    do ir = 1, num_rock_types
-       node => mesh%rock_types%get(rock_names(ir))
-       select type (item => node%data)
-       type is (rock_dict_item_type)
-          call DMGetStratumSize(mesh%dm, rock_type_label_name, item%label_value, &
-               num_cells, ierr); CHKERRQ(ierr)
-          if (num_cells > 0) then
-             call DMGetStratumIS(mesh%dm, rock_type_label_name, item%label_value, &
-                  cell_IS, ierr); CHKERRQ(ierr)
-             call ISGetIndicesF90(cell_IS, cells, ierr); CHKERRQ(ierr)
-             do ic = 1, num_cells
-                c = cells(ic)
-                call DMLabelGetValue(ghost_label, c, ghost, ierr); CHKERRQ(ierr)
-                if (ghost < 0) then
-                   rock_offset = global_section_offset(rock_section, c, &
-                        rock_range_start)
-                   call rock%assign(rock_array, rock_offset)
-                   call test%assert(expected_permeability(ir, :), &
-                        rock%permeability, trim(rock_names(ir)) // " permeability", tol = ktol)
-                   call test%assert(expected_porosity(ir), &
-                        rock%porosity, trim(rock_names(ir)) // " porosity")
-                end if
-             end do
-             call ISRestoreIndicesF90(cell_IS, cells, ierr); CHKERRQ(ierr)
-          end if
-       end select
-    end do
+    call rock_controls%traverse(rock_control_iterator)
+    call rock_test("t > 0", expected_permeability, expected_porosity)
 
     call rock%destroy()
     call rock_controls%destroy(rock_control_list_node_data_destroy, &
@@ -179,6 +157,49 @@ contains
          call rock_control%destroy()
       end select
     end subroutine rock_control_list_node_data_destroy
+
+    subroutine rock_test(title, permeability, porosity)
+
+      character(*), intent(in) :: title
+      PetscReal, intent(in) :: permeability(expected_num_rocks, 3)
+      PetscReal, intent(in) :: porosity(expected_num_rocks)
+      ! Locals:
+      PetscInt :: ir, num_cells, c, ic
+      PetscInt :: rock_offset, ghost
+      type(list_node_type), pointer :: node
+      IS :: cell_IS
+      PetscInt, pointer, contiguous :: cells(:)
+
+      do ir = 1, num_rock_types
+         node => mesh%rock_types%get(rock_names(ir))
+         select type (item => node%data)
+         type is (rock_dict_item_type)
+            call DMGetStratumSize(mesh%dm, rock_type_label_name, item%label_value, &
+                 num_cells, ierr); CHKERRQ(ierr)
+            if (num_cells > 0) then
+               call DMGetStratumIS(mesh%dm, rock_type_label_name, item%label_value, &
+                    cell_IS, ierr); CHKERRQ(ierr)
+               call ISGetIndicesF90(cell_IS, cells, ierr); CHKERRQ(ierr)
+               do ic = 1, num_cells
+                  c = cells(ic)
+                  call DMLabelGetValue(ghost_label, c, ghost, ierr); CHKERRQ(ierr)
+                  if (ghost < 0) then
+                     rock_offset = global_section_offset(rock_section, c, &
+                          rock_range_start)
+                     call rock%assign(rock_array, rock_offset)
+                     call test%assert(permeability(ir, :), rock%permeability, &
+                          trim(rock_names(ir)) // " permeability " // &
+                          trim(title), tol = ktol)
+                     call test%assert(porosity(ir), rock%porosity, &
+                          trim(rock_names(ir)) // " porosity " // trim(title))
+                  end if
+               end do
+               call ISRestoreIndicesF90(cell_IS, cells, ierr); CHKERRQ(ierr)
+            end if
+         end select
+      end do
+
+    end subroutine rock_test
 
   end subroutine test_rock_control_table
 
