@@ -333,12 +333,13 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine dm_set_default_data_layout(dm, dof)
+  subroutine dm_set_default_data_layout(dm, dof, label)
     !! Sets default data layout on DM, for primary variable vector
     !! with specified number of degrees of freedom.
 
     DM, intent(in out) :: dm
     PetscInt, intent(in) :: dof
+    DMLabel, intent(in), optional :: label !! Label defining mesh support of field
     ! Locals:
     PetscInt :: num_components(1), dim, field_dim(1)
     character(7) :: field_names(1)
@@ -349,8 +350,13 @@ contains
     field_dim = dim
     field_names(1) = "Primary"
 
-    call dm_set_data_layout(dm, num_components, field_dim, &
-         field_names)
+    if (present(label)) then
+       call dm_set_data_layout(dm, num_components, field_dim, &
+            field_names, [label])
+    else
+       call dm_set_data_layout(dm, num_components, field_dim, &
+            field_names)
+    end if
 
   end subroutine dm_set_default_data_layout
 
