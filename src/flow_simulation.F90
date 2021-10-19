@@ -850,7 +850,8 @@ contains
     call self%mesh%configure(self%gravity, json, self%logfile, err)
     if (err == 0) then
        call self%mesh%override_face_properties()
-       call self%create_solution_vector(self%solution, self%solution_range_start)
+       call self%create_solution_vector(self%mesh%dm, self%solution, &
+            self%solution_range_start)
        call setup_tracers(json, self%eos, self%tracers, self%logfile, err)
        if (err == 0) then
           self%auxiliary = (size(self%tracers) > 0)
