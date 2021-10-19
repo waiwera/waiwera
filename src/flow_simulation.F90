@@ -1142,7 +1142,7 @@ contains
 
     call self%mesh%construct_ghost_cells(self%gravity)
 
-    call self%create_solution_vector(solution, range_start)
+    call self%create_solution_vector(self%mesh%interior_dm, solution, range_start)
     call vec_copy_common_local(self%solution, solution)
     call VecDestroy(self%solution, ierr); CHKERRQ(ierr)
     self%solution = solution
