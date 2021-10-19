@@ -785,7 +785,7 @@ contains
     DM :: dm_update
     PetscErrorCode :: ierr
 
-    call DMClone(self%mesh%dm, dm_update, ierr); CHKERRQ(ierr)
+    call DMClone(self%mesh%interior_dm, dm_update, ierr); CHKERRQ(ierr)
     call dm_set_data_layout(dm_update, [1], [self%mesh%dim], ["update"])
     call DMCreateGlobalVector(dm_update, self%update_cell, ierr); CHKERRQ(ierr)
     call PetscObjectSetName(self%update_cell, "update_cell", ierr); CHKERRQ(ierr)
