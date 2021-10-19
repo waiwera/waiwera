@@ -44,6 +44,7 @@ module mesh_module
   character(len = 16), public :: boundary_ghost_label_name = "boundary_ghost" !! Name of DMLabel for identifying boundary ghost cells
   character(len = 16), public :: flux_face_label_name = "flux_face" !! Name of DMLabel for identifying flux faces 
   character(len = 16), public :: remote_point_label_name = "remote_point" !! Name of DMLabel for remotely owned DM points
+  character(len = 16), public :: interior_label_name = "interior" !! Name of DMLabel for interior cells
 
   type, public :: mesh_type
      !! Mesh type.
@@ -52,6 +53,7 @@ module mesh_module
      DM, public :: serial_dm !! Original DM read from file (not distributed)
      DM, public :: original_dm !! Original DM read from file (and distributed)
      DM, public :: dm !! DM representing the mesh topology (may be modified from original_dm)
+     DM, public :: interior_dm !! clone of dm with section only for interior cells
      Vec, public :: cell_geom !! Vector containing cell geometry data
      Vec, public :: face_geom !! Vector containing face geometry data
      PetscInt, public :: dim !! DM dimension
@@ -114,6 +116,7 @@ module mesh_module
      procedure :: geometry_add_boundary => mesh_geometry_add_boundary
      procedure :: boundary_face_geometry => mesh_boundary_face_geometry
      procedure :: setup_cell_natural => mesh_setup_cell_natural
+     procedure :: setup_interior_dm => mesh_setup_interior_dm
      procedure, public :: init => mesh_init
      procedure, public :: configure => mesh_configure
      procedure, public :: construct_ghost_cells => mesh_construct_ghost_cells
@@ -213,9 +216,46 @@ contains
        self%cell_natural_global = dm_get_natural_to_global_ao(self%dm, self%cell_natural)
        call self%geometry_add_boundary(gravity)
        call self%setup_ghost_arrays()
+       call self%setup_interior_dm()
     end if
 
   end subroutine mesh_construct_ghost_cells
+
+!------------------------------------------------------------------------
+
+  subroutine mesh_setup_interior_dm(self)
+    !! Sets up DM for interior cells (not boundary ghost cells). This
+    !! is a clone of the main DM but with a different section.
+
+    use dm_utils_module, only: dm_set_default_data_layout
+
+    class(mesh_type), intent(in out) :: self
+    ! Locals:
+    DMLabel :: interior_label, celltype_label
+    PetscInt :: c, start_cell, end_cell, cell_type
+    PetscErrorCode :: ierr
+
+    call DMClone(self%dm, self%interior_dm, ierr); CHKERRQ(ierr)
+
+    call DMCreateLabel(self%interior_dm, interior_label_name, &
+         ierr); CHKERRQ(ierr)
+    call DMPlexGetHeightStratum(self%interior_dm, 0, start_cell, end_cell, ierr)
+    CHKERRQ(ierr)
+    call DMPlexGetCellTypeLabel(self%interior_dm, celltype_label, ierr); CHKERRQ(ierr)
+    do c = start_cell, end_cell - 1
+       call DMLabelGetValue(celltype_label, c, cell_type, ierr); CHKERRQ(ierr)
+       if (cell_type /= DM_POLYTOPE_FV_GHOST) then
+          call DMSetLabelValue(self%interior_dm, interior_label_name, &
+               c, 1, ierr); CHKERRQ(ierr)
+       end if
+    end do
+
+    call DMGetLabel(self%interior_dm, interior_label_name, interior_label, &
+         ierr); CHKERRQ(ierr)
+    call dm_set_default_data_layout(self%interior_dm, self%dof, &
+         interior_label)
+
+  end subroutine mesh_setup_interior_dm
 
 !------------------------------------------------------------------------
 
