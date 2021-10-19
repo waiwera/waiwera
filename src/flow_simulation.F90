@@ -128,18 +128,19 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine flow_simulation_create_solution_vector(self, solution, range_start)
+  subroutine flow_simulation_create_solution_vector(self, dm, solution, range_start)
     !! Creates and returns solution vector, and corresponding range_start.
 
     use dm_utils_module, only: global_vec_range_start
 
     class(flow_simulation_type), intent(in out) :: self
+    DM, intent(in) :: dm !! DM used to create solution vector
     Vec, intent(out) :: solution !! Solution vector
     PetscInt, intent(out) :: range_start !! Range start, used for computing offsets
     ! Locals:
     PetscErrorCode :: ierr
 
-    call DMCreateGlobalVector(self%mesh%dm, solution, ierr)
+    call DMCreateGlobalVector(dm, solution, ierr)
     CHKERRQ(ierr)
     call PetscObjectSetName(solution, "primary", ierr); CHKERRQ(ierr)
     call global_vec_range_start(solution, range_start)
