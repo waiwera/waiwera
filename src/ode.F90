@@ -62,7 +62,6 @@ module ode_module
      procedure, public :: pre_try_timestep => ode_pre_try_timestep
      procedure, public :: pre_retry_timestep => ode_pre_retry_timestep
      procedure, public :: post_linesearch => ode_post_linesearch
-     procedure, public :: boundary_residuals => ode_boundary_residuals
      procedure(ode_output_procedure), public, deferred :: output
   end type ode_type
 
@@ -203,26 +202,6 @@ contains
     err = 0
 
   end subroutine ode_post_linesearch
-
-!------------------------------------------------------------------------
-
-  subroutine ode_boundary_residuals(self, y, lhs, residual, err)
-    !! Computes residual terms for boundary ghost cells and adds them
-    !! in to the specified residual vector. The residuals are computed
-    !! from the difference between the LHS term for the specified
-    !! primary variables y, and those in the specified initial lhs
-    !! vector. This routine is used for direct steady state runs.
-
-    class(ode_type), intent(in out) :: self
-    Vec, intent(in) :: y !! primary variables
-    Vec, intent(in) :: lhs !! initial LHS vector
-    Vec, intent(in out) :: residual !! residual vector
-    PetscErrorCode, intent(out) :: err !! error code
-
-    ! Do nothing
-    err = 0
-
-  end subroutine ode_boundary_residuals
 
 !------------------------------------------------------------------------
 

@@ -435,8 +435,7 @@ contains
 
   subroutine direct_ss_residual(solver, y, residual, context, err)
     !! Residual for direct solution of steady state equations R(y) =
-    !! 0.  Here we evaluate R() at the steps final time, and add
-    !! residuals for boundary ghost cells.
+    !! 0.  Here we evaluate R() at the steps final time.
 
     SNES, intent(in) :: solver
     Vec, intent(in) :: y
@@ -452,10 +451,7 @@ contains
     interval = [t, t]
     call context%ode%rhs(t, interval, y, context%steps%current%rhs, err)
     if (err == 0) then
-       call VecCopy(context%steps%current%rhs, residual, ierr)
-       CHKERRQ(ierr)
-       call context%ode%boundary_residuals(y, context%steps%current%lhs, &
-            residual, err)
+       call VecCopy(context%steps%current%rhs, residual, ierr); CHKERRQ(ierr)
     end if
 
   end subroutine direct_ss_residual

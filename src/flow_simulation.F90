@@ -120,7 +120,6 @@ module flow_simulation_module
      procedure, public :: output_source_indices => flow_simulation_output_source_indices
      procedure, public :: output_source_cell_indices => flow_simulation_output_source_cell_indices
      procedure, public :: output => flow_simulation_output
-     procedure, public :: boundary_residuals => flow_simulation_boundary_residuals
      procedure, public :: get_dof => flow_simulation_get_dof
   end type flow_simulation_type
 
@@ -2886,81 +2885,6 @@ contains
     call PetscLogEventEnd(output_event, ierr); CHKERRQ(ierr)
 
   end subroutine flow_simulation_output
-
-!------------------------------------------------------------------------
-
-  subroutine flow_simulation_boundary_residuals(self, y, lhs, residual, err)
-    !! Computes residual terms for boundary ghost cells.
-
-    use dm_utils_module, only: global_section_offset, global_vec_section, &
-         dm_get_end_interior_cell
-    use cell_module, only: cell_type
-
-    class(flow_simulation_type), intent(in out) :: self
-    Vec, intent(in) :: y !! primary variables
-    Vec, intent(in) :: lhs !! initial LHS vector
-    Vec, intent(in out) :: residual !! residual vector
-    PetscErrorCode, intent(out) :: err !! error code
-    ! Locals:
-    PetscInt :: c, np, nc
-    PetscInt :: start_cell, end_cell, end_interior_cell
-    PetscSection :: fluid_section, rock_section, lhs_section
-    PetscInt :: fluid_offset, rock_offset, lhs_offset
-    PetscReal, pointer, contiguous :: fluid_array(:), rock_array(:)
-    PetscReal, pointer, contiguous :: lhs_array(:), residual_array(:)
-    PetscReal, pointer, contiguous :: cell_lhs(:), cell_residual(:)
-    type(cell_type) :: cell
-    PetscErrorCode :: ierr
-
-    err = 0
-    np = self%eos%num_primary_variables
-    nc = self%eos%num_components
-
-    call global_vec_section(lhs, lhs_section)
-    call VecGetArrayReadF90(lhs, lhs_array, ierr); CHKERRQ(ierr)
-    call VecGetArrayF90(residual, residual_array, ierr); CHKERRQ(ierr)
-
-    call global_vec_section(self%current_fluid, fluid_section)
-    call VecGetArrayReadF90(self%current_fluid, fluid_array, ierr); CHKERRQ(ierr)
-
-    call global_vec_section(self%rock, rock_section)
-    call VecGetArrayReadF90(self%rock, rock_array, ierr); CHKERRQ(ierr)
-
-    call cell%init(nc, self%eos%num_phases)
-    call DMPlexGetHeightStratum(self%mesh%dm, 0, start_cell, end_cell, ierr)
-    CHKERRQ(ierr)
-    end_interior_cell = dm_get_end_interior_cell(self%mesh%dm, end_cell)
-
-    do c = end_interior_cell, end_cell - 1
-
-       if (self%mesh%ghost_cell(c) < 0) then
-
-          lhs_offset = global_section_offset(lhs_section, c, &
-               self%solution_range_start)
-          cell_lhs => lhs_array(lhs_offset : lhs_offset + np - 1)
-          cell_residual => residual_array(lhs_offset : lhs_offset + np - 1)
-
-          fluid_offset = global_section_offset(fluid_section, c, &
-               self%fluid_range_start)
-          rock_offset = global_section_offset(rock_section, c, &
-               self%rock_range_start)
-
-          call cell%rock%assign(rock_array, rock_offset)
-          call cell%fluid%assign(fluid_array, fluid_offset)
-
-          cell_residual = cell%balance(np) - cell_lhs
-
-       end if
-
-    end do
-
-    call cell%destroy()
-    call VecRestoreArrayReadF90(self%current_fluid, fluid_array, ierr); CHKERRQ(ierr)
-    call VecRestoreArrayReadF90(self%rock, rock_array, ierr); CHKERRQ(ierr)
-    call VecRestoreArrayReadF90(lhs, lhs_array, ierr); CHKERRQ(ierr)
-    call VecRestoreArrayF90(residual, residual_array, ierr); CHKERRQ(ierr)
-
-  end subroutine flow_simulation_boundary_residuals
 
 !------------------------------------------------------------------------
 
