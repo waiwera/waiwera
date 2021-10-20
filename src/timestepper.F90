@@ -1515,7 +1515,7 @@ end subroutine timestepper_steps_set_next_stepsize
     call SNESSetApplicationContext(self%solver, self%context, ierr); CHKERRQ(ierr)
     call SNESSetFunction(self%solver, self%residual, &
          SNES_residual, self%context, ierr); CHKERRQ(ierr)
-    call SNESSetDM(self%solver, self%ode%mesh%dm, ierr); CHKERRQ(ierr)
+    call SNESSetDM(self%solver, self%ode%mesh%interior_dm, ierr); CHKERRQ(ierr)
 
     call MatColoringCreate(self%jacobian, matrix_coloring, ierr); CHKERRQ(ierr)
     call MatColoringSetFromOptions(matrix_coloring, ierr); CHKERRQ(ierr)
@@ -1897,8 +1897,9 @@ end subroutine timestepper_steps_set_next_stepsize
     else
        mat_type = MATBAIJ
     end if
-    call DMSetMatType(self%ode%mesh%dm, mat_type, ierr); CHKERRQ(ierr)
-    call DMCreateMatrix(self%ode%mesh%dm, self%jacobian, ierr); CHKERRQ(ierr)
+    call DMSetMatType(self%ode%mesh%interior_dm, mat_type, ierr); CHKERRQ(ierr)
+    call DMCreateMatrix(self%ode%mesh%interior_dm, self%jacobian, ierr)
+    CHKERRQ(ierr)
     call MatSetFromOptions(self%jacobian, ierr); CHKERRQ(ierr)
 
   end subroutine timestepper_setup_jacobian

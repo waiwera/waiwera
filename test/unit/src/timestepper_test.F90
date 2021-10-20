@@ -211,9 +211,9 @@ contains
     self%test => test
 
     call DMDACreate1d(PETSC_COMM_WORLD, DM_BOUNDARY_NONE, self%dim, self%dof, &
-         self%stencil, PETSC_NULL_INTEGER, self%mesh%dm, ierr); CHKERRQ(ierr)
-    call DMSetUp(self%mesh%dm, ierr); CHKERRQ(ierr)
-    call DMCreateGlobalVector(self%mesh%dm, self%solution, ierr); CHKERRQ(ierr)
+         self%stencil, PETSC_NULL_INTEGER, self%mesh%interior_dm, ierr); CHKERRQ(ierr)
+    call DMSetUp(self%mesh%interior_dm, ierr); CHKERRQ(ierr)
+    call DMCreateGlobalVector(self%mesh%interior_dm, self%solution, ierr); CHKERRQ(ierr)
     call VecDuplicate(self%solution, self%exact_solution, ierr); CHKERRQ(ierr)
     call VecDuplicate(self%solution, self%diff, ierr); CHKERRQ(ierr)
     if (self%auxiliary) then
@@ -238,7 +238,7 @@ contains
        call VecDestroy(self%aux_solution, ierr); CHKERRQ(ierr)
     end if
     call VecDestroy(self%diff, ierr); CHKERRQ(ierr)
-    call DMDestroy(self%mesh%dm, ierr); CHKERRQ(ierr)
+    call DMDestroy(self%mesh%interior_dm, ierr); CHKERRQ(ierr)
     call self%logfile%destroy()
   end subroutine destroy_test_ode
 
@@ -563,18 +563,18 @@ contains
     PetscReal :: x
     PetscErrorCode :: ierr
 
-    call DMGetCoordinateDM(self%mesh%dm, cdm, ierr); CHKERRQ(ierr)
-    call DMGetCoordinates(self%mesh%dm, cv, ierr); CHKERRQ(ierr)
+    call DMGetCoordinateDM(self%mesh%interior_dm, cdm, ierr); CHKERRQ(ierr)
+    call DMGetCoordinates(self%mesh%interior_dm, cv, ierr); CHKERRQ(ierr)
     call DMDAVecGetArrayF90(cdm, cv, coords, ierr); CHKERRQ(ierr)
-    call DMDAVecGetArrayF90(self%mesh%dm, v, va, ierr); CHKERRQ(ierr)
-    call DMDAGetCorners(self%mesh%dm, i1, PETSC_NULL_INTEGER, &
+    call DMDAVecGetArrayF90(self%mesh%interior_dm, v, va, ierr); CHKERRQ(ierr)
+    call DMDAGetCorners(self%mesh%interior_dm, i1, PETSC_NULL_INTEGER, &
          PETSC_NULL_INTEGER, im, PETSC_NULL_INTEGER, &
          PETSC_NULL_INTEGER, ierr); CHKERRQ(ierr)
     do i = i1, i1+im-1
        x = coords(i)
        va(i) = self%fn(x, t)
     end do
-    call DMDAVecRestoreArrayF90(self%mesh%dm, v, va, ierr)
+    call DMDAVecRestoreArrayF90(self%mesh%interior_dm, v, va, ierr)
     CHKERRQ(ierr)
     call DMDAVecRestoreArrayF90(cdm, cv, coords, ierr); CHKERRQ(ierr)
 
@@ -608,12 +608,12 @@ contains
     self%a = 1._dp / (dx*dx)
 
     call DMDACreate1d(PETSC_COMM_WORLD, DM_BOUNDARY_GHOSTED, self%dim-2, &
-         self%dof, self%stencil, PETSC_NULL_INTEGER, self%mesh%dm, &
+         self%dof, self%stencil, PETSC_NULL_INTEGER, self%mesh%interior_dm, &
          ierr); CHKERRQ(ierr)
-    call DMSetUp(self%mesh%dm, ierr); CHKERRQ(ierr)
-    call DMDASetUniformCoordinates(self%mesh%dm, dx, self%L - dx, &
+    call DMSetUp(self%mesh%interior_dm, ierr); CHKERRQ(ierr)
+    call DMDASetUniformCoordinates(self%mesh%interior_dm, dx, self%L - dx, &
          0._dp, 0._dp, 0._dp, 0._dp, ierr); CHKERRQ(ierr)
-    call DMCreateGlobalVector(self%mesh%dm, self%solution, ierr)
+    call DMCreateGlobalVector(self%mesh%interior_dm, self%solution, ierr)
     CHKERRQ(ierr)
     call VecDuplicate(self%solution, self%exact_solution, ierr)
     CHKERRQ(ierr)
@@ -637,22 +637,22 @@ contains
     Vec :: ylocal
 
     err = 0
-    call DMGetLocalVector(self%mesh%dm, ylocal, ierr); CHKERRQ(ierr)
-    call DMGlobalToLocalBegin(self%mesh%dm, y, INSERT_VALUES, ylocal, &
+    call DMGetLocalVector(self%mesh%interior_dm, ylocal, ierr); CHKERRQ(ierr)
+    call DMGlobalToLocalBegin(self%mesh%interior_dm, y, INSERT_VALUES, ylocal, &
          ierr); CHKERRQ(ierr)
-    call DMGlobalToLocalEnd(self%mesh%dm, y, INSERT_VALUES, ylocal, &
+    call DMGlobalToLocalEnd(self%mesh%interior_dm, y, INSERT_VALUES, ylocal, &
          ierr); CHKERRQ(ierr)
 
-    call DMDAGetCorners(self%mesh%dm, i1, PETSC_NULL_INTEGER, &
+    call DMDAGetCorners(self%mesh%interior_dm, i1, PETSC_NULL_INTEGER, &
          PETSC_NULL_INTEGER, im, PETSC_NULL_INTEGER, &
          PETSC_NULL_INTEGER, ierr); CHKERRQ(ierr)
-    call DMDAVecGetArrayF90(self%mesh%dm, ylocal, ya, ierr)
+    call DMDAVecGetArrayF90(self%mesh%interior_dm, ylocal, ya, ierr)
     CHKERRQ(ierr)
-    call DMDAVecGetArrayF90(self%mesh%dm, rhs, rhsa, ierr)
+    call DMDAVecGetArrayF90(self%mesh%interior_dm, rhs, rhsa, ierr)
     CHKERRQ(ierr)
 
     ! BCs:
-    call DMDAGetGhostCorners(self%mesh%dm, i1g, PETSC_NULL_INTEGER, &
+    call DMDAGetGhostCorners(self%mesh%interior_dm, i1g, PETSC_NULL_INTEGER, &
          PETSC_NULL_INTEGER, img, PETSC_NULL_INTEGER, &
          PETSC_NULL_INTEGER, ierr); CHKERRQ(ierr)
     i2g = i1g+img-1
@@ -663,11 +663,11 @@ contains
        rhsa(i) = self%a * (ya(i-1) - 2._dp * ya(i) + ya(i+1))
     end do
 
-    call DMDAVecRestoreArrayF90(self%mesh%dm, ylocal, ya, ierr)
+    call DMDAVecRestoreArrayF90(self%mesh%interior_dm, ylocal, ya, ierr)
     CHKERRQ(ierr)
-    call DMRestoreLocalVector(self%mesh%dm, ylocal, ierr); CHKERRQ(ierr)
+    call DMRestoreLocalVector(self%mesh%interior_dm, ylocal, ierr); CHKERRQ(ierr)
 
-    call DMDAVecRestoreArrayF90(self%mesh%dm, rhs, rhsa, ierr)
+    call DMDAVecRestoreArrayF90(self%mesh%interior_dm, rhs, rhsa, ierr)
     CHKERRQ(ierr)
 
   end subroutine rhs_heat1d
@@ -688,29 +688,29 @@ contains
     Vec :: ylocal
 
     err = 0
-    call DMGetLocalVector(self%mesh%dm, ylocal, ierr); CHKERRQ(ierr)
-    call DMGlobalToLocalBegin(self%mesh%dm, y, INSERT_VALUES, ylocal, &
+    call DMGetLocalVector(self%mesh%interior_dm, ylocal, ierr); CHKERRQ(ierr)
+    call DMGlobalToLocalBegin(self%mesh%interior_dm, y, INSERT_VALUES, ylocal, &
          ierr); CHKERRQ(ierr)
-    call DMGlobalToLocalEnd(self%mesh%dm, y, INSERT_VALUES, ylocal, &
+    call DMGlobalToLocalEnd(self%mesh%interior_dm, y, INSERT_VALUES, ylocal, &
          ierr); CHKERRQ(ierr)
 
-    call DMDAGetCorners(self%mesh%dm, i1, PETSC_NULL_INTEGER, &
+    call DMDAGetCorners(self%mesh%interior_dm, i1, PETSC_NULL_INTEGER, &
          PETSC_NULL_INTEGER, im, PETSC_NULL_INTEGER, &
          PETSC_NULL_INTEGER, ierr); CHKERRQ(ierr)
-    call DMDAVecGetArrayF90(self%mesh%dm, ylocal, ya, ierr)
+    call DMDAVecGetArrayF90(self%mesh%interior_dm, ylocal, ya, ierr)
     CHKERRQ(ierr)
-    call DMDAVecGetArrayF90(self%mesh%dm, lhs, lhsa, ierr)
+    call DMDAVecGetArrayF90(self%mesh%interior_dm, lhs, lhsa, ierr)
     CHKERRQ(ierr)
 
     do i = i1, i1+im-1
        lhsa(i) = ya(i) * ya(i)
     end do
 
-    call DMDAVecRestoreArrayF90(self%mesh%dm, ylocal, ya, ierr)
+    call DMDAVecRestoreArrayF90(self%mesh%interior_dm, ylocal, ya, ierr)
     CHKERRQ(ierr)
-    call DMRestoreLocalVector(self%mesh%dm, ylocal, ierr); CHKERRQ(ierr)
+    call DMRestoreLocalVector(self%mesh%interior_dm, ylocal, ierr); CHKERRQ(ierr)
 
-    call DMDAVecRestoreArrayF90(self%mesh%dm, lhs, lhsa, ierr)
+    call DMDAVecRestoreArrayF90(self%mesh%interior_dm, lhs, lhsa, ierr)
     CHKERRQ(ierr)
 
   end subroutine lhs_heat1d_nonlinear
@@ -729,22 +729,22 @@ contains
     Vec :: ylocal
 
     err = 0
-    call DMGetLocalVector(self%mesh%dm, ylocal, ierr); CHKERRQ(ierr)
-    call DMGlobalToLocalBegin(self%mesh%dm, y, INSERT_VALUES, &
+    call DMGetLocalVector(self%mesh%interior_dm, ylocal, ierr); CHKERRQ(ierr)
+    call DMGlobalToLocalBegin(self%mesh%interior_dm, y, INSERT_VALUES, &
          ylocal, ierr); CHKERRQ(ierr)
-    call DMGlobalToLocalEnd(self%mesh%dm, y, INSERT_VALUES, ylocal, &
+    call DMGlobalToLocalEnd(self%mesh%interior_dm, y, INSERT_VALUES, ylocal, &
          ierr); CHKERRQ(ierr)
 
-    call DMDAGetCorners(self%mesh%dm, i1, PETSC_NULL_INTEGER, &
+    call DMDAGetCorners(self%mesh%interior_dm, i1, PETSC_NULL_INTEGER, &
          PETSC_NULL_INTEGER, im, PETSC_NULL_INTEGER, &
          PETSC_NULL_INTEGER, ierr); CHKERRQ(ierr)
-    call DMDAVecGetArrayF90(self%mesh%dm, ylocal, ya, ierr)
+    call DMDAVecGetArrayF90(self%mesh%interior_dm, ylocal, ya, ierr)
     CHKERRQ(ierr)
-    call DMDAVecGetArrayF90(self%mesh%dm, rhs, rhsa, ierr)
+    call DMDAVecGetArrayF90(self%mesh%interior_dm, rhs, rhsa, ierr)
     CHKERRQ(ierr)
 
     ! BCs:
-    call DMDAGetGhostCorners(self%mesh%dm, i1g, PETSC_NULL_INTEGER, &
+    call DMDAGetGhostCorners(self%mesh%interior_dm, i1g, PETSC_NULL_INTEGER, &
          PETSC_NULL_INTEGER, img, PETSC_NULL_INTEGER, &
          PETSC_NULL_INTEGER, ierr); CHKERRQ(ierr)
     i2g = i1g+img-1
@@ -755,11 +755,11 @@ contains
        rhsa(i) = 2._dp * ya(i) * self%a * (ya(i-1) - 2._dp * ya(i) + ya(i+1))
     end do
 
-    call DMDAVecRestoreArrayF90(self%mesh%dm, ylocal, ya, ierr)
+    call DMDAVecRestoreArrayF90(self%mesh%interior_dm, ylocal, ya, ierr)
     CHKERRQ(ierr)
-    call DMRestoreLocalVector(self%mesh%dm, ylocal, ierr); CHKERRQ(ierr)
+    call DMRestoreLocalVector(self%mesh%interior_dm, ylocal, ierr); CHKERRQ(ierr)
 
-    call DMDAVecRestoreArrayF90(self%mesh%dm, rhs, rhsa, ierr)
+    call DMDAVecRestoreArrayF90(self%mesh%interior_dm, rhs, rhsa, ierr)
     CHKERRQ(ierr)
 
   end subroutine rhs_heat1d_nonlinear
