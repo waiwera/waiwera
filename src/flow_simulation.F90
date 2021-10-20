@@ -1222,8 +1222,8 @@ contains
     call VecGetArrayReadF90(self%rock, rock_array, ierr); CHKERRQ(ierr)
 
     call cell%init(nc, self%eos%num_phases)
-    call DMPlexGetHeightStratum(self%mesh%dm, 0, start_cell, end_cell, ierr)
-    CHKERRQ(ierr)
+    call DMPlexGetHeightStratum(self%mesh%interior_dm, 0, start_cell, end_cell, &
+         ierr); CHKERRQ(ierr)
 
     do c = start_cell, end_cell - 1
 
