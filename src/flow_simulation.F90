@@ -1299,9 +1299,10 @@ contains
     PetscSection :: cell_geom_section, face_geom_section, flux_section
     PetscSection :: source_section
     type(face_type) :: face
-    PetscInt :: face_geom_offset, cell_geom_offsets(2), update_offsets(2)
+    PetscInt :: face_geom_offset, cell_geom_offsets(2), update_offset
     PetscInt :: rock_offsets(2), fluid_offsets(2), rhs_offsets(2)
     PetscInt :: rhs_offset, flux_offset
+    PetscBool :: update_flux
     PetscInt, pointer :: cells(:)
     PetscReal, pointer, contiguous :: inflow(:)
     PetscReal, allocatable :: face_flux(:), face_component_flow(:)
@@ -1349,8 +1350,12 @@ contains
        f = self%mesh%flux_face(iface)
 
        call DMPlexGetSupport(self%mesh%dm, f, cells, ierr); CHKERRQ(ierr)
+       update_flux = PETSC_FALSE
        do i = 1, 2
-          update_offsets(i) = section_offset(update_section, cells(i))
+          if (cells(i) <= end_interior_cell - 1) then
+             update_offset = section_offset(update_section, cells(i))
+             update_flux = (update_flux .or. (update(update_offset) > 0))
+          end if
           cell_geom_offsets(i) = section_offset(cell_geom_section, cells(i))
           rhs_offsets(i) = global_section_offset(rhs_section, cells(i), &
                self%solution_range_start)
@@ -1359,8 +1364,7 @@ contains
        call face%assign_geometry(face_geom_array, face_geom_offset)
        call face%assign_cell_geometry(cell_geom_array, cell_geom_offsets)
 
-       if ((update(update_offsets(1)) > 0) .or. &
-            (update(update_offsets(2)) > 0)) then
+       if (update_flux) then
           do i = 1, 2
              fluid_offsets(i) = section_offset(fluid_section, cells(i))
              rock_offsets(i) = section_offset(rock_section, cells(i))
