@@ -1182,7 +1182,8 @@ contains
     !! Computes mass and energy balance for each cell, for the given
     !! primary thermodynamic variables and time.
 
-    use dm_utils_module, only: global_section_offset, global_vec_section
+    use dm_utils_module, only: global_section_offset, global_vec_section, &
+         dm_get_end_interior_cell
     use cell_module, only: cell_type
     use profiling_module, only: cell_balances_event
 
@@ -1193,7 +1194,7 @@ contains
     Vec, intent(in out) :: lhs
     PetscErrorCode, intent(out) :: err
     ! Locals:
-    PetscInt :: c, np, nc, start_cell, end_cell
+    PetscInt :: c, np, nc, start_cell, end_cell, end_interior_cell
     PetscSection :: fluid_section, rock_section, lhs_section, update_section
     PetscInt :: fluid_offset, rock_offset, lhs_offset, update_offset
     PetscReal, pointer, contiguous :: fluid_array(:), rock_array(:), &
@@ -1222,10 +1223,11 @@ contains
     call VecGetArrayReadF90(self%rock, rock_array, ierr); CHKERRQ(ierr)
 
     call cell%init(nc, self%eos%num_phases)
-    call DMPlexGetHeightStratum(self%mesh%interior_dm, 0, start_cell, end_cell, &
+    call DMPlexGetHeightStratum(self%mesh%dm, 0, start_cell, end_cell, &
          ierr); CHKERRQ(ierr)
+    end_interior_cell = dm_get_end_interior_cell(self%mesh%dm, end_cell)
 
-    do c = start_cell, end_cell - 1
+    do c = start_cell, end_interior_cell - 1
 
        if (self%mesh%ghost_cell(c) < 0) then
 
@@ -2268,11 +2270,12 @@ contains
 !------------------------------------------------------------------------
 
   subroutine flow_simulation_fluid_properties(self, t, y, err)
-    !! Computes fluid properties in all cells, excluding phase
-    !! composition, based on the current time and primary
+    !! Computes fluid properties (excluding phase composition) in all
+    !! interior cells based on the current time and primary
     !! thermodynamic variables.
 
-    use dm_utils_module, only: global_section_offset, global_vec_section
+    use dm_utils_module, only: global_section_offset, global_vec_section, &
+         dm_get_end_interior_cell
     use cell_module, only: cell_type
     use profiling_module, only: fluid_properties_event
     use mpi_utils_module, only: mpi_broadcast_error_flag
@@ -2283,7 +2286,7 @@ contains
     PetscErrorCode, intent(out) :: err !! error code
     ! Locals:
     PetscInt :: c, np, nc, natural, minc_level
-    PetscInt :: start_cell, end_cell
+    PetscInt :: start_cell, end_cell, end_interior_cell
     PetscSection :: y_section, fluid_section, rock_section, update_section
     PetscInt :: y_offset, fluid_offset, rock_offset, update_offset
     PetscReal, pointer, contiguous :: y_array(:), scaled_cell_primary(:)
@@ -2320,8 +2323,9 @@ contains
     call DMGetLocalToGlobalMapping(self%mesh%dm, l2g, ierr); CHKERRQ(ierr)
     call DMPlexGetHeightStratum(self%mesh%dm, 0, start_cell, end_cell, ierr)
     CHKERRQ(ierr)
+    end_interior_cell = dm_get_end_interior_cell(self%mesh%dm, end_cell)
 
-    do c = start_cell, end_cell - 1
+    do c = start_cell, end_interior_cell - 1
 
        if ((self%mesh%ghost_cell(c) < 0)) then
 
@@ -2398,7 +2402,8 @@ contains
     !! Checks primary variables and thermodynamic regions in all mesh
     !! cells and updates if region transitions have occurred.
 
-    use dm_utils_module, only: global_section_offset, global_vec_section
+    use dm_utils_module, only: global_section_offset, global_vec_section, &
+         dm_get_end_interior_cell
     use fluid_module, only: fluid_type
     use profiling_module, only: fluid_transitions_event
     use mpi_utils_module, only: mpi_broadcast_error_flag, mpi_broadcast_logical
@@ -2411,7 +2416,7 @@ contains
     PetscErrorCode, intent(out) :: err !! Error code
     ! Locals:
     PetscInt :: c, np, nc, minc_level, natural
-    PetscInt :: start_cell, end_cell
+    PetscInt :: start_cell, end_cell, end_interior_cell
     PetscSection :: primary_section, fluid_section
     PetscInt :: primary_offset, fluid_offset
     PetscReal, pointer, contiguous :: primary_array(:), old_primary_array(:), search_array(:)
@@ -2452,8 +2457,9 @@ contains
     call DMGetLocalToGlobalMapping(self%mesh%dm, l2g, ierr); CHKERRQ(ierr)
     call DMPlexGetHeightStratum(self%mesh%dm, 0, start_cell, end_cell, ierr)
     CHKERRQ(ierr)
+    end_interior_cell = dm_get_end_interior_cell(self%mesh%dm, end_cell)
 
-    do c = start_cell, end_cell - 1
+    do c = start_cell, end_interior_cell - 1
 
        if (self%mesh%ghost_cell(c) < 0) then
 
