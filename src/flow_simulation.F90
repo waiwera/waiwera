@@ -2156,7 +2156,8 @@ contains
     !! thermodynamic variables. This is called before the timestepper
     !! starts to run.
 
-    use dm_utils_module, only: global_section_offset, global_vec_section
+    use dm_utils_module, only: global_section_offset, global_vec_section, &
+         dm_get_end_interior_cell
     use cell_module, only: cell_type
     use profiling_module, only: fluid_init_event
     use mpi_utils_module, only: mpi_broadcast_error_flag
@@ -2167,7 +2168,7 @@ contains
     PetscErrorCode, intent(out) :: err
     ! Locals:
     PetscInt :: c, np, nc, natural, minc_level
-    PetscInt :: start_cell, end_cell
+    PetscInt :: start_cell, end_cell, end_interior_cell
     PetscSection :: y_section, fluid_section, rock_section
     PetscInt :: y_offset, fluid_offset, rock_offset
     PetscReal, pointer, contiguous :: y_array(:), scaled_cell_primary(:)
@@ -2200,8 +2201,9 @@ contains
     call DMGetLocalToGlobalMapping(self%mesh%dm, l2g, ierr); CHKERRQ(ierr)
     call DMPlexGetHeightStratum(self%mesh%dm, 0, start_cell, end_cell, ierr)
     CHKERRQ(ierr)
+    end_interior_cell = dm_get_end_interior_cell(self%mesh%dm, end_cell)
 
-    do c = start_cell, end_cell - 1
+    do c = start_cell, end_interior_cell - 1
 
        if (self%mesh%ghost_cell(c) < 0) then
 
