@@ -1052,11 +1052,12 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine mesh_set_boundary_conditions(self, json, y, fluid_vector, rock_vector, &
-       tracer_vector, eos, y_range_start, fluid_range_start, rock_range_start, &
-       tracer_range_start, num_tracers, logfile)
-    !! Sets primary variables (and rock properties) in boundary ghost
-    !! cells.
+  subroutine mesh_set_boundary_conditions(self, json, fluid_vector, rock_vector, &
+       tracer_vector, eos, fluid_range_start, rock_range_start, &
+       tracer_range_start, num_tracers, relative_permeability, capillary_pressure, &
+       logfile, err)
+    !! Sets fluid and rock properties (and tracer mass fractions) in
+    !! boundary ghost cells.
 
     use fson
     use fson_value_m, only: TYPE_INTEGER, TYPE_REAL, TYPE_ARRAY
@@ -1066,34 +1067,36 @@ contains
     use eos_module, only: eos_type
     use fluid_module, only: fluid_type
     use rock_module, only: rock_type
+    use relative_permeability_module, only: relative_permeability_type
+    use capillary_pressure_module, only: capillary_pressure_type
     use logfile_module
 
     class(mesh_type), intent(in) :: self
     type(fson_value), pointer, intent(in) :: json !! JSON input file
-    Vec, intent(in out) :: y !! Primary variables vector
     Vec, intent(in out) :: fluid_vector !! Fluid properties vector
     Vec, intent(in out) :: rock_vector !! Rock properties vector
     Vec, intent(in out) :: tracer_vector !! Tracer solution vector
-    class(eos_type), intent(in) :: eos !! EOS module
-    PetscInt, intent(in) :: y_range_start !! Start of range for global primary variables vector
+    class(eos_type), intent(in out) :: eos !! EOS module
     PetscInt, intent(in) :: fluid_range_start !! Start of range for global fluid vector
     PetscInt, intent(in) :: rock_range_start !! Start of range for global rock vector
     PetscInt, intent(in) :: tracer_range_start !! Start of range for global tracer vector
     PetscInt, intent(in) :: num_tracers !! Number of tracers
+    class(relative_permeability_type), intent(in out) :: relative_permeability
+    class(capillary_pressure_type), intent(in out) :: capillary_pressure
     type(logfile_type), intent(in out), optional :: logfile !! Logfile for log output
+    PetscErrorCode, intent(out) :: err !! error code
     ! Locals:
     type(fson_value), pointer :: boundaries, bdy
     PetscInt :: num_boundaries, ibdy, f, num_faces, iface, np, n
-    PetscReal, pointer, contiguous :: y_array(:), fluid_array(:), rock_array(:), &
+    PetscReal, pointer, contiguous :: fluid_array(:), rock_array(:), &
          tracer_array(:)
-    PetscReal, pointer, contiguous :: cell_primary(:), rock1(:), rock2(:), &
-         cell_tracer(:)
-    PetscSection :: y_section, fluid_section, rock_section, tracer_section
+    PetscReal, pointer, contiguous :: rock1(:), rock2(:), cell_tracer(:)
+    PetscSection :: fluid_section, rock_section, tracer_section
     IS :: bdy_IS
     DMLabel :: ghost_label
     type(fluid_type):: fluid
     type(rock_type) :: rock
-    PetscInt :: y_offset, fluid_offset, rock_offsets(2), tracer_offset
+    PetscInt :: fluid_offset, rock_offsets(2), tracer_offset
     PetscInt :: ghost, region, i, tracer_type
     PetscInt, pointer :: bdy_faces(:), cells(:)
     PetscReal, allocatable :: primary(:)
@@ -1104,8 +1107,7 @@ contains
     PetscErrorCode :: ierr
     PetscReal, parameter :: default_tracer_mass_fraction = 0._dp
 
-    call global_vec_section(y, y_section)
-    call VecGetArrayF90(y, y_array, ierr); CHKERRQ(ierr)
+    err = 0
     call global_vec_section(fluid_vector, fluid_section)
     call VecGetArrayF90(fluid_vector, fluid_array, ierr); CHKERRQ(ierr)
     call global_vec_section(rock_vector, rock_section)
@@ -1161,32 +1163,51 @@ contains
                    call DMLabelGetValue(ghost_label, cells(1), ghost, ierr)
                    CHKERRQ(ierr)
                    if (ghost < 0) then
-                      y_offset = global_section_offset(y_section, cells(2), &
-                           y_range_start)
                       fluid_offset = global_section_offset(fluid_section, cells(2), &
                            fluid_range_start)
                       do i = 1, 2
                          rock_offsets(i) = global_section_offset(rock_section, cells(i), &
                               rock_range_start)
                       end do
-                      ! Set primary variables and region:
-                      cell_primary => y_array(y_offset : y_offset + np - 1)
-                      call fluid%assign(fluid_array, fluid_offset)
-                      cell_primary = primary
-                      fluid%region = dble(region)
-                      if (num_tracers > 0) then
-                         ! Set tracer boundary conditions:
-                         tracer_offset = global_section_offset(tracer_section, cells(2), &
-                              tracer_range_start)
-                         cell_tracer => tracer_array(tracer_offset: tracer_offset + &
-                              num_tracers - 1)
-                         cell_tracer = tracer
-                      end if
                       ! Copy rock type data from interior cell to boundary ghost cell:
                       n = rock%dof - 1
                       rock1 => rock_array(rock_offsets(1) : rock_offsets(1) + n)
                       rock2 => rock_array(rock_offsets(2) : rock_offsets(2) + n)
                       rock2 = rock1
+                      call rock%assign(rock_array, rock_offsets(2))
+                      call rock%assign_relative_permeability(relative_permeability)
+                      call rock%assign_capillary_pressure(capillary_pressure)
+                      call fluid%assign(fluid_array, fluid_offset)
+                      ! Set fluid region, bulk and phase properties:
+                      fluid%region = dble(region)
+                      call eos%bulk_properties(primary, fluid, err)
+                      if (err == 0) then
+                         call eos%phase_properties(primary, rock, fluid, err)
+                         if (err == 0) then
+                            if (num_tracers > 0) then
+                               ! Set tracer boundary conditions:
+                               tracer_offset = global_section_offset(tracer_section, cells(2), &
+                                    tracer_range_start)
+                               cell_tracer => tracer_array(tracer_offset: tracer_offset + &
+                                    num_tracers - 1)
+                               cell_tracer = tracer
+                            end if
+                         else
+                            if (present(logfile)) then
+                               call logfile%write(LOG_LEVEL_ERR, 'boundary', &
+                                    'phase_properties_not_found', &
+                                    str_key = 'index', str_value = bdystr)
+                            end if
+                            exit
+                         end if
+                      else
+                         if (present(logfile)) then
+                            call logfile%write(LOG_LEVEL_ERR, 'boundary', &
+                                 'bulk_properties_not_found', &
+                                 str_key = 'index', str_value = bdystr)
+                         end if
+                         exit
+                      end if
                    end if
                 end if
              end do
@@ -1201,7 +1222,6 @@ contains
 
     call fluid%destroy()
     call rock%destroy()
-    call VecRestoreArrayF90(y, y_array, ierr); CHKERRQ(ierr)
     call VecRestoreArrayF90(fluid_vector, fluid_array, ierr); CHKERRQ(ierr)
     call VecRestoreArrayF90(rock_vector, rock_array, ierr); CHKERRQ(ierr)
     if (num_tracers > 0) then

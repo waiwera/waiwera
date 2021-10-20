@@ -908,26 +908,29 @@ contains
                 call self%setup_flux_vector()
 
                 call self%setup_update_cell()
-                call self%mesh%set_boundary_conditions(json, self%solution, self%fluid, &
-                     self%rock, self%aux_solution, self%eos, self%solution_range_start, &
+                call self%mesh%set_boundary_conditions(json, self%fluid, &
+                     self%rock, self%aux_solution, self%eos, &
                      self%fluid_range_start, self%rock_range_start, &
-                     self%aux_solution_range_start, size(self%tracers), self%logfile)
-                call scale_initial_primary(self%mesh, self%eos, self%solution, self%fluid, &
-                     self%solution_range_start, self%fluid_range_start)
-                call self%fluid_init(self%time, self%solution, err)
+                     self%aux_solution_range_start, size(self%tracers), &
+                     self%relative_permeability, self%capillary_pressure, self%logfile, err)
                 if (err == 0) then
-                   call setup_sources(json, self%mesh%dm, self%mesh%cell_natural_global, &
-                        self%eos, self%tracers%name, self%thermo, self%time, self%fluid, &
-                        self%fluid_range_start, self%source, self%source_range_start, &
-                        self%num_local_sources, self%num_sources, self%source_controls, &
-                        self%source_index, self%logfile, err)
+                   call scale_initial_primary(self%mesh, self%eos, self%solution, self%fluid, &
+                        self%solution_range_start, self%fluid_range_start)
+                   call self%fluid_init(self%time, self%solution, err)
                    if (err == 0) then
-                      call self%setup_output_fields(json)
-                      call self%output_face_cell_indices()
-                      call self%output_mesh_geometry()
-                      call self%output_minc_data()
-                      call self%output_source_indices()
-                      call self%output_source_cell_indices()
+                      call setup_sources(json, self%mesh%dm, self%mesh%cell_natural_global, &
+                           self%eos, self%tracers%name, self%thermo, self%time, self%fluid, &
+                           self%fluid_range_start, self%source, self%source_range_start, &
+                           self%num_local_sources, self%num_sources, self%source_controls, &
+                           self%source_index, self%logfile, err)
+                      if (err == 0) then
+                         call self%setup_output_fields(json)
+                         call self%output_face_cell_indices()
+                         call self%output_mesh_geometry()
+                         call self%output_minc_data()
+                         call self%output_source_indices()
+                         call self%output_source_cell_indices()
+                      end if
                    end if
                 end if
              end if
