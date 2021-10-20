@@ -1983,7 +1983,9 @@ contains
     use dm_utils_module, only: global_vec_range_start, global_vec_section, &
          global_section_offset, dm_get_end_interior_cell
     use rock_setup_module, only: setup_rocks
-    use fluid_module, only: create_fluid_vector
+    use fluid_module, only: create_fluid_vector, fluid_type
+    use relative_permeability_module, only: relative_permeability_linear_type
+    use capillary_pressure_module, only: capillary_pressure_zero_type
     use tracer_module
     use list_module
 
@@ -2055,18 +2057,20 @@ contains
       type(mesh_type) :: mesh
       type(IAPWS_type) :: thermo
       type(eos_we_type) :: eos
-      type(fson_value), pointer :: json
-      Vec :: y, fluid_vector, rock_vector, tracer_vector
-      PetscInt :: y_range_start, fluid_range_start, rock_range_start, &
-           tracer_range_start
+      type(relative_permeability_linear_type) :: relative_permeability
+      type(capillary_pressure_zero_type) :: capillary_pressure
+      type(fson_value), pointer :: json, rp_json, cp_json
+      Vec :: fluid_vector, rock_vector, tracer_vector
+      PetscInt :: fluid_range_start, rock_range_start, tracer_range_start
       type(list_type) :: rock_controls
       type(tracer_type), allocatable :: tracers(:)
       PetscInt :: num_tracers, np, c
       PetscInt :: start_cell, end_cell, end_interior_cell
-      PetscInt :: y_offset, tracer_offset
-      PetscSection :: y_section, tracer_section
-      PetscReal, pointer, contiguous :: y_array(:), tracer_array(:)
-      PetscReal, pointer, contiguous :: cell_primary(:), cell_tracer(:)
+      PetscInt :: fluid_offset, tracer_offset
+      PetscSection :: fluid_section, tracer_section
+      PetscReal, pointer, contiguous :: fluid_array(:), tracer_array(:)
+      PetscReal, pointer, contiguous :: cell_tracer(:)
+      type(fluid_type) :: fluid
       PetscMPIInt :: rank
       character(24) :: msg
       PetscErrorCode :: err, ierr
@@ -2082,8 +2086,6 @@ contains
       call mesh%configure(gravity, json, err = err)
 
       call mesh%construct_ghost_cells(gravity)
-      call DMCreateGlobalVector(mesh%dm, y, ierr); CHKERRQ(ierr)
-      call global_vec_range_start(y, y_range_start)
       call setup_tracers(json, eos, tracers, err = err)
       num_tracers = size(tracers)
       call setup_rocks(json, mesh%dm, start_time, rock_vector, &
@@ -2095,15 +2097,25 @@ contains
       if (num_tracers > 0) call create_tracer_vector(mesh%dm, tracers, &
            tracer_vector, tracer_range_start)
 
-      call mesh%set_boundary_conditions(json, y, fluid_vector, rock_vector, &
-       tracer_vector, eos, y_range_start, fluid_range_start, rock_range_start, &
-       tracer_range_start, num_tracers)
+      rp_json => fson_parse_mpi(str = '{"liquid": [0, 1], "vapour": [0, 1]}')
+      call relative_permeability%init(rp_json)
+      call fson_destroy_mpi(rp_json)
+      cp_json => fson_parse_mpi(str = '{}')
+      call capillary_pressure%init(cp_json)
+      call fson_destroy_mpi(cp_json)
+
+      call mesh%set_boundary_conditions(json, fluid_vector, rock_vector, &
+       tracer_vector, eos, fluid_range_start, rock_range_start, &
+       tracer_range_start, num_tracers, relative_permeability, &
+       capillary_pressure, err = err)
+      call test%assert(0, err, title // 'err')
 
       call fson_destroy_mpi(json)
       call mesh%destroy_distribution_data()
 
-      call global_vec_section(y, y_section)
-      call VecGetArrayReadF90(y, y_array, ierr); CHKERRQ(ierr)
+      call fluid%init(eos%num_components, eos%num_phases)
+      call global_vec_section(fluid_vector, fluid_section)
+      call VecGetArrayReadF90(fluid_vector, fluid_array, ierr); CHKERRQ(ierr)
       if (num_tracers > 0) then
          call global_vec_section(tracer_vector, tracer_section)
          call VecGetArrayReadF90(tracer_vector, tracer_array, ierr); CHKERRQ(ierr)
@@ -2113,10 +2125,11 @@ contains
       end_interior_cell = dm_get_end_interior_cell(mesh%dm, end_cell)
       do c = end_interior_cell, end_cell - 1
          if (mesh%ghost_cell(c) < 0) then
-            y_offset = global_section_offset(y_section, c, y_range_start)
-            cell_primary => y_array(y_offset : y_offset + np - 1)
+            fluid_offset = global_section_offset(fluid_section, c, fluid_range_start)
+            call fluid%assign(fluid_array, fluid_offset)
             write(msg, '(a, i0)') 'primary ', c
-            call test%assert(expected_primary, cell_primary, title // trim(msg))
+            call test%assert(expected_primary, [fluid%pressure, fluid%temperature], &
+                 title // trim(msg))
             if (num_tracers > 0) then
                tracer_offset = global_section_offset(tracer_section, c, &
                     tracer_range_start)
@@ -2127,17 +2140,17 @@ contains
             end if
          end if
       end do
-      call VecRestoreArrayReadF90(y, y_array, ierr); CHKERRQ(ierr)
+      call VecRestoreArrayReadF90(fluid_vector, fluid_array, ierr); CHKERRQ(ierr)
       if (num_tracers > 0) then
          call VecRestoreArrayReadF90(tracer_vector, tracer_array, ierr); CHKERRQ(ierr)
       end if
 
-      call VecDestroy(y, ierr); CHKERRQ(ierr)
       call VecDestroy(rock_vector, ierr); CHKERRQ(ierr)
       call VecDestroy(fluid_vector, ierr); CHKERRQ(ierr)
       if (num_tracers > 0) call VecDestroy(tracer_vector, ierr); CHKERRQ(ierr)
       call mesh%destroy()
       call eos%destroy()
+      call fluid%destroy()
       call thermo%destroy()
 
     end subroutine boundary_test
