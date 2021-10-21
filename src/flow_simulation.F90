@@ -1356,10 +1356,10 @@ contains
           if (cells(i) < end_interior_cell) then
              update_offset = section_offset(update_section, cells(i))
              update_flux = (update_flux .or. (update(update_offset) > 0))
+             rhs_offsets(i) = global_section_offset(rhs_section, cells(i), &
+                  self%solution_range_start)
           end if
           cell_geom_offsets(i) = section_offset(cell_geom_section, cells(i))
-          rhs_offsets(i) = global_section_offset(rhs_section, cells(i), &
-               self%solution_range_start)
        end do
        face_geom_offset = section_offset(face_geom_section, f)
        call face%assign_geometry(face_geom_array, face_geom_offset)
