@@ -1353,7 +1353,7 @@ contains
        call DMPlexGetSupport(self%mesh%dm, f, cells, ierr); CHKERRQ(ierr)
        update_flux = PETSC_FALSE
        do i = 1, 2
-          if (cells(i) <= end_interior_cell - 1) then
+          if (cells(i) < end_interior_cell) then
              update_offset = section_offset(update_section, cells(i))
              update_flux = (update_flux .or. (update(update_offset) > 0))
           end if
@@ -1386,7 +1386,7 @@ contains
 
        do i = 1, 2
           if ((self%mesh%ghost_cell(cells(i)) < 0) .and. &
-               (cells(i) <= end_interior_cell - 1)) then
+               (cells(i) < end_interior_cell)) then
              inflow => rhs_array(rhs_offsets(i) : rhs_offsets(i) + np - 1)
              inflow = inflow + flux_sign(i) * face_component_flow / &
                   face%cell(i)%volume
