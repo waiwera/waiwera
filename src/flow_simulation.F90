@@ -1653,7 +1653,7 @@ contains
               diffusion_factor = face%diffusion_factor(tracer%phase_index)
               do i = 1, 2
                  if ((self%mesh%ghost_cell(cells(i)) < 0) .and. &
-                      (cells(i) <= end_interior_cell - 1)) then
+                      (cells(i) < end_interior_cell)) then
                     ! Advective flux:
                     irow = tracer_offsets(i) + it - 1
                     icol = tracer_offsets(up) + it - 1
