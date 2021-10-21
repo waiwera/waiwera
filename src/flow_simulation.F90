@@ -1392,6 +1392,7 @@ contains
                   face%cell(i)%volume
           end if
        end do
+       call DMPlexRestoreSupport(self%mesh%dm, f, cells, ierr); CHKERRQ(ierr)
 
     end do
 
@@ -1674,6 +1675,7 @@ contains
             end associate
          end do
        end associate
+       call DMPlexRestoreSupport(self%mesh%dm, f, cells, ierr); CHKERRQ(ierr)
     end do
 
     call face%destroy()
