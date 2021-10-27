@@ -1805,19 +1805,22 @@ end subroutine timestepper_steps_set_next_stepsize
        call SNESGetKSP(solver, ksp, ierr); CHKERRQ(ierr)
        call KSPGetIterationNumber(ksp, num_linear_solver_iterations, ierr)
        CHKERRQ(ierr)
+       call mpi_comm_rank(PETSC_COMM_WORLD, rank, ierr)
        associate(mesh => context%ode%mesh)
          call mesh%global_to_parent_natural( &
               context%steps%current%max_residual_cell, &
-              natural, minc_level, rank)
-         call mesh%natural_cell_output_arrays( &
-              natural, minc_level, cell_keys, cell_values)
-         call context%ode%logfile%write(LOG_LEVEL_INFO, &
-              'nonlinear_solver', 'iteration', &
-              [['count                   ', 'linear_solver_iterations'], &
-              cell_keys, ['equation                ']], &
-              [[num_iterations, num_linear_solver_iterations], cell_values, &
-              [context%steps%current%max_residual_equation]], &
-              ['residual'], [context%steps%current%max_residual], rank = rank)
+              natural, minc_level)
+         if (natural >= 0) then
+            call mesh%natural_cell_output_arrays( &
+                 natural, minc_level, cell_keys, cell_values)
+            call context%ode%logfile%write(LOG_LEVEL_INFO, &
+                 'nonlinear_solver', 'iteration', &
+                 [['count                   ', 'linear_solver_iterations'], &
+                 cell_keys, ['equation                ']], &
+                 [[num_iterations, num_linear_solver_iterations], cell_values, &
+                 [context%steps%current%max_residual_equation]], &
+                 ['residual'], [context%steps%current%max_residual], rank = rank)
+         end if
        end associate
     end if
     call context%ode%logfile%flush()

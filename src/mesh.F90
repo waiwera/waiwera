@@ -3777,30 +3777,26 @@ contains
 !------------------------------------------------------------------------
 
   subroutine mesh_global_to_parent_natural(self, global, &
-       parent_natural, minc_level, rank)
+       parent_natural, minc_level)
     !! Takes an interior global cell index and returns natural index
     !! of corresponding parent cell, together with the MINC level of
     !! the cell. (For a non-MINC mesh, the 'parent' cell is just the
-    !! original cell itself, and the MINC level is zero.) Also returns
-    !! rank of process containing the cell (on other processes, -1 is
-    !! returned for both natural index and MINC level).
+    !! original cell itself, and the MINC level is zero.) If the
+    !! specified global cell is off-process, -1 is returned for both
+    !! values.
 
     class(mesh_type), intent(in out) :: self
     PetscInt, intent(in) :: global !! Global cell index
     PetscInt, intent(out) :: parent_natural !! Natural index of parent cell
     PetscInt, intent(out) :: minc_level !! MINC level of cell
-    PetscMPIInt, intent(out) :: rank !! rank of process containing cell
     ! Locals:
     PetscInt :: idx(1), local_array(1), n
     ISLocalToGlobalMapping :: l2g
-    PetscMPIInt :: mpi_rank, process_found_rank
     PetscErrorCode :: ierr
 
     parent_natural = -1
     minc_level = -1
     idx(1) = global
-    call MPI_comm_rank(PETSC_COMM_WORLD, mpi_rank, ierr)
-    process_found_rank = 0
     call DMGetLocalToGlobalMapping(self%interior_dm, l2g, ierr); CHKERRQ(ierr)
     call ISGlobalToLocalMappingApplyBlock(l2g, IS_GTOLM_MASK, 1, &
          idx, n, local_array, ierr); CHKERRQ(ierr)
@@ -3809,11 +3805,8 @@ contains
          if (self%ghost_cell(c) < 0) then
             parent_natural = self%local_to_parent_natural(c)
             minc_level = self%local_cell_minc_level(c)
-            process_found_rank = mpi_rank
          end if
       end if
-      call MPI_Allreduce(process_found_rank, rank, 1, MPI_INT, &
-           MPI_MAX, PETSC_COMM_WORLD, ierr)
     end associate
 
   end subroutine mesh_global_to_parent_natural

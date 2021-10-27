@@ -1754,10 +1754,8 @@ contains
       PetscInt :: i, idx(1), natural, interior_global, minc_level, bdy_shift
       PetscErrorCode :: err, ierr
       character(2) :: natural_str
-      PetscMPIInt :: found_rank, rank
       PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
 
-      call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
       json => fson_parse_mpi(str = json_str)
       call thermo%init()
       call eos%init(json, thermo)
@@ -1776,8 +1774,8 @@ contains
          write(natural_str, '(i2)') idx(1)
          call AOApplicationToPetsc(mesh%cell_natural_global, 1, idx, ierr); CHKERRQ(ierr)
          interior_global = idx(1) - bdy_shift
-         call mesh%global_to_parent_natural(interior_global, natural, minc_level, found_rank)
-         if (rank == found_rank) then
+         call mesh%global_to_parent_natural(interior_global, natural, minc_level)
+         if (natural >= 0) then
             call test%assert(expected_parent_natural_indices(i), natural, &
                  trim(title) // ' ' // trim(natural_str) // ' natural')
             call test%assert(expected_minc_levels(i), minc_level, trim(title) &
