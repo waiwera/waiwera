@@ -3726,7 +3726,7 @@ contains
 
   PetscInt function mesh_local_cell_minc_level(self, local) result(minc_level)
     !! Takes local cell index and returns MINC level. If the mesh is
-    !! not MINC, the returned value is zero.
+    !! not MINC, the returned value is -1.
 
     class(mesh_type), intent(in out) :: self
     PetscInt, intent(in) :: local !! Local cell index
