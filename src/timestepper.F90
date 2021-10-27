@@ -1799,6 +1799,7 @@ end subroutine timestepper_steps_set_next_stepsize
     character(len = 24), allocatable :: cell_keys(:)
     PetscInt, allocatable :: cell_values(:)
     KSP :: ksp
+    PetscMPIInt :: rank
 
     if (num_iterations > 0) then
        call SNESGetKSP(solver, ksp, ierr); CHKERRQ(ierr)
@@ -1807,7 +1808,7 @@ end subroutine timestepper_steps_set_next_stepsize
        associate(mesh => context%ode%mesh)
          call mesh%global_to_parent_natural( &
               context%steps%current%max_residual_cell, &
-              natural, minc_level)
+              natural, minc_level, rank)
          call mesh%natural_cell_output_arrays( &
               natural, minc_level, cell_keys, cell_values)
          call context%ode%logfile%write(LOG_LEVEL_INFO, &
@@ -1816,7 +1817,7 @@ end subroutine timestepper_steps_set_next_stepsize
               cell_keys, ['equation                ']], &
               [[num_iterations, num_linear_solver_iterations], cell_values, &
               [context%steps%current%max_residual_equation]], &
-              ['residual'], [context%steps%current%max_residual])
+              ['residual'], [context%steps%current%max_residual], rank = rank)
        end associate
     end if
     call context%ode%logfile%flush()
