@@ -120,7 +120,6 @@ module flow_simulation_module
      procedure, public :: output_source_indices => flow_simulation_output_source_indices
      procedure, public :: output_source_cell_indices => flow_simulation_output_source_cell_indices
      procedure, public :: output => flow_simulation_output
-     procedure, public :: boundary_residuals => flow_simulation_boundary_residuals
      procedure, public :: get_dof => flow_simulation_get_dof
   end type flow_simulation_type
 
@@ -128,18 +127,19 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine flow_simulation_create_solution_vector(self, solution, range_start)
+  subroutine flow_simulation_create_solution_vector(self, dm, solution, range_start)
     !! Creates and returns solution vector, and corresponding range_start.
 
     use dm_utils_module, only: global_vec_range_start
 
     class(flow_simulation_type), intent(in out) :: self
+    DM, intent(in) :: dm !! DM used to create solution vector
     Vec, intent(out) :: solution !! Solution vector
     PetscInt, intent(out) :: range_start !! Range start, used for computing offsets
     ! Locals:
     PetscErrorCode :: ierr
 
-    call DMCreateGlobalVector(self%mesh%dm, solution, ierr)
+    call DMCreateGlobalVector(dm, solution, ierr)
     CHKERRQ(ierr)
     call PetscObjectSetName(solution, "primary", ierr); CHKERRQ(ierr)
     call global_vec_range_start(solution, range_start)
@@ -782,10 +782,14 @@ contains
     class(flow_simulation_type), intent(in out) :: self
     ! Locals:
     DM :: dm_update
+    DMLabel :: interior_label
     PetscErrorCode :: ierr
 
-    call DMClone(self%mesh%dm, dm_update, ierr); CHKERRQ(ierr)
-    call dm_set_data_layout(dm_update, [1], [self%mesh%dim], ["update"])
+    call DMClone(self%mesh%interior_dm, dm_update, ierr); CHKERRQ(ierr)
+    call DMGetLabel(self%mesh%interior_dm, interior_label_name, interior_label, &
+         ierr); CHKERRQ(ierr)
+    call dm_set_data_layout(dm_update, [1], [self%mesh%dim], ["update"], &
+         [interior_label])
     call DMCreateGlobalVector(dm_update, self%update_cell, ierr); CHKERRQ(ierr)
     call PetscObjectSetName(self%update_cell, "update_cell", ierr); CHKERRQ(ierr)
     call global_vec_range_start(self%update_cell, self%update_cell_range_start)
@@ -849,7 +853,8 @@ contains
     call self%mesh%configure(self%gravity, json, self%logfile, err)
     if (err == 0) then
        call self%mesh%override_face_properties()
-       call self%create_solution_vector(self%solution, self%solution_range_start)
+       call self%create_solution_vector(self%mesh%dm, self%solution, &
+            self%solution_range_start)
        call setup_tracers(json, self%eos, self%tracers, self%logfile, err)
        if (err == 0) then
           self%auxiliary = (size(self%tracers) > 0)
@@ -906,26 +911,29 @@ contains
                 call self%setup_flux_vector()
 
                 call self%setup_update_cell()
-                call self%mesh%set_boundary_conditions(json, self%solution, self%fluid, &
-                     self%rock, self%aux_solution, self%eos, self%solution_range_start, &
+                call self%mesh%set_boundary_conditions(json, self%fluid, &
+                     self%rock, self%aux_solution, self%eos, &
                      self%fluid_range_start, self%rock_range_start, &
-                     self%aux_solution_range_start, size(self%tracers), self%logfile)
-                call scale_initial_primary(self%mesh, self%eos, self%solution, self%fluid, &
-                     self%solution_range_start, self%fluid_range_start)
-                call self%fluid_init(self%time, self%solution, err)
+                     self%aux_solution_range_start, size(self%tracers), &
+                     self%relative_permeability, self%capillary_pressure, self%logfile, err)
                 if (err == 0) then
-                   call setup_sources(json, self%mesh%dm, self%mesh%cell_natural_global, &
-                        self%eos, self%tracers%name, self%thermo, self%time, self%fluid, &
-                        self%fluid_range_start, self%source, self%source_range_start, &
-                        self%num_local_sources, self%num_sources, self%source_controls, &
-                        self%source_index, self%logfile, err)
+                   call scale_initial_primary(self%mesh, self%eos, self%solution, self%fluid, &
+                        self%solution_range_start, self%fluid_range_start)
+                   call self%fluid_init(self%time, self%solution, err)
                    if (err == 0) then
-                      call self%setup_output_fields(json)
-                      call self%output_face_cell_indices()
-                      call self%output_mesh_geometry()
-                      call self%output_minc_data()
-                      call self%output_source_indices()
-                      call self%output_source_cell_indices()
+                      call setup_sources(json, self%mesh%dm, self%mesh%cell_natural_global, &
+                           self%eos, self%tracers%name, self%thermo, self%time, self%fluid, &
+                           self%fluid_range_start, self%source, self%source_range_start, &
+                           self%num_local_sources, self%num_sources, self%source_controls, &
+                           self%source_index, self%logfile, err)
+                      if (err == 0) then
+                         call self%setup_output_fields(json)
+                         call self%output_face_cell_indices()
+                         call self%output_mesh_geometry()
+                         call self%output_minc_data()
+                         call self%output_source_indices()
+                         call self%output_source_cell_indices()
+                      end if
                    end if
                 end if
              end if
@@ -1140,7 +1148,7 @@ contains
 
     call self%mesh%construct_ghost_cells(self%gravity)
 
-    call self%create_solution_vector(solution, range_start)
+    call self%create_solution_vector(self%mesh%interior_dm, solution, range_start)
     call vec_copy_common_local(self%solution, solution)
     call VecDestroy(self%solution, ierr); CHKERRQ(ierr)
     self%solution = solution
@@ -1177,7 +1185,8 @@ contains
     !! Computes mass and energy balance for each cell, for the given
     !! primary thermodynamic variables and time.
 
-    use dm_utils_module, only: global_section_offset, global_vec_section
+    use dm_utils_module, only: global_section_offset, global_vec_section, &
+         dm_get_end_interior_cell
     use cell_module, only: cell_type
     use profiling_module, only: cell_balances_event
 
@@ -1188,7 +1197,7 @@ contains
     Vec, intent(in out) :: lhs
     PetscErrorCode, intent(out) :: err
     ! Locals:
-    PetscInt :: c, np, nc, start_cell, end_cell
+    PetscInt :: c, np, nc, start_cell, end_cell, end_interior_cell
     PetscSection :: fluid_section, rock_section, lhs_section, update_section
     PetscInt :: fluid_offset, rock_offset, lhs_offset, update_offset
     PetscReal, pointer, contiguous :: fluid_array(:), rock_array(:), &
@@ -1217,10 +1226,11 @@ contains
     call VecGetArrayReadF90(self%rock, rock_array, ierr); CHKERRQ(ierr)
 
     call cell%init(nc, self%eos%num_phases)
-    call DMPlexGetHeightStratum(self%mesh%dm, 0, start_cell, end_cell, ierr)
-    CHKERRQ(ierr)
+    call DMPlexGetHeightStratum(self%mesh%dm, 0, start_cell, end_cell, &
+         ierr); CHKERRQ(ierr)
+    end_interior_cell = dm_get_end_interior_cell(self%mesh%dm, end_cell)
 
-    do c = start_cell, end_cell - 1
+    do c = start_cell, end_interior_cell - 1
 
        if (self%mesh%ghost_cell(c) < 0) then
 
@@ -1294,9 +1304,10 @@ contains
     PetscSection :: cell_geom_section, face_geom_section, flux_section
     PetscSection :: source_section
     type(face_type) :: face
-    PetscInt :: face_geom_offset, cell_geom_offsets(2), update_offsets(2)
+    PetscInt :: face_geom_offset, cell_geom_offsets(2), update_offset
     PetscInt :: rock_offsets(2), fluid_offsets(2), rhs_offsets(2)
     PetscInt :: rhs_offset, flux_offset
+    PetscBool :: update_flux
     PetscInt, pointer :: cells(:)
     PetscReal, pointer, contiguous :: inflow(:)
     PetscReal, allocatable :: face_flux(:), face_component_flow(:)
@@ -1344,18 +1355,21 @@ contains
        f = self%mesh%flux_face(iface)
 
        call DMPlexGetSupport(self%mesh%dm, f, cells, ierr); CHKERRQ(ierr)
+       update_flux = PETSC_FALSE
        do i = 1, 2
-          update_offsets(i) = section_offset(update_section, cells(i))
+          if (cells(i) < end_interior_cell) then
+             update_offset = section_offset(update_section, cells(i))
+             update_flux = (update_flux .or. (update(update_offset) > 0))
+             rhs_offsets(i) = global_section_offset(rhs_section, cells(i), &
+                  self%solution_range_start)
+          end if
           cell_geom_offsets(i) = section_offset(cell_geom_section, cells(i))
-          rhs_offsets(i) = global_section_offset(rhs_section, cells(i), &
-               self%solution_range_start)
        end do
        face_geom_offset = section_offset(face_geom_section, f)
        call face%assign_geometry(face_geom_array, face_geom_offset)
        call face%assign_cell_geometry(cell_geom_array, cell_geom_offsets)
 
-       if ((update(update_offsets(1)) > 0) .or. &
-            (update(update_offsets(2)) > 0)) then
+       if (update_flux) then
           do i = 1, 2
              fluid_offsets(i) = section_offset(fluid_section, cells(i))
              rock_offsets(i) = section_offset(rock_section, cells(i))
@@ -1376,12 +1390,13 @@ contains
 
        do i = 1, 2
           if ((self%mesh%ghost_cell(cells(i)) < 0) .and. &
-               (cells(i) <= end_interior_cell - 1)) then
+               (cells(i) < end_interior_cell)) then
              inflow => rhs_array(rhs_offsets(i) : rhs_offsets(i) + np - 1)
              inflow = inflow + flux_sign(i) * face_component_flow / &
                   face%cell(i)%volume
           end if
        end do
+       call DMPlexRestoreSupport(self%mesh%dm, f, cells, ierr); CHKERRQ(ierr)
 
     end do
 
@@ -1643,7 +1658,7 @@ contains
               diffusion_factor = face%diffusion_factor(tracer%phase_index)
               do i = 1, 2
                  if ((self%mesh%ghost_cell(cells(i)) < 0) .and. &
-                      (cells(i) <= end_interior_cell - 1)) then
+                      (cells(i) < end_interior_cell)) then
                     ! Advective flux:
                     irow = tracer_offsets(i) + it - 1
                     icol = tracer_offsets(up) + it - 1
@@ -1664,6 +1679,7 @@ contains
             end associate
          end do
        end associate
+       call DMPlexRestoreSupport(self%mesh%dm, f, cells, ierr); CHKERRQ(ierr)
     end do
 
     call face%destroy()
@@ -2146,7 +2162,8 @@ contains
     !! thermodynamic variables. This is called before the timestepper
     !! starts to run.
 
-    use dm_utils_module, only: global_section_offset, global_vec_section
+    use dm_utils_module, only: global_section_offset, global_vec_section, &
+         dm_get_end_interior_cell
     use cell_module, only: cell_type
     use profiling_module, only: fluid_init_event
     use mpi_utils_module, only: mpi_broadcast_error_flag
@@ -2157,7 +2174,7 @@ contains
     PetscErrorCode, intent(out) :: err
     ! Locals:
     PetscInt :: c, np, nc, natural, minc_level
-    PetscInt :: start_cell, end_cell
+    PetscInt :: start_cell, end_cell, end_interior_cell
     PetscSection :: y_section, fluid_section, rock_section
     PetscInt :: y_offset, fluid_offset, rock_offset
     PetscReal, pointer, contiguous :: y_array(:), scaled_cell_primary(:)
@@ -2190,8 +2207,9 @@ contains
     call DMGetLocalToGlobalMapping(self%mesh%dm, l2g, ierr); CHKERRQ(ierr)
     call DMPlexGetHeightStratum(self%mesh%dm, 0, start_cell, end_cell, ierr)
     CHKERRQ(ierr)
+    end_interior_cell = dm_get_end_interior_cell(self%mesh%dm, end_cell)
 
-    do c = start_cell, end_cell - 1
+    do c = start_cell, end_interior_cell - 1
 
        if (self%mesh%ghost_cell(c) < 0) then
 
@@ -2259,11 +2277,12 @@ contains
 !------------------------------------------------------------------------
 
   subroutine flow_simulation_fluid_properties(self, t, y, err)
-    !! Computes fluid properties in all cells, excluding phase
-    !! composition, based on the current time and primary
+    !! Computes fluid properties (excluding phase composition) in all
+    !! interior cells based on the current time and primary
     !! thermodynamic variables.
 
-    use dm_utils_module, only: global_section_offset, global_vec_section
+    use dm_utils_module, only: global_section_offset, global_vec_section, &
+         dm_get_end_interior_cell
     use cell_module, only: cell_type
     use profiling_module, only: fluid_properties_event
     use mpi_utils_module, only: mpi_broadcast_error_flag
@@ -2274,7 +2293,7 @@ contains
     PetscErrorCode, intent(out) :: err !! error code
     ! Locals:
     PetscInt :: c, np, nc, natural, minc_level
-    PetscInt :: start_cell, end_cell
+    PetscInt :: start_cell, end_cell, end_interior_cell
     PetscSection :: y_section, fluid_section, rock_section, update_section
     PetscInt :: y_offset, fluid_offset, rock_offset, update_offset
     PetscReal, pointer, contiguous :: y_array(:), scaled_cell_primary(:)
@@ -2311,8 +2330,9 @@ contains
     call DMGetLocalToGlobalMapping(self%mesh%dm, l2g, ierr); CHKERRQ(ierr)
     call DMPlexGetHeightStratum(self%mesh%dm, 0, start_cell, end_cell, ierr)
     CHKERRQ(ierr)
+    end_interior_cell = dm_get_end_interior_cell(self%mesh%dm, end_cell)
 
-    do c = start_cell, end_cell - 1
+    do c = start_cell, end_interior_cell - 1
 
        if ((self%mesh%ghost_cell(c) < 0)) then
 
@@ -2389,7 +2409,8 @@ contains
     !! Checks primary variables and thermodynamic regions in all mesh
     !! cells and updates if region transitions have occurred.
 
-    use dm_utils_module, only: global_section_offset, global_vec_section
+    use dm_utils_module, only: global_section_offset, global_vec_section, &
+         dm_get_end_interior_cell
     use fluid_module, only: fluid_type
     use profiling_module, only: fluid_transitions_event
     use mpi_utils_module, only: mpi_broadcast_error_flag, mpi_broadcast_logical
@@ -2402,7 +2423,7 @@ contains
     PetscErrorCode, intent(out) :: err !! Error code
     ! Locals:
     PetscInt :: c, np, nc, minc_level, natural
-    PetscInt :: start_cell, end_cell
+    PetscInt :: start_cell, end_cell, end_interior_cell
     PetscSection :: primary_section, fluid_section
     PetscInt :: primary_offset, fluid_offset
     PetscReal, pointer, contiguous :: primary_array(:), old_primary_array(:), search_array(:)
@@ -2443,8 +2464,9 @@ contains
     call DMGetLocalToGlobalMapping(self%mesh%dm, l2g, ierr); CHKERRQ(ierr)
     call DMPlexGetHeightStratum(self%mesh%dm, 0, start_cell, end_cell, ierr)
     CHKERRQ(ierr)
+    end_interior_cell = dm_get_end_interior_cell(self%mesh%dm, end_cell)
 
-    do c = start_cell, end_cell - 1
+    do c = start_cell, end_interior_cell - 1
 
        if (self%mesh%ghost_cell(c) < 0) then
 
@@ -2871,81 +2893,6 @@ contains
     call PetscLogEventEnd(output_event, ierr); CHKERRQ(ierr)
 
   end subroutine flow_simulation_output
-
-!------------------------------------------------------------------------
-
-  subroutine flow_simulation_boundary_residuals(self, y, lhs, residual, err)
-    !! Computes residual terms for boundary ghost cells.
-
-    use dm_utils_module, only: global_section_offset, global_vec_section, &
-         dm_get_end_interior_cell
-    use cell_module, only: cell_type
-
-    class(flow_simulation_type), intent(in out) :: self
-    Vec, intent(in) :: y !! primary variables
-    Vec, intent(in) :: lhs !! initial LHS vector
-    Vec, intent(in out) :: residual !! residual vector
-    PetscErrorCode, intent(out) :: err !! error code
-    ! Locals:
-    PetscInt :: c, np, nc
-    PetscInt :: start_cell, end_cell, end_interior_cell
-    PetscSection :: fluid_section, rock_section, lhs_section
-    PetscInt :: fluid_offset, rock_offset, lhs_offset
-    PetscReal, pointer, contiguous :: fluid_array(:), rock_array(:)
-    PetscReal, pointer, contiguous :: lhs_array(:), residual_array(:)
-    PetscReal, pointer, contiguous :: cell_lhs(:), cell_residual(:)
-    type(cell_type) :: cell
-    PetscErrorCode :: ierr
-
-    err = 0
-    np = self%eos%num_primary_variables
-    nc = self%eos%num_components
-
-    call global_vec_section(lhs, lhs_section)
-    call VecGetArrayReadF90(lhs, lhs_array, ierr); CHKERRQ(ierr)
-    call VecGetArrayF90(residual, residual_array, ierr); CHKERRQ(ierr)
-
-    call global_vec_section(self%current_fluid, fluid_section)
-    call VecGetArrayReadF90(self%current_fluid, fluid_array, ierr); CHKERRQ(ierr)
-
-    call global_vec_section(self%rock, rock_section)
-    call VecGetArrayReadF90(self%rock, rock_array, ierr); CHKERRQ(ierr)
-
-    call cell%init(nc, self%eos%num_phases)
-    call DMPlexGetHeightStratum(self%mesh%dm, 0, start_cell, end_cell, ierr)
-    CHKERRQ(ierr)
-    end_interior_cell = dm_get_end_interior_cell(self%mesh%dm, end_cell)
-
-    do c = end_interior_cell, end_cell - 1
-
-       if (self%mesh%ghost_cell(c) < 0) then
-
-          lhs_offset = global_section_offset(lhs_section, c, &
-               self%solution_range_start)
-          cell_lhs => lhs_array(lhs_offset : lhs_offset + np - 1)
-          cell_residual => residual_array(lhs_offset : lhs_offset + np - 1)
-
-          fluid_offset = global_section_offset(fluid_section, c, &
-               self%fluid_range_start)
-          rock_offset = global_section_offset(rock_section, c, &
-               self%rock_range_start)
-
-          call cell%rock%assign(rock_array, rock_offset)
-          call cell%fluid%assign(fluid_array, fluid_offset)
-
-          cell_residual = cell%balance(np) - cell_lhs
-
-       end if
-
-    end do
-
-    call cell%destroy()
-    call VecRestoreArrayReadF90(self%current_fluid, fluid_array, ierr); CHKERRQ(ierr)
-    call VecRestoreArrayReadF90(self%rock, rock_array, ierr); CHKERRQ(ierr)
-    call VecRestoreArrayReadF90(lhs, lhs_array, ierr); CHKERRQ(ierr)
-    call VecRestoreArrayF90(residual, residual_array, ierr); CHKERRQ(ierr)
-
-  end subroutine flow_simulation_boundary_residuals
 
 !------------------------------------------------------------------------
 

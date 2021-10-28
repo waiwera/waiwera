@@ -435,8 +435,7 @@ contains
 
   subroutine direct_ss_residual(solver, y, residual, context, err)
     !! Residual for direct solution of steady state equations R(y) =
-    !! 0.  Here we evaluate R() at the steps final time, and add
-    !! residuals for boundary ghost cells.
+    !! 0.  Here we evaluate R() at the steps final time.
 
     SNES, intent(in) :: solver
     Vec, intent(in) :: y
@@ -452,10 +451,7 @@ contains
     interval = [t, t]
     call context%ode%rhs(t, interval, y, context%steps%current%rhs, err)
     if (err == 0) then
-       call VecCopy(context%steps%current%rhs, residual, ierr)
-       CHKERRQ(ierr)
-       call context%ode%boundary_residuals(y, context%steps%current%lhs, &
-            residual, err)
+       call VecCopy(context%steps%current%rhs, residual, ierr); CHKERRQ(ierr)
     end if
 
   end subroutine direct_ss_residual
@@ -1519,7 +1515,7 @@ end subroutine timestepper_steps_set_next_stepsize
     call SNESSetApplicationContext(self%solver, self%context, ierr); CHKERRQ(ierr)
     call SNESSetFunction(self%solver, self%residual, &
          SNES_residual, self%context, ierr); CHKERRQ(ierr)
-    call SNESSetDM(self%solver, self%ode%mesh%dm, ierr); CHKERRQ(ierr)
+    call SNESSetDM(self%solver, self%ode%mesh%interior_dm, ierr); CHKERRQ(ierr)
 
     call MatColoringCreate(self%jacobian, matrix_coloring, ierr); CHKERRQ(ierr)
     call MatColoringSetFromOptions(matrix_coloring, ierr); CHKERRQ(ierr)
@@ -1803,24 +1799,28 @@ end subroutine timestepper_steps_set_next_stepsize
     character(len = 24), allocatable :: cell_keys(:)
     PetscInt, allocatable :: cell_values(:)
     KSP :: ksp
+    PetscMPIInt :: rank
 
     if (num_iterations > 0) then
        call SNESGetKSP(solver, ksp, ierr); CHKERRQ(ierr)
        call KSPGetIterationNumber(ksp, num_linear_solver_iterations, ierr)
        CHKERRQ(ierr)
+       call mpi_comm_rank(PETSC_COMM_WORLD, rank, ierr)
        associate(mesh => context%ode%mesh)
          call mesh%global_to_parent_natural( &
               context%steps%current%max_residual_cell, &
               natural, minc_level)
-         call mesh%natural_cell_output_arrays( &
-              natural, minc_level, cell_keys, cell_values)
-         call context%ode%logfile%write(LOG_LEVEL_INFO, &
-              'nonlinear_solver', 'iteration', &
-              [['count                   ', 'linear_solver_iterations'], &
-              cell_keys, ['equation                ']], &
-              [[num_iterations, num_linear_solver_iterations], cell_values, &
-              [context%steps%current%max_residual_equation]], &
-              ['residual'], [context%steps%current%max_residual])
+         if (natural >= 0) then
+            call mesh%natural_cell_output_arrays( &
+                 natural, minc_level, cell_keys, cell_values)
+            call context%ode%logfile%write(LOG_LEVEL_INFO, &
+                 'nonlinear_solver', 'iteration', &
+                 [['count                   ', 'linear_solver_iterations'], &
+                 cell_keys, ['equation                ']], &
+                 [[num_iterations, num_linear_solver_iterations], cell_values, &
+                 [context%steps%current%max_residual_equation]], &
+                 ['residual'], [context%steps%current%max_residual], rank = rank)
+         end if
        end associate
     end if
     call context%ode%logfile%flush()
@@ -1901,8 +1901,9 @@ end subroutine timestepper_steps_set_next_stepsize
     else
        mat_type = MATBAIJ
     end if
-    call DMSetMatType(self%ode%mesh%dm, mat_type, ierr); CHKERRQ(ierr)
-    call DMCreateMatrix(self%ode%mesh%dm, self%jacobian, ierr); CHKERRQ(ierr)
+    call DMSetMatType(self%ode%mesh%interior_dm, mat_type, ierr); CHKERRQ(ierr)
+    call DMCreateMatrix(self%ode%mesh%interior_dm, self%jacobian, ierr)
+    CHKERRQ(ierr)
     call MatSetFromOptions(self%jacobian, ierr); CHKERRQ(ierr)
 
   end subroutine timestepper_setup_jacobian

@@ -605,7 +605,8 @@ contains
     use mesh_module, only: mesh_type
     use eos_module, only: eos_type
     use fluid_module, only: fluid_type
-    use dm_utils_module, only: global_vec_section, global_section_offset
+    use dm_utils_module, only: global_vec_section, global_section_offset, &
+         dm_get_end_interior_cell
 
     type(mesh_type), intent(in) :: mesh
     class(eos_type), intent(in) :: eos
@@ -618,7 +619,7 @@ contains
     type(fluid_type) :: fluid
     DMLabel :: ghost_label
     PetscInt :: np, c, ghost, y_offset, fluid_offset
-    PetscInt :: start_cell, end_cell
+    PetscInt :: start_cell, end_cell, end_interior_cell
     PetscErrorCode :: ierr
 
     call global_vec_section(y, y_section)
@@ -634,8 +635,9 @@ contains
     CHKERRQ(ierr)
     call DMPlexGetHeightStratum(mesh%dm, 0, start_cell, end_cell, ierr)
     CHKERRQ(ierr)
+    end_interior_cell = dm_get_end_interior_cell(mesh%dm, end_cell)
 
-    do c = start_cell, end_cell - 1
+    do c = start_cell, end_interior_cell - 1
        call DMLabelGetValue(ghost_label, c, ghost, ierr); CHKERRQ(ierr)
        if (ghost < 0) then
           y_offset = global_section_offset(y_section, c, y_range_start)

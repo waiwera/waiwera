@@ -20,7 +20,7 @@ module mesh_test
        test_2d_radial_geometry, test_mesh_face_permeability_direction, &
        test_setup_minc_dm, test_minc_rock, &
        test_rock_assignment, test_cell_natural_global, test_minc_cell_natural_global, &
-       test_global_to_fracture_natural, test_redistribute, test_boundaries
+       test_global_to_parent_natural, test_redistribute, test_boundaries
 
 contains
 
@@ -1682,12 +1682,13 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine test_global_to_fracture_natural(test)
-    ! global_to_fracture_natural()
+  subroutine test_global_to_parent_natural(test)
+    ! global_to_parent_natural()
 
     use fson_mpi_module
     use IAPWS_module
     use eos_we_module
+    use dm_utils_module, only: dm_get_bdy_cell_shift
 
     class(unit_test_type), intent(in out) :: test
     ! Locals:
@@ -1695,15 +1696,15 @@ contains
 
     json_str = &
          '{"mesh": {"filename": "' // trim(adjustl(data_path)) // 'mesh/7x7grid.exo"}}'
-    call global_to_fracture_natural_test_case(test, json_str, 'single porosity', &
-         [0, 10, 46], [0, 10, 46], [0, 0, 0])
+    call global_to_parent_natural_test_case(test, json_str, 'single porosity', &
+         [0, 10, 46], [0, 10, 46], [-1, -1, -1])
 
     json_str = &
          '{"mesh": {"filename": "' // trim(adjustl(data_path)) // 'mesh/7x7grid.exo",' // &
          '  "zones": {"all": {"-": null}},' // &
          '  "minc": {"rock": {"zones": ["all"]}, ' // &
          '           "geometry": {"fracture": {"volume": 0.1}}}}}'
-    call global_to_fracture_natural_test_case(test, json_str, 'MINC all no bdy', &
+    call global_to_parent_natural_test_case(test, json_str, 'MINC all no bdy', &
          [0, 10, 46, 49, 59, 95], [0, 10, 46, 0, 10, 46], [0, 0, 0, 1, 1, 1])
     
     json_str = &
@@ -1714,7 +1715,7 @@ contains
          '"boundaries": [{"faces": {"cells": [0, 1, 2, 3, 4, 5], ' // &
          '  "normal": [0, -1, 0]}}]' // &
          '}'
-    call global_to_fracture_natural_test_case(test, json_str, 'MINC all bdy', &
+    call global_to_parent_natural_test_case(test, json_str, 'MINC all bdy', &
          [0, 10, 46, 49, 59, 95], [0, 10, 46, 0, 10, 46], [0, 0, 0, 1, 1, 1])
 
     json_str = &
@@ -1722,7 +1723,7 @@ contains
          '  "zones": {"sw": {"x": [0, 3000], "y": [0, 1500]}},' // &
          '  "minc": {"rock": {"zones": ["sw"]}, ' // &
          '           "geometry": {"fracture": {"volume": 0.1}}}}}'
-    call global_to_fracture_natural_test_case(test, json_str, 'MINC partial no bdy', &
+    call global_to_parent_natural_test_case(test, json_str, 'MINC partial no bdy', &
          [0, 10, 46, 49, 58], [0, 10, 46, 0, 11], [0, 0, -1, 1, 1])
 
     json_str = &
@@ -1730,27 +1731,27 @@ contains
          '  "zones": {"nw": {"x": [0.5, 0.75], "y": [0.5, 1.0]}},' // &
          '  "minc": {"rock": {"zones": ["nw"]}, ' // &
          '           "geometry": {"fracture": {"volume": 0.1}}}}}'
-    call global_to_fracture_natural_test_case(test, json_str, 'hybrid MINC partial no bdy', &
+    call global_to_parent_natural_test_case(test, json_str, 'hybrid MINC partial no bdy', &
          [0, 7, 10, 11], [0, 7, 2, 3], [-1, -1, 1, 1])
 
   contains
 
-    subroutine global_to_fracture_natural_test_case(test, json_str, title, &
-         natural_indices, expected_fracture_natural_indices, &
+    subroutine global_to_parent_natural_test_case(test, json_str, title, &
+         natural_indices, expected_parent_natural_indices, &
          expected_minc_levels)
 
       class(unit_test_type), intent(in out) :: test
       character(*), intent(in) :: json_str
       character(*), intent(in) :: title
       PetscInt, intent(in) :: natural_indices(:)
-      PetscInt, intent(in) :: expected_fracture_natural_indices(:)
+      PetscInt, intent(in) :: expected_parent_natural_indices(:)
       PetscInt, intent(in) :: expected_minc_levels(:)
       ! Locals:
       type(mesh_type) :: mesh
       type(IAPWS_type) :: thermo
       type(eos_we_type) :: eos
       type(fson_value), pointer :: json
-      PetscInt :: i, idx(1), natural, global, minc_level
+      PetscInt :: i, idx(1), natural, interior_global, minc_level, bdy_shift
       PetscErrorCode :: err, ierr
       character(2) :: natural_str
       PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
@@ -1766,26 +1767,29 @@ contains
       call mesh%destroy_distribution_data()
 
       call mesh_geometry_sanity_check(mesh, test, title)
+      bdy_shift = dm_get_bdy_cell_shift(mesh%dm)
 
       do i = 1, size(natural_indices)
          idx(1) = natural_indices(i)
          write(natural_str, '(i2)') idx(1)
          call AOApplicationToPetsc(mesh%cell_natural_global, 1, idx, ierr); CHKERRQ(ierr)
-         global = idx(1)
-         call mesh%global_to_parent_natural(global, natural, minc_level)
-         call test%assert(expected_fracture_natural_indices(i), natural, &
-              trim(title) // ' ' // trim(natural_str) // ' natural')
-         call test%assert(expected_minc_levels(i), minc_level, trim(title) &
-              // ' ' // trim(natural_str) // ' minc level')
+         interior_global = idx(1) - bdy_shift
+         call mesh%global_to_parent_natural(interior_global, natural, minc_level)
+         if (natural >= 0) then
+            call test%assert(expected_parent_natural_indices(i), natural, &
+                 trim(title) // ' ' // trim(natural_str) // ' natural')
+            call test%assert(expected_minc_levels(i), minc_level, trim(title) &
+                 // ' ' // trim(natural_str) // ' minc level')
+         end if
       end do
 
       call mesh%destroy()
       call eos%destroy()
       call thermo%destroy()
 
-    end subroutine global_to_fracture_natural_test_case
+    end subroutine global_to_parent_natural_test_case
 
-  end subroutine test_global_to_fracture_natural
+  end subroutine test_global_to_parent_natural
 
 !------------------------------------------------------------------------
 
@@ -1983,7 +1987,9 @@ contains
     use dm_utils_module, only: global_vec_range_start, global_vec_section, &
          global_section_offset, dm_get_end_interior_cell
     use rock_setup_module, only: setup_rocks
-    use fluid_module, only: create_fluid_vector
+    use fluid_module, only: create_fluid_vector, fluid_type
+    use relative_permeability_module, only: relative_permeability_linear_type
+    use capillary_pressure_module, only: capillary_pressure_zero_type
     use tracer_module
     use list_module
 
@@ -2055,18 +2061,20 @@ contains
       type(mesh_type) :: mesh
       type(IAPWS_type) :: thermo
       type(eos_we_type) :: eos
-      type(fson_value), pointer :: json
-      Vec :: y, fluid_vector, rock_vector, tracer_vector
-      PetscInt :: y_range_start, fluid_range_start, rock_range_start, &
-           tracer_range_start
+      type(relative_permeability_linear_type) :: relative_permeability
+      type(capillary_pressure_zero_type) :: capillary_pressure
+      type(fson_value), pointer :: json, rp_json, cp_json
+      Vec :: fluid_vector, rock_vector, tracer_vector
+      PetscInt :: fluid_range_start, rock_range_start, tracer_range_start
       type(list_type) :: rock_controls
       type(tracer_type), allocatable :: tracers(:)
       PetscInt :: num_tracers, np, c
       PetscInt :: start_cell, end_cell, end_interior_cell
-      PetscInt :: y_offset, tracer_offset
-      PetscSection :: y_section, tracer_section
-      PetscReal, pointer, contiguous :: y_array(:), tracer_array(:)
-      PetscReal, pointer, contiguous :: cell_primary(:), cell_tracer(:)
+      PetscInt :: fluid_offset, tracer_offset
+      PetscSection :: fluid_section, tracer_section
+      PetscReal, pointer, contiguous :: fluid_array(:), tracer_array(:)
+      PetscReal, pointer, contiguous :: cell_tracer(:)
+      type(fluid_type) :: fluid
       PetscMPIInt :: rank
       character(24) :: msg
       PetscErrorCode :: err, ierr
@@ -2082,8 +2090,6 @@ contains
       call mesh%configure(gravity, json, err = err)
 
       call mesh%construct_ghost_cells(gravity)
-      call DMCreateGlobalVector(mesh%dm, y, ierr); CHKERRQ(ierr)
-      call global_vec_range_start(y, y_range_start)
       call setup_tracers(json, eos, tracers, err = err)
       num_tracers = size(tracers)
       call setup_rocks(json, mesh%dm, start_time, rock_vector, &
@@ -2095,15 +2101,25 @@ contains
       if (num_tracers > 0) call create_tracer_vector(mesh%dm, tracers, &
            tracer_vector, tracer_range_start)
 
-      call mesh%set_boundary_conditions(json, y, fluid_vector, rock_vector, &
-       tracer_vector, eos, y_range_start, fluid_range_start, rock_range_start, &
-       tracer_range_start, num_tracers)
+      rp_json => fson_parse_mpi(str = '{"liquid": [0, 1], "vapour": [0, 1]}')
+      call relative_permeability%init(rp_json)
+      call fson_destroy_mpi(rp_json)
+      cp_json => fson_parse_mpi(str = '{}')
+      call capillary_pressure%init(cp_json)
+      call fson_destroy_mpi(cp_json)
+
+      call mesh%set_boundary_conditions(json, fluid_vector, rock_vector, &
+       tracer_vector, eos, fluid_range_start, rock_range_start, &
+       tracer_range_start, num_tracers, relative_permeability, &
+       capillary_pressure, err = err)
+      call test%assert(0, err, title // 'err')
 
       call fson_destroy_mpi(json)
       call mesh%destroy_distribution_data()
 
-      call global_vec_section(y, y_section)
-      call VecGetArrayReadF90(y, y_array, ierr); CHKERRQ(ierr)
+      call fluid%init(eos%num_components, eos%num_phases)
+      call global_vec_section(fluid_vector, fluid_section)
+      call VecGetArrayReadF90(fluid_vector, fluid_array, ierr); CHKERRQ(ierr)
       if (num_tracers > 0) then
          call global_vec_section(tracer_vector, tracer_section)
          call VecGetArrayReadF90(tracer_vector, tracer_array, ierr); CHKERRQ(ierr)
@@ -2113,10 +2129,11 @@ contains
       end_interior_cell = dm_get_end_interior_cell(mesh%dm, end_cell)
       do c = end_interior_cell, end_cell - 1
          if (mesh%ghost_cell(c) < 0) then
-            y_offset = global_section_offset(y_section, c, y_range_start)
-            cell_primary => y_array(y_offset : y_offset + np - 1)
+            fluid_offset = global_section_offset(fluid_section, c, fluid_range_start)
+            call fluid%assign(fluid_array, fluid_offset)
             write(msg, '(a, i0)') 'primary ', c
-            call test%assert(expected_primary, cell_primary, title // trim(msg))
+            call test%assert(expected_primary, [fluid%pressure, fluid%temperature], &
+                 title // trim(msg))
             if (num_tracers > 0) then
                tracer_offset = global_section_offset(tracer_section, c, &
                     tracer_range_start)
@@ -2127,17 +2144,17 @@ contains
             end if
          end if
       end do
-      call VecRestoreArrayReadF90(y, y_array, ierr); CHKERRQ(ierr)
+      call VecRestoreArrayReadF90(fluid_vector, fluid_array, ierr); CHKERRQ(ierr)
       if (num_tracers > 0) then
          call VecRestoreArrayReadF90(tracer_vector, tracer_array, ierr); CHKERRQ(ierr)
       end if
 
-      call VecDestroy(y, ierr); CHKERRQ(ierr)
       call VecDestroy(rock_vector, ierr); CHKERRQ(ierr)
       call VecDestroy(fluid_vector, ierr); CHKERRQ(ierr)
       if (num_tracers > 0) call VecDestroy(tracer_vector, ierr); CHKERRQ(ierr)
       call mesh%destroy()
       call eos%destroy()
+      call fluid%destroy()
       call thermo%destroy()
 
     end subroutine boundary_test
