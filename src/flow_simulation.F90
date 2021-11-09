@@ -412,26 +412,23 @@ contains
     if (self%output_filename /= "") then
        call PetscViewerDestroy(self%hdf5_viewer, ierr); CHKERRQ(ierr)
     end if
-    if (allocated(self%output_cell_geom_field_indices)) then
-       deallocate(self%output_cell_geom_field_indices)
-    end if
-    if (allocated(self%output_face_geom_field_indices)) then
-       deallocate(self%output_face_geom_field_indices)
-    end if
-    if (allocated(self%output_fluid_field_indices)) then
-       deallocate(self%output_fluid_field_indices)
-    end if
-    if (allocated(self%output_flux_field_indices)) then
-       deallocate(self%output_flux_field_indices)
-    end if
-    if (allocated(self%output_source_field_indices)) then
-       deallocate(self%output_source_field_indices)
-    end if
-    if (allocated(self%output_tracer_field_indices)) then
-       deallocate(self%output_tracer_field_indices)
     if (self%jacobian_filename /= "") then
        call PetscViewerDestroy(self%jacobian_viewer, ierr); CHKERRQ(ierr)
     end if
+
+    call check_deallocate(self%output_cell_geom_field_indices)
+    call check_deallocate(self%output_face_geom_field_indices)
+    call check_deallocate(self%output_fluid_field_indices)
+    call check_deallocate(self%output_flux_field_indices)
+    call check_deallocate(self%output_source_field_indices)
+    call check_deallocate(self%output_tracer_field_indices)
+
+  contains
+
+    subroutine check_deallocate(indices)
+      PetscInt, allocatable, intent(in out) :: indices(:)
+      if (allocated(indices)) deallocate(indices)
+    end subroutine check_deallocate
 
   end subroutine flow_simulation_destroy_output
 
