@@ -223,6 +223,9 @@ contains
        self%initial_values = initial_array
     end if
 
+    call self%setup_jacobian()
+    call self%setup_auxiliary()
+
     call self%logfile%init('', echo = PETSC_FALSE)
 
   end subroutine init_test_ode
@@ -233,9 +236,12 @@ contains
     ! Locals:
     PetscErrorCode :: ierr
     call VecDestroy(self%solution, ierr); CHKERRQ(ierr)
+    call MatDestroy(self%jacobian, ierr); CHKERRQ(ierr)
     call VecDestroy(self%exact_solution, ierr); CHKERRQ(ierr)
     if (self%auxiliary) then
        call VecDestroy(self%aux_solution, ierr); CHKERRQ(ierr)
+       call MatDestroy(self%A_aux, ierr); CHKERRQ(ierr)
+       call VecDestroy(self%b_aux, ierr); CHKERRQ(ierr)
     end if
     call VecDestroy(self%diff, ierr); CHKERRQ(ierr)
     call DMDestroy(self%mesh%interior_dm, ierr); CHKERRQ(ierr)
@@ -618,6 +624,9 @@ contains
     call VecDuplicate(self%solution, self%exact_solution, ierr)
     CHKERRQ(ierr)
     call VecDuplicate(self%solution, self%diff, ierr); CHKERRQ(ierr)
+
+    call self%setup_jacobian()
+    call self%setup_auxiliary()
 
     call self%logfile%init('', echo = PETSC_FALSE)
 

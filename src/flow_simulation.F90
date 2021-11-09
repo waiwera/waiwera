@@ -973,6 +973,8 @@ contains
                          call self%output_minc_data()
                          call self%output_source_indices()
                          call self%output_source_cell_indices()
+                         call self%setup_jacobian()
+                         call self%setup_auxiliary()
                       end if
                    end if
                 end if
@@ -1010,6 +1012,7 @@ contains
     call self%destroy_output()
 
     call VecDestroy(self%solution, ierr); CHKERRQ(ierr)
+    call MatDestroy(self%jacobian, ierr); CHKERRQ(ierr)
     call VecDestroy(self%balances, ierr); CHKERRQ(ierr)
     call VecDestroy(self%fluid, ierr); CHKERRQ(ierr)
     call VecDestroy(self%current_fluid, ierr); CHKERRQ(ierr)
@@ -1036,6 +1039,8 @@ contains
     if (self%auxiliary) then
        call VecDestroy(self%aux_solution, ierr); CHKERRQ(ierr)
        deallocate(self%tracers)
+       call MatDestroy(self%A_aux, ierr); CHKERRQ(ierr)
+       call VecDestroy(self%b_aux, ierr); CHKERRQ(ierr)
     end if
 
     elapsed_time = clock_elapsed_time(self%start_clock)
@@ -1875,7 +1880,7 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine flow_simulation_tracer_pre_solve(self, A, b)
+  subroutine flow_simulation_tracer_pre_solve(self)
     !! Routine for modifying linear system Ax = b for tracer problem
     !! before solving it. For cells in which the tracer phase is not
     !! present, the equations are modified to set the tracer mass
@@ -1888,8 +1893,6 @@ contains
     use list_module, only: list_type
 
     class(flow_simulation_type), intent(in out) :: self
-    Mat, intent(in out) :: A
-    Vec, intent(in out) :: b
     ! Locals:
     PetscInt :: start_cell, end_cell, end_interior_cell, c, i, it
     PetscInt :: nc, np, nt, num_indices, num_bdy
@@ -1910,7 +1913,7 @@ contains
     np = self%eos%num_phases
 
     nt = size(self%tracers)
-    call MatGetDM(A, dm_tracer, ierr); CHKERRQ(ierr)
+    call MatGetDM(self%A_aux, dm_tracer, ierr); CHKERRQ(ierr)
     call DMGetSection(dm_tracer, local_tracer_section, ierr); CHKERRQ(ierr)
     call global_vec_section(self%aux_solution, tracer_section)
     call global_vec_section(self%fluid, fluid_section)
@@ -1974,13 +1977,13 @@ contains
     call VecRestoreArrayReadF90(self%aux_solution, previous_solution_array, ierr)
     CHKERRQ(ierr)
 
-    call MatZeroRowsLocal(A, num_indices, indices, 1._dp, &
+    call MatZeroRowsLocal(self%A_aux, num_indices, indices, 1._dp, &
          PETSC_NULL_VEC, PETSC_NULL_VEC, ierr); CHKERRQ(ierr)
-    call VecSetValuesLocal(b, num_indices, indices, mass_fraction, INSERT_VALUES, &
+    call VecSetValuesLocal(self%b_aux, num_indices, indices, mass_fraction, INSERT_VALUES, &
          ierr); CHKERRQ(ierr)
     deallocate(indices, mass_fraction)
-    call VecAssemblyBegin(b, ierr); CHKERRQ(ierr)
-    call VecAssemblyEnd(b, ierr); CHKERRQ(ierr)
+    call VecAssemblyBegin(self%b_aux, ierr); CHKERRQ(ierr)
+    call VecAssemblyEnd(self%b_aux, ierr); CHKERRQ(ierr)
 
   contains
 

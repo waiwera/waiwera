@@ -186,10 +186,7 @@ module timestepper_module
      private
      SNES, public :: solver !! Nonlinear solver
      Vec :: residual !! Nonlinear residual vector
-     Mat :: jacobian !! Jacobian for nonlinear solver
      KSP :: solver_aux !! Linear solver for auxiliary linear problem
-     Mat :: A_aux !! Left-hand side matrix for auxiliary linear problem
-     Vec :: b_aux !! Right-hand side vector for auxiliary linear problem
      type(timestepper_solver_context_type) :: context !! Context for nonlinear solver
      class(ode_type), pointer, public :: ode !! ODE to be solved
      type(timestepper_steps_type), public :: steps !! Time steps object
@@ -204,8 +201,6 @@ module timestepper_module
      PetscBool, public :: output_final !! Whether to output final results
    contains
      private
-     procedure :: setup_jacobian => timestepper_setup_jacobian
-     procedure :: setup_auxiliary => timestepper_setup_auxiliary
      procedure :: setup_nonlinear_solver => timestepper_setup_nonlinear_solver
      procedure :: configure_linear_solver => timestepper_configure_linear_solver
      procedure :: setup_auxiliary_solver => timestepper_setup_auxiliary_solver
@@ -1517,11 +1512,11 @@ end subroutine timestepper_steps_set_next_stepsize
          SNES_residual, self%context, ierr); CHKERRQ(ierr)
     call SNESSetDM(self%solver, self%ode%mesh%interior_dm, ierr); CHKERRQ(ierr)
 
-    call MatColoringCreate(self%jacobian, matrix_coloring, ierr); CHKERRQ(ierr)
+    call MatColoringCreate(self%ode%jacobian, matrix_coloring, ierr); CHKERRQ(ierr)
     call MatColoringSetFromOptions(matrix_coloring, ierr); CHKERRQ(ierr)
     call MatColoringApply(matrix_coloring, is_coloring, ierr); CHKERRQ(ierr)
     call MatColoringDestroy(matrix_coloring, ierr); CHKERRQ(ierr)
-    call MatFDColoringCreate(self%jacobian, is_coloring, self%context%fd_coloring, &
+    call MatFDColoringCreate(self%ode%jacobian, is_coloring, self%context%fd_coloring, &
          ierr); CHKERRQ(ierr)
     call MatFDColoringSetFunction(self%context%fd_coloring, SNES_residual, &
          self%context, ierr); CHKERRQ(ierr)
@@ -1538,11 +1533,11 @@ end subroutine timestepper_steps_set_next_stepsize
     call MatFDColoringSetParameters(self%context%fd_coloring, &
          mat_fd_err, mat_fd_umin, ierr); CHKERRQ(ierr)
     call MatFDColoringSetFromOptions(self%context%fd_coloring, ierr); CHKERRQ(ierr)
-    call MatFDColoringSetUp(self%jacobian, is_coloring, self%context%fd_coloring, &
+    call MatFDColoringSetUp(self%ode%jacobian, is_coloring, self%context%fd_coloring, &
          ierr); CHKERRQ(ierr)
     call ISColoringDestroy(is_coloring, ierr); CHKERRQ(ierr)
 
-    call SNESSetJacobian(self%solver, self%jacobian, self%jacobian, &
+    call SNESSetJacobian(self%solver, self%ode%jacobian, self%ode%jacobian, &
          SNES_Jacobian, self%context, ierr)
     CHKERRQ(ierr)
 
@@ -1779,7 +1774,7 @@ end subroutine timestepper_steps_set_next_stepsize
     PetscErrorCode :: ierr
 
     call KSPCreate(PETSC_COMM_WORLD, self%solver_aux, ierr); CHKERRQ(ierr)
-    call KSPSetOperators(self%solver_aux, self%A_aux, self%A_aux, ierr)
+    call KSPSetOperators(self%solver_aux, self%ode%A_aux, self%ode%A_aux, ierr)
     CHKERRQ(ierr)
 
   end subroutine timestepper_setup_auxiliary_solver
@@ -1886,51 +1881,6 @@ end subroutine timestepper_steps_set_next_stepsize
 
 !------------------------------------------------------------------------
 
-  subroutine timestepper_setup_jacobian(self)
-    !! Sets up Jacobian matrix for nonlinear solver.
-
-    class(timestepper_type), intent(in out) :: self
-    ! Locals:
-    PetscInt :: blocksize
-    MatType :: mat_type
-    PetscErrorCode :: ierr
-
-    call VecGetBlockSize(self%ode%solution, blocksize, ierr); CHKERRQ(ierr)
-    if (blocksize == 1) then
-       mat_type = MATAIJ
-    else
-       mat_type = MATBAIJ
-    end if
-    call DMSetMatType(self%ode%mesh%interior_dm, mat_type, ierr); CHKERRQ(ierr)
-    call DMCreateMatrix(self%ode%mesh%interior_dm, self%jacobian, ierr)
-    CHKERRQ(ierr)
-    call MatSetFromOptions(self%jacobian, ierr); CHKERRQ(ierr)
-
-  end subroutine timestepper_setup_jacobian
-
-!------------------------------------------------------------------------
-
-  subroutine timestepper_setup_auxiliary(self)
-    !! Sets up linear system for auxiliary problem.
-
-    class(timestepper_type), intent(in out) :: self
-    ! Locals:
-    DM :: dm_aux
-    PetscErrorCode :: ierr
-
-    if (self%ode%auxiliary) then
-       call VecGetDM(self%ode%aux_solution, dm_aux, ierr); CHKERRQ(ierr)
-       call DMCreateMatrix(dm_aux, self%A_aux, ierr); CHKERRQ(ierr)
-       call MatSetOption(self%A_aux, MAT_KEEP_NONZERO_PATTERN, &
-            PETSC_TRUE, ierr); CHKERRQ(ierr)
-       call MatSetFromOptions(self%A_aux, ierr); CHKERRQ(ierr)
-       call VecDuplicate(self%ode%aux_solution, self%b_aux, ierr); CHKERRQ(ierr)
-    end if
-
-  end subroutine timestepper_setup_auxiliary
-
-!------------------------------------------------------------------------
-
   subroutine timestepper_init(self, json, ode)
     !! Initializes a timestepper.
 
@@ -2002,8 +1952,6 @@ end subroutine timestepper_steps_set_next_stepsize
 
     self%ode => ode
     call VecDuplicate(self%ode%solution, self%residual, ierr); CHKERRQ(ierr)
-    call self%setup_jacobian()
-    call self%setup_auxiliary()
 
     call fson_get_mpi(json, "time.step.method", &
          default_method_str, method_str, self%ode%logfile)
@@ -2266,12 +2214,9 @@ end subroutine timestepper_steps_set_next_stepsize
 
     call SNESDestroy(self%solver, ierr);  CHKERRQ(ierr)
     call VecDestroy(self%residual, ierr); CHKERRQ(ierr)
-    call MatDestroy(self%jacobian, ierr); CHKERRQ(ierr)
 
     if (self%ode%auxiliary) then
        call KSPDestroy(self%solver_aux, ierr); CHKERRQ(ierr)
-       call MatDestroy(self%A_aux, ierr); CHKERRQ(ierr)
-       call VecDestroy(self%b_aux, ierr); CHKERRQ(ierr)
     end if
 
     call self%steps%destroy()
@@ -2314,9 +2259,9 @@ end subroutine timestepper_steps_set_next_stepsize
        call SNESGetConvergedReason(self%solver, converged_reason, ierr); CHKERRQ(ierr)
 
        if ((self%ode%auxiliary) .and. (converged_reason >= 0)) then
-          call self%method%setup_linear(self%A_aux, self%b_aux, self%context, ierr)
-          call self%ode%aux_pre_solve(self%A_aux, self%b_aux)
-          call KSPSolve(self%solver_aux, self%b_aux, self%steps%current%aux_solution, &
+          call self%method%setup_linear(self%ode%A_aux, self%ode%b_aux, self%context, ierr)
+          call self%ode%aux_pre_solve()
+          call KSPSolve(self%solver_aux, self%ode%b_aux, self%steps%current%aux_solution, &
                ierr); CHKERRQ(ierr)
           call KSPGetConvergedReason(self%solver_aux, converged_reason_aux, ierr)
           CHKERRQ(ierr)

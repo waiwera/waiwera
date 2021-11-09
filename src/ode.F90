@@ -22,10 +22,12 @@ module ode_module
 #include <petsc/finclude/petscsys.h>
 #include <petsc/finclude/petscvec.h>
 #include <petsc/finclude/petscmat.h>
+#include <petsc/finclude/petscdm.h>
 
   use petscsys
   use petscvec
   use petscmat
+  use petscdm
   use mesh_module
   use logfile_module
   use kinds_module
@@ -45,6 +47,9 @@ module ode_module
      Vec, public :: solution
      Vec, public :: aux_solution
      type(mesh_type),  public :: mesh
+     Mat, public :: jacobian
+     Mat, public :: A_aux !! Left-hand side matrix for auxiliary linear problem
+     Vec, public :: b_aux !! Right-hand side vector for auxiliary linear problem
      type(logfile_type), public :: logfile
      PetscBool, public :: auxiliary
    contains
@@ -62,6 +67,8 @@ module ode_module
      procedure, public :: pre_try_timestep => ode_pre_try_timestep
      procedure, public :: pre_retry_timestep => ode_pre_retry_timestep
      procedure, public :: post_linesearch => ode_post_linesearch
+     procedure, public :: setup_jacobian => ode_setup_jacobian
+     procedure, public :: setup_auxiliary => ode_setup_auxiliary
      procedure(ode_output_procedure), public, deferred :: output
   end type ode_type
 
@@ -243,17 +250,60 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine ode_aux_pre_solve(self, A, b)
+  subroutine ode_aux_pre_solve(self)
     !! Default routine for modifying auxiliary linear system Ax = b
     !! before solving it.
 
     class(ode_type), intent(in out) :: self
-    Mat, intent(in out) :: A
-    Vec, intent(in out) :: b
 
     ! Do nothing
 
   end subroutine ode_aux_pre_solve
+
+!------------------------------------------------------------------------
+
+  subroutine ode_setup_jacobian(self)
+    !! Set up Jacobian matrix.
+
+    class(ode_type), intent(in out) :: self
+    ! Locals:
+    PetscInt :: blocksize
+    MatType :: mat_type
+    PetscErrorCode :: ierr
+
+    call VecGetBlockSize(self%solution, blocksize, ierr); CHKERRQ(ierr)
+    if (blocksize == 1) then
+       mat_type = MATAIJ
+    else
+       mat_type = MATBAIJ
+    end if
+    call DMSetMatType(self%mesh%interior_dm, mat_type, ierr); CHKERRQ(ierr)
+    call DMCreateMatrix(self%mesh%interior_dm, self%jacobian, ierr)
+    CHKERRQ(ierr)
+    call MatSetFromOptions(self%jacobian, ierr); CHKERRQ(ierr)
+
+  end subroutine ode_setup_jacobian
+
+!------------------------------------------------------------------------
+
+  subroutine ode_setup_auxiliary(self)
+    !! Sets up linear system for auxiliary problem.
+
+    class(ode_type), intent(in out) :: self
+    ! Locals:
+    DM :: dm_aux
+    PetscErrorCode :: ierr
+
+    if (self%auxiliary) then
+       call VecGetDM(self%aux_solution, dm_aux, ierr); CHKERRQ(ierr)
+       call DMCreateMatrix(dm_aux, self%A_aux, ierr); CHKERRQ(ierr)
+       call MatSetOption(self%A_aux, MAT_KEEP_NONZERO_PATTERN, &
+            PETSC_TRUE, ierr); CHKERRQ(ierr)
+       call MatSetFromOptions(self%A_aux, ierr); CHKERRQ(ierr)
+       call VecDuplicate(self%aux_solution, self%b_aux, ierr); CHKERRQ(ierr)
+    end if
+
+  end subroutine ode_setup_auxiliary
 
 !------------------------------------------------------------------------
 
