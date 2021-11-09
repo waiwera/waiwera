@@ -429,6 +429,8 @@ contains
     end if
     if (allocated(self%output_tracer_field_indices)) then
        deallocate(self%output_tracer_field_indices)
+    if (self%jacobian_filename /= "") then
+       call PetscViewerDestroy(self%jacobian_viewer, ierr); CHKERRQ(ierr)
     end if
 
   end subroutine flow_simulation_destroy_output
