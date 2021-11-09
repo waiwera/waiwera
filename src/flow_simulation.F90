@@ -2933,6 +2933,10 @@ contains
        end if
     end if
 
+    if (self%jacobian_filename /= "") then
+       call MatView(self%jacobian, self%jacobian_viewer, ierr); CHKERRQ(ierr)
+    end if
+
     call PetscLogEventEnd(output_event, ierr); CHKERRQ(ierr)
 
   end subroutine flow_simulation_output
