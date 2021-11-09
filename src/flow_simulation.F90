@@ -75,6 +75,8 @@ module flow_simulation_module
      PetscInt, allocatable :: output_flux_field_indices(:)  !! Field indices for flux output
      PetscInt, allocatable :: output_source_field_indices(:) !! Field indices for source output
      PetscInt, allocatable :: output_tracer_field_indices(:) !! Field indices for tracer output
+     character(max_output_filename_length), public :: jacobian_filename !! Binary Jacobian output filename
+     PetscViewer :: jacobian_viewer !! Viewer for binary Jacobian output
      integer(int32) :: start_clock !! Start wall clock time of simulation
      PetscBool :: unperturbed !! Whether any primary variables are being perturbed for Jacobian calculation
      PetscBool :: source_tracer_output !! Whether to output source tracer flow rates
@@ -299,19 +301,26 @@ contains
     type(fson_value), pointer, intent(in) :: json
     ! Locals:
     character(max_output_filename_length), parameter :: &
-         default_output_filename = "output.h5"
-    character(max_output_filename_length) :: assumed_output_filename
+         default_output_filename = "output.h5", &
+         default_jacobian_filename = ""
+    character(max_output_filename_length) :: assumed_output_filename, &
+         assumed_jacobian_filename
     PetscErrorCode :: ierr
-    PetscBool :: output, default_output, no_output
+    PetscBool :: output, output_jacobian, default_output, default_jacobian
 
     default_output = PETSC_FALSE
-    no_output = PETSC_FALSE
+    self%output_filename = ""
+    default_jacobian = PETSC_FALSE
+    self%jacobian_filename = ""
 
     if (self%filename /= "") then
        assumed_output_filename = &
             change_filename_extension(self%filename, "h5")
+       assumed_jacobian_filename = &
+            change_filename_extension(self%filename, "jac")
     else
        assumed_output_filename = default_output_filename
+       assumed_jacobian_filename = default_jacobian_filename
     end if
 
     if (fson_has_mpi(json, "output")) then
@@ -320,23 +329,41 @@ contains
           if (output) then
              self%output_filename = assumed_output_filename
              default_output = PETSC_TRUE
-          else
-             self%output_filename = ""
-             no_output = PETSC_TRUE
           end if
+          self%jacobian_filename = assumed_jacobian_filename
+          default_jacobian = PETSC_TRUE
        else
           if (fson_has_mpi(json, "output.filename")) then
              call fson_get_mpi(json, "output.filename", &
                   val = self%output_filename)
-             no_output = (self%output_filename == "")
+             assumed_jacobian_filename = &
+                  change_filename_extension(self%output_filename, "jac")
           else
              self%output_filename = assumed_output_filename
              default_output = PETSC_TRUE
+          end if
+          if (fson_has_mpi(json, "output.jacobian")) then
+             if (fson_type_mpi(json, "output.jacobian") == TYPE_LOGICAL) then
+                call fson_get_mpi(json, "output.jacobian", val = output_jacobian)
+                if (output_jacobian) then
+                   self%jacobian_filename = assumed_jacobian_filename
+                end if
+                default_jacobian = PETSC_TRUE
+             else
+                if (fson_has_mpi(json, "output.jacobian.filename")) then
+                   call fson_get_mpi(json, "output.jacobian.filename", &
+                        val = self%jacobian_filename)
+                else
+                   self%jacobian_filename = assumed_jacobian_filename
+                   default_jacobian = PETSC_TRUE
+                end if
+             end if
           end if
        end if
     else
        self%output_filename = assumed_output_filename
        default_output = PETSC_TRUE
+       default_jacobian = PETSC_TRUE
     end if
 
     if (self%output_filename /= "") then
@@ -348,13 +375,26 @@ contains
        self%hdf5_viewer = PETSC_NULL_VIEWER
     end if
 
+    if (self%jacobian_filename /= "") then
+       call PetscViewerBinaryOpen(PETSC_COMM_WORLD, self%jacobian_filename, &
+            FILE_MODE_WRITE, self%jacobian_viewer, ierr); CHKERRQ(ierr)
+    else
+       self%jacobian_viewer = PETSC_NULL_VIEWER
+    end if
+
     if (default_output) then
        call self%logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
             str_key = "output.filename", &
             str_value = self%output_filename)
     end if
 
-    if (no_output) then
+    if (default_jacobian) then
+       call self%logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
+            str_key = "output.jacobian.filename", &
+            str_value = self%jacobian_filename)
+    end if
+
+    if (self%output_filename == "") then
        call self%logfile%write(LOG_LEVEL_WARN, 'input', 'no output')
     end if
 

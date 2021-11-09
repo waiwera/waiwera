@@ -69,7 +69,13 @@
                                  {"type": "string", "enum": ["all", "All", "ALL"]}
                              ]}
                      }, "additionalProperties": false
-                 }
+                 },
+                 "jacobian": {"oneOf": [
+                     {"type": "boolean"},
+                     {"type": "object",
+                      "properties": {"filename": {"type": "string"}},
+                      "additionalProperties": false}
+                 ]}
              },
              "additionalProperties": false
             }
@@ -80,7 +86,8 @@
             {"type": "object",
              "properties": {
                  "name": {"type": "string", "enum": ["ifc67", "IFC67", "iapws", "IAPWS"]},
-                 "extrapolate": {"type": "boolean"}}}
+                 "extrapolate": {"type": "boolean"}},
+             "additionalProperties": false}
         ]},
         "eos": {"oneOf": [{"type": "string",
                            "enum": ["w", "W",
