@@ -25,33 +25,37 @@ This object has a **"filename"** string value for specifying the filename of the
 
    **JSON path**: output
 
-   +-------------+------------+----------------------+-------------------------------+
-   |**name**     |**type**    |**default**           |**value**                      |
-   +-------------+------------+----------------------+-------------------------------+
-   |"filename"   |string      |input filename with   |simulation output filename     |
-   |             |            |extension changed from|                               |
-   |             |            |".json" to ".h5"      |                               |
-   +-------------+------------+----------------------+-------------------------------+
-   |"initial"    |boolean     |true                  |whether initial conditions     |
-   |             |            |                      |are included in output         |
-   |             |            |                      |                               |
-   |             |            |                      |                               |
-   +-------------+------------+----------------------+-------------------------------+
-   |"final"      |boolean     |true                  |whether final results are      |
-   |             |            |                      |always included in output      |
-   +-------------+------------+----------------------+-------------------------------+
-   |"frequency"  |integer     |1                     |number of time steps between   |
-   |             |            |                      |:ref:`regular_output`          |
-   |             |            |                      |                               |
-   +-------------+------------+----------------------+-------------------------------+
-   |"checkpoint" |object      |{}                    |parameters for                 |
-   |             |            |                      |:ref:`checkpoint_output`       |
-   |             |            |                      |                               |
-   +-------------+------------+----------------------+-------------------------------+
-   |"fields"     |object      |depends on EOS        |fields to output (see          |
-   |             |            |                      |:ref:`output_fields`)          |
-   |             |            |                      |                               |
-   +-------------+------------+----------------------+-------------------------------+
+   +-------------+--------------+----------------------+-------------------------------+
+   |**name**     |**type**      |**default**           |**value**                      |
+   +-------------+--------------+----------------------+-------------------------------+
+   |"filename"   |string        |input filename with   |simulation output filename     |
+   |             |              |extension changed from|                               |
+   |             |              |".json" to ".h5"      |                               |
+   +-------------+--------------+----------------------+-------------------------------+
+   |"initial"    |boolean       |true                  |whether initial conditions     |
+   |             |              |                      |are included in output         |
+   |             |              |                      |                               |
+   |             |              |                      |                               |
+   +-------------+--------------+----------------------+-------------------------------+
+   |"final"      |boolean       |true                  |whether final results are      |
+   |             |              |                      |always included in output      |
+   +-------------+--------------+----------------------+-------------------------------+
+   |"frequency"  |integer       |1                     |number of time steps between   |
+   |             |              |                      |:ref:`regular_output`          |
+   |             |              |                      |                               |
+   +-------------+--------------+----------------------+-------------------------------+
+   |"checkpoint" |object        |{}                    |parameters for                 |
+   |             |              |                      |:ref:`checkpoint_output`       |
+   |             |              |                      |                               |
+   +-------------+--------------+----------------------+-------------------------------+
+   |"fields"     |object        |depends on EOS        |fields to output (see          |
+   |             |              |                      |:ref:`output_fields`)          |
+   |             |              |                      |                               |
+   +-------------+--------------+----------------------+-------------------------------+
+   |"jacobian"   |boolean |     |false                 |whether to output Jacobian     |
+   |             |object        |                      |matrix                         |
+   |             |              |                      |                               |
+   +-------------+--------------+----------------------+-------------------------------+
 
 .. index:: output; regular
 .. _regular_output:
@@ -479,4 +483,36 @@ In this example, the output mesh geometry fields are specified, so that only cel
                   "cell_geometry": ["volume"],
                   "face_geometry": []}}}
 
+Jacobian matrix output
+======================
 
+For some applications (e.g. inverse modelling, uncertainty quantification) it may be useful to output not only the simulation results but also the Jacobian matrix (see :ref:`jacobian_matrix`).
+
+The Jacobian matrix is output not to the main simulation output HDF5 file (PETSc does not yet support this) but to an additional binary file. This file is in the native PETSc binary matrix file format and may be read into other codes via the PETSc library. As well as the main binary file, and accompanying text file with the ``*.info`` extension is also created. Note that the ordering of rows and columns in the output Jacobian matrix corresponds to that of the cells in the main simulation output (see :ref:`index_datasets`).
+
+Jacobian output can be specified in the JSON input file via the **"jacobian"** value. Setting this value to the boolean ``false`` (the default) disables Jacobian output. Setting it to ``true`` enables Jacobian output, and writes the Jacobian to a binary matrix file with the same file name as the main HDF5 simulation output, but with file extension changed to ``*.jac``.
+
+The **"jacobian"** value can also be specifed as an object containing a **"filename"** string value, which can be used to override the default file name for the binary Jacobian matrix file. Setting the file name in this way implicitly enables Jacobian output.
+
+If Jacobian output is enabled, the Jacobian matrix is written whenever the main simulation results are written (see :ref:`initial_and_final_output` and :ref:`checkpoint_output`). For example, for a steady-state simulation in which results are written only at the end of the run, the Jacobian matrix will similarly be written only once to the binary matrix file.
+
+Examples
+--------
+
+This example enables Jacobian output and uses the default Jacobian file name, based on the main simulation HDF5 output file name (which is itself not specified here, and is hence based on the input file name):
+
+.. code-block:: json
+
+    {"output": {"jacobian": true}}
+
+This example also enables Jacobian output and specifies the Jacobian file name explicitly:
+
+.. code-block:: json
+
+    {"output": {"jacobian": {"filename": "model.jac"}}}
+
+In this example, the simulation output file name is specified, and Jacobian output enabled, which will be written to a file called ``production.jac``:
+
+.. code-block:: json
+
+    {"output": {"filename": "production.h5", "jacobian": true}}
