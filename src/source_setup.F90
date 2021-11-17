@@ -414,6 +414,7 @@ contains
          is_count = 0
       end if
       allocate(indices_all(0: num_all - 1), global_indices(0: num_all - 1))
+      global_indices = -1
       call MPI_gatherv(indices, num_local_sources, MPI_INTEGER, &
            indices_all, counts, displacements, &
            MPI_INTEGER, 0, PETSC_COMM_WORLD, ierr)
