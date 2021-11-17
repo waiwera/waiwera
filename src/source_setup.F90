@@ -298,11 +298,11 @@ contains
 
 !........................................................................
 
-    subroutine setup_source(source_index, local_source_index, source_json, &
+    subroutine setup_source(source_spec_index, local_source_index, source_json, &
          ao, tracer_names, err)
       !! Iterator for setting up cell sources for a source specification.
 
-      PetscInt, intent(in) :: source_index !! Index of source specification
+      PetscInt, intent(in) :: source_spec_index !! Index of source specification
       PetscInt, intent(in out) :: local_source_index !! Index of source
       type(fson_value), pointer, intent(in) :: source_json !! JSON input for specification
       AO, intent(in) :: ao !! Application ordering for natural to global cell indexing
@@ -323,9 +323,9 @@ contains
 
       err = 0
       call DMGetLocalToGlobalMapping(dm, l2g, ierr); CHKERRQ(ierr)
-      call DMGetStratumSize(dm, source_label_name, source_index, &
+      call DMGetStratumSize(dm, source_label_name, source_spec_index, &
            num_cells, ierr); CHKERRQ(ierr)
-      write(istr, '(i0)') source_index
+      write(istr, '(i0)') source_spec_index
       srcstr = 'source[' // trim(istr) // '].'
       call get_components(source_json, eos, &
            injection_component, production_component, logfile)
@@ -337,7 +337,7 @@ contains
       if (err == 0) then
          allocate(local_source_indices(num_cells))
          if (num_cells > 0) then
-            call DMGetStratumIS(dm, source_label_name, source_index, &
+            call DMGetStratumIS(dm, source_label_name, source_spec_index, &
                  cell_IS, ierr); CHKERRQ(ierr)
             call ISGetIndicesF90(cell_IS, local_cell_index, ierr); CHKERRQ(ierr)
             allocate(natural_cell_index(num_cells))
@@ -346,7 +346,7 @@ contains
                source_offset = global_section_offset(source_section, local_source_index, &
                     source_range_start)
                call source%assign(source_data, source_offset)
-               call source%setup(source_index, local_source_index, &
+               call source%setup(source_spec_index, local_source_index, &
                     natural_cell_index(i), local_cell_index(i), &
                     initial_rate, initial_enthalpy, &
                     injection_component, production_component, &
