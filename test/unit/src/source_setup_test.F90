@@ -190,7 +190,7 @@ contains
             call source_test(test, source_index, source, &
                  4, 3.5_dp, 60.e3_dp, default_source_component, 0, &
                  [0._dp, 2.e-3_dp])
-         case (20)
+         case (20:)
             num_zone_sources = num_zone_sources + 1
             zone_source(num_zone_sources) = nint(source%natural_cell_index)
          end select
@@ -309,7 +309,7 @@ contains
     PetscErrorCode :: err, ierr
     PetscReal, parameter :: start_time = 0._dp
     PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
-    PetscInt, parameter :: expected_num_sources = 3
+    PetscInt, parameter :: expected_num_sources = 6
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
     call MPI_COMM_SIZE(PETSC_COMM_WORLD, num_procs, ierr)

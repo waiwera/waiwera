@@ -145,22 +145,22 @@ contains
        select case (source_index)
        case (0)
           call test%assert(-2.25_dp, source%rate, trim(srcstr))
-       case (1)
+       case (1: 3)
           call test%assert(2.25_dp, source%rate, trim(srcstr))
-       case (2)
+       case (4: 5)
           call test%assert(104.5e3_dp, source%injection_enthalpy, &
                trim(srcstr))
-       case (3)
+       case (6)
           call test%assert(-2.5_dp * 0.75_dp, source%rate, trim(srcstr))
-       case (4)
+       case (7)
           call test%assert(-2.5_dp * 0.5_dp, source%rate, trim(srcstr))
-       case (5)
+       case (8)
           call test%assert([0.001_dp / 3._dp, 0.001_dp / 3._dp], &
                source%tracer_injection_rate, trim(srcstr))
-       case (6)
+       case (9)
           call test%assert([0.001_dp / 3._dp, 0.001_dp * 7._dp / 9._dp], &
                source%tracer_injection_rate, trim(srcstr))
-       case (7)
+       case (10)
           call test%assert([0._dp, 0.001_dp * 7._dp / 9._dp], &
                source%tracer_injection_rate, trim(srcstr))
        end select
