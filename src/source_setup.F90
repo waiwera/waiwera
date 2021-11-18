@@ -77,6 +77,7 @@ contains
     PetscErrorCode :: ierr
 
     num_local_sources = 0
+    num_sources = 0
     num_tracers = size(tracer_names)
     call source%init(eos, num_tracers)
     err = 0
@@ -103,7 +104,7 @@ contains
           local_source_index = 0
           do source_spec_index = 0, num_source_specs - 1
              call setup_source(source_spec_index, local_source_index, &
-                  source_json, ao, tracer_names, err)
+                  source_json, ao, tracer_names, num_sources, err)
              if (err > 0) exit
              source_json => fson_value_next_mpi(source_json)
           end do
@@ -125,9 +126,6 @@ contains
     end if
 
     call source%destroy()
-
-    call MPI_allreduce(num_local_sources, num_sources, 1, MPI_INTEGER, MPI_SUM, &
-         PETSC_COMM_WORLD, ierr)
 
   contains
 
@@ -299,34 +297,43 @@ contains
 !........................................................................
 
     subroutine setup_source(source_spec_index, local_source_index, source_json, &
-         ao, tracer_names, err)
+         ao, tracer_names, num_sources, err)
       !! Iterator for setting up cell sources for a source specification.
+
+      use utils_module, only: get_mpi_int_gather_array, array_cumulative_sum, &
+           array_indices_in_int_array
 
       PetscInt, intent(in) :: source_spec_index !! Index of source specification
       PetscInt, intent(in out) :: local_source_index !! Index of source
       type(fson_value), pointer, intent(in) :: source_json !! JSON input for specification
       AO, intent(in) :: ao !! Application ordering for natural to global cell indexing
       character(*), intent(in) :: tracer_names(:) !! Tracer names
+      PetscInt, intent(in out) :: num_sources !! Current total number of sources (on all processes)
       PetscErrorCode, intent(out) :: err
       ! Locals:
+      PetscMPIInt :: rank, num_procs
       character(len=64) :: srcstr
       character(len=12) :: istr
       PetscInt :: injection_component, production_component
       PetscReal :: initial_rate, initial_enthalpy
-      PetscInt :: num_cells, i, source_offset
-      PetscInt, allocatable :: local_source_indices(:)
-      PetscInt, allocatable :: natural_cell_index(:)
+      PetscInt :: num_cells, num_cells_all, i, source_offset
+      PetscInt, allocatable :: cell_counts(:), cell_displacements(:)
+      PetscInt, allocatable :: local_source_indices(:), natural_source_index(:)
+      PetscInt, allocatable :: natural_cell_index(:), natural_cell_index_all(:)
+      PetscInt, allocatable :: ordered_natural_cell_index_all(:)
+      PetscInt, allocatable :: natural_source_index_all(:)
       IS :: cell_IS
       PetscInt, pointer, contiguous :: local_cell_index(:)
       ISLocalToGlobalMapping :: l2g
       PetscReal :: tracer_injection_rate(size(tracer_names))
 
       err = 0
+      call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+      call MPI_COMM_SIZE(PETSC_COMM_WORLD, num_procs, ierr)
       call DMGetLocalToGlobalMapping(dm, l2g, ierr); CHKERRQ(ierr)
-      call DMGetStratumSize(dm, source_label_name, source_spec_index, &
-           num_cells, ierr); CHKERRQ(ierr)
       write(istr, '(i0)') source_spec_index
       srcstr = 'source[' // trim(istr) // '].'
+
       call get_components(source_json, eos, &
            injection_component, production_component, logfile)
       call get_initial_rate(source_json, initial_rate)
@@ -334,19 +341,56 @@ contains
            injection_component, initial_enthalpy)
       call get_tracer_injection_rate(source_json, tracer_names, &
            srcstr, tracer_injection_rate, logfile, err)
+
       if (err == 0) then
-         allocate(local_source_indices(num_cells))
+
+         call DMGetStratumSize(dm, source_label_name, source_spec_index, &
+              num_cells, ierr); CHKERRQ(ierr)
+         cell_counts = get_mpi_int_gather_array()
+         cell_displacements = get_mpi_int_gather_array()
+         call MPI_gather(num_cells, 1, MPI_INTEGER, cell_counts, 1, &
+              MPI_INTEGER, 0, PETSC_COMM_WORLD, ierr)
+         if (rank == 0) then
+            num_cells_all = sum(cell_counts)
+            allocate(natural_cell_index_all(num_cells_all), &
+                 natural_source_index_all(num_cells_all))
+            cell_displacements = [[0], &
+                 array_cumulative_sum(cell_counts(1: num_procs - 1))]
+         else
+            allocate(natural_cell_index_all(1), natural_source_index_all(1))
+         end if
+         call MPI_bcast(num_cells_all, 1, MPI_INTEGER, 0, PETSC_COMM_WORLD, ierr)
          if (num_cells > 0) then
             call DMGetStratumIS(dm, source_label_name, source_spec_index, &
                  cell_IS, ierr); CHKERRQ(ierr)
             call ISGetIndicesF90(cell_IS, local_cell_index, ierr); CHKERRQ(ierr)
-            allocate(natural_cell_index(num_cells))
+            allocate(natural_cell_index(num_cells), natural_source_index(num_cells))
             natural_cell_index = local_to_natural_cell_index(ao, l2g, local_cell_index)
+         else
+            allocate(natural_cell_index(1), natural_source_index(1))
+         end if
+         call MPI_gatherv(natural_cell_index, num_cells, MPI_INTEGER, &
+              natural_cell_index_all, cell_counts, cell_displacements, &
+              MPI_INTEGER, 0, PETSC_COMM_WORLD, ierr)
+         ordered_natural_cell_index_all = get_source_cell_indices(source_json, &
+              natural_cell_index_all)
+         if (rank == 0) then
+            natural_source_index_all = array_indices_in_int_array( &
+                 ordered_natural_cell_index_all, natural_cell_index_all)
+            natural_source_index_all = natural_source_index_all + num_sources - 1
+         end if
+         call MPI_scatterv(natural_source_index_all, cell_counts, cell_displacements, &
+              MPI_INTEGER, natural_source_index, num_cells, MPI_INTEGER, &
+              0, PETSC_COMM_WORLD, ierr)
+         deallocate(natural_source_index_all)
+
+         allocate(local_source_indices(num_cells))
+         if (num_cells > 0) then
             do i = 1, num_cells
                source_offset = global_section_offset(source_section, local_source_index, &
                     source_range_start)
                call source%assign(source_data, source_offset)
-               call source%setup(source_spec_index, local_source_index, &
+               call source%setup(natural_source_index(i), local_source_index, &
                     natural_cell_index(i), local_cell_index(i), &
                     initial_rate, initial_enthalpy, &
                     injection_component, production_component, &
@@ -355,16 +399,70 @@ contains
                local_source_index = local_source_index + 1
             end do
             call ISRestoreIndicesF90(cell_IS, local_cell_index, ierr); CHKERRQ(ierr)
-            deallocate(natural_cell_index)
+            deallocate(natural_cell_index, natural_source_index)
          end if
          call setup_inline_source_controls(source_json, eos, thermo, &
               start_time, source_data, source_section, source_range_start, &
               fluid_data, fluid_section, fluid_range_start, srcstr, &
               tracer_names, local_source_indices, source_controls, logfile, err)
-         deallocate(local_source_indices)
+         deallocate(local_source_indices, cell_counts, cell_displacements)
+         if (rank == 0) then
+            deallocate(natural_cell_index_all, ordered_natural_cell_index_all)
+         end if
+         num_sources = num_sources + num_cells_all
       end if
 
     end subroutine setup_source
+
+    function get_source_cell_indices(source_json, cells) result(ordered_cells)
+
+      !! Gets array of all natural cell indices for the source, in
+      !! natural source order, on rank 0. For sources with the "cell"
+      !! or "cells" properties this can simply be read from the
+      !! input. For sources with cells defined by zones, cells from
+      !! all ranks are ordered by natural cell index.
+
+      type(fson_value), pointer, intent(in) :: source_json
+      PetscInt, intent(in) :: cells(:)
+      PetscInt, allocatable :: ordered_cells(:)
+      ! Locals:
+      type(fson_value), pointer :: cell_json, cells_json, zones_json
+      PetscInt :: c
+      PetscMPIInt :: rank
+      PetscErrorCode :: ierr
+
+      call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+
+      if (rank == 0) then
+
+         call fson_get(source_json, "cell", cell_json)
+         if (associated(cell_json)) then
+            call fson_get(cell_json, ".", c)
+            ordered_cells = [c]
+         end if
+
+         call fson_get(source_json, "cells", cells_json)
+         if (associated(cells_json)) then
+            select case (cells_json%value_type)
+            case (TYPE_INTEGER)
+               call fson_get(cells_json, ".", c)
+               ordered_cells = [c]
+            case (TYPE_ARRAY)
+               call fson_get(cells_json, ".", ordered_cells)
+            end select
+         end if
+
+         call fson_get(source_json, "zones", zones_json)
+         if (associated(zones_json)) then
+            ordered_cells = cells
+            call PetscSortInt(size(cells), ordered_cells, ierr); CHKERRQ(ierr)
+         end if
+
+      else
+         allocate(ordered_cells(1))
+      end if
+
+    end function get_source_cell_indices
 
 !........................................................................
 
