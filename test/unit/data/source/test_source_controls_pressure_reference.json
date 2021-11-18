@@ -1,6 +1,6 @@
 {
     "title": "Test pressure reference source controls",
-    "mesh": "../test/unit/data/flow_simulation/mesh/3x3_2d.exo",
+    "mesh": "../test/unit/data/flow_simulation/mesh/4x3_2d.exo",
     "source": [
         {"name": "source 1", "cell": 0,
          "direction": "production",

@@ -87,7 +87,7 @@ contains
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
     json => fson_parse_mpi(str = '{"mesh": "' // trim(adjustl(data_path)) // &
-         'flow_simulation/mesh/3x3_2d.exo"}')
+         'flow_simulation/mesh/4x3_2d.exo"}')
     call thermo%init()
     call eos%init(json, thermo)
 

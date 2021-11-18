@@ -1,6 +1,6 @@
 {
     "title": "Test table rock controls",
-    "mesh": "../test/unit/data/flow_simulation/mesh/3x3_2d.exo",
+    "mesh": "../test/unit/data/flow_simulation/mesh/4x3_2d.exo",
     "rock": {"types": [
         {"name": "constant",
          "cells": [6, 7, 8],

@@ -1,6 +1,6 @@
 {
     "title": "Test source setup",
-    "mesh": {"filename": "../test/unit/data/flow_simulation/mesh/3x3_2d.exo",
+    "mesh": {"filename": "../test/unit/data/flow_simulation/mesh/4x3_2d.exo",
              "zones": {"LH": {"x": [0, 100]}}},
     "tracer": [{"name": "foo"}, {"name": "bar"}],
     "source": [

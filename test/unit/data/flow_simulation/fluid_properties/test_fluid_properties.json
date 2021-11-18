@@ -1,6 +1,6 @@
 {
     "title": "Test fluid properties",
-    "mesh": "../test/unit/data/flow_simulation/mesh/3x3_2d.exo",
+    "mesh": "../test/unit/data/flow_simulation/mesh/4x3_2d.exo",
     "eos": {"name": "w", "temperature": 20.},
     "initial": {"primary": [2.0e5]},
     "rock": {
