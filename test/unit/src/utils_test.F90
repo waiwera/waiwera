@@ -19,7 +19,8 @@ module utils_test
        test_degrees_to_radians, test_rotation_matrix_2d, &
        test_polynomial, test_multipolynomial, test_polynomial_derivative, &
        test_array_pair_sum, test_array_cumulative_sum, &
-       test_array_exclusive_products, test_array_sorted
+       test_array_exclusive_products, test_array_sorted, &
+       test_array_indices_in_int_array
 
 contains
 
@@ -477,6 +478,28 @@ contains
     end if
 
   end subroutine test_array_sorted
+
+!------------------------------------------------------------------------
+
+  subroutine test_array_indices_in_int_array(test)
+    ! Test array_indices_in_int_array
+
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
+    PetscMPIInt :: rank
+    PetscInt :: ierr
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
+
+       call test%assert([1], array_indices_in_int_array([3], [3]), 'case 1')
+       call test%assert([1, 2], array_indices_in_int_array([0, 1], [0, 1]), 'case 2')
+       call test%assert([2, 1], array_indices_in_int_array([1, 0], [0, 1]), 'case 3')
+       call test%assert([2, 3, 1], array_indices_in_int_array([3, 4, 1], [4, 1, 3]), 'case 4')
+
+    end if
+
+  end subroutine test_array_indices_in_int_array
 
 !------------------------------------------------------------------------
 

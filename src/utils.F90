@@ -56,7 +56,7 @@ module utils_module
        polynomial, polynomial_derivative, &
        array_pair_sum, array_cumulative_sum, &
        array_exclusive_products, get_mpi_int_gather_array, &
-       array_sorted, clock_elapsed_time
+       array_sorted, array_indices_in_int_array, clock_elapsed_time
   
 contains
 
@@ -440,6 +440,44 @@ contains
     end associate
 
   end function array_sorted_real
+
+!------------------------------------------------------------------------
+
+  function array_indices_in_int_array(a, b) result(indices)
+    !! Returns (1-based) indices of the elements of integer array b in
+    !! array a. It is assumed that a and b are permutations of each
+    !! other.
+
+    PetscInt, intent(in) :: a(:), b(:)
+    PetscInt :: indices(size(a))
+    ! Locals:
+    PetscInt :: fa(size(a)), fb(size(a)), fbi(size(a))
+    PetscInt :: i
+    PetscErrorCode :: ierr
+
+    associate (n => size(a))
+
+      ! Find sort permutations for a and b:
+      fa = [(i, i = 0, n - 1)]
+      call PetscSortIntWithPermutation(n, a, fa, ierr); CHKERRQ(ierr)
+      fa = fa + 1
+      fb = [(i, i = 0, n - 1)]
+      call PetscSortIntWithPermutation(n, b, fb, ierr); CHKERRQ(ierr)
+      fb = fb + 1
+
+      ! Invert permutation for b:
+      fbi = -1
+      do i = 1, n
+         fbi(fb(i)) = i
+      end do
+
+      do i = 1, n
+         indices(i) = fa(fbi(i))
+      end do
+
+    end associate
+
+  end function array_indices_in_int_array
 
 !------------------------------------------------------------------------
 
