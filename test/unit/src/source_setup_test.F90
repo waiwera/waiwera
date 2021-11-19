@@ -300,11 +300,12 @@ contains
     type(mesh_type) :: mesh
     type(tracer_type), allocatable :: tracers(:)
     Vec :: fluid_vector, source_vector
-    PetscInt :: num_sources, total_num_sources
+    PetscInt :: num_sources, total_num_sources, i
     PetscInt :: fluid_range_start, source_range_start
     type(list_type) :: source_controls
     IS :: source_index
     PetscInt, pointer, contiguous :: source_index_array(:)
+    PetscInt, allocatable :: sorted_index(:)
     PetscMPIInt :: rank, num_procs
     PetscErrorCode :: err, ierr
     PetscReal, parameter :: start_time = 0._dp
@@ -335,6 +336,11 @@ contains
 
     call ISGetIndicesF90(source_index, source_index_array, ierr); CHKERRQ(ierr)
     call test%assert(all(source_index_array >= 0), "indices >= 0")
+    if (rank == 0) then
+       sorted_index = source_index_array
+       call PetscSortInt(total_num_sources, sorted_index, ierr); CHKERRQ(ierr)
+       call test%assert([(i, i = 0, total_num_sources - 1)], sorted_index, "indices permutation")
+    end if
     call ISRestoreIndicesF90(source_index, source_index_array, ierr); CHKERRQ(ierr)
 
     call ISDestroy(source_index, ierr); CHKERRQ(ierr)
