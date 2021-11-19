@@ -300,9 +300,6 @@ contains
          ao, tracer_names, num_sources, err)
       !! Iterator for setting up cell sources for a source specification.
 
-      use utils_module, only: get_mpi_int_gather_array, array_cumulative_sum, &
-           array_indices_in_int_array
-
       PetscInt, intent(in) :: source_spec_index !! Index of source specification
       PetscInt, intent(in out) :: local_source_index !! Index of source
       type(fson_value), pointer, intent(in) :: source_json !! JSON input for specification
@@ -311,25 +308,19 @@ contains
       PetscInt, intent(in out) :: num_sources !! Current total number of sources (on all processes)
       PetscErrorCode, intent(out) :: err
       ! Locals:
-      PetscMPIInt :: rank, num_procs
       character(len=64) :: srcstr
       character(len=12) :: istr
       PetscInt :: injection_component, production_component
       PetscReal :: initial_rate, initial_enthalpy
       PetscInt :: num_cells, num_cells_all, i, source_offset
-      PetscInt, allocatable :: cell_counts(:), cell_displacements(:)
       PetscInt, allocatable :: local_source_indices(:), natural_source_index(:)
-      PetscInt, allocatable :: natural_cell_index(:), natural_cell_index_all(:)
-      PetscInt, allocatable :: ordered_natural_cell_index_all(:)
-      PetscInt, allocatable :: natural_source_index_all(:)
+      PetscInt, allocatable :: natural_cell_index(:)
       IS :: cell_IS
       PetscInt, pointer, contiguous :: local_cell_index(:)
       ISLocalToGlobalMapping :: l2g
       PetscReal :: tracer_injection_rate(size(tracer_names))
 
       err = 0
-      call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
-      call MPI_COMM_SIZE(PETSC_COMM_WORLD, num_procs, ierr)
       call DMGetLocalToGlobalMapping(dm, l2g, ierr); CHKERRQ(ierr)
       write(istr, '(i0)') source_spec_index
       srcstr = 'source[' // trim(istr) // '].'
@@ -346,43 +337,19 @@ contains
 
          call DMGetStratumSize(dm, source_label_name, source_spec_index, &
               num_cells, ierr); CHKERRQ(ierr)
-         cell_counts = get_mpi_int_gather_array()
-         cell_displacements = get_mpi_int_gather_array()
-         call MPI_gather(num_cells, 1, MPI_INTEGER, cell_counts, 1, &
-              MPI_INTEGER, 0, PETSC_COMM_WORLD, ierr)
-         if (rank == 0) then
-            num_cells_all = sum(cell_counts)
-            allocate(natural_cell_index_all(num_cells_all), &
-                 natural_source_index_all(num_cells_all))
-            cell_displacements = [[0], &
-                 array_cumulative_sum(cell_counts(1: num_procs - 1))]
-         else
-            allocate(natural_cell_index_all(1), natural_source_index_all(1))
-         end if
-         call MPI_bcast(num_cells_all, 1, MPI_INTEGER, 0, PETSC_COMM_WORLD, ierr)
+         call MPI_allreduce(num_cells, num_cells_all, 1, MPI_INTEGER, MPI_SUM, &
+              PETSC_COMM_WORLD, ierr)
          if (num_cells > 0) then
             call DMGetStratumIS(dm, source_label_name, source_spec_index, &
                  cell_IS, ierr); CHKERRQ(ierr)
             call ISGetIndicesF90(cell_IS, local_cell_index, ierr); CHKERRQ(ierr)
-            allocate(natural_cell_index(num_cells), natural_source_index(num_cells))
+            allocate(natural_cell_index(num_cells))
             natural_cell_index = local_to_natural_cell_index(ao, l2g, local_cell_index)
          else
-            allocate(natural_cell_index(1), natural_source_index(1))
+            allocate(natural_cell_index(1))
          end if
-         call MPI_gatherv(natural_cell_index, num_cells, MPI_INTEGER, &
-              natural_cell_index_all, cell_counts, cell_displacements, &
-              MPI_INTEGER, 0, PETSC_COMM_WORLD, ierr)
-         ordered_natural_cell_index_all = get_source_cell_indices(source_json, &
-              natural_cell_index_all)
-         if (rank == 0) then
-            natural_source_index_all = array_indices_in_int_array( &
-                 ordered_natural_cell_index_all, natural_cell_index_all)
-            natural_source_index_all = natural_source_index_all + num_sources - 1
-         end if
-         call MPI_scatterv(natural_source_index_all, cell_counts, cell_displacements, &
-              MPI_INTEGER, natural_source_index, num_cells, MPI_INTEGER, &
-              0, PETSC_COMM_WORLD, ierr)
-         deallocate(natural_source_index_all)
+         natural_source_index = get_natural_source_indices(num_cells, num_cells_all, &
+              natural_cell_index)
 
          allocate(local_source_indices(num_cells))
          if (num_cells > 0) then
@@ -405,14 +372,76 @@ contains
               start_time, source_data, source_section, source_range_start, &
               fluid_data, fluid_section, fluid_range_start, srcstr, &
               tracer_names, local_source_indices, source_controls, logfile, err)
-         deallocate(local_source_indices, cell_counts, cell_displacements)
-         if (rank == 0) then
-            deallocate(natural_cell_index_all, ordered_natural_cell_index_all)
-         end if
+         deallocate(local_source_indices)
          num_sources = num_sources + num_cells_all
       end if
 
     end subroutine setup_source
+
+!........................................................................
+
+    function get_natural_source_indices(num_cells, num_cells_all, &
+         natural_cell_index) result(natural_source_index)
+      !! Gets natural source indices for the current source.
+
+      use utils_module, only: get_mpi_int_gather_array, array_cumulative_sum, &
+           array_indices_in_int_array
+
+      PetscInt, intent(in) :: num_cells !! Number of source cells on current process
+      PetscInt, intent(in) :: num_cells_all !! Number of source cells on all processes
+      PetscInt, intent(in) :: natural_cell_index(:) !! Natural cell indices on current process
+      PetscInt, allocatable :: natural_source_index(:)
+      ! Locals:
+      PetscMPIInt :: rank, num_procs
+      PetscInt, allocatable :: cell_counts(:), cell_displacements(:)
+      PetscInt, allocatable :: natural_cell_index_all(:)
+      PetscInt, allocatable :: ordered_natural_cell_index_all(:)
+      PetscInt, allocatable :: natural_source_index_all(:)
+      PetscErrorCode :: ierr
+
+      call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+      call MPI_COMM_SIZE(PETSC_COMM_WORLD, num_procs, ierr)
+
+      cell_counts = get_mpi_int_gather_array()
+      cell_displacements = get_mpi_int_gather_array()
+      call MPI_gather(num_cells, 1, MPI_INTEGER, cell_counts, 1, &
+           MPI_INTEGER, 0, PETSC_COMM_WORLD, ierr)
+      if (rank == 0) then
+         allocate(natural_cell_index_all(num_cells_all), &
+              natural_source_index_all(num_cells_all))
+         cell_displacements = [[0], &
+              array_cumulative_sum(cell_counts(1: num_procs - 1))]
+      else
+         allocate(natural_cell_index_all(1), natural_source_index_all(1))
+      end if
+
+      if (num_cells > 0) then
+         allocate(natural_source_index(num_cells))
+      else
+         allocate(natural_source_index(1))
+      end if
+
+      call MPI_gatherv(natural_cell_index, num_cells, MPI_INTEGER, &
+           natural_cell_index_all, cell_counts, cell_displacements, &
+           MPI_INTEGER, 0, PETSC_COMM_WORLD, ierr)
+      ordered_natural_cell_index_all = get_source_cell_indices(source_json, &
+           natural_cell_index_all)
+
+      if (rank == 0) then
+         natural_source_index_all = array_indices_in_int_array( &
+              ordered_natural_cell_index_all, natural_cell_index_all)
+         natural_source_index_all = natural_source_index_all + num_sources - 1
+      end if
+      call MPI_scatterv(natural_source_index_all, cell_counts, cell_displacements, &
+           MPI_INTEGER, natural_source_index, num_cells, MPI_INTEGER, &
+           0, PETSC_COMM_WORLD, ierr)
+
+      deallocate(cell_counts, cell_displacements, natural_source_index_all, &
+           natural_cell_index_all, ordered_natural_cell_index_all)
+
+    end function get_natural_source_indices
+
+!........................................................................
 
     function get_source_cell_indices(source_json, cells) result(ordered_cells)
 
