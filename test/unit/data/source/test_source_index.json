@@ -1,0 +1,12 @@
+{
+    "title": "Test source index",
+    "mesh": {"filename": "../test/unit/data/flow_simulation/mesh/4x3_2d.exo",
+             "zones": {"LH": {"x": [0, 100]}}},
+    "tracer": [{"name": "foo"}, {"name": "bar"}],
+    "source": [
+        {"name": "single cell", "cell": 0, "rate": 10, "enthalpy": 90e3},
+        {"name": "multiple cells", "cells": [1, 2],
+         "component": 2, "rate": 5, "enthalpy": 100e3},
+        {"name": "zone", "zones": ["LH"], "rate": -1}
+    ]
+}
