@@ -20,7 +20,7 @@ module utils_test
        test_polynomial, test_multipolynomial, test_polynomial_derivative, &
        test_array_pair_sum, test_array_cumulative_sum, &
        test_array_exclusive_products, test_array_sorted, &
-       test_array_indices_in_int_array
+       test_array_indices_in_int_array, test_is_permutation
 
 contains
 
@@ -500,6 +500,46 @@ contains
     end if
 
   end subroutine test_array_indices_in_int_array
+
+!------------------------------------------------------------------------
+
+  subroutine test_is_permutation(test)
+    ! Test is_permutation
+
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
+    PetscMPIInt :: rank
+    PetscInt :: ierr
+    PetscInt, allocatable :: a(:)
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
+
+       call test%assert(is_permutation([0]), 'case 1')
+       call test%assert(is_permutation([1]), 'case 2')
+       call test%assert(is_permutation([1, 2]), 'case 3')
+       call test%assert(is_permutation([0, 1]), 'case 4')
+       call test%assert(.not. is_permutation([1, 1]), 'case 5')
+       call test%assert(is_permutation([2, 1]), 'case 6')
+
+       allocate(a(0: 2))
+       a(0) = 1; a(1) = 2; a(2) = 0
+       call test%assert(is_permutation(a), 'case 7')
+       deallocate(a)
+
+       allocate(a(0: 2))
+       a(0) = 2; a(1) = 3; a(2) = 1
+       call test%assert(is_permutation(a), 'case 8')
+       deallocate(a)
+
+       call test%assert(.not. is_permutation([1, 2, 4]), 'case 9')
+       call test%assert(.not. is_permutation([2, 1, 2]), 'case 10')
+
+       call test%assert(is_permutation([3, 0, 5, 4, 1, 2]), 'case 11')
+
+    end if
+
+  end subroutine test_is_permutation
 
 !------------------------------------------------------------------------
 

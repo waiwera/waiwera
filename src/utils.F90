@@ -56,7 +56,8 @@ module utils_module
        polynomial, polynomial_derivative, &
        array_pair_sum, array_cumulative_sum, &
        array_exclusive_products, get_mpi_int_gather_array, &
-       array_sorted, array_indices_in_int_array, clock_elapsed_time
+       array_sorted, array_indices_in_int_array, clock_elapsed_time, &
+       is_permutation
   
 contains
 
@@ -496,6 +497,36 @@ contains
          real(rate, real32), dp)
 
   end function clock_elapsed_time
+
+!------------------------------------------------------------------------
+
+  PetscBool function is_permutation(a)
+    !! Returns true if the integer array a is a permutation.
+
+    PetscInt, intent(in) :: a(:)
+    ! Locals:
+    PetscInt, allocatable :: count(:)
+    PetscInt :: i, amin, amax
+
+    associate(n => size(a))
+      amin = minval(a)
+      amax = amin + n - 1
+      allocate(count(amin: amax))
+      count = 0
+      is_permutation = PETSC_TRUE
+      do i = 1, n
+         if (a(i) <= amax) then
+            count(a(i)) = count(a(i)) + 1
+         else
+            is_permutation = PETSC_FALSE
+            exit
+         end if
+      end do
+      is_permutation = (is_permutation .and. all(count == 1))
+      deallocate(count)
+    end associate
+
+  end function is_permutation
 
 !------------------------------------------------------------------------
 
