@@ -97,7 +97,7 @@ The Waiwera HDF5 output file contains a dataset (in the root group) called **"ce
 
 This index array can be used to re-order output in global output ordering back into natural ordering, for post-processing. It is also used internally by Waiwera to re-order fluid data when a simulation is restarted from the output of a previous run (see :ref:`restarting`).
 
-Similarly, there is another dataset called **"source_index"** which maps the natural source ordering onto the global source ordering in the output.
+Similarly, there is another dataset called **"source_index"** which maps the natural source ordering onto the global source ordering in the output. The "natural" source ordering follows the order in which sources are specified in the input. If a source specification defines multiple sources using the "cells" array, the natural source ordering follows the specified cell order within that specification. If a source specification defines multiple sources using the "zones" value, the natural source ordering follows the natural cell ordering within each zone. 
 
 If there is :ref:`output_at_faces` (in the "face_fields" HDF5 group) then two more index datasets will be present in the root group: **"face_cell_1"** and **"face_cell_2"**. These contain the natural indices of the cells on either side of each face, and can be used to identify the correct face field data for a given face in the simulation mesh.
 
