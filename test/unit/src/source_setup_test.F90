@@ -63,7 +63,8 @@ contains
     use IAPWS_module
     use eos_module
     use dm_utils_module, only: global_vec_section, global_section_offset
-    use utils_module, only: array_cumulative_sum, get_mpi_int_gather_array
+    use utils_module, only: array_cumulative_sum
+    use mpi_utils_module, only: get_mpi_int_gather_array
     use tracer_module
 
     class(unit_test_type), intent(in out) :: test

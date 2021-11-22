@@ -55,8 +55,8 @@ module utils_module
        date_time_str, degrees_to_radians, rotation_matrix_2d, &
        polynomial, polynomial_derivative, &
        array_pair_sum, array_cumulative_sum, &
-       array_exclusive_products, get_mpi_int_gather_array, &
-       array_sorted, array_indices_in_int_array, clock_elapsed_time, &
+       array_exclusive_products, array_sorted, &
+       array_indices_in_int_array, clock_elapsed_time, &
        is_permutation
   
 contains
@@ -371,32 +371,6 @@ contains
     end do
 
   end function array_exclusive_products
-
-!------------------------------------------------------------------------
-
-  function get_mpi_int_gather_array() result(array)
-    !! Returns integer array for use in MPI gather call. This is of
-    !! size equal to the number of processes on the root rank, and
-    !! size 1 on other ranks (needs to be allocated even though it is
-    !! not actually used.)
-
-    PetscInt, allocatable :: array(:)
-    ! Locals:
-    PetscMPIInt :: rank, num_procs
-    PetscInt :: size
-    PetscErrorCode :: ierr
-
-    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
-    call MPI_COMM_SIZE(PETSC_COMM_WORLD, num_procs, ierr)
-
-    if (rank == 0) then
-       size = num_procs
-    else ! have to allocate non-zero size, even if not actually used:
-       size = 1
-    end if
-    allocate(array(size))
-
-  end function get_mpi_int_gather_array
 
 !------------------------------------------------------------------------
 

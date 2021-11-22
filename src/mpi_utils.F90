@@ -26,6 +26,7 @@ module mpi_utils_module
   private
 
   public :: mpi_broadcast_error_flag, mpi_broadcast_logical
+  public :: get_mpi_int_gather_array
 
 contains
 
@@ -65,6 +66,32 @@ contains
     val = any_val
 
   end subroutine mpi_broadcast_logical
+
+!------------------------------------------------------------------------
+
+  function get_mpi_int_gather_array() result(array)
+    !! Returns integer array for use in MPI gather call. This is of
+    !! size equal to the number of processes on the root rank, and
+    !! size 1 on other ranks (needs to be allocated even though it is
+    !! not actually used.)
+
+    PetscInt, allocatable :: array(:)
+    ! Locals:
+    PetscMPIInt :: rank, num_procs
+    PetscInt :: size
+    PetscErrorCode :: ierr
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    call MPI_COMM_SIZE(PETSC_COMM_WORLD, num_procs, ierr)
+
+    if (rank == 0) then
+       size = num_procs
+    else ! have to allocate non-zero size, even if not actually used:
+       size = 1
+    end if
+    allocate(array(size))
+
+  end function get_mpi_int_gather_array
 
 !------------------------------------------------------------------------
 

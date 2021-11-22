@@ -720,7 +720,8 @@ contains
     !! Returns number of boundary cells on processes of rank lower
     !! than the current process.
 
-    use utils_module, only: get_mpi_int_gather_array, array_cumulative_sum
+    use utils_module, only: array_cumulative_sum
+    use mpi_utils_module, only: get_mpi_int_gather_array
 
     DM, intent(in) :: dm
     ! Locals:
