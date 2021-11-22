@@ -74,7 +74,7 @@ Sources are set up in the Waiwera JSON input file via the **"source"** value. Th
 Source cells and zones
 ======================
 
-Each source specification object has a **"cell"** value which can be used to specify a single cell index. There is also a **"cells"** value which can be either an integer (in which case it works exactly the same way as the "cell" value) or an array of cell indices, if multiple sources are to be set up in different cells but with the same parameters.
+Each source specification object has a **"cell"** value which can be used to specify a single cell index. There is also a **"cells"** value which can be either an integer (in which case it works exactly the same way as the "cell" value) or an array of cell indices, if multiple sources are to be set up in different cells but with the same parameters. (Note that the "cells" value must not contain duplicate cells, otherwise the "source_index" array in the output (see :ref:`index_datasets`) cannot be determined correctly.)
 
 There is also a **"zones"** array value which can be used to specify :ref:`mesh_zones`, instead of (or as well as) cells containing the sources. When this is used, a source will be added to each cell in any of the specified zones.
 
