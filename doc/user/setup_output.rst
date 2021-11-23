@@ -95,7 +95,7 @@ disables regular and initial output, but retains final output (suitable for a st
 Output at specified times
 =========================
 
-Results can also be output at specified "checkpoint" times, as well as (or instead of) :ref:`regular_output`. Checkpoint output is written at the specified times, regardless of the time step sizes being used. At the start of each time step, a check is carried out to see if a checkpoint time would be passed using the current time step size. If so, then the time step size is reduced to hit the checkpoint time exactly.
+Results can also be output at specified "checkpoint" times, as well as (or instead of) :ref:`regular_output`. Checkpoint output is written at the specified times, regardless of the time step sizes being used. At the start of each time step, a check is carried out to see if a checkpoint time would be passed using the current time step size. If so, then the time step size is reduced to hit the checkpoint time exactly. After the checkpoint, the time step size is restored to its previous value (before being reduced to hit the checkpoint).
 
 Checkpoint output is specified using the **"checkpoint"** value, which is an object.
 
