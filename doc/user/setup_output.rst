@@ -168,6 +168,8 @@ This tolerance :math:`\epsilon` is necessary for two reasons. Firstly, with no t
 
 Secondly, the tolerance can give better time-stepping behaviour if a time step happens to fall just short of a checkpoint time. Without the tolerance, the time step would be completed, and the size of the following time step would have to be reduced to a very small value to hit the checkpoint. With the tolerance, the time step size can instead be increased slightly so that it hits the checkpoint, with no need for a subsequent reduction. This is the reason the default tolerance is relatively large (10%), larger than what would otherwise be needed simply to avoid rounding error issues.
 
+If output results at the simulation start time (i.e. the initial conditions) are required, it is recommended to specify this using **"output.initial"** (see :ref:`initial_and_final_output`) rather than setting a checkpoint at the start time. (Using a checkpoint to achieve this means that a redundant initial time step of size zero must be taken.) If a start time checkpoint *is* used, "setup.initial" should be set to ``false``, otherwise the initial conditions will be output twice.
+
 .. index:: output; fields
 .. _output_fields:
 
