@@ -1238,7 +1238,8 @@ contains
           self%current%stepsize = self%checkpoints%next_time - self%last%time
           self%current%time = self%checkpoints%next_time
           call logfile%write(LOG_LEVEL_INFO, 'timestep', 'checkpoint_time_reached', &
-               real_keys = ['time'], real_values = [self%current%time])
+               real_keys = ['time', 'size'], &
+               real_values = [self%current%time, self%current%stepsize])
 
        end if
 
