@@ -39,7 +39,7 @@ module timestepper_module
   ! Timestep status
      PetscInt, parameter, public :: TIMESTEP_OK = 0, TIMESTEP_NOT_CONVERGED = 1, &
      TIMESTEP_TOO_SMALL = 2, TIMESTEP_TOO_BIG = 3, TIMESTEP_ABORTED = 4, &
-     TIMESTEP_FINAL = 5, TIMESTEP_AUX_NOT_CONVERGED = 6
+     TIMESTEP_FINAL = 5, TIMESTEP_AUX_NOT_CONVERGED = 6, TIMESTEP_RESTORE = 7
 
      PetscInt, parameter :: max_ksp_type_str_len = 8, max_pc_type_str_len = 8
 
@@ -756,6 +756,8 @@ contains
           timestepper_step_status_str = 'aborted'
        case (TIMESTEP_FINAL)
           timestepper_step_status_str = 'final'
+       case (TIMESTEP_RESTORE)
+          timestepper_step_status_str = 'restore'
        case default
           timestepper_step_status_str = 'unknown'
     end select
@@ -1273,19 +1275,23 @@ contains
                   TIMESTEP_ABORTED)) then
                 self%current%status = TIMESTEP_FINAL
              else
-                eta = self%adaptor%monitor(self%current, self%last)
-                if ((self%adaptor%on) .or. &
-                     (self%fixed_step_index == size(self%sizes)) .and. &
-                     (.not. self%fixed)) then
-                   if (eta < self%adaptor%monitor_min) then
-                      self%current%status = TIMESTEP_TOO_SMALL
-                   else if (eta > self%adaptor%monitor_max) then
-                      self%current%status = TIMESTEP_TOO_BIG
+                if (self%checkpoints%hit) then
+                   self%current%status = TIMESTEP_RESTORE
+                else
+                   eta = self%adaptor%monitor(self%current, self%last)
+                   if ((self%adaptor%on) .or. &
+                        (self%fixed_step_index == size(self%sizes)) .and. &
+                        (.not. self%fixed)) then
+                      if (eta < self%adaptor%monitor_min) then
+                         self%current%status = TIMESTEP_TOO_SMALL
+                      else if (eta > self%adaptor%monitor_max) then
+                         self%current%status = TIMESTEP_TOO_BIG
+                      else
+                         self%current%status = TIMESTEP_OK
+                      end if
                    else
                       self%current%status = TIMESTEP_OK
                    end if
-                else
-                   self%current%status = TIMESTEP_OK
                 end if
              end if
           else
@@ -1338,7 +1344,11 @@ contains
             self%next_stepsize = self%sizes(fixed_index)
          else
             self%adaptor%on = PETSC_TRUE
-            call self%adapt(accepted)
+            if (self%checkpoints%hit) then
+               self%next_stepsize = self%checkpoints%restore_stepsize
+            else
+               call self%adapt(accepted)
+            end if
          end if
       end if
 
@@ -1357,7 +1367,12 @@ contains
 
        if (self%adaptor%on) then
 
-          call self%adapt(accepted)
+          if (self%checkpoints%hit) then
+             self%next_stepsize = self%checkpoints%restore_stepsize
+             accepted = PETSC_TRUE
+          else
+             call self%adapt(accepted)
+          end if
 
           if ((self%fixed_step_index < size(self%sizes)) .or. &
                ((self%fixed_step_index >= size(self%sizes)) .and. self%fixed)) then
