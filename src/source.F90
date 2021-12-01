@@ -22,6 +22,7 @@ module source_module
 
   use petsc
   use kinds_module
+  use source_network_module
   use fluid_module
   use hdf5io_module, only: max_field_name_length
 
@@ -57,7 +58,7 @@ module source_module
 
   character(len = 6), public :: source_label_name = "source" !! Name of DMLabel for identifying source locations
 
-  type, public :: source_type
+  type, public, extends(source_network_node_type) :: source_type
      !! Type for mass / energy source, applying specified values of
      !! generation to each equation in a particular cell at the
      !! current time.
@@ -70,8 +71,6 @@ module source_module
      PetscReal, pointer, public :: injection_component !! Component for injection
      PetscReal, pointer, public :: production_component !! Component for production (default 0 means all)
      PetscReal, pointer, public :: component !! Mass (or energy) component being produced or injected
-     PetscReal, pointer, public :: rate !! Flow rate
-     PetscReal, pointer, public :: enthalpy !! Enthalpy of produced or injected fluid
      PetscReal, pointer, contiguous, public :: flow(:) !! Flows in each mass and energy component
      type(fluid_type), public :: fluid !! Fluid properties in cell (for production)
      PetscReal, pointer, contiguous, public :: tracer_injection_rate(:) !! Tracer injection rates
