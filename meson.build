@@ -55,6 +55,7 @@ waiwera_sources = [
   'src/root_finder.F90',
   'src/source_network.F90',
   'src/source_control.F90',
+  'src/source_group.F90',
   'src/source.F90',
   'src/source_setup.F90',
   'src/thermodynamics.F90',
