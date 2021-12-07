@@ -31,6 +31,25 @@ module source_network_module
      private
      PetscReal, pointer, public :: rate !! Flow rate
      PetscReal, pointer, public :: enthalpy !! Enthalpy of fluid
+   contains
+     private
+     procedure, public :: destroy => source_network_node_destroy
   end type source_network_node_type
+
+contains
+
+!------------------------------------------------------------------------
+
+  subroutine source_network_node_destroy(self)
+    !! Destroys source network node.
+
+    class(source_network_node_type), intent(in out) :: self
+
+    self%rate => null()
+    self%enthalpy => null()
+
+  end subroutine source_network_node_destroy
+
+!------------------------------------------------------------------------
 
 end module source_network_module
