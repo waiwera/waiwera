@@ -36,6 +36,7 @@ module source_group_module
    contains
      private
      procedure, public :: init => source_group_init
+     procedure, public :: assign => source_group_assign
      procedure, public :: destroy => source_group_destroy
   end type source_group_type
 
@@ -52,12 +53,28 @@ contains
 
 !------------------------------------------------------------------------
 
+  subroutine source_group_assign(self, data, offset)
+    !! Assigns pointers in source group object to elements in the data
+    !! array, starting from the specified offset.
+
+    class(source_group_type), intent(in out) :: self
+    PetscReal, pointer, contiguous, intent(in) :: data(:)  !! source data array
+    PetscInt, intent(in) :: offset  !! source array offset
+
+    self%rate => data(offset)
+    self%enthalpy => data(offset + 1)
+
+  end subroutine source_group_assign
+
+!------------------------------------------------------------------------
+
   subroutine source_group_destroy(self)
     !! Destroys a source group.
 
     class(source_group_type), intent(in out) :: self
 
     call self%sources%destroy()
+    call self%source_network_node_type%destroy()
 
   end subroutine source_group_destroy
     
