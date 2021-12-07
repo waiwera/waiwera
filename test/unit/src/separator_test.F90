@@ -87,6 +87,7 @@ contains
 
        deallocate(data)
        call thermo%destroy()
+       call sep%destroy()
 
     end if
 
