@@ -237,6 +237,7 @@ contains
 
     class(source_type), intent(in out) :: self
 
+    call self%source_network_node_type%destroy()
     self%source_index => null()
     self%local_source_index => null()
     self%natural_cell_index => null()
@@ -245,8 +246,6 @@ contains
     self%injection_component => null()
     self%production_component => null()
     self%component => null()
-    self%rate => null()
-    self%enthalpy => null()
     self%flow => null()
     self%tracer_injection_rate => null()
     self%tracer_flow => null()
