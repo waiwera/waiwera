@@ -24,7 +24,7 @@ module source_setup_module
   use kinds_module
   use fson
   use fson_value_m, only: TYPE_INTEGER, TYPE_REAL, TYPE_ARRAY, &
-       TYPE_STRING, TYPE_OBJECT
+       TYPE_STRING, TYPE_OBJECT, TYPE_LOGICAL
   use fson_mpi_module
   use list_module
   use logfile_module
@@ -32,6 +32,7 @@ module source_setup_module
   use thermodynamics_module, only: thermodynamics_type
   use source_module
   use source_control_module
+  use separator_module
 
   implicit none
   private
@@ -44,7 +45,8 @@ contains
 
   subroutine setup_sources(json, dm, ao, eos, tracer_names, thermo, start_time, &
        fluid_vector, fluid_range_start, source_vector, source_range_start, &
-       num_local_sources, num_sources, source_controls, source_index, logfile, err)
+       num_local_sources, num_sources, source_controls, source_index, &
+       separated_source_indices, logfile, err)
     !! Sets up sinks / sources and source controls.
 
     use dm_utils_module
@@ -54,7 +56,7 @@ contains
     AO, intent(in) :: ao !! Application ordering for natural to global cell indexing
     class(eos_type), intent(in) :: eos !! Equation of state
     character(*), intent(in) :: tracer_names(:) !! Tracer names
-    class(thermodynamics_type), intent(in) :: thermo !! Thermodynamics formulation
+    class(thermodynamics_type), intent(in out) :: thermo !! Thermodynamics formulation
     PetscReal, intent(in) :: start_time
     Vec, intent(in) :: fluid_vector !! Fluid vector
     PetscInt, intent(in) :: fluid_range_start !! Range start for global fluid vector
@@ -64,6 +66,7 @@ contains
     PetscInt, intent(out) :: num_sources !! Total number of sources created on all processes
     type(list_type), intent(in out) :: source_controls !! List of source controls
     IS, intent(in out) :: source_index !! IS defining natural-to-global source ordering
+    PetscInt, allocatable, intent(out) :: separated_source_indices(:) !! Indices of sources with separators
     type(logfile_type), intent(in out), optional :: logfile !! Logfile for log output
     PetscErrorCode, intent(out) :: err !! Error code
     ! Locals:
@@ -97,6 +100,9 @@ contains
        call global_vec_section(source_vector, source_section)
        call VecGetArrayF90(source_vector, source_data, ierr); CHKERRQ(ierr)
 
+       allocate(separated_source_indices(num_local_sources))
+       separated_source_indices = -1
+
        if (fson_has_mpi(json, "source")) then
           call fson_get_mpi(json, "source", sources_json)
           num_source_specs = fson_value_count_mpi(sources_json, ".")
@@ -104,7 +110,8 @@ contains
           local_source_index = 0
           do source_spec_index = 0, num_source_specs - 1
              call setup_source(source_spec_index, local_source_index, &
-                  source_json, ao, tracer_names, num_sources, err)
+                  source_json, ao, tracer_names, num_sources, &
+                  separated_source_indices, thermo, err)
              if (err > 0) exit
              source_json => fson_value_next_mpi(source_json)
           end do
@@ -117,6 +124,8 @@ contains
        if (err == 0) then
           call setup_source_index(num_local_sources, source_data, source_section, &
                source_range_start, source, source_index)
+          separated_source_indices = pack(separated_source_indices, &
+               separated_source_indices >= 0)
        end if
 
        call VecRestoreArrayF90(source_vector, source_data, ierr); CHKERRQ(ierr)
@@ -297,7 +306,7 @@ contains
 !........................................................................
 
     subroutine setup_source(source_spec_index, local_source_index, source_json, &
-         ao, tracer_names, num_sources, err)
+         ao, tracer_names, num_sources, separated_source_indices, thermo, err)
       !! Iterator for setting up cell sources for a source specification.
 
       PetscInt, intent(in) :: source_spec_index !! Index of source specification
@@ -306,12 +315,15 @@ contains
       AO, intent(in) :: ao !! Application ordering for natural to global cell indexing
       character(*), intent(in) :: tracer_names(:) !! Tracer names
       PetscInt, intent(in out) :: num_sources !! Current total number of sources (on all processes)
+      PetscInt, intent(in out) :: separated_source_indices(:) !! Indices of sources with separators
+      class(thermodynamics_type), intent(in out) :: thermo !! Water thermodynamics
       PetscErrorCode, intent(out) :: err
       ! Locals:
       character(len=64) :: srcstr
       character(len=12) :: istr
       PetscInt :: injection_component, production_component
       PetscReal :: initial_rate, initial_enthalpy
+      PetscReal :: separator_pressure
       PetscInt :: num_cells, num_cells_all, i, source_offset
       PetscInt, allocatable :: local_source_indices(:), natural_source_index(:)
       PetscInt, allocatable :: natural_cell_index(:)
@@ -332,6 +344,7 @@ contains
            injection_component, initial_enthalpy)
       call get_tracer_injection_rate(source_json, tracer_names, &
            srcstr, tracer_injection_rate, logfile, err)
+      call get_separator_pressure(source_json, srcstr, separator_pressure, logfile)
 
       if (err == 0) then
 
@@ -361,7 +374,10 @@ contains
                     natural_cell_index(i), local_cell_index(i), &
                     initial_rate, initial_enthalpy, &
                     injection_component, production_component, &
-                    tracer_injection_rate)
+                    tracer_injection_rate, separator_pressure, thermo)
+               if (separator_pressure > 0._dp) then
+                  separated_source_indices(local_source_index + 1) = local_source_index
+               end if
                local_source_indices(i) = local_source_index
                local_source_index = local_source_index + 1
             end do
@@ -768,6 +784,55 @@ contains
     end if
 
   end subroutine get_tracer_injection_rate
+
+!------------------------------------------------------------------------
+
+  subroutine get_separator_pressure(source_json, srcstr, separator_pressure, &
+       logfile)
+    !! Gets separator pressure. Returns -1 if no separator is
+    !! specified.
+
+    use utils_module, only: str_to_lower
+
+    type(fson_value), pointer, intent(in) :: source_json
+    character(*), intent(in) :: srcstr !! source identifier
+    PetscReal, intent(out) :: separator_pressure !! Separator pressure
+    type(logfile_type), intent(in out), optional :: logfile
+    ! Locals:
+    PetscInt :: separator_json_type
+    PetscBool :: has_separator
+    character(8) :: limiter_type_str
+
+    separator_pressure = -1._dp
+
+    if (fson_has_mpi(source_json, "separator")) then
+       separator_json_type = fson_type_mpi(source_json, "separator")
+       select case (separator_json_type)
+       case (TYPE_LOGICAL)
+          call fson_get_mpi(source_json, "separator", val = has_separator)
+          if (has_separator) then
+             separator_pressure = default_separator_pressure
+             if (present(logfile) .and. logfile%active) then
+                call logfile%write(LOG_LEVEL_INFO, 'input', 'default', real_keys = &
+                     [trim(srcstr) // "separator.pressure"], &
+                     real_values = [separator_pressure])
+             end if
+          end if
+       case (TYPE_OBJECT)
+          call fson_get_mpi(source_json, "separator.pressure", &
+               default_separator_pressure, separator_pressure, logfile, srcstr)
+       end select
+    else if (fson_has_mpi(source_json, "limiter")) then
+       call fson_get_mpi(source_json, "limiter.type", &
+            default_source_control_limiter_type_str, limiter_type_str)
+       limiter_type_str = str_to_lower(limiter_type_str)
+       if (limiter_type_str /= "total") then
+          call fson_get_mpi(source_json, "limiter.separator_pressure", &
+               default_separator_pressure, separator_pressure, logfile, srcstr)
+       end if
+    end if
+
+  end subroutine get_separator_pressure
 
 !------------------------------------------------------------------------
 
@@ -1470,9 +1535,7 @@ contains
 
   subroutine setup_limiter_source_controls(source_json, srcstr, &
        thermo, local_source_indices, source_controls, logfile)
-    !! Set up limiter source control for each cell source. If
-    !! separated water or steam is to be limited, first set up
-    !! corresponding separator for each cell source.
+    !! Set up limiter source control for each cell source.
 
     use utils_module, only: str_to_lower, str_array_index
 
@@ -1484,12 +1547,11 @@ contains
     type(logfile_type), intent(in out), optional :: logfile
     ! Locals:
     type(fson_value), pointer :: limiter_json
-    character(max_phase_name_length) :: limiter_type_str
+    character(8) :: limiter_type_str
     PetscInt :: limiter_type
-    PetscReal :: limit, separator_pressure
+    PetscReal :: limit
     PetscInt :: i, s
     type(source_control_limiter_type), pointer :: limiter
-    type(source_control_separator_type), pointer :: separator
 
     if (fson_has_mpi(source_json, "limiter")) then
 
@@ -1511,29 +1573,14 @@ contains
           limiter_type = SRC_CONTROL_LIMITER_TYPE_TOTAL
        end select
 
-       if (limiter_type /= SRC_CONTROL_LIMITER_TYPE_TOTAL) then
-          call fson_get_mpi(limiter_json, "separator_pressure", &
-               default_source_control_separator_pressure, &
-               separator_pressure, logfile, srcstr)
-       end if
-
        call fson_get_mpi(limiter_json, "limit", &
             default_source_control_limiter_limit, limit, logfile, srcstr)
 
        do i = 1, size(local_source_indices)
-
           s = local_source_indices(i)
           allocate(limiter)
-          if (limiter_type == SRC_CONTROL_LIMITER_TYPE_TOTAL) then
-             call limiter%init(limiter_type, s, limit, [s])
-          else
-             allocate(separator)
-             call separator%init(s, thermo, separator_pressure)
-             call source_controls%append(separator)
-             call limiter%init(limiter_type, separator, limit, [s])
-          end if
+          call limiter%init(limiter_type, s, limit, [s])
           call source_controls%append(limiter)
-
        end do
 
     end if
