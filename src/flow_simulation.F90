@@ -62,6 +62,7 @@ module flow_simulation_module
      IS, public :: source_index !! Index set defining natural to global source ordering
      type(list_type), public :: source_controls !! Source/sink controls
      type(list_type), public :: rock_controls !! Rock property controls
+     PetscInt, allocatable :: separated_source_indices(:) !! Local indices of sources with separators
      class(thermodynamics_type), allocatable, public :: thermo !! Fluid thermodynamic formulation
      class(eos_type), allocatable, public :: eos !! Fluid equation of state
      PetscReal, public :: gravity(3) !! Acceleration of gravity vector (\(m.s^{-1}\))
@@ -964,7 +965,7 @@ contains
                            self%eos, self%tracers%name, self%thermo, self%time, self%fluid, &
                            self%fluid_range_start, self%source, self%source_range_start, &
                            self%num_local_sources, self%num_sources, self%source_controls, &
-                           self%source_index, self%logfile, err)
+                           self%source_index, self%separated_source_indices, self%logfile, err)
                       if (err == 0) then
                          call self%setup_output_fields(json)
                          call self%output_face_cell_indices()
@@ -1022,6 +1023,7 @@ contains
     call VecDestroy(self%update_cell, ierr); CHKERRQ(ierr)
     call VecDestroy(self%source, ierr); CHKERRQ(ierr)
     call ISDestroy(self%source_index, ierr); CHKERRQ(ierr)
+    deallocate(self%separated_source_indices)
     call self%source_controls%destroy(source_control_list_node_data_destroy, &
          reverse = PETSC_TRUE)
     call self%rock_controls%destroy(rock_control_list_node_data_destroy, &
