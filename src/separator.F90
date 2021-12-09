@@ -33,7 +33,7 @@ module separator_module
   type, public :: separator_type
      !! Separator in source network.
      private
-     PetscReal, pointer :: pressure !! Separator pressure
+     PetscReal, pointer, public :: pressure !! Separator pressure
      PetscReal, pointer :: ref_water_enthalpy !! Reference enthalpy of water at separator pressure
      PetscReal, pointer :: ref_steam_enthalpy !! Reference enthalpy of steam at separator pressure
      PetscReal, pointer, public :: steam_fraction !! Steam fraction
