@@ -36,10 +36,49 @@ module source_network_module
      PetscBool, public :: heat !! Whether flow through node is heat-only (not mass)
    contains
      private
+     procedure, public :: assign => source_network_node_assign
+     procedure, public :: set_rate => source_network_node_set_rate
      procedure, public :: destroy => source_network_node_destroy
   end type source_network_node_type
 
 contains
+
+!------------------------------------------------------------------------
+
+  subroutine source_network_node_assign(self, data, offset)
+    !! Assigns pointers in network node object to elements in the data
+    !! array, starting from the specified offset.
+
+    class(source_network_node_type), intent(in out) :: self
+    PetscReal, pointer, contiguous, intent(in) :: data(:)  !! source data array
+    PetscInt, intent(in) :: offset  !! source array offset
+
+    self%rate => data(offset)
+    self%enthalpy => data(offset + 1)
+
+    call self%separator%assign(data, offset + 2)
+
+  end subroutine source_network_node_assign
+
+!------------------------------------------------------------------------
+
+  subroutine source_network_node_set_rate(self, rate)
+    !! Sets network node flow rate to specified value.
+
+    class(source_network_node_type), intent(in out) :: self
+    PetscReal, intent(in) :: rate !! Flow rate
+
+    self%rate = rate
+
+    ! If have separator and producing mass:
+    if ((self%separator%on) .and. (self%rate <= 0._dp) &
+         .and. (.not. self%heat)) then
+       call self%separator%separate(self%rate, self%enthalpy)
+    else
+       call self%separator%zero()
+    end if
+
+  end subroutine source_network_node_set_rate
 
 !------------------------------------------------------------------------
 
