@@ -176,9 +176,11 @@ contains
       PetscInt, intent(in) :: component
       ! Locals:
       PetscReal :: injection_tracer(0)
+      PetscReal, parameter :: separator_pressure = -1._dp
 
       call source%setup(0, 0, 0, 0, rate, enthalpy, &
-           injection_component, production_component, injection_tracer)
+           injection_component, production_component, injection_tracer, &
+           separator_pressure, thermo)
       call source%update_flow(local_fluid_array, local_fluid_section)
       call test%assert(flow, source%flow, trim(tag) // " flow")
       call test%assert(component, nint(source%component), &

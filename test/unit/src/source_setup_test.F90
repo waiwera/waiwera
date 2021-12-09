@@ -88,6 +88,7 @@ contains
     PetscInt, parameter :: expected_num_sources = 23
     PetscMPIInt :: rank, num_procs
     IS :: source_is
+    PetscInt, allocatable :: separated_source_indices(:)
     PetscInt, allocatable :: zone_source(:), isort(:)
     PetscInt, allocatable :: zone_source_sorted(:), zone_source_all(:)
     PetscInt, allocatable :: zone_source_counts(:), zone_source_displacements(:)
@@ -109,7 +110,7 @@ contains
     call setup_sources(json, mesh%dm, mesh%cell_natural_global, eos, tracers%name, &
          thermo, start_time, fluid_vector, fluid_range_start, source_vector, &
          source_range_start, num_sources, total_num_sources, source_controls, &
-         source_is, err = err)
+         source_is, separated_source_indices, err = err)
     call test%assert(0, err, "error")
 
     if (rank == 0) then
@@ -231,6 +232,7 @@ contains
     deallocate(zone_source, zone_source_counts, zone_source_displacements, &
          zone_source_all, tracers)
     call ISDestroy(source_is, ierr); CHKERRQ(ierr)
+    deallocate(separated_source_indices)
     call source%destroy()
     call VecRestoreArrayReadF90(source_vector, source_array, ierr); CHKERRQ(ierr)
     call VecDestroy(source_vector, ierr); CHKERRQ(ierr)
@@ -306,6 +308,7 @@ contains
     PetscInt :: fluid_range_start, source_range_start
     type(list_type) :: source_controls
     IS :: source_index
+    PetscInt, allocatable :: separated_source_indices(:)
     PetscInt, pointer, contiguous :: source_index_array(:)
     PetscMPIInt :: rank, num_procs
     PetscErrorCode :: err, ierr
@@ -328,7 +331,7 @@ contains
     call setup_sources(json, mesh%dm, mesh%cell_natural_global, eos, tracers%name, &
          thermo, start_time, fluid_vector, fluid_range_start, source_vector, &
          source_range_start, num_sources, total_num_sources, source_controls, &
-         source_index, err = err)
+         source_index, separated_source_indices, err = err)
     call test%assert(0, err, "error")
 
     if (rank == 0) then
@@ -343,6 +346,7 @@ contains
     call ISRestoreIndicesF90(source_index, source_index_array, ierr); CHKERRQ(ierr)
 
     call ISDestroy(source_index, ierr); CHKERRQ(ierr)
+    deallocate(separated_source_indices)
     call VecDestroy(source_vector, ierr); CHKERRQ(ierr)
     call source_controls%destroy()
     call DMRestoreGlobalVector(mesh%dm, fluid_vector, ierr); CHKERRQ(ierr)

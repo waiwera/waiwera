@@ -88,6 +88,7 @@ contains
     PetscReal, parameter :: start_time = 0._dp
     PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
     type(tracer_type), allocatable :: tracers(:)
+    PetscInt, allocatable :: separated_source_indices(:)
     PetscInt, parameter :: expected_num_sources = 11
     PetscMPIInt :: rank
     IS :: source_is
@@ -111,10 +112,10 @@ contains
     call setup_sources(json, mesh%dm, mesh%cell_natural_global, eos, tracers%name, &
          thermo, start_time, fluid_vector, fluid_range_start, source_vector, &
          source_range_start, num_sources, total_num_sources, source_controls, &
-         source_is, err = err)
+         source_is, separated_source_indices, err = err)
     call test%assert(0, err, "source setup error")
     call source%init(eos, size(tracers))
-    call test%assert(13 + size(tracers) * 2, source%dof, "source dof")
+    call test%assert(21 + size(tracers) * 2, source%dof, "source dof")
 
     call VecRestoreArrayF90(fluid_vector, fluid_array, ierr); CHKERRQ(ierr)
 
@@ -174,6 +175,7 @@ contains
     call source%destroy()
     call source_controls%destroy(source_control_list_node_data_destroy, &
          reverse = PETSC_TRUE)
+    deallocate(separated_source_indices)
     call VecRestoreArrayReadF90(source_vector, source_array, ierr); CHKERRQ(ierr)
     call VecDestroy(source_vector, ierr); CHKERRQ(ierr)
     call VecDestroy(fluid_vector, ierr); CHKERRQ(ierr)
@@ -239,7 +241,8 @@ contains
     PetscReal, pointer, contiguous :: source_array(:)
     PetscSection :: source_section, fluid_section, local_fluid_section
     type(fluid_type) :: fluid
-    PetscInt :: num_sources, total_num_sources, num_source_controls, source_index
+    PetscInt :: num_sources, total_num_sources, num_source_controls
+    PetscInt :: num_separators, source_index
     PetscInt :: start_cell, end_cell, c, s, s12, source_range_start, fluid_range_start
     PetscInt :: fluid_offset, source_offset, cell_phase_composition
     PetscReal :: t, interval(2), props(2)
@@ -247,6 +250,7 @@ contains
     PetscReal :: cell_vapour_density, cell_vapour_internal_energy
     PetscReal :: cell_liquid_viscosity, cell_vapour_viscosity
     IS :: source_is
+    PetscInt, allocatable :: separated_source_indices(:)
     PetscErrorCode :: ierr, err
     PetscReal, parameter :: cell_pressure = 50.e5_dp, cell_vapour_saturation = 0.8_dp
     PetscInt, parameter :: cell_region = 4
@@ -327,7 +331,7 @@ contains
     call setup_sources(json, mesh%dm, mesh%cell_natural_global, eos, tracer_names, &
          thermo, start_time, fluid_vector, fluid_range_start, source_vector, &
          source_range_start, num_sources, total_num_sources, source_controls, &
-         source_is, err = err)
+         source_is, separated_source_indices, err = err)
     call test%assert(0, err, "source setup error")
     call source%init(eos, size(tracer_names))
 
@@ -338,7 +342,13 @@ contains
     call MPI_reduce(source_controls%count, num_source_controls, 1, &
          MPI_INTEGER, MPI_SUM, 0, PETSC_COMM_WORLD, ierr)
     if (rank == 0) then
-      call test%assert(28, num_source_controls, "number of source controls")
+       call test%assert(27, num_source_controls, "number of source controls")
+    end if
+
+    call MPI_reduce(size(separated_source_indices), num_separators, 1, &
+         MPI_INTEGER, MPI_SUM, 0, PETSC_COMM_WORLD, ierr)
+    if (rank == 0) then
+       call test%assert(1, num_separators, "number of separators")
     end if
 
     call global_to_local_vec_section(fluid_vector, local_fluid_vector, &
@@ -352,6 +362,7 @@ contains
     t = 120._dp
     interval = [30._dp, t]
 
+    call update_separators()
     call source_controls%traverse(source_control_update_iterator)
     call source_controls%traverse(source_control_test_iterator)
 
@@ -401,7 +412,8 @@ contains
     call ISDestroy(source_is, ierr); CHKERRQ(ierr)
     call source%destroy()
     call source_controls%destroy(source_control_list_node_data_destroy, &
-      reverse = PETSC_TRUE)
+         reverse = PETSC_TRUE)
+    deallocate(separated_source_indices)
     call VecRestoreArrayF90(source_vector, source_array, ierr); CHKERRQ(ierr)
     call VecDestroy(source_vector, ierr); CHKERRQ(ierr)
     call fluid%destroy()
@@ -413,6 +425,43 @@ contains
     call fson_destroy_mpi(json)
 
   contains
+
+    subroutine update_separators()
+      !! Updates enthalpy and separated outputs from separators.
+
+      ! Locals:
+      PetscInt :: i, s, source_offset
+      type(source_type) :: source
+      PetscReal, allocatable :: phase_flow_fractions(:)
+
+      call source%init(eos, size(tracer_names))
+
+      do i = 1, size(separated_source_indices)
+
+         s = separated_source_indices(i)
+         source_offset = global_section_offset(source_section, s, &
+              source_range_start)
+         call source%assign(source_array, source_offset)
+
+         if ((source%rate <= 0._dp) .and. (.not. source%heat)) then
+
+            call source%assign_fluid_local(local_fluid_array, local_fluid_section)
+            allocate(phase_flow_fractions(source%fluid%num_phases))
+            phase_flow_fractions = source%fluid%phase_flow_fractions()
+            source%enthalpy = source%fluid%specific_enthalpy(phase_flow_fractions)
+            deallocate(phase_flow_fractions)
+
+            call source%separator%separate(source%rate, source%enthalpy)
+
+         else
+            call source%separator%zero()
+         end if
+
+      end do
+
+      call source%destroy()
+
+    end subroutine update_separators
 
     subroutine source_control_update_iterator(node, stopped)
       type(list_node_type), pointer, intent(in out) :: node
@@ -447,6 +496,9 @@ contains
             call test%assert(2.e5_dp, &
                  source_control%reference_pressure%val(1,1), &
                  "source 2 reference pressure")
+         case (2)
+            call test%assert(10.e5_dp, source%separator%pressure, &
+                 "source 3 separator pressure")
          case (3)
             call test%assert(8.54511496085953E-13_dp, &
                  source_control%productivity%val(1,1), &
@@ -503,15 +555,6 @@ contains
             call test%assert(5._dp, source_control%limit, "steam limiter limit")
          end select
 
-      type is (source_control_separator_type)
-         call test%assert(10.e5_dp, &
-              source_control%separator_pressure, "separator pressure")
-         call test%assert(0.5371645375_dp, &
-              source_control%steam_fraction, "separator steam fraction")
-         call test%assert(-5.9580123975_dp, &
-              source_control%water_flow_rate, "separator water flow rate")
-         call test%assert(-6.9148395774_dp, &
-              source_control%steam_flow_rate, "separator steam flow rate")
       end select
       stopped = PETSC_FALSE
 

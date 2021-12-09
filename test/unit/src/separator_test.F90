@@ -72,7 +72,7 @@ contains
 
        call thermo%init()
        call sep%assign(data, offset)
-       call sep%init(thermo, separator_pressure)
+       call sep%init(separator_pressure, thermo)
 
        call sep%separate(rate = -10._dp, enthalpy = 500.e3_dp)
        call separator_test_case("water", 0._dp, -10._dp, 500.e3_dp, 0._dp, 0._dp)
