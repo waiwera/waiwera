@@ -156,6 +156,7 @@ contains
        self%tracer_injection_rate => null()
        self%tracer_flow => null()
     end if
+    self%heat = (self%production_component == self%num_primary_variables)
 
   end subroutine source_assign
 
