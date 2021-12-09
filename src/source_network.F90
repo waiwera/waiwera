@@ -33,6 +33,7 @@ module source_network_module
      PetscReal, pointer, public :: rate !! Flow rate
      PetscReal, pointer, public :: enthalpy !! Enthalpy of fluid
      type(separator_type), public :: separator !! Separator
+     PetscBool, public :: heat !! Whether flow through node is heat-only (not mass)
    contains
      private
      procedure, public :: destroy => source_network_node_destroy
