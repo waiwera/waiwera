@@ -266,7 +266,7 @@ contains
        source_offset = global_section_offset(source_section, s, &
             source_range_start)
        call source%assign(source_data, source_offset)
-       source%rate = rate
+       call source%set_rate(rate)
     end do
 
     call source%destroy()
@@ -346,7 +346,7 @@ contains
        source_offset = global_section_offset(source_section, s, &
             source_range_start)
        call source%assign(source_data, source_offset)
-       source%rate = source%rate * factor
+       call source%set_rate(source%rate * factor)
     end do
 
     call source%destroy()
@@ -504,12 +504,12 @@ contains
 
     if (self%threshold <= 0._dp) then
        productivity = self%productivity%average(interval, 1)
-       source%rate = flow_rate(source, productivity)
+       call source%set_rate(flow_rate(source, productivity))
     else
        if (source%fluid%pressure < self%threshold) then
           qd = flow_rate(source, self%threshold_productivity)
           if (qd > source%rate) then
-             source%rate = qd
+             call source%set_rate(qd)
           else ! don't use qd, but update PI
              call self%calculate_PI_from_rate(t, source%rate, &
                   source_data, source_section, source_range_start, &
@@ -833,7 +833,7 @@ contains
        s = self%local_source_indices(i)
        source_offset = global_section_offset(source_section, s, source_range_start)
        call source%assign(source_data, source_offset)
-       source%rate = source%rate * scale
+       call source%set_rate(source%rate * scale)
 
     end do
 
@@ -909,7 +909,7 @@ contains
          case default
             flowing = PETSC_TRUE
          end select
-         if (.not. flowing) source%rate = 0._dp
+         if (.not. flowing) call source%set_rate(0._dp)
 
       end do
 
