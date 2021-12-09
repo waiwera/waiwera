@@ -57,13 +57,13 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine separator_init(self, thermo, pressure)
+  subroutine separator_init(self, pressure, thermo)
     !! Initialise separator. (Separator assign() method must be called
     !! before use.)
 
     class(separator_type), intent(in out) :: self
-    class(thermodynamics_type), intent(in out) :: thermo
     PetscReal, intent(in) :: pressure !! Separator pressure
+    class(thermodynamics_type), intent(in out) :: thermo !! Water thermodynamics
     ! Locals:
     PetscReal :: saturation_temperature
     PetscReal :: params(2), water_props(2), steam_props(2)
