@@ -202,7 +202,7 @@ contains
   subroutine source_setup(self, source_index, local_source_index, &
        natural_cell_index, local_cell_index, rate, &
        injection_enthalpy, injection_component, production_component, &
-       tracer_injection_rate)
+       tracer_injection_rate, separator_pressure, thermo)
     !! Sets up main parameters of a source object.
 
     class(source_type), intent(in out) :: self
@@ -215,6 +215,8 @@ contains
     PetscInt, intent(in) :: injection_component !! mass (or energy) component for injection
     PetscInt, intent(in) :: production_component !! mass (or energy) component for production
     PetscReal, intent(in) :: tracer_injection_rate(:) !! tracer injection rates
+    PetscReal, intent(in) :: separator_pressure !! Separator pressure (-1 for no separator)
+    class(thermodynamics_type), intent(in out) :: thermo !! Water thermodynamics
 
     self%source_index = source_index
     self%local_source_index = local_source_index
@@ -226,7 +228,10 @@ contains
        self%tracer_injection_rate = tracer_injection_rate
     end if
     self%production_component = production_component
-    self%rate = rate
+    if (separator_pressure > 0._dp) then
+       call self%separator%init(separator_pressure, thermo)
+    end if
+    call self%set_rate(rate)
 
   end subroutine source_setup
 
