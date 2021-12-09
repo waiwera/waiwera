@@ -148,9 +148,7 @@ module source_control_module
    contains
      private
      procedure :: rate_scale => source_control_limiter_rate_scale
-     generic, public :: init => init_source, init_control
-     procedure :: init_source => source_control_limiter_init_source
-     procedure :: init_control => source_control_limiter_init_control
+     procedure, public :: init => source_control_limiter_init
      procedure, public :: destroy => source_control_limiter_destroy
      procedure, public :: update => source_control_limiter_update
      procedure :: get_rate => source_control_limiter_get_rate
@@ -723,27 +721,7 @@ contains
     self%limit = limit
     self%local_source_indices = local_source_indices
 
-  end subroutine source_control_limiter_init_source
-
-!------------------------------------------------------------------------
-
-  subroutine source_control_limiter_init_control(self, &
-       limiter_type, input_source_control, limit, local_source_indices)
-    !! Initialises source_control_limiter object, with input taken
-    !! from another source control.
-
-    class(source_control_limiter_type), intent(in out) :: self
-    PetscInt, intent(in) :: limiter_type
-    class(source_control_type), target, intent(in) :: input_source_control
-    PetscReal, intent(in) :: limit
-    PetscInt, intent(in) :: local_source_indices(:)
-
-    self%type = limiter_type
-    self%input_source_control => input_source_control
-    self%limit = limit
-    self%local_source_indices = local_source_indices
-
-  end subroutine source_control_limiter_init_control
+  end subroutine source_control_limiter_init
 
 !------------------------------------------------------------------------
 
@@ -762,7 +740,7 @@ contains
 
   PetscReal function source_control_limiter_get_rate(self, &
        source_data, source_section, source_range_start, eos) result (rate)
-    !! Gets rate to limit from input source or source control,
+    !! Gets rate to limit from input source or its separator,
     !! depending on limiter type.
 
     use dm_utils_module, only: global_section_offset
@@ -776,25 +754,21 @@ contains
     type(source_type) :: source
     PetscInt :: source_offset
 
+    call source%init(eos)
+    source_offset = global_section_offset(source_section, &
+         self%input_local_source_index, source_range_start)
+    call source%assign(source_data, source_offset)
+
     select case (self%type)
     case (SRC_CONTROL_LIMITER_TYPE_TOTAL)
-       call source%init(eos)
-       source_offset = global_section_offset(source_section, &
-            self%input_local_source_index, source_range_start)
-       call source%assign(source_data, source_offset)
        rate = source%rate
-       call source%destroy()
     case (SRC_CONTROL_LIMITER_TYPE_WATER)
-       select type (separator => self%input_source_control)
-       type is (source_control_separator_type)
-          rate = separator%water_flow_rate
-       end select
+       rate = source%separator%water_rate
     case (SRC_CONTROL_LIMITER_TYPE_STEAM)
-       select type (separator => self%input_source_control)
-       type is (source_control_separator_type)
-          rate = separator%steam_flow_rate
-       end select
+       rate = source%separator%steam_rate
     end select
+
+    call source%destroy()
 
   end function source_control_limiter_get_rate
 
