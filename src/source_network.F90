@@ -22,6 +22,7 @@ module source_network_module
 
   use petsc
   use kinds_module
+  use separator_module
 
   implicit none
   private
@@ -31,6 +32,7 @@ module source_network_module
      private
      PetscReal, pointer, public :: rate !! Flow rate
      PetscReal, pointer, public :: enthalpy !! Enthalpy of fluid
+     type(separator_type), public :: separator !! Separator
    contains
      private
      procedure, public :: destroy => source_network_node_destroy
