@@ -46,6 +46,7 @@ module separator_module
      procedure, public :: init => separator_init
      procedure, public :: assign => separator_assign
      procedure, public :: separate => separator_separate
+     procedure, public :: zero => separator_zero
      procedure, public :: destroy => separator_destroy
      procedure :: get_steam_fraction => separator_get_steam_fraction
      procedure :: get_separated_rates => separator_get_separated_rates
@@ -124,6 +125,21 @@ contains
     call self%get_separated_enthalpies(enthalpy)
     
   end subroutine separator_separate
+
+!------------------------------------------------------------------------
+
+  subroutine separator_zero(self)
+    !! Zeroes output quantities (e.g. when separator is not on).
+
+    class(separator_type), intent(in out) :: self
+
+    self%steam_fraction = 0._dp
+    self%water_rate = 0._dp
+    self%water_enthalpy = 0._dp
+    self%steam_rate = 0._dp
+    self%steam_enthalpy = 0._dp
+
+  end subroutine separator_zero
 
 !------------------------------------------------------------------------
 
