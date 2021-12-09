@@ -609,6 +609,12 @@
                            "averaging": {"type": "string",
                                          "enum": ["endpoint", "Endpoint",
                                                   "integrate", "Integrate"]},
+                           "separator": {"oneOf": [
+                               {"type": "boolean"},
+                               {"type": "object",
+                                "properties": {
+                                    "pressure": {"type": "number", "minimum": 0}
+                                }, "additionalProperties": false}]},
                            "deliverability": {"type": "object",
                                               "properties": {
                                                   "pressure": {
