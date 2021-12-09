@@ -1458,6 +1458,7 @@ contains
     call PetscLogEventBegin(sources_event, ierr); CHKERRQ(ierr)
     call global_vec_section(self%source, source_section)
     call VecGetArrayF90(self%source, source_data, ierr); CHKERRQ(ierr)
+    call update_separators()
     call self%source_controls%traverse(source_control_iterator)
     call apply_sources()
     call VecRestoreArrayF90(self%source, source_data, ierr); CHKERRQ(ierr)
@@ -1474,6 +1475,45 @@ contains
     deallocate(face_flux, face_component_flow)
 
   contains
+
+!........................................................................
+
+    subroutine update_separators()
+      !! Updates enthalpy and separated outputs from separators.
+
+      ! Locals:
+      PetscInt :: i, s, source_offset
+      type(source_type) :: source
+      PetscReal, allocatable :: phase_flow_fractions(:)
+
+      call source%init(self%eos, size(self%tracers))
+
+      do i = 1, size(self%separated_source_indices)
+
+         s = self%separated_source_indices(i)
+         source_offset = global_section_offset(source_section, s, &
+              self%source_range_start)
+         call source%assign(source_data, source_offset)
+
+         if ((source%rate <= 0._dp) .and. (.not. source%heat)) then
+
+            call source%assign_fluid_local(fluid_array, fluid_section)
+            allocate(phase_flow_fractions(source%fluid%num_phases))
+            phase_flow_fractions = source%fluid%phase_flow_fractions()
+            source%enthalpy = source%fluid%specific_enthalpy(phase_flow_fractions)
+            deallocate(phase_flow_fractions)
+
+            call source%separator%separate(source%rate, source%enthalpy)
+
+         else
+            call source%separator%zero()
+         end if
+
+      end do
+
+      call source%destroy()
+
+    end subroutine update_separators
 
 !........................................................................
 
