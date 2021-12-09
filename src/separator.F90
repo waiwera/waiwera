@@ -28,6 +28,8 @@ module separator_module
   implicit none
   private
 
+  PetscReal, parameter, public :: default_separator_pressure = 0.55e6_dp
+
   type, public :: separator_type
      !! Separator in source network.
      private

@@ -31,7 +31,6 @@ module source_control_module
   implicit none
   private
 
-  PetscReal, parameter, public :: default_source_control_separator_pressure = 0.55e6_dp
   PetscInt, parameter, public :: max_limiter_type_length = 5
   character(max_limiter_type_length), parameter, public :: &
        default_source_control_limiter_type_str = "total"
