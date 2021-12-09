@@ -1548,10 +1548,9 @@ contains
     ! Locals:
     type(fson_value), pointer :: limiter_json
     character(8) :: limiter_type_str
-    PetscInt :: limiter_type
     PetscReal :: limit
     PetscInt :: i, s
-    type(source_control_limiter_type), pointer :: limiter
+    class(source_control_limiter_type), pointer :: limiter
 
     if (fson_has_mpi(source_json, "limiter")) then
 
@@ -1562,24 +1561,22 @@ contains
             limiter_type_str, logfile, srcstr)
        limiter_type_str = str_to_lower(limiter_type_str)
 
-       select case (limiter_type_str)
-       case ("total")
-          limiter_type = SRC_CONTROL_LIMITER_TYPE_TOTAL
-       case ("water")
-          limiter_type = SRC_CONTROL_LIMITER_TYPE_WATER
-       case ("steam")
-          limiter_type = SRC_CONTROL_LIMITER_TYPE_STEAM
-       case default
-          limiter_type = SRC_CONTROL_LIMITER_TYPE_TOTAL
-       end select
-
        call fson_get_mpi(limiter_json, "limit", &
             default_source_control_limiter_limit, limit, logfile, srcstr)
 
        do i = 1, size(local_source_indices)
           s = local_source_indices(i)
-          allocate(limiter)
-          call limiter%init(limiter_type, s, limit, [s])
+          select case (limiter_type_str)
+          case ("total")
+             allocate(source_control_total_limiter_type :: limiter)
+          case ("water")
+             allocate(source_control_water_limiter_type :: limiter)
+          case ("steam")
+             allocate(source_control_steam_limiter_type :: limiter)
+          case default
+             allocate(source_control_total_limiter_type :: limiter)
+          end select
+          call limiter%init(s, limit, [s])
           call source_controls%append(limiter)
        end do
 

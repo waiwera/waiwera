@@ -547,13 +547,11 @@ contains
                  "source 12 reference pressure")
          end select
 
-      type is (source_control_limiter_type)
-         select case (source_control%type)
-         case (SRC_CONTROL_LIMITER_TYPE_TOTAL)
-            call test%assert(10._dp, source_control%limit, "total limiter limit")
-         case (SRC_CONTROL_LIMITER_TYPE_STEAM)
-            call test%assert(5._dp, source_control%limit, "steam limiter limit")
-         end select
+      type is (source_control_total_limiter_type)
+         call test%assert(10._dp, source_control%limit, "total limiter limit")
+
+      type is (source_control_steam_limiter_type)
+         call test%assert(5._dp, source_control%limit, "steam limiter limit")
 
       end select
       stopped = PETSC_FALSE

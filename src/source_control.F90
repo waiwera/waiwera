@@ -34,9 +34,7 @@ module source_control_module
   PetscInt, parameter, public :: max_limiter_type_length = 5
   character(max_limiter_type_length), parameter, public :: &
        default_source_control_limiter_type_str = "total"
-  PetscInt, parameter, public :: SRC_CONTROL_LIMITER_TYPE_TOTAL = 1, &
-       SRC_CONTROL_LIMITER_TYPE_WATER = 2, SRC_CONTROL_LIMITER_TYPE_STEAM = 3
-  PetscReal, parameter, public :: default_source_control_limiter_limit = 1._dp
+    PetscReal, parameter, public :: default_source_control_limiter_limit = 1._dp
   PetscReal, parameter, public :: default_deliverability_productivity = 1.e-11_dp
   PetscReal, parameter, public :: default_deliverability_reference_pressure = 1.e5_dp
   PetscReal, parameter, public :: default_recharge_coefficient = 1.e-2_dp
@@ -136,14 +134,12 @@ module source_control_module
      procedure, public :: update => source_control_recharge_update
   end type source_control_recharge_type
 
-  type, public, extends(source_control_type) :: source_control_limiter_type
-     !! Limits total flow, or separated steam or water flow (output
-     !! from a separator) through a source.
+  type, abstract, public, extends(source_control_type) :: source_control_limiter_type
+     !! Limits total flow, or separated steam or water flow (from a
+     !! separator) through a source.
      private
      PetscInt, allocatable, public :: local_source_indices(:) !! Local source indices
      PetscInt, public :: input_local_source_index !! Local index of source to be used as input
-     class(source_control_type), pointer :: input_source_control !! Source control to be used as input
-     PetscInt, public :: type !! Type of limiter (water, steam or total)
      PetscReal, public :: limit !! Flow limit
    contains
      private
@@ -151,8 +147,29 @@ module source_control_module
      procedure, public :: init => source_control_limiter_init
      procedure, public :: destroy => source_control_limiter_destroy
      procedure, public :: update => source_control_limiter_update
-     procedure :: get_rate => source_control_limiter_get_rate
+     procedure(source_control_limiter_get_rate_procedure), public, deferred :: get_rate
   end type source_control_limiter_type
+
+  type, public, extends(source_control_limiter_type) :: source_control_total_limiter_type
+     !! Limiter based on total flow in source.
+   contains
+     private
+     procedure, public :: get_rate => source_control_total_limiter_get_rate
+  end type source_control_total_limiter_type
+
+  type, public, extends(source_control_limiter_type) :: source_control_water_limiter_type
+     !! Limiter based on separated water flow in source.
+   contains
+     private
+     procedure, public :: get_rate => source_control_water_limiter_get_rate
+  end type source_control_water_limiter_type
+
+  type, public, extends(source_control_limiter_type) :: source_control_steam_limiter_type
+     !! Limiter based on separated steam flow in source.
+   contains
+     private
+     procedure, public :: get_rate => source_control_steam_limiter_get_rate
+  end type source_control_steam_limiter_type
 
   type, public, extends(source_control_type) :: source_control_direction_type
      !! Allows source to flow only in a specified direction
@@ -197,6 +214,17 @@ module source_control_module
        class(eos_type), intent(in) :: eos
        PetscInt, intent(in) :: num_tracers
      end subroutine source_control_update_procedure
+
+     PetscReal function source_control_limiter_get_rate_procedure(self, &
+          source_data, source_section, source_range_start, eos)
+       use petscis
+       import :: source_control_limiter_type, eos_type
+       class(source_control_limiter_type), intent(in) :: self
+       PetscReal, pointer, contiguous, intent(in) :: source_data(:)
+       PetscSection, intent(in) :: source_section
+       PetscInt, intent(in) :: source_range_start
+       class(eos_type), intent(in) :: eos
+     end function source_control_limiter_get_rate_procedure
 
   end interface
 
@@ -703,20 +731,18 @@ contains
   end subroutine source_control_recharge_update
 
 !------------------------------------------------------------------------
-! Limiter source control:
+! Limiter source controls:
 !------------------------------------------------------------------------
 
-  subroutine source_control_limiter_init(self, limiter_type, &
-       input_local_source_index, limit, local_source_indices)
+  subroutine source_control_limiter_init(self, input_local_source_index, &
+       limit, local_source_indices)
     !! Initialises source_control_limiter object.
 
     class(source_control_limiter_type), intent(in out) :: self
-    PetscInt, intent(in) :: limiter_type
     PetscInt, intent(in) :: input_local_source_index
     PetscReal, intent(in) :: limit
     PetscInt, intent(in) :: local_source_indices(:)
 
-    self%type = limiter_type
     self%input_local_source_index = input_local_source_index
     self%limit = limit
     self%local_source_indices = local_source_indices
@@ -732,45 +758,8 @@ contains
 
     if (allocated(self%local_source_indices)) &
          deallocate(self%local_source_indices)
-    self%input_source_control => null()
 
   end subroutine source_control_limiter_destroy
-
-!------------------------------------------------------------------------
-
-  PetscReal function source_control_limiter_get_rate(self, &
-       source_data, source_section, source_range_start, eos) result (rate)
-    !! Gets rate to limit from input source or its separator,
-    !! depending on limiter type.
-
-    use dm_utils_module, only: global_section_offset
-
-    class(source_control_limiter_type), intent(in) :: self
-    PetscReal, pointer, contiguous, intent(in) :: source_data(:)
-    PetscSection, intent(in) :: source_section
-    PetscInt, intent(in) :: source_range_start
-    class(eos_type), intent(in) :: eos
-    ! Locals:
-    type(source_type) :: source
-    PetscInt :: source_offset
-
-    call source%init(eos)
-    source_offset = global_section_offset(source_section, &
-         self%input_local_source_index, source_range_start)
-    call source%assign(source_data, source_offset)
-
-    select case (self%type)
-    case (SRC_CONTROL_LIMITER_TYPE_TOTAL)
-       rate = source%rate
-    case (SRC_CONTROL_LIMITER_TYPE_WATER)
-       rate = source%separator%water_rate
-    case (SRC_CONTROL_LIMITER_TYPE_STEAM)
-       rate = source%separator%steam_rate
-    end select
-
-    call source%destroy()
-
-  end function source_control_limiter_get_rate
 
 !------------------------------------------------------------------------
 
@@ -840,6 +829,90 @@ contains
     call source%destroy()
 
   end subroutine source_control_limiter_update
+
+!------------------------------------------------------------------------
+
+  PetscReal function source_control_total_limiter_get_rate(self, &
+       source_data, source_section, source_range_start, eos) result (rate)
+    !! Gets total rate to limit from input source.
+
+    use dm_utils_module, only: global_section_offset
+
+    class(source_control_total_limiter_type), intent(in) :: self
+    PetscReal, pointer, contiguous, intent(in) :: source_data(:)
+    PetscSection, intent(in) :: source_section
+    PetscInt, intent(in) :: source_range_start
+    class(eos_type), intent(in) :: eos
+    ! Locals:
+    type(source_type) :: source
+    PetscInt :: source_offset
+
+    call source%init(eos)
+    source_offset = global_section_offset(source_section, &
+         self%input_local_source_index, source_range_start)
+    call source%assign(source_data, source_offset)
+
+    rate = source%rate
+
+    call source%destroy()
+
+  end function source_control_total_limiter_get_rate
+
+!------------------------------------------------------------------------
+
+  PetscReal function source_control_water_limiter_get_rate(self, &
+       source_data, source_section, source_range_start, eos) result (rate)
+    !! Gets separated water rate to limit from input source.
+
+    use dm_utils_module, only: global_section_offset
+
+    class(source_control_water_limiter_type), intent(in) :: self
+    PetscReal, pointer, contiguous, intent(in) :: source_data(:)
+    PetscSection, intent(in) :: source_section
+    PetscInt, intent(in) :: source_range_start
+    class(eos_type), intent(in) :: eos
+    ! Locals:
+    type(source_type) :: source
+    PetscInt :: source_offset
+
+    call source%init(eos)
+    source_offset = global_section_offset(source_section, &
+         self%input_local_source_index, source_range_start)
+    call source%assign(source_data, source_offset)
+
+    rate = source%separator%water_rate
+
+    call source%destroy()
+
+  end function source_control_water_limiter_get_rate
+
+!------------------------------------------------------------------------
+
+  PetscReal function source_control_steam_limiter_get_rate(self, &
+       source_data, source_section, source_range_start, eos) result (rate)
+    !! Gets separated steam rate to limit from input source.
+
+    use dm_utils_module, only: global_section_offset
+
+    class(source_control_steam_limiter_type), intent(in) :: self
+    PetscReal, pointer, contiguous, intent(in) :: source_data(:)
+    PetscSection, intent(in) :: source_section
+    PetscInt, intent(in) :: source_range_start
+    class(eos_type), intent(in) :: eos
+    ! Locals:
+    type(source_type) :: source
+    PetscInt :: source_offset
+
+    call source%init(eos)
+    source_offset = global_section_offset(source_section, &
+         self%input_local_source_index, source_range_start)
+    call source%assign(source_data, source_offset)
+
+    rate = source%separator%steam_rate
+
+    call source%destroy()
+
+  end function source_control_steam_limiter_get_rate
 
 !------------------------------------------------------------------------
 ! Direction source control:
